@@ -248,6 +248,12 @@ impl Words {
                 JigPhrase::SettingApplication,
                 &[Hole::Number(u64::from(kind)), Hole::Number(u64::from(scope)), Hole::Number(u64::from(number))],
             ),
+            Setting::Model(n) => {
+                let mut text = skein_lib::Writer::new(32);
+                text.put(b"Model ").expect("model label room");
+                text.put(skein_lib::Decimal::of(u64::from(n.number)).as_bytes()).expect("model number room");
+                b.text(skein_ui::Run::Plain, &text.finish());
+            }
             Setting::Rules => self.text(b, JigPhrase::SettingRules, &[]),
         }
     }

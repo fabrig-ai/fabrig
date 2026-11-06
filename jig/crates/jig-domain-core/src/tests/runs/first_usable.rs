@@ -36,6 +36,12 @@ fn fixture_with_models(named: bool, allowed: tasks::Models, resolve: bool) -> (C
         .map(|(at, name)| {
             let mut model = scripted_model();
             model.name = (*name).into();
+            model.provider = match at {
+                0 | 1 => OPENAI,
+                2 => CLAUDE,
+                3 => THIRD,
+                _ => unreachable!("fixture models"),
+            };
             if at == 2 {
                 model.program = Some(b"claude_code".as_slice().into());
                 model.endpoint = PROGRAM_ENDPOINT;
@@ -52,7 +58,6 @@ fn fixture_with_models(named: bool, allowed: tasks::Models, resolve: bool) -> (C
             .map(|(number, names)| accounts::Provider {
                 number,
                 name: names[0].into(),
-                models: names.iter().map(|name| (*name).into()).collect(),
                 signed_in_plan: false,
                 manage_usage: None,
                 offers: accounts::Offers {

@@ -32,7 +32,6 @@ fn config() -> engine::Config {
                 name: b"Fake Claude".as_slice().into(),
                 signed_in_plan: true,
                 manage_usage: None,
-                models: Box::new([]),
                 offers: accounts::Offers {
                     sign_in: false,
                     key: false,
@@ -44,7 +43,6 @@ fn config() -> engine::Config {
                 name: b"Fake ChatGPT".as_slice().into(),
                 signed_in_plan: true,
                 manage_usage: None,
-                models: Box::new([]),
                 offers: accounts::Offers { sign_in: true, key: false, programs: Box::new([]) },
             },
         ]),

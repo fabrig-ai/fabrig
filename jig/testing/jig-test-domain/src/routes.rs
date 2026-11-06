@@ -322,7 +322,8 @@ fn route_ask(
         core::Ask::UnsubscriptionDone { request, key } => {
             crate::topics::unsubscribed(domain, number, request, key, work);
         }
-        core::Ask::DropSubscription { .. }
+        core::Ask::Catalogue { .. }
+        | core::Ask::DropSubscription { .. }
         | core::Ask::ForgetProjection { .. }
         | core::Ask::Hold { .. }
         | core::Ask::RepairRefused { .. }

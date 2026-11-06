@@ -23,6 +23,7 @@ pub struct Document {
 /// (protocol/configuration.md, 3; domain/engine.md, 17.9).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Charter {
+    pub rest: bool,
     pub number: u32,
     pub policy: RunPolicy,
     pub hosts: fleet::Kinds,

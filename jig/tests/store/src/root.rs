@@ -231,7 +231,7 @@ pub fn limits() -> Limits {
     let mut map = skein_kv::Limits {
         key: 1024,
         // Admit the record bounds before tightening to check_commits' sizes (protocol/store.md, 5.4).
-        value: 1_048_576,
+        value: 2_097_152,
         // Two places per journal write, three creation rows and one orphan erase.
         ops: 4004,
         commit: 1_073_741_824,
@@ -240,8 +240,8 @@ pub fn limits() -> Limits {
         budget: 65_536,
         segment: 1_073_741_824,
         snapshot_after: 1_073_741_824,
-        chunk: 1_049_620,
-        page: skein_kv::Page { rows: 2, bytes: 1_049_600 },
+        chunk: 2_098_196,
+        page: skein_kv::Page { rows: 2, bytes: 2_098_176 },
         deadline: Duration::from_secs(1),
     };
     let sizes =

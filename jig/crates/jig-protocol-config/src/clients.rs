@@ -198,9 +198,9 @@ pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
     if core.settings.proposals > wire.settings_document_pending {
         problems.push(path.member(b"core.settings.proposals"), crate::What::Bound);
     }
-    // Defaults and changes may name disjoint settings; both belong to the inventory.
+    // Defaults and changes may name disjoint settings; model numbers share one 64-row range.
     let inventory = match jig_domain_core::settings::capacity(core) {
-        Some(count) => double_settings(count),
+        Some(count) => inventory_settings(count),
         None => None,
     };
     if match inventory {
@@ -238,8 +238,8 @@ pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
         }
     }
 }
-fn double_settings(count: u32) -> Option<u32> {
-    count.checked_mul(2)
+fn inventory_settings(count: u32) -> Option<u32> {
+    count.checked_mul(2)?.checked_sub(jig_domain_tasks::MODELS)
 }
 
 #[cfg(test)]
@@ -331,7 +331,7 @@ mod settings_tests {
     }
     #[test]
     fn charter_alternatives_fit_the_wire() {
-        ceiling(b"core.settings.alternatives", 16);
+        ceiling(b"core.settings.alternatives", 63);
     }
     #[test]
     fn charter_instructions_fit_the_wire() {
@@ -356,12 +356,12 @@ mod settings_tests {
     #[test]
     fn inventory_counts_both_defaults_and_changes() {
         let mut limits = crate::profile(crate::Profile::Small);
-        // Small has eight templates, two policies and rules: eleven other slots.
-        limits.core.tasks.charters = 117;
+        // Small has eleven other slots in each set and one shared 64-row model range.
+        limits.core.tasks.charters = 85;
         let mut problems = Problems::empty();
         check_settings(&limits, &mut problems);
         assert!(problems.is_empty());
-        limits.core.tasks.charters = 118;
+        limits.core.tasks.charters = 86;
         check_settings(&limits, &mut problems);
         assert_eq!(problems.problems.len(), 3);
     }

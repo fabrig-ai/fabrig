@@ -22,11 +22,11 @@ fn fixture_with_project(project: bool) -> (Core, Env<Limits>) {
     configuration.defaults.rules.period_spend = PERIOD_SPEND;
     let mut alternative = scripted_model();
     alternative.name = b"second".as_slice().into();
+    alternative.provider = 2;
     configuration.settings.models = Box::new([scripted_model(), alternative.clone()]);
     configuration.defaults.charters[0].policy.alternatives = Box::new([alternative]);
     let mut provider = configuration.settings.llm_providers.providers[0].clone();
     provider.number = 2;
-    provider.models = Box::new([b"second".as_slice().into()]);
     configuration.settings.llm_providers.providers =
         Box::new([configuration.settings.llm_providers.providers[0].clone(), provider]);
     if !project {

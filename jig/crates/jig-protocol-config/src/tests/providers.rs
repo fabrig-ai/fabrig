@@ -64,7 +64,6 @@ fn providers_reach_the_accounts_settings() {
                 signed_in_plan: true,
                 manage_usage: Some(b"https://usage.example/".as_slice().into()),
                 number: 1,
-                models: Box::new([Box::from(&b"small"[..])]),
                 offers: accounts::Offers {
                     sign_in: true,
                     key: true,

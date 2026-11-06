@@ -49,6 +49,7 @@ fn assignment() -> engine::Assignment {
                 reserve_turns: 1,
                 reserve_time: Duration::from_secs(10),
                 model: engine::Model {
+                    provider: 1,
                     program: None,
                     dialect: 1,
                     endpoint: 1,

@@ -262,7 +262,7 @@ const USAGES: &[&[u8]] = &[
     b"account export ACCOUNT FILE\n",
     b"account import FILE --key KEY\n",
     b"settings show\n",
-    b"settings show charter|template|policy NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\nsettings show project-ways|project-questions PROJECT [--revision REVISION]\n",
+    b"settings show charter|template|policy|model NUMBER [--revision REVISION]\nsettings show rules\nsettings show landing-rule NUMBER [--project PROJECT] [--revision REVISION]\nsettings show forge-charter NUMBER [--revision REVISION]\nsettings show project-ways|project-questions PROJECT [--revision REVISION]\n",
     b"revision show REVISION\n",
     b"revision list [--before REVISION]\n",
     b"settings apply FILE --against REVISION [--running stays|moves] --key KEY\n",

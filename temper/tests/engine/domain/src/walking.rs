@@ -323,12 +323,14 @@ pub fn config(seed: u64) -> engine::Config {
             grants: Box::new([]),
             kinds: Box::default(),
             defaults: jig_domain_core::settings::Defaults {
+                models: Box::default(),
                 rules,
                 charters: Box::new([charter()]),
                 templates: crate::fixtures::templates(),
                 policies: skein_lib::Map::with_capacity(authority_limits().projects),
             },
             settings: jig_domain_core::Settings {
+                endpoints: Box::default(),
                 key_bytes: 256,
                 redirect_bytes: 256,
                 deployment_provider: 1,
@@ -342,7 +344,6 @@ pub fn config(seed: u64) -> engine::Config {
                         name: Box::from(b"Scripted".as_slice()),
                         signed_in_plan: false,
                         manage_usage: None,
-                        models: Box::new([charter().policy.model.name]),
                         offers: accounts::Offers { sign_in: true, key: true, programs: Box::new([]) },
                     }]),
                 },
@@ -420,6 +421,7 @@ pub fn models() -> Box<[engine::Model]> {
 #[must_use]
 pub fn charter() -> engine::Charter {
     engine::Charter {
+        rest: false,
         wake: jig_domain_tasks::WakePolicy::DEFAULT,
         documents: Box::new([]),
         number: 1,
@@ -432,6 +434,7 @@ pub fn charter() -> engine::Charter {
             reserve_turns: 1,
             reserve_time: Duration::from_secs(10),
             model: engine::Model {
+                provider: 1,
                 program: None,
                 dialect: 1,
                 endpoint: 1,

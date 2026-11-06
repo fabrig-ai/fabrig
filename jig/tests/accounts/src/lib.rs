@@ -123,7 +123,6 @@ pub fn provider(number: u32, sign_in: bool, key: bool) -> Provider {
         signed_in_plan: true,
         manage_usage: Some(b"https://usage.example/".as_slice().into()),
         number,
-        models: Box::new([Box::from(&b"model"[..])]),
         offers: Offers { sign_in, key, programs: Box::new([]) },
     }
 }

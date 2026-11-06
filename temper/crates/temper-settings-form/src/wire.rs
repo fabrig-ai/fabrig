@@ -79,6 +79,7 @@ pub(crate) fn settings_restore_setting(value: &w::Setting, limits: &Limits) -> c
         w::Setting::Policy(item) => c::Setting::Policy(settings_restore_setting_number(item, limits)),
         w::Setting::Application(v) => c::Setting::Application { kind: v.kind(), scope: v.scope(), number: v.number() },
         w::Setting::Rules => c::Setting::Rules,
+        w::Setting::Model(item) => c::Setting::Model(settings_restore_setting_number(item, limits)),
     }
 }
 
@@ -205,6 +206,7 @@ pub(crate) fn settings_restore_setting_value(
             c::SettingValue::Policy(Box::new(settings_restore_setting_policy(item, limits)?))
         }
         w::SettingValue::Application(v) => c::SettingValue::Application(bytes::copy_of(v.bytes())),
+        w::SettingValue::Model(item) => c::SettingValue::Model(Box::new(restore_catalogue(item, limits)?)),
         w::SettingValue::Rules(item) => c::SettingValue::Rules(Box::new(settings_restore_rules(item, limits)?)),
     })
 }
@@ -719,6 +721,7 @@ pub(crate) fn settings_restore_charter(value: &w::Charter, limits: &Limits) -> R
             .expect("same capacity");
     }
     Ok(c::Charter {
+        rest: value.rest(),
         documents,
         switches: [value.resume(), value.inspect(), value.modify(), value.shell(), value.agents()],
         number: value.number(),
@@ -755,6 +758,7 @@ pub(crate) fn settings_restore_setting_model(
         efforts.push(settings_text(item, 32)?).expect("same capacity");
     }
     Ok(c::SettingModel {
+        provider: value.provider(),
         dialect: value.dialect(),
         endpoint: value.endpoint(),
         program: match value.program() {
@@ -959,6 +963,7 @@ pub(crate) fn settings_wire_setting_value(
             limits,
             w::ApplicationValueParts { bytes: v.clone() },
         )?),
+        c::SettingValue::Model(item) => w::SettingValue::Model(Box::new(wire_catalogue(item, limits)?)),
         c::SettingValue::Rules(item) => w::SettingValue::Rules(Box::new(settings_wire_rules(item, limits)?)),
     })
 }
@@ -1508,7 +1513,7 @@ pub(crate) fn settings_wire_charter(value: &c::Charter, limits: &w::Limits) -> R
         limits,
         w::CharterParts {
             documents,
-            skein_bools: [value.resume(), value.inspect(), value.modify(), value.shell(), value.agents()],
+            skein_bools: [value.rest, value.resume(), value.inspect(), value.modify(), value.shell(), value.agents()],
             number: value.number,
             instructions: bytes::copy_of(value.instructions.bytes()),
             waiting: value.waiting,
@@ -1546,6 +1551,7 @@ pub(crate) fn settings_wire_setting_model(
     w::SettingModel::new(
         limits,
         w::SettingModelParts {
+            provider: value.provider,
             dialect: value.dialect,
             endpoint: value.endpoint,
             program: optional_text(value.program.as_ref()),
@@ -1573,6 +1579,7 @@ pub(crate) fn settings_wire_setting(value: c::Setting, limits: &w::Limits) -> Re
             w::ApplicationSettingParts { kind, scope, number },
         )?),
         c::Setting::Rules => w::Setting::Rules,
+        c::Setting::Model(item) => w::Setting::Model(settings_wire_setting_number(item, limits)?),
         c::Setting::ProjectPolicy { project } => {
             w::Setting::ProjectPolicy(w::ProjectPolicySetting::new(limits, w::ProjectPolicySettingParts { project })?)
         }
@@ -1687,4 +1694,51 @@ fn restore_application_state(v: &w::ApplicationState) -> c::ApplicationState {
         size: v.size(),
         charters: v.charters().clone(),
     }
+}
+fn wire_catalogue(value: &c::CatalogueEntry, limits: &w::Limits) -> Result<w::CatalogueEntry, w::Problem> {
+    w::CatalogueEntry::new(
+        limits,
+        w::CatalogueEntryParts {
+            number: value.number,
+            model: settings_wire_setting_model(&value.model, limits)?,
+            shown: match &value.shown {
+                Some(value) => Some(bytes::copy_of(value.bytes())),
+                None => None,
+            },
+            description: match &value.description {
+                Some(value) => Some(bytes::copy_of(value.bytes())),
+                None => None,
+            },
+            picker: value.picker,
+            withdrawn: value.withdrawn,
+            estimated: value.estimated,
+            source: match value.source {
+                c::ModelSource::Stock => w::ModelSource::Stock,
+                c::ModelSource::List => w::ModelSource::List,
+                c::ModelSource::Person => w::ModelSource::Person,
+            },
+        },
+    )
+}
+fn restore_catalogue(value: &w::CatalogueEntry, limits: &Limits) -> Result<c::CatalogueEntry, w::Problem> {
+    Ok(c::CatalogueEntry {
+        number: value.number(),
+        model: settings_restore_setting_model(value.model(), limits)?,
+        shown: match value.shown() {
+            Some(value) => Some(settings_text(value, 4096)?),
+            None => None,
+        },
+        description: match value.description() {
+            Some(value) => Some(settings_text(value, 512)?),
+            None => None,
+        },
+        picker: value.picker(),
+        withdrawn: value.withdrawn(),
+        estimated: value.estimated(),
+        source: match value.source() {
+            w::ModelSource::Stock => c::ModelSource::Stock,
+            w::ModelSource::List => c::ModelSource::List,
+            w::ModelSource::Person => c::ModelSource::Person,
+        },
+    })
 }

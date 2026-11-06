@@ -197,6 +197,7 @@ pub enum PersonAction {
 /// The tasks child retains only settings item heads (engine.md, 17.6).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Setting {
+    Model(u32),
     Charter(u32),
     Template(u32),
     Policy(u32),

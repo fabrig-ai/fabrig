@@ -41,7 +41,7 @@ fn transcript_document(bytes: u32) -> Box<[u8]> {
 
 #[test]
 fn startup_admits_a_frame_exactly_at_the_profile_page_ceiling() {
-    let document = transcript_document(2_168_915);
+    let document = transcript_document(3_421_267);
     crate::startup(
         &document,
         &config::Directories::working(),
@@ -55,13 +55,13 @@ fn startup_admits_a_frame_exactly_at_the_profile_page_ceiling() {
     .expect("a whole frame exactly at Small's page ceiling starts");
     let opened =
         crate::store_limits(&document, &config::Directories::working(), Some(&fixtures::startup_agent())).unwrap();
-    assert_eq!(opened.store.store.page.bytes, 2_168_979);
+    assert_eq!(opened.store.store.page.bytes, 3_421_331);
 }
 
 #[test]
 fn startup_names_a_frame_one_byte_past_the_profile_page_ceiling() {
-    let document = transcript_document(2_168_916);
-    let expected = b"application.limits.overrides.root.loads.transcript_bytes: its turn's transcript frame, 2168980 bytes, needs a store page past the profile's ceiling of 2168979 bytes\n";
+    let document = transcript_document(3_421_268);
+    let expected = b"application.limits.overrides.root.loads.transcript_bytes: its turn's transcript frame, 3421332 bytes, needs a store page past the profile's ceiling of 3421331 bytes\n";
     let named = crate::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(lines(&named).as_ref(), expected);
     let opened =
@@ -98,7 +98,7 @@ fn startup_names_map_sizing_without_inventing_a_records_bound() {
 #[test]
 fn record_sizing_leaves_driver_admission_until_after_agent_checks() {
     let mut engine = fixtures::engine();
-    engine.limits.root.loads.transcript_bytes = 1_000_000;
+    engine.limits.root.loads.transcript_bytes = 3_000_000;
     engine.limits.root.loads.read_bytes = 1_000_000;
     let root = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
     let refused = crate::store::admit(&root, &root.forge, &engine.jig.limits.store, None).unwrap_err();
@@ -114,7 +114,7 @@ fn record_sizing_leaves_driver_admission_until_after_agent_checks() {
 
 #[test]
 fn a_read_bound_set_to_the_refusals_number_starts() {
-    const TRANSCRIPT: u32 = 1_000_000;
+    const TRANSCRIPT: u32 = 3_000_000;
     // With a smaller agent turn the page drives the requirement; with a turn
     // as large as the transcript the decoded row drives it instead.
     for turn in [fixtures::startup_agent().limits.bodies.turn_body, TRANSCRIPT] {

@@ -195,7 +195,7 @@ pub(super) const CORE: core::Limits = core::Limits {
         versions: 8,
         history: 64,
         proposals: 4,
-        alternatives: 16,
+        alternatives: 63,
         permissions: 32,
     },
     templates: 8,
@@ -395,8 +395,8 @@ pub(super) const DRIVER: skein_oauth_accounts::Limits = skein_oauth_accounts::Li
 // Started-from dependencies cost a four-byte count plus 8 eight-byte numbers = 68 bytes.
 pub(super) const STORE_KV: skein_kv::Limits = skein_kv::Limits {
     key: 2079,
-    // Settings history with twelve configured charters and RunPolicy.tools needs 2,166,900 bytes.
-    value: 2_166_900,
+    // Settings history reserves 1,252,352 bytes for model values and their revision carriers.
+    value: 3_419_252,
     // Two operations per journal write, three creation rows and an orphan erase: 2 * 20,801 + 4.
     ops: 41_606,
     // 256 MiB values + 41,606 operations * (2,079 key + 9 framing) + 26 frame bytes.
@@ -407,9 +407,9 @@ pub(super) const STORE_KV: skein_kv::Limits = skein_kv::Limits {
     budget: 268_435_456,
     segment: 710_617_620,
     snapshot_after: 355_308_810,
-    chunk: 2_168_999,
+    chunk: 3_421_351,
     // The revision envelope, including what its items replaced, fits with its key.
-    page: skein_kv::Page { rows: 2, bytes: 2_168_979 },
+    page: skein_kv::Page { rows: 2, bytes: 3_421_331 },
     deadline: Duration::from_secs(30),
 };
 pub(super) const STORE: jig_protocol_store::Limits = jig_protocol_store::Limits {

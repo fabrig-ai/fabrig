@@ -208,7 +208,10 @@ pub(crate) fn settings_effort(items: &[c::SettingItem], me: &c::Me) -> Option<Bo
                     }
                 }
             }
-            c::SettingValue::Policy(_) | c::SettingValue::Rules(_) | c::SettingValue::Application(_) => {}
+            c::SettingValue::Policy(_)
+            | c::SettingValue::Rules(_)
+            | c::SettingValue::Model(_)
+            | c::SettingValue::Application(_) => {}
         }
     }
     None

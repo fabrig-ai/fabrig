@@ -29,7 +29,6 @@ fn settings() -> ([engine::Config; 2], engine::Limits) {
         model.effort = Some(EFFORT.into());
         configuration.core.defaults.charters[0].policy.model = model.clone();
         configuration.core.settings.models = Box::new([model]);
-        configuration.core.settings.llm_providers.providers[0].models = Box::new([MODEL.into()]);
     }
     (configurations, bounds)
 }

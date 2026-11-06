@@ -202,6 +202,7 @@ fn fold(core: &mut Core, limits: &Limits, setting: s::Setting, edit: s::RestoreE
             }
         }
         let bound = match setting {
+            s::Setting::Model(_) => jig_domain_tasks::MODELS,
             s::Setting::Charter(_) => limits.tasks.charters,
             s::Setting::Template(_) => limits.templates,
             s::Setting::Policy(_) => limits.authority.projects,
@@ -239,12 +240,14 @@ fn application_kind(setting: s::Setting) -> Option<u32> {
         s::Setting::Charter(_)
         | s::Setting::Template(_)
         | s::Setting::Policy(_)
+        | s::Setting::Model(_)
         | s::Setting::Rules
         | s::Setting::ProjectPolicy { .. } => None,
     }
 }
 fn group_name(setting: s::Setting) -> s::Setting {
     match setting {
+        s::Setting::Model(_) => s::Setting::Model(0),
         s::Setting::Charter(_) => s::Setting::Charter(0),
         s::Setting::Template(_) => s::Setting::Template(0),
         s::Setting::Policy(_) => s::Setting::Policy(0),
@@ -258,7 +261,11 @@ fn deleted(core: &Core, setting: s::Setting) -> bool {
     let project = match setting {
         s::Setting::ProjectPolicy { project } => project,
         s::Setting::Application { scope, .. } => scope,
-        s::Setting::Charter(_) | s::Setting::Template(_) | s::Setting::Policy(_) | s::Setting::Rules => return false,
+        s::Setting::Charter(_)
+        | s::Setting::Template(_)
+        | s::Setting::Policy(_)
+        | s::Setting::Model(_)
+        | s::Setting::Rules => return false,
     };
     project != people::DEPLOYMENT && !core.open_project(project)
 }

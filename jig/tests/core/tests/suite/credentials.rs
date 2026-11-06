@@ -117,13 +117,16 @@ fn an_adopted_run_is_sent_its_credential_again() {
 /// configured one.
 fn signing_configuration(seed: u64) -> (root::Config, root::Limits) {
     let (mut config, mut limits) = jig_core_world::world::fixture(seed, false);
+    config.core.settings.models[0].provider = PROVIDER;
+    for charter in &mut config.core.defaults.charters {
+        charter.policy.model.provider = PROVIDER;
+    }
     config.core.settings.llm_providers = accounts::Providers {
         providers: Box::new([accounts::Provider {
             name: b"Fake".as_slice().into(),
             signed_in_plan: true,
             manage_usage: Some(b"https://usage.example/".as_slice().into()),
             number: PROVIDER,
-            models: Box::new([b"scripted".as_slice().into()]),
             offers: accounts::Offers { sign_in: true, key: true, programs: Box::new([]) },
         }]),
     };
