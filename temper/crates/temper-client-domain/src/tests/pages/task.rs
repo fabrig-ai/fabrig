@@ -615,7 +615,12 @@ fn newer_cursor() -> c::Cursor {
 fn latest_on_an_agents_page_reads_newer() {
     let (mut pages, client) = task_pages(agent_document());
     let page = pages.task_mut().unwrap();
-    page.thread.reading = None;
+    page.thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
+    let jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(rows))) = activity_page(f::POSITION)
+    else {
+        panic!("activity fixture")
+    };
+    let _read = page.thread.page(*rows);
     page.thread.lines.edges.before = jig_client::thread::window::Edge::More(newer_cursor());
     let handle = page.activity;
     let mut out = page_act(&mut pages, &client, Act::Latest);
@@ -623,7 +628,7 @@ fn latest_on_an_agents_page_reads_newer() {
         out.pop(),
         Some(Request::Client(Event::Read {
             handle,
-            read: Readable::Jig(c::Read::Activity { task: f::TASK, before: Some(newer_cursor()) }),
+            read: Readable::Jig(c::Read::ActivityBeside { task: f::TASK, position: f::POSITION, side: c::Side::Later }),
         }))
     );
     assert!(out.is_empty());
@@ -641,10 +646,10 @@ fn latest_on_an_agents_page_reads_newer() {
         out.pop(),
         Some(Request::Client(Event::Read {
             handle,
-            read: Readable::Jig(c::Read::Activity { task: f::TASK, before: Some(newer_cursor()) }),
+            read: Readable::Jig(c::Read::ActivityBeside { task: f::TASK, position: f::POSITION, side: c::Side::Later }),
         }))
     );
-    assert!(out.is_empty(), "the newer cursor is retried through asking");
+    assert!(out.is_empty(), "the newer read is retried through asking");
 }
 #[test]
 fn latest_with_nothing_newer_asks_nothing() {
@@ -1557,4 +1562,60 @@ fn an_agents_task_busy_activity_read_is_asked_again() {
     let [jig_client::thread::Line::Turn { turn, .. }] = lines.as_slice() else { panic!("committed reply") };
     assert_eq!(turn.messages.get(0).unwrap().blocks, blocks);
     assert_eq!(page.next_deadline(), None);
+}
+
+#[test]
+fn newer_reads_only_on_an_agents_page() {
+    use jig_client::thread::{Reading, window::Edge};
+    for (shape, expected) in
+        [(Shape::Agent, true), (Shape::Tracked, false), (Shape::HeaderAndPlan, false), (Shape::Unknown, false)]
+    {
+        let (mut page, mut fixture) = opened();
+        page.shape = shape;
+        page.thread.reading = Some(Reading::Latest { known: 0 });
+        let jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(rows))) = activity_page(f::POSITION)
+        else {
+            panic!("activity fixture")
+        };
+        let _read = page.thread.page(*rows);
+        page.thread.lines.edges.before = Edge::Dropped;
+        while fixture.out.pop().is_some() {}
+        page.act(&fixtures::env(&fixtures::limits()), &fixture.client, Act::Newer, &mut 0, &mut fixture.out);
+        let read = Request::Client(Event::Read {
+            handle: page.activity,
+            read: Readable::Jig(c::Read::ActivityBeside { task: f::TASK, position: f::POSITION, side: c::Side::Later }),
+        });
+        assert_eq!(fixture.out.pop(), expected.then_some(read), "{shape:?}");
+        assert!(fixture.out.is_empty());
+    }
+}
+#[test]
+fn an_empty_agents_page_with_more_reads_on() {
+    let mut fixture = f::opened();
+    let mut page = Task::new(f::TASK, FIRST, &fixtures::limits(), &mut Queue::with_capacity(OUTPUTS));
+    page.shape = Shape::Agent;
+    let cursor = c::Cursor::new(Box::from(*b"older"), 5).unwrap();
+    while fixture.out.pop().is_some() {}
+    page.told(
+        Time::ZERO,
+        &fixture.client,
+        Told::Page {
+            handle: page.activity,
+            page: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
+                rows: List::with_capacity(0),
+                before: Some(cursor.clone()),
+                after: None,
+                cut: false,
+            })))),
+        },
+        &mut fixture.out,
+    );
+    assert_eq!(
+        fixture.out.pop(),
+        Some(Request::Client(Event::Read {
+            handle: page.activity,
+            read: Readable::Jig(c::Read::Activity { task: f::TASK, before: Some(cursor) }),
+        }))
+    );
+    assert!(fixture.out.is_empty());
 }

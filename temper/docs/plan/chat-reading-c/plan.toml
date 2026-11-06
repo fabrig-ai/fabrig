@@ -1,0 +1,124 @@
+draft = "chat-reading-c"
+repo = "fabrig"
+sources = ["temper/docs/plan/chat-reading-c/inputs/request.md", "temper/docs/design/draft/chat-reading.md", "AGENTS.md", "DESIGN.md"]
+
+# A log's act and the read beside a line go out at once; see plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "log-acts"
+title = "A log may be bound, and says as an act that an edge of it is near"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui.md, 6"
+
+[[part]]
+id = "activity-beside"
+title = "A task's activity can be read beside one of its lines"
+mode = "direct"
+needs = []
+design = "jig/docs/design/client/domain/contract.md, 6"
+
+[[slice]]
+id = 1
+story = "a log's edge near reaches its owner as an act, and a client reads the page next to a line by its position"
+parts = ["log-acts", "activity-beside"]
+walk = false
+
+[[part]]
+id = "activity-later"
+title = "The store walks a task's activity upward from a position"
+mode = "direct"
+needs = ["activity-beside"]
+design = "jig/docs/design/protocol/store.md, 7.4"
+
+[[part]]
+id = "thread"
+title = "A thread's window is bounded by size, and the lines it lets go come back"
+mode = "direct"
+needs = ["activity-beside"]
+design = "jig/docs/design/client/domain/client.md, 10"
+
+[[part]]
+id = "page-part"
+title = "The page part measures a log, holds the view, and takes PgUp and PgDn"
+mode = "direct"
+needs = ["log-acts"]
+design = "skein/docs/design/ui-web.md, 7"
+
+[[part]]
+id = "text-shell"
+title = "In the terminal, a log's edges are lines a person types"
+mode = "direct"
+needs = ["log-acts"]
+design = "skein/docs/design/ui-text.md, 6"
+
+[[slice]]
+id = 2
+story = "a window bounded by size lets lines go and reads them back at either end through the real store, and a browser and a terminal each say when a log's edge is near"
+parts = ["activity-later", "thread", "page-part", "text-shell"]
+walk = false
+
+[[part]]
+id = "page-busy"
+title = "A log no longer busy says again that its edge is near"
+mode = "direct"
+needs = ["page-part"]
+design = "skein/docs/design/ui-web.md, 7"
+
+[[part]]
+id = "view-bounds"
+title = "The page's bounds are priced from the window's bytes"
+mode = "direct"
+needs = ["thread"]
+design = "temper/docs/design/client/README.md, 5.15"
+
+[[part]]
+id = "domain"
+title = "A chat's page reads both ways, and a person sent to the end gets there"
+mode = "direct"
+needs = ["thread"]
+design = "temper/docs/design/client/README.md, 5.15"
+
+[[part]]
+id = "page"
+title = "The conversation's log reads by itself, and Older goes"
+mode = "direct"
+needs = ["domain", "view-bounds", "text-shell", "log-acts"]
+design = "temper/docs/design/client/README.md, 5.15"
+
+[[slice]]
+id = 3
+story = "a chat's log reads earlier and later lines by itself, with no Older, in temper's domain and view"
+parts = ["page-busy", "view-bounds", "domain", "page"]
+walk = false
+
+[[part]]
+id = "worlds"
+title = "The user's journey runs through the real engine and store"
+mode = "direct"
+needs = ["page", "activity-later"]
+design = "temper/docs/design/client/README.md, 5.15"
+
+[[part]]
+id = "browser"
+title = "A long chat is read by scrolling in a real browser"
+mode = "direct"
+needs = ["page", "page-part", "page-busy", "activity-later"]
+design = "skein/docs/design/ui-web.md, 7"
+
+[[part]]
+id = "close"
+title = "Design agrees with what's built, and the journeys that moved are named"
+mode = "direct"
+needs = ["worlds", "browser"]
+design = "temper/docs/design/client/README.md, 5.15"
+
+[[slice]]
+id = 4
+story = "after enough reading back the end of a long chat comes back, in a client world and a real browser, and the design says so"
+parts = ["worlds", "browser", "close"]
+walk = false

@@ -8,6 +8,8 @@ pub enum Edge {
     End,
     /// More rows can be read from this cursor.
     More(Cursor),
+    /// Lines let go here are read again beside the nearest held line.
+    Dropped,
 }
 /// What can be read at both ends of a window.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -25,7 +27,7 @@ impl Edges {
         };
         match edge {
             Edge::End => true,
-            Edge::More(_) => false,
+            Edge::More(_) | Edge::Dropped => false,
         }
     }
 }

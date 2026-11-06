@@ -11,6 +11,9 @@ impl Side {
     pub(super) fn check_template(&mut self, oid: &Oid, template: &Template) {
         for index in 0..self.entries.len() {
             let entry = self.entries.get(index).expect("listing cursor");
+            if &entry.oid != oid {
+                continue;
+            }
             let (task, path) = match revision::class(&entry.path) {
                 revision::Class::Tree { task, path }
                 | revision::Class::Template { task, path }
@@ -23,7 +26,7 @@ impl Side {
                 | revision::Class::Refused { .. }
                 | revision::Class::Other => continue,
             };
-            if &entry.oid != oid || !path.ends_with(b".j2") || !self.needs(task) {
+            if !path.ends_with(b".j2") || !self.needs(task) {
                 continue;
             }
             let Some((_, Some(declaration))) = self.documents.declaration(task) else { continue };

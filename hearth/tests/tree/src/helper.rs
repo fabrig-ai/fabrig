@@ -345,10 +345,10 @@ impl<'a> Helper<'a> {
     }
     fn page(&mut self, max: u32) -> Event {
         let (path, given) = &mut self.open;
-        let Some(names) = self.fs.list(path) else { return not_found() };
+        let Some(names) = self.fs.names(path) else { return not_found() };
         let max = usize::try_from(max).expect("a page");
         let end = (*given + max).min(names.len());
-        let page: Box<[Box<[u8]>]> = names[*given..end].iter().map(|name| name.as_slice().into()).collect();
+        let page: Box<[Box<[u8]>]> = names[*given..end].iter().map(|(name, _)| name.as_slice().into()).collect();
         *given = end;
         Event::Names { names: page, last: end == names.len() }
     }
