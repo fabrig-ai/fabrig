@@ -24,7 +24,7 @@ Acceptance:
 - A given secret of any other length: `Component::new` answers `Err(Unusable::LinkSecret)`.
 - Given where `settings.link` is `None`: no link is live and nothing is said.
 - With none given, every existing test passes unchanged.
-- `heavy cargo check -p temper-service -p temper-client-world --tests` passes, with no edit in temper beyond the two `link_secret: None` lines named below.
+- `heavy cargo check -p temper-service -p temper-client-world --tests` passes, with no edit in temper beyond the two `link_secret: None` lines and the one lint expectation named below.
 
 ## Inputs
 
@@ -43,6 +43,7 @@ Reader and neighbour files, each only for the new field, `link_secret: None`, in
 - `jig/testing/jig-engine-clients-kit/src/fixtures.rs`: both literals; the one that copies a `Settings` copies the field with `.clone()`.
 - `jig/testing/jig-client-protocol-kit/src/fixtures.rs`.
 - `temper/crates/temper-service/src/tests/clients_unwatch.rs`, the literal at line 32, and `temper/tests/client/src/component.rs`, the literal at line 61: each names every field, and gains this one line and nothing else.
+- `temper/tests/client/src/component.rs`, `Composition::new`: the field takes it to 101 lines against clippy's 100, so it also gains one `#[expect(clippy::too_many_lines, reason = "...")]`, its reason saying the world's constructor names every limit and setting of the joint component. No other change to the constructor.
 
 Options, each pre-approved:
 
@@ -83,3 +84,5 @@ As your text says: the tests and what each found, the rule broken for each test 
 ## Answers
 
 2026-11-06. **May the two temper test literals take `link_secret: None`, or does temper's owner repair them first?** Add them, in this task: one line in each of `temper/crates/temper-service/src/tests/clients_unwatch.rs:32` and `temper/tests/client/src/component.rs:61`, nothing else in temper. "Without an edit in temper" rested on temper reaching `Settings` by struct update, which `temper-service/src/clients.rs` does and these two test literals do not. A later task can't repair them, because this task's own check can't pass and `serve-takes-secret` waits on it. The Acceptance, the Owns list and the Steps above now say so. The jig work is commit `2f74ef411e` on `box-link-first/jig-link-secret`: what remains is the two lines, the cross-tree check and the temper focused tests left unobserved. `jig/docs/design/protocol/client.status.md`'s section-8 gap stays out of this task: report it under `## Left`.
+
+2026-11-06. **May `Composition::new` take a scoped `#[expect(clippy::too_many_lines)]`, or must its owner shorten it first?** Take the expectation, in this task, on `Composition::new` in `temper/tests/client/src/component.rs`, placed beside its `#[must_use]`, and leave the constructor otherwise as it is. It is a world's fixture, one exhaustive literal over the component's limits and settings, one line past the limit, and scoped expectations with a reason are how `temper/tests` already holds such functions (`AGENTS.md`, 2). Shortening it would be a refactor of a file this task only passes through, and no owner is waiting to do it while `serve-takes-secret` waits on this task. This widens the earlier answer's "nothing else in temper" by this one line, for this one lint; anything else clippy finds in temper is a new question. What remains: this line, the clippy run that stopped on it, and the focused tests of `temper-service` and `temper-client-world`, unobserved so far. `jig/docs/design/protocol/client.status.md` stays under `## Left`.
