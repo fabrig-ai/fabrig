@@ -209,7 +209,7 @@ fn the_landing_pages_show_the_turn_queues_commits_and_proofs() {
             b" \xc2\xb7 ",
             b"Gate 3 \xc2\xb7 check \xc2\xb7 advisory",
             b"Passed",
-            b"2 stale proofs",
+            b"Times the branch moved and landing checks needed refreshing: 2.",
         ],
     );
     assert!(has_text(&list, b"landed"), "public landings list keeps its landed phase");
