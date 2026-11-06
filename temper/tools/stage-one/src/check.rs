@@ -169,6 +169,9 @@ fn subject_key(
             if key.project == Some(ProjectRef::Box) {
                 key.project = Some(ProjectRef::Number(evidence.facts.project));
             }
+            if key.kind == "project-ways" && !evidence.items.items.iter().any(|item| item.setting == key) {
+                return None;
+            }
             Some(key)
         }
     }
@@ -557,6 +560,7 @@ pub fn check(golden: &Golden, profile: &SettingsFile, evidence: &Evidence) -> Re
         .items
         .iter()
         .filter(|item| !keys.contains(&Some(item.setting.clone())) && !subjects.contains(&item.setting))
+        .filter(|item| !golden.free.contains(&item.setting.kind))
         .map(|item| Extra { setting: item.setting.clone(), why: "no obligation asks for it".into() })
         .collect();
     Report { binding, verdicts, extras }

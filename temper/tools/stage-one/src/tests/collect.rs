@@ -9,7 +9,79 @@ use skein_scratch::{Scratch, paths};
 
 use crate::collect::{self, CollectArgs, CtlOutputs};
 use crate::evidence;
-use crate::golden::{Edit, SettingsFile};
+use crate::golden::{Edit, Item, ProjectRef, SettingKey, SettingsFile};
+
+/// Revision 3 and inventory reads for the project's ways and questions, selected independently.
+pub(super) fn project_settings_outputs(project: u32, accepted: &[usize], listed: &[usize]) -> (CtlOutputs, Vec<Item>) {
+    let settings = vec![
+        Item {
+            setting: SettingKey {
+                kind: "project-questions".into(),
+                number: None,
+                project: Some(ProjectRef::Number(project)),
+            },
+            edit: Edit::Set(json!("foreman")),
+        },
+        Item {
+            setting: SettingKey {
+                kind: "project-ways".into(),
+                number: None,
+                project: Some(ProjectRef::Number(project)),
+            },
+            edit: Edit::Set(json!({"drafts":true,"goals":true,"changes":true,"away":true,"way":4})),
+        },
+    ];
+    let mut recorded = outputs();
+    recorded.project = project;
+    recorded.revision = 3;
+    let mut project_read = value("project_show_json.txt");
+    project_read["number"] = json!(project);
+    recorded.by_command.insert(words(&format!("project show {project} --json")), project_read.to_string());
+    let edits: Vec<_> = accepted
+        .iter()
+        .map(|at| {
+            let item = &settings[*at];
+            let Edit::Set(value) = &item.edit else { panic!("whole setting") };
+            json!({"setting":item.setting,"set":value})
+        })
+        .collect();
+    let inventory: Vec<_> = listed.iter().map(|at| json!({"setting":settings[*at].setting})).collect();
+    recorded.by_command.insert(words("revision show 3 --json"), json!({"head":{"number":3},"items":edits}).to_string());
+    recorded.by_command.insert(words("settings show --json"), json!({"settings":inventory}).to_string());
+    for item in &settings {
+        let Edit::Set(value) = &item.edit else { panic!("whole setting") };
+        recorded.by_command.insert(
+            words(&format!("settings show {} {project} --json", item.setting.kind)),
+            json!({"setting":item.setting,"value":value}).to_string(),
+        );
+    }
+    (recorded, settings)
+}
+
+#[test]
+fn assemble_preserves_project_ways_and_questions() {
+    for (accepted, listed) in [
+        (vec![0], vec![0, 1]),
+        (vec![1], vec![0, 1]),
+        (vec![0, 1], vec![0, 1]),
+        (vec![], vec![0, 1]),
+        (vec![], vec![0]),
+        (vec![], vec![1]),
+        (vec![0], vec![]),
+        (vec![1], vec![]),
+    ] {
+        let (recorded, settings) = project_settings_outputs(1, &accepted, &listed);
+        let (items, current) = collect::assemble(&recorded).expect("collect project ways and questions");
+        let expected: Vec<_> = accepted.iter().map(|at| settings[*at].clone()).collect();
+        assert_eq!(items.items, expected, "accepted {accepted:?}, listed {listed:?}");
+        let mut expected: Vec<_> = listed.iter().map(|at| settings[*at].clone()).collect();
+        expected.push(Item {
+            setting: SettingKey { kind: "project-policy".into(), number: None, project: Some(ProjectRef::Number(1)) },
+            edit: edit(&current, "project-policy", None, Some(1)),
+        });
+        assert_eq!(current.items, expected, "accepted {accepted:?}, listed {listed:?}");
+    }
+}
 
 const READS: [(&str, &str); 12] = [
     ("revision show 5 --json", "revision.json"),
@@ -149,6 +221,31 @@ fn a_size_only_project_policy_keeps_what_project_show_gives() {
 }
 fn quote(text: &str) -> String {
     format!("'{}'", text.replace('\'', "'\\''"))
+}
+#[test]
+fn a_projects_ways_and_questions_are_collected_from_their_own_reads() {
+    let mut outputs = outputs();
+    let inventory = json!({"newest":5,"settings":[
+        {"setting":{"kind":"project-ways","project":1},"name":null,"follows":"change","last":5},
+        {"setting":{"kind":"project-questions","project":1},"name":null,"follows":"change","last":5},
+    ]});
+    outputs.by_command.insert(words("settings show --json"), inventory.to_string());
+    let revision = json!({"head":{"number":5},"items":[
+        {"setting":{"kind":"project-questions","project":1},"set":"foreman","replaced":"not_offered"},
+    ]});
+    outputs.by_command.insert(words("revision show 5 --json"), revision.to_string());
+    let ways = json!({"setting":{"kind":"project-ways","project":1},"revision":5,
+        "value":{"drafts":true,"goals":true,"changes":true,"away":true,"way":4},
+        "application":{"follows":"change","revision":5,"size":8,"charters":[]}});
+    outputs.by_command.insert(words("settings show project-ways 1 --json"), ways.to_string());
+    let questions = json!({"setting":{"kind":"project-questions","project":1},"revision":5,"value":"foreman",
+        "application":{"follows":"change","revision":5,"size":1,"charters":[]}});
+    outputs.by_command.insert(words("settings show project-questions 1 --json"), questions.to_string());
+    let (items, current) = collect::assemble(&outputs).expect("assemble");
+    assert_eq!(items.items.len(), 1);
+    assert_eq!(items.items[0].setting.kind, "project-questions");
+    let way = current.items.iter().find(|item| item.setting.kind == "project-ways").expect("ways");
+    assert!(matches!(&way.edit, Edit::Set(value) if value["way"] == json!(4)), "{way:?}");
 }
 fn fake(scratch: &Scratch, fail: Option<&str>) -> CollectArgs {
     let path = scratch.path().join("temper");

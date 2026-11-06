@@ -3,7 +3,7 @@
 2026-11-06. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
-  - 8.9: an approval's refusal names `repository adopt`, `project show` and `temper help configure` (`temper-engine-domain/src/route/kinds.rs`).
+  - 8.9: a refusal's "adopt the repository again" has no story from the browser. The engine takes an adopted repository's adoption (`readopt`, `temper/tests/engine/domain/tests/suite/forge_routes/approval_identity.rs`), and by reading alone the form sends one (`../client/README.md`, 4.4); it opens at its defaults, so the person types the repository, its role, prefix and landing branch again.
   - 4.1: a removal without the box, its group's act answered in its
     decision: an owned or fake forge's removal asks the box link for
     `remove N` whether or not a pipe is there, and without one waits for

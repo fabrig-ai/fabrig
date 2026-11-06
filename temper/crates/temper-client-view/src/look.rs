@@ -1129,6 +1129,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-welcome-check-stopped",
         b"temper-welcome-check-failed",
         b"temper-welcome-check-why",
+        b"temper-writing-end",
         b"temper-confirm",
         b"temper-confirm-fates",
         b"temper-confirm-acts",
@@ -1304,20 +1305,22 @@ pub const WELCOME_CHECK_STOPPED: Style = Style { owner: owner(), token: 450 };
 pub const WELCOME_CHECK_FAILED: Style = Style { owner: owner(), token: 451 };
 pub const WELCOME_CHECK_WHY: Style = Style { owner: owner(), token: 452 };
 
+/// The last word of a turn being written (client/README.md, 3.5).
+pub const WRITING_END: Style = Style { owner: owner(), token: 453 };
 /// A confirmation sheet (client/README.md, 3.6, The sheet).
-pub const CONFIRM: Style = Style { owner: owner(), token: 453 };
+pub const CONFIRM: Style = Style { owner: owner(), token: 454 };
 /// A confirmation sheet (client/README.md, 3.6, The sheet).
-pub const CONFIRM_FATES: Style = Style { owner: owner(), token: 454 };
+pub const CONFIRM_FATES: Style = Style { owner: owner(), token: 455 };
 /// A confirmation sheet (client/README.md, 3.6, The sheet).
-pub const CONFIRM_ACTS: Style = Style { owner: owner(), token: 455 };
+pub const CONFIRM_ACTS: Style = Style { owner: owner(), token: 456 };
 /// A confirmation sheet (client/README.md, 3.6, The sheet).
-pub const CONFIRM_DO: Style = Style { owner: owner(), token: 456 };
+pub const CONFIRM_DO: Style = Style { owner: owner(), token: 457 };
 /// An uncertain release's choices (client/README.md, 3.6, The sheet).
-pub const CONFIRM_CHOICES: Style = Style { owner: owner(), token: 457 };
+pub const CONFIRM_CHOICES: Style = Style { owner: owner(), token: 458 };
 /// The browser's person menu (client/README.md, 5.3).
-pub const RAIL_PERSON: Style = Style { owner: owner(), token: 458 };
+pub const RAIL_PERSON: Style = Style { owner: owner(), token: 459 };
 /// The Accounts tab's sign-out row (client/README.md, 3.5).
-pub const SETTINGS_SIGN_OUT: Style = Style { owner: owner(), token: 459 };
+pub const SETTINGS_SIGN_OUT: Style = Style { owner: owner(), token: 460 };
 
 #[cfg(test)]
 mod tests {

@@ -237,7 +237,12 @@ fn task_text_read(call: &Call) -> c::Read {
 fn thread_start(runner: &Runner, env: &Env<Limits>, reading: &mut Reading, task: u64, out: &mut Queue<Out>) {
     let mut thread = Thread::new(
         task,
-        &thread::Limits { lines: env.limits.rows, bytes: env.limits.ask_bytes, text: env.limits.text },
+        &thread::Limits {
+            lines: env.limits.rows,
+            bytes: env.limits.ask_bytes,
+            text: env.limits.text,
+            live: env.limits.text,
+        },
     );
     let next = match cursor(&reading.called.call, 1) {
         Some(cursor) => {

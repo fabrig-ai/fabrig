@@ -9,6 +9,15 @@
   `scrolling_panes_contain_their_hidden_absolute_parts`), and no test measures the
   page; no reason is recorded. That test names the session's log and draft pane,
   and the session's thread with no log, which scrolls too, is not positioned.
+- **Not yet:** 2.5: a numbered list read from Markdown
+  (`temper/docs/design/draft/chat-reading.md`, 6) shows no numbers in a card of a
+  chat's thread: `temper.css` makes `.temper-card:not(.temper-task-card) li` there
+  `display: flex`, under no `ul`, and an item that is no `list-item` draws no
+  marker. A proposal's reason reads there (`temper-client-view`'s `cards.rs`,
+  `document`). On a document page `.temper-doc-inner ul` has no `ol` beside it, so
+  a numbered list takes the browser's margins and padding. Both are seen by reading
+  the sheet: no browser test draws a numbered list, the request `chat-reading-d`
+  having the user read one on a real chat and leaving the sheet to the look's owner.
 - **Departs:** 2.5: `Ctrl+\` keeps Chat → Split → Draft on a phone too,
   with Split displayed as Draft. The 2026-11-05 answer to
   `ui-chat-draft/document-pane` accepts this cycle without viewport state;
@@ -24,6 +33,10 @@
   choices, the sheet's among them, 40, as the mock's `.btn` and `.btn.small` do.
   The mock's `box.html` draws a terminal, what `temper box` prints, and no page
   of the client's draws it.
+- **Design departs:** 2.5, from the request `close-chat` of 2026-11-06, decided by
+  its plan's cut: a confirmation sheet's acts stand 44 px on a phone, where the
+  request's overlay has 38, to keep a phone's target. So at 420 px the sheet stands
+  6 px taller and 3 px higher than the request draws it.
 - **Departs:** 7.2: the gallery's comparison pages do not hold one copy of
   the greenfield scenario. `home-morning` is Hello with no goals or Away
   switch, `home-with-goals` has the Solo world's goals, and `home-away`
