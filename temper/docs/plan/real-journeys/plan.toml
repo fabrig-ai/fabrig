@@ -3,6 +3,7 @@ repo = "fabrig"
 sources = ["temper/docs/plan/real-journeys/inputs/request.md", "temper/docs/design/draft/real-journeys.md", "AGENTS.md", "DESIGN.md"]
 
 # plan.md says what was decided and why.
+priority = true
 
 [buffer]
 low = 1.0
