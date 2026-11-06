@@ -1,6 +1,8 @@
 //! A party's sign-in and sign-out as accounts.md, 3.3 and section 5 have them: decided by the
 //! child, asked of the component, each change saved or erased in the step that makes it.
-use jig_accounts_world::{World, account, provider, providers, source};
+use jig_accounts_world::{
+    ALICE, BOB, PROVIDER, World, account, answer, commit, provider, providers, refused, save, source, want,
+};
 use jig_domain_accounts::{
     Answer, Bound, DISPLAY, End, Ended, Event, Failure, Form, FromComponent, Held, Holder, Key, Kind, Refusal, Request,
     Scheme, Signing, State, Stored, ToComponent,
@@ -8,15 +10,20 @@ use jig_domain_accounts::{
 use skein_lib::{Duration, Token};
 use std::collections::BTreeMap;
 
-const ALICE: Holder = Holder::Party(9);
-const BOB: Holder = Holder::Party(4);
+const ACCOUNT: u32 = 5;
+const SIGNED_IN_SOURCE: u32 = 6;
+const KEY_SOURCE: u32 = 7;
+const OTHER_ACCOUNT: u32 = 10;
+const OTHER_SOURCE: u32 = 11;
+const REPLACEMENT_SOURCE: u32 = 12;
+const JOINED_SOURCE: u32 = 13;
 
 /// Providers 1 and 2 offer a sign-in, 3 a key alone; none is a `none` provider, so the start
 /// makes nothing.
 fn fresh() -> World {
     World::with_start(
         jig_accounts_world::LIMITS,
-        providers(vec![provider(1, true, true), provider(2, true, false), provider(3, false, true)]),
+        providers(vec![provider(PROVIDER, true, true), provider(2, true, false), provider(3, false, true)]),
         &[],
     )
 }
@@ -38,42 +45,13 @@ fn visited(source: u32) -> Event {
 fn signed_in(source: u32, subject: &[u8], display: &[u8], declined: bool) -> Event {
     Event::SignedIn { source, subject: subject.into(), display: display.into(), declined }
 }
-fn answer(request: u64, answer: Answer) -> Request {
-    Request::Answer { request: Token::new(request), answer }
-}
-fn refused(request: u64, refusal: Refusal) -> Vec<Request> {
-    vec![answer(request, Answer::Refused { refusal })]
-}
 fn ended(request: u64, source: u32, end: End) -> Vec<Ended> {
     vec![Ended { request: Token::new(request), source, by: request, end }]
-}
-fn save(record: Stored) -> Request {
-    Request::Save { record }
-}
-fn want(source: u32) -> Request {
-    Request::Component(ToComponent::Want { account: source })
 }
 /// A sign-in starts: its source's number taken and the counter saved, the component asked, and
 /// the account sign-in waits for its visit.
 fn starts(_request: u64, provider: u32, source: u32) -> Vec<Request> {
     vec![save(Stored::Next { number: source + 1 }), Request::Signing(Signing::SignIn { source, provider })]
-}
-/// The store's family as the core commits it.
-fn commit(store: &mut BTreeMap<Key, Stored>, requests: &[Request]) {
-    for request in requests {
-        match request {
-            Request::Save { record } => drop(store.insert(record.key(), record.clone())),
-            Request::Erase { key } => drop(store.remove(key)),
-            Request::Programs { .. }
-            | Request::CheckProgram { .. }
-            | Request::SignOutProgram { .. }
-            | Request::Component(_)
-            | Request::Signing(_)
-            | Request::Answer { .. }
-            | Request::Granted { .. }
-            | Request::Closed => {}
-        }
-    }
 }
 fn places(world: &World, account: u32) -> Vec<(u32, u32)> {
     let account = world.domain.account(account).expect("kept");
@@ -84,14 +62,14 @@ fn places(world: &World, account: u32) -> Vec<(u32, u32)> {
 fn a_sign_in_to_a_new_subject_makes_an_account_that_restores() {
     let mut store = BTreeMap::new();
     let mut world = started(vec![]);
-    let asked = world.step(sign_in(1, ALICE, 1));
-    assert_eq!(asked, starts(1, 1, 0));
+    let asked = world.step(sign_in(1, ALICE, PROVIDER));
+    assert_eq!(asked, starts(1, PROVIDER, 0));
     commit(&mut store, &asked);
     let made = Stored::Account {
         place: 0,
         uses: None,
         number: 1,
-        provider: 1,
+        provider: PROVIDER,
         holder: ALICE,
         subject: Box::from(&b"alice"[..]),
         display: Box::from(&b"Al"[..]),
@@ -104,7 +82,7 @@ fn a_sign_in_to_a_new_subject_makes_an_account_that_restores() {
     let account = world.domain.account(1).expect("made");
     assert_eq!(
         (account.holder(), account.provider(), account.subject(), account.display()),
-        (ALICE, 1, &b"alice"[..], &b"Al"[..])
+        (ALICE, PROVIDER, &b"alice"[..], &b"Al"[..])
     );
     assert_eq!(places(&world, 1), vec![(0, 0)]);
     assert_eq!(world.domain.source(0).expect("its source").state, State::Asking);
@@ -113,7 +91,7 @@ fn a_sign_in_to_a_new_subject_makes_an_account_that_restores() {
     assert_eq!(
         again.step(Event::Want),
         vec![
-            Request::Signing(Signing::Restore { source: 0, provider: 1, kind: Kind::SignIn }),
+            Request::Signing(Signing::Restore { source: 0, provider: PROVIDER, kind: Kind::SignIn }),
             Request::Signing(Signing::Restored),
             want(0)
         ],
@@ -130,45 +108,53 @@ fn a_sign_in_to_a_new_subject_makes_an_account_that_restores() {
 #[test]
 fn a_sign_in_to_a_held_subject_renews_its_account() {
     let mut world = started(vec![
-        account(5, 1, ALICE, b"alice"),
-        source(5, 6, 0, Kind::SignIn),
-        source(5, 7, 1, Kind::Key),
-        account(10, 2, ALICE, b"kept"),
-        source(10, 11, 0, Kind::Key),
-        Stored::Next { number: 12 },
+        account(ACCOUNT, PROVIDER, ALICE, b"alice"),
+        source(ACCOUNT, SIGNED_IN_SOURCE, 0, Kind::SignIn),
+        source(ACCOUNT, KEY_SOURCE, 1, Kind::Key),
+        account(OTHER_ACCOUNT, 2, ALICE, b"kept"),
+        source(OTHER_ACCOUNT, OTHER_SOURCE, 0, Kind::Key),
+        Stored::Next { number: REPLACEMENT_SOURCE },
     ]);
-    assert_eq!(world.step(sign_in(1, ALICE, 1)), starts(1, 1, 12));
-    world.step(visited(12));
+    assert_eq!(world.step(sign_in(1, ALICE, PROVIDER)), starts(1, PROVIDER, REPLACEMENT_SOURCE));
+    world.step(visited(REPLACEMENT_SOURCE));
     assert_eq!(
-        world.step(signed_in(12, b"alice", b"other", false)),
+        world.step(signed_in(REPLACEMENT_SOURCE, b"alice", b"other", false)),
         vec![
-            Request::Erase { key: Key::Source { account: 5, number: 6 } },
-            Request::Signing(Signing::Replaced { source: 6, by: 12 }),
-            save(source(5, 12, 0, Kind::SignIn)),
-            want(12),
+            Request::Erase { key: Key::Source { account: ACCOUNT, number: SIGNED_IN_SOURCE } },
+            Request::Signing(Signing::Replaced { source: SIGNED_IN_SOURCE, by: REPLACEMENT_SOURCE }),
+            save(source(ACCOUNT, REPLACEMENT_SOURCE, 0, Kind::SignIn)),
+            want(REPLACEMENT_SOURCE),
         ],
         "the new source takes the replaced one's place; the component revokes its record where it must"
     );
-    assert_eq!(world.ended(), ended(1, 12, End::Renewed { account: 5, declined: false }));
-    assert_eq!(places(&world, 5), vec![(0, 12), (1, 7)]);
-    assert!(world.domain.source(6).is_none());
-    assert_eq!(world.domain.account(5).expect("kept").display(), b"", "the holder's display name stays");
-    assert_eq!(world.step(sign_in(2, ALICE, 2)), starts(2, 2, 13));
-    world.step(visited(13));
-    assert_eq!(world.step(signed_in(13, b"kept", b"", false)), vec![save(source(10, 13, 1, Kind::SignIn)), want(13)]);
-    assert_eq!(world.ended(), ended(2, 13, End::Renewed { account: 10, declined: false }));
-    assert_eq!(places(&world, 10), vec![(0, 11), (1, 13)], "with no signed-in source, it joins after the last");
+    assert_eq!(world.ended(), ended(1, REPLACEMENT_SOURCE, End::Renewed { account: ACCOUNT, declined: false }));
+    assert_eq!(places(&world, ACCOUNT), vec![(0, REPLACEMENT_SOURCE), (1, KEY_SOURCE)]);
+    assert!(world.domain.source(SIGNED_IN_SOURCE).is_none());
+    assert_eq!(world.domain.account(ACCOUNT).expect("kept").display(), b"", "the holder's display name stays");
+    assert_eq!(world.step(sign_in(2, ALICE, 2)), starts(2, 2, JOINED_SOURCE));
+    world.step(visited(JOINED_SOURCE));
+    assert_eq!(
+        world.step(signed_in(JOINED_SOURCE, b"kept", b"", false)),
+        vec![save(source(OTHER_ACCOUNT, JOINED_SOURCE, 1, Kind::SignIn)), want(JOINED_SOURCE)]
+    );
+    assert_eq!(world.ended(), ended(2, JOINED_SOURCE, End::Renewed { account: OTHER_ACCOUNT, declined: false }));
+    assert_eq!(
+        places(&world, OTHER_ACCOUNT),
+        vec![(0, OTHER_SOURCE), (1, JOINED_SOURCE)],
+        "with no signed-in source, it joins after the last"
+    );
 }
 
 #[test]
 fn a_sign_in_to_a_subject_another_holder_holds_is_refused_and_revoked() {
-    let mut world = started(vec![account(5, 1, ALICE, b"alice"), source(5, 6, 0, Kind::SignIn)]);
-    assert_eq!(world.step(sign_in(3, BOB, 1)), starts(3, 1, 7));
+    let mut world =
+        started(vec![account(ACCOUNT, PROVIDER, ALICE, b"alice"), source(ACCOUNT, SIGNED_IN_SOURCE, 0, Kind::SignIn)]);
+    assert_eq!(world.step(sign_in(3, BOB, PROVIDER)), starts(3, PROVIDER, 7));
     world.step(visited(7));
     assert_eq!(world.step(signed_in(7, b"alice", b"", false)), vec![Request::Signing(Signing::SignOut { source: 7 })]);
-    assert_eq!(world.ended(), ended(3, 7, End::Refused { refusal: Refusal::Held { provider: 1 } }));
-    assert_eq!((world.domain.accounts(), places(&world, 5)), (1, vec![(0, 6)]));
-    world.step(sign_in(4, BOB, 1));
+    assert_eq!(world.ended(), ended(3, 7, End::Refused { refusal: Refusal::Held { provider: PROVIDER } }));
+    assert_eq!((world.domain.accounts(), places(&world, ACCOUNT)), (1, vec![(0, SIGNED_IN_SOURCE)]));
+    world.step(sign_in(4, BOB, PROVIDER));
     world.step(visited(8));
     assert_eq!(world.step(signed_in(8, b"", b"", false)), vec![Request::Signing(Signing::SignOut { source: 8 })]);
     assert_eq!(world.ended(), ended(4, 8, End::Refused { refusal: Refusal::Subject }));
@@ -177,7 +163,7 @@ fn a_sign_in_to_a_subject_another_holder_holds_is_refused_and_revoked() {
 #[test]
 fn plan_usage_declined_keeps_the_sign_in_and_refuses_the_source() {
     let mut world = started(vec![]);
-    world.step(sign_in(1, ALICE, 1));
+    world.step(sign_in(1, ALICE, PROVIDER));
     let refused = Stored::Source {
         account: 1,
         number: 0,
@@ -204,11 +190,11 @@ fn plan_usage_declined_keeps_the_sign_in_and_refuses_the_source() {
 #[test]
 fn each_sign_in_refusal_names_its_bound_or_rule() {
     let mut world = fresh();
-    assert_eq!(world.step(sign_in(1, ALICE, 1)), refused(1, Refusal::Closing), "before the start");
+    assert_eq!(world.step(sign_in(1, ALICE, PROVIDER)), refused(1, Refusal::Closing), "before the start");
     world.step(Event::Want);
     assert_eq!(world.step(sign_in(2, ALICE, 3)), refused(2, Refusal::Provider { provider: 3 }));
     assert_eq!(world.step(sign_in(3, ALICE, 9)), refused(3, Refusal::Provider { provider: 9 }));
-    assert_eq!(world.step(sign_in(4, ALICE, 1)), starts(4, 1, 0));
+    assert_eq!(world.step(sign_in(4, ALICE, PROVIDER)), starts(4, PROVIDER, 0));
     assert_eq!(world.step(sign_in(5, BOB, 2)), refused(5, Refusal::Limit { bound: Bound::SignIns }));
     assert_eq!(
         world.step(Event::SignInFailed { source: 0, failure: Failure::Cancelled }),
@@ -219,56 +205,60 @@ fn each_sign_in_refusal_names_its_bound_or_rule() {
     assert_eq!(world.step(signed_in(0, b"alice", b"", false)), vec![], "an ended sign-in makes nothing");
     assert_eq!(world.step(sign_in(6, BOB, 2)), starts(6, 2, 1), "its room is free again");
     let mut world = started(vec![Stored::Next { number: u32::MAX }]);
-    assert_eq!(world.step(sign_in(7, ALICE, 1)), refused(7, Refusal::Numbers));
+    assert_eq!(world.step(sign_in(7, ALICE, PROVIDER)), refused(7, Refusal::Numbers));
 }
 
 #[test]
 fn a_sign_out_removes_the_source_and_answers_once_revoked() {
     let mut world = started(vec![
-        account(5, 1, ALICE, b"alice"),
-        source(5, 6, 0, Kind::SignIn),
-        source(5, 7, 1, Kind::Key),
-        account(10, 2, ALICE, b"solo"),
-        source(10, 11, 0, Kind::SignIn),
+        account(ACCOUNT, PROVIDER, ALICE, b"alice"),
+        source(ACCOUNT, SIGNED_IN_SOURCE, 0, Kind::SignIn),
+        source(ACCOUNT, KEY_SOURCE, 1, Kind::Key),
+        account(OTHER_ACCOUNT, 2, ALICE, b"solo"),
+        source(OTHER_ACCOUNT, OTHER_SOURCE, 0, Kind::SignIn),
     ]);
-    assert_eq!(world.step(sign_out(1, BOB, 6)), refused(1, Refusal::Unknown), "only its holder signs it out");
-    assert_eq!(world.step(sign_out(1, ALICE, 9)), refused(1, Refusal::Unknown));
-    assert_eq!(world.step(sign_out(1, ALICE, 7)), refused(1, Refusal::Kind { kind: Kind::Key }));
     assert_eq!(
-        world.step(sign_out(2, ALICE, 6)),
+        world.step(sign_out(1, BOB, SIGNED_IN_SOURCE)),
+        refused(1, Refusal::Unknown),
+        "only its holder signs it out"
+    );
+    assert_eq!(world.step(sign_out(1, ALICE, 9)), refused(1, Refusal::Unknown));
+    assert_eq!(world.step(sign_out(1, ALICE, KEY_SOURCE)), refused(1, Refusal::Kind { kind: Kind::Key }));
+    assert_eq!(
+        world.step(sign_out(2, ALICE, SIGNED_IN_SOURCE)),
         vec![
-            Request::Erase { key: Key::Source { account: 5, number: 6 } },
-            save(source(5, 7, 0, Kind::Key)),
-            Request::Signing(Signing::SignOut { source: 6 })
+            Request::Erase { key: Key::Source { account: ACCOUNT, number: SIGNED_IN_SOURCE } },
+            save(source(ACCOUNT, KEY_SOURCE, 0, Kind::Key)),
+            Request::Signing(Signing::SignOut { source: SIGNED_IN_SOURCE })
         ]
     );
-    assert_eq!((places(&world, 5), world.domain.source(6)), (vec![(0, 7)], None));
+    assert_eq!((places(&world, ACCOUNT), world.domain.source(SIGNED_IN_SOURCE)), (vec![(0, KEY_SOURCE)], None));
     assert_eq!(
-        world.step(Event::SignedOut { source: 6, confirmed: false }),
+        world.step(Event::SignedOut { source: SIGNED_IN_SOURCE, confirmed: false }),
         vec![answer(2, Answer::SignedOut { confirmed: false, failed_hosts: Box::new([]) })],
         "unconfirmed, its holder disconnects the application at the provider"
     );
     assert_eq!(
-        world.step(sign_out(3, ALICE, 11)),
+        world.step(sign_out(3, ALICE, OTHER_SOURCE)),
         vec![
-            Request::Erase { key: Key::Source { account: 10, number: 11 } },
-            Request::Erase { key: Key::Account { number: 10 } },
-            Request::Signing(Signing::SignOut { source: 11 })
+            Request::Erase { key: Key::Source { account: OTHER_ACCOUNT, number: OTHER_SOURCE } },
+            Request::Erase { key: Key::Account { number: OTHER_ACCOUNT } },
+            Request::Signing(Signing::SignOut { source: OTHER_SOURCE })
         ],
         "an account goes with its last source, as the store keeps none without one"
     );
-    assert!(world.domain.account(10).is_none());
+    assert!(world.domain.account(OTHER_ACCOUNT).is_none());
     assert_eq!(
-        world.step(Event::SignedOut { source: 11, confirmed: true }),
+        world.step(Event::SignedOut { source: OTHER_SOURCE, confirmed: true }),
         vec![answer(3, Answer::SignedOut { confirmed: true, failed_hosts: Box::new([]) })]
     );
-    assert_eq!(world.step(Event::SignedOut { source: 11, confirmed: true }), vec![], "answered once");
+    assert_eq!(world.step(Event::SignedOut { source: OTHER_SOURCE, confirmed: true }), vec![], "answered once");
 }
 
 #[test]
 fn an_account_sign_in_is_answered_started_with_the_address_when_the_component_visits() {
     let mut world = started(vec![]);
-    assert_eq!(world.step(sign_in(1, ALICE, 1)), starts(1, 1, 0));
+    assert_eq!(world.step(sign_in(1, ALICE, PROVIDER)), starts(1, PROVIDER, 0));
     let address = b"https://issuer.test/visit".as_slice().into();
     assert_eq!(world.step(visited(0)), vec![answer(1, Answer::Started { source: 0, address })]);
     assert_eq!(world.domain.facts_lost(), 0);
@@ -278,7 +268,7 @@ fn an_account_sign_in_is_answered_started_with_the_address_when_the_component_vi
 fn a_second_account_visit_or_the_visit_of_no_account_sign_in_is_ignored() {
     let mut world = started(vec![]);
     assert!(world.step(visited(0)).is_empty());
-    world.step(sign_in(1, ALICE, 1));
+    world.step(sign_in(1, ALICE, PROVIDER));
     world.step(visited(0));
     assert!(world.step(visited(0)).is_empty());
     assert!(world.step(visited(99)).is_empty());
@@ -288,14 +278,14 @@ fn a_second_account_visit_or_the_visit_of_no_account_sign_in_is_ignored() {
 #[test]
 fn an_account_sign_in_that_ends_before_its_visit_is_answered_not_started() {
     let mut world = started(vec![]);
-    world.step(sign_in(1, ALICE, 1));
+    world.step(sign_in(1, ALICE, PROVIDER));
     assert_eq!(
         world.step(Event::SignInFailed { source: 0, failure: Failure::Cancelled }),
         refused(1, Refusal::NotStarted)
     );
     assert_eq!(world.ended(), ended(1, 0, End::Failed { failure: Failure::Cancelled }));
     assert!(world.step(visited(0)).is_empty());
-    world.step(sign_in(2, ALICE, 1));
+    world.step(sign_in(2, ALICE, PROVIDER));
     let requests = world.step(signed_in(1, b"alice", b"", false));
     assert_eq!(requests.first(), refused(2, Refusal::NotStarted).first());
     assert_eq!(requests.iter().filter(|r| matches!(r, Request::Answer { .. })).count(), 1);
@@ -306,7 +296,7 @@ fn an_account_sign_in_that_ends_before_its_visit_is_answered_not_started() {
 fn an_account_sign_in_that_visited_is_not_answered_again_when_it_ends() {
     for fails in [false, true] {
         let mut world = started(vec![]);
-        world.step(sign_in(1, ALICE, 1));
+        world.step(sign_in(1, ALICE, PROVIDER));
         world.step(visited(0));
         let event = if fails {
             Event::SignInFailed { source: 0, failure: Failure::Cancelled }
@@ -324,7 +314,7 @@ fn an_account_sign_in_that_visited_is_not_answered_again_when_it_ends() {
 fn a_close_cancels_each_account_sign_in_and_answers_it_closing_before_its_visit() {
     for visit in [false, true] {
         let mut world = started(vec![]);
-        world.step(sign_in(1, ALICE, 1));
+        world.step(sign_in(1, ALICE, PROVIDER));
         if visit {
             world.step(visited(0));
         }

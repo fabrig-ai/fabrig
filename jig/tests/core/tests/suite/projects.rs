@@ -1,6 +1,7 @@
 //! Project decisions at the engine's lowest complete boundary (people.md, 5.1–5.3).
 
 use jig_core_world::client_peer::ClientPeer;
+use jig_core_world::fixtures::{PARTY as OWNER, sign_in as signin};
 use jig_core_world::world::Cut;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
@@ -15,7 +16,7 @@ const SEED: u32 = 1;
 const MADE: u32 = 2;
 const NEXT: u32 = 3;
 const POLICY: u32 = 1;
-const OWNER: u64 = 1;
+
 const OWNER_SUBJECT: u64 = 7; // jig_test_profile::config's first owner.
 const OTHER_SUBJECT: u64 = 8;
 const PROJECT_ROOM: u32 = 3; // The seed and two made projects.
@@ -67,15 +68,7 @@ fn setup() -> (World, u64) {
     start(config, limits)
 }
 fn sign_in(world: &mut World, subject: u64) -> (u64, u64) {
-    world.send(root::Event::Core(core::Event::SignIn {
-        held: None,
-        reply_to: ReplyTo::new(REPLY),
-        identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: subject.to_be_bytes().into() },
-            login: b"owner".as_slice().into(),
-            name: b"Owner".as_slice().into(),
-        },
-    }));
+    world.send(signin(REPLY, 0, &subject.to_be_bytes(), b"owner", b"Owner"));
     let people::Reply::SignedIn { person, sign_in, .. } = take_reply(world) else { panic!("signed in") };
     (person, sign_in)
 }

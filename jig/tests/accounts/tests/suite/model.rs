@@ -1,22 +1,17 @@
 //! Accounts as accounts.md, 3 has them: numbered, held, with sources each in its own state, and
 //! kept by the store: each change saved in the step that makes it, and restored at the start.
-use jig_accounts_world::{LIMITS, PROVIDER, World, account, provider, providers, source};
+use jig_accounts_world::{
+    ALICE, BOB, LIMITS, PROVIDER, World, account, commit, provider, providers, save, source, want,
+};
 use jig_domain_accounts::{
     Bound, Event, Form, FromComponent, Held, Holder, Key, Kind, Refusal, Request, Scheme, SignIn, State, Stored,
-    ToComponent, room_for_sign_in,
+    room_for_sign_in,
 };
 use skein_lib::{Duration, Time, Wall};
 use std::collections::BTreeMap;
 
-const ALICE: Holder = Holder::Party(9);
-const BOB: Holder = Holder::Party(4);
+const NONE_PROVIDER: u32 = 3;
 
-fn want(source: u32) -> Request {
-    Request::Component(ToComponent::Want { account: source })
-}
-fn save(record: Stored) -> Request {
-    Request::Save { record }
-}
 fn granted(source: u32) -> Event {
     Event::Component(FromComponent::Granted {
         form: Form::Credential(Scheme::Bearer),
@@ -29,7 +24,11 @@ fn granted(source: u32) -> Event {
 fn fresh() -> World {
     World::with_start(
         jig_accounts_world::LIMITS,
-        providers(vec![provider(1, true, true), provider(2, true, false), provider(3, false, false)]),
+        providers(vec![
+            provider(PROVIDER, true, true),
+            provider(2, true, false),
+            provider(NONE_PROVIDER, false, false),
+        ]),
         &[],
     )
 }
@@ -42,7 +41,7 @@ fn signed_in(number: u32, provider: u32, holder: Holder, subject: &[u8]) -> Vec<
 
 #[test]
 fn an_unstarted_child_has_no_accounts_from_configuration() {
-    let world = World::with_start(jig_accounts_world::LIMITS, providers(vec![provider(1, true, false)]), &[]);
+    let world = World::with_start(jig_accounts_world::LIMITS, providers(vec![provider(PROVIDER, true, false)]), &[]);
     assert_eq!(world.domain.accounts(), 0);
     assert_eq!(world.domain.next_number(), 0);
 }
@@ -53,7 +52,7 @@ fn numbers_are_never_given_twice() {
     world.restore(vec![Stored::Next { number: 12 }]);
     world.step(Event::Want);
     let made = world.domain.account(12).expect("the counter's first number");
-    assert_eq!((made.holder(), made.provider()), (Holder::Deployment, 3));
+    assert_eq!((made.holder(), made.provider()), (Holder::Deployment, NONE_PROVIDER));
     assert_eq!(world.domain.next_number(), 14);
 }
 
@@ -61,7 +60,11 @@ fn numbers_are_never_given_twice() {
 fn the_none_account_is_made_at_the_first_start_alone() {
     let mut world = fresh();
     assert_eq!(world.domain.accounts(), 0);
-    let made = vec![account(0, 3, Holder::Deployment, b""), source(0, 1, 0, Kind::None), Stored::Next { number: 2 }];
+    let made = vec![
+        account(0, NONE_PROVIDER, Holder::Deployment, b""),
+        source(0, 1, 0, Kind::None),
+        Stored::Next { number: 2 },
+    ];
     assert_eq!(
         world.step(Event::Want),
         made.iter()
@@ -72,7 +75,7 @@ fn the_none_account_is_made_at_the_first_start_alone() {
     );
     assert_eq!(world.domain.accounts(), 1);
     let none = world.domain.account(0).expect("made at the start");
-    assert_eq!((none.holder(), none.provider()), (Holder::Deployment, 3));
+    assert_eq!((none.holder(), none.provider()), (Holder::Deployment, NONE_PROVIDER));
     let fact = world.domain.source(1).expect("its source");
     assert_eq!((fact.kind, fact.state, fact.usable), (Kind::None, State::Granted, true));
     assert!(world.domain.usable(0));
@@ -90,30 +93,30 @@ fn the_none_account_is_made_at_the_first_start_alone() {
 #[test]
 fn a_subject_has_one_holder() {
     let mut world = fresh();
-    world.restore(signed_in(5, 1, ALICE, b"alice"));
+    world.restore(signed_in(5, PROVIDER, ALICE, b"alice"));
     world.step(Event::Want);
     let domain = &world.domain;
-    assert_eq!(domain.sign_in(&LIMITS, ALICE, 1, b"alice"), Ok(SignIn::Renew { account: 5 }));
-    assert_eq!(domain.sign_in(&LIMITS, BOB, 1, b"alice"), Err(Refusal::Held { provider: 1 }));
-    assert_eq!(domain.sign_in(&LIMITS, BOB, 1, b"bob"), Ok(SignIn::New));
+    assert_eq!(domain.sign_in(&LIMITS, ALICE, PROVIDER, b"alice"), Ok(SignIn::Renew { account: 5 }));
+    assert_eq!(domain.sign_in(&LIMITS, BOB, PROVIDER, b"alice"), Err(Refusal::Held { provider: PROVIDER }));
+    assert_eq!(domain.sign_in(&LIMITS, BOB, PROVIDER, b"bob"), Ok(SignIn::New));
     assert_eq!(domain.sign_in(&LIMITS, BOB, 2, b"alice"), Ok(SignIn::New), "a subject is its provider's");
-    assert_eq!(domain.sign_in(&LIMITS, BOB, 3, b"bob"), Err(Refusal::Provider { provider: 3 }));
-    assert_eq!(domain.sign_in(&LIMITS, BOB, 1, b""), Err(Refusal::Subject));
+    assert_eq!(domain.sign_in(&LIMITS, BOB, NONE_PROVIDER, b"bob"), Err(Refusal::Provider { provider: NONE_PROVIDER }));
+    assert_eq!(domain.sign_in(&LIMITS, BOB, PROVIDER, b""), Err(Refusal::Subject));
 }
 
 #[test]
 fn each_bound_is_refused_naming_it() {
     let mut world = fresh();
-    world.restore(signed_in(0, 1, ALICE, b"a"));
-    world.restore(signed_in(2, 1, ALICE, b"b"));
-    world.restore(signed_in(4, 1, BOB, b"c"));
+    world.restore(signed_in(0, PROVIDER, ALICE, b"a"));
+    world.restore(signed_in(2, PROVIDER, ALICE, b"b"));
+    world.restore(signed_in(4, PROVIDER, BOB, b"c"));
     world.restore(vec![
         source(4, 6, 1, Kind::Key),
         Stored::Source { account: 4, number: 7, place: 2, kind: Kind::Key, name: Box::new([]), held: None },
     ]);
 
     world.step(Event::Want);
-    assert_eq!(world.domain.sign_in(&LIMITS, BOB, 1, b"d"), limit(Bound::Accounts));
+    assert_eq!(world.domain.sign_in(&LIMITS, BOB, PROVIDER, b"d"), limit(Bound::Accounts));
     assert_eq!(world.domain.room_for_source(&LIMITS, 4), limit(Bound::Sources));
     assert_eq!(world.domain.room_for_source(&LIMITS, 0), Ok(()));
     assert_eq!(world.domain.room_for_source(&LIMITS, 9), Err(Refusal::Unknown));
@@ -121,26 +124,27 @@ fn each_bound_is_refused_naming_it() {
     assert_eq!(room_for_sign_in(&LIMITS, LIMITS.sign_ins - 1), Ok(()));
     let mut world = World::with_start(
         LIMITS,
-        providers(vec![provider(1, true, false)]),
+        providers(vec![provider(PROVIDER, true, false)]),
         &[
-            account(0, 1, ALICE, b"a"),
+            account(0, PROVIDER, ALICE, b"a"),
             source(0, 1, 0, Kind::SignIn),
-            account(2, 1, ALICE, b"b"),
+            account(2, PROVIDER, ALICE, b"b"),
             source(2, 3, 0, Kind::SignIn),
         ],
     );
     world.step(Event::Want);
-    assert_eq!(world.domain.sign_in(&LIMITS, ALICE, 1, b"c"), limit(Bound::HolderAccounts));
-    assert_eq!(world.domain.sign_in(&LIMITS, BOB, 1, b"c"), Ok(SignIn::New));
-    let mut world = World::with_start(jig_accounts_world::LIMITS, providers(vec![provider(1, true, false)]), &[]);
+    assert_eq!(world.domain.sign_in(&LIMITS, ALICE, PROVIDER, b"c"), limit(Bound::HolderAccounts));
+    assert_eq!(world.domain.sign_in(&LIMITS, BOB, PROVIDER, b"c"), Ok(SignIn::New));
+    let mut world =
+        World::with_start(jig_accounts_world::LIMITS, providers(vec![provider(PROVIDER, true, false)]), &[]);
     world.restore(vec![Stored::Next { number: u32::MAX - 1 }]);
-    assert_eq!(world.domain.sign_in(&LIMITS, BOB, 1, b"d"), Err(Refusal::Numbers));
+    assert_eq!(world.domain.sign_in(&LIMITS, BOB, PROVIDER, b"d"), Err(Refusal::Numbers));
 }
 
 #[test]
 fn a_sources_state_is_its_own() {
     let mut world = fresh();
-    world.restore(vec![account(1, 1, Holder::Deployment, b"team"), source(1, 2, 0, Kind::SignIn)]);
+    world.restore(vec![account(1, PROVIDER, Holder::Deployment, b"team"), source(1, 2, 0, Kind::SignIn)]);
     world.restore(vec![source(1, 3, 1, Kind::Key)]);
     let wants = world.step(Event::Want).into_iter().filter(|request| {
         matches!(
@@ -166,7 +170,7 @@ fn a_sources_state_is_its_own() {
     assert!(!world.domain.usable(1), "the first source unusable holds the account's runs");
     assert_eq!(world.views()[0].source, 2);
     let mut world = fresh();
-    world.restore(vec![account(1, 1, Holder::Deployment, b"team"), source(1, 3, 0, Kind::Key)]);
+    world.restore(vec![account(1, PROVIDER, Holder::Deployment, b"team"), source(1, 3, 0, Kind::Key)]);
     world.restore(vec![source(1, 2, 1, Kind::SignIn)]);
     world.step(Event::Want);
     world.step(granted(2));
@@ -187,7 +191,7 @@ fn a_kept_limit_means_the_same_after_a_restart() {
         held: Some(kept),
     };
     world.restore(vec![
-        account(1, 1, Holder::Deployment, b""),
+        account(1, PROVIDER, Holder::Deployment, b""),
         key(2, 0, Held::Limited { reset: Some(Wall::from_nanos(1_060_000_000_000)) }),
         key(3, 1, Held::Limited { reset: Some(Wall::from_nanos(999_000_000_000)) }),
         key(4, 2, Held::Refused),
@@ -206,45 +210,25 @@ fn a_kept_limit_means_the_same_after_a_restart() {
     assert_eq!(world.domain.next_deadline(), Some(until));
 }
 
-/// The store's family as the core commits it: saves replace rows and erases remove keys.
-fn commit(store: &mut BTreeMap<Key, Stored>, requests: Vec<Request>) {
-    for request in requests {
-        match request {
-            Request::Save { record } => drop(store.insert(record.key(), record)),
-            Request::Erase { key } => drop(store.remove(&key)),
-            Request::Programs { .. }
-            | Request::CheckProgram { .. }
-            | Request::SignOutProgram { .. }
-            | Request::Component(_)
-            | Request::Signing(_)
-            | Request::Answer { .. }
-            | Request::Granted { .. }
-            | Request::Closed => {}
-        }
-    }
-}
-
 #[test]
 fn each_record_restores_to_the_same_model() {
     const ALICE_ACCOUNT: u32 = 20;
+    // The none account takes NEXT, its source NEXT + 1; the counter advances past both.
+    const NEXT: u32 = 23;
     let start = |store: &BTreeMap<Key, Stored>| {
-        let mut world = World::with_start(
-            jig_accounts_world::LIMITS,
-            providers(vec![provider(1, true, true), provider(2, true, false), provider(3, false, false)]),
-            &[],
-        );
+        let mut world = fresh();
         world.wall = Wall::from_nanos(1_000_000_000_000);
         world.restore(store.values().cloned().collect());
         world
     };
     let mut store = BTreeMap::new();
     for record in [
-        account(7, 1, Holder::Deployment, b""),
+        account(7, PROVIDER, Holder::Deployment, b""),
         source(7, 8, 0, Kind::SignIn),
         account(ALICE_ACCOUNT, PROVIDER, ALICE, b"alice"),
         source(ALICE_ACCOUNT, 21, 0, Kind::SignIn),
         source(ALICE_ACCOUNT, 22, 1, Kind::Key),
-        Stored::Next { number: 23 },
+        Stored::Next { number: NEXT },
     ] {
         store.insert(record.key(), record);
     }
@@ -254,17 +238,17 @@ fn each_record_restores_to_the_same_model() {
         wanted[..3],
         [
             save({
-                let mut row = account(23, 3, Holder::Deployment, b"");
+                let mut row = account(NEXT, NONE_PROVIDER, Holder::Deployment, b"");
                 if let Stored::Account { place, .. } = &mut row {
                     *place = 1;
                 }
                 row
             }),
-            save(source(23, 24, 0, Kind::None)),
-            save(Stored::Next { number: 25 })
+            save(source(NEXT, NEXT + 1, 0, Kind::None)),
+            save(Stored::Next { number: NEXT + 2 })
         ]
     );
-    commit(&mut store, wanted);
+    commit(&mut store, &wanted);
     let reset = Some(Time::ZERO.saturating_add(Duration::from_secs(90)));
     for event in [
         Event::Limited { account: 21, reset },
@@ -273,7 +257,7 @@ fn each_record_restores_to_the_same_model() {
     ] {
         let saved = world.step(event);
         assert_eq!(saved.len(), 1, "a changed hold saves its source's record");
-        commit(&mut store, saved);
+        commit(&mut store, &saved);
     }
     assert_eq!(store.len(), 8, "the counter, three accounts and four sources are all durable rows");
     let mut again = start(&store);
@@ -281,9 +265,17 @@ fn each_record_restores_to_the_same_model() {
     assert_eq!(
         again.step(Event::Want),
         vec![
-            Request::Signing(jig_domain_accounts::Signing::Restore { source: 8, provider: 1, kind: Kind::SignIn }),
-            Request::Signing(jig_domain_accounts::Signing::Restore { source: 21, provider: 1, kind: Kind::SignIn }),
-            Request::Signing(jig_domain_accounts::Signing::Restore { source: 22, provider: 1, kind: Kind::Key }),
+            Request::Signing(jig_domain_accounts::Signing::Restore {
+                source: 8,
+                provider: PROVIDER,
+                kind: Kind::SignIn
+            }),
+            Request::Signing(jig_domain_accounts::Signing::Restore {
+                source: 21,
+                provider: PROVIDER,
+                kind: Kind::SignIn
+            }),
+            Request::Signing(jig_domain_accounts::Signing::Restore { source: 22, provider: PROVIDER, kind: Kind::Key }),
             Request::Signing(jig_domain_accounts::Signing::Restored),
             want(8),
             want(21),
@@ -302,7 +294,7 @@ fn each_record_restores_to_the_same_model() {
             })
         }
     );
-    for number in [7, 20, 23] {
+    for number in [7, ALICE_ACCOUNT, NEXT] {
         let (was, is) = (world.domain.account(number).expect("kept"), again.domain.account(number).expect("restored"));
         assert_eq!(
             (was.provider(), was.holder(), was.subject(), was.display(), was.sources().iter().collect::<Vec<_>>()),
@@ -316,13 +308,13 @@ fn each_record_restores_to_the_same_model() {
 #[test]
 fn saving_again_and_restoring_preserve_the_exact_source_wall() {
     let mut world = fresh();
-    let records = [account(1, 1, ALICE, b"alice"), source(1, 2, 0, Kind::SignIn), source(1, 3, 1, Kind::Key)];
+    let records = [account(1, PROVIDER, ALICE, b"alice"), source(1, 2, 0, Kind::SignIn), source(1, 3, 1, Kind::Key)];
     let mut store: BTreeMap<_, _> = records.iter().map(|record| (record.key(), record.clone())).collect();
     world.restore(records.to_vec());
-    commit(&mut store, world.step(Event::Want));
+    commit(&mut store, &world.step(Event::Want));
     world.now = Time::from_nanos(10);
     world.wall = Wall::from_nanos(100);
-    commit(&mut store, world.step(Event::Limited { account: 2, reset: Some(Time::from_nanos(30)) }));
+    commit(&mut store, &world.step(Event::Limited { account: 2, reset: Some(Time::from_nanos(30)) }));
     let key = Key::Source { account: 1, number: 2 };
     let expected = Some(Held::Limited { reset: Some(Wall::from_nanos(120)) });
     for (now, wall, place) in [(12, 1_000, 1), (15, 50, 0)] {
@@ -334,7 +326,7 @@ fn saving_again_and_restoring_preserve_the_exact_source_wall() {
             change: jig_domain_accounts::Change::MoveSource { account: 1, source: 2, place },
         });
         assert!(requests.iter().any(|request| matches!(request, Request::Save { record: Stored::Source { number: 2, held, .. } } if *held == expected)), "an actual later save keeps the original wall");
-        commit(&mut store, requests);
+        commit(&mut store, &requests);
         let Stored::Source { held, .. } = &store[&key] else { panic!("source record") };
         assert_eq!(*held, expected);
         let fact = world.domain.source(2).expect("limited source");
@@ -363,14 +355,13 @@ fn saving_again_and_restoring_preserve_the_exact_source_wall() {
 
 const RESTORED_ACCOUNT: u32 = 10;
 const RESTORED_SOURCE: u32 = 11;
-const RESTORED_PROVIDER: u32 = 1;
 
 fn restored_source(account_number: u32) -> World {
     World::with_start(
         jig_accounts_world::LIMITS,
-        providers(vec![provider(RESTORED_PROVIDER, false, true)]),
+        providers(vec![provider(PROVIDER, false, true)]),
         &[
-            account(RESTORED_ACCOUNT, RESTORED_PROVIDER, Holder::Deployment, b""),
+            account(RESTORED_ACCOUNT, PROVIDER, Holder::Deployment, b""),
             source(account_number, RESTORED_SOURCE, 0, Kind::Key),
         ],
     )

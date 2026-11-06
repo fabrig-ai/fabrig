@@ -239,7 +239,7 @@ pub enum Up {
 }
 
 /// A client with a deterministic script and its own reply and waiting ledger.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Party {
     pub project: u32,
     pub role: Role,

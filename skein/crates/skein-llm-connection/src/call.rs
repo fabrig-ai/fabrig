@@ -139,6 +139,19 @@ impl Connection {
         }
     }
 
+    pub(crate) fn reusable(&self) -> bool {
+        match self.phase {
+            Idle | Ready => true,
+            Connecting { .. } | Handshaking { .. } | Head { .. } | Streaming { .. } | Draining | Closing { .. } => {
+                false
+            }
+        }
+    }
+
+    pub(crate) fn idle(&self) -> bool {
+        self.phase == Idle
+    }
+
     pub(crate) fn call(&self) -> Option<Token> {
         match self.phase {
             Connecting { call } | Handshaking { call } | Closing { call } => call,

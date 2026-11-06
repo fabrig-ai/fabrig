@@ -1,3 +1,4 @@
+use jig_core_world::fixtures::sign_in as signin;
 use jig_core_world::watches::latest;
 use jig_core_world::watches::open;
 use jig_core_world::watches::world;
@@ -206,15 +207,7 @@ fn inbox_across_projects_stories() {
     open(&mut world, 1, Watched::Frame);
     open(&mut world, 4, Watched::Inbox);
     let first_sign_in = world.sign_in.expect("first party");
-    world.send(root::Event::Core(core::Event::SignIn {
-        held: None,
-        reply_to: skein_lib::ReplyTo::new(Token::new(6090)),
-        identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: 8_u64.to_be_bytes().into() },
-            login: b"other".as_slice().into(),
-            name: b"Other".as_slice().into(),
-        },
-    }));
+    world.send(signin(Token::new(6090), 0, &8_u64.to_be_bytes(), b"other", b"Other"));
     let second_sign_in = world.sign_in.expect("second party");
     world.sign_in = Some(first_sign_in);
     super::ask(

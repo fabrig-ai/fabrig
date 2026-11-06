@@ -1,12 +1,12 @@
 use jig_domain_tasks::{self as tasks, Edge, Event, Key, Party, Refusal, Stored};
-use jig_tasks_world::{LIMITS, Reply, World, task};
+use jig_tasks_world::{LIMITS, PERSON, PERSON as MOVED_REQUESTER, PERSON_PARTY, Reply, World, task};
 
 fn delegates() -> World {
     let mut world = World::new(185, LIMITS);
     assert_eq!(world.make(Party::Person(1), vec![task(1, &[])]), Reply::Made(vec![1]));
     world.carve_pool(0, 100);
     let mut child = task(2, &[]);
-    child.funder = jig_domain_tasks::Funder::Pool { project: 1, person: 9, period: 0 };
+    child.funder = jig_domain_tasks::Funder::Pool { project: 1, person: PERSON, period: 0 };
     assert_eq!(world.make(Party::Task(1), vec![child]), Reply::Made(vec![2]));
     world
 }
@@ -38,19 +38,18 @@ fn an_adopted_task_leaves_its_old_requesters_delegate_rows() {
     world.send(Event::Move {
         operation: tasks::Move { task: 2, reason: Box::new([]) },
         reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(reply)),
-        person: 9,
+        person: PERSON,
         period: 0,
         pool_budget: 100,
         period_budget: 1000,
     });
     assert_eq!(world.replies[&reply], Reply::Done);
-    assert_eq!(world.record(2).requester, Party::Person(9));
+    assert_eq!(world.record(2).requester, PERSON_PARTY);
     assert!(!world.records.contains_key(&Key::Delegate { requester: 1, task: 2 }));
     finish_delegate(&mut world);
     assert!(!world.records.contains_key(&Key::EndedDelegate { requester: 1, task: 2 }));
 }
 
-const MOVED_REQUESTER: u64 = 9;
 const MOVED_DELEGATE: u64 = 2;
 const OLD_ROOT: u64 = 1;
 

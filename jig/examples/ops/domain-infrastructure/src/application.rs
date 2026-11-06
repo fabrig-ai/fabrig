@@ -117,11 +117,16 @@ impl Domain {
     }
 }
 
+pub(crate) struct Deciding {
+    pub(crate) token: Token,
+    pub(crate) owner: Token,
+}
+
 pub(crate) fn decide(
     domain: &mut Domain,
     env: &Env<Limits>,
     request: Token,
-    (token, owner): (Token, Token),
+    Deciding { token, owner }: Deciding,
     role: u32,
     retention: Duration,
     out: &mut Queue<Request>,
