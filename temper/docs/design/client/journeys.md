@@ -521,6 +521,9 @@ through `04.html` and its README are not journeys to reprint or land
 the configuring proposal states, Start over and the rail strip are also
 drawn by the gallery (`browser.md`, 7.2). Its drawing and figure wait on
 `skein/docs/design/draft/diagrams.md`.
+The `configure-temper-own-way` request's hand-made `configure-own-way/`
+pages are not journeys to reprint or land either; the gallery draws those
+states, including the card and the stock reference beside the page.
 
 ## 10. Open questions
 

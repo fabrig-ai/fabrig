@@ -2233,8 +2233,9 @@ keeps (`../protocol/configuration.md`, section 2).
   shifted by half a scrollbar where the platform's scrollbars take room. On
   a phone
   neither keeps a gutter and both stand 16 pixels in, the conversation
-  scrolling with no scrollbar drawn, the question at 26 pixels and the
-  cards tighter. At 1366 by 680 the whole opening and the
+  scrolling with no scrollbar drawn, the opening 20 pixels from the top,
+  the question at 26 pixels and the cards keeping their 14 and 16 pixel
+  padding. At 1366 by 680 the whole opening and the
   composer show with no scrolling.
 
   A starter or "Send" starts the chat, the words it sends the first
@@ -2258,7 +2259,8 @@ keeps (`../protocol/configuration.md`, section 2).
     folds the pane, the group staying. The mode is the page's, in no address
     and kept nowhere: leaving the page or a reload closes the reference.
   - *In Split,* the ways to begin are one a row, each title and its line on
-    one line, the wide card's buttons under its words. *On a phone* there is
+    one line where they fit, wrapping at a narrower width, the wide card's
+    buttons under its words. *On a phone* there is
     no Split: the reference alone, as Draft, the composer under it, as a
     chat's document is.
   - *The pane:* its line, in small mono, "temper’s own way · a reference"

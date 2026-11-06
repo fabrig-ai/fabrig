@@ -68,10 +68,6 @@
   configuring chat (`temper-client-view`'s `pages/chat.rs`, `main`), where nothing
   then says why Send stays grey; and no line says there that the playground is
   running or leaving. Seen by reading; no test holds it.
-- **Not yet:** 3.5, *The configuring chat's page* and *temper's own way, beside
-  the page*: the wide card, the fourth starter in the section's head, the
-  opening's tighter spacing, the reference in the document pane and its Split, and
-  the gallery's states for them (`configure-temper-own-way`).
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
 - **Not yet:** 3.5, *The try*: the view has no fact of a trial, so `model_check::trial`,
   the one function `../draft/model-check.md`, 2 to 4, feeds, reads the host's check alone:
