@@ -200,8 +200,8 @@ impl Walk {
             "main",
             "Review the change",
             "Checked widget CSV export.",
-            // The demo's fake forge has no public external addresses.
-            "its change on the forge",
+            "https://",
+            "spent \u{b7} of",
         ] {
             assert!(!text.contains(forbidden), "{path} exposed {forbidden:?}: {text}");
         }
@@ -219,7 +219,7 @@ impl Walk {
         }
         if matches!(self.page, Page::Landings) {
             // This demo lands directly, without a landing by turn: no turn, queues or recent landings.
-            assert_eq!(self.text, ["temper", "Landings"], "empty public landings page");
+            assert_eq!(self.text, ["temper", "Landings", "Nothing has landed yet."], "empty public landings page");
         }
         if matches!(self.page, Page::Private) {
             assert_eq!(
@@ -229,7 +229,11 @@ impl Walk {
             );
         }
         if matches!(self.page, Page::Empty | Page::Malformed) {
-            assert_eq!(self.text, ["temper", "Public projects"], "no public project remains");
+            assert_eq!(
+                self.text,
+                ["temper", "Public projects", "No public projects yet."],
+                "no public project remains"
+            );
         }
     }
     fn advance(&mut self) {
@@ -251,9 +255,7 @@ impl Walk {
             Page::Task => self.open(
                 Page::Landings,
                 vec![
-                    go(self.board.as_bytes()),
-                    see(heading(PROJECT)),
-                    press(Find::exactly_named(Role::Link, b"Landings")),
+                    go(format!("{}/landings", self.board).as_bytes()),
                     see(heading(b"Landings")),
                     Step::Address(format!("{}/landings", self.board).into_bytes().into()),
                 ],

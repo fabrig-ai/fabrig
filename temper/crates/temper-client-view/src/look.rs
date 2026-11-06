@@ -1194,6 +1194,14 @@ pub const NAMES: Names<'static> = Names {
         b"temper-reserved-515",
         b"temper-welcome-status-why",
         b"temper-welcome-status-acts",
+        b"temper-public-page",
+        b"temper-public-intro",
+        b"temper-public-lede",
+        b"temper-public-rows",
+        b"temper-public-row",
+        b"temper-public-line",
+        b"temper-public-facts",
+        b"temper-public-section",
     ],
     regions: &[b"temper-link"],
 };
@@ -1410,6 +1418,23 @@ pub const THREAD_LOADING: Style = Style { owner: owner(), token: 476 };
 pub const WELCOME_STATUS_WHY: Style = Style { owner: owner(), token: 516 };
 /// Ready’s model controls (client/README.md, 3.5, The try).
 pub const WELCOME_STATUS_ACTS: Style = Style { owner: owner(), token: 517 };
+
+/// Public pages (temper/docs/design/client/browser.md, 8.3).
+pub const PUBLIC_PAGE: Style = Style { owner: owner(), token: 518 };
+/// Public pages (temper/docs/design/client/browser.md, 8.3).
+pub const PUBLIC_INTRO: Style = Style { owner: owner(), token: 519 };
+/// Public pages (temper/docs/design/client/browser.md, 8.3).
+pub const PUBLIC_LEDE: Style = Style { owner: owner(), token: 520 };
+/// Public pages (temper/docs/design/client/browser.md, 8.3).
+pub const PUBLIC_ROWS: Style = Style { owner: owner(), token: 521 };
+/// Public pages (temper/docs/design/client/browser.md, 8.3).
+pub const PUBLIC_ROW: Style = Style { owner: owner(), token: 522 };
+/// Public pages (temper/docs/design/client/browser.md, 8.3).
+pub const PUBLIC_LINE: Style = Style { owner: owner(), token: 523 };
+/// Public pages (temper/docs/design/client/browser.md, 8.3).
+pub const PUBLIC_FACTS: Style = Style { owner: owner(), token: 524 };
+/// Public pages (temper/docs/design/client/browser.md, 8.3).
+pub const PUBLIC_SECTION: Style = Style { owner: owner(), token: 525 };
 
 #[cfg(test)]
 mod tests {

@@ -3,10 +3,10 @@ use super::{PROJECT, TASK};
 use jig_client_protocol_wire::public_v1 as j;
 use skein_lib::{List, Writer};
 use temper_client_protocol_wire::public_v1 as f;
-pub(super) const REPOSITORY: &[u8] = b"https://forge.example/owner/repository";
-pub(super) const PULL: &[u8] = b"https://forge.example/owner/repository/pulls/7";
-pub(super) const RUN: &[u8] = b"https://forge.example/owner/repository/actions/runs/8";
-const HEAD: [u8; 32] = [0x12; 32];
+pub(super) const HEAD: [u8; 32] = [
+    0x78, 0x9a, 0xda, 0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+    0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+];
 pub(super) fn line(goal: bool) -> j::PublicLine {
     let counts = j::PublicCounts::new(
         &j::CEILINGS,
@@ -36,10 +36,13 @@ pub(super) fn line(goal: bool) -> j::PublicLine {
     .expect("line")
 }
 pub(super) fn card() -> Box<[u8]> {
+    card_line(line(false))
+}
+pub(super) fn card_line(own: j::PublicLine) -> Box<[u8]> {
     let card = j::PublicCard::new(
         &j::CEILINGS,
         j::PublicCardParts {
-            line: line(false),
+            line: own,
             lineage: List::from_boxed(Box::new([PROJECT])),
             delegates: List::from_boxed(Box::new([line(true)])),
             folded: 0,
@@ -54,6 +57,9 @@ fn used() -> f::PublicUsed {
     f::PublicUsed::new(&f::CEILINGS, f::PublicUsedParts { used: 0, limit: 2 }).expect("counters")
 }
 pub(super) fn change() -> Box<[u8]> {
+    change_commits(Some(HEAD), None)
+}
+pub(super) fn change_commits(head: Option<[u8; 32]>, merge: Option<[u8; 32]>) -> Box<[u8]> {
     let gate = f::PublicGate::new(
         &f::CEILINGS,
         f::PublicGateParts {
@@ -68,12 +74,10 @@ pub(super) fn change() -> Box<[u8]> {
         &f::CEILINGS,
         f::PublicChangeParts {
             task: 0,
-            repository: REPOSITORY.into(),
-            pull: Some(PULL.into()),
-            head: Some(HEAD),
+            head,
             step: f::PublicStep::Checking,
             repair: None,
-            merge: None,
+            merge,
             tiers: 0,
             hold: None,
             ci: f::PublicCi::Passed,
@@ -101,13 +105,14 @@ fn application(record: Box<[u8]>) -> Box<[u8]> {
     writer.finish()
 }
 pub(super) fn landings() -> Box<[u8]> {
+    landings_with(true, true)
+}
+pub(super) fn landings_with(queue_present: bool, landed: bool) -> Box<[u8]> {
     let queued =
         f::PublicQueued::new(&f::CEILINGS, f::PublicQueuedParts { task: 0, goal: 1, ready_since: 0 }).expect("queued");
-    let queue = f::PublicQueue::new(
-        &f::CEILINGS,
-        f::PublicQueueParts { repository: REPOSITORY.into(), changes: List::from_boxed(Box::new([queued])) },
-    )
-    .expect("queue");
+    let queue =
+        f::PublicQueue::new(&f::CEILINGS, f::PublicQueueParts { changes: List::from_boxed(Box::new([queued])) })
+            .expect("queue");
     let line = f::PublicLandingLine::new(
         &f::CEILINGS,
         f::PublicLandingLineParts {
@@ -120,9 +125,9 @@ pub(super) fn landings() -> Box<[u8]> {
     let landings = f::PublicLandings::new(
         &f::CEILINGS,
         f::PublicLandingsParts {
-            turn: Some(0),
-            landings: List::from_boxed(Box::new([line])),
-            queues: List::from_boxed(Box::new([queue])),
+            turn: if landed { Some(0) } else { None },
+            landings: if landed { List::from_boxed(Box::new([line])) } else { List::with_capacity(0) },
+            queues: if queue_present { List::from_boxed(Box::new([queue])) } else { List::with_capacity(0) },
         },
     )
     .expect("landings");
@@ -131,6 +136,13 @@ pub(super) fn landings() -> Box<[u8]> {
     application(writer.finish())
 }
 pub(super) fn landing() -> Box<[u8]> {
+    landing_commits(None, None, Some(HEAD))
+}
+pub(super) fn landing_commits(
+    base: Option<[u8; 32]>,
+    candidate: Option<[u8; 32]>,
+    landed: Option<[u8; 32]>,
+) -> Box<[u8]> {
     let gate = f::PublicGateProof::new(
         &f::CEILINGS,
         f::PublicGateProofParts {
@@ -138,21 +150,12 @@ pub(super) fn landing() -> Box<[u8]> {
             kind: f::PublicGateKind::Check,
             blocks: false,
             proof: f::PublicProof::Passed,
-            run: Some(RUN.into()),
         },
     )
     .expect("proof");
     let member = f::PublicMember::new(
         &f::CEILINGS,
-        f::PublicMemberParts {
-            task: 0,
-            repository: REPOSITORY.into(),
-            pull: Some(PULL.into()),
-            base: None,
-            candidate: None,
-            landed: Some(HEAD),
-            gates: List::from_boxed(Box::new([gate])),
-        },
+        f::PublicMemberParts { task: 0, base, candidate, landed, gates: List::from_boxed(Box::new([gate])) },
     )
     .expect("member");
     let landing = f::PublicLanding::new(
@@ -172,6 +175,9 @@ pub(super) fn landing() -> Box<[u8]> {
     application(writer.finish())
 }
 pub(super) fn projects() -> Box<[u8]> {
+    projects_with(true)
+}
+pub(super) fn projects_with(present: bool) -> Box<[u8]> {
     let project = j::PublicProject::new(
         &j::CEILINGS,
         j::PublicProjectParts { project: PROJECT, name: b"A public project".as_slice().into() },
@@ -179,7 +185,10 @@ pub(super) fn projects() -> Box<[u8]> {
     .expect("project");
     let projects = j::PublicProjects::new(
         &j::CEILINGS,
-        j::PublicProjectsParts { projects: List::from_boxed(Box::new([project])), max_age: 8 },
+        j::PublicProjectsParts {
+            projects: if present { List::from_boxed(Box::new([project])) } else { List::with_capacity(0) },
+            max_age: 8,
+        },
     )
     .expect("projects");
     let mut writer = Writer::new(usize::try_from(projects.measure()).expect("small projects"));

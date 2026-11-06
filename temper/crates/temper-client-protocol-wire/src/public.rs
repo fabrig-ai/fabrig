@@ -1,23 +1,17 @@
 //! Visitor records bounded by the panels (temper/docs/design/client/forge.md, 11.4).
-use crate::{ADDRESS_BYTES, Bounds, TASKS_AHEAD, public_v1};
+use crate::{Bounds, TASKS_AHEAD, public_v1};
 
 /// Set the visitor codec's limits from the panels, refusing invalid panel bounds.
 #[must_use]
 pub fn public_limits(bounds: &Bounds) -> Option<public_v1::Limits> {
     let panels = crate::limits(bounds)?;
     let limits = public_v1::Limits {
-        public_change_repository: ADDRESS_BYTES,
-        public_change_pull_some: panels.pull_address,
         public_change_gates: panels.change_panel_gates,
         public_landing_line_members: panels.landing_line_changes,
         public_landing_line_landed: panels.landing_line_landed,
-        public_queue_repository: ADDRESS_BYTES,
         public_queue_changes: TASKS_AHEAD,
         public_landings_landings: panels.landings_panel_landings,
         public_landings_queues: panels.landings_panel_landings,
-        public_gate_proof_run_some: panels.receipted_address,
-        public_member_repository: ADDRESS_BYTES,
-        public_member_pull_some: panels.pull_address,
         public_member_gates: panels.member_gates,
         public_landing_members: panels.landing_panel_members,
     };

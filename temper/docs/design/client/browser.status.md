@@ -2,7 +2,6 @@
 
 2026-11-06. Where temper's code lags or departs from [browser.md](browser.md).
 
-- **Not yet:** 8.3 and 8.4: the public pages as one column of rows, an ended row's words, the empty pages' words, "Its change: 789ada1" and no link to the forge. The view still draws the plan's table, shows a line's budget and links out, from the request `ui-public-2`.
 - **Not yet:** 8.3: three things remain, as the request `ui-public-2` left them. Landed work from before a project went public never shows. A restart empties the history (jig's `domain/people.md`, 13.9). A stock queue's Landings stay empty, since its changes land without a landing by turn.
 - **Not yet:** 2.3, *A heading drawn after its page*: that a focus placed while a heading
   waits keeps its place, which the answer of 2026-11-06 to the `ui-composer-focus` task

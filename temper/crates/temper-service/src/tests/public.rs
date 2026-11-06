@@ -21,7 +21,7 @@ fn the_forge_declares_its_three_public_kinds() {
         expected.map(|kind| (kind.owner, kind.kind, kind.first, kind.last, kind.task)),
         [(2, 1, 1, 1, true), (2, 2, 1, 1, false), (2, 3, 1, 1, true)]
     );
-    assert_eq!(expected.map(|kind| kind.bound), [4927, 198_733, 165_794]);
+    assert_eq!(expected.map(|kind| kind.bound), [822, 67_405, 1562]);
 }
 #[test]
 fn a_public_read_and_its_answer_cross_the_root_boundary() {
@@ -52,7 +52,7 @@ fn a_public_kind_above_the_ceiling_names_answer_bytes() {
         rate_burst: 8,
         bytes: 524_288,
         bytes_burst: 524_288,
-        answer_bytes: 198_732,
+        answer_bytes: 67_404,
         max_age: 2,
     };
     let Err(problems) = Clients::new(
