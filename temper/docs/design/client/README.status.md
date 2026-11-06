@@ -260,6 +260,9 @@
   `translate_block`) and nothing fills them, so `temper-client-view`'s `pages/chat.rs`,
   `proposal_anchor`, finds none; only the view's tests, which fill them by hand, draw a card at its call.
   Seen at each width on the walk of the request `ui-chat-accept` of 2026-11-06, its cause by reading.
+  The `ui-proposal-card` plan keeps this gap: filling the core's turn record,
+  archived turn and call-to-proposal mapping is separate work (section 11,
+  *Calls naming their proposals*). The making line supplies the card's place.
 - **Design departs:** 5.13, *The card in a chat*, from the request `ui-chat-accept` of 2026-11-06,
   by its plan's cut: that request has the fix reach both of the card's acts, reading "the unavailable
   direct Reject control" as one family with the refused Accept. The section and the mock's `chat.html`,

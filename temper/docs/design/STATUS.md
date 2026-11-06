@@ -249,7 +249,8 @@ serving this work yet`, and a person task's `task amend` prints no arguments
 (`client/tools.md`). A proposal of settings reaches a
 project's Needs you and rail's count and is accepted on its chat's card, but its live
 card lists no item of temper's kinds and stays on Needs you once accepted. No live turn
-names its proposal, so its card stands after the turn that made it; the chat's card
+names its proposal, so its card stands after the turn that made it; filling the call's
+objects and the real-model proposal-card QA walk remain separate work. The chat's card
 draws no Reject, departing from the request `ui-chat-accept` (`client/README.md`). "Start goal…" went once from a
 restored document, on no replay since, its cause unknown (`client/README.md`). The welcome's command names the
 binary that runs it and has a Copy, but no browser test presses the Copy or sees its word change; the gallery's walk of
