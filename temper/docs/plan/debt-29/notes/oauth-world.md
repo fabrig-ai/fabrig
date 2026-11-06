@@ -13,7 +13,7 @@ Most sign-in tests are `drop(run(..))`, so the `Judge` is their only check. `oau
 Run it, through heavy, with:
 
 ```sh
-heavy cargo nextest run -p skein-oauth-accounts-world --test suite --run-ignored only -E 'test(/^baseline::/)'
+heavy cargo nextest run -p skein-oauth-accounts-world --run-ignored only -E 'test(/baseline::/)'
 ```
 
 **Each of the tasks after `oauth-baseline` runs it first,** right after fab's trunk merge, before any edit. Red there means the trunk moved a kit: re-record it, and report which commit moved it. **It runs after each step of your work too:** it stays green, and it's never re-recorded to make a refactor pass. A digest that moves because of your edit is the common note's "stop and ask": nothing in these tasks changes what a story does.
