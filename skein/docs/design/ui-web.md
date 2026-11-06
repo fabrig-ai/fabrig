@@ -604,11 +604,13 @@ the host tests (section 14).
     write (ui.md, 3.4).
 - **Never replaced while it can be updated:** focus, caret, selection,
   composition and scroll stay. A removal that takes the focus moves it
-  to the nearest remaining ancestor that can take it, else the main.
+  to the nearest remaining ancestor that can take it, a disclosure on
+  its `<summary>`, else the main.
 - **A focus request:** after the apply, a node inserted with one, or
   whose count moved, takes the focus. An element that cannot take it by
   itself (a heading, a region) gets `tabindex="-1"` first, so it takes
-  the focus without joining the tab order.
+  the focus without joining the tab order. A disclosure takes it on its
+  `<summary>`.
 - **Acts,** each reported with its node's id (ui.md, section 6), none on
   a disabled node; the view refuses one that races a patch disabling
   its node, and an option of a disabled select is disabled:
@@ -869,7 +871,11 @@ share sheet, a clipboard write, a file picked).
     is not in every browser the page supports. So the mapping stays
     attributes alone, and its goldens see all of it. An owner's rule
     draws a bar with `var(--skein-ui-progress, 0%)`;
-  - keeps focus outlines visible;
+  - keeps focus outlines visible on what a person reaches by keys, and
+    draws none on a programmatic focus target: an element whose
+    `tabindex="-1"` is there only to take the focus (a main, a heading,
+    a region; section 7). A menu's item, which the arrow keys reach,
+    keeps its outline;
   - follows the platform's light or dark preference, and reduced motion.
 - **It styles no token and places no region:** skein-ui reserves no
   token names, and layout is never the tree's; it sets no palette. **No

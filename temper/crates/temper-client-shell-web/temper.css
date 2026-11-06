@@ -110,15 +110,12 @@ a { color: inherit; text-decoration: none; }
 .temper-project-new button:hover { border-color: #ba9c89; color: var(--temper-accent-dark); }
 /* The switcher's fields keep their labels for assistive technology alone. */
 .temper-project-new > label, .temper-project-rename-form > label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
-/* The open project's row: its name, and Rename at its end; renaming, the row is its name's field. */
+/* The banner's open project offers Rename beside its name; its form replaces that row. */
 .temper-projects[open]::details-content { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
 .temper-projects > :not(.temper-project-rename):not([aria-pressed=true]) { grid-column: 1 / -1; }
 .temper-projects > button.temper-project-rename { width: auto; padding: 5px 12px 5px 6px; color: var(--temper-faint); font-size: 11px; opacity: 0; }
 .temper-projects > button[aria-pressed=true]:hover + .temper-project-rename, .temper-projects > .temper-project-rename:hover, .temper-projects > .temper-project-rename:focus-visible { opacity: 1; }
 .temper-projects > button.temper-project-rename:hover { background: none; color: var(--temper-accent-dark); text-decoration: underline; }
-.temper-projects > .temper-project-rename-form { display: flex; align-items: center; gap: 6px; padding: 3px 8px 3px 12px; }
-.temper-project-rename-form input { flex: 1; min-width: 0; padding: 2px 6px; margin-left: -7px; border: 1px solid #cba893; border-radius: 4px; outline: 0; background: var(--temper-paper); color: var(--temper-ink); font-size: 12px; font-weight: 600; }
-.temper-project-rename-form button { flex: none; padding: 2px 8px; border: 1px solid #ddd6cb; border-radius: 4px; background: none; color: var(--temper-accent-dark); font-size: 11px; }
 @media (hover: none) { .temper-projects > button.temper-project-rename { opacity: 1; } }
 @supports selector(::details-content) {
   @media (min-width: 761px) {
@@ -140,7 +137,7 @@ a { color: inherit; text-decoration: none; }
 /* Resolve body's em spacing at main's larger font instead of inheriting its computed pixels. */
 .temper-main { font-size: 14px; letter-spacing: -.015em; width: min(1213.33px, calc(100% - 56px)); margin: 0 auto; padding: 25.67px 0 67.67px; }
 /* The preceding skein sheet's focus ring and visually hidden figures, inside main. */
-.temper-main:focus-visible, :where(.temper-main) :focus-visible { outline-width: 2.33px; outline-offset: 2.33px; }
+:where(.temper-main) :focus-visible { outline-width: 2.33px; outline-offset: 2.33px; }
 :where(.temper-main) [data-drawn] > :not(svg), :where(.temper-main) [id^="skein-ui-state-"] { width: 1.17px; height: 1.17px; margin: -1.17px; }
 /* skein's absolute small label is 13px in Chromium; unlike inherited type it needs its own length. */
 :where(.temper-main:where(:not(.temper-settings))) label[for^="skein-ui-label-"]:has(+ input:not([type="radio"], [type="checkbox"])) { font-size: 15.17px; }
@@ -224,7 +221,7 @@ section.temper-accounts button:hover { text-decoration: underline; }
 .temper-agent-page .temper-taskbar button:hover { color: var(--temper-accent); text-decoration: underline; }
 /* .terminal-thread and .terminal-thread-inner: edge scrollbar, centred contents. */
 .temper-agent-page .temper-thread { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.temper-agent-page .temper-thread > [role=log] { flex: 0 1 auto; min-height: 0; min-height: calc-size(min-content, min(size, 33%)); width: 100%; padding: 25.67px max(37.33px, calc((100% - 1213.33px) / 2)) 35px; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: #d9d1c5 transparent; }
+.temper-agent-page .temper-thread > [role=log] { position: relative; flex: 0 1 auto; min-height: 0; min-height: calc-size(min-content, min(size, 33%)); width: 100%; padding: 25.67px max(37.33px, calc((100% - 1213.33px) / 2)) 35px; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: #d9d1c5 transparent; }
 .temper-agent-page .temper-thread > [role=log]:not(:last-child) { padding-bottom: 0; }
 .temper-agent-page .temper-thread > :not([role=log]):not(.temper-cards) { flex: none; width: min(1213.33px, calc(100% - 74.67px)); margin-inline: auto; }
 /* .first-run-context: a direct chat child shares the conversation column. */
@@ -1075,7 +1072,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > :is(.temper-welcome, .temper-home) .temper-welcome-sheet-foot > button.temper-flow-primary { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
 #app > :is(.temper-welcome, .temper-home) .temper-welcome-sheet-foot > button.temper-flow-primary:hover { border-color: #000; background: #000; }
 #app > :is(.temper-welcome, .temper-home) .temper-welcome-sheet-foot > button:disabled { opacity: .45; cursor: default; }
-#app > :is(.temper-welcome, .temper-home) .temper-welcome-sheet :focus-visible { outline: 2px solid var(--gf-ink); outline-offset: 2px; }
+#app > :is(.temper-welcome, .temper-home) .temper-welcome-sheet :focus-visible:not([tabindex="-1"]) { outline: 2px solid var(--gf-ink); outline-offset: 2px; }
 @media (max-width: 760px) {
   #app:has(> .temper-welcome) > .temper-banner { padding: 14px 16px; }
   #app:has(> .temper-welcome) .temper-flow-step:not([aria-current]) > a { font-size: 0; gap: 0; padding: 6px 4px; }
@@ -1197,6 +1194,16 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 /* Home's column. */
 
+/* ==== ui: switcher ==== */
+.temper-project-rename-form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px; }
+.temper-project-rename-form > input { flex: 1; min-width: 0; min-height: 34px; padding: 6px 12px; border: 1px solid var(--gf-line-2, #d4d4cf); border-radius: 8px; background: var(--gf-surface, #fff); color: var(--gf-ink, #18181b); }
+.temper-project-rename-form > button { flex: none; min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-ink, #18181b); border-radius: 8px; background: var(--gf-ink, #18181b); color: #fff; font-size: 13.5px; font-weight: 500; }
+.temper-project-rename-form > button:hover { background: #000; }
+.temper-project-rename-form > button:disabled { opacity: .45; cursor: default; }
+/* Cancel is Escape's alone here: the page part presses it from the tree. */
+.temper-project-rename-form > [aria-keyshortcuts=Escape] { display: none; }
+.temper-project-rename-form > [role=status] { flex: 0 0 100%; order: 1; }
+
 /* ==== ui: home ==== */
 /* Navigation focuses page targets without drawing a control ring. */
 #app :is(main, h1)[tabindex="-1"]:focus { outline: none; }
@@ -1294,7 +1301,6 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-session .temper-doc-empty { color: var(--gf-muted); }
 
 #app > .temper-session .temper-doc-sec { border-radius: 8px; transition: background .8s; }
-#app > .temper-session .temper-doc-sec:focus { outline: none; }
 #app > .temper-session .temper-doc-flash { border-radius: 8px; animation: flash 1.8s ease-out; }
 @keyframes flash { 0% { background: #fde7cf; } 100% { background: var(--gf-signal-pale); } }
 #app > .temper-session .temper-turn-tool > button:hover { color: var(--gf-ink); text-decoration-color: var(--gf-ink); }
@@ -1507,7 +1513,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 
 /* A chat's log is the scroller; skein follows its end while the person stays there. */
 #app > .temper-session .temper-thread:has(> [role=log]) { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
-#app > .temper-session .temper-thread > [role=log] { flex: 1; min-height: 0; width: 100%; overflow-y: auto; scrollbar-gutter: stable both-edges; padding: 36px 40px 24px; }
+#app > .temper-session .temper-thread > [role=log] { position: relative; flex: 1; min-height: 0; width: 100%; overflow-y: auto; scrollbar-gutter: stable both-edges; padding: 36px 40px 24px; }
 #app > .temper-session .temper-thread-inner { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
 #app > .temper-session .temper-thread-inner > .temper-chats-more { align-self: center; margin: 0; display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid transparent; border-radius: 8px; background: none; color: var(--gf-muted); font: 400 13.5px/1.6 var(--gf-sans); text-decoration: none; text-align: left; }
 #app > .temper-session .temper-thread-inner > .temper-chats-more:hover { border-color: #b4b4ae; background: var(--gf-hover); color: var(--gf-ink); }
@@ -1561,7 +1567,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-session.temper-mode-chat > .temper-doc { display: none; }
 #app > .temper-session.temper-mode-draft > .temper-convo { grid-row: 3; background: var(--gf-surface); }
 #app > .temper-session.temper-mode-draft .temper-thread { display: none; }
-#app > .temper-session > .temper-doc { min-height: 0; overflow-y: auto; scrollbar-gutter: stable both-edges; padding: 44px 56px 80px; border-left: 1px solid var(--gf-line); background: var(--gf-surface); }
+#app > .temper-session > .temper-doc { position: relative; min-height: 0; overflow-y: auto; scrollbar-gutter: stable both-edges; padding: 44px 56px 80px; border-left: 1px solid var(--gf-line); background: var(--gf-surface); }
 #app > .temper-session.temper-mode-draft > .temper-doc { grid-row: 2; padding-bottom: 24px; border-left: 0; }
 #app > .temper-session .temper-doc-inner { max-width: 640px; margin: 0 auto; font-size: 15.5px; line-height: 1.7; color: var(--gf-ink); }
 #app > .temper-session .temper-doc-inner p { margin: 0 0 8px; }
