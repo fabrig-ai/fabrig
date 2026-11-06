@@ -3,3 +3,20 @@ repo = "fabrig"
 sources = ["temper/docs/plan/ui-repo-link/inputs/request.md", "temper/docs/design/protocol/sign-in.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 priority = true
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "link"
+title = "A project's repository is a link in a new tab, wherever it is named"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/forge.md, 5.4"
+
+[[slice]]
+id = 1
+story = "A person presses a project's repository in the switcher: a new tab opens on its page on the forge, and the project's name still switches project"
+parts = ["link"]
+walk = false

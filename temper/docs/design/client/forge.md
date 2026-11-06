@@ -436,6 +436,26 @@ and `connect-forge.html`.
   through temper: Forgejo’s sign-in is temper’s.", LOGIN the member's
   login. Forgejo starts its sign-in with the temper source, temper
   answers at once, and Forgejo opens signed in.
+- **A repository's link:** in the browser, wherever a project's repository
+  is named with its forge known (the switcher's row, `README.md`, 5.3; the
+  body's "Repositories" row below; the Forge line and Settings' Repositories,
+  `README.md`, 3.5), OWNER/NAME is the link "OWNER/NAME ↗", in a new tab,
+  underlined on hover, in the look of the words it replaces. Its address:
+  - a Forgejo whose page facts offer sign-in (`../protocol/sign-in.md`, 9.3):
+    `ROOT/user/oauth2/temper?redirect_to=%2FOWNER%2FNAME`, ROOT as for "Open
+    Forgejo ↗", so that one click signs the member in and lands on the
+    repository's page;
+  - any other forge, GitHub among them, with a `web` address: `WEB/OWNER/NAME`;
+  - otherwise none, and the words stay plain, as the playground's do.
+
+  OWNER and NAME are each percent-encoded as a path's segment, all but ASCII
+  letters, digits, `-`, `.`, `_` and `~`, and in `redirect_to` that path is
+  encoded again as a query's value, so a name can't end the path, the query or
+  the address. An address that isn't a safe `http` or `https` URL is none.
+  The terminal draws no link, and its words are unchanged. A folded row's
+  summary stays words: a disclosure's description is text in its `<summary>`,
+  and a link there is the trap a link in a button is; its link is in the
+  row's body, under "Repositories".
 - **A forge's name:** "Forgejo on this machine" for an owned Forgejo,
   "GitHub" for GitHub, "Forgejo at HOST" for another Forgejo, HOST its
   `web` address's host, and "Playground forge" for the playground's
@@ -860,8 +880,8 @@ says:
   (`../protocol/setup.md`, 6.7): "Making ORG/NAME" from the ask until
   it is made; once made and connected, the body's "Repositories" row
   says "ORG/NAME · project PROJECT", resolving PROJECT to its name,
-  as the summary does. It stays plain while the client has no project's
-  changes address. There is no separate Made paragraph. Or "Making
+  as the summary does, ORG/NAME the repository's link (5.4, *A repository's
+  link*). There is no separate Made paragraph. Or "Making
   ORG/NAME failed: STEP", the step one of "checking the admin's
   token", "making the organization", "making the repository" (its
   bot's access with it) or "adding the starter workflow", beside "Set
