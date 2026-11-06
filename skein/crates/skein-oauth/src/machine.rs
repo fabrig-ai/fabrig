@@ -40,6 +40,45 @@ pub struct ClientLimits {
     pub max_attempts: u32,
 }
 
+impl ClientLimits {
+    /// Small client limits for test worlds, overridable at each entrance.
+    pub const TEST: Self = Self {
+        document: Limits {
+            document_bytes: 4096,
+            string_bytes: 1024,
+            token_bytes: 256,
+            client_bytes: 64,
+            detail_bytes: 64,
+            record_bytes: 2048,
+            depth: 8,
+            tokens: 64,
+            issued_client_bytes: 64,
+            granted_bytes: 64,
+            subject_bytes: 64,
+            id_token_bytes: 1024,
+        },
+        uri_bytes: 256,
+        scope_bytes: 64,
+        state_bytes: 64,
+        code_bytes: 64,
+        url_bytes: 1024,
+        request_bytes: 1024,
+        parameter_bytes: 0,
+        resource_bytes: 0,
+        nonce_bytes: 0,
+        metadata_bytes: 0,
+        key_set_bytes: 0,
+        keys: 0,
+        modulus_bits: 2048,
+        skew: Duration::from_secs(0),
+        sign_in_time: Duration::from_secs(120),
+        request_time: Duration::from_secs(10),
+        backoff_base: Duration::from_secs(2),
+        backoff_ceiling: Duration::from_secs(8),
+        max_attempts: 3,
+    };
+}
+
 /// Whether these limits are representable: every edge bound they size
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 /// Exchange timing and key sizes are usable, saved records fit their schema,

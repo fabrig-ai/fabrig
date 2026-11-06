@@ -22,9 +22,9 @@ impl Drop for Waiting {
 fn a_late_open_rejects_an_unrelated_replacement_candidate() {
     let parent = Waiting::start();
     let replacement = Waiting::start();
-    let result = skein_shell::open_child_pidfd(replacement.0.id(), parent.0.id());
+    let result = skein_shell::keeper::open_child_pidfd(replacement.0.id(), parent.0.id());
     if let Ok(descriptor) = result {
-        skein_shell::close_keeper_fd(descriptor);
+        skein_shell::keeper::close_keeper_fd(descriptor);
     }
     assert_eq!(result, Err(Error::NotFound), "the opened candidate must prove the enumerated parent relationship");
 }
@@ -33,11 +33,11 @@ fn a_late_open_rejects_an_unrelated_replacement_candidate() {
 fn a_live_child_is_admitted_and_reserved_ids_are_refused() {
     let child = Waiting::start();
     let descriptor =
-        skein_shell::open_child_pidfd(child.0.id(), std::process::id()).expect("our live child's identity");
-    assert_eq!(skein_shell::child_id(descriptor), Ok(child.0.id()));
-    skein_shell::close_keeper_fd(descriptor);
+        skein_shell::keeper::open_child_pidfd(child.0.id(), std::process::id()).expect("our live child's identity");
+    assert_eq!(skein_shell::keeper::child_id(descriptor), Ok(child.0.id()));
+    skein_shell::keeper::close_keeper_fd(descriptor);
     for pid in [0, 1, u32::MAX] {
-        assert_eq!(skein_shell::open_pidfd(pid), Err(Error::InvalidArgument));
-        assert_eq!(skein_shell::open_child_pidfd(child.0.id(), pid), Err(Error::InvalidArgument));
+        assert_eq!(skein_shell::keeper::open_pidfd(pid), Err(Error::InvalidArgument));
+        assert_eq!(skein_shell::keeper::open_child_pidfd(child.0.id(), pid), Err(Error::InvalidArgument));
     }
 }

@@ -320,6 +320,7 @@ pub struct Task {
     pub through: Option<u64>,
     pub cards: List<Card>,
     pub words: Box<[u8]>,
+    pub composer_focus: u64,
     pub pending: List<(Key, Sending)>,
     pub outcome: Option<jig_client::Outcome>,
     pub amending: Option<Amending>,
@@ -367,6 +368,7 @@ impl Task {
             through: None,
             cards: List::with_capacity(limits.client.domain.reads),
             words: Box::default(),
+            composer_focus: 0,
             pending: List::with_capacity(5),
             outcome: None,
             amending: None,
@@ -416,6 +418,7 @@ impl Task {
             }
             Act::Send => {
                 let _sent = self.send(env, client, Sending::Message, serial, out);
+                self.composer_focus = self.composer_focus.checked_add(1).expect("focus count fits");
             }
             Act::Older if self.shape == Shape::Agent => {
                 if let Some(older) = self.thread.older() {

@@ -27,14 +27,14 @@ pub fn run(limits: &Limits, launch: &Launch, address: std::net::SocketAddr) -> R
     let mut kernel = match Kernel::open(Config { operations }) {
         Ok(kernel) => kernel,
         Err(why) => {
-            skein_shell::close_keeper_fd(signals);
+            skein_shell::close_startup_fd(signals);
             return Err(Failed::Exec(io::Error::other(why.to_string())));
         }
     };
     let root = match skein_shell::open_root(std::path::Path::new("/")) {
         Ok(root) => root,
         Err(n) => {
-            skein_shell::close_keeper_fd(signals);
+            skein_shell::close_startup_fd(signals);
             return Err(Failed::Exec(io::Error::other(format!("root: errno {n}"))));
         }
     };
@@ -87,9 +87,9 @@ pub fn run(limits: &Limits, launch: &Launch, address: std::net::SocketAddr) -> R
         events: Queue::uncapped(),
     };
     skein_shell::drive(&mut kernel, &Clock::new(), &mut host);
-    skein_shell::close_keeper_fd(root);
+    skein_shell::close_startup_fd(root);
     if let Some(signals) = host.pending_signals.take() {
-        skein_shell::close_keeper_fd(signals);
+        skein_shell::close_startup_fd(signals);
     }
     if let Some(why) = host.failure {
         return Err(why);

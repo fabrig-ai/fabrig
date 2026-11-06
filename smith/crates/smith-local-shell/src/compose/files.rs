@@ -3,8 +3,9 @@
 //! It knows the output path and kernel terminals, not the run's outcome.
 use super::{Refused, cleanup::EphemeralCleanup, host, root};
 use crate::command::Usage;
+use skein_io::file_layer::step;
 use skein_io::{file, file_layer, kernel};
-use skein_lib::{Duration, Queue, Time, Token, Wall};
+use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_shell::{Clock, Host, Kernel};
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -175,6 +176,7 @@ pub(crate) enum Failure {
 /// The product's whole result write and the directory close it owes.
 pub(crate) struct ResultFile {
     io: file_layer::FileIo,
+    file_limits: file_layer::Limits,
     directory: Token,
     name: Box<[u8]>,
     path: PathBuf,
@@ -187,9 +189,10 @@ pub(crate) struct ResultFile {
 }
 
 impl ResultFile {
-    fn new(io: file_layer::FileIo, directory: Token, path: &Path) -> Self {
+    fn new(io: file_layer::FileIo, file_limits: file_layer::Limits, directory: Token, path: &Path) -> Self {
         Self {
             io,
+            file_limits,
             directory,
             name: path.file_name().expect("checked file name").as_encoded_bytes().into(),
             path: path.into(),
@@ -204,10 +207,11 @@ impl ResultFile {
 
     fn open(path: &Path, maximum: u32, timeout: Duration, seed: u64) -> Result<Self, Refused> {
         let parent = path.parent().filter(|parent| !parent.as_os_str().is_empty()).unwrap_or(Path::new("."));
-        let mut io = file_layer::FileIo::with_whole_limit(2, 4096, 1, maximum, timeout);
+        let file_limits = file_layer::Limits { files: 2, read: 4096, entries: 1, whole: maximum, timeout };
+        let mut io = file_layer::FileIo::with_limits(&file_limits);
         let directory = io.adopt_root(root(parent)?).expect("one result directory");
         io.seed_randomness(seed);
-        Ok(Self::new(io, directory, path))
+        Ok(Self::new(io, file_limits, directory, path))
     }
 
     pub(crate) fn begin(&mut self, text: Box<[u8]>) {
@@ -271,12 +275,13 @@ impl ResultFile {
 }
 
 impl Host for ResultFile {
-    fn iterate(&mut self, now: Time, _wall: Wall) {
+    fn iterate(&mut self, now: Time, wall: Wall) {
+        let env = Env { now, wall, limits: self.file_limits };
         while let Some(complete) = self.completions.pop() {
-            file_layer::up(&mut self.io, complete, &mut self.events, &mut self.submissions);
+            step::up(&mut self.io, &env, complete, &mut self.events, &mut self.submissions);
         }
         if self.io.is_due(now) {
-            file_layer::expire(&mut self.io, now, &mut self.submissions);
+            step::expire(&mut self.io, &env, &mut self.submissions);
         }
         while let Some(event) = self.events.pop() {
             match event {
@@ -309,7 +314,7 @@ impl Host for ResultFile {
                     .then(|| file::Request::Close { owner: Token::new(2), file: self.directory })
             });
             if let Some(request) = request {
-                file_layer::down(&mut self.io, now, request, &mut self.events, &mut self.submissions);
+                step::down(&mut self.io, &env, request, &mut self.events, &mut self.submissions);
             }
         }
     }
@@ -350,10 +355,12 @@ mod tests {
     use super::*;
 
     fn file() -> ResultFile {
-        let mut io = file_layer::FileIo::with_whole_limit(2, 4096, 1, 4096, Duration::from_secs(1));
+        let file_limits =
+            file_layer::Limits { files: 2, read: 4096, entries: 1, whole: 4096, timeout: Duration::from_secs(1) };
+        let mut io = file_layer::FileIo::with_limits(&file_limits);
         let directory = io.adopt_root(kernel::Fd::new(41)).unwrap();
         io.seed_randomness(1);
-        ResultFile::new(io, directory, Path::new("answer.txt"))
+        ResultFile::new(io, file_limits, directory, Path::new("answer.txt"))
     }
 
     fn complete(file: &mut ResultFile, submit: kernel::Submit, result: Result<kernel::Done, kernel::Error>) {

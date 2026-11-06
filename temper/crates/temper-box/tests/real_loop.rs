@@ -10,7 +10,8 @@
 
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Pipe, ServiceSignal, Spawn, Submit, Way};
 use skein_lib::{Duration, Queue, Time, Token, Wall};
-use skein_shell::{Clock, Delegate, Host, HostedPipes, close_keeper_fd, hosted_pipes, open_root};
+use skein_shell::keeper::{HostedPipes, close_keeper_fd, hosted_pipes};
+use skein_shell::{Clock, Delegate, Host, open_root};
 use skein_world::{
     Deadline, Expired, HostedProgram, Inherited, Referee,
     real::{Controls, World},
