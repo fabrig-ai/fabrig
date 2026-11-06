@@ -1,0 +1,45 @@
+draft = "look-round-8"
+repo = "fabrig"
+sources = ["temper/docs/plan/look-round-8/inputs/request.md", "temper/docs/design/draft/own-way.md", "temper/docs/design/draft/own-way.status.md", "temper/docs/design/draft/look-requests.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
+
+# One request, four tasks: the design is this cut's own, then the card, the pane and reference, the agent's words, and the proof. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "own-way-card"
+title = "The card of temper's own way on Configure temper: head, spacing, its two acts"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "own-way-pane"
+title = "The stock reference, compiled in, opened in the document pane with no chat made"
+mode = "direct"
+needs = ["own-way-card"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "own-way-words"
+title = "The configuring agent reads the same page and keeps temper's own values beside the project's"
+mode = "direct"
+needs = ["own-way-pane"]
+design = "temper/docs/design/domain/agent.md, 8.1"
+
+[[part]]
+id = "own-way-proof"
+title = "configure-temper-own-way's render check, screenshots and account"
+mode = "direct"
+needs = ["own-way-pane", "own-way-words"]
+design = "temper/docs/design/draft/look-requests.md, 4"
+
+[[slice]]
+id = 1
+story = "A person on Configure temper sees temper's own way, reads the reference beside the page with no chat made, and can start from it, proved by rendering and accounted for"
+parts = ["own-way-card", "own-way-pane", "own-way-words", "own-way-proof"]
+walk = false
