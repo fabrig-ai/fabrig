@@ -4,8 +4,6 @@
 
 - **Not yet:** 3.5, The welcome's Model step, *The sign-in under way*, and `ConnectModel`, *The sign-in's tab*,
   *Its end*, *A reload while it waits* and *From another computer*; 7, *A sign-in's address in the small store*; 10:
-- **Not yet:** 4.6, 8: the family still carries `return`, `Return`, answered `returning`, the root sends it, and the
-  engine gives the return, until `../draft/sign-in-new-tab.md`, 5 is built.
 - **Design departs:** 3.5, *The sign-in under way* and `ConnectModel`, *While it waits*, from the request
   `sign-in-new-tab` of 2026-11-06, by its plan's cut and its account. The terminal draws the note's plain title,
   its muted line and "Open the sign-in page" above the folded paste, where the request has the terminal as today:
