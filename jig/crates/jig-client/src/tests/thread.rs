@@ -6,7 +6,7 @@ use crate::{
 use skein_lib::{List, Wall};
 #[test]
 fn activity_reads_newest_then_older_and_keeps_reverse_cursor_when_sliding() {
-    let mut c = Thread::new(9, &crate::thread::Limits { lines: 3, bytes: 65536, text: 4096 });
+    let mut c = Thread::new(9, &crate::thread::Limits { lines: 3, bytes: 65536, text: 4096, live: 4096 });
     assert_eq!(c.moved(6), Some(Read::Activity { task: 9, before: None }));
     assert_eq!(c.moved(6), None);
     assert_eq!(c.accept(page(&[6, 5, 4], Some(b"older"), None)), None);
@@ -24,7 +24,7 @@ fn activity_reads_newest_then_older_and_keeps_reverse_cursor_when_sliding() {
 }
 #[test]
 fn activity_document_movement_reads_only_new_lines_and_bridges_small_pages() {
-    let mut c = Thread::new(9, &crate::thread::Limits { lines: 4, bytes: 65536, text: 4096 });
+    let mut c = Thread::new(9, &crate::thread::Limits { lines: 4, bytes: 65536, text: 4096, live: 4096 });
     assert!(c.moved(2).is_some());
     assert_eq!(c.accept(page(&[2, 1], None, None)), None);
     assert_eq!(c.moved(2), None);
@@ -280,12 +280,51 @@ fn empty_turn() -> Turn {
 
 #[test]
 fn a_thread_keeps_the_newest_text_within_its_bounds_and_names_its_loss() {
-    let mut thread = Thread::new(fixtures::SUBJECT_TASK, &crate::thread::Limits { lines: 1, bytes: 2, text: 2 });
+    let mut thread =
+        Thread::new(fixtures::SUBJECT_TASK, &crate::thread::Limits { lines: 1, bytes: 2, text: 2, live: 2 });
     thread.run(&run(), Some(&provisional(TURN, b"first")));
     thread.run(&run(), Some(&provisional(TURN + 1, b"second")));
     let lines = thread.lines();
     assert_eq!(
         lines.as_slice(),
-        &[Line::Left { lines: 1 }, Line::Provisional { name: provisional(TURN + 1, b"").turn, text: b"nd", cut: true }]
+        &[Line::Left { lines: 1 }, Line::Provisional { name: provisional(TURN + 1, b"").turn, text: b"se", cut: true }]
     );
+}
+
+#[test]
+fn a_live_line_past_a_fields_text_arrives_whole_within_its_bound() {
+    let mut thread =
+        Thread::new(fixtures::SUBJECT_TASK, &crate::thread::Limits { lines: 4, bytes: 64, text: 2, live: 16 });
+    for words in [b"ab".as_slice(), b"abcdefgh"] {
+        thread.run(&run(), Some(&provisional(TURN, words)));
+        assert_eq!(
+            thread.lines().as_slice(),
+            &[Line::Provisional { name: provisional(TURN, b"").turn, text: words, cut: false }]
+        );
+    }
+}
+
+#[test]
+fn a_live_line_past_its_bound_keeps_its_start_on_a_character_boundary() {
+    for (bound, expected) in [(0, ""), (1, "a"), (2, "a"), (3, "aé"), (5, "aé"), (6, "aé界")] {
+        let mut thread =
+            Thread::new(fixtures::SUBJECT_TASK, &crate::thread::Limits { lines: 4, bytes: 64, text: 2, live: bound });
+        for words in ["aé界z", "aé界zmore"] {
+            thread.run(&run(), Some(&provisional(TURN, words.as_bytes())));
+            assert_eq!(
+                thread.lines().as_slice(),
+                &[Line::Provisional { name: provisional(TURN, b"").turn, text: expected.as_bytes(), cut: true }],
+                "bound={bound}"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_persons_words_stay_bounded_by_text_beside_a_larger_live_bound() {
+    let mut thread =
+        Thread::new(fixtures::SUBJECT_TASK, &crate::thread::Limits { lines: 4, bytes: 64, text: 2, live: 16 });
+    assert!(!thread.sending(fixtures::STOP, fixtures::PARTY, text(b"abc"), 0));
+    assert!(thread.sending(fixtures::STOP, fixtures::PARTY, text(b"ab"), 0));
+    assert_eq!(thread.words.rows.get(0).unwrap().words.bytes(), b"ab");
 }
