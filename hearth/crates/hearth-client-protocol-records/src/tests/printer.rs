@@ -1,6 +1,6 @@
 use super::fixtures;
 use crate::{
-    form::Form,
+    form::{self, Form, Refusal},
     limits::{self, Limits},
     outcome::Outcome,
     printer::{self, Event, Printer, Request, Waiting},
@@ -27,19 +27,19 @@ impl Machine {
         Self {
             printer: Printer::new(form, &limits),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            above: Queue::with_capacity(printer::UP_MAX_OUT.above.max(printer::DOWN_MAX_OUT.above)),
-            below: Queue::with_capacity(printer::UP_MAX_OUT.below.max(printer::DOWN_MAX_OUT.below)),
+            above: Queue::uncapped(),
+            below: Queue::uncapped(),
         }
     }
     fn down(&mut self, request: Request) {
         printer::down(&mut self.printer, &self.env, request, &mut self.above, &mut self.below);
-        assert!(self.above.len() <= printer::DOWN_MAX_OUT.above, "down MAX_OUT above");
-        assert!(self.below.len() <= printer::DOWN_MAX_OUT.below, "down MAX_OUT below");
+        assert!(self.above.len() <= 1, "one event a down");
+        assert!(self.below.len() <= 1, "one request a down");
     }
     fn up(&mut self, event: Up) {
         printer::up(&mut self.printer, &self.env, event, &mut self.above, &mut self.below);
-        assert!(self.above.len() <= printer::UP_MAX_OUT.above, "up MAX_OUT above");
-        assert!(self.below.len() <= printer::UP_MAX_OUT.below, "up MAX_OUT below");
+        assert!(self.above.len() <= 1, "one event an up");
+        assert!(self.below.len() <= 2, "a piece, then the next demand");
     }
     fn print(&mut self, record: Record) -> Printed {
         self.down(Request::Print(record));
@@ -88,6 +88,160 @@ impl Machine {
 }
 fn terminal() -> Record {
     Record::Terminal(Terminal { outcome: Outcome::Done, diff: None, left_out: 0 })
+}
+
+/// What one entry point left in a printer's queues, before the driver took them.
+#[derive(Debug)]
+struct Step {
+    above: Box<[Event]>,
+    below: Box<[Down]>,
+}
+
+/// What the driver tells the printer around one record.
+#[derive(Clone, Copy, Debug)]
+enum Told {
+    /// `Up::Room` for each demand.
+    Room,
+    /// `Up::Failed(Fault::Other)` before the record.
+    FaultBefore,
+    /// `Up::Failed(Fault::Other)` in place of the `Room` after this many pieces.
+    FaultAfter(u32),
+}
+
+/// One record, from `Print` until its answer: the first step is `Print`'s, each next one a `Room`'s or a fault's.
+fn steps(form: Form, limits: Limits, record: Record, told: Told) -> Box<[Step]> {
+    let length = match form::print(form, &record, None, &limits) {
+        Ok(bytes) => bytes.len(),
+        Err(Refusal::TooLong | Refusal::Text | Refusal::JsonLines) => 0,
+    };
+    let mut printer = Printer::new(form, &limits);
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
+    if let Told::FaultBefore = told {
+        printer::up(&mut printer, &env, Up::Failed(Fault::Other), &mut above, &mut below);
+        assert!(above.is_empty() && below.is_empty(), "a fault before the record waits for it");
+    }
+    printer::down(&mut printer, &env, Request::Print(record), &mut above, &mut below);
+    let mut steps = List::uncapped();
+    let mut pieces = 0_u32;
+    for _ in 0..length.checked_add(2).unwrap() {
+        let mut events = List::uncapped();
+        let mut requests = List::uncapped();
+        let mut demanded = false;
+        while let Some(event) = above.pop() {
+            events.push(event).unwrap();
+        }
+        while let Some(request) = below.pop() {
+            match &request {
+                Down::Demand { .. } => demanded = true,
+                Down::Send(_) => pieces = pieces.checked_add(1).unwrap(),
+                Down::Finish => {}
+            }
+            requests.push(request).unwrap();
+        }
+        let answered = !events.is_empty();
+        steps.push(Step { above: events.into_boxed(), below: requests.into_boxed() }).unwrap();
+        if answered {
+            return steps.into_boxed();
+        }
+        assert!(demanded, "a record without an answer demands room");
+        let event = match told {
+            Told::FaultAfter(after) if pieces == after => Up::Failed(Fault::Other),
+            Told::Room | Told::FaultBefore | Told::FaultAfter(_) => Up::Room,
+        };
+        printer::up(&mut printer, &env, event, &mut above, &mut below);
+    }
+    panic!("a record answers within its length and two steps");
+}
+
+const CHUNKS: [u32; 6] = [1, 2, 3, 16, 64, 65_536];
+
+// One write at a time (hearth/docs/design/domain/render.md, 8.5).
+#[test]
+fn a_printer_has_one_demand_out_whatever_the_chunk() {
+    for chunk in CHUNKS {
+        for (form, record) in [(Form::Text, Record::Spec(fixtures::x1_prod())), (Form::JsonLines, terminal())] {
+            let limits = Limits { chunk, ..limits::SHIPPED };
+            let expected = form::print(form, &record, None, &limits).unwrap();
+            let steps = steps(form, limits, record, Told::Room);
+            let mut bytes = Writer::new(expected.len());
+            let mut demanded = None;
+            let mut granted = None;
+            for (index, step) in steps.iter().enumerate() {
+                let mut pieces = 0;
+                for request in &step.below {
+                    match request {
+                        Down::Demand { read, room } => {
+                            assert_eq!(*read, Read::Nothing, "write half only");
+                            assert!(*room > 0 && *room <= chunk, "room within chunk {chunk}");
+                            assert!(demanded.is_none(), "one demand out: {step:?}");
+                            assert!(granted.is_none(), "the last room is spent before the next demand: {step:?}");
+                            demanded = Some(*room);
+                        }
+                        Down::Send(piece) => {
+                            let room = granted.take().expect("a piece answers a demand");
+                            assert!(piece.len() <= usize::try_from(room).unwrap(), "a piece within its room");
+                            bytes.put(piece).unwrap();
+                            pieces += 1;
+                        }
+                        Down::Finish => panic!("a record never finishes the stream"),
+                    }
+                }
+                assert_eq!(pieces, usize::from(index > 0), "each Room gives one piece: {step:?}");
+                granted = demanded.take();
+            }
+            assert!(granted.is_none(), "no demand after the last piece");
+            assert_eq!(bytes.finish(), expected, "the record whole, chunk {chunk}");
+        }
+    }
+}
+
+fn answered_once(steps: &[Step], expected: Event, no_bytes: bool) {
+    let last = steps.len().checked_sub(1).expect("Print's step");
+    for (index, step) in steps.iter().enumerate() {
+        if index == last {
+            assert_eq!(&*step.above, &[expected], "one answer in the last step: {steps:?}");
+        } else {
+            assert!(step.above.is_empty(), "no answer before the last step: {steps:?}");
+        }
+        for request in &step.below {
+            match request {
+                Down::Demand { .. } => assert_ne!(index, last, "no demand beside the answer: {step:?}"),
+                Down::Send(_) => assert!(!no_bytes, "an empty or refused record sends no bytes: {step:?}"),
+                Down::Finish => panic!("a record never finishes the stream"),
+            }
+        }
+    }
+}
+
+// A record is answered once (hearth/docs/design/domain/render.md, 8.5).
+#[test]
+fn a_record_is_answered_once_whatever_the_chunk() {
+    for chunk in CHUNKS {
+        let limits = Limits { chunk, ..limits::SHIPPED };
+        let record = Record::Spec(fixtures::x1_prod());
+        for (told, expected) in [
+            (Told::Room, Event::Printed),
+            (Told::FaultBefore, Event::Failed(Fault::Other)),
+            (Told::FaultAfter(0), Event::Failed(Fault::Other)),
+        ] {
+            answered_once(&steps(Form::Text, limits, record.clone(), told), expected, false);
+        }
+        if form::print(Form::Text, &record, None, &limits).unwrap().len() > usize::try_from(chunk).unwrap() {
+            answered_once(
+                &steps(Form::Text, limits, record.clone(), Told::FaultAfter(1)),
+                Event::Failed(Fault::Other),
+                false,
+            );
+        }
+        answered_once(
+            &steps(Form::Text, Limits { record: 1, chunk }, record, Told::Room),
+            Event::Refused(Refusal::TooLong),
+            true,
+        );
+        answered_once(&steps(Form::Text, limits, terminal(), Told::Room), Event::Printed, true);
+    }
 }
 #[test]
 fn valid_requires_a_nonzero_chunk() {

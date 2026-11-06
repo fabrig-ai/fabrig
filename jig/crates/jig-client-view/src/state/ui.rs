@@ -136,7 +136,12 @@ impl Ui {
         assert!(crate::sizes::limits::ui::valid(limits, client), "client limits are valid");
         let mut conversation = jig_client::thread::Thread::new(
             0,
-            &jig_client::thread::Limits { lines: client.rows, bytes: client.document_bytes, text: client.text },
+            &jig_client::thread::Limits {
+                lines: client.rows,
+                bytes: client.document_bytes,
+                text: client.text,
+                live: client.text,
+            },
         );
         conversation.words = jig_client::thread::KeptWords::new(limits.conversation_words);
         Ok(Self {

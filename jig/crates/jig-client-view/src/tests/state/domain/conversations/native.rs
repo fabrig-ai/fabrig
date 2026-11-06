@@ -19,7 +19,8 @@ pub(in crate::tests) fn native_run(rows: u32) -> (Fixture, jig_client::Handle) {
             records: List::with_capacity(0),
         },
     );
-    fixture.ui.conversation = Thread::new(9, &jig_client::thread::Limits { lines: rows, bytes: 65536, text: 4096 });
+    fixture.ui.conversation =
+        Thread::new(9, &jig_client::thread::Limits { lines: rows, bytes: 65536, text: 4096, live: 4096 });
     let handle = fixture.request_watch(jig_client::contract::Subject::Run { task: 9, turn: None, offset: 0 }).unwrap();
     (fixture, handle)
 }

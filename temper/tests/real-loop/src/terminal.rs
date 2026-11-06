@@ -194,7 +194,7 @@ impl Typist {
                 commands: page.commands,
                 bytes: page.bytes.len(),
                 reply: contains(&page.bytes, crate::scripts::REPLY),
-                provisional: contains(&page.bytes, b"Writing..."),
+                provisional: contains(&page.bytes, "▍".as_bytes()),
             })
             .collect();
         Pending {
@@ -498,7 +498,7 @@ mod tests {
     fn the_typist_snapshot_caps_history_and_reports_presence_without_page_text() {
         let mut typist = Typist::default();
         for _ in 0..20 {
-            typist.printed(b"== Secret heading == Live\nprivate-page-text\nWriting...\n");
+            typist.printed(b"== Secret heading == Live\nprivate-page-text\n\xe2\x96\x8d\n");
         }
         let mut committed = b"== Chat == Live\n".to_vec();
         committed.extend_from_slice(crate::scripts::REPLY);
@@ -587,9 +587,9 @@ mod tests {
         typist.printed(b"temper: signing in\n== Old == Live\nConversation:\n  answer\n");
         typist.commands = 1;
         typist.cursor = typist.read.pages.len();
-        let see = Act::See { holds: b"answer", lacks: Some(b"Writing...") };
+        let see = Act::See { holds: b"answer", lacks: Some("▍".as_bytes()) };
         assert!(!typist.ready(&see, 1), "the old page is not a new observation");
-        typist.printed(b"== Chat == Live\nWriting...\nanswer\n== Chat == Live\nConversation:\n");
+        typist.printed(b"== Chat == Live\n\xe2\x96\x8d\nanswer\n== Chat == Live\nConversation:\n");
         assert!(!typist.ready(&see, 1), "absence and presence belong to the same page");
         typist.printed(b"== Chat == Li");
         typist.printed(b"ve\nConversation:\n  answer\ntemper: closed\n");

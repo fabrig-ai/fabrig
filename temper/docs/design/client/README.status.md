@@ -91,9 +91,26 @@
 - **Not yet:** 3.5, *Its status*, 5.5, *A run's wait*: a run that can't start reads as starting, with dots, and a configuring chat draws no wait at all (`temper-client-view`'s `pages/chat.rs`, `choice.rs`).
 - **Not yet:** 4.6, *The printed command*: the pages print `temper program-login NAME`, which fails with directories of its own or `temper` off `PATH` (`temper-client-view`'s `accounts/words.rs`).
 - **Departs:** 3.6, *Closed ends on one line*: a requester-closed chat hides
-  every "Decision made" activity line, because `Activity::Decided` carries only
-  a revision and cannot identify the closing decision. This keeps the quiet end
-  line, at the cost of hiding earlier decision markers too.
+  every "Decision made" activity line, where the section and the request
+  `close-chat` of 2026-11-06 hide the closing's alone, because `Activity::Decided`
+  carries only a revision and cannot identify the closing decision (section 11).
+  This keeps the quiet end line, at the cost of hiding earlier decision markers too.
+- **Design departs:** 3.6, *The sheet*, from the user's request of 2026-11-06 to land
+  `close-chat`, which asks no change of behaviour: a Release pressed on an uncertain
+  effect before either choice closes the sheet and sends nothing, by the section's
+  rule, which that plan's cut wrote (`temper-client-domain`'s `acts.rs`, `send`;
+  `a_press_that_sends_nothing_closes_the_sheet`). The view draws both choices alike,
+  reading no `again`, so nothing says one was pressed. A Reject pressed with no reason
+  keeps its sheet open and says nothing, where `close-chat` has a confirmation that
+  fails say why above its acts: no ask went, and the reason's box is on the card behind
+  the sheet.
+- **Not yet:** 3.6, *The sheet*: that request has each confirmation walked. A browser
+  on a fake box pressed Close, a goal's Stop and a Release both ways, and a goal's
+  Pause; a press while the page updates, on a Release alone. Accept stands on its
+  gallery state and the client's world, as that plan's cut allowed, since the fake
+  box's self-proposal says "Authority missing" and offers no Accept. A task's Cancel,
+  an agent's task's Stop, Reject and Start over are drawn at each width by their
+  gallery states, and no walk on record presses them.
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
 - **Not yet:** 3.5, *The try*: the view has no fact of a trial, so `model_check::trial`,
   the one function `../draft/model-check.md`, 2 to 4, feeds, reads the host's check alone:
