@@ -1122,6 +1122,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-decision-why",
         b"temper-decision-late",
         b"temper-decision-overturned",
+        b"temper-writing-end",
     ],
     regions: &[b"temper-link"],
 };
@@ -1283,6 +1284,9 @@ pub const DECISION_TOOK: Style = Style { owner: owner(), token: 443 };
 pub const DECISION_WHY: Style = Style { owner: owner(), token: 444 };
 pub const DECISION_LATE: Style = Style { owner: owner(), token: 445 };
 pub const DECISION_OVERTURNED: Style = Style { owner: owner(), token: 446 };
+
+/// The last word of a turn being written (client/README.md, 3.5).
+pub const WRITING_END: Style = Style { owner: owner(), token: 447 };
 
 #[cfg(test)]
 mod tests {

@@ -3,7 +3,7 @@ use jig_client_kit::harness::Until;
 use skein_fake_person::{Face, Find, Found, Step, TreeFace};
 use temper_client_world::fixtures;
 
-const WRITING: &[u8] = b"Writing...";
+const WRITING: &[u8] = "▍".as_bytes();
 const PARTS: &[&[u8]] = &[b"QA joint prefix", b" and its full suffix."];
 const WHOLE: &[u8] = b"QA joint prefix and its full suffix.";
 
