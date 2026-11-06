@@ -6,7 +6,9 @@ needs = []
 files = [
   "temper/crates/temper-service/src/stock/coding.txt",
   "temper/crates/temper-service/src/tests/stock.rs",
+  "temper/crates/temper-service/src/tests/stock_brief.rs",
   "temper/docs/design/domain/agent.status.md",
+  "temper/docs/examples/reference/settings.json",
 ]
 effort = "medium"
 minutes = 30
@@ -54,3 +56,12 @@ Options, each pre-approved:
 ## Report
 
 The implementer's report. The rule broken for the bite is the sentence removed from `coding.txt`.
+
+## Answers
+
+2026-11-06. May this task update `stock_brief.rs` and the reference's `settings.json` to satisfy acceptance? Yes, both are now in this task's files; no companion task. Commit `6c6c16de72` on this branch stands: add these two edits to it and change nothing else in it.
+
+- `temper/crates/temper-service/src/tests/stock_brief.rs`, `every_stock_charter_admits_its_whole_maximal_brief`: charter 2's row only, from `(2, false, 35_014, 365_121)` to `(2, false, 35_270, 364_865)`. It's a measurement of the stock's words, moved by exactly the passage's 256 bytes, not a bound: `host_part`, `room`, `offer_bytes` and every other row stay as they are. If the test prints any other figures, stop and ask.
+- `temper/docs/examples/reference/settings.json`, the coding charter's `instructions`: the same passage at the same place, before `Use failure for an error`, so `the_reference_settings_file_decodes` passes unchanged. Keep the shell-check replacement and the reference's own suffix. The Options line "a project's own charter doesn't get these words" means a deployment's own charter, which remains for `## Left`; the reference is held to the stock by this task's acceptance.
+
+Also run the focused tests that read the reference and whose package this reaches: `-p temper-service` and `-p temper` as in the steps, and `-p temper-init`. Its other readers (`temper-client-tools`, `temper/tests/engine/domain`) are unchanged code reading one longer string: a failure there goes under `## Left` with its log, and `temper-client-*` isn't edited.
