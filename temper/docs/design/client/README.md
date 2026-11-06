@@ -458,7 +458,16 @@ keeps (`../protocol/configuration.md`, section 2).
     `skein-ui`'s reader (skein's `ui.md`, section 10): paragraphs, lists,
     quotes, code, and tables at the top level. A browser draws a table
     as the mockups' (`md-table`), and leaves out a header row whose
-    cells are all empty, as they do;
+    cells are all empty, as they do. A provider's opaque block, a turn's
+    reasoning, is not drawn, and nothing stands in its place. A
+    conversation says nothing of what was cut: no notice, at a text's end,
+    a turn's or a window's;
+  - *the words being written,* the turn being written, under "Temper", as
+    the same Markdown, with `temper-writing-end` closing it: in a browser a
+    small block after the last word, in the terminal "▌", a status under
+    the words. Its place is the place the committed turn takes, and only
+    the end's mark goes. What a block is while still open is
+    `../draft/chat-reading.md`, section 3;
   - *its calls,* where they fall among the agent's texts: each
     delegation as its task's card (5.7), a document's write as its tool
     line (*A chat's document*, *The tool line*), and every other call in *a run*: every
@@ -562,13 +571,28 @@ keeps (`../protocol/configuration.md`, section 2).
     "Writing", while the chat's status is Starting, Writing, Working or a
     tool's, the window's last line is not provisional text, and no run is
     running at the conversation's end. The terminal
-    prints nothing new for it. *Provisional text* looks like `.turn-agent`,
-    its "writing" label hidden.
+    prints nothing new for it. *The words being written* look like
+    `.turn-agent`, and their end is a 7 by 15 px block in `--gf-hint`, radius 1,
+    blinking in two steps a second, drawn by the stylesheet after the last
+    block's last word, a list's last item's, since skein's reader closes
+    its blocks. A numbered list's `ol` is 22 px in, its markers faint.
   - *A card in the conversation* (a proposal, a held task, a question's
     answer) is `.proposal`: white, radius 12, its shadow, 20 px 22 px; a
     kind's title in `.proposal-title`; `.proposal-split` and
     `.proposal-state`; its first button `.btn.primary.small`, the rest
     `.btn.quiet.small`.
+  - *Reading back:* "Latest", `temper-latest`, a browser's alone: a small
+    pill, centred 12 px over the pane's foot, its " ↓" the stylesheet's, on
+    a button *to log end* (skein's `ui.md`, 3.2) beside the log, shown while
+    the log is away from its end (`data-log-away`, skein's `ui-web.md`, 7).
+    Pressed, the view returns to the end and it goes. Where the window has
+    let the newest lines go it is bound too, and a press reads the page
+    after (jig's `Thread::newer`). New words while reading back don't move
+    the view, and it stays.
+  - *"Loading earlier messages…",* `temper-thread-loading`, faint and
+    centred at the head of a chat's conversation or an agent's, a status
+    named "Loading earlier messages", only while an older read is out, in
+    place of "Older". Nothing once the chat's start is shown.
   - *"Older"* is a `.btn.quiet.small`, centred, at the head. *Its end* has
     `.meta-line`'s look, and an ended chat has no composer.
 - **A new chat** (the greenfield mock's `chat.html?id=new`): `NewChat`,
@@ -3602,8 +3626,8 @@ A chat's window holds 16 lines (the domain's chat page), and the page
 reads the page before its oldest while an older one remains and the
 window has room for a page, `rows` lines, so a conversation of a dozen
 lines shows whole, with no "Older". Past that, "Older" reads the page
-before, and the lines the window lets go are said ("Earlier lines omitted N", jig's
-`Left`). The engine's pages keep their own rows (its
+before, and the lines the window lets go are not said (jig's `Left` draws
+nothing). The engine's pages keep their own rows (its
 `documents.rows`, at most the client's). Committed turns on both the chat
 and agent task pages are priced by `turn_text`; cards and other fields
 retain `text`.
@@ -4337,8 +4361,7 @@ acts on it as its document offers (5.11).
   line a run with no running state, a `delegate` call's a row too, since a
   delegation's card is the chat's (5.7), and a run's results its rows'
   outcomes, a message that holds only those drawing no "Completed"; "Run N began" and
-  "Run N ended"; the lines omitted before the window; and a live run's
-  provisional text, as the chat's provisional turn.
+  "Run N ended"; and a live run's words being written, as the chat's.
 - **Its result,** once it has ended: a region "Result" after the
   conversation, its state and its words as a goal's "Result" says them
   (5.8), from the same function (`pages::delegation::facts`):
