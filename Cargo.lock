@@ -5720,6 +5720,7 @@ dependencies = [
  "smith-agent-shell",
  "smith-fake-claude",
  "temper",
+ "temper-client-domain",
  "temper-client-shell-cli",
  "temper-client-shell-terminal",
  "temper-client-tools",
