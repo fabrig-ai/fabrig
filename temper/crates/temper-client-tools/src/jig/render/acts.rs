@@ -278,9 +278,8 @@ pub fn refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
             out.number(u64::from(*oldest));
             return;
         }
-        Refusal::Judged { why, .. } => {
-            out.put(b"refused by its owner: ");
-            out.put(why.bytes());
+        Refusal::Judged { at, setting, why } => {
+            judged_refusal(*at, *setting, why, out);
             return;
         }
         Refusal::Stale(value) => {
@@ -357,6 +356,15 @@ pub fn refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
     }
     plain_refusal(why, book, out);
 }
+fn judged_refusal(at: u32, setting: jig_client::contract::Setting, why: &jig_client::contract::Text, out: &mut Text) {
+    out.put(b"refused; item ");
+    out.number(u64::from(at));
+    out.put(b"; ");
+    settings_form::render::setting_text(crate::jig::settings_adapter::form_setting(setting), out);
+    out.put(b": ");
+    out.put(why.bytes());
+}
+
 fn plain_refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
     let word = Word::refusal(why);
     let text = match why {

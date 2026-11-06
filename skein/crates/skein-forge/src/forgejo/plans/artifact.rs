@@ -61,31 +61,15 @@ impl Plan {
             Heard::Done(body) => self.done(body, bounds),
         }
     }
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        clippy::manual_let_else,
+        reason = "the exchange's decoder picks the kind: forge.status.md, 4.2"
+    )]
     fn received(&mut self, row: d::Row, bounds: Bounds) -> Result<(), api::Error> {
         let value = match row {
             d::Row::Artifact(value) => value,
-            d::Row::CommitMessage(_)
-            | d::Row::Found(_)
-            | d::Row::Reachable(_)
-            | d::Row::Token(_)
-            | d::Row::User(_)
-            | d::Row::Issue(_)
-            | d::Row::Comment(_)
-            | d::Row::Review(_)
-            | d::Row::Status(_)
-            | d::Row::ReviewComment(_)
-            | d::Row::Pull(_)
-            | d::Row::Branch(_)
-            | d::Row::Protection(_)
-            | d::Row::Entry { .. }
-            | d::Row::TreeEntry(_)
-            | d::Row::Run(_)
-            | d::Row::Hook(_)
-            | d::Row::Team(_)
-            | d::Row::Step(_)
-            | d::Row::Job(_)
-            | d::Row::File(_)
-            | d::Row::Commit(_) => return Err(api::Error::InvalidAnswer),
+            _ => return Err(api::Error::InvalidAnswer),
         };
         match &mut self.state {
             State::Listing { id } => {

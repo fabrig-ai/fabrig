@@ -1,5 +1,5 @@
 use skein_forge::api::{self, Answer as Value, Error, Op, Read};
-use skein_forge_connection::{Access, Request, settings::Kind};
+use skein_forge_connection::{Access, Request, fixtures::header, settings::Kind};
 use skein_forge_machine_world::{
     fixtures::{self, FORGE},
     github,
@@ -191,6 +191,7 @@ fn github_unaccepted_account_is_not_installed_without_an_ordinary_request() {
     w.run_for(SECOND);
     value(&w, 1, 0, &Err(Error::NotInstalled));
     assert_eq!(w.requests().len(), 2);
+    assert!(w.requests().iter().all(|request| !request.windows(b"/api/v1".len()).any(|part| part == b"/api/v1")));
     assert!(w.close());
 }
 #[test]
@@ -372,6 +373,11 @@ fn github_rest_merge_returns_the_fakes_landed_commit() {
     merge_call(&mut w, 2, 1, head);
     let Ok(Value::Merged(commit)) = w.answered(2).expect("merged").result else { panic!("merged commit") };
     assert_eq!(w.answered(2).expect("merged").cost, 1);
+    assert_eq!(
+        header(w.requests().last().expect("merge request"), b"Authorization: "),
+        header(w.requests().get(MERGE_READY - 1).expect("Full-authenticated branch read"), b"Authorization: "),
+        "merge keeps its installation's Full credential"
+    );
     w.call(3, TOOLS, Op::Read(Read::Branch { branch: Box::from(b"main".as_slice()) }));
     w.run_for(SECOND);
     value(&w, 3, 1, &Ok(Value::Commit(commit)));

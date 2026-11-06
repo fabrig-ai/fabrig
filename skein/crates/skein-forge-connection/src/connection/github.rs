@@ -12,7 +12,7 @@ use github::{
 use skein_forge::{decode, github};
 use skein_http::client as http;
 use skein_json::tokenizer;
-use skein_lib::{Env, List, Queue, Secret, Time, usize_of};
+use skein_lib::{Env, List, Queue, Secret, usize_of};
 
 // Host, User-Agent, Accept, pin, Authorization and Content-Type; HTTP adds Content-Length.
 const HEADERS: u32 = 6;
@@ -27,18 +27,15 @@ impl Exchange {
     pub fn new() -> Self {
         Self { request: None, decoder: None, done: None, heard: Queue::uncapped() }
     }
-    #[expect(clippy::too_many_arguments, reason = "the holder supplies its connection, deadline and exchange context")]
     pub fn start(
         &mut self,
         c: &mut Connection,
-        until: Option<Time>,
         env: &Env<Limits>,
         forge: &Forge,
         user_agent: &[u8],
         exchange: github::plans::plan::Exchange,
         authorization: Option<Secret>,
     ) -> Result<(), github::request::Refusal> {
-        c.until(until);
         let encoded = github::request::encode(&exchange.request, &limits::documents(&env.limits))?;
         match (encoded.auth, &authorization) {
             (github::request::Auth::None, None)

@@ -1,7 +1,5 @@
 //! Machine-world state access (skein/docs/design/forge-connection.md, 10).
 use super::{Component, Connection, Dialect, Event, ForgeEntry, GitHubForge, Limits, Side, Start};
-#[cfg(feature = "seam")]
-use crate::{Shared, limits};
 use skein_lib::{Env, Queue};
 
 impl Component {
@@ -97,13 +95,6 @@ impl Component {
         let forge = &self.forges.get(0).expect("fixture forge").base.forge;
         self.common.open_call_origin(forge, None, env, io);
     }
-}
-
-#[cfg(feature = "seam")]
-/// The installation page bounds checked at admission.
-#[must_use]
-pub fn installation_bounds(limits: &Limits, shared: &Shared) -> Option<skein_forge::github::plans::plan::Bounds> {
-    limits::installation_bounds(limits, shared)
 }
 
 impl Connection {
