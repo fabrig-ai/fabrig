@@ -5306,7 +5306,8 @@ and its small store, are jig's (jig's `protocol/client.md`, sections 8,
 temper's:
 
 - **The printed link** (jig's `protocol/client.md`, section 8): at
-  start, `temper serve` prints a sign-in link for the deployment's
+  start, `temper serve`, or `temper box` before it starts serve
+  (`../protocol/setup.md`, 7.2), prints a sign-in link for the deployment's
   first owner (`../protocol/README.md`, section 4), in the default
   mapping's link route under temper's prefix,
   `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`. `temper open

@@ -111,7 +111,10 @@ managed row set up failed offers Connect to ctl alone
 Forgejo's command without its binary and paths
 (`protocol/setup.md`), a preparation keeps a runner's row when its
 configuration names a `uuid`, reading no row, where the `runner-labels`
-request of 2026-11-05 has the uuid match (`protocol/setup.md`), and a
+request of 2026-11-05 has the uuid match (`protocol/setup.md`), `temper
+box` prints its link first and alone, but no story holds a connection
+waiting on its socket and then signing in, and a first box from a binary
+with no browser does not say so (`protocol/setup.md`), and a
 held task names no run's failure, which
 is the user's to decide (`domain/worker.md`); a start past 20 slots on
 the owned example names a limit no document raises, and no test runs 8
