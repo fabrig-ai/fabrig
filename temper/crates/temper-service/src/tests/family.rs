@@ -1463,7 +1463,8 @@ fn return_install_and_manifest_paths_are_bounded_visible_paths_on_this_listener(
                             assert_eq!(source, 7, "{name}");
                             path
                         }
-                        root::Application::Dismiss { .. }
+                        root::Application::Try { .. }
+                        | root::Application::Dismiss { .. }
                         | root::Application::Looked { .. }
                         | root::Application::SetAway { .. }
                         | root::Application::Overturn { .. } => {
@@ -2073,6 +2074,8 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
 fn removal_and_playground_answers_use_their_own_outcomes() {
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
     for (answer, expected) in [
+        (root::ApplicationAnswer::Try(root::TryAnswer::Tried), w::Outcome::Tried),
+        (root::ApplicationAnswer::Try(root::TryAnswer::NotTheirs), w::Outcome::NotTheirs),
         (root::ApplicationAnswer::Dismiss(forge::DismissAnswer::Dismissed), w::Outcome::Dismissed),
         (
             root::ApplicationAnswer::Dismiss(forge::DismissAnswer::TooLarge),
@@ -2706,30 +2709,35 @@ fn forge_rows_encode_the_makings_and_all_their_states() {
 }
 
 #[test]
-fn dismissed_watches_name_the_partys_own_subject() {
-    let watching = w::Watching::new(&w::CEILINGS, w::WatchingParts { watch: w::Watch::Dismissed }).unwrap();
-    let event = family::to_root(
-        &jig_protocol_config::Directories::working(),
-        watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&watching)),
-        &fixtures::forge_table(&[]),
-        None,
-        &family::Deployment { welcome: false, owned: false, program_login: None },
-        None,
-        &w::CEILINGS,
-    )
-    .unwrap();
-    let root::Event::Party(root::PartyInput::Watch { watcher, subject, .. }) = event else { panic!("dismissed watch") };
-    assert_eq!(
-        (watcher, subject),
-        (
-            WATCHER,
-            jig_domain_core::documents::Watched::Application {
-                scope: people::ApplicationScope::Own,
-                connector: wire::FORGE,
-                subject: Token::new(forge::DISMISSED_SUBJECT),
-            }
+fn dismissed_and_trials_watches_name_the_partys_own_subjects() {
+    for (watch, expected) in [(w::Watch::Dismissed, forge::DISMISSED_SUBJECT), (w::Watch::Trials, root::TRIALS_SUBJECT)]
+    {
+        let watching = w::Watching::new(&w::CEILINGS, w::WatchingParts { watch }).unwrap();
+        let event = family::to_root(
+            &jig_protocol_config::Directories::working(),
+            watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&watching)),
+            &fixtures::forge_table(&[]),
+            None,
+            &family::Deployment { welcome: false, owned: false, program_login: None },
+            None,
+            &w::CEILINGS,
         )
-    );
+        .unwrap();
+        let root::Event::Party(root::PartyInput::Watch { watcher, subject, .. }) = event else {
+            panic!("dismissed watch")
+        };
+        assert_eq!(
+            (watcher, subject),
+            (
+                WATCHER,
+                jig_domain_core::documents::Watched::Application {
+                    scope: people::ApplicationScope::Own,
+                    connector: wire::FORGE,
+                    subject: Token::new(expected),
+                }
+            )
+        );
+    }
 }
 
 #[test]
@@ -3404,4 +3412,37 @@ fn forge_read_encodes_the_environment() {
     let words = b"TEMPER_CONFIG='/config' TEMPER_DATA='/data' TEMPER_CACHE='/cache'";
     let bytes = family::forge_read(root::ForgeReadAnswer::ProgramEnvironment, words, &w::CEILINGS).unwrap();
     assert_eq!(wire::decode_program_environment_answer(&bytes, &w::CEILINGS).unwrap().environment(), words);
+}
+
+#[test]
+fn trying_an_account_preserves_its_fields_and_uses_own_scope() {
+    for again in [false, true] {
+        let record = w::Requesting::new(
+            &w::CEILINGS,
+            w::RequestingParts {
+                request: w::Request::TryAccount(
+                    w::TryAccount::new(&w::CEILINGS, w::TryAccountParts { account: u32::MAX, again }).unwrap(),
+                ),
+            },
+        )
+        .unwrap();
+        let event = away_family(exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)));
+        let root::Event::Party(root::PartyInput::Application {
+            reply_to,
+            sign_in,
+            key,
+            digest,
+            scope,
+            carried,
+            request,
+        }) = event
+        else {
+            panic!("trial application")
+        };
+        assert_eq!(
+            (reply_to, sign_in, key, digest, scope, carried),
+            (REPLY, 3, REQUEST_KEY, [7; 32], people::ApplicationScope::Own, None)
+        );
+        assert_eq!(request, root::Application::Try { account: u32::MAX, again });
+    }
 }

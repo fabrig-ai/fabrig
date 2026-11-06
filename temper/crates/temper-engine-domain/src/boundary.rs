@@ -533,10 +533,12 @@ pub enum WorkerInput {
     ResultRead { payload: Token, end: tasks::End },
 }
 /// A keyed request owned by the root, or forwarded to the forge (client/README.md, 8).
+/// Trials: temper/docs/design/domain/trial.md, 6.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Application {
     Forge(forge::Ask),
     Return { source: u32, path: Box<[u8]> },
+    Try { account: u32, again: bool },
     Dismiss { what: forge::PersonFact },
     Looked { project: u32 },
     SetAway { project: u32, on: bool, until: Option<Wall>, kinds: u8 },
@@ -556,11 +558,21 @@ pub enum ApplicationAnswer {
     Accept(forge::AcceptAnswer),
     Reachable(forge::ReachableAnswer),
     Returning,
+    Try(TryAnswer),
     Dismiss(forge::DismissAnswer),
     Looked(forge::LookedAnswer),
     SetAway(forge::SetAwayAnswer),
     Overturn(forge::OverturnAnswer),
 }
+/// The trial's terminal answer (temper/docs/design/domain/trial.md, 6).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TryAnswer {
+    Tried,
+    NotTheirs,
+}
+/// A person's trials document (temper/docs/design/domain/trial.md, 6).
+pub const TRIALS_SUBJECT: u64 = (1 << 62) | (1 << 36);
+
 /// Forge reads through party authorization (temper/docs/design/client/README.md, 4.6).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ForgeRead {
