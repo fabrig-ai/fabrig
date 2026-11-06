@@ -1,0 +1,3 @@
+draft = "debt-25"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-25/inputs/request.md", "temper/docs/plan/debt-25/inputs/debt23-review.md", "jig/docs/development/debt/D030-conformance-not-drop-in.md", "jig/docs/development/debt/D034-world-replay-cost.md", "jig/docs/development/debt/D035-bare-numbers-in-worlds.md"]
