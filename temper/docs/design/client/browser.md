@@ -356,6 +356,12 @@ replay says the same clocks (`README.md`, 5.12).
   `protocol/browser.md`, section 10). That a client opens at the inbox
   (`README.md`, 3.4) is the terminal's: in a browser the address is the
   browser's, and the client keeps no record of its own.
+- **A heading drawn after its page** (the answer of 2026-11-06 to the
+  `ui-composer-focus` task `composer-focus`): a new entry whose level-1 heading
+  isn't drawn yet, as a chat's isn't until its task is read, has the focus on the
+  main (skein's `ui-web.md`, 7). When the heading is drawn, the shell moves the focus from the
+  main to it, unless the focus has moved meanwhile: a focus placed since keeps its
+  place, even back on the main, and a focus request ends the wait.
 
 ### 2.4 Signing in
 
@@ -1288,6 +1294,10 @@ Not in the tier, each in the lowest world that shows it:
   compiles the bundle's wasm again, where a second load in one profile hits
   Chromium's own cache. Default: none, since a shared profile would change what each
   test starts from.
+- **A heading drawn after its page, in skein's reference** (2.3): the kit's rule
+  stops at the main (skein's `ui-web.md`, 7), and any application whose page reads
+  before it draws its heading meets what this shell repairs. Default: this shell's
+  alone, until a second application writes the same.
 
 ## 7. The gallery
 

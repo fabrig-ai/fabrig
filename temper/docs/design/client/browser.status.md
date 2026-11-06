@@ -2,7 +2,11 @@
 
 2026-11-06. Where temper's code lags or departs from [browser.md](browser.md).
 
-- **Not yet:** 4.1: the story of the composer's focus after a start and after a send.
+- **Not yet:** 2.3, *A heading drawn after its page*: that a focus placed while a heading
+  waits keeps its place, which the answer of 2026-11-06 to the `ui-composer-focus` task
+  `composer-focus` asks, is seen by reading `temper-client-shell-web`'s `focus.rs`. No test moves the focus meanwhile:
+  `browser_pages`'s `enter_starts_one_chat_and_the_composer_keeps_the_focus` holds the
+  heading taking it from the main, and that module has no test of its own.
 - **Not yet:** 2.5: the answer of 2026-11-06 to the `ui-rename-focus` task
   `rename-row` asks a test that a long chat's document never exceeds its window at
   1280x720 and 1000x600 with "Older" pressed twice. What holds it is the sheet's
