@@ -315,7 +315,7 @@ fn setup_answers_print_their_words_json_and_status() {
             w::Outcome::SetUpRefused(
                 w::SetUpRefused::new(&limits, w::SetUpRefusedParts { why: w::SetUpRefusal::NotOffered }).unwrap(),
             ),
-            b"refused: not offered\n",
+            b"refused: not offered\nOne owned forge is offered; read forge list, then project make NAME --key KEY; repository make --project PROJECT --forge FORGE ORG/NAME --until adopted --key KEY\n",
             2,
         ),
         (
@@ -1494,4 +1494,60 @@ fn sixteen_forges_with_sixteen_copy_addresses_fit_the_client_document() {
     assert!(u64::try_from(encoded.len()).unwrap() <= limits.domain.client.domain.document_bytes);
     assert_eq!(wire::decode_forges(&encoded, &bounds), Some(forges));
     assert!(request <= FAMILY_REQUEST);
+}
+
+/// Complete the first owned setup before testing another project's ctl path.
+pub(super) fn setup_for_projects() -> f::Harness {
+    let mut root = f::signed_in(f::PARTY);
+    let call = root.submit(&["forge", "setup", "--project", "1", "--key", "first-setup"]);
+    root.adoption_answer(call, w::Outcome::SettingUp);
+    project_forge(&mut root);
+    assert_eq!(root.sent_adoption(call).project, 1);
+    root.adoption_answer(call, f::adopted_with_unknown_protection());
+    assert_eq!(root.answer(call).unwrap().status, 0);
+    root
+}
+
+/// Deliver a made repository adopted into the requested project on forge 3.
+pub(super) fn adopted_project_repository(root: &mut f::Harness, project: u32) {
+    let limits = forge::wire_limits(&root.limits.domain.forge).unwrap();
+    let record = record(w::Connection::Connecting);
+    let mut parts = wire::decode_forges(&record.bytes, &limits).unwrap().into_parts();
+    let mut row = parts.forges.swap_remove(0).unwrap().into_parts();
+    row.makings = List::with_capacity(1);
+    row.makings
+        .push(
+            w::RepositoryMaking::new(
+                &limits,
+                w::RepositoryMakingParts {
+                    org: b"work".as_slice().into(),
+                    name: b"second".as_slice().into(),
+                    from: w::MakeFrom::Empty,
+                    into: Some(w::MakeInto::new(&limits, w::MakeIntoParts { project, home: true }).unwrap()),
+                    state: w::MakingState::Adopting(
+                        w::MakingMade::new(&limits, w::MakingMadeParts { id: 8, branch: b"main".as_slice().into() })
+                            .unwrap(),
+                    ),
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    parts.forges.push(w::ForgeRow::new(&limits, row).unwrap()).unwrap();
+    deliver(root, client::Family { bytes: wire::forges(&w::Forges::new(&limits, parts).unwrap()), ..record.clone() });
+    deliver(root, record);
+}
+
+/// Refresh the owned forge document used by the project creation walk.
+pub(super) fn project_forge(root: &mut f::Harness) {
+    deliver(
+        root,
+        record_first(
+            w::Connection::Connected(
+                w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 1, login: b"temper".as_slice().into() })
+                    .unwrap(),
+            ),
+            Some(first_record(made())),
+        ),
+    );
 }

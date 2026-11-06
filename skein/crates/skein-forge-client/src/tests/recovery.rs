@@ -6,6 +6,171 @@ use alloc::boxed::Box;
 use skein_forge::api::{self, Answer, Change, Error, Op, Read, Write};
 use skein_lib::{Duration, List, Token, Wall};
 
+fn updating(style: api::UpdateStyle) -> writing::Harness {
+    let mut h = writing::Harness::new();
+    h.make(1, Write::Update { number: 9, style }, Condition::Update { head: [1; 32], base: [2; 32] });
+    h.clock();
+    check_update(&mut h, writing::pull([1; 32]));
+    h
+}
+
+fn check_update(h: &mut writing::Harness, pull: api::Pull) {
+    let check = h.one();
+    assert_eq!(check.op, Op::Read(Read::Pull { number: 9 }));
+    h.answer(check, Ok(Answer::Pull(pull)));
+}
+
+fn look_update(h: &mut writing::Harness, head: [u8; 32], found: bool) {
+    check_update(h, writing::pull(head));
+    let compare = h.one();
+    assert_eq!(compare.op, Op::Read(Read::Compare { before: head, after: [2; 32] }));
+    h.answer(
+        compare,
+        Ok(Answer::Compare {
+            before: head,
+            after: [2; 32],
+            contains_before: false,
+            files: Box::new([]),
+            commits: if found { Box::new([]) } else { Box::new([[2; 32]]) },
+        }),
+    );
+}
+
+fn lose_update(h: &mut writing::Harness, style: api::UpdateStyle) {
+    let write = h.one();
+    assert_eq!(write.op, Op::Write(Write::Update { number: 9, style }));
+    h.answer(write, Err(Error::Timeout));
+}
+
+fn miss_update(h: &mut writing::Harness) {
+    look_update(h, [1; 32], false);
+    let deadline = h.store.get(&1).expect("uncertain update").attempt.expect("saved attempt").deadline;
+    assert_eq!(h.domain.next_deadline(), Some(deadline));
+    assert!(h.send().is_none(), "wait for the original attempt's deadline");
+    h.env.wall = Wall::from_nanos(deadline.as_nanos());
+    h.fire(deadline.as_nanos().checked_div(at(1).as_nanos()).expect("positive fixture second"));
+    look_update(h, [1; 32], false);
+    assert!(!h.outcomes.as_slice().contains(&(1, Outcome::Held)));
+}
+
+#[test]
+fn a_lost_update_not_found_is_checked_and_made_again() {
+    for style in [api::UpdateStyle::Merge, api::UpdateStyle::Rebase] {
+        let mut h = updating(style);
+        lose_update(&mut h, style);
+        let original = h.store.get(&1).expect("first attempt").clone();
+        miss_update(&mut h);
+        assert!(!h.outcomes.as_slice().contains(&(1, Outcome::Held)));
+        check_update(&mut h, writing::pull([1; 32]));
+        lose_update(&mut h, style);
+        let remade = h.store.get(&1).expect("second attempt");
+        let attempt = remade.attempt.expect("new attempt");
+        assert_eq!(remade.start, original.start);
+        assert_eq!(attempt.sent, h.env.now);
+        assert_eq!(attempt.deadline, attempt.sent.saturating_add(LIMITS.lifetime).saturating_add(LIMITS.clock_margin));
+        assert_eq!(attempt.wall, h.env.wall);
+        assert_eq!(
+            attempt.expires,
+            Wall::from_nanos(
+                attempt
+                    .wall
+                    .as_nanos()
+                    .saturating_add(LIMITS.lifetime.as_nanos())
+                    .saturating_add(LIMITS.clock_margin.as_nanos())
+            )
+        );
+        assert_ne!(remade.attempt, original.attempt);
+        assert_eq!(h.writes, 2);
+    }
+}
+
+#[test]
+fn a_lost_update_fails_timeout_after_write_attempts() {
+    for style in [api::UpdateStyle::Merge, api::UpdateStyle::Rebase] {
+        let mut h = updating(style);
+        for attempt in 1..=LIMITS.write_attempts {
+            lose_update(&mut h, style);
+            miss_update(&mut h);
+            assert!(!h.outcomes.as_slice().contains(&(1, Outcome::Held)));
+            if attempt < LIMITS.write_attempts {
+                check_update(&mut h, writing::pull([1; 32]));
+            }
+        }
+        assert_eq!(h.writes, LIMITS.write_attempts);
+        assert_eq!(h.outcomes.as_slice().last(), Some(&(1, Outcome::Failed(Error::Timeout))));
+        assert!(h.store.is_empty());
+        assert!(h.send().is_none());
+    }
+}
+
+#[test]
+fn an_update_made_again_is_found_by_a_later_look() {
+    for style in [api::UpdateStyle::Merge, api::UpdateStyle::Rebase] {
+        let mut h = updating(style);
+        lose_update(&mut h, style);
+        miss_update(&mut h);
+        check_update(&mut h, writing::pull([1; 32]));
+        lose_update(&mut h, style);
+        look_update(&mut h, [3; 32], true);
+        assert_eq!(
+            h.outcomes.as_slice().last(),
+            Some(&(1, Outcome::Made { made: Made::Updated([3; 32]), found: true }))
+        );
+        assert_eq!(h.writes, 2);
+        assert!(h.store.is_empty());
+    }
+}
+
+#[test]
+fn an_update_checked_again_fails_stale_when_its_head_or_base_moved() {
+    for style in [api::UpdateStyle::Merge, api::UpdateStyle::Rebase] {
+        for moved_head in [true, false] {
+            let mut h = updating(style);
+            lose_update(&mut h, style);
+            miss_update(&mut h);
+            let mut pull = writing::pull(if moved_head { [3; 32] } else { [1; 32] });
+            if !moved_head {
+                pull.base_commit = Some([4; 32]);
+            }
+            check_update(&mut h, pull);
+            assert_eq!(h.outcomes.as_slice().last(), Some(&(1, Outcome::Failed(Error::Stale))));
+            assert_eq!(h.writes, 1);
+            assert!(h.store.is_empty());
+            assert!(h.send().is_none());
+        }
+    }
+}
+
+#[test]
+fn a_held_update_remade_is_looked_for_first() {
+    for style in [api::UpdateStyle::Merge, api::UpdateStyle::Rebase] {
+        for found in [true, false] {
+            let mut h = updating(style);
+            lose_update(&mut h, style);
+            let saved = h.store.get(&1).expect("held entry's started attempt").clone();
+            h.domain = configured(&h.env.limits);
+            h.step(Event::Restored { clock: RecoveryClock::Monotonic });
+            h.step(Event::Remake { entry: saved.clone() });
+            look_update(&mut h, if found { [3; 32] } else { [1; 32] }, found);
+            assert_eq!(h.writes, 1, "remake looks before writing");
+            if found {
+                assert_eq!(
+                    h.outcomes.as_slice().last(),
+                    Some(&(1, Outcome::Made { made: Made::Updated([3; 32]), found: true }))
+                );
+            } else {
+                assert_eq!(h.domain.next_deadline(), Some(saved.attempt.expect("saved deadline").deadline));
+                h.fire(111);
+                look_update(&mut h, [1; 32], false);
+                check_update(&mut h, writing::pull([1; 32]));
+                lose_update(&mut h, style);
+                assert_eq!(h.writes, 2);
+            }
+            assert!(!h.outcomes.as_slice().contains(&(1, Outcome::Held)));
+        }
+    }
+}
+
 #[test]
 fn restart_reads_before_settling_the_outbox() {
     let mut h = kept::Harness::new();

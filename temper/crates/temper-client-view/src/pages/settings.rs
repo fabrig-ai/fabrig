@@ -526,16 +526,30 @@ fn telling(b: &mut Builder, w: &Words) {
     b.close();
 }
 
-pub(crate) fn repositories(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32) {
+pub(crate) fn repositories(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    project: u32,
+    sign_in: &crate::forge_sign_in::Forges,
+) {
     main(b);
     open(b, root, w, bindings, project, Tab::Repositories);
     if !missing(b, root, w, bindings, project) {
-        repository_section(b, root, w, bindings, project);
+        repository_section(b, root, w, bindings, project, sign_in);
     }
     b.close();
     b.close();
 }
-fn repository_section(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32) {
+fn repository_section(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    project: u32,
+    sign_in: &crate::forge_sign_in::Forges,
+) {
     let playground = root.forge().playground();
     let own_playground = match playground {
         Some(p) => p.project == Some(project),
@@ -582,7 +596,7 @@ fn repository_section(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut 
                     Some((_, row)) => crate::forge::connect::name(w, row, root),
                     None => w.say(Word::ForgePlayground, &[]),
                 };
-                repository_row(b, &playground.owner, &playground.name, &name);
+                repository_row(b, w, None, sign_in, &playground.owner, &playground.name, &name);
             }
         } else {
             for row in &rows {
@@ -590,6 +604,9 @@ fn repository_section(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut 
                     if repository.project == project {
                         repository_row(
                             b,
+                            w,
+                            Some(row),
+                            sign_in,
                             &repository.owner,
                             &repository.name,
                             &crate::forge::connect::name(w, row, root),
@@ -602,9 +619,20 @@ fn repository_section(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut 
     }
     b.close();
 }
-fn repository_row(b: &mut Builder, owner: &[u8], name: &[u8], forge: &[u8]) {
+fn repository_row(
+    b: &mut Builder,
+    w: &Words,
+    row: Option<&forge::forges::Row>,
+    sign_in: &crate::forge_sign_in::Forges,
+    owner: &[u8],
+    name: &[u8],
+    forge: &[u8],
+) {
     b.open(Role::Slot);
-    crate::cards::text(b, Role::Text, &forge::words::full_name(owner, name));
+    b.open(Role::Text);
+    b.name(&forge::words::full_name(owner, name));
+    crate::forge::repository::name(b, w, row, sign_in, owner, name);
+    b.close();
     text(b, Role::Text, forge, look::SETTINGS_WHEN);
     b.close();
 }

@@ -12,6 +12,7 @@ pub fn facts() -> Facts<'static> {
         git: Some(b"/usr/bin/git"),
         claude: None,
         login: Some(b"ada"),
+        sign_in: true,
         ports: Ports {
             clients: NonZeroU16::new(8367).expect("the default port is nonzero"),
             owned: NonZeroU16::new(8368).expect("the owned forge port is nonzero"),

@@ -304,6 +304,7 @@
       ]
     },
     "clients": {
+      "provider": "$provider",
       "heartbeat_ms": 10000,
       "link": true
     },
@@ -314,7 +315,7 @@
     "owners": [
       {
         "provider": 1,
-        "subject": "owner-a"
+        "subject": "$email"
       }
     ],
     "providers": [
@@ -389,6 +390,7 @@
         "listen": {
           "socket": "$owned"
         },
+        "sign_in": "$owned_sign_in",
         "person": {
           "login": "$login",
           "email": "$email"

@@ -8,6 +8,7 @@ pub enum Stage {
     Fetch,
     Prepare,
     Run,
+    Source,
 }
 impl Stage {
     #[must_use]
@@ -16,6 +17,7 @@ impl Stage {
             Self::Fetch => b"fetch",
             Self::Prepare => b"prepare",
             Self::Run => b"run",
+            Self::Source => b"source",
         }
     }
 }
@@ -51,6 +53,7 @@ pub struct Step {
     name: Box<[u8]>,
     arguments: Box<[Box<[u8]>]>,
     kind: Kind,
+    ignore_ending: bool,
     ready: Option<core::net::SocketAddr>,
     listeners: Box<[core::net::SocketAddr]>,
     started_notice: Box<[u8]>,
@@ -59,7 +62,25 @@ impl Step {
     /// Constructs a step from its display name, arguments and lifetime.
     #[must_use]
     pub fn new(name: Box<[u8]>, arguments: Box<[Box<[u8]>]>, kind: Kind) -> Self {
-        Self { name, arguments, kind, ready: None, listeners: Box::new([]), started_notice: Box::new([]) }
+        Self {
+            name,
+            arguments,
+            kind,
+            ignore_ending: false,
+            ready: None,
+            listeners: Box::new([]),
+            started_notice: Box::new([]),
+        }
+    }
+    /// Its group goes on however it ends (setup.md, 7.2).
+    #[must_use]
+    pub fn ending_ignored(mut self) -> Self {
+        self.ignore_ending = true;
+        self
+    }
+    #[must_use]
+    pub fn ignores_ending(&self) -> bool {
+        self.ignore_ending
     }
     /// Opaque public lines supplied by the binary, printed once this forge starts.
     pub fn set_started_notice(&mut self, notice: Box<[u8]>) {
@@ -140,7 +161,7 @@ pub fn kinds(
 ) -> Steps {
     let mut result = Steps { always: Box::new([serve(flags, listeners)]), asked: Box::new([]) };
     if let Some(owned) = &machine.owned {
-        let mut group = List::with_capacity(4);
+        let mut group = List::with_capacity(5);
         if owned.fetch.forgejo || owned.fetch.runner {
             group.push((Stage::Fetch, slot(b"fetch", flags, None))).expect("fetch");
         }
@@ -153,13 +174,17 @@ pub fn kinds(
         if owned.runner.is_some() {
             group.push((Stage::Run, slot(b"run", flags, Some(b"runner")))).expect("runner");
         }
+        if owned.sign_in.is_some() {
+            group.push((Stage::Source, slot(b"source", flags, None).ending_ignored())).expect("source");
+        }
         result.asked = Box::new([Group {
             kind: Some(BoxKind::Owned),
             remover: Some(slot(b"remove", flags, None)),
             forge: 0,
             label: bytes::copy_of(b"Forge $forge (Forgejo)"),
             recorded: true,
-            before: 0,
+            // A restored source fetches discovery while Forgejo starts.
+            before: u32::from(owned.sign_in.is_some()),
             steps: group.into_boxed(),
         }]);
     }

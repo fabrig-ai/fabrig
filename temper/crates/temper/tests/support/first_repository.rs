@@ -793,6 +793,7 @@ pub fn generated(root: &Path) {
     let ports = addresses.map(|address| NonZeroU16::new(address.port()).expect("ephemeral port"));
     let answer = temper_init::files(
         &Facts {
+            sign_in: false,
             binary: skein_scratch::paths::binary("temper").as_os_str().as_bytes(),
             git: Some(b"/usr/bin/git"),
             claude: None,

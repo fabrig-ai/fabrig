@@ -16,7 +16,7 @@ use jig_protocol_config::{self as config, Path, read};
 const LIMITS: config::DocumentLimits = config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 };
 const APPLICATION: &[u8] = br#"{
 "machine":{
- "owned":{"listen":{"socket":"127.0.0.1:8368"},"remote":"http://127.0.0.1:8368","forgejo":"fetched",
+ "owned":{"sign_in":"forge-client","listen":{"socket":"127.0.0.1:8368"},"remote":"http://127.0.0.1:8368","forgejo":"fetched",
  "runner":{"binary":"fetched","labels":["temper-host:host"],"capacity":1,"path":"/usr/bin:/bin"},
  "person":{"login":"person","email":"person@localhost"},"public":"https://forge.example.test",
  "mirror":{"forgejo":"https://downloads.example.test","runner":"https://runner.example.test"}},

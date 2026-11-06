@@ -171,11 +171,13 @@ pub(crate) fn check_provider(engine: &crate::Engine, problems: &mut Problems) {
     let Some(provider) = &engine.clients.provider else { return };
     let path = Path::root().member(b"clients").member(b"provider").member(b"addresses");
     for (index, number) in provider.addresses.iter().enumerate() {
-        let mut application = false;
+        let mut accepted = false;
         for configured in &engine.providers {
-            application |= configured.number == *number && configured.kind == crate::ProviderKind::Application;
+            accepted |= configured.number == *number
+                && (configured.kind == crate::ProviderKind::Application
+                    || configured.kind == crate::ProviderKind::Link);
         }
-        if !application {
+        if !accepted {
             problems.push(check::index(&path, index), crate::What::Refers);
         }
     }

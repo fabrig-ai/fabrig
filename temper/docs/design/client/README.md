@@ -1641,7 +1641,9 @@ keeps (`../protocol/configuration.md`, section 2).
     On a connected owned Forgejo whose page facts offer sign-in through
     temper (`forge.md`, 5.4), "Open Forgejo ↗" ends the Forge line, with
     the same `ROOT/user/oauth2/temper` address as Forges; no other
-    forge's link is drawn.
+    forge's link is drawn. In the ticked line, the browser's ORG/NAME is
+    the repository's link where it has an address (`forge.md`, 5.4, *A
+    repository's link*): "ORG/NAME ↗", then " made".
 - **With no project yet** (`../draft/first-run-projects.md`, 2 and 4): until the
   playground's start or the welcome's Ready makes one, the
   Chats page's head and list and `NewChat`'s layout give way to the level-1
@@ -2107,9 +2109,11 @@ keeps (`../protocol/configuration.md`, section 2).
   - *Repositories:* a section whose head holds the title "Repositories · N"
     and "Adopt a repository", to `Adopt { project }`; then a line per
     repository of the project, from the `forges` watch's rows whose
-    `project` matches: `owner/name`, and in the line's time place its
-    forge's name. A line is no link. The playground's project shows its
-    repository from the playground's read (4.8). With none, a quiet band:
+    `project` matches: `owner/name`, in the browser the repository's link
+    where it has an address (`forge.md`, 5.4, *A repository's link*), and in
+    the line's time place its forge's name. The line itself is no link. The
+    playground's project shows its repository from the playground's read
+    (4.8), plain. With none, a quiet band:
     the tag "No repository yet", "Chats in PROJECT talk and plan, but change
     no code until a repository is in.", and "Adopt a repository".
   - *The rows,* on `Forges` and `Accounts`, are the greenfield mock's language
@@ -3879,6 +3883,14 @@ which repository is a project's home (4.4), so its first adopted, the
 first its rows list on the forge numbered lowest, stands in for it.
 The repositories in a row follow the forge's repository ids ascending,
 not the time they were adopted.
+In the browser the row is two siblings, since a link can't sit inside a
+button: the project's name, the button as above, and the small words. A
+repository with an address (`forge.md`, 5.4, *A repository's link*) is
+the link "work/hello ↗" there, in the same place, size and colour,
+underlined on hover, and opens the repository's page in a new tab; the
+project's name alone switches project. "+2" stays outside the link, which
+goes to the repository named. "no repository", the playground's and one
+with no address stay plain words.
 With no home known, "3 repositories" is the row's words; the stand-in
 leaves that state unreached until the client is given the home. In the
 terminal a row reads "PROJECT · work/hello", one run of words. Choosing
@@ -5477,8 +5489,10 @@ measures it (skein's `ui-web.md`, section 7).
   which replaces the window. A person sending on a chat does the same
   through the log's end request,
   which `Chat` counts. An agent's page has the same pill; while its window
-  has let the end go, a press asks for the next later page (`Thread::newer`).
-  Its log has no end request, so sending there does not request the end.
+  has let the end go, a press asks for the next later page (`Thread::newer`),
+  and the log, following, asks for each next until its end is back (skein's
+  `ui-web.md`, section 7). Its log has no end request, so sending there does
+  not request the end.
 - **The terminal:** the log is bound and continues as in a browser, with no
   measures: `up` reads earlier and `down` later (skein's `ui-text.md`, section
   6), and each prints the whole window again. These are lines followed by
@@ -6758,6 +6772,14 @@ own tests:
   the position staying put when lines load above is for the user to read on a
   real chat. Default: the browser tier runs Chromium, including with
   `overflow-anchor: none`; Firefox and Safari themselves are read, not run.
+- **An agent's page going to its end** (5.15; `../draft/chat-reading.md`, 5): its
+  log has no end request, so a person sending from far back stays where they read,
+  and Latest reaches the end a page at a time. A chat's `to_end` and
+  `Thread::latest` on a task's page would close both. Default: as it stands.
+- **The terminal's keys and first page** (5.15; `../draft/chat-reading.md`, 5): its
+  input is never raw (skein's `ui-text.md`, section 7), so PgUp and PgDn are lines
+  with Enter, and with no view to measure it opens on one page. Default: as it
+  stands; keys of their own are a change of skein's shell.
 - **The rest of a run's line** (3.5, 5.9; `../draft/chat-reading.md`, 2 and 7): words
   for tools past the table, which are the user's to read on a real chat. Default: any
   other tool is its name. A run of one turn has its time as *A run's time* says, and an
