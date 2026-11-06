@@ -415,6 +415,7 @@ fn only_a_box_signing_in_runs_source_last_and_ignores_its_ending() {
     let mut machine = read(TEMPLATE_MACHINE, &directories());
     machine.owned.as_mut().unwrap().sign_in = Some(b"forgejo".as_slice().into());
     let steps = kinds(&machine, &[], Box::new([]), true);
+    assert_eq!(steps.asked[0].before, 1, "the issuer starts before a restored source fetches discovery");
     let (stage, source) = steps.asked[0].steps.last().unwrap();
     assert_eq!(*stage, Stage::Source);
     assert_eq!(source.name(), b"source");

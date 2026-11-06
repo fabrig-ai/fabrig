@@ -1,6 +1,6 @@
 # sign-in: status
 
-2026-11-05. Where temper's code lags or departs from [sign-in.md](sign-in.md).
+2026-11-06. Where temper's code lags or departs from [sign-in.md](sign-in.md).
 
 - **Not yet:** 2.4: public reading's deployment: no proxy configuration caches `/jig/v1/public/` by deployment, `Host` and path, keeps no stale copy, or limits an address, and no deployment sets jig's public limits.
   2.5: the proxy's own rules are played against scripted upstreams, not
@@ -8,6 +8,12 @@
   the `Age` it keeps and the stale copy it never serves, what it keeps,
   its upstream stopped, two deployments behind it with one path, and a
   refused `Host` with a copy cached.
+- **Not yet:** 9.9: the real-box process story
+  `a_box_signs_its_person_in_to_its_owned_forgejo_with_one_click`
+  (`temper/crates/temper/tests/process.rs`) awaits after-landing execution;
+  during a plan it is compiled, not run. The browser proof and the rows of
+  the laptop's table it does not repeat are recorded in
+  `temper/docs/development/ui-repo-link-review.md`.
 - **Departs:** 9.7: the user's request of 2026-11-05 has a new store's
   forge meta appear only after `forge connect` and a restart; it appears
   when the forge is kept, with no restart, because 9.7 has an entry serve

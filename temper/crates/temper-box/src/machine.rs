@@ -737,7 +737,7 @@ impl Machine {
         self.states.get_mut(step).expect("step").phase = Phase::Live { next: None };
         if let Some(group) = self.states.get(step).expect("step").group {
             let group = self.groups.get(group).expect("group");
-            if group.chained && self.states.get(step).expect("step").ready {
+            if group.chained && self.states.get(step).expect("step").ready && !self.source_pending(group.end) {
                 orders.push(Order::Terminal { fact: Fact::GroupStarted { forge: group.forge } });
             }
         }
@@ -854,6 +854,13 @@ impl Machine {
                 } else if self.states.get(step).expect("step").kind == Kind::Long {
                     self.restart(now, step, next, orders);
                 } else if success {
+                    if let Some(group) = group
+                        && self.groups.get(group).expect("group").chained
+                        && self.states.get(step).expect("step").ignore_ending
+                        && step.checked_add(1) == Some(self.groups.get(group).expect("group").end)
+                    {
+                        self.group_started(group, orders);
+                    }
                     if let Some(next) = next {
                         self.spawn(next, self.continuation(next), orders);
                     }
@@ -925,12 +932,20 @@ impl Machine {
             false
         }
     }
+    fn source_pending(&self, end: usize) -> bool {
+        let last = end.checked_sub(1).expect("nonempty group");
+        let state = self.states.get(last).expect("group's final step");
+        state.ignore_ending && state.phase != Phase::Stopped
+    }
     fn ask(&mut self, forge: u16, orders: &mut Queue<Order>) {
         if self.refused(forge, false, orders) {
             return;
         }
         let index = self.group(forge).expect("checked group");
         if self.groups.get(index).expect("group").status == Status::Started {
+            if self.source_pending(self.groups.get(index).expect("group").end) {
+                return;
+            }
             orders.push(Order::Say { said: Said::Started { forge } });
             return;
         }

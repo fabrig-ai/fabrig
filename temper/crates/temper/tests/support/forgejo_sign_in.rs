@@ -18,12 +18,12 @@ use std::{
     process::{Child, Stdio},
 };
 
-struct Serve {
-    child: Child,
-    reaped: bool,
+pub(super) struct Serve {
+    pub(super) child: Child,
+    pub(super) reaped: bool,
 }
 impl Serve {
-    fn stop(mut self) {
+    pub(super) fn stop(mut self) {
         assert!(self.child.id() > 1, "owned serve group");
         skein_shell::keeper::signal_group(self.child.id(), skein_io::kernel::Signal::Terminate)
             .expect("terminate serve");
@@ -43,21 +43,21 @@ impl Drop for Serve {
     }
 }
 
-struct Answer {
-    status: u16,
-    location: Option<String>,
-    body: Vec<u8>,
+pub(super) struct Answer {
+    pub(super) status: u16,
+    pub(super) location: Option<String>,
+    pub(super) body: Vec<u8>,
 }
 #[derive(Default)]
-struct Browser {
+pub(super) struct Browser {
     // These two loopback origins share a host, as browser cookies do; paths still apply.
     cookies: Vec<(String, String, String)>,
 }
 impl Browser {
-    fn call(&mut self, url: &str, body: Option<&[u8]>) -> io::Result<Answer> {
+    pub(super) fn call(&mut self, url: &str, body: Option<&[u8]>) -> io::Result<Answer> {
         self.request(url, body, "application/octet-stream")
     }
-    fn form(&mut self, url: &str, fields: &[(&str, &str)]) -> io::Result<Answer> {
+    pub(super) fn form(&mut self, url: &str, fields: &[(&str, &str)]) -> io::Result<Answer> {
         let encode = |value: &str| {
             let mut encoded = String::new();
             for byte in value.bytes() {
@@ -79,7 +79,7 @@ impl Browser {
     fn signed_out_of_forgejo(&mut self) {
         self.cookies.retain(|(name, _, _)| name.starts_with("jig-"));
     }
-    fn follow(&mut self, mut address: String, mut answer: Answer) -> io::Result<Landed> {
+    pub(super) fn follow(&mut self, mut address: String, mut answer: Answer) -> io::Result<Landed> {
         for _ in 0..5 {
             if !matches!(answer.status, 302 | 303 | 307) {
                 break;
@@ -322,10 +322,10 @@ fn sign_in(
     Ok(())
 }
 
-struct Landed {
-    status: u16,
-    address: String,
-    body: Vec<u8>,
+pub(super) struct Landed {
+    pub(super) status: u16,
+    pub(super) address: String,
+    pub(super) body: Vec<u8>,
 }
 
 fn through_temper(
@@ -506,7 +506,7 @@ fn signed_in_as_sam(browser: &mut Browser, forge: std::net::SocketAddr) -> io::R
     Ok(())
 }
 
-fn csrf(page: &[u8]) -> Option<String> {
+pub(super) fn csrf(page: &[u8]) -> Option<String> {
     let page = std::str::from_utf8(page).expect("form text");
     let after = page.split_once("name=\"_csrf\"")?.1;
     Some(after.split_once("value=\"")?.1.split_once('"')?.0.into())
@@ -529,7 +529,7 @@ fn link_password(
     browser.follow(address, answer)
 }
 
-fn fixture_bundle(directory: &Path) {
+pub(super) fn fixture_bundle(directory: &Path) {
     let bundle = directory.join("bundle");
     fs::create_dir_all(bundle.join("0123456789abcdef")).expect("bundle directory");
     fs::write(bundle.join("index.html"), b"<html><head></head><body></body></html>").expect("bundle page");

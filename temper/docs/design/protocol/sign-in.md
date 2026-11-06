@@ -870,7 +870,11 @@ other rules are skein's, per client, so no other client is weakened.
 (`setup.md`, 7.1): `temper forge source`, which adds the source unless Forgejo lists
 it, by `add-oauth --name temper --provider openidConnect --key forgejo
 --auto-discover-url ISSUER/.well-known/openid-configuration` with `--work-path` and
-`--config`. temper is serving by then, since it asked for the group.
+`--config`. temper is serving by then, since it asked for the group. On a restart, serve
+starts before this group too: Forgejo fetches discovery while loading its source.
+A restored group reports started only after its final source outcome, as on its first start.
+Its source fact is accepted for the kept box-owned Forgejo even with no setup ask in flight;
+the restored forge is already connected. An unknown or non-owned forge cannot set this fact.
 
 - **It never fails the set-up.** Any ending of the step leaves the set-up succeeding:
   one line in `box.log`, the forge's page fact saying so, and the links plain. Never a

@@ -332,7 +332,10 @@ pub fn configuration_steps(
         let mut always = first.into_vec();
         always.extend(steps.always);
         for group in &mut steps.asked {
-            group.before = u32::try_from(always.len().saturating_sub(1)).expect("bounded first steps");
+            group.before = group
+                .before
+                .checked_add(u32::try_from(always.len().saturating_sub(1)).expect("bounded first steps"))
+                .expect("bounded insertion");
         }
         steps.always = always.into_boxed_slice();
         if machine.owned.is_some() {

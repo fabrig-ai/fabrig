@@ -3811,7 +3811,8 @@ it checks of this document:
   `webhook_secret` file. The service's step world shows the git value
   and its generation (forge.md, section 10, the box's link). A second
   box on the same directories starts the group by its record, before
-  `temper serve`. Preparation makes a new handover; serve takes it over
+  `temper serve` unless the box signs its person in through that forge; then
+  serve starts first, to answer the source's discovery (sign-in.md, 9.9). Preparation makes a new handover; serve takes it over
   and connects forge 1 from its records (6.5), and the task is found
   landed, its CI at its head unknown until a next step reads it
   (`../domain/forge.md`, 8.8).
