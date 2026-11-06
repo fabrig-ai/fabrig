@@ -61,7 +61,7 @@ fn model_offers_and_template_previews_cross_engine_wire_and_link_whole() {
             picker: !populated,
         };
         let wire = engine::translate::llm::models(
-            jig_domain_authority::Models::ALL,
+            &[jig_domain_core::Offered { model: 0, accounts: List::with_capacity(0) }],
             core::slice::from_ref(&model),
             limits.wire(),
         )
