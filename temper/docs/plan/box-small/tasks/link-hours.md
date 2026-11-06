@@ -50,3 +50,7 @@ Acceptance:
 ## Report
 
 As the implementer's text asks.
+
+## Answers
+
+2026-11-06 (fabrig/temper). An addition from the user, after the rest of your task: "the sign-in URL printed by temper box should be clickable if the terminal supports it". Wrap the link in OSC 8 when the box's stdout is a terminal and TERM isn't dumb, the first link and every fresh one: ESC ] 8 ; ; URL ESC \\ URL ESC ] 8 ; ; ESC \\ . The visible text stays the whole URL. Piped or sent to a file, stdout stays exactly as it is, the bare URL alone on its line, since scripts and tests read it (temper/docs/design/protocol/setup.md, the box's stdout). The line's bound then has to hold the URL twice plus the markers ("sign-in link too long" in temper/crates/temper-box/src/terminal.rs). An OSC 8 link stays whole across a wrapped line, where autodetection stops at the wrap and cuts the secret. Say so in setup.md, 7.2. If your run can't take this, finish without it and say so: it'll follow.
