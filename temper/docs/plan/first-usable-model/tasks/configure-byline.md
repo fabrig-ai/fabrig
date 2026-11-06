@@ -100,3 +100,7 @@ Then fmt, `old_forms.py` for temper, clippy on the packages you changed, their f
 ## Report
 
 As the implementer's text says, and each overlap file you changed.
+
+## Answers
+
+2026-11-06 (fabrig/temper). Two bylines are the view's guesses, not Create's answer: pages/configure.rs joins the first usable account to the catalogue's first model, and choice.rs model_words takes the first model whose provider is usable, which is why New chat says Opus. temper/docs/design/client/README.md, 3.5 describes a supplied resolved_default, but the name isn't in jig's crates or temper's client crates. Read that: a byline says what the run will use, from one source for both pages, or say why not.
