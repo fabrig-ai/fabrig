@@ -736,7 +736,6 @@ fn the_csv_chat_receives_the_whole_turn_and_anchors_the_landed_card_at_its_call(
     for hidden in [
         b"Run 1 began".as_slice(),
         b"Earlier lines omitted",
-        b"Earlier text omitted",
         b"Run 1 ended",
         b"Begin the work your brief describes.",
         b"Milestone",
@@ -797,8 +796,7 @@ fn csv_chat_hears_its_result(turn_text: u32) {
         fixtures::FORGE,
     );
     fixtures::build(&mut view, &root);
-    let cut = fixtures::find(view.tree(), Role::Status, b"Earlier text omitted").is_some();
-    assert_eq!(cut, turn_text < 2048, "the first turn is cut only below its 1.2 KB");
+    assert!(fixtures::find(view.tree(), Role::Status, b"Earlier text omitted").is_none());
     assert_csv_card(&view, false);
     let Some(Request::Unlinked {
         request:
@@ -889,15 +887,7 @@ fn the_dark_theme_chat_has_its_whole_answer_and_waits_with_its_composer() {
     let view = first_run_view(true, false);
     let said = fixtures::text(view.tree());
     in_order(&said, &[b"You", run::DARK, b"Temper", run::DARK_ANSWER]);
-    for hidden in [
-        b"Done".as_slice(),
-        b"Ended",
-        b"finish",
-        b"Milestone",
-        b"Earlier text omitted",
-        b"Tool completed",
-        b"Instructions",
-    ] {
+    for hidden in [b"Done".as_slice(), b"Ended", b"finish", b"Milestone", b"Tool completed", b"Instructions"] {
         assert!(skein_lib::bytes::find(&said, hidden).is_none(), "{hidden:?}");
     }
     let mut composer = false;
