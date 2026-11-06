@@ -1,0 +1,3 @@
+draft = "debt-27"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-27/inputs/request.md", "skein/docs/development/debt/D004-utf8-checks.md", "skein/docs/development/debt/D007-joined-and-measure.md", "skein/docs/development/debt/D040-dead-public-api.md", "skein/docs/development/debt/D041-workspace-duplicates.md", "skein/docs/development/debt/D042-shell-backend-copies.md", "jig/docs/development/debt/D011-channel-mechanics-copied.md", "jig/docs/development/debt/D037-copied-goldens.md", "jig/docs/development/debt/D041-unused-parameters.md", "jig/docs/development/debt/D043-length-widening.md", "smith/docs/development/debt/D020-hand-set-token-tags.md"]
