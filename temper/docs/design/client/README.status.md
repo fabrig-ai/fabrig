@@ -2,7 +2,7 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, *the words being written*: a closed fenced code block retains its trailing newline from `skein-ui`’s reader, so the stylesheet’s end mark follows that newline instead of the last word. The look request `chat-work`, plan `look-round-6`; its answer task needs a reader change outside its scope.
+- **Not yet:** 3.5, *the words being written*: a closed fenced code block keeps its final newline in `skein-ui`'s reader, so the end's mark falls on the line after its last; `chat-reading-a`'s `chat-live` takes it, with `read_growing`.
 - **Not yet:** 3.5, *Reading back*, *"Loading earlier messages…"*, 5.4, 5.9: no pill or message, and "Earlier lines omitted N" is drawn. The look request `chat-work`, plan `look-round-6`.
 - **Design departs:** 3.5, *Starting a goal from a chat's document*, and 5.14, from
   the request `ui-chat-draft` of 2026-11-05, decided by the answers that day to its
