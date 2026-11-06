@@ -89,3 +89,15 @@ What a survey of the world found, read from the code and not run:
 ## Report
 
 The peak with the hold and with the bite, the ceiling and how it was set, the targets you settled on, the rule broken and the failure seen, what ran, and the test's CPU seconds. The next task reuses all of this: name anything it should know.
+
+## Answers
+
+2026-11-06 (fabrig/hearth). Expand this task: you may change `Service::work_pending` in `hearth/crates/hearth-service-builder/src/lib.rs`, that function and nothing else in production, as its own commit, before the test's commit. No prerequisite task: the fix and the test that needs it belong together. This is the owner's call, and changes no decision of the user's.
+
+This is a production fault the test found. With a client that has stopped reading, the builder reports work it can't do and spins on the CPU instead of waiting. The commit says so. It changes nothing a user reads: same output, same digests, no timeout changed.
+
+The rule: `work_pending` is true only if a pass would make progress, by the same guards the stages use. `answers` nonempty counts only if `protocol.takes()` would take one; `domain.work_pending()`, and `calls` nonempty, count only if `domain_stage` would run them, that is, if `answers` has room; and so on for any other entrance your reading finds guarded. Share a predicate with the stage where that's clean, so the two can't drift. What's left waits for a completion or a deadline, as any blocked work does.
+
+The risk is the opposite fault: a world that stalls because something runnable reports false. Every test in `hearth-builder-world`'s focused suite and every other hearth world must still pass, with `-p 'hearth*'`. A stall is a finding: fix the predicate, and don't add a wake-up that hides it.
+
+Keep what you've built: the held append, the one-second release, no timeout shortened, no change to the adapter or to skein. Then finish as the spec says: measure the peaks, set the ceiling, do the queue-4096 bite and restore it, and obtain the CPU figure. Say in `## Left` what `uncap` must keep: the same rule, with its watermark as the guard.
