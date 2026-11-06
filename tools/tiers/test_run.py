@@ -185,6 +185,8 @@ class RunnerTests(unittest.TestCase):
             ("skein", "browser", "skein-ui-example-shell-web", "skein-ui-example-server",
              "SKEIN_UI_EXAMPLE_BUNDLE", "ui-example-bundle", [],
              ["--stylesheet", "skein/examples/ui/shell-web/notes.css",
+              "--placeholder", "skein/examples/ui/shell-web/loading.html",
+              "--placeholder-stylesheet", "skein/examples/ui/shell-web/loading.css",
               "--noscript", "Notes needs WebAssembly and scripts."]),
             ("jig", "browser", "jig-client-test-shell-web", "jig-test",
              "JIG_TEST_BUNDLE", "jig-test-bundle", [],

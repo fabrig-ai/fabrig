@@ -55,6 +55,8 @@ pub fn fixture_bundle(scratch: &skein_scratch::Scratch, module: &[u8]) -> std::p
     let out = scratch.path().join("bundle");
     let inputs = skein_ui_bundle::Inputs {
         gzip: true,
+        title: None,
+        placeholder: None,
         name: "fixture".into(),
         prefix: "/bundle/".into(),
         stylesheets: vec![],

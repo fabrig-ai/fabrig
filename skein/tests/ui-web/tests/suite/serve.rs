@@ -33,6 +33,8 @@ fn the_server_serves_a_bundle_it_did_not_make() {
     let out = scratch.path().join("bundle");
     let inputs = Inputs {
         gzip: true,
+        title: None,
+        placeholder: None,
         name: "notes".into(),
         prefix: "/bundle/".into(),
         stylesheets: vec![],
@@ -71,6 +73,8 @@ fn compressed_bundle(scratch: &Scratch) -> (std::path::PathBuf, Bundle) {
     let out = scratch.path().join("bundle");
     let inputs = Inputs {
         gzip: true,
+        title: None,
+        placeholder: None,
         name: "notes".into(),
         prefix: "/bundle/".into(),
         stylesheets: vec![],

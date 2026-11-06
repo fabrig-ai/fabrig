@@ -66,6 +66,8 @@ def bundle(tree, target, env):
         out = target / "ui-example-bundle"
         variable = "SKEIN_UI_EXAMPLE_BUNDLE"
         options = ["--stylesheet", "skein/examples/ui/shell-web/notes.css",
+                   "--placeholder", "skein/examples/ui/shell-web/loading.html",
+                   "--placeholder-stylesheet", "skein/examples/ui/shell-web/loading.css",
                    "--noscript", "Notes needs WebAssembly and scripts."]
         features = []
     elif tree == "jig":
