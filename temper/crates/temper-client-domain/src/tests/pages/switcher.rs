@@ -120,14 +120,24 @@ fn rename_is_not_opened_on_a_project_the_person_does_not_own() {
     assert!(f.out.is_empty());
 }
 #[test]
-fn an_empty_or_unchanged_name_sends_nothing() {
+fn an_empty_or_unchanged_name_closes_without_sending() {
+    for words in [b"".as_slice(), b"   ", b"Project 1", b"  Project 1  "] {
+        let mut f = fixture();
+        act(&mut f, Act::Rename);
+        act(&mut f, Act::RenameWords { words: words.into() });
+        act(&mut f, Act::Save);
+        assert_eq!(f.pages.switcher().renaming(), None);
+        assert_eq!(f.pages.switcher().pending(), None);
+        assert!(f.out.is_empty());
+    }
+}
+#[test]
+fn rename_sends_words_without_spaces_at_the_ends() {
     let mut f = fixture();
     act(&mut f, Act::Rename);
+    act(&mut f, Act::RenameWords { words: b"  New name  ".as_slice().into() });
     act(&mut f, Act::Save);
-    act(&mut f, Act::RenameWords { words: Box::default() });
-    act(&mut f, Act::Save);
-    assert_eq!(f.pages.switcher().pending(), None);
-    assert!(f.out.is_empty());
+    assert_eq!(sent(&mut f).1, c::Ask::Rename { project: fixtures::PROJECT, name: fixtures::acts::text(b"New name") });
 }
 #[test]
 fn cancel_closes_the_form_and_sends_nothing() {
