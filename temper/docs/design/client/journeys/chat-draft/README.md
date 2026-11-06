@@ -54,6 +54,6 @@ hand driver.
 The chat prints before starting the goal keep the call run and its rows,
 the document write's line and Show, and the end of the answer. Latest is
 a sibling of the log in Chat and Split, hidden until the live log is away
-from its end. It is absent from the terminal. The returned chat shows
-the last reply and offers Older for the earlier conversation. An older
-read replaces Older with "Loading earlier messages…".
+from its end. It is absent from the terminal. The returned chat reads
+earlier lines by itself, showing the earlier conversation with the last
+reply in print 21.
