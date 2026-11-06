@@ -469,7 +469,8 @@ account a preferred number or an endpoint default.
      (`../client/domain/contract.md`, 5.1);
   3. else the first whose LLM provider has an account serving its payer,
      so that its wait names that account;
-  4. else the charter's first, its run waiting with no account to name.
+  4. else the charter's first, its run waiting with no account to name,
+     and its document naming no model (`../client/domain/contract.md`, 5.1).
 
   The others stay its sub-agents' models, in their order. Nobody chooses:
   a deployment with one provider's account runs that provider's model. A

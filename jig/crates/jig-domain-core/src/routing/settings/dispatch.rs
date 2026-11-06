@@ -296,7 +296,7 @@ fn decide_with(
         core.touch_deployment();
         core.touch_run_waits();
     }
-    crate::routing::view::marks::settings_revised(core, &mut routed.work, templates);
+    crate::routing::view::marks::settings_revised(core, &mut routed.work, templates || charters || rules);
     Ok(number)
 }
 

@@ -40,6 +40,7 @@ fn a_me_project_round_trips_with_and_without_its_public_identifier() {
         let value = w::MeProject::new(
             &w::CEILINGS,
             w::MeProjectParts {
+                defaults: List::with_capacity(0),
                 project: u32::MAX,
                 name: w::DocumentText::new(&w::CEILINGS, w::DocumentTextParts { bytes: Box::default(), cut: false })
                     .expect("name"),

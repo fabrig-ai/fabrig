@@ -1,0 +1,109 @@
+draft = "model-catalogue-1"
+repo = "fabrig"
+sources = ["temper/docs/plan/model-catalogue-1/inputs/request.md", "temper/docs/design/draft/model-catalogue.md", "AGENTS.md", "DESIGN.md"]
+
+# The stock models, their efforts and an offer in `me`. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "effort-xhigh"
+title = "Anthropic's dialect takes the effort xhigh"
+mode = "direct"
+needs = []
+design = "skein/docs/design/llm.md, 4.7"
+
+[[part]]
+id = "effort-config"
+title = "A model names its default effort apart from its list"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/configuration.md, 3"
+
+[[slice]]
+id = 1
+story = "Every stock effort reaches a provider, and a model's default effort isn't its first"
+parts = ["effort-xhigh", "effort-config"]
+walk = false
+
+[[part]]
+id = "offer-surface"
+title = "me's surface for the offer, with nothing yet filling it"
+mode = "direct"
+needs = ["effort-config"]
+design = "jig/docs/design/client/domain/contract.md, 5.1"
+
+[[part]]
+id = "offer-engine"
+title = "The core fills the offer and each template's preview"
+mode = "direct"
+needs = ["offer-surface"]
+design = "jig/docs/design/domain/engine.md, 11.1"
+
+[[part]]
+id = "ctl-offer"
+title = "temper ctl lists the offer and takes a model's default effort"
+mode = "direct"
+needs = ["offer-surface"]
+design = "temper/docs/design/client/tools.md, 5.5"
+
+[[part]]
+id = "picker-offer"
+title = "The chooser draws the offer, and works nothing out"
+mode = "direct"
+needs = ["offer-surface"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "configure-picker"
+title = "The configuring chat gets the picker, and its starter names what is connected"
+mode = "direct"
+needs = ["picker-offer"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "stock-seven"
+title = "Seven stock models, with efforts, in the stock's order"
+mode = "direct"
+needs = ["effort-config", "offer-surface", "ctl-offer", "picker-offer"]
+design = "temper/docs/design/protocol/configuration.md, 13.4"
+
+[[part]]
+id = "one-account-offer"
+title = "On a box as temper init writes it, me offers what its account can run"
+mode = "direct"
+needs = ["stock-seven", "offer-engine"]
+design = "jig/docs/design/client/domain/contract.md, 5.1"
+
+[[part]]
+id = "configuring-told"
+title = "The configuring agent is told the offer alone"
+mode = "direct"
+needs = ["offer-engine", "stock-seven"]
+design = "temper/docs/design/domain/agent.md, 8.1"
+
+[[slice]]
+id = 2
+story = "me says what the person can pick now, and what a task given none would take"
+parts = ["offer-surface", "offer-engine"]
+walk = false
+
+[[slice]]
+id = 3
+story = "Every client draws the offer, Configure temper included"
+parts = ["ctl-offer", "picker-offer", "configure-picker"]
+walk = false
+
+[[slice]]
+id = 4
+story = "A Claude-only and a ChatGPT-only box each run with no model named, on the seven stock models"
+parts = ["stock-seven", "one-account-offer"]
+walk = false
+
+[[slice]]
+id = 5
+story = "The configuring agent can't propose a model no account can run"
+parts = ["configuring-told"]
+walk = false

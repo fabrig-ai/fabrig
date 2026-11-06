@@ -174,6 +174,7 @@ fn settings_delivery(driver: &mut Driver) -> Option<(ReplyTo, smith_domain_run::
             repositories,
             people,
             forge_people,
+            offer,
             application,
             from,
             requested,
@@ -192,6 +193,7 @@ fn settings_delivery(driver: &mut Driver) -> Option<(ReplyTo, smith_domain_run::
                 &repositories,
                 &people,
                 &forge_people,
+                &offer,
                 driver.env.limits.call_answer_bytes.saturating_sub(8),
             ),
         ))

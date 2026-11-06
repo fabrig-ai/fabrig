@@ -311,6 +311,10 @@ fn demo_me() -> contract::Me {
     let mut models = List::with_capacity(1);
     models
         .push(c::MeModel {
+            effort: None,
+            shown: None,
+            accounts: List::with_capacity(0),
+            picker: true,
             name: delegation_text(b"demo"),
             provider: Some(3),
             prices: c::ModelPrices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1000 },

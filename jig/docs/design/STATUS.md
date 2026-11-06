@@ -22,7 +22,7 @@ Of the acts, `Hold`, `Move` under another task, `Succeed`, successors,
 markers, a drain and a conversation's questions lag (`domain/people.md`,
 `domain/tasks.md`, `domain/engine.md`, `client/domain/contract.md`); of
 the client, a committed turn's objects,
-`me`'s `resolved_default` and amendment bound, a service's root, the one-shot
+`me`'s amendment bound, a service's root, the one-shot
 mode and the drawing family (`client/domain/`); and `ops` standalone, with its
 service and its connectors' protocols (`examples.md`). `RemoveProject`
 is offered in no project's document (`client/domain/contract.md`).
@@ -43,6 +43,9 @@ revision it read `recalled`, where the `note-parts` request of 2026-11-05 has
 where the `debt-24` request of 2026-11-05 has each named once, and the core's
 observer rebuilds its snapshot at each commit, where the `debt-25` request of
 2026-11-06 has it read the commit's rows (`domain/testing.md`).
+The client's link exposes a watch's Busy refusal through retries and clears
+it on recovery; distinguishing its capacity cause remains deferred
+(`client/domain/client.md`, section 18).
 The code departs in a few single items (`README.md`, `client/domain/client.md`, `domain/engine.md`,
 `client/domain/contract.md`, `client/domain/testing.md`, `client/domain/view.md`, `domain/hosts.md`, `domain/people.md`, `domain/root.md`, `domain/testing.md`,
 `protocol/README.md`, `protocol/browser.md`, `protocol/client.md`, `protocol/configuration.md`, `protocol/service.md`, `protocol/store.md`). `domain/core.md`,

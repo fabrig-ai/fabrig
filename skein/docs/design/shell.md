@@ -341,8 +341,9 @@ the ring adapter's:
   reaches a signalfd whatever its disposition, so startup must look. A
   service that does not ask keeps the default, and a hangup ends it at once.
 
-A service without a terminal never asks for any of this, and a line
-pipe needs none of it.
+Raw input and window sizing are asked for only at a terminal; a line
+pipe needs neither. A service may request hangup handling with or without
+a terminal, so that the same stop rule holds on a terminal and on pipes.
 
 ### 6.4 Trees at startup
 
