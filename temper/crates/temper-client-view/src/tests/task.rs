@@ -1314,6 +1314,84 @@ fn latest_binds_where_the_window_let_its_end_go() {
         );
     }
 }
+// Context and date headings must arrive above existing words (client/README.md, 5.15).
+fn reading_chat(times: &[u64], earlier: bool) -> crate::View {
+    let mut rows = List::with_capacity(u32::try_from(times.len()).unwrap());
+    for (index, nanos) in times.iter().enumerate() {
+        let position = u64::try_from(index).unwrap().checked_add(1).unwrap();
+        rows.push(super::documents::line(
+            position,
+            skein_lib::Wall::from_nanos(*nanos),
+            c::Activity::Words {
+                message: position,
+                by: c::Requester::Person(PARTY),
+                kind: c::MessageKind::Words,
+                words: fixtures::first_run::text(b"Retained words"),
+            },
+        ))
+        .unwrap();
+    }
+    let page = c::ActivityPage {
+        rows,
+        before: if earlier { Some(c::Cursor::new(b"earlier".as_slice().into(), 32).unwrap()) } else { None },
+        after: None,
+        cut: false,
+    };
+    let (mut root, _, watch, _, _) = fixtures::root_at_with_activity(
+        temper_client_domain::Address::Chat { task: TASK },
+        &fixtures::domain_limits(),
+        b"Shop",
+        Some((fixtures::PROJECT, true, temper_client_protocol_wire::v1::PlaygroundState::Running)),
+        Some(page),
+        None,
+    );
+    let source = fixtures::chat::chat_root();
+    let mut task = source.pages().chat().unwrap().task(source.client()).unwrap().clone();
+    task.activity = u64::try_from(times.len()).unwrap();
+    fixtures::root_event(
+        &mut root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: watch.unwrap(),
+                    event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task))),
+                },
+            },
+        },
+    );
+    fixtures::browser_page_view(&root)
+}
+#[test]
+fn the_chat_context_arrives_only_with_its_start() {
+    for earlier in [false, true] {
+        let view = reading_chat(&[2_000_000_000], earlier);
+        let tree = view.tree();
+        let log = index_of(tree, Role::Log, b"Conversation");
+        assert_eq!(has_style(subtree(tree, log), look::CONTEXT), !earlier);
+    }
+}
+#[test]
+fn a_days_key_follows_its_first_line_when_earlier_words_arrive() {
+    const DAY: u64 = 86_400_000_000_000;
+    let keys = |times: &[u64]| {
+        let view = reading_chat(times, true);
+        let mut keys = List::with_capacity(u32::try_from(times.len()).unwrap());
+        for node in view.tree().nodes() {
+            if node.styles.as_slice().contains(&look::DAY) {
+                keys.push(node.key.expect("keyed day")).unwrap();
+            }
+        }
+        keys.into_boxed()
+    };
+    let original = keys(&[DAY + 2_000_000_000]);
+    let same_day = keys(&[DAY + 1_000_000_000, DAY + 2_000_000_000]);
+    let earlier_day = keys(&[1_000_000_000, DAY + 2_000_000_000]);
+    assert_eq!(original.len(), 1);
+    assert_eq!(same_day.len(), 1);
+    assert_eq!(earlier_day.len(), 2);
+    assert_ne!(original[0], same_day[0], "an earlier line replaces the day heading above the words");
+    assert_eq!(original[0], earlier_day[1], "an earlier day leaves this heading in place");
+}
 #[test]
 fn an_agents_terminal_has_no_latest() {
     let root = f::agent_root(f::delegate(), None, true);

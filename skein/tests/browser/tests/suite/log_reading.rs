@@ -214,6 +214,49 @@ fn reading_without_browser_anchoring_follows_requests_and_page_keys() {
 }
 
 #[test]
+fn scrolling_into_the_head_can_render_busy_during_the_scroll_callback() {
+    let mut steps = vec![go(b"/test/reading/none")];
+    snapshot(&mut steps, "before-scroll", "reads");
+    steps.extend([
+        harness::Step::Type {
+            find: Find::exactly_named(Role::TextArea, b"Message"),
+            words: b"Reading".as_slice().into(),
+        },
+        harness::Step::Key(Key::PageUp),
+    ]);
+    steps.push(harness::Step::Focused(Find::exactly_named(Role::TextArea, b"Message")));
+    snapshot(&mut steps, "after-scroll", "reads");
+    let harness = run(steps);
+    assert!(number(&harness, "after-scroll") > number(&harness, "before-scroll"));
+}
+
+#[test]
+fn a_status_at_the_head_does_not_anchor_instead_of_the_words() {
+    let harness = run(vec![
+        go(b"/test/reading/status"),
+        press(b"Head"),
+        press(b"Remember line"),
+        keep("before-status-prepend", "position"),
+        press(b"Prepend"),
+        keep("after-status-prepend", "position"),
+    ]);
+    held(&harness, "before-status-prepend", "after-status-prepend");
+}
+
+#[test]
+fn a_contents_wrapper_keeps_its_visible_words_in_place() {
+    let harness = run(vec![
+        go(b"/test/reading/contents"),
+        press(b"Head"),
+        press(b"Remember line"),
+        keep("before-contents-prepend", "position"),
+        press(b"Prepend"),
+        keep("after-contents-prepend", "position"),
+    ]);
+    held(&harness, "before-contents-prepend", "after-contents-prepend");
+}
+
+#[test]
 fn a_read_in_a_scroll_turn_reads_on_without_a_tick() {
     let harness = run(vec![
         go(b"/test/reading/head"),
