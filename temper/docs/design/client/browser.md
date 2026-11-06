@@ -515,7 +515,7 @@ replay says the same clocks (`README.md`, 5.12).
   small neutral act and its existing program-name input, labeled "Name".
   The welcome's Model ways sit directly under its lead, without the
   standalone page's holder choice or outer Choose card. Inside a way,
-  the foot's Back and a quiet "All ways" return to Model Choose. On the
+  the foot's Back returns to Model Choose. On the
   welcome a way is one panel, its field the panel's width; standalone, the
   API key details keep the
   full-width card with contents limited to 420 px; failure reasons in flow details are red.

@@ -309,16 +309,43 @@ so (jig's `domain/connectors.md`, section 12).
 
 **The picker.** Below the forge's choice, for the chosen forge, the form
 lists the repositories temper can reach there (the `Reachable` request,
-`README.md`, section 8), a page at a time by number from 1, each page
-at most `picker.page` rows (`../protocol/configuration.md`, its limits)
-clipped to the forge's own page cap, with "Next" while the answer says
-more follow, which it says when the page is full. The request names no
-project, so the project's own repositories are among the rows; adopting
-one again is refused as any adoption is (section 10). Each row is
-OWNER/NAME, marked "private" where it is; the repository's id and its
-owner's id the row carries ride in the adoption request and are never
-shown. Choosing a row fills the owner and the name. What temper can
-reach:
+`README.md`, section 8), read a page at a time by number from 1, each
+page at most `picker.page` rows (`../protocol/configuration.md`, its
+limits) clipped to the forge's own page cap; the answer says more follow
+when the page is full. The list has a height of its own, so the rest of
+the form stays where it is however many there are; a phone keeps it
+shorter.
+
+- **Search and scroll, in place of "Next" (the user, 2026-11-06).** The
+  client reads the next page when the list scrolls near its end, and while
+  a search has found less than it has left to read. So a search asks
+  nothing of the forge, which GitHub's `GET /installation/repositories`
+  could not answer, and nothing is read until it is wanted. A forge with
+  more than 8 rows read has the field "Find by name" over a list of its
+  own height; one with fewer has neither, and no count.
+- **No total until the last page:** an answer says only whether more
+  follow, so the count reads "100 so far · more as you scroll", or
+  "Searching · 100 read so far", then "214 repositories", or "3 of 214
+  repositories" under a search; each with " · N picked" while some are.
+- **The rows keep the forge's order,** since recent first would need every
+  page first. At most `picker.rows` are kept (`README.md`, 4.5); past it
+  the count says so, and "Not listed" takes the rest by name.
+- **Plural:** rows have checkboxes, what is picked stays through a search,
+  a new forge or account picks nothing, and the button counts them:
+  "Adopt OWNER/NAME", "Adopt N repositories". "Make it the project's home"
+  goes with more than one; it is off where the project has a home and on
+  where it has none.
+- **Marks:** "private" where it is; "In PROJECT" on the project's own,
+  disabled, which the request names no project to leave out; "Copying…" on
+  a repository being made, disabled, so a person sees one list (4.4). The
+  repository's id and its owner's id the row carries ride in the adoption
+  request and are never shown.
+- **A search that finds nothing,** with all read, opens "Not listed" on
+  what was typed, with the remedy below. The button waits for the remedy,
+  unless the role is Context.
+- **One forge, one account:** its field goes too.
+
+What temper can reach:
 
 | The forge | Listed |
 |---|---|
