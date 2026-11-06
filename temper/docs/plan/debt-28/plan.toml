@@ -1,3 +1,29 @@
 draft = "debt-28"
 repo = "fabrig"
 sources = ["temper/docs/plan/debt-28/inputs/request.md", "skein/docs/development/debt/D025-request-table-in-lib.md", "skein/docs/development/debt/D033-limits-literals-in-tests.md", "skein/docs/development/debt/D045-shell-keeper-syscalls.md", "skein/docs/development/debt/D047-role-sets-as-slices.md", "skein/docs/development/debt/D048-oauth-accounts-world-copies.md", "skein/docs/development/debt/D049-file-layer-thin-forms.md", "jig/docs/development/debt/D006-link-values-two-paths.md", "jig/docs/development/debt/D020-inner-allow-guard.md", "jig/docs/development/debt/D026-engine-clients-project-mismatch.md", "jig/docs/development/debt/D041-unused-parameters.md", "jig/docs/development/debt/D043-length-widening.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "inner-allow"
+title = "jig D020: an inner #![allow is an old form at 0"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/programming-model.md, 6.3"
+
+[[part]]
+id = "role-sets"
+title = "skein D047: each set of roles a named predicate beside Role"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui.md, 3.1"
+
+[[slice]]
+id = 1
+story = "the rules hold by build and gate: a new role breaks the build where it must be placed, and an inner allow fails the old-forms check"
+parts = ["inner-allow", "role-sets"]
+walk = false
