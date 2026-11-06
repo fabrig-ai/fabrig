@@ -1,0 +1,22 @@
+draft = "read-task-room"
+repo = "fabrig"
+sources = ["temper/docs/plan/read-task-room/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "run-read-room"
+title = "a run's read_task reads in its own room, bounded by what its reply holds and not by documents.text_bytes"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/root.md, 5.2"
+
+[[slice]]
+id = 1
+story = "A run reads a spec longer than 512 bytes in one call, whole up to its room, and a longer one continues by offset, while a client still reads at 512"
+parts = ["run-read-room"]
+walk = false
