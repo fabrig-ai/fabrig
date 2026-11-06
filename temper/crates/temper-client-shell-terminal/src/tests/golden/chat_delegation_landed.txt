@@ -47,13 +47,13 @@ Conversation:
         - CI passed (completed)
         - Landed (completed)
       [17] Task 2 ↗
-    1 tool call: wait
-      wait
+    wait:
+      `wait`
     Temper
     00:00
     CSV export is available from widget’s table. The change landed on Playground forge. This was a scripted change.
-    1 tool call: wait
-      wait
+    wait:
+      `wait`
   Message:
     [18] Message: (empty) (enter sends)
     [-] Send (disabled)

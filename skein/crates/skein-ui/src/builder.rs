@@ -278,6 +278,9 @@ impl Builder {
         if state == State::FoldsAway {
             assert!(self.node().role == Role::Disclosure, "folds away belongs to disclosures");
         }
+        if state == State::ToLogEnd {
+            assert!(self.node().role == Role::Button, "to log end belongs to buttons");
+        }
         if !self.node().states.as_slice().contains(&state) {
             self.node_mut().states.push(state).expect("states fit the node capacity");
         }
@@ -653,5 +656,19 @@ fn acted_on(role: Role) -> bool {
         | Role::Figure
         | Role::Group
         | Role::Slot => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Builder;
+    use crate::{Role, State, tests::fixtures::LIMITS};
+
+    #[test]
+    #[should_panic(expected = "to log end belongs to buttons")]
+    fn to_log_end_on_a_log_is_an_assertion() {
+        let mut builder = Builder::new(&LIMITS);
+        builder.open(Role::Log);
+        builder.state(State::ToLogEnd);
     }
 }
