@@ -229,7 +229,7 @@ impl Page<'_> {
         } else {
             super::task::act(b, self.task, c::ActKind::Stop, Word::Pause, Act::Pause, words, bindings);
         }
-        super::task::act(b, self.task, c::ActKind::Cancel, Word::Stop, Act::Close, words, bindings);
+        super::task::act(b, self.task, c::ActKind::Cancel, Word::Close, Act::Close, words, bindings);
     }
 
     fn meta(&self, b: &mut Builder, words: &Words, times: &mut Times) {
@@ -354,7 +354,7 @@ impl Page<'_> {
                 }
                 b.close();
             }
-            State::Needs { .. } | State::Paused | State::Running | State::Landed | State::Stopped | State::Failed => {
+            State::Needs { .. } | State::Paused | State::Running | State::Landed | State::Closed | State::Failed => {
                 if let Some(report) = self.report {
                     for (word, value) in [(Word::GoalLeft, &report.left), (Word::GoalRisk, &report.risk)] {
                         if let Some(value) = value {
@@ -369,7 +369,7 @@ impl Page<'_> {
                     }
                 } else {
                     match self.state {
-                        State::Landed | State::Stopped | State::Failed => match delegation::facts(self.task).said {
+                        State::Landed | State::Closed | State::Failed => match delegation::facts(self.task).said {
                             Some(delegation::Said::Words(value) | delegation::Said::Merge(value)) => {
                                 skein_ui::markdown::read(value, 3, b);
                             }
@@ -389,7 +389,7 @@ fn fallback(words: &Words, value: Fallback) -> Box<[u8]> {
     match value {
         Fallback::Planning { draft: Some(draft) } => words.say(Word::GoalPlanningDraft, &[Hole::Name(draft)]),
         Fallback::Planning { draft: None } => words.say(Word::GoalPlanningAsked, &[]),
-        Fallback::Stopped => words.say(Word::GoalStoppedHeading, &[]),
+        Fallback::Closed => words.say(Word::GoalClosedHeading, &[]),
         Fallback::Landed { first_line: Some(line) } => line,
         Fallback::Landed { first_line: None } => words.say(Word::GoalLandedLine, &[]),
         Fallback::Failed { reason } => words.say(Word::GoalFailedReason, &[Hole::Name(reason)]),
@@ -615,7 +615,7 @@ fn landing_words(words: &Words, times: &mut Times, landing: goal::Landing) -> Bo
             words.say(Word::GoalLandedAt, &[Hole::Name(times.say(words, TimeForm::Clock, at))])
         }
         goal::Landing::Landed(None) => words.say(Word::GoalLandedLine, &[]),
-        goal::Landing::Stopped => words.say(Word::GoalStoppedBefore, &[]),
+        goal::Landing::Closed => words.say(Word::GoalClosedBefore, &[]),
         goal::Landing::Failed => words.say(Word::GoalFailedBefore, &[]),
         goal::Landing::Whole { total: 0 } => words.say(Word::GoalWholeNoTasks, &[]),
         goal::Landing::Whole { total } => words.say(Word::GoalWholeCount, &[Hole::Name(count_words(words, total))]),

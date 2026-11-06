@@ -104,7 +104,7 @@ const GOALS_NAMES: [(skein_ui::Style, &[u8]); 65] = [
     (GOALS_STATE_PLANNING, b"temper-goals-state-planning"),
     (GOALS_STATE_PAUSED, b"temper-goals-state-paused"),
     (GOALS_STATE_LANDED, b"temper-goals-state-landed"),
-    (GOALS_STATE_STOPPED, b"temper-goals-state-stopped"),
+    (GOALS_STATE_CLOSED, b"temper-goals-state-closed"),
     (GOAL, b"temper-goal"),
     (GOAL_HEAD, b"temper-goal-head"),
     (GOAL_META, b"temper-goal-meta"),

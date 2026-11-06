@@ -41,6 +41,27 @@ pub fn seen(tree: &Tree) -> Vec<Seen> {
         {
             links_end = index.checked_add(usize::try_from(node.size).expect("link subtree fits")).expect("tree fits");
         }
+        // A taskbar or chat bar remains the release surface on an own pause (client/README.md, 3.5 and 5.11).
+        if node.styles.as_slice().contains(&temper_client_view::look::TASKBAR)
+            || node.styles.as_slice().contains(&temper_client_view::look::SESSION_TOP)
+        {
+            let end = index.checked_add(usize::try_from(node.size).expect("taskbar fits")).expect("tree fits");
+            let task = tree.nodes()[index..end].iter().find_map(|child| {
+                if child.role != (Role::Heading { level: 1 }) {
+                    return None;
+                }
+                let title = child.name.as_deref()?.strip_prefix(b"T")?;
+                let number = title.split(|byte| *byte == b' ').next()?;
+                skein_ui::number(number)
+            });
+            if let Some(task) = task {
+                seen.push(Seen::Card {
+                    key: observe::key(ObjectKey::Escalation(task)),
+                    state: CardSeen::Waiting,
+                    revision: None,
+                });
+            }
+        }
         // The editor is the task's visible decision, named by its number, as
         // "Hold revision N" names a card's revision (client/README.md, 5.11).
         let amending = node.role == Role::Region
@@ -83,16 +104,17 @@ pub fn seen(tree: &Tree) -> Vec<Seen> {
     seen
 }
 
-/// Temper's sheets replace jig's danger and per-phase cancellation text (client/README.md, 3.6).
+/// Temper's sheets and immediate Pause/Resume replace jig's deciding text (client/README.md, 3.6).
 /// The view's confirmation tests hold their titles, active counts, fates and retry rules.
 pub fn decision(ask: &jig_client::contract::Ask) -> Option<&jig_client::contract::Ask> {
     use jig_client::contract::{Ask, DecideOn, Decision, Operation};
     let sheet = match ask {
-        Ask::Cancel { .. } | Ask::Decide { on: DecideOn::Proposal { decision: Decision::Rejected { .. }, .. }, .. } => {
-            true
-        }
+        Ask::Cancel { .. }
+        | Ask::Stop { .. }
+        | Ask::Release { .. }
+        | Ask::Decide { on: DecideOn::Proposal { decision: Decision::Rejected { .. }, .. }, .. } => true,
         Ask::Compound { operations, .. } => {
-            operations.iter().any(|operation| matches!(operation, Operation::Cancel { .. }))
+            operations.iter().any(|operation| matches!(operation, Operation::Cancel { .. } | Operation::Release { .. }))
         }
         _ => false,
     };
