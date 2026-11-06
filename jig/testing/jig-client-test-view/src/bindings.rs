@@ -81,7 +81,7 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<first::Act>
             return match &entry.meaning {
                 Meaning::Action(action) => match act {
                     Act::Press | Act::Submit | Act::Toggle => Some(action.clone()),
-                    Act::Input { .. } | Act::Drawing { .. } => None,
+                    Act::Input { .. } | Act::Drawing { .. } | Act::Near { .. } => None,
                 },
                 Meaning::Parameters { object, revision } => match act {
                     Act::Input { value } => {
@@ -94,7 +94,7 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<first::Act>
                             value: skein_ui::number(&value)?,
                         })
                     }
-                    Act::Press | Act::Submit | Act::Toggle | Act::Drawing { .. } => None,
+                    Act::Press | Act::Submit | Act::Toggle | Act::Drawing { .. } | Act::Near { .. } => None,
                 },
                 Meaning::SignIn | Meaning::Object(_) | Meaning::Section(_) => None,
             };
