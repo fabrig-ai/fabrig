@@ -38,10 +38,10 @@ Acceptance:
 - `Block::Opaque` draws nothing in either conversation, and a message holding only opaque blocks draws no shell. `CardWord::OpaqueDialect` and `OpaqueBytes` are gone.
 - `CardWord::TurnCut` is gone: `prefix`, `markdown`, `provisional`, `request_message`, `committed` and `committed_lines` say nothing of a cut, and `note_only` goes with its one reader.
 - `Line::Provisional` draws "Temper" over its Markdown, then the end, by one function, `writing_end(b, words)`: in a browser an empty `Role::Text` with `WRITING_END`; in the terminal a `Role::Status` "▌". `CardWord::Provisional` is gone.
-- The block shows after the last word in a browser, at 1440, 1000 and 420 wide, on a paragraph, a list's last item, a heading and a code block, and alone where nothing is written yet. Once the turn commits, the words don't move and only the mark goes.
+- The block shows after the last word in a browser, at 1440, 1000 and 420 wide, on a paragraph, a list's last item, a heading and a code block with no final newline, and alone where nothing is written yet. On a closed fenced code block it falls on the line after the last, deferred to `chat-reading-a` (see *Answers*). Once the turn commits, the words don't move and only the mark goes.
 - Every rule of the overlay's *The answer* block is in `temper.css`, with the difference below, and `.temper-agent-page` draws the same end.
 - The terminal's print shows the words, then `* ▌`, where it showed `* Writing...` above them. The status bar's "Writing" stays.
-- This task's **Not yet** entry in `temper/docs/design/client/README.status.md` is gone.
+- This task's **Not yet** entry in `temper/docs/design/client/README.status.md` is gone, but for the closed fenced code block's, which names `chat-reading-a` as its owner.
 
 ## Inputs
 
@@ -93,3 +93,15 @@ Not this task: the line (`chat_line.rs`), "Older", `Line::Left`, jig, skein.
 ## Report
 
 As the implementer's text asks, with these for the account: each overlay rule of *The answer*, landed or how it differs; each state of the message this task reaches and the test holding it; what's deferred to `chat-reading-a` and `chat-reading-d`.
+
+## Answers
+
+2026-11-06. **Question:** a closed fenced code block keeps its final newline in skein's reader, so `pre::after` draws the mark on the next line: authorise a skein end-marker hook, accept the next-line mark, or assign it to `chat-reading-a`?
+
+**Answer: assign it to `chat-reading-a`; no skein change here.** The request says what needs the engine is theirs, drawn as honestly as the view can and named as deferred. `chat-reading-a/growing-reader` already gives `read_growing`, whose `end` runs inside the last word's block, and `chat-live`'s acceptance has the mark "in the line of the last word". A second reader change now would collide with that branch's rewrite of `markdown.rs`, for a state that lasts from a closing fence to the next word. The mark on the next line is honest, and the words don't move when it goes. The acceptance above is amended.
+
+What the next run does, on the pushed `f5dd5a9405`:
+
+- Reword the entry in `temper/docs/design/client/README.status.md`: **Not yet:** 3.5, *the words being written*: a closed fenced code block keeps its final newline in `skein-ui`'s reader, so the end's mark falls on the line after its last; `chat-reading-a`'s `chat-live` takes it, with `read_growing`.
+- Change no code, CSS or test for this, and rerun no render: `renders/fenced-code-newline.json` is the proof of the deferred state, and the run's checks stand. Run the citations check, then push.
+- Report `Done`, carrying over the previous report's overlay and state tables (`look-round-6/answer-1`), with the closed fence's row reading deferred, to `chat-reading-a`.
