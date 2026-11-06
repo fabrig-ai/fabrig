@@ -1,0 +1,3 @@
+draft = "json-strings"
+repo = "fabrig"
+sources = ["skein/docs/plan/json-strings/inputs/request.md", "skein/crates/skein-json/src/writer.rs", "skein/crates/skein-json/src/string.rs", "skein/crates/skein-json/src/utf8.rs", "AGENTS.md", "DESIGN.md"]
