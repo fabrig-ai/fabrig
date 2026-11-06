@@ -97,3 +97,15 @@ In both new `ProposalHistory` initializers, add integration’s complete `"revie
 Do not restore the superseded `replaced_and_accepted_say_so` test.
 `temper/tools/gallery/src/worlds.rs` merged automatically; preserve its combined changes: `proposal.reason`, retained `projects`, and the branch’s rejected/withdrawn state selection.
 After resolving, format and run the focused card tests and relevant view/gallery checks through heavy. Compile slow-tier stories without running them.
+
+## Rebase (2026-11-06, step merge, foreman ui-proposal-card/card-states/foreman-2)
+
+merge both vocabularies in words.rs and regenerate the combined declarations
+The conflict is in `temper/crates/temper-client-view/src/words.rs`, against integration commit `81358d9f1c` (`Merge main's conversation paging with proposal cards`).
+Keep integration’s removal of `Older` and addition of `LoadingEarlierFailed` throughout the enum, `ALL`, code table and English phrases.
+Keep this branch’s `SettingsProposalRejected` and `SettingsProposalWithdrawn` throughout those same tables, including their exact state-line text.
+Their codes 3873 and 3874 remain free in integration; preserve them.
+Regenerate declarations using `SKEIN_CODEGEN_WRITE=1` on `english_phrase_declarations_match_the_vocabulary` through heavy.
+The combined declarations should be PHRASES 1865, SEGMENTS 3260, ENGLISH_BYTES 45516, and ALL length 1264.
+Preserve the automatically merged changes in `pages/chat.rs` and gallery `tests.rs` and `worlds.rs`.
+Format and run the focused vocabulary, card and gallery checks through heavy; check the selected test counts. Compile slow-tier stories without running them.
