@@ -10,6 +10,9 @@ use skein_lib::Duration;
 #[path = "../open/resume.rs"]
 mod resume;
 
+#[path = "../open/llm_change.rs"]
+mod llm_change;
+
 fn claimed(flags: Flags) -> World {
     let mut chat = task(1, &[]);
     chat.flags = flags;

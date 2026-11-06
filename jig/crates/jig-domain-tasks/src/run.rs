@@ -495,7 +495,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
         return out
             .push(Request::Refused { reply_to: to, problem: crate::Problem::live_delegates(number, &old.delegates) });
     }
-    let end_kind = if narrowed || closing.is_some() {
+    let end_kind = if (narrowed && !old.llm_changed) || closing.is_some() {
         crate::EndKind::Cancelled
     } else {
         match &end {
@@ -566,6 +566,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     task.record.run_reserved = 0;
     task.record.last_answer = Some(attempt);
     task.record.narrowing = false;
+    task.record.llm_changed = false;
     let spent = task.record.run_spent;
     crate::activity::append(&mut task.record, env.wall, crate::Line::RunEnded { attempt, end: end_kind, spent }, out);
     if parked && !kept.owes {

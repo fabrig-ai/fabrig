@@ -7,8 +7,6 @@ Unlisted sections have no known gap.
   party's proposal of a release; a hold parked until an event.
   7: a widening funded by whoever gives it (the task's existing funder is
   charged); moving a task under another task; successors; questions that
-  outlive their asker; a new LLM choice on a task its requester ends (its
-  amendment is a word that wakes an idle task and reaches a live run, and
-  the words after it reach that run on the old choice). 8.3: markers.
+  outlive their asker. 8.3: markers.
   8.5: a conversation's questions.
   12: the stories of these.
