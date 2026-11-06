@@ -76,9 +76,9 @@ fn due(w: &World, task: u64) {
 fn a_stop_holds_the_goal_and_every_delegate_and_cancels_their_runs() {
     let mut w = World::new(901, LIMITS);
     goal_tree(&mut w);
-    assert_eq!(stop(&mut w, 1, 1, 100), Reply::Done);
+    assert_eq!(stop(&mut w, 1, 1, STOP_HOLD), Reply::Done);
     for number in 1..=4 {
-        placed(&w, number, 100);
+        placed(&w, number, STOP_HOLD);
     }
     assert_eq!(w.stops, [(1, 1), (2, 2), (4, 4)].into_iter().collect());
 }
@@ -89,9 +89,9 @@ fn a_task_held_for_failures_keeps_its_escalation_under_a_stop() {
     goal_tree(&mut w);
     w.send(Event::Hold { task: 3, why: Hold::Failures(Class::Run) });
     let escalation = w.record(3).escalation.clone();
-    stop(&mut w, 1, 1, 100);
+    stop(&mut w, 1, 1, STOP_HOLD);
     assert_eq!(w.record(3).escalation, escalation);
-    assert_eq!(w.record(3).placed, Some(100));
+    assert_eq!(w.record(3).placed, Some(STOP_HOLD));
     assert!(matches!(w.record(3).phase, Phase::Held { why: Hold::Failures(Class::Run), .. }));
     let revision = w.record(3).revisions.hold;
     let reply_to = w.to();
@@ -103,7 +103,7 @@ fn a_task_held_for_failures_keeps_its_escalation_under_a_stop() {
         entry: None,
         decision: tasks::EscalationDecision::Release,
     });
-    placed(&w, 3, 100);
+    placed(&w, 3, STOP_HOLD);
     assert_eq!(w.record(3).revisions.hold, revision + 1);
 }
 
@@ -112,10 +112,10 @@ fn a_task_above_a_partys_stop_is_refused_naming_the_hold() {
     let mut w = World::new(903, LIMITS);
     w.make(Party::Person(1), vec![task(9, &[])]);
     w.make(Party::Task(9), vec![task(1, &[])]);
-    stop(&mut w, 1, 1, 100);
+    stop(&mut w, 1, 1, STOP_HOLD);
     let before = w.record(1).clone();
     assert!(
-        matches!(release_from(&mut w, Party::Task(9), 1), Reply::Refused(problem) if problem.why == Refusal::HoldOwner { hold: 100 })
+        matches!(release_from(&mut w, Party::Task(9), 1), Reply::Refused(problem) if problem.why == Refusal::HoldOwner { hold: STOP_HOLD })
     );
     assert_eq!(w.record(1), &before);
 }
@@ -124,30 +124,30 @@ fn a_task_above_a_partys_stop_is_refused_naming_the_hold() {
 fn releasing_the_stopped_root_lifts_the_hold_whole() {
     let mut w = World::new(904, LIMITS);
     goal_tree(&mut w);
-    stop(&mut w, 1, 1, 100);
+    stop(&mut w, 1, 1, STOP_HOLD);
     park(&mut w);
     assert_eq!(release_from(&mut w, Party::Person(1), 1), Reply::Done);
     for number in 1..=4 {
         due(&w, number);
     }
-    assert!(!w.records.contains_key(&Key::PlacedHold(100)));
+    assert!(!w.records.contains_key(&Key::PlacedHold(STOP_HOLD)));
 }
 
 #[test]
 fn releasing_a_delegate_exempts_it_and_its_siblings_stay_held() {
     let mut w = World::new(905, LIMITS);
     goal_tree(&mut w);
-    stop(&mut w, 1, 1, 100);
+    stop(&mut w, 1, 1, STOP_HOLD);
     park(&mut w);
     assert_eq!(release_from(&mut w, Party::Person(1), 2), Reply::Done);
     due(&w, 2);
     for number in [1, 3, 4] {
-        placed(&w, number, 100);
+        placed(&w, number, STOP_HOLD);
     }
-    assert_eq!(w.placed_hold(100).expect("placed test setup").exempt.as_ref(), &[2]);
+    assert_eq!(w.placed_hold(STOP_HOLD).expect("placed test setup").exempt.as_ref(), &[2]);
     w.claim(2, 5);
     assert!(
-        matches!(w.make(Party::Task(2), vec![task(5, &[])]), Reply::Refused(problem) if problem.why == Refusal::Placed { hold: 100 })
+        matches!(w.make(Party::Task(2), vec![task(5, &[])]), Reply::Refused(problem) if problem.why == Refusal::Placed { hold: STOP_HOLD })
     );
 }
 
@@ -155,7 +155,7 @@ fn releasing_a_delegate_exempts_it_and_its_siblings_stay_held() {
 fn accepting_one_release_keeps_a_siblings_proposal_pending() {
     let mut w = World::new(924, LIMITS);
     goal_tree(&mut w);
-    stop(&mut w, 1, 1, 100);
+    stop(&mut w, 1, 1, STOP_HOLD);
     park(&mut w);
     for proposer in [2, 3] {
         let reply_to = w.to();
@@ -165,7 +165,7 @@ fn accepting_one_release_keeps_a_siblings_proposal_pending() {
                 number: 100 + proposer,
                 proposer,
                 project: 1,
-                action: ProposalAction::ReleasePlaced { task: proposer, hold: 100, revision: 1 },
+                action: ProposalAction::ReleasePlaced { task: proposer, hold: STOP_HOLD, revision: 1 },
                 reason: Box::new([]),
                 as_holder: false,
                 state: ProposalState::Pending { holder: ProposalHolder::Person(1), since: w.env.wall },
@@ -184,12 +184,12 @@ fn accepting_one_release_keeps_a_siblings_proposal_pending() {
         decision: tasks::ProposalDecision::Accept,
     });
     due(&w, 2);
-    let hold = w.placed_hold(100).expect("standing hold");
+    let hold = w.placed_hold(STOP_HOLD).expect("standing hold");
     assert_eq!(hold.exempt.as_ref(), &[2]);
     assert_eq!(hold.revision, 1);
     assert!(!hold.lifted);
     assert!(w.record(2).proposal.is_none());
-    placed(&w, 3, 100);
+    placed(&w, 3, STOP_HOLD);
     assert_eq!(w.record(3).proposal.as_deref(), Some(sibling.as_ref()));
     assert_eq!(w.record(3).revision, sibling_revision);
     w.restart();
@@ -200,7 +200,7 @@ fn accepting_one_release_keeps_a_siblings_proposal_pending() {
 fn a_lift_without_tasks_keeps_the_record_until_the_last_release() {
     let mut w = World::new(906, LIMITS);
     goal_tree(&mut w);
-    stop(&mut w, 1, 1, 100);
+    stop(&mut w, 1, 1, STOP_HOLD);
     park(&mut w);
     let reply_to = w.to();
     w.send(Event::Propose {
@@ -209,7 +209,7 @@ fn a_lift_without_tasks_keeps_the_record_until_the_last_release() {
             number: 101,
             proposer: 2,
             project: 1,
-            action: ProposalAction::ReleasePlaced { task: 4, hold: 100, revision: 1 },
+            action: ProposalAction::ReleasePlaced { task: 4, hold: STOP_HOLD, revision: 1 },
             reason: Box::new([]),
             as_holder: false,
             state: ProposalState::Pending { holder: ProposalHolder::Person(1), since: w.env.wall },
@@ -217,16 +217,16 @@ fn a_lift_without_tasks_keeps_the_record_until_the_last_release() {
     });
     assert!(w.record(2).proposal.is_some());
     assert_eq!(lift(&mut w, STOP_HOLD, 1, false), Reply::Lifted { released: 0 });
-    assert!(w.placed_hold(100).expect("placed test setup").lifted);
-    assert_eq!(w.placed_hold(100).expect("placed test setup").revision, 2);
+    assert!(w.placed_hold(STOP_HOLD).expect("placed test setup").lifted);
+    assert_eq!(w.placed_hold(STOP_HOLD).expect("placed test setup").revision, 2);
     assert!(w.record(2).proposal.is_none());
     for number in [4, 3, 2] {
         assert_eq!(release_from(&mut w, Party::Person(1), number), Reply::Done);
-        assert!(w.placed_hold(100).is_some());
+        assert!(w.placed_hold(STOP_HOLD).is_some());
     }
     assert_eq!(release_from(&mut w, Party::Person(1), 1), Reply::Done);
-    assert!(w.placed_hold(100).is_none());
-    assert!(!w.records.contains_key(&Key::PlacedHold(100)));
+    assert!(w.placed_hold(STOP_HOLD).is_none());
+    assert!(!w.records.contains_key(&Key::PlacedHold(STOP_HOLD)));
 }
 
 #[test]
@@ -235,7 +235,7 @@ fn a_lift_with_tasks_releases_those_nothing_else_holds() {
     goal_tree(&mut w);
     w.send(Event::Hold { task: 3, why: Hold::Failures(Class::Run) });
     let escalation = w.record(3).escalation.clone();
-    stop(&mut w, 1, 1, 100);
+    stop(&mut w, 1, 1, STOP_HOLD);
     park(&mut w);
     assert_eq!(lift(&mut w, STOP_HOLD, 1, true), Reply::Lifted { released: 3 });
     for number in [1, 2, 4] {
@@ -244,17 +244,17 @@ fn a_lift_with_tasks_releases_those_nothing_else_holds() {
     assert_eq!(w.record(3).placed, None);
     assert!(matches!(w.record(3).phase, Phase::Held { why: Hold::Failures(Class::Run), .. }));
     assert_eq!(w.record(3).escalation, escalation);
-    assert!(w.placed_hold(100).is_none());
+    assert!(w.placed_hold(STOP_HOLD).is_none());
 }
 
 #[test]
 fn a_stop_inside_a_stop_keeps_each_task_with_the_first() {
     let mut w = World::new(908, LIMITS);
     goal_tree(&mut w);
-    stop(&mut w, 2, 1, 100);
+    stop(&mut w, 2, 1, STOP_HOLD);
     stop(&mut w, 1, 1, 101);
     for number in [2, 4] {
-        placed(&w, number, 100);
+        placed(&w, number, STOP_HOLD);
     }
     for number in [1, 3] {
         placed(&w, number, 101);
@@ -268,7 +268,7 @@ fn a_stop_inside_a_stop_keeps_each_task_with_the_first() {
 fn a_lift_naming_an_old_revision_is_refused_as_moved() {
     let mut w = World::new(909, LIMITS);
     goal_tree(&mut w);
-    stop(&mut w, 1, 1, 100);
+    stop(&mut w, 1, 1, STOP_HOLD);
     assert_eq!(lift(&mut w, STOP_HOLD, 1, false), Reply::Lifted { released: 0 });
     assert!(
         matches!(lift(&mut w, STOP_HOLD, 1, false), Reply::Refused(problem) if problem.why == Refusal::HoldRevision { revision: 2 })
@@ -279,12 +279,12 @@ fn a_lift_naming_an_old_revision_is_refused_as_moved() {
 fn a_run_finishing_its_turn_under_a_stop_delegates_nothing() {
     let mut w = World::new(910, LIMITS);
     goal_tree(&mut w);
-    stop(&mut w, 1, 1, 100);
+    stop(&mut w, 1, 1, STOP_HOLD);
     assert!(
-        matches!(w.make(Party::Task(1), vec![task(5, &[])]), Reply::Refused(problem) if problem.why == Refusal::Placed { hold: 100 })
+        matches!(w.make(Party::Task(1), vec![task(5, &[])]), Reply::Refused(problem) if problem.why == Refusal::Placed { hold: STOP_HOLD })
     );
     w.terminal(1, End::Parked);
-    placed(&w, 1, 100);
+    placed(&w, 1, STOP_HOLD);
     assert!(matches!(w.record(1).phase, Phase::Held { was: tasks::Was::Active(Active::Idle), .. }));
 }
 
@@ -292,7 +292,7 @@ fn a_run_finishing_its_turn_under_a_stop_delegates_nothing() {
 fn a_subtree_hold_ends_with_its_root() {
     let mut w = World::new(911, LIMITS);
     goal_tree(&mut w);
-    stop(&mut w, 1, 1, 100);
+    stop(&mut w, 1, 1, STOP_HOLD);
     let reply_to = w.to();
     w.send(Event::Cancel {
         reply_to,
@@ -301,22 +301,22 @@ fn a_subtree_hold_ends_with_its_root() {
     });
     w.complete_cancel();
     assert_eq!(w.live(), 0);
-    assert!(!w.records.contains_key(&Key::PlacedHold(100)));
+    assert!(!w.records.contains_key(&Key::PlacedHold(STOP_HOLD)));
 }
 
 #[test]
 fn placed_holds_survive_a_restart() {
     let mut w = World::new(912, LIMITS);
     goal_tree(&mut w);
-    stop(&mut w, 1, 1, 100);
+    stop(&mut w, 1, 1, STOP_HOLD);
     park(&mut w);
     release_from(&mut w, Party::Person(1), 2);
-    let revision = w.placed_hold(100).expect("placed test setup").revision;
+    let revision = w.placed_hold(STOP_HOLD).expect("placed test setup").revision;
     lift(&mut w, STOP_HOLD, revision, false);
-    let hold = w.placed_hold(100).expect("placed test setup").clone();
+    let hold = w.placed_hold(STOP_HOLD).expect("placed test setup").clone();
     let rows = (1..=4).map(|number| w.record(number).clone()).collect::<Vec<_>>();
     w.restart();
-    assert_eq!(w.placed_hold(100), Some(&hold));
+    assert_eq!(w.placed_hold(STOP_HOLD), Some(&hold));
     for row in rows {
         assert_eq!(w.record(row.number), &row);
     }
@@ -333,7 +333,7 @@ fn placed_holds_are_bounded() {
     ] {
         let mut w = World::new(913, limits);
         goal_tree(&mut w);
-        assert_eq!(stop(&mut w, 1, 1, 100), Reply::Done);
+        assert_eq!(stop(&mut w, 1, 1, STOP_HOLD), Reply::Done);
         assert_eq!(stop(&mut w, 1, 1, 101), Reply::Done);
         assert!(
             matches!(stop(&mut w, 1, 1, 102), Reply::Refused(problem) if problem.capacity.expect("placed test setup").cause == cause)
@@ -342,7 +342,7 @@ fn placed_holds_are_bounded() {
     }
     let mut w = World::new(914, tasks::Limits { exemptions: 1, ..LIMITS });
     goal_tree(&mut w);
-    stop(&mut w, 1, 1, 100);
+    stop(&mut w, 1, 1, STOP_HOLD);
     park(&mut w);
     assert_eq!(release_from(&mut w, Party::Person(1), 2), Reply::Done);
     assert!(
@@ -352,8 +352,8 @@ fn placed_holds_are_bounded() {
         w.capacity_refusals().as_slice().last().expect("placed test setup").request.cause,
         CapacityCause::Exemptions { limit: 1 }
     );
-    assert!(matches!(w.records[&Key::PlacedHold(100)], Stored::PlacedHold(_)));
-    placed(&w, 3, 100);
+    assert!(matches!(w.records[&Key::PlacedHold(STOP_HOLD)], Stored::PlacedHold(_)));
+    placed(&w, 3, STOP_HOLD);
 }
 
 #[test]
@@ -362,12 +362,12 @@ fn a_procedures_new_delegates_are_held_in_their_creation_commit() {
     let mut procedure = task(1, &[]);
     procedure.executor = tasks::Executor::Procedure { connector: 1, code: 1 };
     w.make(Party::Person(1), vec![procedure]);
-    stop(&mut w, 1, 1, 100);
+    stop(&mut w, 1, 1, STOP_HOLD);
     assert_eq!(w.make(Party::Task(1), vec![task(2, &[])]), Reply::Made(vec![2]));
-    placed(&w, 2, 100);
+    placed(&w, 2, STOP_HOLD);
     assert!(!w.activations.contains(&2));
     w.restart();
-    placed(&w, 2, 100);
+    placed(&w, 2, STOP_HOLD);
 }
 
 // One root, two procedure delegates, one placed stop over the tree.
@@ -546,7 +546,7 @@ fn releasing_a_stopped_root_keeps_a_delegates_failure_and_escalation() {
     goal_tree(&mut w);
     w.send(Event::Hold { task: 3, why: Hold::Failures(Class::Run) });
     let escalation = w.record(3).escalation.clone();
-    stop(&mut w, 1, 1, 100);
+    stop(&mut w, 1, 1, STOP_HOLD);
     park(&mut w);
     release_from(&mut w, Party::Person(1), 1);
     for task in [1, 2, 4] {
@@ -555,7 +555,7 @@ fn releasing_a_stopped_root_keeps_a_delegates_failure_and_escalation() {
     assert_eq!(w.record(3).placed, None);
     assert_eq!(w.record(3).escalation, escalation);
     assert!(matches!(w.record(3).phase, Phase::Held { why: Hold::Failures(Class::Run), .. }));
-    assert!(w.placed_hold(100).is_none());
+    assert!(w.placed_hold(STOP_HOLD).is_none());
 }
 
 #[test]
@@ -566,7 +566,7 @@ fn task_owned_holds_may_be_lifted_by_the_owner_its_ancestors_and_its_person() {
     w.send(Event::Place {
         reply_to,
         hold: PlacedHold {
-            number: 100,
+            number: STOP_HOLD,
             project: 1,
             owner: Owner::Task { task: 2 },
             mode: Mode::Stop,
@@ -579,12 +579,12 @@ fn task_owned_holds_may_be_lifted_by_the_owner_its_ancestors_and_its_person() {
         },
     });
     for by in [Party::Task(2), Party::Task(1), Party::Person(1)] {
-        assert!(w.may_lift(100, by, false));
+        assert!(w.may_lift(STOP_HOLD, by, false));
     }
     for by in [Party::Task(3), Party::Task(4), Party::Person(2)] {
-        assert!(!w.may_lift(100, by, false));
+        assert!(!w.may_lift(STOP_HOLD, by, false));
     }
-    assert!(w.may_lift(100, Party::Person(2), true));
+    assert!(w.may_lift(STOP_HOLD, Party::Person(2), true));
     stop(&mut w, 1, 1, 101);
     assert!(!w.may_lift(101, Party::Task(1), true));
     assert!(!w.may_lift(101, Party::Person(2), false));
@@ -598,7 +598,7 @@ fn unoffered_and_malformed_placements_change_nothing() {
     let mut w = World::new(918, LIMITS);
     goal_tree(&mut w);
     let good = PlacedHold {
-        number: 100,
+        number: STOP_HOLD,
         project: 1,
         owner: Owner::Party { person: 1 },
         mode: Mode::Stop,
@@ -628,7 +628,7 @@ fn unoffered_and_malformed_placements_change_nothing() {
         assert_eq!(w.records, before);
     }
     let before = w.record(1).clone();
-    w.send(Event::Hold { task: 1, why: Hold::Placed { hold: 100 } });
+    w.send(Event::Hold { task: 1, why: Hold::Placed { hold: STOP_HOLD } });
     assert_eq!(w.record(1), &before);
 }
 
@@ -637,7 +637,7 @@ fn a_compound_cannot_stop_and_release_the_same_subtree_in_one_decision() {
     let mut w = World::new(919, LIMITS);
     goal_tree(&mut w);
     let mut operations = skein_lib::List::with_capacity(3);
-    operations.push(tasks::Operation::Stop { task: 1, hold: 100 }).expect("placed test setup");
+    operations.push(tasks::Operation::Stop { task: 1, hold: STOP_HOLD }).expect("placed test setup");
     operations
         .push(tasks::Operation::Release(tasks::Release { task: 1, again: None, message: None }))
         .expect("placed test setup");
@@ -654,9 +654,9 @@ fn a_compound_cannot_stop_and_release_the_same_subtree_in_one_decision() {
         period_budget: 100_000,
     });
     assert!(
-        matches!(&w.replies[&token.raw()], Reply::Refused(problem) if problem.why == Refusal::Placed { hold: 100 })
+        matches!(&w.replies[&token.raw()], Reply::Refused(problem) if problem.why == Refusal::Placed { hold: STOP_HOLD })
     );
-    assert!(w.placed_hold(100).is_none());
+    assert!(w.placed_hold(STOP_HOLD).is_none());
     for task in 1..=4 {
         assert_eq!(w.record(task).placed, None);
     }
@@ -680,7 +680,7 @@ fn check_rows(rows: Vec<Stored>, env: &skein_lib::Env<tasks::Limits>) -> Vec<tas
 fn restart_refuses_each_placed_hold_count_over_its_limit() {
     let mut w = World::new(921, tasks::Limits { exemptions: 2, ..LIMITS });
     goal_tree(&mut w);
-    stop(&mut w, 1, 1, 100);
+    stop(&mut w, 1, 1, STOP_HOLD);
     stop(&mut w, 1, 1, 101);
     park(&mut w);
     release_from(&mut w, Party::Person(1), 2);
@@ -712,12 +712,12 @@ fn inheriting_a_procedures_resource_under_a_stop_starts_no_activation() {
     procedure.executor = tasks::Executor::Procedure { connector: 1, code: 1 };
     procedure.holdings = Box::new([resource.clone()]);
     assert_eq!(w.make(Party::Person(1), vec![procedure]), Reply::Made(vec![1]));
-    stop(&mut w, 1, 1, 100);
+    stop(&mut w, 1, 1, STOP_HOLD);
     let mut child = task(2, &[]);
     child.holdings = Box::new([resource]);
     assert_eq!(w.make(Party::Task(1), vec![child]), Reply::Made(vec![2]));
     assert!(w.record(2).holds_taken);
-    placed(&w, 2, 100);
+    placed(&w, 2, STOP_HOLD);
     assert!(!w.activations.contains(&2));
 }
 
@@ -725,7 +725,7 @@ fn inheriting_a_procedures_resource_under_a_stop_starts_no_activation() {
 fn accepting_a_release_proposal_of_the_root_lifts_the_hold_and_records_it_accepted() {
     let mut w = World::new(925, LIMITS);
     goal_tree(&mut w);
-    stop(&mut w, 1, 1, 100);
+    stop(&mut w, 1, 1, STOP_HOLD);
     park(&mut w);
     for (proposer, target) in [(2, 1), (3, 4)] {
         let reply_to = w.to();
@@ -735,7 +735,7 @@ fn accepting_a_release_proposal_of_the_root_lifts_the_hold_and_records_it_accept
                 number: 100 + proposer,
                 proposer,
                 project: 1,
-                action: ProposalAction::ReleasePlaced { task: target, hold: 100, revision: 1 },
+                action: ProposalAction::ReleasePlaced { task: target, hold: STOP_HOLD, revision: 1 },
                 reason: Box::new([]),
                 as_holder: false,
                 state: ProposalState::Pending { holder: ProposalHolder::Person(1), since: w.env.wall },
@@ -754,7 +754,7 @@ fn accepting_a_release_proposal_of_the_root_lifts_the_hold_and_records_it_accept
     for number in 1..=4 {
         due(&w, number);
     }
-    assert!(!w.records.contains_key(&Key::PlacedHold(100)));
+    assert!(!w.records.contains_key(&Key::PlacedHold(STOP_HOLD)));
     for (proposer, state) in [(2, ProposalState::Accepted { by: Party::Person(1) }), (3, ProposalState::Withdrawn)] {
         assert!(w.record(proposer).proposal.is_none());
         assert!(w.records.values().any(|row| matches!(row, Stored::History(history)
@@ -765,7 +765,7 @@ fn accepting_a_release_proposal_of_the_root_lifts_the_hold_and_records_it_accept
 fn stopped_rows() -> (World, Vec<Stored>) {
     let mut world = World::new(920, LIMITS);
     goal_tree(&mut world);
-    stop(&mut world, 1, 1, 100);
+    stop(&mut world, 1, 1, STOP_HOLD);
     park(&mut world);
     let rows = world.records.values().filter(|row| row.key().live()).cloned().collect();
     (world, rows)
@@ -775,7 +775,7 @@ fn stopped_rows() -> (World, Vec<Stored>) {
 #[should_panic(expected = "restore Live(1): missing placed hold 100")]
 fn restart_asserts_a_missing_placed_hold() {
     let (world, mut rows) = stopped_rows();
-    rows.retain(|row| row.key() != Key::PlacedHold(100));
+    rows.retain(|row| row.key() != Key::PlacedHold(STOP_HOLD));
     check_rows(rows, &world.env);
 }
 

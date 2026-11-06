@@ -66,19 +66,15 @@ impl GitHubCall {
         self.route?.origin
     }
 }
-pub(crate) mod own {
-    use alloc::boxed::Box;
-    #[derive(Debug)]
-    #[expect(clippy::enum_variant_names, reason = "the GitHub own plans retain their shared names")]
-    pub enum OwnPlan {
-        GitHubInstallations(skein_forge::github::plans::start::Installations),
-        GitHubMinting(skein_forge::github::plans::start::Minting),
-        GitHubIdentity(skein_forge::github::plans::start::Identity),
-        GitHubLogPage(Box<skein_forge::github::plans::start::LogPage>),
-        GitHubLogDelivery(Box<skein_forge::github::plans::start::LogDelivery>),
-    }
+#[derive(Debug)]
+#[expect(clippy::enum_variant_names, reason = "the GitHub own plans retain their shared names")]
+pub(crate) enum OwnPlan {
+    GitHubInstallations(skein_forge::github::plans::start::Installations),
+    GitHubMinting(skein_forge::github::plans::start::Minting),
+    GitHubIdentity(skein_forge::github::plans::start::Identity),
+    GitHubLogPage(Box<skein_forge::github::plans::start::LogPage>),
+    GitHubLogDelivery(Box<skein_forge::github::plans::start::LogDelivery>),
 }
-pub(crate) use own::OwnPlan;
 #[derive(Debug)]
 pub(crate) struct Waiting {
     pub repository: api::Repository,
@@ -856,8 +852,7 @@ fn send_start(
     let authorization =
         skein_forge::forgejo::credential::authorization(&forge.access.as_ref().expect("held access").credential)
             .expect("checked credential length");
-    let until = connection.deadline();
-    exchange.start(connection, until, env, forge, user_agent, pending, authorization).expect("checked start request");
+    exchange.start(connection, env, forge, user_agent, pending, authorization).expect("checked start request");
 }
 
 fn start_read(state: Start) -> Option<Read> {

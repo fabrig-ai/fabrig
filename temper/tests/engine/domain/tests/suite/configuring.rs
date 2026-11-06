@@ -456,6 +456,108 @@ fn an_owners_configuring_chat_proposes_and_hears_it_accepted() {
 }
 
 #[test]
+fn a_proposal_selects_the_template_it_installs() {
+    use serde_json::json;
+    for reverse in [false, true] {
+        let mut world = World::stock();
+        let run = world.chat(CONFIGURING, world.owner, 20);
+        let mut value = read_value(&mut world.driver, &run, 1, json!({"setting":{"kind":"template","number":3}}));
+        value["number"] = json!(4);
+        value["tracked"] = json!(1);
+        let ways = json!({"drafts":true,"goals":true,"changes":true,"away":true,"way":4});
+        let mut items = vec![
+            json!({"setting":{"kind":"template","number":4},"set":value}),
+            json!({"setting":{"kind":"project-ways","project":PROJECT},"set":ways}),
+        ];
+        if reverse {
+            items.reverse();
+        }
+        let proposal = propose(&mut world.driver, &run, 10, 1, &json!(items));
+        let review = world.review(&run, proposal);
+        let core::documents::ProposalAction::Settings { review: Some(settings), .. } = &review.action else {
+            panic!("settings review")
+        };
+        assert_eq!(settings.items.len(), 2);
+        assert_eq!(world.head().number, 1, "proposing publishes neither item");
+        let (_, error) =
+            host_tool(&mut world.driver, &run, 12, b"settings", br#"{"setting":{"kind":"template","number":4}}"#);
+        assert!(error, "the proposed template is not published");
+        let (text, _) =
+            read_whole(&mut world.driver, &run, 13, json!({"setting":{"kind":"project-ways","project":PROJECT}}));
+        assert!(text.contains("\"way\":0"), "proposing keeps the stock way: {text}");
+        world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
+        assert_eq!(world.head().number, 2, "one acceptance makes one revision");
+        let installed = read_value(&mut world.driver, &run, 30, json!({"setting":{"kind":"template","number":4}}));
+        assert_eq!(installed, value);
+        let (text, _) =
+            read_whole(&mut world.driver, &run, 40, json!({"setting":{"kind":"project-ways","project":PROJECT}}));
+        let body = text.lines().nth(1).expect("ways value");
+        assert_eq!(serde_json::from_str::<serde_json::Value>(body).expect("ways JSON"), ways);
+        assert!(!world.settings_rows().iter().any(|row| matches!(row, s::Record::Proposal { .. })), "proposal ends");
+        let next = world.next(&run);
+        assert_heard(&next, b"accepted: revision 2 made");
+    }
+}
+
+#[test]
+fn direct_ways_are_checked_against_the_templates_the_decision_leaves() {
+    use temper_engine_domain_forge::settings::{ProjectWays, Value};
+    use temper_engine_domain_world::kinds;
+    let template = config()
+        .core
+        .defaults
+        .templates
+        .into_vec()
+        .into_iter()
+        .find(|value| value.number == 3)
+        .expect("configuring template");
+    let added = s::Item {
+        setting: s::Setting::Template(4),
+        edit: s::Edit::Set(s::Value::Template(Box::new(core::Template { number: 4, ..template }))),
+    };
+    for (name, item, way, accepted) in [
+        ("zero", added.clone(), 0, true),
+        ("current", added.clone(), 3, true),
+        ("installed", added.clone(), 4, true),
+        ("absent", added, 5, false),
+        ("removed", s::Item { setting: s::Setting::Template(3), edit: s::Edit::Removed }, 3, false),
+        ("reset addition", s::Item { setting: s::Setting::Template(4), edit: s::Edit::Reset }, 4, false),
+        ("reset default", s::Item { setting: s::Setting::Template(3), edit: s::Edit::Reset }, 3, true),
+    ] {
+        let mut world = World::stock();
+        if name == "reset default" {
+            world.change(1, 21, Box::new([s::Item { setting: s::Setting::Template(3), edit: s::Edit::Removed }]));
+        }
+        let before = world.settings_rows();
+        let against = world.head().number;
+        let ways = kinds::item(
+            7,
+            PROJECT,
+            1,
+            &Value::Ways(ProjectWays { drafts: true, goals: true, changes: true, away: true, way }),
+        );
+        world.driver.send(kinds::change(world.owner, against, 22, Box::new([ways, item])));
+        world.driver.settle();
+        if accepted {
+            assert_eq!(world.head().number, against + 1, "{name}");
+        } else {
+            let people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Judged { at, setting, why })) =
+                world.reply(22)
+            else {
+                panic!("{name}: {:?}", world.reply(22))
+            };
+            assert_eq!(*at, 0, "{name}");
+            assert_eq!(*setting, s::Setting::Application { kind: 7, scope: PROJECT, number: 1 });
+            assert_eq!(
+                why.as_ref(),
+                format!("way {way} is not a template the project offers after this decision").as_bytes()
+            );
+            assert_eq!(world.settings_rows(), before, "{name} commits neither item");
+        }
+    }
+}
+
+#[test]
 fn a_project_with_no_ways_reads_at_their_stock() {
     use serde_json::json;
     let mut world = World::stock();

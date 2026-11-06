@@ -1198,6 +1198,15 @@ with a person in front of a tree, are view.md's, 18.10.
 - **A stream record's bound:** its body's bound plus 512, written at each
   shell, in `jig-client-shell-native` and in an application's. Default: each
   keeps its expression; one helper once those shells hold still.
+- **A turn being written past what the engine retains** (8.3): the engine's
+  `views.text_bytes` and the wire's `run_text_text` stop at one bound, so a client
+  following a turn from its start holds it whole, and one opened later holds the
+  retained end until its committed turn comes. Holding the whole takes a delivery in
+  pieces, a change of a protocol, the user's. Default: as it stands.
+- **A committed turn past a client's document bound** (sections 10 and 16): a turn
+  past `document_bytes` on the wire is refused as too large, with its size, so it
+  shows no calls' names, whatever `turn_text` would keep of it. Reading it takes a
+  page past that bound. Default: too large, and the tools read it by its parts.
 
 ## 19. Helpers
 
