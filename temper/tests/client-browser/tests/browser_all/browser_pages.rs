@@ -382,6 +382,7 @@ fn a_short_chat_opens_whole_without_a_reading_status() {
     in_log(&harness, "end");
 }
 
+// Sixteen near-64-KiB replies and their activity room cross the browser's 1-MiB window.
 const READING_MESSAGES: u32 = 16;
 fn reading_words(number: u32) -> Box<[u8]> {
     format!("Reading paragraph {number:02}.").into_bytes().into_boxed_slice()
@@ -414,19 +415,31 @@ fn reading_history(messages: u32) -> Vec<Step> {
     steps
 }
 fn reading_tier(anchoring: bool, messages: u32) -> Tier {
-    use std::fmt::Write as _;
+    // Thirty paragraphs span the two position measurements; ten keep a middle reply to a screen.
+    const POSITION_PARAGRAPHS: u32 = 30;
+    const MIDDLE_PARAGRAPHS: u32 = 10;
+    // With their paragraph text and suffixes these answers are 65,475 and 65,444 bytes,
+    // below the fake's 65,536-byte answer bound and its part's structural room.
+    const POSITION_CODE_WORDS: usize = 12_700;
+    const MIDDLE_CODE_WORDS: usize = 12_950;
     let tier =
         if anchoring { Tier::demo("reading-anchored") } else { Tier::demo_without_anchoring("reading-unanchored") };
-    // A long, horizontally scrollable code line crosses the byte bound without thousands of page keys.
-    let mut reply = format!("```text\n{}\n```\n\nEnd of the large reply.", "data ".repeat(12_700));
-    for line in 1..=30 {
-        write!(reply, "\n\nNumbered line {line:02}. Keep this paragraph available while reading.").expect("reply text");
-    }
+    let reply = reading_reply(POSITION_CODE_WORDS, POSITION_PARAGRAPHS);
+    let brief = reading_reply(MIDDLE_CODE_WORDS, MIDDLE_PARAGRAPHS);
     tier.with_replies(&[
         (&format!("Reading paragraph {:02}.", messages - 1), format!("{reply}\n\nEnd of reply {}.", messages - 1)),
         (&format!("Reading paragraph {messages:02}."), format!("{reply}\n\nEnd of reply {messages}.")),
-        ("Reading paragraph", format!("{reply}\n\nEnd of reply 1.")),
+        ("Reading paragraph", format!("{brief}\n\nEnd of reply 1.")),
     ])
+}
+fn reading_reply(code_words: usize, paragraphs: u32) -> String {
+    use std::fmt::Write as _;
+    // A horizontally scrollable code line carries the window's bytes in one node.
+    let mut reply = format!("```text\n{}\n```\n\nEnd of the large reply.", "data ".repeat(code_words));
+    for line in 1..=paragraphs {
+        write!(reply, "\n\nNumbered line {line:02}. Keep this paragraph available while reading.").expect("reply text");
+    }
+    reply
 }
 #[test]
 fn a_long_chat_opens_at_its_end_and_reads_back_from_the_composer() {
