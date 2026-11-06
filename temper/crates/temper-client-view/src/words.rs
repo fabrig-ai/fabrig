@@ -1172,15 +1172,13 @@ pub enum Word {
     WelcomeKeyBody,
     WelcomeKeyField,
     WelcomeKeyFacts,
-    WelcomePasteTitle,
     WelcomePasteOpen,
-    WelcomePasteOpenRest,
-    WelcomePasteCopy,
-    WelcomePasteHere,
     WelcomePasteField,
     WelcomePasteFinish,
     WelcomeAllWays,
     WelcomeAwayTitle,
+    WelcomeAwayOwn,
+    WelcomeAwayAgain,
     WelcomeAwayBody,
     WelcomeFinishing,
     WelcomeClaudeTitle,
@@ -1296,8 +1294,9 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Settings, Needs you and the chat document include their literal phrases (client/README.md, 3.5, 5.13).
 // The rail menu adds six literal phrases (client/README.md, 5.3).
+// The waiting page removes five phrases across its words and accounts (client/README.md, 3.5).
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
-const PHRASES: u32 = 1785;
+const PHRASES: u32 = 1780;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1318,9 +1317,10 @@ const PHRASES: u32 = 1785;
 // Settings, Needs you and the chat document include their literal segments (client/README.md, 3.5, 5.13).
 // The agent check refusal names its charter, adding two segments.
 // The rail menu adds six literal segments (client/README.md, 5.3).
+// The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
-const SEGMENTS: u32 = 3093;
-const ALL: [Word; 1186] = [
+const SEGMENTS: u32 = 3082;
+const ALL: [Word; 1184] = [
     Word::DraftsChats,
     Word::ChatsDraftLede,
     Word::ChatRowWrites,
@@ -2451,15 +2451,13 @@ const ALL: [Word; 1186] = [
     Word::WelcomeKeyBody,
     Word::WelcomeKeyField,
     Word::WelcomeKeyFacts,
-    Word::WelcomePasteTitle,
     Word::WelcomePasteOpen,
-    Word::WelcomePasteOpenRest,
-    Word::WelcomePasteCopy,
-    Word::WelcomePasteHere,
     Word::WelcomePasteField,
     Word::WelcomePasteFinish,
     Word::WelcomeAllWays,
     Word::WelcomeAwayTitle,
+    Word::WelcomeAwayOwn,
+    Word::WelcomeAwayAgain,
     Word::WelcomeAwayBody,
     Word::WelcomeFinishing,
     Word::WelcomeClaudeTitle,
@@ -3649,15 +3647,13 @@ impl Word {
             Self::WelcomeKeyBody => 3362,
             Self::WelcomeKeyField => 3363,
             Self::WelcomeKeyFacts => 3364,
-            Self::WelcomePasteTitle => 3365,
             Self::WelcomePasteOpen => 3366,
-            Self::WelcomePasteOpenRest => 3367,
-            Self::WelcomePasteCopy => 3368,
-            Self::WelcomePasteHere => 3369,
             Self::WelcomePasteField => 3370,
             Self::WelcomePasteFinish => 3371,
             Self::WelcomeAllWays => 3372,
             Self::WelcomeAwayTitle => 3373,
+            Self::WelcomeAwayOwn => 3739,
+            Self::WelcomeAwayAgain => 3740,
             Self::WelcomeAwayBody => 3374,
             Self::WelcomeFinishing => 3375,
             Self::WelcomeClaudeTitle => 3376,
@@ -4215,21 +4211,19 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeBoxName => (&[b"temper box"], &[]),
         Word::WelcomeBoxLine => (&[b" \xc2\xb7 on this machine, to try it \xc2\xb7 more later, from Settings \xc2\xb7 "], &[]),
         Word::WelcomeBoxServer => (&[b"Run temper on a server \xe2\x86\x97"], &[]),
-        Word::WelcomeModelSignInTime => (&[b"Sign in, in this tab \xc2\xb7 about a minute"], &[]),
+        Word::WelcomeModelSignInTime => (&[b"Sign in, in a new tab \xc2\xb7 about a minute"], &[]),
         Word::WelcomeKeyTitle => (&[b"An OpenAI API key"], &[]),
         Word::WelcomeKeyBody => (&[b"From OpenAI\xe2\x80\x99s platform, under API keys. What temper\xe2\x80\x99s agents use is billed to the key\xe2\x80\x99s organization."], &[]),
         Word::WelcomeKeyField => (&[b"Key, pasted once"], &[]),
         Word::WelcomeKeyFacts => (&[b"Nothing checks a key when it is added: a wrong one shows once OpenAI refuses a run."], &[]),
-        Word::WelcomePasteTitle => (&[b"Signing in to ", b" from another computer"], &[Name]),
         Word::WelcomePasteOpen => (&[b"Open ", b"\xe2\x80\x99s sign-in \xe2\x80\xba"], &[Name]),
-        Word::WelcomePasteOpenRest => (&[b" and approve temper."], &[]),
-        Word::WelcomePasteCopy => (&[b"When ", b" is done, its tab shows a page that can\xe2\x80\x99t be reached. Copy that page\xe2\x80\x99s whole address from the address bar."], &[Name]),
-        Word::WelcomePasteHere => (&[b"Paste it here."], &[]),
         Word::WelcomePasteField => (&[b"Address of the page that couldn\xe2\x80\x99t be reached"], &[]),
         Word::WelcomePasteFinish => (&[b"Finish connecting"], &[]),
         Word::WelcomeAllWays => (&[b"All ways"], &[]),
-        Word::WelcomeAwayTitle => (&[b"", b"\xe2\x80\x99s sign-in, in this tab"], &[Name]),
-        Word::WelcomeAwayBody => (&[b"You sign in and approve temper; ", b" sends this tab back to temper\xe2\x80\x99s listener on this machine, and on to Ready."], &[Name]),
+        Word::WelcomeAwayTitle => (&[b"Waiting for ", b"\xe2\x80\x99s sign-in, in the new tab"], &[Name]),
+        Word::WelcomeAwayOwn => (&[b"", b"\xe2\x80\x99s sign-in"], &[Name]),
+        Word::WelcomeAwayAgain => (&[b"Open it again \xe2\x80\xba"], &[]),
+        Word::WelcomeAwayBody => (&[b"Sign in and approve temper there. This page moves on by itself."], &[]),
         Word::WelcomeClaudeTitle => (&[b"Your Claude subscription"], &[]),
         Word::WelcomeClaudeBody => (&[b"temper sets Claude Code up on this machine in an environment of its own: its settings, sessions and sign-in stay apart from your own Claude Code. In a terminal here:"], &[]),
         Word::WelcomeClaudeNote => (&[b"It makes that environment, then Claude Code asks you to sign in to your subscription there. temper never reads its login."], &[]),

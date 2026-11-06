@@ -412,16 +412,8 @@ pub(super) fn sign_in_address(address: &[u8]) -> d::Domain {
 #[test]
 fn a_sign_in_address_has_a_visible_link_word() {
     let root = sign_in_address(ADDRESS);
-    let mut view = fixtures::view();
-    let text = fixtures::text(fixtures::build(&mut view, &root));
-    assert!(String::from_utf8(text.into_vec()).unwrap().contains("Open the sign-in page"));
-}
-#[test]
-fn a_sign_in_address_names_the_engine_machine() {
-    let root = sign_in_address(ADDRESS);
-    let mut view = fixtures::view();
-    let text = fixtures::text(fixtures::build(&mut view, &root));
-    assert!(String::from_utf8(text.into_vec()).unwrap().contains("on the engine's machine"));
+    let view = fixtures::browser_page_view(&root);
+    assert!(String::from_utf8(fixtures::text(view.tree()).into_vec()).unwrap().contains("Open it again ›"));
 }
 #[test]
 fn an_address_containing_a_space_is_refused() {
@@ -1338,7 +1330,8 @@ fn an_accounts_rows_sign_in_offers_the_paste() {
         .nodes()
         .iter()
         .position(|n| {
-            n.role == Role::Disclosure && n.name.as_deref() == Some(b"Signed in, but the page couldn't be reached?")
+            n.role == Role::Disclosure
+                && n.name.as_deref() == Some("Signed in, but the page couldn’t be reached?".as_bytes())
         })
         .unwrap();
     assert!(field_at > disclosure && field_at < disclosure + usize::try_from(tree.nodes()[disclosure].size).unwrap());

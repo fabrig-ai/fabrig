@@ -67,7 +67,12 @@ fn a_sign_in_started_answer_is_followed_by_its_actual_end_on_the_accounts_watch(
         d::Event::Went { place: d::Place::Address(d::Address::ConnectModel { way: None }) }.into(),
     );
     let limits = fixtures::domain_limits();
-    let words = fixtures::phrasebooks(&limits);
+    let words = temper_client_view::words::Words::english(
+        fixtures::FORGE,
+        limits.client.domain.text,
+        temper_client_view::words::Shell::Browser,
+    )
+    .expect("browser words fit");
     let bounds = fixtures::view_bounds(&limits, &words);
     let mut view = temper_client_view::View::new(&bounds, &limits, words, fixtures::FORGE);
     let mut patches = skein_lib::Queue::with_capacity(bounds.tree.patches);

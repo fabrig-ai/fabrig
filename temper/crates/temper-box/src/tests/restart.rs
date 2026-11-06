@@ -142,7 +142,7 @@ fn abort_endings(busy: bool, early_reply: bool) {
                     h.service.work_pending(h.sim.now()),
                     h.service.next_deadline(),
                     // Initial Starting, replacement Starting, one excess to detect a duplicate.
-                    bytes::count(&h.terminal_bytes(), b"Starting serve\n", 3),
+                    bytes::count(&h.log(), b"Starting serve\n", 3),
                 ))
                 .unwrap();
         } else {

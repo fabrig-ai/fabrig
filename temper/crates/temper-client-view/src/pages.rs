@@ -23,6 +23,7 @@ pub(crate) mod new_chat;
 pub(crate) mod reference;
 pub(crate) mod session;
 pub(crate) mod settings;
+mod sign_in_wait;
 pub(crate) mod start_goal;
 pub(crate) mod task;
 pub(crate) mod welcome;
