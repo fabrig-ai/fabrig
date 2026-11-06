@@ -18,8 +18,21 @@ mode = "direct"
 needs = []
 design = "temper/docs/design/client/README.md, 3.5"
 
+[[part]]
+id = "login-command"
+title = "The Model step's command carries the box's directories when they aren't the defaults, for the owner alone"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 4.6"
+
 [[slice]]
 id = 1
 story = "answer, Undo, press a choice while the inbox changes: the answer is held and sent"
 parts = ["needs-press"]
+walk = false
+
+[[slice]]
+id = 2
+story = "the owner of a box with custom directories runs the command the page shows, and reaches the sign-in prompt"
+parts = ["login-command"]
 walk = false
