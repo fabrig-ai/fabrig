@@ -1344,6 +1344,8 @@ const PHRASES: u32 = 1803;
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 const SEGMENTS: u32 = 3105;
+// Literal bytes across every English phrase, at the larger shell vocabulary.
+const ENGLISH_BYTES: u32 = 44575;
 const ALL: [Word; 1207] = [
     Word::CloseTitle,
     Word::CloseChat,
@@ -4005,17 +4007,35 @@ fn english_language(
 }
 
 #[cfg(test)]
-pub(crate) fn english_declarations() -> [(&'static str, u64, u64); 2] {
-    let (shapes, language) = english_language(1, 256, Shell::Browser, 513).expect("bounded English");
-    let mut segments = 0_u64;
-    for phrase in &language.phrases {
-        for form in &phrase.forms {
-            segments = segments.checked_add(skein_lib::len_u64(form.segments.len())).expect("bounded English");
+pub(crate) fn english_declarations() -> [(&'static str, u64, u64); 3] {
+    let mut most_phrases = 0_u64;
+    let mut most_segments = 0_u64;
+    let mut most_text = 0_u64;
+    for shell in [Shell::Browser, Shell::Terminal] {
+        let (shapes, language) = english_language(1, 256, shell, 513).expect("bounded English");
+        let mut segments = 0_u64;
+        let mut text = 0_u64;
+        for phrase in &language.phrases {
+            for form in &phrase.forms {
+                segments = segments.checked_add(skein_lib::len_u64(form.segments.len())).expect("bounded English");
+                for segment in &form.segments {
+                    match segment {
+                        Segment::Text(bytes) => {
+                            text = text.checked_add(skein_lib::len_u64(bytes.len())).expect("bounded English");
+                        }
+                        Segment::Hole { .. } => {}
+                    }
+                }
+            }
         }
+        most_phrases = most_phrases.max(u64::from(shapes.len()));
+        most_segments = most_segments.max(segments);
+        most_text = most_text.max(text);
     }
     [
-        ("const PHRASES: u32 = ", u64::from(PHRASES), u64::from(shapes.len())),
-        ("const SEGMENTS: u32 = ", u64::from(SEGMENTS), segments),
+        ("const PHRASES: u32 = ", u64::from(PHRASES), most_phrases),
+        ("const SEGMENTS: u32 = ", u64::from(SEGMENTS), most_segments),
+        ("const ENGLISH_BYTES: u32 = ", u64::from(ENGLISH_BYTES), most_text),
     ]
 }
 
@@ -4053,10 +4073,7 @@ impl Words {
             holes: 4,
             // Setup fields and first repository need 28 more segments; the playground's start 15.
             segments: SEGMENTS,
-            // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
-            // Settings and the chat document include their literal bytes (client/README.md, 3.5, 5.13).
-            // Confirmation sheets add 436 literal bytes (client/README.md, 3.6).
-            text_bytes: 44571,
+            text_bytes: ENGLISH_BYTES,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(byline_bytes(joined)?)
