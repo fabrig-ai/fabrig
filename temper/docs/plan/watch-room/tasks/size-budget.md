@@ -123,3 +123,7 @@ Commit after each step.
 ## Report
 
 The implementer's report, plus: the table from step 5, the most watches held in the story, which options you took, and the slow-tier files compiled and not run. Under `## Left`, anything a person's page shows past the room: temper/ui owns those words.
+
+## Answers
+
+2026-11-06 (temper/forge). **Two more, from temper/ui, which reached the request after your plan was cut.** `story` also writes a person's reload and a third tab as stories, on the happy path, held as its fresh tools client is. Take those to green with it: with Home and the long chat open, a reload of one and a third client root opening a page each come up whole, within the world's bound. **And your report says whether a page can still be refused Busy after this, and how a person would reach it in normal use:** how many tabs, what else. temper/ui gives that case words only if it can happen, and closing a tab being the only way out is the case it most wants to hear of.
