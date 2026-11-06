@@ -620,8 +620,7 @@ keeps (`../protocol/configuration.md`, section 2).
   - *"Older"* is a `.btn.quiet.small`, centred, at the head while an older
     page remains and the window has filled. It is replaced by the loading
     status while that read is out; the agent's page uses the same head,
-    with "Older" whenever an older page remains. An agent's page has no
-    Latest pill. *Its end* has
+    with "Older" whenever an older page remains. *Its end* has
     `.meta-line`'s look, and an ended chat has no composer.
 - **A new chat** (the greenfield mock's `chat.html?id=new`): `NewChat`,
   at `/chats/new`, for the open project. The domain's `Chats` state holds
@@ -6228,6 +6227,17 @@ own tests:
 - **A fresh configuring chat from its composer** (3.5, *The configuring chat's
   page*): a command ("/clear") once the composer takes commands. Default: "Start
   over" in its bar.
+- **The line's words** (3.5, *its calls*; `../draft/chat-reading.md`, 7): the user
+  reads the table's verbs on a real chat. `read_file` and the forge's other reads
+  stay their names, as the draft's example has it, and so do `recall` and `message`,
+  whose first members are a number or a body, which read badly as an argument.
+  Default: the table as 3.5 has it.
+- **A run's time** (3.5, *its calls*; `../draft/chat-reading.md`, 7): a committed
+  turn says only when it ended. Storing when it began would change a stored format
+  and a protocol, for a figure the line before it gives nearly as well: it holds the
+  model's writing of any text that opened the turn, and at a window's head or for a
+  turn's second run is often no time at all. The user reads it on a real chat.
+  Default: from the line before, as 3.5 has it.
 - **The sheet the request `ui-chat-draft` of 2026-11-05 draws** (3.5, 5.14): its
   "Budget", in the deployment's unit, and its ways by their fixed words, "Plan, tasks,
   land whole", "Task by task" and "Plan, then wait for me", the last sent by
