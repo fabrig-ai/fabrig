@@ -298,8 +298,8 @@ pub(super) enum Input {
     IoSubmission(kernel::Submit),
     FileSubmission(kernel::Submit),
     PendingMessage(PendingMessage),
-    OperationSubmitted { global: Token, original: Token },
-    OperationCompleted { global: Token },
+    OperationSubmitted,
+    OperationCompleted,
 }
 
 pub(super) fn enter(service: &mut Service, input: Input) {
@@ -315,11 +315,11 @@ pub(super) fn enter(service: &mut Service, input: Input) {
         Input::IoSubmission(submit) => stages.io_submissions.push(submit),
         Input::FileSubmission(submit) => stages.file_submissions.push(submit),
         Input::PendingMessage(message) => stages.pending_messages.push(message),
-        Input::OperationSubmitted { global, original } => {
-            stages.operations.insert(global, Operation::Io(original)).expect("one fake kernel operation");
+        Input::OperationSubmitted => {
+            stages.in_flight = stages.in_flight.checked_add(1).expect("one fake kernel submission");
         }
-        Input::OperationCompleted { global } => {
-            stages.operations.remove(&global);
+        Input::OperationCompleted => {
+            stages.in_flight = stages.in_flight.checked_sub(1).expect("one fake kernel completion");
         }
     }
 }
