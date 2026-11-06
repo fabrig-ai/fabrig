@@ -611,12 +611,14 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         Event::Act { act: Act::ClosedChats } => closed_chats(pages, out),
         Event::Act { act: Act::ChatFilter { filter } } => chat_filter(pages, filter, out),
         Event::Act { act: Act::Filter { filter } } => out.push(Request::Show { address: Address::Inbox { filter } }),
-        Event::Act { act: act @ (Act::Mode { .. } | Act::ShowSection { .. } | Act::AddDraft | Act::Latest) } => {
+        Event::Act { act: act @ (Act::Mode { .. } | Act::ShowSection { .. } | Act::AddDraft) } => {
             if let Some(chat) = &mut pages.chat {
                 chat.act(env, client, act, &mut pages.serial, out);
             }
         }
-        Event::Act { act: act @ (Act::FocusComposer | Act::MessageWords { .. } | Act::Send | Act::Older) } => {
+        Event::Act {
+            act: act @ (Act::FocusComposer | Act::MessageWords { .. } | Act::Send | Act::Older | Act::Latest),
+        } => {
             if let Some(chat) = &mut pages.chat {
                 chat.act(env, client, act, &mut pages.serial, out);
             } else if let Some(task) = &mut pages.task {
