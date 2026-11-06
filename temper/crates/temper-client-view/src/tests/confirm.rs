@@ -32,6 +32,7 @@ pub(super) fn root(act: ActKind, admission: Admission) -> temper_client_domain::
     let page = c::Proposal {
         key: PROPOSAL,
         project: fixtures::PROJECT,
+        projects: List::from_boxed(Box::new([fixtures::PROJECT])),
         reason: c::DocumentText::complete(text(b"Make a goal")),
         action: c::ProposalAction::Batch(List::with_capacity(EMPTY_BATCH)),
         as_holder: true,
