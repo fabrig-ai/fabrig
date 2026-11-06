@@ -105,13 +105,14 @@ pub fn world(scenario: &Scenario<'_>, seed: u64, config: Config) -> World<Proc, 
 #[derive(Clone, Copy, Debug)]
 struct Options {
     release: Option<Time>,
+    output_release: Option<Time>,
     memory: Memory,
     limits: hearth::Limits,
     instances: u32,
 }
 impl Default for Options {
     fn default() -> Self {
-        Self { release: None, memory: Memory::Unchecked, limits: hearth::limits(), instances: 1 }
+        Self { release: None, output_release: None, memory: Memory::Unchecked, limits: hearth::limits(), instances: 1 }
     }
 }
 fn build(scenario: &Scenario<'_>, seed: u64, config: Config, options: &Options) -> World<Proc, Referee, Shared> {
@@ -129,6 +130,9 @@ fn build(scenario: &Scenario<'_>, seed: u64, config: Config, options: &Options) 
         fixtures::lay_cache_pages(&shared);
     }
     let lock = options.release.map(|at| (fixtures::HeldLock::new(&shared), at));
+    if options.output_release.is_some() {
+        shared.hold_output();
+    }
     CONTEXT.with(|context| {
         *context.borrow_mut() = Some(Context {
             scenario: Scenario {
@@ -148,6 +152,7 @@ fn build(scenario: &Scenario<'_>, seed: u64, config: Config, options: &Options) 
         shared: shared.clone(),
         done: false,
         lock,
+        output_release: options.output_release,
         seen: 0,
     })
     .with_machine(shared);
@@ -196,12 +201,19 @@ pub struct Referee {
     shared: Shared,
     done: bool,
     lock: Option<(fixtures::HeldLock, Time)>,
+    output_release: Option<Time>,
     seen: usize,
 }
 impl skein_world::Referee<Proc> for Referee {
-    fn act(&mut self, now: Time, _procs: &mut [Proc]) {
+    fn act(&mut self, now: Time, procs: &mut [Proc]) {
         if self.lock.as_ref().is_some_and(|(_, at)| now >= *at) {
             self.lock.take().expect("held lock").0.release(&self.shared);
+        }
+        if self.output_release.is_some_and(|at| now >= at) {
+            for proc in procs.iter().filter(|proc| matches!(proc, Proc::Client(_))) {
+                assert!(!proc.work_pending(now), "render has stopped behind the held output");
+            }
+            self.output_release = None;
         }
     }
     fn observe(&mut self, _now: Time, procs: &[Proc]) {
@@ -225,6 +237,8 @@ impl skein_world::Referee<Proc> for Referee {
     fn next_deadline(&self) -> Option<Time> {
         if let Some((_, at)) = self.lock.as_ref() {
             Some(*at)
+        } else if let Some(at) = self.output_release {
+            Some(at)
         } else {
             (!self.done).then_some(fixtures::SIMULATION_DEADLINE)
         }
@@ -267,6 +281,34 @@ pub fn checked(seed: u64, ceiling: u64) -> Outcome<Proc, Shared> {
 pub fn checked_with(scenario: &Scenario<'_>, seed: u64, limits: hearth::Limits, ceiling: u64) -> Outcome<Proc, Shared> {
     build(scenario, seed, Config::calm(), &Options { memory: Memory::Within(ceiling), limits, ..Options::default() })
         .run()
+}
+
+/// Meter the client with its output held from its first write until `release`.
+#[must_use]
+pub fn checked_stuck(
+    scenario: &Scenario<'_>,
+    seed: u64,
+    limits: hearth::Limits,
+    ceiling: u64,
+    release: Time,
+) -> Outcome<Proc, Shared> {
+    let world = build(
+        scenario,
+        seed,
+        Config::calm(),
+        &Options { output_release: Some(release), memory: Memory::Within(ceiling), limits, ..Options::default() },
+    );
+    let shared = context().shared;
+    let mut release = Some(release);
+    let mut answers = Queue::uncapped();
+    world.run_with_inputs(move |sim, _, _| {
+        if release.is_some_and(|at| sim.now() >= at) {
+            assert_eq!(shared.contents(fixtures::OUTPUT).as_deref(), Some(b"".as_slice()), "no output before release");
+            shared.release_output(&mut answers);
+            sim.answer(&mut answers);
+            release = None;
+        }
+    })
 }
 
 /// A killed client's children run on while its cold replacement starts

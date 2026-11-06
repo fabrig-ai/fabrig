@@ -76,10 +76,6 @@ pub struct Hooked {
     json_down: Queue<Down>,
     state: State,
 }
-#[cfg_attr(
-    feature = "seam",
-    expect(clippy::must_use_candidate, reason = "the machine-world seam exposes the existing state operations")
-)]
 impl Hooked {
     #[cfg(test)]
     pub fn new(socket: Token, env: &Env<Limits>) -> Self {

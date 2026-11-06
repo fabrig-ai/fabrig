@@ -23,10 +23,6 @@ pub struct Row {
     pub api_expires: Wall,
     pub git_expires: Wall,
 }
-#[cfg_attr(
-    feature = "seam",
-    expect(clippy::must_use_candidate, reason = "the machine-world seam exposes the existing state operations")
-)]
 impl Row {
     pub fn unminted(&mut self) {
         self.state = Tokens::Unminted;
@@ -86,10 +82,6 @@ pub struct Clock {
     pub pending: bool,
     pub next: Duration,
 }
-#[cfg_attr(
-    feature = "seam",
-    expect(clippy::must_use_candidate, reason = "the machine-world seam exposes the existing state operations")
-)]
 impl Clock {
     pub fn empty() -> Self {
         Self { expiry: Time::ZERO, due: None, pending: false, next: Duration::ZERO }
@@ -180,10 +172,6 @@ pub struct Reading {
     pub fact: Option<u64>,
     pub overflowed: bool,
 }
-#[cfg_attr(
-    feature = "seam",
-    expect(clippy::must_use_candidate, reason = "the machine-world seam exposes the existing state operations")
-)]
 impl Reading {
     pub fn new(cap: u32, generation: u64, next: Duration) -> Self {
         Self {
@@ -389,10 +377,6 @@ pub struct GitHub {
     pub retry: Option<Duration>,
     pub connected: bool,
 }
-#[cfg_attr(
-    feature = "seam",
-    expect(clippy::must_use_candidate, reason = "the machine-world seam exposes the existing state operations")
-)]
 impl GitHub {
     pub fn new(cap: u32) -> Self {
         Self {

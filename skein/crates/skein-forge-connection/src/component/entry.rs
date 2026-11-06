@@ -5,32 +5,32 @@ use alloc::boxed::Box;
 use skein_lib::{Queue, Token};
 
 #[derive(Debug)]
-pub struct ForgeEntry {
-    pub base: Base,
-    pub dialect: Dialect,
+pub(crate) struct ForgeEntry {
+    pub(crate) base: Base,
+    pub(crate) dialect: Dialect,
 }
 
 /// What every forge has, whichever its dialect.
 #[derive(Debug)]
-pub struct Base {
-    pub forge: Forge,
-    pub start: Start,
-    pub own: Option<Token>,
+pub(crate) struct Base {
+    pub(crate) forge: Forge,
+    pub(crate) start: Start,
+    pub(crate) own: Option<Token>,
 }
 
 /// A forge's dialect, and what only that dialect has.
 #[derive(Debug)]
 #[expect(clippy::large_enum_variant, reason = "the Forgejo variant holds its own plan and exchange together")]
-pub enum Dialect {
+pub(crate) enum Dialect {
     Forgejo { plan: Option<skein_forge::forgejo::plans::start::Plan>, exchange: crate::connection::forgejo::Exchange },
     GitHub(Box<GitHubForge>),
 }
 
 #[derive(Debug)]
-pub struct GitHubForge {
-    pub exchange: crate::connection::github::Exchange,
-    pub state: crate::installations::GitHub,
-    pub plan: Option<OwnPlan>,
+pub(crate) struct GitHubForge {
+    pub(crate) exchange: crate::connection::github::Exchange,
+    pub(crate) state: crate::installations::GitHub,
+    pub(crate) plan: Option<OwnPlan>,
 }
 
 impl Dialect {
@@ -43,13 +43,9 @@ impl Dialect {
     }
 }
 
-#[cfg_attr(
-    feature = "seam",
-    expect(clippy::must_use_candidate, reason = "the machine-world seam exposes the existing state operations")
-)]
 impl ForgeEntry {
     /// A forge as it's added: its start from its access, its dialect from its kind.
-    pub fn new(forge: Forge, limits: &Limits) -> Self {
+    pub(crate) fn new(forge: Forge, limits: &Limits) -> Self {
         let dialect = match forge.kind {
             crate::settings::Kind::Forgejo => {
                 Dialect::Forgejo { plan: None, exchange: crate::connection::forgejo::Exchange::new() }

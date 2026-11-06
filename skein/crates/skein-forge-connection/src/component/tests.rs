@@ -161,15 +161,12 @@ fn renewing() -> StepFixture {
     h.local();
     h
 }
-fn renewed_full(h: &mut StepFixture) {
-    h.minted(10800, document::Levels::NONE);
-}
-fn renewed_contents(h: &mut StepFixture) {
+fn renewed(h: &mut StepFixture) {
     h.minted(10800, document::Levels::NONE);
 }
 fn contents_renewing() -> StepFixture {
     let mut h = renewing();
-    renewed_full(&mut h);
+    renewed(&mut h);
     h.env.now = Time::from_nanos(Duration::from_secs(4140).as_nanos());
     h.env.wall = Wall::from_nanos(h.env.now.as_nanos());
     h.component.test_github_mut().fire(h.env.now);
@@ -197,12 +194,12 @@ fn call_401_coalesces_one_renewal() {
     assert!(row.full.pending && row.contents.pending);
     h.local();
 
-    renewed_full(&mut h);
+    renewed(&mut h);
     let gh = h.component.test_github();
     assert_eq!(gh.mint, Some((1, skein_forge::github::request::Scope::Contents)));
     let row = gh.rows.get(&1).expect("row");
     assert!(!row.full.pending && !row.contents.pending);
-    renewed_contents(&mut h);
+    renewed(&mut h);
     h.local();
     assert_eq!(h.tokens(), 2);
     match h.component.test_github().work {
@@ -219,7 +216,7 @@ fn call_401_coalesces_an_already_running_full_renewal() {
     refuse(&mut h, revision);
     refuse(&mut h, revision);
     assert!(!h.component.test_github().rows.get(&1).expect("row").full.pending);
-    renewed_full(&mut h);
+    renewed(&mut h);
     let gh = h.component.test_github();
     assert_eq!(gh.mint, Some((1, skein_forge::github::request::Scope::Contents)));
     assert!(!gh.rows.get(&1).expect("row").full.pending);
@@ -228,7 +225,7 @@ fn call_401_coalesces_an_already_running_full_renewal() {
 fn stale_call_401_cannot_renew_a_replaced_full() {
     let mut h = renewing();
     let old = revision(&h);
-    renewed_full(&mut h);
+    renewed(&mut h);
     refuse(&mut h, old);
     let row = h.component.test_github().rows.get(&1).expect("row");
     assert!(!row.full.pending && !row.contents.pending);
@@ -280,8 +277,8 @@ fn call_401_coalesces_an_already_running_contents_renewal() {
     let row = h.component.test_github().rows.get(&1).expect("row");
     assert!(row.full.pending);
     assert!(!row.contents.pending);
-    renewed_contents(&mut h);
-    renewed_full(&mut h);
+    renewed(&mut h);
+    renewed(&mut h);
     h.local();
     assert_eq!(h.tokens(), 2);
     assert!(h.component.test_github().mint.is_none());

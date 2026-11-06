@@ -1,4 +1,6 @@
 //! The builder's two passes and reclaim point (skein/docs/foundation/programming-model.md, 2).
+//! A pass resumes each layer at most the watermark; remaining work waits for
+//! the next pass (hearth/docs/design/domain/render.md, 8.4).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -45,6 +47,8 @@ pub struct Service {
     file_told: Queue<file::Event>,
     io_submissions: Queue<Submit>,
     file_submissions: Queue<Submit>,
+    io_completions: Queue<Complete>,
+    io_asked: Queue<io::Request>,
     io_env: Env<io::Limits>,
     protocol: Protocol,
     protocol_env: Env<protocol::limits::Limits>,
@@ -53,7 +57,7 @@ pub struct Service {
     completions: Queue<Complete>,
     submissions: Queue<Submit>,
     told: Queue<io::Event>,
-    queue_limit: u32,
+    watermark: u32,
     asked: Queue<Asked>,
     calls: Queue<Event>,
     answers: Queue<Request>,
@@ -64,10 +68,20 @@ impl Service {
     pub const fn domain(&self) -> &Builder {
         &self.domain
     }
+    /// What `told`, `file_told`, `answers` and `asked` hold (render.md, 8.4).
+    #[must_use]
+    pub fn backlog(&self) -> u32 {
+        self.told
+            .len()
+            .saturating_add(self.file_told.len())
+            .saturating_add(self.answers.len())
+            .saturating_add(self.asked.len())
+    }
     #[must_use]
     pub fn new(configuration: &Configuration, roots: Roots, call: Call, form: protocol::Form, seed: u64) -> Self {
         let limits = &configuration.limits;
-        assert!(limits.io.is_usable() && limits.queue >= 3, "usable io and queues holding every MAX_OUT");
+        assert!(limits.io.is_usable() && limits.queue > 0, "usable io and queues carrying operations");
+        assert!(limits.watermark > 0, "a watermark that admits work");
         assert!(valid(limits), "representable limits");
         let mut files = FileIo::with_whole_limit(
             limits.files.files,
@@ -92,9 +106,11 @@ impl Service {
         Self {
             io: Io::new(&limits.io),
             files,
-            file_told: Queue::with_capacity(limits.queue),
-            io_submissions: Queue::with_capacity(limits.queue),
-            file_submissions: Queue::with_capacity(limits.queue),
+            file_told: Queue::uncapped(),
+            io_submissions: Queue::uncapped(),
+            file_submissions: Queue::uncapped(),
+            io_completions: Queue::uncapped(),
+            io_asked: Queue::uncapped(),
             io_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.io },
             protocol: Protocol::new(&limits.protocol, call, form, roots, &configuration.store, seed)
                 .with_proxy(configured_proxy(configuration))
@@ -105,10 +121,10 @@ impl Service {
             completions: Queue::with_capacity(limits.queue),
             submissions: Queue::with_capacity(limits.queue),
             told: Queue::uncapped(),
-            queue_limit: limits.queue,
-            asked: Queue::with_capacity(limits.queue),
-            calls: Queue::with_capacity(limits.queue),
-            answers: Queue::with_capacity(limits.queue),
+            watermark: limits.watermark,
+            asked: Queue::uncapped(),
+            calls: Queue::uncapped(),
+            answers: Queue::uncapped(),
         }
     }
     pub fn adopt_output_pipe(&mut self, fd: Fd) -> Result<(), Fd> {
@@ -165,6 +181,8 @@ impl Service {
             && self.file_told.is_empty()
             && self.file_submissions.is_empty()
             && self.io_submissions.is_empty()
+            && self.io_completions.is_empty()
+            && self.io_asked.is_empty()
             && self.protocol.is_empty()
             && self.domain.is_empty()
             && self.completions.is_empty()
@@ -176,27 +194,31 @@ impl Service {
     }
     #[must_use]
     pub fn work_pending(&self, now: Time) -> bool {
+        let protocol_ready = self.protocol.work_pending();
+        let domain_ready = self.domain.work_pending();
         self.io.is_ready()
             || self.io.is_due(now)
             || self.files.is_due(now)
-            || !self.file_told.is_empty()
             || !self.file_submissions.is_empty()
             || !self.io_submissions.is_empty()
-            || self.protocol.work_pending()
+            || !self.io_completions.is_empty()
+            || (!self.io_asked.is_empty() && self.io.takes())
+            || protocol_ready
             || match protocol::next_deadline(&self.protocol) {
                 Some(at) => at <= now,
                 None => false,
             }
-            || match domain::next_deadline(&self.domain) {
-                Some(at) => at <= now,
-                None => false,
-            }
-            || self.domain.work_pending()
+            || (protocol_accepts_event(self) && (!self.file_told.is_empty() || !self.told.is_empty()))
+            || (domain_ready && admits(self))
+            || (!domain_ready
+                && (!self.calls.is_empty()
+                    || match domain::next_deadline(&self.domain) {
+                        Some(at) => at <= now,
+                        None => false,
+                    }))
             || !self.completions.is_empty()
-            || !self.told.is_empty()
-            || !self.asked.is_empty()
-            || !self.calls.is_empty()
-            || !self.answers.is_empty()
+            || (!self.asked.is_empty() && io_accepts_request(self))
+            || (!self.answers.is_empty() && protocol_accepts_answer(self))
     }
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
@@ -228,81 +250,52 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
     protocol_down(service);
     io_down(service);
     service.io.reclaim();
-    for _ in 0..service.submissions.capacity() {
-        if service.submissions.room() == 0 {
-            break;
-        }
+    for _ in 0..service.submissions.room() {
         if let Some(submit) = service.io_submissions.pop() {
-            service.submissions.push(tag(submit, 0));
+            service.submissions.push(submit);
         } else if let Some(submit) = service.file_submissions.pop() {
-            service.submissions.push(tag(submit, 1));
+            service.submissions.push(submit);
         } else {
             break;
         }
     }
 }
 fn io_up(service: &mut Service) {
-    for _ in 0..service.completions.capacity() {
-        if !service.io.is_ready() || !io_room(service, io::MAX_OUT_RESUME) {
-            break;
-        }
-        let marks = service.io_submissions.len();
-        io::resume(&mut service.io, &service.io_env, &mut service.told, &mut service.io_submissions);
-        io_within(service, marks, io::MAX_OUT_RESUME);
-    }
-    if service.io.is_ready() {
-        return;
-    }
-    for _ in 0..service.completions.capacity() {
-        if !io_room(service, io::MAX_OUT_UP) || service.file_told.room() < 1 || service.file_submissions.room() < 2 {
-            break;
-        }
+    for _ in 0..service.completions.len() {
         let Some(complete) = service.completions.pop() else {
             break;
         };
-        let mut complete = complete;
-        let file = complete.op.raw() & 1 == 1;
-        complete.op = skein_lib::Token::new(complete.op.raw() >> 1);
-        if file {
+        if file_layer::owns(complete.op) {
             file_layer::up(&mut service.files, complete, &mut service.file_told, &mut service.file_submissions);
-            continue;
+        } else {
+            service.io_completions.push(complete);
         }
-        let marks = service.io_submissions.len();
-        io::up(&mut service.io, &service.io_env, complete, &mut service.told, &mut service.io_submissions);
-        io_within(service, marks, io::MAX_OUT_UP);
     }
-    if service.files.is_due(service.io_env.now) && service.file_submissions.room() >= 2 {
+    io::stage::up(
+        &mut service.io,
+        &service.io_env,
+        &mut service.io_completions,
+        &mut service.told,
+        &mut service.io_submissions,
+        service.io_env.now,
+    );
+    if service.files.is_due(service.io_env.now) {
         file_layer::expire(&mut service.files, service.io_env.now, &mut service.file_submissions);
-    }
-    if !service.completions.is_empty() {
-        return;
-    }
-    for _ in 0..service.io_env.limits.sockets.saturating_mul(2) {
-        if !service.io.is_due(service.io_env.now) || !io_room(service, io::MAX_OUT_FIRE) {
-            break;
-        }
-        let marks = service.io_submissions.len();
-        io::fire(&mut service.io, &service.io_env, &mut service.told, &mut service.io_submissions);
-        io_within(service, marks, io::MAX_OUT_FIRE);
     }
 }
 fn protocol_up(service: &mut Service) {
-    if protocol_room(service, protocol::MAX_OUT_RESUME) {
-        protocol::fire(&mut service.protocol, &service.protocol_env, &mut service.calls, &mut service.asked);
-    }
-    for _ in 0..service.queue_limit {
-        if !service.protocol.work_pending() || !protocol_room(service, protocol::MAX_OUT_RESUME) {
+    protocol::fire(&mut service.protocol, &service.protocol_env, &mut service.calls, &mut service.asked);
+    for _ in 0..service.watermark {
+        if !service.protocol.work_pending() {
             break;
         }
-        let marks = (service.calls.len(), service.asked.len());
         protocol::resume(&mut service.protocol, &service.protocol_env, &mut service.calls, &mut service.asked);
-        protocol_within(service, marks, protocol::MAX_OUT_RESUME);
     }
     if service.protocol.work_pending() {
         return;
     }
-    for _ in 0..service.file_told.capacity() {
-        if service.protocol.work_pending() || !protocol_room(service, protocol::MAX_OUT_UP) {
+    for _ in 0..service.file_told.len() {
+        if !protocol_accepts_event(service) {
             break;
         }
         let Some(event) = service.file_told.pop() else {
@@ -316,14 +309,13 @@ fn protocol_up(service: &mut Service) {
             &mut service.asked,
         );
     }
-    for _ in 0..service.queue_limit {
-        if service.protocol.work_pending() || !protocol_room(service, protocol::MAX_OUT_UP) {
+    for _ in 0..service.told.len() {
+        if !protocol_accepts_event(service) {
             break;
         }
         let Some(event) = service.told.pop() else {
             break;
         };
-        let marks = (service.calls.len(), service.asked.len());
         protocol::up(
             &mut service.protocol,
             &service.protocol_env,
@@ -331,64 +323,53 @@ fn protocol_up(service: &mut Service) {
             &mut service.calls,
             &mut service.asked,
         );
-        protocol_within(service, marks, protocol::MAX_OUT_UP);
     }
 }
 fn domain_stage(service: &mut Service) {
-    for _ in 0..service.calls.capacity() {
-        if !service.domain.work_pending() || service.answers.room() < domain::MAX_OUT_RESUME {
+    for _ in 0..service.watermark {
+        if !service.domain.work_pending() || !admits(service) {
             break;
         }
-        let before = service.answers.len();
         domain::resume(&mut service.domain, &service.domain_env, &mut service.answers);
-        within(before, service.answers.len(), domain::MAX_OUT_RESUME);
     }
     if service.domain.work_pending() {
         return;
     }
-    for _ in 0..service.calls.capacity() {
-        if service.answers.room() < domain::MAX_OUT {
-            break;
-        }
+    for _ in 0..service.calls.len() {
         let Some(event) = service.calls.pop() else {
             break;
         };
-        let before = service.answers.len();
         domain::step(&mut service.domain, &service.domain_env, event, &mut service.answers);
-        within(before, service.answers.len(), domain::MAX_OUT);
     }
-    if service.calls.is_empty() && service.answers.room() >= domain::MAX_OUT {
+    if service.calls.is_empty() {
         domain::fire(&mut service.domain, &service.domain_env, &mut service.answers);
     }
 }
 fn protocol_down(service: &mut Service) {
-    for _ in 0..service.answers.capacity() {
-        if !service.protocol.takes() || !protocol_room(service, protocol::MAX_OUT_DOWN) {
+    for _ in 0..service.answers.len() {
+        if !protocol_accepts_answer(service) {
             break;
         }
         let Some(request) = service.answers.pop() else {
             break;
         };
-        let marks = (service.calls.len(), service.asked.len());
         protocol::down(&mut service.protocol, &service.protocol_env, request, &mut service.calls, &mut service.asked);
-        protocol_within(service, marks, protocol::MAX_OUT_DOWN);
     }
 }
 fn io_down(service: &mut Service) {
-    for _ in 0..service.asked.capacity() {
-        if !service.io.takes()
-            || !service.files.takes()
-            || service.file_told.room() < 1
-            || service.file_submissions.room() < 2
-            || !io_room(service, io::MAX_OUT_DOWN)
-        {
+    io::stage::down(&mut service.io, &service.io_env, &mut service.io_asked, &mut service.io_submissions);
+    for _ in 0..service.asked.len() {
+        if !io_accepts_request(service) {
             break;
         }
         let Some(request) = service.asked.pop() else {
             break;
         };
-        let request = match request {
-            Asked::Io(request) => request,
+        match request {
+            Asked::Io(request) => {
+                service.io_asked.push(request);
+                io::stage::down(&mut service.io, &service.io_env, &mut service.io_asked, &mut service.io_submissions);
+            }
             Asked::Beneath(request) => {
                 let request = beneath(&service.files, request);
                 file_layer::down(
@@ -398,7 +379,6 @@ fn io_down(service: &mut Service) {
                     &mut service.file_told,
                     &mut service.file_submissions,
                 );
-                continue;
             }
             Asked::File(request) => {
                 file_layer::down(
@@ -408,40 +388,22 @@ fn io_down(service: &mut Service) {
                     &mut service.file_told,
                     &mut service.file_submissions,
                 );
-                continue;
             }
-        };
-        let marks = service.io_submissions.len();
-        io::down(&mut service.io, &service.io_env, request, &mut service.io_submissions);
-        io_within(service, marks, io::MAX_OUT_DOWN);
+        }
     }
 }
-fn io_room(service: &Service, max: io::MaxOut) -> bool {
-    service.io_submissions.room() >= max.submissions
+fn protocol_accepts_event(service: &Service) -> bool {
+    !service.protocol.work_pending()
 }
-fn protocol_room(service: &Service, max: protocol::MaxOut) -> bool {
-    service.calls.room() >= max.above && service.asked.room() >= max.below
+fn protocol_accepts_answer(service: &Service) -> bool {
+    service.protocol.takes()
 }
-fn io_within(service: &Service, down: u32, max: io::MaxOut) {
-    within(down, service.io_submissions.len(), max.submissions);
+fn io_accepts_request(service: &Service) -> bool {
+    service.io_asked.is_empty() && service.files.takes()
 }
-fn protocol_within(service: &Service, (up, down): (u32, u32), max: protocol::MaxOut) {
-    within(up, service.calls.len(), max.above);
-    within(down, service.asked.len(), max.below);
-}
-fn within(before: u32, after: u32, max: u32) {
-    assert!(after.checked_sub(before).expect("steps add to outputs") <= max, "an entry point keeps its MAX_OUT");
-}
-fn tag(mut submit: Submit, file: u64) -> Submit {
-    submit.op = skein_lib::Token::new(
-        submit.op.raw().checked_mul(2).expect("operation tag room").checked_add(file).expect("tag fits"),
-    );
-    if let io::kernel::Op::Cancel { target } = &mut submit.kind {
-        *target = skein_lib::Token::new(
-            target.raw().checked_mul(2).expect("operation tag room").checked_add(file).expect("tag fits"),
-        );
-    }
-    submit
+/// Whether the domain's next resume may run: the backlog is under the watermark (render.md, 8.5).
+fn admits(service: &Service) -> bool {
+    service.backlog() < service.watermark
 }
 #[cfg(test)]
 mod tests;

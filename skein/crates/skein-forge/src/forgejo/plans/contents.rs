@@ -312,13 +312,17 @@ impl Plan {
         sides.changed.push(file).or(Err(api::Error::TooLarge))?;
         Ok(sides)
     }
-    #[expect(clippy::manual_let_else, reason = "document kinds are matched exhaustively at the exchange boundary")]
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        clippy::manual_let_else,
+        reason = "the exchange's decoder picks the kind: forge.status.md, 4.2"
+    )]
     fn done(&mut self, state: State, body: Option<Body>, bounds: Bounds) -> Result<(State, Step), api::Error> {
         match state {
             State::Pull { number, head, page, changed, files } => {
-                let pull = match body {
-                    Some(Body::Document(d::Document::Pull(pull))) => pull,
-                    Some(_) | None => return Err(api::Error::InvalidAnswer),
+                let pull = match document(body)? {
+                    d::Document::Pull(pull) => pull,
+                    _ => return Err(api::Error::InvalidAnswer),
                 };
                 if reading::commit(pull.head.sha.ok_or(api::Error::InvalidAnswer)?, self.row.object_format)
                     .ok_or(api::Error::InvalidAnswer)?
@@ -475,15 +479,24 @@ impl Plan {
         (State::Ended, Step::Done(Ok(answer)))
     }
 }
+#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
 fn listed(body: Option<Body>) -> Result<(), api::Error> {
-    match body {
-        Some(Body::Document(d::Document::Listed { .. })) => Ok(()),
-        Some(_) | None => Err(api::Error::InvalidAnswer),
+    match document(body)? {
+        d::Document::Listed { .. } => Ok(()),
+        _ => Err(api::Error::InvalidAnswer),
     }
 }
+#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
 fn comparison(body: Option<Body>) -> Result<d::Compare, api::Error> {
+    match document(body)? {
+        d::Document::Compare(value) => Ok(value),
+        _ => Err(api::Error::InvalidAnswer),
+    }
+}
+
+fn document(body: Option<Body>) -> Result<d::Document, api::Error> {
     match body {
-        Some(Body::Document(d::Document::Compare(value))) => Ok(value),
-        Some(_) | None => Err(api::Error::InvalidAnswer),
+        Some(Body::Document(document)) => Ok(document),
+        Some(Body::Empty | Body::Raw { .. } | Body::Malformed(_)) | None => Err(api::Error::InvalidAnswer),
     }
 }

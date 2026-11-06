@@ -427,6 +427,15 @@ to the forge; a timer to the child that armed it. What temper adds:
   translates its bounded answer through the fresh-read door; it makes no
   visibility decision. Escalations name the held task and hold revision and
   tell the recipient to use `read_task` for its source facts and hold account.
+- **A task read's room.** The root names the room with the read: the local
+  agent's `host_reply_text`, within `core.call_answer_bytes` and within
+  `root.journal.transcript_bytes` less the most the answer's metadata can
+  take, since the door takes no delivery past that bound. A process with no
+  local agent's metadata (`agent.md`, 4.3) names `documents.text_bytes`: it
+  does not know its agents' reply bound, and an answer past that bound reaches
+  its run as smith's `TooLarge` at every offset. A read holds its words, at
+  most that room and no more than the source has left, and its metadata, from
+  jig's answer until it is rendered; `fleet.calls` bounds the reads held at once.
 - **Rendered by hand-out.** A decided call's answer goes out to be
   rendered (`HostDelivery::Render`) and comes back as smith takes it; the
   core keeps the rendered answer with the call's record, so a call asked

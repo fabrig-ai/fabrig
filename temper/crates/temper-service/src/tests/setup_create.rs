@@ -13,12 +13,12 @@ pub(super) struct Forge {
     env: Env<fake::Limits>,
     pub(super) git: git::Domain,
     pub(super) config: git::Config,
-    socket: Option<(Token, bool)>,
+    pub(super) socket: Option<(Token, bool)>,
     server: Option<fake::Server>,
     pipe: Pipe,
     events: Queue<fake::Event>,
     down: Queue<Down>,
-    requests: List<Box<[u8]>>,
+    pub(super) requests: List<Box<[u8]>>,
 }
 impl Forge {
     pub(super) fn new(refuse_file: bool) -> Self {

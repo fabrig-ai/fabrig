@@ -11,8 +11,6 @@ use limits::Limits;
 pub use plan::{How, Plan, Planned, Step};
 use skein_lib::{Env, Queue};
 use vocabulary::{Answer, Event, Inputs, Output, Request, Why};
-/// One request or terminal per event.
-pub const MAX_OUT: u32 = 1;
 /// What the store was asked of the layer in hand, and has not yet answered.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Asked {
