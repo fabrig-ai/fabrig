@@ -20,3 +20,42 @@ id = 1
 story = "every finding is done or skipped with a reason, each new pin goes red when its rule breaks, and net lines fall"
 parts = ["spot-review"]
 walk = false
+
+[[part]]
+id = "conformance"
+title = "the Application trait drops what nothing reads and the kit takes the peers it can; D030 stays open, saying what stands in the way (jig D030)"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/testing.md, 5"
+
+[[slice]]
+id = 2
+story = "four adopters run the same scenarios on a 19-function trait, with every assertion but the declared recovery class's unchanged"
+parts = ["conformance"]
+walk = false
+
+[[part]]
+id = "replay"
+title = "a resumed cut compares as typed state, the alert story's cuts share one baseline, and the observer builds no view when nothing committed (jig D034)"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/testing.md, 5"
+
+[[slice]]
+id = 3
+story = "a resumed cut's mismatch names its first different field; the alert story runs seven times, not twelve; D034 keeps only the row feed"
+parts = ["replay"]
+walk = false
+
+[[part]]
+id = "numbers"
+title = "each world names its fixtures once and calls its common acts by name; D035's Measure reads 2 and the item goes (jig D035)"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/testing.md, 7"
+
+[[slice]]
+id = 4
+story = "every world's tests pass with the same expected values, reading names where they read numbers, and the test lines fall by about 200"
+parts = ["numbers"]
+walk = false
