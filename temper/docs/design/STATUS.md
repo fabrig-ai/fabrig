@@ -258,7 +258,11 @@ only some directories it names all three `TEMPER_` values; and
 `temper forge run`'s refusal and the terminal's `temper open` still say plain `temper` (`client/README.md`). The welcome's try of a model draws Model's line in
 Ready's pane from the host's check and then a trial through the worker and model, with
 its line on Accounts and, failed, on Home (`domain/trial.md`). The gallery lacks the
-account's stopped sample and Ready's trial states (`client/browser.md`). Model's line departs from the request `model-check-pane` in its list's words (`client/README.md`). A plan's sign-in opens a new tab while the page holds and
+account's stopped sample and Ready's trial states (`client/browser.md`). Simultaneous
+usable accounts can lose a trial request, and account rows share one task's wait
+reason (`domain/trial.md`). The pane lacks the draft's "one short message" spend
+notice and its Model-step line (`draft/model-check.md`); no outcome of the required
+real-account trial walk is supplied for retirement. Model's line departs from the request `model-check-pane` in its list's words (`client/README.md`). A plan's sign-in opens a new tab while the page holds and
 moves on by itself, but only Chromium has run that, against a fake issuer, and no test has a slow sign-in move on after a
 hidden tab, or a paste's end on the welcome. It draws the waiting page of the request
 `sign-in-new-tab`; the page departs from the request in the terminal's words

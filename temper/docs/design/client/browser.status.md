@@ -20,6 +20,8 @@ keeps it; publication is not a cutoff on a handed change's commit.
   samples (starting, answering, answered, stopped-starting, stopped-answering,
   waiting, waited, plan and key) are not in the gallery. Its Ready samples
   cover the host's check alone; the view's tests draw the trial states.
+  The model-check plan's close added the catalogue rows in section 7.2,
+  but not their sample fixtures or names. `home-try-stopped` is present.
 - **Not yet:** 8.4: the retained public row geometry story at 1440 px and 420 px
   (`public_board_and_task_lines_are_readable_at_desktop_and_phone_widths`)
   is compiled, with the current rows' executor and spend rules. Its runtime
