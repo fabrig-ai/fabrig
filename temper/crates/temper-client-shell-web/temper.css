@@ -659,8 +659,8 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   .temper-agent-page:not(:has(> .temper-agent-lineage)) .temper-taskbar > div:last-child { gap: 21px; }
   .temper-agent-page .temper-taskbar > div:last-child > * { flex: none; }
   .temper-agent-page .temper-taskbar [role=status] { max-width: none; white-space: nowrap; overflow-wrap: normal; }
-  /* The mockup hides the narrow status and spend, keeping the title and acts. */
-  .temper-agent-page .temper-taskbar > div:first-child > [role=status] { display: none; }
+  /* A narrow bar keeps a quiet status beside the title; spend stays hidden. */
+  .temper-agent-page .temper-taskbar > div:first-child > [role=status]:not(.temper-status-quiet) { display: none; }
   .temper-agent-page .temper-taskbar > div:last-child > p { display: none; }
   .temper-agent-page .temper-turn > .temper-work, .temper-agent-page .temper-turn > .temper-task-card { margin-left: 0; }
   .temper-agent-page .temper-task-card > .temper-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1272,6 +1272,8 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-home .temper-home-ledes > a:hover { text-decoration-color: var(--gf-ink); }
 
 /* ==== ui: chats ==== */
+/* A message's effect stays visible where keyboard instructions are hidden. */
+#app > .temper-session .temper-session-foot > .temper-session-hint.temper-hint { display: block; align-self: stretch; white-space: normal; }
 /* close-chat: a confirmation asks in a sentence, says only what will change, and names its acts. */
 #app dialog.temper-confirm { margin: auto; display: flex; flex-direction: column; gap: 16px; width: min(460px, calc(100% - 32px)); padding: 24px 26px; border: 0; border-radius: 14px; background: var(--gf-surface); color: var(--gf-ink); box-shadow: 0 24px 64px rgba(24, 24, 27, .22); font: 15px/1.55 var(--gf-sans); }
 #app dialog.temper-confirm::backdrop { background: rgba(24, 24, 27, .32); }
@@ -1789,7 +1791,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app:has(> .temper-rail) .temper-goals-row-ended .temper-goals-line { color: var(--gf-muted); }
 #app:has(> .temper-rail) .temper-goals-state-needs { color: var(--gf-signal); }
 #app:has(> .temper-rail) .temper-goals-state-running, #app:has(> .temper-rail) .temper-goals-state-planning { color: var(--gf-good); }
-#app:has(> .temper-rail) .temper-goals-state-landed, #app:has(> .temper-rail) .temper-goals-state-stopped, #app:has(> .temper-rail) .temper-goals-state-paused { color: var(--gf-faint); }
+#app:has(> .temper-rail) .temper-goals-state-landed, #app:has(> .temper-rail) .temper-goals-state-closed, #app:has(> .temper-rail) .temper-goals-state-paused { color: var(--gf-faint); }
 #app:has(> .temper-rail) .temper-goals-filters { display: inline-flex; gap: 2px; padding: 3px; border-radius: 9px; background: var(--gf-hover); }
 #app:has(> .temper-rail) .temper-goals-filters button { padding: 5px 12px; border: 0; border-radius: 7px; background: none; font-size: 13px; color: var(--gf-muted); }
 #app:has(> .temper-rail) .temper-goals-filters button[aria-pressed=true] { background: var(--gf-surface); color: var(--gf-ink); font-weight: 500; box-shadow: 0 1px 2px rgba(0, 0, 0, .08); }
@@ -1923,10 +1925,6 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-session .temper-doc-inner td > strong,
 #app > .temper-session .temper-doc-inner td > span > strong { font-size: 14.5px; font-weight: 500; letter-spacing: normal; text-transform: none; color: var(--gf-ink); white-space: nowrap; }
 #app > .temper-session .temper-doc-inner td { color: var(--gf-ink-2); }
-#app > .temper-session .temper-doc-figures { margin: 4px 0 12px; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
-#app > .temper-session .temper-doc-figures > div { padding: 12px 14px; border: 1px solid var(--gf-line); border-radius: 10px; background: var(--gf-paper); }
-#app > .temper-session .temper-doc-figures [role=term] { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--gf-muted); }
-#app > .temper-session .temper-doc-figures [role=definition] { margin: 2px 0 0; font-size: 14.5px; line-height: 1.5; color: var(--gf-ink); }
 #app > .temper-session .temper-doc-flow ul { padding-left: 0; list-style: none; }
 #app > .temper-session .temper-doc-flow ol { padding-left: 20px; }
 

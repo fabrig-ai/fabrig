@@ -1554,7 +1554,7 @@ fn goal_facts(w: World) -> &'static [GoalFacts] {
             GoalFacts {
                 number: 107,
                 title: "The process documents, read aloud",
-                state: GoalState::Stopped,
+                state: GoalState::Closed,
                 done: 0,
                 total: 1,
                 headline: None,
@@ -1630,7 +1630,7 @@ fn goal_facts(w: World) -> &'static [GoalFacts] {
     }
 }
 fn goal_ended(f: &GoalFacts) -> bool {
-    matches!(f.state, GoalState::Landed | GoalState::Stopped | GoalState::Failed)
+    matches!(f.state, GoalState::Landed | GoalState::Closed | GoalState::Failed)
 }
 fn goal_in_sample(f: &GoalFacts, name: Option<&str>) -> bool {
     match name {
@@ -1691,9 +1691,9 @@ fn goal_line(w: World, f: &GoalFacts) -> c::TaskLine {
         GoalState::Landed => {
             details.ending = Some(c::ChipEnding::Done(c::ResultValue::Report(doc("Landed."))));
         }
-        GoalState::Stopped => {
+        GoalState::Closed => {
             details.ending = Some(c::ChipEnding::Cancelled {
-                reason: doc("Stopped by you."),
+                reason: doc("Closed by you."),
                 result: None,
                 by: c::Requester::Person(73),
                 at: offset(w, f.at),
@@ -1924,7 +1924,7 @@ fn page_goal(name: Option<&str>) -> Option<GoalPage> {
                 ("Ready page’s Open Default", c::Phase::Waiting, -12),
             ],
         },
-        "goal-needs-question" | "goal-stopped" => GoalPage {
+        "goal-needs-question" | "goal-closed" => GoalPage {
             facts: GoalFacts {
                 number: 118,
                 title: "welcome-stall",
@@ -1988,8 +1988,8 @@ fn page_goal(name: Option<&str>) -> Option<GoalPage> {
         "goal-needs-funds" => page.facts.state = GoalState::Needs { funds: true },
         "goal-paused" => page.facts.state = GoalState::Paused,
         "goal-no-report" => page.facts.headline = None,
-        "goal-stopped" => {
-            page.facts.state = GoalState::Stopped;
+        "goal-closed" => {
+            page.facts.state = GoalState::Closed;
             page.facts.headline = None;
         }
         "goal-failed" => page.facts.state = GoalState::Failed,
@@ -2052,8 +2052,8 @@ impl GoalPage {
                 GoalState::Landed => c::ChipEnding::Done(c::ResultValue::Report(doc(
                     "Landed whole at 01:12: two tasks and one journey print.",
                 ))),
-                GoalState::Stopped => c::ChipEnding::Cancelled {
-                    reason: doc("Stopped by you."),
+                GoalState::Closed => c::ChipEnding::Cancelled {
+                    reason: doc("Closed by you."),
                     result: None,
                     by: c::Requester::Person(73),
                     at: task.changed,
@@ -3406,6 +3406,7 @@ fn accounts(w: World, then: Then) -> c::Accounts {
             | Then::Working
             | Then::DelegatedGoal
             | Then::HeldChange
+            | Then::Paused
             | Then::HeldTask
             | Then::Filled
             | Then::Refused
@@ -3416,6 +3417,7 @@ fn accounts(w: World, then: Then) -> c::Accounts {
             | Then::Sheet(_)
             | Then::Rejecting
             | Then::Held
+            | Then::TaskPaused
             | Then::Releasing
             | Then::SigningIn
             | Then::Paste(_)
@@ -3771,6 +3773,37 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
             inputs: List::with_capacity(0),
         });
     }
+    if then == Then::Paused {
+        let hold = c::ChipHold {
+            placed: Some(c::PlacedHold {
+                number: 1,
+                owner: c::HoldOwner::Party { person: frame(w, false, false).party.number },
+                mode: c::HoldMode::Stop,
+                scope: c::HoldScope::Subtree { task },
+                reason: Box::new([]),
+                placed_at: now(w),
+                revision: c::Revision { value: 2 },
+                lifted: false,
+                may_lift: true,
+            }),
+            words: None,
+            circle: None,
+            account: None,
+            source: None,
+            reason: c::HoldCategory::Stopped,
+            revision: 7,
+            before: c::PriorPhase::Active(c::RunStage::Idle),
+            escalation: None,
+            tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+            hold_wait_since: None,
+        };
+        t.hold = Some(Box::new(hold.clone()));
+        t.chip.phase = c::Phase::Held;
+        let (phase, details) = owner(&mut t.chip);
+        *phase = c::ChipPhase::Held { reason: hold.reason, revision: hold.revision };
+        details.hold = Some(hold);
+        t.acts = offers(&[c::ActKind::Release, c::ActKind::Stop, c::ActKind::Message, c::ActKind::Cancel]);
+    }
     if then == Then::Working {
         let (phase, _) = owner(&mut t.chip);
         *phase = c::ChipPhase::Active(c::RunStage::Due);
@@ -3818,6 +3851,41 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
             })
             .expect("release");
     }
+    if then == Then::TaskPaused {
+        t.priority = None;
+        t.flags.conversation = false;
+        t.flags.listed = true;
+        t.chip.executor = c::ChipExecutor::Agent { charter: 1 };
+        let hold = c::ChipHold {
+            placed: Some(c::PlacedHold {
+                number: 1,
+                owner: c::HoldOwner::Party { person: 73 },
+                mode: c::HoldMode::Stop,
+                scope: c::HoldScope::Subtree { task },
+                reason: Box::default(),
+                placed_at: now(w),
+                revision: c::Revision { value: 1 },
+                lifted: false,
+                may_lift: true,
+            }),
+            words: None,
+            circle: None,
+            account: None,
+            source: None,
+            reason: c::HoldCategory::Stopped,
+            revision: 1,
+            before: c::PriorPhase::Active(c::RunStage::Idle),
+            escalation: None,
+            tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+            hold_wait_since: None,
+        };
+        t.hold = Some(Box::new(hold.clone()));
+        t.chip.phase = c::Phase::Held;
+        let (phase, details) = owner(&mut t.chip);
+        *phase = c::ChipPhase::Held { reason: hold.reason, revision: hold.revision };
+        details.hold = Some(hold);
+        t.acts = offers(&[c::ActKind::Amend, c::ActKind::Release, c::ActKind::Cancel]);
+    }
     if let Then::Sheet(kind) = then {
         match kind {
             Confirmation::CloseWork | Confirmation::CloseFailed | Confirmation::Closed if task == 6 => {
@@ -3860,7 +3928,7 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
                     })));
                 }
             }
-            Confirmation::CancelTask | Confirmation::StopTask if task == 3 => {
+            Confirmation::CloseTask if task == 3 => {
                 t.priority = None;
                 t.flags.conversation = false;
                 t.flags.listed = true;
@@ -3912,8 +3980,7 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
             | Confirmation::CloseProposal
             | Confirmation::Closed
             | Confirmation::StartOver
-            | Confirmation::CancelTask
-            | Confirmation::StopTask
+            | Confirmation::CloseTask
             | Confirmation::Accept
             | Confirmation::Reject
             | Confirmation::ReleaseUncertain => {}

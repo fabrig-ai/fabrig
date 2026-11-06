@@ -427,7 +427,7 @@ pub enum State {
     Planning,
     Running,
     Landed,
-    Stopped,
+    Closed,
     Failed,
 }
 /// First match wins (temper/docs/design/client/README.md, 3.5, Goals).
@@ -449,7 +449,7 @@ pub fn state(chip: &c::Chip, needs: bool, report: bool, delegates_total: u32) ->
         c::ChipPhase::Ended => {
             return match &chip.details.details.ending {
                 Some(c::ChipEnding::Done(_)) => State::Landed,
-                Some(c::ChipEnding::Cancelled { .. }) => State::Stopped,
+                Some(c::ChipEnding::Cancelled { .. }) => State::Closed,
                 Some(c::ChipEnding::Failed(_)) | None => State::Failed,
             };
         }
@@ -477,14 +477,14 @@ pub fn shown(filter: GoalsFilter, state: State) -> bool {
         GoalsFilter::All => true,
         GoalsFilter::Needs => match state {
             State::Needs { .. } => true,
-            State::Paused | State::Planning | State::Running | State::Landed | State::Stopped | State::Failed => false,
+            State::Paused | State::Planning | State::Running | State::Landed | State::Closed | State::Failed => false,
         },
         GoalsFilter::Live => match state {
             State::Paused | State::Planning | State::Running => true,
-            State::Needs { .. } | State::Landed | State::Stopped | State::Failed => false,
+            State::Needs { .. } | State::Landed | State::Closed | State::Failed => false,
         },
         GoalsFilter::Ended => match state {
-            State::Landed | State::Stopped | State::Failed => true,
+            State::Landed | State::Closed | State::Failed => true,
             State::Needs { .. } | State::Paused | State::Planning | State::Running => false,
         },
     }
