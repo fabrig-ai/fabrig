@@ -18,3 +18,6 @@ it in line.
 
 **`look-round-12` draws; this plan feeds.** No rule of `temper.css` and no node order of Model's line moves here. A state
 the pages have is drawn as they have it.
+
+**The fake-backend walks' binary:** `temper/crates/temper/tests/fake_backends/**` is compiled into `temper`'s `process` test,
+so `heavy cargo nextest run -p temper --test process`. Where a spec says `--test fake_backends`, it means this.
