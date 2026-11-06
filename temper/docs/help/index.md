@@ -113,3 +113,8 @@ supply; a walk names any other in its `Before you start`.
 - `ROLE`: a role's number, as `project show` prints it.
 - `PROPOSAL`: a proposal, as a read prints it: `t41/3`, task 41's
   third, or `p2/1`, party 2's first.
+
+## temper's own way
+
+- `temper help how-temper-builds-temper`: how temper builds itself, one
+  way among many, each of its parts yours to set.

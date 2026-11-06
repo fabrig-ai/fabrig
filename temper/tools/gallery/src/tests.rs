@@ -94,6 +94,7 @@ struct Holds {
     parts: &'static [Part],
 }
 enum Part {
+    Pressed { name: &'static str },
     Text { text: &'static str },
     Named { role: Role, name: &'static str },
     Described { role: Role, name: &'static str, description: &'static str },
@@ -1730,6 +1731,26 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "configure-reference",
+        heading: "Configure temper",
+        parts: &[
+            Part::Named { role: Role::Group, name: "How temper builds temper, beside the chat" },
+            Part::Pressed { name: "Split" },
+            Part::Named { role: Role::Region, name: "How temper builds temper" },
+            Part::Text { text: "Figures to come." },
+        ],
+    },
+    Holds {
+        name: "configure-reference-draft",
+        heading: "Configure temper",
+        parts: &[
+            Part::Named { role: Role::Group, name: "How temper builds temper, beside the chat" },
+            Part::Pressed { name: "Draft" },
+            Part::Named { role: Role::Region, name: "How temper builds temper" },
+            Part::Text { text: "Figures to come." },
+        ],
+    },
+    Holds {
         name: "configure-typing",
         heading: "Configure temper",
         parts: &[
@@ -2627,6 +2648,14 @@ fn each_state_holds_what_its_name_says() {
         let mut described = tree.nodes().iter();
         for part in row.parts {
             match part {
+                Part::Pressed { name } => {
+                    let id = find(tree, Role::Button, name, sample.name);
+                    assert!(
+                        tree.find(id).expect("mode button").states.as_slice().contains(&skein_ui::State::Pressed),
+                        "{}: {name} pressed",
+                        sample.name
+                    );
+                }
                 Part::Text { text } => {
                     assert!(has_text(tree, text), "{}: missing text {text:?}", sample.name);
                 }
