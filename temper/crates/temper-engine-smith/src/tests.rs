@@ -263,6 +263,47 @@ fn a_report_run_cannot_modify_without_delivery() {
     assert!(charter.grants.tools.inspect);
 }
 
+fn delivering_assignment() -> engine::Assignment {
+    let mut assignment = assignment();
+    assignment.run.policy.modify = true;
+    assignment.workspace.repositories = Box::new([engine::ForgeRepository {
+        delivers: true,
+        save: Some(b"temper/23/s23".as_slice().into()),
+        tag: 1,
+        provider: skein_forge::api::Repository { forge: 1, repository: 1 },
+        name: b"repo".as_slice().into(),
+        host: b"forge.example".as_slice().into(),
+        owner: b"org".as_slice().into(),
+        start: engine::ForgeStart::Base(b"temper/23/g23".as_slice().into()),
+        push: Some(b"temper/23/r23".as_slice().into()),
+        landing: None,
+        identity: 1,
+    }]);
+    assignment
+}
+
+#[test]
+fn a_report_run_delivers_its_repository_with_checks_and_keeps_its_report_outcome() {
+    let charter = crate::charter(&delivering_assignment());
+    assert_eq!(charter.mode, run::Mode::Finite);
+    let deliver = charter.grants.deliver.expect("the workspace delivers");
+    assert!(deliver.checks_must_pass);
+    assert!(charter.grants.tools.modify);
+    assert_eq!(charter.conventions.expect("repository conventions").checks.as_ref(), b".temper/pre-pr");
+    assert!(charter.outcome.change.is_none());
+    assert!(charter.outcome.report.is_some());
+}
+
+#[test]
+fn an_open_run_cannot_deliver_its_repository() {
+    let mut assignment = delivering_assignment();
+    assignment.run.ended_by = tasks::EndedBy::Requester;
+    let charter = crate::charter(&assignment);
+    assert_eq!(charter.mode, run::Mode::Open);
+    assert!(charter.grants.deliver.is_none());
+    assert!(!charter.grants.tools.modify);
+}
+
 #[test]
 fn an_open_run_cannot_modify_even_when_policy_requests_it() {
     let mut assignment = assignment();
