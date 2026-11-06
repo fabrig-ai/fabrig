@@ -761,3 +761,26 @@ fn repository_identities_share_settings_pagination_and_stay_out_of_other_reads()
     assert!(error);
     assert_eq!(unknown.as_ref(), b"unknown\nend\n", "context belongs only to an inventory");
 }
+
+#[test]
+fn a_settings_note_source_requires_one_positive_revision_and_no_inline_items() {
+    let call = decided(b"propose_settings", br#"{"against":2,"reason":"whole","note":{"name":8,"revision":3}}"#)
+        .expect("note source");
+    assert_eq!(
+        call.tool,
+        engine::Tool::ProposeSettingsNote { against: 2, note: 8, revision: 3, reason: b"whole".as_slice().into() }
+    );
+    for (input, why) in [
+        (
+            br#"{"against":1,"reason":"whole","note":{"name":8,"revision":3},"items":[]}"#.as_slice(),
+            Problem::Range(b"items"),
+        ),
+        (br#"{"against":1,"reason":"whole"}"#, Problem::Missing(b"items")),
+        (br#"{"against":1,"reason":"whole","note":{"name":0,"revision":3}}"#, Problem::Range(b"name")),
+        (br#"{"against":1,"reason":"whole","note":{"name":8,"revision":0}}"#, Problem::Range(b"revision")),
+        (br#"{"against":1,"reason":"whole","note":{"name":8}}"#, Problem::Missing(b"revision")),
+        (br#"{"against":1,"reason":"whole","note":{"name":8,"revision":3,"body":"x"}}"#, Problem::Range(b"note")),
+    ] {
+        assert_eq!(decided(b"propose_settings", input).unwrap_err(), why);
+    }
+}

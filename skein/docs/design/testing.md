@@ -346,7 +346,7 @@ tests/conformance/sim           the suite against the simulator, skein-conforman
 tests/conformance/real          the suite against the real kernel's backends, the ring and the readiness backend, skein-conformance-real
 tests/json                      the JSON tokenizer's machine worlds, the writer against it, and their peaks under scenario ceilings with the counting allocator, skein-json-world
 tests/json/transcripts          its transcripts, each with what it must decode to
-tests/http                      the HTTP client's and server's and the event stream reader's and writer's machine worlds, a reference reader of each, the client and the reader stacked with JSON, and their peaks under scenario ceilings with the counting allocator, skein-http-world
+tests/http                      the HTTP client's and server's and the event stream reader's and writer's machine worlds, each read by a reference reader of `skein-http-kit`, the client and the reader stacked with JSON, and their peaks under scenario ceilings with the counting allocator, skein-http-world
 tests/http/transcripts          its transcripts, responses and, in requests/, requests, each with what it must decode to
 tests/protocol                  the protocol worlds: an LLM client's stack against a server's, joined by bytes cut at random, skein-protocol-world
 tests/llm                       skein-llm's subscription protocol worlds, fragmentation and fault sweeps, and bounds against the counting allocator, skein-llm-world
@@ -383,7 +383,7 @@ examples/echo/*                 the echo: its domain, protocol layer, service an
 examples/ui/*                   the UI example: its view, its browser shell and its server, a crate each (examples.md, 9)
 ```
 
-**A world's library is its own.** No package, in any tree, depends on a package under a tree's `tests/`: what a second crate needs from a world lives in a kit under `testing/` (testing-strategy.md, 7), and the world's own suite reads it through its library, which re-exports the kit. No `#[path]` reaches outside its package. `tests/boundary/tests/skein_worlds.rs` holds both.
+**A world's library is its own.** No package, in any tree, depends on a package under `skein/tests/`: what a second crate needs from a world lives in a kit under `testing/` (testing-strategy.md, 7), and the world's own suite reads it through its library, which re-exports the kit. No `#[path]` under `skein/` reaches outside its package. `tests/boundary/tests/skein_worlds.rs` holds both.
 
 No crate under `crates/` has a `tests/` directory: its step tests are
 in `src/`, and whatever drives it from outside is a crate under `tests/`,
@@ -392,8 +392,8 @@ the peers' tests and the checkout's are crates under `tests/`, and the
 protocol layer's fixtures are in its `src/tests/`. Such a crate is ordinary Rust (programming-model.md,
 10.2): what its test binaries share is its library, in `src/` (the
 simulator's harness and its scripted exchange, a backend of the suite,
-the naive functions lib is compared with, a machine's world and the
-reference parser it is checked against),
+the naive functions lib is compared with, a machine's world and,
+through the kit it re-exports, the reference parser it is checked against),
 and its tests share the `suite` binary: focused modules under
 `tests/suite/`, seeded sweeps under `tests/suite/fuzzy/`.
 `tests/clippy.toml` bans what would
@@ -491,6 +491,15 @@ What of this document is not built is in [`testing.status.md`](testing.status.md
   other, would need the hand-off counted.
 - **The real loop in CI and sanitizers on the ring adapter** are the
   shell's (shell.md, 10).
+- **A fixture a crate's unit tests and a world both read** (6). No `#[path]`
+  crosses a package, and a kit would give a second copy of the crate's types,
+  so the dialect world holds its own
+  (`skein/tests/forge/dialect/tests/common/admitted.rs`) beside the crate's.
+  Default: the copy stays.
+- **Helpers beside the forge kit's** (6):
+  `skein/tests/fake-peers/tests/forge/fixtures.rs` and
+  `temper/tests/engine/protocol-forge/src/fixtures.rs` repeat some of
+  `skein_forge_kit::fixtures`. Default: they stay, until a debt item names them.
 
 ## 10. The portable target
 
