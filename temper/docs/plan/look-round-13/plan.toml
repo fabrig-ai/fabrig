@@ -36,3 +36,23 @@ id = 1
 story = "The pieces every connect page and the sheet stand on: the rules, a dismissal, a welcome with one way back"
 parts = ["look", "dismiss", "welcome"]
 walk = false
+
+[[part]]
+id = "model"
+title = "Connect a model takes the welcome's cards and panels, and lands on Accounts"
+mode = "direct"
+needs = ["look"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "forge"
+title = "Connect a forge takes the welcome's cards and panels, and sets up in the row"
+mode = "direct"
+needs = ["look"]
+design = "temper/docs/design/client/forge.md, 5.4"
+
+[[slice]]
+id = 2
+story = "A person connects a model and a forge from Settings on the welcome's cards, and lands on the row they added"
+parts = ["model", "forge"]
+walk = false
