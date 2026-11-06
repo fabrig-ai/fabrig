@@ -246,6 +246,7 @@ pub enum Event {
     Left,
     AccountKey { value: skein_lib::Secret },
     SignInAddress { value: skein_lib::Secret },
+    SignInKept { source: u32, address: Box<[u8]>, refused: bool },
     Went { address: Address },
     Act { act: Act },
     Told { told: Told },
@@ -253,6 +254,7 @@ pub enum Event {
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Request {
+    OpenTab { provider: u32 },
     Client(jig_client::Event),
     Show { address: Address },
     Replace { address: Address },
@@ -330,6 +332,10 @@ impl Pages {
     #[must_use]
     pub fn connect_model(&self) -> Option<&connect_model::ConnectModel> {
         if self.party.is_some() { self.connect_model.as_deref() } else { None }
+    }
+    pub(crate) fn sign_in_key(&self) -> Option<jig_client::Key> {
+        let request = if let Some(page) = self.connect_model() { &page.request } else { &self.accounts()?.request };
+        Some(request.pending.as_ref()?.key)
     }
     #[must_use]
     pub const fn welcome(&self) -> Option<&welcome::Welcome> {
@@ -509,6 +515,11 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             went(pages, env, address, out);
             if let Some(project) = address_project(&pages.address) {
                 choose_project(pages, client, project);
+            }
+        }
+        Event::SignInKept { source, address, refused } => {
+            if let Some(page) = &mut pages.connect_model {
+                page.request.keep_sign_in(source, address, refused);
             }
         }
         Event::SignInAddress { value } => {

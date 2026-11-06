@@ -69,6 +69,7 @@ mod held_change;
 mod landing;
 #[path = "forge_routes/producer_failure.rs"]
 mod producer_failure;
+mod question_target;
 #[path = "forge_routes/repair_cancel.rs"]
 mod repair_cancel;
 mod repair_green;
@@ -127,6 +128,7 @@ mod hints;
 
 #[path = "forge_routes/ci_poll.rs"]
 mod ci_poll;
+mod update_first;
 
 #[path = "forge_routes/documents.rs"]
 mod documents;

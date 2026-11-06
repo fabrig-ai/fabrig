@@ -26,20 +26,17 @@ fn secret(bytes: &[u8]) -> Secret {
 fn out() -> Queue<pages::Request> {
     Queue::with_capacity(4)
 }
+fn started_answer() -> jig_client::Outcome {
+    finishing_answer(c::DocumentOutcome::AccountSignInStarted {
+        source: 43,
+        address: b"https://issuer.test/start".as_slice().into(),
+    })
+}
 fn form(root: &crate::Domain) -> Request {
     let mut request = Request::default();
     request.send(NAME, c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: 17 }, false, &mut 0, &mut out());
     let key = request.pending.as_ref().unwrap().key;
-    request.told(
-        root.client(),
-        &Told::Answered {
-            key,
-            outcome: finishing_answer(c::DocumentOutcome::AccountSignInStarted {
-                source: 43,
-                address: Box::from(b"https://issuer.test/start".as_slice()),
-            }),
-        },
-    );
+    request.told(root.client(), &Told::Answered { key, outcome: started_answer() });
     request
 }
 fn finishing_answer(outcome: c::DocumentOutcome) -> jig_client::Outcome {
@@ -278,49 +275,74 @@ fn an_accounts_rows_paste_finishes_that_rows_sign_in() {
     assert_eq!(root.pages().accounts().unwrap().request_row, Some(row));
 }
 #[test]
-fn signing_in_elsewhere_sends_the_same_sign_in_and_departs_nowhere() {
+fn signing_in_points_its_tab_only_once() {
     let (mut root, _, _) = opened(c::HeldRole::Member);
-    root.departing = true;
     flow(&mut root);
-    let sent = sends(model(&mut root, Act::SignInElsewhere { name: NAME, way: WAY })).pop().unwrap();
+    let sent = sends(model(&mut root, Act::SignIn { name: NAME, way: WAY })).pop().unwrap();
     assert_eq!(
         sent.2,
         jig_client::Ask::Jig(Box::new(c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: 17 }))
     );
     let key = root.pages().connect_model().unwrap().request.pending.as_ref().unwrap().key;
     let mut result = Queue::uncapped();
-    crate::route::told(
-        &mut root,
-        &fixtures::env(&fixtures::limits()),
-        Told::Answered {
-            key,
-            outcome: finishing_answer(c::DocumentOutcome::AccountSignInStarted {
-                source: 43,
-                address: Box::from(b"https://issuer.test/start".as_slice()),
-            }),
-        },
-        &mut result,
+    let told = Told::Answered { key, outcome: started_answer() };
+    crate::route::told(&mut root, &fixtures::env(&fixtures::limits()), told.clone(), &mut result);
+    assert_eq!(
+        result.pop(),
+        Some(crate::Request::Tab { tab: crate::Tab::Point { to: b"https://issuer.test/start".as_slice().into() } })
     );
-    assert!(result.is_empty());
-    assert!(root.returning.is_none());
+    assert_eq!(
+        result.pop(),
+        Some(crate::Request::KeepSignIn {
+            source: 43,
+            address: b"https://issuer.test/start".as_slice().into(),
+            refused: false
+        })
+    );
+    assert_eq!(
+        result.pop(),
+        Some(crate::Request::Show {
+            address: Address::ConnectModel {
+                way: Some(crate::ModelWay { provider: 17, kind: crate::WayKind::SignIn, source: Some(43) })
+            },
+            replace: true,
+        })
+    );
+    assert!(result.is_empty(), "the sign-in asks no departure");
+    let mut repeated = Queue::uncapped();
+    crate::route::told(&mut root, &fixtures::env(&fixtures::limits()), told, &mut repeated);
+    assert!(repeated.is_empty(), "the same answer never points twice: {repeated:?}");
     let page = root.pages().connect_model().unwrap();
-    assert!(page.elsewhere());
     assert_eq!(page.request.paste_state(root.client()), S::Waiting { ready: false });
     assert_eq!(root.pages().address(), &Address::ConnectModel { way: Some(pages::connect_model::model_way(WAY)) });
 }
 #[test]
-fn signing_in_natively_after_elsewhere_departs_again() {
+fn an_answer_at_welcome_ready_points_without_an_address_move() {
     let (mut root, _, _) = opened(c::HeldRole::Member);
-    root.departing = true;
-    flow(&mut root);
-    model(&mut root, Act::SignInElsewhere { name: NAME, way: WAY });
+    event(&mut root, Event::Went { place: crate::Place::Address(Address::Welcome { step: crate::Step::Ready }) });
+    model(&mut root, Act::SignIn { name: NAME, way: WAY });
     let key = root.pages().connect_model().unwrap().request.pending.as_ref().unwrap().key;
-    started(&mut root, key);
-    model(&mut root, Act::SignIn { name: [99; 16], way: WAY });
-    assert!(!root.pages().connect_model().unwrap().elsewhere());
-    let key = root.pages().connect_model().unwrap().request.pending.as_ref().unwrap().key;
-    started(&mut root, key);
-    assert!(root.returning.is_some());
+    let mut result = Queue::uncapped();
+    crate::route::told(
+        &mut root,
+        &fixtures::env(&fixtures::limits()),
+        Told::Answered { key, outcome: started_answer() },
+        &mut result,
+    );
+    assert_eq!(
+        result.pop(),
+        Some(crate::Request::Tab { tab: crate::Tab::Point { to: b"https://issuer.test/start".as_slice().into() } })
+    );
+    assert_eq!(
+        result.pop(),
+        Some(crate::Request::KeepSignIn {
+            source: 43,
+            address: b"https://issuer.test/start".as_slice().into(),
+            refused: false
+        })
+    );
+    assert!(result.is_empty(), "an answer at Ready asks no address change");
+    assert_eq!(root.pages().address(), &Address::Welcome { step: crate::Step::Ready });
 }
 #[test]
 fn no_debug_of_the_page_or_the_event_holds_the_address() {

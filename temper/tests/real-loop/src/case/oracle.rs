@@ -3677,7 +3677,7 @@ mod plan_tests {
         }
         let mut spend = passing.clone();
         if let Part::ToolOutput { output, .. } = &mut spend.told[5].history[1].parts[0] {
-            *output = format!("{SUBOWNER_REFUSAL}missing spend allowance (task authority.budget.spend); ")
+            *output = format!("{SUBOWNER_REFUSAL}; missing spend allowance (task authority.budget.spend)")
                 .into_bytes()
                 .into();
         }
@@ -11839,7 +11839,7 @@ mod milestone_tests {
                     "repository":{"forge":1,"repository":crate::forge::ID},"resource":{"kind":"repository"},
                     "write":{"kind":"status","context":STATUS_CONTEXT}
                 }),
-                "Authority refused: tool family; ",
+                "Authority refused: tool family",
             ),
         ));
         o

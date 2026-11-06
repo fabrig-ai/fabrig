@@ -73,7 +73,6 @@ fn answered(record: &Family, limits: Limits) -> Option<Answer> {
         w::Outcome::Dismissed
         | w::Outcome::Page(_)
         | w::Outcome::Accepted(_)
-        | w::Outcome::Returning
         | w::Outcome::Connecting
         | w::Outcome::Link(_)
         | w::Outcome::ConnectRefused(_)

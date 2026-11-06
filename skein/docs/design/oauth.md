@@ -763,8 +763,8 @@ sign-in at once. The load goes on for the account.
   binds on the redirect's address and port (127.0.0.1 for `localhost`) only
   while a sign-in waits for it. It reads one request head with skein-http's
   server, within its limits, checks the request's URI exactly against the
-  registration (section 1), answers a small fixed page, and closes the
-  connection. A request for another path, or past the limits, is answered
+  registration (section 1), answers a small fixed page, "Sign-in received.
+  You can close this tab.", and closes the connection. A request for another path, or past the limits, is answered
   with a refusal and closed, the sign-in still waiting. The listener closes
   with the sign-in's terminal.
 - **The return.** The owner may give a sign-in under way a return location
