@@ -4,9 +4,6 @@
 
 - **Not yet:** 4.3, *The tier's window*: the tier's bundle holds the whole `document_bytes`,
   and `reading_tier`'s replies are sized for it.
-- **Not yet:** 4.3, *A chat's history*: `browser_pages`'s reading stories type their history
-  in the page, and `latest_returns_a_chat_to_its_end_after_new_words_while_reading_back` takes
-  a second tab for its new words.
 - **Not yet:** 8.4: the retained public row geometry story at 1440 px and 420 px
   is compiled. Its runtime red and green await the browser tier after landing;
   the incompatible plan-row placement is the repair's red-first source evidence.
