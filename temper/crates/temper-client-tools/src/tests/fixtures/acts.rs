@@ -171,6 +171,7 @@ pub(crate) fn chat_root(budget: u64, seed: u64) -> Harness {
 }
 pub(crate) fn proposal(proposer: c::Proposer, acts: &[c::ActKind]) -> c::ReadValue {
     c::ReadValue::Proposal(Box::new(c::Proposal {
+        projects: List::with_capacity(0),
         key: c::ProposalKey { proposer, number: PROPOSAL },
         project: PROJECT,
         reason: document_text(b"more time"),

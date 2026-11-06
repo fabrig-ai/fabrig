@@ -287,6 +287,7 @@ fn proposal_answer(state: ProposalState, departed: bool) -> c::ReadResult {
         c::ReadResult::Value(c::ReadValue::Proposal(Box::new(c::Proposal {
             key: PROPOSAL,
             project: 1,
+            projects: List::from_boxed(Box::new([1])),
             reason: c::DocumentText::complete(c::Text::new(Box::from(b"Work this way".as_slice()), 512).unwrap()),
             action: c::ProposalAction::Batch(List::with_capacity(0)),
             as_holder: true,

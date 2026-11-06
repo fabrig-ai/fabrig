@@ -187,20 +187,23 @@ pub(crate) fn checked(llm: &jig_protocol_config::Llm, result_bytes: u32) -> Opti
     run = run.max(u64::from(charters.first()?.policy.turns).checked_mul(4)?);
     let chat_spend = run.checked_mul(24)?;
     // Eighty chats or goals funded at once from one pool.
-    let ceiling_spend = chat_spend.checked_mul(80)?;
+    let pool_spend = chat_spend.checked_mul(80)?;
+    // One chat's more in the period, which no pool reserves, for what the deployment
+    // itself starts (protocol/configuration.md, 13.4).
+    let period_spend = chat_spend.checked_mul(81)?;
     for charter in charters.iter_mut() {
         charter.spend = run;
     }
     let templates = Box::new([chat(result_bytes), goal(result_bytes), configuring(result_bytes)]);
     let mut policies = Map::with_capacity(1);
-    policies.insert(1, project_policy(ceiling_spend, chat_spend)).expect("one stock policy");
+    policies.insert(1, project_policy(period_spend, pool_spend, chat_spend)).expect("one stock policy");
     Some(Defaults {
         charters,
         templates,
         policies,
         rules: authority::Rules {
-            ceiling: ceiling(ceiling_spend),
-            period_spend: ceiling_spend,
+            ceiling: ceiling(pool_spend),
+            period_spend,
             minimum_run_spend: minimum_run,
             maximum_run_spend: run,
             implies: authority::Implies::new(Box::default(), 0).expect("empty stock implications"),
@@ -209,16 +212,16 @@ pub(crate) fn checked(llm: &jig_protocol_config::Llm, result_bytes: u32) -> Opti
     })
 }
 
-fn project_policy(period_spend: u64, task_spend: u64) -> ConfiguredPolicy {
+fn project_policy(period_spend: u64, pool_spend: u64, task_spend: u64) -> ConfiguredPolicy {
     ConfiguredPolicy {
         policy: authority::Policy {
             escalation_role: Some(0),
-            ceiling: ceiling(period_spend),
+            ceiling: ceiling(pool_spend),
             projections: grants(),
             period_spend,
             roles: Box::new([
-                project_role(0, period_spend, task_spend, 511, 31),
-                project_role(1, period_spend, task_spend, 255, 31),
+                project_role(0, pool_spend, task_spend, 511, 31),
+                project_role(1, pool_spend, task_spend, 255, 31),
                 project_role(2, task_spend, task_spend, 185, 0),
                 project_role(3, 0, 0, 128, 0),
             ]),

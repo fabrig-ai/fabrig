@@ -132,6 +132,7 @@ const LIMITS: Limits = Limits {
         clean_heads: 8,
     },
     queue_window: Duration::from_secs(30),
+    sitting: SITTING,
     client: CLIENT,
 };
 
