@@ -476,6 +476,9 @@ pub fn run(seed: u64, case: Case) -> Report {
 #[must_use]
 pub fn saved(seed: u64, start: wire::Start) -> wire::Work {
     let mut world = World::new(seed);
+    // A merge start admits the fixture's one possible conflicting path.
+    world.env.limits.checkout.conflicts = 1;
+    world.env.limits.checkout.path_bytes = u32::try_from(PATH.len()).expect("fixture path length");
     world.start_from(start);
     world.story(Case::ContactPast);
     assert_eq!(world.domain.agent().agents(), 0);

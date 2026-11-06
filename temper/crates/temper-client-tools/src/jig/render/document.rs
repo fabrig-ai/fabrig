@@ -400,6 +400,7 @@ fn waiting(task: &Task, me: Option<&Me>, book: &Phrasebook, out: &mut Text) {
         WaitsOn::Nothing => {
             let word = match &task.hold {
                 Some(_) => Word::Waiting(WaitingWord::Held),
+                None if llm::no_account(task) => Word::Waiting(WaitingWord::Account),
                 None => Word::waiting(&task.waits_on),
             };
             out.put(&book.say(0, word.id(), &[]).expect("waiting phrase").text);
@@ -689,6 +690,7 @@ fn person_text(
                 acts::refusal(why, book, out);
             }
             jig_client::contract::Admission::Proposed { to } => acts::proposed(to, me, out),
+            jig_client::contract::Admission::Bounded { .. } if offer.act == jig_client::contract::ActKind::Amend => {}
             jig_client::contract::Admission::Bounded { within, .. } => acts::bounds(within, out),
         }
         out.put(b"\n");
