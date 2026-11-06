@@ -38,6 +38,7 @@ mod stories;
 mod task;
 mod task_tree;
 mod to_begin;
+mod watch_room;
 mod welcome;
 mod fuzzy {
     mod client;

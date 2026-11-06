@@ -45,6 +45,86 @@ pub const REPOSITORIES: &[(&[u8], &[u8], u32)] = &[(b"acme", b"shop", 7), (b"acm
 pub const PARTY: u64 = 1;
 pub const SEED: u64 = 1101;
 pub const WITHIN: Duration = Duration::from_secs(1);
+/// Six delegates keep the chat opening its watch set beside Home's full room.
+pub(crate) const WATCH_ROOM_DELEGATES: u32 = 6;
+
+/// Page watch figures from temper-client-shell-web/src/limits.rs.
+#[must_use]
+pub fn watch_room_limits() -> Limits {
+    let mut limits = domain_limits();
+    limits.client.domain.watches = 17;
+    limits.client.domain.handles = 19;
+    limits.client.domain.delegates = 80;
+    limits.client.domain.reads = 32;
+    limits.client.domain.rows = 16;
+    limits
+}
+
+/// Two shipped page watch sets and a fresh client on the real engine.
+#[must_use]
+pub fn watch_room_world(seed: u64) -> World<Temper, Joint> {
+    world_with(seed, Joint::with_watch_room(seed, &watch_room_limits()))
+}
+
+/// A running chat with enough live delegates to fill its page's watch set.
+pub fn watch_room_chat(front: &mut Joint) -> u64 {
+    use temper_engine_domain_world::fixtures::report_delegate;
+    let driver = &mut front.engine;
+    driver.sign_in();
+    driver.settle();
+    let jig_domain_people::Ask::Create { project, mut batch } = driver.chat_ask(CHAT_PROJECT, b"A long chat") else {
+        panic!("chat creation fixture");
+    };
+    batch[0].authority.delegation.tasks = WATCH_ROOM_DELEGATES;
+    driver.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: skein_lib::ReplyTo::new(CHAT_REPLY),
+        sign_in: driver.session(),
+        key: CHAT_KEY,
+        ask: jig_domain_people::Ask::Create { project, batch },
+    }));
+    driver.settle();
+    let parent = driver.last_assignment();
+    let batch = (0..WATCH_ROOM_DELEGATES).map(|_| report_delegate(b"Investigate the change", Box::new([]))).collect();
+    driver.call(
+        QUESTION_WORKER,
+        parent.task,
+        parent.attempt,
+        DELEGATE_CALL,
+        engine::Call {
+            completion: DELEGATE_COMPLETION,
+            position: DELEGATE_POSITION,
+            tool: engine::Tool::Delegate { batch },
+        },
+    );
+    driver.settle();
+    let Some(engine::CallAnswer::Delegated(children)) = driver.answered(DELEGATE_CALL) else {
+        panic!("watch-room delegates admitted: {:?}", driver.answered(DELEGATE_CALL));
+    };
+    assert_eq!(children.len(), usize::try_from(WATCH_ROOM_DELEGATES).expect("delegate count"));
+    parent.task
+}
+
+/// Start a person root at its own page and transport limits.
+pub fn watch_room_client(
+    world: &mut World<Temper, Joint>,
+    address: temper_client_domain::Address,
+) -> jig_client_kit::harness::ClientId {
+    let limits = watch_room_limits();
+    world.front().next_client_limits(limits);
+    world.client_with(PARTY, address, limits, watch_room_root)
+}
+
+fn watch_room_root(seed: u64) -> (crate::app::Root, crate::app::View) {
+    let limits = watch_room_limits();
+    let words = phrasebooks(&limits);
+    let bounds = view_bounds(&limits, &words);
+    (
+        crate::app::Root::Person(Box::new(temper_client_domain::unlinked(&limits, seed))),
+        crate::app::View::Person(Box::new(view::View::new(&bounds, &limits, words, FORGE))),
+    )
+}
+
 #[must_use]
 pub fn domain_limits() -> Limits {
     {
