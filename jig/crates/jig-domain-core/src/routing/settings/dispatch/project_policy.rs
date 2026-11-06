@@ -48,13 +48,18 @@ pub(super) fn check(core: &Core, limits: &Limits, items: &[s::Item]) -> Result<(
                     return Err(super::malformed_refusal(s::Failure {
                         setting: item.setting,
                         fault: s::Fault::Reference,
+                        detail: None,
                     }));
                 }
             }
             if core.check_policy_replacement(limits, project, value, rules).is_err() {
                 // Whole-set validation already checked shape, references and ceilings. The
                 // remaining owner-edit check is room in the open period and its pools.
-                return Err(super::malformed_refusal(s::Failure { setting: item.setting, fault: s::Fault::Budget }));
+                return Err(super::malformed_refusal(s::Failure {
+                    setting: item.setting,
+                    fault: s::Fault::Budget,
+                    detail: None,
+                }));
             }
         }
     }

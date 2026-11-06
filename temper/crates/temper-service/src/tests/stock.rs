@@ -50,7 +50,7 @@ fn single_model() -> Box<[u8]> {
     }
     fixtures::with(&document, b"application.demo", b"null")
 }
-fn engine(document: &[u8]) -> config::Engine {
+pub(super) fn engine(document: &[u8]) -> config::Engine {
     fixtures::parse_engine(&fixtures::value(document, b"engine"))
 }
 fn without_projects() -> Box<[u8]> {
@@ -294,7 +294,7 @@ fn the_configuring_agent_is_charter_3_and_template_3() {
     assert_eq!(defaults.charters[2], expected);
     assert!(!defaults.charters[2].policy.modify);
     assert!(!defaults.charters[2].policy.agents);
-    assert_eq!(defaults.charters[2].policy.instructions.len(), 5661);
+    assert_eq!(defaults.charters[2].policy.instructions.len(), 5673);
     assert_eq!(defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3]);
     let mut expected = defaults.templates[0].clone();
     expected.number = 3;
@@ -1252,6 +1252,22 @@ fn configuring_txt_tells_it_how_project_works() {
 }
 
 #[test]
+fn configuring_txt_names_complete_approval_adoption_steps() {
+    let words = include_str!("../stock/configuring.txt");
+    let approvers = words.lines().find(|line| line.starts_with("Approvers:")).expect("approval instructions");
+    for phrase in [
+        "add a human collaborator with mapped forge permission",
+        "a Forgejo repository admin separately grants temper's forge user repository admin",
+        "have the person adopt again",
+        "reread inventory and propose afresh against the newest revision",
+    ] {
+        assert!(approvers.contains(phrase), "missing approval adoption instruction: {phrase}");
+    }
+    assert!(!approvers.contains("operator"));
+    assert!(words.contains("Never send them to a terminal, temper ctl or a command"));
+}
+
+#[test]
 fn configuring_txt_starts_from_temper_own_way() {
     let words = include_str!("../stock/configuring.txt");
     assert_eq!(
@@ -1283,7 +1299,7 @@ fn configuring_txt_speaks_the_persons_terms() {
         "read the current project-policy permission mapping",
         "admin seeds maintainer (1), never owner (0)",
         "Never promise admin fixes a role-0 proposal",
-        "adopt again, reread inventory and propose afresh",
+        "reread inventory and propose afresh against the newest revision",
         "read_permission names a forge user's login",
         "An unknown forge identity cannot count for approvals",
         "never report it as a setting",

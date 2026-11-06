@@ -3,7 +3,7 @@
 //! checked: an agent task's only, each model configured, each effort among those its model
 //! declares, each model among its charter's and within its authority's models (domain/tasks.md,
 //! sections 4 and 7; domain/authority.md, section 8.1). It resolves a charter's default for the
-//! root, which records it as given when a creator gives none (domain/tasks.md, section 3).
+//! root, which checks an omitted choice against its charter and authority (domain/tasks.md, section 3).
 //! The root may check a choice alone against its charter and authority's models at the newest
 //! revision, before asking for its batch (domain/tasks.md, section 4).
 //!
@@ -169,6 +169,16 @@ fn allows(models: Models, model: u8) -> bool {
     }
 }
 
+/// An unnamed task must have at least one charter model within its authority (tasks.md, 3).
+pub(crate) fn any_allowed(models: &[u8], allowed: Models) -> bool {
+    for model in models {
+        if allows(allowed, *model) {
+            return true;
+        }
+    }
+    false
+}
+
 fn first_effort(domain: &Domain, model: u8) -> Option<u8> {
     match domain.efforts.get(usize::from(model)) {
         Some(0) | None => None,
@@ -185,20 +195,24 @@ impl Domain {
         check_agent(self, charter, self.newest(), models, choice)
     }
 
-    /// The default LLM choice of an agent task of `charter` within `models`, which the root
-    /// records as given (domain/tasks.md, section 3): main is the first of the charter's models,
+    /// The default LLM choice of an agent task of `charter` within `models`
+    /// (domain/tasks.md, section 3): main is the first of the charter's models,
     /// in its order, within `models`, and the sub-agents the charter's others within `models`;
     /// each with its model's first declared effort, or the provider's default for a model that
     /// declares none. `None` when the charter is not configured or allows none of `models`.
     #[must_use]
     pub fn default_llm(&self, charter: u32, models: Models) -> Option<LlmChoice> {
-        let configured = self.charter_models(charter, self.newest())?;
+        self.default_llm_at(charter, self.newest(), models)
+    }
+
+    /// The charter-order choice at a task's own settings revision (domain/tasks.md, section 3).
+    #[must_use]
+    pub fn default_llm_at(&self, charter: u32, revision: u32, models: Models) -> Option<LlmChoice> {
+        let configured = self.charter_models(charter, revision)?;
         let mut main = None;
         let mut subagents =
             List::with_capacity(u32::try_from(configured.len()).expect("a charter's models fit `MODELS`"));
         for model in configured {
-            // T10 narrows main to the first whose LLM provider has an account usable now and
-            // serving the task's payer, else the first (domain/accounts.md, section 4.3).
             if !allows(models, *model) {
                 continue;
             }

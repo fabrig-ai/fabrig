@@ -26,7 +26,7 @@
   workspace, reads `skein_llm_world`, because its first grade takes that world
   from the frozen workspace's own git source.
   6: the `debt-24` request of 2026-11-05 has its items end with fewer test
-  lines unless a story is newly held, but skein's stand 410 above that plan's
-  start and `tests/boundary`'s 215 above: forge-connection's crate tests fell
-  8,183, and its machine world with the forge kit rose 9,012; no reason is
-  recorded.
+  lines unless a story is newly held, but they stand above that plan's start:
+  forge-connection's crate tests, with the `fixtures.rs` they share, 8,140 below
+  it, its machine world with the forge kit 8,692 above, and `tests/boundary`
+  273 above; no reason is recorded.
