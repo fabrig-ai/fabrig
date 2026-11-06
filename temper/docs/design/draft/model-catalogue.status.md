@@ -25,4 +25,5 @@
   - 6: "Add a model by name" and the picker's switch are `ChangeModel`, a request of their own that the core makes into one change at the newest revision, where the draft has them as any setting's change, since a client holds no model whole and a switch can't go stale: decided by the cut of `model-catalogue-2`, 2026-11-06.
   - 4: a provider names an `endpoint` for its added models and an endpoint declares its `limits`, which the draft leaves implied: decided by the cut of `model-catalogue-2`, 2026-11-06.
 - **Open:**
+  - 4: a deployment with no stock provider, such as a local model's alone, has no default model, and its start is refused at `engine.llm.providers`; how its first model comes in is undecided.
   - 8: Haiku 5.5; a plan that lacks a model; a role's models on a page.

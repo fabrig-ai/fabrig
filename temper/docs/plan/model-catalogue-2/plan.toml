@@ -50,6 +50,34 @@ mode = "direct"
 needs = ["catalogue"]
 design = "jig/docs/design/client/domain/contract.md, 3.2"
 
+[[part]]
+id = "stock"
+title = "The models leave temper.json, and temper's defaults are the binary's"
+mode = "direct"
+needs = ["catalogue", "agent"]
+design = "temper/docs/design/protocol/configuration.md, 13.4"
+
+[[part]]
+id = "configuring"
+title = "The configuring chat can read and propose a model"
+mode = "direct"
+needs = ["stock", "act"]
+design = "temper/docs/design/domain/agent.md, 8.1"
+
+[[part]]
+id = "help"
+title = "The help says how to offer another model"
+mode = "direct"
+needs = ["stock", "page"]
+design = "temper/docs/design/draft/model-catalogue.md, 6"
+
+[[part]]
+id = "proof"
+title = "The page beside its look, the account, and the status files closed"
+mode = "direct"
+needs = ["page", "stock", "configuring", "help"]
+design = "temper/docs/design/draft/look-requests.md, 5"
+
 [[slice]]
 id = 1
 story = "An owner opens Settings, Models and sees the connected provider's models, each with its default effort and whether the picker shows it, and the other provider's Connect line"
@@ -66,4 +94,10 @@ walk = false
 id = 3
 story = "An owner's change adds a model, and a new task takes it with no charter's change, while a live task keeps its own"
 parts = ["catalogue", "act"]
+walk = false
+
+[[slice]]
+id = 4
+story = "A fresh box writes no models and offers the same stock; an owner adds claude-haiku-5-5 by name and turns Sonnet off on Settings, Models, and the configuring chat can propose a model's prices"
+parts = ["stock", "configuring", "help", "proof"]
 walk = false

@@ -2039,6 +2039,10 @@ section 5).
 
 ## 16. Open questions
 
+- **A number freed:** a catalogue's 64 numbers last the deployment's life, a
+  withdrawn model keeping its own (17.11). A number no held revision and no
+  live task reads could be given again, should a provider's lists come to
+  use them up.
 - **A line range on `recall`:** `recall` returns a note's whole body, which costs
   input, not output. A range joins it only if a walk shows it's needed
   (section 10; the user's idea, 2026-11-05).
