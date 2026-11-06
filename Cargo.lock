@@ -5212,6 +5212,7 @@ dependencies = [
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
+ "temper-engine-domain-trials",
  "temper-protocol-worker-wire",
 ]
 
@@ -5271,6 +5272,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-engine-domain-trials"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+]
+
+[[package]]
 name = "temper-engine-domain-world"
 version = "0.0.0"
 dependencies = [
@@ -5318,6 +5326,7 @@ dependencies = [
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-tiers",
+ "temper-engine-domain-trials",
  "temper-engine-forge-world",
  "temper-engine-smith",
  "temper-fake",
@@ -5783,6 +5792,7 @@ dependencies = [
  "smith-agent-shell",
  "smith-fake-claude",
  "temper",
+ "temper-client-domain",
  "temper-client-shell-cli",
  "temper-client-shell-terminal",
  "temper-client-tools",
@@ -5876,6 +5886,7 @@ dependencies = [
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-tiers",
+ "temper-engine-domain-trials",
  "temper-engine-domain-world",
  "temper-engine-smith",
  "temper-forge-setup",

@@ -281,7 +281,7 @@ fn line(b: &mut Builder, value: &Activity, words: &Words) {
                 None => caption(b, words, P::ReadAbsent),
             }
         }
-        Activity::Decided { revision } => {
+        Activity::Decided { revision, .. } => {
             caption(b, words, P::Decided);
             number(b, words, P::Revision, *revision);
         }

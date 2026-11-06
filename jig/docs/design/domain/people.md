@@ -1068,7 +1068,9 @@ what outlives it (5.2).
 - **A public board's ended goals across a restart or before publication:**
   a store index of a project's ended goals, newest first, that the public
   index loads once at start and at publication (13.9). Default: none; the
-  board's ended goals are those ended while the index kept the project.
+  board's ended goals are those ended while the index kept the project,
+  and its page states the publication and restart limits. A connector's
+  kept record does not widen which tasks the index hands it (13.3).
 - **A human publication capability:** a way for a person to publish
   another configured name they wrote, that an agent holding their
   credential could not use, since a credential proves who sent a

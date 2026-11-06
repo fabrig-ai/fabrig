@@ -1071,6 +1071,10 @@ and changes no code above io:
 
 ## 10. Open questions
 
+- **The remaining identical helpers** (7.5): `linux` and `darwin` each
+  keep `count`, `process::fd` and `files::truncate`, whose only differences
+  are a panic's words or a path. Moving them to `posix` waits for a round
+  that names them; the shared-call rule still applies to them.
 - **The real loop in CI:** a kernel at the floor, with io_uring allowed by
   the CI's container profile.
 - **Sanitizers on the ring adapter:** Miri cannot run the ring, so which of

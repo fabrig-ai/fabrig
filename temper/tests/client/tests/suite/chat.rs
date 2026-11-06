@@ -450,8 +450,16 @@ fn a_goal_proposed_in_a_chat_accepted_in_the_inbox_leaves_the_chat() {
     );
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
     assert!(
-        world.root(chat).person().pages().chat().expect("chat").cards.is_empty(),
-        "decided card left the live chat"
+        world
+            .root(chat)
+            .person()
+            .pages()
+            .chat()
+            .expect("chat")
+            .cards
+            .iter()
+            .all(|card| matches!(&card.page, Some(jig_client::contract::ReadValue::Ended(_)))),
+        "only the ended read remains in the live chat"
     );
     assert!(
         world.front().engine.store.rows.values().any(|record| matches!(record,
@@ -546,7 +554,17 @@ fn accepting_the_goal_with_chat_and_inbox_watches_settles_the_engine() {
         );
         pump(&mut front, &mut probes);
     }
-    assert!(probes[0].0.person().pages().chat().expect("chat").cards.is_empty());
+    assert!(
+        probes[0]
+            .0
+            .person()
+            .pages()
+            .chat()
+            .expect("chat")
+            .cards
+            .iter()
+            .all(|card| matches!(&card.page, Some(jig_client::contract::ReadValue::Ended(_))))
+    );
 }
 
 #[test]

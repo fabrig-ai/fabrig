@@ -190,7 +190,7 @@ fn a_nonempty_activity_page_cannot_continue_from_an_unexamined_position() {
             task: 1,
             position: 8,
             at: Wall::EPOCH,
-            line: tasks::Line::Decided { revision: 1 },
+            line: tasks::Line::Decided { revision: 1, proposal: None },
         })),
         Some(core.tasks.task(1).unwrap().clone()),
     );

@@ -114,10 +114,14 @@ impl Core {
     pub(crate) fn period_budget(&self, project: u32) -> u64 {
         match self.tasks.funding(tasks::Funder::Period { project, period: self.period(project) }) {
             Some(row) => row.numbers.budget,
+            None if project == people::DEPLOYMENT => self.authority.rules().period_spend,
             None => 0,
         }
     }
     pub(crate) fn pool_budget(&self, project: u32, person: u64) -> u64 {
+        if project == people::DEPLOYMENT {
+            return self.authority.rules().ceiling.budget.spend;
+        }
         match self.people.role(person, project) {
             Some(role) => match self.authority.role(project, role.number()) {
                 Some(policy) => policy.period_spend,

@@ -1,6 +1,6 @@
 # connectors: status
 
-2026-11-05. Where jig's code lags or departs from [connectors.md](connectors.md).
+2026-11-06. Where jig's code lags or departs from [connectors.md](connectors.md).
 
 - **Not yet:** 11: temper's change on a run branch, the one procedure that goes on with its requester's own run in the slot: `temper/docs/plan/goal-delivery/`.
 - **Not yet:** 3.4: `Unname` at retention's erasure at the deployment's

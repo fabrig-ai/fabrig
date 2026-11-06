@@ -369,7 +369,7 @@ keeps (`../protocol/configuration.md`, section 2).
 | `Inbox` (the root) | the greenfield mock's `needs.html`; the terminal's, `inbox.html` | in the browser, *Needs you* (below): what needs the person, one card at a time, across projects or filtered by project, kind and goal (its root), a proposal of settings in each project it shows in (jig's `domain/engine.md`, 17.6), its card, count and Accept as in its chat. In the terminal, the list: proposals, questions, held tasks, person tasks; then updates (results, replies); its filters; "+ New chat", a link to `NewChat` (`/chats/new`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | a question's choice, reply and Later (*What the client keeps,* below); accept ("Accept"), reject with a reason, release, leave held, take, hand back; in the terminal, answer in words |
 | `Chats { filter }` | the greenfield mock's `chats.html` | a page of the frame (*The Chats page,* below): its head; while the project has no repository, its band; the list, under All, Live, Drafts or Closed, with "+ New chat"; "More closed chats" | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended; the project's documents, as it opens (*A chat's document,* below); the person's facts (4.6) | choose the list's filter; more closed chats |
 | `NewChat { draft }` | the greenfield mock's `chat.html?id=new`, and `&draft=` for a draft; the playground's start at the first run's first step | a new chat in the open project, on the layout every chat takes (*A new chat,* below), in the playground's project the playground's start (4.8, 5.6); with `draft`, the empty document beside it (*A chat's document,* below) | as `Chats`; the playground, from the forge's side (4.8) | start a chat, from the composer or a suggested request; "+ Draft" |
-| `Chat { task }` | the greenfield mock's `chat.html` | the layout every chat takes (*One layout for every chat,* below): its bar, with its path, its heading, its byline and chooser, its status, Pause or Resume, and Close, and its spend in the view alone; the context line, only in the playground's project while the playground runs (4.8, 5.6); the conversation (below): its request, the agent's words with its calls folded, the person's words, provisional text, and its end once it has ended; each task it delegated as that task's card, at the call that made it (a `delegate`, a `change` or a `goal`), or else at the result it sent back, or else after the conversation while it runs (5.7); the proposals waiting in its subtree, each at the call that made it where its turn names it, and after the conversation otherwise (jig's `client/domain/objects.md`, section 10); the composer, while the chat lives: the chooser's feedback above it, its text area "Message" with the placeholder "Reply to T6", T6 the chat's number, shown while it is empty and never its name, and "Send", the hint "Enter sends · Shift+Enter for a new line", or "Sending resumes this chat." on a chat the person paused (*A person's pause,* below), then a message's refusal or failure, if any: a message or the chat's start accepted draws no status of its own, neither at the conversation's end nor in the composer, since the conversation shows its words, "Being sent", then "Sent" (below); while Message is not offered, the feedback alone; an ended chat draws no composer | `task`, `activity` a page at a time, earlier and later pages at the conversation's log edges (5.15), `run` while one is live; each `proposal` its `task` names; each delegated `task` its calls, results and live delegates name, up to the domain's `reads` (5.7); its document, read again when its run writes it (*A chat's document,* below); the person's facts (4.6) | message, pause, resume, close, change the next run's model, accept or reject a proposal in place; choose Chat, Split or Draft; "+ Draft"; start a goal from its document; on a configuring chat, start over |
+| `Chat { task }` | the greenfield mock's `chat.html` | the layout every chat takes (*One layout for every chat,* below): its bar, with its path, its heading, its byline and chooser, its status, Pause or Resume, and Close, and its spend in the view alone; the context line, only in the playground's project while the playground runs (4.8, 5.6); the conversation (below): its request, the agent's words with its calls folded, the person's words, provisional text, and its end once it has ended; each task it delegated as that task's card, at the call that made it (a `delegate`, a `change` or a `goal`), or else at the result it sent back, or else after the conversation while it runs (5.7); the proposals waiting in its subtree (jig's `client/domain/objects.md`, section 10) and the decided proposals of settings its activity says it made, each at the call that made it where its turn names it, and otherwise after the turn that was running when it was made, so that what comes later comes after it (5.13); the composer, while the chat lives: the chooser's feedback above it, its text area "Message" with the placeholder "Reply to T6", T6 the chat's number, shown while it is empty and never its name, and "Send", the hint "Enter sends · Shift+Enter for a new line", or "Sending resumes this chat." on a chat the person paused (*A person's pause,* below), then a message's refusal or failure, if any: a message or the chat's start accepted draws no status of its own, neither at the conversation's end nor in the composer, since the conversation shows its words, "Being sent", then "Sent" (below); while Message is not offered, the feedback alone; an ended chat draws no composer | `task`, `activity` a page at a time, earlier and later pages at the conversation's log edges (5.15), `run` while one is live; each `proposal` its `task` names, or its activity's lines say it made; each delegated `task` its calls, results and live delegates name, up to the domain's `reads` (5.7); its document, read again when its run writes it (*A chat's document,* below); the person's facts (4.6) | message, pause, resume, close, change the next run's model, accept or reject a proposal in place; choose Chat, Split or Draft; "+ Draft"; start a goal from its document; on a configuring chat, start over |
 | `Goals { project, filter }` | the greenfield mock's `goals.html` | the project's goals: its intro, its filters, a row a goal, each its state and its report's headline (*Goals,* below) | `me`; `tasks{query}`: the project, the goal template's label, tracked, by priority, its live group watched, its ended pages by when each ended; a row's report, one read at a time; `inbox`'s needs for that project | choose the filter; more goals |
 | `Task { task }` | the greenfield mock's `goal.html`, for a goal; `task.html` otherwise | a goal: its header, its needs as bands, its report, its tasks, landing, how it runs and what it decided, what the person sent (5.8), with Amend, Pause or Resume, Close and its composer (5.11); a change: its header and "View on forge ↗", its steps, its step's line, its hold, its tasks live and ended, its gates at its head and its bounds (5.10); an agent's task: its lineage, its brief, its run's heading, its conversation as a chat's, its result once ended and its plan's held cards (5.9), with Amend, Pause or Resume, Close and its composer (5.11), and its own held card while it is held for any cause but the person's own pause | `task`, `tree`, `activity` a page at a time, earlier and later pages at an agent's conversation's log edges (5.15); `run` while one is live; a change's panel, through the forge's side (`forge.md`, 9.2); a goal's or a procedure's ended delegates, a page read once and again on a change; a goal's report, its own line and its needs (5.8) | as its document offers them (5.11): on a goal amend, pause, resume, close, message, and answer its needs; on an agent's task message, amend, pause, resume, close, release its own held task or one of its plan |
 | `Changes { project }` | the greenfield mock's `changes.html` | what is on the way to the project's landing branches and what last landed there (*Changes,* below; `forge.md`, section 3) | the subject `changes`, through the forge's side (4.2, 4.6); a `task` per row shown, for where it came from | none: each row links to its change's `Task` |
@@ -377,7 +377,7 @@ keeps (`../protocol/configuration.md`, section 2).
 | `Forges` | `forges.html` | inside Settings' frame while a project is open (*Settings,* below): the person's forges, each row folded until opened: its connection, its mode and access, on GitHub temper's App and its installations, a connect under way and how the last ended, its load; then the playground's forge, folded, while the playground is read (4.8); "+ Add a forge", to `ConnectForge`, but while the playground runs (`forge.md`, 5.4) | the forge's, through the forge's side (4.2) | connect a stopped forge; replace a key or tokens; install on another account; new repository; forget the admin's token; set up again; remove a forge, confirmed (section 8) |
 | `ConnectForge { forge }` | `connect-forge.html` | under its path (*Settings,* below), connecting one more forge, `forge` the choice it is at: Choose, Details, Setting up and Ready, which ends on the forge connected, adopting nothing (`forge.md`, 5.4) | the forge's, through the forge's side (4.2) | connect; connect as its admin; set up a Forgejo here (section 8) |
 | `Welcome { step }` | `welcome.html`; the first run's step 0 | the first run's welcome, by the store's state, empty, unfinished or whole (below): "Try the playground" or "Set up temper", the latter a wizard of Welcome, Forge, Model and Ready, its `step` (5.6; `../draft/archive/first-run.md`, 2.3) | the playground's read (4.8); `accounts`; the `forges` watch, for a person whose role holds the deployment's forges; the forge's, as `ConnectForge` reads it | start the playground; start a forge cut short over, or go on with it; `ConnectForge`'s and `ConnectModel`'s acts |
-| `Accounts` | `accounts.html` | inside Settings' frame while a project is open (*Settings,* below), and there "Sign out" at its foot, in a browser at a phone's width alone: the person's LLM accounts, then, for an owner, the deployment's, each row folded until opened: its LLM provider and display name, its holder, its deciding source's state and its line (5.5, An account's line); opened, that state's words and acts, its sources in order, each with its state in words and, for a program's, on which hosts (5.5), what it pays for, the runs using it and the tasks waiting for it (facts jig gives the deployment's accounts alone for now, so a person's own leave them out: 5.5) and its acts; the checks under way, and how the last ended; then the playground's account, folded, while the playground is read (4.8); "+ Connect a model", to `ConnectModel`, but while the playground is read | `accounts` (jig's `client/domain/contract.md`, 7.1); `me`'s LLM providers | sign in again or add a key from a state's acts, as `ConnectModel`'s ways; sign a source out; add a key to an account; replace a key; remove a source or an account; check a program's login again; move an account, or a source, up or down; resume a limited source |
+| `Accounts` | `accounts.html` | inside Settings' frame while a project is open (*Settings,* below), and there "Sign out" at its foot, in a browser at a phone's width alone: the person's LLM accounts, then, for an owner, the deployment's, each row folded until opened: its LLM provider and display name, its holder, its deciding source's state and its line (5.5, An account's line); opened, that state's words and acts, its trial's line under the head and before the sources (`../domain/trial.md`, 6.2), its sources in order, each with its state in words and, for a program's, on which hosts (5.5), what it pays for, the runs using it and the tasks waiting for it (facts jig gives the deployment's accounts alone for now, so a person's own leave them out: 5.5) and its acts; the checks under way, and how the last ended; then the playground's account, folded, while the playground is read (4.8); "+ Connect a model", to `ConnectModel`, but while the playground is read | `accounts` (jig's `client/domain/contract.md`, 7.1); `me`'s LLM providers | sign in again or add a key from a state's acts, as `ConnectModel`'s ways; sign a source out; add a key to an account; replace a key; remove a source or an account; check a program's login again; move an account, or a source, up or down; resume a limited source |
 | `ConnectModel { way }` | `connect-model.html` | under its path (*Settings,* below), connecting one more LLM account, `way` the way it is at, or none at Choose: Choose, a card for each way its providers offer (5.5, The ways); Signing in, at the provider, for a sign-in, or Details, a way's field, for a key or a program's login; and Ready, the account made, or how the sign-in ended (5.5, A sign-in) | `accounts`; `me`'s LLM providers | sign in with an LLM provider; add a key as an account of its own; declare a program's login |
 | `Proposal { proposal }`, later (5.13) | none: the user's (5.13) | a proposal of settings: temper enforces and your agents follow, its effect on running work, the settings folded; withdrawn when stale; accepted (5.13) | the `proposal`; `settings`; each item's setting before | accept, choosing whether running work moves; reject with a reason; change something, in the chat |
 
@@ -1495,11 +1495,17 @@ keeps (`../protocol/configuration.md`, section 2).
     ticked one keeps "Each step". *The seam:* the Model step's
     state, acts and Choose are `ConnectModel`'s; the step's frame, heading,
     lead, ways' pages, notes, set up line and foot the welcome's.
-    *The try,* an account tried once it is usable, one short task through
-    the path a chat takes (`../draft/model-check.md`), runs in the background
-    and nothing waits for it. It is Model's line in Ready's pane (*Ready,*
-    below), the same parts as Forge's line, drawn by one function. Its steps
-    are the list Forge's has, "Each step" its name, each with its state in
+    *The try,* an account tried once it becomes usable on the welcome's Model
+    step or Ready, or on `ConnectModel`, runs in the background and nothing
+    waits for it. Its task, model selection, payer and end are
+    `../domain/trial.md`, 2 to 5; its facts and the lines they feed are 6.1 to
+    6.4. It is not a chat: it lists nowhere, adds nothing to Home's counts and
+    writes no project's document. One short turn is paid by the person, as
+    for a chat: included usage on a plan, or the key's price. Its first
+    committed turn answers it; a run ending otherwise or a minute ends it
+    failed, cancelling the task so that no second turn is spent. It is
+    Model's line in Ready's pane (*Ready,* below), the same parts as Forge's
+    line, drawn by one function. Its steps are the list Forge's has, "Each step" its name, each with its state in
     words: for a Claude subscription "Signed in to your subscription",
     "Claude Code starts on this machine", "Claude answers"; for a plan's
     sign-in "Signed in to your PLAN plan", or for a key "Key added", ticked at
@@ -1513,7 +1519,8 @@ keeps (`../protocol/configuration.md`, section 2).
       Model line has it, the muted "answered in N s", and no "Each step". The
       page does not move; the person is already on Ready.
     - *Stopped:* "✕", ACCOUNT, strong, the muted "WHO didn’t answer" in the
-      signal's colour; why, in the person's terms, a paragraph,
+      signal's colour; why, the run's ending or the wait in the person's
+      terms (`../domain/trial.md`, 6.4), a paragraph,
       `temper-welcome-status-why`; `temper-welcome-status-acts`, "Try again",
       outlined, and the act that answers the reason, quiet, "Sign in again", a
       link to the way's page, or, with none, "All ways"; then the list, folded
@@ -1521,16 +1528,22 @@ keeps (`../protocol/configuration.md`, section 2).
       before it ticked. Where the account is not usable, the page is Almost
       ready and its act disabled, as for any model not usable. Where only the
       try failed, the account being usable, the page stays Ready and its act
-      works: a failed try keeps no one out.
+      works: a failed try keeps no one out. "Try again" checks the host again
+      at a host's stop; past that, it runs another trial. A wait that won't
+      settle in a moment says why at once, while its trial still runs; no
+      "Try again" is offered until the trial ends.
 
     An account just declared counts as usable for Ready's heading and act, and
     the steps' tick, from "I’ve signed in" until its host's check says
     otherwise, so that the page does not go from Almost ready to Ready a moment
-    later. Leaving Ready does not stop the try: the check is the engine's and
-    each host's. If it stops once the person has left, Home's line about the
-    accounts says so, "WHO didn’t answer when tried", with "Try again"; answered,
-    Home says nothing more. On `ConnectModel` the account's row on the accounts
-    page holds the same lines. The terminal says the same lines as text,
+    later. Leaving Ready stops nothing: the trial belongs to the account,
+    not the page. Removing its account cancels it; a restart cancels live
+    trials and loses their lines, starting nothing (`../domain/trial.md`, 5).
+    Home's line under its intro says "WHO didn’t answer when tried", with
+    "Try again", while a trial is failed (`../domain/trial.md`, 6.3); answered
+    or running, it says nothing. The accounts page holds the same lines under
+    the account the run took, or, until then, the account that started it
+    (`../domain/trial.md`, 6.2). The terminal says the same lines as text,
     indented under the pane's name, with no bar: "ACCOUNT · Trying: STEP",
     "✓ ACCOUNT · WHO IT IS · answered in N s", "ACCOUNT · WHO didn’t answer".
     *Ready* is headed "Almost ready", with "Your first project can be
@@ -1690,6 +1703,9 @@ keeps (`../protocol/configuration.md`, section 2).
   - *Its intro:* a kicker, the current day and time, updated each minute
     (the user, 2026-11-04), the level-1 heading and
     a lede, as *To begin* or *Home on any project* (below) says.
+  - *A failed try:* under the intro, "WHO didn’t answer when tried" and
+    "Try again", while one of the person's trials is failed, whatever the
+    intro says (`../domain/trial.md`, 6.3). Running or answered adds no line.
   - *To begin* (`../draft/to-begin.md`, 2 to 4), while it shows (below).
   - *Needs you* and *Chats,* as on any Home, and left out, empty, while
     To begin shows, since its steps stand for them.
@@ -1967,7 +1983,7 @@ keeps (`../protocol/configuration.md`, section 2).
   - *By its kind.* A question reads its words by their line form
     (`../domain/agent.md`, 8.2); words in no such form are answered by
     "Reply…" alone. A proposal's question line is its reason's first
-    sentence, its facts and rows as `.ctx` beneath, then Accept (primary,
+    sentence, without a heading's marks, its facts and rows as `.ctx` beneath, then Accept (primary,
     with no "recommended") and Reject (plain, its reason's textarea as on
     the terminal's card), through the confirmation they have (3.6). A
     held task: its title and its words, its facts as the terminal's card
@@ -2006,9 +2022,6 @@ keeps (`../protocol/configuration.md`, section 2).
     leaves the open ones at once.
   - *At,* the card a Home row asked for, until it is answered or marked
     later, or the person leaves the page.
-  - *Proposals of settings,* each document as the session read it, so that a
-    return to its chat, once it is decided and jig reads it ended, draws its card
-    from it, with no acts, and its state from that read (5.13).
   - *The held send.* jig has no retraction, so a choice or a reply is
     held in the client for 5 seconds, a deadline of the domain's as
     `next_deadline` has. The card moves to answered at once, with the
@@ -5294,10 +5307,10 @@ section 5.
   and these open the tab, `Address` having no anchors: Home's "Turn on drafts
   and goals", "See the settings" and "Limits".
 - **The card in a chat:** a proposal of settings is a card at the call that
-  made it where its turn names it, and after the conversation otherwise, as
-  every proposal is (3.5): the title "How temper will run
+  made it where its turn names it, and otherwise after the turn that was running
+  when it was made, as every proposal is (3.5; *Where a card stands,* below): the title "How temper will run
   PROJECT", PROJECT its `projects`' names joined by ", " and " and ", or, with
-  none, the deployment's, "How temper will run your projects"; a line per line of the proposal's reason, in the person's words;
+  none, the deployment's, "How temper will run your projects"; the proposal's reason, in the person's words, its Markdown drawn as the Accept sheet draws it (3.6);
   then each item, in small mono type, faint, in the words of `temper ctl` but
   for temper's kinds of a project: kind 7 as "Drafts: on", "Goals: shown",
   "Changes page: shown", "Away switch: shown" and "Way: NAME", kind 6 as
@@ -5307,19 +5320,43 @@ section 5.
   in the deployment (`../protocol/configuration.md`, 13.2): without one, or until
   it is delivered, kinds 6 and 7 are named as `temper ctl` names them. Then
   "Accept", primary, jig's `Decide` with running work staying, and "Change
-  something", quiet, focusing the composer. A decision goes under the proposal's
+  something", quiet: it focuses the composer, brings it into view and sets its
+  placeholder to "What should change?", until something is sent or the proposal
+  is decided, when the placeholder goes back. A decision goes under the proposal's
   own `project`, never the chat's: a proposal of settings is the deployment's,
   whichever chat made it, and jig knows it under no other project. The card has
   no "Reject": the person rejects it on its card in *Needs you* (3.5). Saying
   what to change here revises nothing while it waits: the agent answers that an
-  owner rejects it, then proposes afresh (`../domain/agent.md`, 8.1). Replaced by a later proposal, it is
-  dimmed, "Replaced by the proposal below"; accepted, "✓ Accepted · new work
-  follows it". A person who may not accept it sees neither act: "Waiting for an
-  owner", the parties it waits for as jig's proposal names them, "Owners of this
-  deployment" for a holder that is the deployment's policy. Nothing of it
+  owner rejects it, then proposes afresh (`../domain/agent.md`, 8.1). Decided, it ends in a muted state line in place of its
+  acts, however the decision was made (*Needs you*, another tab, `temper ctl`), the
+  chat's task document telling it with no reload: accepted, "✓ Accepted · new work
+  follows it"; rejected, "Rejected · nothing changes"; withdrawn, "Withdrawn · nothing
+  changes", or, a later proposal of settings of the chat's having replaced it, dimmed,
+  "Replaced by the proposal below". While it is pending, a person who may not accept it
+  sees neither act: "Waiting for an owner", the parties it waits for as jig's proposal
+  names them, "Owners of this deployment" for a holder that is the deployment's policy.
+  Before its document is read it says none of these. Nothing of it
   says which items temper enforces and which agents follow: that is the review
   page's, below, once it is built. In the inbox, its card shows the same lines
   (3.5).
+- **Where a card stands:** jig's activity says when a proposal was made: a
+  `Decided` line naming it, with `made` (jig's `client/domain/contract.md`, 5.1).
+  With no call naming it, its card stands after the first committed turn after that
+  line, and with no such turn yet, its turn still running, at the conversation's end.
+  So a new pending card is the last thing in the chat, the chat stays at its end as
+  usual, and the reply after an Accept follows the card. A pending card whose line
+  isn't in the window (a delegate's has none) goes by its waiting time: after the first
+  turn committed at or after it, or at the end. A card whose place is past the window's
+  end isn't drawn until the window gets there. Cards at one place stand in the order
+  they were made.
+- **A decided card after a reload:** that same line brings its card back, read as a
+  pending one is: jig answers an ended proposal with its reason, items and `projects`.
+  It stands at its place, through a reload and paging back, with its state line. Past
+  the bound of what jig retains (`inbox_messages`, its read answering `Gone`), no card
+  stands. A proposal that isn't of settings draws no card once decided.
+- **"Decision made":** a line of a proposal's making draws no row, being no
+  decision; and where a card stands, its proposal's lines draw none. A card and a row
+  never both say it. A proposal with no card standing keeps its row.
 
 **Later: the fuller page.** Roles, ways to start work, rules, running work and
 history join the tab, the review page opens, and the card gains "Review". The
@@ -6483,6 +6520,14 @@ own tests:
 
 ## 11. Open questions
 
+- **The trial's later choices** (3.5, *The try*, 5.5): whether Settings
+  offers "Try it", whether deployment accounts are tried, how a second
+  account is tested while selection stays a new chat's, and retaining a
+  failed line across a restart are `../domain/trial.md`, section 8.
+  Its project-only key limit stands there too. Default: the account that
+  a new chat selects, personal accounts alone, and no retained line or
+  additional Settings act.
+
 - **Account groups and "All models"** (3.5): the `model-picker` look takes
   the offer's account ids and `picker` flags to group by what pays and expose
   every offered model, including those outside the short picker. A stopped
@@ -6672,12 +6717,6 @@ own tests:
   the goal hearing those words, whose scripts are throwaway. No world keeps it:
   the parser, the stock sentence, the session and the view each hold their own
   side. Default: those tests.
-- **A decided proposal of settings' card, past the session** (5.13; 3.5, *What the
-  client keeps*; the request `ui-walk-large` of 2026-11-06, which has the chat's card
-  stay): a return to the chat draws the card, accepted, from what the session keeps;
-  a reload or another device loses it, since an ended proposal asks no card and jig
-  names no `projects` on one. A card from the ended proposal, or a stored record, would
-  keep it. Default: this session's alone.
 - **A Reject on a chat's card** (5.13; the request `ui-chat-accept` of 2026-11-06,
   which counts Reject among the card's acts): the mock's `chat.html` draws "Accept" and
   "Change something" alone, and the reason's box stands on the card in *Needs you*.
@@ -6703,12 +6742,6 @@ own tests:
   allowed the pinned Claude Code download as its one real service leaves that bound
   by walking the page. Nothing says Forgejo's setup is wrong. Whether such a check
   allows both downloads, or starts past the forge. Default: it allows both, and says so.
-- **What feeds the try** (3.5, *The try*; `../draft/model-check.md`): the trial's
-  task and charter, how it selects its model, who pays, what ends it and its
-  cancelling once its account is removed are that draft's, and are designed as it is built, with
-  what it leaves open: an act on Settings' accounts, and a world for the wait.
-  Default: the host's check feeds Model's line at its first step, and no line says
-  "answered".
 - **The rename's opening and closing, as the mock draws them** (5.3; the request
   `ui-rename-focus` of 2026-11-06): the mock selects the name as the form opens,
   folds the menu as it closes and says "Renamed" in a toast. A view can neither

@@ -12,6 +12,8 @@ mod holdings;
 mod inbox;
 mod jobs;
 mod limits;
+#[path = "tests/person_task.rs"]
+mod person_task_stories;
 mod reads;
 mod routing;
 mod run_policy_tools;

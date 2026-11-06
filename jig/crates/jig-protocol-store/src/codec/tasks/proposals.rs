@@ -184,8 +184,8 @@ pub fn action(
     moved: Option<&[u64; 64]>,
 ) -> Result<wire::ProposalAction, wire::Problem> {
     Ok(match source {
-        domain::ProposalAction::Settings { against, items } => {
-            wire::ProposalAction::Settings(setting_heads(*against, items, limits)?)
+        domain::ProposalAction::Settings { against, items, projects } => {
+            wire::ProposalAction::Settings(setting_heads(*against, items, projects, limits)?)
         }
         domain::ProposalAction::Batch(value) => wire::ProposalAction::Batch(wire::ProposedBatch::new(
             limits,
@@ -252,7 +252,11 @@ pub fn read_action(
             for item in value.items.into_boxed() {
                 items.push(read_setting_head(item)).expect("decoded settings heads");
             }
-            domain::ProposalAction::Settings { against: value.against, items: items.into_boxed() }
+            domain::ProposalAction::Settings {
+                against: value.against,
+                items: items.into_boxed(),
+                projects: value.projects.into_boxed(),
+            }
         }
         wire::ProposalAction::Batch(value) => {
             let wire::ProposedBatchParts { members } = value.into_parts();
@@ -534,7 +538,7 @@ pub fn person_proposal(
     let domain::PersonProposal { number, proposer, project, action, reason, state } = source;
     let action = match action {
         domain::PersonAction::Settings { against, items } => {
-            wire::PersonAction::Settings(setting_heads(*against, items, limits)?)
+            wire::PersonAction::Settings(setting_heads(*against, items, &[], limits)?)
         }
         domain::PersonAction::Batch(members) => wire::PersonAction::Batch(wire::ProposedBatch::new(
             limits,
@@ -829,6 +833,7 @@ fn read_setting_head(item: wire::SettingHead) -> domain::SettingHead {
 fn setting_heads(
     against: u32,
     items: &[domain::SettingHead],
+    projects: &[u32],
     limits: &wire::Limits,
 ) -> Result<wire::ProposedSettings, wire::Problem> {
     if items.len() > skein_lib::length::usize_of(limits.proposed_settings_items) {
@@ -838,5 +843,14 @@ fn setting_heads(
     for item in items {
         heads.push(setting_head(item, limits)?).expect("bounded heads");
     }
-    wire::ProposedSettings::new(limits, wire::ProposedSettingsParts { against, items: heads })
+    if projects.len()
+        > skein_lib::length::usize_of(limits.proposed_settings_projects.min(wire::CEILINGS.proposed_settings_projects))
+    {
+        return Err(wire::Problem { path: wire::Path::ProposedSettingsProjects, reason: skein_codec::Reason::Bound });
+    }
+    let mut copied = List::with_capacity(wire::CEILINGS.proposed_settings_projects);
+    for project in projects {
+        copied.push(*project).expect("bounded proposal projects");
+    }
+    wire::ProposedSettings::new(limits, wire::ProposedSettingsParts { against, items: heads, projects: copied })
 }

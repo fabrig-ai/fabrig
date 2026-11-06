@@ -2,6 +2,17 @@
 
 2026-11-06. Where temper's code lags or departs from [setup.md](setup.md).
 
+Section 7.5 has the new-sandbox nine-port override, occupied-port
+refusals and retention of the saved ports when given another valid
+choice. Its running-box restart proof remains after landing (15).
+
+- **Departs:** 7.5: a malformed `TEMPER_FAKE_BOX_PORTS` refuses even a
+  retained sandbox, where the section says it keeps its ports whatever
+  the variable says. `crates/temper/src/fake_backends.rs`, `run`, parses
+  the variable before `prepare` checks for a retained sandbox. The
+  retained path ignores a parsed choice, but never receives an invalid
+  one; no reason for this limit is recorded.
+
 Sections 6.2 and 6.3 have no known implementation gap in the hour-long
 owned session or the later preparation's best-effort source update.
 Section 6.5 has no known implementation gap in taking a signed-in box's

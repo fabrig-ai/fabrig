@@ -57,6 +57,7 @@ pub struct Joint {
     pub runs_answered: u32,
     /// Worker assignments retained for assertions about requester notifications.
     pub assignments: Vec<engine::Assignment>,
+    trial_config: Option<engine::Config>,
     reply_pieces: Option<&'static [&'static [u8]]>,
     held_reply: Option<HeldReply>,
     hold_playground_read: bool,
@@ -1232,6 +1233,7 @@ impl Joint {
             reply_runs: false,
             runs_answered: 0,
             assignments: Vec::new(),
+            trial_config: None,
             reply_pieces: None,
             held_reply: None,
             hold_playground_read: false,
@@ -1873,6 +1875,16 @@ impl Joint {
     }
     fn settle(&mut self) {
         for step in 0..200 {
+            if self.trial_config.is_some() {
+                // Trial stories supply the worker's status explicitly; an
+                // empty inventory from the direct driver's default is held.
+                self.engine.events.retain(|event| {
+                    !matches!(event,
+                    engine::Event::Worker(engine::WorkerInput::Link {
+                        link: engine::Link::Up { up: jig_domain_host::LinkUp::Logins { logins }, .. }, ..
+                    }) if logins.is_empty())
+                });
+            }
             for event in &mut self.engine.events {
                 if let engine::Event::Store(engine::StoreInput::ReadLoaded { load, result }) = event
                     && self.read_loads.insert(*load)

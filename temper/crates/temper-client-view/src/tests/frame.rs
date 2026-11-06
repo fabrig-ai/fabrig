@@ -1641,7 +1641,10 @@ fn opening_rename_takes_focus_from_a_chat_composer() {
             },
         },
     );
-    fixtures::root_event(&mut root, Event::Act { action: Action::Pages(pages::Act::FocusComposer) });
+    fixtures::root_event(
+        &mut root,
+        Event::Act { action: Action::Pages(pages::Act::ChangeProposal { proposal: fixtures::chat::PROPOSAL }) },
+    );
     for renaming in [false, true, false] {
         let act = if renaming { pages::switcher::Act::Rename } else { pages::switcher::Act::Cancel };
         fixtures::root_event(&mut root, Event::Act { action: Action::Pages(pages::Act::Switcher(act)) });

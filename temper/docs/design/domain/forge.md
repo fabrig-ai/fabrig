@@ -2759,10 +2759,10 @@ instead (`landing.md`, section 5).
   `write_attempts` lifetimes, and never waits on nothing. Past `updates` it
   holds, `Updates`, a person told why in the last write's account
   (`update pull request: forge timed out; ...`).
-- **Any other failure** of an update (a protection, a forbidden write) is
-  a person's: held, `Failed`, in its account. A release of it, or of
-  `Updates`, drops the result and decides again as above, its count
-  afresh.
+- **Other failures** of an update, apart from a conflict below, are a
+  person's: a protection or a forbidden write holds it, `Failed`, in its
+  account. A release of it, or of `Updates`, drops the result and decides
+  again as above, its count afresh.
 - **What a late copy costs.** Once the change has moved on, a copy that
   moves the head is drift (8.5): held, and its release takes the head and
   checks it, so a person and a CI run; gates ask again. A merge names its
@@ -3259,11 +3259,14 @@ Its referee, beyond jig's for every connector (jig's
 requirement its branch's enforced rules name, guarded ones met at the
 exact head merged and up to date met on the reads of the decision that
 merged it; merges land exactly the heads decided; temper never writes to
-what it does not own, nor forces a push; a held change makes no effect;
+what it does not own, and its runs never force a push (the forge's prepare
+rebase is `landing.md`, 5.2); a held change makes no effect;
 a landing wakes a goal exactly when it overlaps; no change waits in a
 queue past the aging window behind changes that became ready after it;
-temper's own pushes are never taken for drift; the calls made while
-idle are bounded by the limits; nothing is narrowed, and no change held,
+temper's own pushes while it holds the writer slot are never taken for
+drift, but a late update copy moving the head after its change moved on
+is drift (section 10); the calls made while idle are bounded by the
+limits; nothing is narrowed, and no change held,
 for a forge not connected; a change whose merge was answered queued is
 not merged again until the forge has landed or ejected it, and lands at
 the group's commit; nothing is written to, read of or listed for a
@@ -3444,6 +3447,7 @@ whole.
   leave the bound untrue of update attempts. Default: it counts; the figure is the
   user's.
 - **A report's head past a merge** (8.11): a next producer's start that merges a
-  tip it lacks makes a new head at its first push, so a report written before names
-  an older one, where a tip it contains no longer does. Default: so; the head
-  delivered names what is on the branch (`agent.md`, section 6).
+  tip it lacks makes a new head before its run if clean, or at its first push or
+  save once its conflicts are settled. A report written before that merge names
+  an older head; a contained tip makes no new one. Default: so; the head delivered
+  names what is on the branch (`agent.md`, section 6).
