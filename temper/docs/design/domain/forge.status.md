@@ -3,7 +3,6 @@
 2026-11-06. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
-  - 10 (`update-hold-words`): `Updates` names no write's account.
   - 11: a task's saved work is not deleted as it closes: `s<task>` is no hold,
     and a close releases holds alone (`temper-engine-domain-forge/src/domain.rs`,
     `continue_release`), so the branch stays on the forge. From reading: no story
