@@ -424,20 +424,18 @@ fn assert_box_streams(ended: &support::boxed::Outcome, forgejo: std::net::Socket
     }
     let stderr = std::str::from_utf8(&ended.stderr).expect("box diagnostics");
     assert!(
-        stderr.lines().all(|line| {
-            steps.iter().any(|step| line.starts_with(step))
-                || box_terminal_line(line, &["prepare-1", "forgejo-1", "runner-1", "serve"], &notices)
-        }),
+        stderr.lines().all(|line| { steps.iter().any(|step| line.starts_with(step)) || box_terminal_line(line) }),
         "each stderr line names its step or carries prescribed box words: {stderr}"
     );
+    let log = support::boxed::box_log(data);
     for words in notices {
-        assert_eq!(stderr.lines().filter(|line| box_notice_words(line) == words).count(), 1, "{stderr}");
+        assert_eq!(log.lines().filter(|line| box_notice_words(line) == words).count(), 1, "{log}");
     }
     assert!(!stderr.contains("Forgejo: api ") && !stderr.contains("Forgejo: person "), "{stderr}");
     assert!(stderr.lines().any(|line| line.starts_with("runner-1: ")), "the runner's lines arrive prefixed");
 }
 
-// Only a valid UTC time-of-day prefix can precede the existing box notices.
+// Only a valid UTC time-of-day prefix can precede the box notices.
 fn box_notice_words(line: &str) -> &str {
     let bytes = line.as_bytes();
     if bytes.len() >= 10
@@ -455,34 +453,16 @@ fn box_notice_words(line: &str) -> &str {
     }
 }
 
-fn box_terminal_line(line: &str, starting: &[&str], group_notices: &[&str]) -> bool {
+fn box_terminal_line(line: &str) -> bool {
     let words = box_notice_words(line);
     line.is_empty()
         || [
-            "Open this link in a browser on this machine. It signs you in as this",
-            "temper's owner, once and for a short while, so keep it private.",
+            "Open this link in a browser on this machine.",
+            "It signs you in as this temper's owner, once and for a short while.",
             "Opened again once spent, it prints a fresh one here.",
-            "Ctrl-C stops temper.",
         ]
         .contains(&line)
         || words.starts_with("box: ")
-        || words.starts_with("First run: wrote the configuration, ")
-        || words.strip_prefix("Logs: ").is_some_and(|path| path.starts_with('/') && path.ends_with("/box/logs/"))
-        || ["Stopping", "Stopped"].contains(&words)
-        || group_notices.contains(&words)
-        || owned_hands_line(words)
-        || (words != line && words == "A fresh sign-in link:")
-        || words.strip_prefix("Starting ").is_some_and(|name| starting.contains(&name))
-}
-
-fn owned_hands_line(words: &str) -> bool {
-    let Some((number, words)) = words.strip_prefix("Forge ").and_then(|words| words.split_once(" (Forgejo): ")) else {
-        return false;
-    };
-    if number.parse::<u16>().is_err() {
-        return false;
-    }
-    ["starting", "started"].contains(&words)
 }
 
 #[test]
@@ -542,8 +522,8 @@ fn a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_la
             &client_root,
             steps,
             BOX_DEADLINE,
-            |stderr| {
-                let evidence = support::first_repository::live_from_hands(&paths[0], &paths[1], &client_root, stderr);
+            |_| {
+                let evidence = support::first_repository::live_from_hands(&paths[0], &paths[1], &client_root);
                 support::first_repository::probe_admin_handover(&paths, &client_root, &mut older_admin);
                 evidence
             },
@@ -598,7 +578,11 @@ fn a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_la
             replace_admin_handover(&paths);
         }
         let wrote = format!("First run: wrote the configuration, {}\n", paths[0].join("temper.json").display());
-        assert_eq!(stderr.contains(&wrote), run == "first", "only the first box writes configuration");
+        assert_eq!(
+            support::boxed::box_log(&paths[1]).contains(&wrote),
+            run == "first",
+            "only the first box writes configuration"
+        );
     }
     scratch.remove();
 }
@@ -721,7 +705,7 @@ fn a_persons_plan_change_lands_on_the_owned_forge_and_is_found_after_a_restart()
             Some(skein_forge::forgejo::pin::VERSION)
         );
         let wrote = format!("First run: wrote the configuration, {}\n", paths[0].join("temper.json").display());
-        assert!(!stderr.contains(&wrote), "init wrote configuration before either box");
+        assert!(!support::boxed::box_log(&paths[1]).contains(&wrote), "init wrote configuration before either box");
         assert_cache_untouched(&cached, &sources);
     }
     scratch.remove();
