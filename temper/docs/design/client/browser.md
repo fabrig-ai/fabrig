@@ -898,7 +898,10 @@ without it.
    checks the shell's wiring of the restart part, at the test address
    `/test/panic` at which the shell panics at start, as jig's reference
    shell has it (2.1).
-5. **jig's attack stories that need a browser,** from
+5. **Reading back:** scroll a chat's log up; Latest appears. Send new words
+   while reading back and the log stays away from its end. Press Latest;
+   the end returns and the pill goes (`README.md`, 3.5).
+6. **jig's attack stories that need a browser,** from
    `jig-client-fake-person-browser`, against `temper serve`: a
    cross-site request from another port and from another host does
    nothing; a framed page shows nothing (jig's `protocol/browser.md`,
@@ -1371,6 +1374,16 @@ from the engine's own answers, is where the look is tuned.
 | `chat-new` | `NewChat` with a repository: its `.meta-line` and focused composer |
 | `chat-new-no-repository` | `NewChat` with no repository |
 | `chat-new-first-run-1` | `NewChat` at the first run's first screen: the playground's start |
+| `chat-work-done` | the `chat-work` request's conversation, calls settled and folded, answer committed |
+| `chat-work-open` | the same conversation, the call run open to all thirteen rows |
+| `chat-work-running` | its first four calls settled and template 2 being checked, with no supplied outcome |
+| `chat-work-writing` | the same calls settled, the supplied opening paragraph being written with its end mark; the 512-byte live bound remains |
+| `chat-work-failed` | a failed charter read, its line and outcome in the signal's colour |
+| `chat-work-one` | one `read_docs` call alone, "Read the page hold" |
+| `chat-work-unknown` | a tool outside the words table, "read_file ×2" |
+| `chat-work-separated` | text between two calls ends one run and starts another |
+| `chat-work-empty` | before the first word or call, the three dots |
+| `chat-work-reading` | earlier messages loading and Latest over the foot while away from the end |
 | `chat-working` | a live chat at work: its three dots |
 | `chat-change-running` | a chat with a delegated change running: its one line |
 | `chat-change-landed` | a chat with a delegated change landed: its one line with its result's words |
