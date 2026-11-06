@@ -62,7 +62,7 @@ pub struct Effects {
 }
 
 /// The effect fields needed to associate an accepted proposal with its decision.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Effect {
     pub kind: u16,
     pub target: u64,
@@ -77,7 +77,7 @@ pub struct ConnectorPolicy {
 }
 
 /// A revision named explicitly in a connector's durable procedure step.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NamedRevision {
     pub connector: u16,
     pub owner: u64,

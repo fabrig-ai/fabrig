@@ -7,7 +7,7 @@ use jig_test_connector as connector;
 use jig_test_domain as root;
 use std::collections::BTreeMap;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Observer {
     inner: conformance::Observer,
     application_requests: bool,

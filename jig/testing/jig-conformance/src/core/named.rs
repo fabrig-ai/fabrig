@@ -77,7 +77,7 @@ fn run_priority(amendment: &tasks::Amendment) -> bool {
         && amendment.authority.is_none()
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(super) struct Names {
     pending: BTreeMap<u64, Vec<super::super::NamedRevision>>,
     seen: BTreeSet<(u16, u64, u16)>,
