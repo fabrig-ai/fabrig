@@ -218,6 +218,17 @@ fn redirect_listener(listener: super::Listener, writer: &mut Writer, length: &mu
     };
     put(writer, length, measuring, name);
 }
+/// The admission paragraph shared by startup paths and hello refusals (protocol/README.md, 15.3).
+pub(crate) fn admission_words(why: jig_domain_fleet::AgentShortfall, offered: u64, required: u64) -> Box<[u8]> {
+    let mut length = 0;
+    admission(why, offered, required, &mut Writer::new(0), &mut length, true);
+    let mut writer = Writer::new(length);
+    let mut written = 0;
+    admission(why, offered, required, &mut writer, &mut written, false);
+    assert_eq!(written, length, "admission passes measure identically");
+    writer.finish()
+}
+
 fn admission(
     why: jig_domain_fleet::AgentShortfall,
     offered: u64,
@@ -229,7 +240,7 @@ fn admission(
     use jig_domain_fleet::AgentShortfall;
     // Missing names carry no numerical claim, even if constructed by a caller.
     if let AgentShortfall::Model { .. } = why {
-        put(writer, length, measuring, b"not in the agent's configuration under the same name");
+        put(writer, length, measuring, words(What::Agent));
         return;
     }
     let (before, between, after): (&[u8], &[u8], &[u8]) = match why {
