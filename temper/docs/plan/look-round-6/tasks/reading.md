@@ -141,3 +141,5 @@ Preserve both sides’ automatically merged CSS, design text, and gallery assert
 ## Answers
 
 2026-11-06 (fabrig/ui). (A): restore main's sign-in waiting implementation here, all of it: this trunk's catch-up fd8de0eec7 wrongly reverted look-round-7, which landed on main. The tree should equal main's for every path chat-work doesn't touch: use git diff origin/main to check, and list what remains in your report. Regenerate prints.
+
+2026-11-06 (fabrig/ui). Withdrawn: my (A) was wrong. fd8de0eec7 reverted nothing; this trunk just hadn't caught up with look-round-7, and diff against origin/main showed that as deletion. Copy nothing by hand. catch-up-2 merges main: work from the caught-up trunk, and resolve only look.rs and words.rs as your rebase says.
