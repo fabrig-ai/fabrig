@@ -278,10 +278,10 @@ fn locals(f: &Fixture, c: &mut Capture) -> Result<String> {
     success(&local(c, f, None, &["checkout", "--force", "--detach", &f.base])?)?;
     success(&local(c, f, Some("merge-up-to-date"), &["merge", "--no-commit", "--no-ff", "--", &f.base])?)?;
     success(&local(c, f, None, &["checkout", "--force", "--detach", &f.base])?)?;
-    success(&local(c, f, Some("commit-add"), &["add", "--all"])?)?;
+    success(&local(c, f, Some("commit-add"), &["add", "--all", "--", ".", ":(exclude,glob)**/.*.log"])?)?;
     local(c, f, Some("commit-unchanged"), &["diff-index", "--cached", "--quiet", &f.base, "--"])?;
     fs::write(f.repo.join("conflict.txt"), b"ours\n")?;
-    success(&local(c, f, None, &["add", "--all"])?)?;
+    success(&local(c, f, None, &["add", "--all", "--", ".", ":(exclude,glob)**/.*.log"])?)?;
     local(c, f, Some("commit-changed"), &["diff-index", "--cached", "--quiet", &f.base, "--"])?;
     let tree = local(c, f, Some("commit-write-tree"), &["write-tree"])?;
     success(&tree)?;
