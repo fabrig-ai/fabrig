@@ -937,7 +937,10 @@ keeps (`../protocol/configuration.md`, section 2).
     address as the person's own click (*The sign-in under way*). A browser
     that opens the tab and hides it is served by "Open it again". The
     terminal's shell opens no tab, and prints the address (6.5). Nothing
-    leaves: the page holds the sign-in from its answer.
+    leaves: the page holds the sign-in from its answer. The accounts page's
+    row signs in the same way, its tab opened and pointed the same, and
+    stays on its page with its link "Open the sign-in page", with no address
+    of its own to name the source.
   - *Its end,* the page moves on by itself, on the `accounts` watch: to
     Ready, on the welcome as on `ConnectModel`, its address replacing the
     step's, or to the ending's words and acts. A hidden tab lets its
@@ -2706,8 +2709,8 @@ for its kind, its user's login and its installations. Its nodes:
   set up and the deployment's forges, 5 since jig's client wire 13
   carried in its refusals, 6 since the first repository (`SetUp`'s
   fields and the row's `first`), 7 since the playground's state (its
-  read's `state` and its start), 8 since a sign-in's return
-  (`Return`, section 8), 9 since connecting a GitHub App (`Connect`,
+  read's `state` and its start), 8 since a sign-in's return, since gone,
+  9 since connecting a GitHub App (`Connect`,
   `Install`, `ForgeRefusal`), 10 since the forges row's installations
   and last connect's end, 11 since GitHub's manifest (`Connect`'s
   `GitHubManifest` and the row's `app`). It stays at 11 until the first
@@ -2727,7 +2730,7 @@ for its kind, its user's login and its installations. Its nodes:
   `make_repository`, `MakeRepository`,
   `dismiss`, `Dismiss`, `looked`, `Looked`,
   `start_playground` and `end_playground`, the last two with no fields
-  (below), or `return`, `Return`, answered `returning` (section 8). Each is answered by the family's one record,
+  (below). Each is answered by the family's one record,
   `Answer`, whose outcome is one of either request's (below); the client
   refuses as undecodable an outcome that does not fit the request it
   sent.
@@ -2886,8 +2889,7 @@ for its kind, its user's login and its installations. Its nodes:
   Forgejo of the connected mode, connected or stopped
   (`../protocol/setup.md`, section 4 and 17.3).
 - **`Install`:** of the deployment's scope: the forge's number (u16)
-  and `back`, an optional byte string checked as `Return`'s `path`
-  (section 8). Its outcome: *a link*, `Link`, the install page's
+  and `back`, an optional byte string checked at decode (section 8). Its outcome: *a link*, `Link`, the install page's
   address (a byte string of at most 2048 bytes); *connecting*, an
   `Install` that stopped, its failure said on the forge's row; *forge
   refused*, `ForgeRefusal`; or *unknown*.
@@ -5571,32 +5573,12 @@ does for the client:
   root forwards to jig's clients' component to erase.
 - **`back`,** on a GitHub connect and an install, is the page's address
   the setup route sends the browser back to once GitHub is done
-  (`forge.md`, 9.1), checked at decode as `Return`'s `path` is (below);
-  none, from the terminal, leaves the route's own page.
-- **`Return { source, path }`,** a sign-in's return (3.5,
-  `ConnectModel`, The tab's departure), is no forge's: the family
-  carries it as temper's one request of the client's own. `source` is
-  jig's source of the sign-in (`AccountSignInStarted`), `path` the
-  page's address to come back to. The service checks `path` at decode,
-  before the root: one leading `/`, not `//`, no `\`, no scheme, of
-  visible ASCII, at most 512 bytes; one that is not is answered
-  undecodable. Any signed-in person may send it, in their own scope,
-  with no role: jig admits it by key, and the root answers it
-  `returning` and asks the routing to give the return. The routing
-  composes the clients' listener's own address, as the printed link
-  names it (`http://HOST:PORT`, the bound socket, never a request's
-  Host), with `path`, and gives it to skein's accounts component for
-  that source (skein's `oauth.md`, 6.5: `Request::Return`), which
-  drops it when no sign-in of that source is under way. The root
-  checks no holder: the return only ever sends a browser to a page of
-  this engine's own clients' listener, so a source of another
-  person's, given a path, sends that person to one of temper's pages,
-  where the cookie decides what they see. A return lives as long as
-  its sign-in, in skein's component alone: never kept, so a restart
-  loses it and the listener answers its fixed page.
+  (`forge.md`, 9.1). The service checks it at decode, before the root:
+  one leading `/`, not `//`, no `\`, no scheme, of visible ASCII, at most
+  512 bytes; one that is not is answered undecodable. None, from the
+  terminal, leaves the route's own page.
 - **Who may:** a person whose role on project 0 is `Owner`; in
-  standalone, the deployment's owner, for every request above but
-  `Return`. jig admits each by key and
+  standalone, the deployment's owner, for every request above. jig admits each by key and
   refuses at admission as for any request, in jig's words; the root
   refuses any other party's, before a forge is called or a run starts,
   as the outcome refused (role).
@@ -5952,7 +5934,7 @@ own tests:
   "Continue with ChatGPT", Signing in showing its address, the
   watched sign-in made, and Ready; the press's `Tab::Open` in the
   press's own turn, before any answer, then one `Tab::Point` for the
-  address from the answer, with no `Return` and no `Leave`, the page's
+  address from the answer, with no `Leave`, the page's
   address naming the source in place of its entry; a refused or lost
   answer's `Tab::Close`, and an answer the page has left; a tab refused,
   no `Tab::Point`, and the note's primary button; none again on a
