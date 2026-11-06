@@ -285,6 +285,18 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "chat-paused",
+        heading: "T6 · Why is tally sum slow on big files?",
+        parts: &[
+            Part::Named { role: Role::Button, name: "Resume" },
+            Part::Named { role: Role::Button, name: "Close" },
+            Part::Named { role: Role::Status, name: "Paused" },
+            Part::Text { text: "Sending resumes this chat." },
+            Part::Absent { role: Role::Button, name: "Pause" },
+            Part::Absent { role: Role::Status, name: "Applied" },
+        ],
+    },
+    Holds {
         name: "chat-closed",
         heading: "T6 · Why is tally sum slow on big files?",
         parts: &[

@@ -42,6 +42,7 @@ pub enum Then {
     DelegatedGoal,
     HeldChange,
     HeldTask,
+    Paused,
     Filled,
     Refused,
     SignedOut,
@@ -104,7 +105,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 275;
+pub const N: usize = 276;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -741,6 +742,7 @@ pub fn samples() -> [Sample; N] {
             address: Address::NewChat { draft: false },
             then: Shown,
         },
+        Sample { name: "chat-paused", world: Solo, address: Address::Chat { task: 6 }, then: Then::Paused },
         Sample { name: "chat-working", world: Solo, address: Address::Chat { task: 6 }, then: Then::Working },
         Sample { name: "chat-solo-T6", world: Solo, address: Address::Chat { task: 6 }, then: Shown },
         Sample { name: "chat-held-task", world: Solo, address: Address::Chat { task: 10 }, then: Then::HeldTask },
@@ -1049,6 +1051,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
             | Then::Working
             | Then::DelegatedGoal
             | Then::HeldChange
+            | Then::Paused
             | Then::HeldTask
             | Then::Filled
             | Then::Refused
@@ -1391,7 +1394,8 @@ pub fn domain(sample: &Sample) -> Domain {
         | Then::Held
         | Then::DelegatedGoal
         | Then::HeldChange
-        | Then::HeldTask => {}
+        | Then::Paused
+            | Then::HeldTask => {}
         Then::Filled | Then::Refused => adoption(&mut root, sample.then == Then::Refused, &mut out),
         Then::SignedOut | Then::GoogleSignIn => step(&mut root, Event::SignedOut, &mut out),
         Then::OutOfDate => step(
