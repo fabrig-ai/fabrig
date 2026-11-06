@@ -1472,6 +1472,9 @@ may change with them.
   | the stream's first answer | a connection taken, *starting*, nothing heard | `the engine at ADDRESS took the connection but its stream did not answer within 30 s` |
   | a read's answer | *starting* with the engine heard, or *live* in a read or a wait | `the engine at ADDRESS did not answer a read within 30 s` |
   | an act's outcome | *live* in an act that has no answer yet | `the engine at ADDRESS gave no outcome for this act within 30 s` |
+  | an act's outcome, the engine having answered it *busy* | as above, its last retry's why (jig's `client/domain/client.md`, section 6) | `the engine at ADDRESS last answered this act busy; no outcome within 30 s` |
+  | an act's outcome, *not ready* | as above | `the engine at ADDRESS last answered this act not ready; no outcome within 30 s` |
+  | an act's outcome, its answer lost or undecodable | as above | `the last answer to this act from the engine at ADDRESS was lost; no outcome within 30 s` |
 
   A call that acts adds what is true of its act, on any of those lines,
   until the act has answered; a first repository's watch (5.4) has its
@@ -1486,7 +1489,9 @@ may change with them.
   | sent once and never kept, under a name the table drew | `; it is not kept, and calling again is a new request` |
 
   A same-key retry is safe by section 7, which is why these lines may
-  offer it. The deadline stays the user's 30 s.
+  offer it. The deadline stays the user's 30 s. A line naming a retry's
+  why is the call's explicit pending result: its request is kept, and it
+  was still being tried (8.2).
 - **An account's move** (5.5, area 5) keeps the rule: 2 is the
   engine's refusal alone, "not signed in", "not ours", "held",
   "moving" and "cancelled"; FILE's faults are the tool's own, exit 1,
@@ -1784,6 +1789,14 @@ as the terminal's host is:
 - **A link down** past the link's deadline (section 12), at step 3, 4
   or 5, exits 1; what was sent stays in the small store, as after a
   signal.
+- **A call is never left waiting with nothing to wait for.** A request
+  answered *busy* or *not ready*, or whose answer was lost, and a `me`
+  refused, are tried again, and the spans between tries are the tools'
+  own (section 12): short beside the link's deadline, so that a call has
+  a request in flight or due within its span until that deadline, then
+  ends in its answer or in 6.3's line. A longer span would leave the call
+  asleep past its last try, its request kept and nothing in flight, and
+  would keep an answer that was ready from it for as long.
 - **Recovery writes** wait in an uncapped queue, with one write in
   flight. The CLI's internal event and request queues are uncapped
   too; file staging, kernel submission room and output credit keep
@@ -2210,6 +2223,7 @@ terminal's, whose window shows two rows:
 | one document, the client's `document_bytes` | 1 MiB |
 | a path's segments; an authority's entries | 9; 12, as the terminal's (`README.md`, 5.4) |
 | the link's deadline: the engine unreachable, or a call's request or answer unheard | 30 s |
+| a retry's span, a request's and a watch's: at least half of it, jittered | from 1 s, doubling to at most 2 s, the most a sign-in's link waits between tries (8.2) |
 | the lock's wait | 60 s, tried every 100 ms |
 | a key's file, less a final newline (5.5, area 5) | 4 KiB; past it, or empty, exit 1 with nothing sent; a key the engine refuses is its refusal, exit 2 |
 | a moved record's file, whole (5.5, area 5) | 128 KiB, jig's bound on a keyed request's value (jig's `protocol/client.md`, section 5); past it, or empty, exit 1 with nothing sent; a file past its form's bound at the engine is its refusal, a limit, exit 2 |

@@ -27,3 +27,23 @@ id = 1
 story = "A call past its deadline says what it waited for, and serve's log says when a pass of the loop took long"
 parts = ["deadline-words", "long-pass"]
 walk = false
+
+[[part]]
+id = "kept-answer"
+title = "A kept message reaches its answer: reproduced at both sides, fixed where it lies, and no call left waiting with nothing in flight"
+mode = "direct"
+needs = ["deadline-words"]
+design = "temper/docs/design/client/tools.md, 8.2"
+
+[[part]]
+id = "settings-answer"
+title = "A settings change naming an effort no model offered gets its answer"
+mode = "direct"
+needs = []
+design = "jig/docs/design/client/domain/contract.md, 4"
+
+[[slice]]
+id = 2
+story = "A kept act ends in its answer or an explicit pending result, whatever the engine answered it"
+parts = ["kept-answer", "settings-answer"]
+walk = false
