@@ -106,6 +106,26 @@ pub(crate) fn profile_evidence(dir: &Path, edit: fn(&mut Vec<Item>)) {
     fs::write(dir.join("chat.txt"), "The box already supplies the models and repository.\n").expect("chat");
 }
 fn unedited(_items: &mut Vec<Item>) {}
+
+#[test]
+fn project_ways_and_questions_are_extras_only_when_accepted() {
+    for accepted in [vec![0], vec![1], vec![0, 1], vec![]] {
+        let (recorded, settings) = super::collect::project_settings_outputs(&accepted, &[0, 1]);
+        let (items, current) = crate::collect::assemble(&recorded).expect("project settings evidence");
+        let mut evidence = proposed(unedited);
+        evidence.items.items.extend(items.items);
+        evidence.current.items.extend(current.items.into_iter().filter(|item| item.setting.kind != "project-policy"));
+        let result = report(&evidence);
+        let expected: Vec<_> = accepted
+            .iter()
+            .map(|at| check::Extra { setting: settings[*at].setting.clone(), why: "no obligation asks for it".into() })
+            .collect();
+        assert_eq!(result.extras, expected);
+        assert_eq!(result.passed(), accepted.is_empty(), "{}", result.text());
+        assert_eq!(result.verdicts, report(&proposed(unedited)).verdicts);
+    }
+}
+
 fn proposed(edit: fn(&mut Vec<Item>)) -> Evidence {
     let scratch = Scratch::new("stage-one-check");
     profile_evidence(scratch.path(), edit);

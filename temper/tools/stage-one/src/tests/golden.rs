@@ -160,3 +160,32 @@ fn a_current_inventory_includes_project_settings() {
     assert_eq!(file.items[2].setting.project, Some(golden::ProjectRef::Number(7)));
     assert_eq!(file.items[2].setting.number, Some(1));
 }
+
+#[test]
+fn project_ways_and_questions_require_a_project_without_a_number() {
+    for kind in ["project-ways", "project-questions"] {
+        for project in [json!(1), json!(u32::MAX), json!("box")] {
+            let setting = json!({"kind":kind,"project":project});
+            let file = json!({"items":[{"setting":setting,"set":{"free":null}}]});
+            let decoded = golden::decode_settings(&serde_json::to_vec(&file).expect("JSON")).expect("project key");
+            assert_eq!(serde_json::to_value(&decoded.items[0].setting).expect("key JSON"), setting);
+            assert_eq!(decoded.items[0].edit, Edit::Set(json!({"free":null})));
+        }
+        for (setting, path) in [
+            (json!({"kind":kind}), "$.items[0].setting"),
+            (json!({"kind":kind,"project":1,"number":1}), "$.items[0].setting"),
+            (json!({"kind":kind,"project":"box","number":1}), "$.items[0].setting"),
+            (json!({"kind":kind,"number":1}), "$.items[0].setting"),
+            (json!({"kind":kind,"project":0}), "$.items[0].setting"),
+            (json!({"kind":kind,"project":null}), "$.items[0].setting.project"),
+            (json!({"kind":kind,"project":-1}), "$.items[0].setting.project"),
+            (json!({"kind":kind,"project":4_294_967_296_u64}), "$.items[0].setting.project"),
+            (json!({"kind":kind,"project":"1"}), "$.items[0].setting.project"),
+        ] {
+            let file = json!({"items":[{"setting":setting,"edit":"reset"}]});
+            let error =
+                golden::decode_settings(&serde_json::to_vec(&file).expect("JSON")).expect_err("invalid project key");
+            assert_eq!(error.path, path, "{kind}: {error}");
+        }
+    }
+}
