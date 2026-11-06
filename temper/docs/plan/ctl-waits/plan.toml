@@ -1,0 +1,29 @@
+draft = "ctl-waits"
+repo = "fabrig"
+sources = ["temper/docs/plan/ctl-waits/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+
+# Four tasks at most, by the request. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "deadline-words"
+title = "A call past the link's deadline says what it waited for, and an act's line what is true of the act"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/tools.md, 6.3"
+
+[[part]]
+id = "long-pass"
+title = "A pass of the service's loop past 1 s writes one rate-limited, payload-free line naming its longest stage"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/README.md, 8.1"
+
+[[slice]]
+id = 1
+story = "A call past its deadline says what it waited for, and serve's log says when a pass of the loop took long"
+parts = ["deadline-words", "long-pass"]
+walk = false
