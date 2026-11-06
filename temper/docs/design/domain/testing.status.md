@@ -10,6 +10,9 @@ released ports listening again and retained sandbox ports. The supplied
 inventory establishes no slow-tier restart outcome for `process-ports`;
 that proof remains with the after-landing runs (11).
 
+- **Not yet:** 5.2: the conformance world's fuzzy sweep replays each cut from the
+  first commit, not forked from its baseline.
+
 - **Departs:** 2.6: `temper-fixtures/src/ports.rs`, `ephemeral_first`,
   uses 49152 when `/proc/sys/net/ipv4/ip_local_port_range` is absent,
   rather than reading macOS's configured range. The plan chose its

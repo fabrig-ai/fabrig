@@ -2060,7 +2060,9 @@ meets a story only when its item closes. The system world checks its
 stories independently of the roots, against durable task and call
 records and smith's own observations (`tests/system`). The conformance
 world (`tests/conformance`) runs the engine root on jig's conformance
-harness, under its outside referee. Its stories' and scenarios' heap
+harness, under its outside referee. Its fuzzy sweep crashes each live
+commit of a story once, every cut forked from the one baseline (jig's
+`domain/testing.md`, 5). Its stories' and scenarios' heap
 ceilings are three times the figure skein's testing-strategy.md,
 section 6 gives (the measured peak plus a quarter, rounded up), the
 user's, 2026-11-03: an engine running a workload of many goals holds
