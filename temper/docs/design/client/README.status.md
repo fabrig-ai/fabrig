@@ -177,17 +177,6 @@
   Stop there by hand, which no test keeps. That model has no script of a configuring
   agent's document or proposal and no hold of temper's own, so the gallery alone
   draws those states.
-- **Not yet:** 3.5, *Needs you*, 5.13: a proposal of settings has its inbox row say
-  project 0, so *Needs you* by the open project and the rail's count
-  (`temper-client-domain`'s `pages/needs.rs`, `count`) leave it out, whichever
-  project's kinds its items change, where the greenfield mock, the target, has its
-  card and its count. No live walk shows that card: the gallery's
-  `configure-chat-proposal` draws it in a chat, and `needs-proposal` is a goal's.
-  Section 11 holds the decision.
-- **Not yet:** 3.5, *What the client keeps*, its held send: once, on a fake box at
-  1440, a choice pressed just after Undo left the card, the count and the engine's
-  question as they were after six seconds, and a repeat on a fresh box and the walk
-  at 420 answered. The cause is unknown; no test holds it (section 11).
 - **Not yet:** 5.3: the rename's form asks the focus, and so does an open reply:
   `temper-client-view`'s `pages/ask.rs`, `reply_form`, calls `b.focus(0)` with no
   guard, where `pages/chat.rs`, `document.rs`, `settings.rs`, `new_chat.rs` and
@@ -409,6 +398,10 @@
   And " · later" shows on *Needs you*'s mono line as on Home's, where the request
   and the mock have it on Home's card alone: the one function draws both, and no
   reason is recorded.
+- **Design departs:** 3.5, *Claude*, 4.6, from the request `ui-walk-2` of 2026-11-06,
+  decided by its plan's cut. `program_environment` answers the owner at any time,
+  where the request has it during set up, because Connect a model draws the same
+  command after set up.
 - **Design departs:** 3.5, *The flows' paths* and *Builders*, from the request
   `ui-settings-tabs` of 2026-11-05, decided by its plan's cut. The terminal
   draws no path, where the request has each flow add one: the same request
