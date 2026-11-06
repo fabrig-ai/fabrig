@@ -103,3 +103,13 @@ Then the checks your run's text gives. Commit and push.
 ## Report
 
 As your run's text says. Quote the answer you built, and who your run says gave it.
+
+## Answers
+
+2026-11-06. What should `waiting on:` print for a held task that awaits nothing
+else, `held` alone or `held: REASON`? The user, who wrote the draft, answered:
+"`held` alone, as recommended: the panel's `held:` and `way out:` lines already
+carry the reason, and temper's copy took the same." This is the answer step 1
+waits for: build step 2's `held` form, the word alone, with `vocabulary` dropped
+from the sketch and `holds.rs` left as it is. Step 3's first test prints
+`waiting on: held`, whole.
