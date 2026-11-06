@@ -20,3 +20,67 @@ id = 1
 story = "a person who gives a bad key reads what a key is"
 parts = ["key-words"]
 walk = false
+
+[[part]]
+id = "account-story"
+title = "a task no account serves says so in its header, its plain line and its JSON, from one check"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/tools.md, 6.1"
+
+[[part]]
+id = "move-own"
+title = "a move of a live task the party already requests is not offered, in place of not_waiting"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/people.md, 5.1"
+
+[[part]]
+id = "setup-words"
+title = "forge setup ends without the line on protection it could not read"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/tools.md, 5.5"
+
+[[part]]
+id = "hold-look"
+title = "a hold for failed runs says where its failures are, in way out and in temper help hold"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/tools.md, 6.1"
+
+[[part]]
+id = "effort-refusal"
+title = "a settings item's effort its model doesn't offer is refused before sending, naming the effort and the model"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/tools.md, 5.3"
+
+[[slice]]
+id = 2
+story = "a person reading a task no account serves reads one story, and what a move does then"
+parts = ["account-story", "move-own"]
+walk = false
+
+[[slice]]
+id = 3
+story = "a person setting up a box's own Forgejo isn't left with a line they can't act on"
+parts = ["setup-words"]
+walk = false
+
+[[slice]]
+id = 4
+story = "a person reading a task held after failed runs knows where to look"
+parts = ["hold-look"]
+walk = false
+
+[[slice]]
+id = 5
+story = "a person applying a settings file that asks an effort its model lacks gets a refusal naming both"
+parts = ["effort-refusal"]
+walk = false
+
+[[question]]
+id = "hold-failure-text"
+text = "Should a task held out of tries keep its last failure's text on the hold, so task show can print it? Today only the class is stored and the text is in the engine's log, and hold-look makes the words say where to look, which holds whatever the answer. What it stores: the last failure's text, one per hold, replaced by each failure. Its bound: for you to set; the log keeps a 4096-byte tail (temper/crates/temper/src/host.rs, run_detail_line), and 1024 bytes with control bytes escaped would be enough to read. Who may read it: whoever may read the task, in task show, --json and the browser, where today it takes access to the engine's log. A failure's text can hold what a run saw: tool output, paths, a provider's error, an echoed credential; it can't be redacted reliably. No LLM is shown it today, while a hold's words reach the LLM's task read (temper-engine-smith/src/answers.rs), so it needs a field of its own. Narrowing readers to owners and maintainers would be further work, and this cut didn't check how. Cost: a stored format, so hard to reverse: jig's tasks and core schemas, the hub link's payload and the client wire all move a version, with their goldens and migration, roughly four to six tasks in a plan of its own (temper/docs/design/domain/worker.md, section 12). Options: no, the words alone (recommended, until they prove too little); or yes, with your bound and readers."
+parts = ["hold-look"]

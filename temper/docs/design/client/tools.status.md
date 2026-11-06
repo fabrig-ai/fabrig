@@ -9,15 +9,21 @@ Unlisted sections have no known gap.
   (`temper-client-tools`' `render/document/llm.rs`, `wait_explanation`), and ctl has
   no such tool until area 3's is built (5.5), so that line names a command that
   isn't there yet.
+- **Not yet:** 5.3: a settings item's effort its model doesn't offer goes to the
+  engine, and no refusal names the effort.
 - **Not yet:** 5.5: area 2 cannot distinguish a refused creating offer's
   capacity cause from its role cause: jig's `me` carries absence alone
   (`jig/docs/design/client/domain/contract.md`, 5.3). Its diagnostic names
   the role and `documents.lines` as checks, without asserting either cause.
+- **Not yet:** 6.1: a task no account serves prints `Due to run` and `--json`'s
+  `waits_on` `nothing`, against `waiting on: an account`.
 - **Not yet:** 5.5: `temper help task`'s Limits still says temper does not
   let ctl take a task or hand it back, where area 3's `task take` and
   `task hand-back` do so for a person task. The `plainer-panels` request of
   2026-11-06 left the line, saying nothing else changes, so the page's
   `taken by:` stands beside it.
+- **Not yet:** 5.5: `forge setup` ends with the line on protection it could not
+  read.
 - **Not yet:** 5.1: the groups `finding`, `qa`, `party` and
   `deployment`, absent from `temper-client-tools`' `table.rs` `GROUPS`.
   5.2: `repository receipts`, `finding list`, `finding show`, `qa marks`,
@@ -45,6 +51,8 @@ Unlisted sections have no known gap.
   forge setting reads, including historical revision values. 11.3:
   the real loop's connected Forgejo, its tokens connect, a replace of
   its git token and another user's tokens stopped.
+- **Not yet:** 6.1: a hold for failed runs says nothing of where its failures
+  are, and `temper help hold` doesn't say where the engine's log is.
 - **Departs:** 5.1: `project` is area 1's (`jig/rows.rs`
   `PROJECT_SHOW`, `PROJECT_FUND`), not area 3's; the placeholders add
   `HOST:PORT` and `URL`. 5.2: `settings show template|policy` takes
