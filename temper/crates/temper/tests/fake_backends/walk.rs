@@ -88,7 +88,7 @@ impl Walk {
             |_binary| check(&self.sandbox().join("config"), self.scratch.path()),
         );
         let diagnostic = String::from_utf8_lossy(&outcome.stderr);
-        let block = b"Open this link in a browser on this machine.\n\n\nIt signs you in as this temper's owner, once and for a short while.\nOpened again once spent, it prints a fresh one here.\n";
+        let block = b"Open this link in a browser on this machine.\n\n\nIt signs you in as this temper's owner, once, within 2 hours.\nOpened after that, it prints a fresh one here.\n";
         let after_block = outcome
             .stderr
             .strip_prefix(block)
