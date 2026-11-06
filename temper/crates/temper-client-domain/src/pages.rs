@@ -164,7 +164,9 @@ pub enum Act {
     Suggest {
         cue: u8,
     },
-    FocusComposer,
+    ChangeProposal {
+        proposal: jig_client::contract::ProposalKey,
+    },
     MessageWords {
         words: Box<[u8]>,
     },
@@ -651,7 +653,12 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         }
         Event::Act {
             act:
-                act @ (Act::FocusComposer | Act::MessageWords { .. } | Act::Send | Act::Older | Act::Newer | Act::Latest),
+                act @ (Act::ChangeProposal { .. }
+                | Act::MessageWords { .. }
+                | Act::Send
+                | Act::Older
+                | Act::Newer
+                | Act::Latest),
         } => {
             if let Some(chat) = &mut pages.chat {
                 chat.act(env, client, act, &mut pages.serial, out);
@@ -918,7 +925,6 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     pages.shown = pages.shown.checked_add(1).expect("pages shown count fits");
 }
 fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
-    pages.needs.remember_settings(&told);
     if let Told::Answered { key, outcome } = &told
         && let Some(open) = &mut pages.confirm
         && open.sent == Some(*key)
@@ -1201,7 +1207,6 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
                 chat.composer_focus = 1;
             }
             pages.chat = Some(chat);
-            pages.needs.restore_settings(pages.chat.as_mut().expect("opened chat"), out);
         }
         if let Address::Changes { project } = address {
             pages.changes = Some(changes::Changes::new(project, &mut pages.next, env.limits.forge, out));
@@ -1610,7 +1615,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::Suggest { .. }
         | Act::Mode { .. }
         | Act::ShowSection { .. }
-        | Act::FocusComposer
+        | Act::ChangeProposal { .. }
         | Act::MessageWords { .. }
         | Act::AddDraft
         | Act::Send

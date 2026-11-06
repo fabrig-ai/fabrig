@@ -27,6 +27,7 @@ pub enum Usage {
     Many { tool: u8, form: u8, argument: u8 },
     Stdin,
     Key,
+    KeyName { tool: u8 },
     Condition,
     TerminalPhase { phase: jig_client::contract::Phase },
     Timeout,
@@ -47,6 +48,7 @@ impl Usage {
                 *t = tool;
                 *f = form;
             }
+            Self::KeyName { tool: t } => *t = tool,
             Self::Tool
             | Self::NoGroup { .. }
             | Self::NeedsVerb { .. }
@@ -218,7 +220,8 @@ fn form_values(
                 return Err(Usage::Key);
             }
             let next = index.checked_add(1).ok_or(Usage::Tool)?;
-            result.key = Some(Name::new(words.get(next).ok_or(Usage::Key)?).ok_or(Usage::Key)?);
+            result.key =
+                Some(Name::new(words.get(next).ok_or(Usage::KeyName { tool: 0 })?).ok_or(Usage::KeyName { tool: 0 })?);
             skip = Some(next);
             continue;
         }

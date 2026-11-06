@@ -19,7 +19,7 @@ pub enum Activity {
     RunBegan { attempt: u64, why: RunWhy, resumed: bool },
     RunEnded { attempt: u64, end: RunEnd, spent: u64 },
     Turn { reply: u64, attempt: u64, turn: u32, read: Option<u64> },
-    Decided { revision: u64 },
+    Decided { revision: u64, proposal: Option<DecidedProposal> },
     Milestone { position: u64 },
     Kept { attempt: u64, pending: List<u64>, question: Option<u64> },
 }
@@ -162,4 +162,11 @@ pub enum SettingsOutcome {
     Accepted { revision: u32 },
     Rejected,
     Stale { newest: u32 },
+}
+
+/// Which proposal a decision line names, and whether it records its making.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct DecidedProposal {
+    pub number: u64,
+    pub made: bool,
 }

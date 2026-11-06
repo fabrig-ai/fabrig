@@ -56,7 +56,7 @@ fn settings_without_jig_heads_wait_pending_at_deployment_owners() {
         number: PROPOSAL + 1,
         proposer: 1,
         project: 0,
-        action: ProposalAction::Settings { against: 1, items: Box::default() },
+        action: ProposalAction::Settings { projects: Box::default(), against: 1, items: Box::default() },
         reason: b"application items".as_slice().into(),
         as_holder: false,
         state: ProposalState::Pending {
@@ -234,6 +234,7 @@ fn a_tasks_settings_proposal_waits_for_deployment_owners_and_its_outcome_wakes_i
             proposer: 1,
             project: 0,
             action: ProposalAction::Settings {
+                projects: Box::default(),
                 against: 1,
                 items: Box::new([SettingHead { setting: Setting::Charter(1), edit: SettingEdit::Set }]),
             },

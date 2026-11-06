@@ -547,6 +547,9 @@ impl jig::render::Parts for Parts {
     fn command_prefix(&self) -> &'static [u8] {
         b"temper ctl DIR "
     }
+    fn failures_recovery(&self) -> &'static [u8] {
+        b"the engine's log names each failure (temper help hold), then "
+    }
     fn phrasebook(&self, text: u32) -> skein_ui::phrases::Phrasebook {
         temper_client_domain::words::phrasebook(text)
     }

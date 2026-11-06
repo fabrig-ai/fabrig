@@ -247,7 +247,12 @@ impl App for Temper {
             Some(domain::Event::Act { action: Action::Forge(_) }) => true,
             Some(domain::Event::Act { action: Action::Pages(act) }) => matches!(
                 act,
-                domain::pages::Act::Project { .. } | domain::pages::Act::Filter { .. } | domain::pages::Act::Go { .. }
+                domain::pages::Act::Project { .. }
+                    | domain::pages::Act::Filter { .. }
+                    | domain::pages::Act::Go { .. }
+                    | domain::pages::Act::Older
+                    | domain::pages::Act::Newer
+                    | domain::pages::Act::Latest
             ),
             Some(
                 domain::Event::Copied { .. }

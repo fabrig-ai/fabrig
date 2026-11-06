@@ -5,6 +5,9 @@ use jig_client_kit::{
     observe,
 };
 use skein_ui::{Key, NodeId, Role, Tree};
+fn card_role(node: &skein_ui::Node) -> bool {
+    node.role == Role::Item || (node.role == Role::Slot && node.key.is_some_and(|key| key.kind == 1 || key.kind == 29))
+}
 fn identity(key: Key) -> Option<CardKey> {
     if key.owner != temper_client_view::frame::owner() {
         return None;
@@ -25,7 +28,7 @@ fn identity(key: Key) -> Option<CardKey> {
 pub fn enclosing(tree: &Tree, node: NodeId) -> Option<CardKey> {
     let at = tree.nodes().iter().position(|value| value.id == node)?;
     tree.nodes().iter().enumerate().take(at.checked_add(1)?).rev().find_map(|(index, value)| {
-        if value.role != Role::Item || index.checked_add(usize::try_from(value.size).ok()?)? <= at {
+        if !card_role(value) || index.checked_add(usize::try_from(value.size).ok()?)? <= at {
             return None;
         }
         identity(value.key?)
@@ -67,7 +70,7 @@ pub fn seen(tree: &Tree) -> Vec<Seen> {
         let amending = node.role == Role::Region
             && (node.styles.as_slice().contains(&temper_client_view::look::TASK_AMEND)
                 || node.styles.as_slice().contains(&temper_client_view::look::GOAL_FIELD));
-        if (node.role != Role::Item && !amending) || index < links_end {
+        if (!card_role(node) && !amending) || index < links_end {
             continue;
         }
         let key = if amending {
@@ -84,6 +87,10 @@ pub fn seen(tree: &Tree) -> Vec<Seen> {
         let mut state = CardSeen::Waiting;
         let mut revision = None;
         for child in &tree.nodes()[index..end] {
+            if child.styles.as_slice().contains(&temper_client_view::look::SETTINGS_PROPOSAL_STATE) {
+                state = CardSeen::Done;
+            }
+
             if let Some(name) = child.name.as_deref() {
                 if !amending && let Some(number) = name.strip_prefix(b"Hold revision ") {
                     revision = skein_ui::number(number);

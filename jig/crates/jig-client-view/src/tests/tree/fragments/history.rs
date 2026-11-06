@@ -142,6 +142,7 @@ fn actions() -> [RetainedAction; 5] {
 }
 pub(in crate::tests) fn proposal(action: RetainedAction) -> ProposalHistory {
     ProposalHistory {
+        reason: DocumentText::complete(Text::new(b"review".as_slice().into(), u32::MAX).expect("fixture reason")),
         action,
         number: u64::MAX,
         proposer: u64::MAX,

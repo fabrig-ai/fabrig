@@ -65,6 +65,48 @@ fn every_send_asks_for_the_composer() {
 }
 
 #[test]
+fn change_something_focuses_the_composer_and_remembers_its_proposal() {
+    let mut f = f::opened();
+    assert_eq!(f.chat.change_asked, None);
+    for count in [1, 2] {
+        f.chat.act(
+            &fixtures::env(&fixtures::limits()),
+            &f.client,
+            Act::ChangeProposal { proposal: PROPOSAL },
+            &mut { SERIAL },
+            &mut f.out,
+        );
+        assert_eq!(f.chat.composer_focus, count);
+        assert_eq!(f.chat.change_asked, Some(PROPOSAL));
+        assert!(fixtures::acts::sent(&mut f.out).is_empty());
+    }
+}
+#[test]
+fn a_sent_message_ends_the_change_asked() {
+    let mut f = draft_ready();
+    f.chat.change_asked = Some(PROPOSAL);
+    f.chat.act(&fixtures::env(&fixtures::limits()), &f.client, Act::Send, &mut { SERIAL }, &mut f.out);
+    assert!(fixtures::acts::sent(&mut f.out).is_empty());
+    assert_eq!(f.chat.change_asked, Some(PROPOSAL), "empty Send keeps the request");
+    f.chat.words = b"Wait three seconds instead".as_slice().into();
+    f.chat.act(&fixtures::env(&fixtures::limits()), &f.client, Act::Send, &mut { SERIAL }, &mut f.out);
+    assert_eq!(fixtures::acts::sent(&mut f.out).len(), 1);
+    assert_eq!(f.chat.change_asked, None, "a message went out");
+}
+#[test]
+fn a_decision_ends_the_change_asked() {
+    let mut f = f::opened();
+    proposals(&mut f, &[PROPOSAL, DELEGATE_PROPOSAL]);
+    f.chat.change_asked = Some(PROPOSAL);
+    proposals(&mut f, &[PROPOSAL, DELEGATE_PROPOSAL]);
+    assert_eq!(f.chat.change_asked, Some(PROPOSAL), "a refresh keeps the request");
+    proposals(&mut f, &[PROPOSAL]);
+    assert_eq!(f.chat.change_asked, Some(PROPOSAL), "another proposal's decision keeps the request");
+    proposals(&mut f, &[]);
+    assert_eq!(f.chat.change_asked, None, "the task document reports the proposal decided");
+}
+
+#[test]
 fn a_live_run_is_watched_and_dropped_when_it_ends() {
     let mut f = f::opened();
     let run = f.chat.run.expect("live run watched");
@@ -629,7 +671,7 @@ fn reads(out: &mut Queue<Request>) -> Box<[(jig_client::Handle, c::ProposalKey)]
     reads.into_boxed()
 }
 #[test]
-fn a_chats_proposals_are_read_once_and_kept_in_the_tasks_order() {
+fn a_chats_proposals_are_read_once_and_keep_their_handles() {
     let mut f = f::opened();
     proposals(&mut f, &[PROPOSAL, DELEGATE_PROPOSAL]);
     let first = reads(&mut f.out);
@@ -639,8 +681,8 @@ fn a_chats_proposals_are_read_once_and_kept_in_the_tasks_order() {
     assert!(reads(&mut f.out).is_empty(), "a retained proposal is not read again");
     assert_eq!(
         [f.chat.cards.get(FIRST_CARD).expect("first").handle, f.chat.cards.get(SECOND_CARD).expect("second").handle],
-        [first[1].0, first[0].0],
-        "delegate's proposal kept, ordered by the task"
+        [first[0].0, first[1].0],
+        "retained handles follow proposal number order"
     );
 }
 #[test]
@@ -648,9 +690,18 @@ fn a_proposal_decided_elsewhere_leaves_the_chats_card() {
     let mut f = f::opened();
     proposals(&mut f, &[PROPOSAL]);
     let handle = reads(&mut f.out)[0].0;
+    card_page(&mut f, Time::ZERO, handle, jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)));
     proposals(&mut f, &[]);
     assert!(f.chat.cards.is_empty());
-    assert_eq!(f::handles(&mut f.out).as_ref(), [handle], "drop the card's handle too");
+    assert_eq!(
+        f.out.pop(),
+        Some(Request::Client(Event::Unwatch { handle })),
+        "release the card's read capacity before reading its decision"
+    );
+    assert_eq!(reads(&mut f.out).len(), 1, "the departed proposal is read after closing the old handle");
+    assert_eq!(f.chat.next_deadline(), None, "a removed card has no retry");
+    f.chat.fire(Time::ZERO.saturating_add(Duration::from_secs(30)), &mut f.out);
+    assert!(reads(&mut f.out).is_empty(), "a removed card is not read again");
 }
 fn rejecting_pages() -> crate::pages::Pages {
     let mut pages = crate::pages::Pages::new();
@@ -1608,6 +1659,9 @@ fn a_departed_proposals_own_read_keeps_its_acceptance_time() {
         c::ReadResult::Value(c::ReadValue::Ended(Box::new(c::Ended {
             key: c::ObjectKey::Proposal(PROPOSAL),
             value: c::EndedValue::Proposal(c::ProposalHistory {
+                reason: c::DocumentText::complete(
+                    c::Text::new(b"review".as_slice().into(), u32::MAX).expect("fixture reason"),
+                ),
                 action: c::RetainedAction::Batch(skein_lib::List::with_capacity(0)),
                 number: PROPOSAL.number,
                 proposer: f::TASK,
@@ -1635,22 +1689,7 @@ fn a_retained_settings_card_keeps_the_documents_acceptance_time() {
     let mut f = f::opened();
     proposals(&mut f, &[PROPOSAL]);
     let handle = reads(&mut f.out)[0].0;
-    let c::ReadValue::Proposal(mut proposal) = fixtures::acts::proposal(c::ActKind::Accept, c::Admission::Allowed)
-    else {
-        panic!("proposal fixture")
-    };
-    proposal.action = c::ProposalAction::Settings(Box::new(c::ProposalActionSettings {
-        against: 0,
-        items: skein_lib::List::with_capacity(0),
-        review: None,
-        made: None,
-    }));
-    f.chat.told(
-        Time::ZERO,
-        &f.client,
-        Told::Page { handle, page: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Proposal(proposal))) },
-        &mut f.out,
-    );
+    card_page(&mut f, Time::ZERO, handle, jig_client::Readout::Jig(c::ReadResult::Value(settings_proposal(PROPOSAL))));
     proposals(&mut f, &[]);
     assert_eq!(f.chat.cards.len(), 1, "settings keeps its card after the decision");
     let at = skein_lib::Wall::from_nanos(50_580_000_000_000);
@@ -1662,7 +1701,11 @@ fn a_retained_settings_card_keeps_the_documents_acceptance_time() {
             page: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Ended(Box::new(c::Ended {
                 key: c::ObjectKey::Proposal(PROPOSAL),
                 value: c::EndedValue::Proposal(c::ProposalHistory {
+                    reason: c::DocumentText::complete(
+                        c::Text::new(b"review".as_slice().into(), u32::MAX).expect("fixture reason"),
+                    ),
                     action: c::RetainedAction::Settings(c::RetainedActionSettings {
+                        projects: skein_lib::List::with_capacity(0),
                         against: 0,
                         items: skein_lib::List::with_capacity(0),
                         made: Some(1),
@@ -1682,6 +1725,194 @@ fn a_retained_settings_card_keeps_the_documents_acceptance_time() {
     let Some(c::ReadValue::Ended(_)) = &f.chat.cards.get(0).unwrap().page else {
         panic!("settings keeps its ended proposal card")
     };
+}
+
+fn proposal_read_handle(
+    reads: &[(jig_client::Handle, c::ProposalKey)],
+    proposal: c::ProposalKey,
+) -> jig_client::Handle {
+    for (handle, key) in reads {
+        if *key == proposal {
+            return *handle;
+        }
+    }
+    panic!("proposal read missing: {proposal:?}")
+}
+fn card_page(f: &mut f::Fixture, now: Time, handle: jig_client::Handle, page: jig_client::Readout) {
+    f.chat.told(now, &f.client, Told::Page { handle, page }, &mut f.out);
+}
+fn pending_card() -> (f::Fixture, jig_client::Handle) {
+    let mut f = f::opened();
+    proposals(&mut f, &[PROPOSAL]);
+    let handle = reads(&mut f.out)[0].0;
+    (f, handle)
+}
+fn settings_proposal(key: c::ProposalKey) -> c::ReadValue {
+    let c::ReadValue::Proposal(mut proposal) = fixtures::acts::proposal(c::ActKind::Accept, c::Admission::Allowed)
+    else {
+        panic!("proposal fixture")
+    };
+    proposal.action = c::ProposalAction::Settings(Box::new(c::ProposalActionSettings {
+        against: 0,
+        items: skein_lib::List::with_capacity(0),
+        review: None,
+        made: None,
+    }));
+    proposal.key = key;
+    c::ReadValue::Proposal(proposal)
+}
+fn accepted_proposal(key: c::ProposalKey, at: skein_lib::Wall) -> jig_client::Readout {
+    jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Ended(Box::new(c::Ended {
+        key: c::ObjectKey::Proposal(key),
+        value: c::EndedValue::Proposal(c::ProposalHistory {
+            reason: c::DocumentText::complete(
+                c::Text::new(b"review".as_slice().into(), u32::MAX).expect("fixture reason"),
+            ),
+            action: c::RetainedAction::Batch(skein_lib::List::with_capacity(0)),
+            number: key.number,
+            proposer: match key.proposer {
+                c::Proposer::Task(task) => task,
+                c::Proposer::Party(party) => party,
+            },
+            as_holder: true,
+            state: c::ProposalHistoryState::Accepted { by: c::Requester::Person(fixtures::PARTY) },
+        }),
+        at: Some(at),
+        by: None,
+    }))))
+}
+
+#[test]
+fn a_card_read_that_ends_busy_is_asked_again() {
+    for page in [
+        jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)),
+        jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Unreachable)),
+        jig_client::Readout::Limit,
+    ] {
+        let (mut f, handle) = pending_card();
+        proposals(&mut f, &[PROPOSAL, DELEGATE_PROPOSAL]);
+        let other = reads(&mut f.out)[0].0;
+        card_page(&mut f, Time::ZERO, handle, page.clone());
+        let later = Time::ZERO.saturating_add(Duration::from_millis(500));
+        card_page(&mut f, later, other, page.clone());
+        let due = Time::ZERO.saturating_add(Duration::from_secs(1));
+        assert_eq!(f.chat.next_deadline(), Some(due), "{page:?}");
+        f.chat.fire(Time::ZERO.saturating_add(Duration::from_millis(999)), &mut f.out);
+        assert!(reads(&mut f.out).is_empty(), "the read waits until its deadline");
+        f.chat.fire(due, &mut f.out);
+        assert_eq!(reads(&mut f.out).as_ref(), [(handle, PROPOSAL)]);
+        f.chat.fire(due, &mut f.out);
+        assert!(reads(&mut f.out).is_empty(), "only one retry is in flight");
+        let later_due = later.saturating_add(Duration::from_secs(1));
+        assert_eq!(f.chat.next_deadline(), Some(later_due), "each card keeps its deadline");
+        f.chat.fire(later_due, &mut f.out);
+        assert_eq!(reads(&mut f.out).as_ref(), [(other, DELEGATE_PROPOSAL)]);
+        assert_eq!(f.chat.next_deadline(), None);
+    }
+}
+#[test]
+fn the_wait_doubles_and_a_value_resets_it() {
+    let (mut f, handle) = pending_card();
+    let mut now = Time::ZERO;
+    for seconds in [1, 2, 4, 8, 16, 30, 30] {
+        card_page(&mut f, now, handle, jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)));
+        let due = now.saturating_add(Duration::from_secs(seconds));
+        assert_eq!(f.chat.next_deadline(), Some(due));
+        f.chat.fire(due, &mut f.out);
+        assert_eq!(reads(&mut f.out).as_ref(), [(handle, PROPOSAL)]);
+        now = due;
+    }
+    card_page(&mut f, now, handle, jig_client::Readout::Jig(c::ReadResult::Value(settings_proposal(PROPOSAL))));
+    assert_eq!(f.chat.next_deadline(), None);
+    proposals(&mut f, &[]);
+    reads(&mut f.out);
+    card_page(&mut f, now, handle, jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)));
+    assert_eq!(f.chat.next_deadline(), Some(now.saturating_add(Duration::from_secs(1))));
+}
+#[test]
+fn a_lasting_end_is_not_asked_again() {
+    for why in
+        [c::ReadNone::Gone, c::ReadNone::Refused, c::ReadNone::Unknown, c::ReadNone::TooLarge { bytes: u64::MAX }]
+    {
+        let (mut f, handle) = pending_card();
+        let value = settings_proposal(PROPOSAL);
+        card_page(&mut f, Time::ZERO, handle, jig_client::Readout::Jig(c::ReadResult::Value(value)));
+        proposals(&mut f, &[]);
+        reads(&mut f.out);
+        card_page(&mut f, Time::ZERO, handle, jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)));
+        card_page(&mut f, Time::ZERO, handle, jig_client::Readout::Jig(c::ReadResult::None(why)));
+        assert_eq!(f.chat.cards.get(FIRST_CARD).unwrap().page, None, "{why:?}");
+        assert_eq!(f.chat.next_deadline(), None, "{why:?}");
+        f.chat.fire(Time::ZERO.saturating_add(Duration::from_secs(30)), &mut f.out);
+        assert!(reads(&mut f.out).is_empty(), "{why:?}");
+    }
+}
+#[test]
+fn a_retained_card_s_failed_re_read_keeps_its_page_and_asks_again() {
+    let (mut f, handle) = pending_card();
+    let value = settings_proposal(PROPOSAL);
+    card_page(&mut f, Time::ZERO, handle, jig_client::Readout::Jig(c::ReadResult::Value(value.clone())));
+    proposals(&mut f, &[]);
+    reads(&mut f.out);
+    card_page(&mut f, Time::ZERO, handle, jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)));
+    assert_eq!(f.chat.cards.get(FIRST_CARD).unwrap().page.as_ref(), Some(&value));
+    proposals(&mut f, &[]);
+    assert!(reads(&mut f.out).is_empty(), "a refresh respects the retry wait");
+    let due = Time::ZERO.saturating_add(Duration::from_secs(1));
+    assert_eq!(f.chat.next_deadline(), Some(due));
+    f.chat.fire(due, &mut f.out);
+    assert_eq!(reads(&mut f.out).as_ref(), [(handle, PROPOSAL)]);
+    card_page(&mut f, due, handle, accepted_proposal(PROPOSAL, skein_lib::Wall::EPOCH));
+    let Some(c::ReadValue::Ended(_)) = &f.chat.cards.get(FIRST_CARD).unwrap().page else {
+        panic!("the retry delivers the ended proposal")
+    };
+    assert_eq!(f.chat.next_deadline(), None);
+}
+#[test]
+fn cards_hold_their_proposals_in_number_order() {
+    let mut f = f::opened();
+    proposals(&mut f, &[DELEGATE_PROPOSAL, PROPOSAL]);
+    let initial = reads(&mut f.out);
+    let handle = proposal_read_handle(&initial, PROPOSAL);
+    card_page(&mut f, Time::ZERO, handle, jig_client::Readout::Jig(c::ReadResult::Value(settings_proposal(PROPOSAL))));
+    proposals(&mut f, &[DELEGATE_PROPOSAL, PROPOSAL]);
+    assert_eq!(
+        [f.chat.cards.get(FIRST_CARD).unwrap().object, f.chat.cards.get(SECOND_CARD).unwrap().object],
+        [c::ObjectKey::Proposal(PROPOSAL), c::ObjectKey::Proposal(DELEGATE_PROPOSAL)]
+    );
+    proposals(&mut f, &[DELEGATE_PROPOSAL]);
+    assert_eq!(
+        [f.chat.cards.get(FIRST_CARD).unwrap().object, f.chat.cards.get(SECOND_CARD).unwrap().object],
+        [c::ObjectKey::Proposal(PROPOSAL), c::ObjectKey::Proposal(DELEGATE_PROPOSAL)],
+        "retained settings cards keep their number order"
+    );
+}
+#[test]
+fn an_older_proposal_s_answer_keeps_the_newest_decision() {
+    for retained in [false, true] {
+        let mut f = f::opened();
+        proposals(&mut f, &[DELEGATE_PROPOSAL, PROPOSAL]);
+        let initial = reads(&mut f.out);
+        if retained {
+            for (handle, key) in &initial {
+                card_page(
+                    &mut f,
+                    Time::ZERO,
+                    *handle,
+                    jig_client::Readout::Jig(c::ReadResult::Value(settings_proposal(*key))),
+                );
+            }
+        }
+        proposals(&mut f, &[]);
+        let departed = reads(&mut f.out);
+        let at = skein_lib::Wall::from_nanos(50_580_000_000_000);
+        for key in [DELEGATE_PROPOSAL, PROPOSAL] {
+            let handle = proposal_read_handle(&departed, key);
+            card_page(&mut f, Time::ZERO, handle, accepted_proposal(key, at));
+        }
+        assert_eq!(f.chat.decided, Some((DELEGATE_PROPOSAL.number, at)), "retained: {retained}");
+        assert_eq!(f.chat.departed_proposal, Some(DELEGATE_PROPOSAL.number), "retained: {retained}");
+    }
 }
 
 fn draft_limits() -> crate::Limits {
@@ -2191,6 +2422,87 @@ fn paused_is_the_person_s_own_stop_alone() {
         ("live", f::task().chip, false),
     ] {
         assert_eq!(crate::pages::chat::paused(&chip, &me), expected, "{name}");
+    }
+}
+
+fn making_page(f: &mut f::Fixture, number: u64) {
+    making_lines(f, &[number]);
+}
+fn making_lines(f: &mut f::Fixture, numbers: &[u64]) {
+    let mut rows = skein_lib::List::with_capacity(u32::try_from(numbers.len()).unwrap());
+    for (index, number) in numbers.iter().enumerate() {
+        rows.push(owner_activity(
+            u64::try_from(index).unwrap().checked_add(1).unwrap(),
+            c::Activity::Decided { revision: 1, proposal: Some(c::DecidedProposal { number: *number, made: true }) },
+        ))
+        .unwrap();
+    }
+    f.chat.thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
+    let handle = f.chat.activity;
+    card_page(f, Time::ZERO, handle, activity_answer(c::ActivityPage { rows, before: None, after: None, cut: false }));
+}
+#[test]
+fn a_making_line_asks_for_its_proposal() {
+    let mut f = f::opened();
+    making_page(&mut f, 1);
+    let first = reads(&mut f.out);
+    assert_eq!(first.len(), 1);
+    assert_eq!(first[0].1, c::ProposalKey { proposer: c::Proposer::Task(f::TASK), number: 1 });
+}
+fn read_making_card(f: &mut f::Fixture) -> (jig_client::Handle, c::ProposalKey) {
+    making_page(f, 1);
+    reads(&mut f.out)[0]
+}
+#[test]
+fn a_second_page_with_the_line_asks_once() {
+    let mut f = f::opened();
+    let (handle, _) = read_making_card(&mut f);
+    making_page(&mut f, 1);
+    assert!(reads(&mut f.out).is_empty());
+    assert_eq!(f.chat.cards.get(0).unwrap().handle, handle);
+}
+#[test]
+fn a_decided_card_stays_when_the_document_arrives_after_its_line() {
+    let mut f = f::opened();
+    let (handle, key) = read_making_card(&mut f);
+    card_page(&mut f, Time::ZERO, handle, accepted_proposal(key, skein_lib::Wall::EPOCH));
+    proposals(&mut f, &[]);
+    making_page(&mut f, 1);
+    assert!(reads(&mut f.out).is_empty(), "document and line must not restart the read");
+    assert!(f.chat.departures().is_empty());
+    assert_eq!(f.chat.cards.get(0).unwrap().handle, handle);
+}
+#[test]
+fn a_gone_proposal_has_no_card_and_is_not_asked_again() {
+    let mut f = f::opened();
+    let (handle, _) = read_making_card(&mut f);
+    card_page(&mut f, Time::ZERO, handle, jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Gone)));
+    proposals(&mut f, &[]);
+    making_page(&mut f, 1);
+    assert!(reads(&mut f.out).is_empty());
+    assert_eq!(f.chat.cards.len(), 1, "remember the answered read");
+    assert!(f.chat.cards.get(0).unwrap().page.is_none(), "no drawable page");
+}
+#[test]
+fn a_full_list_lets_a_decided_card_out_of_the_window_go() {
+    let key = c::ProposalKey { proposer: c::Proposer::Task(f::TASK), number: 1 };
+    for answer in [
+        accepted_proposal(key, skein_lib::Wall::EPOCH),
+        jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Gone)),
+    ] {
+        let mut f = f::opened();
+        f.chat.cards = skein_lib::List::with_capacity(1);
+        let (handle, _) = read_making_card(&mut f);
+        card_page(&mut f, Time::ZERO, handle, answer);
+        making_lines(&mut f, &[1, 2]);
+        assert!(reads(&mut f.out).is_empty(), "a card whose making line stands keeps its place at the bound");
+        making_page(&mut f, 2);
+        let second = reads(&mut f.out);
+        assert_eq!(second.len(), 1);
+        assert_eq!(second[0].1.number, 2);
+        assert_eq!(f.chat.cards.len(), 1);
+        assert_eq!(f.chat.cards.get(0).unwrap().handle, second[0].0);
+        assert_ne!(second[0].0, handle);
     }
 }
 

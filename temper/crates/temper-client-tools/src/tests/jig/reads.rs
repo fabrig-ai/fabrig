@@ -1035,7 +1035,7 @@ fn an_empty_wait_naming_its_account_keeps_its_words() {
 }
 
 #[test]
-fn no_account_keeps_its_wait_in_json() {
+fn no_account_keeps_its_run_wait_and_names_its_account_wait_in_json() {
     use jig_client::contract as c;
     let mut task = fixtures::goal(fixtures::TASK, c::WaitsOn::Nothing);
     task.run_wait = Some(c::TaskRunWait::Account { account: None, source: None, why: c::TaskWaitWhy::Empty });
@@ -1052,7 +1052,7 @@ fn no_account_keeps_its_wait_in_json() {
     let wait = json.member(0, b"waits_on").expect("task wait member");
     let wait = json.token(wait).expect("task wait token");
     assert_eq!(wait.kind, skein_json::Kind::String);
-    assert_eq!(json.text(wait), Some(b"nothing".as_slice()));
+    assert_eq!(json.text(wait), Some(b"account".as_slice()));
 }
 
 #[test]
