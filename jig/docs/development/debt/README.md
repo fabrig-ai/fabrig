@@ -42,7 +42,7 @@ IDs run from `D001` and are never reused:
 ## What pays it back
 ```
 
-- **The highest ID used is D043.** The branch that adds an item raises it, so a paid ID isn't handed out again.
+- **The highest ID used is D044.** The branch that adds an item raises it, so a paid ID isn't handed out again.
 - **Paths** in **Where** are under `jig/`; one that starts with a crate's name is under
   `jig/crates/`. A **Measure** runs at the repository's root.
 - **Sources** named in **Seen**: jig's tech-debt list (first look 2026-10-10, refreshed
