@@ -1033,6 +1033,7 @@ fn repeated_again_keeps_the_original_sign_in_deadline() {
     assert_eq!(f.stderr(), b"temper ctl: the engine at http://127.0.0.1:4000 did not answer within 30 s\n");
 }
 
+mod busy_watches;
 mod keys;
 
 mod moves;
