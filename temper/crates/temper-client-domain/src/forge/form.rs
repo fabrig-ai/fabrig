@@ -50,6 +50,7 @@ pub enum Act {
     TryAccount { account: u32, again: bool },
     StartPlayground,
     EndPlayground,
+    AdminWay(super::admin::Way),
     AdminWrite { field: super::admin::Field, text: Box<[u8]> },
     ConnectAdmin { forge: u16 },
     ConnectTokens { forge: u16 },

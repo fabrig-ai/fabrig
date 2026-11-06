@@ -1396,10 +1396,10 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "forge-admin-details",
-        heading: "Connect a forge",
+        heading: "Your Forgejo",
         parts: &[
-            Part::Named { role: Role::Region, name: "Your first repository" },
-            Part::Named { role: Role::Heading { level: 3 }, name: "Your first repository" },
+            Part::Named { role: Role::TextField, name: "First repository" },
+            Part::Named { role: Role::Disclosure, name: "Its runner label: docker" },
             Part::Named { role: Role::TextField, name: "Runner label" },
         ],
     },
@@ -1761,6 +1761,28 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Button, name: "Copy" },
             Part::Named { role: Role::Link, name: "Other forges" },
             Part::Absent { role: Role::List, name: "Steps" },
+        ],
+    },
+    Holds {
+        name: "connect-forge-yours-admin",
+        heading: "Your Forgejo",
+        parts: &[
+            Part::Named { role: Role::Choice, name: "As its admin" },
+            Part::Named { role: Role::TextField, name: "The site admin’s token" },
+            Part::Named { role: Role::Disclosure, name: "Its runner label: docker" },
+            Part::Absent { role: Role::TextField, name: "API token" },
+            Part::Named { role: Role::Link, name: "Other forges" },
+        ],
+    },
+    Holds {
+        name: "connect-forge-yours-tokens",
+        heading: "Your Forgejo",
+        parts: &[
+            Part::Named { role: Role::Choice, name: "With its bot’s tokens" },
+            Part::Named { role: Role::TextField, name: "API token" },
+            Part::Named { role: Role::Disclosure, name: "A webhook secret, if you made hooks to temper’s listener" },
+            Part::Absent { role: Role::TextField, name: "The site admin’s token" },
+            Part::Named { role: Role::Link, name: "Other forges" },
         ],
     },
     Holds {

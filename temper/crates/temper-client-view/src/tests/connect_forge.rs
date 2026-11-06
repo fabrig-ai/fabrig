@@ -1469,16 +1469,10 @@ fn managed_details_ask_for_the_address_git_and_web() {
 fn admin_details_keep_the_token_out_of_actions_and_rendered_pages() {
     let mut root = admin_root(Some(Choice::Forge(HERE)), admin_row(w::Connection::NotConnected, None, None, true));
     let mut before = f::page_view(&root);
-    let group = node(before.tree(), Role::Region, b"Your first repository");
-    let legend = node(before.tree(), Role::Heading { level: 3 }, b"Your first repository");
-    let nodes = before.tree().nodes();
-    assert!(nodes.iter().find(|n| n.id == group).unwrap().styles.as_slice().contains(&crate::look::ADMIN_FIRST));
-    let start = nodes.iter().position(|n| n.id == group).unwrap();
-    let end = start + usize::try_from(nodes[start].size).unwrap();
-    assert_eq!(nodes[start + 1].id, legend);
-    for name in [b"Organization".as_slice(), b"Repository", b"Runner label"] {
-        let field = node(before.tree(), Role::TextField, name);
-        assert!(nodes[start + 1..end].iter().any(|n| n.id == field));
+    let tree = before.tree();
+    assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::CONNECT_PANEL)));
+    for name in [b"Organization".as_slice(), b"First repository", b"Runner label"] {
+        node(tree, Role::TextField, name);
     }
     let field = node(before.tree(), Role::TextField, "The site admin’s token".as_bytes());
     assert!(crate::act(&mut before, field, Act::Input { value: ADMIN_TOKEN.into() }).is_none());
@@ -1492,9 +1486,26 @@ fn admin_details_keep_the_token_out_of_actions_and_rendered_pages() {
         .unwrap();
     assert_eq!(field.entry, Some(skein_ui::EntryKind::Secret));
     no_admin_token(view.tree());
-    for name in [b"Organization".as_slice(), b"Repository", b"Runner label"] {
+    assert!(f::find(view.tree(), Role::Choice, "With its bot’s tokens".as_bytes()).is_none());
+    admin_input(&mut root, b"Runner label", b"our-runner");
+    node(f::page_view(&root).tree(), Role::Disclosure, b"Its runner label: our-runner");
+    for name in [b"Organization".as_slice(), b"First repository", b"Runner label"] {
         node(view.tree(), Role::TextField, name);
     }
+    assert_eq!(
+        press(&root, Role::Link, b"Other forges"),
+        d::Action::Pages(pages::Act::Go { address: Address::ConnectForge { forge: None } })
+    );
+    f::root_event(
+        &mut root,
+        d::Event::Went {
+            place: d::Place::Address(Address::Welcome { step: Step::Forge { forge: Some(Choice::Forge(HERE)) } }),
+        },
+    );
+    assert_eq!(
+        press(&root, Role::Link, b"Other forges"),
+        d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: Step::Forge { forge: None } } })
+    );
     admin_send(&mut root);
     assert!(!root.forge().admin_form().has_token());
     no_admin_token(f::page_view(&root).tree());
@@ -1505,7 +1516,7 @@ fn admin_local_refusals_mark_the_field_and_say_why() {
         ("The site admin’s token", b"".as_slice(), "Required."),
         ("The site admin’s token", &[b'x'; 4091], "The pasted values are past 4 KiB, the most a request carries."),
         ("Organization", b"", "Required."),
-        ("Repository", b"", "Required."),
+        ("First repository", b"", "Required."),
         ("Runner label", b"a b", "Letters, digits, dots, dashes and underscores, at most 64."),
     ] {
         let mut root = admin_root(Some(Choice::Forge(HERE)), admin_row(w::Connection::NotConnected, None, None, true));
@@ -1548,7 +1559,7 @@ fn a_first_organization_named_as_the_bot_marks_the_organization_invalid() {
         ],
     );
     assert!(has_state(view.tree(), Role::TextField, b"Organization", State::Invalid));
-    for name in [b"Repository".as_slice(), b"Repository", b"Runner label"] {
+    for name in [b"First repository".as_slice(), b"First repository", b"Runner label"] {
         assert!(!has_state(view.tree(), Role::TextField, name, State::Invalid));
     }
     assert!(!root.forge().admin_form().has_token());
@@ -1912,22 +1923,58 @@ fn no_tokens(tree: &skein_ui::Tree, values: &[Box<[u8]>]) {
     }
 }
 #[test]
-fn your_forgejo_offers_both_forms_and_keeps_all_bot_tokens_secret() {
+fn switching_connect_ways_replaces_the_previous_fields() {
+    let mut root = f::forge_root(Address::ConnectForge { forge: Some(Choice::Managed) }, List::with_capacity(0));
+    let mut view = f::page_view(&root);
+    let before: Vec<_> = view.tree().nodes().iter().filter(|n| n.role == Role::TextField).map(|n| n.id).collect();
+    let choice = node(view.tree(), Role::Choice, "With its bot’s tokens".as_bytes());
+    let action = crate::act(&mut view, choice, Act::Toggle).unwrap();
+    f::root_event(&mut root, d::Event::Act { action });
+    f::build(&mut view, &root);
+    for name in [b"API token".as_slice(), b"Git token", b"Webhook secret"] {
+        let id = node(view.tree(), Role::TextField, name);
+        assert!(!before.contains(&id), "{} reuses the other way’s field", String::from_utf8_lossy(name));
+    }
+}
+
+#[test]
+fn your_forgejo_switches_forms_and_keeps_all_bot_tokens_secret() {
     let mut root = f::forge_root(Address::ConnectForge { forge: Some(Choice::Managed) }, List::with_capacity(0));
     let values = [tokens_bytes(1), tokens_bytes(2), tokens_bytes(3)];
+    let view = f::page_view(&root);
+    words_in_order(
+        view.tree(),
+        &[
+            "Its address",
+            "How temper connects",
+            "As its admin",
+            "With its bot’s tokens",
+            "The site admin’s token",
+            "Scopes: write:admin, read:user, write:organization, write:repository",
+            "First repository",
+            "Connect as its admin",
+            "Other forges",
+        ],
+    );
+    node(view.tree(), Role::Disclosure, b"Its runner label: docker");
+    assert!(f::find(view.tree(), Role::TextField, b"API token").is_none());
+    let action = press(&root, Role::Choice, "With its bot’s tokens".as_bytes());
+    f::root_event(&mut root, d::Event::Act { action });
     let mut view = f::page_view(&root);
     words_in_order(
         view.tree(),
         &[
-            "Connect as its admin",
-            "Connect with its bot’s tokens",
             "API token",
+            "Scopes: read:user, write:issue, write:repository",
             "Git token",
+            "Scopes: write:repository, read:user",
+            "A webhook secret, if you made hooks to temper’s listener",
             "Webhook secret",
-            "Only if you made hooks to temper’s listener: their secret.",
             "Connect with its tokens",
+            "Other forges",
         ],
     );
+    assert!(f::find(view.tree(), Role::TextField, "The site admin’s token".as_bytes()).is_none());
     for (name, value) in
         [(b"API token".as_slice(), &values[0]), (b"Git token", &values[1]), (b"Webhook secret", &values[2])]
     {

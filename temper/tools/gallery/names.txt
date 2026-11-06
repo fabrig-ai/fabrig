@@ -93,6 +93,8 @@ connect-forge-choose
 connect-forge-connected
 connect-forge-elsewhere
 connect-forge-first-run-6
+connect-forge-yours-admin
+connect-forge-yours-tokens
 connect-model-choose
 connect-model-declined
 connect-model-key-details

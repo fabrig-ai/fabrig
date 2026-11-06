@@ -6,6 +6,12 @@ use skein_lib::{Queue, Secret};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Way {
+    Admin,
+    Tokens,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Field {
     Organization,
     Repository,
@@ -24,6 +30,7 @@ impl Field {
 #[derive(Debug)]
 #[expect(clippy::partial_pub_fields, reason = "the view reads presentation; the token stays private")]
 pub struct Draft {
+    pub way: Way,
     pub place: PlaceDraft,
     pub fields: [Box<[u8]>; 3],
     pub written: [u64; 3],
@@ -35,6 +42,7 @@ pub struct Draft {
 impl Draft {
     pub(crate) fn new() -> Self {
         Self {
+            way: Way::Admin,
             place: PlaceDraft::new(),
             fields: [b"work".as_slice().into(), b"hello".as_slice().into(), b"docker".as_slice().into()],
             written: [0; 3],
@@ -385,4 +393,12 @@ pub(crate) fn stopped(side: &mut Side) {
             side.admin_form.written = [1; 3];
         }
     }
+}
+
+pub(crate) fn way(side: &mut Side, way: Way) {
+    if busy(side) || super::tokens::busy(side) {
+        return;
+    }
+    side.admin_form.way = way;
+    side.changed();
 }
