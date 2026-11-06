@@ -6247,10 +6247,30 @@ pub enum Path {
     RefusalFullTail,
     /// The tag of `SettingFault`.
     SettingFaultTag,
+    /// The tag of `SettingMember`.
+    SettingMemberTag,
+    /// The tag of `SettingRule`.
+    SettingRuleTag,
+    /// The `member` field of `SettingDetail`.
+    SettingDetailMember,
+    /// The `document` field of `SettingDetail`.
+    SettingDetailDocument,
+    /// The `segment` field of `SettingDetail`.
+    SettingDetailSegment,
+    /// The `rule` field of `SettingDetail`.
+    SettingDetailRule,
+    /// The `supplied` field of `SettingDetail`.
+    SettingDetailSupplied,
+    /// The `bound` field of `SettingDetail`.
+    SettingDetailBound,
+    /// Bytes after `SettingDetail`.
+    SettingDetailTail,
     /// The `setting` field of `MalformedSettings`.
     MalformedSettingsSetting,
     /// The `fault` field of `MalformedSettings`.
     MalformedSettingsFault,
+    /// The `detail` field of `MalformedSettings`.
+    MalformedSettingsDetail,
     /// Bytes after `MalformedSettings`.
     MalformedSettingsTail,
     /// The `setting` field of `ReadSetting`.
@@ -44518,6 +44538,116 @@ impl SettingFault {
 
 }
 
+/// `SettingMember` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum SettingMember {
+    /// `documents` without a payload.
+    Documents,
+    /// `name_segments` without a payload.
+    NameSegments,
+    /// `name_segment_bytes` without a payload.
+    NameSegmentBytes,
+    /// `path` without a payload.
+    Path,
+    /// `heading` without a payload.
+    Heading,
+    /// `connector` without a payload.
+    Connector,
+}
+
+impl SettingMember {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
+}
+
+/// `SettingRule` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum SettingRule {
+    /// `maximum` without a payload.
+    Maximum,
+    /// `minimum` without a payload.
+    Minimum,
+    /// `registered` without a payload.
+    Registered,
+}
+
+impl SettingRule {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
+}
+
+/// Movable fields of `SettingDetail`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SettingDetailParts {
+    /// The `member` field.
+    pub member: SettingMember,
+    /// The `document` field.
+    pub document: u32,
+    /// The `segment` field.
+    pub segment: u32,
+    /// The `rule` field.
+    pub rule: SettingRule,
+    /// The `supplied` field.
+    pub supplied: u32,
+    /// The `bound` field.
+    pub bound: u32,
+}
+
+/// `SettingDetail` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SettingDetail {
+    member: SettingMember,
+    document: u32,
+    segment: u32,
+    rule: SettingRule,
+    supplied: u32,
+    bound: u32,
+}
+
+impl SettingDetail {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: SettingDetailParts) -> Result<Self, Problem> {
+        let SettingDetailParts { member, document, segment, rule, supplied, bound } = parts;
+        let value = Self { member, document, segment, rule, supplied, bound };
+        Ok(value)
+    }
+
+    /// Reads the `member` field.
+    #[must_use]
+    pub fn member(&self) -> &SettingMember { &self.member }
+
+    /// Reads the `document` field.
+    #[must_use]
+    pub fn document(&self) -> u32 { self.document }
+
+    /// Reads the `segment` field.
+    #[must_use]
+    pub fn segment(&self) -> u32 { self.segment }
+
+    /// Reads the `rule` field.
+    #[must_use]
+    pub fn rule(&self) -> &SettingRule { &self.rule }
+
+    /// Reads the `supplied` field.
+    #[must_use]
+    pub fn supplied(&self) -> u32 { self.supplied }
+
+    /// Reads the `bound` field.
+    #[must_use]
+    pub fn bound(&self) -> u32 { self.bound }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> SettingDetailParts { SettingDetailParts { member: self.member, document: self.document, segment: self.segment, rule: self.rule, supplied: self.supplied, bound: self.bound } }
+
+}
+
 /// Movable fields of `MalformedSettings`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct MalformedSettingsParts {
@@ -44525,6 +44655,8 @@ pub struct MalformedSettingsParts {
     pub setting: Setting,
     /// The `fault` field.
     pub fault: SettingFault,
+    /// The `detail` field.
+    pub detail: Option<SettingDetail>,
 }
 
 /// `MalformedSettings` in this codec family.
@@ -44532,13 +44664,14 @@ pub struct MalformedSettingsParts {
 pub struct MalformedSettings {
     setting: Setting,
     fault: SettingFault,
+    detail: Option<SettingDetail>,
 }
 
 impl MalformedSettings {
     /// Makes a value within the given limits.
     pub fn new(_limits: &Limits, parts: MalformedSettingsParts) -> Result<Self, Problem> {
-        let MalformedSettingsParts { setting, fault } = parts;
-        let value = Self { setting, fault };
+        let MalformedSettingsParts { setting, fault, detail } = parts;
+        let value = Self { setting, fault, detail };
         Ok(value)
     }
 
@@ -44550,9 +44683,13 @@ impl MalformedSettings {
     #[must_use]
     pub fn fault(&self) -> &SettingFault { &self.fault }
 
+    /// Reads the `detail` field.
+    #[must_use]
+    pub fn detail(&self) -> &Option<SettingDetail> { &self.detail }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> MalformedSettingsParts { MalformedSettingsParts { setting: self.setting, fault: self.fault } }
+    pub fn into_parts(self) -> MalformedSettingsParts { MalformedSettingsParts { setting: self.setting, fault: self.fault, detail: self.detail } }
 
 }
 
@@ -85686,6 +85823,139 @@ impl SettingFault {
     }
 }
 
+impl SettingMember {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Documents | Self::NameSegments | Self::NameSegmentBytes | Self::Path | Self::Heading | Self::Connector => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Documents => writer.put(&[0_u8])?,
+            Self::NameSegments => writer.put(&[1_u8])?,
+            Self::NameSegmentBytes => writer.put(&[2_u8])?,
+            Self::Path => writer.put(&[3_u8])?,
+            Self::Heading => writer.put(&[4_u8])?,
+            Self::Connector => writer.put(&[5_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::SettingMemberTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::SettingMemberTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Documents,
+            1 => Self::NameSegments,
+            2 => Self::NameSegmentBytes,
+            3 => Self::Path,
+            4 => Self::Heading,
+            5 => Self::Connector,
+            _ => return Err(Problem { path: Path::SettingMemberTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl SettingRule {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Maximum | Self::Minimum | Self::Registered => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Maximum => writer.put(&[0_u8])?,
+            Self::Minimum => writer.put(&[1_u8])?,
+            Self::Registered => writer.put(&[2_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::SettingRuleTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::SettingRuleTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Maximum,
+            1 => Self::Minimum,
+            2 => Self::Registered,
+            _ => return Err(Problem { path: Path::SettingRuleTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl SettingDetail {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_member = &self.member;
+        size = size.checked_add(field_member.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        let field_rule = &self.rule;
+        size = size.checked_add(field_rule.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_member = &self.member;
+        field_member.encode(writer)?;
+        let field_document = &self.document;
+        writer.put(&field_document.to_be_bytes())?;
+        let field_segment = &self.segment;
+        writer.put(&field_segment.to_be_bytes())?;
+        let field_rule = &self.rule;
+        field_rule.encode(writer)?;
+        let field_supplied = &self.supplied;
+        writer.put(&field_supplied.to_be_bytes())?;
+        let field_bound = &self.bound;
+        writer.put(&field_bound.to_be_bytes())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::SettingDetailTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_member = SettingMember::decode_from(limits, reader)?;
+        let decoded_document = reader.u32().ok_or(Problem { path: Path::SettingDetailDocument, reason: skein_codec::Reason::Short })?;
+        let decoded_segment = reader.u32().ok_or(Problem { path: Path::SettingDetailSegment, reason: skein_codec::Reason::Short })?;
+        let decoded_rule = SettingRule::decode_from(limits, reader)?;
+        let decoded_supplied = reader.u32().ok_or(Problem { path: Path::SettingDetailSupplied, reason: skein_codec::Reason::Short })?;
+        let decoded_bound = reader.u32().ok_or(Problem { path: Path::SettingDetailBound, reason: skein_codec::Reason::Short })?;
+        Ok(Self { member: decoded_member, document: decoded_document, segment: decoded_segment, rule: decoded_rule, supplied: decoded_supplied, bound: decoded_bound })
+    }
+}
+
 impl MalformedSettings {
     /// Measures this record's wire encoding.
     #[must_use]
@@ -85695,6 +85965,11 @@ impl MalformedSettings {
         size = size.checked_add(field_setting.measure()).expect("schema ceilings fit u32");
         let field_fault = &self.fault;
         size = size.checked_add(field_fault.measure()).expect("schema ceilings fit u32");
+        let field_detail = &self.detail;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_detail {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -85704,6 +85979,14 @@ impl MalformedSettings {
         field_setting.encode(writer)?;
         let field_fault = &self.fault;
         field_fault.encode(writer)?;
+        let field_detail = &self.detail;
+        match field_detail {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
@@ -85717,7 +86000,8 @@ impl MalformedSettings {
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_setting = Setting::decode_from(limits, reader)?;
         let decoded_fault = SettingFault::decode_from(limits, reader)?;
-        Ok(Self { setting: decoded_setting, fault: decoded_fault })
+        let decoded_detail = match reader.u8().ok_or(Problem { path: Path::MalformedSettingsDetail, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(SettingDetail::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::MalformedSettingsDetail, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { setting: decoded_setting, fault: decoded_fault, detail: decoded_detail })
     }
 }
 
@@ -114920,6 +115204,90 @@ impl SettingFault {
     }
 }
 
+impl SettingMember {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        biggest.checked_add(0)
+    }
+}
+
+impl SettingRule {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        biggest.checked_add(0)
+    }
+}
+
+impl SettingDetail {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(SettingMember::encoded_bound_within(limits)?)?.checked_add(4_u64)?;
+        size = size.checked_add(4_u64)?.checked_add(SettingRule::encoded_bound_within(limits)?)?;
+        size = size.checked_add(4_u64)?.checked_add(4_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(SettingMember::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(SettingRule::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
 impl MalformedSettings {
     /// Maximum encoded bytes under these limits.
     #[must_use]
@@ -114931,6 +115299,7 @@ impl MalformedSettings {
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
         size = size.checked_add(Setting::encoded_bound_within(limits)?)?.checked_add(SettingFault::encoded_bound_within(limits)?)?;
+        size = size.checked_add(1_u64.checked_add(SettingDetail::encoded_bound_within(limits)?)?)?;
         size.checked_add(0)
     }
 
@@ -114944,6 +115313,7 @@ impl MalformedSettings {
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
         heap = heap.checked_add(Setting::decoded_bound_within(limits)?)?.checked_add(SettingFault::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(SettingDetail::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
 }
@@ -117824,6 +118194,9 @@ fn encoded_bound_9(limits: &Limits, mut biggest: u64) -> Option<u64> {
 }
 
 fn encoded_bound_10(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(SettingMember::encoded_bound_within(limits)?);
+    biggest = biggest.max(SettingRule::encoded_bound_within(limits)?);
+    biggest = biggest.max(SettingDetail::encoded_bound_within(limits)?);
     biggest = biggest.max(MalformedSettings::encoded_bound_within(limits)?);
     biggest = biggest.max(ReadSetting::encoded_bound_within(limits)?);
     biggest = biggest.max(ReadRevision::encoded_bound_within(limits)?);
@@ -118851,6 +119224,9 @@ fn decoded_bound_9(limits: &Limits, mut biggest: u64) -> Option<u64> {
 }
 
 fn decoded_bound_10(limits: &Limits, mut biggest: u64) -> Option<u64> {
+    biggest = biggest.max(SettingMember::decoded_bound_within(limits)?);
+    biggest = biggest.max(SettingRule::decoded_bound_within(limits)?);
+    biggest = biggest.max(SettingDetail::decoded_bound_within(limits)?);
     biggest = biggest.max(MalformedSettings::decoded_bound_within(limits)?);
     biggest = biggest.max(ReadSetting::decoded_bound_within(limits)?);
     biggest = biggest.max(ReadRevision::decoded_bound_within(limits)?);
@@ -118920,7 +119296,7 @@ fn decoded_bound_10(limits: &Limits, mut biggest: u64) -> Option<u64> {
 
 #[cfg(test)]
 mod golden_tests {
-    use super::{CEILINGS, Family, FamilyParts, Owner, Keyed, KeyedParts, Owned, OwnedParts, Served, ServedParts, NotServed, NotServedParts, AnswersFull, AnswersFullParts, KeyedAnswer, LinkSignIn, LinkSignInParts, SignedIn, SignedInParts, SignInsFull, SignInsFullParts, SignInAnswer, SignOut, SignOutParts, SignOutAnswer, DocumentText, DocumentTextParts, ChipExecutorAgent, ChipExecutorAgentParts, ChipExecutorProcedure, ChipExecutorProcedureParts, ExecutorParty, ExecutorPartyParts, ExecutorRole, ExecutorRoleParts, ChipExecutorJob, ChipExecutorJobParts, ChipExecutor, Phase, RunStageClaimed, RunStageClaimedParts, RunStageRunning, RunStageRunningParts, RunStageBackingOff, RunStageBackingOffParts, RunStage, PersonAddressParty, PersonAddressPartyParts, PersonAddressRole, PersonAddressRoleParts, PersonAddress, ClosingStageRun, ClosingStageRunParts, ClosingStage, HoldFailure, HoldCategoryFailures, HoldCategoryFailuresParts, HoldCategoryDependency, HoldCategoryDependencyParts, HoldCategoryPlaced, HoldCategoryPlacedParts, HoldCategoryUncertain, HoldCategoryUncertainParts, HoldCategoryPoolLost, HoldCategoryPoolLostParts, Bound, Exceeded, ExceededParts, HoldCategory, ChipPhaseWaiting, ChipPhaseWaitingParts, ChipPhaseActive, ChipPhaseActiveParts, ChipPhasePerson, ChipPhasePersonParts, ChipPhaseClosing, ChipPhaseClosingParts, ChipPhaseHeld, ChipPhaseHeldParts, ChipPhase, FailureClass, RetryNoticeOwnerFailed, RetryNoticeOwnerFailedParts, RetryNoticeFailed, RetryNoticeFailedParts, RetryNoticeRefused, RetryNoticeRefusedParts, RetryNotice, CallIdentity, CallIdentityParts, RunWorkTool, RunWorkToolParts, RunWork, RunObservation, RunObservationParts, ActiveRun, ActiveRunParts, ProposerTask, ProposerTaskParts, ProposerParty, ProposerPartyParts, Proposer, ProposalKey, ProposalKeyParts, RecipientTask, RecipientTaskParts, RecipientParty, RecipientPartyParts, RecipientRole, RecipientRoleParts, RecipientRoles, RecipientRolesParts, Recipient, TakenBy, TakenByParts, Revision, RevisionParts, ActorParty, ActorPartyParts, ActorTask, ActorTaskParts, ActorProjectDeployment, ActorProjectDeploymentParts, Actor, PartyKind, Party, PartyParts, DecisionRejected, DecisionRejectedParts, DecisionReleased, DecisionReleasedParts, DecisionLeftHeld, DecisionLeftHeldParts, Decision, AttemptFailure, AttemptFailureParts, ExecutorAgent, ExecutorAgentParts, ExecutorProcedure, ExecutorProcedureParts, ExecutorPerson, ExecutorPersonParts, ExecutorJob, ExecutorJobParts, Executor, WakeRuleBatch, WakeRuleBatchParts, WakeRulePaced, WakeRulePacedParts, WakeRule, ResultsWake, WakePolicy, WakePolicyParts, PersonStallNotice, PersonStallNoticeParts, PersonWait, PersonWaitParts, PartKind, PartKeyPath, PartKeyPathParts, PartKeyNumber, PartKeyNumberParts, PartKey, Part, PartParts, PriorPhaseActive, PriorPhaseActiveParts, PriorPhaseClosing, PriorPhaseClosingParts, PriorPhase, EscalationHolderTask, EscalationHolderTaskParts, EscalationHolderPerson, EscalationHolderPersonParts, EscalationHolderRole, EscalationHolderRoleParts, EscalationHolder, HoldEscalationWaiting, HoldEscalationWaitingParts, HoldEscalationRejected, HoldEscalationRejectedParts, HoldEscalation, FailureTries, FailureTriesParts, RequesterTask, RequesterTaskParts, RequesterPerson, RequesterPersonParts, RequesterDeployment, RequesterDeploymentParts, Requester, TaskStatus, DependencyAdded, DependencyAddedParts, Dependency, DependencyParts, Circle, CircleParts, HoldOwnerParty, HoldOwnerPartyParts, HoldOwnerTask, HoldOwnerTaskParts, HoldOwner, HoldMode, HoldScopeSubtree, HoldScopeSubtreeParts, HoldScope, PlacedLine, PlacedLineParts, ChipHold, ChipHoldParts, Numbers, NumbersParts, FunderTask, FunderTaskParts, FunderPool, FunderPoolParts, FunderRecurring, FunderRecurringParts, FunderPeriod, FunderPeriodParts, Funder, Budget, BudgetParts, ResourceWriterRun, ResourceWriterRunParts, ResourceWriterEffect, ResourceWriterEffectParts, ResourceWriter, ResourceLine, ResourceLineParts, ChipWorkTool, ChipWorkToolParts, ChipWork, ChipObservation, ChipObservationParts, ResultField, ResultFieldParts, ChipFields, ChipFieldsParts, ChipRow, ChipRowParts, ChipPhaseOwnerFields, ChipPhaseOwnerFieldsParts, ChipPhaseRow, ChipPhaseRowParts, ClosingFields, ClosingFieldsParts, ClosingRow, ClosingRowParts, EndingTaskFields, EndingTaskFieldsParts, EndingFailedFields, EndingFailedFieldsParts, EndingCancelledFields, EndingCancelledFieldsParts, EndingWithdrawnFields, EndingWithdrawnFieldsParts, EndingDecidedFields, EndingDecidedFieldsParts, EndingFields, EndingRow, EndingRowParts, HeldRuntimeActiveFields, HeldRuntimeActiveFieldsParts, HeldRuntimeClosingFields, HeldRuntimeClosingFieldsParts, HeldRuntimeFields, HeldRuntimeRow, HeldRuntimeRowParts, HoldReasonTriesFields, HoldReasonTriesFieldsParts, HoldReasonStalledFields, HoldReasonStalledFieldsParts, HoldReasonDependencyFields, HoldReasonDependencyFieldsParts, HoldReasonBudgetFields, HoldReasonBudgetFieldsParts, HoldReasonDeadlineFields, HoldReasonDeadlineFieldsParts, HoldReasonStoppedFields, HoldReasonStoppedFieldsParts, HoldReasonFields, HoldReasonRow, HoldReasonRowParts, ChipDetailsFields, ChipDetailsFieldsParts, ChipDetailsRow, ChipDetailsRowParts, ChipEndingDoneFields, ChipEndingDoneFieldsParts, ChipEndingFailedFields, ChipEndingFailedFieldsParts, ChipEndingCancelledFields, ChipEndingCancelledFieldsParts, ChipEndingFields, ChipEndingRow, ChipEndingRowParts, ResultValueReportFields, ResultValueReportFieldsParts, ResultValueOwnerVerdictFields, ResultValueOwnerVerdictFieldsParts, ResultValueVerdictFields, ResultValueVerdictFieldsParts, ResultValueChangeFields, ResultValueChangeFieldsParts, ResultValueChoiceFields, ResultValueChoiceFieldsParts, ResultValueApprovedFields, ResultValueApprovedFieldsParts, ResultValueFailureFields, ResultValueFailureFieldsParts, ResultValueWordsFields, ResultValueWordsFieldsParts, ResultValueFields, ResultValueRow, ResultValueRowParts, Fact, Chip, ChipParts, ChipPhaseFacts, ChipPhaseFactsParts, Closing, ClosingParts, Ending, EndingParts, HeldRuntime, HeldRuntimeParts, HoldReason, HoldReasonParts, ChipDetails, ChipDetailsParts, ChipEnding, ChipEndingParts, ResultValue, ResultValueParts, PersonAnswerChoice, PersonAnswerChoiceParts, PersonAnswerApproved, PersonAnswerApprovedParts, PersonAnswerWords, PersonAnswerWordsParts, PersonAnswerCannot, PersonAnswerCannotParts, PersonAnswer, AddressChange, AddressChangeParts, ParameterNumber, ParameterNumberParts, ParameterBytes, ParameterBytesParts, ParameterResource, ParameterResourceParts, Parameter, Specification, SpecificationParts, ModelEffort, ModelEffortParts, LlmChoice, LlmChoiceParts, PatternEndExact, PatternEndExactParts, PatternEndOpen, PatternEndOpenParts, PatternEnd, Pattern, PatternParts, Grant, GrantParts, AuthorityExecutorCharter, AuthorityExecutorCharterParts, AuthorityExecutorProcedure, AuthorityExecutorProcedureParts, AuthorityExecutorRole, AuthorityExecutorRoleParts, AuthorityExecutorJob, AuthorityExecutorJobParts, AuthorityExecutor, Delegation, DelegationParts, ResourceScope, ResourceScopeParts, ModelSetNames, ModelSetNamesParts, ModelSet, Authority, AuthorityParts, TrackingTracked, TrackingTrackedParts, Tracking, Amendment, AmendmentParts, SeenResults, SeenResultsParts, SeenConversation, SeenConversationParts, SeenThrough, NoteScopeProject, NoteScopeProjectParts, NoteScopeResource, NoteScopeResourceParts, NoteScopeTask, NoteScopeTaskParts, NoteScopeTasks, NoteScopeTasksParts, NoteScope, PolicyEditRole, PolicyEditRoleParts, PolicyJudge, PolicyJudgeParts, PolicyGuardObserved, PolicyGuardObservedParts, PolicyGuard, PolicyRequirement, PolicyRequirementParts, PolicyPermission, PolicyPermissionParts, PolicyEditProjectSpend, PolicyEditProjectSpendParts, PolicyEditRoleSpend, PolicyEditRoleSpendParts, PolicyEditRoleValue, PolicyEditRoleValueParts, PolicyEditRequirements, PolicyEditRequirementsParts, PolicyEditProjections, PolicyEditProjectionsParts, PolicyEditPermissions, PolicyEditPermissionsParts, TemplateCharter, TemplateCharterParts, TemplateExecutor, TemplateAmount, TemplateAmountParts, TemplateAsAllowed, TemplateAsAllowedParts, TemplateBudget, TemplateSpan, TemplateSpanParts, TemplateDeadline, TemplateOverride, TemplateOverrideParts, PolicyEditTemplates, PolicyEditTemplatesParts, PolicyEdit, HeldRolePolicy, HeldRolePolicyParts, HeldRole, Holding, HoldingParts, Message, MessageParts, AnswerQuestion, AnswerQuestionParts, AnswerPerson, AnswerPersonParts, AnswerOn, Answer, AnswerParts, Take, TakeParts, HandBack, HandBackParts, Running, DecideProposal, DecideProposalParts, DecideEscalation, DecideEscalationParts, DecideOn, Decide, DecideParts, Release, ReleaseParts, Amend, AmendParts, Stop, StopParts, Cancel, CancelParts, Move, MoveParts, Seen, SeenParts, EditNote, EditNoteParts, DeleteNote, DeleteNoteParts, ChangePolicy, ChangePolicyParts, SetRoles, SetRolesParts, MakeService, MakeServiceParts, SetPool, SetPoolParts, Operation, Compound, CompoundParts, FieldRule, FieldRuleParts, VerdictChoice, VerdictChoiceParts, TaskRefMember, TaskRefMemberParts, TaskRefTask, TaskRefTaskParts, TaskRef, ContractReport, ContractReportParts, ContractVerdict, ContractVerdictParts, ContractChange, ContractChangeParts, NewContract, BudgetAsAllowed, BudgetAsAllowedParts, NewBudget, Retention, EndedBy, TaskFlags, TaskFlagsParts, DeadlineSpan, DeadlineSpanParts, NewDeadline, Symbol, SymbolParts, NewTask, NewTaskParts, Create, CreateParts, ProposeBatch, ProposeBatchParts, ProposeAmendment, ProposeAmendmentParts, ProposeSettings, ProposeSettingsParts, ProposeAction, Propose, ProposeParts, Withdraw, WithdrawParts, AskAccountHolder, AskSignIn, AskSignInParts, AskSignOut, AskSignOutParts, ProposalChoice, EscalationChoice, OutcomeMarkedSeen, OutcomeMarkedSeenParts, OutcomeNoteEdited, OutcomeNoteEditedParts, OutcomeServiceMade, OutcomeServiceMadeParts, OutcomeAdopted, OutcomeAdoptedParts, OutcomeStopped, OutcomeStoppedParts, OutcomeCancelled, OutcomeCancelledParts, OutcomeReleased, OutcomeReleasedParts, OutcomePersonTaken, OutcomePersonTakenParts, OutcomePersonHandedBack, OutcomePersonHandedBackParts, OutcomePersonAnswered, OutcomePersonAnsweredParts, OutcomeMoved, OutcomeMovedParts, OutcomeProposalDecided, OutcomeProposalDecidedParts, OutcomeSaid, OutcomeSaidParts, OutcomeQuestionAnswered, OutcomeQuestionAnsweredParts, OutcomeAmended, OutcomeAmendedParts, OutcomeProposed, OutcomeProposedParts, OutcomeWithdrawn, OutcomeWithdrawnParts, OutcomeRolesSet, OutcomeRolesSetParts, OutcomePolicyChanged, OutcomePolicyChangedParts, OutcomePoolSet, OutcomePoolSetParts, OutcomeEscalationDecided, OutcomeEscalationDecidedParts, OutcomeCompound, OutcomeCompoundParts, CreatedGiven, CreatedGivenParts, OutcomeCreated, OutcomeCreatedParts, OutcomeAccountSignInStarted, OutcomeAccountSignInStartedParts, AccountHostWhy, AccountHostFailure, AccountHostFailureParts, OutcomeAccountProgramDeclared, OutcomeAccountProgramDeclaredParts, OutcomeAccountSignedOut, OutcomeAccountSignedOutParts, OutcomeAccountKeyKept, OutcomeAccountKeyKeptParts, OutcomeAccountRemoved, OutcomeAccountRemovedParts, OutcomeRenamed, OutcomeRenamedParts, OutcomeProjectMade, OutcomeProjectMadeParts, OutcomeVisibilitySet, OutcomeVisibilitySetParts, OutcomeProjectRemoved, OutcomeProjectRemovedParts, OutcomeAccountMovedIn, OutcomeAccountMovedInParts, OutcomeAccountFinishing, OutcomeAccountFinishingParts, OutcomeLifted, OutcomeLiftedParts, DocumentOutcome, MadeTasks, MadeTasksParts, MadeService, MadeServiceParts, MadePersonResult, MadePersonResultParts, MadeNote, MadeNoteParts, MadeMovingOut, MadeMovingOutParts, Made, OutcomeDocument, OutcomeDocumentParts, OutcomeMade, OutcomeMadeParts, LackingBudget, LackingBudgetParts, LackingGrantKind, LackingGrantKindParts, LackingAgain, LackingAgainParts, LackingRequired, LackingRequiredParts, LackingFailed, LackingFailedParts, LackingUnguarded, LackingUnguardedParts, LackingTaskKind, LackingTaskKindParts, LackingDepth, LackingDepthParts, LackingDeadline, LackingDeadlineParts, LackingTasks, LackingTasksParts, LackingHoldOwner, LackingHoldOwnerParts, CeilingRole, CeilingRoleParts, CeilingHolder, CeilingDimension, LackingCeiling, LackingCeilingParts, Lacking, AdmissionLimit, LimitAdmission, LimitAdmissionParts, LimitLiveTasks, LimitLiveTasksParts, LimitInbox, LimitInboxParts, LimitWords, LimitWordsParts, Limit, CurrentHoldDocument, CurrentHoldDocumentParts, CurrentHoldReason, CurrentHoldReasonParts, CurrentHold, MovedHold, MovedHoldParts, MovedPlacedHold, MovedPlacedHoldParts, Moved, RefusalRole, RefusalRoleParts, RefusalTaken, RefusalTakenParts, RefusalAuthority, RefusalAuthorityParts, RefusalLimit, RefusalLimitParts, RefusalMoved, RefusalMovedParts, RefusalEnded, RefusalEndedParts, NameRule, MalformedName, MalformedNameParts, LlmWhy, RefusalLlm, RefusalLlmParts, AccountWhy, RefusalAccount, RefusalAccountParts, RefusalCircle, RefusalCircleParts, RefusalDependency, RefusalDependencyParts, RefusalKept, RefusalKeptParts, SignInRedirectWhy, RefusalSignInRedirect, RefusalSignInRedirectParts, AccountMoveWhy, RefusalAccountMove, RefusalAccountMoveParts, Cursor, CursorParts, ScopeProject, ScopeProjectParts, Scope, Window, WindowParts, FamilyRecord, FamilyRecordParts, FamilyRequest, FamilyRequestParts, InboxReadGroup, InboxGroup, ReadTurn, ReadTurnParts, ReadTask, ReadTaskParts, ReadProposal, ReadProposalParts, ReadEscalation, ReadEscalationParts, ReadQuestion, ReadQuestionParts, ReadPersonTask, ReadPersonTaskParts, ReadResult, ReadResultParts, ReadEnded, ReadEndedParts, ReadHistory, ReadHistoryParts, ReadActivity, ReadActivityParts, ActivitySide, ReadActivityBeside, ReadActivityBesideParts, ReadInbox, ReadInboxParts, ReadSpend, ReadSpendParts, ReadProject, ReadProjectParts, ReadNotes, ReadNotesParts, PhaseClass, ExecutorKind, QueryOrder, TaskQuery, TaskQueryParts, ReadTasks, ReadTasksParts, TurnTooLarge, TurnTooLargeParts, ReadTooLinked, ReadTooLinkedParts, ReadNone, ReadAnswerNone, ReadAnswerNoneParts, ReadAnswer, PeriodTimes, PeriodTimesParts, FundingRecord, FundingRecordParts, SpendPage, SpendPageParts, MessageProposalKind, NoticeState, NewsClass, WordResultApproved, WordResultApprovedParts, WordResultVerdict, WordResultVerdictParts, WordResultChange, WordResultChangeParts, WordResult, MessageKindEscalation, MessageKindEscalationParts, MessageKindProposal, MessageKindProposalParts, MessageKindPersonStalled, MessageKindPersonStalledParts, MessageKindProposalDecision, MessageKindProposalDecisionParts, SettingsAccepted, SettingsAcceptedParts, SettingsStale, SettingsStaleParts, SettingsOutcome, MessageKindSettingsDecision, MessageKindSettingsDecisionParts, MessageKindEffectNotMade, MessageKindEffectNotMadeParts, MessageKindAmendment, MessageKindAmendmentParts, MessageKindAnswer, MessageKindAnswerParts, MessageKindNotice, MessageKindNoticeParts, MessageKindTimer, MessageKindTimerParts, MessageKindNews, MessageKindNewsParts, MessageKindResult, MessageKindResultParts, MessageKindMet, MessageKindMetParts, MessageKind, Word, WordParts, RunWhyMessage, RunWhyMessageParts, RunWhyRetry, RunWhyRetryParts, RunWhy, RunEndFailed, RunEndFailedParts, RunEnd, ActivityWords, ActivityWordsParts, ActivityHeard, ActivityHeardParts, ActivityNotified, ActivityNotifiedParts, ActivityRunBegan, ActivityRunBeganParts, ActivityRunEnded, ActivityRunEndedParts, ActivityTurn, ActivityTurnParts, ActivityDecided, ActivityDecidedParts, ActivityMilestone, ActivityMilestoneParts, ActivityKept, ActivityKeptParts, Activity, ActivityLine, ActivityLineParts, TurnName, TurnNameParts, TurnCarried, TurnCarriedParts, TurnBytes, ArchivedTurn, ArchivedTurnParts, TaskContractDocumentApproval, TaskContractDocumentApprovalParts, TaskContractDocumentReport, TaskContractDocumentReportParts, TaskContractDocumentVerdict, TaskContractDocumentVerdictParts, TaskContractDocumentChange, TaskContractDocumentChangeParts, TaskContractDocumentJob, TaskContractDocumentJobParts, TaskContractDocument, TaskLinkLive, TaskLinkLiveParts, TaskLinkRetained, TaskLinkRetainedParts, TaskLinkStored, TaskLinkStoredParts, TaskLink, ResultDetails, ResultDetailsParts, ActKind, CreateProcedure, CreateProcedureParts, KindImplication, KindImplicationParts, AuthorityDocument, AuthorityDocumentParts, BoundsCreate, BoundsCreateParts, BoundsAmend, BoundsAmendParts, Bounds, BeyondProposed, BeyondProposedParts, AdmissionProposed, AdmissionProposedParts, ImpactCounts, ImpactCountsParts, Impact, ImpactParts, ReleaseEffect, EffectRelease, EffectReleaseParts, EffectMove, EffectMoveParts, Effect, ResultDocument, ResultDocumentParts, ObjectKeyTask, ObjectKeyTaskParts, ObjectKeyProposal, ObjectKeyProposalParts, ObjectKeyEscalation, ObjectKeyEscalationParts, ObjectKeyQuestion, ObjectKeyQuestionParts, ObjectKeyPersonTask, ObjectKeyPersonTaskParts, ObjectKeyResult, ObjectKeyResultParts, ObjectKeyNote, ObjectKeyNoteParts, ObjectKey, DecodedActivityLine, DecodedActivityLineParts, ActivityPage, ActivityPageParts, SpendLine, SpendLineParts, Hold, HoldParts, HistoryChange, ParameterDocumentNumber, ParameterDocumentNumberParts, ParameterDocumentBytes, ParameterDocumentBytesParts, ParameterDocumentResource, ParameterDocumentResourceParts, ParameterDocument, DocumentSpecification, DocumentSpecificationParts, SpecificationDocument, SpecificationDocumentParts, ProposedTask, ProposedTaskParts, RetainedAmendment, RetainedAmendmentParts, RetainedActionBatch, RetainedActionBatchParts, RetainedActionEffect, RetainedActionEffectParts, RetainedActionProcedureEffect, RetainedActionProcedureEffectParts, RetainedActionAmend, RetainedActionAmendParts, RetainedActionWiden, RetainedActionWidenParts, RetainedActionRelease, RetainedActionReleaseParts, SettingNumber, SettingNumberParts, ApplicationSetting, ApplicationSettingParts, ProjectPolicySetting, ProjectPolicySettingParts, Setting, RevisionItemEdit, RevisionItemHead, RevisionItemHeadParts, RetainedActionSettings, RetainedActionSettingsParts, RetainedAction, HistoryHolderTask, HistoryHolderTaskParts, HistoryHolderPerson, HistoryHolderPersonParts, HistoryHolderPolicy, HistoryHolderPolicyParts, HistoryHolder, ProposalHistoryStatePending, ProposalHistoryStatePendingParts, ProposalHistoryStateAccepted, ProposalHistoryStateAcceptedParts, ProposalHistoryStateRejected, ProposalHistoryStateRejectedParts, ProposalHistoryState, ProposalHistory, ProposalHistoryParts, AmendmentState, AmendmentStateParts, HistoryAmendment, HistoryAmendmentParts, HistoryLine, HistoryLineParts, MilestonePhaseActive, MilestonePhaseActiveParts, MilestonePhaseClosing, MilestonePhaseClosingParts, MilestonePhaseHeld, MilestonePhaseHeldParts, MilestonePhaseEnded, MilestonePhaseEndedParts, MilestonePhase, MilestoneLine, MilestoneLineParts, HistoryRowChange, HistoryRowChangeParts, HistoryRowMilestone, HistoryRowMilestoneParts, HistoryRow, HistoryPage, HistoryPageParts, RuntimeActive, RuntimeActiveParts, RuntimeRunning, RuntimeRunningParts, RuntimeWaitingForWords, RuntimeWaitingForWordsParts, RuntimeBackingOff, RuntimeBackingOffParts, RuntimePerson, RuntimePersonParts, RuntimeClosing, RuntimeClosingParts, RuntimeHeld, RuntimeHeldParts, Runtime, Count, CountParts, WhomPerson, WhomPersonParts, WhomRole, WhomRoleParts, Whom, WaitedFor, WaitsOnParty, WaitsOnPartyParts, WaitsOnDependencies, WaitsOnDependenciesParts, WaitsOn, ConversationRead, ConversationReadParts, PhaseCounts, PhaseCountsParts, TaskLine, TaskLineParts, NoteAuthorParty, NoteAuthorPartyParts, NoteAuthorTask, NoteAuthorTaskParts, NoteAuthor, Note, NoteParts, NotePage, NotePageParts, ObjectPage, ObjectPageParts, EndedDelegate, EndedDelegateParts, EndedPage, EndedPageParts, InboxObjectQuestion, InboxObjectQuestionParts, InboxObjectProposal, InboxObjectProposalParts, InboxObjectEscalation, InboxObjectEscalationParts, InboxObjectTurn, InboxObjectTurnParts, InboxObjectResult, InboxObjectResultParts, InboxObject, InboxCursorNumber, InboxCursorNumberParts, InboxCursorInbox, InboxCursorInboxParts, InboxCursor, InboxSelection, InboxSelectionParts, InboxEntry, InboxEntryParts, InboxPage, InboxPageParts, PoolLedger, PoolLedgerParts, MeParty, MePartyParts, Needs, NeedsParts, Template, TemplateParts, MePrices, MePricesParts, MeModel, MeModelParts, ProviderOffer, ProviderOfferParts, Readiness, Me, MeParts, LiveDelegate, LiveDelegateParts, TaskContext, TaskContextParts, TaskResultDocument, TaskResultDocumentParts, TaskResultEnding, TaskResultEndingParts, TaskResult, SubscriptionKindTask, SubscriptionKindTaskParts, SubscriptionKindTimer, SubscriptionKindTimerParts, SubscriptionKindTopic, SubscriptionKindTopicParts, SubscriptionKind, Subscription, SubscriptionParts, Subscriptions, SubscriptionsParts, TaskSourceStateUntil, TaskSourceStateUntilParts, TaskSourcePlace, TaskSourceUnread, TaskSourceStateUnloaded, TaskSourceStateUnloadedParts, TaskSourceState, TaskWaitSource, TaskWaitSourceParts, TaskWaitInvalid, TaskWaitInvalidParts, TaskWaitWhy, TaskWaitAccount, TaskWaitAccountParts, HostKind, AgentShortfallModel, AgentShortfallModelParts, AgentShortfallWindow, AgentShortfallWindowParts, AgentShortfallOutput, AgentShortfallOutputParts, AgentShortfallChecks, AgentShortfallChecksParts, AgentShortfall, HelloRefusalAgent, HelloRefusalAgentParts, HelloRefusalWorkers, HelloRefusalWorkersParts, HelloRefusalPosition, HelloRefusalPositionParts, HelloRefusalStopBound, HelloRefusalStopBoundParts, HelloRefusal, TaskWaitHello, TaskWaitHelloParts, TaskWaitRefused, TaskRunWaitRefused, TaskRunWaitRefusedParts, TaskRunWait, TaskSettings, TaskSettingsParts, Task, TaskParts, ReadPosition, ReadPositionParts, Tasks, TasksParts, EndedRows, EndedRowsParts, EndedGroup, TaskPage, TaskPageParts, Call, CallParts, CurrentCall, CurrentCallParts, LiveCallDecoded, LiveCallDecodedParts, LiveCallRaw, LiveCallRawParts, LiveCall, ProvisionalTurnName, ProvisionalTurnNameParts, WritingCall, WritingCallParts, RunText, RunTextParts, RunState, RunStateParts, ProposalActionBatch, ProposalActionBatchParts, ProposalActionEffect, ProposalActionEffectParts, ProposalActionProcedureEffect, ProposalActionProcedureEffectParts, ProposalActionAmend, ProposalActionAmendParts, ProposalActionWiden, ProposalActionWidenParts, ProposalActionRelease, ProposalActionReleaseParts, SettingsReview, SettingsReviewParts, ProposalActionSettings, ProposalActionSettingsParts, ProposalAction, ProposalWaiting, ProposalWaitingParts, FundingOffer, FundingOfferParts, Proposal, ProposalParts, Escalation, EscalationParts, Question, QuestionParts, OptionLine, OptionLineParts, PersonContractChoice, PersonContractChoiceParts, PersonContract, ShownResult, ShownResultParts, PersonTask, PersonTaskParts, RecurringOverlap, Recurring, RecurringParts, ProjectResourceRole, ProjectResource, ProjectResourceParts, ProjectPolicyRole, ProjectPolicyRoleParts, ProjectPolicy, ProjectPolicyParts, ProjectMember, ProjectMemberParts, ProjectSpend, ProjectSpendParts, Project, ProjectParts, EndedValueTask, EndedValueTaskParts, EndedValueProposal, EndedValueProposalParts, GoalHoldingWrite, GoalHoldingWriteParts, GoalHoldingSlot, GoalHoldingSlotParts, GoalHolding, PersonProposalGoal, PersonProposalGoalParts, PersonProposalStatePending, PersonProposalStatePendingParts, PersonProposalStateAccepted, PersonProposalStateAcceptedParts, PersonProposalStateRejected, PersonProposalStateRejectedParts, PersonProposalState, PersonProposal, PersonProposalParts, ProposalDecisionCreated, ProposalDecisionCreatedParts, ProposalDecision, ProposalDecisionParts, EndedValuePersonProposal, EndedValuePersonProposalParts, EscalationDecisionReject, EscalationDecisionRejectParts, EscalationDecision, EscalationDecisionRecord, EscalationDecisionRecordParts, EndedValueEscalation, EndedValueEscalationParts, EndedValueQuestion, EndedValueQuestionParts, EndedValuePersonTask, EndedValuePersonTaskParts, EndedValue, Ended, EndedParts, TreeRow, TreeRowParts, TreeFold, TreeFoldParts, Tree, TreeParts, SubjectTask, SubjectTaskParts, SubjectTree, SubjectTreeParts, SubjectChips, SubjectChipsParts, SubjectInbox, SubjectInboxParts, SubjectTasks, SubjectTasksParts, SubjectRun, SubjectRunParts, Subject, StoreFill, StoreFillParts, Capacity, CapacityParts, ProjectCapacity, ProjectCapacityParts, AttemptState, RunLocationConnected, RunLocationConnectedParts, RunLocationAdrift, RunLocationAdriftParts, RunLocation, HostRun, HostRunParts, ProgramFailure, ProgramFailed, ProgramFailedParts, ProgramOtherwise, ProgramOtherwiseParts, ProgramState, ProgramSignOut, ProgramLogin, ProgramLoginParts, ProgramHost, ProgramHostParts, HostPerson, HostPersonParts, HostRule, Host, HostParts, HelloRefusalLine, HelloRefusalLineParts, RequestKey, RequestKeyParts, PersonCapacityActionApplication, PersonCapacityActionApplicationParts, PersonCapacityActionNote, PersonCapacityActionNoteParts, PersonCapacityActionPool, PersonCapacityActionPoolParts, PersonCapacityActionEscalation, PersonCapacityActionEscalationParts, PersonCapacityActionProposal, PersonCapacityActionProposalParts, PersonCapacityActionWords, PersonCapacityActionWordsParts, PersonCapacityActionQuestion, PersonCapacityActionQuestionParts, PersonCapacityActionAmend, PersonCapacityActionAmendParts, PersonCapacityActionMove, PersonCapacityActionMoveParts, PersonCapacityActionTakePerson, PersonCapacityActionTakePersonParts, PersonCapacityActionHandBackPerson, PersonCapacityActionHandBackPersonParts, PersonCapacityActionAnswerPerson, PersonCapacityActionAnswerPersonParts, PersonCapacityActionStop, PersonCapacityActionStopParts, PersonCapacityActionCancel, PersonCapacityActionCancelParts, PersonCapacityActionRelease, PersonCapacityActionReleaseParts, PersonCapacityActionMarkSeen, PersonCapacityActionMarkSeenParts, PersonCapacityActionLift, PersonCapacityActionLiftParts, PersonCapacityAction, PersonCapacityCauseRequests, PersonCapacityCauseRequestsParts, PersonCapacityCausePending, PersonCapacityCausePendingParts, PersonCapacityCauseWaiters, PersonCapacityCauseWaitersParts, PersonCapacityCauseLimit, PersonCapacityCauseLimitParts, PersonCapacityCause, PersonCapacityRefusal, PersonCapacityRefusalParts, TaskCapacityActionBatch, TaskCapacityActionBatchParts, TaskCapacityActionProposal, TaskCapacityActionProposalParts, TaskCapacityActionPersonProposal, TaskCapacityActionPersonProposalParts, TaskCapacityActionMessage, TaskCapacityActionMessageParts, SetVisibility, SetVisibilityParts, RemoveProject, RemoveProjectParts, Rename, RenameParts, MakeProject, MakeProjectParts, Authorize, AuthorizeParts, AuthorizeGo, AuthorizeGoParts, AuthorizeWhy, AuthorizeRefused, AuthorizeRefusedParts, AuthorizeAnswer, TaskCapacityActionSource, TaskCapacityActionSourceParts, TaskCapacityActionIntroduce, TaskCapacityActionIntroduceParts, TaskCapacityActionSubscription, TaskCapacityActionSubscriptionParts, TaskCapacityActionEffect, TaskCapacityActionEffectParts, TaskCapacityActionClaim, TaskCapacityActionClaimParts, TaskCapacityActionPlace, TaskCapacityActionPlaceParts, TaskCapacityAction, TaskCapacityCauseTasks, TaskCapacityCauseTasksParts, TaskCapacityCauseCreationFlights, TaskCapacityCauseCreationFlightsParts, TaskCapacityCauseResourceReports, TaskCapacityCauseResourceReportsParts, TaskCapacityCauseProjectTasks, TaskCapacityCauseProjectTasksParts, TaskCapacityCauseTree, TaskCapacityCauseTreeParts, TaskCapacityCauseDelegates, TaskCapacityCauseDelegatesParts, TaskCapacityCauseInbox, TaskCapacityCauseInboxParts, TaskCapacityCauseHoldings, TaskCapacityCauseHoldingsParts, TaskCapacityCauseHoldWaiters, TaskCapacityCauseHoldWaitersParts, TaskCapacityCauseProposals, TaskCapacityCauseProposalsParts, TaskCapacityCauseReferences, TaskCapacityCauseReferencesParts, TaskCapacityCauseSubscriptions, TaskCapacityCauseSubscriptionsParts, TaskCapacityCauseFunders, TaskCapacityCauseFundersParts, TaskCapacityCauseWriters, TaskCapacityCauseWritersParts, TaskCapacityCausePlacedHolds, TaskCapacityCausePlacedHoldsParts, TaskCapacityCauseProjectPlacedHolds, TaskCapacityCauseProjectPlacedHoldsParts, TaskCapacityCausePartyPlacedHolds, TaskCapacityCausePartyPlacedHoldsParts, TaskCapacityCauseExemptions, TaskCapacityCauseExemptionsParts, TaskCapacityCause, TaskCapacityRequest, TaskCapacityRequestParts, TaskCapacityRefusal, TaskCapacityRefusalParts, WatchEnd, WatchRefusal, Open, OpenParts, OpenAnswerRefused, OpenAnswerRefusedParts, OpenAnswer, WatchClose, WatchCloseParts, CloseAnswer, Gone, GoneParts, Hello, HelloParts, Delivery, DeliveryParts, WatchEnded, WatchEndedParts, StreamText, StreamTextParts, StreamEvent, AccountStateLater, AccountStateLaterParts, AccountPlace, AccountUnread, AccountStateUnloaded, AccountStateUnloadedParts, AccountState, AccountUseParty, AccountUsePartyParts, AccountUseProject, AccountUseProjectParts, AccountUse, PayerReadiness, PayerReadinessParts, AccountChangeDeclareProgram, AccountChangeDeclareProgramParts, AccountChangeCheckProgram, AccountChangeCheckProgramParts, AccountChangeAddKey, AccountChangeAddKeyParts, AccountChangeReplaceKey, AccountChangeReplaceKeyParts, AccountChangeRemoveKey, AccountChangeRemoveKeyParts, AccountChangeResume, AccountChangeResumeParts, AccountChangeRemove, AccountChangeRemoveParts, AccountChangeMoveAccount, AccountChangeMoveAccountParts, AccountChangeMoveSource, AccountChangeMoveSourceParts, AccountChangeSetUses, AccountChangeSetUsesParts, AccountChangeMoveOut, AccountChangeMoveOutParts, AccountChangeWritten, AccountChangeWrittenParts, AccountChangeMoveIn, AccountChangeMoveInParts, AccountChangeFinishSignIn, AccountChangeFinishSignInParts, AccountChange, AskAccountChange, AskAccountChangeParts, AccountHolderParty, AccountHolderPartyParts, AccountHolder, AccountKind, AccountBound, AccountKeyFailure, StreamBound, StreamsFull, StreamsFullParts, AccountRefusalNotKept, AccountRefusalNotKeptParts, AccountRefusalLimit, AccountRefusalLimitParts, AccountRefusalHeld, AccountRefusalHeldParts, AccountRefusalProvider, AccountRefusalProviderParts, AccountRefusalKind, AccountRefusalKindParts, AccountRefusal, AccountFailureLater, AccountFailureLaterParts, AccountFailureMissingScope, AccountFailureMissingScopeParts, AccountFailureUnloaded, AccountFailureUnloadedParts, AccountFailure, AccountEndMade, AccountEndMadeParts, AccountEndRenewed, AccountEndRenewedParts, AccountEndRefused, AccountEndRefusedParts, AccountEndFailed, AccountEndFailedParts, AccountEnd, AccountSource, AccountSourceParts, AccountLine, AccountLineParts, AccountSignIn, AccountSignInParts, AccountLastEnd, AccountLastEndParts, Accounts, AccountsParts, Account, AccountParts, Deployment, DeploymentParts, Kept, KeptParts, TableEntry, TableEntryParts, Chips, ChipsParts, Inbox, InboxParts, SettingModel, SettingModelParts, SettingHosts, CharterDocument, CharterDocumentParts, Charter, CharterParts, SettingPolicy, SettingPolicyParts, Rules, RulesParts, ApplicationValue, ApplicationValueParts, SettingValue, SettingSet, SettingSetParts, SettingEdit, SettingItem, SettingItemParts, ChangeSettings, ChangeSettingsParts, OutcomeSettingsChanged, OutcomeSettingsChangedParts, RefusalStale, RefusalStaleParts, RefusalFull, RefusalFullParts, SettingFault, MalformedSettings, MalformedSettingsParts, ReadSetting, ReadSettingParts, ReadRevision, ReadRevisionParts, ReadRevisions, ReadRevisionsParts, SettingFollows, ApplicationRevision, ApplicationRevisionParts, ApplicationFollows, ApplicationState, ApplicationStateParts, SettingLine, SettingLineParts, RevisionParty, RevisionPartyParts, RevisionDecider, RevisionHead, RevisionHeadParts, HeldRevision, HeldRevisionParts, SettingsProposal, SettingsProposalParts, SettingsDocument, SettingsDocumentParts, ApplicationSize, ApplicationSizeParts, SizedEdit, SettingDocument, SettingDocumentParts, Size, SizeParts, ApplicationEdit, ApplicationEditParts, RevisionEdit, RevisionReplaced, RevisionItem, RevisionItemParts, RevisionDocument, RevisionDocumentParts, RevisionForgotten, RevisionForgottenParts, RevisionAnswer, ReadRevisionAnswer, ReadRevisionAnswerParts, RevisionRow, RevisionRowParts, RevisionsPage, RevisionsPageParts, OutcomeMovedToNewest, OutcomeMovedToNewestParts, OutcomeRestored, OutcomeRestoredParts, Outcome, Malformed, RefusalJudged, RefusalJudgedParts, RefusalMalformed, RefusalMalformedParts, RefusalForgotten, RefusalForgottenParts, Refusal, Done, DoneParts, Refused, RefusedParts, Final, TaskTextField, ReadTaskText, ReadTaskTextParts, TaskText, TaskTextParts, Read, BeyondRefused, BeyondRefusedParts, Beyond, AdmissionBounded, AdmissionBoundedParts, AdmissionRefused, AdmissionRefusedParts, Admission, Offered, OfferedParts, CreatingBounds, CreatingBoundsParts, MeProject, MeProjectParts, EntranceRefusal, EntranceRefusalParts, MoveToNewest, MoveToNewestParts, Lift, LiftParts, Restore, RestoreParts, Ask, ReadValue, DeliveryValue, OriginRevision, OriginRevisionParts, SettingOrigin, ReviewValue, ApplicationReview, ApplicationReviewParts, ReviewItem, ReviewItemParts, Path};
+    use super::{CEILINGS, Family, FamilyParts, Owner, Keyed, KeyedParts, Owned, OwnedParts, Served, ServedParts, NotServed, NotServedParts, AnswersFull, AnswersFullParts, KeyedAnswer, LinkSignIn, LinkSignInParts, SignedIn, SignedInParts, SignInsFull, SignInsFullParts, SignInAnswer, SignOut, SignOutParts, SignOutAnswer, DocumentText, DocumentTextParts, ChipExecutorAgent, ChipExecutorAgentParts, ChipExecutorProcedure, ChipExecutorProcedureParts, ExecutorParty, ExecutorPartyParts, ExecutorRole, ExecutorRoleParts, ChipExecutorJob, ChipExecutorJobParts, ChipExecutor, Phase, RunStageClaimed, RunStageClaimedParts, RunStageRunning, RunStageRunningParts, RunStageBackingOff, RunStageBackingOffParts, RunStage, PersonAddressParty, PersonAddressPartyParts, PersonAddressRole, PersonAddressRoleParts, PersonAddress, ClosingStageRun, ClosingStageRunParts, ClosingStage, HoldFailure, HoldCategoryFailures, HoldCategoryFailuresParts, HoldCategoryDependency, HoldCategoryDependencyParts, HoldCategoryPlaced, HoldCategoryPlacedParts, HoldCategoryUncertain, HoldCategoryUncertainParts, HoldCategoryPoolLost, HoldCategoryPoolLostParts, Bound, Exceeded, ExceededParts, HoldCategory, ChipPhaseWaiting, ChipPhaseWaitingParts, ChipPhaseActive, ChipPhaseActiveParts, ChipPhasePerson, ChipPhasePersonParts, ChipPhaseClosing, ChipPhaseClosingParts, ChipPhaseHeld, ChipPhaseHeldParts, ChipPhase, FailureClass, RetryNoticeOwnerFailed, RetryNoticeOwnerFailedParts, RetryNoticeFailed, RetryNoticeFailedParts, RetryNoticeRefused, RetryNoticeRefusedParts, RetryNotice, CallIdentity, CallIdentityParts, RunWorkTool, RunWorkToolParts, RunWork, RunObservation, RunObservationParts, ActiveRun, ActiveRunParts, ProposerTask, ProposerTaskParts, ProposerParty, ProposerPartyParts, Proposer, ProposalKey, ProposalKeyParts, RecipientTask, RecipientTaskParts, RecipientParty, RecipientPartyParts, RecipientRole, RecipientRoleParts, RecipientRoles, RecipientRolesParts, Recipient, TakenBy, TakenByParts, Revision, RevisionParts, ActorParty, ActorPartyParts, ActorTask, ActorTaskParts, ActorProjectDeployment, ActorProjectDeploymentParts, Actor, PartyKind, Party, PartyParts, DecisionRejected, DecisionRejectedParts, DecisionReleased, DecisionReleasedParts, DecisionLeftHeld, DecisionLeftHeldParts, Decision, AttemptFailure, AttemptFailureParts, ExecutorAgent, ExecutorAgentParts, ExecutorProcedure, ExecutorProcedureParts, ExecutorPerson, ExecutorPersonParts, ExecutorJob, ExecutorJobParts, Executor, WakeRuleBatch, WakeRuleBatchParts, WakeRulePaced, WakeRulePacedParts, WakeRule, ResultsWake, WakePolicy, WakePolicyParts, PersonStallNotice, PersonStallNoticeParts, PersonWait, PersonWaitParts, PartKind, PartKeyPath, PartKeyPathParts, PartKeyNumber, PartKeyNumberParts, PartKey, Part, PartParts, PriorPhaseActive, PriorPhaseActiveParts, PriorPhaseClosing, PriorPhaseClosingParts, PriorPhase, EscalationHolderTask, EscalationHolderTaskParts, EscalationHolderPerson, EscalationHolderPersonParts, EscalationHolderRole, EscalationHolderRoleParts, EscalationHolder, HoldEscalationWaiting, HoldEscalationWaitingParts, HoldEscalationRejected, HoldEscalationRejectedParts, HoldEscalation, FailureTries, FailureTriesParts, RequesterTask, RequesterTaskParts, RequesterPerson, RequesterPersonParts, RequesterDeployment, RequesterDeploymentParts, Requester, TaskStatus, DependencyAdded, DependencyAddedParts, Dependency, DependencyParts, Circle, CircleParts, HoldOwnerParty, HoldOwnerPartyParts, HoldOwnerTask, HoldOwnerTaskParts, HoldOwner, HoldMode, HoldScopeSubtree, HoldScopeSubtreeParts, HoldScope, PlacedLine, PlacedLineParts, ChipHold, ChipHoldParts, Numbers, NumbersParts, FunderTask, FunderTaskParts, FunderPool, FunderPoolParts, FunderRecurring, FunderRecurringParts, FunderPeriod, FunderPeriodParts, Funder, Budget, BudgetParts, ResourceWriterRun, ResourceWriterRunParts, ResourceWriterEffect, ResourceWriterEffectParts, ResourceWriter, ResourceLine, ResourceLineParts, ChipWorkTool, ChipWorkToolParts, ChipWork, ChipObservation, ChipObservationParts, ResultField, ResultFieldParts, ChipFields, ChipFieldsParts, ChipRow, ChipRowParts, ChipPhaseOwnerFields, ChipPhaseOwnerFieldsParts, ChipPhaseRow, ChipPhaseRowParts, ClosingFields, ClosingFieldsParts, ClosingRow, ClosingRowParts, EndingTaskFields, EndingTaskFieldsParts, EndingFailedFields, EndingFailedFieldsParts, EndingCancelledFields, EndingCancelledFieldsParts, EndingWithdrawnFields, EndingWithdrawnFieldsParts, EndingDecidedFields, EndingDecidedFieldsParts, EndingFields, EndingRow, EndingRowParts, HeldRuntimeActiveFields, HeldRuntimeActiveFieldsParts, HeldRuntimeClosingFields, HeldRuntimeClosingFieldsParts, HeldRuntimeFields, HeldRuntimeRow, HeldRuntimeRowParts, HoldReasonTriesFields, HoldReasonTriesFieldsParts, HoldReasonStalledFields, HoldReasonStalledFieldsParts, HoldReasonDependencyFields, HoldReasonDependencyFieldsParts, HoldReasonBudgetFields, HoldReasonBudgetFieldsParts, HoldReasonDeadlineFields, HoldReasonDeadlineFieldsParts, HoldReasonStoppedFields, HoldReasonStoppedFieldsParts, HoldReasonFields, HoldReasonRow, HoldReasonRowParts, ChipDetailsFields, ChipDetailsFieldsParts, ChipDetailsRow, ChipDetailsRowParts, ChipEndingDoneFields, ChipEndingDoneFieldsParts, ChipEndingFailedFields, ChipEndingFailedFieldsParts, ChipEndingCancelledFields, ChipEndingCancelledFieldsParts, ChipEndingFields, ChipEndingRow, ChipEndingRowParts, ResultValueReportFields, ResultValueReportFieldsParts, ResultValueOwnerVerdictFields, ResultValueOwnerVerdictFieldsParts, ResultValueVerdictFields, ResultValueVerdictFieldsParts, ResultValueChangeFields, ResultValueChangeFieldsParts, ResultValueChoiceFields, ResultValueChoiceFieldsParts, ResultValueApprovedFields, ResultValueApprovedFieldsParts, ResultValueFailureFields, ResultValueFailureFieldsParts, ResultValueWordsFields, ResultValueWordsFieldsParts, ResultValueFields, ResultValueRow, ResultValueRowParts, Fact, Chip, ChipParts, ChipPhaseFacts, ChipPhaseFactsParts, Closing, ClosingParts, Ending, EndingParts, HeldRuntime, HeldRuntimeParts, HoldReason, HoldReasonParts, ChipDetails, ChipDetailsParts, ChipEnding, ChipEndingParts, ResultValue, ResultValueParts, PersonAnswerChoice, PersonAnswerChoiceParts, PersonAnswerApproved, PersonAnswerApprovedParts, PersonAnswerWords, PersonAnswerWordsParts, PersonAnswerCannot, PersonAnswerCannotParts, PersonAnswer, AddressChange, AddressChangeParts, ParameterNumber, ParameterNumberParts, ParameterBytes, ParameterBytesParts, ParameterResource, ParameterResourceParts, Parameter, Specification, SpecificationParts, ModelEffort, ModelEffortParts, LlmChoice, LlmChoiceParts, PatternEndExact, PatternEndExactParts, PatternEndOpen, PatternEndOpenParts, PatternEnd, Pattern, PatternParts, Grant, GrantParts, AuthorityExecutorCharter, AuthorityExecutorCharterParts, AuthorityExecutorProcedure, AuthorityExecutorProcedureParts, AuthorityExecutorRole, AuthorityExecutorRoleParts, AuthorityExecutorJob, AuthorityExecutorJobParts, AuthorityExecutor, Delegation, DelegationParts, ResourceScope, ResourceScopeParts, ModelSetNames, ModelSetNamesParts, ModelSet, Authority, AuthorityParts, TrackingTracked, TrackingTrackedParts, Tracking, Amendment, AmendmentParts, SeenResults, SeenResultsParts, SeenConversation, SeenConversationParts, SeenThrough, NoteScopeProject, NoteScopeProjectParts, NoteScopeResource, NoteScopeResourceParts, NoteScopeTask, NoteScopeTaskParts, NoteScopeTasks, NoteScopeTasksParts, NoteScope, PolicyEditRole, PolicyEditRoleParts, PolicyJudge, PolicyJudgeParts, PolicyGuardObserved, PolicyGuardObservedParts, PolicyGuard, PolicyRequirement, PolicyRequirementParts, PolicyPermission, PolicyPermissionParts, PolicyEditProjectSpend, PolicyEditProjectSpendParts, PolicyEditRoleSpend, PolicyEditRoleSpendParts, PolicyEditRoleValue, PolicyEditRoleValueParts, PolicyEditRequirements, PolicyEditRequirementsParts, PolicyEditProjections, PolicyEditProjectionsParts, PolicyEditPermissions, PolicyEditPermissionsParts, TemplateCharter, TemplateCharterParts, TemplateExecutor, TemplateAmount, TemplateAmountParts, TemplateAsAllowed, TemplateAsAllowedParts, TemplateBudget, TemplateSpan, TemplateSpanParts, TemplateDeadline, TemplateOverride, TemplateOverrideParts, PolicyEditTemplates, PolicyEditTemplatesParts, PolicyEdit, HeldRolePolicy, HeldRolePolicyParts, HeldRole, Holding, HoldingParts, Message, MessageParts, AnswerQuestion, AnswerQuestionParts, AnswerPerson, AnswerPersonParts, AnswerOn, Answer, AnswerParts, Take, TakeParts, HandBack, HandBackParts, Running, DecideProposal, DecideProposalParts, DecideEscalation, DecideEscalationParts, DecideOn, Decide, DecideParts, Release, ReleaseParts, Amend, AmendParts, Stop, StopParts, Cancel, CancelParts, Move, MoveParts, Seen, SeenParts, EditNote, EditNoteParts, DeleteNote, DeleteNoteParts, ChangePolicy, ChangePolicyParts, SetRoles, SetRolesParts, MakeService, MakeServiceParts, SetPool, SetPoolParts, Operation, Compound, CompoundParts, FieldRule, FieldRuleParts, VerdictChoice, VerdictChoiceParts, TaskRefMember, TaskRefMemberParts, TaskRefTask, TaskRefTaskParts, TaskRef, ContractReport, ContractReportParts, ContractVerdict, ContractVerdictParts, ContractChange, ContractChangeParts, NewContract, BudgetAsAllowed, BudgetAsAllowedParts, NewBudget, Retention, EndedBy, TaskFlags, TaskFlagsParts, DeadlineSpan, DeadlineSpanParts, NewDeadline, Symbol, SymbolParts, NewTask, NewTaskParts, Create, CreateParts, ProposeBatch, ProposeBatchParts, ProposeAmendment, ProposeAmendmentParts, ProposeSettings, ProposeSettingsParts, ProposeAction, Propose, ProposeParts, Withdraw, WithdrawParts, AskAccountHolder, AskSignIn, AskSignInParts, AskSignOut, AskSignOutParts, ProposalChoice, EscalationChoice, OutcomeMarkedSeen, OutcomeMarkedSeenParts, OutcomeNoteEdited, OutcomeNoteEditedParts, OutcomeServiceMade, OutcomeServiceMadeParts, OutcomeAdopted, OutcomeAdoptedParts, OutcomeStopped, OutcomeStoppedParts, OutcomeCancelled, OutcomeCancelledParts, OutcomeReleased, OutcomeReleasedParts, OutcomePersonTaken, OutcomePersonTakenParts, OutcomePersonHandedBack, OutcomePersonHandedBackParts, OutcomePersonAnswered, OutcomePersonAnsweredParts, OutcomeMoved, OutcomeMovedParts, OutcomeProposalDecided, OutcomeProposalDecidedParts, OutcomeSaid, OutcomeSaidParts, OutcomeQuestionAnswered, OutcomeQuestionAnsweredParts, OutcomeAmended, OutcomeAmendedParts, OutcomeProposed, OutcomeProposedParts, OutcomeWithdrawn, OutcomeWithdrawnParts, OutcomeRolesSet, OutcomeRolesSetParts, OutcomePolicyChanged, OutcomePolicyChangedParts, OutcomePoolSet, OutcomePoolSetParts, OutcomeEscalationDecided, OutcomeEscalationDecidedParts, OutcomeCompound, OutcomeCompoundParts, CreatedGiven, CreatedGivenParts, OutcomeCreated, OutcomeCreatedParts, OutcomeAccountSignInStarted, OutcomeAccountSignInStartedParts, AccountHostWhy, AccountHostFailure, AccountHostFailureParts, OutcomeAccountProgramDeclared, OutcomeAccountProgramDeclaredParts, OutcomeAccountSignedOut, OutcomeAccountSignedOutParts, OutcomeAccountKeyKept, OutcomeAccountKeyKeptParts, OutcomeAccountRemoved, OutcomeAccountRemovedParts, OutcomeRenamed, OutcomeRenamedParts, OutcomeProjectMade, OutcomeProjectMadeParts, OutcomeVisibilitySet, OutcomeVisibilitySetParts, OutcomeProjectRemoved, OutcomeProjectRemovedParts, OutcomeAccountMovedIn, OutcomeAccountMovedInParts, OutcomeAccountFinishing, OutcomeAccountFinishingParts, OutcomeLifted, OutcomeLiftedParts, DocumentOutcome, MadeTasks, MadeTasksParts, MadeService, MadeServiceParts, MadePersonResult, MadePersonResultParts, MadeNote, MadeNoteParts, MadeMovingOut, MadeMovingOutParts, Made, OutcomeDocument, OutcomeDocumentParts, OutcomeMade, OutcomeMadeParts, LackingBudget, LackingBudgetParts, LackingGrantKind, LackingGrantKindParts, LackingAgain, LackingAgainParts, LackingRequired, LackingRequiredParts, LackingFailed, LackingFailedParts, LackingUnguarded, LackingUnguardedParts, LackingTaskKind, LackingTaskKindParts, LackingDepth, LackingDepthParts, LackingDeadline, LackingDeadlineParts, LackingTasks, LackingTasksParts, LackingHoldOwner, LackingHoldOwnerParts, CeilingRole, CeilingRoleParts, CeilingHolder, CeilingDimension, LackingCeiling, LackingCeilingParts, Lacking, AdmissionLimit, LimitAdmission, LimitAdmissionParts, LimitLiveTasks, LimitLiveTasksParts, LimitInbox, LimitInboxParts, LimitWords, LimitWordsParts, Limit, CurrentHoldDocument, CurrentHoldDocumentParts, CurrentHoldReason, CurrentHoldReasonParts, CurrentHold, MovedHold, MovedHoldParts, MovedPlacedHold, MovedPlacedHoldParts, Moved, RefusalRole, RefusalRoleParts, RefusalTaken, RefusalTakenParts, RefusalAuthority, RefusalAuthorityParts, RefusalLimit, RefusalLimitParts, RefusalMoved, RefusalMovedParts, RefusalEnded, RefusalEndedParts, NameRule, MalformedName, MalformedNameParts, LlmWhy, RefusalLlm, RefusalLlmParts, AccountWhy, RefusalAccount, RefusalAccountParts, RefusalCircle, RefusalCircleParts, RefusalDependency, RefusalDependencyParts, RefusalKept, RefusalKeptParts, SignInRedirectWhy, RefusalSignInRedirect, RefusalSignInRedirectParts, AccountMoveWhy, RefusalAccountMove, RefusalAccountMoveParts, Cursor, CursorParts, ScopeProject, ScopeProjectParts, Scope, Window, WindowParts, FamilyRecord, FamilyRecordParts, FamilyRequest, FamilyRequestParts, InboxReadGroup, InboxGroup, ReadTurn, ReadTurnParts, ReadTask, ReadTaskParts, ReadProposal, ReadProposalParts, ReadEscalation, ReadEscalationParts, ReadQuestion, ReadQuestionParts, ReadPersonTask, ReadPersonTaskParts, ReadResult, ReadResultParts, ReadEnded, ReadEndedParts, ReadHistory, ReadHistoryParts, ReadActivity, ReadActivityParts, ActivitySide, ReadActivityBeside, ReadActivityBesideParts, ReadInbox, ReadInboxParts, ReadSpend, ReadSpendParts, ReadProject, ReadProjectParts, ReadNotes, ReadNotesParts, PhaseClass, ExecutorKind, QueryOrder, TaskQuery, TaskQueryParts, ReadTasks, ReadTasksParts, TurnTooLarge, TurnTooLargeParts, ReadTooLinked, ReadTooLinkedParts, ReadNone, ReadAnswerNone, ReadAnswerNoneParts, ReadAnswer, PeriodTimes, PeriodTimesParts, FundingRecord, FundingRecordParts, SpendPage, SpendPageParts, MessageProposalKind, NoticeState, NewsClass, WordResultApproved, WordResultApprovedParts, WordResultVerdict, WordResultVerdictParts, WordResultChange, WordResultChangeParts, WordResult, MessageKindEscalation, MessageKindEscalationParts, MessageKindProposal, MessageKindProposalParts, MessageKindPersonStalled, MessageKindPersonStalledParts, MessageKindProposalDecision, MessageKindProposalDecisionParts, SettingsAccepted, SettingsAcceptedParts, SettingsStale, SettingsStaleParts, SettingsOutcome, MessageKindSettingsDecision, MessageKindSettingsDecisionParts, MessageKindEffectNotMade, MessageKindEffectNotMadeParts, MessageKindAmendment, MessageKindAmendmentParts, MessageKindAnswer, MessageKindAnswerParts, MessageKindNotice, MessageKindNoticeParts, MessageKindTimer, MessageKindTimerParts, MessageKindNews, MessageKindNewsParts, MessageKindResult, MessageKindResultParts, MessageKindMet, MessageKindMetParts, MessageKind, Word, WordParts, RunWhyMessage, RunWhyMessageParts, RunWhyRetry, RunWhyRetryParts, RunWhy, RunEndFailed, RunEndFailedParts, RunEnd, ActivityWords, ActivityWordsParts, ActivityHeard, ActivityHeardParts, ActivityNotified, ActivityNotifiedParts, ActivityRunBegan, ActivityRunBeganParts, ActivityRunEnded, ActivityRunEndedParts, ActivityTurn, ActivityTurnParts, ActivityDecided, ActivityDecidedParts, ActivityMilestone, ActivityMilestoneParts, ActivityKept, ActivityKeptParts, Activity, ActivityLine, ActivityLineParts, TurnName, TurnNameParts, TurnCarried, TurnCarriedParts, TurnBytes, ArchivedTurn, ArchivedTurnParts, TaskContractDocumentApproval, TaskContractDocumentApprovalParts, TaskContractDocumentReport, TaskContractDocumentReportParts, TaskContractDocumentVerdict, TaskContractDocumentVerdictParts, TaskContractDocumentChange, TaskContractDocumentChangeParts, TaskContractDocumentJob, TaskContractDocumentJobParts, TaskContractDocument, TaskLinkLive, TaskLinkLiveParts, TaskLinkRetained, TaskLinkRetainedParts, TaskLinkStored, TaskLinkStoredParts, TaskLink, ResultDetails, ResultDetailsParts, ActKind, CreateProcedure, CreateProcedureParts, KindImplication, KindImplicationParts, AuthorityDocument, AuthorityDocumentParts, BoundsCreate, BoundsCreateParts, BoundsAmend, BoundsAmendParts, Bounds, BeyondProposed, BeyondProposedParts, AdmissionProposed, AdmissionProposedParts, ImpactCounts, ImpactCountsParts, Impact, ImpactParts, ReleaseEffect, EffectRelease, EffectReleaseParts, EffectMove, EffectMoveParts, Effect, ResultDocument, ResultDocumentParts, ObjectKeyTask, ObjectKeyTaskParts, ObjectKeyProposal, ObjectKeyProposalParts, ObjectKeyEscalation, ObjectKeyEscalationParts, ObjectKeyQuestion, ObjectKeyQuestionParts, ObjectKeyPersonTask, ObjectKeyPersonTaskParts, ObjectKeyResult, ObjectKeyResultParts, ObjectKeyNote, ObjectKeyNoteParts, ObjectKey, DecodedActivityLine, DecodedActivityLineParts, ActivityPage, ActivityPageParts, SpendLine, SpendLineParts, Hold, HoldParts, HistoryChange, ParameterDocumentNumber, ParameterDocumentNumberParts, ParameterDocumentBytes, ParameterDocumentBytesParts, ParameterDocumentResource, ParameterDocumentResourceParts, ParameterDocument, DocumentSpecification, DocumentSpecificationParts, SpecificationDocument, SpecificationDocumentParts, ProposedTask, ProposedTaskParts, RetainedAmendment, RetainedAmendmentParts, RetainedActionBatch, RetainedActionBatchParts, RetainedActionEffect, RetainedActionEffectParts, RetainedActionProcedureEffect, RetainedActionProcedureEffectParts, RetainedActionAmend, RetainedActionAmendParts, RetainedActionWiden, RetainedActionWidenParts, RetainedActionRelease, RetainedActionReleaseParts, SettingNumber, SettingNumberParts, ApplicationSetting, ApplicationSettingParts, ProjectPolicySetting, ProjectPolicySettingParts, Setting, RevisionItemEdit, RevisionItemHead, RevisionItemHeadParts, RetainedActionSettings, RetainedActionSettingsParts, RetainedAction, HistoryHolderTask, HistoryHolderTaskParts, HistoryHolderPerson, HistoryHolderPersonParts, HistoryHolderPolicy, HistoryHolderPolicyParts, HistoryHolder, ProposalHistoryStatePending, ProposalHistoryStatePendingParts, ProposalHistoryStateAccepted, ProposalHistoryStateAcceptedParts, ProposalHistoryStateRejected, ProposalHistoryStateRejectedParts, ProposalHistoryState, ProposalHistory, ProposalHistoryParts, AmendmentState, AmendmentStateParts, HistoryAmendment, HistoryAmendmentParts, HistoryLine, HistoryLineParts, MilestonePhaseActive, MilestonePhaseActiveParts, MilestonePhaseClosing, MilestonePhaseClosingParts, MilestonePhaseHeld, MilestonePhaseHeldParts, MilestonePhaseEnded, MilestonePhaseEndedParts, MilestonePhase, MilestoneLine, MilestoneLineParts, HistoryRowChange, HistoryRowChangeParts, HistoryRowMilestone, HistoryRowMilestoneParts, HistoryRow, HistoryPage, HistoryPageParts, RuntimeActive, RuntimeActiveParts, RuntimeRunning, RuntimeRunningParts, RuntimeWaitingForWords, RuntimeWaitingForWordsParts, RuntimeBackingOff, RuntimeBackingOffParts, RuntimePerson, RuntimePersonParts, RuntimeClosing, RuntimeClosingParts, RuntimeHeld, RuntimeHeldParts, Runtime, Count, CountParts, WhomPerson, WhomPersonParts, WhomRole, WhomRoleParts, Whom, WaitedFor, WaitsOnParty, WaitsOnPartyParts, WaitsOnDependencies, WaitsOnDependenciesParts, WaitsOn, ConversationRead, ConversationReadParts, PhaseCounts, PhaseCountsParts, TaskLine, TaskLineParts, NoteAuthorParty, NoteAuthorPartyParts, NoteAuthorTask, NoteAuthorTaskParts, NoteAuthor, Note, NoteParts, NotePage, NotePageParts, ObjectPage, ObjectPageParts, EndedDelegate, EndedDelegateParts, EndedPage, EndedPageParts, InboxObjectQuestion, InboxObjectQuestionParts, InboxObjectProposal, InboxObjectProposalParts, InboxObjectEscalation, InboxObjectEscalationParts, InboxObjectTurn, InboxObjectTurnParts, InboxObjectResult, InboxObjectResultParts, InboxObject, InboxCursorNumber, InboxCursorNumberParts, InboxCursorInbox, InboxCursorInboxParts, InboxCursor, InboxSelection, InboxSelectionParts, InboxEntry, InboxEntryParts, InboxPage, InboxPageParts, PoolLedger, PoolLedgerParts, MeParty, MePartyParts, Needs, NeedsParts, Template, TemplateParts, MePrices, MePricesParts, MeModel, MeModelParts, ProviderOffer, ProviderOfferParts, Readiness, Me, MeParts, LiveDelegate, LiveDelegateParts, TaskContext, TaskContextParts, TaskResultDocument, TaskResultDocumentParts, TaskResultEnding, TaskResultEndingParts, TaskResult, SubscriptionKindTask, SubscriptionKindTaskParts, SubscriptionKindTimer, SubscriptionKindTimerParts, SubscriptionKindTopic, SubscriptionKindTopicParts, SubscriptionKind, Subscription, SubscriptionParts, Subscriptions, SubscriptionsParts, TaskSourceStateUntil, TaskSourceStateUntilParts, TaskSourcePlace, TaskSourceUnread, TaskSourceStateUnloaded, TaskSourceStateUnloadedParts, TaskSourceState, TaskWaitSource, TaskWaitSourceParts, TaskWaitInvalid, TaskWaitInvalidParts, TaskWaitWhy, TaskWaitAccount, TaskWaitAccountParts, HostKind, AgentShortfallModel, AgentShortfallModelParts, AgentShortfallWindow, AgentShortfallWindowParts, AgentShortfallOutput, AgentShortfallOutputParts, AgentShortfallChecks, AgentShortfallChecksParts, AgentShortfall, HelloRefusalAgent, HelloRefusalAgentParts, HelloRefusalWorkers, HelloRefusalWorkersParts, HelloRefusalPosition, HelloRefusalPositionParts, HelloRefusalStopBound, HelloRefusalStopBoundParts, HelloRefusal, TaskWaitHello, TaskWaitHelloParts, TaskWaitRefused, TaskRunWaitRefused, TaskRunWaitRefusedParts, TaskRunWait, TaskSettings, TaskSettingsParts, Task, TaskParts, ReadPosition, ReadPositionParts, Tasks, TasksParts, EndedRows, EndedRowsParts, EndedGroup, TaskPage, TaskPageParts, Call, CallParts, CurrentCall, CurrentCallParts, LiveCallDecoded, LiveCallDecodedParts, LiveCallRaw, LiveCallRawParts, LiveCall, ProvisionalTurnName, ProvisionalTurnNameParts, WritingCall, WritingCallParts, RunText, RunTextParts, RunState, RunStateParts, ProposalActionBatch, ProposalActionBatchParts, ProposalActionEffect, ProposalActionEffectParts, ProposalActionProcedureEffect, ProposalActionProcedureEffectParts, ProposalActionAmend, ProposalActionAmendParts, ProposalActionWiden, ProposalActionWidenParts, ProposalActionRelease, ProposalActionReleaseParts, SettingsReview, SettingsReviewParts, ProposalActionSettings, ProposalActionSettingsParts, ProposalAction, ProposalWaiting, ProposalWaitingParts, FundingOffer, FundingOfferParts, Proposal, ProposalParts, Escalation, EscalationParts, Question, QuestionParts, OptionLine, OptionLineParts, PersonContractChoice, PersonContractChoiceParts, PersonContract, ShownResult, ShownResultParts, PersonTask, PersonTaskParts, RecurringOverlap, Recurring, RecurringParts, ProjectResourceRole, ProjectResource, ProjectResourceParts, ProjectPolicyRole, ProjectPolicyRoleParts, ProjectPolicy, ProjectPolicyParts, ProjectMember, ProjectMemberParts, ProjectSpend, ProjectSpendParts, Project, ProjectParts, EndedValueTask, EndedValueTaskParts, EndedValueProposal, EndedValueProposalParts, GoalHoldingWrite, GoalHoldingWriteParts, GoalHoldingSlot, GoalHoldingSlotParts, GoalHolding, PersonProposalGoal, PersonProposalGoalParts, PersonProposalStatePending, PersonProposalStatePendingParts, PersonProposalStateAccepted, PersonProposalStateAcceptedParts, PersonProposalStateRejected, PersonProposalStateRejectedParts, PersonProposalState, PersonProposal, PersonProposalParts, ProposalDecisionCreated, ProposalDecisionCreatedParts, ProposalDecision, ProposalDecisionParts, EndedValuePersonProposal, EndedValuePersonProposalParts, EscalationDecisionReject, EscalationDecisionRejectParts, EscalationDecision, EscalationDecisionRecord, EscalationDecisionRecordParts, EndedValueEscalation, EndedValueEscalationParts, EndedValueQuestion, EndedValueQuestionParts, EndedValuePersonTask, EndedValuePersonTaskParts, EndedValue, Ended, EndedParts, TreeRow, TreeRowParts, TreeFold, TreeFoldParts, Tree, TreeParts, SubjectTask, SubjectTaskParts, SubjectTree, SubjectTreeParts, SubjectChips, SubjectChipsParts, SubjectInbox, SubjectInboxParts, SubjectTasks, SubjectTasksParts, SubjectRun, SubjectRunParts, Subject, StoreFill, StoreFillParts, Capacity, CapacityParts, ProjectCapacity, ProjectCapacityParts, AttemptState, RunLocationConnected, RunLocationConnectedParts, RunLocationAdrift, RunLocationAdriftParts, RunLocation, HostRun, HostRunParts, ProgramFailure, ProgramFailed, ProgramFailedParts, ProgramOtherwise, ProgramOtherwiseParts, ProgramState, ProgramSignOut, ProgramLogin, ProgramLoginParts, ProgramHost, ProgramHostParts, HostPerson, HostPersonParts, HostRule, Host, HostParts, HelloRefusalLine, HelloRefusalLineParts, RequestKey, RequestKeyParts, PersonCapacityActionApplication, PersonCapacityActionApplicationParts, PersonCapacityActionNote, PersonCapacityActionNoteParts, PersonCapacityActionPool, PersonCapacityActionPoolParts, PersonCapacityActionEscalation, PersonCapacityActionEscalationParts, PersonCapacityActionProposal, PersonCapacityActionProposalParts, PersonCapacityActionWords, PersonCapacityActionWordsParts, PersonCapacityActionQuestion, PersonCapacityActionQuestionParts, PersonCapacityActionAmend, PersonCapacityActionAmendParts, PersonCapacityActionMove, PersonCapacityActionMoveParts, PersonCapacityActionTakePerson, PersonCapacityActionTakePersonParts, PersonCapacityActionHandBackPerson, PersonCapacityActionHandBackPersonParts, PersonCapacityActionAnswerPerson, PersonCapacityActionAnswerPersonParts, PersonCapacityActionStop, PersonCapacityActionStopParts, PersonCapacityActionCancel, PersonCapacityActionCancelParts, PersonCapacityActionRelease, PersonCapacityActionReleaseParts, PersonCapacityActionMarkSeen, PersonCapacityActionMarkSeenParts, PersonCapacityActionLift, PersonCapacityActionLiftParts, PersonCapacityAction, PersonCapacityCauseRequests, PersonCapacityCauseRequestsParts, PersonCapacityCausePending, PersonCapacityCausePendingParts, PersonCapacityCauseWaiters, PersonCapacityCauseWaitersParts, PersonCapacityCauseLimit, PersonCapacityCauseLimitParts, PersonCapacityCause, PersonCapacityRefusal, PersonCapacityRefusalParts, TaskCapacityActionBatch, TaskCapacityActionBatchParts, TaskCapacityActionProposal, TaskCapacityActionProposalParts, TaskCapacityActionPersonProposal, TaskCapacityActionPersonProposalParts, TaskCapacityActionMessage, TaskCapacityActionMessageParts, SetVisibility, SetVisibilityParts, RemoveProject, RemoveProjectParts, Rename, RenameParts, MakeProject, MakeProjectParts, Authorize, AuthorizeParts, AuthorizeGo, AuthorizeGoParts, AuthorizeWhy, AuthorizeRefused, AuthorizeRefusedParts, AuthorizeAnswer, TaskCapacityActionSource, TaskCapacityActionSourceParts, TaskCapacityActionIntroduce, TaskCapacityActionIntroduceParts, TaskCapacityActionSubscription, TaskCapacityActionSubscriptionParts, TaskCapacityActionEffect, TaskCapacityActionEffectParts, TaskCapacityActionClaim, TaskCapacityActionClaimParts, TaskCapacityActionPlace, TaskCapacityActionPlaceParts, TaskCapacityAction, TaskCapacityCauseTasks, TaskCapacityCauseTasksParts, TaskCapacityCauseCreationFlights, TaskCapacityCauseCreationFlightsParts, TaskCapacityCauseResourceReports, TaskCapacityCauseResourceReportsParts, TaskCapacityCauseProjectTasks, TaskCapacityCauseProjectTasksParts, TaskCapacityCauseTree, TaskCapacityCauseTreeParts, TaskCapacityCauseDelegates, TaskCapacityCauseDelegatesParts, TaskCapacityCauseInbox, TaskCapacityCauseInboxParts, TaskCapacityCauseHoldings, TaskCapacityCauseHoldingsParts, TaskCapacityCauseHoldWaiters, TaskCapacityCauseHoldWaitersParts, TaskCapacityCauseProposals, TaskCapacityCauseProposalsParts, TaskCapacityCauseReferences, TaskCapacityCauseReferencesParts, TaskCapacityCauseSubscriptions, TaskCapacityCauseSubscriptionsParts, TaskCapacityCauseFunders, TaskCapacityCauseFundersParts, TaskCapacityCauseWriters, TaskCapacityCauseWritersParts, TaskCapacityCausePlacedHolds, TaskCapacityCausePlacedHoldsParts, TaskCapacityCauseProjectPlacedHolds, TaskCapacityCauseProjectPlacedHoldsParts, TaskCapacityCausePartyPlacedHolds, TaskCapacityCausePartyPlacedHoldsParts, TaskCapacityCauseExemptions, TaskCapacityCauseExemptionsParts, TaskCapacityCause, TaskCapacityRequest, TaskCapacityRequestParts, TaskCapacityRefusal, TaskCapacityRefusalParts, WatchEnd, WatchRefusal, Open, OpenParts, OpenAnswerRefused, OpenAnswerRefusedParts, OpenAnswer, WatchClose, WatchCloseParts, CloseAnswer, Gone, GoneParts, Hello, HelloParts, Delivery, DeliveryParts, WatchEnded, WatchEndedParts, StreamText, StreamTextParts, StreamEvent, AccountStateLater, AccountStateLaterParts, AccountPlace, AccountUnread, AccountStateUnloaded, AccountStateUnloadedParts, AccountState, AccountUseParty, AccountUsePartyParts, AccountUseProject, AccountUseProjectParts, AccountUse, PayerReadiness, PayerReadinessParts, AccountChangeDeclareProgram, AccountChangeDeclareProgramParts, AccountChangeCheckProgram, AccountChangeCheckProgramParts, AccountChangeAddKey, AccountChangeAddKeyParts, AccountChangeReplaceKey, AccountChangeReplaceKeyParts, AccountChangeRemoveKey, AccountChangeRemoveKeyParts, AccountChangeResume, AccountChangeResumeParts, AccountChangeRemove, AccountChangeRemoveParts, AccountChangeMoveAccount, AccountChangeMoveAccountParts, AccountChangeMoveSource, AccountChangeMoveSourceParts, AccountChangeSetUses, AccountChangeSetUsesParts, AccountChangeMoveOut, AccountChangeMoveOutParts, AccountChangeWritten, AccountChangeWrittenParts, AccountChangeMoveIn, AccountChangeMoveInParts, AccountChangeFinishSignIn, AccountChangeFinishSignInParts, AccountChange, AskAccountChange, AskAccountChangeParts, AccountHolderParty, AccountHolderPartyParts, AccountHolder, AccountKind, AccountBound, AccountKeyFailure, StreamBound, StreamsFull, StreamsFullParts, AccountRefusalNotKept, AccountRefusalNotKeptParts, AccountRefusalLimit, AccountRefusalLimitParts, AccountRefusalHeld, AccountRefusalHeldParts, AccountRefusalProvider, AccountRefusalProviderParts, AccountRefusalKind, AccountRefusalKindParts, AccountRefusal, AccountFailureLater, AccountFailureLaterParts, AccountFailureMissingScope, AccountFailureMissingScopeParts, AccountFailureUnloaded, AccountFailureUnloadedParts, AccountFailure, AccountEndMade, AccountEndMadeParts, AccountEndRenewed, AccountEndRenewedParts, AccountEndRefused, AccountEndRefusedParts, AccountEndFailed, AccountEndFailedParts, AccountEnd, AccountSource, AccountSourceParts, AccountLine, AccountLineParts, AccountSignIn, AccountSignInParts, AccountLastEnd, AccountLastEndParts, Accounts, AccountsParts, Account, AccountParts, Deployment, DeploymentParts, Kept, KeptParts, TableEntry, TableEntryParts, Chips, ChipsParts, Inbox, InboxParts, SettingModel, SettingModelParts, SettingHosts, CharterDocument, CharterDocumentParts, Charter, CharterParts, SettingPolicy, SettingPolicyParts, Rules, RulesParts, ApplicationValue, ApplicationValueParts, SettingValue, SettingSet, SettingSetParts, SettingEdit, SettingItem, SettingItemParts, ChangeSettings, ChangeSettingsParts, OutcomeSettingsChanged, OutcomeSettingsChangedParts, RefusalStale, RefusalStaleParts, RefusalFull, RefusalFullParts, SettingFault, SettingMember, SettingRule, SettingDetail, SettingDetailParts, MalformedSettings, MalformedSettingsParts, ReadSetting, ReadSettingParts, ReadRevision, ReadRevisionParts, ReadRevisions, ReadRevisionsParts, SettingFollows, ApplicationRevision, ApplicationRevisionParts, ApplicationFollows, ApplicationState, ApplicationStateParts, SettingLine, SettingLineParts, RevisionParty, RevisionPartyParts, RevisionDecider, RevisionHead, RevisionHeadParts, HeldRevision, HeldRevisionParts, SettingsProposal, SettingsProposalParts, SettingsDocument, SettingsDocumentParts, ApplicationSize, ApplicationSizeParts, SizedEdit, SettingDocument, SettingDocumentParts, Size, SizeParts, ApplicationEdit, ApplicationEditParts, RevisionEdit, RevisionReplaced, RevisionItem, RevisionItemParts, RevisionDocument, RevisionDocumentParts, RevisionForgotten, RevisionForgottenParts, RevisionAnswer, ReadRevisionAnswer, ReadRevisionAnswerParts, RevisionRow, RevisionRowParts, RevisionsPage, RevisionsPageParts, OutcomeMovedToNewest, OutcomeMovedToNewestParts, OutcomeRestored, OutcomeRestoredParts, Outcome, Malformed, RefusalJudged, RefusalJudgedParts, RefusalMalformed, RefusalMalformedParts, RefusalForgotten, RefusalForgottenParts, Refusal, Done, DoneParts, Refused, RefusedParts, Final, TaskTextField, ReadTaskText, ReadTaskTextParts, TaskText, TaskTextParts, Read, BeyondRefused, BeyondRefusedParts, Beyond, AdmissionBounded, AdmissionBoundedParts, AdmissionRefused, AdmissionRefusedParts, Admission, Offered, OfferedParts, CreatingBounds, CreatingBoundsParts, MeProject, MeProjectParts, EntranceRefusal, EntranceRefusalParts, MoveToNewest, MoveToNewestParts, Lift, LiftParts, Restore, RestoreParts, Ask, ReadValue, DeliveryValue, OriginRevision, OriginRevisionParts, SettingOrigin, ReviewValue, ApplicationReview, ApplicationReviewParts, ReviewItem, ReviewItemParts, Path};
     use super::Limits;
 
     use alloc::boxed::Box;
@@ -122069,7 +122445,7 @@ mod golden_tests {
         table(&GOLDEN_2);
     }
 
-    static GOLDEN_3: [Case; 780] = [
+    static GOLDEN_3: [Case; 800] = [
         ("enum_watch_end_busy_smallest", || { let value = WatchEnd::Busy; let bytes: &[u8] = &[4]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, WatchEnd::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_watch_end_busy_full", || { let value = WatchEnd::Busy; let bytes: &[u8] = &[4]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, WatchEnd::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_watch_end_subject_ended_smallest", || { let value = WatchEnd::SubjectEnded; let bytes: &[u8] = &[5]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, WatchEnd::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -122416,8 +122792,28 @@ mod golden_tests {
         ("enum_setting_fault_owner_full", || { let value = SettingFault::Owner; let bytes: &[u8] = &[6]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingFault::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_setting_fault_judged_smallest", || { let value = SettingFault::Judged; let bytes: &[u8] = &[7]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingFault::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_setting_fault_judged_full", || { let value = SettingFault::Judged; let bytes: &[u8] = &[7]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingFault::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_malformed_settings_smallest", || { let value = MalformedSettings::new(&CEILINGS, MalformedSettingsParts { setting: Setting::Charter(SettingNumber::new(&CEILINGS, SettingNumberParts { number: 0_u32 }).expect("golden within ceilings")), fault: SettingFault::Shape }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, MalformedSettings::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("record_malformed_settings_full", || { let value = MalformedSettings::new(&CEILINGS, MalformedSettingsParts { setting: Setting::Charter(SettingNumber::new(&CEILINGS, SettingNumberParts { number: u32::MAX }).expect("golden within ceilings")), fault: SettingFault::Shape }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 255, 255, 255, 255, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, MalformedSettings::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_setting_member_documents_smallest", || { let value = SettingMember::Documents; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingMember::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_setting_member_documents_full", || { let value = SettingMember::Documents; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingMember::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_setting_member_name_segments_smallest", || { let value = SettingMember::NameSegments; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingMember::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_setting_member_name_segments_full", || { let value = SettingMember::NameSegments; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingMember::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_setting_member_name_segment_bytes_smallest", || { let value = SettingMember::NameSegmentBytes; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingMember::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_setting_member_name_segment_bytes_full", || { let value = SettingMember::NameSegmentBytes; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingMember::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_setting_member_path_smallest", || { let value = SettingMember::Path; let bytes: &[u8] = &[3]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingMember::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_setting_member_path_full", || { let value = SettingMember::Path; let bytes: &[u8] = &[3]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingMember::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_setting_member_heading_smallest", || { let value = SettingMember::Heading; let bytes: &[u8] = &[4]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingMember::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_setting_member_heading_full", || { let value = SettingMember::Heading; let bytes: &[u8] = &[4]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingMember::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_setting_member_connector_smallest", || { let value = SettingMember::Connector; let bytes: &[u8] = &[5]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingMember::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_setting_member_connector_full", || { let value = SettingMember::Connector; let bytes: &[u8] = &[5]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingMember::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_setting_rule_maximum_smallest", || { let value = SettingRule::Maximum; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingRule::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_setting_rule_maximum_full", || { let value = SettingRule::Maximum; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingRule::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_setting_rule_minimum_smallest", || { let value = SettingRule::Minimum; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingRule::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_setting_rule_minimum_full", || { let value = SettingRule::Minimum; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingRule::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_setting_rule_registered_smallest", || { let value = SettingRule::Registered; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingRule::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_setting_rule_registered_full", || { let value = SettingRule::Registered; let bytes: &[u8] = &[2]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingRule::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_setting_detail_smallest", || { let value = SettingDetail::new(&CEILINGS, SettingDetailParts { member: SettingMember::Documents, document: 0_u32, segment: 0_u32, rule: SettingRule::Maximum, supplied: 0_u32, bound: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingDetail::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_setting_detail_full", || { let value = SettingDetail::new(&CEILINGS, SettingDetailParts { member: SettingMember::Documents, document: u32::MAX, segment: u32::MAX, rule: SettingRule::Maximum, supplied: u32::MAX, bound: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, SettingDetail::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_malformed_settings_smallest", || { let value = MalformedSettings::new(&CEILINGS, MalformedSettingsParts { setting: Setting::Charter(SettingNumber::new(&CEILINGS, SettingNumberParts { number: 0_u32 }).expect("golden within ceilings")), fault: SettingFault::Shape, detail: None }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, MalformedSettings::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_malformed_settings_full", || { let value = MalformedSettings::new(&CEILINGS, MalformedSettingsParts { setting: Setting::Charter(SettingNumber::new(&CEILINGS, SettingNumberParts { number: u32::MAX }).expect("golden within ceilings")), fault: SettingFault::Shape, detail: Some(SettingDetail::new(&CEILINGS, SettingDetailParts { member: SettingMember::Documents, document: u32::MAX, segment: u32::MAX, rule: SettingRule::Maximum, supplied: u32::MAX, bound: u32::MAX }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 255, 255, 255, 255, 0, 1, 0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, MalformedSettings::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_read_setting_smallest", || { let value = ReadSetting::new(&CEILINGS, ReadSettingParts { setting: Setting::Charter(SettingNumber::new(&CEILINGS, SettingNumberParts { number: 0_u32 }).expect("golden within ceilings")), revision: 0_u32, proposal: None }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ReadSetting::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_read_setting_full", || { let value = ReadSetting::new(&CEILINGS, ReadSettingParts { setting: Setting::Charter(SettingNumber::new(&CEILINGS, SettingNumberParts { number: u32::MAX }).expect("golden within ceilings")), revision: u32::MAX, proposal: Some(ProposalKey::new(&CEILINGS, ProposalKeyParts { proposer: Proposer::Task(ProposerTask::new(&CEILINGS, ProposerTaskParts { value: u64::MAX }).expect("golden within ceilings")), number: u64::MAX }).expect("golden within ceilings")) }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 255, 255, 255, 255, 255, 255, 255, 255, 1, 0, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ReadSetting::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_read_revision_smallest", || { let value = ReadRevision::new(&CEILINGS, ReadRevisionParts { number: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ReadRevision::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -122538,8 +122934,8 @@ mod golden_tests {
         ("enum_malformed_ended_by_full", || { let value = Malformed::EndedBy; let bytes: &[u8] = &[5]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Malformed::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_malformed_name_smallest", || { let value = Malformed::Name(MalformedName::new(&CEILINGS, MalformedNameParts { rule: NameRule::Empty }).expect("golden within ceilings")); let bytes: &[u8] = &[6, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Malformed::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_malformed_name_full", || { let value = Malformed::Name(MalformedName::new(&CEILINGS, MalformedNameParts { rule: NameRule::Empty }).expect("golden within ceilings")); let bytes: &[u8] = &[6, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Malformed::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("enum_malformed_settings_smallest", || { let value = Malformed::Settings(MalformedSettings::new(&CEILINGS, MalformedSettingsParts { setting: Setting::Charter(SettingNumber::new(&CEILINGS, SettingNumberParts { number: 0_u32 }).expect("golden within ceilings")), fault: SettingFault::Shape }).expect("golden within ceilings")); let bytes: &[u8] = &[7, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Malformed::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
-        ("enum_malformed_settings_full", || { let value = Malformed::Settings(MalformedSettings::new(&CEILINGS, MalformedSettingsParts { setting: Setting::Charter(SettingNumber::new(&CEILINGS, SettingNumberParts { number: u32::MAX }).expect("golden within ceilings")), fault: SettingFault::Shape }).expect("golden within ceilings")); let bytes: &[u8] = &[7, 0, 255, 255, 255, 255, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Malformed::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_malformed_settings_smallest", || { let value = Malformed::Settings(MalformedSettings::new(&CEILINGS, MalformedSettingsParts { setting: Setting::Charter(SettingNumber::new(&CEILINGS, SettingNumberParts { number: 0_u32 }).expect("golden within ceilings")), fault: SettingFault::Shape, detail: None }).expect("golden within ceilings")); let bytes: &[u8] = &[7, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Malformed::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_malformed_settings_full", || { let value = Malformed::Settings(MalformedSettings::new(&CEILINGS, MalformedSettingsParts { setting: Setting::Charter(SettingNumber::new(&CEILINGS, SettingNumberParts { number: u32::MAX }).expect("golden within ceilings")), fault: SettingFault::Shape, detail: Some(SettingDetail::new(&CEILINGS, SettingDetailParts { member: SettingMember::Documents, document: u32::MAX, segment: u32::MAX, rule: SettingRule::Maximum, supplied: u32::MAX, bound: u32::MAX }).expect("golden within ceilings")) }).expect("golden within ceilings")); let bytes: &[u8] = &[7, 0, 255, 255, 255, 255, 0, 1, 0, 255, 255, 255, 255, 255, 255, 255, 255, 0, 255, 255, 255, 255, 255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Malformed::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_malformed_settings_unchanged_smallest", || { let value = Malformed::SettingsUnchanged; let bytes: &[u8] = &[8]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Malformed::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_malformed_settings_unchanged_full", || { let value = Malformed::SettingsUnchanged; let bytes: &[u8] = &[8]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Malformed::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_malformed_running_smallest", || { let value = Malformed::Running; let bytes: &[u8] = &[9]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Malformed::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),

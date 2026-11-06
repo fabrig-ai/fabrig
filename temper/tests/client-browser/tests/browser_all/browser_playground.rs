@@ -80,13 +80,13 @@ fn story_steps() -> Vec<Step> {
                     PersonStep::Press { find: Find::exactly_named(Role::Link, b"New chat") }
                 }
                 PersonStep::Press { find } => PersonStep::Press { find },
+                PersonStep::Near { find, edge } => PersonStep::Near { find, edge },
                 PersonStep::Type { find, words } => PersonStep::Type { find, words },
                 PersonStep::Send { find } => PersonStep::Send { find },
                 PersonStep::See { find, within } => PersonStep::See { find, within },
                 PersonStep::Gone { find, within } => PersonStep::Gone { find, within },
                 PersonStep::Reload => PersonStep::Reload,
                 PersonStep::Pause { span } => PersonStep::Pause { span },
-                PersonStep::Near { find, edge } => PersonStep::Near { find, edge },
             }))
         })
         .collect()

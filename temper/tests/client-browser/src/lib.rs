@@ -201,6 +201,13 @@ impl Tier {
         configuration::private(&path, &serde_json::to_vec(&value).expect("scripted demo JSON"));
         self
     }
+    /// The box's demo with one suggested request's scripted turns replaced.
+    #[must_use]
+    pub fn demo_asked(name: &str, cue: &str, turns: serde_json::Value) -> Self {
+        let tier = Self::demo(name);
+        configuration::demo_asked(tier.scratch.path(), cue, turns);
+        tier
+    }
     /// Account offers with a static public key set, served by the same scratch server before Visit.
     #[must_use]
     pub fn accounts(name: &str) -> Self {

@@ -11,6 +11,46 @@ const PROVISIONAL: &[u8] = "▍".as_bytes();
 const SIGN_IN: usize = 0;
 
 #[test]
+fn a_person_at_the_terminal_reads_a_run_of_calls() {
+    let scratch = Scratch::new("call-line-terminal");
+    fixtures::standing_chats(scratch.path()).expect("standing chat fixture");
+    let ran = run_on(
+        scratch,
+        || llm::scripted(scripts::call_line_scripts()),
+        || {
+            vec![
+                sign_in(D1),
+                terminal::open(),
+                terminal::type_on(b"+ New chat", b""),
+                terminal::see(b"What do you want done?"),
+                terminal::type_on(b"What do you want done?", scripts::WORDS.as_bytes()),
+                terminal::see_without(scripts::REPLY, PROVISIONAL),
+                terminal::close(),
+            ]
+        },
+    );
+    assert_eq!(ran.calls()[SIGN_IN].exit, Some(Exit::Code(0)), "ctl signed in before provisioning the key");
+    let read = ran.terminal();
+    assert_eq!(read.exit, Some(Exit::Code(0)), "the terminal closed and drained");
+    let page = read
+        .pages
+        .iter()
+        .find(|page| {
+            page.bytes.windows(scripts::REPLY.len()).any(|part| part == scripts::REPLY)
+                && !page.bytes.windows(PROVISIONAL.len()).any(|part| part == PROVISIONAL)
+        })
+        .expect("a printed page has the committed reply without provisional text");
+    let text = std::str::from_utf8(&page.bytes).expect("printed UTF-8");
+    let (_, after_name) = text.split_once("Read 2 docs").unwrap_or_else(|| panic!("{text}"));
+    let (_, after_first) = after_name.split_once("`read_docs` hold: hold: Hold").unwrap_or_else(|| panic!("{text}"));
+    let (_, after_second) = after_first.split_once("`read_docs` chat: chat: Chats").unwrap_or_else(|| panic!("{text}"));
+    assert!(after_second.contains(std::str::from_utf8(scripts::REPLY).expect("reply UTF-8")), "{text}");
+    assert!(!text.contains("read_docs ×"), "{text}");
+    // temper/docs/help/hold.md: the result's second line, after "hold: Hold".
+    assert!(!text.contains("# Hold"), "{text}");
+}
+
+#[test]
 fn a_person_at_the_terminal_reads_a_chats_committed_reply() {
     let scratch = Scratch::new("standing-terminal");
     fixtures::standing_chats(scratch.path()).expect("standing chat fixture");

@@ -453,7 +453,8 @@ pub(crate) fn status_words(
     let status = jig_client::facts::chat_status(chip, waits_on, run_wait, project, me);
     let holes = match &status {
         ChatStatus::Tool { tool, .. } => Some(Hole::Name(tool.clone())),
-        ChatStatus::Starting
+        ChatStatus::RunWaiting(_)
+        | ChatStatus::Starting
         | ChatStatus::Writing
         | ChatStatus::Working { .. }
         | ChatStatus::WaitingForYou { .. }
@@ -472,14 +473,15 @@ pub(crate) fn status_words(
         ChatStatus::Starting | ChatStatus::Writing | ChatStatus::Tool { .. } | ChatStatus::Working { .. } => {
             crate::look::STATUS_ACTIVE
         }
-        ChatStatus::WaitingFor(_) => crate::look::STATUS_WAITING,
+        ChatStatus::RunWaiting(_) | ChatStatus::WaitingFor(_) => crate::look::STATUS_WAITING,
         ChatStatus::Parked | ChatStatus::Closing | ChatStatus::Ended { .. } => crate::look::STATUS_QUIET,
     };
     let name = match status {
         ChatStatus::Held(ref reason @ HoldCategory::Exceeded(_)) => crate::cards::hold_phrase(chip.task, reason, words),
         ChatStatus::WaitingForYou { .. } => words.say(Word::WaitingForYou, &[]),
         ChatStatus::Ended { .. } => words.say(Word::ChatClosed, &[]),
-        ChatStatus::Starting
+        ChatStatus::RunWaiting(_)
+        | ChatStatus::Starting
         | ChatStatus::Writing
         | ChatStatus::Tool { .. }
         | ChatStatus::Working { .. }
@@ -512,6 +514,10 @@ pub(crate) fn working(root: &Domain, words: &Words, thread: &jig_client::thread:
     if token != crate::look::STATUS_ACTIVE {
         return false;
     }
+    words_not_begun(thread)
+}
+/// A nonempty provisional line settles the work before it (client/README.md, 3.5 and 5.9).
+pub(crate) fn words_not_begun(thread: &jig_client::thread::Thread) -> bool {
     match thread.lines().into_boxed().last() {
         Some(jig_client::thread::Line::Provisional { text, .. }) => text.is_empty(),
         Some(

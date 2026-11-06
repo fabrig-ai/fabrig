@@ -217,7 +217,7 @@ fn panel(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: &Words, bind
 
 /// The chat bar's account and model, with the chooser behind it (client/README.md, 3.5).
 pub(crate) fn byline(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: &Words, bindings: &mut Bindings) {
-    let line = using_words(root, task, w, LineForm::Byline);
+    let line = using_words(root, task, root.pages().choice().project(), w, LineForm::Byline);
     let text = match task {
         Some(task) => w.say(W::BylineTask, &[Hole::Number(task.chip.task), Hole::Name(line.text)]),
         None => line.text,
@@ -240,6 +240,20 @@ pub(crate) fn byline(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: 
         b.text(skein_ui::Run::Plain, &text);
     }
     b.close();
+}
+
+/// The composer's line's words for a byline with nothing behind it (client/README.md, 3.5).
+pub(crate) fn byline_words(root: &Domain, task: Option<&c::Task>, project: u32, w: &Words) -> Box<[u8]> {
+    if task.is_none() {
+        let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) else {
+            return Box::default();
+        };
+        let Some(models) = choice::models(me, project) else { return Box::default() };
+        if models.is_empty() {
+            return Box::default();
+        }
+    }
+    using_words(root, task, Some(project), w, LineForm::Byline).text
 }
 
 /// Feedback and the no-model offer stay above the composer (client/README.md, 5.5).
@@ -288,7 +302,7 @@ fn feedback(
         crate::pages::chats::outcome_text(b, w, outcome, 0);
     }
     if let Some(task) = task {
-        waiting(b, root, task.run_wait, w, bindings, times);
+        waiting(b, root, task, w, bindings, times);
     }
 }
 
@@ -487,7 +501,7 @@ fn selected_line(w: &Words, word: W, holes: &[Hole], form: LineForm) -> UsingLin
     UsingLine { text: w.say(word, holes), usage: None }
 }
 pub(crate) fn using(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: &Words) {
-    let line = using_words(root, task, w, LineForm::Composer);
+    let line = using_words(root, task, root.pages().choice().project(), w, LineForm::Composer);
     b.open(Role::Paragraph);
     b.style(crate::look::ACCOUNT_LINE);
     b.name(&line.text);
@@ -508,13 +522,13 @@ fn usage_link(b: &mut Builder, w: &Words, address: Option<&[u8]>) {
         b.close();
     }
 }
-fn using_words(root: &Domain, task: Option<&c::Task>, w: &Words, form: LineForm) -> UsingLine {
+fn using_words(root: &Domain, task: Option<&c::Task>, project: Option<u32>, w: &Words, form: LineForm) -> UsingLine {
     let draft = root.pages().choice();
     let choice = match task {
         Some(_) => draft.original.as_ref(),
         None => draft.requested.as_ref(),
     };
-    match model_words(root, task, choice, draft.project(), w) {
+    match model_words(root, task, choice, project, w) {
         Some((name, provider)) => {
             let name = if task.is_none() && form == LineForm::Byline { new_chat_model(root, w) } else { name };
             using_line(root, task, choice, provider, name, w, form)
@@ -801,20 +815,23 @@ fn editable(task: &c::Task) -> bool {
 pub(crate) fn waiting(
     b: &mut Builder,
     root: &Domain,
-    wait: Option<c::TaskRunWait>,
+    task: &c::Task,
     w: &Words,
     bindings: &mut Bindings,
     times: &mut Times,
 ) {
-    match wait {
+    match task.run_wait {
         None => {}
-        Some(c::TaskRunWait::Credential) => line(b, w, W::WaitCredential, &[]),
+        Some(c::TaskRunWait::Credential) => {
+            line(b, w, W::WaitCredential, &[]);
+            control(b, bindings, Role::Link, &w.say(W::ForgesTitle, &[]), Act::Go { address: Address::Forges }, false);
+        }
         Some(c::TaskRunWait::Refused(why)) => {
             line(b, w, W::WaitRefused, &[Hole::Name(refused(w, times, why))]);
         }
         Some(c::TaskRunWait::Host) => line(b, w, W::WaitCapacity, &[]),
-        Some(c::TaskRunWait::Account { account, source, why }) => {
-            account_wait(b, root, account, source, why, w, bindings);
+        Some(c::TaskRunWait::Account { .. }) => {
+            account_wait(b, root, task, w, bindings);
         }
     }
 }
@@ -872,19 +889,12 @@ fn agent_shortfall(w: &Words, why: c::AgentShortfall) -> Box<[u8]> {
         S::Turns | S::Spend | S::Time | S::Waiting | S::Message | S::Inbox | S::Unacknowledged => w.say(word, &[]),
     }
 }
-fn account_wait(
-    b: &mut Builder,
-    root: &Domain,
-    account: Option<u32>,
-    source: Option<u32>,
-    why: c::TaskWaitWhy,
-    w: &Words,
-    bindings: &mut Bindings,
-) {
+fn account_wait(b: &mut Builder, root: &Domain, task: &c::Task, w: &Words, bindings: &mut Bindings) {
     use crate::accounts::words::{self, Word as A};
     use c::{TaskSourceState as S, TaskWaitWhy as R};
+    let Some(c::TaskRunWait::Account { account, source, why }) = task.run_wait else { return };
     b.open(Role::Status);
-    b.style(crate::look::STATUS_ACTIVE);
+    b.style(crate::look::STATUS_WAITING);
     let name = w.say(W::AccountWaiting, &[]);
     b.name(&name);
     b.text(skein_ui::Run::Plain, &name);
@@ -901,11 +911,41 @@ fn account_wait(
     match why {
         R::Source(S::Moving) => line(b, w, W::WaitMoving, &[]),
         R::Refreshing => line(b, w, W::WaitRefreshing, &[]),
-        R::Host => line(b, w, W::WaitHost, &[]),
+        R::Host => {
+            let row = match account {
+                Some(number) => account_row(root, number),
+                None => None,
+            };
+            let name = match row {
+                Some(row) => skein_lib::bytes::copy_of(row.display.bytes()),
+                None => w.say(W::AccountRegion, &[]),
+            };
+            line(b, w, W::WaitHost, &[Hole::Name(name)]);
+            if let Some(row) = row {
+                for entry in &row.sources {
+                    if Some(entry.number) == source
+                        && entry.kind == c::AccountKind::Program
+                        && let Some(name) = &entry.name
+                    {
+                        crate::pages::connect_model::command(b, root, w, name, false);
+                    }
+                }
+            }
+            account_link(b, bindings, &w.say(W::SettingsAccountsTab, &[]));
+        }
         R::Empty => {
-            line(b, w, W::WaitEmpty, &[]);
-            account_link(b, bindings, &w.say(W::AccountSignIn, &[]));
-            account_link(b, bindings, &w.say(W::AccountKey, &[]));
+            match &task.llm {
+                Some(choice) => line(b, w, W::WaitEmptyModel, &[Hole::Name(w.model_name(choice.main.model.bytes()))]),
+                None => line(b, w, W::WaitEmpty, &[]),
+            }
+            control(
+                b,
+                bindings,
+                Role::Link,
+                &w.say(W::ConnectModel, &[]),
+                Act::Go { address: Address::ConnectModel { way: None } },
+                false,
+            );
         }
         R::Invalid(why) => {
             line(b, w, W::WaitInvalid, &[]);

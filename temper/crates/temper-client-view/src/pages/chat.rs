@@ -98,9 +98,9 @@ pub(crate) fn main(
             (Drawn::ChatPage { request: Some(&task.spec), root }, Some(times)),
             bindings,
         );
-        latest(b, chat, words, bindings);
+        latest(b, &chat.thread, words, bindings);
         b.close();
-        if task.result.is_none() && !super::chats::ended(&task.chip) && !configuring {
+        if task.result.is_none() && !super::chats::ended(&task.chip) {
             crate::choice::above_composer(b, root, Some(task), words, bindings, times);
         }
         session_composer(b, root, chat, task, words, bindings);
@@ -147,7 +147,7 @@ pub(crate) fn older(b: &mut Builder, thread: &Thread, words: &Words) {
     b.close();
 }
 /// Latest returns to the log's end, reading it again where the window let it go (client/README.md, 5.15).
-fn latest(b: &mut Builder, chat: &Chat, words: &Words, bindings: &mut Bindings) {
+pub(crate) fn latest(b: &mut Builder, thread: &Thread, words: &Words, bindings: &mut Bindings) {
     if words.shell == Shell::Terminal {
         return;
     }
@@ -155,7 +155,7 @@ fn latest(b: &mut Builder, chat: &Chat, words: &Words, bindings: &mut Bindings) 
     b.name(&words.say(Word::Latest, &[]));
     b.style(look::LATEST);
     b.state(State::ToLogEnd);
-    if !chat.thread.lines.edges.reaches(jig_client::thread::window::End::Before) {
+    if !thread.lines.edges.reaches(jig_client::thread::window::End::Before) {
         b.bind(bindings.insert(Act::Latest));
     }
     b.close();
@@ -576,6 +576,10 @@ pub(crate) enum Drawn<'a> {
         request: Option<&'a c::SpecificationDocument>,
         delegations: Option<(&'a Chat, &'a jig_client::Client)>,
     },
+    /// An agent's page while a run is out (client/README.md, 5.9).
+    AgentRun {
+        current: Option<&'a c::CurrentCall>,
+    },
     Lines,
 }
 
@@ -584,6 +588,8 @@ struct Drawing<'a> {
     request: Option<&'a c::SpecificationDocument>,
     delegations: Option<(&'a Chat, &'a jig_client::Client)>,
     proposals: Option<&'a Domain>,
+    agent_run: bool,
+    current: Option<&'a c::CurrentCall>,
 }
 fn drawing(drawn: Drawn<'_>) -> Drawing<'_> {
     match drawn {
@@ -592,10 +598,24 @@ fn drawing(drawn: Drawn<'_>) -> Drawing<'_> {
             request,
             delegations: Some((root.pages().chat().expect("chat page"), root.client())),
             proposals: Some(root),
+            agent_run: false,
+            current: None,
         },
         #[cfg(test)]
-        Drawn::Chat { request, delegations } => Drawing { projected: true, request, delegations, proposals: None },
-        Drawn::Lines => Drawing { projected: false, request: None, delegations: None, proposals: None },
+        Drawn::Chat { request, delegations } => {
+            Drawing { projected: true, request, delegations, proposals: None, agent_run: false, current: None }
+        }
+        Drawn::AgentRun { current } => {
+            Drawing { projected: false, request: None, delegations: None, proposals: None, agent_run: true, current }
+        }
+        Drawn::Lines => Drawing {
+            projected: false,
+            request: None,
+            delegations: None,
+            proposals: None,
+            agent_run: false,
+            current: None,
+        },
     }
 }
 
@@ -669,7 +689,7 @@ pub(crate) fn conversation_with_times(
     bindings: &mut Bindings,
 ) {
     let (rows, _) = limits;
-    let Drawing { projected, request, delegations, proposals } = drawing(drawn);
+    let Drawing { projected, request, delegations, proposals, agent_run, current: agent_current } = drawing(drawn);
     let bound = match delegations {
         Some((chat, _)) => chat.delegations.capacity(),
         None => 0,
@@ -708,6 +728,7 @@ pub(crate) fn conversation_with_times(
         request_message(b, request, speakers.requester, words, clock.as_deref());
     }
     let mut pending = 0_u64;
+    let mut before = None;
     for line in lines {
         let key = match line_key(&line) {
             Some(key) => key,
@@ -717,6 +738,10 @@ pub(crate) fn conversation_with_times(
                 key
             }
         };
+        let since = before;
+        if let Some(at) = line_at(&line) {
+            before = Some(at);
+        }
         if let Some((at, _)) = started
             && let Some(time) = match &line {
                 Line::Activity { line } => Some(line.source.at),
@@ -760,6 +785,7 @@ pub(crate) fn conversation_with_times(
                     times: times.as_deref_mut(),
                     day: &mut day,
                     at,
+                    since,
                     projected,
                     requester: speakers.requester,
                 },
@@ -791,17 +817,25 @@ pub(crate) fn conversation_with_times(
         }
         b.close();
     }
-    let running = match proposals {
-        Some(root) => super::chats::working(root, words, thread),
-        None => false,
+    let running = if agent_run {
+        super::chats::words_not_begun(thread)
+    } else {
+        match proposals {
+            Some(root) => super::chats::working(root, words, thread),
+            None => false,
+        }
     };
     let current = if running {
-        match proposals {
-            Some(root) => match root.pages().chat() {
-                Some(chat) => chat.current_call(),
+        if agent_run {
+            agent_current
+        } else {
+            match proposals {
+                Some(root) => match root.pages().chat() {
+                    Some(chat) => chat.current_call(),
+                    None => None,
+                },
                 None => None,
-            },
-            None => None,
+            }
         }
     } else {
         None
@@ -863,6 +897,15 @@ fn first_time(lines: &[Line<'_>]) -> Option<skein_lib::Wall> {
         }
     }
     None
+}
+/// When any line happened, drawn or not; `line_time` stays the drawn lines' clock.
+fn line_at(line: &Line<'_>) -> Option<skein_lib::Wall> {
+    match line {
+        Line::Words { at, .. } => *at,
+        Line::Turn { at, .. } | Line::Undecoded { at, .. } => Some(*at),
+        Line::Activity { line } => Some(line.source.at),
+        Line::Provisional { .. } => None,
+    }
 }
 fn line_time(line: &Line<'_>) -> Option<skein_lib::Wall> {
     match line {
@@ -1175,6 +1218,7 @@ struct Committed<'a> {
     times: Option<&'a mut Times>,
     day: &'a mut Option<i64>,
     at: skein_lib::Wall,
+    since: Option<skein_lib::Wall>,
     projected: bool,
     requester: bool,
 }
@@ -1215,7 +1259,7 @@ fn committed<'a>(
                     run.key(block_key(drawing.key, place));
                     place = place.checked_add(1).expect("turn blocks fit");
                 }
-                run.call(call, drawing.at);
+                run.call(call, drawing.at, drawing.since.take());
                 continue;
             }
             if let c::Block::Call(call) = block
