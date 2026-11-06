@@ -6,6 +6,11 @@ needs = []
 files = [
   "jig/crates/jig-protocol-config/src/llm.rs",
   "jig/crates/jig-protocol-config/src/tests/llm.rs",
+  "jig/crates/jig-protocol-config/src/members.rs",
+  "jig/crates/jig-protocol-config/src/tests/members.rs",
+  "temper/docs/help/reference/configuration-engine.md",
+  "jig/docs/design/protocol/configuration.status.md",
+  "jig/docs/design/domain/tasks.status.md",
   "jig/crates/jig-domain-core/src/runs/state.rs",
   "jig/crates/jig-domain-core/src/runs/llm.rs",
   "jig/crates/jig-domain-core/src/tests/runs/default_llm.rs",
@@ -48,6 +53,9 @@ Acceptance:
 - Owns `jig/crates/jig-protocol-config/src/llm.rs` (its `model` and `price` functions) and
   `src/tests/llm.rs`; `jig/crates/jig-domain-core/src/runs/state.rs` (the `Model` type's `effort` comment
   and the new method); `runs/llm.rs`'s `default_effort`; `src/tests/runs/default_llm.rs`.
+- May change `jig/crates/jig-protocol-config/src/members.rs` (the `model` shape's `effort` row, beside
+  `efforts`), `src/tests/members.rs` (its `EXTRAS` example) and
+  `temper/docs/help/reference/configuration-engine.md` (that row's rendered line, nothing else).
 - May change `jig/crates/jig-domain-tasks/src/llm.rs`: the comment above `first_effort`'s call only. tasks
   keeps a count of each model's efforts, and `first_effort` stays the fallback that `default_effort` then
   overrides: don't teach tasks the names.
@@ -80,3 +88,21 @@ Acceptance:
 ## Report
 
 As the implementer's text says; each rule broken and the failure seen.
+
+## Answers
+
+2026-11-06. May this task add the model's `effort` row to `jig-protocol-config/src/members.rs`, outside its
+files? Yes: `read::Object::member` asserts every member it reads has a row, and acceptance 1 can't hold
+without one, so the row is this task's. Resume from the pushed `a17ebcb083` on `model-catalogue-1/effort-config`.
+
+- **The row:** `shape: "model"`, `name: "effort"`, `kind: "text"`, `bound: "32 bytes"`, `required: false`,
+  `gone: None`, right after `efforts`, with a line in `each_line_is_within_its_bound`'s form, one sentence
+  under 160 bytes: "Names the effort a task given no choice takes, the first of the efforts when absent."
+- **Its example:** `every_row_is_a_member_its_decoder_takes` needs one. In `tests/members.rs`'s `EXTRAS`, add
+  `("llm.models.0", "effort", br#""medium""#)` right after the `efforts` entry, which declares `medium`.
+- **The rendered page:** a row changes `temper/docs/help/reference/configuration-engine.md`, which
+  `temper`'s `the_pages_configuration_are_what_the_tables_render` holds equal to its table. Take the new line
+  from that test's output (or `SKEIN_CODEGEN_WRITE=1`), and run that test as well as the closing checks.
+  This task's init writes no `effort`, so the line reads "init leaves it out".
+- **The two status entries** named under `Owns and may change` are now in `files`.
+- Anything else outside `files`, stop and ask, as before. No store or wire codec changes with this.
