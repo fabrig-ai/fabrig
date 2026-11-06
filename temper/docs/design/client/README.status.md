@@ -2,7 +2,6 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 4.6, *The program's environment*, and 3.5's command after its words: no such read; the command is `connect_model.rs`'s static one (`ui-walk-2/login-command`).
 - **Not yet:** 3.5, *A press stays under the finger*: `Inbox::refresh` draws every card without its page until its read answers, and empties the cards at a filtered address; `needs::answer` returns with nothing shown (`ui-walk-2/needs-press`).
 - **Design departs:** 3.5, *Starting a goal from a chat's document*, and 5.14, from
   the request `ui-chat-draft` of 2026-11-05, decided by the answers that day to its
