@@ -46,7 +46,7 @@ mod stop;
 pub use start_refusal::refused_start;
 mod tools;
 pub use temper_engine_domain::loads::{Failure as LoadFailure, Kind as RestoreRangeKind};
-pub use tools::render_for_task;
+pub use tools::{render_for_task, settings_note};
 /// How the service ended (protocol/README.md, 6).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum End {

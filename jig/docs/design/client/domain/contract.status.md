@@ -1,6 +1,6 @@
 # contract: status
 
-2026-11-05. Where jig's code lags or departs from [contract.md](contract.md).
+2026-11-06. Where jig's code lags or departs from [contract.md](contract.md).
 Unlisted sections have no known gap.
 
 - **Departs:** 4: answers give typed lacking facts, how an object ended,

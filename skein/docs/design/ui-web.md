@@ -422,6 +422,7 @@ the host tests (section 14).
 | banner, navigation, main, complementary, content info | `<header>`, `<nav>`, `<main>`, `<aside>`, `<footer>` |
 | form, search | `<form>` (named), `<search>` |
 | region | `<section>`, named |
+| group | `<div role="group">` |
 | heading | `<h1>` to `<h6>`; deeper, `role="heading"` with `aria-level` |
 | paragraph, text | `<p>`, `<span>` |
 | list, item | `<ul>`, `<li>` |

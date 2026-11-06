@@ -142,6 +142,7 @@ fake person. What waits is in section 18, and what is open in section
 | banner, navigation, main, complementary, content info | the landmarks a shell places: what heads every page, the ways to move, the page's own content, what sits beside it, what closes it |
 | form, search | landmarks within the others too: fields sent together; a search's fields |
 | region | a named part of a page |
+| group | an ordinary group of related nodes, named or not |
 | heading | a heading, with a level from 1 |
 | paragraph, text | a block of text; a leaf holding runs (3.4) |
 | list, item | a list, and one of its items |
@@ -948,7 +949,7 @@ vocabulary maps, not how such a shell is built. Traits are
 | Role | Trait or container | Control |
 |---|---|---|
 | page; slot | | the shell's root view; its children |
-| landmarks, region, figure | `accessibilityContainerType` `.landmark`; `.semanticGroup` for a figure or an inner region | a view holding its children; SwiftUI `.accessibilityElement(children: .contain)` |
+| landmarks, region, figure, group | `accessibilityContainerType` `.landmark`; `.semanticGroup` for a figure, a group or an inner region | a view holding its children; SwiftUI `.accessibilityElement(children: .contain)` |
 | heading | `.header` | `UILabel`; `Text` with `.accessibilityHeading(_:)` |
 | paragraph, text, term, description, time, code, quote | `.staticText` | `UILabel`; `Text` |
 | list, item | container type `.list` | `UICollectionView` cells; `List` |
@@ -1005,7 +1006,7 @@ semantics.
 | Role | View: class name and node info | Compose |
 |---|---|---|
 | page; slot | the activity's content root; its children | the root composable; its children |
-| landmarks, region, figure | no landmark: a view group holding its children; a pane titled by its name (`setPaneTitle`) where its content changes whole | `isTraversalGroup`; `paneTitle` |
+| landmarks, region, figure, group | no landmark: a view group holding its children; a pane titled by its name (`setPaneTitle`) where its content changes whole | `isTraversalGroup`; `paneTitle` |
 | heading | `TextView`, `setHeading(true)` | `heading()` |
 | paragraph, text, term, description, time, code, quote | `TextView` | `Text` |
 | list, item | `ListView`; `CollectionInfo`, `CollectionItemInfo` | `LazyColumn`; `collectionInfo`, `collectionItemInfo` |

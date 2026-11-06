@@ -1,6 +1,6 @@
 # Status
 
-2026-11-05. Where temper's code lags or departs from its design, and
+2026-11-06. Where temper's code lags or departs from its design, and
 its design from its drafts, from the status files below. The first
 milestone stands in the code (`README.md`). After landing is built
 for a repository's tiers, a goal branch's own tier, their verdicts,
@@ -69,11 +69,9 @@ connected pauses a repair with no bound, by that plan's cut (`domain/forge.md`).
 No test runs real git on a dirty workspace (`protocol/git.md`). Much of a change's own
 bounds and gates, the forge's merge queue and a goal's issue lag, and
 the queue's first can lose its turn to a change stepped during it
-(`domain/forge.md`); so do Start goal's sheet, which no page opens, a live
-goal's walk, which the fake box's model cannot script, How work runs'
-controls for a person with a project's role alone, its stored way, which
-a goal's start does not read,
-and its drafts, which no chat offers yet, and many of ctl's tools (`client/README.md`,
+(`domain/forge.md`); so do a live goal's walk, which the fake box's model
+cannot script, How work runs' controls for a person with a project's role
+alone, and many of ctl's tools (`client/README.md`,
 `client/forge.md`, `client/tools.md`), the playground in the
 browser, whose story A walks in the browser tier but not yet by hand
 and whose download is past its bar (`playground.md`), upgrades'
@@ -147,8 +145,15 @@ from the epoch (`client/README.md`,
 `decided`, Home's away form, Overturn and Settings' section are built, but the
 switch still offers its act with its watch refused or ended, an Overturn or its
 message gone astray reads as overturned already or as ended, where a live task
-then hears nothing, no page starts a goal that always asks (`client/README.md`),
-and `decided` is declared past charter 1 (`domain/agent.md`). A document
+then hears nothing (`client/README.md`),
+and `decided` is declared past charter 1 (`domain/agent.md`). A chat's document,
+its modes and tool line, Chats under Drafts and the rail's menu are built, and a
+goal starts from a document through the one sheet, which has none of the request
+`ui-chat-draft`'s Budget, "Plan, then wait for me" or line above the composer and
+opens nothing for a party with no creating bound; drafts follow kind 7's setting,
+off in the stock, where that request has them follow a tracked template
+(`client/README.md`), and a goal keeps its own note scope, where that request
+has it keep no notes (`domain/agent.md`). A document
 built in parts is proved on a script alone, no real model having built one
 and no walk drawing a long one in its pane, and a later note write's words
 close with its lines where the `note-parts` request of 2026-11-05 keeps the
@@ -228,6 +233,7 @@ Drafts:
 - [`draft/agent-docs.md`](draft/agent-docs.status.md)
 - [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
 - [`draft/box-link-first.md`](draft/box-link-first.status.md)
+- [`draft/chat-reading.md`](draft/chat-reading.status.md)
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)
 - [`draft/configuring.md`](draft/configuring.status.md)
 - [`draft/dashboards.md`](draft/dashboards.status.md)
@@ -242,6 +248,7 @@ Drafts:
 - [`draft/real-journeys.md`](draft/real-journeys.status.md)
 - [`draft/repository-copies.md`](draft/repository-copies.status.md)
 - [`draft/serve-without-box.md`](draft/serve-without-box.status.md)
+- [`draft/sign-in-new-tab.md`](draft/sign-in-new-tab.status.md)
 - [`draft/template-places.md`](draft/template-places.status.md)
 - [`draft/to-begin.md`](draft/to-begin.status.md)
 - [`draft/upgrades.md`](draft/upgrades.status.md)

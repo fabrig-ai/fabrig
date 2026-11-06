@@ -75,6 +75,7 @@ jig-client-test-kit, jig-client-test-records, jig-client-test-protocol-wire   th
 jig-client-scripted-engine           the engine as the client's worlds play it (testing.md, section 4)
 jig-client-fake-person-browser       jig's stories for a browser shell, and its attack stories (../../protocol/browser.md, section 15)
 skein-fake-person, skein-fake-person-browser   skein's person, its browser face and harness (testing.md, section 3)
+jig-client-kit, jig-client-protocol-kit   what the client's worlds share: the harness, fronts and stories; the protocol client (../../domain/testing.md, section 7)
 jig-client-world, jig-client-protocol-world, jig-client-wire-world   the client's worlds (testing.md, section 4; ../../protocol/client.md, section 14)
 ```
 
