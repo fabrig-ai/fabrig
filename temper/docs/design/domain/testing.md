@@ -2457,6 +2457,7 @@ obligations missing.
 | the forge's charters (kind 3) | setting: 1 names the coding agent's, its anchor; 2, the reviews', `unchanged` (unused, since neither landing rule asks a gate); the foremen's, the foreman's role's number |
 | each change's LLM choices | setting: the coding agent's model, `model.name`, gpt-6.1-sol; the coordinator's instructions (`judged`: a coding change at gpt-6.1-sol at the spec's effort, a designer's at section 4's choice); box: gpt-6.1-sol on smith's direct backend with an OpenAI account's key |
 | the project's policy and rules | setting: the rules' ceiling's, policy 1's ceiling's and its role 0's tool families (`bits`: the profile's, the stock's with jig's control and notes families, 13.9); their delegation's kinds (`contains`: each charter role's charter, the stock's procedures 2 to 4, the merge job, job 3, and role 0) and its tasks and depth (`at-least`: 1,024 tasks, 4 deep, N21); policy 1's role 0 and the project's own policy's the same |
+| the project's ways | setting: its `way`, the goal template for drafts, by role; its switches free. The project's questions are free too, a kind no obligation asks for: the coordinator names each change's route |
 | the landing rule for goal branches | setting: `goal-rule`'s `pattern`; `ci` false, `up_to_date` false; `gates` and `approvals` empty |
 | the landing rule for main | setting: `main-rule`'s `pattern`; `enforce` true, `ci` true, `up_to_date` true; `gates` and `approvals` empty; the deployment's rules `only` the two, so the stock's rule on every branch, which asks CI and a review, is replaced or removed |
 | the repository's merge style | box: a merge commit, the repository's |
@@ -2481,7 +2482,8 @@ carries it.
 **Beyond the obligations,** the check fails on:
 
 - *a setting no obligation asks for:* an item of the accepted revision
-  whose setting binds to no role and is no obligation's subject;
+  whose setting binds to no role and is no obligation's subject, of a
+  kind the golden does not name as free;
 - *a rule made structure without the person's choice*
   (`../draft/configuring.md`, section 2), as far as settings show it: a
   landing rule's gate or approval, or a charter's family the golden
