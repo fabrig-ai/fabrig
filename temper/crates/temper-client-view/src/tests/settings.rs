@@ -922,7 +922,7 @@ fn each_flow_draws_its_path_in_the_browser_and_none_in_the_terminal() {
             Address::ConnectModel { way: None },
             b"Accounts".as_slice(),
             b"/accounts".as_slice(),
-            b"Connect an account".as_slice(),
+            b"Connect a model".as_slice(),
         ),
         (
             Address::Adopt { project: f::PROJECT },

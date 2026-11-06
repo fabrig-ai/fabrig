@@ -60,7 +60,7 @@ fn the_banner_key_way_opens_details_and_ready_removes_the_banner() {
             way: Some(d::ModelWay { source: None, provider: accounts::PROVIDER, kind: d::WayKind::Key })
         }
     );
-    assert!(text(&root).contains("Details"));
+    assert!(text(&root).contains("A Scripted API key"));
     press(
         &mut front,
         &mut root,
@@ -90,7 +90,7 @@ fn declaring_a_program_login_shows_its_command_on_ready() {
         b"Name",
         skein_ui::Act::Input { value: b"claude-alice".as_slice().into() },
     );
-    press(&mut front, &mut root, Role::Button, b"Use your Scripted subscription", skein_ui::Act::Press);
+    press(&mut front, &mut root, Role::Button, "I’ve signed in".as_bytes(), skein_ui::Act::Press);
     assert!(text(&root).contains("Declared your Scripted subscription · claude-alice"));
     assert!(text(&root).contains("temper program-login claude-alice"));
     assert!(text(&root).contains("If this machine has no Claude Code, this fetches it first. Claude Code asks you to sign in. temper never reads its login."));
@@ -104,8 +104,8 @@ fn a_creation_key_is_absent_from_the_small_store() {
     world.person(
         person,
         vec![
-            Step::See { find: Find::exactly_named(Role::Link, b"Use an API key"), within: fixtures::WITHIN },
-            Step::Press { find: Find::exactly_named(Role::Link, b"Use an API key") },
+            Step::See { find: Find::exactly_named(Role::Link, b"Add key"), within: fixtures::WITHIN },
+            Step::Press { find: Find::exactly_named(Role::Link, b"Add key") },
             Step::See { find: Find::exactly_named(Role::Button, b"Add key"), within: fixtures::WITHIN },
             Step::Type {
                 find: Find::exactly_named(Role::TextField, b"Key (pasted once)"),
@@ -265,7 +265,7 @@ fn a_fresh_page_at_the_return_address_follows_the_watch_to_ready_without_departi
             .sign_in_state(root.person().client()),
         SignInState::Signing { source }
     );
-    assert!(text(&root).contains("Signing in"));
+    assert!(text(&root).contains("Your ChatGPT plan"));
     assert!(
         !view(&root)
             .tree()

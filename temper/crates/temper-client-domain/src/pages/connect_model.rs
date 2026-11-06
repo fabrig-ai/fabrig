@@ -85,6 +85,38 @@ pub const fn model_way(way: Way) -> ModelWay {
         },
     }
 }
+/// Whether this person holds a source of this provider and kind
+/// (temper/docs/design/client/README.md, 3.5, `ConnectModel`, Choose).
+#[must_use]
+pub fn connected(root: &crate::Domain, way: Way) -> bool {
+    let Some(me) = accounts::current_me(root.client()) else { return false };
+    let Some(doc) = accounts::document(root.client()) else { return false };
+    let kind = match way {
+        Way::SignIn { .. } => c::AccountKind::SignIn,
+        Way::Program { .. } => c::AccountKind::Program,
+        Way::Key { .. } => c::AccountKind::Key,
+    };
+    for account in &doc.accounts {
+        if account.holder == c::AccountHolder::Party(me.party.number) && account.provider == Some(way.provider()) {
+            for source in &account.sources {
+                if source.kind == kind {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+/// The first unconnected offered way; none when every way is connected (README.md, 3.5).
+#[must_use]
+pub fn default_way(ways: &skein_lib::List<Way>, root: &crate::Domain) -> Option<Way> {
+    for way in ways {
+        if !connected(root, *way) {
+            return Some(*way);
+        }
+    }
+    None
+}
 #[must_use]
 pub fn address(current: &Address, way: Option<ModelWay>) -> Address {
     match current {

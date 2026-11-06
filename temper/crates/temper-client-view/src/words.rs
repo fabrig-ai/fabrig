@@ -1401,7 +1401,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
 // The command’s Copy adds three literal phrases (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
-const PHRASES: u32 = 1884;
+const PHRASES: u32 = 1890;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1427,9 +1427,9 @@ const PHRASES: u32 = 1884;
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 3313;
+const SEGMENTS: u32 = 3321;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 46119;
+const ENGLISH_BYTES: u32 = 46264;
 const ALL: [Word; 1283] = [
     Word::CloseTitle,
     Word::CloseChat,
@@ -5457,7 +5457,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SettingsAccountsLede => (&[b"The LLM accounts temper\xe2\x80\x99s agents run on for you. A task keeps its account: while the account is limited, the task waits for it."], &[]),
         Word::SettingsAccountsTab => (&[b"Accounts"], &[]),
         Word::PathAddForge => (&[b"Add a forge"], &[]),
-        Word::PathConnectAccount => (&[b"Connect an account"], &[]),
+        Word::PathConnectAccount => (&[b"Connect a model"], &[]),
         Word::SettingsHowTab => (&[b"How work runs"], &[]),
         Word::SettingsRepositoriesTab => (&[b"Repositories"], &[]),
         Word::SettingsConfigureHelp => (&[b"Tell it how you work, in your own words or by pointing at a document. It proposes the settings; nothing changes until you accept."], &[]),

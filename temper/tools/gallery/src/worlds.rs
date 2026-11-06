@@ -506,7 +506,31 @@ fn world_in_layout(
                         v1::Read::ProposalItems(_) if settings_chat.is_some() => {
                             settings_proposal_values(&mut root, read, &mut out);
                         }
-                        v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) | v1::Read::ProgramEnvironment => {}
+                        v1::Read::ProgramEnvironment => {
+                            if let Address::ConnectModel { .. } = root.pages().address() {
+                                let value = v1::ProgramEnvironmentAnswer::new(
+                                    &v1::CEILINGS,
+                                    v1::ProgramEnvironmentAnswerParts { environment: Box::new([]) },
+                                )
+                                .expect("default program environment");
+                                step(
+                                    &mut root,
+                                    Event::Client {
+                                        event: jig_client::Event::Up {
+                                            up: jig_client::Up::ReadDone {
+                                                read,
+                                                result: jig_client::Readout::Family {
+                                                    family: FORGE,
+                                                    record: Some(wire::program_environment_answer(&value)),
+                                                },
+                                            },
+                                        },
+                                    },
+                                    &mut out,
+                                );
+                            }
+                        }
+                        v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) => {}
                     }
                 }
                 jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } }
