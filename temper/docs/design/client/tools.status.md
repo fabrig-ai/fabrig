@@ -72,3 +72,4 @@ Unlisted sections have no known gap.
   `person_call` (`render/document.rs`) gives an answer alone its arguments. 12: an
   authority's entries are 14 (`limits.rs`), and the client's `projects` bound, 2, is
   not in the table.
+- **Not yet:** 6.3: a call at its deadline with a watch refused busy prints the engine's `did not answer` line, where it is to name the engine's watches (`temper-client-shell-cli/src/host.rs`, `link_progress`).
