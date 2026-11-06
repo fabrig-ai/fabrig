@@ -106,3 +106,11 @@ without one, so the row is this task's. Resume from the pushed `a17ebcb083` on `
   This task's init writes no `effort`, so the line reads "init leaves it out".
 - **The two status entries** named under `Owns and may change` are now in `files`.
 - Anything else outside `files`, stop and ask, as before. No store or wire codec changes with this.
+
+## Rebase (2026-11-06, step merge, foreman model-catalogue-1/effort-config/foreman-2)
+
+preserve the new shown/picker gap while removing the completed effort gap
+The merge conflicts in `jig/docs/design/protocol/configuration.status.md`.
+Integration commit `7b4fef1f51` adds the section 3 **Not yet** entry for a model’s `shown` and `picker`, adjacent to the `effort` entry that task commit `10f0cfea19` removes.
+Rebase onto the current integration tip and resolve this hunk by retaining the `shown`/`picker` entry and deleting the `effort` entry.
+Preserve all other status entries. No implementation change is needed for this conflict.
