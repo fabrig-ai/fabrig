@@ -20,6 +20,44 @@ fn paths_are_classed_as_format_md_2_1_lays_them_out() {
 }
 
 #[test]
+fn document_lookups_agree_with_a_scan_across_task_name_boundaries() {
+    use crate::revision::{Documents, Entry, Oid};
+    use skein_lib::bytes::copy_of;
+
+    let paths: [&[u8]; 7] = [
+        b"tasks/b/task.json",
+        b"hosts/x1/x1.json",
+        b"tasks/a_b/task.json",
+        b"envs/prod.json",
+        b"tasks/a1/task.json",
+        b"fleet.json",
+        b"tasks/a/task.json",
+    ];
+    let entries = paths.map(|path| Entry { path: copy_of(path), oid: Oid(copy_of(path)), mode: Mode::File, size: 2 });
+    let mut documents = Documents::new(&entries);
+    let declaration = fixtures::declaration(&[], &[]);
+    documents.set_declaration(&Oid(copy_of(b"tasks/a1/task.json")), declaration.clone());
+
+    for name in [b"a".as_slice(), b"a1", b"a_b", b"b", b"A", b"a-b", b"a/b", b""] {
+        let expected = documents.entries().iter().enumerate().find_map(|(index, entry)| {
+            (class(&entry.path) == Class::Declaration { task: name }).then(|| {
+                let decoded = if name == b"a1" { Some(&declaration) } else { None };
+                (u32::try_from(index).expect("listing count"), decoded)
+            })
+        });
+        assert_eq!(documents.declaration(name), expected, "task {name:?}");
+    }
+    for path in [b"tasks/a_b/task.json".as_slice(), b"tasks/absent/task.json"] {
+        let expected = documents
+            .entries()
+            .iter()
+            .position(|entry| entry.path.as_ref() == path)
+            .map(|index| u32::try_from(index).expect("listing count"));
+        assert_eq!(documents.find(path), expected, "path {path:?}");
+    }
+}
+
+#[test]
 fn the_first_read_asks_every_listed_task_json_once() {
     let call = fixtures::declaration_call();
     assert_eq!(
