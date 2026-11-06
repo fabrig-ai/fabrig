@@ -1,0 +1,5 @@
+draft = "long-words"
+repo = "fabrig"
+sources = ["temper/docs/plan/long-words/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+after = ["chat-reading-c"]
