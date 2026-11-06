@@ -113,8 +113,9 @@
   of the bundle's answers, the mapping's room and ctl's wait for its `Me` pass and don't
   reproduce it; the listener's eight connections, which a page's parallel files share,
   are a hypothesis, no cause observed (the same figures, on the ctl wait).
-  Its repair waits on the tier's run after landing (the user, 2026-11-06), and no later
-  run is recorded here.
+  Its repair waits on the tier's run after landing (the user, 2026-11-06). The next run on
+  record, after landing at `668f7cd3e5` with `chat-reading-c` on main, took 129.4 CPU s and
+  70.8 s wall over 17 tests; the plan `browser-budget` is its repair.
 - **Not yet:** 4.6: the request `browser-trim` has a person's page slower to settle as
   the answer most wanted. Settled chat and task pages stood still and no product cause
   was found, but a chat closed on the box took 8.539 s to reach the Closed filter, a

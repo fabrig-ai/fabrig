@@ -24,6 +24,10 @@ These stay proved in this tier (the request; `temper/docs/design/draft/chat-read
 - **The other thirteen stories stay as they are.** They can't be run here. `browser_public.rs` is `ui-public-2`'s: its `sign_in` and `open_printed` stay in it.
 - **`WITHIN` and `ABSENT`** stay as they are.
 
+## A known red near this plan
+
+`temper/docs/design/client/browser.status.md`, 4.3, records `browser_public`'s `temper ctl` call outlasting its ten-second deadline once, with a page at Ready, and only a hypothesis for why: the listener's eight connections, which a page's parallel files share. A ctl call made before a page opens doesn't meet that; `latest_returns`' new words, sent with the page open, might. If a ctl call misses its deadline, read its log and report what you find, with the load. That's a finding about ctl beside a page, and it's worth having. Keep `WITHIN`.
+
 ## Beside this plan
 
 Other drafts hold `temper-client-domain/src/pages/chat.rs`, `temper-client-view/src/pages/chat.rs`, `temper-client-view/src/tests/fixtures.rs`, `skein-ui-web/src/page.rs`, `skein-ui-web/src/page/web.rs` and `jig-client/src/thread/model.rs`, and `temper/docs/design/client/browser.md`, `browser.status.md`, `README.md` and `README.status.md`. Keep hunks small, don't reformat, and don't move code you don't need to change. If a merge meets another draft in a file your spec names, keep their change, and say so in your report.

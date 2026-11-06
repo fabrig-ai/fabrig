@@ -41,3 +41,30 @@ id = 1
 story = "the four stories are measured, their history no longer typed, and a delivery's cost is known at the whole bound"
 parts = ["figures", "history", "window", "delivery"]
 walk = false
+
+[[part]]
+id = "window-on"
+title = "The tier's bundle turns the smaller window on, and the stories pass it at both ends"
+mode = "direct"
+needs = ["history", "window"]
+design = "temper/docs/design/client/browser.md, 4.3"
+
+[[part]]
+id = "finds"
+title = "A find that keeps missing looks less often, if that pays"
+mode = "direct"
+needs = ["window-on"]
+design = "skein/docs/design/browser.md, 6"
+
+[[part]]
+id = "close"
+title = "The repair's account: before, after, and what's left"
+mode = "direct"
+needs = ["figures", "delivery", "finds"]
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[slice]]
+id = 2
+story = "the reading stories pass a smaller window at both ends, a find's back-off lands if it pays, and the numbers go to the user"
+parts = ["window-on", "finds", "close"]
+walk = false
