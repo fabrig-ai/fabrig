@@ -88,3 +88,14 @@ As the implementer's text asks; and whether `program_login::line` was on your ba
 ## Answers
 
 2026-11-06 (fabrig/temper). An addition from the user: "Re env variables of course they should be printed only if they are not the default path (~/.config/temper etc)". program_environment is all or nothing today: one directory off its default prints all three. Make it per variable: each prints only when it differs from its own default, so a box with only its data moved says TEMPER_DATA=~/x temper program-login claude-owner, and the defaults say nothing, as now. temper/crates/temper/src/tests/program_environment.rs and temper/docs/design/client/README.md, 4.6 follow.
+
+## Rebase (2026-11-06, step merge, foreman box-small/printed-words/foreman-1)
+
+resolve the status conflict by preserving Copy’s gap and removing the completed command-words gap
+The merge conflicts only in `temper/docs/design/client/README.status.md`.
+Commit `18332d12fb` (`box-small: the copy button, designed and cut`), merged into integration by `da47476bc9`, adds a **Not yet** entry adjacent to the entry this branch removes.
+Resolve by keeping:
+`- **Not yet:** 3.5, The welcome's Model step, *The command's Copy*: the welcome's command block has no button.`
+Keep removed the complete three-line **Not yet** entry for 4.6, *The program's environment* and *The words of a command for this machine*.
+Preserve all other status entries from the landing base. No implementation change is needed for this refusal.
+Run the required citation check after resolving the status file.
