@@ -146,7 +146,8 @@ pub fn to_root(
                             }
                             forge::Ask::Install { forge: value.forge, back: value.back }
                         }
-                        w::Request::MakeRepository(_)
+                        w::Request::DismissMaking(_)
+                        | w::Request::MakeRepository(_)
                         | w::Request::Reachable(_)
                         | w::Request::Adopt(_)
                         | w::Request::SetUp(_)
@@ -217,6 +218,22 @@ pub fn to_root(
                             forge: value.forge,
                             installation: value.installation,
                             page: value.page,
+                        }),
+                    }));
+                }
+                w::Request::DismissMaking(value) => {
+                    let value = value.into_parts();
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::Forge(forge::Ask::DismissMaking {
+                            forge: value.forge,
+                            org: value.org,
+                            name: value.name,
                         }),
                     }));
                 }
@@ -813,6 +830,7 @@ pub fn answer(
                     forge::MakeRefusal::Invalid => w::MakeRefusal::Invalid,
                     forge::MakeRefusal::HomeHeld => w::MakeRefusal::HomeHeld,
                     forge::MakeRefusal::Full => w::MakeRefusal::Full,
+                    forge::MakeRefusal::NotFailed => w::MakeRefusal::NotFailed,
                 };
                 w::Outcome::MakeRefused(w::MakeRefused::new(limits, w::MakeRefusedParts { why }).ok()?)
             }

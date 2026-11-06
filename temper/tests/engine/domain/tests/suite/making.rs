@@ -333,3 +333,184 @@ fn a_copy_mark_is_returned_to_the_service() {
         "the service must hear the connector's copy mark"
     );
 }
+
+fn failed_copy(d: &mut Driver) {
+    d.send(engine::Event::Party(engine::PartyInput::Application {
+        scope: people::ApplicationScope::Own,
+        reply_to: ReplyTo::new(Token::new(51)),
+        sign_in: d.session(),
+        key: [51; 16],
+        digest: [51; 32],
+        carried: None,
+        request: engine::Application::Forge(forge::Ask::MakeRepository {
+            forge: 1,
+            org: key().org,
+            name: key().name,
+            from: forge::MakeFrom::Copy { address: b"https://source.example/org/repo".as_slice().into() },
+            into: Some(into(1)),
+        }),
+    }));
+    d.settle();
+    assert!(kept(d), "copy admitted");
+    event(d, forge::Event::MakingStarted { key: key() });
+    event(
+        d,
+        forge::Event::MakingStopped {
+            key: key(),
+            failed: forge::MakingFailed {
+                step: forge::MakeStep::Repository,
+                reason: forge::MakeFailure::Other,
+                words: b"copy failed".as_slice().into(),
+            },
+        },
+    );
+    assert!(matches!(row(d).state, forge::MakingState::Failed(_)));
+}
+fn dismiss(d: &mut Driver, number: u8) {
+    d.send(engine::Event::Party(engine::PartyInput::Application {
+        scope: people::ApplicationScope::Own,
+        reply_to: ReplyTo::new(Token::new(u64::from(number))),
+        sign_in: d.session(),
+        key: [number; 16],
+        digest: [number; 32],
+        carried: None,
+        request: engine::Application::Forge(forge::Ask::DismissMaking { forge: 1, org: key().org, name: key().name }),
+    }));
+    d.settle();
+}
+fn watch_makings(d: &mut Driver, watcher: Token) {
+    d.send(engine::Event::Party(engine::PartyInput::Watch {
+        watcher,
+        sign_in: d.session(),
+        subject: core::documents::Watched::Application {
+            scope: people::ApplicationScope::Deployment,
+            connector: config(true).core.connectors[0],
+            subject: Token::new(0),
+        },
+        window: core::documents::Window { rows: 4, after: None },
+    }));
+    d.settle();
+}
+#[test]
+fn a_failed_copy_dismissed_disappears_from_the_watch_and_stays_gone_after_restart() {
+    let mut d = driver(true);
+    failed_copy(&mut d);
+    let watcher = Token::new(901);
+    watch_makings(&mut d, watcher);
+    assert!(d.delivered.iter().any(|delivery| matches!(delivery,
+        engine::Delivery::Forges { watcher: actual, forges } if *actual == watcher &&
+        matches!(forges.rows[0].makings[0].state, forge::MakingState::Failed(_))
+    )));
+    d.send(engine::Event::Party(engine::PartyInput::Delivered { watcher }));
+    d.settle();
+    d.delivered.retain(|delivery| {
+        matches!(delivery, engine::Delivery::WebReply { reply: people::Reply::SignedIn { .. }, .. })
+    });
+    dismiss(&mut d, 52);
+    assert!(kept(&d));
+    assert!(d.delivered.iter().any(|delivery| matches!(delivery,
+        engine::Delivery::Forges { watcher: actual, forges } if *actual == watcher && forges.rows[0].makings.is_empty()
+    )), "the watch sees the erasure");
+    assert!(!d.store.rows.contains_key(&engine::Key::Forge(forge::Key::Making(key()))));
+    d.reopen(config(true));
+    d.settle();
+    d.sign_in();
+    d.settle();
+    assert!(d.root.making(&key()).is_none(), "restart cannot revive the dismissed copy");
+    assert!(d.root.forges().rows[0].makings.is_empty());
+    d.delivered.retain(|delivery| {
+        matches!(delivery, engine::Delivery::WebReply { reply: people::Reply::SignedIn { .. }, .. })
+    });
+    dismiss(&mut d, 52);
+    assert!(kept(&d), "the original key joins its kept answer after restart: {:?}", d.delivered);
+    d.delivered.retain(|delivery| {
+        matches!(delivery, engine::Delivery::WebReply { reply: people::Reply::SignedIn { .. }, .. })
+    });
+    dismiss(&mut d, 53);
+    assert!(kept(&d), "a fresh key with no row is kept too");
+}
+fn roles(d: &mut Driver, deployment: people::Role, project: people::Role, making: Option<forge::RepositoryMaking>) {
+    let person = d
+        .delivered
+        .iter()
+        .find_map(|delivery| match delivery {
+            engine::Delivery::WebReply { reply: people::Reply::SignedIn { person, .. }, .. } => Some(*person),
+            _ => None,
+        })
+        .expect("signed in person");
+    let mut saves = vec![
+        engine::Record::Core(core::Record::People(people::Stored::Roles {
+            project: people::DEPLOYMENT,
+            holdings: Box::new([people::Holding { person, role: deployment }]),
+        })),
+        engine::Record::Core(core::Record::People(people::Stored::Roles {
+            project: 1,
+            holdings: Box::new([people::Holding { person, role: project }]),
+        })),
+    ];
+    if let Some(making) = making {
+        saves.push(engine::Record::Forge { row: Box::new(forge::Stored::Making(making)) });
+    }
+    d.store.seed(saves.into_boxed_slice(), Box::new([]));
+    d.reopen(config(true));
+    d.settle();
+    d.sign_in();
+    d.settle();
+    d.delivered.retain(|delivery| {
+        matches!(delivery, engine::Delivery::WebReply { reply: people::Reply::SignedIn { .. }, .. })
+    });
+}
+#[test]
+fn dismissal_authority_comes_from_the_rows_destination() {
+    use people::Role::{Member, Owner};
+    for (destination, deployment, project, allowed) in [
+        (Some(into(1)), Member, Owner, true),
+        (Some(into(1)), Owner, Member, false),
+        (None, Owner, Member, true),
+        (None, Member, Owner, false),
+    ] {
+        let mut d = driver(true);
+        failed_copy(&mut d);
+        let mut failed = row(&d).clone();
+        failed.into = destination;
+        roles(&mut d, deployment, project, Some(failed.clone()));
+        dismiss(&mut d, 52);
+        assert_eq!(kept(&d), allowed, "row {:?}, deployment {deployment:?}, project {project:?}", failed.into);
+        if allowed {
+            assert!(d.root.making(&key()).is_none());
+        } else {
+            assert_eq!(d.root.making(&key()), Some(&failed));
+            assert!(d.delivered.iter().any(|delivery| matches!(
+                delivery,
+                engine::Delivery::Application {
+                    outcome: Some(engine::ApplicationAnswer::Make(forge::MakeAnswer::Refused(
+                        forge::MakeRefusal::NotOwner
+                    ))),
+                    ..
+                }
+            )));
+        }
+    }
+}
+#[test]
+fn dismissal_without_a_row_admits_a_deployment_or_project_owner() {
+    use people::Role::{Member, Owner};
+    for (deployment, project, allowed) in [(Member, Owner, true), (Owner, Member, true), (Member, Member, false)] {
+        let mut d = driver(true);
+        roles(&mut d, deployment, project, None);
+        dismiss(&mut d, 52);
+        assert_eq!(kept(&d), allowed, "deployment {deployment:?}, project {project:?}");
+        assert!(d.root.making(&key()).is_none());
+        if !allowed {
+            assert!(d.delivered.iter().any(|delivery| matches!(
+                delivery,
+                engine::Delivery::Application {
+                    outcome: Some(engine::ApplicationAnswer::Make(forge::MakeAnswer::Refused(
+                        forge::MakeRefusal::NotOwner
+                    ))),
+                    ..
+                }
+            )));
+        }
+    }
+}
