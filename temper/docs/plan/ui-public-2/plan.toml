@@ -1,0 +1,3 @@
+draft = "ui-public-2"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-public-2/inputs/request.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
