@@ -132,6 +132,41 @@ pub(crate) fn person_task(value: &ReadValue) -> Option<&contract::PersonTask> {
         | ReadValue::Deployment(_) => None,
     }
 }
+/// Who answered a retained person task, as its result says; a live document does not say.
+pub(crate) fn person_answerer(value: &ReadValue) -> Option<u64> {
+    match value {
+        ReadValue::Ended(ended) => match &ended.value {
+            contract::EndedValue::PersonTask { result, .. } => result.details.as_ref()?.chosen_by,
+            contract::EndedValue::Task { .. }
+            | contract::EndedValue::Proposal(_)
+            | contract::EndedValue::PersonProposal { .. }
+            | contract::EndedValue::Escalation { .. }
+            | contract::EndedValue::Question { .. } => None,
+        },
+        ReadValue::PersonTask(_)
+        | ReadValue::Task(_)
+        | ReadValue::Me(_)
+        | ReadValue::Inbox(_)
+        | ReadValue::Tasks(_)
+        | ReadValue::TaskText(_)
+        | ReadValue::Settings(_)
+        | ReadValue::Setting(_)
+        | ReadValue::Revision(_)
+        | ReadValue::Revisions(_)
+        | ReadValue::Project(_)
+        | ReadValue::Turn(_)
+        | ReadValue::Proposal(_)
+        | ReadValue::Escalation(_)
+        | ReadValue::Question(_)
+        | ReadValue::Result(_)
+        | ReadValue::EndedPage(_)
+        | ReadValue::History(_)
+        | ReadValue::Activity(_)
+        | ReadValue::Spend(_)
+        | ReadValue::Notes(_)
+        | ReadValue::Deployment(_) => None,
+    }
+}
 pub(crate) fn read_task(value: &ReadValue) -> Option<(&contract::Task, Option<&contract::Result>)> {
     if let ReadValue::Task(task) = value {
         return Some((task, None));
