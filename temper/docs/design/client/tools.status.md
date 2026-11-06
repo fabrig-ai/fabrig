@@ -1,14 +1,9 @@
 # tools: status
 
 2026-11-06. Remaining gaps between temper's code and [tools.md](tools.md).
-Unlisted sections have no known gap.
+Unlisted sections have no known gap, including 6.3's watch-capacity
+diagnostic and deadline words, and 8.2's retry spans.
 
-- **Not yet:** 6.3: the deadline's lines: `temper-client-shell-cli`'s
-  `host.rs`, `link_progress`, says `the engine at ADDRESS did not answer
-  within 30 s` whatever is outstanding, and adds nothing of an act.
-- **Not yet:** 8.2, 12: a retry's span: `temper-client-tools`' `limits.rs`
-  doubles a request's and a watch's to 30 s, so a call can sleep past its
-  deadline with nothing in flight. 6.3: the lines naming a retry's why.
 - **Not yet:** 5.2: `task show`'s text says `deployment show` for a host's wait
   (`temper-client-tools`' `render/document/llm.rs`, `wait_explanation`), and ctl has
   no such tool until area 3's is built (5.5), so that line names a command that

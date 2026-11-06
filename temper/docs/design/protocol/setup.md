@@ -213,7 +213,7 @@ connected  the forge component       ◄── its access, built from the record
   | `runner/` | prepare | the runner, through `run` | the runner's configuration, its registration, its jobs' directories, `secret` |
   | `backups/` | prepare | the person | one dump before each upgrade's migration |
   | `state` | prepare | prepare, `run` | owned's record: the versions prepared, whether the first preparation ended, Forgejo's own secrets |
-  | `admin_token` | prepare, when missing | the engine's setup host, once, at start or the box's `started` (6.5) | the handover: temper's admin's token, kept as the forge's `AdminToken` record by `TakeOver`, after whose `Done` the file is removed (6.5) |
+  | `admin_token` | prepare, when missing | the engine's setup host, once, at start or the box's `started`, and once more on a restart of a box that signs its person in (6.5) | the handover: temper's admin's token, kept as the forge's `AdminToken` record by `TakeOver`, after whose `Done` the file is removed (6.5) |
   | `person_password` | prepare | the person | the person's first password on the owned Forgejo |
   | `person_read.header`, `person_write.header` | prepare | the person, or their agent (`../client/tools.md`, 11.5) | the person's two tokens as one header line each, `Authorization: token TOKEN`: one that reads (`read:repository`, `read:issue`, `read:organization`, `read:user`), one that writes (`write:repository`, `write:issue`, `read:organization`, `read:user`) |
 
@@ -875,6 +875,17 @@ binaries; and decides by
   older tokens; taking the same token again is harmless. No owned or
   fake forge's `api_token`, `git_token`, `user` or `webhook_secret` file
   is written or read.
+- **A box's restart, when it signs its person in** (7.1): serve starts
+  before the group, so its read at the start comes before preparation
+  has made the new handover. That start's `Reconcile`, from the kept
+  `AdminToken`, waits for the forge (skein's `forge-setup.md`, 4.4), and
+  Forgejo runs only after preparation has ended. So once that
+  `Reconcile` is done, before the first repository or the connect, the
+  host reads `admin_token` once more. A file there is taken over,
+  removed and reconciled again, as above; with none, the forge goes on.
+  The forge stays connecting throughout, so it reads connected only with
+  the handover gone. This second read is once per start, for a forge
+  that start restored, and a stop along the way is a stop as below.
 - **A step that stops blocks that forge's connect.** A `TakeOver`,
   `Reconcile`, `Create` or `Adopt` stop, a handover read that fails, or a removal
   that fails leaves the forge not connected, named by the plan's step or file
@@ -1408,8 +1419,11 @@ temper box
 - **At a later start,** the box lists `box/groups`, at most `box.groups`
   files (configuration.md, section 7), and runs each group whose
   `started` record exists from its file, in its place, as an unasked
-  group, before `temper serve`; a group with a file and no record stays
-  dormant until asked. A file it cannot read, or a record it cannot look
+  group, before `temper serve`, or just after it when the box signs its
+  person in through that forge: a later preparation's source commands
+  and Forgejo, loading its source, fetch discovery from temper
+  (`sign-in.md`, 9.9), and serve takes the handover later for it (6.5). A
+  group with a file and no record stays dormant until asked. A file it cannot read, or a record it cannot look
   at, is named on its stderr, and its group stays dormant; of two
   started groups of one kind, the one of the higher number runs, and the
   other is named and stays dormant.
@@ -3860,8 +3874,8 @@ it checks of this document:
   and its generation (forge.md, section 10, the box's link). A second
   box on the same directories starts the group by its record, before
   `temper serve` unless the box signs its person in through that forge; then
-  serve starts first, to answer the source's discovery (sign-in.md, 9.9). Preparation makes a new handover; serve takes it over
-  and connects forge 1 from its records (6.5), and the task is found
+  serve starts first, to answer the source's discovery (sign-in.md, 9.9). Preparation makes a new handover; serve takes it over,
+  its file gone again, and connects forge 1 from its records (6.5), and the task is found
   landed, its CI at its head unknown until a next step reads it
   (`../domain/forge.md`, 8.8).
 - **A Forgejo connected as its admin, on this host:** on a real Forgejo
@@ -3887,6 +3901,13 @@ Each is intended; what it needs is named with it.
   as release defaults; the list step adds discovery per usable account
   (`../draft/model-catalogue.md`, section 7). Until then offering another
   model edits both documents.
+
+- **A handover made by a Forgejo's own restart** (6.5, 7.1): a Forgejo
+  step that exits under a running serve runs its preparation again,
+  which makes a new handover, and no `started` reaches serve for it, so
+  the file stays until serve's next start. It needs the box to tell
+  serve of that restart, and serve to take a handover on a forge it
+  holds connected.
 
 - **A box killed outright on macOS** (7.1): its steps have no parent-death
   signal, so they can keep running and hold the next start's ports. A

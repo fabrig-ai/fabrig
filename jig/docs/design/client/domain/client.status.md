@@ -2,7 +2,8 @@
 
 2026-11-06. Where jig's code lags or departs from [client.md](client.md).
 
-Unlisted sections have no known gap.
+Unlisted sections have no known gap, including 8.2's `watches_full`
+fact for `me` and application watches through retries and recovery.
 
 - **Not yet:** 10: a committed turn's calls carry no objects or parts:
   `jig-protocol-transcript` decodes them empty.

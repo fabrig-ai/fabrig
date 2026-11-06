@@ -2306,6 +2306,11 @@ contract's reads, watches and requests, they take:
 
 Each is named here and designed when it comes.
 
+- **A busy watch's precise cause** (6.3): the deadline's line uses jig's
+  `watches_full`, whose refusal carries no count and does not distinguish
+  watch capacity from an opening's load slot. Distinct lines wait for jig
+  to distinguish the causes (`jig/docs/design/client/domain/client.md`, 18).
+  Until then the line names watches in use, as the `watch-room` request asks.
 - **An MCP endpoint of the engine,** for agents with no shell:
   `temper-service` serves the same tools at `/mcp` on the clients'
   listener, each session a tools' root holding `jig-client` over an

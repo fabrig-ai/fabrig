@@ -48,7 +48,11 @@ hidden beside a usable one of the same provider (`client/README.md`). The
 configuring inventory is filtered, but whole charter reads still name models
 outside the offer and only instructions restrict proposals to it
 (`domain/agent.md`, `draft/model-catalogue.md`). Model settings and provider
-list reads remain the catalogue's later steps. The limits' check
+list reads remain the catalogue's later steps. The watch rooms follow admitted
+streams, with the whole room available to one party; obsolete watch-room overrides are refused and ctl names a watch
+refused busy at its deadline. A fair share, the other ineffective views
+overrides, precise Busy causes and the manual browser check remain deferred
+(`protocol/configuration.md`, `client/tools.md`). The limits' check
 leaves temper's kinds out of the settings answer's bound
 (`domain/root.md`), and a change's refusal omits what authority it
 lacked and which model its charter refused (`domain/agent.md`). A

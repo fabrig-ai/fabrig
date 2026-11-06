@@ -112,7 +112,7 @@ pub(super) fn call(name: &[u8], value: &Value) -> Turn {
 
 /// Price a process story's purse from init's stock run cap.
 #[must_use]
-pub(super) fn run_spend(runs: u64) -> u64 {
+pub fn run_spend(runs: u64) -> u64 {
     let bytes = include_bytes!("../../../temper-init/template/bare.json");
     let document = jig_protocol_config::document(
         bytes,
