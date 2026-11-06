@@ -60,3 +60,13 @@ Not this task: an agent's or a goal's spec: they draw through their own readers.
 ## Report
 
 As the implementer's text asks.
+
+## Rebase (2026-11-06, step merge, foreman long-words/start-reads-back/foreman-1)
+
+Resolve the shared status conflict by preserving both deletions.
+The merge conflicts only in `temper/docs/design/client/README.status.md`.
+Task commit `989c4cf373` removes the 5.4 “A chat's first message” Not yet entry.
+Incoming commit `9ae91ec7df` removes the adjacent obsolete 5.15 “a conversation read by scrolling, whole” entry.
+Resolve the opening hunk with both entries absent, preserving all other incoming status updates.
+Keep the automatic merge of `temper/crates/temper-client-view/src/pages/chat.rs`, preserving both the request reader changes and incoming conversation changes.
+No feature redesign is needed for this refusal.
