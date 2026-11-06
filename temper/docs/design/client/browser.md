@@ -647,9 +647,14 @@ replay says the same clocks (`README.md`, 5.12).
   `--gf-*` variables, as Home's are, on tokens of its own, `temper-goals*`.
   A row's top line is `--gf-mono`, 12 px, faint: IBM Plex Mono 400 and 500,
   bundled as the sans is, then JetBrains Mono, `ui-monospace`, `monospace`.
-- **A page target draws no ring:** `main` or a level-1 heading given
-  `tabindex=-1` only to take focus, as a move gives it, draws no outline, by
-  `temper.css`; a control keeps its ring.
+- **A page target draws no ring:** anything given `tabindex=-1` only to take
+  focus (`main`, a heading, a document's section) draws no outline, by
+  `skein-ui.css` (skein's `ui-web.md`, 12), and `temper.css` says so again of
+  `main` and a level-1 heading; a control keeps its ring.
+- **A scrolling pane holds its hidden parts:** a chat's log and its draft pane are
+  positioned, so a visually hidden absolute part (a who-line) is clipped by the
+  pane's overflow and does not lengthen the page: a long chat's document never
+  exceeds its window.
 - **Light only:** the mockups' palette is light, and `temper.css` sets
   `color-scheme: light`, where `skein-ui.css` follows the system's dark
   preference. A dark palette is open (section 5).
