@@ -10,6 +10,9 @@ approval-identity story covers a refusal naming no command.
 
 Sections 6.4 and 6.5.3 have no gap in scripted note-backed proposals and single-revision collector evidence.
 
+- **Not yet:** 2.4, 2.6: `temper_fixtures::ports`: a port a story lets go of and
+  listens on again is the kernel's, drawn and released by
+  `support::free_addresses`, and a fake box's too, with no `TEMPER_FAKE_BOX_PORTS`.
 - **Not yet:** 2.6: the process tier stays at one test at a time
   (`.config/nextest.toml`, `process-temper`), where this section has three
   and the request `test-speed` of 2026-11-06 has them proven by three whole
