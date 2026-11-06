@@ -191,7 +191,13 @@ answer as it stood (`domain/agent.md`). A journey's `add` redacts, proves
 and scans before it writes, but no real box's recording has been through it, the
 committed recordings keep their fake boxes' dummies until next added, nothing
 refuses `again` on a real journey, and the refusal's process tests watch two
-directories, not every path (`client/journeys.md`). The
+directories, not every path (`client/journeys.md`). Conversations are read
+by their log's edges (`client/README.md`, 5.15); in the terminal PgUp and
+PgDn are lines followed by Enter, and `lines` stays for jig's reference UI
+and tools, past what temper's bytes hold. The browser tier runs Chromium
+alone, with `overflow-anchor: none` as the nearest run to Safari; Firefox
+and Safari themselves are read, not run (`draft/chat-reading.md`, 5,
+**Design departs**). The
 case library's purpose is retired, the fake
 git program drives skein's JSON tokenizer over a whole body by hand,
 the ladder has no twin past B1 and no live story but B0's, neither
