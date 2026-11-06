@@ -139,6 +139,8 @@ type DecodeAnswer = (bool, Box<[u8]>);
 #[derive(Debug, Default)]
 pub struct Protocol {
     pub sign_in_sources: BTreeSet<u32>,
+    /// The deployment models used by internal settings-note decoding.
+    pub(crate) models: Box<[engine::Model]>,
     calls: BTreeMap<Box<[u8]>, engine::Call>,
     decode_answers: BTreeMap<Box<[u8]>, DecodeAnswer>,
     ends: BTreeMap<Box<[u8]>, tasks::End>,
@@ -276,6 +278,9 @@ impl Protocol {
                         engine::HostRequest::Decode { to, task, attempt, call },
                     ))))),
                 },
+                engine::HostRequest::SettingsNote { to, call, body } => {
+                    Ok(vec![temper_service::settings_note(to, *call, &body, &self.models)])
+                }
                 engine::HostRequest::Dropped { .. } => Ok(Vec::new()),
             },
             engine::Request::Worker(engine::WorkerRequest::Deliver(engine::Delivery::Host(delivery))) => {
