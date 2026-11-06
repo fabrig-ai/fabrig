@@ -165,13 +165,6 @@ fn condition(
     faults: &mut List<Fault>,
 ) {
     if let Some((schema, _offset)) = check(expression, declaration) {
-        if faults.room() == 0 {
-            let mut larger = List::with_capacity(faults.capacity().max(1).saturating_mul(2));
-            for fault in &*faults {
-                larger.push(fault.clone()).expect("doubled capacity");
-            }
-            *faults = larger;
-        }
-        faults.push(Fault { schema, document, at }).expect("fault capacity");
+        faults.push(Fault { schema, document, at }).expect("uncapped faults");
     }
 }

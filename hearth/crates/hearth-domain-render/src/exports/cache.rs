@@ -103,7 +103,7 @@ impl Cache {
         let names = names.into_boxed();
         let check = Check::Target { environment: &target.environment, targets: &names };
         let mut validator = schema::Validator::new(fleet.limits);
-        let mut faults = List::with_capacity(16);
+        let mut faults = List::uncapped();
         let mut settings = task.settings.clone();
         settings.from = task.from;
         let settings = validator.settings(&settings, &against, &check, &mut self.left, &mut faults);
