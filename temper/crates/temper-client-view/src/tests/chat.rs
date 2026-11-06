@@ -848,7 +848,7 @@ fn the_chat_bar_contains_identity_spend_and_acts() {
         (Role::Heading { level: 1 }, heading.as_ref()),
         (Role::Paragraph, "7 spent · of 7".as_bytes()),
         (Role::Status, b"Parked"),
-        (Role::Button, b"Stop"),
+        (Role::Button, b"Pause"),
         (Role::Button, b"Close"),
     ] {
         assert!(named_position(nodes, role, Some(name)).is_some(), "{name:?}");
@@ -2345,7 +2345,7 @@ fn configuring_chats_keep_the_settings_layout_and_controls_in_both_shells() {
             (Role::Link, b"Settings"),
             (Role::Status, b"Parked"),
             (Role::Paragraph, b"7 spent \xc2\xb7 of 7"),
-            (Role::Button, b"Stop"),
+            (Role::Button, b"Pause"),
             (Role::Button, b"Close"),
         ] {
             assert!(named_position(top_nodes, role, Some(name)).is_some(), "{name:?}");
@@ -2353,7 +2353,7 @@ fn configuring_chats_keep_the_settings_layout_and_controls_in_both_shells() {
         let controls = subtree(tree, bar);
         let positions = [
             named_position(controls, Role::Status, Some(b"Parked")).unwrap(),
-            named_position(controls, Role::Button, Some(b"Stop")).unwrap(),
+            named_position(controls, Role::Button, Some(b"Pause")).unwrap(),
             named_position(controls, Role::Button, Some(b"Close")).unwrap(),
             named_position(controls, Role::Paragraph, Some(b"7 spent \xc2\xb7 of 7")).unwrap(),
         ];
@@ -2378,7 +2378,7 @@ fn configuring_chats_keep_the_settings_layout_and_controls_in_both_shells() {
         assert!(tree.nodes()[area].states.as_slice().contains(&skein_ui::State::SubmitsOnEnter));
         let send = fixtures::find(tree, Role::Button, b"Send").unwrap();
         let area_id = tree.nodes()[area].id;
-        let stop = fixtures::find(tree, Role::Button, b"Stop").unwrap();
+        let stop = fixtures::find(tree, Role::Button, b"Pause").unwrap();
         let close = fixtures::find(tree, Role::Button, b"Close").unwrap();
         let back = tree.nodes()[styled(tree, look::BACK)].id;
         let hint = styled(tree, look::SESSION_HINT);
@@ -2624,11 +2624,11 @@ fn every_chat_bar_orders_its_byline_status_allowed_acts_and_spend_and_links_its_
                 let spend =
                     named_position(controls, Role::Paragraph, Some("7 spent · of 7".as_bytes())).expect("spend");
                 assert!(byline < status && status < spend);
-                for name in [b"Stop".as_slice(), b"Close"] {
+                for name in [b"Pause".as_slice(), b"Close"] {
                     assert_eq!(named_position(controls, Role::Button, Some(name)).is_some(), allowed);
                 }
                 if allowed {
-                    let stop = named_position(controls, Role::Button, Some(b"Stop")).unwrap();
+                    let stop = named_position(controls, Role::Button, Some(b"Pause")).unwrap();
                     let close = named_position(controls, Role::Button, Some(b"Close")).unwrap();
                     assert!(status < stop && stop < close && close < spend);
                 }
@@ -3150,5 +3150,173 @@ fn every_chats_run_wait_says_why_above_the_composer_without_working_dots() {
                 }
             }
         }
+    }
+}
+
+// client/README.md, 3.5: this hold is the reader's own Stop on this chat.
+pub(super) fn pause_chip(chip: &mut c::Chip) {
+    chip.phase = c::Phase::Held;
+    chip.details.phase = c::ChipPhase::Held { reason: c::HoldCategory::Stopped, revision: 19 };
+    chip.details.details.hold = Some(c::ChipHold {
+        placed: Some(c::PlacedHold {
+            number: 1,
+            owner: c::HoldOwner::Party { person: PARTY },
+            mode: c::HoldMode::Stop,
+            scope: c::HoldScope::Subtree { task: chip.task },
+            reason: Box::default(),
+            placed_at: Wall::EPOCH,
+            revision: c::Revision { value: 19 },
+            lifted: false,
+            may_lift: true,
+        }),
+        words: None,
+        circle: None,
+        account: None,
+        source: None,
+        reason: c::HoldCategory::Stopped,
+        revision: 19,
+        before: c::PriorPhase::Active(c::RunStage::Idle),
+        escalation: None,
+        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        hold_wait_since: None,
+    });
+}
+fn pause_root(paused: bool, own: bool, release: bool) -> temper_client_domain::Domain {
+    let (mut root, _, watch) =
+        fixtures::root_at(temper_client_domain::Address::Chat { task: TASK }, &fixtures::domain_limits());
+    let mut task = fixtures::task::document();
+    task.chip.task = TASK;
+    if paused {
+        pause_chip(&mut task.chip);
+        if !own {
+            task.chip.details.details.hold.as_mut().unwrap().placed.as_mut().unwrap().owner =
+                c::HoldOwner::Task { task: TASK };
+        }
+    }
+    task.acts = List::with_capacity(4);
+    for act in [c::ActKind::Stop, c::ActKind::Cancel, c::ActKind::Message, c::ActKind::Release] {
+        if act != c::ActKind::Release || release {
+            task.acts.push(c::Offered { act, admission: c::Admission::Allowed, effect: None }).unwrap();
+        }
+    }
+    fixtures::root_event(
+        &mut root,
+        temper_client_domain::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: watch.unwrap(),
+                    event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task))),
+                },
+            },
+        },
+    );
+    root
+}
+#[test]
+fn a_running_chat_says_pause_and_close() {
+    let root = pause_root(false, true, true);
+    for mut view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+        for (name, act) in [
+            (b"Pause".as_slice(), temper_client_domain::pages::Act::Stop),
+            (b"Close", temper_client_domain::pages::Act::Close),
+        ] {
+            let id = fixtures::find(view.tree(), Role::Button, name).expect("bar action");
+            assert_eq!(crate::act(&mut view, id, skein_ui::Act::Press), Some(temper_client_domain::Action::Pages(act)));
+        }
+    }
+}
+#[test]
+fn a_paused_chat_says_resume_paused_and_its_hint() {
+    let root = pause_root(true, true, true);
+    for mut view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+        let id = fixtures::find(view.tree(), Role::Button, b"Resume").expect("resume");
+        assert_eq!(
+            crate::act(&mut view, id, skein_ui::Act::Press),
+            Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Resume))
+        );
+        assert!(fixtures::find(view.tree(), Role::Button, b"Pause").is_none());
+        assert!(fixtures::find(view.tree(), Role::Button, b"Close").is_some());
+        let status = named_position(view.tree().nodes(), Role::Status, Some(b"Paused")).expect("paused status");
+        assert_eq!(view.tree().nodes()[status].styles.as_slice(), [crate::look::STATUS_QUIET]);
+        assert!(fixtures::find(view.tree(), Role::Paragraph, b"Sending resumes this chat.").is_some());
+    }
+}
+#[test]
+fn a_chat_held_otherwise_says_held_and_has_no_resume() {
+    let root = pause_root(true, false, true);
+    for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+        assert!(fixtures::find(view.tree(), Role::Status, b"Held").is_some());
+        assert!(fixtures::find(view.tree(), Role::Button, b"Resume").is_none());
+        assert!(fixtures::find(view.tree(), Role::Button, b"Pause").is_some());
+        assert!(fixtures::find(view.tree(), Role::Paragraph, b"Sending resumes this chat.").is_none());
+    }
+}
+#[test]
+fn a_pause_without_release_has_no_resume_or_resuming_hint() {
+    let root = pause_root(true, true, false);
+    for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+        assert!(fixtures::find(view.tree(), Role::Button, b"Resume").is_none());
+        assert!(fixtures::find(view.tree(), Role::Button, b"Pause").is_none());
+        assert!(fixtures::find(view.tree(), Role::Paragraph, b"Sending resumes this chat.").is_none());
+    }
+}
+fn answered_pause(resume: bool, answer: c::Answer) -> temper_client_domain::Domain {
+    let mut root = pause_root(resume, true, true);
+    let mut out = skein_lib::Queue::uncapped();
+    chat_event(
+        &mut root,
+        temper_client_domain::Event::Act {
+            action: temper_client_domain::Action::Pages(if resume {
+                temper_client_domain::pages::Act::Resume
+            } else {
+                temper_client_domain::pages::Act::Stop
+            }),
+        },
+        &mut out,
+    );
+    chat_event(&mut root, temper_client_domain::Event::Client { event: jig_client::Event::Stored }, &mut out);
+    let mut attempt = None;
+    for request in &out {
+        if let temper_client_domain::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt: token, .. } },
+        } = request
+        {
+            attempt = Some(*token);
+        }
+    }
+    let attempt = attempt.expect("sent act");
+    chat_event(
+        &mut root,
+        temper_client_domain::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Answer {
+                    attempt,
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    answer: Some(jig_client::Answered::Jig(answer)),
+                    why: None,
+                },
+            },
+        },
+        &mut out,
+    );
+    root
+}
+#[test]
+fn an_accepted_pause_or_resume_says_no_applied() {
+    for resume in [false, true] {
+        let root = answered_pause(
+            resume,
+            c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Said { task: TASK, message: MESSAGE })),
+        );
+        for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+            assert!(skein_lib::bytes::find(&fixtures::text(view.tree()), b"Applied").is_none());
+        }
+    }
+}
+#[test]
+fn a_refused_resume_says_why() {
+    let root = answered_pause(true, c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None });
+    for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+        assert!(skein_lib::bytes::find(&fixtures::text(view.tree()), b"not offered").is_some());
     }
 }
