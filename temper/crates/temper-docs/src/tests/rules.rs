@@ -85,6 +85,8 @@ fn task_help_says_what_taken_by_and_waiting_on_print() {
         "Once an answer has ended the task, `answered by:` takes its place.",
         "A closing person task with no holder prints neither line.",
         "For a held task that awaits nothing else, `waiting on:` prints `held`.",
+        "When no account serves its next run, `next run:` stands alone above the lines that say what to do, and `waiting on:` prints `an account`.",
+        "`task amend`'s line is its call alone; `--json` carries the bounds it is offered within.",
     ] {
         assert!(text.contains(instruction), "task help must explain: {instruction}");
     }
