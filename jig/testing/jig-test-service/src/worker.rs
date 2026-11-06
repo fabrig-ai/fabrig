@@ -12,7 +12,7 @@ use smith_host_domain as smith;
 use smith_host_protocol as host;
 
 /// The worker's kernel handoff budget, shared by its IO and root closure.
-const KERNEL_HANDOFF_ENTRIES: u32 = 2_106;
+const KERNEL_HANDOFF_ENTRIES: u32 = 2_108;
 
 /// Complete the worker's back-and-forth hand-offs across payload translation
 /// before the next entrance (hosts.md, 6.8; service.md, 6).
@@ -31,6 +31,7 @@ pub struct Worker {
     env: Env<root::Limits>,
     agent: Agent,
     sources: crate::program_sources::Component,
+    source_files: crate::program_sources::FileStage,
     source_events: Queue<jig_domain_host::Event>,
     link: link::Component,
     link_out: Queue<link::Request>,
@@ -111,13 +112,9 @@ impl Worker {
             root_steps: 0,
             admission_waits: 0,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: root_limits },
-            agent: Agent {
-                endpoints: agent.endpoints.clone(),
-                limits: agent.limits,
-                bounds: agent.bounds.clone(),
-                host_limits: agent.host_limits,
-            },
+            agent: agent_values(agent),
             sources: crate::program_sources::Component::new(limits.detail_bytes),
+            source_files: crate::program_sources::FileStage::new(prefix),
             source_events: Queue::uncapped(),
             link,
             link_out: Queue::uncapped(),
@@ -373,8 +370,16 @@ impl Worker {
                         self.next = self.next.checked_add(1).expect("source owner sequence");
                         assert!(self.next < (1_u64 << 48_u32), "worker owner range");
                         let root = self.directory.expect("worker root");
-                        let settled =
-                            self.sources.start(owner, io_owner, name, operation, root, deadline, &mut self.io);
+                        let settled = self.sources.start(
+                            owner,
+                            io_owner,
+                            name,
+                            operation,
+                            root,
+                            deadline,
+                            &mut self.io,
+                            self.source_files.requests(),
+                        );
                         self.answered(settled);
                     }
                     root::Request::SourceFault => self.link_down(self.env.now, link::Event::SourceFault),
@@ -566,6 +571,8 @@ impl Worker {
         }
         let settled = self.sources.fire(now, &mut self.io);
         self.answered(settled);
+        let settled = self.source_files.step(now, &mut self.sources, &mut self.io, &mut self.submitted);
+        self.answered(settled);
         for _ in 0..self.source_events.len() {
             let event = self.source_events.pop().expect("source terminal");
             if self.aborted.is_none() {
@@ -615,6 +622,18 @@ impl Worker {
         if self.aborted.is_none() && self.room() && self.root.sources_due(now) {
             self.step(root::Event::Checks);
         }
+        self.reclaim_processes();
+        for agent in &agents {
+            if let Some(process) = self.processes.get_mut(agent) {
+                while let Some(request) = process.next_channel_down() {
+                    process.channel_down(request, &mut self.io);
+                }
+            }
+        }
+        self.retired.clear();
+        self.root.reclaim();
+    }
+    fn reclaim_processes(&mut self) {
         for index in 0..self.retired.len() {
             let agent = *self.retired.get(index).expect("retired agent");
             drop(self.processes.remove(&agent));
@@ -637,22 +656,14 @@ impl Worker {
                 let _entity = self.entities.remove(owner);
             }
         }
-        for agent in &agents {
-            if let Some(process) = self.processes.get_mut(agent) {
-                while let Some(request) = process.next_channel_down() {
-                    process.channel_down(request, &mut self.io);
-                }
-            }
-        }
-        self.retired.clear();
-        self.root.reclaim();
     }
     pub(super) fn next_deadline(&self) -> Option<Time> {
         if !self.started || self.aborted.is_some() {
-            return None;
+            return self.source_files.next_deadline();
         }
         let mut next = [
             self.sources.next_deadline(),
+            self.source_files.next_deadline(),
             self.root.next_deadline(),
             self.link.next_deadline(),
             self.values.next_expiry(),
@@ -679,6 +690,7 @@ impl Worker {
             || !self.process_events.is_empty()
             || !self.source_events.is_empty()
             || !self.submitted.is_empty()
+            || self.source_files.work_pending(now)
             || (self.aborted.is_none() && self.root.work_pending())
             || match self.next_deadline() {
                 Some(at) => at <= now,
@@ -686,7 +698,11 @@ impl Worker {
             }
     }
     pub(super) fn closed(&self) -> bool {
-        self.closed && self.sources.settled() && self.processes.is_empty() && self.io.is_empty()
+        self.closed
+            && self.sources.settled()
+            && self.source_files.settled()
+            && self.processes.is_empty()
+            && self.io.is_empty()
     }
     pub(super) fn is_empty(&self) -> bool {
         self.closed() && self.directory.is_none() && self.submitted.is_empty()
@@ -696,6 +712,9 @@ impl Worker {
             && self.root_close.is_none()
             && let Some(fd) = self.directory
         {
+            if let Some(parent) = self.sources.take_parent() {
+                self.source_files.close_parent(parent);
+            }
             self.root_close = Some(Token::new(self.prefix.checked_add(1).expect("root close")));
             self.submitted.push(io::kernel::Submit {
                 op: Token::new(self.prefix.checked_add(1).expect("root close")),
@@ -703,14 +722,18 @@ impl Worker {
             });
         }
     }
-    pub(super) fn root_complete(&mut self, complete: &io::kernel::Complete) -> bool {
+    pub(super) fn root_complete(&mut self, complete: io::kernel::Complete) -> Result<(), io::kernel::Complete> {
+        let complete = match self.source_files.complete(complete) {
+            Ok(()) => return Ok(()),
+            Err(complete) => complete,
+        };
         if complete.op == Token::new(self.prefix.checked_add(1).expect("root close")) {
             assert!(self.root_close.is_some(), "the worker closes its own descriptor");
             self.directory = None;
             self.root_close = None;
-            true
+            Ok(())
         } else {
-            false
+            Err(complete)
         }
     }
 }
@@ -753,6 +776,15 @@ fn owner_of(event: &mut io::Event, new: Token) {
         | io::Event::Window { .. }
         | io::Event::Resized
         | io::Event::Shutdown { .. } => {}
+    }
+}
+
+fn agent_values(agent: &Agent) -> Agent {
+    Agent {
+        endpoints: agent.endpoints.clone(),
+        limits: agent.limits,
+        bounds: agent.bounds.clone(),
+        host_limits: agent.host_limits,
     }
 }
 

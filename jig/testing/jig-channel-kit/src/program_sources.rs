@@ -256,7 +256,7 @@ fn run_inner(
     }
     let mut files = skein_fake_machine::Machine::new();
     let base = files.lay(&items);
-    let root = files.open(base, b".", How::Directory).expect("private worker root");
+    let root = (!configured).then(|| files.open(base, b".", How::Directory).expect("private worker root"));
     let shared = Rc::new(RefCell::new(Run::default()));
     let login_driver = login_then_check.then(|| Rc::new(Cell::new(LoginPhase::Idle)));
     let login_root = login_then_check.then(|| files.open(base, b".", How::Directory).expect("login launcher root"));
@@ -290,10 +290,7 @@ fn run_inner(
         vec![skein_world::StartupRoot { name: b"state".as_slice().into(), path: b"state".as_slice().into() }],
         processes::engine,
     );
-    world.spawn_root(
-        skein_sim::Handle::new(root.raw()),
-        if configured { processes::worker_programs } else { processes::worker },
-    );
+    start_worker(&mut world, root);
     if let (Some(state), Some(root)) = (login_driver, login_root) {
         world.spawn_root(skein_sim::Handle::new(root.raw()), |root| Proc::Auth(Box::new(Login::new(root, state))));
     }
@@ -463,5 +460,19 @@ impl Host for Login {
     }
     fn operations(&self) -> u32 {
         io::operations(&self.env.limits).expect("login launcher io").checked_add(1).expect("root close operation")
+    }
+}
+
+fn start_worker(world: &mut skein_world::World<Proc, Judge, Files>, root: Option<Opened>) {
+    if let Some(root) = root {
+        world.spawn_root(skein_sim::Handle::new(root.raw()), processes::worker);
+    } else {
+        world.spawn_restartable(
+            vec![
+                skein_world::StartupRoot { name: b"worker".as_slice().into(), path: b".".as_slice().into() },
+                skein_world::StartupRoot { name: b"parent".as_slice().into(), path: b"private".as_slice().into() },
+            ],
+            processes::worker_programs,
+        );
     }
 }

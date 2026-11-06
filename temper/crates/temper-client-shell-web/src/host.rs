@@ -14,6 +14,7 @@ use temper_client_view as view;
 
 /// One report of a turn, as the shell gives it to the host (client/journeys.md, 2).
 pub enum Report {
+    Copied { token: u32, written: root::copy::Written },
     Start,
     Due,
     Act { node: NodeId, act: Act },
@@ -25,6 +26,7 @@ pub enum Report {
 /// What the host asks after one report.
 #[derive(Debug, Default)]
 pub struct Duties {
+    pub copy: Option<(u32, Box<[u8]>)>,
     pub asked: Vec<Asked>,
     pub writes: u32,
     pub navigate: Option<Box<[u8]>>,
@@ -55,6 +57,7 @@ pub struct Host {
     navigate: Option<Box<[u8]>>,
     replace: Option<Box<[u8]>>,
     show: Option<(Box<[u8]>, bool)>,
+    copy: Option<(u32, Box<[u8]>)>,
 }
 impl Host {
     #[must_use]
@@ -77,6 +80,7 @@ impl Host {
             tickets: BTreeMap::new(),
             next: 0,
             show: None,
+            copy: None,
             navigate: None,
             replace: None,
         }
@@ -132,6 +136,7 @@ impl Host {
     }
     pub fn report(&mut self, report: Report) -> Duties {
         match report {
+            Report::Copied { token, written } => self.event(Event::Copied { token, written }),
             Report::Start => {}
             Report::Due => self.due(),
             Report::Act { node, act } => self.act(node, act),
@@ -140,7 +145,14 @@ impl Host {
             Report::Carried { reports, writes } => self.carried(reports, writes),
         }
         let (asked, writes) = self.duties();
-        Duties { asked, writes, navigate: self.navigate.take(), replace: self.replace.take(), show: self.show.take() }
+        Duties {
+            asked,
+            writes,
+            copy: self.copy.take(),
+            navigate: self.navigate.take(),
+            replace: self.replace.take(),
+            show: self.show.take(),
+        }
     }
     pub fn draw(&mut self, page: &mut Page<'_>, ops: &mut Vec<skein_ui_web::page::Op>) {
         page.apply(&self.patches(), ops);
@@ -231,6 +243,7 @@ impl Host {
         let mut writes = 0_u32;
         while let Some(request) = self.out.pop() {
             match request {
+                Request::Copy { token, words } => self.copy = Some((token, words)),
                 Request::Client { request } => {
                     if matches!(request, jig_client::Request::Save { .. } | jig_client::Request::Erase { .. }) {
                         writes = writes.checked_add(1).expect("bounded client write batches");

@@ -1,4 +1,5 @@
 mod bridge;
+mod clipboard;
 mod fixtures;
 mod log;
 mod mapping;

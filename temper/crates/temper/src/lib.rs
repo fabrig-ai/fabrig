@@ -61,6 +61,7 @@ pub mod help;
 mod host;
 mod init;
 pub mod open;
+mod printed;
 mod program_login;
 mod restart_fault;
 mod setup;
@@ -491,14 +492,20 @@ fn prepare_with_limits(
         forges,
         Some(&checked),
         if under_box { Some(limits.line_bytes) } else { None },
-        std::env::current_exe()
-            .ok()
-            .and_then(|binary| program_login::line(directories, &binary))
-            .map(|line| line.into_bytes().into_boxed_slice()),
+        program_login::line(
+            directories,
+            &printed::running_word(&skein_shell::environment()),
+            skein_shell::environment()
+                .iter()
+                .find(|(name, _)| name.as_ref() == b"HOME")
+                .map(|(_, value)| value.as_ref()),
+        )
+        .map(|line| line.into_bytes().into_boxed_slice()),
         given,
         directories.program_environment(
             &skein_shell::environment(),
             std::env::current_dir().map_err(|why| why.to_string())?.as_os_str().as_bytes(),
+            &printed::running_word(&skein_shell::environment()),
         ),
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
@@ -510,21 +517,14 @@ fn prepare_with_limits(
     }
     service.configure_forge_runtime(github, roots);
     service.configure_google_endpoints(google);
-    if let Some(agent) = &agent
-        && let Some(program) = agent.programs.first()
-    {
-        if agent::launcher(path(&program.directory)).as_deref() == Some(path(&program.path)) {
-            claude_code::place(path(&program.path).parent().expect("launcher parent"), path(&directories.cache))
-                .map_err(|why| format!("programs.claude_code: {why}"))?;
-        }
-        // Source commands use the agent's explicit command environment.
-        let environment = agent::configuration(path(&named.worker.as_ref().expect("local agent checked").agent))?
-            .service
-            .environment
-            .command_entries();
-        let resources = service::program_sources::configured(program, environment)
-            .ok_or("workers[0].agent.configuration: program source resources exceed their bounds")?;
-        service.configure_program_sources(resources).map_err(|_| "worker refused program source resources")?;
+    if let Some(agent) = &agent {
+        configure_sources(
+            &mut service,
+            agent,
+            path(&named.worker.as_ref().expect("local agent checked").agent),
+            path(&directories.cache),
+            user,
+        )?;
     }
     let root = skein_shell::make_root(path(&named.deployment), 0o700)
         .map_err(|errno| format!("engine.deployment.directory: errno {errno}"))?;
@@ -535,6 +535,29 @@ fn prepare_with_limits(
     }
     Ok((service, named.deployment, limits.line_bytes))
 }
+fn configure_sources(
+    service: &mut service::Service,
+    agent: &service::settings::Agent,
+    configuration: &std::path::Path,
+    cache: &std::path::Path,
+    user: u32,
+) -> Result<(), String> {
+    if let Some(program) = agent.programs.first() {
+        if agent::launcher(path(&program.directory)).as_deref() == Some(path(&program.path)) {
+            claude_code::place(path(&program.path).parent().expect("launcher parent"), cache)
+                .map_err(|why| format!("programs.claude_code: {why}"))?;
+        }
+        // Source commands use the agent's explicit command environment.
+        let environment = agent::configuration(configuration)?.service.environment.command_entries();
+        let parent =
+            skein_shell::open_root(path(&program.directory).parent().unwrap_or(std::path::Path::new("/"))).ok();
+        let resources = service::program_sources::configured(program, environment, user, parent)
+            .ok_or("workers[0].agent.configuration: program source resources exceed their bounds")?;
+        service.configure_program_sources(resources).map_err(|_| "worker refused program source resources")?;
+    }
+    Ok(())
+}
+
 fn close(owned: Vec<Fd>) {
     for fd in owned {
         skein_shell::close_startup_fd(fd);
