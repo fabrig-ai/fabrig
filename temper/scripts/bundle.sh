@@ -37,6 +37,8 @@ if [ "$playground" = false ]; then
     "$target/debug/skein-ui-bundle" \
         --module "$target/wasm32-unknown-unknown/$profile/temper_client_shell_web.wasm" \
         --name temper_client_shell_web --prefix /bundle/ \
+        --title temper --placeholder "$shell/loading.html" \
+        --placeholder-stylesheet "$shell/loading.css" \
         --stylesheet "$shell/temper.css" \
         --stylesheet "$shell/task-pages.css" \
         --files "$shell/files" \

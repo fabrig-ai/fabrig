@@ -175,3 +175,236 @@ The host had 16 logical CPUs. At command start, the 1/5/15-minute load
 averages were 43.49 / 24.28 / 17.73. These figures describe a loaded run;
 no idle-machine normalization is applied. The builder and retained raw logs
 are named in the task report.
+
+## After
+
+### A person's first paint
+
+| Visit | Before: ms / response bytes | After: ms / response bytes | First paint after |
+|---|---:|---:|---|
+| Fresh 1 | 1,496 / 329,977 | 60.0 / 4,441 | Paper alone |
+| Fresh 2 | 1,476 / 329,977 | 60.0 / 7,044 | Paper alone |
+| Fresh 3 | not measured | 72.0 / 7,608 | Paper alone |
+| Cached return | 292 / 479 | 76.0 / 479 | Paper alone |
+
+The paper is deliberately blank for the placeholder's 250 ms CSS delay.
+Before, it was `rgb(252, 251, 248)` until the client; after, it is
+`rgb(247, 247, 245)` until the mark and progress appear. The first contentful
+paint is now 304–332 ms, against 15,192–15,280 ms before. A cached return
+shows paper and then the client: every sampled mark has opacity zero until
+handover, and the placeholder is made inert and removed without appearing.
+
+### Waiting at 2 Mb/s
+
+| Moment | Fresh 1: ms / bytes | Fresh 2: ms / bytes | Fresh 3: ms / bytes | Cached after fresh 1: ms / bytes |
+|---|---:|---:|---:|---:|
+| First paint | 60.0 / 4,441 | 60.0 / 7,044 | 72.0 / 7,608 | 76.0 / 479 |
+| First contentful paint | 332.0 / 66,176 | 312.0 / 66,176 | 304.0 / 61,666 | 216.0 / 1,470 |
+| First readable text (poll) | 267.5 / 48,176 | 247.0 / 49,676 | 213.5 / 39,166 | 171.1 / 479 |
+| First child of `#app` | 5,099.1 / 1,246,959 | 5,100.9 / 1,246,959 | 5,093.7 / 1,246,959 | 170.5 / 479 |
+
+The same `driver/load.py`, Chromium, 1440 × 900 viewport, 250,000 bytes/s
+network emulation, deployment and unaltered policy as **Method** were used.
+The driver additionally records the placeholder's computed opacity and title;
+the metrics and byte accounting are unchanged. All four marks were captured
+in this run, including first-contentful-paint. The readable-text proxy can
+see a line before its CSS animation makes it visible; use contentful paint
+for the first visible content. The first node remains `header.temper-banner`.
+The page's title is `temper` throughout loading. No runtime exception or
+security log entry occurred in any of the three fresh visits or the cached
+return. Earlier exploratory captures preceded the spacing correction and
+are excluded from these figures.
+
+The module's body is 1,182,470 compressed bytes. Each fresh CDP completion
+is 1,183,044 encoded bytes: the form plus 574 response-header bytes. The
+cached module's encoded length is zero. The cached navigation receives
+1,470 bytes in total. The loader's displayed total is **1.2 MB**, from
+1,234,535 compressed bytes for the module, glue and three client sheets;
+it excludes boot, the placeholder and fonts. Its fraction counts decoded
+bytes, as the contract requires.
+
+### Release bundle sizes
+
+The release `web` module and bundler were built by **Method**. The bundler
+also received `--title temper`, `--placeholder` with the shell's
+`loading.html`, and `--placeholder-stylesheet` with its `loading.css`.
+The digest is `2e04861d1feb95a2`. The comparison column again uses
+`gzip -9 -c FILE`, including its filename header. The last column is the
+bundler's deterministic form actually served; a dash means no stored form.
+
+| File | Raw bytes | `gzip -9` bytes | Stored `.gz` bytes |
+|---|---:|---:|---:|
+| `boot.js` | 2,831 | 1,478 | 1,470 |
+| `files/brand.svg` | 231 | 194 | 184 |
+| `files/chat.svg` | 159 | 163 | 154 |
+| `files/doc.svg` | 183 | 175 | 167 |
+| `files/fonts/LICENSE-ibm-plex.txt` | 4,348 | 1,958 | — |
+| `files/fonts/LICENSE.txt` | 4,764 | 1,534 | — |
+| `files/fonts/README.txt` | 1,618 | 765 | — |
+| `files/fonts/dejavu-sans-700-latin.woff2` | 25,432 | 25,483 | — |
+| `files/fonts/ibm-plex-mono-latin-400-normal.woff2` | 14,812 | 14,872 | — |
+| `files/fonts/ibm-plex-mono-latin-500-normal.woff2` | 14,988 | 15,048 | — |
+| `files/fonts/ibm-plex-sans-latin-400-normal.woff2` | 19,156 | 19,216 | — |
+| `files/fonts/ibm-plex-sans-latin-500-normal.woff2` | 20,064 | 20,124 | — |
+| `files/fonts/ibm-plex-sans-latin-600-normal.woff2` | 20,356 | 20,416 | — |
+| `files/menu.svg` | 199 | 185 | 176 |
+| `files/pen.svg` | 156 | 161 | 153 |
+| `files/robots.txt` | 26 | 57 | — |
+| `files/send.svg` | 191 | 169 | 160 |
+| `files/split.svg` | 185 | 174 | 164 |
+| `loading.css` | 1,844 | 782 | 770 |
+| `skein-ui.css` | 6,372 | 1,242 | 1,229 |
+| `task-pages.css` | 15,658 | 3,817 | 3,808 |
+| `temper.css` | 249,808 | 37,724 | 37,736 |
+| `temper_client_shell_web.js` | 55,344 | 9,184 | 9,292 |
+| `temper_client_shell_web_bg.wasm` | 3,297,970 | 1,183,313 | 1,182,470 |
+| `index.html (bundle root)` | 2,539 | 1,311 | — |
+| **Total: 25 plain files** | **3,759,234** | **1,359,545** | **1,237,933** |
+
+Before's 24 plain files totalled 3,746,557 raw and 1,353,371 `gzip -9`
+bytes. After's 25 plain files total 3,759,234 raw and 1,359,545 `gzip -9`
+bytes. The directory, counting the 14 stored forms too, is 39 files and
+4,997,167 bytes. The markup and placeholder stylesheet together are
+3,969 raw bytes, within 6 KiB; the generated page and that stylesheet
+are 4,383 raw bytes. The page is served without compression.
+
+A separate `TEMPER_BUNDLE=embed` release build produces a **68,174,944-byte**
+native binary. Copied alone into a directory, it serves the same placeholder,
+title, stylesheet and loader through both `temper serve` and normal
+`temper box`, with no bundle directory configured. The server adds its
+existing empty `temper-sign-in` metadata to the generated head.
+
+Both module answers were captured with `curl -D`: plain is 3,297,970 bytes;
+`Accept-Encoding: gzip` is exactly the stored 1,182,470-byte form, and
+inflating it equals the plain body byte for byte. Both retain the immutable
+cache policy, all security policy fields and `Vary: Accept-Encoding`; only
+the compressed answer has `Content-Encoding: gzip`. Header order follows
+`notes/contracts.md`, C4. The page is uncompressed under the same policy.
+
+### Render check
+
+`driver/render.py` extracts the four request pages and stylesheet from
+`0c1b78f3e1` without landing them. It captures each element's complete
+computed style and box, then PNGs, at 1440, 1000 and 420 × 900. CDP sets
+the viewport, including 420. `driver/compare.py` retains every difference;
+none is hidden by a tolerance or ignored property. Screenshots and raw
+snapshots are retained outside the checkout, as the task report specifies.
+
+The real release page reaches downloading and its estimate, the eight-second
+note (at 0.5 Mb/s, since the release load completes inside eight seconds
+at 2 Mb/s), waiting after 15 seconds with no byte, every failure, scripts
+off, retry, handover and reduced motion. A forwarding proxy preserves the
+server's policy and compressed bytes while pausing or closing a module
+answer. Silent answers close before any client bytes; 404 uses a bundle
+copy with both the module and its form removed. CDP deletes WebAssembly
+before page scripts, or disables scripts, or requests reduced motion.
+`Starting…` uses a throwaway glue copy whose `init` waits after consuming
+the real answer; failed init consumes it and throws. These deliberately
+held states make no production change. The reference failure and the real
+failure are also captured hovered and keyboard-focused, after the retry
+button's intro animation.
+
+The one visual correction to the requested stylesheet is
+`letter-spacing: normal` on `#boot`: the client stylesheet otherwise
+changes it to `-0.18px` during download. With this reset, the mark, bar,
+fixed-word lines and button have the requested geometry. Live figures,
+estimates and the bar's fill differ because the release is smaller and
+compression is served. Computed styles also retain the client's 17 unused
+custom properties, light color scheme and box-sizing reset; the covered
+body's typography/background differ and the fixed container's computed
+content width follows box sizing, while its physical box is unchanged.
+These do not change the placeholder's drawing. The request pages' titles
+name their examples; real loading tabs say `temper`.
+
+### Server start
+
+The same dev native server and startup/memory method as **Method** are
+used. The start occurred during the separate release build; it is a loaded
+observation, without normalization.
+
+| Measurement | Before | After |
+|---|---:|---:|
+| Launch to `listening clients` | 370.4 ms | 781.2 ms |
+| `VmHWM` at listening | 61,860 KiB | 63,380 KiB |
+| `VmHWM` after browser loads, before stop | 65,468 KiB | 66,660 KiB |
+| Clean stop exit status | 0 | 0 |
+
+### Browser tier
+
+These are retained observations from the earlier run. The user’s correction
+on 2026-11-06 replaces browser-tier acceptance with focused and fuzzy checks
+during plan execution. Neither tree’s browser tier, nor an isolated browser
+story, is rerun here; after-landing owns that observation and any repair.
+
+| Run | Test CPU seconds | Test wall seconds | CPU budget | Result |
+|---|---:|---:|---:|---|
+| `browser-trim` baseline, lower reported figure | 58 | unknown | 85 | Within budget |
+| `browser-trim` baseline, upper reported figure | 79 | unknown | 85 | Within budget |
+| Before | 61.048855 | 59.021640 | 85 | 13/13 passed |
+| After, full temper tier | 83.069911 | 50.645617 | 85 | 12 passed, 1 failed; CPU within budget |
+| After, failed public test alone | 5.570423 | 11.866217 | 85 | Same test failed alone; CPU within budget |
+| After, skein tier | unknown | unknown | 145 | Unobserved; after-landing owns the run |
+
+The same CPU collector and tier command as **Method** were used, with a
+fresh output directory per invocation. The full run used 60.563673 user
+and 22.506238 system CPU seconds. There were zero starved, leaked,
+incomplete or unobserved selected tests in either temper invocation.
+The full tier has only 1.930089 CPU seconds of headroom; it is **red for
+its assertion**, despite staying below the CPU limit.
+
+`browser_public::a_visitor_reads_a_public_project_and_loses_it_when_made_private`
+fails waiting for the shell command that runs
+`temper ctl ... project amend Demo --visibility public --key public`
+to exit. The page has reached New chat/Ready and the placeholder is gone.
+The full run expires the command's ten-second deadline; the one allowed
+isolated run expires the same deadline at the same step. Its thread uses
+about 109 ms CPU and waits about 17.6 ms runnable, so this is not a
+wall-hard-limit or starvation warning. Neither the public browser story
+nor the ctl path is changed by this task. The revised acceptance leaves this
+red to after-landing; the skein tier remains unobserved.
+
+The tier builds and loads the compressed ordinary bundle under temper's
+policy. Its separate static playground keeps `--gzip off` and its own page,
+as the plan's contract requires. The script path was separately built with
+`bundle.sh --loopback`; `curl` verified title, markup, stylesheet and loader
+through both serve and normal box. No harness wait or browser-story change
+was made.
+
+### Focused diagnosis of the ctl wait
+
+The loader's module, glue and stylesheet requests are outside the `/jig/`
+API mount. `Clients::server_requests` sends them to `serve_call`, where a
+gzip answer reads the stored form; no compression runs per request.
+`serve_event` drops each reply and calls `Server::done` at its terminal
+event. The loader consumes both response branches through completion.
+The existing admission test passes: a full API mapping leaves the next
+body unread, forgets a closed waiter, then admits another after a slot
+closes. The service-level test of that path also passes.
+
+Ctl's visibility result has a second wait: `visibility_complete` holds
+the completed act until its `Me` document contains the public identifier.
+The focused visibility tests cover that disagreement, agreement and
+replayed answer; they pass. Focused bundle tests also pass, including
+gzip bytes, response policy and an answer spanning several sends. These
+checks do not reproduce the browser story's command deadline.
+
+A remaining hypothesis is connection pressure before mounted admission:
+`temper/crates/temper-service/src/limits.rs` gives small deployments eight accepted
+connections, shared by static replies and API traffic. The shared server
+(`jig/crates/jig-protocol-engine-clients-http/src/server.rs`) rejects further sockets
+when full and retains a reusable connection until its next request or
+30-second stall deadline. The new parallel asset requests in two browser
+profiles could retain more idle connections than the old page. Six mounted
+calls are a separate bound; freeing an API call does not free its reusable
+TCP connection. This is a code-path hypothesis, not an observed cause.
+After-landing's repair should distinguish rejected ctl sockets from a
+queued API head and from a completed act awaiting `Me`; no limit, timeout,
+assertion or product behavior is changed on this evidence alone.
+
+The completion checks select 771 focused tests across the shell, bundle,
+terminal, journeys, gallery and direct dependent packages, all passing.
+The fuzzy profile selects one randomized terminal test, passing; the other
+named packages have no selected fuzzy tests. The diagnostic runs select
+one admission test, one service-level queue test and 20 bundle/visibility
+tests, all passing. These counts exclude the retained browser observations
+above. No new test or production-code change follows from the diagnosis.

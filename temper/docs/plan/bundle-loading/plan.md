@@ -42,4 +42,27 @@ A format or protocol change needs no `Question:` (the request). Made here:
 
 ## Measured
 
-`before` and `page-temper` write this: a release bundle's sizes, raw and gzipped, and how, are in `figures.md` until then.
+The release `web` bundle has 25 plain files: 3,759,234 raw bytes and
+1,359,545 bytes when each is measured with `gzip -9 -c`, including its
+filename header. Before, 24 files totalled 3,746,557 and 1,353,371 bytes.
+The module is 3,297,970 raw bytes; its served deterministic gzip form is
+1,182,470 bytes. Including all 14 stored forms, the directory is 39 files
+and 4,997,167 bytes. The placeholder's markup and stylesheet cost 3,969
+raw bytes. The embedded release binary is 68,174,944 bytes and serves the
+page with no bundle directory configured.
+
+At 2 Mb/s, three fresh release visits paint the paper in 60–72 ms and
+show content in 304–332 ms; the client's first node arrives in
+5,093.7–5,100.9 ms. Before, two visits painted blank paper in 1,476–1,496 ms
+and first showed content in 15,192–15,280 ms, with the first node in
+15,097.9–15,180.5 ms. A cached return paints in 76 ms and reaches the client
+in 170.5 ms with no visible placeholder. These are Chromium/CDP measurements
+on the same driver, viewport, throttle and unchanged server policy as
+`figures.md`, **Method**; its **After** keeps every size, byte count,
+startup measurement, render comparison and tier figure.
+
+The user's 2026-11-06 correction limits plan execution to focused and fuzzy
+checks. The browser figures in `figures.md` remain the earlier observations;
+the public visibility command's suspected red and the unobserved skein
+browser tier belong to after-landing's run and repair. Its focused diagnosis
+is recorded beside those figures.
