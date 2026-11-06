@@ -143,3 +143,14 @@ The read goes, once per page, when `pages.address()` names a `Way::Program` (`Ad
 ## Report
 
 Each acceptance with its test or its evidence. What the real command printed, up to the prompt, paths generalised. Whether any journey went stale, and any test whose expected words moved, by name. Whether the fake box's walk sees the long form, and that you left `accounts/words.rs` plain.
+
+## Rebase (2026-11-06, step merge, foreman ui-walk-2/login-command/foreman-1)
+
+combine both status-entry removals when rebasing onto the integration tip
+The merge conflicts only in `temper/docs/design/client/README.status.md`.
+Commit `0a153c35ab` removes the program-environment gap; integration commit `cde18effbb` removes the adjacent “A press stays under the finger” gap.
+Resolve by leaving both entries absent. Preserve all other incoming status changes; do not take either whole file wholesale.
+Main commit `1c32704c0b`, brought into integration by `3e14c14c68`, also adds a now-stale **Not yet** paragraph beginning `3.5, *Claude*, 5.5: the command is the same words whatever the box's`.
+Remove that paragraph too: it records the custom-directory command failure this task implements and verifies.
+The CSS auto-merged successfully; the refusal reports no code conflict or test failure.
+Run the required citations check after resolving the status file.
