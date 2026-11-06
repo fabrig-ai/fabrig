@@ -1,0 +1,5 @@
+draft = "bundle-loading"
+repo = "fabrig"
+sources = ["temper/docs/plan/bundle-loading/inputs/request.md", "temper/docs/design/draft/bundle-loading.md", "temper/docs/design/draft/bundle-loading.status.md", "temper/docs/design/draft/look-requests.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
