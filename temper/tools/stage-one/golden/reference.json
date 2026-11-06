@@ -110,16 +110,6 @@
       "test": "equal"
     },
     {
-      "id": "coordinator.modify",
-      "row": "the coordinator's charter",
-      "kind": "setting",
-      "subject": {
-        "role": "coordinator"
-      },
-      "member": "modify",
-      "test": "equal"
-    },
-    {
       "id": "coordinator.shell",
       "row": "the coordinator's charter",
       "kind": "setting",
@@ -177,7 +167,21 @@
         "role": "coordinator"
       },
       "member": "documents",
-      "test": "contains"
+      "test": "contains",
+      "value": [
+        {
+          "forge": "127.0.0.1:3000",
+          "repository": "acme/widget",
+          "branch": "main",
+          "path": "AGENTS.md"
+        },
+        {
+          "forge": "127.0.0.1:3000",
+          "repository": "acme/widget",
+          "branch": "main",
+          "path": "skein/docs/foundation/programming-model.md"
+        }
+      ]
     },
     {
       "id": "designer.instructions",
@@ -1039,7 +1043,7 @@
       "row": "the profile's limits",
       "kind": "box",
       "confirm": "document",
-      "prerequisite": "`docs/examples/reference/limits.json`'s and `agent.json`'s overrides in the box's document"
+      "prerequisite": "`docs/examples/reference/limits.json`'s overrides in the box's document"
     },
     {
       "id": "box.questions",

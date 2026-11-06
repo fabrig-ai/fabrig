@@ -273,7 +273,7 @@ prerequisites:
 - gpt-6.1-sol on smith's direct backend, with an OpenAI account's key, for producers, foremen and the triage
 - a real model for the configuring chat, the configuring charter's
 - the project, its repository adopted
-- `docs/examples/reference/limits.json`'s and `agent.json`'s overrides in the box's document
+- `docs/examples/reference/limits.json`'s overrides in the box's document
 - `forge.change_policy.questions` at 4
 - the project's `merge_job`, `.temper/merge`, in `application.landing`
 - the tier `goal`: workflow `tier-goal.yml`, `branch` `goal`, `span_ms` 1200000
@@ -301,8 +301,9 @@ The box already supplies the models and repository.
 List every rule id exactly once. For each rule, verdict is reaches (its role's
 runs get it from the charter's instructions or a document it names), missing,
 or elsewhere (another role's only). Give where and a quote. For the description,
-verdict is matches or differs, with differences. For restart, verdict is said
-or proposed, with a quote. Replace MODEL with your model's name and the empty
+verdict is matches or differs, with differences: it differs where it says what
+the section contradicts, or leaves out a step of the flow; a detail it leaves
+out is no difference. For restart, verdict is said or proposed, with a quote. Replace MODEL with your model's name and the empty
 strings with your findings. Answer with this JSON object only:
 
 ```json

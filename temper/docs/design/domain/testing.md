@@ -2406,7 +2406,8 @@ of one kind:
 - *a setting*, which the accepted settings hold, by one of eight
   tests: `equal` (the value, whole), `at-least` (a number no smaller),
   `bits` (each expected bit of a family mask set, others allowed),
-  `contains` (each expected element of a list present, others allowed),
+  `contains` (each expected element of a list present, a member it does
+  not name free, others allowed),
   `set` (present and not null, whatever its value), `judged` (text the
   judge reads, 6.5.4; the check only finds it set),
   `unchanged` (the stock's value, which the accepted revision leaves
@@ -2446,7 +2447,7 @@ obligations missing.
 
 | Section 14's row | Obligations |
 |---|---|
-| the coordinator's charter | setting: its instructions (`judged`); its model, `model.name`; its workspace and sub-agents, `inspect`, `modify`, `shell`, `agents`; starting fresh, `resume` false; `waiting` 0; its wake policy, `wake`, whole; its documents, `documents` (`contains`: `AGENTS.md`'s "1. In one page" and the code's rules). Box: Claude Code, the program the document's model runs on. The tools it names are the authority's families, the rules' and policy 1's rows below |
+| the coordinator's charter | setting: its instructions (`judged`); its model, `model.name`; its workspace and sub-agents, `inspect`, `shell`, `agents`, its `modify` free, since a goal's runs inspect alone whatever it says (`agent.md`, 4.3); starting fresh, `resume` false; `waiting` 0; its wake policy, `wake`, whole; its documents, `documents` (`contains`: `AGENTS.md` and the code's rules, by path, a heading free). Box: Claude Code, the program the document's model runs on. The tools it names are the authority's families, the rules' and policy 1's rows below |
 | the designer's charter | setting: its instructions (`judged`); its model, `model.name`; the workspace, delivery and sub-agents, `inspect`, `modify` and `agents` true; `documents` (`contains`: `DESIGN.md`, the design rules). Box: Claude Code, as the coordinator's |
 | the goal template for drafts | setting: `executor.charter`, `{"role": "coordinator"}`; `llm`, whole (section 4's choice); `tracked` (`at-least` 1); `contract.report` (`set`); `resources` (`contains`: *its own goal branch*) |
 | a small goal's template | setting: the stock's goal template, `unchanged` |
@@ -2468,9 +2469,8 @@ obligations missing.
 The golden's file holds each obligation with its id, its row, its kind,
 and for a setting its subject, member, test and any value of its own;
 its rows above are the design, the file their only encoding. The
-triage's charter, which the reference's table does not name, is an obligation
-through the profile (`../draft/reference-landing.md`, section 6), as
-`../protocol/configuration.md`, 13.9 makes it the reference's: its
+triage's charter's row (`../draft/reference-landing.md`, section 6;
+`../protocol/configuration.md`, 13.9) cuts into its
 instructions (`judged`), its model, and `inspect` true with `modify`,
 `shell` and `agents` false. No field of the table is a gap: the design
 carries each, as a setting or the box's. The kind
@@ -2502,8 +2502,7 @@ the forge's API as an observer, the limits against the box's document):
   account's key, for producers, foremen and the triage; a real model
   for the configuring chat;
 - **the document's members the profile sets** over `temper init`'s:
-  `docs/examples/reference/limits.json`'s and `agent.json`'s
-  overrides, and `landing.json`, the project's merge job and its two
+  `docs/examples/reference/limits.json`'s overrides, and `landing.json`, the project's merge job and its two
   tiers (13.9); a change's question bound,
   `forge.change_policy.questions`, explicitly overridden to 4 by `limits.json`;
 - **the project,** with its repository adopted, holding `AGENTS.md`,
@@ -2573,7 +2572,9 @@ one complete accepted revision, with refusal and decided-call replay cases (6.4)
     document it names: `reaches`, `missing`, or `elsewhere` (another
     role's), with the quote;
   - *the description* the agent gave back, against the reference's
-    section 1: `matches` or `differs`, with the differences;
+    section 1: `matches` or `differs`, with the differences. It differs
+    where it says what the section contradicts, or leaves out a step of
+    the flow; a detail it leaves out is no difference;
   - *what needs a restart:* whether the proposal or the chat claims to
     set what the box brings rather than saying it needs the box:
     `said` or `proposed`, with the quote.

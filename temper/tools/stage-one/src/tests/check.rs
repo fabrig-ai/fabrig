@@ -14,7 +14,7 @@ const FORGE: &str = "forge.box:3000";
 const REPOSITORY: &str = "people/kit";
 const PROJECT: u32 = 7;
 // The reference has 67 settings and 13 box obligations.
-const OBLIGATIONS: usize = 80;
+const OBLIGATIONS: usize = 79;
 
 fn box_placeholders(value: &mut Value) {
     match value {
@@ -211,7 +211,7 @@ fn a_value_changed_is_wrong() {
     assert!(!report.passed());
     assert_eq!(outcome(&report, "goal-rule.ci"), &Outcome::Wrong { found: json!(true), expected: json!(false) });
     assert!(report.text().contains("goal-rule.ci  wrong: found true, expected false\n"));
-    assert!(report.text().ends_with("failed: 1 of 80\n"));
+    assert!(report.text().ends_with("failed: 1 of 79\n"));
     assert_eq!(report.json()["verdicts"][56]["outcome"], json!({"kind":"wrong","found":true,"expected":false}));
 }
 #[test]
@@ -384,12 +384,30 @@ fn judged_text_must_be_a_nonempty_string() {
     }
 }
 #[test]
-fn contains_requires_a_list_of_whole_elements() {
+fn a_documents_heading_is_free() {
+    let report = report(&proposed(|items| {
+        for (number, path, heading) in [
+            (5, "AGENTS.md", json!(null)),
+            (5, "skein/docs/foundation/programming-model.md", json!("Any")),
+            (7, "DESIGN.md", json!(null)),
+        ] {
+            let charter = set_value(items, "charter", number);
+            let documents = charter["documents"].as_array_mut().expect("documents");
+            let document = documents.iter_mut().find(|d| d["path"] == path).expect("document");
+            document["heading"] = heading;
+        }
+    }));
+    assert_eq!(outcome(&report, "coordinator.documents"), &Outcome::Met);
+    assert_eq!(outcome(&report, "designer.documents"), &Outcome::Met);
+}
+#[test]
+fn contains_requires_a_list_holding_each_element() {
     let original = proposed(unedited);
     for found in [
         json!({}),
         json!([]),
-        json!([{"forge":FORGE,"repository":REPOSITORY,"branch":"main","path":"DESIGN.md","extra":true}]),
+        json!([{"forge":FORGE,"repository":REPOSITORY,"branch":"main","path":"OTHER.md"}]),
+        json!([{"forge":FORGE,"repository":REPOSITORY,"branch":"other","path":"DESIGN.md"}]),
     ] {
         let mut evidence = original.clone();
         set_value(&mut evidence.current.items, "charter", 7)["documents"] = found;
