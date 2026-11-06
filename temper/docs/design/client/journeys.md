@@ -667,7 +667,7 @@ over skein's harness.
     control on the live page (the fake person's n-th match, skein's
     `ui.md` 17.1) and acts on it as a person: a press, a submit, a
     toggle, or the field's value selected and the act's value typed;
-  - **a key's mark:** Alt+Shift+M;
+  - **a key's mark:** Alt+Shift+M; its two saves are three seconds apart, since a fake box's set up pauses for over a second;
   - **the end:** the still save is the new recording.
 
   A step whose event no control gives, in a still save, within 10

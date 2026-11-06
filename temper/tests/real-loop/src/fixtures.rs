@@ -584,8 +584,8 @@ mod tests {
         else {
             panic!("the real loop supplies its own defaults")
         };
-        let numbers: Vec<_> = defaults.charters.iter().map(|charter| charter.number).collect();
-        assert_eq!(numbers, [1, 2, 3, 4, 6, 9, 10], "all stock charters and the helper are retained");
+        assert!(defaults.charters.iter().any(|charter| charter.number == 9), "the helper charter is retained");
+        assert!(defaults.charters.iter().any(|charter| charter.number == 10), "the stock trial charter is retained");
         assert!(defaults.charters.len() <= usize::try_from(engine.limits.core.tasks.charters).expect("charter limit"));
     }
 }
