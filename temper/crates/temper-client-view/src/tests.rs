@@ -8,6 +8,7 @@ mod delegation;
 mod document;
 mod model_forge;
 mod new_chat;
+mod reference;
 pub use temper_fixtures::client_documents as documents;
 pub(crate) mod fixtures;
 mod forge_page;

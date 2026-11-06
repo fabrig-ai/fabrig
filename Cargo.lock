@@ -5001,6 +5001,7 @@ dependencies = [
  "skein-ui-text",
  "temper-client-domain",
  "temper-client-protocol-wire",
+ "temper-docs",
  "temper-fixtures",
 ]
 

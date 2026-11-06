@@ -1128,6 +1128,9 @@ pub const NAMES: Names<'static> = Names {
         b"temper-starter-own-title",
         b"temper-starter-own-steps",
         b"temper-starter-own-acts",
+        b"temper-doc-sub",
+        b"temper-doc-flow",
+        b"temper-doc-figures",
     ],
     regions: &[b"temper-link"],
 };
@@ -1297,6 +1300,11 @@ pub const STARTER_OWN_TEXT: Style = Style { owner: owner(), token: 449 };
 pub const STARTER_OWN_TITLE: Style = Style { owner: owner(), token: 450 };
 pub const STARTER_OWN_STEPS: Style = Style { owner: owner(), token: 451 };
 pub const STARTER_OWN_ACTS: Style = Style { owner: owner(), token: 452 };
+
+/// The stock reference beside Configure (temper/docs/design/client/README.md, 3.5).
+pub const DOC_SUB: Style = Style { owner: owner(), token: 453 };
+pub const DOC_FLOW: Style = Style { owner: owner(), token: 454 };
+pub const DOC_FIGURES: Style = Style { owner: owner(), token: 455 };
 
 #[cfg(test)]
 mod tests {

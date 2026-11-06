@@ -24,6 +24,9 @@ pub enum Word {
     ChatWrites,
     DraftName,
     DraftGroup,
+    ReferenceGroup,
+    ReferencePath,
+    ReferenceUnchanged,
     DraftChat,
     DraftSplit,
     DraftDraft,
@@ -1281,7 +1284,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Settings, Needs you and the chat document include their literal phrases (client/README.md, 3.5, 5.13).
 // The rail menu adds six literal phrases (client/README.md, 5.3).
-const PHRASES: u32 = 1770;
+const PHRASES: u32 = 1773;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1302,8 +1305,8 @@ const PHRASES: u32 = 1770;
 // Settings, Needs you and the chat document include their literal segments (client/README.md, 3.5, 5.13).
 // The agent check refusal names its charter, adding two segments.
 // The rail menu adds six literal segments (client/README.md, 5.3).
-const SEGMENTS: u32 = 3068;
-const ALL: [Word; 1171] = [
+const SEGMENTS: u32 = 3071;
+const ALL: [Word; 1174] = [
     Word::DraftsChats,
     Word::ChatsDraftLede,
     Word::ChatRowWrites,
@@ -1317,6 +1320,9 @@ const ALL: [Word; 1171] = [
     Word::ChatWrites,
     Word::DraftName,
     Word::DraftGroup,
+    Word::ReferenceGroup,
+    Word::ReferencePath,
+    Word::ReferenceUnchanged,
     Word::DraftChat,
     Word::DraftSplit,
     Word::DraftDraft,
@@ -3355,6 +3361,9 @@ impl Word {
             Self::ChatWrites => 3684,
             Self::DraftName => 3685,
             Self::DraftGroup => 3600,
+            Self::ReferenceGroup => 3698,
+            Self::ReferencePath => 3699,
+            Self::ReferenceUnchanged => 3700,
             Self::DraftChat => 3601,
             Self::DraftSplit => 3602,
             Self::DraftDraft => 3603,
@@ -4716,6 +4725,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ChatWrites => (&[b"A chat that writes ", b". Say what it should hold."], &[Name]),
         Word::DraftName => (&[b"a draft"], &[]),
         Word::DraftGroup => (&[b"The draft"], &[]),
+        Word::ReferenceGroup => (&[b"How temper builds temper, beside the chat"], &[]),
+        Word::ReferencePath => (&[b"temper\xe2\x80\x99s own way \xc2\xb7 a reference"], &[]),
+        Word::ReferenceUnchanged => (&[b"changes nothing"], &[]),
         Word::DraftChat => (&[b"Chat"], &[]),
         Word::DraftSplit => (&[b"Split"], &[]),
         Word::DraftDraft => (&[b"Draft"], &[]),
