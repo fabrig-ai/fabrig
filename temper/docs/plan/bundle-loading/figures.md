@@ -331,6 +331,11 @@ observation, without normalization.
 
 ### Browser tier
 
+These are retained observations from the earlier run. The user’s correction
+on 2026-11-06 replaces browser-tier acceptance with focused and fuzzy checks
+during plan execution. Neither tree’s browser tier, nor an isolated browser
+story, is rerun here; after-landing owns that observation and any repair.
+
 | Run | Test CPU seconds | Test wall seconds | CPU budget | Result |
 |---|---:|---:|---:|---|
 | `browser-trim` baseline, lower reported figure | 58 | unknown | 85 | Within budget |
@@ -338,7 +343,7 @@ observation, without normalization.
 | Before | 61.048855 | 59.021640 | 85 | 13/13 passed |
 | After, full temper tier | 83.069911 | 50.645617 | 85 | 12 passed, 1 failed; CPU within budget |
 | After, failed public test alone | 5.570423 | 11.866217 | 85 | Same test failed alone; CPU within budget |
-| After, skein tier | unknown | unknown | 145 | Unobserved: stopped for the repeated failure |
+| After, skein tier | unknown | unknown | 145 | Unobserved; after-landing owns the run |
 
 The same CPU collector and tier command as **Method** were used, with a
 fresh output directory per invocation. The full run used 60.563673 user
@@ -355,9 +360,8 @@ The full run expires the command's ten-second deadline; the one allowed
 isolated run expires the same deadline at the same step. Its thread uses
 about 109 ms CPU and waits about 17.6 ms runnable, so this is not a
 wall-hard-limit or starvation warning. Neither the public browser story
-nor the ctl path is changed by this task. Under the run's repeated-failure
-rule, the task stops for a scope/repair decision; **browser-tier acceptance
-is not complete**, and the skein tier has not been run.
+nor the ctl path is changed by this task. The revised acceptance leaves this
+red to after-landing; the skein tier remains unobserved.
 
 The tier builds and loads the compressed ordinary bundle under temper's
 policy. Its separate static playground keeps `--gzip off` and its own page,
@@ -365,3 +369,42 @@ as the plan's contract requires. The script path was separately built with
 `bundle.sh --loopback`; `curl` verified title, markup, stylesheet and loader
 through both serve and normal box. No harness wait or browser-story change
 was made.
+
+### Focused diagnosis of the ctl wait
+
+The loader's module, glue and stylesheet requests are outside the `/jig/`
+API mount. `Clients::server_requests` sends them to `serve_call`, where a
+gzip answer reads the stored form; no compression runs per request.
+`serve_event` drops each reply and calls `Server::done` at its terminal
+event. The loader consumes both response branches through completion.
+The existing admission test passes: a full API mapping leaves the next
+body unread, forgets a closed waiter, then admits another after a slot
+closes. The service-level test of that path also passes.
+
+Ctl's visibility result has a second wait: `visibility_complete` holds
+the completed act until its `Me` document contains the public identifier.
+The focused visibility tests cover that disagreement, agreement and
+replayed answer; they pass. Focused bundle tests also pass, including
+gzip bytes, response policy and an answer spanning several sends. These
+checks do not reproduce the browser story's command deadline.
+
+A remaining hypothesis is connection pressure before mounted admission:
+`temper/crates/temper-service/src/limits.rs` gives small deployments eight accepted
+connections, shared by static replies and API traffic. The shared server
+(`jig/crates/jig-protocol-engine-clients-http/src/server.rs`) rejects further sockets
+when full and retains a reusable connection until its next request or
+30-second stall deadline. The new parallel asset requests in two browser
+profiles could retain more idle connections than the old page. Six mounted
+calls are a separate bound; freeing an API call does not free its reusable
+TCP connection. This is a code-path hypothesis, not an observed cause.
+After-landing's repair should distinguish rejected ctl sockets from a
+queued API head and from a completed act awaiting `Me`; no limit, timeout,
+assertion or product behavior is changed on this evidence alone.
+
+The completion checks select 771 focused tests across the shell, bundle,
+terminal, journeys, gallery and direct dependent packages, all passing.
+The fuzzy profile selects one randomized terminal test, passing; the other
+named packages have no selected fuzzy tests. The diagnostic runs select
+one admission test, one service-level queue test and 20 bundle/visibility
+tests, all passing. These counts exclude the retained browser observations
+above. No new test or production-code change follows from the diagnosis.

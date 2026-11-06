@@ -60,3 +60,9 @@ in 170.5 ms with no visible placeholder. These are Chromium/CDP measurements
 on the same driver, viewport, throttle and unchanged server policy as
 `figures.md`, **Method**; its **After** keeps every size, byte count,
 startup measurement, render comparison and tier figure.
+
+The user's 2026-11-06 correction limits plan execution to focused and fuzzy
+checks. The browser figures in `figures.md` remain the earlier observations;
+the public visibility command's suspected red and the unobserved skein
+browser tier belong to after-landing's run and repair. Its focused diagnosis
+is recorded beside those figures.
