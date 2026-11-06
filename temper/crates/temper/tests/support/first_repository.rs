@@ -550,8 +550,8 @@ pub fn owned_row(read: &Value) -> &Value {
 /// The process story checks the printed API and person, and the public header
 /// files under the assigned forge directory, before the normal ctl evidence.
 #[must_use]
-pub fn live_from_hands(config: &Path, data: &Path, client: &Path, stderr: &[u8]) -> Evidence {
-    let words = std::str::from_utf8(stderr).expect("box terminal UTF-8");
+pub fn live_from_hands(config: &Path, data: &Path, client: &Path) -> Evidence {
+    let words = fs::read_to_string(data.join("box/logs/box.log")).expect("box log");
     let number = owned_forge(client)["number"].as_u64().expect("forge number");
     assert!(
         words.lines().any(|line| line.ends_with(&format!("Forge {number} (Forgejo): started"))),
