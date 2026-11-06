@@ -161,7 +161,7 @@ pub(crate) enum State {
     /// The parent's live claim, on a worker or adrift, with its workstream to
     /// be placed again if its worker refuses it as busy (empty when
     /// adopted).
-    Claimed { to: ReplyTo, at: Where, workstream: u64, kinds: Kinds, version: crate::Version },
+    Claimed { claiming: Claiming, at: Where },
     /// Cancelled by the parent: its answer still ends the call.
     Cancelled { to: ReplyTo, at: Where },
     /// Restored across a fresh mark (domain/engine.md, 6 step 3 and 7.2):
@@ -529,9 +529,7 @@ pub(crate) fn cancel(domain: &mut Domain, run: Token, attempt: Token, out: &mut 
     entry.state = match state {
         State::Waiting { claiming: Claiming { to, .. }, .. } => withdrawn(to, Withdrawal::Cancelled, names, out),
         State::Adopted { to, until } => State::Cancelled { to, at: Where::Adrift { until } },
-        State::Claimed { to, at, workstream: _, kinds: _, version: _ } => {
-            cancelled(to, at, names, &domain.channels, out)
-        }
+        State::Claimed { claiming: Claiming { to, .. }, at } => cancelled(to, at, names, &domain.channels, out),
         State::Cancelled { to, at } => State::Cancelled { to, at },
         State::Crossed { to, at, listed, worked } => State::Crossed { to, at, listed, worked },
         State::Handed { at } => State::Handed { at },
@@ -644,9 +642,7 @@ pub(crate) fn listed(
             &mut domain.facts,
             out,
         ),
-        State::Claimed { to, at, workstream, kinds, version } => {
-            moved(to, at, workstream, kinds, version, channel, &mut domain.facts)
-        }
+        State::Claimed { claiming, at } => moved(claiming, at, channel, &mut domain.facts),
         State::Cancelled { to, at: _ } => {
             again(on, answered, names, &domain.channels, out);
             State::Cancelled { to, at: on }
@@ -714,14 +710,14 @@ pub(crate) fn answer(
                 handed(to, answer, payload, on, names, &mut domain.facts, out)
             }
         },
-        State::Claimed { to, at: _, workstream, kinds, version } => match answer {
+        State::Claimed { claiming, at: _ } => match answer {
             Answer::Busy => {
                 refused(payload, &mut domain.facts, out);
                 let serial = next_serial(&mut domain.serial);
-                State::Waiting { claiming: Claiming { to, workstream, kinds, version }, serial }
+                State::Waiting { claiming, serial }
             }
             Answer::Ended | Answer::Parked | Answer::Failed { .. } | Answer::Invalid => {
-                handed(to, answer, payload, on, names, &mut domain.facts, out)
+                handed(claiming.to, answer, payload, on, names, &mut domain.facts, out)
             }
         },
         State::Cancelled { to, at: _ } => match answer {
@@ -772,9 +768,7 @@ pub(crate) fn adrift(domain: &mut Domain, id: Id<Attempt>, channel: Token, until
     let state = mem::replace(&mut entry.state, State::Closed);
     let at = Where::Adrift { until };
     entry.state = match state {
-        State::Claimed { to, at: _, workstream, kinds, version } => {
-            State::Claimed { to, at, workstream, kinds, version }
-        }
+        State::Claimed { claiming, at: _ } => State::Claimed { claiming, at },
         State::Cancelled { to, at: _ } => State::Cancelled { to, at },
         State::Crossed { to, at: _, listed, worked } => State::Crossed { to, at, listed, worked },
         State::Handed { at: _ } => State::Handed { at },
@@ -797,7 +791,7 @@ pub(crate) fn expire(domain: &mut Domain, id: Id<Attempt>, out: &mut Queue<Reque
     let state = mem::replace(&mut entry.state, State::Closed);
     entry.state = match state {
         State::Adopted { to, until: _ }
-        | State::Claimed { to, at: Where::Adrift { .. }, .. }
+        | State::Claimed { claiming: Claiming { to, .. }, at: Where::Adrift { .. } }
         | State::Cancelled { to, at: Where::Adrift { .. } } => presumed(to, names, &mut domain.facts, out),
         State::Crossed { to, at: Where::Adrift { .. }, listed, worked } => {
             if listed || worked {
@@ -997,7 +991,7 @@ fn replace(domain: &mut Domain, run: Token, out: &mut Queue<Request>) {
     entry.state = match state {
         State::Waiting { claiming: Claiming { to, .. }, .. } => withdrawn(to, Withdrawal::Replaced, names, out),
         State::Adopted { to, until } => superseded(to, Where::Adrift { until }, names, out),
-        State::Claimed { to, at, workstream: _, kinds: _, version: _ } => {
+        State::Claimed { claiming: Claiming { to, .. }, at } => {
             again(at, false, names, &domain.channels, out);
             superseded(to, at, names, out)
         }
@@ -1127,27 +1121,18 @@ fn presumed(to: ReplyTo, names: Names, facts: &mut Lossy<Fact>, out: &mut Queue<
 /// An adopted attempt found, or a stray adopted: the parent's claim from now
 /// on, which the parent hears is on a worker.
 fn located(claiming: Claiming, at: Where, names: Names, facts: &mut Lossy<Fact>, out: &mut Queue<Request>) -> State {
-    let Claiming { to, workstream, kinds, version } = claiming;
     facts.push(Fact::Found);
     out.push(Request::Placed { run: names.run, attempt: names.attempt });
-    State::Claimed { to, at, workstream, kinds, version }
+    State::Claimed { claiming, at }
 }
 
 /// A claim listed again: on its worker's channel from now on.
-fn moved(
-    to: ReplyTo,
-    at: Where,
-    workstream: u64,
-    kinds: Kinds,
-    version: crate::Version,
-    channel: Id<Channel>,
-    facts: &mut Lossy<Fact>,
-) -> State {
+fn moved(claiming: Claiming, at: Where, channel: Id<Channel>, facts: &mut Lossy<Fact>) -> State {
     match at {
         Where::On(_) => {}
         Where::Adrift { .. } => facts.push(Fact::Found),
     }
-    State::Claimed { to, at: Where::On(channel), workstream, kinds, version }
+    State::Claimed { claiming, at: Where::On(channel) }
 }
 
 /// Waiting, placed: assigned to the worker of `channel`, which holds its
@@ -1160,11 +1145,10 @@ fn assigned(
     facts: &mut Lossy<Fact>,
     out: &mut Queue<Request>,
 ) -> State {
-    let Claiming { to, workstream, kinds, version } = claiming;
     let Placing { assignment, job, channel, names } = placing;
     let entry = channels.get_mut(channel).expect("a worker chosen is in contact");
     if entry.kind == HostKind::Worker {
-        channel::cache(entry, &env.limits, workstream);
+        channel::cache(entry, &env.limits, claiming.workstream);
     }
     match job {
         Some(_) => out.push(Request::AssignJob { channel: entry.token, run: names.run, attempt: names.attempt }),
@@ -1179,7 +1163,7 @@ fn assigned(
     }
     out.push(Request::Placed { run: names.run, attempt: names.attempt });
     facts.push(Fact::Placed);
-    State::Claimed { to, at: Where::On(channel), workstream, kinds, version }
+    State::Claimed { claiming, at: Where::On(channel) }
 }
 
 /// Waiting, listed: a worker hosts it already, so it is not assigned again.

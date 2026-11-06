@@ -7,7 +7,7 @@ impl Neighbours {
         store: &mut Store,
         phase: core::start::Phase,
         census: Option<core::Census>,
-    ) -> Vec<Input<root::Event, root::Record>> {
+    ) -> Vec<Input<root::Event>> {
         use core::start::Phase;
         self.start_phases.push(phase);
         match phase {
