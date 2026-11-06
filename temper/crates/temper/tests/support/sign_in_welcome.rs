@@ -7,7 +7,7 @@ use skein_shell::{Clock, Host};
 use skein_world::{Referee, end_to_end::Streams, real};
 use std::path::Path;
 
-// No model call or forge work: two local service starts and one fake grant.
+// Two local service starts, one fake grant and the newly usable account's trial; no forge work.
 const WITHIN: Duration = Duration::from_secs(20);
 const READY: &[u8] = b"/welcome?at=ready";
 // configuration's issuer queues exactly one authorization-code grant.

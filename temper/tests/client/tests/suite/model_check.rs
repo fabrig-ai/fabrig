@@ -33,8 +33,10 @@ fn running(root: &Root, step: usize, words: &[u8]) {
     let tree = Temper::tree(&view);
     assert!(
         tree.nodes().iter().any(|node| node.role == Role::Progress && node.name.as_deref() == Some(words)),
-        "expected {:?}",
-        String::from_utf8_lossy(words)
+        "expected {:?}; wait {:?}; nodes {:?}",
+        String::from_utf8_lossy(words),
+        root.person().forge().trial_wait(),
+        tree.nodes().iter().filter_map(|node| node.name.as_deref()).map(String::from_utf8_lossy).collect::<Vec<_>>()
     );
     let at = tree
         .nodes()
