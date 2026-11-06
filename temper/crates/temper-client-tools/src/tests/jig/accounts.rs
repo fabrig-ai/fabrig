@@ -88,6 +88,10 @@ fn models_group_only_project_authorized_models_without_guessing_provider_readine
         project
             .models
             .push(c::MeModel {
+                effort: efforts.get(0).cloned(),
+                shown: None,
+                accounts: List::with_capacity(0),
+                picker: true,
                 prices: c::ModelPrices { input: 7, cached: 2, cache_write: Some(9), output: 11, unit: 1000 },
                 description: Some(c::Text::new(b"Careful reasoning".as_slice().into(), 64).expect("description")),
                 name: c::Text::new(name.into(), 32).expect("model"),
@@ -319,6 +323,10 @@ fn model_cache_writes_default_to_the_supplied_input_price() {
     project
         .models
         .push(c::MeModel {
+            effort: None,
+            shown: None,
+            accounts: List::with_capacity(0),
+            picker: true,
             name: c::Text::new(b"reasoner".as_slice().into(), 32).expect("model"),
             provider: Some(f::PROVIDER),
             window: 8192,

@@ -55,6 +55,7 @@ fn opened(owner: bool, step: Step) -> (Domain, Token, Token, Option<Token>) {
     frame
         .projects
         .push(c::MeProject {
+            defaults: List::with_capacity(0),
             public: None,
             project: f::PROJECT,
             name: jig_client::contract::DocumentText::complete(

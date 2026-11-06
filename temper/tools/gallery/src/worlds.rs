@@ -97,6 +97,10 @@ fn frame(w: World, connecting: bool, configuring: bool) -> c::Me {
     member
         .models
         .push(c::MeModel {
+            effort: efforts.get(0).cloned(),
+            shown: None,
+            accounts: List::from_boxed(Box::new([1])),
+            picker: true,
             name: choice.main.model,
             provider: Some(17),
             description: None,
@@ -3496,6 +3500,7 @@ fn base_frame(person: &str, project: &str) -> c::Me {
     let mut projects = List::with_capacity(1);
     projects
         .push(c::MeProject {
+            defaults: List::with_capacity(0),
             public: None,
             project: PROJECT,
             name: doc(project),

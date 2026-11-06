@@ -106,6 +106,27 @@ pub(crate) fn fits(models: &[Model], limits: &w::Limits) -> bool {
         {
             return false;
         }
+        if let Some(shown) = &model.shown
+            && (shown.is_empty()
+                || !skein_codec::text_is_valid(shown)
+                || shown.len() > skein_lib::length::usize_of(limits.me_model_shown_some))
+        {
+            return false;
+        }
+        match &model.effort {
+            Some(effort) => {
+                if !model.efforts.contains(effort)
+                    || effort.len() > skein_lib::length::usize_of(limits.me_model_effort_some)
+                {
+                    return false;
+                }
+            }
+            None => {
+                if !model.efforts.is_empty() {
+                    return false;
+                }
+            }
+        }
         for earlier in models.iter().take(at) {
             if earlier.name == model.name {
                 return false;
@@ -144,6 +165,10 @@ pub fn models(allowed: Models, models: &[Model], limits: &w::Limits) -> Result<L
                 window: model.window,
                 output: model.output,
                 efforts,
+                effort: model.effort.clone(),
+                shown: model.shown.clone(),
+                accounts: List::with_capacity(0),
+                picker: model.picker,
                 prices: w::MePrices::new(
                     limits,
                     w::MePricesParts {

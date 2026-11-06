@@ -218,6 +218,10 @@ fn a_start_from_configure_keeps_its_templates_models() {
         let mut models = List::with_capacity(MODELS);
         models
             .push(MeModel {
+                effort: None,
+                shown: None,
+                accounts: List::with_capacity(0),
+                picker: true,
                 prices: ModelPrices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1000 },
                 description: None,
                 name: fixtures::acts::text(b"other"),

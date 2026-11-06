@@ -108,6 +108,8 @@ const EXTRAS: &[(&str, &str, &[u8])] = &[
     ("llm.models.0", "efforts", br#"["medium"]"#),
     ("llm.models.0", "effort", br#""medium""#),
     ("llm.models.0", "description", br#""For later work""#),
+    ("llm.models.0", "shown", br#""Small""#),
+    ("llm.models.0", "picker", b"false"),
     ("llm.models.0.prices", "cache_write", b"1"),
     ("llm.providers.0", "signed_in_plan", b"true"),
     ("llm.providers.0", "manage_usage", br#""https://usage.example/""#),

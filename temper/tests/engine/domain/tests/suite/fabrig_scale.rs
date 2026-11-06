@@ -27,6 +27,8 @@ const LEAVES: [u32; 4] = [95, 95, 95, 94]; // Goal + four coordinators + 379 rep
 
 fn stock_world() -> (World, core::settings::Defaults) {
     let llm = jig_protocol_config::Llm {
+        shown: Box::new([None]),
+        pickers: Box::new([true]),
         endpoints: Box::new([]),
         providers: Box::new([]),
         descriptions: Box::new([None]),

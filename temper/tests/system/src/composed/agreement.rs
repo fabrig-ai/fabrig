@@ -10,6 +10,8 @@ use std::fmt::Write;
 pub(super) fn config(seed: u64) -> engine::Config {
     let mut config = super::config(seed);
     let llm = jig_protocol_config::Llm {
+        shown: Box::new([None]),
+        pickers: Box::new([true]),
         endpoints: Box::default(),
         providers: Box::default(),
         descriptions: Box::new([None]),
