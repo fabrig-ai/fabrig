@@ -62,6 +62,7 @@ impl Composition {
             provider: None,
             addresses: Box::new([]),
             link: None,
+            link_secret: None,
             deployment_provider: 2,
             heartbeat: skein_lib::Duration::from_secs(3600),
             rows: limits.rows,
