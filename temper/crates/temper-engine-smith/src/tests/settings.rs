@@ -766,7 +766,7 @@ fn inventory_people_forms_share_repository_pagination() {
             .into_parts();
     assert!(!error);
     let expected = whole.strip_suffix(b"end\n").expect("terminal marker");
-    assert!(expected.ends_with(b"project repositories:\n  forge forge.example:3847 repository org/repo\nproject people:\n  person 1 owner: role 0, you\n  person 4 ada: role 1, forge user 3\n  person 5: role 2, forge user 7\n  person 6: role 2, forge user 2, temper's own forge writer: never counts as a person\nforge people:\n  forge 127.0.0.1:3000 person ada\n"), "{}", core::str::from_utf8(expected).expect("inventory UTF-8"));
+    assert!(expected.ends_with(b"project repositories:\n  forge forge.example:3847 repository org/repo\nproject people:\n  person 1 owner: role 0, requester, forge identity unknown: cannot count for approvals\n  person 4 ada: role 1, forge user 3\n  person 5: role 2, forge user 7\n  person 6: role 2, forge user 2, temper's own forge writer: never counts as a person\nforge people:\n  forge 127.0.0.1:3000 configured owned-forge account ada; project membership unverified by this row\n"), "{}", core::str::from_utf8(expected).expect("inventory UTF-8"));
     let mut combined = skein_lib::Writer::new(expected.len());
     let mut from = 0;
     let mut pages = 0_u32;

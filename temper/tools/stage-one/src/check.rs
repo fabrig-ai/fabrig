@@ -169,6 +169,9 @@ fn subject_key(
             if key.project == Some(ProjectRef::Box) {
                 key.project = Some(ProjectRef::Number(evidence.facts.project));
             }
+            if key.kind == "project-ways" && !evidence.items.items.iter().any(|item| item.setting == key) {
+                return None;
+            }
             Some(key)
         }
     }

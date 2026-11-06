@@ -58,7 +58,7 @@ impl Thread {
         {
             return;
         }
-        let text_bound = self.limits.text.min(u32::try_from(self.limits.bytes).unwrap_or(u32::MAX));
+        let text_bound = self.limits.live.min(u32::try_from(self.limits.bytes).unwrap_or(u32::MAX));
         let mut found = false;
         for at in 0..self.live.len() {
             let old = self.live.get_mut(at).expect("bounded live turn exists");
