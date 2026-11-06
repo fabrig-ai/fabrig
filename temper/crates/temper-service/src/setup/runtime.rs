@@ -209,6 +209,16 @@ impl Runtime {
             },
             pending: true,
             restored,
+            read_again: if !restored
+                && record.mode == domain::Mode::Owned
+                && match &self.machine.owned {
+                    Some(owned) => owned.sign_in.is_some(),
+                    None => false,
+                } {
+                lifecycle::ReadAgain::AfterReconcile
+            } else {
+                lifecycle::ReadAgain::No
+            },
             limits: {
                 let mut limits = self.limits.setup.plan();
                 limits.repositories = self.limits.forge.client.repositories;
