@@ -744,8 +744,8 @@ fn explicit_cut_and_reopened_origin_replace_retry_text_while_valid_suffixes_dedu
     let mut value = stream(1, 0, 6, b"abcdef", false);
     value.turn.retry = 7;
     feed_run(&mut c, run, crate::tests::fixtures::run(value.clone()));
-    value.from = 3;
-    value.through = 8;
+    value.from = 8;
+    value.through = 13;
     value.text = text(b"deXYZ");
     value.cut = true;
     feed_run(&mut c, run, crate::tests::fixtures::run(value.clone()));
@@ -755,8 +755,8 @@ fn explicit_cut_and_reopened_origin_replace_retry_text_while_valid_suffixes_dedu
         "cut never joins a retained prefix across a lost origin"
     );
     assert!(c.conversation().live.get(0).unwrap().cut);
-    value.from = 5;
-    value.through = 10;
+    value.from = 10;
+    value.through = 15;
     value.text = text(b"XYZ++");
     value.cut = false;
     feed_run(&mut c, run, crate::tests::fixtures::run(value.clone()));
@@ -764,8 +764,8 @@ fn explicit_cut_and_reopened_origin_replace_retry_text_while_valid_suffixes_dedu
     feed_run(&mut c, run, crate::tests::fixtures::run(value.clone()));
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"deXYZ++");
     let mut stale = value.clone();
-    stale.from = 3;
-    stale.through = 8;
+    stale.from = 8;
+    stale.through = 13;
     stale.text = text(b"stale");
     stale.cut = true;
     feed_run(&mut c, run, crate::tests::fixtures::run(stale));
