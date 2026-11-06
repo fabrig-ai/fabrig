@@ -9,6 +9,8 @@
   new commit, because a feed of rows alone would keep that rebuild and the
   referee's walk of every task, and that plan's cut left it out, by judgement,
   with its share of a suite's CPU measured for that plan's owner.
+  5: `Observer::inbound` and `Observer::submitted` still take a view made
+  for every call, where a reader decides whether one is made.
   7: `ops`'s worlds on jig's store component; they run `jig-fake-store`.
   7: the `debt-24` request of 2026-11-05 has each world name its parties,
   projects, tasks and connectors once, a bare number left only where it's the
