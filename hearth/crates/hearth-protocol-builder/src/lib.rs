@@ -48,14 +48,6 @@ pub enum Told {
     Io(io::Event),
     File(io::file::Event),
 }
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct MaxOut {
-    pub above: u32,
-    pub below: u32,
-}
-pub const MAX_OUT_UP: MaxOut = MaxOut { above: 1, below: 1 };
-pub const MAX_OUT_DOWN: MaxOut = MaxOut { above: 1, below: 1 };
-pub const MAX_OUT_RESUME: MaxOut = MaxOut { above: 1, below: 1 };
 #[derive(Debug)]
 enum Mode {
     Rev {
