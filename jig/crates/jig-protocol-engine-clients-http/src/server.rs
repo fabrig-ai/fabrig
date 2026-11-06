@@ -214,15 +214,14 @@ impl Server {
         if let Some(connection) = self.connections.get_mut(&owner)
             && !connection.closing
         {
+            if let Up::Bytes(_) = &up {
+                connection.received = true;
+            }
             connection.deadline =
                 self.env.now.saturating_add(self.env.limits.stall).max(connection.held.unwrap_or(Time::ZERO));
             let ended = match &up {
                 Up::End => self.env.limits.peer_end == PeerEnd::Connection && connection.call.is_some(),
-                Up::Bytes(_) => {
-                    connection.received = true;
-                    false
-                }
-                Up::Room | Up::Failed(_) => false,
+                Up::Bytes(_) | Up::Room | Up::Failed(_) => false,
             };
             http::up(&mut connection.http, &env, up, &mut connection.events, &mut connection.below);
             if ended {
