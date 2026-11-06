@@ -24,5 +24,6 @@ The item no longer asks for constructors for `tokenizer::Limits`: 46 of its
 59 literals are one line, and a mean of 3.9 of 5 fields would differ from any
 base, so a constructor saves nothing and says less. One- and two-field types
 (`json::writer`, `json::document`, `skein_shell::Config`) cannot get shorter.
-Local `fn limits()` helpers are “a setup written once” (section 10): 62 of 67
-return other or composite types. The measure excludes signatures and updates.
+Local `fn limits()` helpers are “a setup written once”
+(`skein/docs/foundation/testing-strategy.md`, 10): 62 of 67 return other or
+composite types. The measure excludes signatures and updates.
