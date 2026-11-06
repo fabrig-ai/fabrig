@@ -121,3 +121,6 @@ mod jobs;
 
 #[path = "tests/public.rs"]
 mod public;
+
+#[path = "tests/model_offers.rs"]
+mod model_offers;
