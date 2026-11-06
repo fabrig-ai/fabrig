@@ -76,14 +76,18 @@ impl Io {
         Ok(fd)
     }
     fn port(&mut self, preferred: u16) -> Result<(Fd, NonZeroU16), String> {
+        let (fd, address) = self.bound_port(preferred)?;
+        self.listened(fd, address)
+    }
+    fn bound_port(&mut self, preferred: u16) -> Result<(Fd, std::net::SocketAddr), String> {
         let fd = self.socket()?;
         let preferred = ([127, 0, 0, 1], preferred).into();
-        let (bound, taken) = match self.perform(Op::Bind { fd, addr: preferred }) {
-            Ok(bound) => (Ok(bound), false),
-            Err(_) => (self.perform(Op::Bind { fd, addr: ([127, 0, 0, 1], 0).into() }).map_err(io_error), true),
+        let bound = match self.perform(Op::Bind { fd, addr: preferred }) {
+            Ok(bound) => Ok(bound),
+            Err(_) => self.perform(Op::Bind { fd, addr: ([127, 0, 0, 1], 0).into() }).map_err(io_error),
         };
         match bound {
-            Ok(Done::Bound(address)) => self.listened(fd, address, !taken && preferred.port() != 0),
+            Ok(Done::Bound(address)) => Ok((fd, address)),
             Ok(_) => unreachable!("bind answers an address"),
             Err(why) => {
                 self.close(fd);
@@ -93,17 +97,24 @@ impl Io {
     }
     /// skein sets `SO_REUSEADDR` on bind: two merely bound sockets can share a
     /// port, and listening makes a reservation exclusive. Another init that
-    /// listened first between this one's bind and listen leaves it a
-    /// kernel-chosen port, as a taken port does.
-    fn listened(&mut self, fd: Fd, address: std::net::SocketAddr, preferred: bool) -> Result<(Fd, NonZeroU16), String> {
+    /// listened first between this one's bind and listen spends a try; a
+    /// replacement asks the kernel for another port, as a taken port does.
+    fn listened(&mut self, mut fd: Fd, mut address: std::net::SocketAddr) -> Result<(Fd, NonZeroU16), String> {
         let backlog = jig_protocol_config::profile(jig_protocol_config::Profile::Small).io.backlog;
-        match self.perform(Op::Listen { fd, backlog }) {
-            Ok(_) => Ok((fd, NonZeroU16::new(address.port()).expect("bound port"))),
-            Err(why) => {
-                self.close(fd);
-                if preferred { self.port(0) } else { Err(io_error(why)) }
+        for attempt in 1..=crate::fake_backends::PORT_ATTEMPTS {
+            match self.perform(Op::Listen { fd, backlog }) {
+                Ok(_) => return Ok((fd, NonZeroU16::new(address.port()).expect("bound port"))),
+                Err(Error::AddressInUse) if attempt < crate::fake_backends::PORT_ATTEMPTS => {
+                    self.close(fd);
+                    (fd, address) = self.bound_port(0)?;
+                }
+                Err(why) => {
+                    self.close(fd);
+                    return Err(io_error(why));
+                }
             }
         }
+        unreachable!("the last listen succeeds or refuses")
     }
     fn ports(&mut self, preferred: &[u16]) -> Result<Vec<(Fd, NonZeroU16)>, String> {
         let mut held = Vec::with_capacity(preferred.len());
@@ -164,6 +175,7 @@ pub(crate) struct Written {
     pub paths: Vec<PathBuf>,
     pub listeners: Vec<(Fd, NonZeroU16)>,
     pub missing_git: bool,
+    pub no_sign_in: Option<String>,
     pub person: temper_init::Person,
     pub login: Option<Box<[u8]>>,
 }
@@ -235,6 +247,18 @@ fn write_deployment(
         let binary = binary.as_os_str().as_bytes();
         let git = git.as_ref().map(|path| path.as_os_str().as_bytes());
         let claude = claude.as_ref().map(|path| path.as_os_str().as_bytes());
+        directories.open(skein_shell::effective_user())?;
+        let no_sign_in = if boxed {
+            let key = path(&directories.data).join("provider.key");
+            let result = if !key.exists() && find(environment, b"openssl").is_none() {
+                Err("openssl is not on PATH".into())
+            } else {
+                crate::forge_sign_in::make_missing(&key, true)
+            };
+            result.err()
+        } else {
+            None
+        };
         let (files, person, login) = if boxed {
             let demo_key = skein_shell::crypto_seed().map_err(|errno| format!("random demo key: errno {errno}"))?;
             let login = crate::login(skein_shell::effective_user()).ok();
@@ -244,6 +268,7 @@ fn write_deployment(
                     git,
                     claude,
                     login: login.as_deref(),
+                    sign_in: no_sign_in.is_none(),
                     ports: temper_init::Ports {
                         clients: listeners[0].1,
                         owned: listeners[1].1,
@@ -297,10 +322,12 @@ fn write_deployment(
             result.map_err(|why| format!("{}: {why}", destination.display()))?;
             paths.push(destination);
         }
-        Ok((paths, git.is_none(), person, login))
+        Ok((paths, git.is_none(), person, login, no_sign_in))
     })();
     match result {
-        Ok((paths, missing_git, person, login)) => Ok(Written { paths, listeners, missing_git, person, login }),
+        Ok((paths, missing_git, person, login, no_sign_in)) => {
+            Ok(Written { paths, listeners, missing_git, no_sign_in, person, login })
+        }
         Err(why) => {
             for (fd, _) in listeners {
                 io.close(fd);
@@ -324,6 +351,9 @@ pub(crate) fn run(directories: &Directories, boxed: bool) -> Result<u8, String> 
     }
     if crate::bundle::OWN.is_none() {
         eprintln!("init: this temper has no browser (built with TEMPER_BUNDLE=none): the browser is not served");
+    }
+    if let Some(why) = &written.no_sign_in {
+        eprintln!("init: no sign-in through temper: {why}");
     }
     if written.missing_git {
         eprintln!("init: no git on PATH: a real forge's repositories need git 2.41 or later, set as workers[].git");

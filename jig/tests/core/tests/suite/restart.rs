@@ -1,4 +1,5 @@
 use jig_core_world::world::Setup;
+use jig_domain_link::{Form, Grant, GrantTable, Hello, Hosting, Phase, Scheme};
 const FIRST_GOAL: u8 = 151;
 const CHAT: u8 = 152;
 const TURN: u32 = 1;
@@ -13,11 +14,11 @@ use jig_test_domain as root;
 use jig_test_system::Fault;
 use skein_lib::{Duration, Token};
 
-fn hello(world: &mut World, hosting: Box<[fleet::Hosting]>) {
+fn hello(world: &mut World, hosting: Box<[Hosting]>) {
     world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
         worker: 0,
         channel: Token::new(7),
-        hello: fleet::Hello {
+        hello: Hello {
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(100),
@@ -35,7 +36,7 @@ fn account(world: &mut World) {
 fn grant_account(world: &mut World, account: u32, generation: u64) {
     world.send(root::Event::Core(core::Event::Account(jig_domain_accounts::Event::Component(
         jig_domain_accounts::FromComponent::Granted {
-            form: jig_domain_accounts::Form::Credential(jig_domain_accounts::Scheme::Bearer),
+            form: Form::Credential(Scheme::Bearer),
             account,
             generation,
             valid: Duration::from_secs(60),
@@ -43,16 +44,12 @@ fn grant_account(world: &mut World, account: u32, generation: u64) {
     ))));
 }
 
-fn hosting(world: &World) -> Box<[fleet::Hosting]> {
+fn hosting(world: &World) -> Box<[Hosting]> {
     let assigned = world.assigned.as_ref().expect("a live chat");
-    Box::new([fleet::Hosting {
-        run: Token::new(assigned.task),
-        attempt: Token::new(assigned.attempt),
-        phase: fleet::Phase::Active,
-    }])
+    Box::new([Hosting { run: Token::new(assigned.task), attempt: Token::new(assigned.attempt), phase: Phase::Active }])
 }
 
-fn received(world: &World) -> fleet::Grant {
+fn received(world: &World) -> Grant {
     world.received_grant().expect("host received a grant").3
 }
 
@@ -131,11 +128,8 @@ fn a_restart_after_a_turn_committed_resumes_from_it() {
     let mut world = World::new(Setup { seed: 116, ..Setup::default() });
     world.turn(1, 3, None, b"committed whole turn");
     let assignment = world.assigned.as_ref().expect("live worker");
-    let hosted = fleet::Hosting {
-        run: Token::new(assignment.task),
-        attempt: Token::new(assignment.attempt),
-        phase: fleet::Phase::Active,
-    };
+    let hosted =
+        Hosting { run: Token::new(assignment.task), attempt: Token::new(assignment.attempt), phase: Phase::Active };
     world.restart(116, false);
     hello(&mut world, Box::new([hosted]));
     world.park_for_message(3);
@@ -381,7 +375,7 @@ fn a_restart_with_workers_elsewhere_still_waits_for_them() {
     assert_eq!(restored_task(&world, task).tries.lost, 0);
     hello(
         &mut world,
-        Box::new([fleet::Hosting { run: Token::new(task), attempt: Token::new(attempt), phase: fleet::Phase::Active }]),
+        Box::new([Hosting { run: Token::new(task), attempt: Token::new(attempt), phase: Phase::Active }]),
     );
     assert_eq!(restored_task(&world, task).attempt, attempt);
     assert_eq!(restored_task(&world, task).phase, tasks::Phase::Active(tasks::Active::Running { attempt }));
@@ -395,7 +389,7 @@ fn a_restart_keeps_the_window_a_turn_opened() {
     world.window_turn(2, 2, None, b"current window");
     let assignment = world.assigned.as_ref().expect("live worker");
     let (task, attempt) = (assignment.task, assignment.attempt);
-    let hosted = fleet::Hosting { run: Token::new(task), attempt: Token::new(attempt), phase: fleet::Phase::Active };
+    let hosted = Hosting { run: Token::new(task), attempt: Token::new(attempt), phase: Phase::Active };
     world.restart(125, false);
     hello(&mut world, Box::new([hosted]));
     world.park_for_message(2);
@@ -414,11 +408,8 @@ fn a_restart_between_a_window_turn_and_its_resume_sends_the_window() {
     world.turn(1, 1, None, b"earlier window");
     world.window_turn(2, 2, None, b"window to resume");
     let assignment = world.assigned.as_ref().expect("live worker");
-    let hosted = fleet::Hosting {
-        run: Token::new(assignment.task),
-        attempt: Token::new(assignment.attempt),
-        phase: fleet::Phase::Active,
-    };
+    let hosted =
+        Hosting { run: Token::new(assignment.task), attempt: Token::new(assignment.attempt), phase: Phase::Active };
     world.restart(124, false);
     hello(&mut world, Box::new([hosted]));
     world.park_for_message(2);
@@ -590,7 +581,7 @@ fn a_new_generation_reaches_the_live_chat() {
     let mut world = World::new(Setup { seed: 161, ..Setup::default() });
     grant_account(&mut world, 1, 2);
     let grant = received(&world);
-    assert_eq!((grant.form.table(), grant.account, grant.generation), (fleet::GrantTable::Accounts, 1, 2));
+    assert_eq!((grant.form.table(), grant.account, grant.generation), (GrantTable::Accounts, 1, 2));
 }
 
 #[test]
@@ -601,7 +592,7 @@ fn a_restart_sends_an_adopted_chat_its_current_grant() {
     grant_account(&mut world, 1, 7);
     hello(&mut world, live);
     let grant = received(&world);
-    assert_eq!((grant.form.table(), grant.account, grant.generation), (fleet::GrantTable::Accounts, 1, 7));
+    assert_eq!((grant.form.table(), grant.account, grant.generation), (GrantTable::Accounts, 1, 7));
     assert!(world.grant_follows_assignment());
 }
 
@@ -610,11 +601,7 @@ fn a_generation_renewed_while_the_assignment_is_held_reaches_the_attempt_after_i
     const SECOND_ANALYST: u32 = 2;
     let mut world = jig_core_world::fixtures::waiting_on_source(163, SECOND_ANALYST);
     assert!(world.assigned.is_none());
-    world.renew_on_assignment(
-        SECOND_ANALYST,
-        2,
-        jig_domain_accounts::Form::Credential(jig_domain_accounts::Scheme::Bearer),
-    );
+    world.renew_on_assignment(SECOND_ANALYST, 2, Form::Credential(Scheme::Bearer));
     grant_account(&mut world, SECOND_ANALYST, 1);
     assert_eq!(world.assigned.as_ref().expect("assigned after commit").grants[0].generation, 1);
     let grant = received(&world);

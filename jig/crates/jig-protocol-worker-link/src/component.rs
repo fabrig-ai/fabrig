@@ -12,6 +12,7 @@ use crate::{
 use alloc::boxed::Box;
 use core::mem;
 use jig_domain_host as host;
+use jig_domain_link::Hello;
 use jig_protocol_worker_wire::{self as wire, sizes};
 use skein_channel::{self as channel, Closed, Machine, Role};
 use skein_lib::{Decimal, List, Queue, Secret, Time, Token, Writer, bytes};
@@ -272,7 +273,7 @@ impl Component {
         };
         self.phase = Phase::Idle { at };
     }
-    fn hello(&mut self, now: Time, value: host::Hello, out: &mut Queue<Request>) {
+    fn hello(&mut self, now: Time, value: Hello, out: &mut Queue<Request>) {
         match &mut self.phase {
             Phase::Open { hello, .. } => {
                 if *hello {

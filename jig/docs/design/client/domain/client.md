@@ -1183,6 +1183,10 @@ with a person in front of a tree, are view.md's, 18.10.
 - **A window's turn:** how a thread shows a turn that opens a window (a
   compaction's summary of what came before it), beside the earlier
   window's turns it summarises.
+- **A thread's `lines`** (section 10): a second bound beside its `bytes`, for a
+  presentation that prices its tree by rows, as the reference UI and an
+  application's tools do. Whether they price theirs by bytes, so that it goes.
+  Default: it stays.
 - **Signing out with the engine out of reach:** whether a client should
   keep the sign-out and send it once the engine is reached, or a host
   forget its credential there, leaving the sign-in live on the engine

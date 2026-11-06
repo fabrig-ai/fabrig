@@ -3,10 +3,12 @@
 use jig_domain_host::FromAgent;
 use jig_domain_host::ToAgent;
 use jig_domain_host::{
-    AgentFailure, Ask, Delivery, DeliveryOutcome, Ending, Event, Finish, Grant, Hub, Invalid, Limits, Preparation,
-    Reason, Refusal, Request, RunAssignment, Workspace, resume, step,
+    AgentFailure, Ask, Delivery, DeliveryOutcome, Ending, Event, Finish, Hub, Invalid, Limits, Preparation, Reason,
+    Refusal, Request, RunAssignment, Workspace, resume, step,
 };
 use jig_domain_host::{LinkDown, LinkUp};
+use jig_domain_link::Grant;
+use jig_domain_link::{Form, Scheme};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_world::domain::heap::Meter;
 
@@ -150,7 +152,7 @@ fn assignment(run: u64, limits: &Limits) -> RunAssignment {
         identity: [0; 16],
         grants: (0..limits.accounts)
             .map(|account| Grant {
-                form: jig_domain_host::Form::Credential(jig_domain_host::Scheme::Bearer),
+                form: Form::Credential(Scheme::Bearer),
                 account,
                 generation: 7,
                 valid: Duration::from_secs(300),
@@ -456,7 +458,8 @@ fn fill_refusals(host: &mut Measured, owner: Token, inbox: u32) {
 
 #[test]
 fn source_replacement_at_capacity_completes_every_check() {
-    use jig_domain_host::{LoginState, SourceFailure, SourceName, sources};
+    use jig_domain_host::sources;
+    use jig_domain_link::{LoginState, SourceFailure, SourceName};
     let limits = Limits { slots: 0, ..LIMITS };
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut out = Queue::uncapped();

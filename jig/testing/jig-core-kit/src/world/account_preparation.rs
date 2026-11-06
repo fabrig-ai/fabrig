@@ -1,5 +1,6 @@
 //! Accounts component and transcript fixture responses for admission stories.
 use super::{World, accounts, core, root};
+use jig_domain_link::{Form, Scheme};
 use skein_lib::Duration;
 
 /// The subject and display name every sign-in at the fake accounts' component answers with.
@@ -25,14 +26,14 @@ impl World {
         let response = match request {
             accounts::ToComponent::Want { account: 1 } if !self.hold_accounts => {
                 Some(accounts::FromComponent::Granted {
-                    form: accounts::Form::Credential(accounts::Scheme::Bearer),
+                    form: Form::Credential(Scheme::Bearer),
                     account: 1,
                     generation: 1,
                     valid: Duration::from_secs(60),
                 })
             }
             accounts::ToComponent::Rejected { account, generation } => Some(accounts::FromComponent::Granted {
-                form: accounts::Form::Credential(accounts::Scheme::Bearer),
+                form: Form::Credential(Scheme::Bearer),
                 account,
                 generation: generation.checked_add(1).expect("fixture generation has a successor"),
                 valid: Duration::from_secs(60),
@@ -120,7 +121,7 @@ impl World {
                 } else {
                     let generation = self.next_account_generation(source);
                     accounts::FromComponent::Granted {
-                        form: accounts::Form::Credential(accounts::Scheme::Key),
+                        form: Form::Credential(Scheme::Key),
                         account: source,
                         generation,
                         valid: accounts::KEY_VALID,
@@ -153,7 +154,7 @@ impl World {
             accounts::FromComponent::Granted {
                 account: source,
                 generation,
-                form: accounts::Form::Credential(accounts::Scheme::Bearer),
+                form: Form::Credential(Scheme::Bearer),
                 valid: Duration::from_secs(60),
             },
         ))));

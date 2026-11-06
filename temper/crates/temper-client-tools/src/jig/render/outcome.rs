@@ -354,26 +354,32 @@ fn text(
         c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Lifted { hold, released })) => {
             lifted(*hold, *released, out);
         }
-        c::Answer::Done(done) => {
-            out.put(b"done: ");
-            let task = match done {
-                c::Outcome::Restored { .. } | c::Outcome::SettingsChanged(_) | c::Outcome::MovedToNewest(_) => {
-                    unreachable!("settings answer handled above")
-                }
-                c::Outcome::Made { what: c::Made::Tasks { tasks } } => tasks.get(0).copied(),
-                c::Outcome::Document(c::DocumentOutcome::Created { first, .. }) => Some(*first),
-                c::Outcome::Document(_) | c::Outcome::Made { .. } => operation.task,
-            };
-            if let Some(task) = task {
-                out.put(b"task ");
-                out.number(task);
-                out.put(b", ");
-            }
-            out.put(operation.word);
-        }
+        c::Answer::Done(done) => done_text(done, operation, out),
         c::Answer::Refused { refusal, .. } => refused_text(operation, refusal, me, limits, prefix, out),
     }
     out.put(b"\n");
+}
+fn done_text(done: &c::Outcome, operation: &Operation, out: &mut Text) {
+    if let c::Outcome::Document(c::DocumentOutcome::ProjectMade { project }) = done {
+        out.put(b"project ");
+        out.number(u64::from(*project));
+        return;
+    }
+    out.put(b"done: ");
+    let task = match done {
+        c::Outcome::Restored { .. } | c::Outcome::SettingsChanged(_) | c::Outcome::MovedToNewest(_) => {
+            unreachable!("settings answer handled above")
+        }
+        c::Outcome::Made { what: c::Made::Tasks { tasks } } => tasks.get(0).copied(),
+        c::Outcome::Document(c::DocumentOutcome::Created { first, .. }) => Some(*first),
+        c::Outcome::Document(_) | c::Outcome::Made { .. } => operation.task,
+    };
+    if let Some(task) = task {
+        out.put(b"task ");
+        out.number(task);
+        out.put(b", ");
+    }
+    out.put(operation.word);
 }
 fn restored_text(
     operation: &Operation,
@@ -640,6 +646,7 @@ pub(crate) fn act_tool(tool: u8) -> &'static crate::jig::table::Tool {
         rows::PROPOSE_SETTINGS_AT => &rows::PROPOSE_SETTINGS,
         rows::MOVE_TO_NEWEST_AT => &rows::MOVE_TO_NEWEST,
         rows::RESTORE_AT => &rows::RESTORE,
+        rows::PROJECT_MAKE_AT => &rows::PROJECT_MAKE,
         rows::PROJECT_FUND_AT => &rows::PROJECT_FUND,
         rows::PROJECT_AMEND_AT => &rows::PROJECT_AMEND,
         _ => unreachable!("act tool"),

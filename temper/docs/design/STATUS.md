@@ -97,11 +97,15 @@ alone, and many of ctl's tools (`client/README.md`,
 browser, whose story A walks in the browser tier but not yet by hand
 (`playground.md`), upgrades'
 commands and the baseline (`protocol/README.md`), and the release
-(`release.md`). The browser tier holds 14 tests, two past its cap, its CPU
+(`release.md`). The browser tier holds 17 tests, five past its cap, its CPU
 measured within its budget on the 12 without the call line's and the welcome's
-sign-in's alone, a closed
+sign-in's, at 83.069911 of its 85 on a run of 13 with one red, a public project's
+`temper ctl` visibility command past its deadline, its cause not found, and at
+128.618150 to 143.808163 on three runs with a chat's reading stories, a closed
 chat's wait is located but not split, and no test shows a head waiting for room
-ended by the stall deadline (`client/browser.md`). On a phone a chat's page hides the accounts'
+ended by the stall deadline (`client/browser.md`). The bundle travels gzipped and a
+placeholder paints first, but its fade takes 160 ms where the design has 200, and a
+stall before the module's answer draws no words (`client/browser.md`). On a phone a chat's page hides the accounts'
 and the playground's banners (`client/README.md`), and the gallery's comparison
 pages draw their own worlds, not the mock's scenario (`client/browser.md`).
 Forges kept in the store, a forge's removal and the
@@ -197,7 +201,8 @@ on a reload, stands below the chat's newest reply rather than at its call and fo
 "Decision made" while it waits; the chat's card draws no Reject, departing from the
 request `ui-chat-accept` (`client/README.md`). "Start goal…" went once from a
 restored document, on no replay since, its cause unknown (`client/README.md`). The welcome's command names the
-binary that runs it and has a Copy, but no browser test presses the Copy; with no `HOME` and an XDG variable placing
+binary that runs it and has a Copy, but no browser test presses the Copy or sees its word change; the gallery's walk of
+named controls excepts a recommended choice's tag, departing from the request `ui-copy-once`; with no `HOME` and an XDG variable placing
 only some directories it names all three `TEMPER_` values; and
 `temper forge run`'s refusal and the terminal's `temper open` still say plain `temper` (`client/README.md`). The welcome's try of a model draws Model's line in
 Ready's pane over the host's check alone, no trial being built, and departs from the request
@@ -223,7 +228,8 @@ words and look (`client/README.md`), but no journey records its acts and no
 render has checked its picture as a numbered list (`client/browser.md`). A chat's answer only grows, but
 the line departs from the request `chat-work` in a failed call's colour, and the end
 mark is a glyph that does not blink (`client/README.md`); on a walk a long chat's
-first "Older" did not end in 40 seconds, its cause unknown (`client/README.md`). The words being written draw an
+first earlier read did not end in 40 seconds, its cause unknown, and no walk on record has
+read one by its log's edges (`client/README.md`). The words being written draw an
 empty message in the dots' place until they hold a word, their "▍" falls below a closed
 fence, a last block still open changes as it commits, and no browser test draws them
 (`client/README.md`). A run of calls is one line on a chat's page and an agent's, its
@@ -250,13 +256,14 @@ directories, not every path; no run on record has `again` walk `project-landing`
 setup through a sign-in's new tab, and its words still say the page returns
 (`client/journeys.md`). Conversations are read by their log's edges
 (`client/README.md`, 5.15); in the terminal PgUp and PgDn are lines followed
-by Enter, and `lines` stays for jig's reference UI and tools, past what
-temper's bytes hold. The browser tier runs Chromium alone, with
+by Enter and a chat opens on one page, `lines` stays for jig's reference UI and
+tools, past what temper's bytes hold, and sending on an agent's page leaves the view
+where it is. The browser tier runs Chromium alone, with
 `overflow-anchor: none` as the nearest run to Safari; Firefox and Safari
-themselves are read, not run (`draft/chat-reading.md`, 5, **Design departs**).
-The process tier runs one test
-at a time where its design has three, its one trial at three having failed twice on
-causes not found, and most of the `test-speed` plan's whole runs read over its CPU
+themselves are read, not run (`draft/chat-reading.md`, 5, **Design departs**). A read
+that failed at the head is not tried again on a move back within its reach (`client/README.md`).
+The process tier's three tests at a time have no whole run on record until the next
+after-landing run, and most of the `test-speed` plan's whole runs read over its CPU
 budget (`domain/testing.md`). The
 case library's purpose is retired, the fake
 git program drives skein's JSON tokenizer over a whole body by hand,

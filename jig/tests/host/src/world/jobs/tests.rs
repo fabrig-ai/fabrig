@@ -2,8 +2,10 @@
 use super::*;
 use crate::World;
 use crate::world::{Arrival, Engine, Limits, Parent, Settings, engine, parent};
-use host::{JobAssignment, JobBound, JobEnd, JobEnding, JobFailure, JobInvalid, JobKind, JobRefusal, Phase};
+use host::{JobAssignment, JobEnd, JobEnding, JobFailure, JobInvalid, JobRefusal};
 use jig_domain_host::{LinkDown, Reason};
+use jig_domain_link::{Form, Grant, Scheme};
+use jig_domain_link::{JobBound, JobKind, Phase};
 use skein_lib::Duration;
 
 const RUN: Token = Token::new(900);
@@ -107,8 +109,8 @@ fn a_job_of_a_kind_not_declared_is_refused_as_invalid() {
     let mut deadline = assignment();
     deadline.deadline = Duration::from_secs(11);
     let mut grant = assignment();
-    grant.grants = Box::new([host::Grant {
-        form: host::Form::Credential(host::Scheme::Key),
+    grant.grants = Box::new([Grant {
+        form: Form::Credential(Scheme::Key),
         account: 1,
         generation: 1,
         valid: Duration::from_secs(1),

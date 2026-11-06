@@ -10,13 +10,14 @@ pub mod forge;
 pub mod forges;
 pub use forge::ForgeRuntime;
 pub mod limits;
+pub mod long_pass;
 pub mod settings;
 pub mod startup;
 pub mod stock;
 pub use startup::{Named, StoreLimits, named, startup, store_limits};
 pub use temper_protocol_records::NotConnected;
 pub mod system;
-pub use system::{Service, iterate};
+pub use system::{STAGES, Service, Stage, iterate, iterate_stage};
 pub mod store;
 #[cfg(test)]
 mod tests;
@@ -151,6 +152,11 @@ pub struct SetupStep {
 /// Operator diagnostics taken by the shell (protocol/forge.md, 2.3).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Note {
+    /// The engine's hello refusal, suppressed until its words change (protocol/README.md, 15.3).
+    HelloRefused {
+        channel: u64,
+        text: Box<[u8]>,
+    },
     /// A failed answer accepted by the hub, for stderr only (domain/worker.md, 4.3).
     RunFailed(temper_engine_domain::RunDiagnostic),
     /// A refused assignment accepted by the hub, for stderr only (domain/worker.md, 4.3).

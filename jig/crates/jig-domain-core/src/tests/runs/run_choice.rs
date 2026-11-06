@@ -6,6 +6,10 @@
     reason = "unit tests build fixtures and inspect selected child events"
 )]
 use crate::tests::*;
+use jig_domain_link::{
+    Bounds, CountKind, Form, GrantTable, Hello, Hosting, Login, LoginMethod, LoginState, Membership, ModelBound, Phase,
+    Scheme, SourceFailure, SourceName,
+};
 const TASK: u64 = 1;
 const FIRST: Token = Token::new(7);
 const SECOND: Token = Token::new(11);
@@ -24,7 +28,7 @@ pub(in crate::tests) fn granted(core: &mut Core, limits: &Limits, source: u32) {
         core,
         limits,
         accounts::Event::Component(accounts::FromComponent::Granted {
-            form: accounts::Form::Credential(accounts::Scheme::Bearer),
+            form: Form::Credential(Scheme::Bearer),
             account: source,
             generation: 1,
             valid: Duration::from_secs(60),
@@ -39,7 +43,7 @@ pub(in crate::tests) fn host_with_logins(
     limits: &Limits,
     channel: Token,
     names: &[&[u8]],
-    logins: Box<[fleet::Login]>,
+    logins: Box<[Login]>,
 ) {
     host_with_endpoints(core, limits, channel, names, logins, Box::new([]));
 }
@@ -48,13 +52,12 @@ pub(in crate::tests) fn host_with_endpoints(
     limits: &Limits,
     channel: Token,
     names: &[&[u8]],
-    logins: Box<[fleet::Login]>,
+    logins: Box<[Login]>,
     endpoints: Box<[u32]>,
 ) {
     let mut bounds = fixtures::bounds();
     bounds.program_endpoints = endpoints;
-    bounds.models =
-        names.iter().map(|name| fleet::ModelBound { name: (*name).into(), window: 8192, output: 1024 }).collect();
+    bounds.models = names.iter().map(|name| ModelBound { name: (*name).into(), window: 8192, output: 1024 }).collect();
     let mut out = Queue::uncapped();
     fleet::step(
         &mut core.fleet,
@@ -62,7 +65,7 @@ pub(in crate::tests) fn host_with_endpoints(
         fleet::Event::Hello {
             worker: u32::from(channel == SECOND),
             channel,
-            hello: fleet::Hello {
+            hello: Hello {
                 jobs: Box::default(),
                 bounds,
                 stop_bound: Duration::ZERO,
@@ -150,17 +153,13 @@ fn a_lower_numbered_goals_waiting_run_starts_first() {
             fleet::Event::Hello {
                 worker: 0,
                 channel: FIRST,
-                hello: fleet::Hello {
+                hello: Hello {
                     jobs: Box::default(),
                     bounds: fixtures::bounds(),
                     stop_bound: Duration::ZERO,
                     slots: SLOTS,
                     workstreams: Box::new([]),
-                    hosting: Box::new([fleet::Hosting {
-                        run: Token::new(TASK),
-                        attempt: BUSY_ATTEMPT,
-                        phase: fleet::Phase::Active,
-                    }]),
+                    hosting: Box::new([Hosting { run: Token::new(TASK), attempt: BUSY_ATTEMPT, phase: Phase::Active }]),
                 },
             },
             &mut out,
@@ -298,7 +297,7 @@ fn adoption_uses_recorded_sources_through_refresh_and_removal() {
         let fleet::Event::Adopt { holds, grants, .. } = core.adopted.pop().unwrap() else {
             panic!("recorded adoption")
         };
-        assert_eq!(holds.as_ref(), [fleet::GrantName { table: fleet::GrantTable::Accounts, account: 2 }]);
+        assert_eq!(holds.as_ref(), [fleet::GrantName { table: GrantTable::Accounts, account: 2 }]);
         assert_eq!(grants.len(), usize::from(usable));
         if let Some(grant) = grants.first() {
             assert_eq!(grant.account, 2);
@@ -473,7 +472,7 @@ fn a_progress_count_leaves_due_task_watches_unmarked() {
             channel: Token::new(0),
             run: Token::new(2),
             attempt: Token::new(7),
-            report: fleet::Report::Count { kind: fleet::CountKind::TextArrived, elapsed: Duration::ZERO, count: 1 },
+            report: fleet::Report::Count { kind: CountKind::TextArrived, elapsed: Duration::ZERO, count: 1 },
         }),
     );
     assert!(core.changed_views.is_empty());
@@ -482,10 +481,10 @@ fn a_progress_count_leaves_due_task_watches_unmarked() {
 const OWNER: u64 = 1;
 const OTHER_PERSON: u64 = 2;
 const PERSONAL_SOURCE: u32 = 3;
-pub(in crate::tests) fn login(name: &[u8], state: fleet::LoginState) -> fleet::Login {
-    fleet::Login { name: fleet::SourceName::new(name).unwrap(), state }
+pub(in crate::tests) fn login(name: &[u8], state: LoginState) -> Login {
+    Login { name: SourceName::new(name).unwrap(), state }
 }
-pub(in crate::tests) fn inventory(core: &mut Core, limits: &Limits, channel: Token, logins: Box<[fleet::Login]>) {
+pub(in crate::tests) fn inventory(core: &mut Core, limits: &Limits, channel: Token, logins: Box<[Login]>) {
     let mut out = Queue::uncapped();
     fleet::step(
         &mut core.fleet,
@@ -506,8 +505,7 @@ pub(in crate::tests) fn placement_fleet(core: &Core, limits: &Limits) -> fleet::
         Box::new([]),
     );
     fleet.configure_workers(
-        fleet::Membership::new(config.worker_names, limits.fleet.configured_workers, limits.fleet.worker_name_bytes)
-            .unwrap(),
+        Membership::new(config.worker_names, limits.fleet.configured_workers, limits.fleet.worker_name_bytes).unwrap(),
     );
     fleet
 }
@@ -623,7 +621,7 @@ fn placement_with_accounts(
     fleet::step(
         &mut core.fleet,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet },
-        fleet::Event::Sources { sources: Box::new([fleet::SourceName::new(b"personal").unwrap()]) },
+        fleet::Event::Sources { sources: Box::new([SourceName::new(b"personal").unwrap()]) },
         &mut out,
     );
     host_with_logins(
@@ -631,14 +629,14 @@ fn placement_with_accounts(
         &limits,
         FIRST,
         &[b"scripted", b"other"],
-        Box::new([login(b"personal", fleet::LoginState::Usable)]),
+        Box::new([login(b"personal", LoginState::Usable)]),
     );
     host_with_logins(
         &mut core,
         &limits,
         SECOND,
         &[b"scripted"],
-        Box::new([login(b"personal", fleet::LoginState::NotSignedIn)]),
+        Box::new([login(b"personal", LoginState::NotSignedIn)]),
     );
     (core, limits)
 }
@@ -647,10 +645,10 @@ fn another_person_s_kept_login_keeps_a_run_off_its_host() {
     let (mut core, limits) =
         placement_fixture(accounts::Holder::Deployment, accounts::Holder::Party(OTHER_PERSON), false);
     for state in [
-        fleet::LoginState::Usable,
-        fleet::LoginState::SignedInOtherwise(fleet::LoginMethod::new(b"api-key").unwrap()),
-        fleet::LoginState::Failed { reason: fleet::SourceFailure::Exited, detail: Box::new([]) },
-        fleet::LoginState::Failed { reason: fleet::SourceFailure::Deadline, detail: Box::new([]) },
+        LoginState::Usable,
+        LoginState::SignedInOtherwise(LoginMethod::new(b"api-key").unwrap()),
+        LoginState::Failed { reason: SourceFailure::Exited, detail: Box::new([]) },
+        LoginState::Failed { reason: SourceFailure::Deadline, detail: Box::new([]) },
     ] {
         inventory(&mut core, &limits, FIRST, Box::new([login(b"personal", state)]));
         assert_eq!(core.run_choice(TASK).unwrap().placement.channel, SECOND);
@@ -670,7 +668,7 @@ fn a_program_source_is_chosen_only_where_its_login_is_usable() {
 #[test]
 fn an_unusable_program_login_does_not_fall_back_to_a_key() {
     let (mut core, limits) = placement_fixture(accounts::Holder::Party(OWNER), accounts::Holder::Party(OWNER), true);
-    inventory(&mut core, &limits, FIRST, Box::new([login(b"personal", fleet::LoginState::NotSignedIn)]));
+    inventory(&mut core, &limits, FIRST, Box::new([login(b"personal", LoginState::NotSignedIn)]));
     assert_eq!(
         core.run_choice(TASK),
         Err(RunWait::Account { account: Some(0), source: Some(PERSONAL_SOURCE), why: accounts::WaitWhy::Host })
@@ -685,7 +683,7 @@ fn a_deployment_held_login_restricts_no_run() {
 fn a_direct_run_takes_a_worker_without_kept_logins() {
     let (mut core, limits) =
         placement_fixture(accounts::Holder::Deployment, accounts::Holder::Party(OTHER_PERSON), false);
-    inventory(&mut core, &limits, FIRST, Box::new([login(b"personal", fleet::LoginState::NotSignedIn)]));
+    inventory(&mut core, &limits, FIRST, Box::new([login(b"personal", LoginState::NotSignedIn)]));
     assert_eq!(core.run_choice(TASK).unwrap().placement.channel, FIRST);
 }
 #[test]
@@ -721,10 +719,7 @@ fn two_people_s_kept_logins_close_a_host() {
         &mut core.fleet,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet },
         fleet::Event::Sources {
-            sources: Box::new([
-                fleet::SourceName::new(b"personal").unwrap(),
-                fleet::SourceName::new(b"other").unwrap(),
-            ]),
+            sources: Box::new([SourceName::new(b"personal").unwrap(), SourceName::new(b"other").unwrap()]),
         },
         &mut out,
     );
@@ -732,13 +727,13 @@ fn two_people_s_kept_logins_close_a_host() {
         &mut core,
         &limits,
         FIRST,
-        Box::new([login(b"personal", fleet::LoginState::Usable), login(b"other", fleet::LoginState::Usable)]),
+        Box::new([login(b"personal", LoginState::Usable), login(b"other", LoginState::Usable)]),
     );
     inventory(
         &mut core,
         &limits,
         SECOND,
-        Box::new([login(b"personal", fleet::LoginState::NotSignedIn), login(b"other", fleet::LoginState::NotSignedIn)]),
+        Box::new([login(b"personal", LoginState::NotSignedIn), login(b"other", LoginState::NotSignedIn)]),
     );
     assert_eq!(core.run_choice(TASK).unwrap().placement.channel, SECOND);
 }
@@ -797,13 +792,13 @@ fn a_retained_provider_binds_an_account_the_rule_allows() {
 fn a_login_kept_after_the_check_fails_the_assignment_recheck() {
     let (mut core, limits) =
         placement_fixture(accounts::Holder::Deployment, accounts::Holder::Party(OTHER_PERSON), false);
-    inventory(&mut core, &limits, FIRST, Box::new([login(b"personal", fleet::LoginState::NotSignedIn)]));
+    inventory(&mut core, &limits, FIRST, Box::new([login(b"personal", LoginState::NotSignedIn)]));
     let choice = core.run_choice(TASK).unwrap();
     let mut proof = RunProof::claimed(TASK, 7, 7, None, choice.placement.kind);
     proof.placement = Some(choice.placement.channel);
     proof.accounts = choice.accounts;
     core.proofs.insert(TASK, proof).unwrap();
-    inventory(&mut core, &limits, FIRST, Box::new([login(b"personal", fleet::LoginState::Usable)]));
+    inventory(&mut core, &limits, FIRST, Box::new([login(b"personal", LoginState::Usable)]));
     assert!(!core.claim_bindings_usable(TASK, 7));
 }
 
@@ -846,10 +841,7 @@ fn a_declared_model_s_account_takes_no_program_source() {
         &mut core.fleet,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet },
         fleet::Event::Sources {
-            sources: Box::new([
-                fleet::SourceName::new(b"personal").unwrap(),
-                fleet::SourceName::new(b"other-program").unwrap(),
-            ]),
+            sources: Box::new([SourceName::new(b"personal").unwrap(), SourceName::new(b"other-program").unwrap()]),
         },
         &mut out,
     );
@@ -857,7 +849,7 @@ fn a_declared_model_s_account_takes_no_program_source() {
         &mut core,
         &limits,
         FIRST,
-        Box::new([login(b"personal", fleet::LoginState::Usable), login(b"other-program", fleet::LoginState::Usable)]),
+        Box::new([login(b"personal", LoginState::Usable), login(b"other-program", LoginState::Usable)]),
     );
     let choice = core.run_choice(TASK).expect("credential main runs");
     assert_eq!(choice.accounts.as_ref(), &[authority::AccountBinding { provider: 1, account: 0, source: 1 }]);
@@ -874,7 +866,7 @@ fn a_declared_model_with_mains_program_shares_mains_account() {
     fleet::step(
         &mut core.fleet,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet },
-        fleet::Event::Sources { sources: Box::new([fleet::SourceName::new(b"personal").unwrap()]) },
+        fleet::Event::Sources { sources: Box::new([SourceName::new(b"personal").unwrap()]) },
         &mut out,
     );
     host_with_logins(
@@ -882,7 +874,7 @@ fn a_declared_model_with_mains_program_shares_mains_account() {
         &limits,
         FIRST,
         &[b"scripted", b"same"],
-        Box::new([login(b"personal", fleet::LoginState::Usable)]),
+        Box::new([login(b"personal", LoginState::Usable)]),
     );
     let choice = core.run_choice(TASK).expect("program models run together");
     assert_eq!(choice.placement.channel, FIRST);
@@ -924,7 +916,7 @@ fn due_and_preparing_documents_refine_only_the_host_wait_from_an_actual_refused_
             fleet::Event::Hello {
                 channel,
                 worker: 0,
-                hello: fleet::Hello {
+                hello: Hello {
                     jobs: Box::default(),
                     bounds,
                     stop_bound: Duration::ZERO,
@@ -964,9 +956,9 @@ fn due_and_preparing_documents_refine_only_the_host_wait_from_an_actual_refused_
             fleet::Event::Hello {
                 channel,
                 worker: 0,
-                hello: fleet::Hello {
+                hello: Hello {
                     jobs: Box::default(),
-                    bounds: fleet::Bounds { turns: 0, ..fixtures::bounds() },
+                    bounds: Bounds { turns: 0, ..fixtures::bounds() },
                     stop_bound: Duration::ZERO,
                     slots: 1,
                     workstreams: Box::new([]),
@@ -989,9 +981,9 @@ fn a_standing_refusal_does_not_replace_account_or_credential_waits_or_placed_wor
         fleet::Event::Hello {
             channel: Token::new(99),
             worker: 0,
-            hello: fleet::Hello {
+            hello: Hello {
                 jobs: Box::default(),
-                bounds: fleet::Bounds { turns: 0, ..fixtures::bounds() },
+                bounds: Bounds { turns: 0, ..fixtures::bounds() },
                 stop_bound: Duration::ZERO,
                 slots: 1,
                 workstreams: Box::new([]),

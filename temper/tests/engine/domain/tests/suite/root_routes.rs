@@ -1,8 +1,8 @@
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
 use jig_domain_brief as brief;
-use jig_domain_fleet as fleet;
 use jig_domain_host as host;
+use jig_domain_link::{Form, Hosting, Problem, Scheme};
 use jig_domain_notes as notes;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -52,8 +52,8 @@ fn until_pending(driver: &mut Driver) {
 }
 
 /// A worker's hello with its own slots, stop bound and hosted runs.
-fn hello_with(channel: Token, slots: u32, stop_bound: Duration, hosting: Box<[host::Hosting]>) -> engine::Event {
-    let hello = host::Hello {
+fn hello_with(channel: Token, slots: u32, stop_bound: Duration, hosting: Box<[Hosting]>) -> engine::Event {
+    let hello = jig_domain_link::Hello {
         jobs: Box::default(),
         slots,
         stop_bound,
@@ -999,8 +999,8 @@ fn an_ungranted_account_retains_the_chat_until_its_grant() {
     assert_eq!(withheld.len(), 1, "one grant for the one wanted account");
     driver.events.extend(withheld);
     driver.settle();
-    let grant = accounts::Grant {
-        form: accounts::Form::Credential(accounts::Scheme::Key),
+    let grant = jig_domain_link::Grant {
+        form: Form::Credential(Scheme::Key),
         account: 1,
         generation: 1,
         valid: accounts::KEY_VALID,
@@ -1681,7 +1681,7 @@ fn a_note_written_corrected_by_a_person_and_recalled_is_durable() {
             if entries.len() == 1 && entries[0].revision == 2 && entries[0].body.as_ref() == b"second body"
     ));
     let mut restarted = Driver::configured(driver.take_store(), [note_config(), note_config()], &limits());
-    let hosting = protocol::hosting(assignment.task, assignment.attempt, host::Phase::Active);
+    let hosting = protocol::hosting(assignment.task, assignment.attempt, jig_domain_link::Phase::Active);
     restarted.send(hello_with(Token::new(7), 1, Duration::from_secs(1), Box::new([hosting])));
     restarted.settle();
     tool_call(&mut restarted, &assignment, 3101, new_note(b"original", b"first body", author));
@@ -2345,8 +2345,8 @@ fn an_agent_changes_a_live_delegates_controls_and_replays_the_answer() {
     let (configuration, _) = batch_settings(2, 1, 200, false, false, false);
     let mut restarted = Driver::configured(store, configuration, &bounds);
     let hosting = Box::new([
-        protocol::hosting(parent.task, parent.attempt, host::Phase::Active),
-        protocol::hosting(child, running.attempt, host::Phase::Active),
+        protocol::hosting(parent.task, parent.attempt, jig_domain_link::Phase::Active),
+        protocol::hosting(child, running.attempt, jig_domain_link::Phase::Active),
     ]);
     restarted.send(hello_with(Token::new(7), 2, Duration::from_secs(1), hosting));
     restarted.settle();
@@ -2864,7 +2864,7 @@ fn a_call_asked_twice_across_a_restart_is_decided_once() {
                 && call.as_ref() == 71_u64.to_be_bytes()
     )));
     let mut restarted = Driver::new(driver.take_store());
-    let hosting = protocol::hosting(assignment.task, assignment.attempt, host::Phase::Active);
+    let hosting = protocol::hosting(assignment.task, assignment.attempt, jig_domain_link::Phase::Active);
     restarted.send(hello_with(Token::new(7), 1, Duration::from_secs(1), Box::new([hosting])));
     restarted.settle();
     unavailable_call(&mut restarted, &assignment, 72);
@@ -3016,7 +3016,7 @@ fn root_restore_loads_linked_task_shapes_and_panics_at_a_missing_charter() {
             assert!(restarted.switches.is_empty());
             assert!(restarted.delivered.is_empty());
         } else {
-            let hosting = protocol::hosting(assignment.task, assignment.attempt, host::Phase::Active);
+            let hosting = protocol::hosting(assignment.task, assignment.attempt, jig_domain_link::Phase::Active);
             restarted.send(protocol::hello(Token::new(7), Box::new([hosting])));
             restarted.settle();
             assert!(restarted.root.ready());
@@ -4619,7 +4619,7 @@ fn a_worker_frozen_past_its_grace_gets_no_next_attempt_until_its_sum_has_passed(
     driver.send(hello_with(Token::new(8), 1, Duration::from_secs(5), Box::new([])));
     driver.settle();
     assert!(
-        driver.delivered.iter().any(|delivery| matches!(delivery, Delivery::Refuse { channel }
+        driver.delivered.iter().any(|delivery| matches!(delivery, Delivery::Refuse { channel, .. }
         if *channel == Token::new(8))),
         "a worker whose stop bound reaches engine grace cannot place runs"
     );
@@ -5091,7 +5091,7 @@ fn root_startup_returns_the_worker_membership_problem() {
             .into_boxed_slice()]);
     assert!(matches!(
         engine::Domain::new(config, &limits),
-        Err(fleet::WorkerProblem::WorkerName { worker: 0, limit }) if limit == limits.fleet.worker_name_bytes
+        Err(Problem::WorkerName { worker: 0, limit }) if limit == limits.fleet.worker_name_bytes
     ));
 }
 

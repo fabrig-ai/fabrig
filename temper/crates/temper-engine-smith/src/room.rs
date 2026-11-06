@@ -90,7 +90,7 @@ fn measurement_charter() -> run::Charter {
                 checks_must_pass: charter::CONTRACT_CHECKS_MUST_PASS,
                 fields: Box::new([
                     charter::FieldRule { name: Box::from(b"title".as_slice()), max },
-                    charter::FieldRule { name: Box::from(b"body".as_slice()), max },
+                    charter::FieldRule { name: Box::from(b"body".as_slice()), max: charter::CHANGE_BODY_MAX },
                 ]),
             }),
         },

@@ -1,6 +1,7 @@
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_core as core;
+use jig_domain_link::{Hello, Hosting};
 use jig_domain_tasks as tasks;
 use jig_protocol_store::{KeptFamily, KeptMap, Owner, PatchSet, PatchSets};
 use jig_test_domain as root;
@@ -71,11 +72,11 @@ pub fn hello(world: &mut World) {
     hello_hosting(world, Box::new([]));
 }
 
-pub fn hello_hosting(world: &mut World, hosting: Box<[jig_domain_fleet::Hosting]>) {
+pub fn hello_hosting(world: &mut World, hosting: Box<[Hosting]>) {
     world.send(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Hello {
         worker: 0,
         channel: Token::new(7),
-        hello: jig_domain_fleet::Hello {
+        hello: Hello {
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(100),

@@ -3,7 +3,7 @@
 //! `temper/docs/design/domain/testing.md`, 1).
 use jig_domain_authority as authority;
 use jig_domain_core as core;
-use jig_domain_host as host;
+use jig_domain_link::ModelBound;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, List, ReplyTo, Token};
@@ -163,7 +163,7 @@ fn close(world: &mut World) {
 fn worker(world: &mut World, stock: &core::settings::Defaults) {
     let model = super::stock::box_model();
     let mut bounds = protocol::bounds();
-    bounds.models = Box::new([host::ModelBound { name: model.name, window: model.window, output: model.output }]);
+    bounds.models = Box::new([ModelBound { name: model.name, window: model.window, output: model.output }]);
     bounds.turns = 800;
     bounds.time = Duration::from_secs(28_800);
     bounds.spend = stock.rules.maximum_run_spend;
@@ -173,7 +173,7 @@ fn worker(world: &mut World, stock: &core::settings::Defaults) {
         channel: WORKER,
         link: engine::Link::Hello {
             worker: 0,
-            hello: host::Hello {
+            hello: jig_domain_link::Hello {
                 jobs: Box::new([]),
                 slots: world.env.limits.fleet.slots,
                 stop_bound: Duration::from_millis(100),

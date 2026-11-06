@@ -86,7 +86,7 @@ impl Remote for Git<'_> {
     }
 }
 
-struct Workspace {
+pub(super) struct Workspace {
     domain: checkout::Domain,
     env: Env<checkout::Limits>,
     out: Queue<checkout::Request>,
@@ -173,7 +173,7 @@ impl Workspace {
         };
         workspace
     }
-    fn attempt(&mut self, world: &mut World, run: &engine::Assignment, unfinished: bool) -> engine::Parts {
+    pub(super) fn attempt(&mut self, world: &mut World, run: &engine::Assignment, unfinished: bool) -> engine::Parts {
         let workspace = self.prepare(world, run);
         let repository = &run.workspace.repositories[0];
         if unfinished {
@@ -228,7 +228,7 @@ pub(super) fn inspect(world: &mut World, run: &engine::Assignment) -> (Checkout,
     (checkout.disk, workspace)
 }
 
-fn finish_change(world: &mut World, run: &engine::Assignment, words: &[u8], parts: engine::Parts) {
+pub(super) fn finish_change(world: &mut World, run: &engine::Assignment, words: &[u8], parts: engine::Parts) {
     let event = world.protocol.answer(
         CHANNEL,
         run.task,
@@ -249,7 +249,7 @@ fn finish_change(world: &mut World, run: &engine::Assignment, words: &[u8], part
     world.send(event);
 }
 
-fn saved_repair_retry() -> (World, Workspace, engine::Assignment, Box<[u8]>) {
+pub(super) fn saved_repair_retry() -> (World, Workspace, engine::Assignment, Box<[u8]>) {
     let (mut world, _, producer, branch) = change_world(true, 1000, None);
     world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
     let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"needs repair", 1)

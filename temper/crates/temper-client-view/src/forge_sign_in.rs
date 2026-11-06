@@ -17,6 +17,7 @@ pub struct Forge {
 #[derive(Debug)]
 pub struct Forges {
     entries: List<Forge>,
+    off: List<u16>,
 }
 impl Default for Forges {
     fn default() -> Self {
@@ -26,10 +27,14 @@ impl Default for Forges {
 impl Forges {
     #[must_use]
     pub fn new() -> Self {
-        Self { entries: List::with_capacity(FORGES) }
+        Self { entries: List::with_capacity(FORGES), off: List::with_capacity(FORGES) }
     }
     /// Malformed, oversized and repeated entries are dropped.
     pub fn read(&mut self, content: &str) {
+        if let Some(number) = content.strip_prefix("off ") {
+            self.read_off(number);
+            return;
+        }
         if self.entries.len() == FORGES || content.len() > META_BYTES {
             return;
         }
@@ -61,6 +66,21 @@ impl Forges {
         self.entries
             .push(Forge { number, client: client.as_bytes().into(), root: root.as_bytes().into(), owned })
             .expect("forge facts bounded");
+    }
+    /// A page fact names only the affected forge, never its failure's diagnostic.
+    pub fn read_off(&mut self, content: &str) {
+        if content.len() > 5 {
+            return;
+        }
+        let Some(number) = skein_ui::number(content.as_bytes()) else { return };
+        let Ok(number) = u16::try_from(number) else { return };
+        if number != 0 && !self.off.as_slice().contains(&number) && self.off.room() > 0 {
+            self.off.push(number).expect("bounded off facts");
+        }
+    }
+    #[must_use]
+    pub fn off(&self, number: u16) -> bool {
+        self.off.as_slice().contains(&number)
     }
     #[must_use]
     pub fn entries(&self) -> &List<Forge> {
@@ -166,6 +186,22 @@ impl Forge {
         } else {
             words.say(Word::SignInForgeAt, &[Hole::Name(host(&self.root).expect("checked forge root").into())])
         }
+    }
+    /// `ROOT/user/oauth2/temper?redirect_to=%2FOWNER%2FNAME` (client/forge.md, 5.4), or None past the URL's bound.
+    #[must_use]
+    pub fn open_repository(&self, owner: &[u8], name: &[u8]) -> Option<Box<[u8]>> {
+        let path = crate::forge::repository::web_address(b"", owner, name)?;
+        let query = crate::forge::repository::encoded(&path, false)?;
+        let root = self.open();
+        let bytes = root.len().checked_add(b"?redirect_to=".len())?.checked_add(query.len())?;
+        if bytes > usize::try_from(temper_client_domain::forge::change::ADDRESS_BYTES).ok()? {
+            return None;
+        }
+        let mut out = skein_lib::Writer::new(bytes);
+        out.put(&root).ok()?;
+        out.put(b"?redirect_to=").ok()?;
+        out.put(&query).ok()?;
+        Some(out.finish())
     }
     #[must_use]
     pub fn open(&self) -> Box<[u8]> {

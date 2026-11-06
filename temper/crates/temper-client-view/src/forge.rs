@@ -8,6 +8,7 @@ pub mod bindings;
 pub(crate) mod connect;
 pub(crate) mod forges;
 pub mod page;
+pub(crate) mod repository;
 pub mod words;
 fn path_text(builder: &mut Builder, path: &[Box<[u8]>], words: &Words) {
     let (word, holes) = shared::path(path, words.path_bytes());

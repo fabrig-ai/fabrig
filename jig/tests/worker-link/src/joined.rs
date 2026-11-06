@@ -1,5 +1,6 @@
 //! Both real channel components, with scripted roots and seeded stream cuts.
 use jig_domain_host as host;
+use jig_domain_link::Form;
 use jig_protocol_engine_workers as engine;
 use jig_protocol_worker_link::{Component, Credential, Event, GrantValue, Limits, Request, Scheme};
 use jig_protocol_worker_wire::Part;
@@ -415,14 +416,14 @@ pub fn values() -> Box<[Option<engine::GrantValue>]> {
 }
 /// The form a value is lent as.
 #[must_use]
-pub fn form(value: &engine::GrantValue) -> host::Form {
+pub fn form(value: &engine::GrantValue) -> Form {
     match value {
-        engine::GrantValue::Credential { scheme, .. } => host::Form::Credential(match scheme {
-            engine::Scheme::Bearer => host::Scheme::Bearer,
-            engine::Scheme::Key => host::Scheme::Key,
+        engine::GrantValue::Credential { scheme, .. } => Form::Credential(match scheme {
+            engine::Scheme::Bearer => jig_domain_link::Scheme::Bearer,
+            engine::Scheme::Key => jig_domain_link::Scheme::Key,
         }),
-        engine::GrantValue::Application { .. } => host::Form::Application,
-        engine::GrantValue::Program { name } => host::Form::Program(*name),
+        engine::GrantValue::Application { .. } => Form::Application,
+        engine::GrantValue::Program { name } => Form::Program(*name),
     }
 }
 /// A value's arm and its bytes, so the engine's value and the layer's
