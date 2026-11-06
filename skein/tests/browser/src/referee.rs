@@ -74,6 +74,7 @@ impl Referee {
             | Event::Done { op }
             | Event::Refused { op, .. }
             | Event::Attribute { op, .. }
+            | Event::Tabs { op, .. }
             | Event::Address { op, .. }
             | Event::Snapshot { op, .. }
             | Event::Screenshot { op, .. } => Some(*op),

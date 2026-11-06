@@ -824,3 +824,5 @@ fn a_press_refused_for_another_reason_fails_without_repeating() {
     face.tick(Time::ZERO.saturating_add(skein_browser::Limits::default().poll));
     assert_eq!(face.requests().count(), 0);
 }
+
+mod tabs;

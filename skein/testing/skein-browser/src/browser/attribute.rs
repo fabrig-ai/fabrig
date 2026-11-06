@@ -68,6 +68,7 @@ impl Browser {
             | Step::KeyDown
             | Step::KeyUp
             | Step::Character { .. }
+            | Step::Tabs
             | Step::Address
             | Step::Snapshot
             | Step::Screenshot => unreachable!("only attribute steps reach the attribute reader"),
@@ -118,6 +119,7 @@ impl Browser {
                 | OpKind::Press { .. }
                 | OpKind::Type { .. }
                 | OpKind::Key { .. }
+                | OpKind::Tabs
                 | OpKind::Address
                 | OpKind::Snapshot
                 | OpKind::Screenshot => None,

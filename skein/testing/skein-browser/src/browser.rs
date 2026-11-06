@@ -94,6 +94,7 @@ enum OpKind {
     Type { text: Box<[u8]>, entry: Entry },
     Key { key: Key, shift: bool },
     Address,
+    Tabs,
     Attribute { selector: Box<[u8]>, name: Box<[u8]>, until: Time },
     Snapshot,
     Screenshot,
@@ -157,6 +158,7 @@ enum Step {
     KeyUp,
     Character { offset: usize, down: bool },
     Address,
+    Tabs,
     AttributeRoot,
     AttributeSelector,
     AttributeValue,
@@ -677,6 +679,19 @@ impl Browser {
                     return;
                 }
                 self.issue_key(env, op, key, shift, true);
+            }
+            Request::Tabs { page, op } => {
+                if self.admit_op(env, page, op, OpKind::Tabs)
+                    && !self.queue_command(
+                        env,
+                        b"Target.getTargets",
+                        None,
+                        &Params::Empty,
+                        PendingKind::Step(op, Step::Tabs),
+                    )
+                {
+                    self.finish_refused(op, Refusal::Limit);
+                }
             }
             Request::Address { page, op } => {
                 if !self.admit_op(env, page, op, OpKind::Address) {
@@ -1277,6 +1292,7 @@ pub fn fire(browser: &mut Browser, env: &Env<Limits>, now: Time, above: &mut Que
                         | OpKind::Type { .. }
                         | OpKind::Key { .. }
                         | OpKind::Attribute { .. }
+                        | OpKind::Tabs
                         | OpKind::Address
                         | OpKind::Snapshot
                         | OpKind::Screenshot,
@@ -1595,6 +1611,7 @@ impl Browser {
                     | OpKind::Type { .. }
                     | OpKind::Key { .. }
                     | OpKind::Attribute { .. }
+                    | OpKind::Tabs
                     | OpKind::Address
                     | OpKind::Snapshot
                     | OpKind::Screenshot => {}
@@ -2156,6 +2173,7 @@ impl Browser {
             Step::AttributeRoot | Step::AttributeSelector | Step::AttributeValue => {
                 self.attribute_reply(env, token, method, step, result);
             }
+            Step::Tabs => self.tabs_reply(env, token, result),
             Step::Address => {
                 let current = field_i64(result, b"currentIndex");
                 let entries = field_array(result, b"entries");
@@ -2287,6 +2305,7 @@ impl Browser {
             | Step::AttributeRoot
             | Step::AttributeSelector
             | Step::AttributeValue
+            | Step::Tabs
             | Step::Address
             | Step::Snapshot
             | Step::Screenshot => unreachable!("only mouse steps reach mouse"),
@@ -2296,6 +2315,7 @@ impl Browser {
 }
 
 mod attribute;
+mod tabs;
 
 #[cfg(test)]
 #[path = "browser/type_tests.rs"]
@@ -2319,6 +2339,7 @@ fn waits_for_document(kind: &OpKind) -> bool {
         | OpKind::Press { .. }
         | OpKind::Type { .. }
         | OpKind::Key { .. }
+        | OpKind::Tabs
         | OpKind::Address
         | OpKind::Snapshot
         | OpKind::Screenshot => false,

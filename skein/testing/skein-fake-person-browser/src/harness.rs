@@ -117,7 +117,7 @@ pub trait Play {
 mod commands;
 mod request;
 mod script;
-pub use script::{Script, Step};
+pub use script::{Script, Step, TabSeen};
 #[derive(Clone, Copy)]
 pub enum ServerAction {
     Stop,
@@ -711,6 +711,7 @@ impl Runtime {
             | Event::Done { .. }
             | Event::Refused { .. }
             | Event::Attribute { .. }
+            | Event::Tabs { .. }
             | Event::Address { .. }
             | Event::Snapshot { .. }
             | Event::Screenshot { .. } => {}

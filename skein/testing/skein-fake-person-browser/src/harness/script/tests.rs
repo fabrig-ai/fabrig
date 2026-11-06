@@ -223,3 +223,77 @@ fn another_operations_attribute_does_not_complete_a_keep() {
     assert_eq!(script.at(), 0);
     assert_eq!(face.failure(), None);
 }
+
+fn tabs_script() -> (Script, BrowserFace<'static>) {
+    let script = Script::new(Box::new([Step::Tabs {
+        tabs: Box::new([
+            super::TabSeen {
+                title: Some(b"Opening".as_slice().into()),
+                address: Some(b"/auth".as_slice().into()),
+                opener: Some(false),
+            },
+            super::TabSeen { title: None, address: None, opener: None },
+        ]),
+        within: skein_lib::Duration::from_secs(1),
+    }]));
+    (script, face())
+}
+fn tab(title: &[u8], url: &[u8], opener: bool) -> skein_browser::boundary::Tab {
+    skein_browser::boundary::Tab { title: title.into(), url: url.into(), opener }
+}
+fn tabs_answer(face: &mut BrowserFace<'_>, op: Token, tabs: Vec<skein_browser::boundary::Tab>, more: u32) {
+    let mut list = skein_lib::List::with_capacity(2);
+    for tab in tabs {
+        list.push(tab).unwrap();
+    }
+    face.event(&Event::Tabs { op, tabs: list, more });
+}
+fn correct_tabs() -> Vec<skein_browser::boundary::Tab> {
+    vec![tab(b"Opening", b"https://example.test/auth?code=x", false), tab(b"Any title", b"about:blank", true)]
+}
+#[test]
+fn a_tabs_step_polls_until_each_requested_field_count_and_order_match() {
+    let mut wrong_title = correct_tabs();
+    wrong_title[0].title = b"Other".as_slice().into();
+    let mut wrong_address = correct_tabs();
+    wrong_address[0].url = b"https://example.test/other".as_slice().into();
+    let mut wrong_opener = correct_tabs();
+    wrong_opener[0].opener = true;
+    let mut wrong_order = correct_tabs();
+    wrong_order.reverse();
+    for (tabs, more) in
+        [(wrong_title, 0), (wrong_address, 0), (wrong_opener, 0), (wrong_order, 0), (vec![], 0), (correct_tabs(), 1)]
+    {
+        let (mut script, mut face) = tabs_script();
+        script.next(&mut face, Time::ZERO);
+        assert_eq!(face.requests().collect::<Vec<_>>(), vec![Request::Tabs { page: Token::new(7), op: ADDRESS_OP }]);
+        tabs_answer(&mut face, Token::new(99), correct_tabs(), 0);
+        assert!(face.pending(), "another operation cannot complete this read");
+        tabs_answer(&mut face, ADDRESS_OP, tabs, more);
+        script.next(&mut face, Time::ZERO);
+        assert_eq!(script.at(), 0, "mismatching tabs must wait");
+        let poll = skein_browser::Limits::default().poll;
+        script.next(&mut face, Time::from_nanos(poll.as_nanos() - 1));
+        assert_eq!(face.requests().count(), 0, "no early poll");
+        script.next(&mut face, Time::ZERO.saturating_add(poll));
+        let Some(Request::Tabs { op, .. }) = face.requests().next() else { panic!("poll tabs") };
+        tabs_answer(&mut face, op, correct_tabs(), 0);
+        script.next(&mut face, Time::ZERO.saturating_add(poll));
+        assert_eq!(script.at(), 1);
+        assert!(face.failure().is_none());
+    }
+}
+#[test]
+fn a_tabs_deadline_names_the_last_tabs_while_the_next_read_is_pending() {
+    let (mut script, mut face) = tabs_script();
+    script.next(&mut face, Time::ZERO);
+    face.requests().for_each(drop);
+    tabs_answer(&mut face, ADDRESS_OP, vec![tab(b"Waiting", b"about:blank", true)], 2);
+    script.next(&mut face, Time::ZERO);
+    script.next(&mut face, Time::ZERO.saturating_add(skein_browser::Limits::default().poll));
+    assert!(face.pending());
+    script.check_deadline(&mut face, Time::ZERO.saturating_add(skein_lib::Duration::from_secs(1)));
+    let failure = face.failure().expect("deadline fails");
+    assert!(failure.contains("Waiting") && failure.contains("about:blank") && failure.contains("2 more"), "{failure}");
+    assert_eq!(script.at(), 1);
+}
