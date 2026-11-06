@@ -66,6 +66,8 @@ def bundle(tree, target, env):
         out = target / "ui-example-bundle"
         variable = "SKEIN_UI_EXAMPLE_BUNDLE"
         options = ["--stylesheet", "skein/examples/ui/shell-web/notes.css",
+                   "--placeholder", "skein/examples/ui/shell-web/loading.html",
+                   "--placeholder-stylesheet", "skein/examples/ui/shell-web/loading.css",
                    "--noscript", "Notes needs WebAssembly and scripts."]
         features = []
     elif tree == "jig":
@@ -84,7 +86,9 @@ def bundle(tree, target, env):
         out = target / "temper-bundle"
         variable = "TEMPER_TEST_BUNDLE"
         shell = "temper/crates/temper-client-shell-web"
-        options = ["--stylesheet", f"{shell}/temper.css",
+        options = ["--title", "temper", "--placeholder", f"{shell}/loading.html",
+                   "--placeholder-stylesheet", f"{shell}/loading.css",
+                   "--stylesheet", f"{shell}/temper.css",
                    "--stylesheet", f"{shell}/task-pages.css",
                    "--files", f"{shell}/files",
                    "--noscript", "temper needs WebAssembly and scripts."]

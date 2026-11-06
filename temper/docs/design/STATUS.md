@@ -35,8 +35,10 @@ built through ctl, but the restore's stories in the domain world and
 the joined client world are ignored (`protocol/configuration.md`,
 `client/tools.md`). The configuring agent, charter 3 and template 3,
 is in the stock and the reference pages it reads are built, but no walk
-on record has run a real model on its words, nothing it reads names the
-worker slots it is to size temper's own way by (`domain/agent.md`), and a
+on record has run a real model on its words as they stand, nothing it reads names the
+worker slots it is to size temper's own way by, no story that runs has an owner reject
+its proposal under Needs you, with `temper help proposal` still saying that press fails,
+and a second proposal's refusal offers a `withdraw` it can't make (`domain/agent.md`), and a
 charter's `tools` decides only whether its runs are offered the
 settings family (`protocol/configuration.md`). The limits' check
 leaves temper's kinds out of the settings answer's bound
@@ -231,9 +233,12 @@ terminal, a call under way with none ended says its words twice, and a run still
 no "1 failed" (`client/README.md`). Every confirmation of a chat, a
 task or a card is one sheet, but a closed chat hides every "Decision made", where the
 request `close-chat` hides the closing's alone, a Release pressed before an uncertain
-effect's choice closes its sheet, no walk on record presses a task's Cancel or an
+effect's choice closes its sheet, no walk on record presses an
 agent's task's Close (`client/README.md`), and a sheet's acts stand
-44 px on a phone, where that request has 38 (`client/browser.md`). A document
+44 px on a phone, where that request has 38 (`client/browser.md`). A chat, a goal and an
+agent's task say Pause, Resume and Close, an agent's task's departing from the request
+`ui-pause-close`, its Stop being a hold that stays one as Pause, but no browser test walks
+them or a message that resumes, and no test draws "Paused" on Home (`client/README.md`). A document
 built in parts is proved on a script alone, no real model having built one
 and no walk drawing a long one in its pane, and a later note write's words
 close with its lines where the `note-parts` request of 2026-11-05 keeps the
