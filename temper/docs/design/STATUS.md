@@ -178,7 +178,11 @@ words and look (`client/README.md`), but no walk on record presses its acts and 
 render has drawn its picture as a numbered list (`client/browser.md`). The words being written draw an
 empty message in the dots' place until they hold a word, their "▍" falls below a closed
 fence, a last block still open changes as it commits, and no browser test draws them
-(`client/README.md`). Every confirmation of a chat, a
+(`client/README.md`). A run of calls is one line on a chat's page and an agent's, its
+verbs and time for the user to read on a real chat (`draft/chat-reading.md`), but no test
+takes its call under way from the engine or draws it running in a browser or a real
+terminal, a call under way with none ended says its words twice, and a run still out says
+no "1 failed" (`client/README.md`). Every confirmation of a chat, a
 task or a card is one sheet, but a closed chat hides every "Decision made", where the
 request `close-chat` hides the closing's alone, a Release pressed before an uncertain
 effect's choice closes its sheet, no walk on record presses Accept, a task's Cancel, an
