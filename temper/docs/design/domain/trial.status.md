@@ -2,4 +2,4 @@
 
 2026-11-06. Where temper's code lags or departs from [trial.md](trial.md).
 
-- **Not yet:** 2 to 7, whole: no charter 10, no child, no root's part, no wire, no client's.
+- **Not yet:** 2 to 7, whole: no child, no root's part, no wire, no client's.
