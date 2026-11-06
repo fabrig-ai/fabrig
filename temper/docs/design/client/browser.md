@@ -576,7 +576,10 @@ replay says the same clocks (`README.md`, 5.12).
   a top bar of the switcher alone, the brand's star before the
   project's name, its menu at least 220 px wide, and the tab bar fixed
   at the foot, four links, the page leaving it room. The link's state
-  shows at the rail's foot, with its dot, while it is not live.
+  shows at the rail's foot, with its dot, while it is not live. The person's
+  menu goes with the foot, so the `Accounts` tab's row with "Sign out", which
+  `temper.css` hides over 760 px, stands at that width alone (`README.md`, 3.5
+  and 5.3).
 - **The page covers the display,** `viewport-fit=cover`, as the greenfield
   mock's does, wherever a page's head is printed: the bundler's page
   (skein's `ui-web.md`, 4.3), the playground's, the setup pages', and the
@@ -1161,7 +1164,8 @@ Not in the tier, each in the lowest world that shows it:
   Default: none, until a phone's rule breaks unseen.
 - **The rail's foot on a phone** (2.5; `README.md`, 5.3): the top bar holds the
   switcher alone, as the mock's does, so a project's page on a phone shows no
-  link's state, no "Behind" and no "Sign out did not reach the engine.", and
+  link's state, no "Behind" and, but on the `Accounts` tab, no "Sign out did
+  not reach the engine.", and
   the way out of the playground is its banner on `Chats` alone. The mock has no
   link to say so of. Default: so; whether a link not live takes a place in the
   top bar is a look request's.
@@ -1319,7 +1323,7 @@ from the engine's own answers, is where the look is tuned.
 | `repositories` | the Repositories tab with rows |
 | `repositories-none` | the Repositories tab's quiet band |
 | `forges-in-settings` | `Forges` inside Settings' frame |
-| `accounts-in-settings` | `Accounts` inside Settings' frame, "Sign out" at its foot |
+| `accounts-in-settings` | `Accounts` inside Settings' frame, "Sign out" at its foot at a phone's width alone |
 | `forges-empty` | the Forges tab's quiet band, in a world with no forge |
 | `forges-setting-up` | the first run's Forges at step 6: a row setting up |
 | `forges-fetching` | the first run's Forges at step 24: a row fetching Forgejo, its percent in its summary |
@@ -1362,6 +1366,7 @@ from the engine's own answers, is where the look is tuned.
 | `configure-chat-document` | a configuring chat in Chat, its document written |
 | `configure-chat-document-split` | the same chat in Split, its pane's line and "Start over" |
 | `rail-new-menu` | the rail's "+ New chat" with its menu open |
+| `rail-person-menu` | the rail's person with its menu open |
 | `chat-solo-T10` | the solo world's chat T10, its proposal in place |
 | `inbox-solo` | the solo world's *Needs you* (`README.md`, 3.5): the first of a proposal and a question |
 | `needs-one` | *Needs you*: a question in the line form, the first of three |

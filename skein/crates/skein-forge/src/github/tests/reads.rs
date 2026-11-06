@@ -154,7 +154,11 @@ fn github_permission_cached_and_uncached_user() {
         }
         assert_eq!(
             call.done(Document::Permission(api::Permission::Write)),
-            ended(Ok(api::Answer::Permission(api::Permission::Write)))
+            ended(Ok(api::Answer::Permission(api::UserPermission {
+                user: USER,
+                login: Box::from(b"alice".as_slice()),
+                permission: api::Permission::Write
+            })))
         );
         assert_eq!(call.tables.user(KEY.forge, USER), Some(b"alice".as_slice()));
     }

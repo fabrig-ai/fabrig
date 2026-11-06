@@ -185,6 +185,7 @@ proposal-rejecting
 rail-away-off
 rail-away-on
 rail-new-menu
+rail-person-menu
 repositories
 repositories-none
 settings
