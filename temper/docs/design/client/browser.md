@@ -897,7 +897,10 @@ without it.
    that is no page opens the inbox, and the address reads `/` once it
    shows (2.3).
 3. **The composer:** in the chats, Enter starts a chat with the words
-   once, and Shift+Enter makes a new line in them (2.5).
+   once, and Shift+Enter makes a new line in them (2.5). The chat opens
+   with its composer focused, the focus stays there after Enter and after
+   a press of "Send", and a chat opened from a list keeps its heading's
+   (`README.md`, 3.5).
 4. **A panic:** skein's `panic` (skein's `ui-web.md`, 14.2), which
    checks the shell's wiring of the restart part, at the test address
    `/test/panic` at which the shell panics at start, as jig's reference
