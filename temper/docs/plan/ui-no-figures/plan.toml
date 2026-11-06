@@ -1,0 +1,24 @@
+draft = "ui-no-figures"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-no-figures/inputs/request.md", "temper/docs/help/how-temper-builds-temper.md", "temper/docs/design/draft/own-way.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
+
+# One task, as the request asks; the design moved with this cut. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "figures"
+title = "The reference drops its figures: its page, its view, its look and their tests"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 1
+story = "a person opens \"How temper builds temper\" beside Configure and reads its five sections, the last closing on the table's note"
+parts = ["figures"]
+walk = false

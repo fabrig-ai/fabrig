@@ -7,6 +7,7 @@ use alloc::boxed::Box;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
+use jig_domain_link::Grant;
 use jig_domain_tasks as tasks;
 use skein_lib::{Deadlines, Duration, Map, Queue, ReplyTo, Rng, Time, Token};
 mod down;
@@ -30,7 +31,7 @@ pub struct JobStart {
     /// Its contract's result bound, which the host's bound must cover.
     pub result: u32,
     /// The application's credentials its workspace needs.
-    pub grants: Box<[jig_domain_accounts::Grant]>,
+    pub grants: Box<[Grant]>,
     /// The application's encoded workspace items, absent when the job needs none.
     pub workspace: Option<Box<[u8]>>,
 }

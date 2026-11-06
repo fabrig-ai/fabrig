@@ -18,6 +18,6 @@ Conversation:
   * ▌
 [6] Message: (empty)
 [7] Send
-[8] Stop
+[8] Pause
 [9] Close
 [10] Older

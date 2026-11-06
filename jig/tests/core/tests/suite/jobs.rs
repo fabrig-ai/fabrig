@@ -7,6 +7,7 @@ use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
+use jig_domain_link::{Hello, Hosting, Phase};
 use jig_domain_tasks as tasks;
 use jig_test_connector as connector;
 use jig_test_domain as root;
@@ -389,17 +390,13 @@ fn hello_hosting(world: &mut World, task: u64, attempt: u64) {
     world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
         worker: 1,
         channel: Token::new(9),
-        hello: fleet::Hello {
+        hello: Hello {
             jobs: Box::new([bound(7)]),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(100),
             slots: 1,
             workstreams: Box::new([]),
-            hosting: Box::new([fleet::Hosting {
-                run: Token::new(task),
-                attempt: Token::new(attempt),
-                phase: fleet::Phase::Active,
-            }]),
+            hosting: Box::new([Hosting { run: Token::new(task), attempt: Token::new(attempt), phase: Phase::Active }]),
         },
     })));
 }

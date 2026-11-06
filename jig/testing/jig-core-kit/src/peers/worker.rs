@@ -1,4 +1,5 @@
 use super::{Peers, authority, core, delegate, end_value, fleet, root, tasks, workers};
+use jig_domain_link::{Hello, Hosting, Phase};
 use skein_lib::{Duration, ReplyTo, Token};
 impl Peers {
     pub fn worker_event(&mut self, up: workers::Up) -> root::Event {
@@ -15,7 +16,7 @@ impl Peers {
                     )
                     .expect("bounded peer membership"),
                     channel: Token::new(channel),
-                    hello: fleet::Hello {
+                    hello: Hello {
                         jobs: Box::default(),
                         bounds: jig_test_profile::fixtures::bounds(),
                         slots,
@@ -23,10 +24,10 @@ impl Peers {
                         workstreams: Box::new([]),
                         hosting: hosting
                             .into_iter()
-                            .map(|(task, attempt, answered)| fleet::Hosting {
+                            .map(|(task, attempt, answered)| Hosting {
                                 run: Token::new(task),
                                 attempt: Token::new(attempt),
-                                phase: if answered { fleet::Phase::Answered } else { fleet::Phase::Active },
+                                phase: if answered { Phase::Answered } else { Phase::Active },
                             })
                             .collect(),
                     },

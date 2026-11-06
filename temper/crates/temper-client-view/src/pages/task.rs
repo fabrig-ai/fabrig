@@ -378,6 +378,7 @@ pub(crate) fn requester(b: &mut Builder, by: c::Requester, me: Option<&c::Me>, w
 }
 pub(crate) fn state(b: &mut Builder, state: State, words: &Words) {
     let (name, token) = match state {
+        State::Paused => (words.say(Word::ChatPaused, &[]), look::STATUS_QUIET),
         State::Phase(phase) => (phase_word(phase, words), phase_token(phase)),
         State::WaitingFor(number) => (words.say(Word::WaitingForTask, &[Hole::Number(number)]), look::STATUS_WAITING),
         State::WaitingForTasks { count, more } => (

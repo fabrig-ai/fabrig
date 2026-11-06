@@ -6,6 +6,7 @@ use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
 use jig_domain_brief as brief;
 use jig_domain_fleet as fleet;
+use jig_domain_link::{SignOutResult, SourceName};
 use jig_domain_notes as notes;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -31,7 +32,7 @@ pub struct Assignment {
     pub transcript: Box<[Box<[u8]>]>,
     pub answered: Box<[crate::Settled]>,
     /// The selected account and application credential grants.
-    pub grants: Box<[jig_domain_accounts::Grant]>,
+    pub grants: Box<[jig_domain_link::Grant]>,
 }
 
 /// A charter document's section in a core plan, for the root to give its connector
@@ -172,7 +173,7 @@ pub enum Ask {
         spec: Box<[u8]>,
         deadline: skein_lib::Duration,
         result: u32,
-        grants: Box<[jig_domain_accounts::Grant]>,
+        grants: Box<[jig_domain_link::Grant]>,
         workspace: Option<Box<[u8]>>,
     },
     /// Discard one rejected connector subscription flight.
@@ -236,15 +237,15 @@ pub enum Held {
     /// A claimed host receives the parent's conversation references.
     Assign { channel: Token, run: Token, attempt: Token, activation: u64, assignment: fleet::Assignment },
     /// Replace the connected worker's whole program-source list after commit.
-    Sources { channel: Token, sources: Box<[fleet::SourceName]> },
+    Sources { channel: Token, sources: Box<[SourceName]> },
     /// Request a fresh observation of one named program source on this channel.
-    CheckSource { channel: Token, name: fleet::SourceName },
+    CheckSource { channel: Token, name: SourceName },
     /// Ask this channel to sign out one source, without retrying after loss.
-    SignOutSource { channel: Token, name: fleet::SourceName },
+    SignOutSource { channel: Token, name: SourceName },
     /// End one source sign-out; None means the channel could not confirm it.
-    SourceSignedOut { to: ReplyTo, channel: Token, name: fleet::SourceName, result: Option<fleet::SignOutResult> },
+    SourceSignedOut { to: ReplyTo, channel: Token, name: SourceName, result: Option<SignOutResult> },
     /// A grant follows every prior commit and its attempt's assignment (engine.md, 5.2).
-    Grant { channel: Token, run: Token, attempt: Token, grant: fleet::Grant },
+    Grant { channel: Token, run: Token, attempt: Token, grant: jig_domain_link::Grant },
     /// The host receives an answer under its original opaque call name.
     Relayed { channel: Token, run: Token, attempt: Token, call: Box<[u8]>, answer: Token },
     /// The host receives the same named label and words the root supplied.
@@ -411,7 +412,7 @@ pub enum Now {
         saved: Box<[tasks::SavedResource]>,
         transcript: Box<[Box<[u8]>]>,
         answered: Box<[CallKey]>,
-        grants: Box<[accounts::Grant]>,
+        grants: Box<[jig_domain_link::Grant]>,
     },
     /// Load one held-chat decision that has left live task memory.
     EndedEscalation { request: Token, person: u64, project: u32, task: u64, revision: u64 },

@@ -8,6 +8,7 @@ use crate::{
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
+use jig_domain_link::{SignOutResult, SourceName};
 use jig_protocol_worker_wire as wire;
 use skein_fake_machine::{How, Item, Opened};
 use skein_io::{self as io, kernel};
@@ -59,7 +60,7 @@ enum Phase {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum SignOutAnswer {
     Unconfirmed,
-    Answered(fleet::SignOutResult),
+    Answered(SignOutResult),
 }
 struct Judge {
     shared: Rc<RefCell<Run>>,
@@ -98,7 +99,7 @@ impl skein_world::Referee<Proc> for Judge {
                     let engine = engine.service.engine().expect("engine");
                     if self.store.applied > 0 && self.phase == Phase::New {
                         engine.parties_in().push(core::Event::Fleet(fleet::Event::Sources {
-                            sources: Box::new([fleet::SourceName::new(b"alice").expect("name")]),
+                            sources: Box::new([SourceName::new(b"alice").expect("name")]),
                         }));
                         self.phase = Phase::Sources;
                     }
@@ -117,7 +118,7 @@ impl skein_world::Referee<Proc> for Judge {
                             engine.parties_in().push(core::Event::Fleet(fleet::Event::SignOut {
                                 to: ReplyTo::new(Token::new(700)),
                                 channel: Token::new(1),
-                                name: fleet::SourceName::new(b"alice").expect("name"),
+                                name: SourceName::new(b"alice").expect("name"),
                             }));
                         }
                         if let Some(login) = &self.login {
@@ -131,7 +132,7 @@ impl skein_world::Referee<Proc> for Judge {
                     {
                         engine.parties_in().push(core::Event::Fleet(fleet::Event::Check {
                             channel: Token::new(1),
-                            name: fleet::SourceName::new(b"alice").expect("name"),
+                            name: SourceName::new(b"alice").expect("name"),
                         }));
                         self.phase = Phase::Asked;
                     }

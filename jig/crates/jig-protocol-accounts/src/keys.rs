@@ -2,6 +2,7 @@
 //! (domain/accounts.md, 3.5 and 5; protocol/store.md, 9).
 use crate::table;
 use jig_domain_accounts as accounts;
+use jig_domain_link::Form;
 use skein_lib::{Map, Secret, Time, Token, sha256};
 
 #[derive(Debug)]
@@ -180,7 +181,7 @@ fn event(source: u32, generation: u64, now: Time) -> accounts::FromComponent {
     accounts::FromComponent::Granted {
         account: source,
         generation,
-        form: accounts::Form::Credential(accounts::Scheme::Key),
+        form: Form::Credential(jig_domain_link::Scheme::Key),
         valid: Time::from_nanos(u64::MAX).saturating_since(now),
     }
 }

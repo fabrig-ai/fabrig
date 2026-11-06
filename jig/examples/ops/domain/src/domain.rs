@@ -6,6 +6,7 @@ use alloc::boxed::Box;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
+use jig_domain_link::{Hello, Problem};
 use jig_ops_domain_connectors::Connector;
 use jig_ops_domain_infrastructure as infrastructure;
 use jig_ops_domain_observability as observability;
@@ -82,7 +83,7 @@ impl Domain {
     ///
     /// # Errors
     /// The core's configured workers exceed the priced membership bounds.
-    pub fn new(config: Config, limits: &Limits) -> Result<Self, core::Problem> {
+    pub fn new(config: Config, limits: &Limits) -> Result<Self, Problem> {
         assert!(limits.routes > 0, "nonempty route");
         assert!(config.environment_close_grace <= limits.core.tasks.grace, "environment close grace bound");
         assert!(limits.host.slots == limits.core.fleet.engine_slots, "engine slot agreement");
@@ -402,7 +403,7 @@ fn check_engine_hello(domain: &mut fleet::Domain, limits: &fleet::Limits, agent_
         fleet::Event::Hello {
             worker: 0,
             channel: Token::new(0),
-            hello: fleet::Hello {
+            hello: Hello {
                 jobs: Box::default(),
                 slots,
                 stop_bound: skein_lib::Duration::ZERO,

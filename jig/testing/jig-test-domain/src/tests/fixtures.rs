@@ -3,6 +3,7 @@ use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
+use jig_domain_link::{Form, Grant, Scheme};
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Env, List, Map, Queue, Time, Token, Wall};
 
@@ -228,8 +229,8 @@ pub fn assignment() -> Assignment {
         messages: Box::new([]),
         transcript: Box::new([b"prior turn".as_slice().into()]),
         answered: Box::new([]),
-        grants: Box::new([jig_domain_accounts::Grant {
-            form: jig_domain_accounts::Form::Credential(jig_domain_accounts::Scheme::Bearer),
+        grants: Box::new([Grant {
+            form: Form::Credential(Scheme::Bearer),
             account: 1,
             generation: 2,
             valid: Duration::from_secs(30),
@@ -337,22 +338,12 @@ fn held_records() -> [(core::Held, host::LinkDown); 4] {
                 channel: CHANNEL,
                 run: RUN,
                 attempt: ATTEMPT,
-                grant: fleet::Grant {
-                    form: fleet::Form::Application,
-                    account: 7,
-                    generation: 2,
-                    valid: Duration::from_secs(30),
-                },
+                grant: Grant { form: Form::Application, account: 7, generation: 2, valid: Duration::from_secs(30) },
             },
             host::LinkDown::Grant {
                 run: RUN,
                 attempt: ATTEMPT,
-                grant: host::Grant {
-                    form: host::Form::Application,
-                    account: 7,
-                    generation: 2,
-                    valid: Duration::from_secs(30),
-                },
+                grant: Grant { form: Form::Application, account: 7, generation: 2, valid: Duration::from_secs(30) },
             },
         ),
     ]
