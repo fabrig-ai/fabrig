@@ -29,8 +29,7 @@ pub(super) fn line(goal: bool) -> j::PublicLine {
             changed: 0,
             active: None,
             ended: None,
-            spent: 12,
-            budget: 50,
+            spent: if goal { Some(12) } else { None },
             delegates: counts,
         },
     )

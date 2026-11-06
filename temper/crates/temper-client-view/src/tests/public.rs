@@ -73,7 +73,7 @@ fn the_view_shows_only_what_the_records_carry() {
         b"an agent",
         b"running",
         b"for under 1 min",
-        b"12 spent \xc2\xb7 of 50",
+        b"12 spent",
         b"2 lines folded",
     ];
     only_words(&view, allowed);
@@ -131,7 +131,7 @@ fn the_task_and_forge_pages_use_public_links_and_mechanics() {
         b"an agent",
         b"running",
         b"for under 1 min",
-        b"12 spent \xc2\xb7 of 50",
+        b"12 spent",
         b"checking",
         b"CI at its head",
         b"Passed",
