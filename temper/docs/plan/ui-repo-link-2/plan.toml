@@ -1,0 +1,3 @@
+draft = "ui-repo-link-2"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-repo-link-2/inputs/request.md", "temper/crates/temper/src/forge_sign_in.rs", "temper/crates/temper-forge-setup/src/ini.rs", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
