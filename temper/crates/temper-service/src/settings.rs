@@ -110,6 +110,7 @@ pub struct Engine {
     pub files: Files,
     pub demo: Option<Demo>,
     pub welcome: bool,
+    pub program_environment: Box<[u8]>,
     pub kinds_stock: Box<[temper_engine_domain_forge::settings::Stock]>,
     pub landings: skein_lib::Map<u32, temper_engine_domain::ProjectLanding>,
     pub limits: super::limits::Limits,

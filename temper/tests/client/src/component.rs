@@ -238,7 +238,7 @@ impl Composition {
         Event::Application(clients::FromApplication::Read {
             reply,
             family: temper_client_protocol_wire::FORGE,
-            record: temper_service::family::forge_read(answer, &temper_client_protocol_wire::v1::CEILINGS),
+            record: temper_service::family::forge_read(answer, &[], &temper_client_protocol_wire::v1::CEILINGS),
         })
     }
 

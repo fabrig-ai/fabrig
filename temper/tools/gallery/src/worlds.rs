@@ -439,7 +439,7 @@ fn world_in_layout(
                         v1::Read::ProposalItems(_) if settings_chat.is_some() => {
                             settings_proposal_values(&mut root, read, &mut out);
                         }
-                        v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) => {}
+                        v1::Read::RevisionSetting(_) | v1::Read::ProposalItems(_) | v1::Read::ProgramEnvironment => {}
                     }
                 }
                 jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } }

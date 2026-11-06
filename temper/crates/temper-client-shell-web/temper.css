@@ -2145,7 +2145,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app:has(> .temper-welcome) .temper-welcome-panel > :is(p, form, .temper-welcome-acts, .temper-welcome-field) { margin: 0; }
 #app:has(> .temper-welcome) .temper-welcome-panel > p { font-size: 15px; line-height: 1.6; }
 #app:has(> .temper-welcome) .temper-welcome-panel .temper-flow-facts { padding: 0; border: 0; font-size: 14.5px; color: var(--gf-muted); }
-#app:has(> .temper-welcome) .temper-welcome-cmd { margin: 0; padding: 12px 14px; border-radius: 8px; background: #f1f1ee; font: 13.5px var(--gf-mono); overflow-x: auto; }
+#app:has(> .temper-welcome) .temper-welcome-cmd { margin: 0; padding: 12px 14px; border-radius: 8px; background: #f1f1ee; font: 13.5px var(--gf-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
 #app:has(> .temper-welcome) .temper-welcome-field { display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; line-height: 1.6; color: var(--gf-muted); }
 #app:has(> .temper-welcome) .temper-welcome-field .temper-flow-field { margin: 0; }
 #app:has(> .temper-welcome) .temper-welcome-field label { display: block; margin: 0; font: inherit; color: var(--gf-muted); }
