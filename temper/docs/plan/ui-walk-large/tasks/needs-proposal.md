@@ -99,3 +99,15 @@ Options, each pre-approved:
 ## Report
 
 As `notes/common.md`, *Your report*, and each walk step's evidence path, at both widths, with anything it showed against the mock.
+
+## Rebase (2026-11-06, step merge, foreman ui-walk-large/needs-proposal/foreman-1)
+
+combine the fake model cues from the branch and landing trunk
+Resolve `temper/crates/temper-fake/src/backends.rs`, function `model_document`.
+The merge conflicts because both sides replace the same long JSON literal.
+Main’s commits `87a6d9014e` and `07f8081aff` add browser replay cues.
+Use the landing trunk’s JSON as the base; retain its working-note, restore-document, draft-implementation and hello-repository cues.
+Insert the branch’s `Show drafts and goals for this project.` cue unchanged, including its `propose_settings` arguments and closing turn.
+Keep only one copy of each hello cue; preserve trunk’s `# hello` content.
+Preserve all other existing cues and model configuration.
+Validate with `heavy cargo nextest run -p temper-fake --lib -E 'test(tests::steps::the_configuring_cue_proposes_project_ways_with_the_hosts_settings_form) | test(tests::steps::the_fresh_box_change_cue_uses_the_welcomes_hello_repository)'`, with `TEMPER_BUNDLE=none`; confirm both tests run.
