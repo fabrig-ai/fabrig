@@ -93,3 +93,15 @@ Options, each pre-approved:
 ## Report
 
 As the implementer's text says, and: the tests whose expected value moved.
+
+## Answers
+
+2026-11-06. **May this task change `explicit_cut_and_reopened_origin_replace_retry_text_while_valid_suffixes_deduplicate` in `jig/crates/jig-client-view/src/tests/state/domain/conversations.rs`, which has a continuing cut discard the held text?** Yes, by its input alone. `jig/docs/design/client/domain/client.md`, 8.3, settles the rule: a delivery that begins within what's held extends it, marked cut or not; one past it, marked cut, takes its place. The test's delivery at byte 3 overlaps what's held, so it no longer shows a lost origin. Give it one:
+
+- Leave the name, the message and every expected value as they are: `deXYZ`, `deXYZ++` and `boot` still hold, and "cut never joins a retained prefix across a lost origin" is true of a delivery past what's held.
+- The cut delivery becomes `from = 8`, `through = 13`, past the 6 held. The next delivery becomes `from = 10`, `through = 15`. `stale` becomes `from = 8`, `through = 13`. The texts and the rest of the test stay.
+- Don't take the expected values to `abcdefYZ`. The overlap is `a_delivery_marked_cut_that_continues_what_is_held_extends_it`'s, and this test would stop showing the replacement it is named for.
+
+Any other test in `jig-client-view` or `jig-client` that fails because a continuing cut discards held text gets the same repair: name it in your report. A failure of any other kind is outside this answer.
+
+Then run step 5's commands with `--no-fail-fast`: the first run left 5,836 selected tests unobserved, and they are unobserved until a run reaches them.
