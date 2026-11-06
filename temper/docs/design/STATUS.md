@@ -174,7 +174,10 @@ open reply, where a tree holds one request, seen by reading (`client/README.md`)
 and no test measures a long chat's document against its window, where the user's
 answer of 2026-11-06 asks one (`client/browser.md`). A numbered list shows no
 numbers in a chat's card, whose items the sheet makes flex, and a document page's
-takes the browser's margins (`client/browser.md`). Every confirmation of a chat, a
+takes the browser's margins (`client/browser.md`). The words being written draw an
+empty message in the dots' place until they hold a word, their "▍" falls below a closed
+fence, a last block still open changes as it commits, and no browser test draws them
+(`client/README.md`). Every confirmation of a chat, a
 task or a card is one sheet, but a closed chat hides every "Decision made", where the
 request `close-chat` hides the closing's alone, a Release pressed before an uncertain
 effect's choice closes its sheet, no walk on record presses Accept, a task's Cancel, an

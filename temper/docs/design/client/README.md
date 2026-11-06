@@ -463,7 +463,8 @@ keeps (`../protocol/configuration.md`, section 2).
     conversation says nothing of what was cut: no notice, at a text's end,
     a turn's or a window's;
   - *the words being written,* the turn being written, under "Temper",
-    whole from its start up to `long_text` (5.4), read by `skein-ui`'s
+    whole from its start up to `long_text` (5.4), a page opened late
+    from what the engine retains (section 11), read by `skein-ui`'s
     `read_growing` (skein's `ui.md`, section 10): a block a blank line
     has closed stays on the page as it was, only the last changes as
     words arrive, and no marker shows being written. A small block,
@@ -6046,7 +6047,7 @@ own tests:
   in the same loop as the service, driven by a typist that types
   commands and reads printed pages, with a fake LLM, forge and git. Its
   live-text story: a reply held after its first piece is read printed
-  under "Writing…", then replaced by the committed turn.
+  before its "▍", then replaced by the committed turn.
 - **The process tier** (`../domain/testing.md`, 2.6): the real `temper`
   binary; skein's fake person through temper's client signs in by the
   printed link, adds the deployment's key on `ConnectModel`, and
@@ -6154,6 +6155,15 @@ own tests:
   project's `by` (`../domain/landing.md`, 13.1). A new fact of a protocol,
   the user's. Default: "Chats can change its code now." on every project,
   which names no way of landing.
+- **An answer past what the engine retains** (3.5, *the words being written*;
+  `../draft/chat-reading.md`, 3): a page following it from its start shows it whole
+  up to `long_text`. One opened later shows the end the engine retains, 65,536
+  bytes, until the turn commits, since one delivery stops at the same bound (jig's
+  `client/domain/client.md`, section 18). Default: as it stands.
+- **A turn too large for a page** (5.4; `../draft/chat-reading.md`, 4): a turn past
+  `document_bytes` on the wire, 1,048,576 bytes, reads as too large, with no calls'
+  names (jig's `client/domain/client.md`, section 18). Default: its line says so,
+  and the tools read it by its parts.
 - **A project's home in the switcher** (5.3, 4.4): `me` does not say
   which repository is a project's home, so the first listed stands in
   for it, and a row with several repositories never reads "3
