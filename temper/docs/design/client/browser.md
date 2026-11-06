@@ -1169,6 +1169,11 @@ Not in the tier, each in the lowest world that shows it:
   own, since the gallery draws what the view draws and no fact reaches it. Default:
   the host's two rows, the view's tests holding the rest, until that draft gives
   the facts.
+- **A tab refused in the gallery** (7.2; `README.md`, 3.5, *The sign-in under way*;
+  `../draft/sign-in-new-tab.md`, 2): the gallery draws what the view draws, and the
+  view has no fact of a tab refused, so the note's plain title and primary link have
+  no state of their own. Default: the view's test holds them, until that draft gives
+  the fact.
 
 ## 7. The gallery
 

@@ -1270,8 +1270,9 @@ keeps (`../protocol/configuration.md`, section 2).
     field the note's width. A browser that refuses the new tab reads
     "ChatGPT’s sign-in", no "in the new tab", with "Open ChatGPT’s sign-in ›"
     as the primary button in the link's place, the person's own click. The
-    terminal reads "ChatGPT’s sign-in" too, and draws no link: it prints the
-    address (6.5). `ConnectModel` draws the same note, link and disclosure.
+    terminal reads "ChatGPT’s sign-in" too, with no spinner, and its link reads
+    "Open the sign-in page", printed with the address (6.5). `ConnectModel`
+    draws the same note, link and disclosure.
     *Finishing a paste* is the same note, a spinner and "Finishing your sign-in…". A sign-in's
     other endings (declined, held, refused, the port taken) keep their
     words and acts, drawn as `ConnectModel`'s are (5.5, A sign-in). After
@@ -6189,8 +6190,8 @@ own tests:
   that gets it goes on in its own tab, the others in a tab of their own
   with the paste; or a connection from an address not the engine's
   machine's goes so at once. Later: a client relaying the redirect
-  (jig's `protocol/llm.md`, section 10). Default: undetected, the
-  person's choice.
+  (jig's `protocol/llm.md`, section 10). Default: undetected, the paste
+  offered to everyone.
 - **The first use of a plan,** in the terminal: a card in the
   conversation, or a card that waits to be dismissed, another kind of
   `Dismissed`, keyed by its account (`../draft/to-begin.md`, section 5).
@@ -6388,6 +6389,13 @@ own tests:
   source does not. Candidate: the page shows the person's sign-in under
   way for that provider, with its end. Default: the way's button
   again.
+- **The address on a page come back** (3.5, *The sign-in under way*;
+  `../draft/sign-in-new-tab.md`, 3): a sign-in's address is the answer to
+  the client that asked, so a page come back or reloaded, a new client,
+  draws the note with no "Open it again", where that draft has a reload
+  draw the same page. Candidate: the accounts document gives a sign-in's
+  holder its address, which jig's `protocol/llm.md`, 5.2 keeps as an
+  answer alone. Default: no link, the paste still offered.
 - **Which tasks hold a revision, and which could move** (5.13). jig's
   `settings` document counts the live tasks holding each revision, but
   a task query has no revision among its keys (jig's
