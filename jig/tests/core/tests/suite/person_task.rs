@@ -3,6 +3,7 @@ use jig_core_world::watches;
 use jig_core_world::world::{Setup, World};
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
+use jig_domain_link::{Hello, Hosting, Phase};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
@@ -80,17 +81,13 @@ fn a_person_without_a_project_runs_on_a_worker_and_restores_live() {
     world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
         worker: 0,
         channel: Token::new(7),
-        hello: fleet::Hello {
+        hello: Hello {
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(100),
             slots: 1,
             workstreams: Box::new([]),
-            hosting: Box::new([fleet::Hosting {
-                run: Token::new(task),
-                attempt: Token::new(attempt),
-                phase: fleet::Phase::Active,
-            }]),
+            hosting: Box::new([Hosting { run: Token::new(task), attempt: Token::new(attempt), phase: Phase::Active }]),
         },
     })));
     world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Cancel {
