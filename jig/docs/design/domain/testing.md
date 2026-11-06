@@ -226,7 +226,14 @@ What every application runs, and what makes jig's promises its own.
 - **Crashing at every commit.** For a scenario, the focused suite crashes
   after a few chosen commits and checks the story still ends as it
   should; the fuzzy suite sweeps every commit of the scenario, and draws
-  cuts at random across random worlds.
+  cuts at random across random worlds. A sweep holds its prefix once:
+  under `Cut::EachCommitFrom`, the run forks at each commit from the one
+  named, and the child takes that commit's crash as `Cut::AfterCommit`
+  does, through the same cold restart, and ends the story; the parent
+  waits for it and goes on uncut, so no cut repeats the commits before
+  it. A child that fails fails the run, naming its cut, and the run's
+  `Outcome` lists the cuts whose children passed, so that a sweep checks
+  it missed none.
 - **What it catches,** where its scenarios reach: a root that sends a
   held output early, splits a decision across commits, admits after a
   child changed, restarts out of the core's order, lets an effect reach
