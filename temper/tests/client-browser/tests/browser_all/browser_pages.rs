@@ -41,7 +41,7 @@ fn enter_starts_one_chat_and_the_composer_keeps_the_focus() {
         see(Find::exactly_named(Role::Paragraph, b"By the key")),
         Step::Focused(message()),
     ];
-    steps.extend(byline_steps());
+    steps.extend(model_picker_steps());
     steps.extend([
         chats(),
         see(Find::exactly_named(Role::Link, FIRST_CHAT)),
@@ -130,23 +130,23 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
     assert_eq!(Harness::new(tier.setup()).run(&mut [&mut script]), Outcome::Done);
 }
 
-fn byline_steps() -> Vec<Step> {
+fn model_picker_steps() -> Vec<Step> {
     let press = |role, name: &[u8]| Step::Person(PersonStep::Press { find: Find::named(role, name) });
     let folded = |open| Step::Keep {
         selector: Box::from(if open {
-            b"details.temper-byline[open]".as_slice()
+            b"details.temper-model[open]".as_slice()
         } else {
-            b"details.temper-byline:not([open])".as_slice()
+            b"details.temper-model:not([open])".as_slice()
         }),
         attribute: Some(Box::from(b"data-node".as_slice())),
         name: Box::from(b"model-panel".as_slice()),
     };
     vec![
-        press(Role::Disclosure, b"Change model"),
+        press(Role::Disclosure, b"Model"),
         folded(true),
         press(Role::TextArea, b"Message"),
         folded(false),
-        press(Role::Disclosure, b"Change model"),
+        press(Role::Disclosure, b"Model"),
         folded(true),
         Step::Key(Key::Escape),
         folded(false),

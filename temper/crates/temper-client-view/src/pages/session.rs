@@ -86,9 +86,18 @@ pub(crate) fn foot(b: &mut Builder, name: &[u8]) {
     b.open(Role::Slot);
     b.style(look::SESSION_COMPOSER);
 }
-/// Closes the entry and follows it with its hint; message effects also stay visible on phones.
-pub(crate) fn hint(b: &mut Builder, w: &Words, hint: Word) {
+/// Closes the entry and draws its row: hint and picker (client/README.md, 3.5).
+pub(crate) fn foot_row(
+    b: &mut Builder,
+    root: &Domain,
+    task: Option<&jig_client::contract::Task>,
+    w: &Words,
+    bindings: &mut Bindings,
+    hint: Word,
+) {
     b.close();
+    b.open(Role::Slot);
+    b.style(look::FOOT_ROW);
     b.open(Role::Paragraph);
     b.style(look::SESSION_HINT);
     if hint == Word::ChatSendResumes {
@@ -97,6 +106,8 @@ pub(crate) fn hint(b: &mut Builder, w: &Words, hint: Word) {
     let words = w.say(hint, &[]);
     b.name(&words);
     b.text(Run::Plain, &words);
+    b.close();
+    crate::choice::picker(b, root, task, w, bindings);
     b.close();
 }
 
@@ -139,4 +150,14 @@ pub(crate) fn over(b: &mut Builder, w: &Words, characters: u64) {
         w.say(Word::ComposerOver, &[Hole::Name(number.finish())])
     };
     text(b, Role::Status, &line, None);
+}
+
+/// The browser bar keeps the chat's number (client/README.md, 3.5).
+pub(crate) fn number(b: &mut Builder, w: &Words, task: u64) {
+    match w.shell {
+        crate::words::Shell::Browser => {
+            text(b, Role::Paragraph, &w.say(Word::Chat, &[Hole::Number(task)]), Some(look::BYLINE));
+        }
+        crate::words::Shell::Terminal => {}
+    }
 }

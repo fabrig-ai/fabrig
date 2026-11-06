@@ -19,7 +19,6 @@ changes
 changes-empty
 changes-landed-only
 changes-one
-chat-byline-open
 chat-change-held
 chat-change-landed
 chat-change-running
@@ -40,6 +39,12 @@ chat-first-run-4-T4
 chat-goal
 chat-goal-linked
 chat-held-task
+chat-model-all
+chat-model-both
+chat-model-fixed
+chat-model-open
+chat-model-sign-in-again
+chat-model-two-accounts
 chat-new
 chat-new-draft
 chat-new-first-run-1
@@ -52,6 +57,9 @@ chat-solo-T10
 chat-solo-T6
 chat-start-goal
 chat-start-goal-refused
+chat-started-model-changing
+chat-started-model-open
+chat-started-model-refused
 chat-work-done
 chat-work-empty
 chat-work-failed
@@ -82,6 +90,7 @@ configure-chat-proposal-deployment
 configure-chat-proposal-two-projects
 configure-chat-replaced
 configure-chats-tag
+configure-model-open
 configure-reference
 configure-reference-draft
 configure-refused

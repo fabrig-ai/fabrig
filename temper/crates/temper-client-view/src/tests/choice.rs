@@ -90,7 +90,7 @@ fn the_accounts_page_has_no_accounts_banner() {
 }
 #[test]
 fn an_absent_choice_uses_the_unsettled_default() {
-    assert!(text(&banner(None).0).contains("Using the default model"));
+    assert!(text(&banner(None).0).contains("the default model"));
 }
 fn task_root() -> d::Domain {
     account_readiness(None)
@@ -223,60 +223,18 @@ pub(super) fn provider_byline_root(
 }
 
 #[test]
-fn every_byline_keeps_the_accounts_provider_with_its_models() {
-    for (ready, present, account_words, task_model) in [
-        (
-            [c::Readiness::Usable, c::Readiness::Unavailable],
-            [true, false],
-            "your Claude subscription, through Claude Code",
-            "claude-opus-5-5",
-        ),
-        ([c::Readiness::Unavailable, c::Readiness::Usable], [false, true], "ChatGPT plan", "gpt-6-luna"),
-    ] {
-        for page in 0_u32..4 {
-            let address = match page {
-                0 => Address::NewChat { draft: false },
-                1 | 2 => Address::Chat { task: 9 },
-                _ => Address::Configure { project: fixtures::PROJECT },
-            };
-            let (mut root, task_watch) = provider_byline_root(address, ready, present, true);
-            if let Some(watch) = task_watch {
-                let mut task = fixtures::task::document();
-                task.chip.task = 9;
-                task.project = fixtures::PROJECT;
-                task.chip.executor = c::ChipExecutor::Agent { charter: if page == 2 { 37 } else { 1 } };
-                task.budget.funder = c::Funder::Pool { project: fixtures::PROJECT, person: 73, period: 1 };
-                task.llm = Some(c::LlmChoice {
-                    account: None,
-                    main: c::ModelEffort {
-                        model: c::Text::new(Box::from(task_model.as_bytes()), 32).unwrap(),
-                        effort: None,
-                    },
-                    subagents: List::with_capacity(0),
-                });
-                task.kept_account = None;
-                delivered(&mut root, watch, c::Delivery::Task(Box::new(task)));
-            }
-            for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
-                let node =
-                    view.tree().nodes().iter().find(|n| n.styles.as_slice().contains(&crate::look::BYLINE)).unwrap();
-                let line = core::str::from_utf8(node.description.as_deref().or(node.name.as_deref()).unwrap()).unwrap();
-                let model = if page == 0 || page == 3 {
-                    if present[0] { "claude-opus-5-5" } else { "gpt-6.1-sol" }
-                } else {
-                    task_model
-                };
-                let prefix = if page == 1 || page == 2 { "T9 · " } else { "" };
-                for (account, foreign_models) in [
-                    ("Claude subscription", &["gpt-6.1-sol", "gpt-6-luna"][..]),
-                    ("ChatGPT plan", &["claude-opus-5-5"][..]),
-                ] {
-                    for model in foreign_models {
-                        assert!(!(line.contains(account) && line.contains(model)), "{account} with {model}: {line}");
-                    }
-                }
-                assert_eq!(line, format!("{prefix}{account_words} · {model}"), "page {page}");
-            }
+fn the_picker_closed_line_names_no_account() {
+    for address in [Address::NewChat { draft: false }, Address::Configure { project: fixtures::PROJECT }] {
+        let (root, _) = provider_byline_root(address, [c::Readiness::Usable, c::Readiness::Usable], [true, true], true);
+        for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+            let node = view
+                .tree()
+                .nodes()
+                .iter()
+                .find(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Model"))
+                .unwrap();
+            assert_eq!(node.description.as_deref(), Some(b"gpt-6.1-sol".as_slice()));
+            assert!(!String::from_utf8_lossy(node.description.as_deref().unwrap()).contains("plan"));
         }
     }
 }
@@ -520,7 +478,7 @@ fn catalogue_view(root: &d::Domain) -> crate::View {
 }
 fn shows_requested(view: &crate::View, label: &[u8]) {
     assert!(fixtures::find(view.tree(), Role::Button, label).is_some());
-    let byline = fixtures::find(view.tree(), Role::Disclosure, b"Change model").unwrap();
+    let byline = fixtures::find(view.tree(), Role::Disclosure, b"Model").unwrap();
     assert_eq!(view.tree().nodes().iter().find(|n| n.id == byline).unwrap().description.as_deref(), Some(label));
 }
 fn marked_prefix() -> Vec<u8> {
@@ -529,21 +487,21 @@ fn marked_prefix() -> Vec<u8> {
 #[test]
 fn a_long_model_name_shows_a_marked_prefix() {
     let mut root = catalogue(&vec![b'm'; usize::try_from(NAME_BYTES).unwrap()], &[]);
-    edit(&mut root, d::pages::choice::Act::Model { index: 0 });
+    edit(&mut root, d::pages::choice::Act::Model { index: 0, account: None });
     shows_requested(&catalogue_view(&root), &marked_prefix());
 }
 #[test]
 fn a_name_at_the_display_bound_shows_whole() {
     let name = vec![b'm'; shown_bytes()];
     let mut root = catalogue(&name, &[]);
-    edit(&mut root, d::pages::choice::Act::Model { index: 0 });
+    edit(&mut root, d::pages::choice::Act::Model { index: 0, account: None });
     shows_requested(&catalogue_view(&root), &name);
 }
 #[test]
 fn a_name_one_past_the_display_bound_shows_a_marked_prefix() {
     let name = vec![b'm'; shown_bytes() + 1];
     let mut root = catalogue(&name, &[]);
-    edit(&mut root, d::pages::choice::Act::Model { index: 0 });
+    edit(&mut root, d::pages::choice::Act::Model { index: 0, account: None });
     shows_requested(&catalogue_view(&root), &marked_prefix());
 }
 #[test]
@@ -568,7 +526,7 @@ fn only_the_selected_duplicate_model_shows_its_efforts() {
         models.push(model).unwrap();
     }
     let mut root = catalogue_rows(models);
-    edit(&mut root, d::pages::choice::Act::Model { index: 1 });
+    edit(&mut root, d::pages::choice::Act::Model { index: 1, account: None });
     let view = catalogue_view(&root);
     let efforts: Vec<_> = view
         .tree()
@@ -586,7 +544,7 @@ fn only_the_selected_duplicate_model_shows_its_efforts() {
 #[test]
 fn the_chosen_model_and_effort_are_pressed() {
     let mut root = catalogue(b"needs-effort", &[b"low", b"high"]);
-    edit(&mut root, d::pages::choice::Act::Model { index: 0 });
+    edit(&mut root, d::pages::choice::Act::Model { index: 0, account: None });
     edit(&mut root, d::pages::choice::Act::Effort { index: 1 });
     let view = catalogue_view(&root);
     let states = |name: &[u8]| {
@@ -602,7 +560,7 @@ fn the_chosen_model_and_effort_are_pressed() {
 #[test]
 fn a_model_press_enables_start_with_its_default_effort() {
     let mut root = catalogue(b"needs-effort", &[b"high"]);
-    edit(&mut root, d::pages::choice::Act::Model { index: 0 });
+    edit(&mut root, d::pages::choice::Act::Model { index: 0, account: None });
     fixtures::root_event(
         &mut root,
         d::Event::Act { action: d::Action::Pages(d::pages::Act::ChatWords { words: b"Hello".as_slice().into() }) },
@@ -648,17 +606,14 @@ fn the_accounts_banner_is_a_named_region() {
     assert_eq!(node.name.as_deref(), Some(b"LLM account".as_slice()));
 }
 #[test]
-fn the_byline_and_chooser_are_in_the_session_bar() {
+fn the_picker_is_on_the_composers_hint_row() {
     let view = fixtures::page_view(&task_root());
     let nodes = view.tree().nodes();
-    let bar = nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::SESSION_TOP)).unwrap();
-    let line = nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::BYLINE)).unwrap();
-    let entry = nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::SESSION_COMPOSER)).unwrap();
-    assert_eq!(nodes[line].role, Role::Disclosure);
-    assert_eq!(nodes[line].name.as_deref(), Some(b"Change model".as_slice()));
-    assert_eq!(nodes[line].description.as_deref(), Some("T9 · chosen".as_bytes()));
-    assert!(nodes[line].states.as_slice().contains(&skein_ui::State::FoldsAway));
-    assert!(bar < line && line < bar + usize::try_from(nodes[bar].size).unwrap() && line < entry);
+    let row = nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::FOOT_ROW)).unwrap();
+    let picker = nodes.iter().position(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Model")).unwrap();
+    assert_eq!(nodes[picker].description.as_deref(), Some(b"chosen".as_slice()));
+    assert!(nodes[picker].states.as_slice().contains(&skein_ui::State::FoldsAway));
+    assert!(row < picker && picker < row + usize::try_from(nodes[row].size).unwrap());
 }
 
 fn edit(root: &mut d::Domain, act: d::pages::choice::Act) {
@@ -666,11 +621,10 @@ fn edit(root: &mut d::Domain, act: d::pages::choice::Act) {
 }
 
 #[test]
-fn an_unapplied_model_has_a_separate_draft_label() {
+fn changing_is_said_in_the_menu() {
     let mut root = task_root();
-    edit(&mut root, d::pages::choice::Act::Model { index: 1 });
-    let shown = text(&root);
-    assert!(shown.contains("Next run if applied: second"));
+    edit(&mut root, d::pages::choice::Act::Model { index: 1, account: None });
+    assert!(text(&root).contains("Changing…"));
     assert_eq!(using_text(&root), "chosen");
 }
 fn named_account() -> d::Domain {
@@ -888,13 +842,23 @@ fn accounts(rows: &[c::AccountLine]) -> List<c::AccountLine> {
     accounts
 }
 pub(super) fn using_text(root: &d::Domain) -> String {
-    let view = fixtures::page_view(root);
-    let node = view.tree().nodes().iter().find(|n| n.styles.as_slice().contains(&crate::look::BYLINE)).unwrap();
-    let text = node.description.as_deref().or(node.name.as_deref()).unwrap();
-    let text = core::str::from_utf8(text).unwrap();
-    let prefix =
-        root.pages().chat().and_then(|chat| chat.task(root.client())).map(|task| format!("T{} · ", task.chip.task));
-    text.strip_prefix(prefix.as_deref().unwrap_or("")).unwrap_or(text).to_owned()
+    let mut b = Builder::new(&fixtures::tree_limits());
+    crate::choice::using(
+        &mut b,
+        root,
+        root.pages().chat().and_then(|chat| chat.task(root.client())),
+        &fixtures::words(),
+    );
+    let text = String::from_utf8(fixtures::text(&b.finish()).into_vec()).unwrap();
+    let text = text.split(" · Manage usage").next().unwrap();
+    if text == "Using the default model" {
+        return text.to_owned();
+    }
+    if text.starts_with("Using your ") && text.contains("API key") {
+        text.strip_prefix("Using your ").unwrap().to_owned()
+    } else {
+        text.strip_prefix("Using ").unwrap_or(text).to_owned()
+    }
 }
 #[test]
 fn a_keys_line_uses_the_configured_provider_name_and_appends_effort() {
@@ -924,9 +888,10 @@ fn a_plan_has_a_manage_usage_link_only_for_a_safe_address() {
             None,
             true,
         );
-        let view = fixtures::page_view(&root);
-        let link =
-            view.tree().nodes().iter().find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Manage usage"));
+        let mut b = Builder::new(&fixtures::tree_limits());
+        crate::choice::using(&mut b, &root, root.pages().chat().unwrap().task(root.client()), &fixtures::words());
+        let tree = b.finish();
+        let link = tree.nodes().iter().find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Manage usage"));
         let safe = address == Some(b"https://provider.example/usage".as_slice());
         assert_eq!(link.is_some(), safe);
         if let Some(link) = link {
@@ -1031,24 +996,14 @@ fn the_three_unsettled_lines_name_only_known_facts() {
     assert_eq!(using_text(&account_readiness(Some(readiness(c::Readiness::Unavailable)))), "chosen");
 }
 #[test]
-fn change_model_contains_the_controls_and_is_never_expanded() {
-    let mut root = task_root();
-    edit(&mut root, d::pages::choice::Act::Model { index: 1 });
-    let view = fixtures::page_view(&root);
-    let nodes = view.tree().nodes();
-    let at =
-        nodes.iter().position(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Change model")).unwrap();
-    assert!(!nodes[at].states.as_slice().contains(&skein_ui::State::Expanded));
-    let end = at + usize::try_from(nodes[at].size).unwrap();
-    for (role, name) in [
-        (Role::Button, b"chosen".as_slice()),
-        (Role::Button, b"second"),
-        (Role::Button, b"Reset choice"),
-        (Role::Paragraph, b"Next run if applied: second"),
-        (Role::Button, b"Apply to next run"),
-    ] {
-        assert!(nodes[at + 1..end].iter().any(|n| n.role == role && n.name.as_deref() == Some(name)));
+fn the_model_disclosure_holds_its_rows_and_folds_away() {
+    let view = fixtures::page_view(&task_root());
+    let nodes = chooser_nodes(&view);
+    assert!(!nodes[0].states.as_slice().contains(&skein_ui::State::Expanded));
+    for name in [b"chosen".as_slice(), b"second"] {
+        assert!(nodes.iter().any(|n| n.role == Role::Button && n.name.as_deref() == Some(name)));
     }
+    assert!(!nodes.iter().any(|n| n.name.as_deref() == Some(b"Apply to next run")));
 }
 
 #[test]
@@ -1069,12 +1024,18 @@ fn a_live_chat_without_message_keeps_the_line_and_chooser() {
     let view = fixtures::page_view(&root);
     assert!(fixtures::find(view.tree(), Role::TextArea, b"Message").is_none());
     assert_eq!(using_text(&root), "chosen");
-    assert!(fixtures::find(view.tree(), Role::Disclosure, b"Change model").is_some());
-    assert!(view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::BYLINE)));
+    assert!(fixtures::find(view.tree(), Role::Disclosure, b"Model").is_some());
+    assert!(
+        fixtures::browser_page_view(&root)
+            .tree()
+            .nodes()
+            .iter()
+            .any(|n| n.styles.as_slice().contains(&crate::look::BYLINE))
+    );
 }
 
 #[test]
-fn pending_choice_outcome_and_wait_are_siblings_after_the_chooser() {
+fn choice_feedback_is_in_the_menu_and_waits_stay_above() {
     let (mut root, me_watch, watch, _, _) =
         fixtures::root_at_full(Address::Chat { task: 9 }, &fixtures::limits(), b"Shop");
     let template = task_root();
@@ -1083,66 +1044,29 @@ fn pending_choice_outcome_and_wait_are_siblings_after_the_chooser() {
     task.run_wait = Some(c::TaskRunWait::Credential);
     delivered(&mut root, me_watch, c::Delivery::Me(Box::new(me)));
     delivered(&mut root, watch.unwrap(), c::Delivery::Task(Box::new(task)));
-    edit(&mut root, d::pages::choice::Act::Model { index: 1 });
-    let mut out = skein_lib::Queue::uncapped();
-    d::step(
-        &mut root,
-        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: fixtures::limits() },
-        d::Event::Act { action: d::Action::Pages(d::pages::Act::Choice(d::pages::choice::Act::Apply)) },
-        &mut out,
-    );
+    let mut out = start_model_press(&mut root);
     let pending = fixtures::page_view(&root);
-    assert!(fixtures::find(pending.tree(), Role::Disclosure, b"Change model").is_none());
-    assert!(fixtures::find(pending.tree(), Role::Paragraph, "T9 · chosen".as_bytes()).is_some());
+    assert!(fixtures::find(pending.tree(), Role::Disclosure, b"Model").is_some());
+
     let nodes = pending.tree().nodes();
-    let status = nodes.iter().position(|n| n.name.as_deref() == Some(b"Next-run choice request in progress")).unwrap();
+    let status = nodes.iter().position(|n| n.name.as_deref() == Some("Changing…".as_bytes())).unwrap();
     let wait =
         nodes.iter().position(|n| n.name.as_deref() == Some(b"This work needs a credential from its forge.")).unwrap();
-    assert!(status < wait);
-    d::step(
+    assert!(wait < status);
+    answer_model_press(
         &mut root,
-        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: fixtures::limits() },
-        d::Event::Client { event: jig_client::Event::Stored },
         &mut out,
-    );
-    let attempt = out
-        .iter()
-        .find_map(|request| {
-            if let d::Request::Unlinked {
-                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
-            } = request
-            {
-                Some(*attempt)
-            } else {
-                None
-            }
-        })
-        .unwrap();
-    fixtures::root_event(
-        &mut root,
-        d::Event::Client {
-            event: jig_client::Event::Up {
-                up: jig_client::Up::Answer {
-                    attempt,
-                    envelope: skein_lib::RequestEnvelope::Final,
-                    answer: Some(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
-                        c::DocumentOutcome::Amended { task: 9 },
-                    )))),
-                    why: None,
-                },
-            },
-        },
+        c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Amended { task: 9 })),
     );
     let view = fixtures::page_view(&root);
     let nodes = view.tree().nodes();
-    let chooser =
-        nodes.iter().position(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Change model")).unwrap();
+    let chooser = nodes.iter().position(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Model")).unwrap();
     let end = chooser + usize::try_from(nodes[chooser].size).unwrap();
     let outcome = nodes.iter().position(|n| n.role == Role::Status && n.name.as_deref() == Some(b"Applied")).unwrap();
     let wait =
         nodes.iter().position(|n| n.name.as_deref() == Some(b"This work needs a credential from its forge.")).unwrap();
     let composer = nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::SESSION_COMPOSER)).unwrap();
-    assert!(end <= outcome && outcome < wait && wait < composer);
+    assert!(chooser < outcome && outcome < end && wait < composer && composer < chooser);
 }
 
 #[test]
@@ -1533,7 +1457,7 @@ fn configured_provider_words_name_the_whole_byline() {
 
 #[test]
 fn chooser_groups_use_the_providers_words() {
-    for (configured, shown) in [(b"openai".as_slice(), b"OpenAI".as_slice()), (b"anthropic", b"Anthropic")] {
+    for (configured, shown) in [(b"openai".as_slice(), b"OpenAI".as_slice()), (b"anthropic", b"Claude")] {
         let (mut root, me_watch, _, _) = line_fixture(
             Some(readiness(c::Readiness::Usable)),
             accounts(&[account(3, c::AccountKind::Key, None)]),
@@ -1546,7 +1470,10 @@ fn chooser_groups_use_the_providers_words() {
         me.providers.get_mut(0).unwrap().name =
             c::DocumentText::complete(c::Text::new(Box::from(configured), 32).unwrap());
         delivered(&mut root, me_watch, c::Delivery::Me(Box::new(me)));
-        assert!(fixtures::find(fixtures::page_view(&root).tree(), Role::Paragraph, shown).is_some());
+        assert!(
+            String::from_utf8_lossy(&fixtures::text(fixtures::page_view(&root).tree()))
+                .contains(core::str::from_utf8(shown).unwrap())
+        );
     }
 }
 
@@ -1575,21 +1502,20 @@ fn the_no_model_composer_offers_connect_a_model_as_a_terminal_command() {
 }
 
 #[test]
-fn a_byline_without_an_amend_offer_has_no_panel() {
+fn a_choice_that_cant_change_is_words_not_a_button() {
     let (mut root, _, task_watch, _) = line_fixture(None, List::with_capacity(0), Some(3), None, None, true);
     let mut task = root.pages().chat().unwrap().task(root.client()).unwrap().clone();
     task.acts.clear();
     delivered(&mut root, task_watch.unwrap(), c::Delivery::Task(Box::new(task)));
     let view = fixtures::page_view(&root);
-    let node = view.tree().nodes().iter().find(|n| n.styles.as_slice().contains(&crate::look::BYLINE)).unwrap();
+    let node = view.tree().nodes().iter().find(|n| n.styles.as_slice().contains(&crate::look::MODEL_FIXED)).unwrap();
     assert_eq!(node.role, Role::Paragraph);
-    assert_eq!(node.name.as_deref(), Some("T9 · chosen".as_bytes()));
-    assert_eq!(node.size, 2);
-    assert!(fixtures::find(view.tree(), Role::Disclosure, b"Change model").is_none());
+    assert_eq!(node.name.as_deref(), Some(b"chosen".as_slice()));
+    assert!(fixtures::find(view.tree(), Role::Disclosure, b"Model").is_none());
 }
 
 #[test]
-fn manage_usage_is_the_panels_last_control_and_never_in_the_byline() {
+fn manage_usage_stays_with_the_agent_composers_line() {
     let root = line_facts(
         Some(readiness(c::Readiness::Usable)),
         accounts(&[account(3, c::AccountKind::SignIn, Some(b"https://provider.example/usage"))]),
@@ -1599,14 +1525,10 @@ fn manage_usage_is_the_panels_last_control_and_never_in_the_byline() {
         true,
     );
     let view = fixtures::page_view(&root);
-    let nodes = view.tree().nodes();
-    let at = nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::BYLINE)).unwrap();
-    assert_eq!(nodes[at].description.as_deref(), Some("T9 · Supplied Provider plan · chosen".as_bytes()));
-    let end = at + usize::try_from(nodes[at].size).unwrap();
-    let controls: Vec<_> = nodes[at..end].iter().filter(|n| [Role::Button, Role::Link].contains(&n.role)).collect();
-    let last = controls.last().unwrap();
-    assert_eq!(last.name.as_deref(), Some(b"Manage usage".as_slice()));
-    assert_eq!(last.external.as_deref(), Some(b"https://provider.example/usage".as_slice()));
+    assert!(!chooser_nodes(&view).iter().any(|node| node.name.as_deref() == Some(b"Manage usage")));
+    let mut b = Builder::new(&fixtures::tree_limits());
+    crate::choice::using(&mut b, &root, root.pages().chat().unwrap().task(root.client()), &fixtures::words());
+    assert!(fixtures::find(&b.finish(), Role::Link, b"Manage usage").is_some());
 }
 
 #[test]
@@ -1638,15 +1560,8 @@ fn a_tasks_byline_keeps_the_whole_bounded_model_and_effort() {
     choice.main.effort = Some(c::Text::new(effort.clone().into_boxed_slice(), EFFORT_BYTES).unwrap());
     delivered(&mut root, task_watch.unwrap(), c::Delivery::Task(Box::new(task)));
     let view = catalogue_view(&root);
-    let byline = view.tree().nodes().iter().find(|n| n.styles.as_slice().contains(&crate::look::BYLINE)).unwrap();
-    assert_eq!(
-        byline.description.as_deref(),
-        Some(
-            ["T9 · ".as_bytes(), &name, " · ".as_bytes(), &effort, " · needs an account".as_bytes()]
-                .concat()
-                .as_slice()
-        )
-    );
+    let byline = view.tree().nodes().iter().find(|n| n.styles.as_slice().contains(&crate::look::MODEL)).unwrap();
+    assert_eq!(byline.description.as_deref(), Some([&name[..], " · ".as_bytes(), &effort].concat().as_slice()));
 }
 
 #[test]
@@ -1715,17 +1630,15 @@ fn offer_row(name: &[u8], provider: Option<u32>) -> c::MeModel {
 }
 fn chooser_nodes(view: &crate::View) -> &[skein_ui::Node] {
     let nodes = view.tree().nodes();
-    let at = nodes
-        .iter()
-        .position(|node| node.role == Role::Disclosure && node.name.as_deref() == Some(b"Change model"))
-        .unwrap();
+    let at =
+        nodes.iter().position(|node| node.role == Role::Disclosure && node.name.as_deref() == Some(b"Model")).unwrap();
     let end = at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap();
     &nodes[at..end]
 }
 
 #[test]
 fn the_panel_groups_offered_picker_rows_and_orders_efforts() {
-    let (mut root, watch, _, _) = line_fixture(None, List::with_capacity(0), None, None, None, true);
+    let (mut root, watch, _, _) = line_fixture(None, List::with_capacity(0), None, None, None, false);
     let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
     me.providers = List::with_capacity(2);
     me.providers.push(provider_offer(18, b"Second provider")).unwrap();
@@ -1747,33 +1660,18 @@ fn the_panel_groups_offered_picker_rows_and_orders_efforts() {
     models.push(offer_row(b"unassigned", None)).unwrap();
     me.projects.get_mut(0).unwrap().models = models;
     delivered(&mut root, watch, c::Delivery::Me(Box::new(me)));
-    edit(&mut root, d::pages::choice::Act::Model { index: 1 });
+    edit(&mut root, d::pages::choice::Act::Model { index: 1, account: None });
     let mut view = fixtures::page_view(&root);
     let rows: Vec<_> = chooser_nodes(&view)
         .iter()
-        .filter(|node| [Role::Paragraph, Role::Button].contains(&node.role))
+        .filter(|node| node.role == Role::Button)
         .map(|node| node.name.as_deref().unwrap())
         .collect();
-    assert_eq!(
-        rows,
-        [
-            b"Second provider".as_slice(),
-            b"selected",
-            b"low",
-            b"high",
-            b"later",
-            b"First provider",
-            b"Shown name",
-            b"unassigned",
-            b"Reset choice",
-            b"Next run if applied: selected",
-            b"Apply to next run"
-        ]
-    );
+    assert_eq!(rows, [b"Shown name".as_slice(), b"selected", b"later", b"unassigned", b"low", b"high", b"All models"]);
     let shown = fixtures::find(view.tree(), Role::Button, b"Shown name").unwrap();
     assert_eq!(
         crate::act(&mut view, shown, skein_ui::Act::Press),
-        Some(d::Action::Pages(d::pages::Act::Choice(d::pages::choice::Act::Model { index: 0 })))
+        Some(d::Action::Pages(d::pages::Act::Choice(d::pages::choice::Act::Model { index: 0, account: None })))
     );
 }
 
@@ -1791,14 +1689,24 @@ fn empty_provider(account: Option<c::AccountLine>) -> d::Domain {
     root
 }
 #[test]
-fn an_empty_provider_offers_connect_without_any_model() {
+fn a_provider_with_no_account_is_one_line_and_no_model() {
     let mut view = fixtures::page_view(&empty_provider(None));
     let nodes = chooser_nodes(&view);
-    let at =
-        nodes.iter().position(|node| node.role == Role::Paragraph && node.name.as_deref() == Some(b"OpenAI")).unwrap();
-    assert_eq!(
-        nodes[at + usize::try_from(nodes[at].size).unwrap()].name.as_deref(),
-        Some("Connect a plan or key ›".as_bytes())
+    let at = nodes
+        .iter()
+        .position(|node| {
+            node.styles.as_slice().contains(&crate::look::MODEL_FROM)
+                && nodes
+                    .iter()
+                    .skip_while(|n| n.id != node.id)
+                    .take(usize::try_from(node.size).unwrap())
+                    .any(|n| n.text.iter().any(|run| run.text.as_ref() == b"OpenAI"))
+        })
+        .unwrap();
+    assert!(
+        nodes[at..at + usize::try_from(nodes[at].size).unwrap()]
+            .iter()
+            .any(|n| n.name.as_deref() == Some("Connect a plan or key ›".as_bytes()))
     );
     assert!(!nodes.iter().any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"gpt-6-luna")));
     let connect = fixtures::find(view.tree(), Role::Link, "Connect a plan or key ›".as_bytes()).unwrap();
@@ -1808,7 +1716,7 @@ fn an_empty_provider_offers_connect_without_any_model() {
     );
 }
 #[test]
-fn an_empty_provider_links_to_its_accounts_fix() {
+fn an_account_stopped_being_usable_keeps_its_fix_and_no_model() {
     for (kind, state, label) in [
         (c::AccountKind::SignIn, c::AccountState::SignInAgain, "Sign in again ›"),
         (c::AccountKind::Program, c::AccountState::SignInAgain, "Check again ›"),
@@ -1862,16 +1770,16 @@ fn a_choice_outside_the_offer_names_its_missing_account() {
     let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
     me.projects.get_mut(0).unwrap().models.clear();
     delivered(&mut root, watch, c::Delivery::Me(Box::new(me)));
-    assert_eq!(using_text(&root), "chosen · needs an account");
+    assert_eq!(using_text(&root), "chosen");
 }
 #[test]
 fn a_draft_outside_the_offer_names_its_missing_account() {
     let (mut root, watch, _, _) = line_fixture(None, List::with_capacity(0), None, None, None, false);
-    edit(&mut root, d::pages::choice::Act::Model { index: 2 });
+    edit(&mut root, d::pages::choice::Act::Model { index: 2, account: None });
     let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
     me.projects.get_mut(0).unwrap().models.clear();
     delivered(&mut root, watch, c::Delivery::Me(Box::new(me)));
-    assert_eq!(using_text(&root), "second · needs an account");
+    assert_eq!(using_text(&root), "second");
 }
 #[test]
 fn the_playgrounds_offered_model_ignores_document_readiness() {
@@ -1949,4 +1857,329 @@ fn an_offered_display_name_is_used_on_the_line() {
     me.projects.get_mut(0).unwrap().models.get_mut(0).unwrap().shown = Some(model_text(b"Offered name"));
     delivered(&mut root, watch, c::Delivery::Me(Box::new(me)));
     assert_eq!(using_text(&root), "Offered name");
+}
+
+fn picker_fixture(two: bool, openai: bool, hidden: bool) -> (d::Domain, Token, Token) {
+    let (mut root, watch, _, accounts_watch) = line_fixture(None, List::with_capacity(0), None, None, None, false);
+    let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
+    me.providers = List::from_boxed(Box::new([provider_offer(17, b"anthropic"), provider_offer(18, b"openai")]));
+    let mut models = List::with_capacity(3);
+    for (name, shown, provider, offered, picker) in [
+        (b"claude-opus-5-5".as_slice(), b"Opus 5.5".as_slice(), 17, true, true),
+        (b"claude-sonnet-5-5", b"Sonnet 5.5", 17, hidden, false),
+        (b"gpt-6.1-sol", b"GPT-6.1 Sol", 18, openai, true),
+    ] {
+        if offered {
+            let mut row = offer_row(name, Some(provider));
+            row.shown = Some(model_text(shown));
+            row.accounts = if provider == 17 && two {
+                List::from_boxed(Box::new([1, 3]))
+            } else {
+                List::from_boxed(Box::new([if provider == 17 { 1 } else { 2 }]))
+            };
+            row.picker = picker;
+            row.efforts = List::from_boxed(Box::new([model_text(b"low"), model_text(b"high")]));
+            row.effort = Some(model_text(b"high"));
+            models.push(row).unwrap();
+        }
+    }
+    let project = me.projects.get_mut(0).unwrap();
+    project.models = models;
+    project.defaults = List::from_boxed(Box::new([c::MeDefault {
+        template: jig_client::shapes::CHAT,
+        choice: c::LlmChoice {
+            account: None,
+            main: c::ModelEffort { model: model_text(b"claude-opus-5-5"), effort: Some(model_text(b"high")) },
+            subagents: List::with_capacity(0),
+        },
+    }]));
+    delivered(&mut root, watch, c::Delivery::Me(Box::new(me)));
+    let mut doc = d::pages::accounts::document(root.client()).unwrap().clone();
+    doc.accounts = List::with_capacity(3);
+    for (number, provider, kind, display, present) in [
+        (1, 17, c::AccountKind::Program, b"Personal".as_slice(), true),
+        (2, 18, c::AccountKind::SignIn, b"Work".as_slice(), openai),
+        (3, 17, c::AccountKind::Program, b"Other".as_slice(), two),
+    ] {
+        if present {
+            let mut row = account(number, kind, None);
+            row.provider = Some(provider);
+            row.display = c::DocumentText::complete(model_text(display));
+            row.sources = List::from_boxed(Box::new([source(kind, true)]));
+            doc.accounts.push(row).unwrap();
+        }
+    }
+    delivered(&mut root, accounts_watch, c::Delivery::Accounts(Box::new(doc)));
+    (root, watch, accounts_watch)
+}
+fn picker_line(view: &crate::View) -> &[u8] {
+    chooser_nodes(view)[0].description.as_deref().unwrap()
+}
+#[test]
+fn a_new_chats_picker_says_what_create_would_use() {
+    let (root, _, _) = picker_fixture(false, true, false);
+    for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+        assert_eq!(picker_line(&view), "Claude Opus 5.5 · high".as_bytes());
+        let model = fixtures::find(view.tree(), Role::Button, b"Opus 5.5").unwrap();
+        assert!(
+            view.tree()
+                .nodes()
+                .iter()
+                .find(|n| n.id == model)
+                .unwrap()
+                .states
+                .as_slice()
+                .contains(&skein_ui::State::Pressed)
+        );
+    }
+    let me = d::pages::accounts::current_me(root.client()).unwrap();
+    let default = jig_client::shapes::resolved_default(me, fixtures::PROJECT, jig_client::shapes::CHAT).unwrap();
+    assert_eq!(default.main.model.bytes(), b"claude-opus-5-5");
+    assert!(root.pages().choice().requested.is_none());
+}
+#[test]
+fn a_heading_says_what_pays() {
+    for (provider, kind, held, expected) in [
+        (b"anthropic".as_slice(), c::AccountKind::Program, true, "Claudeyour subscription"),
+        (b"anthropic", c::AccountKind::SignIn, true, "Claudeyour subscription"),
+        (b"openai", c::AccountKind::SignIn, true, "OpenAIyour ChatGPT plan"),
+        (b"openai", c::AccountKind::Key, true, "OpenAIyour API key"),
+        (b"openai", c::AccountKind::Key, false, "OpenAI"),
+    ] {
+        let (mut root, watch, accounts_watch) = picker_fixture(false, false, false);
+        let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
+        me.providers.get_mut(0).unwrap().name = c::DocumentText::complete(model_text(provider));
+        delivered(&mut root, watch, c::Delivery::Me(Box::new(me)));
+        let mut doc = d::pages::accounts::document(root.client()).unwrap().clone();
+        doc.accounts.get_mut(0).unwrap().sources = List::from_boxed(Box::new([source(kind, true)]));
+        if !held {
+            doc.accounts.clear();
+        }
+        delivered(&mut root, accounts_watch, c::Delivery::Accounts(Box::new(doc)));
+        let view = fixtures::page_view(&root);
+        let nodes = chooser_nodes(&view);
+        let at = nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::MODEL_FROM)).unwrap();
+        let bytes = fixtures::nodes_text(&nodes[at..at + usize::try_from(nodes[at].size).unwrap()]);
+        assert_eq!(String::from_utf8_lossy(&bytes), expected);
+    }
+}
+#[test]
+fn two_accounts_of_one_provider_head_each_and_a_press_prefers_its_account() {
+    const HEADINGS: usize = 3; // Two Claude accounts and OpenAI's connect line.
+    let (root, _, _) = picker_fixture(true, false, false);
+    let mut view = fixtures::page_view(&root);
+    let nodes = chooser_nodes(&view);
+    let headings: Vec<_> = nodes.iter().filter(|n| n.styles.as_slice().contains(&crate::look::MODEL_FROM)).collect();
+    let labels = fixtures::nodes_text(nodes);
+    assert!(String::from_utf8_lossy(&labels).contains("ClaudePersonal"));
+    assert!(String::from_utf8_lossy(&labels).contains("ClaudeOther"));
+    assert_eq!(headings.len(), HEADINGS);
+    let opus: Vec<_> =
+        nodes.iter().filter(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Opus 5.5")).collect();
+    assert!(opus[0].states.as_slice().contains(&skein_ui::State::Pressed));
+    assert!(!opus[1].states.as_slice().contains(&skein_ui::State::Pressed));
+    let id = opus[1].id;
+    assert_eq!(
+        crate::act(&mut view, id, skein_ui::Act::Press),
+        Some(d::Action::Pages(d::pages::Act::Choice(d::pages::choice::Act::Model { index: 0, account: Some(3) })))
+    );
+}
+#[test]
+fn efforts_follow_the_chosen_model_and_none_has_no_row() {
+    let (mut root, watch, _) = picker_fixture(false, true, false);
+    let view = fixtures::page_view(&root);
+    let nodes = chooser_nodes(&view);
+    let last_model =
+        nodes.iter().rposition(|n| n.role == Role::Button && n.name.as_deref() == Some(b"GPT-6.1 Sol")).unwrap();
+    let effort = nodes.iter().position(|n| n.role == Role::Group && n.name.as_deref() == Some(b"Effort")).unwrap();
+    assert!(last_model < effort);
+    let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
+    me.projects.get_mut(0).unwrap().models.get_mut(0).unwrap().efforts.clear();
+    delivered(&mut root, watch, c::Delivery::Me(Box::new(me)));
+    assert!(fixtures::find(fixtures::page_view(&root).tree(), Role::Group, b"Effort").is_none());
+}
+#[test]
+fn all_models_shows_where_the_picker_shows_fewer() {
+    for hidden in [false, true] {
+        let (root, _, _) = picker_fixture(false, true, hidden);
+        let mut view = fixtures::page_view(&root);
+        let all = fixtures::find(view.tree(), Role::Button, b"All models");
+        assert_eq!(all.is_some(), hidden);
+        if let Some(all) = all {
+            let at = view.tree().nodes().iter().position(|n| n.id == all).unwrap();
+            assert_eq!(fixtures::node_text(view.tree(), at).as_ref(), "All models · 3".as_bytes());
+            assert_eq!(
+                crate::act(&mut view, all, skein_ui::Act::Press),
+                Some(d::Action::Pages(d::pages::Act::Choice(d::pages::choice::Act::All)))
+            );
+        }
+    }
+}
+#[test]
+fn all_models_finds_by_shown_name_and_name() {
+    let (mut root, _, _) = picker_fixture(false, true, true);
+    edit(&mut root, d::pages::choice::Act::All);
+    for words in [b"SoNnEt 5.5".as_slice(), b"SONNET-5-5"] {
+        edit(&mut root, d::pages::choice::Act::Find { words: Box::from(words) });
+        let mut view = fixtures::page_view(&root);
+        assert!(fixtures::find(view.tree(), Role::Button, b"Sonnet 5.5").is_some());
+        assert!(fixtures::find(view.tree(), Role::Button, b"Opus 5.5").is_none());
+        let field = fixtures::find(view.tree(), Role::TextField, b"Find a model").unwrap();
+        assert!(
+            view.tree()
+                .nodes()
+                .iter()
+                .find(|n| n.id == field)
+                .unwrap()
+                .states
+                .as_slice()
+                .contains(&skein_ui::State::SubmitsOnEnter)
+        );
+        assert_eq!(
+            crate::act(&mut view, field, skein_ui::Act::Input { value: Box::from(b"opus".as_slice()) }),
+            Some(d::Action::Pages(d::pages::Act::Choice(d::pages::choice::Act::Find {
+                words: Box::from(b"opus".as_slice())
+            })))
+        );
+        assert_eq!(crate::act(&mut view, field, skein_ui::Act::Submit), None);
+    }
+}
+#[test]
+fn all_models_links_to_accounts_and_says_no_new() {
+    let (mut root, _, _) = picker_fixture(false, true, true);
+    edit(&mut root, d::pages::choice::Act::All);
+    let mut view = fixtures::page_view(&root);
+    let link = fixtures::find(view.tree(), Role::Link, b"Accounts, in Settings").unwrap();
+    assert_eq!(
+        crate::act(&mut view, link, skein_ui::Act::Press),
+        Some(d::Action::Pages(d::pages::Act::Go { address: Address::Accounts }))
+    );
+    assert_eq!(crate::href(&mut view, link).as_deref(), Some(b"/accounts".as_slice()));
+    assert!(!chooser_nodes(&view).iter().any(|n| n.name.as_deref() == Some(b"new")));
+    assert!(fixtures::find(view.tree(), Role::Button, "‹ Models".as_bytes()).is_some());
+}
+#[test]
+fn a_started_chat_says_when_a_change_applies() {
+    let view = fixtures::page_view(&task_root());
+    assert!(chooser_nodes(&view).iter().any(|n| n.name.as_deref() == Some(b"A change applies from the next turn.")));
+}
+#[test]
+fn no_model_of_a_provider_with_no_account_shows() {
+    let (mut root, _, _) = picker_fixture(false, false, true);
+    for all in [false, true] {
+        if all {
+            edit(&mut root, d::pages::choice::Act::All);
+        }
+        let view = fixtures::page_view(&root);
+        assert_eq!(picker_line(&view), "Claude Opus 5.5 · high".as_bytes());
+        let nodes = chooser_nodes(&view);
+        assert!(!nodes.iter().any(|n| n.role == Role::Button && n.name.as_deref() == Some(b"GPT-6.1 Sol")));
+        assert!(
+            nodes
+                .iter()
+                .any(|n| n.role == Role::Link && n.name.as_deref() == Some("Connect a plan or key ›".as_bytes()))
+        );
+    }
+}
+#[test]
+fn the_terminal_prints_the_list_as_lines() {
+    let (root, _, _) = picker_fixture(false, true, false);
+    let view = fixtures::page_view(&root);
+    let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
+    skein_ui_text::render(view.tree(), b"temper", None, &mut print);
+    let printed = String::from_utf8_lossy(print.text.as_slice());
+    assert!(printed.contains("Model: Claude Opus 5.5 · high"), "{printed}");
+    assert!(
+        printed
+            .lines()
+            .any(|line| line.trim_start().starts_with("- [") && line.ends_with("Opus 5.5 · default (pressed)")),
+        "{printed}"
+    );
+    assert!(printed.lines().any(|line| line.trim() == "Effort:"), "{printed}");
+    assert!(printed.find("Opus 5.5 · default").unwrap() < printed.find("Effort:").unwrap());
+}
+
+fn start_model_press(root: &mut d::Domain) -> skein_lib::Queue<d::Request> {
+    let mut out = skein_lib::Queue::uncapped();
+    d::step(
+        root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: fixtures::limits() },
+        d::Event::Act {
+            action: d::Action::Pages(d::pages::Act::Choice(d::pages::choice::Act::Model { index: 1, account: None })),
+        },
+        &mut out,
+    );
+    out
+}
+
+fn answer_model_press(root: &mut d::Domain, out: &mut skein_lib::Queue<d::Request>, answer: c::Answer) {
+    d::step(
+        root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: fixtures::limits() },
+        d::Event::Client { event: jig_client::Event::Stored },
+        out,
+    );
+    let attempt = out
+        .iter()
+        .find_map(|request| {
+            if let d::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+            } = request
+            {
+                Some(*attempt)
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    fixtures::root_event(
+        root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Answer {
+                    attempt,
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    answer: Some(jig_client::Answered::Jig(answer)),
+                    why: None,
+                },
+            },
+        },
+    );
+}
+
+#[test]
+fn a_refusal_says_why_in_the_menu() {
+    let mut root = task_root();
+    let mut out = start_model_press(&mut root);
+    answer_model_press(&mut root, &mut out, c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None });
+    let view = fixtures::page_view(&root);
+    assert_eq!(picker_line(&view), b"chosen");
+    assert!(String::from_utf8_lossy(&fixtures::nodes_text(chooser_nodes(&view))).contains("not offered"));
+}
+#[test]
+fn no_model_yet_has_no_picker() {
+    for task in [false, true] {
+        let view = fixtures::page_view(&no_model_root(task));
+        assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::MODEL)));
+        assert!(String::from_utf8_lossy(&fixtures::text(view.tree())).contains("No model yet"));
+    }
+}
+#[test]
+fn a_chats_bar_keeps_its_number_and_no_account() {
+    let view = fixtures::browser_page_view(&named_account());
+    let nodes = view.tree().nodes();
+    let bar = nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::SESSION_TOP)).unwrap();
+    let bar = &nodes[bar..bar + usize::try_from(nodes[bar].size).unwrap()];
+    assert!(bar.iter().any(|n| n.role == Role::Paragraph && n.name.as_deref() == Some(b"T9")));
+    assert!(!String::from_utf8_lossy(&fixtures::nodes_text(bar)).contains("API key"));
+    assert!(!bar.iter().any(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Model")));
+}
+
+#[test]
+fn the_playground_model_uses_its_words_over_a_shown_name() {
+    let mut model = offer_row(crate::words::SCRIPTED_MODEL, None);
+    model.shown = Some(model_text(b"Provider identifier"));
+    let mut root = catalogue_rows(List::from_boxed(Box::new([model])));
+    edit(&mut root, d::pages::choice::Act::Model { index: 0, account: None });
+    assert_eq!(picker_line(&fixtures::page_view(&root)), b"Scripted model");
 }
