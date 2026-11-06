@@ -28,16 +28,25 @@ From `temper/docs/plan/long-words/inputs/request.md`, on `chat-reading-c`'s trun
 | `read-ends` | `read-ends` | `line-surface` | an answer that doesn't decode, or can't be encoded, ends its read; a lost exchange still retries |
 | `read-ends-page` | `read-ends-page` | `read-ends`, `line-prices` | the page says so, on a chat and an agent's page; a failed first read says so; "Latest" and the rest go on |
 | `person-bound` | `me-words` | `read-ends` | `me` says `words_bytes` |
+| `composer` | `composer-domain` | `me-words`, `line-prices`, `read-ends-page` | a composer holds what was typed and sends what fits; a refused send says so |
+| `composer` | `composer-view` | `composer-domain` | Send disabled, Enter doesn't send, a line says how far over |
+| `composer` | `start-reads-back` | `composer-view` | a new chat's first message reads back whole |
 
-The composer's part follows in a later push.
+Order: the request's, 1, then 2, then 3. `read-ends` and `line-prices` run side by side after `line-surface`, sharing no crate, and everything in 3 waits on 2. `pending-words` goes out at once, since it builds on nothing here and nothing it does shows until a composer sends past `text`.
 
 ## Overlaps
 
 - `line-surface`, `me-words`: `jig-client-protocol-wire`'s schema, generated code and goldens meet `model-catalogue-1/offer-surface`'s, merged on its trunk: regenerated at the merge.
 - `me-words`: `jig-domain-core`'s `documents.rs` and `documents/small.rs`, and `jig-protocol-engine-clients`' `translate/owner.rs`, meet `model-catalogue-1/offer-engine`'s and `offer-surface`'s, one field beside `redirect_bytes`.
 - `line-prices`: `temper-client-view`'s `limits.rs` meets `ui-repo-link/repo-link`'s. `read-ends-page`: `pages/chat.rs` and its tests meet `ui-pause-close/chat-pause`, `ui-composer-focus/composer-focus` and `chat-reading-c/reading-browser`.
+- `composer-domain`: `pages/chat.rs`, `pages/task.rs` and `pages.rs` meet `ui-composer-focus/composer-focus` and `ui-pause-close`'s two; `pages/chats.rs` meets `model-catalogue-1/configure-picker`. The logic is in a new file, `pages/composer.rs`, and each composer's own hunk is a few lines.
+- `composer-view`: `temper-client-view`'s `pages/chat.rs`, `pages/agent.rs`, `pages/goal.rs`, `words.rs` and `temper/tools/gallery/**` meet `ui-pause-close`, `ui-composer-focus`, `ui-repo-link/repo-link` and `model-catalogue-1`. It comes late in this plan for that reason, so the others' hunks are in where they land first.
 - The design: `temper/docs/design/client/README.md` and its status meet `chat-reading-c/reading-close`, this trunk's base. New paragraphs, not edits of its own.
 
 ## Critical path
 
-As it stands: `line-surface` (45) → `line-prices` (60) → `read-ends-page` (40), about 145 implementer-minutes. The composer's tasks follow it.
+`line-surface` (45) → `line-prices` (60) → `read-ends-page` (40) → `composer-domain` (75) → `composer-view` (60) → `start-reads-back` (45), about 325 implementer-minutes, and the other arm, `read-ends` (35) → `me-words` (40), joins it at `composer-domain` with room to spare.
+
+## After landing
+
+temper/forge proves the shape by hand, and the user tries it (`walk = false`). temper/ui reviews the composer's words before this lands: `composer-view`'s report has them.
