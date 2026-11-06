@@ -1,0 +1,3 @@
+draft = "model-catalogue-1"
+repo = "fabrig"
+sources = ["temper/docs/plan/model-catalogue-1/inputs/request.md", "temper/docs/design/draft/model-catalogue.md", "AGENTS.md", "DESIGN.md"]
