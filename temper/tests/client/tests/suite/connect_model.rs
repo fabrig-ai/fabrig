@@ -317,7 +317,7 @@ fn welcome_claude_checks_on_the_wire_and_reaches_ready_after_the_host_answers() 
     press(&mut front, &mut root, Role::Button, "Try again".as_bytes(), skein_ui::Act::Press);
     accounts::program_checked(&mut front, &mut root, false);
     press(&mut front, &mut root, Role::Button, b"Sign in again", skein_ui::Act::Press);
-    assert!(text(&root).contains("temper program-login claude-person"));
+    assert!(text(&root).contains("temper program-login --config CONFIG --data DATA --cache CACHE claude-person"));
     assert!(!text(&root).contains("Claude didn’t answer"));
     press(&mut front, &mut root, Role::Button, "I’ve signed in".as_bytes(), skein_ui::Act::Press);
     accounts::program_checked(&mut front, &mut root, true);
