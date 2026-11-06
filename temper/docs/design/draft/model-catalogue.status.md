@@ -3,7 +3,7 @@
 2026-11-06. Where the design lags or departs from [model-catalogue.md](model-catalogue.md).
 
 - **Design lags:**
-  - 3, 7.1: `../client/README.md`, 3.5 groups the chooser by provider,
+  - 3, 7: `../client/README.md`, 3.5 groups the chooser by provider,
     not by what pays, and offers no "All models" view; the account ids and
     `picker` facts are supplied, but the `model-picker` look is left to its
     separate landing. An unusable account has a fix only while its provider
