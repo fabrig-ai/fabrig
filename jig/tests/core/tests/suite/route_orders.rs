@@ -3,6 +3,7 @@ use super::admission_support;
 use jig_core_world::world::World;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
+use jig_domain_link::{Hello, Hosting, Phase};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
@@ -324,15 +325,15 @@ fn reconnect_with_stale_attempt(driver: &mut World, task: u64, attempt: u64) {
     driver.offer(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
         worker: WORKER_NUMBER,
         channel: RECONNECTED_WORKER,
-        hello: fleet::Hello {
+        hello: Hello {
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: STOP_BOUND,
             slots: HOSTED,
             workstreams: Box::new([]),
             hosting: Box::new([
-                fleet::Hosting { run: Token::new(task), attempt: Token::new(attempt), phase: fleet::Phase::Active },
-                fleet::Hosting { run: STALE_RUN, attempt: STALE_ATTEMPT, phase: fleet::Phase::Active },
+                Hosting { run: Token::new(task), attempt: Token::new(attempt), phase: Phase::Active },
+                Hosting { run: STALE_RUN, attempt: STALE_ATTEMPT, phase: Phase::Active },
             ]),
         },
     })));

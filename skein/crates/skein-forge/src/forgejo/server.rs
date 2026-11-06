@@ -22,7 +22,7 @@ mod start;
 pub(crate) mod writes;
 use crate::forgejo::decode::Malformed;
 use skein_json::tokenizer;
-pub use writes::{BodyDecoder, body, body_first};
+pub use writes::{BodyDecoder, body};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum BodyStep {
     Demand(tokenizer::Request),

@@ -2,7 +2,8 @@
 //! Paths and a whole environment are injected below the worker root; no login
 //! contents or process environment are read here. Commands settle before reuse.
 use alloc::boxed::Box;
-use jig_domain_host::{self as jig, sources};
+use jig_domain_host::sources;
+use jig_domain_link::{LoginMethod, LoginState, SignOutResult, SourceFailure, SourceName};
 use skein_io::{self as io, file, kernel::Fd};
 use skein_lib::{Queue, Time, Token};
 use smith_host_domain as smith;
@@ -119,7 +120,7 @@ impl Component {
         &mut self,
         owner: Token,
         io_owner: Token,
-        name: jig::SourceName,
+        name: SourceName,
         operation: sources::Operation,
         root: Fd,
         deadline: Time,
@@ -128,22 +129,10 @@ impl Component {
     ) -> Option<(Token, sources::Answer)> {
         assert!(self.command.is_none(), "host serializes source commands");
         let Some(resources) = &self.resources else {
-            return Some(failed(
-                owner,
-                operation,
-                jig::SourceFailure::Unconfigured,
-                b"no program configured",
-                self.detail,
-            ));
+            return Some(failed(owner, operation, SourceFailure::Unconfigured, b"no program configured", self.detail));
         };
         let Some(source) = smith::SourceName::new(name.as_bytes()) else {
-            return Some(failed(
-                owner,
-                operation,
-                jig::SourceFailure::Unconfigured,
-                b"invalid source name",
-                self.detail,
-            ));
+            return Some(failed(owner, operation, SourceFailure::Unconfigured, b"invalid source name", self.detail));
         };
         let ask = match operation {
             sources::Operation::Check => SourceAsk::Check,
@@ -155,7 +144,7 @@ impl Component {
                     return Some(failed(
                         owner,
                         operation,
-                        jig::SourceFailure::Unconfigured,
+                        SourceFailure::Unconfigured,
                         b"programs parent directory is unavailable",
                         self.detail,
                     ));
@@ -252,7 +241,7 @@ impl Component {
                     let answer = failed(
                         command.owner,
                         operation,
-                        jig::SourceFailure::Unconfigured,
+                        SourceFailure::Unconfigured,
                         binding_error(error),
                         self.detail,
                     );
@@ -279,43 +268,43 @@ fn binding_error(error: smith_protocol_program::Error) -> &'static [u8] {
 fn translate(answer: SourceAnswer, bound: u32) -> sources::Answer {
     match answer {
         SourceAnswer::Check(check) => sources::Answer::Checked(match check {
-            smith::ProgramCheck::Usable => jig::LoginState::Usable,
-            smith::ProgramCheck::NotSignedIn => jig::LoginState::NotSignedIn,
-            smith::ProgramCheck::SignedInOtherwise(method) => jig::LoginState::SignedInOtherwise(
-                jig::LoginMethod::new(method.as_bytes()).expect("same printable method grammar"),
+            smith::ProgramCheck::Usable => LoginState::Usable,
+            smith::ProgramCheck::NotSignedIn => LoginState::NotSignedIn,
+            smith::ProgramCheck::SignedInOtherwise(method) => LoginState::SignedInOtherwise(
+                LoginMethod::new(method.as_bytes()).expect("same printable method grammar"),
             ),
             smith::ProgramCheck::Failed(failure) => {
-                jig::LoginState::Failed { reason: reason(failure.reason), detail: bounded(failure.detail, bound) }
+                LoginState::Failed { reason: reason(failure.reason), detail: bounded(failure.detail, bound) }
             }
         }),
         SourceAnswer::SignOut(sign_out) => sources::Answer::SignedOut(match sign_out {
-            smith::ProgramSignOut::SignedOut => jig::SignOutResult::SignedOut,
+            smith::ProgramSignOut::SignedOut => SignOutResult::SignedOut,
             smith::ProgramSignOut::Failed(failure) => {
-                jig::SignOutResult::Failed { reason: reason(failure.reason), detail: bounded(failure.detail, bound) }
+                SignOutResult::Failed { reason: reason(failure.reason), detail: bounded(failure.detail, bound) }
             }
         }),
     }
 }
 
-fn reason(reason: smith::FailureReason) -> jig::SourceFailure {
+fn reason(reason: smith::FailureReason) -> SourceFailure {
     match reason {
-        smith::FailureReason::Missing => jig::SourceFailure::Missing,
-        smith::FailureReason::Deadline => jig::SourceFailure::Deadline,
-        smith::FailureReason::Unreadable => jig::SourceFailure::Unreadable,
-        smith::FailureReason::Exited => jig::SourceFailure::Exited,
+        smith::FailureReason::Missing => SourceFailure::Missing,
+        smith::FailureReason::Deadline => SourceFailure::Deadline,
+        smith::FailureReason::Unreadable => SourceFailure::Unreadable,
+        smith::FailureReason::Exited => SourceFailure::Exited,
     }
 }
 fn failed(
     owner: Token,
     operation: sources::Operation,
-    reason: jig::SourceFailure,
+    reason: SourceFailure,
     detail: &[u8],
     bound: u32,
 ) -> (Token, sources::Answer) {
     let detail = Box::from(detail.get(..detail.len().min(skein_lib::length::usize_of(bound))).expect("bounded detail"));
     let answer = match operation {
-        sources::Operation::Check => sources::Answer::Checked(jig::LoginState::Failed { reason, detail }),
-        sources::Operation::SignOut => sources::Answer::SignedOut(jig::SignOutResult::Failed { reason, detail }),
+        sources::Operation::Check => sources::Answer::Checked(LoginState::Failed { reason, detail }),
+        sources::Operation::SignOut => sources::Answer::SignedOut(SignOutResult::Failed { reason, detail }),
     };
     (owner, answer)
 }

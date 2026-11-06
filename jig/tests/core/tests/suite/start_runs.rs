@@ -4,6 +4,7 @@ use jig_domain_core::{
     start::{Action, Phase, SweepInput},
 };
 use jig_domain_fleet as fleet;
+use jig_domain_link::{Hello, Hosting};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 
 fn start_to_open(core: &mut core::Core, env: &Env<core::Limits>) {
@@ -32,13 +33,13 @@ fn listing(core: &mut core::Core, env: &Env<core::Limits>, worker: u32) -> Vec<(
         core::Event::Fleet(fleet::Event::Hello {
             worker,
             channel,
-            hello: fleet::Hello {
+            hello: Hello {
                 jobs: Box::default(),
                 bounds: jig_test_profile::fixtures::bounds(),
                 stop_bound: Duration::ZERO,
                 slots: 1,
                 workstreams: Box::new([]),
-                hosting: Box::new([fleet::Hosting { run, attempt, phase: fleet::Phase::Active }]),
+                hosting: Box::new([Hosting { run, attempt, phase: jig_domain_link::Phase::Active }]),
             },
         }),
     );

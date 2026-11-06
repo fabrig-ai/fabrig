@@ -13,6 +13,7 @@ jig-domain-authority.workspace = true
 jig-domain-people.workspace = true
 jig-domain-tasks.workspace = true
 jig-domain-accounts.workspace = true
+jig-domain-link.workspace = true
 jig-domain-notes.workspace = true
 jig-fake-store.workspace = true
 jig-protocol-tools.workspace = true

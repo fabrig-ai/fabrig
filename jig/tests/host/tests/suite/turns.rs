@@ -3,6 +3,7 @@
 
 use jig_domain_host::FromAgent;
 use jig_domain_host::{AnsweredCall, DeliveryOutcome, Ending, Failure, Reason, RunFailure, SettledAnswer};
+use jig_domain_link::{CountKind, Form, Grant, Hosting, Operation, Phase, Scheme};
 use jig_host_world::turn_world::World;
 use skein_lib::{Duration, Token};
 
@@ -171,11 +172,7 @@ fn the_hello_lists_a_run_whose_answer_waits_as_answered() {
     world.reconnect();
     assert_eq!(
         &*world.hello().expect("the root received the hello").hosting,
-        &[jig_domain_host::Hosting {
-            run: Token::new(31),
-            attempt: Token::new(932),
-            phase: jig_domain_host::Phase::Answered,
-        }]
+        &[Hosting { run: Token::new(31), attempt: Token::new(932), phase: Phase::Answered }]
     );
 }
 
@@ -430,11 +427,7 @@ fn live_world() -> World {
 }
 
 fn count(count: u64) -> jig_domain_host::AgentActivity {
-    jig_domain_host::AgentActivity::Count {
-        kind: jig_domain_host::CountKind::TextArrived,
-        elapsed: Duration::from_nanos(17),
-        count,
-    }
+    jig_domain_host::AgentActivity::Count { kind: CountKind::TextArrived, elapsed: Duration::from_nanos(17), count }
 }
 
 #[test]
@@ -511,10 +504,8 @@ fn a_notice_of_a_fenced_attempt_is_dropped() {
 #[test]
 fn a_long_operation_reaches_the_link() {
     let mut world = live_world();
-    let activity = jig_domain_host::AgentActivity::Long {
-        operation: jig_domain_host::AgentOperation::Completion,
-        span: Duration::from_secs(37),
-    };
+    let activity =
+        jig_domain_host::AgentActivity::Long { operation: Operation::Completion, span: Duration::from_secs(37) };
     world.activity(activity);
     assert_eq!(
         world.reports,
@@ -544,22 +535,22 @@ fn activity_past_the_queue_is_dropped_and_counted() {
 fn a_newer_account_grant_reaches_a_started_agent() {
     use jig_host_world::fixtures::ANALYST;
     let mut world = World::new();
-    world.assign_granted(Box::new([jig_domain_host::Grant {
-        form: jig_domain_host::Form::Credential(jig_domain_host::Scheme::Key),
+    world.assign_granted(Box::new([Grant {
+        form: Form::Credential(Scheme::Key),
         account: ANALYST,
         generation: 1,
         valid: Duration::from_secs(30),
     }]));
-    world.grant(jig_domain_host::Grant {
-        form: jig_domain_host::Form::Credential(jig_domain_host::Scheme::Key),
+    world.grant(Grant {
+        form: Form::Credential(Scheme::Key),
         account: ANALYST,
         generation: 2,
         valid: Duration::from_secs(60),
     });
     assert_eq!(
         world.received_grant(),
-        Some(jig_domain_host::Grant {
-            form: jig_domain_host::Form::Credential(jig_domain_host::Scheme::Key),
+        Some(Grant {
+            form: Form::Credential(Scheme::Key),
             account: ANALYST,
             generation: 2,
             valid: Duration::from_secs(60),

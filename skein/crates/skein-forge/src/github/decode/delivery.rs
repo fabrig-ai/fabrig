@@ -65,11 +65,6 @@ pub fn decoder(event: &[u8], limits: &Limits) -> Option<Decoder> {
         terminal: false,
     })
 }
-/// The first demand of a fresh decoder.
-#[must_use]
-pub fn first(_decoder: &Decoder) -> tokenizer::Request {
-    tokenizer::Request::Next
-}
 /// Consumes one tokenizer event. Limits are captured when the decoder starts.
 pub fn step(decoder: &mut Decoder, _limits: &Limits, event: &tokenizer::Event) -> Step {
     decoder.step(event.clone())
@@ -276,7 +271,7 @@ pub fn decode(event: &[u8], body: &[u8], limits: &Limits) -> Result<Delivery, Ma
         return Err(Malformed::Json(tokenizer::Error::TooLong));
     }
     let mut feed = tokenizer::Feed::new(body, &limits.json);
-    let mut request = first(&decoder);
+    let mut request = tokenizer::Request::Next;
     for _answer in 0..=body.len() {
         match decoder.step(feed.answer(request)) {
             Step::Demand(demand) => request = demand,

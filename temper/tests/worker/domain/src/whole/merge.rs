@@ -1,5 +1,6 @@
 //! Merge jobs in the whole worker world (temper/docs/design/domain/worker.md, 4.4).
 
+use jig_domain_link::{JobBound, JobKind};
 use skein_lib::{Duration, Token};
 use temper_fake_checkout::git::Remote;
 use temper_worker_checkout_world::translate;
@@ -22,7 +23,7 @@ pub enum Case {
 
 fn kind() -> tooling::Kind {
     tooling::Kind {
-        bound: host::JobBound { kind: host::JobKind(3), spec: 4_096, result: 512, deadline: Duration::from_secs(600) },
+        bound: JobBound { kind: JobKind(3), spec: 4_096, result: 512, deadline: Duration::from_secs(600) },
         verb: b"merge".as_slice().into(),
         delivers: true,
     }
@@ -83,7 +84,7 @@ fn assign(world: &mut World, head: u64, base: u64) {
         job: host::JobAssignment {
             run: RUN,
             attempt: ATTEMPT,
-            kind: host::JobKind(3),
+            kind: JobKind(3),
             spec: b"encoded spec".as_slice().into(),
             deadline: Duration::from_secs(5),
             grants: Box::new([]),

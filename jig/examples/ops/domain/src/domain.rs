@@ -6,6 +6,8 @@ use alloc::boxed::Box;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
+use jig_domain_link::Bounds;
+use jig_domain_link::{Hello, Problem};
 use jig_ops_domain_connectors::Connector;
 use jig_ops_domain_infrastructure as infrastructure;
 use jig_ops_domain_observability as observability;
@@ -21,7 +23,7 @@ pub struct Config {
     /// Core rules and its children.
     pub core: core::Config,
     /// Agent capability supplied by its configuration, checked by the fleet.
-    pub agent_bounds: host::Bounds,
+    pub agent_bounds: Bounds,
     /// Observability owns the standing watches' delegate templates.
     pub triage_templates: Box<[observability::TriageTemplate]>,
     /// Observability owns the matching incident lead templates.
@@ -82,7 +84,7 @@ impl Domain {
     ///
     /// # Errors
     /// The core's configured workers exceed the priced membership bounds.
-    pub fn new(config: Config, limits: &Limits) -> Result<Self, core::Problem> {
+    pub fn new(config: Config, limits: &Limits) -> Result<Self, Problem> {
         assert!(limits.routes > 0, "nonempty route");
         assert!(config.environment_close_grace <= limits.core.tasks.grace, "environment close grace bound");
         assert!(limits.host.slots == limits.core.fleet.engine_slots, "engine slot agreement");
@@ -394,7 +396,7 @@ pub(crate) fn now(domain: &mut Domain, value: Output) {
     domain.journal.now(value).expect("bounded door drained by each domain iteration");
 }
 
-fn check_engine_hello(domain: &mut fleet::Domain, limits: &fleet::Limits, agent_bounds: host::Bounds, slots: u32) {
+fn check_engine_hello(domain: &mut fleet::Domain, limits: &fleet::Limits, agent_bounds: Bounds, slots: u32) {
     let mut out = Queue::uncapped();
     fleet::step(
         domain,
@@ -402,7 +404,7 @@ fn check_engine_hello(domain: &mut fleet::Domain, limits: &fleet::Limits, agent_
         fleet::Event::Hello {
             worker: 0,
             channel: Token::new(0),
-            hello: fleet::Hello {
+            hello: Hello {
                 jobs: Box::default(),
                 slots,
                 stop_bound: skein_lib::Duration::ZERO,

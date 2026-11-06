@@ -3,6 +3,8 @@ use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
+use jig_domain_link::{Bounds, Hosting, ModelBound, Phase};
+use jig_domain_link::{Form, Grant, Scheme};
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Env, List, Map, Queue, Time, Token, Wall};
 
@@ -10,16 +12,16 @@ pub const CHANNEL: Token = Token::new(17);
 pub const RUN: Token = Token::new(2);
 pub const ATTEMPT: Token = Token::new(3);
 
-pub fn hello() -> host::Hello {
-    host::Hello {
+pub fn hello() -> jig_domain_link::Hello {
+    jig_domain_link::Hello {
         jobs: Box::default(),
         slots: 2,
         stop_bound: Duration::from_secs(10),
         workstreams: Box::new([4, 5]),
-        hosting: Box::new([host::Hosting { run: RUN, attempt: ATTEMPT, phase: host::Phase::Waiting }]),
-        bounds: host::Bounds {
+        hosting: Box::new([Hosting { run: RUN, attempt: ATTEMPT, phase: Phase::Waiting }]),
+        bounds: Bounds {
             program_endpoints: Box::new([]),
-            models: Box::new([host::ModelBound { name: b"small".as_slice().into(), window: 1024, output: 128 }]),
+            models: Box::new([ModelBound { name: b"small".as_slice().into(), window: 1024, output: 128 }]),
             turns: 8,
             spend: 100,
             time: Duration::from_secs(60),
@@ -228,8 +230,8 @@ pub fn assignment() -> Assignment {
         messages: Box::new([]),
         transcript: Box::new([b"prior turn".as_slice().into()]),
         answered: Box::new([]),
-        grants: Box::new([jig_domain_accounts::Grant {
-            form: jig_domain_accounts::Form::Credential(jig_domain_accounts::Scheme::Bearer),
+        grants: Box::new([Grant {
+            form: Form::Credential(Scheme::Bearer),
             account: 1,
             generation: 2,
             valid: Duration::from_secs(30),
@@ -337,22 +339,12 @@ fn held_records() -> [(core::Held, host::LinkDown); 4] {
                 channel: CHANNEL,
                 run: RUN,
                 attempt: ATTEMPT,
-                grant: fleet::Grant {
-                    form: fleet::Form::Application,
-                    account: 7,
-                    generation: 2,
-                    valid: Duration::from_secs(30),
-                },
+                grant: Grant { form: Form::Application, account: 7, generation: 2, valid: Duration::from_secs(30) },
             },
             host::LinkDown::Grant {
                 run: RUN,
                 attempt: ATTEMPT,
-                grant: host::Grant {
-                    form: host::Form::Application,
-                    account: 7,
-                    generation: 2,
-                    valid: Duration::from_secs(30),
-                },
+                grant: Grant { form: Form::Application, account: 7, generation: 2, valid: Duration::from_secs(30) },
             },
         ),
     ]

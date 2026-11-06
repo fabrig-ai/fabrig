@@ -7,6 +7,7 @@
 use super::{fixtures, stock};
 use jig_domain_core as core;
 use jig_domain_host as host;
+use jig_domain_link::{Bounds, Login, LoginState, ModelBound, PROGRAM_ENDPOINTS, SourceName};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, List, ReplyTo, Token};
@@ -30,7 +31,7 @@ struct StockBox {
     models: Box<[core::Model]>,
     templates: Box<[core::Template]>,
     providers: jig_domain_accounts::Providers,
-    login: Option<host::LoginState>,
+    login: Option<LoginState>,
 }
 
 fn stock_box(account: OneAccount) -> StockBox {
@@ -92,8 +93,8 @@ fn stock_box(account: OneAccount) -> StockBox {
     }));
     driver.settle();
     let login = match account {
-        OneAccount::Claude => Some(host::LoginState::Usable),
-        OneAccount::Declared => Some(host::LoginState::NotSignedIn),
+        OneAccount::Claude => Some(LoginState::Usable),
+        OneAccount::Declared => Some(LoginState::NotSignedIn),
         OneAccount::ChatGpt | OneAccount::None => None,
     };
     let mut world = StockBox { driver, models, templates, providers, login };
@@ -147,10 +148,9 @@ impl StockBox {
                 }) = event
                 {
                     *logins = match &self.login {
-                        Some(state) => Box::new([host::Login {
-                            name: host::SourceName::new(LOGIN).unwrap(),
-                            state: state.clone(),
-                        }]),
+                        Some(state) => {
+                            Box::new([Login { name: SourceName::new(LOGIN).unwrap(), state: state.clone() }])
+                        }
                         None => Box::new([]),
                     };
                 }
@@ -343,18 +343,18 @@ impl StockBox {
         else {
             panic!("hello")
         };
-        let mut endpoints = List::with_capacity(host::PROGRAM_ENDPOINTS);
+        let mut endpoints = List::with_capacity(PROGRAM_ENDPOINTS);
         for model in &self.models {
             if model.program.is_some() && !endpoints.as_slice().contains(&model.endpoint) {
                 endpoints.push(model.endpoint).expect("configured program endpoints");
             }
         }
-        hello.bounds = host::Bounds {
+        hello.bounds = Bounds {
             program_endpoints: endpoints.into_boxed(),
             models: self
                 .models
                 .iter()
-                .map(|model| host::ModelBound { name: model.name.clone(), window: model.window, output: model.output })
+                .map(|model| ModelBound { name: model.name.clone(), window: model.window, output: model.output })
                 .collect(),
             turns: 800,
             spend: u64::MAX,
