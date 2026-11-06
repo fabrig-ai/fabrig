@@ -6499,6 +6499,14 @@ own tests:
 
 ## 11. Open questions
 
+- **The trial's later choices** (3.5, *The try*, 5.5): whether Settings
+  offers "Try it", whether deployment accounts are tried, how a second
+  account is tested while selection stays a new chat's, and retaining a
+  failed line across a restart are `../domain/trial.md`, section 8.
+  Its project-only key limit stands there too. Default: the account that
+  a new chat selects, personal accounts alone, and no retained line or
+  additional Settings act.
+
 - **Account groups and "All models"** (3.5): the `model-picker` look takes
   the offer's account ids and `picker` flags to group by what pays and expose
   every offered model, including those outside the short picker. A stopped
