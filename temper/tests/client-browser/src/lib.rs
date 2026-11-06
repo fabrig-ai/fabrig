@@ -272,8 +272,7 @@ impl Tier {
     #[must_use]
     pub fn reserved(name: &str) -> Self {
         let tier = Self::new(name);
-        let listener = TcpListener::bind("127.0.0.1:0").expect("reserve restart port");
-        let address = listener.local_addr().expect("restart address");
+        let address = temper_fixtures::ports::addresses::<1>(&[])[0];
         let path = tier.scratch.path().join("temper.json");
         let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
         value["application"]["clients"]["listener"]["socket"] = serde_json::json!(address.to_string());
