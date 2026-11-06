@@ -854,10 +854,12 @@ agents must do stays text its runs read.
   The same inventory names the caller project's people, one line each:
   its number, its login where temper holds one, its role's number, its
   forge user's id where its identity is the forge's, and marks for the
-  person this chat is with and for temper's own forge writer, who never
-  counts as a person. Services are left out. It then names each owned
-  forge's person (`../protocol/setup.md`, section 8), the login made for
-  whoever runs the box, who may hold a party under another login.
+  task requester and for temper's own forge writer, who never counts as
+  a person. An absent forge identity is explicit and cannot count for
+  approvals. Services are left out. It then names each configured owned-forge
+  account (`../protocol/setup.md`, section 8), whose login alone verifies
+  no project membership. The requester, a known forge identity and that
+  configured account are separate facts; none establishes the others.
   Of these, a member's forge user id and an owned forge's person are more
   than a person's own `project show` prints. Only a run whose authority
   holds the settings family (in the stock, charter 3's alone) reads them,
@@ -884,12 +886,17 @@ agents must do stays text its runs read.
     check it checks with its tools, and what it can't, an owner's
     acceptance checks, so it proposes and says what acceptance will
     check;
-  - to start who approves from the person, "you (ada on the forge), or
-    someone else?", from the inventory's people and forge person, with
-    `read_permission` to match a name to a forge user; it proposes the
-    rule naming the approver and says that acceptance refuses one too
-    few people can meet (`forge.md`, 8.9), offering agent review alone
-    beside it;
+  - to ask who approves without equating the requester with the configured
+    forge account, reading `landing-rule` first and using `read_permission`
+    to match a login to a forge user. An existing verified project role
+    determines the approval role; otherwise it reads the current project's
+    `project-policy` permission mapping and describes what adoption would
+    seed (`forge.md`, section 4). Stock admin seeds maintainer (1), never
+    owner (0), and adoption preserves existing roles. It says which missing
+    eligibility acceptance will refuse (`forge.md`, 8.9), offering agent
+    review alone beside it. It never promises that adding admin makes a
+    role-0 proposal acceptable: after adoption it reads inventory again and
+    proposes afresh against the newest revision;
   - never to report a read it could not make as a fact about the
     settings;
   - to say that nothing has changed once, where the person could think
