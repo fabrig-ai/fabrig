@@ -304,22 +304,10 @@ section.temper-accounts button:hover { text-decoration: underline; }
 .temper-main:where(:has(> .temper-taskbar)) .temper-entry textarea { font-size: 15.17px; line-height: 24.5px; }
 .temper-main:where(:has(> .temper-taskbar)) .temper-entry button { border-radius: 5.83px / 7px 7px 8.17px 8.17px; background-color: var(--temper-accent); }
 .temper-main:where(:has(> .temper-taskbar)) .temper-entry button:hover { background-color: #a8563e; }
-/* .terminal-dialog: the page's confirmation and proposal reason fields. */
-/* Native modal backdrop supplies the single dimming layer; keep only the card shadow. */
+/* Shared modal frame and reason fields (client/browser.md, 2.5). */
 dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: auto; width: min(490px, calc(100% - 37.33px)); max-height: calc(100% - 37.33px); overflow-y: auto; border: 1px solid #dbd4ca; border-radius: 10.5px; background: #fffefd; color: var(--temper-ink); padding: 23.33px; box-shadow: 0 25.67px 81.67px rgba(35,30,25,.22); }
-dialog[open] { display: flex; flex-wrap: wrap; column-gap: 9.33px; }
-dialog[open] > :not(button) { flex: 0 0 100%; }
-dialog::backdrop { background: rgba(30,26,22,.34); }
-dialog h2, dialog > span:first-child { font: 700 16.33px/1.35 ui-monospace, monospace; margin-bottom: 10.5px; }
-dialog h3 { font: 700 14px/1.35 var(--temper-mono); letter-spacing: -.025em; margin: 0 0 7px; }
-dialog p { color: #756e65; font-size: 12.83px; margin: 0 0 1em; }
-dialog > p:first-child { margin-top: 1em; }
-dialog section { margin-bottom: 1em; }
-dialog section p { margin: 0; }
 .temper-card textarea { margin-top: 9.33px; }
 .temper-card textarea, dialog textarea { display: block; width: 100%; min-height: 87.5px; border: 1px solid #d8d0c5; border-radius: 5.83px; padding: 9.33px; resize: vertical; font: inherit; }
-dialog button { min-height: 32.67px; border: 1px solid #d8d0c5; background: #fffefd; border-radius: 5.83px; padding: 7px 11.67px; margin-top: 19.83px; font: 600 12.83px ui-monospace, monospace; }
-dialog button:nth-last-child(2) { margin-left: auto; background: var(--temper-accent); border-color: var(--temper-accent); color: #fff; }
 /* .terminal-input-hint at 1100px. */
 @media (max-width: 1100px) {
   .temper-agent-page .temper-hint { display: none; }
@@ -1283,6 +1271,35 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-home .temper-home-ledes > a:hover { text-decoration-color: var(--gf-ink); }
 
 /* ==== ui: chats ==== */
+/* close-chat: a confirmation asks in a sentence, says only what will change, and names its acts. */
+#app dialog.temper-confirm { display: flex; flex-direction: column; gap: 16px; width: min(460px, calc(100% - 32px)); padding: 24px 26px; border: 0; border-radius: 14px; background: var(--gf-surface); color: var(--gf-ink); box-shadow: 0 24px 64px rgba(24, 24, 27, .22); font: 15px/1.55 var(--gf-sans); }
+#app dialog.temper-confirm::backdrop { background: rgba(24, 24, 27, .32); }
+#app dialog.temper-confirm h2 { margin: 0; font: 500 19px/1.3 var(--gf-sans); letter-spacing: -.01em; color: var(--gf-ink); }
+#app dialog.temper-confirm > p { margin: 0; font-size: 14.5px; color: var(--gf-muted); }
+#app dialog.temper-confirm > .temper-confirm-fates { display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 14px 0 0; border-top: 1px solid var(--gf-line); list-style: none; font-size: 14px; color: var(--gf-ink-2); }
+#app dialog.temper-confirm > .temper-confirm-fates > li { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 12px; }
+#app dialog.temper-confirm > .temper-confirm-fates strong { font-weight: 500; color: var(--gf-ink); }
+#app dialog.temper-confirm > .temper-confirm-fates button { min-height: 0; margin: 0; padding: 0; border: 0; background: none; font: 13px/1.5 var(--gf-sans); color: var(--gf-muted); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+#app dialog.temper-confirm > .temper-confirm-fates button:hover { color: var(--gf-ink); }
+#app dialog.temper-confirm > .temper-confirm-acts { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+#app dialog.temper-confirm > .temper-confirm-acts > button { min-height: 38px; margin: 0; padding: 7px 14px; border: 1px solid var(--gf-line-2); border-radius: 9px; background: var(--gf-surface); font: 500 14px/1.4 var(--gf-sans); color: var(--gf-ink); cursor: pointer; }
+#app dialog.temper-confirm > .temper-confirm-acts > button:hover { border-color: #b4b4ae; }
+#app dialog.temper-confirm > .temper-confirm-acts > button.temper-confirm-do { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; }
+#app dialog.temper-confirm > .temper-confirm-acts > button.temper-confirm-do:hover { background: #000; }
+/* A closed chat ends on one quiet line, between two hairlines. */
+#app > .temper-session .temper-thread-inner > .temper-ended { display: flex; align-items: center; gap: 14px; margin: 8px 0 0; font-size: 12.5px; color: var(--gf-faint); }
+#app > .temper-session .temper-thread-inner > .temper-ended::before, #app > .temper-session .temper-thread-inner > .temper-ended::after { content: ''; flex: 1; height: 1px; background: var(--gf-line); }
+/* The sheet owns its pending ask and last failure (client/README.md, 3.6). */
+#app dialog.temper-confirm > :is([role=status], [role=alert]) { margin: 0; font-size: 14px; color: var(--gf-ink-2); }
+#app dialog.temper-confirm > [role=alert] { color: #b42318; }
+/* An uncertain effect is chosen before its release is confirmed. */
+#app dialog.temper-confirm > .temper-confirm-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+#app dialog.temper-confirm > .temper-confirm-choices > button { min-height: 38px; margin: 0; padding: 7px 14px; border: 1px solid var(--gf-line-2); border-radius: 9px; background: var(--gf-surface); font: 500 14px/1.4 var(--gf-sans); color: var(--gf-ink); cursor: pointer; }
+#app dialog.temper-confirm > .temper-confirm-choices > button:hover { border-color: #b4b4ae; }
+@media (max-width: 760px) {
+  #app dialog.temper-confirm > .temper-confirm-choices > button { min-height: 44px; }
+}
+
 #app > .temper-session .temper-session-right > .temper-chat-goal { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font-size: 13.5px; text-decoration: none; text-align: left; }
 #app > .temper-session .temper-session-right > .temper-chat-goal:hover { border-color: #b4b4ae; }
 #app > .temper-session .temper-session-right > .temper-chat-goal.temper-goal-primary { border-color: var(--gf-ink); background: var(--gf-ink); color: #fff; font-weight: 500; }
@@ -2270,5 +2287,5 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   /* The tabs occupy 63px; keep a pixel clear when scrolling a control. */
   :root:has(#app > .temper-tabbar):not(:has(#app > .temper-session)) { scroll-padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
   .temper-main:where(:not(.temper-settings)) .temper-flow-primary { min-height: 44px; }
-  dialog > button:nth-last-child(2) { min-height: 44px; }
+  #app dialog.temper-confirm > .temper-confirm-acts > button { min-height: 44px; }
 }

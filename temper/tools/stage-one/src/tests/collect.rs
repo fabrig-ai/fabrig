@@ -150,6 +150,31 @@ fn a_size_only_project_policy_keeps_what_project_show_gives() {
 fn quote(text: &str) -> String {
     format!("'{}'", text.replace('\'', "'\\''"))
 }
+#[test]
+fn a_projects_ways_and_questions_are_collected_from_their_own_reads() {
+    let mut outputs = outputs();
+    let inventory = json!({"newest":5,"settings":[
+        {"setting":{"kind":"project-ways","project":1},"name":null,"follows":"change","last":5},
+        {"setting":{"kind":"project-questions","project":1},"name":null,"follows":"change","last":5},
+    ]});
+    outputs.by_command.insert(words("settings show --json"), inventory.to_string());
+    let revision = json!({"head":{"number":5},"items":[
+        {"setting":{"kind":"project-questions","project":1},"set":"foreman","replaced":"not_offered"},
+    ]});
+    outputs.by_command.insert(words("revision show 5 --json"), revision.to_string());
+    let ways = json!({"setting":{"kind":"project-ways","project":1},"revision":5,
+        "value":{"drafts":true,"goals":true,"changes":true,"away":true,"way":4},
+        "application":{"follows":"change","revision":5,"size":8,"charters":[]}});
+    outputs.by_command.insert(words("settings show project-ways 1 --json"), ways.to_string());
+    let questions = json!({"setting":{"kind":"project-questions","project":1},"revision":5,"value":"foreman",
+        "application":{"follows":"change","revision":5,"size":1,"charters":[]}});
+    outputs.by_command.insert(words("settings show project-questions 1 --json"), questions.to_string());
+    let (items, current) = collect::assemble(&outputs).expect("assemble");
+    assert_eq!(items.items.len(), 1);
+    assert_eq!(items.items[0].setting.kind, "project-questions");
+    let way = current.items.iter().find(|item| item.setting.kind == "project-ways").expect("ways");
+    assert!(matches!(&way.edit, Edit::Set(value) if value["way"] == json!(4)), "{way:?}");
+}
 fn fake(scratch: &Scratch, fail: Option<&str>) -> CollectArgs {
     let path = scratch.path().join("temper");
     let mut script = String::from(

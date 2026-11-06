@@ -1228,6 +1228,19 @@ host:
   uses. Default: the inventory.
 - **A collaborator's login in `read_collaborators`** (4.3). Default: ids,
   with `read_permission` naming each.
+- **`read_permission`'s login held to the settings family** (4.3). It
+  reaches every run with the forge reads, as the forge's own answer about
+  a user of a repository that run may already read; holding it would be a
+  condition in `temper-engine-domain`'s render. Default: every such run.
+- **A person known by a login alone** (8.1). On a fresh box the person is
+  often no collaborator, so adoption finds no person for them and the
+  inventory's forge person has no forge user id; `read_permission` takes
+  an id, so the agent cannot match them, and acceptance refuses an approval
+  only they could meet (`forge.md`, 8.9). It proposes, says what acceptance
+  checks and, refused, who to add on the forge before adopting again, in
+  the browser the adoption form typed afresh (`../client/README.md`, 4.4).
+  Default: as it stands, until a walk shows whether that asks too much of
+  the person.
 - **Which host tools a charter offers.** jig's charter carries the host
   families its charter's `tools` names and its task's authority holds
   (jig's `domain/engine.md`, 7.1), each stock charter's named in

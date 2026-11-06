@@ -65,7 +65,10 @@ fn setting_call(key: &SettingKey, revision: Option<u32>) -> Vec<String> {
         call.push(number.to_string());
     }
     if let Some(ProjectRef::Number(project)) = key.project {
-        call.extend(["--project".into(), project.to_string()]);
+        if key.number.is_some() {
+            call.push("--project".into());
+        }
+        call.push(project.to_string());
     }
     if let Some(revision) = revision {
         call.extend(["--revision".into(), revision.to_string()]);
