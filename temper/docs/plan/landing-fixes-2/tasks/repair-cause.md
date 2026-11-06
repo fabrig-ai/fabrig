@@ -8,6 +8,7 @@ files = [
   "temper/crates/temper-engine-domain/src/route/forge_route/tests.rs",
   "temper/crates/temper-engine-domain-forge-change/src/domain.rs",
   "temper/crates/temper-engine-domain-forge-change/src/tests.rs",
+  "temper/crates/temper-engine-domain/src/assemble.rs",
   "temper/tests/engine/domain/tests/suite/forge_routes/repair_cause.rs",
   "temper/docs/help/change.md",
   "temper/docs/design/domain/forge.status.md",
@@ -117,3 +118,16 @@ Continue from the pushed work on `landing-fixes-2/repair-cause` (`3456cf8c71`): 
 - **If the story still misses the base's contents with `clean` kept,** or the CI section doesn't come before the pull section, stop and report it. `brief.rs` and `assemble.rs` read right and stay outside this task.
 
 The rest of the task stands: the help line, the `8.4:` status entry, the mutation checks and the readers' tests the run left undone.
+
+2026-11-06. **May this task extend its allowlist to fix the section order in `assemble.rs` and its focused tests, or should the requirement that CI precede the pull section be revised?** Extend, for `Repair::Semantic` alone. The acceptance's "then what landed in the base" stands, and the named-check story stays as it is. This replaces the earlier line that `assemble.rs` stays outside this task. The header now lists it.
+
+Continue from the pushed work on `landing-fixes-2/repair-cause` (`838a489643`).
+
+- **The fix:** in `assemble.rs`, where the pull and reason sections are planned, a `Repair::Semantic` delegate plans its reason first and its pull second, passing the reason's token as the pull's partner. `PlanBrief` and `stand_on_partner` treat the two partners alike, so nothing in `temper-engine-domain-forge` changes. The source order of `wanted` is what the brief's sections keep.
+- **Every other repair stays pull first.** `Repair::Ci`, `Repair::Gate` and `Repair::Landing` plan as they do: the acceptance has them read as they do, and `forge_routes/reviews.rs` pins `pull_at < reviews_at` for a gate's. Don't move them, and don't rewrite that assertion.
+- **The fit doesn't change.** The priorities stay 5 for the reason and 6 for the pull, and so do the sizes. `temper/docs/design/domain/forge.md`, 8.4, "with the repair reason before the pull section", is that fit, which those priorities already hold; it asks for no design change. `a_ci_repair_keeps_its_failed_step_and_log_end_before_pull_contents_and_optional_context` stands as it is.
+- **A new test in `route/forge_route/tests.rs`:** the planned connector sections of a `Repair::Ci` read pull then CI, and of a `Repair::Semantic` CI then pull, each with the priorities above.
+- **Break the rule once:** plan `Semantic`'s pull first again, see the named-check story fail at `the reason precedes the base contents` and the new test fail, and restore it.
+- **If an existing test's expectation has to change,** stop and ask, naming the test. Don't rewrite it.
+
+The rest of the task stands as the answer above lists it. The old-forms check reads its baseline from the current directory, so step 7's command run from the root finds none: run `(cd temper && python3 -I -B scripts/old_forms.py)`, where `temper/scripts/old-forms.txt` is.
