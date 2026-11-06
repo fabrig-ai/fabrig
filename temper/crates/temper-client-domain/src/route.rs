@@ -509,21 +509,34 @@ fn forge_ways(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out
     consumed
 }
 
-/// Complete a pressed Claude check only from the accounts observation (client/README.md, 3.5).
+/// Settle the host check on its accounts observation; advance a key once added and usable (client/README.md, 3.5).
 pub(crate) fn welcome_program_progress(root: &mut Domain, out: &mut Queue<Request>) {
     use crate::pages::connect_model::ProgramCheck;
-    let Address::Welcome { step: crate::Step::Model { way: Some(way) } } = root.pages.address() else { return };
-    if way.kind != crate::WayKind::Program {
-        return;
-    }
     let usable = crate::pages::welcome::model_usable(root) == Some(true);
+    let address = root.pages.address().clone();
     let Some(page) = &mut root.pages.connect_model else { return };
+    if let Address::Welcome { step: crate::Step::Model { way: Some(way) } } = address
+        && way.kind == crate::WayKind::Key
+        && let Some(pending) = &page.request.pending
+        && let jig_client::contract::Ask::AccountChange {
+            change: jig_client::contract::AccountChange::AddKey { .. },
+            ..
+        } = &pending.ask
+        && usable
+    {
+        if let Some(outcome) = &pending.outcome
+            && !crate::pages::seen_answered(outcome)
+        {
+            return;
+        }
+        page.request.pending = None;
+        out.push(Request::Show { address: Address::Welcome { step: crate::Step::Ready }, replace: true });
+    }
     if page.check == ProgramCheck::Idle {
         return;
     }
     if usable {
         page.check = ProgramCheck::Idle;
-        out.push(Request::Show { address: Address::Welcome { step: crate::Step::Ready }, replace: true });
         return;
     }
     if let ProgramCheck::Checking { .. } = page.check

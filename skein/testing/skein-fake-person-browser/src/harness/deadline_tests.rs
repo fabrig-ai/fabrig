@@ -1,7 +1,24 @@
 //! Close-point diagnostics consume the deadline's verdict, without host starvation.
-use super::{Outcome, deadline_outcome, parse_pidfd_pid};
+use super::{DEFAULT_HORIZON, Outcome, bounds, deadline_outcome, parse_pidfd_pid};
 use skein_lib::Duration;
 use skein_world::Figures;
+
+#[test]
+fn the_horizon_reserves_the_same_close_window() {
+    // ui-web.md, 14.2: the default, a person's ten-minute run, and the close window's bound.
+    for (horizon, close, deadline) in
+        [(DEFAULT_HORIZON, 36, 40), (Duration::from_secs(600), 596, 600), (Duration::from_secs(4), 0, 4)]
+    {
+        assert_eq!(bounds(horizon), (Duration::from_secs(close), Duration::from_secs(deadline)), "{horizon:?}");
+    }
+}
+
+#[test]
+#[should_panic(expected = "horizon Duration(3999999999) is shorter than the close window")]
+fn a_horizon_shorter_than_the_close_window_is_refused() {
+    // One nanosecond below io's four-second close window.
+    bounds(Duration::from_nanos(3_999_999_999));
+}
 
 fn figures() -> Figures {
     Figures {

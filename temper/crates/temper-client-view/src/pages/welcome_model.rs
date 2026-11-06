@@ -1,5 +1,5 @@
 //! The welcome's Model shapes (temper/docs/design/client/README.md, 3.5).
-use super::{accounts, connect_model as model, model_check, sign_in_wait};
+use super::{accounts, connect_model as model, sign_in_wait};
 use crate::{
     accounts::{Bindings, Meaning},
     flow::{self, Control},
@@ -68,48 +68,44 @@ fn note(b: &mut Builder, root: &Domain, w: &Words) {
 }
 fn usable(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
     text(b, root, w, Role::Heading { level: 1 }, Word::WelcomeModelTitle);
-    if let Some(trial) = model_check::trial(root, w) {
-        model_check::status(b, w, &trial);
-    } else {
+    b.open(Role::Slot);
+    b.style(look::WELCOME_FORGE_STATUS);
+    b.style(look::FLOW_DONE);
+    let account = match accounts::first_usable_short(root, w) {
+        Some(account) => account,
+        None => crate::choice::new_chat_model(root, w),
+    };
+    b.open(Role::Status);
+    b.name(&account);
+    if w.shell == Shell::Browser {
         b.open(Role::Slot);
-        b.style(look::WELCOME_FORGE_STATUS);
-        b.style(look::FLOW_DONE);
-        let account = match accounts::first_usable_short(root, w) {
-            Some(account) => account,
-            None => crate::choice::new_chat_model(root, w),
-        };
-        b.open(Role::Status);
-        b.name(&account);
-        if w.shell == Shell::Browser {
-            b.open(Role::Slot);
-            b.style(look::WELCOME_OK);
-            b.text(Run::Plain, "✓".as_bytes());
-            b.close();
-        } else {
-            b.text(Run::Plain, "✓ ".as_bytes());
-        }
-        if w.shell == Shell::Browser {
-            let kind = match accounts::first_usable_kind(root, w) {
-                Some(kind) => kind,
-                None => account.clone(),
-            };
-            b.open(Role::Text);
-            b.run(Run::Strong, &kind);
-            b.close();
-            if let Some(rest) = account.strip_prefix(kind.as_ref())
-                && !rest.is_empty()
-            {
-                b.open(Role::Slot);
-                b.style(look::FLOW_MUTED);
-                b.text(Run::Plain, rest);
-                b.close();
-            }
-        } else {
-            b.text(Run::Plain, &account);
-        }
+        b.style(look::WELCOME_OK);
+        b.text(Run::Plain, "✓".as_bytes());
         b.close();
-        b.close();
+    } else {
+        b.text(Run::Plain, "✓ ".as_bytes());
     }
+    if w.shell == Shell::Browser {
+        let kind = match accounts::first_usable_kind(root, w) {
+            Some(kind) => kind,
+            None => account.clone(),
+        };
+        b.open(Role::Text);
+        b.run(Run::Strong, &kind);
+        b.close();
+        if let Some(rest) = account.strip_prefix(kind.as_ref())
+            && !rest.is_empty()
+        {
+            b.open(Role::Slot);
+            b.style(look::FLOW_MUTED);
+            b.text(Run::Plain, rest);
+            b.close();
+        }
+    } else {
+        b.text(Run::Plain, &account);
+    }
+    b.close();
+    b.close();
     acts(b);
     if let Some(to) = bindings.insert(Meaning::Go(Address::Welcome { step: Step::Ready })) {
         flow::control(b, Control::PrimaryLink { name: &w.say(Word::WelcomeContinue, &[]), to });
@@ -167,11 +163,6 @@ fn sign_in(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, w
 fn program(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, way: Way, text_per_node: u32) {
     let Some(page) = root.pages().connect_model() else { return };
     text(b, root, w, Role::Heading { level: 1 }, Word::WelcomeClaudeTitle);
-    if let Some(trial) = model_check::trial(root, w) {
-        model_check::status(b, w, &trial);
-        model_check::stopped_acts(b, root, w, bindings, &trial, way, Address::Welcome { step: Step::Ready });
-        return;
-    }
     panel(b);
     text(b, root, w, Role::Paragraph, Word::WelcomeClaudeBody);
     crate::cards::text(b, Role::Paragraph, &model::command_prompt(root, w));

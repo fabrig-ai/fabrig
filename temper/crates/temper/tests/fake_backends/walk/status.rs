@@ -19,19 +19,9 @@ const COMPUTED: &[u8] = b"One change landed since you last looked. Nothing needs
 fn home_on_the_fake_box_keeps_a_landing_count_after_box_and_client_restarts() {
     let walk = Walk::new("walk-status");
     let sandbox = walk.sandbox();
-    let config = sandbox.join("config/temper.json");
     let client = walk.scratch.path().to_path_buf();
     let first_config = sandbox.join("config");
-    walk.run(vec![]);
-    let mut document: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(&config).expect("public configuration")).expect("JSON");
-    // Reopen the prepared box with short polling intervals, leaving room for
-    // the real journal to commit between polls instead of filling it with reads.
-    let limits = &mut document["application"]["limits"]["overrides"];
-    for (name, millis) in [("poll_ms", 100), ("poll_max_ms", 500), ("slow_ms", 1000), ("hinted_ms", 100)] {
-        limits[format!("forge.client.{name}")] = millis.into();
-    }
-    super::super::write(&config, &serde_json::to_vec(&document).expect("configuration JSON"));
+    walk.short_paces();
     let seen = walk.run_then(
         vec![
             Act::After(Box::new(move |_| {
@@ -111,14 +101,11 @@ fn home_on_the_fake_box_keeps_a_landing_count_after_box_and_client_restarts() {
 #[test]
 fn a_plans_project_has_its_brief_on_a_return_past_the_sitting() {
     let walk = Walk::owned("walk-status-plan");
-    walk.run(vec![]);
+    walk.short_paces();
     let config = walk.sandbox().join("config/temper.json");
     let mut document: serde_json::Value =
         serde_json::from_slice(&std::fs::read(&config).expect("public configuration")).expect("JSON");
     let limits = &mut document["application"]["limits"]["overrides"];
-    for (name, millis) in [("poll_ms", 100), ("poll_max_ms", 500), ("slow_ms", 1000), ("hinted_ms", 100)] {
-        limits[format!("forge.client.{name}")] = millis.into();
-    }
     limits["forge.sitting_ms"] = SITTING.as_millis().into();
     super::super::write(&config, &serde_json::to_vec(&document).expect("configuration JSON"));
     let clock = Clock::new();

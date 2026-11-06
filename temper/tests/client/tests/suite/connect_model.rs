@@ -250,7 +250,8 @@ fn a_welcome_sign_in_come_back_at_ready_reads_it_under_way_then_its_account() {
         declined: false,
     }));
     accounts::settle(&mut front, &mut root);
-    assert!(text(&root).contains("Model ChatGPT plan · alice@example.com"), "{}", text(&root));
+    assert!(view(&root).tree().nodes().iter().any(|node| node.role == Role::Paragraph
+        && node.name.as_deref() == Some("ChatGPT plan · alice@example.com".as_bytes())));
     assert!(!text(&root).contains("Connect a model"));
 }
 #[test]
@@ -274,7 +275,7 @@ fn an_unknown_return_source_is_removed_and_the_way_can_start_again() {
 }
 
 #[test]
-fn welcome_claude_checks_on_the_wire_and_reaches_ready_after_the_host_answers() {
+fn welcome_claude_checks_on_the_wire_from_ready_and_observes_the_host_answer() {
     use jig_client::contract::{AccountChange, Ask, AskAccountHolder};
     let (mut front, mut root) = accounts::empty_program_fixture(fixtures::SEED);
     front.deployment = (true, true);
@@ -308,11 +309,11 @@ fn welcome_claude_checks_on_the_wire_and_reaches_ready_after_the_host_answers() 
         Ask::AccountChange { holder: AskAccountHolder::Own, change: AccountChange::CheckProgram { source: *source } }
     );
     accounts::program_checked(&mut front, &mut root, false);
-    assert_eq!(root.person().pages().address(), &address);
+    assert_eq!(root.person().pages().address(), &Address::Welcome { step: d::Step::Ready });
     assert!(text(&root).contains("Claude Code isn’t signed in here yet."));
     press(&mut front, &mut root, Role::Button, "Try again".as_bytes(), skein_ui::Act::Press);
     accounts::program_checked(&mut front, &mut root, false);
-    press(&mut front, &mut root, Role::Button, b"Sign in again", skein_ui::Act::Press);
+    press(&mut front, &mut root, Role::Link, b"Sign in again", skein_ui::Act::Press);
     assert!(text(&root).contains("temper program-login claude-person"));
     assert!(!text(&root).contains("Claude didn’t answer"));
     press(&mut front, &mut root, Role::Button, "I’ve signed in".as_bytes(), skein_ui::Act::Press);
@@ -358,7 +359,7 @@ fn the_owner_sees_the_short_command_for_default_directories() {
 }
 
 #[test]
-fn a_stopped_welcome_check_can_continue_without_a_model() {
+fn a_stopped_welcome_check_stays_on_ready_without_a_model() {
     let (mut front, mut root) = accounts::empty_program_fixture(fixtures::SEED);
     front.deployment = (true, true);
     let address = Address::Welcome {
@@ -369,7 +370,6 @@ fn a_stopped_welcome_check_can_continue_without_a_model() {
     accounts::reopen(&mut front, &mut root, address, false);
     press(&mut front, &mut root, Role::Button, "I’ve signed in".as_bytes(), skein_ui::Act::Press);
     accounts::program_checked(&mut front, &mut root, false);
-    press(&mut front, &mut root, Role::Link, b"Continue anyway", skein_ui::Act::Press);
     assert_eq!(root.person().pages().address(), &Address::Welcome { step: d::Step::Ready });
     assert_eq!(d::pages::welcome::model_usable(root.person()), Some(false));
 }

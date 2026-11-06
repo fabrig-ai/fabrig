@@ -850,7 +850,7 @@ fn paste_restart(
     let Some(way) = paste_way(root, form) else { return };
     let Some(me) = accounts::current_me(root.client()) else { return };
     let ways = accounts::ways(&me.providers, root.forge().playground_provider(), c::AskAccountHolder::Own);
-    let meaning = if root.pages().connect_model().is_some() {
+    let meaning = if temper_client_domain::pages::connect_model::open(root.pages().address()) {
         Meaning::Model(temper_client_domain::pages::connect_model::Act::SignIn {
             name: root.pages().account_name(),
             way,
@@ -882,7 +882,7 @@ pub(super) fn paste(
     }
     if folded {
         b.open(Role::Disclosure);
-        if root.pages().connect_model().is_some() {
+        if temper_client_domain::pages::connect_model::open(root.pages().address()) {
             b.style(look::MODEL_SIGN_IN);
             b.style(look::WELCOME_PASTE);
         }
@@ -912,8 +912,8 @@ fn paste_body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings
     if paste_ending(b, root, w, bindings, form) {
         return;
     }
-    paste_field(b, root, w, bindings, form, root.pages().connect_model().is_some());
-    paste_finish(b, root, w, bindings, form, root.pages().connect_model().is_some());
+    paste_field(b, root, w, bindings, form, temper_client_domain::pages::connect_model::open(root.pages().address()));
+    paste_finish(b, root, w, bindings, form, temper_client_domain::pages::connect_model::open(root.pages().address()));
 }
 /// Draws a paste’s ending or refusal, and reports whether its field is gone (3.5).
 pub(super) fn paste_ending(
@@ -1006,7 +1006,7 @@ pub(super) fn paste_finish(
             true,
         );
     } else {
-        let meaning = if root.pages().connect_model().is_some() {
+        let meaning = if temper_client_domain::pages::connect_model::open(root.pages().address()) {
             Meaning::Model(temper_client_domain::pages::connect_model::Act::Finish {
                 name: root.pages().account_name(),
             })
