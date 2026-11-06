@@ -1,4 +1,5 @@
 //! The core admits each typed application before its forge connector decides it.
+//! Trials: temper/docs/design/domain/trial.md, 6.
 use super::{Domain, Work, forge, forge_route};
 use crate::{Application, ApplicationAnswer};
 use alloc::boxed::Box;
@@ -38,12 +39,34 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
             None => people::ApplicationScope::Deployment,
         },
         Application::Forge(forge::Ask::Adopt(_)) => scope,
+        Application::Try { .. } => people::ApplicationScope::Own,
         Application::Dismiss {
             what: forge::PersonFact::ToBegin { project } | forge::PersonFact::GoalFrom { project, .. },
         }
         | Application::Looked { project }
         | Application::SetAway { project, .. }
         | Application::Overturn { project, .. } => people::ApplicationScope::Project(*project),
+    };
+    let carried = match &request {
+        Application::Try { .. } => {
+            if let Some(carried) = carried {
+                assert!(
+                    super::now(
+                        domain,
+                        crate::Request::Party(crate::PartyRequest::Deliver(crate::Delivery::CarriedUnused {
+                            number: carried.number
+                        },))
+                    ),
+                    "carried value output door reserved"
+                );
+            }
+            None
+        }
+        Application::Forge(_)
+        | Application::Dismiss { .. }
+        | Application::Looked { .. }
+        | Application::SetAway { .. }
+        | Application::Overturn { .. } => carried,
     };
     if request == Application::Forge(forge::Ask::StartPlayground) {
         domain.application_playground = Some(super::playground::Context { sign_in, key, carried });
@@ -62,6 +85,7 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
     }));
 }
 
+#[expect(clippy::too_many_arguments, reason = "the core admission carries the party beside its request metadata")]
 pub(super) fn admitted(
     domain: &mut Domain,
     request: Token,
@@ -70,11 +94,28 @@ pub(super) fn admitted(
     retention: Duration,
     role: Option<people::Role>,
     person: u64,
+    env: &skein_lib::Env<crate::Limits>,
 ) {
     let (held, ask) = domain.application.take().expect("one admitted application value");
     assert_eq!(held, owner, "the core admits the application's owner");
     let carried = domain.application_carried.take();
     match ask {
+        Application::Try { account, again } => {
+            sweep_answers(domain, env);
+            let answer = super::trials::asked(domain, env, person, account, again);
+            domain
+                .try_answers
+                .insert(
+                    token,
+                    (
+                        answer,
+                        env.now.saturating_add(retention),
+                        skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(retention.as_nanos())),
+                    ),
+                )
+                .expect("one marker per retained key");
+            finished(domain, request, Ok(token));
+        }
         Application::SetAway { project, on, until, kinds } => {
             domain.work.push(Work::Forge(forge::Event::SetAway {
                 request,
@@ -137,6 +178,9 @@ pub(super) fn finished(domain: &mut Domain, request: Token, outcome: Result<Toke
 }
 
 pub(super) fn answer(domain: &Domain, token: Token) -> Option<ApplicationAnswer> {
+    if let Some((answer, _, _)) = domain.try_answers.get(&token) {
+        return Some(ApplicationAnswer::Try(*answer));
+    }
     match domain.forge.application_answer(token) {
         Some(forge::Answered::Make(answer)) => Some(ApplicationAnswer::Make(answer)),
         Some(forge::Answered::Adopt(answer)) => Some(ApplicationAnswer::Adopt(answer)),
@@ -153,5 +197,18 @@ pub(super) fn answer(domain: &Domain, token: Token) -> Option<ApplicationAnswer>
         Some(forge::Answered::SetAway(answer)) => Some(ApplicationAnswer::SetAway(answer)),
         Some(forge::Answered::Overturn(answer)) => Some(ApplicationAnswer::Overturn(answer)),
         None => None,
+    }
+}
+
+// Retained keys outlive these volatile markers (temper/docs/design/domain/trial.md, 4).
+fn sweep_answers(domain: &mut Domain, env: &skein_lib::Env<crate::Limits>) {
+    let mut expired = skein_lib::List::with_capacity(domain.try_answers.len());
+    for (token, (_, now, wall)) in &domain.try_answers {
+        if *now <= env.now || *wall <= env.wall {
+            expired.push(*token).expect("at most one marker per key");
+        }
+    }
+    for token in &expired {
+        domain.try_answers.remove(token);
     }
 }

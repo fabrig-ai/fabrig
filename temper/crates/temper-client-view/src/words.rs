@@ -1,4 +1,5 @@
 //! temper's frame and forge words as checked English data.
+//! Trial endings: temper/docs/design/domain/trial.md, 6.4.
 //! Playground and forge setup words (temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 3.5 and 5.6).
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
@@ -482,6 +483,7 @@ pub enum Word {
     HomeLandedNow,
     HomeLandedMany,
     HomeByline,
+    HomeTryStopped,
     HomeLanding,
     HomeChatsSentence,
     LookedMinute,
@@ -1293,6 +1295,12 @@ pub enum Word {
     WelcomeTryKey,
     WelcomeTryStarts,
     WelcomeTryAnswers,
+    WelcomeTryBusy,
+    WelcomeTryRefused,
+    WelcomeTryRun,
+    WelcomeTryLost,
+    WelcomeTryCouldNotStart,
+    WelcomeTryWaited,
     WelcomeTryAgain,
     WelcomeSignInAgain,
     WelcomeClaudeNotYet,
@@ -1396,7 +1404,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
 // The command’s Copy adds three literal phrases (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
-const PHRASES: u32 = 1880;
+const PHRASES: u32 = 1887;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1422,10 +1430,10 @@ const PHRASES: u32 = 1880;
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 3299;
+const SEGMENTS: u32 = 3316;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 45956;
-const ALL: [Word; 1279] = [
+const ENGLISH_BYTES: u32 = 46193;
+const ALL: [Word; 1286] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -1886,6 +1894,7 @@ const ALL: [Word; 1279] = [
     Word::HomeLandedNow,
     Word::HomeLandedMany,
     Word::HomeByline,
+    Word::HomeTryStopped,
     Word::HomeLanding,
     Word::HomeChatsSentence,
     Word::LookedMinute,
@@ -2675,6 +2684,12 @@ const ALL: [Word; 1279] = [
     Word::WelcomeTryKey,
     Word::WelcomeTryStarts,
     Word::WelcomeTryAnswers,
+    Word::WelcomeTryBusy,
+    Word::WelcomeTryRefused,
+    Word::WelcomeTryRun,
+    Word::WelcomeTryLost,
+    Word::WelcomeTryCouldNotStart,
+    Word::WelcomeTryWaited,
     Word::WelcomeTryAgain,
     Word::WelcomeSignInAgain,
     Word::WelcomeClaudeNotYet,
@@ -2822,13 +2837,13 @@ impl Word {
             Self::SettingsProposalUp => 3427,
             Self::SettingsProposalNone => 3428,
             Self::SettingsProposalChange => 3429,
-            Self::SettingsProposalChangeAsks => 3881,
+            Self::SettingsProposalChangeAsks => 3919,
             Self::SettingsProposalWaiting => 3430,
             Self::SettingsProposalOwners => 3431,
             Self::SettingsProposalAccepted => 3432,
             Self::SettingsProposalReplaced => 3433,
-            Self::SettingsProposalRejected => 3882,
-            Self::SettingsProposalWithdrawn => 3883,
+            Self::SettingsProposalRejected => 3920,
+            Self::SettingsProposalWithdrawn => 3921,
             Self::AwaySettingsTitle => 3658,
             Self::AwayKinds => 3659,
             Self::AwayKindsLine => 3660,
@@ -3143,6 +3158,7 @@ impl Word {
             Self::HomeLandedOne => 3622,
             Self::HomeLandedMany => 3623,
             Self::HomeByline => 3624,
+            Self::HomeTryStopped => 3876,
             Self::HomeLanding => 3625,
             Self::HomeChatsSentence => 3626,
             Self::LookedMinute => 3627,
@@ -3722,9 +3738,9 @@ impl Word {
             Self::ChatRowSpend => 2124,
             Self::ChatKept => 2125,
             Self::ComposerNoModel => 2126,
-            Self::ComposerOverOne => 3872,
-            Self::ComposerOver => 3873,
-            Self::ToastRegion => 3874,
+            Self::ComposerOverOne => 3879,
+            Self::ComposerOver => 3880,
+            Self::ToastRegion => 3881,
             Self::ProposalWhy => 1401,
             Self::ProposalLanding => 1402,
             Self::ProposalBudget => 1403,
@@ -3923,13 +3939,13 @@ impl Word {
             Self::PublicStaleProofs => 3023,
             Self::PublicTitleCut => 3024,
             Self::PublicAsOf => 3025,
-            Self::PublicBoardLede => 3878,
-            Self::PublicBoardHeld => 3912,
-            Self::PublicNoGoals => 3879,
-            Self::PublicNoLandings => 3880,
-            Self::PublicNoProjects => 3875,
-            Self::PublicTimeParts => 3877,
-            Self::PublicUnderMinute => 3876,
+            Self::PublicBoardLede => 3915,
+            Self::PublicNoGoals => 3916,
+            Self::PublicNoLandings => 3917,
+            Self::PublicBoardHeld => 3918,
+            Self::PublicNoProjects => 3912,
+            Self::PublicTimeParts => 3914,
+            Self::PublicUnderMinute => 3913,
 
             Self::WelcomeBoxName => 3026,
             Self::WelcomeBoxLine => 3027,
@@ -3968,6 +3984,12 @@ impl Word {
             Self::WelcomeTryKey => 3732,
             Self::WelcomeTryStarts => 3733,
             Self::WelcomeTryAnswers => 3734,
+            Self::WelcomeTryBusy => 3877,
+            Self::WelcomeTryRefused => 3878,
+            Self::WelcomeTryRun => 3872,
+            Self::WelcomeTryLost => 3873,
+            Self::WelcomeTryCouldNotStart => 3874,
+            Self::WelcomeTryWaited => 3875,
             Self::WelcomeTryAgain => 3735,
             Self::WelcomeSignInAgain => 3736,
             Self::WelcomeClaudeNotYet => 3381,
@@ -4615,6 +4637,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeTryKey => (&[b"Key added"], &[]),
         Word::WelcomeTryStarts => (&[b"Claude Code starts on this machine"], &[]),
         Word::WelcomeTryAnswers => (&[b"", b" answers"], &[Name]),
+        Word::WelcomeTryBusy => (&[b"", b" was busy or out of reach just now."], &[Name]),
+        Word::WelcomeTryRefused => (&[b"", b" refused the request. Its account may need attention."], &[Name]),
+        Word::WelcomeTryRun => (&[b"The run stopped before ", b" answered."], &[Name]),
+        Word::WelcomeTryLost => (&[b"The machine running it went away."], &[]),
+        Word::WelcomeTryCouldNotStart => (&[b"The try couldn't start."], &[]),
+        Word::WelcomeTryWaited => (&[b"", b" didn\xe2\x80\x99t answer within a minute."], &[Name]),
         Word::WelcomeTryAgain => (&[b"Try again"], &[]),
         Word::WelcomeSignInAgain => (&[b"Sign in again"], &[]),
         Word::WelcomeClaudeNotYet => (&[b"Claude Code isn\xe2\x80\x99t signed in here yet. Sign in again, then try again."], &[]),
@@ -4741,6 +4769,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeLandedNow => (&[b"The last change landed just now."], &[]),
         Word::HomeLandedOne => (&[b"One change landed since you last looked."], &[]),
         Word::HomeLandedMany => (&[b"", b" changes landed since you last looked."], &[Number]),
+        Word::HomeTryStopped => (&[b"", b" didn\xe2\x80\x99t answer when tried"], &[Name]),
         Word::HomeByline => (&[b"Written by the status agent at ", b""], &[Name]),
         Word::HomeLanding => (&[b"Landing: "], &[]),
         Word::HomeChatsSentence => (&[b"A chat suits one change. For bigger work, a chat can write a draft beside it and start a goal from it: a plan, its tasks, landing."], &[]),

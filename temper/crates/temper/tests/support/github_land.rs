@@ -819,8 +819,8 @@ fn configure_engine(value: &mut Value) {
         engine.remove(member);
     }
     engine.insert("projects".into(), serde_json::json!([{"number": 1, "policy": 1}]));
-    // Six slots hold the stock charters.
-    value["engine"]["limits"]["overrides"]["tasks.charters"] = 6.into();
+    // Seven slots hold the stock charters.
+    value["engine"]["limits"]["overrides"]["tasks.charters"] = 7.into();
     value["engine"]["limits"]["overrides"]["core.templates"] = 3.into();
     // Keep log polling aligned with the live GitHub story.
     let limits = &mut value["application"]["limits"]["overrides"];

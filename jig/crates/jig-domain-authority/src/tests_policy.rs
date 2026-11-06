@@ -1509,3 +1509,44 @@ fn never_started_authority_accepts_policy_and_cannot_start_afterward() {
     let result = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| domain.start_restore()));
     assert!(result.is_err());
 }
+
+/// Project 0 has no policy; only run admission takes the rules' ceiling (6.1).
+#[test]
+fn a_projectless_run_uses_rules_and_never_acquires_a_write_grant() {
+    const CEILING_SPEND: u64 = 30;
+    const DEADLINE: Wall = Wall::from_nanos(10);
+    let mut ceiling = authority();
+    ceiling.budget.spend = CEILING_SPEND;
+    ceiling.budget.deadline = Some(DEADLINE);
+    let mut rules = rules(ceiling);
+    rules.maximum_run_spend = CEILING_SPEND;
+    let domain = Domain::new(rules, LIMITS).unwrap();
+    let mut good = selected_run();
+    good.project = 0;
+    let mut why = findings();
+    match check_run(&domain, &good, &mut why) {
+        crate::RunAnswer::Allow { spend, .. } => assert_eq!(spend, 20),
+        answer @ (crate::RunAnswer::Wait | crate::RunAnswer::Propose | crate::RunAnswer::Refuse) => {
+            panic!("projectless run: {answer:?}, {why:?}");
+        }
+    }
+    assert!(why.is_empty());
+    let mut spend = good.clone();
+    spend.budget = CEILING_SPEND + 1;
+    let mut deadline = good.clone();
+    deadline.wall = Wall::from_nanos(11);
+    let mut write = good.clone();
+    write.writes = Box::new([Write { effect: effect(), held: Writer::Task }]);
+    let mut unknown = good;
+    unknown.project = 99;
+    for (ask, finding) in [
+        (spend, Finding::RunCap),
+        (deadline, Finding::Deadline),
+        (write, Finding::Grant { source: Source::Project }),
+        (unknown, Finding::UnknownProject),
+    ] {
+        let mut why = findings();
+        assert_eq!(check_run(&domain, &ask, &mut why), crate::RunAnswer::Refuse);
+        assert!(saw(&why, finding), "{why:?}");
+    }
+}

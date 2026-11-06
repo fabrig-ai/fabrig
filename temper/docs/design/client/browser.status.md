@@ -2,10 +2,12 @@
 
 2026-11-06. Where temper's code lags or departs from [browser.md](browser.md).
 
-Public history retains two limits the request `ui-public-2` left for later
-(section 5), which the board's own line states (8.3): landed work from before
-a project went public never shows; a restart empties the ended-goal history
-(jig's `domain/people.md`, 13.9).
+Public history retains two limits the request `ui-public-history` leaves
+for later (section 5), which the board's own line states (8.3): goals ended
+before publication are absent; a restart empties the ended-goal history
+(jig's `domain/people.md`, 13.9). A merge from before publication can still
+show when its change is handed from a live goal's tree, as the plan's cut
+keeps it; publication is not a cutoff on a handed change's commit.
 
 - **Design departs:** 8.3, from the request `ui-public-2` of 2026-11-06:
   ended rows say how long ago they ended, where the request says "for how
@@ -13,6 +15,11 @@ a project went public never shows; a restart empties the ended-goal history
   board shows its Landings section with a queue or a retained landing,
   where the request says only with a queue: the plan's `public-page`
   contract asks for either, and records no reason for widening that rule.
+
+- **Not yet:** 7.2: `accounts-try-stopped` and the trial's own `welcome-ready-*`
+  samples (starting, answering, answered, stopped-starting, stopped-answering,
+  waiting, waited, plan and key) are not in the gallery. Its Ready samples
+  cover the host's check alone; the view's tests draw the trial states.
 - **Not yet:** 8.4: the retained public row geometry story at 1440 px and 420 px
   (`public_board_and_task_lines_are_readable_at_desktop_and_phone_widths`)
   is compiled, with the current rows' executor and spend rules. Its runtime

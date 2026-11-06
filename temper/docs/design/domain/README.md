@@ -50,7 +50,8 @@ temper-engine-domain                       the root (root.md)
 │   ├── temper-engine-domain-forge-change  the change procedure and the landing queues
 │   ├── temper-engine-domain-forge-landing the landing by turn (landing.md)
 │   └── temper-engine-domain-forge-issues  the goals' issues
-└── temper-engine-domain-calendar          each project's funding period, renewed (root.md, 5.7)
+├── temper-engine-domain-calendar          each project's funding period, renewed (root.md, 5.7)
+└── temper-engine-domain-trials            a model's trials (trial.md)
 
 temper's worker
 temper-worker-domain                       the worker's root (worker.md)
