@@ -229,12 +229,14 @@
   gallery's `configure-chat-proposal` rows alone draw those lines, from a hand-made
   document.
 - **Not yet:** 5.13, *The card in a chat*, and 3.5's `Chat { task }`: no live turn names its
-  proposal, so a live proposal's card always stands after the conversation, below the newest
-  reply, where the mock's stays above later replies, and its call stays a line of its own above.
-  A turn's calls come with no `objects` (`jig-protocol-transcript`'s `translate_block`) and nothing
-  fills them, so `temper-client-view`'s `pages/chat.rs`, `proposal_anchor`, finds none; only the
-  view's tests, which fill them by hand, draw a card at its call. Seen at each width on the walk of
-  the request `ui-chat-accept` of 2026-11-06, its cause by reading; no test holds it.
+  proposal, so a live card always takes the place of one no call names, and its call stays a line of
+  its own above it. A turn's calls come with no `objects` (`jig-protocol-transcript`'s
+  `translate_block`) and nothing fills them, so `temper-client-view`'s `pages/chat.rs`,
+  `proposal_anchor`, finds none; only the view's tests, which fill them by hand, draw a card at its call.
+  Seen at each width on the walk of the request `ui-chat-accept` of 2026-11-06, its cause by reading.
+- **Not yet:** 5.13, *Where a card stands*: a card no call names stands after the conversation, so a later
+  reply or proposal stands above it (`pages/chat.rs`, `conversation_tail`), and a card's place is read from no
+  activity line (jig's `Activity::Decided` names no proposal).
 - **Design departs:** 5.13, *The card in a chat*, from the request `ui-chat-accept` of 2026-11-06,
   by its plan's cut: that request has the fix reach both of the card's acts, reading "the unavailable
   direct Reject control" as one family with the refused Accept. The section and the mock's `chat.html`,
@@ -256,10 +258,16 @@
   card, the rail's count gone, where an answered card leaves the open ones and the
   mock moves it to its answered stack (`temper-client-view`'s `pages/needs.rs`). Seen
   on the walk of the request `ui-walk-large` of 2026-11-06; no test holds it.
-- **Not yet:** 5.13: a chat's conversation says "Decision made" above a proposal of
+- **Not yet:** 5.13, *"Decision made"*: a chat's conversation says "Decision made" above a proposal of
   settings that still waits (`temper-client-view`'s `pages/task.rs`, `owner_activity`,
-  `Activity::Decided`), seen on that walk at both widths. Which decision the line
-  records is unknown; no test holds it.
+  `Activity::Decided`), seen on that walk at both widths: jig writes that line for a proposal's making as
+  for its decisions (`jig-domain-tasks`'s `positions.rs`, `history`), and it names neither.
+- **Not yet:** 5.13, *The card in a chat*: a rejected or withdrawn card draws no state line, and one whose document
+  isn't read says "Waiting for an owner" with no acts (`temper-client-view`'s `cards/proposal.rs`, `settings_state`).
+  A card's read that ends without a value isn't asked again (`temper-client-domain`'s `pages/chat.rs`).
+- **Not yet:** 5.13, *A decided card after a reload*: a decided proposal's card is held only for the session
+  (`pages/needs.rs`, `remember_settings`, and `Chat.settings_proposals`), so a reload leaves only "Decision made" rows;
+  an ended proposal has no reason or `projects` to draw it from.
 - **Not yet:** 5.13, *The card in a chat*: the card draws its reason line by line as plain words, so a
   reason's Markdown shows its marks ("## temper enforces") where the Accept sheet renders them
   (`temper-client-view`'s `cards/proposal.rs`, `reason_line`); and 3.5, *Needs you*, its question line
@@ -560,9 +568,6 @@
   person's name as plain text, and a browser over 760 px signs out there rather
   than on the `Accounts` tab. `greenfield/README.md` notes it.
 - **Design departs:** 3.5, 5.13 and 10, from the request `ui-walk-large` of 2026-11-06:
-  - 5.13: that request has the chat's card stay. It stays for the session, from the
-    proposals *What the client keeps* holds; a reload or another device loses it, an
-    ended proposal asking no card (section 11). Built so by its task, for the user to see.
   - 3.5: a proposal of settings shows in the Needs you of a project's owner who also
     owns the deployment, those who can decide it, by that plan's cut: a project's owner
     alone has no row of it (jig's `domain/engine.md`, 17.6, and its status).
