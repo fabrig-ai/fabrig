@@ -70,7 +70,7 @@ fn the_view_shows_only_what_the_records_carry() {
         b"Goal 9abcdef0",
         b"task 9abcdef0",
         b"A public goal title",
-        b"an agent",
+        b"an agent (AI work)",
         b"running",
         b"for under 1 min",
         b"12 spent \xc2\xb7 of 50",
@@ -128,7 +128,7 @@ fn the_task_and_forge_pages_use_public_links_and_mechanics() {
         b"Goal 9abcdef0",
         b"task 3f2a9c01",
         b"A public goal title",
-        b"an agent",
+        b"an agent (AI work)",
         b"running",
         b"for under 1 min",
         b"12 spent \xc2\xb7 of 50",
@@ -151,12 +151,31 @@ fn the_task_and_forge_pages_use_public_links_and_mechanics() {
     assert_eq!(crate::public::href(&mut task_view, hash).as_deref(), Some(b"https://forge.example/owner/repository/commit/1212121212121212121212121212121212121212121212121212121212121212".as_slice()));
 }
 fn only_words(view: &PublicView, allowed: &[&[u8]]) {
+    let checked: &[&[u8]] = &[
+        b"temper develops software with agents, directed by people. These public pages can be read without signing in.",
+        b"Projects shared for anyone to read.",
+        b"Goals and their tasks in this public project.",
+        b"This task, its parent tasks and the work it delegates.",
+        b"Changes waiting to land and recent landing attempts.",
+        b"One landing attempt: its changes, commits and checks.",
+        b"Task completion does not mean a forge change has landed. Forge change and landing statuses are shown separately.",
+        b"Parent tasks, nearest first", b"Change task", b"For goal", b"Landing details for",
+        b"Head commit", b"Merge commit", b"Base commit", b"Candidate commit", b"Landed commit",
+        b"Stale proofs checked an older candidate and do not prove the current one.", b" \xc2\xb7 ",
+    ];
     for node in view.tree().nodes() {
         for run in &node.text {
-            assert!(allowed.contains(&run.text.as_ref()), "unexpected public text {:?}", run.text);
+            assert!(
+                (allowed.contains(&run.text.as_ref()) || checked.contains(&run.text.as_ref())),
+                "unexpected public text {:?}",
+                run.text
+            );
         }
         if let Some(name) = &node.name {
-            assert!(allowed.contains(&name.as_ref()), "unexpected public name {name:?}");
+            assert!(
+                (allowed.contains(&name.as_ref()) || checked.contains(&name.as_ref())),
+                "unexpected public name {name:?}"
+            );
         }
     }
 }
@@ -257,10 +276,14 @@ fn an_unavailable_companion_keeps_the_fresh_board() {
 }
 
 fn title_count(view: &PublicView) -> usize {
+    text_count(view, b"A public goal title")
+}
+
+fn text_count(view: &PublicView, text: &[u8]) -> usize {
     let mut count = 0_usize;
     for node in view.tree().nodes() {
         for run in &node.text {
-            if run.text.as_ref() == b"A public goal title" {
+            if run.text.as_ref() == text {
                 count = count.checked_add(1).expect("bounded public text");
             }
         }
@@ -305,9 +328,9 @@ fn a_retained_companion_has_its_own_read_time() {
 
 #[test]
 fn public_commit_links_use_the_object_id_width() {
-    // Each change has a head and merge; each landing has a base, candidate and landed commit.
-    const CHANGE_COMMITS: usize = 2;
-    const LANDING_COMMITS: usize = 3;
+    // Equal commit fields keep their roles on one link.
+    const CHANGE_COMMITS: usize = 1;
+    const LANDING_COMMITS: usize = 1;
     let sha1 = [
         0x78, 0x9a, 0xda, 0x51, 0x5c, 0x1a, 0xf9, 0xd4, 0x49, 0x67, 0xf2, 0x60, 0x49, 0xc4, 0x09, 0x0b, 0x3a, 0xb4,
         0x72, 0xdb, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -355,4 +378,194 @@ fn commit_links(page: Public, doc: Doc, body: Box<[u8]>, digits: &[u8], count: u
         }
     }
     assert_eq!(linked, count, "every commit field is linked");
+}
+
+#[test]
+fn every_public_route_explains_its_purpose() {
+    for (page, doc, body, purpose) in [
+        (Public::Projects, Doc::JigProjects, records::projects(), b"Projects shared for anyone to read.".as_slice()),
+        (Public::Board { project: PROJECT }, Doc::JigBoard, board(), b"Goals and their tasks in this public project."),
+        (
+            Public::Task { project: PROJECT, task: TASK },
+            Doc::JigCard,
+            records::card(),
+            b"This task, its parent tasks and the work it delegates.",
+        ),
+        (
+            Public::Landings { project: PROJECT },
+            Doc::ForgeLandings,
+            records::landings(),
+            b"Changes waiting to land and recent landing attempts.",
+        ),
+        (
+            Public::Landing { project: PROJECT, task: TASK },
+            Doc::ForgeLanding,
+            records::landing(),
+            b"One landing attempt: its changes, commits and checks.",
+        ),
+    ] {
+        let rendered = rendered(page, doc, body);
+        assert!(has_text(&rendered, b"temper develops software with agents, directed by people. These public pages can be read without signing in."));
+        assert!(has_text(&rendered, purpose), "page {page:?}");
+    }
+}
+
+#[test]
+fn empty_public_documents_explain_the_absence_of_work() {
+    for (page, doc, body, expected) in [
+        (
+            Public::Projects,
+            Doc::JigProjects,
+            records::empty_projects(),
+            b"No projects are shared publicly here.".as_slice(),
+        ),
+        (
+            Public::Board { project: PROJECT },
+            Doc::JigBoard,
+            records::terminal_board(true),
+            b"No public goals are shown in this project yet.",
+        ),
+        (
+            Public::Landings { project: PROJECT },
+            Doc::ForgeLandings,
+            records::empty_landings(),
+            b"No public changes are queued and no landing attempts are shown yet.",
+        ),
+        (
+            Public::Task { project: PROJECT, task: TASK },
+            Doc::JigCard,
+            records::lineage_card(),
+            b"No public delegated tasks are shown.",
+        ),
+        (
+            Public::Landing { project: PROJECT, task: TASK },
+            Doc::ForgeLanding,
+            records::empty_landing(),
+            b"No public changes are shown in this landing attempt.",
+        ),
+    ] {
+        let rendered = rendered(page, doc, body);
+        assert!(has_text(&rendered, expected), "page {page:?}");
+    }
+}
+
+#[test]
+fn terminal_goals_and_procedures_explain_completion_without_claiming_landing() {
+    let board = rendered(Public::Board { project: PROJECT }, Doc::JigBoard, records::terminal_board(false));
+    let mut phases = List::with_capacity(4); // The fixture's four ended goals.
+    for node in board.tree().nodes() {
+        for run in &node.text {
+            let text = run.text.as_ref();
+            if [b"failed".as_slice(), b"completed successfully", b"cancelled"].contains(&text) {
+                phases.push(text).expect("four terminal phases");
+            }
+        }
+    }
+    assert_eq!(phases.as_slice(), [b"failed".as_slice(), b"failed", b"completed successfully", b"cancelled"]);
+    for kind in [
+        b"an agent (AI work)".as_slice(),
+        b"a procedure (automated steps)",
+        b"a person (human work)",
+        b"a job (work on a host)",
+    ] {
+        assert!(has_text(&board, kind));
+    }
+    let card = rendered(Public::Task { project: PROJECT, task: TASK }, Doc::JigCard, records::lineage_card());
+    assert!(has_text(
+        &card,
+        b"Task completion does not mean a forge change has landed. Forge change and landing statuses are shown separately."
+    ));
+    assert!(!has_text(&card, b"landed"));
+}
+
+#[test]
+fn lineage_and_forge_links_are_grouped_and_commit_roles_share_one_link() {
+    let mut task = reader(Public::Task { project: PROJECT, task: TASK });
+    answer(&mut task, Doc::JigCard, Heard::Document { body: records::lineage_card(), fresh: Duration::from_secs(5) });
+    answer(
+        &mut task,
+        Doc::ForgeChange,
+        Heard::Document {
+            body: records::change_with_commits(records::WALK_HEAD, Some(records::WALK_HEAD)),
+            fresh: Duration::from_secs(5),
+        },
+    );
+    let mut page = view();
+    build_public(&mut page, &task, Wall::EPOCH, &mut Queue::uncapped());
+    assert_link_group(&page, b"task 0893ed2e", Role::Item);
+    assert_link_group(&page, b"task bd0d98ef", Role::Item);
+    assert_link_group(&page, b"its change on the forge", Role::Paragraph);
+    assert_link_group(&page, b"789ada51", Role::Paragraph);
+    for label in [b"Head commit".as_slice(), b"Merge commit"] {
+        assert!(has_text(&page, label));
+    }
+    assert_eq!(commit_count(&page), 1, "one link keeps both identical commit roles");
+    landing_commit_roles();
+}
+
+fn landing_commit_roles() {
+    let landing = rendered(
+        Public::Landing { project: PROJECT, task: TASK },
+        Doc::ForgeLanding,
+        records::landing_with_commits(Some([0x12; 32]), Some([0x12; 32]), [0x12; 32]),
+    );
+    for label in [
+        b"Base commit".as_slice(),
+        b"Candidate commit",
+        b"Landed commit",
+        b"Stale proofs checked an older candidate and do not prove the current one.",
+    ] {
+        assert!(has_text(&landing, label), "label {label:?}");
+    }
+    assert_eq!(commit_count(&landing), 1);
+    assert_eq!(text_count(&landing, b"Passed"), 1, "a proof run shows its status once");
+    let distinct = rendered(
+        Public::Landing { project: PROJECT, task: TASK },
+        Doc::ForgeLanding,
+        records::landing_with_commits(Some([0x34; 32]), Some([0x56; 32]), [0x12; 32]),
+    );
+    assert_eq!(commit_count(&distinct), 3, "distinct commit roles keep distinct links");
+    let empty = rendered(Public::Landing { project: PROJECT, task: TASK }, Doc::ForgeLanding, records::empty_landing());
+    assert!(has_text(&empty, b"0 stale proofs"));
+    assert!(has_text(&empty, b"Stale proofs checked an older candidate and do not prove the current one."));
+}
+
+fn rendered(page: Public, doc: Doc, body: Box<[u8]>) -> PublicView {
+    let mut reader = reader(page);
+    answer(&mut reader, doc, Heard::Document { body, fresh: Duration::from_secs(5) });
+    let mut view = view();
+    build_public(&mut view, &reader, Wall::EPOCH, &mut Queue::uncapped());
+    view
+}
+
+fn assert_link_group(view: &PublicView, label: &[u8], role: Role) {
+    let nodes = view.tree().nodes();
+    let target = fixtures::find(view.tree(), Role::Link, label).expect("link");
+    let mut location = None;
+    for (at, node) in nodes.iter().enumerate() {
+        if node.id == target {
+            location = Some(at);
+        }
+    }
+    let index = location.expect("link position");
+    let mut parent = None;
+    for (at, node) in nodes.get(..index).expect("link prefix").iter().enumerate() {
+        let end = at.checked_add(usize::try_from(node.size).expect("small subtree")).expect("bounded tree");
+        if end > index {
+            parent = Some(node.role);
+        }
+    }
+    assert_eq!(parent, Some(role), "{label:?}");
+}
+
+fn commit_count(view: &PublicView) -> usize {
+    let mut count = 0_usize;
+    for node in view.tree().nodes() {
+        if let Some(url) = &node.external
+            && skein_lib::bytes::find(url, b"/commit/").is_some()
+        {
+            count = count.checked_add(1).expect("bounded public links");
+        }
+    }
+    count
 }

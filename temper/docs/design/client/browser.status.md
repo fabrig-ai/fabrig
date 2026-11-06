@@ -1,6 +1,7 @@
 # browser: status
 
 2026-11-06. Where temper's code lags or departs from [browser.md](browser.md).
+Unlisted sections, including 8.3's anonymous explanations, have no known gap.
 
 - **Not yet:** 8.4: the retained public row geometry story at 1440 px and 420 px
   is compiled. Its runtime red and green await the browser tier after landing;

@@ -1240,6 +1240,53 @@ pub enum Word {
     PublicStaleProofs,
     PublicTitleCut,
     PublicAsOf,
+    /// Introduce temper and anonymous access.
+    PublicIntroduction,
+    /// Explain the list of shared projects.
+    PublicProjectsPurpose,
+    /// Explain a public project board.
+    PublicBoardPurpose,
+    /// Explain a public task card.
+    PublicTaskPurpose,
+    /// Explain queued changes and landing attempts.
+    PublicLandingsPurpose,
+    /// Explain one landing attempt.
+    PublicLandingPurpose,
+    /// Explain an available project list with no entries.
+    PublicNoProjects,
+    /// Explain a board with no shown or folded goals.
+    PublicNoGoals,
+    /// Explain the absence of queued changes and landing attempts.
+    PublicNoLandings,
+    /// Explain a landing with no public members.
+    PublicNoMembers,
+    /// Explain a card with no shown or folded delegates.
+    PublicNoDelegates,
+    /// Distinguish successful task completion from forge landing.
+    PublicCompletion,
+    /// Label the parent task links and their order.
+    PublicLineage,
+    /// Label a link to the task producing a change.
+    PublicChangeTask,
+    /// Label the public goal served by a queued change.
+    PublicForGoal,
+    /// Distinguish a landing detail link from its member task link.
+    PublicLandingDetails,
+    /// Label the head commit of a change.
+    PublicHeadCommit,
+    /// Label the merge commit of a change.
+    PublicMergeCommit,
+    /// Label the base commit of a landing member.
+    PublicBaseCommit,
+    /// Label the candidate commit checked for a landing member.
+    PublicCandidateCommit,
+    /// Label a landed commit.
+    PublicLandedCommit,
+    /// Explain why stale proofs do not prove the current candidate.
+    PublicProofExplanation,
+    /// Separate adjacent public facts and link labels.
+    PublicSeparator,
+
     WelcomeBoxName,
     WelcomeBoxLine,
     WelcomeBoxServer,
@@ -1380,7 +1427,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
 // The command’s Copy adds three literal phrases (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
-const PHRASES: u32 = 1865;
+const PHRASES: u32 = 1888;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1406,10 +1453,10 @@ const PHRASES: u32 = 1865;
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 3264;
+const SEGMENTS: u32 = 3287;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 45570;
-const ALL: [Word; 1264] = [
+const ENGLISH_BYTES: u32 = 46548;
+const ALL: [Word; 1287] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -2607,6 +2654,29 @@ const ALL: [Word; 1264] = [
     Word::PublicStaleProofs,
     Word::PublicTitleCut,
     Word::PublicAsOf,
+    Word::PublicIntroduction,
+    Word::PublicProjectsPurpose,
+    Word::PublicBoardPurpose,
+    Word::PublicTaskPurpose,
+    Word::PublicLandingsPurpose,
+    Word::PublicLandingPurpose,
+    Word::PublicNoProjects,
+    Word::PublicNoGoals,
+    Word::PublicNoLandings,
+    Word::PublicNoMembers,
+    Word::PublicNoDelegates,
+    Word::PublicCompletion,
+    Word::PublicLineage,
+    Word::PublicChangeTask,
+    Word::PublicForGoal,
+    Word::PublicLandingDetails,
+    Word::PublicHeadCommit,
+    Word::PublicMergeCommit,
+    Word::PublicBaseCommit,
+    Word::PublicCandidateCommit,
+    Word::PublicLandedCommit,
+    Word::PublicProofExplanation,
+    Word::PublicSeparator,
     Word::WelcomeBoxName,
     Word::WelcomeBoxLine,
     Word::WelcomeBoxServer,
@@ -3884,6 +3954,30 @@ impl Word {
             Self::PublicStaleProofs => 3023,
             Self::PublicTitleCut => 3024,
             Self::PublicAsOf => 3025,
+            Self::PublicIntroduction => 3872,
+            Self::PublicProjectsPurpose => 3873,
+            Self::PublicBoardPurpose => 3874,
+            Self::PublicTaskPurpose => 3875,
+            Self::PublicLandingsPurpose => 3876,
+            Self::PublicLandingPurpose => 3877,
+            Self::PublicNoProjects => 3878,
+            Self::PublicNoGoals => 3879,
+            Self::PublicNoLandings => 3880,
+            Self::PublicNoMembers => 3881,
+            Self::PublicNoDelegates => 3882,
+            Self::PublicCompletion => 3883,
+            Self::PublicLineage => 3884,
+            Self::PublicChangeTask => 3885,
+            Self::PublicForGoal => 3886,
+            Self::PublicLandingDetails => 3887,
+            Self::PublicHeadCommit => 3888,
+            Self::PublicMergeCommit => 3889,
+            Self::PublicBaseCommit => 3890,
+            Self::PublicCandidateCommit => 3891,
+            Self::PublicLandedCommit => 3892,
+            Self::PublicProofExplanation => 3893,
+            Self::PublicSeparator => 3894,
+
             Self::WelcomeBoxName => 3026,
             Self::WelcomeBoxLine => 3027,
             Self::WelcomeBoxServer => 3028,
@@ -4525,6 +4619,29 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::PlaygroundBanner => (&[b"This is the playground: a scripted model and in-memory forge. Use the wizard to"], &[]),
         Word::PlaygroundSetUp => (&[b"set up temper"], &[]),
         Word::BannerSetUp => (&[b"Set up temper"], &[]),
+        Word::PublicIntroduction => (&[b"temper develops software with agents, directed by people. These public pages can be read without signing in."], &[]),
+        Word::PublicProjectsPurpose => (&[b"Projects shared for anyone to read."], &[]),
+        Word::PublicBoardPurpose => (&[b"Goals and their tasks in this public project."], &[]),
+        Word::PublicTaskPurpose => (&[b"This task, its parent tasks and the work it delegates."], &[]),
+        Word::PublicLandingsPurpose => (&[b"Changes waiting to land and recent landing attempts."], &[]),
+        Word::PublicLandingPurpose => (&[b"One landing attempt: its changes, commits and checks."], &[]),
+        Word::PublicNoProjects => (&[b"No projects are shared publicly here."], &[]),
+        Word::PublicNoGoals => (&[b"No public goals are shown in this project yet."], &[]),
+        Word::PublicNoLandings => (&[b"No public changes are queued and no landing attempts are shown yet."], &[]),
+        Word::PublicNoMembers => (&[b"No public changes are shown in this landing attempt."], &[]),
+        Word::PublicNoDelegates => (&[b"No public delegated tasks are shown."], &[]),
+        Word::PublicCompletion => (&[b"Task completion does not mean a forge change has landed. Forge change and landing statuses are shown separately."], &[]),
+        Word::PublicLineage => (&[b"Parent tasks, nearest first"], &[]),
+        Word::PublicChangeTask => (&[b"Change task"], &[]),
+        Word::PublicForGoal => (&[b"For goal"], &[]),
+        Word::PublicLandingDetails => (&[b"Landing details for"], &[]),
+        Word::PublicHeadCommit => (&[b"Head commit"], &[]),
+        Word::PublicMergeCommit => (&[b"Merge commit"], &[]),
+        Word::PublicBaseCommit => (&[b"Base commit"], &[]),
+        Word::PublicCandidateCommit => (&[b"Candidate commit"], &[]),
+        Word::PublicLandedCommit => (&[b"Landed commit"], &[]),
+        Word::PublicProofExplanation => (&[b"Stale proofs checked an older candidate and do not prove the current one."], &[]),
+        Word::PublicSeparator => (&[b" \xc2\xb7 "], &[]),
         Word::PublicAsOf => (&[b"As of ", b""], &[Name]),
         Word::WelcomeBoxName => (&[b"temper box"], &[]),
         Word::WelcomeBoxLine => (&[b" \xc2\xb7 on this machine, to try it \xc2\xb7 more later, from Settings \xc2\xb7 "], &[]),
@@ -4576,10 +4693,10 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::PublicProject => (&[b"Project ", b""], &[Name]),
         Word::PublicGoal => (&[b"Goal ", b""], &[Name]),
         Word::PublicTask => (&[b"task ", b""], &[Name]),
-        Word::PublicAgent => (&[b"an agent"], &[]),
-        Word::PublicProcedure => (&[b"a procedure"], &[]),
-        Word::PublicPerson => (&[b"a person"], &[]),
-        Word::PublicJob => (&[b"a job"], &[]),
+        Word::PublicAgent => (&[b"an agent (AI work)"], &[]),
+        Word::PublicProcedure => (&[b"a procedure (automated steps)"], &[]),
+        Word::PublicPerson => (&[b"a person (human work)"], &[]),
+        Word::PublicJob => (&[b"a job (work on a host)"], &[]),
         Word::PublicReading => (&[b"Reading\xe2\x80\xa6"], &[]),
         Word::HomeOpen => (&[b"Open"], &[]),
         Word::NeedsLaterMeta => (&[b" \xc2\xb7 later"], &[]),
@@ -4709,7 +4826,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::PublicQueue => (&[b"Queue"], &[]),
         Word::PublicReadySince => (&[b"Ready ", b""], &[Name]),
         Word::PublicEnded => (&[b"ended"], &[]),
-        Word::PublicDone => (&[b"done"], &[]),
+        Word::PublicDone => (&[b"completed successfully"], &[]),
         Word::PublicFailed => (&[b"failed"], &[]),
         Word::PublicCancelled => (&[b"cancelled"], &[]),
         Word::PublicFolded => (&[b"", b" lines folded"], &[Number]),

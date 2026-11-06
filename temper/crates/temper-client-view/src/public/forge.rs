@@ -28,8 +28,14 @@ impl Draw<'_> {
             b.open(Role::List);
             for change in queue.changes() {
                 b.open(Role::Item);
+                self.text(b, Word::PublicChangeTask);
+                self.text(b, Word::PublicSeparator);
                 self.task(b, app, change.task(), false);
+                self.text(b, Word::PublicSeparator);
+                self.text(b, Word::PublicForGoal);
+                self.text(b, Word::PublicSeparator);
                 self.task(b, app, change.goal(), true);
+                self.text(b, Word::PublicSeparator);
                 let time = self.times.say(self.words, TimeForm::Ago, seconds(change.ready_since()));
                 self.words.text(b, Word::PublicReadySince, &[Hole::Name(time)]);
                 b.close();
@@ -39,9 +45,13 @@ impl Draw<'_> {
         }
     }
     pub(super) fn landings(&mut self, b: &mut Builder, app: &PublicApplication, landings: &f::PublicLandings) {
+        if landings.turn().is_none() && landings.queues().is_empty() && landings.landings().is_empty() {
+            self.paragraph(b, Word::PublicNoLandings);
+        }
         if let Some(turn) = landings.turn() {
             b.open(Role::Paragraph);
             self.text(b, Word::PublicTurn);
+            self.text(b, Word::PublicSeparator);
             self.landing_link(b, app, *turn);
             b.close();
         }
@@ -49,21 +59,30 @@ impl Draw<'_> {
         b.open(Role::List);
         for landing in landings.landings() {
             b.open(Role::Item);
+            b.open(Role::Paragraph);
             self.forge_words(b, landing_phase(landing.phase()), &[]);
+            b.close();
             for task in landing.members() {
+                b.open(Role::Paragraph);
+                self.text(b, Word::PublicLandingDetails);
+                self.text(b, Word::PublicSeparator);
                 self.landing_link(b, app, *task);
+                b.close();
             }
             for hash in landing.landed() {
+                b.open(Role::Paragraph);
+                self.text(b, Word::PublicLandedCommit);
+                self.text(b, Word::PublicSeparator);
                 if let Some(member) = landing.members().as_slice().first()
                     && let Some(task) = app.tasks().get(u32::from(*member))
                 {
-                    let hash = hex(hash);
                     self.link(
                         b,
-                        hash.get(..8).expect("short hash"),
+                        hex(hash).get(..8).expect("short hash"),
                         Public::Landing { project: self.project, task: *task },
                     );
                 }
+                b.close();
             }
             b.close();
         }
@@ -83,8 +102,19 @@ impl Draw<'_> {
             f::PublicCi::Passed => W::Passed,
             f::PublicCi::Failed => W::Failed,
         };
+        self.text(b, Word::PublicSeparator);
         self.forge_words(b, ci, &[]);
         b.close();
+        self.change_gates(b, change);
+        self.pull(b, change.pull().as_deref());
+        self.commits(
+            b,
+            change.repository(),
+            &[(Word::PublicHeadCommit, change.head().as_ref()), (Word::PublicMergeCommit, change.merge().as_ref())],
+        );
+        b.close();
+    }
+    fn change_gates(&self, b: &mut Builder, change: &f::PublicChange) {
         b.open(Role::List);
         for gate in change.gates() {
             b.open(Role::Item);
@@ -95,18 +125,9 @@ impl Draw<'_> {
                 f::PublicVerdict::Approved => W::Approved,
                 f::PublicVerdict::Changes => W::Changes,
             };
+            self.text(b, Word::PublicSeparator);
             self.forge_words(b, verdict, &[]);
             b.close();
-        }
-        b.close();
-        if let Some(pull) = change.pull() {
-            external(b, &self.words.say(Word::PublicChange, &[]), pull);
-        }
-        if let Some(hash) = change.head() {
-            commit(b, change.repository(), hash);
-        }
-        if let Some(hash) = change.merge() {
-            commit(b, change.repository(), hash);
         }
         b.close();
     }
@@ -117,39 +138,88 @@ impl Draw<'_> {
         if landing.holds_turn() {
             self.paragraph(b, Word::PublicTurn);
         }
+        if landing.members().is_empty() {
+            self.paragraph(b, Word::PublicNoMembers);
+        }
         b.open(Role::List);
         for member in landing.members() {
             b.open(Role::Item);
-            self.task(b, app, member.task(), false);
-            if let Some(pull) = member.pull() {
-                external(b, &self.words.say(Word::PublicChange, &[]), pull);
-            }
-            for hash in [member.base(), member.candidate(), member.landed()].into_iter().flatten() {
-                commit(b, member.repository(), hash);
-            }
-            b.open(Role::List);
-            for gate in member.gates() {
-                b.open(Role::Item);
-                self.forge_words(b, gate_kind(gate.kind(), gate.blocks()), &[Hole::Number(gate.number())]);
-                let proof = match gate.proof() {
-                    f::PublicProof::Unkeyed | f::PublicProof::Keyed => W::NotYet,
-                    f::PublicProof::Dispatched | f::PublicProof::Waiting => W::Running,
-                    f::PublicProof::Passed => W::Passed,
-                    f::PublicProof::Failed => W::Failed,
-                };
-                self.forge_words(b, proof, &[]);
-                if let Some(run) = gate.run() {
-                    external(b, &super::forge_text(self.words, proof, &[]), run);
-                }
-                b.close();
-            }
-            b.close();
+            self.member(b, app, member);
             b.close();
         }
         b.close();
         b.open(Role::Paragraph);
         self.words.text(b, Word::PublicStaleProofs, &[Hole::Number(u64::from(landing.stale_proofs()))]);
         b.close();
+        self.paragraph(b, Word::PublicProofExplanation);
+    }
+    fn member(&mut self, b: &mut Builder, app: &PublicApplication, member: &f::PublicMember) {
+        b.open(Role::Paragraph);
+        self.text(b, Word::PublicChangeTask);
+        self.text(b, Word::PublicSeparator);
+        self.task(b, app, member.task(), false);
+        b.close();
+        self.pull(b, member.pull().as_deref());
+        self.commits(
+            b,
+            member.repository(),
+            &[
+                (Word::PublicBaseCommit, member.base().as_ref()),
+                (Word::PublicCandidateCommit, member.candidate().as_ref()),
+                (Word::PublicLandedCommit, member.landed().as_ref()),
+            ],
+        );
+        b.open(Role::List);
+        for gate in member.gates() {
+            b.open(Role::Item);
+            self.forge_words(b, gate_kind(gate.kind(), gate.blocks()), &[Hole::Number(gate.number())]);
+            self.text(b, Word::PublicSeparator);
+            let proof = match gate.proof() {
+                f::PublicProof::Unkeyed | f::PublicProof::Keyed => W::NotYet,
+                f::PublicProof::Dispatched | f::PublicProof::Waiting => W::Running,
+                f::PublicProof::Passed => W::Passed,
+                f::PublicProof::Failed => W::Failed,
+            };
+            match gate.run() {
+                Some(run) => external(b, &super::forge_text(self.words, proof, &[]), run),
+                None => self.forge_words(b, proof, &[]),
+            }
+            b.close();
+        }
+        b.close();
+    }
+    fn pull(&self, b: &mut Builder, pull: Option<&[u8]>) {
+        if let Some(pull) = pull {
+            b.open(Role::Paragraph);
+            external(b, &self.words.say(Word::PublicChange, &[]), pull);
+            b.close();
+        }
+    }
+    fn commits(&self, b: &mut Builder, repository: &[u8], fields: &[(Word, Option<&[u8; 32]>)]) {
+        for (index, (label, hash)) in fields.iter().enumerate() {
+            let Some(hash) = hash else { continue };
+            let before = fields.get(..index).expect("enumerated prefix");
+            let mut seen = false;
+            for (_, previous) in before {
+                if previous == &Some(*hash) {
+                    seen = true;
+                }
+            }
+            if seen {
+                continue;
+            }
+            b.open(Role::Paragraph);
+            self.text(b, *label);
+            for (other, next) in fields.get(index.checked_add(1).expect("bounded fields")..).expect("field suffix") {
+                if next == &Some(*hash) {
+                    self.text(b, Word::PublicSeparator);
+                    self.text(b, *other);
+                }
+            }
+            self.text(b, Word::PublicSeparator);
+            commit(b, repository, hash);
+            b.close();
+        }
     }
 }
 fn seconds(seconds: u64) -> Wall {

@@ -43,12 +43,16 @@ impl Draw<'_> {
             PublicExecutor::Job => Word::PublicJob,
         };
         self.text(b, executor);
+        self.text(b, Word::PublicSeparator);
         self.text(b, phase(line.phase()));
         let since = Wall::from_nanos(line.changed().saturating_mul(1_000_000_000));
         let duration = self.times.say(self.words, TimeForm::Span, since);
+        self.text(b, Word::PublicSeparator);
         self.words.text(b, Word::PublicFor, &[Hole::Name(duration)]);
+        self.text(b, Word::PublicSeparator);
         self.words.text(b, Word::ChatbarSpend, &[Hole::Number(line.spent()), Hole::Number(line.budget())]);
         if let Some(priority) = line.priority() {
+            self.text(b, Word::PublicSeparator);
             self.words.text(b, Word::Priority, &[Hole::Number(u64::from(*priority))]);
         }
         b.close();

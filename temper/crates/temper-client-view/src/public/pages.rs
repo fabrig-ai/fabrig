@@ -29,11 +29,13 @@ impl Draw<'_> {
             }
             Shown::Landings { application, landings, as_of } => {
                 heading(b, &self.words.say(Word::PublicLandings, &[]));
+                self.paragraph(b, Word::PublicLandingsPurpose);
                 self.landings(b, application, landings);
                 self.as_of(b, as_of);
             }
             Shown::Landing { application, landing, as_of } => {
                 heading(b, &self.words.say(Word::PublicLandings, &[]));
+                self.paragraph(b, Word::PublicLandingPurpose);
                 self.landing(b, application, landing);
                 self.as_of(b, as_of);
             }
@@ -41,6 +43,10 @@ impl Draw<'_> {
     }
     fn projects(&mut self, b: &mut Builder, projects: &j::PublicProjects, as_of: Option<Duration>) {
         heading(b, &self.words.say(Word::PublicProjects, &[]));
+        self.paragraph(b, Word::PublicProjectsPurpose);
+        if projects.projects().is_empty() {
+            self.paragraph(b, Word::PublicNoProjects);
+        }
         b.open(Role::List);
         for project in projects.projects() {
             b.open(Role::Item);
@@ -60,6 +66,10 @@ impl Draw<'_> {
         companion_as_of: Option<Duration>,
     ) {
         heading(b, board.name());
+        self.paragraph(b, Word::PublicBoardPurpose);
+        if board.live().is_empty() && board.ended().is_empty() && board.live_folded() == 0 {
+            self.paragraph(b, Word::PublicNoGoals);
+        }
         self.link(b, &self.words.say(Word::PublicLandings, &[]), Public::Landings { project: board.project() });
         for goal in board.live().iter().chain(board.ended()) {
             b.open(Role::Region);
@@ -85,6 +95,21 @@ impl Draw<'_> {
             self.paragraph(b, Word::PublicUnavailable);
         }
     }
+    fn lineage(&mut self, b: &mut Builder, card: &j::PublicCard) {
+        if card.lineage().is_empty() {
+            return;
+        }
+        b.open(Role::Navigation);
+        self.paragraph(b, Word::PublicLineage);
+        b.open(Role::List);
+        for task in card.lineage() {
+            b.open(Role::Item);
+            self.task_link(b, *task, false);
+            b.close();
+        }
+        b.close();
+        b.close();
+    }
     fn card(
         &mut self,
         b: &mut Builder,
@@ -95,12 +120,13 @@ impl Draw<'_> {
         companion_as_of: Option<Duration>,
     ) {
         heading(b, &self.identity(card.line().task(), card.line().goal()));
+        self.paragraph(b, Word::PublicTaskPurpose);
         self.line(b, card.line());
-        b.open(Role::Navigation);
-        for task in card.lineage() {
-            self.task_link(b, *task, false);
+        self.paragraph(b, Word::PublicCompletion);
+        self.lineage(b, card);
+        if card.delegates().is_empty() && card.folded() == 0 {
+            self.paragraph(b, Word::PublicNoDelegates);
         }
-        b.close();
         b.open(Role::List);
         for line in card.delegates() {
             b.open(Role::Item);

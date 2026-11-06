@@ -1505,6 +1505,12 @@ the public tasks jig's core hands it with the ask:
   addresses on the forge, its web address with the repository's path,
   the pull's number, the commit's hash or the run's number, never a
   title, body or message; the forge decides who reads there.
+- **Public presentation:** links distinguish a queued change's task, its
+  goal and landing details. Commit references label head, merge, base,
+  candidate and landed roles; equal hashes share one link while retaining
+  every role. Stale proofs are explained as checks of an older candidate
+  that do not prove the current one, even when the count is zero. These
+  are checked static phrases, carrying no private record text.
 - **A step without words:** the step's name; for a repair, its
   reason's kind (CI, a gate's number, semantic) without its words; for
   a landed change, its merge's hash.

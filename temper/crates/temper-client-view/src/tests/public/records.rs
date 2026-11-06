@@ -6,8 +6,28 @@ use temper_client_protocol_wire::public_v1 as f;
 pub(super) const REPOSITORY: &[u8] = b"https://forge.example/owner/repository";
 pub(super) const PULL: &[u8] = b"https://forge.example/owner/repository/pulls/7";
 pub(super) const RUN: &[u8] = b"https://forge.example/owner/repository/actions/runs/8";
+const FAILED_GOAL: u64 = 20;
+const OTHER_FAILED_GOAL: u64 = 21;
+const COMPLETED_GOAL: u64 = 22;
+const CANCELLED_GOAL: u64 = 23;
+const ENDED_GOALS: u32 = 4; // The two failures, completion and cancellation.
+/// Synthetic commit from the concatenated forge-link regression.
+pub(super) const WALK_HEAD: [u8; 32] = [
+    0x78, 0x9a, 0xda, 0x51, 0x5c, 0x1a, 0xf9, 0xd4, 0x49, 0x67, 0xf2, 0x60, 0x49, 0xc4, 0x09, 0x0b, 0x3a, 0xb4, 0x72,
+    0xdb, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+];
 const HEAD: [u8; 32] = [0x12; 32];
 pub(super) fn line(goal: bool) -> j::PublicLine {
+    terminal_line(TASK, goal, j::PublicPhase::Running, j::PublicExecutor::Agent)
+}
+
+/// Build a public line with the supplied outcome and executor kind.
+pub(super) fn terminal_line(
+    task: u64,
+    goal: bool,
+    phase: j::PublicPhase,
+    executor: j::PublicExecutor,
+) -> j::PublicLine {
     let counts = j::PublicCounts::new(
         &j::CEILINGS,
         j::PublicCountsParts { working: 0, waiting: 0, held: 0, closing: 0, ended: 0 },
@@ -16,14 +36,14 @@ pub(super) fn line(goal: bool) -> j::PublicLine {
     j::PublicLine::new(
         &j::CEILINGS,
         j::PublicLineParts {
-            task: TASK,
+            task,
             title: b"A public goal title".as_slice().into(),
             title_cut: false,
             parent: None,
             goal,
             priority: None,
-            executor: j::PublicExecutor::Agent,
-            phase: j::PublicPhase::Running,
+            executor,
+            phase,
             hold: None,
             made: 0,
             changed: 0,
@@ -194,4 +214,103 @@ pub(super) fn projects() -> Box<[u8]> {
     let mut writer = Writer::new(usize::try_from(projects.measure()).expect("small projects"));
     projects.encode(&mut writer).expect("projects");
     writer.finish()
+}
+
+/// Encode empty projects without a missing or failed document.
+pub(super) fn empty_projects() -> Box<[u8]> {
+    let projects =
+        j::PublicProjects::new(&j::CEILINGS, j::PublicProjectsParts { projects: List::with_capacity(0), max_age: 8 })
+            .expect("empty projects");
+    let mut writer = Writer::new(usize::try_from(projects.measure()).expect("small projects"));
+    projects.encode(&mut writer).expect("projects");
+    writer.finish()
+}
+
+/// Encode a board whose ended goals keep the walk's two failures and one completion.
+pub(super) fn terminal_board(empty: bool) -> Box<[u8]> {
+    let mut ended = List::with_capacity(ENDED_GOALS);
+    if !empty {
+        for (task, phase, executor) in [
+            (FAILED_GOAL, j::PublicPhase::Failed, j::PublicExecutor::Agent),
+            (OTHER_FAILED_GOAL, j::PublicPhase::Failed, j::PublicExecutor::Job),
+            (COMPLETED_GOAL, j::PublicPhase::Done, j::PublicExecutor::Procedure),
+            (CANCELLED_GOAL, j::PublicPhase::Cancelled, j::PublicExecutor::Person),
+        ] {
+            ended
+                .push(
+                    j::PublicGoal::new(
+                        &j::CEILINGS,
+                        j::PublicGoalParts {
+                            line: terminal_line(task, true, phase, executor),
+                            tree: List::with_capacity(0),
+                            folded: 0,
+                        },
+                    )
+                    .expect("terminal goal"),
+                )
+                .expect("four goals fit");
+        }
+    }
+    let board = j::PublicBoard::new(
+        &j::CEILINGS,
+        j::PublicBoardParts {
+            project: PROJECT,
+            name: b"A public project".as_slice().into(),
+            live: List::with_capacity(0),
+            live_folded: 0,
+            ended,
+        },
+    )
+    .expect("terminal board");
+    let mut writer = Writer::new(usize::try_from(board.measure()).expect("small board"));
+    board.encode(&mut writer).expect("board");
+    writer.finish()
+}
+
+/// Encode lineage links with distinct synthetic identifiers from the walk.
+pub(super) fn lineage_card() -> Box<[u8]> {
+    let card = j::PublicCard::new(
+        &j::CEILINGS,
+        j::PublicCardParts {
+            line: terminal_line(COMPLETED_GOAL, true, j::PublicPhase::Done, j::PublicExecutor::Procedure),
+            lineage: List::from_boxed(Box::new([0x0893_ed2e_0000_0000, 0xbd0d_98ef_0000_0000])),
+            delegates: List::with_capacity(0),
+            folded: 0,
+        },
+    )
+    .expect("lineage card");
+    let mut writer = Writer::new(usize::try_from(card.measure()).expect("small card"));
+    card.encode(&mut writer).expect("card");
+    writer.finish()
+}
+
+/// Encode an available landings document with no queued or retained work.
+pub(super) fn empty_landings() -> Box<[u8]> {
+    let landings = f::PublicLandings::new(
+        &f::CEILINGS,
+        f::PublicLandingsParts { turn: None, landings: List::with_capacity(0), queues: List::with_capacity(0) },
+    )
+    .expect("empty landings");
+    let mut writer = Writer::new(usize::try_from(landings.measure()).expect("small landings"));
+    landings.encode(&mut writer).expect("landings");
+    application(writer.finish())
+}
+
+/// Encode an empty landing with zero stale proofs.
+pub(super) fn empty_landing() -> Box<[u8]> {
+    let landing = f::PublicLanding::new(
+        &f::CEILINGS,
+        f::PublicLandingParts {
+            phase: f::PublicLandingPhase::Waiting,
+            hold: None,
+            preparation: 0,
+            members: List::with_capacity(0),
+            stale_proofs: 0,
+            holds_turn: false,
+        },
+    )
+    .expect("empty landing");
+    let mut writer = Writer::new(usize::try_from(landing.measure()).expect("small landing"));
+    landing.encode(&mut writer).expect("landing");
+    application(writer.finish())
 }

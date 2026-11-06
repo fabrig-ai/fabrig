@@ -82,8 +82,16 @@ browser without a sign-in. Follow a task to
 `/public/projects/PUBLIC/landings/TASK`.
 
 Expect: the project's name, task structure and titles, and public landing
-summaries. Specifications beyond titles, instructions, results,
-conversations and people's names stay private.
+summaries. Each page explains its purpose and says when no public work is
+shown. Goals and tasks retain completed successfully, failed or cancelled
+outcomes. Completion does not mean a forge change landed: read its separate
+change or landing status. A procedure means automated steps. Commit links
+label head, merge, base, candidate and landed roles; equal hashes share a
+link with each role labelled. Stale proofs checked an older candidate and
+do not prove the current one, even when their count is zero.
+
+Specifications beyond titles, instructions, results, conversations and
+people's names stay private.
 
 If not: check the path from `project show`, the listener and browser origin
 in `application.clients` (temper help configuration), then step 1's limits.

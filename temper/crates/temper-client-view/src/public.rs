@@ -103,6 +103,7 @@ pub fn build_public(view: &mut PublicView, reader: &Reader, wall: Wall, patches:
     b.open(Role::Main);
     b.style(crate::look::MAIN);
     b.style(crate::look::PUBLIC_PAGE);
+    d.paragraph(&mut b, Word::PublicIntroduction);
     d.main(&mut b, reader.shown());
     b.close();
     b.close();

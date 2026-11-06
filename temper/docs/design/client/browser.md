@@ -1715,11 +1715,21 @@ never streaming (`../draft/first-release.md`, 5.3).
 
 ### 8.3 What it shows
 
-- **Titles and the project's name, no other text:** the records carry
+- **Titles and the project's name, no other record text:** the records carry
   no text but these (jig's `domain/people.md`, 13.3), so a project is
   its name, and a goal is "Goal" and a task "task", each with the first
   eight digits of its public identifier, then its title, with "…" where
-  cut; an executor is its kind, "an agent", "a procedure", "a person".
+  cut; an executor is its kind, explained as an agent (AI work), a procedure
+  (automated steps), a person (human work) or a job (work on a host).
+- **An introduction on every page** explains that temper develops software
+  with agents directed by people, and these pages need no sign-in. Each
+  page explains its purpose. Available but empty projects, boards, delegated
+  tasks, landings and landing members say what is absent; folded work is
+  still counted. These explanations are checked static phrases, never
+  additional record text.
+- **Terminal task outcomes** say completed successfully, failed or cancelled.
+  A task page explains that completion does not establish a forge landing;
+  the forge change and landing statuses are separate.
 - **Public lines wrap at desktop and phone widths:** the identity link and
   title form one group; executor, phase, duration, spend and priority form
   a second group with gaps between facts. Titles wrap without truncation
@@ -1731,19 +1741,28 @@ never streaming (`../draft/first-release.md`, 5.3).
   14 minutes", its phase, its
   times; the count of lines folded; and the queues' lines from the
   landings.
-- **A task:** its line, its lineage up to its goal as links, its
+- **A task:** its line, its lineage up to its goal as a labelled list of links,
+  nearest parent first, its
   delegates, and where it makes a change, the change's step in words,
   CI's state, its gates' verdicts by number and kind, and "its change
   on the forge", the pull's address, with the head's commit linked by
-  its short hash.
+  its short hash. Forge links and commit references have separate paragraphs;
+  commits are labelled head and merge. Equal hashes share one link with
+  every role retained in its labels.
 - **The landings:** the turn, each queue in order, without places, and
-  the recent landings, each landed commit a link.
-- **Never** a person's name, any words but a title, or anything the
-  records do not carry: the view reads only the public records.
+  the recent landings, each landed commit a labelled link to landing details.
+  Queue links distinguish a change's task from its goal, and landing details
+  from either. A landing labels base, candidate and landed commits and
+  explains that stale proofs concern an older candidate, including at zero.
+- **Never** a person's name or record words beyond a title and project name:
+  the view reads only the public records and checked phrases.
 
 ### 8.4 Its tests
 
-- **Step tests:** the address codec's public paths, both ways, and a
+- **Step tests:** encoded public records through the reader and view cover
+  all five pages, their introductions and empty states, terminal outcomes,
+  separated lineage and forge links, labelled commit roles, executor kinds
+  and stale-proof explanations; the address codec's public paths, both ways, and a
   malformed one (a number, upper-case, short or long identifiers) read
   as `/public`; the public mode's reads, its timer from the answer's
   freshness and `Age`, a hidden tab reading nothing, busy keeping the
