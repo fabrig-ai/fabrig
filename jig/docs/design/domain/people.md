@@ -1149,7 +1149,8 @@ its own beside jig's (13.3). How a public read travels is
   owner of the project alone; no policy gives it to another role. It is committed and answered once
   durable, as any request (5.1), and is a record of the project's, kept
   in the people family's project row (`../protocol/store.md`, 4.4).
-  Making a project public shows its structure, never its name (13.3).
+  Making a project public shows its name, its structure and its tasks'
+  titles (13.3).
 - **Every party of the project sees it:** the project's entry in `me`
   carries its public identifier while it is public, and none while it
   is private (`../client/domain/contract.md`, 5.1), so a client says
@@ -1208,6 +1209,15 @@ and the project's name. Their records, and each field's source, are
   number, no account, no resource's name beyond the links the
   application's projection adds. A human publication capability for
   the other configured names is Later (section 12).
+- **A title can carry a chat's words.** A title is the first line of a
+  spec an agent wrote from what a person said, so what was said in a
+  chat can reach a stranger. Titles cross all the same: the user's
+  decision, reaffirmed on 2026-11-06 (the request `ui-public-3`), on the
+  condition that making a project public says so. temper's words, in
+  each place it offers that (temper's `client/tools.md`, 5.3), are:
+  "Anything said in this project's chats may show on its public pages,
+  in the titles of its goals and tasks. On a public repository, a
+  change's pull request shows what its agent wrote too."
 - **No internal number:** a project or a task is named by its public
   identifier alone (13.8), in every field and every route.
 - **An application's own public documents** are its connectors' (the
