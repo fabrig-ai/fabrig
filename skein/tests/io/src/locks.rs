@@ -2,10 +2,10 @@
 use skein_fake_machine::{Machine as Files, Opened};
 use skein_io::{
     file::{Event, Request},
-    file_layer::{self, FileIo},
+    file_layer::{FileIo, Limits, step},
     kernel::{Complete, Error, Fd, Op, Submit},
 };
-use skein_lib::{Duration, Queue, Time, Token, Wall};
+use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_sim::{Answer, Call, Config, Handle};
 use skein_world::{Cut, Host, Inherited, Machine, Memory, Referee, StartupRoot, World};
 const REQUEST: Token = Token::new(1);
@@ -36,6 +36,7 @@ enum Phase {
 #[derive(Debug)]
 pub struct Owner {
     io: FileIo,
+    limits: Limits,
     roots: Vec<Token>,
     at: usize,
     signal: Option<Fd>,
@@ -50,10 +51,12 @@ pub struct Owner {
 }
 impl Owner {
     fn new(fds: &[Fd], signal: Option<Fd>, role: Role) -> Self {
-        let mut io = FileIo::new(2, 4, 4, Duration::from_secs(1));
+        let limits = Limits { files: 2, read: 4, entries: 4, whole: 4, timeout: Duration::from_secs(1) };
+        let mut io = FileIo::with_limits(&limits);
         let roots = fds.iter().map(|fd| io.adopt_root(*fd).expect("two roots at most")).collect();
         Self {
             io,
+            limits,
             roots,
             at: 0,
             signal,
@@ -156,14 +159,15 @@ impl Owner {
     }
 }
 impl Host for Owner {
-    fn iterate(&mut self, now: Time, _wall: Wall) {
+    fn iterate(&mut self, now: Time, wall: Wall) {
+        let env = Env { now, wall, limits: self.limits };
         while let Some(complete) = self.completions.pop() {
             if complete.op == SIGNAL {
                 assert_eq!(complete.result, Ok(skein_io::kernel::Done::Nothing));
                 self.waiting = false;
                 self.phase = Phase::Settled;
             } else {
-                file_layer::up(&mut self.io, complete, &mut self.events, &mut self.submissions);
+                step::up(&mut self.io, &env, complete, &mut self.events, &mut self.submissions);
                 self.observe(now);
             }
         }
@@ -176,7 +180,7 @@ impl Host for Owner {
             && let Some(request) = self.request()
         {
             self.waiting = true;
-            file_layer::down(&mut self.io, now, request, &mut self.events, &mut self.submissions);
+            step::down(&mut self.io, &env, request, &mut self.events, &mut self.submissions);
             self.observe(now);
         }
     }
