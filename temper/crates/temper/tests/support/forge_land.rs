@@ -836,6 +836,8 @@ pub fn live_deployment(paths: &[PathBuf; 3], model: LiveModel<'_>) -> std::net::
             })
             .expect("Claude Code must be installed on PATH");
         configure_live_model(&paths[0], model, &executable);
+    } else {
+        cheapest_model_first(&paths[0].join("temper.json"), model.name());
     }
     let path = paths[0].join("temper.json");
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
@@ -1345,10 +1347,7 @@ fn cheapest_model_first(path: &std::path::Path, name: &str) {
 }
 
 pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, executable: &std::path::Path) {
-    let LiveModel::ClaudeCode { login } = model else {
-        cheapest_model_first(&config.join("temper.json"), model.name());
-        return;
-    };
+    let LiveModel::ClaudeCode { login } = model else { return };
     let path = config.join("temper.json");
     let agent_path = config.join("agent.json");
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
