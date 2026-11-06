@@ -395,17 +395,22 @@ impl Person {
     fn build(root: Fd, input: Option<Fd>, output: Option<Fd>, script: Script) -> Self {
         let steps = if matches!(script.begin, Begin::LinkWithKey | Begin::LinkWithOpenAiKey) {
             use skein_ui::Role;
-            let key_way: &[u8] =
-                if script.begin == Begin::LinkWithOpenAiKey { b"Use an OpenAI API key" } else { b"Use an API key" };
+            let mut key_way = Find::exactly_named(Role::Link, b"Add key");
+            if script.begin == Begin::LinkWithOpenAiKey {
+                key_way.within = Box::new([skein_fake_person::Target::ExactRole {
+                    role: Role::Slot,
+                    name: b"OpenAI API key".as_slice().into(),
+                }]);
+            }
             let mut setup = vec![
                 Step::Go { address: Address::ConnectModel { way: None } },
                 Step::See {
                     find: Find::exactly_named(Role::Heading { level: 1 }, b"Connect a model"),
                     within: START_WITHIN,
                 },
-                Step::See { find: Find::named(Role::Button, b"Use deployment accounts"), within: START_WITHIN },
-                Step::Press { find: Find::named(Role::Button, b"Use deployment accounts") },
-                Step::Press { find: Find::named(Role::Link, key_way) },
+                Step::See { find: Find::named(Role::Link, b"Use deployment accounts"), within: START_WITHIN },
+                Step::Press { find: Find::named(Role::Link, b"Use deployment accounts") },
+                Step::Press { find: key_way },
                 Step::Type {
                     find: Find::named(Role::TextField, b"Key (pasted once)"),
                     words: jig_channel_kit::fixtures::KEY.into(),

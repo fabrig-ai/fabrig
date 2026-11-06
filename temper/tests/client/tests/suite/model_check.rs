@@ -376,7 +376,7 @@ fn no_model_is_named() {
             way: Some(ModelWay { provider: h::PROVIDER + 1, kind: WayKind::Program, source: None }),
         },
     );
-    press(&mut front, &mut root, Role::Button, b"Use your Second subscription");
+    press(&mut front, &mut root, Role::Button, "I’ve signed in".as_bytes());
     login(&mut front, &mut root, true);
     let trial = row(&root);
     assert_ne!(trial.account, first, "a second model's usable account caused this trial");

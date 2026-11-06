@@ -89,13 +89,13 @@ fn the_model_choose_names_the_plan_sign_in_and_key_ways() {
         .tree()
         .nodes()
         .iter()
-        .filter(|n| n.styles.as_slice().contains(&crate::look::FLOW_PRIMARY))
+        .filter(|n| n.styles.as_slice().contains(&crate::look::CONNECT_PRIMARY))
         .map(|n| n.name.as_deref().unwrap())
         .collect();
     assert_eq!(primary, [b"Continue with ChatGPT".as_slice()]);
     let names = control_names(&root);
     assert!(names.contains(&b"Continue with ChatGPT".to_vec()));
-    let key = fixtures::find(view.tree(), Role::Link, b"Use an API key").unwrap();
+    let key = fixtures::find(view.tree(), Role::Link, b"Add key").unwrap();
     assert!(
         view.tree()
             .nodes()
@@ -104,19 +104,28 @@ fn the_model_choose_names_the_plan_sign_in_and_key_ways() {
             .unwrap()
             .styles
             .as_slice()
-            .contains(&crate::look::FLOW_SECONDARY)
+            .contains(&crate::look::CONNECT_SECONDARY)
     );
-    assert!(names.contains(&b"Use an API key".to_vec()));
+    assert!(names.contains(&b"Add key".to_vec()));
 }
 #[test]
 fn two_key_providers_name_each_key_way_by_its_brand() {
     let mut providers = List::with_capacity(2);
     providers.push(offer(PROVIDER, b"openai", false, false)).unwrap();
     providers.push(offer(PROVIDER + 1, b"Scripted", false, false)).unwrap();
-    let names = control_names(&ways_root(providers, false));
-    assert!(names.contains(&b"Use an OpenAI API key".to_vec()));
-    assert!(names.contains(&b"Use a Scripted API key".to_vec()));
-    assert!(!names.contains(&b"Use an API key".to_vec()));
+    let root = ways_root(providers, false);
+    let view = fixtures::page_view(&root);
+    let shown = words(&root);
+    assert!(shown.contains("OpenAI API key"));
+    assert!(shown.contains("Scripted API key"));
+    assert_eq!(
+        view.tree()
+            .nodes()
+            .iter()
+            .filter(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Add key"))
+            .count(),
+        2
+    );
 }
 #[test]
 fn a_provider_without_a_plan_names_its_sign_in_by_its_brand() {
@@ -133,7 +142,7 @@ fn the_playgrounds_provider_offers_no_way() {
     providers.push(offer(PROVIDER + 1, b"openai", true, false)).unwrap();
     let names = control_names(&ways_root(providers, true));
     assert!(names.contains(&b"Continue with ChatGPT".to_vec()));
-    assert!(names.contains(&b"Use an API key".to_vec()));
+    assert!(names.contains(&b"Add key".to_vec()));
     assert!(
         !names.iter().any(|name| name
             .windows(crate::words::SCRIPTED_MODEL.len())
@@ -149,9 +158,8 @@ fn the_deployment_holder_offers_keys_only() {
     model_action(&mut root, M::Holder { holder: c::AskAccountHolder::Deployment });
     let names = control_names(&root);
     assert!(names.contains(&b"Use your accounts".to_vec()));
-    assert!(names.contains(&b"Use deployment accounts".to_vec()));
-    assert!(names.contains(&b"Use an OpenAI API key".to_vec()));
-    assert!(names.contains(&b"Use an Anthropic API key".to_vec()));
+    assert!(!names.contains(&b"Use deployment accounts".to_vec()));
+    assert_eq!(names.iter().filter(|name| name.as_slice() == b"Add key").count(), 2);
     assert!(!names.contains(&b"Continue with ChatGPT".to_vec()));
     assert!(!names.contains(&b"Use your Claude subscription".to_vec()));
 }
@@ -165,7 +173,7 @@ fn a_program_way_shows_the_default_name_and_the_command_on_each_host() {
     let tree = fixtures::build(&mut view, &root);
     let field = tree.nodes().iter().find(|node| node.name.as_deref() == Some(b"Name")).unwrap();
     assert_eq!(field.value.as_ref().unwrap().text.as_ref(), b"claude-pat");
-    assert!(fixtures::find(tree, Role::Button, b"Use your Claude subscription").is_some());
+    assert!(fixtures::find(tree, Role::Button, "I’ve signed in".as_bytes()).is_some());
     assert!(
         String::from_utf8(fixtures::text(tree).into_vec())
             .unwrap()
@@ -327,15 +335,15 @@ fn a_program_has_details_then_ready_with_the_declared_name_and_command() {
     let (mut root, _) = flow_fixture(d::WayKind::Program);
     for expected in [
         "Your Claude subscription",
-        "temper runs Claude Code, signed in to your Claude subscription on each host its agents run on. Name the login, then sign in on each host, in a terminal there:",
+        "temper sets Claude Code up on this machine in an environment of its own: its settings, sessions and sign-in stay apart from your own Claude Code. In a terminal here:",
         "temper program-login --config CONFIG --data DATA --cache CACHE claude-pat",
-        "If this machine has no Claude Code, this fetches it first. Claude Code asks you to sign in. temper never reads its login.",
+        "It makes that environment, then Claude Code asks you to sign in to your subscription there. temper never reads its login.",
     ] {
         assert!(words(&root).contains(expected), "missing {expected}");
     }
     let view = fixtures::page_view(&root);
     assert!(fixtures::find(view.tree(), Role::TextField, b"Name").is_some());
-    let act = fixtures::find(view.tree(), Role::Button, b"Use your Claude subscription").unwrap();
+    let act = fixtures::find(view.tree(), Role::Button, "I’ve signed in".as_bytes()).unwrap();
     assert!(
         view.tree()
             .nodes()
@@ -344,9 +352,12 @@ fn a_program_has_details_then_ready_with_the_declared_name_and_command() {
             .unwrap()
             .styles
             .as_slice()
-            .contains(&crate::look::FLOW_SECONDARY)
+            .contains(&crate::look::CONNECT_PRIMARY)
     );
-    assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::FLOW_PRIMARY)));
+    assert_eq!(
+        view.tree().nodes().iter().filter(|n| n.styles.as_slice().contains(&crate::look::CONNECT_PRIMARY)).count(),
+        1
+    );
     model_action(&mut root, M::ProgramName { value: Box::from(b"claude-alice".as_slice()) });
     let attempt = sent(&mut root, M::Submit { name: [1; 16] });
     answer(
@@ -369,8 +380,8 @@ fn a_sign_in_address_without_a_request_offers_its_button() {
     let (root, _) = flow_fixture(d::WayKind::SignIn);
     let view = fixtures::page_view(&root);
     assert!(fixtures::find(view.tree(), Role::Button, b"Continue with ChatGPT").is_some());
-    assert!(fixtures::find(view.tree(), Role::Link, "‹ All ways".as_bytes()).is_some());
-    assert!(words(&root).contains("Signing in"));
+    assert!(fixtures::find(view.tree(), Role::Link, b"Other ways").is_some());
+    assert!(words(&root).contains("Your ChatGPT plan"));
 }
 #[test]
 fn a_completed_sign_in_is_ready_and_can_be_started_again() {
@@ -528,7 +539,7 @@ fn a_returned_source_waits_for_the_watch_with_its_signing_card_alone() {
             }),
         },
     );
-    assert!(words(&root).contains("Signing in"));
+    assert!(words(&root).contains("Your ChatGPT plan"));
     assert!(fixtures::find(fixtures::page_view(&root).tree(), Role::Button, b"Continue with ChatGPT").is_none());
     assert!(root.pages().connect_model().unwrap().request.pending.is_none());
 }
@@ -622,7 +633,8 @@ pub(super) fn assert_waiting(root: &d::Domain) {
                 .position(|n| n.styles.as_slice().contains(&style))
                 .expect("waiting page carries each part’s style")
         };
-        let note = at(look::WELCOME_AWAY);
+        let standalone = root.pages().welcome().is_none();
+        let note = at(if standalone { look::CONNECT_PANEL } else { look::WELCOME_AWAY });
         let disclosure = at(look::WELCOME_PASTE);
         assert!(note < disclosure);
         let title = if browser { "Waiting for ChatGPT’s sign-in, in the new tab" } else { "ChatGPT’s sign-in" };
@@ -631,12 +643,18 @@ pub(super) fn assert_waiting(root: &d::Domain) {
         let muted = nodes
             .iter()
             .position(|n| {
-                n.role == Role::Paragraph
-                    && n.name.as_deref() == Some(b"Sign in and approve temper there. This page moves on by itself.")
+                (n.role == Role::Paragraph || standalone && n.role == Role::Text)
+                    && (n.name.as_deref() == Some(b"Sign in and approve temper there. This page moves on by itself.")
+                        || standalone
+                            && n.text.iter().any(|run| {
+                                run.text.as_ref() == b"Sign in and approve temper there. This page moves on by itself."
+                            }))
             })
             .unwrap();
         assert!(note < status && status < muted && muted < disclosure);
-        assert!(nodes[muted].styles.as_slice().contains(&look::FLOW_MUTED));
+        if !standalone {
+            assert!(nodes[muted].styles.as_slice().contains(&look::FLOW_MUTED));
+        }
         assert_eq!(nodes[disclosure].role, Role::Disclosure);
         assert_eq!(nodes[disclosure].name.as_deref(), Some("Signed in, but the page couldn’t be reached?".as_bytes()));
         assert!(nodes[disclosure].styles.as_slice().contains(&look::MODEL_SIGN_IN));
@@ -657,9 +675,9 @@ pub(super) fn assert_waiting(root: &d::Domain) {
         ));
         assert!(!text.contains("Go forward to that page"));
         assert!(!nodes.iter().any(|n| n.styles.as_slice().contains(&look::FLOW_CHOICE)));
-        assert_eq!(nodes.iter().any(|n| n.styles.as_slice().contains(&look::WELCOME_SPIN)), browser);
+        assert_eq!(nodes.iter().any(|n| n.styles.as_slice().contains(&look::WELCOME_SPIN)), browser && !standalone);
         if browser {
-            let link = at(look::WELCOME_AGAIN);
+            let link = at(if standalone { look::CONNECT_SECONDARY } else { look::WELCOME_AGAIN });
             assert!(muted < link && link < disclosure);
             assert_eq!(nodes[link].role, Role::Link);
             assert_eq!(nodes[link].name.as_deref(), Some(b"Open it again".as_slice()));
@@ -1060,7 +1078,13 @@ fn a_reloaded_source_reads_only_its_kept_address_and_refusal() {
                     let node = tree.nodes().iter().find(|node| node.id == link).unwrap();
                     assert_eq!(node.external.as_deref(), Some(b"https://issuer.example/visit".as_slice()));
                     assert!(node.styles.as_slice().contains(&if refused {
-                        crate::look::FLOW_PRIMARY
+                        if root.pages().welcome().is_none() {
+                            crate::look::CONNECT_PRIMARY
+                        } else {
+                            crate::look::FLOW_PRIMARY
+                        }
+                    } else if root.pages().welcome().is_none() {
+                        crate::look::CONNECT_SECONDARY
                     } else {
                         crate::look::WELCOME_AGAIN
                     }));
@@ -1242,8 +1266,8 @@ fn a_program_way_prints_the_deployments_whole_command_or_the_placeholders() {
         for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
             let shown = String::from_utf8(fixtures::text(view.tree()).into_vec()).unwrap();
             let expected = match line {
-                Some(line) => format!("On this machine, run: {} claude-pat", core::str::from_utf8(line).unwrap()),
-                None => "On each host, with its directories: temper program-login --config CONFIG --data DATA --cache CACHE claude-pat".into(),
+                Some(line) => format!("{} claude-pat", core::str::from_utf8(line).unwrap()),
+                None => "temper program-login --config CONFIG --data DATA --cache CACHE claude-pat".into(),
             };
             assert!(shown.contains(&expected), "{shown}");
             let code = view.tree().nodes().iter().position(|node| node.role == Role::Code).unwrap();
@@ -1270,7 +1294,7 @@ fn the_program_command_renders_its_full_wire_bound() {
         let limits = crate::Limits::of(&domain, &words).unwrap();
         let mut view = crate::View::new(&limits, &domain, words, fixtures::FORGE);
         fixtures::build(&mut view, &root);
-        let expected = format!("On this machine, run: {} claude-pat", core::str::from_utf8(&line).unwrap());
+        let expected = format!("{} claude-pat", core::str::from_utf8(&line).unwrap());
         assert!(fixtures::text(view.tree()).windows(expected.len()).any(|bytes| bytes == expected.as_bytes()));
     }
 }
@@ -1293,4 +1317,40 @@ fn the_program_environment_replaces_the_standalone_command_on_both_model_pages()
             assert_eq!(command_line(&root), expected);
         }
     }
+}
+
+#[test]
+fn a_connected_plan_offers_another_plan_without_a_default() {
+    let (mut root, watch) = flow_fixture(d::WayKind::SignIn);
+    fixtures::root_event(
+        &mut root,
+        d::Event::Went { place: d::Place::Address(d::Address::ConnectModel { way: None }) },
+    );
+    let doc = super::accounts::card_document(b"openai", b"Pat", c::AccountKind::SignIn);
+    super::accounts::deliver(&mut root, watch, doc);
+    let view = fixtures::page_view(&root);
+    assert!(fixtures::find(view.tree(), Role::Text, "✓ Connected".as_bytes()).is_some());
+    assert!(fixtures::find(view.tree(), Role::Button, b"Add another plan").is_some());
+    assert!(!view.tree().nodes().iter().any(|node| node.styles.as_slice().contains(&crate::look::CONNECT_DEFAULT)));
+    assert!(!view.tree().nodes().iter().any(|node| node.styles.as_slice().contains(&crate::look::CONNECT_PRIMARY)));
+}
+#[test]
+fn choose_has_no_steps_or_choose_region_and_one_holder_switch() {
+    let root = plans_root();
+    let view = fixtures::page_view(&root);
+    assert!(fixtures::find(view.tree(), Role::Region, b"Choose").is_none());
+    assert!(fixtures::find(view.tree(), Role::List, b"Steps").is_none());
+    let switches: Vec<_> = view
+        .tree()
+        .nodes()
+        .iter()
+        .filter(|node| {
+            node.role == Role::Link
+                && (node.name.as_deref() == Some(b"Use your accounts")
+                    || node.name.as_deref() == Some(b"Use deployment accounts"))
+        })
+        .collect();
+    assert_eq!(switches.len(), 1);
+    assert!(switches[0].styles.as_slice().contains(&crate::look::CONNECT_QUIET));
+    assert!(fixtures::find(view.tree(), Role::Heading { level: 2 }, b"Or an API key").is_some());
 }

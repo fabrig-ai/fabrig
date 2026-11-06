@@ -59,6 +59,11 @@ fn navigation_links_have_addresses_and_install_action_links_keep_their_binding()
                 // it has no static destination until the forge answers.
                 assert_eq!(sample.name, "github-picker");
                 assert_eq!(forge, 2);
+            } else if let Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::ConnectModel(
+                temper_client_domain::pages::connect_model::Act::Holder { .. },
+            ))) = temper_client_view::act(&mut view, node, skein_ui::Act::Press)
+            {
+                assert!(sample.name.starts_with("connect-model-"));
             } else if let Some(temper_client_domain::Action::Forge(temper_client_domain::forge::Act::EndPlayground)) =
                 temper_client_view::act(&mut view, node, skein_ui::Act::Press)
             {
@@ -2548,16 +2553,21 @@ const HOLDS: [Holds; samples::N] = [
     Holds {
         name: "connect-model-choose",
         heading: "Connect a model",
-        parts: &[Part::Named { role: Role::Region, name: "Choose" }],
+        parts: &[Part::Named { role: Role::Region, name: "ChatGPT" }],
+    },
+    Holds {
+        name: "connect-model-connected",
+        heading: "Connect a model",
+        parts: &[Part::Named { role: Role::Text, name: "✓ Connected" }],
     },
     Holds {
         name: "connect-model-key-details",
-        heading: "Connect a model",
+        heading: "An OpenAI API key",
         parts: &[Part::Named { role: Role::TextField, name: "Key (pasted once)" }],
     },
     Holds {
         name: "connect-model-program-details",
-        heading: "Connect a model",
+        heading: "Your Claude subscription",
         parts: &[Part::Named { role: Role::TextField, name: "Name" }],
     },
     Holds {
@@ -2593,7 +2603,7 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "connect-model-signing-in",
-        heading: "Connect a model",
+        heading: "Your ChatGPT plan",
         parts: &[
             Part::Named { role: Role::Status, name: "Waiting for ChatGPT’s sign-in, in the new tab" },
             Part::Named { role: Role::Link, name: "Open it again" },
@@ -2602,7 +2612,7 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "connect-model-key-lost",
-        heading: "Connect a model",
+        heading: "An OpenAI API key",
         parts: &[Part::Named { role: Role::Alert, name: "" }],
     },
     Holds {
@@ -3097,6 +3107,7 @@ fn gallery_chat_clocks_are_separate_leaves_under_the_speakers() {
 fn model_samples_link_the_mockup_state_that_draws_them() {
     let mut rows = [
         ("connect-model-choose", Some("connect-model.html?world=reference&bare")),
+        ("connect-model-connected", Some("connect-model.html?world=reference&bare")),
         ("connect-model-key-details", Some("connect-model.html?world=reference&way=key&bare")),
         ("connect-model-program-details", Some("connect-model.html?world=reference&way=program&bare")),
         ("connect-model-signing-in", None),
