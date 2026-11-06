@@ -999,7 +999,6 @@ pub(super) fn structured_thread() -> Thread {
         before: Some(c::Cursor::new(Box::from(*b"older"), TEXT).expect("cursor")),
         cut: true,
     });
-    thread.left = 1;
     thread
 }
 #[test]
@@ -3023,16 +3022,6 @@ fn the_message_stands_for_older_while_a_read_is_out() {
     let nodes = view.tree().nodes();
     let inner = styled(view.tree(), crate::look::THREAD_INNER);
     assert_eq!(nodes[inner + 1].name.as_deref(), Some(b"Loading earlier messages".as_slice()));
-}
-
-#[test]
-fn no_line_is_drawn_for_lines_left() {
-    let mut thread =
-        Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
-    thread.left = 7;
-    let drawn = answer_tree(&thread, &fixtures::words(), true);
-    assert_eq!(drawn.nodes().len(), 1, "only the empty log, no region for omitted lines");
-    assert_eq!(drawn.nodes()[0].role, Role::Log);
 }
 
 #[test]

@@ -518,8 +518,7 @@ pub(crate) fn working(root: &Domain, words: &Words, thread: &jig_client::thread:
             jig_client::thread::Line::Activity { .. }
             | jig_client::thread::Line::Words { .. }
             | jig_client::thread::Line::Turn { .. }
-            | jig_client::thread::Line::Undecoded { .. }
-            | jig_client::thread::Line::Left { .. },
+            | jig_client::thread::Line::Undecoded { .. },
         )
         | None => true,
     }

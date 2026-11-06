@@ -643,17 +643,12 @@ pub(crate) fn conversation_with_times(
         request_message(b, request, speakers.requester, words, clock.as_deref());
     }
     for line in lines {
-        if let Line::Left { .. } = line {
-            continue;
-        }
         if let Some((at, _)) = started
             && let Some(time) = match &line {
                 Line::Activity { line } => Some(line.source.at),
-                Line::Words { .. }
-                | Line::Turn { .. }
-                | Line::Undecoded { .. }
-                | Line::Provisional { .. }
-                | Line::Left { .. } => line_time(&line),
+                Line::Words { .. } | Line::Turn { .. } | Line::Undecoded { .. } | Line::Provisional { .. } => {
+                    line_time(&line)
+                }
             }
             && time > skein_lib::Wall::from_nanos(at)
         {
@@ -714,7 +709,6 @@ pub(crate) fn conversation_with_times(
             Line::Turn { .. } => unreachable!("turn drawn above"),
             Line::Provisional { text, .. } => provisional(b, text, words),
             Line::Undecoded { why, .. } => undecoded(b, why, words, clock.as_deref()),
-            Line::Left { .. } => unreachable!("omitted lines draw nothing"),
             Line::Activity { line } => {
                 owner_line(b, &line.source.line, projected, speakers.person, words, clock.as_deref());
             }
@@ -808,7 +802,7 @@ fn line_time(line: &Line<'_>) -> Option<skein_lib::Wall> {
             | c::Activity::Milestone { .. }
             | c::Activity::Kept { .. } => None,
         },
-        Line::Provisional { .. } | Line::Left { .. } => None,
+        Line::Provisional { .. } => None,
     }
 }
 fn turn_time(
@@ -951,11 +945,7 @@ fn hidden_line(line: &Line<'_>, projected: bool, delegations: Option<(&Chat, &ji
             }
             hidden(line, projected, delegations)
         }
-        Line::Words { .. }
-        | Line::Turn { .. }
-        | Line::Undecoded { .. }
-        | Line::Provisional { .. }
-        | Line::Left { .. } => false,
+        Line::Words { .. } | Line::Turn { .. } | Line::Undecoded { .. } | Line::Provisional { .. } => false,
     }
 }
 
