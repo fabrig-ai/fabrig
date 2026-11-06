@@ -39,6 +39,27 @@ fn rows(connection: C) -> State {
     State::Rows(Box::new([row(HERE, Kind::Forgejo, Mode::Owned, connection, Offer::Offered)]))
 }
 #[test]
+fn settings_defaults_to_the_first_available_unconnected_card() {
+    use connect::Choice as Card;
+    let connected = C::Connected { id: 1, login: Box::default() };
+    let owned = row(HERE, Kind::Forgejo, Mode::Owned, connected.clone(), Offer::NotOffered);
+    let github = row(2, Kind::GitHub, Mode::Connected, connected.clone(), Offer::NotOffered);
+    let fake = row(4, Kind::Forgejo, Mode::Fake, connected.clone(), Offer::NotOffered);
+    let managed = row(5, Kind::Forgejo, Mode::Managed, connected, Offer::NotOffered);
+    for (rows, playground, offered, expected) in [
+        (&[][..], None, true, Some(Card::Owned)),
+        (&[][..], None, false, Some(Card::GitHub)),
+        (core::slice::from_ref(&owned), None, true, Some(Card::GitHub)),
+        (core::slice::from_ref(&github), None, true, Some(Card::Owned)),
+        (core::slice::from_ref(&github), None, false, None),
+        (&[owned.clone(), github.clone()][..], None, true, None),
+        (&[fake, managed][..], None, true, Some(Card::Owned)),
+        (&[][..], Some(HERE), true, None),
+    ] {
+        assert_eq!(connect::default_choice(rows, playground, offered), expected);
+    }
+}
+#[test]
 fn the_flow_shows_the_step_its_row_is_at() {
     for (connection, expected) in [
         (C::NotSetUp, Shown::Details(Choice::Forge(HERE))),

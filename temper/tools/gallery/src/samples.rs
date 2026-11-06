@@ -105,7 +105,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 277;
+pub const N: usize = 279;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -671,6 +671,18 @@ pub fn samples() -> [Sample; N] {
         Sample {
             name: "connect-forge-choose",
             world: FirstRun { step: 0 },
+            address: Address::ConnectForge { forge: None },
+            then: Shown,
+        },
+        Sample {
+            name: "connect-forge-elsewhere",
+            world: FirstRun { step: 0 },
+            address: Address::ConnectForge { forge: Some(temper_client_domain::Choice::Elsewhere) },
+            then: Shown,
+        },
+        Sample {
+            name: "connect-forge-connected",
+            world: FirstRun { step: 7 },
             address: Address::ConnectForge { forge: None },
             then: Shown,
         },

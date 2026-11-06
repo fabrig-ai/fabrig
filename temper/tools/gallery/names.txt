@@ -88,6 +88,8 @@ configure-refused
 configure-sending
 configure-typing
 connect-forge-choose
+connect-forge-connected
+connect-forge-elsewhere
 connect-forge-first-run-6
 connect-model-choose
 connect-model-declined

@@ -360,6 +360,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             &view.forge_words,
             &mut view.pages,
             &mut view.forge,
+            &mut view.accounts,
             *forge,
             rail_project,
             &view.forge_sign_in,
