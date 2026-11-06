@@ -3,7 +3,7 @@ id = "io-limits"
 part = "test-limits"
 kind = "migration"
 needs = ["file-readers-skein"]
-files = ["skein/crates/skein-io/src/limits.rs", "skein/crates/skein-fake-peers/src/face.rs", "skein/tests/playground/src/site.rs", "skein/crates/skein-io/src/tests/records.rs", "skein/tests/**", "skein/testing/**"]
+files = ["skein/crates/skein-io/src/limits.rs", "skein/crates/skein-fake-peers/src/face.rs", "skein/tests/playground/src/site.rs", "skein/crates/skein-io/src/tests/records.rs", "skein/tests/**", "skein/testing/**", "skein/examples/echo/service/src/tests.rs"]
 effort = "medium"
 minutes = 100
 +++
@@ -22,7 +22,7 @@ rg -U --pcre2 --count-matches '(?<!struct )Limits \{(?=[^{}]*\bclose_timeout:)(?
 
 Acceptance:
 
-- The measure reads 5, one definition aside if your count shows it: the sites that stay whole, named below.
+- The measure reads 6, one definition aside if your count shows it: the sites that stay whole, named below.
 - `Limits::TEST` holds the values below, and `crate::valid(&crate::Limits::TEST)` still passes (`skein-io/src/tests/records.rs`).
 - **Every field of every converted site has the value it had.** A field equal to `TEST`'s drops; a field that differs stays, spelled as it was. Your report says how you checked it.
 - No memory pin moves, and no test's assertion changes.
@@ -39,9 +39,9 @@ The item stays open: `client-limits` rewrites it.
 
 ## Owns and may change
 
-Owns `limits.rs`, and in `skein/tests/**`, `skein/testing/**` and the unit tests of `skein/crates/**`, only the literal of a `skein_io::Limits`. Nothing else in those files.
+Owns `limits.rs`, and in `skein/tests/**`, `skein/testing/**` the unit tests of `skein/crates/**` and `skein/examples/echo/service/src/tests.rs`, only the literal of a `skein_io::Limits`. Nothing else in those files.
 
-**These stay whole,** since their values are real configuration or are computed: `skein-ui-text/src/terminal.rs`, `skein/examples/echo/shell/src/lib.rs`, `skein/examples/ui/server/src/main.rs`, `skein/testing/skein-fake-person-browser/src/harness/capacity.rs`, `skein/tests/browser/tests/support/real.rs`.
+**These stay whole,** since their values are real configuration or are computed: `skein-ui-text/src/terminal.rs`, `skein/examples/echo/shell/src/lib.rs`, `skein/examples/ui/server/src/main.rs`, `skein/testing/skein-fake-person-browser/src/harness/capacity.rs`, `skein/tests/browser/tests/support/real.rs`, and `skein/tests/io/tests/suite/fuzzy/limits.rs`, whose every field is computed.
 
 **These read `TEST` today** and keep their values by naming more fields: `skein-fake-peers/src/face.rs` (`sockets: 8, receive: 4096, sends: 8, backlog: 2, retry: 1 ms` join what it has), `skein/tests/playground/src/site.rs`, and `skein-io/src/tests/records.rs`'s `changed`.
 
@@ -79,3 +79,7 @@ No new test: this moves no behaviour, and no table repeats these values.
 ## Report
 
 As your text says, with the measure's reading, the net lines, and how you checked the values.
+
+## Answers
+
+2026-11-06. May this task edit the echo service's unit-test literal and keep the computed fuzzy literal whole, so the measure reads 6? Yes. `skein/examples/echo/service/src/tests.rs`'s `limits()` is a test literal like the others: its `io` literal converts, keeping every value, and its package joins the ones you test. `skein/tests/io/tests/suite/fuzzy/limits.rs`'s literal stays whole with all its draws in order, with no `..Limits::TEST` added, since an update that supplies no field would only beat the measure. The spec above now says so. The net cap holds.
