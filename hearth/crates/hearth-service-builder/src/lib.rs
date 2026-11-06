@@ -182,29 +182,34 @@ impl Service {
     }
     #[must_use]
     pub fn work_pending(&self, now: Time) -> bool {
+        let protocol_ready = self.protocol.work_pending();
+        let domain_ready = self.domain.work_pending();
         self.io.is_ready()
             || self.io.is_due(now)
             || self.files.is_due(now)
-            || !self.file_told.is_empty()
-            || !self.file_submissions.is_empty()
-            || !self.io_submissions.is_empty()
+            || ((!self.file_submissions.is_empty() || !self.io_submissions.is_empty()) && self.submissions.room() > 0)
             || !self.io_completions.is_empty()
-            || !self.io_asked.is_empty()
-            || self.protocol.work_pending()
-            || match protocol::next_deadline(&self.protocol) {
-                Some(at) => at <= now,
-                None => false,
-            }
-            || match domain::next_deadline(&self.domain) {
-                Some(at) => at <= now,
-                None => false,
-            }
-            || self.domain.work_pending()
+            || (!self.io_asked.is_empty() && self.io.takes())
+            || (protocol_ready && protocol_room(self, protocol::MAX_OUT_RESUME))
+            || (protocol_room(self, protocol::MAX_OUT_RESUME)
+                && match protocol::next_deadline(&self.protocol) {
+                    Some(at) => at <= now,
+                    None => false,
+                })
+            || (!protocol_ready
+                && protocol_room(self, protocol::MAX_OUT_UP)
+                && (!self.file_told.is_empty() || !self.told.is_empty()))
+            || (domain_ready && self.answers.room() >= domain::MAX_OUT_RESUME)
+            || (!domain_ready
+                && self.answers.room() >= domain::MAX_OUT
+                && (!self.calls.is_empty()
+                    || match domain::next_deadline(&self.domain) {
+                        Some(at) => at <= now,
+                        None => false,
+                    }))
             || !self.completions.is_empty()
-            || !self.told.is_empty()
-            || !self.asked.is_empty()
-            || !self.calls.is_empty()
-            || !self.answers.is_empty()
+            || (!self.asked.is_empty() && self.io_asked.is_empty() && self.files.takes())
+            || (!self.answers.is_empty() && self.protocol.takes() && protocol_room(self, protocol::MAX_OUT_DOWN))
     }
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
