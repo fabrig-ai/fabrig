@@ -21,8 +21,6 @@ Nothing here is adopted, and no plan takes it up until the user does.
 - **Its table,** temper itself beside what is the person's to set: each
   row a setting the reference sets (`reference-code-production.md`,
   section 14), or marked as later (section 4).
-- **Its figures,** fixed when a release is cut, with a link to the live
-  ones; the deployment fetches nothing to show them (section 5).
 - **"Start from it":** the configuring agent proposes the reference's
   settings, sized for the deployment (section 6).
 
@@ -54,7 +52,7 @@ Nothing here is adopted, and no plan takes it up until the user does.
   questions: `reference-code-production.md`, sections 6, 11 and 8);
   landing many (`reference-landing.md`;
   QA after landing, `../domain/findings.md`, section 8); temper itself,
-  and yours (section 4); in numbers (section 5).
+  and yours (section 4).
 - **Read, never run:** opening it starts nothing; a question about it
   is the configuring chat's, beside it.
 
@@ -71,21 +69,6 @@ Nothing here is adopted, and no plan takes it up until the user does.
   questions. A row whose setting is not a project's yet says "later",
   never offers what cannot be set.
 
-## 5. Its figures
-
-- **Fixed at the release:** merges in a week and on the busiest day,
-  agent runs and their median length, workers, as fabrig's own
-  deployment showed them when the release was cut, with that week's
-  date.
-- **A link to the live figures,** whose address is the user's: public
-  code names no address of a machine outside the repository
-  (`AGENTS.md`, section 2).
-- **Nothing fetched:** a deployment shows the figures it shipped with;
-  it calls out to nothing to refresh them.
-- **Its own, once it works:** the deployment's own throughput is a
-  page of its own, a dashboard (`dashboards.md`), which the reference's
-  figures may later sit beside.
-
 ## 6. Starting from it
 
 - **The configuring agent** (`configuring.md`) reads the reference
@@ -101,8 +84,6 @@ Nothing here is adopted, and no plan takes it up until the user does.
 
 - **When:** the user's; this draft keeps the idea, and no plan takes it
   up until then (2026-11-05).
-- **The figures:** fabrig's own deployment's, fixed at the release, or
-  none; the live figures' address.
 - **Settings or the deployment's:** which rows a project sets and which
   are the deployment's (workers and their slots are the root's
   configuration: `../protocol/configuration.md`, section 2), and how

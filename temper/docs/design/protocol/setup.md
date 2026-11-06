@@ -3881,6 +3881,11 @@ Each is intended; what it needs is named with it.
   owner in jig.
 - **A launchd agent for the box** on macOS, as 7.4 arranges systemd
   (`../draft/macos.md`, section 7).
+- **The box's link on a terminal, as a story** (7.2; 13.4): the box's process
+  stories start it on pipes, and the request `box-small-2` of 2026-11-06 leaves
+  a real terminal to the user's try. skein's end-to-end kit starts a binary
+  under a pseudo-terminal (skein's `examples.md`, section 6), so a story started
+  so would read the link's OSC 8 from a real box, at the process tier's budget.
 - **A copy of a bottle of temper's own** (6.6), only if a pinned bottle
   leaves `ghcr.io` while a released temper still pins it: until then
   the refusal, `mirror` and a binary given by path answer it, and a copy
@@ -4066,7 +4071,7 @@ listener's (`../client/forge.md`, the browser's steps).
    renders the page from them (client/forge.md, 9.1) and holds it and
    `back` with the state. With `back`, the link is a path on the
    page's own origin, `/forges/<n>/github/manifest?state=<s>`: the
-   browser goes to it in the page's own tab, as a sign-in's does,
+   browser goes to it in the page's own tab,
    and comes back to `back` at the end. Without `back`, the link is
    the whole address on the clients' listener,
    `http://<listener>/forges/<n>/github/manifest?state=<s>`; the

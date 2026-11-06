@@ -672,6 +672,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 task.amend(env, client, act, &mut pages.serial, out);
             }
         }
+        Event::Act { act: Act::Resume } if pages.chat.is_some() => {
+            pages.chat.as_mut().expect("open chat").act(env, client, Act::Resume, &mut pages.serial, out);
+        }
         Event::Act { act: act @ (Act::Pause | Act::Resume) } => {
             if act == Act::Resume
                 && let Some(inbox) = &pages.inbox
@@ -684,7 +687,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
             if pages.confirm.is_none()
                 && let Some(page) = &mut pages.task
-                && page.shape == task::Shape::Tracked
+                && (page.shape == task::Shape::Tracked || page.shape == task::Shape::Agent)
             {
                 let kind = if act == Act::Pause { task::Sending::Stop } else { task::Sending::Resume };
                 page.send(env, client, kind, &mut pages.serial, out);
@@ -1475,16 +1478,14 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         && let Some(page) = &mut pages.task
         && let Some(open) = &pages.confirm
         && open.object == jig_client::contract::ObjectKey::Task(page.number)
-        && let jig_client::contract::ActKind::Stop | jig_client::contract::ActKind::Cancel = open.act
+        && open.act == jig_client::contract::ActKind::Cancel
     {
-        let kind =
-            if open.act == jig_client::contract::ActKind::Stop { task::Sending::Stop } else { task::Sending::Cancel };
         if open.sent.is_some() {
             return;
         }
         let open = pages.confirm.as_mut().expect("open sheet");
         open.failed = None;
-        open.sent = page.send(env, client, kind, &mut pages.serial, out);
+        open.sent = page.send(env, client, task::Sending::Cancel, &mut pages.serial, out);
         if open.sent.is_none() {
             pages.confirm = None;
         }
@@ -1498,7 +1499,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         Act::Stop if pages.chat.is_some() => {
             pages.chat.as_mut().expect("open chat").act(env, client, Act::Stop, &mut pages.serial, out);
         }
-        Act::Stop => task_confirmation(pages, client, jig_client::contract::ActKind::Stop),
+        Act::Stop => {}
         Act::Close | Act::StartOver => {
             let restarting = act == Act::StartOver;
             if let Some(chat) = &mut pages.chat {
@@ -1620,7 +1621,6 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
 
 fn task_confirmation(pages: &mut Pages, client: &Client, act: jig_client::contract::ActKind) {
     if let Some(page) = &pages.task
-        && (act != jig_client::contract::ActKind::Stop || page.shape == task::Shape::Agent)
         && let Some(task) = page.document(client)
         && chat::allowed(task, act)
     {
