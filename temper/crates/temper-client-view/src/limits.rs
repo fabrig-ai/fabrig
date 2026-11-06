@@ -1,5 +1,9 @@
 //! Checked edge bounds for temper's frame, cards, transcript and tree.
 use crate::words::Words;
+// A run's line is cut at 253 bytes and its rows at 160 (chat_line.rs).
+// Their names and displayed text fit 512 bytes per structure node, even
+// when the receiving text bound is smaller (client/README.md, 5.4 and 5.15).
+const STRUCTURE_TEXT: u32 = 512;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Limits {
     pub tree: skein_ui::Limits,
@@ -38,7 +42,7 @@ impl Limits {
         let window_structure = lines.checked_mul(10)?;
         let window_nodes = skein_ui::markdown::max_nodes(bytes)?.checked_add(window_structure)?;
         let window_text =
-            skein_ui::markdown::max_text_bytes(bytes)?.checked_add(window_structure.checked_mul(text)?)?;
+            skein_ui::markdown::max_text_bytes(bytes)?.checked_add(window_structure.checked_mul(STRUCTURE_TEXT)?)?;
         // Thread projects at most `lines` pending words and live turns together.
         // Each pending word has at most `text` bytes, with a paragraph per line.
         let plain = receiving.text.checked_add(1)?.checked_mul(2)?.checked_add(8)?;
@@ -48,7 +52,7 @@ impl Limits {
         let live = u32::try_from(live).ok()?;
         let live_nodes = skein_ui::markdown::max_nodes(live)?.checked_add(lines.checked_mul(plain.max(10))?)?;
         let live_text = skein_ui::markdown::max_text_bytes(live)?
-            .checked_add(window_structure.checked_mul(text)?)?
+            .checked_add(window_structure.checked_mul(STRUCTURE_TEXT)?)?
             .checked_add(lines.checked_mul(receiving.text)?)?;
         let turn = receiving.turn_text.max(receiving.long_text);
         let turns = 2_u32
