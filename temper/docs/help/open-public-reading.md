@@ -2,7 +2,7 @@
 
 Kind: walk
 
-Enable anonymous reading at the deployment's entrance, then make a project public and check its public pages without exposing its private words.
+Enable anonymous reading at the deployment's entrance, then make a project public and read what its public pages show.
 
 ## Before you start
 
@@ -60,6 +60,12 @@ index bounds or fewer projects. See temper help configuration-engine.
 
 ## 2. Open the project as its owner
 
+Anything said in this project's chats may show on its public pages, in the
+titles of its goals and tasks. On a public repository, a change's pull request
+shows what its agent wrote too.
+
+ctl asks nothing first and prints these words again with its answer.
+
 ```
 temper ctl DIR me
 temper ctl DIR project amend PROJECT --visibility public --key KEY
@@ -81,8 +87,27 @@ browser without a sign-in. Follow a task to
 `/public/projects/PUBLIC/landings` and
 `/public/projects/PUBLIC/landings/TASK`.
 
-Expect: the project's name, task structure and titles, and public landing
-summaries. Specifications beyond titles, instructions, results,
+Expect: the project's name and its goals and tasks in a tree. Each row
+shows the goal's or task's identity and title, then its phase and for how
+long. A goal's row shows its spend, never a task's, and no budget:
+"running · for 14 minutes · 126 spent". An ended row says how it ended
+and how long ago: "landed · 2 hours ago · 126 spent". A goal reads
+"landed", "failed" or "ended"; a task reads "done", "failed" or "ended".
+
+The board says: "Work that ended before this project went public, or
+before temper last restarted, isn't shown." Goals that ended before the
+project went public aren't shown, and a restart empties the goals that
+ended.
+
+The board links to Landings only when the forge holds a queue or a
+landing. The Landings page shows a stock queue's merges as recent
+landings: each line says landed, its change and its commit, and its own
+page holds its change, with no gates. Until one has landed, it says:
+"No landings to show yet."
+
+No link goes to the forge: a commit, a pull request and a CI run are
+never links to the forge. A commit shows its first seven digits.
+Specifications beyond titles, instructions, results,
 conversations and people's names stay private.
 
 If not: check the path from `project show`, the listener and browser origin
