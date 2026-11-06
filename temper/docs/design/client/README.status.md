@@ -35,6 +35,12 @@
   number; a row past that window has no "started goal" line. The answer of
   2026-11-05 to `ui-chat-draft/chats-drafts` keeps this one chips window,
   without raising jig's bound.
+- **Design departs:** 5.3, from the greenfield target, by the request
+  `ui-rename-focus` of 2026-11-06: closing the rename's form leaves the project
+  menu open with the focus on its summary, where the mock draws the menu closed,
+  since a disclosure's fold is skein's page part's (`ui-web.md`, 7). The field does
+  not select its name on opening, and no toast says "Renamed": the request names
+  neither.
 - **Design departs:** 3.5, 5.3, 5.8, 5.13, from the greenfield target:
   the switcher keeps its inline new-project form; a chat keeps its status,
   Stop and Close, and offers Change model only with supplied choices;
@@ -75,8 +81,12 @@
   `temper/crates/temper/tests/fake_backends/walk/status.rs` stops inside a
   sitting: the first look, then the count across a client's and a box's restart,
   with the byline asserted absent and the charter's scripted words read from the
-  model's document alone. Whether the run by hand the plan allowed in its place
-  was made is unknown here: it left nothing in the repository. Each half is
+  model's document alone. Walked by hand on a fake box, its owner's pool as the
+  stock leaves it, at 1440 and 420 (the request `ui-final-walk` of 2026-11-05): the
+  landing stands in Changes, and past 31 minutes Home says "you last looked 31
+  minutes ago" over the computed sentence, with no brief and nothing saying why
+  (section 11, *A brief refused, on Home*). The period's 8,117,760 stood all
+  reserved, so the cause above is read from those balances, not proved. Each half is
   shown apart: a new sitting on the client world's fake clock
   (`temper/tests/client/tests/suite/status.rs`), the agent's brief in the root's
   document (`temper/tests/engine/domain/tests/suite/forge_routes/status.rs`), and
@@ -91,9 +101,37 @@
   ended goal's report from its Goals row, in the terminal's client
   (`a_chats_goal_on_the_fake_box_shows_its_report_in_the_goals_list`). The fake
   box's model (`temper-fake/src/backends.rs`, `model_document`) writes a report
-  only for the first chat's goal, task 2, then finishes it without delegates, so
-  it can show none of those live states: the journey `chat-draft` walks a chat's
-  sheet to that finished goal's page and back to the chat alone.
+  only for the first chat's goal, task 2, and has it ask, wait or finish with no
+  delegates, so it can show no planning and no delegate task: the journey
+  `chat-draft` walks a chat's sheet to that goal's page and back to the chat alone.
+  The request `ui-final-walk` of 2026-11-05 walked a live report, Pause, Resume and
+  Stop there by hand, which no test keeps. That model has no script of a configuring
+  agent's document or proposal and no hold of temper's own, so the gallery alone
+  draws those states.
+- **Not yet:** 3.5, *Needs you*, 5.13: a proposal of settings has its inbox row say
+  project 0, so *Needs you* by the open project and the rail's count
+  (`temper-client-domain`'s `pages/needs.rs`, `count`) leave it out, whichever
+  project's kinds its items change, where the greenfield mock, the target, has its
+  card and its count. No live walk shows that card: the gallery's
+  `configure-chat-proposal` draws it in a chat, and `needs-proposal` is a goal's.
+  Section 11 holds the decision.
+- **Not yet:** 3.5, *Claude*, 5.5: the command is the same words whatever the box's
+  directories (`temper-client-view`'s `pages/connect_model.rs`, `command`), so on a
+  box given its own it refuses, where the answer of 2026-11-05 to the `ui-final-walk`
+  task `fix-flow` has it run as shown. The pinned fetch has run by hand only with the
+  three directories exported, to Claude Code's first sign-in prompt. Section 11
+  holds it, because it needs a fact no client is given.
+- **Not yet:** 3.5, *What the client keeps*, its held send: once, on a fake box at
+  1440, a choice pressed just after Undo left the card, the count and the engine's
+  question as they were after six seconds, and a repeat on a fresh box and the walk
+  at 420 answered. The cause is unknown; no test holds it (section 11).
+- **Not yet:** 5.3, from the answer of 2026-11-06 to the `ui-final-walk` task `fix-look`: in
+  the rail the rename's form stands after the rows, the row kept, with a secondary
+  "Save", a visible "Cancel" and a field 25 pixels high (`temper-client-view`'s
+  `frame.rs`, `rename_form`), and closing it gives no focus back
+  (`temper-client-domain`'s `pages/switcher.rs`, `close`): the walk at both widths
+  found Escape on the new project's field and "Cancel" on main. That plan fixed the
+  answer's ring alone and left the rest for its size; section 11 holds it.
 - **Not yet:** 3.5, *Away*, 4.6: with the `away` watch refused, ended or not
   delivered yet the switch draws off, but its act is still offered, where 4.6
   has it not offered: `temper-client-view`'s `frame.rs`, `away`, and
@@ -336,7 +374,7 @@
   sign-in asked, keeps its card in the panel, where the request draws a way's page
   for the key, the paste and Claude alone: that card is how the welcome reaches
   the paste. A repository Home's sheet asked leaves the step's lines once in and
-  reads as any in the project, "ORG/NAME is in PROJECT" and the merge queue's
-  line, where the request has each copy ticked and then "Chats can change its code
-  now…": section 11 holds it. The sheet alerts past 16 addresses, where the request
+  reads as any in the project, "ORG/NAME is in PROJECT" and "Chats can change its
+  code now.", where the request has each copy ticked and then "Chats can change its
+  code now…": section 11 holds it. The sheet alerts past 16 addresses, where the request
   names no bound: the wire and the store need one (`../protocol/setup.md`, 6.7).

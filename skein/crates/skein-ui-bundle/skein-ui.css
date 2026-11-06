@@ -36,6 +36,11 @@
   outline-offset: 2px;
 }
 
+/* A programmatic focus target: tabindex=-1 only to take the focus (ui-web, 7). */
+[tabindex="-1"]:not([role=menuitem], [role=treeitem]):focus-visible {
+  outline: none;
+}
+
 :root {
   color-scheme: light;
 }

@@ -215,12 +215,12 @@ What every application runs, and what makes jig's promises its own.
     what it observed in its own system's terms, mapped by the fake, never
     by the root, so a root that mistranslates an effect is caught when
     the observed effect differs from the one the core decided;
-  - each kind of effect's recovery class, which the referee holds the
-    fake system's observations to;
   - its scenarios: the parties' scripts, its systems' starting state and
     faults, its agents' scripts;
   - the policy each scenario runs under, which the referee reads as its
-    independent statement of what is allowed.
+    independent statement of what is allowed, and whose kinds hold each
+    kind of effect's recovery class, which the referee holds the fake
+    system's observations to.
 - **Crashing at every commit.** For a scenario, the focused suite crashes
   after a few chosen commits and checks the story still ends as it
   should; the fuzzy suite sweeps every commit of the scenario, and draws
@@ -404,6 +404,16 @@ than cutting the cover.
   why the number is the point. A request's key stays literal: a retry repeats
   it, and its `[key; 16]` and reply token follow from it. A seed stays per file,
   naming its run.
+- **The core's arms in an adapter** (5): whether a boundary lets the kit answer
+  the core's peers itself, with a trait kept for `Harness<A>`, the charter's
+  decoding outside the kit, since it links smith, and each adopter's first
+  period and `Drained` as the referee sees them. Default: as they stand, until
+  `jig/docs/development/debt/D030-conformance-not-drop-in.md` is planned.
+- **A commit's rows for the core's observer** (5): the observer projects the
+  whole store at each new commit. A feed of each commit's rows needs keyed
+  snapshot accounting, commit-level observations and a check against the whole
+  projection. Default: the whole projection, until
+  `jig/docs/development/debt/D034-world-replay-cost.md` is planned.
 - **Smith's world kit** (7): `smith-agent-process-world` is a kit by name, as
   smith has no `testing/`. Default: as it stands, until a debt item of smith's
   names it.

@@ -462,7 +462,7 @@ fn away_settings(
     b.name(&title);
     b.text(Run::Plain, &title);
     let count = root.pages().away_focus();
-    if count > 0 {
+    if count > 0 && root.pages().switcher().renaming().is_none() {
         b.focus(count);
     }
     b.close();
