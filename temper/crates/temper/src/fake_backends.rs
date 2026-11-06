@@ -243,10 +243,21 @@ fn directories(source: &Directories) -> Result<(PathBuf, Directories), String> {
     }
     Ok((root, Directories { config, data, cache: source.cache.clone(), origins: [skein_shell::Origin::Flag; 3] }))
 }
+pub(super) const PORT_ATTEMPTS: usize = 32;
+
 fn reserve(excluded: &[u16]) -> Result<TcpListener, String> {
-    for _ in 0..32 {
-        let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
-            .map_err(|why| format!("fake peer reservation: {why}"))?;
+    reserve_from(excluded, || TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)))
+}
+fn reserve_from(
+    excluded: &[u16],
+    mut bind: impl FnMut() -> std::io::Result<TcpListener>,
+) -> Result<TcpListener, String> {
+    for _ in 0..PORT_ATTEMPTS {
+        let listener = match bind() {
+            Ok(listener) => listener,
+            Err(why) if why.kind() == std::io::ErrorKind::AddrInUse => continue,
+            Err(why) => return Err(format!("fake peer reservation: {why}")),
+        };
         if !excluded.contains(&listener.local_addr().map_err(|why| why.to_string())?.port()) {
             return Ok(listener);
         }

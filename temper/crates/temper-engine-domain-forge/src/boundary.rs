@@ -1758,6 +1758,12 @@ pub enum Event {
         root: u64,
         ending: ReleaseEnding,
     },
+    /// A closing task's saved work: each branch becomes its hold before the
+    /// release that follows (domain/forge.md, section 11).
+    SavedWork {
+        task: u64,
+        branches: Box<[Name]>,
+    },
     /// Release a closing task's holds after prior effects settled.
     Release {
         task: u64,

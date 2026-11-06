@@ -486,17 +486,20 @@ pub(crate) fn finish_brief_plan(
     {
         let item = forge::BriefItem { repository: row.repository.repository, number };
         let pull = forge::BriefSource::Pull { item, head: forge::BriefCommit(head) };
-        let why = match row.delegate.expect("matched delegate").1 {
+        let (why, reason_first) = match row.delegate.expect("matched delegate").1 {
             forge_change::Delegate::Repair(forge_change::Repair::Gate(_)) => {
-                Some(forge::BriefSource::Reviews { item, head: forge::BriefCommit(head) })
+                (Some(forge::BriefSource::Reviews { item, head: forge::BriefCommit(head) }), false)
             }
-            forge_change::Delegate::Repair(
-                forge_change::Repair::Ci | forge_change::Repair::Semantic | forge_change::Repair::Landing { .. },
-            ) => Some(forge::BriefSource::Ci { item, head: forge::BriefCommit(head) }),
+            forge_change::Delegate::Repair(forge_change::Repair::Ci | forge_change::Repair::Landing { .. }) => {
+                (Some(forge::BriefSource::Ci { item, head: forge::BriefCommit(head) }), false)
+            }
+            forge_change::Delegate::Repair(forge_change::Repair::Semantic) => {
+                (Some(forge::BriefSource::Ci { item, head: forge::BriefCommit(head) }), true)
+            }
             forge_change::Delegate::Resolve { .. }
             | forge_change::Delegate::Merge { .. }
             | forge_change::Delegate::Produce
-            | forge_change::Delegate::Gate { .. } => None,
+            | forge_change::Delegate::Gate { .. } => (None, false),
         };
         let needed = if why.is_some() { 2 } else { 1 };
         let mut room = wanted.room();
@@ -533,10 +536,16 @@ pub(crate) fn finish_brief_plan(
                 pull_limit = pull_limit.min(left);
             }
         }
-        let pull = plan_forge_section(domain, env, task, pull, None, 6, pull_limit, &mut wanted);
-        if let Some(why) = why {
+        if reason_first && let Some(why) = why {
             let limit = forge_brief_budget(&forge_brief_kind(why), &domain.limits.brief.budgets);
-            plan_forge_section(domain, env, task, why, Some(pull), 5, limit, &mut wanted);
+            let reason = plan_forge_section(domain, env, task, why, None, 5, limit, &mut wanted);
+            plan_forge_section(domain, env, task, pull, Some(reason), 6, pull_limit, &mut wanted);
+        } else {
+            let pull = plan_forge_section(domain, env, task, pull, None, 6, pull_limit, &mut wanted);
+            if let Some(why) = why {
+                let limit = forge_brief_budget(&forge_brief_kind(why), &domain.limits.brief.budgets);
+                plan_forge_section(domain, env, task, why, Some(pull), 5, limit, &mut wanted);
+            }
         }
     }
     domain.work.push(Work::Brief(brief::GatherEvent::Plan {

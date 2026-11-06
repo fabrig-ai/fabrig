@@ -399,7 +399,7 @@ pub(crate) fn more(domain: &mut Ui, window: Token, end: End, out: &mut Queue<Req
         };
         let earlier = match edge {
             Edge::More(_) => true,
-            Edge::End => domain.chats.more,
+            Edge::End | Edge::Dropped => domain.chats.more,
         };
         if earlier {
             let Some(project) = domain.shown_conversations() else { return };
@@ -409,7 +409,7 @@ pub(crate) fn more(domain: &mut Ui, window: Token, end: End, out: &mut Queue<Req
             query.order = contract::QueryOrder::Ended;
             let ended = match edge {
                 Edge::More(cursor) => Some(cursor.clone()),
-                Edge::End => None,
+                Edge::End | Edge::Dropped => None,
             };
             ask_read(domain, CONVERSATIONS_READ, Read::Tasks { query, live: None, ended }, out);
         }

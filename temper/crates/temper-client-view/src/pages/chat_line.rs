@@ -6,7 +6,7 @@ use crate::{
 use alloc::boxed::Box;
 use jig_client::contract as c;
 use skein_lib::{List, Wall, Writer};
-use skein_ui::{Builder, Role, Run as TextRun, phrases::Hole};
+use skein_ui::{Builder, Key, Role, Run as TextRun, phrases::Hole};
 use temper_client_domain::pages::calls::{self, Touched};
 
 #[derive(Debug)]
@@ -18,11 +18,15 @@ struct Call<'a> {
 pub(crate) struct Run<'a> {
     calls: List<Call<'a>>,
     first: Option<Wall>,
+    key: Option<Key>,
     last: Option<Wall>,
 }
 impl<'a> Run<'a> {
     pub(crate) fn with_capacity(calls: u32) -> Self {
-        Self { calls: List::with_capacity(calls), first: None, last: None }
+        Self { calls: List::with_capacity(calls), first: None, key: None, last: None }
+    }
+    pub(crate) fn key(&mut self, key: Key) {
+        self.key.get_or_insert(key);
     }
     pub(crate) fn call(&mut self, call: &'a c::Call, at: Wall, since: Option<Wall>) {
         self.first.get_or_insert(since.unwrap_or(at));
@@ -94,7 +98,8 @@ impl<'a> Run<'a> {
                 })
             }
         };
-        b.open(Role::Region);
+        b.open(Role::Slot);
+        b.key(self.key.unwrap_or(Key { owner: crate::frame::owner(), kind: 52, a: 0, b: 0 }));
         b.style(look::TURN);
         b.open(Role::Disclosure);
         b.style(look::WORK);
@@ -128,6 +133,7 @@ impl<'a> Run<'a> {
         b.close();
         self.calls.clear();
         self.first = None;
+        self.key = None;
         self.last = None;
     }
 }
