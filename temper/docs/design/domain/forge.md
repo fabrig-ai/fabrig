@@ -1792,12 +1792,14 @@ delegate's terminal wakes it to offer the landed result.
   reviews budget, 4,608 bytes on the stock, cut from their end and
   marked; and carrying why: CI's failing output on the head; a gate's
   remarks; for a clean update whose CI then fails (a semantic conflict),
-  the base merged in and what landed in it; or, for
+  CI's failing output, the base merged in and what landed in it; or, for
   a change the forge's merge queue ejected, the forge's reason, the
   pull request's `dequeued` (9.1). It pushes a new head, and the
   change is checked again. Where the head's failed checks are not
   known, its words say so, `no failed check named`, in the name's place,
-  never an empty name.
+  never an empty name. A clean update's red is CI's: its words open as a
+  CI repair's do, naming the failed check, and go on to say that no merge
+  conflict waits, so that a resolution's alone speak of a conflict.
   For each failed check, the brief carries its context, description and
   link, then the step that failed, by name, and the end of that step's
   log, where a step tells its failure; the job's whole log's end when no
@@ -2798,6 +2800,18 @@ landed head equals the branch's last known tip. With no known tip or no
 matching landed change it keeps the branch; a subsequent unlanded move keeps
 it too. This uses the retained change and branch records, with no new
 ancestry read (2026-11-04).
+
+A task's saved work is named by the set its task's record keeps of the
+repositories a next attempt would resume from (`worker.md`, section 5). As
+its task's release begins, each branch of that set becomes a hold of the
+closing task, with no writer, and goes as any hold does: deleted, a branch
+already gone counting as deleted (skein's `forge-client.md`, section 7);
+or, if its task failed and is not its tree's root, kept for a person to
+read and deleted as the root closes. Such a hold has no holding in the
+hub, and no head is read for it. A branch outside that set stays until
+deleted by hand or by the deployment's retention, as does a save whose
+terminal the engine never heard, its worker lost, and a branch the forge's
+full holds left no room for at the close.
 
 ### 11.1 A branch per goal
 
