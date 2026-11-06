@@ -425,7 +425,7 @@ the host tests (section 14).
 | group | `<div role="group">` |
 | heading | `<h1>` to `<h6>`; deeper, `role="heading"` with `aria-level` |
 | paragraph, text | `<p>`, `<span>` |
-| list, item | `<ul>`, `<li>` |
+| list, item | `<ul>`, or `<ol>` with an order, `<li>` |
 | table, row, cell, column header, row header | `<table>`, `<tr>`, `<td>`, `<th scope="col">`, `<th scope="row">` |
 | term, description | `role="term"`, `role="definition"` |
 | button | `<button type="button">` |
@@ -512,6 +512,10 @@ the host tests (section 14).
     count is `aria-setsize` on each of its items or tree items, an
     item's position `aria-posinset`; a table's count is `aria-rowcount`,
     a row's position `aria-rowindex`;
+  - *a list's order* is `<ol start="N">` in place of `<ul>`, N its first
+    number, written at 1 too, and the browser numbers its items. An
+    element a look gives the list (6.1) keeps its tag, and `start`
+    goes only on an `<ol>`;
   - *a cell's spans* are `colspan` and `rowspan`, left out at 1; *a
     column header's sort* is `aria-sort`, `ascending` or `descending`;
   - *a region name* is `data-region="<its name>"`; *style tokens* are
@@ -598,8 +602,8 @@ the host tests (section 14).
     field it moved;
   - *a text* replaces a node's runs;
   - *an attribute* sets or removes what changed: a drawing whose data
-    changed is drawn again, and a role whose element differs makes the
-    new element, the children moved into it;
+    changed is drawn again, and a role or a list's order whose element
+    differs makes the new element, the children moved into it;
   - *a value* writes a field's value, which comes only from the owner's
     write (ui.md, 3.4).
 - **Never replaced while it can be updated:** focus, caret, selection,
