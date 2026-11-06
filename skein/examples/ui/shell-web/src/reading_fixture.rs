@@ -33,6 +33,7 @@ struct Reading {
     continues: bool,
     request: u64,
     dialog: bool,
+    status: bool,
     remembered: Option<u64>,
 }
 
@@ -98,6 +99,12 @@ impl Reading {
                     self.dialog = false;
                     changed = true;
                 }
+                12 => {
+                    self.automatic = false;
+                    let log = log(document);
+                    log.set_scroll_top(0);
+                    log.dispatch_event(&web_sys::Event::new("scroll").expect("scroll event")).expect("head measure");
+                }
                 token => panic!("unknown fixture button {token}"),
             },
             Act::Input { .. } => {}
@@ -127,6 +134,9 @@ pub(super) fn start(mount: web_sys::Element, path: &str, primary: Primary) {
     sheet.insert_rule(&format!("#app [role=log] {{ height:{height}; max-height:200px; width:400px; overflow:auto; overflow-anchor:{anchor}; line-height:20px; font-size:16px; }}"))
         .expect("fixture log rule");
     sheet.insert_rule("#app [role=log] ul { margin:0; padding:0; list-style:none; }").expect("fixture list rule");
+    if path.ends_with("/contents") {
+        sheet.insert_rule("#app [role=log] ul { display:contents; }").expect("contents wrappers");
+    }
     let mut reading = Reading {
         first: 100,
         end: if short { 102 } else { 108 },
@@ -144,6 +154,7 @@ pub(super) fn start(mount: web_sys::Element, path: &str, primary: Primary) {
         continues: false,
         request: 0,
         dialog: false,
+        status: path.ends_with("/status"),
         remembered: None,
     };
     let limits = skein_ui_example_view::limits::limits();
@@ -261,6 +272,11 @@ fn build(builder: &mut Builder, reading: &Reading) {
     if reading.continues {
         builder.state(State::Continues);
     }
+    if reading.status {
+        builder.open(Role::Status);
+        builder.text(Run::Plain, b"Loading earlier messages");
+        builder.close();
+    }
     builder.open(Role::List);
     for line in reading.first..reading.end {
         builder.open(Role::Item);
@@ -285,6 +301,7 @@ fn build(builder: &mut Builder, reading: &Reading) {
         (8, "Inspect"),
         (9, "Body focus"),
         (10, "Open dialog"),
+        (12, "Head"),
     ] {
         button(builder, token, name);
     }

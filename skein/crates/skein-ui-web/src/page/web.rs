@@ -19,7 +19,8 @@ use crate::{
 mod components;
 pub use components::{Component, Constructor};
 
-type Listener = (String, bool, Closure<dyn FnMut(web_sys::Event)>);
+// A report may render and measure a bound log before its scroll listener returns.
+type Listener = (String, bool, Closure<dyn Fn(web_sys::Event)>);
 
 /// Owns the mount's listeners and resize observer until the page ends.
 pub struct Dom {
@@ -533,7 +534,16 @@ impl Mounted {
                 break;
             }
             let child = children.item(index).expect("child element");
+            // The owner's reading status stays at the head while entries arrive below it.
+            if child.get_attribute("role").as_deref() == Some("status") {
+                continue;
+            }
             let bounds = child.get_bounding_client_rect();
+            // A display:contents wrapper has no box, but its entries do.
+            if bounds.width() <= 0.0 && bounds.height() <= 0.0 {
+                self.view_entries(&child, top, bottom, notes);
+                continue;
+            }
             if bounds.bottom() <= top || bounds.top() >= bottom {
                 continue;
             }
