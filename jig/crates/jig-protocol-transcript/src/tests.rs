@@ -4,7 +4,11 @@ const DIALECT: u32 = 3;
 use smith::{Block as SBlock, CEILINGS, MessageParts, TurnParts, UsageParts};
 
 fn limits() -> Limits {
-    Limits { smith: CEILINGS, bytes: 1_048_576, turn: TurnLimits { messages: 64, blocks: 16, text: 65_536 } }
+    Limits {
+        smith: CEILINGS,
+        bytes: 1_048_576,
+        turn: TurnLimits { messages: 64, blocks: 16, text: 65_536, outcome: 65_536 },
+    }
 }
 fn text(value: &[u8]) -> smith::Text {
     smith::Text::new(&CEILINGS, smith::TextParts { text: Box::from(value), replay: None }).unwrap()
@@ -73,6 +77,168 @@ fn encode(turn: &smith::Turn) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(usize::try_from(turn.measure()).unwrap());
     turn.encode(&mut writer).unwrap();
     writer.finish()
+}
+
+fn said(bytes: &[u8]) -> smith::Returned {
+    smith::Returned::Said(
+        smith::Said::new(&CEILINGS, smith::SaidParts { text: Box::from(bytes), error: false }).unwrap(),
+    )
+}
+
+fn call_at(turn: &Turn, message: u32, block: u32) -> &Call {
+    let Block::Call(call) = turn.messages.get(message).unwrap().blocks.get(block).unwrap() else {
+        panic!("call expected");
+    };
+    call
+}
+
+fn assert_text_budget(turn: &Turn, limit: u32) {
+    let mut bytes = 0_usize;
+    for message in &turn.messages {
+        for block in &message.blocks {
+            let length = match block {
+                Block::Text(text) | Block::Opaque { dialect: text, .. } | Block::Result { summary: text, .. } => {
+                    text.bytes().len()
+                }
+                Block::Call(call) => {
+                    let outcome = match &call.outcome {
+                        Some(text) => text.bytes().len(),
+                        None => 0,
+                    };
+                    call.tool.bytes().len().checked_add(call.input.bytes().len()).unwrap().checked_add(outcome).unwrap()
+                }
+            };
+            bytes = bytes.checked_add(length).unwrap();
+        }
+    }
+    assert!(bytes <= usize::try_from(limit).unwrap(), "{bytes} bytes exceed {limit}");
+}
+
+#[test]
+fn results_that_fill_the_budget_leave_every_name_whole() {
+    let source = source(&[message(
+        smith::Role::Assistant,
+        &[
+            call(b"a"),
+            result(b"a", said(&[b'x'; 128])),
+            call(b"b"),
+            result(b"b", said(&[b'x'; 128])),
+            call(b"c"),
+            result(b"c", said(&[b'x'; 128])),
+        ],
+    )]);
+    let mut limits = limits();
+    limits.turn.text = 32;
+    let turn = decode(&limits, &encode(&source)).unwrap();
+    for block in [0, 2, 4] {
+        assert_eq!(call_at(&turn, 0, block).tool.bytes(), b"read");
+    }
+    assert!(turn.cut);
+    assert_text_budget(&turn, limits.turn.text);
+}
+
+#[test]
+fn texts_are_priced_after_names_and_before_the_rest() {
+    let opaque = SBlock::Opaque(
+        smith::Opaque::new(&CEILINGS, smith::OpaqueParts { dialect: DIALECT, bytes: Box::new([]) }).unwrap(),
+    );
+    let source = source(&[message(
+        smith::Role::Assistant,
+        &[
+            call(b"a"),
+            result(b"a", said(&[b'x'; 128])),
+            SBlock::Text(text(b"answer")),
+            SBlock::Refusal(text(b"no")),
+            opaque,
+            call(b"b"),
+        ],
+    )]);
+    let mut limits = limits();
+    limits.turn.text = 17;
+    let turn = decode(&limits, &encode(&source)).unwrap();
+    assert_eq!(call_at(&turn, 0, 0).tool.bytes(), b"read");
+    assert_eq!(call_at(&turn, 0, 5).tool.bytes(), b"read");
+    for (block, expected) in [(2, b"answer".as_slice()), (3, b"no"), (4, b"3")] {
+        match turn.messages.get(0).unwrap().blocks.get(block).unwrap() {
+            Block::Text(text) | Block::Opaque { dialect: text, .. } => assert_eq!(text.bytes(), expected),
+            Block::Call(_) | Block::Result { .. } => panic!("text or dialect expected"),
+        }
+    }
+    assert!(call_at(&turn, 0, 0).outcome.as_ref().unwrap().bytes().is_empty());
+    assert!(turn.cut);
+    assert_text_budget(&turn, limits.turn.text);
+}
+
+#[test]
+fn an_outcome_is_its_first_line_with_words_and_its_summary_stays_whole() {
+    for bytes in [b"\n\r\nfirst\r\nsecond".as_slice(), b" \t\r\nfirst\r\nsecond", b"\n\r\n"] {
+        let source = source(&[message(smith::Role::Assistant, &[call(b"id"), result(b"id", said(bytes))])]);
+        let turn = decode(&limits(), &encode(&source)).unwrap();
+        let expected = if bytes == b"\n\r\n" { b"".as_slice() } else { b"first".as_slice() };
+        assert_eq!(call_at(&turn, 0, 0).outcome.as_ref().unwrap().bytes(), expected);
+        let Block::Result { summary, .. } = turn.messages.get(0).unwrap().blocks.get(1).unwrap() else {
+            panic!("result expected");
+        };
+        assert_eq!(summary.bytes(), bytes);
+        assert!(!turn.cut);
+        assert_text_budget(&turn, limits().turn.text);
+    }
+}
+
+#[test]
+fn an_outcome_line_past_its_bound_ends_in_the_mark() {
+    let source = source(&[message(smith::Role::Assistant, &[call(b"id"), result(b"id", said(b"abcdef\nsecond"))])]);
+    let mut limits = limits();
+    limits.turn.outcome = 5;
+    let turn = decode(&limits, &encode(&source)).unwrap();
+    assert_eq!(call_at(&turn, 0, 0).outcome.as_ref().unwrap().bytes(), "ab…".as_bytes());
+    assert!(turn.cut);
+    assert_text_budget(&turn, limits.turn.text);
+}
+
+#[test]
+fn a_text_cut_at_the_bound_ends_in_the_mark_on_a_character_boundary() {
+    let source = source(&[message(smith::Role::User, &[SBlock::Text(text("aé日z".as_bytes()))])]);
+    for (bound, expected, cut) in [(7, "aé日z", false), (6, "aé…", true), (5, "a…", true), (3, "…", true)] {
+        let mut limits = limits();
+        limits.turn.text = bound;
+        let turn = decode(&limits, &encode(&source)).unwrap();
+        let Block::Text(text) = turn.messages.get(0).unwrap().blocks.get(0).unwrap() else {
+            panic!("text expected");
+        };
+        assert_eq!(text.bytes(), expected.as_bytes());
+        assert_eq!(turn.cut, cut);
+        assert_text_budget(&turn, bound);
+    }
+}
+
+#[test]
+fn fewer_than_three_bytes_left_leave_a_text_empty_and_unmarked() {
+    let source = source(&[message(smith::Role::User, &[SBlock::Text(text(b"abc"))])]);
+    for bound in [0, 1, 2] {
+        let mut limits = limits();
+        limits.turn.text = bound;
+        let turn = decode(&limits, &encode(&source)).unwrap();
+        let Block::Text(text) = turn.messages.get(0).unwrap().blocks.get(0).unwrap() else {
+            panic!("text expected");
+        };
+        assert!(text.bytes().is_empty());
+        assert!(turn.cut);
+        assert_text_budget(&turn, bound);
+    }
+}
+
+#[test]
+fn the_outcomes_cards_read_stay_as_written() {
+    for line in [b"Delegated tasks: 1, 2".as_slice(), "Note 4 revision 2 written · 12 lines".as_bytes()] {
+        let mut bytes = skein_lib::Writer::new(line.len().checked_add(b"\nmore detail".len()).unwrap());
+        bytes.put(line).unwrap();
+        bytes.put(b"\nmore detail").unwrap();
+        let source = source(&[message(smith::Role::Assistant, &[call(b"id"), result(b"id", said(&bytes.finish()))])]);
+        let turn = decode(&limits(), &encode(&source)).unwrap();
+        assert_eq!(call_at(&turn, 0, 0).outcome.as_ref().unwrap().bytes(), line);
+        assert!(!turn.cut);
+    }
 }
 
 #[test]
@@ -414,7 +580,7 @@ fn receiving_limits_cut_without_growing_or_losing_call_outcomes() {
     assert!(turn.cut);
     match &turn.messages.get(0).unwrap().blocks.get(0).unwrap() {
         Block::Call(call) => {
-            assert_eq!(call.tool.bytes(), b"re");
+            assert!(call.tool.bytes().is_empty());
             assert!(call.input.bytes().is_empty());
             assert!(call.outcome.as_ref().unwrap().bytes().is_empty());
         }
@@ -670,10 +836,10 @@ fn brief_output_fits_its_byte_bound_and_ends_in_a_complete_utf8_line() {
 }
 
 #[test]
-fn a_large_input_leaves_the_calls_answer_whole() {
+fn an_input_that_fills_the_budget_leaves_its_outcomes_line() {
     let input = [b'x'; 512];
     let answer = b"Wrote note 4 revision 2";
-    let call = SBlock::Call(
+    let note_call = SBlock::Call(
         smith::Call::new(
             &CEILINGS,
             smith::CallParts {
@@ -685,11 +851,13 @@ fn a_large_input_leaves_the_calls_answer_whole() {
         )
         .unwrap(),
     );
-    let said = smith::Returned::Said(
+    let returned = smith::Returned::Said(
         smith::Said::new(&CEILINGS, smith::SaidParts { text: answer.as_slice().into(), error: false }).unwrap(),
     );
-    let source =
-        source(&[message(smith::Role::Assistant, &[call]), message(smith::Role::User, &[result(b"note-id", said)])]);
+    let source = source(&[
+        message(smith::Role::Assistant, &[note_call, call(b"other")]),
+        message(smith::Role::User, &[result(b"note-id", returned), result(b"other", said(b"done"))]),
+    ]);
     let mut limits = limits();
     limits.turn.text = 128;
     let turn = decode(&limits, &encode(&source)).unwrap();
@@ -699,8 +867,17 @@ fn a_large_input_leaves_the_calls_answer_whole() {
     assert_eq!(call.tool.bytes(), b"note");
     assert_eq!(call.outcome.as_ref().unwrap().bytes(), answer);
     assert!(!call.failed);
-    let input_left = usize::try_from(limits.turn.text).unwrap() - b"note".len() - answer.len();
-    assert_eq!(call.input.bytes(), &input[..input_left]);
+    assert_eq!(call_at(&turn, 0, 1).outcome.as_ref().unwrap().bytes(), b"done");
+    let input_left =
+        usize::try_from(limits.turn.text).unwrap() - b"note".len() - b"read".len() - answer.len() - b"done".len();
+    assert_eq!(call.input.bytes().len(), input_left);
+    assert_eq!(&call.input.bytes()[..input_left - 3], &input[..input_left - 3]);
+    assert_eq!(&call.input.bytes()[input_left - 3..], "…".as_bytes());
     assert!(call.input.bytes().len() < input.len());
     assert!(turn.cut);
+}
+
+#[test]
+fn the_clients_call_name_bound_matches_the_transcript_ceiling() {
+    assert_eq!(jig_client_domain::contract::CALL_NAME, CEILINGS.call_name);
 }

@@ -69,7 +69,7 @@ pub fn cut_activity_record() -> w::ActivityPage {
     jig_client_test_records::cut_activity_record()
 }
 pub fn cut_activity_page() -> c::ActivityPage {
-    expected_one_activity_line(expected_turn_line(10, 20, 1, decoded_turn(b"ab", true)))
+    expected_one_activity_line(expected_turn_line(10, 20, 1, decoded_turn(b"", true)))
 }
 pub fn expected_one_activity_line(row: c::DecodedActivityLine) -> c::ActivityPage {
     let mut rows = List::with_capacity(1);

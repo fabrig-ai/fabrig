@@ -141,6 +141,7 @@ pub(crate) fn leave_page(domain: &mut Ui, out: &mut Queue<Request>, lent: &jig_c
             lines: rows,
             bytes: lent.domain_limits().document_bytes,
             text: domain.text_limit,
+            live: domain.text_limit,
         },
     );
     domain.conversation.words = jig_client::thread::KeptWords::new(words);
