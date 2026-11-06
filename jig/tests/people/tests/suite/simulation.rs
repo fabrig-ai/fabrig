@@ -444,8 +444,8 @@ fn facts_change_nothing_and_a_seed_replays() {
 fn a_release_naming_an_old_hold_is_refused_as_moved_saying_what_holds_it_now() {
     let mut world = World::new(Settings::calm(90));
     member(&mut world);
-    world.held_task(7, 2, jig_domain_people::HoldReason::Budget);
-    let ask = Ask::Release { project: PROJECT, task: 7, revision: 1, again: None };
+    world.held_task(STOPPED_CHAT, 2, jig_domain_people::HoldReason::Budget);
+    let ask = Ask::Release { project: PROJECT, task: STOPPED_CHAT, revision: 1, again: None };
     let call = world.request(SIGN_IN, [7; 16], ask.clone());
     assert!(world.reply(call).is_none());
     world.commit_all();
@@ -453,7 +453,7 @@ fn a_release_naming_an_old_hold_is_refused_as_moved_saying_what_holds_it_now() {
         now: jig_domain_people::Moved::Hold { revision: 2, reason: jig_domain_people::HoldReason::Budget },
     })));
     assert_eq!(world.reply(call), expected);
-    world.held_task(7, 3, jig_domain_people::HoldReason::Deadline);
+    world.held_task(STOPPED_CHAT, 3, jig_domain_people::HoldReason::Deadline);
     world.restart();
     let routes = world.stats().routes;
     let replay = world.request(SIGN_IN, [7; 16], ask);
@@ -466,11 +466,11 @@ fn a_release_naming_an_old_hold_is_refused_as_moved_saying_what_holds_it_now() {
 fn an_amendment_on_a_spec_amended_meanwhile_is_refused_with_its_revision() {
     let mut world = World::new(Settings::calm(91));
     member(&mut world);
-    world.amended_task(7, 2);
+    world.amended_task(STOPPED_CHAT, 2);
     let ask = Ask::Amend {
         release: None,
         project: PROJECT,
-        task: 7,
+        task: STOPPED_CHAT,
         revision: 1,
         amendment: jig_domain_people::Amendment {
             spec: Some(jig_domain_people::Spec {
@@ -487,7 +487,7 @@ fn an_amendment_on_a_spec_amended_meanwhile_is_refused_with_its_revision() {
     let expected =
         Some(Reply::Outcome(Outcome::Refused(Refusal::Moved { now: jig_domain_people::Moved::Spec { revision: 2 } })));
     assert_eq!(world.reply(call), expected);
-    world.amended_task(7, 3);
+    world.amended_task(STOPPED_CHAT, 3);
     world.restart();
     let routes = world.stats().routes;
     let replay = world.request(SIGN_IN, [8; 16], ask);
@@ -565,8 +565,8 @@ fn words_to_a_stopped_chat_release_nothing() {
 fn an_uncertain_release_keeps_the_missing_choice_facts_on_replay() {
     let mut world = World::new(Settings::calm(94));
     member(&mut world);
-    world.held_task(7, 1, jig_domain_people::HoldReason::Uncertain { entry: 9 });
-    let ask = Ask::Release { project: PROJECT, task: 7, revision: 1, again: None };
+    world.held_task(STOPPED_CHAT, 1, jig_domain_people::HoldReason::Uncertain { entry: 9 });
+    let ask = Ask::Release { project: PROJECT, task: STOPPED_CHAT, revision: 1, again: None };
     let call = world.request(SIGN_IN, [3; 16], ask.clone());
     world.commit_all();
     assert_eq!(
@@ -576,7 +576,7 @@ fn an_uncertain_release_keeps_the_missing_choice_facts_on_replay() {
             lacking: jig_domain_people::Lack::Again { required: true }
         })))
     );
-    world.held_task(7, 2, jig_domain_people::HoldReason::Budget);
+    world.held_task(STOPPED_CHAT, 2, jig_domain_people::HoldReason::Budget);
     world.restart();
     let replay = world.request(SIGN_IN, [3; 16], ask);
     assert_eq!(world.reply(replay), world.reply(call));
@@ -586,13 +586,13 @@ fn an_uncertain_release_keeps_the_missing_choice_facts_on_replay() {
 fn an_uncertain_effect_released_without_making_it_again_tells_its_executor() {
     let mut world = World::new(Settings::calm(95));
     member(&mut world);
-    world.held_task(7, 1, jig_domain_people::HoldReason::Uncertain { entry: 9 });
-    let ask = Ask::Release { project: PROJECT, task: 7, revision: 1, again: Some(false) };
+    world.held_task(STOPPED_CHAT, 1, jig_domain_people::HoldReason::Uncertain { entry: 9 });
+    let ask = Ask::Release { project: PROJECT, task: STOPPED_CHAT, revision: 1, again: Some(false) };
     let call = world.request(SIGN_IN, [4; 16], ask.clone());
     assert!(world.reply(call).is_none());
     assert!(world.executor_outcomes.is_empty());
     world.commit_all();
-    assert_eq!(world.reply(call), Some(Reply::Outcome(Outcome::Released { task: 7 })));
+    assert_eq!(world.reply(call), Some(Reply::Outcome(Outcome::Released { task: STOPPED_CHAT })));
     assert_eq!(world.executor_outcomes, [(9, false)]);
     world.restart();
     let replay = world.request(SIGN_IN, [4; 16], ask);
@@ -616,24 +616,24 @@ fn edit() -> jig_domain_people::Amendment {
 fn an_amendment_and_a_release_are_one_decision() {
     let mut world = World::new(Settings::calm(97));
     member(&mut world);
-    world.amended_task(7, 1);
-    world.held_task(7, 2, jig_domain_people::HoldReason::Stopped);
-    let ask = Ask::Amend { project: PROJECT, task: 7, revision: 1, amendment: edit(), release: Some(2) };
+    world.amended_task(STOPPED_CHAT, 1);
+    world.held_task(STOPPED_CHAT, 2, jig_domain_people::HoldReason::Stopped);
+    let ask = Ask::Amend { project: PROJECT, task: STOPPED_CHAT, revision: 1, amendment: edit(), release: Some(2) };
     let call = world.request(SIGN_IN, [1; 16], ask.clone());
     assert!(world.reply(call).is_none());
-    assert_eq!(world.spec_revision(7), Some(1));
-    assert!(world.held(7));
+    assert_eq!(world.spec_revision(STOPPED_CHAT), Some(1));
+    assert!(world.held(STOPPED_CHAT));
     world.commit_all();
-    let expected = Some(Reply::Outcome(Outcome::Amended { task: 7, released: true }));
+    let expected = Some(Reply::Outcome(Outcome::Amended { task: STOPPED_CHAT, released: true }));
     assert_eq!(world.reply(call), expected);
-    assert_eq!(world.spec_revision(7), Some(2));
-    assert!(!world.held(7));
+    assert_eq!(world.spec_revision(STOPPED_CHAT), Some(2));
+    assert!(!world.held(STOPPED_CHAT));
     world.restart();
     let routes = world.stats().routes;
     let replay = world.request(SIGN_IN, [1; 16], ask);
     assert_eq!(world.reply(replay), expected);
     assert_eq!(world.stats().routes, routes);
-    assert_eq!(world.spec_revision(7), Some(2));
+    assert_eq!(world.spec_revision(STOPPED_CHAT), Some(2));
     world.assert_settled();
 }
 
@@ -641,8 +641,8 @@ fn an_amendment_and_a_release_are_one_decision() {
 fn a_widening_amendment_with_release_is_proposed_and_released_on_acceptance() {
     let mut world = World::new(Settings { authority_refuses: true, ..Settings::calm(98) });
     let person = member(&mut world);
-    world.amended_task(7, 1);
-    world.held_task(7, 2, jig_domain_people::HoldReason::Stopped);
+    world.amended_task(STOPPED_CHAT, 1);
+    world.held_task(STOPPED_CHAT, 2, jig_domain_people::HoldReason::Stopped);
     let mut amendment = edit();
     amendment.authority = Some(jig_domain_people::Authority {
         tools: 0,
@@ -659,7 +659,11 @@ fn a_widening_amendment_with_release_is_proposed_and_released_on_acceptance() {
         [1; 16],
         Ask::Propose {
             project: PROJECT,
-            action: jig_domain_people::Action::Amend { task: 7, revision: 1, amendment: Box::new(amendment) },
+            action: jig_domain_people::Action::Amend {
+                task: STOPPED_CHAT,
+                revision: 1,
+                amendment: Box::new(amendment),
+            },
             reason: b"please widen".as_slice().into(),
         },
     );
@@ -667,8 +671,8 @@ fn a_widening_amendment_with_release_is_proposed_and_released_on_acceptance() {
     let Some(Reply::Outcome(Outcome::Proposed { proposal, to: 0 })) = world.reply(call) else {
         panic!("widening proposed")
     };
-    assert_eq!(world.spec_revision(7), Some(1));
-    assert!(world.held(7));
+    assert_eq!(world.spec_revision(STOPPED_CHAT), Some(1));
+    assert!(world.held(STOPPED_CHAT));
     world.restart();
     let decision = Ask::DecideProposal {
         project: PROJECT,
@@ -679,21 +683,21 @@ fn a_widening_amendment_with_release_is_proposed_and_released_on_acceptance() {
     };
     let call = world.request(SIGN_IN, [2; 16], decision.clone());
     assert!(world.reply(call).is_none());
-    assert_eq!(world.spec_revision(7), Some(1));
-    assert!(world.held(7));
+    assert_eq!(world.spec_revision(STOPPED_CHAT), Some(1));
+    assert!(world.held(STOPPED_CHAT));
     world.commit_all();
     assert!(matches!(
         world.reply(call),
         Some(Reply::Outcome(Outcome::ProposalDecided { choice: ProposalChoice::Accepted, .. }))
     ));
-    assert_eq!(world.spec_revision(7), Some(2));
-    world.request(SIGN_IN, [3; 16], Ask::Release { project: PROJECT, task: 7, revision: 2, again: None });
+    assert_eq!(world.spec_revision(STOPPED_CHAT), Some(2));
+    world.request(SIGN_IN, [3; 16], Ask::Release { project: PROJECT, task: STOPPED_CHAT, revision: 2, again: None });
     world.commit_all();
-    assert!(!world.held(7));
+    assert!(!world.held(STOPPED_CHAT));
     world.restart();
     let replay = world.request(SIGN_IN, [2; 16], decision);
     assert_eq!(world.reply(replay), world.reply(call));
-    assert_eq!(world.spec_revision(7), Some(2));
+    assert_eq!(world.spec_revision(STOPPED_CHAT), Some(2));
     world.assert_settled();
 }
 
