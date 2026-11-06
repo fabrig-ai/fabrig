@@ -273,9 +273,20 @@ section.temper-accounts button:hover { text-decoration: underline; }
 .temper-agent-page details.temper-work > summary { display: inline-flex; align-items: baseline; gap: 14px; list-style: none; cursor: pointer; }
 .temper-agent-page details.temper-work > summary > [id^="skein-ui-description-"] { color: #aaa297; }
 .temper-agent-page details.temper-work > summary::-webkit-details-marker { display: none; }
-.temper-agent-page details.temper-work > summary::before { content: '└' / ''; color: #b5a99b; font-size: 17.5px; }
 .temper-agent-page details.temper-work > summary:focus-visible { outline: 2.33px solid var(--temper-accent); outline-offset: 2.33px; }
-.temper-agent-page details.temper-work > .temper-work { margin: 7px 0 0 21px; }
+/* The line: what the run did and how long it took, in words; it opens to one row a call. */
+.temper-agent-page details.temper-work-run > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; cursor: pointer; }
+.temper-agent-page details.temper-work-run > summary::before { content: ''; flex: none; display: inline-block; width: 14px; height: 14px; background: url(files/doc.svg) center / contain no-repeat; }
+.temper-agent-page details.temper-work-run > summary::after { content: '›' / ''; display: inline-block; margin-left: -2px; color: var(--temper-muted); transition: transform .15s; }
+.temper-agent-page details.temper-work-run[open] > summary::after { transform: rotate(90deg); }
+.temper-agent-page details.temper-work-running > summary > [id^="skein-ui-description-"]::after { content: '…' / ''; animation: chat-typing 1s infinite ease-in-out; }
+.temper-agent-page details.temper-work-run > .temper-work-calls { display: flex; flex-direction: column; gap: 3px; margin: 8px 0 2px 24px; }
+.temper-agent-page .temper-work-calls > p { display: flex; flex-wrap: wrap; gap: 0 10px; margin: 0; font-size: 12.5px; color: var(--temper-muted); }
+.temper-agent-page .temper-work-calls code { min-width: 74px; font: 12px var(--temper-mono); color: var(--temper-ink); }
+.temper-agent-page .temper-work-calls .temper-work-out { color: var(--temper-faint); }
+.temper-agent-page .temper-work-calls::before { content: none; }
+.temper-agent-page details.temper-work-failed > summary > [id^="skein-ui-description-"], .temper-agent-page .temper-work-calls > .temper-work-failed > .temper-work-out { color: var(--temper-red); }
+.temper-agent-page details.temper-work-failed > summary > [id^="skein-ui-description-"]::before { content: ', ' / ''; margin-left: -6px; }
 /* .terminal-day: run and omission markers, and quiet activity in the content column. */
 .temper-agent-page .temper-marker { display: flex; align-items: center; gap: 15.17px; color: #aaa196; font-size: 11.67px; margin-bottom: 21px; }
 .temper-agent-page .temper-marker::after { content: ''; height: 1px; flex: 1; background: var(--temper-line); }
@@ -633,14 +644,6 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-agent-page .temper-thread > .temper-ended { display: flex; align-items: center; gap: 15.17px; padding-left: 0; font-size: 11.67px; color: #8b8378; margin-bottom: 21px; }
 .temper-agent-page .temper-thread > .temper-ended::after, .temper-agent-page .temper-thread > button:first-child::after { content: ''; height: 1px; flex: 1; background: var(--temper-line); }
 .temper-agent-page .temper-thread > button:first-child { display: flex; align-items: center; gap: 15.17px; min-height: 0; border: 0; background: transparent; padding: 0; margin-block: 0 21px; color: var(--temper-accent-dark); font: inherit; font-size: 11.67px; }
-/* A provisional agent message is identified by its WHO status, as in the view. */
-.temper-agent-page .temper-by-agent:has(> .temper-who > [role=status]) > .temper-who > [role=status] { color: #4c8067; font-size: 11.67px; text-transform: none; letter-spacing: 0; }
-.temper-agent-page .temper-by-agent:has(> .temper-who > [role=status]) > .temper-says { color: #59534c; }
-.temper-agent-page .temper-by-agent:has(> .temper-who > [role=status]) > .temper-says > p:last-of-type::after { content: ''; display: inline-block; width: 5.83px; height: 14px; margin-left: 2.33px; background: #aa6a50; vertical-align: -2.33px; animation: agent-blink 1s steps(1) infinite; }
-@keyframes agent-blink { 50% { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) {
-  .temper-agent-page .temper-by-agent:has(> .temper-who > [role=status]) > .temper-says > p:last-of-type::after { animation: none; }
-}
 .temper-repository { font-weight: 700; }
 @media (max-width: 760px) {
   .temper-agent-page .temper-by-agent > .temper-says td:first-child { white-space: normal; }
@@ -1327,7 +1330,6 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > summary::-webkit-details-marker { display: none; }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > summary::after { content: none; }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > summary > span { color: var(--gf-faint); }
-#app > .temper-session details.temper-turn-tool > .temper-work { margin: 6px 0 0 24px; }
 #app > .temper-session .temper-task-card > :is(.temper-meta, .temper-steps) { display: none; }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > :is(p, .temper-title, .temper-details) { margin: 0; padding: 0; border: 0; background: none; font: inherit; color: inherit; }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > .temper-title { font-weight: 400; color: var(--gf-ink-2); }
@@ -1339,6 +1341,19 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > .temper-details { color: var(--gf-faint); }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > .temper-details > * { margin: 0; font: inherit; }
 #app > .temper-session :is(.temper-turn-tool, .temper-task-card) > :is(a, button) { padding: 0; border: 0; background: none; color: var(--gf-muted); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; font-size: 13px; }
+/* The line: what the run did and how long it took, in words; it opens to one row a call. */
+#app > .temper-session details.temper-work-run > summary { cursor: pointer; }
+#app > .temper-session details.temper-work-run > summary::before { background-image: url(files/doc.svg); }
+#app > .temper-session details.temper-work-run > summary::after { content: '›' / ''; display: inline-block; margin-left: -2px; color: var(--gf-faint); transition: transform .15s; }
+#app > .temper-session details.temper-work-run[open] > summary::after { transform: rotate(90deg); }
+#app > .temper-session details.temper-work-running > summary > [id^="skein-ui-description-"]::after { content: '…' / ''; animation: chat-typing 1s infinite ease-in-out; }
+#app > .temper-session details.temper-work-run > .temper-work-calls { display: flex; flex-direction: column; gap: 3px; margin: 8px 0 2px 24px; }
+#app > .temper-session .temper-work-calls > p { display: flex; flex-wrap: wrap; gap: 0 10px; margin: 0; font-size: 12.5px; color: var(--gf-muted); }
+#app > .temper-session .temper-work-calls code { min-width: 74px; font: 12px var(--gf-mono); color: var(--gf-ink-2); }
+#app > .temper-session .temper-work-calls .temper-work-out { color: var(--gf-faint); }
+#app > .temper-session details.temper-work-failed > summary > [id^="skein-ui-description-"] { color: var(--gf-signal); }
+#app > .temper-session details.temper-work-failed > summary > [id^="skein-ui-description-"]::before { content: ', ' / ''; margin-left: -6px; }
+#app > .temper-session .temper-work-calls > .temper-work-failed > .temper-work-out { color: var(--gf-signal); }
 /* Conversation cards use the mock's proposal, independently of the inbox. */
 #app > .temper-session .temper-thread-inner .temper-card:not(.temper-task-card) { display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 20px 22px; border: 0; border-radius: 12px; background: var(--gf-surface); box-shadow: 0 1px 2px rgba(24, 24, 27, .06), 0 0 0 1px rgba(24, 24, 27, .05); }
 #app > .temper-session .temper-thread-inner .temper-card:not(.temper-task-card) > * { margin: 0; }
@@ -1529,7 +1544,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-session .temper-by-person > .temper-who > [role=status] { order: 1; align-self: flex-end; margin: 4px 0 0; padding: 0; border: 0; border-radius: 0; background: none; color: var(--gf-faint); font-size: 12px; font-weight: 400; text-align: right; }
 #app > .temper-session .temper-by-delegate > .temper-who { color: var(--gf-faint); font-size: 12px; }
 #app > .temper-session .temper-by-delegate > .temper-who > p { margin: 0; }
-#app > .temper-session .temper-day { display: none; }
+#app > .temper-session .temper-day, #app > .temper-session .temper-turn > .temper-who { display: none; }
 #app > .temper-session :is(.temper-marker, .temper-ended) { margin: 0; padding: 0; text-align: center; font-size: 12px; color: var(--gf-faint); }
 #app > .temper-session .temper-marker > [role=status] { margin: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; }
 .temper-writing-end, .temper-writing-end > * { display: inline; color: var(--gf-hint); }
@@ -1542,6 +1557,20 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
   #app > .temper-session .temper-thread > [role=log] { padding: 20px 16px; scrollbar-gutter: auto; scrollbar-width: none; }
 }
 
+/* Reading: earlier lines load at the head, and Latest returns to the end. */
+#app > .temper-session .temper-thread { position: relative; }
+#app > .temper-session .temper-thread-loading,
+.temper-agent-page .temper-thread-loading { margin: 0; padding: 0; border: 0; background: none; color: var(--gf-faint); font-size: 12px; text-align: center; }
+#app > .temper-session .temper-latest { display: none; position: absolute; left: 50%; bottom: 12px; z-index: 5; transform: translateX(-50%); padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 999px; background: var(--gf-surface); box-shadow: 0 2px 8px rgba(24, 24, 27, .1); color: var(--gf-ink-2); font-size: 13px; }
+#app > .temper-session .temper-thread:has(> [role=log][data-log-away]) > .temper-latest { display: block; }
+#app > .temper-session .temper-latest::after { content: ' ↓' / ''; }
+#app > .temper-session .temper-latest:hover { color: var(--gf-ink); border-color: #b4b4ae; }
+
+/* The answer ends where its last closed Markdown block ends. */
+#app > .temper-session .temper-by-agent > .temper-says ol,
+.temper-agent-page .temper-by-agent > .temper-says ol { padding-left: 22px; }
+#app > .temper-session .temper-by-agent > .temper-says ol > li::marker,
+.temper-agent-page .temper-by-agent > .temper-says ol > li::marker { color: var(--gf-faint); }
 /* Playground suggestions keep the centred new-chat opening beside configuring's cards. */
 #app > .temper-session .temper-starter:not(:has(> .temper-starter-ways)) { margin: 12vh auto 0; align-items: center; gap: 16px; }
 #app > .temper-session .temper-starter > .temper-starters { width: min(520px, 100%); display: flex; flex-direction: column; gap: 8px; }

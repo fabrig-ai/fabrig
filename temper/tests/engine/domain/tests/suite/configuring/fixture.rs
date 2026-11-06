@@ -173,12 +173,21 @@ impl World {
     }
     /// Stock setup with story-specific entrance bounds.
     pub fn with_limits(config: engine::Config, limits: &engine::Limits) -> Self {
+        let identity = config.core.owners[0].identity.clone();
         let templates = config.core.defaults.templates.clone();
         let period_budget = config.core.defaults.rules.period_spend;
         let mut driver = Driver::cold(Store::with_limits(limits), config, limits);
         driver.period_sent = true;
         driver.settle();
-        driver.sign_in();
+        driver.send(Event::Party(PartyInput::SignedIn {
+            held: None,
+            reply_to: ReplyTo::new(Token::new(101)),
+            identity: people::Identity {
+                key: identity,
+                login: b"person".as_slice().into(),
+                name: b"Person".as_slice().into(),
+            },
+        }));
         driver.settle();
         let owner = driver.session();
         // A fake key envelope exercises account admission without a cold replay
@@ -284,8 +293,12 @@ impl World {
         sign_in
     }
     pub fn chat(&mut self, template: u32, session: u64, key: u8) -> engine::Assignment {
+        self.chat_words(template, session, key, b"Explain how our work runs")
+    }
+    /// Start a stock chat with the person's opening words.
+    pub fn chat_words(&mut self, template: u32, session: u64, key: u8, words: &[u8]) -> engine::Assignment {
         let template = self.templates.iter().find(|value| value.number == template).expect("stock template");
-        let mut ask = self.driver.chat_ask(PROJECT, b"Explain how our work runs");
+        let mut ask = self.driver.chat_ask(PROJECT, words);
         let people::Ask::Create { batch, .. } = &mut ask else { panic!("chat") };
         let people::TemplateExecutor::Charter(charter) = template.executor else { panic!("chat charter") };
         let tasks::Contract::Report { words } = template.contract else { panic!("chat report") };

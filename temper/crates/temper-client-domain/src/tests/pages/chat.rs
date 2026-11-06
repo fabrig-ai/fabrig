@@ -1729,3 +1729,26 @@ fn a_page_of_working_notes_does_not_hide_a_later_document() {
     assert_eq!(f.chat.next_deadline(), None);
     assert!(f.out.is_empty());
 }
+
+#[test]
+fn latest_reads_the_newer_window_cursor_once() {
+    let limits = fixtures::limits();
+    let client = jig_client::Client::unlinked(&limits.client, fixtures::SEED).unwrap();
+    let mut out = Queue::with_capacity(OUTPUTS);
+    let mut chat = Chat::new(f::TASK, crate::pages::chat::document::Mode::Chat, f::FIRST, &limits, &mut out);
+    while out.pop().is_some() {}
+    chat.thread.reading = None;
+    let cursor = c::Cursor::new(b"newer".as_slice().into(), 5).unwrap();
+    chat.thread.lines.edges.before = jig_client::thread::window::Edge::More(cursor.clone());
+    let mut serial = SERIAL;
+    chat.act(&fixtures::env(&limits), &client, Act::Latest, &mut serial, &mut out);
+    assert_eq!(
+        out.pop(),
+        Some(Request::Client(Event::Read {
+            handle: chat.activity,
+            read: Readable::Jig(c::Read::Activity { task: f::TASK, before: Some(cursor) }),
+        }))
+    );
+    chat.act(&fixtures::env(&limits), &client, Act::Latest, &mut serial, &mut out);
+    assert!(out.is_empty(), "an outstanding read is not duplicated");
+}

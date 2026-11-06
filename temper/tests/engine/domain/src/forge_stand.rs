@@ -127,6 +127,12 @@ impl ForgeStand {
     }
 
     /// Push one commit on a new branch, as `forge_routes.rs`'s `check_gate_landing` does.
+    /// Set one fake collaborator's permission between settled calls.
+    pub fn grant(&mut self, repository: &[u8], user: u64, permission: raw::Permission) {
+        assert!(self.quiescent(), "change collaborators between stand calls");
+        fake::grant(&mut self.domain, repository, user, permission);
+    }
+
     pub fn push_branch(&mut self, repository: u32, branch: &[u8]) {
         assert!(self.quiescent(), "push between stand calls");
         let name = self.repositories.get(&repository).expect("configured repository").clone();
