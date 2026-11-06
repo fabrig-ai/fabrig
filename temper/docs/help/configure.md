@@ -92,8 +92,8 @@ file; it may share a file with other settings. Edit `set` before sending. Its sp
 resize the project's open period and parties' pools immediately; policy 1
 sets only future projects' starting values.
 
-Set project-policy `period_spend` 8200000 beside rules `period_spend` 8300000;
-`project show PROJECT` confirms the open period's budget is 8200000.
+Set project-policy `period_spend` 8300000 beside rules `period_spend` 8400000;
+`project show PROJECT` confirms the open period's budget is 8300000.
 
 For a project's landing rule, add `"project": PROJECT` to its `setting`.
 
