@@ -602,3 +602,46 @@ fn a_refused_close_stays_in_its_sheet_until_kept() {
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
 }
+
+#[test]
+fn a_chat_pauses_resumes_and_a_message_resumes_it() {
+    let mut world = fixtures::world(fixtures::SEED);
+    world.front().reply_in_pieces(&[b"Working"]);
+    let task = fixtures::chat(world.front(), b"Hello");
+    let person = world.client(fixtures::PARTY, fixtures::chat_page(task));
+    let see = |find| Step::See { find, within: fixtures::WITHIN };
+    let gone = |find| Step::Gone { find, within: fixtures::WITHIN };
+    let button = |name: &[u8]| Find::exactly_named(Role::Button, name);
+    let paused = || Find::exactly_named(Role::Status, b"Paused");
+    world.person(
+        person,
+        vec![
+            see(button(b"Pause")),
+            Step::Press { find: button(b"Pause") },
+            see(paused()),
+            see(button(b"Resume")),
+            gone(button(b"Pause")),
+            gone(Find::text(b"Applied")),
+            see(Find::text(b"Sending resumes this chat.")),
+            Step::Press { find: button(b"Resume") },
+            gone(paused()),
+            gone(Find::text(b"Applied")),
+            see(button(b"Pause")),
+            Step::Press { find: button(b"Pause") },
+            see(paused()),
+            Step::Type { find: Find::named(Role::TextArea, b"Message"), words: b"And then?".as_slice().into() },
+            Step::Press { find: button(b"Send") },
+            gone(paused()),
+            see(Find::text(b"And then?")),
+        ],
+    );
+    let result = world.run(Until::Done);
+    assert_eq!(result.verdict, Verdict::Passed, "{result:?}");
+    let chat = world.front().engine.task(task).expect("live chat");
+    assert!(!matches!(chat.phase, jig_domain_tasks::Phase::Held { .. }));
+    assert_eq!(chat.inbox.iter().filter(|message| message.words.as_ref() == b"And then?").count(), 1);
+    assert!(world.front().release_reply());
+    world.person(person, vec![see(Find::text(b"Answered by the run"))]);
+    let result = world.run(Until::Done);
+    assert_eq!(result.verdict, Verdict::Passed, "{result:?}");
+}
