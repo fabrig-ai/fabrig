@@ -377,6 +377,14 @@ this environment) is the application's (`../../domain/people.md`, 5.1):
   conversation with every delegate live, or reorder every goal of a
   project, in one request (`../../protocol/configuration.md`, section
   6).
+- **One check is the wire's own:** each operation on the wire names a
+  project, and the people child's operations name none, since their
+  compound names it once. So the clients' protocol layer compares the
+  two numbers, before anything else of the request and before a later
+  operation fails to decode, and answers one that differs refused, as
+  malformed, naming its place: a request that disagrees with itself,
+  which never reaches the people child. Whether each operation's task
+  is in the request's project stays the people child's.
 - **Revisions, as alone:** each operation names its revision where it
   would alone (5.2), so a `Release` names its hold's beside words or an
   amendment; a priority-only `Amend` names none, the first commit

@@ -2317,3 +2317,16 @@ a.temper-repository-link:hover { text-decoration: underline; }
   .temper-main:where(:not(.temper-settings)) .temper-flow-primary { min-height: 44px; }
   #app dialog.temper-confirm > .temper-confirm-acts > button { min-height: 44px; }
 }
+
+/* Public records keep their identity, title and facts in a wrapping reading column. */
+.temper-main.temper-public-page { display: flex; flex-direction: column; gap: 16px; width: min(1000px, calc(100% - 32px)); margin-inline: auto; padding: 20px 0 68px; }
+.temper-main.temper-public-page > * { width: auto; min-width: 0; max-width: 100%; margin-inline: 0; overflow-wrap: anywhere; }
+.temper-public-page > a { display: block; align-self: flex-start; }
+.temper-public-page nav { display: flex; flex-wrap: wrap; gap: 8px 16px; }
+.temper-public-page ul { padding-left: 20px; }
+.temper-public-row { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding-block: 12px; border-bottom: 1px solid var(--temper-line); }
+.temper-public-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 16px; min-width: 0; }
+.temper-public-title > a { flex: 0 1 auto; font-weight: 700; }
+.temper-public-title > p { flex: 1 1 24ch; min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.temper-public-meta { display: flex; flex-wrap: wrap; gap: 8px 16px; color: var(--temper-muted); }
+.temper-public-meta > * { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }

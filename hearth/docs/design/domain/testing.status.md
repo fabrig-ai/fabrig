@@ -58,28 +58,3 @@
 - **Departs:** 9.1: no global timeout holds hearth's suites alone, because
   the root has one `default` and one `fuzzy` profile, whose 150 s and 600 s
   sum each tree's figures, hearth's 30 s and 120 s among them.
-- **Departs:** 9.1: the budget reads the queue's figure, and for the suite as it
-  stands none has been read. The last the request of 2026-11-06 gives, 30.5 CPU s
-  over 2189 tests at 14:49 UTC that day, precedes its repairs, so neither the
-  30 CPU s, nor the 27 it aims for on that figure, nor the record after landing it
-  asks for, is shown, because nothing in a plan runs after it lands. Outside the
-  queue, all 34 hearth workspace packages with
-  `NEXTEST_DOUBLE_SPAWN=0` and unoptimized test builds measure each test's user
-  plus system CPU, waited and reaped descendants included, excluding compilation,
-  listing and nextest (`tools/tiers/design.md`, 7.3). At `3ed249efcd`, whose hearth
-  code is main's, on a skein that has changed since, the focused suite reads
-  23.767613 and 23.143157 CPU s over 2193 tests; the lower figure has 19.110414
-  user s and 4.032743 system s. Its families are builder 4.938397 (106 tests),
-  tree 6.606667 (55), real git 3.610547 (184), render 2.609483 (109), and the
-  rest 5.378063 CPU s (1739). The same machine, in the same sitting, reads 31.472249
-  and 30.349378 over 2189 tests at `39b490f138`, before the repairs: the lower
-  figures stand at 76.26%, 7.206221 CPU s less, under the 85% of a machine's own
-  figure that request aims for, and every one of the 2189 remains. Fuzzy reads
-  68.963035 CPU s (68.569861 user, 0.393174 system), 19.271153 wall s over 60
-  tests, the large render 4.114809 CPU s. All selected tests pass, without retries,
-  starvation, unobserved tests, leaks or incomplete accounting. The suite's CPU by
-  function has a sampled instruction profile, from before the repairs and none
-  since (the `hearth-speed-2` plan's figures, at `668f7cd3e5`). The fuzzy budget's
-  basis and the render world's selection on every change await the user's ruling
-  (11). The causes of variation across machines and the large render's split
-  between harness and production code remain unknown.

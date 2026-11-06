@@ -3,20 +3,21 @@ use crate::{Encodable, Encoded, Event, Request};
 use alloc::boxed::Box;
 use fixtures::Worker;
 use jig_domain_host as host;
+use jig_domain_link::{CountKind, Form, Grant, PROGRAM_ENDPOINTS, Scheme, SourceName};
 use smith_host_domain as smith;
 
 #[test]
 fn a_grants_form_maps_one_to_one_into_smiths() {
     for (form, expected) in [
-        (host::Form::Credential(host::Scheme::Bearer), Some(smith::Form::Credential(smith::Scheme::Bearer))),
-        (host::Form::Credential(host::Scheme::Key), Some(smith::Form::Credential(smith::Scheme::Key))),
-        (host::Form::Application, None),
+        (Form::Credential(Scheme::Bearer), Some(smith::Form::Credential(smith::Scheme::Bearer))),
+        (Form::Credential(Scheme::Key), Some(smith::Form::Credential(smith::Scheme::Key))),
+        (Form::Application, None),
         (
-            host::Form::Program(host::SourceName::new(b"claude").expect("source name")),
+            Form::Program(SourceName::new(b"claude").expect("source name")),
             Some(smith::Form::Program(smith::SourceName::new(b"claude").expect("smith source name"))),
         ),
     ] {
-        let grant = host::Grant { form, account: 7, generation: 4, valid: skein_lib::Duration::from_secs(30) };
+        let grant = Grant { form, account: 7, generation: 4, valid: skein_lib::Duration::from_secs(30) };
         let actual = crate::translate::grant(grant);
         match expected {
             Some(form) => {
@@ -99,7 +100,7 @@ fn a_channel_fact_reaches_the_hub_as_activity() {
     assert_eq!(worker.out.pop(), Some(Request::Fact { owner: fixtures::AGENT, body: Box::from(&b"a fact"[..]) }));
     worker.clear();
     let activity =
-        host::AgentActivity::Count { kind: host::CountKind::TextArrived, elapsed: skein_lib::Duration::ZERO, count: 1 };
+        host::AgentActivity::Count { kind: CountKind::TextArrived, elapsed: skein_lib::Duration::ZERO, count: 1 };
     worker.step(Event::Activity { owner: fixtures::AGENT, activity: Some(activity) });
     assert_eq!(
         worker.out.pop(),
@@ -284,15 +285,15 @@ fn only_an_agents_grants_refusal_carries_the_grants_start_cause() {
 fn hello_endpoints_keep_uniqueness_and_count_checks() {
     let mut limits = fixtures::limits();
     assert!(crate::valid(&limits));
-    let mut endpoints = skein_lib::List::with_capacity(host::PROGRAM_ENDPOINTS);
-    for endpoint in 0..host::PROGRAM_ENDPOINTS {
+    let mut endpoints = skein_lib::List::with_capacity(PROGRAM_ENDPOINTS);
+    for endpoint in 0..PROGRAM_ENDPOINTS {
         endpoints.push(endpoint).expect("bounded endpoint list");
     }
     limits.bounds.program_endpoints = endpoints.into_boxed();
     assert!(crate::valid(&limits));
     limits.bounds.program_endpoints = Box::new([0, 0]);
     assert!(!crate::valid(&limits));
-    let past_cap = host::PROGRAM_ENDPOINTS + 1;
+    let past_cap = PROGRAM_ENDPOINTS + 1;
     let mut endpoints = skein_lib::List::with_capacity(past_cap);
     for endpoint in 0..past_cap {
         endpoints.push(endpoint).expect("one slot per endpoint");

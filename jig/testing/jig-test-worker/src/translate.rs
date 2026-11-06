@@ -1,14 +1,15 @@
 //! Stateless vocabulary translations; no payload codecs (hosts.md, 6.8).
 use jig_domain_host as host;
+use jig_domain_link::{Form, Grant, Operation, Scheme};
 use smith_host_domain as smith;
 
 #[must_use]
-pub fn grant(value: host::Grant) -> Option<smith::Grant> {
+pub fn grant(value: Grant) -> Option<smith::Grant> {
     let form = match value.form {
-        host::Form::Credential(host::Scheme::Bearer) => smith::Form::Credential(smith::Scheme::Bearer),
-        host::Form::Credential(host::Scheme::Key) => smith::Form::Credential(smith::Scheme::Key),
-        host::Form::Program(name) => smith::Form::Program(smith::SourceName::new(name.as_bytes())?),
-        host::Form::Application => return None,
+        Form::Credential(Scheme::Bearer) => smith::Form::Credential(smith::Scheme::Bearer),
+        Form::Credential(Scheme::Key) => smith::Form::Credential(smith::Scheme::Key),
+        Form::Program(name) => smith::Form::Program(smith::SourceName::new(name.as_bytes())?),
+        Form::Application => return None,
     };
     Some(smith::Grant { account: value.account, generation: value.generation, valid: value.valid, form })
 }
@@ -34,11 +35,11 @@ pub const fn refusal(value: smith::MessageRefusal) -> host::MessageRefusal {
 }
 
 #[must_use]
-pub const fn operation(value: smith::Operation) -> host::AgentOperation {
+pub const fn operation(value: smith::Operation) -> Operation {
     match value {
-        smith::Operation::Checks => host::AgentOperation::Checks,
-        smith::Operation::Completion => host::AgentOperation::Completion,
-        smith::Operation::Command => host::AgentOperation::Command,
+        smith::Operation::Checks => Operation::Checks,
+        smith::Operation::Completion => Operation::Completion,
+        smith::Operation::Command => Operation::Command,
     }
 }
 

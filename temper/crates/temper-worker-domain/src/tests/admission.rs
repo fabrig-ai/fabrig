@@ -2,6 +2,7 @@
 use super::fixtures::{self, ATTEMPT, RUN};
 use crate::{Encoded, Event, admits, agent, checkout, host, is_new_work, passes};
 use alloc::boxed::Box;
+use jig_domain_link::{GrantTable, SignOutResult, SourceName};
 use skein_lib::Token;
 
 const OWNER: Token = Token::new(23);
@@ -10,7 +11,7 @@ const MESSAGE: Token = Token::new(24);
 const WATERMARK: u32 = 1;
 
 fn admission_classes() -> Box<[(Event, bool, bool)]> {
-    let source = host::SourceName::new(b"alice").unwrap();
+    let source = SourceName::new(b"alice").unwrap();
     Box::new([
         (
             Event::Assign { assignment: fixtures::assignment(false, Box::new([])), items: Ok(fixtures::items(&[])) },
@@ -50,16 +51,13 @@ fn admission_classes() -> Box<[(Event, bool, bool)]> {
             Event::Link(host::LinkDown::Grant {
                 run: RUN,
                 attempt: ATTEMPT,
-                grant: fixtures::grant(host::GrantTable::Accounts, fixtures::ACCOUNT),
+                grant: fixtures::grant(GrantTable::Accounts, fixtures::ACCOUNT),
             }),
             false,
             false,
         ),
         (
-            Event::SourceAnswered {
-                owner: OWNER,
-                answer: host::sources::Answer::SignedOut(host::SignOutResult::SignedOut),
-            },
+            Event::SourceAnswered { owner: OWNER, answer: host::sources::Answer::SignedOut(SignOutResult::SignedOut) },
             false,
             false,
         ),

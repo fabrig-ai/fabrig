@@ -34,7 +34,7 @@ fn varied_pages_and_faults_hold_the_contract() {
         world.open();
         let mut referee = Referee::new();
         let op = Token::new(10);
-        match next(&mut seed) % 3 {
+        match next(&mut seed) % 4 {
             0 => {
                 world.ax_visible = next(&mut seed) & 1 == 0;
                 let expect = if world.ax_visible { Expect::Present } else { Expect::Absent };
@@ -70,6 +70,17 @@ fn varied_pages_and_faults_hold_the_contract() {
                     matches!(events.as_slice(), [Event::Done { .. } | Event::Refused { .. }]),
                     "seed {case}: {events:?}"
                 );
+                world.assert_commands_settled();
+            }
+            2 => {
+                world.ask(Request::Viewport {
+                    page: Token::new(3),
+                    op,
+                    width: u32::try_from(next(&mut seed) % 1600 + 320).expect("viewport test value"),
+                    height: 900,
+                });
+                let events = observe(&mut world, &mut referee);
+                assert!(matches!(events.as_slice(), [Event::Done { op: got }] if *got == op));
                 world.assert_commands_settled();
             }
             _ => {

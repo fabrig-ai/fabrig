@@ -15,14 +15,14 @@ pub(super) use jig_domain_hub_link::Ending;
 /// The three inputs of a worker channel, in arrival order.
 #[derive(Debug)]
 pub enum Event {
-    Hello { worker: u32, hello: host::Hello },
+    Hello { worker: u32, hello: jig_domain_link::Hello },
     Up(host::LinkUp),
     Lost,
 }
 
 /// Translate a worker's complete admission report.
 #[must_use]
-pub fn hello(channel: Token, worker: u32, hello: host::Hello) -> core::Event {
+pub fn hello(channel: Token, worker: u32, hello: jig_domain_link::Hello) -> core::Event {
     core::Event::Fleet(fleet::Event::Hello { channel, worker, hello })
 }
 

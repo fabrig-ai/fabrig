@@ -1,8 +1,7 @@
 //! Typed boundary tests through the public conversions.
 #![expect(clippy::disallowed_macros, reason = "tests assemble JSON cases from shared fields")]
-
-use jig_domain_accounts as accounts;
 use jig_domain_brief as brief;
+use jig_domain_link::{Form, Scheme};
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, ReplyTo, Token};
 use smith_domain as smith;
@@ -95,8 +94,8 @@ fn assignment() -> engine::Assignment {
         transcript: Box::new([]),
         answered: Box::new([]),
         settled: Box::new([]),
-        grants: Box::new([accounts::Grant {
-            form: accounts::Form::Credential(accounts::Scheme::Bearer),
+        grants: Box::new([jig_domain_link::Grant {
+            form: Form::Credential(Scheme::Bearer),
             account: 1,
             generation: 2,
             valid: Duration::from_secs(30),

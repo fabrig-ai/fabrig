@@ -5,89 +5,25 @@
 use crate::private::FileSystem;
 use crate::world::{self, Client, Process as Inner, Story};
 use skein_fake_peers::Transport;
-use skein_io::kernel::{Complete, Fd, Op, Submit};
-use skein_lib::{Duration, Queue, Time, Token, Wall, bytes};
+use skein_lib::{Duration, Time, Wall, bytes};
 use skein_world::{Host, Inherited, Memory, Referee, StartupRoot, World};
 use std::net::Ipv4Addr;
 
-const SIGNAL: Token = Token::new(0x7fff_ffff_ffff_ffff);
-const ROOM: u32 = 64;
-
 /// One restartable process, retaining its inherited signal until its owner settles.
-pub struct Process {
-    inner: Inner,
-    signal: Fd,
-    closing: bool,
-    closed: bool,
-    completions: Queue<Complete>,
-    submissions: Queue<Submit>,
-}
-impl Process {
-    fn new(inner: Inner, signal: Fd) -> Self {
-        Self {
-            inner,
-            signal,
-            closing: false,
-            closed: false,
-            completions: Queue::with_capacity(ROOM),
-            submissions: Queue::with_capacity(ROOM),
-        }
-    }
-}
-impl Host for Process {
-    fn iterate(&mut self, now: Time, wall: Wall) {
-        while let Some(complete) = self.completions.pop() {
-            if complete.op == SIGNAL {
-                assert!(complete.result.is_ok());
-                self.closed = true;
-            } else {
-                self.inner.completions().push(complete);
-            }
-        }
-        self.inner.iterate(now, wall);
-        while let Some(submit) = self.inner.submissions().pop() {
-            assert_ne!(submit.op, SIGNAL, "finite child namespaces leave the signal token free");
-            self.submissions.push(submit);
-        }
-        if self.inner.is_empty() && !self.closing {
-            self.closing = true;
-            self.submissions.push(Submit { op: SIGNAL, kind: Op::Close { fd: self.signal } });
-        }
-    }
-    fn completions(&mut self) -> &mut Queue<Complete> {
-        &mut self.completions
-    }
-    fn submissions(&mut self) -> &mut Queue<Submit> {
-        &mut self.submissions
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        !self.completions.is_empty() || self.inner.work_pending(now) || (self.inner.is_empty() && !self.closing)
-    }
-    fn next_mechanism_deadline(&self) -> Option<Time> {
-        self.inner.next_mechanism_deadline()
-    }
-
-    fn next_policy_deadline(&self) -> Option<Time> {
-        self.inner.next_policy_deadline()
-    }
-
-    fn is_empty(&self) -> bool {
-        self.closed && self.inner.is_empty() && self.completions.is_empty() && self.submissions.is_empty()
-    }
-    fn operations(&self) -> u32 {
-        self.inner.operations() + 1
-    }
-}
+pub type Process = crate::restart::Restartable<Inner>;
 
 fn issuer(inherited: &Inherited) -> Process {
     Process::new(
         world::issuer(Transport::Plaintext, Story::NotKept, (Ipv4Addr::LOCALHOST, 31000).into()),
         inherited.signal,
+        false,
+        |_| {},
+        |_, _| {},
     )
 }
 fn owner(inherited: &Inherited) -> Process {
     let root = inherited.roots.first().expect("private startup root").1;
-    Process::new(Inner::Client(Box::new(Client::recovery(root))), inherited.signal)
+    Process::new(Inner::Client(Box::new(Client::recovery(root))), inherited.signal, false, |_| {}, |_, _| {})
 }
 
 /// Only the original owner refreshes; fresh incarnations only recover.
@@ -100,14 +36,8 @@ pub struct Judge {
 }
 impl Referee<Process> for Judge {
     fn act(&mut self, _now: Time, procs: &mut [Process]) {
-        let address = match &procs[0].inner {
-            Inner::Issuer(peer) => peer.address(),
-            Inner::Client(_) => unreachable!("issuer"),
-        };
-        let client = match &mut procs[1].inner {
-            Inner::Client(client) => client,
-            Inner::Issuer(_) => unreachable!("owner"),
-        };
+        let address = procs[0].inner.issuer().expect("issuer process").address();
+        let client = procs[1].inner.client_mut().expect("client process");
         if let Some(address) = address {
             client.address = Some(address);
             if !self.started && client.unstarted() {
@@ -117,21 +47,12 @@ impl Referee<Process> for Judge {
         }
         if procs[1].is_empty() && !self.shutdown {
             self.shutdown = true;
-            match &mut procs[0].inner {
-                Inner::Issuer(peer) => peer.shutdown(),
-                Inner::Client(_) => unreachable!("issuer"),
-            }
+            procs[0].inner.issuer_mut().expect("issuer").shutdown();
         }
     }
     fn observe(&mut self, now: Time, procs: &[Process]) {
-        let address_ready = match &procs[0].inner {
-            Inner::Issuer(peer) => peer.address().is_some(),
-            Inner::Client(_) => false,
-        };
-        let client = match &procs[1].inner {
-            Inner::Client(client) => client,
-            Inner::Issuer(_) => unreachable!("owner"),
-        };
+        let address_ready = procs[0].inner.issuer().is_some_and(|peer| peer.address().is_some());
+        let client = procs[1].inner.client().expect("client process");
         self.wake = ((client.unstarted() && address_ready) || (procs[1].is_empty() && !self.shutdown)).then_some(now);
         self.passed = self.shutdown && procs.iter().all(Host::is_empty);
     }
@@ -163,8 +84,5 @@ pub fn world(seed: u64) -> World<Process, Judge, FileSystem> {
 /// The kept generation loaded by the fresh owner after a cut.
 #[must_use]
 pub fn recovered(procs: &[Process]) -> u64 {
-    match &procs[1].inner {
-        Inner::Client(client) => client.recovered.expect("recovery loaded a record"),
-        Inner::Issuer(_) => unreachable!("owner"),
-    }
+    procs[1].inner.client().expect("client process").recovered.expect("recovery loaded a record")
 }

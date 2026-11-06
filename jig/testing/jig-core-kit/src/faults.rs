@@ -3,6 +3,7 @@
 //! drain. Conformance can reuse the independent peers and the chosen cuts.
 use crate::world::Setup;
 use crate::{peers::Peers, world::World};
+use jig_domain_link::{Form, Scheme};
 use jig_fake_parties::{Act, Ask, Party, Role, Task};
 use jig_fake_workers::{Fault, Script, Worker};
 use skein_lib::{Duration, Time};
@@ -82,7 +83,7 @@ pub fn restart(world: &mut World, seed: u64, engine: bool) {
     // Account usability is an independently refreshed runtime capability.
     world.send(jig_test_domain::Event::Core(jig_domain_core::Event::Account(jig_domain_accounts::Event::Component(
         jig_domain_accounts::FromComponent::Granted {
-            form: jig_domain_accounts::Form::Credential(jig_domain_accounts::Scheme::Bearer),
+            form: Form::Credential(Scheme::Bearer),
             account: 1,
             generation: 1,
             valid: Duration::from_secs(60),

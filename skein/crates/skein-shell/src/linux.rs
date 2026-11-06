@@ -2,8 +2,8 @@
 //!
 //! # The `unsafe`, and why it is sound
 //!
-//! - Socket, listen, shutdown and close take only integers; no pointer is
-//!   retained. A successful socket descriptor is handed to io for Close.
+//! - Socket and listen take only integers; no pointer is retained.
+//!   A successful socket descriptor is handed to io for Close.
 //! - Bind and connect read a local, initialized `sockaddr_storage` encoded by
 //!   the address encoder, with exactly the encoded length.
 //! - Accept writes into initialized local address storage and its length,
@@ -15,8 +15,6 @@
 //!   their address and option checks with this backend.
 //! - Uname writes a whole local utsname, a plain C structure of byte arrays.
 //! - File calls' paths, offsets and buffers are documented in `files`.
-//! - Fcntl changes only the flags of a just-spawned parent pipe description;
-//!   it takes integers and retains no pointer.
 //! - A stream read/write borrows its slice for the call only. A signal read
 //!   writes one initialized local signalfd record, with its exact size passed.
 //! - Epoll's event pointers and ownership are documented in `epoll`.
@@ -29,8 +27,8 @@ pub(crate) mod group;
 #[path = "listener_calls.rs"]
 pub(crate) mod listener_calls;
 
-pub use crate::posix::wait_readable;
-pub(crate) use crate::posix::{retry, shutdown, status, terminal};
+pub(crate) use crate::posix::{close, nonblocking, retry, shutdown, status, status_flags, terminal};
+pub use crate::posix::{effective_user, wait_readable};
 use std::{mem, ptr};
 
 use skein_io::kernel::{Addr, Family, Fd};
@@ -46,10 +44,10 @@ pub use roots::make_root;
 pub(crate) use startup::{read_file, read_private_file};
 use sync::encode;
 pub(crate) use sync::{
-    clock_nanos, decode_addr, domain, last_errno, list, lock, opened, random, socklen_of, status_flags, zeroed_storage,
+    clock_nanos, decode_addr, domain, last_errno, list, lock, opened, random, socklen_of, zeroed_storage,
 };
 pub(crate) use sync::{close as close_unchecked, local_addr as getsockname, set_option as setsockopt};
-pub use sync::{directory_access, effective_user, open_append, open_root, prepare_output, process_id};
+pub use sync::{directory_access, open_append, open_root, prepare_output, process_id};
 
 /// An `EINTR` is returned, not retried (shell.md, 7.4).
 pub(crate) fn socket(family: Family) -> Result<Fd, i32> {
@@ -121,12 +119,6 @@ pub(crate) fn send(fd: Fd, bytes: &[u8]) -> Result<u32, i32> {
     })
 }
 
-pub(crate) fn close(fd: Fd) -> Result<(), i32> {
-    // Linux releases the descriptor even on EINTR; retry could close a reused fd.
-    // SAFETY: close takes only the descriptor, whose ownership io relinquishes.
-    status(unsafe { libc::close(fd.raw()) })
-}
-
 pub(crate) fn getsockopt(fd: Fd) -> Result<i32, i32> {
     retry(|| {
         let mut error: libc::c_int = 0;
@@ -160,14 +152,6 @@ pub(crate) const PATH_ONLY: i32 = libc::O_PATH;
 pub(crate) const FLOOR: (u32, u32) = (6, 12);
 pub(crate) const UNWATCHABLE: i32 = libc::EPERM;
 pub(crate) use epoll::{Epoll as Poller, Event};
-
-pub(crate) fn nonblocking(fd: Fd) -> Result<(), i32> {
-    let flags = retry(|| status_flags(fd.raw()))?;
-    retry(|| {
-        // SAFETY: fcntl takes integers and fd is the parent's fresh pipe end.
-        status(unsafe { libc::fcntl(fd.raw(), libc::F_SETFL, flags | libc::O_NONBLOCK) })
-    })
-}
 
 pub(crate) fn read(fd: Fd, buf: &mut [u8]) -> Result<u32, i32> {
     retry(|| {

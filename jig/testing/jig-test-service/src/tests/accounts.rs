@@ -3,6 +3,7 @@ use super::*;
 use crate::tests::fixtures;
 use alloc::boxed::Box;
 use jig_domain_accounts as domain;
+use jig_domain_link::{Form, Scheme};
 use skein_lib::{List, Secret};
 fn finish_start(service: &mut crate::Service) {
     for _ in 0_u32..64 {
@@ -134,12 +135,8 @@ fn service_restart_restores_an_llm_key_before_want_and_sweeps_only_unnamed_sourc
 
 fn has_llm_key_grant(heard: &List<domain::FromComponent>, wanted: u64) -> bool {
     for event in heard {
-        if let domain::FromComponent::Granted {
-            account: 7,
-            generation,
-            form: domain::Form::Credential(domain::Scheme::Key),
-            ..
-        } = event
+        if let domain::FromComponent::Granted { account: 7, generation, form: Form::Credential(Scheme::Key), .. } =
+            event
             && *generation == wanted
         {
             return true;

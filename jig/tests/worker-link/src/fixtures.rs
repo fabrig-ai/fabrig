@@ -1,3 +1,4 @@
+use jig_domain_link::{Bounds, Form, Grant, Hello, Hosting, ModelBound, Operation, Phase, Scheme};
 use jig_protocol_worker_link::{Credential, Limits};
 use skein_lib::{Duration, Secret};
 pub const WORKER_A: &[u8] = b"worker-a";
@@ -120,16 +121,16 @@ pub fn codec() -> wire::v9::Limits {
     wire::sizes::limits(&SIZES).expect("small codec limits")
 }
 #[must_use]
-pub fn hello() -> host::Hello {
-    host::Hello {
+pub fn hello() -> Hello {
+    Hello {
         jobs: Box::default(),
         slots: 1,
         stop_bound: Duration::from_secs(1),
         workstreams: Box::new([3]),
-        hosting: Box::new([host::Hosting { run: RUN_SEVEN, attempt: ATTEMPT_TWO, phase: host::Phase::Active }]),
-        bounds: host::Bounds {
+        hosting: Box::new([Hosting { run: RUN_SEVEN, attempt: ATTEMPT_TWO, phase: Phase::Active }]),
+        bounds: Bounds {
             program_endpoints: Box::new([]),
-            models: Box::new([host::ModelBound { name: b"model".as_slice().into(), window: 16, output: 8 }]),
+            models: Box::new([ModelBound { name: b"model".as_slice().into(), window: 16, output: 8 }]),
             turns: 1,
             spend: 10,
             time: Duration::from_secs(60),
@@ -177,10 +178,7 @@ pub fn up_records() -> Vec<(host::LinkUp, Box<[Part]>)> {
             host::LinkUp::Activity {
                 run: RUN_SEVEN,
                 attempt: ATTEMPT_TWO,
-                activity: host::AgentActivity::Long {
-                    operation: host::AgentOperation::Command,
-                    span: Duration::from_secs(2),
-                },
+                activity: host::AgentActivity::Long { operation: Operation::Command, span: Duration::from_secs(2) },
             },
             Box::new([]),
         ),
@@ -425,8 +423,8 @@ pub fn joined_limits() -> Limits {
     limits()
 }
 #[must_use]
-pub fn grant(form: host::Form) -> host::Grant {
-    host::Grant { form, account: 1, generation: 3, valid: Duration::from_secs(60) }
+pub fn grant(form: Form) -> Grant {
+    Grant { form, account: 1, generation: 3, valid: Duration::from_secs(60) }
 }
 #[must_use]
 pub fn assignment() -> host::Assignment {
@@ -439,7 +437,7 @@ pub fn assignment() -> host::Assignment {
             save: true,
             live: jig_domain_host::LiveAsk::NONE,
             charter: b"charter".as_slice().into(),
-            grants: Box::new([grant(host::Form::Credential(host::Scheme::Bearer)), grant(host::Form::Application)]),
+            grants: Box::new([grant(Form::Credential(Scheme::Bearer)), grant(Form::Application)]),
         },
         turns: Box::new([Box::from(b"one!".as_slice()), Box::from(b"two!".as_slice())]),
         answered: Box::new([host::AnsweredCall {
