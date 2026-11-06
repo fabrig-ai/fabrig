@@ -3,7 +3,7 @@ id = "update-hold-words"
 part = "machine"
 kind = "feature"
 needs = ["update-class", "update-let-go"]
-files = ["temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/tests/engine/domain/tests/suite/forge_routes/update_lost.rs", "temper/tests/engine/domain/tests/suite/forge_routes.rs"]
+files = ["temper/crates/temper-engine-domain/src/route/forge_route.rs", "temper/tests/engine/domain/tests/suite/forge_routes/update_lost.rs", "temper/tests/engine/domain/tests/suite/forge_routes.rs", "temper/tests/engine/domain/tests/suite/forge_routes/update_first.rs"]
 effort = "high"
 minutes = 60
 +++
@@ -33,7 +33,7 @@ Acceptance, in a new `temper/tests/engine/domain/tests/suite/forge_routes/update
 ## Owns and may change
 
 - In `forge_route.rs`, `hold_change_decision` only: `landing-fixes-2/saved-close` and `repair-cause` write elsewhere in this file. In `forge_routes.rs`, the `mod update_lost;` line.
-- `update_first.rs`: make `goal_world`, `finish`, `status`, `move_base` and `assert_landed` `pub(super)` if you use them; no other edit there.
+- `update_first.rs`: make `goal_world`, `finish`, `status`, `move_base` and `assert_landed` `pub(super)` if you use them, and the one constructor this spec's last answer names; no other edit there.
 
 **Options:**
 
@@ -60,3 +60,9 @@ In `lost_for_good` in `update_lost.rs`, right after `pending_update()`:
 `world.env.limits.forge.change_policy.stall = temper_service::limits::profile(temper_service::limits::Profile::Small).forge.change_policy.stall;`
 
 `temper/tests/engine/domain/tests/suite/forge_routes.rs` reads the shipped value the same way, and the machine reads `env.limits` at each step, so a change to the world before the send is enough. Literal durations, `StoryLimits` and `update_first.rs` stay as they are, as do the other three stories' 30 s, `lifetime_ms`, `write_attempts` and `updates`. Then carry on: see `an_update_lost_for_good_holds_at_its_count_told_why` fail for the missing account, make the change to `hold_change_decision`, close the status bullet. This call could not build, so the stories have not been run with it: if one still stops short of `Updates`, read why and ask, and don't raise the stall further. In your report, say the two stories take the shipped stall and why.
+
+2026-11-06, second. May `update_first.rs` expose a goal-world constructor that takes a story's stall before the root is made? Yes: option A, in this shape. This corrects the answer above, which was wrong that a change to `world.env.limits` after start is enough: the root keeps its limits and `step_routed` asserts `domain.limits == env.limits` (`temper/crates/temper-engine-domain/src/route.rs`, in `step_routed`), rightly. The guard stays. What that answer decided stands: the two permanent-loss stories take the shipped stall, and nothing else moves. Only the way in changes, and it is the one `a_change_whose_ci_takes_minutes_lands_without_being_held` uses: `StoryLimits { stall, .. }`, which sets it before the root is made.
+
+In `update_first.rs`, `goal_world`'s body moves to `pub(super) fn goal_world_stall(up_to_date: bool, stall: Option<Duration>)`, with `StoryLimits { slots: Some(4), stall, ..StoryLimits::default() }`; `goal_world(up_to_date)` calls it with `None`, so every other story's world is unchanged and no shared limit moves.
+
+In `update_lost.rs`, `pending_update` takes `stall: Option<Duration>`. `lost_for_good` drops its `world.env.limits` line and passes `Some(temper_service::limits::profile(temper_service::limits::Profile::Small).forge.change_policy.stall)`; the other three stories pass `None`. Then carry on as the answer above says. This call could not build, so this has not been run either: if a story still stops short of `Updates`, read why and ask.
