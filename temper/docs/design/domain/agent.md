@@ -966,9 +966,15 @@ and waits in the Needs you of each project it belongs to (jig's
     again is never someone else's side;
   - never to report a read it could not make as a fact about the
     settings;
-  - to say that nothing has changed only when it first gives a proposal's
-    number, or where the person thinks something applied; never before a
+  - to say that nothing has changed only when it first tells the person of a
+    proposal, or where the person thinks something applied; never before a
     proposal, and never to close a reply;
+  - to tell the person that a proposal it made waits in this chat for their
+    Accept, or for an owner's where they are not one, without the key its
+    tool's answer gives, which is `temper ctl`'s;
+  - in instructions and in a proposal's reason, to name a repository by its
+    name, never by an address or a port, which a box changes: only a charter
+    document's `forge` and `repository` hold what the inventory gives;
   - the test for each sentence of a description: would temper's engine
     act differently without it? A sentence that changes what temper
     wakes, schedules, permits, pays for, lands or holds is structure,
