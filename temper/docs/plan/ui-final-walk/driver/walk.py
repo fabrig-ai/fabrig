@@ -212,7 +212,7 @@ class Walk:
         self.c.wait('To begin');self.m.wait('To begin')
         if settle:
             self.c.wait('work/hello is in Hello');time.sleep(1)
-        if evidence:self.snapshot(1,'home-to-begin','Home','By page, First run: ready headline, no Connected; W2.')
+        if evidence:self.snapshot(1,'home-to-begin','Home','By page, First run: ready headline, no Connected; W2 acceptance copy fixed.')
 
     def settings(self, evidence=True):
         self.nav('Settings');self.mock_nav('Settings')
@@ -294,7 +294,7 @@ class Walk:
         self.pair.js("document.body.style='margin:0;display:flex';document.body.replaceChildren()")
         self.pair.js("Promise.all("+json.dumps(sources)+".map(src=>new Promise(resolve=>{let i=new Image;i.onload=resolve;i.src=src;document.body.append(i)})))")
         self.pair.shot(self.out/f'{stem}-pair.png')
-        self.rows.append(dict(step=2,state='configure-look-request',page='Configure',width=self.width,verdict='differs' if self.width==420 else 'matches',why='W5: phone composer hint lifts it above the look-request reference.' if self.width==420 else 'Compared with the configure-chat look request, including its overlay.',way='git 727f3523ee / 01; saved live Configure introduction',pair=f'{stem}-pair.png'))
+        self.rows.append(dict(step=2,state='configure-look-request',page='Configure',width=self.width,verdict='matches',why='Compared with the configure-chat look request, including its overlay; W5 phone hint fixed.',way='git 727f3523ee / 01; saved live Configure introduction',pair=f'{stem}-pair.png'))
         (self.out/f'rows-{self.width}-{self.box.number}.json').write_text(json.dumps(self.rows,indent=2))
 
     def configure(self):
@@ -321,17 +321,18 @@ class Walk:
         self.c.click('+ Draft','button');self.m.click('+ Draft','button')
         self.c.wait('docs/design/draft/away-mode.md');self.mock_send('Write this up as a draft beside us.')
         if self.width==420:self.m.click('Draft','button')
-        self.snapshot(4,'draft-first-turn','Chat and draft','D7; By page, Phone: no Split at 420; W4 section-heading rhythm.')
+        self.snapshot(4,'draft-first-turn','Chat and draft','D7; By page, Phone: no Split at 420; W4 heading rhythm fixed.')
         self.c.click('Chat','button');self.m.click('Chat','button')
         self.send('Add what happens to a running goal.',False);self.mock_send('Add what happens to a running goal.')
         self.c.wait('Edited');self.snapshot(4,'draft-second-turn','Chat','D7: rail stays.')
+        self.working_notes()
         if self.width==1440:
             self.c.click('Split','button');self.m.click('Split','button')
-            self.snapshot(4,'split','Chat and draft','D7: rail folds to a strip; W4 section-heading rhythm.')
+            self.snapshot(4,'split','Chat and draft','D7: rail folds to a strip; W4 heading rhythm fixed.')
         else:
             self.snapshot(4,'split','Chat and draft','By page, Phone: Split intentionally absent; Draft shows the document.',verdict='unreachable')
         self.c.click('Draft','button');self.m.click('Draft','button')
-        self.snapshot(4,'draft','Draft','By page, A chat and its draft: composer stays on white; W4 section-heading rhythm.')
+        self.snapshot(4,'draft','Draft','By page, A chat and its draft: composer stays on white; W4 heading rhythm fixed.')
         self.c.click('Start goal…','button');self.m.click('Start goal…','button')
         self.snapshot(4,'start-goal-sheet','Start goal','Rulings 3–8 and 10; By page, Goals: offered ways only; Budgets.')
         self.c.fill('Name','walk-away-mode');self.m.fill('Name','walk-away-mode')
@@ -362,6 +363,26 @@ class Walk:
             self.c.call('Input.dispatchKeyEvent',type='keyDown',key='Escape',code='Escape')
         else:
             self.snapshot(4,'rail-menu','Rail','By page, Phone: rail hidden; Chats and its + New chat replace it.',verdict='unreachable')
+
+    def working_notes(self):
+        self.send('Keep only working notes for this chat.', False)
+        self.c.wait('Only working notes remain.')
+        self.nav('Chats')
+        self.c.click('T1', 'link')
+        if any(x['name'] == 'Draft' for x in self.c.controls()):
+            raise RuntimeError('W7: working notes were offered as the chat document')
+        self.snapshot(4, 'working-notes-only', 'Chat', 'W7 fixed: only work: notes offer no document; mock retains its document.')
+        self.send('Restore the Away mode document after the working notes.', False)
+        self.c.wait('The document follows the working notes.')
+        self.nav('Chats')
+        self.c.click('T1', 'link')
+        self.c.click('Draft', 'button')
+        self.c.wait('A running goal')
+        self.box.login_ctl()
+        notes = self.box.ctl('task', 'notes', '1', '--project', '1', '--json')
+        (self.out / f'working-notes-{self.width}.json').write_text(notes)
+        self.snapshot(4, 'document-after-working-notes', 'Draft', 'W7 fixed: reopened document follows five lower-numbered work: notes, across a page boundary.')
+        self.c.click('Chat', 'button')
 
     def gallery(self, step, state, name, why):
         old=self.c
@@ -525,7 +546,7 @@ def main():
     (out/'build.json').write_text(json.dumps({'client_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'builder':socket.gethostname(),'fake_source_sha256':hashlib.sha256((ROOT/'temper/crates/temper-fake/src/backends.rs').read_bytes()).hexdigest(),'started_utc':time.strftime('%Y-%m-%d %H:%M:%S UTC',time.gmtime())},indent=2))
     walks=[]
     def start(number):
-        w=Walk(out,args.width,number);walks.append(w);w.first(number==1);w.settings(number==1);return w
+        w=Walk(out,args.width,number);walks.append(w);w.first(number==1, settle=False);w.settings(number==1);return w
     def finish(w):
         w.stop()
         durations.append({'box':w.box.number,'seconds':round(time.time()-w.started,3)})

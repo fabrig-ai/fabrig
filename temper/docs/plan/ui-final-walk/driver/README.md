@@ -55,3 +55,14 @@ Chromium stops, and `boxes/` and `build/` are removed. Screenshots, logs, the
 index and gallery remain. A fresh output directory is required for another
 run. The two non-fake checks belong to `real-checks`; this driver does not run
 them.
+
+The fixed-tip replay opens Settings immediately after To begin, without the
+old repository/one-second settling wait. The ctl fallback is still evidence of
+a failure, never counted as verification of W1. Two additional fake cues after
+the document's second turn replace its note with `work:` memory and add four
+more working notes, then restore the same document as a later note. Reopening
+the chat checks both the no-document case and continuation beyond the first
+notes page (W7); the existing two document cues and their literal revisions
+stay intact. `working-notes-WIDTH.json` retains the first public ctl notes page.
+The phone Configure reference now provisionally matches W5's hidden hint;
+review the capture before accepting that verdict.
