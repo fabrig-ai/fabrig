@@ -2,6 +2,14 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 3.5, The welcome's Model step, *The sign-in under way*, and `ConnectModel`, *While it waits*: the
+  card's line and the note say a new tab, and nothing opens one: a press still sends a `Return` and the
+  page's own tab leaves, until `../draft/sign-in-new-tab.md` is built. The view has no fact of a tab refused:
+  `sign_in_wait::tab_refused` is false, the one function that draft feeds. The new tab's two lines, its closing on
+  a refusal at the press, and a reload's same page are that draft's. A page come back holds no address, so
+  it draws no "Open it again". `Act::SignInElsewhere` and `ConnectModel::elsewhere` stay in the domain with no
+  entry in the view, the paste's tests and gallery states reaching the page through them, until that draft
+  makes every sign-in hold its page.
 - **Design departs:** 3.5, *Starting a goal from a chat's document*, and 5.14, from
   the request `ui-chat-draft` of 2026-11-05, decided by the answers that day to its
   tasks `goal-sheet-state` and `goal-sheet`: one sheet, `ui-goal-page`'s, where the

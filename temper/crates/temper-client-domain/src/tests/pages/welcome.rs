@@ -1069,6 +1069,7 @@ fn the_asked_welcome_stays_until_the_store_is_whole() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one state table checks each Model shape and usable precedence")]
 fn model_step_selects_each_welcome_shape_and_usable_wins_at_every_way() {
     use crate::{ModelWay, WayKind};
     use pages::{
@@ -1077,14 +1078,15 @@ fn model_step_selects_each_welcome_shape_and_usable_wins_at_every_way() {
         welcome::{ModelStep as S, model_step},
     };
     let sign_in = Way::SignIn { provider: 17, plan: true };
-    for (kind, elsewhere, finishing, expected) in [
-        (None, false, false, S::Choose),
-        (Some(WayKind::Key), false, false, S::Key { way: Way::Key { provider: 17 } }),
-        (Some(WayKind::Program), false, false, S::Program { way: Way::Program { provider: 17 } }),
-        (Some(WayKind::SignIn), false, false, S::SignIn { way: sign_in }),
-        (Some(WayKind::SignIn), false, true, S::Away { way: sign_in }),
-        (Some(WayKind::SignIn), true, false, S::Paste { way: sign_in }),
-        (Some(WayKind::SignIn), true, true, S::Finishing { way: sign_in }),
+    for (kind, elsewhere, finishing, ended, expected) in [
+        (None, false, false, false, S::Choose),
+        (Some(WayKind::Key), false, false, false, S::Key { way: Way::Key { provider: 17 } }),
+        (Some(WayKind::Program), false, false, false, S::Program { way: Way::Program { provider: 17 } }),
+        (Some(WayKind::SignIn), false, false, false, S::SignIn { way: sign_in }),
+        (Some(WayKind::SignIn), false, true, false, S::Away { way: sign_in }),
+        (Some(WayKind::SignIn), true, false, false, S::Away { way: sign_in }),
+        (Some(WayKind::SignIn), true, false, true, S::SignIn { way: sign_in }),
+        (Some(WayKind::SignIn), true, true, false, S::Finishing { way: sign_in }),
     ] {
         let (mut root, me, accounts, _) = opened(false, Step::Model { way: None });
         let mut frame = pages::accounts::current_me(root.client()).unwrap().clone();
@@ -1149,6 +1151,21 @@ fn model_step_selects_each_welcome_shape_and_usable_wins_at_every_way() {
                     },
                 );
             }
+        }
+        if ended {
+            let mut document = playground::accounts(None, false, false);
+            document.last_end = Some(c::AccountLastEnd {
+                source: 43,
+                end: c::AccountEnd::Failed { failure: c::AccountFailure::SignInAgain },
+            });
+            document.signing = List::with_capacity(1);
+            document
+                .signing
+                .push(c::AccountSignIn { source: 43, provider: 17, holder: c::AccountHolder::Party(73) })
+                .unwrap();
+            deliver(&mut root, accounts, c::Delivery::Accounts(Box::new(document.clone())));
+            document.signing.clear();
+            deliver(&mut root, accounts, c::Delivery::Accounts(Box::new(document)));
         }
         assert_eq!(model_step(&root), Some(expected));
         account(&mut root, accounts, 17, true);

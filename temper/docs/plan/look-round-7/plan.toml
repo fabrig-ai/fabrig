@@ -1,0 +1,31 @@
+draft = "look-round-7"
+repo = "fabrig"
+sources = ["temper/docs/plan/look-round-7/inputs/request.md", "temper/docs/design/draft/look-requests.md", "temper/docs/design/draft/sign-in-new-tab.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
+
+# One request, two tasks in a chain: the second proves what the first lands. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "sign-in-wait-page"
+title = "The page while a plan's sign-in waits: its note, link and folded paste, in the view and temper.css"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "sign-in-wait-proof"
+title = "sign-in-new-tab's render check, screenshots and account"
+mode = "direct"
+needs = ["sign-in-wait-page"]
+design = "temper/docs/design/draft/look-requests.md, 4"
+
+[[slice]]
+id = 1
+story = "A plan's sign-in draws the request's waiting page on the welcome and on ConnectModel, proved by rendering and accounted for"
+parts = ["sign-in-wait-page", "sign-in-wait-proof"]
+walk = false
