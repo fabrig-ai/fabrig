@@ -642,9 +642,14 @@ pub(crate) fn conversation_with_times(
         let clock = turn_time(b, first_time(&lines), &mut times, &mut day, words);
         request_message(b, request, speakers.requester, words, clock.as_deref());
     }
+    let mut before = None;
     for line in lines {
         if let Line::Left { .. } = line {
             continue;
+        }
+        let since = before;
+        if let Some(at) = line_at(&line) {
+            before = Some(at);
         }
         if let Some((at, _)) = started
             && let Some(time) = match &line {
@@ -690,6 +695,7 @@ pub(crate) fn conversation_with_times(
                     times: times.as_deref_mut(),
                     day: &mut day,
                     at,
+                    since,
                     projected,
                     requester: speakers.requester,
                 },
@@ -792,6 +798,15 @@ fn first_time(lines: &[Line<'_>]) -> Option<skein_lib::Wall> {
         }
     }
     None
+}
+/// When any line happened, drawn or not; `line_time` stays the drawn lines' clock.
+fn line_at(line: &Line<'_>) -> Option<skein_lib::Wall> {
+    match line {
+        Line::Words { at, .. } => *at,
+        Line::Turn { at, .. } | Line::Undecoded { at, .. } => Some(*at),
+        Line::Activity { line } => Some(line.source.at),
+        Line::Provisional { .. } | Line::Left { .. } => None,
+    }
 }
 fn line_time(line: &Line<'_>) -> Option<skein_lib::Wall> {
     match line {
@@ -1091,6 +1106,7 @@ struct Committed<'a> {
     times: Option<&'a mut Times>,
     day: &'a mut Option<i64>,
     at: skein_lib::Wall,
+    since: Option<skein_lib::Wall>,
     projected: bool,
     requester: bool,
 }
@@ -1124,7 +1140,7 @@ fn committed<'a>(
                     cards(b, tasks, drawing.delegations, shown, words, bindings);
                     b.close();
                 }
-                run.call(call, drawing.at);
+                run.call(call, drawing.at, drawing.since.take());
                 continue;
             }
             if let c::Block::Call(call) = block

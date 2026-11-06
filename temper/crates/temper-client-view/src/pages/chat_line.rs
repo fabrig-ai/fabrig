@@ -24,8 +24,8 @@ impl<'a> Run<'a> {
     pub(crate) fn with_capacity(calls: u32) -> Self {
         Self { calls: List::with_capacity(calls), first: None, last: None }
     }
-    pub(crate) fn call(&mut self, call: &'a c::Call, at: Wall) {
-        self.first.get_or_insert(at);
+    pub(crate) fn call(&mut self, call: &'a c::Call, at: Wall, since: Option<Wall>) {
+        self.first.get_or_insert(since.unwrap_or(at));
         self.last = Some(at);
         self.calls
             .push(Call { source: call, summary: None, touched: calls::touched(call.tool.bytes(), call.input.bytes()) })

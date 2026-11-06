@@ -53,6 +53,7 @@ fn line_with_words(
             Wall::from_nanos(
                 u64::try_from(at).unwrap().checked_mul(seconds).unwrap().checked_mul(1_000_000_000).unwrap(),
             ),
+            None,
         );
     }
     for (call, summary) in summaries {
@@ -70,12 +71,28 @@ fn disclosure(tree: &Tree) -> &skein_ui::Node {
     panic!("run disclosure")
 }
 fn thread(messages: &[(&[c::Message], u64)]) -> Thread {
+    thread_after(messages, None)
+}
+fn thread_after(messages: &[(&[c::Message], u64)], before: Option<(c::Activity, u64)>) -> Thread {
     let mut thread = Thread::new(1, &jig_client::thread::Limits { lines: CALLS, bytes: BYTES, text: TEXT, live: TEXT });
     thread.reading = Some(Reading::Latest { known: 0 });
     let mut rows = List::with_capacity(CALLS);
+    if let Some((line, seconds)) = before {
+        rows.push(c::DecodedActivityLine {
+            source: Box::new(c::ActivityLine {
+                task: 1,
+                position: 1,
+                at: Wall::from_nanos(seconds.checked_mul(1_000_000_000).unwrap()),
+                line,
+            }),
+            decoded: None,
+        })
+        .unwrap();
+    }
     for (at, (messages, seconds)) in messages.iter().enumerate() {
+        let position = rows.len().checked_add(1).unwrap();
         let at = u32::try_from(at.checked_add(1).unwrap()).unwrap();
-        let mut turn = f::turn(u64::from(at), 1, at, messages, TEXT);
+        let mut turn = f::turn(u64::from(position), 1, at, messages, TEXT);
         turn.source.at = Wall::from_nanos(seconds.checked_mul(1_000_000_000).unwrap());
         if let Some(decoded) = &mut turn.decoded {
             decoded.at = turn.source.at;
@@ -185,10 +202,94 @@ fn a_failed_call_is_said_on_the_line_and_its_row() {
     let tree = line(&[failed], &[], None, false, 0);
     assert!(fixtures::find(&tree, Role::Paragraph, b"read_file: failed: ").is_some());
 }
+fn call_messages() -> [c::Message; 1] {
+    [f::message(c::Speaker::Assistant, &[f::call(1, b"read", b"{}", None)])]
+}
+fn answer_messages() -> [c::Message; 1] {
+    [f::message(c::Speaker::Assistant, &[c::Block::Text(f::text(b"answer"))])]
+}
+fn chat_tree(source: &Thread) -> Tree {
+    conversation(source, Drawn::Chat { request: None, delegations: None })
+}
 #[test]
-fn a_run_of_one_turn_has_no_time() {
-    let tree = line(&[call(1, b"read", b"{}", None), call(2, b"read", b"{}", None)], &[], None, false, 0);
-    assert_eq!(disclosure(&tree).description, None);
+fn a_run_of_one_turn_measures_from_the_line_before() {
+    let tree = chat_tree(&thread(&[(&answer_messages(), 12), (&call_messages(), 41)]));
+    assert_eq!(disclosure(&tree).description.as_deref(), Some(b"29 s".as_slice()));
+}
+#[test]
+fn a_run_after_words_measures_from_them() {
+    let source = thread_after(
+        &[(&call_messages(), 41)],
+        Some((
+            c::Activity::Words {
+                message: 1,
+                by: c::Requester::Person(1),
+                kind: c::MessageKind::Words,
+                words: f::text(b"please read"),
+            },
+            12,
+        )),
+    );
+    assert_eq!(disclosure(&chat_tree(&source)).description.as_deref(), Some(b"29 s".as_slice()));
+}
+#[test]
+fn a_hidden_line_says_when_a_run_began() {
+    let mut source = thread(&[(&answer_messages(), 12), (&call_messages(), 3641)]);
+    let mut rows = List::with_capacity(CALLS);
+    let mut last = source.lines.rows.get(0).unwrap().clone();
+    last.source.position = 3;
+    rows.push(last).unwrap();
+    rows.push(c::DecodedActivityLine {
+        source: Box::new(c::ActivityLine {
+            task: 1,
+            position: 2,
+            at: Wall::from_nanos(3_612_000_000_000),
+            line: c::Activity::RunBegan { attempt: 1, why: c::RunWhy::Made, resumed: false },
+        }),
+        decoded: None,
+    })
+    .unwrap();
+    rows.push(source.lines.rows.get(1).unwrap().clone()).unwrap();
+    source.lines.rows = rows;
+    assert_eq!(disclosure(&chat_tree(&source)).description.as_deref(), Some(b"29 s".as_slice()));
+}
+#[test]
+fn a_run_across_turns_measures_from_the_line_before_its_first() {
+    let calls = call_messages();
+    let tree = chat_tree(&thread(&[(&answer_messages(), 5), (&calls, 10), (&calls, 20), (&calls, 30)]));
+    assert_eq!(disclosure(&tree).description.as_deref(), Some(b"25 s".as_slice()));
+}
+#[test]
+fn a_run_at_the_windows_head_has_no_line_to_measure_from() {
+    let calls = call_messages();
+    assert_eq!(disclosure(&chat_tree(&thread(&[(&calls, 10)]))).description, None);
+    assert_eq!(
+        disclosure(&chat_tree(&thread(&[(&calls, 10), (&calls, 20)]))).description.as_deref(),
+        Some(b"10 s".as_slice())
+    );
+}
+#[test]
+fn a_turns_second_run_has_no_time() {
+    let split = [f::message(
+        c::Speaker::Assistant,
+        &[f::call(1, b"read", b"{}", None), c::Block::Text(f::text(b"answer")), f::call(2, b"wait", b"{}", None)],
+    )];
+    let tree = chat_tree(&thread(&[(&answer_messages(), 12), (&split, 41)]));
+    let mut descriptions = List::with_capacity(CALLS);
+    for node in tree.nodes() {
+        if node.role == Role::Disclosure {
+            descriptions.push(node.description.as_deref()).unwrap();
+        }
+    }
+    assert_eq!(descriptions.as_slice(), [Some(b"29 s".as_slice()), None]);
+}
+#[test]
+fn a_run_under_a_second_has_no_time() {
+    let mut source = thread(&[(&answer_messages(), 12), (&call_messages(), 12)]);
+    let last = source.lines.rows.get_mut(0).unwrap();
+    last.source.at = Wall::from_nanos(12_500_000_000);
+    last.decoded.as_mut().unwrap().at = last.source.at;
+    assert_eq!(disclosure(&chat_tree(&source)).description, None);
 }
 #[test]
 fn a_running_run_says_the_call_under_way_and_takes_the_dots() {
@@ -199,7 +300,11 @@ fn a_running_run_says_the_call_under_way_and_takes_the_dots() {
     task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Due);
     let root = super::chat::configuring_task_root(task, true, 1);
     let messages = [f::message(c::Speaker::Assistant, &[f::call(1, b"read", b"{}", None)])];
-    let tree = conversation(&thread(&[(&messages, 0)]), Drawn::ChatPage { request: None, root: &root });
+    let tree = conversation(
+        &thread(&[(&answer_messages(), 12), (&messages, 41)]),
+        Drawn::ChatPage { request: None, root: &root },
+    );
+    assert_eq!(disclosure(&tree).description, None);
     assert!(disclosure(&tree).styles.as_slice().contains(&look::WORK_RUNNING));
     for node in tree.nodes() {
         assert!(!node.styles.as_slice().contains(&look::TYPING));
