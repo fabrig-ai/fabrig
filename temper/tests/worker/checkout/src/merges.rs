@@ -12,6 +12,7 @@ use temper_worker_domain_checkout::{
 #[derive(Clone, Copy, Debug)]
 pub enum Case {
     Clean,
+    Resumed,
     Contained,
     Conflict,
     Unchanged,
@@ -73,7 +74,7 @@ impl World {
                 let base = forge.advance(b"forge/temper", b"main", b"code", right.as_bytes());
                 (ours, base, [(b"code".to_vec(), b"resolved\n".to_vec())].into())
             }
-            Case::Clean | Case::Ambiguous | Case::Saved => {
+            Case::Clean | Case::Resumed | Case::Ambiguous | Case::Saved => {
                 let ours = forge.advance(b"forge/temper", b"topic", b"ours", left.as_bytes());
                 let base = forge.advance(b"forge/temper", b"main", b"theirs", right.as_bytes());
                 (
@@ -193,7 +194,11 @@ pub fn run(seed: u64, case: Case, facts: u32) -> Report {
             account: None,
             push: Some(b"topic".as_slice().into()),
             expected: Some(translate::commit(world.ours)),
-            landing: if matches!(case, Case::Contained) { Some(b"main".as_slice().into()) } else { None },
+            landing: if matches!(case, Case::Contained | Case::Resumed) {
+                Some(b"main".as_slice().into())
+            } else {
+                None
+            },
         }]),
     };
     world.forge.moves();
@@ -218,6 +223,7 @@ pub fn run(seed: u64, case: Case, facts: u32) -> Report {
     } else {
         assert!(conflicts.is_empty());
     }
+    let prepared_merge = if matches!(case, Case::Resumed) { Some(resumed_merge(&mut world, &at)) } else { None };
     if matches!(case, Case::Moved) {
         assert_eq!(
             world.forge.push(b"forge/temper", b"topic", world.base, None).expect("peer fast-forward"),
@@ -240,6 +246,9 @@ pub fn run(seed: u64, case: Case, facts: u32) -> Report {
         Some(translate::fake(commit))
     };
     if let Some(commit) = commit {
+        if let Some(prepared) = prepared_merge {
+            assert_eq!(commit, prepared, "finish delivers the merge prepared before the run, without another commit");
+        }
         if matches!(case, Case::Contained) {
             assert_eq!(commit, world.ours, "resume with nothing new keeps the reported head");
             assert_eq!(world.forge.merge_parent(commit), None, "resume adds no merge parent");
@@ -256,10 +265,58 @@ pub fn run(seed: u64, case: Case, facts: u32) -> Report {
     if matches!(case, Case::Contained) {
         resume_saved_work(&mut world, workspace);
     }
+    if let Some(merge) = prepared_merge {
+        new_work_on_merge(&mut world, &at, merge);
+    }
     let hold = world.hold.expect("held");
     assert!(matches!(world.finish(Event::Release { hold }, false), Request::Released { .. }));
     assert_eq!(world.domain.holds(), 0);
     Report { trace: world.trace, tree: world.expected, parents: (world.ours, world.base) }
+}
+
+/// Read the fake's checkout and merge metadata before the run edits anything.
+/// Saving must compare with the producer's original head, so this merge lands.
+fn resumed_merge(world: &mut World, at: &[u8]) -> u64 {
+    let [(ours, base, identity, title)] = world.commits.as_slice() else {
+        panic!("prepare commits exactly one merge before ready")
+    };
+    assert_eq!((*ours, *base, *identity), (translate::commit(world.ours), translate::commit(world.base), 0));
+    assert_eq!(title, expected_merge_message(world.base).as_bytes());
+    assert!(
+        world.trace.windows(3).any(|steps| {
+            steps[0].contains("op: Commit {") && steps[1].contains("op: CheckOut {") && steps[2].contains("Ready {")
+        }),
+        "the trace commits and checks out before ready"
+    );
+    assert!(!world.disk.exists(&[at, b"/.git/MERGE_HEAD"].concat()), "no merge is left in progress");
+    let head = world.disk.content(&[at, b"/.git/temper-head"].concat()).expect("checked-out head");
+    let head = u64::from_le_bytes(head.try_into().expect("fake head spelling"));
+    assert_eq!(world.forge.parent(head), Some(world.ours));
+    assert_eq!(world.forge.merge_parent(head), Some(world.base));
+    assert_eq!(world.forge.tree(head), world.expected);
+    let mut tree = world.disk.tree(at);
+    tree.retain(|path, _| !path.starts_with(b".git/"));
+    assert_eq!(tree, world.expected, "the run sees the committed merge tree");
+    assert_eq!(world.forge.branch(b"forge/temper", b"topic"), Some(world.ours));
+    assert_eq!(world.forge.branch(b"forge/temper", b"main"), Some(world.base));
+    assert_eq!(world.forge.branch(b"forge/temper", b"saved"), None);
+    assert_eq!(&*world.push(true, false), &[Landing::Landed { commit: translate::commit(head) }]);
+    assert_eq!(world.forge.branch(b"forge/temper", b"saved"), Some(head));
+    assert_eq!(world.forge.branch(b"forge/temper", b"topic"), Some(world.ours));
+    head
+}
+
+fn new_work_on_merge(world: &mut World, at: &[u8], merge: u64) {
+    world.disk.write(&[at, b"/new-work"].concat(), b"after the clean merge\n");
+    let landed = world.push(false, false);
+    let [Landing::Landed { commit }] = &*landed else { panic!("new work delivered") };
+    let head = translate::fake(*commit);
+    assert_ne!(head, merge);
+    assert_eq!(world.forge.parent(head), Some(merge));
+    assert_eq!(world.forge.merge_parent(head), None, "new work has one parent");
+    let mut expected = world.expected.clone();
+    expected.insert(b"new-work".to_vec(), b"after the clean merge\n".to_vec());
+    assert_eq!(world.forge.tree(head), expected);
 }
 
 /// A contained producer resumes the saved tree, then delivers a new ordinary commit.

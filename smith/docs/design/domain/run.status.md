@@ -1,6 +1,6 @@
 # run: status
 
-2026-11-05. Where smith's code lags or departs from [run.md](run.md).
+2026-11-06. Where smith's code lags or departs from [run.md](run.md).
 
 - **Not yet:** 6, 9.2: messages mid-work and threshold notes. The run
   offers queued messages only at main's opening and when main yields
