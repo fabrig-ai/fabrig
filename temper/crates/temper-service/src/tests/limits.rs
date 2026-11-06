@@ -705,6 +705,32 @@ fn server_connections_carry_the_box_streams_and_four_calls() {
 }
 
 #[test]
+fn the_watch_rooms_follow_the_streams() {
+    let settings = fixtures::engine();
+    let mut jig = settings.jig.limits;
+    for (streams, room) in [(2, 34), (8, 136)] {
+        jig.clients.streams = streams;
+        let root = limits::engine(&jig, &settings.limits).expect("admitted streams");
+        assert_eq!(root.streams, streams);
+        let views = temper_engine_domain::core_limits(&root).views;
+        assert_eq!(views.watchers, room);
+        assert_eq!(views.watchers_per_party, room);
+    }
+}
+
+#[test]
+fn a_room_past_what_the_views_hold_is_refused() {
+    // Views reserve two slots per watch; this stream count overflows their slot count.
+    let document = engine_overrides(br#""clients.streams":126322568"#);
+    let problems = crate::startup::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
+    assert_eq!(crate::startup::lines(&problems).as_ref(),
+        b"engine.limits.overrides.clients.streams: must agree with representable watch rooms (clients.streams times 17, with two slots per watch)\n");
+    let mut settings = fixtures::engine();
+    settings.jig.limits.clients.streams = u32::MAX;
+    assert!(limits::engine(&settings.jig.limits, &settings.limits).is_none());
+}
+
+#[test]
 fn small_holds_two_document_sections_with_their_own_budget_and_override() {
     let mut limits = limits::profile(limits::Profile::Small);
     assert_eq!(limits.root.brief.sections, 8);
@@ -811,4 +837,28 @@ fn the_standard_archive_load_holds_a_whole_note_row() {
     assert_eq!(rows.len(), 1, "whole note page needs {page_bytes} bytes");
     assert!(cut.is_none());
     assert!(next.is_none());
+}
+
+#[test]
+fn an_override_naming_a_watch_room_is_refused() {
+    for (extra, expected) in [
+        (br#""views.watchers":17"#.as_slice(), b"engine.limits.overrides.views.watchers: must agree with engine.limits.overrides.clients.streams, which sizes both watch rooms\n".as_slice()),
+        (br#""views.watchers_per_party":17"#.as_slice(), b"engine.limits.overrides.views.watchers_per_party: must agree with engine.limits.overrides.clients.streams, which sizes both watch rooms\n".as_slice()),
+    ] {
+        let document = engine_overrides(extra);
+        let problems = crate::startup::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
+        assert_eq!(crate::startup::lines(&problems).as_ref(), expected, "{extra:?}");
+    }
+}
+
+fn engine_overrides(extra: &[u8]) -> Box<[u8]> {
+    let document = fixtures::document();
+    let overrides = fixtures::value(&document, b"engine.limits.overrides");
+    let prefix = overrides.strip_suffix(b"}").expect("fixture override object");
+    let size = prefix.len().saturating_add(extra.len()).saturating_add(b",}".len());
+    let mut overrides = skein_lib::Writer::new(size);
+    for part in [prefix, b",", extra, b"}"] {
+        overrides.put(part).expect("override map fits its measured length");
+    }
+    fixtures::with(&document, b"engine.limits.overrides", &overrides.finish())
 }

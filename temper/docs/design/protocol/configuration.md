@@ -958,6 +958,10 @@ have one, an engine alone none. Each:
     documents' bounds. No heap sum admits the root (`../domain/root.md`,
     section 10), so no figure at the start moves. The engine's world
     measures a full room (`temper/tests/engine/domain/tests/suite/memory.rs`).
+    With one or eight streams the empty root held 4,742 heap bytes; full rooms
+    of 17 and 136 held another 14,112–15,256 and 114,720–126,336 bytes after
+    delivery, respectively, and one marking commit peaked at 116,816 and
+    452,176 bytes in the engine world including its driver and fake store.
   - *The journal's door:* a full room puts at most 136 deliveries behind
     one commit, 408 behind `root.journal.commits`' 3, within
     `root.journal.deliveries`' 512. Past that the watermark paces new

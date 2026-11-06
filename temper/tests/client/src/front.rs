@@ -178,6 +178,12 @@ impl Joint {
     /// Shipped page watch sets beside a third client (temper/docs/design/protocol/configuration.md, 7).
     #[must_use]
     pub fn with_watch_room(seed: u64, limits: &client::Limits) -> Self {
+        Self::with_watch_room_streams(seed, limits, 8)
+    }
+
+    /// A bounded room for the Busy and recovery stories (protocol/configuration.md, 7).
+    #[must_use]
+    pub fn with_watch_room_streams(seed: u64, limits: &client::Limits, streams: u32) -> Self {
         let delegates = fixtures::WATCH_ROOM_DELEGATES;
         let tasks = delegates + 1;
         let configs = std::array::from_fn(|_| {
@@ -207,6 +213,7 @@ impl Joint {
             config
         });
         let mut engine_limits = engine_limits();
+        engine_limits.streams = streams;
         // The goal's driver and three independent client roots.
         engine_limits.people.sign_ins = 4;
         engine_limits.tasks.tasks = tasks;
@@ -246,6 +253,11 @@ impl Joint {
                     )
                 )
         });
+    }
+
+    /// Close the tab's transport and drain its engine watches.
+    pub fn close_client(&mut self, client: ClientId) {
+        self.detach(client);
     }
 
     /// Open protocol watches, leaving closing ones out (temper/docs/design/protocol/configuration.md, 7).
