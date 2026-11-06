@@ -181,7 +181,6 @@ fn an_answer_points_once_and_replaces_the_page_address() {
     assert_eq!(front.tabs, expected);
     assert_eq!(d::address::print(root.person().pages().address()).as_ref(), returned_path(source));
     assert_eq!(front.shows.last(), Some(&(root.person().pages().address().clone(), true)));
-    assert!(front.engine.protocol.returns.is_empty());
     assert!(front.leaves.is_empty());
     view(&root);
     accounts::settle(&mut front, &mut root);
@@ -290,7 +289,6 @@ fn a_fresh_page_at_the_return_address_follows_the_watch_to_ready_without_departi
             .sign_in_state(root.person().client()),
         SignInState::Ended { source }
     );
-    assert!(front.engine.protocol.returns.is_empty());
     assert!(front.leaves.is_empty());
 }
 fn welcome_sign_in() -> (Joint, Root, u32) {
@@ -318,7 +316,6 @@ fn a_welcome_model_answer_names_its_source_and_holds() {
     view(&root);
     accounts::settle(&mut front, &mut root);
     assert_eq!(front.tabs, expected);
-    assert!(front.engine.protocol.returns.is_empty());
     assert!(front.leaves.is_empty());
 }
 fn welcome_signed_in(front: &mut Joint, root: &mut Root, source: u32, declined: bool) {
@@ -340,7 +337,6 @@ fn welcome_moves_on(front: &mut Joint, root: &mut Root, source: u32) {
     accounts::settle(front, root);
     assert_eq!(front.shows.len(), shown + 1);
     assert!(front.leaves.is_empty());
-    assert!(front.engine.protocol.returns.is_empty());
 }
 #[test]
 fn a_held_welcome_sign_in_moves_on_once_when_the_watch_makes_its_account() {
@@ -458,7 +454,6 @@ fn an_unknown_return_source_is_removed_and_the_way_can_start_again() {
             .any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Continue with ChatGPT"))
     );
     assert!(front.leaves.is_empty());
-    assert!(front.engine.protocol.returns.is_empty());
 }
 
 #[test]

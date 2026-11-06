@@ -231,7 +231,7 @@ fn watch_root((mut domain, env): (Domain, Env<Limits>)) -> (Domain, Env<Limits>)
         );
     }
     let people_env = env.with(env.limits.people);
-    assert!(domain.core.people.start_link(&people_env));
+    assert!(domain.core.people.start_link());
     domain.core.people.start_sweep();
     assert!(domain.core.people.start_complete(&people_env));
     crate::try_step(
@@ -472,7 +472,6 @@ fn stopping_continues_projection_deferred_finishing_without_new_commits() {
                 | Request::MakingCopied { .. }
                 | Request::SetUp { .. }
                 | Request::Bound { .. }
-                | Request::Return { .. }
                 | Request::Store(_)
                 | Request::Worker(_)
                 | Request::Party(_)

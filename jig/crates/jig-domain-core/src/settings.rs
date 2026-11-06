@@ -195,10 +195,13 @@ pub struct Revision {
     pub items: Box<[RevisionItem]>,
     pub applications: Box<[application::RevisionRecorded]>,
 }
+/// A failed setting check, retaining bounded document facts when applicable (engine.md, 17.9).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Failure {
     pub setting: Setting,
     pub fault: Fault,
+    /// The document member and rule, when a charter document fails.
+    pub detail: Option<people::SettingDetail>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {

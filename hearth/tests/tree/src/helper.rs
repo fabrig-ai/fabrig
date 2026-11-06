@@ -5,7 +5,7 @@
 //! file through the same `Reader`, change items skipped, as typed entries.
 use crate::fs::Fs;
 use hearth_domain_tree::{
-    MAX_OUT, Tree,
+    Tree,
     limits::Limits,
     step,
     vocabulary::{
@@ -473,7 +473,7 @@ pub fn walk_with(mut helper: Helper<'_>, limits: &Limits, key: Digest) -> Walked
     let mut requests = Vec::new();
     let mut event = Event::Walk { key, parent: helper.parent() };
     loop {
-        let mut out = Queue::with_capacity(MAX_OUT);
+        let mut out = Queue::with_capacity(1);
         step(&mut machine, &env, event, &mut out);
         match out.pop().expect("a step has an output") {
             Output::Answer(answer) => return Walked { requests, file: helper.file, answer },

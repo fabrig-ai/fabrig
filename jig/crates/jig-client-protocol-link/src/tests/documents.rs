@@ -1,5 +1,6 @@
 use super::*;
 use crate::translate::{Undecodable, documents, live};
+use skein_lib::length::len_u64;
 // Two empty rows carry two u32 lengths (skein/docs/design/codec.md, 3).
 #[test]
 fn piece_lengths_share_the_document_byte_bound() {
@@ -31,7 +32,7 @@ fn an_overlong_chip_list_keeps_split_sum_and_decode_order() {
     // The row past the count bound has valid framing and an empty, undecodable record.
     bytes.put(&0_u32.to_be_bytes()).unwrap();
     let bytes = bytes.finish();
-    let size = u64::try_from(bytes.len()).unwrap();
+    let size = len_u64(bytes.len());
     for (most, problem) in [
         (size, w::Problem { path: w::Path::ChipRows, reason: skein_codec::Reason::Short }),
         (size.checked_sub(1).unwrap(), w::Problem { path: w::Path::OwnedRecord, reason: skein_codec::Reason::Bound }),

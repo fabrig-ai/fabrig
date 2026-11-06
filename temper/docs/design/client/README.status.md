@@ -4,8 +4,6 @@
 
 - **Not yet:** 3.5, The welcome's Model step, *The sign-in under way*, and `ConnectModel`, *The sign-in's tab*,
   *Its end*, *A reload while it waits* and *From another computer*; 7, *A sign-in's address in the small store*; 10:
-- **Not yet:** 4.6, 8: the family still carries `return`, `Return`, answered `returning`, the root sends it, and the
-  engine gives the return, until `../draft/sign-in-new-tab.md`, 5 is built.
 - **Design departs:** 3.5, *The sign-in under way* and `ConnectModel`, *While it waits*, from the request
   `sign-in-new-tab` of 2026-11-06, by its plan's cut and its account. The terminal draws the note's plain title,
   its muted line and "Open the sign-in page" above the folded paste, where the request has the terminal as today:
@@ -16,6 +14,48 @@
   ChatGPT’s sign-in, in the new tab" and its link, and reads "Finishing your sign-in…" in the disclosure, where the
   welcome's note reads those words alone (*Finishing a paste*): `temper-client-view`'s `pages/connect_model.rs`,
   `body`, draws `sign_in_wait::waiting` while the sign-in runs, whatever its paste. No reason is recorded.
+- **Not yet:** 3.5, *while it runs*, which the request `chat-reading-b` asks of a
+  terminal and a browser both: no test takes the call under way from the engine, or
+  draws it running in a browser or a real terminal. The client's world writes the
+  run's `call` into the delivery the client hears, its joint world's decoder being
+  unable to leave a call unanswered (`temper/tests/client/tests/suite/call_line.rs`,
+  `outstanding`). Chromium's story opens a committed line alone, since the demo's fake
+  LLM holds text pieces, not calls, and a held text ends a run
+  (`temper/tests/client-browser/tests/browser_all/browser_call_line.rs`), and the real
+  terminal's reads a committed line alone (`temper/tests/real-loop/tests/suite/terminal.rs`,
+  `a_person_at_the_terminal_reads_a_run_of_calls`). A browser's running line is seen in
+  the gallery's `chat-work-running`; a terminal's in the view's tests and that world.
+- **Not yet:** 5.9, *The conversation*: no browser test draws an agent's running line
+  or presses its "Latest". The gallery's `agent-work` draws both, and the domain's and
+  the view's tests hold what a press reads and when it binds.
+- **Departs:** 3.5, *while it runs*: a call under way with none ended draws a
+  description too, its words twice ("Checking template 2", "checking template 2"),
+  where the section has the line alone: `temper-client-view`'s `pages/chat_line.rs`,
+  `Run::flush`, takes the description from any call under way, and the client's world
+  (`an_agents_page_says_the_call_under_way`) holds it. No reason is recorded.
+- **Departs:** 3.5, *a failed call* and *while it runs*: a run still out with a failed
+  call keeps `temper-work-failed`, so its call under way stands in the signal's colour
+  after the sheet's comma, and the line says no "1 failed" until the run ends, its row
+  alone saying so (`pages/chat_line.rs`, `Run::flush`; the colour seen by reading the
+  sheet). No reason is recorded.
+- **Not yet:** 3.5, *the words being written* and *While it works*: no browser test
+  draws the words being written, so the "▍" faint and in the line of the last word,
+  and the place held as the turn commits, are seen by reading the sheet's
+  `.temper-writing-end`. The gallery's `chat-work-writing` draws them and holds nothing
+  of the mark. The request `chat-reading-a` has the user read them on a real chat.
+- **Departs:** 3.5, *the words being written*. Before its first word the page and the
+  dots ask only whether the text is empty (`temper-client-view`'s `pages/chat.rs`,
+  `conversation_with_times`, and `pages/chats.rs`, `working`), where `read_growing`
+  holds back a marker being written: a text so far of `##`, `**` or blank lines draws
+  its message with nothing in it and no "▍", and the three dots go, until its next
+  word. A closed fence's code keeps its last newline (`skein-ui`'s `markdown.rs`,
+  `line`), and a `<pre>` shows it, so a text ending in one has its "▍" on a line of its
+  own, and the block loses that line as the turn commits: the look request `chat-work`
+  left this to `read_growing`, which sets the end inside the code, after that newline.
+  A last block holding a run still open, or a last line of digits or of a marker alone,
+  `read` shows as the characters it is once committed, so that block changes at the
+  commit, where only the "▍" should go. No reason is recorded for any; seen by reading,
+  and no test reads them.
 - **Design departs:** 3.5, *Starting a goal from a chat's document*, and 5.14, from
   the request `ui-chat-draft` of 2026-11-05, decided by the answers that day to its
   tasks `goal-sheet-state` and `goal-sheet`: one sheet, `ui-goal-page`'s, where the
@@ -37,6 +77,18 @@
   lists a tracked template with no conversation flag. So a fresh project offers no "+
   Draft", Drafts filter, "Start goal…" or rail's "Goal" until "Chats can write drafts"
   is turned on, as the journey `chat-draft` does first.
+- **Design departs:** 3.5, *A chat's conversation*, from the look request `chat-work` of
+  2026-11-06. A failed call's "1 failed" shares the description with the run's time, both
+  in the signal's colour, where the request adds ", 1 failed" alone in it, and a document's
+  write ends a run (`../draft/chat-reading.status.md`, 2); "Older" and its rule stay at both
+  conversations' heads, where the request removes them, as the one way to earlier lines
+  (`../draft/chat-reading.status.md`, 5): each decided by that plan's cut. The words being
+  written end in a faint, inline "▍" that does not blink, where the request's overlay draws
+  a block 7 px by 15 that blinks: the plan `chat-reading-a` set the mark, this request's
+  landing took it at a catch-up, and no reason is recorded. Its pages' line says "Read 7
+  docs, checked settings 3×" of calls that start with `settings`, where a phrase follows the
+  first call, so the gallery's reads "Checked settings 3×, read 7 docs"; and its 01 gives
+  the call under way an outcome, which a client is not given.
 - **Departs:** 5.14: a party whose `me` gives the project no creating bound still
   sees a chat's "Start goal…" (`temper-client-view`'s `pages/chat_sheet.rs`, `bar`),
   and a press opens nothing (`pages/start_goal.rs`, `open`;
@@ -78,10 +130,8 @@
   (`#app:has(> .temper-session) > .temper-accounts`), where the section draws
   them there, because the request `ui-phone` of 2026-11-05 has those pages whole
   at `100dvh`, which a banner above them would cut. With no usable account "No
-  model yet · Connect a model" still stands above the composer, but for a
-  configuring chat (`temper-client-view`'s `pages/chat.rs`, `main`), where nothing
-  then says why Send stays grey; and no line says there that the playground is
-  running or leaving. Seen by reading; no test holds it.
+  model yet · Connect a model" still stands above the composer; no line says there
+  that the playground is running or leaving. Seen by reading; no test holds it.
 - **Departs:** 3.6, *Closed ends on one line*: a requester-closed chat hides
   every "Decision made" activity line, where the section and the request
   `close-chat` of 2026-11-06 hide the closing's alone, because `Activity::Decided`
@@ -97,12 +147,33 @@
   fails say why above its acts: no ask went, and the reason's box is on the card behind
   the sheet.
 - **Not yet:** 3.6, *The sheet*: that request has each confirmation walked. A browser
-  on a fake box pressed Close, a goal's Stop and a Release both ways, and a goal's
-  Pause; a press while the page updates, on a Release alone. Accept stands on its
-  gallery state and the client's world, as that plan's cut allowed, since the fake
-  box's self-proposal says "Authority missing" and offers no Accept. A task's Cancel,
+  on a fake box pressed Close, a goal's Stop and a Release both ways, a goal's Pause,
+  and Accept on a configuring chat's proposal from *Needs you*, by hand at each width,
+  which no test keeps; a press while the page updates, on a Release alone. A task's Cancel,
   an agent's task's Stop, Reject and Start over are drawn at each width by their
   gallery states, and no walk on record presses them.
+- **Not yet:** 3.5, *temper's own way, beside the page*: no walk on record presses "See how it
+  works" or "Start from it", and no journey records them: the view's tests and the gallery's
+  `configure-reference` and `configure-reference-draft` alone draw them, since the plan that built
+  them took no walk.
+- **Design departs:** 3.5, *The configuring chat's page* and *temper's own way, beside the page*,
+  from the request `configure-temper-own-way` of 2026-11-06, by the user's word that day and that
+  request's plan's cut. The picture, the figures and the table's Workers and QA stand in
+  `../draft/own-way.status.md`. Beside them:
+  - the reference's title is level 2 at 28 px over level 3 sections at 17 px, as a chat's document
+    has them, where the request's page has a small level 3 title over large level 2 sections;
+  - its section 3 says of a goal's branch "whose tests run along the way", where the request has
+    it checked "by CI and a review on the way": the reference's goal branches have neither
+    (`../draft/reference-code-production.md`, sections 6 and 10);
+  - a table's row name is bold in a cell, where the request's rule is `th[scope=row]`, since
+    skein's reader draws no row header; a figure's term and value are `role=term` and
+    `role=definition`, where its rules are `dt` and `dd`;
+  - the thread's padding of 28 and 8 reaches the opening alone, at wide widths, where the request's
+    rule reaches every chat; a phone keeps its 20 and 16;
+  - the card's steps are a list with no marker and the pane a region of slots, where the request's
+    page has an `ol`, an `article` and `section`s;
+  - a phone hides the composer's hint, by the rule every session has there, where the request's page
+    shows it.
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
 - **Not yet:** 3.5, *The try*: the view has no fact of a trial, so `model_check::trial`,
   the one function `../draft/model-check.md`, 2 to 4, feeds, reads the host's check alone:
@@ -128,39 +199,11 @@
   under the title. The host's why ends "Sign in again, then try again.", where the request
   keeps the alert's words, because the box stands in the panel's place, with no command above
   it.
-- **Not yet:** 3.5, *Home on any project*: on the stock policy the status agent
-  is left no funding. Its roles' pools are as large as the project's period
-  (`temper-service`'s `stock.rs`, `project_policy`), so once a person's pool has
-  opened in a period, nothing of it is left: `jig-domain-core`'s
-  `connector_repair_authority` gives no seed, the run is refused
-  (`../domain/forge.md`, 5.7) and Home keeps the computed sentence, with no lede
-  or byline, at each sitting of that period. The request `ui-home-status` of 2026-11-05 has the
-  agent always run for now. Both the root's status world and the fake box's walk
-  shrink the owner's pool to leave funding, the box's by `project fund`
-  (`../domain/forge.md`, 20, holds the question).
-- **Not yet:** 10: the walk that request asks of a box: land a change, come back
-  past 30 minutes, see the count, the agent's words and the byline. A real box
-  has no fake clock, and the 31 minutes do not fit its tier, so
-  `temper/crates/temper/tests/fake_backends/walk/status.rs` stops inside a
-  sitting: the first look, then the count across a client's and a box's restart,
-  with the byline asserted absent and the charter's scripted words read from the
-  model's document alone. Walked by hand on a fake box, its owner's pool as the
-  stock leaves it, at 1440 and 420 (the request `ui-final-walk` of 2026-11-05): the
-  landing stands in Changes, and past 31 minutes Home says "you last looked 31
-  minutes ago" over the computed sentence, with no brief and nothing saying why
-  (section 11, *A brief refused, on Home*). The period's 8,117,760 stood all
-  reserved, so the cause above is read from those balances, not proved. Each half is
-  shown apart: a new sitting on the client world's fake clock
-  (`temper/tests/client/tests/suite/status.rs`), the agent's brief in the root's
-  document (`temper/tests/engine/domain/tests/suite/forge_routes/status.rs`), and
-  the lede and byline from a hand-made document (`temper-client-view`'s
-  `tests/home.rs`, the gallery's `home-morning`); no test draws a brief an agent
-  wrote.
 - **Not yet:** 10: a walk from the sheet through planning, a live report and
   delegate tasks, Pause, Resume, a message and Stop, which the request
   `ui-goal-page` of 2026-11-05 asks of the browser tier and of a box. The
-  browser tier walks Goals' link to `/chats` and back alone
-  (`start_goal_opens_chats_for_a_draft`), and the fake box's walk reaches an
+  view holds Goals' link to `/chats` (`the_link_shows_with_a_tracked_template`),
+  and the fake box's walk reaches an
   ended goal's report from its Goals row, in the terminal's client
   (`a_chats_goal_on_the_fake_box_shows_its_report_in_the_goals_list`). The fake
   box's model (`temper-fake/src/backends.rs`, `model_document`) writes a report
@@ -168,20 +211,24 @@
   delegates, so it can show no planning and no delegate task: the journey
   `chat-draft` walks a chat's sheet to that goal's page and back to the chat alone.
   The request `ui-final-walk` of 2026-11-05 walked a live report, Pause, Resume and
-  Stop there by hand, which no test keeps. That model has no script of a configuring
-  agent's document or proposal and no hold of temper's own, so the gallery alone
-  draws those states.
-- **Not yet:** 3.5, *Needs you*, 5.13: a proposal of settings has its inbox row say
-  project 0, so *Needs you* by the open project and the rail's count
-  (`temper-client-domain`'s `pages/needs.rs`, `count`) leave it out, whichever
-  project's kinds its items change, where the greenfield mock, the target, has its
-  card and its count. No live walk shows that card: the gallery's
-  `configure-chat-proposal` draws it in a chat, and `needs-proposal` is a goal's.
-  Section 11 holds the decision.
-- **Not yet:** 3.5, *What the client keeps*, its held send: once, on a fake box at
-  1440, a choice pressed just after Undo left the card, the count and the engine's
-  question as they were after six seconds, and a repeat on a fresh box and the walk
-  at 420 answered. The cause is unknown; no test holds it (section 11).
+  Stop there by hand, which no test keeps. Of a configuring agent, that model scripts
+  one proposal, the cue "Show drafts and goals for this project.", and no document,
+  and it has no hold of temper's own, so the gallery alone draws those states.
+- **Not yet:** 5.13, *The card in a chat*: a live proposal of temper's kinds draws its
+  reason's lines and none of its items: jig's document heads leave out every
+  application's item and project's policy (`jig-domain-core`'s `settings.rs`,
+  `proposal_heads`), so `temper-client-domain`'s `forge/ways.rs` asks no values for it
+  and the card has no "Drafts: on". The person accepts on the agent's words. The
+  gallery's `configure-chat-proposal` rows alone draw those lines, from a hand-made
+  document.
+- **Not yet:** 3.5, *Needs you*: an accepted proposal of settings stays the flow's
+  card, the rail's count gone, where an answered card leaves the open ones and the
+  mock moves it to its answered stack (`temper-client-view`'s `pages/needs.rs`). Seen
+  on the walk of the request `ui-walk-large` of 2026-11-06; no test holds it.
+- **Not yet:** 5.13: a chat's conversation says "Decision made" above a proposal of
+  settings that still waits (`temper-client-view`'s `pages/task.rs`, `owner_activity`,
+  `Activity::Decided`), seen on that walk at both widths. Which decision the line
+  records is unknown; no test holds it.
 - **Not yet:** 5.3: the rename's form asks the focus, and so does an open reply:
   `temper-client-view`'s `pages/ask.rs`, `reply_form`, calls `b.focus(0)` with no
   guard, where `pages/chat.rs`, `document.rs`, `settings.rs`, `new_chat.rs` and
@@ -237,9 +284,28 @@
   where the request has its title alone, and the row has none. A goal's counts
   search at most 8 pages for its own line and are then what the page holds, where
   the request has them true past one page (section 11, *A goal's own line*).
+- **Not yet:** 3.5, 4.6, 5.5: the walk the request `first-usable-model` of
+  2026-11-06 asks: none on record has a real box with one account, unedited, start
+  a chat that answers, or a box with no usable account say why it waits. A real
+  `temper program-login` needs a person's sign-in, so such a walk starts from a login
+  already signed in, or a key, and pastes the printed command only as far as the
+  program's prompt. No test runs that command through `temper program-login`:
+  `temper`'s `program_login/tests.rs` runs it by `sh -c` against a stub, so that it
+  reaches the sign-in for that box's `programs/NAME` is seen by reading.
+- **Design departs:** 5.5, *A run's wait*, from the request `first-usable-model` of
+  2026-11-06, decided by its plan's cut: a Chats row says "Starting" for a chat
+  that can't start, where the request has a run that isn't about to start say why,
+  because a row holds no run wait and its query carries no run's check per row
+  (jig's `client/domain/client.md`, 19.1). The chat's own page says why.
 - **Not yet:** 3.4, 5.5: the composer's
   supplied default, jig's
-  `resolved_default`, which neither jig's `Me` nor temper carries. 3.5:
+  `resolved_default`, which neither jig's `Me` nor temper carries. Until it
+  does, a new chat's line and the `Configure` page's take the first model of
+  the catalogue whose provider is usable (3.5), in place of "Using the default
+  model". That is what the run takes on the stock settings, whose charters keep
+  the catalogue's order; it can differ where a configured charter orders its
+  models otherwise, a catalogue is clipped, or a configured template 3 names a
+  model. 3.5:
   `Board { project }` with its reordering: no
   address in `temper-client-domain`'s `address.rs`.
   5.13: a person with a project's role alone can read kinds 6 and 7,
@@ -403,6 +469,10 @@
   And " · later" shows on *Needs you*'s mono line as on Home's, where the request
   and the mock have it on Home's card alone: the one function draws both, and no
   reason is recorded.
+- **Design departs:** 3.5, *Claude*, 4.6, from the request `ui-walk-2` of 2026-11-06,
+  decided by its plan's cut. `program_environment` answers the owner at any time,
+  where the request has it during set up, because Connect a model draws the same
+  command after set up.
 - **Design departs:** 3.5, *The flows' paths* and *Builders*, from the request
   `ui-settings-tabs` of 2026-11-05, decided by its plan's cut. The terminal
   draws no path, where the request has each flow add one: the same request
@@ -424,6 +494,21 @@
   button of a menu with "Accounts" and "Sign out", where the mock draws the
   person's name as plain text, and a browser over 760 px signs out there rather
   than on the `Accounts` tab. `greenfield/README.md` notes it.
+- **Design departs:** 3.5, 5.13 and 10, from the request `ui-walk-large` of 2026-11-06:
+  - 5.13: that request has the chat's card stay. It stays for the session, from the
+    proposals *What the client keeps* holds; a reload or another device loses it, an
+    ended proposal asking no card (section 11). Built so by its task, for the user to see.
+  - 3.5: a proposal of settings shows in the Needs you of a project's owner who also
+    owns the deployment, those who can decide it, by that plan's cut: a project's owner
+    alone has no row of it (jig's `domain/engine.md`, 17.6, and its status).
+  - 10: that request's browser walk was made by hand, at 1440 and 420 on fresh fake
+    boxes, its driver thrown away as that plan's cut has it, so no test keeps it. The
+    client's world holds the card, count and Accept
+    (`a_configuring_proposal_of_a_projects_ways_reaches_its_needs_and_its_rail`), and
+    the process tier a person's plan's return
+    (`a_plans_project_has_its_brief_on_a_return_past_the_sitting`), past a sitting a
+    test's `forge.sitting_ms` sets to seconds, where that request's return is past 31
+    minutes, because a real box has no fake clock.
 - **Design departs:** 3.5, *Sign out*, and 5.3, from the request `ui-owner-menu` of
   2026-11-06, decided by its plan's cut. A press outside that took the focus to
   another control leaves it there, where the request returns the focus to the row:

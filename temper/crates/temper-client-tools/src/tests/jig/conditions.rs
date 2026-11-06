@@ -162,3 +162,17 @@ fn a_condition_waits_for_each_document_it_reads_to_be_live() {
         assert_eq!(f::holds(condition, subject, None), None, "{condition:?}");
     }
 }
+
+#[test]
+fn replied_accepts_account_waits_but_not_credential_or_host_waits() {
+    let me = f::me(f::PARTY);
+    for (wait, expected) in [
+        (c::TaskRunWait::Account { account: None, source: None, why: c::TaskWaitWhy::Empty }, true),
+        (c::TaskRunWait::Credential, false),
+        (c::TaskRunWait::Host, false),
+    ] {
+        let mut latest = f::chat_at(f::TASK, c::RunStage::Due, None);
+        f::task_in(&mut latest).run_wait = Some(wait);
+        assert_eq!(f::holds(Condition::Replied, &latest, Some(&me)), Some(expected), "{wait:?}");
+    }
+}

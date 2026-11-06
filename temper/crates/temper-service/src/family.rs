@@ -22,10 +22,11 @@ const _: () = {
 };
 
 /// The start's deployment facts (temper/docs/design/client/README.md, 4.6).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Deployment {
     pub welcome: bool,
     pub owned: bool,
+    pub program_login: Option<Box<[u8]>>,
 }
 
 /// Decode the keyed request, preserving its admission envelope and supplied digest.
@@ -35,7 +36,7 @@ pub fn to_root(
     exchange: kit::ToApplication,
     forges: &crate::forges::Forges,
     demo: Option<&crate::settings::Demo>,
-    deployment: Deployment,
+    deployment: &Deployment,
     playground: Option<&forge::Playground>,
     limits: &w::Limits,
 ) -> Result<root::Event, Box<kit::Event>> {
@@ -70,23 +71,6 @@ pub fn to_root(
                             forge,
                             first: setup_first(value.first),
                         }),
-                    }));
-                }
-                w::Request::Return(value) => {
-                    let value = value.into_parts();
-                    if !return_path(&value.path) {
-                        return Err(Box::new(kit::Event::Application(kit::FromApplication::Undecodable {
-                            to: reply_to,
-                        })));
-                    }
-                    return Ok(root::Event::Party(root::PartyInput::Application {
-                        scope,
-                        reply_to,
-                        sign_in,
-                        key,
-                        digest,
-                        carried,
-                        request: root::Application::Return { source: value.source, path: value.path },
                     }));
                 }
                 value @ (w::Request::Connect(_)
@@ -165,7 +149,6 @@ pub fn to_root(
                         | w::Request::Reachable(_)
                         | w::Request::Adopt(_)
                         | w::Request::SetUp(_)
-                        | w::Request::Return(_)
                         | w::Request::Dismiss(_)
                         | w::Request::SetAway(_)
                         | w::Request::Overturn(_)
@@ -802,7 +785,6 @@ pub fn answer(
             }
             w::Outcome::Page(w::Page::new(limits, w::PageParts { rows, more: page.more }).ok()?)
         }
-        Some(root::ApplicationAnswer::Returning) => w::Outcome::Returning,
         Some(root::ApplicationAnswer::Make(answer)) => match answer {
             forge::MakeAnswer::Kept => w::Outcome::MakeKept,
             forge::MakeAnswer::Refused(why) => {
@@ -1708,12 +1690,16 @@ fn forge_refusal(value: forge::ForgeRefusal) -> w::ForgeRefusal {
     }
 }
 
-fn deployment_answer(deployment: Deployment, limits: &w::Limits) -> Box<[u8]> {
+fn deployment_answer(deployment: &Deployment, limits: &w::Limits) -> Box<[u8]> {
     let answer = w::DeploymentAnswer::new(
         limits,
-        w::DeploymentAnswerParts { welcome: deployment.welcome, owned: deployment.owned },
+        w::DeploymentAnswerParts {
+            welcome: deployment.welcome,
+            owned: deployment.owned,
+            program_login: deployment.program_login.clone(),
+        },
     )
-    .expect("deployment booleans fit the wire");
+    .expect("checked deployment facts fit the wire");
     wire::deployment_answer(&answer)
 }
 

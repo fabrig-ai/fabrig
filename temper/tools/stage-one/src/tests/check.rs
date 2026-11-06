@@ -13,8 +13,8 @@ use crate::golden::{self, Edit, Item, ObligationKind, SettingsFile};
 const FORGE: &str = "forge.box:3000";
 const REPOSITORY: &str = "people/kit";
 const PROJECT: u32 = 7;
-// The reference has 73 settings and 13 box obligations.
-const OBLIGATIONS: usize = 86;
+// The reference has 79 settings and 13 box obligations.
+const OBLIGATIONS: usize = 92;
 
 fn box_placeholders(value: &mut Value) {
     match value {
@@ -245,8 +245,8 @@ fn a_value_changed_is_wrong() {
     assert!(!report.passed());
     assert_eq!(outcome(&report, "goal-rule.ci"), &Outcome::Wrong { found: json!(true), expected: json!(false) });
     assert!(report.text().contains("goal-rule.ci  wrong: found true, expected false\n"));
-    assert!(report.text().ends_with("failed: 1 of 86\n"));
-    assert_eq!(report.json()["verdicts"][61]["outcome"], json!({"kind":"wrong","found":true,"expected":false}));
+    assert!(report.text().ends_with("failed: 1 of 92\n"));
+    assert_eq!(report.json()["verdicts"][67]["outcome"], json!({"kind":"wrong","found":true,"expected":false}));
 }
 #[test]
 fn an_added_charter_is_an_extra() {
@@ -387,8 +387,8 @@ fn wrong_types_and_values_fail_comparisons() {
         ("charter", 2, "/turns", json!(800.0), "coding.turns", json!(800)),
         ("charter", 2, "/turns", json!(-1), "coding.turns", json!(800)),
         ("charter", 2, "/time", json!(120_000_000_000_u64), "coding.time", json!(28_800_000_000_000_u64)),
-        ("policy", 1, "/ceiling/tools", json!(0), "policy.tools", json!(1671)),
-        ("policy", 1, "/ceiling/tools", json!("1671"), "policy.tools", json!(1671)),
+        ("policy", 1, "/ceiling/tools", json!(0), "policy.tools", json!(1983)),
+        ("policy", 1, "/ceiling/tools", json!("1983"), "policy.tools", json!(1983)),
         ("template", 4, "/contract/report", Value::Null, "goal-template.report", json!("non-null")),
         ("charter", 5, "/model/name", json!(true), "coordinator.model", json!("claude-opus-5-5")),
     ] {
@@ -416,6 +416,21 @@ fn judged_text_must_be_a_nonempty_string() {
         let report = report(&evidence);
         assert_eq!(outcome(&report, "coordinator.instructions"), &Outcome::Missing);
     }
+}
+#[test]
+fn a_role_with_the_effect_family_or_without_the_project_note_scope_is_wrong() {
+    let report = report(&proposed(|items| {
+        for item in items {
+            if item.setting.kind == "project-policy" {
+                let Edit::Set(value) = &mut item.edit else { panic!("policy") };
+                value["roles"][0]["authority"]["tools"] = json!(2047);
+                value["roles"][0]["authority"]["notes"] = json!(1);
+            }
+        }
+    }));
+    assert_eq!(outcome(&report, "project.role0.tools"), &Outcome::Met);
+    assert!(matches!(outcome(&report, "project.role0.effect"), Outcome::Wrong { .. }));
+    assert!(matches!(outcome(&report, "project.role0.notes"), Outcome::Wrong { .. }));
 }
 #[test]
 fn a_way_must_be_the_goal_template_for_drafts() {
@@ -515,6 +530,22 @@ fn project_landing_rules_can_bind_the_roles() {
         }
     }));
     assert!(report.passed(), "{}", report.text());
+}
+#[test]
+fn a_goal_rule_open_beneath_its_segment_binds() {
+    let report = report(&proposed(|items| {
+        let rule = set_value(items, "landing-rule", 2);
+        rule["pattern"]["segments"].as_array_mut().expect("segments").push(json!("74656d706572"));
+        rule["pattern"]["last"] = json!({"open":""});
+        rule["enforce"] = json!(false);
+    }));
+    assert!(report.passed(), "{}", report.text());
+    let other = self::report(&proposed(|items| {
+        let rule = set_value(items, "landing-rule", 2);
+        rule["pattern"]["segments"].as_array_mut().expect("segments").push(json!("6f74686572"));
+        rule["pattern"]["last"] = json!({"open":""});
+    }));
+    assert_eq!(outcome(&other, "goal-rule.pattern"), &Outcome::Missing);
 }
 #[test]
 fn only_checks_both_landing_rule_scopes() {

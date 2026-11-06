@@ -986,3 +986,130 @@ fn task_json_includes_only_supplied_retry_reasons() {
         assert!(skein_lib::bytes::find(&printed.stdout, expected).is_some(), "{printed:?}");
     }
 }
+
+#[test]
+fn empty_account_wait_names_claude_login_path() {
+    use jig_client::contract as c;
+    for model in [Some(b"gpt-6.1-sol".as_slice()), None] {
+        let (mut root, call, mut task) = fixtures::task_read();
+        root.limits.tools.program_login = b"temper program-login --config BOX --data STORE --cache SCRATCH";
+        task.llm = match model {
+            Some(model) => Some(c::LlmChoice {
+                account: None,
+                main: c::ModelEffort { model: c::Text::new(Box::from(model), 32).unwrap(), effort: None },
+                subagents: skein_lib::List::with_capacity(0),
+            }),
+            None => None,
+        };
+        task.kept_account = None;
+        task.run_wait = Some(c::TaskRunWait::Account { account: None, source: None, why: c::TaskWaitWhy::Empty });
+        root.serve(call, fixtures::task_result(task));
+        let answer = root.answer(call).expect("empty-account task answered");
+        assert_eq!(answer.status, 0);
+        assert!(answer.stderr.is_empty());
+        assert!(skein_lib::bytes::find(&answer.stdout, b"next run: account unknown source unknown: empty").is_some());
+        assert_eq!(skein_lib::bytes::find(&answer.stdout, b"main model: gpt-6.1-sol").is_some(), model.is_some());
+        for words in [
+            "Claude Code: account declare PROVIDER claude_code NAME --key KEY, then temper program-login --config BOX --data STORE --cache SCRATCH NAME",
+            "skip program-login if NAME's directory is already signed in; then account list and account verify ACCOUNT --source program",
+            "provider sign-in, where offered: account connect PROVIDER --key KEY",
+            "API key, where offered: account add-key PROVIDER FILE --key KEY",
+            "without an explicit model, a usable account may select another offered model",
+        ] {
+            assert!(skein_lib::bytes::find(&answer.stdout, words.as_bytes()).is_some(), "missing {words}");
+        }
+        assert!(next_run_line(&answer.stdout).starts_with(b"  no account serving this work yet"));
+    }
+}
+
+#[test]
+fn task_waits_explain_the_next_act_after_the_code_line() {
+    use jig_client::contract::{self as c, TaskRunWait as W, TaskSourceState as S, TaskWaitWhy as R};
+    for (wait, explanation) in [
+        (
+            W::Account { account: None, source: None, why: R::Empty },
+            "  no account serving this work yet (shown model: chosen)",
+        ),
+        (
+            W::Account { account: Some(43), source: Some(17), why: R::Host },
+            "  its login isn't signed in on a host: temper program-login --config CONFIG --data DATA --cache CACHE NAME, then account verify 43 --source program",
+        ),
+        (
+            W::Account { account: Some(43), source: Some(17), why: R::Source(S::Limited { until: None }) },
+            "  its account is limited: account retry 43",
+        ),
+        (
+            W::Account { account: Some(43), source: Some(17), why: R::Source(S::NeedsSignIn) },
+            "  its account needs sign-in: account connect PROVIDER",
+        ),
+        (
+            W::Account { account: Some(43), source: Some(17), why: R::Source(S::Refused) },
+            "  its account's source was refused: account replace-key 43 FILE",
+        ),
+        (W::Account { account: Some(43), source: Some(17), why: R::Source(S::Moving) }, "  its account is moving out"),
+        (
+            W::Account { account: Some(43), source: Some(17), why: R::Source(S::Later { until: None }) },
+            "  its account will be retried later",
+        ),
+        (
+            W::Account { account: Some(43), source: Some(17), why: R::Source(S::Misconfigured) },
+            "  its account's source is misconfigured",
+        ),
+        (
+            W::Account {
+                account: Some(43),
+                source: Some(17),
+                why: R::Source(S::Unloaded { at: c::AccountPlace::File, why: c::AccountUnread::Unreadable }),
+            },
+            "  its account's source could not be loaded",
+        ),
+        (
+            W::Account { account: Some(43), source: Some(17), why: R::Source(S::Cancelled) },
+            "  its account's source was cancelled",
+        ),
+        (
+            W::Account { account: Some(43), source: Some(17), why: R::Source(S::Closing) },
+            "  its account's source is closing",
+        ),
+        (
+            W::Account { account: Some(43), source: Some(17), why: R::Invalid(c::AccountWhy::Provider) },
+            "  its account cannot serve this work: provider",
+        ),
+        (W::Credential, "  it needs a credential from its forge: forge list"),
+        (W::Host, "  no host has room, or none is connected: deployment show"),
+    ] {
+        let (mut root, call, mut task) = fixtures::task_read();
+        task.llm = Some(c::LlmChoice {
+            account: None,
+            main: c::ModelEffort { model: c::Text::new(Box::from(*b"chosen"), 32).unwrap(), effort: None },
+            subagents: skein_lib::List::with_capacity(0),
+        });
+        task.run_wait = Some(wait);
+        root.serve(call, fixtures::task_result(task));
+        let answer = root.answer(call).expect("read answered");
+        let line = next_run_line(&answer.stdout);
+        assert_eq!(line, explanation.as_bytes(), "{wait:?}");
+    }
+}
+
+#[test]
+fn waits_about_to_end_add_no_explanation_line() {
+    use jig_client::contract::{TaskRunWait as W, TaskSourceState as S, TaskWaitWhy as R};
+    for why in [R::Refreshing, R::Source(S::Asking), R::Source(S::Granted)] {
+        let (mut root, call, mut task) = fixtures::task_read();
+        task.run_wait = Some(W::Account { account: Some(43), source: Some(17), why });
+        root.serve(call, fixtures::task_result(task));
+        let answer = root.answer(call).expect("read answered");
+        let line = next_run_line(&answer.stdout);
+        assert!(line.starts_with(b"waiting on:"));
+    }
+}
+
+fn next_run_line(bytes: &[u8]) -> &[u8] {
+    let code = skein_lib::bytes::find(bytes, b"\nnext run: ").expect("code line retained");
+    let after = code.checked_add(1).unwrap();
+    let newline = skein_lib::bytes::find_from(bytes, b"\n", after).expect("code line ends");
+    let start = newline.checked_add(1).unwrap();
+    let end = skein_lib::bytes::find_from(bytes, b"\n", start).expect("following line ends");
+    bytes.get(start..end).unwrap()
+}

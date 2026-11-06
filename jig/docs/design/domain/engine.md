@@ -701,7 +701,9 @@ has its claim refused, its preparation abandoned with no try spent; it
 is due again once its dependencies are done.
 
 1. **Checks** that the run may start, and with what budget
-   (authority.md, 8.3), and chooses the accounts that pay for it: one
+   (authority.md, 8.3), takes its models where its task was given none,
+   the first it can use its main (accounts.md, 4.3), and chooses the
+   accounts that pay for it: one
    for its main model's LLM provider, kept by its task, and one for each
    other LLM provider its sub-agents' models use, each with its first
    source usable on a host with room (accounts.md, 4.3).
@@ -985,7 +987,12 @@ Verdict result read also carries its selected code as optional metadata, on
 every chunk, separately from the bounded reason words. Specification reads
 and other results carry no verdict code. Offsets and totals count only the
 reason bytes. An unavailable terminal report is unknown. Both fields use bounded UTF-8 chunks
-and reject offsets inside a character or past the source. Continue with the same
+and reject offsets inside a character or past the source. A run's chunk is
+bounded by the room its application names with the read, held to
+`core.call_answer_bytes`, and not by `documents.text_bytes`, which is what a
+client decodes (`../client/domain/contract.md`, section 6): the application
+knows what its run's reply holds. An application that cuts a chunk further to
+render it prints `next` from its cut. Continue with the same
 field and the printed `next` offset. Every chunk names the current spec revision; restart specification
 reads at zero if it changes between chunks.
 
@@ -1591,13 +1598,14 @@ Nothing the core decides depends on a view arriving.
 - **A resolved default beside intent.** Each effective template in `me`
   carries `resolved_default: Option<LlmChoice>` beside its configured
   LLM choice. An explicit template choice previews itself. For an
-  omitted choice, the core uses Create's own resolver, in charter
-  order, under the effective creating authority and with the current
+  omitted choice, the core takes what a run's check would for a task
+  keeping no account (accounts.md, 4.3), under the effective creating authority and with the current
   receiving party as payer. No eligible model, or an executor still
   *chosen*, gives `None`. This is an observation, never admission or
   an account reservation. The client's shapes keep the configured
-  intent, never copy the preview into a request. Create resolves an
-  omitted choice once and the task retains it (tasks.md, section 3);
+  intent, never copy the preview into a request. A task made with an
+  omitted choice keeps none, and each of its runs' checks takes its
+  models (tasks.md, section 3; accounts.md, 4.3);
   the preview changes no task or core store layout.
 - **Marked** as any of it moves. A pool's amount left moves with spend;
   account and source changes affecting eligibility, policy, membership
@@ -2355,6 +2363,12 @@ judges and keeps it within the change's decision.
   or answers that an item leaves its setting as it is, which the core
   counts toward *empty* (17.2). A set commits only when every connector
   it names accepts.
+  During `JudgeSettings`, the root may read the templates the active
+  decision would offer a project through the core's
+  `settings_project_templates` query, named by the judge's owner token.
+  This applies the same set, removal and reset selection as 17.1's check,
+  including the project's policy overrides the change would leave, without
+  publishing or mutating the current settings.
 - **Kept in the same decision.** Once a change commits, each connector
   saves its items' values as their settings' changes, a removal as a
   change with no value, so that a removed setting is never taken for
@@ -2678,6 +2692,17 @@ document goes in the charter's instructions.
 A document's path is 1 to 256 bytes; its heading, when present, is 1 to 80
 bytes. An empty path or a present empty heading is out of shape
 (2026-11-04).
+
+A document refusal retains the *shape* fault, the item and the setting,
+and carries bounded facts naming the member, the document index (and name
+segment index where applicable), the failed rule and its scalar values.
+A count overflow names `documents`, its supplied count and
+`tasks.charter_documents` with its configured value. Name failures name
+`authority.segments` or `authority.segment_bytes`; path and heading failures
+name their minimum or maximum byte bound; a connector failure names the
+unregistered connector. These facts cross proposal answers, stored answers
+and the client wire unchanged; a renderer words them without validating
+the charter again.
 
 The configuration and service start check that brief sections hold the
 core's own most and `tasks.charter_documents`, naming both limits on

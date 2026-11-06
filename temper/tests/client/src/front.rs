@@ -29,7 +29,6 @@ pub struct Joint {
     pub leaves: Vec<Box<[u8]>>,
     pub tabs: Vec<client::Tab>,
     pub shows: Vec<(client::Address, bool)>,
-    pub refuse_return: bool,
     set_ups: Vec<(u16, Token)>,
     pub admin_connects: Vec<(u16, Token)>,
     pub replacements: Vec<(u16, Token)>,
@@ -1089,7 +1088,6 @@ impl Joint {
             leaves: Vec::new(),
             tabs: Vec::new(),
             shows: Vec::new(),
-            refuse_return: false,
             set_ups: Vec::new(),
             admin_connects: Vec::new(),
             replacements: Vec::new(),
@@ -1315,41 +1313,6 @@ impl Joint {
         }
         false
     }
-    fn refused_return(&mut self, who: ClientId, request: &Request) -> bool {
-        if self.refuse_return
-            && let Request::Unlinked {
-                request:
-                    jig_client::UnlinkedRequest::Down {
-                        down: jig_client::Down::Send { attempt, request: jig_client::Ask::Family { record, .. }, .. },
-                    },
-            } = request
-            && let Some(decoded) = temper_client_protocol_wire::decode_requesting(
-                &record.bytes,
-                &temper_client_protocol_wire::v1::CEILINGS,
-            )
-            && matches!(decoded.request(), temper_client_protocol_wire::v1::Request::Return(_))
-        {
-            self.callbacks.push((
-                who,
-                RootEvent::Client {
-                    event: jig_client::Event::Up {
-                        up: jig_client::Up::Answer {
-                            attempt: *attempt,
-                            envelope: RequestEnvelope::Final,
-                            why: None,
-                            answer: Some(jig_client::Answered::Jig(jig_client::contract::Answer::Refused {
-                                refusal: jig_client::contract::Refusal::Unknown,
-                                at: None,
-                            })),
-                        },
-                    },
-                }
-                .into(),
-            ));
-            return true;
-        }
-        false
-    }
     fn note_read_end(&mut self, who: ClientId, request: &Request) -> bool {
         if let Request::Unlinked {
             request:
@@ -1423,8 +1386,11 @@ impl Joint {
             {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
                 let (welcome, owned) = self.deployment;
-                let answer = w::DeploymentAnswer::new(&w::CEILINGS, w::DeploymentAnswerParts { welcome, owned })
-                    .expect("deployment answer");
+                let answer = w::DeploymentAnswer::new(
+                    &w::CEILINGS,
+                    w::DeploymentAnswerParts { welcome, owned, program_login: None },
+                )
+                .expect("deployment answer");
                 self.callbacks.push((
                     who,
                     RootEvent::Client {
@@ -1499,9 +1465,6 @@ impl Joint {
         false
     }
     fn request(&mut self, who: ClientId, request: Request) {
-        if self.refused_return(who, &request) {
-            return;
-        }
         if self.offline_until.is_some() || self.transport.sign_in(who).is_none() {
             if let Request::Unlinked {
                 request:

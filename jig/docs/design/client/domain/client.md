@@ -1149,6 +1149,9 @@ with a person in front of a tree, are view.md's, 18.10.
 
 ## 18. Open questions
 
+- **A run's wait on a summary row** (19.1): a row holds no run wait, since
+  a task query carries no run's check per row, so a chat that can't start
+  says starting in a list, and its document alone says why. Default: so.
 - **Several clients of one party,** such as two tabs: whether pending
   requests should be shared between them, which they are not; and the
   party's room for watches on the engine (contract.md, 7.2), which they
@@ -1178,6 +1181,15 @@ with a person in front of a tree, are view.md's, 18.10.
 - **A stream record's bound:** its body's bound plus 512, written at each
   shell, in `jig-client-shell-native` and in an application's. Default: each
   keeps its expression; one helper once those shells hold still.
+- **A turn being written past what the engine retains** (8.3): the engine's
+  `views.text_bytes` and the wire's `run_text_text` stop at one bound, so a client
+  following a turn from its start holds it whole, and one opened later holds the
+  retained end until its committed turn comes. Holding the whole takes a delivery in
+  pieces, a change of a protocol, the user's. Default: as it stands.
+- **A committed turn past a client's document bound** (sections 10 and 16): a turn
+  past `document_bytes` on the wire is refused as too large, with its size, so it
+  shows no calls' names, whatever `turn_text` would keep of it. Reading it takes a
+  page past that bound. Default: too large, and the tools read it by its parts.
 
 ## 19. Helpers
 
@@ -1232,8 +1244,8 @@ with a person in front of a tree, are view.md's, 18.10.
     wall where the template has it given, so that no shape reads a
     clock; no wake policy, so the executor's own;
     the template's LLM choice, or the goal draft's where it names one,
-    by configured names (contract.md, 3.2), none being the charter's
-    default resolved at Create. Shapes copy configured intent, never
+    by configured names (contract.md, 3.2), none leaving it to each run's
+    check (`../../domain/accounts.md`, 4.3). Shapes copy configured intent, never
     `resolved_default`, the separate preview served in `me`;
     no parameters, inputs or dependencies; symbolic resources copied
     from the template for the engine to resolve;
@@ -1250,6 +1262,7 @@ with a person in front of a tree, are view.md's, 18.10.
     | Status | The chat is |
     |---|---|
     | starting | waiting to start, due, preparing or claimed; or its host preparing or starting its run |
+    | waiting for its run | due or preparing, and its run can't start yet: for an account, a credential or a host (19.1) |
     | writing | running, writing |
     | a tool | running a tool its host names: which, and since when |
     | working | running, neither writing nor in a tool its host names, or nothing reported yet; and since when |
@@ -1301,6 +1314,9 @@ with a person in front of a tree, are view.md's, 18.10.
   reference UI says them through skein-ui's phrasebook (view.md,
   section 7), and jig's check says a decision's facts in them, with the
   application's overrides (testing.md, 6.2).
+  `held` says what a held task waits on when it awaits nothing else:
+  `WaitsOn` names no hold, so a client that reads the task's hold chooses
+  the word, and no `WaitsOn` maps to it.
 - **What jig adopts.** Sugar starts in an application. jig adopts it
   when a second consumer uses it, or early when it is hard to interpret
   consistently (what "waiting for you" means, how committed turns and
@@ -1320,6 +1336,16 @@ one claimed or running reads its host's report. A summary row, which
 holds no run wait, passes none and is never refused. A refusal is not a
 reply. The reference view shows the refusal's observed host kind, time
 and cause; it promises no automatic source switch.
+
+A chat due or preparing whose run wait is any other is waiting for its
+run (`RunWaiting`, naming an account, a credential or a host), in the same
+place in the order: *starting* says a run is about to start, never that
+it can't. The exception is an account wait about to end by itself, the
+account `Refreshing` or its source `Asking` or `Granted`, which stays
+starting. A summary row, holding no run wait, says starting: the task's
+document says why. A run waiting for an account has replied, as far as a
+caller waiting for a reply goes, since nothing moves it but an act; one
+waiting for a credential or a host has not.
 
 ## 20. Modes
 

@@ -6,7 +6,10 @@ pub struct Limits {
     pub files: Files,
     pub protocol: protocol::limits::Limits,
     pub domain: domain::Limits,
+    /// The two queues shared with the kernel, `completions` and `submissions`.
     pub queue: u32,
+    /// Where render waits, and the most a pass resumes a layer (render.md, 8.4).
+    pub watermark: u32,
 }
 
 use skein_lib::Duration;
@@ -40,4 +43,5 @@ pub const SHIPPED: Limits = Limits {
         build: domain::build::limits::SHIPPED,
     },
     queue: 32,
+    watermark: 30,
 };

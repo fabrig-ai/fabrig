@@ -5,7 +5,7 @@
 use crate::domain::{Domain, make_admitted, publish, record, task_mut};
 use crate::{Active, Funder, Limits, New, Numbers, Party, Phase, RecurringOverlap, Request};
 use alloc::boxed::Box;
-use skein_lib::{Env, List, Queue};
+use skein_lib::{Env, List, Queue, length::len_u64};
 
 fn active(phase: &Phase) -> bool {
     match phase {
@@ -167,7 +167,7 @@ pub(crate) fn valid_template(limits: &Limits, project: u32, budget: u64, batch: 
         let Some(next) = spend.checked_add(member.numbers.budget) else { return false };
         spend = next;
         for dependency in &member.dependencies {
-            if *dependency == 0 || *dependency > u64::try_from(batch.len()).expect("bounded batch") {
+            if *dependency == 0 || *dependency > len_u64(batch.len()) {
                 return false;
             }
         }

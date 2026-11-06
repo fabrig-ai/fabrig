@@ -148,6 +148,7 @@ pub fn limits() -> engine::Limits {
         routes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).routes,
         policy_bytes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.policy_bytes,
         call_answer_bytes: jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.call_answer_bytes,
+        host_reply_bytes: None,
         settings: jig_domain_core::settings::Limits {
             revisions: 4,
             versions: 8,
@@ -835,7 +836,6 @@ impl World {
                 | engine::Request::MakingCopied { .. }
                 | engine::Request::SetUp { .. }
                 | engine::Request::Bound { .. }
-                | engine::Request::Return { .. }
                 | engine::Request::Setup { .. }
                 | engine::Request::Busy(_)
                 | engine::Request::Unsettled(_)

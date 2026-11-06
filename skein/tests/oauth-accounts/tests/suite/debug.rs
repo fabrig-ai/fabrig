@@ -3,9 +3,10 @@
 use std::fmt::Debug;
 
 use skein_fake_oauth as fake;
-use skein_lib::{CryptoRng, Duration, Env, List, Queue, Secret, Time, Wall, bytes};
+use skein_lib::stream::Up;
+use skein_lib::{CryptoRng, Duration, Env, List, Queue, Secret, Time, Token, Wall, bytes};
 use skein_oauth as oauth;
-use skein_oauth_accounts as accounts;
+use skein_oauth_accounts::{self as accounts, Component, Event, Limits, Lower, LowerEvent};
 use skein_oauth_accounts_world::{sign_in, world::limits};
 
 const CANARY: &str = "canary-oauth-credential-that-must-stay-hidden";
@@ -39,12 +40,13 @@ fn record() -> oauth::SavedToken {
 }
 
 fn post() -> oauth::HttpRequest {
+    let form = format!("grant_type=refresh_token&refresh_token={CANARY}&client_id=client&client_secret={CANARY}");
     oauth::HttpRequest {
         id: 1,
         method: oauth::Method::Post,
         endpoint: bytes::copy_of(b"https://issuer.example/token"),
         content_type: b"application/x-www-form-urlencoded",
-        body: bytes::copy_of(CANARY.as_bytes()),
+        body: form.into_bytes().into_boxed_slice(),
         deadline: Time::ZERO,
     }
 }
@@ -74,6 +76,12 @@ fn assert_hidden(name: &str, value: &dyn Debug) {
     }
 }
 
+fn advance(component: &mut Component, env: &Env<Limits>, events: &mut Queue<Event>, io: &mut Queue<Lower>) {
+    while component.has_work() {
+        component.fire(env, events, io, &mut Queue::uncapped());
+    }
+}
+
 #[test]
 fn debug_hides_oauth_secret_and_hand_written_views() {
     let mut client = oauth::Client::new(limits().client).expect("client");
@@ -82,23 +90,42 @@ fn debug_hides_oauth_secret_and_hand_written_views() {
     assert!(matches!(out.pop(), Some(oauth::Request::Http(_))), "sign-in holds its visit while fetching keys");
 
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() };
+    let address = ([127, 0, 0, 1], 31000).into();
     let mut component = accounts::Component::new(
-        List::from_boxed(Box::new([accounts::Account::HandedIn])),
+        List::from_boxed(Box::new([accounts::Account::SignIn {
+            registration: registration(),
+            endpoint: accounts::Endpoint { address, transport: accounts::Transport::Plaintext },
+            keeper: accounts::Keeper::Owner { kept: Some(record()) },
+            shared: false,
+            origins: List::with_capacity(0),
+        }])),
         &env.limits,
         CryptoRng::new(&Secret::new(bytes::copy_of(&[7; 32])), 0).expect("seed"),
     )
     .expect("component");
     let mut events = Queue::uncapped();
-    component.down(
-        &env,
-        accounts::Request::HandIn { account: 0, record: oauth::SavedToken { refresh_token: None, ..record() } },
-        &mut events,
-        &mut Queue::uncapped(),
-        &mut Queue::uncapped(),
-    );
-    assert!(events.is_empty(), "component accepts the canary record");
+    let mut io = Queue::uncapped();
+    component.down(&env, accounts::Request::Grant { account: 0 }, &mut events, &mut io, &mut Queue::uncapped());
+    advance(&mut component, &env, &mut events, &mut io);
+    let Some(accounts::Lower::Connect { owner, .. }) = io.pop() else { panic!("refresh opens its socket") };
+    let partial = format!("HTTP/1.1 200 OK\r\ncontent-length: 1024\r\n\r\n{{\"access_token\":\"{CANARY}");
+    let response = partial.split_inclusive('\n');
+    let pieces = response.map(|piece| LowerEvent::Stream { owner, up: Up::Bytes(bytes::copy_of(piece.as_bytes())) });
+    for event in [
+        LowerEvent::Connecting { owner, socket: Token::new(100) },
+        LowerEvent::Connected { owner },
+        LowerEvent::Stream { owner, up: Up::Room },
+        LowerEvent::Stream { owner, up: Up::Room },
+    ]
+    .into_iter()
+    .chain(pieces)
+    {
+        component.up(&env, event, &mut events, &mut io, &mut Queue::uncapped());
+        advance(&mut component, &env, &mut events, &mut io);
+    }
+    assert!(events.is_empty(), "partial answer neither grants nor fails the exchange: {events:?}");
 
-    let issuer = fake::Issuer::new(
+    let mut issuer = fake::Issuer::new(
         fake::Config {
             authorization_url: bytes::copy_of(b"https://issuer.example/authorize"),
             token_endpoint: bytes::copy_of(b"https://issuer.example/token"),
@@ -119,6 +146,14 @@ fn debug_hides_oauth_secret_and_hand_written_views() {
         },
     )
     .expect("issuer");
+
+    let body = fake::Body::Raw(secret());
+    let delay = Duration::from_secs(1);
+    issuer.queue(fake::Plan { status: 200, body, delay, retry_after: Duration::ZERO }).expect("delayed answer");
+    let mut replies = Queue::uncapped();
+    issuer.step(fake::Event::Post { request: post(), now: Time::ZERO, wall: Wall::EPOCH }, &mut replies);
+    assert!(replies.is_empty(), "issuer keeps its pending answer");
+    assert_eq!(issuer.posts(), 1);
 
     let rows: &[(&str, &dyn Debug)] = &[
         ("oauth::SavedToken", &record()),

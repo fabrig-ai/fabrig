@@ -20,6 +20,11 @@
   a numbered list takes the browser's margins and padding. Both are seen by reading
   the sheet: no browser test draws a numbered list, the request `chat-reading-d`
   having the user read one on a real chat and leaving the sheet to the look's owner.
+- **Not yet:** 2.5, *temper's own way*: no render has drawn the picture as an `ol`. 
+  `configure-temper-own-way`'s render check read the numbers as a `ul` item's words, and numbered lists reached skein's
+  reader after it, so the `ol` takes `.temper-doc-flow ol`'s padding and the browser's margins, and
+  `.temper-doc-flow ul` now matches nothing, left for whoever next edits that rule. Seen by
+  reading; the view's tests read the terminal's print, which says `1. Design draft` either way.
 - **Departs:** 2.5: `Ctrl+\` keeps Chat → Split → Draft on a phone too,
   with Split displayed as Draft. The 2026-11-05 answer to
   `ui-chat-draft/document-pane` accepts this cycle without viewport state;
@@ -56,11 +61,7 @@
 - **Not yet:** 2.2: no test shows a head waiting for jig's mapping's room
   ended by the stall deadline: `temper-service`'s
   `a_call_past_the_mounts_room_waits_until_its_peer_closes` ends it by its
-  peer's close. 4.3: the `ui-browser-red` plan has its whole tier pass within
-  its budget (`tools/tiers/budgets.toml`, `browser-temper`, 85 CPU s). The
-  answer on its task of 2026-11-05 judged its eight passes on everything but
-  that line and takes the budget to the user as its own item, so nothing here
-  shows the tier within it.
+  peer's close.
 - **Departs:** 7.2: `start-goal` is Chats with no sheet and no filter,
   `Chats { filter: All }`, since that is where Goals' entry goes and `OpenStart`
   opens nothing without both a draft and a chat; `start-goal-draft` and

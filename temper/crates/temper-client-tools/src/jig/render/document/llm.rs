@@ -135,8 +135,8 @@ fn text_model(value: &c::ModelEffort, out: &mut Text) {
         out.words(effort.bytes());
     }
 }
-pub(super) fn text_wait(value: Option<c::TaskRunWait>, out: &mut Text) {
-    let Some(value) = value else { return };
+pub(super) fn text_wait(task: &c::Task, limits: &crate::jig::Limits, out: &mut Text) {
+    let Some(value) = task.run_wait else { return };
     out.put(b"\nnext run: ");
     match value {
         c::TaskRunWait::Credential => out.put(b"credential"),
@@ -157,7 +157,83 @@ pub(super) fn text_wait(value: Option<c::TaskRunWait>, out: &mut Text) {
             }
         }
     }
+    wait_explanation(task, value, limits, out);
 }
+
+fn wait_explanation(task: &c::Task, wait: c::TaskRunWait, limits: &crate::jig::Limits, out: &mut Text) {
+    use c::{TaskRunWait as W, TaskSourceState as S, TaskWaitWhy as R};
+    match wait {
+        W::Credential => out.put(b"\n  it needs a credential from its forge: forge list"),
+        W::Host => out.put(b"\n  no host has room, or none is connected: deployment show"),
+        W::Refused(why) => {
+            out.put(b"\n  its host refused this start: ");
+            refused_text(why, out);
+        }
+        W::Account { account, why, .. } => match why {
+            R::Refreshing | R::Source(S::Asking | S::Granted) => {}
+            R::Empty => empty_account_explanation(task, limits, out),
+            R::Host => {
+                out.put(b"\n  its login isn't signed in on a host: ");
+                out.put(limits.program_login);
+                out.put(b" NAME, then ");
+                account_command(b"verify", account, out);
+                out.put(b" --source program");
+            }
+            R::Invalid(why) => {
+                out.put(b"\n  its account cannot serve this work: ");
+                out.put(account_why(why));
+            }
+            R::Source(state) => source_explanation(state, account, out),
+        },
+    }
+}
+fn empty_account_explanation(task: &c::Task, limits: &crate::jig::Limits, out: &mut Text) {
+    out.put(b"\n  no account serving this work yet");
+    if let Some(choice) = &task.llm {
+        out.put(b" (shown model: ");
+        out.words(choice.main.model.bytes());
+        out.put(b")");
+    }
+    out.put(b"\n  without an explicit model, a usable account may select another offered model");
+    out.put(b"\n  provider sign-in, where offered: account connect PROVIDER --key KEY");
+    out.put(b"\n  API key, where offered: account add-key PROVIDER FILE --key KEY");
+    out.put(b"\n  Claude Code: account declare PROVIDER claude_code NAME --key KEY, then ");
+    out.put(limits.program_login);
+    out.put(b" NAME");
+    out.put(b"\n  skip program-login if NAME's directory is already signed in; then account list and account verify ACCOUNT --source program");
+}
+fn account_command(verb: &[u8], account: Option<u32>, out: &mut Text) {
+    out.put(b"account ");
+    out.put(verb);
+    out.put(b" ");
+    match account {
+        Some(number) => out.number(u64::from(number)),
+        None => out.put(b"ACCOUNT"),
+    }
+}
+fn source_explanation(state: c::TaskSourceState, account: Option<u32>, out: &mut Text) {
+    use c::TaskSourceState as S;
+    match state {
+        S::Asking | S::Granted => {}
+        S::Limited { .. } => {
+            out.put(b"\n  its account is limited: ");
+            account_command(b"retry", account, out);
+        }
+        S::Refused => {
+            out.put(b"\n  its account's source was refused: ");
+            account_command(b"replace-key", account, out);
+            out.put(b" FILE");
+        }
+        S::NeedsSignIn => out.put(b"\n  its account needs sign-in: account connect PROVIDER"),
+        S::Moving => out.put(b"\n  its account is moving out"),
+        S::Later { .. } => out.put(b"\n  its account will be retried later"),
+        S::Misconfigured => out.put(b"\n  its account's source is misconfigured"),
+        S::Unloaded { .. } => out.put(b"\n  its account's source could not be loaded"),
+        S::Cancelled => out.put(b"\n  its account's source was cancelled"),
+        S::Closing => out.put(b"\n  its account's source is closing"),
+    }
+}
+
 fn optional_number(value: Option<u32>, out: &mut Text) {
     match value {
         Some(value) => out.number(u64::from(value)),

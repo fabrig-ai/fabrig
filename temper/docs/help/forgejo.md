@@ -10,7 +10,8 @@ Connect a deployment to a Forgejo it does not run, as its site admin, so that te
   its step 1.
 - **The mode.** Managed, this walk: you give a site admin's token,
   and temper makes its bot, the bot's tokens, and at each adoption
-  the bot's access and the repository's hook. Owned: temper runs the
+  the bot's access and, on a Forgejo on this host, the repository's
+  hook. Owned: temper runs the
   Forgejo itself; on a box, temper help box says how in its step 4,
   and on a server, temper help server. Connected, a user's two tokens
   given by hand in a tokens file, is temper help forge's.
@@ -19,6 +20,13 @@ Connect a deployment to a Forgejo it does not run, as its site admin, so that te
   `read:user` and `write:repository`.
 - `ADDRESS`: the address the Forgejo's API answers on, an IP address
   and its port.
+- **Its hooks,** on a Forgejo on this host, whose `ADDRESS` is on
+  loopback: in its `app.ini`, `[webhook] ALLOWED_HOST_LIST` names the
+  IP address of temper's `application.webhooks.listener`; restart that
+  Forgejo after. Its default refuses loopback, and temper can't change
+  it. Without it no hook delivers: temper finds each change by polling,
+  later, and nothing fails. A Forgejo on another host has no hook, and
+  polls.
 - `FORGE`: the forge's number, which temper gives it at its connect
   and step 2 prints, kept for good.
 - `ORG`: the organization of the first repository temper makes.

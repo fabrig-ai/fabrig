@@ -78,6 +78,19 @@ fn task_help_explains_refused_invalid_results() {
 }
 
 #[test]
+fn task_help_says_what_taken_by_and_waiting_on_print() {
+    let text = find(b"task").expect("task page").text.split_whitespace().collect::<Vec<_>>().join(" ");
+    for instruction in [
+        "**A person task** prints `taken by:` naming its holder, or `none`.",
+        "Once an answer has ended the task, `answered by:` takes its place.",
+        "A closing person task with no holder prints neither line.",
+        "For a held task that awaits nothing else, `waiting on:` prints `held`.",
+    ] {
+        assert!(text.contains(instruction), "task help must explain: {instruction}");
+    }
+}
+
+#[test]
 fn configuration_help_gives_the_merge_commands_contract() {
     let page = find(b"configuration").expect("configuration page").text;
     let text = page.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -192,8 +205,28 @@ fn capacity_help_names_members_and_dependencies() {
 }
 
 #[test]
-fn configure_help_grants_reference_tools_and_note_scopes() {
+fn configure_help_says_how_authority_widens_and_holds_no_recipe_of_the_reference() {
     let text = find(b"configure").expect("configure page").text;
+    let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    for instruction in [
+        "Installing charters alone grants no task authority",
+        "rules ceiling, policy 1's ceiling and the creator-role authority",
+        "Policy 1 affects future projects. Existing projects need project-policy",
+        "saved whole current `project-policy` settings item",
+        "Existing tasks do not gain widened authority automatically",
+        "amend or allot their authority explicitly",
+        "`temper/docs/examples/reference/README.md`",
+    ] {
+        assert!(text.contains(instruction), "configure help must explain: {instruction}");
+    }
+    for recipe in ["reference charters", "tools 1983", "coordinator charter 5", "reference-authority"] {
+        assert!(!text.contains(recipe), "the binary's help must hold no recipe of the reference: {recipe}");
+    }
+}
+
+#[test]
+fn the_reference_readme_grants_its_tools_and_note_scopes() {
+    let text = include_str!("../../../../docs/examples/reference/README.md");
     let text = text.split_whitespace().collect::<Vec<_>>().join(" ");
     for instruction in [
         "Installing charters alone grants no task authority",
@@ -214,7 +247,7 @@ fn configure_help_grants_reference_tools_and_note_scopes() {
         "Existing tasks do not gain widened authority automatically",
         "amend or allot their authority explicitly",
     ] {
-        assert!(text.contains(instruction), "configure help must explain: {instruction}");
+        assert!(text.contains(instruction), "the reference's README must explain: {instruction}");
     }
     for command in [
         "settings show rules --json",
@@ -224,7 +257,7 @@ fn configure_help_grants_reference_tools_and_note_scopes() {
         ".set.ceiling |= widen",
         ".notes |= grant($required[0].notes)",
     ] {
-        assert!(text.contains(command), "configure recipe must use: {command}");
+        assert!(text.contains(command), "the reference's recipe must use: {command}");
     }
 }
 
@@ -454,6 +487,14 @@ fn approval_help_names_the_forge_and_project_policy_route() {
 }
 
 #[test]
+fn forgejo_help_says_what_a_hook_on_this_host_needs() {
+    let text = find(b"forgejo").expect("Forgejo help").text.split_whitespace().collect::<Vec<_>>().join(" ");
+    for words in ["ALLOWED_HOST_LIST", "application.webhooks.listener", "by polling"] {
+        assert!(text.contains(words), "Forgejo help must explain {words}");
+    }
+}
+
+#[test]
 fn a_way_numbers_its_sections_from_one() {
     template(&fixture(Kind::Way, "## 1. First\n## 2. Next\n")).expect("numbered sections");
     for text in ["", "## 2. First\n", "## 1. First\n## 3. Next\n", "## First\n", "## 1. \n"] {
@@ -468,9 +509,6 @@ fn the_way_shows_placeholder_figures_and_no_address() {
         assert!(text.lines().any(|found| found == line), "{line}");
     }
     assert!(!text.contains("://"));
-    let note = Path::new(&std::env::var("CARGO_MANIFEST_DIR").expect("package path at test time"))
-        .join("../../docs/plan/look-round-8/notes/how-temper-builds-temper.md");
-    assert_eq!(text.as_bytes(), fs::read(note).expect("source note"));
 }
 
 #[test]

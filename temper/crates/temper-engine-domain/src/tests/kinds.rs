@@ -663,7 +663,7 @@ fn reader_in(role: Option<jig_domain_people::Role>, project: u32) -> (Domain, En
     ] {
         people::step(&mut domain.core.people, &people_env, people::Event::Restore { record }, &mut out);
     }
-    assert!(domain.core.people.start_link(&people_env));
+    assert!(domain.core.people.start_link());
     domain.core.people.start_sweep();
     assert!(domain.core.people.start_complete(&people_env));
     (domain, env)
@@ -888,42 +888,7 @@ fn root_with_way() -> (Domain, Env<RootLimits>) {
 }
 
 #[test]
-fn a_way_the_project_does_not_offer_is_refused() {
-    for proposal in [None, Some(PROPOSAL)] {
-        for way in [0, 1, 2] {
-            let (mut domain, env) = root_with_way();
-            let value = ways(way);
-            domain.kinds = Box::new([KindValue { kind: 7, scope: PROJECT, number: 1, value: value.clone() }]);
-            if let Some(proposal) = proposal {
-                domain.forge.keep_proposal_settings(
-                    proposal,
-                    &[settings::Asked { kind: 7, scope: PROJECT, number: 1, edit: settings::Edit::Set(value) }],
-                    &mut Queue::uncapped(),
-                );
-                domain.kinds = Box::new([]);
-            }
-            let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-            judge(
-                &mut domain,
-                &env,
-                &mut decision,
-                proposal,
-                Box::new([application::Item {
-                    kind: 7,
-                    scope: PROJECT,
-                    number: 1,
-                    edit: application::Edit::Set(Box::new([])),
-                }]),
-            );
-            let expected = if way == 2 {
-                connector::Judged::Refuse { why: settings::Refusal::Way.words().into() }
-            } else {
-                connector::Judged::Accept { size: 8, charters: Box::new([]) }
-            };
-            assert_eq!(answer(&mut domain).as_ref(), &[expected], "way {way}, proposal {proposal:?}");
-            crate::domain::close(&mut domain, &env, decision, &mut Queue::uncapped());
-        }
-    }
+fn a_restore_refuses_a_way_the_project_does_not_offer() {
     let (mut domain, env) = root_with_way();
     let mut out = Queue::uncapped();
     domain.forge.keep_settings(

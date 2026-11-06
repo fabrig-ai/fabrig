@@ -148,24 +148,25 @@ pub(crate) fn projects(items: &[super::Item]) -> Box<[u32]> {
 pub(crate) fn check(core: &Core, items: &[super::Item]) -> Result<(), Failure> {
     for item in items {
         let Some(Name { kind, scope, number }) = named(item.setting) else { continue };
-        let declared = kind_of(&core.kinds, kind).ok_or(Failure { setting: item.setting, fault: Fault::Shape })?;
+        let declared =
+            kind_of(&core.kinds, kind).ok_or(Failure { setting: item.setting, fault: Fault::Shape, detail: None })?;
         let valid_scope = match declared.scope {
             KindScope::Deployment => scope == 0,
             KindScope::Project => scope != 0 && core.projects.as_slice().contains(&scope),
         };
         if number == 0 || !valid_scope {
-            return Err(Failure { setting: item.setting, fault: Fault::Shape });
+            return Err(Failure { setting: item.setting, fault: Fault::Shape, detail: None });
         }
         match &item.edit {
             super::Edit::Set(super::Value::Application(bytes)) => {
                 if bytes.len() > skein_lib::length::usize_of(declared.value_bytes) {
-                    return Err(Failure { setting: item.setting, fault: Fault::Shape });
+                    return Err(Failure { setting: item.setting, fault: Fault::Shape, detail: None });
                 }
             }
             super::Edit::Set(
                 super::Value::Charter(_) | super::Value::Template(_) | super::Value::Policy(_) | super::Value::Rules(_),
             ) => {
-                return Err(Failure { setting: item.setting, fault: Fault::Shape });
+                return Err(Failure { setting: item.setting, fault: Fault::Shape, detail: None });
             }
             super::Edit::Removed | super::Edit::Reset => {}
         }
@@ -181,7 +182,7 @@ pub(crate) fn check(core: &Core, items: &[super::Item]) -> Result<(), Failure> {
             }
         }
         if count > declared.per_scope {
-            return Err(Failure { setting: item.setting, fault: Fault::Count });
+            return Err(Failure { setting: item.setting, fault: Fault::Count, detail: None });
         }
     }
     Ok(())
@@ -258,6 +259,31 @@ impl Judging {
     pub(crate) fn new(kinds: &[Kind]) -> Self {
         Self { decision: None, groups: Slab::with_capacity(u32::try_from(kinds.len()).expect("declared kinds")) }
     }
+}
+
+/// Read the active decision's templates under the policy it would leave for this project.
+pub(crate) fn project_templates(core: &Core, owner: Token, project: u32) -> Box<[crate::Template]> {
+    assert!(core.settings_judging.groups.get(Id::from_token(owner)).is_some(), "active settings judge owner");
+    let decision = core.settings_judging.decision.as_ref().expect("active settings decision");
+    let items = &decision.change.items;
+    let overrides = match super::check::edit(items, Setting::ProjectPolicy { project }) {
+        Some(super::Edit::Set(super::Value::Policy(policy))) => policy.templates.as_ref(),
+        Some(
+            super::Edit::Set(
+                super::Value::Charter(_)
+                | super::Value::Template(_)
+                | super::Value::Rules(_)
+                | super::Value::Application(_),
+            )
+            | super::Edit::Removed
+            | super::Edit::Reset,
+        ) => unreachable!("checked project policy"),
+        None => match core.template_overrides.get(&project) {
+            Some(entries) => entries.as_ref(),
+            None => &[],
+        },
+    };
+    super::templates::merged(&super::check::templates(&core.current, items), overrides)
 }
 
 pub(crate) fn start(
@@ -419,6 +445,7 @@ fn accepted(
                 return Err(crate::routing::settings::dispatch::malformed_refusal(Failure {
                     setting: setting_of(&item),
                     fault: Fault::Shape,
+                    detail: None,
                 }));
             }
             let revision = core.current.newest().checked_add(1).expect("revision preflighted");
@@ -481,7 +508,7 @@ fn state_references(current: &Current, items: &[super::Item], setting: Setting, 
             }
         }
         if !offered {
-            return Err(Failure { setting, fault: Fault::Reference });
+            return Err(Failure { setting, fault: Fault::Reference, detail: None });
         }
     }
     Ok(())
@@ -647,14 +674,19 @@ pub(crate) fn proposal_change(
     }
     for item in set.applications {
         let setting = Setting::Application { kind: item.kind, scope: item.scope, number: item.number };
-        let kind = kind_of(&core.kinds, item.kind)
-            .ok_or(crate::routing::settings::dispatch::malformed_refusal(Failure { setting, fault: Fault::Shape }))?;
+        let kind =
+            kind_of(&core.kinds, item.kind).ok_or(crate::routing::settings::dispatch::malformed_refusal(Failure {
+                setting,
+                fault: Fault::Shape,
+                detail: None,
+            }))?;
         let edit = match item.edit {
             SizedEdit::Set { size } => {
                 if size > kind.value_bytes {
                     return Err(crate::routing::settings::dispatch::malformed_refusal(Failure {
                         setting,
                         fault: Fault::Shape,
+                        detail: None,
                     }));
                 }
                 super::Edit::Set(super::Value::Application(Box::default()))

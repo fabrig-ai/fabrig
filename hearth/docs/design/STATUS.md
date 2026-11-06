@@ -10,9 +10,9 @@ Real layer operations, the helper process, build-step runners and sandboxes,
 pins and collection remain unbuilt; the client reports steps as unavailable.
 Tool versions and rebuild times are missing, and the resolution reply,
 reconciled-base retention and mmdebstrap hooks have unsettled
-departures in those documents. Resumed work's order has no test, the
-store step's order no named predicate, and one test driver keeps capped
-queues beside the JSON decoder
+departures in those documents. Resumed work's order has a test for an io event
+and none shown for a file event, and one test driver keeps capped queues beside
+the JSON decoder
 (`hearth/docs/design/domain/render.md`). The store reports unreadable or invalid layer
 records as strays and refuses a second staging request, and its scan and chain,
 with the builder's store adapter and keep, hold lifecycles in flags
@@ -32,8 +32,13 @@ as do operating, development machines, artifacts and reproducible builds
 git, resolution and render conformance, and tool fakes, but lack the complete
 M2 fake machine, joined system world, real builds and boot test; conformance
 has no automatic runner. Tier profiles, memory tests and shared suite
-timeouts depart from the design, the focused suite stands over its 30 CPU s,
-by about 15 on one record and 0.2 or about 2 on the gate's, and measured costs await the user
+timeouts depart from the design. Five of hearth's crates build at `opt-level` 1
+in development, against `skein/docs/foundation/testing-strategy.md`, 8, with no
+profile and no sign-off, which is the user's to rule on. The focused suite's
+budget is the queue's figure, unknown for the suite as it stands; measured outside
+the queue, the same code reads 30.855038 CPU s in one sitting and 26.934412 in
+another. Fuzzy takes 71.818933 CPU s, 13.390022 s of execution wall. All 2189
+focused and 60 fuzzy tests pass
 (`hearth/docs/design/domain/testing.md`). The design departs
 from the draft in its three processes, subordinate ids, offline sandboxes,
 development loop, live changes and milestone split; pool placement still

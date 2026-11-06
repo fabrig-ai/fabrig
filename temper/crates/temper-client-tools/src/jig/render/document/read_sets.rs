@@ -13,7 +13,7 @@ pub(super) fn text(
     out: &mut Text,
 ) {
     if let Some(person) = &reading.person {
-        super::person_text(person, me, book, out);
+        super::person_text(person, reading.person_answerer, me, book, out);
     }
     let call = &reading.called.call;
     if call.tool == 1 {
@@ -43,7 +43,7 @@ pub(super) fn text(
                 super::proposal::text(value, reading, limits, out);
             }
             Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(task))) => {
-                super::task_with_specification(task, me, book, vocabulary, reading.specification.as_ref(), out);
+                super::task_with_specification(task, me, book, vocabulary, reading.specification.as_ref(), limits, out);
                 vocabulary.task_next(task, out);
                 super::subjects::text_digest(b"task", &super::super::Part::Task(task), limits, out);
             }
@@ -115,7 +115,7 @@ fn ended_text(
     out: &mut Text,
 ) {
     let (task, result) = super::super::ended_task(value).expect("validated ended task");
-    super::task_with_specification(task, me, book, vocabulary, reading.specification.as_ref(), out);
+    super::task_with_specification(task, me, book, vocabulary, reading.specification.as_ref(), limits, out);
     super::result_text(result, vocabulary, out);
     vocabulary.task_next(task, out);
     super::subjects::text_digest(b"task", &super::super::Part::Task(task), limits, out);

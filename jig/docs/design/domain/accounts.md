@@ -456,6 +456,25 @@ Selection uses runtime accounts and their kept source identities (3.1).
 Configuration supplies provider membership and model choices; it gives no
 account a preferred number or an endpoint default.
 
+- **A task given no LLM choice takes the first model it can use.** Each
+  check of its run (tasks.md, section 3) takes, among its charter's
+  models, main then alternatives, within its authority:
+  1. the first of the LLM provider of the account it keeps, while that
+     account still serves its payer (or, for a key, its project), usable
+     or not: **a task keeps what it's using,** so an account added later
+     moves nothing, and a limited one is waited for, below;
+  2. else the first whose LLM provider has an account usable now for its
+     payer, its source usable on a connected host where the host rule
+     allows it (3.4), the readiness the accounts document shows
+     (`../client/domain/contract.md`, 5.1);
+  3. else the first whose LLM provider has an account serving its payer,
+     so that its wait names that account;
+  4. else the charter's first, its run waiting with no account to name.
+
+  The others stay its sub-agents' models, in their order. Nobody chooses:
+  a deployment with one provider's account runs that provider's model. A
+  task given a choice is never moved: it waits for what it was given,
+  saying why.
 - **With the run's check.** As the core checks that a task's run may
   start (authority.md, 8.3; engine.md, 7.1, step 1), it takes, for its
   main model's LLM provider, the accounts whose uses cover the payer,
@@ -480,7 +499,9 @@ account a preferred number or an endpoint default.
   the task's project) and its LLM
   provider is still the main model's, and chooses again otherwise.
 - **A task whose account is unusable waits** for it, saying why
-  (authority.md, 8.3). A limited task never moves to another of its
+  (authority.md, 8.3). An account whose program login no host with room
+  holds usable, none busy holding one either, waits as that account's,
+  naming the source, not as a host's. A limited task never moves to another of its
   holder's accounts: it waits for its own, as its LLM provider's limit
   asks, and a choice made again takes no other account of that holder
   and LLM provider while the kept one is limited. An amendment naming
@@ -653,6 +674,15 @@ construction, never by a person deleting a copy.
 
 ## 7. Open questions
 
+- **A stored default that reads as named:** a store from when Create
+  recorded a task's default holds that default as a choice, so its task
+  waits for it as named until it is amended or closed, and a configuring
+  chat has no chooser to amend it by. Default: no migration before v0.1.0,
+  as the request `first-usable-model` of 2026-11-06 allows; a fresh box.
+- **Pinning the model a task took:** a person who picks the model a task
+  given no choice already shows sends no change, since the client's draft
+  equals what it shows, so the task stays free to take another when it
+  next chooses (4.3). Default: as it stands; picking another names it.
 - **Replay across accounts:** whether a provider's opaque replay
   (encrypted reasoning, thinking signatures) is accepted from another
   account of the same LLM provider. Default: dropped (4.3), until a

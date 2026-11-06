@@ -56,6 +56,12 @@ A change holds at most one item per setting. Each item:
 
 The rules are set or reset, never removed.
 
+A project's way is checked against the templates the whole decision would
+leave. One change or accepted proposal can install a template and select
+it as the project's way. Removing it in that decision leaves it unavailable;
+a reset follows its binary default, or leaves it unavailable if it has none.
+A refusal names the item, the project's ways and the rejected way number.
+
 A change names the newest revision its maker read. It makes one revision
 (`temper help revision`), or is refused whole.
 The deployment's items need its owners; a project's policy needs that
@@ -71,7 +77,13 @@ its default. A stored change still wins over a changed default.
 - Before commit, temper checks each value's shape and bounds, each kind's
   count, and references such as a template's charter or a charter's models.
 - A refused change commits nothing. Its refusal names the item, its
-  setting and its fault.
+  setting and its fault. A charter document refusal also names the member,
+  the document index where applicable, and its rule. A document count past
+  the allowance says, for example, `documents: supplied 3; maximum
+  tasks.charter_documents 2`. A path or heading refusal names its byte bound;
+  a name refusal names the authority segment bound; a connector refusal says
+  that the connector must be registered. Change the named member and submit
+  the proposal again.
 - A change against any other revision is refused as stale, naming the
   newest. Read again, and decide on what you read.
 - A change that alters no setting is refused as unchanged.

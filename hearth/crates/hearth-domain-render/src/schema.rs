@@ -108,7 +108,7 @@ pub fn declarations(
                 }
             }
         }
-        let mut references = List::with_capacity(16);
+        let mut references = List::uncapped();
         references::declaration(declaration, document, &mut references);
         crate::exports::check(declaration, document, &mut references);
         for fault in &references {
@@ -119,7 +119,7 @@ pub fn declarations(
             push(faults, task, fault);
         }
         if before == faults.len() {
-            let mut local = List::with_capacity(16);
+            let mut local = List::uncapped();
             let defaults = task_defaults(declaration, document, listing, validator, merge, &mut local);
             for fault in &local {
                 push(faults, task, fault.clone());
@@ -132,14 +132,7 @@ pub fn declarations(
     Defaults { tasks: sound }
 }
 fn push(faults: &mut List<(Box<[u8]>, Fault)>, task: &[u8], fault: Fault) {
-    if faults.room() == 0 {
-        let mut larger = List::with_capacity(faults.capacity().max(1).saturating_mul(2));
-        for fault in &*faults {
-            larger.push(fault.clone()).expect("doubled capacity");
-        }
-        *faults = larger;
-    }
-    faults.push((bytes::copy_of(task), fault)).expect("reserved fault capacity");
+    faults.push((bytes::copy_of(task), fault)).expect("uncapped faults");
 }
 
 fn declares(declaration: &Declaration, setting: &[u8]) -> bool {
@@ -499,14 +492,7 @@ fn default_value<'a>(defaults: &'a TaskDefaults, spec: &Spec) -> Option<&'a Defa
     None
 }
 pub(crate) fn fault(faults: &mut List<Fault>, from: Provenance, schema: Schema) {
-    if faults.room() == 0 {
-        let mut larger = List::with_capacity(faults.capacity().max(1).saturating_mul(2));
-        for fault in &*faults {
-            larger.push(fault.clone()).expect("doubled capacity");
-        }
-        *faults = larger;
-    }
-    faults.push(Fault { schema, document: from.document, at: from.at }).expect("fault capacity");
+    faults.push(Fault { schema, document: from.document, at: from.at }).expect("uncapped faults");
 }
 fn field_names(fields: &[Spec]) -> Box<[Box<[u8]>]> {
     let mut names = List::with_capacity(u32::try_from(fields.len()).expect("field count"));
@@ -589,7 +575,7 @@ fn task_defaults(
 ) -> TaskDefaults {
     validator.left = u64::MAX;
     validator.limited = false;
-    let mut values = List::with_capacity(u32::try_from(declaration.settings.len()).expect("setting count"));
+    let mut values = List::uncapped();
     for spec in &declaration.settings {
         add_default(&mut values, spec, document, merge, validator.stack.capacity(), faults);
     }
@@ -645,16 +631,7 @@ fn add_default(
     let before = faults.len();
     nulls(value, document, depth, faults);
     let value = if before == faults.len() { merge.merge(None, value, Layer::Defaults, document) } else { None };
-    if values.room() == 0 {
-        let mut larger = List::with_capacity(values.capacity().max(1).saturating_mul(2));
-        for value in &*values {
-            larger
-                .push(DefaultValue { spec: value.spec.clone(), value: value.value.clone() })
-                .expect("doubled capacity");
-        }
-        *values = larger;
-    }
-    values.push(DefaultValue { spec: spec.clone(), value }).expect("default capacity");
+    values.push(DefaultValue { spec: spec.clone(), value }).expect("uncapped defaults");
 }
 
 #[derive(Debug)]

@@ -181,7 +181,7 @@ fn page(
 }
 
 fn count_failure(setting: s::Setting) -> people::Refusal {
-    super::dispatch::malformed_refusal(s::Failure { setting, fault: s::Fault::Count })
+    super::dispatch::malformed_refusal(s::Failure { setting, fault: s::Fault::Count, detail: None })
 }
 fn fold(core: &mut Core, limits: &Limits, setting: s::Setting, edit: s::RestoreEdit) -> Result<(), people::Refusal> {
     let pending = core.restoring.pending.as_mut().expect("active restore");
@@ -221,7 +221,7 @@ fn fold(core: &mut Core, limits: &Limits, setting: s::Setting, edit: s::RestoreE
                         bound = Some(declared.per_scope);
                     }
                 }
-                bound.ok_or(super::dispatch::malformed_refusal(s::Failure { setting, fault: s::Fault::Shape }))?
+                bound.ok_or(shape_refusal(setting))?
             }
         };
         if count >= bound || (!s::is_project_policy(setting) && regular >= jig_domain_tasks::SETTINGS_ITEMS) {
@@ -434,17 +434,14 @@ fn answers(core: &Core, env: &Env<Limits>) -> Result<(), people::Refusal> {
             let setting = s::Setting::Application { kind: item.kind, scope: item.scope, number: item.number };
             match answered.get(&setting).expect("answered item") {
                 Answered::Same => {
-                    return Err(super::dispatch::malformed_refusal(s::Failure { setting, fault: s::Fault::Shape }));
+                    return Err(shape_refusal(setting));
                 }
                 Answered::Accept { size, charters } => {
                     for kind in &core.kinds {
                         if kind.number == item.kind
                             && (*size > kind.value_bytes || *charters > usize::from(kind.charters))
                         {
-                            return Err(super::dispatch::malformed_refusal(s::Failure {
-                                setting,
-                                fault: s::Fault::Shape,
-                            }));
+                            return Err(shape_refusal(setting));
                         }
                     }
                 }
@@ -557,4 +554,8 @@ fn reason(revision: u32, words: &[u8], bound: u32) -> Box<[u8]> {
         writer.put(part).expect("sized restore reason");
     }
     s::application::words(&writer.finish(), bound)
+}
+
+fn shape_refusal(setting: s::Setting) -> people::Refusal {
+    super::dispatch::malformed_refusal(s::Failure { setting, fault: s::Fault::Shape, detail: None })
 }

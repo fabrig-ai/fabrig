@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use jig_domain_core::{self as core, reads};
 use jig_domain_people::Proposer;
 use jig_domain_tasks as tasks;
-use skein_lib::{Queue, Token};
+use skein_lib::{Queue, Token, length::len_u64};
 
 pub(super) fn record(store: &mut Store, key: &core::Key) -> Result<Option<core::Record>, Failure> {
     let row = gets::row(store, Token::new(0), Get::Jig(key.clone())).or(Err(Failure::Corrupt))?;
@@ -267,7 +267,7 @@ pub(crate) fn finish(
             let core::Record::Core(core::CoreRecord::Turn(turn)) = &row.value else { return Err(Failure::Corrupt) };
             let bytes = match party.frame_bytes {
                 Some(size) => u64::from(size),
-                None => u64::try_from(turn.transcript.len()).or(Err(Failure::Corrupt))?,
+                None => len_u64(turn.transcript.len()),
             };
             let why = reads::TurnFailure::TooLarge { bytes };
             let owner = row.owner.take().ok_or(Failure::Corrupt)?;
@@ -305,7 +305,7 @@ pub(crate) fn proposal_key(owner: &tasks::TaskRecord, proposal: u64) -> Option<c
 fn turn_bytes(record: &core::Record) -> Result<u64, Failure> {
     match record {
         core::Record::Core(record) => match record {
-            core::CoreRecord::Turn(turn) => u64::try_from(turn.transcript.len()).or(Err(Failure::Corrupt)),
+            core::CoreRecord::Turn(turn) => Ok(len_u64(turn.transcript.len())),
             core::CoreRecord::Settings(_)
             | core::CoreRecord::Deployment(_)
             | core::CoreRecord::Projection(_)

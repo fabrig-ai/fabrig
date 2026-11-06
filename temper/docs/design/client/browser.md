@@ -641,6 +641,12 @@ replay says the same clocks (`README.md`, 5.12).
   name is drawn, and the look of its flow's tokens isn't, since nothing draws a
   flow yet. The sheet to start a goal is the mock's `dialog.sheet`, `.option`,
   `.field` and `.text`, and `Ctrl+\` steps through the modes.
+- **temper's own way** (`README.md`, 3.5) is `configure-temper-own-way`'s rules, in
+  `temper.css` under `/* ==== ui: settings ==== */`: on the page
+  `.temper-starter-head` and `.temper-starter-own` with its parts; in the pane, beside
+  a chat's document's, `.temper-doc-figures` and `.temper-doc-flow`, which holds the
+  picture's numbered list and no flow, with `.temper-doc-sub` and `.temper-doc-muted`
+  under the chats' marker.
 - **What the mock lacks and a print needs** stays in the view, hidden by the
   sheet in the browser. A word the browser alone shows, or says otherwise,
   the view chooses by its shell.
@@ -686,8 +692,8 @@ replay says the same clocks (`README.md`, 5.12).
   (`field-sizing: content`, from one line to a bound), with no
   component and no script of temper's; a browser without it shows an
   area of fixed height that scrolls.
-- **A run's live text** is a patch like any other: the chat's
-  provisional turn ("Writing…", `README.md`, 3.5) changes in place;
+- **A run's live text** is a patch like any other: the chat's words
+  being written (`README.md`, 3.5) change in place;
   skein's page keeps focus, caret and scroll across it, and the
   conversation, a log, keeps its end in view while the person has not
   scrolled away (skein's `ui-web.md`, section 7).
@@ -916,17 +922,14 @@ proves.
 ### 4.2 Later pages
 
 A page gets a story here only for what of its own a browser alone
-shows. The inbox, a task's page and the adoption form have none beyond
-their addresses: one story opens each present page's address directly
-and reads its heading. The task pages' story runs on `temper box`'s
-playground, with its own fakes, from a procedure's plan to its agent
-and back by the lineage bar, each by its address, and opens the
-agent's page fresh by its address. The procedure is the playground's
-change, drawn from its
-panel (`README.md`, 5.10); the story reads its heading and its plan's
-agent, no more of it. The change's steps to landed, its gates, its
-bounds and its ended tasks hold nothing a browser alone shows: the
-client world's `change_panel.rs` reads them. A later page that has such
+shows. The inbox, a task's page and the adoption form have none: a
+first load at any address is the shell's one start (2.1), which 4.6's
+tests 1 and 2 hold on a chat's address and a filter's. A procedure's
+plan, its agent, the lineage bar and a fresh client at an agent's
+address are the client world's (`suite::b2`, `suite::task`). The
+change's steps to landed, its gates, its bounds and its ended tasks
+hold nothing a browser alone shows: the client world's
+`change_panel.rs` reads them. A later page that has such
 behaviour brings its story with it: `ConnectModel`'s sign-in, its tab
 sent to the provider's address and back to the page it left
 (`README.md`, 3.5).
@@ -1068,8 +1071,9 @@ One test, the provider's (`../protocol/sign-in.md`, 9.8).
 
 ### 4.6 The twelve
 
-The tier's tests, each one test of the steps it names, each on its own
-`temper serve` (the playground's on its built playground):
+The tier's tests, each on its own `temper serve` (the playground's on its
+built playground, 2 and 11 on `temper box`, whose first run is over). Each
+is one test of the steps it names; 2 and 11 share one, and 4 and 5 another:
 
 1. **Signing in** (4.1, 1): the printed link signs in, a reload on a
    chat signs in by the cookie, and the link spent shows the
@@ -1081,7 +1085,7 @@ The tier's tests, each one test of the steps it names, each on its own
    the inbox at `/` (4.1, 2).
 4. **The composer** (4.1, 3).
 5. **A panic** (4.1, 4).
-6. **jig's attacks that need a browser** (4.1, 5): a cross-site request
+6. **jig's attacks that need a browser** (4.1, 6): a cross-site request
    from another port and from another host does nothing, and a framed
    page shows nothing, in one harness with both attacker host names.
 7. **A cross-site authorization** returns its code and the link's state
@@ -1091,17 +1095,36 @@ The tier's tests, each one test of the steps it names, each on its own
 9. **`ConnectModel`'s round trip** (4.2).
 10. **GitHub's manifest page** posts itself once, and Back shows it
     without posting again until Continue (4.4).
-11. **The task pages** by their addresses (4.2); then, the
-    playground's project made, the Chats page Live, never Behind, with
-    the story's chat, before and after a reload (`README.md`, 2).
+11. **The box's project across a reload:** the playground's project
+    made, the Chats page Live, never Behind, with the story's chat,
+    before and after a reload (`README.md`, 2).
 12. **The playground's story A** on the built playground, its log
     downloaded and replayed natively (`../playground.md`, 9).
 13. **Reading a public project** (8.4), with no sign-in, and
     losing it when it is made private.
+14. **Reading back** (4.1, 5).
+15. **A project's rename** closed by Escape, Enter and Save returns the
+    focus to its summary, and never to the page's `main`.
 
 The cap includes all browser tests, whatever their names.
 
 Not in the tier, each in the lowest world that shows it:
+- **Goals' link to a draft:** the view's
+  `tests::goals::the_link_shows_with_a_tracked_template` holds its target, the
+  Chats page; test 2 holds what a browser's history does with a link.
+- **A procedure's plan, agent and lineage, and a fresh client at its address:**
+  the client world's `suite::b2::roadmap_b2_through_the_task_pages` and
+  `suite::task::a_delegates_page_shows_its_brief_run_and_report`.
+- **A chat's change card to Landed, its closing and the Closed filter's row:**
+  the client world's
+  `suite::chat::a_new_chat_lands_its_delegated_change_and_closes_in_your_chats`.
+  Test 2 keeps the filter's address and pressed state.
+- **A key added, on the Accounts page:** the view's `tests::accounts` and the
+  client world's `suite::accounts_page`. Test 8 keeps Back and Forward and the
+  emptied field.
+- **A landed goal's public pages:** the view's `tests::public`; an ended goal
+  kept in the public index, jig's
+  `suite::public::an_ended_public_goal_is_retained_by_the_public_referee`.
 - **Address-codec edge rows:** `temper-client-domain`'s
   `tests::address::{a_path_that_is_no_page_is_missing,each_number_spans_its_types_range}`.
   Browser test 2 keeps the shell's replacement of a missing address with `/`.
@@ -1330,6 +1353,8 @@ from the engine's own answers, is where the look is tuned.
 | `home-answered` | `home-morning-card` with the first answered: its line, its toast, the next as the card |
 | `home-one-need` | one need: no lines and no "Answer in a row"; on a phone, "Answer" |
 | `configure` | the configuring page before its first words, template 3 listed |
+| `configure-reference` | "See how it works" pressed: the stock reference beside the page, in Split, the rail folded, no chat made |
+| `configure-reference-draft` | `configure-reference` in Draft: the reference alone, the composer under it |
 | `configure-typing` | words entered; Send enabled |
 | `configure-sending` | the configuring start out; starters and Send disabled, words kept |
 | `configure-refused` | the start refused; jig's words below the composer, the words kept |
@@ -1377,7 +1402,7 @@ from the engine's own answers, is where the look is tuned.
 | `chat-work-done` | the `chat-work` request's conversation, calls settled and folded, answer committed |
 | `chat-work-open` | the same conversation, the call run open to all thirteen rows |
 | `chat-work-running` | its first four calls settled and template 2 being checked, with no supplied outcome |
-| `chat-work-writing` | the same calls settled, the supplied opening paragraph being written with its end mark; the 512-byte live bound remains |
+| `chat-work-writing` | the same calls settled, the supplied opening paragraph being written with its end mark |
 | `chat-work-failed` | a failed charter read, its line and outcome in the signal's colour |
 | `chat-work-one` | one `read_docs` call alone, "Read the page hold" |
 | `chat-work-unknown` | a tool outside the words table, "read_file ×2" |
@@ -1385,6 +1410,7 @@ from the engine's own answers, is where the look is tuned.
 | `chat-work-empty` | before the first word or call, the three dots |
 | `chat-work-reading` | earlier messages loading and Latest over the foot while away from the end |
 | `chat-working` | a live chat at work: its three dots |
+| `agent-work` | an agent's page, its last run running with a call under way, and Latest over the foot while away from the end |
 | `chat-change-running` | a chat with a delegated change running: its one line |
 | `chat-change-landed` | a chat with a delegated change landed: its one line with its result's words |
 | `chat-change-held` | the first run's chat T1 at step 2, its change held: its one line says so |
@@ -1640,4 +1666,5 @@ never streaming (`../draft/first-release.md`, 5.3).
   `/public`, its board, a task and its landings, by a page with no
   sign-in and no stream, the view's text checked against the public
   records' fields alone; and a project made private, its pages unknown
-  at the next read.
+  at the next read. The goal it reads is under way: a landed goal's pages
+  hold nothing a browser alone shows (4.6).

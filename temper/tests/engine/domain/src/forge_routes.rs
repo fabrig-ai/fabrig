@@ -1510,7 +1510,6 @@ impl World {
                 | engine::Request::MakingCopied { .. }
                 | engine::Request::SetUp { .. }
                 | engine::Request::Bound { .. }
-                | engine::Request::Return { .. }
                 | engine::Request::Setup { .. }
                 | engine::Request::Party(_)
                 | engine::Request::Store(_)
@@ -2247,6 +2246,7 @@ pub fn hint_step(world: &mut forge_world::World, task: u64, entry: u64) {
         entry,
         heard: change::Heard {
             delegate_running: false,
+            delegate_live: false,
             start_conflict: None,
             lacking: None,
             spend: None,

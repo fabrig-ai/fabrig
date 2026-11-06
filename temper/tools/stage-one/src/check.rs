@@ -235,6 +235,15 @@ fn substitute(value: &mut Value, golden: &Golden, evidence: &Evidence, keys: &[O
     }
     Some(())
 }
+/// A last open on nothing beneath a segment covers, for a branch under that segment, what
+/// the segment open covers, so a rule written either way reads the same.
+fn folded(mut decoded: Value) -> Option<Value> {
+    if decoded.pointer("/last/open").and_then(Value::as_str) == Some("") {
+        let segment = decoded.get_mut("segments")?.as_array_mut()?.pop()?;
+        *decoded.pointer_mut("/last/open")? = segment;
+    }
+    Some(decoded)
+}
 fn expected_pattern(value: &Value, golden: &Golden, evidence: &Evidence) -> Option<Value> {
     let mut decoded = pattern(value)?;
     let segments = decoded.get_mut("segments")?.as_array_mut()?;
@@ -255,11 +264,17 @@ fn expected_pattern(value: &Value, golden: &Golden, evidence: &Evidence) -> Opti
 }
 fn branch_matches(value: &Value, anchor: &BranchAnchor) -> bool {
     let Some(last) = golden::member(value, "pattern.last") else { return false };
-    let (kind, text) = match anchor {
-        BranchAnchor::Exact(text) => ("exact", text),
-        BranchAnchor::Open(text) => ("open", text),
-    };
-    last.get(kind).and_then(unhex).as_ref() == Some(text)
+    match anchor {
+        BranchAnchor::Exact(text) => last.get("exact").and_then(unhex).as_ref() == Some(text),
+        BranchAnchor::Open(text) => {
+            let Some(open) = last.get("open").and_then(unhex) else { return false };
+            let beneath = || {
+                let segments = golden::member(value, "pattern.segments")?.as_array()?;
+                segments.last().and_then(unhex)
+            };
+            open == *text || (open.is_empty() && beneath().as_ref() == Some(text))
+        }
+    }
 }
 
 fn anchor_key(role: &Role, golden: &Golden, evidence: &Evidence, keys: &[Option<SettingKey>]) -> Option<SettingKey> {
@@ -338,6 +353,10 @@ fn compare(test: Test, found: &Value, expected: &Value) -> bool {
             (Some(f), Some(e)) => f & e == e,
             _ => false,
         },
+        Test::Lacks => match (found.as_u64(), expected.as_u64()) {
+            (Some(f), Some(e)) => f & e == 0,
+            _ => false,
+        },
         Test::Contains => match (found.as_array(), expected.as_array()) {
             (Some(f), Some(e)) => e.iter().all(|v| f.iter().any(|item| holds(item, v))),
             _ => false,
@@ -407,7 +426,7 @@ fn setting_outcome(
         Test::Judged => {
             return if found.as_str().is_some_and(|s| !s.is_empty()) { Outcome::Judged } else { Outcome::Missing };
         }
-        Test::Equal | Test::AtLeast | Test::Bits | Test::Contains | Test::Unchanged | Test::Only => {}
+        Test::Equal | Test::AtLeast | Test::Bits | Test::Lacks | Test::Contains | Test::Unchanged | Test::Only => {}
     }
     let Some(mut expected) = expected(setting, golden, profile) else { return Outcome::Missing };
     if substitute(&mut expected, golden, evidence, keys).is_none() {
@@ -415,7 +434,7 @@ fn setting_outcome(
     }
     let mut found = found.clone();
     if key.kind == "landing-rule" && setting.member == "pattern" {
-        let decoded_found = pattern(&found);
+        let decoded_found = pattern(&found).and_then(folded);
         let decoded_expected = expected_pattern(&expected, golden, evidence);
         match (decoded_found, decoded_expected) {
             (Some(f), Some(e)) => {

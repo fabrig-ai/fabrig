@@ -27,6 +27,7 @@ pub struct Rename {
 }
 #[derive(Debug)]
 pub struct Fake {
+    output: OutputHold,
     pub(super) lists: u32,
     pub behind: Behind,
     pub repositories: Repositories,
@@ -35,6 +36,14 @@ pub struct Fake {
     pub renames: Vec<Rename>,
     pub locks: BTreeSet<Handle>,
     pub served_bytes: u64,
+}
+#[derive(Debug, Default)]
+struct OutputHold {
+    file: Option<Handle>,
+    armed: bool,
+    held: Option<skein_sim::Call>,
+    holds: u32,
+    releases: u32,
 }
 #[derive(Clone, Debug)]
 pub struct Shared(Rc<RefCell<Fake>>);
@@ -80,6 +89,7 @@ impl Shared {
         repositories.lay(machine.linux_mut(), GIT_DIR, BUILDER, repository);
         let universe = Universe::draw(&mut Rng::new(seed), &Draw { packages: WORLD_PACKAGES, names: &[] });
         Self(Rc::new(RefCell::new(Fake {
+            output: OutputHold::default(),
             behind: Behind::new(machine, BUILDER),
             repositories,
             universe,
@@ -105,6 +115,21 @@ impl Shared {
     #[must_use]
     pub fn contents(&self, path: &[u8]) -> Option<Vec<u8>> {
         self.borrow().behind.machine().linux().contents(path).map(<[u8]>::to_vec)
+    }
+    /// Hold only the first write to the client's output.
+    pub fn hold_output(&self) {
+        self.borrow_mut().output.armed = true;
+    }
+    #[must_use]
+    pub fn output_holds(&self) -> (u32, u32) {
+        let fake = self.borrow();
+        (fake.output.holds, fake.output.releases)
+    }
+    /// Complete the held write through the same machine as every other append.
+    pub fn release_output(&self, answers: &mut Queue<skein_sim::Answer>) {
+        let call = self.borrow_mut().output.held.take().expect("the client's first output write is held");
+        answers.push(skein_sim::Answer { ticket: call.ticket, result: self.answer(call.ask) });
+        self.borrow_mut().output.releases += 1;
     }
     pub fn answer(&self, ask: Ask) -> Result<Reply, Error> {
         let rename = if let Ask::Rename { from, to, .. } = &ask {
@@ -148,7 +173,12 @@ impl skein_world::Machine for Shared {
         self.borrow_mut().behind.close_root(root);
     }
     fn open_append(&mut self, root: Handle, path: &[u8], mode: u32) -> Result<Handle, Error> {
-        self.borrow_mut().behind.open_append(root, path, mode)
+        let mut fake = self.borrow_mut();
+        let file = fake.behind.open_append(root, path, mode)?;
+        if path == b"output" {
+            fake.output.file = Some(file);
+        }
+        Ok(file)
     }
     fn close_append(&mut self, file: Handle) {
         self.borrow_mut().behind.close_append(file);
@@ -159,6 +189,15 @@ impl skein_world::Machine for Shared {
         fake.locks.retain(|file| !held.contains(file));
     }
     fn step(&mut self, call: skein_sim::Call, answers: &mut Queue<skein_sim::Answer>) {
+        {
+            let mut fake = self.borrow_mut();
+            if fake.output.armed && matches!(&call.ask, Ask::Append { file, .. } if Some(*file) == fake.output.file) {
+                fake.output.armed = false;
+                fake.output.holds += 1;
+                fake.output.held = Some(call);
+                return;
+            }
+        }
         answers.push(skein_sim::Answer { ticket: call.ticket, result: self.answer(call.ask) });
     }
 }

@@ -1300,14 +1300,35 @@ every request                                          Failed { request, class, 
   fails the command. Static files and rendered files live in the store's
   cache, never in the domain, so a small VM's builder renders what a
   large one does.
+- **Between the builder's layers nothing is capped.** The queues between
+  its own children grow as they fill, and only the edges refuse
+  (`skein/docs/foundation/programming-model.md`, 6.3). `Limits::queue`
+  sizes the two queues the builder shares with the kernel, `completions`
+  and `submissions`, and nothing else.
+- **A watermark holds render behind a client that has stopped reading**
+  (`skein/docs/foundation/programming-model.md`, 7.1). `Limits::watermark`
+  is one number, 30 as shipped, which keeps pacing close to what capped
+  queues gave. The backlog is what `told`, `file_told`, `answers` and
+  `asked` hold. At the watermark the domain's next resume waits, so render
+  makes no more records: however many targets a call has, about a
+  watermark of them wait behind a stuck client. What finishes admitted work
+  is always taken: an event enters the protocol layer, an answer goes down
+  once the client's printer takes it, and a request reaches io, at any
+  backlog. `calls` stays outside the backlog: its events wait behind the
+  domain's own next resume, so counting them would hold the watermark shut.
+  The watermark paces and bounds no memory. A backlog may pass it by what
+  one admitted event makes, and the heap stays measured.
+- **A pass is paced.** A pass takes from each queue what the queue held
+  when the pass reached it, and resumes a layer at most
+  `Limits::watermark` times, so one pass never runs a whole render: what
+  is left stays ready for the next pass. Io's stage paces itself
+  (`skein/crates/skein-io/src/stage.rs`).
 
 ### 8.5 What keeps its order
 
 No order here rests on a queue's room
 (`skein/docs/foundation/programming-model.md`, 7.2). A machine's state
 or a named predicate keeps each one, and a test holds it.
-`hearth/docs/development/debt/D001-room-checks-and-max-out.md` lists every
-room check that remains, and what it keeps.
 
 - **One read at a time.** A git machine, mmdebstrap's pipe reader and
   list reader, and the JSON decoder have at most one demand out, and make
@@ -1349,7 +1370,13 @@ room check that remains, and what it keeps.
   it failed on, if it failed, and its reply last: the builder's root holds
   render's reply until the report is out (`holds`, `reporting`).
 - **The domain takes a store step's answer before the store's next
-  step,** so nothing waits in the queue above a step of the store.
+  step,** so nothing waits in the queue above a step of the store. A step
+  has answered when it added to what the protocol layer gave above,
+  whatever that queue already held (`store_answered`), and only then does
+  the next index open.
+- **Render waits at the watermark, and what it asked for does not.** The
+  domain's next resume waits while the backlog is at the watermark
+  (`admits`, 8.4). Nothing else waits on that number.
 
 ## 9. Its world
 
@@ -1541,22 +1568,17 @@ Over generated repositories, valid by construction and then mutated:
 - **Where a resolution's closure is made:** 8.2's `Resolved` carries the
   closure, while 5.3 has the domain match `Inst` triples to `Packages`
   stanzas; one of the two is to change.
-- **How the builder paces with its own queues uncapped:** an uncapped
-  `answers` can hold a copy of every target's spec, so it takes a
-  watermark (`skein/docs/foundation/programming-model.md`, 7.1) or a stop
-  on `takes`. A pass's loops take bounds of their own: an uncapped
-  queue's capacity bounds nothing, and one pass could run a whole render.
-  It is to settle with the service's move to the model
-  (`hearth/docs/development/debt/D001-room-checks-and-max-out.md`).
-- **What resumed work's order protects** (8.5): the cases searched show
-  a client nothing different when an io event enters with work pending.
-  The guard stays until a consequence is found and a test holds it;
-  pending cache work is to be read beside stdin's room, a child's exit
-  and a pipe's end. It depends on the same move.
 - **The domain's next event and its own resumed work:** 8.5 orders the
   protocol layer's alone, and the domain's step takes event after event
-  without asking whether it has work to resume. Whether it must depends
-  on the first build step that streams its events.
+  without asking whether it has work to resume, and `calls` stands outside
+  the watermark's backlog (8.4). Whether it must ask, and whether a stream's
+  events need a watermark of their own, depends on the first build step that
+  streams its events.
+- **What the service orders with no document asking** (8.5): `file_told` drains
+  before `told`, by the order of the loops, and a search that swapped them failed
+  no test; `asked` leaves in one order, a request that can't be taken holding those
+  behind it (`io_accepts_request`). Neither is stated as an order. Whether either
+  is one. Default: as they stand, until a test shows one.
 - **The store adapter's and a keep's lifecycles** (8): `store.rs` and `keep.rs`
   in `hearth-protocol-builder` keep theirs in flags and `Option`s
   (`skein/docs/foundation/programming-model.md`, 5.4). Default: as they stand,

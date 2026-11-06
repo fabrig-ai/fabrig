@@ -4872,6 +4872,7 @@ dependencies = [
 name = "temper-client-journeys"
 version = "0.0.0"
 dependencies = [
+ "jig-client-protocol-wire",
  "skein-browser",
  "skein-fail-stop",
  "skein-fake-person",

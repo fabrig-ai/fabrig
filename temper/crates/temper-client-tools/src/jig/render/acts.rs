@@ -278,9 +278,8 @@ pub fn refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
             out.number(u64::from(*oldest));
             return;
         }
-        Refusal::Judged { why, .. } => {
-            out.put(b"refused by its owner: ");
-            out.put(why.bytes());
+        Refusal::Judged { at, setting, why } => {
+            judged_refusal(*at, *setting, why, out);
             return;
         }
         Refusal::Stale(value) => {
@@ -303,14 +302,7 @@ pub fn refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
             return;
         }
         Refusal::Malformed { at, why: jig_client::contract::Malformed::Settings(value) } => {
-            settings_form::refusal(
-                &settings_form::Refusal::Malformed {
-                    at: *at,
-                    setting: crate::jig::settings_adapter::form_setting(value.setting),
-                    fault: crate::jig::settings_adapter::form_setting_fault(value.fault),
-                },
-                out,
-            );
+            malformed_settings(*at, value, out);
             return;
         }
         Refusal::Malformed { why: jig_client::contract::Malformed::Running, .. } => {
@@ -357,6 +349,15 @@ pub fn refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
     }
     plain_refusal(why, book, out);
 }
+fn judged_refusal(at: u32, setting: jig_client::contract::Setting, why: &jig_client::contract::Text, out: &mut Text) {
+    out.put(b"refused; item ");
+    out.number(u64::from(at));
+    out.put(b"; ");
+    settings_form::render::setting_text(crate::jig::settings_adapter::form_setting(setting), out);
+    out.put(b": ");
+    out.put(why.bytes());
+}
+
 fn plain_refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
     let word = Word::refusal(why);
     let text = match why {
@@ -522,4 +523,19 @@ pub fn wall(wall: Option<skein_lib::Wall>, out: &mut Text) {
         Some(wall) => out.number(wall.as_nanos()),
         None => out.put(b"none"),
     }
+}
+
+fn malformed_settings(at: u32, value: &jig_client::contract::MalformedSettings, out: &mut Text) {
+    settings_form::refusal(
+        &settings_form::Refusal::Malformed {
+            at,
+            setting: crate::jig::settings_adapter::form_setting(value.setting),
+            fault: crate::jig::settings_adapter::form_setting_fault(value.fault),
+            detail: match value.detail {
+                Some(value) => Some(crate::jig::settings_adapter::form_setting_detail(value)),
+                None => None,
+            },
+        },
+        out,
+    );
 }

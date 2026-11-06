@@ -897,10 +897,12 @@ alone (setup.md, section 15).
   hands it to the component, which takes `POST` on one path per forge,
   `/hooks/<number>`, the forge's `number`.
 - **Each Forgejo forge's secret** is its `WebhookSecret` record
-  (credentials.md, the forges' records): drawn and kept by reconcile on
-  a managed or owned forge, pasted with the API and git tokens on a
-  connected one. The routing hands it in the forge's access (2.1) only
-  with `application.webhooks`; a forge with a secret and no listener is
+  (credentials.md, the forges' records): drawn and kept by a setup plan
+  on a managed or owned forge served the listener (setup.md, 5.3),
+  pasted with the API and git tokens on a connected one. The routing
+  hands it in the forge's access (2.1) only with `application.webhooks`,
+  and again when a plan draws it on a connected forge (setup.md, 5.4); a
+  forge with a secret and no listener is
   handed none, polls alone, and is named once in the log. A forge with
   no secret has no path (skein's `forge-connection.md`, 6.1).
   `WebhookSecret` is Forgejo's alone: a GitHub forge has none (5.1).

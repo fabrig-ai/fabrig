@@ -130,19 +130,7 @@ impl Component {
         self.admit_policy(call, endpoint, prompt, credential, None)
     }
 
-    /// Checks one call with its owner's explicit model policy before any IO.
-    pub fn admit_with_reasoning_drop(
-        &mut self,
-        call: Token,
-        endpoint: u32,
-        prompt: Prompt,
-        credential: Option<Credential>,
-        enabled: bool,
-    ) -> Result<llm::client::Client, Refusal> {
-        self.admit_policy(call, endpoint, prompt, credential, Some(enabled))
-    }
-
-    fn admit_policy(
+    pub(crate) fn admit_policy(
         &mut self,
         call: Token,
         endpoint: u32,

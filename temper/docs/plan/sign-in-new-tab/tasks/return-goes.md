@@ -59,3 +59,34 @@ As the implementer's text asks. List each golden count and each journey regenera
 - **Old forms** run from `temper/`: `python3 -I -B scripts/old_forms.py`.
 
 Then finish what stopped with the question: all of step 3, the non-write drift check, and `again NAME` for `chat-draft`, `project-landing`, `welcome-playground` and `welcome-set-up`, or those journeys under `## Left` if it can't run on your builder. Put in your report that skein's `Request::Return` and jig's `return_to` have no shipping caller left.
+
+2026-11-06. **Should the journey owner repair `again`'s starting state first, or should this task re-walk the affected journeys?** Neither as asked: start from the pushed `74d0dfa9b8`, repair nothing in `again`, and bring only the stale recordings up. Your acceptance can't hold otherwise: `temper-client-journeys`'s own test fails on a stale journey (`temper/docs/design/client/journeys.md`, section 6). The earlier answer's list of four came from no decoding. This one is decoded from the recordings' family requests, against the schema's tags:
+
+| Journey | What its recording holds | What to do |
+|---|---|---|
+| `project-landing` | No `/jig/v1/request`, so no `Request` and no `Outcome` | Nothing. It isn't stale, and `again` can't serve it |
+| `welcome-set-up` | `set_up`, tag 1, answered `setting_up`, tag 4: both before the removed tags | Nothing. It isn't stale |
+| `welcome-playground` | `start_playground`, tag 8 to 7 (exchange 10); answered `running`, tag 6, unmoved | `again welcome-playground`. It starts on a fresh box's welcome, which `again` reaches |
+| `chat-draft` | `dismiss`, tag 11 to 10 (exchange 89), answered `dismissed`, tag 19 to 18 | Walked anew (below). `again` can't serve it |
+
+- **Why `again` went wrong:** its walk starts at a fresh box's printed link (8.1), while `project-landing` and `chat-draft` start after a set up, on `/projects/1` and `/projects/1/settings`. So `project-landing`'s Welcome is `again` proving a page the journey doesn't show, and `chat-draft`'s step 2 is its toggle absent from Welcome. Discard both results, as you did. The gap goes in `journeys.md`, section 10, and this answer's commit adds it. `temper/tools/journeys/src/again.rs` doesn't change in this task.
+- **Reprint first:** after the rest of step 3's checks but before its nine-package run, run `heavy cargo run -p temper-client-journeys`. It should name `chat-draft` and `welcome-playground` stale, at those exchanges, and leave the other two byte for byte. Anything else, another journey or another line, is a `Question:` with the line it names.
+- **`chat-draft`, walked anew** (`journeys.md`, section 8; the commit `b98e82dc7c` did the same): a fresh `temper box --fake-backends` with the recording bundle (`temper/scripts/bundle.sh --loopback --record`) and headless Chromium from `SKEIN_TEST_CHROMIUM`, following its `README.md` step by step, then `heavy cargo run -p temper-client-journeys -- add chat-draft FILE`, whose first replay proves all 22 prints. The README's words don't change. Its sign-in now meets the new tab, which is this plan's behaviour: the tab follows the fake issuer under this bundle, and the page moves on by itself.
+- **The driver:** this walk has no tracked tool, and the question is settled here: a throwaway driver, untracked in your worktree and gone before you push. Keep 8.1's rule of a still page before each step. Skein's harness ends a run at 40 seconds (`journeys.md`, section 10), and that horizon isn't yours to change, so drive the browser without that limit if the walk needs longer. Never edit a recording by hand.
+- **What a print's diff may hold, for both journeys:** times, loopback ports, and what a fresh walk generates afresh (ids, hashes, a seed's values). A changed word, control, page or number of marks is still red: stop and ask, naming the print and the line. `welcome-playground`'s `README.md` stays as it is too.
+- **If `chat-draft`'s walk can't finish** (no browser or box on your builder, or a step the README's words no longer reach): `Question:` with the step and its log, having pushed what passes. Don't leave it under `## Left`: the gate runs `temper-client-journeys` and would be red.
+- **Then the rest of step 3:** the nine-package nextest run, which holds the print test, the `temper` and `temper-client-shell-cli` check, the engine and system worlds' focused tests, and the non-write drift test. Commit the recordings and prints apart from the code. Report each journey as regenerated, walked anew or left unmoved, with the reprint's words.
+
+## Rebase (2026-11-06, step merge, foreman sign-in-new-tab/return-goes/foreman-3)
+
+Rebase onto the landing trunk and regenerate the wire and chat-draft artifacts from the combined code.
+The merge conflicts in `temper/crates/temper-client-protocol-wire/src/generated/v1.rs` and `temper/docs/design/client/journeys/chat-draft/{06.html–22.html,recording}` belong to this branch.
+Main’s `bde57f3afd` adds `Read::ProgramEnvironment` and `ProgramEnvironmentAnswer`; preserve them alongside this task’s removal of `Return` and `returning`.
+Regenerate `src/generated/v1.rs` and the wire goldens from the combined schema using their tools; resolve no generated code by hand. Keep `CLIENT_VERSION` unchanged.
+Main’s `b98e82dc7c` refreshes `chat-draft` for the current inbox exchange, carried into the integration by `6d7fca9954`. This branch’s `f8fcac040a` independently refreshes it after removing Return.
+Neither recording alone proves the combined code. Walk `chat-draft` anew on the rebased code using the existing README and the task’s answered browser procedure.
+Import it with `heavy cargo run -p temper-client-journeys -- add chat-draft FILE`; require its first replay to prove all 22 prints. Generate the conflicting HTML pages through the journey tool.
+Preserve the README’s words. Apply the existing permitted print differences and question rules; never splice recording bytes or HTML hunks.
+Retain this branch’s regenerated `welcome-playground` recording unless combined-code replay identifies it as stale.
+Run the journey reprint and print tests, wire checks and non-write drift checks, then finish the spec’s remaining validation through heavy.
+Report the regenerated golden counts and each journey’s disposition; commit regenerated journeys separately from code.

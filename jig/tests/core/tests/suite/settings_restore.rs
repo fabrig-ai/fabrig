@@ -268,7 +268,8 @@ fn a_restore_past_the_whole_set_is_refused_too_large() {
             at: 0,
             why: people::Malformed::Settings {
                 setting: settings::Setting::ProjectPolicy { project: SECOND },
-                fault: settings::Fault::Count
+                fault: settings::Fault::Count,
+                detail: None
             },
         }))
     );

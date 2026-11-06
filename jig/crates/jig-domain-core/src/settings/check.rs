@@ -7,6 +7,7 @@ use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
+use skein_lib::length::len_u64;
 
 /// Check the maps in place: no third materialised set of values is constructed.
 pub fn check(current: &Current, settings: &Settings, connectors: &[u16], limits: &Limits) -> Result<(), Failure> {
@@ -34,6 +35,30 @@ pub(crate) fn edit(items: &[Item], setting: Setting) -> Option<&Edit> {
     }
     None
 }
+// The shared lifetime borrows a value from either the current maps or the decision; no view is stored.
+fn overlay_value<'a>(current: &'a Current, defaults: bool, items: &'a [Item], setting: Setting) -> Option<&'a Value> {
+    match edit(items, setting) {
+        Some(Edit::Set(value)) => Some(value),
+        Some(Edit::Removed) => None,
+        Some(Edit::Reset) => base_value(current, true, setting),
+        None => base_value(current, defaults, setting),
+    }
+}
+
+/// Read templates from the same overlay that checks the decision, without publishing it.
+pub(crate) fn templates(current: &Current, items: &[Item]) -> Box<[crate::Template]> {
+    let names = offered(current, false, items);
+    let mut result = skein_lib::List::with_capacity(names.len());
+    for &setting in &names {
+        if let Some(value) = overlay_value(current, false, items, setting)
+            && let Some(template) = value.as_template()
+        {
+            result.push(template.clone()).expect("one template per offered name");
+        }
+    }
+    result.into_boxed()
+}
+
 fn offered(current: &Current, defaults: bool, items: &[Item]) -> skein_lib::List<Setting> {
     let count = current
         .defaults
@@ -58,12 +83,7 @@ fn offered(current: &Current, defaults: bool, items: &[Item]) -> skein_lib::List
     }
     let mut result = skein_lib::List::with_capacity(names.len());
     for (&setting, ()) in &names {
-        let offered = match edit(items, setting) {
-            Some(Edit::Set(value)) => Some(value),
-            Some(Edit::Removed) => None,
-            Some(Edit::Reset) => base_value(current, true, setting),
-            None => base_value(current, defaults, setting),
-        };
+        let offered = overlay_value(current, defaults, items, setting);
         if offered.is_some() {
             result.push(setting).expect("offered names");
         }
@@ -120,27 +140,22 @@ fn check_set(
     for &setting in &names {
         count(setting, &mut counts, limits)?;
     }
-    let rules = match match edit(items, Setting::Rules) {
-        Some(Edit::Set(value)) => Some(value),
-        Some(Edit::Removed) => None,
-        Some(Edit::Reset) => base_value(current, true, Setting::Rules),
-        None => base_value(current, defaults, Setting::Rules),
-    } {
+    let rules = match overlay_value(current, defaults, items, Setting::Rules) {
         Some(value) => value.as_rules(),
         None => None,
     }
-    .ok_or(Failure { setting: Setting::Rules, fault: Fault::Rules })?;
+    .ok_or(Failure { setting: Setting::Rules, fault: Fault::Rules, detail: None })?;
     if let Some(fault) = rules_fault(rules, &limits.authority, Fault::Rules) {
-        return Err(Failure { setting: Setting::Rules, fault });
+        return Err(Failure { setting: Setting::Rules, fault, detail: None });
     }
     if !authority_refs(current, defaults, items, &rules.ceiling, None, connectors, settings)
         || !requirement_refs(&rules.requirements, connectors)
     {
-        return Err(Failure { setting: Setting::Rules, fault: Fault::Reference });
+        return Err(Failure { setting: Setting::Rules, fault: Fault::Reference, detail: None });
     }
     for pair in rules.implies.entries() {
         if !connectors.contains(&pair.connector) {
-            return Err(Failure { setting: Setting::Rules, fault: Fault::Reference });
+            return Err(Failure { setting: Setting::Rules, fault: Fault::Reference, detail: None });
         }
     }
     // Hidden defaults still obey their own byte bounds; removals do not remove that cost.
@@ -153,24 +168,14 @@ fn check_set(
         }
     }
     for &setting in &names {
-        let fault = match (match edit(items, setting) {
-            Some(Edit::Set(value)) => Some(value),
-            Some(Edit::Removed) => None,
-            Some(Edit::Reset) => base_value(current, true, setting),
-            None => base_value(current, defaults, setting),
-        })
-        .expect("offered setting")
-        {
+        let fault = match overlay_value(current, defaults, items, setting).expect("offered setting") {
             Value::Charter(charter) => {
-                let mut registered = true;
-                for document in &charter.documents {
-                    registered &= connectors.contains(&document.connector);
-                }
-                if registered { charter_fault(charter, settings, limits) } else { Some(Fault::Shape) }
+                registered_documents(setting, charter, connectors)?;
+                charter_fault(charter, settings, limits)
             }
             Value::Template(template) => {
                 if let Some(fault) = contract_fault(&template.contract, connectors) {
-                    return Err(Failure { setting, fault });
+                    return Err(Failure { setting, fault, detail: None });
                 }
                 template_fault(current, defaults, items, template, template.executor, settings, limits)
             }
@@ -183,7 +188,7 @@ fn check_set(
             Value::Rules(_) | Value::Application(_) => None,
         };
         if let Some(fault) = fault {
-            return Err(Failure { setting, fault });
+            return Err(Failure { setting, fault, detail: None });
         }
     }
     Ok(())
@@ -207,14 +212,14 @@ pub(crate) fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<
             if setting == Setting::Rules
                 && let Some(fault) = rules_fault(value, &limits.authority, Fault::Shape)
             {
-                return Err(Failure { setting, fault });
+                return Err(Failure { setting, fault, detail: None });
             }
             setting == Setting::Rules
         }
         Value::Application(_) => super::application::is_application(setting),
     };
     if !valid {
-        return Err(Failure { setting, fault: Fault::Shape });
+        return Err(Failure { setting, fault: Fault::Shape, detail: None });
     }
     restore_fit(setting, value, limits)
 }
@@ -223,11 +228,13 @@ pub(crate) fn shape(setting: Setting, value: &Value, limits: &Limits) -> Result<
 pub(crate) fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> Result<(), Failure> {
     let valid = match value {
         Value::Charter(value) => {
-            documents_fit(value, limits)
-                && match crate::limits::policy_owned_bytes(&value.policy) {
-                    Some(bytes) => bytes <= u64::from(limits.run_bytes),
-                    None => false,
-                }
+            if let Some(detail) = documents_fit(value, limits) {
+                return Err(document_failure(setting, detail));
+            }
+            match crate::limits::policy_owned_bytes(&value.policy) {
+                Some(bytes) => bytes <= u64::from(limits.run_bytes),
+                None => false,
+            }
         }
         Value::Template(value) => {
             value.name.len() <= skein_lib::length::usize_of(limits.documents.text_bytes)
@@ -247,7 +254,7 @@ pub(crate) fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> R
         Value::Rules(value) => {
             let bound = &limits.authority;
             if !delegation_fits(value, bound) {
-                return Err(Failure { setting, fault: Fault::Count });
+                return Err(Failure { setting, fault: Fault::Count, detail: None });
             }
             value.ceiling.grants.len() <= skein_lib::length::usize_of(bound.grants)
                 && value.ceiling.note_resources.len() <= skein_lib::length::usize_of(bound.grants)
@@ -257,7 +264,7 @@ pub(crate) fn restore_fit(setting: Setting, value: &Value, limits: &Limits) -> R
         }
         Value::Application(_) => super::application::is_application(setting),
     };
-    if valid { Ok(()) } else { Err(Failure { setting, fault: Fault::Shape }) }
+    if valid { Ok(()) } else { Err(Failure { setting, fault: Fault::Shape, detail: None }) }
 }
 
 fn delegation_fits(rules: &authority::Rules, limits: &authority::Limits) -> bool {
@@ -274,24 +281,90 @@ fn rules_fault(rules: &authority::Rules, limits: &authority::Limits, malformed: 
     }
 }
 
-fn documents_fit(charter: &crate::Charter, limits: &Limits) -> bool {
-    if charter.documents.len() > skein_lib::length::usize_of(limits.tasks.charter_documents) {
-        return false;
-    }
-    for document in &charter.documents {
-        if !authority::name_within(&document.name, &limits.authority)
-            || document.path.is_empty()
-            || document.path.len() > skein_lib::length::usize_of(crate::DOCUMENT_PATH_BYTES)
-        {
-            return false;
+fn registered_documents(setting: Setting, charter: &crate::Charter, connectors: &[u16]) -> Result<(), Failure> {
+    for (at, document) in charter.documents.iter().enumerate() {
+        if !connectors.contains(&document.connector) {
+            return Err(document_failure(
+                setting,
+                people::SettingDetail {
+                    member: people::SettingMember::Connector,
+                    document: u32::try_from(at).expect("bounded documents"),
+                    segment: 0,
+                    rule: people::SettingRule::Registered,
+                    supplied: u32::from(document.connector),
+                    bound: 0,
+                },
+            ));
         }
-        if let Some(heading) = &document.heading
-            && (heading.is_empty() || heading.len() > skein_lib::length::usize_of(crate::DOCUMENT_HEADING_BYTES))
-        {
-            return false;
+    }
+    Ok(())
+}
+fn document_failure(setting: Setting, detail: people::SettingDetail) -> Failure {
+    Failure { setting, fault: Fault::Shape, detail: Some(detail) }
+}
+fn document_bound(
+    member: people::SettingMember,
+    document: u32,
+    segment: u32,
+    supplied: usize,
+    minimum: u32,
+    maximum: u32,
+) -> Option<people::SettingDetail> {
+    let (rule, bound) = if supplied < skein_lib::usize_of(minimum) {
+        (people::SettingRule::Minimum, minimum)
+    } else if supplied > skein_lib::usize_of(maximum) {
+        (people::SettingRule::Maximum, maximum)
+    } else {
+        return None;
+    };
+    Some(people::SettingDetail {
+        member,
+        document,
+        segment,
+        rule,
+        supplied: u32::try_from(supplied).expect("admitted settings bytes"),
+        bound,
+    })
+}
+fn documents_fit(charter: &crate::Charter, limits: &Limits) -> Option<people::SettingDetail> {
+    use people::SettingMember as M;
+    let count = document_bound(M::Documents, 0, 0, charter.documents.len(), 0, limits.tasks.charter_documents);
+    if count.is_some() {
+        return count;
+    }
+    for (at, document) in charter.documents.iter().enumerate() {
+        let at = u32::try_from(at).expect("bounded documents");
+        let name = document_name_fit(document, at, &limits.authority);
+        if name.is_some() {
+            return name;
+        }
+        let path = document_bound(M::Path, at, 0, document.path.len(), 1, crate::DOCUMENT_PATH_BYTES);
+        if path.is_some() {
+            return path;
+        }
+        if let Some(heading) = &document.heading {
+            let heading = document_bound(M::Heading, at, 0, heading.len(), 1, crate::DOCUMENT_HEADING_BYTES);
+            if heading.is_some() {
+                return heading;
+            }
         }
     }
-    true
+    None
+}
+fn document_name_fit(document: &crate::Document, at: u32, limits: &authority::Limits) -> Option<people::SettingDetail> {
+    use people::SettingMember as M;
+    let count = document_bound(M::NameSegments, at, 0, document.name.segments.len(), 0, limits.segments);
+    if count.is_some() {
+        return count;
+    }
+    for (segment, bytes) in document.name.segments.iter().enumerate() {
+        let segment = u32::try_from(segment).expect("admitted name segments");
+        let detail = document_bound(M::NameSegmentBytes, at, segment, bytes.len(), 0, limits.segment_bytes);
+        if detail.is_some() {
+            return detail;
+        }
+    }
+    None
 }
 
 fn rules_patterns_fit(value: &authority::Rules, limits: &authority::Limits) -> bool {
@@ -365,7 +438,7 @@ fn contract_fits(value: &tasks::Contract, limits: &tasks::Limits) -> bool {
                 }
                 let mut bytes = u64::from(choice.words);
                 for field in &choice.fields {
-                    let Some(total) = bytes.checked_add(u64::try_from(field.name.len()).expect("field bytes")) else {
+                    let Some(total) = bytes.checked_add(len_u64(field.name.len())) else {
                         return false;
                     };
                     let Some(total) = total.checked_add(u64::from(field.max)) else {
@@ -456,12 +529,7 @@ fn template_fault(
     }
     match executor {
         people::TemplateExecutor::Charter(number) => {
-            let charter = match match edit(items, Setting::Charter(number)) {
-                Some(Edit::Set(value)) => Some(value),
-                Some(Edit::Removed) => None,
-                Some(Edit::Reset) => base_value(current, true, Setting::Charter(number)),
-                None => base_value(current, defaults, Setting::Charter(number)),
-            } {
+            let charter = match overlay_value(current, defaults, items, Setting::Charter(number)) {
                 Some(value) => value.as_charter(),
                 None => None,
             };
@@ -556,12 +624,7 @@ fn policy_fault(
                 return Some(Fault::Shape);
             }
         }
-        let template = match match edit(items, Setting::Template(entry.template)) {
-            Some(Edit::Set(value)) => Some(value),
-            Some(Edit::Removed) => None,
-            Some(Edit::Reset) => base_value(current, true, Setting::Template(entry.template)),
-            None => base_value(current, defaults, Setting::Template(entry.template)),
-        } {
+        let template = match overlay_value(current, defaults, items, Setting::Template(entry.template)) {
             Some(value) => value.as_template(),
             None => None,
         };
@@ -602,14 +665,7 @@ fn authority_refs(
     for executor in &value.delegation.kinds {
         match executor {
             authority::Executor::Charter(number) => {
-                if (match edit(items, Setting::Charter(*number)) {
-                    Some(Edit::Set(value)) => Some(value),
-                    Some(Edit::Removed) => None,
-                    Some(Edit::Reset) => base_value(current, true, Setting::Charter(*number)),
-                    None => base_value(current, defaults, Setting::Charter(*number)),
-                })
-                .is_none()
-                {
+                if overlay_value(current, defaults, items, Setting::Charter(*number)).is_none() {
                     return false;
                 }
             }
@@ -647,7 +703,7 @@ pub(super) fn count(setting: Setting, counts: &mut [u32; 3], limits: &Limits) ->
     };
     let count = counts.get_mut(slot).expect("three numbered kinds");
     *count = count.saturating_add(1);
-    if *count > bound { Err(Failure { setting, fault: Fault::Count }) } else { Ok(()) }
+    if *count > bound { Err(Failure { setting, fault: Fault::Count, detail: None }) } else { Ok(()) }
 }
 
 fn model_valid(model: &crate::Model, settings: &Settings) -> bool {
@@ -700,12 +756,7 @@ pub(crate) fn changed_charters(
 ) -> Box<[tasks::CharterModels]> {
     let mut result = skein_lib::List::with_capacity(limits.tasks.charters);
     for &setting in &offered(current, false, items) {
-        let value = match edit(items, setting) {
-            Some(Edit::Set(value)) => Some(value),
-            Some(Edit::Removed) => None,
-            Some(Edit::Reset) => base_value(current, true, setting),
-            None => base_value(current, false, setting),
-        };
+        let value = overlay_value(current, false, items, setting);
         if let Some(value) = value
             && let Some(charter) = value.as_charter()
         {

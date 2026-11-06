@@ -409,7 +409,8 @@ each green run, each review, each landing and the chat's last word.
    `fabrig` in a new project (`forge setup --org fabrig --repository fabrig`, as the help names
    it). As the person, push fabrig at the commit under test to its `main`. Read through the API
    that head and `temper/docs/design/draft/archive/playground-reset.md` in it.
-2. Apply the reference settings named below through ctl as `temper help configure` walks it:
+2. Apply the reference settings named below through ctl as `temper help configure` walks it,
+   with the authority `docs/examples/reference/README.md` gives:
    coordinator's charter 5, designer's charter 6, coding agent's charter 2, template 4 for a
    draft's goal, and landing rules for `main` and goal branches. Adapt only where the help says:
    models to what the box offers, offering `gpt-6.1-sol` for the goal's work, and landing rules

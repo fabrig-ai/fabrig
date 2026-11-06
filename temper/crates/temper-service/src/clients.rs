@@ -139,10 +139,6 @@ impl Clients {
         self.playground_ready.push(event);
     }
 
-    /// The live bound socket survives consumption of the listening notification.
-    pub(crate) fn bound_address(&self) -> Option<::core::net::SocketAddr> {
-        self.server.listening()
-    }
     #[expect(clippy::too_many_lines, reason = "startup constructs bounded queues beside the client component")]
     pub fn new(
         directories: &config::Directories,
@@ -282,7 +278,7 @@ impl Clients {
             bridge: kit::host::Bridge::new(Token::new(crate::tokens::CLIENTS).tag()),
             #[cfg(test)]
             secret_terminals: None,
-            deployment: crate::family::Deployment { welcome: false, owned: false },
+            deployment: crate::family::Deployment { welcome: false, owned: false, program_login: None },
             program_environment: Box::new([]),
             playground: None,
             playground_starts: Map::with_capacity(PLAYGROUND_STARTS),
@@ -543,7 +539,7 @@ impl Clients {
                         value,
                         forges,
                         demo,
-                        self.deployment,
+                        &self.deployment,
                         self.playground.as_ref(),
                         &temper_client_protocol_wire::v1::CEILINGS,
                     ) {

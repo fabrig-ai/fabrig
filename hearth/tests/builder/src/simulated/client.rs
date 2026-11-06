@@ -11,10 +11,17 @@ pub struct Client {
     inner: hearth::Client,
     startup: VecDeque<Fd>,
     closing: bool,
+    bounded_passes: u32,
+    watermark: u32,
     completions: Queue<Complete>,
     submissions: Queue<Submit>,
 }
 impl Client {
+    /// Passes that leave already pending work below the watermark.
+    #[must_use]
+    pub const fn bounded_passes(&self) -> u32 {
+        self.bounded_passes
+    }
     #[must_use]
     pub fn new(inherited: &Inherited, scenario: &fixtures::Scenario<'_>, seed: u64, limits: hearth::Limits) -> Self {
         let mut client = hearth::Client::with_roots(
@@ -35,6 +42,8 @@ impl Client {
             inner: client,
             startup: inherited.roots.iter().map(|(_, fd)| *fd).chain([inherited.signal]).collect(),
             closing: false,
+            bounded_passes: 0,
+            watermark: limits.watermark,
             completions: Queue::with_capacity(limits.queue),
             submissions: Queue::with_capacity(limits.queue),
         }
@@ -53,7 +62,13 @@ impl Host for Client {
                 self.inner.completions().push(complete);
             }
         }
+        // An event taken after the resume loop can make new work pending; only
+        // work already pending could have been stopped by this pass's bound.
+        let pending = self.inner.service().domain().work_pending();
         self.inner.iterate(now, wall);
+        if pending && self.inner.service().domain().work_pending() && self.inner.service().backlog() < self.watermark {
+            self.bounded_passes += 1;
+        }
         self.inner.drain();
         while let Some(submit) = self.inner.submissions().pop() {
             self.submissions.push(submit);

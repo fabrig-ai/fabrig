@@ -537,8 +537,8 @@ in the lower world that owns it, never here.
     starts a chat turn, and the fake LLM plays a reply in two pieces,
     the second under a named hold, which waits before it (skein's
     `fake-llm.md`, section 2.2): the first piece is sent and the reply
-    held. The typist reads a printed page that shows that piece under
-    "Writing…", before the turn commits; only then does the story
+    held. The typist reads a printed page that shows that piece before
+    its "▍", before the turn commits; only then does the story
     release the hold, through the fake LLM's owner in the loop, as the
     world releases its other holds. The reply completes, the turn
     commits, and the first page that shows the committed turn shows no
@@ -2311,7 +2311,7 @@ world of temper's on a scripted engine (../client/README.md, section 10).
 - **A run's live text** has its story there, with a scripted host in
   place of an agent: the host sends a run's text in pieces, held after
   the first (jig's `protocol/channel.md`, 6.4), and the fake person
-  reads the chat's provisional "Writing…" turn with that piece, then the
+  reads the chat's words being written, that piece before its "▍", then the
   rest of the held text, and then the committed turn, which replaces it.
   The joint world's front plays the run's worker: at the chat run's
   assignment it sends the reply's first piece up the worker link, as
@@ -2405,9 +2405,10 @@ profile, `docs/examples/reference/` (`../protocol/configuration.md`,
 Each obligation is one field of one row of the reference's table, and
 of one kind:
 
-- *a setting*, which the accepted settings hold, by one of eight
+- *a setting*, which the accepted settings hold, by one of nine
   tests: `equal` (the value, whole), `at-least` (a number no smaller),
   `bits` (each expected bit of a family mask set, others allowed),
+  `lacks` (no expected bit of a mask set),
   `contains` (each expected element of a list present, a member it does
   not name free and one absent counting as null, others allowed),
   `set` (present and not null, whatever its value), `judged` (text the
@@ -2437,7 +2438,7 @@ check binds each role to a number:
 | `goal-template` | template 4 | the template whose `resources` hold *its own goal branch* |
 | `small-goal-template` | the stock's goal template | the stock's number |
 | `main-rule` | landing rule 1 | the deployment's rule whose pattern ends exactly `main` |
-| `goal-rule` | landing rule 2 | the deployment's rule whose pattern ends open on `temper` |
+| `goal-rule` | landing rule 2 | the deployment's or the project's rule whose pattern ends open on `temper`, or open on nothing beneath a segment `temper`: each covers a goal branch |
 
 A role bound by assignment takes one of the charters the accepted
 revision adds that no anchor took: of every assignment, the one that
@@ -2457,7 +2458,7 @@ obligations missing.
 | the foreman's charter | setting: its instructions (`judged`); its model, `model.name`, gpt-6.1-sol, set on the charter (the draft's status records the departure); `inspect` true, `modify`, `shell` and `agents` false |
 | the forge's charters (kind 3) | setting: 1 names the coding agent's, its anchor; 2, the reviews', `unchanged` (unused, since neither landing rule asks a gate); the foremen's, the foreman's role's number |
 | each change's LLM choices | setting: the coding agent's model, `model.name`, gpt-6.1-sol; the coordinator's instructions (`judged`: a coding change at gpt-6.1-sol at the spec's effort, a designer's at section 4's choice); box: gpt-6.1-sol on smith's direct backend with an OpenAI account's key |
-| the project's policy and rules | setting: the rules' ceiling's, policy 1's ceiling's and its role 0's tool families (`bits`: the profile's, the stock's with jig's control and notes families, 13.9); their delegation's kinds (`contains`: each charter role's charter, the stock's procedures 2 to 4, the merge job, job 3, and role 0) and its tasks and depth (`at-least`: 1,024 tasks, 4 deep, N21); policy 1's role 0 and the project's own policy's the same |
+| the project's policy and rules | setting: the rules' ceiling's, policy 1's ceiling's and its role 0's tool families (`bits`: 1,983, the stock's with the families the coordinator's row names, 13.9), their note scopes (`bits`: 3, the goal's and the project's), and for role 0 no effect family (`lacks`: 64); their delegation's kinds (`contains`: each charter role's charter, the stock's procedures 2 to 4, the merge job, job 3, and role 0) and its tasks and depth (`at-least`: 1,024 tasks, 4 deep, N21); policy 1's role 0 and the project's own policy's the same |
 | the project's ways | setting: its `way`, the goal template for drafts, by role; its switches free. The project's questions are free too, a kind no obligation asks for: the coordinator names each change's route |
 | the landing rule for goal branches | setting: `goal-rule`'s `pattern`; `ci` false, `up_to_date` false; `gates` and `approvals` empty |
 | the landing rule for main | setting: `main-rule`'s `pattern`; `enforce` true, `ci` true, `up_to_date` true; `gates` and `approvals` empty; the deployment's rules `only` the two, so the stock's rule on every branch, which asks CI and a review, is replaced or removed |

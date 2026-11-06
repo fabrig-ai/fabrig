@@ -35,7 +35,8 @@ built through ctl, but the restore's stories in the domain world and
 the joined client world are ignored (`protocol/configuration.md`,
 `client/tools.md`). The configuring agent, charter 3 and template 3,
 is in the stock and the reference pages it reads are built, but no walk
-on record has run a real model on its words (`domain/agent.md`), and a
+on record has run a real model on its words, nothing it reads names the
+worker slots it is to size temper's own way by (`domain/agent.md`), and a
 charter's `tools` decides only whether its runs are offered the
 settings family (`protocol/configuration.md`). The limits' check
 leaves temper's kinds out of the settings answer's bound
@@ -53,9 +54,12 @@ spec and a run's brief, which its agent and smith's room bound below
 them (`protocol/configuration.md`), and the walk that request ends
 with has not passed (`protocol/setup.md`). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
-2026-11-05 has 8,192, which the web and terminal clients refuse, so a spec
-reads in pieces of it (`protocol/setup.md`). A green head ends a CI repair and a
-hold on its reason, but for a hold at gating, a hold no wake reaches and a retry
+2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
+reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words in
+its reply's room, but in those pieces where its process has no local agent, by the
+`read-task-room` plan's cut, and no goal on record has counted what the room saves
+(`domain/root.md`). A green head ends a CI repair
+and a hold on its reason, but for a hold at gating, a hold no wake reaches and a retry
 starting before the read, each the `repair-green` plan's cut (`domain/forge.md`),
 and `change show`'s
 `held:` line calls a cancelled delegate failed (`domain/forge.md`). A failed
@@ -100,10 +104,10 @@ request of 2026-11-05 has a restart too
 (`protocol/sign-in.md`); a connected Forgejo, its connect with its
 bot's tokens and a forge's Replace are built, but for the real
 loop's story (`client/tools.md`) and a connected Forgejo made
-managed (`protocol/setup.md`); a Forgejo connected as its admin polls,
-with no hook, where `draft/github.md` and the `adopt-access` request of
-2026-11-05 have one, which the user has not answered, and on a real
-Forgejo no story shows a plan making a hook (`protocol/setup.md`); a
+managed (`protocol/setup.md`); a Forgejo connected as its admin on this
+host has its hook, but no run on record shows one delivering, and the
+step test past one that delivers nothing asserts no read
+(`protocol/setup.md`); a
 managed row set up failed offers Connect to ctl alone
 (`client/forge.md`), and the adoption form draws no read-only line
 (`client/README.md`); `temper forge sign-in` prints an owned
@@ -140,11 +144,10 @@ the forges' rows are unknown; an account's sources are a list, not
 `.setting` rows; and under a kind or
 goal filter Needs you's answered lines and head count what the filter
 leaves out (`client/README.md`). Home says what changed since the person
-last looked and the status agent is built, but on the stock policy a
-person's pool leaves it no funding, the reference names no charter 9, no
-walk on a box reaches a brief, and a project's first run counts its span
-from the epoch (`client/README.md`,
-`domain/forge.md`, `protocol/configuration.md`). The Away switch, a goal's
+last looked and the status agent is built, but a stock project's room is
+no brief's own, the reference names no charter 9, and a project's first run
+counts its span from the epoch (`domain/forge.md`,
+`protocol/configuration.md`). The Away switch, a goal's
 `decided`, Home's away form, Overturn and Settings' section are built, but the
 switch still offers its act with its watch refused or ended, an Overturn or its
 message gone astray reads as overturned already or as ended, where a live task
@@ -156,11 +159,16 @@ goal starts from a document through the one sheet, which has none of the request
 opens nothing for a party with no creating bound; drafts follow kind 7's setting,
 off in the stock, where that request has them follow a tracked template
 (`client/README.md`), and a goal keeps its own note scope, where that request
-has it keep no notes (`domain/agent.md`). A proposal of settings shows on no
-project's Needs you or rail's count, the Claude way's command refuses on a box
-with directories of its own, and a choice pressed just after Undo stayed
-unanswered once (`client/README.md`). The welcome's try of a model draws its box
-over the host's check alone, no trial being built, and departs from the request
+has it keep no notes (`domain/agent.md`). A box with one kind of account runs on
+the first model it can use, and a run that can't start says why on its page and
+in `task show`, but no walk on record has a real box do either, a Chats row still
+says "Starting", and `task show` names a `deployment show` ctl lacks
+(`client/README.md`, `client/tools.md`). A proposal of settings reaches a
+project's Needs you and rail's count, but its live card lists no item of temper's
+kinds, stays on Needs you once accepted, leaves its chat on a reload and follows a
+"Decision made" while it waits (`client/README.md`). `again` can't record a journey
+that begins past the welcome (`client/journeys.md`). The welcome's try of a model
+draws its box over the host's check alone, no trial being built, and departs from the request
 `model-check` in its list's names and a few of its acts and words
 (`client/README.md`). A plan's sign-in draws the waiting page of the request
 `sign-in-new-tab`; the page departs from the request in the terminal's words
@@ -173,16 +181,33 @@ open reply, where a tree holds one request, seen by reading (`client/README.md`)
 and no test measures a long chat's document against its window, where the user's
 answer of 2026-11-06 asks one (`client/browser.md`). A numbered list shows no
 numbers in a chat's card, whose items the sheet makes flex, and a document page's
-takes the browser's margins (`client/browser.md`). Every confirmation of a chat, a
+takes the browser's margins (`client/browser.md`). temper's own way stands on
+Configure, departing from the request `configure-temper-own-way` in its reference's
+words and look (`client/README.md`), but no walk on record presses its acts and no
+render has drawn its picture as a numbered list (`client/browser.md`). A chat's answer only grows, but
+the line departs from the request `chat-work` in a failed call's colour, and the end
+mark is a glyph that does not blink (`client/README.md`); a chat is read by "Older" in a
+window of 16 lines until `draft/chat-reading.md`, 5 is built. The words being written draw an
+empty message in the dots' place until they hold a word, their "▍" falls below a closed
+fence, a last block still open changes as it commits, and no browser test draws them
+(`client/README.md`). A run of calls is one line on a chat's page and an agent's, its
+verbs and time for the user to read on a real chat (`draft/chat-reading.md`), but no test
+takes its call under way from the engine or draws it running in a browser or a real
+terminal, a call under way with none ended says its words twice, and a run still out says
+no "1 failed" (`client/README.md`). Every confirmation of a chat, a
 task or a card is one sheet, but a closed chat hides every "Decision made", where the
 request `close-chat` hides the closing's alone, a Release pressed before an uncertain
-effect's choice closes its sheet, no walk on record presses Accept, a task's Cancel, an
+effect's choice closes its sheet, no walk on record presses a task's Cancel, an
 agent's task's Stop, Reject or Start over (`client/README.md`), and a sheet's acts stand
 44 px on a phone, where that request has 38 (`client/browser.md`). A document
 built in parts is proved on a script alone, no real model having built one
 and no walk drawing a long one in its pane, and a later note write's words
 close with its lines where the `note-parts` request of 2026-11-05 keeps the
-answer as it stood (`domain/agent.md`). The
+answer as it stood (`domain/agent.md`). A journey's `add` redacts, proves
+and scans before it writes, but no real box's recording has been through it, the
+committed recordings keep their fake boxes' dummies until next added, nothing
+refuses `again` on a real journey, and the refusal's process tests watch two
+directories, not every path (`client/journeys.md`). The
 case library's purpose is retired, the fake
 git program drives skein's JSON tokenizer over a whole body by hand,
 the ladder has no twin past B1 and no live story but B0's, neither
@@ -252,6 +277,7 @@ Design documents:
 - [`client/tools.md`](client/tools.status.md)
 
 Drafts:
+- [`draft/bundle-loading.md`](draft/bundle-loading.status.md)
 - [`draft/reference-code-production.md`](draft/reference-code-production.status.md)
 - [`draft/reference-landing.md`](draft/reference-landing.status.md)
 - [`draft/reference-case.md`](draft/reference-case.status.md)

@@ -160,6 +160,10 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   direct delegates remain readable. `field=result` reads kept terminal reports,
   including descendants reached through a proven same-project requester chain
   of live or retained intermediate tasks (jig's `domain/engine.md`, 7.3).
+  In a process with a local agent's metadata, one answer holds as much of the
+  words as the run's reply takes, whatever a client's `documents.text_bytes`, so a
+  spec within that room comes back in one call; in one with none, a piece of
+  `documents.text_bytes` (`root.md`, 5.2; section 10).
   A cut answer prints `next: OFFSET`; pass that byte offset as `from` with the
   same field, and restart specification reads at zero if the spec revision changes.
   Task reads decide nothing and keep no named-call record. Escalations name
@@ -335,7 +339,7 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   asks again under the same name after busy or a lost answer (smith's
   `domain/run.md`, 5.2).
 - **An answer fits what the agent takes** (`domain/worker.md`, 4.3):
-  forge-read rendering uses the minimum of `core.call_answer_bytes` less
+  rendering a forge read or a task read uses the minimum of `core.call_answer_bytes` less
   the tool name and the checked receiving `agent.limits.bodies.host_reply_text`.
   The latter comes from the local agent's `agent.json`
   `profile.declared.tool_payload`. Raising `core.call_answer_bytes` alone
@@ -508,8 +512,8 @@ delegate from what it knows:
   the run's authority: a model not configured or named twice, an effort
   its model does not declare, a model, main or sub-agent, outside that
   charter's models or the authority's refuses the call, naming the
-  model and why. A role left out takes its charter's default as each of
-  its agents is made (jig's `domain/tasks.md`, section 3).
+  model and why. A role left out names none, and each of its agents takes
+  its models at each run's check (jig's `domain/tasks.md`, section 3).
 - **`repairs`:** the red landing the change repairs
   (`after-landing.md`, section 7), by its merge commit's full
   hexadecimal digits, as the red's news names it: a landing of temper's
@@ -756,6 +760,15 @@ merge, with both parents. Its outcomes, in smith's terms (smith's
 | a branch moved, as a fast-forward cannot take it or its head is not the one expected | stale: the run ends, and the engine decides afresh |
 | a conflicted file still holds a marker | refused, naming the file |
 | refused by the forge, unreachable, timed out, broken, too large, missing the repository, a branch or a commit | failed, with the reason and the last 512 bytes of git's diagnostic output |
+
+What it delivers is the tree, not the run's history: a checkout is detached
+(worker.md, section 5), and the worker commits on its own record of the head,
+never on HEAD (`../protocol/git.md`, 4.7). So a run's own commits, resets and
+rebases keep their files and lose their history, and a saved tree that is
+delivered unchanged lands the save's commit, the delivery's title and body
+unused (worker.md, section 5). The head delivered names what is on the branch,
+and the coding charter's words say so (`../protocol/configuration.md`, 13.4's
+charter 2 row), since a run can't otherwise tell.
 
 A push that lands is the result, even if the run was winding down. The
 answer carries what the run left on the forge (worker.md, 4.2), and the
@@ -1231,6 +1244,10 @@ host:
 
 ## 10. Open questions
 
+- **A task read where the process has no local agent.** The engine does not
+  know its remote agents' reply bound, so a run there reads a task's words in
+  pieces of `documents.text_bytes` (`root.md`, 5.2). Going past it needs each
+  worker's reply bound at the engine. Default: the documents' window.
 - **The person's forge identity in a chat's brief,** rather than in the
   configuring agent's inventory (8.1), which its instructions read first.
   A brief section would spend every chat's room for what one charter
@@ -1259,6 +1276,13 @@ host:
   declare only what the charter names for the other families too, which
   the host part's budget (4.3) may force, and how a brief teaches an LLM
   when to delegate a task rather than a sub-agent.
+- **What sizes temper's own way** (8.1): a read of the deployment's worker slots
+  and of the models its accounts reach, offered to a run with the settings
+  family, or an answer from the person. Default: the person's, as nothing reads
+  them.
+- **QA in temper's own way** (8.1): `../draft/own-way.md`, 6, has it proposed once
+  a tester is set; QA after landing isn't built (`findings.md`, section 8).
+  Default: the agent says so, and leaves it out.
 - **The configuring agent woken by a landing** of a document a charter
   names, where the landing touches structure, to say what it means for
   the settings ("the process document changed; here is what it means

@@ -357,13 +357,18 @@ fn a_start_doubles_its_backoff_to_the_cap() {
     world.connects(&[Connect::Refused; 5]);
     let mut due = skein_lib::Time::ZERO;
     world.advance_to(due);
-    for (opened, seconds) in [1, 2, 4, 8, 8].into_iter().enumerate() {
+    for (opened, (seconds, next)) in [(1, 2), (2, 4), (4, 8), (8, 8), (8, 8)].into_iter().enumerate() {
         due = due.saturating_add(Duration::from_secs(seconds));
+        assert_eq!(
+            world.start(fixtures::FORGE),
+            Some(skein_forge_connection::start::Start::Waiting { until: due, next: Duration::from_secs(next) })
+        );
         world.advance_to(skein_lib::Time::from_nanos(due.as_nanos() - 1));
         assert_eq!(world.connections_opened(), u32::try_from(opened + 1).expect("small count"));
         world.advance_to(due);
         assert_eq!(world.connections_opened(), u32::try_from(opened + 2).expect("small count"));
     }
+    assert!(world.requests().first().expect("retry reads the user").starts_with(b"GET /api/v1/user HTTP/1.1\r\n"));
     assert_eq!(world.stopped(), None);
     assert!(world.script_done());
     assert!(world.close());
@@ -467,6 +472,9 @@ fn two_idle_forge_one_connections() -> Machine {
 }
 #[test]
 fn an_idle_connection_is_reassigned_to_another_forge() {
+    // The recorded branch's SHA-1 ends in 03, padded to the API's 32 bytes.
+    const HEAD: [u8; 32] =
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     let mut world = two_idle_forge_one_connections();
     let addresses = world.addresses();
     let other = skein_forge::api::Repository { forge: OTHER, repository: 1 };
@@ -480,7 +488,8 @@ fn an_idle_connection_is_reassigned_to_another_forge() {
     );
     assert_eq!(addresses, [skein_io::Addr::Ip(([127, 0, 0, 1], 3000).into()); 2]);
     assert_eq!(answer.cost, 2);
-    assert!(answer.result.is_ok());
+    assert_eq!(answer.result, Ok(ResultAnswer::Commit(HEAD)));
+    assert_eq!(world.addresses(), [addresses[0], skein_io::Addr::Ip(([127, 0, 0, 1], 3001).into())]);
     assert!(world.script_done());
     assert!(world.close());
 }

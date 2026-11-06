@@ -383,7 +383,7 @@ examples/echo/*                 the echo: its domain, protocol layer, service an
 examples/ui/*                   the UI example: its view, its browser shell and its server, a crate each (examples.md, 9)
 ```
 
-**A world's library is its own.** No package, in any tree, depends on a package under `skein/tests/`: what a second crate needs from a world lives in a kit under `testing/` (testing-strategy.md, 7), and the world's own suite reads it through its library, which re-exports the kit. No `#[path]` under `skein/` reaches outside its package. `tests/boundary/tests/skein_worlds.rs` holds both.
+**A world's library is its own.** No package, whichever tree it's in, depends on a package under `skein/tests/`: what a second crate needs from a world lives in a kit under `testing/` (testing-strategy.md, 7), and the world's own suite reads it through its library, which re-exports the kit. No `#[path]` under `skein/` reaches outside its package. `tests/boundary/tests/skein_worlds.rs` holds both, for `skein/` alone: it doesn't read the worlds under smith's and temper's `tests/`, and packages still depend on those.
 
 No crate under `crates/` has a `tests/` directory: its step tests are
 in `src/`, and whatever drives it from outside is a crate under `tests/`,
@@ -494,8 +494,16 @@ What of this document is not built is in [`testing.status.md`](testing.status.md
 - **A fixture a crate's unit tests and a world both read** (6). No `#[path]`
   crosses a package, and a kit would give a second copy of the crate's types,
   so the dialect world holds its own
-  (`skein/tests/forge/dialect/tests/common/admitted.rs`) beside the crate's.
+  (`skein/tests/forge/dialect/tests/common/admitted.rs`) beside the crate's. A
+  feature like forge-connection's `seam` (forge-connection.md, 10) would join
+  them, for a second such feature on `skein-forge`, a shipping crate, and a wider
+  gate, against 55 lines of test data each side keeps as its own numbers.
   Default: the copy stays.
+- **The echo's client host** (6): `ClientHost` in
+  `skein/examples/echo/shell/tests/end_to_end.rs` repeats `Proc`'s `Host` arms.
+  The test sits in the shell's package so that Cargo supplies its binary,
+  `skein-echo-client` is held to the step subset and can't implement `Host`, and
+  a kit's manifest alone is longer than the copy. Default: the copy stays.
 - **Helpers beside the forge kit's** (6):
   `skein/tests/fake-peers/tests/forge/fixtures.rs` and
   `temper/tests/engine/protocol-forge/src/fixtures.rs` repeat some of

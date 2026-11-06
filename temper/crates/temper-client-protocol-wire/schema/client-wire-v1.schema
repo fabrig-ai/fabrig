@@ -19,7 +19,6 @@ record FirstEmpty { org: bytes 1024 repository: bytes 1024 playground: bool }
 record CopyAddresses { addresses: list 16 bytes 512 }
 enum SetUpFirst { empty: FirstEmpty, copies: CopyAddresses, nothing }
 record SetUp { forge: Making first: SetUpFirst }
-record Return { source: u32 path: bytes 512 }
 record GitHubApp { id: u64 read_only: option bool }
 record GitHubManifest { back: option bytes 512 }
 record FirstAsk { org: bytes 1024 repository: bytes 1024 label: bytes 64 }
@@ -56,7 +55,7 @@ record MakeCopy { address: bytes 512 }
 enum MakeFrom { empty, copy: MakeCopy }
 record MakeInto { project: u32 home: bool }
 record MakeRepository { forge: u16 org: bytes 1024 name: bytes 1024 from: MakeFrom into: option MakeInto }
-enum Request { adopt: Adopt, set_up: SetUp, return_: Return, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground, replace: Replace, dismiss: Dismiss, make_repository: MakeRepository, looked: Looked, set_away: SetAway, overturn: Overturn }
+enum Request { adopt: Adopt, set_up: SetUp, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground, replace: Replace, dismiss: Dismiss, make_repository: MakeRepository, looked: Looked, set_away: SetAway, overturn: Overturn }
 versioned record Requesting { request: Request }
 enum SetUpRefusal { not_offered, not_under_the_box, busy, invalid }
 record SetUpRefused { why: SetUpRefusal }
@@ -125,7 +124,7 @@ enum PlaygroundState { starting, running, resetting }
 versioned record PlaygroundAnswer { forge: u16 project: option u32 provider: u32 owner: bytes 1024 name: bytes 1024 state: PlaygroundState cues: list 8 text 256 }
 
 # The deployment's read (temper/docs/design/client/README.md, 4.6).
-versioned record DeploymentAnswer { welcome: bool owned: bool }
+versioned record DeploymentAnswer { welcome: bool owned: bool program_login: option bytes 8192 }
 versioned record ProgramEnvironmentAnswer { environment: bytes 49216 }
 
 # A change's watched panel (client/README.md, 4.6; client/forge.md, 9.2).
@@ -214,7 +213,7 @@ record EndRefused { why: EndRefusal }
 record RemoveRefused { why: ForgeRefusal }
 enum MakeRefusal { no_such_forge, not_offered, not_owner, invalid, home_held, full }
 record MakeRefused { why: MakeRefusal }
-enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, returning, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation, removed, remove_refused: RemoveRefused, reset, end_refused: EndRefused, dismissed, make_kept, make_refused: MakeRefused, looked, away, overturned, overturn_refused: OverturnRefused }
+enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation, removed, remove_refused: RemoveRefused, reset, end_refused: EndRefused, dismissed, make_kept, make_refused: MakeRefused, looked, away, overturned, overturn_refused: OverturnRefused }
 versioned record Answer { outcome: Outcome }
 
 # Values of temper's settings kinds (temper/docs/design/domain/root.md, 5.6;

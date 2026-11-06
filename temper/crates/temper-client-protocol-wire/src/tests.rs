@@ -99,7 +99,6 @@ fn limits_take_each_bound_from_its_source_field() {
             link_address: crate::ADDRESS_BYTES,
             forges_forges: crate::FORGES,
             dismissals_dismissed: crate::DISMISSED,
-            return_path: 512,
             set_up_failed_why: crate::SET_UP_WHY_BYTES,
             group_failed_why: crate::SET_UP_WHY_BYTES,
             connected_login: 16,
@@ -1157,7 +1156,9 @@ fn deployment_read_and_answer_round_trip() {
     let bytes = crate::reading(&read);
     assert_eq!(crate::decode_reading(&bytes, &limits), Some(read));
     for (welcome, owned) in [(false, false), (false, true), (true, false), (true, true)] {
-        let answer = v1::DeploymentAnswer::new(&limits, v1::DeploymentAnswerParts { welcome, owned }).unwrap();
+        let answer =
+            v1::DeploymentAnswer::new(&limits, v1::DeploymentAnswerParts { welcome, owned, program_login: None })
+                .unwrap();
         let bytes = crate::deployment_answer(&answer);
         assert_eq!(crate::decode_deployment_answer(&bytes, &limits), Some(answer));
         assert_eq!(crate::decode_deployment_answer(&fixtures::trailing(&bytes), &limits), None);

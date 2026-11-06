@@ -97,21 +97,21 @@ impl Line {
             | Self::Erase(bytes)
             | Self::Navigate(bytes)
             | Self::Replace(bytes) => {
-                w.word(self.kind());
+                w.word(self.kind().as_bytes());
                 w.bytes(bytes);
             }
             Self::Stored { key, value } | Self::Save { key, value } => {
-                w.word(self.kind());
+                w.word(self.kind().as_bytes());
                 w.bytes(key);
                 w.bytes(value);
             }
-            Self::Start | Self::Due | Self::Close | Self::TabClose | Self::TabRefused => w.word(self.kind()),
+            Self::Start | Self::Due | Self::Close | Self::TabClose | Self::TabRefused => w.word(self.kind().as_bytes()),
             Self::Heard(heard) => {
                 w.word(b"heard");
                 w.heard(heard);
             }
             Self::Carried { writes } | Self::Writes(writes) => {
-                w.word(self.kind());
+                w.word(self.kind().as_bytes());
                 w.number(u64::from(*writes));
             }
             Self::Lost(exchange) => {
@@ -153,7 +153,7 @@ impl Line {
                 }
             }
             Self::Mark(html) | Self::End(html) => {
-                w.word(self.kind());
+                w.word(self.kind().as_bytes());
                 if let Some(html) = html {
                     w.bytes(html);
                 }
@@ -161,44 +161,45 @@ impl Line {
         }
         w.out.push(b'\n');
     }
-    fn kind(&self) -> &'static [u8] {
+    #[must_use]
+    pub fn kind(&self) -> &'static str {
         match self {
-            Self::Journey { .. } => b"journey",
-            Self::Seed(_) => b"seed",
-            Self::Clocks { .. } => b"clocks",
-            Self::Primary(_) => b"primary",
-            Self::Zone(_) => b"zone",
-            Self::Ways { .. } => b"ways",
-            Self::Forge(_) => b"forge",
-            Self::Path(_) => b"path",
-            Self::Secret(_) => b"secret",
-            Self::Stored { .. } => b"stored",
-            Self::Turn { .. } => b"turn",
-            Self::Start => b"start",
-            Self::Due => b"due",
-            Self::TabOpen(_) => b"tab-open",
-            Self::TabPoint(_) => b"tab-point",
-            Self::TabClose => b"tab-close",
-            Self::TabRefused => b"tab-refused",
-            Self::Place(_) => b"place",
-            Self::Heard(_) => b"heard",
-            Self::Carried { .. } => b"carried",
-            Self::Written(_) => b"written",
-            Self::Unwritten(_) => b"unwritten",
-            Self::Lost(_) => b"lost",
-            Self::Act { .. } => b"act",
-            Self::Exchange { .. } => b"exchange",
-            Self::Open { .. } => b"open",
-            Self::Close => b"close",
-            Self::Save { .. } => b"save",
-            Self::Erase(_) => b"erase",
-            Self::Writes(_) => b"writes",
-            Self::Navigate(_) => b"navigate",
-            Self::Replace(_) => b"replace",
-            Self::Show { .. } => b"show",
-            Self::Deadline(_) => b"deadline",
-            Self::Mark(_) => b"mark",
-            Self::End(_) => b"end",
+            Self::Journey { .. } => "journey",
+            Self::Seed(_) => "seed",
+            Self::Clocks { .. } => "clocks",
+            Self::Primary(_) => "primary",
+            Self::Zone(_) => "zone",
+            Self::Ways { .. } => "ways",
+            Self::Forge(_) => "forge",
+            Self::Path(_) => "path",
+            Self::Secret(_) => "secret",
+            Self::Stored { .. } => "stored",
+            Self::Turn { .. } => "turn",
+            Self::Start => "start",
+            Self::Due => "due",
+            Self::TabOpen(_) => "tab-open",
+            Self::TabPoint(_) => "tab-point",
+            Self::TabClose => "tab-close",
+            Self::TabRefused => "tab-refused",
+            Self::Place(_) => "place",
+            Self::Heard(_) => "heard",
+            Self::Carried { .. } => "carried",
+            Self::Written(_) => "written",
+            Self::Unwritten(_) => "unwritten",
+            Self::Lost(_) => "lost",
+            Self::Act { .. } => "act",
+            Self::Exchange { .. } => "exchange",
+            Self::Open { .. } => "open",
+            Self::Close => "close",
+            Self::Save { .. } => "save",
+            Self::Erase(_) => "erase",
+            Self::Writes(_) => "writes",
+            Self::Navigate(_) => "navigate",
+            Self::Replace(_) => "replace",
+            Self::Show { .. } => "show",
+            Self::Deadline(_) => "deadline",
+            Self::Mark(_) => "mark",
+            Self::End(_) => "end",
         }
     }
     /// One line, without its newline.

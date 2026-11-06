@@ -215,7 +215,7 @@ watch's subject, its digest (5.4). It needs no key.
 | `inbox [--project PROJECT] [--kind questions\|proposals\|escalations\|person-tasks\|results\|replies] [--root TASK] [--after CURSOR]` | what needs the party, then updates, each with its acts | `inbox` |
 | `project show PROJECT` | the project: its name, whether it is public and, if so, its public page's path, and its homes, its roles, each with its parties and its spend per period, and its policy's spend per period; its open period, its number, start and next start (`../domain/root.md`, 5.7), its budget and what is reserved, spent and left of it; and each party's pool in it, with the same numbers | a project, and its spend's first page |
 | `task list --project PROJECT [--parent TASK] [--label chat\|goal] [--tracked] [--mine] [--ended] [--order activity\|priority] [--after CURSOR]` | task lines of one group: the live tasks, or with `--ended` the ended; with `--parent`, that task's delegates alone | `tasks{query}` (jig's `client/domain/contract.md`, 6.1, its parent key) |
-| `task show TASK [--tree] [--activity COUNT] [--run]` | a task's document, with its acts; with its live tree, its COUNT latest activity lines, its live run, in one answer | `task{n}`, `tree{root}`, `activity{n}`, `run{n}` |
+| `task show TASK [--tree] [--activity COUNT] [--run]` | a task's document, with its acts, its text saying under `next run:` why a run that can't start waits and what to run; with its live tree, its COUNT latest activity lines, its live run, in one answer | `task{n}`, `tree{root}`, `activity{n}`, `run{n}` |
 | `landing show LANDING` | a landing: its members, each candidate with its base, each gate's key with its receipt or run, the proof's state, the turn, its stale proofs and faults (`../domain/landing.md`, section 14) | the forge's family |
 | `landing list --project PROJECT [--ended] [--newer-than TIME] [--after CURSOR]` | the project's landings, newest first, with their phases, the turn's holder first, a page and its cursor; with `--newer-than`, every landing on its repositories' landing branches the engine saw after TIME (as `task amend --deadline` takes it, UTC to the minute), with its verdicts and its trailers, from the landing log (`../domain/after-landing.md`, sections 8 and 10) | the forge's family |
 | `repository receipts REPOSITORY [--gate GATE]` | a repository's receipts, newest first: gate, key, verdict, run, candidate, time (`../domain/landing.md`, 6.2) | the forge's family |
@@ -794,7 +794,12 @@ The table grows area by area, each with its stories (section 11).
 
    `task show TASK` joins a person task's document to its generic task:
    its question, result contract, choice codes and bounds, person revision,
-   holder, and each offered act with its admission. The inbox's person-task
+   holder, and each offered act with its admission. Its holder prints as
+   `taken by: PARTY`, or `taken by: none`. Once an answer has ended the
+   task, `answered by: PARTY` takes that line's place, from the retained
+   result's `chosen_by`. A closing person task with no holder prints
+   neither: its live document does not say who answered. `--json` keeps
+   `taken_by` as jig gives it. The inbox's person-task
    line prints `read: task show TASK`. Role-addressed work offers
    `task take TASK` and `task hand-back TASK`; it must be taken before an
    answer. These commands and person answers are optionally keyed.
@@ -921,7 +926,7 @@ The table grows area by area, each with its stories (section 11).
      ACCOUNT as `account list` shows it.
    - **The task's model** is chosen with this area: `chat start` and area
      2's `goal start` take `--model MODEL [--effort EFFORT]`, the task's
-     LLM choice, the template's choice or the charter's default without them (jig's
+     LLM choice, the template's choice or what each run's check takes without them (jig's
      `domain/tasks.md`, section 3), and area 2's `task amend` changes it.
      Both take `--sub-agent MODEL[:EFFORT]` too, repeatable, each one of
      the choice's sub-agents in the order given (jig's
@@ -956,7 +961,7 @@ The table grows area by area, each with its stories (section 11).
    - **The file's versions** (`../draft/upgrades.md`, 4.2 to 4.4): it
      carries two families, each with its version, a version naming one
      layout: jig's moved form (form 1) and, inside it, skein's
-     OAuth record (its `RECORD_VERSION`). It holds one value, not a
+     OAuth record (its record version). It holds one value, not a
      store, so no store's levels; the nesting fixes a patch's order,
      the form's patches first, then skein's on the record inside it.
      `account export` writes the form the engine's jig makes. A newer
@@ -1213,6 +1218,12 @@ digest: task 7c1e09a2b44f0d13
   Its tracking is `priority P` while it is tracked, and `untracked`
   otherwise. A change delegate, ended: `task 2 · change · Ended ·
   project 1 · untracked`.
+- **`waiting on:`** prints jig's word for what the task waits on (jig's
+  `client/domain/client.md`, 19), or the party and what it must answer. A
+  held task that awaits nothing else prints its hold, where `Nothing
+  awaited` would read as if nothing were wrong; one a party or a delegate
+  also keeps prints those. The hold prints as `held` alone. `--json`
+  keeps `waits_on` as jig gives it.
 - **The deadline** has its date and its zone: `deadline 2026-10-24
   17:00 UTC`, or `no deadline`.
 - **Its instructions,** when the document carries them, on a line of

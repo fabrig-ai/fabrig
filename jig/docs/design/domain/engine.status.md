@@ -2,7 +2,9 @@
 
 2026-11-06. Where jig's code lags or departs from [engine.md](engine.md).
 Unlisted provisions have no known gap, including the saved-window load
-and unread-tail retry guard in 7.1 and 7.2.
+and unread-tail retry guard in 7.1 and 7.2, and the prospective templates
+query for settings judges in 17.5, and the bounded document refusal
+facts carried through proposal answers in 17.9.
 
 - **Not yet:** 2, 8: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the
@@ -29,7 +31,10 @@ and unread-tail retry guard in 7.1 and 7.2.
   policy is admitted only where one party owns both the deployment and
   the project, and accepted only by such a party, even with no item of
   the deployment's beside it, where 17.6 has that project's owners
-  decide it (`routing/settings/dispatch/project_policy.rs`, `owns`).
+  decide it (`routing/settings/dispatch/project_policy.rs`, `owns`). Its
+  row goes to the deployment's owners alone
+  (`documents/inbox_deployment.rs`), so a project's owner who doesn't own
+  the deployment reads none in that project.
   17.10: the core world's eleven restore stories
   (`jig/tests/core/tests/suite/settings_restore.rs`) are all ignored,
   each naming `restore-request`'s `Restore` admission or its
@@ -71,6 +76,13 @@ and unread-tail retry guard in 7.1 and 7.2.
   (`jig-domain-core/src/vocabulary.rs`), where the request gives it `lines`, `added`,
   `removed` and `first` too, because nothing makes it: a write's answer goes by the
   call's own part, which has them.
+- **Design departs:** 17.6, from the request `ui-walk-large` of 2026-11-06, decided by
+  its plan's cut: that request has a proposal of settings' project set when it is
+  made, and the core works its `projects` out at each read, because its items never
+  change once it is made, so the value is the same and no stored format moves. That
+  request has it show in each project it touches and in every project whose owner can
+  decide it; a row names the lowest 32, the bound of that list on the client's wire.
+
 - **Departs:** 6: `Core::new` without a start is ready, because the
   core's unit fixtures need no start; every root starts it. 8: the
   client wire drops the failing charter's number of a
