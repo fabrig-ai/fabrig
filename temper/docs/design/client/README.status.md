@@ -2,6 +2,7 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 3.5, *its calls*, *A call's line*, *The tool line*, 5.9: a run's one line and its rows: the code folds a message's calls into "N tool calls" (`temper-client-view`'s `pages/chat.rs`, `folded_calls`). The look request `chat-work`, plan `look-round-6`.
 - **Design departs:** 3.5, *Starting a goal from a chat's document*, and 5.14, from
   the request `ui-chat-draft` of 2026-11-05, decided by the answers that day to its
   tasks `goal-sheet-state` and `goal-sheet`: one sheet, `ui-goal-page`'s, where the
