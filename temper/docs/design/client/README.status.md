@@ -2,9 +2,6 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, *A person's pause*; 3.6, *The sheet*; 5.8; 5.11: the request `ui-pause-close`. A chat says "Stop",
-  has no "Resume" and says "Held" and "Applied" after its own pause, and a message to it sits with no run; a goal and an
-  agent's task say "Stop", a goal's end "stopped", and an agent's task has neither Pause, Resume nor Close.
 - **Design departs:** 3.5, 5.8, 5.11, from the greenfield target: "Pause", "Resume" and "Close" on a chat, a goal and an
   agent's task, where its goal says "Stop", which meant a goal's end and a chat's hold. The user's word, 2026-11-06, the
   request `ui-pause-close`.
