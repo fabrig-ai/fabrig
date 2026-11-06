@@ -90,7 +90,7 @@ impl Originals {
                     if typed(line) {
                         match act {
                             Act::Input { value } => candidates.push((Kind::Typed, value.clone())),
-                            Act::Press | Act::Submit | Act::Toggle | Act::Drawing { .. } => {}
+                            Act::Press | Act::Submit | Act::Toggle | Act::Drawing { .. } | Act::Near { .. } => {}
                         }
                     }
                 }
