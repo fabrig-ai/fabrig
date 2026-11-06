@@ -1099,6 +1099,22 @@ terminal client, the captures and the faults.
   2.10). The owned preparation command watches its child with a deadline;
   the ctl referee reports overdue work to the world's starvation judge.
 
+- **Three at a time:** the profile runs three tests at once, a story being
+  one thread and one loop as ever, and the tier's budgets stand. A story
+  shares its machine: its listeners are the kernel's or
+  `support::free_addresses`', and a fake box's are the kernel's
+  (`../protocol/setup.md`, 7.5). A story that can't share one runs in a
+  named nextest test group, as `temper-real-loop` does, the reason beside
+  the group.
+
+- **A walk wakes on what it waits for:** a fake-box walk
+  (`crates/temper/tests/fake_backends/walk`) waits on an event where one
+  exists, such as ctl's `--until`, and where only the forge's poll brings
+  the news, it runs on the short paces the status walks set
+  (`forge.client.poll_ms` and its fellows), so that no walk waits out a
+  5 s poll. A wait a person meets too is a finding of the product's,
+  repaired there (testing-strategy.md, 9).
+
 ### 2.7 The live tier
 
 Nothing is handed in: no input takes a record, no tool reads another
