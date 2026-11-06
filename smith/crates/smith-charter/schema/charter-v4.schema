@@ -61,7 +61,7 @@ versioned record Charter {
     conventions: option Conventions
     budget: Budget
     main: Llm
-    models: list 16 Llm
+    models: list 63 Llm
     waiting: duration
     resume: bool
     mode: Mode

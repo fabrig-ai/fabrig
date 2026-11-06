@@ -63,7 +63,7 @@ pub const CEILINGS: Limits = Limits {
     llm_effort_some: 32,
     charter_instructions: 262_144,
     charter_brief: 64,
-    charter_models: 16,
+    charter_models: 63,
     field_name: 64,
     field_text: 262_144,
     item_kind: 64,
