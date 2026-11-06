@@ -58,3 +58,5 @@ As the request allows: the store's `tasks-v9` (`DecidedLine` gains `proposal`, `
 - `skein-ui-web`'s `page.rs` and `page/web.rs`: `chat-reading-c`, whose `Op`s sit beside `Focus`.
 - `temper/docs/design/client/README.md` and its status: `chat-reading-c`, `model-catalogue-1`, `model-check` and `ui-repo-link`, in other lines.
 - `temper/tests/client/tests/suite/configuring_chat.rs`: `model-catalogue-1/configure-picker`, merged on its trunk; and `configuring-walks` is queued.
+
+The plan closed on 2026-11-06.
