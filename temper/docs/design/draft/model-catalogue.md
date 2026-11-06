@@ -18,6 +18,9 @@ what the look cannot.
 
 - **Seven models come with temper,** each with its efforts and a default
   effort, and the picker offers them (section 2).
+- **A model shows only with an account that can run it:** a provider with
+  no usable account shows none of its models, the stock's included
+  (section 3).
 - **New work takes Opus 5.5 at high, or Sol 6.1 at high without Claude;**
   the configuring chat falls back to Astra 6 instead (section 3).
 - **The list lives in the store,** as settings, and leaves both
@@ -58,7 +61,45 @@ As read from the providers' pages on 2026-11-06 (section 8's sources):
 - **The playground's scripted model** stays with its own provider. It is
   offered only while the playground runs, and never to connect.
 
-## 3. Defaults
+## 3. What is offered, and the default
+
+The user, on journey 12: "we should make sure that we ever surface a model
+choice if it was actually fetched from the provider list (plus the stock ones
+we already know that exist), and if a provider/account is not available (e.g.
+chatgpt in my case) we should not surface any of its models, including the
+ones we know exist."
+
+A model is **offered** when all of these hold:
+
+- **It is known:** section 2's stock, read from a provider's list (section 5)
+  or added by a person (section 6).
+- **An account can run it:** an account of its provider is usable now and
+  serves the person's payer.
+- **That account doesn't rule it out:** where the account has a list, its last
+  read holds the name. An account with no list, none read yet or its read
+  failing takes section 2's stock of its provider and names added by a person.
+
+So:
+
+- **The offer is one list, from `me`:** per project, the models the person can
+  pick now, each with its account, efforts and default effort, whether the
+  picker shows it, and `resolved_default`, one of them. Every client draws from
+  it and works nothing out, so that a page can't show what the offer leaves
+  out. An account changing changes `me`.
+- **It holds everywhere a model is named as a choice:** the picker, "All
+  models", Settings, Models, the terminal client and `temper ctl`'s listing. The
+  configuring agent is told the offer alone, so it neither proposes nor mentions
+  a model no account can run, and Configure temper's "Models by role" starter
+  names only connected accounts and goes with a single account.
+- **A provider with no account** shows its name and "Connect a plan or key ›",
+  and no model. **An account that stops being usable** keeps a line with its own
+  fix, such as "Sign in again ›", and no model.
+- **What a task holds stays its own:** a chat whose model's account has gone
+  still names that model and says why it waits, and its picker offers what is
+  offered now.
+- **A wait names no model it wasn't given:** a task given no choice with no
+  account says "No account can run this chat yet.", not the charter's first
+  (`../client/README.md`, 5.5).
 
 A task given no LLM choice takes the first of its charter's models whose
 provider has an account usable now and serving its payer (jig's
@@ -132,8 +173,7 @@ provider has an account usable now and serving its payer (jig's
   the provider's list, a new decider beside the release, and moves no
   running work.
 - **Per account:** the store keeps which names each account's last read
-  gave. The picker and the default pass over a model for an account whose
-  list lacks it. An account with no list takes all its provider's.
+  gave, which section 3's offer reads.
 - **A listed model is a catalogue entry; only a completed request proves it
   usable** (jig's `domain/providers.md`, 2.4). `model-check.md` is that proof
   on the welcome. Anywhere else, a run the provider refuses says so, as today.
@@ -150,14 +190,17 @@ provider has an account usable now and serving its payer (jig's
 makes a `model` as section 5's new names are, on the picker. It is the way to
 a new Claude model on a subscription before a release, and the rest of what a
 provider doesn't list. temper checks the name's shape alone: the first run
-shows whether the provider serves it.
+shows whether the provider serves it. It is the one kind of offered model that
+neither a list nor the stock vouches for, so it reads "added by you", and goes
+with its provider's accounts as any other (section 3).
 
 ## 7. In steps
 
 1. **Stock and the picker, no store change:** section 2's table in `temper
-   init`'s two documents and its efforts; section 3's orders in `stock.rs`;
-   `resolved_default` in `me`; the look request. This answers most of what
-   the user asked for, and the help's "Offering another model" still holds.
+   init`'s two documents and its efforts; section 3's offer and orders, with
+   the offer and `resolved_default` in `me`; the look request, the configuring
+   chat's picker with it. This answers most of what the user asked for, and the
+   help's "Offering another model" still holds.
 2. **The store:** section 4, section 6 and the page on Settings.
 3. **Lists:** section 5.
 
@@ -167,6 +210,9 @@ shows whether the provider serves it.
   cheap, and may suit the status charter.
 - **Plans that lack a model:** a Claude subscription may not serve Fable 5.1,
   and it has no list to say so. The first run shows it.
+- **Adding by name** (section 6) stretches the user's rule, which names lists
+  and the stock alone. It stays for the reason section 6 gives, until the user
+  says otherwise.
 - **A role's models on a page:** Settings, Models lists the catalogue. Which
   charter runs on what stays with the configuring chat.
 

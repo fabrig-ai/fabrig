@@ -453,7 +453,8 @@ pub(crate) fn status_words(
     let status = jig_client::facts::chat_status(chip, waits_on, run_wait, project, me);
     let holes = match &status {
         ChatStatus::Tool { tool, .. } => Some(Hole::Name(tool.clone())),
-        ChatStatus::Starting
+        ChatStatus::RunWaiting(_)
+        | ChatStatus::Starting
         | ChatStatus::Writing
         | ChatStatus::Working { .. }
         | ChatStatus::WaitingForYou { .. }
@@ -472,14 +473,15 @@ pub(crate) fn status_words(
         ChatStatus::Starting | ChatStatus::Writing | ChatStatus::Tool { .. } | ChatStatus::Working { .. } => {
             crate::look::STATUS_ACTIVE
         }
-        ChatStatus::WaitingFor(_) => crate::look::STATUS_WAITING,
+        ChatStatus::RunWaiting(_) | ChatStatus::WaitingFor(_) => crate::look::STATUS_WAITING,
         ChatStatus::Parked | ChatStatus::Closing | ChatStatus::Ended { .. } => crate::look::STATUS_QUIET,
     };
     let name = match status {
         ChatStatus::Held(ref reason @ HoldCategory::Exceeded(_)) => crate::cards::hold_phrase(chip.task, reason, words),
         ChatStatus::WaitingForYou { .. } => words.say(Word::WaitingForYou, &[]),
         ChatStatus::Ended { .. } => words.say(Word::ChatClosed, &[]),
-        ChatStatus::Starting
+        ChatStatus::RunWaiting(_)
+        | ChatStatus::Starting
         | ChatStatus::Writing
         | ChatStatus::Tool { .. }
         | ChatStatus::Working { .. }
