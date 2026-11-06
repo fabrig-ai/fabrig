@@ -325,6 +325,7 @@ page over scenes as SVG, each usable without it.
 | the transport | a step's writes, exchanges, the stream opened or closed, and a navigation away, whole | the store's writes first, their outcome reported; then exchanges and the stream through fetch (an opening while hidden, through the hidden tab), or every exchange of the step failed when a write failed; the navigation only after the step's writes, none when one failed |
 | history | a path to show, as a new entry or in place | the path and query the page opened at; a place gone to by back or forward, as a path; the scroll kept per entry, given back after patches |
 | the timer | a deadline | one timer, reported due |
+| the clipboard | a token and a text, in the turn of a person's act (section 11) | one report, carrying the token: done, refused or failed |
 | the platform's facts | nothing | the monotonic clock, wall time, a seed from the cryptographic generator, the person's offset and languages, the primary modifier |
 | title and closing | a title, the language; whether closing loses requests | the document's title and `lang`; `beforeunload` registered only while it would, as the window's `onbeforeunload` |
 | restart | the words for "the application failed"; its limit, three reloads in a minute by default; its key | the panic hook: the window's `onbeforeunload` cleared; a reload within the limit; past it, the page says so and starts nothing |
@@ -854,6 +855,13 @@ share sheet, a clipboard write, a file picked).
   the person's act started, which the inbox runs within the act's event,
   so the gesture holds. Asked in a turn a timer or an answer started, it
   is refused by the platform, and reported refused.
+- **The clipboard,** a part of skein's: `navigator.clipboard.writeText`,
+  its promise's end reported through the inbox. The clipboard is there
+  only in a secure context, so on plain http it is missing, and the write
+  is reported refused at once, as is a text that isn't UTF-8. A promise
+  rejected with `NotAllowedError` is refused, and any other rejection
+  failed; both are the application's to say, and neither touches the
+  page.
 - **A reload ends what is in flight:** an effect asked before it gives
   no report after it; the state machine starts again from its small
   store (section 5), which holds no effect in flight.
@@ -1202,6 +1210,10 @@ parts carry, so that its tier tests each once.
   pending add, which the server makes once; and the closing warning met
   by a reload while an add is pending, and by none once it is made
   (examples.md, 9.2 and 9.5).
+- **A clipboard write,** in its test build alone, at `/test/copy`: a press
+  through the page's own path writes in the act's event and gets one
+  report; `?at-start` writes with no press, and is refused; `?no-clipboard`,
+  as on plain http, is refused at once.
 - **Its live tree**, in `browser_stories::live_tree`, checks the platform
   half in Chromium: a first child gains a group; a child inserts between
   keyed siblings; a keyed child moves; a rename keeps the same DOM node;
@@ -1232,8 +1244,8 @@ the application that needs it.
   when the person cancels, or past the bound, never cut (ui.md,
   section 13). It waits for its first application; the example takes it
   then (14.3).
-- **Parts for other effects** (a share sheet, a clipboard write): an
-  application's own code until a second application writes the same.
+- **Parts for other effects** (a share sheet): an application's own code
+  until a second application writes the same.
 - **A view's say in a fold or a selection:** a view has no way to fold a
   disclosure, which is the page part's (section 7), nor to select a
   field's words as it takes the focus. Each waits for an application that

@@ -33,3 +33,23 @@ id = 3
 story = "The box's footer says within 2 hours, and the profile holds it to that"
 parts = ["link-hours"]
 walk = false
+
+[[part]]
+id = "copy-part"
+title = "skein's browser parts write the clipboard, one report per write"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui-web.md, 11"
+
+[[part]]
+id = "copy-button"
+title = "The welcome's command block has a Copy, in a browser alone"
+mode = "direct"
+needs = ["copy-part", "printed-words"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 2
+story = "A person presses Copy on the welcome's command, and it reads Copied or Couldn't copy for 2 s"
+parts = ["copy-part", "copy-button"]
+walk = false
