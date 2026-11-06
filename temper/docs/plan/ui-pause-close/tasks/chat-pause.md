@@ -127,3 +127,7 @@ Acceptance:
 
 As your text says, and: which builder holds the screenshots and their directory; the rule each new test bit on and the failure
 seen; what jig does with the compound, from the world test; anything under `## Left`, the journeys' staleness among it.
+
+## Answers
+
+2026-11-06 (temper/ui). Expand: repair the joint world's oracle for immediate chat bar acts here. It's the same feature, and the test files are yours for this. Keep what it checks for other acts. Say in the report what the oracle assumed and why it was wrong.
