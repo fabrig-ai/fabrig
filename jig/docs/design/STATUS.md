@@ -27,7 +27,7 @@ service and its connectors' protocols (`examples.md`). `RemoveProject`
 is offered in no project's document (`client/domain/contract.md`).
 Public reading's remaining departure is the public index's memory fit
 check (`protocol/configuration.md`). The test root is not in `ops`'s
-shape, which awaits the user, and temper keeps its own message words and
+shape, which the user deferred, 2026-11-06, and temper keeps its own message words and
 its admission's yes or no, where the user's request of 2026-11-05 has it
 use jig's (`domain/root.md`, `domain/hosts.md`).
 A transcript's load refused for want of a slot counts as a failure, where

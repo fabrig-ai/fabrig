@@ -1,6 +1,6 @@
 # root: status
 
-2026-11-05. Where jig's code lags or departs from [root.md](root.md).
+2026-11-06. Where jig's code lags or departs from [root.md](root.md).
 
 - **Not yet:** 2, 5, 6: `smith-inline-agent` composed in the engine's
   root.
@@ -10,8 +10,9 @@
   before draining `now`, its restart puts loads in `now`, and its
   `Now::RunPrepared`, `Now::RelayBusy`, `Now::DropCall` and held fleet
   events run otherwise than `ops`'s. Aligning them moves when an event
-  runs, and what it keeps is the user's to decide (section 14; the code's
-  side is `jig/docs/development/debt/D004-ops-root-jig-wiring.md`).
+  runs, and what it keeps is the user's to decide, and they deferred it on
+  2026-11-06 (section 14; the code's side is
+  `jig/docs/development/debt/D004-ops-root-jig-wiring.md`).
   11, 12: `ops`'s root passes a triage's delegate batch through
   `jig-ops-protocol-observability` in the step, rather than handing it
   out, because a hand-out would commit the connector's rows and the
