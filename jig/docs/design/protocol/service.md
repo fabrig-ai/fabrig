@@ -621,16 +621,23 @@ state. Both speak the hub's values and smith's, and neither names a
 root.
 
 - **One answer per call.** The program sources run one command at a
-  time, so each of `start`, `from_io` and `fire` returns the owner and
+  time, so each of `start`, `from_file`, `from_io` and `fire` returns the owner and
   the answer it settled, if any, and the service pushes it as its root's
   event in the same pass.
 - **A name smith refuses is an answer.** `start` checks a source's name
   against smith's grammar; a name it refuses answers `Unconfigured`, and
   no command runs.
 - **How settings name a program is the service's.** `Resources::new`
-  takes smith's `Programs`, the environment and the bound on a path,
-  which is a value. Each service keeps one small function from its
-  settings to `Resources`.
+  takes smith's `Programs`, the environment, the bound on a path,
+  the effective user and an optional shell-opened programs parent.
+  A missing parent makes a check unconfigured. Each service keeps one
+  small function from its settings to `Resources`.
+- **Inspection has file I/O below it.** Both worker services keep a small
+  file stage with fixed limits for one descriptor and one request, with
+  no configuration member. It routes completions in the worker's token
+  range and file events by owner to smith's inspection, and participates
+  in deadlines, settled and emptiness checks. The programs parent closes
+  through the same stage when the worker closes.
 - **The route takes smith's values and the hub's,** and gives them back,
   or the hub's `Undecoded`, what of a start did not decode, or `route`'s
   own `Processed`, an agent process's event as a live piece or as smith's
