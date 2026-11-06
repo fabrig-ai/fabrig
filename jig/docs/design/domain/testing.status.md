@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-04. Where jig's code lags or departs from [testing.md](testing.md).
+2026-11-05. Where jig's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:** 4: the stories of `me`'s `resolved_default` (engine.md,
   11.1). 7: `ops`'s worlds on jig's store component; they run

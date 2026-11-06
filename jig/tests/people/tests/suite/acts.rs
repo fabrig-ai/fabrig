@@ -104,7 +104,7 @@ fn a_saved_act_answers_again_whatever_the_grants_since() {
 fn acts_keys_are_the_connectors_own() {
     let mut world = world();
     world.roles(PROJECT, Box::new([]));
-    world.signin(100, 1);
+    world.signin(PARTY_SIGN_IN, REQUESTER);
     world.commit_all();
     world.act(CONNECTOR, KEY, close());
     world.act(OTHER, KEY, close());

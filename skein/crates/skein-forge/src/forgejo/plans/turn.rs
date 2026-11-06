@@ -6,7 +6,7 @@ use super::{
     tables::{Repository, Tables},
 };
 use crate::api;
-use crate::forgejo::{document as d, id::ObjectId, request as r};
+use crate::forgejo::{document as d, request as r};
 use alloc::boxed::Box;
 use skein_lib::{List, Time};
 
@@ -53,25 +53,19 @@ impl Plan {
         };
         Self { state, row, size: 0 }
     }
-    fn at(&self) -> r::Repo {
-        r::Repo { owner: self.row.owner.clone(), name: self.row.name.clone() }
-    }
-    fn id(&self, bytes: api::Commit) -> ObjectId {
-        ObjectId { bytes, format: self.row.object_format }
-    }
     pub(super) fn begin(&self, bounds: Bounds) -> Step {
-        let at = self.at();
+        let at = self.row.at();
         Step::send(match &self.state {
             State::Runs { workflow, commit, page, .. } => r::Request::WorkflowRuns {
                 at,
                 workflow: workflow.clone(),
-                head_sha: self.id(*commit),
+                head_sha: self.row.id(*commit),
                 page: r::Page { page: Some(*page), limit: Some(bounds.page_size) },
             },
             State::Run { expected, .. } => r::Request::Run { at, run: *expected },
             State::Tree { object, page, .. } => r::Request::Tree {
                 at,
-                object: self.id(*object),
+                object: self.row.id(*object),
                 page: r::Page { page: Some(*page), limit: Some(bounds.page_size) },
             },
             State::Jobs { .. } | State::Steps { .. } | State::Ended => unreachable!("begin before an exchange"),
@@ -94,13 +88,14 @@ impl Plan {
         match heard {
             Heard::Head { status, fields } => {
                 if status != 200 {
-                    let failure =
-                        super::failure::classify(super::failure::Asked::Leaf, status, None, fields.retry_after);
-                    match failure.drop {
-                        super::failure::Drop::Nothing => {}
-                        super::failure::Drop::Path | super::failure::Drop::Row => tables.drop_repository(repository),
-                    }
-                    return Err(failure.error);
+                    return Err(super::failure::refused(
+                        super::failure::Asked::Leaf,
+                        status,
+                        None,
+                        fields.retry_after,
+                        repository,
+                        tables,
+                    ));
                 }
                 Ok(None)
             }
@@ -264,7 +259,7 @@ impl Plan {
                     }
                     let run = run_value(run, self.row.object_format)?;
                     self.add(crate::measure::run(&run).ok_or(api::Error::TooLarge)?, bounds)?;
-                    step = Step::send(r::Request::Jobs { at: self.at(), run: expected });
+                    step = Step::send(r::Request::Jobs { at: self.row.at(), run: expected });
                     State::Jobs { run, jobs }
                 }
                 Some(_) | None => return Err(api::Error::InvalidAnswer),
@@ -297,7 +292,7 @@ impl Plan {
         for index in position..jobs.len() {
             let job = jobs.get(index).expect("listed job");
             if job.conclusion == Some(api::Conclusion::Failure) {
-                let step = Step::send(r::Request::Job { at: self.at(), job: job.id });
+                let step = Step::send(r::Request::Job { at: self.row.at(), job: job.id });
                 return (State::Steps { run, jobs, position: index }, step);
             }
         }

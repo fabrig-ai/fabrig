@@ -16,19 +16,7 @@
   through `#[path]`, as other crates load `*_tests.rs`, and
   `skein-llm/src/translate.rs` and other source files hold inline test
   modules; no reason is recorded (the code's side is
-  `skein/docs/development/debt/D027-step-test-layouts.md`). 6: shared
-  harnesses belong in `testing/`, but worlds under `tests/` serve as
-  kits: `skein/tests/llm-connection/Cargo.toml` depends on
-  `skein-llm-world` and `skein-tls-world`, and `skein-llm/Cargo.toml`
-  uses `skein-json-world` as a dev-dependency, and three suites compile
-  another crate's files by `#[path]`:
-  `skein/tests/fake-peers/tests/suite/github_memory.rs` one of
-  `skein/tests/fake-forge`, and
-  `skein/tests/forge/dialect/tests/common/mod.rs` and
-  `skein/tests/fake-forge/tests/suite/forgejo_memory.rs` fixtures their
-  step crates' unit tests share, as each says beside it; for the kits and
-  the first no reason is recorded (the code's side is
-  `skein/docs/development/debt/D028-worlds-as-kits.md`). 6: `skein-scratch`
+  `skein/docs/development/debt/D027-step-test-layouts.md`). 6: `skein-scratch`
   is the tests' scratch directory, removed when dropped, but
   `skein/testing/skein-codegen/tests/suite/patch_run.rs` and
   `patch_generated.rs` make theirs by hand and remove them after their

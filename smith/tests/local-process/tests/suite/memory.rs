@@ -21,7 +21,7 @@ fn the_composed_world_including_its_shared_shell_fits_its_bound() {
 fn the_shared_processes_select_tls_without_changing_their_referee() {
     let files = Files::new();
     let trust = files.path().join("test-root.der");
-    std::fs::write(&trust, skein_tls_world::pki::ROOT).expect("fixed test trust");
+    std::fs::write(&trust, skein_tls_kit::pki::ROOT).expect("fixed test trust");
     let mut world = World::authenticated(24, &files, Placement::Spawned, Authentication::SignIn);
     world.scenario.launch.tls = true;
     world.scenario.launch.trust_der = Some(trust);

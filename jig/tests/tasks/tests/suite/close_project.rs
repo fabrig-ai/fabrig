@@ -5,7 +5,7 @@ use jig_domain_tasks::{
 use jig_tasks_world::{LIMITS, Reply, World, task};
 
 fn finish(world: &mut World, number: u64, spent: u64) {
-    world.claim(number, number);
+    world.claim_task(number);
     world.terminal_cause(
         number,
         tasks::End::Finished { result: tasks::TaskResult::Report { words: Box::new([1]) }, cancel_delegates: false },

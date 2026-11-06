@@ -135,7 +135,7 @@ fn agent_document(directory: &std::path::Path, program: bool) -> PathBuf {
     agent_endpoint_document(directory, program, false)
 }
 fn agent_endpoint_document(directory: &std::path::Path, program: bool, program_endpoint: bool) -> PathBuf {
-    fs::write(directory.join("root.der"), skein_tls_world::pki::ROOT).expect("public test root");
+    fs::write(directory.join("root.der"), skein_tls_kit::pki::ROOT).expect("public test root");
     let mut value = serde_json::json!({
         "profile":{"name":"standard","declared":{"tool_payload":512,"read_window":256},
             "policy":{"max_turns":5,"group_stop":10}},

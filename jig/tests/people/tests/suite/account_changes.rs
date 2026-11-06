@@ -19,8 +19,8 @@ fn owners() -> World {
     );
     world.roles(1, Box::new([]));
     world.commit_all();
-    world.signin(10, 1);
-    world.signin(11, 2);
+    world.sign_in_owner();
+    world.sign_in_second();
     world.commit_all();
     world
 }

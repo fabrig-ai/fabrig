@@ -12,6 +12,7 @@ test = false
 doctest = false
 
 [dependencies]
+jig-test-connector-kit.workspace = true
 skein-heap.workspace = true
 jig-test-connector.workspace = true
 jig-test-system.workspace = true

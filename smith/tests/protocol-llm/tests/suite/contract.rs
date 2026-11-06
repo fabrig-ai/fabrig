@@ -241,7 +241,7 @@ fn contract_schemas_reach_the_scripted_byte_peer_in_both_dialects() {
                 1,
             )]),
         }]);
-        let mut peer = skein_llm_world::fake::Exchange::prepared(
+        let mut peer = skein_llm_kit::fake::Exchange::prepared(
             prepared.client,
             configuration.endpoint.clone(),
             Some(match configuration.credential.scheme {

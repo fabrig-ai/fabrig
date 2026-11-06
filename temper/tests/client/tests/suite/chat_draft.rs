@@ -1,4 +1,4 @@
-use jig_client_world::harness::{App, ClientId, Duty, Front};
+use jig_client_kit::harness::{App, ClientId, Duty, Front};
 use skein_lib::{Env, Queue, Time, Token, Wall};
 use smith_domain_session::llm::{Block, Decoded, Message, Returned, Role, ToolCall};
 use temper_client_domain::{

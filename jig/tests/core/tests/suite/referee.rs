@@ -542,7 +542,7 @@ fn a_later_amendment_acceptance_replaces_the_tasks_authority_source() {
         let mut rows = accepted_batch();
         fake.commit(2, rows.clone()).expect("batch accepted by party one");
         fake.send(Observed::ProposeAsked { proposer: Source::Person(PROPOSER) }).expect("party asked to propose");
-        rows.party_proposals.insert(10, 1);
+        rows.party_proposals.insert(10, PROPOSER);
         fake.commit(3, rows.clone()).expect("later amendment pending from its party");
         rows.party_proposals.clear();
         rows.accepted_tasks.insert(2, Acceptance { proposal: 10, by: Source::Person(2) });

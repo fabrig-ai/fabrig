@@ -1,5 +1,5 @@
 //! Adversarial checks of the forge panel through the joined client world.
-use jig_client_world::harness::{ClientId, Settings, Until, World};
+use jig_client_kit::harness::{ClientId, Settings, Until, World};
 use skein_lib::{Duration, Token};
 use temper_client_domain::forge::panel::State;
 use temper_client_protocol_wire::v1 as wire;

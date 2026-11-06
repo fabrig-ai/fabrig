@@ -1,6 +1,5 @@
 use super::*;
-
-const TASK: u64 = 1;
+use jig_core_world::fixtures::TASK;
 
 fn ownership_catches_an_amendment_made_past_the_revision_it_named() {
     let mut fake = Fake::ready(Recovery::Keyed);

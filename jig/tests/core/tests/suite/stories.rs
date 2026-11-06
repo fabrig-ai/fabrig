@@ -1,5 +1,5 @@
-pub(crate) use jig_core_world::fixtures::{configure_resources, resource_member};
-use jig_core_world::fixtures::{delegate, live_row, member};
+use jig_core_world::fixtures::{ask, delegate, live_row, member};
+pub(crate) use jig_core_world::fixtures::{ask_as, configure_resources, resource_member};
 use jig_core_world::world::Setup;
 use jig_core_world::world::{World, fixture};
 use jig_domain_authority as authority;
@@ -16,19 +16,8 @@ mod address;
 #[path = "../stories/note_room.rs"]
 mod note_room;
 
-fn ask(world: &mut World, request: u8, ask: people::Ask) {
-    ask_as(world, world.sign_in.expect("signed-in person"), request, ask);
-}
-
-pub(crate) fn ask_as(world: &mut World, sign_in: u64, request: u8, ask: people::Ask) {
-    world.send(root::Event::Core(core::Event::People(people::Event::Ask {
-        models: Box::new([]),
-        reply_to: ReplyTo::new(Token::new(6000 + u64::from(request))),
-        sign_in,
-        key: [request; 16],
-        ask,
-    })));
-}
+const FIRST_CONNECTOR: u16 = 1;
+const SECOND_CONNECTOR: u16 = 2;
 
 fn action(world: &mut World, completion: u32, action: core::NamedAction) {
     world.send(root::Event::Core(core::Event::NamedAction {
@@ -261,7 +250,7 @@ fn a_policy_narrowed_while_a_proposal_waits_keeps_the_committed_entry_and_checks
 fn drift_holds_a_task_and_the_client_reads_why_it_needs_a_decision() {
     let mut world = World::new(Setup { seed: 127, ..Setup::default() });
     let task = world.call_key(1).task;
-    let resource = jig_test_connector_world::path(1, 1);
+    let resource = jig_test_connector_kit::path(1, 1);
     world.send(root::Event::Connector {
         number: 1,
         event: connector::Event::Adopt { project: 1, resource: resource.clone(), role: connector::ResourceRole::Owned },
@@ -534,11 +523,11 @@ fn a_judges_observed_facts_may_change_after_a_verdict_but_new_effects_use_the_ne
     world.call(1, 8001);
     assert_eq!(world.pending_writes.len(), 1);
     let committed = world.store.applied;
-    world.systems[1].other_hand(&jig_test_connector_world::path(1, 1), 14);
+    world.systems[1].other_hand(&jig_test_connector_kit::path(1, 1), 14);
     world.send(root::Event::Connector {
         number: 2,
         event: connector::Event::System(connector::SystemEvent::Fact {
-            resource: jig_test_connector_world::path(1, 1),
+            resource: jig_test_connector_kit::path(1, 1),
             fact: connector::Fact { state: Some(14), observed: world.wall_time(), pending: false },
             origin: connector::Origin::Other,
         }),
@@ -732,7 +721,7 @@ fn pool_size(world: &mut World, slots: u32) {
     world.send(root::Event::Connector {
         number: 1,
         event: connector::Event::System(connector::SystemEvent::Pool {
-            path: jig_test_connector_world::path(1, 2),
+            path: jig_test_connector_kit::path(1, 2),
             slots,
             lost: Box::new([]),
         }),
@@ -905,7 +894,7 @@ fn an_exclusive_resource_that_refuses_waiting_refuses_the_second_batch() {
 fn a_batch_waits_without_creating_a_task_or_reserving_funding_until_its_resource_is_reported() {
     let mut world = plan_world(152);
     let parent = world.assignments[0];
-    let resource = jig_test_connector_world::path(1, 1);
+    let resource = jig_test_connector_kit::path(1, 1);
     let before = match world.store.rows.get(&root::Key::Core(core::Key::Tasks(tasks::Key::Live(parent.0)))) {
         Some(root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row)))) => row.numbers,
         row => panic!("parent row: {row:?}"),
@@ -960,7 +949,7 @@ fn a_batch_waits_without_creating_a_task_or_reserving_funding_until_its_resource
 #[test]
 fn re_adopting_a_resource_as_context_refuses_the_existing_tasks_next_effect() {
     let mut world = World::new(Setup { seed: 153, ..Setup::default() });
-    let resource = jig_test_connector_world::path(1, 1);
+    let resource = jig_test_connector_kit::path(1, 1);
     let task = world.call_key(1).task;
     world.send(root::Event::Connector {
         number: 1,
@@ -1022,7 +1011,7 @@ fn a_resource_becoming_unavailable_holds_its_waiter_and_refuses_a_new_hold() {
         number: 1,
         event: connector::Event::System(connector::SystemEvent::Unavailable {
             project: 1,
-            resource: jig_test_connector_world::path(1, 1),
+            resource: jig_test_connector_kit::path(1, 1),
         }),
     });
     for task in [first, waiting] {
@@ -1054,7 +1043,7 @@ fn re_adopting_a_running_workspace_as_context_stops_its_writer() {
         number: 1,
         event: connector::Event::Adopt {
             project: 1,
-            resource: jig_test_connector_world::path(1, 1),
+            resource: jig_test_connector_kit::path(1, 1),
             role: connector::ResourceRole::Context,
         },
     });
@@ -1071,7 +1060,7 @@ fn a_context_adoption_still_refuses_effects_after_a_cold_restart() {
         number: 1,
         event: connector::Event::Adopt {
             project: 1,
-            resource: jig_test_connector_world::path(1, 1),
+            resource: jig_test_connector_kit::path(1, 1),
             role: connector::ResourceRole::Context,
         },
     });
@@ -1786,7 +1775,7 @@ fn approval_delegate_results_preserve_absent_and_explicitly_empty_explanations()
 
 #[test]
 fn an_approval_reaches_its_asking_procedure_connector_as_the_whole_durable_input() {
-    let (mut world, parent) = procedure_world(456, 1);
+    let (mut world, parent) = procedure_world(456, FIRST_CONNECTOR);
     let (step, connector, code, context) = world.procedure_inputs.last().expect("first procedure input");
     assert_eq!(context.task, parent);
     let mut child = member(&world, tasks::Executor::Person(tasks::PersonAddress::Role(0)), b"approve this state");
@@ -1967,7 +1956,7 @@ fn procedure_world(seed: u64, number: u16) -> (World, u64) {
 
 #[test]
 fn a_procedure_delegate_identity_is_committed_with_its_child_by_the_actual_connector() {
-    let (mut world, parent) = procedure_world(458, 2);
+    let (mut world, parent) = procedure_world(458, SECOND_CONNECTOR);
     let (step, number, code, _) = world.procedure_inputs.last().expect("procedure input");
     let (step, number, code) = (*step, *number, *code);
     let mut child = member(&world, tasks::Executor::Person(tasks::PersonAddress::Role(0)), b"child");
@@ -2006,7 +1995,7 @@ fn a_procedure_delegate_identity_is_committed_with_its_child_by_the_actual_conne
 
 #[test]
 fn a_refused_procedure_delegation_retains_the_exact_none_outcome() {
-    let (mut world, parent) = procedure_world(459, 2);
+    let (mut world, parent) = procedure_world(459, SECOND_CONNECTOR);
     let (step, number, code, _) = world.procedure_inputs.last().expect("procedure input");
     let (step, number, code) = (*step, *number, *code);
     let mut child = member(&world, tasks::Executor::Person(tasks::PersonAddress::Role(0)), b"over budget");

@@ -3,7 +3,7 @@
 use crate::{fixtures, host::plans::seeded_config, tls::Carrier};
 use skein_fake_forge_domain as domain;
 use skein_fake_forge_forgejo::{self as fake, Service};
-use skein_forge_machine_world::github::{self, Fake};
+use skein_forge_kit::github::{self, Fake};
 use skein_forge_setup::{
     host::{Answer, Event, Host, Limits, Need, Plan, Request, Settings},
     item::Item,
@@ -249,11 +249,7 @@ impl HostWorld {
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             service,
             domain: None,
-            domain_env: Env {
-                now: Time::ZERO,
-                wall: Wall::EPOCH,
-                limits: skein_forge_machine_world::fixtures::fake_config(),
-            },
+            domain_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: skein_forge_kit::fixtures::fake_config() },
             domain_out: Queue::uncapped(),
             copies: BTreeMap::new(),
             copy_runs: BTreeMap::new(),
@@ -802,7 +798,7 @@ fn answer(peer: &mut Peer, event: Up, records: &mut Vec<GitHubRequest>) {
                 records.push(github_record(&peer.head));
             }
             let (status, body) = peer.answer.expect("scripted answer");
-            peer.below.push(Down::Send(skein_forge_machine_world::fixtures::response(status, body).into_boxed_slice()));
+            peer.below.push(Down::Send(skein_forge_kit::fixtures::response(status, body).into_boxed_slice()));
             if matches!(peer.end, PeerEnd::Ends) {
                 peer.below.push(Down::Finish);
             }
@@ -857,7 +853,7 @@ mod tests {
     use super::*;
     use core::num::NonZeroU32;
     use skein_forge_setup::host::Transport;
-    use skein_tls_world::pki;
+    use skein_tls_kit::pki;
 
     fn tls_reply_world() -> HostWorld {
         let mut settings = fixtures::host_settings();

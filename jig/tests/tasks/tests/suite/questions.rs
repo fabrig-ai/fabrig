@@ -267,7 +267,7 @@ fn fanout() -> (Domain, skein_lib::Env<Limits>) {
     world.make(Party::Task(REQUESTER), children.into());
     let mut serial = 0;
     for asker in [ASKER, SECOND_ASKER] {
-        world.claim(asker, asker);
+        world.claim_task(asker);
         for peer in [FIRST_PEER, SECOND_PEER] {
             response(&mut world, |reply_to| Event::Introduce { reply_to, by: REQUESTER, left: asker, right: peer });
             // Each peer receives half of each asker's full credit list.

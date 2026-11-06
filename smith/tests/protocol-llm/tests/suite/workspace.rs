@@ -122,7 +122,7 @@ fn no_workspace(world: &World) {
 fn no_workspace_host_answer_wait_park_and_native_transcript_resume() {
     for dialect in smith_protocol_llm_world::fixture::Dialect::ALL {
         let mut bounds =
-            smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::codec::stated());
+            smith_protocol_llm::fixture::small(skein_llm_kit::limits(), smith_protocol_llm_world::codec::stated());
         bounds.client.http.request = 16384;
         bounds.client.request = 16384;
         let mut settings = Settings {
@@ -228,7 +228,7 @@ fn utf8_read_feedback_can_be_copied_into_an_edit_in_both_wire_dialects() {
             ]),
         }]);
         let mut bounds =
-            smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::codec::stated());
+            smith_protocol_llm::fixture::small(skein_llm_kit::limits(), smith_protocol_llm_world::codec::stated());
         // The native request includes the complete depth/glob schema inventory.
         bounds.client.http.request = 16384;
         bounds.client.request = 16384;
@@ -314,11 +314,11 @@ fn the_descriptions_state_each_effective_workspace_limit_on_both_native_wires() 
         caps.shell_timeout = Duration::from_secs(12);
         caps.tool_deadline = Duration::from_secs(43);
         settings.limits.run.directory_name_bytes = 37;
-        let mut client = skein_llm_world::limits();
+        let mut client = skein_llm_kit::limits();
         client.request = 16384;
         client.http.request = 16384;
         let bounds = Limits {
-            history_bytes: u64::from(skein_llm_world::limits().request),
+            history_bytes: u64::from(skein_llm_kit::limits().request),
             ..smith_protocol_llm::fixture::small(
                 client,
                 codec::Stated::from_tools(caps, client.input).expect("observed numeric quantities"),
@@ -404,10 +404,10 @@ fn namespace_descriptions_and_list_slash_reach_both_native_provider_dialects() {
             }
             let workspace = run::Workspace { directories: directories.into() };
             let mut settings = Settings { job: Job::Reporting, ..smith_protocol_llm_world::fixture::settings(1096) };
-            let mut client = skein_llm_world::limits();
+            let mut client = skein_llm_kit::limits();
             client.request = 16384;
             let bounds = Limits {
-                history_bytes: u64::from(skein_llm_world::limits().request),
+                history_bytes: u64::from(skein_llm_kit::limits().request),
                 ..smith_protocol_llm::fixture::small(
                     client,
                     codec::Stated::from_tools(&settings.limits.session.tools, client.input)

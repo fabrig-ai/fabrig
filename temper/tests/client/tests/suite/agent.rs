@@ -1,4 +1,4 @@
-use jig_client_world::harness::{ClientId, Until, World};
+use jig_client_kit::harness::{ClientId, Until, World};
 use skein_fake_person::{Find, Step};
 use skein_world::domain::Verdict;
 use temper_client_tools::jig::Printed;

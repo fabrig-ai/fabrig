@@ -5,14 +5,14 @@ use skein_forge::{api, github::log};
 use skein_lib::{Env, Time, Token};
 
 #[derive(Debug)]
-pub(crate) enum State {
+pub enum State {
     Resting,
     Reading,
     Delivery { id: u64 },
     Holding { hint: Option<api::Hint>, offer: bool },
 }
 #[derive(Debug)]
-pub(crate) struct Poll {
+pub struct Poll {
     newest: Option<[u8; 16]>,
     validator: Option<api::Validator>,
     ask: Option<log::Ask>,
@@ -23,7 +23,7 @@ pub(crate) struct Poll {
     installations: bool,
 }
 #[derive(Debug)]
-pub(crate) struct Puller {
+pub struct Puller {
     pub newest: Option<[u8; 16]>,
     pub validator: Option<api::Validator>,
     pub due: Option<Time>,
@@ -31,13 +31,22 @@ pub(crate) struct Puller {
     pub source: Option<Token>,
     pub poll: Option<Poll>,
 }
-pub(crate) enum Action {
+#[derive(Debug)]
+pub enum Action {
     Idle,
     Progress,
     Installations,
     Gap { reread: bool },
     Hint(api::Hint),
 }
+#[cfg_attr(
+    feature = "seam",
+    expect(
+        clippy::must_use_candidate,
+        clippy::new_without_default,
+        reason = "the machine-world seam exposes the existing state operations"
+    )
+)]
 impl Puller {
     pub fn new() -> Self {
         Self { newest: None, validator: None, due: None, state: State::Resting, source: None, poll: None }

@@ -94,6 +94,5 @@ pub fn prepare_for_contract(
 /// Effective fixture quantities shared by direct-client tests.
 #[must_use]
 pub fn stated() -> Stated {
-    Stated::from_tools(&crate::LIMITS.session.tools, skein_llm_world::limits().input)
-        .expect("fixture numeric bounds fit")
+    Stated::from_tools(&crate::LIMITS.session.tools, skein_llm_kit::limits().input).expect("fixture numeric bounds fit")
 }

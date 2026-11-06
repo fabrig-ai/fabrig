@@ -47,7 +47,7 @@ impl Harness {
         let mut source = World::new(Setup { seed: SEED, ..Setup::default() });
         let task = source.assigned.as_ref().expect("source run").task;
         source.park_for_message(0);
-        let path = jig_test_connector_world::path(1, 1);
+        let path = jig_test_connector_kit::path(1, 1);
         let resource = task_name(&path);
         let env = Env {
             now: Time::ZERO,
@@ -121,7 +121,7 @@ impl Harness {
         }
         let pool = tasks::Stored::Pool(tasks::PoolSlots {
             number: 1,
-            pool: task_name(&jig_test_connector_world::path(1, 2)),
+            pool: task_name(&jig_test_connector_kit::path(1, 2)),
             slots: 0,
         });
         assert_eq!(core.restore(&env, core::Record::Tasks(pool)), core::Restore::Kept);
@@ -136,7 +136,7 @@ impl Harness {
             .first
             .kinds
             .iter()
-            .find(|kind| kind.kind == jig_test_connector_world::kind(1, recovery))
+            .find(|kind| kind.kind == jig_test_connector_kit::kind(1, recovery))
             .expect("recovery kind");
         let entry = connector::OutboxEntry {
             number: ENTRY,
@@ -181,7 +181,7 @@ impl Harness {
             connector::Record::Outbox(entry),
             connector::Record::Adoption {
                 project: 1,
-                path: jig_test_connector_world::path(1, 2),
+                path: jig_test_connector_kit::path(1, 2),
                 role: connector::ResourceRole::Owned,
             },
         ]
@@ -308,7 +308,7 @@ impl Harness {
     fn read_afresh(&mut self) {
         assert!(self.wires);
         self.connector_event(connector::Event::Restart(connector::RestartStep::FreshRead {
-            resource: jig_test_connector_world::path(1, 1),
+            resource: jig_test_connector_kit::path(1, 1),
         }));
         self.route_core(core::Event::Tasks(tasks::Event::ReadAfresh { resource: self.resource.clone() }));
         assert_eq!(self.system.reads().len(), 1);
@@ -524,8 +524,8 @@ fn loading_slot_reports_keep_the_durable_pool_capacity() {
         {
             h.started();
         }
-        let pool = task_name(&jig_test_connector_world::path(1, 2));
-        assert_eq!(h.connector.slots(&jig_test_connector_world::path(1, 2)), Some(2));
+        let pool = task_name(&jig_test_connector_kit::path(1, 2));
+        assert_eq!(h.connector.slots(&jig_test_connector_kit::path(1, 2)), Some(2));
         assert_eq!(h.core.tasks.resource_hold(&pool), Some(tasks::HoldKind::Pooled { taken: tasks::Taken::Waits }));
         let holder = h.core.tasks.task(h.task).expect("sampled task");
         let mut authority = holder.authority.clone();

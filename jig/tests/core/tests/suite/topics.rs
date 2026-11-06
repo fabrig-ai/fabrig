@@ -13,7 +13,7 @@ fn topic_world(seed: u64, grant: bool) -> World {
     configuration.first.topics = Box::new([connector::TopicSpec {
         topic: 1,
         offered: true,
-        resources: Box::new([jig_test_connector_world::path(1, 1)]),
+        resources: Box::new([jig_test_connector_kit::path(1, 1)]),
     }]);
     let read_grant = authority::Grant {
         connector: 1,

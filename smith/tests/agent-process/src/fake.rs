@@ -186,7 +186,7 @@ impl Default for Options {
 impl Options {
     fn make(self, scripts: Box<[api::Script]>, credential: skein_llm::Credential) -> llm::Peer {
         let Self { latency, transport, anthropic, openai, rejected, request_bytes, document_bytes } = self;
-        let mut config = skein_llm_world::fake::config();
+        let mut config = skein_llm_kit::fake::config();
         config.latency_min = latency;
         config.latency_max = latency;
         config.script_bytes = config.script_bytes.max(document_bytes);
@@ -195,7 +195,7 @@ impl Options {
         if rejected {
             config.too_long = 1000;
         }
-        let mut protocol = skein_llm_world::fake::limits(&skein_llm_world::limits());
+        let mut protocol = skein_llm_kit::fake::limits(&skein_llm_kit::limits());
         protocol.documents.openai.request = request_bytes;
         protocol.documents.openai.strings = document_bytes;
         protocol.documents.openai.answer = protocol.documents.openai.answer.max(document_bytes);
@@ -217,7 +217,7 @@ impl Options {
                 } else if openai {
                     skein_llm::Endpoint::openai().target
                 } else {
-                    skein_llm_world::public_call(1).endpoint.target
+                    skein_llm_kit::public_call(1).endpoint.target
                 },
                 headers: Box::new([]),
                 without_credential: false,

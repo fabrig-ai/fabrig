@@ -1,8 +1,8 @@
 //! Stable account numbers and their bounded places (oauth.md, section 6.2).
 
-use super::{AccountEntry, Component, Lifecycle, Name};
+use super::{Component, Lifecycle, Name};
 use crate::{Asked, Event, Refusal, Request};
-use skein_lib::{List, Queue};
+use skein_lib::Queue;
 use skein_oauth::{Registration, SavedToken};
 
 impl Component {
@@ -83,10 +83,6 @@ impl Name {
             Name::Free => unreachable!("free account emits nothing"),
         }
     }
-}
-
-pub(super) fn number(entries: &List<AccountEntry>, place: u32) -> u32 {
-    entries.get(place).expect("account entry").name.number()
 }
 
 pub(super) fn missing_id(registration: &Registration, record: &SavedToken) -> bool {

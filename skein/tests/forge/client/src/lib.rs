@@ -3,4 +3,5 @@
 mod referee;
 pub mod translate;
 mod world;
-pub use world::{LIMITS, REPO, Settings, Stats, World};
+pub use skein_forge_kit::client::LIMITS;
+pub use world::{REPO, Settings, Stats, World};

@@ -156,7 +156,7 @@ fn a_preparing_agent_is_kept_and_its_stale_preparation_cannot_make_it_due() {
 #[test]
 fn a_live_run_finishes_done_as_parked_keeps_saved_state_and_names_its_dependencies() {
     let mut world = pair();
-    world.claim(1, 1);
+    world.claim_task(1);
     keep(&mut world);
     world.restart();
     assert_eq!(world.runs.get(&1), Some(&1));
@@ -207,7 +207,7 @@ fn a_live_run_finishes_done_as_parked_keeps_saved_state_and_names_its_dependenci
 #[test]
 fn a_kept_run_may_still_end_failed() {
     let mut world = pair();
-    world.claim(1, 1);
+    world.claim_task(1);
     keep(&mut world);
     assert_eq!(
         world.terminal(
@@ -289,7 +289,7 @@ fn a_procedures_invalid_done_step_is_refused_as_kept() {
 #[test]
 fn a_dependency_failing_later_holds_its_kept_dependent_and_stops_a_live_run() {
     let mut world = pair();
-    world.claim(1, 1);
+    world.claim_task(1);
     keep(&mut world);
     world.claim(2, 1);
     world.terminal(2, End::Finished { result: TaskResult::Failure { reason: Box::new([1]) }, cancel_delegates: false });
@@ -326,7 +326,7 @@ fn a_grace_cancels_a_kept_person_or_procedure_at_once() {
 #[test]
 fn a_run_parked_by_dependencies_during_a_grace_cancels_at_once() {
     let mut world = pair();
-    world.claim(1, 1);
+    world.claim_task(1);
     keep(&mut world);
     cancel(&mut world, 1);
     assert!(world.record(1).grace.is_some());
@@ -665,7 +665,7 @@ fn a_claim_committed_before_the_amendment_stays_live_and_its_done_finish_parks()
 #[test]
 fn a_kept_runs_invalid_result_still_spends_an_invalid_try() {
     let mut world = pair();
-    world.claim(1, 1);
+    world.claim_task(1);
     keep(&mut world);
     world.terminal(
         1,
@@ -735,7 +735,7 @@ fn removing_the_last_live_name_of_a_met_dependency_prunes_its_stub_before_restar
 #[test]
 fn cancelling_a_kept_task_still_accepts_its_live_runs_partial_result() {
     let mut world = pair();
-    world.claim(1, 1);
+    world.claim_task(1);
     keep(&mut world);
     assert_eq!(
         response(&mut world, |reply_to| Event::Cancel {

@@ -1,6 +1,6 @@
 use skein_fake_forge_forgejo::Route;
 use skein_forge::api::{Answer, Error, Op, Read, Write};
-use skein_forge_machine_world::joint::{Joint, REPO};
+use skein_forge_kit::joint::{Joint, REPO};
 use skein_lib::{Duration, Time};
 #[test]
 fn the_component_starts_and_lists_items_through_the_fakes_bytes() {
@@ -77,7 +77,7 @@ fn a_failed_job_read_names_its_failed_step_and_reads_its_log() {
     let mut joint = Joint::failing(5);
     let pushed = joint.push(b"work", b"change");
     joint.run_for(Duration::from_secs(1));
-    let head = skein_forge_client_world::translate::commit(pushed);
+    let head = skein_forge_kit::client::commit(pushed);
     joint.call(1, REPO, Op::Read(Read::Checks { commit: head }));
     joint.run_for(Duration::from_secs(1));
     let Some(Ok(Answer::Checks(statuses))) = joint.answered(1).map(|a| &a.result) else {
@@ -97,7 +97,7 @@ fn a_failed_jobs_log_end_comes_through_a_suffix_range() {
     let mut joint = Joint::failing(5);
     let pushed = joint.push(b"work", b"change");
     joint.run_for(Duration::from_secs(1));
-    let head = skein_forge_client_world::translate::commit(pushed);
+    let head = skein_forge_kit::client::commit(pushed);
     joint.call(1, REPO, Op::Read(Read::Checks { commit: head }));
     joint.run_for(Duration::from_secs(1));
     let Some(Ok(Answer::Checks(statuses))) = joint.answered(1).map(|a| &a.result) else {

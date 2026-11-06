@@ -18,19 +18,19 @@ const NAME: [u8; 16] = [52; 16];
 
 #[test]
 fn full_people_answers_reach_the_carried_clients_outcome_with_facts() {
-    let mut world = jig_core_world::stories::offers::world_with(SEED, None, |limits| {
+    let mut world = jig_core_kit::stories::offers::world_with(SEED, None, |limits| {
         limits.core.people.requests = HELD;
         limits.core.people.request_retention = Duration::from_secs(120);
     });
     let (now, _) = world.clocks();
     world.set_clock(now, WALL);
     let sign_in = world.sign_in.expect("member");
-    jig_core_world::fixtures::ask_as(&mut world, sign_in, FILL_KEY, people::Ask::Stop { project: 1, task: u64::MAX });
+    jig_core_kit::fixtures::ask_as(&mut world, sign_in, FILL_KEY, people::Ask::Stop { project: 1, task: u64::MAX });
     let mut peer = Peer::started(&real_core_settings());
     let bearer = bearer(&mut peer, world.sign_in.expect("member"), PARTY);
 
     // Reuse the joint world's receiving profile; only authentication is scripted.
-    let limits = jig_client_world::test::limits().client;
+    let limits = jig_client_kit::test::limits().client;
     let receiving = link::Limits::new(limits.domain, limits.exchanges).expect("receiving profile");
     let mut client = client::Client::unlinked(&limits, SEED).expect("client");
     let mut output = Queue::uncapped();

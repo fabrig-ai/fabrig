@@ -1,16 +1,16 @@
 //! The shipped service and agent, killed and restarted over one durable store.
 #[expect(dead_code, reason = "only the live binary uses trace helpers")]
 mod support;
-use jig_client_protocol_world::native::Script;
+use jig_client_protocol_kit::native::Script;
 
 /// The fake provider checks the credential presented by the real run.
 fn peer() -> (skein_fake_peers::llm::Peer, std::net::SocketAddr, skein_io::kernel::Fd) {
-    let mut script = jig_channel_world::fixtures::one_chat(b"Hello");
+    let mut script = jig_channel_kit::fixtures::one_chat(b"Hello");
     script.result = br#"{"form":"report","text":"Process answer","fields":{}}"#.as_slice().into();
     support::ports::provider(
         Box::new([skein_fake_llm_domain::api::Script {
             cue: Box::default(),
-            turns: jig_channel_world::fixtures::provider_turns(&script),
+            turns: jig_channel_kit::fixtures::provider_turns(&script),
         }]),
         skein_llm::Credential::bearer(b"token".as_slice().into()),
     )
@@ -42,9 +42,9 @@ fn a_binary_told_to_stop_with_a_sign_in_under_way_ends_at_once() {
 }
 
 // Reuse the account sign-in world's browser source; it remains a private test helper.
-use jig_protocol_accounts_world::fixtures;
+use jig_protocol_accounts_kit::fixtures;
 #[expect(dead_code, reason = "only the accounts world stops a browser at its redirect, to paste it")]
-#[path = "../../../tests/protocol-accounts/src/visitor.rs"]
+#[path = "../../jig-protocol-accounts-kit/src/visitor.rs"]
 mod account_sign_in_visitor;
 
 #[path = "support/accounts.rs"]

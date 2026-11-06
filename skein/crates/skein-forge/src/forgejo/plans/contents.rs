@@ -7,7 +7,7 @@ use crate::forgejo::plans::{
     reading,
     tables::{Repository, Tables},
 };
-use crate::forgejo::{document as d, id::ObjectId, request as r};
+use crate::forgejo::{document as d, request as r};
 use alloc::boxed::Box;
 use skein_lib::{List, bytes, usize_of};
 #[derive(Debug)]
@@ -97,12 +97,12 @@ impl Plan {
     pub fn begin(&mut self, bounds: Bounds) -> Result<Step, api::Error> {
         let state = core::mem::replace(&mut self.state, State::Ended);
         let (state, step) = match state {
-            state @ State::Pull { number, .. } => (state, Step::send(r::Request::Pull { at: self.at(), number })),
+            state @ State::Pull { number, .. } => (state, Step::send(r::Request::Pull { at: self.row.at(), number })),
             State::Compare(sides) => {
                 let step = Step::send(r::Request::Compare {
-                    at: self.at(),
-                    before: self.id(sides.before),
-                    after: self.id(sides.after),
+                    at: self.row.at(),
+                    before: self.row.id(sides.before),
+                    after: self.row.id(sides.after),
                     files: true,
                 });
                 (State::Compare(sides), step)
@@ -114,7 +114,11 @@ impl Plan {
                     self.directory(head, path, max, bounds)
                 } else {
                     let step = Step::Send(Exchange {
-                        request: r::Request::Raw { at: self.at(), path: path.clone(), reference: self.id(head) },
+                        request: r::Request::Raw {
+                            at: self.row.at(),
+                            path: path.clone(),
+                            reference: self.row.id(head),
+                        },
                         range: Some(crate::forgejo::plans::plan::Range::Head(max)),
                     });
                     (State::File { head, path, max, missing }, step)
@@ -129,12 +133,6 @@ impl Plan {
         };
         self.state = state;
         Ok(step)
-    }
-    fn at(&self) -> r::Repo {
-        r::Repo { owner: self.row.owner.clone(), name: self.row.name.clone() }
-    }
-    fn id(&self, bytes: api::Commit) -> ObjectId {
-        ObjectId { bytes, format: self.row.object_format }
     }
     #[must_use]
     pub fn raw_room(&self, answer_bytes: u32) -> u32 {
@@ -180,12 +178,7 @@ impl Plan {
                     return Ok(None);
                 }
                 if status != 200 && !(raw && status == 206) {
-                    let classified = super::failure::classify(asked, status, None, fields.retry_after);
-                    match classified.drop {
-                        super::failure::Drop::Nothing => {}
-                        super::failure::Drop::Path | super::failure::Drop::Row => tables.drop_repository(repository),
-                    }
-                    return Err(classified.error);
+                    return Err(super::failure::refused(asked, status, None, fields.retry_after, repository, tables));
                 }
                 Ok(None)
             }
@@ -345,7 +338,7 @@ impl Plan {
                         ask: Ask::Pull { head, more: None },
                     }),
                     Step::send(r::Request::PullFiles {
-                        at: self.at(),
+                        at: self.row.at(),
                         number,
                         page: r::Page { page: Some(page), limit: Some(self.limit) },
                     }),
@@ -358,9 +351,9 @@ impl Plan {
             State::Compare(sides) => {
                 comparison(body)?;
                 let step = Step::send(r::Request::Compare {
-                    at: self.at(),
-                    before: self.id(sides.after),
-                    after: self.id(sides.before),
+                    at: self.row.at(),
+                    before: self.row.id(sides.after),
+                    after: self.row.id(sides.before),
                     files: false,
                 });
                 Ok((State::Reverse(sides), step))
@@ -420,7 +413,8 @@ impl Plan {
     }
     fn directory(&self, head: api::Commit, path: Box<[u8]>, max: u32, bounds: Bounds) -> (State, Step) {
         let listing = Box::new(crate::directory::Listing::new(max.min(self.raw_room(bounds.answer_bytes))));
-        let step = Step::send(r::Request::Contents { at: self.at(), path: path.clone(), reference: self.id(head) });
+        let step =
+            Step::send(r::Request::Contents { at: self.row.at(), path: path.clone(), reference: self.row.id(head) });
         (State::Directory { head, path, listing }, step)
     }
     fn next_side(&self, sides: Sides, bounds: Bounds) -> Result<(State, Step), api::Error> {
@@ -446,7 +440,7 @@ impl Plan {
         Ok((State::Before { sides, missing: false }, step))
     }
     fn read_side(&self, path: Box<[u8]>, head: api::Commit) -> Step {
-        Step::send(r::Request::Raw { at: self.at(), path, reference: self.id(head) })
+        Step::send(r::Request::Raw { at: self.row.at(), path, reference: self.row.id(head) })
     }
     fn raw(&mut self, body: Option<Body>, bounds: Bounds) -> Result<Option<Box<[u8]>>, api::Error> {
         let value = match body {

@@ -11,8 +11,8 @@ use std::{
 pub use temper_playground::documents::turn_bounds;
 /// A second key the fake LLM peer accepts, for the accounts' stories.
 pub const SECOND_KEY: &[u8] = b"real-loop-second-llm-key";
-pub const TOKEN: &[u8] = jig_channel_world::fixtures::TOKEN;
-pub const SEED: u64 = jig_channel_world::fixtures::SEED;
+pub const TOKEN: &[u8] = jig_channel_kit::fixtures::TOKEN;
+pub const SEED: u64 = jig_channel_kit::fixtures::SEED;
 pub const AGENT: &[u8] = b"/real-loop/temper-agent";
 #[must_use]
 pub fn documents(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde_json::Value, serde_json::Value) {
@@ -27,7 +27,7 @@ pub fn documents(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde
             "models":[{"name":"fake","prices":{"input":1,"cached":1,"output":1,"unit":1_000_000},"window":1_048_576,"output":2048,"reasoning_item":64,"head":60000,"idle":30000}]}],
         "environment":[]});
     let mut value: serde_json::Value =
-        serde_json::from_slice(&jig_channel_world::fixtures::engine_document()).expect("engine JSON");
+        serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("engine JSON");
     value.as_object_mut().expect("whole object").remove("service");
     for (name, count) in
         [("clients.streams", 8_u32), ("clients.exchanges", 12), ("clients_http.streams", 8), ("clients_http.calls", 12)]
@@ -35,7 +35,7 @@ pub fn documents(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde
         value["engine"]["limits"]["overrides"][name] = count.into();
     }
     let worker: serde_json::Value =
-        serde_json::from_slice(jig_channel_world::fixtures::WORKER_DOCUMENT).expect("worker JSON");
+        serde_json::from_slice(jig_channel_kit::fixtures::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
     value["workers"][0]["agent"]["program"] = program.into();
@@ -87,13 +87,13 @@ pub fn write(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> std::io::R
         std::fs::create_dir_all(directory.join(name))?;
         std::fs::set_permissions(directory.join(name), std::fs::Permissions::from_mode(0o700))?;
     }
-    for (name, bytes) in jig_channel_world::fixtures::files(false).entries.into_boxed() {
+    for (name, bytes) in jig_channel_kit::fixtures::files(false).entries.into_boxed() {
         if !name.starts_with(b"charters/") {
             private(&directory.join(std::str::from_utf8(&name).expect("fixture path")), bytes.expose())?;
         }
     }
     private(&directory.join("worker.secret"), b"worker-secret")?;
-    private(&directory.join("fixture.key"), jig_channel_world::fixtures::KEY)?;
+    private(&directory.join("fixture.key"), jig_channel_kit::fixtures::KEY)?;
     private(&directory.join("second.key"), SECOND_KEY)?;
     let (mut agent, mut config) = documents(directory, llm, forge);
     if crate::claude::configured(directory) {

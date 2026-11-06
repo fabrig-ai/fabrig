@@ -300,8 +300,8 @@ fn test_client_view_links_only_client_children_and_foundation() {
 
 #[test]
 fn client_world_joins_only_the_client_and_test_roles() {
-    let worlds: Vec<_> = manifests().into_iter().filter(|m| m.name.as_deref() == Some("jig-client-world")).collect();
-    assert_eq!(worlds.len(), 1, "one shared client world");
+    let worlds: Vec<_> = manifests().into_iter().filter(|m| m.name.as_deref() == Some("jig-client-kit")).collect();
+    assert_eq!(worlds.len(), 1, "one shared client kit");
     for manifest in worlds {
         assert!(
             manifest.dependencies.iter().all(|d| [
@@ -336,6 +336,7 @@ fn client_world_joins_only_the_client_and_test_roles() {
                 "jig-domain-views",
                 "jig-domain-notes",
                 "jig-test-profile",
+                "jig-core-kit",
                 // Scripted parties remain beside the real joint protocol peer.
                 "jig-fake-parties",
                 "jig-fake-workers",
@@ -344,8 +345,7 @@ fn client_world_joins_only_the_client_and_test_roles() {
                 "jig-client-test-kit",
                 "sha2"
             ]
-            .contains(&d.as_str())
-                || super::kits::pending_world_dependency("jig-client-world", d)),
+            .contains(&d.as_str())),
             "{}",
             manifest.path.display()
         );
@@ -408,7 +408,10 @@ fn application_breaches(manifests: &[CrateManifest]) -> Vec<String> {
     let first_application = ["tem", "per"].concat();
     for manifest in manifests {
         if !manifest.name.as_deref().is_some_and(|name| {
-            name.starts_with("jig-protocol-") || (name.starts_with("jig-client-protocol-") && !name.ends_with("-world"))
+            name.starts_with("jig-protocol-")
+                || (name.starts_with("jig-client-protocol-")
+                    && !name.ends_with("-world")
+                    && name != "jig-client-protocol-kit")
         }) {
             continue;
         }
@@ -433,7 +436,9 @@ fn smith_breaches(manifests: &[CrateManifest]) -> Vec<String> {
             || name.starts_with("jig-protocol-")
             || name == "jig-client-view"
             || name.starts_with("jig-client-shell-")
-            || (name.starts_with("jig-client-protocol-") && !name.ends_with("-world")))
+            || (name.starts_with("jig-client-protocol-")
+                && !name.ends_with("-world")
+                && name != "jig-client-protocol-kit"))
         {
             continue;
         }
@@ -719,15 +724,18 @@ fn the_identity_dependency_is_allowed_for_the_test_service_alone() {
 #[test]
 fn client_crates_carry_the_client_prefix() {
     let allowed = [
+        "jig-client-kit",
         "jig-protocol-engine-clients",
         "jig-protocol-engine-clients-http",
         "jig-engine-clients-world",
+        "jig-engine-clients-kit",
         "jig-fake-parties",
         "jig-protocol-transcript",
         "jig-test",
         "jig-test-service",
         "jig-one-process-world",
         "jig-channel-world",
+        "jig-channel-kit",
         "jig-ops-world",
     ];
     let failures = crate::client_names::breaches(&kit_root(), "jig", &allowed);

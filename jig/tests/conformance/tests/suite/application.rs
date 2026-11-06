@@ -1,5 +1,5 @@
-use jig_core_world::world::Setup;
-use jig_core_world::world::{Cut, World};
+use jig_core_kit::world::Setup;
+use jig_core_kit::world::{Cut, World};
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_test_connector as connector;
@@ -113,7 +113,7 @@ fn application_replay_after_a_durable_restart_does_not_repeat_a_decision() {
     assert_eq!(world.store.applied, writes, "restored replay decides nothing");
 
     let task = world.assigned.as_ref().expect("first person's task").task;
-    let other_sign_in = jig_core_world::fixtures::second_party(&mut world, b"other", people::Role::Member);
+    let other_sign_in = jig_core_kit::fixtures::second_party(&mut world, b"other", people::Role::Member);
     assert_ne!(other_sign_in, sign_in);
     let answers = world.application_answers.len();
     world.send(ask(

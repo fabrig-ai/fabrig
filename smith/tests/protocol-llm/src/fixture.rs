@@ -4,7 +4,7 @@ use smith_protocol_llm::{ComponentLimits, Limits};
 /// The protocol world's client and workspace description preset.
 #[must_use]
 pub fn limits() -> Limits {
-    smith_protocol_llm::fixture::small(skein_llm_world::limits(), crate::codec::stated())
+    smith_protocol_llm::fixture::small(skein_llm_kit::limits(), crate::codec::stated())
 }
 
 /// The same component capacities for manual and scripted peers.

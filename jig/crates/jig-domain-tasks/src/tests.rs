@@ -325,13 +325,7 @@ mod classifiers {
                 F::Spoken(_) => (true, false, false, false),
                 F::Hint(_) => (false, true, false, false),
                 F::Slot(_) => (false, false, false, false),
-                F::Separate(slot) => (
-                    false,
-                    false,
-                    [Separate::Amendment, Separate::FinishRequested, Separate::Met, Separate::NothingAwaited]
-                        .contains(&slot),
-                    slot == Separate::FinishRequested,
-                ),
+                F::Separate(slot) => (false, false, true, slot == Separate::FinishRequested),
                 F::Result => (false, false, false, false),
                 F::Virtual => (false, false, false, false),
             };

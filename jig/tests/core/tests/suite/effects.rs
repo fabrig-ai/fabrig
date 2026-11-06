@@ -259,7 +259,7 @@ fn kept_effect(
                     connector: 1,
                     kind: 5,
                     name: authority::Name {
-                        segments: jig_test_connector_world::path(1, 1).segments().to_vec().into_boxed_slice(),
+                        segments: jig_test_connector_kit::path(1, 1).segments().to_vec().into_boxed_slice(),
                     },
                     state: [13; 32],
                     price: Some(1),

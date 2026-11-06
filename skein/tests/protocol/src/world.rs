@@ -460,7 +460,7 @@ impl<'a> Watch<'a> {
             }
             Expect::Early => {
                 let (status, body) = scenario.server.early.as_ref().expect("an early error");
-                let document = skein_json_world::reference::parse(body, &json_limits_tokenizer()).tokens;
+                let document = skein_json_kit::reference::parse(body, &json_limits_tokenizer()).tokens;
                 goals.push(Goal::Answered { status: *status, document, by });
             }
             Expect::Partway => {

@@ -50,10 +50,10 @@ smith-domain-session.workspace = true
 smith-domain-tools.workspace = true
 
 [dev-dependencies]
-jig-engine-clients-world = { path = "../../../../jig/tests/engine-clients" }
-jig-client-world.workspace = true
-jig-people-world.workspace = true
-jig-tasks-world.workspace = true
+jig-engine-clients-kit.workspace = true
+jig-client-kit.workspace = true
+jig-people-kit.workspace = true
+jig-tasks-kit.workspace = true
 serde_json.workspace = true
 skein-fake-llm-domain.workspace = true
 smith-agent-world.workspace = true

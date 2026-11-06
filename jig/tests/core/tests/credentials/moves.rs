@@ -30,8 +30,8 @@ fn refused(world: &World, why: people::AccountMoveWhy) {
         Some(&people::Reply::Outcome(people::Outcome::Refused(people::Refusal::AccountMove { why })))
     );
 }
-fn move_in(world: &mut World, key: u8, number: u64, digest: u8) {
-    carry(world, key, change(people::AccountChange::MoveIn { digest: [digest; 32] }), number, digest);
+fn move_in(world: &mut World, key: u8) {
+    carry(world, key, change(people::AccountChange::MoveIn { digest: [7; 32] }), 1_u64 << 63, 7);
 }
 
 #[test]
@@ -141,7 +141,7 @@ fn a_key_only_account_cannot_move_out() {
 fn a_carried_move_in_makes_an_account_and_refreshes_its_source() {
     let mut world = signing(196);
     watch_own(&mut world);
-    move_in(&mut world, 50, 1_u64 << 63, 7);
+    move_in(&mut world, 50);
     let Some(people::Reply::Outcome(people::Outcome::AccountMovedIn { account, renewed: false })) =
         world.people_answers.last()
     else {
@@ -163,7 +163,7 @@ fn a_move_in_of_another_applications_record_is_refused_as_not_ours() {
     let mut world = signing(197);
     world.fail_move_open = true;
     let before = world.people_answers.len();
-    move_in(&mut world, 50, 1_u64 << 63, 7);
+    move_in(&mut world, 50);
     refused(&world, people::AccountMoveWhy::NotOurs);
     unused_before_answer(&world, before, 1_u64 << 63);
 }
@@ -174,7 +174,7 @@ fn a_move_in_of_a_subject_another_holder_holds_is_refused_as_held() {
     signed_in(&mut world);
     jig_core_world::fixtures::second_party(&mut world, b"move-holder", people::Role::Member);
     let before = world.people_answers.len();
-    move_in(&mut world, 50, 1_u64 << 63, 7);
+    move_in(&mut world, 50);
     refused(&world, people::AccountMoveWhy::Held);
     unused_before_answer(&world, before, 1_u64 << 63);
 }
@@ -219,14 +219,14 @@ fn a_move_out_replay_keeps_its_number_and_has_no_second_record() {
 #[test]
 fn a_move_in_replay_erases_the_unused_carried_value() {
     let mut world = signing(201);
-    move_in(&mut world, 50, 1_u64 << 63, 7);
+    move_in(&mut world, 50);
     assert!(matches!(
         world.people_answers.last(),
         Some(people::Reply::Outcome(people::Outcome::AccountMovedIn { renewed: false, .. }))
     ));
     let answer = world.people_answers.last().cloned();
     let before = world.people_answers.len();
-    move_in(&mut world, 50, (1_u64 << 63) + 1, 7);
+    carry(&mut world, 50, change(people::AccountChange::MoveIn { digest: [7; 32] }), (1_u64 << 63) + 1, 7);
     assert_eq!(world.people_answers.last().cloned(), answer);
     unused_before_answer(&world, before, (1_u64 << 63) + 1);
 }

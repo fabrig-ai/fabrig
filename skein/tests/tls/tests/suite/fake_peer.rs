@@ -291,7 +291,7 @@ fn a_request_body_larger_than_one_tls_read_arrives_whole() {
     let mut world = World::new(27, config, Judge { now: Time::ZERO, text, queried: false }, Memory::Unchecked);
     world.spawn(|| Process::Sender(Box::new(Sender::new(body))));
     world.spawn(|| {
-        let limits = skein_llm_world::fake::config();
+        let limits = skein_llm_kit::fake::config();
         let domain = domain::Domain::try_scripted(
             &limits,
             27,
@@ -323,7 +323,7 @@ fn a_request_body_larger_than_one_tls_read_arrives_whole() {
                     usage_fields: documents::UsageFields::ALL,
                 },
                 skein_llm::Credential { scheme: skein_llm::Scheme::Bearer, value: b"token".as_slice().into() },
-                skein_llm_world::fake::limits(&skein_llm_world::limits()),
+                skein_llm_kit::fake::limits(&skein_llm_kit::limits()),
                 domain,
                 limits,
             )

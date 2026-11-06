@@ -1,5 +1,5 @@
 //! First-run gaps at the public fake boundary (client/README.md, 3.5, 4.8, 5.6).
-use jig_client_world::harness::App;
+use jig_client_kit::harness::App;
 use skein_lib::Queue;
 use skein_ui::{Role, Tree};
 use temper_client_domain::{Address, Choice, Step};

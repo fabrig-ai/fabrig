@@ -113,7 +113,7 @@ pub fn events(rng: &mut Rng, deltas: u64, most: u64) -> Vec<(Vec<u8>, Vec<Token>
 
 /// `tokens`, written by the JSON writer.
 fn written(tokens: &[Token]) -> Box<[u8]> {
-    skein_json_world::write(tokens, &json_limits()).expect("a document the writer writes")
+    skein_json_kit::write(tokens, &json_limits()).expect("a document the writer writes")
 }
 
 /// A scenario of calls, each `requests`' document answered by the

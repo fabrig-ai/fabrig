@@ -2,9 +2,9 @@
 use jig_client_domain::contract::{Answer, Ask, Outcome, WatchEnd};
 #[cfg(test)]
 use jig_client_domain::contract::{Operation, Revision, Scope, SeenThrough, Text};
+use jig_client_kit::harness::{App, CardKey, Duty, Receipt, Seen, Sent, StoreWrite};
+use jig_client_kit::observe;
 use jig_client_view::Owner;
-use jig_client_world::harness::{App, CardKey, Duty, Receipt, Seen, Sent, StoreWrite};
-use jig_client_world::observe;
 use jig_ops_client_domain::{
     self as domain, Action, Address, Event, Request, infrastructure as infra, observability as obs,
 };
@@ -269,7 +269,7 @@ impl App for Ops {
             use jig_client_protocol_wire::v19 as w;
             let keyed = w::Keyed::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("keyed Ops bytes");
             if *keyed.owner() == w::Owner::Jig {
-                return jig_client_protocol_world::observe::client_sent(request);
+                return jig_client_protocol_kit::observe::client_sent(request);
             }
             let request = w::FamilyRequest::decode(&w::CEILINGS, &mut skein_lib::Reader::new(keyed.request()))
                 .expect("family request");
@@ -334,7 +334,7 @@ fn client_limits() -> jig_client::Limits {
             version: jig_ops_client_protocol_wire::VERSION,
         },
     ];
-    let mut client = jig_client_world::test::limits().client;
+    let mut client = jig_client_kit::test::limits().client;
     client.domain.owners = &OWNERS;
     client.domain.requests.bytes = 262_144;
     client
@@ -401,8 +401,8 @@ mod tests {
 
     const ATTEMPT: Token = Token::new(7);
     const REQUEST_KEY: [u8; 16] = [3; 16];
-    const PROJECT: u32 = 1;
-    const TASK: u64 = 8;
+    use crate::PROJECT;
+    const OBSERVED_TASK: u64 = 8;
 
     fn encoded<T>(
         value: &T,
@@ -462,7 +462,9 @@ mod tests {
 
     #[test]
     fn both_ops_routes_exclude_top_level_seen() {
-        for through in [SeenThrough::Results { through: 1 }, SeenThrough::Conversation { task: TASK, through: 1 }] {
+        for through in
+            [SeenThrough::Results { through: 1 }, SeenThrough::Conversation { task: OBSERVED_TASK, through: 1 }]
+        {
             for request in requests(jig_client::Ask::Jig(Box::new(Ask::Seen { through }))) {
                 assert!(Ops::sent(&request).is_none(), "{request:?}");
             }
@@ -472,15 +474,15 @@ mod tests {
     #[test]
     fn both_ops_routes_keep_ordinary_no_card_requests() {
         for ask in [
-            Ask::Stop { project: PROJECT, task: TASK },
-            Ask::Take { project: PROJECT, task: TASK },
+            Ask::Stop { project: PROJECT, task: OBSERVED_TASK },
+            Ask::Take { project: PROJECT, task: OBSERVED_TASK },
             Ask::Compound {
                 project: PROJECT,
-                operations: jig_client_world::test::list([
-                    Operation::Stop { project: PROJECT, task: TASK },
+                operations: jig_client_kit::test::list([
+                    Operation::Stop { project: PROJECT, task: OBSERVED_TASK },
                     Operation::Message {
                         project: PROJECT,
-                        task: TASK,
+                        task: OBSERVED_TASK,
                         words: Text::new(b"continue".as_slice().into(), 32).expect("fixture text"),
                     },
                 ]),

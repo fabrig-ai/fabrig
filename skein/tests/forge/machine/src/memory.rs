@@ -12,7 +12,7 @@ use skein_lib::{
     Env, Intake, List, Queue, Secret, Time, Token,
     stream::{Down, Read, Up},
 };
-use skein_tls_world::{meter::Steps, pki, server::Server};
+use skein_tls_kit::{meter::Steps, pki, server::Server};
 use std::collections::{BTreeMap, VecDeque};
 
 /// Maxima observed at the component boundary; tables are checked by lookup.

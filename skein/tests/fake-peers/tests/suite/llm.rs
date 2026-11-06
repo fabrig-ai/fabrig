@@ -40,7 +40,7 @@ fn limits() -> Limits {
 }
 
 fn make(address: SocketAddr, transport: Transport) -> Result<llm::Peer, skein_fake_peers::Error> {
-    let call = skein_llm_world::call(1);
+    let call = skein_llm_kit::call(1);
     make_on(call.endpoint, call.credential.expect("fixture credential"), address, transport)
 }
 
@@ -71,7 +71,7 @@ fn make_scripted_with_limits(
     scripts: Box<[api::Script]>,
     limits: Limits,
 ) -> Result<llm::Peer, skein_fake_peers::Error> {
-    let machine_limits = skein_llm_world::fake::config();
+    let machine_limits = skein_llm_kit::fake::config();
     let domain = domain::Domain::configured(
         &machine_limits,
         23,
@@ -90,7 +90,7 @@ fn make_domain_with_limits(
     domain: domain::Domain,
     limits: Limits,
 ) -> Result<llm::Peer, skein_fake_peers::Error> {
-    let machine_limits = skein_llm_world::fake::config();
+    let machine_limits = skein_llm_kit::fake::config();
     llm::Peer::new(
         address,
         transport,
@@ -107,7 +107,7 @@ fn make_domain_with_limits(
             headers: Box::new([]),
         },
         credential,
-        skein_llm_world::fake::limits(&skein_llm_world::limits()),
+        skein_llm_kit::fake::limits(&skein_llm_kit::limits()),
         domain,
         machine_limits,
     )
@@ -170,7 +170,7 @@ fn fake_peer_refuses_non_loopback_configuration_before_effects() {
 #[test]
 fn peer_refuses_unrepresentable_faces_and_incompatible_http_buffers() {
     let good = limits();
-    let protocol = skein_llm_world::fake::limits(&skein_llm_world::limits());
+    let protocol = skein_llm_kit::fake::limits(&skein_llm_kit::limits());
     assert!(llm::valid(&good, &protocol));
     for bad in [
         Limits { connections: 0, ..good },
@@ -182,7 +182,7 @@ fn peer_refuses_unrepresentable_faces_and_incompatible_http_buffers() {
         Limits { io: skein_io::Limits { output: good.ciphertext - 1, ..good.io }, ..good },
     ] {
         assert!(!llm::valid(&bad, &protocol));
-        let call = skein_llm_world::call(1);
+        let call = skein_llm_kit::call(1);
         assert_eq!(
             make_scripted_with_limits(
                 call.endpoint,
@@ -201,7 +201,7 @@ fn peer_refuses_unrepresentable_faces_and_incompatible_http_buffers() {
 #[test]
 fn llm_admission_keeps_its_ciphertext_reserve_and_send_allowance() {
     let limits = limits();
-    let mut protocol = skein_llm_world::fake::limits(&skein_llm_world::limits());
+    let mut protocol = skein_llm_kit::fake::limits(&skein_llm_kit::limits());
     protocol.http.send = limits.ciphertext - 1024 - 32;
     assert!(llm::valid(&limits, &protocol));
     protocol.http.send += 1;
@@ -210,7 +210,7 @@ fn llm_admission_keeps_its_ciphertext_reserve_and_send_allowance() {
 
 #[test]
 fn provider_constructors_refuse_unrepresentable_edges() {
-    let good = skein_llm_world::fake::limits(&skein_llm_world::limits());
+    let good = skein_llm_kit::fake::limits(&skein_llm_kit::limits());
     assert!(provider::valid(&good));
     let mut send = good;
     send.http.send = u32::MAX;
@@ -284,7 +284,7 @@ fn a_release_name_past_64_bytes_is_refused_as_limits() {
     for name in [b"".as_slice(), &[b'x'; 65]] {
         assert_eq!(peer.release(name), Err(skein_fake_peers::Error::Limits), "name length {}", name.len());
     }
-    for _ in 0..skein_llm_world::fake::config().calls {
+    for _ in 0..skein_llm_kit::fake::config().calls {
         assert_eq!(peer.release(&[b'x'; 64]), Ok(()));
     }
 }
@@ -292,7 +292,7 @@ fn a_release_name_past_64_bytes_is_refused_as_limits() {
 #[test]
 fn a_release_past_the_queue_is_refused_as_limits() {
     let mut peer = make(SocketAddr::from((Ipv4Addr::LOCALHOST, 0)), Transport::Plaintext).unwrap();
-    for _ in 0..skein_llm_world::fake::config().calls {
+    for _ in 0..skein_llm_kit::fake::config().calls {
         assert_eq!(peer.release(b"ready"), Ok(()));
     }
     assert_eq!(peer.release(b"extra"), Err(skein_fake_peers::Error::Limits));
@@ -334,7 +334,7 @@ fn accept_returns_each_credentials_index_in_order() {
 
 #[test]
 fn accept_refuses_a_list_the_route_cannot_serve() {
-    let cap = skein_llm_world::fake::limits(&skein_llm_world::limits()).http.head;
+    let cap = skein_llm_kit::fake::limits(&skein_llm_kit::limits()).http.head;
     let rows = [
         (Endpoint::anthropic(), key(), 1, bearer()),
         (Endpoint::anthropic(), key(), provider::MAX_CREDENTIALS, key()),
@@ -392,7 +392,7 @@ fn played_anthropic_resets_are_refused_in_every_group() {
         ("otherwise", api::Scripts { cued: Box::new([]), asked: Box::new([]), otherwise: script.turns }),
     ];
     for (label, scripts) in rows {
-        let config = skein_llm_world::fake::config();
+        let config = skein_llm_kit::fake::config();
         let domain =
             domain::Domain::played(&config, 23, scripts, api::Menu { arguments: Box::new([]), invalid: Box::new([]) })
                 .expect("played script domain");
@@ -592,7 +592,7 @@ fn body(extra: &str) -> Vec<u8> {
 
 #[test]
 fn a_refused_field_is_named() {
-    let limits = skein_llm_world::fake::limits(&skein_llm_world::limits()).documents;
+    let limits = skein_llm_kit::fake::limits(&skein_llm_kit::limits()).documents;
     let fields: [&[u8]; 15] = [
         b"background",
         b"conversation",
@@ -724,7 +724,7 @@ fn without_records_serves_past_a_zero_cap() {
 
 #[test]
 fn responses_function_output_and_user_text_select_the_same_input_turn() {
-    let config = skein_llm_world::fake::config();
+    let config = skein_llm_kit::fake::config();
     let text_turn = |text: &[u8]| api::Turn {
         lines: Box::new([api::Line::Text { text: text.into() }]),
         finish: api::Finish::Stop,

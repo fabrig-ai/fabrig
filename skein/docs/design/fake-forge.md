@@ -1284,9 +1284,8 @@ the fake.
 
 ### 10.6 Without a peer
 
-The forge component's step harness and its machine, joint and protocol
-worlds each play their own wire, so no peer stands between them and the
-layer. They meet the `Server` the peer hosts all the same, one fake at every
+Each of the forge component's machine, joint and protocol worlds plays its
+own wire, so no peer stands between them and the layer. They meet the `Server` the peer hosts all the same, one fake at every
 tier (`skein/docs/foundation/testing-strategy.md`, 4), through
 `skein_fake_forge_github::inline`, which hosts it in the caller's turn, over
 a domain the caller lends, with no io.

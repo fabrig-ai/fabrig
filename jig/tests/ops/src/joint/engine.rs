@@ -2,8 +2,8 @@
 //! (client/domain/testing.md, 5; examples.md, 10).
 use crate::conformance::Store;
 use crate::conformance::{self, Config, Delivery, Ops, Systems};
-use jig_client_world::harness::Observed;
-use jig_client_world::joint::truth::Truth;
+use jig_client_kit::harness::Observed;
+use jig_client_kit::joint::truth::Truth;
 use jig_conformance::{Application, Clock, Input, Output, referee};
 use jig_domain_core as core;
 use jig_domain_people as people;
@@ -26,7 +26,7 @@ pub struct Peers {
     pub packets: Vec<root::Output>,
     pub truth: Truth,
     pub observations: Vec<Observed>,
-    pub protocol: jig_client_world::joint::referee::Referee,
+    pub protocol: jig_client_kit::joint::referee::Referee,
     /// Whole authenticated requests observed at the actual root boundary.
     pub keyed_asks: Vec<(u64, [u8; 16], people::Ask)>,
     pub application_asks: Vec<(u64, [u8; 16], jig_ops_domain_infrastructure::ApplicationRequest, [u8; 32])>,
@@ -184,7 +184,7 @@ impl Application for OpsApplication {
             packets: Vec::new(),
             truth: Truth::default(),
             observations: Vec::new(),
-            protocol: jig_client_world::joint::referee::Referee::default(),
+            protocol: jig_client_kit::joint::referee::Referee::default(),
             keyed_asks: Vec::new(),
             application_asks: Vec::new(),
             application_bytes: Vec::new(),
@@ -468,7 +468,7 @@ impl Application for OpsApplication {
                     peers.milestones.push((milestone, store.applied));
                 }
             }
-            peers.observations.extend(peers.truth.applied(jig_core_world::store_peer::DurableSnapshot {
+            peers.observations.extend(peers.truth.applied(jig_core_kit::store_peer::DurableSnapshot {
                 commit: store.applied,
                 at: Time::from_nanos(clock.now),
                 rows: core_store(store).rows,

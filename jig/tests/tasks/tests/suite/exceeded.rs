@@ -3,10 +3,9 @@ use jig_domain_tasks::{
     Accepted, Active, Bound, Cause, Class, End, EndKind, EndedBy, Event, Exceeded, Flags, Hold, Line, MessageKind,
     Party, Phase, Release, RetryNotice, Stored, Tries, Was, Word,
 };
-use jig_tasks_world::{LIMITS, Reply, World, task};
+use jig_tasks_world::{LIMITS, Reply, TASK, World, task};
 use skein_lib::Duration;
 
-const TASK: u64 = 1;
 const REQUESTER: Party = Party::Person(1);
 const FIRST: u64 = 1;
 const NEXT: u64 = 2;

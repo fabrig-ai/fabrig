@@ -2,7 +2,7 @@ use jig_domain_tasks::{self as tasks, Amendment, Cancel, End, Endings, Event, Pa
 use jig_tasks_world::{LIMITS, World, task};
 
 fn finish(world: &mut World, number: u64, result: TaskResult) {
-    world.claim(number, number);
+    world.claim_task(number);
     world.terminal(number, End::Finished { result, cancel_delegates: false });
     world.settle(number);
 }

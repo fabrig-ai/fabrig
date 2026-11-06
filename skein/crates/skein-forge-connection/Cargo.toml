@@ -7,6 +7,9 @@ license.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
+[features]
+seam = []
+
 [dependencies]
 skein-forge.workspace = true
 skein-lib.workspace = true
@@ -19,7 +22,6 @@ skein-json.workspace = true
 
 [dev-dependencies]
 skein-heap.workspace = true
-skein-fake-forge-domain.workspace = true
 skein-fake-forge-github.workspace = true
 skein-world.workspace = true
 

@@ -11,7 +11,7 @@ fn the_web_app_form_masks_and_erases_a_rejected_paste() {
     panic!("gap: the joint world does not bridge App paste requests");
 }
 
-use jig_client_world::harness::{App, ClientId, Front};
+use jig_client_kit::harness::{App, ClientId, Front};
 use skein_lib::{Queue, Time, Wall};
 use skein_ui::Role;
 use temper_client_domain::{self as d, Address, Choice};

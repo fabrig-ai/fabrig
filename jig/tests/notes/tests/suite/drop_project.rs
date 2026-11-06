@@ -2,10 +2,9 @@
 //! (jig/docs/design/domain/engine.md, 10).
 
 use jig_domain_notes::{Event, Key, Last, Pattern, Record, Scope};
-use jig_notes_world::{Answer, World, one_scope, saved_entry, task_entry};
+use jig_notes_world::{Answer, PROJECT, World, one_scope, saved_entry, task_entry};
 use skein_lib::Token;
 
-const PROJECT: u32 = 7;
 const OWNER: Token = Token::new(100);
 
 fn fixture() -> World {

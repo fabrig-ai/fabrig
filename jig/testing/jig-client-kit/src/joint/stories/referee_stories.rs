@@ -1,0 +1,42 @@
+//! Deliberately broken translation against an actual held core transaction.
+use super::fault_stories::{answers, stop_ready};
+use super::*;
+use crate::joint::transport::Reply;
+
+#[test]
+#[should_panic(expected = "nothing shown done before durable")]
+fn the_joint_referee_catches_a_translation_answering_stop_before_its_actual_commit() {
+    let (mut world, client) = stop_ready();
+    let submitted = world.front().session.driver.world.store.applied + 1;
+    world.front().session.driver.world.cut = Some(jig_core_kit::world::Cut::Submitted(submitted));
+    world.person(client, vec![Step::Press { find: Find::exactly_named(Role::Button, b"Confirm") }]);
+    let boundary = world.now().saturating_add(Duration::from_millis(30));
+    let outcome = world.run(Until::Time(boundary));
+    assert!(matches!(outcome.verdict, skein_world::domain::Verdict::Open { .. }));
+    assert_eq!(world.front().session.driver.world.reached_cut, Some(jig_core_kit::world::Cut::Submitted(submitted)));
+    assert_eq!(answers(&mut world), 1, "the Stop answer has not reached the actual store");
+    let transport = &world.front().session.driver.transport;
+    let token = transport
+        .reply_tokens()
+        .into_iter()
+        .find(|token| matches!(transport.reply(*token), Some(Reply::Keyed { client: owner, .. }) if *owner == client))
+        .expect("pending Stop component route");
+    // Deliberate fault: supply the owner's final reply before its commit completes.
+    let now = world.now();
+    world
+        .front()
+        .session
+        .held(
+            jig_test_domain::Delivery::Core(jig_domain_core::Held::PeopleReply {
+                to: skein_lib::ReplyTo::new(token),
+                reply: people::Reply::Outcome(people::Outcome::Stopped { task: 1 }),
+            }),
+            now,
+            clock(now),
+        )
+        .expect("component accepts the premature reply");
+    let callbacks = world.front().session.poll(now, clock(now)).expect("link decodes the reply");
+    for (owner, event) in callbacks {
+        world.event(owner, event);
+    }
+}

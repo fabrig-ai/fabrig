@@ -63,7 +63,7 @@ fn the_fakes_limits_are_their_constructors() {
 
 #[test]
 fn the_owned_values_equal_the_test_kits_values() {
-    use jig_channel_world::fixtures as channel;
+    use jig_channel_kit::fixtures as channel;
     assert_eq!(documents::KEY, channel::KEY);
     assert_eq!(documents::engine_document(), channel::engine_document());
     assert_eq!(documents::WORKER_DOCUMENT, channel::WORKER_DOCUMENT);
@@ -94,10 +94,10 @@ fn the_owned_values_equal_the_test_kits_values() {
     assert_eq!(owned.ciphertext, source.ciphertext);
     assert_eq!(owned.observations, source.observations);
     assert_eq!(owned.observation_bytes, source.observation_bytes);
-    let mut config = skein_llm_world::fake::config();
+    let mut config = skein_llm_kit::fake::config();
     config.query_bytes = 65_536;
     assert_eq!(fakes::llm_config(), config);
-    let mut protocol = skein_llm_world::fake::limits(&skein_llm_world::limits());
+    let mut protocol = skein_llm_kit::fake::limits(&skein_llm_kit::limits());
     protocol.documents.openai.request = 65_536;
     protocol.documents.openai.strings = 16_384;
     protocol.http.body = 65_536;

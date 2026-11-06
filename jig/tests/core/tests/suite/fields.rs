@@ -1,4 +1,4 @@
-use jig_core_world::fixtures::ask_as;
+use jig_core_world::fixtures::{PROJECT, ask_as};
 use jig_core_world::stories::offers::no_holder_fixture;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
@@ -64,7 +64,6 @@ fn assert_task_times(world: &mut World, made: Wall, last_activity: Wall) {
     assert_eq!(value.last_activity, last_activity);
 }
 
-const PROJECT: u32 = 1;
 const OWNER: u64 = 1;
 const MEMBER: u64 = 3;
 const MEMBER_CHAT: u64 = 2;

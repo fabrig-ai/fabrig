@@ -148,7 +148,11 @@ from the epoch (`client/README.md`,
 switch still offers its act with its watch refused or ended, an Overturn or its
 message gone astray reads as overturned already or as ended, where a live task
 then hears nothing, no page starts a goal that always asks (`client/README.md`),
-and `decided` is declared past charter 1 (`domain/agent.md`). The
+and `decided` is declared past charter 1 (`domain/agent.md`). A document
+built in parts is proved on a script alone, no real model having built one
+and no walk drawing a long one in its pane, and a later note write's words
+close with its lines where the `note-parts` request of 2026-11-05 keeps the
+answer as it stood (`domain/agent.md`). The
 case library's purpose is retired, the fake
 git program drives skein's JSON tokenizer over a whole body by hand,
 the ladder has no twin past B1 and no live story but B0's, neither
@@ -223,6 +227,7 @@ Drafts:
 - [`draft/reference-case.md`](draft/reference-case.status.md)
 - [`draft/agent-docs.md`](draft/agent-docs.status.md)
 - [`draft/ci-on-forgejo-17.md`](draft/ci-on-forgejo-17.status.md)
+- [`draft/box-link-first.md`](draft/box-link-first.status.md)
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)
 - [`draft/configuring.md`](draft/configuring.status.md)
 - [`draft/dashboards.md`](draft/dashboards.status.md)
@@ -234,6 +239,7 @@ Drafts:
 - [`draft/look-requests.md`](draft/look-requests.status.md)
 - [`draft/macos.md`](draft/macos.status.md)
 - [`draft/own-way.md`](draft/own-way.status.md)
+- [`draft/real-journeys.md`](draft/real-journeys.status.md)
 - [`draft/repository-copies.md`](draft/repository-copies.status.md)
 - [`draft/serve-without-box.md`](draft/serve-without-box.status.md)
 - [`draft/template-places.md`](draft/template-places.status.md)

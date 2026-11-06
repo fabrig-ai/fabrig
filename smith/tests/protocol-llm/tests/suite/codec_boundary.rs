@@ -6,7 +6,7 @@
 use skein_fake_llm_domain::api;
 use skein_lib::Token;
 use skein_llm::{self as shared, client};
-use skein_llm_world::fake::Exchange;
+use skein_llm_kit::fake::Exchange;
 use smith_domain::{Event, llm, run, tools};
 use smith_protocol_llm_world::client_peer::{self, Configuration};
 use smith_protocol_llm_world::codec::{self as codec, Context, Input, Limits, ToolKind, ToolSchema};
@@ -17,7 +17,7 @@ const WAIT_SCHEMA: &[u8] = br#"{"type":"object","properties":{},"additionalPrope
 fn limits() -> Limits {
     Limits {
         rendered_result: 2048,
-        ..smith_protocol_llm::fixture::small(skein_llm_world::limits(), smith_protocol_llm_world::codec::stated())
+        ..smith_protocol_llm::fixture::small(skein_llm_kit::limits(), smith_protocol_llm_world::codec::stated())
     }
 }
 

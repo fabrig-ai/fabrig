@@ -1,5 +1,5 @@
 //! Settings proposal admission on the client's wire (`contract.md`, 3.2).
-use jig_core_world::world::Setup;
+use jig_core_kit::world::Setup;
 use skein_world::domain::heap;
 
 #[global_allocator]
@@ -7,7 +7,7 @@ static HEAP: heap::Counting = heap::Counting;
 
 use jig_client_protocol_wire::v19 as w;
 use jig_domain_core::{self as core, settings as s};
-use jig_engine_clients_world::{Peer, fixtures};
+use jig_engine_clients_kit::{Peer, fixtures};
 use skein_lib::Token;
 use skein_lib::{List, Writer};
 
@@ -73,8 +73,8 @@ fn settings_proposals_are_scoped_to_the_deployment() {
 
 #[test]
 fn a_real_pending_review_survives_both_wire_translations() {
-    use jig_core_world::reads;
-    use jig_core_world::world::World;
+    use jig_core_kit::reads;
+    use jig_core_kit::world::World;
     use jig_domain_people as people;
     use jig_test_domain as root;
     use skein_lib::{Reader, ReplyTo};
@@ -132,7 +132,7 @@ fn a_real_pending_review_survives_both_wire_translations() {
     else {
         panic!("read value")
     };
-    let link = jig_client_protocol_link::Limits::new(jig_client_world::test::limits().client.domain, 8)
+    let link = jig_client_protocol_link::Limits::new(jig_client_kit::test::limits().client.domain, 8)
         .expect("receiving limits");
     let read = jig_client_protocol_link::translate::reads::value(value.record(), &link)
         .expect("client decodes the real review");

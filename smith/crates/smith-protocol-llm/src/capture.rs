@@ -138,7 +138,7 @@ mod tests {
             affinity: None,
             max_output_tokens: Some(10),
         };
-        let captured = prompt(&input, Observation { first: true, messages: 0 }, &skein_llm_world::limits())
+        let captured = prompt(&input, Observation { first: true, messages: 0 }, &skein_llm_kit::limits())
             .expect("bounded translated prompt");
         assert_eq!(captured.system.as_deref(), Some(b"system instructions".as_slice()));
         assert_eq!(captured.tools.expect("first request carries its names").len(), 0);
@@ -179,7 +179,7 @@ mod tests {
             stop: skein_llm::Stop::MaxTokens,
             usage: skein_llm::Usage { input: None, output: None, cache_read: None, cache_write: None, reasoning: None },
         };
-        let observed = completion(&input, &skein_llm_world::limits()).expect("valid deterministic fixture");
+        let observed = completion(&input, &skein_llm_kit::limits()).expect("valid deterministic fixture");
         assert_eq!(
             observed.blocks.as_slice(),
             &[
@@ -217,7 +217,7 @@ mod tests {
             affinity: None,
             max_output_tokens: None,
         };
-        let limits = skein_llm_world::limits();
+        let limits = skein_llm_kit::limits();
         let first =
             prompt(&input, Observation { first: true, messages: 0 }, &limits).expect("valid deterministic fixture");
         assert_eq!(first.system.as_deref(), Some(b"observed system".as_slice()));

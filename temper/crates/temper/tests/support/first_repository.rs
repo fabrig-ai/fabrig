@@ -94,7 +94,7 @@ pub(super) fn model(config: &Path, scripts: Box<[Script]>) -> CtlLlm {
             agent["endpoints"][0]["address"] = address.to_string().into();
             agent["endpoints"][0]["server_name"] = "skein.test".into();
             agent["endpoints"][0]["trust_der"] = json!(config.join("root.der"));
-            write_private(&config.join("root.der"), skein_tls_world::pki::ROOT);
+            write_private(&config.join("root.der"), skein_tls_kit::pki::ROOT);
             write_private(&path, &serde_json::to_vec(&agent).expect("agent JSON"));
         }),
     }
@@ -398,7 +398,7 @@ fn task_steps_in(root: &Path, task: Task, repository: &str) -> Vec<Step> {
     let project = task.project.to_string();
     let chat = task.chat.to_string();
     let key = root.join("llm-key");
-    write_private(&key, jig_channel_world::fixtures::KEY);
+    write_private(&key, jig_channel_kit::fixtures::KEY);
     vec![
         Step::Run(Call::new(&[
             "account",

@@ -737,7 +737,7 @@ mod tests {
             (Provider::Anthropic, Scheme::Key, Ok(())),
             (Provider::Anthropic, Scheme::Bearer, Err(GrantError::Scheme)),
         ] {
-            let client = skein_llm_world::limits();
+            let client = skein_llm_kit::limits();
             let stated = crate::Stated::from_tools(&crate::tests::tools(), client.input).expect("tool bounds");
             let translation = crate::fixture::small(client, stated);
             let limits = crate::fixture::component(translation, Duration::from_secs(1)).expect("component limits");

@@ -37,7 +37,7 @@ fn smiths_terminal_login_command_preserves_its_configured_process_contract() {
     let mut agent: serde_json::Value = serde_json::from_slice(&agent).expect("agent JSON");
     agent["programs"] = serde_json::json!({"claude_code":{"path":executable,"directory":programs}});
     std::fs::write(directory.join("agent.json"), serde_json::to_vec(&agent).expect("agent JSON")).expect("agent");
-    std::fs::write(directory.join("root.der"), skein_tls_world::pki::ROOT).expect("public trust");
+    std::fs::write(directory.join("root.der"), skein_tls_kit::pki::ROOT).expect("public trust");
     let configuration = directory.join("temper.json");
     std::fs::write(&configuration, deployment).expect("non-UTF8 configuration path");
     let benign = OsString::from_vec(b"value-\xff".to_vec());
@@ -85,7 +85,7 @@ fn a_worker_alone_login_reads_only_its_worker_part() {
         serde_json::json!({"claude_code":{"path":"/missing/claude","directory":directory.join("programs")}});
     std::fs::write(directory.join("agent.json"), serde_json::to_vec(&agent).expect("worker-alone fixture"))
         .expect("worker-alone fixture");
-    std::fs::write(directory.join("root.der"), skein_tls_world::pki::ROOT).expect("worker-alone fixture");
+    std::fs::write(directory.join("root.der"), skein_tls_kit::pki::ROOT).expect("worker-alone fixture");
     std::fs::write(directory.join("temper.json"), serde_json::to_vec(&input).expect("worker-alone fixture"))
         .expect("worker-alone fixture");
     let command = command(&crate::tests::configuration::directories(&directory), OsStr::new("source"), [])

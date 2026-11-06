@@ -1,7 +1,7 @@
 //! client/README.md, 8 and 10; domain/forge.md, 8.2–8.8.
 //! A task page watches the whole change through CI, its gate and landing.
 use jig_client::contract as c;
-use jig_client_world::harness::{ClientId, Until, World};
+use jig_client_kit::harness::{ClientId, Until, World};
 use jig_domain_tasks as tasks;
 use skein_fake_person::{Face, Find, Found, Step, Target, TreeFace};
 use skein_forge::api;

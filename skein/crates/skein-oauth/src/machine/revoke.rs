@@ -4,9 +4,9 @@ use super::{
     Awaits, Client, ClientLimits, Exchange, Failure, Grant, HttpEvidence, HttpResponse, Phase, Registration, Request,
 };
 use crate::RefreshState;
-use crate::redirect::{form_fields, issued_id, validate_registration};
+use crate::redirect::{form_fields, validate_registration};
 use alloc::boxed::Box;
-use skein_lib::{Queue, Secret, Time, bytes, usize_of};
+use skein_lib::{Queue, Time};
 
 pub(super) fn endpoint(registration: &Registration) -> Option<&[u8]> {
     registration.terms.as_ref()?.revocation_endpoint.as_deref()
@@ -44,31 +44,9 @@ impl Client {
     ) -> Result<(Exchange, Request, Awaits), Failure> {
         validate_registration(&registration, &self.limits, false)?;
         endpoint(&registration).ok_or(Failure::Malformed)?;
-        if prior.refresh_token.is_empty() || prior.refresh_token.len() > usize_of(self.limits.document.token_bytes) {
-            return Err(Failure::Limit);
-        }
-        if let Err(error) = crate::record::validate_refresh_additions(&prior, &self.limits.document) {
-            return Err(super::admit(error));
-        }
-        if issued_id(&registration) {
-            let Some(client_id) = &prior.issued_client_id else { return Err(Failure::Refused) };
-            if client_id.is_empty() {
-                return Err(Failure::Refused);
-            }
-            registration.client_id.clone_from(client_id);
-        }
-        let mut exchange = Exchange {
-            registration,
-            grant: Grant::Revoke { prior },
-            state: Secret::new(bytes::copy_of(b"")),
-            verifier: None,
-            nonce: None,
-            deadline: now.checked_add(self.limits.sign_in_time).ok_or(Failure::Limit)?,
-            attempts: 0,
-            visit: None,
-            fetch: None,
-            keys: Box::default(),
-        };
+        self.refresh_values(&mut registration, &prior)?;
+        let deadline = now.checked_add(self.limits.sign_in_time).ok_or(Failure::Limit)?;
+        let mut exchange = Exchange { registration, grant: Grant::Revoke { prior }, deadline, attempts: 0 };
         let (request, phase) = self.http_request(&mut exchange, now)?;
         Ok((exchange, Request::Http(request), phase))
     }

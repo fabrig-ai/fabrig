@@ -1,4 +1,4 @@
-use jig_client_world::{harness::App, observe};
+use jig_client_kit::{harness::App, observe};
 use skein_lib::Token;
 use temper_client_world::app::Temper;
 const TASK: u64 = 9;
@@ -38,7 +38,7 @@ fn confirming_preserves_the_inbox_cards_visible_revision() {
 
 #[test]
 fn a_temper_hold_card_reports_the_revision_it_prints() {
-    use jig_client_world::harness::{Seen, Until};
+    use jig_client_kit::harness::{Seen, Until};
     use skein_fake_person::{Find, Step};
     use skein_ui::Role;
     use temper_client_world::fixtures;

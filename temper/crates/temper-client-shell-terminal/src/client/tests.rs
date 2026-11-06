@@ -313,7 +313,7 @@ fn another_partys_kept_work_prints_its_line_once() {
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
                     watch,
-                    event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(jig_client_world::stories::frame(
+                    event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(jig_client_kit::stories::frame(
                         CURRENT_PARTY,
                     )))),
                 },

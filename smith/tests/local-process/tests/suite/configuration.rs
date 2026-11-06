@@ -55,7 +55,7 @@ fn declared_read_search_shell_and_check_bounds_reach_the_machine() {
                 conflicts: Box::new([]),
             }]),
         });
-        let env = Env { now: Time::ZERO, wall: skein_tls_world::pki::VALID, limits: config.limits.machine };
+        let env = Env { now: Time::ZERO, wall: skein_tls_kit::pki::VALID, limits: config.limits.machine };
         let mut up = Queue::with_capacity(16);
         let mut down = Queue::with_capacity(16);
         machine.from_domain(&env, request, &mut up, &mut down);

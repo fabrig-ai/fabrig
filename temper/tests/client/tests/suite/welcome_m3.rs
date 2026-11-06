@@ -1,6 +1,6 @@
 //! Welcome scenarios from client README 3.5/5.5/5.6 and forge 5.4.
 //! The real client and engine are driven only through the public Joint.
-use jig_client_world::harness::App;
+use jig_client_kit::harness::App;
 use skein_lib::Queue;
 use skein_ui::{Act, Role, Tree};
 use temper_client_domain::{Address, Choice, Step};

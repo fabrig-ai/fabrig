@@ -187,11 +187,11 @@ fn accept_keeps_no_key_or_state_in_its_trace() {
     let state = install(&mut world, 1);
     accept(&mut world, 2, &state, INSTALLATION);
     let trace = format!("{:?} {:?}", &world.heard()[1..], world.needs());
-    for secret in [skein_forge_machine_world::github::app_key(), state.as_ref(), b"ghs_", b"eyJ"] {
+    for secret in [skein_forge_kit::github::app_key(), state.as_ref(), b"ghs_", b"eyJ"] {
         assert!(!trace.as_bytes().windows(secret.len()).any(|bytes| bytes == secret));
         assert!(!trace.contains(&format!("{secret:?}")));
     }
-    assert_eq!(world.file(Item::AppKey), Some(&fixtures::secret(skein_forge_machine_world::github::app_key())));
+    assert_eq!(world.file(Item::AppKey), Some(&fixtures::secret(skein_forge_kit::github::app_key())));
     for item in [
         Item::AppId,
         Item::AppSlug,

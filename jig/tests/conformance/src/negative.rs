@@ -112,7 +112,7 @@ pub(crate) fn input(
                 root::Event::Connector {
                     number: 2,
                     event: connector::Event::System(connector::SystemEvent::Fact {
-                        resource: jig_test_connector_world::path(1, 1),
+                        resource: jig_test_connector_kit::path(1, 1),
                         fact: connector::Fact {
                             state: Some(13),
                             observed: Wall::from_nanos(clock.now),

@@ -409,11 +409,9 @@ fn populate_page(
                         held: skein_lib::List::with_capacity(0),
                         pending: skein_lib::List::with_capacity(0),
                     }))),
-                    Subject::Me => Some(Delivery::Me(Box::new(jig_client_world::stories::frame(1)))),
-                    Subject::Task { .. } => Some(Delivery::Task(Box::new(jig_client_world::stories::task()))),
-                    Subject::Deployment => {
-                        Some(Delivery::Deployment(Box::new(jig_client_world::stories::deployment())))
-                    }
+                    Subject::Me => Some(Delivery::Me(Box::new(jig_client_kit::stories::frame(1)))),
+                    Subject::Task { .. } => Some(Delivery::Task(Box::new(jig_client_kit::stories::task()))),
+                    Subject::Deployment => Some(Delivery::Deployment(Box::new(jig_client_kit::stories::deployment()))),
                     Subject::Tree { .. }
                     | Subject::Chips { .. }
                     | Subject::Inbox { .. }
@@ -828,11 +826,11 @@ fn read_value(what: &contract::Read) -> Option<contract::ReadValue> {
         Read::Settings | Read::Setting(_) | Read::Revision(_) | Read::Revisions(_) => {
             unreachable!("temper does not read settings")
         }
-        Read::Me => Some(ReadValue::Me(Box::new(jig_client_world::stories::frame(1)))),
-        Read::Task { .. } => Some(ReadValue::Task(Box::new(jig_client_world::stories::task()))),
-        Read::Project { .. } => Some(ReadValue::Project(Box::new(jig_client_world::stories::project()))),
-        Read::Deployment => Some(ReadValue::Deployment(Box::new(jig_client_world::stories::deployment()))),
-        Read::Proposal { .. } => Some(ReadValue::Proposal(Box::new(jig_client_world::stories::proposal()))),
+        Read::Me => Some(ReadValue::Me(Box::new(jig_client_kit::stories::frame(1)))),
+        Read::Task { .. } => Some(ReadValue::Task(Box::new(jig_client_kit::stories::task()))),
+        Read::Project { .. } => Some(ReadValue::Project(Box::new(jig_client_kit::stories::project()))),
+        Read::Deployment => Some(ReadValue::Deployment(Box::new(jig_client_kit::stories::deployment()))),
+        Read::Proposal { .. } => Some(ReadValue::Proposal(Box::new(jig_client_kit::stories::proposal()))),
         Read::Inbox { group, .. } => Some(ReadValue::Inbox(Box::new(inbox_document(*group)))),
         Read::Activity { .. } => Some(ReadValue::Activity(Box::new(activity_document()))),
         Read::TaskText { .. }
@@ -855,9 +853,9 @@ fn activity_document() -> contract::ActivityPage {
         skein_lib::Wall::EPOCH,
         contract::Activity::Words {
             message: 1,
-            by: contract::Requester::Person((jig_client_world::stories::party(1)).number),
+            by: contract::Requester::Person((jig_client_kit::stories::party(1)).number),
             kind: contract::MessageKind::Words,
-            words: jig_client_world::stories::text(b"A fixture conversation"),
+            words: jig_client_kit::stories::text(b"A fixture conversation"),
         },
     ))
     .expect("one conversation entry");

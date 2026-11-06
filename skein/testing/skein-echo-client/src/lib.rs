@@ -46,6 +46,54 @@ pub struct Limits {
     pub queue: u32,
 }
 
+/// The default line limit for the fake client’s scenarios.
+const LINE: u32 = 16;
+
+/// A fake client's limits, for `conns` connections.
+#[must_use]
+pub const fn client_limits(conns: u32) -> Limits {
+    Limits {
+        io: skein_io::Limits {
+            sockets: conns,
+            refusals: 1,
+            intake: 24,
+            receive: 8,
+            output: 32,
+            sends: 2,
+            accepts: 1,
+            backlog: 1,
+            close_timeout: Duration::from_secs(1),
+            names: 0,
+            retry: Duration::from_millis(10),
+        },
+        line: LINE,
+        queue: 4,
+    }
+}
+
+/// A plan of three lines of one to sixteen bytes, one at a time, read as they
+/// come, finished once answered.
+#[must_use]
+pub const fn plan(at: Time, seed: u64) -> Plan {
+    Plan {
+        at,
+        seed,
+        lines: 3,
+        shortest: 1,
+        longest: LINE,
+        long: None,
+        ahead: 1,
+        piece: LINE,
+        read_from: Some(Time::ZERO),
+        send_limit: u64::MAX,
+        then: Then::Finish,
+        half_close: None,
+        abort_at: None,
+        retries: 0,
+        backoff: Duration::from_millis(10),
+    }
+}
+
 /// How one connection behaves, over its attempts.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Plan {

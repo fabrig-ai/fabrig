@@ -90,7 +90,7 @@ pub fn patch_configuration(directory: &Path) -> oauth::Peer {
     agent["endpoints"][0]["server_name"] = "skein.test".into();
     agent["endpoints"][0]["trust_der"] = serde_json::json!(directory.join("root.der"));
     super::write_private(&agent_path, &serde_json::to_vec(&agent).expect("agent JSON"));
-    super::write_private(&directory.join("root.der"), skein_tls_world::pki::ROOT);
+    super::write_private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
     issuer(listener, &registration, redirect.as_bytes())
 }
 

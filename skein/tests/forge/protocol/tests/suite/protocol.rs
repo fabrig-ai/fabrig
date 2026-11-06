@@ -1,6 +1,6 @@
 use skein_forge::api::{Answer, Read, State};
 use skein_forge_client::{Event, Resource, Watch, What};
-use skein_forge_machine_world::joint::REPO;
+use skein_forge_kit::joint::REPO;
 use skein_forge_protocol_world::{
     World,
     fixtures::{self, LIMITS},
@@ -137,7 +137,7 @@ fn a_file_seven_components_deep_reads_through_forgejo_http() {
 use skein_fake_forge_domain::api as raw;
 use skein_forge::api::{self, Conclusion, JobAttempt, MergeHow, RunState, TreeEntryKind, UpdateStyle, Write};
 use skein_forge_client::{Made, Outcome};
-use skein_forge_client_world::translate::commit;
+use skein_forge_kit::client::commit;
 
 fn workflow() -> raw::Workflow {
     raw::Workflow {

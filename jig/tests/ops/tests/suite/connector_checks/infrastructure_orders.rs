@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use jig_ops_domain_infrastructure as infra;
 use jig_ops_fake_production as production;
-use jig_ops_world::{InfrastructureWorld, infrastructure_limits};
+use jig_ops_world::{InfrastructureWorld, PROJECT, infrastructure_limits};
 use skein_lib::Token;
 
 // Five tasks naming thirteen services each keep 65 refreshes live, past the 64-slot carrier.
@@ -19,7 +19,6 @@ const EFFECT_OWNER: u64 = 7;
 const FIRST_EFFECT_ENTRY: u64 = 10;
 const SECOND_EFFECT_ENTRY: u64 = 11;
 const EFFECT_ENTRIES: [u64; 2] = [FIRST_EFFECT_ENTRY, SECOND_EFFECT_ENTRY]; // Two unsettled effects make the last-result fence observable.
-const PROJECT: u32 = 1;
 
 fn service(number: u32) -> infra::Service {
     infra::Service::new(Box::from(*b"production"), format!("service-{number}").into_bytes().into_boxed_slice())
