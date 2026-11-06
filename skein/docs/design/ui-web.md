@@ -687,6 +687,36 @@ the host tests (section 14).
   main's first level-1 heading, else the main, unless a focus request
   moved in the same apply; back and forward restore their scroll,
   history's (section 9).
+- **Reading a log.** The page part measures a log, its scroll position,
+  its height and its screen, at each scroll and after each apply that
+  patched anything, a log's first among them, and from those alone:
+  - *Near:* a bound log's head is near when what lies above the view is
+    under one and a half of its screens; the foot of one that continues
+    (ui.md, 3.2), when what lies below it is. The page part reports `Near`
+    (ui.md, section 6) when the edge comes near, again when the log's height
+    moves while it stays near, and again for each quarter of a screen moved
+    toward it, the head before the foot, one act a measure. So a page opened
+    at its end reads earlier lines until its head is that far off, and a
+    long scroll asks no more than it needs.
+  - *Following:* a log follows its end while the person is at it and it
+    doesn't continue; one that continues is away, as one scrolled up is. An
+    end request that moves (ui.md, 3.2), or a press *to log end*, has it
+    follow, across whatever reads bring its end, until the person scrolls
+    up.
+  - *The view stays:* across an apply, a log not following keeps the words
+    being read where they were on the screen, to the pixel a scroll position
+    can say, whatever the patches inserted or removed above them, in every
+    browser. Before the apply the platform half notes the first entries that
+    reach into the view and where each stands; after it, it moves the scroll
+    by as far as the first of them still there has moved. A browser's own
+    scroll anchoring (`overflow-anchor`) has by then done its part or, as
+    in Safari, has none to do, so the two never add up.
+  - *Keys:* PageUp and PageDown, with no modifier, scroll the page's first
+    log by its screen less a line, from anywhere on the page, the focus in a
+    field or on nothing among it, their default prevented. A menu or a
+    dialog open, a component holding the focus, or a log with nothing to
+    scroll leaves them to the platform. Home and End stay the platform's,
+    which takes them while the focus is on the log.
 - **The title,** as the reference sets it: the main's first level-1
   heading's text, then ` · ` and the application's name; the name alone
   when there is none. `<html lang>` is the phrasebook's language.

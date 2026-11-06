@@ -1,0 +1,29 @@
+draft = "chat-reading-c"
+repo = "fabrig"
+sources = ["temper/docs/plan/chat-reading-c/inputs/request.md", "temper/docs/design/draft/chat-reading.md", "AGENTS.md", "DESIGN.md"]
+
+# A log's act and the read beside a line go out at once; see plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "log-acts"
+title = "A log may be bound, and says as an act that an edge of it is near"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui.md, 6"
+
+[[part]]
+id = "activity-beside"
+title = "A task's activity can be read beside one of its lines"
+mode = "direct"
+needs = []
+design = "jig/docs/design/client/domain/contract.md, 6"
+
+[[slice]]
+id = 1
+story = "a log's edge near reaches its owner as an act, and a client reads the page next to a line by its position"
+parts = ["log-acts", "activity-beside"]
+walk = false
