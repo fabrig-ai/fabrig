@@ -125,3 +125,14 @@ production code in jig other than the one export line stays a new question. Then
 answer lists, with `startup::turn_bounds`'s T.
 
 2026-11-06 (temper/forge). **The user's rule, 2026-11-06: a plan's execution only ever runs the focused and fuzzy suites.** No after-landing tier runs during a plan: we run optimistically, and repair if after-landing flags. A new story in a slow tier is written and compiled, not run. Step 7 goes: no process test and no walk runs, and `notes/stock-readers.md`, *The live and process tiers*, is for reading alone. Read those tests and walks and change what the stock's change plainly needs; `heavy cargo check -p temper --tests` compiles them, as step 6 has. Your report names what you changed without running and what you didn't check, so that a red after landing starts from there.
+
+### 2026-11-06: The required CSV process story fails on two printed sign-in links at `temper/crates/temper/tests/process.rs:577`; have its owner repair that path and then resume (recommended), or extend stock-seven’s scope to diagnose and repair it? (model-catalogue-1/stock-seven-3, foreman model-catalogue-1/stock-seven/foreman-3)
+
+No process test or walk runs; the CSV failure does not require extending stock-seven’s scope or waiting for repair.
+The spec’s final Answer settles this: “Step 7 goes: no process test and no walk runs”.
+It also says: “Read those tests and walks and change what the stock’s change plainly needs”.
+This supersedes acceptance criterion 7’s requirement to run them.
+The next run finishes that source survey, retaining the reported passing `heavy cargo check -p temper --tests`.
+Report the observed CSV failure and all unobserved tests accurately; do not rerun them.
+The duplicate-link path at `temper/crates/temper/tests/process.rs:577` remains outside this task’s repair scope.
+The governing Answer says: “we run optimistically, and repair if after-landing flags.”
