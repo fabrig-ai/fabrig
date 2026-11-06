@@ -1,0 +1,3 @@
+draft = "chat-reading-b"
+repo = "fabrig"
+sources = ["temper/docs/plan/chat-reading-b/inputs/request.md", "temper/docs/design/draft/chat-reading.md", "AGENTS.md", "DESIGN.md"]
