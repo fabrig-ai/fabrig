@@ -23,6 +23,19 @@ fn the_looks_names_pass_skeins_check() {
         assert_eq!(NAMES.style(token), Some(name));
     }
 }
+#[test]
+fn model_try_styles_keep_their_names_beside_configuring_styles() {
+    for (style, name) in [
+        (STARTER_HEAD, b"temper-starter-head".as_slice()),
+        (DOC_FIGURES, b"temper-doc-figures"),
+        (WELCOME_CHECK, b"temper-welcome-check"),
+        (WELCOME_CHECK_STOPPED, b"temper-welcome-check-stopped"),
+        (WELCOME_CHECK_FAILED, b"temper-welcome-check-failed"),
+        (WELCOME_CHECK_WHY, b"temper-welcome-check-why"),
+    ] {
+        assert_eq!(NAMES.style(style), Some(name));
+    }
+}
 const FLOW_NAMES: [(skein_ui::Style, &[u8]); 27] = [
     (WELCOME_CHECK, b"temper-welcome-check"),
     (WELCOME_CHECK_WHY, b"temper-welcome-check-why"),
@@ -583,6 +596,15 @@ fn configuring_opening_and_needs_have_their_css_names() {
         (STARTER_NOTE, b"temper-starter-note"),
         (STARTER_WAYS, b"temper-starter-ways"),
         (STARTER_UNSURE, b"temper-starter-unsure"),
+        (STARTER_HEAD, b"temper-starter-head"),
+        (STARTER_OWN, b"temper-starter-own"),
+        (STARTER_OWN_TEXT, b"temper-starter-own-text"),
+        (STARTER_OWN_TITLE, b"temper-starter-own-title"),
+        (STARTER_OWN_STEPS, b"temper-starter-own-steps"),
+        (STARTER_OWN_ACTS, b"temper-starter-own-acts"),
+        (DOC_SUB, b"temper-doc-sub"),
+        (DOC_FLOW, b"temper-doc-flow"),
+        (DOC_FIGURES, b"temper-doc-figures"),
         (TOAST, b"temper-toast"),
         (NEEDS, b"temper-needs"),
     ] {
