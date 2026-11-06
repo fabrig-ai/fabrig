@@ -1,10 +1,10 @@
 //! The ordered client record stream (hearth/docs/design/client/README.md, 3.2 and 3.3).
 use crate::{
     Asked,
-    held::Held,
     builder::vocabulary::{Answer, Progress},
     records::{self, limits::Limits, printer, records::Record},
     render::vocabulary::Outcome,
+    resource::Resource,
     translate::answers,
 };
 use alloc::boxed::Box;
@@ -67,7 +67,7 @@ pub(crate) struct Client {
     printer: printer::Printer,
     events: Queue<printer::Event>,
     requests: Queue<Down>,
-    output: Held,
+    output: Resource,
     stream: Stream,
     refused: bool,
     /// Why a build ended on a step, when it did.
@@ -79,18 +79,18 @@ impl Client {
             printer: printer::Printer::new(form, &limits),
             events: Queue::with_capacity(1),
             requests: Queue::with_capacity(2),
-            output: Held::Awaited,
+            output: Resource::Awaited,
             stream: Stream::Taking,
             refused: false,
             failed: None,
         }
     }
     pub fn bound(&self) -> bool {
-        self.output != Held::Awaited
+        self.output != Resource::Awaited
     }
     pub fn bind(&mut self, output: Token) {
         assert!(self.output.token().is_none(), "one client output");
-        self.output = Held::Open(output);
+        self.output = Resource::Open(output);
     }
     pub fn owns(&self, event: &io::Event) -> bool {
         match event {
@@ -113,9 +113,9 @@ impl Client {
     pub fn up(&mut self, env: &Env<Limits>, event: io::Event) {
         match event {
             io::Event::Closed { .. } => {
-                self.output = match mem::replace(&mut self.output, Held::Closed) {
-                    Held::Awaited | Held::Open(_) => Held::Awaited,
-                    Held::Closing(_) | Held::Closed => Held::Closed,
+                self.output = match mem::replace(&mut self.output, Resource::Closed) {
+                    Resource::Awaited | Resource::Open(_) => Resource::Awaited,
+                    Resource::Closing(_) | Resource::Closed => Resource::Closed,
                 };
             }
             io::Event::Stream { up: Up::Failed(_), .. } | io::Event::Failed { .. } => self.fail(),
@@ -235,9 +235,7 @@ impl Client {
         self.requests.push(Down::Finish);
     }
     pub fn work_pending(&self) -> bool {
-        !self.requests.is_empty()
-            || !self.events.is_empty()
-            || (self.output.is_open() && self.stream.finished())
+        !self.requests.is_empty() || !self.events.is_empty() || (self.output.is_open() && self.stream.finished())
     }
     pub fn is_empty(&self) -> bool {
         self.stream.finished() && self.output.token().is_none() && self.stream.outcome().is_some()

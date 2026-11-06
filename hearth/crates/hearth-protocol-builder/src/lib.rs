@@ -16,9 +16,9 @@ mod cache;
 mod client;
 mod events;
 mod git;
-mod held;
 mod indices;
 mod keep;
+mod resource;
 mod terminal;
 use events::stream_up;
 use terminal::listing_failed;
@@ -33,9 +33,9 @@ pub mod translate;
 use alloc::boxed::Box;
 use git::{Intake, Stage};
 use git_machine::{hunks, invocation, listing, oid::Oid, rev_parse};
-use held::Held;
 use limits::Limits;
 use render::vocabulary::{Class, Event as RenderEvent};
+use resource::Resource;
 use skein_io::{self as io, kernel::Fd};
 use skein_lib::{
     Env, List, Queue, Token, bytes,
@@ -242,7 +242,7 @@ impl Protocol {
             return child.work_pending() || child.done();
         }
         if child.failed && child.process.token().is_none() {
-            return child.process == Held::Closed;
+            return child.process == Resource::Closed;
         }
         let ready = match mode {
             Mode::Rev { ended, .. } => *ended,
@@ -658,7 +658,7 @@ fn resume_git(protocol: &mut Protocol, env: &Env<Limits>, above: &mut Queue<Even
     {
         child.stage = Stage::Closing;
     }
-    if child.process == Held::Closed {
+    if child.process == Resource::Closed {
         child.stage = Stage::Closing;
     }
     if child.resume(below) {

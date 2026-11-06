@@ -1,5 +1,5 @@
 //! One git child, held until its exit and all its resources close (hearth/docs/design/domain/render.md, 2.2).
-use crate::{Asked, git_machine::invocation, held::Held};
+use crate::{Asked, git_machine::invocation, resource::Resource};
 use alloc::boxed::Box;
 use skein_io::{
     self as io,
@@ -9,15 +9,15 @@ use skein_lib::{Queue, Token, bytes, stream::Down};
 #[derive(Debug)]
 pub(crate) struct Child {
     pub owner: Token,
-    pub process: Held,
-    pub output: Held,
-    pub error: Held,
+    pub process: Resource,
+    pub output: Resource,
+    pub error: Resource,
     pub tail: crate::git_machine::tail::Tail,
     pub output_state: Intake,
     pub error_state: Intake,
     pub command: crate::render::errors::Command,
     pub fault: Option<crate::render::errors::Ended>,
-    pub input: Held,
+    pub input: Resource,
     pub exit: Option<invocation::Exit>,
     pub failed: bool,
     pub stage: Stage,
@@ -67,23 +67,23 @@ impl Child {
         }));
         Self {
             owner,
-            process: Held::Awaited,
-            output: Held::Awaited,
-            error: Held::Awaited,
+            process: Resource::Awaited,
+            output: Resource::Awaited,
+            error: Resource::Awaited,
             tail: crate::git_machine::tail::Tail::new(limits),
             output_state: Intake::Waiting,
             error_state: Intake::Demand,
             command: named,
             fault: None,
-            input: Held::Awaited,
+            input: Resource::Awaited,
             exit: None,
             failed: false,
             stage: Stage::Live,
         }
     }
     pub fn spawned(&mut self, child: Token, pipes: &[Token]) {
-        self.process = Held::Open(child);
-        let resources: &mut [&mut Held] = match self.command {
+        self.process = Resource::Open(child);
+        let resources: &mut [&mut Resource] = match self.command {
             crate::render::errors::Command::CatFile => &mut [&mut self.output, &mut self.input, &mut self.error],
             crate::render::errors::Command::RevParse
             | crate::render::errors::Command::LsTree
@@ -91,7 +91,7 @@ impl Child {
             crate::render::errors::Command::Mmdebstrap => unreachable!("git command"),
         };
         for (held, &pipe) in resources.iter_mut().zip(pipes) {
-            **held = Held::Open(pipe);
+            **held = Resource::Open(pipe);
         }
     }
     pub fn refused(&mut self) {
@@ -107,20 +107,20 @@ impl Child {
     }
     pub fn closed(&mut self, owner: Token) {
         if owner == self.owner {
-            self.process = Held::Closed;
+            self.process = Resource::Closed;
         }
         if self.output.token() == Some(owner) {
-            self.output = Held::Closed;
+            self.output = Resource::Closed;
         }
         if self.error.token() == Some(owner) {
-            self.error = Held::Closed;
+            self.error = Resource::Closed;
         }
         if self.input.token() == Some(owner) {
-            self.input = Held::Closed;
+            self.input = Resource::Closed;
         }
     }
     pub fn done(&self) -> bool {
-        self.process == Held::Closed
+        self.process == Resource::Closed
             && self.output.token().is_none()
             && self.input.token().is_none()
             && self.error.token().is_none()
