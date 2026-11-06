@@ -44,3 +44,7 @@ Acceptance:
 ## Report
 
 As the implementer's text has it, with the differences from the request's pages named.
+
+## Answers
+
+2026-11-06 (temper/ui). One more for this task, from the user's review after the cut began: look-requests is now at 86358b6de5, the same request's commit (find it by its Look-request: connect-flows trailer). In its connect.css, a select in Settings draws its own chevron, 14px in from the border, with its text lined up with the fields' under it: the rule under the comment 'A select's arrow sits as far in as its text'. Apply it to every select in Settings, not only the connect pages, so they match. temper/ui widens this task's files to temper-client-shell-web's temper.css for that rule, under this plan's marker comment. Show 16.html's select in your screenshots at 1440 and 420. The user called 16.html perfect apart from this, so change nothing else of it.
