@@ -62,7 +62,12 @@ fn named_control(
 ) {
     let model = match &meaning {
         Meaning::Model(_) => true,
-        Meaning::Action(_) | Meaning::Go(_) | Meaning::Key | Meaning::SignInAddress | Meaning::Program => false,
+        Meaning::Copy { .. }
+        | Meaning::Action(_)
+        | Meaning::Go(_)
+        | Meaning::Key
+        | Meaning::SignInAddress
+        | Meaning::Program => false,
     };
     let Some(binding) = bindings.insert(meaning) else { return };
     b.open(Role::Button);

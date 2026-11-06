@@ -173,3 +173,4 @@ mod words;
 mod model_check;
 
 mod repository_link;
+mod welcome_copy;

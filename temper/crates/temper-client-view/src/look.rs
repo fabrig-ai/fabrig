@@ -661,6 +661,10 @@ pub const WELCOME_AGAIN: Style = Style { owner: owner(), token: 460 };
 pub const WELCOME_PASTE: Style = Style { owner: owner(), token: 461 };
 /// A Model panel’s full-width secret field (client/README.md, 3.5).
 pub const WELCOME_FIELD: Style = Style { owner: owner(), token: 368 };
+/// The welcome’s command wrapper (temper/docs/design/client/README.md, 3.5).
+pub const WELCOME_CMD_BOX: Style = Style { owner: owner(), token: 121 };
+/// The welcome’s clipboard button (temper/docs/design/client/README.md, 3.5).
+pub const WELCOME_COPY: Style = Style { owner: owner(), token: 367 };
 /// The welcome’s terminal command (client/README.md, 3.5).
 pub const WELCOME_CMD: Style = Style { owner: owner(), token: 369 };
 /// The forge's spinning status marker.
@@ -797,7 +801,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-connect-forge",
         b"temper-flow-code",
         b"temper-forges",
-        b"temper-reserved-121",
+        b"temper-welcome-cmd-box",
         b"temper-setup-strip",
         b"temper-sign-in",
         b"temper-reserved-124",
@@ -1043,7 +1047,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-welcome-sep",
         b"temper-welcome-panel",
         b"temper-welcome-away",
-        b"temper-reserved-367",
+        b"temper-welcome-copy",
         b"temper-welcome-field",
         b"temper-welcome-cmd",
         b"temper-reserved-370",
