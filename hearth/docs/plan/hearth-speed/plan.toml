@@ -34,3 +34,23 @@ id = 1
 story = "the suite's cost is known, and the cheap shared savings are in"
 parts = ["before", "profiles", "git-setup"]
 walk = false
+
+[[part]]
+id = "repeats"
+title = "What the profile shows still repeats is repaired, if the aim isn't met"
+mode = "direct"
+needs = ["before", "profiles", "git-setup"]
+design = "hearth/docs/design/domain/testing.md, 9.1"
+
+[[part]]
+id = "after"
+title = "Before and after stand on one machine, and the status files say the result"
+mode = "direct"
+needs = ["repeats"]
+design = "hearth/docs/design/domain/testing.md, 9.1"
+
+[[slice]]
+id = 2
+story = "the aim is met or what's left is stated, and the status says so"
+parts = ["repeats", "after"]
+walk = false
