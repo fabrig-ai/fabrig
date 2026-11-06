@@ -321,8 +321,6 @@
   number order, as the request's words have it, so the reference's read "task
   by task, plan, tasks, land whole", where its mock, the target, draws them the
   other way round: number order is what a project's settings decide.
-- **Not yet:** 3.5, 5.3: the rail's foot draws the person's name as plain text,
-  and a browser shows the `Accounts` tab's "Sign out" at every width.
 - **Design departs:** 5.3, from the greenfield target, by the request
   `ui-owner-menu` of 2026-11-06, at the user's word: the rail's foot row is the
   button of a menu with "Accounts" and "Sign out", where the mock draws the
