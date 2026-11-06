@@ -2343,8 +2343,23 @@ Each is named here and designed when it comes.
   treats every status other than 200 as a lost answer, so a request that
   is not a record retries until retention. Distinguishing a terminal 400
   from a lost answer needs the protocol owner's decision. Until then it
-  keeps that retry behaviour; unsupported settings efforts take the
-  existing final refusal (jig's `client/domain/contract.md`, section 4).
+  keeps that retry behaviour; unsupported settings efforts not caught by
+  5.3's local check take the existing final refusal (jig's
+  `client/domain/contract.md`, section 4).
+- **An effort refusal for a model absent from `me`** (5.3): the local
+  check knows only the models `me` shows in the party's projects. An item
+  naming another model goes to the engine, whose refusal names the model
+  alone. Naming the effort too needs jig's refusal to carry it, a protocol
+  decision. Default: the local check and the engine's model-only refusal.
+- **The reported settings silence** (5.3, 8.2): a final refusal in the
+  scripted world does not reproduce the walk's kept, unanswered change.
+  Its cause needs the engine's answer and the client's pending state
+  captured together, as the long-chat wait does. Default: the local effort
+  check, with no change to the deadline or the kept request's protocol.
+- **A failed-run hold's failure text** (6.1): the log directions keep no
+  text with the task. Storing the last failure needs the user's bound and
+  readers, with its stored and wire changes, as `../domain/worker.md`,
+  section 12 asks. Default: direct the reader to the engine's log.
 - **A busy watch's precise cause** (6.3): the deadline's line uses jig's
   `watches_full`, whose refusal carries no count and does not distinguish
   watch capacity from an opening's load slot. Distinct lines wait for jig

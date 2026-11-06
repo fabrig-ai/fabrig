@@ -248,9 +248,13 @@ says "Starting", and `task show` names a `deployment show` ctl lacks
 (`client/README.md`, `client/tools.md`). `task show` names who answered a person
 task and says a held task waits on its hold, but `temper help task` still says ctl
 takes no task and numbers a party's question, which `waiting on:` does not
-(`client/tools.md`). With no account serving the work `task show` says so on both
-its lines, and a bounded `task amend` prints its call alone, but a task pinned to
-an account with no source still reads `Nothing awaited` beneath `no account
+(`client/tools.md`). With no account serving the work `task show` says so in its
+header, waiting line and JSON, while its phase stays due. Failure holds point to
+the engine's log; keeping their text still needs the user's bound and readers
+(`domain/worker.md`). Setup suppresses the true protection warning without
+gaining access, and effort refusals name the effort locally only for models
+`me` shows (`client/tools.md`). A bounded `task amend` prints its call alone, but
+a task pinned to an account with no source still reads `Nothing awaited` beneath `no account
 serving this work yet`, and a person task's `task amend` prints no arguments
 (`client/tools.md`). A proposal of settings reaches a
 project's Needs you and rail's count and is accepted on its chat's card, but its live
