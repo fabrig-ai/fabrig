@@ -120,7 +120,7 @@ fn close_startup(
             }
             descriptors.extend(master);
             descriptors.push(pidfd);
-            skein_shell::abandon_binary(None, &descriptors);
+            skein_shell::keeper::abandon_binary(None, &descriptors);
         }
         match failure {
             tree::Failure::Starved(starved) => starved.pass(),
@@ -243,11 +243,11 @@ impl Binary {
         // Cgroups are Linux's (shell.md, 7.5).
         #[cfg(target_os = "linux")]
         let child = match tree.cgroup() {
-            Some(cgroup) => skein_shell::start_binary_in_cgroup(&mut spawn, terminal, cgroup),
-            None => skein_shell::start_binary(&mut spawn, terminal),
+            Some(cgroup) => skein_shell::keeper::start_binary_in_cgroup(&mut spawn, terminal, cgroup),
+            None => skein_shell::keeper::start_binary(&mut spawn, terminal),
         };
         #[cfg(not(target_os = "linux"))]
-        let child = skein_shell::start_binary(&mut spawn, terminal);
+        let child = skein_shell::keeper::start_binary(&mut spawn, terminal);
         let child = child.map_err(StartError::Child);
         if let Ok((pidfd, _)) = &child {
             tree.started(*pidfd);
@@ -512,7 +512,7 @@ impl Drop for Binary {
             .collect::<Vec<_>>();
         let leader = if retain_leader { None } else { self.pidfd.take() };
         if !descriptors.is_empty() {
-            skein_shell::abandon_binary(leader, &descriptors);
+            skein_shell::keeper::abandon_binary(leader, &descriptors);
         }
     }
 }

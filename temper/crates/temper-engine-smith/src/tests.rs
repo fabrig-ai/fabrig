@@ -2408,6 +2408,52 @@ fn a_malformed_merge_is_refused_naming_it() {
 }
 
 #[test]
+fn a_refused_message_says_where_its_requester_is() {
+    use jig_domain_authority::{Answer, Finding};
+    for (findings, tool, expected) in [
+        (
+            vec![Finding::Reference],
+            b"message".as_slice(),
+            "Authority refused: task reference. Your brief's [Requested by ...] line names your requester; [This task: N] is you.",
+        ),
+        (
+            vec![Finding::Reference, Finding::Tool, Finding::Tool],
+            b"message".as_slice(),
+            "Authority refused: task reference; tool family message. Your brief's [Requested by ...] line names your requester; [This task: N] is you.",
+        ),
+        (vec![Finding::Reference], b"read_task".as_slice(), "Authority refused: task reference"),
+    ] {
+        let denied = engine::CallAnswer::ToolDenied { answer: Answer::Refuse, findings: findings.into() };
+        let rendered = crate::answer_for_tool(&denied, tool, 1024);
+        assert!(rendered.error());
+        assert_eq!(rendered.text(), expected.as_bytes());
+    }
+}
+
+#[test]
+fn an_authority_refusal_ends_with_no_separator() {
+    use jig_domain_authority::{Answer, Finding, Source};
+    for (findings, expected) in [
+        (vec![Finding::Tool], "Authority refused: tool family control"),
+        (
+            vec![Finding::Tool, Finding::Tool, Finding::Reference, Finding::Tool],
+            "Authority refused: tool family control; task reference",
+        ),
+    ] {
+        let denied = engine::CallAnswer::ToolDenied { answer: Answer::Refuse, findings: findings.into() };
+        let rendered = crate::answer_for_tool(&denied, b"release", 1024);
+        assert!(rendered.error());
+        assert_eq!(rendered.text(), expected.as_bytes());
+    }
+    let denied = engine::CallAnswer::DelegationDenied {
+        answer: Answer::Refuse,
+        findings: Box::new([Finding::Executor { source: Source::Task }]),
+    };
+    let rendered = crate::answer_for_tool(&denied, b"change", 1024);
+    assert_eq!(rendered.text(), b"Authority refused: missing executor permission (task authority.delegation.kinds). For a change to a repository, call change with what to change.");
+}
+
+#[test]
 fn a_denied_release_names_the_control_family_once() {
     use jig_domain_authority::{Answer, Finding};
     let denied = engine::CallAnswer::ToolDenied {
@@ -2416,7 +2462,7 @@ fn a_denied_release_names_the_control_family_once() {
     };
     let rendered = crate::answer_for_tool(&denied, b"release", 1024);
     assert!(rendered.error());
-    assert_eq!(rendered.text(), b"Authority refused: tool family control; ");
+    assert_eq!(rendered.text(), b"Authority refused: tool family control");
 }
 
 #[test]
@@ -2892,7 +2938,7 @@ fn authority_findings_name_sources_and_dimensions() {
             assert!(rendered.error());
             assert_eq!(
                 rendered.text(),
-                format!("Authority refused: missing {dimension} ({setting}.{field}); ").as_bytes()
+                format!("Authority refused: missing {dimension} ({setting}.{field})").as_bytes()
             );
         }
         let value = engine::CallAnswer::DelegationDenied {

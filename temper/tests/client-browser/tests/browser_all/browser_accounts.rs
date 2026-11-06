@@ -1,4 +1,4 @@
-//! The browser owns accounts history, field re-entry, and the sign-in tab's round trip.
+//! Accounts history, field re-entry, and the sign-in tab (temper/docs/design/client/browser.md, 4.2).
 use skein_fake_person::{Find, Step as PersonStep};
 use skein_fake_person_browser::{Harness, Outcome, Script, Step};
 use skein_ui::Role;
@@ -43,7 +43,7 @@ fn the_accounts_page_returns_after_a_key_send() {
     assert_eq!(Harness::new(tier.setup()).run(&mut [&mut script]), Outcome::Done);
 }
 
-/// Read the source the returned tab names, then reload that same page.
+/// Read the source on the page that stayed, check its replaced history entry, then reload it.
 struct RoundTrip {
     script: Script,
     reading: bool,
@@ -63,16 +63,34 @@ impl skein_fake_person_browser::harness::Play for RoundTrip {
                 address.strip_prefix("http://").expect("clients HTTP origin").split_once('/').expect("page path");
             let source = path
                 .strip_prefix("accounts/connect?provider=17&way=sign-in&source=")
-                .expect("returned ConnectModel source");
+                .expect("ConnectModel source on the page that stayed");
             assert!(!source.is_empty() && source.bytes().all(|byte| byte.is_ascii_digit()), "numeric source");
             self.script = Script::new(Box::new([
+                Step::Address(format!("/{path}").into_bytes().into_boxed_slice()),
+                Step::Back,
+                Step::Person(PersonStep::See {
+                    find: Find::exactly_named(Role::Heading { level: 1 }, b"Connect a model"),
+                    within: WITHIN,
+                }),
+                Step::Address(b"/accounts/connect".as_slice().into()),
+                Step::Back,
+                Step::Person(PersonStep::See {
+                    find: Find::named(Role::Heading { level: 1 }, b"Talk to an agent"),
+                    within: WITHIN,
+                }),
+                Step::Address(b"/chats".as_slice().into()),
+                Step::Forward,
+                Step::Forward,
                 Step::Person(PersonStep::See { find: Find::text(b"Signed in to Test provider"), within: WITHIN }),
                 Step::Address(format!("/{path}").into_bytes().into_boxed_slice()),
+                Step::Person(PersonStep::Reload),
+                Step::Person(PersonStep::See { find: Find::text(b"Signed in to Test provider"), within: WITHIN }),
+                Step::Address(format!("/{path}").into_bytes().into_boxed_slice()),
+                sign_in_tab(),
             ]));
             self.reading = false;
             self.reloaded = true;
-            face.history(skein_browser::boundary::Go::Reload);
-            return Next::Wait { until: None };
+            return self.script.next(face, now);
         }
         let next = self.script.next(face, now);
         if matches!(next, Next::Done) && !self.reloaded {
@@ -89,13 +107,19 @@ impl skein_fake_person_browser::harness::Play for RoundTrip {
 }
 
 #[test]
-fn the_sign_in_leaves_the_page_and_comes_back_to_ready() {
+fn the_sign_in_opens_a_tab_and_the_page_moves_on_to_ready() {
     use skein_fake_peers::oauth::Observation;
     use skein_fake_person_browser::harness::Lent;
     let (tier, mut issuer) = Tier::accounts_sign_in("accounts-round-trip");
     let mut story = RoundTrip {
         script: Script::new(Box::new([
             Step::Person(PersonStep::See { find: Find::exactly_named(Role::Link, b"Set up temper"), within: WITHIN }),
+            Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
+            Step::Person(PersonStep::See {
+                find: Find::named(Role::Heading { level: 1 }, b"Talk to an agent"),
+                within: WITHIN,
+            }),
+            Step::Address(b"/chats".as_slice().into()),
             Step::Person(PersonStep::Go { address: Box::from(b"/accounts/connect".as_slice()) }),
             Step::Person(PersonStep::See {
                 find: Find::exactly_named(Role::Heading { level: 1 }, b"Connect a model"),
@@ -107,6 +131,7 @@ fn the_sign_in_leaves_the_page_and_comes_back_to_ready() {
             }),
             Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Sign in to Test provider") }),
             Step::Person(PersonStep::See { find: Find::text(b"Signed in to Test provider"), within: WITHIN }),
+            sign_in_tab(),
         ])),
         reading: false,
         reloaded: false,
@@ -118,6 +143,43 @@ fn the_sign_in_leaves_the_page_and_comes_back_to_ready() {
         issuer.observations().iter().filter(|event| matches!(event, Observation::Authorize { .. })).count(),
         1,
         "reload makes no second departure"
+    );
+    assert_eq!(
+        issuer.observations().iter().filter(|event| matches!(event, Observation::Post { .. })).count(),
+        1,
+        "one code exchange"
+    );
+}
+
+fn sign_in_tab() -> Step {
+    use skein_fake_person_browser::harness::TabSeen;
+    let tab = TabSeen { title: None, address: Some(b"/callback?".as_slice().into()), opener: Some(false) };
+    Step::Tabs { tabs: Box::new([tab]), within: WITHIN }
+}
+
+#[test]
+fn the_welcome_sign_in_opens_a_tab_and_moves_on_to_ready() {
+    use skein_fake_peers::oauth::Observation;
+    use skein_fake_person_browser::harness::Lent;
+    let (tier, mut issuer) = Tier::accounts_sign_in("welcome-sign-in-tab");
+    let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
+    let mut script = Script::new(Box::new([
+        see(Find::exactly_named(Role::Link, b"Set up temper")),
+        Step::Person(PersonStep::Go { address: b"/welcome?at=model".as_slice().into() }),
+        see(Find::exactly_named(Role::Button, b"Sign in to Test provider")),
+        Step::Address(b"/welcome?at=model".as_slice().into()),
+        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Sign in to Test provider") }),
+        sign_in_tab(),
+        see(Find::exactly_named(Role::Heading { level: 1 }, b"Almost ready")),
+        Step::Address(b"/welcome?at=ready".as_slice().into()),
+    ]));
+    let outcome =
+        Harness::new(tier.setup()).run_lending(&mut [&mut script], &mut [Lent { name: b"issuer", peer: &mut issuer }]);
+    assert_eq!(outcome, Outcome::Done);
+    assert_eq!(
+        issuer.observations().iter().filter(|event| matches!(event, Observation::Authorize { .. })).count(),
+        1,
+        "one authorization in the new tab"
     );
     assert_eq!(
         issuer.observations().iter().filter(|event| matches!(event, Observation::Post { .. })).count(),

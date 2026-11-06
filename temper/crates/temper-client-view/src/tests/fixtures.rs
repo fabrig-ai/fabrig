@@ -2159,5 +2159,5 @@ pub fn away_toggle(root: &mut temper_client_domain::Domain) -> Token {
 
 /// An in-flight model sign-in for the shared waiting page's direct render checks.
 pub(crate) fn waiting_root() -> temper_client_domain::Domain {
-    super::connect_model::pasting(true).0
+    super::connect_model::pasting().0
 }

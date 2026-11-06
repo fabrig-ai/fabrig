@@ -3,7 +3,7 @@
 use crate::Below;
 use skein_io::{
     file,
-    file_layer::{self, FileIo},
+    file_layer::{FileIo, Limits as FileLimits, step},
     kernel::{Complete, Fd, Submit},
 };
 use skein_lib::{Duration, Env, Map, Queue, Time, Token, Wall};
@@ -217,6 +217,7 @@ impl core::fmt::Debug for Submission {
 #[derive(Debug)]
 struct Driver {
     io: FileIo,
+    file_limits: FileLimits,
     above: Queue<file::Event>,
     handles: Map<Token, ()>,
 }
@@ -225,10 +226,12 @@ impl Driver {
         if let file::Request::Close { file, .. } = &request {
             self.handles.remove(file);
         }
-        file_layer::down(&mut self.io, now, request, &mut self.above, submitted);
+        let env = Env { now, wall: Wall::EPOCH, limits: self.file_limits };
+        step::down(&mut self.io, &env, request, &mut self.above, submitted);
     }
     fn complete(&mut self, complete: Complete, submitted: &mut Queue<Submit>) {
-        file_layer::up(&mut self.io, complete, &mut self.above, submitted);
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.file_limits };
+        step::up(&mut self.io, &env, complete, &mut self.above, submitted);
     }
     fn pop(&mut self) -> Option<crate::Arrived> {
         let event = self.above.pop()?;
@@ -322,8 +325,8 @@ impl Drivers {
         self.installation = installation;
         for index in 0..3 {
             let driver = self.drivers.get_mut(index).expect("driver index");
-            driver.io = core::mem::replace(&mut driver.io, FileIo::new(1, 1, 1, Duration::from_secs(1)))
-                .with_effective_user(user);
+            let placeholder = FileLimits { files: 1, read: 1, entries: 1, whole: 1, timeout: Duration::from_secs(1) };
+            driver.io = core::mem::replace(&mut driver.io, FileIo::with_limits(&placeholder)).with_effective_user(user);
             if index == 0 {
                 let file = driver.io.adopt_root(fd).expect("deployment root slot");
                 driver.handles.insert(file, ()).expect("owned deployment root");
@@ -461,7 +464,8 @@ impl Drivers {
         }
         for index in 0..3 {
             let mut submitted = Queue::with_capacity(4);
-            file_layer::expire(&mut self.drivers.get_mut(index).expect("driver index").io, env.now, &mut submitted);
+            let driver = self.drivers.get_mut(index).expect("driver index");
+            step::expire(&mut driver.io, &env.with(driver.file_limits), &mut submitted);
             for _ in 0..self.drivers.get(index).expect("driver index").above.len() {
                 let crate::Arrived { event, fd } =
                     self.drivers.get_mut(index).expect("driver index").pop().expect("file terminal");
@@ -545,8 +549,12 @@ pub fn check_read_page(limits: &crate::Limits) -> Option<()> {
     Some(())
 }
 fn driver(limits: &crate::Limits) -> Driver {
-    let io = FileIo::with_whole_limit(handles(limits), max_read(limits), 32, max_whole(limits), limits.store.deadline);
-    Driver { io, above: Queue::uncapped(), handles: Map::with_capacity(handles(limits)) }
+    let files = handles(limits);
+    let read = max_read(limits);
+    let whole = max_whole(limits);
+    let file_limits = FileLimits { files, read, entries: 32, whole, timeout: limits.store.deadline };
+    let io = FileIo::with_limits(&file_limits);
+    Driver { io, file_limits, above: Queue::uncapped(), handles: Map::with_capacity(handles(limits)) }
 }
 fn close(file: Token) -> file::Request {
     file::Request::Close { owner: CLOSE, file }

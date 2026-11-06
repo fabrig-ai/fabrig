@@ -329,8 +329,9 @@ fn a_whole_scan_returns_entries_or_a_bound_refusal_after_close() {
         let Op::List { fd, mut entries, mut names } = list.kind else { panic!("a list") };
         entries[0] = crate::kernel::Entry { kind: Kind::File, start: 0, len: 1 };
         names[0] = b'f';
-        file_layer::up(
+        step::up(
             &mut io,
+            &env,
             Complete { op: list.op, kind: Op::List { fd, entries, names }, result: Ok(Done::Count(1)) },
             &mut events,
             &mut subs,
@@ -459,7 +460,7 @@ fn a_deadline_waits_for_uncancellable_stat_then_closes_the_file() {
     );
     complete(&mut io, &env, subs.pop().expect("open"), Ok(Done::Fd(CHILD)), &mut events, &mut subs);
     let stat = subs.pop().expect("stat");
-    file_layer::expire(&mut io, Time::ZERO.saturating_add(Duration::from_secs(1)), &mut subs);
+    step::expire(&mut io, &Env { now: Time::ZERO.saturating_add(Duration::from_secs(1)), ..env }, &mut subs);
     assert!(subs.is_empty(), "stat is not cancellable");
     complete(
         &mut io,
@@ -481,8 +482,9 @@ fn each_file_request_uses_its_own_absolute_deadline() {
     let mut events = Queue::with_capacity(2);
     let mut subs = Queue::with_capacity(2);
     let deadline = Time::from_nanos(7_000_000_000);
-    file_layer::down_until(
+    step::down_until(
         &mut io,
+        &env,
         deadline,
         Request::OpenRead { owner: OWNER, root: ROOT, name: Box::from(&b"file"[..]) },
         &mut events,
@@ -627,9 +629,9 @@ fn open_write_no_follow_asks_the_no_follow_write_open() {
     let env = file_env();
     let mut events = Queue::with_capacity(2);
     let mut subs = Queue::with_capacity(2);
-    file_layer::down(
+    step::down(
         &mut io,
-        Time::ZERO,
+        &env,
         Request::OpenWriteNoFollow { owner: OWNER, root: ROOT, name: Box::from(&b"log"[..]) },
         &mut events,
         &mut subs,

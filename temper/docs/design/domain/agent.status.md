@@ -9,7 +9,10 @@ shown: the configuring agent's words and a document built in parts.
 Section 4.3 has no gap in combined charter and workspace ownership fitting.
 Section 4.3 has no gap in file, pull-file and compare fitting to the checked
 local receiving-agent allowance, size feedback, recovery and settled-call replay.
-Section 7 has no known gap in fresh preparation from unusable history.
+Section 7 has no known gap in fresh preparation from unusable history or in
+retaining an unidentified startup fault through cleanup. The joined service
+regression uses scripted peers and valid saved history at 470,054 bytes;
+the trigger of the reported configuring-chat failure remains unobserved.
 Section 8.1 has no gap in settings pagination using the host answer allowance.
 Section 8.1 has no gap in note-backed whole settings proposals and decided-call replay.
 Section 8.1 has no gap in discovery of project repository identities for

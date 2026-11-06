@@ -224,7 +224,6 @@ fn print(pending: &Pending, outcome: &Outcome, structured: bool, limits: &Limits
         | w::Outcome::MakeRefused(_)
         | w::Outcome::Adopted(_)
         | w::Outcome::CoreRefused(_)
-        | w::Outcome::Returning
         | w::Outcome::Connecting
         | w::Outcome::Link(_)
         | w::Outcome::SettingUp

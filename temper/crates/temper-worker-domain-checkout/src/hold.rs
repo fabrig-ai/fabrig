@@ -10,6 +10,9 @@
 //! starting point and checked out. A base with heads merged in fetches every
 //! head and commits each new merge in order before it is ready. Its last
 //! commit is the save baseline; its merges are delivered by the first push.
+//! A producer's merge start compares its base with the checked-out branch.
+//! A contained base resumes as branch or saved work without a merge; other
+//! merge starts leave the merge in progress for the run to settle.
 //! A base branch the forge does not have is
 //! created there from the default branch, for a repository that may be
 //! written, and only created: if another party created it meanwhile, it is
@@ -43,6 +46,9 @@
 //! (none)      prepare, refused          (none)      prepared: refused
 //!             prepare, admitted         Preparing   held, io: look, make or fetch
 //! Preparing   done, more to do          Preparing   io: the next operation
+//!             done, merge checked out   Preparing   io: compare base/head, or merge
+//!             done, base contained      Preparing   io: fetch landing or push branch
+//!             done, base absent         Preparing   io: merge
 //!             done, all checked out     Ready       prepared: ready
 //!             done, failed              Unprepared  prepared: failed
 //!             done, aborting            Unprepared  prepared: aborted
@@ -203,6 +209,12 @@ enum PrepareStep {
         head: Option<u32>,
     },
     CheckOutMerge {
+        repository: u32,
+        ours: Commit,
+        base: Commit,
+    },
+    /// A producer's merge start asks whether its branch holds the base (domain/worker.md, 5).
+    CompareBase {
         repository: u32,
         ours: Commit,
         base: Commit,
@@ -771,6 +783,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
         merge @ (PrepareStep::FetchBase { .. }
         | PrepareStep::CheckOutMerge { .. }
         | PrepareStep::Merge { .. }
+        | PrepareStep::CompareBase { .. }
         | PrepareStep::CompareHead { .. }
         | PrepareStep::CommitHead { .. }
         | PrepareStep::CheckOutHead { .. }) => prepared_merge(holding, merge, done, limits),
@@ -832,6 +845,20 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             | Done::Looked { .. }
             | Done::IsAncestor { .. }
             | Done::Rejected => unreachable!("io ends a merge with its own terminals"),
+        },
+        PrepareStep::CompareBase { repository, ours, base } => match done {
+            Done::IsAncestor { contains: true } => resume_contained(holding, repository, ours),
+            Done::IsAncestor { contains: false } => begin_merge(holding, repository, ours, Some(base)),
+            Done::Failed { .. } | Done::FailedWithOutput { .. } => Next::Failed(Failure::Transient),
+            Done::Succeeded
+            | Done::Fetched { .. }
+            | Done::Committed { .. }
+            | Done::Unchanged
+            | Done::Exists
+            | Done::Rejected
+            | Done::Merged
+            | Done::Looked { .. }
+            | Done::Conflicted { .. } => unreachable!("ancestry query has its own terminals"),
         },
         PrepareStep::CompareHead { repository, head } => match done {
             Done::IsAncestor { contains: true } => next_head(holding, repository, head, last),
@@ -908,11 +935,35 @@ fn fetched_merge_base(holding: &Holding, repository: u32, ours: Commit, base: Co
 fn checked_out_merge(holding: &mut Holding, repository: u32, ours: Commit, base: Commit) -> Next {
     let merging = match nth(holding, repository).start {
         Start::Merged { .. } => None,
-        Start::Merge { .. } => Some(base),
+        Start::Merge { .. } => {
+            if nth(holding, repository).landing.is_some() {
+                return Next::Step(PrepareStep::CompareBase { repository, ours, base });
+            }
+            Some(base)
+        }
         Start::Base { .. } | Start::Branch { .. } | Start::Commit { .. } | Start::Saved { .. } => {
             unreachable!("only merge starts check out here")
         }
     };
+    begin_merge(holding, repository, ours, merging)
+}
+
+fn resume_contained(holding: &mut Holding, repository: u32, ours: Commit) -> Next {
+    let index = usize::try_from(repository).expect("a u32 fits in a usize");
+    let spec = holding.repositories.get_mut(index).expect("a repository of the spec");
+    let Start::Merge { branch, .. } = &spec.start else {
+        unreachable!("only a producer's merge start compares its base")
+    };
+    if spec.push.as_deref() == Some(&**branch) {
+        spec.start = Start::Branch { branch: copy_of(branch) };
+        Next::Step(PrepareStep::FetchLanding { repository, ours })
+    } else {
+        spec.start = Start::Saved { branch: copy_of(branch) };
+        Next::Step(PrepareStep::FetchPush { repository, saved: ours })
+    }
+}
+
+fn begin_merge(holding: &mut Holding, repository: u32, ours: Commit, merging: Option<Commit>) -> Next {
     let tips = Tips {
         start: ours,
         head: ours,
@@ -1106,6 +1157,9 @@ fn prepare_step(
         }
         PrepareStep::CheckOutMerge { repository, ours, .. } => {
             Op::CheckOut { at: place(workspace, nth(holding, repository)), commit: ours, clean: true }
+        }
+        PrepareStep::CompareBase { repository, ours, base } => {
+            Op::IsAncestor { at: place(workspace, nth(holding, repository)), ancestor: base, commit: ours }
         }
         PrepareStep::CompareHead { repository, head } => Op::IsAncestor {
             at: place(workspace, nth(holding, repository)),

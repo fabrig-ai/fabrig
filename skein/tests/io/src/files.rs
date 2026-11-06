@@ -4,9 +4,9 @@
 use skein_fake_machine::{How, Item, Machine as Files, Opened};
 use skein_io::digest::digest;
 use skein_io::file::{Event, Expect, Request};
-use skein_io::file_layer::{self, FileIo};
+use skein_io::file_layer::{FileIo, Limits, step};
 use skein_io::kernel::{Complete, Error, Fd, Submit};
-use skein_lib::{Duration, Queue, Time, Token, Wall};
+use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_sim::{Answer, Ask, Call, Config, Handle};
 use skein_world::{Host, Machine, Memory, Referee, World};
 
@@ -49,9 +49,9 @@ enum Phase {
 #[derive(Debug)]
 pub struct Owner {
     io: FileIo,
+    limits: Limits,
     root: Token,
     story: Story,
-    max: u32,
     bytes: &'static [u8],
     phase: Phase,
     pub events: Vec<Event>,
@@ -63,14 +63,16 @@ pub struct Owner {
 impl Owner {
     #[must_use]
     pub fn new(root: Fd, story: Story, max: u32) -> Self {
-        let mut io = FileIo::with_whole_limit(FILES, READ, ENTRIES, max, Duration::from_millis(10));
+        let limits =
+            Limits { files: FILES, read: READ, entries: ENTRIES, whole: max, timeout: Duration::from_millis(10) };
+        let mut io = FileIo::with_limits(&limits);
         io.seed_randomness(123);
         let root = io.adopt_root(root).expect("startup root");
         Self {
             io,
+            limits,
             root,
             story,
-            max,
             bytes: NEW,
             phase: Phase::Store,
             events: Vec::with_capacity(3),
@@ -111,13 +113,14 @@ impl Owner {
 }
 
 impl Host for Owner {
-    fn iterate(&mut self, now: Time, _wall: Wall) {
+    fn iterate(&mut self, now: Time, wall: Wall) {
+        let env = Env { now, wall, limits: self.limits };
         while let Some(complete) = self.completions.pop() {
-            file_layer::up(&mut self.io, complete, &mut self.up, &mut self.submissions);
+            step::up(&mut self.io, &env, complete, &mut self.up, &mut self.submissions);
             self.observe();
         }
         if self.io.is_due(now) {
-            file_layer::expire(&mut self.io, now, &mut self.submissions);
+            step::expire(&mut self.io, &env, &mut self.submissions);
         }
         if !self.io.takes() {
             return;
@@ -132,10 +135,10 @@ impl Host for Owner {
                     Story::Unreadable | Story::Dangling => Expect::Any,
                     Story::AbsentUnreadable | Story::AbsentDangling | Story::Absent => Expect::Absent,
                 };
-                let bytes = if self.max == 3 {
+                let bytes = if self.limits.whole == 3 {
                     Box::from(self.bytes)
                 } else {
-                    vec![b'n'; usize::try_from(self.max).expect("bounded file")].into_boxed_slice()
+                    vec![b'n'; usize::try_from(self.limits.whole).expect("bounded file")].into_boxed_slice()
                 };
                 Some(Request::Store {
                     owner: OWNER,
@@ -152,7 +155,7 @@ impl Host for Owner {
                     owner: LOAD,
                     root: self.root,
                     path: Box::from(&b"record"[..]),
-                    max: self.max,
+                    max: self.limits.whole,
                     no_follow: false,
                 })
             }
@@ -163,7 +166,7 @@ impl Host for Owner {
             Phase::StorePending | Phase::LoadPending | Phase::ClosePending | Phase::Settled => None,
         };
         if let Some(request) = request {
-            file_layer::down(&mut self.io, now, request, &mut self.up, &mut self.submissions);
+            step::down(&mut self.io, &env, request, &mut self.up, &mut self.submissions);
             self.observe();
         }
     }
@@ -361,7 +364,7 @@ impl Referee<Owner> for Judge {
                         bytes.as_ref() == OLD
                             || bytes.as_ref() == NEW
                             || (bytes.as_ref() == OTHER && matches!(proc.story, Story::Conflict | Story::Absent))
-                            || (bytes.len() == usize::try_from(proc.max).expect("bounded file")
+                            || (bytes.len() == usize::try_from(proc.limits.whole).expect("bounded file")
                                 && bytes.iter().all(|byte| *byte == b'n')),
                         "whole old or new file"
                     );
