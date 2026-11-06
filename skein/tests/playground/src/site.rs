@@ -19,7 +19,16 @@ pub fn config() -> Config {
         exchanges: 2,
         cookies: 2,
         cookie_bytes: 32,
-        io: io::Limits { sockets: 8, intake: 2048, receive: 256, output: 4096, ..io::Limits::TEST },
+        io: io::Limits {
+            sockets: 8,
+            intake: 2048,
+            receive: 256,
+            output: 4096,
+            sends: 8,
+            backlog: 2,
+            retry: Duration::from_millis(1),
+            ..io::Limits::TEST
+        },
         http: http::Limits { request: 2048, head: 2048, headers: 16, read: 256, send: 256 },
     }
 }

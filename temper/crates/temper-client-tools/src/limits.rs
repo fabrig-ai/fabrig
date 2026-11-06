@@ -19,7 +19,7 @@ pub const LOCK: Duration = Duration::from_secs(60);
 pub const LOCK_TRY: Duration = Duration::from_millis(100);
 pub const WAIT: Duration = Duration::from_secs(300);
 pub const WAIT_MOST: Duration = Duration::from_secs(3600);
-/// The terminal's client preset, with the tools' rows and result text.
+/// The tools' client preset, with their windows and retry spans (client/tools.md, 12).
 #[must_use]
 #[expect(clippy::arithmetic_side_effects, reason = "the request count is the nonzero constant declared here")]
 pub fn client() -> client::Limits {
@@ -28,7 +28,7 @@ pub fn client() -> client::Limits {
         bytes: 16_777_216,              // Whole request-table payload bytes.
         out: 32,                        // Table outputs per iteration.
         first: Duration::from_secs(1),  // First request retry span.
-        most: Duration::from_secs(30),  // Longest request retry span.
+        most: Duration::from_secs(2),   // Longest request retry span.
         margin: Duration::from_secs(1), // Retention's safety margin.
     };
     let client = jig_client::Limits {
@@ -44,7 +44,7 @@ pub fn client() -> client::Limits {
             handles: 21,
             watches: 19, // Includes the shared me, goal fact, trials and running trial task watches.
             turn_bytes: 1_048_576,
-            backoff: jig_client::Backoff { first: Duration::from_secs(1), most: Duration::from_secs(30) },
+            backoff: jig_client::Backoff { first: Duration::from_secs(1), most: Duration::from_secs(2) },
             authority: 16, // Entries in an authority's grants, delegation kinds and notes' scopes.
             heartbeat: Duration::from_secs(30),
             reads: 32, // Sixteen inbox cards, seven decisions and nine other Home/session reads.

@@ -322,28 +322,30 @@ fn write_envelopes_derive_checked_room_for_different_piece_sizes() {
 
 #[test]
 fn declared_whole_file_read_reaches_the_kernel_open() {
+    use skein_io::file_layer::step;
     use skein_io::{file, file_layer, kernel};
-    use skein_lib::{Queue, Time, Token};
+    use skein_lib::{Env, Queue, Time, Token, Wall};
 
     for whole_file in [1_048_576, 65_537, 65_536, 256] {
         let mut profile = profile();
         profile.declared.file_bytes = whole_file;
         let limits = super::derive(&profile, &declarations()).expect("valid whole-file declaration");
-        let mut files = file_layer::FileIo::with_whole_limit(
-            limits.file_slots,
-            limits.file_read,
-            limits.file_entries,
-            limits.file_bytes,
-            limits.file_timeout,
-        );
+        let file_limits = file_layer::Limits {
+            files: limits.file_slots,
+            read: limits.file_read,
+            entries: limits.file_entries,
+            whole: limits.file_bytes,
+            timeout: limits.file_timeout,
+        };
+        let mut files = file_layer::FileIo::with_limits(&file_limits);
         let descriptor = kernel::Fd::new(7);
         let root = files.adopt_root(descriptor).expect("root slot");
         let owner = Token::new(11);
         let mut events = Queue::with_capacity(4);
         let mut submissions = Queue::with_capacity(4);
-        file_layer::down(
+        step::down(
             &mut files,
-            Time::ZERO,
+            &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: file_limits },
             file::Request::Load {
                 owner,
                 root,

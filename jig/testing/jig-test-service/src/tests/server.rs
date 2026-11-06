@@ -447,3 +447,30 @@ fn debug_of_the_server_shows_no_cookie() {
         assert!(!debug.contains(canary_bytes.as_str()), "Debug hides the cookie's bytes");
     }
 }
+
+#[test]
+fn a_client_asking_gets_the_compressed_answer() {
+    let reply = f::answer(
+        &mut f::serving(f::bundle()),
+        b"GET /bundle/0123456789abcdef/boot.js HTTP/1.1\r\nHost: localhost\r\nAccept-Encoding: gzip\r\n\r\n",
+    );
+    assert_eq!(reply.status, 200);
+    assert_eq!(reply.body.as_ref(), b"compressed boot");
+    assert_eq!(*reply.fields(b"Content-Type"), [b"text/javascript".as_slice()]);
+    assert_eq!(*reply.fields(b"Content-Encoding"), [b"gzip".as_slice()]);
+    assert_eq!(*reply.fields(b"Vary"), [b"Accept-Encoding".as_slice()]);
+    assert_eq!(*reply.fields(b"Cache-Control"), [b"public, max-age=31536000, immutable".as_slice()]);
+    for (name, value) in f::POLICY_FIELDS {
+        assert_eq!(*reply.fields(name), [*value]);
+    }
+}
+#[test]
+fn a_client_not_asking_gets_the_plain_one() {
+    let reply = f::answer(
+        &mut f::serving(f::bundle()),
+        b"GET /bundle/0123456789abcdef/boot.js HTTP/1.1\r\nHost: localhost\r\n\r\n",
+    );
+    assert_eq!(reply.body.as_ref(), b"boot();");
+    assert_eq!(*reply.fields(b"Vary"), [b"Accept-Encoding".as_slice()]);
+    assert!(reply.fields(b"Content-Encoding").is_empty());
+}

@@ -39,7 +39,7 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
             None => people::ApplicationScope::Deployment,
         },
         Application::Forge(forge::Ask::Adopt(_)) => scope,
-        Application::Return { .. } | Application::Try { .. } => people::ApplicationScope::Own,
+        Application::Try { .. } => people::ApplicationScope::Own,
         Application::Dismiss {
             what: forge::PersonFact::ToBegin { project } | forge::PersonFact::GoalFrom { project, .. },
         }
@@ -63,7 +63,6 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
             None
         }
         Application::Forge(_)
-        | Application::Return { .. }
         | Application::Dismiss { .. }
         | Application::Looked { .. }
         | Application::SetAway { .. }
@@ -147,21 +146,6 @@ pub(super) fn admitted(
             }
             domain.work.push(Work::Forge(forge::Event::Application { request, token, retention, ask, role, carried }));
         }
-        Application::Return { source, path } => {
-            sweep_answers(domain, env);
-            domain
-                .returns
-                .insert(
-                    token,
-                    (
-                        env.now.saturating_add(retention),
-                        skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(retention.as_nanos())),
-                    ),
-                )
-                .expect("one marker per retained key");
-            assert!(super::now(domain, crate::Request::Return { source, path }), "return output door reserved");
-            finished(domain, request, Ok(token));
-        }
     }
 }
 
@@ -194,9 +178,6 @@ pub(super) fn finished(domain: &mut Domain, request: Token, outcome: Result<Toke
 }
 
 pub(super) fn answer(domain: &Domain, token: Token) -> Option<ApplicationAnswer> {
-    if domain.returns.contains_key(&token) {
-        return Some(ApplicationAnswer::Returning);
-    }
     if let Some((answer, _, _)) = domain.try_answers.get(&token) {
         return Some(ApplicationAnswer::Try(*answer));
     }
@@ -221,15 +202,6 @@ pub(super) fn answer(domain: &Domain, token: Token) -> Option<ApplicationAnswer>
 
 // Retained keys outlive these volatile markers (temper/docs/design/domain/trial.md, 4).
 fn sweep_answers(domain: &mut Domain, env: &skein_lib::Env<crate::Limits>) {
-    let mut expired = skein_lib::List::with_capacity(domain.returns.len());
-    for (token, (now, wall)) in &domain.returns {
-        if *now <= env.now || *wall <= env.wall {
-            expired.push(*token).expect("at most one marker per key");
-        }
-    }
-    for token in &expired {
-        domain.returns.remove(token);
-    }
     let mut expired = skein_lib::List::with_capacity(domain.try_answers.len());
     for (token, (_, now, wall)) in &domain.try_answers {
         if *now <= env.now || *wall <= env.wall {

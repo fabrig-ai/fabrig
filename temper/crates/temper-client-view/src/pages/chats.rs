@@ -424,6 +424,9 @@ pub(crate) fn status_words(
     if ended(chip) {
         return (crate::look::STATUS_QUIET, words.say(Word::ChatClosed, &[]));
     }
+    if temper_client_domain::pages::chat::paused(chip, me) {
+        return (crate::look::STATUS_QUIET, words.say(Word::ChatPaused, &[]));
+    }
     let live = delegates.unwrap_or({
         let ChipPhaseFacts { details, .. } = chip.details.as_ref();
         details.live_delegates
@@ -524,8 +527,7 @@ pub(crate) fn words_not_begun(thread: &jig_client::thread::Thread) -> bool {
             jig_client::thread::Line::Activity { .. }
             | jig_client::thread::Line::Words { .. }
             | jig_client::thread::Line::Turn { .. }
-            | jig_client::thread::Line::Undecoded { .. }
-            | jig_client::thread::Line::Left { .. },
+            | jig_client::thread::Line::Undecoded { .. },
         )
         | None => true,
     }

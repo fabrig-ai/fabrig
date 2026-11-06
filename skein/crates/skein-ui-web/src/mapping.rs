@@ -51,9 +51,7 @@ pub fn element(made: &Made, look: &Look<'_>, prefix: &[u8], primary: Primary, wo
                 Child::Element(summary) => summary.append(words),
                 Child::Text(_) => unreachable!("summary is an element"),
             }
-        } else if [Role::Item, Role::Cell, Role::ColumnHeader, Role::RowHeader, Role::MenuItem]
-            .contains(&made.attribute.role)
-        {
+        } else if made.attribute.role.holds_words_inside() {
             core.append(words);
         } else if e.tag.is_empty() {
             e.append(words);
@@ -144,7 +142,7 @@ fn core_element(made: &Made, look: &Look<'_>, prefix: &[u8], primary: Primary) -
             e.set("data-progress", &percent(fraction).to_string());
         }
     }
-    if a.role == Role::Choice || a.role == Role::Check || (a.role == Role::TextField && a.name.is_some()) {
+    if a.role.is_toggle() || (a.role == Role::TextField && a.name.is_some()) {
         return labelled(e, made);
     }
     if a.role == Role::Menu {
@@ -249,21 +247,7 @@ fn properties(e: &mut Element, made: &Made) {
             },
         );
     }
-    if a.focus.is_some()
-        && ![
-            Role::Button,
-            Role::Link,
-            Role::TextField,
-            Role::Select,
-            Role::TextArea,
-            Role::Choice,
-            Role::Check,
-            Role::Dialog,
-            Role::Tab,
-            Role::Disclosure,
-        ]
-        .contains(&a.role)
-    {
+    if a.focus.is_some() && !a.role.has_native_focus() {
         e.set("tabindex", "-1");
     }
 }
@@ -340,20 +324,8 @@ fn base(role: Role, id: u32) -> Element {
 fn state_attribute(e: &mut Element, role: Role, state: State) {
     match state {
         State::Disabled => e.set(
-            if [Role::Button, Role::TextField, Role::TextArea, Role::Choice, Role::Check, Role::Select, Role::Option]
-                .contains(&role)
-            {
-                "disabled"
-            } else {
-                "aria-disabled"
-            },
-            if [Role::Button, Role::TextField, Role::TextArea, Role::Choice, Role::Check, Role::Select, Role::Option]
-                .contains(&role)
-            {
-                ""
-            } else {
-                "true"
-            },
+            if role.has_native_disabled() { "disabled" } else { "aria-disabled" },
+            if role.has_native_disabled() { "" } else { "true" },
         ),
         State::FoldsAway => e.set("data-folds-away", ""),
         State::ToLogEnd => e.set("data-to-log-end", ""),
@@ -373,11 +345,11 @@ fn state_attribute(e: &mut Element, role: Role, state: State) {
             } else {
                 "aria-selected"
             },
-            if role == Role::Choice || role == Role::Option { "" } else { "true" },
+            if role.is_selectable() { "" } else { "true" },
         ),
-        State::Completed => {}
+        State::Completed | State::Continues => {}
         State::Required => {
-            let native = [Role::TextField, Role::TextArea, Role::Select, Role::Check].contains(&role);
+            let native = role.has_native_required();
             e.set(if native { "required" } else { "aria-required" }, if native { "" } else { "true" });
         }
         State::SubmitsOnEnter => e.set("enterkeyhint", "send"),

@@ -132,11 +132,6 @@ pub fn decoder(header: &[u8], limits: &Limits) -> Option<Decoder> {
         ref_type: RefType::Branch,
     })
 }
-/// The initial tokenizer demand.
-#[must_use]
-pub fn first(_decoder: &Decoder) -> tokenizer::Request {
-    tokenizer::Request::Next
-}
 /// Advances by one tokenizer event.
 pub fn step(decoder: &mut Decoder, limits: &Limits, event: &tokenizer::Event) -> Step {
     match decoder.walk.step(event, limits) {

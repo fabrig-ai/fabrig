@@ -814,7 +814,7 @@ fn the_configured_bundle_is_named_for_the_binary() {
     let document = fixtures::with(&fixtures::document(), b"application.clients.bundle", br#""/bundle""#);
     let named = crate::named(&document, &jig_protocol_config::Directories::working()).expect("named");
     assert_eq!(named.bundle.as_deref(), Some(b"/bundle".as_slice()));
-    assert_eq!(named.bundle_limits, crate::limits::Clients { bundle_files: 128, bundle_bytes: 16 << 20 });
+    assert_eq!(named.bundle_limits, crate::limits::Clients { bundle_files: 128, bundle_bytes: 32 << 20 });
 }
 #[test]
 fn a_missing_bundle_is_named_by_its_path() {

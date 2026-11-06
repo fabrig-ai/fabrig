@@ -9,6 +9,7 @@ use super::*;
 use crate::tests::fixtures;
 use alloc::boxed::Box;
 use jig_domain_accounts as domain;
+use jig_domain_link::Form;
 use jig_protocol_accounts::table;
 use jig_protocol_config as config;
 use skein_fake_oauth as fake;
@@ -387,31 +388,6 @@ fn issuer_request(sent: &[u8], now: Time) -> Option<oauth::HttpRequest> {
 }
 
 #[test]
-fn a_native_callback_returns_to_the_accounts_page() {
-    let mut world = SignInWorld::new();
-    let callback = world.approve(71);
-    world.accounts.return_to(71, bytes::copy_of(b"http://127.0.0.1:7000/accounts"));
-    world.grant_plan();
-    let socket = world.native_socket();
-    world.native_return(socket, &callback);
-    world.settle();
-    let answer = &world.sockets.iter().find(|peer| peer.token == socket).expect("native callback").sent;
-    assert!(answer.starts_with(b"HTTP/1.1 303"));
-    assert!(bytes::find(answer, b"location: http://127.0.0.1:7000/accounts\r\n").is_some());
-    assert!(bytes::find(answer, b"cache-control: no-store\r\n").is_some());
-    assert!(bytes::find(answer, b"referrer-policy: no-referrer\r\n").is_some());
-    let mut signed_in = 0_u32;
-    while let Some(event) = world.events.pop() {
-        if let root::Event::Account(domain::Event::SignedIn { source: 71, .. }) = event {
-            signed_in = signed_in.checked_add(1).unwrap();
-        }
-    }
-    assert_eq!(signed_in, 1);
-    assert_eq!(world.exchanges, 1);
-    world.nothing_held();
-}
-
-#[test]
 fn restarting_after_approval_then_pasting_the_new_callback_succeeds() {
     let mut world = SignInWorld::new();
     let old = world.approve(71);
@@ -691,7 +667,7 @@ fn has_llm_key_grant(heard: &List<domain::FromComponent>, wanted: u64) -> bool {
         if let domain::FromComponent::Granted {
             account: 7,
             generation,
-            form: domain::Form::Credential(domain::Scheme::Key),
+            form: Form::Credential(jig_domain_link::Scheme::Key),
             ..
         } = event
             && *generation == wanted
@@ -809,7 +785,7 @@ fn dynamic_sources_use_provider_templates_and_restore_their_kept_records() {
         if let domain::FromComponent::Granted {
             account: 9001,
             generation,
-            form: domain::Form::Credential(domain::Scheme::Bearer),
+            form: Form::Credential(jig_domain_link::Scheme::Bearer),
             ..
         } = event
         {
@@ -881,7 +857,7 @@ fn a_restored_sign_ins_metadata_leaves_its_grant_a_bearer() {
     let mut granted = false;
     for event in &heard {
         if let domain::FromComponent::Granted { account: SOURCE, form, .. } = event {
-            assert_eq!(*form, domain::Form::Credential(domain::Scheme::Bearer));
+            assert_eq!(*form, Form::Credential(jig_domain_link::Scheme::Bearer));
             granted = true;
         }
     }

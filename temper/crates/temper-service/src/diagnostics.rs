@@ -1,4 +1,5 @@
 //! Read-only, payload-free snapshots, constructed only when explicitly requested.
+use jig_domain_link::Hosting;
 use skein_lib::{List, Time};
 
 #[derive(Debug)]
@@ -82,7 +83,7 @@ pub struct Worker {
     pub retained_turns: u32,
     pub kept_answers: u32,
     pub next_deadline: Option<Time>,
-    pub attempts: List<jig_domain_host::Hosting>,
+    pub attempts: List<Hosting>,
 }
 
 #[derive(Debug)]

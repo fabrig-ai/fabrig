@@ -8,6 +8,7 @@ use jig_core_world::peers;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_core::{self as core, documents, reads, settings};
+use jig_domain_link::{Hello, Hosting, Phase};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
@@ -185,7 +186,7 @@ fn a_runs_proposal_belongs_as_a_partys_does() {
         world.send(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Hello {
             worker: 0,
             channel: skein_lib::Token::new(7),
-            hello: jig_domain_fleet::Hello {
+            hello: Hello {
                 jobs: Box::default(),
                 bounds: jig_test_profile::fixtures::bounds(),
                 stop_bound: skein_lib::Duration::from_millis(1),
@@ -1487,11 +1488,11 @@ fn resume_release_host(world: &mut World) {
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 2, budget: 100, next: None }));
 }
 
-fn release_host(world: &mut World, hosting: Box<[jig_domain_fleet::Hosting]>) {
+fn release_host(world: &mut World, hosting: Box<[Hosting]>) {
     world.send(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Hello {
         worker: 0,
         channel: skein_lib::Token::new(7),
-        hello: jig_domain_fleet::Hello {
+        hello: Hello {
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: skein_lib::Duration::from_millis(1),
@@ -1520,10 +1521,10 @@ fn a_release_withdraws_the_proposal_of_a_run_still_claimed() {
     world.restart_with(config);
     release_host(
         &mut world,
-        Box::new([jig_domain_fleet::Hosting {
+        Box::new([Hosting {
             run: skein_lib::Token::new(task),
             attempt: skein_lib::Token::new(attempt),
-            phase: jig_domain_fleet::Phase::Active,
+            phase: Phase::Active,
         }]),
     );
     world.finish_restore_pages();

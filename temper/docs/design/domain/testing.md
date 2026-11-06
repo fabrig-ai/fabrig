@@ -225,8 +225,8 @@ in the lower world that owns it, never here.
   credentials live in a scratch directory on the real filesystem.
   Listeners are on loopback, on a port the kernel assigns, passed to
   their clients once bound. A story never uses a port the kernel did
-  not give it; GitHub's stories reserve the clients' listener's before
-  the service starts (below).
+  not give it, but for the clients' listener of GitHub's stories, which
+  is reserved before the service starts and restarted on (below).
 - **Agents share the loop.** The harness answers the worker's spawn
   with a hosted smith agent, joined by real pipes, and drives its
   `iterate` in the same loop. The agent's LLM is skein's fake peer,
@@ -563,8 +563,8 @@ in the lower world that owns it, never here.
     and temper's `log_poll` short, as `poll` is above.
   - **The clients' listener's address is fixed** for a GitHub forge
     (../protocol/configuration.md, section 3; ../protocol/forge.md,
-    2.1), since the App's addresses name it. The harness reserves a loopback port the
-    kernel assigns before the service starts, and names it in the
+    2.1), since the App's addresses name it. The harness reserves a loopback port of
+    `temper_fixtures::ports` (2.6) before the service starts, and names it in the
     configuration.
   - **No browser in the real loop.** The story stands in for it with
     plain HTTP requests, following each `302` and the one link, to the
@@ -1101,11 +1101,22 @@ terminal client, the captures and the faults.
 
 - **Three at a time:** the profile runs three tests at once, a story being
   one thread and one loop as ever, and the tier's budgets stand. A story
-  shares its machine: its listeners are the kernel's or
-  `support::free_addresses`', and a fake box's are the kernel's
-  (`../protocol/setup.md`, 7.5). A story that can't share one runs in a
-  named nextest test group, as `temper-real-loop` does, the reason beside
-  the group.
+  shares its machine. A listener it holds from its bind to its last use
+  may be on the kernel's port. A port it lets go of and listens on again,
+  as a retained deployment's across a stop, is `temper_fixtures::ports`'
+  (`support::free_addresses`, `support::own_listener_files`), and a fake
+  box's are the story's too, through `TEMPER_FAKE_BOX_PORTS`
+  (`../protocol/setup.md`, 7.5). Such a port is:
+  - **below the kernel's ephemeral range,** as
+    `/proc/sys/net/ipv4/ip_local_port_range` reads, so that no outgoing
+    socket and no bind of port 0 lands on it while nothing listens there;
+  - **in a block its process holds,** by a listener on the block's first
+    port from its first draw until it ends, so that no other test process
+    on the machine draws it, of any run, tier or checkout, and an ended
+    process's blocks are free at once, however it ended.
+
+  A story that can't share one runs in a named nextest test group, as
+  `temper-real-loop` does, the reason beside the group.
 
 - **A walk wakes on what it waits for:** a fake-box walk
   (`crates/temper/tests/fake_backends/walk`) waits on an event where one
@@ -2474,7 +2485,7 @@ obligations missing.
 | the foreman's charter | setting: its instructions (`judged`); its model, `model.name`, gpt-6.1-sol, set on the charter (the draft's status records the departure); `inspect` true, `modify`, `shell` and `agents` false |
 | the forge's charters (kind 3) | setting: 1 names the coding agent's, its anchor; 2, the reviews', `unchanged` (unused, since neither landing rule asks a gate); the foremen's, the foreman's role's number |
 | each change's LLM choices | setting: the coding agent's model, `model.name`, gpt-6.1-sol; the coordinator's instructions (`judged`: a coding change at gpt-6.1-sol at the spec's effort, a designer's at section 4's choice); box: gpt-6.1-sol on smith's direct backend with an OpenAI account's key |
-| the project's policy and rules | setting: the rules' ceiling's, policy 1's ceiling's and its role 0's tool families (`bits`: 1,983, the stock's with the families the coordinator's row names, 13.9), their note scopes (`bits`: 3, the goal's and the project's), and for role 0 no effect family (`lacks`: 64); their delegation's kinds (`contains`: each charter role's charter, the stock's procedures 2 to 4, the merge job, job 3, and role 0) and its tasks and depth (`at-least`: 1,024 tasks, 4 deep, N21); policy 1's role 0 and the project's own policy's the same |
+| the project's policy and rules | setting: the rules' ceiling's and the project's own policy's role 0's tool families, its own ceiling holding them by jig's check, (`bits`: 1,983, the stock's with the families the coordinator's row names, 13.9), their note scopes (`bits`: 3, the goal's and the project's), and for role 0 no effect family (`lacks`: 64); their delegation's kinds (`contains`: each charter role's charter, the stock's procedures 2 to 4, the merge job, job 3, and role 0) and its tasks and depth (`at-least`: 1,024 tasks, 4 deep, N21); policy 1 free, a kind no obligation asks for: it reaches no project already made (jig's `domain/people.md`, 5.2), and the walk's project is |
 | the project's ways | setting: its `way`, the goal template for drafts, by role; its switches free. The project's questions are free too, a kind no obligation asks for: the coordinator names each change's route |
 | the landing rule for goal branches | setting: `goal-rule`'s `pattern`; `ci` false, `up_to_date` false; `gates` and `approvals` empty |
 | the landing rule for main | setting: `main-rule`'s `pattern`; `enforce` true, `ci` true, `up_to_date` true; `gates` and `approvals` empty; the deployment's rules `only` the two, so the stock's rule on every branch, which asks CI and a review, is replaced or removed |
@@ -2773,6 +2784,11 @@ scripts/proof-live.sh               the live tier
   measured there and with each tree's list of Linux's own tests; the
   checklist for a person on a real Mac; and the first run's demo in a
   browser. A test that would take real work joins 2.8's list.
+- **A cached state graph.** Below the real loop a state is a pure function
+  of its seed and path, so a crash sweep could fork at a prefix it now walks
+  again. The slow tiers wait: a process story's restore has its meaning to
+  prove, and the request `test-speed` of 2026-11-06 takes what needs no cache
+  first.
 - **The macOS workflow's results in after-landing.** A red run is a
   finding (2.8), and nothing reads it yet. The repository is public, so
   a run's results need no token.

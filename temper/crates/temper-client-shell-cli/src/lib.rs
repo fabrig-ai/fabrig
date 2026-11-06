@@ -11,3 +11,4 @@ mod signing;
 #[cfg(test)]
 mod tests;
 mod transport;
+mod waited;

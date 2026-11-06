@@ -3,6 +3,12 @@
 2026-11-06. Remaining gaps between temper's code and [tools.md](tools.md).
 Unlisted sections have no known gap.
 
+- **Not yet:** 6.3: the deadline's lines: `temper-client-shell-cli`'s
+  `host.rs`, `link_progress`, says `the engine at ADDRESS did not answer
+  within 30 s` whatever is outstanding, and adds nothing of an act.
+- **Not yet:** 8.2, 12: a retry's span: `temper-client-tools`' `limits.rs`
+  doubles a request's and a watch's to 30 s, so a call can sleep past its
+  deadline with nothing in flight. 6.3: the lines naming a retry's why.
 - **Not yet:** 5.2: `task show`'s text says `deployment show` for a host's wait
   (`temper-client-tools`' `render/document/llm.rs`, `wait_explanation`), and ctl has
   no such tool until area 3's is built (5.5), so that line names a command that
@@ -44,7 +50,7 @@ Unlisted sections have no known gap.
   the real loop's connected Forgejo, its tokens connect, a replace of
   its git token and another user's tokens stopped.
 - **Departs:** 5.1: `project` is area 1's (`jig/rows.rs`
-  `PROJECT_SHOW`, `PROJECT_FUND`), not area 3's; the placeholders add
+  `PROJECT_SHOW`, `PROJECT_FUND`, `PROJECT_MAKE`), not area 3's; the placeholders add
   `HOST:PORT` and `URL`. 5.2: `settings show template|policy` takes
   `--revision` too; `landing show` takes `TASK [--project PROJECT]`, not
   `LANDING`; `landing list` takes no `--newer-than` or `--after`, and
@@ -58,6 +64,17 @@ Unlisted sections have no known gap.
   `WaitsOn::Party` carries the asked task, its kind and how many wait, and no
   number (`render/document.rs`, `waiting`). A task's spent and budget print
   divided by 100, `spent 1.20 of 5.00` (`render/document.rs`, `amount`), as
-  `temper help budget` says, where the section has them never scaled. 12: an
+  `temper help budget` says, where the section has them never scaled. A task
+  pinned to an account that holds no source for this work waits on that account
+  with the why `Empty` (jig's `select_source`), and prints `next run: account 43
+  source unknown: empty`, then `no account serving this work yet`
+  (`render/document/llm.rs`, `wait_explanation`), then `waiting on: Nothing
+  awaited`: the `wait-words` request of 2026-11-06 has `waiting on:` name an
+  account when the next run has none to run on. Its plan held "no account" to
+  the wait that printed the words the request drops, to keep this one's number,
+  so these lines can still say opposite things (section 14). A person task's
+  `task amend` prints `task amend 41 --key KEY`, where that request has the act
+  and its arguments, as an agent task's `--rev 8 CHANGE... REASON` does:
+  `person_call` (`render/document.rs`) gives an answer alone its arguments. 12: an
   authority's entries are 14 (`limits.rs`), and the client's `projects` bound, 2, is
   not in the table.

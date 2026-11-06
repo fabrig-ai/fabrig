@@ -53,39 +53,15 @@ pub enum Story {
 #[must_use]
 pub fn limits() -> accounts::Limits {
     let client = oauth::ClientLimits {
-        document: oauth::Limits {
-            document_bytes: 1024,
-            string_bytes: 1024,
-            token_bytes: 256,
-            client_bytes: 64,
-            detail_bytes: 64,
-            record_bytes: 2048,
-            depth: 8,
-            tokens: 64,
-            issued_client_bytes: 64,
-            granted_bytes: 64,
-            subject_bytes: 64,
-            id_token_bytes: 1024,
-        },
-        uri_bytes: 256,
-        scope_bytes: 64,
-        state_bytes: 64,
-        code_bytes: 64,
-        url_bytes: 1024,
-        request_bytes: 1024,
-        parameter_bytes: 0,
-        resource_bytes: 0,
+        document: oauth::Limits { document_bytes: 1024, ..oauth::ClientLimits::TEST.document },
         nonce_bytes: 64,
         metadata_bytes: 1024,
         key_set_bytes: 2048,
         keys: 4,
-        modulus_bits: 2048,
-        skew: Duration::from_secs(0),
-        sign_in_time: Duration::from_secs(120),
-        request_time: Duration::from_secs(10),
         backoff_base: Duration::from_secs(1),
         backoff_ceiling: Duration::from_secs(4),
         max_attempts: 2,
+        ..oauth::ClientLimits::TEST
     };
     accounts::Limits {
         accounts: 2,
@@ -93,31 +69,12 @@ pub fn limits() -> accounts::Limits {
         lock_wait: Duration::from_secs(1),
         exchanges: 2,
         listeners: 1,
-        server: skein_http::server::Limits {
-            head: 2048,
-            headers: 16,
-            body: 1024,
-            read: 256,
-            response: peer::least_response(&issuer_limits(&client)).expect("world issuer response floor fits u32"),
-            send: 256,
-        },
+        server: crate::streams::server_limits(&issuer_limits(&client)),
         refresh_lead: Duration::from_secs(10),
         client,
         http: skein_http::client::Limits { request: 2048, head: 2048, headers: 16, read: 256, send: 256 },
         tls: skein_tls::client::Limits { read: 2048, send: 2048, records: 131_072 },
-        io: io::Limits {
-            sockets: 4,
-            refusals: 1,
-            intake: 32_768,
-            receive: 1024,
-            output: 32_768,
-            sends: 4,
-            accepts: 1,
-            backlog: 2,
-            close_timeout: Duration::from_secs(1),
-            names: 0,
-            retry: Duration::from_millis(1),
-        },
+        io: io::Limits { sockets: 4, sends: 4, backlog: 2, retry: Duration::from_millis(1), ..io::Limits::TEST },
     }
 }
 
@@ -277,6 +234,7 @@ impl Contracts {
 pub struct Client {
     pub(crate) accounts: Option<crate::accounts::Owner>,
     pub(crate) shared: Option<crate::shared::Owner>,
+    pub(crate) sign_in: Option<crate::sign_in::Owner>,
     pub(crate) sign_out: Option<crate::sign_out::Owner>,
     pub(crate) terms: Option<oauth::Terms>,
     io: io::Io,
@@ -314,6 +272,7 @@ impl Client {
         Client {
             accounts: None,
             shared: None,
+            sign_in: None,
             sign_out: None,
             terms: None,
             io: io::Io::new(&limits.io),
@@ -366,7 +325,12 @@ impl Client {
     pub(crate) fn unstarted(&self) -> bool {
         self.component.is_none()
     }
+    #[expect(clippy::too_many_lines, reason = "dispatches sub-owners before configuring the refresh story")]
     pub(crate) fn start(&mut self, env: &Env<accounts::Limits>) {
+        if self.sign_in.is_some() {
+            crate::sign_in::start(self, env);
+            return;
+        }
         if self.shared.is_some() {
             crate::shared::start(self, env);
             return;
@@ -482,6 +446,10 @@ impl Client {
         }
     }
     fn observe_story(&mut self, env: &Env<accounts::Limits>) -> bool {
+        if self.sign_in.is_some() {
+            crate::sign_in::observe(self, env);
+            return true;
+        }
         if self.shared.is_some() {
             crate::shared::observe(self, env);
             return true;
@@ -603,8 +571,12 @@ impl Client {
                     if let io::file::Request::Store { owner, bytes, .. } = &request {
                         let record =
                             oauth::decode_record(bytes, &env.limits.client.document).expect("candidate record");
-                        self.contracts.keep(record.generation);
-                        self.facts.push(Fact::Keep(record.generation));
+                        if let Some(owner) = &mut self.sign_in {
+                            crate::sign_in::keeping(owner, record.generation);
+                        } else {
+                            self.contracts.keep(record.generation);
+                            self.facts.push(Fact::Keep(record.generation));
+                        }
                         assert!(self.file_keep.is_none());
                         self.file_keep = Some((*owner, record));
                         if let Some(abort) = self.stop_at_store.take() {
@@ -637,7 +609,11 @@ impl Client {
             if event.owner() == skein_lib::Token::new(u64::MAX) {
                 continue;
             }
-            if let io::file::Event::Loaded { bytes, .. } = &event
+            if self.sign_in.is_some() {
+                crate::sign_in::file_event(self, env.now, &event);
+            }
+            if self.sign_in.is_none()
+                && let io::file::Event::Loaded { bytes, .. } = &event
                 && let Ok(record) = oauth::decode_record(bytes, &env.limits.client.document)
             {
                 if !self.contracts.kept.contains(&record.generation) {
@@ -647,8 +623,13 @@ impl Client {
             }
             if self.file_keep.as_ref().is_some_and(|(owner, _)| *owner == event.owner()) {
                 let (_, record) = self.file_keep.take().expect("matching keep");
-                self.contracts.kept(record.generation, matches!(event, io::file::Event::Stored { .. }));
-                self.records.push(record);
+                let yes = matches!(event, io::file::Event::Stored { .. });
+                if let Some(owner) = &mut self.sign_in {
+                    crate::sign_in::kept(owner, record, yes);
+                } else {
+                    self.contracts.kept(record.generation, yes);
+                    self.records.push(record);
+                }
             }
             self.component.as_mut().expect("started component").filed(
                 env,
@@ -667,8 +648,14 @@ impl Client {
 impl Host for Client {
     fn iterate(&mut self, now: Time, wall: Wall) {
         let env = Env { now, wall, limits: self.limits };
+        if self.sign_in.is_some() {
+            crate::sign_in::restart(self, &env);
+        }
         if self.component.is_none() && self.address.is_some() {
             self.start(&env);
+        }
+        if self.sign_in.is_some() {
+            crate::sign_in::redirected(self, &env);
         }
         let io_env = Env { now, wall, limits: self.limits.io };
         self.private_io(&env);
@@ -685,6 +672,9 @@ impl Host for Client {
         io::stage::up(&mut self.io, &io_env, &mut self.completions, &mut self.events, &mut self.submissions, now);
         for _ in 0..ROOM {
             let Some(event) = self.events.pop() else { break };
+            if self.sign_in.is_some() {
+                crate::sign_in::accepted(self, &event);
+            }
             self.component.as_mut().expect("io follows started component").up(
                 &env,
                 event,
@@ -747,16 +737,21 @@ impl Host for Client {
             || !self.requests.is_empty()
             || !self.above.is_empty()
             || !self.completions.is_empty()
+            || self.sign_in.as_ref().is_some_and(crate::sign_in::work_pending)
             || (self.component.is_none() && self.address.is_some())
             || self.component.as_ref().is_some_and(|component| {
                 component.has_work() || component.next_deadline().is_some_and(|due| due <= now)
             })
     }
     fn next_mechanism_deadline(&self) -> Option<Time> {
-        [self.io.next_deadline(), self.file_driver.as_ref().and_then(skein_world::files::Driver::next_deadline)]
-            .into_iter()
-            .flatten()
-            .min()
+        [
+            self.io.next_deadline(),
+            self.file_driver.as_ref().and_then(skein_world::files::Driver::next_deadline),
+            self.sign_in.as_ref().and_then(crate::sign_in::next_deadline),
+        ]
+        .into_iter()
+        .flatten()
+        .min()
     }
 
     fn next_policy_deadline(&self) -> Option<Time> {
@@ -786,12 +781,57 @@ impl Host for Client {
     }
 }
 
-/// The two actual processes of a component world.
+/// The owner and independent peers of a component world.
 pub enum Process {
     /// The owner-driven component with its own io loop.
     Client(Box<Client>),
     /// The independent scripted issuer, which stays live until the owner settles.
     Issuer(Box<peer::Peer>),
+    /// The browser receives the authorization redirect and callback page.
+    Browser(Box<crate::sign_in::Browser>),
+}
+
+impl Process {
+    /// Returns the client process, when present.
+    #[must_use]
+    pub fn client(&self) -> Option<&Client> {
+        match self {
+            Self::Client(host) => Some(host),
+            Self::Issuer(_) | Self::Browser(_) => None,
+        }
+    }
+    /// Returns the client process, when present.
+    #[must_use]
+    pub fn client_mut(&mut self) -> Option<&mut Client> {
+        match self {
+            Self::Client(host) => Some(host),
+            Self::Issuer(_) | Self::Browser(_) => None,
+        }
+    }
+    /// Returns the issuer process, when present.
+    #[must_use]
+    pub fn issuer(&self) -> Option<&peer::Peer> {
+        match self {
+            Self::Issuer(host) => Some(host),
+            Self::Client(_) | Self::Browser(_) => None,
+        }
+    }
+    /// Returns the issuer process, when present.
+    #[must_use]
+    pub fn issuer_mut(&mut self) -> Option<&mut peer::Peer> {
+        match self {
+            Self::Issuer(host) => Some(host),
+            Self::Client(_) | Self::Browser(_) => None,
+        }
+    }
+    /// Returns the browser process, when present.
+    #[must_use]
+    pub fn browser(&self) -> Option<&crate::sign_in::Browser> {
+        match self {
+            Self::Browser(host) => Some(host),
+            Self::Client(_) | Self::Issuer(_) => None,
+        }
+    }
 }
 
 impl Delegate for Process {
@@ -799,6 +839,7 @@ impl Delegate for Process {
         match self {
             Process::Client(host) => host.as_ref(),
             Process::Issuer(host) => host.as_ref(),
+            Process::Browser(host) => host.as_ref(),
         }
     }
 
@@ -806,6 +847,7 @@ impl Delegate for Process {
         match self {
             Process::Client(host) => host.as_mut(),
             Process::Issuer(host) => host.as_mut(),
+            Process::Browser(host) => host.as_mut(),
         }
     }
 }
@@ -822,10 +864,7 @@ impl Referee<Process> for Judge {
         if self.deadline.is_none() {
             self.deadline = Some(now.saturating_add(Duration::from_secs(120)));
         }
-        let address = processes.iter().find_map(|process| match process {
-            Process::Issuer(peer) => peer.address(),
-            Process::Client(_) => None,
-        });
+        let address = processes.iter().find_map(|process| process.issuer().and_then(peer::Peer::address));
         let settled = processes.iter().any(|process| matches!(process, Process::Client(client) if client.is_empty()));
         for process in processes {
             match process {
@@ -834,32 +873,20 @@ impl Referee<Process> for Judge {
                     peer.shutdown();
                     self.shutdown = true;
                 }
-                Process::Issuer(_) => {}
+                Process::Issuer(_) | Process::Browser(_) => {}
             }
         }
     }
     fn observe(&mut self, now: Time, processes: &[Process]) {
-        let client = processes
-            .iter()
-            .find_map(|process| match process {
-                Process::Client(client) => Some(client),
-                Process::Issuer(_) => None,
-            })
-            .expect("client");
+        let client = processes.iter().find_map(Process::client).expect("client");
         self.wake = ((client.component.is_none()
-            && processes.iter().any(|process| match process {
-                Process::Issuer(peer) => peer.address().is_some(),
-                Process::Client(_) => false,
-            }))
+            && processes.iter().any(|process| process.issuer().is_some_and(|peer| peer.address().is_some())))
             || (client.is_empty() && !self.shutdown))
             .then_some(now);
         let posts = processes
             .iter()
-            .filter_map(|process| match process {
-                Process::Issuer(peer) => Some(peer),
-                Process::Client(_) => None,
-            })
-            .flat_map(|peer| peer.observations())
+            .filter_map(Process::issuer)
+            .flat_map(peer::Peer::observations)
             .filter(|event| matches!(event, peer::Observation::Post { .. }))
             .count();
         assert!(posts <= if self.story == Story::Retry { 2 } else { 1 }, "bounded refresh attempts per generation");
@@ -934,6 +961,10 @@ pub(crate) fn issuer_with_terms(
         .as_ref()
         .and_then(|terms| terms.revocation_endpoint.clone())
         .unwrap_or_else(|| registration(transport).token_endpoint);
+    let mut config = crate::streams::issuer_config(&registration(transport), terms);
+    config.token_endpoint = token_endpoint;
+    config.refresh_token =
+        skein_lib::Secret::new(bytes::copy_of(if story == Story::SignInAgain { b"revoked" } else { b"seed" }));
     let mut peer = peer::Peer::new(
         address,
         transport,
@@ -946,28 +977,9 @@ pub(crate) fn issuer_with_terms(
             observations: 16,
             observation_bytes: 4096,
         },
-        fake::Config {
-            authorization_url: registration(transport).authorization_url,
-            token_endpoint,
-            client_id: bytes::copy_of(b"client"),
-            client_secret: None,
-            redirect_uri: bytes::copy_of(REDIRECT),
-            refresh_token: skein_lib::Secret::new(bytes::copy_of(if story == Story::SignInAgain {
-                b"revoked"
-            } else {
-                b"seed"
-            })),
-            terms,
-        },
+        config,
         issuer_limits,
-        skein_http::server::Limits {
-            head: 2048,
-            headers: 16,
-            body: 1024,
-            read: 256,
-            response: peer::least_response(&issuer_limits).expect("world issuer response floor fits u32"),
-            send: 256,
-        },
+        crate::streams::server_limits(&issuer_limits),
     )
     .expect("independent issuer");
     if story == Story::Retry {
@@ -979,20 +991,7 @@ pub(crate) fn issuer_with_terms(
         })
         .expect("rate limit before rotating refresh");
     }
-    peer.queue(fake::Plan {
-        status,
-        body: fake::Body::Token(oauth::TokenResponse {
-            access_token: skein_lib::Secret::new(bytes::copy_of(b"new")),
-            refresh_token: (story != Story::Omit).then(|| bytes::copy_of(b"next")).map(skein_lib::Secret::new),
-            expires_in: 30,
-            scope: None,
-            id_token: None,
-            earliest_refresh_at: None,
-        }),
-        delay: Duration::from_millis(5),
-        retry_after: Duration::ZERO,
-    })
-    .expect("one rotation plan");
+    peer.queue(rotation(story, status)).expect("one rotation plan");
     Process::Issuer(Box::new(peer))
 }
 
@@ -1040,7 +1039,7 @@ pub fn assert_replay(first: &Outcome<Process>, second: &Outcome<Process>) {
             (Process::Issuer(first), Process::Issuer(second)) => {
                 assert!(first.observations() == second.observations(), "outside issuer facts replay");
             }
-            (Process::Client(_), Process::Issuer(_)) | (Process::Issuer(_), Process::Client(_)) => {
+            _ => {
                 panic!("process order replays")
             }
         }
@@ -1056,7 +1055,8 @@ pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Vec<String>) {
 }
 
 pub(crate) fn protocol_client(seed: u64, client: Client) -> (Client, Vec<String>) {
-    let (client, trace, _) = protocol_connection(seed, client, true);
+    let rig = client.protocol_rig(true);
+    let (client, trace, _) = crate::streams::drive(seed, client, rig);
     (client, trace)
 }
 
@@ -1072,318 +1072,81 @@ pub struct TlsClose {
 /// Runs a rotating refresh over TLS, optionally withholding the close's room.
 #[must_use]
 pub fn tls_close(seed: u64, room: bool) -> TlsClose {
-    protocol_connection(seed, Client::new(Story::Rotate, Transport::Tls), room).2
+    let client = Client::new(Story::Rotate, Transport::Tls);
+    let rig = client.protocol_rig(room);
+    crate::streams::drive(seed, client, rig).2
 }
 
-#[expect(clippy::too_many_lines, reason = "one protocol loop exposes both stream boundaries and the issuer")]
-fn protocol_connection(seed: u64, mut client: Client, room: bool) -> (Client, Vec<String>, TlsClose) {
-    use skein_http::server as http;
-    use skein_lib::Token;
-    use skein_lib::stream::{Down, Read, Up};
-    use skein_world::stream::Wire;
-
-    let story = client.story;
-    let sign_out = client.sign_out.as_ref().map(|owner| owner.story);
-    let profile = limits();
-    let registration = registration(client.transport);
-    let endpoint: &[u8] =
-        if sign_out.is_some() { b"http://127.0.0.1:31000/revoke" } else { &registration.token_endpoint };
-    let issuer_limits = issuer_limits(&profile.client);
-    let mut issuer = fake::Issuer::new(
-        fake::Config {
-            authorization_url: registration.authorization_url.clone(),
-            token_endpoint: bytes::copy_of(endpoint),
-            client_id: registration.client_id.clone(),
-            client_secret: None,
-            redirect_uri: registration.redirect_uri.clone(),
-            refresh_token: skein_lib::Secret::new(bytes::copy_of(b"seed")),
-            terms: sign_out.map(crate::sign_out::issuer_terms),
-        },
-        issuer_limits,
-    )
-    .expect("issuer");
-    issuer
-        .queue(fake::Plan {
-            status: sign_out.map_or(200, crate::sign_out::status),
-            body: fake::Body::Token(oauth::TokenResponse {
-                access_token: skein_lib::Secret::new(bytes::copy_of(b"new")),
-                refresh_token: (story != Story::Omit).then(|| bytes::copy_of(b"next")).map(skein_lib::Secret::new),
-                expires_in: 30,
-                scope: None,
-                id_token: None,
-                earliest_refresh_at: None,
-            }),
-            delay: Duration::from_millis(5),
-            retry_after: Duration::ZERO,
-        })
-        .expect("one issuer response");
-    let server_limits = http::Limits {
-        head: 2048,
-        headers: 16,
-        body: 1024,
-        read: 256,
-        response: peer::least_response(&issuer_limits).expect("world issuer response floor fits u32"),
-        send: 256,
-    };
-    let mut server = http::Server::new(&server_limits);
-    let mut server_events = Queue::with_capacity(ROOM);
-    let mut server_requests = Queue::with_capacity(ROOM);
-    let mut server_down = Queue::with_capacity(ROOM);
-    let mut issuer_out = Queue::with_capacity(ROOM);
-    let mut client_wire = Wire::new(seed);
-    let mut server_wire = Wire::new(seed.wrapping_add(1));
-    let mut tls = (client.transport == Transport::Tls).then(|| {
-        skein_tls_kit::drive::Wire::new(skein_tls_kit::server::Server::new(
-            skein_tls_kit::pki::Server::plain().config(),
-        ))
-    });
-    let mut close = TlsClose::default();
-    let epoch = if tls.is_some() { skein_tls_kit::pki::VALID } else { Wall::EPOCH };
-    client.address = Some((Ipv4Addr::LOCALHOST, 31000).into());
-    let mut now = Time::ZERO;
-    client.start(&Env { now, wall: epoch, limits: profile });
-    let mut owner = None;
-    let mut body = Vec::new();
-    let mut response: Option<(Box<[u8]>, usize)> = None;
-    let mut server_closed = false;
-    for _ in 0..100_000 {
-        let wall = Wall::from_nanos(epoch.as_nanos().saturating_add(now.as_nanos()));
-        let env = Env { now, wall, limits: profile };
-        let server_env = Env { now, wall, limits: server_limits };
-        let component = client.component.as_mut().expect("component");
-        if component.has_work() || component.next_deadline().is_some_and(|due| due <= now) {
-            component.fire(&env, &mut client.above, &mut client.requests, &mut client.files);
-        }
-        client.observe(&env);
-        if tls.is_some() && close.started.is_none() && client.facts.contains(&Fact::Keep(1)) {
-            close.started = Some(now);
-            close.deadline = client.component.as_ref().expect("component").next_deadline();
-        }
-        crate::accounts::protocol_files(&mut client, &env);
-        crate::sign_out::protocol_files(&mut client, &env);
-        if story == Story::Released && now >= Time::ZERO.saturating_add(Duration::from_secs(40)) {
-            client.close(&env);
-        }
-        if let Some(request) = client.requests.pop() {
-            crate::accounts::before_socket(&mut client, &env, &request);
-            crate::shared::before_socket(&client, &request);
-            if !client.closing
-                && ((matches!(request, io::Request::Connect { .. })
-                    && matches!(story, Story::CloseConnecting | Story::Abort))
-                    || (matches!(request, io::Request::Stream { down: Down::Send(_), .. })
-                        && story == Story::CloseSending))
-            {
-                client.close(&env);
-                if story == Story::Abort {
-                    client.ask(&env, accounts::Request::Abort);
-                }
-            }
-            match request {
-                io::Request::Connect { owner: identity, .. } => {
-                    assert!(owner.replace(identity).is_none(), "one exchange socket");
-                    let component = client.component.as_mut().expect("component");
-                    component.up(
-                        &env,
-                        io::Event::Connecting { owner: identity, socket: Token::new(9) },
-                        &mut client.above,
-                        &mut client.requests,
-                        &mut client.files,
-                    );
-                    component.up(
-                        &env,
-                        io::Event::Connected { owner: identity },
-                        &mut client.above,
-                        &mut client.requests,
-                        &mut client.files,
-                    );
-                    server_requests.push(http::Request::Next);
-                }
-                io::Request::Listen { owner: identity, addr } => {
-                    assert!(owner.replace(identity).is_none(), "one listener");
-                    client.component.as_mut().expect("component").up(
-                        &env,
-                        io::Event::Listening { owner: identity, listener: Token::new(9), addr },
-                        &mut client.above,
-                        &mut client.requests,
-                        &mut client.files,
-                    );
-                }
-                io::Request::Stream { down, .. } if tls.is_some() => {
-                    let tls = tls.as_mut().expect("TLS stream");
-                    tls.take(down);
-                    server_wire.write(&std::mem::take(&mut tls.server.received));
-                }
-                io::Request::Stream { down, .. } => {
-                    match &down {
-                        Down::Send(bytes) => server_wire.write(bytes),
-                        Down::Finish => server_wire.eof = true,
-                        Down::Demand { .. } => {}
-                    }
-                    client_wire.take(down);
-                }
-                request @ (io::Request::Close { .. } | io::Request::Abort { .. }) => {
-                    if matches!(request, io::Request::Abort { .. }) {
-                        close.aborted = Some(now);
-                    }
-                    client.component.as_mut().expect("component").up(
-                        &env,
-                        io::Event::Closed { owner: owner.take().expect("socket owner") },
-                        &mut client.above,
-                        &mut client.requests,
-                        &mut client.files,
-                    );
-                    server_requests.push(http::Request::Close);
-                }
-                other @ (io::Request::Bind { .. }
-                | io::Request::Reject { .. }
-                | io::Request::Output { .. }
-                | io::Request::Spawn { .. }
-                | io::Request::Signal { .. }
-                | io::Request::Window { .. }
-                | io::Request::Usage { .. }) => panic!("token exchange emits only socket requests: {other:?}"),
-            }
-        }
-        let answer = if owner.is_some() {
-            match &mut tls {
-                Some(tls) if !room && close.started.is_some() && tls.demand.is_some_and(|(_, room)| room > 0) => None,
-                Some(tls) => tls.answer(),
-                None => client_wire.answer(),
-            }
+impl Client {
+    fn protocol_rig(&self, room: bool) -> crate::streams::Rig {
+        let story = self.story;
+        let sign_out = self.sign_out.as_ref().map(|owner| owner.story);
+        let profile = limits();
+        let registration = registration(self.transport);
+        let (endpoint, target): (&[u8], &[u8]) = if sign_out.is_some() {
+            (b"http://127.0.0.1:31000/revoke", b"/revoke")
         } else {
-            None
+            (&registration.token_endpoint, b"/token")
         };
-        if let Some(identity) = owner
-            && let Some(up) = answer
-        {
-            client.component.as_mut().expect("component").up(
-                &env,
-                io::Event::Stream { owner: identity, up },
-                &mut client.above,
-                &mut client.requests,
-                &mut client.files,
-            );
+        let issuer_limits = issuer_limits(&profile.client);
+        let mut config = crate::streams::issuer_config(&registration, sign_out.map(crate::sign_out::issuer_terms));
+        config.token_endpoint = bytes::copy_of(endpoint);
+        let mut issuer = fake::Issuer::new(config, issuer_limits).expect("issuer");
+        issuer.queue(rotation(story, sign_out.map_or(200, crate::sign_out::status))).expect("one issuer response");
+        crate::streams::Rig {
+            issuer,
+            endpoint: bytes::copy_of(endpoint),
+            target,
+            profile,
+            server_limits: crate::streams::server_limits(&issuer_limits),
+            rewires: false,
+            callbacks: None,
+            room,
+            expected_posts: None,
+            turns: 100_000,
         }
-        if let Some(request) = server_requests.pop() {
-            http::down(&mut server, &server_env, request, &mut server_events, &mut server_down);
-        }
-        if !server_closed && let Some(up) = server_wire.answer() {
-            http::up(&mut server, &server_env, up, &mut server_events, &mut server_down);
-        }
-        if let Some(down) = server_down.pop() {
-            match &down {
-                Down::Send(bytes) => match &mut tls {
-                    Some(tls) => {
-                        tls.server.write(bytes);
-                        tls.pull();
-                    }
-                    None => client_wire.write(bytes),
-                },
-                Down::Finish => client_wire.eof = true,
-                Down::Demand { .. } => {}
-            }
-            server_wire.take(down);
-        }
-        if let Some(event) = server_events.pop() {
-            match event {
-                http::Event::Call(call) => {
-                    assert_eq!(call.method, skein_http::Method::Post);
-                    assert_eq!(
-                        call.target.as_ref(),
-                        if sign_out.is_some() { b"/revoke".as_slice() } else { b"/token".as_slice() }
-                    );
-                    assert_eq!(call.header(b"content-type"), Some(b"application/x-www-form-urlencoded".as_slice()));
-                    server_requests.push(http::Request::Body(Down::Demand {
-                        read: Read::Arrived {
-                            max: profile
-                                .client
-                                .document
-                                .document_bytes
-                                .saturating_sub(u32::try_from(body.len()).expect("bounded request body"))
-                                .max(1),
-                        },
-                        room: 0,
-                    }));
-                }
-                http::Event::Body(Up::Bytes(bytes)) => {
-                    body.extend_from_slice(&bytes);
-                    server_requests.push(http::Request::Body(Down::Demand {
-                        read: Read::Arrived {
-                            max: profile
-                                .client
-                                .document
-                                .document_bytes
-                                .saturating_sub(u32::try_from(body.len()).expect("bounded request body"))
-                                .max(1),
-                        },
-                        room: 0,
-                    }));
-                }
-                http::Event::Body(Up::End) => issuer.step(
-                    fake::Event::Post {
-                        request: oauth::HttpRequest {
-                            method: oauth::Method::Post,
-                            id: 0,
-                            endpoint: bytes::copy_of(endpoint),
-                            content_type: b"application/x-www-form-urlencoded",
-                            body: bytes::copy_of(&body),
-                            deadline: now.saturating_add(Duration::from_secs(10)),
-                        },
-                        now,
-                        wall,
-                    },
-                    &mut issuer_out,
-                ),
-                http::Event::Reply(Up::Room) => {
-                    let (bytes, offset) = response.as_mut().expect("response body");
-                    let end = offset.saturating_add(256).min(bytes.len());
-                    server_requests.push(http::Request::Reply(Down::Send(bytes::copy_of(&bytes[*offset..end]))));
-                    *offset = end;
-                    if end == bytes.len() {
-                        server_requests.push(http::Request::Reply(Down::Finish));
-                    } else {
-                        server_requests.push(http::Request::Reply(Down::Demand {
-                            read: Read::Nothing,
-                            room: u32::try_from(bytes.len() - end).expect("bounded body").min(256),
-                        }));
-                    }
-                }
-                http::Event::Closed => server_closed = true,
-                http::Event::Done(_) => {}
-                other @ (http::Event::Ended
-                | http::Event::Body(_)
-                | http::Event::Reply(_)
-                | http::Event::Refused(_)
-                | http::Event::Failed(_)) => panic!("positive independent issuer HTTP event: {other:?}"),
-            }
-        }
-        issuer.step(fake::Event::Tick { now, wall }, &mut issuer_out);
-        if let Some(output) = issuer_out.pop() {
-            match output {
-                fake::Request::Http(answer) => {
-                    server_requests.push(http::Request::Respond(http::Response {
-                        status: answer.status,
-                        headers: Box::new([]),
-                        body: http::Body::Length(skein_lib::len_u64(answer.body.len())),
-                        close: true,
-                    }));
-                    server_requests.push(http::Request::Reply(Down::Demand {
-                        read: Read::Nothing,
-                        room: u32::try_from(answer.body.len()).expect("bounded response").min(256),
-                    }));
-                    response = Some((answer.body, 0));
-                }
-                fake::Request::Redirect { .. } | fake::Request::Refused => panic!("valid rotating refresh"),
-            }
-        }
-        if client.closed && client.requests.is_empty() && client.above.is_empty() && (owner.is_none()) {
-            assert!(issuer.posts() <= 1);
-            client_wire.trace.extend(server_wire.trace);
-            close.peer_closed = tls.is_some_and(|tls| tls.server.closed);
-            return (client, client_wire.trace, close);
-        }
-        now = now.saturating_add(Duration::from_millis(1));
     }
-    panic!("protocol world settles");
+
+    pub(crate) fn protocol_turn(&mut self, env: &Env<accounts::Limits>, encrypted: bool, close: &mut TlsClose) {
+        let now = env.now;
+        let story = self.story;
+        if encrypted && close.started.is_none() && self.facts.contains(&Fact::Keep(1)) {
+            close.started = Some(now);
+            close.deadline = self.component.as_ref().expect("component").next_deadline();
+        }
+        crate::accounts::protocol_files(self, env);
+        crate::sign_out::protocol_files(self, env);
+        if story == Story::Released && now >= Time::ZERO.saturating_add(Duration::from_secs(40)) {
+            self.close(env);
+        }
+    }
+
+    pub(crate) fn protocol_socket(&mut self, env: &Env<accounts::Limits>, request: &io::Request) {
+        use skein_lib::stream::Down;
+        let story = self.story;
+        crate::accounts::before_socket(self, env, request);
+        crate::shared::before_socket(self, request);
+        if !self.closing
+            && ((matches!(request, io::Request::Connect { .. })
+                && matches!(story, Story::CloseConnecting | Story::Abort))
+                || (matches!(request, io::Request::Stream { down: Down::Send(_), .. }) && story == Story::CloseSending))
+        {
+            self.close(env);
+            if story == Story::Abort {
+                self.ask(env, accounts::Request::Abort);
+            }
+        }
+    }
+
+    pub(crate) fn deliver(&mut self, env: &Env<accounts::Limits>, event: io::Event) {
+        self.component.as_mut().expect("component").up(
+            env,
+            event,
+            &mut self.above,
+            &mut self.requests,
+            &mut self.files,
+        );
+    }
 }
 
 pub(crate) fn terms() -> oauth::Terms {
@@ -1449,4 +1212,13 @@ pub fn delayed_oauth_output() -> Vec<&'static str> {
         }
     }
     trace
+}
+
+fn rotation(story: Story, status: u16) -> fake::Plan {
+    crate::streams::token_plan(
+        status,
+        bytes::copy_of(b"new"),
+        (story != Story::Omit).then(|| bytes::copy_of(b"next")),
+        None,
+    )
 }

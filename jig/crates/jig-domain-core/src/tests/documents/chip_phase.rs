@@ -1,5 +1,6 @@
 //! Chip facts through public row constructors and the fleet owner entry point.
 use crate::tests::*;
+use jig_domain_link::Operation;
 
 #[test]
 fn chip_owner_facts_keep_readiness_retry_hold_and_ending_clocks_distinct() {
@@ -223,7 +224,7 @@ fn chip_closing_names_the_connectors_waited_on_without_counting_their_effects() 
     assert_eq!(chip_from_row_with_core(&core, &short, row), Err(Missing::TooLarge));
 }
 
-fn long_operation_work(operation: fleet::Operation) -> ChipWork {
+fn long_operation_work(operation: Operation) -> ChipWork {
     let (mut core, mut limits) = make_tree();
     limits.fleet.engine_slots = 1;
     core.fleet = fleet::Domain::new(&limits.fleet, limits.settings.versions, fixtures::needs(), Box::new([]));
@@ -266,15 +267,15 @@ fn long_operation_work(operation: fleet::Operation) -> ChipWork {
 }
 
 fn a_long_completion_shows_the_run_as_writing() {
-    assert_eq!(long_operation_work(fleet::Operation::Completion), ChipWork::Writing);
+    assert_eq!(long_operation_work(Operation::Completion), ChipWork::Writing);
 }
 
 fn long_checks_shows_the_run_as_active() {
-    assert_eq!(long_operation_work(fleet::Operation::Checks), ChipWork::Active);
+    assert_eq!(long_operation_work(Operation::Checks), ChipWork::Active);
 }
 
 fn a_long_command_shows_the_run_as_active() {
-    assert_eq!(long_operation_work(fleet::Operation::Command), ChipWork::Active);
+    assert_eq!(long_operation_work(Operation::Command), ChipWork::Active);
 }
 
 #[test]

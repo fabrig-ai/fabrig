@@ -436,6 +436,30 @@ and `connect-forge.html`.
   through temper: Forgejo’s sign-in is temper’s.", LOGIN the member's
   login. Forgejo starts its sign-in with the temper source, temper
   answers at once, and Forgejo opens signed in.
+- **A box's Forgejo that can't sign in through temper:** on a row whose page facts
+  say so (`../protocol/sign-in.md`, 9.9), the line "This Forgejo asks for its
+  password: temper couldn't connect its sign-in. box.log says why." under the
+  row's actions. Nothing else changes, and the set-up is done.
+- **A repository's link:** in the browser, wherever a project's repository
+  is named with its forge known (the switcher's row, `README.md`, 5.3; the
+  body's "Repositories" row below; the Forge line and Settings' Repositories,
+  `README.md`, 3.5), OWNER/NAME is the link "OWNER/NAME ↗", in a new tab,
+  underlined on hover, in the look of the words it replaces. Its address:
+  - a Forgejo whose page facts offer sign-in (`../protocol/sign-in.md`, 9.3):
+    `ROOT/user/oauth2/temper?redirect_to=%2FOWNER%2FNAME`, ROOT as for "Open
+    Forgejo ↗", so that one click signs the member in and lands on the
+    repository's page;
+  - any other forge, GitHub among them, with a `web` address: `WEB/OWNER/NAME`;
+  - otherwise none, and the words stay plain, as the playground's do.
+
+  OWNER and NAME are each percent-encoded as a path's segment, all but ASCII
+  letters, digits, `-`, `.`, `_` and `~`, and in `redirect_to` that path is
+  encoded again as a query's value, so a name can't end the path, the query or
+  the address. An address that isn't a safe `http` or `https` URL is none.
+  The terminal draws no link, and its words are unchanged. A folded row's
+  summary stays words: a disclosure's description is text in its `<summary>`,
+  and a link there is the trap a link in a button is; its link is in the
+  row's body, under "Repositories".
 - **A forge's name:** "Forgejo on this machine" for an owned Forgejo,
   "GitHub" for GitHub, "Forgejo at HOST" for another Forgejo, HOST its
   `web` address's host, and "Playground forge" for the playground's
@@ -860,8 +884,8 @@ says:
   (`../protocol/setup.md`, 6.7): "Making ORG/NAME" from the ask until
   it is made; once made and connected, the body's "Repositories" row
   says "ORG/NAME · project PROJECT", resolving PROJECT to its name,
-  as the summary does. It stays plain while the client has no project's
-  changes address. There is no separate Made paragraph. Or "Making
+  as the summary does, ORG/NAME the repository's link (5.4, *A repository's
+  link*). There is no separate Made paragraph. Or "Making
   ORG/NAME failed: STEP", the step one of "checking the admin's
   token", "making the organization", "making the repository" (its
   bot's access with it) or "adding the starter workflow", beside "Set
@@ -948,9 +972,8 @@ git token or both."); and the bundle of the action's values past 4 KiB,
 jig's bound on a carried value (`tools.md`, section 12), shows "The
 pasted values are past 4 KiB, the most a request carries." under the
 action's button. The link a connect or an install answers is where
-the browser's tab goes, as a sign-in's address is (`README.md`, 3.5,
-`ConnectModel`, The tab's departure): the root asks its shell to leave
-for it once, from the answer, and the page shows it as an external
+the browser's tab goes: the root asks its shell to leave
+for it once, from the answer, never from its state, and the page shows it as an external
 link meanwhile. The terminal prints it and opens nothing (`README.md`,
 6.5).
 
@@ -1151,8 +1174,8 @@ manifest from it (`../protocol/forge.md`, the setup's host).
   page that sends `Connect` or `Install` names `back`, its own address,
   which the setup's host holds with the state (a connect's passes to
   the install `Convert` starts), and the browser goes to the link in
-  the page's own tab, as a sign-in's does (`README.md`, 3.5,
-  `ConnectModel`, The tab's departure). The setup route sends it back
+  the page's own tab, where a sign-in has a tab of its own (`README.md`, 3.5,
+  `ConnectModel`, The sign-in's tab). The setup route sends it back
   there, so the page that started it shows how it ended, as a new
   client: the welcome's Forge step, `ConnectForge` at the forge, or the
   Forges page. A connect from the terminal names none, and its routes

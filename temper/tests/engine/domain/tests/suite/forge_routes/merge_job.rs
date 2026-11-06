@@ -1,6 +1,7 @@
 //! Merge jobs precede resolutions (temper/docs/design/domain/forge.md, 8.4).
 use super::light_rules::{change_row, pushed_change_in};
 use super::*;
+use jig_domain_link::JobKind;
 use temper_engine_domain_forge_change as change;
 
 const CHANNEL: Token = Token::new(7);
@@ -72,7 +73,7 @@ fn next_job(world: &mut World, task: u64, optimistic: bool) -> host::JobAssignme
 }
 
 fn check_job(world: &World, task: u64, job: &host::JobAssignment, head: u64, base: u64) {
-    assert_eq!(job.kind, host::JobKind(forge_top::MERGE_KIND));
+    assert_eq!(job.kind, JobKind(forge_top::MERGE_KIND));
     assert_eq!(job.deadline, Duration::from_secs(600));
     let workspace = job.workspace.as_ref().expect("job workspace");
     assert_eq!(workspace.workstream, task, "the change owns the checkout cache");

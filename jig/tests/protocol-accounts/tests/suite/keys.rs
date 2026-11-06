@@ -1,4 +1,5 @@
-use jig_domain_accounts::{Form, FromComponent, KeyFailure, Scheme};
+use jig_domain_accounts::{FromComponent, KeyFailure};
+use jig_domain_link::{Form, Scheme};
 use jig_protocol_accounts_world::key_world::World;
 use jig_protocol_store::SecretOwner;
 use skein_lib::{Secret, Time};

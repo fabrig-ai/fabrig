@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+temper-fixtures.workspace = true
 skein-fail-stop.workspace = true
 temper-playground.workspace = true
 skein-fake-person-browser.workspace = true

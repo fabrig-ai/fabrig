@@ -262,7 +262,6 @@ impl Driver {
                 | engine::Request::MakingCopied { .. }
                 | engine::Request::SetUp { .. }
                 | engine::Request::Bound { .. }
-                | engine::Request::Return { .. }
                 | engine::Request::Setup { .. }
                 | engine::Request::Busy(_)
                 | engine::Request::Unsettled(_)

@@ -25,9 +25,13 @@ but matter least: the flow, look and mechanics come first (the user,
 ## Where the client departs from it
 
 Every departure is a **Design departs** entry in
-`../README.status.md`, with its request. One to know when reading these
+`../README.status.md`, with its request. Two to know when reading these
 pages:
 
+- **Stopping work** says "Pause", "Resume" and "Close" on a chat, a goal and an
+  agent's task, on purpose, where a goal here says "Stop": that word meant a
+  goal's end and a chat's hold. The user's word, 2026-11-06 (the request
+  `ui-pause-close`; `../README.md`, 3.5, *A person's pause*).
 - **The rail's foot row,** the person's name, is plain text here. In the
   client it opens a small menu above it, with "Accounts" and "Sign out",
   in the look of the project switcher's menu; a phone, with no rail's

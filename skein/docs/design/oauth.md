@@ -763,8 +763,8 @@ sign-in at once. The load goes on for the account.
   binds on the redirect's address and port (127.0.0.1 for `localhost`) only
   while a sign-in waits for it. It reads one request head with skein-http's
   server, within its limits, checks the request's URI exactly against the
-  registration (section 1), answers a small fixed page, and closes the
-  connection. A request for another path, or past the limits, is answered
+  registration (section 1), answers a small fixed page, "Sign-in received.
+  You can close this tab.", and closes the connection. A request for another path, or past the limits, is answered
   with a refusal and closed, the sign-in still waiting. The listener closes
   with the sign-in's terminal.
 - **The return.** The owner may give a sign-in under way a return location
@@ -1008,3 +1008,9 @@ accounts component nor its listener requires a sum of heap prices.
   `pending_grant`, `aborted` and `file_active` beside its stage, and neither
   crate's machine has one handler per cell (programming-model.md, section
   5.4). Default: as they stand, until a debt item names them.
+- **A return no application gives** (6.5): temper's sign-in runs in a tab of its
+  own and holds its page (`temper/docs/design/client/README.md`, 3.5,
+  `ConnectModel`, The sign-in's tab), so neither `Request::Return` nor
+  `jig-protocol-accounts`'s `return_to`, over it, has a shipping caller: their own
+  tests alone reach them. Whether they go, or wait for an application that sends
+  its own tab to `visit`. Default: they stay.

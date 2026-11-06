@@ -5,8 +5,30 @@ use skein_fake_person::{Next, Person};
 use skein_lib::{Duration, Time};
 use std::collections::VecDeque;
 mod growth;
+mod keep_box;
+mod tabs;
+
+/// Other tabs awaited as listed (skein/docs/design/ui-web.md, 14.2).
+#[derive(Clone, Debug)]
+pub struct TabSeen {
+    /// The tab's title, whole.
+    pub title: Option<Box<[u8]>>,
+    /// Bytes its address holds.
+    pub address: Option<Box<[u8]>>,
+    /// Whether it can reach its opener.
+    pub opener: Option<bool>,
+}
 
 pub enum Step {
+    /// Set the page viewport in CSS pixels before the next action.
+    Viewport {
+        width: u32,
+        height: u32,
+    },
+    Tabs {
+        tabs: Box<[TabSeen]>,
+        within: Duration,
+    },
     Run(super::Command),
     Exited {
         code: i32,
@@ -16,6 +38,10 @@ pub enum Step {
     Keep {
         selector: Box<[u8]>,
         attribute: Option<Box<[u8]>>,
+        name: Box<[u8]>,
+    },
+    KeepBox {
+        find: skein_fake_person::Find,
         name: Box<[u8]>,
     },
     StopServer,
@@ -78,6 +104,8 @@ pub struct Script {
     commanding: bool,
     focused: Option<skein_fake_person::Find>,
     growth: Option<growth::Growth>,
+    keep_box: Option<keep_box::KeepBox>,
+    tabs: Option<tabs::Awaiting>,
     press: Option<(skein_fake_person::Find, skein_browser::boundary::Point)>,
     awaited: Option<(Time, Awaited)>,
     request: Option<super::Asked>,
@@ -98,11 +126,22 @@ impl Script {
             focused: None,
             press: None,
             growth: None,
+            keep_box: None,
+            tabs: None,
             text: None,
             awaited: None,
             request: None,
             status: None,
         }
+    }
+    fn tabs_step(&mut self, face: &mut BrowserFace<'_>, now: Time) -> bool {
+        let Some(mut tabs) = self.tabs.take() else { return false };
+        if tabs.next(face, now) {
+            self.at += 1;
+        } else {
+            self.tabs = Some(tabs);
+        }
+        true
     }
     fn await_step(&mut self, face: &mut BrowserFace<'_>, now: Time) -> bool {
         let Some((until, awaited)) = self.awaited.take() else {
@@ -218,7 +257,18 @@ impl Play for Script {
             }
             return Next::Wait { until: None };
         }
+        if self.tabs_step(face, now) {
+            return Next::Wait { until: None };
+        }
         if self.await_step(face, now) {
+            return Next::Wait { until: None };
+        }
+        if let Some(keeping) = self.keep_box.take() {
+            if keeping.next(face) {
+                self.at += 1;
+            } else {
+                self.keep_box = Some(keeping);
+            }
             return Next::Wait { until: None };
         }
         if let Some(next) = self.grow(face, now) {
@@ -263,9 +313,17 @@ impl Play for Script {
             return Next::Done;
         };
         match step {
+            Step::Viewport { width, height } => {
+                face.viewport(width, height);
+                self.at += 1;
+            }
             Step::Key(key) | Step::KeyWithShift(key) => {
                 face.key(key, matches!(step, Step::KeyWithShift(_)));
                 self.at += 1;
+            }
+            Step::Tabs { tabs, within } => {
+                self.tabs = Some(tabs::Awaiting::new(tabs, now.saturating_add(within)));
+                self.tabs_step(face, now);
             }
             Step::Run(command) => {
                 face.command(super::CommandAction::Run(command));
@@ -279,6 +337,7 @@ impl Play for Script {
                 face.keep(selector, attribute, name);
                 self.keeping = true;
             }
+            Step::KeepBox { find, name } => self.keep_box = Some(keep_box::KeepBox::new(find, name)),
             Step::Address(path) => {
                 face.read_address(&path);
                 self.at += 1;
@@ -354,6 +413,7 @@ impl Play for Script {
         self.at + self.person.as_ref().map_or(0, Person::at)
     }
     fn check_deadline(&mut self, face: &mut BrowserFace<'_>, now: Time) {
+        self.tabs_step(face, now);
         if self.commanding && face.command_done() {
             self.commanding = false;
             self.at += 1;

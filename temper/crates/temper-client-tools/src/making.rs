@@ -455,7 +455,6 @@ fn answer(pending: &Pending, outcome: &Outcome, json: bool, limits: &Limits) -> 
             | w::Outcome::Running
             | w::Outcome::StartRefused(_)
             | w::Outcome::StartFailed(_)
-            | w::Outcome::Returning
             | w::Outcome::Connecting
             | w::Outcome::Link(_)
             | w::Outcome::ConnectRefused(_)

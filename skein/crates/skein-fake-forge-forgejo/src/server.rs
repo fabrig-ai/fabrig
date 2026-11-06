@@ -495,7 +495,7 @@ fn entrance(
                 server.json.restart();
             }
             server.json_started = true;
-            let first = documents::body_first(&decoder);
+            let first = json::Request::Next;
             server.decoder = Some(decoder);
             json_down(server, env, first);
         }

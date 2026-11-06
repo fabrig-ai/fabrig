@@ -118,7 +118,6 @@ pub fn answer(record: &jig_client::Family, limits: &w::Limits, link: &link::Limi
         | w::Outcome::MakeRefused(_)
         | w::Outcome::Page(_)
         | w::Outcome::Accepted(_)
-        | w::Outcome::Returning
         | w::Outcome::Connecting
         | w::Outcome::Link(_)
         | w::Outcome::ConnectRefused(_)
@@ -223,7 +222,6 @@ pub fn set_up_answer(record: &jig_client::Family, limits: &w::Limits) -> Option<
         | w::Outcome::MakeRefused(_)
         | w::Outcome::Page(_)
         | w::Outcome::Accepted(_)
-        | w::Outcome::Returning
         | w::Outcome::Connecting
         | w::Outcome::Link(_)
         | w::Outcome::ConnectRefused(_)
@@ -374,7 +372,7 @@ fn fetched_from(connection: &w::Connection) -> Option<forge::forges::Fetched> {
     };
     match value.step() {
         Some(w::SetUpStep::Fetch) => {}
-        Some(w::SetUpStep::Prepare | w::SetUpStep::Run) | None => return None,
+        Some(w::SetUpStep::Prepare | w::SetUpStep::Run | w::SetUpStep::Source) | None => return None,
     }
     let fetched = value.fetched().as_ref()?;
     if let Some(total) = fetched.total()
@@ -402,6 +400,7 @@ fn connection_from(connection: w::Connection) -> forge::forges::Connection {
                 Some(w::SetUpStep::Fetch) => Some(Step::Fetch),
                 Some(w::SetUpStep::Prepare) => Some(Step::Prepare),
                 Some(w::SetUpStep::Run) => Some(Step::Run),
+                Some(w::SetUpStep::Source) => Some(Step::Source),
                 None => None,
             },
         },

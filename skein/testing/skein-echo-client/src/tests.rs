@@ -17,19 +17,7 @@ use skein_lib::{Duration, Time, Wall};
 use crate::{Client, HalfClose, Limits, Plan, Then, iterate};
 
 const LIMITS: Limits = Limits {
-    io: skein_io::Limits {
-        sockets: 2,
-        refusals: 1,
-        intake: 32,
-        receive: 32,
-        output: 32,
-        sends: 2,
-        accepts: 1,
-        backlog: 1,
-        close_timeout: Duration::from_secs(1),
-        names: 0,
-        retry: Duration::from_millis(10),
-    },
+    io: skein_io::Limits { intake: 32, receive: 32, output: 32, ..skein_io::Limits::TEST },
     line: 16,
     queue: 4,
 };

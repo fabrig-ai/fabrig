@@ -1,5 +1,6 @@
 //! Scripted peers consume each root delivery in order.
 use super::{Fault, ReplyTo, StoreOut, Token, World, connector, core, people, root};
+use jig_domain_link::{Login, LoginState};
 impl World {
     #[expect(clippy::too_many_lines, reason = "one exhaustive delivery handler drives the script's independent peers")]
     pub(super) fn delivered(&mut self, mut delivery: root::Delivery) {
@@ -40,13 +41,7 @@ impl World {
             root::Delivery::Core(core::Held::Sources { channel, sources }) => {
                 self.events.push_back(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Logins {
                     channel,
-                    logins: sources
-                        .iter()
-                        .map(|source| jig_domain_fleet::Login {
-                            name: *source,
-                            state: jig_domain_fleet::LoginState::Usable,
-                        })
-                        .collect(),
+                    logins: sources.iter().map(|source| Login { name: *source, state: LoginState::Usable }).collect(),
                 })));
             }
             root::Delivery::ApplicationRead { reply, number, answer } => {

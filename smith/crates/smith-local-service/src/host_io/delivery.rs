@@ -3,10 +3,12 @@
 use super::{HostIo, git_limits, plain_limits};
 use alloc::boxed::Box;
 use core::mem;
-use skein_io::{file, file_layer, kernel};
+use skein_io::{file, file_layer::step, kernel};
 use skein_lib::{List, Map, Queue, Time, Token};
 use smith_local_domain as local;
 use smith_local_protocol as local_protocol;
+
+const GIT_TAG: u8 = 4;
 
 /// One capture of the plain directories: from `next`, until `deadline`.
 #[derive(Debug)]
@@ -244,7 +246,7 @@ impl HostIo {
         self.delivery.git = match root {
             Some(root) => local_protocol::GitChild::new(
                 owner,
-                Token::new(1 << 62),
+                Token::tagged(GIT_TAG, 0).expect("git owner fits namespace"),
                 root,
                 self.delivery.git_environment.clone(),
                 op,
@@ -267,7 +269,8 @@ impl HostIo {
 
     pub(super) fn markers_up(&mut self, now: Time, local_events: &mut Queue<local::Event>) {
         if self.files.is_due(now) {
-            file_layer::expire(&mut self.files, now, &mut self.file_submissions);
+            let env = self.file_env(now, skein_lib::Wall::EPOCH);
+            step::expire(&mut self.files, &env, &mut self.file_submissions);
         }
         self.store_pass(now, local_events);
         for _ in 0..self.limits.queue {

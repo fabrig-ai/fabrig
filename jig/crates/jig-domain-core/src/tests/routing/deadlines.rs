@@ -1,5 +1,6 @@
 //! Clock projection and ordered timer selection (jig/docs/design/domain/engine.md, 4.1).
 use crate::tests::*;
+use jig_domain_link::{Form, Scheme};
 
 fn arm_brief(core: &mut Core, limits: &Limits, deadline: Time) {
     let mut out = Queue::uncapped();
@@ -161,7 +162,7 @@ fn account_alarms_keep_running_while_the_core_stops() {
         &mut core.accounts,
         &env,
         accounts::Event::Component(accounts::FromComponent::Granted {
-            form: accounts::Form::Credential(accounts::Scheme::Bearer),
+            form: Form::Credential(Scheme::Bearer),
             account: 1,
             generation: 1,
             valid: Duration::from_secs(60),

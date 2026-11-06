@@ -49,7 +49,7 @@ struct Tree {
 
 impl Tree {
     fn start(mode: &str) -> Self {
-        skein_shell::make_subreaper().expect("adopt and reap orphaned sleep");
+        skein_shell::keeper::make_subreaper().expect("adopt and reap orphaned sleep");
         let scratch = Scratch::new("parent-death");
         let parent = Command::new(skein_scratch::paths::binary("process_fixture"))
             .args(["parent-death-parent", mode])
@@ -58,14 +58,14 @@ impl Tree {
             .stdin(Stdio::piped())
             .spawn()
             .expect("spawn parent fixture");
-        let parent_fd = skein_shell::open_pidfd(parent.id()).expect("keep unreaped group leader");
+        let parent_fd = skein_shell::keeper::open_pidfd(parent.id()).expect("keep unreaped group leader");
         let mut tree = Self { parent, parent_fd, child: None, scratch: Some(scratch), ended: false };
         let mut pid = None;
         let mut deadline = Patience::new("the parent fixture reporting its child", PATIENCE);
         deadline.watch_process(tree.parent.id());
         let result = until(&deadline, || {
             assert!(
-                skein_shell::poll_child(tree.parent_fd, false).expect("parent startup status").is_none(),
+                skein_shell::keeper::poll_child(tree.parent_fd, false).expect("parent startup status").is_none(),
                 "parent fixture exited before reporting its child"
             );
             pid = fs::read_to_string(tree.scratch.as_ref().expect("scratch").path().join("child-pid"))
@@ -75,8 +75,9 @@ impl Tree {
         });
         tree.check_wait(result, "process tree did not reach its expected state within 5 s");
         let pid = pid.expect("parent reported child PID");
-        tree.child =
-            Some(skein_shell::open_child_pidfd(pid, tree.parent.id()).expect("validate child identity before exec"));
+        tree.child = Some(
+            skein_shell::keeper::open_child_pidfd(pid, tree.parent.id()).expect("validate child identity before exec"),
+        );
         let mut deadline = Patience::new("the child executing sleep", PATIENCE);
         deadline.watch_process(pid);
         tree.parent.stdin.take().expect("parent input").write_all(b"x").expect("release exec child");
@@ -94,13 +95,14 @@ impl Tree {
         deadline.watch_process(self.parent.id());
         self.parent.kill().expect("SIGKILL parent");
         // Retain the zombie leader until Drop has settled its owned group.
-        let result =
-            until(&deadline, || skein_shell::poll_child(self.parent_fd, false).expect("retain parent exit").is_some());
+        let result = until(&deadline, || {
+            skein_shell::keeper::poll_child(self.parent_fd, false).expect("retain parent exit").is_some()
+        });
         self.check_wait(result, "process tree did not reach its expected state within 5 s");
     }
 
     fn child_exited(&self) -> bool {
-        skein_shell::pidfd_exited(self.child.expect("registered child")).expect("poll sleep identity")
+        skein_shell::keeper::pidfd_exited(self.child.expect("registered child")).expect("poll sleep identity")
     }
 }
 
@@ -128,16 +130,16 @@ impl Tree {
             }
             // These are our unreaped children: no other owner reaps them,
             // so their numeric identities stay bound while the handle opens.
-            let descriptor = skein_shell::open_pidfd(pid).expect("retain an adopted child");
+            let descriptor = skein_shell::keeper::open_pidfd(pid).expect("retain an adopted child");
             let stat = fs::read_to_string(format!("/proc/{pid}/stat")).expect("adopted child's identity");
             let mut fields = stat.rsplit_once(") ").expect("proc stat").1.split_whitespace();
             let _state = fields.next().expect("state field");
             let parent: u32 = fields.next().expect("parent field").parse().expect("parent PID");
             let group: u32 = fields.next().expect("group field").parse().expect("group PID");
             if parent == std::process::id() && group == self.parent.id() {
-                skein_shell::abandon_binary(Some(descriptor), &[descriptor]);
+                skein_shell::keeper::abandon_binary(Some(descriptor), &[descriptor]);
             } else {
-                skein_shell::close_keeper_fd(descriptor);
+                skein_shell::keeper::close_keeper_fd(descriptor);
             }
         }
     }
@@ -155,32 +157,33 @@ impl Tree {
                 .and_then(|scratch| fs::read_to_string(scratch.path().join("child-pid")).ok())
                 .and_then(|pid| pid.parse().ok())
         {
-            self.child = skein_shell::open_child_pidfd(pid, self.parent.id())
+            self.child = skein_shell::keeper::open_child_pidfd(pid, self.parent.id())
                 .ok()
-                .or_else(|| skein_shell::open_child_pidfd(pid, std::process::id()).ok());
+                .or_else(|| skein_shell::keeper::open_child_pidfd(pid, std::process::id()).ok());
         }
         let mut deadline = Patience::new("the killed parent exiting during cleanup", PATIENCE);
         deadline.watch_process(self.parent.id());
         // The private group also covers a child not yet reported during failed startup.
-        let _killed = skein_shell::signal_kept_child(self.parent_fd, Signal::Kill, skein_io::kernel::Target::Group);
+        let _killed =
+            skein_shell::keeper::signal_kept_child(self.parent_fd, Signal::Kill, skein_io::kernel::Target::Group);
         let _killed = self.parent.kill();
         if let Some(child) = self.child {
-            let _killed = skein_shell::signal_kept_child(child, Signal::Kill, skein_io::kernel::Target::Child);
+            let _killed = skein_shell::keeper::signal_kept_child(child, Signal::Kill, skein_io::kernel::Target::Child);
         }
         let result = until(&deadline, || {
-            skein_shell::poll_child(self.parent_fd, false).expect("observe retained parent").is_some()
+            skein_shell::keeper::poll_child(self.parent_fd, false).expect("observe retained parent").is_some()
         });
         // After an unanswered cleanup wait, finish the same owned teardown before exiting.
-        while skein_shell::poll_child(self.parent_fd, false).expect("observe retained parent").is_none() {
+        while skein_shell::keeper::poll_child(self.parent_fd, false).expect("observe retained parent").is_none() {
             std::thread::sleep(POLL);
         }
         if let Some(child) = self.child.take() {
-            skein_shell::abandon_binary(Some(child), &[child]);
+            skein_shell::keeper::abandon_binary(Some(child), &[child]);
         }
         self.reap_adopted();
         let _reaped = self.parent.wait();
         drop(self.parent.stdin.take());
-        skein_shell::close_keeper_fd(self.parent_fd);
+        skein_shell::keeper::close_keeper_fd(self.parent_fd);
         drop(self.scratch.take());
         if classify && let Err(verdict) = result {
             expired(verdict, "process tree did not reach its expected state within 5 s");
@@ -198,7 +201,7 @@ impl Drop for Tree {
 fn a_killed_parent_is_retained_until_its_group_is_settled() {
     let mut tree = Tree::start("plain");
     tree.kill_parent();
-    assert_eq!(skein_shell::poll_child(tree.parent_fd, false), Ok(Some(Exit::Signal(9))));
+    assert_eq!(skein_shell::keeper::poll_child(tree.parent_fd, false), Ok(Some(Exit::Signal(9))));
     assert!(!tree.child_exited(), "plain exec remains for owned cleanup");
 }
 
@@ -208,14 +211,16 @@ fn a_parent_killed_after_exec_takes_its_child_with_it() {
     let clock = Clock::new();
     let start = clock.now().now;
     let mut deadline = Patience::new("the parent-death child exiting after SIGKILL", PATIENCE);
-    deadline.watch_process(skein_shell::child_id(tree.child.expect("child identity")).expect("the owned child's PID"));
+    deadline.watch_process(
+        skein_shell::keeper::child_id(tree.child.expect("child identity")).expect("the owned child's PID"),
+    );
     tree.kill_parent();
     let result = until(&deadline, || tree.child_exited());
     tree.check_wait(result, "parent-death signal must end sleep within 5 s");
     let elapsed = clock.now().now.saturating_since(start);
     eprintln!("parent SIGKILL to sleep exit: {} ns", elapsed.as_nanos());
     assert_eq!(
-        skein_shell::poll_child(tree.child.expect("child identity"), false),
+        skein_shell::keeper::poll_child(tree.child.expect("child identity"), false),
         Ok(Some(Exit::Signal(9))),
         "sleep died from the installed signal"
     );
@@ -281,13 +286,16 @@ fn a_wrong_parent_is_refused_before_exec() {
 fn cleanup_reaps_a_child_without_a_reported_pid() {
     let mut tree = Tree::start("plain");
     let child = tree.child.take().expect("registered child");
-    let keeper = skein_shell::open_child_pidfd(skein_shell::child_id(child).expect("child PID"), tree.parent.id())
-        .expect("retain the child's identity for its reap check");
-    skein_shell::close_keeper_fd(child);
+    let keeper = skein_shell::keeper::open_child_pidfd(
+        skein_shell::keeper::child_id(child).expect("child PID"),
+        tree.parent.id(),
+    )
+    .expect("retain the child's identity for its reap check");
+    skein_shell::keeper::close_keeper_fd(child);
     fs::remove_file(tree.scratch.as_ref().expect("scratch").path().join("child-pid")).expect("remove the PID report");
     drop(tree);
-    let reaped = skein_shell::poll_child(keeper, false);
-    skein_shell::close_keeper_fd(keeper);
+    let reaped = skein_shell::keeper::poll_child(keeper, false);
+    skein_shell::keeper::close_keeper_fd(keeper);
     assert_eq!(
         reaped,
         Err(skein_io::kernel::Error::Other(libc::ECHILD)),

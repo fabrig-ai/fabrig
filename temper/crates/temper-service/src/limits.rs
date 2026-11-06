@@ -2,6 +2,7 @@
 mod names;
 mod reference;
 use alloc::boxed::Box;
+use jig_domain_link::{JobBound, JobKind};
 pub use names::{NAMES, Name, Unit, find};
 pub use reference::{engine_reference, reference};
 use skein_lib::Duration;
@@ -24,9 +25,9 @@ pub struct Root {
 /// The clients' listener's own limits: the browser's bundle (protocol/configuration.md, 7).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Clients {
-    /// The bundle's files, its page among them.
+    /// The bundle's files, its page and each compressed form among them.
     pub bundle_files: u32,
-    /// The bundle's files' bytes in all, held in memory while `temper serve` runs.
+    /// Both forms' bytes in all, held in memory while `temper serve` runs.
     pub bundle_bytes: u32,
 }
 /// People's sign-ins (protocol/sign-in.md, 6).
@@ -418,10 +419,10 @@ const STANDARD_ROOT: Root = Root {
     },
 };
 const CLIENTS: Clients = Clients {
-    // Files of a bundle, the page among them: far above the shell's dev bundle (decision 6 of browser-1).
+    // Files of a bundle, the page and both forms among them (client/browser.md, 2.2).
     bundle_files: 128,
-    // Bytes of a bundle in all, read into memory at start.
-    bundle_bytes: 16 << 20,
+    // Bytes of both forms in all, read into memory at start (protocol/configuration.md, 7).
+    bundle_bytes: 32 << 20,
 };
 /// The standalone process's socket admission holds standard's owned example with both listeners and a sign-in.
 pub const SOCKETS: u32 = 256;
@@ -578,18 +579,13 @@ pub(crate) const MERGE_SPEC_BYTES: u32 = 4_096;
 pub(crate) const MERGE_RESULT_BYTES: u32 = 512;
 pub(crate) const MERGE_DEADLINE: Duration = Duration::from_secs(600);
 
-pub(crate) fn merge_bound() -> jig_domain_host::JobBound {
-    jig_domain_host::JobBound {
-        kind: jig_domain_host::JobKind(MERGE_KIND),
-        spec: MERGE_SPEC_BYTES,
-        result: MERGE_RESULT_BYTES,
-        deadline: MERGE_DEADLINE,
-    }
+pub(crate) fn merge_bound() -> JobBound {
+    JobBound { kind: JobKind(MERGE_KIND), spec: MERGE_SPEC_BYTES, result: MERGE_RESULT_BYTES, deadline: MERGE_DEADLINE }
 }
 
 /// Declare merge only where the tasks child holds its bounds
 /// (temper/docs/design/domain/worker.md, 4.4).
-pub(crate) fn merge_jobs(jig: &jig_protocol_config::Limits) -> Box<[jig_domain_host::JobBound]> {
+pub(crate) fn merge_jobs(jig: &jig_protocol_config::Limits) -> Box<[JobBound]> {
     let bound = merge_bound();
     if bound.spec <= jig.core.tasks.spec_bytes && bound.result <= jig.core.tasks.result_bytes {
         Box::new([bound])

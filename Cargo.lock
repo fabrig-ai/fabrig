@@ -3,6 +3,12 @@
 version = 4
 
 [[package]]
+name = "adler2"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
+
+[[package]]
 name = "aho-corasick"
 version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -67,6 +73,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59ed5838eebb26a2bb2e58f6d5b5316989ae9d08bab10e0e6d103e656d1b0280"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "crc32fast"
+version = "1.5.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5f97d3416d5337d15c4b0d78c8c91df922ca143f57ec20e2d1c188333047ef04"
+dependencies = [
+ "cfg-if",
 ]
 
 [[package]]
@@ -174,6 +189,16 @@ name = "find-msvc-tools"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aedcfb3409746eddb02b9e19ebda1c3394f759a152e48ee875a0844d1b955484"
+
+[[package]]
+name = "flate2"
+version = "1.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bfe33edd8e85a12a67454e37f8c75e730830d83e313556ab9ebf9ee7fbeb3bfb"
+dependencies = [
+ "crc32fast",
+ "miniz_oxide",
+]
 
 [[package]]
 name = "foldhash"
@@ -688,6 +713,7 @@ version = "0.0.0"
 dependencies = [
  "hearth-lib",
  "hearth-protocol-tree",
+ "sha1",
  "skein-io",
  "skein-lib",
  "skein-scratch",
@@ -787,6 +813,7 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -834,8 +861,8 @@ dependencies = [
  "jig-channel-kit",
  "jig-domain-accounts",
  "jig-domain-core",
- "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-link",
  "jig-domain-tasks",
  "jig-protocol-worker-wire",
  "serde_json",
@@ -918,6 +945,7 @@ dependencies = [
  "jig-domain-authority",
  "jig-domain-core",
  "jig-domain-fleet",
+ "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -968,6 +996,7 @@ dependencies = [
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-core",
+ "jig-domain-link",
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-fake-parties",
@@ -1236,6 +1265,7 @@ dependencies = [
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-core",
+ "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -1294,6 +1324,7 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -1329,6 +1360,7 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -1412,7 +1444,6 @@ dependencies = [
 name = "jig-domain-hub-link"
 version = "0.0.0"
 dependencies = [
- "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-brief",
  "jig-domain-core",
@@ -1441,6 +1472,7 @@ dependencies = [
 name = "jig-domain-people"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-link",
  "skein-lib",
 ]
 
@@ -1515,6 +1547,7 @@ name = "jig-engine-workers-world"
 version = "0.0.0"
 dependencies = [
  "jig-domain-host",
+ "jig-domain-link",
  "jig-protocol-engine-workers",
  "jig-protocol-worker-wire",
  "skein-channel",
@@ -1560,6 +1593,7 @@ name = "jig-host-world"
 version = "0.0.0"
 dependencies = [
  "jig-domain-host",
+ "jig-domain-link",
  "skein-lib",
  "skein-world",
 ]
@@ -1743,6 +1777,7 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -1804,6 +1839,7 @@ name = "jig-protocol-accounts"
 version = "0.0.0"
 dependencies = [
  "jig-domain-accounts",
+ "jig-domain-link",
  "jig-protocol-config",
  "jig-protocol-store",
  "skein-codec",
@@ -1844,6 +1880,7 @@ version = "0.0.0"
 dependencies = [
  "jig-domain-accounts",
  "jig-domain-core",
+ "jig-domain-link",
  "jig-protocol-accounts",
  "jig-protocol-accounts-kit",
  "jig-protocol-config",
@@ -1869,6 +1906,7 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-link",
  "jig-domain-tasks",
  "jig-protocol-tools",
  "skein-lib",
@@ -1921,6 +1959,7 @@ dependencies = [
  "jig-domain-authority",
  "jig-domain-core",
  "jig-domain-fleet",
+ "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -1947,6 +1986,7 @@ name = "jig-protocol-engine-workers"
 version = "0.0.0"
 dependencies = [
  "jig-domain-host",
+ "jig-domain-link",
  "jig-protocol-config",
  "jig-protocol-worker-wire",
  "skein-channel",
@@ -1964,6 +2004,7 @@ dependencies = [
  "jig-domain-brief",
  "jig-domain-core",
  "jig-domain-fleet",
+ "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -2008,6 +2049,8 @@ name = "jig-protocol-worker-agents"
 version = "0.0.0"
 dependencies = [
  "jig-domain-host",
+ "jig-domain-link",
+ "jig-protocol-charter",
  "skein-io",
  "skein-lib",
  "smith-channel",
@@ -2023,6 +2066,7 @@ name = "jig-protocol-worker-link"
 version = "0.0.0"
 dependencies = [
  "jig-domain-host",
+ "jig-domain-link",
  "jig-protocol-worker-wire",
  "skein-channel",
  "skein-codec",
@@ -2118,7 +2162,7 @@ dependencies = [
  "jig-client-test-records",
  "jig-domain-accounts",
  "jig-domain-core",
- "jig-domain-host",
+ "jig-domain-link",
  "jig-protocol-accounts-kit",
  "jig-protocol-config",
  "jig-protocol-store",
@@ -2236,6 +2280,7 @@ dependencies = [
  "jig-domain-brief",
  "jig-domain-core",
  "jig-domain-fleet",
+ "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -2257,6 +2302,7 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-link",
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-protocol-accounts",
@@ -2347,6 +2393,7 @@ name = "jig-test-worker"
 version = "0.0.0"
 dependencies = [
  "jig-domain-host",
+ "jig-domain-link",
  "jig-protocol-config",
  "skein-lib",
  "smith-charter",
@@ -2363,6 +2410,7 @@ name = "jig-worker-link-world"
 version = "0.0.0"
 dependencies = [
  "jig-domain-host",
+ "jig-domain-link",
  "jig-protocol-engine-workers",
  "jig-protocol-worker-link",
  "jig-protocol-worker-wire",
@@ -2458,6 +2506,16 @@ dependencies = [
  "memo-map",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "miniz_oxide"
+version = "0.8.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fa76a2c86f704bdb222d66965fb3d63269ce38518b83cb0575fca855ebb6316"
+dependencies = [
+ "adler2",
+ "simd-adler32",
 ]
 
 [[package]]
@@ -2747,6 +2805,12 @@ name = "shlex"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
+
+[[package]]
+name = "simd-adler32"
+version = "0.3.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3a219298ac11a56ea9a6d2120044824d6f01aeb034955e7af7bc16858527deea"
 
 [[package]]
 name = "skein-browser"
@@ -3752,6 +3816,7 @@ dependencies = [
 name = "skein-ui-bundle"
 version = "0.0.0"
 dependencies = [
+ "flate2",
  "skein-fail-stop",
  "skein-lib",
  "skein-scratch",
@@ -3841,6 +3906,7 @@ dependencies = [
 name = "skein-ui-web-tests"
 version = "0.0.0"
 dependencies = [
+ "flate2",
  "skein-browser",
  "skein-fail-stop",
  "skein-fake-peers",
@@ -4704,6 +4770,7 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-link",
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-protocol-config",
@@ -4762,6 +4829,7 @@ dependencies = [
  "temper-engine-smith",
  "temper-fake",
  "temper-fake-git",
+ "temper-fixtures",
  "temper-forge-setup",
  "temper-forge-setup-shell",
  "temper-init",
@@ -4824,6 +4892,7 @@ dependencies = [
  "skein-ui-web",
  "skein-world",
  "temper-client-domain",
+ "temper-fixtures",
  "temper-playground",
  "temper-playground-world",
  "temper-service",
@@ -5026,6 +5095,7 @@ dependencies = [
  "jig-domain-authority",
  "jig-domain-core",
  "jig-domain-host",
+ "jig-domain-link",
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-domain-views",
@@ -5087,11 +5157,10 @@ name = "temper-conformance-world"
 version = "0.0.0"
 dependencies = [
  "jig-conformance",
- "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-core",
- "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-link",
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-fake-workers",
@@ -5126,6 +5195,7 @@ dependencies = [
  "jig-domain-fleet",
  "jig-domain-host",
  "jig-domain-hub-link",
+ "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -5223,6 +5293,7 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -5312,12 +5383,12 @@ version = "0.0.0"
 dependencies = [
  "jig-client",
  "jig-client-protocol-wire",
- "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-brief",
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -5557,7 +5628,7 @@ dependencies = [
  "jig-domain-authority",
  "jig-domain-core",
  "jig-domain-fleet",
- "jig-domain-host",
+ "jig-domain-link",
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-protocol-config",
@@ -5685,6 +5756,7 @@ dependencies = [
  "jig-domain-authority",
  "jig-domain-core",
  "jig-domain-fleet",
+ "jig-domain-link",
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-protocol-config",
@@ -5752,6 +5824,7 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -5767,6 +5840,7 @@ dependencies = [
  "jig-protocol-worker-agents",
  "jig-protocol-worker-link",
  "jig-protocol-worker-wire",
+ "serde_json",
  "skein-channel",
  "skein-codec",
  "skein-fake-forge-domain",
@@ -5859,6 +5933,7 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -5938,6 +6013,7 @@ name = "temper-worker-domain"
 version = "0.0.0"
 dependencies = [
  "jig-domain-host",
+ "jig-domain-link",
  "skein-lib",
  "smith-domain-run",
  "smith-domain-session",
@@ -5966,6 +6042,7 @@ dependencies = [
 name = "temper-worker-domain-world"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-link",
  "skein-lib",
  "skein-world",
  "smith-channel",

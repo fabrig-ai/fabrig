@@ -429,7 +429,9 @@ fn a_hello_is_turned_away_only_when_there_is_no_room_for_a_worker() {
     for channel in [C1, C2, C3] {
         h.hello(channel, 2, &[], &[]);
     }
-    assert_eq!(&*h.hello(C4, 2, &[], &[]), &[Request::Refuse { channel: C4 }]);
+    let [Request::Refuse { channel: C4, .. }] = &*h.hello(C4, 2, &[], &[]) else {
+        panic!("hello refused");
+    };
     // Its loss is of no worker the fleet knows.
     assert!(h.step(Event::Lost { channel: C4 }).is_empty());
     assert!(h.facts().contains(&Fact::TurnedAway));
@@ -456,21 +458,20 @@ fn retained_host_and_hello_history_is_bounded_and_independent_of_diagnostics() {
     h.hello(C2, 2, &[], &[]);
     assert_eq!(h.domain.hello_refusals().get(0).unwrap().at, Wall::from_nanos(8));
     h.env.wall = Wall::from_nanos(9);
-    assert_eq!(
-        &*h.step(Event::Hello {
-            worker: 0,
-            channel: C3,
-            hello: Hello {
-                jobs: Box::default(),
-                bounds: fixtures::bounds(),
-                stop_bound: LIMITS.grace,
-                slots: u32::MAX,
-                workstreams: Box::new([]),
-                hosting: Box::new([])
-            },
-        }),
-        &[Request::Refuse { channel: C3 }]
-    );
+    let [Request::Refuse { channel: C3, .. }] = &*h.step(Event::Hello {
+        worker: 0,
+        channel: C3,
+        hello: Hello {
+            jobs: Box::default(),
+            bounds: fixtures::bounds(),
+            stop_bound: LIMITS.grace,
+            slots: u32::MAX,
+            workstreams: Box::new([]),
+            hosting: Box::new([]),
+        },
+    }) else {
+        panic!("hello refused");
+    };
     let record = *h.domain.hello_refusals().get(0).unwrap();
     assert_eq!(record.channel, C3);
     assert_eq!(record.at, Wall::from_nanos(9));
@@ -1313,7 +1314,9 @@ fn declared_stop_bounds_must_be_strictly_below_the_engine_grace() {
             assert!(out.is_empty());
             assert_eq!(h.domain.workers(), 1);
         } else {
-            assert_eq!(&*out, &[Request::Refuse { channel: C1 }]);
+            let [Request::Refuse { channel: C1, .. }] = &*out else {
+                panic!("hello refused");
+            };
             assert_eq!(h.domain.workers(), 0);
         }
     }

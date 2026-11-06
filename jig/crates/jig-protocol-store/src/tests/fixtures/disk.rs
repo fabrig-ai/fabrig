@@ -10,7 +10,7 @@ use crate::{Arrived, Below, Event, Io, Request, Root, Store};
 use skein_fake_machine::{How, Is, Item, Machine, Opened, serve};
 use skein_io::{
     file,
-    file_layer::{self, FileIo},
+    file_layer::{FileIo, Limits as FileLimits, step},
     kernel::{Complete, Kind, Submit},
 };
 use skein_lib::{Queue, Token};
@@ -76,16 +76,20 @@ pub struct Disk {
     pid: Pid,
     root: Root,
     io: [FileIo; 3],
+    file_limits: FileLimits,
     seeded: crate::Seeded,
     cut: Option<u32>,
     operations: u32,
     starts: u64,
     requests: Vec<(usize, Seen)>,
 }
+pub fn file_limits() -> FileLimits {
+    let skein_kv::Limits { chunk: read, deadline: timeout, .. } = store_limits().store;
+    FileLimits { files: 8, read, entries: 32, whole: read, timeout }
+}
 fn drivers(fd: skein_io::kernel::Fd) -> [FileIo; 3] {
     core::array::from_fn(|_| {
-        let limits = store_limits();
-        let mut io = FileIo::new(8, limits.store.chunk, 32, limits.store.deadline).with_effective_user(0);
+        let mut io = FileIo::with_limits(&file_limits()).with_effective_user(0);
         assert_eq!(io.adopt_root(fd), Some(Token::new(1)));
         io
     })
@@ -107,6 +111,7 @@ impl Disk {
             pid,
             root: Root { token: Token::new(1), fd },
             io,
+            file_limits: file_limits(),
             seeded,
             cut: None,
             operations: 0,
@@ -191,7 +196,8 @@ impl Disk {
         let mut events = Queue::with_capacity(QUEUE);
         let mut subs: Queue<Submit> = Queue::with_capacity(QUEUE);
         let mut completions: Queue<Complete> = Queue::with_capacity(QUEUE);
-        file_layer::down(io, env().now, request, &mut events, &mut subs);
+        let env = env().with(self.file_limits);
+        step::down(io, &env, request, &mut events, &mut subs);
         for _ in 0_u32..100 {
             if !subs.is_empty() {
                 self.sim.submit(self.pid, &mut subs);
@@ -199,7 +205,7 @@ impl Disk {
             }
             self.sim.reap(self.pid, &mut completions);
             while let Some(complete) = completions.pop() {
-                file_layer::up(io, complete, &mut events, &mut subs);
+                step::up(io, &env, complete, &mut events, &mut subs);
             }
             if io.takes() {
                 break;

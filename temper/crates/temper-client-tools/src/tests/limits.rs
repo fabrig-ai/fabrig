@@ -11,11 +11,13 @@ fn each_ceiling_is_within_the_client_limit_it_reads_from() {
     assert!(limits::WAIT <= limits::WAIT_MOST && limits::LOCK_TRY <= limits::LOCK, "each default within its most");
 }
 #[test]
-fn the_tools_preset_is_the_terminals_but_its_rows() {
+fn the_tools_preset_is_the_terminals_but_its_windows_and_retries() {
     let mut terminal = temper_client_shell_terminal::limits::native().client;
     terminal.client.domain.rows = limits::ROWS;
     terminal.client.domain.text = limits::TEXT;
     terminal.client.domain.turn_text = limits::TEXT;
+    terminal.client.domain.requests.most = skein_lib::Duration::from_secs(2);
+    terminal.client.domain.backoff.most = skein_lib::Duration::from_secs(2);
     assert_eq!(limits::client(), terminal);
 }
 #[test]
@@ -49,4 +51,17 @@ fn the_help_fits_the_tools_window() {
     let mut measured = skein_lib::Writer::new(window);
     crate::help::text(None, &mut measured).expect("the help fits its text window");
     assert!(measured.written() <= window);
+}
+
+#[test]
+fn retries_stay_short_beside_the_deadline() {
+    let client = limits::client().client.domain;
+    let first = skein_lib::Duration::from_secs(1);
+    let most = skein_lib::Duration::from_secs(2);
+    assert_eq!(client.requests.first, first);
+    assert_eq!(client.backoff.first, first);
+    assert_eq!(client.requests.most, most);
+    assert_eq!(client.backoff.most, most);
+    assert!(most.as_nanos() < limits::DEADLINE.as_nanos());
+    assert_eq!(limits::DEADLINE, skein_lib::Duration::from_secs(30));
 }

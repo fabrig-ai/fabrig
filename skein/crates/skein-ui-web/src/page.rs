@@ -1,10 +1,11 @@
 //! Patches applied in place, with the host deciding each document operation.
+//! Log measurements and view keeping follow skein/docs/design/ui-web.md, 7.
 
 use std::collections::BTreeMap;
 
 use skein_lib::{List, usize_of};
 use skein_ui::{
-    Act, Limits, Made, Modifier, NodeId, Patch, Role, State,
+    Act, Limits, LogEdge, Made, Modifier, NodeId, Patch, Role, State,
     scene::{Point, Scene},
 };
 
@@ -44,6 +45,10 @@ pub enum Op {
     Href { node: NodeId, path: Box<[u8]> },
     Focus { node: NodeId },
     ScrollEnd { node: NodeId },
+    HoldView { node: NodeId },
+    PutView { node: NodeId },
+    Measure { node: NodeId },
+    ScrollScreen { node: NodeId, down: bool },
     Component { node: NodeId, component: usize, made: Made },
 }
 
@@ -56,6 +61,10 @@ struct Held {
     drawn: Option<Element>,
     href: Option<Box<[u8]>>,
     follow_log: bool,
+    end_requested: bool,
+    measured: Option<(i32, i32, i32)>,
+    near_head: Option<(i32, i32)>,
+    near_foot: Option<(i32, i32)>,
 }
 
 /// The semantic nodes and their document model, sharing the view's limits.
@@ -101,7 +110,18 @@ impl<'a> Page<'a> {
         self.words = words;
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "patch ordering keeps log state changes before the final measurements (ui-web.md, 7)"
+    )]
     pub fn apply(&mut self, patches: &[Patch], ops: &mut Vec<Op>) {
+        if !patches.is_empty() {
+            for (node, held) in &self.nodes {
+                if held.made.attribute.role == Role::Log && !held.follow_log {
+                    ops.push(Op::HoldView { node: *node });
+                }
+            }
+        }
         let mut focus = None;
         for patch in patches {
             match patch {
@@ -137,7 +157,22 @@ impl<'a> Page<'a> {
                 }
                 Patch::Attribute { node, attribute } => {
                     let old_tag = semantic(&self.held(*node).element).tag.clone();
-                    self.nodes.get_mut(node).expect("held node").made.attribute = attribute.as_ref().clone();
+                    let held = self.nodes.get_mut(node).expect("held node");
+                    if attribute.role == Role::Log {
+                        if held.made.attribute.states.as_slice().contains(&State::Busy)
+                            && !attribute.states.as_slice().contains(&State::Busy)
+                        {
+                            held.near_head = None;
+                            held.near_foot = None;
+                        }
+                        if attribute.end_request.is_some() && attribute.end_request != held.made.attribute.end_request {
+                            held.end_requested = true;
+                            held.follow_log = true;
+                        } else if attribute.states.as_slice().contains(&State::Continues) && !held.end_requested {
+                            held.follow_log = false;
+                        }
+                    }
+                    held.made.attribute = attribute.as_ref().clone();
                     self.remap(*node);
                     self.draw(*node);
                     let element = self.own_element(*node);
@@ -175,16 +210,29 @@ impl<'a> Page<'a> {
                 self.links.push(node);
             }
         }
-        if !patches.is_empty() {
-            for (node, held) in &self.nodes {
-                if held.made.attribute.role == Role::Log && held.follow_log {
-                    ops.push(Op::ScrollEnd { node: *node });
-                }
-            }
-        }
         if let Some(node) = focus.filter(|node| self.nodes.contains_key(node)) {
             self.focused = Some(node);
             ops.push(Op::Focus { node });
+        }
+        if !patches.is_empty() {
+            self.finish_logs(ops);
+        }
+    }
+
+    fn finish_logs(&self, ops: &mut Vec<Op>) {
+        for (node, held) in &self.nodes {
+            if held.made.attribute.role == Role::Log {
+                if held.follow_log {
+                    ops.push(Op::ScrollEnd { node: *node });
+                } else {
+                    ops.push(Op::PutView { node: *node });
+                }
+            }
+        }
+        for (node, held) in &self.nodes {
+            if held.made.attribute.role == Role::Log && held.made.attribute.bound {
+                ops.push(Op::Measure { node: *node });
+            }
         }
     }
 
@@ -235,9 +283,7 @@ impl<'a> Page<'a> {
         let items: Vec<_> = self
             .nodes
             .iter()
-            .filter_map(|(node, held)| {
-                [Role::Item, Role::TreeItem].contains(&held.made.attribute.role).then_some(*node)
-            })
+            .filter_map(|(node, held)| held.made.attribute.role.is_list_item().then_some(*node))
             .collect();
         for node in items {
             let mut parent = self.held(node).parent;
@@ -247,7 +293,7 @@ impl<'a> Page<'a> {
                 if self.held(node).made.attribute.role == Role::TreeItem && held.made.attribute.role == Role::TreeItem {
                     break;
                 }
-                if [Role::List, Role::Tree].contains(&held.made.attribute.role) {
+                if held.made.attribute.role.is_list() {
                     count = held.made.attribute.count.map(|count| count.to_string());
                     break;
                 }
@@ -312,7 +358,11 @@ impl<'a> Page<'a> {
                 size: None,
                 drawn: None,
                 href: None,
-                follow_log: true,
+                follow_log: !made.attribute.states.as_slice().contains(&State::Continues),
+                end_requested: false,
+                measured: None,
+                near_head: None,
+                near_foot: None,
             };
             assert!(self.nodes.insert(made.id, held).is_none(), "inserted node has a fresh identity");
             self.attach(made.id, node_parent, if index == 0 { before } else { None });
@@ -344,7 +394,7 @@ impl<'a> Page<'a> {
         if took_focus {
             while ancestor != NodeId(0) {
                 let held = self.held(ancestor);
-                if focusable(held.made.attribute.role) {
+                if held.made.attribute.role.is_focusable() {
                     focus = Some(ancestor);
                     break;
                 }
@@ -429,8 +479,7 @@ impl<'a> Page<'a> {
         } else {
             core
         };
-        let description = if [Role::Item, Role::Cell, Role::ColumnHeader, Role::RowHeader]
-            .contains(&self.held(node).made.attribute.role)
+        let description = if self.held(node).made.attribute.role.describes_inside()
             && self.held(node).made.attribute.description.is_some()
         {
             destination.children.pop()
@@ -527,23 +576,6 @@ pub(crate) fn semantic_mut(element: &mut Element) -> &mut Element {
     element
 }
 
-fn focusable(role: Role) -> bool {
-    [
-        Role::Button,
-        Role::Link,
-        Role::TextField,
-        Role::Select,
-        Role::TextArea,
-        Role::Choice,
-        Role::Check,
-        Role::Dialog,
-        Role::Disclosure,
-        Role::Tab,
-        Role::Main,
-    ]
-    .contains(&role)
-}
-
 /// Platform events as data; shortcut interpretation belongs to the page.
 /// For an unmapped press, `focus_taken` preserves an outside control's focus.
 #[derive(Clone, Debug)]
@@ -577,6 +609,7 @@ impl Page<'_> {
             let mut logs = Vec::new();
             for (log, held) in &mut self.nodes {
                 if held.made.attribute.role == Role::Log {
+                    held.end_requested = true;
                     held.follow_log = true;
                     logs.push(*log);
                 }
@@ -589,7 +622,6 @@ impl Page<'_> {
         self.held(node).made.attribute.bound.then_some((node, Act::Press))
     }
 
-    #[expect(clippy::too_many_lines, reason = "The page dispatches each platform event in one exhaustive match.")]
     fn event(&mut self, event: Event, ops: &mut Vec<Op>) -> Option<(NodeId, Act)> {
         match event {
             Event::Click { node, modifier } => self.click(node, modifier, ops),
@@ -602,7 +634,7 @@ impl Page<'_> {
                     return None;
                 }
                 let a = &self.held(node).made.attribute;
-                if !composing && enabled(a) && a.bound && [Role::TextField, Role::TextArea].contains(&a.role) {
+                if !composing && enabled(a) && a.bound && a.role.is_text_field() {
                     Some((node, Act::Input { value }))
                 } else {
                     None
@@ -611,11 +643,7 @@ impl Page<'_> {
             Event::CompositionEnd { node, value } => {
                 self.composition_end = Some((node, value.clone()));
                 let a = &self.held(node).made.attribute;
-                if enabled(a) && a.bound && [Role::TextField, Role::TextArea].contains(&a.role) {
-                    Some((node, Act::Input { value }))
-                } else {
-                    None
-                }
+                if enabled(a) && a.bound && a.role.is_text_field() { Some((node, Act::Input { value })) } else { None }
             }
             Event::Enter { node, shift, composing } => {
                 self.composition_end = None;
@@ -633,7 +661,7 @@ impl Page<'_> {
             }
             Event::Change { node } => {
                 let a = &self.held(node).made.attribute;
-                if enabled(a) && a.bound && [Role::Choice, Role::Check].contains(&a.role) {
+                if enabled(a) && a.bound && a.role.is_toggle() {
                     let state = if a.role == Role::Choice { State::Selected } else { State::Pressed };
                     ops.push(Op::Choice { node, checked: a.states.as_slice().contains(&state) });
                     Some((node, Act::Toggle))
@@ -666,15 +694,7 @@ impl Page<'_> {
                 self.focused(node);
                 None
             }
-            Event::Scrolled { node, top, height, viewport } => {
-                let held = self.nodes.get_mut(&node).expect("held node");
-                let follow = top.saturating_add(viewport) >= height.saturating_sub(1);
-                if held.made.attribute.role == Role::Log && held.follow_log != follow {
-                    held.follow_log = follow;
-                    ops.push(Op::Attributes { node, element: self.own_element(node) });
-                }
-                None
-            }
+            Event::Scrolled { node, top, height, viewport } => self.scrolled(node, top, height, viewport, ops),
             Event::Drawing { node, under, x, y } => {
                 self.close_menu_outside(Some(node), false, ops);
                 let a = &self.held(node).made.attribute;
@@ -692,6 +712,55 @@ impl Page<'_> {
             }
             event @ Event::Key { .. } => self.key(event, ops),
         }
+    }
+
+    // A measure and a person's scroll share the same rules (ui-web.md, 7).
+    fn scrolled(
+        &mut self,
+        node: NodeId,
+        top: i32,
+        height: i32,
+        viewport: i32,
+        ops: &mut Vec<Op>,
+    ) -> Option<(NodeId, Act)> {
+        let held = self.nodes.get_mut(&node).expect("held node");
+        if held.made.attribute.role != Role::Log || viewport <= 0 {
+            return None;
+        }
+        let continues = held.made.attribute.states.as_slice().contains(&State::Continues);
+        let busy = held.made.attribute.states.as_slice().contains(&State::Busy);
+        let at_end = top.saturating_add(viewport) >= height.saturating_sub(1) && !continues;
+        if held.measured.is_some_and(|(before, _, _)| top < before) || at_end {
+            held.end_requested = false;
+        }
+        held.measured = Some((top, height, viewport));
+        let follow = at_end || held.end_requested;
+        let changed = held.follow_log != follow;
+        held.follow_log = follow;
+        let foot = height.saturating_sub(top).saturating_sub(viewport);
+        let zone = i64::from(viewport) * 3;
+        if i64::from(top) * 2 >= zone {
+            held.near_head = if busy { Some((top, height)) } else { None };
+        }
+        if !continues || i64::from(foot) * 2 >= zone {
+            held.near_foot = if busy { Some((foot, height)) } else { None };
+        }
+        let edge = if !held.made.attribute.bound {
+            None
+        } else if i64::from(top) * 2 < zone && report_near(&mut held.near_head, top, height, viewport, busy) {
+            Some(LogEdge::Head)
+        } else if continues
+            && i64::from(foot) * 2 < zone
+            && report_near(&mut held.near_foot, foot, height, viewport, busy)
+        {
+            Some(LogEdge::Foot)
+        } else {
+            None
+        };
+        if changed {
+            ops.push(Op::Attributes { node, element: self.own_element(node) });
+        }
+        edge.map(|edge| (node, Act::Near { edge }))
     }
 
     fn choose(&self, select: NodeId, option: NodeId, ops: &mut Vec<Op>) -> Option<(NodeId, Act)> {
@@ -722,7 +791,7 @@ impl Page<'_> {
         let mut at = node;
         while at != NodeId(0) {
             let held = self.held(at);
-            if [Role::Button, Role::Link, Role::Tab, Role::MenuItem].contains(&held.made.attribute.role) {
+            if held.made.attribute.role.is_pressable() {
                 return at;
             }
             at = held.parent;
@@ -753,9 +822,7 @@ impl Page<'_> {
         if a.role == Role::Link && (modifier || a.external.is_some()) {
             return None;
         }
-        if (a.bound || a.states.as_slice().contains(&State::ToLogEnd))
-            && [Role::Button, Role::Link, Role::Tab, Role::MenuItem].contains(&a.role)
-        {
+        if (a.bound || a.states.as_slice().contains(&State::ToLogEnd)) && a.role.is_pressable() {
             if a.role == Role::MenuItem {
                 self.close_menu(true, ops);
             }
@@ -784,6 +851,25 @@ impl Page<'_> {
         } else {
             None
         }?;
+        if key.as_ref() == b"PageUp" || key.as_ref() == b"PageDown" {
+            if modifier == Modifier::Plain
+                && self.menu.is_none()
+                && !self.nodes.values().any(|held| held.made.attribute.role == Role::Dialog)
+            {
+                let mut order = Vec::new();
+                for root in &self.roots {
+                    self.preorder(*root, &mut order);
+                }
+                if let Some(node) = order.into_iter().find(|node| {
+                    let held = self.held(*node);
+                    held.made.attribute.role == Role::Log
+                        && held.measured.is_some_and(|(_, height, viewport)| height > viewport)
+                }) {
+                    ops.push(Op::ScrollScreen { node, down: key.as_ref() == b"PageDown" });
+                }
+            }
+            return None;
+        }
         if modifier == Modifier::Plain && self.menu_key(&key, ops) {
             return None;
         }
@@ -898,6 +984,20 @@ impl Page<'_> {
 
 fn enabled(attribute: &skein_ui::Attribute) -> bool {
     !attribute.states.as_slice().contains(&State::Disabled)
+}
+fn report_near(reported: &mut Option<(i32, i32)>, distance: i32, height: i32, viewport: i32, busy: bool) -> bool {
+    // A height change can move the view without a person's scroll.
+    if busy && reported.is_some_and(|(_, at_height)| at_height != height) {
+        *reported = Some((distance, height));
+        return false;
+    }
+    let report = reported.map_or(!busy, |(last, at_height)| {
+        (!busy && at_height != height) || (i64::from(last) - i64::from(distance)) * 4 >= i64::from(viewport)
+    });
+    if report || reported.is_none() {
+        *reported = Some((distance, height));
+    }
+    report
 }
 fn shortcut_key(key: &[u8], code: &[u8]) -> Option<u8> {
     if key == b"\\" || code == b"Backslash" || code == b"IntlBackslash" {

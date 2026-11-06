@@ -85,7 +85,18 @@ pub enum Request {
         key: Key,
         shift: bool,
     },
+    /// Set the viewport in CSS pixels; terminal `Done` or `Refused`.
+    Viewport {
+        page: Token,
+        op: Token,
+        width: u32,
+        height: u32,
+    },
     Address {
+        page: Token,
+        op: Token,
+    },
+    Tabs {
         page: Token,
         op: Token,
     },
@@ -148,6 +159,11 @@ pub enum Event {
         op: Token,
         url: Box<[u8]>,
     },
+    Tabs {
+        op: Token,
+        tabs: List<Tab>,
+        more: u32,
+    },
     Attribute {
         op: Token,
         read: Read,
@@ -177,6 +193,14 @@ pub enum Event {
     },
 }
 
+/// A person's other tab, as the browser lists it (skein/docs/design/browser.md, 6).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Tab {
+    pub url: Box<[u8]>,
+    pub title: Box<[u8]>,
+    pub opener: bool,
+}
+
 /// A selected element's whole markup attribute, including an empty value.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Read {
@@ -200,6 +224,8 @@ pub enum Key {
     Enter,
     Escape,
     Tab,
+    PageUp,
+    PageDown,
     Backspace,
     ArrowUp,
     ArrowDown,

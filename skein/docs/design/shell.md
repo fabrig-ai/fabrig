@@ -642,7 +642,7 @@ kernel with `io_uring_disabled` set, or macOS (Apple Silicon, from macOS
   these calls (section 3), so its `List`, `Lock`, `Spawn`, `Signal`,
   `Usage` and `Window` complete so too. The callers outside the kernel
   that share a call make it again: a held listener's `bind` and `listen`
-  (6.6), and `poll_child`, the harness's. With the signals the shell
+  (6.6), and `keeper::poll_child`, the harness's. With the signals the shell
   watches blocked (Linux) or ignored (Darwin), these calls are seldom
   interrupted.
 - **Errors map as the ring's do,** per operation, by the same functions
@@ -714,6 +714,7 @@ other module is safe Rust, the same on both systems.
 | `darwin` | Darwin's calls and wait (`darwin::kqueue`) | macOS |
 | `posix` | what both systems write alike: terminal modes and sizes, a signal to a group and the probes of a group or a process, a socket's shutdown, the wait for a readable descriptor, a startup file's read and a mode's kind, `SIGPIPE`'s block, the error numbers' meaning | both |
 | `clock`, `seed`, `startup`, `terminal`, `settings`, `drive` | the public startup and loop, calling `system` | both |
+| `keeper` | what a test harness alone needs of the processes it keeps (below) | both, Linux's own parts on Linux |
 
 - **One face, two systems.** `linux` and `darwin` give the same
   crate-private functions, by name and signature, and `lib.rs` names the
@@ -748,6 +749,17 @@ other module is safe Rust, the same on both systems.
   an unreaped zombie as live and refusing 0, 1 and values beyond `pid_t`.
   These calls name processes and groups by number, as no record does,
   and are for the harness alone.
+- **What a harness alone needs is fenced in `skein_shell::keeper`,** a
+  public module no service has a use for: the tree keeper's calls; a
+  kept child's start, handle, signal, status and abandonment
+  (`start_binary`, `hosted_pipes`, `open_child_pidfd`, `signal_kept_child`,
+  `poll_child`, `abandon_binary`, and the closing of what it kept,
+  `close_keeper_fd`); a signal raised by hand (`open_signal_pipe`,
+  `write_service_signal`, `signal_current_thread`); a blocking wait for a
+  readable descriptor (`wait_readable`); and Linux's own cgroups,
+  subreaper and pidfd helpers. The crate's root holds a service's calls
+  alone. A service closes a descriptor it opened at startup and never gave
+  to io with the root's `close_startup_fd`.
 
 **Darwin's parts,** in `darwin`:
 - **Sockets** are made without blocking and closed on exec by `fcntl`
@@ -1067,6 +1079,10 @@ and changes no code above io:
 - **Listening, on macOS** (6.6): whether anything reads it another way,
   such as `TCP_CONNECTION_INFO`'s state. Default: no; only a parent's
   mistake reaches it, and that shows at the first accept.
+- **A service that names `keeper`** (7.5): the fence is a public module's name,
+  and no check refuses a service that names it; `temper`'s `fake` module, a test
+  peer in a shipping crate, does name it. Whether a gate step holds the fence.
+  Default: no; a service has no use for the module.
 
 ## 11. Not built yet
 

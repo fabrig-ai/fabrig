@@ -1,4 +1,7 @@
 use jig_domain_fleet::{self as fleet, Event, Request};
+use jig_domain_link::{
+    Hello, Login, LoginMethod, LoginState, Membership, SignOutResult, SourceFailure, SourceName, Worker,
+};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 const CHANNEL: Token = Token::new(101);
 struct World {
@@ -16,7 +19,7 @@ impl World {
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),
         };
-        let membership = fleet::Membership::new(
+        let membership = Membership::new(
             Box::new([b"alpha".as_slice().into(), b"beta".as_slice().into()]),
             limits.configured_workers,
             limits.worker_name_bytes,
@@ -42,7 +45,7 @@ impl World {
         self.step(Event::Hello {
             worker,
             channel,
-            hello: fleet::Hello {
+            hello: Hello {
                 jobs: Box::default(),
                 slots: 2,
                 stop_bound: Duration::from_secs(1),
@@ -55,18 +58,15 @@ impl World {
     fn inventory(&mut self, names: &[&[u8]]) -> Vec<Request> {
         self.step(Event::Logins {
             channel: CHANNEL,
-            logins: names
-                .iter()
-                .map(|name| fleet::Login { name: source(name), state: fleet::LoginState::NotSignedIn })
-                .collect(),
+            logins: names.iter().map(|name| Login { name: source(name), state: LoginState::NotSignedIn }).collect(),
         })
     }
     fn available(&self) -> bool {
         self.domain.free_kind(fleet::Kinds::Workers, 1, jig_domain_fleet::Version { charter: 0, revision: 1 }).is_some()
     }
 }
-fn source(name: &[u8]) -> fleet::SourceName {
-    fleet::SourceName::new(name).expect("fixture source")
+fn source(name: &[u8]) -> SourceName {
+    SourceName::new(name).expect("fixture source")
 }
 #[test]
 fn even_empty_inventory_is_a_placement_barrier() {
@@ -95,8 +95,8 @@ fn old_whole_snapshot_crossing_a_replacement_updates_nothing() {
             .step(Event::Logins {
                 channel: CHANNEL,
                 logins: Box::new([
-                    fleet::Login { name: source(b"a"), state: fleet::LoginState::Usable },
-                    fleet::Login { name: source(b"b"), state: fleet::LoginState::Usable },
+                    Login { name: source(b"a"), state: LoginState::Usable },
+                    Login { name: source(b"b"), state: LoginState::Usable },
                 ])
             })
             .is_empty()
@@ -107,7 +107,7 @@ fn old_whole_snapshot_crossing_a_replacement_updates_nothing() {
             .program_logins(CHANNEL)
             .expect("old inventory")
             .iter()
-            .all(|row| row.state == fleet::LoginState::NotSignedIn)
+            .all(|row| row.state == LoginState::NotSignedIn)
     );
     assert!(!world.available());
     world.inventory(&[b"a"]);
@@ -118,7 +118,7 @@ fn partial_foreign_or_duplicate_snapshots_fault_the_link() {
     for names in [&[b"a".as_slice()][..], &[b"a".as_slice(), b"foreign"], &[b"a".as_slice(), b"a"]] {
         let mut world = World::new(&[b"a", b"b"]);
         world.hello(CHANNEL);
-        assert!(matches!(&world.inventory(names)[..], [Request::Refuse { channel: CHANNEL }]));
+        assert!(matches!(&world.inventory(names)[..], [Request::Refuse { channel: CHANNEL, .. }]));
         assert!(!world.available());
         assert_eq!(world.domain.program_logins(CHANNEL), None);
     }
@@ -126,14 +126,14 @@ fn partial_foreign_or_duplicate_snapshots_fault_the_link() {
 #[test]
 fn a_kept_login_no_longer_withholds_a_probe() {
     for state in [
-        fleet::LoginState::Usable,
-        fleet::LoginState::SignedInOtherwise(jig_domain_fleet::LoginMethod::new(b"api-key").expect("method")),
-        fleet::LoginState::Failed { reason: jig_domain_fleet::SourceFailure::Exited, detail: Box::new([]) },
-        fleet::LoginState::Failed { reason: jig_domain_fleet::SourceFailure::Deadline, detail: Box::new([]) },
+        LoginState::Usable,
+        LoginState::SignedInOtherwise(LoginMethod::new(b"api-key").expect("method")),
+        LoginState::Failed { reason: SourceFailure::Exited, detail: Box::new([]) },
+        LoginState::Failed { reason: SourceFailure::Deadline, detail: Box::new([]) },
     ] {
         let mut world = World::new(&[b"a"]);
         world.hello(CHANNEL);
-        world.step(Event::Logins { channel: CHANNEL, logins: Box::new([fleet::Login { name: source(b"a"), state }]) });
+        world.step(Event::Logins { channel: CHANNEL, logins: Box::new([Login { name: source(b"a"), state }]) });
         assert!(
             world
                 .domain
@@ -153,9 +153,9 @@ fn an_unconfigured_program_counts_as_absent() {
     world.hello(CHANNEL);
     world.step(Event::Logins {
         channel: CHANNEL,
-        logins: Box::new([fleet::Login {
+        logins: Box::new([Login {
             name: source(b"a"),
-            state: fleet::LoginState::Failed { reason: fleet::SourceFailure::Unconfigured, detail: Box::new([]) },
+            state: LoginState::Failed { reason: SourceFailure::Unconfigured, detail: Box::new([]) },
         }]),
     });
     assert!(world.available());
@@ -166,8 +166,8 @@ fn an_unawaited_sign_out_faults_the_link() {
     world.hello(CHANNEL);
     world.inventory(&[b"a"]);
     assert_eq!(
-        world.step(Event::SignedOut { channel: CHANNEL, name: source(b"a"), result: fleet::SignOutResult::SignedOut }),
-        vec![Request::Refuse { channel: CHANNEL }]
+        world.step(Event::SignedOut { channel: CHANNEL, name: source(b"a"), result: SignOutResult::SignedOut }),
+        vec![Request::Refuse { channel: CHANNEL, hello: None }]
     );
     assert!(!world.available());
 }
@@ -188,22 +188,18 @@ fn a_lost_sign_out_cannot_complete_a_new_channel_call() {
     world.step(Event::SignOut { to: ReplyTo::new(Token::new(2)), channel: replacement, name: source(b"a") });
     assert!(
         world
-            .step(Event::SignedOut { channel: CHANNEL, name: source(b"a"), result: fleet::SignOutResult::SignedOut })
+            .step(Event::SignedOut { channel: CHANNEL, name: source(b"a"), result: SignOutResult::SignedOut })
             .is_empty()
     );
-    let ended = world.step(Event::SignedOut {
-        channel: replacement,
-        name: source(b"a"),
-        result: fleet::SignOutResult::SignedOut,
-    });
-    let Some(Request::SignedOut { to, result: Some(fleet::SignOutResult::SignedOut), .. }) = ended.into_iter().next()
-    else {
+    let ended =
+        world.step(Event::SignedOut { channel: replacement, name: source(b"a"), result: SignOutResult::SignedOut });
+    let Some(Request::SignedOut { to, result: Some(SignOutResult::SignedOut), .. }) = ended.into_iter().next() else {
         panic!("sign-out completion")
     };
     assert_eq!(to.into_token(), Token::new(2));
 }
 
-fn worker(number: u32) -> fleet::Worker {
+fn worker(number: u32) -> Worker {
     configured().domain.configured_worker(number).expect("configured fixture worker")
 }
 fn configured() -> World {
@@ -242,12 +238,12 @@ fn reconnect_cleanup_is_separate_from_the_original_answer() {
     assert_eq!(
         world.step(Event::Logins {
             channel: CHANNEL,
-            logins: Box::new([fleet::Login { name: source(b"a"), state: fleet::LoginState::Usable },])
+            logins: Box::new([Login { name: source(b"a"), state: LoginState::Usable },])
         }),
         vec![Request::SignOut { channel: CHANNEL, name: source(b"a") }]
     );
     let answer =
-        world.step(Event::SignedOut { channel: CHANNEL, name: source(b"a"), result: fleet::SignOutResult::SignedOut });
+        world.step(Event::SignedOut { channel: CHANNEL, name: source(b"a"), result: SignOutResult::SignedOut });
     assert!(answer.is_empty());
     assert!(!world.available());
     world.inventory(&[b"a"]);
@@ -258,15 +254,12 @@ fn a_failed_cleanup_is_not_retried_by_periodic_inventory() {
     let mut world = configured();
     world.step(Event::CleanupPrograms { names: Box::new([source(b"a")]) });
     world.hello(CHANNEL);
-    let rows = Box::new([fleet::Login { name: source(b"a"), state: fleet::LoginState::Usable }]);
+    let rows = Box::new([Login { name: source(b"a"), state: LoginState::Usable }]);
     world.step(Event::Logins { channel: CHANNEL, logins: rows.clone() });
     world.step(Event::SignedOut {
         channel: CHANNEL,
         name: source(b"a"),
-        result: fleet::SignOutResult::Failed {
-            reason: fleet::SourceFailure::Exited,
-            detail: b"failed".as_slice().into(),
-        },
+        result: SignOutResult::Failed { reason: SourceFailure::Exited, detail: b"failed".as_slice().into() },
     });
     assert!(world.step(Event::Logins { channel: CHANNEL, logins: rows }).is_empty());
 }
@@ -290,7 +283,7 @@ fn a_check_waits_until_its_source_list_has_been_sent() {
 fn a_hello_refuses_an_unconfigured_position() {
     let mut world = configured();
     let rows = world.hello_at(CHANNEL, 2);
-    assert_eq!(rows, vec![Request::Refuse { channel: CHANNEL }]);
+    assert!(matches!(rows.as_slice(), [Request::Refuse { channel: CHANNEL, .. }]));
     assert_eq!(world.domain.workers(), 0);
     assert_eq!(
         world.domain.hello_refusals().get(0).expect("position refusal").why,
@@ -302,7 +295,7 @@ fn a_hello_refuses_an_occupied_position() {
     let mut world = configured();
     world.hello(CHANNEL);
     let other = Token::new(102);
-    assert_eq!(world.hello(other), vec![Request::Refuse { channel: other }]);
+    assert!(matches!(world.hello(other).as_slice(), [Request::Refuse { channel, .. }] if *channel == other));
     assert_eq!(world.domain.workers(), 1);
     assert_eq!(
         world.domain.hello_refusals().get(0).expect("position refusal").why,
@@ -318,7 +311,7 @@ fn fan_out_reaches_distinct_configured_positions() {
     world.inventory(&[b"a"]);
     world.step(Event::Logins {
         channel: other,
-        logins: Box::new([fleet::Login { name: source(b"a"), state: fleet::LoginState::NotSignedIn }]),
+        logins: Box::new([Login { name: source(b"a"), state: LoginState::NotSignedIn }]),
     });
     let rows = world.step(Event::SignOutProgram { source: 7, name: source(b"a") });
     assert_eq!(
@@ -338,7 +331,7 @@ fn a_holder_sign_out_joins_pending_cleanup() {
     world.hello(CHANNEL);
     world.step(Event::Logins {
         channel: CHANNEL,
-        logins: Box::new([fleet::Login { name: source(b"a"), state: fleet::LoginState::Usable }]),
+        logins: Box::new([Login { name: source(b"a"), state: LoginState::Usable }]),
     });
     let started = world.step(Event::SignOutProgram { source: 7, name: source(b"a") });
     assert_eq!(
@@ -349,7 +342,7 @@ fn a_holder_sign_out_joins_pending_cleanup() {
         ]
     );
     assert_eq!(
-        world.step(Event::SignedOut { channel: CHANNEL, name: source(b"a"), result: fleet::SignOutResult::SignedOut }),
+        world.step(Event::SignedOut { channel: CHANNEL, name: source(b"a"), result: SignOutResult::SignedOut }),
         vec![Request::ProgramSignedOut { source: 7, worker: worker(0), result: fleet::ProgramResult::SignedOut }]
     );
 }
@@ -368,12 +361,11 @@ fn a_holder_sign_out_shares_a_direct_terminal() {
             Request::ProgramSignedOut { source: 7, worker: worker(1), result: fleet::ProgramResult::NotInContact }
         ]
     );
-    let ended =
-        world.step(Event::SignedOut { channel: CHANNEL, name: source(b"a"), result: fleet::SignOutResult::SignedOut });
+    let ended = world.step(Event::SignedOut { channel: CHANNEL, name: source(b"a"), result: SignOutResult::SignedOut });
     let mut ended = ended.into_iter();
     let Some(Request::SignedOut { to, result, .. }) = ended.next() else { panic!("direct terminal") };
     assert_eq!(to.into_token(), reply);
-    assert_eq!(result, Some(fleet::SignOutResult::SignedOut));
+    assert_eq!(result, Some(SignOutResult::SignedOut));
     assert_eq!(
         ended.collect::<Vec<_>>(),
         vec![Request::ProgramSignedOut { source: 7, worker: worker(0), result: fleet::ProgramResult::SignedOut }]
@@ -445,7 +437,7 @@ fn a_second_holder_attachment_receives_a_failure() {
         ]
     );
     assert_eq!(
-        world.step(Event::SignedOut { channel: CHANNEL, name: source(b"a"), result: fleet::SignOutResult::SignedOut }),
+        world.step(Event::SignedOut { channel: CHANNEL, name: source(b"a"), result: SignOutResult::SignedOut }),
         vec![Request::ProgramSignedOut { source: 3, worker: worker(0), result: fleet::ProgramResult::SignedOut }]
     );
 }
@@ -479,7 +471,7 @@ fn an_unconstrained_choice_avoids_kept_logins() {
     world.hello(CHANNEL);
     world.step(Event::Logins {
         channel: CHANNEL,
-        logins: Box::new([fleet::Login { name: source(b"a"), state: fleet::LoginState::Usable }]),
+        logins: Box::new([Login { name: source(b"a"), state: LoginState::Usable }]),
     });
     assert_eq!(
         world.domain.free_kind(fleet::Kinds::Workers, 1, jig_domain_fleet::Version { charter: 0, revision: 1 }),
@@ -493,7 +485,7 @@ fn a_held_retired_name_still_withholds_its_host() {
     world.hello(CHANNEL);
     world.step(Event::Logins {
         channel: CHANNEL,
-        logins: Box::new([fleet::Login { name: source(b"a"), state: fleet::LoginState::Usable }]),
+        logins: Box::new([Login { name: source(b"a"), state: LoginState::Usable }]),
     });
     world.step(Event::Sources { sources: Box::new([]) });
     world.inventory(&[]);

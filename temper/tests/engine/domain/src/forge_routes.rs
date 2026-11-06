@@ -1212,7 +1212,7 @@ impl World {
                     .iter()
                     .filter(|assignment| matches!(self.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(assignment.task)))), Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) if matches!(row.phase, tasks::Phase::Active(tasks::Active::Running { attempt }) if attempt == assignment.attempt)))
                     .map(|assignment| {
-                        protocol::hosting(assignment.task, assignment.attempt, jig_domain_host::Phase::Active)
+                        protocol::hosting(assignment.task, assignment.attempt, jig_domain_link::Phase::Active)
                     })
                     .collect(),
             ));
@@ -1510,7 +1510,6 @@ impl World {
                 | engine::Request::MakingCopied { .. }
                 | engine::Request::SetUp { .. }
                 | engine::Request::Bound { .. }
-                | engine::Request::Return { .. }
                 | engine::Request::Setup { .. }
                 | engine::Request::Party(_)
                 | engine::Request::Store(_)
@@ -2317,7 +2316,7 @@ impl World {
                     matches!(self.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(assignment.task)))),
                         Some(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task))))
                         if matches!(task.phase, tasks::Phase::Active(tasks::Active::Claimed { attempt } | tasks::Active::Running { attempt }) if attempt == assignment.attempt))
-                }).map(|assignment| protocol::hosting(assignment.task, assignment.attempt, host::Phase::Active)).collect(),
+                }).map(|assignment| protocol::hosting(assignment.task, assignment.attempt, jig_domain_link::Phase::Active)).collect(),
             ));
         }
         self.oracle_settle();

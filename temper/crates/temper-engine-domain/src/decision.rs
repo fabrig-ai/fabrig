@@ -15,6 +15,7 @@ use JournalOutput as Output;
 use alloc::boxed::Box;
 use core::mem::size_of;
 pub use jig_domain_core::{Counters, fresh};
+use jig_domain_link::{SignOutResult, SourceName};
 use jig_domain_people as people;
 use skein_lib::{Decision as SkeinDecision, Journal as SkeinJournal, List, Queue, ReplyTo, Token};
 
@@ -103,8 +104,8 @@ pub enum Delivery {
     SourceSignedOut {
         to: ReplyTo,
         channel: Token,
-        name: jig_domain_fleet::SourceName,
-        result: Option<jig_domain_fleet::SignOutResult>,
+        name: SourceName,
+        result: Option<SignOutResult>,
     },
     Application {
         to: ReplyTo,
@@ -207,6 +208,8 @@ pub enum Delivery {
         /// Fixed-size worker protocol destination echoed from its refused hello; no worker slot is
         /// admitted.
         channel: Token,
+        /// The fleet's hello reason and figures; absent for malformed records or a stopping core.
+        hello: Option<jig_domain_fleet::HelloRefused>,
     },
     /// Root to worker: fleet lacked turn admission room; keep the body and retry after a backoff,
     /// without charging.
@@ -649,7 +652,6 @@ pub fn resume(journal: &mut Journal, out: &mut Queue<Output>) {
             | crate::Output::Account(_)
             | crate::Output::Busy(_)
             | crate::Output::Drained
-            | crate::Output::Return { .. }
             | crate::Output::Connect { .. }
             | crate::Output::Replace { .. }
             | crate::Output::Manifest { .. }

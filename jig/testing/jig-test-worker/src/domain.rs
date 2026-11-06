@@ -8,6 +8,7 @@ use crate::{
 use alloc::boxed::Box;
 use host::{AgentActivity, Event as HubEvent, FromAgent};
 use jig_domain_host as host;
+use jig_domain_link::Phase;
 use skein_lib::{Env, Map, Queue, Time, Token};
 use smith_host_domain as smith;
 
@@ -230,7 +231,7 @@ fn parent(domain: &mut Domain, env: &Env<Limits>, event: smith::parent::Event) {
 
 fn decoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, start: Result<Box<smith::Start>, host::Undecoded>) {
     let Some(hosting) = domain.hub.hosting(owner) else { return };
-    if hosting.phase != host::Phase::Starting {
+    if hosting.phase != Phase::Starting {
         hub(domain, env, HubEvent::Agent(FromAgent::Gone { owner, detail: Box::new([]) }));
         return;
     }
@@ -456,11 +457,6 @@ fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent::Request, o
             hub(domain, env, HubEvent::Agent(FromAgent::AccountRefused { owner: client, account, code, reason }));
         }
         smith::parent::Request::Faulted { client, fault } => {
-            if let Some(hosting) = domain.hub.hosting(client)
-                && hosting.phase == host::Phase::Starting
-            {
-                return;
-            }
             hub(domain, env, HubEvent::Agent(FromAgent::Faulted { owner: client, fault: translate::fault(fault) }));
         }
         smith::parent::Request::MessageRefused { client, name, reason } => {
@@ -472,7 +468,7 @@ fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent::Request, o
         }
         smith::parent::Request::Unread { client, names } => {
             if let Some(hosting) = domain.hub.hosting(client)
-                && hosting.phase != host::Phase::Starting
+                && hosting.phase != Phase::Starting
             {
                 for name in names {
                     hub(
@@ -577,7 +573,7 @@ fn hand_out_pending(domain: &Domain, owner: Token) -> bool {
 
 fn gone(domain: &mut Domain, env: &Env<Limits>, owner: Token, detail: Box<[u8]>) {
     if let Some(hosting) = domain.hub.hosting(owner)
-        && hosting.phase != host::Phase::Answered
+        && hosting.phase != Phase::Answered
     {
         hub(domain, env, HubEvent::Agent(FromAgent::Gone { owner, detail }));
     }

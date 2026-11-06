@@ -337,7 +337,7 @@ fn each_state_of_the_table_reads() {
                 by: c::Requester::Person(fixtures::PARTY),
                 at: Wall::EPOCH,
             }),
-            State::Stopped,
+            State::Closed,
         ),
         (None, State::Failed),
     ] {
@@ -365,7 +365,7 @@ fn each_state_of_the_table_reads() {
         let filters = match expected {
             State::Needs { .. } => [true, true, false, false],
             State::Planning | State::Paused | State::Running => [true, false, true, false],
-            State::Landed | State::Stopped | State::Failed => [true, false, false, true],
+            State::Landed | State::Closed | State::Failed => [true, false, false, true],
         };
         for (filter, selected) in
             [GoalsFilter::All, GoalsFilter::Needs, GoalsFilter::Live, GoalsFilter::Ended].into_iter().zip(filters)

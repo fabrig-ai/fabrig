@@ -1,48 +1,91 @@
-//! Atomic replacement beside an opened parent directory (io.md, section 5.2).
+//! Atomic replacement beside an opened parent directory (skein/docs/design/io.md, 5.2).
 //!
-//! A store keeps the parent and temporary descriptors, the target expectation,
-//! and one kernel operation at a time. It never knows a workspace's policy.
-//! `start`, `up`, and `timed_out` are called only by the file layer. A
-//! terminal follows every descriptor close and temporary removal attempt;
+//! Each state owns its descriptors and temporary name, with one kernel operation
+//! in flight. A terminal follows every close and temporary removal attempt;
 //! failures distinguish a committed replacement and any cleanup residue.
 
 use alloc::boxed::Box;
 use alloc::vec::Vec;
+use core::mem;
 
+use skein_lib::sha256::Sha256;
 use skein_lib::{Env, Queue, Token, usize_of};
 
 use super::{Contents, FileIo, Limits, Pending, Work};
 use crate::digest::{Digest, digest};
 use crate::file::{Event, Expect, Residue};
 use crate::kernel::{Complete, Done, Error, Fd, Kind, Op, OpenHow, Submit, is_name};
-use skein_lib::sha256::Sha256;
 
 const ATTEMPTS: u8 = 8;
-
 type SplitPath = (Box<[u8]>, Box<[u8]>);
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Phase {
-    ParentOpening,
-    OldOpening,
-    OldStating,
-    OldClosing,
-    TempCreating,
-    TempWriting,
-    TempSyncing,
-    TempClosing,
-    CheckOpening,
-    CheckStating,
-    CheckReading,
-    CheckClosing,
-    Renaming,
-    DirectorySyncing,
-    ParentClosing,
-    CleanupCheck,
-    CleanupOld,
-    CleanupTemp,
-    CleanupRemove,
-    CleanupParent,
+/// One store lifecycle (skein/docs/foundation/programming-model.md, 5.4).
+#[derive(Debug)]
+enum State {
+    ParentOpening { input: Input },
+    OldOpening { parent: Fd, input: Input },
+    OldStating { parent: Fd, old: Fd, input: Input },
+    OldClosing { parent: Fd, old: Fd, input: Input },
+    TempCreating { parent: Fd, input: Input, name: Box<[u8]>, attempts: u8 },
+    TempWriting(Opened),
+    TempSyncing(Opened),
+    TempClosing(Opened),
+    CheckOpening(Named),
+    CheckStating(Opened),
+    CheckReading(Reading),
+    CheckClosing { check: Opened, verdict: Verdict },
+    Renaming(Named),
+    DirectorySyncing { parent: Fd },
+    ParentClosing { parent: Fd },
+    Settling { failure: Failure, step: Settle },
+    Finished,
+}
+
+#[derive(Debug)]
+struct Input {
+    bytes: Contents,
+    mode: u32,
+}
+
+#[derive(Debug)]
+struct Named {
+    parent: Fd,
+    name: Box<[u8]>,
+}
+
+#[derive(Debug)]
+struct Opened {
+    named: Named,
+    fd: Fd,
+}
+
+#[derive(Debug)]
+struct Reading {
+    check: Opened,
+    seen: Sha256,
+    seen_bytes: u64,
+}
+
+#[derive(Debug)]
+enum Verdict {
+    Matches,
+    Refused(Failure),
+}
+
+#[derive(Debug)]
+enum Settle {
+    ClosingCheck(Opened),
+    ClosingOld { parent: Fd, old: Fd },
+    ClosingTemp(Opened),
+    Removing(Named),
+    ClosingParent { parent: Fd, left: Left },
+}
+
+#[derive(Debug)]
+enum Left {
+    Nothing,
+    Committed,
+    Residue(Residue),
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -54,31 +97,34 @@ enum Failure {
 #[derive(Debug)]
 pub(super) struct Store {
     owner: Token,
-    phase: Phase,
-    parent: Option<Fd>,
-    old: Option<Fd>,
-    temporary: Option<Fd>,
-    check: Option<Fd>,
+    state: State,
     target: Box<[u8]>,
-    temp_name: Option<Box<[u8]>>,
-    temp_exists: bool,
-    committed: bool,
-    residue: Option<Residue>,
-    bytes: Option<Contents>,
     expected: Expect,
     produced: Digest,
     no_follow: bool,
     private_owner: Option<u32>,
-    mode: u32,
-    attempts: u8,
-    seen_bytes: u64,
-    seen_digest: Sha256,
-    failure: Option<Failure>,
 }
 
 impl Store {
     pub(super) fn deadline(&self, deadline: Option<skein_lib::Time>) -> Option<skein_lib::Time> {
-        if self.failure.is_some() { None } else { deadline }
+        match &self.state {
+            State::Settling { .. } | State::CheckClosing { verdict: Verdict::Refused(_), .. } | State::Finished => None,
+            State::ParentOpening { .. }
+            | State::OldOpening { .. }
+            | State::OldStating { .. }
+            | State::OldClosing { .. }
+            | State::TempCreating { .. }
+            | State::TempWriting(_)
+            | State::TempSyncing(_)
+            | State::TempClosing(_)
+            | State::CheckOpening(_)
+            | State::CheckStating(_)
+            | State::CheckReading(_)
+            | State::CheckClosing { verdict: Verdict::Matches, .. }
+            | State::Renaming(_)
+            | State::DirectorySyncing { .. }
+            | State::ParentClosing { .. } => deadline,
+        }
     }
 
     pub(super) const fn owner(&self) -> Token {
@@ -87,52 +133,46 @@ impl Store {
 
     /// A store can still leave the old target in place before its rename.
     pub(super) fn can_abandon(&self) -> bool {
-        match self.phase {
-            Phase::ParentOpening
-            | Phase::OldOpening
-            | Phase::OldStating
-            | Phase::OldClosing
-            | Phase::TempCreating
-            | Phase::TempWriting
-            | Phase::TempSyncing
-            | Phase::TempClosing
-            | Phase::CheckOpening
-            | Phase::CheckStating
-            | Phase::CheckReading
-            | Phase::CheckClosing => true,
-            Phase::Renaming
-            | Phase::DirectorySyncing
-            | Phase::ParentClosing
-            | Phase::CleanupCheck
-            | Phase::CleanupOld
-            | Phase::CleanupTemp
-            | Phase::CleanupRemove
-            | Phase::CleanupParent => false,
+        match self.state {
+            State::ParentOpening { .. }
+            | State::OldOpening { .. }
+            | State::OldStating { .. }
+            | State::OldClosing { .. }
+            | State::TempCreating { .. }
+            | State::TempWriting(_)
+            | State::TempSyncing(_)
+            | State::TempClosing(_)
+            | State::CheckOpening(_)
+            | State::CheckStating(_)
+            | State::CheckReading(_)
+            | State::CheckClosing { .. } => true,
+            State::Renaming(_)
+            | State::DirectorySyncing { .. }
+            | State::ParentClosing { .. }
+            | State::Settling { .. }
+            | State::Finished => false,
         }
     }
 
     pub(super) fn can_cancel(&self) -> bool {
-        match self.phase {
-            Phase::ParentOpening
-            | Phase::OldOpening
-            | Phase::TempCreating
-            | Phase::TempWriting
-            | Phase::TempSyncing
-            | Phase::CheckOpening
-            | Phase::CheckReading
-            | Phase::DirectorySyncing => true,
-            Phase::OldStating
-            | Phase::OldClosing
-            | Phase::TempClosing
-            | Phase::CheckStating
-            | Phase::CheckClosing
-            | Phase::Renaming
-            | Phase::ParentClosing
-            | Phase::CleanupCheck
-            | Phase::CleanupOld
-            | Phase::CleanupTemp
-            | Phase::CleanupRemove
-            | Phase::CleanupParent => false,
+        match self.state {
+            State::ParentOpening { .. }
+            | State::OldOpening { .. }
+            | State::TempCreating { .. }
+            | State::TempWriting(_)
+            | State::TempSyncing(_)
+            | State::CheckOpening(_)
+            | State::CheckReading(_)
+            | State::DirectorySyncing { .. } => true,
+            State::OldStating { .. }
+            | State::OldClosing { .. }
+            | State::TempClosing(_)
+            | State::CheckStating(_)
+            | State::CheckClosing { .. }
+            | State::Renaming(_)
+            | State::ParentClosing { .. }
+            | State::Settling { .. }
+            | State::Finished => false,
         }
     }
 }
@@ -194,26 +234,12 @@ pub(super) fn start(
     let bytes = Contents(bytes.into_vec());
     let store = Store {
         owner,
-        phase: Phase::ParentOpening,
-        parent: None,
-        old: None,
-        temporary: None,
-        check: None,
+        state: State::ParentOpening { input: Input { bytes, mode: if private { 0o600 } else { 0o666 } } },
         target,
-        temp_name: None,
-        temp_exists: false,
-        committed: false,
-        residue: None,
-        bytes: Some(bytes),
         expected,
         produced,
         no_follow,
         private_owner,
-        mode: if private { 0o600 } else { 0o666 },
-        attempts: 0,
-        seen_bytes: 0,
-        seen_digest: Sha256::new(),
-        failure: None,
     };
     let how = if no_follow { OpenHow::DirectoryNoFollow } else { OpenHow::Directory };
     issue(io, store, Op::Open { root: root_fd, path: parent_path, how }, subs)
@@ -221,10 +247,6 @@ pub(super) fn start(
 
 fn issue(io: &mut FileIo, store: Store, op: Op, subs: &mut Queue<Submit>) -> Work {
     super::issue(io, Pending::Store(store), op, subs)
-}
-
-fn parent(store: &Store) -> Fd {
-    store.parent.expect("a store has opened its parent")
 }
 
 fn temp_name(io: &mut FileIo, target: &[u8]) -> Box<[u8]> {
@@ -245,373 +267,6 @@ fn temp_name(io: &mut FileIo, target: &[u8]) -> Box<[u8]> {
         name.push(ascii);
     }
     name.into_boxed_slice()
-}
-
-fn create_temp(io: &mut FileIo, mut store: Store, subs: &mut Queue<Submit>) -> Work {
-    let name = temp_name(io, &store.target);
-    store.temp_name = Some(name.clone());
-    store.attempts = store.attempts.checked_add(1).expect("bounded attempts");
-    store.phase = Phase::TempCreating;
-    let how = if store.no_follow {
-        OpenHow::CreateNoFollow { mode: Some(store.mode) }
-    } else {
-        OpenHow::Create { mode: Some(store.mode) }
-    };
-    let root = parent(&store);
-    issue(io, store, Op::Open { root, path: name, how }, subs)
-}
-
-fn open_old(io: &mut FileIo, mut store: Store, subs: &mut Queue<Submit>) -> Work {
-    store.phase = Phase::OldOpening;
-    let how = if store.no_follow { OpenHow::ReadNoFollow } else { OpenHow::Read };
-    let root = parent(&store);
-    let path = store.target.clone();
-    issue(io, store, Op::Open { root, path, how }, subs)
-}
-
-fn open_check(io: &mut FileIo, mut store: Store, subs: &mut Queue<Submit>) -> Work {
-    store.phase = Phase::CheckOpening;
-    let how = match store.expected {
-        Expect::Any => unreachable!("unconditional stores do not recheck content"),
-        Expect::Absent => OpenHow::ReadNoFollow,
-        Expect::Digest(_) => {
-            if store.no_follow {
-                OpenHow::ReadNoFollow
-            } else {
-                OpenHow::Read
-            }
-        }
-    };
-    let root = parent(&store);
-    let path = store.target.clone();
-    issue(io, store, Op::Open { root, path, how }, subs)
-}
-
-fn rename(io: &mut FileIo, mut store: Store, subs: &mut Queue<Submit>) -> Work {
-    store.phase = Phase::Renaming;
-    let dir = parent(&store);
-    let from = store.temp_name.as_ref().expect("a temporary was created").clone();
-    let to = store.target.clone();
-    let no_replace = match store.expected {
-        Expect::Absent => true,
-        Expect::Any | Expect::Digest(_) => false,
-    };
-    issue(io, store, Op::Rename { from_dir: dir, from, to_dir: dir, to, no_replace }, subs)
-}
-
-fn read_check(io: &mut FileIo, env: &Env<Limits>, mut store: Store, subs: &mut Queue<Submit>) -> Work {
-    let buffer = alloc::vec![0_u8; usize_of(env.limits.read)].into_boxed_slice();
-    let fd = store.check.expect("the checked file is open");
-    store.phase = Phase::CheckReading;
-    let op = Op::read(fd, buffer, store.seen_bytes).expect("positive bounded read");
-    issue(io, store, op, subs)
-}
-
-fn terminal(store: Store, events: &mut Queue<Event>) {
-    match store.failure.expect("cleanup has a failure") {
-        Failure::Kernel(Error::Cancelled) if !store.committed && store.residue.is_none() => {
-            events.push(Event::Cancelled { owner: store.owner });
-        }
-        Failure::Kernel(error) => {
-            events.push(Event::Failed {
-                owner: store.owner,
-                error,
-                committed: store.committed,
-                residue: store.residue,
-            });
-        }
-        Failure::Conflict { now } => events.push(Event::Conflict { owner: store.owner, now }),
-    }
-}
-
-fn cleanup(io: &mut FileIo, mut store: Store, events: &mut Queue<Event>, subs: &mut Queue<Submit>) -> Work {
-    store.bytes = None;
-    if let Some(fd) = store.check {
-        store.phase = Phase::CleanupCheck;
-        return issue(io, store, Op::Close { fd }, subs);
-    } else if let Some(fd) = store.old {
-        store.phase = Phase::CleanupOld;
-        return issue(io, store, Op::Close { fd }, subs);
-    } else if let Some(fd) = store.temporary {
-        store.phase = Phase::CleanupTemp;
-        return issue(io, store, Op::Close { fd }, subs);
-    } else if store.temp_exists {
-        let dir = parent(&store);
-        let name = store.temp_name.as_ref().expect("an existing temporary has a name").clone();
-        store.phase = Phase::CleanupRemove;
-        return issue(io, store, Op::Remove { dir, name, directory: false }, subs);
-    } else if let Some(fd) = store.parent {
-        store.phase = Phase::CleanupParent;
-        return issue(io, store, Op::Close { fd }, subs);
-    }
-    terminal(store, events);
-    Work::Idle
-}
-
-fn fail(
-    io: &mut FileIo,
-    mut store: Store,
-    failure: Failure,
-    events: &mut Queue<Event>,
-    subs: &mut Queue<Submit>,
-) -> Work {
-    store.failure = Some(failure);
-    cleanup(io, store, events, subs)
-}
-
-fn finish_cleanup(
-    io: &mut FileIo,
-    mut store: Store,
-    result: Result<Done, Error>,
-    events: &mut Queue<Event>,
-    subs: &mut Queue<Submit>,
-) -> Work {
-    match store.phase {
-        Phase::CleanupCheck => store.check = None,
-        Phase::CleanupOld => store.old = None,
-        Phase::CleanupTemp => store.temporary = None,
-        Phase::CleanupRemove => {
-            store.temp_exists = false;
-            match result {
-                Ok(_) | Err(Error::NotFound) => {}
-                Err(error) => {
-                    store.residue = Some(Residue {
-                        name: store.temp_name.take().expect("an existing temporary has its name"),
-                        error,
-                    });
-                }
-            }
-        }
-        Phase::CleanupParent => store.parent = None,
-        Phase::ParentOpening
-        | Phase::OldOpening
-        | Phase::OldStating
-        | Phase::OldClosing
-        | Phase::TempCreating
-        | Phase::TempWriting
-        | Phase::TempSyncing
-        | Phase::TempClosing
-        | Phase::CheckOpening
-        | Phase::CheckStating
-        | Phase::CheckReading
-        | Phase::CheckClosing
-        | Phase::Renaming
-        | Phase::DirectorySyncing
-        | Phase::ParentClosing => unreachable!("a cleanup completion has a cleanup phase"),
-    }
-    if let Err(error) = result
-        && !(store.phase == Phase::CleanupRemove && error == Error::NotFound)
-    {
-        store.failure = Some(Failure::Kernel(error));
-    }
-    cleanup(io, store, events, subs)
-}
-
-pub(super) fn up(
-    io: &mut FileIo,
-    env: &Env<Limits>,
-    store: Store,
-    complete: Complete,
-    events: &mut Queue<Event>,
-    subs: &mut Queue<Submit>,
-) -> Work {
-    match store.phase {
-        Phase::CleanupCheck | Phase::CleanupOld | Phase::CleanupTemp | Phase::CleanupRemove | Phase::CleanupParent => {
-            finish_cleanup(io, store, complete.result, events, subs)
-        }
-        Phase::ParentOpening
-        | Phase::OldOpening
-        | Phase::OldStating
-        | Phase::OldClosing
-        | Phase::TempCreating
-        | Phase::TempWriting
-        | Phase::TempSyncing
-        | Phase::TempClosing
-        | Phase::CheckOpening
-        | Phase::CheckStating
-        | Phase::CheckReading
-        | Phase::CheckClosing
-        | Phase::Renaming
-        | Phase::DirectorySyncing
-        | Phase::ParentClosing => match complete.result {
-            Ok(done) => success(io, env, store, complete.kind, done, events, subs),
-            Err(error) => failed_operation(io, store, error, events, subs),
-        },
-    }
-}
-
-fn failed_operation(
-    io: &mut FileIo,
-    mut store: Store,
-    error: Error,
-    events: &mut Queue<Event>,
-    subs: &mut Queue<Submit>,
-) -> Work {
-    match store.phase {
-        Phase::OldOpening => {
-            let skip = match store.expected {
-                Expect::Any | Expect::Absent => {
-                    error == Error::NotFound
-                        || error == Error::Permission
-                        || error == Error::TooManyLinks
-                        || error == Error::Escape
-                        || error == Error::NotAFile
-                }
-                Expect::Digest(_) => error == Error::NotFound || error == Error::Permission,
-            };
-            if skip {
-                match store.expected {
-                    Expect::Absent if error != Error::NotFound => {
-                        fail(io, store, Failure::Conflict { now: None }, events, subs)
-                    }
-                    Expect::Any | Expect::Absent | Expect::Digest(_) => create_temp(io, store, subs),
-                }
-            } else {
-                fail(io, store, Failure::Kernel(error), events, subs)
-            }
-        }
-        Phase::TempCreating => {
-            if error == Error::Exists && store.attempts < ATTEMPTS {
-                create_temp(io, store, subs)
-            } else {
-                fail(io, store, Failure::Kernel(error), events, subs)
-            }
-        }
-        Phase::CheckOpening => {
-            if error == Error::NotFound {
-                match store.expected {
-                    Expect::Absent => rename(io, store, subs),
-                    Expect::Digest(_) => fail(io, store, Failure::Conflict { now: None }, events, subs),
-                    Expect::Any => unreachable!("unconditional stores skip the recheck"),
-                }
-            } else {
-                let failure = match store.expected {
-                    Expect::Absent
-                        if error == Error::Permission
-                            || error == Error::TooManyLinks
-                            || error == Error::Escape
-                            || error == Error::NotAFile
-                            || error == Error::IsADirectory =>
-                    {
-                        Failure::Conflict { now: None }
-                    }
-                    Expect::Any | Expect::Absent | Expect::Digest(_) => Failure::Kernel(error),
-                };
-                fail(io, store, failure, events, subs)
-            }
-        }
-        Phase::OldClosing => {
-            store.old = None;
-            fail(io, store, Failure::Kernel(error), events, subs)
-        }
-        Phase::TempClosing => {
-            store.temporary = None;
-            fail(io, store, Failure::Kernel(error), events, subs)
-        }
-        Phase::CheckClosing => {
-            store.check = None;
-            fail(io, store, Failure::Kernel(error), events, subs)
-        }
-        Phase::ParentClosing => {
-            store.parent = None;
-            fail(io, store, Failure::Kernel(error), events, subs)
-        }
-        Phase::Renaming => {
-            let failure = match store.expected {
-                Expect::Absent if error == Error::Exists => Failure::Conflict { now: None },
-                Expect::Any | Expect::Absent | Expect::Digest(_) => Failure::Kernel(error),
-            };
-            fail(io, store, failure, events, subs)
-        }
-        Phase::ParentOpening
-        | Phase::OldStating
-        | Phase::TempWriting
-        | Phase::TempSyncing
-        | Phase::CheckStating
-        | Phase::CheckReading
-        | Phase::DirectorySyncing => fail(io, store, Failure::Kernel(error), events, subs),
-        Phase::CleanupCheck | Phase::CleanupOld | Phase::CleanupTemp | Phase::CleanupRemove | Phase::CleanupParent => {
-            unreachable!("cleanup completion handled separately")
-        }
-    }
-}
-
-pub(super) fn stopped(
-    io: &mut FileIo,
-    mut store: Store,
-    complete: Complete,
-    reason: Error,
-    events: &mut Queue<Event>,
-    subs: &mut Queue<Submit>,
-) -> Work {
-    match complete.result {
-        Ok(Done::Fd(fd)) => match store.phase {
-            Phase::ParentOpening => store.parent = Some(fd),
-            Phase::OldOpening => store.old = Some(fd),
-            Phase::TempCreating => {
-                store.temporary = Some(fd);
-                store.temp_exists = true;
-            }
-            Phase::CheckOpening => store.check = Some(fd),
-            Phase::OldStating
-            | Phase::OldClosing
-            | Phase::TempWriting
-            | Phase::TempSyncing
-            | Phase::TempClosing
-            | Phase::CheckStating
-            | Phase::CheckReading
-            | Phase::CheckClosing
-            | Phase::Renaming
-            | Phase::DirectorySyncing
-            | Phase::ParentClosing
-            | Phase::CleanupCheck
-            | Phase::CleanupOld
-            | Phase::CleanupTemp
-            | Phase::CleanupRemove
-            | Phase::CleanupParent => unreachable!("only an open returns a descriptor"),
-        },
-        Ok(
-            Done::Nothing
-            | Done::Count(_)
-            | Done::Stat(_)
-            | Done::Accepted { .. }
-            | Done::Bound(_)
-            | Done::Spawned { .. }
-            | Done::Exit(_)
-            | Done::Usage(_)
-            | Done::Signalled(_)
-            | Done::Window(_),
-        )
-        | Err(_) => {}
-    }
-    match store.phase {
-        Phase::OldClosing => store.old = None,
-        Phase::TempClosing => store.temporary = None,
-        Phase::CheckClosing => store.check = None,
-        Phase::Renaming => {
-            if complete.result.is_ok() {
-                store.temp_exists = false;
-                store.committed = true;
-            }
-        }
-        Phase::ParentClosing => store.parent = None,
-        Phase::ParentOpening
-        | Phase::OldOpening
-        | Phase::OldStating
-        | Phase::TempCreating
-        | Phase::TempWriting
-        | Phase::TempSyncing
-        | Phase::CheckOpening
-        | Phase::CheckStating
-        | Phase::CheckReading
-        | Phase::DirectorySyncing
-        | Phase::CleanupCheck
-        | Phase::CleanupOld
-        | Phase::CleanupTemp
-        | Phase::CleanupRemove
-        | Phase::CleanupParent => {}
-    }
-    fail(io, store, Failure::Kernel(reason), events, subs)
 }
 
 pub(super) fn done_fd(done: Done) -> Fd {
@@ -748,172 +403,546 @@ pub(super) fn read_buffer(kind: Op) -> Box<[u8]> {
     }
 }
 
-#[expect(clippy::too_many_lines, reason = "each store phase handles its own one kernel completion")]
-fn success(
+fn advance(io: &mut FileIo, mut store: Store, state: State, op: Op, subs: &mut Queue<Submit>) -> Work {
+    store.state = state;
+    issue(io, store, op, subs)
+}
+
+fn create_temp(
+    io: &mut FileIo,
+    store: Store,
+    parent: Fd,
+    input: Input,
+    attempts: u8,
+    subs: &mut Queue<Submit>,
+) -> Work {
+    let name = temp_name(io, &store.target);
+    let attempts = attempts.checked_add(1).expect("bounded attempts");
+    let how = if store.no_follow {
+        OpenHow::CreateNoFollow { mode: Some(input.mode) }
+    } else {
+        OpenHow::Create { mode: Some(input.mode) }
+    };
+    let op = Op::Open { root: parent, path: name.clone(), how };
+    advance(io, store, State::TempCreating { parent, input, name, attempts }, op, subs)
+}
+
+fn open_check(io: &mut FileIo, store: Store, named: Named, subs: &mut Queue<Submit>) -> Work {
+    let how = match store.expected {
+        Expect::Any => unreachable!("unconditional stores do not recheck content"),
+        Expect::Absent => OpenHow::ReadNoFollow,
+        Expect::Digest(_) => {
+            if store.no_follow {
+                OpenHow::ReadNoFollow
+            } else {
+                OpenHow::Read
+            }
+        }
+    };
+    let op = Op::Open { root: named.parent, path: store.target.clone(), how };
+    advance(io, store, State::CheckOpening(named), op, subs)
+}
+
+fn rename(io: &mut FileIo, store: Store, named: Named, subs: &mut Queue<Submit>) -> Work {
+    let no_replace = match store.expected {
+        Expect::Absent => true,
+        Expect::Any | Expect::Digest(_) => false,
+    };
+    let op = Op::Rename {
+        from_dir: named.parent,
+        from: named.name.clone(),
+        to_dir: named.parent,
+        to: store.target.clone(),
+        no_replace,
+    };
+    advance(io, store, State::Renaming(named), op, subs)
+}
+
+fn read_check(io: &mut FileIo, env: &Env<Limits>, store: Store, reading: Reading, subs: &mut Queue<Submit>) -> Work {
+    let buffer = alloc::vec![0_u8; usize_of(env.limits.read)].into_boxed_slice();
+    let op = Op::read(reading.check.fd, buffer, reading.seen_bytes).expect("positive bounded read");
+    advance(io, store, State::CheckReading(reading), op, subs)
+}
+
+fn terminal(store: Store, failure: Failure, left: Left, events: &mut Queue<Event>) -> Work {
+    let (committed, residue) = match left {
+        Left::Nothing => (false, None),
+        Left::Committed => (true, None),
+        Left::Residue(residue) => (false, Some(residue)),
+    };
+    match failure {
+        Failure::Kernel(Error::Cancelled) if !committed && residue.is_none() => {
+            events.push(Event::Cancelled { owner: store.owner });
+        }
+        Failure::Kernel(error) => events.push(Event::Failed { owner: store.owner, error, committed, residue }),
+        Failure::Conflict { now } => events.push(Event::Conflict { owner: store.owner, now }),
+    }
+    Work::Idle
+}
+
+fn settle(io: &mut FileIo, store: Store, failure: Failure, step: Settle, subs: &mut Queue<Submit>) -> Work {
+    let op = match &step {
+        Settle::ClosingCheck(opened) | Settle::ClosingTemp(opened) => Op::Close { fd: opened.fd },
+        Settle::ClosingOld { old, .. } => Op::Close { fd: *old },
+        Settle::Removing(named) => Op::Remove { dir: named.parent, name: named.name.clone(), directory: false },
+        Settle::ClosingParent { parent, .. } => Op::Close { fd: *parent },
+    };
+    advance(io, store, State::Settling { failure, step }, op, subs)
+}
+
+/// A completed close releases its descriptor even when the close failed.
+fn abandon(
+    io: &mut FileIo,
+    store: Store,
+    state: State,
+    failure: Failure,
+    events: &mut Queue<Event>,
+    subs: &mut Queue<Submit>,
+) -> Work {
+    let step = match state {
+        State::ParentOpening { .. } => return terminal(store, failure, Left::Nothing, events),
+        State::OldOpening { parent, .. } | State::OldClosing { parent, .. } | State::TempCreating { parent, .. } => {
+            Settle::ClosingParent { parent, left: Left::Nothing }
+        }
+        State::OldStating { parent, old, .. } => Settle::ClosingOld { parent, old },
+        State::TempWriting(temp) | State::TempSyncing(temp) => Settle::ClosingTemp(temp),
+        State::TempClosing(temp) => Settle::Removing(temp.named),
+        State::CheckOpening(named) | State::Renaming(named) => Settle::Removing(named),
+        State::CheckStating(check) | State::CheckReading(Reading { check, .. }) => Settle::ClosingCheck(check),
+        State::CheckClosing { check, .. } => Settle::Removing(check.named),
+        State::DirectorySyncing { parent } => Settle::ClosingParent { parent, left: Left::Committed },
+        State::ParentClosing { .. } => return terminal(store, failure, Left::Committed, events),
+        State::Settling { .. } | State::Finished => unreachable!("only an active operation is abandoned"),
+    };
+    settle(io, store, failure, step, subs)
+}
+
+fn finish_cleanup(
+    io: &mut FileIo,
+    store: Store,
+    failure: Failure,
+    step: Settle,
+    result: Result<Done, Error>,
+    events: &mut Queue<Event>,
+    subs: &mut Queue<Submit>,
+) -> Work {
+    let later = match result {
+        Ok(_) => failure,
+        Err(error) => Failure::Kernel(error),
+    };
+    match step {
+        Settle::ClosingCheck(check) => settle(io, store, later, Settle::Removing(check.named), subs),
+        Settle::ClosingOld { parent, .. } => {
+            settle(io, store, later, Settle::ClosingParent { parent, left: Left::Nothing }, subs)
+        }
+        Settle::ClosingTemp(temp) => settle(io, store, later, Settle::Removing(temp.named), subs),
+        Settle::Removing(named) => {
+            let (failure, left) = match result {
+                Ok(_) | Err(Error::NotFound) => (failure, Left::Nothing),
+                Err(error) => (later, Left::Residue(Residue { name: named.name, error })),
+            };
+            settle(io, store, failure, Settle::ClosingParent { parent: named.parent, left }, subs)
+        }
+        Settle::ClosingParent { left, .. } => terminal(store, later, left, events),
+    }
+}
+
+pub(super) fn up(
     io: &mut FileIo,
     env: &Env<Limits>,
     mut store: Store,
+    complete: Complete,
+    events: &mut Queue<Event>,
+    subs: &mut Queue<Submit>,
+) -> Work {
+    let state = mem::replace(&mut store.state, State::Finished);
+    match state {
+        State::Settling { failure, step } => finish_cleanup(io, store, failure, step, complete.result, events, subs),
+        state @ (State::ParentOpening { .. }
+        | State::OldOpening { .. }
+        | State::OldStating { .. }
+        | State::OldClosing { .. }
+        | State::TempCreating { .. }
+        | State::TempWriting(_)
+        | State::TempSyncing(_)
+        | State::TempClosing(_)
+        | State::CheckOpening(_)
+        | State::CheckStating(_)
+        | State::CheckReading(_)
+        | State::CheckClosing { .. }
+        | State::Renaming(_)
+        | State::DirectorySyncing { .. }
+        | State::ParentClosing { .. }) => match complete.result {
+            Ok(done) => success(io, env, store, state, complete.kind, done, events, subs),
+            Err(error) => failed_operation(io, store, state, error, events, subs),
+        },
+        State::Finished => unreachable!("a finished store has no operation in flight"),
+    }
+}
+
+fn failed_operation(
+    io: &mut FileIo,
+    store: Store,
+    state: State,
+    error: Error,
+    events: &mut Queue<Event>,
+    subs: &mut Queue<Submit>,
+) -> Work {
+    let failure = Failure::Kernel(error);
+    match state {
+        State::OldOpening { parent, input } => {
+            let skip = match store.expected {
+                Expect::Any | Expect::Absent => {
+                    error == Error::NotFound
+                        || error == Error::Permission
+                        || error == Error::TooManyLinks
+                        || error == Error::Escape
+                        || error == Error::NotAFile
+                }
+                Expect::Digest(_) => error == Error::NotFound || error == Error::Permission,
+            };
+            let failure = match store.expected {
+                Expect::Absent if skip && error != Error::NotFound => Failure::Conflict { now: None },
+                Expect::Any | Expect::Absent | Expect::Digest(_) => {
+                    if skip {
+                        return create_temp(io, store, parent, input, 0, subs);
+                    }
+                    failure
+                }
+            };
+            settle(io, store, failure, Settle::ClosingParent { parent, left: Left::Nothing }, subs)
+        }
+        State::TempCreating { parent, input, attempts, .. } => {
+            if error == Error::Exists && attempts < ATTEMPTS {
+                create_temp(io, store, parent, input, attempts, subs)
+            } else {
+                settle(io, store, failure, Settle::ClosingParent { parent, left: Left::Nothing }, subs)
+            }
+        }
+        State::CheckOpening(named) => {
+            let failure = match store.expected {
+                Expect::Absent if error == Error::NotFound => return rename(io, store, named, subs),
+                Expect::Digest(_) if error == Error::NotFound => Failure::Conflict { now: None },
+                Expect::Absent
+                    if error == Error::Permission
+                        || error == Error::TooManyLinks
+                        || error == Error::Escape
+                        || error == Error::NotAFile
+                        || error == Error::IsADirectory =>
+                {
+                    Failure::Conflict { now: None }
+                }
+                Expect::Any => unreachable!("unconditional stores skip the recheck"),
+                Expect::Absent | Expect::Digest(_) => failure,
+            };
+            settle(io, store, failure, Settle::Removing(named), subs)
+        }
+        State::Renaming(named) => {
+            let failure = match store.expected {
+                Expect::Absent if error == Error::Exists => Failure::Conflict { now: None },
+                Expect::Any | Expect::Absent | Expect::Digest(_) => failure,
+            };
+            settle(io, store, failure, Settle::Removing(named), subs)
+        }
+        state @ (State::ParentOpening { .. }
+        | State::OldStating { .. }
+        | State::OldClosing { .. }
+        | State::TempWriting(_)
+        | State::TempSyncing(_)
+        | State::TempClosing(_)
+        | State::CheckStating(_)
+        | State::CheckReading(_)
+        | State::CheckClosing { .. }
+        | State::DirectorySyncing { .. }
+        | State::ParentClosing { .. }) => abandon(io, store, state, failure, events, subs),
+        State::Settling { .. } | State::Finished => unreachable!("cleanup completions are handled separately"),
+    }
+}
+
+pub(super) fn stopped(
+    io: &mut FileIo,
+    mut store: Store,
+    complete: Complete,
+    reason: Error,
+    events: &mut Queue<Event>,
+    subs: &mut Queue<Submit>,
+) -> Work {
+    let state = mem::replace(&mut store.state, State::Finished);
+    let state = match complete.result {
+        Ok(Done::Fd(fd)) => match state {
+            State::ParentOpening { input } => State::OldOpening { parent: fd, input },
+            State::OldOpening { parent, input } => State::OldStating { parent, old: fd, input },
+            State::TempCreating { parent, name, .. } => {
+                State::TempSyncing(Opened { named: Named { parent, name }, fd })
+            }
+            State::CheckOpening(named) => State::CheckStating(Opened { named, fd }),
+            State::OldStating { .. }
+            | State::OldClosing { .. }
+            | State::TempWriting(_)
+            | State::TempSyncing(_)
+            | State::TempClosing(_)
+            | State::CheckStating(_)
+            | State::CheckReading(_)
+            | State::CheckClosing { .. }
+            | State::Renaming(_)
+            | State::DirectorySyncing { .. }
+            | State::ParentClosing { .. }
+            | State::Settling { .. }
+            | State::Finished => unreachable!("only an open returns a descriptor"),
+        },
+        Ok(
+            Done::Nothing
+            | Done::Count(_)
+            | Done::Stat(_)
+            | Done::Accepted { .. }
+            | Done::Bound(_)
+            | Done::Spawned { .. }
+            | Done::Exit(_)
+            | Done::Usage(_)
+            | Done::Signalled(_)
+            | Done::Window(_),
+        ) => match state {
+            State::Renaming(named) => State::DirectorySyncing { parent: named.parent },
+            state @ (State::ParentOpening { .. }
+            | State::OldOpening { .. }
+            | State::OldStating { .. }
+            | State::OldClosing { .. }
+            | State::TempCreating { .. }
+            | State::TempWriting(_)
+            | State::TempSyncing(_)
+            | State::TempClosing(_)
+            | State::CheckOpening(_)
+            | State::CheckStating(_)
+            | State::CheckReading(_)
+            | State::CheckClosing { .. }
+            | State::DirectorySyncing { .. }
+            | State::ParentClosing { .. }) => state,
+            State::Settling { .. } | State::Finished => unreachable!("only an active operation can be stopped"),
+        },
+        Err(_) => state,
+    };
+    abandon(io, store, state, Failure::Kernel(reason), events, subs)
+}
+
+#[expect(clippy::too_many_arguments, reason = "dispatch owns the source state and its one kernel completion")]
+fn success(
+    io: &mut FileIo,
+    env: &Env<Limits>,
+    store: Store,
+    state: State,
     kind: Op,
     done: Done,
     events: &mut Queue<Event>,
     subs: &mut Queue<Submit>,
 ) -> Work {
-    match store.phase {
-        Phase::ParentOpening => {
-            store.parent = Some(done_fd(done));
-            return open_old(io, store, subs);
-        }
-        Phase::OldOpening => {
-            let fd = done_fd(done);
-            store.old = Some(fd);
-            match store.expected {
-                Expect::Absent => return fail(io, store, Failure::Conflict { now: None }, events, subs),
-                Expect::Any | Expect::Digest(_) => {
-                    store.phase = Phase::OldStating;
-                    return issue(io, store, Op::Stat { fd }, subs);
-                }
-            }
-        }
-        Phase::OldStating => {
-            let stat = done_stat(done);
-            if stat.kind != Kind::File {
-                let failure = match store.expected {
-                    Expect::Absent => Failure::Conflict { now: None },
-                    Expect::Any | Expect::Digest(_) => Failure::Kernel(Error::IsADirectory),
-                };
-                return fail(io, store, failure, events, subs);
-            }
-            if store.private_owner.is_none() {
-                store.mode = stat.mode;
-            }
-            store.phase = Phase::OldClosing;
-            let fd = store.old.expect("old file opened");
-            return issue(io, store, Op::Close { fd }, subs);
-        }
-        Phase::OldClosing => {
-            done_nothing(done);
-            store.old = None;
-            return create_temp(io, store, subs);
-        }
-        Phase::TempCreating => {
-            let fd = done_fd(done);
-            store.temporary = Some(fd);
-            store.temp_exists = true;
-            let bytes = store.bytes.take().expect("store bytes held until temporary opens").0.into_boxed_slice();
-            if bytes.is_empty() {
-                store.phase = Phase::TempSyncing;
-                return issue(io, store, Op::Sync { fd }, subs);
-            }
-            store.phase = Phase::TempWriting;
-            let op = Op::write(fd, bytes, 0, 0).expect("bounded nonempty store bytes");
-            return issue(io, store, op, subs);
-        }
-        Phase::TempWriting => {
-            let count = done_count(done);
-            let (fd, bytes, from, at) = write_parts(kind);
-            if count == 0 {
-                return fail(io, store, Failure::Kernel(Error::Other(5)), events, subs);
-            }
-            let next = from.checked_add(count).expect("write count fits");
-            if usize_of(next) == bytes.len() {
-                store.phase = Phase::TempSyncing;
-                return issue(io, store, Op::Sync { fd }, subs);
-            }
-            let offset = at.checked_add(u64::from(count)).expect("bounded offset");
-            let op = Op::write(fd, bytes, next, offset).expect("short write continues inside bytes");
-            return issue(io, store, op, subs);
-        }
-        Phase::TempSyncing => {
-            done_nothing(done);
-            store.phase = Phase::TempClosing;
-            let fd = store.temporary.expect("temporary is open");
-            return issue(io, store, Op::Close { fd }, subs);
-        }
-        Phase::TempClosing => {
-            done_nothing(done);
-            store.temporary = None;
-            match store.expected {
-                Expect::Any => return rename(io, store, subs),
-                Expect::Absent | Expect::Digest(_) => return open_check(io, store, subs),
-            }
-        }
-        Phase::CheckOpening => {
-            let fd = done_fd(done);
-            store.check = Some(fd);
-            match store.expected {
-                Expect::Absent => return fail(io, store, Failure::Conflict { now: None }, events, subs),
-                Expect::Digest(_) => {
-                    store.phase = Phase::CheckStating;
-                    return issue(io, store, Op::Stat { fd }, subs);
-                }
-                Expect::Any => unreachable!("unconditional stores skip the recheck"),
-            }
-        }
-        Phase::CheckStating => {
-            let stat = done_stat(done);
-            if stat.kind == Kind::File {
-                return read_check(io, env, store, subs);
-            }
-            store.failure = Some(Failure::Kernel(Error::IsADirectory));
-            store.phase = Phase::CheckClosing;
-            let fd = store.check.expect("checked file is open");
-            return issue(io, store, Op::Close { fd }, subs);
-        }
-        Phase::CheckReading => {
-            let count = done_count(done);
-            let buf = read_buffer(kind);
-            let n = usize_of(count);
-            store.seen_digest.update(buf.get(..n).expect("read count within buffer"));
-            store.seen_bytes = store.seen_bytes.checked_add(u64::from(count)).expect("file length fits u64");
-            if count == 0 {
-                let now = Digest::from_bytes(core::mem::replace(&mut store.seen_digest, Sha256::new()).finish());
-                match store.expected {
-                    Expect::Any => unreachable!("unconditional stores do not read a version"),
-                    Expect::Absent => unreachable!("expected absence is checked without a read"),
-                    Expect::Digest(expected) => {
-                        if now != expected {
-                            store.failure = Some(Failure::Conflict { now: Some(now) });
-                        }
-                    }
-                }
-            }
-            if store.failure.is_some() || count == 0 {
-                store.phase = Phase::CheckClosing;
-                let fd = store.check.expect("checked file is open");
-                return issue(io, store, Op::Close { fd }, subs);
-            }
-            return read_check(io, env, store, subs);
-        }
-        Phase::CheckClosing => {
-            done_nothing(done);
-            store.check = None;
-            match store.failure {
-                Some(_) => return cleanup(io, store, events, subs),
-                None => return rename(io, store, subs),
-            }
-        }
-        Phase::Renaming => {
-            done_nothing(done);
-            store.temp_exists = false;
-            store.committed = true;
-            store.phase = Phase::DirectorySyncing;
-            let fd = parent(&store);
-            return issue(io, store, Op::Sync { fd }, subs);
-        }
-        Phase::DirectorySyncing => {
-            done_nothing(done);
-            store.phase = Phase::ParentClosing;
-            let fd = parent(&store);
-            return issue(io, store, Op::Close { fd }, subs);
-        }
-        Phase::ParentClosing => {
-            done_nothing(done);
-            store.parent = None;
-            events.push(Event::Stored { owner: store.owner, digest: store.produced });
-        }
-        Phase::CleanupCheck | Phase::CleanupOld | Phase::CleanupTemp | Phase::CleanupRemove | Phase::CleanupParent => {
-            unreachable!("cleanup handled separately")
+    match state {
+        State::ParentOpening { input } => parent_opened(io, store, input, done, subs),
+        State::OldOpening { parent, input } => old_opened(io, store, parent, input, done, subs),
+        State::OldStating { parent, old, input } => old_stated(io, store, parent, old, input, done, subs),
+        State::OldClosing { parent, old, input } => old_closed(io, store, parent, old, input, done, subs),
+        State::TempCreating { parent, input, name, .. } => temp_created(io, store, parent, input, name, done, subs),
+        State::TempWriting(temp) => temp_written(io, store, temp, kind, done, subs),
+        State::TempSyncing(temp) => temp_synced(io, store, temp, done, subs),
+        State::TempClosing(temp) => temp_closed(io, store, temp, done, subs),
+        State::CheckOpening(named) => check_opened(io, store, named, done, subs),
+        State::CheckStating(check) => check_stated(io, env, store, check, done, subs),
+        State::CheckReading(reading) => check_read(io, env, store, reading, kind, done, subs),
+        State::CheckClosing { check, verdict } => check_closed(io, store, check, verdict, done, subs),
+        State::Renaming(named) => renamed(io, store, named, done, subs),
+        State::DirectorySyncing { parent } => directory_synced(io, store, parent, done, subs),
+        State::ParentClosing { parent } => parent_closed(store, parent, done, events),
+        State::Settling { .. } | State::Finished => unreachable!("only an active operation completes successfully"),
+    }
+}
+
+fn parent_opened(io: &mut FileIo, store: Store, input: Input, done: Done, subs: &mut Queue<Submit>) -> Work {
+    let parent = done_fd(done);
+    let how = if store.no_follow { OpenHow::ReadNoFollow } else { OpenHow::Read };
+    let op = Op::Open { root: parent, path: store.target.clone(), how };
+    advance(io, store, State::OldOpening { parent, input }, op, subs)
+}
+
+fn old_opened(io: &mut FileIo, store: Store, parent: Fd, input: Input, done: Done, subs: &mut Queue<Submit>) -> Work {
+    let old = done_fd(done);
+    match store.expected {
+        Expect::Absent => settle(io, store, Failure::Conflict { now: None }, Settle::ClosingOld { parent, old }, subs),
+        Expect::Any | Expect::Digest(_) => {
+            advance(io, store, State::OldStating { parent, old, input }, Op::Stat { fd: old }, subs)
         }
     }
+}
+
+fn old_stated(
+    io: &mut FileIo,
+    store: Store,
+    parent: Fd,
+    old: Fd,
+    mut input: Input,
+    done: Done,
+    subs: &mut Queue<Submit>,
+) -> Work {
+    let stat = done_stat(done);
+    if stat.kind != Kind::File {
+        let failure = match store.expected {
+            Expect::Absent => Failure::Conflict { now: None },
+            Expect::Any | Expect::Digest(_) => Failure::Kernel(Error::IsADirectory),
+        };
+        return settle(io, store, failure, Settle::ClosingOld { parent, old }, subs);
+    }
+    if store.private_owner.is_none() {
+        input.mode = stat.mode;
+    }
+    advance(io, store, State::OldClosing { parent, old, input }, Op::Close { fd: old }, subs)
+}
+
+fn old_closed(
+    io: &mut FileIo,
+    store: Store,
+    parent: Fd,
+    _old: Fd,
+    input: Input,
+    done: Done,
+    subs: &mut Queue<Submit>,
+) -> Work {
+    done_nothing(done);
+    create_temp(io, store, parent, input, 0, subs)
+}
+
+fn temp_created(
+    io: &mut FileIo,
+    store: Store,
+    parent: Fd,
+    input: Input,
+    name: Box<[u8]>,
+    done: Done,
+    subs: &mut Queue<Submit>,
+) -> Work {
+    let fd = done_fd(done);
+    let temp = Opened { named: Named { parent, name }, fd };
+    let bytes = input.bytes.0.into_boxed_slice();
+    if bytes.is_empty() {
+        return advance(io, store, State::TempSyncing(temp), Op::Sync { fd }, subs);
+    }
+    let op = Op::write(fd, bytes, 0, 0).expect("bounded nonempty store bytes");
+    advance(io, store, State::TempWriting(temp), op, subs)
+}
+
+fn temp_written(io: &mut FileIo, store: Store, temp: Opened, kind: Op, done: Done, subs: &mut Queue<Submit>) -> Work {
+    let count = done_count(done);
+    let (fd, bytes, from, at) = write_parts(kind);
+    if count == 0 {
+        return settle(io, store, Failure::Kernel(Error::Other(5)), Settle::ClosingTemp(temp), subs);
+    }
+    let next = from.checked_add(count).expect("write count fits");
+    if usize_of(next) == bytes.len() {
+        return advance(io, store, State::TempSyncing(temp), Op::Sync { fd }, subs);
+    }
+    let offset = at.checked_add(u64::from(count)).expect("bounded offset");
+    let op = Op::write(fd, bytes, next, offset).expect("short write continues inside bytes");
+    advance(io, store, State::TempWriting(temp), op, subs)
+}
+
+fn temp_synced(io: &mut FileIo, store: Store, temp: Opened, done: Done, subs: &mut Queue<Submit>) -> Work {
+    done_nothing(done);
+    let op = Op::Close { fd: temp.fd };
+    advance(io, store, State::TempClosing(temp), op, subs)
+}
+
+fn temp_closed(io: &mut FileIo, store: Store, temp: Opened, done: Done, subs: &mut Queue<Submit>) -> Work {
+    done_nothing(done);
+    match store.expected {
+        Expect::Any => rename(io, store, temp.named, subs),
+        Expect::Absent | Expect::Digest(_) => open_check(io, store, temp.named, subs),
+    }
+}
+
+fn check_opened(io: &mut FileIo, store: Store, named: Named, done: Done, subs: &mut Queue<Submit>) -> Work {
+    let fd = done_fd(done);
+    let check = Opened { named, fd };
+    match store.expected {
+        Expect::Absent => settle(io, store, Failure::Conflict { now: None }, Settle::ClosingCheck(check), subs),
+        Expect::Digest(_) => advance(io, store, State::CheckStating(check), Op::Stat { fd }, subs),
+        Expect::Any => unreachable!("unconditional stores skip the recheck"),
+    }
+}
+
+fn check_stated(
+    io: &mut FileIo,
+    env: &Env<Limits>,
+    store: Store,
+    check: Opened,
+    done: Done,
+    subs: &mut Queue<Submit>,
+) -> Work {
+    let stat = done_stat(done);
+    if stat.kind == Kind::File {
+        return read_check(io, env, store, Reading { check, seen: Sha256::new(), seen_bytes: 0 }, subs);
+    }
+    let op = Op::Close { fd: check.fd };
+    let verdict = Verdict::Refused(Failure::Kernel(Error::IsADirectory));
+    advance(io, store, State::CheckClosing { check, verdict }, op, subs)
+}
+
+fn check_read(
+    io: &mut FileIo,
+    env: &Env<Limits>,
+    store: Store,
+    mut reading: Reading,
+    kind: Op,
+    done: Done,
+    subs: &mut Queue<Submit>,
+) -> Work {
+    let count = done_count(done);
+    let buf = read_buffer(kind);
+    reading.seen.update(buf.get(..usize_of(count)).expect("read count within buffer"));
+    reading.seen_bytes = reading.seen_bytes.checked_add(u64::from(count)).expect("file length fits u64");
+    if count != 0 {
+        return read_check(io, env, store, reading, subs);
+    }
+    let now = Digest::from_bytes(reading.seen.finish());
+    let verdict = match store.expected {
+        Expect::Any => unreachable!("unconditional stores do not read a version"),
+        Expect::Absent => unreachable!("expected absence is checked without a read"),
+        Expect::Digest(expected) => {
+            if now == expected {
+                Verdict::Matches
+            } else {
+                Verdict::Refused(Failure::Conflict { now: Some(now) })
+            }
+        }
+    };
+    let op = Op::Close { fd: reading.check.fd };
+    advance(io, store, State::CheckClosing { check: reading.check, verdict }, op, subs)
+}
+
+fn check_closed(
+    io: &mut FileIo,
+    store: Store,
+    check: Opened,
+    verdict: Verdict,
+    done: Done,
+    subs: &mut Queue<Submit>,
+) -> Work {
+    done_nothing(done);
+    match verdict {
+        Verdict::Matches => rename(io, store, check.named, subs),
+        Verdict::Refused(failure) => settle(io, store, failure, Settle::Removing(check.named), subs),
+    }
+}
+
+fn renamed(io: &mut FileIo, store: Store, named: Named, done: Done, subs: &mut Queue<Submit>) -> Work {
+    done_nothing(done);
+    let parent = named.parent;
+    advance(io, store, State::DirectorySyncing { parent }, Op::Sync { fd: parent }, subs)
+}
+
+fn directory_synced(io: &mut FileIo, store: Store, parent: Fd, done: Done, subs: &mut Queue<Submit>) -> Work {
+    done_nothing(done);
+    advance(io, store, State::ParentClosing { parent }, Op::Close { fd: parent }, subs)
+}
+
+fn parent_closed(store: Store, _parent: Fd, done: Done, events: &mut Queue<Event>) -> Work {
+    done_nothing(done);
+    events.push(Event::Stored { owner: store.owner, digest: store.produced });
     Work::Idle
 }

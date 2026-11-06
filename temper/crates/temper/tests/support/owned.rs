@@ -809,6 +809,7 @@ fn bounded_template_profile(directory: &Path, overlays: &[(&str, &[u8])]) -> Bou
     use temper_init::{Content, Directories, Facts, Ports};
     let answer = temper_init::files(
         &Facts {
+            sign_in: false,
             binary: b"/usr/local/bin/temper",
             git: Some(b"/usr/bin/git"),
             claude: Some(b"/usr/bin/claude"),

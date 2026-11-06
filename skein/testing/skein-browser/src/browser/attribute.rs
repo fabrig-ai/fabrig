@@ -51,6 +51,9 @@ impl Browser {
             Step::AttributeValue => self.attribute_value(env, token, result),
             Step::History
             | Step::Go
+            | Step::FrontFind
+            | Step::FrontSnapshot
+            | Step::FrontScreenshot
             | Step::Query
             | Step::Box
             | Step::Scroll
@@ -68,6 +71,8 @@ impl Browser {
             | Step::KeyDown
             | Step::KeyUp
             | Step::Character { .. }
+            | Step::Tabs
+            | Step::Viewport
             | Step::Address
             | Step::Snapshot
             | Step::Screenshot => unreachable!("only attribute steps reach the attribute reader"),
@@ -118,6 +123,8 @@ impl Browser {
                 | OpKind::Press { .. }
                 | OpKind::Type { .. }
                 | OpKind::Key { .. }
+                | OpKind::Tabs
+                | OpKind::Viewport
                 | OpKind::Address
                 | OpKind::Snapshot
                 | OpKind::Screenshot => None,

@@ -1,0 +1,61 @@
+draft = "landing-fixes-2"
+repo = "fabrig"
+sources = ["temper/docs/plan/landing-fixes-2/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "port-reservation"
+title = "a reservation that loses its kernel-chosen port takes another, so a fake box's preparation holds under parallel tests"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/setup.md, 7.5"
+
+[[part]]
+id = "hello-refusal"
+title = "a refused hello's reason reaches the worker's refusal text and the engine's stderr, with what each side holds"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/README.md, 15.3"
+
+[[part]]
+id = "saved-close"
+title = "a task's saved work is deleted as its task closes, through the holds a release already deletes"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 11"
+
+[[part]]
+id = "repair-cause"
+title = "a clean update's red names its failed check and says no merge conflict waits"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 8.4"
+
+[[slice]]
+id = 1
+story = "A fake box's preparation never fails because another process took its port between bind and listen"
+parts = ["port-reservation"]
+walk = false
+
+[[slice]]
+id = 2
+story = "An operator reads why a worker is refused in the engine's stderr, for a charter set after the start too"
+parts = ["hello-refusal"]
+walk = false
+
+[[slice]]
+id = 3
+story = "A task that closes leaves no saved-work branch on the forge"
+parts = ["saved-close"]
+walk = false
+
+[[slice]]
+id = 4
+story = "A repair's words say what it repairs: a conflict is a conflict, and a CI red names its check"
+parts = ["repair-cause"]
+walk = false

@@ -6,6 +6,7 @@
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_host as host;
+use jig_domain_link::{Bounds, Form, Hosting, JobBound, JobKind, ModelBound, Phase, Scheme};
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, ReplyTo, Token};
 use std::collections::{BTreeMap, BTreeSet};
@@ -14,10 +15,10 @@ use temper_engine_domain as engine;
 /// The bounds every scripted worker says in its hello: wide enough for the
 /// world's one charter (jig's `domain/hosts.md`, 8).
 #[must_use]
-pub fn bounds() -> host::Bounds {
-    host::Bounds {
+pub fn bounds() -> Bounds {
+    Bounds {
         program_endpoints: Box::new([]),
-        models: Box::new([host::ModelBound { name: b"scripted".as_slice().into(), window: 1024, output: 1024 }]),
+        models: Box::new([ModelBound { name: b"scripted".as_slice().into(), window: 1024, output: 1024 }]),
         turns: 8,
         spend: 1000,
         time: Duration::from_secs(60),
@@ -32,30 +33,30 @@ pub fn bounds() -> host::Bounds {
 
 /// The merge kind advertised by the scripted worker (temper/docs/design/domain/worker.md, 4.4).
 #[must_use]
-pub fn merge_bound() -> host::JobBound {
-    host::JobBound { kind: host::JobKind(3), spec: 4096, result: 512, deadline: Duration::from_secs(600) }
+pub fn merge_bound() -> JobBound {
+    JobBound { kind: JobKind(3), spec: 4096, result: 512, deadline: Duration::from_secs(600) }
 }
 
 /// One worker's hello on `channel`, listing the runs it hosts.
 #[must_use]
-pub fn hello(channel: Token, hosting: Box<[host::Hosting]>) -> engine::Event {
+pub fn hello(channel: Token, hosting: Box<[Hosting]>) -> engine::Event {
     hello_slots(channel, 1, hosting)
 }
 
 /// One worker's hello on `channel` with `slots` slots, listing the runs it hosts.
 #[must_use]
-pub fn hello_slots(channel: Token, slots: u32, hosting: Box<[host::Hosting]>) -> engine::Event {
+pub fn hello_slots(channel: Token, slots: u32, hosting: Box<[Hosting]>) -> engine::Event {
     hello_at(channel, 0, slots, hosting)
 }
 
 /// A configured worker's hello at `worker`, with its slots and hosted runs.
 #[must_use]
-pub fn hello_at(channel: Token, worker: u32, slots: u32, hosting: Box<[host::Hosting]>) -> engine::Event {
+pub fn hello_at(channel: Token, worker: u32, slots: u32, hosting: Box<[Hosting]>) -> engine::Event {
     link(
         channel,
         engine::Link::Hello {
             worker,
-            hello: host::Hello {
+            hello: jig_domain_link::Hello {
                 jobs: Box::new([merge_bound()]),
                 slots,
                 stop_bound: Duration::from_millis(100),
@@ -69,8 +70,8 @@ pub fn hello_at(channel: Token, worker: u32, slots: u32, hosting: Box<[host::Hos
 
 /// A hosted run in a worker's hello.
 #[must_use]
-pub fn hosting(task: u64, attempt: u64, phase: host::Phase) -> host::Hosting {
-    host::Hosting { run: Token::new(task), attempt: Token::new(attempt), phase }
+pub fn hosting(task: u64, attempt: u64, phase: Phase) -> Hosting {
+    Hosting { run: Token::new(task), attempt: Token::new(attempt), phase }
 }
 
 /// A worker channel closing.
@@ -153,7 +154,6 @@ pub struct Protocol {
     /// Each account component request the root made.
     pub accounts: Vec<accounts::Request>,
     pub key_failure: Option<accounts::KeyFailure>,
-    pub returns: Vec<(u32, Box<[u8]>)>,
     /// Worker channels that received their program-source inventory.
     pub sources: Vec<Token>,
     /// Core read loads the world answered as gone.
@@ -312,10 +312,6 @@ impl Protocol {
                     result: core::reads::Loaded::Gone,
                 })])
             }
-            engine::Request::Return { source, path } => {
-                self.returns.push((source, path));
-                Ok(Vec::new())
-            }
             engine::Request::Account(request) => {
                 let answer = self.account(&request);
                 self.accounts.push(request);
@@ -385,7 +381,7 @@ impl Protocol {
 
 fn granted(account: u32, generation: u64, sign_in: bool) -> engine::Event {
     engine::Event::Account(accounts::Event::Component(accounts::FromComponent::Granted {
-        form: accounts::Form::Credential(if sign_in { accounts::Scheme::Bearer } else { accounts::Scheme::Key }),
+        form: Form::Credential(if sign_in { Scheme::Bearer } else { Scheme::Key }),
         account,
         generation,
         valid: Duration::from_secs(3600),

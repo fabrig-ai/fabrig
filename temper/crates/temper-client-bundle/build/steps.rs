@@ -100,6 +100,12 @@ pub fn commands(cargo: &OsStr, root: &Path, target: &Path, out: &Path, profile: 
                 "temper_client_shell_web".into(),
                 "--prefix".into(),
                 "/bundle/".into(),
+                "--title".into(),
+                "temper".into(),
+                "--placeholder".into(),
+                shell.join("loading.html").into_os_string(),
+                "--placeholder-stylesheet".into(),
+                shell.join("loading.css").into_os_string(),
                 "--stylesheet".into(),
                 shell.join("temper.css").into_os_string(),
                 "--stylesheet".into(),
@@ -160,7 +166,7 @@ pub fn rerun_paths(workspace: &Path, root: &Path, files: &[PathBuf]) -> BTreeSet
         }
         paths.insert(file);
     }
-    for relative in ["temper.css", "task-pages.css", "files"] {
+    for relative in ["loading.html", "loading.css", "temper.css", "task-pages.css", "files"] {
         paths.insert(root.join("crates/temper-client-shell-web").join(relative));
     }
     paths

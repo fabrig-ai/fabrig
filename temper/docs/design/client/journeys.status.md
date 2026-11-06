@@ -4,9 +4,11 @@
 
 - **Not yet:**
   - 3.5, 9: no recording from a real box has been through `add`, and no journey is `real`: the `real-journeys` request of 2026-11-05 leaves that to the user's own recording, so the guard has met fake secrets alone, through the shipped host natively.
-  - 3.6: the four committed recordings were added before the redaction and keep their fake boxes' dummies (3.5), `welcome-playground`'s and `welcome-set-up`'s link secret and `chat-draft`'s and `project-landing`'s `stored` value, until each is next added, because that request left the journeys' files to their owner.
+  - 3.6: `welcome-playground` and `welcome-set-up` were added before the redaction and keep their fake boxes' link secret (3.5), until each is next added, because that request left the journeys' files to their owner.
   - 8: nothing refuses `again` on a real journey. No recording says it is real, so `again NAME` would walk it on a fake box and, where its acts held, add that walk over it. Seen by reading.
   - 8.1: a typed secret's act holds its `x`s once added, so `again` types those. No committed journey types a secret, so no run has shown it.
+  - 8.2: no run on record has `again` walk `project-landing`'s setup since its press opened a tab: its recording holds no family request, so the plan `sign-in-new-tab` left it unmoved. `chat-draft`'s setup takes those steps first, and its recording was made anew on that code, by a walk no record names. Seen by reading.
+  - 9: `project-landing`'s `README.md` says its sign-in "returns to Ready", where the page stays and moves on by itself: the request `sign-in-new-tab` of 2026-11-06 leaves a journey's words to the look's owner.
 - **Departs:**
   - 3.6: the API-key field carries a pasted trailing newline rather than trimming it. Redaction preserves that newline and replaces both the whole-value and trimmed-value digests, matching what the host carries so the replay holds.
   - 5.1: a `--redact` TEXT that is empty or starts `--` is the usage line, exit 2, so such a text can't be named, because a TEXT left out must not take the next flag for one.

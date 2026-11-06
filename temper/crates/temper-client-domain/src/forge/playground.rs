@@ -269,7 +269,6 @@ fn end_answer(outcome: &jig_client::Outcome, limits: Limits) -> Option<EndAnswer
         | w::Outcome::Running
         | w::Outcome::StartRefused(_)
         | w::Outcome::StartFailed(_)
-        | w::Outcome::Returning
         | w::Outcome::Connecting
         | w::Outcome::Link(_)
         | w::Outcome::ConnectRefused(_)
@@ -366,7 +365,6 @@ pub fn answer(value: &jig_client::Answered, limits: &Limits) -> Option<StartAnsw
         | w::Outcome::CoreRefused(_)
         | w::Outcome::ForgeRefused(_)
         | w::Outcome::SettingUp
-        | w::Outcome::SetUpRefused(_)
-        | w::Outcome::Returning => return None,
+        | w::Outcome::SetUpRefused(_) => return None,
     })
 }

@@ -369,7 +369,6 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
                 | w::Request::Looked(_)
                 | w::Request::TryAccount(_)
                 | w::Request::Dismiss(_)
-                | w::Request::Return(_)
                 | w::Request::Adopt(_)
                 | w::Request::SetUp(_) => {
                     return false;
@@ -458,7 +457,6 @@ fn answer(value: &Answered, limits: &Limits) -> Option<Answer> {
         w::Outcome::ConnectRefused(value) => Some(Answer::Refused(value.into_parts().why)),
         w::Outcome::Unknown => Some(Answer::Unknown),
         w::Outcome::Page(_)
-        | w::Outcome::Returning
         | w::Outcome::MakeKept
         | w::Outcome::MakeRefused(_)
         | w::Outcome::Adopted(_)

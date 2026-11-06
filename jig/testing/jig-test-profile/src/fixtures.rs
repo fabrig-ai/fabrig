@@ -1,6 +1,7 @@
 //! Test application records and request fixtures (`jig/docs/design/domain/testing.md`, 2).
 use jig_domain_authority as authority;
 use jig_domain_core as core;
+use jig_domain_link::{Bounds, ModelBound};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
@@ -10,13 +11,13 @@ pub const WORKSPACE_CREDENTIAL: u32 = 7;
 pub const CREDENTIAL_RESOURCE: u64 = 1;
 
 #[must_use]
-pub fn bounds() -> jig_domain_fleet::Bounds {
+pub fn bounds() -> Bounds {
     use skein_lib::Duration;
-    jig_domain_fleet::Bounds {
+    Bounds {
         program_endpoints: Box::new([]),
         models: Box::new([
-            jig_domain_fleet::ModelBound { name: b"scripted".as_slice().into(), window: 8192, output: 1024 },
-            jig_domain_fleet::ModelBound { name: b"research".as_slice().into(), window: 8192, output: 1024 },
+            ModelBound { name: b"scripted".as_slice().into(), window: 8192, output: 1024 },
+            ModelBound { name: b"research".as_slice().into(), window: 8192, output: 1024 },
         ]),
         turns: u32::MAX,
         spend: u64::MAX,

@@ -32,6 +32,7 @@ use crate::{
     settings::revisions,
     *,
 };
+use jig_domain_link::{Form, Hello, Hosting, Phase, Scheme};
 use skein_lib::{Duration, Env, ReplyTo, Time, Token, Wall};
 
 #[test]
@@ -2083,17 +2084,13 @@ fn documents_deployment_keeps_lost_worker_attempts_and_translates_the_grace_cloc
         fleet::Event::Hello {
             worker: 0,
             channel: Token::new(10),
-            hello: fleet::Hello {
+            hello: Hello {
                 jobs: Box::default(),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::from_secs(1),
                 slots: 1,
                 workstreams: Box::new([]),
-                hosting: Box::new([fleet::Hosting {
-                    run: Token::new(2),
-                    attempt: Token::new(9),
-                    phase: fleet::Phase::Active,
-                }]),
+                hosting: Box::new([Hosting { run: Token::new(2), attempt: Token::new(9), phase: Phase::Active }]),
             },
         },
         &mut out,
@@ -2115,7 +2112,7 @@ fn documents_deployment_keeps_lost_worker_attempts_and_translates_the_grace_cloc
         fleet::Event::Hello {
             worker: 1,
             channel: Token::new(11),
-            hello: fleet::Hello {
+            hello: Hello {
                 jobs: Box::default(),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::ZERO,
@@ -2176,7 +2173,7 @@ fn documents_deployment_accounts_are_secret_free_and_show_unusable_state() {
         &mut core.accounts,
         &env,
         accounts::Event::Component(accounts::FromComponent::Granted {
-            form: accounts::Form::Credential(accounts::Scheme::Bearer),
+            form: Form::Credential(Scheme::Bearer),
             account: 1,
             generation: 1,
             valid: Duration::from_secs(60),

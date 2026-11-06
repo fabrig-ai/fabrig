@@ -35,15 +35,19 @@
   it has no `skein-lib` dependency; `skein/scripts/old-forms.txt`'s
   `widening` holds them at 22, the other 20 a
   `u64`'s or a signed count's, which can fail and are outside the rule. And
-  136 lines of step code write `usize::try_from(..)` with no `.expect(..)` on
+  about 135 lines of step code write `usize::try_from(..)` with no `.expect(..)` on
   the line, over a `u32` or a `u64`, `skein-kv`'s frames and snapshots among
-  them, which that item does not name and that form does not count. 12:
-  `skein/docs/foundation/programming-model.md`, 5.4
-  asks for one explicit state enum per lifecycle, each state holding
-  exactly its data, no lifecycle in flags or `Option`s beside it,
-  exhaustive matches and one handler per cell;
-  `skein-lib/src/requests.rs`'s `RequestTable` keeps `Entry`'s
-  `restored`, `save` and `changed` flags and `progress` and `anchor`
-  options beside `state`, rather than in lifecycle states; no reason is
-  recorded (the code's side is
-  `skein/docs/development/debt/D025-request-table-in-lib.md`).
+  them, which that item does not name and that form does not count.
+  `skein-forge/src/forgejo/server/files.rs` keeps a private `joined` beside
+  `bytes::concat`, because it writes a slash between a path's segments, and
+  `concat` has no separator.
+  12: `skein-lib/src/requests.rs`'s `Entry` holds its three lifecycles in
+  `State`, `Keeping` and `Telling`, but the table's methods write most of their
+  cells as assignments in their own arms, and `Entry::reachable` and the table's
+  `pending` and `next_out` read `keeping` by `==` or `!=`, so a new `Keeping`
+  breaks no build there, against `skein/docs/foundation/programming-model.md`, 5.4's one small
+  handler per cell and exhaustive matches. The `debt-28` plan's task took the
+  flags and options and left the idiom to its implementer, and that plan's item,
+  which asked that the state follow 5.4, is deleted. Seen by reading. 12: that
+  plan's request of 2026-11-06 has each of its items end with fewer lines than
+  it started; the table's ended 20 lines of Rust up, within its task's cap.

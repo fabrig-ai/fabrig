@@ -6,9 +6,6 @@ license.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
-[features]
-browser-root = []
-
 [dependencies]
 jig-client-protocol-http.workspace = true
 jig-client.workspace = true

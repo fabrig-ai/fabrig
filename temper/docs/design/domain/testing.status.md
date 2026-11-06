@@ -11,21 +11,43 @@ approval-identity story covers a refusal naming no command.
 Sections 6.4 and 6.5.3 have no gap in scripted note-backed proposals and single-revision collector evidence.
 
 - **Not yet:** 2.6: the process tier stays at one test at a time
-  (`.config/nextest.toml`, `process-temper`): a three-thread trial hit a
-  retained webhooks port in use during the held-login guard's restart and
-  a stalled turn landing; both passed alone. The causes need investigation
-  before raising concurrency (`../../plan/test-speed/figures/tier-threads.md`).
-  2.6: the fake-box walks retain
-  the stock charter's 10 s wait on their single worker; Away also waits
-  through two designed 5 s Undo holds, and the plan's brief waits for the
-  chat resumed on landing to release that worker, after its deliberate
-  4 s sitting gap. These waits have no cheap repair without changing what
-  the walks show. Home's status walk still costs about 19 s, including
-  that 10 s wait and four client visits; the plan also provisions and
-  restarts an owned Forgejo and runner. Their shared forge paces are 1 s
-  with 100 ms hints; the measured ranges, remaining costs and rejected
-  goal/Away pace change are in
-  `temper/docs/plan/test-speed/figures/walk-waits.md`.
+  (`.config/nextest.toml`, `process-temper`), where this section has three
+  and the request `test-speed` of 2026-11-06 has them proven by three whole
+  runs and a loaded one, with no new flake and no test's CPU worse. Its one
+  trial at three, on a loaded builder, took 203.7 s of wall against 503.9 s
+  at one and failed twice: the held-login guard's restart found its retained
+  webhooks port in use, and a turn landing stalled on an uncertain update of
+  its pull. Each passed alone. Who held the port and why the landing stalled
+  are unknown, and 12 tests read over 25% more CPU than at one thread, in that
+  one sample. So no proving run was made, and none at two threads (the plan's
+  figures on threads, at `b23901eab7`).
+  2.6: the tier's CPU against its 360 s: of the seven whole runs in that
+  plan's figures, at differing loads, four read over it (367.8 to 433.7 s) and
+  three within (287.1 to 349.7 s, the last the failed trial), and they hold no
+  run with the plan's parts together. No budget moved, that being the user's.
+  2.6: Goal and Away keep the shipped 5 s poll, where that request has them
+  wake on an event or take the status walks' paces: no poll is what they wait
+  for, and a trial of short paces on Away saved less wall than it cost CPU. The
+  fake-box walks retain the stock charter's 10 s wait on their single worker
+  (`agent.md`, 4.6); Away also waits through two 5 s Undo holds
+  (`../client/README.md`, 3.5), and the personal plan's walk has its brief wait
+  for the chat resumed on landing to release that worker, after its deliberate
+  4 s sitting gap. A person on one worker meets the charter's wait and the
+  holds too, for reasons that still hold, and these waits have no cheap repair
+  without changing what the walks show. Home's status walk still costs about
+  19 s, including that 10 s wait and four client visits; the personal plan's
+  also provisions and restarts an owned Forgejo and runner. Their shared forge
+  paces are 1 s with 100 ms hints; the measured ranges, remaining costs and
+  rejected pace change are in the plan's figures on the walks' waits,
+  at `289ef784ef`.
+- **Not yet:** 2.4, on a port the kernel assigns: a unit test of `temper`'s,
+  `fake_backends::tests::repeating_the_same_bundle_preserves_document_bytes_and_inode`,
+  failed twice on a port reservation and passed alone, by the request
+  `landing-fixes` of 2026-11-06, item 8, which has it hold. Its plan dropped it
+  past its ceiling of four tasks, untraced: the test takes no port itself, and the
+  `prepare` it reaches reserves the fake peers' from the kernel, past those it
+  excludes (`temper/crates/temper/src/fake_backends.rs`, `reserve`). Which
+  reservation failed, and who held its port, are unknown.
 - **Not yet:** 2.4: GitHub's real-loop stories 3, 4, 5, 7 and 8; 1, 2 and 6
   run (`tests/real-loop/tests/suite/github_land.rs`, `github.rs`). 2.4:
   the twins' documents among `temper-playground`'s stories: B0's and

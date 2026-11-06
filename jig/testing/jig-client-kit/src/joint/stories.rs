@@ -3,6 +3,7 @@
 use super::{Joint, session::Session};
 use crate::{Settings, Test, Until, World};
 use jig_client_domain::contract as client;
+use jig_domain_link::Operation;
 use jig_domain_people as people;
 use jig_fake_workers::Script;
 use skein_fake_person::{Find, Step};
@@ -143,10 +144,7 @@ mod job_stories;
 mod referee_stories;
 
 fn completion() -> jig_domain_fleet::Activity {
-    jig_domain_fleet::Activity::Long {
-        operation: jig_domain_fleet::Operation::Completion,
-        span: Duration::from_secs(1),
-    }
+    jig_domain_fleet::Activity::Long { operation: Operation::Completion, span: Duration::from_secs(1) }
 }
 
 mod a_shared;

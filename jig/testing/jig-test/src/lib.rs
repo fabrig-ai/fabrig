@@ -1,4 +1,5 @@
 //! Startup for the reference binary (protocol/service.md, 7; configuration.md, 7–8).
+use jig_domain_link::{Bounds, ModelBound};
 use jig_protocol_config::{self as config, read};
 use jig_test_service::{self as service, Files, Seeds};
 use skein_io::kernel::{Exit, Fd};
@@ -113,11 +114,7 @@ fn agent(configuration: &Path) -> Result<AgentStart, String> {
     let mut models = Vec::new();
     for endpoint in &configuration.declarations.endpoints {
         for model in &endpoint.models {
-            models.push(jig_domain_host::ModelBound {
-                name: model.name.clone(),
-                window: model.window,
-                output: model.output,
-            });
+            models.push(ModelBound { name: model.name.clone(), window: model.window, output: model.output });
         }
     }
     let policy = configuration.profile.policy;
@@ -133,7 +130,7 @@ fn agent(configuration: &Path) -> Result<AgentStart, String> {
         endpoints: configuration.service.channel_endpoints,
         limits: protocol,
         host_limits,
-        bounds: jig_domain_host::Bounds {
+        bounds: Bounds {
             program_endpoints: configuration.program_endpoints.iter().copied().collect::<Vec<_>>().into_boxed_slice(),
             models: models.into_boxed_slice(),
             turns: policy.max_turns,
@@ -390,7 +387,7 @@ fn serve(path: &Path) -> Result<Exit, String> {
         Ok(service) => service,
         Err(why) => {
             for fd in owned {
-                skein_shell::close_keeper_fd(fd);
+                skein_shell::keeper::close_keeper_fd(fd);
             }
             return Err(why);
         }
@@ -406,7 +403,7 @@ fn serve(path: &Path) -> Result<Exit, String> {
         Ok(kernel) => kernel,
         Err(why) => {
             for fd in owned {
-                skein_shell::close_keeper_fd(fd);
+                skein_shell::keeper::close_keeper_fd(fd);
             }
             return Err(why);
         }

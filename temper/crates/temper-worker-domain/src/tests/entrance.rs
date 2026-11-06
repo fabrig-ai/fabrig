@@ -141,6 +141,94 @@ fn a_delivery_is_exactly_a_title_and_a_body() {
 }
 
 #[test]
+fn a_landed_receipt_says_pushed_at_which_head_on_which_branch() {
+    let delivery = crate::smith_delivery::landings(
+        &[crate::wire::Landing::Landed { commit: [0xab; 32] }],
+        &[Some(Box::from(b"topic".as_slice()))],
+    );
+    let agent::Delivery::Delivered(delivered) = delivery else { panic!("landed delivery: {delivery:?}") };
+    assert_eq!(delivered.receipts().len(), 1);
+    assert_eq!(delivered.receipts()[0].directory(), 0);
+    assert_eq!(
+        delivered.receipts()[0].text(),
+        b"pushed abababababababababababababababababababababababababababababababab to branch topic; your checkout stays detached, as expected"
+    );
+}
+
+#[test]
+fn a_sha1_receipt_spells_the_head_in_40_digits() {
+    let mut commit = [0; 32];
+    commit[..20].fill(0xab);
+    let delivery = crate::smith_delivery::landings(
+        &[crate::wire::Landing::Landed { commit }],
+        &[Some(Box::from(b"topic".as_slice()))],
+    );
+    let agent::Delivery::Delivered(delivered) = delivery else { panic!("landed delivery: {delivery:?}") };
+    assert_eq!(
+        delivered.receipts()[0].text(),
+        b"pushed abababababababababababababababababababab to branch topic; your checkout stays detached, as expected"
+    );
+}
+
+#[test]
+fn a_branch_past_the_receipts_bound_leaves_its_words_out() {
+    const SHA256: &str = "abababababababababababababababababababababababababababababababab";
+    const SHA1: &str = "abababababababababababababababababababab";
+    const DETACHED: &str = "; your checkout stays detached, as expected";
+    let mut sha1 = [0; 32];
+    sha1[..20].fill(0xab);
+    let sha256_room =
+        agent::Receipt::CAPACITY - b"pushed ".len() - SHA256.len() - DETACHED.len() - b" to branch ".len();
+    let sha1_room = sha256_room + 24; // SHA-1 leaves out twelve padding bytes, or 24 digits.
+    for (commit, digits, length, included) in [
+        ([0xab; 32], SHA256, sha256_room, true),
+        ([0xab; 32], SHA256, sha256_room + 1, false),
+        (sha1, SHA1, sha1_room, true),
+        (sha1, SHA1, sha1_room + 1, false),
+    ] {
+        let branch = "b".repeat(length);
+        let delivery = crate::smith_delivery::landings(
+            &[crate::wire::Landing::Landed { commit }],
+            &[Some(Box::from(branch.as_bytes()))],
+        );
+        let agent::Delivery::Delivered(delivered) = delivery else { panic!("landed delivery: {delivery:?}") };
+        let len = if included { agent::Receipt::CAPACITY } else { b"pushed ".len() + digits.len() + DETACHED.len() };
+        let mut expected = skein_lib::Writer::new(len);
+        expected.put(b"pushed ").expect("receipt prefix");
+        expected.put(digits.as_bytes()).expect("head digits");
+        if included {
+            expected.put(b" to branch ").expect("branch prefix");
+            expected.put(branch.as_bytes()).expect("branch at bound");
+        }
+        expected.put(DETACHED.as_bytes()).expect("receipt suffix");
+        assert_eq!(
+            delivered.receipts()[0].text(),
+            expected.finish().as_ref(),
+            "head digits: {}; branch bytes: {length}",
+            digits.len()
+        );
+    }
+}
+
+#[test]
+fn a_delivery_not_made_never_says_pushed() {
+    for (landing, expected) in [
+        (crate::wire::Landing::Moved, agent::Delivery::Stale),
+        (crate::wire::Landing::Unchanged, agent::Delivery::Nothing),
+        (
+            crate::wire::Landing::Failed,
+            agent::Delivery::Failed(agent::DeliveryFailure {
+                directory: 0,
+                reason: agent::DeliveryReason::Unknown,
+                diagnostic: agent::Diagnostic::empty(),
+            }),
+        ),
+    ] {
+        assert_eq!(crate::smith_delivery::landings(&[landing], &[None]), expected);
+    }
+}
+
+#[test]
 fn a_delivery_with_a_field_beyond_its_title_and_body_is_refused() {
     let extra = fields(&[(b"title", b"t"), (b"body", b"b"), (b"tag", b"x")]);
     assert!(crate::smith_delivery::fields(extra, 512).is_none());

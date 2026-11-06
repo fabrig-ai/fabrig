@@ -132,8 +132,8 @@ pub const GOALS_STATE_PLANNING: Style = Style { owner: owner(), token: 291 };
 pub const GOALS_STATE_PAUSED: Style = Style { owner: owner(), token: 292 };
 /// A landed goal (client/README.md, 3.5).
 pub const GOALS_STATE_LANDED: Style = Style { owner: owner(), token: 293 };
-/// A stopped or failed goal (client/README.md, 3.5).
-pub const GOALS_STATE_STOPPED: Style = Style { owner: owner(), token: 294 };
+/// A closed or failed goal (client/README.md, 3.5).
+pub const GOALS_STATE_CLOSED: Style = Style { owner: owner(), token: 294 };
 /// Changes page parts (temper/docs/design/client/README.md, 3.5).
 pub const CHANGES: Style = Style { owner: owner(), token: 180 };
 /// Changes page parts (temper/docs/design/client/README.md, 3.5).
@@ -214,6 +214,10 @@ pub const PROJECTS_ACTS: Style = Style { owner: owner(), token: 191 };
 pub const PROJECTS_REPO: Style = Style { owner: owner(), token: 192 };
 /// The additional repository count.
 pub const PROJECTS_MORE: Style = Style { owner: owner(), token: 193 };
+/// A switcher row: the name and its small words.
+pub const PROJECTS_ROW: Style = Style { owner: owner(), token: 194 };
+/// A repository link in the look of its surrounding words.
+pub const REPOSITORY_LINK: Style = Style { owner: owner(), token: 195 };
 /// Home's home (client/README.md, 3.5).
 pub const HOME: Style = Style { owner: owner(), token: 200 };
 /// Home's intro (client/README.md, 3.5).
@@ -671,6 +675,14 @@ pub const WELCOME_ACTS: Style = Style { owner: owner(), token: 362 };
 pub const WELCOME_OK: Style = Style { owner: owner(), token: 363 };
 /// The separator between the forge's name and its status.
 pub const WELCOME_SEP: Style = Style { owner: owner(), token: 364 };
+/// The anonymous page's inset reading column (client/browser.md, 8.3).
+pub const PUBLIC_PAGE: Style = Style { owner: owner(), token: 518 };
+/// A public goal or delegate's separated title and facts (client/browser.md, 8.3).
+pub const PUBLIC_ROW: Style = Style { owner: owner(), token: 519 };
+/// A public row's identity link and wrapping title (client/browser.md, 8.3).
+pub const PUBLIC_TITLE: Style = Style { owner: owner(), token: 520 };
+/// A public row's wrapping executor, phase, duration, spend and priority (client/browser.md, 8.3).
+pub const PUBLIC_META: Style = Style { owner: owner(), token: 521 };
 /// The look's names (skein's ui.md, 8): styles by token, regions by number.
 pub const NAMES: Names<'static> = Names {
     owner: owner(),
@@ -870,8 +882,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-projects-acts",
         b"temper-projects-repo",
         b"temper-projects-more",
-        b"temper-reserved-194",
-        b"temper-reserved-195",
+        b"temper-projects-row",
+        b"temper-repository-link",
         b"temper-reserved-196",
         b"temper-reserved-197",
         b"temper-reserved-198",
@@ -970,7 +982,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-goals-state-planning",
         b"temper-goals-state-paused",
         b"temper-goals-state-landed",
-        b"temper-goals-state-stopped",
+        b"temper-goals-state-closed",
         b"temper-reserved-295",
         b"temper-reserved-296",
         b"temper-reserved-297",
@@ -1131,7 +1143,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-starter-own-acts",
         b"temper-doc-sub",
         b"temper-doc-flow",
-        b"temper-doc-figures",
+        b"temper-reserved-455",
         b"temper-reserved-456",
         b"temper-reserved-457",
         b"temper-reserved-458",
@@ -1194,6 +1206,10 @@ pub const NAMES: Names<'static> = Names {
         b"temper-reserved-515",
         b"temper-welcome-status-why",
         b"temper-welcome-status-acts",
+        b"temper-public-page",
+        b"temper-public-row",
+        b"temper-public-title",
+        b"temper-public-meta",
     ],
     regions: &[b"temper-link"],
 };
@@ -1367,7 +1383,6 @@ pub const STARTER_OWN_ACTS: Style = Style { owner: owner(), token: 452 };
 /// The stock reference beside Configure (temper/docs/design/client/README.md, 3.5).
 pub const DOC_SUB: Style = Style { owner: owner(), token: 453 };
 pub const DOC_FLOW: Style = Style { owner: owner(), token: 454 };
-pub const DOC_FIGURES: Style = Style { owner: owner(), token: 455 };
 
 /// The last word of a turn being written (client/README.md, 3.5).
 pub const WRITING_END: Style = Style { owner: owner(), token: 469 };

@@ -439,6 +439,8 @@ fn populate_page(
             }
             Request::Client { .. }
             | Request::Unlinked { .. }
+            | Request::KeepSignIn { .. }
+            | Request::Tab { .. }
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Copy { .. }
@@ -833,6 +835,12 @@ fn read_value(what: &contract::Read) -> Option<contract::ReadValue> {
         Read::Deployment => Some(ReadValue::Deployment(Box::new(jig_client_kit::stories::deployment()))),
         Read::Proposal { .. } => Some(ReadValue::Proposal(Box::new(jig_client_kit::stories::proposal()))),
         Read::Inbox { group, .. } => Some(ReadValue::Inbox(Box::new(inbox_document(*group)))),
+        Read::ActivityBeside { .. } => Some(ReadValue::Activity(Box::new(contract::ActivityPage {
+            rows: skein_lib::List::with_capacity(0),
+            before: None,
+            after: None,
+            cut: false,
+        }))),
         Read::Activity { .. } => Some(ReadValue::Activity(Box::new(activity_document()))),
         Read::TaskText { .. }
         | Read::Turn { .. }

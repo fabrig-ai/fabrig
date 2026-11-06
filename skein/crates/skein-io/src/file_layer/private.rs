@@ -1,11 +1,10 @@
-//! Opening private roots and making directories (io.md, section 5.3).
-//! The request holds an independently opened parent, its bounded leaf name,
-//! and descriptors until cleanup. It never infers a user from a path.
+//! Opening private roots and making directories (skein/docs/design/io.md, 5.3).
+//! Each state owns its descriptors until cleanup (skein/docs/foundation/programming-model.md, 5.4).
 //! `start`, `up`, and `stopped` run only through `FileIo`'s entry points.
 
 use super::{FileIo, Pending, Work};
 use crate::file::{Event, Unsafe};
-use crate::kernel::{Complete, Error, Fd, Kind, Op, OpenHow, Stat, Submit};
+use crate::kernel::{Complete, Done, Error, Fd, Kind, Op, OpenHow, Stat, Submit};
 use alloc::boxed::Box;
 use skein_lib::{Queue, Token};
 
@@ -13,32 +12,55 @@ use skein_lib::{Queue, Token};
 pub(super) enum Action {
     Make { mode: u32 },
     Private { user: u32 },
-    Refusal { user: u32 },
 }
 
-#[derive(Clone, Copy, Debug)]
-enum Phase {
-    ParentOpening,
-    Making,
-    SyncingParent,
-    Opening,
-    Stating,
-    DeniedOpening,
-    DeniedStating,
-    ClosingFile,
-    ClosingParent,
+#[derive(Debug)]
+enum Then {
+    Made,
+    Open { user: u32 },
+}
+
+#[derive(Debug)]
+enum MayMake {
+    Try,
+    Tried,
+}
+
+#[derive(Debug)]
+enum Held {
+    Parent(Fd),
+    Gone,
+}
+
+#[derive(Debug)]
+enum Check {
+    Root { user: u32 },
+    File { user: u32 },
+}
+
+#[derive(Debug)]
+enum Answer {
+    Terminal(Event),
+    Admit { file: Fd, user: u32 },
+}
+
+#[derive(Debug)]
+enum State {
+    ParentOpening { name: Box<[u8]>, action: Action },
+    Making { parent: Fd, name: Box<[u8]>, then: Then },
+    SyncingParent { parent: Fd, name: Box<[u8]>, then: Then },
+    Opening { parent: Fd, name: Box<[u8]>, user: u32, may_make: MayMake },
+    Stating { parent: Fd, file: Fd, user: u32 },
+    DeniedOpening { parent: Held, name: Box<[u8]>, denied: Event, check: Check },
+    DeniedStating { parent: Held, file: Fd, denied: Event, check: Check },
+    ClosingFile { parent: Held, terminal: Event },
+    ClosingParent { parent: Fd, answer: Answer },
 }
 
 #[derive(Debug)]
 pub(super) struct Opening {
     owner: Token,
-    action: Action,
-    phase: Phase,
-    name: Box<[u8]>,
-    parent: Option<Fd>,
-    file: Option<Fd>,
-    terminal: Option<Event>,
-    made: bool,
+    state: State,
 }
 
 impl Opening {
@@ -46,32 +68,52 @@ impl Opening {
         self.owner
     }
     pub(super) fn can_abandon(&self) -> bool {
-        match self.action {
-            Action::Private { .. } => self.terminal.is_none(),
-            Action::Refusal { .. } => false,
-            Action::Make { .. } => match self.phase {
-                Phase::ParentOpening => true,
-                Phase::Making
-                | Phase::SyncingParent
-                | Phase::Opening
-                | Phase::Stating
-                | Phase::DeniedOpening
-                | Phase::DeniedStating
-                | Phase::ClosingFile
-                | Phase::ClosingParent => false,
+        match &self.state {
+            State::ParentOpening { .. } | State::Opening { .. } | State::Stating { .. } => true,
+            State::Making { then, .. } | State::SyncingParent { then, .. } => match then {
+                Then::Made => false,
+                Then::Open { .. } => true,
             },
+            State::ClosingParent { answer, .. } => match answer {
+                Answer::Terminal(..) => false,
+                Answer::Admit { .. } => true,
+            },
+            State::DeniedOpening { .. } | State::DeniedStating { .. } | State::ClosingFile { .. } => false,
         }
     }
 
     pub(super) fn can_cancel(&self) -> bool {
-        match self.phase {
-            Phase::ParentOpening | Phase::Opening | Phase::DeniedOpening => true,
-            Phase::Making
-            | Phase::SyncingParent
-            | Phase::Stating
-            | Phase::DeniedStating
-            | Phase::ClosingFile
-            | Phase::ClosingParent => false,
+        match self.state {
+            State::ParentOpening { .. } | State::Opening { .. } | State::DeniedOpening { .. } => true,
+            State::Making { .. }
+            | State::SyncingParent { .. }
+            | State::Stating { .. }
+            | State::DeniedStating { .. }
+            | State::ClosingFile { .. }
+            | State::ClosingParent { .. } => false,
+        }
+    }
+}
+
+// A transition either submits the target state's operation or answers after cleanup.
+enum Next {
+    Issue { state: State, operation: Op },
+    Answer(Answer),
+}
+
+fn follow(io: &mut FileIo, owner: Token, next: Next, events: &mut Queue<Event>, subs: &mut Queue<Submit>) -> Work {
+    match next {
+        Next::Issue { state, operation } => issue(io, owner, state, operation, subs),
+        Next::Answer(answer) => {
+            let event = match answer {
+                Answer::Terminal(event) => event,
+                Answer::Admit { file, user } => {
+                    let file = io.insert_private(file, user).expect("admission reserved an open file slot");
+                    Event::Opened { owner, file, len: 0 }
+                }
+            };
+            events.push(event);
+            Work::Idle
         }
     }
 }
@@ -134,11 +176,9 @@ pub(super) fn start(
             return super::terminal_failure(events, owner, Error::TooManyOpenFiles);
         }
         Action::Private { .. } | Action::Make { .. } => {}
-        Action::Refusal { .. } => unreachable!("a refusal is started after a denied load"),
     }
     let no_follow = match action {
         Action::Private { .. } => true,
-        Action::Refusal { .. } => unreachable!("a refusal has its root and path"),
         Action::Make { mode } => {
             if mode & !crate::kernel::PERMISSIONS != 0 {
                 return super::terminal_failure(events, owner, Error::InvalidArgument);
@@ -147,231 +187,264 @@ pub(super) fn start(
         }
     };
     let how = if no_follow { OpenHow::DirectoryNoFollow } else { OpenHow::Directory };
-    let opening = Opening {
-        owner,
-        action,
-        phase: Phase::ParentOpening,
-        name,
-        parent: None,
-        file: None,
-        terminal: None,
-        made: false,
-    };
-    issue(io, opening, Op::Open { root: fd, path: parent, how }, subs)
+    issue(io, owner, State::ParentOpening { name, action }, Op::Open { root: fd, path: parent, how }, subs)
 }
 
-fn issue(io: &mut FileIo, opening: Opening, operation: Op, subs: &mut Queue<Submit>) -> Work {
-    super::issue(io, Pending::Private(opening), operation, subs)
+fn issue(io: &mut FileIo, owner: Token, state: State, operation: Op, subs: &mut Queue<Submit>) -> Work {
+    super::issue(io, Pending::Private(Opening { owner, state }), operation, subs)
 }
 
-fn open(io: &mut FileIo, mut opening: Opening, subs: &mut Queue<Submit>) -> Work {
-    opening.phase = Phase::Opening;
-    let operation =
-        Op::Open { root: opening.parent.expect("parent open"), path: opening.name.clone(), how: OpenHow::ReadNoFollow };
-    issue(io, opening, operation, subs)
+fn open(parent: Fd, name: Box<[u8]>, user: u32, may_make: MayMake) -> Next {
+    let operation = Op::Open { root: parent, path: name.clone(), how: OpenHow::ReadNoFollow };
+    Next::Issue { state: State::Opening { parent, name, user, may_make }, operation }
 }
 
-fn cleanup(io: &mut FileIo, mut opening: Opening, events: &mut Queue<Event>, subs: &mut Queue<Submit>) -> Work {
-    if opening.terminal.is_some()
-        && let Some(fd) = opening.file.take()
-    {
-        opening.phase = Phase::ClosingFile;
-        return issue(io, opening, Op::Close { fd }, subs);
-    } else if let Some(fd) = opening.parent.take() {
-        opening.phase = Phase::ClosingParent;
-        return issue(io, opening, Op::Close { fd }, subs);
-    }
-    match opening.terminal {
-        Some(terminal) => events.push(terminal),
-        None => {
-            let user = match opening.action {
-                Action::Private { user } => user,
-                Action::Make { .. } | Action::Refusal { .. } => {
-                    unreachable!("non-admitting requests have their terminal")
-                }
-            };
-            let fd = opening.file.take().expect("private root held until parent closes");
-            let file = io.insert_private(fd, user).expect("admission reserved an open file slot");
-            events.push(Event::Opened { owner: opening.owner, file, len: 0 });
+fn close_parent(parent: Held, answer: Answer) -> Next {
+    match parent {
+        Held::Parent(parent) => {
+            Next::Issue { state: State::ClosingParent { parent, answer }, operation: Op::Close { fd: parent } }
         }
+        Held::Gone => Next::Answer(answer),
     }
-    Work::Idle
 }
 
-#[expect(clippy::too_many_lines, reason = "one exhaustive transition match keeps refusal and cleanup together")]
-pub(super) fn up(
-    io: &mut FileIo,
-    mut opening: Opening,
-    complete: Complete,
-    events: &mut Queue<Event>,
-    subs: &mut Queue<Submit>,
-) -> Work {
-    match complete.result {
+fn close_file(parent: Held, file: Fd, terminal: Event) -> Next {
+    Next::Issue { state: State::ClosingFile { parent, terminal }, operation: Op::Close { fd: file } }
+}
+
+fn parent_opened(owner: Token, name: Box<[u8]>, action: Action, result: Result<Done, Error>) -> Next {
+    match result {
+        Ok(done) => {
+            let parent = super::store::done_fd(done);
+            match action {
+                Action::Private { user } => open(parent, name, user, MayMake::Try),
+                Action::Make { mode } => {
+                    let operation = Op::MakeDirectory { dir: parent, name: name.clone(), mode };
+                    Next::Issue { state: State::Making { parent, name, then: Then::Made }, operation }
+                }
+            }
+        }
         Err(error) => {
-            match opening.phase {
-                Phase::Opening if error == Error::Permission => {
-                    opening.terminal = Some(Event::failed(opening.owner, error));
-                    opening.phase = Phase::DeniedOpening;
-                    let operation = Op::Open {
-                        root: opening.parent.expect("the same opened parent"),
-                        path: opening.name.clone(),
-                        how: OpenHow::PathNoFollow,
-                    };
-                    return issue(io, opening, operation, subs);
-                }
-                Phase::Opening if error == Error::NotFound && !opening.made => {
-                    opening.made = true;
-                    opening.phase = Phase::Making;
-                    let operation = Op::MakeDirectory {
-                        dir: opening.parent.expect("parent open"),
-                        name: opening.name.clone(),
-                        mode: 0o700,
-                    };
-                    return issue(io, opening, operation, subs);
-                }
-                Phase::Making => match opening.action {
-                    Action::Private { .. } if error == Error::Exists => {
-                        return open(io, opening, subs);
-                    }
-                    Action::Make { .. } | Action::Private { .. } => {}
-                    Action::Refusal { .. } => unreachable!("a denial makes nothing"),
-                },
-                Phase::ParentOpening | Phase::Opening if error == Error::TooManyLinks => match opening.action {
-                    Action::Private { .. } => {
-                        opening.terminal = Some(Event::Refused { owner: opening.owner, found: Unsafe::Link });
-                    }
-                    Action::Make { .. } => {}
-                    Action::Refusal { .. } => unreachable!("a refusal opens only a path"),
-                },
-                Phase::Opening if error == Error::NotAFile => {
-                    opening.terminal = Some(Event::Refused { owner: opening.owner, found: Unsafe::Kind(Kind::Other) });
-                }
-                Phase::SyncingParent => {
-                    opening.terminal =
-                        Some(Event::Failed { owner: opening.owner, error, committed: true, residue: None });
-                }
-                Phase::ParentOpening
-                | Phase::Opening
-                | Phase::Stating
-                | Phase::DeniedOpening
-                | Phase::DeniedStating
-                | Phase::ClosingFile
-                | Phase::ClosingParent => {}
-            }
-            if opening.terminal.is_none() {
-                opening.terminal = Some(Event::failed(opening.owner, error));
-            }
-            cleanup(io, opening, events, subs)
+            let terminal = match action {
+                Action::Private { .. } if error == Error::TooManyLinks => Event::Refused { owner, found: Unsafe::Link },
+                Action::Private { .. } | Action::Make { .. } => Event::failed(owner, error),
+            };
+            Next::Answer(Answer::Terminal(terminal))
         }
-        Ok(done) => match opening.phase {
-            Phase::ParentOpening => {
-                let fd = super::store::done_fd(done);
-                opening.parent = Some(fd);
-                match opening.action {
-                    Action::Private { .. } => open(io, opening, subs),
-                    Action::Make { mode } => {
-                        opening.phase = Phase::Making;
-                        let operation = Op::MakeDirectory { dir: fd, name: opening.name.clone(), mode };
-                        issue(io, opening, operation, subs)
-                    }
-                    Action::Refusal { .. } => unreachable!("a denial already names its root"),
-                }
-            }
-            Phase::Making => {
-                super::store::done_nothing(done);
-                opening.phase = Phase::SyncingParent;
-                let fd = opening.parent.expect("made directory's parent remains open");
-                issue(io, opening, Op::Sync { fd }, subs)
-            }
-            Phase::SyncingParent => {
-                super::store::done_nothing(done);
-                match opening.action {
-                    Action::Private { .. } => open(io, opening, subs),
-                    Action::Refusal { .. } => unreachable!("a denial makes nothing"),
-                    Action::Make { .. } => {
-                        opening.terminal = Some(Event::Made { owner: opening.owner });
-                        cleanup(io, opening, events, subs)
-                    }
-                }
-            }
-            Phase::Opening => {
-                let fd = super::store::done_fd(done);
-                opening.file = Some(fd);
-                opening.phase = Phase::Stating;
-                issue(io, opening, Op::Stat { fd }, subs)
-            }
-            Phase::Stating => {
-                let stat = super::store::done_stat(done);
-                let user = match opening.action {
-                    Action::Private { user } => user,
-                    Action::Make { .. } | Action::Refusal { .. } => unreachable!("only a private root is admitted"),
-                };
-                if let Some(found) = unsafe_root(stat, user) {
-                    opening.terminal = Some(Event::Refused { owner: opening.owner, found });
-                }
-                cleanup(io, opening, events, subs)
-            }
-            Phase::DeniedOpening => {
-                let fd = super::store::done_fd(done);
-                opening.file = Some(fd);
-                opening.phase = Phase::DeniedStating;
-                issue(io, opening, Op::Stat { fd }, subs)
-            }
-            Phase::DeniedStating => {
-                let stat = super::store::done_stat(done);
-                let found = match opening.action {
-                    Action::Private { user } => unsafe_root(stat, user),
-                    Action::Refusal { user } => unsafe_file(stat, user),
-                    Action::Make { .. } => unreachable!("a directory maker has no denied read"),
-                };
-                if let Some(found) = found {
-                    opening.terminal = Some(Event::Refused { owner: opening.owner, found });
-                }
-                cleanup(io, opening, events, subs)
-            }
-            Phase::ClosingFile | Phase::ClosingParent => {
-                super::store::done_nothing(done);
-                cleanup(io, opening, events, subs)
+    }
+}
+
+fn made(owner: Token, parent: Fd, name: Box<[u8]>, then: Then, result: Result<Done, Error>) -> Next {
+    match result {
+        Ok(done) => {
+            super::store::done_nothing(done);
+            Next::Issue { state: State::SyncingParent { parent, name, then }, operation: Op::Sync { fd: parent } }
+        }
+        Err(error) => match then {
+            Then::Open { user } if error == Error::Exists => open(parent, name, user, MayMake::Tried),
+            Then::Open { .. } | Then::Made => {
+                close_parent(Held::Parent(parent), Answer::Terminal(Event::failed(owner, error)))
             }
         },
     }
 }
 
+fn synced(owner: Token, parent: Fd, name: Box<[u8]>, then: Then, result: Result<Done, Error>) -> Next {
+    match result {
+        Ok(done) => {
+            super::store::done_nothing(done);
+            match then {
+                Then::Open { user } => open(parent, name, user, MayMake::Tried),
+                Then::Made => close_parent(Held::Parent(parent), Answer::Terminal(Event::Made { owner })),
+            }
+        }
+        Err(error) => close_parent(Held::Parent(parent), Answer::Terminal(committed(owner, error))),
+    }
+}
+
+fn committed(owner: Token, error: Error) -> Event {
+    Event::Failed { owner, error, committed: true, residue: None }
+}
+
+fn opened(
+    owner: Token,
+    parent: Fd,
+    name: Box<[u8]>,
+    user: u32,
+    may_make: MayMake,
+    result: Result<Done, Error>,
+) -> Next {
+    match result {
+        Ok(done) => {
+            let file = super::store::done_fd(done);
+            Next::Issue { state: State::Stating { parent, file, user }, operation: Op::Stat { fd: file } }
+        }
+        Err(Error::Permission) => {
+            let operation = Op::Open { root: parent, path: name.clone(), how: OpenHow::PathNoFollow };
+            Next::Issue {
+                state: State::DeniedOpening {
+                    parent: Held::Parent(parent),
+                    name,
+                    denied: Event::failed(owner, Error::Permission),
+                    check: Check::Root { user },
+                },
+                operation,
+            }
+        }
+        Err(error) => {
+            if error == Error::NotFound {
+                match may_make {
+                    MayMake::Try => {
+                        let operation = Op::MakeDirectory { dir: parent, name: name.clone(), mode: 0o700 };
+                        return Next::Issue {
+                            state: State::Making { parent, name, then: Then::Open { user } },
+                            operation,
+                        };
+                    }
+                    MayMake::Tried => {}
+                }
+            }
+            let terminal = match unsafe_open(error, true) {
+                Some(found) => Event::Refused { owner, found },
+                None => Event::failed(owner, error),
+            };
+            close_parent(Held::Parent(parent), Answer::Terminal(terminal))
+        }
+    }
+}
+
+fn stated(owner: Token, parent: Fd, file: Fd, user: u32, result: Result<Done, Error>) -> Next {
+    let terminal = match result {
+        Ok(done) => match unsafe_root(super::store::done_stat(done), user) {
+            Some(found) => Event::Refused { owner, found },
+            None => return close_parent(Held::Parent(parent), Answer::Admit { file, user }),
+        },
+        Err(error) => Event::failed(owner, error),
+    };
+    close_file(Held::Parent(parent), file, terminal)
+}
+
+fn denied_opened(parent: Held, denied: Event, check: Check, result: Result<Done, Error>) -> Next {
+    match result {
+        Ok(done) => {
+            let file = super::store::done_fd(done);
+            Next::Issue {
+                state: State::DeniedStating { parent, file, denied, check },
+                operation: Op::Stat { fd: file },
+            }
+        }
+        Err(_error) => close_parent(parent, Answer::Terminal(denied)),
+    }
+}
+
+fn denied_stated(
+    owner: Token,
+    parent: Held,
+    file: Fd,
+    denied: Event,
+    check: Check,
+    result: Result<Done, Error>,
+) -> Next {
+    let terminal = match result {
+        Ok(done) => {
+            let stat = super::store::done_stat(done);
+            let found = match check {
+                Check::Root { user } => unsafe_root(stat, user),
+                Check::File { user } => unsafe_file(stat, user),
+            };
+            match found {
+                Some(found) => Event::Refused { owner, found },
+                None => denied,
+            }
+        }
+        Err(_error) => denied,
+    };
+    close_file(parent, file, terminal)
+}
+
+fn file_closed(parent: Held, terminal: Event, result: Result<Done, Error>) -> Next {
+    match result {
+        Ok(done) => super::store::done_nothing(done),
+        Err(_error) => {}
+    }
+    close_parent(parent, Answer::Terminal(terminal))
+}
+
+fn parent_closed(owner: Token, _parent: Fd, answer: Answer, result: Result<Done, Error>) -> Next {
+    match result {
+        Ok(done) => {
+            super::store::done_nothing(done);
+            Next::Answer(answer)
+        }
+        Err(error) => match answer {
+            Answer::Terminal(terminal) => Next::Answer(Answer::Terminal(terminal)),
+            Answer::Admit { file, .. } => close_file(Held::Gone, file, Event::failed(owner, error)),
+        },
+    }
+}
+
+pub(super) fn up(
+    io: &mut FileIo,
+    opening: Opening,
+    complete: Complete,
+    events: &mut Queue<Event>,
+    subs: &mut Queue<Submit>,
+) -> Work {
+    let owner = opening.owner;
+    let result = complete.result;
+    let next = match opening.state {
+        State::ParentOpening { name, action } => parent_opened(owner, name, action, result),
+        State::Making { parent, name, then } => made(owner, parent, name, then, result),
+        State::SyncingParent { parent, name, then } => synced(owner, parent, name, then, result),
+        State::Opening { parent, name, user, may_make } => opened(owner, parent, name, user, may_make, result),
+        State::Stating { parent, file, user } => stated(owner, parent, file, user, result),
+        State::DeniedOpening { parent, name: _name, denied, check } => denied_opened(parent, denied, check, result),
+        State::DeniedStating { parent, file, denied, check } => {
+            denied_stated(owner, parent, file, denied, check, result)
+        }
+        State::ClosingFile { parent, terminal } => file_closed(parent, terminal, result),
+        State::ClosingParent { parent, answer } => parent_closed(owner, parent, answer, result),
+    };
+    follow(io, owner, next, events, subs)
+}
+
 pub(super) fn stopped(
     io: &mut FileIo,
-    mut opening: Opening,
+    opening: Opening,
     complete: Complete,
     reason: Error,
     events: &mut Queue<Event>,
     subs: &mut Queue<Submit>,
 ) -> Work {
-    match opening.phase {
-        Phase::ParentOpening => {
-            if let Ok(done) = complete.result {
-                opening.parent = Some(super::store::done_fd(done));
-            }
+    let owner = opening.owner;
+    let terminal = if reason == Error::Cancelled { Event::Cancelled { owner } } else { Event::failed(owner, reason) };
+    let next = match opening.state {
+        State::ParentOpening { .. } => match complete.result {
+            Ok(done) => close_parent(Held::Parent(super::store::done_fd(done)), Answer::Terminal(terminal)),
+            Err(_error) => Next::Answer(Answer::Terminal(terminal)),
+        },
+        State::Opening { parent, .. } => match complete.result {
+            Ok(done) => close_file(Held::Parent(parent), super::store::done_fd(done), terminal),
+            Err(_error) => close_parent(Held::Parent(parent), Answer::Terminal(terminal)),
+        },
+        State::DeniedOpening { parent, denied, .. } => match complete.result {
+            Ok(done) => close_file(parent, super::store::done_fd(done), denied),
+            Err(_error) => close_parent(parent, Answer::Terminal(denied)),
+        },
+        State::SyncingParent { parent, .. } => {
+            let terminal = if reason == Error::Cancelled { terminal } else { committed(owner, reason) };
+            close_parent(Held::Parent(parent), Answer::Terminal(terminal))
         }
-        Phase::Opening | Phase::DeniedOpening => {
-            if let Ok(done) = complete.result {
-                opening.file = Some(super::store::done_fd(done));
-            }
-        }
-        Phase::SyncingParent => {
-            if reason != Error::Cancelled {
-                opening.terminal =
-                    Some(Event::Failed { owner: opening.owner, error: reason, committed: true, residue: None });
-            }
-        }
-        Phase::Making | Phase::Stating | Phase::DeniedStating | Phase::ClosingFile | Phase::ClosingParent => {}
-    }
-    if opening.terminal.is_none() {
-        opening.terminal = Some(if reason == Error::Cancelled {
-            Event::Cancelled { owner: opening.owner }
-        } else {
-            Event::failed(opening.owner, reason)
-        });
-    }
-    cleanup(io, opening, events, subs)
+        State::Making { parent, .. } => close_parent(Held::Parent(parent), Answer::Terminal(terminal)),
+        State::Stating { parent, file, .. } => close_file(Held::Parent(parent), file, terminal),
+        State::DeniedStating { parent, file, denied, .. } => close_file(parent, file, denied),
+        State::ClosingFile { parent, terminal } => close_parent(parent, Answer::Terminal(terminal)),
+        State::ClosingParent { answer, .. } => match answer {
+            Answer::Terminal(terminal) => Next::Answer(Answer::Terminal(terminal)),
+            Answer::Admit { file, .. } => close_file(Held::Gone, file, terminal),
+        },
+    };
+    follow(io, owner, next, events, subs)
 }
 
 /// Kernel path refusals that already establish unsafe private metadata.
@@ -393,31 +466,18 @@ pub(super) fn refuse_file(
     events: &mut Queue<Event>,
     subs: &mut Queue<Submit>,
 ) -> Work {
-    let opening = Opening {
-        owner,
-        action: Action::Make { mode: 0 },
-        phase: Phase::Stating,
-        name: Box::from([]),
-        parent: None,
-        file: Some(fd),
-        terminal: Some(Event::Refused { owner, found }),
-        made: false,
-    };
-    cleanup(io, opening, events, subs)
+    let next = close_file(Held::Gone, fd, Event::Refused { owner, found });
+    follow(io, owner, next, events, subs)
 }
 
 /// A denied private load is probed only to name its refusal, never to admit bytes.
 pub(super) fn denied_load(io: &mut FileIo, owner: Token, loading: super::Loading, subs: &mut Queue<Submit>) -> Work {
     let operation = Op::Open { root: loading.root, path: loading.path.clone(), how: OpenHow::PathNoFollow };
-    let opening = Opening {
-        owner,
-        action: Action::Refusal { user: loading.user },
-        phase: Phase::DeniedOpening,
+    let state = State::DeniedOpening {
+        parent: Held::Gone,
         name: loading.path,
-        parent: None,
-        file: None,
-        terminal: Some(Event::failed(owner, Error::Permission)),
-        made: false,
+        denied: Event::failed(owner, Error::Permission),
+        check: Check::File { user: loading.user },
     };
-    issue(io, opening, operation, subs)
+    issue(io, owner, state, operation, subs)
 }

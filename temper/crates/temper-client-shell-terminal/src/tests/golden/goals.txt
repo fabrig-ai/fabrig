@@ -22,6 +22,6 @@ Two tasks landed; the rest runs.
 Planning from the draft.
 [14] Keyboard navigation · 3 / 3 · landed 01:12
 The keyboard pass landed.
-[15] Retire password login · stopped
-Stopped by you.
+[15] Retire password login · closed
+Closed by you.
 [16] More goals

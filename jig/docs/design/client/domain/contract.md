@@ -377,6 +377,14 @@ this environment) is the application's (`../../domain/people.md`, 5.1):
   conversation with every delegate live, or reorder every goal of a
   project, in one request (`../../protocol/configuration.md`, section
   6).
+- **One check is the wire's own:** each operation on the wire names a
+  project, and the people child's operations name none, since their
+  compound names it once. So the clients' protocol layer compares the
+  two numbers, before anything else of the request and before a later
+  operation fails to decode, and answers one that differs refused, as
+  malformed, naming its place: a request that disagrees with itself,
+  which never reaches the people child. Whether each operation's task
+  is in the request's project stays the people child's.
 - **Revisions, as alone:** each operation names its revision where it
   would alone (5.2), so a `Release` names its hold's beside words or an
   amendment; a priority-only `Amend` names none, the first commit
@@ -1073,6 +1081,7 @@ party reads is therefore never lost by a crash.
 | a result | the store, or live state while a stub names it |
 | a task's history, a page, for it or its subtree | the store |
 | `activity{n}`: a task's activity, a page, from its end | the store: words, run boundaries, turns, what it heard |
+| `activity_beside{n, position, side}`: the page of a task's activity next to its line at `position`, earlier or later, that line left out | the store, as `activity{n}` |
 | `turn{n, attempt, turn}`: one committed turn of a task's activity | the store: the task's transcript (`../../protocol/store.md`, 8.3) |
 | `inbox`: a group of it, a page, filtered by project, kind or root | live state, then the store past the engine's limit |
 | `tasks{query}`: a task query's page (6.1) | live state, then the store's indexes of ended tasks |
@@ -1131,6 +1140,14 @@ party reads is therefore never lost by a crash.
   the question: a delegate is in its requester's project, and the
   answer's words are those of the task the question was put to
   (`../../domain/engine.md`, 7.2; `../../protocol/store.md`, 7.3).
+- **A page beside a line** is how a window that let lines go reads them
+  again: an activity line's position is a fact of the line, dense and
+  never reused, so it names a place where no cursor was kept. Its answer
+  is an activity page. Earlier, its `before` continues it as any page's
+  does and its `after` is none; later, it holds the lines just after the
+  position, its `after` says that more remain and its `before` is none. An
+  empty page is the answer past either end. It is read with the access of
+  `activity{n}`.
 - **A turn** is named by its task, its attempt and its number within it
   (7.3). It is read once and never watched: a committed turn does not
   change. It is read with the access of `activity{n}`. Its answer is:
@@ -1570,6 +1587,13 @@ designs (`../../protocol/client.md`):
   bounds derived so that it cannot happen, as a path's segments are, or
   an answer of its own. Until it is settled, a watch's is refused as
   unknown and a delivery's ends its watch (7.2).
+- **A compound's project on the wire** (3.4): each of its operations names a
+  project on the client wire, and the clients' protocol layer refuses one other
+  than the compound's before the ask goes further. Whether people refuses it,
+  which takes a project in each of its `Operation`s and a refusal its stored
+  enum has no variant for, or the check stays as the wire's own shape
+  (`jig/docs/development/debt/D026-engine-clients-project-mismatch.md`). Default:
+  it stays.
 
 ## 12. Public documents
 

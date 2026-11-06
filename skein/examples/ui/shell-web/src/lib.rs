@@ -24,6 +24,10 @@ mod grow;
 #[cfg(debug_assertions)]
 mod log_fixture;
 #[cfg(debug_assertions)]
+mod reading_fixture;
+#[cfg(debug_assertions)]
+mod tab_fixture;
+#[cfg(debug_assertions)]
 mod tree;
 
 const NAMES: &[Names<'_>] = &[Names {
@@ -74,6 +78,11 @@ pub fn start() {
     let location = window.location();
     let path = location.pathname().expect("page path") + &location.search().expect("page query");
     #[cfg(debug_assertions)]
+    if path.starts_with("/test/reading/") {
+        reading_fixture::start(mount, &path, facts.primary);
+        return;
+    }
+    #[cfg(debug_assertions)]
     if path.split('?').next() == Some("/test/copy") {
         copy_fixture::start(mount, facts.primary);
         return;
@@ -81,6 +90,11 @@ pub fn start() {
     #[cfg(debug_assertions)]
     if path == "/test/folds-away" {
         folds_fixture::start(mount, facts.primary);
+        return;
+    }
+    #[cfg(debug_assertions)]
+    if path.split('?').next() == Some("/test/tab") {
+        tab_fixture::start(mount, facts.primary);
         return;
     }
     #[cfg(debug_assertions)]

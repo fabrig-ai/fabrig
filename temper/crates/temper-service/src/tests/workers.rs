@@ -1,6 +1,7 @@
 use super::fixtures;
 use jig_domain_core as core;
 use jig_domain_host as host;
+use jig_domain_link::{Form, Grant, JobKind, SourceName};
 use jig_domain_tasks as tasks;
 use jig_protocol_engine_workers::GrantValue;
 use skein_lib::Time;
@@ -97,7 +98,7 @@ fn an_accounts_grant_uses_the_lent_generation_until_it_expires() {
         )
         .unwrap();
     let mut grant = fixtures::application_grant(1, 2);
-    grant.form = jig_domain_host::Form::Credential(jig_domain_host::Scheme::Bearer);
+    grant.form = Form::Credential(jig_domain_link::Scheme::Bearer);
     for (now, generation, expected) in [(8, 2, true), (9, 2, false), (8, 1, false)] {
         grant.generation = generation;
         let filled = values.grants(&[grant], Time::from_nanos(now));
@@ -113,8 +114,8 @@ fn an_accounts_grant_uses_the_lent_generation_until_it_expires() {
 
 fn assignment_with_identity() -> temper_engine_domain::Assignment {
     let mut assignment = fixtures::assignment_with(fixtures::repository(7, b"acme", b"shop"));
-    assignment.grants = Box::new([jig_domain_accounts::Grant {
-        form: jig_domain_accounts::Form::Application,
+    assignment.grants = Box::new([Grant {
+        form: Form::Application,
         account: 1,
         generation: 1,
         valid: skein_lib::Duration::from_secs(30),
@@ -541,7 +542,7 @@ fn a_worker_assignment_uses_the_services_configured_forges() {
 #[test]
 fn engine_values_preserve_slots_and_refuse_a_different_declared_form() {
     use jig_protocol_accounts::table::{Scheme, Value};
-    let forms = [host::Form::Credential(host::Scheme::Bearer), host::Form::Credential(host::Scheme::Key)];
+    let forms = [Form::Credential(jig_domain_link::Scheme::Bearer), Form::Credential(jig_domain_link::Scheme::Key)];
     for (scheme, actual) in [(Scheme::Bearer, forms[0]), (Scheme::Key, forms[1])] {
         let mut values = fixtures::values_with_identity(1, b"forge-token");
         values
@@ -554,7 +555,7 @@ fn engine_values_preserve_slots_and_refuse_a_different_declared_form() {
             )
             .unwrap();
         let grants =
-            forms.map(|form| host::Grant { form, account: 2, generation: 3, valid: skein_lib::Duration::from_secs(5) });
+            forms.map(|form| Grant { form, account: 2, generation: 3, valid: skein_lib::Duration::from_secs(5) });
         let filled = values.grants(&grants, Time::from_nanos(8));
         for (grant, value) in grants.iter().zip(filled.iter()) {
             assert_eq!(value.is_some(), grant.form == actual);
@@ -568,13 +569,9 @@ fn engine_values_preserve_slots_and_refuse_a_different_declared_form() {
 #[test]
 fn a_program_grant_carries_its_name_without_a_credential_table_entry() {
     let values = crate::values::Values::new(0, 0);
-    let name = host::SourceName::new(b"claude").unwrap();
-    let grant = host::Grant {
-        form: host::Form::Program(name),
-        account: 1,
-        generation: 2,
-        valid: skein_lib::Duration::from_secs(60),
-    };
+    let name = SourceName::new(b"claude").unwrap();
+    let grant =
+        Grant { form: Form::Program(name), account: 1, generation: 2, valid: skein_lib::Duration::from_secs(60) };
     let filled = values.grants(&[grant], Time::ZERO);
     let [Some(GrantValue::Program { name: held })] = filled.as_ref() else { panic!("one named program value") };
     assert_eq!(*held, name);
@@ -586,8 +583,8 @@ fn a_program_grants_charter_keeps_its_source_account() {
     let encoding = fixtures::encoding(&settings);
     let mut assignment = fixtures::assignment_with(fixtures::repository(7, b"acme", b"shop"));
     assignment.run.sources = Box::new([Some(17)]);
-    assignment.grants = Box::new([jig_domain_accounts::Grant {
-        form: jig_domain_accounts::Form::Program(jig_domain_accounts::SourceName::new(b"alice").unwrap()),
+    assignment.grants = Box::new([Grant {
+        form: Form::Program(SourceName::new(b"alice").unwrap()),
         account: 17,
         generation: 2,
         valid: skein_lib::Duration::from_secs(60),
@@ -607,7 +604,7 @@ fn a_program_grants_charter_keeps_its_source_account() {
         panic!("assignment down")
     };
     let [grant] = sent.assignment.grants.as_ref() else { panic!("one program grant") };
-    assert_eq!(grant.form, host::Form::Program(host::SourceName::new(b"alice").unwrap()));
+    assert_eq!(grant.form, Form::Program(SourceName::new(b"alice").unwrap()));
     let [Some(GrantValue::Program { name })] = values.as_ref() else { panic!("one name without a table entry") };
     assert_eq!(name.as_bytes(), b"alice");
     let charter = decoded_charter(&sent.assignment.charter);
@@ -786,7 +783,7 @@ fn job_assignment(workspace: bool) -> host::JobAssignment {
     host::JobAssignment {
         run: Token::new(7),
         attempt: Token::new(2),
-        kind: host::JobKind(3),
+        kind: JobKind(3),
         spec: b"merge spec".as_slice().into(),
         deadline: skein_lib::Duration::from_secs(600),
         workspace: if workspace { Some(host::Workspace { workstream: 4, items: Token::new(9) }) } else { None },
@@ -1071,4 +1068,106 @@ fn review_fitting_uses_the_configured_assignment_envelope() {
             assert!(pull.text.len() < original.brief.sections[1].text.len());
         }
     }
+}
+
+/// temper/docs/design/domain/agent.md, 7: startup faults keep their cause and pending words.
+#[test]
+fn a_configuring_chat_answers_after_acceptance_and_failed_resume() {
+    use fixtures::worker_peers::{CONFIGURING_HISTORY_BYTES, ConfiguringChat, ResumeAttempt, configuring_attempt};
+    let mut chat = ConfiguringChat::new();
+    let run = chat.chat(20);
+    chat.accept(&run);
+    assert_eq!(chat.driver.task(run.task).unwrap().settings.run, Some(1), "running work stays");
+    let resumed = chat.resume(&run);
+    assert_eq!(resumed.run.revision, 2, "a later run crosses the accepted revision");
+    let mut history_bytes = 0_usize;
+    for body in &resumed.transcript {
+        history_bytes = history_bytes.checked_add(body.len()).unwrap();
+    }
+    assert_eq!(history_bytes, CONFIGURING_HISTORY_BYTES);
+    let up = configuring_attempt(resumed.clone(), ResumeAttempt::Fault);
+    assert_startup_fault(&up);
+    chat.answer(up);
+    let retry = chat.retry();
+    assert_eq!(retry.task, run.task);
+    assert_eq!(retry.transcript, resumed.transcript, "an unknown fault never discards history");
+    let up = configuring_attempt(retry, ResumeAttempt::Answer);
+    assert_description(&up);
+    chat.answer(up);
+    if let tasks::Phase::Held { .. } = chat.driver.task(run.task).unwrap().phase {
+        panic!("one passing startup fault never exhausts agent tries");
+    }
+    assert_pending_question(&resumed);
+    configuring_refusal_and_hold_controls(&mut chat, run.task);
+}
+
+fn configuring_refusal_and_hold_controls(chat: &mut fixtures::worker_peers::ConfiguringChat, task: u64) {
+    use fixtures::worker_peers::{DESCRIPTION, ResumeAttempt, configuring_attempt};
+    use jig_domain_people as people;
+    chat.ask(30, people::Ask::Say { project: 1, task, words: DESCRIPTION.into() });
+    let run = chat.driver.last_assignment();
+    let up = configuring_attempt(run, ResumeAttempt::Transcript);
+    chat.answer(up);
+    let fresh = chat.retry();
+    assert!(fresh.transcript.is_empty(), "identified transcript refusal recovers fresh");
+    assert_pending_question(&fresh);
+    let up = configuring_attempt(fresh, ResumeAttempt::Answer);
+    assert_description(&up);
+    chat.answer(up);
+    chat.ask(31, people::Ask::Say { project: 1, task, words: DESCRIPTION.into() });
+    let mut run = chat.driver.last_assignment();
+    for _ in 0..=chat.driver.env.limits.tasks.retries.agent.retries {
+        let up = configuring_attempt(run, ResumeAttempt::Fault);
+        assert_startup_fault(&up);
+        chat.answer(up);
+        if let tasks::Phase::Held { .. } = chat.driver.task(task).unwrap().phase {
+            break;
+        }
+        run = chat.retry();
+    }
+    let row = chat.driver.task(task).unwrap();
+    let tasks::Phase::Held { why: tasks::Hold::Failures(tasks::Class::Agent), .. } = row.phase else {
+        panic!("persistent unidentified faults keep the agent-failure hold");
+    };
+    let hold = row.revisions.hold;
+    assert_eq!(hold, 1, "release hold 1 from the walk");
+    chat.ask(32, people::Ask::Release { project: 1, task, revision: hold, again: Some(true) });
+    let released = chat.driver.last_assignment();
+    let up = configuring_attempt(released, ResumeAttempt::Answer);
+    assert_description(&up);
+    chat.answer(up);
+    let control = chat.chat(33);
+    assert_ne!(control.task, task, "a fresh chat remains a working control");
+    let up = configuring_attempt(control, ResumeAttempt::Answer);
+    assert_description(&up);
+    chat.answer(up);
+}
+
+fn assert_startup_fault(up: &fixtures::worker_peers::ConfiguringAnswer) {
+    let host::LinkUp::Answer { answer, .. } = &up.terminal else { panic!("startup answer") };
+    assert_eq!((answer.turns, answer.read), (0, None), "an unadmitted attempt took no turn or words");
+    assert_eq!(
+        answer.ending,
+        host::Ending::Failed {
+            failure: host::Failure::Agent(host::AgentFailure::Exited),
+            detail: b"resume channel ended before admission".as_slice().into(),
+            work: host::Work { left: None, saved: None },
+        }
+    );
+}
+
+fn assert_description(up: &fixtures::worker_peers::ConfiguringAnswer) {
+    let Some(host::LinkUp::Turn { turn, .. }) = &up.turn else { panic!("description turn") };
+    assert!(skein_lib::bytes::find(&turn.body, b"running work stays on its revision").is_some());
+    let host::LinkUp::Answer { answer, .. } = &up.terminal else { panic!("description terminal") };
+    let host::Ending::Parked { .. } = answer.ending else { panic!("the description parks the chat") };
+}
+
+fn assert_pending_question(run: &temper_engine_domain::Assignment) {
+    for message in &run.messages {
+        if message.words.as_ref() == fixtures::worker_peers::DESCRIPTION {
+            return;
+        }
+    }
+    panic!("the person's pending question remains whole");
 }

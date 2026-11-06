@@ -90,7 +90,7 @@ impl Originals {
                     if typed(line) {
                         match act {
                             Act::Input { value } => candidates.push((Kind::Typed, value.clone())),
-                            Act::Press | Act::Submit | Act::Toggle | Act::Drawing { .. } => {}
+                            Act::Press | Act::Submit | Act::Toggle | Act::Drawing { .. } | Act::Near { .. } => {}
                         }
                     }
                 }
@@ -105,6 +105,10 @@ impl Originals {
                 | Line::Turn { .. }
                 | Line::Start
                 | Line::Due
+                | Line::TabOpen(_)
+                | Line::TabPoint(_)
+                | Line::TabClose
+                | Line::TabRefused
                 | Line::Place(_)
                 | Line::Heard(_)
                 | Line::Carried { .. }
@@ -196,6 +200,10 @@ pub fn typed(line: &Line) -> bool {
         | Line::Turn { .. }
         | Line::Start
         | Line::Due
+        | Line::TabOpen(_)
+        | Line::TabPoint(_)
+        | Line::TabClose
+        | Line::TabRefused
         | Line::Place(_)
         | Line::Heard(_)
         | Line::Carried { .. }

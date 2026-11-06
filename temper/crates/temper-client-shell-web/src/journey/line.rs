@@ -1,7 +1,7 @@
 //! The recording's strict byte codec (client/journeys.md, 3.2).
 use jig_client_shell_web::adapter::Heard;
 use skein_lib::{Time, Wall};
-use skein_ui::Act;
+use skein_ui::{Act, LogEdge};
 use skein_ui_web::{mapping::Primary, transport::Header};
 
 /// One line of a recording, its kind first (client/journeys.md, 3.2).
@@ -20,6 +20,10 @@ pub enum Line {
     Turn { now: Time, wall: Wall },
     Start,
     Due,
+    TabOpen(Box<[u8]>),
+    TabPoint(Box<[u8]>),
+    TabClose,
+    TabRefused,
     Copy { token: u32, words: Box<[u8]> },
     Copied { token: u32, written: temper_client_domain::copy::Written },
     Place(Box<[u8]>),
@@ -98,7 +102,9 @@ impl Line {
                 w.bytes(content);
                 w.bytes(origin);
             }
-            Self::Forge(bytes)
+            Self::TabOpen(bytes)
+            | Self::TabPoint(bytes)
+            | Self::Forge(bytes)
             | Self::Path(bytes)
             | Self::Secret(bytes)
             | Self::Place(bytes)
@@ -115,7 +121,7 @@ impl Line {
                 w.bytes(key);
                 w.bytes(value);
             }
-            Self::Start | Self::Due | Self::Close => w.word(self.kind().as_bytes()),
+            Self::Start | Self::Due | Self::Close | Self::TabClose | Self::TabRefused => w.word(self.kind().as_bytes()),
             Self::Heard(heard) => {
                 w.word(b"heard");
                 w.heard(heard);
@@ -187,6 +193,10 @@ impl Line {
             Self::Turn { .. } => "turn",
             Self::Start => "start",
             Self::Due => "due",
+            Self::TabOpen(_) => "tab-open",
+            Self::TabPoint(_) => "tab-point",
+            Self::TabClose => "tab-close",
+            Self::TabRefused => "tab-refused",
             Self::Copy { .. } => "copy",
             Self::Copied { .. } => "copied",
             Self::Place(_) => "place",
@@ -276,6 +286,13 @@ impl Text<'_> {
     }
     fn act(&mut self, act: &Act) {
         match act {
+            Act::Near { edge } => {
+                self.word(b"near");
+                self.word(match edge {
+                    LogEdge::Head => b"head",
+                    LogEdge::Foot => b"foot",
+                });
+            }
             Act::Press => self.word(b"press"),
             Act::Submit => self.word(b"submit"),
             Act::Toggle => self.word(b"toggle"),
@@ -450,7 +467,7 @@ fn hex(byte: u8) -> Result<u8, &'static str> {
         _ => Err("bad hex digit"),
     }
 }
-#[expect(clippy::too_many_lines, reason = "one dispatch reads the strict fields of each journey record")]
+#[expect(clippy::too_many_lines, reason = "one ordered dispatch reads each journey record's strict fields")]
 fn read(line: &[u8]) -> Result<Line, &'static str> {
     let mut r = fields(line)?;
     let line = match r.word()?.as_ref() {
@@ -479,6 +496,10 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
         b"stored" => Line::Stored { key: r.bytes()?, value: r.bytes()? },
         b"start" => Line::Start,
         b"due" => Line::Due,
+        b"tab-open" => Line::TabOpen(r.bytes()?),
+        b"tab-point" => Line::TabPoint(r.bytes()?),
+        b"tab-close" => Line::TabClose,
+        b"tab-refused" => Line::TabRefused,
         b"place" => Line::Place(r.bytes()?),
         b"heard" => Line::Heard(match r.word()?.as_ref() {
             b"answered" => {
@@ -497,6 +518,13 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
         b"lost" => Line::Lost(r.count()?),
         b"act" => {
             let act = match r.word()?.as_ref() {
+                b"near" => Act::Near {
+                    edge: match r.word()?.as_ref() {
+                        b"head" => LogEdge::Head,
+                        b"foot" => LogEdge::Foot,
+                        _ => return Err("unknown log edge"),
+                    },
+                },
                 b"press" => Act::Press,
                 b"submit" => Act::Submit,
                 b"toggle" => Act::Toggle,
@@ -575,6 +603,10 @@ impl Clone for Line {
             Self::Turn { now, wall } => Self::Turn { now: *now, wall: *wall },
             Self::Start => Self::Start,
             Self::Due => Self::Due,
+            Self::TabOpen(value) => Self::TabOpen(value.clone()),
+            Self::TabPoint(value) => Self::TabPoint(value.clone()),
+            Self::TabClose => Self::TabClose,
+            Self::TabRefused => Self::TabRefused,
             Self::Copy { token, words } => Self::Copy { token: *token, words: words.clone() },
             Self::Copied { token, written } => Self::Copied { token: *token, written: *written },
             Self::Place(value) => Self::Place(value.clone()),
@@ -612,6 +644,7 @@ impl Clone for Line {
 }
 pub(super) fn clone_act(act: &Act) -> Act {
     match act {
+        Act::Near { edge } => Act::Near { edge: *edge },
         Act::Press => Act::Press,
         Act::Submit => Act::Submit,
         Act::Toggle => Act::Toggle,

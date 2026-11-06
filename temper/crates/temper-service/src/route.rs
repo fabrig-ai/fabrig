@@ -4,6 +4,7 @@ use alloc::boxed::Box;
 use temper_engine_domain as root;
 
 pub(crate) mod box_link;
+mod refusal;
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher routes root outputs to their components")]
 pub(crate) fn request(engine: &mut Engine, request: root::Request) {
@@ -25,14 +26,6 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
             box_link::drain(engine, &mut out);
         }
         root::Request::Bound { request, answer } => engine.clients.bound(request, answer),
-        root::Request::Return { source, path } => {
-            if let Some(request) = account_return(engine, source, &path)
-                && let Some(accounts) = &mut engine.accounts
-            {
-                let (source, location) = request;
-                accounts.return_to(source, location);
-            }
-        }
         root::Request::SetUp { forge, request, first } => {
             crate::setup::lifecycle::first(engine, forge, first);
             let mut out = skein_lib::Queue::with_capacity(3);
@@ -251,22 +244,6 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
     }
 }
 
-/// Only the listener's bound socket supplies the origin of a checked client path.
-fn account_return(engine: &Engine, source: u32, path: &[u8]) -> Option<(u32, Box<[u8]>)> {
-    let listening = engine.clients.bound_address()?;
-    let host = crate::clients::printed::address_text(listening)?;
-    let parts: [&[u8]; 3] = [b"http://", &host, path];
-    let mut length = 0_usize;
-    for part in parts {
-        length = length.checked_add(part.len())?;
-    }
-    let mut location = skein_lib::Writer::new(length);
-    for part in parts {
-        location.put(part).expect("measured return URL");
-    }
-    Some((source, location.finish()))
-}
-
 fn store(engine: &mut Engine, request: root::StoreRequest) {
     if request == root::StoreRequest::Switch && !engine.store.pending_generation {
         engine.events.push(root::Event::Store(root::StoreInput::Switched));
@@ -331,11 +308,10 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
                 },
                 &mut engine.events,
             ),
-            root::Delivery::Refuse { channel } => engine.workers.down(
-                engine.env.now,
-                jig_protocol_engine_workers::Event::NotAdmitted { channel, text: b"not admitted".as_slice().into() },
-                &mut engine.events,
-            ),
+            root::Delivery::Refuse { channel, hello } => {
+                let event = refuse(engine, channel, hello);
+                engine.workers.down(engine.env.now, event, &mut engine.events);
+            }
             root::Delivery::Host(delivery) => host_delivery(engine, *delivery),
             root::Delivery::PlaygroundNote { .. }
             | root::Delivery::Procedure { .. }
@@ -481,43 +457,16 @@ pub(crate) fn job_assignment(
     })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::account_return;
-    use crate::tests::fixtures;
-
-    #[test]
-    fn a_return_uses_the_clients_bound_origin_and_the_checked_path() {
-        for (address, expected) in [
-            (
-                ([127, 0, 0, 1], 8123).into(),
-                b"http://127.0.0.1:8123/accounts/connect?provider=17&way=sign-in&source=9".as_slice(),
-            ),
-            (
-                ([0, 0, 0, 0, 0, 0, 0, 1], 8123).into(),
-                b"http://[::1]:8123/accounts/connect?provider=17&way=sign-in&source=9".as_slice(),
-            ),
-        ] {
-            let mut service = fixtures::started();
-            let engine = service.engine.as_mut().expect("engine");
-            assert!(engine.clients.up(skein_io::Event::Listening {
-                owner: skein_lib::Token::new(0),
-                listener: skein_lib::Token::new(77),
-                addr: skein_io::Addr::Ip(address),
-            }));
-            assert_eq!(engine.clients.listening.take(), Some(address), "the system consumes the note");
-            let path = b"/accounts/connect?provider=17&way=sign-in&source=9";
-            let Some((account, location)) = account_return(engine, 9, path) else { panic!("driver return") };
-            assert_eq!(account, 9);
-            assert_eq!(location.as_ref(), expected);
-        }
+/// Build the channel event and note from the same words (protocol/README.md, 15.3).
+pub(crate) fn refuse(
+    engine: &mut Engine,
+    channel: skein_lib::Token,
+    hello: Option<jig_domain_fleet::HelloRefused>,
+) -> jig_protocol_engine_workers::Event {
+    let text = refusal::text(hello);
+    if engine.last_hello_refusal.as_deref() != Some(text.as_ref()) {
+        engine.last_hello_refusal = Some(text.clone());
+        engine.notes.push(crate::Note::HelloRefused { channel: channel.raw(), text: text.clone() });
     }
-
-    #[test]
-    fn a_return_without_a_bound_clients_listener_is_dropped() {
-        let mut service = fixtures::started();
-        let engine = service.engine.as_mut().expect("engine");
-        engine.clients.listening = None;
-        assert!(account_return(engine, 9, b"/accounts/connect").is_none());
-    }
+    jig_protocol_engine_workers::Event::NotAdmitted { channel, text }
 }

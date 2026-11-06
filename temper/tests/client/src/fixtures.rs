@@ -171,6 +171,64 @@ fn whole_turn_root(seed: u64) -> (crate::app::Root, crate::app::View) {
     )
 }
 
+/// Small pages and a byte window that drops whole turns within a short chat.
+pub const READING_BYTES: u64 = 2048;
+#[must_use]
+pub fn reading_limits() -> Limits {
+    let mut limits = whole_turn_limits();
+    limits.client.domain.text = 256;
+    limits.client.domain.long_text = 1024;
+    limits.client.domain.turn_text = 1024;
+    limits.client.domain.document_bytes = READING_BYTES;
+    limits
+}
+#[must_use]
+pub fn reading_world(seed: u64) -> World<Temper, Joint> {
+    let limits = reading_limits();
+    world_with(seed, Joint::with_reading_pages(seed, &limits))
+}
+pub fn reading_client(world: &mut World<Temper, Joint>, task: u64) -> jig_client_kit::harness::ClientId {
+    let limits = reading_limits();
+    world.front().next_client_limits(limits);
+    world.client_with(PARTY, chat_page(task), limits, reading_root)
+}
+fn reading_root(seed: u64) -> (crate::app::Root, crate::app::View) {
+    let limits = reading_limits();
+    let mut words = phrasebooks(&limits);
+    words.shell = view::words::Shell::Browser;
+    let bounds = view_bounds(&limits, &words);
+    (
+        crate::app::Root::Person(Box::new(temper_client_domain::unlinked(&limits, seed))),
+        crate::app::View::Person(Box::new(view::View::new(&bounds, &limits, words, FORGE))),
+    )
+}
+/// Commit another whole assistant turn on the running chat's worker link.
+pub fn reading_turn(front: &mut Joint, task: u64, words: &[u8]) {
+    delegate_turn(front, task, None, words);
+}
+
+/// A live prefix for the current run's next turn, without committing it.
+pub fn reading_piece(front: &mut Joint, task: u64, bytes: &[u8]) {
+    let run = front.engine.task(task).expect("running chat");
+    let (attempt, turn) = (run.attempt, run.turn + 1);
+    front.engine.send(temper_engine_domain_world::protocol::up(
+        QUESTION_WORKER,
+        jig_domain_host::LinkUp::Piece {
+            run: Token::new(task),
+            attempt: Token::new(attempt),
+            piece: jig_domain_host::Piece {
+                turn,
+                retry: 0,
+                kind: jig_domain_host::LiveKind::Text,
+                offset: 0,
+                bytes: bytes.into(),
+            },
+        },
+        engine::Parts::none(),
+    ));
+    front.engine.settle();
+}
+
 /// Jig's referee checks decision text, independently of the application's view
 /// phrase shapes. Keep its complete jig vocabulary, replacing only the funding
 /// decision that temper renders differently. Held cards use the view's own book.

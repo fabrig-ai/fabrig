@@ -3,6 +3,7 @@ use super::{Worker, WorkerRuntime};
 use crate::tests::fixtures;
 use io::kernel::{self, Done, Op};
 use jig_domain_host as hub;
+use jig_domain_link::JobKind;
 use jig_protocol_worker_link as link;
 use root::tooling::{Event, Exit, Request};
 use skein_io::{self as io, kernel::Fd};
@@ -307,7 +308,7 @@ fn a_job_spec_that_does_not_decode_reaches_the_root_undecodable() {
         let job = hub::JobAssignment {
             run: JOB,
             attempt: Token::new(2),
-            kind: jig_domain_host::JobKind(1),
+            kind: JobKind(1),
             spec: spec.into(),
             deadline: skein_lib::Duration::from_secs(2),
             workspace: assignment.assignment.workspace,
@@ -520,8 +521,8 @@ fn a_real_job_has_only_its_environment_and_releases_its_group() {
         kernel.reap(&mut completions);
         for complete in &completions {
             if let Ok(Done::Spawned { pidfd, .. }) = complete.result {
-                let pid = skein_shell::child_id(pidfd).unwrap();
-                assert!(skein_shell::group_live(pid).unwrap(), "the child leads its own group");
+                let pid = skein_shell::keeper::child_id(pidfd).unwrap();
+                assert!(skein_shell::keeper::group_live(pid).unwrap(), "the child leads its own group");
                 group = Some(pid);
             }
         }
@@ -554,7 +555,10 @@ fn a_real_job_has_only_its_environment_and_releases_its_group() {
         String::from_utf8(variables).unwrap(),
         format!("PATH=/usr/bin:/bin\nHOME={directory}\nLANG=C.UTF-8\nTEMPER_JOB={directory}\n")
     );
-    assert!(!skein_shell::group_live(group.expect("a child was spawned")).unwrap(), "Gone follows the group's release");
+    assert!(
+        !skein_shell::keeper::group_live(group.expect("a child was spawned")).unwrap(),
+        "Gone follows the group's release"
+    );
     if let Some(starved) = starved {
         starved.pass();
     }

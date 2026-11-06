@@ -99,7 +99,6 @@ fn limits_take_each_bound_from_its_source_field() {
             link_address: crate::ADDRESS_BYTES,
             forges_forges: crate::FORGES,
             dismissals_dismissed: crate::DISMISSED,
-            return_path: 512,
             set_up_failed_why: crate::SET_UP_WHY_BYTES,
             group_failed_why: crate::SET_UP_WHY_BYTES,
             connected_login: 16,
