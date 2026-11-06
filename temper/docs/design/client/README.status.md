@@ -183,15 +183,9 @@
   - a phone hides the composer's hint, by the rule every session has there, where the request's page
     shows it.
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
-- **Not yet:** 3.5, *The try*: the view has no fact of a trial, so `model_check::trial`,
-  the one function `../draft/model-check.md`, 2 to 4, feeds, reads the host's check alone:
-  under way is the first step Running, and settled with no usable source the first step
-  Stopped, its why the host's; a usable account is its ticked line with no "answered in N s".
-  No page reaches Running past its first step, Answered, a sign-in's or a key's steps, a stop
-  at a later step, a stop with the account usable, or a reason with no act: each is drawn and
-  tested (`temper-client-view`'s `tests/model_check.rs`), with no gallery state. "Try again"
-  checks the host again. Home's line after a try that stopped and the same lines on an account's
-  row of the accounts page are not drawn: nothing reports a try once the person has left Ready.
+- **Not yet:** 3.5, *The try*: the gallery has no trial past the host's check on
+  Ready, and no `accounts-try-stopped` sample (`browser.md`, 7.2). The view's
+  tests draw those states; `home-try-stopped` draws Home's failed line.
 - **Not yet:** 3.5, *A model usable*: a sign-in's end goes on to Ready by a departure's return alone
   (`temper-client-domain`'s `departure.rs`). One that ends on a way's page, by a paste or on a page come back,
   stays at the way's address and draws *A model usable*, with its "Continue", since `route.rs`'s

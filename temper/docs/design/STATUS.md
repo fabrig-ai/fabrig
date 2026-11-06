@@ -178,9 +178,11 @@ project's Needs you and rail's count, but its live card lists no item of temper'
 kinds, stays on Needs you once accepted, leaves its chat on a reload and follows a
 "Decision made" while it waits (`client/README.md`). `again` can't record a journey
 that begins past the welcome (`client/journeys.md`). The welcome's try of a model draws Model's line in
-Ready's pane over the host's check alone, no trial being built, and departs from the request
-`model-check-pane` in its list's words, and a sign-in that ends on its way's page stops at
-*A model usable*, where that request goes on to Ready (`client/README.md`). A plan's sign-in draws the waiting page of the request
+Ready's pane from the host's check and then a trial through the worker and model, with
+its line on Accounts and, failed, on Home (`domain/trial.md`). The gallery lacks the
+account's stopped sample and Ready's trial states (`client/browser.md`). Model's line
+departs from the request `model-check-pane` in its list's words, and a sign-in that
+ends on its way's page stops at *A model usable*, where that request goes on to Ready (`client/README.md`). A plan's sign-in draws the waiting page of the request
 `sign-in-new-tab`, whose words say a new tab while a press still leaves in its own,
 until that draft is built; the page departs from the request in the terminal's words
 and on `ConnectModel`, where a paste finishing also keeps the note's waiting words

@@ -2,6 +2,10 @@
 
 2026-11-06. Where temper's code lags or departs from [browser.md](browser.md).
 
+- **Not yet:** 7.2: `accounts-try-stopped` and the trial's own `welcome-ready-*`
+  samples (starting, answering, answered, stopped-starting, stopped-answering,
+  waiting, waited, plan and key) are not in the gallery. Its Ready samples
+  cover the host's check alone; the view's tests draw the trial states.
 - **Not yet:** 2.5: the answer of 2026-11-06 to the `ui-rename-focus` task
   `rename-row` asks a test that a long chat's document never exceeds its window at
   1280x720 and 1000x600 with "Older" pressed twice. What holds it is the sheet's
