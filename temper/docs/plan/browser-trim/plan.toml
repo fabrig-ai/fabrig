@@ -27,3 +27,16 @@ id = 1
 story = "The tier loses a test no browser needs, and its two slowest walks are understood by measurement"
 parts = ["goals-link", "slow-walks"]
 walk = false
+
+[[part]]
+id = "rows"
+title = "Each test cut to what a browser alone shows, and the tier measured"
+mode = "direct"
+needs = ["goals-link", "slow-walks"]
+design = "temper/docs/design/client/browser.md, 4.6"
+
+[[slice]]
+id = 2
+story = "The tier holds only what a browser alone shows, and three runs say where it stands against its budget"
+parts = ["rows"]
+walk = false
