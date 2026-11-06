@@ -1880,7 +1880,11 @@ fn forge_step_keeps_recovery_installation_and_admin_steps_without_view() {
     parts.admin = true;
     let mut rows = skein_lib::List::with_capacity(1);
     rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
-    cases.push((rows, Some(d::Choice::Forge(HERE)), "Connect as its admin"));
+    cases.push((
+        rows,
+        Some(d::Choice::Forge(HERE)),
+        "Scopes: write:admin, read:user, write:organization, write:repository",
+    ));
     for (rows, choice, expected) in cases {
         let root = f::forge_root(Address::Welcome { step: Step::Forge { forge: choice } }, rows);
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
