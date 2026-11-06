@@ -93,7 +93,7 @@ pub(super) fn decode(value: wire::AccountChange) -> Result<domain::AccountChange
         },
         wire::AccountChange::DeclareProgram(value) => {
             let value = value.into_parts();
-            if !domain::program_name(&value.name) {
+            if jig_domain_link::SourceName::new(&value.name).is_none() {
                 return Err(wire::Problem {
                     path: wire::Path::AccountChangeDeclareProgramName,
                     reason: skein_codec::Reason::Malformed,
