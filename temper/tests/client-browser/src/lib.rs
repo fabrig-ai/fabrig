@@ -17,8 +17,10 @@ mod authorize;
 mod configuration;
 mod forgery;
 mod github;
+mod history;
 mod issuer;
 mod public;
+pub use history::reader_opens;
 
 /// How long a story waits for what a page shows.
 pub const WITHIN: skein_lib::Duration = skein_lib::Duration::from_secs(10);
