@@ -262,7 +262,7 @@ fn charter_model<'policy>(policy: &'policy RunPolicy, name: &[u8]) -> Option<&'p
     None
 }
 
-/// A new task takes the offered charter's selected effort for each model.
+/// A task given no choice takes each charter model's default effort.
 fn default_effort(settings: &Settings, policy: &RunPolicy, choice: &mut tasks::ModelEffort) {
     let Some(configured) = settings.models.get(usize::from(choice.model)) else { return };
     let Some(model) = charter_model(policy, &configured.name) else { return };
