@@ -959,6 +959,9 @@ pub enum Word {
     WorkReadPage,
     WorkSearched,
     WorkCheckedSettings,
+    WorkProposedChange,
+    WorkProposedChangeCount,
+    WorkProposingChange,
     WorkCheckedSettingsCount,
     WorkChecked,
     WorkReading,
@@ -1404,7 +1407,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
 // The command’s Copy adds three literal phrases (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
-const PHRASES: u32 = 1887;
+const PHRASES: u32 = 1890;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1430,10 +1433,10 @@ const PHRASES: u32 = 1887;
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 3316;
+const SEGMENTS: u32 = 3321;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 46193;
-const ALL: [Word; 1286] = [
+const ENGLISH_BYTES: u32 = 46248;
+const ALL: [Word; 1289] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -2357,6 +2360,9 @@ const ALL: [Word; 1286] = [
     Word::WorkReadPage,
     Word::WorkSearched,
     Word::WorkCheckedSettings,
+    Word::WorkProposedChange,
+    Word::WorkProposedChangeCount,
+    Word::WorkProposingChange,
     Word::WorkCheckedSettingsCount,
     Word::WorkChecked,
     Word::WorkReading,
@@ -3660,6 +3666,9 @@ impl Word {
             Self::WorkReadPage => 3766,
             Self::WorkSearched => 3767,
             Self::WorkCheckedSettings => 3768,
+            Self::WorkProposedChange => 3882,
+            Self::WorkProposedChangeCount => 3883,
+            Self::WorkProposingChange => 3884,
             Self::WorkCheckedSettingsCount => 3769,
             Self::WorkChecked => 3770,
             Self::WorkReading => 3771,
@@ -5201,6 +5210,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WorkReadDoc => (&[b"read ", b" doc"], &[Number]),
         Word::WorkReadPage => (&[b"read the page ", b""], &[Name]),
         Word::WorkSearched => (&[b"searched the docs for ", b""], &[Name]),
+        Word::WorkProposedChange => (&[b"proposed a change"], &[]),
+        Word::WorkProposedChangeCount => (&[b"proposed a change ", b"\xc3\x97"], &[Number]),
+        Word::WorkProposingChange => (&[b"proposing a change"], &[]),
         Word::WorkCheckedSettings => (&[b"checked settings"], &[]),
         Word::WorkCheckedSettingsCount => (&[b"checked settings ", b"\xc3\x97"], &[Number]),
         Word::WorkChecked => (&[b"checked ", b""], &[Name]),

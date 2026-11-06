@@ -17,6 +17,9 @@ pub enum Touched {
 }
 #[must_use]
 pub fn touched(tool: &[u8], input: &[u8]) -> Touched {
+    if tool == b"propose_settings" {
+        return Touched::Other { argument: None };
+    }
     let Some(doc) = parse(input) else { return Touched::Other { argument: first_member(input) } };
     if tool == b"read_docs" {
         if let Some(words) = string(&doc, 0, b"search") {

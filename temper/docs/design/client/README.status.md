@@ -247,20 +247,9 @@
   Close there by hand, which no test keeps. Of a configuring agent, that model scripts
   one proposal, the cue "Show drafts and goals for this project.", and no document,
   and it has no hold of temper's own, so the gallery alone draws those states.
-- **Not yet:** 5.13, *The card in a chat*: a live proposal of temper's kinds draws its
-  reason's lines and none of its items: jig's document heads leave out every
-  application's item and project's policy (`jig-domain-core`'s `settings.rs`,
-  `proposal_heads`), so `temper-client-domain`'s `forge/ways.rs` asks no values for it
-  and the card has no "Drafts: on"; it asks under the proposal's number, where the forge
-  keeps a proposal's items under its review's `key`. The person accepts on the agent's words. The
-  gallery's `configure-chat-proposal` rows alone draw those lines, from a hand-made
-  document. A template's row says "template 1" in mono type.
 - **Not yet:** 5.13, *The card in a chat*: "Change something" still has the agent send the
   person to Needs you, its instructions as `configuring.txt` has them, and a second proposal is
   refused as busy.
-- **Not yet:** 3.5, *Reading back*: at a phone's width Latest floats over the log's foot and takes a
-  press meant for a control beneath it, at 420 px a card's "Change something". 3.5's
-  `propose_settings` phrases: a chat's activity row says the tool's own name.
 - **Design departs:** 5.13, *The card in a chat*, from the greenfield target's `mock.css`, by the
   request `ui-proposal-2` of 2026-11-06: a proposal's items stand in the card's type, where the mock
   has them mono, so that a template's name reads as a person's word.
