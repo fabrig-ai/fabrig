@@ -1,0 +1,3 @@
+draft = "debt-29"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-29/inputs/request.md", "temper/docs/plan/debt-29/inputs/debt27-review.md", "skein/docs/development/debt/D033-limits-literals-in-tests.md", "skein/docs/development/debt/D048-oauth-accounts-world-copies.md", "jig/docs/development/debt/D006-link-values-two-paths.md", "jig/docs/development/debt/D026-engine-clients-project-mismatch.md", "jig/docs/development/debt/D041-unused-parameters.md"]
