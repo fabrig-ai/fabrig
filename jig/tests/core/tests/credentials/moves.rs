@@ -2,6 +2,7 @@
 use super::*;
 use jig_core_world::fixtures::change;
 use jig_core_world::world::Setup;
+use jig_domain_link::{Form, Scheme};
 
 fn move_out(world: &mut World, account: u32, source: u32) -> u32 {
     let expected = world.domain.accounts().next_number();
@@ -181,7 +182,7 @@ fn a_move_in_of_a_subject_another_holder_holds_is_refused_as_held() {
 fn a_restart_cancels_the_move_and_refreshes_the_source_before_it_is_usable() {
     let mut world = signing(199);
     let (account, source) = signed_in(&mut world);
-    world.announce_grant(source, 7, accounts::Form::Credential(accounts::Scheme::Bearer));
+    world.announce_grant(source, 7, Form::Credential(Scheme::Bearer));
     let number = move_out(&mut world, account, source);
     world.restart_with(signing_configuration(199).0);
     let fact = world.domain.accounts().source(source).expect("returned source");

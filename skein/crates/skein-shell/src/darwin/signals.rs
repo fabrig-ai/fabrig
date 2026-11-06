@@ -14,7 +14,6 @@ use std::{
     mem,
     os::fd::{AsRawFd, IntoRawFd},
     ptr,
-    sync::Mutex,
 };
 
 // Descriptor identities are process-wide; the lock serializes their ownership
@@ -23,15 +22,12 @@ use std::{
     clippy::disallowed_types,
     reason = "process-wide signal pipe ownership is serialized across hosted loops (shell.md, 7.5)"
 )]
-static PIPES: Mutex<BTreeSet<Fd>> = Mutex::new(BTreeSet::new());
+static PIPES: std::sync::Mutex<BTreeSet<Fd>> = std::sync::Mutex::new(BTreeSet::new());
 pub(super) fn remember_pipe(fd: Fd) {
     let _inserted = PIPES.lock().expect("signal pipe table is not poisoned").insert(fd);
 }
 pub(super) fn forget(fd: Fd) {
     let _removed = PIPES.lock().expect("signal pipe table is not poisoned").remove(&fd);
-}
-pub(super) fn open_termination_signals() -> Result<Fd, i32> {
-    open_signals(crate::Watch::Termination)
 }
 pub(super) fn open_signals(watch: crate::Watch) -> Result<Fd, i32> {
     let queue = kqueue::open()?;

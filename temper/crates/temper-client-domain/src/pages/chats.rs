@@ -18,6 +18,10 @@ const CONFIGURING_TEMPLATE: u32 = 3;
 
 #[derive(Debug)]
 #[expect(clippy::partial_pub_fields, reason = "the configured query is private watch bookkeeping")]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "pagination, delivery and independent read answers are separate facts"
+)]
 pub struct Chats {
     pub filter: ChatsFilter,
     pub live: Handle,
@@ -42,6 +46,8 @@ pub struct Chats {
     query: Option<TaskQuery>,
     first: bool,
     page_delivered: bool,
+    page_answered: bool,
+    documents_known: bool,
 }
 impl Chats {
     pub(crate) fn new(first: u64) -> Self {
@@ -68,6 +74,8 @@ impl Chats {
             query: None,
             first: true,
             page_delivered: false,
+            page_answered: false,
+            documents_known: false,
         }
     }
     pub(crate) fn leave(&self, out: &mut Queue<Request>) -> u64 {
@@ -114,6 +122,8 @@ impl Chats {
         self.note_numbers = Map::with_capacity(0);
         self.page = None;
         self.page_delivered = false;
+        self.page_answered = false;
+        self.documents_known = false;
         self.first = true;
         self.query = Some(query);
         out.push(Request::Client(jig_client::Event::Watch {
@@ -126,6 +136,7 @@ impl Chats {
         if self.notes_project == Some(project) {
             return;
         }
+        self.documents_known = false;
         self.notes_project = Some(project);
         self.notes_seen = 0;
         self.documents = Map::with_capacity(rows);
@@ -137,6 +148,7 @@ impl Chats {
         );
     }
     pub(crate) fn close_documents(&mut self, out: &mut Queue<Request>) {
+        self.documents_known = false;
         if self.notes_project.take().is_none() {
             return;
         }
@@ -160,6 +172,7 @@ impl Chats {
             return false;
         }
         if let Readout::Jig(ReadResult::Value(ReadValue::Notes(page))) = page {
+            self.documents_known = true;
             self.asking.answered();
             let Some(project) = self.notes_project else { return true };
             let bound = self.documents.capacity();
@@ -456,12 +469,12 @@ impl Chats {
                 if handle == self.closed =>
             {
                 self.page_delivered = true;
+                self.page_answered = true;
                 self.page = Some(*page);
                 true
             }
             Told::Page { handle, .. } if handle == self.closed => {
                 self.page_delivered = true;
-                self.page = None;
                 true
             }
             Told::Ended { handle, .. } if handle == self.live => true,
@@ -493,6 +506,16 @@ impl Chats {
             | Told::Ended { .. }
             | Told::Page { .. } => false,
         }
+    }
+    /// The live watch has delivered and the closed read has answered with its value, for this query.
+    #[must_use]
+    pub fn known(&self, client: &Client) -> bool {
+        self.page_answered && self.live(client).is_some()
+    }
+    /// The notes read has answered with its value, for the Drafts filter.
+    #[must_use]
+    pub const fn documents_known(&self) -> bool {
+        self.documents_known
     }
     pub(super) fn delivered(&self, client: &Client, project: u32) -> bool {
         let Some(query) = self.query else { return false };

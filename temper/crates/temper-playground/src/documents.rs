@@ -4,6 +4,7 @@ pub mod hosted_git;
 pub mod settings;
 mod smith;
 pub mod turn_bounds;
+use jig_domain_link::{Bounds, ModelBound};
 use skein_lib::{Duration, List, Secret};
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 /// Forge for the composition.
@@ -321,13 +322,9 @@ pub fn agent() -> temper_service::settings::Agent {
         calls: host_limits.calls,
     };
     protocol.channel.output_bytes = smith_host_protocol::output_bytes(&protocol).expect("host frames");
-    let bounds = jig_domain_host::Bounds {
+    let bounds = Bounds {
         program_endpoints: Box::new([]),
-        models: Box::new([jig_domain_host::ModelBound {
-            name: b"fake".as_slice().into(),
-            window: 1_048_576,
-            output: 512,
-        }]),
+        models: Box::new([ModelBound { name: b"fake".as_slice().into(), window: 1_048_576, output: 512 }]),
         turns: agent_profile().policy.max_turns,
         // Story A's stock run allowance at its model's template prices.
         spend: 4200,

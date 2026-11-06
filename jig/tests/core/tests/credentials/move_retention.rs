@@ -3,6 +3,7 @@ use super::*;
 use jig_core_world::fixtures::change;
 use jig_core_world::fixtures::sign_in as signin;
 use jig_core_world::world::Setup;
+use jig_domain_link::{Form, Scheme};
 
 const SEED: u64 = 211;
 // The fixture's chat, the account sign-in, and its move out each retain one answer.
@@ -23,7 +24,7 @@ fn signed(requests: u32) -> (World, u32, u32) {
     jig_core_world::peers::journal(&mut limits);
     let mut world = World::new(Setup { seed: SEED, configuration: Some(config), limits, ..Setup::default() });
     let (account, source) = signed_in(&mut world);
-    world.announce_grant(source, 1, accounts::Form::Credential(accounts::Scheme::Bearer));
+    world.announce_grant(source, 1, Form::Credential(Scheme::Bearer));
     (world, account, source)
 }
 

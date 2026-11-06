@@ -2,6 +2,7 @@
 use crate::table;
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
+use jig_domain_link::Form;
 use skein_lib::Time;
 use skein_oauth as oauth;
 use skein_oauth_accounts as driver;
@@ -206,10 +207,10 @@ fn unread(why: driver::Unloaded) -> accounts::Unread {
 
 /// The secret-free form announced for the same scheme held in the table.
 #[must_use]
-pub const fn form(scheme: &table::Scheme) -> accounts::Form {
+pub const fn form(scheme: &table::Scheme) -> Form {
     match scheme {
-        table::Scheme::Bearer => accounts::Form::Credential(accounts::Scheme::Bearer),
-        table::Scheme::Key => accounts::Form::Credential(accounts::Scheme::Key),
+        table::Scheme::Bearer => Form::Credential(jig_domain_link::Scheme::Bearer),
+        table::Scheme::Key => Form::Credential(jig_domain_link::Scheme::Key),
     }
 }
 /// A child's LLM account sign-in asks for an add before its driver request.

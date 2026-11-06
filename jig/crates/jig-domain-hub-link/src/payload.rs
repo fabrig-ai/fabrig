@@ -4,6 +4,7 @@ use alloc::boxed::Box;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
+use jig_domain_link::Phase;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Token};
 #[derive(Debug)]
@@ -199,11 +200,11 @@ pub(crate) fn ending(ending: &host::Ending) -> tasks::End {
 fn report(activity: host::AgentActivity) -> fleet::Report {
     match activity {
         host::AgentActivity::Phase(phase) => fleet::Report::Activity(match phase {
-            host::Phase::Preparing => fleet::Activity::Preparing,
-            host::Phase::Starting => fleet::Activity::Starting,
-            host::Phase::Active => fleet::Activity::Active,
-            host::Phase::Waiting => fleet::Activity::Waiting,
-            host::Phase::Ending | host::Phase::Answered => fleet::Activity::Ending,
+            Phase::Preparing => fleet::Activity::Preparing,
+            Phase::Starting => fleet::Activity::Starting,
+            Phase::Active => fleet::Activity::Active,
+            Phase::Waiting => fleet::Activity::Waiting,
+            Phase::Ending | Phase::Answered => fleet::Activity::Ending,
         }),
         host::AgentActivity::Long { operation, span } => {
             fleet::Report::Activity(fleet::Activity::Long { operation, span })

@@ -77,7 +77,7 @@ fn reconnect(d: &mut Driver) {
                 } else {
                     return None;
                 };
-            Some(protocol::hosting(row.number, attempt, jig_domain_host::Phase::Active))
+            Some(protocol::hosting(row.number, attempt, jig_domain_link::Phase::Active))
         })
         .collect();
     d.send(protocol::hello_slots(Token::new(7), 2, hosting));
@@ -177,8 +177,8 @@ fn fixture() -> (Driver, u64, u64) {
         Token::new(7),
         2,
         Box::new([
-            protocol::hosting(chat.task, chat.attempt, jig_domain_host::Phase::Active),
-            protocol::hosting(producer.task, producer.attempt, jig_domain_host::Phase::Active),
+            protocol::hosting(chat.task, chat.attempt, jig_domain_link::Phase::Active),
+            protocol::hosting(producer.task, producer.attempt, jig_domain_link::Phase::Active),
         ]),
     ));
     d.pump();

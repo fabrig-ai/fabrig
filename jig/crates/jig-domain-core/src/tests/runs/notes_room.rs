@@ -1,6 +1,7 @@
 //! A store-room refusal defers only the next activation; a real notes
 //! operation still wakes its waiting briefs when that operation completes.
 use crate::tests::*;
+use jig_domain_link::{Form, Scheme};
 
 const FIRST: u64 = 1;
 const SECOND: u64 = 2;
@@ -23,7 +24,7 @@ fn ready() -> (Core, Limits) {
         &mut core,
         &limits,
         Event::Account(accounts::Event::Component(accounts::FromComponent::Granted {
-            form: accounts::Form::Credential(accounts::Scheme::Bearer),
+            form: Form::Credential(Scheme::Bearer),
             account: 1,
             generation: 1,
             valid: Duration::from_secs(60),

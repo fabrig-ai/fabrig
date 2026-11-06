@@ -2,6 +2,7 @@
 use crate::{finishes, installation, keys, moves, party, records, restart, table, translate};
 use alloc::boxed::Box;
 use jig_domain_accounts as domain;
+use jig_domain_link::Form;
 use jig_protocol_store as store;
 use skein_io as io;
 use skein_lib::{CryptoRng, Env, List, Map, Queue, Secret, Time, Token, Wall};
@@ -936,7 +937,7 @@ impl Component {
         value: table::Value,
         expires: Time,
         values: &mut table::Table,
-    ) -> domain::Form {
+    ) -> Form {
         let form = translate::form(&value.scheme);
         self.output.push(Effect::Granted { source: account, generation, value: value.clone(), expires });
         values.granted(account, generation, value, expires).expect("startup checks token bounds");

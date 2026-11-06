@@ -1,5 +1,6 @@
 //! Typed engine and worker settings; startup supplies the values.
 use alloc::boxed::Box;
+use jig_domain_link::Bounds;
 use skein_lib::{List, Secret};
 
 /// The scripted provider and its key file (temper/docs/design/protocol/setup.md, 8.4).
@@ -151,7 +152,7 @@ pub struct Agent {
     pub programs: Box<[Program]>,
     pub endpoints: smith_protocol_channel::Endpoints,
     pub limits: smith_host_protocol::Limits,
-    pub bounds: jig_domain_host::Bounds,
+    pub bounds: Bounds,
     pub host_limits: smith_host_domain::Limits,
 }
 

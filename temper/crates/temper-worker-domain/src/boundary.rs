@@ -50,6 +50,7 @@
 //! terminal to the child domain that asked.
 
 use alloc::boxed::Box;
+use jig_domain_link::SourceName;
 
 use crate::wire;
 use jig_domain_host as host;
@@ -114,11 +115,11 @@ pub enum Event {
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
     /// Run one bounded program sign-in/sign-out command below the root (jig's domain/hosts.md, 5.1).
-    Source { owner: Token, name: host::SourceName, operation: host::sources::Operation, deadline: Time },
+    Source { owner: Token, name: SourceName, operation: host::sources::Operation, deadline: Time },
     /// The source-command component violated its contract; stop this worker.
     SourceFault,
     /// What the worker says first on every channel to the engine.
-    Hello(host::Hello),
+    Hello(jig_domain_link::Hello),
     /// Anything else up the link, but an answer.
     Link(host::LinkUp),
     /// A run's one answer, jig's record, with temper's parts beside it: what

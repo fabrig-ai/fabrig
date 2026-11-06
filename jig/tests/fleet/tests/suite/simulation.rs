@@ -1,6 +1,7 @@
 //! The fleet's world, scenario by scenario, and random worlds swept over many
 //! seeds.
 
+use jig_domain_link::{Form, Scheme};
 use std::collections::BTreeMap;
 
 use jig_domain_fleet::Limits;
@@ -143,8 +144,5 @@ fn a_worker_back_within_its_grace_receives_its_attempts_grants() {
     assert!(world.stats().drops > 0);
     assert!(world.grants_sent() > u64::from(world.stats().assigned), "a later listing resends grants");
     let (_, _, _, grant) = world.received_grant().expect("a returning worker is sent its grant");
-    assert_eq!(
-        (grant.form, grant.account, grant.generation),
-        (jig_domain_fleet::Form::Credential(jig_domain_fleet::Scheme::Bearer), 1, 1)
-    );
+    assert_eq!((grant.form, grant.account, grant.generation), (Form::Credential(Scheme::Bearer), 1, 1));
 }

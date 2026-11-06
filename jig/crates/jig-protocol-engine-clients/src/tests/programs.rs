@@ -3,6 +3,7 @@ use crate::translate::programs;
 use jig_client_protocol_wire::v19 as w;
 use jig_domain_core::documents as d;
 use jig_domain_fleet as fleet;
+use jig_domain_link::{LoginState, SourceFailure};
 use skein_lib::List;
 fn host() -> d::Host {
     d::Host {
@@ -39,10 +40,7 @@ fn login_readiness_crosses_the_wire() {
 fn program_details_past_the_wire_bound_are_refused() {
     let row = d::ProgramLogin {
         name: b"personal".as_slice().into(),
-        state: Some(fleet::LoginState::Failed {
-            reason: fleet::SourceFailure::Exited,
-            detail: Box::from([b'x'; 4097]),
-        }),
+        state: Some(LoginState::Failed { reason: SourceFailure::Exited, detail: Box::from([b'x'; 4097]) }),
         sign_out: None,
         cleanup: false,
         cut: false,

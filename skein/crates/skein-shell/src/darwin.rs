@@ -7,7 +7,7 @@
 //! their supplied lengths until return; none retains Rust pointers. Socket
 //! options borrow one initialized integer. Clock and uname output are local
 //! C records, read only after success. Entropy writes exclusive slices of at
-//! most 256 bytes. Descriptor and identity calls take integers only. Fresh
+//! most 256 bytes. Descriptor flag calls take integers only. Fresh
 //! sockets are closed on configuration failure; the loop also owns spawning,
 //! so no spawn can intervene before close-on-exec is set. Other cases are
 //! documented beside the files, listing, process, signals and terminal calls.
@@ -23,13 +23,13 @@ mod listing;
 pub(crate) mod process;
 mod signals;
 
-pub use crate::posix::wait_readable;
-pub(crate) use crate::posix::{retry, shutdown, status, terminal};
+pub(crate) use crate::posix::{close, nonblocking, retry, shutdown, status, status_flags, terminal};
+pub use crate::posix::{effective_user, wait_readable};
 use skein_io::kernel::{Addr, Family, Fd};
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::{ffi::CStr, mem, ptr};
 
-pub use files::{directory_access, effective_user, make_root, open_append, open_root, prepare_output, process_id};
+pub use files::{directory_access, make_root, open_append, open_root, prepare_output, process_id};
 pub(crate) use files::{lock, opened, read_file, read_private_file};
 pub(crate) use kqueue::{Event, Poller};
 pub(crate) use listing::Listings;
@@ -46,11 +46,6 @@ pub(crate) fn last_errno() -> i32 {
 fn count(result: isize) -> Result<u32, i32> {
     if result < 0 { Err(last_errno()) } else { Ok(u32::try_from(result).expect("io transfer counts fit u32")) }
 }
-pub(crate) fn status_flags(fd: i32) -> Result<i32, i32> {
-    // SAFETY: F_GETFL takes a descriptor and no pointer.
-    let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
-    if flags < 0 { Err(last_errno()) } else { Ok(flags) }
-}
 pub(crate) fn cloexec(fd: Fd) -> Result<(), i32> {
     retry(|| {
         // SAFETY: F_GETFD takes only integer arguments.
@@ -60,13 +55,6 @@ pub(crate) fn cloexec(fd: Fd) -> Result<(), i32> {
         }
         // SAFETY: F_SETFD sets integer flags on this owned descriptor.
         status(unsafe { libc::fcntl(fd.raw(), libc::F_SETFD, flags | libc::FD_CLOEXEC) })
-    })
-}
-pub(crate) fn nonblocking(fd: Fd) -> Result<(), i32> {
-    let flags = retry(|| status_flags(fd.raw()))?;
-    retry(|| {
-        // SAFETY: integer flags on the backend's own description.
-        status(unsafe { libc::fcntl(fd.raw(), libc::F_SETFL, flags | libc::O_NONBLOCK) })
     })
 }
 fn configure(raw: i32) -> Result<Fd, i32> {
@@ -223,11 +211,6 @@ pub(crate) fn write(fd: Fd, bytes: &[u8]) -> Result<u32, i32> {
         count(unsafe { libc::write(fd.raw(), bytes.as_ptr().cast(), bytes.len()) })
     })
 }
-pub(crate) fn close(fd: Fd) -> Result<(), i32> {
-    // SAFETY: ownership of this integer descriptor is relinquished exactly once.
-    status(unsafe { libc::close(fd.raw()) })
-}
-
 pub(crate) fn setsockopt(fd: i32, level: i32, name: i32) -> Result<(), i32> {
     let one: libc::c_int = 1;
     // SAFETY: the call reads exactly one initialized local integer.

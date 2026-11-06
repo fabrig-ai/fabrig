@@ -7,6 +7,7 @@
 )]
 use super::run_choice::{account, granted, host_with_endpoints, inventory, login, placement_fleet};
 use crate::tests::*;
+use jig_domain_link::{Bounds, Hello, Hosting, LoginState, ModelBound, Phase, SourceName};
 
 const TASK: u64 = 1;
 const HOST: Token = Token::new(7);
@@ -120,7 +121,7 @@ struct LoginAccount {
     number: u32,
     source: u32,
 }
-fn claude(core: &mut Core, limits: &Limits, state: fleet::LoginState) -> LoginAccount {
+fn claude(core: &mut Core, limits: &Limits, state: LoginState) -> LoginAccount {
     account(core, limits, accounts::Event::Want);
     let mut out = Queue::uncapped();
     let source = accounts::programs::declare(
@@ -138,7 +139,7 @@ fn claude(core: &mut Core, limits: &Limits, state: fleet::LoginState) -> LoginAc
     fleet::step(
         &mut core.fleet,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet },
-        fleet::Event::Sources { sources: Box::new([fleet::SourceName::new(b"claude-login").unwrap()]) },
+        fleet::Event::Sources { sources: Box::new([SourceName::new(b"claude-login").unwrap()]) },
         &mut out,
     );
     inventory(core, limits, HOST, Box::new([login(b"claude-login", state)]));
@@ -168,7 +169,7 @@ fn document(core: &Core, limits: &Limits) -> Task {
 #[test]
 fn only_a_claude_login_runs_without_recording_a_choice() {
     let (mut core, limits) = fixture(false);
-    claude(&mut core, &limits, fleet::LoginState::Usable);
+    claude(&mut core, &limits, LoginState::Usable);
     let choice = core.run_choice(TASK).unwrap();
     assert_eq!(choice.policy.model.name.as_ref(), NAMES[2]);
     assert!(choice.policy.alternatives.is_empty(), "no other provider binds yet");
@@ -194,7 +195,7 @@ fn only_an_openai_key_takes_the_first_charter_model() {
 #[test]
 fn a_claimed_login_stays_main_when_an_earlier_provider_arrives() {
     let (mut core, limits) = fixture(false);
-    let login = claude(&mut core, &limits, fleet::LoginState::Usable);
+    let login = claude(&mut core, &limits, LoginState::Usable);
     claim(&mut core, &limits);
     key(&mut core, &limits, OPENAI);
     assert_eq!(core.run_choice(TASK).unwrap().policy.model.name.as_ref(), NAMES[2]);
@@ -205,14 +206,14 @@ fn a_claimed_login_stays_main_when_an_earlier_provider_arrives() {
 fn an_empty_wait_uses_a_login_added_later() {
     let (mut core, limits) = fixture(false);
     assert_eq!(core.run_choice(TASK), Err(EMPTY));
-    claude(&mut core, &limits, fleet::LoginState::Usable);
+    claude(&mut core, &limits, LoginState::Usable);
     assert_eq!(core.run_choice(TASK).unwrap().policy.model.name.as_ref(), NAMES[2]);
 }
 
 #[test]
 fn a_named_task_waits_for_its_provider() {
     let (mut core, limits) = fixture(true);
-    claude(&mut core, &limits, fleet::LoginState::Usable);
+    claude(&mut core, &limits, LoginState::Usable);
     assert_eq!(core.run_choice(TASK), Err(EMPTY));
     key(&mut core, &limits, THIRD);
     assert_eq!(core.run_choice(TASK), Err(EMPTY));
@@ -225,7 +226,7 @@ fn a_named_task_waits_for_its_provider() {
 fn a_removed_or_ineligible_kept_account_chooses_again() {
     for remove in [true, false] {
         let (mut core, limits) = fixture(false);
-        let login = claude(&mut core, &limits, fleet::LoginState::Usable);
+        let login = claude(&mut core, &limits, LoginState::Usable);
         claim(&mut core, &limits);
         key(&mut core, &limits, OPENAI);
         let change = if remove {
@@ -245,7 +246,7 @@ fn a_removed_or_ineligible_kept_account_chooses_again() {
 #[test]
 fn a_limited_kept_account_waits_for_its_own_provider() {
     let (mut core, limits) = fixture(false);
-    let login = claude(&mut core, &limits, fleet::LoginState::Usable);
+    let login = claude(&mut core, &limits, LoginState::Usable);
     claim(&mut core, &limits);
     key(&mut core, &limits, OPENAI);
     account(&mut core, &limits, accounts::Event::Limited { account: login.source, reset: None });
@@ -262,7 +263,7 @@ fn a_limited_kept_account_waits_for_its_own_provider() {
 #[test]
 fn an_unsigned_login_wait_names_its_account_and_source() {
     let (mut core, limits) = fixture(false);
-    let login = claude(&mut core, &limits, fleet::LoginState::NotSignedIn);
+    let login = claude(&mut core, &limits, LoginState::NotSignedIn);
     assert_eq!(
         core.run_choice(TASK),
         Err(RunWait::Account { account: Some(login.number), source: Some(login.source), why: accounts::WaitWhy::Host })
@@ -276,7 +277,7 @@ fn an_unsigned_login_wait_names_its_account_and_source() {
 #[test]
 fn no_connected_host_waits_for_a_host() {
     let (mut core, limits) = fixture(false);
-    claude(&mut core, &limits, fleet::LoginState::Usable);
+    claude(&mut core, &limits, LoginState::Usable);
     core.fleet = placement_fleet(&core, &limits);
     assert_eq!(core.run_choice(TASK), Err(RunWait::Host));
 }
@@ -286,14 +287,14 @@ fn a_busy_login_host_is_a_host_wait() {
     const BUSY: Token = Token::new(9);
     const SPARE: Token = Token::new(11);
     let (mut core, limits) = fixture(false);
-    claude(&mut core, &limits, fleet::LoginState::Usable);
+    claude(&mut core, &limits, LoginState::Usable);
     core.fleet = placement_fleet(&core, &limits);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet };
     let mut out = Queue::uncapped();
     fleet::step(
         &mut core.fleet,
         &env,
-        fleet::Event::Sources { sources: Box::new([fleet::SourceName::new(b"claude-login").unwrap()]) },
+        fleet::Event::Sources { sources: Box::new([SourceName::new(b"claude-login").unwrap()]) },
         &mut out,
     );
     fleet::step(
@@ -302,20 +303,20 @@ fn a_busy_login_host_is_a_host_wait() {
         fleet::Event::Hello {
             worker: 0,
             channel: HOST,
-            hello: fleet::Hello {
+            hello: Hello {
                 jobs: Box::default(),
-                bounds: fleet::Bounds {
+                bounds: Bounds {
                     program_endpoints: Box::new([PROGRAM_ENDPOINT]),
                     models: NAMES
                         .iter()
-                        .map(|name| fleet::ModelBound { name: (*name).into(), window: 8192, output: 1024 })
+                        .map(|name| ModelBound { name: (*name).into(), window: 8192, output: 1024 })
                         .collect(),
                     ..fixtures::bounds()
                 },
                 stop_bound: Duration::ZERO,
                 slots: 1,
                 workstreams: Box::new([]),
-                hosting: Box::new([fleet::Hosting { run: BUSY, attempt: BUSY, phase: fleet::Phase::Active }]),
+                hosting: Box::new([Hosting { run: BUSY, attempt: BUSY, phase: Phase::Active }]),
             },
         },
         &mut out,
@@ -335,14 +336,14 @@ fn a_busy_login_host_is_a_host_wait() {
         },
         &mut out,
     );
-    inventory(&mut core, &limits, HOST, Box::new([login(b"claude-login", fleet::LoginState::Usable)]));
+    inventory(&mut core, &limits, HOST, Box::new([login(b"claude-login", LoginState::Usable)]));
     // A free host lacks the login, but the host holding it will have room again.
     host_with_endpoints(
         &mut core,
         &limits,
         SPARE,
         &NAMES,
-        Box::new([login(b"claude-login", fleet::LoginState::NotSignedIn)]),
+        Box::new([login(b"claude-login", LoginState::NotSignedIn)]),
         Box::new([PROGRAM_ENDPOINT]),
     );
     assert_eq!(core.run_choice(TASK), Err(RunWait::Host));
@@ -351,7 +352,7 @@ fn a_busy_login_host_is_a_host_wait() {
 #[test]
 fn an_unnamed_document_shows_the_current_run_choice() {
     let (mut core, limits) = fixture(false);
-    claude(&mut core, &limits, fleet::LoginState::Usable);
+    claude(&mut core, &limits, LoginState::Usable);
     assert_eq!(document(&core, &limits).llm, core.next_llm(core.tasks.task(TASK).unwrap()));
     let llm = document(&core, &limits).llm.unwrap();
     assert_eq!(llm.main, tasks::ModelEffort { model: 2, effort: Some(0) });
