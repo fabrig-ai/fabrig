@@ -58,7 +58,7 @@ fn the_alert_storm_reaches_triage_and_the_person_accepts_the_production_restart(
     assert_alert(&world);
 }
 
-fn assert_alert(world: &jig_conformance::Harness<jig_ops_world::conformance::Ops>) {
+pub(super) fn assert_alert(world: &jig_conformance::Harness<jig_ops_world::conformance::Ops>) {
     assert!(!world.outcome().stopped, "crashes {:?}: {}", world.outcome().crashes, world.trace.join("\n"));
     assert!(world.peers.results.contains(&5), "on-call read the incident report");
     let ended = |number| {

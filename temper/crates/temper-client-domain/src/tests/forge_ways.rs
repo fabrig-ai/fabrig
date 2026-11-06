@@ -266,7 +266,7 @@ fn kind_seven_is_read_as_a_project_opens_and_dropped_as_it_closes() {
     assert_eq!(reads(&out, 7)[0].1, OTHER);
     assert_eq!(f.root.forge().ways(f::PROJECT), None);
     assert_eq!(f.root.forge().ways(OTHER), None);
-    ways::progress(&mut f.root.forge, None, false, f::limits().forge, &mut Queue::uncapped());
+    ways::progress(&mut f.root.forge, skein_lib::Time::ZERO, None, false, f::limits().forge, &mut Queue::uncapped());
     assert_eq!(f.root.forge().ways(OTHER), None);
 }
 #[test]
@@ -411,6 +411,7 @@ fn a_stale_refusal_is_sent_once_more_against_its_newest() {
     let mut child = Queue::uncapped();
     assert!(ways::told(
         &mut f.root.forge,
+        skein_lib::Time::ZERO,
         &f.root.client,
         &Told::Answered { key, outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(stale())) },
         f::limits().forge,
@@ -429,6 +430,7 @@ fn a_second_stale_is_said() {
     let mut child = Queue::uncapped();
     ways::told(
         &mut f.root.forge,
+        skein_lib::Time::ZERO,
         &f.root.client,
         &Told::Answered { key, outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(stale())) },
         f::limits().forge,
@@ -617,7 +619,7 @@ fn proposed_page(asked: Asked) -> Readout {
 }
 fn proposal_told(root: &mut Domain, told: Told) {
     let mut out = Queue::uncapped();
-    ways::told(&mut root.forge, &root.client, &told, f::limits().forge, &mut out);
+    ways::told(&mut root.forge, skein_lib::Time::ZERO, &root.client, &told, f::limits().forge, &mut out);
 }
 #[test]
 fn a_proposals_items_are_read_once_and_bounded() {
@@ -653,4 +655,84 @@ fn a_refused_read_leaves_the_names() {
     proposal_told(&mut f.root, Told::Page { handle, page: Readout::Limit });
     assert_eq!(f.root.forge.proposed(PROPOSAL), None);
     assert!(proposal_read(&mut f.root, PROPOSAL).is_empty(), "a refusal is not retried each draw");
+}
+
+#[test]
+fn a_transient_settings_read_backs_off_and_recovers_without_a_revision_change() {
+    use skein_lib::{Duration, Time};
+    for kind in [7, 6] {
+        for failure in [
+            Readout::Limit,
+            Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)),
+            Readout::Jig(c::ReadResult::None(c::ReadNone::Unreachable)),
+            Readout::Jig(c::ReadResult::None(c::ReadNone::SignedOut)),
+        ] {
+            let mut f = fixture();
+            let out = go(&mut f.root, Address::Settings { project: f::PROJECT });
+            let mut read = if kind == 7 { f.read } else { reads(&out, kind)[0].0 };
+            let limits = f::limits();
+            let mut env = f::env(&limits);
+            for seconds in [1, 2, 4, 8, 16, 30, 30] {
+                let mut out = Queue::uncapped();
+                crate::step(
+                    &mut f.root,
+                    &env,
+                    Event::Client {
+                        event: jig_client::Event::Up { up: Up::ReadDone { read, result: failure.clone() } },
+                    },
+                    &mut out,
+                );
+                assert!(reads(&out, kind).is_empty(), "no immediate retry loop");
+                let due = env.now.saturating_add(Duration::from_secs(seconds));
+                assert_eq!(forge::next_deadline(f.root.forge()), Some(due), "retry must wake the shell");
+                crate::fire(&mut f.root, &env, &mut out);
+                assert!(reads(&out, kind).is_empty(), "wait until due");
+                env.now = due;
+                crate::fire(&mut f.root, &env, &mut out);
+                let retry = reads(&out, kind);
+                assert_eq!(retry.len(), 1, "one retry of the missing setting");
+                read = retry[0].0;
+            }
+            let asked = if kind == 7 { Asked::Ways(Ways::STOCK) } else { Asked::Questions(Route::None) };
+            let mut out = Queue::uncapped();
+            crate::step(
+                &mut f.root,
+                &env,
+                Event::Client {
+                    event: jig_client::Event::Up {
+                        up: Up::ReadDone {
+                            read,
+                            result: Readout::Family { family: wire::FORGE, record: Some(none()) },
+                        },
+                    },
+                },
+                &mut out,
+            );
+            assert_eq!(forge::next_deadline(f.root.forge()), None);
+            assert!(reads(&out, kind).is_empty());
+            if kind == 7 {
+                assert_eq!(f.root.forge().ways(f::PROJECT), Some(Ways::STOCK));
+            } else {
+                assert_eq!(f.root.forge().questions(f::PROJECT), Some(Route::None));
+            }
+            assert!(!set(&mut f.root, asked).is_empty(), "the recovered control can send its change");
+            assert!(env.now > Time::ZERO);
+        }
+    }
+}
+#[test]
+fn leaving_the_settings_scope_cancels_its_read_retry() {
+    for kind in [7, 6] {
+        let mut f = fixture();
+        let out = go(&mut f.root, Address::Settings { project: f::PROJECT });
+        let read = if kind == 7 { f.read } else { reads(&out, kind)[0].0 };
+        up(&mut f.root, Up::ReadDone { read, result: Readout::Limit });
+        assert!(forge::next_deadline(f.root.forge()).is_some());
+        if kind == 7 {
+            up(&mut f.root, Up::SignedOut);
+        } else {
+            go(&mut f.root, Address::Home { project: f::PROJECT });
+        }
+        assert_eq!(forge::next_deadline(f.root.forge()), None);
+    }
 }

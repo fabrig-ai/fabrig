@@ -23,7 +23,7 @@ pub enum Fault {
     SlowPages { by: u32 },
 }
 /// A commit held before it reaches the component.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Pending {
     pub number: u64,
     pub writes: Box<[root::Write]>,

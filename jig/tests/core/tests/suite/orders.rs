@@ -3,6 +3,7 @@
 //! turn before its terminal acknowledgement, while admission is under load.
 
 use super::admission_support;
+use jig_core_world::fixtures::run;
 use jig_core_world::world::World;
 use jig_domain_core::{self as core, reads};
 use jig_domain_tasks as tasks;
@@ -126,11 +127,6 @@ fn turn_kept_precedes_terminal_acknowledgement_under_load() {
         "party receives the result once"
     );
     assert!(driver.domain.quiescent() && !driver.stopped);
-}
-
-fn run(driver: &World) -> (u64, u64) {
-    let assignment = driver.assignment();
-    (assignment.task, assignment.attempt)
 }
 
 fn turn(task: u64, attempt: u64) -> root::Event {

@@ -479,9 +479,8 @@ impl crate::Protocol {
         if !self.store.resume(above) {
             return false;
         }
-        match &mut self.current {
-            Current::Resolving(resolve) => resolve.index_settled(),
-            Current::Call(_) | Current::Step(_) | Current::Idle | Current::Keeping(_) | Current::Git { .. } => {}
+        if let Some(resolve) = self.current.resolving_mut() {
+            resolve.index_settled();
         }
         true
     }

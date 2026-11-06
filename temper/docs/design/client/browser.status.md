@@ -2,6 +2,12 @@
 
 2026-11-06. Where temper's code lags or departs from [browser.md](browser.md).
 
+- **Not yet:** 2.5: the answer of 2026-11-06 to the `ui-final-walk` task `fix-look`
+  has anything given `tabindex=-1` only to take focus draw no ring, in skein's sheet
+  if it belongs there. `temper.css`'s rule names `main` and `h1`, and a document's
+  section has its own, so Settings' away heading, a level 2 that "Limits" focuses
+  (`temper-client-view`'s `pages/settings.rs`), keeps skein's `:focus-visible` ring.
+  Seen by reading; no test holds it.
 - **Departs:** 2.5: `Ctrl+\` keeps Chat → Split → Draft on a phone too,
   with Split displayed as Draft. The 2026-11-05 answer to
   `ui-chat-draft/document-pane` accepts this cycle without viewport state;

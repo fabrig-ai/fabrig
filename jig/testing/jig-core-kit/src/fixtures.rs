@@ -6,7 +6,7 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
 use jig_test_profile::fixtures::{CREDENTIAL_RESOURCE, Creating, Goal, account_rows, create_chat, people_member};
-use skein_lib::{ReplyTo, Token};
+use skein_lib::{Env, Queue, ReplyTo, Token};
 
 #[must_use]
 pub fn live_row(world: &crate::world::World, task: u64) -> &jig_domain_tasks::TaskRecord {
@@ -39,6 +39,65 @@ pub fn query_numbers(world: &crate::world::World) -> Vec<u64> {
 pub const PROJECT: u32 = 1;
 pub const PARTY: u64 = 1;
 pub const TASK: u64 = 1;
+/// The seeded connector used by the core world's procedures and application acts.
+pub const CONNECTOR: u16 = 1;
+
+/// Sign in an identity without a held request.
+#[must_use]
+pub fn sign_in(reply_to: Token, provider: u16, subject: &[u8], login: &[u8], name: &[u8]) -> root::Event {
+    root::Event::Core(core::Event::SignIn {
+        held: None,
+        reply_to: ReplyTo::new(reply_to),
+        identity: people::Identity {
+            key: people::IdentityKey { provider, subject: subject.into() },
+            login: login.into(),
+            name: name.into(),
+        },
+    })
+}
+
+/// Check the next step of the core's restart script.
+pub fn phase(action: &core::start::Action, expected: core::start::Phase) {
+    assert!(matches!(action, core::start::Action::Step(found) if *found == expected));
+}
+
+/// Restore the inbox and connectors, then link the core's live records.
+pub fn link(core: &mut core::Core, env: &Env<core::Limits>, out: &mut Queue<core::Request>) -> core::start::Action {
+    use core::start::Phase;
+    phase(&core.start_done(env, Phase::LoadCore, out), Phase::LoadInbox);
+    let mut previous = Phase::LoadInbox;
+    for connector in core.connectors.clone() {
+        let next = Phase::RestoreConnector { connector };
+        phase(&core.start_done(env, previous, out), next);
+        previous = next;
+    }
+    phase(&core.start_done(env, previous, out), Phase::Link);
+    core.start_done(env, Phase::Link, out)
+}
+
+/// Check that a settings proposal was accepted.
+pub fn accepted(reply: &people::Reply) {
+    assert!(
+        matches!(
+            reply,
+            people::Reply::Outcome(people::Outcome::ProposalDecided { choice: people::ProposalChoice::Accepted, .. })
+        ),
+        "{reply:?}"
+    );
+}
+
+/// Change an account held by the signed-in party.
+#[must_use]
+pub fn change(change: people::AccountChange) -> people::Ask {
+    people::Ask::AccountChange { holder: people::AccountHolder::Own, change }
+}
+
+/// The task and attempt assigned to the world's worker.
+#[must_use]
+pub fn run(driver: &crate::world::World) -> (u64, u64) {
+    let assignment = driver.assignment();
+    (assignment.task, assignment.attempt)
+}
 
 const HOLDER_REQUEST_BASE: u64 = 8200;
 
@@ -243,15 +302,7 @@ pub fn second_party(world: &mut crate::world::World, subject: &[u8], role: jig_d
         }))) => holdings.to_vec(),
         value => panic!("project roles: {value:?}"),
     };
-    world.send(jig_test_domain::Event::Core(jig_domain_core::Event::SignIn {
-        held: None,
-        reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(FIXTURE_SIGN_IN_REQUEST)),
-        identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: subject.into() },
-            login: b"second".as_slice().into(),
-            name: b"Second".as_slice().into(),
-        },
-    }));
+    world.send(sign_in(skein_lib::Token::new(FIXTURE_SIGN_IN_REQUEST), 0, subject, b"second", b"Second"));
     let Some(people::Reply::SignedIn { sign_in, person, .. }) = world.people_answers.last().cloned() else {
         panic!("second party signed in")
     };
@@ -408,7 +459,7 @@ pub fn restore_project_policies(core: &mut core::Core, limits: &core::Limits, st
 #[must_use]
 pub fn resource_member(world: &crate::world::World, id: u64, words: &[u8]) -> core::Delegate {
     let mut child = member(world, tasks::Executor::Agent { charter: 1 }, words);
-    child.spec.parameters = Box::new([tasks::Parameter::Resource { name: 1, connector: 1, resource: id }]);
+    child.spec.parameters = Box::new([tasks::Parameter::Resource { name: 1, connector: CONNECTOR, resource: id }]);
     child.authority.budget.spend = 10;
     child.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
     child
@@ -418,7 +469,7 @@ pub fn resource_member(world: &crate::world::World, id: u64, words: &[u8]) -> co
 pub fn configure_resources(world: &mut crate::world::World) {
     for id in [1, 2] {
         world.send(root::Event::Connector {
-            number: 1,
+            number: CONNECTOR,
             event: jig_test_connector::Event::Adopt {
                 project: 1,
                 resource: jig_test_connector_kit::path(1, id),
@@ -429,8 +480,12 @@ pub fn configure_resources(world: &mut crate::world::World) {
     world.configure_holds(
         1,
         Box::new([
-            tasks::Kind { connector: 1, kind: 1, hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits } },
-            tasks::Kind { connector: 1, kind: 2, hold: tasks::HoldKind::Pooled { taken: tasks::Taken::Waits } },
+            tasks::Kind {
+                connector: CONNECTOR,
+                kind: 1,
+                hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits },
+            },
+            tasks::Kind { connector: CONNECTOR, kind: 2, hold: tasks::HoldKind::Pooled { taken: tasks::Taken::Waits } },
         ]),
     );
 }
@@ -467,7 +522,7 @@ pub fn job_world(seed: u64, ceiling: bool) -> (crate::world::World, u64) {
         crate::world::World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() });
     world.hold_procedures = true;
     let run = world.assignments[0];
-    let mut procedure = member(&world, tasks::Executor::Procedure { connector: 1, code: 1 }, b"procedure");
+    let mut procedure = member(&world, tasks::Executor::Procedure { connector: CONNECTOR, code: 1 }, b"procedure");
     if ceiling {
         procedure.authority.delegation.kinds = Box::new([tasks::AuthorityExecutor::Job(7)]);
     } else {
