@@ -297,8 +297,10 @@ impl World {
                 assert_eq!(receipts.receipts().len(), 1);
                 assert_eq!(receipts.receipts()[0].directory(), 0);
                 let landed = self.forge.branch(REMOTE, b"topic").expect("delivered branch");
-                let mut encoded = String::with_capacity(64);
-                for byte in translate::commit(landed).raw() {
+                let commit = translate::commit(landed).raw();
+                let width = if commit[20..] == [0; 12] { 20 } else { 32 };
+                let mut encoded = String::with_capacity(width * 2);
+                for byte in &commit[..width] {
                     write!(&mut encoded, "{byte:02x}").expect("String write");
                 }
                 let expected = format!("pushed {encoded} to branch topic; your checkout stays detached, as expected");
