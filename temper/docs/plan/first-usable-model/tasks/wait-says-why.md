@@ -88,3 +88,16 @@ Tests, through `heavy`: `-p temper-client-view --lib`, `-p temper-client-tools -
 ## Report
 
 As the implementer's text says, each overlap file you changed, and the option you took for the bar's repeated words.
+
+## Rebase (2026-11-06, step merge, foreman first-usable-model/wait-says-why/foreman-1)
+
+Rebase onto the integration tip, preserving both vocabularies and regenerating their combined bounds.
+The merge conflicts in `temper/crates/temper-client-view/src/words.rs`.
+Upstream commit `8fd350e8ef` incorporated main’s chat vocabulary and regenerated declarations; task commit `04b1ebf145` changes the same counts and text-byte bound.
+Keep upstream’s chat words, `TEXT_BYTES` constant, declaration measurement, and `text_bytes: TEXT_BYTES`.
+Retain this task’s wait phrases and `WaitEmptyModel` enum entry, list entry, phrase, and id `1078`, which is unused upstream.
+Regenerate `ALL`, `PHRASES`, `SEGMENTS`, and `TEXT_BYTES` from the combined vocabulary; do not choose either side’s stale counts.
+Use `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-client-view --lib -E 'test(=tests::accounts::english_phrase_declarations_match_the_vocabulary)'`, then verify without write mode.
+Check the automatically merged `pages/chat.rs` retains configuring-chat wait feedback alongside upstream’s reading controls.
+Keep `tests/chat.rs` coverage for configuring waits and absence of working dots.
+Run the spec’s required checks through heavy after resolving the merge; regenerate any combined-code fixtures or gallery output those checks identify.
