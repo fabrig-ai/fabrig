@@ -345,7 +345,7 @@ fn a_denied_release_retains_its_family_when_rendered_for_the_host() {
     assert_eq!(to, TO);
     assert_eq!(
         answer,
-        core::SettledAnswer::Host { error: true, body: b"Authority refused: tool family control; ".as_slice().into() }
+        core::SettledAnswer::Host { error: true, body: b"Authority refused: tool family control".as_slice().into() }
     );
 }
 

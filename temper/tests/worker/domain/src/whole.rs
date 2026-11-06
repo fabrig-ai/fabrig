@@ -301,7 +301,12 @@ impl World {
                 for byte in translate::commit(landed).raw() {
                     write!(&mut encoded, "{byte:02x}").expect("String write");
                 }
-                assert_eq!(receipts.receipts()[0].text(), encoded.as_bytes(), "the receipt identifies the pushed head");
+                let expected = format!("pushed {encoded} to branch topic; your checkout stays detached, as expected");
+                assert_eq!(
+                    receipts.receipts()[0].text(),
+                    expected.as_bytes(),
+                    "the receipt identifies the pushed head"
+                );
                 self.deliveries += 1;
             }
             agent::Down::Cancel => self.report.cancellations += 1,

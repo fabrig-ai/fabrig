@@ -185,8 +185,7 @@ differs (`client/README.md`) and a link clickable on a terminal (`protocol/setup
 Ready's pane over the host's check alone, no trial being built, and departs from the request
 `model-check-pane` in its list's words, and a sign-in that ends on its way's page stops at
 *A model usable*, where that request goes on to Ready (`client/README.md`). A plan's sign-in draws the waiting page of the request
-`sign-in-new-tab`, whose words say a new tab while a press still leaves in its own,
-until that draft is built; the page departs from the request in the terminal's words
+`sign-in-new-tab`; the page departs from the request in the terminal's words
 and on `ConnectModel`, where a paste finishing also keeps the note's waiting words
 (`client/README.md`). The rail's person's menu departs from the request
 `ui-owner-menu` in a press outside that took the focus, which keeps it, a project-less

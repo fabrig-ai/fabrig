@@ -19,7 +19,7 @@ mod root;
 pub mod sign_in;
 pub mod words;
 pub use limits::{Limits, valid};
-pub use root::{View, act, act_event, build, event, href};
+pub use root::{View, act, act_event, build, event, href, opening_tab};
 
 /// Open a bound link with its address, leaving its contents to the caller.
 pub(crate) fn link(b: &mut skein_ui::Builder, name: &[u8], to: skein_ui::Binding) {

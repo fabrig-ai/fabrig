@@ -815,12 +815,18 @@ fn authority_findings(
     authority(text, answer)?;
     text.add(b": ")?;
     let mut family_seen = false;
+    let mut finding_seen = false;
+    let mut reference_hint = false;
     let mut change_hint = false;
     for finding in findings {
+        if *finding == Finding::Tool && family_seen {
+            continue;
+        }
+        if finding_seen {
+            text.add(b"; ")?;
+        }
+        finding_seen = true;
         if *finding == Finding::Tool {
-            if family_seen {
-                continue;
-            }
             family_seen = true;
             text.add(b"tool family")?;
             if let Some(family) = tool_family(tool) {
@@ -830,7 +836,9 @@ fn authority_findings(
         } else {
             finding_text(text, *finding)?;
         }
-        text.add(b"; ")?;
+        if *finding == Finding::Reference && tool == b"message" {
+            reference_hint = true;
+        }
         if delegation
             && tool != b"delegate"
             && let Finding::Executor { .. } | Finding::Grant { .. } = finding
@@ -838,8 +846,11 @@ fn authority_findings(
             change_hint = true;
         }
     }
+    if reference_hint {
+        text.add(b". Your brief's [Requested by ...] line names your requester; [This task: N] is you.")?;
+    }
     if change_hint {
-        text.add(b"For a change to a repository, call change with what to change.")?;
+        text.add(b". For a change to a repository, call change with what to change.")?;
     }
     Ok(())
 }

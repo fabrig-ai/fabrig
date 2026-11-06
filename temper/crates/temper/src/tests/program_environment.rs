@@ -17,25 +17,45 @@ fn flags_naming_the_defaults_answer_nothing() {
     assert_eq!(dirs.program_environment(&home(), WORKING, b"temper").as_ref(), b"");
 }
 #[test]
-fn one_moved_directory_names_all_three() {
-    for (variable, expected) in [
+fn each_directory_is_named_only_off_its_own_default() {
+    for (variables, expected) in [
+        (vec![], ""),
+        (vec!["TEMPER_CONFIG"], "TEMPER_CONFIG=/moved temper"),
+        (vec!["TEMPER_DATA"], "TEMPER_DATA=/moved temper"),
+        (vec!["TEMPER_CACHE"], "TEMPER_CACHE=/moved temper"),
+        (vec!["TEMPER_CONFIG", "TEMPER_DATA"], "TEMPER_CONFIG=/moved TEMPER_DATA=/moved temper"),
+        (vec!["TEMPER_CONFIG", "TEMPER_CACHE"], "TEMPER_CONFIG=/moved TEMPER_CACHE=/moved temper"),
+        (vec!["TEMPER_DATA", "TEMPER_CACHE"], "TEMPER_DATA=/moved TEMPER_CACHE=/moved temper"),
         (
-            b"TEMPER_CONFIG".as_slice(),
-            "TEMPER_CONFIG=/moved TEMPER_DATA=~/.local/share/temper TEMPER_CACHE=~/.cache/temper temper",
-        ),
-        (
-            b"TEMPER_DATA".as_slice(),
-            "TEMPER_CONFIG=~/.config/temper TEMPER_DATA=/moved TEMPER_CACHE=~/.cache/temper temper",
-        ),
-        (
-            b"TEMPER_CACHE".as_slice(),
-            "TEMPER_CONFIG=~/.config/temper TEMPER_DATA=~/.local/share/temper TEMPER_CACHE=/moved temper",
+            vec!["TEMPER_CONFIG", "TEMPER_DATA", "TEMPER_CACHE"],
+            "TEMPER_CONFIG=/moved TEMPER_DATA=/moved TEMPER_CACHE=/moved temper",
         ),
     ] {
         let mut environment = home();
-        environment.push((variable.into(), b"/moved".as_slice().into()));
-        let dirs = resolve(&[], &environment, WORKING).expect("variable").0;
+        environment.extend(variables.iter().map(|name| (name.as_bytes().into(), b"/moved".as_slice().into())));
+        let dirs = resolve(&[], &environment, WORKING).expect("variables").0;
         assert_eq!(dirs.program_environment(&environment, WORKING, b"temper").as_ref(), expected.as_bytes());
+    }
+}
+#[test]
+fn a_directory_off_its_default_alone_is_named() {
+    for (variables, flags, word, expected) in [
+        (vec![("TEMPER_DATA", "/home/person/x")], vec![], "temper", "TEMPER_DATA=~/x temper"),
+        (vec![("TEMPER_DATA", "/home/person/x")], vec![], "~/bin/temper", "TEMPER_DATA=~/x ~/bin/temper"),
+        (vec![], vec!["--data", "/moved"], "temper", "TEMPER_DATA=/moved temper"),
+        (
+            vec![("TEMPER_DATA", "/home/person/.local/share/temper"), ("TEMPER_CACHE", "/moved")],
+            vec![],
+            "temper",
+            "TEMPER_CACHE=/moved temper",
+        ),
+        (vec![("XDG_DATA_HOME", "/xdg")], vec![], "temper", ""),
+    ] {
+        let mut environment = home();
+        environment.extend(variables.iter().map(|(name, value)| (name.as_bytes().into(), value.as_bytes().into())));
+        let flags: Vec<Box<[u8]>> = flags.iter().map(|flag| flag.as_bytes().into()).collect();
+        let dirs = resolve(&flags, &environment, WORKING).expect("directory").0;
+        assert_eq!(dirs.program_environment(&environment, WORKING, word.as_bytes()).as_ref(), expected.as_bytes());
     }
 }
 #[test]

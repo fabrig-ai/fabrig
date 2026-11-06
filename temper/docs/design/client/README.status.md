@@ -5,16 +5,8 @@
 - **Design departs:** 3.5, 5.8, 5.11, from the greenfield target: "Pause", "Resume" and "Close" on a chat, a goal and an
   agent's task, where its goal says "Stop", which meant a goal's end and a chat's hold. The user's word, 2026-11-06, the
   request `ui-pause-close`.
-- **Not yet:** 3.5, The welcome's Model step, *The sign-in under way*, and `ConnectModel`, *While it waits* and
-  *From another computer*: the card's line and the note say a new tab, and nothing opens one: a press still
-  sends a `Return` and the page's own tab leaves, until `../draft/sign-in-new-tab.md` is built. So the note shows
-  for a moment before the tab goes, and again on a page come back while the sign-in waits, and a browser on
-  another computer presses, leaves, comes back by hand and finds the note's folded paste. The view has no fact of a tab refused:
-  `sign_in_wait::tab_refused` is false, the one function that draft feeds. The new tab's two lines, its closing on
-  a refusal at the press, and a reload's same page are that draft's. A page come back holds no address, so
-  it draws no "Open it again". `Act::SignInElsewhere` and `ConnectModel::elsewhere` stay in the domain with no
-  entry in the view, the paste's tests and gallery states reaching the page through them, until that draft
-  makes every sign-in hold its page.
+- **Not yet:** 3.5, The welcome's Model step, *The sign-in under way*, and `ConnectModel`, *The sign-in's tab*,
+  *Its end*, *A reload while it waits* and *From another computer*; 7, *A sign-in's address in the small store*; 10:
 - **Design departs:** 3.5, *The sign-in under way* and `ConnectModel`, *While it waits*, from the request
   `sign-in-new-tab` of 2026-11-06, by its plan's cut and its account. The terminal draws the note's plain title,
   its muted line and "Open the sign-in page" above the folded paste, where the request has the terminal as today:
@@ -160,7 +152,8 @@
 - **Not yet:** 3.6, *The sheet*: that request has each confirmation walked. A browser
   on a fake box pressed Close, Start over, a goal's Close, a Release both ways, a goal's Pause,
   and Accept and Reject on a configuring chat's proposal from *Needs you* and *Home*,
-  and Escape and the keeping act on Close, Start over, a goal's Close, Accept and Reject,
+  and Accept from the chat itself; Reject from *Needs you* included a reason. Escape and
+  the keeping act on Close, Start over, a goal's Close, Accept and Reject were also pressed
   by hand at each width, which no test keeps; a press while the page updates, on a Release
   alone. A task's Cancel and an agent's task's Close are drawn at each width by their
   gallery states, the walk of the request `ui-walk-3` of 2026-11-06 having tried the
@@ -230,16 +223,7 @@
   and the card has no "Drafts: on". The person accepts on the agent's words. The
   gallery's `configure-chat-proposal` rows alone draw those lines, from a hand-made
   document.
-- **Not yet:** 5.13, *The card in a chat*: the sheet's Accept on a configuring chat's own
-  card is refused "No visible object with that name", the sheet and the proposal
-  staying, where the same proposal accepts from *Needs you* and *Home*. Seen at each
-  width, with and without a cancel first, on the walk of the request `ui-walk-3` of
-  2026-11-06: a fresh fake box, Settings' Start, and the cue "Show drafts and goals for
-  this project." before any setting changes. By reading, and not proved: that card
-  decides under `task.project` (`temper-client-domain`'s `pages/chat.rs`, `proposals`),
-  and the inbox's under its row's own `project` (`pages/inbox.rs`), 0 on a proposal of
-  settings. No test holds it.
-- **Not yet:** 3.5, *Reading back*: on that walk, a long chat's first "Older" stayed
+- **Not yet:** 3.5, *Reading back*: on the `ui-walk-3` walk of 2026-11-06, a long chat's first "Older" stayed
   "Loading earlier messages" for the 40 seconds watched, at 1280x720 and 1000x600, so
   no second press was made: a fresh fake box, 66 messages of 24 sentences through ctl,
   the chat reopened through Chats, six of four sentences through the composer, then the

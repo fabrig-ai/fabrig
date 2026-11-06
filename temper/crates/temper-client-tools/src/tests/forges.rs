@@ -1351,7 +1351,6 @@ fn lifecycle_answers(words: &[&str], answers: &[(w::Outcome, &[u8], &[u8], u8)])
                 }
                 other @ (w::Request::Adopt(_)
                 | w::Request::SetUp(_)
-                | w::Request::Return(_)
                 | w::Request::Replace(_)
                 | w::Request::Connect(_)
                 | w::Request::Install(_)

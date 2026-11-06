@@ -1050,7 +1050,7 @@ fn chat_event(
 fn chat_with_history() -> temper_client_domain::Domain {
     history().0
 }
-#[expect(clippy::too_many_lines, reason = "the history fixture routes every root request exhaustively")]
+#[expect(clippy::too_many_lines, reason = "the fixture carries every root obligation exhaustively")]
 fn history() -> (temper_client_domain::Domain, skein_lib::Queue<temper_client_domain::Request>) {
     use temper_client_domain::{Address, Event, Place, Request};
     let (mut root, _, _) = fixtures::root_at(
@@ -1085,6 +1085,8 @@ fn history() -> (temper_client_domain::Domain, skein_lib::Queue<temper_client_do
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::KeepSignIn { .. }
+            | Request::Tab { .. }
             | Request::Copy { .. }
             | Request::Fact { .. } => {}
         }

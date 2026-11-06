@@ -118,7 +118,6 @@ pub fn answer(record: &jig_client::Family, limits: &w::Limits, link: &link::Limi
         | w::Outcome::MakeRefused(_)
         | w::Outcome::Page(_)
         | w::Outcome::Accepted(_)
-        | w::Outcome::Returning
         | w::Outcome::Connecting
         | w::Outcome::Link(_)
         | w::Outcome::ConnectRefused(_)
@@ -221,7 +220,6 @@ pub fn set_up_answer(record: &jig_client::Family, limits: &w::Limits) -> Option<
         | w::Outcome::MakeRefused(_)
         | w::Outcome::Page(_)
         | w::Outcome::Accepted(_)
-        | w::Outcome::Returning
         | w::Outcome::Connecting
         | w::Outcome::Link(_)
         | w::Outcome::ConnectRefused(_)
