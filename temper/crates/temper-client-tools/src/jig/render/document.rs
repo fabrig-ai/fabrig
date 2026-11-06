@@ -112,11 +112,11 @@ fn text(
         Document::Accounts(value) => accounts::text(*value, limits, out),
         Document::Me(me) => me_text(me, book, limits, out),
         Document::Task(task, me) => {
-            task_text(task, *me, book, vocabulary, out);
+            task_text(task, *me, book, vocabulary, limits, out);
             vocabulary.task_next(task, out);
         }
         Document::EndedTask(task, result, me) => {
-            task_text(task, *me, book, vocabulary, out);
+            task_text(task, *me, book, vocabulary, limits, out);
             result_text(result, vocabulary, out);
             vocabulary.task_next(task, out);
         }
@@ -217,9 +217,10 @@ fn task_text(
     me: Option<&Me>,
     book: &Phrasebook,
     vocabulary: &dyn crate::jig::render::Parts,
+    limits: &Limits,
     out: &mut Text,
 ) {
-    task_with_specification(task, me, book, vocabulary, None, out);
+    task_with_specification(task, me, book, vocabulary, None, limits, out);
 }
 fn task_heading(
     task: &Task,
@@ -273,6 +274,7 @@ fn task_with_specification(
     book: &Phrasebook,
     vocabulary: &dyn crate::jig::render::Parts,
     source: Option<&crate::jig::runner::specification::Specification>,
+    limits: &Limits,
     out: &mut Text,
 ) {
     task_heading(task, me, book, vocabulary, out);
@@ -299,7 +301,7 @@ fn task_with_specification(
     task_settings::text(task.settings.as_ref(), out);
     dependencies::text(task, me, book, out);
     llm::text_choice(task.llm.as_ref(), out);
-    llm::text_wait(task.run_wait, out);
+    llm::text_wait(task, limits, out);
     out.put(b"\nwaiting on: ");
     waiting(&task.waits_on, me, book, out);
     out.put(b"\n");

@@ -111,7 +111,7 @@ fn subject_text(
     match delivery {
         c::Delivery::Me(me) => super::me_text(me, book, limits, out),
         c::Delivery::Task(task) => {
-            super::task_with_specification(task, wait.me, book, vocabulary, wait.specification, out);
+            super::task_with_specification(task, wait.me, book, vocabulary, wait.specification, limits, out);
         }
         c::Delivery::Tree(_) => super::super::lists::tree(delivery, None, book, out),
         c::Delivery::Tasks(tasks) => {

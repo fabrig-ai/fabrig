@@ -374,14 +374,21 @@ fn a_requested_model_is_labelled_for_the_next_run() {
 fn an_unknown_readiness_keeps_the_model_only() {
     assert_eq!(using_text(&task_root()), "chosen");
 }
+fn waiting_task(wait: Option<c::TaskRunWait>) -> c::Task {
+    let mut task = fixtures::task::document();
+    task.llm = None;
+    task.run_wait = wait;
+    task
+}
 fn wait(why: c::TaskWaitWhy) -> skein_ui::Tree {
     let mut b = Builder::new(&fixtures::tree_limits());
     let mut bindings = crate::frame::Bindings::new(32);
     b.open(Role::Page);
+    let (account, source) = if why == c::TaskWaitWhy::Empty { (None, None) } else { (Some(7), Some(8)) };
     crate::choice::waiting(
         &mut b,
         &task_root(),
-        Some(c::TaskRunWait::Account { account: Some(7), source: Some(8), why }),
+        &waiting_task(Some(c::TaskRunWait::Account { account, source, why })),
         &fixtures::words(),
         &mut bindings,
         &mut crate::words::Times::new(fixtures::NOW),
@@ -389,6 +396,21 @@ fn wait(why: c::TaskWaitWhy) -> skein_ui::Tree {
     b.close();
     b.finish()
 }
+#[test]
+fn an_empty_wait_connects_a_model_and_uses_waiting_style() {
+    let tree = wait(c::TaskWaitWhy::Empty);
+    assert!(fixtures::find(&tree, Role::Paragraph, b"No account serving this work").is_some());
+    assert!(fixtures::find(&tree, Role::Link, b"Connect a model").is_some());
+    let status = tree
+        .nodes()
+        .iter()
+        .find(|node| node.role == Role::Status && node.name.as_deref() == Some(b"Waiting for an account"))
+        .unwrap();
+    let styles = status.styles.as_slice();
+    assert!(styles.contains(&crate::look::STATUS_WAITING));
+    assert!(!styles.contains(&crate::look::STATUS_ACTIVE));
+}
+
 #[test]
 fn a_limited_wait_links_to_resume() {
     assert!(
@@ -711,7 +733,11 @@ fn a_waiting_account_shows_its_display() {
     crate::choice::waiting(
         &mut b,
         &root,
-        Some(c::TaskRunWait::Account { account: Some(3), source: None, why: c::TaskWaitWhy::Refreshing }),
+        &waiting_task(Some(c::TaskRunWait::Account {
+            account: Some(3),
+            source: None,
+            why: c::TaskWaitWhy::Refreshing,
+        })),
         &fixtures::words(),
         &mut crate::frame::Bindings::new(32),
         &mut crate::words::Times::new(fixtures::NOW),
@@ -728,11 +754,11 @@ fn a_task_waiting_on_a_moving_account_says_why() {
     crate::choice::waiting(
         &mut b,
         &root,
-        Some(c::TaskRunWait::Account {
+        &waiting_task(Some(c::TaskRunWait::Account {
             account: Some(3),
             source: Some(8),
             why: c::TaskWaitWhy::Source(c::TaskSourceState::Moving),
-        }),
+        })),
         &fixtures::words(),
         &mut crate::frame::Bindings::new(32),
         &mut crate::words::Times::new(fixtures::NOW),
@@ -767,7 +793,7 @@ fn a_refused_next_run_says_why() {
         crate::choice::waiting(
             &mut builder,
             &root,
-            Some(c::TaskRunWait::Refused(refusal)),
+            &waiting_task(Some(c::TaskRunWait::Refused(refusal))),
             &fixtures::words(),
             &mut crate::frame::Bindings::new(32),
             &mut times,
@@ -829,11 +855,11 @@ fn every_hello_refusal_keeps_its_cause_and_numbers() {
         crate::choice::waiting(
             &mut builder,
             &task_root(),
-            Some(c::TaskRunWait::Refused(c::TaskWaitRefused::Hello {
+            &waiting_task(Some(c::TaskRunWait::Refused(c::TaskWaitRefused::Hello {
                 kind: c::HostKind::Worker,
                 at: fixtures::NOW,
                 why,
-            })),
+            }))),
             &fixtures::words(),
             &mut crate::frame::Bindings::new(32),
             &mut crate::words::Times::new(fixtures::NOW),
@@ -1064,7 +1090,8 @@ fn pending_choice_outcome_and_wait_are_siblings_after_the_chooser() {
     assert!(fixtures::find(pending.tree(), Role::Paragraph, "T9 · chosen".as_bytes()).is_some());
     let nodes = pending.tree().nodes();
     let status = nodes.iter().position(|n| n.name.as_deref() == Some(b"Next-run choice request in progress")).unwrap();
-    let wait = nodes.iter().position(|n| n.name.as_deref() == Some(b"Waiting for a credential")).unwrap();
+    let wait =
+        nodes.iter().position(|n| n.name.as_deref() == Some(b"This work needs a credential from its forge.")).unwrap();
     assert!(status < wait);
     d::step(
         &mut root,
@@ -1106,7 +1133,8 @@ fn pending_choice_outcome_and_wait_are_siblings_after_the_chooser() {
         nodes.iter().position(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Change model")).unwrap();
     let end = chooser + usize::try_from(nodes[chooser].size).unwrap();
     let outcome = nodes.iter().position(|n| n.role == Role::Status && n.name.as_deref() == Some(b"Applied")).unwrap();
-    let wait = nodes.iter().position(|n| n.name.as_deref() == Some(b"Waiting for a credential")).unwrap();
+    let wait =
+        nodes.iter().position(|n| n.name.as_deref() == Some(b"This work needs a credential from its forge.")).unwrap();
     let composer = nodes.iter().position(|n| n.styles.as_slice().contains(&crate::look::SESSION_COMPOSER)).unwrap();
     assert!(end <= outcome && outcome < wait && wait < composer);
 }
@@ -1523,7 +1551,7 @@ fn chooser_groups_use_the_providers_words() {
 
 #[test]
 fn the_no_model_line_keeps_the_tasks_wait_feedback() {
-    assert!(text(&no_model_root(true)).contains("Waiting for a credential"));
+    assert!(text(&no_model_root(true)).contains("This work needs a credential from its forge."));
 }
 
 #[test]
@@ -1622,4 +1650,36 @@ fn a_tasks_byline_keeps_the_whole_bounded_model_and_effort() {
         byline.description.as_deref(),
         Some(["T9 · ".as_bytes(), &name, " · ".as_bytes(), &effort].concat().as_slice())
     );
+}
+
+#[test]
+fn a_host_wait_names_the_account_and_its_program_command() {
+    let mut row = account(3, c::AccountKind::Program, None);
+    row.sources.clear();
+    let mut program = source(c::AccountKind::Program, false);
+    program.name = Some(Box::from(b"claude-alice".as_slice()));
+    row.sources.push(program).unwrap();
+    let root = account_facts(None, accounts(&[row]));
+    let mut b = Builder::new(&fixtures::tree_limits());
+    b.open(Role::Page);
+    crate::choice::waiting(
+        &mut b,
+        &root,
+        &waiting_task(Some(c::TaskRunWait::Account { account: Some(3), source: Some(1), why: c::TaskWaitWhy::Host })),
+        &fixtures::words(),
+        &mut crate::frame::Bindings::new(32),
+        &mut crate::words::Times::new(fixtures::NOW),
+    );
+    b.close();
+    let tree = b.finish();
+    assert!(
+        fixtures::find(&tree, Role::Paragraph, b"Personal's login isn't signed in on a host that can run this.")
+            .is_some()
+    );
+    assert!(
+        String::from_utf8(fixtures::text(&tree).into_vec())
+            .unwrap()
+            .contains("temper program-login --config CONFIG --data DATA --cache CACHE claude-alice")
+    );
+    assert!(fixtures::find(&tree, Role::Link, b"Accounts").is_some());
 }
