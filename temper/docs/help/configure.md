@@ -99,13 +99,14 @@ For a project's landing rule, add `"project": PROJECT` to its `setting`.
 
 ### Human approvals
 
-Add the human collaborator on the forge. Stock maps admin to maintainer (1),
-write to member (2), read to observer (3); use the mapped human role in the rule.
-For an existing project's project-policy permissions, edit its saved whole policy
-(step 2); apply with step 3. Re-adopt with `repository adopt`, preserving its
-options, then verify the required role with `project show`. Submit a fresh proposal
-against the newest revision. Policy 1 affects future projects; re-adoption keeps
-existing roles. temper's writer never counts. Details: temper help landing-rule.
+Add the human collaborator on the forge. On Forgejo, a repository admin must give temper's
+bot admin: collaborator reads can require it even with write. Stock maps the
+human's admin to maintainer (1), write to member (2), read to observer (3).
+Edit the project's whole project-policy (step 2); apply by step 3. Re-adopt with
+`repository adopt`, a new key and the same options; verify the role with
+`project show`. Propose at the newest revision. Policy 1 affects future
+projects; re-adoption keeps roles. temper's writer never counts.
+See temper help landing-rule.
 
 ### Authority for the reference charters
 

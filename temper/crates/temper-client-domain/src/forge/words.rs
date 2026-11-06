@@ -128,7 +128,7 @@ pub const ROWS: [Row; 56] = [
     (Word::HomeHeld, &[b"The project has a home already. Adopt this repository without making it home, or choose a new project."], &[]),
     (Word::PrefixOccupied, &[b"Branches under ", b" are not this deployment's. Choose an unused branch prefix."], &[Name]),
     (Word::ReadOnly, &[b"temper's forge user can only read ", b" on forge ", b": work there fails until it has write."], &[Name, Name]),
-    (Word::AdminScope, &[b"A managed or owned forge gives that access by its site admin's token, which needs write:repository: the server's log names the step."], &[]),
+    (Word::AdminScope, &[b"Forgejo collaborator reads can require repository admin even when temper's forge user already has write. A repository administrator must grant temper's forge user admin; then run repository adopt again with a new key, preserving its options, and verify the human's required project role with project show. If setup could not grant access on a managed or owned Forgejo, its site admin's token needs write:repository. Check the setup failure in the server's log."], &[]),
 ];
 fn phrase_id(connector: u16, index: usize) -> PhraseId {
     PhraseId {
