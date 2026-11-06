@@ -17,7 +17,8 @@ path `403` to a caller with no grant, a public repository's too, and the
 fake GitHub refuses no push as `GH013` (`fake-forge.md`).
 No macOS runner runs skein's suites (`shell.md`). json, tls and http's collector have no fuzz target
 (`json.md`, `tls.md`, `http.md`). A few items lag in `lib.md`,
-`examples.md`, `forge-setup.md`, `kv.md` and `ui.md`, and the LLM live
+`examples.md`, `forge-setup.md`, `kv.md`, `ui.md`, `ui-text.md` and
+`ui-web.md`, and the LLM live
 suite's logins have no design (`skein-live`), five of its provider
 stories being manual, run by the owner (`llm.md`). Most carriers still
 print the bytes they hold, credentials among them on known paths
@@ -26,7 +27,7 @@ in `skein-playground`'s manifest (`playground.md`). An owner may ask a call
 to keep its rendered body (`llm.md`, `llm-connection.md`), and a world the
 fake LLM peer to keep what it read (`fake-llm.md`).
 `README.md`, `codec.md`, `world.md`, `fake-checkout.md`,
-`forge-client.md`, `oauth-issuer.md`, `ui-text.md`, `ui-web.md` and
+`forge-client.md`, `oauth-issuer.md` and
 `browser.md` have no gap. The state machines of io's file store and
 private opening, forge-connection, Forgejo's plans, the fake forge's
 connection, oauth and its accounts, llm,

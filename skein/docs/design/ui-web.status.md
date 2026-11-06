@@ -2,4 +2,4 @@
 
 2026-11-06. Where skein's code lags or departs from [ui-web.md](ui-web.md).
 
-No gap.
+- **Not yet:** 6: a list's order, `<ol start>`.
