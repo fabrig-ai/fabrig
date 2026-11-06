@@ -119,3 +119,18 @@ The implementer's report, with: the red each test showed; which focus guards wer
 2026-11-06 (fabrig/ui). Addition, a third fix the user asked for (via fabrig/temper): a chat shows two scroll bars, the browser's and the conversation pane's, after pressing "Older" twice in a long chat at a laptop's window size. A reader's cause, checked on the user's recorded page at 1280x720 and 1000x600 but not by this plan: the agent message's who-line (div.temper-who, "Temper 00:26") is hidden with position: absolute and no ancestor up to body is positioned, so a who-line below the pane's visible part isn't clipped by the pane's overflow: auto and extends the document (671px in a 633px window). Fix: #app > .temper-session [role=log] { position: relative; }, which brought the page back to 633px. Any other visually hidden absolute part inside a scrolling pane has the same fault: grep for them and fix each, including the draft pane. Test: a long chat's document never exceeds its window at 1280x720 and 1000x600 with Older pressed twice.
 
 2026-11-06 (fabrig/ui). Expand rename-row: fix the skein-ui-web DOM-removal panic here, at its lowest tier with a test red first, since a browser panic is a real bug any page could meet. skein-ui-web's files are yours for this; hearth doesn't use it. Say in the report which removal panicked and why, and whether anything else could hit it.
+
+## Rebase (2026-11-06, step merge, foreman ui-rename-focus/rename-row/foreman-2)
+
+resolve the test-suite registration conflict by retaining both sides
+Rebase onto main and resolve `temper/crates/temper-client-shell-web/tests/suite/main.rs`.
+Branch commit `da7395e38d` adds `mod switcher;` immediately after `mod memory;`.
+Main appends tests at that same location through `ea27ed419d`, `99dc682b1f`, `67f012c1c1`, and `5471edab6e`.
+Keep `mod host;`, `mod memory;`, and `mod switcher;`, followed by all three main tests:
+- `draft_section_headings_keep_the_document_line_height`
+- `phone_session_hides_the_keyboard_hint`
+- `programmatic_page_targets_do_not_draw_control_focus_rings`
+
+Keep `tests/suite/switcher.rs` and the automatically merged CSS changes from both sides.
+This is an adjacent-addition conflict; no test logic needs rewriting.
+Validate the combined suite with `heavy cargo nextest run -p temper-client-shell-web --test suite`, with `TEMPER_BUNDLE=none`.
