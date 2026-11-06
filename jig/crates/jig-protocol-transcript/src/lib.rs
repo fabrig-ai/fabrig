@@ -9,7 +9,7 @@
 //!
 //! Calls are numbered by their first call/result block's position within the turn.
 //! Their inputs remain bytes as written. Results also fill the matching call's
-//! outcome, including results outside the display window. This schema has no jig
+//! outcome line, including results outside the display window. This schema has no jig
 //! object references or inbox read position: neither is inferred from tool text.
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
@@ -116,6 +116,14 @@ fn translate(limits: TurnLimits, source: &smith::Turn) -> Turn {
         }
         messages.push(Message { speaker, blocks }).expect("receiving message capacity checked");
     }
+    // Names are already priced. Each later pass walks only the retained window.
+    for price in [Price::Texts, Price::Outcomes, Price::Inputs, Price::Summaries] {
+        for (original, message) in source.messages().iter().zip(messages.iter_mut()) {
+            for (original, block) in original.blocks().iter().zip(message.blocks.iter_mut()) {
+                fill_block(source, original, block, price, limits.outcome, &mut budget);
+            }
+        }
+    }
     let usage = source.usage();
     Turn {
         messages,
@@ -133,50 +141,126 @@ fn translate(limits: TurnLimits, source: &smith::Turn) -> Turn {
     }
 }
 
+fn empty_text() -> Text {
+    Text::new(Box::new([]), 0).expect("empty text fits")
+}
+
+// Build the displayed shape and price every retained name before other text.
 fn translate_block(source: &smith::Turn, block: &smith::Block, budget: &mut Budget) -> Block {
     match block {
-        smith::Block::Text(text) | smith::Block::Refusal(text) => Block::Text(budget.text(text.text())),
+        smith::Block::Text(_) | smith::Block::Refusal(_) => Block::Text(empty_text()),
         smith::Block::Opaque(opaque) => Block::Opaque {
-            dialect: budget.text(Decimal::of(u64::from(opaque.dialect())).as_bytes()),
+            dialect: empty_text(),
             size: u64::try_from(opaque.bytes().len()).expect("schema byte ceiling fits u64"),
         },
-        smith::Block::Call(call) => {
-            let tool = budget.text(call.name());
-            let mut outcome = None;
-            let mut failed = false;
-            for message in source.messages() {
-                for candidate in message.blocks() {
-                    match candidate {
-                        smith::Block::Result(result) => {
-                            if result.id() == call.id() && outcome.is_none() {
-                                let answer = result_text(result.returned(), budget);
-                                failed = answer.failed;
-                                outcome = Some(answer.text);
-                            }
-                        }
-                        smith::Block::Text(_)
-                        | smith::Block::Refusal(_)
-                        | smith::Block::Call(_)
-                        | smith::Block::Opaque(_) => {}
+        smith::Block::Call(call) => Block::Call(Call {
+            number: call_number(source, call.id()),
+            tool: budget.text(call.name()),
+            input: empty_text(),
+            outcome: None,
+            failed: false,
+            objects: List::with_capacity(0),
+            parts: List::with_capacity(0),
+        }),
+        smith::Block::Result(result) => {
+            Block::Result { call: call_number(source, result.id()), summary: empty_text(), failed: false }
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Price {
+    Texts,
+    Outcomes,
+    Inputs,
+    Summaries,
+}
+
+fn fill_block(
+    source: &smith::Turn,
+    original: &smith::Block,
+    block: &mut Block,
+    price: Price,
+    outcome: u32,
+    budget: &mut Budget,
+) {
+    match block {
+        Block::Text(text) => {
+            if price == Price::Texts {
+                match original {
+                    smith::Block::Text(original) | smith::Block::Refusal(original) => {
+                        *text = budget.text(original.text());
+                    }
+                    smith::Block::Opaque(_) | smith::Block::Call(_) | smith::Block::Result(_) => {
+                        unreachable!("retained blocks follow the source")
                     }
                 }
             }
-            let input = budget.text(call.input());
-            Block::Call(Call {
-                number: call_number(source, call.id()),
-                tool,
-                input,
-                outcome,
-                failed,
-                objects: List::with_capacity(0),
-                parts: List::with_capacity(0),
-            })
         }
-        smith::Block::Result(result) => {
-            let answer = result_text(result.returned(), budget);
-            Block::Result { call: call_number(source, result.id()), summary: answer.text, failed: answer.failed }
+        Block::Opaque { dialect, .. } => {
+            if price == Price::Texts {
+                match original {
+                    smith::Block::Opaque(original) => {
+                        *dialect = budget.text(Decimal::of(u64::from(original.dialect())).as_bytes());
+                    }
+                    smith::Block::Text(_)
+                    | smith::Block::Refusal(_)
+                    | smith::Block::Call(_)
+                    | smith::Block::Result(_) => {
+                        unreachable!("retained blocks follow the source")
+                    }
+                }
+            }
+        }
+        Block::Call(call) => match original {
+            smith::Block::Call(original) => match price {
+                Price::Outcomes => {
+                    if let Some(answer) = call_outcome(source, original.id(), outcome, budget) {
+                        call.outcome = Some(answer.text);
+                        call.failed = answer.failed;
+                    }
+                }
+                Price::Inputs => call.input = budget.text(original.input()),
+                Price::Texts | Price::Summaries => {}
+            },
+            smith::Block::Text(_) | smith::Block::Refusal(_) | smith::Block::Opaque(_) | smith::Block::Result(_) => {
+                unreachable!("retained blocks follow the source")
+            }
+        },
+        Block::Result { summary, failed, .. } => {
+            if price == Price::Summaries {
+                match original {
+                    smith::Block::Result(original) => {
+                        let answer = result_text(original.returned(), None, budget);
+                        *summary = answer.text;
+                        *failed = answer.failed;
+                    }
+                    smith::Block::Text(_)
+                    | smith::Block::Refusal(_)
+                    | smith::Block::Opaque(_)
+                    | smith::Block::Call(_) => {
+                        unreachable!("retained blocks follow the source")
+                    }
+                }
+            }
         }
     }
+}
+
+fn call_outcome(source: &smith::Turn, id: &[u8], bound: u32, budget: &mut Budget) -> Option<ResultText> {
+    for message in source.messages() {
+        for candidate in message.blocks() {
+            match candidate {
+                smith::Block::Result(result) => {
+                    if result.id() == id {
+                        return Some(result_text(result.returned(), Some(bound), budget));
+                    }
+                }
+                smith::Block::Text(_) | smith::Block::Refusal(_) | smith::Block::Call(_) | smith::Block::Opaque(_) => {}
+            }
+        }
+    }
+    None
 }
 
 fn call_number(source: &smith::Turn, id: &[u8]) -> u64 {
@@ -204,14 +288,30 @@ struct Budget {
 }
 impl Budget {
     fn text(&mut self, bytes: &[u8]) -> Text {
-        let maximum = skein_lib::length::usize_of(self.left);
-        let prefix = skein_lib::bytes::utf8_prefix(bytes, maximum);
-        let length = prefix.len();
-        self.cut |= length < bytes.len();
-        self.left =
-            self.left.checked_sub(u32::try_from(length).expect("bounded length")).expect("length within budget");
-        Text::new(Box::from(prefix), u32::try_from(length).expect("bounded length"))
-            .expect("text allocated at receiving length")
+        self.bounded_text(bytes, self.left)
+    }
+
+    fn bounded_text(&mut self, bytes: &[u8], bound: u32) -> Text {
+        let maximum = skein_lib::length::usize_of(self.left.min(bound));
+        let bytes = if bytes.len() <= maximum {
+            Box::from(bytes)
+        } else {
+            self.cut = true;
+            let mark = "…".as_bytes();
+            if let Some(room) = maximum.checked_sub(mark.len()) {
+                let prefix = skein_lib::bytes::utf8_prefix(bytes, room);
+                let length = prefix.len().checked_add(mark.len()).expect("within receiving bound");
+                let mut writer = skein_lib::Writer::new(length);
+                writer.put(prefix).expect("prefix fits final allocation");
+                writer.put(mark).expect("mark fits final allocation");
+                writer.finish()
+            } else {
+                Box::new([])
+            }
+        };
+        let length = u32::try_from(bytes.len()).expect("bounded length");
+        self.left = self.left.checked_sub(length).expect("length within budget");
+        Text::new(bytes, length).expect("text allocated at receiving length")
     }
 }
 
@@ -220,15 +320,46 @@ struct ResultText {
     text: Text,
     failed: bool,
 }
-fn result_text(returned: &smith::Returned, budget: &mut Budget) -> ResultText {
+fn result_text(returned: &smith::Returned, outcome: Option<u32>, budget: &mut Budget) -> ResultText {
     match returned {
-        smith::Returned::Said(said) => ResultText { text: budget.text(said.text()), failed: said.error() },
+        smith::Returned::Said(said) => {
+            ResultText { text: returned_text(said.text(), outcome, budget), failed: said.error() }
+        }
         smith::Returned::Outcome(_)
         | smith::Returned::Invalid(_)
         | smith::Returned::NotRun(_)
         | smith::Returned::Withdrawn => {
             let summary = summary::summarize(returned);
-            ResultText { text: budget.text(&summary.bytes), failed: summary.failed }
+            ResultText { text: returned_text(&summary.bytes, outcome, budget), failed: summary.failed }
         }
+    }
+}
+
+fn returned_text(bytes: &[u8], outcome: Option<u32>, budget: &mut Budget) -> Text {
+    match outcome {
+        Some(bound) => budget.bounded_text(first_line(bytes), bound),
+        None => budget.text(bytes),
+    }
+}
+
+fn first_line(bytes: &[u8]) -> &[u8] {
+    let mut start = 0;
+    let mut words = false;
+    for (at, byte) in bytes.iter().enumerate() {
+        if *byte == b'\n' {
+            if words {
+                let line = bytes.get(start..at).expect("line is within input");
+                return line.strip_suffix(b"\r").unwrap_or(line);
+            }
+            start = at.checked_add(1).expect("line position within input");
+        } else if !byte.is_ascii_whitespace() {
+            words = true;
+        }
+    }
+    if words {
+        let line = bytes.get(start..).expect("last line is within input");
+        line.strip_suffix(b"\r").unwrap_or(line)
+    } else {
+        b""
     }
 }

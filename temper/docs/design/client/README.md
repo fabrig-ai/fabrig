@@ -458,7 +458,17 @@ keeps (`../protocol/configuration.md`, section 2).
     `skein-ui`'s reader (skein's `ui.md`, section 10): paragraphs, lists,
     quotes, code, and tables at the top level. A browser draws a table
     as the mockups' (`md-table`), and leaves out a header row whose
-    cells are all empty, as they do;
+    cells are all empty, as they do. A text cut at the bound ends in "…"
+    where it was cut, and nothing else says so;
+  - *the turn being written,* while a run writes it: the same words under
+    "Temper", from jig's thread's provisional line, whole from their start
+    up to `long_text` (5.4), read by `skein-ui`'s `read_growing` (skein's
+    `ui.md`, section 10): a block a blank line has closed stays on the
+    page as it was, only the last changes as words arrive, and no marker
+    shows being written. A small block, "▍", stands after the last word.
+    The committed turn draws the same blocks in the same place, and only
+    the block goes. Before its first word the turn draws nothing, and the
+    three dots stand (below);
   - *its calls,* after its message's text: each delegation as its
     task's card (5.7), then the message's other calls in one
     disclosure (skein's `ui.md`, its disclosure), named by its count,
@@ -489,8 +499,9 @@ keeps (`../protocol/configuration.md`, section 2).
     `OwnerActivity::Words`, by a task), a delegate's question among
     them, under the task's name, "TN", on the agent's side, a paragraph
     for each line;
-  - *not drawn:* a run's beginning and end, the task's milestones, and
-    every message a turn's person, tool or system speaks, which are
+  - *not drawn:* a run's beginning and end, the task's milestones, a
+    turn's opaque blocks (a model's reasoning, with nothing in their
+    place), and every message a turn's person, tool or system speaks, which are
     the run's inputs: its opening, its calls' results, and what woke
     it, a result delivered among them. A result block still anchors
     its task's card where the call that made it is not in the window
@@ -525,9 +536,11 @@ keeps (`../protocol/configuration.md`, section 2).
     line each (5.7).
   - *While it works:* three dots, `.typing`, at the end of the log, named
     "Writing", while the chat's status is Starting, Writing, Working or a
-    tool's and the window's last line is not provisional text. The terminal
-    prints nothing new for it. *Provisional text* looks like `.turn-agent`,
-    its "writing" label hidden.
+    tool's and the window's last line is not provisional text holding a
+    word. The terminal prints nothing new for it. *The turn being written*
+    looks like `.turn-agent`, its name hidden as a committed turn's, its
+    "▍" faint and in the line of the last word; the terminal prints the "▍"
+    as it prints a status.
   - *A card in the conversation* (a proposal, a held task, a question's
     answer) is `.proposal`: white, radius 12, its shadow, 20 px 22 px; a
     kind's title in `.proposal-title`; `.proposal-split` and
@@ -2404,7 +2417,8 @@ keeps (`../protocol/configuration.md`, section 2).
   - *It stays until it is answered.* The press sends the ask and the sheet stays,
     saying the ask's progress above its acts. Answered done, it goes. Any other
     outcome leaves it open, saying why above its acts, where a press sends again;
-    a press that sends nothing closes it. "Keep it" closes it at any time, and an
+    a press that sends nothing closes it, but for a rejection with no reason, which
+    keeps it open and says nothing. "Keep it" closes it at any time, and an
     ask in flight goes on, its outcome on the page as before. While the sheet is
     open, the outcome and progress of its own ask are the sheet's alone.
   - *A press stays under the finger* (`browser.md`, *A press a render can lose*):
@@ -3667,9 +3681,11 @@ The view's limits are skein-ui's (skein's `ui.md`, section 15), derived
 from the domain's: each page's nodes at its windows' most rows, the
 forge's form and its outcome's lines, the kinds' list at its longest,
 and one paragraph per part not read. Their text across a tree,
-`text_bytes`, is the nodes at a node's most text: a lower cap would be
-a guess, which skein-ui's builder turns into a panic on the page past
-it. Their patches are four a node, the most a diff emits (skein's
+`text_bytes`, is the nodes outside a window's turns at a node's most
+text, and each of a window's lines at what its reader may make of its
+turn's bytes (skein's `ui.md`, section 10) and its disclosures' names:
+a lower cap would be a guess, which skein-ui's builder turns into a
+panic on the page past it. Their patches are four a node, the most a diff emits (skein's
 `ui.md`, section 7). skein's text shell counts its worst-case print from these limits,
 and reserves for each print only what that page's tree may print
 (6.8).
@@ -3697,10 +3713,11 @@ nothing to the view's limits.
 
 Both presets receive the dark theme's turn and the CSV chat's turns whole:
 three rows (`rows`, which bounds a turn's messages and a message's blocks
-as well as a page's lines), 512 bytes of field and provisional text (`text`),
-and 2048 bytes of a committed turn's shared text (`turn_text`, which jig's
-transcript shares among its texts, its calls' names, inputs and outcomes,
-and its results' summaries). The CSV chat's first turn fits with its
+as well as a page's lines), 512 bytes of field text (`text`), and 131,072 bytes
+of a turn (`long_text`): the turn being written (jig's thread's `live`), and a
+committed turn's shared text (`turn_text`, which jig's transcript prices its
+calls' names first: jig's `client/domain/client.md`, section 14). A window of
+16 lines holds at most 2,097,152 bytes of turns' text. The CSV chat's first turn fits with its
 `delegate` input of about 1.2 KB, so its card appears at that call (5.7).
 A chat's window holds 16 lines (the domain's chat page), and the page
 reads the page before its oldest while an older one remains and the
@@ -4439,10 +4456,11 @@ acts on it as its document offers (5.11).
   "Temper"; a message's calls folded as a chat's (3.5), in one
   disclosure after its text, named and described as the chat's and
   listing each call as a work line, a `delegate` call's too, since a
-  delegation's card is the chat's (5.7); each result as a work line,
-  where its message has it; "Run N began" and
+  delegation's card is the chat's (5.7); each result as a work line, its
+  first line alone, where its message has it; "Run N began" and
   "Run N ended"; the lines omitted before the window; and a live run's
-  provisional text, as the chat's provisional turn.
+  provisional text, as the chat's provisional turn. A turn's opaque
+  blocks are not drawn, as in a chat.
 - **Its result,** once it has ended: a region "Result" after the
   conversation, its state and its words as a goal's "Result" says them
   (5.8), from the same function (`pages::delegation::facts`):
@@ -6096,6 +6114,15 @@ own tests:
   time, as on any Home (`../draft/to-begin.md`, 2), and the step says
   "Chats can change its code now.". Supplying a creation age or a first CI
   result needs its own protocol decision.
+- **Which decision closed a chat** (3.6, *Closed ends on one line*):
+  `Activity::Decided` carries a revision alone, so the view can't tell the closing's
+  from an earlier decision. Telling them apart takes a new fact of a protocol, the
+  user's. Default: a chat its requester closed hides every "Decision made".
+- **A moved delegate's own tasks, on a close's sheet** (3.6, *The sheet*): jig's
+  impact counts every task below the chat, with no count per delegate, so "N tasks
+  below it are cancelled." takes off the delegates listed and still counts a moved
+  delegate's own tasks, which closing doesn't cancel. A count per delegate is a new
+  fact of a protocol, the user's. Default: they stay in N.
 - **A project's only goal ending while Home is open** (3.5, 5.3): kind 7
   decides the rail and the tab bar; Home reads `Domain::has_goals` to choose
   Goals or Chats. The fact reads the ended group once, so once the live watch

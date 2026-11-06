@@ -121,7 +121,7 @@ pub(super) fn seeded_world_with_receiving(
     let codec = jig_protocol_transcript::Limits {
         smith: smith_transcript::v6::CEILINGS,
         bytes: 1_048_576,
-        turn: client::TurnLimits { messages: 2, blocks: 2, text: 32 },
+        turn: client::TurnLimits { messages: 2, blocks: 2, text: 32, outcome: 32 },
     };
     let identity = people::Identity {
         key: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },

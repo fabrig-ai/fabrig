@@ -1145,6 +1145,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-confirm-acts",
         b"temper-confirm-do",
         b"temper-confirm-choices",
+        b"temper-writing-end",
     ],
     regions: &[b"temper-link"],
 };
@@ -1325,6 +1326,8 @@ pub const WELCOME_CHECK_STOPPED: Style = Style { owner: owner(), token: 457 };
 pub const WELCOME_CHECK_FAILED: Style = Style { owner: owner(), token: 458 };
 pub const WELCOME_CHECK_WHY: Style = Style { owner: owner(), token: 459 };
 
+/// The last word of a turn being written (client/README.md, 3.5).
+pub const WRITING_END: Style = Style { owner: owner(), token: 469 };
 /// A confirmation sheet (client/README.md, 3.6, The sheet).
 pub const CONFIRM: Style = Style { owner: owner(), token: 464 };
 /// A confirmation sheet (client/README.md, 3.6, The sheet).
