@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-05. Where skein's code lags or departs from [testing.md](testing.md).
+2026-11-06. Where skein's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:** 4: the fake machine's entry inodes, groups, modes past
   `0o777`, times and attributes, its subvolume and filesystem answers,
@@ -22,3 +22,11 @@
   `patch_generated.rs` make theirs by hand and remove them after their
   assertions, so a failing test leaves one behind, and a reused pid then
   fails on it; no reason is recorded.
+  6: `smith/benchmarks/tasks/repository/shell-cwd/grader`, outside the
+  workspace, reads `skein_llm_world`, because its first grade takes that world
+  from the frozen workspace's own git source.
+  6: the `debt-24` request of 2026-11-05 has its items end with fewer test
+  lines unless a story is newly held, but skein's stand 410 above that plan's
+  start and `tests/boundary`'s 215 above: forge-connection's crate tests fell
+  8,183, and its machine world with the forge kit rose 9,012; no reason is
+  recorded.

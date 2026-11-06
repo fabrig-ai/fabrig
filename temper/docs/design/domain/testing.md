@@ -2720,6 +2720,11 @@ scripts/proof-live.sh               the live tier
 
 ## 11. Later
 
+- **jig's referee tests, repeated.** `tests/engine/domain/tests/suite/referee.rs`
+  keeps tests of jig's referees that jig's own suites hold:
+  `authority_referee_rejects_a_person_without_a_grant` observes what
+  `rejects_an_observer_routed` does in `jig/tests/people/tests/suite/referee.rs`.
+  Default: they stay, until a debt item names them.
 - **The live pair's bound.** The owned-forge landing pair runs in one
   invocation within profile `live-temper`'s 50 minutes, each story
   bounding itself at 40 (2.7). The profile's figure is set from the
