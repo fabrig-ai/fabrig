@@ -49,9 +49,10 @@ pub use limits::{Limits, valid_hub};
 
 pub use link::{LinkDown, LinkUp, Relayed};
 
-pub use jig_domain_link::{PROGRAM_ENDPOINTS, SourceName, valid_program_endpoints};
-
-pub use jig_domain_link::{
-    Bounds, CountKind, Form, Grant, GrantTable, Hello, Hosting, JobBound, JobKind, Login, LoginMethod, LoginState,
-    ModelBound, Operation as AgentOperation, Phase, Scheme, SignOutResult, SourceFailure,
+use jig_domain_link::{
+    Bounds, CountKind, Form, Grant, Hello, Hosting, JobBound, JobKind, Login, LoginState, Operation, Phase,
+    SignOutResult, SourceFailure, SourceName,
 };
+
+#[cfg(test)]
+use jig_domain_link::{Scheme, valid_program_endpoints};

@@ -7,6 +7,7 @@ use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_core::{self as core, documents, reads, settings};
 use jig_domain_fleet as fleet;
+use jig_domain_link::{Hello, Hosting, Phase};
 use jig_domain_people as people;
 use jig_test_domain as root;
 use skein_lib::{Duration, ReplyTo, Token};
@@ -39,7 +40,7 @@ fn the_document_bridge_starts_once_and_preserves_templates_policies_rules_and_mo
     world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
         worker: 0,
         channel: Token::new(7),
-        hello: fleet::Hello {
+        hello: Hello {
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
@@ -395,7 +396,7 @@ fn changed_charter_instructions_and_effort_prepare_the_next_new_task() {
     world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
         worker: 0,
         channel: Token::new(7),
-        hello: fleet::Hello {
+        hello: Hello {
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
@@ -648,7 +649,7 @@ fn a_changed_run_cap_applies_to_the_next_run_without_capping_its_tasks_total_all
     world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
         worker: 0,
         channel: Token::new(7),
-        hello: fleet::Hello {
+        hello: Hello {
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
@@ -812,7 +813,7 @@ fn ready_host(world: &mut World) {
     world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
         worker: 0,
         channel: Token::new(7),
-        hello: fleet::Hello {
+        hello: Hello {
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
@@ -1628,7 +1629,7 @@ fn a_goal_on_an_older_revision_runs_where_its_version_allows() {
     world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
         worker: 0,
         channel: Token::new(0),
-        hello: fleet::Hello {
+        hello: Hello {
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
@@ -1757,17 +1758,13 @@ fn a_restart_adopts_a_live_run_on_its_old_version() {
     world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
         worker: 0,
         channel: Token::new(7),
-        hello: fleet::Hello {
+        hello: Hello {
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_millis(1),
             slots: 1,
             workstreams: Box::new([]),
-            hosting: Box::new([fleet::Hosting {
-                run: Token::new(goal),
-                attempt: Token::new(attempt),
-                phase: fleet::Phase::Active,
-            }]),
+            hosting: Box::new([Hosting { run: Token::new(goal), attempt: Token::new(attempt), phase: Phase::Active }]),
         },
     })));
     world.finish_restore_pages();
@@ -1996,7 +1993,7 @@ fn a_held_versions_documents_show_its_charter_and_nothing_once_released() {
     world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
         worker: 0,
         channel: Token::new(8),
-        hello: fleet::Hello {
+        hello: Hello {
             jobs: Box::default(),
             bounds: jig_test_profile::fixtures::bounds(),
             stop_bound: Duration::from_secs(3600),
@@ -2219,7 +2216,7 @@ fn checks_hello(world: &mut World, channel: u64) {
     world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
         worker: 0,
         channel: Token::new(channel),
-        hello: fleet::Hello {
+        hello: Hello {
             jobs: Box::default(),
             bounds,
             stop_bound: Duration::from_millis(1),

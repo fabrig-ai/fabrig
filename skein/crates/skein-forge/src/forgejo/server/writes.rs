@@ -367,10 +367,6 @@ pub struct BodyDecoder {
     pub(super) terminal: bool,
     pub(super) committer: crate::forgejo::request::Author,
 }
-#[must_use]
-pub fn body_first(_decoder: &BodyDecoder) -> tokenizer::Request {
-    tokenizer::Request::Next
-}
 pub fn body(decoder: &mut BodyDecoder, limits: &Limits, event: &tokenizer::Event) -> BodyStep {
     if decoder.terminal {
         return BodyStep::Malformed(Malformed::Shape { field: b"" });

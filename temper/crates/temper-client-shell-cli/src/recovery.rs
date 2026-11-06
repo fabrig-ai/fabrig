@@ -54,6 +54,10 @@ impl Recovery {
             shell.down(request);
         }
     }
+    // Treat queued and in-flight writes alike until the store is quiet (client/tools.md, 8.2).
+    pub(crate) fn saving(&self) -> bool {
+        self.writing || !self.writes.is_empty()
+    }
     pub(crate) fn admits(&self) -> bool {
         self.ready && !self.writing && self.writes.is_empty()
     }

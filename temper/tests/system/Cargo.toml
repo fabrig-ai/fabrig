@@ -34,6 +34,7 @@ temper-engine-domain.workspace = true
 temper-engine-domain-world = { path = "../engine/domain" }
 jig-domain-people.workspace = true
 jig-domain-host.workspace = true
+jig-domain-link.workspace = true
 jig-domain-accounts.workspace = true
 jig-domain-core.workspace = true
 jig-domain-notes.workspace = true

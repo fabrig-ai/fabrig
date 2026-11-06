@@ -1,5 +1,6 @@
 //! Checked agent metadata and effect-free programs-directory preflight (configuration.md, 5).
 use super::json::{self, Json};
+use jig_domain_link::{Bounds, ModelBound};
 use std::{
     os::unix::ffi::OsStrExt,
     path::{Path, PathBuf},
@@ -27,11 +28,7 @@ pub(crate) fn read(configuration: &Path) -> Result<Agent, String> {
     let mut models = Vec::new();
     for endpoint in &configuration.declarations.endpoints {
         for model in &endpoint.models {
-            models.push(jig_domain_host::ModelBound {
-                name: model.name.clone(),
-                window: model.window,
-                output: model.output,
-            });
+            models.push(ModelBound { name: model.name.clone(), window: model.window, output: model.output });
         }
     }
     let policy = configuration.profile.policy;
@@ -57,7 +54,7 @@ pub(crate) fn read(configuration: &Path) -> Result<Agent, String> {
         endpoints: configuration.service.channel_endpoints,
         limits: protocol,
         host_limits,
-        bounds: jig_domain_host::Bounds {
+        bounds: Bounds {
             program_endpoints: configuration.program_endpoints.iter().copied().collect::<Vec<_>>().into_boxed_slice(),
             models: models.into_boxed_slice(),
             turns: policy.max_turns,

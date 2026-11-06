@@ -1,6 +1,7 @@
 //! Smith payloads are translated in the worker layer (jig/docs/design/protocol/channel.md, 6.1 and 6.4).
 use alloc::boxed::Box;
 use jig_domain_host as hub;
+use jig_domain_link::{CountKind, Form, Grant, Scheme};
 use skein_lib::{List, Reader, Token, Writer};
 use smith_host_domain as smith;
 use smith_host_protocol::Limits;
@@ -120,16 +121,16 @@ pub fn activity(body: &[u8], limits: &Limits) -> Option<hub::AgentActivity> {
         return None;
     }
     let kind = match fact.kind() {
-        smith_channel::FactKind::Admitted => hub::CountKind::Admitted,
-        smith_channel::FactKind::Ended => hub::CountKind::Ended,
-        smith_channel::FactKind::LlmStarted => hub::CountKind::LlmStarted,
-        smith_channel::FactKind::LlmRetried => hub::CountKind::LlmRetried,
-        smith_channel::FactKind::LlmFinished => hub::CountKind::LlmFinished,
-        smith_channel::FactKind::ToolStarted => hub::CountKind::ToolStarted,
-        smith_channel::FactKind::ToolFinished => hub::CountKind::ToolFinished,
-        smith_channel::FactKind::CheckStarted => hub::CountKind::CheckStarted,
-        smith_channel::FactKind::CheckFinished => hub::CountKind::CheckFinished,
-        smith_channel::FactKind::TextArrived => hub::CountKind::TextArrived,
+        smith_channel::FactKind::Admitted => CountKind::Admitted,
+        smith_channel::FactKind::Ended => CountKind::Ended,
+        smith_channel::FactKind::LlmStarted => CountKind::LlmStarted,
+        smith_channel::FactKind::LlmRetried => CountKind::LlmRetried,
+        smith_channel::FactKind::LlmFinished => CountKind::LlmFinished,
+        smith_channel::FactKind::ToolStarted => CountKind::ToolStarted,
+        smith_channel::FactKind::ToolFinished => CountKind::ToolFinished,
+        smith_channel::FactKind::CheckStarted => CountKind::CheckStarted,
+        smith_channel::FactKind::CheckFinished => CountKind::CheckFinished,
+        smith_channel::FactKind::TextArrived => CountKind::TextArrived,
     };
     Some(hub::AgentActivity::Count { kind, elapsed: fact.elapsed(), count: fact.count() })
 }
@@ -285,12 +286,12 @@ pub fn process(event: smith_host_protocol::ProcessEvent) -> Option<Processed> {
     };
     Some(Processed::Process(Box::new(event)))
 }
-fn grant(value: hub::Grant) -> Option<smith::Grant> {
+fn grant(value: Grant) -> Option<smith::Grant> {
     let form = match value.form {
-        hub::Form::Credential(hub::Scheme::Bearer) => smith::Form::Credential(smith::Scheme::Bearer),
-        hub::Form::Credential(hub::Scheme::Key) => smith::Form::Credential(smith::Scheme::Key),
-        hub::Form::Program(name) => smith::Form::Program(smith::SourceName::new(name.as_bytes())?),
-        hub::Form::Application => return None,
+        Form::Credential(Scheme::Bearer) => smith::Form::Credential(smith::Scheme::Bearer),
+        Form::Credential(Scheme::Key) => smith::Form::Credential(smith::Scheme::Key),
+        Form::Program(name) => smith::Form::Program(smith::SourceName::new(name.as_bytes())?),
+        Form::Application => return None,
     };
     Some(smith::Grant { account: value.account, generation: value.generation, valid: value.valid, form })
 }

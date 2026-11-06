@@ -249,6 +249,7 @@ mod records {
 
 mod down_records {
     use jig_domain_host::LinkDown;
+    use jig_domain_link::{Form, Scheme};
     use jig_engine_workers_world::{World, fixtures};
     use jig_protocol_engine_workers::{Event, Request};
     use skein_lib::Token;
@@ -299,7 +300,7 @@ mod down_records {
             down: LinkDown::Grant {
                 run: Token::new(7),
                 attempt: Token::new(2),
-                grant: fixtures::grant(jig_domain_host::Form::Credential(jig_domain_host::Scheme::Bearer)),
+                grant: fixtures::grant(Form::Credential(Scheme::Bearer)),
             },
             parts: Box::new([]),
             values: Box::new([fixtures::values()[0].take()]),

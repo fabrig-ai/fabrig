@@ -1,76 +1,43 @@
 //! Private sign-in from an absent root, cut before every submission (io.md, 8).
 use super::*;
 use crate::private::FileSystem;
-use crate::world::{Client as Recovery, Process as RecoveryProcess};
-use skein_io::kernel::{Complete, Fd, Op, Submit};
-use skein_lib::Token;
-use skein_world::{Cut, Inherited, StartupRoot};
+use crate::restart::Restartable;
+use skein_io::kernel::Fd;
+use skein_world::{Cut, Delegate, Inherited, StartupRoot};
 
 #[global_allocator]
 static HEAP: skein_heap::Counting = skein_heap::Counting;
-const SIGNAL: Token = Token::new(0x7fff_ffff_ffff_ffff);
+type Process = Restartable<CutHost>;
 
-enum Inner {
-    SignIn(super::Process),
-    Recovery(RecoveryProcess),
-}
-impl Inner {
-    fn host(&mut self) -> &mut dyn Host {
-        match self {
-            Self::SignIn(process) => process,
-            Self::Recovery(process) => process,
-        }
-    }
-    fn view(&self) -> &dyn Host {
-        match self {
-            Self::SignIn(process) => process,
-            Self::Recovery(process) => process,
-        }
-    }
-}
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum Signal {
-    Held,
-    Closing,
-    Closed,
-}
-
-struct Process {
-    inner: Inner,
+struct CutHost {
+    process: super::Process,
     root: Option<Fd>,
     start_sign_in: bool,
-    signal: Fd,
-    signal_state: Signal,
     ending: bool,
-    issued: u32,
     opened_at: Option<u32>,
     stored_at: Option<u32>,
-    completions: Queue<Complete>,
-    submissions: Queue<Submit>,
 }
-impl Process {
-    fn new(inner: Inner, inherited: &Inherited) -> Self {
-        Self {
-            inner,
-            root: inherited.roots.first().map(|(_, fd)| *fd),
-            start_sign_in: false,
-            signal: inherited.signal,
-            signal_state: Signal::Held,
-            ending: false,
-            issued: 0,
-            opened_at: None,
-            stored_at: None,
-            completions: Queue::with_capacity(ROOM),
-            submissions: Queue::with_capacity(ROOM),
-        }
+impl CutHost {
+    fn wrap(process: super::Process, inherited: &Inherited) -> Process {
+        Restartable::new(
+            Self {
+                process,
+                root: inherited.roots.first().map(|(_, fd)| *fd),
+                start_sign_in: false,
+                ending: false,
+                opened_at: None,
+                stored_at: None,
+            },
+            inherited.signal,
+            true,
+            Self::prepare,
+            Self::mark,
+        )
     }
-}
-impl Host for Process {
-    fn iterate(&mut self, now: Time, wall: Wall) {
+    fn prepare(&mut self) {
         if self.start_sign_in {
             self.start_sign_in = false;
-            let mut client = Client::with_limits(Story::Confidential, false, &limits(), 8);
+            let mut client = super::client_with_limits(Story::Confidential, false, &limits(), 8);
             client.file_driver = Some(skein_world::files::Driver::new(
                 self.root.expect("owner startup root"),
                 4,
@@ -78,62 +45,31 @@ impl Host for Process {
                 client.limits.file_stall,
                 1234,
             ));
-            self.inner = Inner::SignIn(super::Process::Client(Box::new(client)));
+            self.process = super::Process::Client(Box::new(client));
         }
-        while let Some(complete) = self.completions.pop() {
-            if complete.op == SIGNAL {
-                assert!(complete.result.is_ok());
-                self.signal_state = Signal::Closed;
-            } else {
-                self.inner.host().completions().push(complete);
+    }
+    fn mark(&mut self, issued: u32) {
+        if let super::Process::Client(client) = &self.process
+            && let Some(owner) = &client.sign_in
+        {
+            if owner.opened_private.is_some() && self.opened_at.is_none() {
+                self.opened_at = Some(issued);
+            }
+            if owner.stored_private.is_some() && self.stored_at.is_none() {
+                self.stored_at = Some(issued);
             }
         }
-        self.inner.host().iterate(now, wall);
-        if let Inner::SignIn(super::Process::Client(client)) = &self.inner {
-            if client.opened_private.is_some() && self.opened_at.is_none() {
-                self.opened_at = Some(self.issued);
-            }
-            if client.stored_private.is_some() && self.stored_at.is_none() {
-                self.stored_at = Some(self.issued);
-            }
-        }
-        while let Some(submit) = self.inner.host().submissions().pop() {
-            assert_ne!(submit.op, SIGNAL, "wrapper namespace");
-            self.submissions.push(submit);
-        }
-        if self.inner.view().is_empty() && self.signal_state == Signal::Held && !self.inner.view().work_pending(now) {
-            self.signal_state = Signal::Closing;
-            self.submissions.push(Submit { op: SIGNAL, kind: Op::Close { fd: self.signal } });
-        }
-        self.issued += self.submissions.len();
-    }
-    fn completions(&mut self) -> &mut Queue<Complete> {
-        &mut self.completions
-    }
-    fn submissions(&mut self) -> &mut Queue<Submit> {
-        &mut self.submissions
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        !self.completions.is_empty()
-            || self.inner.view().work_pending(now)
-            || (self.inner.view().is_empty() && self.signal_state == Signal::Held)
-    }
-    fn next_mechanism_deadline(&self) -> Option<Time> {
-        self.inner.view().next_mechanism_deadline()
-    }
-    fn next_policy_deadline(&self) -> Option<Time> {
-        self.inner.view().next_policy_deadline()
-    }
-    fn is_empty(&self) -> bool {
-        self.signal_state == Signal::Closed
-            && self.inner.view().is_empty()
-            && self.completions.is_empty()
-            && self.submissions.is_empty()
-    }
-    fn operations(&self) -> u32 {
-        self.inner.view().operations() + 1
     }
 }
+impl Delegate for CutHost {
+    fn host(&self) -> &dyn Host {
+        &self.process
+    }
+    fn host_mut(&mut self) -> &mut dyn Host {
+        &mut self.process
+    }
+}
+
 fn limits() -> accounts::Limits {
     let mut limits = crate::world::limits();
     limits.accounts = 1;
@@ -160,23 +96,23 @@ fn limits() -> accounts::Limits {
     limits.client.document.tokens = 32;
     limits
 }
-fn recovery(root: Fd) -> Recovery {
+fn recovery(root: Fd) -> Client {
     let mut profile = limits();
     profile.refresh_lead = Duration::ZERO;
-    let mut client = Recovery::with_limits(crate::world::Story::NotKept, Transport::Plaintext, &profile, 8);
+    let mut client = Client::with_limits(crate::world::Story::NotKept, Transport::Plaintext, &profile, 8);
     client.file_driver =
         Some(skein_world::files::Driver::new(root, 3, profile.client.document.record_bytes, profile.file_stall, 1234));
     client
 }
 fn issuer(inherited: &Inherited) -> Process {
-    Process::new(Inner::SignIn(super::issuer::with_access_token(Story::Confidential, b"new")), inherited)
+    CutHost::wrap(super::issuer::with_access_token(Story::Confidential, b"new"), inherited)
 }
 fn browser(inherited: &Inherited) -> Process {
-    Process::new(Inner::SignIn(super::Process::Browser(Box::new(Browser::new(Story::Confidential)))), inherited)
+    CutHost::wrap(super::Process::Browser(Box::new(Browser::new(Story::Confidential))), inherited)
 }
 fn owner(inherited: &Inherited) -> Process {
     let root = inherited.roots.first().expect("owner startup root").1;
-    Process::new(Inner::Recovery(RecoveryProcess::Client(Box::new(recovery(root)))), inherited)
+    CutHost::wrap(super::Process::Client(Box::new(recovery(root))), inherited)
 }
 
 struct Judge {
@@ -188,83 +124,58 @@ struct Judge {
 impl Referee<Process> for Judge {
     fn act(&mut self, _now: Time, procs: &mut [Process]) {
         if !self.original {
-            procs[1].start_sign_in = true;
+            procs[1].inner.start_sign_in = true;
             self.original = true;
         }
-        let address = match &procs[0].inner {
-            Inner::SignIn(super::Process::Issuer(peer)) => peer.address(),
-            Inner::SignIn(super::Process::Client(_) | super::Process::Browser(_)) | Inner::Recovery(_) => {
-                unreachable!("issuer slot")
-            }
-        };
-        if let Inner::Recovery(RecoveryProcess::Client(client)) = &mut procs[1].inner {
-            client.address = address;
-        }
-        if matches!(procs[1].inner, Inner::SignIn(_)) {
+        let address = procs[0].inner.process.issuer().expect("issuer slot").address();
+        procs[1].inner.process.client_mut().expect("owner slot").address = address;
+        if procs[1].inner.process.client().is_some_and(|client| client.sign_in.is_some()) {
             let mut visit = [0; 1024];
             let mut visit_len = 0;
             let mut redirect = [0; 1024];
             let mut redirect_len = 0;
-            if let Inner::SignIn(super::Process::Browser(browser)) = &procs[2].inner
-                && let Some(uri) = &browser.redirect
-            {
+            let browser = procs[2].inner.process.browser().expect("browser slot");
+            if let Some(uri) = &browser.redirect {
                 redirect_len = uri.len();
                 redirect[..redirect_len].copy_from_slice(uri);
             }
-            if let Inner::SignIn(super::Process::Client(client)) = &mut procs[1].inner {
-                client.address = address;
-                if let Some(url) = client.visits.first() {
-                    visit_len = url.len();
-                    visit[..visit_len].copy_from_slice(url);
-                }
-                if !self.sign_in.redirected && redirect_len > 0 {
-                    client.redirected[..redirect_len].copy_from_slice(&redirect[..redirect_len]);
-                    client.redirected_len = redirect_len;
-                    self.sign_in.redirected = true;
-                }
+            let client = procs[1].inner.process.client_mut().expect("owner slot");
+            if let Some(url) = super::owner(client).visits.first() {
+                visit_len = url.len();
+                visit[..visit_len].copy_from_slice(url);
+            }
+            if !self.sign_in.redirected && redirect_len > 0 {
+                super::owner_mut(client).redirected[..redirect_len].copy_from_slice(&redirect[..redirect_len]);
+                super::owner_mut(client).redirected_len = redirect_len;
+                self.sign_in.redirected = true;
             }
             if self.sign_in.delivered == 0
                 && visit_len > 0
-                && let Inner::SignIn(super::Process::Browser(browser)) = &mut procs[2].inner
+                && let super::Process::Browser(browser) = &mut procs[2].inner.process
             {
                 browser.inbox[..visit_len].copy_from_slice(&visit[..visit_len]);
                 browser.inbox_len = visit_len;
                 self.sign_in.delivered = 1;
             }
         }
-        if procs[1].inner.view().is_empty() && procs[2].inner.view().is_empty() && !procs[0].ending {
-            if let Inner::SignIn(super::Process::Issuer(peer)) = &mut procs[0].inner {
-                peer.shutdown();
-            }
-            procs[0].ending = true;
+        if procs[1].inner.process.is_empty() && procs[2].inner.process.is_empty() && !procs[0].inner.ending {
+            procs[0].inner.process.issuer_mut().expect("issuer slot").shutdown();
+            procs[0].inner.ending = true;
         }
     }
     fn observe(&mut self, now: Time, procs: &[Process]) {
         self.passed = procs.iter().all(Host::is_empty);
-        let address_ready = match &procs[0].inner {
-            Inner::SignIn(super::Process::Issuer(peer)) => peer.address().is_some(),
-            Inner::SignIn(super::Process::Client(_) | super::Process::Browser(_)) | Inner::Recovery(_) => {
-                unreachable!("issuer slot")
-            }
+        let address_ready = procs[0].inner.process.issuer().expect("issuer slot").address().is_some();
+        let client = procs[1].inner.process.client().expect("owner slot");
+        let owner_ready = if let Some(owner) = &client.sign_in {
+            (client.component.is_none() && address_ready) || (!owner.visits.is_empty() && self.sign_in.delivered == 0)
+        } else {
+            client.unstarted() && address_ready
         };
-        let owner_ready = match &procs[1].inner {
-            Inner::SignIn(super::Process::Client(client)) => {
-                (client.component.is_none() && address_ready)
-                    || (!client.visits.is_empty() && self.sign_in.delivered == 0)
-            }
-            Inner::Recovery(RecoveryProcess::Client(client)) => client.unstarted() && address_ready,
-            Inner::SignIn(super::Process::Issuer(_) | super::Process::Browser(_))
-            | Inner::Recovery(RecoveryProcess::Issuer(_)) => unreachable!("owner slot"),
-        };
-        let redirect_ready = match &procs[2].inner {
-            Inner::SignIn(super::Process::Browser(browser)) => {
-                browser.redirect.is_some() && !self.sign_in.redirected && matches!(procs[1].inner, Inner::SignIn(_))
-            }
-            Inner::SignIn(super::Process::Client(_) | super::Process::Issuer(_)) | Inner::Recovery(_) => {
-                unreachable!("browser slot")
-            }
-        };
-        let shutdown_ready = procs[1].inner.view().is_empty() && procs[2].inner.view().is_empty() && !procs[0].ending;
+        let browser = procs[2].inner.process.browser().expect("browser slot");
+        let redirect_ready = browser.redirect.is_some() && !self.sign_in.redirected && client.sign_in.is_some();
+        let shutdown_ready =
+            procs[1].inner.process.is_empty() && procs[2].inner.process.is_empty() && !procs[0].inner.ending;
         self.wake = (owner_ready || redirect_ready || shutdown_ready).then_some(now);
     }
     fn next_deadline(&self) -> Option<Time> {
@@ -306,8 +217,8 @@ fn world() -> World<Process, Judge, FileSystem> {
 #[test]
 fn an_accounts_private_root_starting_absent_survives_every_acknowledged_power_loss_cut() {
     let mut uncut = world().run();
-    let opened = uncut.procs[1].opened_at.expect("private open answered");
-    let stored = uncut.procs[1].stored_at.expect("private store answered");
+    let opened = uncut.procs[1].inner.opened_at.expect("private open answered");
+    let stored = uncut.procs[1].inner.stored_at.expect("private store answered");
     let points: Vec<_> = uncut
         .trace
         .iter()

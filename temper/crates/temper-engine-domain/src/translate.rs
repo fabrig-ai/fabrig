@@ -5,6 +5,7 @@ use crate::limits::Limits;
 use crate::route::{LandingRule, host_route};
 use crate::{CallAnswer, Decision};
 use alloc::boxed::Box;
+use jig_domain_link::JobBound;
 use jig_domain_notes as notes;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Map, ReplyTo};
@@ -42,7 +43,7 @@ pub struct Config {
 /// What the root keeps of its configuration once its children hold theirs.
 #[derive(Debug)]
 pub(crate) struct RootConfig {
-    pub(crate) merge_kind: Option<jig_domain_host::JobBound>,
+    pub(crate) merge_kind: Option<JobBound>,
     pub(crate) forge_connector: u16,
     pub(crate) landings: Map<u32, ProjectLanding>,
 }

@@ -1,5 +1,6 @@
 //! Declared models narrow placement without refusing a host's hello (engine.md, 8).
-use jig_domain_fleet::{self as fleet, AgentShortfall, Answer, Event, Hello, HelloRefusal, HostKind, Kinds, Request};
+use jig_domain_fleet::{self as fleet, AgentShortfall, Answer, Event, HelloRefusal, HostKind, Kinds, Request};
+use jig_domain_link::{Bounds, Hello};
 use jig_fleet_world::fixtures::{MODEL_CHARTER, MODEL_OUTPUT, MODEL_WINDOW, OTHER_CHARTER, model_bounds, model_needs};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 
@@ -79,7 +80,7 @@ impl Fleet {
     }
 }
 
-fn hello(bounds: fleet::Bounds) -> Hello {
+fn hello(bounds: Bounds) -> Hello {
     Hello {
         jobs: Box::default(),
         bounds,

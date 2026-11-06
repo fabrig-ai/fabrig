@@ -1,6 +1,7 @@
 //! Calls answered at decode, as errors or successes, leave no commit and
 //! no record (domain/root.md, 5.2; protocol/documentation.md, 5).
 use jig_domain_host as host;
+use jig_domain_link::ModelBound;
 use jig_domain_tasks as tasks;
 use skein_lib::Token;
 use temper_engine_domain::{self as engine, Delivery};
@@ -426,8 +427,7 @@ fn producer_refusal_world() -> (temper_engine_domain_world::forge_routes::World,
     };
     worker.bounds = jig_test_profile::fixtures::bounds();
     worker.bounds.time = skein_lib::Duration::from_secs(28_800);
-    worker.bounds.models =
-        Box::new([host::ModelBound { name: model.name, window: model.window, output: model.output }]);
+    worker.bounds.models = Box::new([ModelBound { name: model.name, window: model.window, output: model.output }]);
     world.send(hello);
     let ask = world.chat(1, b"coordinate designers and close out the plan");
     world.send(engine::Event::Party(engine::PartyInput::Ask {
@@ -666,7 +666,7 @@ fn reference_person_world(missing: &str) -> (PersonWorld, engine::Assignment) {
     hello.bounds = jig_test_profile::fixtures::bounds();
     hello.bounds.time = skein_lib::Duration::from_secs(28_800);
     let model = crate::stock::box_model();
-    hello.bounds.models = Box::new([host::ModelBound { name: model.name, window: model.window, output: model.output }]);
+    hello.bounds.models = Box::new([ModelBound { name: model.name, window: model.window, output: model.output }]);
     world.send(event);
     let jig_domain_people::Ask::Create { project, mut batch } = world.chat(1, b"Coordinate a person-only choice")
     else {

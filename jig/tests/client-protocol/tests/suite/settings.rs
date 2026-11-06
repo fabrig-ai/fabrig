@@ -52,6 +52,60 @@ fn settings_requests_reach_the_core_and_keep_its_stale_fact() {
     let w::Refusal::Stale(value) = refused.refusal() else { panic!("stale fact") };
     assert_eq!(value.newest(), 5);
 }
+
+#[test]
+fn a_settings_change_naming_an_effort_no_model_offered_is_answered_refused() {
+    use jig_client::{Answered, Ask, Asker, Handle, Key, Latest, Outcome, Watchable, contract as c};
+    use jig_client_protocol_world::{client::Story, fixtures as world};
+    use skein_lib::{Duration, List};
+
+    const WAIT: Duration = Duration::from_secs(1);
+    let mut story = Story::live_batch(world::SEED, true);
+    let me = Handle { asker: Asker::JIG, number: 1 };
+    let key = Key { asker: Asker::JIG, number: 2 };
+    story.watch(me, Watchable::Jig(c::Subject::Me));
+    assert!(story.run_until(|s| s.client.document(me).is_some_and(|d| d.latest.is_some()), WAIT));
+    let Some(Latest::Jig(c::Delivery::Me(document))) = story.client.document(me).expect("me watch").latest else {
+        panic!("me document")
+    };
+    let project = document.projects.iter().find(|p| p.project == world::PROJECT).expect("project");
+    let mut template = project.templates.get(0).expect("template").clone();
+    let model = project.models.get(0).expect("configured model").name.clone();
+    // The deployment fixture offers only low and high efforts.
+    let effort = jig_client_kit::stories::text(b"unoffered");
+    template.llm = Some(c::LlmChoice {
+        account: None,
+        main: c::ModelEffort { model: model.clone(), effort: Some(effort) },
+        subagents: List::with_capacity(0),
+    });
+    let item = c::SettingItem {
+        setting: c::Setting::Template(c::SettingNumber { number: template.number }),
+        edit: c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Template(Box::new(template)) }),
+    };
+    let exchanges = story.exchanges();
+    story.send(
+        key,
+        Ask::Jig(Box::new(c::Ask::ChangeSettings(c::ChangeSettings {
+            against: 1,
+            items: List::from_boxed(Box::new([item])),
+            running: c::Running::Stays,
+        }))),
+    );
+    assert!(story.run_until(|s| !s.answered(key).is_empty(), WAIT));
+    assert_eq!(
+        story.answered(key),
+        vec![Outcome::Answered(Answered::Jig(c::Answer::Refused {
+            at: None,
+            refusal: c::Refusal::Llm { model, why: c::LlmWhy::Effort },
+        }))]
+    );
+    assert!(story.client.pending(key).is_none());
+    assert!(!story.run_until(|_| false, WAIT));
+    assert_eq!(story.exchanges(), exchanges + 1);
+    assert_eq!(story.answered(key).len(), 1);
+    assert!(story.client.pending(key).is_none());
+}
+
 #[test]
 fn settings_reads_and_watch_reach_the_core() {
     let limits = fixtures::limits().wire;

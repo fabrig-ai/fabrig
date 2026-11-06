@@ -3,6 +3,7 @@
 use crate::{Component, Event, Limits, Request, Worker};
 use alloc::boxed::Box;
 use jig_domain_host as hub;
+use jig_domain_link::Grant;
 use jig_protocol_config::{self as config, Path, Problems, What};
 use jig_protocol_worker_wire::Part;
 use skein_channel::{Lower, LowerEvent};
@@ -25,7 +26,7 @@ pub enum Closing {
 /// What the channel hands its root, in the component's order; the owner routes each before the next.
 #[derive(Debug)]
 pub enum Output {
-    Hello { channel: Token, worker: u32, hello: hub::Hello },
+    Hello { channel: Token, worker: u32, hello: jig_domain_link::Hello },
     Up { channel: Token, up: hub::LinkUp, parts: Box<[Part]> },
     Lost { channel: Token },
 }
@@ -313,7 +314,7 @@ fn listeners_open(listeners: &List<(Token, io::Addr, Option<Token>)>) -> bool {
 
 /// The grants a down carries, whose values the owner holds, in order.
 #[must_use]
-pub fn grants(down: &hub::LinkDown) -> &[hub::Grant] {
+pub fn grants(down: &hub::LinkDown) -> &[Grant] {
     match down {
         hub::LinkDown::AssignJob { job } => &job.grants,
         hub::LinkDown::Assign { assignment } => &assignment.assignment.grants,

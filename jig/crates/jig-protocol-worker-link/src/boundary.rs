@@ -7,7 +7,7 @@ use skein_lib::{Secret, Time, Token};
 #[derive(Debug)]
 pub enum Event {
     SourceFault,
-    Hello { hello: host::Hello },
+    Hello { hello: jig_domain_link::Hello },
     Up { up: host::LinkUp, parts: Box<[Part]> },
     Dialled { connection: Token },
     Unreachable,

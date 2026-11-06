@@ -2,6 +2,7 @@
 use super::fixtures;
 use crate::{Component, Unusable, translate};
 use alloc::boxed::Box;
+use jig_client_domain::contract as c;
 use jig_client_protocol_wire::v19 as w;
 use jig_domain_people as p;
 use jig_domain_tasks as t;
@@ -226,6 +227,114 @@ fn a_choice_naming_a_model_or_an_effort_configuration_lacks_is_refused_by_its_na
     assert_eq!(refused(&compound), (Some(1), named(b"hasty", w::LlmWhy::Unconfigured)));
     let configured = create(fixtures::careful_and_quick(&l));
     assert!(translate::llm::refused(&configured, &models, &l).unwrap().is_none());
+}
+
+fn text(value: &[u8]) -> c::Text {
+    c::Text::new(value.into(), fixtures::wire().model_effort_model).unwrap()
+}
+fn settings_template(main: c::ModelEffort, subagents: skein_lib::List<c::ModelEffort>) -> c::SettingItem {
+    let mut item = jig_client_test_records::settings::settings_change().items.get(1).unwrap().clone();
+    let c::SettingEdit::Set(set) = &mut item.edit else { panic!("set template") };
+    let c::SettingValue::Template(template) = &mut set.value else { panic!("template") };
+    template.llm = Some(c::LlmChoice { account: None, main, subagents });
+    item
+}
+fn settings_charter(model: &[u8], effort: &[u8], alternative: bool) -> c::SettingItem {
+    let mut item = jig_client_test_records::settings::settings_change().items.get(0).unwrap().clone();
+    let c::SettingEdit::Set(set) = &mut item.edit else { panic!("set charter") };
+    let c::SettingValue::Charter(charter) = &mut set.value else { panic!("charter") };
+    charter.model.name = text(b"careful");
+    charter.model.effort = Some(text(b"high"));
+    charter.alternatives = skein_lib::List::with_capacity(2);
+    let mut bad = charter.model.clone();
+    bad.name = text(model);
+    bad.effort = Some(text(effort));
+    if alternative {
+        charter.alternatives.push(charter.model.clone()).unwrap();
+        charter.alternatives.push(bad).unwrap();
+    } else {
+        charter.model = bad;
+    }
+    item
+}
+fn settings_requests(items: Box<[c::SettingItem]>) -> [w::Ask; 2] {
+    let limits = fixtures::wire();
+    let change =
+        c::ChangeSettings { against: 5, items: skein_lib::List::from_boxed(items), running: c::Running::Stays };
+    let change = jig_client_protocol_link::translate::settings::wire_change_settings(&change, &limits).unwrap();
+    let proposal = w::Propose::new(
+        &limits,
+        w::ProposeParts {
+            project: 0,
+            action: w::ProposeAction::Settings(
+                w::ProposeSettings::new(&limits, w::ProposeSettingsParts { against: 5, items: change.items().into() })
+                    .unwrap(),
+            ),
+            reason: b"review settings".as_slice().into(),
+        },
+    )
+    .unwrap();
+    [w::Ask::ChangeSettings(change), w::Ask::Propose(proposal)]
+}
+
+#[test]
+fn every_settings_model_and_effort_is_refused_by_its_name() {
+    use skein_lib::List;
+    let good = c::ModelEffort { model: text(b"careful"), effort: Some(text(b"high")) };
+    let bad = c::ModelEffort { model: text(b"careful"), effort: Some(text(b"unoffered")) };
+    let unknown = c::ModelEffort { model: text(b"absent"), effort: Some(text(b"unoffered")) };
+    let cases: [(_, Box<[c::SettingItem]>, _, _); 7] = [
+        (
+            "template main",
+            Box::new([settings_template(bad.clone(), List::with_capacity(0))]),
+            b"careful".as_slice(),
+            w::LlmWhy::Effort,
+        ),
+        (
+            "template subagent",
+            Box::new([settings_template(good.clone(), List::from_boxed(Box::new([good.clone(), bad])))]),
+            b"careful".as_slice(),
+            w::LlmWhy::Effort,
+        ),
+        (
+            "charter model",
+            Box::new([settings_charter(b"careful", b"unoffered", false)]),
+            b"careful".as_slice(),
+            w::LlmWhy::Effort,
+        ),
+        (
+            "later charter alternative",
+            Box::new([settings_charter(b"careful", b"unoffered", true)]),
+            b"careful".as_slice(),
+            w::LlmWhy::Effort,
+        ),
+        (
+            "later item",
+            Box::new([
+                settings_template(good, List::with_capacity(0)),
+                settings_charter(b"quick", b"unoffered", false),
+            ]),
+            b"quick".as_slice(),
+            w::LlmWhy::Effort,
+        ),
+        (
+            "unconfigured template model with effort",
+            Box::new([settings_template(unknown, List::with_capacity(0))]),
+            b"absent".as_slice(),
+            w::LlmWhy::Unconfigured,
+        ),
+        (
+            "unconfigured charter model with effort",
+            Box::new([settings_charter(b"absent", b"unoffered", false)]),
+            b"absent".as_slice(),
+            w::LlmWhy::Unconfigured,
+        ),
+    ];
+    for (place, items, model, why) in cases {
+        for ask in settings_requests(items) {
+            assert_eq!(refused(&ask), (None, named(model, why.clone())), "{place}: {ask:?}");
+        }
+    }
 }
 
 #[test]

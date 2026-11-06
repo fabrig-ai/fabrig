@@ -12,6 +12,7 @@ doctest = false
 
 [dependencies]
 jig-domain-accounts.workspace = true
+jig-domain-link.workspace = true
 jig-test-profile.workspace = true
 jig-protocol-config.workspace = true
 jig-client.workspace = true

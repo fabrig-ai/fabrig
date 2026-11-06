@@ -1,0 +1,11 @@
+# Spot review of debt-27 (2026-11-06, merge df65d9d496)
+
+Read-only reviewer. Ran a rustc comparison of the old UTF-8 loop against `from_utf8` (4.3 billion inputs, 0 disagreements) and scripts over `git show`; no cargo builds or worlds. Line numbers are at the merge.
+
+Verdict: no correctness bug, nothing deleted was needed; D004 didn't weaken validation, D042 flattened no platform difference. The bookkeeping is the problem.
+
+1. skein D040 was deleted unpaid: `client::first` (`skein-forge/src/forgejo/client.rs:235`), `delivery::first` (`forgejo/client/delivery.rs:137`), `body_first` (`forgejo/server/writes.rs:371`) survive and just return `tokenizer::Request::Next`; callers are tests (`forgejo/tests/fixtures.rs:39,57`, `skein/tests/forge/dialect/tests/common/forgejo.rs:81,565`) and the fake's `skein-fake-forge-forgejo/src/server.rs:498`. Inline and delete them. `admit_policy` (`skein-llm-connection/src/component.rs:133`): only a test passes `Some`.
+2. jig D043's text is false: it says 2 sites remain. Two production sites also remain, `jig-client-view/src/state/fields.rs:94`, `state/store.rs:51`, invisible to the measure's `[^)]*`. Name all four, and use `u64::try_from\(.*\.len\(\)`. They're in `jig-client-view`: leave the code while fabrig/ui holds it.
+3. smith D020 closed with hand-set tags left: `smith-host-protocol/src/process.rs:86` `agent.raw() | (1_u64 << 63_u32)`, `smith-local-service/src/host_io/delivery.rs:247`, `service/program_check/binding.rs:53`. Convert or record exemptions; `process.rs` first needs agent tokens below 2^60 (unverified). If they stay, restore the item narrowed.
+4. skein D007 keeps the name by alias: `skein-fake-forge-forgejo/src/setup.rs:10` `use skein_lib::bytes::{concat, concat as joined};`, `setup/creation.rs`, `setup/migrate.rs` call `joined(`: rename, drop the alias. `skein-oauth-issuer/src/documents.rs:100`'s `#[expect(unused_qualifications)]`: call `bytes::concat`. The `forgejo/server/files.rs:74` exemption is recorded only in the plan: record it in the design's status.
+5. skein D042: moved faithfully, but `skein/docs/design/shell.md` says backends hold "only what differs", and six functions stay identical: `status_flags`, `nonblocking`, `effective_user`, `open_termination_signals`, `usage`, `close`. Move them or correct the text. Darwin wasn't built here: check `macos.yml`.

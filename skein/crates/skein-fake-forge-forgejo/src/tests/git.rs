@@ -117,7 +117,7 @@ impl Pump {
 fn decode_call(body: &[u8], name: Name, limits: &Limits, piece: usize) -> server::BodyStep {
     let mut decoder = server::decoder(name, limits);
     let mut pump = Pump::new(body, limits, piece);
-    let mut demand = server::body_first(&decoder);
+    let mut demand = json::Request::Next;
     loop {
         match server::body(&mut decoder, limits, &pump.next(demand)) {
             server::BodyStep::Demand(next) => demand = next,
@@ -131,7 +131,7 @@ fn decode_answer(body: &[u8], name: Name, status: u16, limits: &Limits, piece: u
 fn decoded(body: &[u8], name: Name, status: u16, limits: &Limits, piece: usize) -> (client::Step, bool) {
     let mut decoder = client::decoder(name, status, Time::ZERO, limits);
     let mut pump = Pump::new(body, limits, piece);
-    let mut demand = client::first(&decoder);
+    let mut demand = json::Request::Next;
     loop {
         match client::step(&mut decoder, limits, &pump.next(demand)) {
             client::Step::Demand(next) => demand = next,

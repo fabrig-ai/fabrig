@@ -433,7 +433,7 @@ fn claude_offer_world() -> World {
         .settings
         .models
         .iter()
-        .map(|model| jig_domain_host::ModelBound {
+        .map(|model| jig_domain_link::ModelBound {
             name: model.name.clone(),
             window: model.window,
             output: model.output,
@@ -480,9 +480,9 @@ fn claude_offer_world() -> World {
             }) = event
             {
                 assert_eq!(*channel, CHANNEL);
-                *logins = Box::new([jig_domain_host::Login {
-                    name: jig_domain_host::SourceName::new(b"claude-login").expect("fake login name"),
-                    state: jig_domain_host::LoginState::Usable,
+                *logins = Box::new([jig_domain_link::Login {
+                    name: jig_domain_link::SourceName::new(b"claude-login").expect("fake login name"),
+                    state: jig_domain_link::LoginState::Usable,
                 }]);
                 answered = true;
             }

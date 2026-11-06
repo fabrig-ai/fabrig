@@ -1,5 +1,6 @@
 //! The core names own watch subjects from live and restored sign-ins (protocol/client.md, 7).
 use crate::tests::*;
+use jig_domain_link::{Hello, Hosting, Phase};
 
 fn identity(party: u8) -> people::Identity {
     people::Identity {
@@ -189,7 +190,7 @@ fn hello() -> fleet::Event {
     fleet::Event::Hello {
         worker: 0,
         channel: Token::new(77),
-        hello: fleet::Hello {
+        hello: Hello {
             jobs: Box::default(),
             bounds: fixtures::bounds(),
             stop_bound: Duration::ZERO,
@@ -279,8 +280,7 @@ fn an_attempt_acknowledgement_leaves_an_accounts_watch_unmarked() {
 
 fn listed_host() -> fleet::Event {
     let fleet::Event::Hello { channel, worker, mut hello } = hello() else { panic!("hello fixture") };
-    hello.hosting =
-        Box::new([fleet::Hosting { run: Token::new(90), attempt: Token::new(92), phase: fleet::Phase::Active }]);
+    hello.hosting = Box::new([Hosting { run: Token::new(90), attempt: Token::new(92), phase: Phase::Active }]);
     fleet::Event::Hello { channel, worker, hello }
 }
 

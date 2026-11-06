@@ -845,7 +845,8 @@ mod admission_tests {
         service
     }
 
-    use jig_domain_host::{LinkDown, SourceName};
+    use jig_domain_host::LinkDown;
+    use jig_domain_link::SourceName;
     use jig_protocol_worker_wire as wire;
     use skein_fake_channel::ScriptedPeer;
     use skein_lib::{Duration, Intake, Reader};
