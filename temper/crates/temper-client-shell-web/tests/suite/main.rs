@@ -20,9 +20,7 @@ fn phone_session_hides_the_keyboard_hint() {
     assert!(
         css.split("@media (max-width: 760px) {").skip(1).any(|block| {
             let phone = block.split("\n}").next().expect("phone rules");
-            phone.contains(
-                ".temper-session-hint) { display: none; }",
-            )
+            phone.contains(".temper-session-hint) { display: none; }")
         }),
         "phone sessions must hide the keyboard hint",
     );

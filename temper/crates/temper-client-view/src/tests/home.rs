@@ -824,10 +824,7 @@ fn home_ready_headline_and_done_steps_hold_in_both_shells() {
                         if repository {
                             contains(&main, "work/hello is in Shop");
                             absent(&main, "CI ran on main and passed");
-                            contains(
-                                &main,
-                                "Chats can change its code now.",
-                            );
+                            contains(&main, "Chats can change its code now.");
                         }
                     }
                 }
