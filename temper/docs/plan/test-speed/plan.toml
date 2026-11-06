@@ -1,0 +1,5 @@
+draft = "test-speed"
+repo = "fabrig"
+sources = ["temper/docs/plan/test-speed/inputs/request.md", "temper/docs/design/client/journeys.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
