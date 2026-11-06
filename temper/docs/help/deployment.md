@@ -100,7 +100,7 @@ temper ctl settings apply`.
      "window": 1048576, "output": 8192,
      "efforts": ["high", "medium", "low"],
      "prices": {"input": 1, "cached": 1, "output": 1, "unit": 1000},
-     "reasoning_item": 65536, "head": 60000, "idle": 30000
+     "reasoning_item": 65536, "head": 60000, "idle": 300000
    }
    ```
 
@@ -112,8 +112,10 @@ temper ctl settings apply`.
    to the model's supported values and your deployment's accounting
    units in both files. Set the agent model's `reasoning_item`, the
    byte allowance per reasoning item, and its `head` and `idle`
-   deadlines in milliseconds. Larger declarations may require larger
-   agent and channel bounds; a refused start names the shortfall.
+   deadlines in milliseconds. A model can go quiet for minutes in a
+   response, so `temper init` gives OpenAI's an `idle` of 300000 and
+   Anthropic's 120000. Larger declarations may require larger agent
+   and channel bounds; a refused start names the shortfall.
 4. Preserve existing models, providers and endpoint settings, including
    addresses, transports and sign-in settings. Finish both edits
    before the first start. For a running deployment, stop it with

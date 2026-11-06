@@ -23,7 +23,7 @@ fn a_host_that_ends_by_itself_returns_its_exit_at_once() {
 
 #[test]
 fn the_hook_runs_once_per_iteration_after_iterate_and_before_the_submit() {
-    let (read, write) = skein_shell::open_signal_pipe().expect("pipes");
+    let (read, write) = skein_shell::keeper::open_signal_pipe().expect("pipes");
     let mut host = Script::pipes(vec![read, write], &[Act::Write(1, b"hook"), Act::Read(0)]);
     drive(&mut kernel(), &Clock::new(), &mut host);
     assert_eq!(host.received, b"hook");
@@ -115,7 +115,7 @@ fn a_termination_signal_while_closing_aborts_and_drive_returns_when_those_settle
     let clock = Clock::new();
     let deadline = Deadline::arm("the signalled closing host drain", Duration::from_secs(10));
     let signals = skein_shell::open_termination_signals().expect("blocked termination signals");
-    let (read, write) = skein_shell::open_signal_pipe().expect("silent peer");
+    let (read, write) = skein_shell::keeper::open_signal_pipe().expect("silent peer");
     let mut host = Closing {
         signals,
         read,
@@ -127,7 +127,7 @@ fn a_termination_signal_while_closing_aborts_and_drive_returns_when_those_settle
         deadline: deadline.until(),
         heard: false,
     };
-    skein_shell::signal_current_thread(ServiceSignal::Terminate).expect("termination");
+    skein_shell::keeper::signal_current_thread(ServiceSignal::Terminate).expect("termination");
     let mut kernel = kernel();
     assert_eq!(drive(&mut kernel, &clock, &mut host), Exit::Code(0));
     assert!(host.heard);

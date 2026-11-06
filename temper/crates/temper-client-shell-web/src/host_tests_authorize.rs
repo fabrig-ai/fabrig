@@ -31,7 +31,7 @@ fn sent(host: &mut Host) -> u32 {
 }
 #[test]
 fn authorization_go_replaces_the_address_once() {
-    let mut host = super::departure::linked();
+    let mut host = super::tab::linked();
     host.show = None;
     let exchange = sent(&mut host);
     let location = b"http://localhost:9999/callback?code=test&state=a";
@@ -54,7 +54,7 @@ fn authorization_go_replaces_the_address_once() {
 }
 #[test]
 fn a_lost_authorization_draws_busy_without_departing() {
-    let mut host = super::departure::linked();
+    let mut host = super::tab::linked();
     host.show = None;
     let exchange = sent(&mut host);
     host.heard(Heard::Failed { exchange });
@@ -64,7 +64,7 @@ fn a_lost_authorization_draws_busy_without_departing() {
 }
 #[test]
 fn oversized_authorization_is_refused_in_place_without_an_exchange() {
-    let mut host = super::departure::linked();
+    let mut host = super::tab::linked();
     host.show = None;
     let mut path = b"/oauth/authorize?".to_vec();
     path.resize(

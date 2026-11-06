@@ -14,7 +14,7 @@ const WORLD_PATIENCE: Duration = Duration::from_secs(2);
 /// of `/dev/fd` would not do on macOS, where the child's handle is a kqueue.
 fn is_open(fd: skein_io::kernel::Fd) -> bool {
     // EBADF is 9 on Linux and macOS alike.
-    skein_shell::wait_readable(fd, Duration::ZERO) != Err(9)
+    skein_shell::keeper::wait_readable(fd, Duration::ZERO) != Err(9)
 }
 
 // A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; shell.md, 9).
@@ -200,11 +200,11 @@ fn tree_with_a_blocked_member() -> Option<(Binary, std::path::PathBuf)> {
     let binary = Binary::start(fixture("supervise-ignore"), Mode::Pipes, 4096).expect("the tree starts");
     let descriptors = binary.descriptors();
     assert_eq!(
-        skein_shell::wait_readable(descriptors[1], WORLD_PATIENCE),
+        skein_shell::keeper::wait_readable(descriptors[1], WORLD_PATIENCE),
         Ok(true),
         "the fixture reports its detached, TERM-ignoring member before abandonment"
     );
-    let pid = skein_shell::child_id(descriptors[0]).expect("the leader's pid");
+    let pid = skein_shell::keeper::child_id(descriptors[0]).expect("the leader's pid");
     let membership = std::fs::read_to_string(format!("/proc/{pid}/cgroup")).expect("the leader's membership");
     let relative = membership.lines().find_map(|line| line.strip_prefix("0::")).expect("cgroup v2");
     let path = std::path::Path::new("/sys/fs/cgroup").join(relative.trim_start_matches('/'));
@@ -323,7 +323,11 @@ fn a_descendant_left_in_the_group_is_ended_and_counted() {
     for containment in ALL {
         let outcome = tree_run("fork-exit", containment, skein_world::end_to_end::Expectation::Measure);
         let child = tree_child(&outcome);
-        assert_eq!(skein_shell::process_live(descendant(child.stderr())), Ok(false), "the descendant was reaped");
+        assert_eq!(
+            skein_shell::keeper::process_live(descendant(child.stderr())),
+            Ok(false),
+            "the descendant was reaped"
+        );
         assert_tree_counted(child, containment);
     }
 }
@@ -337,7 +341,7 @@ fn a_descendant_that_leaves_its_group_and_session_is_still_settled() {
         let outcome = tree_run("escape-exit", containment, skein_world::end_to_end::Expectation::Measure);
         let child = tree_child(&outcome);
         assert_eq!(
-            skein_shell::process_live(descendant(child.stderr())),
+            skein_shell::keeper::process_live(descendant(child.stderr())),
             Ok(false),
             "the escaped descendant was reaped"
         );
@@ -367,7 +371,7 @@ fn an_already_exited_descendant_that_left_its_session_is_still_reaped() {
         deadline.watch(&binary);
         // No Binary iteration runs until the parent and its escaped descendant
         // exited. Discovery must handle the exit-before-first-refresh race.
-        while skein_shell::poll_child(pidfd, false).expect("the binary remains a child").is_none() {
+        while skein_shell::keeper::poll_child(pidfd, false).expect("the binary remains a child").is_none() {
             if deadline.passed() {
                 match deadline.expired() {
                     Expired::Starved(starved) => {
@@ -384,7 +388,7 @@ fn an_already_exited_descendant_that_left_its_session_is_still_reaped() {
         let child = tree_child(&outcome);
         assert_tree_counted(child, containment);
         assert_eq!(
-            skein_shell::process_live(descendant(child.stderr())),
+            skein_shell::keeper::process_live(descendant(child.stderr())),
             Ok(false),
             "an already-exited escaped descendant is reaped before tree settlement"
         );
@@ -405,7 +409,7 @@ fn a_measured_binary_is_killed_and_counted() {
         let outcome = tree_run("fork-live", containment, skein_world::end_to_end::Expectation::Measure);
         let child = tree_child(&outcome);
         assert_eq!(child.exit_status(), Some(Exit::Signal(9)));
-        assert_eq!(skein_shell::process_live(descendant(child.stderr())), Ok(false));
+        assert_eq!(skein_shell::keeper::process_live(descendant(child.stderr())), Ok(false));
         assert_tree_counted(child, containment);
     }
 }
@@ -502,7 +506,7 @@ fn abandoned_observer(backend: Option<skein_shell::Backend>, cancels_first: bool
         }
         drain_abandoned(&mut child, &mut kernel, &clock, &deadline);
         drop(child);
-        assert_eq!(skein_shell::process_live(pid), Ok(false), "the abandoned descendant was reaped");
+        assert_eq!(skein_shell::keeper::process_live(pid), Ok(false), "the abandoned descendant was reaped");
         for fd in descriptors {
             assert!(!is_open(fd));
         }
@@ -627,11 +631,11 @@ fn emergency_drop_leaves_outstanding_descriptors_and_the_waited_leader_owned() {
                 }
             }
             assert_eq!(
-                skein_shell::poll_child(leader, false),
+                skein_shell::keeper::poll_child(leader, false),
                 Ok(Some(Exit::Signal(9))),
                 "Drop retained the unreaped leader"
             );
-            skein_shell::abandon_binary(Some(leader), &descriptors);
+            skein_shell::keeper::abandon_binary(Some(leader), &descriptors);
             for fd in descriptors {
                 assert!(!is_open(fd));
             }
@@ -709,9 +713,9 @@ fn delegated_cgroups_keep_two_binaries_separate_until_both_are_removed() {
 #[cfg(target_os = "linux")]
 #[test]
 fn the_last_observer_restores_the_original_subreaper_setting() {
-    let original = skein_shell::subreaper().expect("the test's subreaper setting");
+    let original = skein_shell::keeper::subreaper().expect("the test's subreaper setting");
     for previous in [false, true] {
-        skein_shell::set_subreaper(previous).expect("the scenario sets its prior adoption policy");
+        skein_shell::keeper::set_subreaper(previous).expect("the scenario sets its prior adoption policy");
         for force_walk in [true, false] {
             let outcome = tree_run(
                 "exit",
@@ -719,7 +723,7 @@ fn the_last_observer_restores_the_original_subreaper_setting() {
                 skein_world::end_to_end::Expectation::Measure,
             );
             assert_tree_counted(tree_child(&outcome), if force_walk { Containment::Walk } else { Containment::Best });
-            assert_eq!(skein_shell::subreaper().expect("the restored setting"), previous);
+            assert_eq!(skein_shell::keeper::subreaper().expect("the restored setting"), previous);
             let binary = Binary::start_with_tree(
                 fixture("fork-live"),
                 Mode::Pipes,
@@ -728,12 +732,12 @@ fn the_last_observer_restores_the_original_subreaper_setting() {
                 force_walk,
             )
             .expect("the abandoned observer starts");
-            assert!(skein_shell::subreaper().expect("adoption while a keeper is active"));
+            assert!(skein_shell::keeper::subreaper().expect("adoption while a keeper is active"));
             drop(binary);
-            assert_eq!(skein_shell::subreaper().expect("the setting after abandonment"), previous);
+            assert_eq!(skein_shell::keeper::subreaper().expect("the setting after abandonment"), previous);
         }
     }
-    skein_shell::set_subreaper(original).expect("the test restores its initial adoption policy");
+    skein_shell::keeper::set_subreaper(original).expect("the test restores its initial adoption policy");
 }
 
 // A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; shell.md, 9).
@@ -742,8 +746,8 @@ fn the_last_observer_restores_the_original_subreaper_setting() {
 fn concurrent_observers_keep_adoption_enabled_until_the_last_one_ends() {
     use skein_world::end_to_end::Expectation;
 
-    let original = skein_shell::subreaper().expect("the test's subreaper setting");
-    skein_shell::set_subreaper(false).expect("no prior adopter");
+    let original = skein_shell::keeper::subreaper().expect("the test's subreaper setting");
+    skein_shell::keeper::set_subreaper(false).expect("no prior adopter");
     let first = Binary::start_with_tree(fixture("fork-live"), Mode::Pipes, 4096, Expectation::Measure, false)
         .expect("the first observer starts");
     let second = Binary::start_with_tree(fixture("fork-live"), Mode::Pipes, 4096, Expectation::Measure, false);
@@ -751,29 +755,29 @@ fn concurrent_observers_keep_adoption_enabled_until_the_last_one_ends() {
         Ok(second) => second,
         Err(StartError::Tree(skein_io::kernel::Error::Other(16))) => {
             drop(first);
-            assert!(!skein_shell::subreaper().expect("the final keeper restores adoption"));
-            skein_shell::set_subreaper(original).expect("the test restores its initial policy");
+            assert!(!skein_shell::keeper::subreaper().expect("the final keeper restores adoption"));
+            skein_shell::keeper::set_subreaper(original).expect("the test restores its initial policy");
             eprintln!("no delegated cgroup: concurrent observers require containment");
             return;
         }
         Err(error) => panic!("second observer startup failed: {error:?}"),
     };
     drop(first);
-    assert!(skein_shell::subreaper().expect("the remaining keeper still adopts"));
+    assert!(skein_shell::keeper::subreaper().expect("the remaining keeper still adopts"));
     drop(second);
-    assert!(!skein_shell::subreaper().expect("the last keeper restores adoption"));
-    skein_shell::set_subreaper(original).expect("the test restores its initial policy");
+    assert!(!skein_shell::keeper::subreaper().expect("the last keeper restores adoption"));
+    skein_shell::keeper::set_subreaper(original).expect("the test restores its initial policy");
 }
 
 // A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; shell.md, 9).
 #[cfg(target_os = "linux")]
 #[test]
 fn a_failed_binary_start_restores_the_original_subreaper_setting() {
-    let original = skein_shell::subreaper().expect("the test's subreaper setting");
+    let original = skein_shell::keeper::subreaper().expect("the test's subreaper setting");
     let mut missing = fixture("exit");
     missing.program = "/missing-skein-binary".into();
     assert!(matches!(Binary::start(missing, Mode::Pipes, 1024), Err(StartError::Child(_))));
-    assert_eq!(skein_shell::subreaper().expect("the setting after failed startup"), original);
+    assert_eq!(skein_shell::keeper::subreaper().expect("the setting after failed startup"), original);
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -1031,7 +1035,7 @@ fn a_supervised_tree_retains_detached_descendants_after_natural_leader_exit() {
         assert_eq!(child.tree_status().cleanup(), Cleanup::Terminate);
         assert!(child.tree_status().terminated_pids.contains(&pid));
         assert!(child.tree_status().killed_pids.is_empty());
-        assert_eq!(skein_shell::process_live(pid), Ok(false));
+        assert_eq!(skein_shell::keeper::process_live(pid), Ok(false));
         assert_tree_counted(child, containment);
     }
 }
@@ -1056,7 +1060,7 @@ fn whole_tree_term_reaches_detached_descendants_before_the_leader_exits() {
                     .find_map(|line| line.strip_prefix("grandchild:")?.parse().ok())
                     .expect("the fixture reports a detached grandchild");
                 assert!(child.tree_status().terminated_pids.contains(&grandchild));
-                assert_eq!(skein_shell::process_live(grandchild), Ok(false));
+                assert_eq!(skein_shell::keeper::process_live(grandchild), Ok(false));
             }
             assert_tree_counted(child, containment);
         }
@@ -1082,7 +1086,7 @@ fn a_supervised_tree_honors_grace_after_leader_exit_then_reports_forced_kill() {
         assert_eq!(child.tree_status().cleanup(), Cleanup::Kill);
         assert!(child.tree_status().terminated_pids.contains(&pid));
         assert_eq!(child.tree_status().killed_pids, vec![pid]);
-        assert_eq!(skein_shell::process_live(pid), Ok(false));
+        assert_eq!(skein_shell::keeper::process_live(pid), Ok(false));
         assert_tree_counted(child, containment);
     }
 }
@@ -1141,7 +1145,7 @@ fn supervised_tree_signals_stay_inside_their_own_delegated_cgroup() {
     let outcome = world.run(&Clock::new(), Duration::from_secs(2));
     assert_eq!(tree_child(&outcome).counts().expect("the first tree settled").method, Method::Cgroup);
     assert_eq!(tree_child(&outcome).tree_status().cleanup(), Cleanup::Kill, "forced KILL exercises cgroup isolation");
-    assert_eq!(skein_shell::poll_child(pidfd, false).expect("the second leader remains owned"), None);
+    assert_eq!(skein_shell::keeper::poll_child(pidfd, false).expect("the second leader remains owned"), None);
     second.signal_tree(Signal::Terminate);
     let mut world = real::World::new(TreeJudge { end: false, sent: false });
     world.spawn_with_fds(second.descriptors(), || Process::Child(second));
@@ -1322,10 +1326,10 @@ fn a_size_change_is_heard() {
 #[test]
 fn a_group_refuses_beside_a_subreaper() {
     use skein_world::end_to_end::Expectation;
-    let previous = skein_shell::subreaper().expect("the test's prior adoption policy");
-    skein_shell::set_subreaper(true).expect("the test adopts orphaned descendants");
+    let previous = skein_shell::keeper::subreaper().expect("the test's prior adoption policy");
+    skein_shell::keeper::set_subreaper(true).expect("the test adopts orphaned descendants");
     let result = Binary::start_contained(fixture("exit"), Mode::Pipes, 4096, Expectation::Measure, Containment::Group);
-    skein_shell::set_subreaper(previous).expect("the test restores its prior adoption policy");
+    skein_shell::keeper::set_subreaper(previous).expect("the test restores its prior adoption policy");
     assert!(matches!(result, Err(StartError::Tree(skein_io::kernel::Error::Other(16)))));
 }
 

@@ -1,4 +1,5 @@
 //! The browser and its operations, each advanced by one reply or event.
+//! Looking brings its page forward (skein/docs/design/browser.md, 6).
 
 #![expect(
     clippy::disallowed_types,
@@ -94,6 +95,7 @@ enum OpKind {
     Type { text: Box<[u8]>, entry: Entry },
     Key { key: Key, shift: bool },
     Address,
+    Tabs,
     Attribute { selector: Box<[u8]>, name: Box<[u8]>, until: Time },
     Snapshot,
     Screenshot,
@@ -139,6 +141,9 @@ enum PendingKind {
 enum Step {
     History,
     Go,
+    FrontFind,
+    FrontSnapshot,
+    FrontScreenshot,
     Query,
     Box,
     Scroll,
@@ -157,6 +162,7 @@ enum Step {
     KeyUp,
     Character { offset: usize, down: bool },
     Address,
+    Tabs,
     AttributeRoot,
     AttributeSelector,
     AttributeValue,
@@ -443,6 +449,7 @@ impl Browser {
             && (method.starts_with(b"Accessibility.")
                 || method.starts_with(b"DOM.")
                 || method == b"Runtime.evaluate"
+                || method == b"Page.bringToFront"
                 || address)
         {
             if let Some(command) = self.outgoing.back_mut() {
@@ -678,6 +685,19 @@ impl Browser {
                 }
                 self.issue_key(env, op, key, shift, true);
             }
+            Request::Tabs { page, op } => {
+                if self.admit_op(env, page, op, OpKind::Tabs)
+                    && !self.queue_command(
+                        env,
+                        b"Target.getTargets",
+                        None,
+                        &Params::Empty,
+                        PendingKind::Step(op, Step::Tabs),
+                    )
+                {
+                    self.finish_refused(op, Refusal::Limit);
+                }
+            }
             Request::Address { page, op } => {
                 if !self.admit_op(env, page, op, OpKind::Address) {
                     return;
@@ -699,13 +719,13 @@ impl Browser {
                 if !self.admit_op(env, page, op, OpKind::Snapshot) {
                     return;
                 }
-                self.issue_step(env, op, b"Accessibility.getFullAXTree", &Params::Empty, Step::Snapshot);
+                self.issue_step(env, op, b"Page.bringToFront", &Params::Empty, Step::FrontSnapshot);
             }
             Request::Screenshot { page, op } => {
                 if !self.admit_op(env, page, op, OpKind::Screenshot) {
                     return;
                 }
-                self.issue_step(env, op, b"Page.captureScreenshot", &Params::Empty, Step::Screenshot);
+                self.issue_step(env, op, b"Page.bringToFront", &Params::Empty, Step::FrontScreenshot);
             }
             Request::Close { entity } => self.close(env, entity),
         }
@@ -765,6 +785,10 @@ impl Browser {
     }
 
     fn start_find(&mut self, env: &Env<Limits>, op: Token) {
+        self.issue_step(env, op, b"Page.bringToFront", &Params::Empty, Step::FrontFind);
+    }
+
+    fn find_document(&mut self, env: &Env<Limits>, op: Token) {
         let Some(op_state) = self.op(op) else {
             return;
         };
@@ -1277,6 +1301,7 @@ pub fn fire(browser: &mut Browser, env: &Env<Limits>, now: Time, above: &mut Que
                         | OpKind::Type { .. }
                         | OpKind::Key { .. }
                         | OpKind::Attribute { .. }
+                        | OpKind::Tabs
                         | OpKind::Address
                         | OpKind::Snapshot
                         | OpKind::Screenshot,
@@ -1595,6 +1620,7 @@ impl Browser {
                     | OpKind::Type { .. }
                     | OpKind::Key { .. }
                     | OpKind::Attribute { .. }
+                    | OpKind::Tabs
                     | OpKind::Address
                     | OpKind::Snapshot
                     | OpKind::Screenshot => {}
@@ -1883,6 +1909,13 @@ impl Browser {
     #[expect(clippy::too_many_lines, reason = "one match lists the reply transition for each operation step")]
     fn step_reply(&mut self, env: &Env<Limits>, token: Token, method: &[u8], step: Step, result: Value<'_>) {
         match step {
+            Step::FrontFind => self.find_document(env, token),
+            Step::FrontSnapshot => {
+                self.issue_step(env, token, b"Accessibility.getFullAXTree", &Params::Empty, Step::Snapshot);
+            }
+            Step::FrontScreenshot => {
+                self.issue_step(env, token, b"Page.captureScreenshot", &Params::Empty, Step::Screenshot);
+            }
             Step::History => {
                 let current = field_i64(result, b"currentIndex");
                 let entries = field_array(result, b"entries");
@@ -2156,6 +2189,7 @@ impl Browser {
             Step::AttributeRoot | Step::AttributeSelector | Step::AttributeValue => {
                 self.attribute_reply(env, token, method, step, result);
             }
+            Step::Tabs => self.tabs_reply(env, token, result),
             Step::Address => {
                 let current = field_i64(result, b"currentIndex");
                 let entries = field_array(result, b"entries");
@@ -2270,6 +2304,9 @@ impl Browser {
             Step::MouseUp => (b"mouseReleased".as_slice(), false),
             Step::History
             | Step::Go
+            | Step::FrontFind
+            | Step::FrontSnapshot
+            | Step::FrontScreenshot
             | Step::Query
             | Step::Box
             | Step::Scroll
@@ -2287,6 +2324,7 @@ impl Browser {
             | Step::AttributeRoot
             | Step::AttributeSelector
             | Step::AttributeValue
+            | Step::Tabs
             | Step::Address
             | Step::Snapshot
             | Step::Screenshot => unreachable!("only mouse steps reach mouse"),
@@ -2296,6 +2334,7 @@ impl Browser {
 }
 
 mod attribute;
+mod tabs;
 
 #[cfg(test)]
 #[path = "browser/type_tests.rs"]
@@ -2319,6 +2358,7 @@ fn waits_for_document(kind: &OpKind) -> bool {
         | OpKind::Press { .. }
         | OpKind::Type { .. }
         | OpKind::Key { .. }
+        | OpKind::Tabs
         | OpKind::Address
         | OpKind::Snapshot
         | OpKind::Screenshot => false,

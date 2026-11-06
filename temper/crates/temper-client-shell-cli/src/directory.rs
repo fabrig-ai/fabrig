@@ -2,10 +2,10 @@
 use crate::{arguments::Class, host::Startup, limits};
 use skein_io::{
     Addr, file,
-    file_layer::{self, FileIo},
+    file_layer::{self, FileIo, Limits, step},
     kernel::{Complete, Error, Fd, Submit},
 };
-use skein_lib::{Duration, Queue, Time, Token};
+use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use std::net::SocketAddr;
 use temper_client_tools::jig::FileEnd;
 const OWNER: Token = Token::new(1);
@@ -36,6 +36,7 @@ enum Stage {
 }
 pub(crate) struct Directory {
     io: FileIo,
+    limits: Limits,
     root: Option<Token>,
     file_root: Option<Token>,
     text_roots: Vec<(u8, Token)>,
@@ -76,7 +77,9 @@ pub(crate) struct Directory {
 impl Directory {
     pub(crate) fn new(startup: Startup, leaf: Box<[u8]>, class: Class, files: Vec<(u8, Fd)>, ask_bytes: u32) -> Self {
         let Startup { parent, file_parent, user, seed, .. } = startup;
-        let mut io = FileIo::new(FILE_SLOTS, ask_bytes, 1, Duration::from_secs(30)).with_effective_user(user);
+        let timeout = Duration::from_secs(30);
+        let limits = Limits { files: FILE_SLOTS, read: ask_bytes, entries: 1, whole: ask_bytes, timeout };
+        let mut io = FileIo::with_limits(&limits).with_effective_user(user);
         io.seed_randomness(seed);
         let root = parent.map(|fd| io.adopt_root(fd).expect("parent slot"));
         let file_root = file_parent.map(|fd| io.adopt_root(fd).expect("file parent slot"));
@@ -86,6 +89,7 @@ impl Directory {
         }
         Self {
             io,
+            limits,
             ask_bytes,
             text_roots,
             text_root: None,
@@ -125,7 +129,8 @@ impl Directory {
         }
     }
     pub(crate) fn complete(&mut self, complete: Complete) {
-        file_layer::up(&mut self.io, complete, &mut self.events, &mut self.submissions);
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.limits };
+        step::up(&mut self.io, &env, complete, &mut self.events, &mut self.submissions);
     }
     pub(crate) fn close(&mut self) {
         if self.closing {
@@ -349,7 +354,8 @@ impl Directory {
     }
     pub(crate) fn progress(&mut self, now: Time) {
         if self.io.is_due(now) {
-            file_layer::expire(&mut self.io, now, &mut self.submissions);
+            let env = Env { now, wall: Wall::EPOCH, limits: self.limits };
+            step::expire(&mut self.io, &env, &mut self.submissions);
         }
         while let Some(event) = self.events.pop() {
             self.answer(now, event);
@@ -604,7 +610,8 @@ impl Directory {
         );
     }
     fn request(&mut self, now: Time, request: file::Request) {
-        file_layer::down(&mut self.io, now, request, &mut self.events, &mut self.submissions);
+        let env = Env { now, wall: Wall::EPOCH, limits: self.limits };
+        step::down(&mut self.io, &env, request, &mut self.events, &mut self.submissions);
     }
 }
 /// What a failed or unexpected answer says (client/tools.md, 8.1): the file layer's error

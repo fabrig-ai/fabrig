@@ -1466,6 +1466,7 @@ dependencies = [
 name = "jig-domain-people"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-link",
  "skein-lib",
 ]
 
@@ -1946,6 +1947,7 @@ dependencies = [
  "jig-domain-authority",
  "jig-domain-core",
  "jig-domain-fleet",
+ "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -1989,6 +1991,7 @@ dependencies = [
  "jig-domain-brief",
  "jig-domain-core",
  "jig-domain-fleet",
+ "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",

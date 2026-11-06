@@ -53,19 +53,7 @@ const LINE: u32 = 16;
 #[must_use]
 pub const fn client_limits(conns: u32) -> Limits {
     Limits {
-        io: skein_io::Limits {
-            sockets: conns,
-            refusals: 1,
-            intake: 24,
-            receive: 8,
-            output: 32,
-            sends: 2,
-            accepts: 1,
-            backlog: 1,
-            close_timeout: Duration::from_secs(1),
-            names: 0,
-            retry: Duration::from_millis(10),
-        },
+        io: skein_io::Limits { sockets: conns, intake: 24, receive: 8, output: 32, ..skein_io::Limits::TEST },
         line: LINE,
         queue: 4,
     }

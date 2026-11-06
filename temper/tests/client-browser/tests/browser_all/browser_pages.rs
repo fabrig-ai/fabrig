@@ -8,11 +8,13 @@ use skein_fake_person_browser::{Harness, Outcome, Script, Step};
 use skein_ui::Role;
 use temper_client_browser_world::{ABSENT, FIRST_CHAT, FIRST_CHAT_ADDRESS, Tier, WITHIN, first_chat};
 
+/// Sending keeps the focus in the composer, by a press or a key (client/README.md, 3.5).
 #[test]
-fn enter_starts_one_chat_keeping_a_shift_enter_break() {
+fn enter_starts_one_chat_and_the_composer_keeps_the_focus() {
     let tier = Tier::new("composer").with_model();
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
     let composer = || Find::exactly_named(Role::TextArea, b"What do you want done?");
+    let message = || Find::exactly_named(Role::TextArea, b"Message");
     let chats = || Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"Chats") });
     let mut steps = vec![
         see(Find::exactly_named(Role::Heading { level: 1 }, b"Connect a forge")),
@@ -28,12 +30,29 @@ fn enter_starts_one_chat_keeping_a_shift_enter_break() {
         Step::Key(Key::Enter),
         see(first_chat(b"Hello")),
         Step::Address(Box::from(FIRST_CHAT_ADDRESS)),
+        see(message()),
+        Step::Focused(message()),
+        Step::Person(PersonStep::Type { find: message(), words: b"By the button".as_slice().into() }),
+        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Send") }),
+        see(Find::exactly_named(Role::Paragraph, b"By the button")),
+        Step::Focused(message()),
+        Step::Person(PersonStep::Type { find: message(), words: b"By the key".as_slice().into() }),
+        Step::Key(Key::Enter),
+        see(Find::exactly_named(Role::Paragraph, b"By the key")),
+        Step::Focused(message()),
     ];
     steps.extend(byline_steps());
     steps.extend([
         chats(),
         see(Find::exactly_named(Role::Link, FIRST_CHAT)),
         Step::Person(PersonStep::Gone { find: Find::exactly_named(Role::Link, b"T2"), within: ABSENT }),
+        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, FIRST_CHAT) }),
+        see(message()),
+        Step::Keep {
+            selector: b"main h1:focus".as_slice().into(),
+            attribute: Some(b"data-node".as_slice().into()),
+            name: b"focused-chat-heading".as_slice().into(),
+        },
         Step::Person(PersonStep::Go { address: b"/test/panic".as_slice().into() }),
         Step::Person(PersonStep::See {
             find: Find::text(b"The application failed."),

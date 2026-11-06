@@ -1,8 +1,9 @@
 //! Closes an unfinished `--ephemeral` directory's store, removes the directory,
 //! and closes its parent (smith/docs/design/shell.md, 4.2).
 //! It keeps the captured roots and the first kernel failure, not the run's outcome.
+use skein_io::file_layer::step;
 use skein_io::{file, file_layer, kernel};
-use skein_lib::{Duration, Queue, Time, Token, Wall};
+use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_shell::Host;
 use std::path::Path;
 
@@ -17,6 +18,7 @@ enum State {
 /// Startup drives the captured store and parent through removal and close.
 pub(super) struct EphemeralCleanup {
     io: file_layer::FileIo,
+    file_limits: file_layer::Limits,
     directory: Option<Token>,
     name: Box<[u8]>,
     request: Option<file::Request>,
@@ -29,7 +31,8 @@ pub(super) struct EphemeralCleanup {
 
 impl EphemeralCleanup {
     pub(super) fn new(path: &Path, store: Option<kernel::Fd>, parent: Option<kernel::Fd>, timeout: Duration) -> Self {
-        let mut io = file_layer::FileIo::with_whole_limit(2, 4096, 1, 1, timeout);
+        let file_limits = file_layer::Limits { files: 2, read: 4096, entries: 1, whole: 1, timeout };
+        let mut io = file_layer::FileIo::with_limits(&file_limits);
         let parent = match parent {
             Some(parent) => Ok(parent),
             None => skein_shell::open_root(path.parent().expect("private parent")).map_err(kernel::Error::Other),
@@ -41,6 +44,7 @@ impl EphemeralCleanup {
         let store = store.map(|root| io.adopt_root(root).expect("unfinished store slot"));
         let mut cleanup = Self {
             io,
+            file_limits,
             directory,
             name: path.file_name().expect("private directory name").as_encoded_bytes().into(),
             request: store.map(|file| file::Request::Close { owner: Token::new(1), file }),
@@ -81,12 +85,13 @@ impl EphemeralCleanup {
 }
 
 impl Host for EphemeralCleanup {
-    fn iterate(&mut self, now: Time, _wall: Wall) {
+    fn iterate(&mut self, now: Time, wall: Wall) {
+        let env = Env { now, wall, limits: self.file_limits };
         while let Some(complete) = self.completions.pop() {
-            file_layer::up(&mut self.io, complete, &mut self.events, &mut self.submissions);
+            step::up(&mut self.io, &env, complete, &mut self.events, &mut self.submissions);
         }
         if self.io.is_due(now) {
-            file_layer::expire(&mut self.io, now, &mut self.submissions);
+            step::expire(&mut self.io, &env, &mut self.submissions);
         }
         while let Some(event) = self.events.pop() {
             match event {
@@ -124,7 +129,7 @@ impl Host for EphemeralCleanup {
                 })
             });
             if let Some(request) = request {
-                file_layer::down(&mut self.io, now, request, &mut self.events, &mut self.submissions);
+                step::down(&mut self.io, &env, request, &mut self.events, &mut self.submissions);
             }
         }
     }

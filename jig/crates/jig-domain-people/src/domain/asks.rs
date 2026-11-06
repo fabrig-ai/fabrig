@@ -106,7 +106,7 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
             Seen::Conversation { task, .. } => *task != 0,
         },
         Ask::AccountChange { change: crate::AccountChange::DeclareProgram { name, .. }, .. } => {
-            crate::program_name(name)
+            jig_domain_link::SourceName::new(name).is_some()
         }
         Ask::AccountChange { change: crate::AccountChange::SetUses { uses: Some(uses), .. }, .. } => {
             uses.len() <= skein_lib::length::usize_of(crate::USES)

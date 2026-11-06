@@ -718,21 +718,6 @@ opt-level = 3
 [profile.dev.package.skein-lib]
 opt-level = 3
 
-[profile.dev.package.hearth-lib]
-opt-level = 1
-
-[profile.dev.package.hearth-protocol-tree]
-opt-level = 1
-
-[profile.dev.package.hearth-domain-tree]
-opt-level = 1
-
-[profile.dev.package.hearth-tree-world]
-opt-level = 1
-
-[profile.dev.package.hearth-domain-builder]
-opt-level = 1
-
 [profile.release]
 panic = "abort"
 overflow-checks = true

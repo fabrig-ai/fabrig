@@ -117,7 +117,7 @@ fn github_ready_offers_adoption_from_the_form_without_reading_repositories() {
 #[test]
 fn github_welcome_connection_advances_to_model_without_adoption() {
     let (mut front, mut root) = Joint::github_fixture(fixtures::SEED);
-    h::reopen(&mut front, &mut root, welcome(Step::Forge { forge: Some(Choice::Forge(1)) }), false);
+    h::reopen(&mut front, &mut root, welcome(Step::Forge { forge: Some(Choice::Forge(1)) }));
     assert!(has(&root, Role::Heading { level: 1 }, b"Connect a model"));
     assert!(!front.engine_adopted(1, 8));
     go(&mut front, &mut root, welcome(Step::Ready));

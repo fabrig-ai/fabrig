@@ -16,19 +16,7 @@ use skein_world::{Delegate, Host, Memory, Referee, World};
 const ROOM: u32 = 64;
 const OWNER: Token = Token::new(1);
 const TLS: client::Limits = client::Limits { read: 8192, send: 8192, records: client::MAX_RECORD };
-const IO: io::Limits = io::Limits {
-    sockets: 2,
-    refusals: 1,
-    intake: 32_768,
-    receive: 4096,
-    output: 32_768,
-    sends: 4,
-    accepts: 1,
-    backlog: 1,
-    close_timeout: Duration::from_secs(1),
-    names: 0,
-    retry: Duration::from_millis(1),
-};
+const IO: io::Limits = io::Limits { receive: 4096, sends: 4, retry: Duration::from_millis(1), ..io::Limits::TEST };
 
 #[derive(Clone, Copy)]
 enum Upload {

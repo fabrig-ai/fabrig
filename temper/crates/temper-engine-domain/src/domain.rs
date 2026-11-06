@@ -97,7 +97,6 @@ pub struct Domain {
     pub(crate) playground_provider: Option<u32>,
     pub(crate) playground_policy: Option<u32>,
     pub(crate) next_application_owner: u64,
-    pub(crate) returns: Map<Token, (Time, Wall)>,
     pub(crate) adoption_restore: Map<Token, (Token, Option<forge::Repository>)>,
     pub(crate) making_replies: Map<Token, forge::MakingKey>,
     pub(crate) forge_subscribing: Map<Token, forge::Subscriber>,
@@ -485,7 +484,6 @@ impl Domain {
             playground_provider,
             playground_policy,
             next_application_owner: 1,
-            returns: Map::with_capacity(limits.people.requests),
             adoption_restore: Map::with_capacity(limits.forge.adoptions),
             making_replies: Map::with_capacity(limits.forge.makings),
             forge_subscribing: Map::with_capacity(limits.fleet.calls),
@@ -843,7 +841,6 @@ pub(crate) fn stage_now(domain: &mut Domain, out: &mut Queue<Request>) {
             | Request::MakingCopied { .. }
             | Request::SetUp { .. }
             | Request::Bound { .. }
-            | Request::Return { .. }
             | Request::Forge { .. }
             | Request::Store(
                 crate::StoreRequest::Switch | crate::StoreRequest::Load { .. } | crate::StoreRequest::Read { .. },

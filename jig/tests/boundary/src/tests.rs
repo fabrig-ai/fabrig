@@ -224,6 +224,7 @@ fn engine_clients_link_only_their_boundary_wire_and_foundation() {
             "jig-domain-authority",
             "jig-domain-core",
             "jig-domain-fleet",
+            "jig-domain-link",
             "jig-domain-notes",
             "jig-domain-people",
             "jig-domain-tasks",

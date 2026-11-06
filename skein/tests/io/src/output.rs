@@ -107,16 +107,12 @@ impl Driver {
     fn new() -> Driver {
         let limits = Limits {
             sockets: 3,
-            refusals: 1,
             intake: 8,
             receive: 3,
             output: 8,
             sends: 1,
-            accepts: 1,
-            backlog: 1,
-            close_timeout: Duration::from_secs(1),
-            names: 0,
             retry: Duration::from_millis(1),
+            ..Limits::TEST
         };
         let mut driver = Driver {
             io: Io::new(&limits),

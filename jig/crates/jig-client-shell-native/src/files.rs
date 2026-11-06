@@ -2,10 +2,10 @@
 //! Each batch is answered in order (client/domain/client.md, 16).
 use skein_io::{
     file::{self, Expect},
-    file_layer::{self, FileIo},
+    file_layer::{FileIo, Limits as FileLimits, step},
     kernel::{Complete, Error, Fd, Op, Submit},
 };
-use skein_lib::{Duration, Queue, Reader, Secret, Time, Token, Writer};
+use skein_lib::{Duration, Env, Queue, Reader, Secret, Time, Token, Wall, Writer};
 use std::collections::BTreeMap;
 const TAG: u64 = 1 << 63;
 const OWNER: Token = Token::new(1);
@@ -24,12 +24,12 @@ enum Stage {
 }
 pub(crate) struct Files {
     io: FileIo,
+    file_limits: FileLimits,
     root: Option<Token>,
     private: Option<Token>,
     directory: Box<[u8]>,
     stage: Stage,
     records: BTreeMap<Box<[u8]>, Box<[u8]>>,
-    max: u32,
     batches: u32,
     writing: u32,
     refused: bool,
@@ -45,14 +45,15 @@ pub(crate) struct Files {
 }
 impl Files {
     pub(crate) fn new(directory: Box<[u8]>, max: u32) -> Self {
+        let file_limits = FileLimits { files: 4, read: max, entries: 1, whole: max, timeout: Duration::from_secs(30) };
         Self {
-            io: FileIo::new(4, max, 1, Duration::from_secs(30)),
+            io: FileIo::with_limits(&file_limits),
+            file_limits,
             root: None,
             private: None,
             directory,
             stage: Stage::Unopened,
             records: BTreeMap::new(),
-            max,
             batches: 0,
             writing: 0,
             refused: false,
@@ -69,7 +70,7 @@ impl Files {
     }
     pub(crate) fn adopt(&mut self, fd: Fd, user: u32, seed: u64) {
         assert!(self.stage == Stage::Unopened, "adopt once");
-        self.io = FileIo::new(4, self.max, 1, Duration::from_secs(30)).with_effective_user(user);
+        self.io = FileIo::with_limits(&self.file_limits).with_effective_user(user);
         self.io.seed_randomness(seed);
         self.root = Some(self.io.adopt_root(fd).expect("root room"));
     }
@@ -100,7 +101,7 @@ impl Files {
                     .filter(|(old, _)| **old != key)
                     .map(|(key, value)| key.len() + value.len() + 8)
                     .sum();
-                if bytes + key.len() + record.len() + 12 > skein_lib::length::usize_of(self.max) {
+                if bytes + key.len() + record.len() + 12 > skein_lib::length::usize_of(self.file_limits.whole) {
                     self.refused = true;
                     return;
                 }
@@ -133,7 +134,7 @@ impl Files {
         if let Op::Cancel { target } = &mut complete.kind {
             *target = Token::new(target.raw() & !TAG);
         }
-        file_layer::up(&mut self.io, complete, &mut self.events, &mut self.submissions);
+        step::up(&mut self.io, &env(Time::ZERO, self.file_limits), complete, &mut self.events, &mut self.submissions);
     }
     pub(crate) fn owns(op: Token) -> bool {
         op.raw() & TAG != 0
@@ -151,11 +152,11 @@ impl Files {
     }
     fn request(&mut self, now: Time, stage: Stage, request: file::Request) {
         self.stage = stage;
-        file_layer::down(&mut self.io, now, request, &mut self.events, &mut self.submissions);
+        step::down(&mut self.io, &env(now, self.file_limits), request, &mut self.events, &mut self.submissions);
     }
     pub(crate) fn progress(&mut self, now: Time) {
         if self.io.is_due(now) {
-            file_layer::expire(&mut self.io, now, &mut self.submissions);
+            step::expire(&mut self.io, &env(now, self.file_limits), &mut self.submissions);
         }
         while let Some(event) = self.events.pop() {
             self.answer(event);
@@ -175,7 +176,7 @@ impl Files {
                 let (path, max) = if self.stage == Stage::Token {
                     (b"token".as_slice(), 40)
                 } else {
-                    (b"store".as_slice(), self.max)
+                    (b"store".as_slice(), self.file_limits.whole)
                 };
                 self.request(
                     now,
@@ -298,7 +299,7 @@ impl Files {
         let length = self.records.iter().try_fold(4_usize, |size, (key, value)| {
             size.checked_add(8)?.checked_add(key.len())?.checked_add(value.len())
         })?;
-        if length > usize::try_from(self.max).ok()? {
+        if length > usize::try_from(self.file_limits.whole).ok()? {
             return None;
         }
         let mut writer = Writer::new(length);
@@ -325,4 +326,7 @@ impl Files {
         }
         reader.remaining() == 0
     }
+}
+fn env(now: Time, limits: FileLimits) -> Env<FileLimits> {
+    Env { now, wall: Wall::EPOCH, limits }
 }
