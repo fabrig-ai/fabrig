@@ -175,6 +175,10 @@ impl Service {
         let forges = crate::forge::prepare(&settings, forges)?;
         Self::prepared(settings, seeds, accounts, forges, worker, io_limits, None)
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "startup composes the engine and its client facts in one checked sequence"
+    )]
     pub(crate) fn prepared(
         mut settings: settings::Engine,
         seeds: &settings::Seeds,
@@ -222,6 +226,7 @@ impl Service {
             settings.sign_in.as_ref(),
             settings.files.entries.as_slice(),
         )?;
+        clients.program_environment.clone_from(&settings.program_environment);
         clients.deployment = crate::family::Deployment {
             welcome: settings.welcome,
             owned: deployment_owned(settings.machine.owned.is_some(), box_line_bytes.is_some()),

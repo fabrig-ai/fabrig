@@ -309,3 +309,40 @@ fn welcome_claude_checks_on_the_wire_and_reaches_ready_after_the_host_answers() 
     accounts::program_checked(&mut front, &mut root, true);
     assert_eq!(root.person().pages().address(), &Address::Welcome { step: d::Step::Ready });
 }
+
+fn owner_command(words: &[u8], expected: &[u8]) {
+    for welcome in [false, true] {
+        let (mut front, mut root) = accounts::empty_program_fixture(fixtures::SEED);
+        front.program_environment = words.into();
+        let way = Some(d::ModelWay { source: None, provider: accounts::PROVIDER, kind: d::WayKind::Program });
+        let address =
+            if welcome { Address::Welcome { step: d::Step::Model { way } } } else { Address::ConnectModel { way } };
+        go(&mut front, &mut root, address);
+        accounts::settle(&mut front, &mut root);
+        let view = view(&root);
+        let nodes = view.tree().nodes();
+        let position = nodes
+            .iter()
+            .position(|node| node.role == Role::Code)
+            .unwrap_or_else(|| panic!("command code on {:?}: {}", root.person().pages().address(), text(&root)));
+        let code = nodes.get(position).expect("command position");
+        let line: Vec<_> = nodes
+            .iter()
+            .skip(position)
+            .take(usize::try_from(code.size).expect("command subtree fits"))
+            .flat_map(|node| node.text.iter().flat_map(|run| run.text.iter().copied()))
+            .collect();
+        assert_eq!(line, expected);
+    }
+}
+#[test]
+fn the_owner_sees_the_command_the_box_answers() {
+    owner_command(
+        b"TEMPER_CONFIG='/config space' TEMPER_DATA='/data' TEMPER_CACHE='/cache'",
+        b"TEMPER_CONFIG='/config space' TEMPER_DATA='/data' TEMPER_CACHE='/cache' temper program-login claude-person",
+    );
+}
+#[test]
+fn the_owner_sees_the_short_command_for_default_directories() {
+    owner_command(b"", b"temper program-login claude-person");
+}
