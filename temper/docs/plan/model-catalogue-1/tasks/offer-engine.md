@@ -143,3 +143,21 @@ clear `run_wait` and a task's omitted `llm` for this reason.
 - **What may come next:** a world that reads the offer live and finds it empty takes the spec's one-line fixture
   allowance. A difference left after this projection is a finding (15): a writer not keeping what its document shows.
   Report it, with its log, as a question; don't widen the projection to pass it.
+
+## Rebase (2026-11-06, step merge, foreman model-catalogue-1/offer-engine/foreman-3)
+
+combine core offer and preview translation with the landed model metadata
+The merge conflicts in two translators with integration commit `42bd9ec419` (“Carry model offer facts and template previews across client boundaries”).
+Resolve both paths by combining their changes:
+
+- `jig/crates/jig-protocol-engine-clients/src/translate/llm.rs`: retain this branch’s `models(offer, models, limits)` signature, offer iteration, configuration-index lookup, and `accounts: offered.accounts.clone()`.
+- Add the incoming `MeModelParts` fields `effort: model.effort.clone()`, `shown: model.shown.clone()`, and `picker: model.picker`. Keep exactly one `accounts` field; discard the empty placeholder.
+- Preserve the incoming `fits` validation for shown names and default efforts.
+- `jig/crates/jig-protocol-engine-clients/src/translate/owner.rs`, `project`: retain translation of `value.defaults` through `llm::choice` into `MeDefault`, the populated `defaults` field, and `models(value.offer.as_slice(), models, limits)`. Discard the incoming empty defaults placeholder and authority-mask model call.
+
+These combined values satisfy `notes/contracts.md` and `jig/docs/design/client/domain/contract.md`, 5.1.
+Validate sequentially with `TEMPER_BUNDLE=none`:
+- `heavy cargo nextest run -p jig-protocol-engine-clients --lib -E 'test(tests::llm::)'`
+- `heavy cargo nextest run -p temper-client-world -p temper-client-tools -p temper-client-domain -p temper-client-view --no-fail-fast`
+
+Preserve the spec’s cold-restart projection repairs and their required world validation.
