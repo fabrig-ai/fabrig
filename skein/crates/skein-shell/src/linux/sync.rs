@@ -84,6 +84,9 @@ pub(crate) fn read_signal(info: &libc::signalfd_siginfo, count: usize) -> Result
         value if value == u32::try_from(libc::SIGTERM).expect("positive signal") => {
             skein_io::kernel::Signalled::Termination { signal: ServiceSignal::Terminate, sender }
         }
+        value if value == u32::try_from(libc::SIGHUP).expect("positive signal") => {
+            skein_io::kernel::Signalled::Termination { signal: ServiceSignal::Hangup, sender }
+        }
         value if value == u32::try_from(libc::SIGWINCH).expect("positive signal") => {
             skein_io::kernel::Signalled::WindowChanged
         }

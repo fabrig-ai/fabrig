@@ -652,6 +652,8 @@ pub enum ServiceSignal {
     Interrupt,
     /// A termination request (`SIGTERM`).
     Terminate,
+    /// A terminal's closing (`SIGHUP`), read only by a service that asks (shell.md, 6.3).
+    Hangup,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
