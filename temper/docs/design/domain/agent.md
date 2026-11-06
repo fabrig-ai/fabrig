@@ -160,6 +160,9 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   direct delegates remain readable. `field=result` reads kept terminal reports,
   including descendants reached through a proven same-project requester chain
   of live or retained intermediate tasks (jig's `domain/engine.md`, 7.3).
+  One answer holds as much of the words as the run's reply takes, whatever a
+  client's `documents.text_bytes`, so a spec within that room comes back in one
+  call (`root.md`, 5.2).
   A cut answer prints `next: OFFSET`; pass that byte offset as `from` with the
   same field, and restart specification reads at zero if the spec revision changes.
   Task reads decide nothing and keep no named-call record. Escalations name
@@ -335,7 +338,7 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   asks again under the same name after busy or a lost answer (smith's
   `domain/run.md`, 5.2).
 - **An answer fits what the agent takes** (`domain/worker.md`, 4.3):
-  forge-read rendering uses the minimum of `core.call_answer_bytes` less
+  rendering a forge read or a task read uses the minimum of `core.call_answer_bytes` less
   the tool name and the checked receiving `agent.limits.bodies.host_reply_text`.
   The latter comes from the local agent's `agent.json`
   `profile.declared.tool_payload`. Raising `core.call_answer_bytes` alone
@@ -1231,6 +1234,10 @@ host:
 
 ## 10. Open questions
 
+- **A task read where the process has no local agent.** The engine does not
+  know its remote agents' reply bound, so a run there reads a task's words in
+  pieces of `documents.text_bytes` (`root.md`, 5.2). Going past it needs each
+  worker's reply bound at the engine. Default: the documents' window.
 - **The person's forge identity in a chat's brief,** rather than in the
   configuring agent's inventory (8.1), which its instructions read first.
   A brief section would spend every chat's room for what one charter

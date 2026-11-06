@@ -21,9 +21,6 @@ use limits::Limits;
 use skein_lib::{Env, Map, Queue, Stack};
 use vocabulary::{Counts, Event, Output};
 
-/// A request, or the answer that ends the walk.
-pub const MAX_OUT: u32 = 1;
-
 /// A directory on the stack: its path, and the names not yet visited, sorted bytewise.
 #[derive(Debug, Hash)]
 struct Level {

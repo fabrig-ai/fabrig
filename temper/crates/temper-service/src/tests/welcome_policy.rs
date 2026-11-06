@@ -70,6 +70,7 @@ fn generated() -> (engine::Config, engine::Limits) {
         files,
         demo: parsed.application.demo,
         welcome: false,
+        program_environment: Box::new([]),
         host_part: None,
         kinds_stock: Box::default(),
         landings: parsed.application.landings,

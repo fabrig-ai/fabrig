@@ -819,6 +819,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
     }
+    if let Some(page) = &mut pages.connect_model {
+        page.read_environment(&pages.address, client.link().state, &mut pages.next, out);
+    }
     default_chosen(pages, client);
     switcher_chosen(pages, client, out);
     returned(pages, client, out);
@@ -1279,9 +1282,12 @@ pub(crate) fn account_request_name(serial: u64) -> skein_lib::RequestKey {
     name
 }
 
-#[expect(clippy::too_many_lines, reason = "page replies keep the sheet outcome and route the other page families")]
+#[expect(clippy::too_many_lines, reason = "one dispatch keeps page replies beside their request owners")]
 fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
     if let Some(page) = &mut pages.connect_model {
+        if page.environment_told(&told) {
+            return true;
+        }
         if let Told::Kept { key, request: jig_client::Ask::Jig(ask) } = &told
             && let jig_client::contract::Ask::AccountChange {
                 change: jig_client::contract::AccountChange::FinishSignIn { .. },

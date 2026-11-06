@@ -492,6 +492,7 @@ pub(crate) fn engine_candidate(jig: &jig_protocol_config::Limits, limits: &Limit
         templates: jig.core.templates,
         policy_bytes: jig.core.policy_bytes,
         call_answer_bytes: jig.core.call_answer_bytes,
+        host_reply_bytes: None,
         settings: jig.core.settings,
         call_records: jig.core.call_records,
         forge: forge::Limits {

@@ -36,7 +36,7 @@ pub fn integer(value: i64) -> Declaration {
     declared(Form::Int, parts([entry_output([op(0, evaluate::Op::Integer(value))])]), false)
 }
 pub fn checked(declaration: &Declaration) -> Box<[schema::Fault]> {
-    let mut faults = List::with_capacity(1);
+    let mut faults = List::uncapped();
     crate::exports::check(declaration, 0, &mut faults);
     faults.into_boxed()
 }
