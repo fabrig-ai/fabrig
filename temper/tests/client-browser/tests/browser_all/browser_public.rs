@@ -218,8 +218,15 @@ impl Walk {
             assert!(text.contains(std::str::from_utf8(TITLE).expect("title")), "card shows the goal's title: {text}");
         }
         if matches!(self.page, Page::Landings) {
-            // This demo lands directly, without a landing by turn: no turn, queues or recent landings.
-            assert_eq!(self.text, ["temper", "Landings", "Nothing has landed yet."], "empty public landings page");
+            // The demo lands by the stock queue: the merge shows once it has landed (temper/docs/design/client/browser.md, 8.3).
+            let shown = self.text.join("");
+            let merged = shown.strip_prefix("temperLandingslanded · task ").is_some_and(|line| {
+                let Some((task, commit)) = line.split_once(" · ") else {
+                    return false;
+                };
+                task.len() == 8 && lowercase_hex(task) && commit.len() == 7 && lowercase_hex(commit)
+            });
+            assert!(shown == "temperLandingsNo landings to show yet." || merged, "public landings page: {shown}");
         }
         if matches!(self.page, Page::Private) {
             assert_eq!(
@@ -371,6 +378,10 @@ impl Play for Walk {
     fn check_deadline(&mut self, face: &mut BrowserFace<'_>, now: Time) {
         self.script.check_deadline(face, now);
     }
+}
+
+fn lowercase_hex(digits: &str) -> bool {
+    digits.bytes().all(|digit| digit.is_ascii_digit() || (b'a'..=b'f').contains(&digit))
 }
 
 const LONG_TITLE: &str =

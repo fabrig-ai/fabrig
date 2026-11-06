@@ -7,9 +7,6 @@ Public history retains two limits the request `ui-public-2` left for later
 a project went public never shows; a restart empties the ended-goal history
 (jig's `domain/people.md`, 13.9).
 
-- **Not yet:** 8.3: the board's line of what it doesn't hold and the empty words "No goals
-  to show yet." and "No landings to show yet.": `temper-client-view`'s `public/pages.rs`
-  draws the older words.
 - **Design departs:** 8.3, from the request `ui-public-2` of 2026-11-06:
   ended rows say how long ago they ended, where the request says "for how
   long", because "landed for 2 hours" would not describe the ending. The
