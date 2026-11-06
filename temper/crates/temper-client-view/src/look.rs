@@ -1127,6 +1127,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-work-failed",
         b"temper-work-calls",
         b"temper-work-out",
+        b"temper-writing-end",
     ],
     regions: &[b"temper-link"],
 };
@@ -1299,6 +1300,9 @@ pub const WORK_FAILED: Style = Style { owner: owner(), token: 449 };
 pub const WORK_CALLS: Style = Style { owner: owner(), token: 450 };
 /// A call run (temper/docs/design/client/README.md, 3.5).
 pub const WORK_OUT: Style = Style { owner: owner(), token: 451 };
+
+/// The words being written end here (temper/docs/design/client/README.md, 3.5).
+pub const WRITING_END: Style = Style { owner: owner(), token: 452 };
 
 #[cfg(test)]
 mod tests {

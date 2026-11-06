@@ -92,21 +92,102 @@ fn a_chats_header_says_its_spend_including_delegates() {
     assert!(fixtures::find(&tree, Role::Paragraph, "7 spent · of 7".as_bytes()).is_some());
 }
 
+fn answer_tree(thread: &Thread, words: &crate::words::Words, projected: bool) -> skein_ui::Tree {
+    let mut b = skein_ui::Builder::new(&fixtures::tree_limits());
+    crate::pages::chat::conversation(
+        &mut b,
+        thread,
+        words,
+        (LINES, TEXT),
+        crate::pages::chat::Speakers { person: None, requester: false },
+        if projected {
+            crate::pages::chat::Drawn::Chat { request: None, delegations: None }
+        } else {
+            crate::pages::chat::Drawn::Lines
+        },
+        &mut crate::frame::Bindings::new(fixtures::tree_limits().bindings),
+    );
+    b.finish()
+}
+
 #[test]
-fn provisional_text_is_marked_until_its_turn_commits() {
-    let mut thread = provisional();
-    assert!(fixtures::find(&tree(&thread), Role::Status, b"Writing...").is_some());
-    thread.reading = Some(jig_client::thread::Reading::Latest { known: COMMITTED.into() });
-    let mut rows = List::with_capacity(TURN);
-    rows.push(crate::tests::documents::turn(
-        TURN.into(),
-        Wall::EPOCH,
-        c::TurnName { attempt: ATTEMPT, number: TURN },
-        c::TurnRead::Undecodable { why: c::TurnProblem::Malformed },
-    ))
-    .expect("turn");
-    thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
-    assert_eq!(fixtures::find(&tree(&thread), Role::Status, b"Writing..."), None);
+fn the_words_being_written_end_in_the_mark() {
+    for value in [b"An answer".as_slice(), b"- one\n- two", b"# Heading", b"```\ncode\n```", b""] {
+        let thread = provisional_with_text(value);
+        for words in [fixtures::words(), fixtures::browser_words()] {
+            for projected in [true, false] {
+                let drawn = answer_tree(&thread, &words, projected);
+                let who = styled(&drawn, crate::look::WHO);
+                assert_eq!(fixtures::node_text(&drawn, who).as_ref(), b"Temper");
+                let says = styled(&drawn, crate::look::SAYS);
+                let nodes = subtree(&drawn, says);
+                match words.shell {
+                    crate::words::Shell::Browser => {
+                        let mark = style_position(nodes, crate::look::WRITING_END).expect("browser mark");
+                        assert_eq!(mark, nodes.len() - 1, "the mark follows the Markdown");
+                        assert_eq!(nodes[mark].role, Role::Text);
+                        assert!(nodes[mark].text.is_empty());
+                        assert_eq!(nodes[mark].name, None);
+                    }
+                    crate::words::Shell::Terminal => {
+                        let mark = named_position(nodes, Role::Status, Some("▌".as_bytes())).expect("terminal mark");
+                        assert_eq!(mark + usize::try_from(nodes[mark].size).unwrap(), nodes.len());
+                    }
+                }
+                assert!(fixtures::find(&drawn, Role::Status, b"Writing...").is_none());
+            }
+        }
+    }
+}
+
+#[test]
+fn the_mark_goes_when_the_turn_commits_and_the_words_stay() {
+    use fixtures::first_run as run;
+    for value in [b"An answer".as_slice(), b"- one\n- two", b"# Heading", b"```\ncode\n```"] {
+        for words in [fixtures::words(), fixtures::browser_words()] {
+            for projected in [true, false] {
+                let mut thread = provisional_with_text(value);
+                let before = answer_tree(&thread, &words, projected);
+                thread.reading = Some(jig_client::thread::Reading::Latest { known: COMMITTED.into() });
+                let mut rows = List::with_capacity(1);
+                rows.push(run::turn(
+                    TURN.into(),
+                    ATTEMPT,
+                    TURN,
+                    &[run::message(c::Speaker::Assistant, &[c::Block::Text(run::text(value))])],
+                    512,
+                ))
+                .unwrap();
+                thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
+                let after = answer_tree(&thread, &words, projected);
+                assert!(style_position(after.nodes(), crate::look::WRITING_END).is_none());
+                assert!(fixtures::find(&after, Role::Status, "▌".as_bytes()).is_none());
+                let mut before_text = List::with_capacity(32);
+                let mut after_text = List::with_capacity(32);
+                for (drawn, text, writing) in [(&before, &mut before_text, true), (&after, &mut after_text, false)] {
+                    let says = styled(drawn, crate::look::SAYS);
+                    let nodes = subtree(drawn, says);
+                    let end = if writing {
+                        match words.shell {
+                            crate::words::Shell::Browser => style_position(nodes, crate::look::WRITING_END).unwrap(),
+                            crate::words::Shell::Terminal => {
+                                named_position(nodes, Role::Status, Some("▌".as_bytes())).unwrap()
+                            }
+                        }
+                    } else {
+                        nodes.len()
+                    };
+                    for node in &nodes[..end] {
+                        if !node.text.is_empty() {
+                            text.push((node.role, node.text.clone())).unwrap();
+                        }
+                    }
+                }
+                assert!(!before_text.is_empty(), "the reply has text nodes");
+                assert_eq!(before_text, after_text, "the same text nodes stay in order");
+            }
+        }
+    }
 }
 
 #[test]
@@ -392,10 +473,10 @@ fn a_chat_rejection_confirmation_keeps_the_persons_reason() {
 
 const LONG_PROVISIONAL: &[u8] = b"1234567890123456789012345678901\xc3\xa9 and more";
 #[test]
-fn long_provisional_text_says_that_earlier_text_was_omitted() {
+fn long_provisional_text_says_nothing_of_what_was_cut() {
     let thread = provisional_with_text(LONG_PROVISIONAL);
     let tree = tree(&thread);
-    assert!(fixtures::find(&tree, Role::Status, b"Earlier text omitted").is_some());
+    assert!(fixtures::find(&tree, Role::Status, b"Earlier text omitted").is_none());
     assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"\xc3\xa9 and more").is_some());
 }
 
@@ -1132,12 +1213,32 @@ pub(super) fn assert_run_line(tree: &skein_ui::Tree, name: &[u8], description: &
     assert_eq!(child, at.checked_add(usize::try_from(fold.size).unwrap()).unwrap());
 }
 #[test]
-fn an_assistants_opaque_block_stays_inside_its_temper_message() {
-    let tree = assistant_blocks(&[c::Block::Opaque { dialect: fixtures::first_run::text(b"opaque-v1"), size: 42 }]);
-    let message = styled(&tree, crate::look::BY_AGENT);
-    let said = fixtures::node_text(&tree, message);
-    assert!(skein_lib::bytes::find(&said, b"TemperContent in opaque-v142 bytes").is_some());
+fn an_opaque_block_draws_nothing_and_no_shell() {
+    use fixtures::first_run as run;
+    for speaker in [c::Speaker::Assistant, c::Speaker::Person, c::Speaker::Tool, c::Speaker::System] {
+        let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
+        thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
+        let mut rows = List::with_capacity(1);
+        rows.push(run::turn(
+            1,
+            ATTEMPT,
+            1,
+            &[run::message(speaker, &[c::Block::Opaque { dialect: run::text(b"opaque-v1"), size: 42 }])],
+            512,
+        ))
+        .unwrap();
+        thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
+        for words in [fixtures::words(), fixtures::browser_words()] {
+            for projected in [true, false] {
+                let drawn = answer_tree(&thread, &words, projected);
+                assert_eq!(drawn.nodes().len(), 1, "only the conversation log remains");
+                assert_eq!(drawn.nodes()[0].role, Role::Log);
+                assert!(fixtures::text(&drawn).is_empty());
+            }
+        }
+    }
 }
+
 #[test]
 fn a_persons_words_are_paragraphs_without_a_read_label() {
     let mut thread = structured_thread();
@@ -2404,7 +2505,7 @@ fn provisional_text_replaces_working_dots_and_agent_task_logs_never_have_them() 
             assert_eq!(style_position(tree.nodes(), crate::look::THREAD_INNER).is_some(), !agent_page);
             if provisional_text {
                 assert!(style_position(tree.nodes(), crate::look::BY_AGENT).is_some());
-                assert!(fixtures::find(&tree, Role::Status, b"Writing...").is_some());
+                assert!(style_position(tree.nodes(), crate::look::WRITING_END).is_some());
             }
         }
     }
@@ -2462,14 +2563,12 @@ fn the_log_has_one_column_with_older_before_turns() {
 }
 
 #[test]
-fn a_note_turn_draws_no_cut_words() {
+fn a_cut_text_says_nothing() {
     use fixtures::first_run as run;
-    for other_cut in [false, true] {
+    for projected in [true, false] {
         let mut blocks = List::with_capacity(2);
         blocks.push(run::call(1, b"note", b"", Some("Note 1 revision 1 written · 12 lines".as_bytes()))).unwrap();
-        if other_cut {
-            blocks.push(c::Block::Text(run::text(b"A long reply, also cut"))).unwrap();
-        }
+        blocks.push(c::Block::Text(run::text(b"A long reply, also cut"))).unwrap();
         let mut line = run::turn(1, ATTEMPT, 1, &[run::message(c::Speaker::Assistant, blocks.as_slice())], 512);
         let Some(c::ArchivedTurn { turn: c::TurnRead::Decoded(turn), .. }) = &mut line.decoded else {
             panic!("decoded turn")
@@ -2482,8 +2581,8 @@ fn a_note_turn_draws_no_cut_words() {
         let mut rows = List::with_capacity(1);
         rows.push(line).unwrap();
         thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
-        let tree = tree(&thread);
-        assert_eq!(fixtures::find(&tree, Role::Status, b"Earlier text omitted").is_some(), other_cut);
+        let tree = answer_tree(&thread, &fixtures::words(), projected);
+        assert!(fixtures::find(&tree, Role::Status, b"Earlier text omitted").is_none());
         assert!(fixtures::find(&tree, Role::Button, b"Show").is_some());
     }
 }

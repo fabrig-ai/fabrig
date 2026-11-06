@@ -246,7 +246,6 @@ pub fn demo_change() -> Script {
                 within: DEMO_LANDS_WITHIN,
             },
             // client/README.md, 5.4: the committed opening turn fits whole.
-            Step::Gone { find: Find::exactly_named(Role::Status, b"Earlier text omitted").within(conversation()), within: START_WITHIN },
             Step::Gone { find: Find::exactly_named(Role::Paragraph, b"delegate").within(conversation()), within: START_WITHIN },
             // client/README.md, 5.7: the delegated change's card says it landed.
             Step::See { find: Find::text("T2 · CHANGE".as_bytes()).within(card()), within: START_WITHIN },

@@ -1286,7 +1286,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Settings, Needs you and the chat document include their literal phrases (client/README.md, 3.5, 5.13).
 // The rail menu adds six literal phrases (client/README.md, 5.3).
-const PHRASES: u32 = 1776;
+const PHRASES: u32 = 1772;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1307,7 +1307,7 @@ const PHRASES: u32 = 1776;
 // Settings, Needs you and the chat document include their literal segments (client/README.md, 3.5, 5.13).
 // The agent check refusal names its charter, adding two segments.
 // The rail menu adds six literal segments (client/README.md, 5.3).
-const SEGMENTS: u32 = 3101;
+const SEGMENTS: u32 = 3093;
 const ALL: [Word; 1177] = [
     Word::DraftsChats,
     Word::ChatsDraftLede,

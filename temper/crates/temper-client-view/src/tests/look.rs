@@ -660,3 +660,8 @@ fn work_tokens_name_the_line_and_its_rows() {
         assert_eq!(NAMES.style(token), Some(name));
     }
 }
+
+#[test]
+fn the_writing_end_has_its_css_name() {
+    assert_eq!(NAMES.style(WRITING_END), Some(b"temper-writing-end".as_slice()));
+}

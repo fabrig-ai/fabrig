@@ -656,14 +656,6 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-agent-page .temper-thread > .temper-ended { display: flex; align-items: center; gap: 15.17px; padding-left: 0; font-size: 11.67px; color: #8b8378; margin-bottom: 21px; }
 .temper-agent-page .temper-thread > .temper-ended::after, .temper-agent-page .temper-thread > button:first-child::after { content: ''; height: 1px; flex: 1; background: var(--temper-line); }
 .temper-agent-page .temper-thread > button:first-child { display: flex; align-items: center; gap: 15.17px; min-height: 0; border: 0; background: transparent; padding: 0; margin-block: 0 21px; color: var(--temper-accent-dark); font: inherit; font-size: 11.67px; }
-/* A provisional agent message is identified by its WHO status, as in the view. */
-.temper-agent-page .temper-by-agent:has(> .temper-who > [role=status]) > .temper-who > [role=status] { color: #4c8067; font-size: 11.67px; text-transform: none; letter-spacing: 0; }
-.temper-agent-page .temper-by-agent:has(> .temper-who > [role=status]) > .temper-says { color: #59534c; }
-.temper-agent-page .temper-by-agent:has(> .temper-who > [role=status]) > .temper-says > p:last-of-type::after { content: ''; display: inline-block; width: 5.83px; height: 14px; margin-left: 2.33px; background: #aa6a50; vertical-align: -2.33px; animation: agent-blink 1s steps(1) infinite; }
-@keyframes agent-blink { 50% { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) {
-  .temper-agent-page .temper-by-agent:has(> .temper-who > [role=status]) > .temper-says > p:last-of-type::after { animation: none; }
-}
 .temper-repository { font-weight: 700; }
 @media (max-width: 760px) {
   .temper-agent-page .temper-by-agent > .temper-says td:first-child { white-space: normal; }
@@ -1544,6 +1536,22 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 @media (max-width: 760px) {
   #app > .temper-session .temper-thread > [role=log] { padding: 20px 16px; scrollbar-gutter: auto; scrollbar-width: none; }
 }
+
+/* The answer ends where its last closed Markdown block ends. */
+#app > .temper-session .temper-by-agent > .temper-says ol,
+.temper-agent-page .temper-by-agent > .temper-says ol { padding-left: 22px; }
+#app > .temper-session .temper-by-agent > .temper-says ol > li::marker,
+.temper-agent-page .temper-by-agent > .temper-says ol > li::marker { color: var(--gf-faint); }
+#app > .temper-session .temper-writing-end,
+.temper-agent-page .temper-writing-end { display: none; }
+#app > .temper-session .temper-writing-end:only-child,
+.temper-agent-page .temper-writing-end:only-child,
+#app > .temper-session .temper-says:has(> .temper-writing-end) > :nth-last-child(2):not(ol, ul)::after,
+#app > .temper-session .temper-says:has(> .temper-writing-end) > :is(ol, ul):nth-last-child(2) > li:last-child::after,
+.temper-agent-page .temper-says:has(> .temper-writing-end) > :nth-last-child(2):not(ol, ul)::after,
+.temper-agent-page .temper-says:has(> .temper-writing-end) > :is(ol, ul):nth-last-child(2) > li:last-child::after { content: '' / ''; display: inline-block; width: 7px; height: 15px; margin-left: 2px; vertical-align: -2px; border-radius: 1px; background: var(--gf-hint); animation: chat-writing-end 1s steps(2) infinite; }
+#app > .temper-session .temper-says:has(> .temper-writing-end) > :nth-last-child(2) { margin-bottom: 0; }
+@keyframes chat-writing-end { to { visibility: hidden; } }
 
 /* Playground suggestions keep the centred new-chat opening beside configuring's cards. */
 #app > .temper-session .temper-starter:not(:has(> .temper-starter-ways)) { margin: 12vh auto 0; align-items: center; gap: 16px; }
