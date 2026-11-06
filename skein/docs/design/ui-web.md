@@ -425,7 +425,7 @@ the host tests (section 14).
 | group | `<div role="group">` |
 | heading | `<h1>` to `<h6>`; deeper, `role="heading"` with `aria-level` |
 | paragraph, text | `<p>`, `<span>` |
-| list, item | `<ul>`, `<li>` |
+| list, item | `<ul>`, or `<ol>` with an order, `<li>` |
 | table, row, cell, column header, row header | `<table>`, `<tr>`, `<td>`, `<th scope="col">`, `<th scope="row">` |
 | term, description | `role="term"`, `role="definition"` |
 | button | `<button type="button">` |
@@ -512,6 +512,10 @@ the host tests (section 14).
     count is `aria-setsize` on each of its items or tree items, an
     item's position `aria-posinset`; a table's count is `aria-rowcount`,
     a row's position `aria-rowindex`;
+  - *a list's order* is `<ol start="N">` in place of `<ul>`, N its first
+    number, written at 1 too, and the browser numbers its items. An
+    element a look gives the list (6.1) keeps its tag, and `start`
+    goes only on an `<ol>`;
   - *a cell's spans* are `colspan` and `rowspan`, left out at 1; *a
     column header's sort* is `aria-sort`, `ascending` or `descending`;
   - *a region name* is `data-region="<its name>"`; *style tokens* are
@@ -598,17 +602,19 @@ the host tests (section 14).
     field it moved;
   - *a text* replaces a node's runs;
   - *an attribute* sets or removes what changed: a drawing whose data
-    changed is drawn again, and a role whose element differs makes the
-    new element, the children moved into it;
+    changed is drawn again, and a role or a list's order whose element
+    differs makes the new element, the children moved into it;
   - *a value* writes a field's value, which comes only from the owner's
     write (ui.md, 3.4).
 - **Never replaced while it can be updated:** focus, caret, selection,
   composition and scroll stay. A removal that takes the focus moves it
-  to the nearest remaining ancestor that can take it, else the main.
+  to the nearest remaining ancestor that can take it, a disclosure on
+  its `<summary>`, else the main.
 - **A focus request:** after the apply, a node inserted with one, or
   whose count moved, takes the focus. An element that cannot take it by
   itself (a heading, a region) gets `tabindex="-1"` first, so it takes
-  the focus without joining the tab order.
+  the focus without joining the tab order. A disclosure takes it on its
+  `<summary>`.
 - **Acts,** each reported with its node's id (ui.md, section 6), none on
   a disabled node; the view refuses one that races a patch disabling
   its node, and an option of a disabled select is disabled:
@@ -662,7 +668,10 @@ the host tests (section 14).
   Escape; a press inside it leaves it open. A menu is a button of the
   page part's, named by the menu's name, that opens its items with the
   platform's keys (arrows, Escape): ARIA's menu-button pattern. A press
-  on an item closes the menu. **An address changed folds the
+  on an item closes the menu. A press outside an open menu closes it, the
+  press still going to what it lands on, and the focus returns to the
+  menu's button, as on Escape, unless that press took it to another
+  control. **An address changed folds the
   disclosures:** when the path or the query the page shows moved since
   the page part's last apply (a new entry, one replaced, back or
   forward), it folds every open `<details>` in that apply, so a
@@ -865,7 +874,11 @@ share sheet, a clipboard write, a file picked).
     is not in every browser the page supports. So the mapping stays
     attributes alone, and its goldens see all of it. An owner's rule
     draws a bar with `var(--skein-ui-progress, 0%)`;
-  - keeps focus outlines visible;
+  - keeps focus outlines visible on what a person reaches by keys, and
+    draws none on a programmatic focus target: an element whose
+    `tabindex="-1"` is there only to take the focus (a main, a heading,
+    a region; section 7). A menu's item, which the arrow keys reach,
+    keeps its outline;
   - follows the platform's light or dark preference, and reduced motion.
 - **It styles no token and places no region:** skein-ui reserves no
   token names, and layout is never the tree's; it sets no palette. **No
@@ -1217,6 +1230,11 @@ the application that needs it.
   then (14.3).
 - **Parts for other effects** (a share sheet, a clipboard write): an
   application's own code until a second application writes the same.
+- **A view's say in a fold or a selection:** a view has no way to fold a
+  disclosure, which is the page part's (section 7), nor to select a
+  field's words as it takes the focus. Each waits for an application that
+  needs it; temper's rename draws without them
+  (`temper/docs/design/client/README.md`, 11).
 - **The vocabulary that waits** (ui.md, 4.2), each with its row in
   section 6 when the light path brings it.
 - **Tabs of one person sharing one stream,** so that many tabs hold one

@@ -14,9 +14,9 @@ pub enum Act {
     Rename,
     /// The rename's field.
     RenameWords { words: Box<[u8]> },
-    /// The rename's "Save", or its field's Enter.
+    /// Save the trimmed name, or close unchanged, from "Save" or the field's Enter.
     Save,
-    /// The rename's "Cancel", or Escape.
+    /// Close without sending, from "Cancel" or Escape.
     Cancel,
     /// The new project's field.
     NewWords { words: Box<[u8]> },
@@ -143,10 +143,12 @@ impl Switcher {
             Act::Cancel if self.pending() != Some(Form::Rename) => self.close(),
             Act::Save if self.pending.is_none() && self.renaming == project => {
                 let Some(row) = owned(me, self.renaming) else { return };
-                if self.rename_words.is_empty() || self.rename_words.as_ref() == row.name.bytes() {
+                let words = self.rename_words.trim_ascii();
+                if words.is_empty() || words == row.name.bytes() {
+                    self.close();
                     return;
                 }
-                let name = c::Text::new(self.rename_words.clone(), NAME_BYTES).expect("bounded rename words");
+                let name = c::Text::new(words.into(), NAME_BYTES).expect("bounded rename words");
                 self.send(c::Ask::Rename { project: row.project, name }, Form::Rename, serial, out);
             }
             Act::Create if self.pending.is_none() && me.is_some() && !self.new_words.is_empty() => {

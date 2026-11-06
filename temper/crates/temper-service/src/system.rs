@@ -1160,6 +1160,10 @@ pub(crate) fn machine_config(machine: &temper_forge_setup::machine::Machine) -> 
         },
     };
     Machine {
+        owned_person: match &machine.owned {
+            Some(owned) => owned.person.login.clone(),
+            None => Box::new([]),
+        },
         owned: match &machine.owned {
             Some(owned) => Some(local_place(owned.listen, &owned.remote)),
             None => None,
@@ -1192,6 +1196,25 @@ mod box_tests {
     use super::BoxRefusal;
     use crate::tests::fixtures;
     use skein_io::kernel::Fd;
+
+    #[test]
+    fn machine_context_carries_only_the_owned_persons_login() {
+        let mut machine = fixtures::machine();
+        assert!(super::machine_config(&machine).owned_person.is_empty());
+        let temper_forge_setup::setup::Mode::Owned(owned) = fixtures::owned_setup(1).entry.mode else {
+            panic!("owned machine fixture")
+        };
+        machine.owned = Some(temper_forge_setup::machine::OwnedMachine {
+            listen: owned.listen,
+            remote: b"http://forge.example".as_slice().into(),
+            person: owned.person,
+            public: owned.public,
+            fetch: owned.fetch,
+            forgejo: owned.forgejo,
+            runner: owned.runner,
+        });
+        assert_eq!(super::machine_config(&machine).owned_person.as_ref(), b"owner");
+    }
 
     #[test]
     fn box_adoption_names_each_refusal_and_keeps_both_descriptors() {

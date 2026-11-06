@@ -122,7 +122,10 @@ fn a_held_chats_escalation_released_from_the_inbox() {
         vec![
             Step::See { find: Find::exactly_named(Role::Button, b"Release task"), within: fixtures::WITHIN },
             Step::Press { find: Find::exactly_named(Role::Button, b"Release task") },
-            Step::Press { find: Find::named(Role::Button, b"Confirm") },
+            Step::Press {
+                find: Find::named(Role::Button, b"Release")
+                    .within(Box::new([skein_fake_person::Target::Role { role: Role::Dialog, name: Box::new([]) }])),
+            },
             Step::See { find: Find::text(b"Released"), within: fixtures::WITHIN },
         ],
     );

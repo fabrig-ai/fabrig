@@ -11,7 +11,7 @@ pub enum Revision {
     Hold(u64),
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(super) struct Revisions(BTreeSet<(u64, Revision)>);
 
 impl Revisions {

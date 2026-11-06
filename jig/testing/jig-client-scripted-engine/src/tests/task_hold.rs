@@ -31,7 +31,7 @@ fn scripted_hold_moves_return_exact_category_for_release_and_atomic_amend_releas
             crate::tests::releasing(
                 Ask::Amend {
                     reason: text(b""),
-                    project: 1,
+                    project: PROJECT,
                     task: 8,
                     revision: Some(spec_revision),
 
@@ -49,9 +49,9 @@ fn scripted_hold_moves_return_exact_category_for_release_and_atomic_amend_releas
                 Revision { value: 6 },
             )
         } else {
-            Ask::Release { project: 1, task: 8, revision: Revision { value: 6 }, again: None }
+            Ask::Release { project: PROJECT, task: 8, revision: Revision { value: 6 }, again: None }
         };
-        send(&mut engine, 0, 11, 1, 1, ask);
+        send(&mut engine, 0, REQUESTER_SIGN_IN, 1, 1, ask);
         assert_eq!(
             final_answer(&engine.poll(Time::from_nanos(10_000_000))[0]),
             &Answer::Refused {

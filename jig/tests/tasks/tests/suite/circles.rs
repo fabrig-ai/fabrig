@@ -2,7 +2,7 @@ use jig_domain_tasks::{
     self as tasks, Active, Amendment, Cancel, Circle, Event, Hold, HoldKind, HoldSource, Holding, Kind, Limits, Name,
     Operation, Party, Phase, Refusal, Release, Stored, Taken, Was,
 };
-use jig_tasks_world::{LIMITS, Reply, World, task};
+use jig_tasks_world::{LIMITS, PERSON_PARTY, Reply, World, task};
 use skein_lib::{Duration, List};
 
 const ROOT: u64 = 1;
@@ -15,7 +15,6 @@ const LATER: u64 = 7;
 const OTHER_HOLDER: u64 = 8;
 const DELEGATE_READY: u64 = 10;
 const HOLDER_READY: u64 = 11;
-const PERSON: u64 = 9;
 const CONNECTOR: u16 = 1;
 const KIND: u16 = 1;
 const RESOURCE: u8 = 1;
@@ -49,7 +48,7 @@ fn introduce(world: &mut World, left: u64, right: u64) {
 // REQUESTER joins HOLDER's queue, those four waits would circle.
 fn delayed(pooled: bool, limits: &Limits) -> World {
     let mut world = configured(limits, pooled);
-    world.make(Party::Person(PERSON), vec![task(ROOT, &[])]);
+    world.make(PERSON_PARTY, vec![task(ROOT, &[])]);
     let mut holder = task(HOLDER, &[]);
     holder.holdings = Box::new([holding(pooled)]);
     world.make(Party::Task(ROOT), vec![task(REQUESTER, &[]), holder, task(PREREQUISITE, &[])]);
@@ -83,7 +82,7 @@ fn release(world: &mut World, number: u64) {
     let reply_to = world.to();
     world.send(Event::Release {
         reply_to,
-        by: Party::Person(PERSON),
+        by: PERSON_PARTY,
         operation: Release { task: number, again: None, message: None },
     });
 }
@@ -93,7 +92,7 @@ fn a_grandchild_queuing_for_its_grandparents_hold_is_refused_whole() {
     let mut world = configured(&LIMITS, false);
     let mut grandparent = task(ROOT, &[]);
     grandparent.holdings = Box::new([holding(false)]);
-    world.make(Party::Person(PERSON), vec![grandparent]);
+    world.make(PERSON_PARTY, vec![grandparent]);
     world.make(Party::Task(ROOT), vec![task(REQUESTER, &[])]);
     let mut grandchild = task(WAITER, &[]);
     grandchild.holdings = Box::new([holding(false)]);
@@ -106,7 +105,7 @@ fn a_grandchild_queuing_for_its_grandparents_hold_is_refused_whole() {
 #[test]
 fn a_circle_among_new_members_names_the_members_in_wait_order() {
     let mut world = configured(&LIMITS, false);
-    assert!(matches!(world.make(Party::Person(PERSON), vec![task(REQUESTER, &[WAITER]), task(WAITER, &[REQUESTER])]),
+    assert!(matches!(world.make(PERSON_PARTY, vec![task(REQUESTER, &[WAITER]), task(WAITER, &[REQUESTER])]),
         Reply::Refused(problem) if problem.why == Refusal::Circle { cut: false }
             && problem.blocked_by.as_deref() == Some(&[REQUESTER, WAITER])));
 }
@@ -120,7 +119,7 @@ fn a_queue_circle_lifts_at_its_place_and_counts_its_bound_afresh() {
     world.elapse(Duration::from_secs(6));
     let mut later = task(LATER, &[]);
     later.holdings = Box::new([holding(false)]);
-    world.make(Party::Person(PERSON), vec![later]);
+    world.make(PERSON_PARTY, vec![later]);
     let reply_to = world.to();
     world.send(Event::Cancel {
         reply_to,
@@ -280,7 +279,7 @@ fn compound(world: &mut World, operations: Vec<Operation>) -> Reply {
     let call = reply_to.into_token();
     world.send(Event::Compound {
         reply_to: skein_lib::ReplyTo::new(call),
-        by: jig_domain_tasks::Party::Person(PERSON),
+        by: PERSON_PARTY,
         project: 1,
         operations: staged,
         period: 0,
@@ -294,7 +293,7 @@ fn queued_delegate() -> World {
     let mut world = configured(&LIMITS, false);
     let mut holder = task(HOLDER, &[]);
     holder.holdings = Box::new([holding(false)]);
-    world.make(Party::Person(PERSON), vec![holder, task(REQUESTER, &[])]);
+    world.make(PERSON_PARTY, vec![holder, task(REQUESTER, &[])]);
     let mut waiter = task(WAITER, &[]);
     waiter.holdings = Box::new([holding(false)]);
     world.make(Party::Task(REQUESTER), vec![waiter]);
@@ -304,7 +303,7 @@ fn queued_delegate() -> World {
 #[test]
 fn a_compound_dependency_circle_is_refused_whole_naming_both_tasks() {
     let mut world = configured(&LIMITS, false);
-    world.make(Party::Person(PERSON), vec![task(HOLDER, &[]), task(REQUESTER, &[])]);
+    world.make(PERSON_PARTY, vec![task(HOLDER, &[]), task(REQUESTER, &[])]);
     let before = world.records.clone();
     let operations = vec![amendment(&world, HOLDER, &[REQUESTER]), amendment(&world, REQUESTER, &[HOLDER])];
     assert!(matches!(compound(&mut world, operations), Reply::Refused(problem)
@@ -316,7 +315,7 @@ fn a_compound_dependency_circle_is_refused_whole_naming_both_tasks() {
 #[test]
 fn a_compound_closing_a_circle_through_a_staged_join_is_refused() {
     let mut world = configured(&LIMITS, false);
-    world.make(Party::Person(PERSON), vec![task(ROOT, &[])]);
+    world.make(PERSON_PARTY, vec![task(ROOT, &[])]);
     let mut holder = task(HOLDER, &[]);
     holder.holdings = Box::new([holding(false)]);
     world.make(Party::Task(ROOT), vec![task(REQUESTER, &[]), holder, task(PREREQUISITE, &[])]);
@@ -343,7 +342,7 @@ fn a_compound_closing_a_circle_through_a_staged_join_is_refused() {
 #[test]
 fn a_compound_removed_dependency_is_absent_from_the_circle_walk() {
     let mut world = configured(&LIMITS, false);
-    world.make(Party::Person(PERSON), vec![task(HOLDER, &[REQUESTER]), task(REQUESTER, &[])]);
+    world.make(PERSON_PARTY, vec![task(HOLDER, &[REQUESTER]), task(REQUESTER, &[])]);
     let operations = vec![amendment(&world, HOLDER, &[]), amendment(&world, REQUESTER, &[HOLDER])];
     assert_eq!(compound(&mut world, operations), Reply::Done);
     assert!(world.record(HOLDER).waiting_on.is_empty());
@@ -382,7 +381,7 @@ fn a_compound_move_removes_the_old_requesters_delegate_wait() {
         amendment(&world, HOLDER, &[REQUESTER]),
     ];
     assert_eq!(compound(&mut world, operations), Reply::Done);
-    assert_eq!(world.record(WAITER).requester, Party::Person(PERSON));
+    assert_eq!(world.record(WAITER).requester, PERSON_PARTY);
     assert_eq!(world.record(HOLDER).waiting_on.as_ref(), [REQUESTER]);
 }
 
@@ -416,7 +415,7 @@ fn a_procedure_step_judges_earlier_amendments_before_refusing_a_circle_whole() {
     let mut world = configured(&LIMITS, false);
     let mut root = task(ROOT, &[]);
     root.executor = Executor::Procedure { connector: CONNECTOR, code: u32::from(KIND) };
-    world.make(Party::Person(PERSON), vec![root]);
+    world.make(PERSON_PARTY, vec![root]);
     world.make(Party::Task(ROOT), vec![task(HOLDER, &[]), task(REQUESTER, &[])]);
     let mut parts = Vec::new();
     for operation in [amendment(&world, HOLDER, &[REQUESTER]), amendment(&world, REQUESTER, &[HOLDER])] {
@@ -441,7 +440,7 @@ fn a_procedure_step_judges_earlier_amendments_before_refusing_a_circle_whole() {
 fn a_compound_amendment_that_reholds_a_returning_waiter_adds_no_queue_edge() {
     let mut world = delayed(false, &LIMITS);
     finish_prerequisite(&mut world);
-    world.make(Party::Person(PERSON), vec![task(OTHER_HOLDER, &[])]);
+    world.make(PERSON_PARTY, vec![task(OTHER_HOLDER, &[])]);
     let mut operation = amendment(&world, WAITER, &[OTHER_HOLDER]);
     let Operation::Amend(tasks::Amend { amendment: change, .. }) = &mut operation else {
         unreachable!("amendment fixture")
@@ -469,14 +468,14 @@ fn cancel(world: &mut World, number: u64) {
     let reply_to = world.to();
     world.send(Event::Cancel {
         reply_to,
-        by: Party::Person(PERSON),
+        by: PERSON_PARTY,
         operation: Cancel { task: number, reason: Box::new([]), grace: None, message: None },
     });
 }
 
 fn second_holder() -> World {
     let mut world = configured(&LIMITS, true);
-    world.make(Party::Person(PERSON), vec![task(ROOT, &[]), pool_task(HOLDER, &[]), pool_task(DEPENDENT, &[])]);
+    world.make(PERSON_PARTY, vec![task(ROOT, &[]), pool_task(HOLDER, &[]), pool_task(DEPENDENT, &[])]);
     world.make(Party::Task(ROOT), vec![task(PREREQUISITE, &[]), pool_task(WAITER, &[])]);
     world
 }
@@ -499,7 +498,7 @@ fn pool_delegate() -> World {
     const FAMILY_INBOX_BYTES: u32 = FAMILY_DELEGATES * LIMITS.result_bytes;
     let limits = Limits { inbox_bytes: FAMILY_INBOX_BYTES, ..LIMITS };
     let mut world = configured(&limits, true);
-    world.make(Party::Person(PERSON), vec![task(ROOT, &[])]);
+    world.make(PERSON_PARTY, vec![task(ROOT, &[])]);
     world.make(Party::Task(ROOT), vec![task(PREREQUISITE, &[]), task(DELEGATE_READY, &[]), task(HOLDER_READY, &[])]);
     world.make(Party::Task(ROOT), vec![pool_task(HOLDER, &[]), pool_task(OTHER_HOLDER, &[HOLDER_READY])]);
     introduce(&mut world, OTHER_HOLDER, DELEGATE_READY);
@@ -523,7 +522,7 @@ fn a_pool_join_names_both_holders_and_lifts_when_the_delegate_ends() {
     assert_eq!(named_circle(&world, WAITER).tasks.as_ref(), [WAITER, HOLDER, OTHER_HOLDER, DEPENDENT]);
     let place = world.record(WAITER).hold_wait_since;
     world.elapse(Duration::from_secs(1));
-    world.make(Party::Person(PERSON), vec![pool_task(LATER, &[])]);
+    world.make(PERSON_PARTY, vec![pool_task(LATER, &[])]);
     cancel(&mut world, DEPENDENT);
     world.settle(DEPENDENT);
     assert_eq!(world.record(WAITER).phase, Phase::Waiting);
@@ -535,7 +534,7 @@ fn a_pool_join_names_both_holders_and_lifts_when_the_delegate_ends() {
 #[test]
 fn a_dependency_on_the_pool_waiter_is_refused_from_the_target_side() {
     let mut world = pool_join();
-    world.make(Party::Person(PERSON), vec![pool_task(LATER, &[])]);
+    world.make(PERSON_PARTY, vec![pool_task(LATER, &[])]);
     let reply = amend_dependencies(&mut world, WAITER, &[LATER]);
     assert!(
         matches!(&reply, Reply::Refused(problem)
@@ -548,7 +547,7 @@ fn a_dependency_on_the_pool_waiter_is_refused_from_the_target_side() {
 fn kept_pool_holders(limits: &Limits) -> World {
     let mut world = configured(limits, true);
     world.make(
-        Party::Person(PERSON),
+        PERSON_PARTY,
         vec![
             pool_task(HOLDER, &[]),
             pool_task(OTHER_HOLDER, &[]),
@@ -609,7 +608,7 @@ fn shrinking_a_pool_holds_the_knot_without_the_free_holder() {
     const THREE_HOLDERS: u32 = 3;
     let mut world = kept_pool_holders(&LIMITS);
     world.send(Event::Slots { pool: name(), slots: THREE_HOLDERS });
-    world.make(Party::Person(PERSON), vec![pool_task(LATER, &[])]);
+    world.make(PERSON_PARTY, vec![pool_task(LATER, &[])]);
     finish_prerequisite(&mut world);
     assert_eq!(world.record(WAITER).phase, Phase::Waiting);
     world.send(Event::Slots { pool: name(), slots: 2 });
@@ -721,7 +720,7 @@ fn a_circle_held_agent_given_a_dependency_lifts_idle_and_is_not_due() {
 #[test]
 fn an_internal_batch_circle_names_its_knot_without_the_creator() {
     let mut world = configured(&LIMITS, false);
-    world.make(Party::Person(PERSON), vec![task(ROOT, &[])]);
+    world.make(PERSON_PARTY, vec![task(ROOT, &[])]);
     let reply = world.make(Party::Task(ROOT), vec![task(REQUESTER, &[HOLDER]), task(HOLDER, &[REQUESTER])]);
     assert!(
         matches!(&reply, Reply::Refused(problem)
@@ -775,7 +774,7 @@ fn a_hand_down_uses_the_resource_name_despite_a_different_declared_kind() {
     world.send(Event::Resource { name: name(), hold: HoldKind::Exclusive { taken: Taken::Waits } });
     let mut creator = task(ROOT, &[]);
     creator.holdings = Box::new([holding(false)]);
-    assert_eq!(world.make(Party::Person(PERSON), vec![creator]), Reply::Made(vec![ROOT]));
+    assert_eq!(world.make(PERSON_PARTY, vec![creator]), Reply::Made(vec![ROOT]));
     let mut member = task(WAITER, &[]);
     member.holdings = Box::new([Holding::Write { resource: name(), kind: OTHER_KIND }]);
     assert_eq!(world.make(Party::Task(ROOT), vec![member]), Reply::Made(vec![WAITER]));
@@ -807,7 +806,7 @@ fn a_compound_readding_an_indexed_dependency_frees_it_once() {
 #[test]
 fn retaining_a_failed_childs_hold_judges_its_roots_queued_delegate() {
     let mut world = configured(&LIMITS, false);
-    world.make(Party::Person(PERSON), vec![task(ROOT, &[])]);
+    world.make(PERSON_PARTY, vec![task(ROOT, &[])]);
     let mut holder = task(HOLDER, &[]);
     holder.holdings = Box::new([holding(false)]);
     world.make(Party::Task(ROOT), vec![holder]);

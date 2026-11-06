@@ -89,8 +89,15 @@ Expect: a line per repository, `OWNER/REPOSITORY`; then `Adopted
 OWNER/REPOSITORY on forge FORGE as owned.`
 
 If not: `temper's forge user may not read OWNER/REPOSITORY on forge
-FORGE.` (exit 2): the bot has no access to it; make it a collaborator
-with write on Forgejo, then adopt again with a new key. `The project
+FORGE.` (exit 2): Forgejo collaborator reads can require repository admin
+even when the bot already has write. A repository administrator grants
+temper's forge user admin, then you adopt again with a new key, preserving
+the adoption's options. For human approvals, add the human collaborator
+and verify their required project role with `project show PROJECT`
+(temper help configure). The bot's admin permission does not give the
+human a role. If setup could not grant access on a managed or owned Forgejo,
+check that its site admin's token has `write:repository` and read the
+setup failure in the server's log. `The project
 has a home already.` (exit 2): add `--no-home`, with a new key.
 
 To make another, use `repository make --project PROJECT ORG/NAME`; to copy a public source, `repository copy --project PROJECT HOST/OWNER/NAME`, each with `--forge FORGE --no-home --key KEY`.

@@ -112,8 +112,8 @@ fn paragraphs_blocks_runs_links_and_literal_fallbacks() {
 fn agent_reports_and_malformed_inputs_fit_the_byte_bound() {
     // Verbatim passages from the extraction, module move and
     // smith-protocol-layer coordination logs under ~/src/plans/ (01 to 12),
-    // and replies holding tables (13 to 16, ui.md, 10).
-    let reports: [&[u8]; 16] = [
+    // and replies holding tables (13 to 16) and numbered lists (17, ui.md, 10).
+    let reports: [&[u8]; 17] = [
         include_bytes!("markdown/01.md"),
         include_bytes!("markdown/02.md"),
         include_bytes!("markdown/03.md"),
@@ -130,6 +130,7 @@ fn agent_reports_and_malformed_inputs_fit_the_byte_bound() {
         include_bytes!("markdown/14.md"),
         include_bytes!("markdown/15.md"),
         include_bytes!("markdown/16.md"),
+        include_bytes!("markdown/17.md"),
     ];
     for report in reports {
         let _tree = read(report, 4);
@@ -358,4 +359,98 @@ fn empty_table_rows_fit_the_declared_byte_bound() {
     let tree = read(input.as_bytes(), 0);
     assert_eq!(tree.nodes().iter().filter(|node| node.role == Role::Row).count(), ROWS + 1);
     assert_eq!(tree.nodes().iter().filter(|node| node.role == Role::Cell).count(), ROWS * 3);
+}
+
+fn orders(tree: &Tree) -> Vec<Option<u32>> {
+    tree.nodes().iter().filter(|node| node.role == Role::List).map(|node| node.ordered).collect()
+}
+
+#[test]
+fn a_numbered_list_says_its_order_and_its_marker_leaves_its_words() {
+    for (input, expected, words) in [
+        ("1. a\n2. b\n", vec![Some(1)], "ab"),
+        ("4. d\n5. e\n", vec![Some(4)], "de"),
+        ("0. z\n", vec![Some(0)], "z"),
+        ("999999999. n\n", vec![Some(999_999_999)], "n"),
+        ("- a\n- b\n", vec![None], "ab"),
+        ("1. \n", vec![Some(1)], ""),
+    ] {
+        let tree = read(input.as_bytes(), 3);
+        assert_eq!(orders(&tree), expected, "{input:?}");
+        assert_eq!(text(&tree), words.as_bytes(), "{input:?}");
+    }
+}
+
+#[test]
+fn every_number_shows_as_written() {
+    // Top-level roles also pin continuation paragraphs and outer-list item counts.
+    for (input, expected, roles, outer_items) in [
+        ("1. a\n3. b\n", vec![Some(1), Some(3)], vec![Role::List, Role::List], 1),
+        ("1. a\n1. b\n", vec![Some(1), Some(1)], vec![Role::List, Role::List], 1),
+        ("3. a\n2. b\n", vec![Some(3), Some(2)], vec![Role::List, Role::List], 1),
+        ("1. a\n\n2. b\n", vec![Some(1), Some(2)], vec![Role::List, Role::List], 1),
+        ("1. a\n   under\n2. b\n", vec![Some(1), Some(2)], vec![Role::List, Role::Paragraph, Role::List], 1),
+        ("3. a\n\n   under\n   it\n4. b\n", vec![Some(3), Some(4)], vec![Role::List, Role::Paragraph, Role::List], 1),
+        ("1. a\n   - x\n2. b\n", vec![Some(1), None], vec![Role::List], 2),
+        ("1. a\n   1. x\n   2. y\n2. b\n", vec![Some(1), Some(1)], vec![Role::List], 2),
+        ("- a\n1. b\n", vec![None, Some(1)], vec![Role::List, Role::List], 1),
+        ("1. a\n- b\n", vec![Some(1), None], vec![Role::List, Role::List], 1),
+        ("Steps:\n1. a\n2. b\n", vec![Some(1)], vec![Role::Paragraph, Role::List], 2),
+        ("1. a\n\nbefore\n9. after\n", vec![Some(1)], vec![Role::List, Role::Paragraph], 1),
+    ] {
+        let tree = read(input.as_bytes(), 3);
+        assert_eq!(orders(&tree), expected, "{input:?}");
+        let mut at = 1;
+        let mut top = Vec::new();
+        while at < tree.len() {
+            let node = tree.get(at).unwrap();
+            top.push(node.role);
+            at += node.size;
+        }
+        assert_eq!(top, roles, "{input:?}");
+        let outer_at = tree.nodes().iter().position(|node| node.role == Role::List).unwrap();
+        let outer = tree.get(u32::try_from(outer_at).unwrap()).unwrap();
+        let mut child = u32::try_from(outer_at).unwrap() + 1;
+        let mut items = 0_u32;
+        while child < u32::try_from(outer_at).unwrap() + outer.size {
+            let node = tree.get(child).unwrap();
+            assert_eq!(node.role, Role::Item);
+            items += 1;
+            child += node.size;
+        }
+        assert_eq!(items, outer_items, "{input:?}");
+    }
+}
+
+#[test]
+fn a_line_that_merely_starts_with_a_number_stays_text() {
+    for input in [
+        "3.14 is pi",
+        "3 apples",
+        "1.5 million",
+        "3) three",
+        "1.",
+        "1.five",
+        "007. bond",
+        "1234567890. ten digits",
+        "before\n42. after",
+        "before\n2. after",
+    ] {
+        let tree = read(input.as_bytes(), 3);
+        assert!(orders(&tree).is_empty(), "{input:?}");
+        assert_eq!(text(&tree), input.as_bytes(), "{input:?}");
+    }
+}
+
+#[test]
+fn reports_read_their_numbers_as_written() {
+    for (input, expected) in [
+        (include_bytes!("markdown/01.md").as_slice(), vec![Some(3)]),
+        (include_bytes!("markdown/03.md").as_slice(), vec![Some(1)]),
+        (include_bytes!("markdown/05.md").as_slice(), vec![]),
+        (include_bytes!("markdown/17.md").as_slice(), vec![Some(1), None, Some(4), Some(7), Some(1)]),
+    ] {
+        assert_eq!(orders(&read(input, 3)), expected, "{}", input.escape_ascii());
+    }
+    assert!(text(&read(include_bytes!("markdown/05.md"), 3)).windows(3).any(|word| word == b"4. "));
 }

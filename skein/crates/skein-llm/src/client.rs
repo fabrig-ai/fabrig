@@ -760,8 +760,7 @@ pub fn up(client: &mut Client, env: &Env<Limits>, event: Up, above: &mut Queue<E
         queued
     };
     if let Some((failure, detail)) = failure {
-        fail(client, failure, detail, above);
-        closing(client, env, above, below);
+        fail_closing(client, env, failure, detail, above, below);
         return;
     }
     resume(client, env, above, below);
@@ -846,8 +845,7 @@ pub fn abort(
         | Failure::Protocol
         | Failure::Cancelled => bytes::copy_of(b"call aborted by its owner"),
     };
-    fail(client, failure, detail, above);
-    closing(client, env, above, below);
+    fail_closing(client, env, failure, detail, above, below);
 }
 
 /// Actual lower settlement, not merely the HTTP/SSE machines saying closed.
@@ -931,8 +929,7 @@ fn http_event(
         },
         http::Event::Upload(Up::Failed(_)) => client.upload = Upload::Done,
         http::Event::Upload(Up::Bytes(_) | Up::End) => {
-            fail(client, Failure::Protocol, bytes::copy_of(b"invalid upload event"), above);
-            closing(client, env, above, below);
+            fail_closing(client, env, Failure::Protocol, bytes::copy_of(b"invalid upload event"), above, below);
         }
         http::Event::Body(event) => body_event(client, event, env, above, below),
         http::Event::Done(reuse) => {
@@ -958,8 +955,7 @@ fn http_event(
         }
         http::Event::Failed(error) => {
             let failure = http_failure(error, &env.limits);
-            fail(client, failure, bytes::copy_of(http_detail(error)), above);
-            closing(client, env, above, below);
+            fail_closing(client, env, failure, bytes::copy_of(http_detail(error)), above, below);
         }
         http::Event::Closed => {}
     }
@@ -1112,8 +1108,7 @@ fn body_event(client: &mut Client, event: Up, env: &Env<Limits>, above: &mut Que
                 if data.len() > room {
                     let failure = openai::classify(client.provider, answer.status, None, answer.rate, env.wall);
                     let detail = error_cut(error.as_slice(), env.limits.detail_bytes);
-                    fail(client, failure, detail, above);
-                    closing(client, env, above, below);
+                    fail_closing(client, env, failure, detail, above, below);
                 } else {
                     client.requests.push(http::Request::Body(Down::Demand {
                         read: Read::Arrived { max: error.room().saturating_add(1) },
@@ -1123,8 +1118,7 @@ fn body_event(client: &mut Client, event: Up, env: &Env<Limits>, above: &mut Que
             }
             Up::End => error_end(client, env, above),
             Up::Failed(_) | Up::Room => {
-                fail(client, Failure::Unavailable, bytes::copy_of(b"error body failed"), above);
-                closing(client, env, above, below);
+                fail_closing(client, env, Failure::Unavailable, bytes::copy_of(b"error body failed"), above, below);
             }
         },
         Prepared { .. } | Head { .. } | Draining | Idle | Closing | Closed => {}
@@ -1182,8 +1176,7 @@ fn sse_event(
                         Failure::Protocol
                     }
                 };
-                fail(client, failure, bytes::copy_of(b"malformed provider event"), above);
-                closing(client, env, above, below);
+                fail_closing(client, env, failure, bytes::copy_of(b"malformed provider event"), above, below);
             } else {
                 for output in client.outputs.iter().skip(before) {
                     match output {
@@ -1213,8 +1206,7 @@ fn sse_event(
                 }
                 sse::Error::Stream(_) => Failure::Unavailable,
             };
-            fail(client, failure, bytes::copy_of(b"event stream failed"), above);
-            closing(client, env, above, below);
+            fail_closing(client, env, failure, bytes::copy_of(b"event stream failed"), above, below);
         }
         sse::Event::Closed => {}
     }
@@ -1252,8 +1244,7 @@ fn event_data(client: &mut Client, event: Up, env: &Env<Limits>, above: &mut Que
                 }
             }
             Up::End => {
-                fail(client, Failure::Protocol, bytes::copy_of(b"empty provider event"), above);
-                closing(client, env, above, below);
+                fail_closing(client, env, Failure::Protocol, bytes::copy_of(b"empty provider event"), above, below);
             }
             Up::Failed(_) => {}
             Up::Room => unreachable!("SSE data is read only"),
@@ -1270,8 +1261,8 @@ fn event_data(client: &mut Client, event: Up, env: &Env<Limits>, above: &mut Que
                 let mut at = at;
                 for &byte in &bytes {
                     if b"[DONE]".get(usize_of(at)) != Some(&byte) {
-                        fail(client, Failure::Protocol, bytes::copy_of(b"invalid provider sentinel"), above);
-                        closing(client, env, above, below);
+                        let detail = bytes::copy_of(b"invalid provider sentinel");
+                        fail_closing(client, env, Failure::Protocol, detail, above, below);
                         return;
                     }
                     at = at.checked_add(1).expect("fixed sentinel length");
@@ -1282,8 +1273,8 @@ fn event_data(client: &mut Client, event: Up, env: &Env<Limits>, above: &mut Que
                 if at == 6 {
                     client.event_data = EventData::SentinelEnd;
                 } else {
-                    fail(client, Failure::Protocol, bytes::copy_of(b"truncated provider sentinel"), above);
-                    closing(client, env, above, below);
+                    let detail = bytes::copy_of(b"truncated provider sentinel");
+                    fail_closing(client, env, Failure::Protocol, detail, above, below);
                 }
             }
             Up::Failed(_) => {}
@@ -1307,8 +1298,8 @@ fn collected_data(
     match client.collector_events.pop() {
         Some(collector::Event::Collected(document)) => client.event_data = EventData::Collected(document),
         Some(collector::Event::Failed(error)) => {
-            fail(client, dialect::failure(error, &env.limits), bytes::copy_of(b"provider JSON failed"), above);
-            closing(client, env, above, below);
+            let detail = bytes::copy_of(b"provider JSON failed");
+            fail_closing(client, env, dialect::failure(error, &env.limits), detail, above, below);
         }
         Some(collector::Event::Closed) => unreachable!("the active collector was not closed"),
         None => {}
@@ -1334,24 +1325,16 @@ fn output(
                 match next {
                     Some(next) if next <= u64::from(env.limits.receiving) => receiving.content_bytes = next,
                     Some(_) | None => {
-                        fail(
-                            client,
-                            Failure::Limit { which: crate::Cap::Answer, bound: u64::from(env.limits.receiving) },
-                            bytes::copy_of(b""),
-                            above,
-                        );
-                        closing(client, env, above, below);
+                        let failure =
+                            Failure::Limit { which: crate::Cap::Answer, bound: u64::from(env.limits.receiving) };
+                        fail_closing(client, env, failure, Box::new([]), above, below);
                         return;
                     }
                 }
                 if receiving.content.push(block.clone()).is_err() {
-                    fail(
-                        client,
-                        Failure::Limit { which: crate::Cap::OutputItems, bound: u64::from(env.limits.output_items) },
-                        bytes::copy_of(b""),
-                        above,
-                    );
-                    closing(client, env, above, below);
+                    let failure =
+                        Failure::Limit { which: crate::Cap::OutputItems, bound: u64::from(env.limits.output_items) };
+                    fail_closing(client, env, failure, Box::new([]), above, below);
                 } else {
                     receiving.asked = false;
                     above.push(Event::Block { owner: client.owner, block });
@@ -1362,8 +1345,7 @@ fn output(
                     Error::Limit { which, bound } => Failure::Limit { which, bound },
                     Error::Invalid | Error::Unsupported => Failure::Protocol,
                 };
-                fail(client, failure, bytes::copy_of(b"completion translation failed"), above);
-                closing(client, env, above, below);
+                fail_closing(client, env, failure, bytes::copy_of(b"completion translation failed"), above, below);
             }
         },
         dialect::Output::TextDelta { index, content_index, text } => {
@@ -1402,6 +1384,18 @@ fn output(
     }
 }
 
+fn fail_closing(
+    client: &mut Client,
+    env: &Env<Limits>,
+    failure: Failure,
+    detail: Box<[u8]>,
+    above: &mut Queue<Event>,
+    below: &mut Queue<Down>,
+) {
+    fail(client, failure, detail, above);
+    closing(client, env, above, below);
+}
+
 fn fail(client: &mut Client, failure: Failure, detail: Box<[u8]>, above: &mut Queue<Event>) {
     fail_report(client, failure, Report::none(), detail, above);
 }
@@ -1411,11 +1405,9 @@ fn fail_report(client: &mut Client, failure: Failure, mut report: Report, detail
         return;
     }
     match &mut client.state {
-        Streaming { answer, receiving } => {
-            receiving.content = List::with_capacity(0);
+        Streaming { answer, .. } | ErrorBody { answer, .. } => {
             report.request = mem::replace(&mut answer.request, Box::new([]));
         }
-        ErrorBody { answer, .. } => report.request = mem::replace(&mut answer.request, Box::new([])),
         Prepared { .. } | Head { .. } | Draining | Idle | Closing | Closed => {}
     }
     // A decoded head can be queued when an unsolicited lower failure wins
@@ -1490,7 +1482,6 @@ fn error_end(client: &mut Client, env: &Env<Limits>, above: &mut Queue<Event>) {
         Some(error) => error.message,
         None => openai::clip_detail(body.as_slice(), env.limits.detail_bytes),
     };
-    body.clear();
     fail_report(client, failure, report, detail, above);
 }
 

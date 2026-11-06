@@ -7,6 +7,7 @@ use crate::{
 use skein_lib::Token;
 
 const KIND: u32 = 71;
+const PROPOSAL: u64 = 12;
 const TOKEN: Token = Token::new(1);
 
 fn connector() -> Domain {
@@ -47,8 +48,8 @@ fn restored(number: u32, edit: RestoredEdit) -> RestoredItem {
     RestoredItem { kind: KIND, scope: 0, number, edit }
 }
 
-fn proposal_record(proposal: u64, number: u32, edit: SettingEdit) -> Request {
-    Request::Save { record: Record::SettingProposal { proposal, kind: KIND, scope: 0, number, edit } }
+fn proposal_record(number: u32, edit: SettingEdit) -> Request {
+    Request::Save { record: Record::SettingProposal { proposal: PROPOSAL, kind: KIND, scope: 0, number, edit } }
 }
 
 #[test]
@@ -64,7 +65,7 @@ fn a_restores_items_are_kept_from_the_values_replaced_and_answered_with_sizes() 
             &mut domain,
             Event::RestoreSettings {
                 token: TOKEN,
-                proposal: 12,
+                proposal: PROPOSAL,
                 items: Box::from([
                     restored(2, RestoredEdit::Set { revision: 9 }),
                     restored(3, RestoredEdit::Remove),
@@ -74,10 +75,10 @@ fn a_restores_items_are_kept_from_the_values_replaced_and_answered_with_sizes() 
             }
         ),
         Box::from([
-            proposal_record(12, 2, SettingEdit::Set(Box::from(&b"!abc"[..]))),
-            proposal_record(12, 3, SettingEdit::Remove),
-            proposal_record(12, 1, SettingEdit::Reset),
-            proposal_record(12, 4, SettingEdit::Reset),
+            proposal_record(2, SettingEdit::Set(Box::from(&b"!abc"[..]))),
+            proposal_record(3, SettingEdit::Remove),
+            proposal_record(1, SettingEdit::Reset),
+            proposal_record(4, SettingEdit::Reset),
             Request::SettingsRestored {
                 token: TOKEN,
                 judged: Box::from([
@@ -96,7 +97,7 @@ fn a_restores_items_are_kept_from_the_values_replaced_and_answered_with_sizes() 
         &mut domain,
         Event::KeepSettings {
             revision: 10,
-            proposal: Some(12),
+            proposal: Some(PROPOSAL),
             items: Box::from([set(2, b"ignored"), set(3, b"ignored"), set(1, b"ignored"), set(4, b"ignored")]),
         },
     ));
@@ -108,7 +109,7 @@ fn a_restores_items_are_kept_from_the_values_replaced_and_answered_with_sizes() 
         read(&mut domain, 1),
         Box::from([Request::SettingValue { token: TOKEN, value: Some(Box::from(&b"new"[..])) }])
     );
-    assert!(run(&mut domain, Event::DropProposalSettings { proposal: 12 }).is_empty());
+    assert!(run(&mut domain, Event::DropProposalSettings { proposal: PROPOSAL }).is_empty());
 }
 
 #[test]
@@ -127,7 +128,7 @@ fn a_restore_item_past_its_kinds_bounds_is_refused() {
             &mut domain,
             Event::RestoreSettings {
                 token: TOKEN,
-                proposal: 12,
+                proposal: PROPOSAL,
                 items: Box::from([
                     restored(2, RestoredEdit::Set { revision: 9 }),
                     wrong_kind,
@@ -146,20 +147,20 @@ fn a_restore_item_past_its_kinds_bounds_is_refused() {
             ])
         }])
     );
-    assert!(run(&mut domain, Event::DropProposalSettings { proposal: 12 }).is_empty());
+    assert!(run(&mut domain, Event::DropProposalSettings { proposal: PROPOSAL }).is_empty());
     domain.config.settings.as_mut().expect("kind").value_bytes = 16;
     let requests = run(
         &mut domain,
         Event::RestoreSettings {
             token: TOKEN,
-            proposal: 12,
+            proposal: PROPOSAL,
             items: Box::from([restored(2, RestoredEdit::Set { revision: 9 })]),
         },
     );
     assert_eq!(
         requests,
         Box::from([
-            proposal_record(12, 2, SettingEdit::Set(Box::from(&b"1234567890123456"[..]))),
+            proposal_record(2, SettingEdit::Set(Box::from(&b"1234567890123456"[..]))),
             Request::SettingsRestored { token: TOKEN, judged: Box::from([accept(16)]) },
         ])
     );
@@ -174,12 +175,12 @@ fn restored_items_obey_the_proposals_scope_capacity() {
             &mut domain,
             Event::RestoreSettings {
                 token: TOKEN,
-                proposal: 12,
+                proposal: PROPOSAL,
                 items: Box::from([restored(1, RestoredEdit::Reset), restored(2, RestoredEdit::Remove)]),
             }
         ),
         Box::from([
-            proposal_record(12, 1, SettingEdit::Reset),
+            proposal_record(1, SettingEdit::Reset),
             Request::SettingsRestored {
                 token: TOKEN,
                 judged: Box::from([
@@ -190,9 +191,9 @@ fn restored_items_obey_the_proposals_scope_capacity() {
         ])
     );
     assert_eq!(
-        run(&mut domain, Event::DropProposalSettings { proposal: 12 }),
+        run(&mut domain, Event::DropProposalSettings { proposal: PROPOSAL }),
         Box::from([Request::Erase {
-            key: RecordKey::SettingProposal { proposal: 12, kind: KIND, scope: 0, number: 1 }
+            key: RecordKey::SettingProposal { proposal: PROPOSAL, kind: KIND, scope: 0, number: 1 }
         },])
     );
 }
@@ -208,7 +209,7 @@ fn forgetting_erases_the_values_replaced_by_older_revisions_only() {
     ] {
         drop(run(&mut domain, Event::KeepSettings { revision, proposal: None, items }));
     }
-    drop(run(&mut domain, Event::KeepProposalSettings { proposal: 12, items: Box::from([set(1, b"proposal")]) }));
+    drop(run(&mut domain, Event::KeepProposalSettings { proposal: PROPOSAL, items: Box::from([set(1, b"proposal")]) }));
     assert!(run(&mut domain, Event::ForgetReplaced { before: 0 }).is_empty());
     assert_eq!(
         run(&mut domain, Event::ForgetReplaced { before: 4 }),
@@ -232,9 +233,9 @@ fn forgetting_erases_the_values_replaced_by_older_revisions_only() {
     assert_eq!(run(&mut domain, Event::ForgetReplaced { before: u64::MAX }).len(), 2);
     assert_eq!(domain.settings.replaced.len(), 2);
     assert_eq!(
-        run(&mut domain, Event::DropProposalSettings { proposal: 12 }),
+        run(&mut domain, Event::DropProposalSettings { proposal: PROPOSAL }),
         Box::from([Request::Erase {
-            key: RecordKey::SettingProposal { proposal: 12, kind: KIND, scope: 0, number: 1 }
+            key: RecordKey::SettingProposal { proposal: PROPOSAL, kind: KIND, scope: 0, number: 1 }
         },])
     );
 }
@@ -357,20 +358,20 @@ fn a_proposal_keeps_unjudged_bytes_and_acceptance_uses_them_then_drops_it() {
     let mut domain = connector();
     drop(run(
         &mut domain,
-        Event::KeepProposalSettings { proposal: 12, items: Box::from([set(1, b"kept"), set(2, b"!later")]) },
+        Event::KeepProposalSettings { proposal: PROPOSAL, items: Box::from([set(1, b"kept"), set(2, b"!later")]) },
     ));
     assert_eq!(
         read(&mut domain, 1),
         Box::from([Request::SettingValue { token: TOKEN, value: Some(Box::from(&b"default"[..])) }])
     );
     assert_eq!(
-        judge(&mut domain, Some(12), Box::from([set(1, b"!ignored"), set(2, b"ignored")])),
+        judge(&mut domain, Some(PROPOSAL), Box::from([set(1, b"!ignored"), set(2, b"ignored")])),
         judgments(Box::from([accept(4), SettingJudged::Refuse { why: Box::from(&b"refused: later"[..]) }]))
     );
-    assert_eq!(run(&mut domain, Event::DropProposalSettings { proposal: 12 }).len(), 2);
-    assert!(run(&mut domain, Event::DropProposalSettings { proposal: 12 }).is_empty());
+    assert_eq!(run(&mut domain, Event::DropProposalSettings { proposal: PROPOSAL }).len(), 2);
+    assert!(run(&mut domain, Event::DropProposalSettings { proposal: PROPOSAL }).is_empty());
     assert_eq!(
-        judge(&mut domain, Some(12), Box::from([set(1, b"ignored")])),
+        judge(&mut domain, Some(PROPOSAL), Box::from([set(1, b"ignored")])),
         judgments(Box::from([SettingJudged::Refuse { why: Box::from(&b"proposal setting missing"[..]) }]))
     );
     drop(run(&mut domain, Event::KeepProposalSettings { proposal: 13, items: Box::from([set(1, b"kept")]) }));
@@ -393,14 +394,14 @@ fn a_proposals_reset_follows_the_default_at_acceptance() {
     let mut domain = connector();
     drop(run(
         &mut domain,
-        Event::KeepProposalSettings { proposal: 12, items: Box::from([item(1, SettingEdit::Reset)]) },
+        Event::KeepProposalSettings { proposal: PROPOSAL, items: Box::from([item(1, SettingEdit::Reset)]) },
     ));
     drop(kept(&mut domain, Box::from([set(1, b"changed")])));
     domain.config.settings.as_mut().expect("kind").defaults = Box::from([(0, 1, Box::from(&b"new"[..]))]);
-    assert_eq!(judge(&mut domain, Some(12), Box::from([set(1, b"ignored")])), judgments(Box::from([accept(3)])));
+    assert_eq!(judge(&mut domain, Some(PROPOSAL), Box::from([set(1, b"ignored")])), judgments(Box::from([accept(3)])));
     drop(run(
         &mut domain,
-        Event::KeepSettings { revision: 10, proposal: Some(12), items: Box::from([set(1, b"ignored")]) },
+        Event::KeepSettings { revision: 10, proposal: Some(PROPOSAL), items: Box::from([set(1, b"ignored")]) },
     ));
     assert_eq!(
         read(&mut domain, 1),

@@ -322,7 +322,7 @@ impl App for Temper {
                     jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Send { request: jig_client::Ask::Jig(ask), .. },
                     },
-            } => Some(ask),
+            } => crate::cards::decision(ask),
             Request::Client { .. }
             | Request::Unlinked { .. }
             | Request::Show { .. }

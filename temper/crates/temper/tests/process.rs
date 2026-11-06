@@ -1,6 +1,9 @@
 //! The shipped binary, on a scratch deployment, drained on a signal.
 #[path = "suite/box_kinds.rs"]
 mod box_kinds;
+#[cfg(target_os = "linux")]
+#[path = "fake_backends/box_link.rs"]
+mod box_link;
 #[path = "fake_backends/mod.rs"]
 mod fake_backends;
 #[path = "suite/startover.rs"]
@@ -424,20 +427,18 @@ fn assert_box_streams(ended: &support::boxed::Outcome, forgejo: std::net::Socket
     }
     let stderr = std::str::from_utf8(&ended.stderr).expect("box diagnostics");
     assert!(
-        stderr.lines().all(|line| {
-            steps.iter().any(|step| line.starts_with(step))
-                || box_terminal_line(line, &["prepare-1", "forgejo-1", "runner-1", "serve"], &notices)
-        }),
+        stderr.lines().all(|line| { steps.iter().any(|step| line.starts_with(step)) || box_terminal_line(line) }),
         "each stderr line names its step or carries prescribed box words: {stderr}"
     );
+    let log = support::boxed::box_log(data);
     for words in notices {
-        assert_eq!(stderr.lines().filter(|line| box_notice_words(line) == words).count(), 1, "{stderr}");
+        assert_eq!(log.lines().filter(|line| box_notice_words(line) == words).count(), 1, "{log}");
     }
     assert!(!stderr.contains("Forgejo: api ") && !stderr.contains("Forgejo: person "), "{stderr}");
     assert!(stderr.lines().any(|line| line.starts_with("runner-1: ")), "the runner's lines arrive prefixed");
 }
 
-// Only a valid UTC time-of-day prefix can precede the existing box notices.
+// Only a valid UTC time-of-day prefix can precede the box notices.
 fn box_notice_words(line: &str) -> &str {
     let bytes = line.as_bytes();
     if bytes.len() >= 10
@@ -455,34 +456,16 @@ fn box_notice_words(line: &str) -> &str {
     }
 }
 
-fn box_terminal_line(line: &str, starting: &[&str], group_notices: &[&str]) -> bool {
+fn box_terminal_line(line: &str) -> bool {
     let words = box_notice_words(line);
     line.is_empty()
         || [
-            "Open this link in a browser on this machine. It signs you in as this",
-            "temper's owner, once and for a short while, so keep it private.",
+            "Open this link in a browser on this machine.",
+            "It signs you in as this temper's owner, once and for a short while.",
             "Opened again once spent, it prints a fresh one here.",
-            "Ctrl-C stops temper.",
         ]
         .contains(&line)
         || words.starts_with("box: ")
-        || words.starts_with("First run: wrote the configuration, ")
-        || words.strip_prefix("Logs: ").is_some_and(|path| path.starts_with('/') && path.ends_with("/box/logs/"))
-        || ["Stopping", "Stopped"].contains(&words)
-        || group_notices.contains(&words)
-        || owned_hands_line(words)
-        || (words != line && words == "A fresh sign-in link:")
-        || words.strip_prefix("Starting ").is_some_and(|name| starting.contains(&name))
-}
-
-fn owned_hands_line(words: &str) -> bool {
-    let Some((number, words)) = words.strip_prefix("Forge ").and_then(|words| words.split_once(" (Forgejo): ")) else {
-        return false;
-    };
-    if number.parse::<u16>().is_err() {
-        return false;
-    }
-    ["starting", "started"].contains(&words)
 }
 
 #[test]
@@ -542,8 +525,8 @@ fn a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_la
             &client_root,
             steps,
             BOX_DEADLINE,
-            |stderr| {
-                let evidence = support::first_repository::live_from_hands(&paths[0], &paths[1], &client_root, stderr);
+            |_| {
+                let evidence = support::first_repository::live_from_hands(&paths[0], &paths[1], &client_root);
                 support::first_repository::probe_admin_handover(&paths, &client_root, &mut older_admin);
                 evidence
             },
@@ -598,7 +581,11 @@ fn a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_la
             replace_admin_handover(&paths);
         }
         let wrote = format!("First run: wrote the configuration, {}\n", paths[0].join("temper.json").display());
-        assert_eq!(stderr.contains(&wrote), run == "first", "only the first box writes configuration");
+        assert_eq!(
+            support::boxed::box_log(&paths[1]).contains(&wrote),
+            run == "first",
+            "only the first box writes configuration"
+        );
     }
     scratch.remove();
 }
@@ -721,7 +708,7 @@ fn a_persons_plan_change_lands_on_the_owned_forge_and_is_found_after_a_restart()
             Some(skein_forge::forgejo::pin::VERSION)
         );
         let wrote = format!("First run: wrote the configuration, {}\n", paths[0].join("temper.json").display());
-        assert!(!stderr.contains(&wrote), "init wrote configuration before either box");
+        assert!(!support::boxed::box_log(&paths[1]).contains(&wrote), "init wrote configuration before either box");
         assert_cache_untouched(&cached, &sources);
     }
     scratch.remove();
@@ -1977,17 +1964,17 @@ exec "$@"
         BOX_DEADLINE,
     );
     let diagnostic = String::from_utf8_lossy(&ended.stderr).into_owned();
-    let linked = support::printed_link(&ended.stdout).is_some();
+    let listening = support::boxed::serve_listening(&paths[1]);
     scratch.remove();
     assert!(!diagnostic.contains("application.forges"), "forge preparation refused: {diagnostic}");
     assert!(!diagnostic.contains("workers[0].agent"), "agent preflight fixture refused: {diagnostic}");
     assert!(
-        linked || diagnostic.contains("failed to lookup address information"),
+        listening || diagnostic.contains("failed to lookup address information"),
         "unexpected startup refusal: {diagnostic}"
     );
     assert!(
-        linked,
-        "no-DNS start must reach its printed link; the current sign-in endpoint resolution refuses it: {diagnostic}"
+        listening,
+        "no-DNS start must reach serve's listening; the current sign-in endpoint resolution refuses it: {diagnostic}"
     );
     assert_eq!(ended.exit, Some(Exit::Code(0)), "{diagnostic}");
     assert_eq!(ended.left, Some(Vec::new()), "no process outlived the box: {diagnostic}");
@@ -2386,4 +2373,63 @@ fn account_transfer_restart(case: &str) {
 
 fn no_model_scripts() -> skein_fake_llm_domain::api::Scripts {
     skein_fake_llm_domain::api::Scripts { cued: Box::new([]), asked: Box::new([]), otherwise: Box::new([]) }
+}
+
+// The retained process identities and the stopped-parent observation are Linux's.
+#[cfg(target_os = "linux")]
+#[test]
+fn a_killed_serve_keeps_its_port_and_prints_a_fresh_link() {
+    use std::{fs, net::TcpStream};
+    let mut boxed = box_link::Boxed::start("killed-serve-link");
+    let first = boxed.link();
+    let address = box_link::address(&first);
+    boxed.wait(|boxed| support::boxed::serve_listening(&boxed.root().join("data")));
+    let parent = boxed.guard.child.as_ref().expect("box child").id();
+    let mut processes = support::parent::Guard::observing_test();
+    let engine = processes
+        .pids()
+        .into_iter()
+        .find(|pid| {
+            fs::read_link(format!("/proc/{pid}/exe")).ok().as_deref()
+                == Some(skein_scratch::paths::binary("temper").as_path())
+                && fs::read(format!("/proc/{pid}/cmdline"))
+                    .is_ok_and(|bytes| bytes.split(|byte| *byte == 0).any(|word| word == b"serve"))
+        })
+        .expect("the box's live serve process");
+    // Keep the down interval observable without changing the configured backoff.
+    support::parent::signal(boxed.guard.child.as_mut().expect("box child"), "STOP");
+    boxed.wait(|_| {
+        fs::read_to_string(format!("/proc/{parent}/status")).expect("owned box status").contains("State:\tT")
+    });
+    processes.signal(engine, Signal::Kill);
+    processes.wait_for(engine);
+    let connected =
+        TcpStream::connect(address).expect("the held socket accepts while serve is dead and box is stopped");
+    drop(connected);
+    support::parent::signal(boxed.guard.child.as_mut().expect("box child"), "CONT");
+    boxed.wait(|boxed| {
+        fs::read_to_string(boxed.root().join("data/box/logs/serve.log"))
+            .expect("serve log")
+            .matches("listening clients ")
+            .count()
+            == 2
+    });
+    // Check replay before any sign-in spends the restarted serve's first secret.
+    assert!(
+        !box_link::signs_in(boxed.root(), "old-link-client", &first),
+        "the block's first link is refused after restart"
+    );
+    let fresh = boxed.link();
+    assert_eq!(box_link::address(&fresh), address, "the restart keeps the clients port");
+    assert!(fresh != first, "the restart never replays the block's first link");
+    let stderr = boxed.stderr();
+    let block = [box_link::PRELUDE, box_link::FOOTER].concat();
+    let after_block =
+        stderr.strip_prefix(block.as_slice()).expect("the first sign-in block precedes restart diagnostics");
+    assert!(after_block.ends_with(b"\n\n"), "a fresh link has its own blank line on stderr");
+    assert!(!after_block.windows(box_link::PRELUDE.len()).any(|bytes| bytes == box_link::PRELUDE), "no second block");
+    assert!(box_link::signs_in(boxed.root(), "restart-client", &fresh), "the restart's fresh link signs in as owner");
+    let (stdout, _, _) = boxed.stop();
+    let expected = [&first[..], b"\n", &fresh[..], b"\n"].concat();
+    assert!(stdout == expected, "stdout holds only whole, unprefixed and untimed links");
 }
