@@ -17,6 +17,9 @@ files = [
   "jig/crates/jig-protocol-config/src/llm.rs",
   "jig/crates/jig-protocol-config/src/clients.rs",
   "jig/crates/jig-protocol-config/src/tests/llm.rs",
+  "jig/crates/jig-protocol-config/src/members.rs",
+  "jig/crates/jig-protocol-config/src/tests/members.rs",
+  "temper/docs/help/reference/configuration-engine.md",
   "jig/crates/jig-client/src/shapes.rs",
   "jig/crates/jig-client/src/tests/shapes.rs",
   "jig/testing/jig-client-scripted-engine/src/codec/values/llm.rs",
@@ -102,3 +105,24 @@ Acceptance:
 ## Report
 
 As the implementer's text says; the goldens that moved, and any literal beyond this list.
+
+## Answers
+
+2026-11-06. May this task add the model's `shown` and `picker` rows to `jig-protocol-config/src/members.rs`, outside
+its files? Yes: `read::Object::member` asserts every member it reads has a row, and acceptance 1 can't hold without
+them, so the rows are this task's, as `effort`'s was `effort-config`'s. Resume from the pushed `fcfe6b934a` on
+`model-catalogue-1/offer-surface`. The three files are now in `files`.
+
+- **The rows,** right after `description`, both `required: false`, `gone: None`:
+  - `shape: "model"`, `name: "shown"`, `kind: "text"`, `bound: "1 to 256 bytes"`,
+    line "Gives the model's name for showing."
+  - `shape: "model"`, `name: "picker"`, `kind: "true or false"`, `bound: ""`,
+    line "Says whether a picker shows the model, true when absent."
+- **Their examples:** `every_row_is_a_member_its_decoder_takes` needs them. In `tests/members.rs`'s `EXTRAS`, right
+  after the `description` entry: `("llm.models.0", "shown", br#""Small""#)` and `("llm.models.0", "picker", b"false")`.
+- **The rendered page:** take the two new lines in `temper/docs/help/reference/configuration-engine.md` from
+  `temper`'s `the_pages_configuration_are_what_the_tables_render` (or `SKEIN_CODEGEN_WRITE=1`), and run that test as
+  well as the closing checks. This task's init writes neither, so both read "init leaves it out".
+- **`Model::default_effort` and the `effort` row:** both are on `origin/model-catalogue-1/effort-config` at
+  `10f0cfea19`, past the merge the run tried. Merge it again before wiring; acceptance 3 needs it.
+- Anything else outside `files` and the literals your spec lists, stop and ask, as before.
