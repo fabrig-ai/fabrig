@@ -628,7 +628,7 @@ served is held, kept and unsent, for its owner's version (client.md,
     any; the **offer** in each project, what they can pick there now, one
     list that every client draws from and works nothing out, so that a page
     can't show what it leaves out: the models of the brief's catalogue
-    (`../../domain/engine.md`, section 9), in configuration's order, that
+    (`../../domain/engine.md`, section 9), in the catalogue's order, that
     their authority there allows and an account can run, an account of the
     model's provider being usable now and serving them
     (`../../domain/accounts.md`, 4.3). A provider with no such account gives
