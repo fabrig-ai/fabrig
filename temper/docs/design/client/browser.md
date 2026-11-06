@@ -637,6 +637,12 @@ replay says the same clocks (`README.md`, 5.12).
   name is drawn, and the look of its flow's tokens isn't, since nothing draws a
   flow yet. The sheet to start a goal is the mock's `dialog.sheet`, `.option`,
   `.field` and `.text`, and `Ctrl+\` steps through the modes.
+- **temper's own way** (`README.md`, 3.5) is `configure-temper-own-way`'s rules, in
+  `temper.css` under `/* ==== ui: settings ==== */`: on the page
+  `.temper-starter-head` and `.temper-starter-own` with its parts; in the pane, beside
+  a chat's document's, `.temper-doc-figures` and `.temper-doc-flow`, which holds the
+  picture's numbered list and no flow, with `.temper-doc-sub` and `.temper-doc-muted`
+  under the chats' marker.
 - **What the mock lacks and a print needs** stays in the view, hidden by the
   sheet in the browser. A word the browser alone shows, or says otherwise,
   the view chooses by its shell.
@@ -682,8 +688,8 @@ replay says the same clocks (`README.md`, 5.12).
   (`field-sizing: content`, from one line to a bound), with no
   component and no script of temper's; a browser without it shows an
   area of fixed height that scrolls.
-- **A run's live text** is a patch like any other: the chat's
-  provisional turn ("Writing…", `README.md`, 3.5) changes in place;
+- **A run's live text** is a patch like any other: the chat's words
+  being written (`README.md`, 3.5) change in place;
   skein's page keeps focus, caret and scroll across it, and the
   conversation, a log, keeps its end in view while the person has not
   scrolled away (skein's `ui-web.md`, section 7).
@@ -1320,6 +1326,8 @@ from the engine's own answers, is where the look is tuned.
 | `home-answered` | `home-morning-card` with the first answered: its line, its toast, the next as the card |
 | `home-one-need` | one need: no lines and no "Answer in a row"; on a phone, "Answer" |
 | `configure` | the configuring page before its first words, template 3 listed |
+| `configure-reference` | "See how it works" pressed: the stock reference beside the page, in Split, the rail folded, no chat made |
+| `configure-reference-draft` | `configure-reference` in Draft: the reference alone, the composer under it |
 | `configure-typing` | words entered; Send enabled |
 | `configure-sending` | the configuring start out; starters and Send disabled, words kept |
 | `configure-refused` | the start refused; jig's words below the composer, the words kept |
@@ -1367,7 +1375,7 @@ from the engine's own answers, is where the look is tuned.
 | `chat-work-done` | the `chat-work` request's conversation, calls settled and folded, answer committed |
 | `chat-work-open` | the same conversation, the call run open to all thirteen rows |
 | `chat-work-running` | its first four calls settled and template 2 being checked, with no supplied outcome |
-| `chat-work-writing` | the same calls settled, the supplied opening paragraph being written with its end mark; the 512-byte live bound remains |
+| `chat-work-writing` | the same calls settled, the supplied opening paragraph being written with its end mark |
 | `chat-work-failed` | a failed charter read, its line and outcome in the signal's colour |
 | `chat-work-one` | one `read_docs` call alone, "Read the page hold" |
 | `chat-work-unknown` | a tool outside the words table, "read_file ×2" |

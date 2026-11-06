@@ -131,7 +131,7 @@ fn store_event(builder: &mut crate::Builder, event: crate::store::vocabulary::Ev
         event,
         &mut builder.store_output,
     );
-    for _ in 0..crate::store::MAX_OUT {
+    for _ in 0..builder.store_output.len() {
         drop(builder.store_output.pop());
     }
 }

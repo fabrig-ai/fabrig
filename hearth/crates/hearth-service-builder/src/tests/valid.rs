@@ -39,3 +39,22 @@ fn startup_refuses_unrepresentable_limits() {
         super::fixtures::SERVICE_SEED,
     );
 }
+
+#[test]
+#[should_panic(expected = "a watermark that admits work")]
+fn startup_refuses_a_watermark_of_nothing() {
+    let mut limits = limits::SHIPPED;
+    limits.watermark = 0;
+    let _service = Service::new(
+        &Configuration { proxy: None, store: bytes::copy_of(b"/store"), limits, uid: super::fixtures::UID },
+        Roots { store: Fd::new(3), cache: Fd::new(4), resolutions: Fd::new(5), staging: Fd::new(6) },
+        Call::Render {
+            resolve: false,
+            repository: bytes::copy_of(b"/repo"),
+            revision: bytes::copy_of(b"HEAD"),
+            targets: Box::new([]),
+        },
+        Form::Text,
+        super::fixtures::SERVICE_SEED,
+    );
+}

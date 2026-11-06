@@ -159,7 +159,7 @@ fn reading_a_tree_file_at_its_limits_holds_no_more_than_its_ceiling() {
 mod walk {
     use crate::HEAP;
     use hearth_domain_tree::{
-        MAX_OUT, Tree,
+        Tree,
         limits::{Limits, SHIPPED},
         step,
         vocabulary::{Event, Kind, Output},
@@ -199,7 +199,7 @@ mod walk {
         let mut event = Event::Walk { key: KEY, parent: None };
         let mut most = 0;
         loop {
-            let mut out = Queue::with_capacity(MAX_OUT);
+            let mut out = Queue::with_capacity(1);
             meter.start();
             step(&mut machine, &env, event, &mut out);
             let step = meter.end();

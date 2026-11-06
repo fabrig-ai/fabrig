@@ -667,13 +667,10 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
                             making::copying(engine, run);
                             continue;
                         }
-                        lifecycle::keep(
-                            engine,
-                            forge,
-                            item_record(item).expect("host never writes Pasted"),
-                            bytes.expose(),
-                            Purpose::Host(run),
-                        );
+                        let item = item_record(item).expect("host never writes Pasted");
+                        let purpose =
+                            if item == Item::WebhookSecret { Purpose::HostSecret(run) } else { Purpose::Host(run) };
+                        lifecycle::keep(engine, forge, item, bytes.expose(), purpose);
                     }
                 }
             }

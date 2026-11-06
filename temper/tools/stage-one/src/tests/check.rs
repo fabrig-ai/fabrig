@@ -517,6 +517,22 @@ fn project_landing_rules_can_bind_the_roles() {
     assert!(report.passed(), "{}", report.text());
 }
 #[test]
+fn a_goal_rule_open_beneath_its_segment_binds() {
+    let report = report(&proposed(|items| {
+        let rule = set_value(items, "landing-rule", 2);
+        rule["pattern"]["segments"].as_array_mut().expect("segments").push(json!("74656d706572"));
+        rule["pattern"]["last"] = json!({"open":""});
+        rule["enforce"] = json!(false);
+    }));
+    assert!(report.passed(), "{}", report.text());
+    let other = self::report(&proposed(|items| {
+        let rule = set_value(items, "landing-rule", 2);
+        rule["pattern"]["segments"].as_array_mut().expect("segments").push(json!("6f74686572"));
+        rule["pattern"]["last"] = json!({"open":""});
+    }));
+    assert_eq!(outcome(&other, "goal-rule.pattern"), &Outcome::Missing);
+}
+#[test]
 fn only_checks_both_landing_rule_scopes() {
     let mut evidence = proposed(unedited);
     let mut extra = evidence.current.items.iter().find(|i| i.setting.kind == "landing-rule").expect("rule").clone();

@@ -1,6 +1,6 @@
 //! One cat-file response at a time, then the bounded JSON machine (hearth/docs/design/domain/render.md, 2.2).
 use crate::{
-    Asked, Current as Work, Limits, Mode, builder,
+    Asked, Current, Limits, Mode, builder,
     cache::Cache,
     config,
     git::Child,
@@ -463,7 +463,7 @@ impl Read {
     }
 }
 
-pub(super) fn current(current: &mut Work) -> Option<&mut Read> {
+pub(super) fn current(current: &mut Current) -> Option<&mut Read> {
     let (_, mode) = current.git_mut()?;
     match mode {
         Mode::Read(read) => Some(read),

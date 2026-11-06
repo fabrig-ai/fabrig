@@ -537,8 +537,8 @@ in the lower world that owns it, never here.
     starts a chat turn, and the fake LLM plays a reply in two pieces,
     the second under a named hold, which waits before it (skein's
     `fake-llm.md`, section 2.2): the first piece is sent and the reply
-    held. The typist reads a printed page that shows that piece under
-    "Writing…", before the turn commits; only then does the story
+    held. The typist reads a printed page that shows that piece before
+    its "▍", before the turn commits; only then does the story
     release the hold, through the fake LLM's owner in the loop, as the
     world releases its other holds. The reply completes, the turn
     commits, and the first page that shows the committed turn shows no
@@ -2311,7 +2311,7 @@ world of temper's on a scripted engine (../client/README.md, section 10).
 - **A run's live text** has its story there, with a scripted host in
   place of an agent: the host sends a run's text in pieces, held after
   the first (jig's `protocol/channel.md`, 6.4), and the fake person
-  reads the chat's provisional "Writing…" turn with that piece, then the
+  reads the chat's words being written, that piece before its "▍", then the
   rest of the held text, and then the committed turn, which replaces it.
   The joint world's front plays the run's worker: at the chat run's
   assignment it sends the reply's first piece up the worker link, as
@@ -2437,7 +2437,7 @@ check binds each role to a number:
 | `goal-template` | template 4 | the template whose `resources` hold *its own goal branch* |
 | `small-goal-template` | the stock's goal template | the stock's number |
 | `main-rule` | landing rule 1 | the deployment's rule whose pattern ends exactly `main` |
-| `goal-rule` | landing rule 2 | the deployment's rule whose pattern ends open on `temper` |
+| `goal-rule` | landing rule 2 | the deployment's or the project's rule whose pattern ends open on `temper`, or open on nothing beneath a segment `temper`: each covers a goal branch |
 
 A role bound by assignment takes one of the charters the accepted
 revision adds that no anchor took: of every assignment, the one that
