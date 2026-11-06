@@ -3142,8 +3142,11 @@ for its kind, its user's login and its installations. Its nodes:
   none when `temper` runs this binary and each of the three directories
   (`../protocol/configuration.md`, 12) is the one the command finds by itself
   in the environment the engine started in. Otherwise they are the word that
-  runs the binary, after `TEMPER_CONFIG=… TEMPER_DATA=… TEMPER_CACHE=…`, all
-  three, where a directory isn't that one. It is one string, composed where the
+  runs the binary, after `TEMPER_CONFIG=…`, `TEMPER_DATA=…` and `TEMPER_CACHE=…`,
+  in that order, each only where its own directory isn't that one: a box with
+  its data alone moved says `TEMPER_DATA=~/x temper`. Where that environment
+  gives the command no directories by itself, no `HOME` or XDG variable placing
+  them, all three are named. It is one string, composed where the
   binary and the directories are known, so that the client holds no path as a
   fact, quotes nothing and decides no default; it is a read of its own,
   separate from `DeploymentAnswer`. A page asks when its address names a
