@@ -4,6 +4,7 @@ use temper_engine_domain_forge::{self as forge, items};
 
 fn item(start: items::Start) -> items::Item {
     items::Item {
+        delivers: false,
         provider: skein_forge::api::Repository { forge: 1, repository: 7 },
         name: b"repo".as_slice().into(),
         host: b"forge.example".as_slice().into(),
