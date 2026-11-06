@@ -298,6 +298,7 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut
         {
             b.open(Role::Slot);
             b.key(skein_ui::Key { owner: crate::frame::owner(), kind: 61, a: 0, b: 0 });
+            b.style(crate::look::CONFIRM_CHOICES);
             button(b, bindings, words, Word::Again, Act::Again { again: true });
             button(b, bindings, words, Word::DoNotRepeat, Act::Again { again: false });
             b.close();

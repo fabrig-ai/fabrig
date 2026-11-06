@@ -409,6 +409,35 @@ fn each_confirmation_has_its_title_and_acts() {
     }
 }
 #[test]
+fn uncertain_release_choices_have_their_own_styled_group() {
+    let source = super::task::held_agent_root();
+    let mut task = source.pages().task().unwrap().document(source.client()).unwrap().clone();
+    task.acts.get_mut(0).unwrap().effect = Some(c::Effect::Release(c::ReleaseEffect::Uncertain));
+    let mut root = fixtures::task::supplied_root(task, true);
+    let object = root.pages().cards().unwrap().get(0).unwrap().object;
+    press(&mut root, Act::Decide { object, revision: Some(fixtures::task::HOLD_REVISION), act: ActKind::Release });
+    let tree = sheet(&root);
+    let choices = super::inbox::subtree(&tree, super::inbox::styled(&tree, crate::look::CONFIRM_CHOICES));
+    let mut buttons = List::with_capacity(TWO_ACTS);
+    for node in choices {
+        if node.role == Role::Button {
+            buttons.push(node.name.as_deref()).unwrap();
+        }
+    }
+    assert_eq!(
+        buttons.as_slice(),
+        [Some(b"Repeat the effect".as_slice()), Some(b"Do not repeat the effect".as_slice())]
+    );
+    let acts = super::inbox::subtree(&tree, super::inbox::styled(&tree, crate::look::CONFIRM_ACTS));
+    let mut actions = List::with_capacity(TWO_ACTS);
+    for node in acts {
+        if node.role == Role::Button {
+            actions.push(node.name.as_deref()).unwrap();
+        }
+    }
+    assert_eq!(actions.as_slice(), [Some(b"Keep it held".as_slice()), Some(b"Release".as_slice())]);
+}
+#[test]
 fn a_chat_at_rest_says_only_it_cant_be_reopened() {
     let tree = sheet(&close_root(c::RunStage::Idle, 0, 0, false));
     assert!(contains(&fixtures::text(&tree), "You can still read it, but it can’t be reopened.".as_bytes()));

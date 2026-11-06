@@ -1,6 +1,6 @@
 # The mockups' status
 
-Revised 2026-11-05. How far temper's client is from its mockups
+Revised 2026-11-06. How far temper's client is from its mockups
 (`README.md`), a group of pages at a time. A group under the rules has
 a row for each thing its main drawing shows that the client doesn't
 draw yet (a lag), and for each place the client does otherwise (a
@@ -274,10 +274,18 @@ Where the client's recorded picks stand against the drawing:
   spend, “N spent · of B”, and no model, template, charter, host or
   budget mode; the composer's line names the next run. Its chooser
   stays behind the folded “Change model”.
-- **Closed** for every ended chat's bar and list row, with the end's
-  clock in the bar when supplied. The conversation's Failed and
-  Cancelled words and reasons stay. Chats is one list, newest first;
+- **Closed** for every ended chat's bar and list row, with no clock in
+  the bar. A requester-closed chat ends its conversation with "Closed
+  at CLOCK" between two hairlines (`../README.md`, 3.6). The conversation's
+  Failed and Cancelled words and reasons stay. Chats is one list, newest first;
   a row's spend is its own, with live delegates counted separately.
+- **Confirmation sheets** follow `../README.md`, 3.6: a sentence title,
+  only what changes, then the keep and named primary act. A close at rest
+  has no impact list; a live run, delegates, tasks below or proposals add
+  their nonzero lines under a hairline. An uncertain release's two choices
+  wrap in their own group above the acts. The browser's native modal supplies
+  the backdrop; its choices and confirmation acts keep the 44 px phone target
+  (`../browser.md`, 2.5).
 - **Acts beside each account and source**, including the move
   controls. A person's own account shows neither Used by nor Waiting
   for it; the deployment's accounts can show both. No Tasks or
