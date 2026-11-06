@@ -1,0 +1,3 @@
+draft = "limits-fixtures"
+repo = "fabrig"
+sources = ["temper/docs/plan/limits-fixtures/inputs/request.md", "temper/tests/engine/domain/Cargo.toml", "temper/crates/temper-service/Cargo.toml", "temper/tests/client/Cargo.toml", "temper/crates/temper-client-view/Cargo.toml", "AGENTS.md", "DESIGN.md"]
