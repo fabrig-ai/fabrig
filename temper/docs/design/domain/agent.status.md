@@ -20,7 +20,6 @@ Section 8.1 has no gap in note-backed whole settings proposals and decided-call 
 Section 8.1 has no gap in discovery of project repository identities for
 charter documents.
 
-- **Not yet:** 8.1: the inventory names no offer, and `configuring.txt` says nothing of which models it may name.
 - **Not yet:** 4.4: a verdict's follow-up tasks.
 - **Not yet:** 6: a receipt's words are held by tests alone (`a_landed_receipt_says_pushed_at_which_head_on_which_branch`, `temper-worker-domain/src/tests/entrance.rs`): no real run has read them, so whether a run that finds its checkout detached still takes a good delivery for a failure is unobserved. The request `landing-fixes` of 2026-11-06 has its proof in the next landing plan on a real deployment, and no record shows one.
 - **Design departs:** 6, from the request `parallel-faults` of 2026-11-06, item 4, decided by its plan's cut: a run's local commits still don't reach its next run, and a fold on a saved start is still lost, where the request reports both as faults, because a delivery commits the tree on the worker's own record of the head (`../protocol/git.md`, 4.7), and its receipt names what it pushed. That a run's words name no commit off the branch is asked by the coding charter alone, since those names come from its own transcript or summary, not the host's resume words: nothing refuses such a word, and no walk on record has run a real model on the sentence.
