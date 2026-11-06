@@ -4,6 +4,7 @@ use skein_world::domain::heap::Counting;
 static HEAP: Counting = Counting;
 
 mod host;
+mod confirmations;
 mod memory;
 mod switcher;
 
