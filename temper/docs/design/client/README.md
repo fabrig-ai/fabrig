@@ -1257,7 +1257,8 @@ keeps (`../protocol/configuration.md`, section 2).
       this machine in an environment of its own: its settings, sessions
       and sign-in stay apart from your own Claude Code. In a terminal
       here:"; the command `temper program-login NAME`, NAME the program's
-      default name (5.5), with no field for it; the muted "It makes that
+      default name (5.5), with no field for it, after the words of
+      `program_environment` (4.6) where it has any; the muted "It makes that
       environment, then Claude Code asks you to sign in to your
       subscription there. temper never reads its login."; the primary "I’ve
       signed in"; "All ways". "I’ve signed in" sends `DeclareProgram` under
@@ -2866,6 +2867,21 @@ for its kind, its user's login and its installations. Its nodes:
   (`../protocol/setup.md`, 7.4). A first run's store keeps no forge, so
   no row of the `forges` watch can say so (`forge.md`, 5.4). On the
   wire it is `Reading`'s `deployment`, beside `playground`.
+- **The program's environment, `program_environment`:** of the deployment's
+  scope, with no fields and no subject: what `temper program-login` needs set
+  to act on this deployment. It is the party's read, and only the deployment's
+  owner has it, the one person who is shown the command during set up; anyone
+  else's is refused, and sees the plain command. Its answer is the record
+  `ProgramEnvironmentAnswer`: `environment` (bytes), empty when each of the
+  three directories (`../protocol/configuration.md`, 12) is the one the command
+  finds by itself in the environment the engine started in, and otherwise
+  `TEMPER_CONFIG=… TEMPER_DATA=… TEMPER_CACHE=…`, all three, each value a POSIX
+  shell word. It is one string, composed where the directories are known, so
+  that the client holds no path as a fact, quotes nothing and decides no
+  default; it is a read of its own, not a member of `DeploymentAnswer`, since
+  that one is answered before any party is known, the same to every visitor.
+  A page asks when its address names a program's way, the only place that
+  draws the command. On the wire it is `Reading`'s `program_environment`.
 - **A change's panel, the subject `change`** (`forge.md`, 9.2): of a
   project's scope, its window unused, naming the change task's number
   (u64). On the wire it is `Watching`'s `change`, `Watching` naming
@@ -6351,3 +6367,13 @@ own tests:
   alone, the card then refused "not under the box"; or have the engine
   list an offered owned row from the machine at a first run, which
   changes what `forges` answers and what a first run's store reads as.
+
+- **A command on Accounts, and for anyone but the owner** (3.5, 4.6): Accounts'
+  "On each host, run: temper program-login NAME" names many hosts, each with
+  its own directories, and a person who isn't the owner gets no paths. Both
+  stay plain, and on a box with custom directories they don't run as shown.
+  Default: so, until a deployment says otherwise.
+- **A directory that isn't UTF-8** (4.6): `program_environment` carries its
+  bytes as they are, and the page draws text. Default: the command isn't
+  drawn as it would run; the flags `../../help/box.md`, section 5, shows
+  still do.
