@@ -19,7 +19,8 @@ use crate::{
 mod components;
 pub use components::{Component, Constructor};
 
-type Listener = (String, bool, Closure<dyn FnMut(web_sys::Event)>);
+// A report may render and measure a bound log before its scroll listener returns.
+type Listener = (String, bool, Closure<dyn Fn(web_sys::Event)>);
 
 /// Owns the mount's listeners and resize observer until the page ends.
 pub struct Dom {
@@ -40,6 +41,7 @@ impl Dom {
     ) -> Self {
         let document = Rc::new(Mounted {
             document: mount.owner_document().expect("mount has its document"),
+            page: Rc::clone(page),
             mount,
             nodes: RefCell::new(BTreeMap::new()),
             observer: RefCell::new(None),
@@ -197,6 +199,7 @@ struct Group {
 }
 struct Mounted {
     document: Document,
+    page: Rc<RefCell<Page<'static>>>,
     mount: Element,
     nodes: RefCell<BTreeMap<NodeId, Group>>,
     observer: RefCell<Option<ResizeObserver>>,
@@ -399,6 +402,7 @@ impl Mounted {
     }
     fn apply(&self, ops: &[Op]) {
         let mut trees = Vec::new();
+        let mut measures = Vec::new();
         for op in ops {
             self.affected_trees(op, &mut trees);
             match op {
@@ -461,12 +465,7 @@ impl Mounted {
                 }
                 Op::HoldView { node } => self.hold_view(*node),
                 Op::PutView { node } => self.put_view(*node),
-                Op::Measure { node } => {
-                    self.group(*node)
-                        .element
-                        .dispatch_event(&web_sys::Event::new("scroll").expect("scroll event"))
-                        .expect("mounted log accepts a measure");
-                }
+                Op::Measure { node } => measures.push(*node),
                 Op::ScrollScreen { node, down } => self.scroll_screen(*node, *down),
             }
         }
@@ -489,7 +488,32 @@ impl Mounted {
                 dialog.show_modal().expect("mounted dialog can be modal");
             }
         }
+        // Measure after the whole apply, without re-entering a browser event listener.
+        for node in measures {
+            self.measure(node);
+        }
     }
+
+    fn measure(&self, node: NodeId) {
+        let Some(element) = self.nodes.borrow().get(&node).map(|group| group.element.clone()) else {
+            return;
+        };
+        let mut ops = Vec::new();
+        let act = self.page.borrow_mut().act(
+            Event::Scrolled {
+                node,
+                top: element.scroll_top(),
+                height: element.scroll_height(),
+                viewport: element.client_height(),
+            },
+            &mut ops,
+        );
+        self.apply(&ops);
+        if let Some((node, act)) = act {
+            (self.report)(node, act);
+        }
+    }
+
     fn scroll_screen(&self, node: NodeId, down: bool) {
         let element = self.group(node).element;
         let style = self
@@ -533,7 +557,16 @@ impl Mounted {
                 break;
             }
             let child = children.item(index).expect("child element");
+            // The owner's reading status stays at the head while entries arrive below it.
+            if child.get_attribute("role").as_deref() == Some("status") {
+                continue;
+            }
             let bounds = child.get_bounding_client_rect();
+            // A display:contents wrapper has no box, but its entries do.
+            if bounds.width() <= 0.0 && bounds.height() <= 0.0 {
+                self.view_entries(&child, top, bottom, notes);
+                continue;
+            }
             if bounds.bottom() <= top || bounds.top() >= bottom {
                 continue;
             }

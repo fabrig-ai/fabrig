@@ -114,7 +114,9 @@ fn conversation_head(b: &mut Builder, root: &Domain, words: &Words) {
     let chat = root.pages().chat().expect("chat page");
     let task = chat.task(root.client()).expect("chat task");
     older(b, &chat.thread, words);
-    context(b, root, task.project, words);
+    if chat.thread.lines.edges.reaches(jig_client::thread::window::End::After) {
+        context(b, root, task.project, words);
+    }
     if chat.thread.lines().is_empty() && (chat.draft.is_some() || chat.writing) {
         let name = match &chat.draft {
             Some(draft) => words
@@ -969,7 +971,7 @@ fn turn_time(
     if *day != Some(date) {
         let said = times.say(words, TimeForm::Day, at);
         b.open(Role::Slot);
-        b.key(Key { a: u64::from_le_bytes(date.to_le_bytes()), ..fixed_key(46) });
+        b.key(Key { a: u64::from_le_bytes(date.to_le_bytes()), b: at.as_nanos(), ..fixed_key(46) });
         b.style(look::DAY);
         b.name(&said);
         b.open(Role::Paragraph);

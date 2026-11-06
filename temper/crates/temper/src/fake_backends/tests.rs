@@ -45,12 +45,15 @@ fn initialized_source(scratch: &Scratch) -> Directories {
 }
 // A unit test binary has no fake-claude sibling: each scratch provisions an adapter beside its source directories.
 fn start(source: &Directories, bundle: Option<&Path>) -> Result<Prepared, String> {
+    start_chosen(source, bundle, None)
+}
+fn start_chosen(source: &Directories, bundle: Option<&Path>, chosen: Option<&Chosen>) -> Result<Prepared, String> {
     let adapter = crate::path(&source.config).parent().expect("scratch root").join("fake-claude");
     if !adapter.exists() {
         write(&adapter, b"#!/bin/sh\nexit 1\n", false).expect("fixture adapter");
         fs::set_permissions(&adapter, fs::Permissions::from_mode(0o700)).expect("executable fixture adapter");
     }
-    prepare(source, bundle, &adapter)
+    prepare(source, bundle, &adapter, chosen)
 }
 fn provision_bundle(path: &Path) -> PathBuf {
     make_private(&path.join("0000000000000001"), skein_shell::effective_user()).expect("private fixture bundle");
@@ -186,6 +189,51 @@ fn prepare_empty(scratch: &Scratch, source: &Directories) -> Prepared {
     validate(&prepared.directories, &prepared.bytes, &scratch.0.join("fake-claude"))
         .expect("ordinary effective config and agent checks");
     prepared
+}
+
+#[test]
+fn a_reservation_that_loses_its_port_takes_another() {
+    let mut calls = 0;
+    let listener = reserve_from(&[], || {
+        calls += 1;
+        if calls == 1 {
+            Err(std::io::ErrorKind::AddrInUse.into())
+        } else {
+            assert_eq!(calls, 2, "one replacement bind");
+            TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0))
+        }
+    })
+    .expect("another reservation after losing a port");
+    assert_eq!(calls, 2);
+    let address = listener.local_addr().expect("held address");
+    assert_ne!(address.port(), 0);
+    assert!(TcpListener::bind(address).is_err(), "the reported port is held");
+}
+
+#[test]
+fn a_reservation_refuses_at_once_on_any_other_error() {
+    let mut calls = 0;
+    let error = reserve_from(&[], || {
+        calls += 1;
+        assert_eq!(calls, 1, "a non-address error must not retry");
+        Err(std::io::Error::new(std::io::ErrorKind::PermissionDenied, "injected permission denial"))
+    })
+    .expect_err("permission denied refuses the reservation");
+    assert_eq!(calls, 1);
+    assert_eq!(error, "fake peer reservation: injected permission denial");
+}
+
+#[test]
+fn a_reservation_refuses_after_32_lost_ports() {
+    let mut calls = 0;
+    let error = reserve_from(&[], || {
+        calls += 1;
+        assert!(calls <= 32, "lost ports must exhaust the retry bound");
+        Err(std::io::ErrorKind::AddrInUse.into())
+    })
+    .expect_err("all ports lost");
+    assert_eq!(calls, 32);
+    assert_eq!(error, "fake peer reservation: could not choose a port distinct from the deployment and callback");
 }
 
 #[test]
@@ -915,4 +963,91 @@ fn changed_source_bytes_or_directory_require_explicit_reset_without_writes() {
     let refusal = start(&other, None).err().expect("different source refused");
     assert!(refusal.contains("remove this sandbox directory explicitly to reset it"), "{refusal}");
     assert_eq!(fs::read(&retained).expect("retained document"), before);
+}
+
+fn named_ports() -> ([SocketAddr; 9], Chosen) {
+    let addresses = temper_fixtures::ports::addresses::<9>(&[]);
+    let value = addresses.map(|address| address.port().to_string()).join(",");
+    (addresses, chosen_ports(OsStr::new(&value)).expect("nine chosen ports"))
+}
+
+fn prepared_ports(prepared: &Prepared) -> [u16; 9] {
+    let document = read_json(&prepared.directories.document());
+    let listeners = [
+        "/application/clients/listener/socket",
+        "/application/machine/owned/listen/socket",
+        "/application/machine/fake/listen/socket",
+        "/application/demo/llm/listen/socket",
+        "/application/webhooks/listener/socket",
+    ]
+    .map(|pointer| {
+        document
+            .pointer(pointer)
+            .expect("listener")
+            .as_str()
+            .expect("socket")
+            .parse::<SocketAddr>()
+            .expect("address")
+            .port()
+    });
+    let Peers { github, oauth, llm, forgejo } = prepared.peers;
+    [
+        listeners[0],
+        listeners[1],
+        listeners[2],
+        listeners[3],
+        listeners[4],
+        github.port(),
+        oauth.port(),
+        llm.port(),
+        forgejo.port(),
+    ]
+}
+
+#[test]
+fn a_new_sandbox_takes_the_nine_ports_its_test_named_and_a_restart_keeps_them() {
+    let scratch = Scratch::new("chosen-ports");
+    let source = scratch.dirs();
+    let bundle = provision_bundle(&scratch.0.join("bundle"));
+    let (addresses, chosen) = named_ports();
+    let prepared = start_chosen(&source, Some(&bundle), Some(&chosen)).expect("chosen fresh sandbox");
+    assert_eq!(prepared_ports(&prepared), addresses.map(|address| address.port()));
+    for address in addresses {
+        assert!(TcpListener::bind(address).is_err(), "new sandbox holds {address}");
+    }
+    drop(prepared);
+    let (_, others) = named_ports();
+    let retained = start_chosen(&source, Some(&bundle), Some(&others)).expect("retained sandbox ignores new choices");
+    assert_eq!(prepared_ports(&retained), addresses.map(|address| address.port()));
+    drop(retained);
+    let _again = addresses.map(|address| TcpListener::bind(address).expect("all nine listen again"));
+}
+
+#[test]
+fn a_named_port_held_elsewhere_refuses_a_new_sandbox_naming_it() {
+    for (name, slot) in [("chosen-listener-held", 0), ("chosen-peer-held", 5)] {
+        let scratch = Scratch::new(name);
+        let source = scratch.dirs();
+        let bundle = provision_bundle(&scratch.0.join("bundle"));
+        let (addresses, chosen) = named_ports();
+        let held = TcpListener::bind(addresses[slot]).expect("hold chosen port");
+        let why = start_chosen(&source, Some(&bundle), Some(&chosen)).err().expect("taken port refuses preparation");
+        assert!(why.contains(CHOSEN_PORTS), "{why}");
+        assert!(why.contains(&held.local_addr().expect("held address").port().to_string()), "{why}");
+    }
+}
+
+#[test]
+fn chosen_ports_refuses_all_but_nine_nonzero_ports() {
+    use std::os::unix::ffi::OsStringExt;
+    for value in [
+        OsString::from("1,2,3,4,5,6,7,8"),
+        OsString::from("1,2,3,4,5,6,7,8,9,10"),
+        OsString::from("1,2,3,4,0,6,7,8,9"),
+        OsString::from("1,2,3,4,word,6,7,8,9"),
+        OsString::from_vec(b"1,2,3,4,\xff,6,7,8,9".to_vec()),
+    ] {
+        let why = chosen_ports(&value).err().expect("invalid choice refused");
+        assert!(why.contains(CHOSEN_PORTS), "{why}");
+    }
 }

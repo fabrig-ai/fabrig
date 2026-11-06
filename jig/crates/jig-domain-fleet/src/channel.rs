@@ -121,7 +121,7 @@ fn admit_worker(
         }
     }
     if worker >= configured || occupied {
-        refuse(domain, env, channel, hello, crate::HelloRefusal::Position { worker }, out);
+        refuse(domain, env, channel, hello, crate::HelloRefusal::Position { worker }, None, out);
         return false;
     }
     true
@@ -144,7 +144,7 @@ pub(crate) fn hello(
         crate::domain::EngineHello::Heard | crate::domain::EngineHello::Admitted => true,
     };
     if engine && reserved {
-        refuse(domain, env, channel, &hello, crate::HelloRefusal::ReservedChannel, out);
+        refuse(domain, env, channel, &hello, crate::HelloRefusal::ReservedChannel, None, out);
         return;
     }
     if engine {
@@ -159,7 +159,7 @@ pub(crate) fn hello(
         if let Some(kind) = previous
             && kind >= bound.kind
         {
-            refuse(domain, env, channel, &hello, crate::HelloRefusal::JobKinds, out);
+            refuse(domain, env, channel, &hello, crate::HelloRefusal::JobKinds, None, out);
             return;
         }
         previous = Some(bound.kind);
@@ -168,12 +168,13 @@ pub(crate) fn hello(
         // Malformed metadata has no charter shortfall: reject the channel without
         // publishing an invented admission dimension.
         domain.facts.push(Fact::Dropped);
-        out.push(Request::Refuse { channel });
+        out.push(Request::Refuse { channel, hello: None });
         return;
     }
     let kind = if engine { HostKind::Engine } else { HostKind::Worker };
     if let Some(why) = crate::needs::shortfall(&domain.needs, &hello.bounds, kind) {
-        refuse(domain, env, channel, &hello, crate::HelloRefusal::Agent { why }, out);
+        let figures = crate::figures(&domain.needs, &hello.bounds, kind, why);
+        refuse(domain, env, channel, &hello, crate::HelloRefusal::Agent { why }, figures, out);
         return;
     }
     if engine {
@@ -202,7 +203,7 @@ pub(crate) fn hello(
         } else {
             crate::HelloRefusal::Workers { limit: limits.workers }
         };
-        refuse(domain, env, channel, &hello, why, out);
+        refuse(domain, env, channel, &hello, why, None, out);
         return;
     }
     let Hello { slots, workstreams, hosting, stop_bound: _, bounds, jobs } = hello;
@@ -264,6 +265,7 @@ fn refuse(
     channel: Token,
     hello: &Hello,
     why: crate::HelloRefusal,
+    figures: Option<crate::Figures>,
     out: &mut Queue<Request>,
 ) {
     crate::history::refused(
@@ -271,7 +273,7 @@ fn refuse(
         crate::HelloRefusalRecord { channel, at: env.wall, slots: hello.slots, stop_bound: hello.stop_bound, why },
     );
     domain.facts.push(Fact::TurnedAway);
-    out.push(Request::Refuse { channel });
+    out.push(Request::Refuse { channel, hello: Some(crate::HelloRefused { why, figures }) });
 }
 
 /// Lost: the worker's attempts are kept for the grace, adrift. A channel

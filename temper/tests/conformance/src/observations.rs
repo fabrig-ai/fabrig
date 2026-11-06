@@ -126,7 +126,7 @@ pub fn policy(
                 (8, r::Recovery::Unrecoverable),
                 (9, r::Recovery::Unrecoverable),
                 (10, r::Recovery::Idempotent),
-                (11, r::Recovery::Unrecoverable),
+                (11, r::Recovery::Idempotent),
                 (12, r::Recovery::Idempotent),
                 (13, r::Recovery::Idempotent),
                 (14, r::Recovery::Idempotent),

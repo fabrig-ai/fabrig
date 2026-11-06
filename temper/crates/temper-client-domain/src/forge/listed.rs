@@ -169,36 +169,38 @@ pub fn unadopted_first(forges: &State) -> Option<(u16, &[u8], &[u8])> {
 pub enum Held<'a> {
     Unknown,
     None,
-    One { owner: &'a [u8], name: &'a [u8] },
-    Several { owner: &'a [u8], name: &'a [u8], more: u32 },
+    One { forge: Option<&'a Row>, owner: &'a [u8], name: &'a [u8] },
+    Several { forge: Option<&'a Row>, owner: &'a [u8], name: &'a [u8], more: u32 },
 }
 #[must_use]
 pub fn held<'a>(forges: &'a State, playground: Option<&'a Playground>, project: u32) -> Held<'a> {
     if let Some(playground) = playground
         && playground.project == Some(project)
     {
-        return Held::One { owner: &playground.owner, name: &playground.name };
+        return Held::One { forge: None, owner: &playground.owner, name: &playground.name };
     }
     let State::Rows(rows) = forges else { return Held::Unknown };
-    let mut first = None;
+    let mut first: Option<(&Row, &[u8], &[u8])> = None;
     let mut count = 0_u32;
     for row in rows {
         for repository in &row.repositories {
             if repository.project == project {
                 count = count.checked_add(1).expect("listed repositories fit");
                 let lower = match first {
-                    Some((number, _, _)) => row.number < number,
+                    Some((forge, _, _)) => row.number < forge.number,
                     None => true,
                 };
                 if lower {
-                    first = Some((row.number, repository.owner.as_ref(), repository.name.as_ref()));
+                    first = Some((row, repository.owner.as_ref(), repository.name.as_ref()));
                 }
             }
         }
     }
     match first {
-        Some((_, owner, name)) if count == 1 => Held::One { owner, name },
-        Some((_, owner, name)) => Held::Several { owner, name, more: count.checked_sub(1).expect("first counted") },
+        Some((forge, owner, name)) if count == 1 => Held::One { forge: Some(forge), owner, name },
+        Some((forge, owner, name)) => {
+            Held::Several { forge: Some(forge), owner, name, more: count.checked_sub(1).expect("first counted") }
+        }
         None => Held::None,
     }
 }

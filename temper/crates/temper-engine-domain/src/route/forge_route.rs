@@ -73,6 +73,27 @@ pub(crate) fn saved_tags(resources: &[tasks::SavedResource], connector: u16) -> 
     Some(tags.into_boxed())
 }
 
+/// A closing task's saved-work branches, from its record's saved set.
+pub(crate) fn saved_branches(domain: &Domain, env: &Env<Limits>, task: u64, root: u64) -> Box<[forge::Name]> {
+    let Some(record) = domain.core.tasks.task(task) else { return Box::new([]) };
+    let Some(tags) = saved_tags(&record.saved, domain.config.forge_connector) else { return Box::new([]) };
+    let mut branches = List::with_capacity(u32::try_from(tags.len()).expect("saved tags are bounded"));
+    for tag in tags {
+        let Some((forge, repository)) = forge::untag(tag) else { continue };
+        let Some(repository) = domain.forge.repository(skein_forge::api::Repository { forge, repository }) else {
+            continue;
+        };
+        let Some(branch) = tree_branch(repository, root, b's', task, None, env.limits.forge.name_bytes) else {
+            continue;
+        };
+        let Some(what) = branch_what(&branch, env.limits.forge.name_bytes) else { continue };
+        branches
+            .push(forge::Name { forge, repository: repository.provider.repository, what })
+            .expect("one branch per saved tag");
+    }
+    branches.into_boxed()
+}
+
 /// Build a generic people request from temper's forge repository options.
 /// The people child retains only the resource name, role and opaque options.
 #[must_use]
@@ -3533,8 +3554,7 @@ fn review_words(
 /// The gate's kind uses the same words as the change panel.
 fn repair_opening(row: &forge::ChangeRow, why: forge_change::Repair) -> Option<Box<[u8]>> {
     let number = match why {
-        forge_change::Repair::Ci => return Some(Box::from(&b"Repair CI at "[..])),
-        forge_change::Repair::Semantic => return Some(Box::from(&b"Repair the base's break at "[..])),
+        forge_change::Repair::Ci | forge_change::Repair::Semantic => return Some(Box::from(&b"Repair CI at "[..])),
         forge_change::Repair::Gate(number) => number,
         forge_change::Repair::Landing { .. } => return None,
     };
@@ -3619,7 +3639,7 @@ fn repair_words(
 ) -> Option<Box<[u8]>> {
     let previous: &[u8] = match why {
         forge_change::Repair::Ci => b"Repair the failed CI on the change branch.",
-        forge_change::Repair::Semantic => b"Repair the base update's semantic conflict.",
+        forge_change::Repair::Semantic => b"CI failed after a clean update from the base, and no merge conflict waits. Repair what the failed check says.",
         forge_change::Repair::Gate(_) => b"Repair the requested gate changes.",
         forge_change::Repair::Landing { .. } => return None,
     };
@@ -3629,8 +3649,8 @@ fn repair_words(
     let tail = u32::try_from(previous.len().checked_add(REPAIR_PRESERVATION.len())?.checked_add(1)?).ok()?;
     let mut identity = List::with_capacity(room.checked_sub(tail)?);
     let opening = repair_opening(row, why)?;
-    let unnamed_ci =
-        why == forge_change::Repair::Ci && (row.result.head != Some(head) || row.result.failed.bytes.is_empty());
+    let unnamed_ci = (why == forge_change::Repair::Ci || why == forge_change::Repair::Semantic)
+        && (row.result.head != Some(head) || row.result.failed.bytes.is_empty());
     let name_bytes = if unnamed_ci { b"no failed check named".len() } else { 1 };
     // Keep the opening, head and an explicit name even under a small task spec bound.
     if usize::try_from(identity.room()).ok()? < opening.len().checked_add(14)?.checked_add(name_bytes)? {
@@ -3640,14 +3660,13 @@ fn repair_words(
     append(&mut identity, digits.get(..12).expect("a commit has at least 40 hexadecimal digits"));
     append(&mut identity, b": ");
     match why {
-        forge_change::Repair::Ci => {
+        forge_change::Repair::Ci | forge_change::Repair::Semantic => {
             if row.result.head == Some(head) && !row.result.failed.bytes.is_empty() {
                 append(&mut identity, &row.result.failed.bytes);
             } else {
                 append(&mut identity, b"no failed check named");
             }
         }
-        forge_change::Repair::Semantic => append(&mut identity, &row.base),
         forge_change::Repair::Gate(_) => append(&mut identity, b"changes requested"),
         forge_change::Repair::Landing { .. } => return None,
     }
@@ -4015,6 +4034,7 @@ fn hold_change_decision(domain: &Domain, env: &Env<Limits>, task: u64, why: forg
     } else {
         None
     };
+    let updates = why == forge_change::Hold::Updates;
     let why = match why {
         forge_change::Hold::BranchMoved
         | forge_change::Hold::BranchMissing
@@ -4033,9 +4053,9 @@ fn hold_change_decision(domain: &Domain, env: &Env<Limits>, task: u64, why: forg
     };
     let end = if let Some(words) = account {
         StepEnd::HoldFrom { why, source: Box::new(holds::source(domain, None, words)) }
-    } else if why == tasks::Hold::EffectFailed
+    } else if (updates || why == tasks::Hold::EffectFailed)
         && let Some(row) = domain.forge.change(task)
-        && row.effect == forge_change::EffectResult::Failed
+        && (updates || row.effect == forge_change::EffectResult::Failed)
         && let Some(account) = &row.effect_account
     {
         StepEnd::HoldFrom { why, source: Box::new(holds::source(domain, Some(account.entry), account.words.clone())) }
@@ -4063,9 +4083,7 @@ fn cancel_change_gates(domain: &Domain, task: u64, head: [u8; 32]) -> ProcedureS
         Some(child) => {
             let mut reason = List::with_capacity(96);
             append(&mut reason, b"CI failed at head ");
-            for byte in &head {
-                append(&mut reason, &forge::hex(*byte));
-            }
+            append(&mut reason, &commit_text(&head));
             Box::new([jig_domain_core::StepCancel { task: child, reason: reason.into_boxed(), grace: None }])
         }
         None => Box::new([]),
@@ -4093,9 +4111,7 @@ fn cancel_change_repair(domain: &Domain, task: u64, head: [u8; 32]) -> Procedure
         Some(child) => {
             let mut reason = List::with_capacity(96);
             append(&mut reason, b"CI passed at head ");
-            for byte in &head {
-                append(&mut reason, &forge::hex(*byte));
-            }
+            append(&mut reason, &commit_text(&head));
             Box::new([jig_domain_core::StepCancel { task: child, reason: reason.into_boxed(), grace: None }])
         }
         None => Box::new([]),

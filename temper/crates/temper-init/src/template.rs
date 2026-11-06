@@ -42,8 +42,16 @@ pub(crate) fn documents(facts: &Facts<'_>, directories: &Directories<'_>, login:
     email.put(b"@localhost").expect("the domain was counted");
     let email = email.finish();
     let llm = listener(facts.ports.llm);
+    let provider = if facts.sign_in {
+        let redirect = path::join(&owned_git, b"user/oauth2/temper/callback");
+        json(Value::Provider { redirect: &redirect })
+    } else {
+        json(Value::Text(None))
+    };
 
     let values = [
+        (b"provider".as_slice(), provider),
+        (b"owned_sign_in".as_slice(), json(Value::Text(if facts.sign_in { Some(b"forgejo") } else { None }))),
         (b"forge".as_slice(), json(Value::Text(Some(&forge)))),
         (b"forge_git".as_slice(), json(Value::Text(Some(&forge_git)))),
         (b"owned".as_slice(), json(Value::Text(Some(&owned)))),
@@ -86,6 +94,7 @@ fn listener(port: core::num::NonZeroU16) -> Box<[u8]> {
 #[derive(Clone, Copy, Debug)]
 enum Value<'a> {
     Text(Option<&'a [u8]>),
+    Provider { redirect: &'a [u8] },
     Programs { claude: Option<&'a [u8]>, directory: &'a [u8] },
 }
 
@@ -93,6 +102,27 @@ fn encode(json: &mut Encoder, value: Value<'_>) {
     match value {
         Value::Text(Some(text)) => json.string(text),
         Value::Text(None) => json.null(),
+        Value::Provider { redirect } => {
+            json.object_start();
+            json.key(b"key");
+            json.string(b"provider.key");
+            json.key(b"clients");
+            json.array_start();
+            json.object_start();
+            json.key(b"id");
+            json.string(b"forgejo");
+            json.key(b"secret");
+            json.null();
+            json.key(b"redirect_uri");
+            json.string(redirect);
+            json.object_end();
+            json.array_end();
+            json.key(b"addresses");
+            json.array_start();
+            json.unsigned(1);
+            json.array_end();
+            json.object_end();
+        }
         Value::Programs { claude, directory } => {
             json.object_start();
             json.key(b"claude_code");
@@ -110,7 +140,7 @@ fn encode(json: &mut Encoder, value: Value<'_>) {
 fn json(value: Value<'_>) -> Box<[u8]> {
     // Two nested objects and two paths, each at 4096 bytes and at most six
     // escaped bytes per byte, plus keys and punctuation, fit within 50,000.
-    let limits = Limits { depth: 2, length: 50_000 };
+    let limits = Limits { depth: 3, length: 50_000 };
     let mut measure = Encoder::measure(&limits);
     encode(&mut measure, value);
     let len = measure.measured().expect("checked paths and the fixed shape fit the JSON limits");

@@ -4,6 +4,7 @@ use alloc::boxed::Box;
 use temper_engine_domain as root;
 
 pub(crate) mod box_link;
+mod refusal;
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher routes root outputs to their components")]
 pub(crate) fn request(engine: &mut Engine, request: root::Request) {
@@ -295,11 +296,10 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
                 },
                 &mut engine.events,
             ),
-            root::Delivery::Refuse { channel } => engine.workers.down(
-                engine.env.now,
-                jig_protocol_engine_workers::Event::NotAdmitted { channel, text: b"not admitted".as_slice().into() },
-                &mut engine.events,
-            ),
+            root::Delivery::Refuse { channel, hello } => {
+                let event = refuse(engine, channel, hello);
+                engine.workers.down(engine.env.now, event, &mut engine.events);
+            }
             root::Delivery::Host(delivery) => host_delivery(engine, *delivery),
             root::Delivery::PlaygroundNote { .. }
             | root::Delivery::Procedure { .. }
@@ -442,4 +442,18 @@ pub(crate) fn job_assignment(
         parts,
         values,
     })
+}
+
+/// Build the channel event and note from the same words (protocol/README.md, 15.3).
+pub(crate) fn refuse(
+    engine: &mut Engine,
+    channel: skein_lib::Token,
+    hello: Option<jig_domain_fleet::HelloRefused>,
+) -> jig_protocol_engine_workers::Event {
+    let text = refusal::text(hello);
+    if engine.last_hello_refusal.as_deref() != Some(text.as_ref()) {
+        engine.last_hello_refusal = Some(text.clone());
+        engine.notes.push(crate::Note::HelloRefused { channel: channel.raw(), text: text.clone() });
+    }
+    jig_protocol_engine_workers::Event::NotAdmitted { channel, text }
 }

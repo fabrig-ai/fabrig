@@ -83,12 +83,29 @@ fn a_port_another_init_listens_on_between_bind_and_listen_gets_a_kernel_port() {
     let (other, address) = bind(&mut io, 0);
     let (late, _) = bind(&mut io, address.port());
     io.perform(Op::Listen { fd: other, backlog: 1 }).expect("the other reservation listens");
-    let (fd, port) = io.listened(late, address, true).expect("a kernel-chosen reservation");
+    let (fd, port) = io.listened(late, address).expect("a kernel-chosen reservation");
     assert_ne!(port.get(), address.port(), "the lost port is not reported");
     assert!(TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port.get())).is_err(), "the chosen port is held");
     io.close(fd);
     io.close(other);
 }
+#[test]
+fn a_kernel_chosen_port_another_takes_before_listen_gets_another() {
+    let mut io = Io::open().expect("startup io");
+    let late = io.socket().expect("kernel-chosen socket");
+    let Ok(Done::Bound(address)) = io.perform(Op::Bind { fd: late, addr: ([127, 0, 0, 1], 0).into() }) else {
+        panic!("kernel-chosen bind")
+    };
+    let other = io.socket().expect("competing socket");
+    io.perform(Op::Bind { fd: other, addr: address }).expect("both sockets bind under SO_REUSEADDR");
+    io.perform(Op::Listen { fd: other, backlog: 1 }).expect("the other reservation listens first");
+    let (fd, port) = io.listened(late, address).expect("another kernel-chosen reservation");
+    assert_ne!(port.get(), address.port(), "the lost port is not reported");
+    assert!(TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port.get())).is_err(), "the chosen port is held");
+    io.close(fd);
+    io.close(other);
+}
+
 #[test]
 fn init_finds_ports_and_programs_and_writes_exact_modes_in_order() {
     let mut rows = Vec::new();
@@ -408,4 +425,92 @@ fn a_bare_configuration_passes_the_same_checks_as_serve() {
         crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
         fs::remove_dir_all(root).expect("cleanup");
     }
+}
+
+#[test]
+fn a_path_without_openssl_writes_a_box_without_sign_in_and_keeps_running() {
+    let root = scratch("no-openssl");
+    let dirs = directories(&root);
+    let env = environment(&root, false);
+    let written = write(&dirs, &env, &root.join("temper"), [0; 5]).expect("init succeeds without openssl");
+    assert_eq!(written.no_sign_in.as_deref(), Some("openssl is not on PATH"));
+    let value: serde_json::Value = serde_json::from_slice(&fs::read(dirs.document()).unwrap()).unwrap();
+    assert!(value["engine"]["clients"]["provider"].is_null());
+    assert!(value["application"]["machine"]["owned"]["sign_in"].is_null());
+    assert!(!path(&dirs.data).join("provider.key").exists());
+    crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
+    fs::remove_dir_all(root).unwrap();
+}
+#[test]
+fn init_keeps_an_existing_provider_key_even_without_openssl() {
+    let root = scratch("kept-key");
+    let dirs = directories(&root);
+    dirs.open(skein_shell::effective_user()).unwrap();
+    let key = path(&dirs.data).join("provider.key");
+    // Only a marker is needed: init must not read or replace an existing file.
+    fs::write(&key, b"kept").unwrap();
+    fs::set_permissions(&key, fs::Permissions::from_mode(0o600)).unwrap();
+    let before = fs::metadata(&key).unwrap();
+    let env = environment(&root, false);
+    let written = write(&dirs, &env, &root.join("temper"), [0; 5]).unwrap();
+    let after = fs::metadata(&key).unwrap();
+    assert_eq!(before.ino(), after.ino());
+    assert_eq!(before.len(), after.len());
+    assert!(written.no_sign_in.is_none());
+    let value: serde_json::Value = serde_json::from_slice(&fs::read(dirs.document()).unwrap()).unwrap();
+    assert_eq!(value["engine"]["clients"]["provider"]["key"], "provider.key");
+    assert_eq!(value["application"]["machine"]["owned"]["sign_in"], "forgejo");
+    crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn init_makes_a_private_3072_bit_provider_key_before_writing_its_document() {
+    use std::process::{Command, Stdio};
+    let root = scratch("provider-key");
+    let dirs = directories(&root);
+    let env = vec![(b"PATH".as_slice().into(), b"/usr/bin:/bin".as_slice().into())];
+    let mut io = Io::open().unwrap();
+    let Done::Usage(before) = io.perform(Op::Usage).unwrap() else { panic!("usage") };
+    let clock = skein_shell::Clock::new();
+    let started = clock.now().now;
+    let written = write(&dirs, &env, &root.join("temper"), [0; 5]).unwrap();
+    let elapsed = clock.now().now.saturating_since(started);
+    let Done::Usage(after) = io.perform(Op::Usage).unwrap() else { panic!("usage") };
+    eprintln!(
+        "init provider key: wall {elapsed:?}, child user {} ns, child system {} ns",
+        after.children.user.as_nanos().saturating_sub(before.children.user.as_nanos()),
+        after.children.system.as_nanos().saturating_sub(before.children.system.as_nanos())
+    );
+    assert!(written.no_sign_in.is_none());
+    let key = path(&dirs.data).join("provider.key");
+    assert_eq!(fs::metadata(&key).unwrap().mode() & 0o777, 0o600);
+    let public = root.join("public.pem");
+    assert!(
+        Command::new("openssl")
+            .args(["pkey", "-in"])
+            .arg(&key)
+            .arg("-pubout")
+            .arg("-out")
+            .arg(&public)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .unwrap()
+            .success()
+    );
+    let details = Command::new("openssl")
+        .args(["pkey", "-pubin", "-in"])
+        .arg(&public)
+        .args(["-text", "-noout"])
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    assert!(details.status.success());
+    assert!(details.stdout.starts_with(b"Public-Key: (3072 bit)"));
+    let value: serde_json::Value = serde_json::from_slice(&fs::read(dirs.document()).unwrap()).unwrap();
+    assert_eq!(value["engine"]["clients"]["provider"]["key"], "provider.key");
+    crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
+    fs::remove_dir_all(root).unwrap();
 }

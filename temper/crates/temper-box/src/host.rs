@@ -21,7 +21,7 @@ use skein_lib::{
     Decimal, Duration, Env, List, Queue, Secret, Time, Token, Wall,
     stream::{Down, Read, Up},
 };
-use temper_forge_setup::{Kind, Stage, Step, Steps, fetch::Fetched};
+use temper_forge_setup::{Kind, Stage, Step, Steps, fetch::Fetched, sign_in::Source};
 /// Which diagnostic lines also reach the terminal.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Echo {
@@ -95,6 +95,11 @@ impl Pipe {
         self.token.is_none() && self.lines.is_empty()
     }
 }
+#[derive(Clone, Copy, Debug)]
+enum SourceEnd {
+    Exited(Exit),
+    NotStarted,
+}
 #[derive(Debug)]
 struct Child {
     owner: Option<Token>,
@@ -109,6 +114,9 @@ struct Child {
     ready: Option<Ready>,
     ready_wall: Wall,
     tail: Tail,
+    source: Option<Source>,
+    source_ending: Option<SourceEnd>,
+    source_logged: bool,
 }
 impl Child {
     fn new(serve: &[u8], step: &Step, tail_lines: u32) -> Self {
@@ -124,6 +132,9 @@ impl Child {
             secret: None,
             ready_wall: Wall::EPOCH,
             tail: Tail::new(tail_lines),
+            source: None,
+            source_ending: None,
+            source_logged: false,
             ready: match step.ready() {
                 Some(address) => Some(Ready::new(address)),
                 None => None,
@@ -358,6 +369,21 @@ impl Service {
         false
     }
     fn order_ready(&self) -> bool {
+        let forge = match self.orders.iter().next() {
+            Some(
+                Order::Say { said: Said::Started { forge } } | Order::Terminal { fact: Fact::GroupStarted { forge } },
+            ) => Some(*forge),
+            Some(_) | None => None,
+        };
+        if let Some(forge) = forge
+            && let Some(step) = self.source_step(forge)
+        {
+            for pipe in &self.children.get(step).expect("source child").pipes {
+                if !pipe.settled() {
+                    return false;
+                }
+            }
+        }
         match self.orders.iter().next() {
             Some(Order::Terminal { fact: Fact::Starting { step } })
                 if self.steps.get(*step).expect("step").asked.is_some() =>
@@ -410,8 +436,9 @@ impl Service {
                 self.spawned(owner, child, &pipes);
             }
             Event::Exited { owner, exit } => {
-                for (step, state) in self.children.iter().enumerate() {
+                for (step, state) in self.children.iter_mut().enumerate() {
                     if state.owner == Some(owner) {
+                        state.source_ending = Some(SourceEnd::Exited(exit));
                         if self.steps.get(step).expect("step").step.name() == self.settings.serve.as_ref() {
                             self.retire_control();
                         }
@@ -457,6 +484,9 @@ impl Service {
                         } else {
                             Input::NotStarted { step }
                         };
+                        if input == (Input::NotStarted { step }) {
+                            state.source_ending = Some(SourceEnd::NotStarted);
+                        }
                         state.owner = None;
                         state.secret = None;
                         policy_input(&mut self.machine, &self.env, input, &mut self.orders, &mut self.order_walls);
@@ -706,6 +736,39 @@ impl Service {
             Some((fact, _)) => plain && terminal::tail_step(fact) == Some(step),
         }
     }
+    fn source_step(&self, forge: u16) -> Option<usize> {
+        for (step, placed) in self.steps.iter().enumerate() {
+            if placed.step.ignores_ending()
+                && let Some(asked) = placed.asked
+                && asked.forge == forge
+            {
+                return Some(step);
+            }
+        }
+        None
+    }
+    fn source_line(&mut self, forge: u16, wall: Wall) -> Option<Box<[u8]>> {
+        let step = self.source_step(forge)?;
+        let state = self.children.get_mut(step).expect("source child");
+        if state.source.is_none() {
+            let why = match state.source_ending {
+                Some(SourceEnd::Exited(exit)) => pipe::exited(b"source", exit),
+                Some(SourceEnd::NotStarted) => pipe::not_started(b"source"),
+                None => b"source ended without an outcome".as_slice().into(),
+            };
+            state.source = Some(Source::Failed(why));
+        }
+        let outcome = state.source.as_ref().expect("source outcome");
+        if !state.source_logged {
+            state.source_logged = true;
+            if let Source::Failed(why) = outcome {
+                let label = layout::label(&self.steps, forge).expect("source group's label");
+                let line = lines::joined(&[label, b": no sign-in through temper: ", why, b"\n"]);
+                self.box_lines.push(self.formatter.notice(&line, wall));
+            }
+        }
+        Some(pipe::source(forge, outcome))
+    }
     fn order(&mut self, order: Order, wall: Wall) {
         match order {
             Order::Withdraw { step } => {
@@ -717,7 +780,12 @@ impl Service {
                     state.withdrawn = Some(wall);
                 }
             }
-            Order::Terminal { fact } => self.terminal_fact(fact, wall),
+            Order::Terminal { fact } => {
+                if let Fact::GroupStarted { forge } = fact {
+                    self.source_line(forge, wall);
+                }
+                self.terminal_fact(fact, wall);
+            }
             Order::Record { forge } => self.records.write(forge),
             Order::WriteGroup { forge, kind } => self.records.write_group(forge, kind),
             Order::Unlink { forge } => self.records.unlink(forge),
@@ -726,6 +794,10 @@ impl Service {
                 self.children.get_mut(step).expect("remover child").spawn = true;
             }
             Order::Say { said } => {
+                let source = match said {
+                    Said::Started { forge } => self.source_line(forge, wall),
+                    Said::Step { .. } | Said::Stopped { .. } | Said::Removed { .. } | Said::Failed { .. } => None,
+                };
                 if let Some(control) = &mut self.control {
                     control.fetched = None;
                     let line = match said {
@@ -733,7 +805,10 @@ impl Service {
                             let asked = self.steps.get(step).expect("step").asked.expect("asked step");
                             pipe::step(asked.forge, asked.stage)
                         }
-                        Said::Started { forge } => pipe::started(forge),
+                        Said::Started { forge } => match source {
+                            Some(source) => lines::joined(&[&source, &pipe::started(forge)]),
+                            None => pipe::started(forge),
+                        },
                         Said::Stopped { forge } => pipe::stopped(forge),
                         Said::Removed { forge } => pipe::removed(forge),
                         Said::Failed { forge, why } => {
@@ -965,6 +1040,14 @@ impl Service {
                                     }
                                 }
                             }
+                            if fd == 0 && description.ignores_ending() {
+                                if let Some(outcome) = Source::read(&bytes)
+                                    && state.source.is_none()
+                                {
+                                    state.source = Some(outcome);
+                                }
+                                log_only = true;
+                            }
                             self.logs.put(Piece { step, bytes, wall, log_only });
                         }
                         Output::Line { bytes, .. } if plain && !self.terminal.failed() => {
@@ -1012,6 +1095,9 @@ impl Service {
             {
                 state.spawn = false;
                 state.tail.reset();
+                state.source = None;
+                state.source_ending = None;
+                state.source_logged = false;
                 self.serial = self.serial.checked_add(1).expect("spawn serial");
                 let owner = Token::new(self.serial);
                 state.owner = Some(owner);

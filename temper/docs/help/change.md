@@ -57,7 +57,7 @@ As `step:` prints it:
   (number, branch, base, head and address), the failed check and log end,
   or the gate's remarks (cut from their end, marked). It finishes with
   a new head; its words open with the repair
-  (`Repair CI at HEAD: CONTEXT` (`no failed check named` if unknown), `Repair gate N (KIND) at HEAD: changes requested`, `Repair the base's break at HEAD: BASE`),
+  (`Repair CI at HEAD: CONTEXT` (`no failed check named` if unknown), `Repair gate N (KIND) at HEAD: changes requested`; a clean update's red opens as CI's),
   so `task show` names it; the change is checked again;
 - `landing`, then `landed`: merged; `change show` names its commit;
   without tiers, it ends;
