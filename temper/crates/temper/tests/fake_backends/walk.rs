@@ -88,6 +88,13 @@ impl Walk {
             |_binary| check(&self.sandbox().join("config"), self.scratch.path()),
         );
         let diagnostic = String::from_utf8_lossy(&outcome.stderr);
+        let block = b"Open this link in a browser on this machine.\n\n\nIt signs you in as this temper's owner, once and for a short while.\nOpened again once spent, it prints a fresh one here.\n";
+        let after_block = outcome.stderr.strip_prefix(block).expect("the sign-in block is first on stderr");
+        assert!(
+            after_block.starts_with(b"box: effective configuration "),
+            "the effective directories follow the block"
+        );
+        assert!(!diagnostic.contains("Logs:"), "the logs notice belongs to box.log");
         // A refused restart must fail on the box's terminal, before missing
         // ctl answers obscure the reason it never printed a new sign-in link.
         assert_eq!(outcome.exit, Some(Exit::Code(0)), "healthy box stop: {diagnostic}");
