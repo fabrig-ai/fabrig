@@ -1,4 +1,4 @@
-//! Folded account rows; every control carries the row that offered it.
+//! Folded account rows; every control carries the row that offered it (temper/docs/design/domain/trial.md, 6.2).
 use super::{
     confirmation, heading, key_field, named, named_control, omitted, outcome, provider_name, run, state, text,
 };
@@ -168,6 +168,9 @@ fn draw(
         text(b, w, Role::Paragraph, W::Moving);
     } else if let Some(source) = deciding {
         notice(b, root, w, bindings, row, provider, name, source, sources, manage, busy);
+    }
+    if let Some(trial) = crate::pages::model_check::of_account(root, w, row.account) {
+        crate::pages::model_check::line(b, root, w, bindings, &trial, crate::pages::model_check::Place::Row);
     }
     crate::cards::text(b, Role::Paragraph, &w.say(crate::words::Word::AccountSources, &[]));
     b.open(Role::List);
