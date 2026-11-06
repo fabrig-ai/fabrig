@@ -191,7 +191,7 @@ fn approval_context(world: &mut World, run: &engine::Assignment) {
         "existing verified project role",
         "read the current project-policy permission mapping",
         "admin seeds maintainer (1), never owner (0)",
-        "Never promise that admin makes a role-0 proposal acceptable",
+        "Never promise admin fixes a role-0 proposal",
         "adopt again, reread inventory and propose afresh",
     ] {
         assert!(words.contains(rule), "missing stock rule: {rule}");
