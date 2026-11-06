@@ -1,15 +1,18 @@
-//! Init's model order and stock charters on one-account boxes
-//! (jig/docs/design/domain/accounts.md, 4.3; temper/docs/design/domain/testing.md, 2).
+//! Init's offers, template previews and runs for the party's usable accounts
+//! (jig/docs/design/client/domain/contract.md, 5.1;
+//! temper/docs/design/protocol/configuration.md, 13.4; temper/docs/design/domain/testing.md, 2).
 #![expect(
     clippy::disallowed_methods,
     reason = "ordinary domain stories inspect generated settings and typed documents"
 )]
 use super::{fixtures, stock};
+use jig_client_protocol_wire::v19 as wire;
+use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_host as host;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{Duration, List, ReplyTo, Token};
+use skein_lib::{Duration, List, Reader, ReplyTo, Token, Writer};
 use temper_engine_domain::{self as engine, Delivery, Event, PartyInput};
 use temper_engine_domain_world::{direct::Driver, protocol, store::Store};
 
@@ -18,6 +21,7 @@ const ASTRA: &[u8] = b"gpt-6-astra";
 const CLAUDE: &[u8] = b"claude-opus-5-5";
 const CHANNEL: Token = Token::new(7);
 const LOGIN: &[u8] = b"personal";
+const ME_WATCH: Token = Token::new(802);
 
 enum OneAccount {
     Claude,
@@ -31,7 +35,10 @@ struct StockBox {
     config: engine::Config,
     models: Box<[core::Model]>,
     templates: Box<[core::Template]>,
+    charters: Box<[core::Charter]>,
     providers: jig_domain_accounts::Providers,
+    client_models: Box<[jig_protocol_engine_clients::Model]>,
+    client_limits: jig_protocol_engine_clients::Limits,
     login: Option<host::LoginState>,
 }
 
@@ -43,6 +50,8 @@ fn stock_box(account: OneAccount) -> StockBox {
         "init must put claude-opus-5-5 first: a reordered fixture hides first-usable selection"
     );
     let parsed = stock::engine(&document);
+    let client_models = jig_protocol_config::clients::models(&parsed.llm);
+    let client_limits = parsed.limits.clients;
     let application_bytes = fixtures::value(&document, b"application");
     let application_document = jig_protocol_config::document(
         &application_bytes,
@@ -78,6 +87,7 @@ fn stock_box(account: OneAccount) -> StockBox {
     };
     let models = config.core.settings.models.clone();
     let templates = config.core.defaults.templates.clone();
+    let charters = config.core.defaults.charters.clone();
     let providers = config.core.settings.llm_providers.clone();
     let restart = temper_engine_domain_world::oracle::config::copy(&config);
     let mut driver = Driver::cold(Store::with_limits(&limits), config, &limits);
@@ -88,46 +98,57 @@ fn stock_box(account: OneAccount) -> StockBox {
         OneAccount::Declared => Some(host::LoginState::NotSignedIn),
         OneAccount::ChatGpt | OneAccount::None => None,
     };
-    let mut world = StockBox { driver, config: restart, models, templates, providers, login };
+    let mut world = StockBox {
+        driver,
+        config: restart,
+        models,
+        templates,
+        charters,
+        providers,
+        client_models,
+        client_limits,
+        login,
+    };
     world.sign_in();
     world.ask(1, people::Ask::MakeProject { name: "Work".into(), policy: 1 });
+    world.ask(3, people::Ask::MakeProject { name: "Other work".into(), policy: 1 });
     match account {
-        OneAccount::Claude | OneAccount::Declared => {
-            let provider = world.provider(CLAUDE);
-            world.ask(
-                2,
-                people::Ask::AccountChange {
-                    holder: people::AccountHolder::Own,
-                    change: people::AccountChange::DeclareProgram { provider, join: None, name: LOGIN.into() },
-                },
-            );
-            let declared = world
-                .driver
-                .delivered
-                .iter()
-                .find_map(|delivery| {
-                    if let Delivery::WebReply {
-                        reply: people::Reply::Outcome(people::Outcome::AccountProgramDeclared { name, .. }),
-                        ..
-                    } = delivery
-                    {
-                        Some(name.as_ref())
-                    } else {
-                        None
-                    }
-                })
-                .expect("program name is durably issued");
-            assert_eq!(declared, LOGIN);
-        }
+        OneAccount::Claude | OneAccount::Declared => world.declare_claude(),
         OneAccount::ChatGpt => world.add_openai(),
         OneAccount::None => {}
     }
-    // The document is read before a worker can claim. The declared source already
-    // selects Claude even when no host has reported its login usable yet.
     world
 }
 
 impl StockBox {
+    fn declare_claude(&mut self) {
+        let provider = self.provider(CLAUDE);
+        self.ask(
+            2,
+            people::Ask::AccountChange {
+                holder: people::AccountHolder::Own,
+                change: people::AccountChange::DeclareProgram { provider, join: None, name: LOGIN.into() },
+            },
+        );
+        let declared = self
+            .driver
+            .delivered
+            .iter()
+            .find_map(|delivery| {
+                if let Delivery::WebReply {
+                    reply: people::Reply::Outcome(people::Outcome::AccountProgramDeclared { name, .. }),
+                    ..
+                } = delivery
+                {
+                    Some(name.as_ref())
+                } else {
+                    None
+                }
+            })
+            .expect("program name is durably issued");
+        assert_eq!(declared, LOGIN);
+    }
+
     fn sign_in(&mut self) {
         self.driver.send(Event::Party(PartyInput::SignedIn {
             held: None,
@@ -204,33 +225,153 @@ impl StockBox {
     }
 
     fn add_openai(&mut self) {
-        let digest = [10; 32];
-        self.driver.send(Event::Party(PartyInput::Key {
+        self.driver.send(Event::Party(PartyInput::Ask {
+            models: Box::new([]),
             reply_to: ReplyTo::new(Token::new(10)),
             sign_in: self.driver.session(),
             key: [10; 16],
-            ask: Box::new(people::Ask::AccountChange {
-                holder: people::AccountHolder::Own,
-                change: people::AccountChange::AddKey { provider: self.provider(OPENAI), join: None, digest },
-            }),
-            carried: core::Carried { number: 1_u64 << 63, digest },
+            ask: people::Ask::AccountSignIn { holder: people::AccountHolder::Own, provider: self.provider(OPENAI) },
         }));
         self.pump();
-        self.driver
-            .delivered
+        let source = self
+            .driver
+            .protocol
+            .accounts
             .iter()
-            .find_map(|delivery| {
-                if let Delivery::WebReply {
-                    reply: people::Reply::Outcome(people::Outcome::AccountKeyKept { source }),
-                    ..
-                } = delivery
-                {
+            .find_map(|request| {
+                if let accounts::Request::Signing(accounts::Signing::SignIn { source, .. }) = request {
                     Some(*source)
                 } else {
                     None
                 }
             })
-            .expect("the init OpenAI provider accepts a synthetic key");
+            .expect("ChatGPT plan sign-in");
+        self.driver.send(Event::Account(accounts::Event::Visited {
+            source,
+            address: b"http://issuer/visit".as_slice().into(),
+        }));
+        self.pump();
+        self.driver.send(Event::Account(accounts::Event::SignedIn {
+            source,
+            subject: b"plan-owner".as_slice().into(),
+            display: b"ChatGPT plan".as_slice().into(),
+            declined: false,
+        }));
+        self.pump();
+        self.driver.send(Event::Account(accounts::Event::Credential {
+            number: source,
+            generation: 1,
+            valid: Duration::from_secs(3600),
+        }));
+        self.pump();
+    }
+
+    fn frame(&mut self) -> core::documents::Frame {
+        self.driver.send(Event::Party(PartyInput::Read {
+            reply_to: ReplyTo::new(Token::new(801)),
+            sign_in: self.driver.session(),
+            read: core::reads::Read::Frame,
+        }));
+        self.pump();
+        self.driver
+            .delivered
+            .iter()
+            .rev()
+            .find_map(|delivery| {
+                if let Delivery::Read { answer: core::reads::Answer::Document(document), .. } = delivery
+                    && let core::documents::Document::Frame(frame) = document.as_ref()
+                {
+                    Some(frame.clone())
+                } else {
+                    None
+                }
+            })
+            .expect("me document")
+    }
+
+    fn watched_frame(&self, after: usize) -> &core::documents::Frame {
+        self.driver
+            .delivered
+            .iter()
+            .skip(after)
+            .rev()
+            .find_map(|delivery| {
+                if let Delivery::Document { watcher, document } = delivery
+                    && *watcher == ME_WATCH
+                    && let core::documents::Document::Frame(frame) = document.as_ref()
+                {
+                    Some(frame)
+                } else {
+                    None
+                }
+            })
+            .expect("the watched me is updated")
+    }
+
+    fn me(&mut self) -> wire::Me {
+        let frame = self.frame();
+        jig_protocol_engine_clients::translate::owner::frame(&frame, &self.client_models, &self.client_limits.wire)
+            .expect("stock me fits the client wire")
+    }
+
+    fn assert_offer(&mut self, expected: &[(&[u8], &[u8])]) {
+        let record = self.me();
+        let mut projects = Reader::new(record.projects());
+        let mut count = 0_u32;
+        while let Some(bytes) = skein_codec::piece::split(&mut projects).unwrap() {
+            count = count.checked_add(1).unwrap();
+            let project = wire::MeProject::decode(&self.client_limits.wire, &mut Reader::new(&bytes)).unwrap();
+            assert_eq!(project.models().len(), u32::try_from(expected.len()).unwrap());
+            for (index, (name, effort)) in expected.iter().enumerate() {
+                let model = project.models().get(u32::try_from(index).unwrap()).unwrap();
+                assert_eq!(model.name(), *name, "offer order and provider filtering");
+                assert_eq!(model.effort().as_deref(), Some(*effort));
+                let account = self
+                    .driver
+                    .store
+                    .rows
+                    .values()
+                    .find_map(|row| {
+                        if let engine::Record::Core(core::Record::Accounts(accounts::Stored::Account {
+                            number,
+                            provider,
+                            ..
+                        })) = row
+                        {
+                            (*provider == self.provider(name)).then_some(*number)
+                        } else {
+                            None
+                        }
+                    })
+                    .expect("offered model's account");
+                assert_eq!(model.accounts().as_slice(), [account]);
+            }
+        }
+        assert_eq!(count, 2, "both of the party's projects are present");
+    }
+
+    fn assert_previews(&mut self, chat: Option<&[u8]>, configuring: Option<&[u8]>) {
+        let record = self.me();
+        let mut projects = Reader::new(record.projects());
+        while let Some(bytes) = skein_codec::piece::split(&mut projects).unwrap() {
+            let project = wire::MeProject::decode(&self.client_limits.wire, &mut Reader::new(&bytes)).unwrap();
+            assert_eq!(project.defaults().len(), if chat.is_some() { 2 } else { 0 });
+            for (template, expected) in [(1, chat), (3, configuring)] {
+                let preview = (0..project.defaults().len()).find_map(|at| {
+                    let preview = project.defaults().get(at).unwrap();
+                    (preview.template() == template).then_some(preview)
+                });
+                match expected {
+                    Some(name) => {
+                        let preview = preview.expect("usable template preview");
+                        assert_eq!(preview.choice().main().model(), name);
+                        assert_eq!(preview.choice().main().effort().as_deref(), Some(b"high".as_slice()));
+                        assert_eq!(*preview.choice().account(), None, "a preview reserves no account");
+                    }
+                    None => assert_eq!(preview, None),
+                }
+            }
+        }
     }
 
     fn create(&mut self, template: u32, named: Option<&[u8]>) -> u64 {
@@ -381,6 +522,12 @@ impl StockBox {
         assert_eq!(assignment.task, task);
         assert_eq!(assignment.run.policy.model.name.as_ref(), model, "claim's main");
         assert_eq!(assignment.run.policy.model.default_effort().unwrap(), b"high");
+        let charter = self.charters.iter().find(|charter| charter.number == assignment.charter).unwrap();
+        assert!(assignment.run.budget <= charter.spend, "claim stays within its charter's spend");
+        assert!(
+            assignment.run.budget > core::reserve_floor(&assignment.run.policy).unwrap(),
+            "claim has its admission reserve"
+        );
         // Complete this activation before the world's cold-restart oracle.
         let end = match assignment.run.ended_by {
             tasks::EndedBy::Requester => tasks::End::Parked,
@@ -407,10 +554,12 @@ impl StockBox {
 #[test]
 fn claude_alone_runs_the_stock_chat() {
     let mut world = stock_box(OneAccount::Claude);
+    world.worker();
+    world.assert_offer(&[(CLAUDE, b"high"), (b"claude-sonnet-5-5", b"high"), (b"claude-fable-5-1", b"high")]);
+    world.assert_previews(Some(CLAUDE), Some(CLAUDE));
     let task = world.create(1, None);
     let document = world.document(task);
     assert_eq!(world.main(&document), CLAUDE, "Task before claim");
-    world.worker();
     world.assert_claim(task, CLAUDE);
 }
 
@@ -440,6 +589,13 @@ fn claude_alone_runs_the_goals_coding_task() {
 #[test]
 fn chatgpt_alone_runs_the_stock_chat() {
     let mut world = stock_box(OneAccount::ChatGpt);
+    world.assert_offer(&[
+        (OPENAI, b"high"),
+        (ASTRA, b"high"),
+        (b"gpt-6.1-terra", b"medium"),
+        (b"gpt-6-luna", b"medium"),
+    ]);
+    world.assert_previews(Some(OPENAI), Some(ASTRA));
     let task = world.create(1, None);
     let document = world.document(task);
     assert_eq!(world.main(&document), OPENAI, "Task before claim");
@@ -512,12 +668,14 @@ fn a_declared_login_without_sign_in_names_its_host_wait() {
 }
 
 #[test]
-fn no_account_keeps_the_charters_first_model_and_names_an_empty_wait() {
+fn no_account_offers_nothing_and_an_unnamed_chat_names_no_model() {
     let mut world = stock_box(OneAccount::None);
+    world.assert_offer(&[]);
+    world.assert_previews(None, None);
     let task = world.create(1, None);
     world.worker();
     let document = world.document(task);
-    assert_eq!(world.main(&document), CLAUDE);
+    assert_eq!(document.llm, None);
     assert_eq!(
         document.run_wait,
         Some(core::documents::TaskRunWait::Account {
@@ -536,6 +694,144 @@ fn chatgpt_alone_runs_the_stock_configuring_chat() {
     assert_eq!(world.main(&document), ASTRA, "configuring Task before claim");
     world.worker();
     world.assert_claim(task, ASTRA);
+}
+
+#[test]
+fn both_accounts_offer_every_model_and_preview_the_users_first_choice() {
+    let mut world = stock_box(OneAccount::Claude);
+    world.add_openai();
+    world.worker();
+    world.assert_offer(&[
+        (CLAUDE, b"high"),
+        (b"claude-sonnet-5-5", b"high"),
+        (b"claude-fable-5-1", b"high"),
+        (OPENAI, b"high"),
+        (ASTRA, b"high"),
+        (b"gpt-6.1-terra", b"medium"),
+        (b"gpt-6-luna", b"medium"),
+    ]);
+    world.assert_previews(Some(CLAUDE), Some(CLAUDE));
+}
+
+#[test]
+fn no_account_keeps_an_explicitly_named_model_while_waiting() {
+    let mut world = stock_box(OneAccount::None);
+    let task = world.create(1, Some(OPENAI));
+    world.worker();
+    let document = world.document(task);
+    assert_eq!(world.main(&document), OPENAI);
+    assert_eq!(
+        document.run_wait,
+        Some(core::documents::TaskRunWait::Account {
+            account: None,
+            source: None,
+            why: core::documents::TaskWaitWhy::Empty,
+        })
+    );
+}
+
+#[test]
+fn a_lapsed_login_withdraws_its_offer_and_marks_me_but_keeps_the_tasks_model() {
+    let mut world = stock_box(OneAccount::Claude);
+    let task = world.create(1, None);
+    world.worker();
+    world.assert_claim(task, CLAUDE);
+    let account = world.document(task).kept_account.expect("the run kept its Claude account");
+    world.driver.send(Event::Party(PartyInput::Watch {
+        watcher: ME_WATCH,
+        sign_in: world.driver.session(),
+        subject: core::documents::Watched::Frame,
+        window: core::documents::Window { rows: world.driver.env.limits.documents.rows, after: None },
+    }));
+    world.pump();
+    assert!(world.watched_frame(0).projects.iter().all(|project| project.offer.len() == 3));
+    world.driver.send(Event::Party(PartyInput::Delivered { watcher: ME_WATCH }));
+    world.pump();
+    let before_lapse = world.driver.delivered.len();
+    world.login = Some(host::LoginState::NotSignedIn);
+    world.driver.send(protocol::up(
+        CHANNEL,
+        host::LinkUp::Logins {
+            logins: Box::new([host::Login {
+                name: host::SourceName::new(LOGIN).unwrap(),
+                state: host::LoginState::NotSignedIn,
+            }]),
+        },
+        engine::Parts::none(),
+    ));
+    world.pump();
+    assert!(
+        world
+            .watched_frame(before_lapse)
+            .projects
+            .iter()
+            .all(|project| project.offer.is_empty() && project.defaults.is_empty()),
+        "the login lapse invalidates me's watched offer and previews"
+    );
+    world.assert_offer(&[]);
+    world.assert_previews(None, None);
+    let document = world.document(task);
+    assert_eq!(document.kept_account, Some(account));
+    assert_eq!(world.main(&document), CLAUDE);
+}
+
+#[test]
+fn init_limits_hold_seven_models_and_three_previews_per_project_on_the_wire() {
+    let mut world = stock_box(OneAccount::Claude);
+    world.add_openai();
+    world.worker();
+    let mut frame = world.frame();
+    let limits = world.driver.env.limits;
+    let mut project = frame.projects.as_slice().first().unwrap().clone();
+    assert_eq!(project.offer.len(), 7);
+    // Size the third preview too: a project's chosen goal executor may be resolved
+    // to the coding charter. The stock leaves that executor for the person to pick.
+    let choice = project.defaults.as_slice().first().unwrap().1.clone();
+    project.defaults.push((2, choice)).unwrap();
+    project.templates.iter_mut().find(|template| template.number == 2).unwrap().executor =
+        people::TemplateExecutor::Charter(2);
+    for offered in project.offer.iter_mut() {
+        offered.accounts = List::with_capacity(limits.accounts.accounts);
+        for account in 1..=limits.accounts.accounts {
+            offered.accounts.push(account).unwrap();
+        }
+    }
+    assert_eq!(project.defaults.len(), 3);
+    project.name.bytes = skein_lib::bytes::zeroed(usize::try_from(limits.documents.text_bytes).unwrap());
+    project.name.bytes.fill(b'p');
+    let count = limits.people.projects.min(limits.documents.lines);
+    frame.projects = List::with_capacity(count);
+    for number in 1..=count {
+        let mut row = project.clone();
+        row.project = number;
+        frame.projects.push(row).unwrap();
+    }
+    frame.login.bytes = skein_lib::bytes::zeroed(usize::try_from(limits.documents.text_bytes).unwrap());
+    frame.login.bytes.fill(b'l');
+    frame.name.bytes.clone_from(&frame.login.bytes);
+    let record =
+        jig_protocol_engine_clients::translate::owner::frame(&frame, &world.client_models, &world.client_limits.wire)
+            .expect("init's largest me translates to the client wire");
+    assert!(
+        record.measure() <= world.client_limits.message_bytes,
+        "me fits the client message bound: {} <= {}",
+        record.measure(),
+        world.client_limits.message_bytes
+    );
+    assert!(u64::from(record.measure()) <= wire::Me::encoded_bound(&world.client_limits.wire).unwrap());
+    let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
+    record.encode(&mut writer).unwrap();
+    let decoded = wire::Me::decode(&world.client_limits.wire, &mut Reader::new(&writer.finish())).unwrap();
+    assert_eq!(decoded, record);
+    let mut projects = Reader::new(decoded.projects());
+    let mut seen = 0_u32;
+    while let Some(bytes) = skein_codec::piece::split(&mut projects).unwrap() {
+        let project = wire::MeProject::decode(&world.client_limits.wire, &mut Reader::new(&bytes)).unwrap();
+        assert_eq!(project.models().len(), 7);
+        assert_eq!(project.defaults().len(), 3);
+        seen = seen.checked_add(1).unwrap();
+    }
+    assert_eq!(seen, count);
 }
 
 #[test]
