@@ -135,6 +135,56 @@ pub(super) fn landings_with(queue_present: bool, landed: bool) -> Box<[u8]> {
     landings.encode(&mut writer).expect("landings");
     application(writer.finish())
 }
+// A stock queue merge has no turn, preparation, candidates or gate proofs.
+pub(super) fn queue_merge() -> (Box<[u8]>, Box<[u8]>) {
+    let line = f::PublicLandingLine::new(
+        &f::CEILINGS,
+        f::PublicLandingLineParts {
+            members: List::from_boxed(Box::new([1])),
+            phase: f::PublicLandingPhase::Landed,
+            landed: List::from_boxed(Box::new([HEAD])),
+        },
+    )
+    .expect("queue merge line");
+    let landings = f::PublicLandings::new(
+        &f::CEILINGS,
+        f::PublicLandingsParts {
+            turn: None,
+            landings: List::from_boxed(Box::new([line])),
+            queues: List::with_capacity(0),
+        },
+    )
+    .expect("queue merge list");
+    let mut writer = Writer::new(usize::try_from(landings.measure()).expect("small landings"));
+    landings.encode(&mut writer).expect("landings");
+    let list = application(writer.finish());
+    let member = f::PublicMember::new(
+        &f::CEILINGS,
+        f::PublicMemberParts {
+            task: 1,
+            base: None,
+            candidate: None,
+            landed: Some(HEAD),
+            gates: List::with_capacity(0),
+        },
+    )
+    .expect("queue merge member");
+    let landing = f::PublicLanding::new(
+        &f::CEILINGS,
+        f::PublicLandingParts {
+            phase: f::PublicLandingPhase::Landed,
+            hold: None,
+            preparation: 0,
+            members: List::from_boxed(Box::new([member])),
+            stale_proofs: 0,
+            holds_turn: false,
+        },
+    )
+    .expect("queue merge landing");
+    let mut writer = Writer::new(usize::try_from(landing.measure()).expect("small landing"));
+    landing.encode(&mut writer).expect("landing");
+    (list, application(writer.finish()))
+}
 pub(super) fn landing() -> Box<[u8]> {
     landing_commits(None, None, Some(HEAD))
 }

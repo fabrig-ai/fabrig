@@ -1261,11 +1261,9 @@ Not in the tier, each in the lowest world that shows it:
   visitor never holds a stream.
 - **Public history** (8.3): ended goals from before publication or across
   a restart need jig's source index (`jig/docs/design/domain/people.md`,
-  section 12); a stock queue's past merges need the forge's public landing
-  history (`forge.md`, section 10). Default: goals ended while the public
-  index kept the project, and landings by turn alone. "Nothing has landed
-  yet." describes an empty landing list even when a stock queue has merged
-  earlier work; changing those words waits with that history.
+  section 12). Default: goals ended while the public index kept the
+  project, and the board's line says what it leaves out; a merge past the
+  forge's log is `forge.md`, section 10's.
 - **The kit's stylesheet without a bundle:** the gallery takes
   `skein-ui.css` by running skein's bundler with no module (7.1).
   Default: so, until skein's bundler offers the stylesheet alone.
@@ -1756,12 +1754,13 @@ never streaming (`../draft/first-release.md`, 5.3).
   closed with neither, by the same endings as the Goals page; a task
   reads "done", "failed" or "ended".
 - **The board:** the project's name as its title and, under it, "What
-  temper is doing on this project, as it happens. Read-only."; each
-  goal's row, with its tree's rows below it and the count of lines
-  folded; "No goals yet." when it has none. Below the goals, only when
-  the forge's landings hold a queue or a landing, "Landings", a link to
-  them, with the queues' lines, and "Nothing has landed yet." until one
-  has.
+  temper is doing on this project, as it happens. Read-only." and, in the
+  same muted form, "Work that ended before this project went public, or
+  before temper last restarted, isn't shown."; each goal's row, with its
+  tree's rows below it and the count of lines folded; "No goals to show
+  yet." when it has none. Below the goals, only when the forge's landings
+  hold a queue or a landing, "Landings", a link to them, with the queues'
+  lines, and "No landings to show yet." until one has.
 - **A task:** its row, its executor first among the muted words ("an
   agent · running · for 14 minutes"), its lineage up to its goal as
   links, its delegates' rows, and where it makes a change, the change's
@@ -1775,9 +1774,11 @@ never streaming (`../draft/first-release.md`, 5.3).
   with at least 16 CSS pixels of horizontal gutter, including navigation.
 - **The landings:** the turn, each queue in order, without places, and
   the recent landings, each landed commit a link to its public landing;
-  "Nothing has landed yet." when there are none. A landing's member
+  "No landings to show yet." when there are none. A landing's member
   reads "Its change:" and its landed commit, or its candidate until
-  then.
+  then. What a stock queue merged is a recent landing in this same form
+  (`forge.md`, 11.2): its line says landed, its change and its commit,
+  and its public landing holds its change, with no gates.
 - **The projects:** each public project's name, a link to its board; "No
   public projects yet." when there are none.
 - **A short commit** is the first seven digits, plain text on a change
@@ -1800,9 +1801,10 @@ never streaming (`../draft/first-release.md`, 5.3).
   freshness and `Age`, a hidden tab reading nothing, busy keeping the
   page until its freshness ends and then dropping it, backing off,
   unknown's main; a goal's row and a task's, an ended row's words, each
-  page's empty words, Landings on the board only with a queue or a
-  landing, a 40-digit commit's seven digits as plain text, and no link to
-  the forge on any page.
+  page's empty words, the board's line of what it doesn't hold, Landings
+  on the board only with a queue or a landing, a queue merge's line and
+  its landing, a 40-digit commit's seven digits as plain text, and no link
+  to the forge on any page.
 - **Fuzzy tests:** the address codec's parser over seeded paths under
   `/public`, never panicking and printing back what it read.
 - **The browser tier** (section 4): a public project on fakes read at
@@ -1813,4 +1815,5 @@ never streaming (`../draft/first-release.md`, 5.3).
   text boxes stay separate, titles remain readable, navigation stays inset
   and content stays within the viewport. A project made private has its pages
   unknown at the next read. The goal it reads is under way: a landed goal's pages
-  hold nothing a browser alone shows (4.6).
+  hold nothing a browser alone shows (4.6). Its landings page reads "No landings to
+  show yet." or the stock queue's merge, by whether the merge came before the read.

@@ -1246,8 +1246,9 @@ pub enum Word {
     PublicTitleCut,
     PublicAsOf,
     PublicBoardLede,
+    PublicBoardHeld,
     PublicNoGoals,
-    PublicNothingLanded,
+    PublicNoLandings,
     PublicNoProjects,
     PublicTimeParts,
     PublicUnderMinute,
@@ -1392,7 +1393,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
 // The command’s Copy adds three literal phrases (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
-const PHRASES: u32 = 1876;
+const PHRASES: u32 = 1877;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1418,10 +1419,10 @@ const PHRASES: u32 = 1876;
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 3295;
+const SEGMENTS: u32 = 3296;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 45779;
-const ALL: [Word; 1275] = [
+const ENGLISH_BYTES: u32 = 45882;
+const ALL: [Word; 1276] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -2625,8 +2626,9 @@ const ALL: [Word; 1275] = [
     Word::PublicTitleCut,
     Word::PublicAsOf,
     Word::PublicBoardLede,
+    Word::PublicBoardHeld,
     Word::PublicNoGoals,
-    Word::PublicNothingLanded,
+    Word::PublicNoLandings,
     Word::PublicNoProjects,
     Word::PublicTimeParts,
     Word::PublicUnderMinute,
@@ -3913,8 +3915,9 @@ impl Word {
             Self::PublicTitleCut => 3024,
             Self::PublicAsOf => 3025,
             Self::PublicBoardLede => 3878,
+            Self::PublicBoardHeld => 3912,
             Self::PublicNoGoals => 3879,
-            Self::PublicNothingLanded => 3880,
+            Self::PublicNoLandings => 3880,
             Self::PublicNoProjects => 3875,
             Self::PublicTimeParts => 3877,
             Self::PublicUnderMinute => 3876,
@@ -4560,9 +4563,10 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::PlaygroundBanner => (&[b"This is the playground: a scripted model and in-memory forge. Use the wizard to"], &[]),
         Word::PlaygroundSetUp => (&[b"set up temper"], &[]),
         Word::BannerSetUp => (&[b"Set up temper"], &[]),
+        Word::PublicBoardHeld => (&[b"Work that ended before this project went public, or before temper last restarted, isn't shown."], &[]),
         Word::PublicBoardLede => (&[b"What temper is doing on this project, as it happens. Read-only."], &[]),
-        Word::PublicNoGoals => (&[b"No goals yet."], &[]),
-        Word::PublicNothingLanded => (&[b"Nothing has landed yet."], &[]),
+        Word::PublicNoGoals => (&[b"No goals to show yet."], &[]),
+        Word::PublicNoLandings => (&[b"No landings to show yet."], &[]),
         Word::PublicUnderMinute => (&[b"under 1 minute"], &[]),
         Word::PublicTimeParts => (&[b"", b" ", b""], &[Name, Name]),
         Word::PublicNoProjects => (&[b"No public projects yet."], &[]),

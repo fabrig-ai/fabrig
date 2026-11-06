@@ -74,6 +74,10 @@ impl Draw<'_> {
         b.style(crate::look::PUBLIC_LEDE);
         self.text(b, Word::PublicBoardLede);
         b.close();
+        b.open(Role::Paragraph);
+        b.style(crate::look::PUBLIC_LEDE);
+        self.text(b, Word::PublicBoardHeld);
+        b.close();
         b.close();
         if board.live().is_empty() && board.ended().is_empty() {
             self.paragraph(b, Word::PublicNoGoals);
@@ -107,7 +111,7 @@ impl Draw<'_> {
             b.close();
             self.queues(b, application, landings);
             if landings.landings().is_empty() {
-                self.paragraph(b, Word::PublicNothingLanded);
+                self.paragraph(b, Word::PublicNoLandings);
             }
             self.as_of(b, companion_as_of);
             b.close();

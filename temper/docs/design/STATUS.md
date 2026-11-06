@@ -69,6 +69,13 @@ them (`protocol/configuration.md`), and the walk that request ends
 with has not passed (`protocol/setup.md`). The box's hour-long Forgejo
 session, source-address refresh, refused public/sign-in pair, empty
 repository-name handling and Linux lifetime wrapper are built. The
+signed-in box also takes its late handover before connecting, and the
+story purse reads init's bare template. No results for the five
+`ui-restart-red` repair stories are supplied; the started cut alone
+uses a box without sign-in. A handover made by Forgejo restarting under
+a running serve stays deferred, and the live landing pair's setup-call
+counts disagree with its shared oracle (`protocol/setup.md`,
+`protocol/sign-in.md`, `domain/testing.md`). The
 combined default-runner, restart, moved-port and terminal-hangup walk
 has no outcome in the supplied inventory, and the real-box sign-in
 story awaits its after-landing run (`protocol/setup.md`,
@@ -117,9 +124,10 @@ browser, whose story A walks in the browser tier but not yet by hand
 commands and the baseline (`protocol/README.md`), and the release
 (`release.md`). Public pages use a plain column, a goal's spend alone, distinct
 endings and seven-digit commits; public records carry no forge addresses.
-Public history before publication, across a restart and from a stock queue
-is deferred, and the public geometry story's runtime check awaits the
-browser tier after landing (`client/browser.md`, `client/forge.md`).
+Public history before publication and across a restart is deferred, and the
+board says so; a stock queue's merges read as public landings; the public
+geometry story's runtime check awaits the browser tier after landing
+(`client/browser.md`, `client/forge.md`).
 The browser tier holds 17 tests, five past its cap, its CPU
 measured within its budget on the 12 without the call line's and the welcome's
 sign-in's, at 83.069911 of its 85 on a run of 13 with one red, a public project's

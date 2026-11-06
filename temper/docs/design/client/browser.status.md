@@ -2,11 +2,10 @@
 
 2026-11-06. Where temper's code lags or departs from [browser.md](browser.md).
 
-Public history retains the three limits the request `ui-public-2` left for
-later (section 5): landed work from before a project went public never shows;
-a restart empties the ended-goal history (jig's `domain/people.md`, 13.9);
-a stock queue's Landings stay empty, since its changes land without a landing
-by turn.
+Public history retains two limits the request `ui-public-2` left for later
+(section 5), which the board's own line states (8.3): landed work from before
+a project went public never shows; a restart empties the ended-goal history
+(jig's `domain/people.md`, 13.9).
 
 - **Design departs:** 8.3, from the request `ui-public-2` of 2026-11-06:
   ended rows say how long ago they ended, where the request says "for how
