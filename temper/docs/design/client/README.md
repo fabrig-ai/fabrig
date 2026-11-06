@@ -1803,6 +1803,17 @@ keeps (`../protocol/configuration.md`, section 2).
     nothing and the question stays open. Accept, Reject, Release, Leave
     held, Take and Hand back send at once, with no Undo, and leave no
     answered line.
+  - *A press stays under the finger.* When the inbox's document changes,
+    a card still in it keeps the page it shows until its new read answers,
+    and keeps it if that read fails. At a filtered address the cards stay
+    as they are until the section reads have answered, a section whose read
+    failed keeping its own. So a choice on the page stays pressable, in the
+    same element, through the read: nothing a change of the inbox does draws
+    a card without its choices, or takes one away, but the card leaving the
+    rows. A press of a drawn choice that a bound refuses (its words, or 64
+    answers already held) moves nothing and says so, in the toast "That
+    answer wasn't sent. Press it again.": an answer never goes unsent with
+    nothing shown.
   - *The toast,* one at a time, 4.5 seconds, with one optional act; drawn
     with the status role at the end of the frame, in the mock's `.toast`:
     fixed, centred, bottom 28 (88 on a phone), an ink ground.

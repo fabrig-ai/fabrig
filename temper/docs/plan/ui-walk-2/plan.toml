@@ -1,0 +1,25 @@
+draft = "ui-walk-2"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-walk-2/inputs/request.md", "temper/crates/temper-client-domain/src/pages/inbox.rs", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
+
+# Two tasks, not chained (inputs/request.md, How the cut shapes it): the answer that didn't send, and the command that
+# doesn't run. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "needs-press"
+title = "A choice pressed while the inbox reads again is held and sent, its buttons staying under the press"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 1
+story = "answer, Undo, press a choice while the inbox changes: the answer is held and sent"
+parts = ["needs-press"]
+walk = false
