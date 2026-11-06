@@ -548,6 +548,21 @@ fn a_goal_rule_open_beneath_its_segment_binds() {
     assert_eq!(outcome(&other, "goal-rule.pattern"), &Outcome::Missing);
 }
 #[test]
+fn the_stock_rule_removed_with_the_roles_on_the_project_is_no_extra() {
+    let mut evidence = proposed(|items| {
+        for item in items.iter_mut().filter(|item| item.setting.kind == "landing-rule") {
+            item.setting.project = Some(golden::ProjectRef::Number(PROJECT));
+        }
+    });
+    let mut removed = evidence.items.items.iter().find(|i| i.setting.kind == "landing-rule").expect("rule").clone();
+    removed.setting.project = None;
+    removed.edit = Edit::Removed;
+    evidence.items.items.push(removed);
+    let report = report(&evidence);
+    assert!(report.extras.is_empty(), "{}", report.text());
+    assert!(report.passed(), "{}", report.text());
+}
+#[test]
 fn only_checks_both_landing_rule_scopes() {
     let mut evidence = proposed(unedited);
     let mut extra = evidence.current.items.iter().find(|i| i.setting.kind == "landing-rule").expect("rule").clone();

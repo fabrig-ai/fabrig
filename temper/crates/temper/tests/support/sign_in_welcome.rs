@@ -157,7 +157,7 @@ pub fn run(directory: &Path, issuer: oauth::Peer) {
         .nodes()
         .iter()
         .filter(|node| node.role == skein_ui::Role::Paragraph)
-        .find_map(|node| node.name.as_deref()?.strip_prefix(b"Model ChatGPT plan"))
+        .find_map(|node| node.name.as_deref()?.strip_prefix(b"ChatGPT plan"))
         .expect("Ready named the made ChatGPT account");
     // Ready names the account by its kind and who it is, "ChatGPT plan" and
     // " · DISPLAY" when it has one; Accounts heads the same account "ChatGPT",

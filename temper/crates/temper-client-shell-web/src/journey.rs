@@ -10,6 +10,7 @@ mod record;
 mod redact;
 mod replay;
 pub mod scan;
+mod setup;
 mod stream;
 mod walk;
 pub use fields::{Framing, fields_mut};
@@ -20,6 +21,7 @@ pub use redact::{Redacted, Unredacted, redact};
 pub use replay::prove_drawn;
 pub use replay::{Mark, Refusal, Replay, Stale, prove};
 pub use scan::{Found, Place, Shape, What};
+pub use setup::{MarkWait, Setup, SetupStep, setup};
 pub use stream::{Event, Plain, Streams, Undecoded};
 pub use walk::{Step, Unwalkable, differs, still, walk};
 #[cfg(test)]
