@@ -2253,6 +2253,10 @@ Each is named here and designed when it comes.
   document does not say, so with no holder `task show` prints neither
   line until the task has ended. Naming it changes jig's document and
   its protocol.
+- **`temper open` at a stopped box** (`README.md`, 6.1): ctl says at once
+  that nothing listens (6.3); the terminal keeps the native shell's reset
+  and retry. Whether it says so too waits on a timing of what a person
+  meets there.
 
 ## 15. Open questions
 
