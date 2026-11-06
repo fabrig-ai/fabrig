@@ -1,3 +1,43 @@
 draft = "real-journeys"
 repo = "fabrig"
 sources = ["temper/docs/plan/real-journeys/inputs/request.md", "temper/docs/design/draft/real-journeys.md", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "pieces"
+title = "a recording's streams joined, and every field of a line in one list"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/journeys.md, 3.6"
+
+[[part]]
+id = "originals"
+title = "what is taken out: originals, forms, digests"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/journeys.md, 3.6"
+
+[[part]]
+id = "drawn"
+title = "the proof gives each page it draws"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/journeys.md, 3.7"
+
+[[part]]
+id = "quiet"
+title = "add writes last, and a refusal prints no line of the recording"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/journeys.md, 4.3"
+
+[[slice]]
+id = 1
+story = "the guard's pieces: a split stream read whole, the originals listed, each drawn page handed over, and a refused add that prints and writes nothing"
+parts = ["pieces", "originals", "drawn", "quiet"]
+walk = false
