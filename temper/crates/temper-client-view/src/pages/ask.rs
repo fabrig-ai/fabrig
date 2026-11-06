@@ -6,7 +6,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use jig_client::contract::{InboxGroup, ReadValue};
-use skein_ui::{Builder, Role, Run, phrases::Hole};
+use skein_ui::{Builder, Role, Run, State, phrases::Hole};
 use temper_client_domain::{
     Address, Domain,
     pages::{Act, inbox::Card, needs},
@@ -224,6 +224,17 @@ pub(crate) fn reply_form(b: &mut Builder, root: &Domain, asked: &Asked<'_>, w: &
     if !root.pages().needs().replying(object) {
         return;
     }
+    let over = match root.pages().me(root.client()) {
+        Some(me) => temper_client_domain::pages::composer::over(
+            match &asked.card.words {
+                Some(words) => words.bytes(),
+                None => b"",
+            },
+            root.pages().needs().reply_beyond,
+            me.words_bytes,
+        ),
+        None => 0,
+    };
     b.open(Role::Slot);
     b.style(look::ASK_REPLY);
     b.open(Role::TextArea);
@@ -241,15 +252,17 @@ pub(crate) fn reply_form(b: &mut Builder, root: &Domain, asked: &Asked<'_>, w: &
     b.close();
     b.open(Role::Slot);
     b.style(look::ASK_REPLY_ACTS);
-    button(
-        b,
-        bindings,
-        &w.say(Word::NeedsSendReply, &[]),
-        Act::Needs(needs::Act::SendReply { object }),
-        look::RECOMMENDED,
-    );
+    b.open(Role::Button);
+    b.style(look::RECOMMENDED);
+    b.name(&w.say(Word::NeedsSendReply, &[]));
+    if over != 0 {
+        b.state(State::Disabled);
+    }
+    b.bind(bindings.insert(Act::Needs(needs::Act::SendReply { object })));
+    b.close();
     button(b, bindings, &w.say(Word::Cancel, &[]), Act::Needs(needs::Act::CancelReply), look::ASK_QUIET);
     b.close();
+    super::session::over(b, w, over);
     b.close();
 }
 pub(crate) fn text(b: &mut Builder, role: Role, words: &[u8], style: skein_ui::Style) {

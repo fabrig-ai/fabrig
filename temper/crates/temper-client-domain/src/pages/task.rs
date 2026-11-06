@@ -320,6 +320,7 @@ pub struct Task {
     pub through: Option<u64>,
     pub cards: List<Card>,
     pub words: Box<[u8]>,
+    pub beyond: u64,
     pub composer_focus: u64,
     pub pending: List<(Key, Sending)>,
     pub outcome: Option<jig_client::Outcome>,
@@ -368,6 +369,7 @@ impl Task {
             through: None,
             cards: List::with_capacity(limits.client.domain.reads),
             words: Box::default(),
+            beyond: 0,
             composer_focus: 0,
             pending: List::with_capacity(5),
             outcome: None,
@@ -412,9 +414,7 @@ impl Task {
         }
         match act {
             Act::MessageWords { words } => {
-                if words.len() <= usize::try_from(env.limits.client.domain.text).expect("text bound fits") {
-                    self.words = words;
-                }
+                (self.words, self.beyond) = super::composer::held(words, env.limits.client.domain.long_text);
             }
             Act::Send => {
                 let _sent = self.send(env, client, Sending::Message, serial, out);
@@ -658,11 +658,14 @@ impl Task {
                     && !self.words.is_empty()
                     && super::chat::allowed(task, c::ActKind::Message) =>
             {
-                c::Ask::Message {
-                    project: task.project,
-                    task: self.number,
-                    words: c::Text::new(self.words.clone(), env.limits.client.domain.text).expect("composer bounded"),
+                let Some(Latest::Jig(c::Delivery::Me(me))) = latest(client, super::me_handle()) else { return None };
+                if super::composer::over(&self.words, self.beyond, me.words_bytes) > 0 {
+                    return None;
                 }
+                let Ok(words) = c::Text::new(self.words.clone(), env.limits.client.domain.long_text) else {
+                    return None;
+                };
+                c::Ask::Message { project: task.project, task: self.number, words }
             }
             Sending::Stop if super::chat::allowed(task, c::ActKind::Stop) => {
                 c::Ask::Stop { project: task.project, task: self.number }
@@ -719,9 +722,11 @@ impl Task {
         if let c::Ask::Message { words, .. } = &ask {
             let Some(Latest::Jig(c::Delivery::Me(me))) = latest(client, super::me_handle()) else { return None };
             if !self.thread.sending(key, me.party.number, words.clone(), 0) {
+                self.outcome = Some(jig_client::Outcome::Limit);
                 return None;
             }
             self.words = Box::default();
+            self.beyond = 0;
         }
         self.pending.push((key, kind)).expect("one request per task act fits");
         if kind == Sending::Amend {

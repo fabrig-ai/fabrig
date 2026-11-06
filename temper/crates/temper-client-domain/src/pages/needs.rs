@@ -82,6 +82,7 @@ pub fn handle() -> Handle {
     Handle { asker: Owner::Pages.asker(), number: u64::MAX.checked_sub(3).expect("reserved needs handle") }
 }
 #[derive(Debug)]
+#[expect(clippy::partial_pub_fields, reason = "the reply's excess count is drawn beside its card's words")]
 pub struct Session {
     watching: bool,
     answered: List<Answered>,
@@ -89,6 +90,7 @@ pub struct Session {
     refused: List<(ObjectKey, Outcome)>,
     at: Option<ObjectKey>,
     reply: Option<ObjectKey>,
+    pub reply_beyond: u64,
     toast: Option<(Toasted, Time)>,
 }
 impl Default for Session {
@@ -100,6 +102,7 @@ impl Default for Session {
             refused: List::with_capacity(CAPACITY),
             at: None,
             reply: None,
+            reply_beyond: 0,
             toast: None,
         }
     }
@@ -224,6 +227,7 @@ impl Session {
     pub(super) fn went(&mut self, before: &Address, after: &Address) {
         if before != after {
             self.reply = None;
+            self.reply_beyond = 0;
         }
         match after {
             Address::Inbox { .. } => {}
@@ -253,6 +257,7 @@ impl Session {
         }
         if self.reply == Some(object) {
             self.reply = None;
+            self.reply_beyond = 0;
         }
     }
     pub(super) fn told(&mut self, told: &Told) -> bool {
@@ -361,6 +366,14 @@ fn card_mut(pages: &mut Pages, object: ObjectKey) -> Option<&mut Card> {
     }
     None
 }
+pub(crate) fn write_reply(pages: &mut Pages, object: ObjectKey, words: Box<[u8]>, hold: u32) {
+    let (words, beyond) = super::composer::held(words, hold);
+    let Ok(words) = Text::new(words, hold) else { return };
+    if let Some(card) = card_mut(pages, object) {
+        card.words = Some(words);
+        pages.needs.reply_beyond = beyond;
+    }
+}
 fn question(page: &ReadValue) -> Option<&contract::Question> {
     match page {
         ReadValue::Question(question) => Some(question),
@@ -452,9 +465,18 @@ fn make_room(session: &mut Session) -> bool {
     }
     false
 }
-fn answer(pages: &mut Pages, env: &Env<Limits>, object: ObjectKey, words: Box<[u8]>, reply: bool) {
-    let bound = if reply { env.limits.client.domain.text } else { temper_client_protocol_wire::CUE_BYTES };
+fn answer(pages: &mut Pages, env: &Env<Limits>, client: &Client, object: ObjectKey, words: Box<[u8]>, reply: bool) {
     let Some(card) = answerable(pages, object) else { return };
+    let bound = if reply {
+        let Some(me) = pages.me(client) else { return };
+        let Some(typed) = &card.words else { return };
+        if super::composer::over(typed.bytes(), pages.needs.reply_beyond, me.words_bytes) > 0 {
+            return;
+        }
+        env.limits.client.domain.long_text
+    } else {
+        temper_client_protocol_wire::CUE_BYTES
+    };
     let Some(page) = &card.page else { return };
     let Some(question) = question(page) else { return };
     let project = card.project.expect("answerable project");
@@ -504,12 +526,13 @@ fn undoable(session: &Session, object: ObjectKey, now: Time) -> Option<u32> {
     clippy::too_many_lines,
     reason = "the Needs acts share one exhaustive dispatch, including session toast variants"
 )]
-pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queue<Request>) {
+pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act, out: &mut Queue<Request>) {
     match act {
-        Act::Choose { object, words } => answer(pages, env, object, words, false),
+        Act::Choose { object, words } => answer(pages, env, client, object, words, false),
         Act::OpenReply { object } => {
-            if answerable(pages, object).is_some() {
+            if answerable(pages, object).is_some() && pages.needs.reply != Some(object) {
                 pages.needs.reply = Some(object);
+                pages.needs.reply_beyond = 0;
             }
         }
         Act::Dismiss => pages.needs.toast = None,
@@ -519,13 +542,14 @@ pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queu
             {
                 card.words = None;
             }
+            pages.needs.reply_beyond = 0;
         }
         Act::SendReply { object } => {
             let Some(card) = answerable(pages, object) else { return };
             let Some(words) = &card.words else { return };
             let words = words.bytes().trim_ascii();
             if !words.is_empty() {
-                answer(pages, env, object, Box::from(words), true);
+                answer(pages, env, client, object, Box::from(words), true);
             }
         }
         Act::Later { object } => {

@@ -115,6 +115,9 @@ impl Harness {
         }
         count
     }
+    pub fn read_malformed(&self) {
+        assert_eq!(self.read_answered(), Some(&Readout::Jig(c::ReadResult::None(c::ReadNone::Malformed))));
+    }
     pub fn read_unreachable(&self) {
         assert_eq!(self.read_answered(), Some(&Readout::Jig(c::ReadResult::None(c::ReadNone::Unreachable))));
     }

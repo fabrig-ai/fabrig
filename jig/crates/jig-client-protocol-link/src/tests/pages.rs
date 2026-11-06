@@ -401,3 +401,166 @@ fn proposal_history_and_activity_keep_their_card_facts() {
     assert_eq!(action.projects, projects);
     assert_eq!(action.made, Some(5));
 }
+
+fn line_limits() -> Limits {
+    let base = fixtures::limits();
+    Limits::new(jig_client_domain::Limits { text: 32, long_text: 128, ..*base.client() }, base.exchanges()).unwrap()
+}
+
+fn word_lines(words: &[u8]) -> [w::Activity; 3] {
+    let requester = w::Requester::Deployment(
+        w::RequesterDeployment::new(&w::CEILINGS, w::RequesterDeploymentParts { project: 1 }).unwrap(),
+    );
+    let word = w::Word::new(
+        &w::CEILINGS,
+        w::WordParts {
+            number: 1,
+            from: requester.clone(),
+            kind: w::MessageKind::Words,
+            words: Box::from(words),
+            at: 2,
+            hits: 1,
+            eligible: true,
+        },
+    )
+    .unwrap();
+    [
+        w::Activity::Words(
+            w::ActivityWords::new(
+                &w::CEILINGS,
+                w::ActivityWordsParts {
+                    message: 1,
+                    by: requester.clone(),
+                    kind: w::MessageKind::Words,
+                    words: Box::from(words),
+                },
+            )
+            .unwrap(),
+        ),
+        w::Activity::Heard(w::ActivityHeard::new(&w::CEILINGS, w::ActivityHeardParts { value: word.clone() }).unwrap()),
+        w::Activity::Notified(
+            w::ActivityNotified::new(&w::CEILINGS, w::ActivityNotifiedParts { recipient: requester, word }).unwrap(),
+        ),
+    ]
+}
+
+fn word_line(line: w::Activity) -> w::ActivityLine {
+    w::ActivityLine::new(&w::CEILINGS, w::ActivityLineParts { task: 7, position: 1, at: 2, line }).unwrap()
+}
+
+fn word_page(line: w::Activity) -> w::ActivityPage {
+    let row = w::DecodedActivityLine::new(
+        &w::CEILINGS,
+        w::DecodedActivityLineParts { source: word_line(line), decoded: None },
+    )
+    .unwrap();
+    let mut encoded = skein_lib::Writer::new(usize::try_from(row.measure()).unwrap());
+    row.encode(&mut encoded).unwrap();
+    let encoded = encoded.finish();
+    let mut piece = skein_lib::Writer::new(encoded.len().checked_add(4).unwrap());
+    skein_codec::piece::write(&mut piece, &encoded).unwrap();
+    w::ActivityPage::new(
+        &w::CEILINGS,
+        w::ActivityPageParts { rows: piece.finish(), before: None, after: None, cut: false },
+    )
+    .unwrap()
+}
+
+#[test]
+fn a_line_at_long_text_decodes_whole() {
+    let limits = line_limits();
+    for size in [33, 128] {
+        let mut words = skein_lib::bytes::zeroed(size);
+        words.fill(b'w');
+        for line in word_lines(&words) {
+            let page = translate::pages::activity_page(word_page(line), &limits).unwrap();
+            assert_eq!(page.rows.len(), 1);
+            let words_read = match &page.rows.get(0).unwrap().source.line {
+                c::Activity::Words { words, .. } => words,
+                c::Activity::Heard(word) | c::Activity::Notified { word, .. } => &word.words,
+                other @ (c::Activity::RunBegan { .. }
+                | c::Activity::RunEnded { .. }
+                | c::Activity::Turn { .. }
+                | c::Activity::Decided { .. }
+                | c::Activity::Milestone { .. }
+                | c::Activity::Kept { .. }) => panic!("word line: {other:?}"),
+            };
+            assert_eq!(words_read.bytes(), words.as_ref());
+        }
+    }
+}
+
+#[test]
+fn a_line_past_long_text_fails_its_page() {
+    for line in word_lines(&[b'w'; 129]) {
+        assert_eq!(translate::pages::activity_page(word_page(line), &line_limits()), Err(Undecodable::TooLarge));
+    }
+}
+
+#[test]
+fn an_ended_question_answer_past_text_decodes() {
+    let limits = line_limits();
+    let mut ended = fixtures::read_wire_owner_ended().into_parts();
+    let question = fixtures::read_wire_question();
+    ended.key = w::ObjectKey::Question(
+        w::ObjectKeyQuestion::new(&w::CEILINGS, w::ObjectKeyQuestionParts { task: 7, message: question.message() })
+            .unwrap(),
+    );
+    let answer = word_line(w::Activity::Words(
+        w::ActivityWords::new(
+            &w::CEILINGS,
+            w::ActivityWordsParts {
+                message: 19,
+                by: w::Requester::Deployment(
+                    w::RequesterDeployment::new(&w::CEILINGS, w::RequesterDeploymentParts { project: 1 }).unwrap(),
+                ),
+                kind: w::MessageKind::Answer(
+                    w::MessageKindAnswer::new(&w::CEILINGS, w::MessageKindAnswerParts { question: question.message() })
+                        .unwrap(),
+                ),
+                words: Box::new([b'a'; 128]),
+            },
+        )
+        .unwrap(),
+    ));
+    ended.value = w::EndedValue::Question(
+        w::EndedValueQuestion::new(
+            &w::CEILINGS,
+            w::EndedValueQuestionParts { question, answer: Some(answer), ending: None },
+        )
+        .unwrap(),
+    );
+    let ended = translate::objects::ended(w::Ended::new(&w::CEILINGS, ended).unwrap(), &limits).unwrap();
+    let c::EndedValue::Question { answer: Some(answer), .. } = ended.value else { panic!("answered question") };
+    let c::Activity::Words { words, .. } = answer.line else { panic!("answer words") };
+    assert_eq!(words.bytes(), &[b'a'; 128]);
+}
+
+#[test]
+fn a_message_and_an_answer_encode_to_long_text() {
+    let limits = line_limits();
+    for size in [128, 129] {
+        let mut words = skein_lib::bytes::zeroed(size);
+        words.fill(b'w');
+        let words = c::Text::new(words, 129).unwrap();
+        for ask in [
+            c::Ask::Message { project: 3, task: 7, words: words.clone() },
+            c::Ask::Answer { project: 3, on: c::AnswerOn::Question { task: 7, message: 1, words } },
+        ] {
+            let record = translate::asks::ask(&ask, limits.wire());
+            if size == 129 {
+                assert_eq!(record.unwrap_err().reason, skein_codec::Reason::Bound);
+                continue;
+            }
+            let record = record.unwrap();
+            let encoded_words = if let w::Ask::Message(record) = &record {
+                record.words()
+            } else {
+                let w::Ask::Answer(record) = &record else { panic!("words ask: {record:?}") };
+                let w::AnswerOn::Question(answer) = record.on() else { panic!("question answer") };
+                answer.words()
+            };
+            assert_eq!(encoded_words, &[b'w'; 128]);
+        }
+    }
+}

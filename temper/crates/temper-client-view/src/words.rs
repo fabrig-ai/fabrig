@@ -1010,6 +1010,9 @@ pub enum Word {
     ChatRowSpend,
     ChatKept,
     ComposerNoModel,
+    ComposerOverOne,
+    ComposerOver,
+    ToastRegion,
     ProposalWhy,
     ProposalLanding,
     ProposalBudget,
@@ -1383,7 +1386,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
 // The command’s Copy adds three literal phrases (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
-const PHRASES: u32 = 1868;
+const PHRASES: u32 = 1871;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1409,10 +1412,10 @@ const PHRASES: u32 = 1868;
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 3267;
+const SEGMENTS: u32 = 3272;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 45638;
-const ALL: [Word; 1267] = [
+const ENGLISH_BYTES: u32 = 45739;
+const ALL: [Word; 1270] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -2388,6 +2391,9 @@ const ALL: [Word; 1267] = [
     Word::ChatRowSpend,
     Word::ChatKept,
     Word::ComposerNoModel,
+    Word::ComposerOverOne,
+    Word::ComposerOver,
+    Word::ToastRegion,
     Word::ProposalWhy,
     Word::ProposalLanding,
     Word::ProposalBudget,
@@ -2797,13 +2803,13 @@ impl Word {
             Self::SettingsProposalUp => 3427,
             Self::SettingsProposalNone => 3428,
             Self::SettingsProposalChange => 3429,
-            Self::SettingsProposalChangeAsks => 3872,
+            Self::SettingsProposalChangeAsks => 3875,
             Self::SettingsProposalWaiting => 3430,
             Self::SettingsProposalOwners => 3431,
             Self::SettingsProposalAccepted => 3432,
             Self::SettingsProposalReplaced => 3433,
-            Self::SettingsProposalRejected => 3873,
-            Self::SettingsProposalWithdrawn => 3874,
+            Self::SettingsProposalRejected => 3876,
+            Self::SettingsProposalWithdrawn => 3877,
             Self::AwaySettingsTitle => 3658,
             Self::AwayKinds => 3659,
             Self::AwayKindsLine => 3660,
@@ -3695,6 +3701,9 @@ impl Word {
             Self::ChatRowSpend => 2124,
             Self::ChatKept => 2125,
             Self::ComposerNoModel => 2126,
+            Self::ComposerOverOne => 3872,
+            Self::ComposerOver => 3873,
+            Self::ToastRegion => 3874,
             Self::ProposalWhy => 1401,
             Self::ProposalLanding => 1402,
             Self::ProposalBudget => 1403,
@@ -5459,6 +5468,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         }
         Word::ChatRowSpend => (&[b"", b" spent"], &[Number]),
         Word::ChatKept => (&[b"Closed. Its transcript is kept."], &[]),
+        Word::ComposerOverOne => (&[b"That's 1 character over what one message holds."], &[]),
+        Word::ComposerOver => (&[b"That's ", b" characters over what one message holds."], &[Name]),
+        Word::ToastRegion => (&[b"Notices"], &[]),
         Word::ComposerNoModel => (&[b"No model yet \xc2\xb7 "], &[]),
         Word::ProposalWhy => (&[b"Why"], &[]),
         Word::ProposalLanding => (&[b"Landing"], &[]),
