@@ -23,6 +23,7 @@ impl Domain {
         }
         if self.ready() {
             next = earliest(next, wall_deadline(self.calendar.next_start(), env.now, env.wall));
+            next = earliest(next, wall_deadline(self.trials.next_due(), env.now, env.wall));
         }
         next
     }

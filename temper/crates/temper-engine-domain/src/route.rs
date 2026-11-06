@@ -20,6 +20,7 @@ pub(crate) mod policy_translate;
 pub(crate) mod proposals;
 pub(crate) mod public;
 mod tools;
+pub(crate) mod trials;
 use crate::archive::take_read;
 use crate::assemble::{brief_outputs, take_payload};
 use crate::boundary::{
@@ -110,7 +111,7 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             domain.work.push(Work::Core(core::Event::StartRecurring { project, authority, template }));
         }
         Event::Party(crate::PartyInput::Period { project, period, budget, next }) => match next {
-            None if period >= domain.core.period(project) => {
+            None if project != 0 && period >= domain.core.period(project) => {
                 let times = match domain.core.tasks.funding(tasks::Funder::Period { project, period }) {
                     Some(row) => row.period,
                     None => None,
@@ -335,6 +336,7 @@ pub(crate) fn route_core_requests(
     for _ in 0..output.len() {
         match output.pop().expect("core output count") {
             core::Request::Write(core::Write::Save(record)) => {
+                trials::saved(domain, env, &record);
                 keep_produced_title(domain, &record);
                 if let core::Record::Core(core::CoreRecord::Call(row)) = &record {
                     let answer = forge_route::effect_answer(domain, row.key, &row.part);
@@ -353,6 +355,9 @@ pub(crate) fn route_core_requests(
                 save(decision, &env.limits, Write::CopySettingsRevision(number));
             }
             core::Request::Write(core::Write::Erase(key)) => {
+                if let core::Key::Accounts(jig_domain_accounts::Key::Account { number }) = &key {
+                    trials::route(domain, env, temper_engine_domain_trials::Event::AccountGone { account: *number });
+                }
                 if let core::Key::Core(core::CoreKey::Call(call)) = key
                     && domain.forge.forget_named_answer(named_call(call)).is_some()
                 {
@@ -389,6 +394,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
         if refuse_forge_fit(domain) {
             return;
         }
+        trials::observe(domain, env);
         let Some(work) = domain.work.pop() else { break };
         match work {
             Work::StartDone(phase) => {
@@ -403,6 +409,8 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 route_core_requests(domain, env, decision, output);
                 if phase == core::start::Phase::Open && domain.start_phase().is_none() {
                     domain.opened = true;
+                    // Open admits task control; a later resume takes the first due task.
+                    trials::restarted(domain);
                 }
                 domain.work.push(Work::Start(action));
             }

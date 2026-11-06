@@ -47,7 +47,7 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
         | Application::SetAway { project, .. }
         | Application::Overturn { project, .. } => people::ApplicationScope::Project(*project),
     };
-    match &request {
+    let carried = match &request {
         Application::Try { .. } => {
             if let Some(carried) = carried {
                 assert!(
@@ -60,25 +60,15 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
                     "carried value output door reserved"
                 );
             }
-            assert!(
-                super::now(
-                    domain,
-                    crate::Request::Party(crate::PartyRequest::Deliver(crate::Delivery::Application {
-                        to: reply_to,
-                        outcome: Some(ApplicationAnswer::Try(crate::TryAnswer::NotTheirs)),
-                    },))
-                ),
-                "application output door reserved"
-            );
-            return;
+            None
         }
         Application::Forge(_)
         | Application::Return { .. }
         | Application::Dismiss { .. }
         | Application::Looked { .. }
         | Application::SetAway { .. }
-        | Application::Overturn { .. } => {}
-    }
+        | Application::Overturn { .. } => carried,
+    };
     if request == Application::Forge(forge::Ask::StartPlayground) {
         domain.application_playground = Some(super::playground::Context { sign_in, key, carried });
     }
@@ -111,7 +101,22 @@ pub(super) fn admitted(
     assert_eq!(held, owner, "the core admits the application's owner");
     let carried = domain.application_carried.take();
     match ask {
-        Application::Try { .. } => unreachable!("trial refused at the application entrance"),
+        Application::Try { account, again } => {
+            sweep_answers(domain, env);
+            let answer = super::trials::asked(domain, env, person, account, again);
+            domain
+                .try_answers
+                .insert(
+                    token,
+                    (
+                        answer,
+                        env.now.saturating_add(retention),
+                        skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(retention.as_nanos())),
+                    ),
+                )
+                .expect("one marker per retained key");
+            finished(domain, request, Ok(token));
+        }
         Application::SetAway { project, on, until, kinds } => {
             domain.work.push(Work::Forge(forge::Event::SetAway {
                 request,
@@ -143,18 +148,7 @@ pub(super) fn admitted(
             domain.work.push(Work::Forge(forge::Event::Application { request, token, retention, ask, role, carried }));
         }
         Application::Return { source, path } => {
-            // Only live keyed answers need a volatile marker; the core bounds their room.
-            loop {
-                let mut expired = None;
-                for (held, until) in &domain.returns {
-                    if until.0 <= env.now || until.1 <= env.wall {
-                        expired = Some(*held);
-                        break;
-                    }
-                }
-                let Some(expired) = expired else { break };
-                domain.returns.remove(&expired);
-            }
+            sweep_answers(domain, env);
             domain
                 .returns
                 .insert(
@@ -203,6 +197,9 @@ pub(super) fn answer(domain: &Domain, token: Token) -> Option<ApplicationAnswer>
     if domain.returns.contains_key(&token) {
         return Some(ApplicationAnswer::Returning);
     }
+    if let Some((answer, _, _)) = domain.try_answers.get(&token) {
+        return Some(ApplicationAnswer::Try(*answer));
+    }
     match domain.forge.application_answer(token) {
         Some(forge::Answered::Make(answer)) => Some(ApplicationAnswer::Make(answer)),
         Some(forge::Answered::Adopt(answer)) => Some(ApplicationAnswer::Adopt(answer)),
@@ -222,40 +219,24 @@ pub(super) fn answer(domain: &Domain, token: Token) -> Option<ApplicationAnswer>
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::{Application, ApplicationAnswer, Delivery, Event, PartyInput, PartyRequest, Request, TryAnswer};
-    use skein_lib::{Queue, ReplyTo, Token};
-
-    #[test]
-    fn a_trial_is_refused_at_once_without_a_retained_application() {
-        let (mut domain, env) = crate::tests::resume_fixture::root();
-        let reply = Token::new(90);
-        crate::try_step(
-            &mut domain,
-            &env,
-            Event::Party(PartyInput::Application {
-                reply_to: ReplyTo::new(reply),
-                sign_in: 10,
-                key: [1; 16],
-                digest: [1; 32],
-                scope: jig_domain_people::ApplicationScope::Own,
-                carried: None,
-                request: Application::Try { account: 1, again: false },
-            }),
-        )
-        .unwrap();
-        let mut out = Queue::uncapped();
-        crate::release(&mut domain, &env, &mut out);
-        crate::release(&mut domain, &env, &mut out);
-        assert_eq!(
-            out.pop(),
-            Some(Request::Party(PartyRequest::Deliver(Delivery::Application {
-                to: ReplyTo::new(reply),
-                outcome: Some(ApplicationAnswer::Try(TryAnswer::NotTheirs)),
-            })))
-        );
-        assert_eq!(out.pop(), None);
-        assert!(domain.application.is_none());
+// Retained keys outlive these volatile markers (temper/docs/design/domain/trial.md, 4).
+fn sweep_answers(domain: &mut Domain, env: &skein_lib::Env<crate::Limits>) {
+    let mut expired = skein_lib::List::with_capacity(domain.returns.len());
+    for (token, (now, wall)) in &domain.returns {
+        if *now <= env.now || *wall <= env.wall {
+            expired.push(*token).expect("at most one marker per key");
+        }
+    }
+    for token in &expired {
+        domain.returns.remove(token);
+    }
+    let mut expired = skein_lib::List::with_capacity(domain.try_answers.len());
+    for (token, (_, now, wall)) in &domain.try_answers {
+        if *now <= env.now || *wall <= env.wall {
+            expired.push(*token).expect("at most one marker per key");
+        }
+    }
+    for token in &expired {
+        domain.try_answers.remove(token);
     }
 }

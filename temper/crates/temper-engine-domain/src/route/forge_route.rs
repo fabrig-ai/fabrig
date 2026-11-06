@@ -1677,6 +1677,9 @@ pub(crate) fn run_workspace(
     context: &tasks::RunContext,
     _attempt: u64,
 ) -> Option<RunWorkspace> {
+    if context.executor == (tasks::Executor::Agent { charter: super::trials::TRIAL_CHARTER }) {
+        return Some(status_route::workspace(context.task));
+    }
     if context.executor == (tasks::Executor::Agent { charter: STATUS_CHARTER }) {
         return Some(status_route::workspace(context.task));
     }

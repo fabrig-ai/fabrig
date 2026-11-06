@@ -60,6 +60,7 @@ pub struct Domain {
     pub(crate) config: RootConfig,
     pub(crate) core: Core,
     pub(crate) calendar: calendar::Calendar,
+    pub(crate) trials: temper_engine_domain_trials::Trials,
     pub(crate) journal: Journal,
     /// Store credit: sent and cumulatively answered commit numbers.
     pub(crate) sent_commit: u64,
@@ -98,6 +99,7 @@ pub struct Domain {
     pub(crate) playground_policy: Option<u32>,
     pub(crate) next_application_owner: u64,
     pub(crate) returns: Map<Token, (Time, Wall)>,
+    pub(crate) try_answers: Map<Token, (crate::TryAnswer, Time, Wall)>,
     pub(crate) adoption_restore: Map<Token, (Token, Option<forge::Repository>)>,
     pub(crate) making_replies: Map<Token, forge::MakingKey>,
     pub(crate) forge_subscribing: Map<Token, forge::Subscriber>,
@@ -486,6 +488,8 @@ impl Domain {
             playground_policy,
             next_application_owner: 1,
             returns: Map::with_capacity(limits.people.requests),
+            try_answers: Map::with_capacity(limits.people.requests),
+            trials: temper_engine_domain_trials::Trials::new(&crate::limits::trial_limits(limits)),
             adoption_restore: Map::with_capacity(limits.forge.adoptions),
             making_replies: Map::with_capacity(limits.forge.makings),
             forge_subscribing: Map::with_capacity(limits.fleet.calls),
@@ -1047,6 +1051,13 @@ pub(crate) fn fire_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Queu
     route_into(domain, env, &mut decision);
     if domain.ready() {
         if !domain.core.stopping()
+            && let Some(next) = domain.trials.next_due()
+            && next <= env.wall
+        {
+            crate::route::trials::route(domain, env, temper_engine_domain_trials::Event::Due);
+            route_into(domain, env, &mut decision);
+        }
+        if !domain.core.stopping()
             && let Some(next) = domain.calendar.next_start()
             && next <= env.wall
         {
@@ -1155,6 +1166,7 @@ fn released_into(
         | Delivery::Assigned { .. }
         | Delivery::Forges { .. }
         | Delivery::ForgeDocument { .. }
+        | Delivery::Trials { .. }
         | Delivery::Panel { .. }
         | Delivery::Application { .. }
         | Delivery::Public { .. }

@@ -456,6 +456,11 @@ fn inbox_slots(limits: &Limits) -> Option<u32> {
     limits.tasks.tasks.checked_mul(2)?.checked_add(limits.tasks.inbox_messages)
 }
 
+/// The whole trials document fits the family's row bound (domain/trial.md, 3.1 and 6).
+pub(crate) fn trial_limits(limits: &Limits) -> temper_engine_domain_trials::Limits {
+    temper_engine_domain_trials::Limits { rows: crate::room::trial_rows(limits) }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
