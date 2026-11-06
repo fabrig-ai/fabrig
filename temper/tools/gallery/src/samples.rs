@@ -1395,7 +1395,7 @@ pub fn domain(sample: &Sample) -> Domain {
         | Then::DelegatedGoal
         | Then::HeldChange
         | Then::Paused
-            | Then::HeldTask => {}
+        | Then::HeldTask => {}
         Then::Filled | Then::Refused => adoption(&mut root, sample.then == Then::Refused, &mut out),
         Then::SignedOut | Then::GoogleSignIn => step(&mut root, Event::SignedOut, &mut out),
         Then::OutOfDate => step(

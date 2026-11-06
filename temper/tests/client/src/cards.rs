@@ -82,9 +82,12 @@ pub fn seen(tree: &Tree) -> Vec<Seen> {
     }
     // A chat's bar is its persistent decision surface (client/README.md, 3.5).
     // Resume names the same hold revision as an escalation card, without a sheet.
-    if let Some((index, bar)) = tree.nodes().iter().enumerate().find(|(_, node)| {
-        node.styles.as_slice().contains(&temper_client_view::look::SESSION_TOP)
-    }) {
+    if let Some((index, bar)) = tree
+        .nodes()
+        .iter()
+        .enumerate()
+        .find(|(_, node)| node.styles.as_slice().contains(&temper_client_view::look::SESSION_TOP))
+    {
         let end = index.checked_add(usize::try_from(bar.size).expect("bar fits")).expect("tree fits");
         if let Some(task) = tree.nodes()[index..end].iter().find_map(|node| {
             if node.role != (Role::Heading { level: 1 }) {
@@ -110,9 +113,10 @@ pub fn decision(ask: &jig_client::contract::Ask) -> Option<&jig_client::contract
     let sheet = match ask {
         // Pause and Resume are immediate bar acts. Their status replaces a sheet's
         // facts; the request observer still checks Resume's delivered hold revision.
-        Ask::Stop { .. } | Ask::Release { .. } | Ask::Cancel { .. } | Ask::Decide { on: DecideOn::Proposal { decision: Decision::Rejected { .. }, .. }, .. } => {
-            true
-        }
+        Ask::Stop { .. }
+        | Ask::Release { .. }
+        | Ask::Cancel { .. }
+        | Ask::Decide { on: DecideOn::Proposal { decision: Decision::Rejected { .. }, .. }, .. } => true,
         Ask::Compound { operations, .. } => {
             operations.iter().any(|operation| matches!(operation, Operation::Cancel { .. }))
                 || matches!(operations.as_slice(), [Operation::Message { .. }, Operation::Release { .. }])

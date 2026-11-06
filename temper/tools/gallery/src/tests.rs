@@ -2562,7 +2562,7 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
 ];
-const SPENDS: [(&str, Role, &str); 41] = [
+const SPENDS: [(&str, Role, &str); 42] = [
     ("chat-work-done", Role::Paragraph, "70 spent · of 101472"),
     ("chat-work-open", Role::Paragraph, "70 spent · of 101472"),
     ("chat-work-running", Role::Paragraph, "70 spent · of 101472"),
@@ -2573,6 +2573,7 @@ const SPENDS: [(&str, Role, &str); 41] = [
     ("chat-work-separated", Role::Paragraph, "70 spent · of 101472"),
     ("chat-work-empty", Role::Paragraph, "70 spent · of 101472"),
     ("chat-work-reading", Role::Paragraph, "70 spent · of 101472"),
+    ("chat-paused", Role::Paragraph, "1 spent · of 40"),
     ("chat-closed", Role::Paragraph, "1 spent · of 40"),
     ("chat-closing-below", Role::Paragraph, "1 spent · of 40"),
     ("chat-closing-proposal", Role::Paragraph, "1 spent · of 40"),
