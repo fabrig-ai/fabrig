@@ -1,0 +1,3 @@
+draft = "process-threads"
+repo = "fabrig"
+sources = ["temper/docs/plan/process-threads/inputs/request.md", ".config/nextest.toml", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
