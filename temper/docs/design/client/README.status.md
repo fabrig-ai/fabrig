@@ -193,6 +193,11 @@
   tested (`temper-client-view`'s `tests/model_check.rs`), with no gallery state. "Try again"
   checks the host again. Home's line after a try that stopped and the same lines on an account's
   row of the accounts page are not drawn: nothing reports a try once the person has left Ready.
+- **Not yet:** 3.5, *A model usable*: a sign-in's end goes on to Ready by a departure's return alone
+  (`temper-client-domain`'s `departure.rs`). One that ends on a way's page, by a paste or on a page come back,
+  stays at the way's address and draws *A model usable*, with its "Continue", since `route.rs`'s
+  `welcome_program_progress` moves a key alone: the sign-in's move waits for `../draft/sign-in-new-tab.md`, 3.
+  Seen by reading.
 - **Design departs:** 3.5, *The try*, from the look request `model-check-pane` of 2026-11-06,
   each by the cut of its landing: the steps' list has hidden state words and its accessible name,
   as Forge's has, where the request's pages have the same words, because the terminal reads

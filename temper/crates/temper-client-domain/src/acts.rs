@@ -226,7 +226,8 @@ fn send(pages: &mut Pages, open: Confirm, out: &mut Queue<Request>) -> Option<Ke
             project,
             on: DecideOn::Proposal {
                 proposal,
-                running: if let ReadValue::Proposal(proposal) = page
+                running: if open.act == ActKind::Accept
+                    && let ReadValue::Proposal(proposal) = page
                     && let contract::ProposalAction::Settings(_) = proposal.action
                 {
                     Some(contract::Running::Stays)

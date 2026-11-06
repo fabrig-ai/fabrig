@@ -20,6 +20,8 @@ pub enum Line {
     Turn { now: Time, wall: Wall },
     Start,
     Due,
+    Copy { token: u32, words: Box<[u8]> },
+    Copied { token: u32, written: temper_client_domain::copy::Written },
     Place(Box<[u8]>),
     Heard(Heard),
     Carried { writes: u32 },
@@ -53,6 +55,20 @@ impl Line {
     pub fn write(&self, out: &mut Vec<u8>) {
         let mut w = Text { out, first: true };
         match self {
+            Self::Copy { token, words } => {
+                w.word(b"copy");
+                w.number(u64::from(*token));
+                w.bytes(words);
+            }
+            Self::Copied { token, written } => {
+                w.word(b"copied");
+                w.number(u64::from(*token));
+                w.word(match written {
+                    temper_client_domain::copy::Written::Done => b"done",
+                    temper_client_domain::copy::Written::Refused => b"refused",
+                    temper_client_domain::copy::Written::Failed => b"failed",
+                });
+            }
             Self::Journey { version } => {
                 w.word(b"journey");
                 w.number(u64::from(*version));
@@ -171,6 +187,8 @@ impl Line {
             Self::Turn { .. } => "turn",
             Self::Start => "start",
             Self::Due => "due",
+            Self::Copy { .. } => "copy",
+            Self::Copied { .. } => "copied",
             Self::Place(_) => "place",
             Self::Heard(_) => "heard",
             Self::Carried { .. } => "carried",
@@ -516,6 +534,16 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
         b"save" => Line::Save { key: r.bytes()?, value: r.bytes()? },
         b"erase" => Line::Erase(r.bytes()?),
         b"writes" => Line::Writes(r.count()?),
+        b"copy" => Line::Copy { token: r.count()?, words: r.bytes()? },
+        b"copied" => Line::Copied {
+            token: r.count()?,
+            written: match r.word()?.as_ref() {
+                b"done" => temper_client_domain::copy::Written::Done,
+                b"refused" => temper_client_domain::copy::Written::Refused,
+                b"failed" => temper_client_domain::copy::Written::Failed,
+                _ => return Err("unknown clipboard outcome"),
+            },
+        },
         b"navigate" => Line::Navigate(r.bytes()?),
         b"replace" => Line::Replace(r.bytes()?),
         b"show" => Line::Show {
@@ -561,6 +589,8 @@ impl Clone for Line {
             Self::Turn { now, wall } => Self::Turn { now: *now, wall: *wall },
             Self::Start => Self::Start,
             Self::Due => Self::Due,
+            Self::Copy { token, words } => Self::Copy { token: *token, words: words.clone() },
+            Self::Copied { token, written } => Self::Copied { token: *token, written: *written },
             Self::Place(value) => Self::Place(value.clone()),
             Self::Heard(value) => Self::Heard(clone_heard(value)),
             Self::Carried { writes } => Self::Carried { writes: *writes },
