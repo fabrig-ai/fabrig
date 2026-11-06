@@ -129,6 +129,53 @@ versioned record Trials { rows: list 64 TrialRow }    # Watch::trials
   once, on a row still running, and goes if the wait ends. Its row's `Waited` keeps those words where the client saw
   them, and otherwise says only that it had no answer in a minute.
 
+### 6.1 Model's line
+
+`temper-client-view`'s `pages/model_check.rs`, `trial` and `line`, is the one place a row becomes words
+(`../client/README.md`, 3.5, *The try*). Which state it draws, in this order:
+
+1. **The host's check out:** Running at the first step. **Settled not usable:** Stopped at it, in the host's check's
+   words; "Try again" checks the host again.
+2. **A trial asked, or its row `Running`, with a wait that's no moment's:** Stopped, its why the wait's words, its step
+   the row's. Its "Try again" asks nothing more while the row runs, so it isn't offered until the row ends.
+3. **Its row `Running`, or asked:** Running. The first step ticks as a usable account's does; for a subscription `Starts`
+   is the second step under way and `Answers` the third; for a plan or a key the second is `Answers`, whatever the row's
+   step.
+4. **`Answered { seconds }`:** Answered, "answered in N s".
+5. **`Failed { why }`:** Stopped at the row's step, its why by 6.4.
+6. **A usable account and no row:** Usable, ticked, with no try's fact.
+
+ACCOUNT and WHO come from the row's `took`, or, until then, its `account`. On the welcome the line's row is the newest
+of the person's: the document's order is newest first.
+
+### 6.2 The account's row
+
+The accounts page's row of an account, under its head and before its sources, draws `line` for its row: the row whose
+`took` is that account, or with no `took` whose `account` is. "Sign in again" goes to the way's page on `ConnectModel`,
+not the welcome's. No row, or a row answered for another account: nothing, and the row reads as it does today.
+
+### 6.3 Home
+
+While a row of the person's is `Failed`, every project's Home holds one line under its intro, whatever else that intro
+says: "WHO didn’t answer when tried", in `HOME_BYLINE`'s look, and "Try again", which runs another and takes the line
+away until that one ends. Answered says nothing more; a running row says nothing. No new look: Home's line is drawn in
+what Home has.
+
+### 6.4 Why, in the person's terms
+
+| Why | The words |
+|---|---|
+| `Ended { class: Transient }` | "WHO was busy or out of reach just now." |
+| `Ended { class: Permanent }` | "WHO refused the request. Its account may need attention." |
+| `Ended { class: Run }`, `Agent`, `Invalid` | "The run stopped before WHO answered." |
+| `Ended { class: Lost }` | "The machine running it went away." |
+| `Ended { class: Refused }`, `Refused` | "The try couldn't start." |
+| `Waited` | the wait's words, if the client saw one; otherwise "WHO didn’t answer within a minute." |
+
+A wait's words are those a chat's wait says, with no command after them: never a command for temper's own tools. Each
+offers "Try again". The answering act, quiet, is "Sign in again" where a wait or a `Permanent` ending's account is a
+sign-in or a program's; otherwise "All ways" on the welcome and nothing on an account's row.
+
 ## 7. What it stops
 
 Nothing of the account: a source's own state is the host's check's (jig's `domain/accounts.md`, 3.4). Ready's

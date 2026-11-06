@@ -106,3 +106,54 @@ In `temper-engine-domain`'s `boundary.rs`, `Application` gains `Try { account: u
 
 The application document's subject is `pub const TRIALS_SUBJECT: u64` in `temper-engine-domain-trials`,
 `(1 << 62) | (1 << 36)`, beside `temper-engine-domain-forge`'s subjects, whose highest bit is `1 << 35`.
+
+## The root (`trial-root`)
+
+`temper-engine-domain/src/route/trials.rs`: `TRIAL_CHARTER: u32 = 10`, `Delivery::Trials { watcher, rows: Box<[trials::Row]> }`,
+newest first by `began`. `TRIALS_SUBJECT` is the child's from here on. `temper-service`'s `family.rs` encodes the delivery as
+`wire::trials(&document)`.
+
+## The client's facts (`trial-facts`)
+
+`temper-client-domain/src/forge/trials.rs`, a family watch as `forge/dismissed.rs` is:
+
+```rust
+pub struct Row { pub account: u32, pub task: Option<u64>, pub took: Option<u32>, pub step: Step, pub state: State }
+pub enum Step { Starts, Answers }
+pub enum State { Running, Answered { seconds: u32 }, Failed { why: Why } }
+pub enum Why { Ended { class: Class }, Refused, Waited }
+pub enum Class { Transient, Permanent, Run, Agent, Lost, Invalid, Refused }
+
+impl Side {
+    /// The person's rows, newest first; empty until delivered.
+    #[must_use] pub fn trials(&self) -> &[Row];
+    /// The account an ask is out for, until its row is delivered.
+    #[must_use] pub fn trial_asked(&self) -> Option<u32>;
+    /// The running row's wait, or the last it had: the Task document's `run_wait`.
+    #[must_use] pub fn trial_wait(&self) -> Option<&c::TaskRunWait>;
+}
+// forge::Act:
+TryAccount { account: u32, again: bool },
+```
+
+`Action::Forge(forge::Act::TryAccount { account, again: true })` is "Try again", from every page.
+
+## The view (`pane-feed`)
+
+`temper-client-view`'s `pages/model_check.rs`:
+
+```rust
+/// The welcome's line: the host's check, then the newest row (domain/trial.md, 6.1).
+pub(crate) fn trial(root: &Domain, w: &Words) -> Option<Trial>;
+/// An account's own line: its row alone. None: nothing to draw.
+pub(crate) fn of_account(root: &Domain, w: &Words, account: u32) -> Option<Trial>;
+/// `line` draws either; `Place` says where "Sign in again" goes.
+pub(crate) enum Place { Welcome, Row }
+pub(crate) fn line(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, trial: &Trial, place: Place);
+/// The person's failed row, for Home: `(who, account)`.
+pub(crate) fn stopped(root: &Domain, w: &Words) -> Option<(Box<[u8]>, u32)>;
+```
+
+`Trial` gains `account_number: Option<u32>`. `accounts::Meaning` gains `Try { account: u32 }`. `choice.rs` gains
+`pub(crate) fn wait_why(root: &Domain, w: &Words, wait: &c::TaskRunWait) -> Box<[u8]>`, the first line of what
+`waiting` draws, with no command, and `pub(crate) const fn wait_settles(wait: &c::TaskRunWait) -> bool`.
