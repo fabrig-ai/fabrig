@@ -5,7 +5,7 @@ use jig_domain_tasks as tasks;
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_world::{fixtures, forge_stand::ForgeStand, protocol};
 
-const K: u64 = 4228;
+const K: u64 = 8_720;
 const CHANNEL: Token = Token::new(7);
 
 use super::stock::box_model;

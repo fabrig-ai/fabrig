@@ -70,9 +70,9 @@ pub struct Documents {
 const OUTPUT: Limits = Limits { depth: 32, length: crate::DOCUMENT_BYTES };
 // Init-shaped temper: forge roots (1), sign-in (6), OpenAI endpoint (2),
 // Anthropic provider/endpoint/model replacements (3), bundle (1), worker (2),
-// capacity overrides (3). Sign-in and the OpenAI endpoint may remove four TLS members each.
+// capacity overrides (3), two surplus Anthropic models. Sign-in and the OpenAI endpoint may remove four TLS members each.
 // The agent's OpenAI endpoint (6), Anthropic endpoint (1) and adapter (1) fit too.
-const EDITS: u32 = 1 + 6 + 2 + 3 + 1 + 2 + 3 + 2 * 4;
+const EDITS: u32 = 1 + 6 + 2 + 3 + 1 + 2 + 3 + 2 + 2 * 4;
 // The Model step must see OpenAI, demo and Anthropic in one provider offer.
 const PROVIDER_LINES: u32 = 3;
 #[derive(Debug)]
@@ -98,7 +98,8 @@ impl Edits {
         self.set(d, at, &text(value)?, p)
     }
     fn remove(&mut self, d: &Document, at: u32, p: &Path) -> Result<(), Refusal> {
-        let first = at.checked_sub(1).expect("an object value follows its key");
+        let previous = at.checked_sub(1).expect("a removed value has a parent");
+        let first = if d.token(previous).expect("preceding token").kind == Kind::Key { previous } else { at };
         let after = config::after(d, at).or(Err(read::why(p, b"invalid value")))?;
         self.rows.push(Edit { first, after, value: None }).or(Err(read::why(p, b"too many rewrites")))
     }
@@ -327,7 +328,6 @@ fn program_endpoint(socket: &[u8], agent: bool) -> Result<Box<[u8]>, Refusal> {
 fn program_route(d: &Document, llm: u32, socket: &[u8], edits: &mut Edits, p: &Path) -> Result<(), Refusal> {
     for (member_name, key, wanted, value) in [
         (b"endpoints".as_slice(), b"name".as_slice(), b"anthropic".as_slice(), program_endpoint(socket, false)?),
-        (b"models", b"endpoint", b"anthropic", program_model(false)?),
         (b"providers", b"name", b"anthropic", read::joined(&[
             br#"{"name":"anthropic","number":2,"signed_in_plan":false,"manage_usage":"https://claude.ai/settings/usage","models":["#,
             &text(PROGRAM_MODEL.as_bytes())?,
@@ -338,6 +338,24 @@ fn program_route(d: &Document, llm: u32, socket: &[u8], edits: &mut Edits, p: &P
         let list = member(d, llm, member_name, p)?;
         let target = selected(d, list, key, wanted, false, &target_path)?;
         edits.set(d, target, &value, &target_path)?;
+    }
+    let target_path = p.member(b"models");
+    let models = member(d, llm, b"models", p)?;
+    let mut replaced = false;
+    for (index, at) in read::list(d, models, 1, &target_path)?.iter().enumerate() {
+        let row = read::index(&target_path, index);
+        let endpoint = member(d, *at, b"endpoint", &row)?;
+        if read::text(d, endpoint, 128, &row.member(b"endpoint"))?.as_ref() == b"anthropic" {
+            if replaced {
+                edits.remove(d, *at, &row)?;
+            } else {
+                edits.set(d, *at, &program_model(false)?, &row)?;
+                replaced = true;
+            }
+        }
+    }
+    if !replaced {
+        return Err(read::why(&target_path, b"target missing"));
     }
     Ok(())
 }
