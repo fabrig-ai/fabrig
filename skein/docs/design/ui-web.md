@@ -1378,6 +1378,10 @@ the application that needs it.
 - **A log's head near** (ui.md, section 18): the page part says when a
   person has left a log's end (section 7), and nothing when its head nears
   the view.
+- **A tab kept once it is pointed:** the platform lets a pointed tab go
+  (section 10), so an application can't close it at its end. Keeping it waits
+  for `temper/docs/design/draft/sign-in-new-tab.md`, 6, where a provider's
+  opener policy may sever the hold anyway.
 - **The vocabulary that waits** (ui.md, 4.2), each with its row in
   section 6 when the light path brings it.
 - **Tabs of one person sharing one stream,** so that many tabs hold one

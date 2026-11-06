@@ -152,3 +152,70 @@ fn press_adoption(
     let action = temper_client_view::act(&mut view, node, skein_ui::Act::Press).expect("bound act");
     temper_client_world::front::account_acts::event(front, root, temper_client_domain::Event::Act { action }.into());
 }
+
+#[test]
+fn the_same_repository_adopted_again_from_its_page_replaces_its_record() {
+    use jig_client_kit::harness::{App, Front};
+    use temper_client_domain::{self as d, Address};
+    use temper_client_world::{
+        app::Temper,
+        front::{Joint, account_acts as accounts},
+    };
+    use temper_engine_domain as engine;
+    use temper_engine_domain_forge as forge;
+    let mut front = Joint::new(fixtures::SEED, fixtures::domain_limits());
+    let mut root = Temper::new(fixtures::SEED).0;
+    front.bind(jig_client_kit::harness::ClientId(0), fixtures::PARTY);
+    accounts::event(&mut front, &mut root, Temper::start(fixtures::inbox(), Vec::new(), 0));
+    let mut first = None;
+    for admitted in 1..=2 {
+        accounts::event(&mut front, &mut root, Temper::went(Address::Repositories { project: 1 }));
+        press_adoption(&mut front, &mut root, Role::Link, b"Adopt a repository");
+        for (name, value) in
+            [(b"Owner".as_slice(), b"acme".as_slice()), (b"Name", b"shop"), (b"Landing branch", b"main")]
+        {
+            let mut view = super::connect_forge::view(&root);
+            let node = super::connect_forge::node(&view, Role::TextField, name);
+            let action = temper_client_view::act(&mut view, node, skein_ui::Act::Input { value: value.into() })
+                .expect("field act");
+            accounts::event(&mut front, &mut root, d::Event::Act { action }.into());
+        }
+        let form = root.person().forge().form().expect("adoption page");
+        let adoption = d::forge::adoption(form, fixtures::domain_limits().forge.checks).expect("valid adoption");
+        if let Some(first) = &first {
+            assert_eq!(&adoption, first, "both page submissions carry the same fields");
+        } else {
+            first = Some(adoption);
+        }
+        press_adoption(&mut front, &mut root, Role::Button, b"Adopt");
+        let answer = &root.person().forge().form().expect("adoption page").outcome;
+        assert!(matches!(answer, Some(d::forge::Answer::Adopted(adopted)) if adopted.repository == 7), "{answer:?}");
+        assert_eq!(front.applications_admitted(), admitted, "each adoption is admitted under its own key");
+        assert!(front.engine_adopted(1, 7));
+        let repositories = front.engine.store.rows.values().filter(|row| matches!(row,
+            engine::Record::Forge { row } if matches!(row.as_ref(), forge::Stored::Repository(repository) if repository.project == 1)
+        )).count();
+        assert_eq!(repositories, 1, "adopting again replaces the project's repository record");
+    }
+    let keys: Vec<_> = front
+        .engine
+        .store
+        .rows
+        .values()
+        .filter_map(|row| {
+            if let engine::Record::Core(jig_domain_core::Record::People(jig_domain_people::Stored::Answer {
+                key,
+                ask,
+                ..
+            })) = row
+                && matches!(ask.as_ref(), jig_domain_people::Ask::Application { .. })
+            {
+                Some(*key)
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(keys.len(), 2);
+    assert_ne!(keys.first(), keys.last(), "adopting again uses a fresh request key");
+}

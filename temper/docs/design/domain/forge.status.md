@@ -6,7 +6,31 @@
   - 11: a task's saved work is not deleted as it closes: `s<task>` is no hold,
     and a close releases holds alone (`temper-engine-domain-forge/src/domain.rs`,
     `continue_release`), so the branch stays on the forge. From reading: no story
-    closes a task with saved work and looks.
+    closes a task with saved work and looks. The request `landing-fixes` of
+    2026-11-06, item 5, asks whether a branch left after its goal is by design:
+    by this section it is not, though that `temper/1/s10` and `s14` were such
+    branches rests on their names alone.
+  - 8.2, step 3: a head already behind taking its base first stands on the fake
+    forge's stories alone
+    (`tests/engine/domain/tests/suite/forge_routes/update_first.rs`). The request
+    `landing-fixes` of 2026-11-06 has its proof in the next landing plan on a real
+    deployment, and no record shows one, so how much of a change's wait it saves,
+    and how soon a moving base reaches the bound (section 20), are unmeasured.
+  - 8.4: the request `landing-fixes` of 2026-11-06, item 6, tells of a repair's
+    brief with conflict words and no cause, which cost a failed `read_job`. Its
+    plan dropped it past its ceiling of four tasks, untraced: a resolution's brief
+    opens `Resolve the conflict from change head`
+    (`temper-engine-domain-forge/src/brief.rs`, by `PullMode`) and a CI repair's
+    `Repair the failed check at change head` (`brief_ci.rs`), and which path gave
+    those words with no cause is unknown.
+  - 8.11, *Which target*: the coding charter's sentence and the refusal's words
+    stand on a script alone
+    (`tests/engine/domain/tests/suite/forge_routes/question_target.rs`). No real
+    model has read them, and the request `landing-fixes` of 2026-11-06 has the same
+    proof as 8.2's, so whether a producer's first question now reaches its change
+    is unobserved.
+  - 8.11, *The next producer merges the landing tip first*: a tip its start
+    already contains has no real run on record (`worker.status.md`, section 5).
   - 8.9: a refusal's "adopt the repository again" has no story from the browser. The engine takes an adopted repository's adoption (`readopt`, `temper/tests/engine/domain/tests/suite/forge_routes/approval_identity.rs`), and by reading alone the form sends one (`../client/README.md`, 4.4); it opens at its defaults, so the person types the repository, its role, prefix and landing branch again.
   - 4.1: a removal without the box, its group's act answered in its
     decision: an owned or fake forge's removal asks the box link for
@@ -274,6 +298,11 @@
   task, where the request names the producing task alone, because all three run
   under the one charter and each would pay the same turn
   (`temper-engine-domain/src/route/forge_route/relay.rs`, `asking_delegate`).
+- **Design departs:** 8.2, step 3, from the request `landing-fixes` of 2026-11-06,
+  item 1, decided by its plan's cut: the update first saves the change's wait on
+  CI, where the request counts its 5:26 as CI's, because temper has no effect that
+  stops a run the forge has started and a pull request comes before its update. The
+  replaced head's run goes by the repository's own CI settings (section 20).
 - **Departs:** 9: the first keeps its turn only until the next ready change
   steps: `queue_first` (`temper-engine-domain-forge/src/domain.rs`) chooses
   among `queue_ready`'s changes, which leave out one at `Updating`, `Checking`,

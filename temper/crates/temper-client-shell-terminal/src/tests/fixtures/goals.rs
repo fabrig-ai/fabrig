@@ -57,7 +57,7 @@ pub fn page() -> Tree {
         ("Refresh token handling · 2 / 4 · running", "Two tasks landed; the rest runs.", false),
         ("Write release notes · planning", "Planning from the draft.", false),
         ("Keyboard navigation · 3 / 3 · landed 01:12", "The keyboard pass landed.", true),
-        ("Retire password login · stopped", "Stopped by you.", true),
+        ("Retire password login · closed", "Closed by you.", true),
     ] {
         b.open(Role::Slot);
         b.open(Role::Link);

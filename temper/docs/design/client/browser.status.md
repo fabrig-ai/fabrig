@@ -66,18 +66,22 @@
   ended by the stall deadline: `temper-service`'s
   `a_call_past_the_mounts_room_waits_until_its_peer_closes` ends it by its
   peer's close.
-- **Departs:** 4.3, 4.6: the tier holds 13 tests, one past the cap, and 4.6 names
+- **Departs:** 4.3, 4.6: the tier holds 14 tests, two past the cap, and 4.6 names
   12. `browser_call_line.rs`'s `a_run_of_calls_opens_to_its_rows`, from the request
   `chat-reading-b`, has no line there, and its file's header names the story, not what
   only a browser shows. The request `browser-trim` has every test read against the
   tier's rule, but that plan's calls were made before this test reached its trunk, and
-  no reading of it is recorded. 4.3 has stories that share a setup become one test
-  first: it and test 14 both start a chat on `temper box`, though it scripts its own
-  model's turns. No reason is recorded.
+  no reading of it is recorded. `browser_accounts.rs`'s
+  `the_welcome_sign_in_opens_a_tab_and_moves_on_to_ready`, which 4.2 names at the
+  request `sign-in-new-tab`, has no line there either. 4.3 has stories that share a
+  setup become one test first: the call line's and test 14 both start a chat on
+  `temper box`, though it scripts its own model's turns, and the welcome's and test 9
+  both sign in on `Tier::accounts_sign_in`. No reason is recorded for either.
 - **Not yet:** 4.3: no run on record shows the tier as it stands within its budget
   (`tools/tiers/budgets.toml`, `browser-temper`, 85 CPU s): its total with the call
-  line's test is unknown. The `browser-trim` plan's three runs, at `970302c050`, before
-  that test reached its trunk, took 78.557098, 73.801674 and 57.755442 CPU s over 12
+  line's and the welcome's sign-in's tests is unknown. The `browser-trim` plan's three
+  runs, at `970302c050`, before they reached its trunk, took 78.557098, 73.801674 and
+  57.755442 CPU s over 12
   tests, on one slot of a shared machine whose load rose from 6 to 31, where its request
   has a slot as idle as can be had. Those totals are in `tools/tiers/design.md`, 7.2's
   scope, which live sampling of the same tests read higher (that document's section 8).
