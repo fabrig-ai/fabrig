@@ -3,7 +3,6 @@ use crate::service::ServiceHost;
 use crate::world::{Kind, Proc};
 use jig_domain_tasks::{Active, Phase, Was};
 use skein_shell::Host;
-use temper_worker_domain::host;
 
 /// Intentional unfinished work and the obligation states it may reach at stop.
 #[derive(Clone, Copy, Debug)]
@@ -86,12 +85,12 @@ impl Obligations {
         if let Some(worker) = service.worker_domain() {
             for hosting in &worker.hosting() {
                 let state = match hosting.phase {
-                    host::Phase::Preparing => Left::HostedPreparing,
-                    host::Phase::Starting => Left::HostedStarting,
-                    host::Phase::Active => Left::HostedActive,
-                    host::Phase::Waiting => Left::HostedWaiting,
-                    host::Phase::Ending => Left::HostedEnding,
-                    host::Phase::Answered => continue,
+                    jig_domain_link::Phase::Preparing => Left::HostedPreparing,
+                    jig_domain_link::Phase::Starting => Left::HostedStarting,
+                    jig_domain_link::Phase::Active => Left::HostedActive,
+                    jig_domain_link::Phase::Waiting => Left::HostedWaiting,
+                    jig_domain_link::Phase::Ending => Left::HostedEnding,
+                    jig_domain_link::Phase::Answered => continue,
                 };
                 self.task(hosting.run.raw(), state, "worker");
             }

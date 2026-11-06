@@ -13,6 +13,7 @@ doctest = false
 
 [dependencies]
 jig-domain-host.workspace = true
+jig-domain-link.workspace = true
 jig-protocol-engine-workers.workspace = true
 jig-protocol-worker-wire.workspace = true
 skein-channel.workspace = true

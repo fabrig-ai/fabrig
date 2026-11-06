@@ -6,6 +6,7 @@
 
 use super::fixtures::{self, worker_peers::*};
 use jig_domain_host as hub;
+use jig_domain_link::{Form, Grant};
 use jig_protocol_engine_workers as engine_link;
 use jig_protocol_worker_link as link;
 use skein_io as io;
@@ -259,8 +260,8 @@ fn a_link_invocations_whole_output_precedes_the_next_invocation() {
     let mut values = List::with_capacity(ASSIGNMENT_GRANTS);
     for account in 1..=ASSIGNMENT_GRANTS {
         grants
-            .push(hub::Grant {
-                form: hub::Form::Credential(hub::Scheme::Key),
+            .push(Grant {
+                form: Form::Credential(jig_domain_link::Scheme::Key),
                 account,
                 generation: 1,
                 valid: Duration::from_secs(60),

@@ -40,8 +40,12 @@ pub struct ProcessLimits {
     pub queue: u32,
 }
 
+const PROGRAM_TAG: u8 = 1;
+
 /// The one close `HostIo` itself submits, on its own tag (skein/docs/design/lib.md, 4).
-const PROGRAM_ROOT: Token = Token::new(1 << 60);
+fn program_root() -> Token {
+    Token::tagged(PROGRAM_TAG, 0).expect("program root fits namespace")
+}
 
 #[derive(Debug)]
 pub(crate) struct HostIo {
@@ -371,7 +375,7 @@ impl HostIo {
     fn split(&mut self, complete: kernel::Complete) {
         self.signals.completed(complete.op);
         self.in_flight = self.in_flight.checked_sub(1).expect("one completion per submitted operation");
-        if complete.op == PROGRAM_ROOT {
+        if complete.op == program_root() {
             self.programs.as_mut().expect("program root close").root_closed();
         } else if file_layer::owns(complete.op) {
             let env = self.file_env(Time::ZERO, Wall::EPOCH);

@@ -3,6 +3,7 @@ use crate::joined_world as joined;
 mod agreement {
     use super::joined::{Joined, application, credential, form, received, sent, values};
     use jig_domain_host as host;
+    use jig_domain_link::Operation;
     use jig_protocol_engine_workers as engine;
     use jig_protocol_worker_link::Request;
     use jig_protocol_worker_wire::Part;
@@ -81,10 +82,7 @@ mod agreement {
         host::LinkUp::Activity {
             run: RUN_SEVEN,
             attempt: ATTEMPT_TWO,
-            activity: host::AgentActivity::Long {
-                operation: host::AgentOperation::Command,
-                span: Duration::from_secs(2),
-            },
+            activity: host::AgentActivity::Long { operation: Operation::Command, span: Duration::from_secs(2) },
         }
     }
     #[test]

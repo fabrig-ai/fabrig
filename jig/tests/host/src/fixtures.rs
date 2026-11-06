@@ -3,6 +3,7 @@
 use jig_domain_host::FromAgent;
 use jig_domain_host::LinkDown;
 use jig_domain_host::{Ask, Assignment, Event, Finish, RunAssignment};
+use jig_domain_link::Bounds;
 use skein_lib::{Duration, Reader, Token};
 /// The account named by the grant renewal story.
 pub const ANALYST: u32 = 3;
@@ -48,8 +49,8 @@ pub fn callback(name: &[u8]) -> Token {
 }
 
 #[must_use]
-pub fn bounds() -> jig_domain_host::Bounds {
-    jig_domain_host::Bounds {
+pub fn bounds() -> Bounds {
+    Bounds {
         program_endpoints: Box::new([]),
         models: Box::new([]),
         turns: 8,

@@ -1,6 +1,7 @@
 //! Pending protocol events and attempts, without their content or credentials.
 use super::{Worker, hub, root};
 use crate::diagnostics::{self, LinkEvent, WorkerEvent};
+use jig_domain_link::{Hosting, Phase};
 use skein_lib::{List, Time};
 
 impl Worker {
@@ -14,7 +15,7 @@ impl Worker {
         for index in 0..self.root.kept_answers() {
             if let Some(hub::LinkUp::Answer { run, attempt, .. }) = self.root.host().answer_at(index) {
                 attempts
-                    .push(hub::Hosting { run, attempt, phase: hub::Phase::Answered })
+                    .push(Hosting { run, attempt, phase: Phase::Answered })
                     .expect("room for hosting and retained answers");
             }
         }

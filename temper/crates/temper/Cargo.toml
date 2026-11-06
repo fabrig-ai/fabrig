@@ -37,6 +37,7 @@ temper-worker-domain.workspace = true
 skein-forge-connection.workspace = true
 jig-protocol-config.workspace = true
 jig-domain-host.workspace = true
+jig-domain-link.workspace = true
 skein-io.workspace = true
 skein-lib.workspace = true
 skein-json.workspace = true

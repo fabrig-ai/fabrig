@@ -4,6 +4,7 @@ use crate::decision::{
 };
 use crate::{Deployment, Family, Key, Record, TurnRecord, Write};
 use alloc::boxed::Box;
+use jig_domain_link::{Bounds, Form, Grant, Scheme};
 use skein_lib::{List, Queue, Token, Wall};
 
 #[global_allocator]
@@ -509,13 +510,13 @@ fn deep_child_rows_and_arbitrary_internal_payloads_are_refused_before_retention(
     let callback = Delivery::Fleet(fleet::Event::Hello {
         worker: 0,
         channel: Token::new(1),
-        hello: fleet::Hello {
+        hello: jig_domain_link::Hello {
             jobs: Box::default(),
             stop_bound: skein_lib::Duration::from_secs(0),
             slots: 1,
             workstreams: Box::new([]),
             hosting: Box::new([]),
-            bounds: fleet::Bounds {
+            bounds: Bounds {
                 program_endpoints: Box::new([]),
                 models: Box::new([]),
                 turns: 1,
@@ -573,7 +574,6 @@ fn held_assignment_checks_owned_bytes_and_section_backing_before_acceptance() {
 }
 
 fn held_assignment() -> crate::Assignment {
-    use jig_domain_accounts as accounts;
     use jig_domain_brief as brief;
     crate::Assignment {
         task: 1,
@@ -644,8 +644,8 @@ fn held_assignment() -> crate::Assignment {
         transcript: Box::new([]),
         answered: Box::new([]),
         settled: Box::new([]),
-        grants: Box::new([accounts::Grant {
-            form: accounts::Form::Credential(accounts::Scheme::Bearer),
+        grants: Box::new([Grant {
+            form: Form::Credential(Scheme::Bearer),
             account: 1,
             generation: 1,
             valid: skein_lib::Duration::from_secs(1),

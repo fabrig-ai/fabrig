@@ -12,6 +12,7 @@ use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
 use jig_domain_core::{self as core, documents};
 use jig_domain_fleet as fleet;
+use jig_domain_link::{Hello, Hosting, Phase};
 use jig_domain_notes as notes;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -246,11 +247,7 @@ fn restart_world(world: &mut World) {
                         | tasks::Phase::Closing(tasks::Closing { stage: tasks::Stage::Run { .. }, .. })
                 )
             {
-                Some(fleet::Hosting {
-                    run: Token::new(row.number),
-                    attempt: Token::new(row.attempt),
-                    phase: fleet::Phase::Active,
-                })
+                Some(Hosting { run: Token::new(row.number), attempt: Token::new(row.attempt), phase: Phase::Active })
             } else {
                 None
             }
@@ -260,7 +257,7 @@ fn restart_world(world: &mut World) {
         world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
             worker: 0,
             channel: Token::new(7),
-            hello: fleet::Hello {
+            hello: Hello {
                 jobs: Box::default(),
                 bounds: profile_fixtures::bounds(),
                 stop_bound: Duration::from_millis(100),

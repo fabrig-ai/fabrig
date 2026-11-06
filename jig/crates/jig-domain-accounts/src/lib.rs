@@ -33,6 +33,4 @@ pub use records::{DISPLAY, Held, Holder, Key, Kind, NAME, SUBJECT, Stored, USES,
 pub use restore::{RestoreLimit, RestoreSet};
 pub use selection::{Coverage, Excluded, HostSource, Selection, WaitWhy};
 
-pub use jig_domain_link::{SourceName, Worker};
-
-pub use jig_domain_link::{Form, Grant, GrantTable, Scheme};
+use jig_domain_link::{Form, Grant, SourceName, Worker};
