@@ -1,0 +1,3 @@
+draft = "limits-worlds"
+repo = "fabrig"
+sources = ["temper/docs/plan/limits-worlds/inputs/request.md", "temper/tests/real-loop/Cargo.toml", "temper/tests/real-loop/tests/suite/fuzzy/repair.rs", "temper/tests/real-loop/tests/suite/fuzzy/case_6_4.rs", "AGENTS.md", "DESIGN.md"]
