@@ -294,7 +294,7 @@ fn the_configuring_agent_is_charter_3_and_template_3() {
     assert_eq!(defaults.charters[2], expected);
     assert!(!defaults.charters[2].policy.modify);
     assert!(!defaults.charters[2].policy.agents);
-    assert_eq!(defaults.charters[2].policy.instructions.len(), 5642);
+    assert_eq!(defaults.charters[2].policy.instructions.len(), 5826);
     assert_eq!(defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3]);
     let mut expected = defaults.templates[0].clone();
     expected.number = 3;
@@ -1255,9 +1255,25 @@ fn chat_txt_tells_a_chat_to_keep_one_document() {
 fn configuring_txt_says_nothing_has_changed_in_one_place() {
     let words = include_str!("../stock/configuring.txt");
     assert_eq!(words.matches("nothing has changed").count(), 1);
-    assert!(words.contains("only when you first give a proposal's number"));
+    assert!(words.contains("only when you first tell them of a proposal"));
     assert!(words.contains("Never before a proposal; never to close a reply."));
     assert!(words.contains("Say in one sentence what changed in it"));
+}
+
+#[test]
+fn configuring_txt_says_a_proposal_waits_for_an_accept_without_its_key() {
+    let words = include_str!("../stock/configuring.txt");
+    assert!(words.contains("waits in this chat for their Accept"));
+    assert!(words.contains("without its key"));
+    assert!(!words.contains("Give its number"));
+    assert!(!words.contains("awaits an owner"));
+}
+
+#[test]
+fn configuring_txt_names_a_repository_by_its_name() {
+    let words = include_str!("../stock/configuring.txt");
+    assert!(words.contains("name a repository by its name, never by an address or port"));
+    assert!(words.contains("ports too"));
 }
 
 #[test]

@@ -307,7 +307,7 @@ impl Tier {
         jig_client_fake_person_browser::States {
             live: live(),
             offline: Find::exactly_named(Role::Status, b"Offline"),
-            signed_out: Find::text(b"Signed out. To sign in, open a sign-in link temper serve printed."),
+            signed_out: Find::text(b"Signed out. To sign in, open a sign-in link temper printed."),
         }
     }
     /// A forged chat would show its words on the chats page if accepted.
