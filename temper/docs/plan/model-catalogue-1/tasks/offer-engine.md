@@ -100,3 +100,17 @@ Acceptance, each a story in the new `jig-domain-core/src/tests/documents/offer.r
 
 As the implementer's text says; which temper fixtures needed an account, and whether any world found the offer empty
 where it expected a model.
+
+## Rebase (2026-11-06, step merge, foreman model-catalogue-1/offer-engine/foreman-1)
+
+resolve translator conflicts by combining core offers and previews with the landed wire metadata
+The merge conflicts with integration commit `42bd9ec419` (“Carry model offer facts and template previews across client boundaries”), merged by `38381ed5d1`.
+Resolve both paths without taking either side wholesale:
+
+- `jig/crates/jig-protocol-engine-clients/src/translate/llm.rs`: retain this branch’s `models(offer, models, limits)` signature, offer iteration, configuration-index lookup, and `accounts: offered.accounts.clone()`.
+- Add the incoming `MeModelParts` fields: `effort: model.effort.clone()`, `shown: model.shown.clone()`, and `picker: model.picker`. Keep exactly one `accounts` field; discard the incoming empty placeholder.
+- Preserve the incoming `fits` validation for shown names and default efforts.
+- `jig/crates/jig-protocol-engine-clients/src/translate/owner.rs`, `project`: retain this branch’s translation of `value.defaults` through `llm::choice` into `MeDefault`, its populated `defaults` field, and `models(value.offer.as_slice(), models, limits)`. Discard the incoming empty defaults placeholder and authority-mask model call.
+
+These combined values implement `notes/contracts.md` and `jig/docs/design/client/domain/contract.md`, 5.1.
+Validate through heavy with `TEMPER_BUNDLE=none`: run `jig-protocol-engine-clients`’ lib tests filtered to `tests::llm::`, then the spec’s required temper reader tests.
