@@ -7,7 +7,7 @@ use crate::{Limits, owner::Owner};
 use alloc::boxed::Box;
 use document::{Document, Mode, NoteWrite};
 use jig_client::{Client, Handle, Key, Latest, Readable, Readout, Told, Watchable, contract as c, thread::Thread};
-use skein_lib::{Env, List, Queue, Time, Wall};
+use skein_lib::{Env, List, Map, Queue, Time, Wall};
 /// A small conversation's retained window (client/README.md, 5.4).
 pub const LINES: u32 = 16;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -17,6 +17,13 @@ pub enum Sending {
     Resume,
     Seen,
     Close,
+}
+/// Each card's read follows the conversation's waits (client/README.md, 3.5, 5.13).
+#[derive(Debug)]
+struct CardRead {
+    handle: Handle,
+    asking: Asking,
+    departed: bool,
 }
 #[derive(Debug)]
 #[expect(clippy::partial_pub_fields, reason = "departures are private to the chat refresh and exposed as a slice")]
@@ -66,6 +73,7 @@ pub struct Chat {
     pub seen: u64,
     seen_before: u64,
     pub cards: List<super::inbox::Card>,
+    card_reads: List<CardRead>,
     pub delegations: List<delegation::Delegation>,
     departures: List<c::ObjectKey>,
     pub closing: Option<c::Ask>,
@@ -128,6 +136,7 @@ impl Chat {
             seen: 0,
             seen_before: 0,
             cards: List::with_capacity(limits.client.domain.reads),
+            card_reads: List::with_capacity(limits.client.domain.reads),
             delegations: List::with_capacity(delegation::bound(limits)),
             departures: List::with_capacity(limits.client.domain.reads),
             closing: None,
@@ -137,9 +146,16 @@ impl Chat {
     pub(crate) fn fire(&mut self, now: Time, out: &mut Queue<Request>) {
         self.asking.fire(now, self.activity, out);
         self.draft_asking.fire(now, self.draft_read, out);
+        for read in self.card_reads.iter_mut() {
+            read.asking.fire(now, read.handle, out);
+        }
     }
-    pub(crate) const fn next_deadline(&self) -> Option<Time> {
-        super::activity::earliest(self.asking.next_deadline(), self.draft_asking.next_deadline())
+    pub(crate) fn next_deadline(&self) -> Option<Time> {
+        let mut at = super::activity::earliest(self.asking.next_deadline(), self.draft_asking.next_deadline());
+        for read in &self.card_reads {
+            at = super::activity::earliest(at, read.asking.next_deadline());
+        }
+        at
     }
     pub(crate) fn leave(&self, out: &mut Queue<Request>) -> u64 {
         for handle in [Some(self.document), Some(self.activity), Some(self.draft_read), self.run].into_iter().flatten()
@@ -266,16 +282,28 @@ impl Chat {
                 self.decision_page(handle, page);
             }
             Told::Page { handle, page } if self.card_handle(handle) => {
+                let transient = super::activity::read_end(client, &page).transient();
+                for read in self.card_reads.iter_mut() {
+                    if read.handle == handle {
+                        if transient {
+                            read.asking.ended(now);
+                        } else {
+                            read.asking.answered();
+                        }
+                        break;
+                    }
+                }
                 for index in 0..self.cards.len() {
                     let card = self.cards.get_mut(index).expect("bounded card");
-                    if card.handle == handle {
+                    if card.handle == handle && !transient {
                         if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Ended(ended))) = &page
                             && ended.matches(card.object)
                             && let c::EndedValue::Proposal(history) = &ended.value
                         {
-                            self.departed_proposal = Some(history.number);
+                            self.departed_proposal = Some(self.departed_proposal.unwrap_or(0).max(history.number));
                             if let c::ProposalHistoryState::Accepted { .. } = history.state
                                 && let Some(at) = ended.at
+                                && newer_decision(self.decided, history.number)
                             {
                                 self.decided = Some((history.number, at));
                             }
@@ -738,17 +766,22 @@ impl Chat {
             && let c::EndedValue::Proposal(history) = ended.value
             && let c::ProposalHistoryState::Accepted { .. } = history.state
             && let Some(at) = ended.at
+            && newer_decision(self.decided, key.number)
         {
             self.decided = Some((key.number, at));
         }
     }
     fn card_handle(&self, handle: Handle) -> bool {
-        for card in &self.cards {
+        self.card_for_handle(handle).is_some()
+    }
+    fn card_for_handle(&self, handle: Handle) -> Option<&super::inbox::Card> {
+        for index in 0..self.cards.len() {
+            let card = self.cards.get(index)?;
             if card.handle == handle {
-                return true;
+                return Some(card);
             }
         }
-        false
+        None
     }
     fn card(&self, object: c::ObjectKey) -> Option<&super::inbox::Card> {
         for index in 0..self.cards.len() {
@@ -784,13 +817,25 @@ impl Chat {
             if !task.proposals.as_slice().contains(&key) {
                 if settings_snapshot(&self.settings_proposals, key).is_some() {
                     if let Some(c::ReadValue::Proposal(_)) = &card.page {
-                        read(card.handle, Some(c::Read::Proposal { proposal: key }), out);
+                        for read in self.card_reads.iter_mut() {
+                            if read.handle == card.handle && !read.departed {
+                                read.departed = true;
+                                read.asking.ask(card.handle, c::Read::Proposal { proposal: key }, out);
+                                break;
+                            }
+                        }
                     }
                     continue;
                 }
                 unwatch(card.handle, out);
+                for index in 0..self.card_reads.len() {
+                    if self.card_reads.get(index).expect("bounded card read").handle == card.handle {
+                        self.card_reads.swap_remove(index).expect("bounded card read");
+                        break;
+                    }
+                }
                 self.departures.push(card.object).expect("removed cards fit their window");
-                self.departed_proposal = Some(key.number);
+                self.departed_proposal = Some(self.departed_proposal.unwrap_or(0).max(key.number));
                 let handle = handle(self.next);
                 self.next = self.next.checked_add(1).expect("chat handles fit");
                 if self.decisions.push((handle, key)).is_ok() {
@@ -798,33 +843,35 @@ impl Chat {
                 }
             }
         }
-        let mut ordered = List::with_capacity(self.cards.capacity());
+        let mut ordered = Map::with_capacity(self.cards.capacity());
         for key in &task.proposals {
             let object = c::ObjectKey::Proposal(*key);
             if ordered.len() == ordered.capacity() {
                 break;
             }
             if let Some(card) = self.card(object) {
-                ordered.push(card.clone()).expect("retained cards fit");
+                ordered.insert((key.number, card.handle.number), card.clone()).expect("retained cards fit");
                 continue;
             }
             let handle = handle(self.next);
             self.next = self.next.checked_add(1).expect("chat handles fit");
             ordered
-                .push(super::inbox::Card {
-                    object,
-                    group: c::InboxGroup::Proposals,
-                    project: Some(task.project),
-                    position: None,
-                    unread: None,
-                    handle,
-                    page: None,
-                    words: None,
-                    key: None,
-                    outcome: None,
-                })
+                .insert(
+                    (key.number, handle.number),
+                    super::inbox::Card {
+                        object,
+                        group: c::InboxGroup::Proposals,
+                        project: Some(task.project),
+                        position: None,
+                        unread: None,
+                        handle,
+                        page: None,
+                        words: None,
+                        key: None,
+                        outcome: None,
+                    },
+                )
                 .expect("bounded cards");
-            read(handle, Some(c::Read::Proposal { proposal: *key }), out);
         }
         for card in &self.cards {
             let c::ObjectKey::Proposal(key) = card.object else { continue };
@@ -832,10 +879,40 @@ impl Chat {
                 && settings_snapshot(&self.settings_proposals, key).is_some()
                 && ordered.len() < ordered.capacity()
             {
-                ordered.push(card.clone()).expect("retained settings cards fit");
+                ordered.insert((key.number, card.handle.number), card.clone()).expect("retained settings cards fit");
             }
         }
-        self.cards = ordered;
+        self.cards.clear();
+        for (_, card) in &ordered {
+            self.cards.push(card.clone()).expect("ordered cards fit");
+        }
+        self.sync_card_reads(out);
+    }
+    fn sync_card_reads(&mut self, out: &mut Queue<Request>) {
+        for index in (0..self.card_reads.len()).rev() {
+            let handle = self.card_reads.get(index).expect("bounded card read").handle;
+            if !self.card_handle(handle) {
+                unwatch(handle, out);
+                self.card_reads.swap_remove(index).expect("bounded card read");
+            }
+        }
+        for card in &self.cards {
+            let mut known = false;
+            for read in &self.card_reads {
+                if read.handle == card.handle {
+                    known = true;
+                    break;
+                }
+            }
+            if !known {
+                let c::ObjectKey::Proposal(proposal) = card.object else { continue };
+                let mut asking = Asking::new();
+                asking.ask(card.handle, c::Read::Proposal { proposal }, out);
+                self.card_reads
+                    .push(CardRead { handle: card.handle, asking, departed: false })
+                    .expect("one read per card");
+            }
+        }
     }
 
     pub(crate) fn prepare_close(&mut self, client: &Client) {
@@ -1238,5 +1315,12 @@ pub fn paused(chip: &c::Chip, me: &c::Me) -> bool {
         | c::ChipPhase::Person { .. }
         | c::ChipPhase::Closing(_)
         | c::ChipPhase::Ended => false,
+    }
+}
+
+fn newer_decision(decided: Option<(u64, Wall)>, number: u64) -> bool {
+    match decided {
+        Some((previous, _)) => number >= previous,
+        None => true,
     }
 }
