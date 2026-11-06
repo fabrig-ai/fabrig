@@ -6,6 +6,9 @@ needs = ["chat-page", "page-reading", "log-busy", "beside-store"]
 files = [
   "temper/tests/client-browser/tests/browser_all/browser_pages.rs",
   "temper/crates/temper-client-shell-web/temper.css",
+  "temper/tests/client-browser/src/lib.rs",
+  "skein/testing/skein-fake-person-browser/src/harness/script.rs",
+  "skein/testing/skein-fake-person-browser/src/face.rs",
 ]
 effort = "high"
 minutes = 50
@@ -39,7 +42,7 @@ If `temper.css` needs a hunk for what a state now does, it's the least, under `/
 
 ## Owns and may change
 
-Owns the files in the header.
+Owns the files in the header. `skein/testing/skein-fake-person-browser/src/harness/script/growth.rs` shows the shape of the one step this task adds there; a module beside it is this task's too. No page, shell or browser-kit code gains a hook for this.
 
 Options, each decided:
 
@@ -51,6 +54,7 @@ Not this task: the journeys' prints, design text.
 
 ## Steps
 
+0. In the harness, failing unit test first, beside `growth.rs`'s: `Step::KeepBox { find: Find, name: Box<[u8]> }`, `name` keeping `<y> <height>` in whole CSS pixels from the find's box (`BrowserFace::find_boxed`). In temper's world, `Tier::demo_without_anchoring(name)`.
 1. The stories, one at a time, with `heavy cargo nextest run --profile browser-temper -p temper-client-browser-world --test browser_all -E 'test(=NAME)'`.
 2. Break the rule once for the position story: with the page part's `PutView` off, it fails with `overflow-anchor: none`; restore.
 3. `cargo fmt`; `python3 -I -B temper/scripts/old_forms.py`; `heavy cargo clippy -p temper-client-browser-world --all-targets -- -D warnings`; one whole `browser_pages` run. Commit and push.
@@ -58,3 +62,13 @@ Not this task: the journeys' prints, design text.
 ## Report
 
 As the implementer's text asks, with: wall and CPU against the tier; and, plainly, for each of Chromium, Firefox and Safari, what's run and what's only read.
+
+## Answers
+
+2026-11-06. **May this task add test-only fixture hooks outside its two owned files, or should a prerequisite extend the browser harness?** Neither: no hook in temper's shell, no new request in the kit, and no prerequisite. The kit already gives a node's box, and temper's world already serves a private copy of the bundle. The acceptance stands whole; the header above now lists the files this needs.
+
+- **Measuring, no script run:** `skein_browser::boundary::Query.boxes` returns `Seen.rect`, the box in viewport coordinates, `y` signed and whole pixels, so a line above the view is negative (`skein/docs/design/browser.md`, section 5). `Step::Taller` reads it through `BrowserFace::find_boxed` and `height`. Add `Step::KeepBox { find, name }` to the harness the same way: it fails the story on an absent find or a find with no box, and keeps `<y> <height>` for `Harness::kept`, as `Keep` does. `Request`, `Event` and the rule that `document` is the one expression stay as they are.
+- **The position:** a numbered paragraph as the chosen line. `KeepBox` it, read in (`See` a line that wasn't on the page, so the read has landed), `KeepBox` it again, and compare with skein's `held`, within 1 px. A rounded `y` is what the 1 px allows.
+- **The head at opening:** `KeepBox` the log (`Role::Log`) and a numbered line that the story's sizes put past one and a half screens: the line's `y` is at or above the log's `y` less one and a half times the log's height, and the end's line is in the log's box.
+- **`overflow-anchor: none`, injected by the bundle:** `Tier::demo_without_anchoring(name)` is `Tier::demo` on a private bundle, made as `Tier::accounts` makes its own (`copy_bundle`, `application.clients.bundle`), with `#app > .temper-session .temper-thread > [role=log] { overflow-anchor: none !important; }` appended to the digest directory's `temper.css`. Nothing checks a bundle file against its digest. Step 2's break, `PutView` off and this story red, is what shows the rule took.
+- **Budget:** the second run is one more page load of the position story alone, not of every story. The tier's 85 s a suite and 60 s a test stand.
