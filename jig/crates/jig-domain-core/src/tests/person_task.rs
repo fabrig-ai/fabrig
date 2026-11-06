@@ -323,8 +323,9 @@ fn a_project_only_key_leaves_the_charters_first_model_waiting_without_an_account
         core.run_choice(task),
         Err(RunWait::Account { account: None, source: None, why: accounts::WaitWhy::Empty })
     );
+    assert_eq!(core.next_llm(core.tasks.task(task).unwrap()).unwrap().main.model, 0);
     let document = task_document(&core, &env, task);
-    assert_eq!(document.llm.unwrap().main.model, 0);
+    assert_eq!(document.llm, None);
     assert_eq!(document.run_wait, Some(TaskRunWait::Account { account: None, source: None, why: TaskWaitWhy::Empty }));
 }
 
