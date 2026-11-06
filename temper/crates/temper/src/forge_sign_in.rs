@@ -35,17 +35,7 @@ pub(crate) fn run(directories: &super::Directories, bytes: &[u8], named: &Named,
     let provider = engine.clients.provider.as_ref().ok_or("engine.clients.provider is not configured")?;
     let client = provider.clients.iter().find(|client| client.id == row.client).expect("checked sign-in client");
     let secret = client.secret.as_ref().ok_or("its client has no secret; a box adds its own source")?;
-    let application = super::member(&document, 0, b"application");
-    let clients = super::member(&document, application, b"clients");
-    let public = config::read::Object::new(&document, clients).expect("checked clients").member(&document, b"public");
-    let origin = match public {
-        Some(at) if document.token(at).expect("public value").kind != skein_json::document::Kind::Null => {
-            config::read::text(&document, at, 4096).expect("checked public origin").to_vec()
-        }
-        Some(_) | None => format!("http://{}", super::address(&named.clients)?).into_bytes(),
-    };
-    let mut discovery = origin;
-    discovery.extend_from_slice(b"/.well-known/openid-configuration");
+    let discovery = discovery(bytes, named)?;
     let instructions = sign_in::instructions(b"forgejo", None, &client.id, secret, &discovery, first_sign_in());
     make_missing(super::path(&provider.key), true)?;
     make_missing(super::path(secret), false)?;
@@ -115,21 +105,7 @@ pub(crate) fn source(
         .as_ref()
         .and_then(|owned| owned.sign_in.as_deref())
         .ok_or("machine.owned.sign_in is not configured")?;
-    let document = config::document(
-        bytes,
-        &config::DocumentLimits { bytes: super::CONFIG_BYTES, tokens: super::CONFIG_BYTES, depth: 32 },
-    )
-    .expect("checked document");
-    let application = super::member(&document, 0, b"application");
-    let clients = super::member(&document, application, b"clients");
-    let public = config::read::Object::new(&document, clients).expect("checked clients").member(&document, b"public");
-    let mut discovery = match public {
-        Some(at) if document.token(at).expect("public value").kind != skein_json::document::Kind::Null => {
-            config::read::text(&document, at, 4096).expect("checked public origin").to_vec()
-        }
-        Some(_) | None => format!("http://{}", super::address(&named.clients)?).into_bytes(),
-    };
-    discovery.extend_from_slice(b"/.well-known/openid-configuration");
+    let discovery = discovery(bytes, named)?;
     let clock = skein_shell::Clock::new();
     let until = clock.now().now.saturating_add(deadline);
     let limits = jig_protocol_config::profile(config::Profile::Small).io;
@@ -151,4 +127,25 @@ pub(crate) fn source(
     }
     std::io::stdout().write_all(&sign_in::Source::Added.line()).map_err(|why| format!("source outcome: {why}"))?;
     Ok(0)
+}
+
+/// The current issuer's origin and discovery path (sign-in.md, 9.2).
+pub(crate) fn discovery(bytes: &[u8], named: &Named) -> Result<Vec<u8>, String> {
+    let document = config::document(
+        bytes,
+        &config::DocumentLimits { bytes: super::CONFIG_BYTES, tokens: super::CONFIG_BYTES, depth: 32 },
+    )
+    .expect("checked document");
+    let application = super::member(&document, 0, b"application");
+    let clients = super::member(&document, application, b"clients");
+    let public = config::read::Object::new(&document, clients).expect("checked clients").member(&document, b"public");
+    let origin = match public {
+        Some(at) if document.token(at).expect("public value").kind != skein_json::document::Kind::Null => {
+            config::read::text(&document, at, 4096).expect("checked public origin").to_vec()
+        }
+        Some(_) | None => format!("http://{}", super::address(&named.clients)?).into_bytes(),
+    };
+    let mut discovery = origin;
+    discovery.extend_from_slice(b"/.well-known/openid-configuration");
+    Ok(discovery)
 }
