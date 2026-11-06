@@ -124,7 +124,7 @@ pub(crate) fn pane(b: &mut Builder, root: &Domain, chat: &Chat, task: &c::Task, 
         b.style(look::DOC_SEC);
         b.key(Key { owner: crate::frame::owner(), kind: 11, a: heading_hash(section.heading), b: nth });
         let flashed = flashed == Some(index);
-        if flashed {
+        if flashed && root.pages().switcher().renaming().is_none() {
             b.focus(chat.shown_count);
         }
         b.open(Role::Slot);
