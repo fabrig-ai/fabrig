@@ -12,8 +12,16 @@ fn the_frame_carries_its_tokens() {
 #[test]
 fn the_looks_names_pass_skeins_check() {
     assert!(skein_ui::look::check(&[NAMES]).is_none());
-    assert_eq!(NAMES.style(CHAT_GOAL), Some(b"temper-chat-goal".as_slice()));
-    assert_eq!(NAMES.style(WRITING_END), Some(b"temper-writing-end".as_slice()));
+    for (token, name) in [
+        (CHAT_GOAL, b"temper-chat-goal".as_slice()),
+        (WRITING_END, b"temper-writing-end"),
+        (CONFIRM, b"temper-confirm"),
+        (CONFIRM_FATES, b"temper-confirm-fates"),
+        (CONFIRM_ACTS, b"temper-confirm-acts"),
+        (CONFIRM_DO, b"temper-confirm-do"),
+    ] {
+        assert_eq!(NAMES.style(token), Some(name));
+    }
 }
 const FLOW_NAMES: [(skein_ui::Style, &[u8]); 27] = [
     (WELCOME_CHECK, b"temper-welcome-check"),

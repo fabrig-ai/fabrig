@@ -399,7 +399,9 @@ impl Task {
                     self.words = words;
                 }
             }
-            Act::Send => self.send(env, client, Sending::Message, serial, out),
+            Act::Send => {
+                let _sent = self.send(env, client, Sending::Message, serial, out);
+            }
             Act::Older if self.shape == Shape::Agent => {
                 if let Some(older) = self.thread.older() {
                     self.asking.ask(self.activity, older, out);
@@ -542,7 +544,9 @@ impl Task {
                     open.no_change = false;
                 }
             }
-            Act::SendAmendment => self.send(env, client, Sending::Amend, serial, out),
+            Act::SendAmendment => {
+                let _sent = self.send(env, client, Sending::Amend, serial, out);
+            }
             Act::MakeDefault
             | Act::AdoptFirst
             | Act::CopyAgain { .. }
@@ -610,8 +614,8 @@ impl Task {
         kind: Sending,
         serial: &mut u64,
         out: &mut Queue<Request>,
-    ) {
-        let Some(task) = self.document(client) else { return };
+    ) -> Option<Key> {
+        let task = self.document(client)?;
         let ask = match kind {
             Sending::Message
                 if (self.shape == Shape::Agent || self.shape == Shape::Tracked)
@@ -633,7 +637,7 @@ impl Task {
                     && super::goals::state(&task.chip, false, false, 0) == super::goals::State::Paused
                     && super::chat::allowed(task, c::ActKind::Release) =>
             {
-                let Some(value) = chip_hold(&task.chip) else { return };
+                let value = chip_hold(&task.chip)?;
                 c::Ask::Release {
                     project: task.project,
                     task: self.number,
@@ -656,13 +660,13 @@ impl Task {
                 grace: None,
             },
             Sending::Amend if super::chat::allowed(task, c::ActKind::Amend) => {
-                let Some(open) = &self.amending else { return };
+                let Some(open) = &self.amending else { return None };
                 if open.done || open.draft.moved(task) {
-                    return;
+                    return None;
                 }
                 let Some(drafted) = open.draft.amendment() else {
                     self.amending.as_mut().expect("open amendment").no_change = true;
-                    return;
+                    return None;
                 };
                 c::Ask::Amend {
                     project: task.project,
@@ -672,19 +676,19 @@ impl Task {
                     reason: c::Text::new(Box::from(*b"Amended from its page"), u32::MAX).expect("page reason fits"),
                 }
             }
-            Sending::Message | Sending::Stop | Sending::Resume | Sending::Cancel | Sending::Amend => return,
+            Sending::Message | Sending::Stop | Sending::Resume | Sending::Cancel | Sending::Amend => return None,
         };
         for (_, pending) in &self.pending {
             if *pending == kind {
-                return;
+                return None;
             }
         }
         *serial = serial.checked_add(1).expect("task keys fit");
         let key = Key { asker: Owner::Pages.asker(), number: *serial };
         if let c::Ask::Message { words, .. } = &ask {
-            let Some(Latest::Jig(c::Delivery::Me(me))) = latest(client, super::me_handle()) else { return };
+            let Some(Latest::Jig(c::Delivery::Me(me))) = latest(client, super::me_handle()) else { return None };
             if !self.thread.sending(key, me.party.number, words.clone(), 0) {
-                return;
+                return None;
             }
             self.words = Box::default();
         }
@@ -699,6 +703,7 @@ impl Task {
             name: None,
             request: jig_client::Ask::Jig(Box::new(ask)),
         }));
+        Some(key)
     }
     /// Goal outcomes belong to the frame toast (client/README.md, 5.11).
     pub(crate) fn toasted(&self, told: &Told) -> Option<super::needs::Toasted> {

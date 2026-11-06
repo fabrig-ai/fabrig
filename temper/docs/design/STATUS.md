@@ -160,6 +160,10 @@ with directories of its own, and a choice pressed just after Undo stayed
 unanswered once (`client/README.md`). The welcome's try of a model draws its box
 over the host's check alone, no trial being built, and departs from the request
 `model-check` in its list's names and a few of its acts and words
+(`client/README.md`). A plan's sign-in draws the waiting page of the request
+`sign-in-new-tab`, whose words say a new tab while a press still leaves in its own,
+until that draft is built; the page departs from the request in the terminal's words
+and on `ConnectModel`, where a paste finishing also keeps the note's waiting words
 (`client/README.md`). The rename's form asks the focus beside an
 open reply, where a tree holds one request, seen by reading (`client/README.md`),
 and no test measures a long chat's document against its window, where the user's
