@@ -5514,8 +5514,11 @@ measures it (skein's `ui-web.md`, section 7).
   rule opens a chat: a long one opens with at least a screen and a half,
   a short one whole.
 - **The window** fills `document_bytes`, with no count of lines: its `lines`
-  is what its bytes hold (`thread_limits`). The page's bounds are priced from
-  its bytes (5.4). Reading earlier past them lets the newest whole lines go,
+  is what its bytes hold (`thread_limits`). `Limits::window_bytes` names a
+  narrower window, of at least `long_text` and at most `document_bytes`, where
+  a bundle asks for one: the browser tier's alone (`browser.md`, 4.3). The
+  page's bounds are priced from `document_bytes` either way (5.4). Reading
+  earlier past the window lets the newest whole lines go,
   and reading later the earliest; they come back when scrolled to, and nothing
   says how many left.
 - **While a window has let its newest go** the log *continues* (skein's
@@ -6479,6 +6482,15 @@ own tests:
   (`browser.md`, section 4).
 
 ## 11. Open questions
+
+- **Account groups and "All models"** (3.5): the `model-picker` look takes
+  the offer's account ids and `picker` flags to group by what pays and expose
+  every offered model, including those outside the short picker. A stopped
+  account keeps its own fix beside another usable account of that provider.
+  Until that look, the chooser groups by provider and shows `picker` models.
+  Settings, Models, its switches and adding by name belong to the catalogue's
+  store step; reading providers' lists and "Read again" to its lists step
+  (`../draft/model-catalogue.md`, section 7).
 
 - **Sign-in words in the terminal and command help** (6.1, 6.6): the browser's
   signed-out paragraph names the link temper printed (5.1; `browser.md`, 2.4),

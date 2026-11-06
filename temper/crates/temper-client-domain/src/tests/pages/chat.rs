@@ -978,6 +978,38 @@ fn no_second_read_after_a_first_page() {
     assert!(chat.thread.reading.is_none());
 }
 #[test]
+fn a_named_window_bounds_the_thread_and_its_lines() {
+    const WINDOW_BYTES: u64 = 131_072;
+    let mut limits = fixtures::limits();
+    limits.client.domain.document_bytes = WINDOW_BYTES * 2;
+    limits.client.domain.long_text = 64;
+    limits.window_bytes = Some(WINDOW_BYTES);
+    let window = crate::pages::chat::thread_limits(&limits);
+    assert_eq!(window.bytes, WINDOW_BYTES);
+    assert_eq!(window.text, limits.client.domain.long_text);
+    assert_eq!(u64::from(window.lines), WINDOW_BYTES / u64::from(c::LINE_ROOM));
+
+    limits.window_bytes = None;
+    let whole = crate::pages::chat::thread_limits(&limits);
+    assert_eq!(whole.bytes, limits.client.domain.document_bytes);
+    assert_eq!(whole.text, limits.client.domain.long_text);
+    assert_eq!(u64::from(whole.lines), limits.client.domain.document_bytes / u64::from(c::LINE_ROOM));
+}
+#[test]
+fn a_window_is_refused_outside_long_text_and_document_bytes() {
+    let mut limits = fixtures::limits();
+    let least = u64::from(limits.client.domain.long_text);
+    let most = limits.client.domain.document_bytes;
+    for edge in [least, most] {
+        limits.window_bytes = Some(edge);
+        assert!(crate::valid(&limits), "window edge {edge} is admitted");
+    }
+    for outside in [least - 1, most + 1] {
+        limits.window_bytes = Some(outside);
+        assert!(!crate::valid(&limits), "window outside {outside} is refused");
+    }
+}
+#[test]
 fn a_chats_window_holds_more_than_sixteen_lines() {
     // The fixture grants 65536 document bytes; each line costs at least 64.
     const DOCUMENT_LINES: u32 = 1024;

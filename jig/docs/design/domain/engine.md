@@ -2085,10 +2085,13 @@ section 5).
   come and go (11.2 and 11.3).
 - **Scaling out:** one engine per deployment until it binds; the store
   being the engine's alone is what would change first.
-- **Models an LLM provider lists** for an account (providers.md, 2.4),
-  in the catalogue beside configuration's (section 9). Default:
-  configuration's only, since a run's budget needs each model's window,
-  output and prices, which a provider's list does not give.
+- **A catalogue kept as settings, and provider lists** (sections 9 and
+  17): models can leave configuration once a model setting holds their
+  bounds, prices, efforts, default effort and origin. A provider list is
+  kept per account and narrows its part of the offer; a failed or absent
+  list keeps stock and personally added names. New names need conservative
+  bounds and prices before a run can budget them. Default: configured models
+  alone, with no provider-list read or per-account list narrowing.
 - **What a model is good at:** a description in configuration, or
   structured capabilities a planning agent could filter on. Default: a
   description (section 9).

@@ -850,7 +850,10 @@ terminal client, the captures and the faults.
   main-advanced and mid-proof/restarted turn-landing checks. The owned
   welcome includes program login and key admission. One setup-cut story
   walks fetch, preparation, run and started cuts using one scratch and
-  cache, makes one final setup, then restarts across its removal cut.
+  cache, makes one final setup, then restarts across its removal cut. Its
+  started cut runs on a box with no sign-in, as init writes one without
+  `openssl`: it holds the engine, and the group's source step needs the
+  engine to answer its discovery (`../protocol/sign-in.md`, 9.9).
   The slot-host story still belongs here: its loop starts the shipped
   owned-slot subprocess and real Forgejo. Its referee polls the marker
   promptly instead of waiting for the fixture shell's 30-second sleep.
@@ -2757,6 +2760,14 @@ scripts/proof-live.sh               the live tier
   (../protocol/git.md, section 3); transcripts are of 2.47.
 
 ## 11. Later
+
+- **A started cut with the box's sign-in enabled** (2.6): the cut holds
+  the engine before it hears the group's `started`, while the source
+  step needs that engine's discovery before the group can finish. A
+  proof on that configuration needs a cut or a source step that breaks
+  this dependency without weakening the cut's assertions. Default:
+  2.6's no-sign-in fixture for this cut alone; the final setup and
+  removal cut use the box's sign-in.
 
 - **A default box's combined browser and terminal proof** (2.6;
   `../protocol/setup.md`, 7.1, 7.2 and 13.4): one 1440-pixel walk with the

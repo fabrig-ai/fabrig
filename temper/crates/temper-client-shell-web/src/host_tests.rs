@@ -543,6 +543,20 @@ fn the_github_rows_external_web_link_has_its_address_and_noopener() {
 }
 
 #[test]
+#[cfg(not(feature = "small-window"))]
+fn the_ordinary_bundle_keeps_the_whole_document_bound() {
+    assert_eq!(limits::client().window_bytes, None);
+}
+
+#[test]
+#[cfg(feature = "small-window")]
+fn the_small_window_bundle_names_a_valid_narrower_window() {
+    let client = limits::client();
+    assert_eq!(client.window_bytes, Some(131_072));
+    assert!(limits::valid(&client));
+}
+
+#[test]
 fn validity_accepts_stock_limits_and_refuses_invalid_edges() {
     let mut client = limits::client();
     assert!(limits::valid(&client));

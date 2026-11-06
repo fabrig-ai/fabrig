@@ -22,7 +22,7 @@ pub use read::Refusal;
 /// The whole JSON input bound, checked before decoding or creating any output.
 pub const DOCUMENT_BYTES: u32 = 1 << 20;
 /// Joint script payload and arrays, including sixteen scripts each way and fallback.
-pub const SCRIPT_BYTES: u32 = 1 << 18;
+pub const SCRIPT_BYTES: u32 = 1 << 19;
 /// One answer's owned parts and bytes, before the provider encodes it.
 pub const ANSWER_BYTES: u32 = 1 << 16;
 /// Each bounded document list: models, scripts, turns, lines, repositories and sources.
