@@ -167,13 +167,9 @@ pub(crate) fn demo(directory: &Path, program: &Path, bundle: &Path) {
         &value["application"]["demo"]["llm"]["listen"]["socket"],
         &value["application"]["webhooks"]["listener"]["socket"],
     ];
-    // Keep all reservations until both documents are written, so the kernel cannot draw one twice.
-    let listeners = sockets.map(|_| std::net::TcpListener::bind("127.0.0.1:0").expect("reserve demo port"));
+    let addresses = temper_fixtures::ports::addresses::<4>(&[]);
     let replacements = std::array::from_fn::<_, 4, _>(|index| {
-        (
-            sockets[index].as_str().expect("demo socket").to_owned(),
-            listeners[index].local_addr().expect("demo address").to_string(),
-        )
+        (sockets[index].as_str().expect("demo socket").to_owned(), addresses[index].to_string())
     });
     replace_sockets(&mut value, &replacements);
     value["application"]["clients"]["bundle"] = serde_json::json!(bundle);

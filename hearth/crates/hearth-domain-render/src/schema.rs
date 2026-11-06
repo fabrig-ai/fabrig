@@ -530,12 +530,14 @@ pub(crate) fn type_fault(kind: &Composite, form: &Form, spec: Option<&Spec>) -> 
     }
     if let (Composite::String(value), Form::Enum(listed)) = (kind, form) {
         let mut found = false;
-        let mut names = List::with_capacity(u32::try_from(listed.len()).expect("enum count"));
         for name in listed {
             found |= name.text == *value;
-            names.push(name.text.clone()).expect("enum count");
         }
         if !found {
+            let mut names = List::with_capacity(u32::try_from(listed.len()).expect("enum count"));
+            for name in listed {
+                names.push(name.text.clone()).expect("enum count");
+            }
             return Some(Schema::Enum { value: value.clone(), listed: names.into_boxed() });
         }
     }

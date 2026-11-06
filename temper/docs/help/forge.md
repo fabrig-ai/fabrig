@@ -135,6 +135,11 @@ forge's row and logged without its signed path or query. Add an explicit
 origin and restart if needed; an explicit unresolved host refuses startup,
 and an empty origin list disables job logs.
 
+For another project on an owned Forgejo that is set up, read `forge list`,
+then use `project make NAME --key KEY` and
+`repository make --project PROJECT --forge FORGE ORG/NAME --until adopted --key KEY`.
+`forge setup` offers one owned forge; repeating setup does not make another.
+
 ## Limits
 
 For the configuration members that need a restart, read `temper help configuration`.

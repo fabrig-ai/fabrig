@@ -50,7 +50,7 @@ Unlisted sections have no known gap.
   the real loop's connected Forgejo, its tokens connect, a replace of
   its git token and another user's tokens stopped.
 - **Departs:** 5.1: `project` is area 1's (`jig/rows.rs`
-  `PROJECT_SHOW`, `PROJECT_FUND`), not area 3's; the placeholders add
+  `PROJECT_SHOW`, `PROJECT_FUND`, `PROJECT_MAKE`), not area 3's; the placeholders add
   `HOST:PORT` and `URL`. 5.2: `settings show template|policy` takes
   `--revision` too; `landing show` takes `TASK [--project PROJECT]`, not
   `LANDING`; `landing list` takes no `--newer-than` or `--after`, and

@@ -345,6 +345,10 @@ impl<P: ShellPlatform> Shell<P> {
             | skein_ui_web::page::Op::Choice { .. }
             | skein_ui_web::page::Op::Href { .. }
             | skein_ui_web::page::Op::ScrollEnd { .. }
+            | skein_ui_web::page::Op::HoldView { .. }
+            | skein_ui_web::page::Op::PutView { .. }
+            | skein_ui_web::page::Op::Measure { .. }
+            | skein_ui_web::page::Op::ScrollScreen { .. }
             | skein_ui_web::page::Op::Component { .. } => false,
         });
         self.heading_focus.finish(&document, heading, new_page, requested);
@@ -411,6 +415,16 @@ fn forge_sign_in(
             raw.push(content.into_bytes().into());
         }
         selector.push_str(" ~ meta[name='temper-forge-sign-in']");
+    }
+    let mut selector = String::from("meta[name='temper-forge-sign-in-off']");
+    for _ in 0..temper_client_view::forge_sign_in::FORGES {
+        let Some(meta) = document.query_selector(&selector).expect("forge off meta selector") else { break };
+        if let Some(content) = meta.get_attribute("content") {
+            facts.read_off(&content);
+            #[cfg(feature = "record")]
+            raw.push([b"off ".as_slice(), content.as_bytes()].concat().into());
+        }
+        selector.push_str(" ~ meta[name='temper-forge-sign-in-off']");
     }
     facts
 }

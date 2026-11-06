@@ -30,7 +30,8 @@ A project is where work happens: the repositories adopted into it, one of them i
 
 ## How it changes
 
-- **Made:** `temper init` makes none. Setting up the box's Forgejo,
+- **Made:** `temper init` makes none. `project make NAME --key KEY` makes
+  one from policy 1 and prints its number. Setting up the box's Forgejo,
   or connecting a Forgejo with a first repository, makes a new
   project, named after the repository, unless you name one that
   exists; the playground's start makes `Demo`. In the client, the
@@ -48,7 +49,8 @@ A project is where work happens: the repositories adopted into it, one of them i
   `--visibility private` to make it private again. Anyone may read a
   public project's name and its tasks' structure and titles without
   signing in. The rest of their specifications and their words stay
-  private.
+  private. Opening visibility also needs anonymous admission configured;
+  temper help open-public-reading walks every figure and the restart.
 - **Deleted:** its owners delete it with Delete on its settings in the
   client, confirmed by its name; the playground's reset deletes
   `Demo`. It takes no new work at once and leaves every list;
@@ -69,7 +71,7 @@ A project is where work happens: the repositories adopted into it, one of them i
 
 ## Acting on it
 
-- **ctl:** `me` lists your projects; `forge setup` and `forge connect`
+- **ctl:** `me` lists your projects; `project make NAME --key KEY` makes one; `forge setup` and `forge connect`
   can make one with its first repository (temper help forge);
   `repository adopt` adds a repository; `task list`, `inbox` and
   `model list` read one project's, and `chat start` starts a chat in
@@ -94,10 +96,11 @@ For the configuration members that need a restart, read `temper help configurati
   refused. A public project's pages show its name and task titles,
   never the rest of a specification, instructions, inputs, results,
   conversations, or people's names.
-- ctl's group `project` reads a project and changes its spends and visibility:
+- ctl's group `project` makes a project, reads it and changes its spends and visibility:
   no call renames a project or changes its roles.
-- temper does not make a project from ctl but with its first
-  repository, or the playground's.
+- `forge setup` sets up the one owned Forgejo with its first repository.
+  For a second project, read `forge list`, use `project make NAME --key KEY`,
+  then `repository make --project PROJECT --forge FORGE ORG/NAME --until adopted --key KEY`.
 - ctl has no call that deletes a project.
 - A deleted project's spend stays in the period's totals.
 - temper has no call that moves a task or a repository to another

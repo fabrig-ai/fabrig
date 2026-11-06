@@ -29,7 +29,7 @@ pub fn provider_issuer(
     probe
         .push(Client {
             id: Box::from(b"probe".as_slice()),
-            secret: Secret::new(Box::from(b"probe".as_slice())),
+            secret: Some(Secret::new(Box::from(b"probe".as_slice()))),
             redirect_uri: urls.public_origin.clone(),
         })
         .expect("one probe");
@@ -42,8 +42,17 @@ pub fn provider_issuer(
     }
     for (index, configured) in provider.clients.iter().enumerate() {
         let at = path.member(b"clients").child(Segment::Index(u32::try_from(index).expect("bounded clients")));
-        let secret = contents(files, &configured.secret, &at.member(b"secret"))?;
-        let secret = crate::secret(bytes::copy_of(secret.expose()));
+        let secret = match &configured.secret {
+            None => None,
+            Some(name) => {
+                let secret = contents(files, name, &at.member(b"secret"))?;
+                let secret = crate::secret(bytes::copy_of(secret.expose()));
+                if secret.is_empty() || secret.len() > skein_lib::length::usize_of(bounds.client_bytes) {
+                    return Err(Problem { path: at.member(b"secret"), what: What::Bound });
+                }
+                Some(secret)
+            }
+        };
         if configured.id.is_empty() || configured.id.len() > skein_lib::length::usize_of(bounds.client_bytes) {
             return Err(Problem { path: at.member(b"id"), what: What::Bound });
         }
@@ -57,9 +66,6 @@ pub fn provider_issuer(
             if previous.id == configured.id {
                 return Err(Problem { path: at.member(b"id"), what: What::Unique });
             }
-        }
-        if secret.is_empty() || secret.len() > skein_lib::length::usize_of(bounds.client_bytes) {
-            return Err(Problem { path: at.member(b"secret"), what: What::Bound });
         }
         // Use the issuer's URL rules too; no second reading of its address grammar.
         let mut one = List::with_capacity(1);

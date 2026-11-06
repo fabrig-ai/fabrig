@@ -152,6 +152,11 @@ pub struct SetupStep {
 /// Operator diagnostics taken by the shell (protocol/forge.md, 2.3).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Note {
+    /// The engine's hello refusal, suppressed until its words change (protocol/README.md, 15.3).
+    HelloRefused {
+        channel: u64,
+        text: Box<[u8]>,
+    },
     /// A failed answer accepted by the hub, for stderr only (domain/worker.md, 4.3).
     RunFailed(temper_engine_domain::RunDiagnostic),
     /// A refused assignment accepted by the hub, for stderr only (domain/worker.md, 4.3).

@@ -1072,3 +1072,17 @@ pub const HAND_BACK: Tool = Tool {
     area: 3,
     notes: b"Only the current holder may hand it back.\n",
 };
+
+/// Appended position for creating a project without setting up a forge.
+pub const PROJECT_MAKE_AT: u8 = 70;
+/// Create a project from policy 1 and return its number under a kept key.
+pub const PROJECT_MAKE: Tool = Tool {
+    name: b"project make",
+    line: b"Make a project from policy 1",
+    prints: b"The new project's number",
+    result: b"make-project",
+    forms: &[&[positional(b"name", b"NAME", Kind::Literal, Required, b"The new project's name")]],
+    keyed: Keyed::Required,
+    area: 1,
+    notes: b"Copies policy 1 as it is now. A key replay returns the first project's number. Add a repository with repository make --project PROJECT --forge FORGE ORG/NAME --until adopted --key KEY.\n",
+};

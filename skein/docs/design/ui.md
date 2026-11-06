@@ -182,6 +182,7 @@ fake person. What waits is in section 18, and what is open in section
 | required | a field its form needs filled |
 | submits on enter | a text field or a text area that takes a `Submit` on Enter |
 | completed | an item done: a step of a sequence finished, an entry of a checklist met |
+| continues | a log whose last entry is not its list's last: a shell does not follow it, and counts the person away from the list's end |
 | folds away | a disclosure a shell folds on a press outside it or on Escape, as a panel |
 | to log end | a button a shell answers, pressed, by taking the page's logs to their ends; its press still reaches its owner where bound |
 
@@ -212,6 +213,7 @@ shell with no such behaviour, as the text shell, ignores it.
 | an entry kind | text field | text (the default), number, email, telephone, url, date, time or secret (3.4) |
 | a value | text field, text area | its text, and its owner's count of writes (3.4) |
 | a focus request | any node | a count its owner moves when it asks the focus for this node; at most one per tree (section 7) |
+| an end request | log | a count its owner moves when it asks the log's end into view; the log follows from then on, until the person scrolls up |
 | a count | list, table, tree | the whole collection's count, when the tree holds only part of it |
 | an order | list | that its items are numbered, and the first one's number, from 0; each item after it is one more |
 | a position | item, row, tree item | its place in the whole collection, from 1 |
@@ -223,7 +225,8 @@ shell with no such behaviour, as the text shell, ignores it.
 
 Each but completed and an order is found in the semantic or
 accessibility APIs of two platforms (4.1); section 16 maps each onto the
-web, iOS and Android.
+web, iOS and Android. A log's *continues* and its end request say what a
+shell does with its view, as *folds away* does, and no platform has them.
 
 An order's numbers are the shell's to show, never an item's text: a
 screen reader and a person selecting words meet them as the platform's
@@ -409,7 +412,8 @@ how far a piece of work has gone toward its end.
   what each of its tokens means: go to an address, edit a field, choose,
   act on an object, read more.
 - **The acts are closed:** `Press`, `Input { value }` (a field's whole
-  value), `Submit`, `Toggle`, `Drawing { data }` (11.3).
+  value), `Submit`, `Toggle`, `Drawing { data }` (11.3), `Near { edge }`
+  (below).
 - **Decoding.** A shell reports an act with its node's id. The view
   finds the node in its last tree and gives the act with the node's
   binding, a `BoundAct`; the application's root hands it to the
@@ -425,12 +429,23 @@ how far a piece of work has gone toward its end.
   | check, choice | `Toggle` |
   | drawing | `Drawing`, within the limit on a drawing's bytes |
   | button, link, tab, menu item, option | `Press` |
+  | log | `Near` |
 
   A binding on any other role is the owner's bug, which the builder
   asserts against, as it does building past the tree's capacity: every
   bound node is one a person acts on, so a shell numbers or finds each
   by its role. A component (section 12) therefore cannot stand in for a
   role: on the wrong role, what it reports is refused.
+- **A log's edge near.** `Near { edge }`, its edge the log's head or its
+  foot, says that edge of a bound log has come near the person's view,
+  whatever brought it there: a key, a wheel, a finger, or what the log
+  holds. What it means is its owner's, who reads on or does nothing, and a
+  read that failed is asked for again at the next. A shell with a view
+  reports it by what it measures (ui-web.md, section 7), so an owner that
+  reads a page at each one fills the view and no more. The foot is reported
+  only of a log that continues (3.2): any other log's foot is its list's
+  end. A shell with no view reports it on the person's command (ui-text.md,
+  section 6). A log is never numbered or pressed.
 - **Two kinds of stale, both dropped, neither an error:** a node the
   last patches removed resolves to nothing; a node still there whose
   object has left its owner's state carries a token its owner refuses.
@@ -999,6 +1014,7 @@ The page part keeps the full mapping (ui-web.md, section 6); in brief:
 | pressed, selected | `aria-pressed`, a check's `checked`; `aria-selected`, a choice's `checked`, an option's `selected` |
 | required, submits on enter | `required` or `aria-required`; `enterkeyhint="send"` |
 | completed | the page part's word, last in the item, hidden from sight and read (ui-web.md, section 6) |
+| continues, an end request | nothing of their own: the page part reads them (ui-web.md, section 7) |
 | folds away | `data-folds-away` on the `<details>`, read by the page part (ui-web.md, section 7) |
 | to log end | `data-to-log-end` on the `<button>`, read by the page part (ui-web.md, section 7) |
 | a name, a description, a level | `aria-label`; `aria-describedby`; `<h1>` to `<h6>`, deeper `aria-level` |
@@ -1168,7 +1184,8 @@ a world's loop and the browser tier's run it.
 - **What it does,** a step at a time: go to an address; press; type a
   field's whole value; send, as Enter in a field that submits on enter;
   see something, within a time; see it gone, within a time; reload;
-  pause.
+  pause; say a log's edge is near (section 6), on the tree face alone,
+  since in a browser a person scrolls and the page part says it.
 - **What it reports:** its next act on a node's id, a navigation or a
   reload; that it waits until the tree changes or a time passes; that it
   is done; or that it failed, at which step and why ("no button named
@@ -1201,9 +1218,6 @@ to 7 and 11 settle.
   several, a tree grid. Each waits for an application that needs it, and
   comes by the light path (4.3) where it maps one to one.
 - **Right-to-left text,** for section 19's question to be settled.
-- **A log's head near:** an act of a log's saying that its head has come
-  near the view, so that earlier lines load by scrolling rather than on a
-  press. It waits for `temper/docs/design/draft/chat-reading.md`, 5.
 - **An item's own blocks:** a line or a paragraph under a list's item
   ends the list (section 10), so one list written with them is several
   on the page, its numbers still as written. Read into the item, one list

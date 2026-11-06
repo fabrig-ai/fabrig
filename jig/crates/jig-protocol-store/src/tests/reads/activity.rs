@@ -164,15 +164,18 @@ fn line_cost(value: core::Record) -> u64 {
 fn a_turn_alone_past_the_page_comes_as_its_size() {
     let large = [42; 2048];
     let (mut store, disk) = transcript_page_with_last(&large);
-    for (label, after, expected_frames) in
-        [("tail", None, &[][..]), ("later", Some(activity_position(6)), &[0_u64, 67][..])]
-    {
+    for (label, after, backwards, expected_frames, expected_next) in [
+        ("tail", None, true, &[][..], Some(activity_position(5))),
+        ("earlier beside", Some(activity_position(6)), true, &[0_u64, 67][..], Some(activity_position(5))),
+        ("later beside", Some(activity_position(4)), false, &[0_u64, 67][..], None),
+    ] {
         let mut range = full_range(after);
         range.rows = 1;
+        range.backwards = backwards;
         range.bytes = line_cost(turn_line(5, 3)) + 512;
         let (rows, next, frames) = joined_page(&mut store, range, &disk);
         assert_eq!(frames.as_ref(), expected_frames, "{label}: the large turn's bytes are not read");
-        assert_eq!(next, Some(activity_position(5)), "{label}");
+        assert_eq!(next, expected_next, "{label}");
         assert_eq!(rows.len(), 1, "{label}");
         assert_eq!(rows[0].related, None, "{label}");
         assert_eq!(
@@ -253,4 +256,114 @@ fn an_activity_join_cut_after_words_keeps_its_retry_position() {
     range.after = next;
     let result = load(&mut store, range);
     assert_too_linked(&result, OWNER_JOINS);
+}
+
+fn later_range(position: u64) -> reads::Range {
+    let mut range = activity_range(Some(activity_position(position)));
+    range.backwards = false;
+    range
+}
+
+#[test]
+fn later_beside_a_line_walks_upward_within_its_bounds() {
+    let mut store = activity_store();
+    let (rows, next) = page(load(&mut store, later_range(1)));
+    assert_eq!(values(&rows).as_ref(), [fixtures::activity_line(CHILD, 2), fixtures::activity_line(CHILD, 3)]);
+    assert_eq!(next, Some(activity_position(3)));
+    let (rows, next) = page(load(&mut store, later_range(3)));
+    assert_eq!(values(&rows).as_ref(), [fixtures::activity_line(CHILD, 4), fixtures::activity_line(CHILD, 5)]);
+    assert_eq!(next, None);
+}
+
+#[test]
+fn later_past_the_end_is_empty() {
+    let mut store = activity_store();
+    for position in [5, 6, u64::MAX] {
+        assert_empty(&load(&mut store, later_range(position)));
+    }
+}
+
+#[test]
+fn a_bound_stops_a_later_page_with_a_cursor_that_retries() {
+    let mut store = activity_store();
+    let encoded_bound = store.limits.store.page.bytes;
+    let owned_bound = later_range(1).bytes;
+    for (encoded, owned) in [(encoded_bound, 1), (1, owned_bound)] {
+        store.limits.store.page.bytes = encoded;
+        let mut range = later_range(1);
+        range.bytes = owned;
+        let (rows, next) = page(load(&mut store, range));
+        assert!(rows.is_empty());
+        assert_eq!(next, Some(activity_position(1)));
+        store.limits.store.page.bytes = encoded_bound;
+        let mut retry = later_range(1);
+        retry.after = next;
+        let (rows, next) = page(load(&mut store, retry));
+        assert_eq!(values(&rows).as_ref(), [fixtures::activity_line(CHILD, 2), fixtures::activity_line(CHILD, 3)]);
+        assert_eq!(next, Some(activity_position(3)));
+    }
+}
+
+#[test]
+fn earlier_and_later_meet_with_no_line_twice() {
+    let mut store = activity_store();
+    let (earlier, before) = page(load(&mut store, activity_range(Some(activity_position(3)))));
+    let mut range = later_range(2);
+    range.rows = 3;
+    let (later, after) = page(load(&mut store, range));
+    assert_eq!(values(&earlier).as_ref(), [fixtures::activity_line(CHILD, 2), fixtures::activity_line(CHILD, 1)]);
+    assert_eq!(
+        values(&later).as_ref(),
+        [fixtures::activity_line(CHILD, 3), fixtures::activity_line(CHILD, 4), fixtures::activity_line(CHILD, 5)]
+    );
+    assert_eq!(before, None);
+    assert_eq!(after, None);
+}
+
+#[test]
+fn a_later_page_joins_turns_in_ascending_order() {
+    let (mut store, disk) = transcript_page_with_last(WORDS[2]);
+    let mut range = later_range(0);
+    range.rows = 5;
+    let (rows, next, _) = joined_page(&mut store, range, &disk);
+    assert_eq!(
+        values(&rows).as_ref(),
+        [
+            turn_line(1, 1),
+            fixtures::activity_line(CHILD, 2),
+            turn_line(3, 2),
+            fixtures::activity_line(CHILD, 4),
+            turn_line(5, 3)
+        ]
+    );
+    assert_eq!(next, None);
+    for (index, turn, bytes) in [(0, 1, b"one"), (2, 2, b"two"), (4, 3, b"tri")] {
+        assert_eq!(
+            rows[index].related,
+            Some(core::Record::Core(core::CoreRecord::Turn(fixtures::turn(CHILD, 1, turn, bytes))))
+        );
+    }
+}
+
+#[test]
+fn a_later_page_stops_at_its_encoded_byte_bound() {
+    let mut store = activity_store();
+    // One encoded words row fits, but two exceed this byte bound.
+    store.limits.store.page.bytes = 80;
+    let (rows, next) = page(load(&mut store, later_range(1)));
+    assert_eq!(values(&rows).as_ref(), [fixtures::activity_line(CHILD, 2)]);
+    assert_eq!(next, Some(activity_position(2)));
+}
+
+#[test]
+fn a_later_join_bound_keeps_its_accepted_prefix() {
+    const OWNER_JOINS: u32 = 1;
+    let (mut store, _) = transcript_page_with_last(WORDS[2]);
+    store.limits.joins = OWNER_JOINS;
+    let (rows, next) = page(load(&mut store, later_range(1)));
+    assert_eq!(values(&rows).as_ref(), [fixtures::activity_line(CHILD, 2)]);
+    assert_eq!(next, Some(activity_position(2)));
+    let mut retry = later_range(2);
+    retry.after = next;
+    assert_too_linked(&load(&mut store, retry), OWNER_JOINS);
 }

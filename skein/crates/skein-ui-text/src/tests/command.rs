@@ -1,7 +1,7 @@
 use super::fixtures;
 use crate::{Command, Print, Refusal, command, refusal_line, render};
 use skein_lib::{Queue, bytes::copy_of};
-use skein_ui::Act;
+use skein_ui::{Act, LogEdge};
 use skein_ui::{Builder, NodeId, Role, State, Tree};
 const NO_NODE: NodeId = NodeId(0); // no visible node
 fn page() -> Tree {
@@ -136,7 +136,7 @@ fn anything_else_names_the_commands() {
     for line in [b"hello".as_slice(), b"p words", b"-1", b"1x", b"18446744073709551616"] {
         assert_eq!(command(line, None, &page(), 30), Command::Refused { refusal: Refusal::Unknown, number: 0 });
     }
-    assert_eq!(refusal_line(b"ops", Refusal::Unknown, 0).as_ref(), b"ops: commands: n, n words, p, q\n");
+    assert_eq!(refusal_line(b"ops", Refusal::Unknown, 0).as_ref(), b"ops: commands: n, n words, p, q, up, down\n");
 }
 #[test]
 fn numbers_hold_across_a_print_and_renumber_at_the_next() {
@@ -197,4 +197,104 @@ fn an_option_disabled_after_the_print_is_gone() {
         command(b"2", Some(print.numbers.as_slice()), &later, 80),
         Command::Refused { refusal: Refusal::Gone, number: 2 }
     );
+}
+
+const FIRST_BOUND_LOG: u32 = 5; // Page, banner, main, unbound log, region precede it.
+const READING_LINE_BYTES: u32 = 8; // PgDn's four bytes with two spaces at each end.
+
+fn unbound_log(b: &mut Builder) {
+    b.open(Role::Log);
+    b.name(b"Messages");
+    b.description(b"Log description");
+    fixtures::leaf(b, Role::Paragraph, b"entry");
+    b.close();
+}
+
+fn reading_logs(b: &mut Builder) {
+    b.open(Role::Log);
+    b.name(b"Unbound");
+    b.close();
+    b.open(Role::Region);
+    b.name(b"History");
+    for name in [b"Messages".as_slice(), b"Other"] {
+        b.open(Role::Log);
+        b.name(name);
+        b.description(b"Log description");
+        b.bind(fixtures::binding());
+        fixtures::leaf(b, Role::Paragraph, b"entry");
+        b.close();
+    }
+    b.close();
+    fixtures::button(b, b"Accept", true);
+}
+
+#[test]
+fn up_and_down_near_the_first_bound_log() {
+    let tree = fixtures::page(reading_logs);
+    let print = numbers(&tree);
+    let node = tree.get(FIRST_BOUND_LOG).unwrap().id;
+    for (line, edge) in [(b"  up  ".as_slice(), LogEdge::Head), (b" down ", LogEdge::Foot)] {
+        assert_eq!(
+            command(line, Some(print.numbers.as_slice()), &tree, READING_LINE_BYTES),
+            Command::Act { node, first: Act::Near { edge }, submit: false }
+        );
+        assert_eq!(
+            command(line, None, &tree, READING_LINE_BYTES),
+            Command::Act { node, first: Act::Near { edge }, submit: false }
+        );
+    }
+}
+
+#[test]
+fn the_lines_pgup_and_pgdn_make_are_up_and_down() {
+    let tree = fixtures::page(reading_logs);
+    let node = tree.get(FIRST_BOUND_LOG).unwrap().id;
+    for (line, edge) in [(b" \x1b[5~ ".as_slice(), LogEdge::Head), (b"  \x1b[6~  ", LogEdge::Foot)] {
+        assert_eq!(
+            command(line, None, &tree, READING_LINE_BYTES),
+            Command::Act { node, first: Act::Near { edge }, submit: false }
+        );
+    }
+}
+
+#[test]
+fn no_bound_log_refuses_them() {
+    let unbound = fixtures::page(|b| {
+        unbound_log(b);
+        fixtures::button(b, b"Accept", true);
+    });
+    for tree in [page(), unbound] {
+        for line in [b" up ".as_slice(), b" down ", b" \x1b[5~ ", b" \x1b[6~ "] {
+            assert_eq!(
+                command(line, None, &tree, READING_LINE_BYTES),
+                Command::Refused { refusal: Refusal::Unknown, number: 0 }
+            );
+        }
+    }
+    assert_eq!(refusal_line(b"ops", Refusal::Unknown, 0).as_ref(), b"ops: commands: n, n words, p, q, up, down\n");
+}
+
+#[test]
+fn a_bound_log_says_how_to_read_on() {
+    let tree = fixtures::page(reading_logs);
+    let print = numbers(&tree);
+    assert_eq!(
+        print.text.as_slice(),
+        concat!(
+            "== ops == \nUnbound:\nHistory:\n",
+            "  Messages:\n    (up, down: more lines)\n    Log description\n    entry\n",
+            "  Other:\n    (up, down: more lines)\n    Log description\n    entry\n",
+            "[1] Accept\n",
+        )
+        .as_bytes()
+    );
+    assert_eq!(print.numbers.as_slice(), [tree.get(tree.len().checked_sub(1).unwrap()).unwrap().id]);
+}
+
+#[test]
+fn an_unbound_log_prints_as_it_did() {
+    let tree = fixtures::page(unbound_log);
+    let print = numbers(&tree);
+    assert_eq!(print.text.as_slice(), b"== ops == \nMessages:\n  Log description\n  entry\n");
+    assert!(print.numbers.is_empty());
 }

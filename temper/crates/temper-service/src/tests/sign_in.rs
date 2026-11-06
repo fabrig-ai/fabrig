@@ -77,6 +77,7 @@ pub(crate) fn world_settings(
         &fixtures::seeds(),
         &config.limits.root.journal,
         None,
+        None,
         files,
     )
     .unwrap();
@@ -164,7 +165,8 @@ fn answer_fetch(service: &mut crate::Service, issuer: &mut fake::Issuer) {
     clients.google_http_answer(exchange, answer);
 }
 pub(crate) fn header<'a>(peer: &'a Peer, name: &str) -> &'a [u8] {
-    let text = core::str::from_utf8(peer.received()).unwrap();
+    let end = skein_lib::bytes::find(peer.received(), b"\r\n\r\n").unwrap();
+    let text = core::str::from_utf8(&peer.received()[..end]).unwrap();
     for line in text.split("\r\n") {
         if let Some((key, value)) = line.split_once(": ")
             && key.eq_ignore_ascii_case(name)

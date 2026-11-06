@@ -1,5 +1,9 @@
 //! Checked edge bounds for temper's frame, cards, transcript and tree.
 use crate::words::Words;
+// A run's line is cut at 253 bytes and its rows at 160 (chat_line.rs).
+// Their names and displayed text fit 512 bytes per structure node, even
+// when the receiving text bound is smaller (client/README.md, 5.4 and 5.15).
+const STRUCTURE_TEXT: u32 = 512;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Limits {
     pub tree: skein_ui::Limits,
@@ -30,29 +34,28 @@ impl Limits {
         // nodes plus the result's markdown, and one region for live delegates.
         let delegations = temper_client_domain::pages::delegation::bound(domain);
         let delegated = markdown.checked_add(16)?.checked_mul(delegations)?.checked_add(1)?;
-        // A turn shares text across its blocks, names, inputs and outcomes
-        // (jig's client/domain/client.md, 14). Price its Markdown separately
-        // from each line's structure (client/README.md, 5.4).
-        let blocks = receiving.rows.checked_mul(receiving.rows)?;
-        let structure = blocks
-            .checked_mul(2_u32.checked_add(8)?)?
-            // Message/who/says slots, speaker and call disclosure, with text.
-            .checked_add(receiving.rows.checked_mul(8)?)?
-            // The turn's region and wrappers.
-            .checked_add(3)?;
-        let turn = receiving.turn_text.max(receiving.long_text);
-        // Person/owner words have their own text cap, not the turn's budget:
-        // a paragraph and text per line, plus eight shell/state nodes.
+        // The window charges LINE_ROOM for each line, message, block, object
+        // and part. Ten nodes per room cover block shells and per-document
+        // Markdown wrappers (client/README.md, 5.4 and 5.15).
+        let bytes = u32::try_from(receiving.document_bytes).ok()?;
+        let lines = bytes.checked_div(jig_client::contract::LINE_ROOM)?;
+        let window_structure = lines.checked_mul(10)?;
+        let window_nodes = skein_ui::markdown::max_nodes(bytes)?.checked_add(window_structure)?;
+        let window_text =
+            skein_ui::markdown::max_text_bytes(bytes)?.checked_add(window_structure.checked_mul(STRUCTURE_TEXT)?)?;
+        // Thread projects at most `lines` pending words and live turns together.
+        // Each pending word has at most `text` bytes, with a paragraph per line.
         let plain = receiving.text.checked_add(1)?.checked_mul(2)?.checked_add(8)?;
-        // An activity result can have three independent markdown documents:
-        // cancellation reason, ending value and result value. No shared Budget;
-        // price each whole, as before, plus its heading/status/region structure.
-        let activity = markdown.checked_add(16)?.checked_mul(3)?;
-        let line = structure.max(markdown.checked_add(8)?).max(plain).max(activity);
-        let turns = line
-            .checked_mul(temper_client_domain::pages::chat::LINES)?
-            // Thread::lines retains LINES plus one Left status (two nodes).
-            .checked_add(2)?
+        // Each live turn has `live` bytes; prune_live bounds their total by
+        // document_bytes. Price the smaller of these two independent bounds.
+        let live = u64::from(receiving.long_text).checked_mul(u64::from(lines))?.min(receiving.document_bytes);
+        let live = u32::try_from(live).ok()?;
+        let live_nodes = skein_ui::markdown::max_nodes(live)?.checked_add(lines.checked_mul(plain.max(10))?)?;
+        let live_text = skein_ui::markdown::max_text_bytes(live)?
+            .checked_add(window_structure.checked_mul(STRUCTURE_TEXT)?)?
+            .checked_add(lines.checked_mul(receiving.text)?)?;
+        let turn = receiving.turn_text.max(receiving.long_text);
+        let turns = 2_u32
             // The conversation log.
             .checked_add(1)?
             // Request: paragraph and text per line, words at most text bytes;
@@ -76,8 +79,8 @@ impl Limits {
             .checked_mul(counts.accounts)?
             .checked_mul(2)?
             .checked_add(counts.sign_ins.checked_mul(2)?)?
-            // Switcher row: button, name, repository span, repository and count.
-            .checked_add(receiving.projects.checked_mul(5)?)?
+            // Switcher row: slot, named button, repository text, link, label and count.
+            .checked_add(receiving.projects.checked_mul(6)?)?
             .checked_add(128)?
             .checked_add(receiving.rows.checked_mul(3)?)?
             // Worker and program observations, omission rows and retained sign-out failures.
@@ -129,8 +132,8 @@ impl Limits {
             .checked_add(agent)?
             .checked_add(receiving.rows.checked_mul(32)?)?
             .checked_add(dependencies)?
-            // Switcher row: button, name, repository span, repository and count.
-            .checked_add(receiving.projects.checked_mul(5)?)?
+            // Switcher row: slot, named button, repository text, link, label and count.
+            .checked_add(receiving.projects.checked_mul(6)?)?
             .checked_add(128)?
             // Welcome steps, cards and foot, plus the shared accounts form.
             .max(account_nodes.checked_add(64)?)
@@ -173,17 +176,11 @@ impl Limits {
             .checked_add(receiving.rows.checked_mul(2)?.checked_add(3)?.max(6))?;
         let text_bytes = structural
             .checked_mul(text)?
-            .checked_add(
-                temper_client_domain::pages::chat::LINES.checked_mul(skein_ui::markdown::max_text_bytes(turn)?)?,
-            )?
+            .checked_add(window_text)?
+            .checked_add(live_text)?
             .checked_add(skein_ui::markdown::max_text_bytes(receiving.long_text)?)?
             .checked_add(text.checked_mul(24)?)?;
-        let nodes = structural
-            .checked_add(
-                temper_client_domain::pages::chat::LINES
-                    .checked_mul(skein_ui::markdown::max_nodes(turn)?.checked_add(3)?)?,
-            )?
-            .checked_add(document)?;
+        let nodes = structural.checked_add(window_nodes)?.checked_add(live_nodes)?.checked_add(document)?;
         let tree = skein_ui::Limits {
             nodes,
             depth: receiving.rows.checked_add(34)?,
