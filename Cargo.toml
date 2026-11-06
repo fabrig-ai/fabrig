@@ -732,6 +732,9 @@ opt-level = 1
 [profile.dev.package.hearth-tree-world]
 opt-level = 1
 
+[profile.dev.package.hearth-domain-builder]
+opt-level = 1
+
 [profile.release]
 panic = "abort"
 overflow-checks = true
