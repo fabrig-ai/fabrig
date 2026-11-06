@@ -111,13 +111,7 @@ fn revision_restore_refusals_print_tools_words_and_exit_2() {
         ),
         (
             4,
-            c::Refusal::Malformed {
-                at: 0,
-                why: c::Malformed::Settings(c::MalformedSettings {
-                    setting: c::Setting::Rules,
-                    fault: c::SettingFault::Count,
-                }),
-            },
+            c::Refusal::Malformed { at: 0, why: super::malformed_setting(c::Setting::Rules, c::SettingFault::Count) },
             "revision restore: too large; revision 4's settings pass a proposal's bound; restore a later revision\n",
             r#"{"malformed":{"at":0,"why":{"settings":{"setting":{"kind":"rules"},"fault":"count"}}}}"#,
         ),

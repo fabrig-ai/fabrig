@@ -146,7 +146,11 @@ fn stored_settings_whole_fit_refuses_at_load_core_without_root_completion() {
         core::Restore::Kept
     );
     let expected = Failure::Settings {
-        failure: settings::Failure { setting: settings::Setting::Charter(1), fault: settings::Fault::Reference },
+        failure: settings::Failure {
+            setting: settings::Setting::Charter(1),
+            fault: settings::Fault::Reference,
+            detail: None,
+        },
         changed: true,
     };
     assert!(

@@ -209,7 +209,7 @@ fn whole_settings_fit_is_checked_by_load_core() {
         assert_eq!(restore(&mut core, &env, row), Restored::Live);
     }
     let expected = Failure::Settings {
-        failure: crate::settings::Failure { setting: Setting::Charter(1), fault: Fault::Reference },
+        failure: crate::settings::Failure { setting: Setting::Charter(1), fault: Fault::Reference, detail: None },
         changed: true,
     };
     let mut out = Queue::uncapped();
@@ -285,7 +285,7 @@ fn setting_values_keep_their_byte_bound_at_the_row_entrance() {
     assert_eq!(
         core.start_failure(),
         Some(Failure::Settings {
-            failure: crate::settings::Failure { setting: Setting::Charter(1), fault: Fault::Shape },
+            failure: crate::settings::Failure { setting: Setting::Charter(1), fault: Fault::Shape, detail: None },
             changed: true,
         })
     );

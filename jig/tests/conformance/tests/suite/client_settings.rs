@@ -80,7 +80,7 @@ fn settings_contract_fixtures_keep_the_ask_answers_documents_and_selectors() {
         c::SettingFault::Grace,
         c::SettingFault::Owner,
     ] {
-        let why = c::MalformedSettings { setting: c::Setting::Rules, fault };
+        let why = c::MalformedSettings { setting: c::Setting::Rules, fault, detail: None };
         let wire = w::Refusal::Malformed(
             w::RefusalMalformed::new(
                 t,

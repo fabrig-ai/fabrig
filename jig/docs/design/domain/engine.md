@@ -2693,6 +2693,17 @@ A document's path is 1 to 256 bytes; its heading, when present, is 1 to 80
 bytes. An empty path or a present empty heading is out of shape
 (2026-11-04).
 
+A document refusal retains the *shape* fault, the item and the setting,
+and carries bounded facts naming the member, the document index (and name
+segment index where applicable), the failed rule and its scalar values.
+A count overflow names `documents`, its supplied count and
+`tasks.charter_documents` with its configured value. Name failures name
+`authority.segments` or `authority.segment_bytes`; path and heading failures
+name their minimum or maximum byte bound; a connector failure names the
+unregistered connector. These facts cross proposal answers, stored answers
+and the client wire unchanged; a renderer words them without validating
+the charter again.
+
 The configuration and service start check that brief sections hold the
 core's own most and `tasks.charter_documents`, naming both limits on
 refusal. The core's in-code validity check does not require this relation:

@@ -395,8 +395,16 @@ pub(super) fn proposing_run(settings_family: bool) -> (World, u64, u64) {
     settings_run(settings_family, None)
 }
 pub(super) fn settings_run(settings_family: bool, history: Option<u32>) -> (World, u64, u64) {
+    settings_run_with_limits(settings_family, history, run_configuration().1)
+}
+/// Start a proposing run with explicit core bounds and the usual fake peers.
+pub(super) fn settings_run_with_limits(
+    settings_family: bool,
+    history: Option<u32>,
+    mut limits: root::Limits,
+) -> (World, u64, u64) {
     use skein_lib::{Duration, Token};
-    let (config, mut limits) = run_configuration();
+    let config = run_configuration().0;
     if let Some(history) = history {
         limits.core.settings.history = history;
     }
