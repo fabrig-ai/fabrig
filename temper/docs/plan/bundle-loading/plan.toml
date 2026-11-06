@@ -36,3 +36,23 @@ id = 1
 story = "A browser asking for gzip gets temper's module compressed under temper's policy, a client not asking gets the plain bytes, and the wait is measured against what it was"
 parts = ["figures-before", "compression-skein", "compression-serve"]
 walk = false
+
+[[part]]
+id = "page-skein"
+title = "The bundler's page with a placeholder and its loader, in the example under the strict policy"
+mode = "direct"
+needs = ["compression-skein"]
+design = "skein/docs/design/ui-web.md, 4.3"
+
+[[part]]
+id = "page-temper"
+title = "The look request bundle-loading landed, proved at 2 Mb/s on a release bundle and accounted for"
+mode = "direct"
+needs = ["page-skein", "compression-serve", "figures-before"]
+design = "temper/docs/design/client/browser.md, 2.5"
+
+[[slice]]
+id = 2
+story = "On a slow connection, a person sees temper's mark and a bar counting real bytes within a few hundred milliseconds, and it gives way to the client"
+parts = ["page-skein", "page-temper"]
+walk = false
