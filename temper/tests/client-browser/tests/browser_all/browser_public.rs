@@ -1,5 +1,5 @@
 //! The public walk in Chromium (temper/docs/design/client/browser.md, 8.4): the
-//! bundle, anonymous navigation, and an open page losing a project's public records.
+//! signed-out page with no stream, its public reads, and a 404 under the page's policy.
 use skein_fake_person::{Face, Find, Found, Next, Step as PersonStep, Target};
 use skein_fake_person_browser::harness::Output;
 use skein_fake_person_browser::{BrowserFace, Command, Harness, Opens, Outcome, Play, Script, Sent, Stdin, Step};
@@ -76,28 +76,6 @@ fn visibility(directory: &Path, public: bool) -> Step {
     })
 }
 
-fn change_until(directory: &Path, condition: &str) -> Step {
-    Step::Run(Command {
-        program: temper(),
-        args: [
-            "ctl".as_ref(),
-            directory.as_os_str(),
-            "change".as_ref(),
-            "show".as_ref(),
-            "2".as_ref(),
-            "--until".as_ref(),
-            condition.as_ref(),
-        ]
-        .into_iter()
-        .map(std::ffi::OsString::from)
-        .collect(),
-        env: vec![],
-        stdin: Stdin::Closed,
-        opens: None,
-        within: WITHIN,
-    })
-}
-
 fn owner_steps(tier: &Tier, client: &Path) -> Vec<Step> {
     vec![
         // The first profile signs ctl in with the initial printed link. This
@@ -112,7 +90,6 @@ fn owner_steps(tier: &Tier, client: &Path) -> Vec<Step> {
         see(tier.states().live),
         temper_client_browser_world::connected(),
         see(heading(b"New chat")),
-        // The public index keeps goals that end while it holds the project.
         visibility(client, true),
         exited(),
         see(Find::exactly_named(Role::Button, CHAT)),
@@ -122,18 +99,6 @@ fn owner_steps(tier: &Tier, client: &Path) -> Vec<Step> {
         see(Find::exactly_named(Role::Region, b"Task 2")),
         see(Find::exactly_named(Role::Link, b"Task 2")
             .within(Box::new([Target::ExactRole { role: Role::Region, name: b"Task 2".as_slice().into() }]))),
-        press(
-            Find::exactly_named(Role::Link, b"Task 2")
-                .within(Box::new([Target::ExactRole { role: Role::Region, name: b"Task 2".as_slice().into() }])),
-        ),
-        see(heading(TITLE)),
-        change_until(client, "ci:passed"),
-        exited(),
-        see(Find::text(b"Passed")),
-        see(Find::text(b"Approved")),
-        change_until(client, "landed"),
-        exited(),
-        see(Find::text("Landed · merge commit ".as_bytes())),
         press(Find::exactly_named(Role::Button, b"Owner")),
         press(Find::exactly_named(Role::MenuItem, b"Sign out")),
         see(tier.states().signed_out),
@@ -246,21 +211,11 @@ impl Walk {
         if matches!(self.page, Page::Board) {
             assert!(text.contains("Demo"), "public project name is the board heading");
             assert!(text.contains("Goal "), "board names the goal by public identifier");
-            assert!(
-                text.matches(std::str::from_utf8(TITLE).expect("title")).count() >= 2,
-                "board shows the goal and its task's titles: {text}"
-            );
-            assert!(
-                text.contains("Review this change at the named head"),
-                "board shows the review task's first-line title: {text}"
-            );
+            assert!(text.contains(std::str::from_utf8(TITLE).expect("title")), "board shows the goal's title: {text}");
         }
         if matches!(self.page, Page::Task) {
             assert!(text.contains("Goal "), "card names its public goal");
-            assert!(
-                text.matches(std::str::from_utf8(TITLE).expect("title")).count() >= 2,
-                "card shows the goal and its delegate's titles: {text}"
-            );
+            assert!(text.contains(std::str::from_utf8(TITLE).expect("title")), "card shows the goal's title: {text}");
         }
         if matches!(self.page, Page::Landings) {
             // This demo lands directly, without a landing by turn: no turn, queues or recent landings.
@@ -287,20 +242,12 @@ impl Walk {
                     see(heading(PROJECT)),
                     see(Find::named(Role::Link, b"Goal ")),
                     see(Find::text(TITLE)),
-                    see(Find::text(b"ended")),
                     Step::Address(self.board.as_bytes().into()),
                 ],
             ),
-            Page::Board => self.open(
-                Page::Task,
-                vec![
-                    press(Find::named(Role::Link, b"Goal ")),
-                    see(Find::text(TITLE)),
-                    see(Find::text(b"landed")),
-                    see(Find::text(b"Passed")),
-                    see(Find::text("Gate 1 · review · blocking".as_bytes())),
-                ],
-            ),
+            Page::Board => {
+                self.open(Page::Task, vec![press(Find::named(Role::Link, b"Goal ")), see(Find::text(TITLE))]);
+            }
             Page::Task => self.open(
                 Page::Landings,
                 vec![

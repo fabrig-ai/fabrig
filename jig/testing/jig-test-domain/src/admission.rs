@@ -376,7 +376,7 @@ mod expiry_tests {
             );
         }
         let people_env = env.with(env.limits.core.people);
-        assert!(domain.core.people.start_link(&people_env));
+        assert!(domain.core.people.start_link());
         domain.core.people.start_sweep();
         assert!(domain.core.people.start_complete(&people_env));
         assert!(domain.core.people.ready());

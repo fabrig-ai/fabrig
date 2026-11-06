@@ -873,7 +873,7 @@ pub(super) fn down(service: &mut Stages) {
         let Some(request) = program.below.pop() else { break };
         match request {
             backend::Below::File { request, deadline } => {
-                service.files.seed_randomness(service.next_operation);
+                service.files.seed_randomness(service.submitted);
                 file_layer::down_until(
                     &mut service.files,
                     deadline,

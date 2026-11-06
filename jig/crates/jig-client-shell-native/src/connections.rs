@@ -5,6 +5,7 @@ use jig_client_protocol_http::{self as mapping, Call, Mapping, Unlinked};
 use skein_http::{Header, client as http};
 use skein_lib::{
     Duration, Env, Queue, Secret, Time, Token, Wall,
+    length::len_u64,
     stream::{self, Down, Read, Up},
 };
 use std::collections::{BTreeMap, VecDeque};
@@ -310,7 +311,7 @@ impl Connections {
                 }
                 http::Event::Body(Up::Bytes(bytes)) => {
                     if let Some(remaining) = &mut value.remaining {
-                        *remaining -= u64::try_from(bytes.len()).expect("bounded read");
+                        *remaining -= len_u64(bytes.len());
                     }
                     if let Some(stream) = &mut value.stream {
                         stream.body(&bytes, &mut self.heard);

@@ -74,5 +74,5 @@ pub(super) fn domain_request_credit(service: &Stages, frame: Option<&Frame>) -> 
 }
 
 pub(super) fn submissions_ready(service: &Stages) -> bool {
-    service.submissions.room() > 0 && service.operations.len() < service.operations.capacity()
+    service.submissions.room() > 0 && service.in_flight < service.limits.routes
 }

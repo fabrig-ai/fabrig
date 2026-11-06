@@ -3,7 +3,7 @@ use super::Untranslatable;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::v19 as w;
 use jig_domain_people as p;
-use skein_lib::{List, Reader, Wall};
+use skein_lib::{List, Reader, Wall, length::len_u64};
 #[derive(Debug)]
 pub(crate) struct NamedAsk {
     pub ask: p::Ask,
@@ -559,14 +559,13 @@ fn policy(
 
 fn pattern_bytes(value: &p::Pattern, fixed: usize) -> Option<u64> {
     let mut bytes = u64::try_from(fixed).ok()?;
-    bytes = bytes.checked_add(
-        u64::try_from(value.segments.len()).ok()?.checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
-    )?;
+    bytes =
+        bytes.checked_add(len_u64(value.segments.len()).checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?)?;
     for segment in &value.segments {
-        bytes = bytes.checked_add(u64::try_from(segment.len()).ok()?)?;
+        bytes = bytes.checked_add(len_u64(segment.len()))?;
     }
     bytes.checked_add(match &value.last {
-        p::Last::Exact(bytes) | p::Last::Open(bytes) => u64::try_from(bytes.len()).ok()?,
+        p::Last::Exact(bytes) | p::Last::Open(bytes) => len_u64(bytes.len()),
     })
 }
 

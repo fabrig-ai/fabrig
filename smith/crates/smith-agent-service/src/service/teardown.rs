@@ -5,7 +5,7 @@
 
 use skein_lib::Time;
 
-use super::{Failure, Frame, Operation, Stages, USAGE_OWNER, face};
+use super::{Failure, Frame, Stages, USAGE_OWNER, face};
 use skein_io as io;
 
 /// Where the service is in its end, advanced after each routing pass.
@@ -280,13 +280,7 @@ pub(super) fn follow(service: &mut Stages, frame: Option<&Frame>) {
 
 /// All non-destination children have reported closed; only these streams may remain.
 fn operations_settled(service: &Stages) -> bool {
-    for (_, operation) in &service.operations {
-        match operation {
-            Operation::Signals(_) if service.signals.is_some() => {}
-            Operation::Signals(_) | Operation::Io(_) | Operation::File(_) => return false,
-        }
-    }
-    true
+    service.in_flight == if service.signals.is_some() { service.signal_reads } else { 0 }
 }
 
 fn settled(service: &Stages, frame: Option<&Frame>, streams: u32) -> bool {

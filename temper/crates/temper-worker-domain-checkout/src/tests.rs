@@ -1585,11 +1585,16 @@ fn commit_merged_head(h: &mut Harness, hold: Token, head: u8, parent: u8, merged
     assert_eq!(identity, 3);
     assert_eq!(&*message, title);
     assert!(body.is_empty());
-    h.one(Event::Done { owner: hold, done: Done::Committed { commit: commit(merged) } })
+    let Op::CheckOut { commit: checked_out, clean, .. } = h.next(hold, Done::Committed { commit: commit(merged) })
+    else {
+        panic!("check out the merge commit before the next head or ready")
+    };
+    assert_eq!((checked_out, clean), (commit(merged), true));
+    h.one(Event::Done { owner: hold, done: Done::Succeeded })
 }
 
 #[test]
-fn merged_head_already_contained_makes_no_merge() {
+fn merged_head_already_contained_makes_no_merge_or_checkout() {
     let mut h = Harness::new(MERGES);
     let hold = begin_merged(&mut h, &[commit(7)]);
     let Request::Prepared { prepared: Prepared::Ready { .. }, .. } =
@@ -1611,6 +1616,7 @@ fn merged_head_conflict_fails_naming_it() {
     h.next(hold, Done::IsAncestor { contains: false });
     h.next(hold, Done::Merged);
     h.next(hold, Done::Committed { commit: commit(11) });
+    h.next(hold, Done::Succeeded);
     h.next(hold, Done::IsAncestor { contains: false });
     assert_eq!(
         h.one(Event::Done { owner: hold, done: Done::Conflicted { files: Box::new([bytes(b"code")]) } }),
@@ -1630,6 +1636,27 @@ fn merged_head_conflict_fails_naming_it() {
     );
     h.one(Event::Release { hold });
     assert_eq!(h.domain.holds(), 0);
+}
+
+#[test]
+fn merged_head_checkout_failure_ends_preparation_transient() {
+    for done in [
+        Done::Failed { fault: Fault::Broken },
+        Done::FailedWithOutput {
+            fault: Fault::Broken,
+            diagnostic: crate::git::PushDiagnostic::new(b"checkout failed", 0),
+        },
+    ] {
+        let mut h = Harness::new(MERGES);
+        let hold = begin_merged(&mut h, &[commit(7)]);
+        h.next(hold, Done::IsAncestor { contains: false });
+        h.next(hold, Done::Merged);
+        h.next(hold, Done::Committed { commit: commit(11) });
+        assert_eq!(
+            h.one(Event::Done { owner: hold, done }),
+            Request::Prepared { client: Token::new(1), prepared: Prepared::Failed { failure: Failure::Transient } }
+        );
+    }
 }
 
 #[test]

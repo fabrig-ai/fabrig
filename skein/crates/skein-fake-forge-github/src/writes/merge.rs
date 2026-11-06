@@ -9,6 +9,7 @@ use crate::{
 use alloc::boxed::Box;
 use skein_fake_forge_domain::{self as fake, api as a};
 use skein_forge::{api, github::plans::tables::Method};
+use skein_lib::bytes::concat;
 use skein_lib::{ReplyTo, Writer};
 
 #[derive(Debug)]
@@ -52,9 +53,7 @@ pub(super) fn finish(
                     Method::Squash => b"Squash ",
                     Method::Rebase => b"Rebase ",
                 };
-                let Some(message) = crate::service::joined(prefix, texts::MERGE_METHOD) else {
-                    return Outcome::Reply(answers::failed());
-                };
+                let message = concat(&[prefix, texts::MERGE_METHOD]);
                 return Outcome::Reply(answers::refusal(405, &message, limits));
             }
             call(user, repository, Stage::Head { number, head }, a::Op::Read(a::Read::Pull { number }), reply_to)

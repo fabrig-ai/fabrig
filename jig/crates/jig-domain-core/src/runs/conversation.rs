@@ -3,7 +3,7 @@
 
 use crate::{CallKey, CallRecord, Core, CoreRecord, Held, Limits, Now, Record, Request, Write};
 use alloc::boxed::Box;
-use skein_lib::{Queue, ReplyTo};
+use skein_lib::{Queue, ReplyTo, length::len_u64};
 
 /// The original host tool and answer; its name is its key's (store.md, 5.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -45,7 +45,7 @@ impl SettledCall {
             SettledAnswer::Host { body, .. } => body.len(),
             SettledAnswer::Delivery { evidence, .. } => evidence.len(),
         };
-        u64::try_from(self.tool.len()).ok()?.checked_add(u64::try_from(answer).ok()?)
+        len_u64(self.tool.len()).checked_add(len_u64(answer))
     }
 
     #[must_use]

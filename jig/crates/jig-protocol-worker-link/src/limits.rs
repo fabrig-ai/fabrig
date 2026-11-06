@@ -65,8 +65,7 @@ pub fn valid(limits: &Limits) -> bool {
     let Ok(channel) = channel_limits(limits) else {
         return false;
     };
-    schema.check(Role::Initiator, &channel).is_ok()
-        && channel_capacity(&channel).is_some()
+    channel::valid(&schema, Role::Initiator, &channel)
         && limits.sizes.slots.checked_mul(limits.sizes.calls).is_some()
         && limits.sizes.slots.checked_mul(limits.sizes.turns).is_some()
         && limits.sizes.accounts.checked_add(limits.sizes.credentials).is_some()
@@ -76,13 +75,4 @@ pub fn valid(limits: &Limits) -> bool {
 
 fn inventory_bound(bodies: &wire::v9::Limits) -> Option<u64> {
     wire::Logins::encoded_bound(bodies)?.checked_add(8)
-}
-
-// The channel has no separate validity API at this pin. Keep its derived
-// queue capacity and control-frame bounds, without its retained heap price.
-fn channel_capacity(limits: &skein_channel::Limits) -> Option<u32> {
-    limits.output_frames.checked_add(3)?;
-    let terms = limits.kinds.checked_mul(6)?.checked_add(4)?;
-    let open = limits.credential.checked_add(14)?;
-    open.max(terms).max(262).checked_add(8)
 }

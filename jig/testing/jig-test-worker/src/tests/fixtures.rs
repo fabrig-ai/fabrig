@@ -67,16 +67,13 @@ pub fn limits() -> Limits {
 }
 
 // Smith's smallest v4 golden, used by its agent-process world's charter fixture.
-const SMALLEST: [u8; 121] = [
-    0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0,
-];
+#[expect(clippy::disallowed_macros, reason = "fixed wire fixtures belong to worker unit tests")]
+const SMALLEST: &[u8] =
+    include_bytes!("../../../../../smith/crates/smith-charter/golden/v4/record_charter_smallest.bin");
 
 pub fn charter_bytes() -> Box<[u8]> {
     let source =
-        smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(&SMALLEST)).expect("golden charter");
+        smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(SMALLEST)).expect("golden charter");
     let mut parts = source.into_parts();
     parts.mode = smith_charter::Mode::Finite;
     parts.budget = smith_charter::Budget::new(
