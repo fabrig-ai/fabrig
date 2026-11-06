@@ -18,8 +18,6 @@ Unlisted sections have no known gap.
   `task hand-back` do so for a person task. The `plainer-panels` request of
   2026-11-06 left the line, saying nothing else changes, so the page's
   `taken by:` stands beside it.
-- **Not yet:** 5.5: `forge setup` ends with the line on protection it could not
-  read.
 - **Not yet:** 5.1: the groups `finding`, `qa`, `party` and
   `deployment`, absent from `temper-client-tools`' `table.rs` `GROUPS`.
   5.2: `repository receipts`, `finding list`, `finding show`, `qa marks`,
