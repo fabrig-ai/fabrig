@@ -123,3 +123,13 @@ Leave:
 - each new test's rule broken and the failure seen;
 - each option taken;
 - the render's differences against `02.html`, each with its reason.
+
+## Rebase (2026-11-06, step merge, foreman look-round-8/own-way-pane/foreman-1)
+
+resolve Kind::bound by retaining main’s concept bound and the branch’s Way bound
+The merge conflicts in `temper/crates/temper-docs/src/lib.rs`, in `Kind::bound`.
+Main commit `9eae4b74df` raises `Concept` to 12,288 bytes and groups it with `Walk`; this branch groups `Concept` with the new `Way` at 8,192.
+Resolve with `Self::Concept | Self::Walk => 12_288` and a separate `Self::Way => 8_192`.
+Update the bound doc comment to list all six kinds’ bounds in enum order: 6,144; 12,288; 12,288; 3,072; 8,192; 32,768.
+Preserve `Kind::Way`, its word, `HOW_TEMPER_BUILDS_TEMPER`, and its entry in the 60-page table.
+After resolving, run the focused `temper-docs` tests for page templates, numbered Way sections, and the constant’s table entry through heavy.
