@@ -2,7 +2,10 @@
 //! Each worker tags the file lane with its own prefix. The stage owns no policy.
 use super::{Component, sources};
 use skein_io::{self as io, file, file_layer, kernel};
-use skein_lib::{Duration, Queue, Time, Token};
+use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
+
+const FILE_LIMITS: file_layer::Limits =
+    file_layer::Limits { files: 1, read: 1, entries: 1, whole: 1, timeout: Duration::from_secs(1) };
 
 /// A worker's serialized source file operations and their kernel handoffs.
 #[derive(Debug)]
@@ -18,7 +21,7 @@ impl FileStage {
     #[must_use]
     pub fn new(prefix: u64) -> Self {
         Self {
-            files: file_layer::FileIo::new(1, 1, 1, Duration::from_secs(1)),
+            files: file_layer::FileIo::with_limits(&FILE_LIMITS),
             prefix,
             requests: Queue::uncapped(),
             events: Queue::uncapped(),
@@ -38,7 +41,7 @@ impl FileStage {
         }
         complete.op = Token::new(complete.op.raw() & !self.prefix);
         cancel_target(&mut complete.kind, self.prefix, false);
-        file_layer::up(&mut self.files, complete, &mut self.events, &mut self.submitted);
+        file_layer::step::up(&mut self.files, &file_env(Time::ZERO), complete, &mut self.events, &mut self.submitted);
         Ok(())
     }
     /// Route inspection terminals by owner and flush the file driver's requests.
@@ -49,7 +52,7 @@ impl FileStage {
         below: &mut Queue<io::Request>,
         submitted: &mut Queue<kernel::Submit>,
     ) -> Option<(Token, sources::Answer)> {
-        file_layer::expire(&mut self.files, now, &mut self.submitted);
+        file_layer::step::expire(&mut self.files, &file_env(now), &mut self.submitted);
         let mut answer = None;
         for _ in 0..self.events.len() {
             let event = self.events.pop().expect("file event count");
@@ -79,11 +82,18 @@ impl FileStage {
     fn down(&mut self, now: Time, deadline: Option<Time>, request: file::Request) {
         match &request {
             file::Request::Close { .. } => {
-                file_layer::down(&mut self.files, now, request, &mut self.events, &mut self.submitted);
+                file_layer::step::down(&mut self.files, &file_env(now), request, &mut self.events, &mut self.submitted);
             }
             file::Request::OpenDirectory { .. } | file::Request::Stat { .. } => {
                 let deadline = deadline.unwrap_or(now);
-                file_layer::down_until(&mut self.files, deadline, request, &mut self.events, &mut self.submitted);
+                file_layer::step::down_until(
+                    &mut self.files,
+                    &file_env(now),
+                    deadline,
+                    request,
+                    &mut self.events,
+                    &mut self.submitted,
+                );
             }
             file::Request::Lock { .. }
             | file::Request::MakeDirectory { .. }
@@ -135,6 +145,10 @@ impl FileStage {
     pub fn next_deadline(&self) -> Option<Time> {
         self.files.next_deadline()
     }
+}
+
+fn file_env(now: Time) -> Env<file_layer::Limits> {
+    Env { now, wall: Wall::EPOCH, limits: FILE_LIMITS }
 }
 
 fn cancel_target(kind: &mut kernel::Op, prefix: u64, tagging: bool) {
