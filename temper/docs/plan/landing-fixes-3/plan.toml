@@ -1,0 +1,31 @@
+draft = "landing-fixes-3"
+repo = "fabrig"
+sources = ["temper/docs/plan/landing-fixes-3/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
+
+# What the first real landing through temper met. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "head-words"
+title = "A head in words is spelled as git spells it: a receipt and a cancel's reason"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 6"
+
+[[part]]
+id = "compare-words"
+title = "A compare's refusal says its ids were read and what to read instead"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 4.3"
+
+[[slice]]
+id = 1
+story = "A run's receipt prints a 40-digit head, and a refused compare tells it what to read rather than to try another hash"
+parts = ["head-words", "compare-words"]
+walk = false
