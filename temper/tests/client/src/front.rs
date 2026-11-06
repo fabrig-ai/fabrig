@@ -10,6 +10,7 @@ use jig_client_kit::{
     harness::{ClientId, Front, FrontFault, Observed},
     joint::transport::Transport,
 };
+use jig_domain_link::{ModelBound, Phase};
 use skein_lib::{Duration, RequestEnvelope, Time, Token, Wall};
 use smith_domain_session::llm::Block;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -1024,11 +1025,7 @@ impl Joint {
             .settings
             .models
             .iter()
-            .map(|model| jig_domain_host::ModelBound {
-                name: model.name.clone(),
-                window: model.window,
-                output: model.output,
-            })
+            .map(|model| ModelBound { name: model.name.clone(), window: model.window, output: model.output })
             .collect();
         let mut hello =
             temper_engine_domain_world::protocol::hello_slots(fixtures::QUESTION_WORKER, slots, Box::new([]));
@@ -1995,7 +1992,7 @@ impl Front<Temper> for Joint {
                     .hosting
                     .iter()
                     .map(|(task, attempt)| {
-                        temper_engine_domain_world::protocol::hosting(*task, *attempt, jig_domain_host::Phase::Active)
+                        temper_engine_domain_world::protocol::hosting(*task, *attempt, Phase::Active)
                     })
                     .collect();
                 let store = self.engine.take_store();
