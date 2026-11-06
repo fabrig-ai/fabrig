@@ -175,7 +175,6 @@ fn document_proposal() -> c::ReadValue {
             })
             .expect("one funding source");
         c::Proposal {
-            projects: List::with_capacity(0),
             key,
             project: fixtures::PROJECT,
             projects: List::from_boxed(Box::new([fixtures::PROJECT])),
