@@ -14,6 +14,10 @@
   during a plan it is compiled, not run. The browser proof and the rows of
   the laptop's table it does not repeat are recorded in
   `temper/docs/development/ui-repo-link-review.md`.
+- **Not yet:** 9.2, 9.9: a box's later preparation leaves a source already listed on
+  its old address (`crates/temper/src/forge_sign_in.rs`, `source`). 9.9: an owned
+  Forgejo's session keeps Forgejo's default lifetime, and `machine.owned.public`
+  beside `machine.owned.sign_in` is not refused.
 - **Departs:** 9.7: the user's request of 2026-11-05 has a new store's
   forge meta appear only after `forge connect` and a restart; it appears
   when the forge is kept, with no restart, because 9.7 has an entry serve

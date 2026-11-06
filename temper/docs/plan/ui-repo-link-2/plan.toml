@@ -1,0 +1,20 @@
+draft = "ui-repo-link-2"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-repo-link-2/inputs/request.md", "temper/crates/temper/src/forge_sign_in.rs", "temper/crates/temper-forge-setup/src/ini.rs", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "settings"
+title = "A box's Forgejo sign-in settings: a moved port, the refused pair, the session, an empty name"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/sign-in.md, 9.9"
+
+[[slice]]
+id = 1
+story = "A box whose temper port moved still signs its person in by one click, its Forgejo session lasts an hour, a public origin beside sign-in is refused and an empty repository name has no link"
+parts = ["settings"]
+walk = false

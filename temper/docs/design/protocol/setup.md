@@ -613,6 +613,8 @@ private, never edited by hand:
   `[oauth2]`: `JWT_SECRET`; each drawn once, at the first preparation,
   and kept in `state`;
 - `[service]`: `DISABLE_REGISTRATION`; `[mailer]`: off;
+- `[session]`: `SESSION_LIFE_TIME` 3600, an hour, on every owned Forgejo
+  (`sign-in.md`, 9.9);
 - when the forge signs its people in through temper, named by
   `application.sign_in.forges` (`sign-in.md`, 9.7): `[oauth2_client]`
   `ENABLE_AUTO_REGISTRATION = true`, `USERNAME = preferred_username` and
@@ -733,6 +735,13 @@ binaries; and decides by
   row, so a row a person removed in the site administration is not
   noticed: removing `runner/config.yaml` before a start registers it
   again.
+- **A box's source, last.** A later preparation, with
+  `application.machine.owned.sign_in` set, ends by pointing the source
+  already listed at temper's current address (`sign-in.md`, 9.9), after
+  `state` is written, so that a move of temper's port reaches Forgejo
+  before it loads the source. A first preparation has no source yet. No
+  ending of these two commands fails the preparation, but a termination
+  signal, as below.
 - **Forgejo's command line only,** on the work path, never its web: under
   the lock no Forgejo runs, so nothing writes its database beside the
   preparation.
@@ -2051,7 +2060,7 @@ document.
   | `owned` | the box's owned Forgejo | its members below; the owned kind's group (7.1) and the offer to set one up (6.5) need it |
   | `owned.forgejo`, `owned.runner.binary` | cache paths (configuration.md, section 12), or `"fetched"` | checked against the pins of 6.1; `"fetched"` names temper's pinned build in the cache, which `temper forge fetch` writes (6.6) |
   | `owned.mirror` | absent, or `{"forgejo", "runner"}`, each an origin | each `https://HOST` or `https://HOST:PORT`, no path: where `temper forge fetch` asks for the pinned paths (6.6) |
-  | `owned.public` | absent, or an origin | `https://HOST` or `https://HOST:PORT`, no path: the address people reach this Forgejo at, behind a proxy; written as `ROOT_URL` and `DOMAIN` (6.2) |
+  | `owned.public` | absent, or an origin | `https://HOST` or `https://HOST:PORT`, no path: the address people reach this Forgejo at, behind a proxy; written as `ROOT_URL` and `DOMAIN` (6.2); refused beside a set `owned.sign_in`, at that member's path (`sign-in.md`, 9.9) |
   | `owned.runner` | the runner's members, or null for none | `capacity` at least 1; `labels` at least one, at most 8 |
   | `owned.listen` | an address, jig's format | a socket address on loopback; unique among the deployment's listeners and the machine's ports |
   | `owned.remote` | an HTTP base | `http://<listen>`: the forge's git base |
@@ -3465,7 +3474,10 @@ relies on.
   capacity at the same versions rewrites the runner's YAML while keeping
   its registration and secrets; `register` run only where the row may
   not exist (6.3), so that what a runner declared stays over a later
-  preparation, an upgrade and a runner added again. The shell checks
+  preparation, an upgrade and a runner added again; a box's later
+  preparation pointing its source at the current address, and going on
+  whatever either command answers, with neither command at a first
+  preparation or without `owned.sign_in`. The shell checks
   that a live runner's
   lock permits identical YAML to remain and refuses changed YAML until
   the runner stops.
