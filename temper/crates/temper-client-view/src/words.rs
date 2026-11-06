@@ -87,6 +87,7 @@ pub enum Word {
     SettingsProposalUp,
     SettingsProposalNone,
     SettingsProposalChange,
+    SettingsProposalChangeAsks,
     SettingsProposalWaiting,
     SettingsProposalOwners,
     SettingsProposalAccepted,
@@ -1377,7 +1378,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
 // The command’s Copy adds three literal phrases (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
-const PHRASES: u32 = 1861;
+const PHRASES: u32 = 1862;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1403,10 +1404,10 @@ const PHRASES: u32 = 1861;
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 3256;
+const SEGMENTS: u32 = 3257;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 45407;
-const ALL: [Word; 1261] = [
+const ENGLISH_BYTES: u32 = 45426;
+const ALL: [Word; 1262] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -1481,6 +1482,7 @@ const ALL: [Word; 1261] = [
     Word::SettingsProposalUp,
     Word::SettingsProposalNone,
     Word::SettingsProposalChange,
+    Word::SettingsProposalChangeAsks,
     Word::SettingsProposalWaiting,
     Word::SettingsProposalOwners,
     Word::SettingsProposalAccepted,
@@ -2785,6 +2787,7 @@ impl Word {
             Self::SettingsProposalUp => 3427,
             Self::SettingsProposalNone => 3428,
             Self::SettingsProposalChange => 3429,
+            Self::SettingsProposalChangeAsks => 3872,
             Self::SettingsProposalWaiting => 3430,
             Self::SettingsProposalOwners => 3431,
             Self::SettingsProposalAccepted => 3432,
@@ -5309,6 +5312,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SettingsProposalUp => (&[b"Questions: asked of me too"], &[]),
         Word::SettingsProposalNone => (&[b"Questions: not asked"], &[]),
         Word::SettingsProposalChange => (&[b"Change something"], &[]),
+        Word::SettingsProposalChangeAsks => (&[b"What should change?"], &[]),
         Word::SettingsProposalWaiting => (&[b"Waiting for an owner"], &[]),
         Word::SettingsProposalOwners => (&[b"Owners of project ", b""], &[Name]),
         Word::SettingsProposalAccepted => (&[b"\xe2\x9c\x93 Accepted \xc2\xb7 new work follows it"], &[]),

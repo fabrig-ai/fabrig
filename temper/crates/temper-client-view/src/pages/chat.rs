@@ -264,7 +264,11 @@ fn session_composer(
     super::session::foot(b, &words.say(Word::Message, &[]));
     b.open(Role::TextArea);
     b.name(&words.say(Word::Message, &[]));
-    b.placeholder(&words.say(Word::MessagePlaceholder, &[Hole::Number(task.chip.task)]));
+    let placeholder = match chat.change_asked {
+        Some(_) => words.say(Word::SettingsProposalChangeAsks, &[]),
+        None => words.say(Word::MessagePlaceholder, &[Hole::Number(task.chip.task)]),
+    };
+    b.placeholder(&placeholder);
     if crate::choice::can_send(root) {
         b.state(State::SubmitsOnEnter);
     }

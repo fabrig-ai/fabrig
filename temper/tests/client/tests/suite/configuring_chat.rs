@@ -545,3 +545,36 @@ fn an_owner_rejects_a_chats_pending_proposal_under_needs_you() {
     );
     assert!(text(&mut world, agent, &[b"settings", b"show"]).starts_with("newest revision 1\n"));
 }
+
+#[test]
+fn change_something_asks_in_the_composer_until_a_message_goes_out() {
+    use jig_client_kit::harness::Until;
+    use skein_fake_person::{Find, Step};
+    use skein_ui::Role;
+    use skein_world::domain::Verdict;
+    let (mut world, _, task, _) = propose(false, None);
+    let person = world.client(fixtures::PARTY, Address::Settings { project: PROJECT });
+    world.go(person, Address::Chat { task });
+    world.person(
+        person,
+        vec![
+            Step::See { find: Find::named(Role::Button, b"Change something"), within: fixtures::WITHIN },
+            Step::Press { find: Find::named(Role::Button, b"Change something") },
+        ],
+    );
+    assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+    let chat = world.root(person).person().pages().chat().expect("chat page");
+    assert!(chat.change_asked.is_some(), "the card asks what should change");
+    world.person(
+        person,
+        vec![
+            Step::Type {
+                find: Find::named(Role::TextArea, b"Message"),
+                words: b"Wait three seconds instead".as_slice().into(),
+            },
+            Step::Press { find: Find::named(Role::Button, b"Send") },
+        ],
+    );
+    assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+    assert_eq!(world.root(person).person().pages().chat().expect("chat page").change_asked, None);
+}
