@@ -29,7 +29,7 @@ The look request `connect-flows` (`97ad67393b`), landed by `temper/docs/design/d
 
 ## Critical path, so far
 
-`dismiss-making` → `sheet-state` → `sheet-view` (also `list-near`, `connect-look`) → `sheet-copies` → `sheet-rows` → `sheet-story` → `look-proof`, about 470 implementer-minutes. Beside it: `connect-look` → `forge-cards` → `forge-yours` → `forge-rows`, and `connect-look`, `welcome-ways` → `model-cards` → `model-end`; both end at `sheet-story`.
+`dismiss-making` → `sheet-state` → `sheet-view` (also `list-near`, `connect-look`) → `sheet-copies` → `sheet-rows` → `sheet-story` → `look-proof`, about 505 implementer-minutes. Beside it: `connect-look` → `forge-cards` → `forge-yours` → `forge-rows`, and `connect-look`, `welcome-ways` → `model-cards` → `model-end`; both end at `sheet-story`.
 
 ## Overlaps
 
