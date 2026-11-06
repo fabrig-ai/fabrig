@@ -599,11 +599,12 @@ python3 -m http.server 8766
   into the view, and reprints. The reprint then equals the request's
   pages where their facts agree; a hand-made page's values need not be
   a journey's (the request's README says where they came from). The
-  landing also renders the request against the reprint at each width,
-  with disclosures and menus open, and accounts for every rule, page
-  change and named state in its last commit (`../draft/look-requests.md`,
-  4 and 5). Where they differ, the account says why, and the later
-  requests take the reprint as it is. What the
+  landing accounts for every rule, page change and named state in its
+  last commit; where it departs, the account says why, and the later
+  requests take the reprint as it is (`../draft/look-requests.md`, 5).
+  After it lands, the render check compares the request with the reprint
+  at each width, with disclosures and menus open, and what differs goes
+  back to fab as a finding (`../draft/look-requests.md`, 4). What the
   edits imply beyond the pages recorded (the same part in a state no
   journey reaches) is the view's and `temper.css`'s for every state, and
   the mockups follow (`mockups/README.md`, 1).
