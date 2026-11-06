@@ -679,3 +679,143 @@ Both runs' CPU figures follow. User and system columns use base-1 and start-1, t
 No gap remains to the aim, so the stop rule leaves the remaining options unmodified. Their post-repair instruction counts and potential savings are unknown; no new Callgrind profile is needed for a measurement-only stop. The earlier shared-kit estimates remain estimates, not measured savings at this start.
 
 Local collector artifacts are `target/hs2/last-round-base-1/`, `last-round-base-2/`, `last-round-start-1/` and `last-round-start-2/`; complete driver output is in `target/last-round-{base,start}-{1,2}.log`.
+
+## After
+
+Measured in one sitting on **debian-16gb-hel1-8**, identified by `heavy hostname`
+before and after the runs, on 2026-11-06, 16:30:57–16:33:16 UTC. This is not
+`## Before`'s debian-32gb-hel1-11, so those earlier figures are not reused.
+The base is `39b490f13846b81fe78c5834c7852ffd28a25155`; the merged tip this
+branch starts from is `3ed249efcdc0305622df149ba0b0f8a668acb374`. Fetching and
+merging `origin/hearth-speed-2/last-round` reported already up to date.
+
+The driver is copied unchanged from `hearth/docs/plan/hearth-speed-2/notes/common.md`,
+“The method”. All 34 hearth workspace packages are selected. The slot is
+detached at the base for two consecutive default runs, then returned to
+`hearth-speed-2/close` for two consecutive default runs and one fuzzy run.
+`NEXTEST_DOUBLE_SPAWN=0`, `TEMPER_BUNDLE=none`; no build setting changes.
+Accounting follows `tools/tiers/design.md`, 7.3 and 10.2: each test's user plus
+system CPU includes waited and reaped descendants; compilation, listing,
+nextest and the supervisor are excluded. These are measurements outside the
+queue, with no budget override. Every selected test passes in one attempt,
+without retries, starvation, unobserved tests, leaks or incomplete accounting.
+
+| Revision / run | User s | System s | CPU s | Suite wall s | Tests |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Base / base-1 | 26.287902 | 5.184347 | 31.472249 | 7.512272 | 2189 |
+| Base / base-2 | 25.314736 | 5.034642 | 30.349378 | 4.921049 | 2189 |
+| Tip / tip-1 | 19.823916 | 3.943697 | 23.767613 | 6.234593 | 2193 |
+| Tip / tip-2 | 19.110414 | 4.032743 | 23.143157 | 4.261303 | 2193 |
+| Tip / fuzzy | 68.569861 | 0.393174 | 68.963035 | 19.271153 | 60 |
+
+### Families, before beside after
+
+Pair 1 is base-1 beside tip-1; pair 2 is base-2 beside tip-2. The prescribed
+comparison uses **pair 2**, the lower whole-suite run on each side, rather than
+independent family minima.
+
+| Family / pair | Base tests | Base user s | Base system s | Base CPU s | Tip tests | Tip user s | Tip system s | Tip CPU s |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Builder / 1 | 106 | 8.331380 | 0.773792 | 9.105172 | 106 | 4.562956 | 0.548687 | 5.111643 |
+| Builder / 2 | 106 | 7.845252 | 0.826675 | 8.671927 | 106 | 4.261869 | 0.676528 | 4.938397 |
+| Tree / 1 | 54 | 8.027935 | 0.215043 | 8.242978 | 55 | 6.469871 | 0.219371 | 6.689242 |
+| Tree / 2 | 54 | 7.846780 | 0.166942 | 8.013722 | 55 | 6.436629 | 0.170038 | 6.606667 |
+| Real git / 1 | 183 | 2.931523 | 2.617134 | 5.548657 | 184 | 2.183907 | 1.534248 | 3.718155 |
+| Real git / 2 | 183 | 2.962389 | 2.450887 | 5.413276 | 184 | 2.011267 | 1.599280 | 3.610547 |
+| Render / 1 | 109 | 2.878091 | 0.273848 | 3.151939 | 109 | 2.465679 | 0.244847 | 2.710526 |
+| Render / 2 | 109 | 2.717263 | 0.282233 | 2.999496 | 109 | 2.379215 | 0.230268 | 2.609483 |
+| Rest / 1 | 1737 | 4.118973 | 1.304530 | 5.423503 | 1739 | 4.141503 | 1.396544 | 5.538047 |
+| Rest / 2 | 1737 | 3.943052 | 1.307905 | 5.250957 | 1739 | 4.021434 | 1.356629 | 5.378063 |
+
+### Complete inventory comparison
+
+The complete sets of `(binary_id, test_name)` from all four collector summaries
+are compared, not just their counts. The two base sets are identical, as are
+the two tip sets. **All 2189 original tests remain; none is gone or renamed.**
+The four added tests below account for the entire increase to 2193. Their
+introducing commits all belong to this plan: **zero tests from other plans,
+zero CPU cost attributable to such additions**. The additions remain in the
+tip totals; they are not subtracted to improve the ratio.
+
+| Added binary / test | Introducing commit | Tip-1 CPU s | Tip-2 CPU s |
+| --- | --- | ---: | ---: |
+| `hearth-builder-world::real / a_written_repository_is_the_one_git_makes` | `10e6e14341` | 0.044017 | 0.039596 |
+| `hearth-domain-render / tests::revision::document_lookups_agree_with_a_scan_across_task_name_boundaries` | `cc4cd91c5e` | 0.002128 | 0.001895 |
+| `hearth-fake-machine / tests::usage::held_bytes_and_changed_nodes_follow_creates_writes_truncations_and_removals` | `03e5eee8d7` | 0.001964 | 0.001722 |
+| `hearth-tree-world::suite / fs::edited_layers_indexes_agree_with_a_recount_of_the_paths` | `9d3adeba04` | 0.022153 | 0.021836 |
+| Total | | 0.070262 | 0.065049 |
+
+### What each commit saved
+
+From `git log --reverse --no-merges` over the plan base through the measured
+tip, using each commit's own message. CPU pairs are before twice → after
+twice, in seconds; the saving compares lower runs unless the row says
+otherwise. **Machines and starting revisions differ; these rows are not
+summed.** Planning and measurement commits claim no code saving. This close
+also changes only documentation and claims no additional saving.
+
+| Commit / change | Family / machine | CPU pairs and saving recorded in its message | Instruction evidence recorded in its message |
+| --- | --- | --- | --- |
+| `03bf2ab625` inputs | — | No measurement or saving claimed. | — |
+| `b18aa8254b` plan options | — | No measurement or saving claimed. | — |
+| `9ee6ea2e45` profile task | — | No measurement or saving claimed. | — |
+| `701066d8ab` repair tasks and design | — | No measurement or saving claimed. | — |
+| `9b32527640` profile | Whole suite / debian-32gb-hel1-11 | Baseline 36.127991 / 37.548702 over 2189 tests; no saving claimed. | Sampled function/process profile; no repair. |
+| `10e6e14341` write initial scratch objects | Real git / debian-32gb-hel1-11 | 6.494758 / 6.954515 (183 tests) → 4.769994 / 4.568420 (184); saves 1.926338, 29.66%. | Thin render including children: 19,146,396 → 16,163,955 Ir (15.58%). |
+| `cc4cd91c5e` bisect documents | Render / debian-32gb-hel1-14 | 3.240867 / 3.373501 → 3.292987 / 3.173084 (109 tests); lower figures save 0.067783. | Production edit: 1,135,950,072 → 889,045,550 Ir (21.7%). |
+| `10be2ad57f` classify matching template blobs | Render / debian-32gb-hel1-14 | Initial 3.292987 / 3.173084 → 3.753709 / 3.566053 rises in noise; isolated paired recheck 3.029215 / 3.081591 → 3.130119 / 3.001849 saves 0.9% (109 tests). | Production edit: 889,045,550 → 887,056,350 Ir; saves 1,989,200. |
+| `03e5eee8d7` track fake-machine mutations | Builder / debian-32gb-hel1-14 | 10.913514 / 10.077866 → 6.475569 / 6.939397 (106 tests); saves 3.602297, 35.74%. Whole-suite base 35.152892 / 35.755130 → 32.443612 / 31.638276, 90.00% of base. | Config rebuild: 6,539,678,452 → 906,232,379 Ir (86.14% fewer). |
+| `9d3adeba04` index tree filesystem | Tree / debian-16gb-hel1-8 | Base 8.279623 / 8.400264; task start 7.910510 / 8.085396 (54 tests) → 6.619571 / 6.756660 (55); saves 1.660052 against base, 1.290939 against start. | Wide/deep hash: 6,320,700,033 → 1,997,883,030 Ir; memory walk: 10,434,800,660 → 2,239,474,269. |
+| `cc35d72081` library path searches | Tree / debian-32gb-hel1-14 | Consecutive recheck 8.777425 / 9.064152 → 8.879332 / 8.730271 (54 tests); saves 0.537%. Whole suite 36.325589 / 36.509063 → 35.689698 / 35.983482 (2189). Earlier isolated tree pair rose; the message records both. | Wide/deep hash lower Ir 6,320,699,819 → 6,288,567,145 (0.508%); another-path refusal 2,787,532,456 → 2,772,636,047 (0.534%). |
+| `df7d486b52` allocate enum names on refusal | Render / debian-32gb-hel1-14 | 3.753709 / 3.566053 → 3.025809 / 3.121547 (109 tests); additional before pair 3.130119 / 3.001849 shows CPU noise exceeds this change. Large render 12.016357 / 12.439856 → 5.412071 / 5.275537. | Schema oracle: 45,125,946 → 44,944,029 Ir; saves 181,917. CPU saving is not independently resolved. |
+| `e19d3f3580` write next revision and read ref | Real git / debian-32gb-hel1-11 | 4.769994 / 4.568420 → 4.191904 / 4.270003 (184 tests); saves 0.376516, 8.24%. Combined scratch repair versus its original base saves 2.187763, 34.29%; not another independent saving. | Isolated next: 45,400,911 → 43,962,249 Ir; isolated head: 36,699,997 → 36,292,100. Thin render including children: 19,146,396 → 16,105,119 after combined changes. |
+| `3ed249efcd` measure and stop | Whole suite / debian-32gb-hel1-11 | Base 33.573473 / 34.197197 → merged 25.016744 / 25.436824; 74.5134%, saves 8.556729. No further repair. | Unknown: no code change. |
+
+Local evidence: `target/hs2/close-{base,tip}-{1,2}/` and `close-fuzzy/` contain
+collector records, JUnit and `summary.json`; full driver logs are
+`target/close-{base,tip}-{1,2}.log` and `target/close-fuzzy.log`. These artifacts
+remain local; the throwaway `.measure.py` is removed before push.
+
+## The answer
+
+**23.143157 / 30.349378 = 76.2558%**, below the aim of 85%, saving
+**7.206221 CPU s (23.7442%)**. The 85% threshold is 25.796971 CPU s, so
+the aim has **2.653814 CPU s** of headroom. The method's lower tip figure is
+**under 30 by 6.856843 CPU s**; both tip runs are under 30. No gap remains
+to the method's aim, and no further repair is made. The budget and all tests,
+cases, assertions, seeds, expected bytes and memory ceilings stay as they are.
+
+Tree is now the largest family: 6.606667 CPU s, 28.55% of tip-2. Its most
+costly test is `walk::each_edit_alone_walks_to_the_oracles_digests_and_file`
+at 0.781575 CPU s. Fuzzy passes all 60 tests at 68.963035 CPU s; the large
+render is 4.114809 CPU s, with its harness/production split still unknown.
+The causes of variation across machines remain unknown. The earlier
+shared-kit instruction estimates are not current measurements: counting
+allocation was 18.03% of the tree family's base CPU (4.58% of the base
+suite), deallocation 15.97% (4.06%), and SHA-256 compression 8.72% (2.22%).
+No shared-kit repair or post-repair function profile is claimed.
+
+The production inefficiencies in `last-round`'s options remain open because
+the aim was met before that task made another repair:
+
+- Per-task tree/template/script listing scans classify every entry again;
+  no per-task listing-position index is built.
+- The exports cache restarts its target/task scan for each pair, and `needed`
+  scans targets; no cursor or reader read set is built.
+- `placement()` clones up to three placements; no private borrowed lookup is built.
+- Calls rescan `needs`, pending-blob membership and rendered-file copies;
+  no composed union or corresponding lookup replaces them.
+- `retain_spec` re-walks retained specs to charge their held size; no running
+  tally replaces that admission calculation.
+
+Other untouched options are config's independent reference decode per seed
+and the fake machine's second path resolution. Seed-independent world setup
+and duplicate tree-file decoding remain open too. The commit table records
+the repairs that were tried and what each measured; their figures are not
+summed or presented as an estimate of further savings.
+
+**The queue's record after landing is outside this task's reach:** nothing
+here runs after landing, so this revision's queue figure is unknown. The
+status records the outside-queue measurements and keeps that distinction;
+any queue overrun is recorded and taken to the user for a ruling, never
+hidden or refused (`skein/docs/foundation/testing-strategy.md`, 8.1).
