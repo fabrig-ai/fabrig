@@ -8,8 +8,7 @@
   read from published XNU, whose `main` may lag `macos-26`'s kernel, and
   no recorded run shows it: a Linux test holds `listening`
   (`skein-shell/src/listener_calls.rs`) on both answers, and only the
-  constant that selects macOS's goes unrun. 7.5: `posix`: `linux` and
-  `darwin` each still write what it is to hold. 9: temper's one story has not
+  constant that selects macOS's goes unrun. 9: temper's one story has not
   been seen green on the macOS workflow
   (`temper/docs/design/domain/testing.md`, 2.8), and no macOS runner runs
   skein's suites.
