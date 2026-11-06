@@ -14,6 +14,274 @@ use jig_test_domain as root;
 use std::fmt::Write as _;
 use support::*;
 
+fn project_proposals_configuration() -> (root::Config, root::Limits) {
+    let (mut config, mut limits) = run_configuration();
+    limits.core.authority.projects = 3;
+    limits.core.people.projects = 4;
+    peers::journal(&mut limits);
+    config.core.kinds = Box::new([settings::Kind {
+        number: 1,
+        scope: settings::KindScope::Project,
+        connector: 1,
+        value_bytes: 64,
+        per_scope: 2,
+        charters: 1,
+    }]);
+    config.first.settings = Some(jig_test_connector::SettingsKind {
+        kind: 1,
+        project: true,
+        value_bytes: 64,
+        per_scope: 2,
+        charters: true,
+        defaults: Box::new([]),
+    });
+    let policy = config.core.seed_projects[0].policy.clone();
+    config.core.seed_projects = Box::new([
+        core::SeedProject { number: 1, name: "one".into(), policy: policy.clone() },
+        core::SeedProject { number: 2, name: "two".into(), policy: policy.clone() },
+        core::SeedProject { number: 3, name: "three".into(), policy },
+    ]);
+    (config, limits)
+}
+
+fn project_proposals_world() -> (World, u64) {
+    let (config, limits) = project_proposals_configuration();
+    let mut world = World::new(Setup {
+        configuration: Some(config),
+        limits,
+        boot: jig_core_world::world::Boot::Empty,
+        ..Setup::default()
+    });
+    world.client_peer = Some(ClientPeer::default());
+    let signed = sign_in(&mut world);
+    world.send(root::Event::Core(core::Event::People(people::Event::Roles {
+        project: 2,
+        holdings: Box::new([people::Holding { person: OWNER, role: people::Role::Owner }]),
+    })));
+    world.send(root::Event::Core(core::Event::People(people::Event::Roles {
+        project: 3,
+        holdings: Box::new([people::Holding { person: OWNER, role: people::Role::Member }]),
+    })));
+    (world, signed)
+}
+
+fn application_item(scope: u32) -> settings::Item {
+    settings::Item {
+        setting: settings::Setting::Application { kind: 1, scope, number: 1 },
+        edit: settings::Edit::Set(settings::Value::Application(b"on".as_slice().into())),
+    }
+}
+
+fn proposal_inbox(world: &mut World) -> documents::Inbox {
+    let env = world.env();
+    let documents::Document::Inbox(inbox) = documents::make(
+        world.domain.core_mut(),
+        &env.limits.core,
+        OWNER,
+        &documents::Subject::Inbox { party: OWNER },
+        &documents::Window { rows: 32, after: None },
+        env.wall,
+    )
+    .expect("inbox document") else {
+        panic!("inbox")
+    };
+    inbox
+}
+
+fn assert_proposal_projects(world: &mut World, signed: u64, proposer: people::Proposer, number: u64, projects: &[u32]) {
+    let inbox = proposal_inbox(world);
+    let row = inbox
+        .needs
+        .iter()
+        .find(|entry| entry.object == documents::InboxObject::Proposal { proposer, number })
+        .expect("one proposal row");
+    assert_eq!(row.project, Some(0));
+    assert_eq!(row.projects.as_slice(), projects);
+    assert_eq!(inbox.needs.len(), 1);
+    assert_eq!(inbox.cached_needs, 1);
+    for project in [None, Some(0), Some(1), Some(2), Some(3)] {
+        let filter = reads::Filter { project, goal: None };
+        let reads::Answer::Page(page) =
+            read(world, signed, reads::Read::Inbox { group: reads::Group::Proposals, filter, from: None })
+        else {
+            panic!("filtered proposals")
+        };
+        let expected = project.is_none_or(|project| project == 0 || projects.contains(&project));
+        assert_eq!(page.rows.len(), u32::from(expected), "project {project:?}");
+        if let Some(reads::PageRow::Inbox(entry)) = page.rows.get(0) {
+            assert_eq!(entry.object, row.object);
+            assert_eq!(entry.projects, row.projects);
+        }
+    }
+}
+
+#[test]
+fn a_proposal_of_one_projects_item_shows_in_that_project_alone() {
+    let (mut world, signed) = project_proposals_world();
+    let number = proposed(&propose(&mut world, signed, 1, 1, Box::new([application_item(1)])));
+    assert_proposal_projects(&mut world, signed, people::Proposer::Party(OWNER), number, &[1]);
+    assert_eq!(proposal_document(&mut world, signed, OWNER, number).projects.as_slice(), &[1]);
+    accepted(&decide(
+        &mut world,
+        signed,
+        2,
+        OWNER,
+        number,
+        people::ProposalDecision::Accept,
+        Some(people::Running::Stays),
+    ));
+    assert!(proposal_inbox(&mut world).needs.is_empty());
+}
+
+#[test]
+fn a_proposal_touching_two_projects_shows_in_both_and_counts_once() {
+    let mut items: Vec<_> = (1..=35).rev().map(application_item).collect();
+    items.push(application_item(0));
+    items.push(application_item(1));
+    assert_eq!(settings::touched_projects(&items).as_slice(), (1..=32).collect::<Vec<_>>());
+    for policy in [false, true] {
+        let (mut world, signed) = project_proposals_world();
+        let second = if policy { project_policy_item(&world, 2, 100) } else { application_item(2) };
+        let number = proposed(&propose(&mut world, signed, 1, 1, Box::new([second, application_item(1)])));
+        assert_proposal_projects(&mut world, signed, people::Proposer::Party(OWNER), number, &[1, 2]);
+        assert_eq!(proposal_document(&mut world, signed, OWNER, number).projects.as_slice(), &[1, 2]);
+    }
+}
+
+#[test]
+fn a_deployments_proposal_shows_in_each_project_its_reader_owns() {
+    for empty in [false, true] {
+        let (mut world, signed) = project_proposals_world();
+        let items = Box::new([run_charter(&world, b"Review")]);
+        let number = proposed(&propose(&mut world, signed, 1, 1, items));
+        let signed = if empty {
+            // Empty sets are restored to exercise projection independently of no-op admission.
+            let root::Record::Core(core::Record::Core(core::CoreRecord::Settings(settings::Record::Proposal {
+                value,
+                ..
+            }))) = world.store.rows.get_mut(&proposal_set_key(OWNER, number)).expect("stored set")
+            else {
+                panic!("settings set")
+            };
+            value.items = Box::new([]);
+            world.restart_with(project_proposals_configuration().0);
+            assert!(world.domain.ready());
+            sign_in(&mut world)
+        } else {
+            signed
+        };
+        assert_proposal_projects(&mut world, signed, people::Proposer::Party(OWNER), number, &[1, 2]);
+        assert!(proposal_document(&mut world, signed, OWNER, number).projects.is_empty());
+    }
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "one run story covers scopes, restart and decisions")]
+fn a_runs_proposal_belongs_as_a_partys_does() {
+    for case in 0..5 {
+        let (mut world, mut signed) = project_proposals_world();
+        world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
+        world.send(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Hello {
+            worker: 0,
+            channel: skein_lib::Token::new(7),
+            hello: jig_domain_fleet::Hello {
+                jobs: Box::default(),
+                bounds: jig_test_profile::fixtures::bounds(),
+                stop_bound: skein_lib::Duration::from_millis(1),
+                slots: 1,
+                workstreams: Box::new([]),
+                hosting: Box::new([]),
+            },
+        })));
+        let mut goal = fixtures::chat(&world, 1, b"Review settings".as_slice().into());
+        let people::Ask::Create { batch, .. } = &mut goal else { panic!("goal creation") };
+        batch[0].flags.conversation = false;
+        batch[0].flags.listed = true;
+        batch[0].budget = people::Budget::Named;
+        batch[0].authority.spend = 40;
+        batch[0].authority.tools = 2047;
+        let people::Reply::Outcome(people::Outcome::Created { first: task, .. }) = ask(&mut world, signed, 101, goal)
+        else {
+            panic!("proposing run")
+        };
+        let (items, projects): (Box<[settings::Item]>, &[u32]) = match case {
+            0 => (Box::new([application_item(1)]), &[1]),
+            1 => (Box::new([application_item(2), application_item(1)]), &[1, 2]),
+            2 => (Box::new([project_policy_item(&world, 2, 100), application_item(1)]), &[1, 2]),
+            _ => (Box::new([run_charter(&world, b"Review")]), &[]),
+        };
+        let key = core::CallKey {
+            task,
+            attempt: world.assigned.as_ref().expect("assigned run").attempt,
+            completion: 1,
+            position: 0,
+        };
+        world.send(root::Event::Core(core::Event::NamedAction {
+            to: skein_lib::ReplyTo::new(skein_lib::Token::new(SEED)),
+            key,
+            action: core::NamedAction::ProposeSettings { against: 1, items, reason: b"Review".as_slice().into() },
+        }));
+        let number = run_proposed(&world.answers.last().expect("run proposal answer").2);
+        if case == 4 {
+            let root::Record::Core(core::Record::Core(core::CoreRecord::Settings(settings::Record::Proposal {
+                value,
+                ..
+            }))) = world.store.rows.get_mut(&task_set(task, number)).expect("stored run set")
+            else {
+                panic!("settings set")
+            };
+            value.items = Box::new([]);
+            world.restart_with(project_proposals_configuration().0);
+            assert!(world.domain.ready());
+            signed = sign_in(&mut world);
+        }
+        assert_proposal_projects(
+            &mut world,
+            signed,
+            people::Proposer::Task(task),
+            number,
+            if projects.is_empty() { &[1, 2] } else { projects },
+        );
+        let reads::Answer::Document(document) = read(
+            &mut world,
+            signed,
+            reads::Read::Proposal { proposer: people::Proposer::Task(task), proposal: number },
+        ) else {
+            panic!("run proposal")
+        };
+        let documents::Document::Proposal(document) = *document else { panic!("proposal") };
+        assert_eq!(document.projects.as_slice(), projects);
+        if case == 4 {
+            let reply = run_decide(
+                &mut world,
+                signed,
+                task,
+                number,
+                people::ProposalDecision::Reject { reason: b"No items".as_slice().into() },
+                None,
+            );
+            assert!(matches!(
+                reply,
+                people::Reply::Outcome(people::Outcome::ProposalDecided {
+                    choice: people::ProposalChoice::Rejected,
+                    ..
+                })
+            ));
+        } else {
+            accepted(&run_decide(
+                &mut world,
+                signed,
+                task,
+                number,
+                people::ProposalDecision::Accept,
+                Some(people::Running::Stays),
+            ));
+        }
+        assert!(proposal_inbox(&mut world).needs.is_empty());
+        world.broken();
+    }
+}
+
 #[test]
 fn a_project_member_proposes_and_owners_review_current_and_proposed_values() {
     let mut world = start(64);

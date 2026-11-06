@@ -287,6 +287,7 @@ fn proposal_answer(state: ProposalState, departed: bool) -> c::ReadResult {
         c::ReadResult::Value(c::ReadValue::Proposal(Box::new(c::Proposal {
             key: PROPOSAL,
             project: 1,
+            projects: List::from_boxed(Box::new([1])),
             reason: c::DocumentText::complete(c::Text::new(Box::from(b"Work this way".as_slice()), 512).unwrap()),
             action: c::ProposalAction::Batch(List::with_capacity(0)),
             as_holder: true,
@@ -510,7 +511,7 @@ fn a_first_write_says_wrote() {
         let line = String::from_utf8(section_words(view.tree(), look::TURN_TOOL)).unwrap();
         assert_eq!(line, "Wrotehow-shop-works.md12 lines");
         assert!(styled(view.tree(), look::TOOL_FILE).len() == 1);
-        assert!(f::find(view.tree(), Role::Disclosure, b"1 tool call").is_none());
+        assert!(f::find(view.tree(), Role::Disclosure, b"note").is_none());
     }
     let view = view(&root(None, Mode::Chat, &[FIRST]), Shell::Browser);
     assert_eq!(section_words(view.tree(), look::TOOL_FILE), b"untitled.md");
@@ -549,8 +550,8 @@ fn a_note_call_isnt_counted() {
     let root =
         activity_root(Some(BODY), Mode::Chat, mixed_activity(b"read", false, "Read README"), ProposalState::Ordinary);
     let view = view(&root, Shell::Browser);
-    let disclosure = f::find(view.tree(), Role::Disclosure, b"1 tool call").unwrap();
-    assert_eq!(view.tree().find(disclosure).unwrap().description.as_deref(), Some(b"read".as_slice()));
+    let disclosure = f::find(view.tree(), Role::Disclosure, b"read").unwrap();
+    assert_eq!(view.tree().find(disclosure).unwrap().description.as_deref(), None);
     let at = view.tree().nodes().iter().position(|node| node.id == disclosure).unwrap();
     assert_eq!(f::node_text(view.tree(), at).as_ref(), b"readRead README");
     assert_eq!(styled(view.tree(), look::TOOL_FILE).len(), 1);
@@ -560,8 +561,8 @@ fn a_note_call_isnt_counted() {
 fn a_failed_note_stays_in_the_disclosure() {
     let root = activity_root(Some(BODY), Mode::Chat, mixed_activity(b"note", true, LATER), ProposalState::Ordinary);
     let view = view(&root, Shell::Browser);
-    let disclosure = f::find(view.tree(), Role::Disclosure, b"1 tool call").unwrap();
-    assert_eq!(view.tree().find(disclosure).unwrap().description.as_deref(), Some(b"note".as_slice()));
+    let disclosure = f::find(view.tree(), Role::Disclosure, b"note").unwrap();
+    assert_eq!(view.tree().find(disclosure).unwrap().description.as_deref(), Some(b"1 failed".as_slice()));
     assert_eq!(styled(view.tree(), look::TOOL_FILE).len(), 1);
     assert!(String::from_utf8_lossy(&f::text(view.tree())).contains(LATER));
 }
@@ -571,8 +572,8 @@ fn a_recall_stays_in_the_disclosure() {
     for (tool, outcome) in [(b"recall".as_slice(), LATER), (b"note", "Unrecognized answer")] {
         let root = activity_root(Some(BODY), Mode::Chat, mixed_activity(tool, false, outcome), ProposalState::Ordinary);
         let view = view(&root, Shell::Browser);
-        let disclosure = f::find(view.tree(), Role::Disclosure, b"1 tool call").unwrap();
-        assert_eq!(view.tree().find(disclosure).unwrap().description.as_deref(), Some(tool));
+        let disclosure = f::find(view.tree(), Role::Disclosure, tool).unwrap();
+        assert_eq!(view.tree().find(disclosure).unwrap().description.as_deref(), None);
         assert!(String::from_utf8_lossy(&f::text(view.tree())).contains(outcome));
         assert_eq!(styled(view.tree(), look::TOOL_FILE).len(), 1);
     }

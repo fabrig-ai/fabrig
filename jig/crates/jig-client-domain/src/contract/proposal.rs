@@ -9,6 +9,7 @@ use alloc::boxed::Box;
 use skein_lib::{List, Wall};
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Proposal {
+    pub projects: List<u32>,
     pub key: ProposalKey,
     pub project: u32,
     pub reason: DocumentText,

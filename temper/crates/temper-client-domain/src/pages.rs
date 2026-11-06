@@ -11,6 +11,7 @@ pub mod accounts;
 mod activity;
 pub mod away;
 pub mod builders;
+pub mod calls;
 pub mod changes;
 pub mod chat;
 /// Whether the project's settings offer writing drafts (client/README.md, 5.13).
@@ -202,6 +203,7 @@ pub enum Act {
         fate: jig_client::shapes::Fate,
     },
     Older,
+    Latest,
     ClosedChats,
     MoreGoals,
     GoalsFilter {
@@ -609,7 +611,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         Event::Act { act: Act::ClosedChats } => closed_chats(pages, out),
         Event::Act { act: Act::ChatFilter { filter } } => chat_filter(pages, filter, out),
         Event::Act { act: Act::Filter { filter } } => out.push(Request::Show { address: Address::Inbox { filter } }),
-        Event::Act { act: act @ (Act::Mode { .. } | Act::ShowSection { .. } | Act::AddDraft) } => {
+        Event::Act { act: act @ (Act::Mode { .. } | Act::ShowSection { .. } | Act::AddDraft | Act::Latest) } => {
             if let Some(chat) = &mut pages.chat {
                 chat.act(env, client, act, &mut pages.serial, out);
             }
@@ -872,6 +874,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     pages.shown = pages.shown.checked_add(1).expect("pages shown count fits");
 }
 fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
+    pages.needs.remember_settings(&told);
     if let Told::Answered { key, outcome } = &told
         && let Some(open) = &mut pages.confirm
         && open.sent == Some(*key)
@@ -1141,6 +1144,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         }
         if let Address::Chat { task } = address {
             pages.chat = Some(chat::Chat::new(task, opening, pages.next, &env.limits, out));
+            pages.needs.restore_settings(pages.chat.as_mut().expect("opened chat"), out);
         }
         if let Address::Changes { project } = address {
             pages.changes = Some(changes::Changes::new(project, &mut pages.next, env.limits.forge, out));
@@ -1551,6 +1555,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::AddDraft
         | Act::Send
         | Act::Older
+        | Act::Latest
         | Act::GoalsFilter { .. }
         | Act::MoreGoals
         | Act::ChatFilter { .. }
