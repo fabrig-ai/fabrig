@@ -265,14 +265,17 @@ A task's ending authority (`TaskFlags.ended_by`, *result* or
 *requester*) and its refusal status travel in jig's wire and in the
 tasks and people families; the worker's `GrantValue` keeps tags 0 to 2.
 
-`me` carries `resolved_default: Option<LlmChoice>` beside each
-effective template's configured LLM intent
-(`../client/domain/contract.md`, 5.1). The schema, generated codecs,
-translations, golden records and served-version declarations carry
-that field (sections 9 and 14). It is a preview of Create's
-once-at-creation resolver, never task intent or a reservation; no
-store family carries it, and application families' versions are their
-own.
+`me` carries `resolved_default: Option<LlmChoice>` for each effective
+template with one, in its project's `defaults` by the template's number, a
+template's own record being a setting's too; and in each project's `models`
+the offer alone, each `MeModel` with its `effort`, `shown`, `accounts` and
+`picker` (`../client/domain/contract.md`, 5.1). The schema, generated
+codecs,
+translations, golden records and served-version declarations carry those
+fields (sections 9 and 14), changed in place before the first release. The
+preview says what a run's check would take now, never task intent or a
+reservation; no store family carries it or the offer, and application
+families' versions are their own.
 
 The account's move (`../domain/accounts.md`, section 6) is in jig's
 wire: the account changes `move_out { account }`, `written { number }`

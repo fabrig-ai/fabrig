@@ -1597,19 +1597,32 @@ Nothing the core decides depends on a view arriving.
   keeps the values it was made with, never which template gave them.
 - **A resolved default beside intent.** Each effective template in `me`
   carries `resolved_default: Option<LlmChoice>` beside its configured
-  LLM choice. An explicit template choice previews itself. For an
-  omitted choice, the core uses Create's own resolver, in charter
-  order, under the effective creating authority and with the current
-  receiving party as payer. No eligible model, or an executor still
+  LLM choice. An explicit template choice previews itself. For an omitted
+  choice, the core takes what a run's check would take now (accounts.md,
+  4.3): the first model in charter order with an account usable now, at its
+  default effort, under the effective creating authority and with the
+  current receiving party as payer. No usable model, or an executor still
   *chosen*, gives `None`. This is an observation, never admission or
   an account reservation. The client's shapes keep the configured
   intent, never copy the preview into a request. A task made with an
   omitted choice keeps none, and each of its runs' checks takes its
   models (tasks.md, section 3; accounts.md, 4.3);
   the preview changes no task or core store layout.
+- **The offer** (`../client/domain/contract.md`, 5.1), per project: each
+  model of configuration's order that the party's authority there allows and
+  an account usable now for the party as payer can run (accounts.md, 4.3),
+  with those accounts. A direct source's account needs no host, so that a
+  worker's restart takes no model away and what `account list` calls usable
+  is offered; a program's source needs a connected host that has reported
+  its login usable. A
+  provider with no such account gives no model, whatever is configured of
+  it. The configuring agent's inventory names the same list for its task's
+  payer, through the same function. It is an observation, as the preview is;
+  a run's own check decides.
 - **Marked** as any of it moves. A pool's amount left moves with spend;
-  account and source changes affecting eligibility, policy, membership
-  and effective-executor changes invalidate the affected previews.
+  account and source changes, a program's login reported on a host, a host
+  connecting or leaving, policy, membership and effective-executor changes
+  invalidate the affected offers and previews.
   Its marks are coalesced, as every watch's are.
 
 ### 11.2 Task queries

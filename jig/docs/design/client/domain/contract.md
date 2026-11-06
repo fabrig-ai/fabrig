@@ -599,11 +599,15 @@ served is held, kept and unsent, for its owner's version (client.md,
     what waits for them, counted exactly (questions, proposals,
     escalations, person tasks), and their updates unread, counted up to
     a limit; their read position over results; each project's merged
-    templates (3.6), each with `resolved_default: Option<LlmChoice>`
-    beside its configured LLM intent. The preview uses Create's own
-    resolver, charter order, effective creating authority and current
-    receiving-party payer (`../../domain/engine.md`, 11.1). An explicit
-    choice previews itself; an omitted choice with no eligible model
+    templates (3.6), and for each with one a `resolved_default: LlmChoice`
+    beside them (`defaults`, by the template's number), separate from its
+    configured LLM intent. The preview is what a run's check of a task
+    given none would take now (`../../domain/accounts.md`, 4.3): the first
+    model in charter order with an account usable now, at its default
+    effort, under the effective creating authority and the current receiving
+    party as payer (`../../domain/engine.md`, 11.1), so that it is one of
+    the project's offer (below) where that authority's models are. An
+    explicit choice previews itself; an omitted choice with no usable model
     or an executor still *chosen* gives `None`. It grants and reserves
     nothing. Shapes retain configured intent, never the preview, and
     a clipped catalogue gives no order from which to guess it. Relevant
@@ -611,13 +615,22 @@ served is held, kept and unsent, for its owner's version (client.md,
     invalidate it (7.2). The document also gives what they may create
     in each project, as the bounds a draft is compared with (5.3);
     their role in the deployment, if
-    any; the models they may choose in each project, as the brief's
-    catalogue gives them (`../../domain/engine.md`, section 9): each
-    with its LLM provider, window and output, the efforts it takes, its
-    prices (amounts per `unit` tokens in the deployment's spend unit;
-    cache writes are priced at input when no separate price is given)
-    and its optional description as configured, so that a task's LLM
-    choice (3.2) is drafted from it; the most bytes a key may have,
+    any; the **offer** in each project, what they can pick there now, one
+    list that every client draws from and works nothing out, so that a page
+    can't show what it leaves out: the models of the brief's catalogue
+    (`../../domain/engine.md`, section 9), in configuration's order, that
+    their authority there allows and an account can run, an account of the
+    model's provider being usable now and serving them
+    (`../../domain/accounts.md`, 4.3). A provider with no such account gives
+    no model, whatever configuration declares of it. Each model has its LLM
+    provider, window and output, the efforts it takes, low to high, the
+    default among them that a task given none takes (`effort`), its prices
+    (amounts per `unit` tokens in the deployment's spend unit; cache writes
+    are priced at input when no separate price is given), its optional
+    description and shown name as configured, the accounts that can run it
+    for them, the one a run would take first first, and whether a picker
+    shows it (`picker`), so that a task's LLM choice (3.2) is drafted from
+    it; the most bytes a key may have,
     which bounds a request carrying one (3.1), and the most a pasted
     sign-in address may have, the driver's redirect bound; the most bytes
     a party's words may have (a task's spec, a message, an answer) and an
@@ -627,9 +640,11 @@ served is held, kept and unsent, for its owner's version (client.md,
   - *a task:* its header, overview, budget and authority; its fields
     (3.2): tracked and priority, label, flags, when it was made
     (`made`, its record's `created_at`), last activity, and what it
-    waits on; the LLM choice its next run takes, what it was given or,
-    given none, what its check would take now (`../../domain/accounts.md`,
-    4.3), with the creator's optional account preference,
+    waits on; the LLM choice its next run takes, what it was given or, given
+    none, what its check would take now (`../../domain/accounts.md`, 4.3),
+    and none for a task given none that no account serving its payer can
+    run, so that a client names no model it wasn't given, with the creator's
+    optional account preference,
     the separate account kept by the last successful claim, and its next-run
     account/source wait with the source's typed state and optional wall reset
     (unknown stays unknown), or a credential or host wait. `Task.run_wait`
@@ -1318,10 +1333,11 @@ new `me` watch, including after restart.
   too; a party's entries, role or pool touched mark their inbox and
   their `me`; a project's name or policy changed marks the `me` of every
   party with a role in it; an account's source, state, order or uses
-  touched, a program's login reported on a host, or a sign-in or a check
-  begun or ended, marks the `accounts` of the parties it concerns and
-  the `deployment`'s, and the affected parties' `me` when template
-  default eligibility changes. Membership and effective-executor changes
+  touched, a program's login reported on a host, a host connecting or
+  leaving, or a sign-in or a check begun or ended, marks the `accounts` of
+  the parties it concerns and the `deployment`'s, and their `me`, whose
+  offer and previews read the same facts. Membership and effective-executor
+  changes
   also invalidate affected `resolved_default` previews (5.1). Matching a
   task against the open queries is bounded by the watches the engine
   allows, each a fixed set of keys. A connector marks its own subjects,

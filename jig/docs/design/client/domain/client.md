@@ -1241,8 +1241,8 @@ with a person in front of a tree, are view.md's, 18.10.
     wall where the template has it given, so that no shape reads a
     clock; no wake policy, so the executor's own;
     the template's LLM choice, or the goal draft's where it names one,
-    by configured names (contract.md, 3.2), none being the charter's
-    default resolved at Create. Shapes copy configured intent, never
+    by configured names (contract.md, 3.2), none being the charter's default
+    taken at each run's check. Shapes copy configured intent, never
     `resolved_default`, the separate preview served in `me`;
     no parameters, inputs or dependencies; symbolic resources copied
     from the template for the engine to resolve;
