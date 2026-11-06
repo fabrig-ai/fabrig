@@ -72,7 +72,7 @@ impl Host {
         let client = limits::client();
         assert!(limits::valid(&client), "web capacities are checked");
         let (bounds, words) = limits::view(&client).expect("web view capacities are checked");
-        let mut root = root::new_departing(&client, seed);
+        let mut root = root::new(&client, seed);
         root.set_zone_minutes(zone_minutes);
         Self {
             root,

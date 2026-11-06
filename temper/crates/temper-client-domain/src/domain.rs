@@ -1,6 +1,5 @@
 //! Temper's pages and forge share one durable jig client.
 use crate::{Event, Limits, Request, forge, route};
-use alloc::boxed::Box;
 use skein_lib::{Env, Queue, Rng, Time};
 #[derive(Debug)]
 pub struct Domain {
@@ -9,34 +8,20 @@ pub struct Domain {
     pub(crate) forge: forge::Side,
     pub(crate) client: jig_client::Client,
     pub(crate) unlinked: bool,
-    pub(crate) departing: bool,
+    pub(crate) tab: Option<jig_client::Key>,
+    pub(crate) tab_revision: u64,
     pub(crate) authorization: Option<crate::authorize::Authorization>,
     pub(crate) authorizing: crate::authorize::Flight,
     pub(crate) authorization_revision: u64,
     pub(crate) signed_out: bool,
-    pub(crate) returning: Option<(jig_client::Key, Box<[u8]>)>,
 }
 #[must_use]
 pub fn new(limits: &Limits, seed: u64) -> Domain {
     build(limits, seed, false)
 }
-/// A browser root that leaves only after its own sign-in and return answers.
-#[must_use]
-pub fn new_departing(limits: &Limits, seed: u64) -> Domain {
-    let mut root = new(limits, seed);
-    root.departing = true;
-    root
-}
 #[must_use]
 pub fn unlinked(limits: &Limits, seed: u64) -> Domain {
     build(limits, seed, true)
-}
-/// The departing root on the typed transport used by the joined client world.
-#[must_use]
-pub fn unlinked_departing(limits: &Limits, seed: u64) -> Domain {
-    let mut root = unlinked(limits, seed);
-    root.departing = true;
-    root
 }
 fn build(limits: &Limits, seed: u64, unlinked: bool) -> Domain {
     assert!(crate::valid(limits), "root capacities are checked");
@@ -53,8 +38,8 @@ fn build(limits: &Limits, seed: u64, unlinked: bool) -> Domain {
         forge: forge::Side::new(&limits.forge, rng.next_u64()),
         client,
         unlinked,
-        departing: false,
-        returning: None,
+        tab: None,
+        tab_revision: 0,
         authorization: None,
         authorizing: crate::authorize::Flight::Idle,
         authorization_revision: 0,
@@ -171,6 +156,8 @@ pub fn shown(root: &Domain) -> u64 {
         .expect("forge shown count fits")
         .checked_add(root.authorization_revision)
         .expect("authorization revision fits")
+        .checked_add(root.tab_revision)
+        .expect("tab revision fits")
 }
 
 fn welcome(root: &mut Domain, out: &mut Queue<Request>) {

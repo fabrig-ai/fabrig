@@ -43,8 +43,7 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
         Event::Forge(event) => forge(root, env, event, out),
         Event::SignInAddress { value } => pages(root, env, crate::pages::Event::SignInAddress { value }, out),
         Event::AccountKey { value } => pages(root, env, crate::pages::Event::AccountKey { value }, out),
-        // sign-in-holds feeds the refusal to the sign-in whose tab is open.
-        Event::TabRefused => {}
+        Event::TabRefused => crate::sign_in_tab::refused(root),
         Event::SignedOut => client(root, env, jig_client::Event::Up { up: jig_client::Up::SignedOut }, out),
     }
 }
@@ -143,6 +142,16 @@ fn route_pages(
 ) {
     for _ in 0..child.len() {
         match child.pop().expect("counted pages output") {
+            crate::pages::Request::OpenTab { provider } => {
+                root.tab = match root.pages.connect_model() {
+                    Some(page) => match &page.request.pending {
+                        Some(pending) => Some(pending.key),
+                        None => None,
+                    },
+                    None => None,
+                };
+                out.push(Request::Tab { tab: crate::Tab::Open { provider } });
+            }
             crate::pages::Request::Client(event) => client(root, env, event, out),
             crate::pages::Request::Replace { address } => out.push(Request::Show { address, replace: true }),
             crate::pages::Request::Show { address } => out.push(Request::Show { address, replace: false }),
@@ -269,9 +278,7 @@ pub(crate) fn told(root: &mut Domain, env: &Env<Limits>, told: jig_client::Told,
 }
 fn tell(root: &mut Domain, env: &Env<Limits>, told: jig_client::Told, out: &mut Queue<Request>) {
     use jig_client::Told;
-    if crate::departure::told(root, env, &told, out) {
-        return;
-    }
+    crate::sign_in_tab::told(root, &told, out);
     let asker = match &told {
         Told::Link { link } => {
             pages(root, env, crate::pages::Event::Link { link: *link }, out);
@@ -373,6 +380,7 @@ fn suggest(root: &mut Domain, env: &Env<Limits>, cue: u8, out: &mut Queue<Reques
     root.pages.suggest(env, &root.client, &words, &mut child);
     while let Some(request) = child.pop() {
         match request {
+            crate::pages::Request::OpenTab { .. } => unreachable!("a suggestion asks no sign-in"),
             crate::pages::Request::Client(event) => client(root, env, event, out),
             crate::pages::Request::Replace { address } => out.push(Request::Show { address, replace: true }),
             crate::pages::Request::Show { address } => out.push(Request::Show { address, replace: false }),

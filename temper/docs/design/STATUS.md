@@ -163,8 +163,7 @@ unanswered once (`client/README.md`). The welcome's try of a model draws its box
 over the host's check alone, no trial being built, and departs from the request
 `model-check` in its list's names and a few of its acts and words
 (`client/README.md`). A plan's sign-in draws the waiting page of the request
-`sign-in-new-tab`, whose words say a new tab while a press still leaves in its own,
-until that draft is built; the page departs from the request in the terminal's words
+`sign-in-new-tab`; the page departs from the request in the terminal's words
 and on `ConnectModel`, where a paste finishing also keeps the note's waiting words
 (`client/README.md`). The rail's person's menu departs from the request
 `ui-owner-menu` in a press outside that took the focus, which keeps it, a project-less
