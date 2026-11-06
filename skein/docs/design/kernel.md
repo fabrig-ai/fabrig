@@ -513,8 +513,8 @@ documentation, with each operation's errors; the decisions behind it:
   sender to its child token (io.md, 7). Linux reads signalfd's `ssi_pid`;
   Darwin's kqueue supplies no sender.
   It reads one blocked signal from the signalfd the shell
-  opened at startup: `SIGINT`, `SIGTERM`, and `SIGWINCH` for a service at
-  a terminal (io.md, 7; shell.md, 6.3).
+  opened at startup: `SIGINT`, `SIGTERM`, `SIGWINCH` for a service at
+  a terminal, and `SIGHUP` for one that asks (io.md, 7; shell.md, 6.3).
 - **`Usage` reads what the process has used,** in one synchronous call:
   `getrusage` for the process itself (`RUSAGE_SELF`) and for its reaped
   children (`RUSAGE_CHILDREN`). Each part answers user and system CPU

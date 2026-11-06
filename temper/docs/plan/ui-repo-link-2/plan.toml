@@ -18,3 +18,16 @@ id = 1
 story = "A box whose temper port moved still signs its person in by one click, its Forgejo session lasts an hour, a public origin beside sign-in is refused and an empty repository name has no link"
 parts = ["settings"]
 walk = false
+
+[[part]]
+id = "lifetime"
+title = "A box ends whole, however it ends, and a walk of a default box"
+mode = "direct"
+needs = ["settings"]
+design = "temper/docs/design/protocol/setup.md, 7.1"
+
+[[slice]]
+id = 2
+story = "A person closes the box's terminal and nothing of the box is left running; a default box signs them in by one click, across a restart and a moved port"
+parts = ["lifetime"]
+walk = true
