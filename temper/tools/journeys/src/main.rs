@@ -125,7 +125,7 @@ fn refusal(why: Refusal) -> String {
         Refusal::Name(name) => format!("invalid journey name {name:?}; expected [a-z][a-z0-9-]*"),
         Refusal::Proof { name, refusal } => match refusal {
             journey::Refusal::Unreadable(unreadable) => unreadable_message(&name, &unreadable),
-            journey::Refusal::Stale(stale) => stale_message(&name, &stale),
+            journey::Refusal::Stale(stale) => stale_refusal_message(&name, &stale),
             journey::Refusal::Unproved { mark } => format!("{name} has no live print at mark {mark}"),
             journey::Refusal::Differs { mark, byte } => format!("{name} differs at mark {mark}, byte {byte}"),
         },
@@ -145,15 +145,31 @@ fn refusal(why: Refusal) -> String {
             "{name} at step {step}: no control gives the recorded event within 10 s of the page being still; walk it anew"
         ),
         Refusal::WalkDiffers { name, step } => format!("{name} at step {step}: the new walk differs; walk it anew"),
-        Refusal::Save { name, step, refusal: why } => {
-            format!("at step {step}: {}", refusal(Refusal::Proof { name, refusal: why }))
-        }
+        Refusal::Save { name, step, refusal: why } => match why {
+            journey::Refusal::Stale(stale) => stale_refusal_message(&name, &stale),
+            why @ (journey::Refusal::Unreadable(_)
+            | journey::Refusal::Unproved { .. }
+            | journey::Refusal::Differs { .. }) => {
+                format!("at step {step}: {}", refusal(Refusal::Proof { name, refusal: why }))
+            }
+        },
         Refusal::Harness { name, step, report } => format!("{name} at step {step}: browser or box failed: {report}"),
     }
 }
 
 fn unreadable_message(name: &str, unreadable: &journey::Unreadable) -> String {
     format!("{name} is unreadable at line {}: {}", unreadable.line, unreadable.why)
+}
+
+// Refusals precede the scan: only record kinds may leave the recording
+// (client/journeys.md, 4.3). Reprint keeps the full stale message below.
+fn stale_refusal_message(name: &str, stale: &journey::Stale) -> String {
+    let recorded = stale.recorded.split_whitespace().next().unwrap_or("");
+    let asked = stale.asked.split_whitespace().next().unwrap_or("");
+    format!(
+        "{name} is stale at turn {}, line {}: recorded {recorded}, asked {asked}; record it again (client/journeys.md, 8)",
+        stale.turn, stale.line
+    )
 }
 
 fn stale_message(name: &str, stale: &journey::Stale) -> String {

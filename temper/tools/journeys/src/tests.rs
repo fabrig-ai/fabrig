@@ -215,25 +215,7 @@ fn a_reprint_keeps_a_journeys_readme() {
     let scratch = Scratch::new("temper-client-journeys-readme");
     let source = scratch.path().join("source");
     let out = scratch.path().join("out");
-    let facts = journey::Facts {
-        seed: 11,
-        now: Time::ZERO,
-        wall: Wall::EPOCH,
-        primary: Primary::Control,
-        zone_minutes: 0,
-        ways: None,
-        forges: Vec::new(),
-        path: b"/welcome".as_slice().into(),
-        secret: None,
-        stored: Vec::new(),
-    };
-    let (mut host, mut page) = facts.start();
-    let mut recorder = journey::Recorder::new(&facts);
-    recorder.turn(facts.now, facts.wall);
-    recorder.report(&mut host, &page, temper_client_shell_web::host::Report::Start);
-    host.draw(&mut page, &mut Vec::new());
-    recorder.deadline(host.deadline());
-    crate::add(&source, "welcome", &recorder.save(&page)).expect("add fixture journey");
+    crate::add(&source, "welcome", &fixture_recording()).expect("add fixture journey");
     let directory = out.join("welcome");
     fs::create_dir_all(&directory).expect("journey directory");
     let readme = directory.join("README.md");
@@ -262,4 +244,107 @@ fn a_toggles_box_leads_on_by_its_act() {
             .document
             .contains("<input type=\"checkbox\" data-journey-next=\"02.html\" data-journey-act=\"toggle\"\n>")
     );
+}
+
+fn fixture_recording() -> Box<[u8]> {
+    let facts = journey::Facts {
+        seed: 11,
+        now: Time::ZERO,
+        wall: Wall::EPOCH,
+        primary: Primary::Control,
+        zone_minutes: 0,
+        ways: None,
+        forges: Vec::new(),
+        path: b"/welcome".as_slice().into(),
+        secret: None,
+        stored: Vec::new(),
+    };
+    let (mut host, mut page) = facts.start();
+    let mut recorder = journey::Recorder::new(&facts);
+    recorder.turn(facts.now, facts.wall);
+    recorder.report(&mut host, &page, temper_client_shell_web::host::Report::Start);
+    host.draw(&mut page, &mut Vec::new());
+    recorder.deadline(host.deadline());
+    recorder.save(&page)
+}
+
+fn stale_recording(recording: &[u8]) -> Box<[u8]> {
+    let mut lines = journey::lines(recording).expect("fixture records");
+    let mut changed = 0;
+    for line in &mut lines {
+        if let journey::Line::Deadline(deadline) = line {
+            *deadline = Some(Time::ZERO);
+            changed += 1;
+        }
+    }
+    assert_eq!(changed, 1, "the start turn's deadline");
+    let mut out = Vec::new();
+    for line in lines {
+        line.write(&mut out);
+    }
+    out.into()
+}
+
+fn snapshot(root: &Path) -> std::collections::BTreeMap<std::path::PathBuf, Option<Vec<u8>>> {
+    fn visit(
+        root: &Path,
+        directory: &Path,
+        files: &mut std::collections::BTreeMap<std::path::PathBuf, Option<Vec<u8>>>,
+    ) {
+        for entry in fs::read_dir(directory).expect("snapshot directory") {
+            let entry = entry.expect("snapshot entry");
+            let path = entry.path();
+            let relative = path.strip_prefix(root).expect("entry beneath root").to_owned();
+            if entry.file_type().expect("snapshot type").is_dir() {
+                files.insert(relative, None);
+                visit(root, &path, files);
+            } else {
+                files.insert(relative, Some(fs::read(path).expect("snapshot file")));
+            }
+        }
+    }
+    let mut files = std::collections::BTreeMap::new();
+    visit(root, root, &mut files);
+    files
+}
+
+#[test]
+fn a_refused_add_leaves_its_root_as_it_was() {
+    let scratch = Scratch::new("temper-client-journeys-refused");
+    let recording = fixture_recording();
+    let unproved = journey::prove(&recording).expect("strip live prints");
+    for recording in [unproved, stale_recording(&recording)] {
+        let before = snapshot(scratch.path());
+        assert!(crate::add(scratch.path(), "welcome", &recording).is_err(), "recording refused");
+        assert!(snapshot(scratch.path()) == before, "a refused add leaves the root empty");
+    }
+    let missing = scratch.path().join("missing");
+    assert!(crate::add(&missing, "welcome", &stale_recording(&recording)).is_err(), "stale recording refused");
+    assert!(!missing.exists(), "a refused add makes no root");
+}
+
+#[test]
+fn a_refused_add_keeps_the_journey_of_its_name() {
+    let scratch = Scratch::new("temper-client-journeys-kept");
+    let recording = fixture_recording();
+    crate::add(scratch.path(), "welcome", &recording).expect("add fixture journey");
+    fs::write(scratch.path().join("welcome/README.md"), "The person's description.\n").expect("description");
+    fs::write(scratch.path().join("welcome/99.html"), "An older page.\n").expect("older page");
+    fs::write(scratch.path().join("overlay.css"), "#app { color: red; }\n").expect("overlay");
+    fs::write(scratch.path().join("unrelated"), "Another file.\n").expect("unrelated file");
+    let before = snapshot(scratch.path());
+    assert!(crate::add(scratch.path(), "welcome", &stale_recording(&recording)).is_err(), "stale recording refused");
+    assert!(snapshot(scratch.path()) == before, "a refused add keeps every directory and file byte for byte");
+}
+
+#[test]
+fn a_stale_reprint_leaves_its_pages_as_they_were() {
+    let scratch = Scratch::new("temper-client-journeys-stale-reprint");
+    let recording = fixture_recording();
+    crate::add(scratch.path(), "welcome", &recording).expect("add fixture journey");
+    fs::write(scratch.path().join("welcome/recording"), stale_recording(&recording)).expect("stale recording");
+    let before = snapshot(scratch.path());
+    let stale = crate::reprint(scratch.path(), scratch.path()).expect("reprint");
+    assert!(matches!(stale.as_slice(), [(name, _)] if name == "welcome"), "reprint reports the stale journey");
+    assert!(snapshot(scratch.path()) == before, "a stale reprint keeps every page byte for byte");
 }
