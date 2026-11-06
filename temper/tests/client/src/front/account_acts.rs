@@ -151,10 +151,12 @@ pub fn answer_trial(front: &mut Joint, root: &mut Root) {
 pub fn empty_fixture(seed: u64) -> (Joint, Root) {
     without_deployment_account(fixture(seed))
 }
-/// A `ChatGPT` sign-in with no configured model already usable.
+/// An empty first run offering a `ChatGPT` sign-in, with no kept forge or usable model.
 #[must_use]
 pub fn empty_plan_fixture(seed: u64) -> (Joint, Root) {
-    without_deployment_account(plan_fixture(seed))
+    let (mut front, mut root) = fixture_root(seed, Tools::Off, 2, None, true, WelcomeForge::Empty, false);
+    event(&mut front, &mut root, Temper::went(temper_client_domain::Address::Accounts));
+    without_deployment_account((front, root))
 }
 fn without_deployment_account((mut front, mut root): (Joint, Root)) -> (Joint, Root) {
     use temper_client_domain::pages::{
