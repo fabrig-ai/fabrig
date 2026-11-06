@@ -37,11 +37,21 @@ pub(super) fn open_signals(watch: crate::Watch) -> Result<Fd, i32> {
     let queue = kqueue::open()?;
     let signals = match watch {
         crate::Watch::Termination => [libc::SIGINT, libc::SIGTERM, 0],
+        crate::Watch::TerminationAndHangup => [libc::SIGINT, libc::SIGTERM, libc::SIGHUP],
         crate::Watch::TerminationAndWindow => [libc::SIGINT, libc::SIGTERM, libc::SIGWINCH],
     };
     let mut prior = Vec::new();
     let result = (|| {
         for signal in signals.into_iter().filter(|signal| *signal != 0) {
+            if signal == libc::SIGHUP {
+                // SAFETY: the zeroed C record is valid output storage for the current disposition.
+                let mut disposition: libc::sigaction = unsafe { mem::zeroed() };
+                // SAFETY: a null new action only reads into live output storage.
+                super::status(unsafe { libc::sigaction(signal, ptr::null(), ptr::from_mut(&mut disposition)) })?;
+                if disposition.sa_sigaction == libc::SIG_IGN {
+                    continue;
+                }
+            }
             // SAFETY: sigaction is a C record valid when zeroed, then initialized below.
             let mut ignored: libc::sigaction = unsafe { mem::zeroed() };
             ignored.sa_sigaction = libc::SIG_IGN;
@@ -72,6 +82,7 @@ fn decode(number: i32) -> Result<Done, Error> {
     let signal = match number {
         libc::SIGINT => Signalled::Termination { signal: ServiceSignal::Interrupt, sender: None },
         libc::SIGTERM => Signalled::Termination { signal: ServiceSignal::Terminate, sender: None },
+        libc::SIGHUP => Signalled::Termination { signal: ServiceSignal::Hangup, sender: None },
         libc::SIGWINCH => Signalled::WindowChanged,
         _ => return Err(Error::Other(libc::EINVAL)),
     };

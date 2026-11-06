@@ -92,6 +92,21 @@ pub(crate) fn open_signals(watch: crate::Watch) -> Result<Fd, i32> {
             return Err(super::last_errno());
         }
     }
+    if let crate::Watch::TerminationAndHangup = watch {
+        // SAFETY: sigaction is a plain C record, valid output storage when zeroed.
+        let mut disposition: libc::sigaction = unsafe { std::mem::zeroed() };
+        // SAFETY: a null new action reads the disposition into the live output record.
+        if unsafe { libc::sigaction(libc::SIGHUP, ptr::null(), ptr::from_mut(&mut disposition)) } != 0 {
+            return Err(super::last_errno());
+        }
+        // Blocked signals reach signalfd even when ignored (shell.md, 6.3).
+        if disposition.sa_sigaction != libc::SIG_IGN {
+            // SAFETY: set remains initialized and writable.
+            if unsafe { libc::sigaddset(ptr::from_mut(&mut set), libc::SIGHUP) } != 0 {
+                return Err(super::last_errno());
+            }
+        }
+    }
     // SAFETY: sigset_t is a plain C signal set, initialized below by pthread_sigmask.
     let mut old: libc::sigset_t = unsafe { std::mem::zeroed() };
     // SAFETY: pthread_sigmask writes the prior mask into old and changes
@@ -399,6 +414,7 @@ pub(crate) fn write_signal(writer: Fd, signal: skein_io::kernel::ServiceSignal) 
     record.ssi_signo = u32::try_from(match signal {
         skein_io::kernel::ServiceSignal::Interrupt => libc::SIGINT,
         skein_io::kernel::ServiceSignal::Terminate => libc::SIGTERM,
+        skein_io::kernel::ServiceSignal::Hangup => libc::SIGHUP,
     })
     .expect("positive signal");
     // SAFETY: the pointer names one initialized record, alive for this call.
@@ -419,6 +435,7 @@ pub(crate) fn signal_current_thread(signal: skein_io::kernel::ServiceSignal) -> 
     let number = match signal {
         skein_io::kernel::ServiceSignal::Interrupt => libc::SIGINT,
         skein_io::kernel::ServiceSignal::Terminate => libc::SIGTERM,
+        skein_io::kernel::ServiceSignal::Hangup => libc::SIGHUP,
     };
     // SAFETY: pthread_self returns the live calling thread's identifier.
     let thread = unsafe { libc::pthread_self() };
