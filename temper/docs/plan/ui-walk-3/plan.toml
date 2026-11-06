@@ -3,3 +3,37 @@ repo = "fabrig"
 sources = ["temper/docs/plan/ui-walk-3/inputs/request.md", "temper/docs/design/client/journeys.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 priority = true
+
+# The walk; small fixes; the walk once more only over what the fixes touched (inputs/request.md, How the cut shapes it).
+# No design is written: this plan compares the client with the mock and with the second walk. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "walk"
+title = "The second walk's seven steps again at 1440 and 420, with W3 and W6 walked to their ends"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "additions"
+title = "A4 ten times, the rename form and Owner menu, the two scroll bars, chat-work, close-chat, the sign-in and model-check looks, temper's own way"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.6"
+
+[[part]]
+id = "real-login"
+title = "R1: the shown command on a real box with custom directories, up to the sign-in prompt"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 4.6"
+
+[[slice]]
+id = 1
+story = "the whole client walked as a person would, beside the mock and the second walk, with every difference named"
+parts = ["walk", "additions", "real-login"]
+walk = false
