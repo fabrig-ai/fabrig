@@ -94,7 +94,7 @@ record AdmissionRefused { value: Refusal }
 enum Admission { allowed, proposed: AdmissionProposed, bounded: boxed AdmissionBounded, refused: AdmissionRefused }
 record Offered { act: ActKind admission: Admission effect: option Effect }
 record CreatingBounds { within: BoundsCreate beyond: Beyond }
-record MeProject { project: u32 name: DocumentText role: HeldRole pool: option PoolLedger templates: bytes 16777216 creating: option CreatingBounds models: list 64 MeModel public: option u64 }
+record MeProject { project: u32 name: DocumentText role: HeldRole pool: option PoolLedger templates: bytes 16777216 creating: option CreatingBounds models: list 64 MeModel defaults: list 64 MeDefault public: option u64 }
 record EntranceRefusal { refusal: Refusal }
 record MoveToNewest { revision: u32 }
 record Lift { hold: u64 revision: u64 with_tasks: bool }
