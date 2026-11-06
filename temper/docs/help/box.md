@@ -60,6 +60,7 @@ temper init --box --config CONFIG --data DATA --cache CACHE
 Init writes loopback ports 8367–8371 (clients, owned Forgejo, fake forge,
 demo LLM, webhooks), or free ports if busy.
 Another box: empty directories; keep the first running.
+A box trusts every program listening on this machine's loopback, since browser cookies ignore ports.
 
 Init releases ports; starts refuse occupied addresses. Step 2 on empty
 directories initializes and retains ports.
