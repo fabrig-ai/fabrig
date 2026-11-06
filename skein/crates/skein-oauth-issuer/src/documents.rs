@@ -97,6 +97,10 @@ impl Issuer {
         out.array_end();
         out.object_end();
     }
+    #[expect(
+        unused_qualifications,
+        reason = "the concatenation uses its full path independently of other byte helpers"
+    )]
     pub fn tokens(
         &self,
         authorization: &Authorization,
@@ -133,9 +137,9 @@ impl Issuer {
         let mut out = Encoder::write(len, &JSON);
         self.write_claims(&mut out, authorization, person, expires, wall);
         let payload = encoded(&out.finish())?;
-        let input = joined(&header, &payload)?;
+        let input = skein_lib::bytes::concat(&[&header, b".", &payload]);
         let signature = skein_tls::sign_rs256_pkcs8(self.settings.key.expose(), &input).ok_or(Error::Sign)?;
-        let jwt = joined(&input, &encoded(&signature)?)?;
+        let jwt = skein_lib::bytes::concat(&[&input, b".", &encoded(&signature)?]);
         let mut measure = Encoder::measure(&JSON);
         write_answer(&mut measure, access, seconds, &jwt);
         let len = measure.measured().or(Err(Error::Limits))?;
@@ -260,14 +264,7 @@ pub(crate) fn encoded(input: &[u8]) -> Result<Box<[u8]>, Error> {
     base64::encode(Alphabet::Url, input, &mut out).or(Err(Error::Limits))?;
     Ok(out.finish())
 }
-fn joined(left: &[u8], right: &[u8]) -> Result<Box<[u8]>, Error> {
-    let len = left.len().checked_add(right.len()).ok_or(Error::Limits)?.checked_add(1).ok_or(Error::Limits)?;
-    let mut out = Writer::new(len);
-    out.put(left).expect("measured left part");
-    out.put(b".").expect("measured separator");
-    out.put(right).expect("measured right part");
-    Ok(out.finish())
-}
+
 impl TokenError {
     #[must_use]
     pub fn answer(self) -> Answer {
