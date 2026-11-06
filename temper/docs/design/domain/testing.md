@@ -2543,6 +2543,15 @@ the forge's API, and the person's two documents. The pass answers the
 agent's questions from the documents and its brief, chooses no rule to
 become structure, and accepts with running work staying as it is.
 
+The revision's edits alone form `items.json`; `current.json` is collected
+separately. The collector never unions earlier revisions or substitutes current
+values for unrelated accepted edits. The recorded-ctl regression carries the
+complete note proposal's accepted set and retains designer and triage bindings;
+the eleven-proposal workaround's incomplete final revision leaves them unbound.
+The engine domain world proves bounded note writes, including a line past one
+call, exact whole-value reconstruction, no application before acceptance and
+one complete accepted revision, with refusal and decided-call replay cases (6.4).
+
 #### 6.5.4 The check and the judge
 
 - **The check,** `temper-stage-one check EVIDENCE`: the binding, then a
