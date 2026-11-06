@@ -80,3 +80,23 @@ pub fn merge_entry(pull: u64, head: u64) -> Entry {
         queued: false,
     }
 }
+
+#[must_use]
+pub fn update_entry(pull: u64, head: u64, base: u64, style: api::UpdateStyle) -> Entry {
+    Entry {
+        number: 1,
+        task: 7,
+        repository: REPO,
+        effect: Effect {
+            write: api::Write::Update { number: pull, style },
+            condition: Condition::Update {
+                head: skein_forge_client_world::translate::commit(head),
+                base: skein_forge_client_world::translate::commit(base),
+            },
+        },
+        start: None,
+        attempt: None,
+        failures: 0,
+        queued: false,
+    }
+}

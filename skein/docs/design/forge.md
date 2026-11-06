@@ -1480,7 +1480,11 @@ on. What no run records yet has its own bullet, near the end.
 - **Still to record before a plan relies on them:** a dispatch's inputs
   reaching the run; a job's rerun answering `204`, and `400` while its
   run has not completed; a run's artifact listed by name and downloaded
-  as a zip; a comparison's commits oldest first with their messages.
+  as a zip; a comparison's commits oldest first with their messages; an
+  update with `style=merge` of a head already holding its base (the fake
+  answers `Done`, unchanged, as `style=rebase` is recorded to); what a
+  rebase's push does to a push made while it works (forge-client.md, 7.3
+  takes it as forced).
 - **Labels, recorded:** Forgejo 17 makes a second label of a name it
   already has (no `409`), and drops an unknown label id from an issue's
   create or set without a word: so a label is made only after a read

@@ -151,7 +151,7 @@ fn deployment_complete_connector_registry_does_not_hide_original_refusal_history
             },
             &mut out,
         );
-        let Some(fleet::Request::Refuse { channel: refused }) = out.pop() else {
+        let Some(fleet::Request::Refuse { channel: refused, .. }) = out.pop() else {
             panic!("hello refused");
         };
         assert!(refused == Token::new(channel));
@@ -206,7 +206,10 @@ fn a_refused_hello_shows_its_agent_shortfall() {
         },
         &mut out,
     );
-    assert_eq!(out.pop(), Some(fleet::Request::Refuse { channel: Token::new(9) }));
+    let Some(fleet::Request::Refuse { channel, .. }) = out.pop() else {
+        panic!("hello refused");
+    };
+    assert_eq!(channel, Token::new(9));
     let value = deployment(&core, &limits);
     assert_eq!(
         value.hello_refusals.get(0).unwrap().why,
@@ -388,4 +391,41 @@ fn a_host_names_the_person_whose_logins_it_keeps() {
     program_inventory(&mut core, &env, fleet::LoginState::Usable);
     let value = deployment(&core, &env.limits);
     assert_eq!(value.hosts.get(0).expect("worker").rule, HostRule::Person(1));
+}
+
+#[test]
+fn a_hellos_reason_reaches_the_held_refusal() {
+    let (mut core, limits) = source(&[1], 2);
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let channel = Token::new(9);
+    let expected = Some(fleet::HelloRefused {
+        why: fleet::HelloRefusal::Agent { why: fleet::AgentShortfall::Window { charter: 1, model: 0 } },
+        figures: Some(fleet::Figures { required: 8192, offered: 8191 }),
+    });
+    let mut bounds = fixtures::bounds();
+    bounds.models = Box::new([fleet::ModelBound { name: b"scripted".as_slice().into(), window: 8191, output: 1024 }]);
+    let mut out = step(
+        &mut core,
+        &env,
+        Event::Fleet(fleet::Event::Hello {
+            worker: 0,
+            channel,
+            hello: fleet::Hello {
+                jobs: Box::default(),
+                bounds,
+                slots: 1,
+                stop_bound: Duration::ZERO,
+                workstreams: Box::new([]),
+                hosting: Box::new([]),
+            },
+        }),
+    );
+    let Some(Request::Held(held)) = out.pop() else {
+        panic!("held hello refusal");
+    };
+    let Held::Refuse { channel: refused, hello } = *held else {
+        panic!("hello refusal");
+    };
+    assert_eq!(refused, channel);
+    assert_eq!(hello, expected);
 }

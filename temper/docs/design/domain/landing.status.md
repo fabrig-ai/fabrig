@@ -1,6 +1,6 @@
 # landing: status
 
-2026-11-03. Where temper's code lags or departs from [landing.md](landing.md).
+2026-11-06. Where temper's code lags or departs from [landing.md](landing.md).
 
 - **Not yet:** 4.1: `with`; pin-only members; a stack of
   members in one repository, whose second member a later landing takes

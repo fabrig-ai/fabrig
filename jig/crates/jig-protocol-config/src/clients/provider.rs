@@ -13,11 +13,12 @@ pub struct Provider {
     pub clients: Box<[ProviderClient]>,
     pub addresses: Box<[u16]>,
 }
+/// A client registration (jig/docs/design/protocol/configuration.md, 3).
 #[derive(Debug)]
 pub struct ProviderClient {
     pub id: Box<[u8]>,
-    /// Data path, never the secret itself.
-    pub secret: Box<[u8]>,
+    /// Data path, or None for a public client.
+    pub secret: Option<Box<[u8]>>,
     pub redirect_uri: Box<[u8]>,
 }
 pub(super) fn parse(
@@ -85,7 +86,7 @@ fn client(
             }
         }
     }
-    let secret = check::path(&mut object, document, b"secret", path, Directory::Data, directories, problems);
+    let secret = client_secret(&mut object, document, path, directories, problems);
     let redirect_uri = check::text(&mut object, document, b"redirect_uri", path, problems);
     if let Some(uri) = &redirect_uri {
         if uri.len() > 2048 {
@@ -95,7 +96,33 @@ fn client(
         }
     }
     object.finish(document, path, problems);
-    Some(ProviderClient { id: id?, secret: secret?, redirect_uri: redirect_uri? })
+    Some(ProviderClient { id: id?, secret, redirect_uri: redirect_uri? })
+}
+fn client_secret(
+    object: &mut read::Object,
+    document: &Document,
+    path: &Path,
+    directories: &Directories,
+    problems: &mut Problems,
+) -> Option<Box<[u8]>> {
+    let at = object.required(document, b"secret", path, problems)?;
+    if document.token(at)?.kind == Kind::Null {
+        return None;
+    }
+    let value = match read::text(document, at, 4096) {
+        Ok(value) => value,
+        Err(what) => {
+            problems.push(path.member(b"secret"), what);
+            return None;
+        }
+    };
+    match directories.join(Directory::Data, &value) {
+        Ok(value) => Some(value),
+        Err(what) => {
+            problems.push(path.member(b"secret"), what);
+            None
+        }
+    }
 }
 fn redirect(uri: &[u8]) -> bool {
     let (rest, https) = if let Some(rest) = uri.strip_prefix(b"https://") {
