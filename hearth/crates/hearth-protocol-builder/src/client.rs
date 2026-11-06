@@ -77,8 +77,8 @@ impl Client {
     pub fn new(form: records::form::Form, limits: Limits) -> Self {
         Self {
             printer: printer::Printer::new(form, &limits),
-            events: Queue::with_capacity(1),
-            requests: Queue::with_capacity(2),
+            events: Queue::uncapped(),
+            requests: Queue::uncapped(),
             output: Resource::Awaited,
             stream: Stream::Taking,
             refused: false,
