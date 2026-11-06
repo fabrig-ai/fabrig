@@ -90,7 +90,7 @@ For the configuration members that need a restart, read `temper help configurati
 - `account verify` checks a program source alone; a sign-in or key
   source fails (exit 1).
 - The providers and models are the configuration's. For another model,
-  such as `gpt-6-astra`, follow **Offering another model** under
+  such as `claude-haiku-5-5`, follow **Offering another model** under
   **Acting on it** in `temper help deployment`: edit both
   `CONFIG/temper.json` and `CONFIG/agent.json` before starting, or stop
   and restart after editing them.

@@ -193,7 +193,7 @@ Shape: `demo-turn`. Paths: `application.demo.llm.asked[].turns[]` `application.d
 
 - `lines`: list of demo-line, 1 to 16 lines; required; init writes list (2 entries) | list (1 entry) | list (2 entries) | list (1 entry) | list (1 entry) | list (1 entry) | list (1 entry) | list (1 entry) | list (1 entry) | list (1 entry) | list (1 entry) | list (1 entry) | list (1 entry) | list (1 entry). The text or tool call making up this turn.
 - `finish`: text, stop, tool_calls, length or content_filter; required; init writes "tool_calls" | "stop". The reason this model turn ends.
-- `tokens`: integer, 1 to 18,446,744,073,709,551,615; required; init writes 269 | 2 | 30 | 68 | 70 | 7 | 116 | 47 | 24 | 242 | 19 | 317 | 17 | 51. The number of tokens charged for the turn.
+- `tokens`: integer, 1 to 18,446,744,073,709,551,615; required; init writes 270 | 2 | 30 | 68 | 70 | 7 | 116 | 47 | 24 | 242 | 19 | 317 | 17 | 51. The number of tokens charged for the turn.
 
 ## application.demo.llm.asked[].turns[].lines[]
 
