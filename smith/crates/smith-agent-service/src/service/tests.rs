@@ -873,6 +873,25 @@ mod validity {
 
     use super::*;
 
+    #[test]
+    fn component_routes_fit_the_token_namespace() {
+        for routes in [1 << 28, (1 << 28) + 1] {
+            let mut config = configuration();
+            config.limits.routes = routes;
+            let framed = Service::new(config, 1).map(|_| ());
+            let mut config = configuration();
+            config.limits.routes = routes;
+            let effects = Effects::new(config, 1).map(|_| ());
+            for result in [framed, effects] {
+                if routes == 1 << 28 {
+                    assert!(result.is_ok(), "the last representable route slot fits");
+                } else {
+                    assert!(matches!(result, Err(ConfigError::Queue)), "routes must fit the component tag");
+                }
+            }
+        }
+    }
+
     mod effects {
         use super::*;
 

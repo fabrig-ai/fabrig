@@ -20,7 +20,7 @@ mod terminals;
 pub use sign_out::Settled;
 mod transport;
 
-const ROOT_FILE: u64 = 1 << 63;
+const ROOT_TAG: u8 = 8;
 
 /// One account source handed to the local service before its loop.
 #[expect(missing_debug_implementations, reason = "environment records contain credentials")]
@@ -333,7 +333,7 @@ impl Accounts {
                             file_layer::down(
                                 &mut self.files,
                                 now,
-                                file::Request::Close { owner: Token::new(u64::from(index) | ROOT_FILE), file: root },
+                                file::Request::Close { owner: Token::tagged(ROOT_TAG, u64::from(index)).expect("account index fits root namespace"), file: root },
                                 &mut self.events,
                                 &mut self.submissions,
                             );
@@ -350,10 +350,10 @@ impl Accounts {
     }
 
     fn filed(&mut self, event: file::Event, now: Time, wall: Wall) {
-        if event.owner().raw() & ROOT_FILE != 0 {
+        if event.owner().tag() == ROOT_TAG {
             return;
         }
-        if event.owner().raw() & lock::LOCK_FILE != 0 {
+        if event.owner().tag() == lock::LOCK_TAG {
             self.lock_event(event, now, wall);
             return;
         }

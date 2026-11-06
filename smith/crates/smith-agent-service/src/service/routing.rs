@@ -3,7 +3,7 @@
 //! domain outcomes. Contract: smith/docs/design/protocol/agent.md, sections 4–6.
 
 use super::teardown::{Step, Teardown};
-use super::{COMPONENT_OWNER_BIT, Frame, Operation, Owner, Stages, USAGE_OWNER, face, program, teardown};
+use super::{COMPONENT_TAG, Frame, Operation, Owner, Stages, USAGE_OWNER, face, program, teardown};
 use skein_channel::LowerEvent as ChannelLowerEvent;
 use skein_io::{self as io, kernel};
 use skein_lib::{Id, Token, stream};
@@ -120,7 +120,7 @@ pub(super) fn route_owned_io(service: &mut Stages, event: io::Event) {
         }
         return;
     }
-    let id = Id::<Owner>::from_token(Token::new(owner.raw() & !COMPONENT_OWNER_BIT));
+    let id = Id::<Owner>::from_token(Token::new(owner.untagged()));
     let route = *service.owners.get(id).expect("IO event has a live component route");
     let closed = event.is_closed();
     match route {
@@ -153,8 +153,7 @@ pub(super) fn route_owned_io(service: &mut Stages, event: io::Event) {
 }
 
 pub(super) fn component_owner(route: Token) -> Token {
-    assert!(route.raw() & COMPONENT_OWNER_BIT == 0, "one process cannot exhaust the component owner namespace");
-    Token::new(route.raw() | COMPONENT_OWNER_BIT)
+    Token::tagged(COMPONENT_TAG, route.raw()).expect("component route fits namespace")
 }
 
 pub(super) fn io_down(service: &mut Stages, frame: Option<&mut Frame>) {

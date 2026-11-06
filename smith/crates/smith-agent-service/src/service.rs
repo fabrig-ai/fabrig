@@ -61,7 +61,7 @@ struct PendingMessage {
 // Route names also cover component terminals that do not name native IO operations.
 pub(crate) const ROUTE_HEADROOM: u32 = 64;
 
-const COMPONENT_OWNER_BIT: u64 = 1 << 63;
+const COMPONENT_TAG: u8 = 8;
 
 /// Fixed limits for one agent process and every stage it owns.
 #[derive(Clone, Copy, Debug)]

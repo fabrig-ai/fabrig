@@ -148,6 +148,9 @@ impl Stages {
         let events = crate::event_producer(&config);
         let Config { mut limits, domain, channel_endpoints, llm_endpoints, environment, stream_mode, program } = config;
         let program::Parts { program, files } = program::parts(program, &mut limits, &environment)?;
+        if limits.routes > 1 << 28 {
+            return Err(ConfigError::Queue);
+        }
         let frames = limits.queue;
         let llm = match llm::Component::new(&limits.llm, llm_endpoints) {
             Ok(llm) => llm,

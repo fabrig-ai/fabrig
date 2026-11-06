@@ -755,18 +755,18 @@ impl Service {
     fn route_completions(&mut self) {
         for _ in 0..self.completions.capacity() {
             let Some(complete) = self.completions.pop() else { break };
-            if complete.op.raw() & ACCOUNT_OPERATION_BIT != 0 {
+            if complete.op.tag() == ACCOUNT_TAG {
                 self.accounts.as_mut().expect("account operation owner").complete(kernel::Complete {
-                    op: Token::new(complete.op.raw() & !ACCOUNT_OPERATION_BIT),
+                    op: Token::new(complete.op.untagged()),
                     kind: complete.kind,
                     result: complete.result,
                 });
-            } else if complete.op.raw() & EFFECT_OPERATION_BIT == 0 {
+            } else if complete.op.tag() != EFFECT_TAG {
                 self.io.completions().push(complete);
             } else {
                 self.effects.as_mut().expect("effect namespace belongs to colocated mode").completions().push(
                     kernel::Complete {
-                        op: Token::new(complete.op.raw() & !EFFECT_OPERATION_BIT),
+                        op: Token::new(complete.op.untagged()),
                         kind: complete.kind,
                         result: complete.result,
                     },
@@ -777,11 +777,11 @@ impl Service {
 
     fn flush_submissions(&mut self) {
         if let Some(accounts) = &mut self.accounts {
-            flush(accounts.submissions(), &mut self.submissions, ACCOUNT_OPERATION_BIT, self.limits.queue);
+            flush(accounts.submissions(), &mut self.submissions, Some(ACCOUNT_TAG), self.limits.queue);
         }
-        flush(self.io.submissions(), &mut self.submissions, 0, self.limits.queue);
+        flush(self.io.submissions(), &mut self.submissions, None, self.limits.queue);
         if let Some(effects) = self.effects.as_mut() {
-            flush(effects.submissions(), &mut self.submissions, EFFECT_OPERATION_BIT, self.limits.queue);
+            flush(effects.submissions(), &mut self.submissions, Some(EFFECT_TAG), self.limits.queue);
         }
     }
 
@@ -1178,10 +1178,10 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
     service.local.reclaim();
 }
 
-const ACCOUNT_OPERATION_BIT: u64 = 1 << 62;
-const EFFECT_OPERATION_BIT: u64 = 1 << 63;
+const ACCOUNT_TAG: u8 = 4;
+const EFFECT_TAG: u8 = 8;
 
-fn flush(source: &mut Queue<kernel::Submit>, target: &mut Queue<kernel::Submit>, namespace: u64, limit: u32) {
+fn flush(source: &mut Queue<kernel::Submit>, target: &mut Queue<kernel::Submit>, namespace: Option<u8>, limit: u32) {
     for _ in 0..limit {
         if target.room() == 0 {
             break;
@@ -1257,19 +1257,16 @@ fn local_pass(service: &mut Service, now: Time, wall: Wall) {
     clippy::wildcard_enum_match_arm,
     reason = "kernel operations are external; only Cancel names another operation"
 )]
-fn namespace_submit(submit: kernel::Submit, bit: u64) -> kernel::Submit {
-    assert!(submit.op.raw() & (ACCOUNT_OPERATION_BIT | EFFECT_OPERATION_BIT) == 0, "bounded operation namespace");
+fn namespace_submit(submit: kernel::Submit, tag: Option<u8>) -> kernel::Submit {
+    assert!(submit.op.tag() & (ACCOUNT_TAG | EFFECT_TAG) == 0, "bounded operation namespace");
+    let Some(tag) = tag else { return submit };
     let kind = match submit.kind {
         kernel::Op::Cancel { target } if target.raw() != u64::MAX => {
-            assert!(
-                target.raw() & (ACCOUNT_OPERATION_BIT | EFFECT_OPERATION_BIT) == 0,
-                "lower cancel uses its own namespace"
-            );
-            kernel::Op::Cancel { target: Token::new(target.raw() | bit) }
+            kernel::Op::Cancel { target: Token::tagged(tag, target.raw()).expect("lower cancel uses its own namespace") }
         }
         other => other,
     };
-    kernel::Submit { op: Token::new(submit.op.raw() | bit), kind }
+    kernel::Submit { op: Token::tagged(tag, submit.op.raw()).expect("bounded operation namespace"), kind }
 }
 
 #[cfg(test)]

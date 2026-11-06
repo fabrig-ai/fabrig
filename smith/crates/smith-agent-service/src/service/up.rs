@@ -6,7 +6,7 @@ use super::down::drain_facts;
 use super::routing::route_io_event;
 use super::teardown::Teardown;
 use super::{
-    COMPONENT_OWNER_BIT, Failure, Frame, Operation, Owner, PendingMessage, Stages, credential, face, program, teardown,
+    COMPONENT_TAG, Failure, Frame, Operation, Owner, PendingMessage, Stages, credential, face, program, teardown,
 };
 use skein_io::{self as io, file_layer, kernel};
 use skein_lib::{Id, Time, Token};
@@ -116,10 +116,10 @@ fn machine_up(service: &mut Stages, framed: bool) {
 
 fn llm_io(service: &Stages, event: &io::Event) -> bool {
     let Some(owner) = event.owner() else { return false };
-    if service.pipe_routes.contains_key(&owner) || owner.raw() & COMPONENT_OWNER_BIT == 0 {
+    if service.pipe_routes.contains_key(&owner) || owner.tag() != COMPONENT_TAG {
         return false;
     }
-    let id = Id::<Owner>::from_token(Token::new(owner.raw() & !COMPONENT_OWNER_BIT));
+    let id = Id::<Owner>::from_token(Token::new(owner.untagged()));
     match service.owners.get(id) {
         Some(Owner::Llm(_)) => true,
         Some(Owner::Machine(_) | Owner::Program(_)) | None => false,
