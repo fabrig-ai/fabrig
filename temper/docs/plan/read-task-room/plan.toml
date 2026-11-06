@@ -1,0 +1,3 @@
+draft = "read-task-room"
+repo = "fabrig"
+sources = ["temper/docs/plan/read-task-room/inputs/request.md", "AGENTS.md", "DESIGN.md"]
