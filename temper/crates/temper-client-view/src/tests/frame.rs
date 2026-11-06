@@ -1581,3 +1581,148 @@ fn goals_opens_in_its_projects_frame() {
         }
     }
 }
+
+#[test]
+fn renaming_replaces_the_open_project_row_in_the_banner() {
+    for words in [fixtures::words(), fixtures::browser_words()] {
+        let mut root = switcher_owner(false);
+        fixtures::root_event(
+            &mut root,
+            temper_client_domain::Event::Act {
+                action: Action::Pages(pages::Act::Switcher(pages::switcher::Act::Rename)),
+            },
+        );
+        let mut builder = skein_ui::Builder::new(&fixtures::tree_limits());
+        let mut bindings = crate::frame::Bindings::new(fixtures::tree_limits().bindings);
+        crate::frame::switcher(
+            &mut builder,
+            &root,
+            &words,
+            &mut bindings,
+            Some(fixtures::PROJECT),
+            crate::frame::Place::Banner,
+        );
+        let tree = builder.finish();
+        assert!(fixtures::find(&tree, Role::Button, b"Shop").is_none());
+        assert!(fixtures::find(&tree, Role::Form, b"Rename Shop").is_some());
+    }
+}
+
+#[test]
+fn opening_rename_takes_focus_from_a_chat_composer() {
+    use temper_client_domain::{Address, Event};
+    let source = fixtures::chat::messaging_root();
+    let task = source.pages().chat().unwrap().task(source.client()).unwrap().clone();
+    let (mut root, me, watch) =
+        fixtures::root_at(Address::Chat { task: fixtures::chat::TASK }, &fixtures::domain_limits());
+    let mut person = root.pages().me(root.client()).unwrap().clone();
+    person.projects.get_mut(0).unwrap().role = jig_client::contract::HeldRole::Owner;
+    fixtures::deliver_me(&mut root, me, person);
+    fixtures::root_event(
+        &mut root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: watch.unwrap(),
+                    event: jig_client::contract::WatchEvent::Delivered(jig_client::contract::Delivery::Task(Box::new(
+                        task,
+                    ))),
+                },
+            },
+        },
+    );
+    fixtures::root_event(&mut root, Event::Act { action: Action::Pages(pages::Act::FocusComposer) });
+    for renaming in [false, true, false] {
+        let act = if renaming { pages::switcher::Act::Rename } else { pages::switcher::Act::Cancel };
+        fixtures::root_event(&mut root, Event::Act { action: Action::Pages(pages::Act::Switcher(act)) });
+        for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+            let composer = switcher_node(&view, Role::TextArea, b"Message");
+            assert_eq!(composer.focus, if renaming { None } else { Some(1) });
+            if renaming {
+                assert_eq!(switcher_node(&view, Role::TextField, b"Rename").focus, Some(0));
+            }
+        }
+    }
+}
+
+#[test]
+fn opening_rename_takes_focus_from_the_limits_heading() {
+    use temper_client_domain::{Address, Event, Place};
+    let (mut root, watch) = fixtures::away_frame(None, None);
+    let mut me = root.pages().me(root.client()).unwrap().clone();
+    me.projects.get_mut(0).unwrap().role = jig_client::contract::HeldRole::Owner;
+    fixtures::deliver_me(&mut root, watch, me);
+    fixtures::root_event(
+        &mut root,
+        Event::Act { action: Action::Pages(pages::Act::Away(pages::away::Act::Limits { project: fixtures::PROJECT })) },
+    );
+    fixtures::root_event(
+        &mut root,
+        Event::Went { place: Place::Address(Address::Settings { project: fixtures::PROJECT }) },
+    );
+    for renaming in [false, true, false] {
+        let act = if renaming { pages::switcher::Act::Rename } else { pages::switcher::Act::Cancel };
+        fixtures::root_event(&mut root, Event::Act { action: Action::Pages(pages::Act::Switcher(act)) });
+        for words in [fixtures::words(), fixtures::browser_words()] {
+            let limits = crate::Limits::of(&fixtures::domain_limits(), &words).unwrap();
+            let mut view = crate::View::new(&limits, &fixtures::domain_limits(), words, fixtures::FORGE);
+            fixtures::build(&mut view, &root);
+            let heading =
+                switcher_node(&view, Role::Heading { level: 2 }, "While you’re away, agents may decide".as_bytes());
+            assert_eq!(heading.focus, if renaming { None } else { Some(1) });
+            if renaming {
+                assert_eq!(switcher_node(&view, Role::TextField, b"Rename").focus, Some(0));
+            }
+        }
+    }
+}
+
+#[test]
+fn opening_rename_takes_focus_from_a_shown_document_section() {
+    let mut source = super::document::offered(Some(b"# Plan\n\nA draft.\n"), false);
+    fixtures::root_event(
+        &mut source,
+        temper_client_domain::Event::Act { action: Action::Pages(pages::Act::ShowSection { line: 1 }) },
+    );
+    let chat = source.pages().chat().unwrap();
+    let task = chat.task(source.client()).unwrap();
+    let mut root = switcher_owner(false);
+    for renaming in [false, true, false] {
+        let act = if renaming { pages::switcher::Act::Rename } else { pages::switcher::Act::Cancel };
+        fixtures::root_event(
+            &mut root,
+            temper_client_domain::Event::Act { action: Action::Pages(pages::Act::Switcher(act)) },
+        );
+        for words in [fixtures::words(), fixtures::browser_words()] {
+            let mut builder = skein_ui::Builder::new(&fixtures::tree_limits());
+            builder.open(Role::Slot);
+            let mut bindings = crate::frame::Bindings::new(fixtures::tree_limits().bindings);
+            crate::frame::switcher(
+                &mut builder,
+                &root,
+                &words,
+                &mut bindings,
+                Some(fixtures::PROJECT),
+                crate::frame::Place::Banner,
+            );
+            crate::pages::document::pane(
+                &mut builder,
+                &root,
+                chat,
+                task,
+                &words,
+                &mut crate::words::Times::new(fixtures::NOW),
+            );
+            builder.close();
+            let tree = builder.finish();
+            let mut sections = 0_usize;
+            for section in tree.nodes() {
+                if section.styles.as_slice().contains(&crate::look::DOC_SEC) {
+                    assert_eq!(section.focus, if renaming { None } else { Some(1) });
+                    sections += 1;
+                }
+            }
+            assert_eq!(sections, 1);
+        }
+    }
+}
