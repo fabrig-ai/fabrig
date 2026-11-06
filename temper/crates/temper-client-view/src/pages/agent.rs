@@ -67,12 +67,13 @@ pub(crate) fn main(
             run_heading(b, run, words);
         }
         super::task::controls(b, &task.chip, root, words, bindings, rows);
-        if let jig_client::thread::window::Edge::More(_) = page.thread.lines.edges.after {
-            b.open(Role::Button);
-            b.name(&words.say(Word::Older, &[]));
-            b.bind(bindings.insert(Act::Older));
-            b.close();
-        }
+        super::chat::older(
+            b,
+            &page.thread,
+            !page.thread.lines.edges.reaches(jig_client::thread::window::End::After),
+            words,
+            bindings,
+        );
         super::chat::conversation(
             b,
             &page.thread,

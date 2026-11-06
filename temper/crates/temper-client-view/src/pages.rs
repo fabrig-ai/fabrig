@@ -8,6 +8,7 @@ pub(crate) mod builders;
 pub(crate) mod change;
 pub(crate) mod changes;
 pub(crate) mod chat;
+pub(crate) mod chat_line;
 pub(crate) mod chat_sheet;
 pub mod chats;
 pub(crate) mod configure;
