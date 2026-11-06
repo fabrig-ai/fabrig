@@ -577,10 +577,9 @@ keeps (`../protocol/configuration.md`, section 2).
   its name the mock's `slug` of the title, 28 characters, plus `.md`:
   `away-mode.md`. There are no file drafts: a document
   is always a chat's.
-  - *Offered:* `pages::drafts_offered(me, project)` is true while `me` lists a
-    template of that project with `tracked` and no conversation flag. It gates
-    "+ Draft", the Drafts filter, the Chats lede's words, "Start goal…" and the
-    rail's "Goal".
+  - *Offered:* `pages::drafts_offered(root, project)` is that project's kind 7
+    `drafts` (5.13), false in the stock. It gates "+ Draft", the Drafts filter, the
+    Chats lede's words, "Start goal…" and the rail's "Goal".
   - *Read live, with no new watch:* `Read::Notes { scope: NoteScope::Task {
     project, task }, description: None, after: None }`, on the same retries as an
     activity read, once the task's document has arrived, and again when the
@@ -647,43 +646,18 @@ keeps (`../protocol/configuration.md`, section 2).
     the message "Write this up as a draft beside us." The `.meta-line`, when the
     thread is empty: "A chat that writes NAME. Say what it should hold."
 - **Starting a goal from a chat's document** (the greenfield mock's `startSheet` and
-  `startGoal`): "Start goal…" opens a `Role::Dialog` named "Start a goal from NAME",
-  `dialog.sheet`, its state the page's; Escape and "Cancel" close it; on a phone,
-  the mock's width rule.
-  - `h2` "Start a goal from NAME", muted "The goal takes the draft as it is now.
-    Later edits reach it through Amend."
-  - `.field` "Name", `.text`, the slug without `.md`, focused.
-  - Fieldset "How it runs", `.option` radios, from what exists, in this order, the
-    first checked, its small line ending " PROJECT’s default.": each offered template
-    with `tracked`, no conversation flag and a symbolic resource, its own goal branch:
-    "Plan, tasks, land whole", "A plan from the draft, its tasks on a goal branch,
-    landed as one change once all are checked."; stock template 2: "Task by task",
-    "The same plan; each task lands on its own once checked."; stock template 2
-    agreed: "Plan, then wait for me", "Proposes the plan and its tasks, and starts
-    nothing until you approve." Then a muted link "The project’s ways of working", to
-    `Settings { project }`. Its "When it needs you" waits for the away switch.
-  - `.field` "Budget", `.text` 7em, a number, in the deployment's unit, no `$`, its
-    default `me`'s creating bound's `within.budget`, the most that creates with no
-    proposal, since `temper ctl goal start` has no default of its own; beside it,
-    muted, "asks you before going over".
-  - `.foot`: `.btn.quiet` "Cancel", `.btn.primary` "Start goal", disabled while the
-    name is empty or one is out.
-  - *Sent:* `shapes::set_goal_from(me, project, template, GoalDraft { words, executor,
-    budget, deadline: None, priority: None, llm: None }, reason)`, its executor charter
-    1 where the template lets the creator choose. The words, within `tasks.spec_bytes`
-    and refused in place if over, are "NAME", a blank line, "Implement this draft.
-    First commit it, as it stands, at docs/design/draft/SLUG.md.", a blank line and
-    the body, a snapshot, followed by the line `goal`'s root gives a goal, so that
-    charter 1's instructions read it as a goal (`../domain/agent.md`, 4.3.2), and for
-    "Plan, then wait for me" its agreed line too (8.2), sent by
-    `shapes::set_agreed_goal_from`, whose `asks` holds the root's rail (`../domain/agent.md`,
-    8.2). Both lines are one constant the root and the client reach, in
-    `temper-client-protocol-wire`. `long_text` bounds them on the client's side, and
-    `tasks.spec_bytes` on the engine's.
-  - *Answered:* `Judged::Create`: the fact `GoalFrom` is sent (4.6) and the goal's
-    `Task { task }` opens. `Judged::Propose`: the sheet closes with a line above the
-    composer, "Asked RECIPIENT to approve it; it waits in Needs you." `Judged::Refused`,
-    `NotOffered` or a refused answer: jig's words under the form, the form kept.
+  `startGoal`): "Start goal…" opens the one sheet to start a goal (5.14), given
+  `docs/design/draft/NAME.md`, the chat and a snapshot of the document's body; its
+  "Name" is the slug without `.md`, and its ways and default are 5.14's.
+  - *Sent:* its words, within `long_text` on the client's side and `tasks.spec_bytes`
+    on the engine's, refused in place if over, are "NAME", a blank line, "Implement
+    this draft. First commit it, as it stands, at docs/design/draft/SLUG.md.", a blank
+    line, the body, a blank line and the line `goal`'s root gives a goal, so that
+    charter 1's instructions read it as a goal (`../domain/agent.md`, 4.3.2), a
+    constant the root and the client reach, in `temper-client-protocol-wire`; then
+    5.14's `Draft:` and `Chat:` lines, and `Asks: always` where it is chosen.
+  - *Answered:* 5.14's ends; on `Judged::Create` the fact `GoalFrom` is sent (4.6)
+    and the goal's `Task { task }` opens.
   - *After:* the fact's chat shows `.turn-tool`: pen, "Started goal", `.file` TITLE, its
     state, "Open", placed among the turns by the fact's `at`. Goals an
     agent started with the `goal` tool keep their line in the conversation (5.7).
@@ -4999,18 +4973,19 @@ can open it. `draft` is the draft's path in the repository
   ```
 
   The first line is the task's title, as jig takes it. `Chat:` only when a chat
-  opened the sheet. "Always ask" appends the exact line `Asks: always`;
+  opened the sheet, whose document's snapshot then stands in the "Build" line's
+  place (3.5). "Always ask" appends the exact line `Asks: always`;
   "Follow the away switch" adds no asking line. Nothing stores the choice
   apart from these words.
 - **Its ends:** `Judged::Create`: sent, and on its answer to the goal's page, which
   shows planning. `Judged::Propose`: sent, the sheet closes, toast "Proposed to
   WHOM: it starts once accepted." `Judged::Refused`, `NotOffered` or a refused
   answer: `.sheet-error` in the sheet, in jig's words, and it stays open.
-- **Where it opens:** on Goals, the `.link` "Start one from a draft" at the section
-  head (3.5, *Goals*), with no draft, shown while the project has a tracked
-  template.
-- **The chat's thread** gets no "Started goal X" line: a person's Create leaves no
-  turn.
+- **Where it opens:** on a chat, its "Start goal…" (3.5); on Goals, the `.link`
+  "Start one from a draft" at the section head (3.5, *Goals*), with no draft, shown
+  while the project has a tracked template.
+- **The chat's thread:** a person's Create leaves no turn, so its "Started goal"
+  line is drawn from the fact `GoalFrom` (3.5).
 - **The look:** `browser.md`, 2.5, *A goal's look*.
 
 ## 6. The terminal shell
@@ -5939,22 +5914,18 @@ own tests:
 
 ## 11. Open questions
 
-- **A fresh configuring chat** (3.5, *The configuring chat's page*): "Start
-  over" in a configuring chat's top bar closes the chat, which stays in
-  Chats, Closed, its conversation and document kept, and opens `Configure`,
-  after the confirmation "Start a new configuring chat? This one stays in
-  Chats."; a command in the composer ("/clear") once the composer takes
-  commands. It waits for the look request `configure-chat-draft`, held,
-  which draws it. Default: a configuring chat is closed with its "Close".
-- **The draft beside a chat** (3.5; the greenfield mock's `chat.html?id=T4`):
-  a chat writes a draft beside its conversation, its bar adds a mode group
-  and "Start goal…" after the byline, and the Chats page's lede reads "A chat
-  answers a question or changes the code, and can write a draft beside it. A
-  draft becomes a goal for bigger work." On a phone, as the request `ui-phone`
-  of 2026-11-05 has it: Chat and Draft alone, `.seg .split` hidden,
-  `.doc { padding: 24px 20px 60px; border-left: 0 }`. It waits for the user's
-  request `ui-chat-draft`. Default: no chat has a draft, and the lede stops at
-  "changes the code."
+- **A fresh configuring chat from its composer** (3.5, *The configuring chat's
+  page*): a command ("/clear") once the composer takes commands. Default: "Start
+  over" in its bar.
+- **The sheet the request `ui-chat-draft` of 2026-11-05 draws** (3.5, 5.14): its
+  "Budget", in the deployment's unit, and its ways by their fixed words, "Plan, tasks,
+  land whole", "Task by task" and "Plan, then wait for me", the last sent by
+  `shapes::set_agreed_goal_from`, which stands built with nothing sending it; and a
+  proposed goal's line above the composer. Default: 5.14's one sheet, its budget the
+  creating bound's, its ways the project's templates, a proposal its toast.
+- **A document's drawing** (3.5; the look request `configure-chat-draft`): its flow
+  and figure wait on `skein/docs/design/draft/diagrams.md`. Default: a fenced block
+  reads as code, and the agent isn't told to draw.
 - **A repository being made, on a page** (4.4; `../draft/repository-copies.md`,
   sections 7, 9 and 10): the forges' rows carry `makings`, `temper ctl
   forge list` says them, and Home's second step says a project's while To
@@ -6252,12 +6223,6 @@ own tests:
   and a party with more goals than that sees what the page holds. Default: so,
   since the request `ui-goal-page` keeps jig's part to `made`; a key selecting one
   task is the candidate (a jig change).
-- **Start goal's places** (5.14): the chat's "Start goal…", which opens the sheet
-  with its draft and its chat, and Chats' Drafts filter, where Goals' link then
-  goes, as the mock's, wait for the Chats area's drafts (*The draft beside a
-  chat,* above). So do the walk from a chat's draft to a goal's page, and any
-  "Started goal X" that area draws from `draft_of`. Each is drawn when what
-  stands behind it is; until then Goals links to Chats.
 - **An agent's task's page against its mockup** (5.9), each a default
   the user may change:
   - its dependencies, which the mockup draws on no agent's page: the

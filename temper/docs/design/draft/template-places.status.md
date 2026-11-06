@@ -1,6 +1,6 @@
 # template-places: status
 
-2026-11-05. Where the design lags or departs from [template-places.md](template-places.md).
+2026-11-06. Where the design lags or departs from [template-places.md](template-places.md).
 
 - **Design departs:**
   - 1, 4: kind 7 is a project's ways (`../protocol/configuration.md`, 13.2), `ui-settings`' for the user's request of 2026-11-05: this draft's kinds 7 and 8 take the next free numbers when it is taken up.
