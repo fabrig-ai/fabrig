@@ -321,7 +321,7 @@ pub static SHAPES: [Shape; 61] = [
 ];
 
 /// Every named member, including settings read only by the document-defaults bridge.
-pub static MEMBERS: [Member; 257] = [
+pub static MEMBERS: [Member; 258] = [
     Member {
         shape: "engine",
         name: "limits",
@@ -779,6 +779,15 @@ pub static MEMBERS: [Member; 257] = [
         bound: "16 efforts; 32 bytes each",
         required: false,
         line: "Lists the efforts the model takes, in order, with none when absent.",
+        gone: None,
+    },
+    Member {
+        shape: "model",
+        name: "effort",
+        kind: "text",
+        bound: "32 bytes",
+        required: false,
+        line: "Names the effort a task given no choice takes, the first of the efforts when absent.",
         gone: None,
     },
     Member {

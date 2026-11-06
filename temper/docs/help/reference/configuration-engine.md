@@ -115,6 +115,7 @@ Shape: `model`. Paths: `engine.llm.models[]`. A model, its context bounds, effor
 - `window`: integer, 0 to 4294967295 tokens; required; init writes 1048576. Gives the model's context window.
 - `output`: integer, 0 to 4294967295 tokens; required; init writes 8192. Gives the model's maximum output.
 - `efforts`: list of text, 16 efforts; 32 bytes each; optional; init leaves it out. Lists the efforts the model takes, in order, with none when absent.
+- `effort`: text, 32 bytes; optional; init leaves it out. Names the effort a task given no choice takes, the first of the efforts when absent.
 - `prices`: prices; required; init writes object. Gives input, cached input and output prices in spend units.
 - `description`: text, 1 to 512 bytes; optional; init leaves it out. Describes what the model is good at for the brief's catalogue.
 

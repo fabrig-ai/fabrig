@@ -323,11 +323,25 @@ pub struct Model {
     /// The efforts the model declares, by name in its order; a task's LLM choice names one by
     /// index, and none for a model that declares none (domain/tasks.md, 3).
     pub efforts: Box<[Box<[u8]>]>,
-    /// The effort a run uses on this model, one of `efforts` by name, or `None` for the LLM
-    /// provider's default: a run's charter carries its task's choice's (domain/engine.md, 7.1).
-    /// Configured models and charters carry none: configuration names a charter's models, not
-    /// an effort for each (configuration.md, 3).
+    /// On a configured model and a charter's, the default a task given no LLM choice takes,
+    /// one of `efforts` by name, or `None` for its first (configuration.md, 3).
+    /// On a run's charter, its task's choice's (domain/engine.md, 7.1), or `None` for the LLM
+    /// provider's default when the model declares no efforts.
     pub effort: Option<Box<[u8]>>,
+}
+
+impl Model {
+    /// The default effort a task given no LLM choice takes (domain/tasks.md, 3).
+    #[must_use]
+    pub fn default_effort(&self) -> Option<&[u8]> {
+        match &self.effort {
+            Some(effort) => Some(effort.as_ref()),
+            None => match self.efforts.first() {
+                Some(effort) => Some(effort.as_ref()),
+                None => None,
+            },
+        }
+    }
 }
 
 /// The most efforts a configured model declares (configuration.md, 3).
