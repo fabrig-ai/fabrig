@@ -1812,8 +1812,10 @@ never streaming (`../draft/first-release.md`, 5.3).
   sign-in and no stream, the view's text checked against the public
   records' fields alone. Its board and task lines, goals and delegates,
   are also read at 1440 px and 420 px with a long title and populated facts:
-  text boxes stay separate, titles remain readable, navigation stays inset
-  and content stays within the viewport. A project made private has its pages
+  one geometry query reads all text matches at each page and width, with the
+  count of any matches beyond the browser's limit checked. Text boxes stay
+  separate, titles remain readable, navigation stays inset and content stays
+  within the viewport. A missing text box reports its text and measurement stage. A project made private has its pages
   unknown at the next read. The goal it reads is under way: a landed goal's pages
   hold nothing a browser alone shows (4.6). Its landings page reads "No landings to
   show yet." or the stock queue's merge, by whether the merge came before the read.
