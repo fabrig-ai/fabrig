@@ -113,7 +113,7 @@ pub(crate) fn main(
 fn conversation_head(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings) {
     let chat = root.pages().chat().expect("chat page");
     let task = chat.task(root.client()).expect("chat task");
-    older(b, &chat.thread, chat.offers_older(), words, bindings);
+    older(b, &chat.thread, !chat.thread.lines.edges.reaches(jig_client::thread::window::End::After), words, bindings);
     context(b, root, task.project, words);
     if chat.thread.lines().is_empty() && (chat.draft.is_some() || chat.writing) {
         let name = match &chat.draft {
