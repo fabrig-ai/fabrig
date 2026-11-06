@@ -1,3 +1,43 @@
 draft = "limits-heavy"
 repo = "fabrig"
 sources = ["temper/docs/plan/limits-heavy/inputs/request.md", "temper/crates/temper/tests/suite/box_listeners.rs", "temper/crates/temper-client-view/src/tests/limits.rs", "temper/tools/gallery/Cargo.toml", "AGENTS.md", "DESIGN.md"]
+
+# 8.1's repair for temper's other heavy focused tests, a task a row; see plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "box"
+title = "temper::suite's real boxes and landing launcher: two tests move to the process tier, the rest are profiled"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/testing.md, 2.6"
+
+[[part]]
+id = "fake"
+title = "What a fake machine's preparation costs fake_backends::tests"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[part]]
+id = "limits"
+title = "Why a client view's window at its bound costs seconds"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 5.4"
+
+[[part]]
+id = "rate"
+title = "What simulating a forge's requests costs rate and github_land"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/testing.md, 6.1"
+
+[[slice]]
+id = 1
+story = "The largest rows read lower in instructions, and two box stories run in the process tier"
+parts = ["box", "fake", "limits", "rate"]
+walk = false

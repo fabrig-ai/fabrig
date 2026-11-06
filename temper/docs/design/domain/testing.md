@@ -870,6 +870,16 @@ terminal client, the captures and the faults.
   GitHub. They need the box's processes and their deaths, so they stay
   in this profile.
 
+- **The box's lifetime with its steps running,** two stories of their own
+  (../protocol/setup.md, 13.1): a hangup stopping a box whose playground
+  steps run, nothing left, its log's last line `Stopped`, and the same
+  configuration binding again; and, on Linux, a box killed taking those
+  steps with it. They need the box's processes and their deaths, so they
+  run in this profile. A box started ignoring hangups asks for no step: it
+  is one path through `main`, and stays in the `suite` binary with the
+  other paths of a box's first run
+  (`crates/temper/tests/suite/box_listeners.rs`).
+
 - **The upgrade's commands,** through the real binary, whose patch sets
   are empty until the first release: `temper versions`' lines; `temper
   upgrade --check` over a stopped deployment's copy, saying the restores
