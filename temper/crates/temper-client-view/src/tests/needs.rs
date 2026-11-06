@@ -991,3 +991,39 @@ fn stable_nodes(tree: &skein_ui::Tree) -> Vec<skein_ui::Node> {
     }
     nodes
 }
+
+fn empty_column(root: &d::Domain) {
+    let view = f::browser_page_view(root);
+    assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Nothing needs you.").is_none());
+    let index = super::inbox::styled(view.tree(), look::NEEDS);
+    assert_eq!(view.tree().nodes()[index].size, 1, "unanswered column has no content");
+}
+#[test]
+fn behind_with_unanswered_reads_needs_claims_no_empty() {
+    let mut page = f::ReadPage::new(Address::Inbox { filter: d::address::Filter::ALL });
+    page.drop_inbox();
+    assert!(f::find(f::browser_page_view(&page.root).tree(), Role::Status, b"Behind").is_some());
+    empty_column(&page.root);
+}
+#[test]
+fn lost_section_reads_are_no_answer() {
+    let mut page = f::ReadPage::new(Address::Inbox {
+        filter: d::address::Filter { project: Some(f::PROJECT), ..d::address::Filter::ALL },
+    });
+    page.refresh_inbox();
+    page.sections(true);
+    empty_column(&page.root);
+}
+#[test]
+fn a_known_empty_stays_through_a_refresh() {
+    let mut page = f::ReadPage::new(Address::Inbox {
+        filter: d::address::Filter { project: Some(f::PROJECT), ..d::address::Filter::ALL },
+    });
+    page.refresh_inbox();
+    page.sections(false);
+    page.refresh_inbox();
+    assert!(!page.root.pages().inbox().unwrap().delivered(page.root.client()));
+    assert!(
+        f::find(f::browser_page_view(&page.root).tree(), Role::Heading { level: 1 }, b"Nothing needs you.").is_some()
+    );
+}
