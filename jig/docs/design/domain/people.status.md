@@ -1,6 +1,6 @@
 # people: status
 
-2026-11-04. Where jig's code lags or departs from [people.md](people.md).
+2026-11-06. Where jig's code lags or departs from [people.md](people.md).
 
 - **Not yet:** 3: a service's credential reissued or removed. 5.1:
   `Hold`; `Move` under another task; `Succeed`; a party's `Propose` of a

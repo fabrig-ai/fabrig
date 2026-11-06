@@ -20,6 +20,9 @@ mod wire;
 use std::cell::Cell;
 thread_local! { static TRACKED: Cell<bool> = const { Cell::new(true) }; }
 thread_local! { static ACTIVE: Cell<bool> = const { Cell::new(false) }; }
+// The forge's largest public record is PublicLandings; two reservations fit, three do not.
+pub(super) const PUBLIC_ANSWER_BYTES: u32 = 67_405;
+pub(super) const PUBLIC_BYTES: u32 = PUBLIC_ANSWER_BYTES * 2 + 1;
 pub(crate) fn configure(value: &mut serde_json::Value) {
     if !ACTIVE.with(Cell::get) {
         return;
@@ -60,9 +63,9 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
         ("clients_http.public_calls", 4),
         ("clients.public.rate", 8),
         ("clients.public.rate_burst", 8),
-        ("clients.public.bytes", 524_288),
-        ("clients.public.bytes_burst", 524_288),
-        ("clients.public.answer_bytes", 262_144),
+        ("clients.public.bytes", PUBLIC_BYTES),
+        ("clients.public.bytes_burst", PUBLIC_BYTES),
+        ("clients.public.answer_bytes", PUBLIC_ANSWER_BYTES),
         ("clients.public.max_age", 2),
         ("core.public.goals", 4),
         ("core.public.ended", 4),

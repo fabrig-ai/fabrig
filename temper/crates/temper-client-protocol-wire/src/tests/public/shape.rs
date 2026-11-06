@@ -150,28 +150,14 @@ pub(super) fn listing(source: &str) -> String {
     text
 }
 
-pub(super) fn addresses_only(source: &str) {
+pub(super) fn no_strings(source: &str) {
     let schema = skein_codegen::parse(source).expect("schema parses");
-    let addresses = [
-        ("PublicChange", "repository"),
-        ("PublicChange", "pull"),
-        ("PublicQueue", "repository"),
-        ("PublicGateProof", "run"),
-        ("PublicMember", "repository"),
-        ("PublicMember", "pull"),
-    ];
     for declaration in &schema.declarations {
         if let Declaration::Record(record) = declaration {
             for field in &record.fields {
                 match leaf(&field.ty) {
-                    Type::Bytes(bound) | Type::Text(bound) => {
-                        assert!(
-                            addresses.contains(&(record.name.as_str(), field.name.as_str())),
-                            "{}.{}",
-                            record.name,
-                            field.name
-                        );
-                        assert_eq!(*bound, crate::ADDRESS_BYTES);
+                    Type::Bytes(_) | Type::Text(_) => {
+                        panic!("public field {}.{} holds a string", record.name, field.name);
                     }
                     Type::Secret(_) => unreachable!("public schema has no secrets"),
                     Type::U8
@@ -187,4 +173,9 @@ pub(super) fn addresses_only(source: &str) {
             }
         }
     }
+}
+
+#[test]
+fn the_public_schema_has_no_string_field() {
+    no_strings(super::SCHEMA);
 }

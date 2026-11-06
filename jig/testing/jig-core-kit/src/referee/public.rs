@@ -285,8 +285,7 @@ impl Referee {
             if line.parent != parent
                 || line.priority != row.tracked
                 || line.goal != row.tracked.is_some()
-                || line.budget != row.numbers.budget
-                || line.spent != row.numbers.spent.saturating_add(row.numbers.spent_below)
+                || line.spent != row.tracked.map(|_| row.numbers.spent.saturating_add(row.numbers.spent_below))
                 || line.made != row.created_at.as_secs()
                 || line.changed != row.changed.as_secs()
                 || line.active != row.run_since.map(skein_lib::Wall::as_secs)

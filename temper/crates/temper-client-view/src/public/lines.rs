@@ -1,4 +1,4 @@
-//! Public identities, titles, phases and times (temper/docs/design/client/browser.md, 8.3).
+//! Public identities, rows and times (temper/docs/design/client/browser.md, 8.3).
 use super::Draw;
 use crate::words::{TimeForm, Word};
 use alloc::boxed::Box;
@@ -18,44 +18,65 @@ impl Draw<'_> {
             return;
         }
         b.open(Role::Paragraph);
+        b.style(crate::look::PUBLIC_FACTS);
         self.words.text(b, Word::PublicFolded, &[Hole::Number(u64::from(count))]);
         b.close();
     }
-    pub(super) fn line(&mut self, b: &mut Builder, line: &PublicLine) {
-        b.open(Role::Group);
+    /// Draw an open list item's row, leaving room for its nested tree.
+    pub(super) fn row(&mut self, b: &mut Builder, line: &PublicLine, executor: bool) {
         b.style(crate::look::PUBLIC_ROW);
-        b.open(Role::Group);
-        b.style(crate::look::PUBLIC_TITLE);
-        self.task_link(b, line.task(), line.goal());
         b.open(Role::Paragraph);
+        b.style(crate::look::PUBLIC_LINE);
+        self.task_link(b, line.task(), line.goal());
+        b.text(Run::Plain, b" ");
         b.text(Run::Plain, line.title());
         if line.title_cut() {
             self.words.text(b, Word::PublicTitleCut, &[]);
         }
         b.close();
-        b.close();
-        b.open(Role::Group);
-        b.style(crate::look::PUBLIC_META);
-        let executor = match line.executor() {
-            PublicExecutor::Agent => Word::PublicAgent,
-            PublicExecutor::Procedure => Word::PublicProcedure,
-            PublicExecutor::Person => Word::PublicPerson,
-            PublicExecutor::Job => Word::PublicJob,
-        };
-        self.text(b, executor);
-        self.text(b, phase(line.phase()));
-        let since = Wall::from_nanos(line.changed().saturating_mul(1_000_000_000));
-        let duration = self.times.say(self.words, TimeForm::Span, since);
-        self.words.text(b, Word::PublicFor, &[Hole::Name(duration)]);
-        self.words.text(b, Word::ChatbarSpend, &[Hole::Number(line.spent()), Hole::Number(line.budget())]);
-        if let Some(priority) = line.priority() {
-            self.words.text(b, Word::Priority, &[Hole::Number(u64::from(*priority))]);
+        b.open(Role::Paragraph);
+        b.style(crate::look::PUBLIC_FACTS);
+        if executor {
+            let executor = match line.executor() {
+                PublicExecutor::Agent => Word::PublicAgent,
+                PublicExecutor::Procedure => Word::PublicProcedure,
+                PublicExecutor::Person => Word::PublicPerson,
+                PublicExecutor::Job => Word::PublicJob,
+            };
+            self.text(b, executor);
+            self.text(b, Word::ToolSeparator);
         }
-        b.close();
+        self.text(b, phase(line.phase(), line.goal()));
+        self.text(b, Word::ToolSeparator);
+        let ended = match line.phase() {
+            PublicPhase::Done | PublicPhase::Failed | PublicPhase::Cancelled => true,
+            PublicPhase::Waiting
+            | PublicPhase::Idle
+            | PublicPhase::Due
+            | PublicPhase::Preparing
+            | PublicPhase::Claimed
+            | PublicPhase::Running
+            | PublicPhase::BackingOff
+            | PublicPhase::Active
+            | PublicPhase::Closing
+            | PublicPhase::Held => false,
+        };
+        let seconds = if ended { line.ended().unwrap_or(line.changed()) } else { line.changed() };
+        let since = Wall::from_nanos(seconds.saturating_mul(1_000_000_000));
+        let duration = self.times.public_time(self.words, if ended { TimeForm::Ago } else { TimeForm::Span }, since);
+        if ended {
+            b.text(Run::Plain, &duration);
+        } else {
+            self.words.text(b, Word::PublicFor, &[Hole::Name(duration)]);
+        }
+        if let Some(spent) = line.spent() {
+            self.text(b, Word::ToolSeparator);
+            self.words.text(b, Word::RowSpent, &[Hole::Number(*spent)]);
+        }
         b.close();
     }
 }
-fn phase(phase: &PublicPhase) -> Word {
+fn phase(phase: &PublicPhase, goal: bool) -> Word {
     match phase {
         PublicPhase::Waiting => Word::PhaseWaiting,
         PublicPhase::Idle => Word::PhaseIdle,
@@ -67,10 +88,15 @@ fn phase(phase: &PublicPhase) -> Word {
         PublicPhase::Active => Word::PhaseActive,
         PublicPhase::Closing => Word::PhaseClosing,
         PublicPhase::Held => Word::PhaseHeld,
-        PublicPhase::Ended => Word::PublicEnded,
-        PublicPhase::Done => Word::PublicDone,
+        PublicPhase::Done => {
+            if goal {
+                Word::PublicLanded
+            } else {
+                Word::PublicDone
+            }
+        }
         PublicPhase::Failed => Word::PublicFailed,
-        PublicPhase::Cancelled => Word::PublicCancelled,
+        PublicPhase::Cancelled => Word::PublicEnded,
     }
 }
 fn short(id: u64) -> Box<[u8]> {

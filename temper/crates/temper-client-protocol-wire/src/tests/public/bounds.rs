@@ -1,6 +1,5 @@
 //! Maximal visitor answers and entrance refusals (temper/docs/design/client/forge.md, 11.4).
 use crate::{Bounds, public_bounds, public_limits, public_v1 as w};
-use alloc::boxed::Box;
 use skein_lib::{List, Reader, Writer};
 
 const BOUNDS: Bounds = Bounds {
@@ -13,10 +12,6 @@ const BOUNDS: Bounds = Bounds {
     contexts: 2,
     refusal_bytes: 64,
 };
-
-fn address() -> Box<[u8]> {
-    Box::new([b'a'; 2048])
-}
 
 fn gate() -> w::PublicGate {
     w::PublicGate::new(
@@ -44,8 +39,6 @@ fn change(limits: &w::Limits) -> w::PublicChange {
         limits,
         w::PublicChangeParts {
             task: u16::MAX,
-            repository: address(),
-            pull: Some(address()),
             head: Some([255; 32]),
             step: w::PublicStep::Repairing,
             repair: Some(w::PublicRepair::Gate(
@@ -92,7 +85,7 @@ fn queue(limits: &w::Limits) -> w::PublicQueue {
     for _ in 0..limits.public_queue_changes {
         changes.push(queued()).unwrap();
     }
-    w::PublicQueue::new(limits, w::PublicQueueParts { repository: address(), changes }).unwrap()
+    w::PublicQueue::new(limits, w::PublicQueueParts { changes }).unwrap()
 }
 
 fn landings(limits: &w::Limits) -> w::PublicLandings {
@@ -115,7 +108,6 @@ fn proof() -> w::PublicGateProof {
             kind: w::PublicGateKind::Check,
             blocks: true,
             proof: w::PublicProof::Failed,
-            run: Some(address()),
         },
     )
     .unwrap()
@@ -130,8 +122,6 @@ fn member(limits: &w::Limits) -> w::PublicMember {
         limits,
         w::PublicMemberParts {
             task: u16::MAX,
-            repository: address(),
-            pull: Some(address()),
             base: Some([255; 32]),
             candidate: Some([255; 32]),
             landed: Some([255; 32]),
@@ -188,29 +178,23 @@ pub(super) fn largest_answers() {
     refuse_landing_overages(&landing, &bytes, limits);
 }
 
-// A maximal value is one entry/byte beyond a receiver whose corresponding limit is one smaller.
+// A maximal value is one entry beyond a receiver whose corresponding limit is one smaller.
 fn refuse_change_overages(value: &w::PublicChange, bytes: &[u8], limits: w::Limits) {
-    for smaller in [
-        w::Limits { public_change_gates: limits.public_change_gates.checked_sub(1).unwrap(), ..limits },
-        w::Limits { public_change_repository: limits.public_change_repository.checked_sub(1).unwrap(), ..limits },
-        w::Limits { public_change_pull_some: limits.public_change_pull_some.checked_sub(1).unwrap(), ..limits },
-    ] {
-        assert_eq!(
-            w::PublicChange::new(&smaller, value.clone().into_parts()).unwrap_err().reason,
-            skein_codec::Reason::Bound
-        );
-        assert_eq!(
-            w::PublicChange::decode(&smaller, &mut Reader::new(bytes)).unwrap_err().reason,
-            skein_codec::Reason::Bound
-        );
-    }
+    let smaller = w::Limits { public_change_gates: limits.public_change_gates.checked_sub(1).unwrap(), ..limits };
+    assert_eq!(
+        w::PublicChange::new(&smaller, value.clone().into_parts()).unwrap_err().reason,
+        skein_codec::Reason::Bound
+    );
+    assert_eq!(
+        w::PublicChange::decode(&smaller, &mut Reader::new(bytes)).unwrap_err().reason,
+        skein_codec::Reason::Bound
+    );
 }
 
 fn refuse_landings_overages(value: &w::PublicLandings, bytes: &[u8], limits: w::Limits) {
     for smaller in [
         w::Limits { public_landing_line_members: limits.public_landing_line_members.checked_sub(1).unwrap(), ..limits },
         w::Limits { public_landing_line_landed: limits.public_landing_line_landed.checked_sub(1).unwrap(), ..limits },
-        w::Limits { public_queue_repository: limits.public_queue_repository.checked_sub(1).unwrap(), ..limits },
         w::Limits { public_queue_changes: limits.public_queue_changes.checked_sub(1).unwrap(), ..limits },
         w::Limits { public_landings_landings: limits.public_landings_landings.checked_sub(1).unwrap(), ..limits },
         w::Limits { public_landings_queues: limits.public_landings_queues.checked_sub(1).unwrap(), ..limits },
@@ -228,11 +212,8 @@ fn refuse_landings_overages(value: &w::PublicLandings, bytes: &[u8], limits: w::
 
 fn refuse_landing_overages(value: &w::PublicLanding, bytes: &[u8], limits: w::Limits) {
     for smaller in [
-        w::Limits { public_member_repository: limits.public_member_repository.checked_sub(1).unwrap(), ..limits },
-        w::Limits { public_member_pull_some: limits.public_member_pull_some.checked_sub(1).unwrap(), ..limits },
         w::Limits { public_member_gates: limits.public_member_gates.checked_sub(1).unwrap(), ..limits },
         w::Limits { public_landing_members: limits.public_landing_members.checked_sub(1).unwrap(), ..limits },
-        w::Limits { public_gate_proof_run_some: limits.public_gate_proof_run_some.checked_sub(1).unwrap(), ..limits },
     ] {
         assert_eq!(
             w::PublicLanding::new(&smaller, value.clone().into_parts()).unwrap_err().reason,
@@ -273,5 +254,5 @@ fn public_limits_follow_the_panels() {
         (crate::PUBLIC_VERSION, crate::PUBLIC_CHANGE, crate::PUBLIC_LANDINGS, crate::PUBLIC_LANDING),
         (1, 1, 2, 3)
     );
-    assert_eq!(public_bounds(&BOUNDS), [4927, 198_733, 165_794]);
+    assert_eq!(public_bounds(&BOUNDS), [822, 67_405, 1562]);
 }

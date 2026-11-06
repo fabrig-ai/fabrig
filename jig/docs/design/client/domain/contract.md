@@ -1618,10 +1618,13 @@ number: a project and a task are named by their public identifiers
   when cut; `parent: Option<PublicId>`, none for a
   public goal; `goal: bool` and `priority: Option<u32>`, a goal's;
   `executor: PublicExecutor`, its kind alone: agent, procedure,
-  person or job (5.7); `phase: PublicPhase`, jig's phases (5.1) as unit variants, and
+  person or job (5.7); `phase: PublicPhase`, jig's phases (5.1) as unit
+  variants, an ended task's saying how it ended, `done`, `failed` or
+  `cancelled`, and
   `hold: Option<PublicHold>`, a held task's hold's kind as a unit
   variant; `made`, `changed`, `active: Option`, `ended: Option`, each a
-  time to the second; `spent` and `budget` in the deployment's unit;
+  time to the second; `spent: Option<u64>` in the deployment's unit, a
+  goal's, none for a task; no budget;
   `delegates: PublicCounts`, its public delegates counted by phase
   class.
 - **Schema ceilings:** projects 4,096; live and ended goals 256 each;
@@ -1645,9 +1648,9 @@ number: a project and a task are named by their public identifiers
   | a task's `PublicId`, `parent`, `lineage` | the task's and its ancestors' numbers, up to its public goal | the same; `parent` none at the public goal |
   | `goal`, `priority` | whether the task is tracked, and its priority | as is |
   | `executor` | the executor's kind | the kind alone, never who or which |
-  | `phase`, `hold` | the task's phase; a held task's hold's kind | the kind alone, never its reason |
+  | `phase`, `hold` | the task's phase and, ended, its ending; a held task's hold's kind | the kind alone, never its reason |
   | `made`, `changed`, `active`, `ended` | the task's times (`../../domain/tasks.md`, section 3) | to the second |
-  | `spent`, `budget` | the task's spend and budget | as is |
+  | `spent` | a goal's spend, with what its delegates spent | as is; none for a task |
   | `delegates`, a folded count | the public index's public tasks | counted after filtering (`../../domain/people.md`, 13.7) |
   | `max-age` | `clients.public.max_age` | as is |
   | `PublicApplication`'s `tasks` | the numbers the connector listed | the component's permutation |
@@ -1655,7 +1658,7 @@ number: a project and a task are named by their public identifiers
 - **Nothing else crosses:** no spec beyond its first line, instructions,
   inputs, result, words, question or answer, turn, note, reason, label's
   meaning, proposal, escalation, name of a charter, procedure, role or
-  party, account or resource.
+  party, account or resource, a task's spend or any budget.
 - **A schema of their own:** jig's public records are a schema apart
   in `jig-client-protocol-wire`, `public-v1.schema`, versioned apart
   from its other records, naming only one another and scalars, never a
