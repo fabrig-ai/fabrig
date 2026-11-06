@@ -5123,7 +5123,11 @@ section 5.
   in the deployment (`../protocol/configuration.md`, 13.2): without one, or until
   it is delivered, kinds 6 and 7 are named as `temper ctl` names them. Then
   "Accept", primary, jig's `Decide` with running work staying, and "Change
-  something", quiet, focusing the composer. Replaced by a later proposal, it is
+  something", quiet, focusing the composer. A decision goes under the proposal's
+  own `project`, never the chat's: a proposal of settings is the deployment's,
+  whichever chat made it, and jig knows it under no other project. The card has
+  no "Reject": the person rejects it on its card in *Needs you* (3.5), or says
+  what to change here. Replaced by a later proposal, it is
   dimmed, "Replaced by the proposal below"; accepted, "✓ Accepted · new work
   follows it". A person who may not accept it sees neither act: "Waiting for an
   owner", the parties it waits for as jig's proposal names them, "Owners of this
