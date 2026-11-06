@@ -34,9 +34,13 @@ adoption may return only temper as a collaborator. Such an owner cannot
 satisfy a person's approval requirement until the forge identity and project
 role are known. Acceptance refuses an unsatisfiable rule, naming the project,
 role, required count and current eligible count. Add the human collaborator on
-the forge, configure the existing project's project-policy permissions where
-needed, re-adopt with `repository adopt`, and verify the required role with
-`project show`. Then submit a fresh proposal against the newest revision.
+the forge. On Forgejo, a repository administrator must also grant temper's
+forge user repository admin: collaborator reads can require it even with write.
+This bot permission is separate from the human permission mapped to a project
+role. Configure the existing project's project-policy permissions where
+needed, re-adopt with `repository adopt` and a new key, preserving its options,
+and verify the required role with `project show`. Then submit a fresh proposal
+against the newest revision.
 The commands and policy setup are in temper help configure, Human approvals.
 Stock maps admin to maintainer (1), write to member (2), read to observer (3);
 use the mapped human role in the rule. Owner (0) is reserved for the project
