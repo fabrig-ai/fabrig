@@ -94,6 +94,7 @@ struct Holds {
     parts: &'static [Part],
 }
 enum Part {
+    Pressed { name: &'static str },
     Text { text: &'static str },
     Named { role: Role, name: &'static str },
     Described { role: Role, name: &'static str, description: &'static str },
@@ -719,6 +720,15 @@ const HOLDS: [Holds; samples::N] = [
             Part::Text { text: "Landing: " },
             Part::Text { text: "3 queued" },
             Part::Text { text: "last landed 6 min ago" },
+            Part::Named { role: Role::Link, name: "Changes" },
+        ],
+    },
+    Holds {
+        name: "home-last-landed",
+        heading: "The last change landed 6 minutes ago. Nothing needs you.",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Thursday, 21:19 · you last looked 9 hours ago" },
+            Part::Text { text: "main last moved 6 min ago" },
             Part::Named { role: Role::Link, name: "Changes" },
         ],
     },
@@ -1721,6 +1731,26 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "configure-reference",
+        heading: "Configure temper",
+        parts: &[
+            Part::Named { role: Role::Group, name: "How temper builds temper, beside the chat" },
+            Part::Pressed { name: "Split" },
+            Part::Named { role: Role::Region, name: "How temper builds temper" },
+            Part::Text { text: "Figures to come." },
+        ],
+    },
+    Holds {
+        name: "configure-reference-draft",
+        heading: "Configure temper",
+        parts: &[
+            Part::Named { role: Role::Group, name: "How temper builds temper, beside the chat" },
+            Part::Pressed { name: "Draft" },
+            Part::Named { role: Role::Region, name: "How temper builds temper" },
+            Part::Text { text: "Figures to come." },
+        ],
+    },
+    Holds {
         name: "configure-typing",
         heading: "Configure temper",
         parts: &[
@@ -1855,6 +1885,22 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::TextArea, name: "Message" },
             Part::Named { role: Role::Button, name: "Close" },
             Part::Absent { role: Role::Disclosure, name: "Change model" },
+            Part::Named { role: Role::Button, name: "Accept" },
+        ],
+    },
+    Holds {
+        name: "configure-chat-proposal-deployment",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Text { text: "How temper will run your projects" },
+            Part::Named { role: Role::Button, name: "Accept" },
+        ],
+    },
+    Holds {
+        name: "configure-chat-proposal-two-projects",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Text { text: "How temper will run tally and 2" },
             Part::Named { role: Role::Button, name: "Accept" },
         ],
     },
@@ -2602,6 +2648,14 @@ fn each_state_holds_what_its_name_says() {
         let mut described = tree.nodes().iter();
         for part in row.parts {
             match part {
+                Part::Pressed { name } => {
+                    let id = find(tree, Role::Button, name, sample.name);
+                    assert!(
+                        tree.find(id).expect("mode button").states.as_slice().contains(&skein_ui::State::Pressed),
+                        "{}: {name} pressed",
+                        sample.name
+                    );
+                }
                 Part::Text { text } => {
                     assert!(has_text(tree, text), "{}: missing text {text:?}", sample.name);
                 }
