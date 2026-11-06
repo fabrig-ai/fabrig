@@ -3,3 +3,22 @@ repo = "fabrig"
 sources = ["temper/docs/plan/ui-composer-focus/inputs/request.md", "temper/crates/temper-client-view/src/frame.rs", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 priority = true
+
+# One request, one task. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "composer-focus"
+title = "A chat started by sending opens with its composer focused, and every send leaves the focus in the composer"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 1
+story = "A person starts a chat by typing, sends again by pressing Send and by Enter, and types on with no click; a chat opened from the list keeps its heading's focus"
+parts = ["composer-focus"]
+walk = false
