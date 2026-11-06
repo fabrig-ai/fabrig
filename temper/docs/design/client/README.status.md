@@ -65,11 +65,6 @@
   then says why Send stays grey; and no line says there that the playground is
   running or leaving. Seen by reading; no test holds it.
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
-- **Not yet:** 3.5, *The rail's count*, `Inbox`, and 5.13's card in a chat: a
-  proposal of settings shows in no project's Needs you and counts in no rail,
-  its row's project the deployment, and its card's title names the deployment's
-  number (`temper-client-domain`'s `pages/inbox.rs` and `pages/needs.rs`,
-  `temper-client-view`'s `cards/proposal.rs`).
 - **Not yet:** 10: a walk from the sheet through planning, a live report and
   delegate tasks, Pause, Resume, a message and Stop, which the request
   `ui-goal-page` of 2026-11-05 asks of the browser tier and of a box. The

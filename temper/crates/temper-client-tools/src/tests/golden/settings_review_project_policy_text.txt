@@ -1,4 +1,5 @@
 proposal p73/7 · settings · against revision 5, newest 5
+projects: deployment
 more time
 temper enforces
   project-policy 1 · value (now and proposed below)
