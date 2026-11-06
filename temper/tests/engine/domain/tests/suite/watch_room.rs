@@ -112,10 +112,18 @@ fn two_parties_share_the_deployments_room() {
             },
         }));
         driver.settle();
-        let other = driver.delivered.iter().find_map(|delivery| match delivery {
-            root::Delivery::WebReply { to, reply: people::Reply::SignedIn { sign_in, .. } } if *to == ReplyTo::new(OTHER_REPLY) => Some(*sign_in),
-            _ => None,
-        }).expect("second party signs in");
+        let other = driver
+            .delivered
+            .iter()
+            .find_map(|delivery| match delivery {
+                root::Delivery::WebReply { to, reply: people::Reply::SignedIn { sign_in, .. } }
+                    if *to == ReplyTo::new(OTHER_REPLY) =>
+                {
+                    Some(*sign_in)
+                }
+                _ => None,
+            })
+            .expect("second party signs in");
         fill(&mut driver, room);
         assert_eq!(documents(&driver), usize::try_from(room).unwrap(), "one party may hold the whole room");
         watch(&mut driver, other, EXTRA);

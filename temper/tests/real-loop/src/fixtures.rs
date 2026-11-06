@@ -29,6 +29,9 @@ pub fn documents(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde
     let mut value: serde_json::Value =
         serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("engine JSON");
     value.as_object_mut().expect("whole object").remove("service");
+    for name in ["views.watchers", "views.watchers_per_party"] {
+        value["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides").remove(name);
+    }
     for (name, count) in
         [("clients.streams", 8_u32), ("clients.exchanges", 12), ("clients_http.streams", 8), ("clients_http.calls", 12)]
     {

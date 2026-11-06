@@ -340,7 +340,7 @@ fn load_with(
         };
     load_document(&document, directories, check_start, given)
 }
-// Diagnose a room that cannot be represented before transport or store sizing.
+// Refuse obsolete room settings and diagnose unrepresentable rooms before transport or store sizing.
 fn watch_rooms(document: &skein_json::Document, engine: u32, problems: &mut Problems) {
     let Some(limits) = member(document, engine, b"limits") else { return };
     let Some(overrides) = member(document, limits, b"overrides") else { return };

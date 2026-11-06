@@ -720,10 +720,8 @@ fn the_watch_rooms_follow_the_streams() {
 
 #[test]
 fn a_room_past_what_the_views_hold_is_refused() {
-    // Views reserve two slots per watch; this stream count overflows the watch room.
-    let document = engine_overrides(
-        r#""clients.streams":252645136,"clients_http.streams":252645136,"clients.exchanges":252645140,"clients_http.calls":252645140"#,
-    );
+    // Views reserve two slots per watch; this stream count overflows their slot count.
+    let document = engine_overrides(br#""clients.streams":126322568"#);
     let problems = crate::startup::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
     assert_eq!(crate::startup::lines(&problems).as_ref(),
         b"engine.limits.overrides.clients.streams: must agree with representable watch rooms (clients.streams times 17, with two slots per watch)\n");
@@ -843,20 +841,24 @@ fn the_standard_archive_load_holds_a_whole_note_row() {
 
 #[test]
 fn an_override_naming_a_watch_room_is_refused() {
-    for (name, expected) in [
-        ("views.watchers", b"engine.limits.overrides.views.watchers: must agree with engine.limits.overrides.clients.streams, which sizes both watch rooms\n".as_slice()),
-        ("views.watchers_per_party", b"engine.limits.overrides.views.watchers_per_party: must agree with engine.limits.overrides.clients.streams, which sizes both watch rooms\n".as_slice()),
+    for (extra, expected) in [
+        (br#""views.watchers":17"#.as_slice(), b"engine.limits.overrides.views.watchers: must agree with engine.limits.overrides.clients.streams, which sizes both watch rooms\n".as_slice()),
+        (br#""views.watchers_per_party":17"#.as_slice(), b"engine.limits.overrides.views.watchers_per_party: must agree with engine.limits.overrides.clients.streams, which sizes both watch rooms\n".as_slice()),
     ] {
-        let document = engine_overrides(&format!("\"{name}\":17"));
+        let document = engine_overrides(extra);
         let problems = crate::startup::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
-        assert_eq!(crate::startup::lines(&problems).as_ref(), expected, "{name}");
+        assert_eq!(crate::startup::lines(&problems).as_ref(), expected, "{extra:?}");
     }
 }
 
-fn engine_overrides(extra: &str) -> Box<[u8]> {
+fn engine_overrides(extra: &[u8]) -> Box<[u8]> {
     let document = fixtures::document();
     let overrides = fixtures::value(&document, b"engine.limits.overrides");
-    let overrides = core::str::from_utf8(&overrides).unwrap().trim().strip_suffix('}').unwrap();
-    let overrides = format!("{overrides},{extra}}}");
-    fixtures::with(&document, b"engine.limits.overrides", overrides.as_bytes())
+    let prefix = overrides.strip_suffix(b"}").expect("fixture override object");
+    let size = prefix.len().saturating_add(extra.len()).saturating_add(b",}".len());
+    let mut overrides = skein_lib::Writer::new(size);
+    for part in [prefix, b",", extra, b"}"] {
+        overrides.put(part).expect("override map fits its measured length");
+    }
+    fixtures::with(&document, b"engine.limits.overrides", &overrides.finish())
 }

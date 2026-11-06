@@ -30,6 +30,9 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     let mut value: serde_json::Value =
         serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("engine JSON");
     value.as_object_mut().expect("whole object").remove("service");
+    for name in ["views.watchers", "views.watchers_per_party"] {
+        value["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides").remove(name);
+    }
     use_stock(&mut value);
     for project in value["engine"]["projects"].as_array_mut().expect("seed projects") {
         project["policy"] = 1.into();
