@@ -20,6 +20,7 @@ files = [
   "temper/docs/help/deployment.md",
   "temper/docs/help/account.md",
   "temper/docs/help/reference/configuration-engine.md",
+  "jig/crates/jig-domain-core/src/tests/runs/reserve.rs",
 ]
 effort = "high"
 minutes = 200
@@ -65,6 +66,7 @@ Acceptance:
 - **Departure from the implementer's text:** `temper/docs/help/deployment.md`'s **Offering another model** and
   `account.md`'s line may change as the note says, keeping their bounds; the reference by its tool.
 - May change `jig/crates/jig-domain-core/src/lib.rs`, the one line exporting `most_costly`.
+- May change `jig/crates/jig-domain-core/src/tests/runs/reserve.rs`, its two `run::most_costly` calls to `most_costly`.
 - `temper/crates/temper-fake/src/**` is another draft's too (`ui-walk-3/fix-flow`): small hunks.
 - Removes `temper/docs/design/protocol/configuration.status.md`'s **Not yet** 13.4, 13.8 about the seven models, and
   `temper/docs/design/protocol/setup.status.md`'s **Not yet** 8.3.
@@ -97,3 +99,15 @@ Acceptance:
 
 As the implementer's text says, naming: T's figure; each process test and walk with its result; each live-tier site read,
 what it does now, and that it wasn't run; every figure that differed from the note.
+
+## Answers
+
+2026-11-06. May this task remove the two redundant `run::` qualifiers in
+`jig/crates/jig-domain-core/src/tests/runs/reserve.rs`, which the permitted export makes `unused_qualifications`?
+
+Yes. At lines 12 and 25, `run::most_costly(&model)` becomes `most_costly(&model)`: the export's own consequence, under
+`tests.rs`'s wildcard, and neither test's expectation changes. Keep the export; no lint exception and no test-only
+export. Should the closing clippy show the same lint on another call of `most_costly` in `jig-domain-core`'s tests, the
+same edit holds there; anything else in jig is a new question. Then finish what the first run's report leaves unobserved:
+the closing clippy, the focused checks and dependents, `heavy cargo check -p temper --tests`, the three process tests and
+the walks.
