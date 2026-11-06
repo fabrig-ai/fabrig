@@ -432,7 +432,9 @@ sources in its holder's order. temper configures the LLM providers
     1, its reason on stderr: temper writes one line beginning
     `temper program-login:`. Smith's configuration reader may precede it with
     its own secret-free `smith: ` diagnostics, as under the other commands
-    that read a smith configuration. No diagnostic is redirected or suppressed.
+    that read a smith configuration; of its trust roots it says nothing
+    unless a block is malformed (skein's `shell.md`, 6.2). Temper redirects
+    and suppresses none of them.
   - It reads nothing of the login. The host's half checks it (smith's
     `protocol/programs.md`, section 3; smith's `protocol/hosts.md`,
     section 2) at its hello, when told of a new source, on its holder's

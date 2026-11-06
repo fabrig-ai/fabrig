@@ -1,3 +1,35 @@
 draft = "first-usable-model"
 repo = "fabrig"
 sources = ["temper/docs/plan/first-usable-model/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+
+# A box with one kind of account does its work, and a waiting run says why. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "roots-quiet"
+title = "Smith's trust-roots line says nothing unless a block is malformed"
+mode = "direct"
+needs = []
+design = "skein/docs/design/shell.md, 6.2"
+
+[[part]]
+id = "configure-byline"
+title = "The configuring byline names one provider's account and model, what the run will use"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 1
+story = "A start on a healthy machine prints no trust-roots line"
+parts = ["roots-quiet"]
+walk = false
+
+[[slice]]
+id = 2
+story = "The configuring byline never pairs one provider's account with another's model"
+parts = ["configure-byline"]
+walk = false
