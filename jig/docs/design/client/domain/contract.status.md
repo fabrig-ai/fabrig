@@ -3,7 +3,9 @@
 2026-11-06. Where jig's code lags or departs from [contract.md](contract.md).
 Unlisted sections have no known gap.
 
-- **Not yet:** 5.1: `me` says no bound on an amendment's.
+- **Not yet:** 5.1: `me` gives `words_bytes` from `people.words` for a party's
+  spec, message and answer, but says no bound on an amendment's: the long-words
+  plan carries the words bound alone.
 - **Departs:** 4: answers give typed lacking facts, how an object ended,
   and who decided it and how; the client wire carries these fields, but
   `jig-protocol-engine-clients/src/translate/refusals.rs`, `lack` and

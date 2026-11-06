@@ -227,10 +227,12 @@ Configure, departing from the request `configure-temper-own-way` in its referenc
 words and look (`client/README.md`), but no journey records its acts and no
 render has checked its picture as a numbered list (`client/browser.md`). A chat's answer only grows, but
 the line departs from the request `chat-work` in a failed call's colour, and the end
-mark is a glyph that does not blink (`client/README.md`); on a walk a long chat's
-first earlier read did not end in 40 seconds, its cause unknown, and no walk on record has
-read one by its log's edges (`client/README.md`). The words being written draw an
-empty message in the dots' place until they hold a word, their "▍" falls below a closed
+mark is a glyph that does not blink (`client/README.md`). The long-message
+read's decoder and retry chain is repaired and covered through the real engine;
+no manual proof on record checks it in both shells. Edits past 131,072 bytes
+keep a prefix and overflow count, losing the rest on a new drawing, where the
+`long-words` request keeps every typed word (`client/README.md`, 5.4 and 5.15).
+The words being written draw an empty message in the dots' place until they hold a word, their "▍" falls below a closed
 fence, a last block still open changes as it commits, and no browser test draws them
 (`client/README.md`). A run of calls is one line on a chat's page and an agent's, its
 verbs and time for the user to read on a real chat (`draft/chat-reading.md`), but no test
@@ -262,9 +264,8 @@ where it is. The browser tier runs Chromium alone, with
 `overflow-anchor: none` as the nearest run to Safari; Firefox and Safari
 themselves are read, not run (`draft/chat-reading.md`, 5, **Design departs**). A read
 that failed at the head is not tried again on a move back within its reach (`client/README.md`).
-The process tier's three tests at a time have no whole run on record until the next
-after-landing run, and most of the `test-speed` plan's whole runs read over its CPU
-budget (`domain/testing.md`). The
+The process tier's three tests at a time await a passing whole run after landing,
+and its CPU-budget overages remain (`domain/testing.md`). The
 case library's purpose is retired, the fake
 git program drives skein's JSON tokenizer over a whole body by hand,
 the ladder has no twin past B1 and no live story but B0's, neither
