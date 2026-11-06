@@ -111,11 +111,55 @@ fn models(values: &[engine::Model]) -> Box<[protocol::Model]> {
 }
 pub(crate) fn proposal(name: run::CallName, bytes: &[u8], configured: &[engine::Model]) -> Result<Decoded, Problem> {
     let value = crate::json::parse(bytes)?;
-    only(&value, &[b"against", b"items", b"reason"], b"propose_settings")?;
+    only(&value, &[b"against", b"items", b"note", b"reason"], b"propose_settings")?;
     let against = positive(value.required(b"against")?, b"against")?;
     let reason = value.required(b"reason")?.text(b"reason")?;
+    if let Some(note) = value.field(b"note")? {
+        if value.field(b"items")?.is_some() {
+            return Err(Problem::Range(b"items"));
+        }
+        only(note, &[b"name", b"revision"], b"note")?;
+        let note_name = note.required(b"name")?.number(b"name")?;
+        if note_name == 0 {
+            return Err(Problem::Range(b"name"));
+        }
+        return Ok(Decoded::Call(engine::Call {
+            completion: name.completion,
+            position: name.position,
+            tool: engine::Tool::ProposeSettingsNote {
+                against,
+                reason,
+                note: note_name,
+                revision: positive(note.required(b"revision")?, b"revision")?,
+            },
+        }));
+    }
+    value.required(b"items")?;
     let limits = settings_form::Limits::standard();
-    let items = match settings_form::file::proposal_items(bytes, &limits) {
+    let items = settings_form::file::proposal_items(bytes, &limits);
+    proposal_items(name.completion, name.position, against, reason, items, configured)
+}
+
+/// Decode an authorized, revision-checked note's whole settings file through
+/// the same parser and validation as inline proposals (domain/agent.md, 8.1).
+pub fn settings_note(call: engine::Call, bytes: &[u8], configured: &[engine::Model]) -> Result<Decoded, Problem> {
+    let engine::Tool::ProposeSettingsNote { against, reason, .. } = call.tool else {
+        return Err(Problem::Range(b"note"));
+    };
+    let items = settings_form::file::decode(bytes, &settings_form::Limits::standard());
+    proposal_items(call.completion, call.position, against, reason, items, configured)
+}
+
+fn proposal_items(
+    completion: u32,
+    position: u32,
+    against: u32,
+    reason: Box<[u8]>,
+    items: Result<List<c::SettingItem>, Box<[u8]>>,
+    configured: &[engine::Model],
+) -> Result<Decoded, Problem> {
+    let limits = settings_form::Limits::standard();
+    let items = match items {
         Ok(items) => items,
         Err(why) => return Ok(Decoded::Answered(run::HostAnswer::new(why, true).ok_or(Problem::TooLarge)?)),
     };
@@ -135,8 +179,8 @@ pub(crate) fn proposal(name: run::CallName, bytes: &[u8], configured: &[engine::
     };
     let kinds = kind_values(&items)?;
     Ok(Decoded::Call(engine::Call {
-        completion: name.completion,
-        position: name.position,
+        completion,
+        position,
         tool: engine::Tool::ProposeSettings { against, items, reason, kinds },
     }))
 }
