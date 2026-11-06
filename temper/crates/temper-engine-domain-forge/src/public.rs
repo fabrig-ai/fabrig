@@ -2,6 +2,7 @@
 mod change;
 mod landing;
 mod landings;
+mod merges;
 use crate::{ChangeRow, Domain, Limits};
 use alloc::boxed::Box;
 use skein_lib::{List, Wall, Writer};
@@ -95,11 +96,15 @@ impl Domain {
             }
             w::PUBLIC_LANDING => {
                 let row = self.public_change(ask, ask.task?)?;
-                let landing = self.newest_landing(row.task)?;
-                if !self.public_landing(ask, landing) {
-                    return None;
-                }
-                let record = self.make_landing(landing, &mut names)?;
+                let record = match self.newest_landing(row.task) {
+                    Some(landing) => {
+                        if !self.public_landing(ask, landing) {
+                            return None;
+                        }
+                        self.make_landing(landing, &mut names)?
+                    }
+                    None => self.make_merge(ask, row, &mut names)?,
+                };
                 let mut writer = Writer::new(usize::try_from(record.measure()).ok()?);
                 record.encode(&mut writer).ok()?;
                 writer.finish()

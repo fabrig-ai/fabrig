@@ -17,6 +17,11 @@ pub const BODY_BYTES: u32 = 33_554_432;
 pub const PIECE: u32 = 4096;
 /// Field text and a person's conversation words (client/README.md, 5.4).
 pub const CONVERSATION_TEXT: u32 = 512;
+/// The browser tier's conversation window (client/browser.md, 4.3).
+#[cfg(feature = "small-window")]
+const WINDOW_BYTES: Option<u64> = Some(131_072);
+#[cfg(not(feature = "small-window"))]
+const WINDOW_BYTES: Option<u64> = None;
 /// Whole document bodies, goal words and committed or live turns (client/README.md, 5.4).
 pub const LONG_TEXT: u32 = 131_072;
 /// The root's bounds: `temper-client-shell-terminal`'s `native().client`.
@@ -68,6 +73,7 @@ pub fn client() -> client::Limits {
         client,
         // An account's row names eight uses.
         row_uses: 8,
+        window_bytes: WINDOW_BYTES,
     }
 }
 /// Checked words and the view bounds used at construction and accounting.

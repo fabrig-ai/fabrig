@@ -2,6 +2,8 @@
 
 2026-11-06. Where the design lags or departs from [reference-code-production.md](reference-code-production.md).
 
+- **Open:**
+  - **1 to 5, 12 to 14:** revised by [`goal-as-designer.md`](goal-as-designer.md), which wins where they differ until its plans fold it into this draft.
 - **Design departs:**
   - **10, 13: a red of g's tier waking G.** `../domain/after-landing.md`,
     5.4 and 7 wake the goal on a red with a test the branch's previous

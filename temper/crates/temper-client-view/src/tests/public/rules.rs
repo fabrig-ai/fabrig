@@ -127,13 +127,31 @@ fn an_ended_row_says_how_long_ago() {
 }
 #[test]
 fn the_board_says_what_it_is_and_when_it_has_no_goals() {
-    let page = render(Public::Board { project: PROJECT }, &[(Doc::JigBoard, empty_board())], 0);
-    assert!(paragraphs(&page).contains(&"What temper is doing on this project, as it happens. Read-only.".into()));
-    assert!(paragraphs(&page).contains(&"No goals yet.".into()));
-    let populated = render(Public::Board { project: PROJECT }, &[(Doc::JigBoard, board())], 0);
-    assert!(!paragraphs(&populated).contains(&"No goals yet.".into()));
+    let lede = "What temper is doing on this project, as it happens. Read-only.";
+    let held = "Work that ended before this project went public, or before temper last restarted, isn't shown.";
+    for (body, empty) in [(empty_board(), true), (board(), false)] {
+        let page = render(Public::Board { project: PROJECT }, &[(Doc::JigBoard, body)], 0);
+        let lines = paragraphs(&page);
+        assert_eq!(&lines[..2], [lede, held], "the history limit follows the lede");
+        assert_eq!(lines.contains(&"No goals to show yet.".into()), empty);
+        let intro = page
+            .tree()
+            .nodes()
+            .iter()
+            .position(|node| node.styles.as_slice().contains(&crate::look::PUBLIC_INTRO))
+            .expect("board introduction");
+        let end = intro
+            .checked_add(usize::try_from(page.tree().nodes()[intro].size).expect("intro size"))
+            .expect("intro end");
+        let intro = &page.tree().nodes()[intro..end];
+        let muted: Vec<_> =
+            intro.iter().filter(|node| node.styles.as_slice().contains(&crate::look::PUBLIC_LEDE)).collect();
+        assert_eq!(muted.len(), 2, "both introduction paragraphs use the lede style");
+        assert!(muted.iter().all(|node| node.role == Role::Paragraph));
+    }
     let projects = render(Public::Projects, &[(Doc::JigProjects, records::projects_with(false))], 0);
     assert!(paragraphs(&projects).contains(&"No public projects yet.".into()));
+    assert!(!text(projects.tree().nodes()).contains(held));
 }
 #[test]
 fn landings_show_below_the_goals_only_with_a_queue_or_a_landing() {
@@ -149,14 +167,42 @@ fn landings_show_below_the_goals_only_with_a_queue_or_a_landing() {
         if let Some(at) = section {
             let goal = nodes.iter().position(|node| node.name.as_deref() == Some(b"Goal 9abcdef0")).expect("goal");
             assert!(at > goal, "Landings follows goals");
-            assert_eq!(paragraphs(&page).contains(&"Nothing has landed yet.".into()), !landed);
+            assert_eq!(paragraphs(&page).contains(&"No landings to show yet.".into()), !landed);
         }
         let list = render(
             Public::Landings { project: PROJECT },
             &[(Doc::ForgeLandings, records::landings_with(queue, landed))],
             0,
         );
-        assert_eq!(paragraphs(&list).contains(&"Nothing has landed yet.".into()), !landed);
+        assert_eq!(paragraphs(&list).contains(&"No landings to show yet.".into()), !landed);
+    }
+}
+#[test]
+fn a_queue_merges_line_and_landing_read_as_a_landing() {
+    let (list, landing) = records::queue_merge();
+    let mut list = render(Public::Landings { project: PROJECT }, &[(Doc::ForgeLandings, list)], 0);
+    assert_eq!(paragraphs(&list), ["landed · task 3f2a9c01 · 789ada1"]);
+    for name in [b"task 3f2a9c01".as_slice(), b"789ada1"] {
+        let link = super::fixtures::find(list.tree(), Role::Link, name).expect("landing link");
+        assert_eq!(
+            crate::public::href(&mut list, link).as_deref(),
+            Some(b"/public/projects/3f2a9c0176543210/landings/3f2a9c0176543210".as_slice())
+        );
+        let Some(temper_client_domain::public::PublicEvent::Open { page }) =
+            crate::public::act(&mut list, link, skein_ui::Act::Press)
+        else {
+            panic!("public landing navigation");
+        };
+        assert_eq!(page, Public::Landing { project: PROJECT, task: PROJECT });
+    }
+    let page = render(Public::Landing { project: PROJECT, task: PROJECT }, &[(Doc::ForgeLanding, landing)], 0);
+    let lines = paragraphs(&page);
+    assert!(lines.contains(&"landed".into()));
+    assert!(lines.contains(&"task 3f2a9c01 · Its change: 789ada1".into()));
+    assert!(lines.contains(&"0 stale proofs".into()));
+    assert!(!lines.iter().any(|line| line.starts_with("Gate ")), "a queue merge has no gate row");
+    for view in [&list, &page] {
+        assert!(!text(view.tree().nodes()).contains("Holds the turn"));
     }
 }
 #[test]
