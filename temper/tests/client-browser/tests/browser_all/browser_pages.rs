@@ -235,7 +235,7 @@ fn latest_returns_a_chat_to_its_end_after_new_words_while_reading_back() {
     let then: Vec<_> = history.iter().map(|words| std::str::from_utf8(words).expect("reading words")).collect();
     let mut ctl = tier.ctl_face(tier.ctl_chat(START, &then));
     let mut steps = reader_opens(FIRST_CHAT_ADDRESS);
-    steps.extend([see(paragraph(&words(MESSAGES))), see(paragraph(START.as_bytes()))]);
+    steps.extend([see(paragraph(&words(MESSAGES))), see(paragraph(&words(1)))]);
     steps.extend([
         gone(latest()),
         Step::Person(PersonStep::Press { find: composer() }),
