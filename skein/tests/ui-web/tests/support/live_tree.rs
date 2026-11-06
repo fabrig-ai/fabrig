@@ -196,6 +196,24 @@ fn removing_the_last_child_leaves_no_empty_live_group() {
 }
 
 #[test]
+fn a_refreshed_form_removes_its_field_and_companion_label() {
+    const MAIN_NODE: &[u8] = b"2"; // Page, main in the live fixture.
+    let mut story = TreeStory::new("form");
+    story.patch(1);
+    story.dom("form:has(> label + input)".into(), "aria-label", "Rename renamed project");
+    story.patch(2);
+    story.steps(vec![
+        harness::Step::Person(Step::Gone { find: Find::exactly_named(Role::TextField, b"Name"), within: SECOND }),
+        harness::Step::Keep {
+            selector: b"main:not(:has(input, label, form))".as_slice().into(),
+            attribute: Some(b"data-node".as_slice().into()),
+            name: MAIN_NODE.into(),
+        },
+    ]);
+    story.run();
+}
+
+#[test]
 fn a_paragraph_splits_two_live_runs_which_grow_and_merge_in_order() {
     let mut story = TreeStory::new("mixed");
     story.tree(&[&["One", "Three"]]);
