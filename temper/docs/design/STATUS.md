@@ -53,8 +53,9 @@ spec and a run's brief, which its agent and smith's room bound below
 them (`protocol/configuration.md`), and the walk that request ends
 with has not passed (`protocol/setup.md`). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
-2026-11-05 has 8,192, which the web and terminal clients refuse, so a spec
-reads in pieces of it (`protocol/setup.md`). A green head ends a CI repair and a
+2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
+reads a spec in pieces of it, and so does a run until `read_task` has its own
+room (`protocol/setup.md`). A green head ends a CI repair and a
 hold on its reason, but for a hold at gating, a hold no wake reaches and a retry
 starting before the read, each the `repair-green` plan's cut (`domain/forge.md`),
 and `change show`'s

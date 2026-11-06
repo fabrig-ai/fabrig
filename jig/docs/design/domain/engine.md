@@ -985,7 +985,12 @@ Verdict result read also carries its selected code as optional metadata, on
 every chunk, separately from the bounded reason words. Specification reads
 and other results carry no verdict code. Offsets and totals count only the
 reason bytes. An unavailable terminal report is unknown. Both fields use bounded UTF-8 chunks
-and reject offsets inside a character or past the source. Continue with the same
+and reject offsets inside a character or past the source. A run's chunk is
+bounded by the room its application names with the read, held to
+`core.call_answer_bytes`, and not by `documents.text_bytes`, which is what a
+client decodes (`../client/domain/contract.md`, section 6): the application
+knows what its run's reply holds. An application that cuts a chunk further to
+render it prints `next` from its cut. Continue with the same
 field and the printed `next` offset. Every chunk names the current spec revision; restart specification
 reads at zero if it changes between chunks.
 

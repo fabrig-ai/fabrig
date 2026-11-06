@@ -2116,8 +2116,10 @@ runs it (section 7).
     terminal clients receive: their wire takes the larger of their
     `text`, 512, and a hold's account, 512 (jig's
     `client/domain/contract.md`, 5.3), and refuses a longer one. It is
-    also the piece a task's text reads in (jig's
-    `client/domain/contract.md`, 6), so it is as large as they take;
+    also the piece a client reads a task's text in (jig's
+    `client/domain/contract.md`, 6), so it is as large as they take. A
+    run's `read_task` has its own room, the agent's `tool_payload`, 10,662
+    (`../domain/root.md`, 5.2);
   - `tasks.message_bytes` and `tasks.result_bytes`, the agent's
     advertised message bytes (above): the fleet holds the agent to the
     engine's message bound at its hello (jig's
@@ -3837,12 +3839,12 @@ Each is intended; what it needs is named with it.
 - **A hook left at an old listener's address,** after the listener
   moves, is skein's question (skein's `forge-setup.md`, section 9).
   Default: left alone; the person deletes it.
-- **A task's text past what the clients receive** (8.1). A spec reads in
-  pieces of `documents.text_bytes`, 512, each a `read_task` turn, where the
-  request `first-goal-fixes` of 2026-11-05 has 8,192. Going past 512 needs the
-  web and terminal clients' `text` raised, or a task's text read under a
-  bound of its own (jig's `client/domain/contract.md`, 6). Default: 512. The
-  user's to choose, with no answer yet.
+- **A task's text past what the clients receive** (8.1). A client reads a
+  spec in pieces of `documents.text_bytes`, 512, where the request
+  `first-goal-fixes` of 2026-11-05 has 8,192. Going past 512 needs the web and
+  terminal clients' `text` raised (jig's `client/domain/contract.md`, 6).
+  Default: 512. The user's to choose, with no answer yet. A run's `read_task`
+  is outside it, reading in its own room (`../domain/root.md`, 5.2).
 - **A managed forge whose host list refuses the listener.** Default:
   nothing tells the person but the hints that never arrive
   (`../domain/forge.md`, section 4).
