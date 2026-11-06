@@ -26,8 +26,6 @@ const HOLD_DUE: u64 = 5000;
 const SECOND_CHOICE: u64 = 1000;
 const SECOND_HOLD: u64 = 6000;
 const CHOICE: &[u8] = b"Use the first";
-// The four bytes in "past" are one beyond this reply bound.
-const REFUSED_REPLY_BOUND: u32 = 3;
 fn fixture() -> Pages {
     let mut pages = f::pages(FIRST, f::question());
     pages.inbox.as_mut().unwrap().cards.get_mut(0).unwrap().group = c::InboxGroup::Questions;
@@ -109,7 +107,7 @@ fn reply(pages: &mut Pages, words: &[u8]) -> Queue<Request> {
     limits.client.domain.long_text = temper_client_protocol_wire::CUE_BYTES;
     limits.client.domain.turn_text = temper_client_protocol_wire::CUE_BYTES;
     let env = fixtures::env(&limits);
-    let client = crate::unlinked(&limits, fixtures::SEED);
+    let client = super::composer::root(&limits);
     let mut out = Queue::uncapped();
     for act in [
         pages::Act::Needs(Act::OpenReply { object: FIRST }),
@@ -677,9 +675,10 @@ fn reply_past_choice_bound_is_held_whole_for_the_engine() {
     limits.client.domain.long_text = 2048;
     limits.client.domain.turn_text = 2048;
     let env = fixtures::env(&limits);
-    let client = crate::unlinked(&limits, fixtures::SEED);
+    let client = super::composer::root(&limits);
     let mut out = Queue::uncapped();
     for act in [
+        pages::Act::Needs(Act::OpenReply { object: FIRST }),
         pages::Act::CardWords { object: FIRST, words: words.clone() },
         pages::Act::Needs(Act::SendReply { object: FIRST }),
     ] {
@@ -762,7 +761,7 @@ fn later_reply_undo_choose_sends_the_choice_once() {
     assert!(fire(&mut pages, SECOND_HOLD + HOLD_DUE).is_empty());
 }
 #[test]
-fn a_refused_bound_says_the_answer_was_not_sent() {
+fn a_refused_choice_or_full_session_says_the_answer_was_not_sent() {
     let mut cue = fixture();
     act(&mut cue, 0, Act::Choose { object: FIRST, words: repeated(temper_client_protocol_wire::CUE_BYTES + 1, b"") });
     let mut full = capacity_fixture();
@@ -770,28 +769,14 @@ fn a_refused_bound_says_the_answer_was_not_sent() {
         choose(&mut full, 0, object(number));
     }
     choose(&mut full, 0, object(CAPACITY));
-    let mut reply = fixture();
-    reply.inbox.as_mut().unwrap().cards.get_mut(0).unwrap().words = Some(f::text(b"past"));
-    let mut limits = fixtures::limits();
-    limits.client.domain.text = REFUSED_REPLY_BOUND;
-    pages::step(
-        &mut reply,
-        &fixtures::env(&limits),
-        crate::unlinked(&limits, fixtures::SEED).client(),
-        pages::Event::Act { act: pages::Act::Needs(Act::SendReply { object: FIRST }) },
-        &mut Queue::uncapped(),
-    );
-    for (pages, object, count) in [
-        (&mut cue, FIRST, 0),
-        (&mut full, object(CAPACITY), usize::try_from(CAPACITY).unwrap()),
-        (&mut reply, FIRST, 0),
-    ] {
+    for (pages, object, count) in
+        [(&mut cue, FIRST, 0), (&mut full, object(CAPACITY), usize::try_from(CAPACITY).unwrap())]
+    {
         assert_eq!(lines(pages).len(), count);
         assert!(!pages.needs().held(object));
         assert_eq!(pages.needs().toast(), Some(&Toasted::NotSent));
     }
     assert!(fire(&mut cue, HOLD_DUE).is_empty());
-    assert!(fire(&mut reply, HOLD_DUE).is_empty());
     let mut out = fire(&mut full, HOLD_DUE);
     let mut sends = 0;
     while let Some(request) = out.pop() {
@@ -801,4 +786,60 @@ fn a_refused_bound_says_the_answer_was_not_sent() {
         }
     }
     assert_eq!(sends, CAPACITY);
+}
+
+fn composer_act(pages: &mut Pages, root: &crate::Domain, limits: &crate::Limits, act: pages::Act) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    pages::step(pages, &fixtures::env(limits), root.client(), pages::Event::Act { act }, &mut out);
+    out
+}
+fn composer_reply(words: Box<[u8]>) -> (Pages, crate::Domain, crate::Limits) {
+    let limits = super::composer::limits();
+    let root = super::composer::root(&limits);
+    let mut pages = fixture();
+    composer_act(&mut pages, &root, &limits, pages::Act::Needs(Act::OpenReply { object: FIRST }));
+    composer_act(&mut pages, &root, &limits, pages::Act::CardWords { object: FIRST, words });
+    (pages, root, limits)
+}
+fn composer_words(pages: &Pages) -> &[u8] {
+    pages.inbox().unwrap().cards.get(0).unwrap().words.as_ref().unwrap().bytes()
+}
+#[test]
+fn a_kilobyte_pasted_is_sent_whole() {
+    let words = super::composer::words(super::composer::BOUND);
+    let (mut pages, root, limits) = composer_reply(words.clone());
+    assert_eq!(composer_words(&pages), &*words);
+    composer_act(&mut pages, &root, &limits, pages::Act::Needs(Act::SendReply { object: FIRST }));
+    assert!(pages.needs().held(FIRST));
+    let c::Ask::Answer { on: c::AnswerOn::Question { words: sent, .. }, .. } = sent(&mut fire(&mut pages, HOLD_DUE)).1
+    else {
+        panic!("reply")
+    };
+    assert_eq!(sent.bytes(), &*words);
+}
+#[test]
+fn a_paste_past_the_bound_stays_and_sends_nothing() {
+    for &(typed, kept, beyond, excess) in super::composer::PAST {
+        let (mut pages, root, limits) = composer_reply(super::composer::words(typed));
+        let words = super::composer::words(kept);
+        assert_eq!(composer_words(&pages), &*words);
+        assert_eq!(pages.needs().reply_beyond, beyond);
+        assert!(
+            composer_act(&mut pages, &root, &limits, pages::Act::Needs(Act::SendReply { object: FIRST })).is_empty()
+        );
+        assert!(lines(&pages).is_empty());
+        assert!(!pages.needs().held(FIRST));
+        assert_eq!(pages.needs().toast(), None);
+        assert_eq!(composer_words(&pages), &*words);
+        assert_eq!(
+            pages::composer::over(composer_words(&pages), pages.needs().reply_beyond, super::composer::BOUND),
+            excess
+        );
+        assert!(fire(&mut pages, HOLD_DUE).is_empty());
+        composer_act(&mut pages, &root, &limits, pages::Act::CardWords { object: FIRST, words: Box::from(*b"short") });
+        assert_eq!(pages.needs().reply_beyond, 0);
+        composer_act(&mut pages, &root, &limits, pages::Act::Needs(Act::SendReply { object: FIRST }));
+        assert!(pages.needs().held(FIRST));
+        assert_eq!(sent(&mut fire(&mut pages, HOLD_DUE)).1, expected(FIRST, b"short", fixtures::PROJECT));
+    }
 }

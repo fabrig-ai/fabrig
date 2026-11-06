@@ -123,9 +123,15 @@ impl Thread {
     }
     /// Keeps a pending message under its public request key and compound place.
     pub fn sending(&mut self, key: Key, by: u64, words: Text, place: u32) -> bool {
+        if !words.fits(self.limits.text) || !self.words.admits() {
+            return false;
+        }
+        if self.words.bytes().saturating_add(len_u64(words.bytes().len())) > self.limits.bytes {
+            return false;
+        }
         let author =
             Party { number: by, kind: PartyKind::Person, name: Text::new(Box::from([]), 0).expect("empty name fits") };
-        if !words.fits(self.limits.text) || !self.words.begin(key, Some(author), words) {
+        if !self.words.begin(key, Some(author), words) {
             return false;
         }
         for at in 0..self.words.rows.len() {
