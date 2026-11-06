@@ -40,11 +40,3 @@ Parts land into their goals’ branches many an hour; a goal done lands into mai
 | **Questions** | A foreman, then the goal’s coordinator, then you | From everything to you to only what agents cannot settle |
 
 Each row is a setting, unless it says otherwise. Tell the chat what to keep, and what to change.
-
-## 6. In numbers
-
-- Merges: —
-- Agent runs: —
-- Workers: —
-
-Figures to come.
