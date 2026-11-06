@@ -8,11 +8,19 @@ pub struct Limits {
     /// The uses one account row names before it says how many more. jig's
     /// `AccountCounts` bounds what the client receives; what a row draws is temper's.
     pub row_uses: u32,
+    /// A conversation's window narrower than `document_bytes` (client/README.md, 5.15).
+    /// `None` everywhere but the browser tier's bundle.
+    pub window_bytes: Option<u64>,
 }
 /// Refuses unusable client limits, unrepresentable page counts and forge wire bounds.
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
     if !jig_client::valid(&limits.client) || limits.forge.field_bytes < 7 {
+        return false;
+    }
+    if let Some(window) = limits.window_bytes
+        && (window < u64::from(limits.client.domain.long_text) || window > limits.client.domain.document_bytes)
+    {
         return false;
     }
     let Some(wire) = forge::wire_limits(&limits.forge) else { return false };

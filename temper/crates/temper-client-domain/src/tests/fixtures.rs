@@ -51,7 +51,7 @@ pub fn limits() -> Limits {
             exchanges: 8,
         };
 
-        Limits { forge: forge::Limits { field_bytes: 256, checks: 8 }, client, row_uses: 8 }
+        Limits { forge: forge::Limits { field_bytes: 256, checks: 8 }, client, row_uses: 8, window_bytes: None }
     }
 }
 pub fn env(limits: &Limits) -> Env<Limits> {
