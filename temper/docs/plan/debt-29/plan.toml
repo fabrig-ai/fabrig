@@ -1,0 +1,69 @@
+draft = "debt-29"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-29/inputs/request.md", "temper/docs/plan/debt-29/inputs/debt27-review.md", "skein/docs/development/debt/D033-limits-literals-in-tests.md", "skein/docs/development/debt/D048-oauth-accounts-world-copies.md", "jig/docs/development/debt/D006-link-values-two-paths.md", "jig/docs/development/debt/D026-engine-clients-project-mismatch.md", "jig/docs/development/debt/D041-unused-parameters.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "first-demand"
+title = "skein D040's rest: a decoder's first demand is Next, asked by whoever drives it"
+mode = "direct"
+needs = []
+design = "skein/docs/design/forge.md, 12"
+
+[[part]]
+id = "admit-policy"
+title = "skein D040's rest: admit_policy goes, and admit is test-only"
+mode = "direct"
+needs = []
+design = "skein/docs/design/llm-connection.md, 4"
+
+[[part]]
+id = "concat-name"
+title = "skein D007's rest: bytes::concat goes by one name"
+mode = "direct"
+needs = []
+design = "skein/docs/design/lib.md, 6"
+
+[[slice]]
+id = 1
+story = "what debt-27 closed is closed: no function stands that ignores its argument, no name stands by alias"
+parts = ["first-demand", "admit-policy", "concat-name"]
+walk = false
+
+[[part]]
+id = "shell-posix"
+title = "skein D042's rest: what Linux and Darwin write alike lives once, in posix"
+mode = "direct"
+needs = []
+design = "skein/docs/design/shell.md, 7.5"
+
+[[part]]
+id = "smith-tags"
+title = "smith D020's rest: every token tag goes through Token::tagged"
+mode = "direct"
+needs = []
+design = "skein/docs/design/lib.md, 4"
+
+[[slice]]
+id = 2
+story = "the design's words are true of the code: the systems hold only what differs, and one rule tags a token"
+parts = ["shell-posix", "smith-tags"]
+walk = false
+
+[[part]]
+id = "fake-config"
+title = "skein D033: the fake forge's Config starts from one constructor"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/testing-strategy.md, 10"
+
+[[slice]]
+id = 3
+story = "a test of the fake forge says what it wants of it, and no more"
+parts = ["fake-config"]
+walk = false

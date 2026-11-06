@@ -38,3 +38,6 @@
   136 lines of step code write `usize::try_from(..)` with no `.expect(..)` on
   the line, over a `u32` or a `u64`, `skein-kv`'s frames and snapshots among
   them, which that item does not name and that form does not count.
+  `skein-forge/src/forgejo/server/files.rs` keeps a private `joined` beside
+  `bytes::concat`, because it writes a slash between a path's segments, and
+  `concat` has no separator.
