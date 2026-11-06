@@ -548,6 +548,7 @@ fn proposal_cards(key: u64) -> List<crate::pages::inbox::Card> {
             unread: None,
             handle: jig_client::Handle { asker: f::FORGE_ASKER, number: 0 },
             page: Some(c::ReadValue::Proposal(Box::new(c::Proposal {
+                projects: List::with_capacity(0),
                 key,
                 project: f::PROJECT,
                 reason: c::DocumentText::complete(c::Text::new(Box::from(*b"How I work"), 32).unwrap()),

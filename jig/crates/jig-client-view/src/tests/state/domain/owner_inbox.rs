@@ -17,6 +17,7 @@ use skein_lib::{List, Time, Wall};
 
 fn entry(task: u64, object: InboxObject) -> InboxEntry {
     InboxEntry {
+        projects: List::with_capacity(0),
         reply: None,
         task: TaskLink::Stored { number: task, status: None },
         project: None,

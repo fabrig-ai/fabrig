@@ -170,6 +170,7 @@ pub(crate) fn proposal_fields(value: &w::Proposal, limits: &Limits) -> Result<c:
         list0.push(funding_offer_fields(item)).expect("reserved supplied list");
     }
     Ok(c::Proposal {
+        projects: value.projects().clone(),
         key: crate::translate::answers::proposal_key(value.key()),
         project: value.project(),
         reason: crate::translate::facts::document_text(value.reason(), limits)?,
