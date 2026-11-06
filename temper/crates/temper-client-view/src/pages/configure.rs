@@ -8,6 +8,7 @@ use alloc::boxed::Box;
 use skein_ui::{Builder, Role, Run, State, phrases::Hole};
 use temper_client_domain::{Domain, pages::Act};
 
+#[expect(clippy::too_many_lines, reason = "one tree keeps the configuring opening, composer and reference in order")]
 pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32, text_limit: u32) {
     if root.pages().me(root.client()).is_some()
         && super::project_name(root.pages().me(root.client()), project).is_none()
@@ -19,6 +20,10 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
     b.open(Role::Main);
     b.style(look::MAIN);
     b.style(look::SESSION);
+    let reference = reference(root);
+    if let Some(mode) = reference {
+        b.style(super::document::style(mode));
+    }
     super::session::top(
         b,
         root,
@@ -30,6 +35,9 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
     );
     super::session::right(b);
     byline(b, root, w, project);
+    if let Some(mode) = reference {
+        super::document::modes(b, Word::ReferenceGroup, mode, w, bindings);
+    }
     b.close();
     b.close();
     b.open(Role::Region);
@@ -100,6 +108,11 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
     b.close();
     composer(b, root, w, bindings, pending, text_limit);
     b.close();
+    if let Some(mode) = reference
+        && mode != temper_client_domain::pages::chat::document::Mode::Chat
+    {
+        super::reference::pane(b, w);
+    }
     b.close();
 }
 
@@ -224,7 +237,7 @@ fn composer(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, 
     }
     b.bind(bindings.insert(Act::StartChat));
     b.close();
-    super::session::hint(b, w, false);
+    super::session::hint(b, w, chats.reference.is_some());
     if chats.refusal.is_some() {
         w.refusal(b, &jig_client::contract::Refusal::NotOffered, text_limit);
     }
@@ -244,4 +257,11 @@ fn text(b: &mut Builder, role: Role, words: &[u8], style: Option<skein_ui::Style
     b.name(words);
     b.text(Run::Plain, words);
     b.close();
+}
+
+pub(crate) fn reference(root: &Domain) -> Option<temper_client_domain::pages::chat::document::Mode> {
+    match root.pages().chats() {
+        Some(chats) => chats.reference,
+        None => None,
+    }
 }
