@@ -5471,8 +5471,10 @@ measures it (skein's `ui-web.md`, section 7).
   which replaces the window. A person sending on a chat does the same
   through the log's end request,
   which `Chat` counts. An agent's page has the same pill; while its window
-  has let the end go, a press asks for the next later page (`Thread::newer`).
-  Its log has no end request, so sending there does not request the end.
+  has let the end go, a press asks for the next later page (`Thread::newer`),
+  and the log, following, asks for each next until its end is back (skein's
+  `ui-web.md`, section 7). Its log has no end request, so sending there does
+  not request the end.
 - **The terminal:** the log is bound and continues as in a browser, with no
   measures: `up` reads earlier and `down` later (skein's `ui-text.md`, section
   6), and each prints the whole window again. These are lines followed by
@@ -6757,6 +6759,14 @@ own tests:
   the position staying put when lines load above is for the user to read on a
   real chat. Default: the browser tier runs Chromium, including with
   `overflow-anchor: none`; Firefox and Safari themselves are read, not run.
+- **An agent's page going to its end** (5.15; `../draft/chat-reading.md`, 5): its
+  log has no end request, so a person sending from far back stays where they read,
+  and Latest reaches the end a page at a time. A chat's `to_end` and
+  `Thread::latest` on a task's page would close both. Default: as it stands.
+- **The terminal's keys and first page** (5.15; `../draft/chat-reading.md`, 5): its
+  input is never raw (skein's `ui-text.md`, section 7), so PgUp and PgDn are lines
+  with Enter, and with no view to measure it opens on one page. Default: as it
+  stands; keys of their own are a change of skein's shell.
 - **The rest of a run's line** (3.5, 5.9; `../draft/chat-reading.md`, 2 and 7): words
   for tools past the table, which are the user's to read on a real chat. Default: any
   other tool is its name. A run of one turn has its time as *A run's time* says, and an
