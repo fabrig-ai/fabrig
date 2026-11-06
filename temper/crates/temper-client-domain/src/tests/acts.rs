@@ -37,6 +37,38 @@ fn settings_rejection_sends_its_reason_without_a_running_choice() {
 }
 
 #[test]
+fn a_proposal_is_decided_under_its_own_project() {
+    for act in [ActKind::Accept, ActKind::Reject] {
+        for project in [Some(fixtures::PROJECT), None] {
+            let c::ReadValue::Proposal(mut proposal) = f::proposal(act, Admission::Allowed) else {
+                panic!("proposal fixture")
+            };
+            proposal.project = 0;
+            proposal.action = c::ProposalAction::Settings(Box::new(c::ProposalActionSettings {
+                against: 1,
+                items: skein_lib::List::uncapped(),
+                review: None,
+                made: None,
+            }));
+            let mut pages = f::pages(PROPOSAL, c::ReadValue::Proposal(proposal));
+            pages.inbox.as_mut().expect("inbox").cards.get_mut(FIRST_CARD).expect("card").project = project;
+            f::act(&mut pages, Act::CardWords { object: PROPOSAL, words: Box::from(*b"Keep current settings.") });
+            f::act(&mut pages, f::decide(PROPOSAL, act));
+            let (decision, running) = if act == ActKind::Accept {
+                (c::Decision::Accepted, Some(c::Running::Stays))
+            } else {
+                (c::Decision::Rejected { reason: f::text(b"Keep current settings.") }, None)
+            };
+            assert_eq!(
+                f::sent(&mut f::act(&mut pages, Act::Confirm)).as_ref(),
+                [c::Ask::Decide { project: 0, on: c::DecideOn::Proposal { proposal: f::PROPOSAL, decision, running } }],
+                "{act:?}, card project {project:?}"
+            );
+        }
+    }
+}
+
+#[test]
 fn accepting_sends_nothing_until_the_confirmation_is_confirmed() {
     let mut pages = f::pages(PROPOSAL, f::proposal(ActKind::Accept, Admission::Allowed));
     assert_eq!(f::sent(&mut f::act(&mut pages, f::decide(PROPOSAL, ActKind::Accept))).len(), 0);

@@ -218,11 +218,6 @@
   and the card has no "Drafts: on". The person accepts on the agent's words. The
   gallery's `configure-chat-proposal` rows alone draw those lines, from a hand-made
   document.
-- **Not yet:** 5.13, *The card in a chat*: a decision on a chat's card goes under the
-  chat's project (`temper-client-domain`'s `acts.rs`, `send`, reading the card's `project`,
-  which `pages/chat.rs` sets from the task), so jig refuses a proposal of settings, "No
-  visible object with that name", and the sheet stays open. Its card in *Needs you* reads
-  the proposal's own and is accepted. The request `ui-chat-accept`.
 - **Not yet:** 3.5, *Needs you*: an accepted proposal of settings stays the flow's
   card, the rail's count gone, where an answered card leaves the open ones and the
   mock moves it to its answered stack (`temper-client-view`'s `pages/needs.rs`). Seen
