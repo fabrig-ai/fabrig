@@ -2406,7 +2406,7 @@ const HOLDS: [Holds; samples::N] = [
         heading: "",
         parts: &[Part::Named {
             role: Role::Paragraph,
-            name: "Signed out. To sign in, open a sign-in link temper serve printed.",
+            name: "Signed out. To sign in, open a sign-in link temper printed.",
         }],
     },
     Holds {

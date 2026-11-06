@@ -1268,3 +1268,43 @@ fn the_chats_list_excludes_working_notes_from_documents() {
     assert_eq!(chats.documents.get(&4).unwrap().bytes(), b"Visible document");
     assert!(!chats.documents.contains_key(&8), "a working note is not a draft");
 }
+
+#[test]
+fn a_lost_closed_read_keeps_the_page_and_is_no_answer() {
+    let (mut root, watch, _) = opened_chats();
+    crate::step(
+        &mut root,
+        &fixtures::env(&fixtures::limits()),
+        crate::Event::Client {
+            event: Event::Up {
+                up: jig_client::Up::Watched {
+                    watch,
+                    event: WatchEvent::Delivered(Delivery::Tasks(Box::new(Tasks {
+                        rows: List::with_capacity(0),
+                        more: false,
+                    }))),
+                },
+            },
+        },
+        &mut Queue::uncapped(),
+    );
+    let closed = root.pages().chats().unwrap().closed;
+    let lost = Told::Page { handle: closed, page: Readout::Jig(ReadResult::None(ReadNone::Unreachable)) };
+    crate::route::told(&mut root, &fixtures::env(&fixtures::limits()), lost.clone(), &mut Queue::uncapped());
+    assert!(!root.pages().chats().unwrap().known(root.client()));
+    let kept = TaskPage {
+        live: List::with_capacity(0),
+        live_after: None,
+        ended: EndedGroup::Rows { rows: List::from_boxed(Box::new([chat_line()])), after: None, cut: false },
+    };
+    crate::route::told(
+        &mut root,
+        &fixtures::env(&fixtures::limits()),
+        Told::Page { handle: closed, page: Readout::Jig(ReadResult::Value(ReadValue::Tasks(Box::new(kept.clone())))) },
+        &mut Queue::uncapped(),
+    );
+    crate::route::told(&mut root, &fixtures::env(&fixtures::limits()), lost, &mut Queue::uncapped());
+    let chats = root.pages().chats().unwrap();
+    assert!(chats.known(root.client()));
+    assert_eq!(chats.page, Some(kept));
+}
