@@ -34,6 +34,7 @@ enum Tools {
     Off,
     On,
     Spend(u64),
+    Trial,
 }
 #[must_use]
 pub fn small_rows_fixture(seed: u64) -> (Joint, Root) {
@@ -92,6 +93,21 @@ pub fn program_fixture(seed: u64) -> (Joint, Root) {
 pub fn empty_program_fixture(seed: u64) -> (Joint, Root) {
     without_deployment_account(program_fixture(seed))
 }
+/// Claude's welcome trial, with a connected forge and room for Create's project.
+#[must_use]
+pub fn trial_fixture(seed: u64) -> (Joint, Root) {
+    let (mut front, mut root) = fixture_root(seed, Tools::Trial, 2, None, false, WelcomeForge::Connected, true);
+    event(&mut front, &mut root, Temper::went(temper_client_domain::Address::Accounts));
+    let (mut front, mut root) = without_deployment_account((front, root));
+    front.deployment = (true, true);
+    front.engine.send(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Connection {
+        forge: 1,
+        state: temper_engine_domain_forge::Connection::Connected { id: 1, login: b"temper".as_slice().into() },
+    })));
+    settle(&mut front, &mut root);
+    (front, root)
+}
+
 /// Supply the configured worker's observation of the explicit check it received.
 pub fn program_checked(front: &mut Joint, root: &mut Root, usable: bool) {
     use jig_domain_host::{LinkUp, Login, LoginState};
@@ -212,9 +228,10 @@ fn fixture_root(
 ) -> (Joint, Root) {
     let spend = match tools {
         Tools::Spend(spend) => Some(spend),
-        Tools::Off | Tools::On => None,
+        Tools::Off | Tools::On | Tools::Trial => None,
     };
-    let tools = tools != Tools::Off;
+    let trial_story = tools == Tools::Trial;
+    let tools = matches!(tools, Tools::On | Tools::Spend(_));
     let welcome = forge != WelcomeForge::None;
     let forge_setup = matches!(forge, WelcomeForge::Owned | WelcomeForge::Playground { .. });
     let mut limits = if tools { temper_client_tools::limits::client() } else { fixtures::domain_limits() };
@@ -236,7 +253,13 @@ fn fixture_root(
         config.core.settings.llm_providers = a::Providers {
             providers: Box::new([a::Provider {
                 number: PROVIDER,
-                name: Box::from(if plan { b"openai".as_slice() } else { b"Scripted".as_slice() }),
+                name: Box::from(if trial_story {
+                    b"anthropic".as_slice()
+                } else if plan {
+                    b"openai".as_slice()
+                } else {
+                    b"Scripted".as_slice()
+                }),
                 signed_in_plan: plan,
                 manage_usage: None,
                 models: Box::new([Box::from(b"scripted".as_slice())]),
@@ -327,7 +350,7 @@ fn fixture_root(
         // Each extra grant adds one entry to each of the four fleet routing cohorts.
         engine_limits.journal.writes =
             engine_limits.journal.writes.checked_add((engine_limits.fleet.grants - 2) * 4).expect("grant cohorts fit");
-        if forge == WelcomeForge::Owned || matches!(forge, WelcomeForge::Empty) {
+        if trial_story || forge == WelcomeForge::Owned || matches!(forge, WelcomeForge::Empty) {
             super::first_run_projects(&mut config, &mut engine_limits);
         }
         (config, engine_limits)
