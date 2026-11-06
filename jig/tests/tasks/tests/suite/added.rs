@@ -3,15 +3,8 @@ use jig_domain_tasks::{
     Key, Kind, Line, Name, Party, PersonAddress, Phase, ProcedureDecision, ProcedureEnd, Refusal, Release,
     SavedResource, Status, Stored, Taken, TaskResult,
 };
-use jig_tasks_world::{LIMITS, Reply, World, task};
-use skein_lib::{Duration, ReplyTo};
-
-fn response(world: &mut World, event: impl FnOnce(ReplyTo) -> Event) -> Reply {
-    let to = world.to();
-    let call = to.into_token();
-    world.send(event(ReplyTo::new(call)));
-    world.replies[&call.raw()].clone()
-}
+use jig_tasks_world::{LIMITS, PERSON, PERSON_PARTY, Reply, World, done, refused, response, task};
+use skein_lib::Duration;
 
 fn amendment(dependencies: &[u64]) -> Amendment {
     Amendment {
@@ -68,21 +61,14 @@ fn amend_with_places(
     })
 }
 
-fn refused(reply: Reply, task: u64, why: Refusal, blocked: &[u64]) {
-    let Reply::Refused(problem) = reply else { panic!("expected refusal, got {reply:?}") };
-    assert_eq!(problem.task, Some(task));
-    assert_eq!(problem.why, why);
-    assert_eq!(problem.blocked_by.as_deref(), Some(blocked));
-}
-
 fn pair() -> World {
     let mut world = World::new(850, LIMITS);
-    assert_eq!(world.make(Party::Person(9), vec![task(1, &[]), task(2, &[])]), Reply::Made(vec![1, 2]));
+    assert_eq!(world.make(PERSON_PARTY, vec![task(1, &[]), task(2, &[])]), Reply::Made(vec![1, 2]));
     world
 }
 
 fn keep(world: &mut World) {
-    assert_eq!(amend(world, Party::Person(9), 1, &[2]), Reply::Done);
+    assert_eq!(amend(world, PERSON_PARTY, 1, &[2]), Reply::Done);
     assert_eq!(world.record(1).waiting_on.as_ref(), [2]);
 }
 
@@ -112,7 +98,7 @@ fn cancel(world: &mut World, number: u64) {
     assert_eq!(
         response(world, |reply_to| Event::Cancel {
             reply_to,
-            by: Party::Person(9),
+            by: PERSON_PARTY,
             operation: Cancel {
                 task: number,
                 reason: Box::new([8]),
@@ -122,12 +108,6 @@ fn cancel(world: &mut World, number: u64) {
         }),
         Reply::Done
     );
-}
-
-fn done(world: &mut World, number: u64) {
-    world.claim_fresh(number);
-    world.finish(number);
-    world.settle(number);
 }
 
 #[test]
@@ -199,7 +179,7 @@ fn a_live_run_finishes_done_as_parked_keeps_saved_state_and_names_its_dependenci
     done(&mut world, 2);
     assert_eq!(world.record(1).phase, Phase::Active(Active::Due));
     assert!(world.contexts[&1].pending.is_empty());
-    assert_eq!(world.contexts[&1].added.as_ref(), [tasks::Added { task: 2, at: world.env.wall, by: Party::Person(9) }]);
+    assert_eq!(world.contexts[&1].added.as_ref(), [tasks::Added { task: 2, at: world.env.wall, by: PERSON_PARTY }]);
     done(&mut world, 1);
     assert!(matches!(world.results[&1], Ending::Done(_)));
 }
@@ -225,7 +205,7 @@ fn every_person_answer_is_refused_while_kept_and_its_take_stands() {
     let mut world = World::new(851, LIMITS);
     let mut person = task(1, &[]);
     person.executor = Executor::Person(PersonAddress::Role(7));
-    world.make(Party::Person(9), vec![person, task(2, &[])]);
+    world.make(PERSON_PARTY, vec![person, task(2, &[])]);
     assert_eq!(response(&mut world, |reply_to| Event::TakePerson { reply_to, task: 1, person: 10 }), Reply::Done);
     keep(&mut world);
     for result in [report(), TaskResult::Failure { reason: Box::new([1]) }] {
@@ -243,7 +223,7 @@ fn a_procedures_done_step_is_refused_whole_while_kept_but_wait_and_failure_still
     let mut world = World::new(852, LIMITS);
     let mut new = task(1, &[]);
     new.executor = Executor::Procedure { connector: 1, code: 1 };
-    world.make(Party::Person(9), vec![new, task(2, &[])]);
+    world.make(PERSON_PARTY, vec![new, task(2, &[])]);
     assert_eq!(procedure(&mut world, 1, ProcedureEnd::Wait), Reply::Done);
     keep(&mut world);
     assert_eq!(world.contexts[&1].pending.as_ref(), [2]);
@@ -262,7 +242,7 @@ fn a_procedures_done_step_is_refused_whole_while_kept_but_wait_and_failure_still
     let mut world = World::new(852, LIMITS);
     let mut new = task(1, &[]);
     new.executor = Executor::Procedure { connector: 1, code: 1 };
-    world.make(Party::Person(9), vec![new, task(2, &[])]);
+    world.make(PERSON_PARTY, vec![new, task(2, &[])]);
     keep(&mut world);
     assert_eq!(
         procedure(&mut world, 1, ProcedureEnd::Result(TaskResult::Failure { reason: Box::new([1]) })),
@@ -278,7 +258,7 @@ fn a_procedures_invalid_done_step_is_refused_as_kept() {
     let mut new = task(1, &[]);
     new.executor = Executor::Procedure { connector: 1, code: 1 };
     new.contract = tasks::Contract::Report { words: 1 };
-    world.make(Party::Person(9), vec![new, task(2, &[])]);
+    world.make(PERSON_PARTY, vec![new, task(2, &[])]);
     keep(&mut world);
     let before = world.records.clone();
     let invalid = TaskResult::Report { words: Box::new([7, 8]) };
@@ -315,7 +295,7 @@ fn a_grace_cancels_a_kept_person_or_procedure_at_once() {
         let mut world = World::new(853, LIMITS);
         let mut new = task(1, &[]);
         new.executor = executor;
-        world.make(Party::Person(9), vec![new, task(2, &[])]);
+        world.make(PERSON_PARTY, vec![new, task(2, &[])]);
         keep(&mut world);
         cancel(&mut world, 1);
         world.settle(1);
@@ -338,19 +318,16 @@ fn a_run_parked_by_dependencies_during_a_grace_cancels_at_once() {
 #[test]
 fn additions_record_their_wall_and_maker_in_dependency_order_and_readdition_is_fresh() {
     let mut world = pair();
-    world.make(Party::Person(9), vec![task(3, &[])]);
+    world.make(PERSON_PARTY, vec![task(3, &[])]);
     let first = world.env.wall;
-    assert_eq!(amend(&mut world, Party::Person(9), 1, &[3, 2]), Reply::Done);
+    assert_eq!(amend(&mut world, PERSON_PARTY, 1, &[3, 2]), Reply::Done);
     assert_eq!(
         world.record(1).added.as_ref(),
-        [
-            tasks::Added { task: 3, at: first, by: Party::Person(9) },
-            tasks::Added { task: 2, at: first, by: Party::Person(9) }
-        ]
+        [tasks::Added { task: 3, at: first, by: PERSON_PARTY }, tasks::Added { task: 2, at: first, by: PERSON_PARTY }]
     );
-    assert_eq!(amend(&mut world, Party::Person(9), 1, &[2]), Reply::Done);
+    assert_eq!(amend(&mut world, PERSON_PARTY, 1, &[2]), Reply::Done);
     world.elapse(Duration::from_millis(1));
-    assert_eq!(amend(&mut world, Party::Person(9), 1, &[2, 3]), Reply::Done);
+    assert_eq!(amend(&mut world, PERSON_PARTY, 1, &[2, 3]), Reply::Done);
     assert_eq!(world.record(1).added.first().expect("fixture evidence").at, first);
     assert_eq!(world.record(1).added.last().expect("fixture evidence").at, world.env.wall);
     let history = world
@@ -371,7 +348,7 @@ fn additions_record_their_wall_and_maker_in_dependency_order_and_readdition_is_f
 #[test]
 fn a_task_amender_may_name_any_live_task_below_it_but_not_an_outside_task() {
     let mut world = World::new(854, LIMITS);
-    world.make(Party::Person(9), vec![task(1, &[]), task(5, &[])]);
+    world.make(PERSON_PARTY, vec![task(1, &[]), task(5, &[])]);
     let mut child = task(2, &[]);
     child.funder = Funder::Task(1);
     child.numbers.budget = 30;
@@ -398,26 +375,26 @@ fn a_party_cannot_add_a_dependency_in_another_project() {
     outside.project = 2;
     outside.funder = Funder::Period { project: 2, period: 0 };
     response(&mut world, |reply_to| Event::OpenPeriod { reply_to, project: 2, period: 0, budget: 1000 });
-    world.make(Party::Person(9), vec![outside]);
-    refused(amend(&mut world, Party::Person(9), 1, &[3]), 1, Refusal::Dependencies, &[3]);
+    world.make(PERSON_PARTY, vec![outside]);
+    refused(amend(&mut world, PERSON_PARTY, 1, &[3]), 1, Refusal::Dependencies, &[3]);
 }
 
 #[test]
 fn amendment_circles_name_the_new_waiter_then_its_dependencies_in_order() {
     let mut world = pair();
     keep(&mut world);
-    refused(amend(&mut world, Party::Person(9), 2, &[1]), 2, Refusal::Circle { cut: false }, &[2, 1]);
-    refused(amend(&mut world, Party::Person(9), 2, &[2]), 2, Refusal::Circle { cut: false }, &[2]);
+    refused(amend(&mut world, PERSON_PARTY, 2, &[1]), 2, Refusal::Circle { cut: false }, &[2, 1]);
+    refused(amend(&mut world, PERSON_PARTY, 2, &[2]), 2, Refusal::Circle { cut: false }, &[2]);
 }
 
 #[test]
 fn a_dependency_on_an_ancestor_names_the_circle_in_order() {
     let mut world = World::new(855, LIMITS);
-    world.make(Party::Person(9), vec![task(1, &[])]);
+    world.make(PERSON_PARTY, vec![task(1, &[])]);
     let mut child = task(2, &[]);
     child.funder = Funder::Task(1);
     world.make(Party::Task(1), vec![child]);
-    refused(amend(&mut world, Party::Person(9), 2, &[1]), 2, Refusal::Circle { cut: false }, &[2, 1]);
+    refused(amend(&mut world, PERSON_PARTY, 2, &[1]), 2, Refusal::Circle { cut: false }, &[2, 1]);
 }
 
 fn resource() -> Holding {
@@ -431,14 +408,14 @@ fn a_waiter_given_a_dependency_leaves_the_queue_and_returns_ahead_of_a_later_wai
     for number in [1, 2, 3] {
         let mut new = task(number, &[]);
         new.holdings = Box::new([resource()]);
-        world.make(Party::Person(9), vec![new]);
+        world.make(PERSON_PARTY, vec![new]);
         world.elapse(Duration::from_millis(1));
     }
     let place = world.record(2).hold_wait_since;
-    assert_eq!(amend(&mut world, Party::Person(9), 2, &[3]), Reply::Done);
+    assert_eq!(amend(&mut world, PERSON_PARTY, 2, &[3]), Reply::Done);
     let mut third = task(4, &[]);
     third.holdings = Box::new([resource()]);
-    world.make(Party::Person(9), vec![third]);
+    world.make(PERSON_PARTY, vec![third]);
     done(&mut world, 1);
     assert!(world.record(3).holds_taken);
     assert!(!world.record(2).holds_taken && !world.record(4).holds_taken);
@@ -455,25 +432,25 @@ fn a_holder_after_a_task_whose_delegate_queues_behind_it_is_a_circle() {
     world.configure_holds(1, vec![Kind { connector: 1, kind: 1, hold: HoldKind::Exclusive { taken: Taken::Waits } }]);
     let mut holder = task(1, &[]);
     holder.holdings = Box::new([resource()]);
-    world.make(Party::Person(9), vec![holder, task(2, &[])]);
+    world.make(PERSON_PARTY, vec![holder, task(2, &[])]);
     let mut child = task(3, &[]);
     child.funder = Funder::Task(2);
     child.holdings = Box::new([resource()]);
     assert_eq!(world.make(Party::Task(2), vec![child]), Reply::Made(vec![3]));
     assert_eq!(world.record(3).phase, Phase::Waiting);
-    refused(amend(&mut world, Party::Person(9), 1, &[2]), 1, Refusal::Circle { cut: false }, &[1, 2, 3]);
+    refused(amend(&mut world, PERSON_PARTY, 1, &[2]), 1, Refusal::Circle { cut: false }, &[1, 2, 3]);
 }
 
 #[test]
 fn an_already_done_dependency_is_recorded_as_met_without_keeping_the_task() {
     let mut world = pair();
-    world.make(Party::Person(9), vec![task(3, &[2])]);
+    world.make(PERSON_PARTY, vec![task(3, &[2])]);
     done(&mut world, 2);
     assert!(world.records.contains_key(&Key::Stub(2)));
-    assert_eq!(amend_ended(&mut world, Party::Person(9), 1, 2), Reply::Done);
+    assert_eq!(amend_ended(&mut world, PERSON_PARTY, 1, 2), Reply::Done);
     assert!(world.record(1).waiting_on.is_empty());
     assert_eq!(world.record(1).dependencies.as_ref(), [2]);
-    assert_eq!(world.record(1).added.as_ref(), [tasks::Added { task: 2, at: world.env.wall, by: Party::Person(9) }]);
+    assert_eq!(world.record(1).added.as_ref(), [tasks::Added { task: 2, at: world.env.wall, by: PERSON_PARTY }]);
     done(&mut world, 1);
     assert!(matches!(world.results[&1], Ending::Done(_)));
 }
@@ -482,7 +459,7 @@ fn an_already_done_dependency_is_recorded_as_met_without_keeping_the_task() {
 fn an_already_failed_or_cancelled_dependency_is_refused_naming_it() {
     for how in [Status::Failed, Status::Cancelled] {
         let mut world = pair();
-        world.make(Party::Person(9), vec![task(3, &[2])]);
+        world.make(PERSON_PARTY, vec![task(3, &[2])]);
         if how == Status::Failed {
             world.claim(2, 1);
             world.terminal(
@@ -493,12 +470,12 @@ fn an_already_failed_or_cancelled_dependency_is_refused_naming_it() {
             let reply_to = world.to();
             world.send(Event::Cancel {
                 reply_to,
-                by: Party::Person(9),
+                by: PERSON_PARTY,
                 operation: Cancel { task: 2, reason: Box::new([]), grace: None, message: None },
             });
         }
         world.settle(2);
-        refused(amend_ended(&mut world, Party::Person(9), 1, 2), 1, Refusal::DependencyEnded { how }, &[2]);
+        refused(amend_ended(&mut world, PERSON_PARTY, 1, 2), 1, Refusal::DependencyEnded { how }, &[2]);
     }
 }
 
@@ -508,7 +485,7 @@ fn an_ended_dependency_without_a_loaded_place_is_unknown_to_the_child() {
     done(&mut world, 2);
     assert!(!world.records.contains_key(&Key::Stub(2)));
     assert_eq!(
-        amend(&mut world, Party::Person(9), 1, &[2]),
+        amend(&mut world, PERSON_PARTY, 1, &[2]),
         Reply::Refused(tasks::Problem::new(Some(2), Refusal::Unknown))
     );
 }
@@ -518,7 +495,7 @@ fn a_dependency_on_a_person_goes_on_after_the_answer() {
     let mut world = World::new(857, LIMITS);
     let mut person = task(2, &[]);
     person.executor = Executor::Person(PersonAddress::Person(10));
-    world.make(Party::Person(9), vec![task(1, &[2]), person]);
+    world.make(PERSON_PARTY, vec![task(1, &[2]), person]);
     assert_eq!(world.record(1).phase, Phase::Waiting);
     assert_eq!(answer(&mut world, 2, report()), Reply::Done);
     world.settle(2);
@@ -538,7 +515,7 @@ fn the_referee_rejects_fresh_runs_and_done_ends_after_a_committed_dependency_ame
         for seen in [
             Seen::Made {
                 task: 1,
-                parent: Party::Person(9),
+                parent: PERSON_PARTY,
                 dependencies: vec![],
                 depth: 0,
                 settings: tasks::SettingsRevision { task: 1, run: Some(1) },
@@ -546,7 +523,7 @@ fn the_referee_rejects_fresh_runs_and_done_ends_after_a_committed_dependency_ame
             },
             Seen::Made {
                 task: 2,
-                parent: Party::Person(9),
+                parent: PERSON_PARTY,
                 dependencies: vec![],
                 depth: 0,
                 settings: tasks::SettingsRevision { task: 1, run: Some(1) },
@@ -571,7 +548,7 @@ fn the_referee_allows_adoption_of_a_run_live_before_its_task_was_kept() {
     for seen in [
         Seen::Made {
             task: 1,
-            parent: Party::Person(9),
+            parent: PERSON_PARTY,
             dependencies: vec![],
             depth: 0,
             settings: tasks::SettingsRevision { task: 1, run: Some(1) },
@@ -579,7 +556,7 @@ fn the_referee_allows_adoption_of_a_run_live_before_its_task_was_kept() {
         },
         Seen::Made {
             task: 2,
-            parent: Party::Person(9),
+            parent: PERSON_PARTY,
             dependencies: vec![],
             depth: 0,
             settings: tasks::SettingsRevision { task: 1, run: Some(1) },
@@ -597,7 +574,7 @@ fn the_referee_allows_adoption_of_a_run_live_before_its_task_was_kept() {
 #[test]
 fn a_proposal_below_a_kept_task_waits_at_the_holder_above() {
     let mut world = World::new(858, LIMITS);
-    world.make(Party::Person(9), vec![task(1, &[]), task(4, &[])]);
+    world.make(PERSON_PARTY, vec![task(1, &[]), task(4, &[])]);
     for (number, parent, budget) in [(2, 1, 60), (3, 2, 20)] {
         let mut child = task(number, &[]);
         child.funder = Funder::Task(parent);
@@ -606,7 +583,7 @@ fn a_proposal_below_a_kept_task_waits_at_the_holder_above() {
         assert_eq!(world.make(Party::Task(parent), vec![child]), Reply::Made(vec![number]));
     }
     assert!(world.delegation(2).deciding);
-    assert_eq!(amend(&mut world, Party::Person(9), 2, &[4]), Reply::Done);
+    assert_eq!(amend(&mut world, PERSON_PARTY, 2, &[4]), Reply::Done);
     assert!(!world.delegation(2).deciding);
     assert!(world.delegation(1).deciding);
     let mut proposed = task(5, &[]);
@@ -679,14 +656,14 @@ fn a_kept_runs_invalid_result_still_spends_an_invalid_try() {
 #[test]
 fn a_restored_met_and_amendment_leave_all_ordinary_sender_room_available() {
     let mut world = pair();
-    assert_eq!(amend(&mut world, Party::Person(9), 1, &[]), Reply::Done);
+    assert_eq!(amend(&mut world, PERSON_PARTY, 1, &[]), Reply::Done);
     // Restore accounting complements the live Met story in met.rs.
     let Stored::Live(row) = world.records.get_mut(&Key::Live(1)).expect("live row") else { panic!("live") };
     row.last_message += 1;
     let mut inbox = row.inbox.to_vec();
     inbox.push(tasks::Word {
         number: row.last_message,
-        from: Party::Person(9),
+        from: PERSON_PARTY,
         kind: tasks::MessageKind::Met { dependency: 2, removed: true },
         words: Box::new([]),
         at: world.env.wall,
@@ -699,7 +676,7 @@ fn a_restored_met_and_amendment_leave_all_ordinary_sender_room_available() {
         let number = world.record(1).last_message + 1;
         let message = tasks::Word {
             number,
-            from: Party::Person(9),
+            from: PERSON_PARTY,
             kind: tasks::MessageKind::Words,
             words: Box::new([1]),
             at: world.env.wall,
@@ -721,12 +698,12 @@ fn a_restored_met_and_amendment_leave_all_ordinary_sender_room_available() {
 #[test]
 fn removing_the_last_live_name_of_a_met_dependency_prunes_its_stub_before_restart() {
     let mut world = pair();
-    world.make(Party::Person(9), vec![task(3, &[2])]);
+    world.make(PERSON_PARTY, vec![task(3, &[2])]);
     done(&mut world, 2);
-    assert_eq!(amend_ended(&mut world, Party::Person(9), 1, 2), Reply::Done);
-    assert_eq!(amend(&mut world, Party::Person(9), 3, &[]), Reply::Done);
+    assert_eq!(amend_ended(&mut world, PERSON_PARTY, 1, 2), Reply::Done);
+    assert_eq!(amend(&mut world, PERSON_PARTY, 3, &[]), Reply::Done);
     assert!(world.records.contains_key(&Key::Stub(2)));
-    assert_eq!(amend(&mut world, Party::Person(9), 1, &[]), Reply::Done);
+    assert_eq!(amend(&mut world, PERSON_PARTY, 1, &[]), Reply::Done);
     assert!(!world.records.contains_key(&Key::Stub(2)));
     world.restart();
     assert!(world.record(1).added.is_empty());
@@ -740,7 +717,7 @@ fn cancelling_a_kept_task_still_accepts_its_live_runs_partial_result() {
     assert_eq!(
         response(&mut world, |reply_to| Event::Cancel {
             reply_to,
-            by: Party::Person(9),
+            by: PERSON_PARTY,
             operation: Cancel { task: 1, reason: Box::new([8]), grace: None, message: None }
         }),
         Reply::Done
@@ -766,7 +743,7 @@ fn end_dependency(world: &mut World, number: u64, how: Status) {
             assert_eq!(
                 response(world, |reply_to| Event::Cancel {
                     reply_to,
-                    by: Party::Person(9),
+                    by: PERSON_PARTY,
                     operation: Cancel { task: number, reason: Box::new([1]), grace: None, message: None }
                 }),
                 Reply::Done
@@ -780,7 +757,7 @@ fn end_dependency(world: &mut World, number: u64, how: Status) {
 fn release(world: &mut World, number: u64) -> Reply {
     response(world, |reply_to| Event::Release {
         reply_to,
-        by: Party::Person(9),
+        by: PERSON_PARTY,
         operation: Release { task: number, again: None, message: None },
     })
 }
@@ -791,7 +768,7 @@ fn dependency_hold(world: &World, number: u64, was: tasks::Was, dependency: u64,
     assert_eq!(row.revisions.hold, revision);
     assert!(
         matches!(row.escalation, tasks::Escalation::Waiting {
-        revision: held, holder: tasks::EscalationHolder::Person(9), ..
+        revision: held, holder: tasks::EscalationHolder::Person(PERSON), ..
     } if held == revision),
         "fresh routed escalation: {:?}",
         row.escalation
@@ -806,7 +783,7 @@ fn remove_and_release(world: &mut World, number: u64) -> Reply {
         operation: tasks::Amend { task: number, message, stop_run: false, amendment: Box::new(amendment) },
         places: Box::new([]),
         reply_to,
-        by: Party::Person(9),
+        by: PERSON_PARTY,
         funder: None,
     })
 }
@@ -821,7 +798,7 @@ fn no_met(world: &World, number: u64) {
 fn releasing_a_waiter_reholds_on_a_failed_or_cancelled_dependency_with_a_fresh_escalation() {
     for how in [Status::Failed, Status::Cancelled] {
         let mut world = World::new(881, LIMITS);
-        world.make(Party::Person(9), vec![task(1, &[2]), task(2, &[])]);
+        world.make(PERSON_PARTY, vec![task(1, &[2]), task(2, &[])]);
         end_dependency(&mut world, 2, how);
         let revision = world.record(1).revisions.hold;
         dependency_hold(&world, 1, tasks::Was::Waiting, 2, revision);
@@ -869,7 +846,7 @@ fn a_kept_live_agents_release_reholds_and_removing_its_failed_dependency_resumes
 #[test]
 fn a_release_scans_all_dependencies_in_list_order_even_after_the_hold_reason_changed() {
     let mut world = World::new(882, LIMITS);
-    world.make(Party::Person(9), vec![task(1, &[2, 3]), task(2, &[]), task(3, &[])]);
+    world.make(PERSON_PARTY, vec![task(1, &[2, 3]), task(2, &[]), task(3, &[])]);
     end_dependency(&mut world, 3, Status::Failed);
     let revision = world.record(1).revisions.hold;
     assert_eq!(release(&mut world, 1), Reply::Done);
@@ -885,7 +862,7 @@ fn dependency_compound(world: &mut World, operations: Vec<tasks::Operation>) -> 
     let staged = skein_lib::List::from_boxed(operations.into_boxed_slice());
     response(world, |reply_to| Event::Compound {
         reply_to,
-        by: jig_domain_tasks::Party::Person(9),
+        by: PERSON_PARTY,
         project: 1,
         operations: staged,
         period: 0,
@@ -911,7 +888,7 @@ fn removing_operation(world: &World, release: Option<u64>) -> tasks::Operation {
 
 fn failed_waiter() -> World {
     let mut world = World::new(883, LIMITS);
-    world.make(Party::Person(9), vec![task(1, &[2]), task(2, &[])]);
+    world.make(PERSON_PARTY, vec![task(1, &[2]), task(2, &[])]);
     end_dependency(&mut world, 2, Status::Failed);
     world
 }
@@ -983,7 +960,7 @@ fn an_escalation_resolution_reholds_on_the_failed_dependency_with_a_fresh_escala
         reply_to,
         task: 1,
         revision,
-        by: 9,
+        by: PERSON,
         entry: None,
         decision: tasks::EscalationDecision::Release,
     });
@@ -1000,7 +977,7 @@ fn a_person_and_a_procedure_rehold_on_the_failed_dependency_as_an_agent_does() {
         let mut world = World::new(884, LIMITS);
         let mut waiter = task(1, &[2]);
         waiter.executor = executor;
-        world.make(Party::Person(9), vec![waiter, task(2, &[])]);
+        world.make(PERSON_PARTY, vec![waiter, task(2, &[])]);
         end_dependency(&mut world, 2, Status::Failed);
         let revision = world.record(1).revisions.hold;
         dependency_hold(&world, 1, tasks::Was::Waiting, 2, revision);
@@ -1033,9 +1010,9 @@ fn a_closing_task_releases_to_settlement_even_with_a_failed_dependency() {
 #[test]
 fn restore_keeps_added_provenance_without_rejudging_the_dependency_subsequence() {
     let mut world = pair();
-    world.make(Party::Person(9), vec![task(3, &[])]);
-    assert_eq!(amend(&mut world, Party::Person(9), 1, &[2, 3]), Reply::Done);
-    let entry = |task| tasks::Added { task, at: world.env.wall, by: Party::Person(9) };
+    world.make(PERSON_PARTY, vec![task(3, &[])]);
+    assert_eq!(amend(&mut world, PERSON_PARTY, 1, &[2, 3]), Reply::Done);
+    let entry = |task| tasks::Added { task, at: world.env.wall, by: PERSON_PARTY };
     for added in [vec![entry(3), entry(2)], vec![entry(2), entry(2)], vec![entry(4)]] {
         let mut row = world.record(1).clone();
         row.added = added.clone().into_boxed_slice();
