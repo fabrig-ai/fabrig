@@ -2,10 +2,17 @@
 
 2026-11-06. Where the design lags or departs from [bundle-loading.md](bundle-loading.md).
 
+- **Design lags:**
+  - 3, "A stall isn't: it says it is waiting": skein's `ui-web.md`, 4.3 has the line say nothing until the module's answer is in, and `data-waiting` after 15 s with no byte, and the code takes the first where no answer has begun (skein's `ui-web.status.md`, 4.3). So a stall before that answer draws the mark and an empty bar, with no words.
 - **Design departs:**
-  - 3, from this draft's "the stylesheets ... can't hold back a paint": the glue's `init` also waits for the stylesheets (skein's `ui-web.md`, 4.3), because a page's links held back today's starter and a client that measures an unstyled page would break where it now doesn't. Decided by this plan's cut, under the user's "take the nearest thing". The first node moves by at most the stylesheets' own download, within which the module goes on arriving.
+  - 2, from "and nothing else": the page's head also holds its charset and viewport, as the bundler's page does (skein's `ui-web.md`, 4.3), and temper's server adds the sign-in ways' and kept forges' metas before `</head>` (`../protocol/sign-in.md`, 7 and 9.7). None fetches anything. Decided by this plan's cut.
+  - 2, from its sizes: the page is 2,539 bytes and its stylesheet 1,844, where this draft has 3.6 KB, and the script 2,831, where it has 2.1 KB. What travels is 4,779 bytes, where it has 2.9 KB gzipped: the stylesheet's form and the script's, 770 and 1,470, beside the page whole, because skein's `ui-web.md`, 4.4 compresses no page. Decided by this plan's cut.
+  - 3, from "the stylesheets ... can't hold back a paint": the glue's `init` also waits for the stylesheets (skein's `ui-web.md`, 4.3), because a page's links held back today's starter and a client that measures an unstyled page would break where it now doesn't. Decided by this plan's cut, under the user's "take the nearest thing". The first node moves by at most the stylesheets' own download, within which the module goes on arriving.
+  - 3, beyond the request's script: `#boot` takes `inert` as it hands over, so that neither a press nor an assistive tool lands on a fading placeholder. Decided by this plan's cut.
+  - 4, from "The figure": until the module's answer is in, the line holds no figure, since which total it shows depends on that answer. Decided by this plan's cut.
   - 4, from "the bounds grow": `clients.bundle_bytes` grows and `clients.bundle_files` stays 128 (`../protocol/configuration.md`, section 7), because the bundle holds about 40 files with its forms. Decided by this plan's cut.
-  - 4, from "The workspace has no compressor today": `skein_http::gzip` is one, an encoder for a request's body that trades ratio for speed. The bundler still takes `flate2` for its best ratio, unless the plan's measure finds them within 5% (skein's `ui-web.md`, 4.2). Decided by this plan's cut.
+  - 4, from "The workspace has no compressor today": `skein_http::gzip` is one, an encoder for a request's body that trades ratio for speed, and the bundler takes `flate2` for its best ratio (skein's `ui-web.md`, 4.2). Decided by this plan's cut, which has the encoder taken instead within 5% of `flate2`'s best; that comparison's figures are in no file of the repository, so the margin is unknown.
+  - 7, what this design settles, by this plan's cut: both forms stay whole in memory, with no inflater (`../client/browser.md`, 2.2); the playground keeps its own page and takes `--gzip off`, compressing it being its host's (`../playground.md`, 7).
 - **Open:**
   - 7: other browsers (skein's `ui-web.md`, section 16); a box still starting (`../client/browser.md`, section 5).
 
@@ -24,3 +31,7 @@ during the release build; before, 370.4 ms and 61,860 KiB. Sizes are byte
 counts of the bundler's output; timings, received bytes, screenshots and
 memory use the same driver and method in
 `temper/docs/plan/bundle-loading/figures.md`, **Method** and **After**.
+temper's browser tier, whose tests load this page but for the playground's,
+reads 83.069911 of its 85 CPU s over 13 tests with one red, against 61.048855
+over 13 with none before (`../client/browser.status.md`, 4.3); skein's has no figure
+(skein's `ui-web.status.md`, 4.3).
