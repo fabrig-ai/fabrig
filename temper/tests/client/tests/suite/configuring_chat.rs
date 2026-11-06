@@ -625,6 +625,7 @@ fn a_second_proposal_stands_below_the_first_and_a_reply_below_it() {
     world.front().configuring_reply(task, b"Second reply");
     let person = world.client(fixtures::PARTY, Address::Chat { task });
     see(&mut world, person, skein_fake_person::Find::exactly_named(Role::Button, b"Accept"));
+    read_chat_start(&mut world, person);
     accept(&mut world, agent, &first, b"accept-first-card");
     let charter = world.front().host_tool(
         task,
@@ -659,23 +660,7 @@ fn a_second_proposal_stands_below_the_first_and_a_reply_below_it() {
     world.front().configuring_reply(task, b"Third reply");
     see(&mut world, person, skein_fake_person::Find::text(b"Third reply"));
     // Read the older pages as a person does; the first page is deliberately thin.
-    for _ in 0..32 {
-        if world
-            .root(person)
-            .person()
-            .pages()
-            .chat()
-            .unwrap()
-            .thread
-            .lines
-            .edges
-            .reaches(jig_client::thread::window::End::After)
-        {
-            break;
-        }
-        world.event(person, Event::Act { action: Action::Pages(Act::Older) }.into());
-        world.run(jig_client_kit::harness::Until::Steps(2));
-    }
+    read_chat_start(&mut world, person);
     let root = world.root(person).person();
     let chat = root.pages().chat().unwrap();
     let lines = chat.thread.lines().into_boxed();
@@ -685,21 +670,7 @@ fn a_second_proposal_stands_below_the_first_and_a_reply_below_it() {
         lines.iter().skip(made + 1).any(|line| matches!(line, Line::Turn { .. })),
         "the engine makes the proposal before its completion commits"
     );
-    let limits = fixtures::domain_limits();
-    let words = temper_client_view::words::Words::english(
-        fixtures::FORGE,
-        limits.client.domain.text,
-        temper_client_view::words::Shell::Browser,
-    )
-    .unwrap();
-    let bounds = fixtures::view_bounds(&limits, &words);
-    let mut view = temper_client_view::View::new(&bounds, &limits, words, fixtures::FORGE);
-    temper_client_view::build(
-        &mut view,
-        root,
-        fixtures::NOW,
-        &mut skein_lib::Queue::with_capacity(bounds.tree.patches),
-    );
+    let view = chat_view(&world, person);
     let mut order = Vec::new();
     for node in view.tree().nodes() {
         if let Some(key) = node.key
@@ -717,4 +688,83 @@ fn a_second_proposal_stands_below_the_first_and_a_reply_below_it() {
         }
     }
     assert_eq!(order, ["First reply", "First card", "Second reply", "Second card", "Third reply"]);
+}
+
+fn read_chat_start(world: &mut ClientWorld, person: ClientId) {
+    for _ in 0..32 {
+        if world
+            .root(person)
+            .person()
+            .pages()
+            .chat()
+            .expect("chat page")
+            .thread
+            .lines
+            .edges
+            .reaches(jig_client::thread::window::End::After)
+        {
+            break;
+        }
+        world.event(person, Event::Act { action: Action::Pages(Act::Older) }.into());
+        world.run(jig_client_kit::harness::Until::Steps(2));
+    }
+}
+
+fn chat_view(world: &ClientWorld, person: ClientId) -> temper_client_view::View {
+    let root = world.root(person).person();
+    let limits = fixtures::domain_limits();
+    let words = temper_client_view::words::Words::english(
+        fixtures::FORGE,
+        limits.client.domain.text,
+        temper_client_view::words::Shell::Browser,
+    )
+    .expect("browser words fit the world bounds");
+    let bounds = fixtures::view_bounds(&limits, &words);
+    let mut view = temper_client_view::View::new(&bounds, &limits, words, fixtures::FORGE);
+    temper_client_view::build(
+        &mut view,
+        root,
+        fixtures::NOW,
+        &mut skein_lib::Queue::with_capacity(bounds.tree.patches),
+    );
+    view
+}
+
+#[test]
+fn a_decided_proposal_stands_after_a_reload() {
+    use skein_fake_person::Find;
+    use skein_ui::Role;
+    let (mut world, agent, task, _) = propose(false, None);
+    world.front().configuring_reply(task, b"First reply");
+    text(
+        &mut world,
+        agent,
+        &[b"task", b"message", task.to_string().as_bytes(), b"Tell me more", b"--key", b"reload-more"],
+    );
+    world.front().configuring_reply(task, b"Second reply");
+    let owner = world.client(fixtures::PARTY, Address::Home { project: PROJECT });
+    reject_under_needs(&mut world, owner, b"Keep the settings");
+    let reload = world.client(fixtures::PARTY, Address::Chat { task });
+    see(&mut world, reload, Find::named(Role::Log, b"Conversation"));
+    world.run(jig_client_kit::harness::Until::Steps(16));
+    read_chat_start(&mut world, reload);
+    see(&mut world, reload, Find::named(Role::Paragraph, "Rejected · nothing changes".as_bytes()));
+    let view = chat_view(&world, reload);
+    let mut order = Vec::new();
+    for node in view.tree().nodes() {
+        for run in &node.text {
+            let said = run.text.as_ref();
+            assert_ne!(said, b"Decision made");
+            if said == b"First reply" {
+                order.push("first");
+            }
+            if said.starts_with(b"How temper will run ") {
+                order.push("card");
+            }
+            if said == b"Second reply" {
+                order.push("second");
+            }
+        }
+    }
+    assert_eq!(order, ["first", "card", "second"]);
 }

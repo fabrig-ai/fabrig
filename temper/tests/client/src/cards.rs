@@ -87,6 +87,10 @@ pub fn seen(tree: &Tree) -> Vec<Seen> {
         let mut state = CardSeen::Waiting;
         let mut revision = None;
         for child in &tree.nodes()[index..end] {
+            if child.styles.as_slice().contains(&temper_client_view::look::SETTINGS_PROPOSAL_STATE) {
+                state = CardSeen::Done;
+            }
+
             if let Some(name) = child.name.as_deref() {
                 if !amending && let Some(number) = name.strip_prefix(b"Hold revision ") {
                     revision = skein_ui::number(number);
