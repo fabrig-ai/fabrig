@@ -371,13 +371,14 @@ pub fn line(chip: &c::Chip, yours: bool) -> Option<Line> {
         | task::State::Running
         | task::State::Writing
         | task::State::Tool(_)
+        | task::State::Paused
         | task::State::Ended(_) => Line::Waits,
     })
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Fallback {
     Planning { draft: Option<Box<[u8]>> },
-    Stopped,
+    Closed,
     Landed { first_line: Option<Box<[u8]>> },
     Failed { reason: Box<[u8]> },
     Tasks(Counts),
@@ -391,7 +392,7 @@ pub fn fallback(state: goals::State, task: &c::Task, counts: Counts) -> Fallback
                 None => None,
             },
         },
-        goals::State::Stopped => Fallback::Stopped,
+        goals::State::Closed => Fallback::Closed,
         goals::State::Failed => Fallback::Failed { reason: bytes::copy_of(said(task).unwrap_or_default()) },
         goals::State::Planning => planning(task),
         goals::State::Needs { .. } | goals::State::Paused | goals::State::Running => {
@@ -427,7 +428,7 @@ fn said(task: &c::Task) -> Option<&[u8]> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Landing {
     Landed(Option<Wall>),
-    Stopped,
+    Closed,
     Failed,
     Whole { total: u32 },
     Each,
@@ -436,7 +437,7 @@ pub enum Landing {
 pub fn landing(state: goals::State, task: &c::Task, ended_at: Option<Wall>, counts: Counts) -> Landing {
     match state {
         goals::State::Landed => Landing::Landed(ended_at),
-        goals::State::Stopped => Landing::Stopped,
+        goals::State::Closed => Landing::Closed,
         goals::State::Failed => Landing::Failed,
         goals::State::Needs { .. } | goals::State::Paused | goals::State::Planning | goals::State::Running => {
             if holds_branch(task) {

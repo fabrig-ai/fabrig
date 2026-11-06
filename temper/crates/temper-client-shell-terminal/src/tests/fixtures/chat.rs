@@ -26,7 +26,7 @@ pub fn page() -> skein_ui::Tree {
     for (role, name) in [
         (Role::TextArea, b"Message".as_slice()),
         (Role::Button, b"Send"),
-        (Role::Button, b"Stop"),
+        (Role::Button, b"Pause"),
         (Role::Button, b"Close"),
     ] {
         b.open(role);

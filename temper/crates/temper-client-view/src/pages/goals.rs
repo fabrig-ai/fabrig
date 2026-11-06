@@ -59,7 +59,7 @@ fn intro(b: &mut Builder, root: &Domain, words: &Words, project: u32) {
                 State::Needs { .. } | State::Running | State::Planning | State::Paused => {
                     underway = underway.checked_add(1).expect("goal rows fit");
                 }
-                State::Landed | State::Stopped | State::Failed => {}
+                State::Landed | State::Closed | State::Failed => {}
             }
         }
         let count = page.count(root.client());
@@ -243,8 +243,8 @@ pub(crate) fn state_word(state: State) -> (Word, skein_ui::Style) {
         State::Planning => (Word::GoalPlanning, look::GOALS_STATE_PLANNING),
         State::Running => (Word::Running, look::GOALS_STATE_RUNNING),
         State::Landed => (Word::GoalLandedAlone, look::GOALS_STATE_LANDED),
-        State::Stopped => (Word::GoalStopped, look::GOALS_STATE_STOPPED),
-        State::Failed => (Word::GoalFailed, look::GOALS_STATE_STOPPED),
+        State::Closed => (Word::GoalClosed, look::GOALS_STATE_CLOSED),
+        State::Failed => (Word::GoalFailed, look::GOALS_STATE_CLOSED),
     }
 }
 
@@ -286,7 +286,7 @@ pub(crate) fn row(
     crate::link(b, &name, bindings.insert(Act::Go { address: Address::Task { task: line.chip.task } }));
     b.style(look::GOALS_ROW);
     match state {
-        State::Landed | State::Stopped | State::Failed => b.style(look::GOALS_ROW_ENDED),
+        State::Landed | State::Closed | State::Failed => b.style(look::GOALS_ROW_ENDED),
         State::Needs { .. } | State::Paused | State::Planning | State::Running => {}
     }
     match words.shell {
@@ -334,7 +334,7 @@ fn headline(words: &Words, line: &c::TaskLine, state: State, report: Option<&Rep
         }
         State::Paused | State::Running => Word::GoalTasksLanded,
         State::Landed => Word::GoalLandedLine,
-        State::Stopped => Word::GoalStoppedLine,
+        State::Closed => Word::GoalClosedLine,
         State::Failed => Word::GoalFailedLine,
     };
     if word == Word::GoalTasksLanded {

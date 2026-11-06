@@ -548,7 +548,7 @@ fn an_automatic_seen_and_a_message_can_both_be_pending_and_answered() {
             Sending::Message => {
                 c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Said { task: f::TASK, message: 1 }))
             }
-            Sending::Stop | Sending::Close => panic!("only Seen and Message pending"),
+            Sending::Stop | Sending::Resume | Sending::Close => panic!("only Seen and Message pending"),
         };
         root_event(
             &mut root,
@@ -1864,7 +1864,10 @@ fn latest_and_sending_go_to_the_end_and_read_it_where_it_went() {
                         read_count += 1;
                     }
                     Request::Client(Event::Send { .. }) => send_count += 1,
-                    other @ (Request::Client(_) | Request::Show { .. } | Request::Replace { .. }) => {
+                    other @ (Request::Client(_)
+                    | Request::Show { .. }
+                    | Request::Replace { .. }
+                    | Request::OpenTab { .. }) => {
                         panic!("unexpected {other:?}")
                     }
                 }
@@ -1979,4 +1982,178 @@ fn an_ended_read_leaves_latest_free() {
     chat_act(&mut chat, &client, Act::Latest, &mut out);
     assert_eq!(out.pop(), Some(first_activity(&chat)), "Latest asks immediately after a lasting end");
     assert!(out.is_empty());
+}
+
+// client/README.md, 3.5: the person's placed stop and its independently named revision.
+const PAUSE_REVISION: u64 = 19;
+const PAUSE_WORDS: &[u8] = b"And then?";
+fn paused_task() -> c::Task {
+    let mut task = f::task();
+    f::phase(&mut task, c::ChipPhase::Held { reason: c::HoldCategory::Stopped, revision: PAUSE_REVISION });
+    task.chip.details.details.hold = Some(c::ChipHold {
+        placed: Some(c::PlacedHold {
+            number: 1,
+            owner: c::HoldOwner::Party { person: fixtures::PARTY },
+            mode: c::HoldMode::Stop,
+            scope: c::HoldScope::Subtree { task: f::TASK },
+            reason: Box::default(),
+            placed_at: skein_lib::Wall::EPOCH,
+            revision: c::Revision { value: 2 },
+            lifted: false,
+            may_lift: true,
+        }),
+        words: None,
+        circle: None,
+        account: None,
+        source: None,
+        reason: c::HoldCategory::Stopped,
+        revision: PAUSE_REVISION,
+        before: c::PriorPhase::Active(c::RunStage::Idle),
+        escalation: None,
+        tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+        hold_wait_since: None,
+    });
+    task.acts = skein_lib::List::with_capacity(2);
+    for act in [c::ActKind::Message, c::ActKind::Release] {
+        task.acts.push(c::Offered { act, admission: c::Admission::Allowed, effect: None }).unwrap();
+    }
+    task
+}
+fn pause_fixture(task: c::Task) -> f::Fixture {
+    let mut f = f::with_delegate();
+    f::deliver(&mut f.client, f.watch, task);
+    f.chat.words = PAUSE_WORDS.into();
+    f
+}
+fn pause_act(f: &mut f::Fixture, act: Act) -> Box<[c::Ask]> {
+    f.chat.act(&fixtures::env(&fixtures::limits()), &f.client, act, &mut { SERIAL }, &mut f.out);
+    fixtures::acts::sent(&mut f.out)
+}
+#[test]
+fn resume_on_a_paused_chat_releases_at_its_hold_revision() {
+    let mut f = pause_fixture(paused_task());
+    assert_eq!(
+        pause_act(&mut f, Act::Resume).as_ref(),
+        [c::Ask::Release {
+            project: fixtures::PROJECT,
+            task: f::TASK,
+            revision: c::Revision { value: PAUSE_REVISION },
+            again: None,
+        }]
+    );
+    assert_eq!(f.chat.pending.len(), 1);
+    assert!(pause_act(&mut f, Act::Resume).is_empty(), "one resume in flight");
+}
+#[test]
+fn resume_requires_an_own_pause_and_release_offered() {
+    let mut unavailable = paused_task();
+    unavailable.acts = fixtures::acts::offered(c::ActKind::Message, c::Admission::Allowed);
+    let mut foreign = paused_task();
+    foreign.chip.details.details.hold.as_mut().unwrap().placed.as_mut().unwrap().owner =
+        c::HoldOwner::Task { task: f::TASK };
+    for task in [unavailable, foreign, f::task()] {
+        let mut f = pause_fixture(task);
+        assert!(pause_act(&mut f, Act::Resume).is_empty());
+    }
+}
+#[test]
+fn a_message_to_a_paused_chat_sends_its_words_and_release_together() {
+    let mut f = pause_fixture(paused_task());
+    let sent = pause_act(&mut f, Act::Send);
+    let [c::Ask::Compound { project, operations }] = sent.as_ref() else { panic!("one compound: {sent:?}") };
+    assert_eq!(*project, fixtures::PROJECT);
+    assert_eq!(
+        operations.as_slice(),
+        [
+            c::Operation::Message {
+                project: fixtures::PROJECT,
+                task: f::TASK,
+                words: fixtures::acts::text(PAUSE_WORDS)
+            },
+            c::Operation::Release {
+                project: fixtures::PROJECT,
+                task: f::TASK,
+                revision: c::Revision { value: PAUSE_REVISION },
+                again: None
+            },
+        ]
+    );
+    assert_eq!(f.chat.pending.len(), 1);
+    let (key, kind) = *f.chat.pending.get(0).unwrap();
+    assert_eq!(kind, Sending::Message);
+    let words = f.chat.thread.words.rows.get(0).unwrap();
+    assert_eq!((words.request, words.place, words.state), (Some(key), 0, jig_client::thread::Words::BeingSent));
+    assert!(f.chat.words.is_empty());
+    f.chat.told(
+        Time::ZERO,
+        &f.client,
+        Told::Answered {
+            key,
+            outcome: jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+                c::DocumentOutcome::Compound { project: fixtures::PROJECT, operations: 2, first_message: 41 },
+            )))),
+        },
+        &mut f.out,
+    );
+    assert_eq!(f.chat.thread.words.rows.get(0).unwrap().state, jig_client::thread::Words::Sent { message: 41 });
+}
+#[test]
+fn a_message_to_a_chat_held_otherwise_is_words_alone() {
+    let mut task = paused_task();
+    task.chip.details.details.hold.as_mut().unwrap().placed.as_mut().unwrap().owner =
+        c::HoldOwner::Task { task: f::TASK };
+    let mut f = pause_fixture(task);
+    assert_eq!(
+        pause_act(&mut f, Act::Send).as_ref(),
+        [c::Ask::Message { project: fixtures::PROJECT, task: f::TASK, words: fixtures::acts::text(PAUSE_WORDS) }]
+    );
+}
+#[test]
+fn a_refused_message_to_a_paused_chat_stays_in_the_composer_s_refusal() {
+    let mut f = pause_fixture(paused_task());
+    pause_act(&mut f, Act::Send);
+    let key = f.chat.pending.get(0).unwrap().0;
+    let outcome = jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
+        refusal: c::Refusal::NotOffered,
+        at: Some(1),
+    }));
+    f.chat.told(Time::ZERO, &f.client, Told::Answered { key, outcome: outcome.clone() }, &mut f.out);
+    assert!(f.chat.thread.words.rows.is_empty());
+    assert_eq!(f.chat.outcome_kind, Some(Sending::Message));
+    assert_eq!(f.chat.outcome, Some(outcome));
+    assert_eq!(f.chat.task(&f.client).unwrap().chip.phase, c::Phase::Held);
+    assert!(fixtures::acts::sent(&mut f.out).is_empty());
+}
+
+#[test]
+fn paused_is_the_person_s_own_stop_alone() {
+    let me = fixtures::chats::me();
+    let chip = paused_task().chip;
+    let mut foreign = chip.clone();
+    foreign.details.details.hold.as_mut().unwrap().placed.as_mut().unwrap().owner =
+        c::HoldOwner::Party { person: fixtures::PARTY + 1 };
+    let mut ancestor = chip.clone();
+    ancestor.details.details.hold.as_mut().unwrap().placed.as_mut().unwrap().scope =
+        c::HoldScope::Subtree { task: f::TASK + 1 };
+    let mut lifted = chip.clone();
+    lifted.details.details.hold.as_mut().unwrap().placed.as_mut().unwrap().lifted = true;
+    let mut drain = chip.clone();
+    drain.details.details.hold.as_mut().unwrap().placed.as_mut().unwrap().mode = c::HoldMode::Drain;
+    let mut exceeded = chip.clone();
+    exceeded.details.details.hold.as_mut().unwrap().placed = None;
+    exceeded.details.phase = c::ChipPhase::Held {
+        reason: c::HoldCategory::Exceeded(c::Exceeded { bound: c::Bound::Answer, value: 1 }),
+        revision: PAUSE_REVISION,
+    };
+    for (name, chip, expected) in [
+        ("own stop", chip, true),
+        ("another person", foreign, false),
+        ("ancestor", ancestor, false),
+        ("lifted", lifted, false),
+        ("drain", drain, false),
+        ("exceeded", exceeded, false),
+        ("live", f::task().chip, false),
+    ] {
+        assert_eq!(crate::pages::chat::paused(&chip, &me), expected, "{name}");
+    }
 }
