@@ -1,5 +1,9 @@
 //! The component's small limits and configured forge.
 use crate::Limits;
+pub use crate::fixtures::{
+    BODY_ROOM, BRANCH, BRANCH_HEAD, FORGE, OP_BYTES, OTHER_FORGE, REPO, TOKEN, TOKEN_BOUND, USER_AGENT, WORD, WRITER,
+    app_access, filled, github_settings, header, limits, ok, response, settings, shared, user_ok,
+};
 /// Check and construction return the same refusal before any io is begun.
 pub fn admission(settings: Settings, limits: &Limits, expected: Result<(), crate::Unusable>, label: &[u8]) {
     let shared = shared();
@@ -11,134 +15,15 @@ pub fn admission(settings: Settings, limits: &Limits, expected: Result<(), crate
     assert_eq!(constructed, expected, "{label:?}: construction");
 }
 
-use skein_lib::Duration;
-pub const WORD: &[u8] = b"kit";
-pub const USER_AGENT: &[u8] = b"kit/0.0.0";
-pub const OP_BYTES: u32 = 512;
-// Twice the operation bound, the owner's word, and marker framing (forge.md 6).
-pub const BODY_ROOM: u32 = 2 * OP_BYTES + 3 + 15;
 pub const BODY_ROOM_SHORT: u32 = BODY_ROOM - 1;
 pub const MAX_WORD_BODY_ROOM: u32 = 2 * OP_BYTES + 16 + 15;
-pub const WRITER: u64 = 2;
-pub fn limits() -> Limits {
-    Limits {
-        forges: 2,
-        token_bytes: 64,
-        key_bytes: 1200,
-        connections: 2,
-        head_bytes: 4096,
-        headers: 32,
-        body_bytes_in: 1_048_576,
-        depth: 16,
-        chunk: 1024,
-        string_bytes: 128,
-        body_bytes: BODY_ROOM,
-        inner: 8,
-        target_bytes: 1024,
-        repositories: 2,
-        users: 8,
-        installations: 3,
-        log_origins: 2,
-        deadline: Duration::from_secs(10),
-        idle: Duration::from_secs(5),
-        start_backoff: Duration::from_secs(1),
-        start_backoff_max: Duration::from_secs(8),
-        renew_before: Duration::from_secs(60),
-        // Beyond token-renewal stories; puller stories advance this timer themselves.
-        log_poll: Duration::from_secs(86_400),
-        log_catch_up: Duration::from_secs(3600),
-        log_pages: 10,
-        delivery_bytes: 65_536,
-        hooks: 4,
-        hook_head_bytes: 8192,
-        hook_body_bytes: 1_048_576,
-        hook_deadline: Duration::from_secs(10),
-        hook_secret_bytes: 128,
-        tls: skein_tls::client::Limits { read: 16384, send: 16384, records: skein_tls::client::MAX_RECORD },
-    }
-}
 
 use crate::{
     Component, Event, Settings, Shared,
     settings::{Forge, Kind, Transport},
 };
 use alloc::boxed::Box;
-use core::net::{Ipv4Addr, SocketAddr};
-use skein_forge::api;
 use skein_lib::{Env, List, Queue, Secret, Time, Wall};
-pub const FORGE: u16 = 1;
-pub const REPO: api::Repository = api::Repository { forge: 1, repository: 1 };
-pub const TOKEN: &[u8] = b"0123456789abcdef0123456789abcdef01234567";
-pub fn shared() -> Shared {
-    Shared {
-        calls: 2,
-        op_bytes: OP_BYTES,
-        answer_bytes: 65_536,
-        rows: 8,
-        lifetime: Duration::from_secs(10),
-        name_bytes: 128,
-        repositories: 2,
-        io: skein_io::Limits {
-            sockets: 8,
-            names: 0,
-            refusals: 2,
-            intake: 32_768,
-            receive: 4096,
-            output: 32_768,
-            sends: 4,
-            accepts: 1,
-            backlog: 1,
-            close_timeout: Duration::from_secs(1),
-            retry: Duration::from_millis(10),
-        },
-    }
-}
-pub fn settings() -> Settings {
-    let mut forges = List::with_capacity(2);
-    forges
-        .push(Forge {
-            number: FORGE,
-            kind: Kind::Forgejo,
-            log_origins: List::with_capacity(0),
-            address: skein_io::Addr::Ip(SocketAddr::from((Ipv4Addr::LOCALHOST, 3000))),
-            transport: Transport::Plaintext { name: None },
-            access: Some(crate::Access {
-                credential: skein_forge::credential::Credential::Token(Secret::new(Box::from(TOKEN))),
-                user: WRITER,
-                webhook_secret: None,
-            }),
-        })
-        .expect("one forge");
-    Settings { forges, webhooks: None, word: Box::from(WORD), user_agent: Box::from(USER_AGENT) }
-}
-pub fn ok(body: &[u8]) -> Box<[u8]> {
-    response(200, body)
-}
-pub fn response(code: u16, body: &[u8]) -> Box<[u8]> {
-    response_with_fields(code, body, b"")
-}
-pub fn response_with_fields(code: u16, body: &[u8], fields: &[u8]) -> Box<[u8]> {
-    let decimal = skein_lib::Decimal::of(skein_lib::len_u64(body.len()));
-    let mut out = skein_lib::Writer::new(
-        body.len()
-            .saturating_add(fields.len())
-            .saturating_add(b"HTTP/1.1 200 OK\r\nContent-Length: ".len())
-            .saturating_add(decimal.as_bytes().len())
-            .saturating_add(b"\r\nDate: Wed, 01 Jan 2020 00:00:00 GMT\r\n\r\n".len()),
-    );
-    out.put(b"HTTP/1.1 ").expect("head fits");
-    out.put(skein_lib::Decimal::of(u64::from(code)).as_bytes()).expect("code fits");
-    out.put(b" OK\r\n").expect("head fits");
-    out.put(fields).expect("fields fit");
-    out.put(b"Content-Length: ").expect("head fits");
-    out.put(decimal.as_bytes()).expect("length fits");
-    out.put(b"\r\nDate: Wed, 01 Jan 2020 00:00:00 GMT\r\n\r\n").expect("date fits");
-    out.put(body).expect("body fits");
-    out.finish()
-}
-pub fn user_ok() -> Box<[u8]> {
-    ok(b"{\"id\":2,\"login\":\"writer\"}")
-}
 
 /// One connection's scripted stream, shared by its step tests.
 #[derive(Debug)]
@@ -210,10 +95,8 @@ impl ConnectionHarness {
     ) -> Result<(), &'static str> {
         let credential = skein_forge::credential::Credential::Token(Secret::new(Box::from(TOKEN)));
         let authorization = skein_forge::forgejo::credential::authorization(&credential).expect("fixture token");
-        let until = self.connection.deadline();
         match self.forgejo.start(
             &mut self.connection,
-            until,
             &self.env,
             &self.forge,
             &self.user_agent,
@@ -229,16 +112,7 @@ impl ConnectionHarness {
         exchange: skein_forge::github::plans::plan::Exchange,
         authorization: Option<Secret>,
     ) -> Result<(), &'static str> {
-        let until = self.connection.deadline();
-        match self.github.start(
-            &mut self.connection,
-            until,
-            &self.env,
-            &self.forge,
-            USER_AGENT,
-            exchange,
-            authorization,
-        ) {
+        match self.github.start(&mut self.connection, &self.env, &self.forge, USER_AGENT, exchange, authorization) {
             Ok(()) => Ok(()),
             Err(_) => Err("GitHub refused"),
         }
@@ -428,27 +302,11 @@ pub fn request_bytes(settings: Settings) -> Box<[u8]> {
     h.sent
 }
 
-/// The literal value of the sole named header on the HTTP wire.
-pub fn header<'a>(sent: &'a [u8], name: &[u8]) -> &'a [u8] {
-    let mut found = None;
-    let mut rest = sent;
-    while let Some(end) = skein_lib::bytes::find(rest, b"\r\n") {
-        let line = rest.get(..end).expect("line end in request");
-        if let Some(value) = line.strip_prefix(name) {
-            assert!(found.is_none(), "header occurs once");
-            found = Some(value);
-        }
-        rest = rest.get(end.checked_add(2).expect("line end fits")..).expect("next line");
-    }
-    found.expect("header sent")
-}
-
 // The request caps are the fixture's TLS send and io output bounds.
 pub const TLS_REQUEST_ROOM: usize = 16_384;
 pub const PLAIN_REQUEST_ROOM: usize = 32_768;
 // forge-connection.md 7.4 reserves 192 bytes for head framing.
 pub const HEAD_FRAMING: usize = 192;
-pub const TOKEN_BOUND: usize = 64;
 pub const SECRET_BOUND: usize = 128;
 pub const PULL_PAYLOAD: &[u8] = b"{\"repository\":{\"id\":2},\"number\":7}";
 
@@ -605,14 +463,6 @@ impl HookHarness {
     }
 }
 
-pub fn filled(length: usize, byte: u8) -> Box<[u8]> {
-    let mut out = skein_lib::Writer::new(length);
-    for _ in 0..length {
-        out.put(&[byte]).expect("measured fill");
-    }
-    out.finish()
-}
-
 pub fn head_settings(name: &str, tls: bool, agent_bytes: usize) -> Settings {
     let mut settings = settings();
     settings.forges.get_mut(0).expect("forge").transport = if tls {
@@ -636,29 +486,10 @@ pub const ROW_COMPARE: u32 = 32;
 pub const ROW_RUNS: u32 = 384;
 pub const ROW_TREE: u32 = 192;
 pub const MAX_ROW: u32 = ROW_ITEMS;
-pub const OTHER_FORGE: u16 = 2;
-pub const BRANCH: &[u8] = b"main";
-pub const BRANCH_HEAD: [u8; 32] = [0; 32];
 // The page premise contains two maximal rows, and also tests one row and no room.
 pub const PAGE_ROWS: u32 = 2; // The premise budgets exactly two maximal rows.
 pub const ONE_PAGE_ROW: u32 = 1; // One maximal row is the admission boundary.
 pub const NO_PAGE_ROWS: u32 = 0; // No row fits below the first row byte bound.
-
-pub fn app_access(key: &[u8], id: u64, user: u64) -> crate::Access {
-    crate::Access {
-        credential: skein_forge::credential::Credential::App { id, key: Secret::new(Box::from(key)) },
-        user,
-        webhook_secret: None,
-    }
-}
-
-pub fn github_settings() -> Settings {
-    let mut settings = settings();
-    let forge = settings.forges.get_mut(0).expect("forge");
-    forge.kind = Kind::GitHub;
-    forge.access = Some(app_access(skein_fake_forge_github::keys::KEYS.first().expect("test key"), 7, 9));
-    settings
-}
 
 pub fn installation() -> skein_forge::github::document::Installation {
     use skein_forge::github::document;

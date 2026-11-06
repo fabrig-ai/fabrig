@@ -9,7 +9,7 @@ measure the code against.
 
 - **One file per item,** `Dnnn-<slug>.md`. IDs start at `D001`, are
   skein's own, and are never reused.
-- **The highest ID used is D049.** The branch that adds an item raises it, so a paid ID isn't handed out again.
+- **The highest ID used is D050.** The branch that adds an item raises it, so a paid ID isn't handed out again.
 - **The branch that pays an item deletes its file;** there is no row to
   delete, and git keeps the history.
 - **An item we choose to keep** stays, with status `kept` and its

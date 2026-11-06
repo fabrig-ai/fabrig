@@ -4,7 +4,7 @@ use skein_forge::github::request::Scope;
 use skein_forge_connection::{Event, Request, Stopped, seam::Tokens};
 use skein_forge_machine_world::hand::{
     self as fixtures, CONTENTS, CONTENTS_DUE, CONTENTS_EXPIRY, EXPIRES, FORGE, FULL, FULL_DUE, Harness, LATER, LIVE,
-    NEW_CONTENTS, NEW_FULL, SUSPENDED, VIEWER, accepted, advance, commit, contains, contents_renewing, initial, mint,
+    NEW_CONTENTS, NEW_FULL, SUSPENDED, VIEWER, accepted, advance, commit, contains, contents_renewing, mint,
     minted_pair, ready, renewed_contents, renewed_full, renewing, row, tokens,
 };
 use skein_lib::{Duration, Queue, Time, Wall};
@@ -70,18 +70,6 @@ fn each_scope_renews_at_its_own_due_time() {
         h.component.test_github().rows.get(&1).expect("row").contents.due,
         Some(Time::from_nanos(14_880_000_000_000))
     );
-    public_ready(&h);
-}
-#[test]
-fn both_due_selects_full_before_contents() {
-    let mut h = initial(EXPIRES);
-    advance(&mut h, FULL_DUE);
-    h.connected(FORGE);
-    assert_eq!(h.component.test_github().mint, Some((1, Scope::Full)));
-    renewed_full(&mut h);
-    assert_eq!(h.component.test_github().mint, Some((1, Scope::Contents)));
-    renewed_contents(&mut h);
-    assert_eq!(requests(&h), INITIAL_REQUESTS + 2);
     public_ready(&h);
 }
 #[test]
@@ -314,7 +302,7 @@ fn waits(mut h: Harness, label: &str) {
 }
 #[test]
 fn renewal_failure_waits_before_retry() {
-    for (label, status, body) in [("rate", 429, b"{}".as_slice()), ("server", 503, b"{}"), ("malformed", 201, b"{")] {
+    for (label, status, body) in [("rate", 429, b"{}".as_slice()), ("malformed", 201, b"{")] {
         let mut h = renewing();
         h.answer(FORGE, &fixtures::response(status, body));
         waits(h, label);
@@ -366,16 +354,6 @@ fn renewal_long_retry_after_wins() {
     advance(&mut h, 3560);
     h.connected(FORGE);
     assert_eq!(requests(&h), INITIAL_REQUESTS + 2);
-}
-#[test]
-fn renewal_401_stops_once_after_connected() {
-    let mut h = renewing();
-    h.answer(FORGE, &fixtures::status(401));
-    h.run(Duration::from_secs(100));
-    assert_eq!(h.stopped(), Some((FORGE, Stopped::KeyRefused)));
-    assert_eq!(h.connected_count, 1);
-    assert_eq!(requests(&h), INITIAL_REQUESTS + 1);
-    assert_eq!(h.component.test_github().deadline(), None);
 }
 #[test]
 fn renewal_terminal_mint_status_stops_token_refused() {

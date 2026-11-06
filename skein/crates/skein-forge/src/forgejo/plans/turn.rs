@@ -105,7 +105,7 @@ impl Plan {
                 Ok(None)
             }
             Heard::Done(body) => match body {
-                Body::Document(document) => self.done(Some(document), bounds),
+                Body::Document(document) => self.done(document, bounds),
                 Body::Malformed(
                     crate::forgejo::decode::Malformed::Bound { .. } | crate::forgejo::decode::Malformed::TooLong { .. },
                 ) => Err(api::Error::TooLarge),
@@ -230,30 +230,31 @@ impl Plan {
         .or(Err(api::Error::TooLarge))?;
         Ok(State::Jobs { run, jobs })
     }
-    fn done(&mut self, document: Option<d::Document>, bounds: Bounds) -> Result<Option<Step>, api::Error> {
+    #[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
+    fn done(&mut self, document: d::Document, bounds: Bounds) -> Result<Option<Step>, api::Error> {
         let source = core::mem::replace(&mut self.state, State::Ended);
         let step;
         self.state = match source {
             State::Runs { runs, count, .. } => match document {
-                Some(d::Document::Runs { .. }) => {
+                d::Document::Runs { .. } => {
                     step =
                         Step::Done(Ok(api::Answer::Runs { runs: runs.into_boxed(), more: count == bounds.page_size }));
                     State::Ended
                 }
-                Some(_) | None => return Err(api::Error::InvalidAnswer),
+                _ => return Err(api::Error::InvalidAnswer),
             },
             State::Tree { entries, count, .. } => match document {
-                Some(d::Document::Tree { truncated }) => {
+                d::Document::Tree { truncated } => {
                     step = Step::Done(Ok(api::Answer::Tree {
                         entries: entries.into_boxed(),
                         more: truncated || count == bounds.page_size,
                     }));
                     State::Ended
                 }
-                Some(_) | None => return Err(api::Error::InvalidAnswer),
+                _ => return Err(api::Error::InvalidAnswer),
             },
             State::Run { expected, jobs } => match document {
-                Some(d::Document::Run(run)) => {
+                d::Document::Run(run) => {
                     if run.id != expected {
                         return Err(api::Error::InvalidAnswer);
                     }
@@ -262,18 +263,18 @@ impl Plan {
                     step = Step::send(r::Request::Jobs { at: self.row.at(), run: expected });
                     State::Jobs { run, jobs }
                 }
-                Some(_) | None => return Err(api::Error::InvalidAnswer),
+                _ => return Err(api::Error::InvalidAnswer),
             },
             State::Jobs { run, jobs } => match document {
-                Some(d::Document::Listed { .. }) => {
+                d::Document::Listed { .. } => {
                     let (state, next) = self.next_job(run, jobs, 0);
                     step = next;
                     state
                 }
-                Some(_) | None => return Err(api::Error::InvalidAnswer),
+                _ => return Err(api::Error::InvalidAnswer),
             },
             State::Steps { run, jobs, position } => match document {
-                Some(d::Document::Job(job)) => {
+                d::Document::Job(job) => {
                     let expected = jobs.get(position).expect("failed job position");
                     if job.id != expected.id || job.attempt != expected.attempt || job.run_id != run.id {
                         return Err(api::Error::InvalidAnswer);
@@ -282,7 +283,7 @@ impl Plan {
                     step = next;
                     state
                 }
-                Some(_) | None => return Err(api::Error::InvalidAnswer),
+                _ => return Err(api::Error::InvalidAnswer),
             },
             State::Ended => unreachable!("the owner delivers no document after Done"),
         };

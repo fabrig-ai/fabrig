@@ -34,6 +34,30 @@ pub(crate) fn edit(items: &[Item], setting: Setting) -> Option<&Edit> {
     }
     None
 }
+// The shared lifetime borrows a value from either the current maps or the decision; no view is stored.
+fn overlay_value<'a>(current: &'a Current, defaults: bool, items: &'a [Item], setting: Setting) -> Option<&'a Value> {
+    match edit(items, setting) {
+        Some(Edit::Set(value)) => Some(value),
+        Some(Edit::Removed) => None,
+        Some(Edit::Reset) => base_value(current, true, setting),
+        None => base_value(current, defaults, setting),
+    }
+}
+
+/// Read templates from the same overlay that checks the decision, without publishing it.
+pub(crate) fn templates(current: &Current, items: &[Item]) -> Box<[crate::Template]> {
+    let names = offered(current, false, items);
+    let mut result = skein_lib::List::with_capacity(names.len());
+    for &setting in &names {
+        if let Some(value) = overlay_value(current, false, items, setting)
+            && let Some(template) = value.as_template()
+        {
+            result.push(template.clone()).expect("one template per offered name");
+        }
+    }
+    result.into_boxed()
+}
+
 fn offered(current: &Current, defaults: bool, items: &[Item]) -> skein_lib::List<Setting> {
     let count = current
         .defaults
@@ -58,12 +82,7 @@ fn offered(current: &Current, defaults: bool, items: &[Item]) -> skein_lib::List
     }
     let mut result = skein_lib::List::with_capacity(names.len());
     for (&setting, ()) in &names {
-        let offered = match edit(items, setting) {
-            Some(Edit::Set(value)) => Some(value),
-            Some(Edit::Removed) => None,
-            Some(Edit::Reset) => base_value(current, true, setting),
-            None => base_value(current, defaults, setting),
-        };
+        let offered = overlay_value(current, defaults, items, setting);
         if offered.is_some() {
             result.push(setting).expect("offered names");
         }
@@ -120,12 +139,7 @@ fn check_set(
     for &setting in &names {
         count(setting, &mut counts, limits)?;
     }
-    let rules = match match edit(items, Setting::Rules) {
-        Some(Edit::Set(value)) => Some(value),
-        Some(Edit::Removed) => None,
-        Some(Edit::Reset) => base_value(current, true, Setting::Rules),
-        None => base_value(current, defaults, Setting::Rules),
-    } {
+    let rules = match overlay_value(current, defaults, items, Setting::Rules) {
         Some(value) => value.as_rules(),
         None => None,
     }
@@ -153,14 +167,7 @@ fn check_set(
         }
     }
     for &setting in &names {
-        let fault = match (match edit(items, setting) {
-            Some(Edit::Set(value)) => Some(value),
-            Some(Edit::Removed) => None,
-            Some(Edit::Reset) => base_value(current, true, setting),
-            None => base_value(current, defaults, setting),
-        })
-        .expect("offered setting")
-        {
+        let fault = match overlay_value(current, defaults, items, setting).expect("offered setting") {
             Value::Charter(charter) => {
                 let mut registered = true;
                 for document in &charter.documents {
@@ -456,12 +463,7 @@ fn template_fault(
     }
     match executor {
         people::TemplateExecutor::Charter(number) => {
-            let charter = match match edit(items, Setting::Charter(number)) {
-                Some(Edit::Set(value)) => Some(value),
-                Some(Edit::Removed) => None,
-                Some(Edit::Reset) => base_value(current, true, Setting::Charter(number)),
-                None => base_value(current, defaults, Setting::Charter(number)),
-            } {
+            let charter = match overlay_value(current, defaults, items, Setting::Charter(number)) {
                 Some(value) => value.as_charter(),
                 None => None,
             };
@@ -556,12 +558,7 @@ fn policy_fault(
                 return Some(Fault::Shape);
             }
         }
-        let template = match match edit(items, Setting::Template(entry.template)) {
-            Some(Edit::Set(value)) => Some(value),
-            Some(Edit::Removed) => None,
-            Some(Edit::Reset) => base_value(current, true, Setting::Template(entry.template)),
-            None => base_value(current, defaults, Setting::Template(entry.template)),
-        } {
+        let template = match overlay_value(current, defaults, items, Setting::Template(entry.template)) {
             Some(value) => value.as_template(),
             None => None,
         };
@@ -602,14 +599,7 @@ fn authority_refs(
     for executor in &value.delegation.kinds {
         match executor {
             authority::Executor::Charter(number) => {
-                if (match edit(items, Setting::Charter(*number)) {
-                    Some(Edit::Set(value)) => Some(value),
-                    Some(Edit::Removed) => None,
-                    Some(Edit::Reset) => base_value(current, true, Setting::Charter(*number)),
-                    None => base_value(current, defaults, Setting::Charter(*number)),
-                })
-                .is_none()
-                {
+                if overlay_value(current, defaults, items, Setting::Charter(*number)).is_none() {
                     return false;
                 }
             }
@@ -700,12 +690,7 @@ pub(crate) fn changed_charters(
 ) -> Box<[tasks::CharterModels]> {
     let mut result = skein_lib::List::with_capacity(limits.tasks.charters);
     for &setting in &offered(current, false, items) {
-        let value = match edit(items, setting) {
-            Some(Edit::Set(value)) => Some(value),
-            Some(Edit::Removed) => None,
-            Some(Edit::Reset) => base_value(current, true, setting),
-            None => base_value(current, false, setting),
-        };
+        let value = overlay_value(current, false, items, setting);
         if let Some(value) = value
             && let Some(charter) = value.as_charter()
         {
