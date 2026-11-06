@@ -36,8 +36,8 @@ the joined client world are ignored (`protocol/configuration.md`,
 `client/tools.md`). The configuring agent, charter 3 and template 3,
 is in the stock and the reference pages it reads are built, but no walk
 on record has run a real model on its words as they stand, nothing it reads names the
-worker slots it is to size temper's own way by, no story that runs has an owner reject
-its proposal under Needs you, with `temper help proposal` still saying that press fails,
+worker slots it is to size temper's own way by, `temper help proposal` still says an
+owner's rejection under Needs you fails,
 and a second proposal's refusal offers a `withdraw` it can't make (`domain/agent.md`), and a
 charter's `tools` decides only whether its runs are offered the
 settings family (`protocol/configuration.md`). Seven stock models and their
@@ -227,10 +227,9 @@ an account with no source still reads `Nothing awaited` beneath `no account
 serving this work yet`, and a person task's `task amend` prints no arguments
 (`client/tools.md`). A proposal of settings reaches a
 project's Needs you and rail's count and is accepted on its chat's card, but its live
-card lists no item of temper's kinds, stays on Needs you once accepted, leaves its chat
-on a reload, stands below the chat's newest reply rather than at its call and follows a
-"Decision made" while it waits; the chat's card draws no Reject, departing from the
-request `ui-chat-accept` (`client/README.md`). "Start goal…" went once from a
+card lists no item of temper's kinds and stays on Needs you once accepted. No live turn
+names its proposal, so its card stands after the turn that made it; the chat's card
+draws no Reject, departing from the request `ui-chat-accept` (`client/README.md`). "Start goal…" went once from a
 restored document, on no replay since, its cause unknown (`client/README.md`). The welcome's command names the
 binary that runs it and has a Copy, but no browser test presses the Copy or sees its word change; the gallery's walk of
 named controls excepts a recommended choice's tag, departing from the request `ui-copy-once`; with no `HOME` and an XDG variable placing
