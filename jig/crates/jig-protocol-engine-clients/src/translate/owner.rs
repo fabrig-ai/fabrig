@@ -200,6 +200,7 @@ pub(crate) fn frame_named(
             providers_cut: value.providers_cut,
             key_bytes: value.key_bytes,
             redirect_bytes: value.redirect_bytes,
+            words_bytes: value.words_bytes,
             party: w::MeParty::new(
                 limits,
                 w::MePartyParts {

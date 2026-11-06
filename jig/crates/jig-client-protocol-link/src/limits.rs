@@ -127,16 +127,26 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
         &mut wire.person_answer_words_value, &mut wire.person_answer_cannot_reason,
         &mut wire.parameter_bytes_value, &mut wire.pattern_end_exact_value,
         &mut wire.pattern_end_open_value, &mut wire.pattern_segments_item, &mut wire.amendment_instructions_some,
-        &mut wire.message_words, &mut wire.answer_question_words, &mut wire.amend_reason, &mut wire.cancel_reason,
+        &mut wire.amend_reason, &mut wire.cancel_reason,
         &mut wire.move_reason, &mut wire.edit_note_description,
         &mut wire.make_service_name, &mut wire.read_notes_description_some, &mut wire.word_result_approved_state,
-        &mut wire.word_words, &mut wire.activity_words_words, &mut wire.field_rule_name,
+        &mut wire.field_rule_name,
         &mut wire.task_contract_document_approval_state, &mut wire.runtime_running_tool_some,
         &mut wire.runtime_backing_off_reason, &mut wire.setting_model_name, &mut wire.setting_model_program_some,
         &mut wire.setting_model_effort_some, &mut wire.setting_model_efforts_item,
         &mut wire.charter_document_name_item,
     ]);
-    narrow(client.long_text, &mut [&mut wire.specification_words, &mut wire.edit_note_body]);
+    narrow(
+        client.long_text,
+        &mut [
+            &mut wire.specification_words,
+            &mut wire.edit_note_body,
+            &mut wire.word_words,
+            &mut wire.activity_words_words,
+            &mut wire.message_words,
+            &mut wire.answer_question_words,
+        ],
+    );
     #[rustfmt::skip]
     narrow(document_bytes, &mut [
         &mut wire.me_providers, &mut wire.accounts_readiness, &mut wire.deployment_providers,

@@ -407,6 +407,7 @@ fn compare_answer(key: &(u64, Option<u64>), expected: &core::reads::Answer, foun
                 providers_cut,
                 key_bytes,
                 redirect_bytes,
+                words_bytes,
             );
         }
     }
