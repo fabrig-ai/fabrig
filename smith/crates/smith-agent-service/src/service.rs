@@ -61,7 +61,7 @@ struct PendingMessage {
 // Route names also cover component terminals that do not name native IO operations.
 pub(crate) const ROUTE_HEADROOM: u32 = 64;
 
-const COMPONENT_OWNER_BIT: u64 = 1 << 63;
+const COMPONENT_TAG: u8 = 8;
 
 /// Fixed limits for one agent process and every stage it owns.
 #[derive(Clone, Copy, Debug)]
@@ -137,14 +137,6 @@ enum Owner {
     Program(Token),
 }
 
-/// One submission's original token and the layer that issued it.
-#[derive(Clone, Copy, Debug)]
-enum Operation {
-    Io(Token),
-    Signals(Token),
-    File(Token),
-}
-
 /// The running agent and every bounded queue between its layers.
 #[derive(Debug)]
 pub struct Service {
@@ -207,8 +199,10 @@ pub(crate) struct Stages {
     completions: Queue<kernel::Complete>,
     io_completions: Queue<kernel::Complete>,
     owners: Slab<Owner>,
-    operations: Map<Token, Operation>,
-    next_operation: u64,
+    in_flight: u32,
+    signal_reads: u32,
+    // Kernel submissions counted from 1 also seed the file layer.
+    submitted: u64,
     next_send: u64,
     input: Option<Token>,
     output: Option<Token>,

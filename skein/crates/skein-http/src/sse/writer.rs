@@ -37,6 +37,7 @@ use core::mem;
 
 use alloc::boxed::Box;
 
+use skein_lib::length::Measure;
 use skein_lib::stream::{Down, Fault, Read, Up};
 use skein_lib::{Decimal, Env, Queue, bytes, usize_of};
 
@@ -363,25 +364,25 @@ fn event(outgoing: &Outgoing, most: u32) -> Result<Box<[u8]>, Refusal> {
             }
         }
     }
-    let mut len = Measure(Some(0));
+    let mut len = Measure::ZERO;
     if !outgoing.name.is_empty() {
-        len.field(EVENT, outgoing.name.len());
+        measure_field(&mut len, EVENT, outgoing.name.len());
     }
     if let Some(id) = &outgoing.id {
-        len.field(ID, id.len());
+        measure_field(&mut len, ID, id.len());
     }
     if let Some(retry) = outgoing.retry {
-        len.field(RETRY, Decimal::of(retry).as_bytes().len());
+        measure_field(&mut len, RETRY, Decimal::of(retry).as_bytes().len());
     }
     let mut at = 0;
     // Bounded by the data: each line moves past its ending.
     for _ in 0..=outgoing.data.len() {
         let Some((line, next)) = line(&outgoing.data, at) else { break };
-        len.field(DATA, line.len());
+        measure_field(&mut len, DATA, line.len());
         at = next;
     }
     len.add(1);
-    let len = match len.0 {
+    let len = match len.total_u32() {
         Some(len) if len <= most => len,
         Some(_) | None => return Err(Refusal::TooLong),
     };
@@ -415,14 +416,14 @@ fn comment(text: &[u8], most: u32) -> Result<Box<[u8]>, Refusal> {
             return Err(Refusal::Comment);
         }
     }
-    let mut len = Measure(Some(0));
+    let mut len = Measure::ZERO;
     len.add(1);
     if !text.is_empty() {
         len.add(1);
         len.add(text.len());
     }
     len.add(2);
-    let len = match len.0 {
+    let len = match len.total_u32() {
         Some(len) if len <= most => len,
         Some(_) | None => return Err(Refusal::TooLong),
     };
@@ -453,24 +454,11 @@ fn line(data: &[u8], at: usize) -> Option<(&[u8], usize)> {
     Some((line, at.checked_add(after)?))
 }
 
-/// A frame's length, added up with checks: `None` past a `u32`.
-struct Measure(Option<u32>);
-
-impl Measure {
-    fn add(&mut self, len: usize) {
-        let Some(sum) = self.0 else { return };
-        self.0 = match u32::try_from(len) {
-            Ok(len) => sum.checked_add(len),
-            Err(_) => None,
-        };
-    }
-
-    /// A field: its name, its value, and an LF.
-    fn field(&mut self, name: &[u8], value: usize) {
-        self.add(name.len());
-        self.add(value);
-        self.add(1);
-    }
+/// A field: its name, its value, and an LF.
+fn measure_field(len: &mut Measure, name: &[u8], value: usize) {
+    len.add(name.len());
+    len.add(value);
+    len.add(1);
 }
 
 /// A field, measured to fit: its name, its value, and an LF.

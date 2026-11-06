@@ -7,7 +7,7 @@ use crate::{
     tasks,
 };
 use alloc::boxed::Box;
-use skein_lib::{List, Map};
+use skein_lib::{List, Map, length::len_u64};
 
 #[derive(Debug)]
 pub(crate) struct Assembly {
@@ -33,12 +33,7 @@ fn fit_row(core: &mut Core, limits: &Limits, row: &ProjectionRecord) -> Option<u
     let key = row.key();
     let (goal, words, word_limit, phase) = match row {
         ProjectionRecord::Goal { goal, pending, .. } => {
-            if !fit(
-                core,
-                key,
-                u64::try_from(pending.len()).expect("connector count"),
-                u64::try_from(core.connectors.len()).expect("connector count"),
-            ) {
+            if !fit(core, key, len_u64(pending.len()), len_u64(core.connectors.len())) {
                 return None;
             }
             (goal.number, goal.words.len(), limits.tasks.spec_bytes, Some(&goal.phase))

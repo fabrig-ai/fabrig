@@ -5,7 +5,7 @@ use jig_store_world::{
     World, patches,
     root::{self, LIVE as TASK},
 };
-use skein_lib::Token;
+use skein_lib::{Token, length::len_u64};
 
 const SEED: u64 = 0x5141_4d31;
 const OWNER: Token = Token::new(401);
@@ -26,7 +26,7 @@ const REPLAY: &[u8] = b"old replay bytes";
 const FRAME_OVERHEAD: u64 = 56;
 
 fn direct_frame_bytes(transcript: &[u8]) -> u64 {
-    FRAME_OVERHEAD + u64::try_from(transcript.len()).expect("fixture transcript bytes")
+    FRAME_OVERHEAD + len_u64(transcript.len())
 }
 
 fn committed(sets: PatchSets, bodies: &[&[u8]]) -> World {
@@ -142,10 +142,7 @@ fn accepted_prefix_continues_without_skipping_after_an_unread() {
         assert_eq!(*owner, OWNER);
         assert_eq!(turns.iter().map(|turn| turn.turn).collect::<Vec<_>>(), [first]);
         assert_eq!(
-            turns
-                .iter()
-                .map(|turn| u64::try_from(turn.transcript.len()).expect("fixture size") + FRAME_OVERHEAD)
-                .collect::<Vec<_>>(),
+            turns.iter().map(|turn| len_u64(turn.transcript.len()) + FRAME_OVERHEAD).collect::<Vec<_>>(),
             [charge]
         );
         let next = continued(read, *offset);
@@ -157,10 +154,7 @@ fn accepted_prefix_continues_without_skipping_after_an_unread() {
         assert_eq!(*owner, OWNER);
         assert_eq!(turns.iter().map(|turn| turn.turn).collect::<Vec<_>>(), [second]);
         assert_eq!(
-            turns
-                .iter()
-                .map(|turn| u64::try_from(turn.transcript.len()).expect("fixture size") + FRAME_OVERHEAD)
-                .collect::<Vec<_>>(),
+            turns.iter().map(|turn| len_u64(turn.transcript.len()) + FRAME_OVERHEAD).collect::<Vec<_>>(),
             [charge]
         );
     }

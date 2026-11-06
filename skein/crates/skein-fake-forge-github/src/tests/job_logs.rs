@@ -2,6 +2,7 @@ use super::{fixtures as f, read_support as r};
 use crate::service::{Outcome, Response};
 use skein_fake_forge_domain::api as a;
 use skein_forge::github::{self, request::Method};
+use skein_lib::bytes::concat;
 use skein_lib::{Duration, ReplyTo, Token, Wall};
 
 fn failing() -> (f::Harness, u64) {
@@ -109,7 +110,7 @@ fn github_fake_blob_record_and_origins_stay_within_admitted_bounds() {
     }
     assert!(held <= FAKE_GITHUB_BLOB_RECORDS_HELD_CEILING);
     service.set_blob_origin(f::boxed(b"http://logs.example.test")).unwrap();
-    let oversized = crate::service::joined(b"http://", &[b'a'; 1024]).unwrap();
+    let oversized = concat(&[b"http://", &[b'a'; 1024]]);
     assert!(service.set_blob_origin(oversized).is_err());
 }
 
@@ -144,7 +145,7 @@ fn github_fake_blob_answers_a_redirect_when_the_scenario_asks() {
         let response = blob(&mut h, &redirect.target, true, issued);
         assert_eq!(response.status, 302);
         assert!(response.body.is_empty());
-        assert_eq!(response.location, crate::service::joined(origin, &redirect.target));
+        assert_eq!(response.location, Some(concat(&[origin, &redirect.target])));
         let unknown = blob(&mut h, b"/other", false, issued);
         assert_eq!(unknown.status, 404);
         let invalid = blob(&mut h, b"/logs/invalid", false, issued);
@@ -155,7 +156,7 @@ fn github_fake_blob_answers_a_redirect_when_the_scenario_asks() {
 #[test]
 fn github_fake_log_origins_are_checked_at_admission() {
     use crate::{Problem, Service};
-    let oversized = crate::service::joined(b"http://", &[b'a'; 1024]).unwrap();
+    let oversized = concat(&[b"http://", &[b'a'; 1024]]);
     for origin in [
         b"".as_slice(),
         b"ftp://logs.example.test",

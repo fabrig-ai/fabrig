@@ -253,7 +253,8 @@ pub fn server_http() -> skein_http::server::Limits {
     skein_http::server::Limits { head: 4096, headers: 32, body: 65536, read: 1024, response: 65536, send: 1024 }
 }
 
-pub const TURN_BYTES: &[u8] = include_bytes!("../../../crates/jig-protocol-transcript/tests/data/record_turn_full.bin");
+pub const TURN_BYTES: &[u8] =
+    include_bytes!("../../../../smith/crates/smith-transcript/golden/v6/record_turn_full.bin");
 // The short call ID leaves eight bytes for the task's asks carrier,
 // within the single-row read budget.
 // One source call in addition to the golden's text block.

@@ -3,7 +3,7 @@
 //! domain outcomes. Contract: smith/docs/design/protocol/agent.md, sections 4–6.
 
 use super::teardown::{Step, Teardown};
-use super::{COMPONENT_OWNER_BIT, Frame, Operation, Owner, Stages, USAGE_OWNER, face, program, teardown};
+use super::{COMPONENT_TAG, Frame, Owner, Stages, USAGE_OWNER, face, program, teardown};
 use skein_channel::LowerEvent as ChannelLowerEvent;
 use skein_io::{self as io, kernel};
 use skein_lib::{Id, Token, stream};
@@ -120,7 +120,7 @@ pub(super) fn route_owned_io(service: &mut Stages, event: io::Event) {
         }
         return;
     }
-    let id = Id::<Owner>::from_token(Token::new(owner.raw() & !COMPONENT_OWNER_BIT));
+    let id = Id::<Owner>::from_token(Token::new(owner.untagged()));
     let route = *service.owners.get(id).expect("IO event has a live component route");
     let closed = event.is_closed();
     match route {
@@ -153,8 +153,7 @@ pub(super) fn route_owned_io(service: &mut Stages, event: io::Event) {
 }
 
 pub(super) fn component_owner(route: Token) -> Token {
-    assert!(route.raw() & COMPONENT_OWNER_BIT == 0, "one process cannot exhaust the component owner namespace");
-    Token::new(route.raw() | COMPONENT_OWNER_BIT)
+    Token::tagged(COMPONENT_TAG, route.raw()).expect("component route fits namespace")
 }
 
 pub(super) fn io_down(service: &mut Stages, frame: Option<&mut Frame>) {
@@ -172,50 +171,26 @@ pub(super) fn io_down(service: &mut Stages, frame: Option<&mut Frame>) {
             break;
         }
         let Some(submit) = service.io_submissions.pop() else { break };
-        route_submission(service, submit, false);
+        route_submission(service, submit);
     }
     for _ in 0..service.limits.queue {
         if !super::submissions_ready(service) {
             break;
         }
         let Some(submit) = service.file_submissions.pop() else { break };
-        route_submission(service, submit, true);
+        route_submission(service, submit);
     }
 }
 
-#[expect(
-    clippy::wildcard_enum_match_arm,
-    reason = "the kernel operation is an external vocabulary and only Cancel names another operation"
-)]
-pub(super) fn route_submission(service: &mut Stages, submit: kernel::Submit, file: bool) {
-    let global = Token::new(service.next_operation);
-    service.next_operation = service.next_operation.checked_add(1).expect("one run does not exhaust operation names");
-    let kind = match submit.kind {
-        kernel::Op::Cancel { target } => {
-            let mut found = None;
-            for (global, route) in &service.operations {
-                match route {
-                    Operation::File(original) if file && *original == target => found = Some(*global),
-                    Operation::Io(original) | Operation::Signals(original) if !file && *original == target => {
-                        found = Some(*global);
-                    }
-                    Operation::File(_) | Operation::Io(_) | Operation::Signals(_) => {}
-                }
-            }
-            kernel::Op::Cancel { target: found.unwrap_or(Token::new(u64::MAX)) }
-        }
-        other => other,
+#[expect(clippy::wildcard_enum_match_arm, reason = "only the external ReadSignal retains a signal read")]
+pub(super) fn route_submission(service: &mut Stages, submit: kernel::Submit) {
+    service.submitted = service.submitted.checked_add(1).expect("one run does not exhaust submission count");
+    service.in_flight = service.in_flight.checked_add(1).expect("bounded kernel operations");
+    service.signal_reads = match &submit.kind {
+        kernel::Op::ReadSignal { .. } => service.signal_reads.checked_add(1).expect("bounded signal reads"),
+        _ => service.signal_reads,
     };
-    let route = if file {
-        Operation::File(submit.op)
-    } else {
-        match kind {
-            kernel::Op::ReadSignal { .. } => Operation::Signals(submit.op),
-            _ => Operation::Io(submit.op),
-        }
-    };
-    service.operations.insert(global, route).expect("reserved operation route");
-    service.submissions.push(kernel::Submit { op: global, kind });
+    service.submissions.push(submit);
 }
 
 fn framed_event(service: &mut Stages, frame: &mut Frame, event: io::Event) -> Option<io::Event> {

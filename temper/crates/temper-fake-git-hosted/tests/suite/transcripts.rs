@@ -17,6 +17,7 @@ const CASES: &[(&str, Fault)] = &[
     ("checkout-1", Fault::None),
     ("checkout-2", Fault::None),
     ("merge-clean", Fault::None),
+    ("merge-in-progress", Fault::None),
     ("merge-up-to-date", Fault::None),
     ("merge-conflict", Fault::None),
     ("merge-conflict-2", Fault::None),
@@ -72,6 +73,7 @@ fn each_transcript_s_exit_and_masked_stdout_match_the_fake_s() {
 fn each_failure_transcript_s_stderr_classifies_as_the_fake_s() {
     let rows = [
         ("checkout-index-locked", Fault::None, git::Kind::CheckOut),
+        ("merge-in-progress", Fault::None, git::Kind::Merge),
         ("clone-missing-repository", Fault::MissingRepository, git::Kind::Clone),
         ("clone-stranger-private", Fault::MissingRepository, git::Kind::Clone),
         ("fetch-missing-branch", Fault::MissingBranch, git::Kind::Fetch),
@@ -356,6 +358,126 @@ fn hosted_git_stages_files_and_commits_the_requested_parents_without_moving_head
     assert_eq!(disk.read(&scenario.at, b".git/temper-head"), 1_u64.to_le_bytes());
     assert_eq!(disk.read(&scenario.at, b".git/MERGE_HEAD"), 2_u64.to_le_bytes());
     assert_eq!(disk.read(&scenario.at, b".git/objects/3"), b"");
+}
+
+#[test]
+fn hosted_git_stages_no_hidden_log() {
+    for (merging, new_work) in [(None, true), (Some(2), true), (None, false)] {
+        let mut scenario = fixtures::scenario();
+        let parent = scenario.transport.commit_tree(
+            scenario.base,
+            None,
+            [(b"conflict.txt".to_vec(), b"base\n".to_vec()), (b"sub/.tracked.log".to_vec(), b"parent log\n".to_vec())]
+                .into(),
+            b"tracked log\n",
+        );
+        let path = |name: &[u8]| [scenario.at.as_slice(), b"/", name].concat();
+        scenario.checkout.write(&path(format!(".git/objects/{parent}").as_bytes()), b"");
+        scenario.checkout.write(&path(b".git/temper-index/sub/.tracked.log"), b"parent log\n");
+        for name in [b".a.log".as_slice(), b"sub/.b.log", b"sub/.tracked.log"] {
+            scenario.checkout.write(&path(name), b"tool output\n");
+        }
+        if new_work {
+            scenario.checkout.write(&path(b"keep.log"), b"new log\n");
+            scenario.checkout.write(&path(b"sub/work.txt"), b"new work\n");
+            scenario.checkout.write(&path(b".log"), b"short name\n");
+            scenario.checkout.write(&path(b".directory.log/work.txt"), b"nested work\n");
+        }
+        let mut disk = Disk::new(&scenario);
+        assert_eq!(disk.run(&scenario, &Command::Add, b"").exit, 0);
+        let difference = disk.run(&scenario, &Command::DiffIndex { parent: commit(parent) }, b"");
+        if !new_work {
+            assert_eq!(difference.exit, 0, "hidden logs alone leave the parent tree unchanged");
+            let op = git::Op::Commit {
+                at: git::Place { git: None, workspace: skein_lib::Token::new(1), repository: b"app".as_slice().into() },
+                parent: commit(parent),
+                merging: None,
+                title: b"work".as_slice().into(),
+                body: Box::new([]),
+                identity: 1,
+            };
+            assert_eq!(
+                temper_worker_protocol_git::sequence::after(
+                    &op,
+                    &Command::DiffIndex { parent: commit(parent) },
+                    difference.exit,
+                    &difference.stdout,
+                    &difference.stderr,
+                    0,
+                    &temper_worker_protocol_git_world::fixtures::checkout(),
+                ),
+                temper_worker_protocol_git::sequence::Next::End(git::Done::Unchanged),
+                "the commit operation ends without write-tree or commit-tree",
+            );
+            continue;
+        }
+        assert_eq!(difference.exit, 1, "new work changes the tree");
+        let tree = disk.run(&scenario, &Command::WriteTree, b"");
+        assert_eq!(tree.exit, 0);
+        let tree = invocation::object(tree.stdout.strip_suffix(b"\n").expect("one tree id")).expect("tree id");
+        let result = disk.run(
+            &scenario,
+            &Command::CommitTree { tree, parent: commit(parent), merging: merging.map(commit) },
+            b"work\n",
+        );
+        assert_eq!(result.exit, 0);
+        let forge = scenario.transport.forge.borrow();
+        let object = forge.domain.object(parent + 1).expect("new commit");
+        assert_eq!((object.parent, object.merge_parent), (Some(parent), merging));
+        assert!(!object.tree.contains_key(b".a.log".as_slice()), "root hidden log excluded");
+        assert!(!object.tree.contains_key(b"sub/.b.log".as_slice()), "nested hidden log excluded");
+        assert_eq!(object.tree.get(b"sub/.tracked.log".as_slice()).expect("tracked log").as_ref(), b"parent log\n");
+        assert_eq!(object.tree.get(b"keep.log".as_slice()).expect("ordinary log").as_ref(), b"new log\n");
+        assert_eq!(object.tree.get(b"sub/work.txt".as_slice()).expect("new file").as_ref(), b"new work\n");
+        assert_eq!(object.tree.get(b".log".as_slice()).expect("short name").as_ref(), b"short name\n");
+        assert_eq!(
+            object.tree.get(b".directory.log/work.txt".as_slice()).expect("log directory").as_ref(),
+            b"nested work\n"
+        );
+    }
+}
+
+#[test]
+fn hosted_git_refuses_a_second_merge_until_a_checkout_clears_the_first() {
+    let mut scenario = fixtures::scenario();
+    let second = scenario.transport.commit_tree(
+        scenario.base,
+        None,
+        [(b"conflict.txt".to_vec(), b"base\n".to_vec()), (b"other".to_vec(), b"second\n".to_vec())].into(),
+        b"second head\n",
+    );
+    scenario.checkout.write(&[scenario.at.as_slice(), format!("/.git/objects/{second}").as_bytes()].concat(), b"");
+    let mut disk = Disk::new(&scenario);
+    let mut parent = commit(scenario.base);
+    for (head, merged) in [(scenario.topic, 4_u64), (second, 5)] {
+        let merge = Command::Merge { theirs: commit(head) };
+        assert_eq!(disk.run(&scenario, &merge, b"").exit, 0);
+        assert_eq!(disk.run(&scenario, &Command::Add, b"").exit, 0);
+        let tree = disk.run(&scenario, &Command::WriteTree, b"");
+        let tree = invocation::object(tree.stdout.strip_suffix(b"\n").expect("one tree id")).expect("tree id");
+        let committed =
+            disk.run(&scenario, &Command::CommitTree { tree, parent, merging: Some(commit(head)) }, b"merge head\n");
+        assert_eq!(committed.exit, 0);
+        let committed =
+            invocation::object(committed.stdout.strip_suffix(b"\n").expect("one commit id")).expect("merge commit id");
+        assert_eq!(committed, commit(merged));
+        assert_eq!(disk.read(&scenario.at, b".git/MERGE_HEAD"), head.to_le_bytes());
+        let refused = disk.run(&scenario, &Command::Merge { theirs: commit(second) }, b"");
+        assert_eq!(refused.exit, 128);
+        assert!(refused.stdout.is_empty());
+        assert_eq!(
+            refused.stderr,
+            b"fatal: You have not concluded your merge (MERGE_HEAD exists).\nPlease, commit your changes before you merge.\n"
+        );
+        assert_eq!(disk.run(&scenario, &Command::CheckOut { commit: committed }, b"").exit, 0);
+        assert_eq!(disk.run(&scenario, &Command::Clean, b"").exit, 0);
+        assert_eq!(disk.read(&scenario.at, b".git/temper-head"), merged.to_le_bytes());
+        assert_eq!(
+            disk.machine.open(disk.root, &[scenario.at.as_slice(), b"/.git/MERGE_HEAD"].concat(), How::PathNoFollow),
+            Err(skein_fake_machine::Refusal::NotFound)
+        );
+        parent = committed;
+    }
 }
 
 #[test]

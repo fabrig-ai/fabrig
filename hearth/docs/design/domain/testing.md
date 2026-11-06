@@ -1656,11 +1656,17 @@ VM tier its one real machine relies on.
   figure stands as an idle-machine figure
   (`skein/docs/foundation/testing-strategy.md`, 8.1). It depends on the
   user's ruling on the measurements.
-- **The focused suite's way to its figure** (9.1): whether repairs to the
-  slowest tests reach 30 CPU seconds, or the measurements go to the user
-  for a ruling (`skein/docs/foundation/testing-strategy.md`, 8.1). The
-  figure stands, and a run over it is recorded, never refused. It depends
-  on what repairs to the largest costs save, which no run has shown.
+- **The focused suite's way to its figure** (9.1): whether the queue's figure
+  is under 30 CPU seconds, and whether the per-crate `opt-level`s of the root
+  `Cargo.toml` stand, where `skein/docs/foundation/testing-strategy.md`, 8 has
+  one hot leaf crate on a profile and the user's sign-off, or give way to repairs
+  in the code and its tests. Those not tried: work a world repeats whatever its
+  seed, computed once in a test's process; a scratch repository's objects written
+  without `git add` and `git commit`; and what a profile of the suite shows, which
+  needs a machine with a profiler. Failing those, the measurements go to the user
+  for a ruling (`skein/docs/foundation/testing-strategy.md`, 8.1). The figure
+  stands, and a run over it is recorded, never refused. It depends on the queue's
+  record and on the user's ruling.
 - **The large render's cost:** about 15 CPU seconds, which is why the fuzzy
   suite carries it (8.4). No run has isolated that cost: it followed the
   work per target, not the listing, and whether it lies in the harness or

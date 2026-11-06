@@ -1,5 +1,6 @@
 //! Specification source facts through the public task document constructor.
 use crate::tests::*;
+use skein_lib::length::len_u64;
 
 const FAILURE_WORDS: &[u8] = concat!("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "é CI failed: missing artifact").as_bytes();
 
@@ -305,7 +306,7 @@ fn kept_report_text_checks_visibility_offsets_and_utf8_boundaries() {
     let last = task_text_from_row(&core, &limits, 1, &row, TaskTextField::Result, 127).unwrap();
     assert_eq!(last.bytes.as_ref(), &FAILURE_WORDS[127..]);
     assert_eq!(last.next, None);
-    for from in [128, u64::try_from(FAILURE_WORDS.len() + 1).unwrap(), u64::MAX] {
+    for from in [128, len_u64(FAILURE_WORDS.len() + 1), u64::MAX] {
         assert_eq!(task_text_from_row(&core, &limits, 1, &row, TaskTextField::Result, from), Err(Why::Unknown));
     }
     assert_eq!(task_text_from_row(&core, &limits, 99, &row, TaskTextField::Result, 0), Err(Why::Unknown));

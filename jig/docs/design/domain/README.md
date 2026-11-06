@@ -390,7 +390,8 @@ where each is answered:
   its holder's work only; configuration names LLM providers and their
   models, never an account (accounts.md, sections 2 to 4; providers.md).
 - **A task chooses its models, its run's check its account:** a task's
-  LLM choice, within its authority, or its charter's default; the
+  LLM choice, within its authority, or, given none, the first of its
+  charter's models it can use, at each run's check; the
   account taken with the run's check and kept by the task, a limited one
   waited for, never left for another of its holder's (tasks.md, section
   3; accounts.md, 4.3).

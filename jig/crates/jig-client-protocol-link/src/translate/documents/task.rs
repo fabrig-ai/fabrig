@@ -21,11 +21,7 @@ pub(crate) fn impact_fields(value: &w::Impact) -> c::Impact {
     c::Impact { tasks: impact_counts_fields(value.tasks()), live_runs: value.live_runs(), proposals: value.proposals() }
 }
 
-pub(crate) fn application_part_piece(
-    bytes: &[u8],
-    _limits: &Limits,
-    _bound: u32,
-) -> Result<List<c::ApplicationPart>, w::Problem> {
+pub(crate) fn application_part_piece(bytes: &[u8]) -> Result<List<c::ApplicationPart>, w::Problem> {
     if !bytes.is_empty() {
         return Err(piece_problem(skein_codec::Reason::Malformed));
     }
@@ -101,11 +97,7 @@ pub(crate) fn runtime_fields(value: &w::Runtime, limits: &Limits) -> Result<c::R
     })
 }
 
-pub(crate) fn writer_slot_piece(
-    bytes: &[u8],
-    _limits: &Limits,
-    _bound: u32,
-) -> Result<List<c::WriterSlot>, w::Problem> {
+pub(crate) fn writer_slot_piece(bytes: &[u8]) -> Result<List<c::WriterSlot>, w::Problem> {
     if !bytes.is_empty() {
         return Err(piece_problem(skein_codec::Reason::Malformed));
     }
@@ -125,12 +117,12 @@ pub(crate) fn task_context_fields(value: &w::TaskContext, limits: &Limits) -> Re
         list2.push(spend_line_fields(item)).expect("reserved supplied list");
     }
     Ok(c::TaskContext {
-        parts: application_part_piece(value.parts(), limits, limits.client().rows)?,
+        parts: application_part_piece(value.parts())?,
         closing: opt1,
         spend: list2,
         runtime: runtime_fields(value.runtime(), limits)?,
         impact: impact_fields(value.impact()),
-        writer_slots: writer_slot_piece(value.writer_slots(), limits, limits.client().rows)?,
+        writer_slots: writer_slot_piece(value.writer_slots())?,
     })
 }
 

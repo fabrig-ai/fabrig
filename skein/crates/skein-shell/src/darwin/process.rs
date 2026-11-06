@@ -23,6 +23,8 @@
 )]
 
 use super::{kqueue, last_errno, retry, signals};
+use crate::posix::process::{action, cpu, cstring};
+pub(crate) use crate::posix::process::{block_sigpipe, map_error, signal_number};
 use skein_io::kernel::{Done, Error, Exit, Fd, Resources, Signal, Spawn, Target, Usage, Way};
 use std::{
     collections::BTreeMap,
@@ -56,28 +58,6 @@ fn fd(raw: i32) -> Result<OwnedFd, i32> {
         // SAFETY: this syscall just made `raw`, uniquely owned here.
         Ok(unsafe { OwnedFd::from_raw_fd(raw) })
     }
-}
-
-fn cstring(bytes: &[u8]) -> Result<CString, i32> {
-    CString::new(bytes).map_err(|_| libc::EINVAL)
-}
-
-fn action(rc: i32) -> Result<(), i32> {
-    if rc == 0 { Ok(()) } else { Err(rc) }
-}
-
-/// A pipe write after the child closes its read end returns EPIPE instead of
-/// terminating the service with SIGPIPE. The kernel is tied to this thread.
-pub(crate) fn block_sigpipe() -> Result<(), i32> {
-    // SAFETY: sigset_t is a C signal set that sigemptyset initializes.
-    let mut set: libc::sigset_t = unsafe { std::mem::zeroed() };
-    // SAFETY: `set` is a valid writable signal set for both calls.
-    action(unsafe { libc::sigemptyset(ptr::from_mut(&mut set)) })?;
-    // SAFETY: `set` remains live and writable.
-    action(unsafe { libc::sigaddset(ptr::from_mut(&mut set), libc::SIGPIPE) })?;
-    // SAFETY: only this kernel thread's mask is changed; a child gets a
-    // cleared mask through its spawn attributes below.
-    action(unsafe { libc::pthread_sigmask(libc::SIG_BLOCK, ptr::from_ref(&set), ptr::null_mut()) })
 }
 
 pub(crate) fn open_termination_signals() -> Result<Fd, i32> {
@@ -271,21 +251,6 @@ fn spawn_prepared(command: &mut Spawn, terminal: Option<&CString>) -> Result<Don
     result
 }
 
-pub(super) fn map_error(errno: i32) -> Error {
-    match errno {
-        libc::ENOENT => Error::NotFound,
-        libc::EACCES | libc::EPERM => Error::Permission,
-        libc::ENOTDIR => Error::NotADirectory,
-        libc::ELOOP => Error::TooManyLinks,
-        libc::ENAMETOOLONG => Error::NameTooLong,
-        libc::EXDEV => Error::Escape,
-        libc::EMFILE | libc::ENFILE => Error::TooManyOpenFiles,
-        libc::ENOMEM | libc::ENOBUFS => Error::NoBufferSpace,
-        libc::EINVAL => Error::InvalidArgument,
-        other => Error::Other(other),
-    }
-}
-
 /// Reads the process and its reaped children at one submission (kernel.md, section 6.3).
 pub(crate) fn usage() -> Result<Usage, Error> {
     Ok(Usage { own: resources(libc::RUSAGE_SELF)?, children: resources(libc::RUSAGE_CHILDREN)? })
@@ -303,16 +268,6 @@ fn resources(who: i32) -> Result<Resources, Error> {
         system: cpu(value.ru_stime)?,
         peak_rss_bytes: u64::try_from(value.ru_maxrss).map_err(|_| Error::Other(libc::EOVERFLOW))?,
     })
-}
-
-fn cpu(value: libc::timeval) -> Result<skein_lib::Duration, Error> {
-    let seconds = u64::try_from(value.tv_sec).map_err(|_| Error::Other(libc::EOVERFLOW))?;
-    let micros = u64::try_from(value.tv_usec).map_err(|_| Error::Other(libc::EOVERFLOW))?;
-    let nanos = seconds
-        .checked_mul(1_000_000_000)
-        .and_then(|base| micros.checked_mul(1000).and_then(|tail| base.checked_add(tail)))
-        .ok_or(Error::Other(libc::EOVERFLOW))?;
-    Ok(skein_lib::Duration::from_nanos(nanos))
 }
 
 fn finish_spawn(command: &mut Spawn, pid: libc::pid_t, parents: Vec<Option<OwnedFd>>) -> Result<Done, i32> {
@@ -443,16 +398,6 @@ pub(crate) fn signal_child(handle: Fd, signal: Signal, to: Target) -> Result<Don
     };
     super::status(rc).map_err(map_error)?;
     Ok(Done::Nothing)
-}
-
-pub(super) fn signal_number(signal: Signal) -> i32 {
-    match signal {
-        Signal::Interrupt => libc::SIGINT,
-        Signal::Terminate => libc::SIGTERM,
-        Signal::Kill => libc::SIGKILL,
-        Signal::Stop => libc::SIGSTOP,
-        Signal::Continue => libc::SIGCONT,
-    }
 }
 
 /// Descriptors made for a service hosted by a real-world harness.

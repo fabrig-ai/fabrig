@@ -11,7 +11,7 @@ use jig_domain_tasks as tasks;
 use jig_test_patches_jig::{frames, patches as jig};
 use jig_test_patches_smith::patches as smith;
 use skein_fake_machine::Item;
-use skein_lib::{Token, Wall};
+use skein_lib::{Token, Wall, length::len_u64};
 
 pub(super) const SETS: PatchSets = PatchSets {
     sets: &[
@@ -117,7 +117,7 @@ fn scene(bytes: &[u8], sets: PatchSets) -> (Disk, Store) {
             skein_kv::Op::Put {
                 key: keys::encode_own(&keys::Own::Transcript { task: frames::TASK }, fixtures::KEY_LIMIT)
                     .expect("places"),
-                value: codec::component::Transcript { length: u64::try_from(bytes.len()).expect("frame"), window: 0 }
+                value: codec::component::Transcript { length: len_u64(bytes.len()), window: 0 }
                     .encode()
                     .expect("places"),
             },
@@ -590,7 +590,7 @@ fn patched_pages_keep_the_files_offsets_and_site_names() {
     const FIRST_TOKENS: u32 = 82; // 64 replay bytes + 18 key bytes.
     const SECOND_TOKENS: u32 = 19; // one replay byte + 18 key bytes.
     let first = frames::frame(5, &turn(1, FIRST_REPLAY));
-    let offset = u64::try_from(first.len()).expect("first frame");
+    let offset = len_u64(first.len());
     let mut second = fixtures::turn(frames::TASK, frames::ATTEMPT, NEXT_TURN, &turn(1, b"r"));
     second.spent = frames::SPENT;
     second.read = None;

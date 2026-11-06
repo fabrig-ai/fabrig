@@ -94,7 +94,7 @@ fn finish(world: &mut World, producer: &engine::Assignment, title: &[u8]) {
     world.send(event);
 }
 
-fn push(world: &mut World, producer: &engine::Assignment, base: u64, file: &[u8]) -> u64 {
+pub(super) fn push(world: &mut World, producer: &engine::Assignment, base: u64, file: &[u8]) -> u64 {
     let branch = producer.workspace.repositories[0].push.clone().expect("producer destination");
     assert_eq!(
         world.external(2, raw::Op::Git(raw::Git::Push { branch: branch.clone(), commit: base, expected: None })),
@@ -119,7 +119,7 @@ fn assert_landed_tree(world: &World, main: u64, tip: u64, c2_head: u64, c3_head:
     }
 }
 
-fn goal_world() -> (World, engine::Assignment, Box<[u8]>, u64) {
+pub(super) fn goal_world() -> (World, engine::Assignment, Box<[u8]>, u64) {
     goal_world_in(world())
 }
 
@@ -153,7 +153,7 @@ fn call(world: &mut World, goal: &engine::Assignment, tool: engine::Tool) -> eng
     panic!("goal call {number} answered: {:?}", world.call_errors)
 }
 
-fn make(world: &mut World, goal: &engine::Assignment, words: &[u8], after: &[u64]) -> u64 {
+pub(super) fn make(world: &mut World, goal: &engine::Assignment, words: &[u8], after: &[u64]) -> u64 {
     let answer = call(
         world,
         goal,
@@ -186,7 +186,7 @@ fn make_c2_c3(world: &mut World, goal: &engine::Assignment) -> (u64, u64) {
     (made[0].task, made[1].task)
 }
 
-fn observe_push(world: &mut World, producer: &engine::Assignment) {
+pub(super) fn observe_push(world: &mut World, producer: &engine::Assignment) {
     world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
         hint: skein_forge::api::Hint {
             repository: forge_world::REPO,
@@ -277,7 +277,7 @@ fn landed(world: &mut World, task: u64) {
     assert!(ended(world, task));
 }
 
-fn stop(world: &mut World, goal: &engine::Assignment) {
+pub(super) fn stop(world: &mut World, goal: &engine::Assignment) {
     world.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
         reply_to: ReplyTo::new(Token::new(99)),

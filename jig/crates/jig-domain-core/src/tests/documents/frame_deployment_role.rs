@@ -5,6 +5,7 @@
     reason = "producer proofs are ordinary Rust under programming-model.md section 10.2"
 )]
 use crate::tests::*;
+use skein_lib::length::len_u64;
 
 const ORDINARY_PROJECTS: u32 = 2; // Project 1 and the full-width project.
 
@@ -79,7 +80,7 @@ fn frame_deployment_role_preserves_every_builtin_and_admitted_policy_and_full_wi
         assert_eq!(value.projects.get(1).unwrap().project, u32::MAX);
         let mut held = u64::try_from(size_of::<Document>()).unwrap()
             + List::<FrameProjectRole>::price(value.projects.capacity()).unwrap()
-            + u64::try_from(value.login.bytes.len() + value.name.bytes.len()).unwrap();
+            + len_u64(value.login.bytes.len() + value.name.bytes.len());
         for project in &value.projects {
             held += List::<Template>::price(project.templates.capacity()).unwrap();
         }

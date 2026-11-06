@@ -1,22 +1,21 @@
 # D043: Native lengths are widened with `try_from` beside skein-lib's `len_u64`
 
 - **Kind:** primitives
-- **Where:** `jig-domain-people`, `jig-domain-core`, `jig-client-protocol-link`, `jig-protocol-store`, and the other crates the measure finds
+- **Where:** `jig/crates/jig-client-view/src/tests/tree/fragments/activity.rs` and `jig/crates/jig-client-view/src/tests/tree/fragments/history.rs`
 - **Seen:** 2026-11-03 at `a6a8155d35`, while reconciling the four trees' backfills: skein's item on widening said jig calls `len_u64` nowhere (new here)
-- **Checked:** 2026-11-03 at `a6a8155d35`
+- **Checked:** 2026-11-06
 - **Value:** low (one spelling of an infallible widening, no refusal paths that cannot be taken)
 - **Size:** S
 - **Status:** open
 - **Paid when:** jig's hand-written code widens a native length with `skein_lib::length::len_u64`; the measure is 0.
-- **Measure:** `rg -c --type rust -g '!**/generated/**' 'u64::try_from\([^)]*\.len\(\)\)' jig | awk -F: '{s+=$2} END {print s}'`: 242
+- **Measure:** `rg -c --type rust -g '!**/generated/**' 'u64::try_from\([^)]*\.len\(\)\)' jig | awk -F: '{s+=$2} END {print s}'`: 2
 
 ## What
 
 skein-lib widens a native length with `length::len_u64`
-(`skein/docs/design/lib.md`, 6), so that no step writes `try_from` for it. jig adopted
-`usize_of` (about 1,000 calls) but calls `len_u64` nowhere. Its hand-written code has 242
-`u64::try_from(x.len())`, 179 of them outside tests; `jig-domain-people/src/amendment.rs`
-alone has 16, each as `u64::try_from(..).ok()?`, a refusal path that cannot be taken.
+(`skein/docs/design/lib.md`, 6), so that no step writes `try_from` for it. jig's
+hand-written code retains 2 `u64::try_from(x.len())` calls, both in the view's
+fragment tests named above. This plan left the crate alone for fabrig/ui.
 
 ## Why it matters
 

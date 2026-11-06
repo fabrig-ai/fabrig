@@ -171,18 +171,7 @@ fn wait_explanation(task: &c::Task, wait: c::TaskRunWait, limits: &crate::jig::L
         }
         W::Account { account, why, .. } => match why {
             R::Refreshing | R::Source(S::Asking | S::Granted) => {}
-            R::Empty => {
-                out.put(b"\n  no account ");
-                match &task.llm {
-                    Some(choice) => {
-                        out.put(b"can run ");
-                        out.words(choice.main.model.bytes());
-                        out.put(b" yet");
-                    }
-                    None => out.put(b"serving this work"),
-                }
-                out.put(b": account connect PROVIDER, or account add-key PROVIDER FILE");
-            }
+            R::Empty => empty_account_explanation(task, limits, out),
             R::Host => {
                 out.put(b"\n  its login isn't signed in on a host: ");
                 out.put(limits.program_login);
@@ -197,6 +186,21 @@ fn wait_explanation(task: &c::Task, wait: c::TaskRunWait, limits: &crate::jig::L
             R::Source(state) => source_explanation(state, account, out),
         },
     }
+}
+fn empty_account_explanation(task: &c::Task, limits: &crate::jig::Limits, out: &mut Text) {
+    out.put(b"\n  no account serving this work yet");
+    if let Some(choice) = &task.llm {
+        out.put(b" (shown model: ");
+        out.words(choice.main.model.bytes());
+        out.put(b")");
+    }
+    out.put(b"\n  without an explicit model, a usable account may select another offered model");
+    out.put(b"\n  provider sign-in, where offered: account connect PROVIDER --key KEY");
+    out.put(b"\n  API key, where offered: account add-key PROVIDER FILE --key KEY");
+    out.put(b"\n  Claude Code: account declare PROVIDER claude_code NAME --key KEY, then ");
+    out.put(limits.program_login);
+    out.put(b" NAME");
+    out.put(b"\n  skip program-login if NAME's directory is already signed in; then account list and account verify ACCOUNT --source program");
 }
 fn account_command(verb: &[u8], account: Option<u32>, out: &mut Text) {
     out.put(b"account ");
