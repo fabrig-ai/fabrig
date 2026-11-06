@@ -45,3 +45,7 @@ Acceptance:
 ## Report
 
 As the implementer's text asks, and say which smith and temper tests ran.
+
+## Answers
+
+2026-11-06. **May `smith/tests/local-process/src/oauth.rs` line 138's accepted length change from 43 to 42, beyond the literal's value?** Yes. The native page's length is the literal's length: the new words are 42 bytes where the old were 43, so the assertion follows from the words the request fixes, and step 5's smith test cannot pass without it. Change `length == 43` to `length == 42` on that line, and nothing else there; the 18 stays. Then run step 5's smith test, and the rest of steps 4 and 5 that have not run on the final tree.

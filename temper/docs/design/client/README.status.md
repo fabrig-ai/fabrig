@@ -2,16 +2,15 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, The welcome's Model step, *The sign-in under way*, and `ConnectModel`, *While it waits* and
-  *From another computer*: the card's line and the note say a new tab, and nothing opens one: a press still
-  sends a `Return` and the page's own tab leaves, until `../draft/sign-in-new-tab.md` is built. So the note shows
-  for a moment before the tab goes, and again on a page come back while the sign-in waits, and a browser on
-  another computer presses, leaves, comes back by hand and finds the note's folded paste. The view has no fact of a tab refused:
-  `sign_in_wait::tab_refused` is false, the one function that draft feeds. The new tab's two lines, its closing on
-  a refusal at the press, and a reload's same page are that draft's. A page come back holds no address, so
-  it draws no "Open it again". `Act::SignInElsewhere` and `ConnectModel::elsewhere` stay in the domain with no
-  entry in the view, the paste's tests and gallery states reaching the page through them, until that draft
-  makes every sign-in hold its page.
+- **Not yet:** 3.5, The welcome's Model step, *The sign-in under way*, and `ConnectModel`, *The sign-in's tab*,
+  *Its end*, *A reload while it waits* and *From another computer*; 7, *A sign-in's address in the small store*; 10:
+  the card's line and the note say a new tab, and nothing opens one: a press still sends a `Return` and the page's own
+  tab leaves, until `../draft/sign-in-new-tab.md` is built. The view has no fact of a tab refused:
+  `sign_in_wait::tab_refused` is false, the one function that draft feeds. A page reloaded holds no address, so it
+  draws no "Open it again". `Act::SignInElsewhere` and `ConnectModel::elsewhere` stay in the domain with no entry in
+  the view, the paste's tests and gallery states reaching the page through them.
+- **Not yet:** 4.6, 8: the family still carries `return`, `Return`, answered `returning`, the root sends it, and the
+  engine gives the return, until `../draft/sign-in-new-tab.md`, 5 is built.
 - **Design departs:** 3.5, *The sign-in under way* and `ConnectModel`, *While it waits*, from the request
   `sign-in-new-tab` of 2026-11-06, by its plan's cut and its account. The terminal draws the note's plain title,
   its muted line and "Open the sign-in page" above the folded paste, where the request has the terminal as today:
