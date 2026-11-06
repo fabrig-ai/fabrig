@@ -311,7 +311,7 @@ Steps from the standard, each needing one before it only where it says.
   - **The line:** the figure; with `data-left` once 3 s of data gives an
     estimate over 5 s; `data-waiting` after 15 s with no byte, which is no
     failure; `data-starting` once every byte is in. `#boot-note`: after
-    8 s, `data-keeps`.
+    8 s, `data-keeps`, and nothing while the line waits.
   - **A failure** is a fetch's error, an answer that isn't OK, a stylesheet
     that didn't load, no WebAssembly, or an `init` that threw:
     `data-state="failed"` on `#boot`, `data-failed` as the line, why as
@@ -778,8 +778,9 @@ the host tests (section 14).
   moved in the same apply; back and forward restore their scroll,
   history's (section 9).
 - **Reading a log.** The page part measures a log, its scroll position,
-  its height and its screen, at each scroll and after each apply that
-  patched anything, a log's first among them, and from those alone:
+  its height and its screen, at each scroll, and a bound log after each
+  apply that patched anything, a log's first among them, and from those
+  alone:
   - *Near:* a bound log's head is near when what lies above the view is
     under one and a half of its screens; the foot of one that continues
     (ui.md, 3.2), when what lies below it is. The page part reports `Near`
@@ -808,11 +809,11 @@ the host tests (section 14).
     it may stay at the head while entries arrive below it. Any other node
     there would be what holds, so an owner draws none.
   - *Keys:* PageUp and PageDown, with no modifier, scroll the page's first
-    log by its screen less a line, from anywhere on the page, the focus in a
-    field or on nothing among it, their default prevented. A menu or a
-    dialog open, a component holding the focus, or a log with nothing to
-    scroll leaves them to the platform. Home and End stay the platform's,
-    which takes them while the focus is on the log.
+    log with more than its screen to show, by its screen less a line, from
+    anywhere on the page, the focus in a field or on nothing among it, their
+    default prevented. A menu or a dialog open, a component holding the
+    focus, or no such log leaves them to the platform. Home and End stay the
+    platform's, which takes them while the focus is on the log.
 - **The title,** as the reference sets it: the main's first level-1
   heading's text, then ` · ` and the application's name; the name alone
   when there is none. `<html lang>` is the phrasebook's language.
@@ -1374,6 +1375,14 @@ parts carry, so that its tier tests each once.
   through the page's own path writes in the act's event and gets one
   report; `?at-start` writes with no press, and is refused; `?no-clipboard`,
   as on plain http, is refused at once.
+- **Reading a log,** in its test build alone, at the addresses under
+  `/test/reading/` (section 7): a short log reads each page once until no
+  more remains; the words stay within a pixel across a read above, with
+  the browser's own anchoring and with `overflow-anchor: none`, where an end
+  request and PageUp and PageDown are held too; a read drawn within a
+  scroll's own turn goes on reading, with no timer; and neither a status at
+  the head nor a wrapper with no box takes the place of the words. No story
+  has a read fail.
 - **Its live tree**, in `browser_stories::live_tree`, checks the platform
   half in Chromium: a first child gains a group; a child inserts between
   keyed siblings; a keyed child moves; a rename keeps the same DOM node;
@@ -1411,9 +1420,6 @@ the application that needs it.
   field's words as it takes the focus. Each waits for an application that
   needs it; temper's rename draws without them
   (`temper/docs/design/client/README.md`, 11).
-- **A log's head near** (ui.md, section 18): the page part says when a
-  person has left a log's end (section 7), and nothing when its head nears
-  the view.
 - **A tab kept once it is pointed:** the platform lets a pointed tab go
   (section 10), so an application can't close it at its end. Keeping it waits
   for `temper/docs/design/draft/sign-in-new-tab.md`, 6, where a provider's
@@ -1426,6 +1432,12 @@ the application that needs it.
 - **Brotli beside gzip:** it saves more, and browsers offer it on https
   alone. It waits for an application served over https whose wait still
   matters with gzip.
+- **The loader's other states in a test:** the browser tier holds its
+  hand-over and a module not found. The estimate, the 8 s note, a stall, a
+  drop and `data-starting` need an answer held or cut part-way, which the
+  example's server doesn't do; the `bundle-loading` plan's proof walked them
+  once behind a proxy of its own (its figures on the render check, at
+  `668f7cd3e5`). They wait for a change of the loader that breaks one unseen.
 - **Graphics beyond a scene** (a canvas of hundreds of thousands of
   points, three dimensions, video) are a component of the application's
   (6.1), never a part of skein's.
@@ -1435,7 +1447,10 @@ the application that needs it.
 - **Other browsers than Chromium:** the browser tier drives Chromium
   alone, through skein's browser kit; another waits for a bug that shows
   only there (browser.md, section 11). A placeholder's `progress` is
-  unseen in Firefox and Safari, whose styles differ.
+  unseen in Firefox and Safari, whose styles differ. A log's view across
+  an apply (section 7) runs in Chromium, with its own anchoring and with
+  `overflow-anchor: none`, the nearest a run comes to Safari; Firefox and
+  Safari themselves are read and not run.
 - **Media from the origin:** the closed list (4.4) has no audio or video
   type; one waits for an application serving its own media, with media's
   role (ui.md, 4.2).

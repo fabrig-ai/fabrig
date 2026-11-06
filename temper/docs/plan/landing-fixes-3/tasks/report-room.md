@@ -1,0 +1,142 @@
++++
+id = "report-room"
+part = "report-room"
+kind = "feature"
+needs = []
+files = [
+  "jig/crates/jig-protocol-charter/src/assignment.rs",
+  "jig/crates/jig-protocol-charter/src/lib.rs",
+  "jig/crates/jig-protocol-charter/src/tests.rs",
+  "jig/crates/jig-protocol-worker-agents/src/tests/route.rs",
+  "jig/docs/design/domain/hosts.status.md",
+  "temper/crates/temper-engine-smith/src/room.rs",
+  "temper/crates/temper-service/src/stock/coding.txt",
+  "temper/crates/temper-service/src/stock/foreman.txt",
+  "temper/crates/temper-service/src/tests/stock.rs",
+  "temper/crates/temper-engine-domain-forge/src/result_tests.rs",
+  "temper/docs/examples/reference/settings.json",
+  "temper/tools/stage-one/src/tests/fixtures/judge/brief.md",
+  "temper/docs/design/domain/agent.status.md",
+]
+effort = "high"
+minutes = 75
++++
+
+# A change's body holds a spec's report
+
+## Goal
+
+A real run's spec asked for a report that didn't fit `finish`'s `body`, capped at 1024 bytes. That cost two questions, two foremen and two resumes, about 3:24, and the foreman's answer offered a form the host refuses to a change. Raise the bound to 3,584 bytes, and have the stock's words say where a report goes and that one past the bound is no question.
+
+The plan's call: **a larger bound, inside the 4,096-byte outcome smith and the hub already hold.** It costs one constant and nothing stored moves. Going past 4,096 is in `temper/docs/design/domain/agent.md`, 10, and isn't this task.
+
+**This task crosses jig and temper, departing from "a branch stays in its tree".** The request caps this plan at three tasks. jig's part is one value and its tests, and neither part is any use alone. Read `jig/AGENTS.md` and `temper/AGENTS.md`.
+
+Acceptance:
+
+- **The bound:** `jig_protocol_charter::CHANGE_BODY_MAX` is 3584, and a change contract's `body` rule is `words.min(CHANGE_BODY_MAX)`. `title`, the failure text and `no_change`'s text stay `words.min(CONTRACT_TEXT_MAX)`. Report and verdict contracts don't change.
+- **It reaches the hub:** the worst accepted change passes smith's check and encodes within the hub's bound, so that it doesn't end the run for breaking the rules (`said`, `jig-domain-host/src/hosted.rs`). The worst change is a `body` of 3584 bytes with the longest `title` that keeps the outcome's `owned_bytes` within 4096.
+- **It lands whole:** a report of 3584 bytes comes through `ChangeResult::reported(..).fitted(..)` at `tasks.result_bytes` 10,660 with nothing cut, with room for the checks' words.
+- **The stock's words:**
+  - `coding.txt` replaces `Summarize the change in finish; message your change only in the question form.` with the sentences in Steps.
+  - `foreman.txt`'s `finish:` line gains its sentence.
+  - The tests in `tests/stock.rs` hold them.
+- **The measure:** `room.rs`' `measurement_charter` gives `body` `CHANGE_BODY_MAX`. `host_part` keeps measuring the largest translated contract.
+
+## Inputs
+
+- `temper/docs/design/domain/agent.md`, 4.4: the body and the words.
+- `temper/docs/design/domain/agent.md`, 10: "A report past 3,584 bytes", what's not here.
+- `temper/docs/design/protocol/configuration.md`, 13.4: the charter 2 and charter 6 rows.
+- `jig/docs/design/domain/hosts.md`, 8: the contract's policy.
+- `temper/docs/plan/landing-fixes-3/notes/common.md`.
+
+What the cut's survey found:
+
+| Bound on a change's `body` | Value on an init-written deployment | Binds? |
+|---|---|---|
+| `CONTRACT_TEXT_MAX` (`jig-protocol-charter/src/assignment.rs`) | 1024 | yes, today |
+| smith's `Limits::outcome_bytes` (`smith-domain-run/src/limits.rs`) | 4096, fixed; `owned_bytes` adds 32 bytes per field and its name | next |
+| `hub.outcome_bytes` (`jig-protocol-config/src/profile/small.rs`) | 4096, past which `said` ends the run | next |
+| `tasks.result_bytes`, `forge.client.op_bytes` | 10,660 | no |
+| `checkout.message_bytes`, `tool_payload` | 10,662 | no |
+| channel `Field.text` (`smith-channel/schema/channel-v6.schema`) | 262,144 | no |
+
+Readers: `CONTRACT_TEXT_MAX` is read only by `jig-protocol-charter` and by `room.rs`. No test holds `at most 1024 bytes` for a jig contract: `smith-domain-run`'s `finite_system.txt` and the fixtures with `max: 1024` hold their own values, and none reads the constant.
+
+## Owns and may change
+
+- **Owns (jig):**
+  - `assignment.rs`: the new constant and the `body` rule.
+  - `lib.rs`: its export line.
+  - `tests.rs`: `contract_text_is_bounded_and_change_checks_are_required`.
+  - `jig-protocol-worker-agents/src/tests/route.rs`: the encoding test.
+- **Owns (temper):**
+  - `room.rs`: the `body` line.
+  - `coding.txt`, `foreman.txt`, and their tests in `tests/stock.rs`.
+  - `result_tests.rs`: the new test.
+- **Copies of the stock's words:**
+  - `temper/docs/examples/reference/settings.json` holds both charters' words. Make the same edit there, and let its readers' tests say whether it holds.
+  - `temper/tools/stage-one/src/tests/fixtures/judge/brief.md` is regenerated by its test with `SKEIN_CODEGEN_WRITE` set, never by hand. Its test is `the_brief_for_the_profile_matches_its_golden` in `temper/tools/stage-one/src/tests/judge.rs`.
+- **Status files:** remove this task's **Not yet** entries, the ones naming `landing-fixes-3/report-room`, from `jig/docs/design/domain/hosts.status.md` and `temper/docs/design/domain/agent.status.md`, and nothing else. This departs from the implementer's text, which closes `docs/design/`, because the status says what's built.
+- **Other plans:** `model-catalogue-1/stock-seven` is changing `tests/stock.rs`, so keep your edits to the tests named here.
+- **Not here:** `smith/`, smith's `outcome_bytes`, `hub.outcome_bytes`, the init templates' limits, `docs/help/`, `temper-client-*`, any wire schema. A change that seems to need one is a question.
+- **Options:**
+  - If encoding adds more than `owned_bytes` counts, so that the worst change passes smith's check and exceeds 4096 at the hub, lower `CHANGE_BODY_MAX` until it fits. Say so in the report, and give the number.
+  - If building an accepted outcome is awkward in `jig-protocol-worker-agents`' tests, put the encoding test in temper's worker world (`temper/tests/worker/domain`, whose hub holds `outcome_bytes: 4_096`, with `protocol.rs` beside it), and add those files to your report.
+  - If another stock test pins the sentence you replace, update that phrase.
+
+## Steps
+
+Failing tests first.
+
+1. **jig's rule:** in `contract_text_is_bounded_and_change_checks_are_required`, run `words` over `[1023, 1024, 1025, 3583, 3584, 3585]`. Assert `rule.fields[0].max == words.min(CONTRACT_TEXT_MAX)` for `title` and `rule.fields[1].max == words.min(CHANGE_BODY_MAX)` for `body`. The failure and `no_change` assertions stay.
+2. **The constant:**
+
+   ```rust
+   /// Maximum bytes of a change's `body`, the producer's report: its title and
+   /// framing keep room within the agent's outcome
+   /// (jig/docs/design/domain/hosts.md, 8).
+   pub const CHANGE_BODY_MAX: u32 = 3584;
+   ```
+
+3. **The hub's bound:** in `tests/route.rs`:
+
+   ```rust
+   #[test]
+   fn a_change_at_its_body_bound_encodes_within_the_hubs_outcome() {
+       // body CHANGE_BODY_MAX bytes; the longest title whose owned_bytes is within 4096.
+       // route::encode_result(...).unwrap().len() <= 4096.
+   }
+   ```
+
+   Use the worst bytes for the wire's framing, if any byte costs more than one.
+4. **Lands whole:** in `result_tests.rs`, add `a_report_at_the_bodys_bound_is_kept_whole_at_the_stocks_result_bound`, with `[b'r'; 3584]` and a bound of 10,660: the fitted words hold the whole report and no `bytes cut]`. Literals are fine here: this crate doesn't name jig's charter. Cite `temper/docs/design/domain/agent.md`, 4.4.
+5. **The words:** these are binding.
+
+   In `coding.txt`:
+
+   > Report in finish's body what your brief asks you to report, whole; with nothing asked, summarize the change there. If it can't fit the bound your contract names, that's no question: cut what can be read elsewhere, naming the file or test instead of quoting it, say under Left what you cut, and finish. Message your change only in the question form.
+
+   At the end of `foreman.txt`'s `finish:` line:
+
+   > The producer finishes with form change, its report in the field body within its contract's bound; name no other form.
+
+   Update `the_coders_words_put_its_report_in_finish` and `the_foremans_words_name_the_three_verdicts`.
+6. **The measure:** in `room.rs`, the `body` rule takes `charter::CHANGE_BODY_MAX`, and `title` keeps `max`. Both print four digits, so `host_part`'s tests should hold unchanged. If one moves, read why before changing it.
+7. **Tests that bite:** break each rule once by hand and see its test fail, as the implementer's text says.
+8. **Narrow runs:**
+   - `heavy cargo nextest run -p jig-protocol-charter --lib`
+   - `heavy cargo nextest run -p jig-protocol-worker-agents --lib`
+   - `heavy cargo nextest run -p temper-engine-domain-forge --lib -E 'test(a_report_at_the_bodys_bound)'`
+   - `temper-service`'s stock tests, by name
+   - stage-one's `judge` tests
+9. **A change of meaning runs its readers' tests.** This widens what a change's `body` may hold. Before the push, run fmt, `old_forms.py` and clippy as your text says, naming every package you changed. Then run the focused tests of `jig-protocol-charter`, `jig-protocol-worker-agents`, `temper-engine-smith`, `temper-engine-domain-forge`, `temper-worker-domain` and `temper-service`, and `heavy cargo check --tests` on `jig-protocol-charter`'s other direct dependents. Commit and push.
+
+## Report
+
+As your text says, and also:
+
+- the worst change's encoded length, and whether `CHANGE_BODY_MAX` stayed 3584
+- how each new test failed before the fix
+- which copies of the words changed, and how

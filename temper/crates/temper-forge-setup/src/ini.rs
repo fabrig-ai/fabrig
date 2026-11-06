@@ -82,6 +82,7 @@ pub fn text(
     };
     let registration = match sign_in {
         Some(FirstSignIn::MakesAccount) => b"ALLOW_ONLY_EXTERNAL_REGISTRATION = true\n[oauth2_client]\nENABLE_AUTO_REGISTRATION = true\nUSERNAME = preferred_username\nACCOUNT_LINKING = login\n".as_slice(),
+        Some(FirstSignIn::LinksByName) => b"ALLOW_ONLY_EXTERNAL_REGISTRATION = true\n[oauth2_client]\nENABLE_AUTO_REGISTRATION = true\nUSERNAME = preferred_username\nACCOUNT_LINKING = auto\n",
         Some(FirstSignIn::LinksOnly) => b"[oauth2_client]\nENABLE_AUTO_REGISTRATION = false\nUSERNAME = preferred_username\nACCOUNT_LINKING = login\n",
         None => b"",
     };

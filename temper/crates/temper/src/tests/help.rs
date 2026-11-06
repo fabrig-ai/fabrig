@@ -93,6 +93,7 @@ fn server_walk_says_when_a_forges_sign_in_meta_appears() {
 fn coding_run_agent_document() -> serde_json::Value {
     let port = |number| core::num::NonZeroU16::new(number).expect("fixed nonzero port");
     let facts = temper_init::Facts {
+        sign_in: false,
         binary: b"/opt/temper/bin/temper",
         git: Some(b"/usr/bin/git"),
         claude: Some(b"/opt/temper/bin/claude"),

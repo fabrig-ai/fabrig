@@ -71,11 +71,16 @@ impl Issuer {
             return Err(Error::Client);
         }
         for (index, client) in settings.clients.iter().enumerate() {
-            if client.id.is_empty() || client.secret.is_empty() {
+            if client.id.is_empty() {
                 return Err(Error::Client);
             }
             bounded(&client.id, limits.client_bytes)?;
-            bounded(client.secret.expose(), limits.client_bytes)?;
+            if let Some(secret) = &client.secret {
+                if secret.is_empty() {
+                    return Err(Error::Client);
+                }
+                bounded(secret.expose(), limits.client_bytes)?;
+            }
             for &byte in &client.id {
                 if !(0x21..=0x7e).contains(&byte) {
                     return Err(Error::Client);

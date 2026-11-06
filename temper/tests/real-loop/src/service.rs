@@ -102,8 +102,10 @@ impl ServiceHost {
         github: Option<crate::github::Fixture>,
         issuer: Option<SocketAddr>,
     ) -> Self {
-        let clients_listener =
-            github.map(|_| TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).expect("reserved clients listener"));
+        let clients_listener = github.map(|_| {
+            let [listener] = temper_fixtures::ports::reserve::<1>(&[]);
+            listener
+        });
         let clients =
             clients_listener.as_ref().map(|listener| listener.local_addr().expect("reserved clients address"));
         let forge = (fixture.is_none() && github.is_none())

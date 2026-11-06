@@ -162,3 +162,12 @@ fn the_longest_fetched_line_fits_the_least_line_bound() {
     assert!(line.len() <= LEAST_LINE_BYTES);
     assert_eq!(line.as_ref(), b"fetched 65535 forgejo 18446744073709551615 18446744073709551615\n");
 }
+
+#[test]
+fn a_source_failure_fits_the_least_pipe_line_bound() {
+    let why = Box::from([b'x'; 1024]);
+    let line = pipe::source(u16::MAX, &temper_forge_setup::sign_in::Source::Failed(why));
+    assert!(line.len() <= 64);
+    assert!(line.starts_with(b"source 65535 failed "));
+    assert!(line.ends_with(b"\n"));
+}

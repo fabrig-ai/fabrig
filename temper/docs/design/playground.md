@@ -358,3 +358,6 @@ running (decided 2026-11-03).
   box's playground taking every story;** **journeys recorded on the
   browser playground,** with no box behind it.
 - **Phones,** once desktop browsers are well supported.
+- **The client's placeholder on its page,** in place of the frame's line
+  (section 7; `client/browser.md`, 2.5): story A's to take, once its wait
+  asks for more than a line.

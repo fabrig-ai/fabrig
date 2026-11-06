@@ -11,6 +11,7 @@ pub(crate) struct Memory {
     requests: Queue<io::Request>,
     connected: BTreeSet<Token>,
     refused: bool,
+    connected_once: bool,
 }
 impl Memory {
     pub(crate) fn new(engine: Addr, limits: &jig_client_shell_native::Limits) -> Self {
@@ -21,6 +22,7 @@ impl Memory {
             requests: Queue::uncapped(),
             connected: BTreeSet::new(),
             refused: false,
+            connected_once: false,
         }
     }
     pub(crate) fn down(&mut self, now: Time, request: client::Request) {
@@ -36,6 +38,7 @@ impl Memory {
         match &event {
             io::Event::Connected { owner } => {
                 self.connected.insert(*owner);
+                self.connected_once = true;
             }
             io::Event::Failed { owner, error: io::Error::Refused } if !self.connected.contains(owner) => {
                 self.refused = true;
@@ -57,6 +60,10 @@ impl Memory {
             | io::Event::Shutdown { .. } => {}
         }
         self.transport.event(now, event);
+    }
+    /// A connection taken at any time during this call (client/tools.md, 6.3).
+    pub(crate) fn connected(&self) -> bool {
+        self.connected_once
     }
     /// A connection the kernel refused, before any was made (client/tools.md, 6.3).
     pub(crate) fn refused(&self) -> bool {

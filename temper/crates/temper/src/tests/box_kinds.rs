@@ -264,3 +264,20 @@ fn unreadable_group_files_keep_their_refusals() {
         );
     }
 }
+
+#[test]
+fn sign_in_keeps_serve_before_the_restored_group_with_first_steps() {
+    use temper_forge_setup::{Kind, Step, machine::BoxKind};
+    let dirs = super::configuration::directories(std::path::Path::new("/fixture"));
+    let document = super::configuration::init_document();
+    for first in [Vec::new(), vec![Step::new(b"first".as_slice().into(), Box::new([]), Kind::Once)]] {
+        let (steps, _) =
+            crate::box_command::configuration_steps(&dirs, &document, first.into_boxed_slice()).expect("box steps");
+        let owned = steps.asked.iter().find(|group| group.kind == Some(BoxKind::Owned)).expect("owned slot");
+        assert_eq!(
+            usize::try_from(owned.before).expect("step index"),
+            steps.always.len(),
+            "serve precedes discovery on restart"
+        );
+    }
+}
