@@ -1,9 +1,12 @@
 //! A backend application uses only the public client and scripted peer.
 use jig_client::{self as client, contract as c};
+use jig_client_kit::PARTY;
 use jig_client_scripted_engine::{self as peer, Engine};
 use jig_client_test_records::settings as values;
 use skein_lib::{Duration, List, Queue, RequestEnvelope, Time, Wall};
 use std::collections::VecDeque;
+
+const SIGN_IN: u64 = 11;
 
 struct Story {
     client: client::Client,
@@ -23,16 +26,18 @@ impl Story {
                         client::UnlinkedRequest::Told { told } => self.told.push(told),
                         client::UnlinkedRequest::Down { down } => match down {
                             client::Down::Open { watch, subject: client::Watchable::Jig(subject) } => {
-                                self.engine.open(self.now, 11, watch, subject).expect("valid public story fixture");
+                                self.engine
+                                    .open(self.now, SIGN_IN, watch, subject)
+                                    .expect("valid public story fixture");
                             }
                             client::Down::Continue { watch, .. } => self.engine.taken(watch),
                             client::Down::Close { watch } => self.engine.close(self.now, watch),
                             client::Down::Read { read, what: client::Readable::Jig(what) } => {
-                                self.engine.read(self.now, 11, read, what).expect("valid public story fixture");
+                                self.engine.read(self.now, SIGN_IN, read, what).expect("valid public story fixture");
                             }
                             client::Down::Send { attempt, key, request: client::Ask::Jig(request), value: None } => {
                                 self.engine
-                                    .send(self.now, Wall::EPOCH, 11, key, attempt, *request)
+                                    .send(self.now, Wall::EPOCH, SIGN_IN, key, attempt, *request)
                                     .expect("valid public story fixture");
                             }
                             client::Down::Save { .. } | client::Down::Erase { .. } => {}
@@ -87,14 +92,14 @@ impl Story {
 fn an_owner_reads_settings_and_history_and_changes_them_under_a_key() {
     let mut limits = jig_client_world::test::limits().client;
     limits.domain.rows = 8;
-    let mut frame = jig_client_world::stories::frame(7);
+    let mut frame = jig_client_world::stories::frame(PARTY);
     frame.deployment_role = Some(c::HeldRole::Owner);
     let mut setup = peer::Script::default();
     setup.bounds.rows = 8;
     setup.bounds.document_bytes = 65536;
     setup.bounds.commit_delay = Duration::ZERO;
-    setup.truth.frames.insert(7, frame);
-    setup.truth.sign_ins.insert(11, 7);
+    setup.truth.frames.insert(PARTY, frame);
+    setup.truth.sign_ins.insert(SIGN_IN, PARTY);
     setup.truth.settings = Some(values::settings_document());
     let mut settings_values = values::settings_values().into_boxed().into_vec();
     setup.truth.setting_values.push(c::SettingDocument {
@@ -110,14 +115,14 @@ fn an_owner_reads_settings_and_history_and_changes_them_under_a_key() {
     next.newest = 7;
     let mut change = values::settings_change();
     setup.rules.push(peer::Rule {
-        party: Some(7),
+        party: Some(PARTY),
         ask: c::Ask::ChangeSettings(change.clone()),
         answer: c::Answer::Done(c::Outcome::SettingsChanged(c::OutcomeSettingsChanged { revision: 7 })),
         changes: vec![peer::Change::Settings(next)],
     });
     change.against = 4;
     setup.rules.push(peer::Rule {
-        party: Some(7),
+        party: Some(PARTY),
         ask: c::Ask::ChangeSettings(change.clone()),
         answer: c::Answer::Refused { refusal: c::Refusal::Stale(c::RefusalStale { newest: 7 }), at: None },
         changes: vec![],
