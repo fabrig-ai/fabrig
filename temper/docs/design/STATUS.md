@@ -95,9 +95,14 @@ asks a run to name no commit off its branch (`domain/agent.md`). A head already 
 takes its base first, a receipt says what it pushed, a producer is told which task to ask
 and a resume holding the landing tip makes no merge, but no record shows the next landing
 plan on a real deployment, which the `landing-fixes` request has as their proof. The first
-saves a change's wait and not a run the forge started (`domain/forge.md`), and a resume on
-saved work whose save changes nothing leaves the engine's saved set
-(`domain/worker.md`, `protocol/channel.md`). That request's other items stand open: a
+saves a change's wait and not a run the forge started (`domain/forge.md`). A resume on
+saved work keeps that work when its save lands nothing. A producer's clean merge is
+committed before its run; a conflict's start, the help page and stock charters explain
+its staged files. The parked producer's proof uses fake git and disk, with a delivery
+as its first commit; the `resume-told` request's real-checkout proof and deployment
+replay are not on record. Parking with markers still loses that run's own edits,
+while earlier saved work stands (`domain/worker.md`, `protocol/channel.md`).
+The `landing-fixes` request's other items stand open: a
 task's saved work outlives its close and a repair's brief with no cause is untraced
 (`domain/forge.md`), a refused worker hears no why (`domain/worker.md`), and a unit test's
 port reservation flakes (`domain/testing.md`). A green head ends a CI repair

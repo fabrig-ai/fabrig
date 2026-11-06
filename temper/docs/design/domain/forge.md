@@ -3401,6 +3401,7 @@ whole.
   leave the bound untrue of update attempts. Default: it counts; the figure is the
   user's.
 - **A report's head past a merge** (8.11): a next producer's start that merges a
-  tip it lacks makes a new head at its first push, so a report written before names
-  an older one, where a tip it contains no longer does. Default: so; the head
-  delivered names what is on the branch (`agent.md`, section 6).
+  tip it lacks makes a new head before its run if clean, or at its first push or
+  save once its conflicts are settled. A report written before that merge names
+  an older head; a contained tip makes no new one. Default: so; the head delivered
+  names what is on the branch (`agent.md`, section 6).
