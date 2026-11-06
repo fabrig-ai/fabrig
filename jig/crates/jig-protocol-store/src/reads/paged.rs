@@ -40,6 +40,9 @@ pub(super) fn activity(
     task: u64,
     spent: &mut Spent,
 ) -> Result<reads::Loaded, Failure> {
+    if !range.backwards {
+        return Ok(empty());
+    }
     let Some(owner) = joins::owner(store, task, spent)? else { return Ok(empty()) };
     let capacity = spent.rows.max(1).min(store.limits.store.page.bytes);
     let before = activity_before(range, task)?;

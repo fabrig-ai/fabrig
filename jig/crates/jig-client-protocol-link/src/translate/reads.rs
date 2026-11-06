@@ -38,6 +38,17 @@ pub fn read(read: &c::Read, limits: &w::Limits) -> Result<w::Read, w::Problem> {
                 from: *from,
             },
         )?),
+        c::Read::ActivityBeside { task, position, side } => w::Read::ActivityBeside(w::ReadActivityBeside::new(
+            limits,
+            w::ReadActivityBesideParts {
+                task: *task,
+                position: *position,
+                side: match side {
+                    c::Side::Earlier => w::ActivitySide::Earlier,
+                    c::Side::Later => w::ActivitySide::Later,
+                },
+            },
+        )?),
         c::Read::Me => w::Read::Me,
         c::Read::Task { task } => w::Read::Task(w::ReadTask::new(limits, w::ReadTaskParts { task: *task })?),
         c::Read::Proposal { proposal } => w::Read::Proposal(w::ReadProposal::new(

@@ -34,7 +34,7 @@ pub use settings::{SettingsAnswer, SettingsRead};
 pub use vocabulary::{
     Answer, Cursor, Ended, EndedGroup, EndedValue, Filter, Group, Loaded, Page, PageRow, PageTurn, Position, Range,
     Read, RevisionAnswer, RevisionEdit, RevisionItemHead, RevisionRow, RevisionsPage, Row, Scope, SettingDocument,
-    TaskPage, TurnFailure, UnjoinedTurn, Why,
+    Side, TaskPage, TurnFailure, UnjoinedTurn, Why,
 };
 pub(crate) use watches::start_watch;
 use watches::watch_loaded;
@@ -173,7 +173,7 @@ pub(crate) fn scope(read: &Read) -> Option<Scope> {
         Read::Turn { task, attempt, turn } => Some(Scope::Turn { task: *task, attempt: *attempt, turn: *turn }),
         Read::EndedDelegates { task, .. } => Some(Scope::EndedDelegates { task: *task }),
         Read::History { task, subtree, .. } => Some(Scope::History { task: *task, subtree: *subtree }),
-        Read::Activity { task, .. } => Some(Scope::Activity { task: *task }),
+        Read::Activity { task, .. } | Read::ActivityBeside { task, .. } => Some(Scope::Activity { task: *task }),
         Read::Inbox { group, filter, .. } => Some(Scope::Inbox { group: *group, filter: *filter }),
         Read::Tasks { query, .. } => Some(Scope::Tasks { query: *query }),
         Read::Notes { project, .. } => Some(Scope::Notes { project: *project }),
@@ -202,7 +202,8 @@ fn cursor(read: &Read) -> Option<&Cursor> {
         | Read::ScopedNotes { from, .. }
         | Read::Spend { from, .. } => from.as_ref(),
         Read::Activity { before, .. } => before.as_ref(),
-        Read::Frame
+        Read::ActivityBeside { .. }
+        | Read::Frame
         | Read::TaskText { .. }
         | Read::Task { .. }
         | Read::Proposal { .. }
@@ -244,6 +245,7 @@ fn subject(read: &Read, party: u64) -> Option<Subject> {
         | Read::EndedDelegates { .. }
         | Read::History { .. }
         | Read::Activity { .. }
+        | Read::ActivityBeside { .. }
         | Read::Notes { .. }
         | Read::ScopedNotes { .. }
         | Read::Spend { .. }
@@ -300,6 +302,7 @@ fn refused_application(reply: ReplyTo, read: &Read, why: Why) -> Queue<Request> 
         | Read::EndedDelegates { .. }
         | Read::History { .. }
         | Read::Activity { .. }
+        | Read::ActivityBeside { .. }
         | Read::Inbox { .. }
         | Read::Tasks { .. }
         | Read::Notes { .. }
@@ -353,6 +356,7 @@ pub(crate) fn start(core: &mut Core, env: &Env<Limits>, reply: ReplyTo, sign_in:
         | Read::EndedDelegates { .. }
         | Read::History { .. }
         | Read::Activity { .. }
+        | Read::ActivityBeside { .. }
         | Read::Inbox { .. }
         | Read::Tasks { .. }
         | Read::Notes { .. }
@@ -389,6 +393,7 @@ pub(crate) fn start(core: &mut Core, env: &Env<Limits>, reply: ReplyTo, sign_in:
         | Read::EndedDelegates { .. }
         | Read::History { .. }
         | Read::Activity { .. }
+        | Read::ActivityBeside { .. }
         | Read::Inbox { .. }
         | Read::Project { .. }
         | Read::Notes { .. }
@@ -420,6 +425,7 @@ fn bounded_query(read: &Read, limits: &Limits) -> bool {
         | Read::EndedDelegates { .. }
         | Read::History { .. }
         | Read::Activity { .. }
+        | Read::ActivityBeside { .. }
         | Read::Inbox { .. }
         | Read::Tasks { .. }
         | Read::Project { .. }
@@ -449,7 +455,39 @@ fn read_start(read: &Read, party: u64) -> Option<ReadStart> {
     }
     let target = scope(read);
     let mut after_live = None;
-    let mut after_store = None;
+    let mut after_store = match read {
+        Read::ActivityBeside { task, position, .. } => {
+            Some(Position::Owner(crate::Key::Tasks(jig_domain_tasks::Key::Activity {
+                task: *task,
+                position: *position,
+            })))
+        }
+        Read::Frame
+        | Read::TaskText { .. }
+        | Read::Task { .. }
+        | Read::Proposal { .. }
+        | Read::Escalation { .. }
+        | Read::Question { .. }
+        | Read::PersonTask { .. }
+        | Read::Result { .. }
+        | Read::Reply { .. }
+        | Read::Turn { .. }
+        | Read::EndedDelegates { .. }
+        | Read::History { .. }
+        | Read::Activity { .. }
+        | Read::Inbox { .. }
+        | Read::Tasks { .. }
+        | Read::Project { .. }
+        | Read::Notes { .. }
+        | Read::ScopedNotes { .. }
+        | Read::Spend { .. }
+        | Read::Settings
+        | Read::Setting { .. }
+        | Read::Revision { .. }
+        | Read::Revisions { .. }
+        | Read::Deployment
+        | Read::Application { .. } => None,
+    };
     let mut stored = false;
     match cursor(read) {
         Some(Cursor::Live { scope, after, store_after }) => {
@@ -472,6 +510,7 @@ fn read_start(read: &Read, party: u64) -> Option<ReadStart> {
     Some(ReadStart { after_live, after_store, stored })
 }
 
+#[expect(clippy::too_many_lines, reason = "admission and owner range allocation share the read and its reply")]
 fn start_jig(
     core: &mut Core,
     env: &Env<Limits>,
@@ -549,8 +588,33 @@ fn start_jig(
     }
     let range = Range {
         party,
-        backwards: match cursor(&read) {
-            Some(Cursor::Live { .. } | Cursor::Store { .. }) | None => backwards(&scope),
+        backwards: match &read {
+            Read::ActivityBeside { side, .. } => *side == Side::Earlier,
+            Read::Frame
+            | Read::TaskText { .. }
+            | Read::Task { .. }
+            | Read::Proposal { .. }
+            | Read::Escalation { .. }
+            | Read::Question { .. }
+            | Read::PersonTask { .. }
+            | Read::Result { .. }
+            | Read::Reply { .. }
+            | Read::Turn { .. }
+            | Read::EndedDelegates { .. }
+            | Read::History { .. }
+            | Read::Activity { .. }
+            | Read::Inbox { .. }
+            | Read::Tasks { .. }
+            | Read::Project { .. }
+            | Read::Notes { .. }
+            | Read::ScopedNotes { .. }
+            | Read::Spend { .. }
+            | Read::Settings
+            | Read::Setting { .. }
+            | Read::Revision { .. }
+            | Read::Revisions { .. }
+            | Read::Deployment
+            | Read::Application { .. } => backwards(&scope),
         },
         scope,
         after: after_store,

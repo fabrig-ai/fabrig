@@ -3,7 +3,6 @@
 2026-11-06. Where jig's code lags or departs from [contract.md](contract.md).
 Unlisted sections have no known gap.
 
-- **Not yet:** 6: *A page beside a line*: the read, its wire and its answers.
 - **Departs:** 4: answers give typed lacking facts, how an object ended,
   and who decided it and how; the client wire carries these fields, but
   `jig-protocol-engine-clients/src/translate/refusals.rs`, `lack` and
