@@ -15,9 +15,17 @@ Sections 6.4 and 6.5.3 have no gap in scripted note-backed proposals and single-
   retained webhooks port in use during the held-login guard's restart and
   a stalled turn landing; both passed alone. The causes need investigation
   before raising concurrency (`../../plan/test-speed/figures/tier-threads.md`).
-  2.6: the goal and away walks
-  keep the forge's 5 s poll, and home's status walk stays slow on the short
-  paces (`crates/temper/tests/fake_backends/walk`).
+  2.6: the fake-box walks retain
+  the stock charter's 10 s wait on their single worker; Away also waits
+  through two designed 5 s Undo holds, and the plan's brief waits for the
+  chat resumed on landing to release that worker, after its deliberate
+  4 s sitting gap. These waits have no cheap repair without changing what
+  the walks show. Home's status walk still costs about 19 s, including
+  that 10 s wait and four client visits; the plan also provisions and
+  restarts an owned Forgejo and runner. Their shared forge paces are 1 s
+  with 100 ms hints; the measured ranges, remaining costs and rejected
+  goal/Away pace change are in
+  `temper/docs/plan/test-speed/figures/walk-waits.md`.
 - **Not yet:** 2.4: GitHub's real-loop stories 3, 4, 5, 7 and 8; 1, 2 and 6
   run (`tests/real-loop/tests/suite/github_land.rs`, `github.rs`). 2.4:
   the twins' documents among `temper-playground`'s stories: B0's and
