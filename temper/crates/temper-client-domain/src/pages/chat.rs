@@ -373,6 +373,17 @@ impl Chat {
             } else if working {
                 self.draft = None;
             }
+            if lowest.is_none()
+                && let Some(after) = &page.after
+            {
+                self.draft_asking.answered();
+                self.draft_asking.ask(
+                    self.draft_read,
+                    c::Read::Notes { scope, description: None, after: Some(after.clone()) },
+                    out,
+                );
+                return;
+            }
         } else if super::activity::read_end(client, &page).transient() {
             self.draft_asking.ended(now);
             return;

@@ -1691,3 +1691,34 @@ fn a_refused_add_keeps_the_pane_and_its_words() {
     assert_eq!(f.chat.outcome_kind, Some(Sending::Message));
     assert!(f.chat.pending.is_empty());
 }
+
+#[test]
+fn a_page_of_working_notes_does_not_hide_a_later_document() {
+    let mut f = f::opened();
+    take_draft_reads(&mut f);
+    let mut work = draft_note(1, 1, b"Internal working memory");
+    work.description = f::document_text(b"work: settings");
+    let jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(mut page))) = notes_page(&[work]) else {
+        panic!("notes page")
+    };
+    let after = c::Cursor::new(Box::from(*b"next"), 4).unwrap();
+    page.after = Some(after.clone());
+    draft_answer(&mut f, jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(page))));
+    assert!(f.chat.draft.is_none());
+    assert_eq!(
+        f.out.pop(),
+        Some(Request::Client(Event::Read {
+            handle: draft_handle(&f.chat),
+            read: Readable::Jig(c::Read::Notes {
+                scope: c::NoteScope::Task { project: fixtures::PROJECT, task: f::TASK },
+                description: None,
+                after: Some(after),
+            }),
+        })),
+        "continue past working notes rather than claiming the chat has no document"
+    );
+    draft_answer(&mut f, notes_page(&[draft_note(2, 1, b"Visible document")]));
+    assert_eq!(f.chat.draft.as_ref().unwrap().note, 2);
+    assert_eq!(f.chat.next_deadline(), None);
+    assert!(f.out.is_empty());
+}
