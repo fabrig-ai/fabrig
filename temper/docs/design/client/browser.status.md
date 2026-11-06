@@ -13,6 +13,11 @@ a project went public never shows; a restart empties the ended-goal history
   board shows its Landings section with a queue or a retained landing,
   where the request says only with a queue: the plan's `public-page`
   contract asks for either, and records no reason for widening that rule.
+
+- **Not yet:** 7.2: `accounts-try-stopped` and the trial's own `welcome-ready-*`
+  samples (starting, answering, answered, stopped-starting, stopped-answering,
+  waiting, waited, plan and key) are not in the gallery. Its Ready samples
+  cover the host's check alone; the view's tests draw the trial states.
 - **Not yet:** 8.4: the retained public row geometry story at 1440 px and 420 px
   (`public_board_and_task_lines_are_readable_at_desktop_and_phone_widths`)
   is compiled, with the current rows' executor and spend rules. Its runtime

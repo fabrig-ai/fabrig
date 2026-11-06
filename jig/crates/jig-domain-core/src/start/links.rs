@@ -11,7 +11,9 @@ impl Core {
         out: &mut skein_lib::Queue<tasks::Request>,
     ) -> bool {
         let role = self.people.role(context.requester, context.project);
-        let Some(holder) = self.escalation_recipient(&env.limits, context, role) else { return false };
+        let Some(holder) = self.escalation_recipient(&env.limits, context, role) else {
+            return context.project == people::DEPLOYMENT;
+        };
         match context.escalation {
             tasks::Escalation::Waiting { holder: old, .. } if old == holder => return true,
             tasks::Escalation::Waiting { revision: u64::MAX, .. } => return false,

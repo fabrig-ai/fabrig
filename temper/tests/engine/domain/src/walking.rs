@@ -957,6 +957,7 @@ impl World {
             | Delivery::Application { .. }
             | Delivery::Forges { .. }
             | Delivery::ForgeDocument { .. }
+            | Delivery::Trials { .. }
             | Delivery::Panel { .. }
             | Delivery::WebReply { .. }
             | Delivery::CarriedUnused { .. }

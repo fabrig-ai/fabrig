@@ -598,6 +598,7 @@ fn world_in_layout(
                         | w::Watch::Landings(_)
                         | w::Watch::Decided(_)
                         | w::Watch::Status(_)
+                        | w::Watch::Trials
                         | w::Watch::Changes(_)
                         | w::Watch::Dismissed => {
                             continue;
@@ -3176,7 +3177,7 @@ fn activity(w: World, task: u64) -> c::ActivityPage {
     c::ActivityPage { rows, after: None, before: None, cut: false }
 }
 #[expect(clippy::too_many_lines, reason = "literal account and source facts from the mockup worlds")]
-fn accounts(w: World, then: Then) -> c::Accounts {
+pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
     let mut rows = List::with_capacity(2);
     match w {
         Reference => {

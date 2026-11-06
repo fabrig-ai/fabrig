@@ -921,10 +921,10 @@ have one, an engine alone none. Each:
   `client/domain/contract.md`, 7.2; jig's `protocol/client.md`, section
   13). The deployment admits `clients.streams` clients at once, each
   holding up to its own watches, `me`'s included, and temper's shipped
-  clients hold at most 17 (`../domain/root.md`, section 10). So:
-  - *a stream's room* is 17, `WATCHES_PER_STREAM`, one shipped client's;
-  - *the deployment's room* is `clients.streams` times that: 136 at
-    `temper init`'s 8 streams (13.4), 34 at the small profile's 2;
+  clients hold at most 19 (`../domain/root.md`, section 10). So:
+  - *a stream's room* is 19, `WATCHES_PER_STREAM`, one shipped client's;
+  - *the deployment's room* is `clients.streams` times that: 152 at
+    `temper init`'s 8 streams (13.4), 38 at the small profile's 2;
   - *a party's room* is the deployment's, since a person's tabs and their
     `temper ctl` calls are one party and may hold every stream.
     `views.watchers_per_party` never bites below `views.watchers` here:
@@ -936,7 +936,7 @@ have one, an engine alone none. Each:
   stream's room to temper's client's watches, and a test of the limits
   holds the other two to `clients.streams`.
 - **The rooms have no setting of their own.** More room is more streams,
-  `clients.streams`, and the 17 is the shipped clients' bound. An
+  `clients.streams`, and the 19 is the shipped clients' bound. An
   `engine.limits.overrides` naming `views.watchers` or
   `views.watchers_per_party` is refused at the start, naming
   `clients.streams`, and `temper help limits-engine` lists neither: the
@@ -958,12 +958,12 @@ have one, an engine alone none. Each:
     documents' bounds. No heap sum admits the root (`../domain/root.md`,
     section 10), so no figure at the start moves. The engine's world
     measures a full room (`temper/tests/engine/domain/tests/suite/memory.rs`).
-    With one or eight streams the empty root held 4,742 heap bytes; full rooms
-    of 17 and 136 held another 14,112–15,256 and 114,720–126,336 bytes after
+    With one or eight streams the empty root held 4,742 heap bytes; measured rooms
+    of 17 and 136 watches held another 14,112–15,256 and 114,720–126,336 bytes after
     delivery, respectively, and one marking commit peaked at 116,816 and
     452,176 bytes in the engine world including its driver and fake store.
-  - *The journal's door:* a full room puts at most 136 deliveries behind
-    one commit, 408 behind `root.journal.commits`' 3, within
+  - *The journal's door:* a full room puts at most 152 deliveries behind
+    one commit, 456 behind `root.journal.commits`' 3, within
     `root.journal.deliveries`' 512. Past that the watermark paces new
     work, and nothing fails.
   - *The store:* its bounds don't follow the rooms. A watch holds no row,
@@ -1881,6 +1881,7 @@ init`'s document carries none of them (`setup.md`, 8.3).
 | charter 4, a reviewer's | its instructions in the `stock` module's `review.txt`; charter 2's models, hosts and run, so 800 turns and 8 hours; the inspect family and the forge's reads alone, no modify, no shell, no agents, no delegation; a review's verdict as its contract (`../domain/forge.md`, 8.3) |
 | charter 6, a foreman's | as charter 4, with the `stock` module's `foreman.txt`: settle the question its brief carries from the change's words, the design in its checkout and the change's pushed head, read through the forge's reads; `answer` only what they settle, `finish` where the work done holds and the rest is the asker's Left list, naming only the form `change`, the report in its `body`, `escalate` with its reasons otherwise, never guessing past them; a foreman's verdict as its contract (`../domain/forge.md`, 8.11) |
 | charter 9, the status agent's | the instructions in the `stock` module's `status.txt`: the few lines at the top of a project's Home, from the facts in its task (`../domain/forge.md`, 5.7); charter 1's models and hosts; a run of at most 4 turns and 300 s, a reserve of 1 turn and 60 s; no inspect, modify, shell or agents, and no host family. The forge's procedure delegates it, its authority holding no tools, grants, notes or delegation, and its run no workspace, so what it can do is finish; the constant `STATUS_CHARTER` names it, as `FOREMAN_CHARTER` does, no setting of kind 3. Numbered past the reference's charters 5, 7 and 8 (13.9) |
+| charter 10, a trial's | the instructions in the `stock` module's `trial.txt`, one word and nothing else (`../domain/trial.md`, 2); charter 1's models and hosts, so that it selects as a new chat does; a run of at most 2 turns and 120 s, a reserve of 1 turn and 60 s, so one working turn, jig's check holding a run above its reserve; no resume; no inspect, modify, shell or agents, and no host family. It has no output bound of its own, a charter having none: its words ask for one word, and its contract is a report of at most 64 bytes. The root makes its task, in no project (jig's `domain/authority.md`, 6.1), and no policy's delegation names it; the constant `TRIAL_CHARTER` names it, as `STATUS_CHARTER` does, no setting of kind 3. Numbered past the status agent's |
 | template 1, a chat | jig's chat, run by charter 1; its report the deployment's `tasks.result_bytes`, read at each start as C is (below) |
 | charter 3, the configuring agent's | as charter 1, with the `stock` module's `configuring.txt` (`../domain/agent.md`, 8.1: each sentence of a description sorted into structure, which becomes settings, and rules, which stay text runs read; a rule offered as structure where the settings can say it, the person choosing; one question at a time until it can propose, then one proposal) and no sub-agents (`agents` false); its models the configuring agent's order (below); its `tools` the settings, read, note and recall families, 1,920, so that its runs alone in the stock are offered jig's `settings` family (jig's `domain/engine.md`, 7.3), as `settings` and `propose_settings`, beside the forge's reads, `read_docs` and its document (`../domain/agent.md`, 8.3); no workspace (it names no repository), and its instructions delegate nothing and effect nothing |
 | template 2, a goal | jig's goal, its executor chosen; its report as template 1's |
@@ -1910,10 +1911,10 @@ init`'s document carries none of them (`setup.md`, 8.3).
   and delivers through smith's own `deliver`, never delegating or
   effecting; charter 4, the reviewer's, and charter 6, the foreman's,
   name the read family alone, as
-  its row says; charter 9, the status agent’s, names none; charter 3 names those its row lists (settings and
+  its row says; charter 9, the status agent’s, and charter 10, a trial’s, name none; charter 3 names those its row lists (settings and
   reads, its document's note and recall), not charter 1's with settings added. As numbers, jig's
   `ToolFamilies` bits: charter 1 1,023, every family but settings;
-  charter 2 514; charter 3 1,920; charters 4 and 6 512.
+  charter 2 514; charter 3 1,920; charters 4 and 6 512; charters 9 and 10 0.
   smith's host part counts a run's brief beside its tools, so a brief
   is rendered within the room its charter leaves. At `temper init`'s
   models the host part's bound is that of their smallest window, which

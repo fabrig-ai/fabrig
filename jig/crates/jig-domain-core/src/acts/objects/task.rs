@@ -103,6 +103,10 @@ pub(crate) fn write_in(
 ) -> Result<(), people::Refusal> {
     let row = admission.task(number).ok_or(people::Refusal::Unknown)?;
     let held = core.people.role(party, row.project);
+    // Project 0's task is the application's (jig/docs/design/domain/authority.md, 6.1).
+    if row.project == people::DEPLOYMENT {
+        return Err(people::Refusal::Role { held });
+    }
     standing::role(core, row.project, held, Act::Message)?;
     let any = match held {
         Some(people::Role::Owner | people::Role::Maintainer) => true,
