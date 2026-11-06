@@ -332,6 +332,7 @@ fn reply_counts_and_source_cut_survive_both_inbox_documents() {
             let mut updates = List::with_capacity(1);
             updates
                 .push(contract::InboxEntry {
+                    projects: List::with_capacity(0),
                     reply: Some(Box::new(line.clone())),
                     task: contract::TaskLink::Live(line.chip.clone()),
                     project: Some(PROJECT),

@@ -3,7 +3,6 @@
 2026-11-06. Where jig's code lags or departs from [contract.md](contract.md).
 Unlisted sections have no known gap.
 
-- **Not yet:** 5.1: an inbox entry and a proposal have no `projects`, and no entry has `shows_in`.
 - **Departs:** 4: answers give typed lacking facts, how an object ended,
   and who decided it and how; the client wire carries these fields, but
   `jig-protocol-engine-clients/src/translate/refusals.rs`, `lack` and
