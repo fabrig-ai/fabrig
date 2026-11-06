@@ -150,6 +150,8 @@ pub enum State {
     SubmitsOnEnter,
     /// A disclosure folds on an outside press or Escape.
     FoldsAway,
+    /// The log's last entry is not its list's last.
+    Continues,
 }
 
 /// A token from an owner's closed style set.
@@ -300,6 +302,7 @@ pub struct Node {
     pub placeholder: Option<Box<[u8]>>,
     pub entry: Option<EntryKind>,
     pub focus: Option<u64>,
+    pub end_request: Option<u64>,
     pub count: Option<u32>,
     /// A list's order: its items are numbered, and this is the first one's number (ui.md, 3.2).
     pub ordered: Option<u32>,
@@ -334,6 +337,7 @@ impl Node {
             placeholder: None,
             entry: None,
             focus: None,
+            end_request: None,
             count: None,
             ordered: None,
             position: None,
@@ -366,6 +370,7 @@ impl Node {
             placeholder: None,
             entry: None,
             focus: None,
+            end_request: None,
             count: None,
             ordered: None,
             position: None,

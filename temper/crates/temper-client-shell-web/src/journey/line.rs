@@ -1,7 +1,7 @@
 //! The recording's strict byte codec (client/journeys.md, 3.2).
 use jig_client_shell_web::adapter::Heard;
 use skein_lib::{Time, Wall};
-use skein_ui::Act;
+use skein_ui::{Act, LogEdge};
 use skein_ui_web::{mapping::Primary, transport::Header};
 
 /// One line of a recording, its kind first (client/journeys.md, 3.2).
@@ -257,6 +257,13 @@ impl Text<'_> {
     }
     fn act(&mut self, act: &Act) {
         match act {
+            Act::Near { edge } => {
+                self.word(b"near");
+                self.word(match edge {
+                    LogEdge::Head => b"head",
+                    LogEdge::Foot => b"foot",
+                });
+            }
             Act::Press => self.word(b"press"),
             Act::Submit => self.word(b"submit"),
             Act::Toggle => self.word(b"toggle"),
@@ -428,6 +435,7 @@ fn hex(byte: u8) -> Result<u8, &'static str> {
         _ => Err("bad hex digit"),
     }
 }
+#[expect(clippy::too_many_lines, reason = "one ordered dispatch reads each journey record's strict fields")]
 fn read(line: &[u8]) -> Result<Line, &'static str> {
     let mut r = fields(line)?;
     let line = match r.word()?.as_ref() {
@@ -474,6 +482,13 @@ fn read(line: &[u8]) -> Result<Line, &'static str> {
         b"lost" => Line::Lost(r.count()?),
         b"act" => {
             let act = match r.word()?.as_ref() {
+                b"near" => Act::Near {
+                    edge: match r.word()?.as_ref() {
+                        b"head" => LogEdge::Head,
+                        b"foot" => LogEdge::Foot,
+                        _ => return Err("unknown log edge"),
+                    },
+                },
                 b"press" => Act::Press,
                 b"submit" => Act::Submit,
                 b"toggle" => Act::Toggle,
@@ -577,6 +592,7 @@ impl Clone for Line {
 }
 pub(super) fn clone_act(act: &Act) -> Act {
     match act {
+        Act::Near { edge } => Act::Near { edge: *edge },
         Act::Press => Act::Press,
         Act::Submit => Act::Submit,
         Act::Toggle => Act::Toggle,
