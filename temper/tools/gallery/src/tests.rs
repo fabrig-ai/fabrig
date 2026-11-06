@@ -106,6 +106,82 @@ enum Part {
 }
 const HOLDS: [Holds; samples::N] = [
     Holds {
+        name: "chat-work-done",
+        heading: "please describe how temper works",
+        parts: &[
+            Part::Described { role: Role::Disclosure, name: "Checked settings 3×, read 7 docs", description: "29 s" },
+            Part::Named { role: Role::Paragraph, name: "settings charter 1: default" },
+            Part::Named { role: Role::Paragraph, name: "read_docs settings, from 1482: Settings, on" },
+            Part::Text {
+                text: "Settings changes are proposed to an owner for acceptance; I haven’t changed anything.",
+            },
+        ],
+    },
+    Holds {
+        name: "chat-work-open",
+        heading: "please describe how temper works",
+        parts: &[Part::Named { role: Role::Disclosure, name: "Checked settings 3×, read 7 docs" }],
+    },
+    Holds {
+        name: "chat-work-running",
+        heading: "please describe how temper works",
+        parts: &[
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Checked settings 2×, read 1 doc",
+                description: "checking template 2",
+            },
+            Part::Named { role: Role::Paragraph, name: "settings template 2" },
+            Part::Absent { role: Role::Paragraph, name: "settings template 2: default" },
+        ],
+    },
+    Holds {
+        name: "chat-work-writing",
+        heading: "please describe how temper works",
+        parts: &[Part::Named { role: Role::Disclosure, name: "Checked settings 3×, read 7 docs" }],
+    },
+    Holds {
+        name: "chat-work-failed",
+        heading: "please describe how temper works",
+        parts: &[
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Checked settings 3×, read 7 docs",
+                description: "1 failed · 29 s",
+            },
+            Part::Named { role: Role::Paragraph, name: "settings charter 1: failed: not allowed" },
+        ],
+    },
+    Holds {
+        name: "chat-work-one",
+        heading: "please describe how temper works",
+        parts: &[Part::Named { role: Role::Disclosure, name: "Read the page hold" }],
+    },
+    Holds {
+        name: "chat-work-unknown",
+        heading: "please describe how temper works",
+        parts: &[Part::Named { role: Role::Disclosure, name: "read_file ×2" }],
+    },
+    Holds {
+        name: "chat-work-separated",
+        heading: "please describe how temper works",
+        parts: &[Part::Named { role: Role::Disclosure, name: "Read the page hold" }],
+    },
+    Holds {
+        name: "chat-work-empty",
+        heading: "please describe how temper works",
+        parts: &[Part::Named { role: Role::Slot, name: "Writing" }],
+    },
+    Holds {
+        name: "chat-work-reading",
+        heading: "please describe how temper works",
+        parts: &[
+            Part::Named { role: Role::Status, name: "Loading earlier messages" },
+            Part::Named { role: Role::Button, name: "Latest" },
+            Part::Absent { role: Role::Button, name: "Older" },
+        ],
+    },
+    Holds {
         name: "rail-new-menu",
         heading: "tally",
         parts: &[
@@ -2293,7 +2369,17 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
 ];
-const SPENDS: [(&str, Role, &str); 25] = [
+const SPENDS: [(&str, Role, &str); 35] = [
+    ("chat-work-done", Role::Paragraph, "70 spent · of 101472"),
+    ("chat-work-open", Role::Paragraph, "70 spent · of 101472"),
+    ("chat-work-running", Role::Paragraph, "70 spent · of 101472"),
+    ("chat-work-writing", Role::Paragraph, "70 spent · of 101472"),
+    ("chat-work-failed", Role::Paragraph, "70 spent · of 101472"),
+    ("chat-work-one", Role::Paragraph, "70 spent · of 101472"),
+    ("chat-work-unknown", Role::Paragraph, "70 spent · of 101472"),
+    ("chat-work-separated", Role::Paragraph, "70 spent · of 101472"),
+    ("chat-work-empty", Role::Paragraph, "70 spent · of 101472"),
+    ("chat-work-reading", Role::Paragraph, "70 spent · of 101472"),
     ("chat-first-run-7-T1", Role::Paragraph, "0 spent · of 20"),
     ("chat-solo-T10", Role::Paragraph, "0 spent · of 40"),
     ("chat-held-task", Role::Paragraph, "0 spent · of 40"),
@@ -2934,18 +3020,22 @@ fn goal_acts_samples_reach_the_editor_dialog_and_answered_toast() {
 }
 
 #[test]
-fn the_byline_sample_opens_only_the_model_disclosure() {
-    let sample = samples::samples().into_iter().find(|s| s.name == "chat-byline-open").unwrap();
-    let view = view(&sample);
-    let node = view
-        .tree()
-        .nodes()
-        .iter()
-        .find(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Change model"))
-        .unwrap();
-    let html = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
-    assert!(html.contains(&format!("data-node=\"{}\" open", node.id.0)));
-    assert_eq!(html.matches(" open").count(), 1);
+fn the_open_samples_open_only_their_named_disclosure() {
+    for (name, disclosure) in
+        [("chat-byline-open", "Change model"), ("chat-work-open", "Checked settings 3×, read 7 docs")]
+    {
+        let sample = samples::samples().into_iter().find(|s| s.name == name).unwrap();
+        let view = view(&sample);
+        let node = view
+            .tree()
+            .nodes()
+            .iter()
+            .find(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(disclosure.as_bytes()))
+            .unwrap();
+        let html = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
+        assert!(html.contains(&format!("data-node=\"{}\" open", node.id.0)), "{name}");
+        assert_eq!(html.matches(" open ").count(), 1);
+    }
 }
 
 #[test]
