@@ -2197,6 +2197,9 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > :is(.temper-welcome, .temper-main) .temper-welcome-check .temper-flow-progress > li.temper-welcome-check-failed::before { content: '✕' / ''; color: var(--gf-signal); }
 #app > :is(.temper-welcome, .temper-main) .temper-welcome-check > .temper-welcome-check-why { display: block; margin: 10px 0 0; color: var(--gf-ink-2); font-size: 14px; line-height: 1.55; }
 #app > :is(.temper-welcome, .temper-main) .temper-welcome-check ~ .temper-welcome-acts { align-items: center; }
+@media (max-width: 760px) {
+  #app > :is(.temper-welcome, .temper-main) .temper-welcome-check > [role=status] > .temper-flow-muted { padding-left: 0; }
+}
 
 
 #app:has(> .temper-welcome) .temper-flow-step > a:hover { color: var(--gf-ink); }
