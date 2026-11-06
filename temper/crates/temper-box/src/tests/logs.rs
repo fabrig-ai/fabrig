@@ -316,7 +316,7 @@ fn refusal_retries(diagnostic: &[u8], tail: &[u8]) {
         (8000, b"serve exited 1; restarting in 8 s\n"),
     ];
     const ATTEMPTS: usize = 6;
-    const TRUST: &[u8] = b"smith: trust roots: 148 taken, 0 skipped, 0 malformed blocks, 0 other blocks\n";
+    const TRUST: &[u8] = b"smith: trust roots: 148 taken, 0 skipped, 1 malformed blocks, 0 other blocks\n";
     let mut h = harness(Echo::None, &[], false, &limits::small());
     h.run_until_idle();
     for attempt in 0..ATTEMPTS {
@@ -355,7 +355,7 @@ fn refusal_retries(diagnostic: &[u8], tail: &[u8]) {
 fn an_older_store_refusal_is_printed_on_every_retry() {
     let tail = crate::lines::joined(&[b"    serve: ", OLDER_REFUSAL]);
     // The two trust-root lines precede this third line in the failure block.
-    let trust = b"    serve: smith: trust roots: 148 taken, 0 skipped, 0 malformed blocks, 0 other blocks\n";
+    let trust = b"    serve: smith: trust roots: 148 taken, 0 skipped, 1 malformed blocks, 0 other blocks\n";
     refusal_retries(OLDER_REFUSAL, &crate::lines::joined(&[trust, trust, &tail]));
 }
 
@@ -363,7 +363,7 @@ fn an_older_store_refusal_is_printed_on_every_retry() {
 fn a_refusal_spanning_pieces_is_printed_on_every_retry() {
     let prefix = line_cap();
     let diagnostic = crate::lines::joined(&[&prefix, OLDER_REFUSAL]);
-    let trust = b"    serve: smith: trust roots: 148 taken, 0 skipped, 0 malformed blocks, 0 other blocks\n";
+    let trust = b"    serve: smith: trust roots: 148 taken, 0 skipped, 1 malformed blocks, 0 other blocks\n";
     let tail = crate::lines::joined(&[trust, trust, b"    serve: ", &prefix, b"\n    serve: ", OLDER_REFUSAL]);
     refusal_retries(&diagnostic, &tail);
 }
