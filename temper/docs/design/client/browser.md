@@ -433,7 +433,16 @@ replay says the same clocks (`README.md`, 5.12).
   spacing; a native control's own size; skein's sheet's lengths inside
   main (its focus ring, its visually hidden boxes); and a viewport
   length, which a zoom grows like any other. Dialogs are drawn inside
-  main, and scale with it.
+  main, and scale with it. Confirmation sheets stand under `#app` at their
+  own scale (`README.md`, 3.6).
+- **Confirmation sheets:** `dialog.temper-confirm`, 460 px wide at most,
+  with 24 px by 26 px padding, 14 px corners and a native `::backdrop`.
+  The title is 19 px; the lead 14.5 px; impacts 14 px under a hairline.
+  Keep precedes the named primary act in a separate group. An uncertain
+  release's choices have a wrapping group of their own, with the same
+  secondary buttons; those and the acts keep 44 px phone targets.
+  Progress and refusal stay above the acts. A requester-closed chat's end
+  line is 12.5 px between two hairlines, and the bar has no clock.
 - **Connection flows:** standalone connection cards use 5 px corners;
   the welcome's steps have a look of their own (The welcome's look,
   below). The

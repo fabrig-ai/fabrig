@@ -1283,6 +1283,13 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 /* The sheet owns its pending ask and last failure (client/README.md, 3.6). */
 #app dialog.temper-confirm > :is([role=status], [role=alert]) { margin: 0; font-size: 14px; color: var(--gf-ink-2); }
 #app dialog.temper-confirm > [role=alert] { color: #b42318; }
+/* An uncertain effect is chosen before its release is confirmed. */
+#app dialog.temper-confirm > .temper-confirm-choices { display: flex; flex-wrap: wrap; gap: 8px; }
+#app dialog.temper-confirm > .temper-confirm-choices > button { min-height: 38px; margin: 0; padding: 7px 14px; border: 1px solid var(--gf-line-2); border-radius: 9px; background: var(--gf-surface); font: 500 14px/1.4 var(--gf-sans); color: var(--gf-ink); cursor: pointer; }
+#app dialog.temper-confirm > .temper-confirm-choices > button:hover { border-color: #b4b4ae; }
+@media (max-width: 760px) {
+  #app dialog.temper-confirm > .temper-confirm-choices > button { min-height: 44px; }
+}
 
 #app > .temper-session .temper-session-right > .temper-chat-goal { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font-size: 13.5px; text-decoration: none; text-align: left; }
 #app > .temper-session .temper-session-right > .temper-chat-goal:hover { border-color: #b4b4ae; }

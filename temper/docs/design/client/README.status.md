@@ -58,10 +58,10 @@
   configuring chat (`temper-client-view`'s `pages/chat.rs`, `main`), where nothing
   then says why Send stays grey; and no line says there that the playground is
   running or leaving. Seen by reading; no test holds it.
-- **Not yet:** 3.6, *The sheet*, *Closed ends on one line*: the implementation,
-  focused tests and gallery states are in place. `look-round-10/close-chat-proof`
-  still owns the browser walk of each keep and act, the held-press checks, the long
-  delegate title at phone width, and the final render account.
+- **Departs:** 3.6, *Closed ends on one line*: a requester-closed chat hides
+  every "Decision made" activity line, because `Activity::Decided` carries only
+  a revision and cannot identify the closing decision. This keeps the quiet end
+  line, at the cost of hiding earlier decision markers too.
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
 - **Not yet:** 3.5, *Home on any project*: on the stock policy the status agent
   is left no funding. Its roles' pools are as large as the project's period
