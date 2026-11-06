@@ -850,7 +850,10 @@ terminal client, the captures and the faults.
   main-advanced and mid-proof/restarted turn-landing checks. The owned
   welcome includes program login and key admission. One setup-cut story
   walks fetch, preparation, run and started cuts using one scratch and
-  cache, makes one final setup, then restarts across its removal cut.
+  cache, makes one final setup, then restarts across its removal cut. Its
+  started cut runs on a box with no sign-in, as init writes one without
+  `openssl`: it holds the engine, and the group's source step needs the
+  engine to answer its discovery (`../protocol/sign-in.md`, 9.9).
   The slot-host story still belongs here: its loop starts the shipped
   owned-slot subprocess and real Forgejo. Its referee polls the marker
   promptly instead of waiting for the fixture shell's 30-second sleep.

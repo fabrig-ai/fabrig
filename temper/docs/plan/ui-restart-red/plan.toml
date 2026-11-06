@@ -20,3 +20,16 @@ id = 1
 story = "A story that scripts a first repository prices its purse from init's template and reaches its box"
 parts = ["template"]
 walk = false
+
+[[part]]
+id = "handover"
+title = "A restarted box takes its handover, and the five stories pass"
+mode = "direct"
+needs = ["template"]
+design = "temper/docs/design/protocol/setup.md, 6.5"
+
+[[slice]]
+id = 2
+story = "A restarted default box signs its person in through the source, reads connected only with the handover taken and no token file left, and all five stories pass"
+parts = ["handover"]
+walk = false
