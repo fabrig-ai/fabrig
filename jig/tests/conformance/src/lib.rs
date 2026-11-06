@@ -279,12 +279,9 @@ impl std::ops::DerefMut for Engine {
 impl Application for Testing {
     type Domain = Engine;
     type Store = Store;
-    type Write = root::Write;
     type Config = Config;
     type Systems = [System; 2];
     type Peers = Neighbours;
-    type Key = root::Key;
-    type Record = root::Record;
     type Event = root::Event;
     type Delivery = Delivery;
 
@@ -449,7 +446,7 @@ impl Application for Testing {
         ]
     }
 
-    fn step(domain: &mut Engine, config: &Config, clock: Clock, input: Input<root::Event, root::Record>) {
+    fn step(domain: &mut Engine, config: &Config, clock: Clock, input: Input<root::Event>) {
         let env = env(config, clock);
         let input = negative::input(domain, config, clock, input);
         if matches!(
@@ -472,7 +469,6 @@ impl Application for Testing {
             Input::Event(event) => root::step(domain, &env, event),
             Input::Committed(number) => root::step(domain, &env, root::Event::Committed { number, fill: 0 }),
             Input::Failed(number) => root::step(domain, &env, root::Event::Failed { number }),
-            Input::Restore(_) => unreachable!("the start store returns typed root events"),
         }
     }
 
@@ -541,7 +537,7 @@ impl Application for Testing {
         store: &mut Store,
         clock: Clock,
         delivery: Delivery,
-    ) -> Vec<Input<root::Event, root::Record>> {
+    ) -> Vec<Input<root::Event>> {
         let delivery = negative::delivery(peers.fault, delivery);
         let Delivery::Held(mut delivery) = delivery else {
             return match delivery {
@@ -697,7 +693,7 @@ impl Application for Testing {
         store: &mut Store,
         clock: Clock,
         ready: bool,
-    ) -> Vec<Input<root::Event, root::Record>> {
+    ) -> Vec<Input<root::Event>> {
         let mut events = Vec::new();
         for answer in store.answers() {
             match answer {
