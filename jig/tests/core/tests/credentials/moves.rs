@@ -1,10 +1,8 @@
 //! A holder's moves cross people, the core, the child and the scripted component.
 use super::*;
+use jig_core_world::fixtures::change;
 use jig_core_world::world::Setup;
 
-fn change(change: people::AccountChange) -> people::Ask {
-    people::Ask::AccountChange { holder: people::AccountHolder::Own, change }
-}
 fn move_out(world: &mut World, account: u32, source: u32) -> u32 {
     let expected = world.domain.accounts().next_number();
     assert_eq!(

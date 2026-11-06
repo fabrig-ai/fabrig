@@ -1,6 +1,3 @@
-const SIGN_IN: u64 = 10;
-const OWNER: u64 = 1;
-const SECOND: u64 = 2;
 const OTHER_SIGN_IN: u64 = 20;
 const CREATE: u8 = 31;
 const FIRST_MARK: u8 = 32;
@@ -9,12 +6,21 @@ const LAST_REPLY: u64 = 2;
 const STOPPED_CHAT: u64 = 7;
 const HOLD_REVISION: u64 = 1;
 const CONTINUE_KEY: u8 = 2;
+const LIFTED_HOLD: u64 = 31;
+const RELEASED: u32 = 2;
+const SERVICE_SIGN_IN: u64 = 11;
+const ACCOUNT_SERVICE_SIGN_IN: u64 = 12;
+const NEXT_SIGN_IN: u64 = 12;
+const FRESH_SECOND_SIGN_IN: u64 = 30;
 use jig_domain_people::{
     AccountHolder, Again, Ask, Entry, EntryKind, Holding, IdentityKey, InitialOwner, Outcome, ProposalChoice,
     ProposalDecision, Proposer, Refusal, Reply, Role, Seed, Whom,
 };
-use jig_people_world::fixtures::member;
-use jig_people_world::{Settings, World};
+use jig_people_world::{
+    Settings, World,
+    fixtures::{OWNER, OWNER_RELOGIN, PROJECT, SECOND, SECOND_SIGN_IN, SIGN_IN, member},
+    identity,
+};
 use skein_lib::Duration;
 use skein_world::domain::assert_replays;
 
@@ -82,7 +88,7 @@ fn an_observer_is_refused_a_request_and_told_why() {
     let call = world.sign_in_owner();
     world.commit_all();
     let Reply::SignedIn { person, .. } = world.reply(call).expect("person signed in") else { panic!("signed in") };
-    world.roles(1, Box::new([Holding { person, role: Role::Observer }]));
+    world.roles(PROJECT, Box::new([Holding { person, role: Role::Observer }]));
     world.commit_all();
     let before = world.stats().routes;
     let call = world.request(SIGN_IN, [3; 16], jig_people_world::fixtures::create(b"goal", Some(1)));
@@ -95,12 +101,9 @@ fn an_observer_is_refused_a_request_and_told_why() {
 
 #[test]
 fn a_service_creates_a_task_its_role_allows() {
-    let owners = Box::new([InitialOwner {
-        project: 1,
-        identity: IdentityKey { provider: 0, subject: 1_u64.to_be_bytes().into() },
-    }]);
+    let owners = Box::new([InitialOwner { project: PROJECT, identity: identity(OWNER).key }]);
     let mut world = World::with_owners(Settings::calm(14), owners);
-    world.roles(1, Box::new([]));
+    world.roles(PROJECT, Box::new([]));
     world.commit_all();
     let owner = world.sign_in_owner();
     world.commit_all();
@@ -108,14 +111,14 @@ fn a_service_creates_a_task_its_role_allows() {
     let made = world.request(
         SIGN_IN,
         [1; 16],
-        Ask::MakeService { project: 1, name: b"build".to_vec().into_boxed_slice(), role: Role::Member },
+        Ask::MakeService { project: PROJECT, name: b"build".to_vec().into_boxed_slice(), role: Role::Member },
     );
     world.commit_all();
     let Some(Reply::Outcome(Outcome::ServiceMade { person })) = world.reply(made) else { panic!("service made") };
-    let signed_in = world.signin_service(11, person);
+    let signed_in = world.signin_service(SERVICE_SIGN_IN, person);
     world.commit_all();
     assert!(matches!(world.reply(signed_in), Some(Reply::SignedIn { person: found, .. }) if found == person));
-    let goal = world.request(11, [2; 16], jig_people_world::fixtures::create(b"goal", Some(1)));
+    let goal = world.request(SERVICE_SIGN_IN, [2; 16], jig_people_world::fixtures::create(b"goal", Some(1)));
     world.commit_all();
     assert!(matches!(world.reply(goal), Some(Reply::Outcome(Outcome::Created { .. }))));
     assert_eq!(world.tasks(), 1);
@@ -124,12 +127,9 @@ fn a_service_creates_a_task_its_role_allows() {
 
 #[test]
 fn an_account_request_is_admitted_only_from_its_holder() {
-    let owners = Box::new([InitialOwner {
-        project: 1,
-        identity: IdentityKey { provider: 0, subject: 1_u64.to_be_bytes().into() },
-    }]);
+    let owners = Box::new([InitialOwner { project: PROJECT, identity: identity(OWNER).key }]);
     let mut world = World::with_owners(Settings::calm(16), owners);
-    world.roles(1, Box::new([]));
+    world.roles(PROJECT, Box::new([]));
     world.commit_all();
     world.sign_in_owner();
     world.sign_in_second();
@@ -137,17 +137,18 @@ fn an_account_request_is_admitted_only_from_its_holder() {
     let service = world.request(
         SIGN_IN,
         [1; 16],
-        Ask::MakeService { project: 1, name: b"build".to_vec().into_boxed_slice(), role: Role::Member },
+        Ask::MakeService { project: PROJECT, name: b"build".to_vec().into_boxed_slice(), role: Role::Member },
     );
     world.commit_all();
     let Some(Reply::Outcome(Outcome::ServiceMade { person })) = world.reply(service) else { panic!("service made") };
-    world.signin_service(12, person);
+    world.signin_service(ACCOUNT_SERVICE_SIGN_IN, person);
     world.commit_all();
     let routes = world.stats().routes;
     let sign_in = |holder| Ask::AccountSignIn { holder, provider: 3 };
     let own = world.request(SIGN_IN, [2; 16], sign_in(AccountHolder::Own));
     let deployment = world.request(SIGN_IN, [3; 16], sign_in(AccountHolder::Deployment));
-    let sign_out = world.request(11, [4; 16], Ask::AccountSignOut { holder: AccountHolder::Own, source: 1 });
+    let sign_out =
+        world.request(SECOND_SIGN_IN, [4; 16], Ask::AccountSignOut { holder: AccountHolder::Own, source: 1 });
     world.commit_all();
     let started = Some(Reply::Outcome(Outcome::AccountSignInStarted {
         source: 1,
@@ -161,8 +162,8 @@ fn an_account_request_is_admitted_only_from_its_holder() {
     );
     assert_eq!(world.stats().routes, routes + 3);
     let refused = Some(Reply::Outcome(Outcome::Refused(Refusal::Role { held: None })));
-    let other = world.request(11, [5; 16], sign_in(AccountHolder::Deployment));
-    let services = world.request(12, [6; 16], sign_in(AccountHolder::Own));
+    let other = world.request(SECOND_SIGN_IN, [5; 16], sign_in(AccountHolder::Deployment));
+    let services = world.request(ACCOUNT_SERVICE_SIGN_IN, [6; 16], sign_in(AccountHolder::Own));
     world.commit_all();
     assert_eq!(world.reply(other), refused, "another person's for the deployment");
     assert_eq!(world.reply(services), refused, "a service holds no account");
@@ -184,7 +185,7 @@ fn two_maintainers_decide_one_proposal_and_the_second_is_told_who_how_and_when()
     let Some(Reply::SignedIn { person: first_person, .. }) = world.reply(first) else { panic!("first signed in") };
     let Some(Reply::SignedIn { person: second_person, .. }) = world.reply(second) else { panic!("second signed in") };
     world.roles(
-        1,
+        PROJECT,
         Box::new([
             Holding { person: first_person, role: Role::Maintainer },
             Holding { person: second_person, role: Role::Maintainer },
@@ -195,7 +196,7 @@ fn two_maintainers_decide_one_proposal_and_the_second_is_told_who_how_and_when()
         SIGN_IN,
         [1; 16],
         Ask::DecideProposal {
-            project: 1,
+            project: PROJECT,
             proposer: Proposer::Task(7),
             proposal: 8,
             decision: ProposalDecision::Accept,
@@ -214,10 +215,10 @@ fn two_maintainers_decide_one_proposal_and_the_second_is_told_who_how_and_when()
     assert_eq!(world.reply(first), expected);
     world.advance(Duration::from_secs(1));
     let second = world.request(
-        11,
+        SECOND_SIGN_IN,
         [2; 16],
         Ask::DecideProposal {
-            project: 1,
+            project: PROJECT,
             proposer: Proposer::Task(7),
             proposal: 8,
             decision: ProposalDecision::Reject { reason: b"no".to_vec().into_boxed_slice() },
@@ -232,16 +233,16 @@ fn two_maintainers_decide_one_proposal_and_the_second_is_told_who_how_and_when()
 #[test]
 fn roles_are_seeded_from_an_adopted_resources_parties() {
     let mut world = World::new(Settings::calm(16));
-    world.roles(1, Box::new([]));
+    world.roles(PROJECT, Box::new([]));
     world.commit_all();
     let identity = IdentityKey { provider: 0, subject: 77_u64.to_be_bytes().into() };
-    world.seed(1, Box::new([Seed { identity: identity.clone(), candidate: 42, role: Role::Maintainer }]));
+    world.seed(PROJECT, Box::new([Seed { identity: identity.clone(), candidate: 42, role: Role::Maintainer }]));
     world.commit_all();
-    assert_eq!(world.role_for_identity(identity.clone(), 1), Some((42, Role::Maintainer)));
+    assert_eq!(world.role_for_identity(identity.clone(), PROJECT), Some((42, Role::Maintainer)));
     let call = world.signin(SIGN_IN, 77);
     world.commit_all();
     assert!(matches!(world.reply(call), Some(Reply::SignedIn { person: 42, .. })));
-    assert_eq!(world.role_for_identity(identity, 1), Some((42, Role::Maintainer)));
+    assert_eq!(world.role_for_identity(identity, PROJECT), Some((42, Role::Maintainer)));
     world.assert_settled();
 }
 
@@ -254,7 +255,7 @@ fn a_role_task_leaves_every_inbox_after_one_holder_takes_it() {
     let Some(Reply::SignedIn { person: first_person, .. }) = world.reply(first) else { panic!("first signed in") };
     let Some(Reply::SignedIn { person: second_person, .. }) = world.reply(second) else { panic!("second signed in") };
     world.roles(
-        1,
+        PROJECT,
         Box::new([
             Holding { person: first_person, role: Role::Maintainer },
             Holding { person: second_person, role: Role::Maintainer },
@@ -266,14 +267,14 @@ fn a_role_task_leaves_every_inbox_after_one_holder_takes_it() {
         task,
         Box::new([Entry {
             task,
-            project: 1,
-            whom: Whom::Role { project: 1, role: 1 },
+            project: PROJECT,
+            whom: Whom::Role { project: PROJECT, role: 1 },
             kind: EntryKind::PersonTask,
             at: skein_lib::Wall::EPOCH,
         }]),
     );
     world.check_role_waiting(task, [first_person, second_person], true);
-    let call = world.request(SIGN_IN, [3; 16], Ask::TakePerson { project: 1, task });
+    let call = world.request(SIGN_IN, [3; 16], Ask::TakePerson { project: PROJECT, task });
     world.commit_all();
     assert_eq!(world.reply(call), Some(Reply::Outcome(Outcome::PersonTaken { task })));
     world.check_role_waiting(task, [first_person, second_person], false);
@@ -288,7 +289,7 @@ fn person_task_world(seed: u64) -> (World, u64, u64) {
     let Reply::SignedIn { person: first, .. } = world.reply(first).expect("first sign-in") else { panic!() };
     let Reply::SignedIn { person: second, .. } = world.reply(second).expect("second sign-in") else { panic!() };
     world.roles(
-        1,
+        PROJECT,
         Box::new([
             Holding { person: first, role: Role::Maintainer },
             Holding { person: second, role: Role::Maintainer },
@@ -299,8 +300,8 @@ fn person_task_world(seed: u64) -> (World, u64, u64) {
         99,
         Box::new([Entry {
             task: 99,
-            project: 1,
-            whom: Whom::Role { project: 1, role: 1 },
+            project: PROJECT,
+            whom: Whom::Role { project: PROJECT, role: 1 },
             kind: EntryKind::PersonTask,
             at: skein_lib::Wall::EPOCH,
         }]),
@@ -311,14 +312,14 @@ fn person_task_world(seed: u64) -> (World, u64, u64) {
 #[test]
 fn an_answer_to_a_person_task_another_holder_took_is_refused_and_told_who() {
     let (mut world, first, _) = person_task_world(62);
-    let take = world.request(SIGN_IN, [3; 16], Ask::TakePerson { project: 1, task: 99 });
+    let take = world.request(SIGN_IN, [3; 16], Ask::TakePerson { project: PROJECT, task: 99 });
     let answer = Ask::AnswerPerson {
-        project: 1,
+        project: PROJECT,
         task: 99,
         revision: 0,
         result: jig_domain_people::PersonResult::Report { words: b"answer".as_slice().into() },
     };
-    let other = world.request(11, [4; 16], answer.clone());
+    let other = world.request(SECOND_SIGN_IN, [4; 16], answer.clone());
     assert_eq!(world.reply(take), None);
     assert_eq!(world.reply(other), None);
     world.commit_all();
@@ -330,10 +331,10 @@ fn an_answer_to_a_person_task_another_holder_took_is_refused_and_told_who() {
     world.commit_all();
     assert_eq!(world.reply(winner), Some(Reply::Outcome(Outcome::PersonAnswered { task: 99 })));
     world.restart();
-    let replay = world.request(11, [4; 16], answer.clone());
+    let replay = world.request(SECOND_SIGN_IN, [4; 16], answer.clone());
     world.commit_all();
     assert_eq!(world.reply(replay), Some(taken), "saved holder fact does not change after an answer");
-    let late = world.request(11, [6; 16], answer);
+    let late = world.request(SECOND_SIGN_IN, [6; 16], answer);
     world.commit_all();
     assert_eq!(
         world.reply(late),
@@ -347,17 +348,17 @@ fn an_answer_to_a_person_task_another_holder_took_is_refused_and_told_who() {
 #[test]
 fn a_person_task_handed_back_is_taken_by_another_holder() {
     let (mut world, first, second) = person_task_world(63);
-    world.request(SIGN_IN, [3; 16], Ask::TakePerson { project: 1, task: 99 });
+    world.request(SIGN_IN, [3; 16], Ask::TakePerson { project: PROJECT, task: 99 });
     world.commit_all();
-    let other = world.request(11, [4; 16], Ask::HandBackPerson { project: 1, task: 99 });
+    let other = world.request(SECOND_SIGN_IN, [4; 16], Ask::HandBackPerson { project: PROJECT, task: 99 });
     world.commit_all();
     assert_eq!(world.reply(other), Some(Reply::Outcome(Outcome::Refused(Refusal::Taken { by: first }))));
-    let handback = world.request(SIGN_IN, [5; 16], Ask::HandBackPerson { project: 1, task: 99 });
+    let handback = world.request(SIGN_IN, [5; 16], Ask::HandBackPerson { project: PROJECT, task: 99 });
     world.commit_all();
     assert_eq!(world.reply(handback), Some(Reply::Outcome(Outcome::PersonHandedBack { task: 99 })));
     world.check_role_waiting(99, [first, second], true);
     world.restart();
-    let take = world.request(11, [6; 16], Ask::TakePerson { project: 1, task: 99 });
+    let take = world.request(SECOND_SIGN_IN, [6; 16], Ask::TakePerson { project: PROJECT, task: 99 });
     world.commit_all();
     assert_eq!(world.reply(take), Some(Reply::Outcome(Outcome::PersonTaken { task: 99 })));
     world.check_role_waiting(99, [first, second], false);
@@ -401,12 +402,9 @@ fn pending_authorisation_can_be_lost_and_retried_without_repeating_durable_work(
 
 #[test]
 fn an_expired_sign_in_is_refused() {
-    let owners = Box::new([InitialOwner {
-        project: 1,
-        identity: IdentityKey { provider: 0, subject: 1_u64.to_be_bytes().into() },
-    }]);
+    let owners = Box::new([InitialOwner { project: PROJECT, identity: identity(OWNER).key }]);
     let mut world = World::with_owners(Settings::calm(9), owners);
-    world.roles(1, Box::new([]));
+    world.roles(PROJECT, Box::new([]));
     world.commit_all();
     let call = world.sign_in_owner();
     world.commit_all();
@@ -447,7 +445,7 @@ fn a_release_naming_an_old_hold_is_refused_as_moved_saying_what_holds_it_now() {
     let mut world = World::new(Settings::calm(90));
     member(&mut world);
     world.held_task(7, 2, jig_domain_people::HoldReason::Budget);
-    let ask = Ask::Release { project: 1, task: 7, revision: 1, again: None };
+    let ask = Ask::Release { project: PROJECT, task: 7, revision: 1, again: None };
     let call = world.request(SIGN_IN, [7; 16], ask.clone());
     assert!(world.reply(call).is_none());
     world.commit_all();
@@ -471,7 +469,7 @@ fn an_amendment_on_a_spec_amended_meanwhile_is_refused_with_its_revision() {
     world.amended_task(7, 2);
     let ask = Ask::Amend {
         release: None,
-        project: 1,
+        project: PROJECT,
         task: 7,
         revision: 1,
         amendment: jig_domain_people::Amendment {
@@ -501,7 +499,7 @@ fn an_amendment_on_a_spec_amended_meanwhile_is_refused_with_its_revision() {
 fn application(words: &[u8]) -> Ask {
     use sha2::{Digest, Sha256};
     Ask::Application {
-        scope: jig_domain_people::ApplicationScope::Project(1),
+        scope: jig_domain_people::ApplicationScope::Project(PROJECT),
         connector: 2,
         digest: Sha256::digest(words).into(),
     }
@@ -545,7 +543,7 @@ fn words_to_a_stopped_chat_release_nothing() {
     let mut world = World::new(Settings::calm(93));
     let person = member(&mut world);
     world.held_task(STOPPED_CHAT, HOLD_REVISION, jig_domain_people::HoldReason::Placed { hold: person });
-    let ask = Ask::Say { project: 1, task: STOPPED_CHAT, words: b"continue".as_slice().into() };
+    let ask = Ask::Say { project: PROJECT, task: STOPPED_CHAT, words: b"continue".as_slice().into() };
     let call = world.request(SIGN_IN, [CONTINUE_KEY; 16], ask.clone());
     assert!(world.reply(call).is_none());
     assert!(world.sayings.is_empty(), "no parent decision visible ahead of commit");
@@ -568,7 +566,7 @@ fn an_uncertain_release_keeps_the_missing_choice_facts_on_replay() {
     let mut world = World::new(Settings::calm(94));
     member(&mut world);
     world.held_task(7, 1, jig_domain_people::HoldReason::Uncertain { entry: 9 });
-    let ask = Ask::Release { project: 1, task: 7, revision: 1, again: None };
+    let ask = Ask::Release { project: PROJECT, task: 7, revision: 1, again: None };
     let call = world.request(SIGN_IN, [3; 16], ask.clone());
     world.commit_all();
     assert_eq!(
@@ -589,7 +587,7 @@ fn an_uncertain_effect_released_without_making_it_again_tells_its_executor() {
     let mut world = World::new(Settings::calm(95));
     member(&mut world);
     world.held_task(7, 1, jig_domain_people::HoldReason::Uncertain { entry: 9 });
-    let ask = Ask::Release { project: 1, task: 7, revision: 1, again: Some(false) };
+    let ask = Ask::Release { project: PROJECT, task: 7, revision: 1, again: Some(false) };
     let call = world.request(SIGN_IN, [4; 16], ask.clone());
     assert!(world.reply(call).is_none());
     assert!(world.executor_outcomes.is_empty());
@@ -620,7 +618,7 @@ fn an_amendment_and_a_release_are_one_decision() {
     member(&mut world);
     world.amended_task(7, 1);
     world.held_task(7, 2, jig_domain_people::HoldReason::Stopped);
-    let ask = Ask::Amend { project: 1, task: 7, revision: 1, amendment: edit(), release: Some(2) };
+    let ask = Ask::Amend { project: PROJECT, task: 7, revision: 1, amendment: edit(), release: Some(2) };
     let call = world.request(SIGN_IN, [1; 16], ask.clone());
     assert!(world.reply(call).is_none());
     assert_eq!(world.spec_revision(7), Some(1));
@@ -660,7 +658,7 @@ fn a_widening_amendment_with_release_is_proposed_and_released_on_acceptance() {
         SIGN_IN,
         [1; 16],
         Ask::Propose {
-            project: 1,
+            project: PROJECT,
             action: jig_domain_people::Action::Amend { task: 7, revision: 1, amendment: Box::new(amendment) },
             reason: b"please widen".as_slice().into(),
         },
@@ -673,7 +671,7 @@ fn a_widening_amendment_with_release_is_proposed_and_released_on_acceptance() {
     assert!(world.held(7));
     world.restart();
     let decision = Ask::DecideProposal {
-        project: 1,
+        project: PROJECT,
         proposer: Proposer::Party(person),
         proposal,
         decision: ProposalDecision::Accept,
@@ -689,7 +687,7 @@ fn a_widening_amendment_with_release_is_proposed_and_released_on_acceptance() {
         Some(Reply::Outcome(Outcome::ProposalDecided { choice: ProposalChoice::Accepted, .. }))
     ));
     assert_eq!(world.spec_revision(7), Some(2));
-    world.request(SIGN_IN, [3; 16], Ask::Release { project: 1, task: 7, revision: 2, again: None });
+    world.request(SIGN_IN, [3; 16], Ask::Release { project: PROJECT, task: 7, revision: 2, again: None });
     world.commit_all();
     assert!(!world.held(7));
     world.restart();
@@ -738,7 +736,7 @@ fn marking_a_conversation_leaves_other_conversations_unread() {
             task,
             Box::new([Entry {
                 task,
-                project: 1,
+                project: PROJECT,
                 whom: Whom::Person(person),
                 kind: EntryKind::ChatReply { message: 1 },
                 at: skein_lib::Wall::EPOCH,
@@ -757,7 +755,10 @@ fn marking_a_conversation_leaves_other_conversations_unread() {
     let other_call = world.signin(OTHER_SIGN_IN, SECOND);
     world.commit_all();
     let Some(Reply::SignedIn { person: other, .. }) = world.reply(other_call) else { panic!("other party") };
-    world.roles(1, Box::new([Holding { person, role: Role::Member }, Holding { person: other, role: Role::Member }]));
+    world.roles(
+        PROJECT,
+        Box::new([Holding { person, role: Role::Member }, Holding { person: other, role: Role::Member }]),
+    );
     world.commit_all();
     let refused = world.request(OTHER_SIGN_IN, [4; 16], Ask::MarkSeen { seen });
     world.commit_all();
@@ -802,7 +803,7 @@ fn a_conversations_read_position_moves_to_the_ended_family_and_reads_back_after_
         task,
         Box::new([Entry {
             task,
-            project: 1,
+            project: PROJECT,
             whom: Whom::Person(person),
             kind: EntryKind::ChatReply { message: LAST_REPLY },
             at: skein_lib::Wall::EPOCH,
@@ -884,12 +885,14 @@ fn another_persons_live_held_sign_in_is_never_kept() {
     let Some(Reply::SignedIn { person: first_person, .. }) = world.reply(first) else { panic!("first person") };
     let Some(Reply::SignedIn { person: second_person, .. }) = world.reply(second) else { panic!("second person") };
     assert_ne!(first_person, second_person);
-    let call = world.signin_held(30, SECOND, Some(SIGN_IN));
+    let call = world.signin_held(FRESH_SECOND_SIGN_IN, SECOND, Some(SIGN_IN));
     world.commit_all();
-    assert!(matches!(world.reply(call), Some(Reply::SignedIn { person, sign_in: 30, .. }) if person == second_person));
-    assert!(matches!(world.records().get(&jig_domain_people::Key::SignIn(30)),
+    assert!(
+        matches!(world.reply(call), Some(Reply::SignedIn { person, sign_in: FRESH_SECOND_SIGN_IN, .. }) if person == second_person)
+    );
+    assert!(matches!(world.records().get(&jig_domain_people::Key::SignIn(FRESH_SECOND_SIGN_IN)),
         Some(jig_domain_people::Stored::SignIn { person, .. }) if *person == second_person));
-    assert!(world.records().contains_key(&jig_domain_people::Key::SignIn(10)));
+    assert!(world.records().contains_key(&jig_domain_people::Key::SignIn(SIGN_IN)));
     world.assert_settled();
 }
 
@@ -902,18 +905,18 @@ fn a_full_pool_answers_full_without_changing_its_durable_records() {
     world.commit_all();
     let Some(Reply::SignedIn { expires: earliest, .. }) = world.reply(first) else { panic!("signed in") };
     world.advance(Duration::from_nanos(1));
-    world.signin(11, OWNER);
+    world.signin(OWNER_RELOGIN, OWNER);
     world.commit_all();
     let before = world.records().clone();
-    let call = world.signin(12, OWNER);
+    let call = world.signin(NEXT_SIGN_IN, OWNER);
     world.commit_all();
     assert_eq!(world.reply(call), Some(Reply::Full { sign_ins: 2, earliest }));
     assert_eq!(world.records(), &before);
     world.signout(SIGN_IN);
     world.commit_all();
-    let retry = world.signin(12, OWNER);
+    let retry = world.signin(NEXT_SIGN_IN, OWNER);
     world.commit_all();
-    assert!(matches!(world.reply(retry), Some(Reply::SignedIn { sign_in: 12, .. })));
+    assert!(matches!(world.reply(retry), Some(Reply::SignedIn { sign_in: NEXT_SIGN_IN, .. })));
     world.assert_settled();
 }
 
@@ -943,18 +946,21 @@ fn a_full_pool_reuses_wall_expired_room_before_its_timer_runs_in_one_commit() {
     world.sign_in_owner();
     world.commit_all();
     world.advance(Duration::from_nanos(1));
-    world.signin(11, OWNER);
+    world.signin(OWNER_RELOGIN, OWNER);
     world.commit_all();
     let before = world.records().clone();
     world.set_wall(skein_lib::Wall::from_nanos(lifetime.as_nanos()));
-    let call = world.signin(12, OWNER);
+    let call = world.signin(NEXT_SIGN_IN, OWNER);
     assert_eq!(world.reply(call), None, "the erase and new sign-in wait for the same commit");
     assert_eq!(world.records(), &before);
     world.commit_all();
-    assert!(matches!(world.reply(call), Some(Reply::SignedIn { sign_in: 12, .. })));
-    assert!(!world.records().contains_key(&Key::SignIn(10)));
-    assert_eq!(world.records().get(&Key::SignIn(11)), before.get(&Key::SignIn(11)));
-    assert!(matches!(world.records().get(&Key::SignIn(12)), Some(Stored::SignIn { number: 12, .. })));
+    assert!(matches!(world.reply(call), Some(Reply::SignedIn { sign_in: NEXT_SIGN_IN, .. })));
+    assert!(!world.records().contains_key(&Key::SignIn(SIGN_IN)));
+    assert_eq!(world.records().get(&Key::SignIn(OWNER_RELOGIN)), before.get(&Key::SignIn(OWNER_RELOGIN)));
+    assert!(matches!(
+        world.records().get(&Key::SignIn(NEXT_SIGN_IN)),
+        Some(Stored::SignIn { number: NEXT_SIGN_IN, .. })
+    ));
     assert_eq!(world.records().values().filter(|record| matches!(record, Stored::SignIn { .. })).count(), 2);
     world.assert_settled();
 }
@@ -964,18 +970,18 @@ fn a_lift_is_admitted_keyed_joined_saved_and_replayed() {
     let mut world = World::new(Settings::calm(930));
     member(&mut world);
     world.defer_routes(true);
-    let ask = Ask::Lift { hold: 31, revision: 2, with_tasks: true };
+    let ask = Ask::Lift { hold: LIFTED_HOLD, revision: 2, with_tasks: true };
     let first = world.request(SIGN_IN, [41; 16], ask.clone());
     let duplicate = world.request(SIGN_IN, [41; 16], ask.clone());
     assert_eq!(world.stats().routes, 1);
     assert!(world.reply(first).is_none() && world.reply(duplicate).is_none());
-    let conflict = world.request(SIGN_IN, [41; 16], Ask::Lift { hold: 31, revision: 2, with_tasks: false });
+    let conflict = world.request(SIGN_IN, [41; 16], Ask::Lift { hold: LIFTED_HOLD, revision: 2, with_tasks: false });
     world.commit_all();
     assert_eq!(world.reply(conflict), Some(Reply::Refused(Refusal::KeyConflict)));
-    world.finish_lift_deferred(31, 2);
+    world.finish_lift_deferred(LIFTED_HOLD, RELEASED);
     world.defer_routes(false);
     world.commit_all();
-    let expected = Some(Reply::Outcome(Outcome::Lifted { hold: 31, released: 2 }));
+    let expected = Some(Reply::Outcome(Outcome::Lifted { hold: LIFTED_HOLD, released: RELEASED }));
     assert_eq!(world.reply(first), expected);
     assert_eq!(world.reply(duplicate), expected);
     world.restart();
@@ -990,13 +996,13 @@ fn a_lift_is_admitted_keyed_joined_saved_and_replayed() {
 fn a_hold_owner_refusal_is_saved_and_replayed() {
     let mut world = World::new(Settings { authority_refuses: true, ..Settings::calm(931) });
     member(&mut world);
-    let ask = Ask::Lift { hold: 31, revision: 2, with_tasks: true };
+    let ask = Ask::Lift { hold: LIFTED_HOLD, revision: 2, with_tasks: true };
     let first = world.request(SIGN_IN, [42; 16], ask.clone());
     world.commit_all();
     let expected = Some(Reply::Outcome(Outcome::Refused(Refusal::Authority {
         proposable: None,
         lacking: jig_domain_people::Lack::HoldOwner {
-            hold: 31,
+            hold: LIFTED_HOLD,
             owner: jig_domain_people::HoldOwner::Party { person: 2 },
         },
     })));

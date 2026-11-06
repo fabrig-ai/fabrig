@@ -3,7 +3,7 @@ use jig_domain_tasks::{
     MessageKind, Numbers, Party, Phase, ProcedureDecision, ProcedureEnd, Refusal, Release, ResultKind, Stage, Stored,
     TaskResult, Word,
 };
-use jig_tasks_world::{LIMITS, Reply, World, task};
+use jig_tasks_world::{LIMITS, PERSON_PARTY, Reply, World, task};
 use skein_lib::{Duration, ReplyTo, Wall};
 
 const ROOT: u64 = 1;
@@ -39,7 +39,7 @@ fn job(dependencies: &[u64]) -> tasks::New {
 
 fn procedure() -> World {
     let mut world = World::new(207, LIMITS);
-    world.make(Party::Person(9), vec![task(ROOT, &[])]);
+    world.make(PERSON_PARTY, vec![task(ROOT, &[])]);
     let mut procedure = task(PROCEDURE, &[]);
     procedure.executor = Executor::Procedure { connector: 1, code: 1 };
     procedure.funder = Funder::Task(ROOT);
@@ -327,7 +327,7 @@ fn a_cancel_ends_a_running_job_at_once_even_with_a_grace() {
     let reply_to = world.to();
     world.send(Event::Cancel {
         reply_to,
-        by: Party::Person(9),
+        by: PERSON_PARTY,
         operation: Cancel { task: ROOT, reason: Box::new([]), grace: None, message: None },
     });
     assert!(matches!(world.record(JOB).phase, Phase::Closing(_)));

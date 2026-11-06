@@ -15,8 +15,8 @@
   a reading found that safe.
   8.1: which deadline runs is the `until` a state holds, which
   `Connection::deadline` reads, where the section has it a function of the
-  phase set in one place: nine `rest` calls in `component.rs` and
-  `component/` set it as a holder takes or leaves a connection, because a
+  phase set in one place: a holder passes it to `exchange.start` as it takes a connection,
+  and six `until` calls in `component.rs` and `component/` set it as one leaves, because a
   connection knows no holder's deadline, and the request of 2026-11-05 decided
   how the deadline is read, not who sets it.
   8.1: a connection that has connected reaches Idle rather than Sending,
@@ -30,7 +30,7 @@
   times: Closed its ending and its close under way; each a redirect's
   `draining`. For that reason Idle does not always run `idle`: a connection
   that connects with no holder keeps the deadline it opened under, and
-  `component/github.rs` rests one with no deadline, which
+  `component/github.rs` leaves one with no deadline, which
   `component/calls.rs`'s sweep reads as passed.
   8.4: Head holds a hint the root refused after `Next` went, offered
   before the next body, and Body one refused during it, which a `204`

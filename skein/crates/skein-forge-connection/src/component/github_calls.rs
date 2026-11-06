@@ -393,8 +393,15 @@ impl Common {
         route.token_revision = row.token_revision;
         route.status = None;
         let c = self.connection_slab.get_mut(*self.connections.get(&token).expect("connection")).expect("connection");
-        c.rest(Some(deadline));
-        match github.exchange.start(c, env, &base.forge, &self.owner.user_agent, exchange, authorization) {
+        match github.exchange.start(
+            c,
+            Some(deadline),
+            env,
+            &base.forge,
+            &self.owner.user_agent,
+            exchange,
+            authorization,
+        ) {
             Ok(()) => {}
             Err(_) => return Err(api::Error::Refused),
         }
@@ -462,7 +469,7 @@ impl Common {
             let c =
                 self.connection_slab.get_mut(*self.connections.get(&token).expect("connection")).expect("connection");
             if c.phase() == Phase::Idle && !c.in_flight() {
-                c.rest(Some(env.now.saturating_add(env.limits.idle)));
+                c.until(Some(env.now.saturating_add(env.limits.idle)));
             } else if !c.draining() {
                 c.close(env, c.in_flight(), io);
             }

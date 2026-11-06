@@ -89,12 +89,17 @@ pub(crate) fn ask_document(
     }
 }
 
+pub(crate) struct Watched {
+    pub(crate) watcher: Token,
+    pub(crate) subject: Token,
+}
+
 pub(crate) fn document(
     domain: &mut Domain,
     env: &Env<Limits>,
     decision: &mut Decision<Write, Output>,
     number: u16,
-    (watcher, subject): (Token, Token),
+    Watched { watcher, subject }: Watched,
     document: Result<ClientDocument, views::End>,
     work: &mut Queue<Work>,
 ) {
