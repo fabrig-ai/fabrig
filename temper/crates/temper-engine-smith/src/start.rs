@@ -143,6 +143,11 @@ fn charter_with_history(assignment: &engine::Assignment, resumed: bool) -> run::
     let mut charter =
         jig_protocol_charter::assignment(*assignment.run.clone(), sections.into_boxed(), tools.into_boxed(), resumed)
             .expect("agent contract and retained source bindings");
+    for repository in &assignment.workspace.repositories {
+        if repository.delivers {
+            charter.delivers = true;
+        }
+    }
     charter.conventions = Some(jig_protocol_charter::Conventions {
         guide: bytes::copy_of(b"AGENTS.md"),
         checks: bytes::copy_of(b".temper/pre-pr"),

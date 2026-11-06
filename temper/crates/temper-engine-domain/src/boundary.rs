@@ -106,6 +106,8 @@ pub enum ForgeStart {
 /// One adopted repository translated for the worker's workspace.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ForgeRepository {
+    /// This repository delivers for a goal run (temper/docs/design/domain/forge.md, 11.1).
+    pub delivers: bool,
     /// This task's saved-work branch, under this repository's prefix.
     pub save: Option<Box<[u8]>>,
     pub tag: u64,

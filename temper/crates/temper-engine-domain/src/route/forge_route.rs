@@ -1702,6 +1702,13 @@ pub(crate) fn run_workspace(
         return Some(status_route::workspace(context.task));
     }
     let root = domain.core.tasks.root(context.task)?;
+    let modify = match context.executor {
+        tasks::Executor::Agent { charter } => match domain.core.charter(charter) {
+            Some(charter) => charter.policy.modify,
+            None => false,
+        },
+        tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => false,
+    };
     let parent = match context.requester {
         tasks::Party::Task(task) => Some(task),
         tasks::Party::Person(_) | tasks::Party::Deployment { .. } => None,
@@ -1775,6 +1782,9 @@ pub(crate) fn run_workspace(
         let save = tree_branch(repository, root, b's', context.task, None, env.limits.forge.name_bytes)?;
         let saved_branch = if saved { Some(save.clone()) } else { None };
         let mut item = domain.forge.workspace_item(forge::items::Seed {
+            modify: modify
+                && may_push(domain, env, context, repository, &run_branch)
+                && !unheld_run_branch(domain, &env.limits, context.task, repository)?,
             task: context.task,
             parent,
             repository: repository.provider,
@@ -1888,6 +1898,7 @@ pub(crate) fn workspace_repository(
         forge::items::Start::Merged { branch, heads } => ForgeStart::Merged { branch, heads },
     };
     Some(ForgeRepository {
+        delivers: item.delivers && push.is_some(),
         save: if push.is_some() { Some(save) } else { None },
         tag: forge::tag(item.provider.forge, item.provider.repository),
         provider: item.provider,
