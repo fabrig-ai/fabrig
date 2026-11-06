@@ -69,6 +69,12 @@ pub struct Chat {
     pub final_task: Option<Box<c::Task>>,
 }
 impl Chat {
+    /// The supplied call under way (temper/docs/design/client/README.md, 3.5).
+    #[must_use]
+    pub fn current_call(&self) -> Option<&c::CurrentCall> {
+        self.current_run.as_ref()?.call.as_ref()
+    }
+
     pub(crate) fn new(task: u64, mode: Mode, first: u64, limits: &Limits, out: &mut Queue<Request>) -> Self {
         let document = handle(first);
         let activity = handle(first.checked_add(1).expect("chat handles fit"));
