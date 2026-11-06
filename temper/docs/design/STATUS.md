@@ -35,7 +35,8 @@ built through ctl, but the restore's stories in the domain world and
 the joined client world are ignored (`protocol/configuration.md`,
 `client/tools.md`). The configuring agent, charter 3 and template 3,
 is in the stock and the reference pages it reads are built, but no walk
-on record has run a real model on its words (`domain/agent.md`), and a
+on record has run a real model on its words, nothing it reads names the
+worker slots it is to size temper's own way by (`domain/agent.md`), and a
 charter's `tools` decides only whether its runs are offered the
 settings family (`protocol/configuration.md`). The limits' check
 leaves temper's kinds out of the settings answer's bound
@@ -168,7 +169,10 @@ open reply, where a tree holds one request, seen by reading (`client/README.md`)
 and no test measures a long chat's document against its window, where the user's
 answer of 2026-11-06 asks one (`client/browser.md`). A numbered list shows no
 numbers in a chat's card, whose items the sheet makes flex, and a document page's
-takes the browser's margins (`client/browser.md`). The words being written draw an
+takes the browser's margins (`client/browser.md`). temper's own way stands on
+Configure, departing from the request `configure-temper-own-way` in its reference's
+words and look (`client/README.md`), but no walk on record presses its acts and no
+render has drawn its picture as a numbered list (`client/browser.md`). The words being written draw an
 empty message in the dots' place until they hold a word, their "▍" falls below a closed
 fence, a last block still open changes as it commits, and no browser test draws them
 (`client/README.md`). Every confirmation of a chat, a
