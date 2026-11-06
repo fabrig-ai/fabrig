@@ -109,3 +109,15 @@ Regenerate the combined declarations using `tests::accounts::english_phrase_decl
 For the inspected integration tip, the combined counts should be `PHRASES = 1864`, `SEGMENTS = 3269`, `ENGLISH_BYTES = 45432`, with `ALL` length 1264.
 Run the declaration test again without write mode, then the task’s required closing checks.
 Keep the automatically merged `temper/docs/design/client/README.status.md` changes from both sides.
+
+## Rebase (2026-11-06, step merge, foreman model-catalogue-1/configure-picker/foreman-3)
+
+reconcile the combined vocabulary and preserve both sides’ client status changes
+The merge conflicts in `temper/crates/temper-client-view/src/words.rs` and `temper/docs/design/client/README.status.md`.
+Integration merge `8fec9dd573` brings main’s sign-in changes, including `WelcomeTabOpening` from `020c221a40`.
+In `words.rs`, preserve `WelcomeTabOpening`, its English phrase and ID 3793 alongside this task’s Configure words, two `Name` holes, and `ConfigurePlan`/`ConfigureKey` entries and IDs.
+Regenerate declarations through heavy using `tests::accounts::english_phrase_declarations_match_the_vocabulary` with `SKEIN_CODEGEN_WRITE=1`.
+For the inspected integration tip `adff400a8b`, the combined counts should be `PHRASES = 1865`, `SEGMENTS = 3272`, `ENGLISH_BYTES = 45455`, and `ALL` length 1265; the previous Rebase section’s counts are stale.
+In `README.status.md`, retain this task’s removal of the configuring-layout “Not yet” entry while preserving integration’s revised sign-in entry and all other status updates.
+Keep the automatically merged domain and test changes.
+Run the declaration test without write mode, then the task’s required closing checks, including clippy, through heavy with `TEMPER_BUNDLE=none`.
