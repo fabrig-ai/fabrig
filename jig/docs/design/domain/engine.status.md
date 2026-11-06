@@ -12,7 +12,7 @@ facts carried through proposal answers in 17.9.
   7.1, 9: the brief's lineage, calls and waiting sections. 7.2: what a
   turn's calls made, written beside the turn. 7.3: the tools `move`, `succeed`,
   `hold` and `lift`.
-  11.1: `me`'s `resolved_default` and the offer. 15: core-world stories that opt out of the restart
+  15: core-world stories that opt out of the restart
   oracle with a named finding (`broken()` in `jig/tests/core`), most for
   a claim the start settles (6, step 3) changing a task's `chip`, `acts`
   or run `settings`, which the projection keeps durable, others for a

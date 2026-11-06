@@ -82,7 +82,15 @@ fn frame_deployment_role_preserves_every_builtin_and_admitted_policy_and_full_wi
             + List::<FrameProjectRole>::price(value.projects.capacity()).unwrap()
             + len_u64(value.login.bytes.len() + value.name.bytes.len());
         for project in &value.projects {
-            held += List::<Template>::price(project.templates.capacity()).unwrap();
+            held += List::<Template>::price(project.templates.capacity()).unwrap()
+                + List::<Offered>::price(project.offer.capacity()).unwrap()
+                + List::<(u32, tasks::LlmChoice)>::price(project.defaults.capacity()).unwrap();
+            for model in &project.offer {
+                held += List::<u32>::price(model.accounts.capacity()).unwrap();
+            }
+            for (_, choice) in &project.defaults {
+                held += len_u64(size_of_val(choice.subagents.as_ref()));
+            }
         }
         assert!(document_with_context_bound(&limits, &core.kinds).unwrap() >= held);
         let Ok(Document::Deployment(_)) = make(&core, &limits, 1, &Subject::Deployment, &window(), Wall::EPOCH) else {

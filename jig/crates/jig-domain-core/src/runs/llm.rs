@@ -82,6 +82,15 @@ impl Core {
     /// What a task's next run takes: its named choice, or its charter's models within
     /// its authority, the first it can use its main (domain/accounts.md, 4.3).
     pub(crate) fn next_llm(&self, row: &tasks::TaskRecord) -> Option<tasks::LlmChoice> {
+        self.task_llm(row, true)
+    }
+
+    /// A task given none names no model when no candidate serves it (domain/accounts.md, 4.3).
+    pub(crate) fn document_llm(&self, row: &tasks::TaskRecord) -> Option<tasks::LlmChoice> {
+        self.task_llm(row, false)
+    }
+
+    fn task_llm(&self, row: &tasks::TaskRecord, fallback: bool) -> Option<tasks::LlmChoice> {
         if let Some(choice) = &row.llm {
             return Some(choice.clone());
         }
@@ -106,11 +115,7 @@ impl Core {
                 }
             }
         }
-        let mut candidates = List::with_capacity(tasks::MODELS);
-        candidates.push(choice.main).expect("charter main");
-        for candidate in &choice.subagents {
-            candidates.push(*candidate).expect("charter models");
-        }
+        let candidates = candidates(&choice);
         let mut kept = None;
         let mut usable = None;
         let mut serving = None;
@@ -142,18 +147,37 @@ impl Core {
                 serving = Some(*candidate);
             }
         }
-        choice.main = kept.or(usable).or(serving).unwrap_or(choice.main);
-        default_effort(&self.settings, policy, &mut choice.main);
-        let mut others = List::with_capacity(tasks::MODELS);
+        let selected = kept.or(usable).or(serving);
+        if !fallback && selected.is_none() {
+            return None;
+        }
+        choice.main = selected.unwrap_or(choice.main);
+        Some(defaults(&self.settings, policy, choice, candidates.as_slice()))
+    }
+
+    /// A template's observation of the first offered charter candidate (domain/engine.md, 11.1).
+    pub(crate) fn preview_llm(
+        &self,
+        charter: u32,
+        revision: u32,
+        models: tasks::Models,
+        payer: tasks::Payer,
+        project: u32,
+    ) -> Option<tasks::LlmChoice> {
+        let policy = &self.charter_at(charter, revision)?.policy;
+        let mut choice = self.tasks.default_llm_at(charter, revision, models)?;
+        let candidates = candidates(&choice);
+        let offer = self.offer(payer, project, models);
         for candidate in &candidates {
-            if candidate.model != choice.main.model {
-                let mut candidate = *candidate;
-                default_effort(&self.settings, policy, &mut candidate);
-                others.push(candidate).expect("charter alternatives");
+            for offered in &offer {
+                if offered.model == candidate.model {
+                    choice.main = *candidate;
+                    choice.account = None;
+                    return Some(defaults(&self.settings, policy, choice, candidates.as_slice()));
+                }
             }
         }
-        choice.subagents = others.into_boxed();
-        Some(choice)
+        None
     }
 
     /// The chosen main model, without cloning the policy during an assignment recheck.
@@ -183,6 +207,34 @@ impl Core {
             None => policy.clone(),
         }
     }
+}
+
+fn candidates(choice: &tasks::LlmChoice) -> List<tasks::ModelEffort> {
+    let mut candidates = List::with_capacity(tasks::MODELS);
+    candidates.push(choice.main).expect("charter main");
+    for candidate in &choice.subagents {
+        candidates.push(*candidate).expect("charter models");
+    }
+    candidates
+}
+
+fn defaults(
+    settings: &Settings,
+    policy: &RunPolicy,
+    mut choice: tasks::LlmChoice,
+    candidates: &[tasks::ModelEffort],
+) -> tasks::LlmChoice {
+    default_effort(settings, policy, &mut choice.main);
+    let mut others = List::with_capacity(tasks::MODELS);
+    for candidate in candidates {
+        if candidate.model != choice.main.model {
+            let mut candidate = *candidate;
+            default_effort(settings, policy, &mut candidate);
+            others.push(candidate).expect("charter alternatives");
+        }
+    }
+    choice.subagents = others.into_boxed();
+    choice
 }
 
 /// A party's LLM choice as tasks keeps it, models and efforts by index in configuration's order
