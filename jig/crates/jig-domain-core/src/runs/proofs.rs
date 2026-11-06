@@ -1,7 +1,7 @@
 //! Live run proofs and their restoration bounds (`jig/docs/design/domain/engine.md`, sections 6 and 7).
 use crate::{Core, CoreKey, Key, RunProof, TerminalRecord, start};
 use jig_domain_tasks as tasks;
-use skein_lib::Token;
+use skein_lib::{Token, length::len_u64};
 
 impl Core {
     /// Whether a live task still holds this exact fenced attempt.
@@ -51,14 +51,14 @@ impl Core {
             if !self.start_room(start::LiveSet::RunProofs, key.clone(), self.proofs.len(), self.proofs.capacity()) {
                 return false;
             }
-            let mut bytes = u64::try_from(proof.outstanding.len()).expect("allocated proof fits u64");
+            let mut bytes = len_u64(proof.outstanding.len());
             let mut limit = u64::from(self.run_inbox);
             if bytes <= limit {
-                bytes = u64::try_from(proof.accounts.len()).expect("allocated accounts fit u64");
+                bytes = len_u64(proof.accounts.len());
                 limit = u64::from(tasks::MODELS);
             }
             if bytes <= limit {
-                bytes = u64::try_from(proof.credentials.len()).expect("allocated credentials fit u64");
+                bytes = len_u64(proof.credentials.len());
                 limit = u64::from(self.accounts.credential_limit());
             }
             if bytes <= limit

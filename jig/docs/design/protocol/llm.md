@@ -190,8 +190,9 @@ engine's protocol layer
   (`../domain/engine.md`, section 8).
 - **The task chooses the model,** with its effort, within its charter's
   models and its authority's (`../domain/tasks.md`, section 3;
-  `../domain/authority.md`, section 3); a task that names none takes its
-  charter's default.
+  `../domain/authority.md`, section 3); a task that names none takes, at
+  each run's check, the first of its charter's models it can use
+  (`../domain/accounts.md`, 4.3).
 
 ## 5. Accounts
 

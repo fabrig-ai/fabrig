@@ -24,7 +24,7 @@ pub(crate) fn call_fields(value: &w::Call, limits: &Limits) -> Result<c::Call, w
         outcome: opt0,
         failed: value.failed(),
         objects: list1,
-        parts: application_part_piece(value.parts(), limits, limits.client().rows)?,
+        parts: application_part_piece(value.parts())?,
     })
 }
 

@@ -11,6 +11,7 @@ use jig_domain_core::{self as core, documents, reads};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
+use skein_lib::length::len_u64;
 
 fn a_read_waits_for_the_commit_in_flight_before_it() {
     assert_eq!(Fence(7).answered(6), Err("read preceded its durable prerequisite"));
@@ -654,7 +655,7 @@ fn a_turn_past_the_read_bound_reports_its_size() {
     let mut world = world_with_large_turn(802);
     let task = world.assigned.as_ref().expect("chat").task;
     let body = vec![b'x'; skein_lib::length::usize_of(LARGE_TURN_BYTES)];
-    assert!(u64::try_from(body.len()).expect("payload length") > u64::from(TURN_READ_BYTES));
+    assert!(len_u64(body.len()) > u64::from(TURN_READ_BYTES));
     world.turn(1, 1, None, &body);
     ask(&mut world, 980, reads::Read::Turn { task, attempt: 1, turn: 1 });
     assert_eq!(latest(&world), &reads::Answer::None(reads::Why::TooLarge { bytes: u64::from(LARGE_TURN_BYTES) }));

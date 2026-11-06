@@ -4,7 +4,7 @@ use jig_store_world::{
     patches::{self, BASE, Records, SETS, Shelf},
     root,
 };
-use skein_lib::Rng;
+use skein_lib::{Rng, length::len_u64};
 
 // 64 seeds match this world's crash sweep: varied small records and one
 // drawn mutation per seed, beside the focused exhaustive mutation sweep.
@@ -135,7 +135,7 @@ fn seeded_patch_cuts_keep_one_whole_modeled_generation() {
         completed.trace_writes();
         assert!(completed.open_switched().is_some(), "seed {seed}: {:?}", completed.refusal());
         let cuts = patches::cuts(&completed);
-        let cut = cuts[usize::try_from(random.below(u64::try_from(cuts.len()).expect("cuts"))).expect("cut")];
+        let cut = cuts[usize::try_from(random.below(len_u64(cuts.len()))).expect("cut")];
         let mut world = records.committed_with(seed, BEFORE, 1, patches::limits(), &rows);
         let original = patches::source(&mut world);
         world.patch_sets(AFTER);

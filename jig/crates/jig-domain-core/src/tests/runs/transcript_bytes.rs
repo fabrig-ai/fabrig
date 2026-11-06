@@ -1,4 +1,5 @@
 use crate::tests::*;
+use skein_lib::length::len_u64;
 
 /// A preparation counts at its allowance until its load is in, then at
 /// what it keeps, and at nothing once it ends.
@@ -36,7 +37,7 @@ fn transcript_bytes_follow_a_preparation_from_allowance_to_zero() {
             },
             Some(text.into()),
         ));
-        retained += u64::try_from(body.len() + text.len()).expect("fixture byte lengths fit u64");
+        retained += len_u64(body.len() + text.len());
         assert_eq!(core.transcript_bytes(), allowance, "partial loads keep their allowance");
     }
     let _requests = watch_outputs(

@@ -352,12 +352,18 @@ git diff-files --name-only -z --diff-filter=U          only after exit 1
 exactly as it is, on the parents the domain names. The message, given on
 stdin, is `title`, then, when `body` is not empty, a blank line and
 `body`, then a newline. `.gitignore` is honoured: an ignored file is not
-part of the tree.
+part of the tree. **A hidden log is no part of a change:** a file named
+`.*.log`, at any depth, is what a tool left in the workspace. It is never
+staged, for a save or a delivery alike, whatever the repository ignores, so
+it reaches no branch and never lands. One the parent already tracks keeps the
+parent's contents. Every other file of the tree is taken, a new one included,
+since a run's new work is as untracked as a stray file: only this name and the
+repository's own ignore rules tell them apart.
 
 **Without a second parent** (`merging` is `None`):
 
 ```
-git add --all
+git add --all -- . ':(exclude,glob)**/.*.log'
 git diff-index --cached --quiet <parent> --            exit 0: Unchanged, and nothing more runs
 git write-tree
 git commit-tree <tree> -p <parent> -F -
@@ -368,7 +374,7 @@ git commit-tree <tree> -p <parent> -F -
 ```
 git diff-files --name-only -z --diff-filter=U          the originally conflicted paths still unmerged in the index
                                                        then the scan of those files, below
-git add --all
+git add --all -- . ':(exclude,glob)**/.*.log'
 git write-tree
 git commit-tree <tree> -p <parent> -p <m> -F -
 ```
@@ -697,6 +703,11 @@ checks this document's contract:
   and the URL on the command line cover what they name. Contained trees
   (skein's `io.md`, 6.3), with the git directory unwritable by an
   agent's tree, close both.
+- **A stray file of another name** (4.7): `git add` still takes it, a new
+  file being indistinguishable from a run's new work, unless the repository
+  ignores it. Default: the repository's `.gitignore` is where such a name goes.
+  A hidden log in conflict in a merge stays unmerged, so `write-tree` ends
+  `Broken`; no story makes one.
 - **HEAD after a commit.** Default: not moved (section 4.7), keeping each
   commit to four invocations; an agent that reads git sees the work
   since its start as uncommitted. Moving it costs a fifth invocation

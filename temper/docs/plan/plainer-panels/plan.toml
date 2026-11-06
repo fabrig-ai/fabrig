@@ -1,0 +1,47 @@
+draft = "plainer-panels"
+repo = "fabrig"
+sources = ["temper/docs/plan/plainer-panels/inputs/request.md", "temper/docs/help/task.md", "AGENTS.md", "DESIGN.md"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "person-answered"
+title = "task show names who answered a person task"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/tools.md, 5.5"
+
+[[part]]
+id = "hold-word"
+title = "jig's words gain held"
+mode = "direct"
+needs = []
+design = "jig/docs/design/client/domain/client.md, 19"
+
+[[part]]
+id = "held-waiting"
+title = "task show says a held task waits on its hold, in the form the user chooses"
+mode = "direct"
+needs = ["person-answered", "hold-word"]
+design = "temper/docs/design/client/tools.md, 6.1"
+
+[[slice]]
+id = 1
+story = "task show names who answered a person task and says a held task waits on its hold"
+parts = ["person-answered", "hold-word", "held-waiting"]
+walk = false
+
+[[part]]
+id = "help-says-so"
+title = "temper help task says what taken by: and waiting on: print, within its bound"
+mode = "direct"
+needs = ["person-answered", "held-waiting"]
+design = "temper/docs/design/client/tools.md, 6.1"
+
+[[slice]]
+id = 2
+story = "temper help task says what both lines print, and the design carries the form chosen"
+parts = ["help-says-so"]
+walk = false

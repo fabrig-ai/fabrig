@@ -61,7 +61,7 @@ fn signed_in_root((mut domain, env): (Domain, Env<Limits>), role: Option<people:
         );
     }
     let people_env = env.with(env.limits.people);
-    assert!(domain.core.people.start_link(&people_env));
+    assert!(domain.core.people.start_link());
     domain.core.people.start_sweep();
     assert!(domain.core.people.start_complete(&people_env));
     (domain, env)

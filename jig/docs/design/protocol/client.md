@@ -269,8 +269,8 @@ tasks and people families; the worker's `GrantValue` keeps tags 0 to 2.
 effective template's configured LLM intent
 (`../client/domain/contract.md`, 5.1). The schema, generated codecs,
 translations, golden records and served-version declarations carry
-that field (sections 9 and 14). It is a preview of Create's
-once-at-creation resolver, never task intent or a reservation; no
+that field (sections 9 and 14). It is a preview of what a run's check
+would take (`../domain/accounts.md`, 4.3), never task intent or a reservation; no
 store family carries it, and application families' versions are their
 own.
 

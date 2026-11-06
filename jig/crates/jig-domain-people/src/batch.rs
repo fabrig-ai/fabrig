@@ -1,6 +1,7 @@
 //! A party's batch (domain/tasks.md, sections 3 and 4).
 use crate::{Authority, Grant, Parameter, PersonAddress, WakePolicy};
 use alloc::boxed::Box;
+use skein_lib::length::len_u64;
 /// A party's explicitly proposed action.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Action {
@@ -132,14 +133,12 @@ pub enum Retention {
 /// Checked owned payload, excluding the inline member.
 #[must_use]
 pub fn member_bytes(member: &Member) -> Option<u64> {
-    let mut total = crate::authority_bytes(&member.authority)?.checked_add(u64::try_from(member.words.len()).ok()?)?;
-    total = total.checked_add(
-        u64::try_from(member.parameters.len()).ok()?.checked_mul(u64::try_from(size_of::<Parameter>()).ok()?)?,
-    )?;
-    total = total.checked_add(
-        u64::try_from(member.dependencies.len()).ok()?.checked_mul(u64::try_from(size_of::<Dependency>()).ok()?)?,
-    )?;
-    total = total.checked_add(u64::try_from(member.inputs.len()).ok()?.checked_mul(8)?)?;
+    let mut total = crate::authority_bytes(&member.authority)?.checked_add(len_u64(member.words.len()))?;
+    total = total
+        .checked_add(len_u64(member.parameters.len()).checked_mul(u64::try_from(size_of::<Parameter>()).ok()?)?)?;
+    total = total
+        .checked_add(len_u64(member.dependencies.len()).checked_mul(u64::try_from(size_of::<Dependency>()).ok()?)?)?;
+    total = total.checked_add(len_u64(member.inputs.len()).checked_mul(8)?)?;
     let mut named = member.authority.clone();
     named.grants.clone_from(&member.named);
     named.delegation.kinds = Box::new([]);
@@ -148,24 +147,21 @@ pub fn member_bytes(member: &Member) -> Option<u64> {
     total = total.checked_add(crate::llm_bytes(member.llm.as_ref())?)?;
     for parameter in &member.parameters {
         match parameter {
-            Parameter::Bytes { value, .. } => total = total.checked_add(u64::try_from(value.len()).ok()?)?,
+            Parameter::Bytes { value, .. } => total = total.checked_add(len_u64(value.len()))?,
             Parameter::Number { .. } | Parameter::Resource { .. } => {}
         }
     }
     match &member.contract {
         Contract::Report { .. } | Contract::Change { .. } => {}
         Contract::Verdict { choices } => {
-            total = total.checked_add(
-                u64::try_from(choices.len()).ok()?.checked_mul(u64::try_from(size_of::<Verdict>()).ok()?)?,
-            )?;
+            total =
+                total.checked_add(len_u64(choices.len()).checked_mul(u64::try_from(size_of::<Verdict>()).ok()?)?)?;
             for choice in choices {
                 total = total.checked_add(
-                    u64::try_from(choice.fields.len())
-                        .ok()?
-                        .checked_mul(u64::try_from(size_of::<FieldRule>()).ok()?)?,
+                    len_u64(choice.fields.len()).checked_mul(u64::try_from(size_of::<FieldRule>()).ok()?)?,
                 )?;
                 for field in &choice.fields {
-                    total = total.checked_add(u64::try_from(field.name.len()).ok()?)?;
+                    total = total.checked_add(len_u64(field.name.len()))?;
                 }
             }
         }

@@ -7,7 +7,7 @@ use crate::{
 };
 use jig_client_protocol_wire::{self as wire, public_v1 as w};
 use jig_domain_core as c;
-use skein_lib::{Env, List, Queue, Reader, ReplyTo, Rng, Secret, Time, Token, Wall};
+use skein_lib::{Env, List, Queue, Reader, ReplyTo, Rng, Secret, Time, Token, Wall, length::len_u64};
 #[path = "public/fixtures.rs"]
 mod fixtures;
 use fixtures::*;
@@ -188,7 +188,7 @@ fn reservations_are_given_back_on_every_end() {
     let (reply, _) = step.admitted();
     step.document(reply, projects());
     let bytes = bytes(step.reply(exchange));
-    assert_eq!(step.bytes(), BURST - u64::try_from(bytes.len()).unwrap());
+    assert_eq!(step.bytes(), BURST - len_u64(bytes.len()));
 }
 #[test]
 fn bursts_bound_reads_at_once() {

@@ -37,7 +37,7 @@ impl People {
         ] {
             assert!(people.send(Event::Restore { record: row }).is_empty());
         }
-        assert!(people.domain.start_link(&people.env));
+        assert!(people.domain.start_link());
         people.domain.start_sweep();
         assert!(people.domain.start_complete(&people.env));
         people
@@ -130,7 +130,7 @@ fn a_kept_deletion_restores_at_start() {
                 people.send(Event::Restore { record: Stored::Deletion { project, step: selected, grace } }).is_empty()
             );
         }
-        assert!(people.domain.start_link(&people.env));
+        assert!(people.domain.start_link());
         people.domain.start_sweep();
         assert!(people.domain.start_complete(&people.env));
         assert!(people.domain.ready());
@@ -158,7 +158,7 @@ fn too_many_deletion_rows_refuse_the_start() {
     );
     assert!(!people.domain.ready());
     assert_eq!(people.domain.deletions().len(), 1);
-    assert!(!people.domain.start_link(&people.env));
+    assert!(!people.domain.start_link());
     assert!(people.domain.restore_failure().is_some());
 }
 

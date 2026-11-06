@@ -2,6 +2,7 @@
 use skein_forge::api;
 use skein_forge::forgejo::document as d;
 use skein_forge::forgejo::plans::reading;
+use skein_lib::bytes::concat;
 use skein_lib::{Time, Wall};
 use std::boxed::Box;
 
@@ -201,19 +202,9 @@ fn a_malformed_read_answer_is_invalid_and_closes_its_connection() {
     assert!(h.peers.is_empty(), "untrusted stream closed");
 }
 fn pull(number: u64, state: &[u8], head: &[u8]) -> Box<[u8]> {
-    joined(&[b"{\"number\":", skein_lib::Decimal::of(number).as_bytes(), b",\"state\":\"", state, b"\",\"head\":{\"repo_id\":1,\"ref\":\"", head, b"\",\"sha\":\"0000000000000000000000000000000000000000\"},\"base\":{\"repo_id\":1,\"ref\":\"main\",\"sha\":\"\"},\"merged\":false,\"merge_commit_sha\":null,\"merge_base\":null,\"mergeable\":true,\"requested_reviewers\":[]}"])
+    concat(&[b"{\"number\":", skein_lib::Decimal::of(number).as_bytes(), b",\"state\":\"", state, b"\",\"head\":{\"repo_id\":1,\"ref\":\"", head, b"\",\"sha\":\"0000000000000000000000000000000000000000\"},\"base\":{\"repo_id\":1,\"ref\":\"main\",\"sha\":\"\"},\"merged\":false,\"merge_commit_sha\":null,\"merge_base\":null,\"mergeable\":true,\"requested_reviewers\":[]}"])
 }
-fn joined(pieces: &[&[u8]]) -> Box<[u8]> {
-    let mut length = 0_usize;
-    for piece in pieces {
-        length = length.saturating_add(piece.len());
-    }
-    let mut out = skein_lib::Writer::new(length);
-    for piece in pieces {
-        out.put(piece).expect("pieces measured");
-    }
-    out.finish()
-}
+
 fn expected_pull(number: u64, state: api::State) -> api::Pull {
     api::Pull {
         queued: None,
@@ -236,7 +227,7 @@ fn pull_for_lists_open_pulls_when_the_lookup_names_a_closed_one() {
     h.call(1, fixtures::REPO, Op::Read(Read::PullFor { head: Box::from(&b"work"[..]), base: Box::from(&b"main"[..]) }));
     answer(&mut h, &pull(12, b"closed", b"work"));
     last(&h, b"GET /api/v1/repos/fixture/specimen/pulls?state=open&sort=oldest&page=1&limit=2 HTTP/1.1");
-    answer(&mut h, &joined(&[b"[", &pull(9, b"open", b"other"), b",", &pull(13, b"open", b"work"), b"]"]));
+    answer(&mut h, &concat(&[b"[", &pull(9, b"open", b"other"), b",", &pull(13, b"open", b"work"), b"]"]));
     last(&h, b"GET /api/v1/repos/fixture/specimen/commits/0000000000000000000000000000000000000000/status?page=1&limit=2 HTTP/1.1");
     answer(&mut h, EMPTY_STATUS);
     assert_eq!(h.answered(1).expect("open pull").result, Ok(Answer::Pull(expected_pull(13, api::State::Open))));
@@ -297,7 +288,7 @@ fn revisions_from_bytes() {
     for (name, call, body, updated, provenance, revision, expected_body) in rows {
         h.call(call, fixtures::REPO, Op::Read(Read::Item { number: 1, after: 0 }));
         answer(&mut h, ISSUE);
-        let comments = joined(&[
+        let comments = concat(&[
             br#"[{"id":1,"user":{"id":2,"login":"writer"},"created_at":"1970-01-01T00:00:01Z","updated_at":"#,
             updated,
             br#", "body":""#,
@@ -353,7 +344,7 @@ fn actions_status() -> api::Status {
 const REPOSITORY: &[u8] = br#"{"id":1,"owner":{"id":2,"login":"fixture"},"name":"specimen","object_format_name":"sha1","default_branch":"main","default_merge_style":"merge","allow_merge_commits":true,"allow_squash_merge":false,"allow_rebase":false,"html_url":"http://127.0.0.1:3000/fixture/specimen"}"#;
 const PERMISSION: &[u8] = br#"{"permission":"owner","user":{"id":2,"login":"writer"}}"#;
 fn branch(name: &[u8], rule: &[u8]) -> Box<[u8]> {
-    joined(&[
+    concat(&[
         br#"{"name":""#,
         name,
         br#"","commit":{"id":"0000000000000000000000000000000000000000"},"effective_branch_protection_name":""#,
@@ -490,7 +481,7 @@ fn remarks_select_the_requested_slice_and_cut_after_it() {
     let mut h = fixtures::known();
     h.call(1, fixtures::REPO, Op::Read(Read::Remarks { number: 1, review: 2, page: 2 }));
     let row = br#"{"id":3,"user":{"id":2,"login":"writer"},"path":"file","position":4,"body":"abc"}"#;
-    answer(&mut h, &joined(&[b"[", row, b",", row, b",", row, b",", row, b",", row, b"]"]));
+    answer(&mut h, &concat(&[b"[", row, b",", row, b",", row, b",", row, b",", row, b"]"]));
     let remark = api::Remark { id: 3, author: 2, path: Box::from(&b"file"[..]), line: 4, body: Box::from(&b"abc"[..]) };
     assert_eq!(
         h.answered(1).expect("remarks").result,

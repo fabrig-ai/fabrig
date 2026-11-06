@@ -14,7 +14,7 @@ use crate::jig::{Limits, runner::Printed};
 use alloc::boxed::Box;
 use jig_client::{
     contract::{HeldRole, Me, Recipient, Requester, Task, WaitedFor, WaitsOn, Whom},
-    words::{self, Word},
+    words::{self, WaitingWord, Word},
 };
 use skein_json::writer::Encoder;
 use skein_ui::phrases::{PhraseLimits, Phrasebook};
@@ -304,7 +304,7 @@ fn task_with_specification(
     llm::text_choice(task.llm.as_ref(), out);
     llm::text_wait(task, limits, out);
     out.put(b"\nwaiting on: ");
-    waiting(&task.waits_on, me, book, out);
+    waiting(task, me, book, out);
     out.put(b"\n");
     task_details(task, me, book, vocabulary, out);
 }
@@ -372,8 +372,8 @@ fn project(number: u32, me: Option<&Me>, out: &mut Text) {
     out.put(b"project ");
     out.number(u64::from(number));
 }
-fn waiting(value: &WaitsOn, me: Option<&Me>, book: &Phrasebook, out: &mut Text) {
-    match value {
+fn waiting(task: &Task, me: Option<&Me>, book: &Phrasebook, out: &mut Text) {
+    match &task.waits_on {
         WaitsOn::Party { whom, task, kind, entries } => {
             match whom {
                 Whom::Person(party) => acts::party(*party, me, out),
@@ -394,8 +394,15 @@ fn waiting(value: &WaitsOn, me: Option<&Me>, book: &Phrasebook, out: &mut Text) 
             out.number(u64::from(*entries));
             out.put(b" waiting");
         }
-        WaitsOn::Dependencies { .. } | WaitsOn::Delegates | WaitsOn::News | WaitsOn::Nothing => {
-            out.put(&book.say(0, Word::waiting(value).id(), &[]).expect("waiting phrase").text);
+        WaitsOn::Dependencies { .. } | WaitsOn::Delegates | WaitsOn::News => {
+            out.put(&book.say(0, Word::waiting(&task.waits_on).id(), &[]).expect("waiting phrase").text);
+        }
+        WaitsOn::Nothing => {
+            let word = match &task.hold {
+                Some(_) => Word::Waiting(WaitingWord::Held),
+                None => Word::waiting(&task.waits_on),
+            };
+            out.put(&book.say(0, word.id(), &[]).expect("waiting phrase").text);
         }
     }
 }
@@ -644,7 +651,13 @@ mod task_settings;
 use result_words::text as result_text;
 
 // jig/docs/design/client/domain/contract.md, 3.2: person answers name their revision and offers.
-fn person_text(person: &jig_client::contract::PersonTask, me: Option<&Me>, book: &Phrasebook, out: &mut Text) {
+fn person_text(
+    person: &jig_client::contract::PersonTask,
+    answerer: Option<u64>,
+    me: Option<&Me>,
+    book: &Phrasebook,
+    out: &mut Text,
+) {
     out.put(b"person task ");
     out.number(person.task.task);
     out.put(b" --rev ");
@@ -656,10 +669,14 @@ fn person_text(person: &jig_client::contract::PersonTask, me: Option<&Me>, book:
     }
     out.put(b"\ncontract: ");
     person_contract_text(&person.contract, out);
-    out.put(b"\ntaken by: ");
-    match person.taken_by {
-        Some(party) => acts::party(party, me, out),
-        None => out.put(b"none"),
+    if let Some(party) = answerer {
+        out.put(b"\nanswered by: ");
+        acts::party(party, me, out);
+    } else if let Some(party) = person.taken_by {
+        out.put(b"\ntaken by: ");
+        acts::party(party, me, out);
+    } else if person.task.phase != jig_client::contract::Phase::Closing {
+        out.put(b"\ntaken by: none");
     }
     out.put(b"\nacts:\n");
     for offer in &person.acts {
