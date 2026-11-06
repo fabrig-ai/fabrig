@@ -7,6 +7,36 @@ const PROPOSAL: ObjectKey = ObjectKey::Proposal(f::PROPOSAL);
 const HELD: ObjectKey = ObjectKey::Escalation(f::TASK);
 const PERSON: ObjectKey = ObjectKey::PersonTask(f::TASK);
 #[test]
+fn settings_rejection_sends_its_reason_without_a_running_choice() {
+    for act in [ActKind::Accept, ActKind::Reject] {
+        let c::ReadValue::Proposal(mut proposal) = f::proposal(act, Admission::Allowed) else {
+            panic!("proposal fixture")
+        };
+        proposal.action = c::ProposalAction::Settings(Box::new(c::ProposalActionSettings {
+            against: 1,
+            items: skein_lib::List::uncapped(),
+            review: None,
+            made: None,
+        }));
+        let mut pages = f::pages(PROPOSAL, c::ReadValue::Proposal(proposal));
+        f::act(&mut pages, Act::CardWords { object: PROPOSAL, words: Box::from(*b"Keep current settings.") });
+        f::act(&mut pages, f::decide(PROPOSAL, act));
+        let (decision, running) = if act == ActKind::Accept {
+            (c::Decision::Accepted, Some(c::Running::Stays))
+        } else {
+            (c::Decision::Rejected { reason: f::text(b"Keep current settings.") }, None)
+        };
+        assert_eq!(
+            f::sent(&mut f::act(&mut pages, Act::Confirm)).as_ref(),
+            [c::Ask::Decide {
+                project: fixtures::PROJECT,
+                on: c::DecideOn::Proposal { proposal: f::PROPOSAL, decision, running },
+            }]
+        );
+    }
+}
+
+#[test]
 fn accepting_sends_nothing_until_the_confirmation_is_confirmed() {
     let mut pages = f::pages(PROPOSAL, f::proposal(ActKind::Accept, Admission::Allowed));
     assert_eq!(f::sent(&mut f::act(&mut pages, f::decide(PROPOSAL, ActKind::Accept))).len(), 0);

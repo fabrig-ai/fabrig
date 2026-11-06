@@ -831,7 +831,7 @@ fn disabled_sections_say_so_once_and_their_controls_are_disabled() {
             (
                 "Status",
                 vec!["Status lines and reports", "Rewritten", "The brief on Home"],
-                vec!["Written by each goal’s agent", "When someone opens it", "Off"],
+                vec!["Written by each goal’s agent", "When someone opens it", "On"],
             ),
             ("Telling you", vec!["Notifications", "Quiet hours"], vec!["Off", "None"]),
         ] {

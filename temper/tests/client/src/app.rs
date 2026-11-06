@@ -182,7 +182,7 @@ impl App for Temper {
             Request::Unlinked { request: jig_client::UnlinkedRequest::SignOut } | Request::SignOut => Duty::SignOut,
             Request::Client { .. } | Request::Unlinked { .. } => Duty::Wire(request),
             Request::Show { address, replace } => Duty::Show { address, replace },
-            Request::Leave { .. } | Request::Fact { .. } | Request::Dropped { .. } => Duty::Fact,
+            Request::Copy { .. } | Request::Leave { .. } | Request::Fact { .. } | Request::Dropped { .. } => Duty::Fact,
         }
     }
     fn record_key(record: &Self::Record) -> Self::Key {
@@ -223,6 +223,7 @@ impl App for Temper {
                         down: jig_client::Down::Save { .. } | jig_client::Down::Erase { .. },
                     },
             }
+            | Request::Copy { .. }
             | Request::Show { .. }
             | Request::Leave { .. }
             | Request::SignOut
@@ -242,7 +243,9 @@ impl App for Temper {
                 domain::pages::Act::Project { .. } | domain::pages::Act::Filter { .. } | domain::pages::Act::Go { .. }
             ),
             Some(
-                domain::Event::Start { .. }
+                domain::Event::Copied { .. }
+                | domain::Event::Act { action: Action::Copy { .. } }
+                | domain::Event::Start { .. }
                 | domain::Event::Went { .. }
                 | domain::Event::Client { .. }
                 | domain::Event::Forge(_)
@@ -325,6 +328,7 @@ impl App for Temper {
             } => crate::cards::decision(ask),
             Request::Client { .. }
             | Request::Unlinked { .. }
+            | Request::Copy { .. }
             | Request::Show { .. }
             | Request::Leave { .. }
             | Request::SignOut
@@ -364,7 +368,8 @@ impl App for Temper {
                 receipts
             }
             domain::Event::SignedOut => vec![Receipt::Parked],
-            domain::Event::Start { .. }
+            domain::Event::Copied { .. }
+            | domain::Event::Start { .. }
             | domain::Event::Went { .. }
             | domain::Event::Act { .. }
             | domain::Event::Forge(_)

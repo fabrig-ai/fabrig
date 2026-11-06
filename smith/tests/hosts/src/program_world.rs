@@ -3,13 +3,13 @@
 //! The shared world owns scheduling, teardown, memory and replay mechanics.
 
 use skein_fake_machine::{How, Item, Machine as Files, Opened};
-use skein_io::{self as io, kernel};
+use skein_io::{self as io, file, file_layer, kernel};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_shell::{Delegate, Host};
 use skein_world::{HostedProgram, Inherited, Machine, Referee};
 use smith_fake_claude::{Fake, Story};
 use smith_host_domain::SourceName;
-use smith_host_protocol::{ProgramSource, SourceAnswer, SourceAsk};
+use smith_host_protocol::{ProgramSource, SourceAnswer, SourceAsk, SourceInspection};
 use smith_protocol_program::Programs;
 
 const OWNER: Token = Token::new(100);
@@ -36,12 +36,18 @@ struct Parent {
     io: io::Io,
     env: Env<io::Limits>,
     source: Option<ProgramSource>,
+    inspection: Option<SourceInspection>,
+    files: file_layer::FileIo,
+    file_requests: Queue<file::Request>,
+    file_events: Queue<file::Event>,
     asks: Queue<SourceAsk>,
     base: Vec<Box<[u8]>>,
     program: Box<[u8]>,
     answers: Vec<SourceAnswer>,
     root: kernel::Fd,
     root_closing: bool,
+    launches: u32,
+    deadline: Time,
     root_closed: bool,
     events: Queue<io::Event>,
     requests: Queue<io::Request>,
@@ -60,17 +66,88 @@ impl Parent {
             io: io::Io::new(&limits),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             source: None,
+            inspection: None,
+            files: file_layer::FileIo::new(1, 1, 1, DEADLINE),
+            file_requests: Queue::uncapped(),
+            file_events: Queue::uncapped(),
             asks: pending,
             base: base.to_vec(),
             program: if missing { b"missing".as_slice().into() } else { b"claude".as_slice().into() },
             answers: Vec::new(),
             root,
             root_closing: false,
+            launches: 0,
+            deadline: Time::ZERO,
             root_closed: false,
             events: Queue::with_capacity(32),
             requests: Queue::with_capacity(32),
             completions: Queue::with_capacity(32),
             submissions: Queue::with_capacity(64),
+        }
+    }
+    fn launch(&mut self, ask: SourceAsk) {
+        self.launches = self.launches.checked_add(1).expect("bounded source asks");
+        self.source = Some(
+            ProgramSource::new(
+                OWNER,
+                ask,
+                &Programs { directory: b"/programs".as_slice().into(), claude: self.program.clone() },
+                SourceName::new(b"alice").expect("source name"),
+                &self.base,
+                self.root,
+                b".".as_slice().into(),
+                self.deadline,
+                32,
+                &mut self.requests,
+            )
+            .expect("source binding"),
+        );
+    }
+    fn inspect(&mut self, now: Time) {
+        if let Some(inspection) = &mut self.inspection {
+            inspection.fire(now);
+        }
+        while let Some(event) = self.file_events.pop() {
+            self.inspection.as_mut().expect("inspection before files").from_file(event, &mut self.file_requests);
+        }
+        if let Some(inspection) = &mut self.inspection
+            && let Some(answer) = inspection.answer()
+        {
+            self.inspection = None;
+            match answer {
+                Ok(()) => self.launch(SourceAsk::Check),
+                Err(check) => self.answers.push(SourceAnswer::Check(check)),
+            }
+        }
+        file_layer::expire(&mut self.files, now, &mut self.submissions);
+        if self.files.takes()
+            && let Some(request) = self.file_requests.pop()
+        {
+            file_layer::down(&mut self.files, now, request, &mut self.file_events, &mut self.submissions);
+        }
+    }
+    fn issue(&mut self, now: Time) {
+        if self.source.is_none() && self.inspection.is_none() && !self.root_closing {
+            if let Some(ask) = self.asks.pop() {
+                self.deadline = now.saturating_add(DEADLINE);
+                match ask {
+                    SourceAsk::Check => {
+                        self.inspection = Some(SourceInspection::new(
+                            OWNER,
+                            self.root,
+                            b"programs".as_slice().into(),
+                            SourceName::new(b"alice").expect("source name"),
+                            1000,
+                            self.deadline,
+                            &mut self.file_requests,
+                        ));
+                    }
+                    SourceAsk::SignOut => self.launch(ask),
+                }
+            } else {
+                self.root_closing = true;
+                self.submissions.push(kernel::Submit { op: ROOT_CLOSE, kind: kernel::Op::Close { fd: self.root } });
+            }
         }
     }
 }
@@ -84,6 +161,8 @@ impl Host for Parent {
             if complete.op == ROOT_CLOSE {
                 assert!(complete.result.is_ok(), "parent root closes");
                 self.root_closed = true;
+            } else if file_layer::owns(complete.op) {
+                file_layer::up(&mut self.files, complete, &mut self.file_events, &mut self.submissions);
             } else {
                 self.completions.push(complete);
             }
@@ -118,29 +197,9 @@ impl Host for Parent {
                 self.source = None;
             }
         }
+        self.inspect(now);
         self.io.reclaim();
-        if self.source.is_none() && !self.root_closing {
-            if let Some(ask) = self.asks.pop() {
-                self.source = Some(
-                    ProgramSource::new(
-                        OWNER,
-                        ask,
-                        &Programs { directory: b"/programs".as_slice().into(), claude: self.program.clone() },
-                        SourceName::new(b"alice").expect("source name"),
-                        &self.base,
-                        self.root,
-                        b".".as_slice().into(),
-                        now.saturating_add(DEADLINE),
-                        32,
-                        &mut self.requests,
-                    )
-                    .expect("source binding"),
-                );
-            } else {
-                self.root_closing = true;
-                self.submissions.push(kernel::Submit { op: ROOT_CLOSE, kind: kernel::Op::Close { fd: self.root } });
-            }
-        }
+        self.issue(now);
         while let Some(request) = self.requests.pop() {
             io::down(&mut self.io, &self.env, request, &mut self.submissions);
         }
@@ -158,18 +217,33 @@ impl Host for Parent {
             || !self.completions.is_empty()
             || !self.events.is_empty()
             || !self.requests.is_empty()
-            || (self.source.is_none() && !self.root_closing)
+            || (self.source.is_none() && self.inspection.is_none() && !self.root_closing)
+            || !self.file_events.is_empty()
+            || (!self.file_requests.is_empty() && self.files.takes())
+            || self.files.is_due(now)
+            || self.inspection.as_ref().and_then(SourceInspection::next_deadline).is_some_and(|at| at <= now)
             || self.source.as_ref().and_then(ProgramSource::next_deadline).is_some_and(|at| at <= now)
     }
     fn next_mechanism_deadline(&self) -> Option<Time> {
-        self.io.next_deadline()
+        [self.io.next_deadline(), self.files.next_deadline()].into_iter().flatten().min()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
-        self.source.as_ref().and_then(ProgramSource::next_deadline)
+        [
+            self.source.as_ref().and_then(ProgramSource::next_deadline),
+            self.inspection.as_ref().and_then(SourceInspection::next_deadline),
+        ]
+        .into_iter()
+        .flatten()
+        .min()
     }
     fn is_empty(&self) -> bool {
         self.root_closed
             && self.io.is_empty()
+            && self.inspection.is_none()
+            && self.files.takes()
+            && self.files.open_files() == 0
+            && self.file_events.is_empty()
+            && self.file_requests.is_empty()
             && self.source.is_none()
             && self.asks.is_empty()
             && self.events.is_empty()
@@ -178,7 +252,7 @@ impl Host for Parent {
             && self.submissions.is_empty()
     }
     fn operations(&self) -> u32 {
-        io::operations(&self.env.limits).expect("parent operations").checked_add(1).expect("root close")
+        io::operations(&self.env.limits).expect("parent operations").checked_add(3).expect("root close and inspection")
     }
 }
 
@@ -274,9 +348,13 @@ pub struct Run {
     pub observations: Vec<smith_fake_claude::Observation>,
     pub login: Option<Vec<u8>>,
     pub trace: Vec<String>,
+    /// Modes after the check, with absent levels left as None.
+    pub directories: [Option<u32>; 2],
+    /// Number of commands launched by the parent.
+    pub launches: u32,
 }
 
-/// Run a short sequence of source asks on a private fake-machine directory.
+/// Run source asks with chosen directory modes or absent levels on a fake machine.
 #[must_use]
 pub fn run(
     seed: u64,
@@ -285,25 +363,14 @@ pub fn run(
     asks: &[SourceAsk],
     missing: bool,
     extra_environment: &[Box<[u8]>],
+    directories: [Option<u32>; 2],
 ) -> Run {
     // Peak across every program_source test: source checks and sign-out with the hosted fake.
     // The signed-in-otherwise check's hosted fake is largest.
     // Measured peak: 203_129 bytes on 2026-10-29; a quarter of headroom, rounded up.
     const SOURCE_PARENT_CEILING: u64 = 260_000;
 
-    let mut items = vec![Item::directory(b"home"), Item::directory(b"programs"), Item::directory(b"programs/alice")];
-    for item in &mut items {
-        item.mode = 0o700;
-    }
-    if let Some(story) = story {
-        items.push(Item::file(b"programs/alice/fake-claude.story", &story.encode()));
-    }
-    if let Some(login) = login {
-        items.push(Item::file(b"programs/alice/fake-claude.login", login));
-    }
-    let mut files = Files::new();
-    let base = files.lay(&items);
-    let mut machine = MachineFiles { files, base };
+    let mut machine = fixture(story, login, directories);
     let root = machine.open_root(b".").expect("parent root");
     let mut environment = vec![Box::from(b"HOME=/home".as_slice())];
     environment.extend_from_slice(extra_environment);
@@ -326,9 +393,34 @@ pub fn run(
         |spawn| smith_fake_claude::observation_append(spawn).into_iter().collect(),
     );
     world.spawn_root(root, |fd| Process::Parent(Box::new(Parent::new(fd, asks, &environment, missing))));
-    let mut outcome = world.run();
+    collect(world.run())
+}
+
+fn fixture(story: Option<Story>, login: Option<&[u8]>, directories: [Option<u32>; 2]) -> MachineFiles {
+    let mut items = vec![Item::directory(b"home")];
+    for (path, mode) in [b"programs".as_slice(), b"programs/alice".as_slice()].into_iter().zip(directories) {
+        if let Some(mode) = mode {
+            let mut item = Item::directory(path);
+            item.mode = mode;
+            items.push(item);
+        }
+    }
+    if let Some(story) = story {
+        items.push(Item::file(b"programs/alice/fake-claude.story", &story.encode()));
+    }
+    if let Some(login) = login {
+        items.push(Item::file(b"programs/alice/fake-claude.login", login));
+    }
+    let mut files = Files::new();
+    let base = files.lay(&items);
+    MachineFiles { files, base }
+}
+
+fn collect(mut outcome: skein_world::Outcome<Process, MachineFiles>) -> Run {
+    let base = outcome.machine.base;
     let Process::Parent(parent) = outcome.procs.first_mut().expect("parent") else { unreachable!("parent first") };
     let answers = parent.answers.clone();
+    let launches = parent.launches;
     let mut read = |path: &[u8]| match outcome.machine.files.open(base, path, How::Read) {
         Ok(file) => {
             let bytes = outcome.machine.files.read(file, 0, 65_536).expect("fixture file");
@@ -341,7 +433,25 @@ pub fn run(
     let login = read(b"programs/alice/fake-claude.login");
     let observations = read(b"programs/alice/fake-claude.observations")
         .map_or_else(Vec::new, |bytes| smith_fake_claude::observations(&bytes));
+    let directories = [b"programs".as_slice(), b"programs/alice".as_slice()].map(|path| {
+        match outcome.machine.files.open(base, path, How::Directory) {
+            Ok(opened) => {
+                let mode = outcome.machine.files.stat(opened).mode;
+                outcome.machine.files.close(opened);
+                Some(mode)
+            }
+            Err(skein_fake_machine::Refusal::NotFound) => None,
+            Err(error) => unreachable!("fixture directory: {error:?}"),
+        }
+    });
     outcome.machine.files.close(base);
     assert_eq!(outcome.machine.files.open_handles(), 0, "all source descriptors settle");
-    Run { answers, observations, login, trace: outcome.trace.iter().map(|entry| format!("{entry:?}")).collect() }
+    Run {
+        answers,
+        observations,
+        login,
+        directories,
+        launches,
+        trace: outcome.trace.iter().map(|entry| format!("{entry:?}")).collect(),
+    }
 }

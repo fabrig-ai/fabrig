@@ -229,8 +229,8 @@ impl Service {
             .expect("checked io operations")
             .checked_add(8)
             .expect("file operations")
-            .checked_add(self.workers.len())
-            .expect("worker roots")
+            .checked_add(self.workers.len().checked_mul(3).expect("worker file handoffs"))
+            .expect("worker roots and source inspection")
     }
     #[must_use]
     pub fn next_policy_deadline(&self) -> Option<Time> {
@@ -308,18 +308,20 @@ impl Service {
             }
         }
     }
-    fn root_complete(&mut self, complete: &Complete) -> bool {
+    fn root_complete(&mut self, mut complete: Complete) -> Result<(), Complete> {
         for index in 0..self.workers.len() {
-            if self.workers.get_mut(index).expect("worker index").root_complete(complete) {
-                return true;
+            match self.workers.get_mut(index).expect("worker index").root_complete(complete) {
+                Ok(()) => return Ok(()),
+                Err(returned) => complete = returned,
             }
         }
-        false
+        Err(complete)
     }
     fn complete_record(&mut self, complete: Complete) {
-        if self.root_complete(&complete) {
-            return;
-        }
+        let complete = match self.root_complete(complete) {
+            Ok(()) => return,
+            Err(complete) => complete,
+        };
         if store::owns(complete.op) {
             self.engine.as_mut().expect("store engine").store.complete(complete);
         } else {
