@@ -1,5 +1,41 @@
 # Replay the client walk
 
+The final, focused rewalk uses `again.py` after the three builds below:
+
+```sh
+python3 -B temper/docs/plan/ui-walk-3/driver/again.py \
+  --out "$HOME/src/fabrig/ui-walk-3/walk-again" \
+  --bundle "$PWD/target/ui-walk-3-bundle" \
+  --gallery "$PWD/target/ui-walk-3-gallery"
+```
+
+It captures only the fixes' Settings, draft/working-note, rename and
+confirmation states at 1440 and 420. `--section settings|draft|rename|sheets|proposals|position`
+and `--width` select a narrower fresh replay. Proposal sheets are exercised
+from Needs you, Home and the configuring chat, with independent revision-1
+boxes. Task-sheet gallery substitutes retain their unobserved live-behaviour
+limit. Setup clicks are prerequisites; there is no second seven-step tour.
+The unchanged funded brief, A4 press sequence and real command/fetch retain
+their earlier evidence. The result table identifies every carried source.
+
+`settings-status` scrolls both pages to the disabled Home-brief control;
+the full Settings capture also remains. Cleanup checks the effective lifecycle
+log, not stdout: `stopped_marker` in the inherited cleanup JSON describes
+stdout only; a null warning and the copied `box-N-lifecycle.log` establish
+`Stopped`.
+
+`--section proposals --page Chat --primary-only` narrows the new B1
+observation to a direct primary press, without Escape/keep beforehand;
+`--act accept` narrows it further. Product refusals retained in
+`observations.json` and `differs` rows are completed observations, not passing
+actions. A driver exception still produces `faults.json` and exits 1.
+The first final rewalk stopped on B1 at both widths; its failed pairs remain.
+The follow-up records that the configuring card has Accept and Change
+something, with no direct Reject under `client/README.md`, 5.13. Needs you
+and Home supply the live rejection checks. Sheet metrics include the inner
+window and layout viewport widths, distinguishing scrollbar space from
+placement errors.
+
 Python 3's standard library and Chromium are enough. Run in this checkout on a
 builder; `SKEIN_TEST_CHROMIUM` may name Chromium. No account or installation is
 needed. Every box uses `--fake-backends`.
