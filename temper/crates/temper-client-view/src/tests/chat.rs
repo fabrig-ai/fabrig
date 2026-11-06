@@ -3693,51 +3693,77 @@ fn a_refused_resume_says_why() {
 
 // Placement fixtures use empty call objects, as a model's tool calls do.
 const PLACE_TEXT: u32 = 512;
-const PLACE_ROWS: u32 = 12;
+// The two-proposal history retains six activity rows.
+const PLACE_ROWS: u32 = 6;
 const FIRST_CARD: c::ProposalKey = c::ProposalKey { proposer: c::Proposer::Task(TASK), number: 1 };
 const SECOND_CARD: c::ProposalKey = c::ProposalKey { number: FIRST_CARD.number + 1, ..FIRST_CARD };
 
 fn place_turn(position: u64, at: u64, words: &[u8]) -> c::DecodedActivityLine {
     use fixtures::first_run as run;
     let mut line = run::turn(
-        position, ATTEMPT, u32::try_from(position).unwrap(),
-        &[run::message(c::Speaker::Assistant, &[
-            c::Block::Text(run::text(words)), run::call(position, b"propose_settings", b"{}", None),
-        ])], PLACE_TEXT,
+        position,
+        ATTEMPT,
+        u32::try_from(position).unwrap(),
+        &[run::message(
+            c::Speaker::Assistant,
+            &[c::Block::Text(run::text(words)), run::call(position, b"propose_settings", b"{}", None)],
+        )],
+        PLACE_TEXT,
     );
+    line.source.task = TASK;
     line.source.at = turn_wall(at);
+    line.decoded.as_mut().unwrap().task = TASK;
     line.decoded.as_mut().unwrap().at = turn_wall(at);
     line
 }
 fn place_made(position: u64, at: u64, key: c::ProposalKey) -> c::DecodedActivityLine {
-    super::documents::line(position, turn_wall(at), c::Activity::Decided {
-        revision: 1, proposal: Some(c::DecidedProposal { number: key.number, made: true }),
-    })
+    let mut line = super::documents::line(
+        position,
+        turn_wall(at),
+        c::Activity::Decided { revision: 1, proposal: Some(c::DecidedProposal { number: key.number, made: true }) },
+    );
+    line.source.task = TASK;
+    line
 }
 fn place_proposal(key: c::ProposalKey, since: u64) -> c::ReadValue {
     let c::ReadValue::Proposal(mut proposal) = super::cards::batch_proposal() else { panic!("proposal") };
     proposal.key = key;
     proposal.waiting.since = turn_wall(since);
     proposal.action = c::ProposalAction::Settings(Box::new(c::ProposalActionSettings {
-        against: 1, items: List::with_capacity(0), review: None, made: None,
+        against: 1,
+        items: List::with_capacity(0),
+        review: None,
+        made: None,
     }));
     c::ReadValue::Proposal(proposal)
 }
 fn place_accepted(key: c::ProposalKey) -> c::ReadValue {
     c::ReadValue::Ended(Box::new(c::Ended {
-        key: c::ObjectKey::Proposal(key), at: None, by: None,
+        key: c::ObjectKey::Proposal(key),
+        at: None,
+        by: None,
         value: c::EndedValue::Proposal(c::ProposalHistory {
-            number: key.number, proposer: TASK, as_holder: true,
+            number: key.number,
+            proposer: TASK,
+            as_holder: true,
             reason: c::DocumentText::complete(fixtures::first_run::text(b"Keep the settings")),
             state: c::ProposalHistoryState::Accepted { by: c::Requester::Person(PARTY) },
             action: c::RetainedAction::Settings(c::RetainedActionSettings {
-                projects: List::with_capacity(0), against: 1, items: List::with_capacity(0), made: Some(2),
+                projects: List::with_capacity(0),
+                against: 1,
+                items: List::with_capacity(0),
+                made: Some(2),
             }),
         }),
     }))
 }
+#[expect(
+    clippy::too_many_lines,
+    reason = "one pump delivers the activity, live snapshots and decisions through their requests"
+)]
 fn place_root(
-    rows: &[c::DecodedActivityLine], pages: &[(c::ProposalKey, c::ReadValue)],
+    rows: &[c::DecodedActivityLine],
+    pages: &[(c::ProposalKey, c::ReadValue)],
 ) -> temper_client_domain::Domain {
     use temper_client_domain::{Address, Event, Place, Request};
     let mut limits = fixtures::domain_limits();
@@ -3746,76 +3772,191 @@ fn place_root(
     let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: fixtures::NOW, limits };
     let (mut root, _, _) = fixtures::root_at(Address::Settings { project: fixtures::PROJECT }, &limits);
     let mut out = skein_lib::Queue::uncapped();
-    temper_client_domain::step(&mut root, &env,
-        Event::Went { place: Place::Address(Address::Chat { task: TASK }) }, &mut out);
+    temper_client_domain::step(
+        &mut root,
+        &env,
+        Event::Went { place: Place::Address(Address::Chat { task: TASK }) },
+        &mut out,
+    );
     let mut task = fixtures::task::document();
     task.chip.task = TASK;
-    task.activity = rows.last().map_or(0, |row| row.source.position);
+    task.activity = match rows.last() {
+        Some(row) => row.source.position,
+        None => 0,
+    };
     task.proposals = List::with_capacity(u32::try_from(pages.len()).unwrap());
     // Deliver in reverse number order, so placement must use the card order.
-    for (key, _) in pages.iter().rev() { task.proposals.push(*key).unwrap(); }
+    for (key, _) in pages.iter().rev() {
+        task.proposals.push(*key).unwrap();
+    }
     let mut task_watch = None;
     for ended in [false, true] {
-    if ended {
-        task.proposals = List::with_capacity(u32::try_from(pages.len()).unwrap());
-        for (key, page) in pages {
-            if !matches!(page, c::ReadValue::Ended(_)) { task.proposals.push(*key).unwrap(); }
+        if ended {
+            task.proposals = List::with_capacity(u32::try_from(pages.len()).unwrap());
+            for (key, page) in pages {
+                if let c::ReadValue::Ended(_) = page {
+                } else {
+                    task.proposals.push(*key).unwrap();
+                }
+            }
+            temper_client_domain::step(
+                &mut root,
+                &env,
+                Event::Client {
+                    event: jig_client::Event::Up {
+                        up: jig_client::Up::Watched {
+                            watch: task_watch.unwrap(),
+                            event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task.clone()))),
+                        },
+                    },
+                },
+                &mut out,
+            );
         }
-        temper_client_domain::step(&mut root, &env, Event::Client { event: jig_client::Event::Up { up:
-            jig_client::Up::Watched { watch: task_watch.unwrap(), event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task.clone()))) }
-        }}, &mut out);
-    }
-    while let Some(request) = out.pop() {
-        let up = match request {
-            Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down:
-                jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Task { task: TASK }) }
-            }} => { task_watch = Some(watch); Some(jig_client::Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task.clone()))) }) },
-            Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down:
-                jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Activity { .. }) }
-            }} => Some(jig_client::Up::ReadDone { read, result: jig_client::Readout::Jig(c::ReadResult::Value(
-                c::ReadValue::Activity(Box::new(c::ActivityPage {
-                    rows: List::from_boxed(rows.to_vec().into_boxed_slice()), before: None, after: None, cut: false,
-                }))
-            )) }),
-            Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down:
-                jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Proposal { proposal }) }
-            }} => Some(jig_client::Up::ReadDone { read, result: jig_client::Readout::Jig(c::ReadResult::Value(
-                { let page = &pages.iter().find(|(key, _)| *key == proposal).expect("requested proposal").1;
-                  if !ended && matches!(page, c::ReadValue::Ended(_)) { place_proposal(proposal, 0) } else { page.clone() } }
-            )) }),
-            _ => None,
-        };
-        if let Some(up) = up {
-            temper_client_domain::step(&mut root, &env, Event::Client { event: jig_client::Event::Up { up } }, &mut out);
+        while let Some(request) = out.pop() {
+            let up = match request {
+                Request::Unlinked {
+                    request:
+                        jig_client::UnlinkedRequest::Down {
+                            down:
+                                jig_client::Down::Open {
+                                    watch,
+                                    subject: jig_client::Watchable::Jig(c::Subject::Task { task: TASK }),
+                                },
+                        },
+                } => {
+                    task_watch = Some(watch);
+                    Some(jig_client::Up::Watched {
+                        watch,
+                        event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task.clone()))),
+                    })
+                }
+                Request::Unlinked {
+                    request:
+                        jig_client::UnlinkedRequest::Down {
+                            down:
+                                jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Activity { .. }) },
+                        },
+                } => Some(jig_client::Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(Box::new(
+                        c::ActivityPage { rows: place_rows(rows), before: None, after: None, cut: false },
+                    )))),
+                }),
+                Request::Unlinked {
+                    request:
+                        jig_client::UnlinkedRequest::Down {
+                            down:
+                                jig_client::Down::Read {
+                                    read,
+                                    what: jig_client::Readable::Jig(c::Read::Proposal { proposal }),
+                                },
+                        },
+                } => Some(jig_client::Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Jig(c::ReadResult::Value({
+                        let page = place_page(pages, proposal);
+                        let mut document = page.clone();
+                        if !ended && let c::ReadValue::Ended(_) = page {
+                            document = place_proposal(proposal, 0);
+                        }
+                        document
+                    })),
+                }),
+                Request::Client { .. }
+                | Request::Unlinked { .. }
+                | Request::Show { .. }
+                | Request::Leave { .. }
+                | Request::SignOut
+                | Request::Dropped { .. }
+                | Request::KeepSignIn { .. }
+                | Request::Tab { .. }
+                | Request::Copy { .. }
+                | Request::Fact { .. } => None,
+            };
+            if let Some(up) = up {
+                temper_client_domain::step(
+                    &mut root,
+                    &env,
+                    Event::Client { event: jig_client::Event::Up { up } },
+                    &mut out,
+                );
+            }
         }
-    }
     }
     root
 }
 fn place_tree(root: &temper_client_domain::Domain, thread: &Thread, shell: crate::words::Shell) -> skein_ui::Tree {
     let mut limits = fixtures::tree_limits();
-    // Two settings cards and three full turns share this drawing.
+    // Two settings cards and four full turns share this drawing.
     limits.nodes = 512;
     let mut b = skein_ui::Builder::new(&limits);
     let words = if shell == crate::words::Shell::Browser { fixtures::browser_words() } else { fixtures::words() };
-    crate::pages::chat::conversation_with_times(&mut b, thread, &words, (PLACE_ROWS, PLACE_TEXT),
+    crate::pages::chat::conversation_with_times(
+        &mut b,
+        thread,
+        &words,
+        (PLACE_ROWS, PLACE_TEXT),
         crate::pages::chat::Speakers { person: Some(PARTY), requester: true },
-        (crate::pages::chat::Drawn::ChatPage { request: None, root }, Some(&mut crate::words::Times::new(fixtures::NOW))),
-        &mut crate::frame::Bindings::new(limits.bindings));
+        (
+            crate::pages::chat::Drawn::ChatPage { request: None, root },
+            Some(&mut crate::words::Times::new(fixtures::NOW)),
+        ),
+        &mut crate::frame::Bindings::new(limits.bindings),
+    );
     b.finish()
 }
-fn place_order(tree: &skein_ui::Tree) -> Vec<String> {
-    let mut order = Vec::new();
+fn place_rows(rows: &[c::DecodedActivityLine]) -> List<c::DecodedActivityLine> {
+    let mut kept = List::with_capacity(u32::try_from(rows.len()).unwrap());
+    for row in rows {
+        kept.push(row.clone()).unwrap();
+    }
+    kept
+}
+fn place_page(pages: &[(c::ProposalKey, c::ReadValue)], wanted: c::ProposalKey) -> &c::ReadValue {
+    for (key, page) in pages {
+        if *key == wanted {
+            return page;
+        }
+    }
+    unreachable!("requested proposal belongs to the fixture")
+}
+fn place_text(tree: &skein_ui::Tree, words: &[u8]) -> usize {
+    for (index, node) in tree.nodes().iter().enumerate() {
+        for run in &node.text {
+            if run.text.as_ref() == words {
+                return index;
+            }
+        }
+    }
+    unreachable!("named words belong to the fixture")
+}
+fn placed_card(tree: &skein_ui::Tree, wanted: c::ProposalKey) -> &skein_ui::Node {
+    let key = crate::pages::inbox::card_key(c::ObjectKey::Proposal(wanted));
     for node in tree.nodes() {
-        let text = node.text.as_slice().first().map(|run| run.text.as_ref());
+        if node.key == Some(key) {
+            return node;
+        }
+    }
+    unreachable!("card has its proposal key")
+}
+fn place_order(tree: &skein_ui::Tree) -> List<&'static str> {
+    let mut order = List::with_capacity(tree.len());
+    for node in tree.nodes() {
+        let text = match node.text.as_slice().first() {
+            Some(run) => Some(run.text.as_ref()),
+            None => None,
+        };
         if let Some(name) = node.name.as_deref().or(text) {
-            if [b"First reply".as_slice(), b"Making turn", b"Later reply", b"Second reply", b"Third reply", b"Still writing"].contains(&name) {
-                order.push(String::from_utf8(name.to_vec()).unwrap());
+            for word in ["First reply", "Making turn", "Later reply", "Second reply", "Third reply", "Still writing"] {
+                if name == word.as_bytes() {
+                    order.push(word).unwrap();
+                }
             }
         }
         for key in [FIRST_CARD, SECOND_CARD] {
             if node.key == Some(crate::pages::inbox::card_key(c::ObjectKey::Proposal(key))) {
-                order.push(if key == FIRST_CARD { "First card" } else { "Second card" }.to_owned());
+                order.push(if key == FIRST_CARD { "First card" } else { "Second card" }).unwrap();
             }
         }
     }
@@ -3824,16 +3965,33 @@ fn place_order(tree: &skein_ui::Tree) -> Vec<String> {
 fn assert_place_order(root: &temper_client_domain::Domain, expected: &[&str]) {
     for shell in [crate::words::Shell::Terminal, crate::words::Shell::Browser] {
         let tree = place_tree(root, &root.pages().chat().unwrap().thread, shell);
-        assert_eq!(place_order(&tree), expected, "{shell:?}");
+        assert_eq!(place_order(&tree).as_slice(), expected, "{shell:?}");
     }
 }
 #[test]
 fn a_card_stands_after_the_turn_that_made_it_and_a_reply_after_it() {
-    let root = place_root(&[
-        place_turn(1, 1, b"First reply"), place_made(2, 2, FIRST_CARD),
-        place_turn(3, 3, b"Making turn"), place_turn(4, 4, b"Later reply"),
-    ], &[(FIRST_CARD, place_proposal(FIRST_CARD, 2))]);
+    let root = place_root(
+        &[
+            place_turn(1, 1, b"First reply"),
+            place_made(2, 2, FIRST_CARD),
+            place_turn(3, 3, b"Making turn"),
+            place_turn(4, 4, b"Later reply"),
+        ],
+        &[(FIRST_CARD, place_proposal(FIRST_CARD, 2))],
+    );
     assert_place_order(&root, &["First reply", "Making turn", "First card", "Later reply"]);
+    for shell in [crate::words::Shell::Terminal, crate::words::Shell::Browser] {
+        let tree = place_tree(&root, &root.pages().chat().unwrap().thread, shell);
+        let making = place_text(&tree, b"Making turn");
+        let mut folded = false;
+        for node in &tree.nodes()[making..] {
+            if node.key == Some(crate::pages::inbox::card_key(c::ObjectKey::Proposal(FIRST_CARD))) {
+                break;
+            }
+            folded |= node.styles.as_slice().contains(&crate::look::WORK_RUN);
+        }
+        assert!(folded, "the making turn's tool line precedes its card");
+    }
 }
 #[test]
 fn a_new_card_is_last_while_its_turn_runs() {
@@ -3841,30 +3999,46 @@ fn a_new_card_is_last_while_its_turn_runs() {
     let mut thread = provisional_with_text(b"Still writing");
     thread.lines.rows = List::from_boxed(Box::new([place_made(1, 1, FIRST_CARD)]));
     for shell in [crate::words::Shell::Terminal, crate::words::Shell::Browser] {
-        assert_eq!(place_order(&place_tree(&root, &thread, shell)), ["Still writing", "First card"]);
+        assert_eq!(place_order(&place_tree(&root, &thread, shell)).as_slice(), ["Still writing", "First card"]);
     }
 }
 #[test]
 fn a_second_proposal_stands_below_the_first() {
-    let root = place_root(&[
-        place_made(1, 1, FIRST_CARD), place_turn(2, 2, b"First reply"),
-        place_turn(3, 3, b"Second reply"), place_made(4, 4, SECOND_CARD), place_turn(5, 5, b"Third reply"),
-    ], &[(FIRST_CARD, place_accepted(FIRST_CARD)), (SECOND_CARD, place_proposal(SECOND_CARD, 4))]);
-    assert_place_order(&root, &["First reply", "First card", "Second reply", "Third reply", "Second card"]);
+    let root = place_root(
+        &[
+            place_made(1, 1, FIRST_CARD),
+            place_turn(2, 2, b"First reply"),
+            place_turn(3, 3, b"Second reply"),
+            place_made(4, 4, SECOND_CARD),
+            place_turn(5, 5, b"Third reply"),
+            place_turn(6, 6, b"Later reply"),
+        ],
+        &[(FIRST_CARD, place_accepted(FIRST_CARD)), (SECOND_CARD, place_proposal(SECOND_CARD, 4))],
+    );
+    assert_place_order(
+        &root,
+        &["First reply", "First card", "Second reply", "Third reply", "Second card", "Later reply"],
+    );
 }
 #[test]
 fn a_card_with_no_line_goes_by_its_making_time() {
-    let root = place_root(&[
-        place_turn(1, 1, b"First reply"), place_turn(2, 3, b"Making turn"), place_turn(3, 4, b"Later reply"),
-    ], &[(FIRST_CARD, place_proposal(FIRST_CARD, 2))]);
+    let root = place_root(
+        &[place_turn(1, 1, b"First reply"), place_turn(2, 3, b"Making turn"), place_turn(3, 4, b"Later reply")],
+        &[(FIRST_CARD, place_proposal(FIRST_CARD, 2))],
+    );
     assert_place_order(&root, &["First reply", "Making turn", "First card", "Later reply"]);
 }
 #[test]
 fn a_tie_goes_by_the_line_and_not_the_clock() {
-    let root = place_root(&[
-        place_turn(1, 1, b"First reply"), place_made(2, 1, FIRST_CARD),
-        place_turn(3, 1, b"Making turn"), place_turn(4, 1, b"Later reply"),
-    ], &[(FIRST_CARD, place_proposal(FIRST_CARD, 1))]);
+    let root = place_root(
+        &[
+            place_turn(1, 1, b"First reply"),
+            place_made(2, 1, FIRST_CARD),
+            place_turn(3, 1, b"Making turn"),
+            place_turn(4, 1, b"Later reply"),
+        ],
+        &[(FIRST_CARD, place_proposal(FIRST_CARD, 1))],
+    );
     assert_place_order(&root, &["First reply", "Making turn", "First card", "Later reply"]);
 }
 #[test]
@@ -3872,41 +4046,65 @@ fn a_card_past_the_window_s_end_is_not_drawn() {
     let root = place_root(&[place_turn(1, 1, b"First reply")], &[(FIRST_CARD, place_proposal(FIRST_CARD, 2))]);
     let mut thread = reading_thread();
     thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
-    thread.page(c::ActivityPage { rows: List::from_boxed(Box::new([place_turn(1, 1, b"First reply")])),
-        before: Some(c::Cursor::new(b"newer".as_slice().into(), TEXT).unwrap()), after: None, cut: false });
+    thread.page(c::ActivityPage {
+        rows: List::from_boxed(Box::new([place_turn(1, 1, b"First reply")])),
+        after: Some(c::Cursor::new(b"newer".as_slice().into(), TEXT).unwrap()),
+        before: None,
+        cut: false,
+    });
     for shell in [crate::words::Shell::Terminal, crate::words::Shell::Browser] {
-        assert_eq!(place_order(&place_tree(&root, &thread, shell)), ["First reply"]);
+        let tree = place_tree(&root, &thread, shell);
+        assert_eq!(place_order(&tree).as_slice(), ["First reply"]);
+        assert_eq!(named_count(&tree, Role::Button, b"Accept"), 0);
+    }
+    thread.reading = Some(jig_client::thread::Reading::Newer);
+    thread.page(c::ActivityPage { rows: List::with_capacity(0), before: None, after: None, cut: false });
+    for shell in [crate::words::Shell::Terminal, crate::words::Shell::Browser] {
+        assert_eq!(place_order(&place_tree(&root, &thread, shell)).as_slice(), ["First reply", "First card"]);
     }
 }
 #[test]
 fn a_call_naming_its_proposal_keeps_the_card_at_the_call() {
     let mut turn = place_turn(1, 1, b"First reply");
     let c::TurnRead::Decoded(decoded) = &mut turn.decoded.as_mut().unwrap().turn else { panic!("decoded") };
-    let c::Block::Call(call) = &mut decoded.messages.get_mut(0).unwrap().blocks.get_mut(1).unwrap() else { panic!("call") };
+    let c::Block::Call(call) = decoded.messages.get_mut(0).unwrap().blocks.get_mut(1).unwrap() else { panic!("call") };
     call.objects = List::from_boxed(Box::new([c::ObjectKey::Proposal(FIRST_CARD)]));
-    let root = place_root(&[turn, place_made(2, 2, FIRST_CARD), place_turn(3, 3, b"Later reply")],
-        &[(FIRST_CARD, place_proposal(FIRST_CARD, 2))]);
+    let root = place_root(
+        &[turn, place_made(2, 2, FIRST_CARD), place_turn(3, 3, b"Later reply")],
+        &[(FIRST_CARD, place_proposal(FIRST_CARD, 2))],
+    );
     for shell in [crate::words::Shell::Terminal, crate::words::Shell::Browser] {
         let tree = place_tree(&root, &root.pages().chat().unwrap().thread, shell);
         let card = named_position(tree.nodes(), Role::Region, Some(b"Proposal from T9")).expect("call's region");
-        let reply = tree.nodes().iter().position(|node| node.text.iter().any(|run| run.text.as_ref() == b"Later reply")).unwrap();
+        let reply = place_text(&tree, b"Later reply");
         assert!(card < reply);
         assert_eq!(named_count(&tree, Role::Button, b"Accept"), 1);
     }
 }
 #[test]
 fn a_making_line_draws_no_decision_row() {
-    let thread = timed_thread(&[(1, place_made(1, 1, FIRST_CARD))]);
-    for projected in [true, false] {
-        let (tree, _) = reading_tree(&thread, projected);
-        assert!(!String::from_utf8(fixtures::text(&tree).into_vec()).unwrap().contains("Decision made"));
+    for (proposal, expected) in [
+        (Some(c::DecidedProposal { number: FIRST_CARD.number, made: true }), 0),
+        (Some(c::DecidedProposal { number: FIRST_CARD.number, made: false }), 1),
+        (None, 1),
+    ] {
+        let line = super::documents::line(1, Wall::EPOCH, c::Activity::Decided { revision: 1, proposal });
+        let thread = timed_thread(&[(1, line)]);
+        for projected in [true, false] {
+            let browser = reading_tree(&thread, projected).0;
+            let terminal = timed_tree(&thread, timed_drawing(projected), None, 1).0;
+            for tree in [browser, terminal] {
+                assert_eq!(skein_lib::bytes::count(&fixtures::text(&tree), b"Decision made", u32::MAX), expected);
+            }
+        }
     }
 }
 #[test]
 fn cards_at_one_place_stand_in_number_order() {
-    let root = place_root(&[
-        place_made(1, 1, SECOND_CARD), place_made(2, 2, FIRST_CARD), place_turn(3, 3, b"First reply"),
-    ], &[(FIRST_CARD, place_proposal(FIRST_CARD, 2)), (SECOND_CARD, place_proposal(SECOND_CARD, 1))]);
+    let root = place_root(
+        &[place_made(1, 1, SECOND_CARD), place_made(2, 2, FIRST_CARD), place_turn(3, 3, b"First reply")],
+        &[(FIRST_CARD, place_proposal(FIRST_CARD, 2)), (SECOND_CARD, place_proposal(SECOND_CARD, 1))],
+    );
     assert_place_order(&root, &["First reply", "First card", "Second card"]);
 }
 
@@ -3915,8 +4113,10 @@ fn a_card_keeps_its_element_as_lines_arrive_around_it() {
     let rows = [place_made(2, 2, FIRST_CARD), place_turn(3, 3, b"Making turn")];
     let pages = [(FIRST_CARD, place_proposal(FIRST_CARD, 2))];
     let before = place_root(&rows, &pages);
-    let after = place_root(&[place_turn(1, 1, b"First reply"), rows[0].clone(), rows[1].clone(), place_turn(4, 4, b"Later reply")], &pages);
-    let key = crate::pages::inbox::card_key(c::ObjectKey::Proposal(FIRST_CARD));
+    let after = place_root(
+        &[place_turn(1, 1, b"First reply"), rows[0].clone(), rows[1].clone(), place_turn(4, 4, b"Later reply")],
+        &pages,
+    );
     for shell in [crate::words::Shell::Terminal, crate::words::Shell::Browser] {
         let limits = fixtures::tree_limits();
         let mut patches = skein_lib::Queue::with_capacity(limits.patches);
@@ -3924,12 +4124,14 @@ fn a_card_keeps_its_element_as_lines_arrive_around_it() {
         let mut first = place_tree(&before, &before.pages().chat().unwrap().thread, shell);
         skein_ui::diff(&skein_ui::Tree::new(limits.nodes), &mut first, &limits, &mut next, &mut patches);
         while patches.pop().is_some() {}
-        let id = first.nodes().iter().find(|node| node.key == Some(key)).unwrap().id;
+        let id = placed_card(&first, FIRST_CARD).id;
         let mut second = place_tree(&after, &after.pages().chat().unwrap().thread, shell);
         skein_ui::diff(&first, &mut second, &limits, &mut next, &mut patches);
-        assert_eq!(second.nodes().iter().find(|node| node.key == Some(key)).unwrap().id, id);
+        assert_eq!(placed_card(&second, FIRST_CARD).id, id);
         while let Some(patch) = patches.pop() {
-            assert!(!matches!(patch, skein_ui::Patch::Remove { node } if node == id));
+            if let skein_ui::Patch::Remove { node } = patch {
+                assert_ne!(node, id);
+            }
         }
     }
 }

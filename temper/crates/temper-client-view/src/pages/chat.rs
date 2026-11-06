@@ -169,12 +169,13 @@ fn conversation_tail(
     bindings: &mut Bindings,
     rows: u32,
     times: &mut Times,
+    places: &List<Place>,
 ) {
     let chat = root.pages().chat().expect("chat page");
     let task = chat.task(root.client()).expect("chat task");
     let mut unanchored = false;
-    for card in &chat.cards {
-        if proposal_anchor(chat, card.object, rows).is_none() {
+    for place in places {
+        if *place == Place::End {
             unanchored = true;
         }
     }
@@ -184,8 +185,8 @@ fn conversation_tail(
         b.open(Role::List);
         b.style(look::CARDS);
     }
-    for card in &chat.cards {
-        if proposal_anchor(chat, card.object, rows).is_none() {
+    for (card, place) in chat.cards.iter().zip(places) {
+        if *place == Place::End {
             proposal_card(b, root, card, words, bindings, (rows, Some(times)), Role::Item);
         }
     }
@@ -431,7 +432,7 @@ fn proposal_card(
         b.style(look::CARD);
         b.style(look::KIND_PROPOSAL);
     }
-    if role == Role::Item {
+    if role == Role::Item || role == Role::Slot {
         b.key(super::inbox::card_key(card.object));
     }
     if let Some(page) = &card.page
@@ -467,6 +468,76 @@ fn proposal_anchor(chat: &Chat, object: c::ObjectKey, rows: u32) -> Option<(c::T
         }
     }
     None
+}
+
+/// Where a card stands among the window's lines (client/README.md, 5.13, *Where a card stands*).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Place {
+    /// At the call that names it: `proposal_anchor`.
+    Call,
+    /// After the line at this index, a committed turn.
+    After(usize),
+    /// At the conversation's end.
+    End,
+    /// Past the window's end, or out of it: not drawn.
+    Outside,
+}
+
+fn proposal_places(root: Option<&Domain>, thread: &Thread, lines: &[Line<'_>], rows: u32) -> List<Place> {
+    let Some(root) = root else { return List::with_capacity(0) };
+    let chat = root.pages().chat().expect("chat page");
+    let mut places = List::with_capacity(chat.cards.capacity());
+    for card in &chat.cards {
+        places.push(proposal_place(chat, card, thread, lines, rows)).expect("places fit the cards");
+    }
+    places
+}
+fn proposal_place(
+    chat: &Chat,
+    card: &temper_client_domain::pages::inbox::Card,
+    thread: &Thread,
+    lines: &[Line<'_>],
+    rows: u32,
+) -> Place {
+    if proposal_anchor(chat, card.object, rows).is_some() {
+        return Place::Call;
+    }
+    let end =
+        if thread.lines.edges.reaches(jig_client::thread::window::End::Before) { Place::End } else { Place::Outside };
+    let mut made = None;
+    for (index, line) in lines.iter().enumerate() {
+        if let Line::Activity { line } = line
+            && let c::Activity::Decided { proposal: Some(c::DecidedProposal { number, made: true }), .. } =
+                line.source.line
+            && card.object == c::ObjectKey::Proposal(c::ProposalKey { proposer: c::Proposer::Task(chat.task), number })
+        {
+            made = Some(index);
+            break;
+        }
+    }
+    if let Some(made) = made {
+        for (index, line) in lines.iter().enumerate() {
+            if index > made
+                && let Line::Turn { .. } = line
+            {
+                return Place::After(index);
+            }
+        }
+        return end;
+    }
+    if let Some(page) = &card.page
+        && let Some(since) = super::inbox::waiting_since(page)
+    {
+        for (index, line) in lines.iter().enumerate() {
+            if let Line::Turn { at, .. } = line
+                && *at >= since
+            {
+                return Place::After(index);
+            }
+        }
+        return end;
+    }
+    Place::End
 }
 
 // A proposal's wait, muted beside its first line as the inbox's.
@@ -744,6 +815,7 @@ pub(crate) fn conversation_with_times(
         conversation_head(b, root, words);
     }
     let lines = thread.lines().into_boxed();
+    let places = proposal_places(proposals, thread, &lines, rows);
     let mut run = super::chat_line::Run::with_capacity(rows.saturating_mul(rows).saturating_mul(thread.limits.lines));
     let mut started = super::chat_sheet::started(proposals);
     let mut day = None;
@@ -757,7 +829,7 @@ pub(crate) fn conversation_with_times(
     }
     let mut pending = 0_u64;
     let mut before = None;
-    for line in lines {
+    for (index, line) in lines.into_iter().enumerate() {
         let key = match line_key(&line) {
             Some(key) => key,
             None => {
@@ -821,6 +893,15 @@ pub(crate) fn conversation_with_times(
                 bindings,
                 &mut run,
             );
+            if let Some(root) = proposals {
+                let chat = root.pages().chat().expect("chat page");
+                for (card, place) in chat.cards.iter().zip(&places) {
+                    if *place == Place::After(index) {
+                        run.flush(b, None, false, words);
+                        proposal_card(b, root, card, words, bindings, (rows, times.as_deref_mut()), Role::Slot);
+                    }
+                }
+            }
             continue;
         }
         run.flush(b, None, false, words);
@@ -874,7 +955,7 @@ pub(crate) fn conversation_with_times(
     // The live delegates anchor follows the window's last line (client/README.md, 5.7).
     live_delegates(b, &mut tasks, delegations, &mut shown, words, bindings);
     if let Some(root) = proposals {
-        conversation_tail(b, root, words, bindings, rows, times.expect("chat page times"));
+        conversation_tail(b, root, words, bindings, rows, times.expect("chat page times"), &places);
         if words.shell == Shell::Browser && running && !running_run {
             b.open(Role::Slot);
             b.style(look::TYPING);
@@ -1575,7 +1656,8 @@ fn hidden(event: &c::DecodedActivityLine, projected: bool, delegations: Option<(
     {
         let c::DecodedActivityLine { source, .. } = event;
         match &source.line {
-            c::Activity::Milestone { .. } => return true,
+            c::Activity::Milestone { .. }
+            | c::Activity::Decided { proposal: Some(c::DecidedProposal { made: true, .. }), .. } => return true,
             c::Activity::RunBegan { .. } | c::Activity::RunEnded { .. } => {
                 if projected {
                     return true;
