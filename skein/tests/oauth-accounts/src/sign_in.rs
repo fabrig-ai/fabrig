@@ -18,7 +18,7 @@ mod expected;
 mod issuer;
 mod owner;
 mod paste;
-mod protocol;
+pub(crate) mod protocol;
 pub use browser::Browser;
 use issuer::issuer;
 pub use issuer::key_set;
