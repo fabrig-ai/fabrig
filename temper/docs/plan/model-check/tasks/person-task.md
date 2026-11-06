@@ -75,6 +75,8 @@ May also change:
 - `jig/crates/jig-domain-core/src/start/links.rs`, `admission/escalation.rs`, `inbox.rs`, `documents/inbox_deployment.rs`:
   only where a story shows project 0 reaching a wrong place; a line each, and say which.
 - `temper/**`: arms the compiler forces for the new `Event` variant, and only those (`AGENTS.md`'s required field rule).
+- `jig/testing/jig-test-service/src/clients/translation.rs`, `jig/testing/jig-client-protocol-kit/src/engine.rs`: the same
+  arms, and only those.
 - `jig/docs/design/domain/authority.status.md`: from **Not yet**, remove "6.1: whole.", and only that.
 
 Leave the wire: no `jig-client-protocol-wire`, no contract, no store schema. `Funder::Pool` and project 0 are values the
@@ -163,3 +165,12 @@ substitute project, no observation disabled.
   a story reaches it.
 - **Any other violation** (spend, a pool, delivery, a receipt) is the referee finding what it's there to find: fix the
   code, not the referee. If the fix is outside this task, that is a new question.
+
+2026-11-06. **`trial-root`, started early on this task's pushed work, finds `run_past_starting` absent and the two matches
+of `jig-test-service`'s `clients/translation.rs` missing `Event::PersonTask`: whose are they?** This task's, both.
+
+- **`run_past_starting`** is already this task's acceptance; nothing about it changes.
+- **The arms:** `Event::PersonTask` joins `Event::ConnectorRepair` in every exhaustive match of `core::Event`, with the same
+  answer: `jig-test-service`'s `clients/translation.rs` (`watcher`, `starting`), `jig-client-protocol-kit`'s `src/engine.rs`,
+  `temper-service`'s `clients/translation.rs`. `jig/tests/one-process`, already in this task's checks, can't build without the
+  first. Run `heavy cargo check -p jig-test-service -p jig-client-protocol-kit -p temper-service --tests` with the checks above.

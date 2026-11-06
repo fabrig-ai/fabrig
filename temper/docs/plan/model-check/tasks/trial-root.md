@@ -113,3 +113,13 @@ Citations. Push.
 ## Report
 
 As the implementer's text asks: each story's bite, where the restart's cancel sits and why, the bound you took.
+
+## Answers
+
+2026-11-06. **`person-task`'s pushed work lacks `Core::run_past_starting` and the arms for `Event::PersonTask` in
+`jig-test-service`: finish them there, or widen this task into jig?** There. `person-task` owns both, and its spec now says
+so; this task stays temper's. Resume from the pushed `11fd1ef4bb` once `person-task` has merged, and keep its draft story.
+
+- **No stand-in:** no copy of `run_past_starting`'s logic in temper, and no `observe` without it.
+- **If an arm is still missing once `person-task` has merged:** add that arm, as `Event::ConnectorRepair`'s beside it, only
+  that, and name it in your report. `run_past_starting` still absent then is a new question.
