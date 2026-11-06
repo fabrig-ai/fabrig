@@ -664,7 +664,10 @@ the host tests (section 14).
   Escape; a press inside it leaves it open. A menu is a button of the
   page part's, named by the menu's name, that opens its items with the
   platform's keys (arrows, Escape): ARIA's menu-button pattern. A press
-  on an item closes the menu. **An address changed folds the
+  on an item closes the menu. A press outside an open menu closes it, the
+  press still going to what it lands on, and the focus returns to the
+  menu's button, as on Escape, unless that press took it to another
+  control. **An address changed folds the
   disclosures:** when the path or the query the page shows moved since
   the page part's last apply (a new entry, one replaced, back or
   forward), it folds every open `<details>` in that apply, so a

@@ -1129,6 +1129,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-welcome-check-stopped",
         b"temper-welcome-check-failed",
         b"temper-welcome-check-why",
+        b"temper-rail-person",
+        b"temper-settings-sign-out",
     ],
     regions: &[b"temper-link"],
 };
@@ -1296,6 +1298,11 @@ pub const WELCOME_CHECK: Style = Style { owner: owner(), token: 449 };
 pub const WELCOME_CHECK_STOPPED: Style = Style { owner: owner(), token: 450 };
 pub const WELCOME_CHECK_FAILED: Style = Style { owner: owner(), token: 451 };
 pub const WELCOME_CHECK_WHY: Style = Style { owner: owner(), token: 452 };
+
+/// The browser's person menu (client/README.md, 5.3).
+pub const RAIL_PERSON: Style = Style { owner: owner(), token: 453 };
+/// The Accounts tab's sign-out row (client/README.md, 3.5).
+pub const SETTINGS_SIGN_OUT: Style = Style { owner: owner(), token: 454 };
 
 #[cfg(test)]
 mod tests {

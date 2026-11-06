@@ -379,6 +379,11 @@
   number order, as the request's words have it, so the reference's read "task
   by task, plan, tasks, land whole", where its mock, the target, draws them the
   other way round: number order is what a project's settings decide.
+- **Design departs:** 5.3, from the greenfield target, by the request
+  `ui-owner-menu` of 2026-11-06, at the user's word: the rail's foot row is the
+  button of a menu with "Accounts" and "Sign out", where the mock draws the
+  person's name as plain text, and a browser over 760 px signs out there rather
+  than on the `Accounts` tab. `greenfield/README.md` notes it.
 - **Design departs:** 3.5, *Settings*, 5.3 and 5.13, from the request `ui-settings`
   of 2026-11-05, decided by its plan's cut. "Sign out did not reach the engine."
   stands on the rail's foot as well as the `Accounts` tab, where the request moves
