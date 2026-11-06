@@ -10,16 +10,23 @@ The request: `inputs/request.md`. The repair of `skein/docs/foundation/testing-s
 | `fake` | `tasks/fake-backends.md` | | `temper` `fake_backends::tests` | 11.5 |
 | `limits` | `tasks/view-limits.md` | | `temper-client-view` `tests::limits` | 9.1 |
 | `rate` | `tasks/forge-rate.md` | | `temper-engine-protocol-forge-world::suite` `rate`, `github_land` | 3.5, 2.4 |
+| `gallery` | `tasks/gallery-print.md` | | `temper-client-gallery` `tests` | 12.1 |
+| `scale` | `tasks/scale-restart.md` | | `temper-engine-domain-world::suite` `fabrig_scale`, `temper-box` `tests::restart` | 3.1, 2.6 |
+| `rows` | `tasks/small-rows.md` | | Four single tests in `temper-client-tools` and `temper-service` | 3.7 |
+| `close` | `tasks/heavy-close.md` | all of the above | This file's table and `temper/docs/development/limits-heavy.md` | |
 
-The rest of the plan is still being cut: `temper-client-gallery`'s tests (12.1), `fabrig_scale` and `temper-box`'s `tests::restart` (3.1, 2.6), the single tests in `temper-client-tools` and `temper-service` (3.7), and a closing task that builds this file's table and the report from each task's figures.
+Eight tasks, every row of the request's table and its four named tests. `temper-client-gallery`'s row is the second largest but went out in the second batch, to keep the first off files `look-round-13` is changing.
 
-**Critical path, as it stands:** none of these tasks needs another, so the path is the longest one of them, then the close.
+**Critical path:** any of the seven row tasks, then `heavy-close`. None of the seven needs another. The longest is unknown until the profiles say; `box-lifetime` carries the most, with its move and two rows.
 
 ## What this plan decided
 
 - **Each task writes its own figures file** (`figures/<task>.md`, in `notes/common.md`'s form), so that no two branches meet in a table. The close builds the table from them.
 - **The stop rule is in CPU s, the measure in instructions.** A cause's share of a test's instructions times that test's CPU s in the request's table gives its gain, against the request's 0.2.
-- **`forge_land` goes with `box_listeners`:** one binary, one writer, and a task fewer against the request's about eight.
+- **`forge_land` goes with `box_listeners`:** one binary, one writer, and a task fewer against the request's about eight. So do `fabrig_scale` with `restart`, and the four single tests together: small independent loops, each under its own stop rule.
+- **Rows only where the profile shows the fixture is the cost.** The request allows rows of one test and also forbids merging to make room. `notes/common.md`, *Rows*, tells them apart: where a test's own check costs little beside a shared fixture, it may be a row of one test; where the check is the cost, it stays a test. A test that goes is named with its holder.
+- **Every bound and every order stays.** A limit test still reaches its bound, `a_goal_tree_takes_384_tasks` still takes 384, and the restart tests still run all 720 orders. Only the building gets cheaper.
+- **The report goes in `temper/docs/development/limits-heavy.md`,** with the table here, since a plan's files leave main when it's done.
 
 ## Belonging
 
@@ -33,6 +40,10 @@ The rest of the plan is still being cut: `temper-client-gallery`'s tests (12.1),
 - **`temper-client-view`'s `tests::limits` stay.** They hold `temper/docs/design/client/README.md`, 5.4, the derived page bounds, on a tree with no process.
 - **`rate` and `github_land` stay.** 6.1 names rate scenarios for the focused suite: "their behaviour defines their tier". `github_land` is a protocol world's story (2.2).
 - **`forge_land` stays,** at this reading: its launcher tests run `scripts/proof-live.sh` against a stubbed `cargo`, which holds the launcher's choices without a slow tier.
+- **`temper-client-gallery`'s tests stay.** They check the states the gallery draws, through the view code the client ships, on a tree or a printed file (`temper/docs/design/client/browser.md`, 7), with no browser and no process of temper's.
+- **`fabrig_scale` stays.** It's the engine domain's world at the stock limits, in memory, and `temper/docs/design/protocol/setup.status.md`, 8.3, leans on it for a fresh box's scale.
+- **`temper-box`'s `tests::restart` stay.** They're step tests of the box on the simulator, and they deliver every ending order, which no process could arrange.
+- **The four single tests stay.** `temper-client-tools`' two print at the shipped limits with no process, and `temper-service`'s two drive the service's step functions: a test of each behaviour where it lives.
 
 ## What the move costs the process tier
 
@@ -40,7 +51,14 @@ The rest of the plan is still being cut: `temper-client-gallery`'s tests (12.1),
 
 ## Overlaps this plan could not avoid
 
-`notes/common.md`, *Beside this plan*, gives each task the list. `fake-backends` and `box-lifetime` may reach `temper/crates/temper/tests/support/**`, `temper-init/template/*`, `temper-fake/src/**` and `temper-service/src/startup*` (`model-catalogue-2`) only if a profile puts a cause there. `view-limits` may reach `temper-client-view/src/tests/fixtures.rs` (`limits-fixtures`). `forge-rate` may reach `temper-engine-domain-forge` (`goal-delivery`, `look-round-13`). This first batch's owned files are this plan's alone at the cut.
+`notes/common.md`, *Beside this plan*, gives each task the list.
+
+- **`gallery-print` and `look-round-13`:** every open task of `look-round-13` that draws a page has `temper/tools/gallery/**`. This is the one overlap in owned files. The spec keeps hunks small, leaves `samples.rs` and `worlds.rs` unless a profile names them, and has every check run over whatever states exist then. Its row-merging in `tests.rs` is the likeliest place for a merge to meet them.
+- **`small-rows` and `limits-fixtures`:** both reach `temper-service`'s tests. `small-rows` owns its two tests and leaves the shared `service` and `SignInWorld` fixtures to `limits-fixtures` unless the profile puts more than 0.2 CPU s on them.
+- **`scale-restart` and `limits-fixtures`:** both reach `temper/tests/engine/domain/src/**`, the same way. A cause in `jig-domain-tasks` or `jig-domain-core` would meet `ui-model-next-turn` and `model-catalogue-2`.
+- **Only if a profile puts a cause there:** `fake-backends` and `box-lifetime` in `temper/crates/temper/tests/support/**`, `temper-init/template/*`, `temper-fake/src/**` and `temper-service/src/startup*` (`model-catalogue-2`); `view-limits` in `temper-client-view/src/tests/fixtures.rs` (`limits-fixtures`); `forge-rate` in `temper-engine-domain-forge` (`goal-delivery`, `look-round-13`) and with `limits-worlds` where it shares a fake forge; `small-rows` in `temper-client-tools/src/jig/**` (`model-catalogue-2/configuring-learns`).
+
+`limits-worlds` and `limits-fixtures` were still being cut when this was written, with no tasks on their trunks, so these come from their requests and may move.
 
 ## The table
 
