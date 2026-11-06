@@ -697,7 +697,11 @@ the host tests (section 14).
     moves while it stays near, and again for each quarter of a screen moved
     toward it, the head before the foot, one act a measure. So a page opened
     at its end reads earlier lines until its head is that far off, and a
-    long scroll asks no more than it needs.
+    long scroll asks no more than it needs. An owner marks a log *busy*
+    (ui.md, 3.2) while what it reads is out: when that state goes and the
+    edge is still near, the page part reports `Near` again, height moved or
+    not, so that a page that drew nothing doesn't end the reading. An owner
+    that keeps it through a failure hears nothing until the person moves.
   - *Following:* a log follows its end while the person is at it and it
     doesn't continue; one that continues is away, as one scrolled up is. An
     end request that moves (ui.md, 3.2), or a press *to log end*, has it

@@ -87,3 +87,32 @@ pub struct Thread { /* as today, without `left` */ pub read_failed: Option<End> 
 - `Line::Left` and `Thread.left` are gone. `thread::Limits` keeps its four fields: `lines` is the reference UI's and the tools', whose trees are priced by rows. temper's is `document_bytes / LINE_ROOM`, set by `chat-reads`, so that it never bites: the draft's own alternative ("or it grows far past what the bytes hold").
 - `Thread::lines()` holds no `Words` or `Provisional` line while `lines.edges` doesn't reach `End::Before`.
 - `reads` on `Thread` (`Reading::Older`, `Reading::Newer`, `Reading::Latest { known }`) keep their names. `latest` reads with `known: 0`, and `moved` still reads a new tail only while the window reaches it.
+
+## A log's busy state (task `log-busy`)
+
+`Event::Scrolled`, on a measure after `State::Busy` left a bound log whose edge is near, returns `Near` for that edge whatever its height. A log that holds `Busy` hears nothing from its height moving or from an apply; a person's move a quarter of a screen toward the edge still reports.
+
+## temper's domain (task `chat-reads`)
+
+```rust
+// temper-client-domain/src/pages.rs
+pub enum Act { /* as today, Older and Latest kept */ Newer }
+
+// temper-client-domain/src/pages/chat.rs
+impl Chat {
+    /// The log's end request (client/README.md, 5.15): moves when the person sends or presses Latest.
+    #[must_use] pub fn to_end(&self) -> u64;
+}
+pub fn thread_limits(limits: &Limits) -> jig_client::thread::Limits; // `lines`: document_bytes / LINE_ROOM
+```
+
+- `Older`: `thread.older()`, `Newer`: `thread.newer()`, on a chat's page and an agent's. A second one while a read is out does nothing.
+- `Latest` and `Send` move `to_end`, and read `thread.latest()` where the window doesn't reach its end.
+- `room`, `fill` and `offers_older` go, and `pub const LINES` stays until `chat-page` deletes it. An empty page with an older cursor reads on at once, so a shell that measures nothing isn't stranded: what `fill` did for an empty window.
+
+## temper's view (tasks `view-window`, `chat-page`)
+
+- `frame.rs`: `Act::Reading`, a binding's meaning alone: `(Act::Reading, skein_ui::Act::Near { edge: LogEdge::Head })` decodes to `Act::Older`, and `{ edge: LogEdge::Foot }` to `Act::Newer`.
+- `temper_client_view::pages::chat::line_key(&Line<'_>) -> Option<skein_ui::Key>`, its kinds apart from `pages::inbox::card_key`'s.
+- `Limits::of`, the window's part: `window_nodes = max_nodes(document_bytes) + document_bytes / LINE_ROOM * 10`, and `max_text_bytes(document_bytes)` beside it in `text_bytes`, in place of every `LINES *`. Each room priced at 10 nodes holds for the turn's structure, the most a block makes (`structure`'s `2 + 8`).
+- `Word::LoadingEarlierFailed`: "Couldn't load earlier messages". `Word::Older` goes.
