@@ -841,6 +841,18 @@ fn the_standard_archive_load_holds_a_whole_note_row() {
     assert!(next.is_none());
 }
 
+#[test]
+fn an_override_naming_a_watch_room_is_refused() {
+    for (name, expected) in [
+        ("views.watchers", b"engine.limits.overrides.views.watchers: must agree with engine.limits.overrides.clients.streams, which sizes both watch rooms\n".as_slice()),
+        ("views.watchers_per_party", b"engine.limits.overrides.views.watchers_per_party: must agree with engine.limits.overrides.clients.streams, which sizes both watch rooms\n".as_slice()),
+    ] {
+        let document = engine_overrides(&format!("\"{name}\":17"));
+        let problems = crate::startup::named(&document, &jig_protocol_config::Directories::working()).unwrap_err();
+        assert_eq!(crate::startup::lines(&problems).as_ref(), expected, "{name}");
+    }
+}
+
 fn engine_overrides(extra: &str) -> Box<[u8]> {
     let document = fixtures::document();
     let overrides = fixtures::value(&document, b"engine.limits.overrides");

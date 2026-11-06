@@ -54,8 +54,6 @@ pub fn documents(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde
     value["engine"]["limits"]["overrides"]["people.sign_ins"] = 4.into();
     // Two concurrent acts each need one task and half the project purse.
     value["engine"]["limits"]["overrides"]["tasks.project_tasks"] = 2.into();
-    value["engine"]["limits"]["overrides"]["views.watchers"] = 16.into();
-    value["engine"]["limits"]["overrides"]["views.watchers_per_party"] = 16.into();
     value["application"] = serde_json::json!({
         "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":null},

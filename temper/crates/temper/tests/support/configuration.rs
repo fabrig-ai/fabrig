@@ -71,8 +71,6 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     for name in ["clients.exchanges", "clients_http.calls"] {
         value["engine"]["limits"]["overrides"][name] = NATIVE_HTTP_CALLS.into();
     }
-    value["engine"]["limits"]["overrides"]["views.watchers"] = 16.into();
-    value["engine"]["limits"]["overrides"]["views.watchers_per_party"] = 16.into();
     // Projects 0 and 1, and the one forge-setup makes for the first repository.
     value["engine"]["limits"]["overrides"]["people.projects"] = 3.into();
     value["engine"]["limits"]["overrides"]["authority.projects"] = 3.into();

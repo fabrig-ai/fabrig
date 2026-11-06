@@ -344,11 +344,18 @@ fn load_with(
 fn watch_rooms(document: &skein_json::Document, engine: u32, problems: &mut Problems) {
     let Some(limits) = member(document, engine, b"limits") else { return };
     let Some(overrides) = member(document, limits, b"overrides") else { return };
+    for name in [b"views.watchers".as_slice(), b"views.watchers_per_party"] {
+        if member(document, overrides, name).is_some() {
+            problems.push(
+                Path::root().member(b"engine").member(b"limits").member(b"overrides").member(name),
+                What::Against { other: b"engine.limits.overrides.clients.streams, which sizes both watch rooms" },
+            );
+        }
+    }
     let Some(at) = member(document, overrides, b"clients.streams") else { return };
     let Ok(streams) = read::integer(document, at, u64::from(u32::MAX)) else { return };
     let streams = u32::try_from(streams).expect("checked stream count");
-    let room = temper_engine_domain::views_for(streams).watchers;
-    if room == 0 || room.checked_mul(2).is_none() {
+    if !jig_domain_views::valid(&temper_engine_domain::views_for(streams)) {
         problems.push(
             Path::root().member(b"engine").member(b"limits").member(b"overrides").member(b"clients.streams"),
             What::Against { other: b"representable watch rooms (clients.streams times 17, with two slots per watch)" },
