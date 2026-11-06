@@ -580,6 +580,7 @@ pub fn check(golden: &Golden, profile: &SettingsFile, evidence: &Evidence) -> Re
         .iter()
         .filter(|item| !keys.contains(&Some(item.setting.clone())) && !subjects.contains(&item.setting))
         .filter(|item| !golden.free.contains(&item.setting.kind))
+        .filter(|item| !(item.setting.kind == "landing-rule" && item.edit == Edit::Removed))
         .map(|item| Extra { setting: item.setting.clone(), why: "no obligation asks for it".into() })
         .collect();
     Report { binding, verdicts, extras }

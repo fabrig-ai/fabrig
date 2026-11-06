@@ -1,4 +1,5 @@
 //! Accounts bindings contain row targets and operation names, never a key value.
+use alloc::boxed::Box;
 use skein_lib::{List, Secret, Token};
 use skein_ui::{Act, Binding};
 use temper_client_domain::{
@@ -8,8 +9,10 @@ use temper_client_domain::{
 pub(crate) mod words;
 #[derive(Clone, Debug)]
 pub(crate) enum Meaning {
+    Copy { words: Box<[u8]> },
     Action(AccountAct),
     Model(pages::connect_model::Act),
+    Try { account: u32 },
     Go(temper_client_domain::Address),
     Key,
     SignInAddress,
@@ -56,6 +59,17 @@ impl Bindings {
                 continue;
             }
             match (meaning, &act) {
+                (Meaning::Try { account }, Act::Press) => {
+                    return Some(Event::Act {
+                        action: Action::Forge(temper_client_domain::forge::Act::TryAccount {
+                            account: *account,
+                            again: true,
+                        }),
+                    });
+                }
+                (Meaning::Copy { words }, Act::Press) => {
+                    return Some(Event::Act { action: Action::Copy { words: words.clone() } });
+                }
                 (Meaning::Model(action), Act::Press) => {
                     return Some(Event::Act { action: Action::Pages(pages::Act::ConnectModel(action.clone())) });
                 }
@@ -69,7 +83,7 @@ impl Bindings {
                         })),
                     });
                 }
-                (Meaning::Model(_) | Meaning::Go(_), _) => return None,
+                (Meaning::Try { .. } | Meaning::Copy { .. } | Meaning::Model(_) | Meaning::Go(_), _) => return None,
                 _ => {}
             }
             let action = match (meaning, act) {
@@ -79,9 +93,23 @@ impl Bindings {
                 (Meaning::Key, Act::Input { value }) => return Some(Event::AccountKey { value: Secret::new(value) }),
                 (Meaning::Action(action), Act::Press) => action.clone(),
                 (_, Act::Submit | Act::Toggle | Act::Drawing { .. })
-                | (Meaning::Action(_) | Meaning::Model(_) | Meaning::Go(_) | Meaning::Program, Act::Input { .. })
                 | (
-                    Meaning::Key | Meaning::SignInAddress | Meaning::Program | Meaning::Model(_) | Meaning::Go(_),
+                    Meaning::Action(_)
+                    | Meaning::Try { .. }
+                    | Meaning::Copy { .. }
+                    | Meaning::Model(_)
+                    | Meaning::Go(_)
+                    | Meaning::Program,
+                    Act::Input { .. },
+                )
+                | (
+                    Meaning::Key
+                    | Meaning::SignInAddress
+                    | Meaning::Program
+                    | Meaning::Try { .. }
+                    | Meaning::Copy { .. }
+                    | Meaning::Model(_)
+                    | Meaning::Go(_),
                     Act::Press,
                 ) => return None,
             };

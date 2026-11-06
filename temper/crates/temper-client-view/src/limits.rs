@@ -71,7 +71,10 @@ impl Limits {
             .checked_mul(16)?
             .checked_add(hosts)?
             .checked_add(domain.row_uses.checked_mul(2)?)?
-            .checked_add(64)?;
+            .checked_add(64)?
+            // Trial (domain/trial.md, 6.2): stacked line 3, why 2, acts 4,
+            // disclosure/list 2 and three steps with text/status/text 12.
+            .checked_add(23)?;
         let account_nodes = account
             .checked_mul(counts.accounts)?
             .checked_mul(2)?

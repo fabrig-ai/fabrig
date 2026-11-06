@@ -58,7 +58,13 @@ with has not passed (`protocol/setup.md`). `temper init`'s documents hold
 reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words in
 its reply's room, but in those pieces where its process has no local agent, by the
 `read-task-room` plan's cut, and no goal on record has counted what the room saves
-(`domain/root.md`). A green head ends a CI repair
+(`domain/root.md`). A live delegate counts no stall and a stall's hold reaches its
+task's holder, but no record shows the rerun of the replay the `parallel-faults`
+request has as its proof, nor why its hold came about 57 minutes in, and a no-change
+under another hold is said only once a release holds it again (`domain/forge.md`). A
+merged start has no real run on record (`domain/worker.md`), a commit leaves out a
+stray by the name `.*.log` alone (`protocol/git.md`), and the coding charter alone
+asks a run to name no commit off its branch (`domain/agent.md`). A green head ends a CI repair
 and a hold on its reason, but for a hold at gating, a hold no wake reaches and a retry
 starting before the read, each the `repair-green` plan's cut (`domain/forge.md`),
 and `change show`'s
@@ -78,11 +84,12 @@ cannot script, How work runs' controls for a person with a project's role
 alone, and many of ctl's tools (`client/README.md`,
 `client/forge.md`, `client/tools.md`), the playground in the
 browser, whose story A walks in the browser tier but not yet by hand
-and whose download is past its bar (`playground.md`), upgrades'
+(`playground.md`), upgrades'
 commands and the baseline (`protocol/README.md`), and the release
-(`release.md`). The browser tier's CPU against its budget awaits the
-user, and no test shows a head waiting for room ended by the stall
-deadline (`client/browser.md`). On a phone a chat's page hides the accounts'
+(`release.md`). The browser tier holds 13 tests, one past its cap, its CPU
+measured within its budget on the 12 without the call line's alone, a closed
+chat's wait is located but not split, and no test shows a head waiting for room
+ended by the stall deadline (`client/browser.md`). On a phone a chat's page hides the accounts'
 and the playground's banners (`client/README.md`), and the gallery's comparison
 pages draw their own worlds, not the mock's scenario (`client/browser.md`).
 Forges kept in the store, a forge's removal and the
@@ -163,13 +170,17 @@ has it keep no notes (`domain/agent.md`). A box with one kind of account runs on
 the first model it can use, and a run that can't start says why on its page and
 in `task show`, but no walk on record has a real box do either, a Chats row still
 says "Starting", and `task show` names a `deployment show` ctl lacks
-(`client/README.md`, `client/tools.md`). A proposal of settings reaches a
+(`client/README.md`, `client/tools.md`). `task show` names who answered a person
+task and says a held task waits on its hold, but `temper help task` still says ctl
+takes no task and numbers a party's question, which `waiting on:` does not
+(`client/tools.md`). A proposal of settings reaches a
 project's Needs you and rail's count, but its live card lists no item of temper's
 kinds, stays on Needs you once accepted, leaves its chat on a reload and follows a
 "Decision made" while it waits (`client/README.md`). `again` can't record a journey
 that begins past the welcome (`client/journeys.md`). The welcome's try of a model draws Model's line in
 Ready's pane over the host's check alone, no trial being built, and departs from the request
-`model-check-pane` in its list's words (`client/README.md`). A plan's sign-in draws the waiting page of the request
+`model-check-pane` in its list's words, and a sign-in that ends on its way's page stops at
+*A model usable*, where that request goes on to Ready (`client/README.md`). A plan's sign-in draws the waiting page of the request
 `sign-in-new-tab`, whose words say a new tab while a press still leaves in its own,
 until that draft is built; the page departs from the request in the terminal's words
 and on `ConnectModel`, where a paste finishing also keeps the note's waiting words

@@ -10,6 +10,8 @@ files = [
   "jig/crates/jig-domain-core/src/routing/task.rs",
   "jig/crates/jig-domain-core/src/routing/mod.rs",
   "jig/crates/jig-domain-core/src/routing/stopping.rs",
+  "jig/crates/jig-domain-core/src/routing/view/routes.rs",
+  "jig/crates/jig-domain-core/src/routing/view/marks.rs",
   "jig/crates/jig-domain-core/src/vocabulary.rs",
   "jig/crates/jig-domain-core/src/documents/task_tree.rs",
   "jig/crates/jig-domain-core/src/documents/chip_phase.rs",
@@ -75,6 +77,8 @@ May also change:
 - `jig/crates/jig-domain-core/src/start/links.rs`, `admission/escalation.rs`, `inbox.rs`, `documents/inbox_deployment.rs`:
   only where a story shows project 0 reaching a wrong place; a line each, and say which.
 - `temper/**`: arms the compiler forces for the new `Event` variant, and only those (`AGENTS.md`'s required field rule).
+- `jig/testing/jig-test-service/src/clients/translation.rs`, `jig/testing/jig-client-protocol-kit/src/engine.rs`: the same
+  arms, and only those.
 - `jig/docs/design/domain/authority.status.md`: from **Not yet**, remove "6.1: whole.", and only that.
 
 Leave the wire: no `jig-client-protocol-wire`, no contract, no store schema. `Funder::Pool` and project 0 are values the
@@ -163,3 +167,35 @@ substitute project, no observation disabled.
   a story reaches it.
 - **Any other violation** (spend, a pool, delivery, a receipt) is the referee finding what it's there to find: fix the
   code, not the referee. If the fix is outside this task, that is a new question.
+
+2026-11-06. **`trial-root`, started early on this task's pushed work, finds `run_past_starting` absent and the two matches
+of `jig-test-service`'s `clients/translation.rs` missing `Event::PersonTask`: whose are they?** This task's, both.
+
+- **`run_past_starting`** is already this task's acceptance; nothing about it changes.
+- **The arms:** `Event::PersonTask` joins `Event::ConnectorRepair` in every exhaustive match of `core::Event`, with the same
+  answer: `jig-test-service`'s `clients/translation.rs` (`watcher`, `starting`), `jig-client-protocol-kit`'s `src/engine.rs`,
+  `temper-service`'s `clients/translation.rs`. `jig/tests/one-process`, already in this task's checks, can't build without the
+  first. Run `heavy cargo check -p jig-test-service -p jig-client-protocol-kit -p temper-service --tests` with the checks above.
+
+2026-11-06. **The payer's watch of the Task document is refused by `closed_subject` (`routing/view/routes.rs`) and would be by
+`visibility_end` (`routing/view/marks.rs`), outside this task's files: widen the task, or a prerequisite task?** Widen: "Its
+document" and "It runs" cannot hold without them, and `jig/docs/design/domain/authority.md`, 6.1 already decides it ("the
+person who pays may watch its Task document"). `files` now hold both. Resume from the pushed `47dee721fb`; the failing world
+story stays as it is. No open project 0, no synthetic role or policy.
+
+- **The rule is `person_funded`, one predicate:** `task_tree.rs`'s, made `pub(crate)`. Project 0 stays closed; only the payer's
+  `Subject::Task` is excepted. No new subject shape, no read of the funder beside it.
+- **`closed_subject` takes the party:** all three callers hold it (`admission`'s `party`, the binding's in `watch_closed` and
+  `watch_document`). A subject on a closed project stays closed unless it is a `Subject::Task` whose row is `person_funded` for
+  that party. `subject_project` and `close_views` stay as they are.
+- **`visibility_end`:** `Subject::Task` leaves the `Task | Tree | Run` arm's role check for the expression `task_tree.rs`
+  uses, `open_project(row.project) && role || person_funded(row, party)`, in both its branches, ended-while-making and live.
+  `people.role(party, 0)` is a deployment role, so a bare role check would pass a deployment admin. `Tree`, `Run` and
+  `Chips` keep what they do.
+- **Its stories, failing first, in the retained host story or beside it in `jig/tests/core`:** the payer's watch is admitted and
+  a change of the run refreshes it; cancellation and the task's end reach it as any watch's end; another person, and a deployment
+  admin who isn't the payer, each refuse `NotAllowed`; the payer's `Watched::Tree` and `Watched::Run` of the task each refuse
+  `NotAllowed`; a real project's `Task` watch by a person with no role still refuses.
+- **The retained path:** an ended row already goes through `task_from_row`'s `person_funded` check; if a story shows it refusing
+  the payer, or serving anyone else, that is a new question.
+- **On green,** remove "6.1: whole." from `authority.status.md`, as the spec says, and rerun the task's checks.

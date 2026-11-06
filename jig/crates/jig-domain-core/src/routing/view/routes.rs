@@ -66,7 +66,34 @@ fn subject_project(core: &Core, subject: &Subject) -> Option<u32> {
     }
 }
 
-fn closed_subject(core: &Core, subject: &Subject) -> bool {
+fn closed_subject(core: &Core, party: u64, subject: &Subject) -> bool {
+    // Only the payer's Task watch crosses project 0 (domain/authority.md, 6.1).
+    match subject {
+        Subject::Task { task } => {
+            if let Some(row) = core.tasks.task(*task)
+                && documents::task_tree::person_funded(row, party)
+            {
+                return false;
+            }
+        }
+        Subject::Application { .. }
+        | Subject::Project { .. }
+        | Subject::Tree { .. }
+        | Subject::Run { .. }
+        | Subject::Escalation { .. }
+        | Subject::Question { .. }
+        | Subject::PersonTask { .. }
+        | Subject::Result { .. }
+        | Subject::Proposal { .. }
+        | Subject::Query { .. }
+        | Subject::Chips { .. }
+        | Subject::Frame { .. }
+        | Subject::Inbox { .. }
+        | Subject::Accounts { .. }
+        | Subject::Settings
+        | Subject::Deployment
+        | Subject::Note { .. } => {}
+    }
     match subject_project(core, subject) {
         Some(project) => !core.open_project(project),
         None => false,
@@ -346,7 +373,7 @@ fn open_follow(
 // Construction authenticates jig's named values; connector values remain opaque.
 // Unmakeable documents refuse Unknown (`client/domain/contract.md`, 7.2).
 fn admission(core: &Core, env: &Env<Limits>, party: u64, subject: &Subject, window: &Window) -> Option<WatchRefusal> {
-    if closed_subject(core, subject) {
+    if closed_subject(core, party, subject) {
         return Some(WatchRefusal::NotAllowed);
     }
     match subject.shape() {
@@ -436,7 +463,9 @@ fn forget_watch(core: &mut Core, watcher: Token) {
 
 fn watch_closed(core: &Core, watcher: Token) -> bool {
     match core.watch_binding(watcher) {
-        Some(binding) => closed_subject(core, &core.view_names.get(binding.subject).expect("bound subject").subject),
+        Some(binding) => {
+            closed_subject(core, binding.party, &core.view_names.get(binding.subject).expect("bound subject").subject)
+        }
         None => false,
     }
 }
@@ -453,7 +482,7 @@ fn watch_document(
         return Err(views::End::SignedOut);
     }
     let subject = &core.view_names.get(binding.subject).expect("bound watched subject").subject;
-    if closed_subject(core, subject) {
+    if closed_subject(core, binding.party, subject) {
         return Err(views::End::Gone);
     }
     let filtered = match subject.chips() {

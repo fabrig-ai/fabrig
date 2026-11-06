@@ -62,7 +62,13 @@ fn named_control(
 ) {
     let model = match &meaning {
         Meaning::Model(_) => true,
-        Meaning::Action(_) | Meaning::Go(_) | Meaning::Key | Meaning::SignInAddress | Meaning::Program => false,
+        Meaning::Try { .. }
+        | Meaning::Copy { .. }
+        | Meaning::Action(_)
+        | Meaning::Go(_)
+        | Meaning::Key
+        | Meaning::SignInAddress
+        | Meaning::Program => false,
     };
     let Some(binding) = bindings.insert(meaning) else { return };
     b.open(Role::Button);
@@ -750,34 +756,44 @@ fn first_usable(root: &Domain, w: &Words, with_display: bool) -> Option<Box<[u8]
             }
         }
         let Some(source) = usable else { continue };
-        let Some(supplied) = provider_name(row.provider_name.as_ref()) else {
-            return Some(account_heading(root, w, row));
-        };
-        let (brand, plan_name) = words::provider_words(supplied);
-        let (label, display) = match source.kind {
-            c::AccountKind::Program => {
-                (named(w, W::Subscription, plan_name), source.name.as_deref().unwrap_or(row.display.bytes()))
-            }
-            c::AccountKind::SignIn if row.plan => (
-                w.say(crate::words::Word::WelcomePlanAccount, &[Hole::Name(crate::choice::shown(plan_name, w))]),
-                row.display.bytes(),
-            ),
-            c::AccountKind::SignIn => (crate::choice::shown(brand, w), row.display.bytes()),
-            c::AccountKind::Key => (named(w, W::ApiKeyBrand, brand), b"".as_slice()),
-            c::AccountKind::None => return Some(account_heading(root, w, row)),
-        };
-        if !with_display {
-            return Some(label);
-        }
-        let detail = match source.kind {
-            c::AccountKind::Program => w.say(crate::words::Word::WelcomeProgramAccount, &[Hole::Name(display.into())]),
-            c::AccountKind::Key => w.say(crate::words::Word::WelcomeKeyAccount, &[]),
-            c::AccountKind::SignIn | c::AccountKind::None => display.into(),
-        };
-        let separator = words::say(w, W::Separator, &[]);
-        return Some(words::join(&[&label, if detail.is_empty() { b"" } else { &separator }, &detail]));
+        return Some(account_words(root, w, row, source, with_display));
     }
     None
+}
+/// Account and identity words shared by Ready and a trial's selected account (domain/trial.md, 6.1).
+pub(crate) fn account_words(
+    root: &Domain,
+    w: &Words,
+    row: &c::AccountLine,
+    source: &c::AccountSource,
+    with_display: bool,
+) -> Box<[u8]> {
+    let Some(supplied) = provider_name(row.provider_name.as_ref()) else {
+        return account_heading(root, w, row);
+    };
+    let (brand, plan_name) = words::provider_words(supplied);
+    let (label, display) = match source.kind {
+        c::AccountKind::Program => {
+            (named(w, W::Subscription, plan_name), source.name.as_deref().unwrap_or(row.display.bytes()))
+        }
+        c::AccountKind::SignIn if row.plan => (
+            w.say(crate::words::Word::WelcomePlanAccount, &[Hole::Name(crate::choice::shown(plan_name, w))]),
+            row.display.bytes(),
+        ),
+        c::AccountKind::SignIn => (crate::choice::shown(brand, w), row.display.bytes()),
+        c::AccountKind::Key => (named(w, W::ApiKeyBrand, brand), b"".as_slice()),
+        c::AccountKind::None => return account_heading(root, w, row),
+    };
+    if !with_display {
+        return label;
+    }
+    let detail = match source.kind {
+        c::AccountKind::Program => w.say(crate::words::Word::WelcomeProgramAccount, &[Hole::Name(display.into())]),
+        c::AccountKind::Key => w.say(crate::words::Word::WelcomeKeyAccount, &[]),
+        c::AccountKind::SignIn | c::AccountKind::None => display.into(),
+    };
+    let separator = words::say(w, W::Separator, &[]);
+    words::join(&[&label, if detail.is_empty() { b"" } else { &separator }, &detail])
 }
 
 /// Ready names an own sign-in with the same provider words as its offered way.

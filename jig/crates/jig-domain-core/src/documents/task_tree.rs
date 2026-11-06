@@ -758,7 +758,7 @@ fn proposal(row: &tasks::TaskRecord) -> Option<ProposalRef> {
 }
 
 /// Only the pool's person may read a projectless Task (jig/docs/design/domain/authority.md, 6.1).
-fn person_funded(row: &tasks::TaskRecord, party: u64) -> bool {
+pub(crate) fn person_funded(row: &tasks::TaskRecord, party: u64) -> bool {
     row.project == jig_domain_people::DEPLOYMENT
         && match row.funder {
             tasks::Funder::Pool { person, .. } => person == party,

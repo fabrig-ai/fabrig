@@ -441,6 +441,7 @@ fn populate_page(
             | Request::Unlinked { .. }
             | Request::Leave { .. }
             | Request::SignOut
+            | Request::Copy { .. }
             | Request::Fact { .. }
             | Request::Dropped { .. } => {}
         }
