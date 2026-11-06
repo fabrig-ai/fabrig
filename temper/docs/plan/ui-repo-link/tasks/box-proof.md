@@ -65,3 +65,7 @@ Write the story's assertions first, and run them before fixing anything. Read a 
 ## Report
 
 As the implementer's text says, with each row of the review in one line, the walk's numbers, and what isn't proved on a real box.
+
+## Answers
+
+2026-11-06 (temper/ui). The first run did the work and was stopped near the end by the model provider's content filter, before it could commit or report; nothing was wrong with what it did. Its work is on branch ui-repo-link/box-proof-wip: take it with git fetch origin ui-repo-link/box-proof-wip and git cherry-pick -n FETCH_HEAD, and resolve anything the trunk has moved. It holds the story, forgejo_box_sign_in.rs, two restart fixes the story found (serve starts before a restored group when the box signs its person in, since Forgejo fetches discovery while starting; a restored group waits for its source's final result before reporting started) with their step tests and design lines, and the walk's driver, .box-proof.cjs, untracked in the first run: keep it out of the commit. Its messages said both repository clicks landed signed in with three redirects and no Link account page. Do parts 1, 2 and the rest as the spec now says; the security review is no longer this task's. Only focused and fuzzy run in a plan: write and compile the story (cargo check --tests), and don't run it; the throwaway browser walk is the proof, and it must include a box restart followed by a click, so the two restart fixes are shown working. Finish the walk, commit, and write the report.
