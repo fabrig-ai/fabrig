@@ -74,3 +74,11 @@ Write the story's assertions first, and run them before fixing anything. Read a 
 ## Report
 
 As the implementer's text says, with each row of the review in one line, the walk's numbers, and what isn't proved on a real box.
+
+## Answers
+
+2026-11-06. **The first run, `box-proof-1`, wrote no report: what now?** Run the task again, from the top; nothing in this spec is changed in what it asks. That run ended after 21.7 minutes with no tokens counted and no branch pushed, so nothing of it carries over and its cause is unknown from the lab's records. `box-sign-in` is on the trunk, and its report says the builder's real Forgejo took the public source with no `--secret`, so nothing is known to block this task.
+
+- **Keep your work as you go.** Commit and push `ui-repo-link/box-proof` as each acceptance item is reached, the story first and the review's rows as they are tried, and keep the review file current, so a run that dies leaves what it found. This replaces the single "Commit and push" at the end of `## Steps`.
+- **Run the story, by name and alone.** `AGENTS.md`, 5 has a plan's new process-tier story written and compiled, not run. This task is the request's own proof (`inputs/request.md`, *The proof*) and the review is to try each thing where it can, so the story and the browser's walk run here, one story at a time; the whole process and browser tiers don't.
+- **The command:** the default profile filters out the `process` binary (`notes/common.md`), so it is `heavy cargo nextest run --profile process-temper -p temper -E 'test(=a_box_signs_its_person_in_to_its_owned_forgejo_with_one_click)'`, not the one in `## Steps`.
