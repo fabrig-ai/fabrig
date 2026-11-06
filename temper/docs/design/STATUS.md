@@ -176,7 +176,9 @@ takes no task and numbers a party's question, which `waiting on:` does not
 (`client/tools.md`). A proposal of settings reaches a
 project's Needs you and rail's count, but its live card lists no item of temper's
 kinds, stays on Needs you once accepted, leaves its chat on a reload and follows a
-"Decision made" while it waits (`client/README.md`). The welcome's try of a model draws Model's line in
+"Decision made" while it waits, and Accept on that chat's own card is refused, where
+Needs you's and Home's work (`client/README.md`). "Start goal…" went once from a
+restored document, on no replay since, its cause unknown (`client/README.md`). The welcome's try of a model draws Model's line in
 Ready's pane over the host's check alone, no trial being built, and departs from the request
 `model-check-pane` in its list's words, and a sign-in that ends on its way's page stops at
 *A model usable*, where that request goes on to Ready (`client/README.md`). A plan's sign-in draws the waiting page of the request
@@ -193,11 +195,12 @@ answer of 2026-11-06 asks one (`client/browser.md`). A numbered list shows no
 numbers in a chat's card, whose items the sheet makes flex, and a document page's
 takes the browser's margins (`client/browser.md`). temper's own way stands on
 Configure, departing from the request `configure-temper-own-way` in its reference's
-words and look (`client/README.md`), but no walk on record presses its acts and no
-render has drawn its picture as a numbered list (`client/browser.md`). A chat's answer only grows, but
+words and look (`client/README.md`), but no journey records its acts and no
+render has checked its picture as a numbered list (`client/browser.md`). A chat's answer only grows, but
 the line departs from the request `chat-work` in a failed call's colour, and the end
 mark is a glyph that does not blink (`client/README.md`); a chat is read by "Older" in a
-window of 16 lines until `draft/chat-reading.md`, 5 is built. The words being written draw an
+window of 16 lines until `draft/chat-reading.md`, 5 is built, and on a walk a long chat's
+first "Older" did not end in 40 seconds, its cause unknown (`client/README.md`). The words being written draw an
 empty message in the dots' place until they hold a word, their "▍" falls below a closed
 fence, a last block still open changes as it commits, and no browser test draws them
 (`client/README.md`). A run of calls is one line on a chat's page and an agent's, its
@@ -207,8 +210,8 @@ terminal, a call under way with none ended says its words twice, and a run still
 no "1 failed" (`client/README.md`). Every confirmation of a chat, a
 task or a card is one sheet, but a closed chat hides every "Decision made", where the
 request `close-chat` hides the closing's alone, a Release pressed before an uncertain
-effect's choice closes its sheet, no walk on record presses a task's Cancel, an
-agent's task's Stop, Reject or Start over (`client/README.md`), and a sheet's acts stand
+effect's choice closes its sheet, no walk on record presses a task's Cancel or an
+agent's task's Stop (`client/README.md`), and a sheet's acts stand
 44 px on a phone, where that request has 38 (`client/browser.md`). A document
 built in parts is proved on a script alone, no real model having built one
 and no walk drawing a long one in its pane, and a later note write's words
