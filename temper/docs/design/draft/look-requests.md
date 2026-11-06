@@ -22,7 +22,7 @@ beside `../client/journeys.md`, whose section 7 then cites it.
 - **The render check follows the landing:** the request's pages under
   their overlay against the reprint under the landed stylesheets, at
   three widths with each disclosure and menu open, on main; what differs
-  goes back to fab as a finding (section 4).
+  goes back as a finding (section 4).
 - **A landing accounts for each item:** a table in its last commit,
   each rule and change landed, differing with its reason, or deferred
   to a named owner; the plan is complete when it lands with no row left
@@ -109,8 +109,8 @@ After the landing, on main, outside the plan.
   computed style and box, then the screenshots for what styles miss.
 - **States in words** are rendered too: through a gallery state or a
   hand-made page, beside the request's words.
-- **The result:** identical, or each difference a finding filed back
-  to fab, whose repair carries the request's trailer.
+- **The result:** identical, or each difference a finding filed back,
+  whose repair carries the request's trailer.
 
 ## 5. The account
 

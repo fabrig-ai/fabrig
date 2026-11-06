@@ -604,7 +604,7 @@ python3 -m http.server 8766
   requests take the reprint as it is (`../draft/look-requests.md`, 5).
   After it lands, the render check compares the request with the reprint
   at each width, with disclosures and menus open, and what differs goes
-  back to fab as a finding (`../draft/look-requests.md`, 4). What the
+  back as a finding (`../draft/look-requests.md`, 4). What the
   edits imply beyond the pages recorded (the same part in a state no
   journey reaches) is the view's and `temper.css`'s for every state, and
   the mockups follow (`mockups/README.md`, 1).
