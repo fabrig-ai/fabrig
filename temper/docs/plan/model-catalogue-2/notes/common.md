@@ -20,4 +20,5 @@ Read this note, then your spec. Where this note and the implementer's text diffe
 - **Help pages:** a `docs/help/` page a change grows past its bound is that task's to shorten, losing no facts, and never raise the bound.
 - **A test's oracle or helper your change's correct behaviour trips** is yours to repair in the same task, keeping what it checks for everything else, and named in the report.
 - **Before calling a focused or fuzzy failure "outside the change",** run it once on the pristine base. If main passes and your branch fails, it's yours.
+- **The look request:** a commit landing part of page 07 (`models-tab`, `models-switch`, `models-add`, `models-proof`) carries the trailer `Look-request: model-picker`, directly above the other trailers (`temper/docs/design/draft/look-requests.md`, 3).
 - **Neighbours on their way to main:** `look-round-11` (the picker at the composer: `temper-client-view/src/choice.rs`, `choice/picker.rs`, `pages/session.rs`, `new_chat.rs`, `configure.rs`) and `model-check` (`chat-draft`'s prints). Keep your hunks in their files small. A print conflict at catch-up is regenerated, not merged.

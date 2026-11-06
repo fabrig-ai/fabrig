@@ -2179,26 +2179,23 @@ keeps (`../protocol/configuration.md`, section 2).
       template's `resolved_default` names, " · added by you" on one a person
       added, and " · estimated prices" on one whose prices are estimated; at its
       right, "On" or "Off", whether the picker shows it. An owner in the deployment
-      has a switch beside the word, named "SHOWN in the picker": a press sets the
-      model's setting whole with its `picker` flipped, against the revision the
-      page read, by `ChangeSettings` with running work staying, and a refusal
-      shows under the row in the words of a proposal's refusal. Anyone else has the
-      word alone.
+      has a switch beside the word, named "SHOWN in the picker": a press asks jig's
+      `ChangeModel` (jig's `client/domain/contract.md`, 3.2), the switch holding
+      its old state until the answer, and a refusal shows under the row in the
+      words of a change's refusal. Anyone else has the word alone.
     - *How many were left out,* in `.facts` under the sections, where `me` says
       the catalogue left any out: "N more models don't fit the catalogue." (jig's
       `client/domain/contract.md`, 5.1).
     - *"Add a model by name",* a section, for an owner in the deployment: a
-      provider's select, of the providers `me` offers, none playground's; a
-      field named "The model’s name", its placeholder the first stock model the
-      provider has none of, or "model-name"; "Add"; and, in `small`, "For a model
-      the list doesn’t show. It runs through the account you have with that
-      provider." The name's shape is checked alone, as the engine's: 1 to
-      `MODEL_NAME_BYTES` bytes of letters, digits, `-`, `.`, `_` and `:`. A press sets
-      a new `model` setting at the lowest free number (jig's `domain/engine.md`,
-      17.1), its source a person's, its prices estimated, with the fields its
-      provider's stock model gives it (`../protocol/configuration.md`, 13.4), on
-      the picker, and the field empties. A name the catalogue holds is refused
-      here, "PROVIDER already has that model." Its row then reads "added by you".
+      provider's select, of the providers `me` offers but the playground's; a
+      field named "The model’s name", its placeholder "model-name"; "Add"; and, in
+      `small`, "For a model the list doesn’t show. It runs through the account you
+      have with that provider." The name's shape is checked here as the engine
+      checks it, 1 to 128 bytes of letters, digits, `-`, `.`, `_` and `:`, and "Add"
+      is off until it holds; a name of that provider's in the offer says
+      "PROVIDER already has that model." A press asks `ChangeModel`. The engine
+      makes the model (jig's `domain/engine.md`, 17.11), and the field empties;
+      its row then reads "added by you". A refusal shows under the form.
     - *The last line,* in `.facts`: "To change a default or a role’s models, tell
       Configure temper.", its last words a link to `Configure { project }`.
     - *In the terminal,* the same sections as lines, a row's word and name on one line,
