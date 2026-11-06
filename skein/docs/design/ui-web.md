@@ -671,7 +671,11 @@ the host tests (section 14).
   patches; the first apply only remembers it, and an apply at the same
   address folds nothing. The shell does nothing for it. **A dialog**
   is shown modal while it is in the tree. **A log** keeps its end in
-  view while the person has not scrolled away from it.
+  view while the person has not scrolled away from it; away, its element
+  has `data-log-away`, for a stylesheet, until it is back at its end. A
+  press of a button with the state *to log end* (ui.md, 3.2) takes every
+  log of the page to its end, keeping it there, before the press goes on
+  to its owner, where the button is bound.
 - **Going to another page** (a new entry a step shows): after the turn's
   patches, its disclosures folded (above), the reference starts the
   page at its top, the focus on its
