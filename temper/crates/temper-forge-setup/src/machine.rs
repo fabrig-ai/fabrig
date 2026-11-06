@@ -500,6 +500,9 @@ fn owned(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<O
         Some(_) | None => None,
     };
     if sign_in.is_some() {
+        if public.is_some() {
+            ps.push(p.member(b"sign_in"), config::What::Because(b"cannot be set with application.machine.owned.public; a box's sign-in through temper is not proved behind a proxy"));
+        }
         valid(!crate::sign_in::refused_person(&person.login, b""), p.member(b"person").member(b"login"), ps);
         valid(!crate::sign_in::refused_person(b"", &person.email), p.member(b"person").member(b"email"), ps);
     }
@@ -679,7 +682,7 @@ pub const MEMBERS: [Member; 30] = [
         shape: "machine-owned",
         name: "sign_in",
         kind: "text or null",
-        bound: "a client of engine.clients.provider; at most 256 bytes",
+        bound: "a client of engine.clients.provider; at most 256 bytes; not with public",
         required: false,
         line: "The client the box’s owned Forgejo signs its person in through, null for none.",
         gone: None,

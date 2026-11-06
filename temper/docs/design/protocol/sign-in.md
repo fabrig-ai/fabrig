@@ -892,9 +892,9 @@ the restored forge is already connected. An unknown or non-owned forge cannot se
 finds taken is one its person may edit (`setup.md`, 7.1). Forgejo reads a source's
 address when it loads the source, at its start, and a source already listed is not
 added again. So a later preparation, before Forgejo runs, lists the sources and, with
-`temper` among them, runs `forgejo admin auth update-oauth --id ID --auto-discover-url
-ISSUER/.well-known/openid-configuration`, with `--work-path` and `--config` (`setup.md`,
-6.3). Each of the two commands has the set-up's deadline, since Forgejo may fetch the
+`temper` among them, runs `forgejo admin auth update-oauth --id ID --use-custom-urls false
+--auto-discover-url ISSUER/.well-known/openid-configuration`, with `--work-path`
+and `--config` (`setup.md`, 6.3). Each of the two commands has the set-up's deadline, since Forgejo may fetch the
 address it is given and serve answers it only once it is up.
 
 - **It never fails the set-up.** Any ending of the step leaves the set-up succeeding:

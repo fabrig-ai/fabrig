@@ -37,6 +37,9 @@ pub(crate) fn name(b: &mut Builder, w: &Words, row: Option<&Row>, sign_in: &Forg
     }
 }
 pub(crate) fn web_address(web: &[u8], owner: &[u8], name: &[u8]) -> Option<Box<[u8]>> {
+    if owner.is_empty() || name.is_empty() {
+        return None;
+    }
     let mut web = web;
     for _ in 0..web.len() {
         let Some(prefix) = web.strip_suffix(b"/") else { break };

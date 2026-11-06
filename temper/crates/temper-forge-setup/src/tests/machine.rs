@@ -431,3 +431,22 @@ fn only_a_box_signing_in_runs_source_last_and_ignores_its_ending() {
         assert_ne!(step.name(), b"source");
     }
 }
+
+#[test]
+fn sign_in_refuses_machine_owned_public_at_its_path() {
+    let input = replace(
+        TEMPLATE_MACHINE,
+        b"\"forgejo\":\"fetched\"",
+        b"\"sign_in\":\"forgejo\",\"public\":\"https://forge.example\",\"forgejo\":\"fetched\"",
+    );
+    let mut problems = Problems::empty();
+    assert!(machine::read(&fixtures::document(&input), 0, &limits::small(), &directories(), &mut problems).is_none());
+    assert_eq!(problem::lines(&problems).as_ref(), b"application.machine.owned.sign_in: cannot be set with application.machine.owned.public; a box's sign-in through temper is not proved behind a proxy\n");
+    let mut typed = jig_protocol_config::Problems::empty();
+    assert!(machine::read_config(&fixtures::document(&input), 0, &directories(), &mut typed).is_none());
+    assert_eq!(typed.problems.len(), 1);
+    assert_eq!(
+        typed.problems.get(0).unwrap().path,
+        jig_protocol_config::Path::root().member(b"application").member(b"machine").member(b"owned").member(b"sign_in")
+    );
+}
