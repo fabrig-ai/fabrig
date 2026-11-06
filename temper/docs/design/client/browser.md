@@ -1,6 +1,6 @@
 # The browser
 
-Provisional, 2026-10-05, revised 2026-10-26. temper's browser client: a
+Provisional, 2026-10-05, revised 2026-11-06. temper's browser client: a
 second shell of temper's client (`README.md`), beside the terminal, on
 skein's browser parts. What its pages do is the client's (`README.md`;
 `forge.md`). What temper draws is the source of truth, recorded and
@@ -736,7 +736,16 @@ replay says the same clocks (`README.md`, 5.12).
   being written (`README.md`, 3.5) change in place;
   skein's page keeps focus, caret and scroll across it, and the
   conversation, a log, keeps its end in view while the person has not
-  scrolled away (skein's `ui-web.md`, section 7).
+  scrolled away (skein's `ui-web.md`, section 7). Where the window has
+  let its newest lines go, live text waits until the end is read again
+  (`README.md`, 5.15).
+- **Reading the conversation** (`README.md`, 5.15): the bound log's
+  head and foot ask for earlier and later lines as they near the view,
+  with no Older control. PgUp and PgDn scroll it from the composer too,
+  except while a menu or dialog is open. skein's page part measures and
+  restores the words' position when lines are read above, including in
+  a browser without `overflow-anchor`; Latest or sending on a chat
+  returns to its end, reading it again where the window let it go.
 
 ### 2.6 The bundle in the binary
 
@@ -950,9 +959,10 @@ without it.
    checks the shell's wiring of the restart part, at the test address
    `/test/panic` at which the shell panics at start, as jig's reference
    shell has it (2.1).
-5. **Reading back:** scroll a chat's log up; Latest appears. Send new words
-   while reading back and the log stays away from its end. Press Latest;
-   the end returns and the pill goes (`README.md`, 3.5).
+5. **Reading back:** scroll a chat's log up; Latest appears. New words
+   arriving while reading back leave the view where it is. Press Latest
+   or send from the chat; the end returns, read again if the window let
+   it go, and the pill goes (`README.md`, 5.15).
 6. **jig's attack stories that need a browser,** from
    `jig-client-fake-person-browser`, against `temper serve`: a
    cross-site request from another port and from another host does

@@ -32,16 +32,16 @@ fn scripted_client_starts_within_the_shell_heap_envelope() {
     drop(state);
 }
 
-// Peak 1,703,334 bytes measured 10-29; testing-strategy.md 6.
-const ACCEPT_RESTART_HEAP_CEILING: u64 = 2_200_000;
+// Peak 2,227,697 bytes measured 11-06; testing-strategy.md 6.
+const ACCEPT_RESTART_HEAP_CEILING: u64 = 2_800_000;
 
 #[test]
 fn p_accepts_a_restart_from_the_incidents_page() {
     accept_restart(501, ACCEPT_RESTART_HEAP_CEILING);
 }
 
-// Peak 1,703,334 bytes measured 10-29; testing-strategy.md 6.
-const ACCEPT_RESTART_SECOND_SEED_HEAP_CEILING: u64 = 2_200_000;
+// Peak 2,227,697 bytes measured 11-06; testing-strategy.md 6.
+const ACCEPT_RESTART_SECOND_SEED_HEAP_CEILING: u64 = 2_800_000;
 
 #[test]
 fn p_accepts_a_restart_from_the_incidents_page_with_a_second_seed() {

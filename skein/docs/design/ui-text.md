@@ -287,6 +287,8 @@ this shell's text (ui.md, 17.1).
   | `n` | acts on node n: a button, a link, a tab, a menu item or an option is pressed (a link followed, an option chosen); a check or a choice is toggled; a text field or a text area is written empty, then submitted if it submits on enter |
   | `n WORDS` | writes WORDS, the rest of the line after the spaces that follow n, as field n's whole value, a secret's as any other's, then submits it if it submits on enter |
   | `p` | prints the page again, at once |
+  | `up`, or the line PgUp makes (`ESC [ 5 ~`) | the first bound log's `Near` with its head (ui.md, section 6) |
+  | `down`, or the line PgDn makes (`ESC [ 6 ~`) | the first bound log's `Near` with its foot |
   | `q` | closes (section 7) |
   | an empty line | nothing |
 
@@ -305,8 +307,14 @@ this shell's text (ui.md, 17.1).
   | words for a node that is not a field | `NAME: [n] takes no words` |
   | a number before the first print | `NAME: no page yet` |
   | a line longer than the longest | `NAME: line too long` |
-  | anything else | `NAME: commands: n, n words, p, q` |
+  | `up` or `down` with no bound log on the page | `NAME: commands: n, n words, p, q, up, down` |
+  | anything else | `NAME: commands: n, n words, p, q, up, down` |
 
+- **A log's edges are lines too.** The input is never raw (section 7), so
+  PgUp and PgDn reach the shell only as the bytes the terminal gives them,
+  with Enter. A bound log prints `(up, down: more lines)`, first under its
+  name, so that a person finds them. The shell has no view to measure, so it
+  reports `Near` on these commands alone, and a log's lines print whole.
 - **The commands are skein-ui-text's,** for every application. An
   application adds to its terminal only what it prints of its own
   (section 4), never a command.

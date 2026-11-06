@@ -217,6 +217,8 @@ pub enum Key {
     Enter,
     Escape,
     Tab,
+    PageUp,
+    PageDown,
     Backspace,
     ArrowUp,
     ArrowDown,
