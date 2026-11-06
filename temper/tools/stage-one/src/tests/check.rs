@@ -14,7 +14,7 @@ const FORGE: &str = "forge.box:3000";
 const REPOSITORY: &str = "people/kit";
 const PROJECT: u32 = 7;
 // The reference has 67 settings and 13 box obligations.
-const OBLIGATIONS: usize = 79;
+const OBLIGATIONS: usize = 85;
 
 fn box_placeholders(value: &mut Value) {
     match value {
@@ -211,8 +211,8 @@ fn a_value_changed_is_wrong() {
     assert!(!report.passed());
     assert_eq!(outcome(&report, "goal-rule.ci"), &Outcome::Wrong { found: json!(true), expected: json!(false) });
     assert!(report.text().contains("goal-rule.ci  wrong: found true, expected false\n"));
-    assert!(report.text().ends_with("failed: 1 of 79\n"));
-    assert_eq!(report.json()["verdicts"][55]["outcome"], json!({"kind":"wrong","found":true,"expected":false}));
+    assert!(report.text().ends_with("failed: 1 of 85\n"));
+    assert_eq!(report.json()["verdicts"][61]["outcome"], json!({"kind":"wrong","found":true,"expected":false}));
 }
 #[test]
 fn an_added_charter_is_an_extra() {
@@ -327,8 +327,8 @@ fn run_exits_by_outcome() {
 fn integer_bounds_and_permitted_surpluses_pass() {
     let report = report(&proposed(|items| {
         let coding = set_value(items, "charter", 2);
-        coding["turns"] = json!(17);
-        coding["time"] = json!(120_000_000_001_u64);
+        coding["turns"] = json!(801);
+        coding["time"] = json!(28_800_000_000_001_u64);
         let coordinator = set_value(items, "charter", 5);
         coordinator["documents"]
             .as_array_mut()
@@ -384,7 +384,14 @@ fn judged_text_must_be_a_nonempty_string() {
     }
 }
 #[test]
-fn a_documents_heading_is_free() {
+fn a_documents_heading_is_free_unless_the_golden_asks_it_whole() {
+    let narrowed = report(&proposed(|items| {
+        let designer = set_value(items, "charter", 7);
+        let documents = designer["documents"].as_array_mut().expect("documents");
+        let document = documents.iter_mut().find(|d| d["path"] == "DESIGN.md").expect("document");
+        document["heading"] = json!("One section");
+    }));
+    assert!(matches!(outcome(&narrowed, "designer.documents"), Outcome::Wrong { .. }));
     let report = report(&proposed(|items| {
         for (number, path, heading) in [
             (5, "AGENTS.md", json!(null)),

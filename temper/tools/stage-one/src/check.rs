@@ -342,11 +342,14 @@ fn compare(test: Test, found: &Value, expected: &Value) -> bool {
         Test::Set | Test::Judged | Test::Unchanged | Test::Only => false,
     }
 }
-/// An element holds an expected one when each member the golden names is equal;
-/// a member it does not name, a document's heading among them, is free.
+/// An element holds an expected one when each member the golden names is equal,
+/// a member absent counting as null, as ctl prints it; a member it does not name,
+/// a document's heading among them, is free.
 fn holds(found: &Value, expected: &Value) -> bool {
     match (found.as_object(), expected.as_object()) {
-        (Some(found), Some(expected)) => expected.iter().all(|(name, value)| found.get(name) == Some(value)),
+        (Some(found), Some(expected)) => {
+            expected.iter().all(|(name, value)| found.get(name).unwrap_or(&Value::Null) == value)
+        }
         _ => found == expected,
     }
 }

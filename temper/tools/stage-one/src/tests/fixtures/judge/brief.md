@@ -302,8 +302,11 @@ List every rule id exactly once. For each rule, verdict is reaches (its role's
 runs get it from the charter's instructions or a document it names), missing,
 or elsewhere (another role's only). Give where and a quote. For the description,
 verdict is matches or differs, with differences: it differs where it says what
-the section contradicts, or leaves out a step of the flow; a detail it leaves
-out is no difference. For restart, verdict is said or proposed, with a quote. Replace MODEL with your model's name and the empty
+the section contradicts, or leaves out what the flow turns on (the goal holding
+its branch, every change landing there, designers before their changes, how
+questions go, the whole landing into main at the end). A number or other detail
+it leaves out is no difference. For restart, verdict is said or proposed, with a
+quote. Replace MODEL with your model's name and the empty
 strings with your findings. Answer with this JSON object only:
 
 ```json

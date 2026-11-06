@@ -150,13 +150,53 @@
       "test": "equal"
     },
     {
-      "id": "coordinator.wake",
+      "id": "coordinator.wake.words",
       "row": "the coordinator's charter",
       "kind": "setting",
       "subject": {
         "role": "coordinator"
       },
-      "member": "wake",
+      "member": "wake.words",
+      "test": "equal"
+    },
+    {
+      "id": "coordinator.wake.notices",
+      "row": "the coordinator's charter",
+      "kind": "setting",
+      "subject": {
+        "role": "coordinator"
+      },
+      "member": "wake.notices",
+      "test": "equal"
+    },
+    {
+      "id": "coordinator.wake.news",
+      "row": "the coordinator's charter",
+      "kind": "setting",
+      "subject": {
+        "role": "coordinator"
+      },
+      "member": "wake.news",
+      "test": "equal"
+    },
+    {
+      "id": "coordinator.wake.results",
+      "row": "the coordinator's charter",
+      "kind": "setting",
+      "subject": {
+        "role": "coordinator"
+      },
+      "member": "wake.results",
+      "test": "equal"
+    },
+    {
+      "id": "coordinator.wake.questions",
+      "row": "the coordinator's charter",
+      "kind": "setting",
+      "subject": {
+        "role": "coordinator"
+      },
+      "member": "wake.questions",
       "test": "equal"
     },
     {
@@ -250,7 +290,8 @@
           "forge": "127.0.0.1:3000",
           "repository": "acme/widget",
           "branch": "main",
-          "path": "DESIGN.md"
+          "path": "DESIGN.md",
+          "heading": null
         }
       ]
     },
@@ -359,7 +400,7 @@
       },
       "member": "turns",
       "test": "at-least",
-      "value": 17
+      "value": 800
     },
     {
       "id": "coding.time",
@@ -370,7 +411,7 @@
       },
       "member": "time",
       "test": "at-least",
-      "value": 120000000001
+      "value": 28800000000000
     },
     {
       "id": "foreman.instructions",
@@ -781,6 +822,34 @@
           "role": 0
         }
       ]
+    },
+    {
+      "id": "policy.role0.tasks",
+      "row": "the project's policy and rules",
+      "kind": "setting",
+      "subject": {
+        "setting": {
+          "kind": "policy",
+          "number": 1
+        }
+      },
+      "member": "roles.0.authority.delegation.tasks",
+      "test": "at-least",
+      "value": 1024
+    },
+    {
+      "id": "policy.role0.depth",
+      "row": "the project's policy and rules",
+      "kind": "setting",
+      "subject": {
+        "setting": {
+          "kind": "policy",
+          "number": 1
+        }
+      },
+      "member": "roles.0.authority.delegation.depth",
+      "test": "at-least",
+      "value": 4
     },
     {
       "id": "project.role0.tools",
