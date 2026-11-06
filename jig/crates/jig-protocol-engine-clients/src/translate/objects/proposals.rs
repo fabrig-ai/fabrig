@@ -218,6 +218,7 @@ pub fn proposal(models: &[crate::Model], value: &d::Proposal, limits: &w::Limits
     w::Proposal::new(
         limits,
         w::ProposalParts {
+            projects: value.projects.clone(),
             key: task::proposal(&d::ProposalRef { proposer: value.proposer, number: value.number }, limits)?,
             project: value.project,
             reason: owner::text(&value.reason, limits)?,

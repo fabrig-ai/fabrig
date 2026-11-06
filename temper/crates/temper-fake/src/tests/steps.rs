@@ -55,3 +55,51 @@ fn the_fake_slot_names_its_forge_by_the_argument_and_has_a_remover() {
         }
     );
 }
+
+#[test]
+fn the_configuring_cue_proposes_project_ways_with_the_hosts_settings_form() {
+    let document = crate::backends::model_document(b"127.0.0.1:8370", b"/data").unwrap();
+    crate::llm::Document::decode(&document).expect("fake model document");
+    let value: serde_json::Value = serde_json::from_slice(&document).unwrap();
+    let cue = value["cued"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|cue| cue["cue"] == "Show drafts and goals for this project.")
+        .expect("configuring cue");
+    let call = &cue["turns"][0]["lines"][0];
+    assert_eq!(call["call"], "propose_settings");
+    assert_eq!(call["arguments"]["against"], 1);
+    assert_eq!(
+        call["arguments"]["items"],
+        serde_json::json!([
+            {"setting":{"kind":"project-ways","project":1},"set":{"drafts":true,"goals":true,"changes":false,"away":true,"way":0}}
+        ])
+    );
+    assert_eq!(cue["turns"][1]["finish"], "stop");
+}
+
+#[test]
+fn the_fresh_box_change_cue_uses_the_welcomes_hello_repository() {
+    let document = crate::backends::model_document(b"127.0.0.1:8370", b"/data").unwrap();
+    crate::llm::Document::decode(&document).expect("fake model document");
+    let value: serde_json::Value = serde_json::from_slice(&document).unwrap();
+    let cue = value["asked"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|cue| cue["cue"] == "Land a local hello status change.")
+        .expect("fresh-box change cue");
+    let call = &cue["turns"][0]["lines"][0];
+    assert_eq!(call["call"], "change");
+    assert_eq!(call["arguments"]["repository"], "work/hello");
+    let producer = value["cued"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|cue| cue["cue"] == "## Task\n\nAdd a local hello status line to README.md.")
+        .expect("hello producer");
+    let write = &producer["turns"][1]["lines"][0];
+    assert_eq!(write["call"], "write");
+    assert_eq!(write["arguments"]["path"], "README.md");
+}

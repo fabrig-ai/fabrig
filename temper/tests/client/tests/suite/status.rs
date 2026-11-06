@@ -419,3 +419,86 @@ fn a_restart_keeps_the_rows() {
     assert_eq!((after.seen, after.next_seen), (looked.seen, looked.next_seen));
     assert_eq!(after.latest, story.env.wall);
 }
+
+#[test]
+fn a_refused_status_run_leaves_home_saying_when_the_last_change_landed() {
+    use temper_engine_domain_world::{store::Store, walking};
+    let mut story = Story::new();
+    let mut limits = story.front.engine.env.limits;
+    limits.people.sign_in_lifetime = Duration::from_secs(7200);
+    let mut period = 0;
+    let configs = std::array::from_fn(|_| {
+        let mut config = walking::config(fixtures::SEED);
+        let policy = &mut config.core.seed_projects[0].policy;
+        policy.policy.period_spend = policy.policy.roles[0].period_spend;
+        period = policy.policy.period_spend;
+        config.core.defaults.rules.period_spend = period;
+        policy.permissions = Box::new([]);
+        policy.templates = Box::new([]);
+        config.core.defaults.policies.insert(1, policy.clone()).expect("policy 1");
+        config.core.connectors = Box::new([fixtures::FORGE]);
+        config
+    });
+    let bootstrap = temper_engine_domain_world::oracle::config::copy(&configs[0]);
+    let mut retained =
+        temper_engine_domain_world::fixtures::restored_over(Store::with_limits(&limits), bootstrap, &limits);
+    retained.seed(
+        Box::new([Record::Forge {
+            row: Box::new(forge::Stored::ProjectFacts(forge::ProjectFacts {
+                project: PROJECT,
+                landed: 1,
+                last_landed: Wall::EPOCH,
+                brief: None,
+                running: None,
+            })),
+        }]),
+        Box::new([]),
+    );
+    story.front = Joint::with_engine(fixtures::SEED, &story.env.limits, retained, configs, &limits, 1);
+    story.front.engine.send(temper_engine_domain::Event::Party(temper_engine_domain::PartyInput::Period {
+        project: PROJECT,
+        period: 2,
+        budget: period,
+        next: None,
+    }));
+    story.front.engine.settle();
+    story.enter();
+    assert_eq!((story.shown().landed(), story.shown().seen()), (1, 1));
+    story.go(CLIENT, fixtures::inbox());
+    story.after(Duration::from_secs(31 * 60));
+    let before = story.front.engine.transactions.len();
+    story.go(CLIENT, Address::Home { project: PROJECT });
+    assert!(
+        story.front.engine.transactions[before..]
+            .iter()
+            .flatten()
+            .any(|write| matches!(write, temper_engine_domain::Write::Save(Record::Forge { row })
+            if matches!(row.as_ref(), forge::Stored::ProjectFacts(facts) if facts.running.is_none()))),
+        "the new sitting attempted a status run and saved its refusal"
+    );
+    assert!(story.shown().previous().is_some(), "return advances the sitting");
+    assert_eq!((story.shown().landed(), story.shown().seen()), (1, 1));
+    assert_eq!(story.shown().brief(), &None);
+    let record = story
+        .front
+        .engine
+        .store
+        .rows
+        .get(&StoreKey::Forge(forge::Key::ProjectFacts { project: PROJECT }))
+        .expect("facts");
+    let Record::Forge { row } = record else { panic!("forge record") };
+    let forge::Stored::ProjectFacts(facts) = row.as_ref() else { panic!("facts record") };
+    assert_eq!(facts.running, None, "the unfunded run was refused");
+    let (_, mut view) = Temper::new(fixtures::SEED);
+    let temper_client_world::app::View::Person(person) = &mut view else { panic!("person view") };
+    temper_client_view::build(person, story.probes[CLIENT.0].root.person(), story.env.wall, &mut Queue::uncapped());
+    let tree = Temper::tree(&view);
+    assert!(tree.nodes().iter().any(|node| node.role == skein_ui::Role::Heading { level: 1 }
+        && node.name.as_deref() == Some(b"The last change landed 31 minutes ago. Nothing needs you.")));
+    let text: Vec<u8> =
+        tree.nodes().iter().flat_map(|node| node.text.iter()).flat_map(|run| run.text.iter().copied()).collect();
+    let text = String::from_utf8(text).expect("Home words");
+    for forbidden in ["Written by the status agent", "brief", "refused", "failed", "unfunded"] {
+        assert!(!text.contains(forbidden), "Home names no status-run failure: {text}");
+    }
+}
