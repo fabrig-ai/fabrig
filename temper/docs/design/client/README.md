@@ -61,8 +61,8 @@ section 11.
   never kept (3.5, 3.6); while no account their work may use is usable,
   a banner on every page says so and offers the three (5.5). A chat's
   composer and a task's page name the account and model the work runs
-  on. A browser goes to a sign-in's address in its own tab and comes
-  back; the terminal prints the address and opens no browser (6.5).
+  on. A browser opens a sign-in's address in a new tab while the page
+  waits; the terminal prints the address and opens no browser (6.5).
   The accounts are jig's, kept by its engine
   (`../protocol/credentials.md`, section 3).
 - **A first run's playground.** When the person chooses it, the
@@ -949,14 +949,13 @@ keeps (`../protocol/configuration.md`, section 2).
     deployment accounts", the one chosen pressed, yours at the flow's
     start; the choice is the flow's state, kept across its steps, not
     its address.
-  - *Signing in* has no page of temper's: the way's button sends the
-    sign-in, whose answer is the address to open, and a browser goes to
-    it in the page's own tab. The provider sends the browser back to
-    the engine's listener, which sends it on to the page it left, and
-    the page shows the sign-in's end, read on the `accounts` watch:
-    Ready, or the ending's words and acts (5.5, A sign-in). The
-    terminal prints the address and opens no browser (6.5). temper
-    detects no browser elsewhere (section 11, A browser on another
+  - *Signing in* is a note in the way's card's place: the way's button
+    opens a new tab and sends the sign-in, whose answer is the address
+    the tab goes to. The provider sends that tab to the engine's
+    listener, and the page, which stayed, shows the sign-in's end, read
+    on the `accounts` watch: Ready, or the ending's words and acts (5.5,
+    A sign-in). The terminal prints the address and opens no browser
+    (6.5). temper detects no browser elsewhere (section 11, A browser on another
     machine): the page offers the paste to everyone, below.
   - *While it waits,* a sign-in under way that the page draws is a note
     in the way's card's place, the same as the welcome's and drawn by
@@ -991,36 +990,50 @@ keeps (`../protocol/configuration.md`, section 2).
     end it shows, or, with the sign-in gone, "This sign-in has ended.",
     and the way's button again. *Lost* or *unsent* asks for the paste
     again: the client never sends it twice by itself.
-  - *The tab's departure,* in a browser, in this order. The sign-in's
+  - *The sign-in's tab,* in a browser, in this order. The way's button
+    sends the sign-in, and in that press's own turn, before the sign-in
+    is carried, the root asks its shell to open a tab (`Request::Tab`,
+    `Tab::Open`), which holds "Opening ChatGPT’s sign-in…" until the
+    address comes: a browser blocks as a pop-up a tab opened once an
+    answer has come back (skein's `ui-web.md`, section 10). The sign-in's
     answer, `AccountSignInStarted`, names its source S and the address.
-    The page then sends `Return { source: S, path }` (4.6), `path` the
-    address it returns to: `ConnectModel`'s at the way with the source,
-    `/accounts/connect?provider=N&way=sign-in&source=S` (`browser.md`,
-    2.3), or the welcome's Ready, `/welcome?at=ready`, from the
-    welcome's Model step. Once `Return` is answered done, the root asks
-    its shell to leave for the address (`Request::Leave`), once, from
-    that answer: never from its state, so that no build, reload or
-    return asks again, and a page come back knows no departure of its
-    own. A `Return` refused, failed or lost leaves the page where it is.
-    Signing in shows the address as an external link throughout, a tab
-    of its own, so that a page that stays, a shell that cannot leave
-    (the terminal's root is made with no departure: it sends no
-    `Return`) and a browser that refuses the target (skein's `ui-web.md`,
-    section 10) still offer it. The engine keeps a return as long as
-    the sign-in, and never across a restart: after one, its listener
-    answers with its fixed page, "Sign-in received. You may close this
-    page.", and the person goes back to the page by hand (skein's
-    `oauth.md`, 6.5).
-  - *Come back,* the page is a new client at `ConnectModel`'s address
+    The root asks its shell to point the tab at the address
+    (`Tab::Point`), its opener cut, once, from that answer: never from its
+    state, so that no build or reload asks again. The page's address then
+    names the source, in place of its history entry: `ConnectModel`'s at
+    the way with the source,
+    `/accounts/connect?provider=N&way=sign-in&source=S`, or the welcome's
+    Model step at the way with the source (`browser.md`, 2.3). An answer
+    with no address, refused or lost, closes the tab (`Tab::Close`), and
+    the page says why, as 5.5 has it; so does an answer the page has
+    left. A browser that refuses the tab is told to the root
+    (`Event::TabRefused`): nothing is pointed, and the note offers the
+    address as the person's own click (*The sign-in under way*). A browser
+    that opens the tab and hides it is served by "Open it again". The
+    terminal's shell opens no tab, and prints the address (6.5). Nothing
+    leaves: the page holds the sign-in from its answer. The accounts page's
+    row signs in the same way, its tab opened and pointed the same, and
+    stays on its page with its link "Open the sign-in page", with no address
+    of its own to name the source.
+  - *Its end,* the page moves on by itself, on the `accounts` watch: to
+    Ready, on the welcome as on `ConnectModel`, its address replacing the
+    step's, or to the ending's words and acts. A hidden tab lets its
+    stream go after a minute (skein's `ui-web.md`, section 10), so a slow
+    sign-in moves on when the person returns, its stream opened again;
+    the page says nothing of this. The new tab ends on the listener's
+    fixed page, "Sign-in received. You can close this tab.", which never
+    says how the sign-in ended (skein's `oauth.md`, 6.5): that's the
+    page's to say, and temper closes no tab it has pointed (section 11).
+  - *A reload while it waits,* the page is a new client at the address
     with the source (`browser.md`, 2.3): it takes the source's sign-in
-    as its own and draws it as Signing in did, while the `accounts`
-    watch lists it under way, then its end: Ready, or the ending's words
-    and acts, when the document's last ending is the source's. Until
-    the watch has delivered, Signing in's card alone; a source the watch
-    shows neither under way nor ended (another's, or one whose end a
-    later ending has replaced) is no sign-in of the page's: Signing in
-    shows the way's card again, with its button, and the address drops
-    the source.
+    as its own and draws the same page, while the `accounts` watch lists
+    it under way, then its end. The small store keeps the sign-in's
+    address beside its source, and whether its tab was refused, so that
+    the note reads the same and "Open it again" stays (section 7). Until
+    the watch has delivered, the note alone; a source the watch shows
+    neither under way nor ended (another's, or one whose end a later
+    ending has replaced) is no sign-in of the page's: the way's card
+    shows again, with its button, and the address drops the source.
   - *Details* is the way's field: a key's secret field and "Add key"; a
     program's name field and "Declare". Declaring a program's login
     asks its name, 1 to 32 of `a` to `z`, `0` to `9` and `-`, `claude-`
@@ -1067,8 +1080,8 @@ keeps (`../protocol/configuration.md`, section 2).
   the deployment's forges." Its acts are the FORGE
   requests (section 8), each sent as 3.6
   says; a pasted key or token is a secret field (3.6). A connect's or
-  an install's link is where the page's own tab goes, as a sign-in's
-  address is (`ConnectModel`, The tab's departure), the request naming
+  an install's link is where the page's own tab goes, once (`Request::Leave`,
+  from the answer), the request naming
   the page's address as its `back` (section 8); GitHub's last step
   sends the tab back there (`forge.md`, 9.1), and the page shows a
   whole address's link as an external link meanwhile (6.5); a
@@ -1313,14 +1326,13 @@ keeps (`../protocol/configuration.md`, section 2).
     Model Choose; on Choose the foot's returns to Forge. Standalone
     `ConnectModel` keeps its holder controls, "‹ All ways", its cards and
     its Ready. An account added there is the accounts page's too; a
-    sign-in sends the browser back to the
-    welcome at its Ready, `/welcome?at=ready` (`ConnectModel`, The
-    tab's departure).
+    sign-in holds the page, and moves on to the welcome's Ready,
+    `/welcome?at=ready` (`ConnectModel`, *Its end*).
     *A model usable,* at any way or none, for whoever comes back to the step
-    once a model is usable, since "I’ve signed in", a sign-in's end and a key
+    once a model is usable, since "I’ve signed in", a sign-in’s end and a key
     added go on to Ready at once: the heading "Connect a model", no lead; a
-    status, ticked, "✓ ACCOUNT", in the words of Ready's Model line (below);
-    the primary "Continue", to Ready; the foot. On the
+    status, ticked, "✓ ACCOUNT", in the words of Ready's Model
+    line (below); the primary "Continue", to Ready; the foot. On the
     welcome it stands in for the choices and for a made sign-in's card,
     with its facts, "Continue with ChatGPT", "Manage usage" and "…is on
     the Accounts page".
@@ -1332,7 +1344,7 @@ keeps (`../protocol/configuration.md`, section 2).
       a wrong one shows once OpenAI refuses a run." Once it is added and a
       model usable, the step moves on to Ready, its address replacing the
       step's; refused, the page stays with the refusal's words.
-    - *A held sign-in,* including `elsewhere`, takes *The sign-in under way*, below.
+    - *A held sign-in* takes *The sign-in under way*, below.
     - *Claude,* "Your Claude subscription": "temper sets Claude Code up on
       this machine in an environment of its own: its settings, sessions
       and sign-in stay apart from your own Claude Code. In a terminal
@@ -1349,6 +1361,16 @@ keeps (`../protocol/configuration.md`, section 2).
       The check's end shows on Ready (*The try,* below). A refused
       `DeclareProgram` or `CheckProgram` says the refusal's words under
       Ready's Model line.
+    - *The command's Copy,* on each of the welcome's command blocks, in a
+      browser alone: a quiet "Copy" in the block's top right corner, whose
+      right padding keeps the text from running under it at every width. A
+      press writes the command's exact text, as one line, an effect asked in
+      the press's own turn (skein's `ui.md`, section 13; `ui-web.md`, section
+      11). It reads "Copied" for 2 s. On plain http, where a browser has no
+      clipboard, and on any refusal or failure, it reads "Couldn’t copy" for
+      2 s, and the text stays selectable. A press within the 2 s writes again,
+      and an answer to an earlier press says nothing. The terminal has no
+      button.
     - *A plan's sign-in,* its way at its address with none asked, or one
       ended with no model usable, "Signing in to PLAN": `ConnectModel`'s card
       for the way, or its ending's words and acts, in the panel; "All ways".
@@ -2493,7 +2515,7 @@ keeps (`../protocol/configuration.md`, section 2).
   so, and to whom; where it offers it as refused, the card says why and
   sends nothing.
 - **The sheet.** Every confirmation of `confirm.rs` is one sheet, from the
-  look request `close-chat`: the mock's `dialog.sheet`, narrower. It asks in a
+  look request `close-chat`: the mock's `dialog.sheet`, narrower, centred over the page. It asks in a
   sentence, says only what will change, and names its acts: what keeps things
   as they are first, then the act itself, primary. There is no "Confirm" and no
   "Dangerous action": the sheet is how temper marks an act that can't be undone
@@ -2530,8 +2552,8 @@ keeps (`../protocol/configuration.md`, section 2).
     saying the ask's progress above its acts. Answered done, it goes. Any other
     outcome leaves it open, saying why above its acts, where a press sends again;
     a press that sends nothing closes it, but for a rejection with no reason, which
-    keeps it open and says nothing. "Keep it" closes it at any time, and an
-    ask in flight goes on, its outcome on the page as before. While the sheet is
+    keeps it open and says nothing. The act that keeps things closes it at any time,
+    Escape pressing it, and an ask in flight goes on, its outcome on the page as before. While the sheet is
     open, the outcome and progress of its own ask are the sheet's alone.
   - *A press stays under the finger* (`browser.md`, *A press a render can lose*):
     the acts are a group of their own, keyed, and each delegate's row keyed by its
@@ -2862,8 +2884,8 @@ for its kind, its user's login and its installations. Its nodes:
   set up and the deployment's forges, 5 since jig's client wire 13
   carried in its refusals, 6 since the first repository (`SetUp`'s
   fields and the row's `first`), 7 since the playground's state (its
-  read's `state` and its start), 8 since a sign-in's return
-  (`Return`, section 8), 9 since connecting a GitHub App (`Connect`,
+  read's `state` and its start), 8 since a sign-in's return, since gone,
+  9 since connecting a GitHub App (`Connect`,
   `Install`, `ForgeRefusal`), 10 since the forges row's installations
   and last connect's end, 11 since GitHub's manifest (`Connect`'s
   `GitHubManifest` and the row's `app`). It stays at 11 until the first
@@ -2883,7 +2905,7 @@ for its kind, its user's login and its installations. Its nodes:
   `make_repository`, `MakeRepository`,
   `dismiss`, `Dismiss`, `looked`, `Looked`,
   `start_playground` and `end_playground`, the last two with no fields
-  (below), or `return`, `Return`, answered `returning` (section 8). Each is answered by the family's one record,
+  (below). Each is answered by the family's one record,
   `Answer`, whose outcome is one of either request's (below); the client
   refuses as undecodable an outcome that does not fit the request it
   sent.
@@ -3042,8 +3064,7 @@ for its kind, its user's login and its installations. Its nodes:
   Forgejo of the connected mode, connected or stopped
   (`../protocol/setup.md`, section 4 and 17.3).
 - **`Install`:** of the deployment's scope: the forge's number (u16)
-  and `back`, an optional byte string checked as `Return`'s `path`
-  (section 8). Its outcome: *a link*, `Link`, the install page's
+  and `back`, an optional byte string checked at decode (section 8). Its outcome: *a link*, `Link`, the install page's
   address (a byte string of at most 2048 bytes); *connecting*, an
   `Install` that stopped, its failure said on the forge's row; *forge
   refused*, `ForgeRefusal`; or *unknown*.
@@ -3108,33 +3129,59 @@ for its kind, its user's login and its installations. Its nodes:
   the deployment's one worker is on the engine's machine
   (`../protocol/configuration.md`, section 1, the standalone shape),
   `program_login` is that machine's whole command but NAME, the running
-  binary's absolute path and the three directories in effect, each quoted
-  for a POSIX shell: `'/home/alice/temper' program-login --config '…' --data
-  '…' --cache '…'`. The pages print it with NAME after "On this machine,
+  binary's word and the three directories in effect, each as a word
+  (*The words of a command for this machine*): `~/temper program-login
+  --config '…' --data '…' --cache '…'`. The pages print it with NAME after "On this machine,
   run:". It is a path of a machine that the party signed in to it
   may read: a read carries a sign-in (jig's `protocol/client.md`), and no
   answer goes before one. A path that isn't UTF-8, a line past its
   bound, and a deployment whose workers are elsewhere send none: the pages
   then print the placeholders the tools do, `temper program-login --config
   CONFIG --data DATA --cache CACHE NAME`, "On each host, with its
-  directories:", or, on a page holding `program_environment`'s answer, those
-  words and `temper program-login NAME` under the same line.
+  directories:". Once the owner's `program_environment` answer comes, it
+  replaces this command: an empty answer prints `temper program-login NAME`,
+  and any other prints its words followed by `program-login NAME`.
 - **The program's environment, `program_environment`:** of the deployment's
-  scope, with no fields and no subject: what `temper program-login` needs set
-  to act on this deployment. It is the party's read, and only the deployment's
-  owner has it, at any time, since the welcome's Model step shows them the command
-  during set up and Connect a model after it; anyone else's is refused, and their
-  page prints the command without its words. Its answer is the record
-  `ProgramEnvironmentAnswer`: `environment` (bytes), empty when each of the
-  three directories (`../protocol/configuration.md`, 12) is the one the command
-  finds by itself in the environment the engine started in, and otherwise
-  `TEMPER_CONFIG=… TEMPER_DATA=… TEMPER_CACHE=…`, all three, each value a POSIX
-  shell word. It is one string, composed where the directories are known, so
-  that the client holds no path as a fact, quotes nothing and decides no
-  default; it is a read of its own, separate from `DeploymentAnswer`.
-  A page asks when its address names a program's way, the only place that
-  draws the command with these words; Accounts' has none of them (section 11). On the
-  wire it is `Reading`'s `program_environment`.
+  scope, with no fields and no subject: what `temper program-login` needs
+  around it to act on this deployment, from this machine's shell. It is the
+  party's read, and only the deployment's owner has it, at any time, since the
+  welcome's Model step shows them the command during set up and Connect a model
+  after it; anyone else's is refused, and their page prints the command without
+  its words. Its answer is
+  the record `ProgramEnvironmentAnswer`: `environment` (bytes), the words the
+  command starts with, which a page draws before `program-login NAME`. They are
+  none when `temper` runs this binary and each of the three directories
+  (`../protocol/configuration.md`, 12) is the one the command finds by itself
+  in the environment the engine started in. Otherwise they are the word that
+  runs the binary, after `TEMPER_CONFIG=…`, `TEMPER_DATA=…` and `TEMPER_CACHE=…`,
+  in that order, each only where its own directory isn't that one: a box with
+  its data alone moved says `TEMPER_DATA=~/x temper`. Where that environment
+  gives the command no directories by itself, no `HOME` or XDG variable placing
+  them, all three are named. It is one string, composed where the
+  binary and the directories are known, so that the client holds no path as a
+  fact, quotes nothing and decides no default; it is a read of its own,
+  separate from `DeploymentAnswer`. A page asks when its address names a
+  program's way, the only place that draws the command with these words;
+  Accounts' has none of them (section 11). On the wire it is `Reading`'s
+  `program_environment`.
+- **The words of a command for this machine:** how `program_environment`'s are
+  made.
+  - *The word that runs the binary.* The running process's executable, less the
+    ` (deleted)` Linux adds to one rebuilt while it runs. The word is `temper`
+    when the first executable file named `temper` on the process's `PATH` is
+    that file, by canonical paths: only the first counts, as that is what a
+    shell runs, and an entry of `PATH` that isn't absolute counts for nothing,
+    since the person's shell stands elsewhere. Otherwise it is the executable's
+    path, as a word (below). An executable that can't be read gives `temper`.
+  - *A path as a word,* for the executable and the three `TEMPER_` values alike:
+    repeated slashes collapsed, then a leading `$HOME`, whole components of it,
+    as `~/`, and the path alone as `~`. It stays unquoted where it can, so that
+    the shell expands `~/`, which it does right after `=` in an assignment
+    prefix too. A path needing quotes quotes only what follows `~/`
+    (`~/'my dir/temper'`), and whole where no `$HOME` leads it (`'/my dir/temper'`).
+    `$HOME` unset, relative or `/` leads nothing.
+  - *The bound.* The words fit the answer's 49,216 bytes: a word for the binary
+    that would pass it gives way to `temper`.
 - **A change's panel, the subject `change`** (`forge.md`, 9.2): of a
   project's scope, its window unused, naming the change task's number
   (u64). On the wire it is `Watching`'s `change`, `Watching` naming
@@ -5072,7 +5119,7 @@ section 5.
     reads as the first. A goal's start preselects it.
   - *Status,* disabled, each showing what temper does today: "Status lines and
     reports", "Written words, beside the counts temper keeps itself.";
-    "Rewritten"; "The brief on Home", "What changed since you last looked."
+    "Rewritten"; "The brief on Home", "What changed since you last looked.", "On".
   - *What needs you:* "Questions a goal can answer from its plan", live, kind
     6: "Answered by the goal, kept in its decisions" (`foreman`), "Asked of me
     too" (`up`), "Not asked: each agent decides alone" (`none`); "Funds",
@@ -5123,7 +5170,11 @@ section 5.
   in the deployment (`../protocol/configuration.md`, 13.2): without one, or until
   it is delivered, kinds 6 and 7 are named as `temper ctl` names them. Then
   "Accept", primary, jig's `Decide` with running work staying, and "Change
-  something", quiet, focusing the composer. Replaced by a later proposal, it is
+  something", quiet, focusing the composer. A decision goes under the proposal's
+  own `project`, never the chat's: a proposal of settings is the deployment's,
+  whichever chat made it, and jig knows it under no other project. The card has
+  no "Reject": the person rejects it on its card in *Needs you* (3.5), or says
+  what to change here. Replaced by a later proposal, it is
   dimmed, "Replaced by the proposal below"; accepted, "✓ Accepted · new work
   follows it". A person who may not accept it sees neither act: "Waiting for an
   owner", the parties it waits for as jig's proposal names them, "Owners of this
@@ -5448,8 +5499,8 @@ command.
   (`../protocol/credentials.md`, section 3), or in one elsewhere, and
   pastes the address it ends at into the page's field, which the
   terminal draws as the browser does (3.5, `ConnectModel`, The paste);
-  the page shows the sign-in's end when the `accounts` watch tells it. A browser goes to the address
-  in its own tab instead (3.5, `ConnectModel`).
+  the page shows the sign-in's end when the `accounts` watch tells it. A browser opens the address
+  in a new tab instead (3.5, `ConnectModel`).
 - **A forge's connect or install link** is printed the same way, as
   `TEXT <URL>` with no number, and never opened; the terminal names no
   `back`, so the setup route ends on its own page. A connect link's
@@ -5588,6 +5639,15 @@ How jig signs a client in, and how a native client keeps its credential
 and its small store, are jig's (jig's `protocol/client.md`, sections 8,
 10 and 12; jig's `client/domain/client.md`, sections 11 and 12).
 temper's:
+
+- **A sign-in's address in the small store** (3.5, `ConnectModel`, *A reload
+  while it waits*): a browser's shell keeps, in one record of its own under
+  the key `sign-in`, beside jig's, the latest answered sign-in's source, its
+  address and whether its tab was refused, so that a reload draws the same
+  page. The address is the provider's authorization address, with its state
+  and challenge and no verifier, which the page's link and the tab's history
+  show anyway. A later sign-in's record replaces it, and it goes with the tab.
+  The record is read only for that source: another's is no sign-in of the page's.
 
 - **The printed link** (jig's `protocol/client.md`, section 8): at
   start, `temper serve`, or `temper box` before it starts serve
@@ -5772,32 +5832,12 @@ does for the client:
   root forwards to jig's clients' component to erase.
 - **`back`,** on a GitHub connect and an install, is the page's address
   the setup route sends the browser back to once GitHub is done
-  (`forge.md`, 9.1), checked at decode as `Return`'s `path` is (below);
-  none, from the terminal, leaves the route's own page.
-- **`Return { source, path }`,** a sign-in's return (3.5,
-  `ConnectModel`, The tab's departure), is no forge's: the family
-  carries it as temper's one request of the client's own. `source` is
-  jig's source of the sign-in (`AccountSignInStarted`), `path` the
-  page's address to come back to. The service checks `path` at decode,
-  before the root: one leading `/`, not `//`, no `\`, no scheme, of
-  visible ASCII, at most 512 bytes; one that is not is answered
-  undecodable. Any signed-in person may send it, in their own scope,
-  with no role: jig admits it by key, and the root answers it
-  `returning` and asks the routing to give the return. The routing
-  composes the clients' listener's own address, as the printed link
-  names it (`http://HOST:PORT`, the bound socket, never a request's
-  Host), with `path`, and gives it to skein's accounts component for
-  that source (skein's `oauth.md`, 6.5: `Request::Return`), which
-  drops it when no sign-in of that source is under way. The root
-  checks no holder: the return only ever sends a browser to a page of
-  this engine's own clients' listener, so a source of another
-  person's, given a path, sends that person to one of temper's pages,
-  where the cookie decides what they see. A return lives as long as
-  its sign-in, in skein's component alone: never kept, so a restart
-  loses it and the listener answers its fixed page.
+  (`forge.md`, 9.1). The service checks it at decode, before the root:
+  one leading `/`, not `//`, no `\`, no scheme, of visible ASCII, at most
+  512 bytes; one that is not is answered undecodable. None, from the
+  terminal, leaves the route's own page.
 - **Who may:** a person whose role on project 0 is `Owner`; in
-  standalone, the deployment's owner, for every request above but
-  `Return`. jig admits each by key and
+  standalone, the deployment's owner, for every request above. jig admits each by key and
   refuses at admission as for any request, in jig's words; the root
   refuses any other party's, before a forge is called or a run starts,
   as the outcome refused (role).
@@ -6151,14 +6191,17 @@ own tests:
   the small store; a key's request lost and sent again by the person,
   making one account; a person on `ConnectModel`'s Choose pressing
   "Continue with ChatGPT", Signing in showing its address, the
-  watched sign-in made, and Ready; in a browser's root, the answer's
-  source followed by one `Return` with the way's address and the
-  source, then one `Leave` for the address once `Return` is answered,
-  none when it is refused, none from the terminal's root, and none
-  again on a rebuild or from a root made at the returned address,
-  which draws the source's sign-in, then its end; from the welcome's
-  Model step, the same with `Return` naming `/welcome?at=ready`, and a
-  root made there drawing Ready with no model line until the
+  watched sign-in made, and Ready; the press's `Tab::Open` in the
+  press's own turn, before any answer, then one `Tab::Point` for the
+  address from the answer, with no `Leave`, the page's
+  address naming the source in place of its entry; a refused or lost
+  answer's `Tab::Close`, and an answer the page has left; a tab refused,
+  no `Tab::Point`, and the note's primary button; none again on a
+  rebuild or from a root made at the source's address, which draws the
+  same page, its address and refusal kept in the small store, then its
+  end; from the welcome's Model step, the same, moving on to
+  `/welcome?at=ready` by itself on the `accounts` watch; a root made at
+  Ready drawing no model line until the
   `accounts` document is delivered, then "Model: ChatGPT · signing
   in" while the sign-in is under way, then the account made; a program's login declared from
   Details and its command shown on Ready; the accounts page's rows
@@ -6405,16 +6448,23 @@ own tests:
   names no `projects` on one. A card from the ended proposal, or a stored record, would
   keep it. Default: this session's alone.
 - **What a real box's walk has not shown** (3.5; `../protocol/setup.md`, 6.6; the
-  request `ui-final-walk` of 2026-11-05): the pinned Claude Code fetch and a real
-  browser's Sign out ran by hand, on fresh loopback deployments, and no test keeps
-  them. Not shown: a provider's
+  requests `ui-final-walk` of 2026-11-05 and `ui-walk-3` of 2026-11-06): the pinned
+  Claude Code fetch, from a box with directories of its own up to the sign-in prompt
+  and reused on a second run, and a real browser's Sign out ran by hand, on fresh
+  loopback deployments, and no test keeps them. Not shown: a provider's
   sign-in or a paid call; TLS, a proxy or a browser on another machine; Accounts
   with a project or an account on it; the small engine profile whole, whose client
   limits alone ran; another platform's build, a failed or corrupt download, two
   fetches at once; a copy from a public host. Default: none, until a plan walks them.
+- **A real check of a model's command alone** (3.5, *The welcome*; 4.6; the request
+  `ui-walk-3` of 2026-11-06): the page's way to that command passes a forge's "Run on
+  this machine", which is already fetching Forgejo when Model offers it, so a check
+  allowed the pinned Claude Code download as its one real service leaves that bound
+  by walking the page. Nothing says Forgejo's setup is wrong. Whether such a check
+  allows both downloads, or starts past the forge. Default: it allows both, and says so.
 - **What feeds the try** (3.5, *The try*; `../draft/model-check.md`): the trial's
   task and charter, how it selects its model, who pays, what ends it and its
-  cancelling on leaving are that draft's, and are designed as it is built, with
+  cancelling once its account is removed are that draft's, and are designed as it is built, with
   what it leaves open: an act on Settings' accounts, and a world for the wait.
   Default: the host's check feeds Model's line at its first step, and no line says
   "answered".
@@ -6486,8 +6536,8 @@ own tests:
   offers the paste to everyone (the user, 2026-11-06). Candidates for telling by
   itself: before the browser leaves, the page asks the listener for a
   one-time code the engine gave it for this sign-in, and only a browser
-  that gets it goes on in its own tab, the others in a tab of their own
-  with the paste; or a connection from an address not the engine's
+  that gets it is sent on by itself, the others offered the paste
+  first; or a connection from an address not the engine's
   machine's goes so at once. Later: a client relaying the redirect
   (jig's `protocol/llm.md`, section 10). Default: undetected, the paste
   offered to everyone.
@@ -6688,19 +6738,18 @@ own tests:
   page opened at a sign-in's way, by a reload or a link, knows no
   sign-in of its own, and offers the way's button again; the accounts
   document lists the sign-ins under way, but not which client started
-  each. The return names its sign-in by its source in the page's
-  address (`ConnectModel`, Come back), so a page come back, or a link
+  each. The page's address names its sign-in by its source
+  (`ConnectModel`, *A reload while it waits*), so a page reloaded, or a link
   copied from it, shows that sign-in; one opened at the way without a
   source does not. Candidate: the page shows the person's sign-in under
   way for that provider, with its end. Default: the way's button
   again.
-- **The address on a page come back** (3.5, *The sign-in under way*;
-  `../draft/sign-in-new-tab.md`, 3): a sign-in's address is the answer to
-  the client that asked, so a page come back or reloaded, a new client,
-  draws the note with no "Open it again", where that draft has a reload
-  draw the same page. Candidate: the accounts document gives a sign-in's
-  holder its address, which jig's `protocol/llm.md`, 5.2 keeps as an
-  answer alone. Default: no link, the paste still offered.
+- **The new tab closing itself** (3.5, `ConnectModel`, *Its end*): temper's page
+  could keep its hold on a tab it pointed and close it at the sign-in's end,
+  but a provider's opener policy may sever that hold. Default: the page lets a
+  pointed tab go, and the person closes it. **A forge's departures** (3.5,
+  `ConnectForge`): GitHub's App and install still leave in this tab, and may
+  want the same. Default: as they are (`../draft/sign-in-new-tab.md`, 6).
 - **The person's login over 760 px** (3.5, *Sign out*; 5.3; the request
   `ui-owner-menu`): the sheet hides the `Accounts` tab's row whole, so a browser
   that wide reads the person's name on the rail's foot, and their login on no tab
@@ -6755,8 +6804,15 @@ own tests:
   printed working when pasted, until a deployment says otherwise.
 - **This deployment's directories under "each host"** (4.6, 5.5): Connect a model's
   Ready says "Run this on each host temper’s agents run on" over "On this machine,
-  run:" and the command, whose paths are this machine's, and another host's may
+  run:" and the command with `program_environment`'s words, which are this
+  deployment's directories and this machine's binary, and another host's may
   differ. Default: so, a box being one host.
+- **A `~/` in another's shell** (4.6): the words' `~/` is the engine's `$HOME`,
+  and a shell of another user on this machine reads its own. Default: so, the
+  owner being the person at this machine.
+- **A Copy on the other commands** (3.5, *The command's Copy*; 4.6): the welcome's
+  block has one, as the request `box-small` of 2026-11-06 asks; `ConnectModel`'s
+  command and Accounts' have none. Default: so, until a person asks for one.
 - **The command before its read answers** (4.6): while `program_environment` is
   unanswered, or if its read fails, a page with no `program_login` draws the
   placeholders and says nothing. Default: so.

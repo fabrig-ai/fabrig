@@ -28,6 +28,7 @@ mod sign_in_wait;
 pub(crate) mod start_goal;
 pub(crate) mod task;
 pub(crate) mod welcome;
+mod welcome_copy;
 mod welcome_model;
 
 pub(crate) fn project_name(me: Option<&jig_client::contract::Me>, project: u32) -> Option<Box<[u8]>> {

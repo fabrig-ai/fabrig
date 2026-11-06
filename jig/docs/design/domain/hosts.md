@@ -310,8 +310,17 @@ finishes independently. Sign-out precedes a pending check.
 Commands are serialized across the worker so one command owns the injected
 resources and settles before reuse. Its whole first inventory waits for
 every source's answer. The protocol layer drives the real host half's
-command I/O and deadlines, with an explicit executable, private directory
-and bounded environment below the root. Without a configured program, the check fails as unconfigured.
+command I/O and deadlines, with an explicit executable, programs parent
+opened by the shell, the effective user and a bounded environment below
+the root. A check first asks smith's host half to inspect both directory
+levels without making anything or following links at either name. A
+missing level answers not signed in without a child. An unsafe existing
+level or another file error fails as unreadable, with detail, without
+changing permissions or launching the program. Only two private levels
+permit the status command; inspection uses the same deadline as that
+command. Linked parents are accepted by the shell's parent open. Without
+a configured program or an opened parent, the check fails as unconfigured.
+The worker closes its parent descriptor when it closes.
 These commands take no run slot. An unconfigured program counts as an
 absent login: it cannot sign in or use a program login. A failed check after
 an exit or timeout keeps withholding new placement until a later check
@@ -511,6 +520,15 @@ Typed, so the engine can act on them without reading prose:
 - **cancelled:** by the engine, for lost contact, or for shutdown.
 
 Each carries bounded detail for operators; none of it is shown to an LLM.
+
+An agent fault may arrive before admission. While starting, the hub keeps
+its first typed fault and waits for the agent's `Gone`, without acknowledging
+admission, delivering held messages or sending a cancel to an agent token
+it has not received. `Gone` then answers an agent failure with that fault
+and the bounded diagnostic tail, refusing held messages as ending. Without
+a fault, disappearance while starting remains an unstarted agent failure.
+A cancel decided before the fault keeps its cancellation outcome. Smith
+refuses admission after a fault; a later `Started` cannot admit that run.
 
 **Unusable resume history** retains its own typed reason. A transcript
 that cannot be decoded, a start Smith refuses for its transcript, and a

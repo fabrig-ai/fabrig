@@ -179,6 +179,7 @@ impl Life {
             dom,
             platform,
             store,
+            clipboard: skein_ui_web::clipboard::web::Clipboard::new(Rc::clone(inbox), Report::Copied),
             history: Rc::clone(&self.history),
             timer: (),
             title: title::web::Title::default(),
@@ -227,6 +228,8 @@ impl Life {
                 | Report::Due
                 | Report::Act(..)
                 | Report::Fetch(_)
+                | Report::TabRefused
+                | Report::Copied(_)
                 | Report::Carried(..)
                 | Report::Place(_)) => {
                     if !self.failed

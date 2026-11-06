@@ -202,7 +202,11 @@ fn sheet_acts(b: &mut Builder, bindings: &mut Bindings, words: &Words, sheet: &S
     b.open(Role::Slot);
     b.key(skein_ui::Key { owner: crate::frame::owner(), kind: 60, a: 0, b: 0 });
     b.style(crate::look::CONFIRM_ACTS);
-    button(b, bindings, words, sheet.keep, Act::Cancel);
+    b.open(Role::Button);
+    b.name(&words.say(sheet.keep, &[]));
+    b.bind(bindings.insert(Act::Cancel));
+    b.shortcut(skein_ui::Shortcut::ESCAPE);
+    b.close();
     b.open(Role::Button);
     b.style(crate::look::CONFIRM_DO);
     b.name(&words.say(sheet.does, &[]));

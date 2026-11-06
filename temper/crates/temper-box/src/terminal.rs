@@ -51,22 +51,59 @@ pub struct Item {
     pub bytes: Box<[u8]>,
 }
 pub const PRELUDE: &[u8] = b"Open this link in a browser on this machine.\n\n";
-pub const FOOTER: &[u8] = b"\nIt signs you in as this temper's owner, once and for a short while.\nOpened again once spent, it prints a fresh one here.\n";
+pub const FOOTER: &[u8] = b"\nIt signs you in as this temper's owner, once, within 2 hours.\nOpened after that, it prints a fresh one here.\n";
 pub const FRESH: &[u8] = b"\n";
 pub const CTRL_C: &[u8] = b"Ctrl-C stops temper.\n";
 pub const REFUSAL: &[u8] = b"box: serve: sign-in link too long\n";
 /// Largest fixed item, also allowing the ten-byte UTC prefix.
 pub const FIXED_BYTES: u32 = 256;
 
+/// How a sign-in link reaches the box's stdout (temper/docs/design/protocol/setup.md, 7.2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum LinkForm {
+    /// The URL alone on its line: a pipe, a file or `TERM=dumb`.
+    Bare,
+    /// The URL in OSC 8, then its line feed: a terminal.
+    Osc8,
+}
+impl LinkForm {
+    /// `terminal`: the box's stdout is one. `term`: `TERM`'s value, if it has one.
+    #[must_use]
+    pub fn of(terminal: bool, term: Option<&[u8]>) -> Self {
+        if terminal && term != Some(b"dumb".as_slice()) { Self::Osc8 } else { Self::Bare }
+    }
+    /// One link's line, ending in its line feed as `Formatter::block` is given it.
+    /// A line with no URL stays as it is.
+    #[must_use]
+    pub fn line(self, line: Box<[u8]>) -> Box<[u8]> {
+        match self {
+            Self::Bare => line,
+            Self::Osc8 => {
+                let url = line.strip_suffix(b"\n").expect("link line ends in LF");
+                if url.is_empty() {
+                    return line;
+                }
+                joined(&[b"\x1b]8;;", url, b"\x1b\\", url, b"\x1b]8;;\x1b\\\n"])
+            }
+        }
+    }
+}
+/// A link's widest line on a terminal: the URL twice, 14 marker bytes and the line feed.
+pub const LINK_LINE_BYTES: u32 = crate::host::LINE_BYTES
+    .checked_mul(2)
+    .expect("two URLs fit u32")
+    .checked_add(15)
+    .expect("OSC 8 markers and LF fit u32");
+
 #[derive(Debug)]
 pub struct Formatter {
     first_printed: bool,
+    form: LinkForm,
 }
-#[expect(clippy::new_without_default, reason = "the programming model uses explicit constructors")]
 impl Formatter {
     #[must_use]
-    pub fn new() -> Self {
-        Self { first_printed: false }
+    pub fn new(form: LinkForm) -> Self {
+        Self { first_printed: false, form }
     }
     #[must_use]
     pub fn block_entries(&self) -> u32 {
@@ -83,7 +120,7 @@ impl Formatter {
             Item { target: Target::Stderr, bytes: skein_lib::bytes::copy_of(PRELUDE) }
         };
         items.push(words).expect("block count");
-        items.push(Item { target: Target::Stdout, bytes: url }).expect("block count");
+        items.push(Item { target: Target::Stdout, bytes: self.form.line(url) }).expect("block count");
         if !self.first_printed {
             items.push(Item { target: Target::Stderr, bytes: skein_lib::bytes::copy_of(FOOTER) }).expect("block count");
         }

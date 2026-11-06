@@ -2501,7 +2501,8 @@ carries it.
 
 - *a setting no obligation asks for:* an item of the accepted revision
   whose setting binds to no role and is no obligation's subject, of a
-  kind the golden does not name as free;
+  kind the golden does not name as free, and no landing rule removed,
+  since the stock's on every branch must go or be replaced;
 - *a rule made structure without the person's choice*
   (`../draft/configuring.md`, section 2), as far as settings show it: a
   landing rule's gate or approval, or a charter's family the golden
@@ -2772,6 +2773,11 @@ scripts/proof-live.sh               the live tier
   measured there and with each tree's list of Linux's own tests; the
   checklist for a person on a real Mac; and the first run's demo in a
   browser. A test that would take real work joins 2.8's list.
+- **A cached state graph.** Below the real loop a state is a pure function
+  of its seed and path, so a crash sweep could fork at a prefix it now walks
+  again. The slow tiers wait: a process story's restore has its meaning to
+  prove, and the request `test-speed` of 2026-11-06 takes what needs no cache
+  first.
 - **The macOS workflow's results in after-landing.** A red run is a
   finding (2.8), and nothing reads it yet. The repository is public, so
   a run's results need no token.

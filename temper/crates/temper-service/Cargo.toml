@@ -66,6 +66,7 @@ jig-protocol-worker-link.workspace = true
 jig-protocol-worker-agents.workspace = true
 
 [dev-dependencies]
+serde_json.workspace = true
 temper-docs.workspace = true
 smith-channel.workspace = true
 skein-oauth-accounts.workspace = true

@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 
 pub mod bridge;
+pub mod clipboard;
 pub mod dom;
 pub mod inbox;
 pub mod log;
@@ -26,5 +27,6 @@ pub mod transport;
 
 pub mod history;
 pub mod restart;
+pub mod tab;
 pub mod timer;
 pub mod title;

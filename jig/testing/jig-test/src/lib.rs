@@ -374,6 +374,8 @@ fn configure_sources(service: &mut service::Service, configured: &AgentStart, wo
             sources.directory.clone(),
             sources.executable.clone(),
             sources.environment.clone(),
+            skein_shell::effective_user(),
+            skein_shell::open_root(path(&sources.directory).parent().unwrap_or(std::path::Path::new("/"))).ok(),
         )
         .ok_or("agent.programs exceeds host-operation path/environment bounds")?;
         service.configure_program_sources(index, resources).map_err(|_| "program sources refused before startup")?;

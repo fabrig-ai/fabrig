@@ -216,6 +216,9 @@ pub(super) fn sent(root: &mut d::Domain, act: M) -> skein_lib::Token {
             | d::Request::Leave { .. }
             | d::Request::SignOut
             | d::Request::Dropped { .. }
+            | d::Request::KeepSignIn { .. }
+            | d::Request::Tab { .. }
+            | d::Request::Copy { .. }
             | d::Request::Fact { .. } => None,
         })
         .expect("flow sends one request")
@@ -584,10 +587,10 @@ fn a_returned_source_waits_without_inventing_a_link() {
 }
 
 const PASTE_FIELD: &[u8] = "Address of the page that couldn’t be reached".as_bytes();
-pub(super) fn pasting(elsewhere: bool) -> (d::Domain, skein_lib::Token) {
+pub(super) fn pasting() -> (d::Domain, skein_lib::Token) {
     let (mut root, watch) = flow_fixture(d::WayKind::SignIn);
     let way = d::pages::accounts::Way::SignIn { provider: PROVIDER, plan: true };
-    let action = if elsewhere { M::SignInElsewhere { name: [1; 16], way } } else { M::SignIn { name: [1; 16], way } };
+    let action = M::SignIn { name: [1; 16], way };
     let attempt = sent(&mut root, action);
     answer(
         &mut root,
@@ -604,7 +607,7 @@ fn paste_input(root: &mut d::Domain, value: &[u8]) {
 }
 #[test]
 fn signing_in_orders_the_note_link_and_folded_paste_in_both_shells() {
-    let (root, _) = pasting(false);
+    let (root, _) = pasting();
     assert_waiting(&root);
 }
 /// The two pages share one waiting shape, including the terminal's honest title.
@@ -683,7 +686,7 @@ pub(super) fn assert_waiting(root: &d::Domain) {
 }
 fn paste_case(case: usize) -> d::Domain {
     use c::SignInRedirectWhy as R;
-    let (mut root, watch) = pasting(false);
+    let (mut root, watch) = pasting();
     if case == 1 {
         paste_input(&mut root, b"fixture");
     }
@@ -805,7 +808,7 @@ fn the_paste_reads_each_state_in_its_words() {
 }
 #[test]
 fn the_paste_field_decodes_to_the_secret_event_and_finish_to_its_act() {
-    let (mut root, _) = pasting(false);
+    let (mut root, _) = pasting();
     let mut view = fixtures::view();
     let node = fixtures::find(fixtures::build(&mut view, &root), Role::TextField, PASTE_FIELD).unwrap();
     let decoded = crate::event(&view, node, Act::Input { value: Box::from(b"fixture-private".as_slice()) }).unwrap();
@@ -829,13 +832,6 @@ fn choose_offers_no_entry_for_another_computer() {
         );
     }
 }
-#[test]
-fn signing_in_elsewhere_uses_the_same_waiting_page() {
-    let (root, _) = pasting(true);
-    assert!(root.pages().connect_model().unwrap().elsewhere());
-    assert_waiting(&root);
-}
-
 #[test]
 fn the_connected_model_offers_continue_as_a_terminal_command() {
     let mut root = ending(c::AccountEnd::Made { account: 1, declined: false }, b"alice@example.com");
@@ -871,7 +867,7 @@ fn the_connected_model_offers_continue_as_a_terminal_command() {
     );
 }
 
-pub(super) const ENVIRONMENT: &[u8] = b"TEMPER_CONFIG='/config space' TEMPER_DATA='/data' TEMPER_CACHE='/cache'";
+pub(super) const ENVIRONMENT: &[u8] = b"TEMPER_CONFIG='/config space' TEMPER_DATA='/data' TEMPER_CACHE='/cache' temper";
 pub(super) fn answer_environment(root: &mut d::Domain, words: &[u8]) {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let address = root.pages().address().clone();
@@ -965,10 +961,7 @@ fn both_waiting_pages_reject_an_unsafe_address() {
         }
         let attempt = sent(
             &mut root,
-            M::SignInElsewhere {
-                name: [1; 16],
-                way: d::pages::accounts::Way::SignIn { provider: PROVIDER, plan: true },
-            },
+            M::SignIn { name: [1; 16], way: d::pages::accounts::Way::SignIn { provider: PROVIDER, plan: true } },
         );
         answer(
             &mut root,
@@ -1022,6 +1015,103 @@ fn ended_sign_ins_remove_the_note_on_both_pages() {
     }
 }
 
+#[test]
+fn a_reloaded_source_reads_only_its_kept_address_and_refusal() {
+    for welcome in [false, true] {
+        for (source, refused) in [(43, false), (43, true), (44, true)] {
+            let way = Some(d::ModelWay { provider: PROVIDER, kind: d::WayKind::SignIn, source: Some(43) });
+            let address = if welcome {
+                d::Address::Welcome { step: d::Step::Model { way } }
+            } else {
+                d::Address::ConnectModel { way }
+            };
+            let (mut root, watch) = flow_fixture(d::WayKind::SignIn);
+            fixtures::root_event(&mut root, d::Event::Went { place: d::Place::Address(address) });
+            let mut view = fixtures::browser_page_view(&root);
+            fixtures::root_event(
+                &mut root,
+                d::Event::SignInKept {
+                    source,
+                    address: Box::from(b"https://issuer.example/visit".as_slice()),
+                    refused,
+                },
+            );
+            for delivered in [false, true] {
+                if delivered {
+                    let mut doc = super::accounts::card_document(b"openai", b"", c::AccountKind::SignIn);
+                    doc.usable = false;
+                    doc.accounts.clear();
+                    doc.signing.get_mut(0).unwrap().source = 43;
+                    super::accounts::deliver(&mut root, watch, doc);
+                }
+                let page = root.pages().connect_model().unwrap();
+                assert_eq!(
+                    page.request.sign_in_address(root.client()),
+                    (source == 43).then_some(b"https://issuer.example/visit".as_slice())
+                );
+                assert_eq!(page.tab_refused(), source == 43 && refused);
+                let tree = fixtures::build(&mut view, &root);
+                assert!(fixtures::find(tree, Role::Button, b"Continue with ChatGPT").is_none());
+                let name =
+                    if source == 43 && refused { "Open ChatGPT’s sign-in ›".as_bytes() } else { b"Open it again" };
+                let link = fixtures::find(tree, Role::Link, name);
+                assert_eq!(link.is_some(), source == 43);
+                if let Some(link) = link {
+                    let node = tree.nodes().iter().find(|node| node.id == link).unwrap();
+                    assert_eq!(node.external.as_deref(), Some(b"https://issuer.example/visit".as_slice()));
+                    assert!(node.styles.as_slice().contains(&if refused {
+                        crate::look::FLOW_PRIMARY
+                    } else {
+                        crate::look::WELCOME_AGAIN
+                    }));
+                    let title =
+                        if refused { "ChatGPT’s sign-in" } else { "Waiting for ChatGPT’s sign-in, in the new tab" };
+                    assert!(fixtures::find(tree, Role::Status, title.as_bytes()).is_some());
+                }
+            }
+            let mut doc = super::accounts::card_document(b"openai", b"", c::AccountKind::SignIn);
+            doc.usable = false;
+            doc.accounts.clear();
+            doc.signing.clear();
+            super::accounts::deliver(&mut root, watch, doc);
+            fixtures::build(&mut view, &root);
+            assert!(fixtures::find(view.tree(), Role::Button, b"Continue with ChatGPT").is_some());
+            assert!(
+                !view
+                    .tree()
+                    .nodes()
+                    .iter()
+                    .any(|node| node.external.as_deref() == Some(b"https://issuer.example/visit"))
+            );
+        }
+    }
+}
+
+#[test]
+fn both_model_pages_use_the_binary_word_the_box_answers() {
+    for welcome in [false, true] {
+        let (mut root, _) = flow_fixture(d::WayKind::Program);
+        if welcome {
+            fixtures::root_event(
+                &mut root,
+                d::Event::Went {
+                    place: d::Place::Address(d::Address::Welcome {
+                        step: d::Step::Model {
+                            way: Some(d::ModelWay { provider: PROVIDER, kind: d::WayKind::Program, source: None }),
+                        },
+                    }),
+                },
+            );
+        }
+        for (answer, expected) in [
+            (b"~/bin/temper".as_slice(), b"~/bin/temper program-login claude-pat".as_slice()),
+            (b"", b"temper program-login claude-pat"),
+        ] {
+            answer_environment(&mut root, answer);
+            assert_eq!(command_line(&root), expected, "welcome: {welcome}");
+        }
+    }
+}
 fn opened(out: &skein_lib::Queue<d::Request>, subject: &c::Subject) -> skein_lib::Token {
     out.iter()
         .find_map(|request| match request {
@@ -1031,12 +1121,15 @@ fn opened(out: &skein_lib::Queue<d::Request>, subject: &c::Subject) -> skein_lib
                         down: jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(found) },
                     },
             } if found == subject => Some(*watch),
-            d::Request::Client { .. }
+            d::Request::KeepSignIn { .. }
+            | d::Request::Tab { .. }
+            | d::Request::Client { .. }
             | d::Request::Unlinked { .. }
             | d::Request::Show { .. }
             | d::Request::Leave { .. }
             | d::Request::SignOut
             | d::Request::Dropped { .. }
+            | d::Request::Copy { .. }
             | d::Request::Fact { .. } => None,
         })
         .unwrap()
@@ -1097,12 +1190,15 @@ pub(super) fn program_root_with_line(address: d::Address, line: Option<&[u8]>) -
             } if wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() == &w::Read::Deployment => {
                 Some(*read)
             }
-            d::Request::Client { .. }
+            d::Request::KeepSignIn { .. }
+            | d::Request::Tab { .. }
+            | d::Request::Client { .. }
             | d::Request::Unlinked { .. }
             | d::Request::Show { .. }
             | d::Request::Leave { .. }
             | d::Request::SignOut
             | d::Request::Dropped { .. }
+            | d::Request::Copy { .. }
             | d::Request::Fact { .. } => None,
         })
         .expect("live link reads deployment");
@@ -1180,7 +1276,7 @@ fn the_program_command_renders_its_full_wire_bound() {
 }
 
 #[test]
-fn the_program_environment_prefixes_the_standalone_command_on_both_model_pages() {
+fn the_program_environment_replaces_the_standalone_command_on_both_model_pages() {
     let way = Some(d::ModelWay { source: None, provider: PROVIDER, kind: d::WayKind::Program });
     let line = b"'/box/bin/temper' program-login --config '/box/config' --data '/box/data' --cache '/box/cache'";
     for address in [d::Address::ConnectModel { way }, d::Address::Welcome { step: d::Step::Model { way } }] {
@@ -1189,7 +1285,12 @@ fn the_program_environment_prefixes_the_standalone_command_on_both_model_pages()
         document.usable = false;
         document.settled = true;
         super::accounts::deliver(&mut root, watch, document);
-        answer_environment(&mut root, ENVIRONMENT);
-        assert_eq!(command_line(&root), [ENVIRONMENT, b" ", line, b" claude-pat"].concat());
+        for (environment, expected) in [
+            (ENVIRONMENT, [ENVIRONMENT, b" program-login claude-pat"].concat()),
+            (b"".as_slice(), b"temper program-login claude-pat".to_vec()),
+        ] {
+            answer_environment(&mut root, environment);
+            assert_eq!(command_line(&root), expected);
+        }
     }
 }

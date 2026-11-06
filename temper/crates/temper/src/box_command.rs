@@ -4,6 +4,15 @@ use skein_shell::{Clock, Config, Host, Kernel};
 use std::os::unix::ffi::OsStrExt;
 use temper_box::host::{Echo, Service, Settings};
 
+/// How the box's stdout takes a sign-in link (temper/docs/design/protocol/setup.md, 7.2).
+pub(crate) fn link_form(
+    stdout: &impl std::io::IsTerminal,
+    environment: &[Box<[u8]>],
+) -> temper_box::terminal::LinkForm {
+    let term = environment.iter().find_map(|entry| entry.strip_prefix(b"TERM="));
+    temper_box::terminal::LinkForm::of(stdout.is_terminal(), term)
+}
+
 pub(crate) const ECHO_SETTINGS: skein_shell::Settings = skein_shell::Settings {
     tool: "temper",
     table: &[skein_shell::Setting {
@@ -66,7 +75,7 @@ pub(crate) fn run_configuration(
         let held = held_listeners(held)?;
         let directory = super::path(&directories.data);
         let program = std::env::current_exe().map_err(|why| why.to_string())?;
-        let environment = std::env::vars_os()
+        let environment: Box<[Box<[u8]>]> = std::env::vars_os()
             .map(|(name, value)| {
                 let mut entry = name.as_bytes().to_vec();
                 entry.push(b'=');
@@ -83,6 +92,7 @@ pub(crate) fn run_configuration(
         let root = skein_shell::open_root(directory).map_err(|errno| format!("directory: errno {errno}"))?;
         owned.push(root);
         let settings = Settings {
+            link_form: link_form(&std::io::stdout(), &environment),
             first_link,
             after_block: opening.after_block,
             log_lines: opening.log_lines,

@@ -171,7 +171,20 @@ fn handover_reads_its_path_and_bounds_the_file_before_reading() {
 #[test]
 fn story_a_start_makes_its_project_and_adopts_widget() {
     // The native page's inputs through Try the playground, before its reply.
-    let log = skein_ui_web::log::read(include_bytes!("fixtures/story-a-start.log")).expect("start's session log");
+    let mut log = skein_ui_web::log::read(include_bytes!("../../../../tests/playground/tests/fixtures/story-a.log"))
+        .expect("story A's session log");
+    let start = log
+        .entries
+        .iter()
+        .position(|entry| match &entry.input {
+            skein_ui_web::bridge::Input::Exchange(exchange) => exchange.path.as_ref() == b"/jig/v1/request",
+            skein_ui_web::bridge::Input::Abandon { .. }
+            | skein_ui_web::bridge::Input::Stream(_)
+            | skein_ui_web::bridge::Input::ReadOn => false,
+        })
+        .expect("the welcome's first request starts the playground");
+    log.entries.truncate(start + 1);
+    log.end = skein_ui_web::log::End::Cut;
     let world = story::world(crate::stories::A.start(log.seed, log.start));
     let parameters = story::parameters(&world);
     let mut world =

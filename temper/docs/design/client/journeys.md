@@ -113,7 +113,9 @@ journeys, 10 what is open.
   It keeps them in memory as the file's lines (3.2), through
   `journey::Recorder`, which is platform-independent and wraps the
   seam: `Recorder::report(host, page, report) -> Duties` gives the
-  report to the host and keeps both, and `Duties::departs()` says when
+  report to the host and keeps both, what the shell is asked to do with
+  a tab among them, and a tab the browser refused as a report (`README.md`,
+  3.5, `ConnectModel`, The sign-in's tab), and `Duties::departs()` says when
   the duties leave the page. The shell and the host's tests call it
   alike; the wasm part only reads the keys and saves.
 - **Two keys,** read by their `code` on the document before the page
@@ -127,8 +129,10 @@ journeys, 10 what is open.
   at the walk's end, and `again` saves as it goes (8.1). A key's turn that gives the host nothing, a save's, is not
   kept.
 - **One load of the page.** A recording starts with the page, at the
-  printed link's first page, and is whole at each save. A departure ends
-  it: when a report's duties ask to `navigate` or `replace`, the
+  printed link's first page, and is whole at each save. A sign-in is no
+  departure: the recording goes on through it and its end, the tab's
+  address kept as its answer's is. A departure, a forge's or an
+  authorization's, ends it: when a report's duties ask to `navigate` or `replace`, the
   recorder keeps them, marks the end as the page is drawn then, and
   saves, before the shell carries the departure out; the rest of that
   turn is not kept, and the recorder keeps nothing more. A reload starts
@@ -154,8 +158,8 @@ comment, no blank.
 | `secret` | the printed link's secret | when the address held one |
 | `stored` | a small-store record's key and value | one per record read at start |
 | `turn` | now and wall | each turn's clocks |
-| `start`, `due`, `place`, `heard`, `carried`, `act` | the report | each report, in its turn's order |
-| `exchange`, `open`, `close`, `save`, `erase`, `writes`, `navigate`, `replace`, `show` | what the host asked | after its report, in order |
+| `start`, `due`, `place`, `heard`, `carried`, `act`, `copied` | the report | each report, in its turn's order |
+| `exchange`, `open`, `close`, `save`, `erase`, `writes`, `navigate`, `replace`, `show`, `copy` | what the host asked | after its report, in order |
 | `deadline` | nanoseconds, or `none` | each turn's end |
 | `mark` | the live page's html | before its act, or at the key, in a turn of its own (`turn`, `mark`, `deadline`) |
 | `end` | the live page's html | the last line |
@@ -164,11 +168,13 @@ comment, no blank.
   `heard failed EXCHANGE`, `heard opened`, `heard refused STATUS`,
   `heard piece BYTES`, `heard ended`; `carried WRITES`, then one line
   per carried report, `written KEY`, `unwritten KEY` or `lost
-  EXCHANGE`; `act ACT [VALUE] EVENT NAME` (3.3).
+  EXCHANGE`; `act ACT [VALUE] EVENT NAME` (3.3); `copied TOKEN
+  done|refused|failed`.
 - **The asks:** `exchange ID BOUND METHOD PATH BODY`, then its headers
   as `NAME VALUE` pairs on the same line; `open PIECE PATH` and its
   headers; `close`; `save KEY VALUE`; `erase KEY`; `writes N`, when not
-  zero; `navigate TO`; `replace TO`; `show PATH push|replace`.
+  zero; `navigate TO`; `replace TO`; `show PATH push|replace`; `copy
+  TOKEN WORDS`, whose words a redaction replaces as it does a `navigate`'s.
 - **A committed recording's marks hold no html:** `add` drops it once
   the first replay has proved itself (4.3).
 
@@ -373,7 +379,8 @@ and, for an act's mark, every node on it that gives the act's event.
   read, another request's bytes, another deadline) would be answered
   what it never asked.
 - **Stale** is where the replay stops: at the first duty or deadline
-  that differs, a departure asked or not asked among them, or at an
+  that differs, a departure or a tab's open, point or close, asked or not
+  asked, among them, or at an
   act whose event no control on the page gives. It names the turn, the
   recorded line and what the host asked instead.
 - **Patches are not compared:** they are what the print shows.
@@ -655,9 +662,10 @@ over skein's harness.
   it draws once its recorder hears the keys.
 - **Each step once the page is still.** A save (Alt+Shift+S) is the walk
   so far, a whole recording. The page is still when a save half a second
-  after another holds no report the other lacks but dues, no exchange
-  asked but not heard, and no write asked but not carried. A page not
-  still within 30 seconds stops `again`, naming the step. Then:
+  after another (a second, before a key's mark) holds no report the other
+  lacks but dues, no exchange asked but not heard, and no write asked but
+  not carried. A page not still within 30 seconds stops `again`, naming
+  the step. Then:
   - **an act:** the still save is replayed natively to its end
     (section 4); the first node of which the view makes the step's event
     names its control by its role, its accessible name and its order,
@@ -665,7 +673,8 @@ over skein's harness.
     control on the live page (the fake person's n-th match, skein's
     `ui.md` 17.1) and acts on it as a person: a press, a submit, a
     toggle, or the field's value selected and the act's value typed;
-  - **a key's mark:** Alt+Shift+M;
+  - **a key's mark:** Alt+Shift+M, then a second's wait, so that the
+    half second after the mark has passed before another control is acted on;
   - **the end:** the still save is the new recording.
 
   A step whose event no control gives, in a still save, within 10
@@ -714,7 +723,7 @@ fields, each after one space, a word bare, bytes in double quotes.
   that start in its recording, and a test holds the two together
   (section 6).
 - **Why a mark waits:** the page may stand still for seconds while a fake
-  model's turn goes on, and two saves half a second apart can't tell that
+  model's turn goes on, and two saves a second apart can't tell that
   from settled, where the person could (8.1). A `mark` names what the
   person waited for. A key mark with none falls as 8.1 has it.
 - **Its bounds:** a step of a setup not done within 60 seconds stops `again`,
@@ -791,6 +800,11 @@ Release, with its uncertain pair. These add no recorded journey or page.
   which must not collide when several record at once, and a fixed start
   for its clock and the browser's, so that a recording made again
   differs from the last only where the client does.
+- **A sign-in in a new tab** (`../draft/sign-in-new-tab.md`):
+  `project-landing`'s setup presses "Continue with ChatGPT" on a page that
+  leaves and comes back. When the press opens a tab, whether the setup still
+  walks is seen then; a record for a tab joins 8.2's table only if a tab
+  needs a step of its own.
 - **Later, if wanted:** the one-tag-per-line print as skein-ui-web's,
   for another application's journeys.
 - **What a real journey leaves out** (3.8): a token split across a run's

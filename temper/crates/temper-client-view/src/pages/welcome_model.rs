@@ -165,7 +165,14 @@ fn program(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, w
     text(b, root, w, Role::Heading { level: 1 }, Word::WelcomeClaudeTitle);
     panel(b);
     text(b, root, w, Role::Paragraph, Word::WelcomeClaudeBody);
-    model::command(b, root, w, &page.program_name(root.client()), true);
+    crate::cards::text(b, Role::Paragraph, &model::command_prompt(root, w));
+    super::welcome_copy::block(
+        b,
+        root,
+        w,
+        bindings,
+        &model::printed_command(root, w, &page.program_name(root.client())),
+    );
     b.open(Role::Paragraph);
     b.style(look::FLOW_MUTED);
     w.text(b, Word::WelcomeClaudeNote, &[]);
@@ -216,7 +223,7 @@ pub(super) fn step(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         }
         ModelStep::Away { .. } => {
             text(b, root, w, Role::Heading { level: 1 }, Word::WelcomeModelTitle);
-            sign_in_wait::waiting(b, root, w, bindings, &page.request, sign_in_wait::tab_refused(), text_per_node);
+            sign_in_wait::waiting(b, root, w, bindings, &page.request, sign_in_wait::tab_refused(page), text_per_node);
         }
         ModelStep::Finishing { .. } => {
             text(b, root, w, Role::Heading { level: 1 }, Word::WelcomeModelTitle);
