@@ -145,7 +145,16 @@ fn settings_delivery(driver: &mut Driver) -> Option<(ReplyTo, smith_domain_run::
     }
     if let Some(index) = settings_delivery {
         let Delivery::Host(delivery) = driver.delivered.remove(index) else { panic!("settings delivery") };
-        let engine::HostDelivery::Settings { to, answer, repositories, application, from, requested } = *delivery
+        let engine::HostDelivery::Settings {
+            to,
+            answer,
+            repositories,
+            people,
+            forge_people,
+            application,
+            from,
+            requested,
+        } = *delivery
         else {
             panic!("settings read")
         };
@@ -158,6 +167,8 @@ fn settings_delivery(driver: &mut Driver) -> Option<(ReplyTo, smith_domain_run::
                 driver.root.models(),
                 application.as_ref(),
                 &repositories,
+                &people,
+                &forge_people,
                 driver.env.limits.call_answer_bytes.saturating_sub(8),
             ),
         ))
