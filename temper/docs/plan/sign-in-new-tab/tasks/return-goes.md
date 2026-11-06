@@ -3,7 +3,7 @@ id = "return-goes"
 part = "return-goes"
 kind = "migration"
 needs = ["sign-in-holds", "moves-on", "view-tab", "reload-link", "row-tab", "journey-goes-on", "elsewhere-goes"]
-files = ["temper/crates/temper-client-protocol-wire/**", "temper/crates/temper-service/src/family.rs", "temper/crates/temper-service/src/route.rs", "temper/crates/temper-engine-domain/src/**", "temper/tests/engine/domain/**", "temper/tests/system/src/**"]
+files = ["temper/crates/temper-client-protocol-wire/**", "temper/crates/temper-service/src/family.rs", "temper/crates/temper-service/src/route.rs", "temper/crates/temper-service/src/clients.rs", "temper/tests/client/tests/suite/sign_in.rs", "temper/tests/client/tests/suite/sign_in_paste.rs", "temper/crates/temper-engine-domain/src/**", "temper/tests/engine/domain/**", "temper/tests/system/src/**"]
 effort = "medium"
 minutes = 90
 +++
@@ -45,3 +45,17 @@ Acceptance:
 ## Report
 
 As the implementer's text asks. List each golden count and each journey regenerated or left.
+
+## Answers
+
+2026-11-06. **Widen this task to remove the unused `Clients::bound_address` and the stale `returns` assertions in `sign_in.rs` and `sign_in_paste.rs`, or leave them to another task?** Widen: your clippy command and your package checks can't pass without them, and both follow from removing `Return`, as `connect_model.rs`'s assertions do. `files` lists the three files. Start from the pushed `f712ecb376`.
+
+- **`temper/crates/temper-service/src/clients.rs`:** the `bound_address` method and its doc comment go, these lines alone. `self.server.listening()` keeps its other callers.
+- **`temper/tests/client/tests/suite/sign_in.rs`:** the `returns` helper and the assertions at its lines 134 and 273 go. `NONE` and the `front.leaves` assertions stay.
+- **`temper/tests/client/tests/suite/sign_in_paste.rs`:** the assertions at its lines 132 and 149 go. The `front.leaves` assertions beside them stay, unweakened, as do the tests' names.
+- **What a test expects hasn't moved:** the request's "no `Return`" now holds by the schema, which has no such request, and "no `Request::Leave`" stays checked by `front.leaves`.
+- **The same repair, no question:** any other read of `protocol.returns`, or any other helper the removed return route alone called. Name each in your report. Anything else outside your files is still a question.
+- **The acceptance's search** is limited to Rust, with word boundaries, as you recommended: `rg -n -g '*.rs' -w 'w::Return|Request::Return|Outcome::Returning|Application::Return|ApplicationAnswer::Returning' temper`. The plan's own prose and `skein_forge_connection::Request::Returned` aren't what it looks for.
+- **Old forms** run from `temper/`: `python3 -I -B scripts/old_forms.py`.
+
+Then finish what stopped with the question: all of step 3, the non-write drift check, and `again NAME` for `chat-draft`, `project-landing`, `welcome-playground` and `welcome-set-up`, or those journeys under `## Left` if it can't run on your builder. Put in your report that skein's `Request::Return` and jig's `return_to` have no shipping caller left.
