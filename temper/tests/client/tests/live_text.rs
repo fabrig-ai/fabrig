@@ -22,7 +22,7 @@ fn gone(find: Find) -> Step<Address> {
 fn a_chats_reply_shows_as_it_is_written_then_as_its_committed_turn() {
     let mut world = fixtures::open_world(fixtures::SEED);
     world.front().reply_in_pieces(&[FIRST, REST]);
-    let provisional = "▌".as_bytes();
+    let provisional = "▍".as_bytes();
     let whole = [FIRST, REST].concat();
     let person = world.client(fixtures::PARTY, fixtures::chats_page());
     world.person(
@@ -65,7 +65,7 @@ fn a_tool_only_turn_leaves_no_provisional_text() {
     let task = fixtures::chat(world.front(), QUESTION);
     let attempt = world.front().engine.task(task).expect("running chat").attempt;
     let person = world.client(fixtures::PARTY, fixtures::chat_page(task));
-    let provisional = "▌".as_bytes();
+    let provisional = "▍".as_bytes();
     world.person(person, vec![see(Find::named(Role::TextArea, b"Message")), gone(Find::text(provisional))]);
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
 
@@ -158,6 +158,6 @@ fn a_composer_reset_is_processed_while_the_reply_remains_held() {
     assert_eq!(world.front().runs_answered, 0, "the composer acts without committing the reply");
     assert!(world.front().release_reply());
     assert!(world.front().release_reply());
-    world.person(person, vec![see(Find::text(&[FIRST, REST].concat())), gone(Find::text("▌".as_bytes()))]);
+    world.person(person, vec![see(Find::text(&[FIRST, REST].concat())), gone(Find::text("▍".as_bytes()))]);
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
 }

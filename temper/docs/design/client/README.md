@@ -462,12 +462,15 @@ keeps (`../protocol/configuration.md`, section 2).
     reasoning, is not drawn, and nothing stands in its place. A
     conversation says nothing of what was cut: no notice, at a text's end,
     a turn's or a window's;
-  - *the words being written,* the turn being written, under "Temper", as
-    the same Markdown, with `temper-writing-end` closing it: in a browser a
-    small block after the last word, in the terminal "▌", a status under
-    the words. Its place is the place the committed turn takes, and only
-    the end's mark goes. What a block is while still open is
-    `../draft/chat-reading.md`, section 3;
+  - *the words being written,* the turn being written, under "Temper",
+    whole from its start up to `long_text` (5.4), read by `skein-ui`'s
+    `read_growing` (skein's `ui.md`, section 10): a block a blank line
+    has closed stays on the page as it was, only the last changes as
+    words arrive, and no marker shows being written. A small block,
+    "▍", in `temper-writing-end`, stands after the last word. The
+    committed turn draws the same blocks in the same place, and only
+    the block goes. Before its first word the turn draws nothing, and
+    the three dots stand (below);
   - *its calls,* where they fall among the agent's texts: each
     delegation as its task's card (5.7), a document's write as its tool
     line (*A chat's document*, *The tool line*), and every other call in *a run*: every
@@ -532,8 +535,9 @@ keeps (`../protocol/configuration.md`, section 2).
     `OwnerActivity::Words`, by a task), a delegate's question among
     them, under the task's name, "TN", on the agent's side, a paragraph
     for each line;
-  - *not drawn:* a run's beginning and end, the task's milestones, and
-    every message a turn's person, tool or system speaks, which are
+  - *not drawn:* a run's beginning and end, the task's milestones, a
+    turn's opaque blocks (a model's reasoning, with nothing in their
+    place), and every message a turn's person, tool or system speaks, which are
     the run's inputs: its opening, its calls' results, and what woke
     it, a result delivered among them. A result block still anchors
     its task's card where the call that made it is not in the window
@@ -569,13 +573,13 @@ keeps (`../protocol/configuration.md`, section 2).
     one line each (5.7).
   - *While it works:* three dots, `.typing`, at the end of the log, named
     "Writing", while the chat's status is Starting, Writing, Working or a
-    tool's, the window's last line is not provisional text, and no run is
+    tool's, the window's last line is not provisional text holding a word, and no run is
     running at the conversation's end. The terminal
     prints nothing new for it. *The words being written* look like
-    `.turn-agent`, and their end is a 7 by 15 px block in `--gf-hint`, radius 1,
-    blinking in two steps a second, drawn by the stylesheet after the last
-    block's last word, a list's last item's, since skein's reader closes
-    its blocks. A numbered list's `ol` is 22 px in, its markers faint.
+    `.turn-agent`, their name hidden as a committed turn's, their "▍"
+    faint and in the line of the last word; the terminal prints the "▍"
+    as it prints a status. A numbered list's `ol` is 22 px in, its
+    markers faint.
   - *A card in the conversation* (a proposal, a held task, a question's
     answer) is `.proposal`: white, radius 12, its shadow, 20 px 22 px; a
     kind's title in `.proposal-title`; `.proposal-split` and
@@ -3678,9 +3682,11 @@ The view's limits are skein-ui's (skein's `ui.md`, section 15), derived
 from the domain's: each page's nodes at its windows' most rows, the
 forge's form and its outcome's lines, the kinds' list at its longest,
 and one paragraph per part not read. Their text across a tree,
-`text_bytes`, is the nodes at a node's most text: a lower cap would be
-a guess, which skein-ui's builder turns into a panic on the page past
-it. Their patches are four a node, the most a diff emits (skein's
+`text_bytes`, is the nodes outside a window's turns at a node's most
+text, and each of a window's lines at what its reader may make of its
+turn's bytes (skein's `ui.md`, section 10) and its disclosures' names:
+a lower cap would be a guess, which skein-ui's builder turns into a
+panic on the page past it. Their patches are four a node, the most a diff emits (skein's
 `ui.md`, section 7). skein's text shell counts its worst-case print from these limits,
 and reserves for each print only what that page's tree may print
 (6.8).
@@ -3708,10 +3714,11 @@ nothing to the view's limits.
 
 Both presets receive the dark theme's turn and the CSV chat's turns whole:
 three rows (`rows`, which bounds a turn's messages and a message's blocks
-as well as a page's lines), 512 bytes of field and provisional text (`text`),
-and 2048 bytes of a committed turn's shared text (`turn_text`, which jig's
-transcript shares among its texts, its calls' names, inputs and outcomes,
-and its results' summaries). The CSV chat's first turn fits with its
+as well as a page's lines), 512 bytes of field text (`text`), and 131,072 bytes
+of a turn (`long_text`): the turn being written (jig's thread's `live`), and a
+committed turn's shared text (`turn_text`, which jig's transcript prices its
+calls' names first: jig's `client/domain/client.md`, section 14). A window of
+16 lines holds at most 2,097,152 bytes of turns' text. The CSV chat's first turn fits with its
 `delegate` input of about 1.2 KB, so its card appears at that call (5.7).
 A chat's window holds 16 lines (the domain's chat page), and the page
 reads the page before its oldest while an older one remains and the

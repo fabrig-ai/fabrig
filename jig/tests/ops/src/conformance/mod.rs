@@ -727,6 +727,7 @@ impl Application for Ops {
                                     messages: u32::MAX,
                                     blocks: u32::MAX,
                                     text: u32::try_from(row.transcript.len()).expect("stored turn bound"),
+                                    outcome: u32::try_from(row.transcript.len()).expect("stored turn bound"),
                                 },
                             );
                             let text = jig_protocol_transcript::brief_text(&limits, &row.transcript).ok();

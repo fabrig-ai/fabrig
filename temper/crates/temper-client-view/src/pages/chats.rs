@@ -513,7 +513,7 @@ pub(crate) fn working(root: &Domain, words: &Words, thread: &jig_client::thread:
         return false;
     }
     match thread.lines().into_boxed().last() {
-        Some(jig_client::thread::Line::Provisional { .. }) => false,
+        Some(jig_client::thread::Line::Provisional { text, .. }) => text.is_empty(),
         Some(
             jig_client::thread::Line::Activity { .. }
             | jig_client::thread::Line::Words { .. }

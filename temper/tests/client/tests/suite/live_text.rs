@@ -3,7 +3,7 @@ use jig_client_kit::harness::Until;
 use skein_fake_person::{Face, Find, Found, Step, TreeFace};
 use temper_client_world::fixtures;
 
-const WRITING: &[u8] = "▌".as_bytes();
+const WRITING: &[u8] = "▍".as_bytes();
 const PARTS: &[&[u8]] = &[b"QA joint prefix", b" and its full suffix."];
 const WHOLE: &[u8] = b"QA joint prefix and its full suffix.";
 
@@ -77,4 +77,80 @@ fn returning_to_the_chat_reads_the_held_prefix_and_its_commit() {
         ],
     );
     world.run(Until::Done);
+}
+
+// Each delivery fits the wire; together these cross the engine's retained tail.
+static FIRST_LONG_PIECE: [u8; 40_000] = [b'a'; 40_000];
+static SECOND_LONG_PIECE: [u8; 40_000] = [b'z'; 40_000];
+
+fn live_answer_arrives_whole(pieces: &'static [&'static [u8]]) {
+    use skein_world::domain::Verdict;
+    let mut world = fixtures::world_with_whole_turns(fixtures::SEED);
+    world.front().reply_in_pieces(pieces);
+    let task = fixtures::chat(world.front(), b"QA whole live answer");
+    let client = fixtures::whole_turn_client(&mut world, task);
+    world.person(client, vec![Step::See { find: Find::text(pieces[0]), within: fixtures::WITHIN }]);
+    assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+    let mut whole = pieces[0].to_vec();
+    for piece in &pieces[1..] {
+        assert!(world.front().release_reply());
+        whole.extend_from_slice(piece);
+        world.person(
+            client,
+            vec![
+                Step::See { find: Find::text(&whole), within: fixtures::WITHIN },
+                Step::See { find: Find::text(WRITING), within: fixtures::WITHIN },
+            ],
+        );
+        assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+    }
+}
+
+#[test]
+fn a_live_answer_past_a_fields_window_arrives_whole() {
+    static MIDDLE: [u8; 1024] = [b'm'; 1024];
+    static PIECES: &[&[u8]] = &[b"QA beginning ", &MIDDLE];
+    live_answer_arrives_whole(PIECES);
+}
+
+#[test]
+fn a_live_answer_past_the_engines_retained_bytes_arrives_whole() {
+    static PIECES: &[&[u8]] = &[b"QA followed from the start ", &FIRST_LONG_PIECE, &SECOND_LONG_PIECE];
+    live_answer_arrives_whole(PIECES);
+}
+
+#[test]
+fn a_committed_turn_with_large_results_keeps_every_calls_name() {
+    use skein_world::domain::Verdict;
+    let mut world = fixtures::world_with_whole_turns(fixtures::SEED);
+    let task = fixtures::chat(world.front(), b"QA large results");
+    fixtures::turn_with_large_results(world.front(), task);
+    let client = fixtures::whole_turn_client(&mut world, task);
+    world.person(
+        client,
+        vec![
+            Step::See { find: Find::text(b"first_call"), within: fixtures::WITHIN },
+            Step::See { find: Find::text(b"second_call"), within: fixtures::WITHIN },
+            Step::See { find: Find::text(b"third_call"), within: fixtures::WITHIN },
+            Step::Gone { find: Find::text(b"omitted"), within: fixtures::WITHIN },
+        ],
+    );
+    assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+}
+
+#[test]
+fn a_committed_turn_draws_no_opaque_block() {
+    use skein_world::domain::Verdict;
+    let mut world = fixtures::world_with_whole_turns(fixtures::SEED);
+    let task = fixtures::chat(world.front(), b"QA opaque block");
+    fixtures::large_turn_with_opaque(world.front(), task, 32);
+    let client = fixtures::whole_turn_client(&mut world, task);
+    world.person(
+        client,
+        vec![
+            Step::See { find: Find::text(b"!!!!"), within: fixtures::WITHIN },
+            Step::Gone { find: Find::text(b"Content in"), within: fixtures::WITHIN },
+        ],
+    );
+    assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
 }

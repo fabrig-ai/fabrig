@@ -15,7 +15,6 @@ impl Limits {
         let text = words
             .capacity()?
             .max(receiving.text.checked_mul(2)?)
-            .max(receiving.turn_text)
             .max(domain.forge.field_bytes.checked_mul(3)?.checked_add(128)?);
         // An account heading joins the provider, plan/display and holder's words.
         let text = text.max(receiving.text.checked_add(words.name_bytes.min(256).checked_mul(3)?)?.checked_add(64)?);
@@ -31,29 +30,25 @@ impl Limits {
         // nodes plus the result's markdown, and one region for live delegates.
         let delegations = temper_client_domain::pages::delegation::bound(domain);
         let delegated = markdown.checked_add(16)?.checked_mul(delegations)?.checked_add(1)?;
-        // Both chat and agent pages price a committed turn by turn_text; fields
-        // and cards retain text. One turn node holds at most turn_text bytes.
-        // A decoded turn shares text across texts, names, inputs, outcomes and
-        // summaries (jig-protocol-transcript's Budget; client/README.md, 5.4).
-        // Splitting that text among rows squared blocks adds two markdown nodes
-        // per block; eight structural nodes cover a note tool line and its button.
+        // A turn shares text across its blocks, names, inputs and outcomes
+        // (jig's client/domain/client.md, 14). Price its Markdown separately
+        // from each line's structure (client/README.md, 5.4).
         let blocks = receiving.rows.checked_mul(receiving.rows)?;
-        let turn = skein_ui::markdown::max_nodes(receiving.turn_text)?
-            .checked_add(blocks.checked_mul(2_u32.checked_add(8)?)?)?
-            // Per message: message/who/says slots, Temper paragraph and text,
-            // a call disclosure, and spare shell room (client/README.md, 3.5).
+        let structure = blocks
+            .checked_mul(2_u32.checked_add(8)?)?
+            // Message/who/says slots, speaker and call disclosure, with text.
             .checked_add(receiving.rows.checked_mul(8)?)?
-            // One turn region.
-            .checked_add(1)?;
-        // Provisional/live text is capped by thread::live_turn at text bytes.
-        // Person/owner words have their own text cap, not Budget: a paragraph
-        // and text per line (at most text + 1 lines), plus eight shell/state nodes.
+            // The turn's region and wrappers.
+            .checked_add(3)?;
+        let turn = receiving.turn_text.max(receiving.long_text);
+        // Person/owner words have their own text cap, not the turn's budget:
+        // a paragraph and text per line, plus eight shell/state nodes.
         let plain = receiving.text.checked_add(1)?.checked_mul(2)?.checked_add(8)?;
         // An activity result can have three independent markdown documents:
         // cancellation reason, ending value and result value. No shared Budget;
         // price each whole, as before, plus its heading/status/region structure.
         let activity = markdown.checked_add(16)?.checked_mul(3)?;
-        let line = turn.max(markdown.checked_add(8)?).max(plain).max(activity);
+        let line = structure.max(markdown.checked_add(8)?).max(plain).max(activity);
         let turns = line
             .checked_mul(temper_client_domain::pages::chat::LINES)?
             // Thread::lines retains LINES plus one Left status (two nodes).
@@ -127,7 +122,7 @@ impl Limits {
         let document = skein_ui::markdown::max_nodes(receiving.long_text)?
             .checked_add(receiving.long_text.checked_div(3)?.checked_mul(2)?)?
             .checked_add(24)?;
-        let nodes = cards
+        let structural = cards
             .checked_add(turns)?
             .checked_add(delegated)?
             .checked_add(goal)?
@@ -176,15 +171,23 @@ impl Limits {
             // The toast holds a refusal, its Look again sentence and button (six nodes),
             // or a proposal's lead and at most rows role recipients (two nodes each).
             .checked_add(receiving.rows.checked_mul(2)?.checked_add(3)?.max(6))?;
-        let text_bytes = nodes
+        let text_bytes = structural
             .checked_mul(text)?
+            .checked_add(
+                temper_client_domain::pages::chat::LINES.checked_mul(skein_ui::markdown::max_text_bytes(turn)?)?,
+            )?
             .checked_add(skein_ui::markdown::max_text_bytes(receiving.long_text)?)?
             .checked_add(text.checked_mul(24)?)?;
-        let nodes = nodes.checked_add(document)?;
+        let nodes = structural
+            .checked_add(
+                temper_client_domain::pages::chat::LINES
+                    .checked_mul(skein_ui::markdown::max_nodes(turn)?.checked_add(3)?)?,
+            )?
+            .checked_add(document)?;
         let tree = skein_ui::Limits {
             nodes,
             depth: receiving.rows.checked_add(34)?,
-            text_per_node: text.max(receiving.long_text.checked_mul(2)?).max(builder_name),
+            text_per_node: text.max(turn.checked_mul(2)?).max(builder_name),
             // Whole builder names are held once per document row.
             text_bytes: text_bytes.checked_add(receiving.rows.checked_mul(builder_name)?)?,
             drawing_bytes: 0,

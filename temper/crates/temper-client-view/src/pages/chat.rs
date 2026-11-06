@@ -610,7 +610,7 @@ pub(crate) fn conversation_with_times(
     (drawn, mut times): (Drawn<'_>, Option<&mut Times>),
     bindings: &mut Bindings,
 ) {
-    let (rows, text_limit) = limits;
+    let (rows, _) = limits;
     let Drawing { projected, request, delegations, proposals } = drawing(drawn);
     let bound = match delegations {
         Some((chat, _)) => chat.delegations.capacity(),
@@ -658,6 +658,11 @@ pub(crate) fn conversation_with_times(
             && time > skein_lib::Wall::from_nanos(at)
         {
             run.flush(b, None, false, words);
+        }
+        if let Line::Provisional { text, .. } = &line
+            && text.is_empty()
+        {
+            continue;
         }
         super::chat_sheet::before(b, &mut started, Some(&line), words, bindings);
         if hidden_line(&line, projected, delegations) {
@@ -707,7 +712,7 @@ pub(crate) fn conversation_with_times(
                 }
             }
             Line::Turn { .. } => unreachable!("turn drawn above"),
-            Line::Provisional { text, .. } => provisional(b, text, words, text_limit),
+            Line::Provisional { text, .. } => provisional(b, text, words),
             Line::Undecoded { why, .. } => undecoded(b, why, words, clock.as_deref()),
             Line::Left { .. } => unreachable!("omitted lines draw nothing"),
             Line::Activity { line } => {
@@ -853,7 +858,7 @@ fn heard_card(
         b.close();
     }
 }
-fn provisional(b: &mut Builder, message: &[u8], words: &Words, text_limit: u32) {
+fn provisional(b: &mut Builder, message: &[u8], words: &Words) {
     b.open(Role::Slot);
     b.style(look::MESSAGE);
     b.style(look::BY_AGENT);
@@ -863,21 +868,19 @@ fn provisional(b: &mut Builder, message: &[u8], words: &Words, text_limit: u32) 
     b.close();
     b.open(Role::Slot);
     b.style(look::SAYS);
-    markdown(b, message, text_limit);
-    writing_end(b, words);
-    b.close();
-    b.close();
-}
-/// The words being written end in a mark (temper/docs/design/client/README.md, 3.5).
-fn writing_end(b: &mut Builder, words: &Words) {
-    match words.shell {
-        Shell::Browser => {
-            b.open(Role::Text);
+    skein_ui::markdown::read_growing(
+        message,
+        2,
+        |b| {
+            b.open(Role::Slot);
             b.style(look::WRITING_END);
+            words.status(b, P::Provisional, &[]);
             b.close();
-        }
-        Shell::Terminal => text(b, Role::Status, "▌".as_bytes()),
-    }
+        },
+        b,
+    );
+    b.close();
+    b.close();
 }
 fn owner_line(
     b: &mut Builder,
@@ -1081,7 +1084,7 @@ fn person_lines(
 }
 
 // Decoded turns already share the receiving turn_text budget; both drawings
-// retain their text whole, independently of provisional/field text.
+// retain their text whole, independently of field text.
 struct Committed<'a> {
     delegations: Option<(&'a Chat, &'a jig_client::Client)>,
     proposals: Option<(&'a Domain, c::TurnName)>,
@@ -1257,7 +1260,7 @@ fn committed<'a>(
                         b.open(Role::Slot);
                         b.style(look::WORK);
                         words.card_text(b, if *failed { P::CallFailed } else { P::CallCompleted }, &[]);
-                        text(b, Role::Paragraph, summary.bytes());
+                        text(b, Role::Paragraph, first_line(summary.bytes()));
                         b.close();
                         b.close();
                         b.close();
@@ -1312,6 +1315,30 @@ fn card_clock(b: &mut Builder, clock: Option<&[u8]>) {
     }
 }
 
+fn first_line(bytes: &[u8]) -> &[u8] {
+    let mut start = 0;
+    for (end, byte) in bytes.iter().enumerate() {
+        if *byte == b'\n' {
+            let line = bytes.get(start..end).expect("line lies within summary");
+            let line = match line.strip_suffix(b"\r") {
+                Some(line) => line,
+                None => line,
+            };
+            if !line.trim_ascii().is_empty() {
+                return line;
+            }
+            start = end.checked_add(1).expect("newline lies within summary");
+        }
+    }
+    let line = bytes.get(start..).expect("last line lies within summary");
+    let line = match line.strip_suffix(b"\r") {
+        Some(line) => line,
+        None => line,
+    };
+    if line.trim_ascii().is_empty() { &[] } else { line }
+}
+
+// Both conversation drawings keep a call's name and outcome as one work line.
 fn run_call(block: &c::Block, tasks: &mut List<u64>, delegations: Option<(&Chat, &jig_client::Client)>) -> bool {
     let c::Block::Call(call) = block else { return false };
     if super::document::write(call).is_some() {
@@ -1404,22 +1431,6 @@ fn hidden(event: &c::DecodedActivityLine, projected: bool, delegations: Option<(
         None => false,
     }
 }
-fn markdown(b: &mut Builder, bytes: &[u8], most: u32) {
-    let most = bytes.len().min(usize::try_from(most).expect("text bound fits"));
-    let mut end = most;
-    if end < bytes.len() {
-        // The protocol validated UTF-8; align a display window to the preceding character.
-        for index in most.saturating_sub(3)..=most {
-            if let Some(byte) = bytes.get(index)
-                && byte & 0xc0 != 0x80
-            {
-                end = index;
-            }
-        }
-    }
-    skein_ui::markdown::read(bytes.get(..end).expect("UTF-8 prefix"), 2, b);
-}
-
 // Only a later settings proposal anchored in this conversation replaces an ended one.
 fn settings_replaced(root: &Domain, object: c::ObjectKey, rows: u32) -> bool {
     let Some(chat) = root.pages().chat() else { return false };

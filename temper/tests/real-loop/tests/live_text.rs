@@ -1,34 +1,41 @@
 //! A person reads a held reply's live prefix before reading its committed turn.
 use skein_world::domain::heap::Counting;
 use temper_real_loop_world::{
-    Exit,
+    Exit, Scratch,
     calls::{D1, release_hold, sign_in},
-    run, scripts, terminal,
+    fixtures, llm, run_on, scripts, terminal,
 };
 #[global_allocator]
 static HEAP: Counting = Counting;
-// The production view's writing end (pages/chat.rs).
-const PROVISIONAL: &str = "▌";
-const PROVISIONAL_LINE: &str = "    * ▌\n";
+// The production view's Provisional word (cards/words.rs).
+const PROVISIONAL: &str = "▍";
+const PROVISIONAL_LINE: &str = "▍\n";
 const REPLY: &[u8] = b"The answer is forty-two.";
 // The ctl call that signs in and provisions the deployment's key.
 const SIGN_IN: usize = 0;
 
 #[test]
 fn a_person_reads_a_chats_reply_as_it_is_written_then_its_committed_turn() {
-    let ran = run(scripts::live_scripts, || {
-        vec![
-            sign_in(D1),
-            terminal::open(),
-            terminal::type_on(b"+ New chat", b""),
-            terminal::see(b"What do you want done?"),
-            terminal::type_on(b"What do you want done?", scripts::WORDS.as_bytes()),
-            terminal::see(scripts::FIRST),
-            release_hold(scripts::LIVE),
-            terminal::see_without(REPLY, PROVISIONAL.as_bytes()),
-            terminal::close(),
-        ]
-    });
+    let scratch = Scratch::new("live-terminal");
+    fixtures::standing_chats(scratch.path()).expect("standing chat fixture");
+    let ran = run_on(
+        scratch,
+        || llm::scripted(scripts::live_scripts()),
+        || {
+            vec![
+                sign_in(D1),
+                terminal::open(),
+                terminal::type_on(b"+ New chat", b""),
+                terminal::see(b"What do you want done?"),
+                terminal::type_on(b"What do you want done?", scripts::WORDS.as_bytes()),
+                terminal::see(scripts::FIRST),
+                release_hold(scripts::LIVE),
+                terminal::see_without(REPLY, PROVISIONAL.as_bytes()),
+                terminal::see(b"waiting on your words"),
+                terminal::close(),
+            ]
+        },
+    );
     assert_eq!(ran.calls()[SIGN_IN].exit, Some(Exit::Code(0)), "ctl signed in before provisioning the key");
     let read = ran.terminal();
     let first = read
@@ -72,7 +79,8 @@ fn a_person_reads_a_chats_reply_as_it_is_written_then_its_committed_turn() {
 }
 
 fn provisional(text: &str) -> Option<String> {
-    let (before, _) = text.split_once(PROVISIONAL_LINE)?;
-    let (_, assistant) = before.rsplit_once("Temper\n")?;
-    Some(assistant.lines().map_while(|line| line.strip_prefix("    ")).collect::<Vec<_>>().join("\n"))
+    let (_, conversation) = text.split_once("Conversation:\n")?;
+    let (_, assistant) = conversation.split_once("Temper\n")?;
+    let (prefix, _) = assistant.split_once(PROVISIONAL_LINE)?;
+    Some(prefix.lines().map_while(|line| line.strip_prefix("    ")).collect::<Vec<_>>().join("\n"))
 }

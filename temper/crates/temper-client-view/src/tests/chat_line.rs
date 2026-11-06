@@ -60,7 +60,7 @@ fn disclosure(tree: &Tree) -> &skein_ui::Node {
     panic!("run disclosure")
 }
 fn thread(messages: &[(&[c::Message], u64)]) -> Thread {
-    let mut thread = Thread::new(1, &jig_client::thread::Limits { lines: CALLS, bytes: BYTES, text: TEXT });
+    let mut thread = Thread::new(1, &jig_client::thread::Limits { lines: CALLS, bytes: BYTES, text: TEXT, live: TEXT });
     thread.reading = Some(Reading::Latest { known: 0 });
     let mut rows = List::with_capacity(CALLS);
     for (at, (messages, seconds)) in messages.iter().enumerate() {
@@ -299,7 +299,7 @@ fn settings_and_minutes_keep_their_counted_words() {
 }
 #[test]
 fn a_hidden_line_keeps_the_run_together() {
-    let mut source = Thread::new(1, &jig_client::thread::Limits { lines: CALLS, bytes: BYTES, text: TEXT });
+    let mut source = Thread::new(1, &jig_client::thread::Limits { lines: CALLS, bytes: BYTES, text: TEXT, live: TEXT });
     source.reading = Some(Reading::Latest { known: 0 });
     let mut rows = List::with_capacity(3);
     rows.push(f::turn(1, 1, 1, &[f::message(c::Speaker::Assistant, &[f::call(1, b"read", b"{}", None)])], TEXT))

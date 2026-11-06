@@ -86,7 +86,10 @@ pub(crate) fn run_text_fields(value: &w::RunText, limits: &Limits) -> Result<c::
         turn: provisional_turn_name_fields(value.turn()),
         from: value.from(),
         through: value.through(),
-        text: text(value.text(), limits)?,
+        text: match c::Text::new(skein_lib::bytes::copy_of(value.text()), limits.client().long_text) {
+            Ok(text) => text,
+            Err(_) => return Err(too_large()),
+        },
         cut: value.cut(),
         call: opt1,
     })
