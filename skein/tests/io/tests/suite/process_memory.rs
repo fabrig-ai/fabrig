@@ -7,7 +7,7 @@ use skein_heap::Meter;
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Pipe, Spawn, Submit, Way};
 use skein_io::{Event, Io, Limits, Request};
 use skein_lib::stream::{OutputDown, OutputOutcome, OutputUp};
-use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
+use skein_lib::{Env, Queue, Time, Token, Wall};
 
 const PIPES: usize = 7;
 

@@ -2,7 +2,7 @@
 use skein_io::kernel::{Complete, Fd, Submit};
 use skein_io::{Event, Io, Limits, Request, Window};
 use skein_lib::stream::{Down, Read, Up};
-use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
+use skein_lib::{Env, Queue, Time, Token, Wall};
 use skein_shell::{Clock, Config, Host, Input, Keys, Watch, drive, open_signals, raw_input};
 use std::{collections::VecDeque, process::ExitCode};
 
