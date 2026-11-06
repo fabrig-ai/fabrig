@@ -42,17 +42,12 @@ impl Peer {
     pub fn new() -> Self {
         // A listener and one connection, four simultaneous ops each plus two.
         let limits = io::Limits {
-            sockets: 2,
-            names: 0,
             refusals: 2,
             intake: 4096,
             receive: 4096,
             output: 4096,
-            sends: 2,
-            accepts: 1,
-            backlog: 1,
             close_timeout: Duration::from_secs(2),
-            retry: Duration::from_millis(10),
+            ..io::Limits::TEST
         };
         let mut requests = Queue::with_capacity(64);
         requests.push(io::Request::Listen { owner: LISTENER, addr: io::Addr::Ip((Ipv4Addr::LOCALHOST, 0).into()) });

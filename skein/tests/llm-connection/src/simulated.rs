@@ -26,19 +26,7 @@ fn limits(calls: u32) -> Limits {
         per_endpoint: calls,
         memory: 16 * 1024 * 1024,
         idle_keep: Duration::from_secs(300),
-        io: io::Limits {
-            sockets: calls,
-            refusals: 1,
-            intake: 32_768,
-            receive: 1024,
-            output: 32_768,
-            sends: 4,
-            accepts: 1,
-            backlog: 2,
-            close_timeout: Duration::from_secs(1),
-            names: 0,
-            retry: Duration::from_millis(1),
-        },
+        io: io::Limits { sockets: calls, sends: 4, backlog: 2, retry: Duration::from_millis(1), ..io::Limits::TEST },
         // HTTP may demand one whole head line; TLS must admit that derived read.
         tls: skein_tls::client::Limits {
             read: skein_llm::client::largest_read(&skein_llm_kit::limits()),

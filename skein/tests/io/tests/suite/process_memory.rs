@@ -166,19 +166,7 @@ impl Driver {
 fn a_child_with_pipes_stays_under_its_ceiling() {
     // One child and seven read pipes: 3,262 B peak plus 25%, rounded up to two significant digits.
     const CEILING: u64 = 4_100;
-    let limits = Limits {
-        sockets: 8,
-        refusals: 1,
-        intake: 64,
-        receive: 32,
-        output: 64,
-        sends: 2,
-        accepts: 1,
-        backlog: 1,
-        close_timeout: Duration::from_secs(1),
-        names: 0,
-        retry: Duration::from_millis(10),
-    };
+    let limits = Limits { sockets: 8, intake: 64, receive: 32, output: 64, ..Limits::TEST };
     let pipes: Box<[Pipe]> = (0..PIPES)
         .map(|i| Pipe { child: u32::try_from(i + 3).expect("small pipe count"), way: Way::Out, parent: None })
         .collect();
@@ -206,19 +194,7 @@ fn a_child_with_pipes_stays_under_its_ceiling() {
 fn native_pipe_output_and_close_terminals_stay_under_the_ceiling_until_reap() {
     // Seven write pipes through staged close and reap: 4,879 B peak plus 25%, rounded up to two significant digits.
     const CEILING: u64 = 6_100;
-    let limits = Limits {
-        sockets: 8,
-        refusals: 1,
-        intake: 64,
-        receive: 32,
-        output: 64,
-        sends: 2,
-        accepts: 1,
-        backlog: 1,
-        close_timeout: Duration::from_secs(1),
-        names: 0,
-        retry: Duration::from_millis(10),
-    };
+    let limits = Limits { sockets: 8, intake: 64, receive: 32, output: 64, ..Limits::TEST };
     let pipes: Box<[Pipe]> = (0..PIPES)
         .map(|index| Pipe { child: u32::try_from(index).expect("bounded pipe count"), way: Way::In, parent: None })
         .collect();
