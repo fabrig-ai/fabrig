@@ -313,7 +313,11 @@ fn repository_cases() -> [ReadCase; 5] {
                 (200, br#"{"ok":true,"data":[{"id":7,"login":"seven"}]}"#),
                 (200, br#"{"permission":"write","user":{"id":7,"login":"seven"}}"#),
             ],
-            expected: Ok(Answer::Permission(api::Permission::Write)),
+            expected: Ok(Answer::Permission(api::UserPermission {
+                user: 7,
+                login: Box::from(b"seven".as_slice()),
+                permission: api::Permission::Write,
+            })),
             sends: &[
                 "GET /api/v1/repositories/1",
                 "GET /api/v1/users/search?uid=7&limit=1",

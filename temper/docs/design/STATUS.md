@@ -35,7 +35,8 @@ built through ctl, but the restore's stories in the domain world and
 the joined client world are ignored (`protocol/configuration.md`,
 `client/tools.md`). The configuring agent, charter 3 and template 3,
 is in the stock and the reference pages it reads are built, but its
-runs cannot read a project's own policy (`domain/agent.md`), and a
+runs cannot read a project's own policy, its inventory names no project
+people and its words lag (`domain/agent.md`), and a
 charter's `tools` decides only whether its runs are offered the
 settings family (`protocol/configuration.md`). The limits' check
 leaves temper's kinds out of the settings answer's bound
@@ -69,7 +70,7 @@ connected pauses a repair with no bound, by that plan's cut (`domain/forge.md`).
 No test runs real git on a dirty workspace (`protocol/git.md`). Much of a change's own
 bounds and gates, the forge's merge queue and a goal's issue lag, and
 the queue's first can lose its turn to a change stepped during it
-(`domain/forge.md`); so do a live goal's walk, which the fake box's model
+(`domain/forge.md`); so do a live goal's delegates, which the fake box's model
 cannot script, How work runs' controls for a person with a project's role
 alone, and many of ctl's tools (`client/README.md`,
 `client/forge.md`, `client/tools.md`), the playground in the
@@ -153,7 +154,20 @@ goal starts from a document through the one sheet, which has none of the request
 opens nothing for a party with no creating bound; drafts follow kind 7's setting,
 off in the stock, where that request has them follow a tracked template
 (`client/README.md`), and a goal keeps its own note scope, where that request
-has it keep no notes (`domain/agent.md`). A document
+has it keep no notes (`domain/agent.md`). A proposal of settings shows on no
+project's Needs you or rail's count, the Claude way's command refuses on a box
+with directories of its own, and a choice pressed just after Undo stayed
+unanswered once (`client/README.md`). The welcome's try of a model draws its box
+over the host's check alone, no trial being built, and departs from the request
+`model-check` in its list's names and a few of its acts and words
+(`client/README.md`). A plan's sign-in draws the waiting page of the request
+`sign-in-new-tab`, whose words say a new tab while a press still leaves in its own,
+until that draft is built; the page departs from the request in the terminal's words
+and on `ConnectModel`, where a paste finishing also keeps the note's waiting words
+(`client/README.md`). The rename's form asks the focus beside an
+open reply, where a tree holds one request, seen by reading (`client/README.md`),
+and no test measures a long chat's document against its window, where the user's
+answer of 2026-11-06 asks one (`client/browser.md`). A document
 built in parts is proved on a script alone, no real model having built one
 and no walk drawing a long one in its pane, and a later note write's words
 close with its lines where the `note-parts` request of 2026-11-05 keeps the
@@ -244,6 +258,8 @@ Drafts:
 - [`draft/github.md`](draft/github.status.md)
 - [`draft/look-requests.md`](draft/look-requests.status.md)
 - [`draft/macos.md`](draft/macos.status.md)
+- [`draft/model-catalogue.md`](draft/model-catalogue.status.md)
+- [`draft/model-check.md`](draft/model-check.status.md)
 - [`draft/own-way.md`](draft/own-way.status.md)
 - [`draft/real-journeys.md`](draft/real-journeys.status.md)
 - [`draft/repository-copies.md`](draft/repository-copies.status.md)

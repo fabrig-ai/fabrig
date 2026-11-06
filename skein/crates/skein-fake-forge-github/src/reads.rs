@@ -373,7 +373,7 @@ pub(crate) fn finish(
             let Answer::Permission(value) = answer else {
                 return answers::failed();
             };
-            answers::response(200, &Body::Permission(people::permission(value)), limits)
+            answers::response(200, &Body::Permission(people::permission(value.permission)), limits)
         }
         Pending::Pull => pulls::pull(answer, limits),
         Pending::PullsFor { open } => pulls::pulls_for(answer, open, limits),

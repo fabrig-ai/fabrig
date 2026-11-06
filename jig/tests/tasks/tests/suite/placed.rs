@@ -486,9 +486,9 @@ fn a_procedure_released_from_a_cause_steps_as_a_placed_release_does() {
 fn placed_releases_match_cause_releases_for_agents_and_people() {
     const RELEASED_TASK: u64 = 1;
     const AGENT: tasks::Executor = tasks::Executor::Agent { charter: 1 };
-    const PERSON: tasks::Executor = tasks::Executor::Person(tasks::PersonAddress::Person(1));
+    const PERSON_EXECUTOR: tasks::Executor = tasks::Executor::Person(tasks::PersonAddress::Person(1));
     // An agent is activated once; a person needs no executor request.
-    const CASES: [(tasks::Executor, u32); 2] = [(AGENT, 1), (PERSON, 0)];
+    const CASES: [(tasks::Executor, u32); 2] = [(AGENT, 1), (PERSON_EXECUTOR, 0)];
     for (executor, requests) in CASES {
         let mut cause = World::new(PROCEDURE_SEED, LIMITS);
         let mut placed = World::new(PROCEDURE_SEED, LIMITS);

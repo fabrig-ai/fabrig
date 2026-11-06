@@ -83,7 +83,7 @@ struct Value {
     owner: Option<SystemKey>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct Pending {
     entry: u64,
     attempt: u32,
@@ -94,7 +94,7 @@ struct Pending {
 }
 
 /// A deterministic system with keyed writes, conditions and scheduled late copies.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct System {
     values: BTreeMap<Name, Value>,
     keyed: BTreeMap<SystemKey, u64>,

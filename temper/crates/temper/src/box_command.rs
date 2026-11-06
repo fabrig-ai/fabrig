@@ -9,7 +9,7 @@ pub(crate) const ECHO_SETTINGS: skein_shell::Settings = skein_shell::Settings {
     table: &[skein_shell::Setting {
         name: "echo",
         value: "none|steps",
-        about: "Show the box's lines and a failed step's log, or every step's lines too.",
+        about: "Show errors and a failed step's log, or every step's lines too.",
         fallback: skein_shell::Fallback::Text("none"),
     }],
 };
@@ -39,8 +39,15 @@ pub(crate) fn echo(
 
 /// Checks the document before starting its steps; refusals contain unprefixed lines.
 pub fn run(directories: &super::Directories, echo: Echo) -> Result<Exit, String> {
-    let (bytes, held) = configuration(directories)?;
-    run_configuration(directories, &bytes, held, Box::new([]), echo)
+    let (bytes, held, first_run) = configuration(directories)?;
+    let opening = Opening { log_lines: first_run.into_iter().collect(), after_block: Box::new([]) };
+    run_configuration(directories, &bytes, held, Box::new([]), echo, opening)
+}
+
+/// Lines opening the box log and following its sign-in block (protocol/setup.md, 7.2).
+pub(crate) struct Opening {
+    pub log_lines: Box<[Box<[u8]>]>,
+    pub after_block: Box<[u8]>,
 }
 
 /// Runs a document already retained in its effective directories. Owns all supplied listeners.
@@ -50,6 +57,7 @@ pub(crate) fn run_configuration(
     held: Vec<(Fd, std::num::NonZeroU16)>,
     first: Box<[temper_forge_setup::Step]>,
     echo: Echo,
+    opening: Opening,
 ) -> Result<Exit, String> {
     let mut owned = held.iter().map(|(fd, _)| *fd).collect::<Vec<_>>();
     let opened = (|| {
@@ -67,12 +75,17 @@ pub(crate) fn run_configuration(
             })
             .collect();
         let (steps, limits) = configuration_steps(directories, bytes, first)?;
+        let named = super::setup::check(bytes, &directories.jig())?.named;
         let listeners = open_listeners(directories, &steps, held, &inherited, &mut owned)?;
+        let first_link = first_link(&named, &steps)?;
         let signals = skein_shell::open_termination_signals().map_err(|errno| format!("signals: errno {errno}"))?;
         owned.push(signals);
         let root = skein_shell::open_root(directory).map_err(|errno| format!("directory: errno {errno}"))?;
         owned.push(root);
         let settings = Settings {
+            first_link,
+            after_block: opening.after_block,
+            log_lines: opening.log_lines,
             program: program.as_os_str().as_bytes().into(),
             environment,
             listeners: listeners.into_boxed_slice(),
@@ -111,6 +124,32 @@ pub(super) fn held_listeners(held: Vec<(Fd, std::num::NonZeroU16)>) -> Result<Ve
         .map(|(fd, _)| skein_shell::listener_at(fd).map(|address| (fd, address)))
         .collect::<Result<Vec<_>, _>>()
         .map_err(super::held_refusal)
+}
+
+/// The first link, where the box prints one (temper/docs/design/protocol/setup.md, 7.2).
+pub(super) fn first_link(
+    named: &temper_service::startup::Named,
+    steps: &temper_forge_setup::Steps,
+) -> Result<Option<temper_box::host::FirstLink>, String> {
+    if !named.link
+        || steps
+            .always
+            .iter()
+            .chain(steps.asked.iter().flat_map(|group| group.steps.iter().map(|(_, step)| step)))
+            .any(|step| step.kind() == temper_forge_setup::Kind::Link)
+    {
+        return Ok(None);
+    }
+    let address = super::address(&named.clients)?;
+    if address.port() == 0 {
+        return Ok(None);
+    }
+    let secret = skein_shell::crypto_seed().map_err(|errno| format!("first link: system randomness: errno {errno}"))?;
+    let url = temper_service::clients::first_link_url(address, named.public.as_ref(), &secret);
+    if url.len() > 4096 {
+        return Err("serve: sign-in link too long".into());
+    }
+    Ok(Some(temper_box::host::FirstLink { url, secret }))
 }
 
 fn open_listeners(
@@ -190,7 +229,7 @@ fn owned_notices(steps: &mut temper_forge_setup::Steps, owned: &temper_forge_set
     }
 }
 
-type Configuration = (Box<[u8]>, Vec<(Fd, std::num::NonZeroU16)>);
+type Configuration = (Box<[u8]>, Vec<(Fd, std::num::NonZeroU16)>, Option<Box<[u8]>>);
 /// Prepare a first configuration, keeping init's listeners, or read the existing one.
 pub fn configuration(directories: &super::Directories) -> Result<Configuration, String> {
     let config = super::path(&directories.config);
@@ -204,12 +243,14 @@ pub fn configuration(directories: &super::Directories) -> Result<Configuration, 
         Err(why) => return Err(format!("{}: {why}", config.display())),
     };
     let mut held = Vec::new();
-    if empty {
+    let first_run = if empty {
         held = super::init::core(directories)?.listeners;
-        eprintln!("First run: wrote the configuration, {}", directories.document().display());
-    }
+        Some(format!("First run: wrote the configuration, {}\n", directories.document().display()).into_bytes().into())
+    } else {
+        None
+    };
     match directories.read() {
-        Ok(bytes) => Ok((bytes, held)),
+        Ok(bytes) => Ok((bytes, held, first_run)),
         Err(why) => {
             super::close(held.into_iter().map(|(fd, _)| fd).collect());
             Err(why)

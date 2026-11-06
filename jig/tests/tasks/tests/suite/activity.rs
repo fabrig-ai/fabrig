@@ -1,5 +1,5 @@
 use jig_domain_tasks::{Accepted, ActivityLine, Event, Key, Line, MessageKind, Party, Stored, Word};
-use jig_tasks_world::{LIMITS, Reply, World, task};
+use jig_tasks_world::{LIMITS, PERSON_PARTY, Reply, World, task};
 use skein_lib::Wall;
 
 fn lines(world: &World, task: u64) -> Vec<ActivityLine> {
@@ -40,7 +40,7 @@ fn write(world: &mut World, number: u64, words: &[u8]) {
             task: 1,
             word: Word {
                 number,
-                from: Party::Person(9),
+                from: PERSON_PARTY,
                 kind: MessageKind::Words,
                 words: words.into(),
                 at: world.env.wall,
@@ -72,7 +72,7 @@ fn take(world: &mut World, turn: u32, read: u64, cumulative: u64) {
 #[test]
 fn a_task_s_activity_survives_its_words_being_taken_and_a_restart() {
     let mut world = World::new(505, LIMITS);
-    world.make(Party::Person(9), vec![task(1, &[])]);
+    world.make(PERSON_PARTY, vec![task(1, &[])]);
     world.env.wall = Wall::from_nanos(500);
     write(&mut world, 1, b"the complete first message");
     world.claim(1, 7);
@@ -97,7 +97,7 @@ fn a_task_s_activity_survives_its_words_being_taken_and_a_restart() {
     for (message, words, at) in
         [(1, b"the complete first message".as_slice(), 500), (2, b"the complete second message".as_slice(), 100)]
     {
-        assert!(after.iter().any(|row| row.at == Wall::from_nanos(at) && matches!(&row.line, Line::Words { message: kept, by: Party::Person(9), words: kept_words, .. } if *kept == message && kept_words.as_ref() == words)));
+        assert!(after.iter().any(|row| row.at == Wall::from_nanos(at) && matches!(&row.line, Line::Words { message: kept, by: PERSON_PARTY, words: kept_words, .. } if *kept == message && kept_words.as_ref() == words)));
     }
     assert!(
         after
@@ -123,7 +123,7 @@ fn a_tasks_label_and_flags_are_kept_as_made() {
         retention: jig_domain_tasks::Retention::ForgottenOnceRead,
     };
     made.flags = flags;
-    assert_eq!(world.make(Party::Person(9), vec![made]), Reply::Made(vec![1]));
+    assert_eq!(world.make(PERSON_PARTY, vec![made]), Reply::Made(vec![1]));
     world.claim(1, 7);
     world.restart();
     assert_eq!(world.record(1).label, 7);
@@ -134,14 +134,14 @@ fn a_tasks_label_and_flags_are_kept_as_made() {
 fn a_tasks_last_activity_is_when_it_was_made() {
     let mut world = World::new(332, LIMITS);
     world.env.wall = Wall::from_nanos(500);
-    assert_eq!(world.make(Party::Person(9), vec![task(1, &[])]), Reply::Made(vec![1]));
+    assert_eq!(world.make(PERSON_PARTY, vec![task(1, &[])]), Reply::Made(vec![1]));
     assert_eq!(world.record(1).last_activity, Wall::from_nanos(500));
 }
 
 #[test]
 fn a_tasks_last_activity_moves_when_it_hears_words() {
     let mut world = World::new(333, LIMITS);
-    world.make(Party::Person(9), vec![task(1, &[])]);
+    world.make(PERSON_PARTY, vec![task(1, &[])]);
     world.env.wall = Wall::from_nanos(500);
     write(&mut world, 1, b"heard later");
     assert_eq!(world.record(1).last_activity, Wall::from_nanos(500));
@@ -150,7 +150,7 @@ fn a_tasks_last_activity_moves_when_it_hears_words() {
 #[test]
 fn a_tasks_last_activity_moves_when_its_run_commits_a_turn() {
     let mut world = World::new(334, LIMITS);
-    world.make(Party::Person(9), vec![task(1, &[])]);
+    world.make(PERSON_PARTY, vec![task(1, &[])]);
     write(&mut world, 1, b"heard earlier");
     world.claim(1, 7);
     world.env.wall = Wall::from_nanos(500);
@@ -161,7 +161,7 @@ fn a_tasks_last_activity_moves_when_its_run_commits_a_turn() {
 #[test]
 fn a_requesters_last_activity_moves_when_a_delegate_ends() {
     let mut world = World::new(335, LIMITS);
-    world.make(Party::Person(9), vec![task(1, &[])]);
+    world.make(PERSON_PARTY, vec![task(1, &[])]);
     assert_eq!(world.make(Party::Task(1), vec![task(2, &[])]), Reply::Made(vec![2]));
     world.claim(2, 7);
     world.env.wall = Wall::from_nanos(500);

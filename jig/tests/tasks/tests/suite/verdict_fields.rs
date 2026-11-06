@@ -1,8 +1,7 @@
 use jig_domain_tasks::{
-    self as tasks, Contract, Event, Executor, FieldRule, Party, PersonAddress, Refusal, ResultField, TaskResult,
-    Verdict,
+    self as tasks, Contract, Event, Executor, FieldRule, PersonAddress, Refusal, ResultField, TaskResult, Verdict,
 };
-use jig_tasks_world::{LIMITS, Reply, World, task};
+use jig_tasks_world::{LIMITS, PERSON, PERSON_PARTY, Reply, World, task};
 
 const LARGE_LIMITS: tasks::Limits = tasks::Limits { result_bytes: 2048, ..LIMITS };
 
@@ -17,7 +16,7 @@ fn schema_rules(count: u32) -> Box<[FieldRule]> {
 
 fn schema_task(count: u32) -> tasks::New {
     let mut new = task(1, &[]);
-    new.executor = Executor::Person(PersonAddress::Person(9));
+    new.executor = Executor::Person(PersonAddress::Person(PERSON));
     new.contract = Contract::Verdict {
         choices: Box::new([Verdict { code: 2, words: 0, followups: 0, fields: schema_rules(count) }]),
     };
@@ -26,7 +25,7 @@ fn schema_task(count: u32) -> tasks::New {
 
 fn schema_world(seed: u64) -> World {
     let mut world = World::new(seed, LARGE_LIMITS);
-    world.make(Party::Person(9), vec![schema_task(tasks::VERDICT_FIELDS)]);
+    world.make(PERSON_PARTY, vec![schema_task(tasks::VERDICT_FIELDS)]);
     world
 }
 
@@ -37,7 +36,7 @@ fn schema_fields(count: u32) -> Vec<ResultField> {
 #[test]
 fn a_verdict_contract_admits_the_schema_field_ceiling() {
     let mut world = World::new(461, LARGE_LIMITS);
-    assert_eq!(world.make(Party::Person(9), vec![schema_task(tasks::VERDICT_FIELDS)]), Reply::Made(vec![1]));
+    assert_eq!(world.make(PERSON_PARTY, vec![schema_task(tasks::VERDICT_FIELDS)]), Reply::Made(vec![1]));
     assert!(world.records.contains_key(&tasks::Key::Live(1)));
 }
 
@@ -45,7 +44,7 @@ fn a_verdict_contract_admits_the_schema_field_ceiling() {
 fn a_verdict_contract_refuses_one_field_past_the_schema_ceiling() {
     let mut world = World::new(462, LARGE_LIMITS);
     assert_eq!(
-        world.make(Party::Person(9), vec![schema_task(tasks::VERDICT_FIELDS + 1)]),
+        world.make(PERSON_PARTY, vec![schema_task(tasks::VERDICT_FIELDS + 1)]),
         Reply::Refused(tasks::Problem::new(Some(1), Refusal::Contract))
     );
     assert!(!world.records.contains_key(&tasks::Key::Live(1)));
@@ -86,7 +85,7 @@ fn answer(world: &mut World, fields: Vec<ResultField>) -> Reply {
     world.send(Event::AnswerPerson {
         reply_to,
         task: 1,
-        person: 9,
+        person: PERSON,
         result: TaskResult::Verdict { code: 2, words: Box::new([]), fields: fields.into_boxed_slice() },
     });
     world.replies.last_key_value().expect("person answer replied").1.clone()
@@ -105,7 +104,7 @@ fn verdict_contracts_refuse_empty_duplicate_and_oversized_machine_field_rules() 
         new.contract = Contract::Verdict {
             choices: Box::new([Verdict { code: 2, words: 0, followups: 0, fields: fields.into_boxed_slice() }]),
         };
-        assert!(matches!(world.make(Party::Person(9), vec![new]), Reply::Refused(_)));
+        assert!(matches!(world.make(PERSON_PARTY, vec![new]), Reply::Refused(_)));
         assert!(!world.records.contains_key(&tasks::Key::Live(1)), "nothing retained from invalid rules");
     }
 }
@@ -114,10 +113,10 @@ fn verdict_contracts_refuse_empty_duplicate_and_oversized_machine_field_rules() 
 fn verdict_answers_require_every_closed_machine_field_once_within_its_cap() {
     let mut world = World::new(460, LIMITS);
     let mut new = task(1, &[]);
-    new.executor = Executor::Person(PersonAddress::Person(9));
+    new.executor = Executor::Person(PersonAddress::Person(PERSON));
     new.contract =
         Contract::Verdict { choices: Box::new([Verdict { code: 2, words: 0, followups: 0, fields: rules() }]) };
-    assert_eq!(world.make(Party::Person(9), vec![new]), Reply::Made(vec![1]));
+    assert_eq!(world.make(PERSON_PARTY, vec![new]), Reply::Made(vec![1]));
     for fields in [
         vec![field(b"a", b"1")],
         vec![field(b"a", b"1"), field(b"b", b"2"), field(b"c", b"3")],

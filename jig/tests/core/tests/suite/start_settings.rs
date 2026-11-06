@@ -1,6 +1,7 @@
 //! Direct Core over settings rows from the reference root's real seed
 //! (jig/docs/design/domain/engine.md, 6, 17.7).
 use crate::settings_support as support;
+use jig_core_world::fixtures::{link, phase};
 use jig_domain_core::{
     self as core, settings,
     start::{Action, Failure, Phase, SweepInput},
@@ -46,29 +47,15 @@ impl Harness {
         }
         h
     }
-
-    fn link(&mut self) -> Action {
-        phase(&self.core.start_done(&self.env, Phase::LoadCore, &mut self.out), Phase::LoadInbox);
-        let mut previous = Phase::LoadInbox;
-        for connector in self.core.connectors.clone() {
-            let next = Phase::RestoreConnector { connector };
-            phase(&self.core.start_done(&self.env, previous, &mut self.out), next);
-            previous = next;
-        }
-        phase(&self.core.start_done(&self.env, previous, &mut self.out), Phase::Link);
-        self.core.start_done(&self.env, Phase::Link, &mut self.out)
-    }
-}
-
-fn phase(action: &Action, expected: Phase) {
-    assert!(matches!(action, Action::Step(found) if *found == expected));
 }
 
 #[test]
 fn changed_defaults_commit_the_release_revision_before_sweep_and_switch() {
     for pending in [false, true] {
         let mut h = Harness::stored(true, pending);
-        let Action::Commit(release) = h.link() else { panic!("changed defaults commit before Sweep") };
+        let Action::Commit(release) = link(&mut h.core, &h.env, &mut h.out) else {
+            panic!("changed defaults commit before Sweep")
+        };
         let mut default = None;
         let mut revision = None;
         let mut copied = false;
@@ -137,7 +124,7 @@ fn changed_defaults_commit_the_release_revision_before_sweep_and_switch() {
 #[test]
 fn unchanged_settings_go_directly_to_sweep_without_a_release_commit() {
     let mut h = Harness::stored(false, false);
-    phase(&h.link(), Phase::Sweep);
+    phase(&link(&mut h.core, &h.env, &mut h.out), Phase::Sweep);
     assert!(h.out.is_empty());
     assert_eq!(h.core.current.newest(), 1);
     phase(&h.core.start_sweep(&h.env, SweepInput::Finished, &mut h.out), Phase::Switch);
@@ -200,7 +187,7 @@ fn stored_proposals_require_their_links_at_link() {
         ),
         core::Restore::Kept
     );
-    let _panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| h.link()))
+    let _panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| link(&mut h.core, &h.env, &mut h.out)))
         .expect_err("a proposal requires its retained links");
     assert_eq!(h.core.start_phase(), Some(Phase::Link));
     assert_eq!(h.core.start_failure(), None);
