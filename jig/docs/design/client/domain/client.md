@@ -635,6 +635,11 @@ handles, as every presentation does (sections 7 and 8).
   transport bound (`../../protocol/client.md`, 4 and 17.2). `Link(state)`
   tells the caller when this fact arrives even if the state is unchanged;
   it stays through retries until `me` returns or the sign-in ends.
+  `watches_full` says that a watch the client holds, `me`'s or an
+  application's, was last answered busy (8.1) and has had no answer since.
+  It clears when that watch is answered, or is closed or ended. It carries
+  no count, since a refusal names none, and tells no `Link(state)`: an
+  application reads it when it has cause to, as at a deadline.
 - **Judged from the stream alone,** whatever the application watches. A
   request that got no answer while the link is live is sent again after
   a backoff, and does not by itself make the client offline.

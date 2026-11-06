@@ -7,6 +7,7 @@ use crate::{
 use alloc::boxed::Box;
 use skein_lib::{Duration, Env, Queue, Time, Token, length::len_u64};
 #[derive(Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "busy records the last refusal independently of lifecycle")]
 pub(crate) struct Watch {
     pub subject: Watchable,
     pub name: Option<Token>,
@@ -14,6 +15,7 @@ pub(crate) struct Watch {
     pub state: State,
     pub closing: bool,
     pub answered: bool,
+    pub busy: bool,
     pub own: bool,
     pub until: Option<Time>,
     pub span: Option<Duration>,
@@ -70,6 +72,7 @@ impl Domain {
     }
     fn opened(&mut self, id: u64, name: Token, out: &mut Queue<Request>) {
         let w = self.watches.get_mut(&id).expect("answered watch");
+        w.busy = false;
         if !w.answered {
             w.answered = true;
             if w.closing {
@@ -166,6 +169,17 @@ impl Domain {
             self.watches.remove(&id);
             return;
         }
+        w.busy = match end {
+            WatchEnd::Busy => true,
+            WatchEnd::Closed
+            | WatchEnd::SubjectEnded
+            | WatchEnd::Unknown
+            | WatchEnd::NotAllowed
+            | WatchEnd::Dropped
+            | WatchEnd::Stopping
+            | WatchEnd::NotServed
+            | WatchEnd::SignedOut => false,
+        };
         let why = match end {
             WatchEnd::Closed | WatchEnd::SubjectEnded | WatchEnd::Unknown | WatchEnd::NotAllowed if w.own => None,
             WatchEnd::Dropped | WatchEnd::Stopping | WatchEnd::Busy => None,
