@@ -220,9 +220,8 @@ fn approval_words(project: u32, approval: &settings::RuleApproval, count: u32) -
     for part in [
         b"project ".as_slice(), project.as_bytes(), b" role ", role.as_bytes(), b" requires ",
         required.as_bytes(), b" distinct known forge people; currently ", count.as_bytes(),
-        b" eligible. Before accepting, add the human collaborator on the forge; configure this project's project-policy permissions if needed; ",
-        b"re-adopt with repository adopt, verify the required role with project show, then submit a fresh proposal against the newest revision. ",
-        b"See temper help configure for the approval setup route, or remove the approval requirement.",
+        b" eligible. Before accepting, add the person as a collaborator on the forge, give that role the permission in this project's policy if needed and adopt the repository again; ",
+        b"then propose afresh against the newest revision, or remove the approval requirement.",
     ] {
         for &byte in part {
             words.push(byte).expect("measured approval refusal");

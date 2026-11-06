@@ -70,13 +70,17 @@ impl Dom {
                 let Some(element) = event.target().and_then(|t| t.dyn_into::<Element>().ok()) else {
                     return;
                 };
+                let in_component = element.closest("[data-component]").expect("component selector").is_some();
                 if event.type_() == "click" {
                     target.fold_away(Some(&element));
-                    if !target.mount.contains(Some(&element)) {
+                    let outside_mount = !target.mount.contains(Some(&element));
+                    if outside_mount || in_component || target.nearest(&element).is_none() {
+                        target.press_outside(&model);
+                    }
+                    if outside_mount {
                         return;
                     }
                 }
-                let in_component = element.closest("[data-component]").expect("component selector").is_some();
                 let menu_open = model.borrow().menu.is_some();
                 if let Some(key) = event.dyn_ref::<KeyboardEvent>()
                     && key.key() == "Escape"
@@ -97,7 +101,8 @@ impl Dom {
                 for data in events {
                     let mut ops = Vec::new();
                     let act = model.borrow_mut().act(data, &mut ops);
-                    if act.is_some() || !ops.is_empty() || event.type_() == "cancel" {
+                    // Menu folding leaves the outside control's default press intact.
+                    if act.is_some() || (!ops.is_empty() && event.type_() != "click") || event.type_() == "cancel" {
                         event.prevent_default();
                     }
                     target.apply(&ops);
@@ -182,6 +187,19 @@ struct Mounted {
 }
 
 impl Mounted {
+    fn press_outside(&self, model: &RefCell<Page<'_>>) {
+        let focus_taken = self.document.active_element().is_some_and(|active| {
+            active.tag_name() != "BODY"
+                && model
+                    .borrow()
+                    .menu
+                    .is_some_and(|menu| self.group(menu).roots.iter().all(|root| !root.contains(Some(&active))))
+        });
+        let mut ops = Vec::new();
+        model.borrow_mut().act(Event::PressOutside { focus_taken }, &mut ops);
+        self.apply(&ops);
+    }
+
     // The page owns panel folding, without an application report (ui-web.md, 7).
     // A target is an outside press; no target is Escape, with focus restored inside.
     fn fold_away(&self, target: Option<&Element>) -> bool {
