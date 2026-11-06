@@ -655,7 +655,11 @@ fn needs_are_unknown_until_delivered_then_count_the_needs_alone() {
         assert_eq!(inbox.cards.len(), INBOX_CARDS, "the update stays in Inbox");
         assert_eq!(home::facts(&f.root, OTHER_PROJECT, Wall::EPOCH).needs, Needs::Unknown);
         let out = f::inbox_entries(&mut f.root, f.inbox, List::with_capacity(EMPTY));
-        assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs, Needs::Unknown, "refresh waits again");
+        assert_eq!(
+            home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs,
+            Needs::Count { count: NEED_GROUPS, cut },
+            "known needs stand through the refresh"
+        );
         for (read, _) in inbox_reads(&out) {
             inbox_page(&mut f.root, read, List::with_capacity(EMPTY), false);
         }

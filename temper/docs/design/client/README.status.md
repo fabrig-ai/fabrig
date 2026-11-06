@@ -5,9 +5,6 @@
 - **Design departs:** 3.5, 5.8, 5.11, from the greenfield target: "Pause", "Resume" and "Close" on a chat, a goal and an
   agent's task, where its goal says "Stop", which meant a goal's end and a chat's hold. The user's word, 2026-11-06, the
   request `ui-pause-close`.
-- **Not yet:** 3.5, *No page claims empty*: Home, Chats, Needs you, the terminal's Inbox and Goals draw their empty
-  words before a read has answered, and Chats and Goals drop their ended rows on a lost read, from the request
-  `ui-qa-small`, item 1.
 - **Not yet:** 3.5, `ConnectModel`, *The sign-in's tab*: only Chromium has run it, and against skein's fake issuer
   alone. Firefox's and Safari's gesture is read and not run (skein's `ui-web.md`, 14.3), and no walk on record has a
   provider's own page in the tab: the request `sign-in-new-tab` of 2026-11-06 leaves a real box to the user.

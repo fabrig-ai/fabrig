@@ -816,3 +816,29 @@ fn each_needs_you_card_offers_its_task_number_as_a_terminal_command() {
         );
     }
 }
+
+#[test]
+fn an_unanswered_inbox_claims_no_empty_in_the_terminal() {
+    for filter in [
+        Filter::ALL,
+        Filter { project: Some(fixtures::PROJECT), kind: Some(Kind::Question), goal: None },
+        Filter { kind: Some(Kind::Question), ..Filter::ALL },
+    ] {
+        let mut page = fixtures::ReadPage::new(Address::Inbox { filter });
+        page.drop_inbox();
+        let view = fixtures::page_view(&page.root);
+        assert!(fixtures::find(view.tree(), Role::Status, b"Behind").is_some());
+        for name in [b"Needs you".as_slice(), b"Updates"] {
+            assert!(fixtures::find(view.tree(), Role::Heading { level: 2 }, name).is_some());
+        }
+        for name in [b"Nothing needs you.".as_slice(), b"No updates.", b"0"] {
+            assert!(fixtures::find(view.tree(), Role::Paragraph, name).is_none());
+        }
+        let mut answered = fixtures::ReadPage::new(Address::Inbox { filter });
+        answered.refresh_inbox();
+        answered.sections(false);
+        let view = fixtures::page_view(&answered.root);
+        assert!(fixtures::find(view.tree(), Role::Paragraph, b"Nothing needs you.").is_some());
+        assert_eq!(fixtures::find(view.tree(), Role::Paragraph, b"No updates.").is_some(), filter.kind.is_none());
+    }
+}
