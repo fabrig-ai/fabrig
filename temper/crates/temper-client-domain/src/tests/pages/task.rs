@@ -761,7 +761,7 @@ fn task_stop_waits_for_confirmation_and_joins_its_pending_kind() {
         fixtures::acts::sent(&mut page_act(&mut pages, &client, Act::Confirm)).as_ref(),
         [c::Ask::Stop { project: fixtures::PROJECT, task: f::TASK }]
     );
-    assert!(pages.confirmation().is_none());
+    assert!(pages.confirmation().unwrap().sent.is_some());
     page_act(&mut pages, &client, Act::Stop);
     assert!(fixtures::acts::sent(&mut page_act(&mut pages, &client, Act::Confirm)).is_empty());
     assert_eq!(pages.task().expect("page").pending.as_slice()[0].1, Sending::Stop);
