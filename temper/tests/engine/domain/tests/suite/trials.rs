@@ -18,7 +18,7 @@ fn config() -> engine::Config {
     trial.policy.modify = false;
     trial.policy.shell = false;
     trial.policy.agents = false;
-    trial.policy.tools = 0;
+    trial.policy.tools = tasks::Tools(0);
     config.core.defaults.charters = Box::new([walking::charter(), trial]);
     config
 }
@@ -44,7 +44,6 @@ fn driver() -> Driver {
     driver.settle();
     driver.hello(Token::new(7));
     driver.settle();
-    driver.delivered.clear();
     driver
 }
 
