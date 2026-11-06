@@ -214,7 +214,7 @@ comment, no blank.
 A recording is made on a fresh `temper box --fake-backends`, started
 as the help's `box` page starts one on fake backends (`temper help
 box`), its printed sign-in link opened in the browser, and keeps what
-the page was given as it was: the printed link's secret, a
+the page was given as it was: the printed link's secret, the box's printed command, a
 typed value, the fakes' loopback addresses, all of them the fake box's
 dummies, spent or gone with the box.
 
@@ -623,7 +623,8 @@ over skein's harness.
   anything starts, and walked anew.
 - **A fresh fake box** (3.5): `temper box --fake-backends`, built from
   the checkout with the recording bundle (`scripts/bundle.sh --loopback
-  --record`), every directory fresh in a scratch directory of its own;
+  --record`), running a copy of the built binary and its fake-claude,
+  every directory fresh in a scratch directory under `/tmp`;
   its printed sign-in link opened.
 - **Headless Chromium, as the browser tier drives it** (`browser.md`,
   4): skein's browser kit through the fake person's browser face and

@@ -1,5 +1,5 @@
-//! A task's LLM choice at the root: the default it records at Create (domain/tasks.md, section 3)
-//! and the models a run of the task uses (domain/engine.md, 7.1).
+//! A task's named or current default LLM choice (domain/tasks.md, section 3;
+//! domain/engine.md, 7.1).
 
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -8,10 +8,10 @@ use skein_lib::List;
 use crate::{Core, Model, RunPolicy, Settings};
 
 impl Core {
-    /// Give each agent task of `batch` that names no LLM choice its charter's default, recorded as
-    /// given (domain/tasks.md, section 3; owner's decision D5), and the members of a recurring
-    /// task's template too, which tasks makes each occurrence from. A task whose charter is
-    /// configured but whose authority allows none of its models is refused, naming the charter's
+    /// Check each agent task's named or omitted choice (domain/tasks.md, section 3),
+    /// and the members of a recurring task's template, which tasks makes each occurrence from.
+    /// A task whose charter is configured but whose authority allows none of its models is
+    /// refused, naming the charter's
     /// first model; a task of an unknown charter is left to tasks, which refuses its executor.
     #[cfg_attr(
         not(target_arch = "wasm32"),
@@ -67,51 +67,7 @@ impl Core {
             }
             return Ok(());
         }
-        new.llm = self.tasks.default_llm(charter, new.authority.models);
-        if let Some(choice) = &mut new.llm
-            && let Some(charter) = self.current.charter(charter)
-        {
-            default_effort(&self.settings, &charter.policy, &mut choice.main);
-            for model in &mut choice.subagents {
-                default_effort(&self.settings, &charter.policy, model);
-            }
-        }
-        if let Some(payer) = occurrence_payer.or(self.tasks.prospective_payer(new.funder, links))
-            && let Some(choice) = &mut new.llm
-        {
-            let coverage = self.account_coverage(payer, Some(new.project));
-            let mut candidates = List::with_capacity(tasks::MODELS.checked_add(1).expect("main model"));
-            candidates.push(choice.main).expect("default main");
-            for model in &choice.subagents {
-                candidates.push(*model).expect("default alternatives");
-            }
-            for candidate in &candidates {
-                let model =
-                    self.settings.models.get(usize::from(candidate.model)).expect("default names a configured model");
-                let Some(provider) = self.provider(model) else { continue };
-                if let jig_domain_accounts::Selection::Chosen { .. } = self.accounts.select(
-                    super::coverage::payer(payer),
-                    provider,
-                    model.program.as_deref(),
-                    None,
-                    None,
-                    coverage.as_slice(),
-                    &[],
-                    self.run_now,
-                ) {
-                    choice.main = *candidate;
-                    let mut others = List::with_capacity(tasks::MODELS);
-                    for other in &candidates {
-                        if other.model != candidate.model {
-                            others.push(*other).expect("charter alternatives");
-                        }
-                    }
-                    choice.subagents = others.into_boxed();
-                    break;
-                }
-            }
-        }
-        if new.llm.is_some() {
+        if self.tasks.default_llm(charter, new.authority.models).is_some() {
             return Ok(());
         }
         if let Some(models) = self.tasks.charter_models(charter, self.tasks.newest())
@@ -123,11 +79,88 @@ impl Core {
         Ok(())
     }
 
+    /// What a task's next run takes: its named choice, or its charter's models within
+    /// its authority, the first it can use its main (domain/accounts.md, 4.3).
+    pub(crate) fn next_llm(&self, row: &tasks::TaskRecord) -> Option<tasks::LlmChoice> {
+        if let Some(choice) = &row.llm {
+            return Some(choice.clone());
+        }
+        let charter = match row.executor {
+            tasks::Executor::Agent { charter } => charter,
+            tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => {
+                return None;
+            }
+        };
+        let revision = row.settings.run.unwrap_or(row.settings.task);
+        let policy = &self.charter_at(charter, revision)?.policy;
+        let mut choice = self.tasks.default_llm_at(charter, revision, row.authority.models)?;
+        let payer = self.tasks.payer(row.number)?;
+        let coverage = self.account_coverage(payer, Some(row.project));
+        let mut kept_provider = None;
+        if let Some(kept) = row.kept_account
+            && let Some(account) = self.accounts.account(kept)
+        {
+            for proof in &coverage {
+                if proof.account == kept && proof.serves {
+                    kept_provider = Some(account.provider());
+                }
+            }
+        }
+        let mut candidates = List::with_capacity(tasks::MODELS);
+        candidates.push(choice.main).expect("charter main");
+        for candidate in &choice.subagents {
+            candidates.push(*candidate).expect("charter models");
+        }
+        let mut kept = None;
+        let mut usable = None;
+        let mut serving = None;
+        for candidate in &candidates {
+            let model = self.settings.models.get(usize::from(candidate.model))?;
+            let Some(provider) = self.provider(model) else { continue };
+            if kept_provider == Some(provider) {
+                kept = Some(*candidate);
+                break;
+            }
+            if usable.is_none()
+                && self.model_readiness(payer, coverage.as_slice(), model).0 == crate::documents::Readiness::Usable
+            {
+                usable = Some(*candidate);
+            }
+            if serving.is_none()
+                && !self
+                    .accounts
+                    .candidates(
+                        super::coverage::payer(payer),
+                        provider,
+                        model.program.as_deref(),
+                        None,
+                        None,
+                        coverage.as_slice(),
+                    )
+                    .is_empty()
+            {
+                serving = Some(*candidate);
+            }
+        }
+        choice.main = kept.or(usable).or(serving).unwrap_or(choice.main);
+        default_effort(&self.settings, policy, &mut choice.main);
+        let mut others = List::with_capacity(tasks::MODELS);
+        for candidate in &candidates {
+            if candidate.model != choice.main.model {
+                let mut candidate = *candidate;
+                default_effort(&self.settings, policy, &mut candidate);
+                others.push(candidate).expect("charter alternatives");
+            }
+        }
+        choice.subagents = others.into_boxed();
+        Some(choice)
+    }
+
     /// The chosen main model, without cloning the policy during an assignment recheck.
     pub(crate) fn chosen_main(&self, task: u64) -> &Model {
         let policy = &self.charter_of(task).policy;
-        if let Some(choice) = &self.tasks.task(task).expect("live agent task").llm
-            && takes(&self.settings.models, policy, choice)
+        if let Some(choice) = self.next_llm(self.tasks.task(task).expect("live agent task"))
+            && takes(&self.settings.models, policy, &choice)
         {
             let configured = self.settings.models.get(usize::from(choice.main.model)).expect("validated model index");
             return charter_model(policy, &configured.name).expect("validated charter model");
@@ -137,12 +170,12 @@ impl Core {
 
     /// The policy a run of `task` uses: its charter's, running its LLM choice's models, each the
     /// charter's model of that configured name with its chosen effort's name (domain/engine.md,
-    /// 7.1). A task with no choice, or one configuration no longer holds since it was checked,
-    /// its models reordered or taken from the charter, runs its charter's own.
+    /// 7.1). A choice that configuration no longer holds after model reordering or removal
+    /// from the charter falls back to the charter's own.
     pub(crate) fn chosen_policy(&self, task: u64) -> RunPolicy {
         let policy = &self.charter_of(task).policy;
-        let chosen = match &self.tasks.task(task).expect("live agent task").llm {
-            Some(choice) => chosen(&self.settings, policy, choice),
+        let chosen = match self.next_llm(self.tasks.task(task).expect("live agent task")) {
+            Some(choice) => chosen(&self.settings, policy, &choice),
             None => None,
         };
         match chosen {

@@ -593,6 +593,7 @@ fn a_refusal_leaves_the_words_empty() {
         let Some(pages::Request::Client(C::Read { handle, .. })) = out.pop() else { panic!("read") };
         assert!(page.environment_told(&Told::Page { handle, page: answer }));
         assert_eq!(page.program_environment(), b"");
+        assert!(!page.program_environment_answered());
     }
 }
 
@@ -610,4 +611,23 @@ fn sign_in_again_returns_only_a_stopped_welcome_check_to_the_panel() {
     assert_eq!(checked(&root), connect_model::ProgramCheck::Idle);
     assert!(root.pages().connect_model().unwrap().request.pending.as_ref().unwrap().outcome.is_some());
     assert_check(sends(signed_in(&mut root)).pop().expect("panel checks again").2);
+}
+
+#[test]
+fn an_empty_environment_answer_confirms_the_default_directories() {
+    use jig_client::{Event as C, Link, Readout, Told};
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut page = connect_model::ConnectModel::default();
+    assert!(!page.program_environment_answered());
+    let mut out = environment_read(&mut page, &program_address(false), Link::Live, &mut 0);
+    let Some(pages::Request::Client(C::Read { handle, .. })) = out.pop() else { panic!("read") };
+    let answer =
+        w::ProgramEnvironmentAnswer::new(&w::CEILINGS, w::ProgramEnvironmentAnswerParts { environment: Box::new([]) })
+            .unwrap();
+    assert!(page.environment_told(&Told::Page {
+        handle,
+        page: Readout::Family { family: wire::FORGE, record: Some(wire::program_environment_answer(&answer)) },
+    }));
+    assert_eq!(page.program_environment(), b"");
+    assert!(page.program_environment_answered());
 }

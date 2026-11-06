@@ -49,7 +49,7 @@ impl Repository {
     #[must_use]
     pub fn make_on(path: &OsStr, label: &str, files: &[File]) -> Self {
         let repository = Self::empty(label);
-        git(&repository.work_tree, path, &["init", "--quiet", "--initial-branch=main"]);
+        git(&repository.work_tree, path, &["init", "--quiet", "--initial-branch=main", "--template="]);
         repository.write(files);
         git(&repository.work_tree, path, &["add", "-A"]);
         git(&repository.work_tree, path, &["commit", "--allow-empty", "-q", "-m", "thin"]);
@@ -126,6 +126,9 @@ pub fn git_output(directory: &Path, path: &OsStr, args: &[&str]) -> Vec<u8> {
         .env("PATH", path)
         .env("GIT_CONFIG_NOSYSTEM", "1")
         .env("GIT_CONFIG_GLOBAL", "/dev/null")
+        .env("GIT_CONFIG_COUNT", "1")
+        .env("GIT_CONFIG_KEY_0", "maintenance.auto")
+        .env("GIT_CONFIG_VALUE_0", "false")
         .env("HOME", "/dev/null")
         .env("GIT_AUTHOR_NAME", "hearth")
         .env("GIT_AUTHOR_EMAIL", "hearth@hearth.invalid")
