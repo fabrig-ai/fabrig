@@ -368,22 +368,9 @@ fn the_conversation_tokens_stay_on_their_roles() {
     let proposal = fixtures::page_view(&fixtures::chat::proposal_root());
     let composer = fixtures::page_view(&fixtures::chat::messaging_root());
     let agent = agent_composer();
-    for token in [
-        AGENT_PAGE,
-        TASKBAR,
-        THREAD,
-        MESSAGE,
-        BY_PERSON,
-        BY_AGENT,
-        BY_TOOL,
-        BY_SYSTEM,
-        WHO,
-        SAYS,
-        WORK,
-        MARKER,
-        CARDS,
-        COMPOSER_AREA,
-    ] {
+    for token in
+        [AGENT_PAGE, TASKBAR, THREAD, MESSAGE, BY_PERSON, BY_AGENT, WHO, SAYS, WORK, MARKER, CARDS, COMPOSER_AREA]
+    {
         let role = match token {
             AGENT_PAGE => Role::Main,
             MARKER => Role::Region,
@@ -656,6 +643,19 @@ fn decision_tokens_name_the_away_rows() {
         (DECISION_WHY, b"temper-decision-why"),
         (DECISION_LATE, b"temper-decision-late"),
         (DECISION_OVERTURNED, b"temper-decision-overturned"),
+    ] {
+        assert_eq!(NAMES.style(token), Some(name));
+    }
+}
+
+#[test]
+fn work_tokens_name_the_line_and_its_rows() {
+    for (token, name) in [
+        (WORK_RUN, b"temper-work-run".as_slice()),
+        (WORK_RUNNING, b"temper-work-running"),
+        (WORK_FAILED, b"temper-work-failed"),
+        (WORK_CALLS, b"temper-work-calls"),
+        (WORK_OUT, b"temper-work-out"),
     ] {
         assert_eq!(NAMES.style(token), Some(name));
     }

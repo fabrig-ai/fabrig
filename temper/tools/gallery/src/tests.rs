@@ -1764,7 +1764,7 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Button, name: "Accept" },
             Part::Named { role: Role::Heading { level: 2 }, name: "JSON output for tally report" },
-            Part::Described { role: Role::Disclosure, name: "2 tool calls", description: "read ×2" },
+            Part::Named { role: Role::Disclosure, name: "read ×2" },
         ],
     },
     Holds {
@@ -2030,7 +2030,7 @@ const HOLDS: [Holds; samples::N] = [
         heading: "T1 · Add CSV export to widget",
         parts: &[
             Part::Named { role: Role::Link, name: "Task 2" },
-            Part::Described { role: Role::Disclosure, name: "1 tool call", description: "wait" },
+            Part::Named { role: Role::Disclosure, name: "wait" },
         ],
     },
     Holds {
@@ -2044,7 +2044,7 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Paragraph, name: "I would give widget" },
             Part::Named { role: Role::TextArea, name: "Message" },
-            Part::Absent { role: Role::Disclosure, name: "1 tool call" },
+            Part::Absent { role: Role::Disclosure, name: "note" },
         ],
     },
     Holds {
@@ -2287,8 +2287,8 @@ const HOLDS: [Holds; samples::N] = [
         heading: "T9 · Produce T8's branch",
         parts: &[
             Part::Named { role: Role::Log, name: "Conversation" },
-            Part::Described { role: Role::Disclosure, name: "5 tool calls", description: "read ×4 · shell" },
-            Part::Described { role: Role::Disclosure, name: "5 tool calls", description: "edit ×3 · shell ×2" },
+            Part::Named { role: Role::Disclosure, name: "read ×4, shell" },
+            Part::Named { role: Role::Disclosure, name: "edit ×3, shell ×2" },
             Part::Named { role: Role::Paragraph, name: "Errors carry their line now" },
         ],
     },

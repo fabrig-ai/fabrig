@@ -1,7 +1,5 @@
 //! Checked edge bounds for temper's frame, cards, transcript and tree.
-use crate::words::{Word, Words};
-use alloc::boxed::Box;
-use skein_ui::phrases::Hole;
+use crate::words::Words;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Limits {
     pub tree: skein_ui::Limits,
@@ -21,7 +19,6 @@ impl Limits {
             .max(domain.forge.field_bytes.checked_mul(3)?.checked_add(128)?);
         // An account heading joins the provider, plan/display and holder's words.
         let text = text.max(receiving.text.checked_add(words.name_bytes.min(256).checked_mul(3)?)?.checked_add(64)?);
-        let text = text.max(fold_bytes(receiving, words)?);
         // The toast wraps a full outgoing choice or reply label and "Answered: ".
         let text = text.max(temper_client_protocol_wire::CUE_BYTES.checked_add(24)?);
         // The sign-in return link percent-encodes a whole authorization address.
@@ -193,7 +190,8 @@ impl Limits {
             drawing_bytes: 0,
             scene_marks: 0,
             scene_bytes: 0,
-            styles_per_node: 3,
+            // Work, tool and run, plus independent running and failed states (3.5).
+            styles_per_node: 5,
             // A diff emits at most four patches a node (skein's ui.md, 7).
             patches: nodes.checked_mul(4)?,
             bindings: nodes,
@@ -218,17 +216,6 @@ fn card_nodes(receiving: &jig_client::DomainLimits, markdown: u32) -> Option<u32
     let cards = card.checked_mul(temper_client_domain::pages::inbox::card_capacity(receiving.reads).checked_add(1)?)?;
     Some(cards)
 }
-// A disclosure joins admitted tool names, count, separators and repetition
-// suffixes into one name (client/README.md, 3.5), beyond the turn's text budget.
-fn fold_bytes(receiving: &jig_client::DomainLimits, words: &Words) -> Option<u32> {
-    let calls = u64::from(receiving.rows);
-    let count = words.say(Word::ToolCalls, &[Hole::Number(calls)]);
-    let separator = words.say(Word::ToolSeparator, &[]);
-    let repeated = words.say(Word::ToolRepeated, &[Hole::Name(Box::default()), Hole::Number(calls)]);
-    let extra = u32::try_from(separator.len().checked_add(repeated.len())?).ok()?;
-    receiving.turn_text.checked_add(u32::try_from(count.len()).ok()?)?.checked_add(receiving.rows.checked_mul(extra)?)
-}
-
 /// Refuses unrepresentable UI limits, account row counts and phrase capacity.
 #[must_use]
 pub fn valid(limits: &Limits, domain: &temper_client_domain::Limits, words: &Words) -> bool {

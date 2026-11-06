@@ -1122,6 +1122,11 @@ pub const NAMES: Names<'static> = Names {
         b"temper-decision-why",
         b"temper-decision-late",
         b"temper-decision-overturned",
+        b"temper-work-run",
+        b"temper-work-running",
+        b"temper-work-failed",
+        b"temper-work-calls",
+        b"temper-work-out",
     ],
     regions: &[b"temper-link"],
 };
@@ -1283,6 +1288,17 @@ pub const DECISION_TOOK: Style = Style { owner: owner(), token: 443 };
 pub const DECISION_WHY: Style = Style { owner: owner(), token: 444 };
 pub const DECISION_LATE: Style = Style { owner: owner(), token: 445 };
 pub const DECISION_OVERTURNED: Style = Style { owner: owner(), token: 446 };
+
+/// A call run (temper/docs/design/client/README.md, 3.5).
+pub const WORK_RUN: Style = Style { owner: owner(), token: 447 };
+/// A call run (temper/docs/design/client/README.md, 3.5).
+pub const WORK_RUNNING: Style = Style { owner: owner(), token: 448 };
+/// A call run (temper/docs/design/client/README.md, 3.5).
+pub const WORK_FAILED: Style = Style { owner: owner(), token: 449 };
+/// A call run (temper/docs/design/client/README.md, 3.5).
+pub const WORK_CALLS: Style = Style { owner: owner(), token: 450 };
+/// A call run (temper/docs/design/client/README.md, 3.5).
+pub const WORK_OUT: Style = Style { owner: owner(), token: 451 };
 
 #[cfg(test)]
 mod tests {
