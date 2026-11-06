@@ -1441,6 +1441,17 @@ from the engine's own answers, is where the look is tuned.
 | `out-of-date` | a bundle older than the engine |
 | `chats-empty` | the chats with none, outside the playground |
 | `inbox-empty` | nothing needs the person |
+| `chat-closing-below` | a chat at rest with one task below it: a singular count and the hairline |
+| `chat-closing-proposal` | a chat at rest with one proposal: a singular count and the hairline |
+| `task-releasing-uncertain` | a release with an uncertain effect and its two choices |
+| `chat-closing-work` | a run, two delegates with opposite fates, and two proposals: what closing changes |
+| `chat-closing-failed` | the same close refused: the sheet keeps its choices and says why |
+| `chat-closed` | the requester closed it: one end line at 21:05, with a quiet bar |
+| `chat-closing-start-over` | a configuring chat's Start over confirmation |
+| `task-cancelling` | an agent's task Cancel confirmation, with a task below it |
+| `task-stopping` | an agent's task Stop confirmation |
+| `proposal-accepting` | a proposal's Accept confirmation |
+| `proposal-rejecting` | a proposal's Reject confirmation with its reason |
 | `chat-closing` | `chat-solo-T6` with Close pressed: its confirmation |
 | `chat-rejecting` | `chat-solo-T10` with Reject pressed: the reason's box |
 | `task-held` | an agent's task's plan with a held task, Release offered |

@@ -58,10 +58,10 @@
   configuring chat (`temper-client-view`'s `pages/chat.rs`, `main`), where nothing
   then says why Send stays grey; and no line says there that the playground is
   running or leaving. Seen by reading; no test holds it.
-- **Not yet:** 3.6, *The sheet*, *Closed ends on one line*: `confirm.rs` draws the
-  old dialog, "Confirm" and "Cancel", jig's decision words and counts, and closes on
-  the press; a closed chat says "Decision made", "Closed 01:37" and "Applied"
-  (`temper/docs/plan/look-round-10/`, whose tasks take this entry out).
+- **Not yet:** 3.6, *The sheet*, *Closed ends on one line*: the implementation,
+  focused tests and gallery states are in place. `look-round-10/close-chat-proof`
+  still owns the browser walk of each keep and act, the held-press checks, the long
+  delegate title at phone width, and the final render account.
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
 - **Not yet:** 3.5, *Home on any project*: on the stock policy the status agent
   is left no funding. Its roles' pools are as large as the project's period
