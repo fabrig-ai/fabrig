@@ -16,6 +16,14 @@ files = [
   "temper/crates/temper-client-view/src/pages/connect_model.rs",
   "temper/crates/temper-client-view/src/pages/accounts.rs",
   "temper/crates/temper-client-view/src/pages/accounts/rows.rs",
+  "temper/tools/journeys/src/main.rs",
+  "temper/tools/journeys/src/tests.rs",
+  "temper/docs/design/client/journeys.md",
+  "temper/docs/design/client/journeys/project-landing/**",
+  "temper/docs/design/client/journeys/welcome-playground/**",
+  "temper/docs/design/client/journeys/welcome-set-up/**",
+  "temper/tests/playground/tests/suite/walk.rs",
+  "temper/crates/temper-playground/src/tests/fixtures/story-a-start.log",
 ]
 effort = "high"
 minutes = 100
@@ -114,3 +122,41 @@ Inspect the automatically merged `pages/connect_model.rs` and `pages/welcome_mod
 Keep `printed_command` and `command_line` as the common source required by `notes/contracts.md` and client design 4.6.
 Regenerate gallery/journey output affected by the combined code using its tool.
 Run the spec’s focused validation through `heavy`, including the view and gallery packages; verify phrase/segment capacity against the combined words.
+
+## Answers
+
+2026-11-06. **Extend the recording tools to regenerate the remaining fixtures, or leave them to a follow-up?**
+Extend them, here, and only as far as below. This task's wire field is what makes these recordings stale, no other
+task owns them, and its spec already asks for them regenerated. `files` above grows by these paths. No test's expectation
+and no recorded walk changes.
+
+Start from the pushed `first-usable-model/printed-command-r1` (`a2d7fb6e4a`), brought up to the trunk; don't replay it.
+
+**The journeys.** The recording keeps what the page was given as it was (`temper/docs/design/client/journeys.md`, 3.5), so the
+box's command belongs in it, naming the fake box's own throwaway paths and none of the machine's:
+
+- `temper/tools/journeys/src/main.rs`: `scratch()` makes its directory under `/tmp`, never `env::temp_dir()`, which a
+  machine may point anywhere. `build()` copies the built `temper` and its `fake-claude` sibling into the scratch directory
+  and `Paths.temper` names that copy. A copy, since `current_exe` resolves a symlink, and the fake box needs the sibling
+  beside its binary (`fake_backends.rs`, `sibling`). `again.rs` is unchanged, and no box or service code learns of recordings:
+  `box --fake-backends` still publishes its line.
+- A focused test in `temper/tools/journeys/src/tests.rs`, if the copy is a function it can call.
+- Run `again` for `project-landing`, `welcome-playground` and `welcome-set-up`, then the plain reprint. Each recording then
+  holds `/tmp/temper-journey-*` paths. `tests/boundary/tests/outward.rs` and `the_committed_journeys_are_their_print` must pass.
+- `temper/docs/design/client/journeys.md`: two clauses, and no other design line. In 8.1's *A fresh fake box*, say that the
+  box runs a copy of the built binary and its fake-claude, in a scratch directory under `/tmp`. In 3.5's list of what the
+  page was given, add "the box's printed command".
+- If `again` refuses a walk (`WalkDiffers`, or an act that no longer holds), stop and report it: walking a journey anew is
+  a new question.
+
+**`story-a-start.log`.** It is the kept log's start: the kept log's lines through its first `/jig/v1/request` input (`path=L2ppZy92MS9yZXF1ZXN0`,
+body `Y8vh5FkyDde4tMKXfqvORQEAAQAAAA4AAAAIAQAAAAMADggA`; line 19 of `a2d7fb6e4a`'s `story-a.log`), then a line `cut`. Give it the tool it lacks:
+
+- `temper/tests/playground/tests/suite/walk.rs`: under the `SKEIN_CODEGEN_WRITE` hook that writes `story-a.log`, also write
+  that cut to `temper/crates/temper-playground/src/tests/fixtures/story-a-start.log`, found by the first such input, so the two
+  logs regenerate together. Nothing else in the walk changes.
+- Its test in `temper-playground`, `story_a_start_makes_its_project_and_adopts_widget`, stays as it is and must pass on the
+  regenerated log. If it doesn't, stop and report how: the short log's shape is then a new question.
+
+**Left.** The 13 `temper-client-tools` failures at `task_text.rs:102` fail on the base too and aren't this task's: keep them
+under `## Left`.

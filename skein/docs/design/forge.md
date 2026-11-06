@@ -421,6 +421,10 @@ By name; the code holds the fields.
 - **`Settings`:** a repository's default branch and the merge styles it
   allows.
 - **`Collaborator`:** a user's id and `Permission`.
+- **`UserPermission`,** `Permission`'s answer: the user's id, the login
+  the forge names them by and their `Permission`. The login is empty
+  where the permission is read without one, as a GitHub bot's from its
+  installation.
 
 `Provenance` is `Original`, `Revised` or `Unknown`. A dialect that
 cannot tell whether a historical creation was edited answers `Unknown`,
@@ -805,7 +809,7 @@ first failure, but where a row says otherwise.
 | `Read::Protection { branch }` | `GET R/branches/<branch>`; then `GET R/branch_protections/<effective_branch_protection_name>` when it names a rule, or `GET R/branch_protections` when it names none | `rule_name`, `status_check_contexts` when `enable_status_check`, `required_approvals`, `dismiss_stale_approvals`, `require_signed_commits`; none when no rule applies; a `403` (a writer who is not an admin) `Forbidden` |
 | `Read::Settings` | `GET /api/v1/repositories/<id>` | `default_branch`; `allow_merge_commits`, `allow_squash_merge`, `allow_rebase`; the repository's row kept afresh |
 | `Read::Collaborators { page }` | `GET R/collaborators?page=<page>&limit=<size>`; for each user, `GET R/collaborators/<login>/permission` | each user's `id` and permission; `more` when the page came full |
-| `Read::Permission { user }` | `GET R/collaborators/<login>/permission` | `permission`: `none`, `read`, `write`, `admin`, and `owner` as `Admin` |
+| `Read::Permission { user }` | `GET R/collaborators/<login>/permission` | `permission`: `none`, `read`, `write`, `admin`, and `owner` as `Admin`; the login the read resolved |
 | `Read::Locate { owner, name }` | `GET /api/v1/repos/<owner>/<name>` | `Located { repository }` from `id`; the repository's row kept |
 | `Write::CreateIssue { key, title, body, labels }` | `GET R/labels` for the labels' ids, when it names any; `POST R/issues` `{title, body, labels}`, the body behind the key's marker | `Created` from `number`; `Missing` for a label the repository lacks, before any write (Forgejo drops an unknown id silently) |
 | `Write::Labels { number, labels }` | `GET R/labels`; `PUT R/issues/<number>/labels` `{labels: [ids]}` | `Done`; `Missing` for a label the repository lacks, before any write |

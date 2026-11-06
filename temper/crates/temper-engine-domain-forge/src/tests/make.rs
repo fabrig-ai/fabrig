@@ -13,6 +13,7 @@ fn place(host: &[u8]) -> Place {
 fn fresh(under_box: bool) -> Domain {
     let mut d = setup_domain(&[], under_box);
     d.set_machine(Machine {
+        owned_person: Box::new([]),
         owned: Some(place(b"owned.example")),
         fake: None,
         github: place(b"github.example"),
@@ -257,9 +258,16 @@ fn an_unoffered_machine_or_box_makes_nothing() {
     application(&mut no_box, 1, setup(Making::New(ForgeAsk::Owned)));
     assert_setup_refusal(&no_box, 1, SetUpRefusal::NotUnderTheBox);
     assert!(no_box.records.is_empty());
-    for machine in
-        [None, Some(Machine { owned: None, fake: None, github: place(b"github.example"), github_git_program: None })]
-    {
+    for machine in [
+        None,
+        Some(Machine {
+            owned_person: Box::new([]),
+            owned: None,
+            fake: None,
+            github: place(b"github.example"),
+            github_git_program: None,
+        }),
+    ] {
         let mut d = setup_domain(&[], true);
         d.machine = machine;
         let out = application(&mut d, 1, setup(Making::New(ForgeAsk::Owned)));

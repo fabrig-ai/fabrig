@@ -368,7 +368,7 @@ keeps (`../protocol/configuration.md`, section 2).
 | `Forges` | `forges.html` | inside Settings' frame while a project is open (*Settings,* below): the person's forges, each row folded until opened: its connection, its mode and access, on GitHub temper's App and its installations, a connect under way and how the last ended, its load; then the playground's forge, folded, while the playground is read (4.8); "+ Add a forge", to `ConnectForge`, but while the playground runs (`forge.md`, 5.4) | the forge's, through the forge's side (4.2) | connect a stopped forge; replace a key or tokens; install on another account; new repository; forget the admin's token; set up again; remove a forge, confirmed (section 8) |
 | `ConnectForge { forge }` | `connect-forge.html` | under its path (*Settings,* below), connecting one more forge, `forge` the choice it is at: Choose, Details, Setting up and Ready, which ends on the forge connected, adopting nothing (`forge.md`, 5.4) | the forge's, through the forge's side (4.2) | connect; connect as its admin; set up a Forgejo here (section 8) |
 | `Welcome { step }` | `welcome.html`; the first run's step 0 | the first run's welcome, by the store's state, empty, unfinished or whole (below): "Try the playground" or "Set up temper", the latter a wizard of Welcome, Forge, Model and Ready, its `step` (5.6; `../draft/archive/first-run.md`, 2.3) | the playground's read (4.8); `accounts`; the `forges` watch, for a person whose role holds the deployment's forges; the forge's, as `ConnectForge` reads it | start the playground; start a forge cut short over, or go on with it; `ConnectForge`'s and `ConnectModel`'s acts |
-| `Accounts` | `accounts.html` | inside Settings' frame while a project is open (*Settings,* below), and there "Sign out" at its foot: the person's LLM accounts, then, for an owner, the deployment's, each row folded until opened: its LLM provider and display name, its holder, its deciding source's state and its line (5.5, An account's line); opened, that state's words and acts, its sources in order, each with its state in words and, for a program's, on which hosts (5.5), what it pays for, the runs using it and the tasks waiting for it (facts jig gives the deployment's accounts alone for now, so a person's own leave them out: 5.5) and its acts; the checks under way, and how the last ended; then the playground's account, folded, while the playground is read (4.8); "+ Connect a model", to `ConnectModel`, but while the playground is read | `accounts` (jig's `client/domain/contract.md`, 7.1); `me`'s LLM providers | sign in again or add a key from a state's acts, as `ConnectModel`'s ways; sign a source out; add a key to an account; replace a key; remove a source or an account; check a program's login again; move an account, or a source, up or down; resume a limited source |
+| `Accounts` | `accounts.html` | inside Settings' frame while a project is open (*Settings,* below), and there "Sign out" at its foot, in a browser at a phone's width alone: the person's LLM accounts, then, for an owner, the deployment's, each row folded until opened: its LLM provider and display name, its holder, its deciding source's state and its line (5.5, An account's line); opened, that state's words and acts, its sources in order, each with its state in words and, for a program's, on which hosts (5.5), what it pays for, the runs using it and the tasks waiting for it (facts jig gives the deployment's accounts alone for now, so a person's own leave them out: 5.5) and its acts; the checks under way, and how the last ended; then the playground's account, folded, while the playground is read (4.8); "+ Connect a model", to `ConnectModel`, but while the playground is read | `accounts` (jig's `client/domain/contract.md`, 7.1); `me`'s LLM providers | sign in again or add a key from a state's acts, as `ConnectModel`'s ways; sign a source out; add a key to an account; replace a key; remove a source or an account; check a program's login again; move an account, or a source, up or down; resume a limited source |
 | `ConnectModel { way }` | `connect-model.html` | under its path (*Settings,* below), connecting one more LLM account, `way` the way it is at, or none at Choose: Choose, a card for each way its providers offer (5.5, The ways); Signing in, at the provider, for a sign-in, or Details, a way's field, for a key or a program's login; and Ready, the account made, or how the sign-in ended (5.5, A sign-in) | `accounts`; `me`'s LLM providers | sign in with an LLM provider; add a key as an account of its own; declare a program's login |
 | `Proposal { proposal }`, later (5.13) | none: the user's (5.13) | a proposal of settings: temper enforces and your agents follow, its effect on running work, the settings folded; withdrawn when stale; accepted (5.13) | the `proposal`; `settings`; each item's setting before | accept, choosing whether running work moves; reject with a reason; change something, in the chat |
 
@@ -1273,8 +1273,9 @@ keeps (`../protocol/configuration.md`, section 2).
     field the note's width. A browser that refuses the new tab reads
     "ChatGPT’s sign-in", no "in the new tab", with "Open ChatGPT’s sign-in ›"
     as the primary button in the link's place, the person's own click. The
-    terminal reads "ChatGPT’s sign-in" too, and draws no link: it prints the
-    address (6.5). `ConnectModel` draws the same note, link and disclosure.
+    terminal reads "ChatGPT’s sign-in" too, with no spinner, and its link reads
+    "Open the sign-in page", printed with the address (6.5). `ConnectModel`
+    draws the same note, link and disclosure.
     *Finishing a paste* is the same note, a spinner and "Finishing your sign-in…". A sign-in's
     other endings (declined, held, refused, the port taken) keep their
     words and acts, drawn as `ConnectModel`'s are (5.5, A sign-in). After
@@ -1909,8 +1910,9 @@ keeps (`../protocol/configuration.md`, section 2).
     nothing but the words naming the project.
   - *Sign out* is the last row of the `Accounts` tab: "Signed in as NAME",
     its login in small type, and "Sign out"; with "Sign out did not reach
-    the engine." beside it as 6.6 says. With no project, the banner has them
-    (5.1).
+    the engine." beside it as 6.6 says. A browser draws this row at 760 px and
+    under alone, where the rail has no foot; wider, "Sign out" is the person's
+    menu's (5.3). With no project, the banner has them (5.1).
   - *How work runs* is 5.13.
   - *Repositories:* a section whose head holds the title "Repositories · N"
     and "Adopt a repository", to `Adopt { project }`; then a line per
@@ -3458,7 +3460,7 @@ page (5.1): a navigation named by the open project, in this order:
   `drafts_offered` (3.5); then, after a rule, "All ways to start work", muted, one
   line, to `Settings { project }`, or `HowWorkRuns` once it has an address. Each
   half takes the hover's grey; open, the button keeps it and its chevron turns ink.
-  Skein's keys, arrows and Escape; a press on an item closes it; a focused item
+  Skein's keys, arrows and Escape; a press on an item or outside closes it; a focused item
   takes the hover's grey. A phone doesn't show the entry. Which templates it offers
   is fixed until `../draft/template-places.md` is taken up;
 - at its foot: the Away switch, while 3.5's *Away* shows it; while the
@@ -3470,12 +3472,21 @@ page (5.1): a navigation named by the open project, in this order:
   terminal, whose first line reads it (6.4); "Settings", to `Settings
   { project }`, current on every tab and page 3.5's *Settings* names,
   with the dots "Forges" and "Accounts"
-  carry below, each its state in words; the person's name; and "Sign
-  out did not reach the engine." while `me` or the page cannot say
-  otherwise (6.6), "Sign out" itself being the `Accounts` tab's (3.5).
+  carry below, each its state in words; the person's name, a line in the
+  terminal and the person's menu in a browser; and "Sign out did not reach
+  the engine." while `me` or the page cannot say otherwise (6.6), the
+  terminal's "Sign out" being the `Accounts` tab's (3.5);
+- the person's menu, a browser's: the person's name is the button of
+  skein-ui's menu (`Role::Menu`; skein's `ui-web.md`, 7), in a
+  `div.temper-rail-person`, drawn as the foot's other rows. It opens a panel
+  above the row, as wide as it, in the look of the switcher's menu. Its items:
+  "Accounts", to `Accounts`, and "Sign out", the `Accounts` tab's act. A press
+  on an item, Escape and a press outside close it, the focus back on the row
+  unless that press took it elsewhere. Open, the row keeps the hover's grey. A
+  phone has no foot, and signs out on the `Accounts` tab (3.5).
 
 "Forges", "Accounts" and "Adopt a repository" are no entries of the
-rail: they are `Settings`' tabs and the Repositories tab's (3.5). On a phone, at 760 px and under, the rail is a top
+rail's navigation: they are `Settings`' tabs and the Repositories tab's (3.5). On a phone, at 760 px and under, the rail is a top
 bar showing the switcher alone, and the tab bar closes the page: in the
 browser, a navigation named "Sections" after the main, with "Home",
 "Needs you", then "Goals" and "Chats" while kind 7 shows Goals, "Chats"
@@ -6141,6 +6152,12 @@ own tests:
   with a project or an account on it; the small engine profile whole, whose client
   limits alone ran; another platform's build, a failed or corrupt download, two
   fetches at once; a copy from a public host. Default: none, until a plan walks them.
+- **What feeds the try** (3.5, *The try*; `../draft/model-check.md`): the trial's
+  task and charter, how it selects its model, who pays, what ends it and its
+  cancelling on leaving are that draft's, and are designed as it is built, with
+  what it leaves open: an act on Settings' accounts, and a world for the wait.
+  Default: the host's check feeds the box's first step, and a model usable moves
+  on to Ready.
 - **The rename's opening and closing, as the mock draws them** (5.3; the request
   `ui-rename-focus` of 2026-11-06): the mock selects the name as the form opens,
   folds the menu as it closes and says "Renamed" in a toast. A view can neither
@@ -6212,8 +6229,8 @@ own tests:
   that gets it goes on in its own tab, the others in a tab of their own
   with the paste; or a connection from an address not the engine's
   machine's goes so at once. Later: a client relaying the redirect
-  (jig's `protocol/llm.md`, section 10). Default: undetected, the
-  person's choice.
+  (jig's `protocol/llm.md`, section 10). Default: undetected, the paste
+  offered to everyone.
 - **The first use of a plan,** in the terminal: a card in the
   conversation, or a card that waits to be dismissed, another kind of
   `Dismissed`, keyed by its account (`../draft/to-begin.md`, section 5).
@@ -6411,6 +6428,13 @@ own tests:
   source does not. Candidate: the page shows the person's sign-in under
   way for that provider, with its end. Default: the way's button
   again.
+- **The address on a page come back** (3.5, *The sign-in under way*;
+  `../draft/sign-in-new-tab.md`, 3): a sign-in's address is the answer to
+  the client that asked, so a page come back or reloaded, a new client,
+  draws the note with no "Open it again", where that draft has a reload
+  draw the same page. Candidate: the accounts document gives a sign-in's
+  holder its address, which jig's `protocol/llm.md`, 5.2 keeps as an
+  answer alone. Default: no link, the paste still offered.
 - **Which tasks hold a revision, and which could move** (5.13). jig's
   `settings` document counts the live tasks holding each revision, but
   a task query has no revision among its keys (jig's
