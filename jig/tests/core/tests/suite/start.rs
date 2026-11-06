@@ -1,5 +1,6 @@
 //! Direct Core mechanics only. Real journal/store release, crash recovery and
 //! the durable readback oracle belong to the reference-root integration.
+use jig_core_world::fixtures::{link, phase};
 use jig_domain_accounts as accounts;
 use jig_domain_core::{
     self as core,
@@ -35,26 +36,10 @@ impl Harness {
         ));
     }
 
-    fn link(&mut self) -> Action {
-        phase(&self.core.start_done(&self.env, Phase::LoadCore, &mut self.out), Phase::LoadInbox);
-        let mut previous = Phase::LoadInbox;
-        for connector in self.core.connectors.clone() {
-            let next = Phase::RestoreConnector { connector };
-            phase(&self.core.start_done(&self.env, previous, &mut self.out), next);
-            previous = next;
-        }
-        phase(&self.core.start_done(&self.env, previous, &mut self.out), Phase::Link);
-        self.core.start_done(&self.env, Phase::Link, &mut self.out)
-    }
-
     fn record(&mut self, record: accounts::Stored) {
         let out = core::step(&mut self.core, &self.env, core::Event::Account(accounts::Event::Restore { record }));
         assert!(out.len() <= 1);
     }
-}
-
-fn phase(action: &Action, expected: Phase) {
-    assert!(matches!(action, Action::Step(found) if *found == expected));
 }
 
 fn account(number: u32) -> accounts::Stored {
@@ -137,7 +122,9 @@ fn cleanup_acknowledgement_blocks_sweep_and_held_account_outputs_are_metered() {
         name: Box::new([]),
         held: None,
     });
-    let Action::Commit(cleanup) = h.link() else { panic!("counter cleanup requires a commit") };
+    let Action::Commit(cleanup) = link(&mut h.core, &h.env, &mut h.out) else {
+        panic!("counter cleanup requires a commit")
+    };
     let captured = meter.end();
     meter.check(captured, 18_000, &h.env.limits);
     assert!(captured.held() > 0);
