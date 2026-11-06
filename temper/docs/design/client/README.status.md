@@ -73,6 +73,13 @@
   then says why Send stays grey; and no line says there that the playground is
   running or leaving. Seen by reading; no test holds it.
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
+- **Not yet:** 3.5, *The try*: the view has no fact of a trial, so `model_check::trial`,
+  the one function `../draft/model-check.md`, 2 to 4, feeds, reads the host's check alone:
+  under way is the first step Running with no "one short message", and settled with no
+  usable source is the first step Stopped. No page reaches Answered, a sign-in's or a
+  key's steps, a stop at a later step, a reason with no act, or the box on `ConnectModel`:
+  each is drawn and tested, and `model_check::last_try_failed` is false, so Ready's muted
+  line is not said. A model usable moves on to Ready by itself until that draft is built.
 - **Not yet:** 3.5, *Home on any project*: on the stock policy the status agent
   is left no funding. Its roles' pools are as large as the project's period
   (`temper-service`'s `stock.rs`, `project_policy`), so once a person's pool has

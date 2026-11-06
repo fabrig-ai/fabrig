@@ -14,7 +14,9 @@ fn the_looks_names_pass_skeins_check() {
     assert!(skein_ui::look::check(&[NAMES]).is_none());
     assert_eq!(NAMES.style(CHAT_GOAL), Some(b"temper-chat-goal".as_slice()));
 }
-const FLOW_NAMES: [(skein_ui::Style, &[u8]); 25] = [
+const FLOW_NAMES: [(skein_ui::Style, &[u8]); 27] = [
+    (WELCOME_CHECK, b"temper-welcome-check"),
+    (WELCOME_CHECK_WHY, b"temper-welcome-check-why"),
     (FLOW_BUSY, b"temper-flow-busy"),
     (FLOW_METER, b"temper-flow-meter"),
     (FLOW_PRIMARY, b"temper-flow-primary"),
