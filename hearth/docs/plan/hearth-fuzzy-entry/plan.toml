@@ -1,0 +1,3 @@
+draft = "hearth-fuzzy-entry"
+repo = "fabrig"
+sources = ["hearth/docs/plan/hearth-fuzzy-entry/inputs/request.md", "tools/tiers/budgets.toml", "AGENTS.md", "DESIGN.md"]
