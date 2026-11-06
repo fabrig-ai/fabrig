@@ -590,14 +590,38 @@ pub(crate) fn rail(
     }
     away(b, root, w, bindings, times, project, crate::look::AWAY);
     settings_link(b, root, w, bindings, project);
-    if let Some(me) = root.pages().me(root.client()) {
-        text(b, Role::Status, me.party.name.bytes(), None);
-    }
+    person(b, root, w, bindings);
     if root.client().link().sign_out_lost {
         text(b, Role::Alert, &w.say(Word::SignOutLost, &[]), None);
     }
     b.close();
     b.close();
+}
+
+/// The rail's person: a line in the terminal, a menu in a browser
+/// (temper/docs/design/client/README.md, 5.3).
+fn person(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mut Bindings) {
+    use crate::words::{Shell, Word};
+    let Some(me) = root.pages().me(root.client()) else { return };
+    match w.shell {
+        Shell::Terminal => text(b, Role::Status, me.party.name.bytes(), None),
+        Shell::Browser => {
+            b.open(Role::Slot);
+            b.style(crate::look::RAIL_PERSON);
+            b.open(Role::Menu);
+            b.name(me.party.name.bytes());
+            for (word, act) in
+                [(Word::SettingsAccountsTab, Act::Go { address: Address::Accounts }), (Word::SignOut, Act::SignOut)]
+            {
+                b.open(Role::MenuItem);
+                b.name(&w.say(word, &[]));
+                b.bind(bindings.insert(act));
+                b.close();
+            }
+            b.close();
+            b.close();
+        }
+    }
 }
 
 /// The shared switch and browser chip (temper/docs/design/client/README.md, 3.5, Away).
