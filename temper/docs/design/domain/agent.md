@@ -850,6 +850,16 @@ agents must do stays text its runs read.
   fills the available page even after its heading; `next: OFFSET` counts
   original UTF-8 text bytes for exact reconstruction. This allowance is
   separate from `read_docs`' fixed bound (`../protocol/documentation.md`, 5).
+- **temper's own way:** asked to set a project up the way temper builds
+  itself ("Start from it", `../client/README.md`, 3.5), it reads the stock
+  page `how-temper-builds-temper` with `read_docs`
+  (`../protocol/documentation.md`, 2.2), the same page the person reads
+  beside the page, and proposes its settings sized for the deployment: the
+  slots its workers have, the models its accounts reach. What the deployment
+  cannot do yet it says, and leaves out; workers stay the deployment's. Its
+  "How PROJECT works" keeps a column of temper's own values beside the
+  project's, so that each difference is a sentence the person can change:
+  its words, not a view of the client's.
 - **Its instructions** are held in the binary, in the `stock` module's
   `configuring.txt`, and say, in the person's register:
   - the test for each sentence of a description: would temper's engine

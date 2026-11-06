@@ -36,6 +36,8 @@ charter documents.
   (`temper-engine-smith/src/calls.rs`, `tools_for`). So a coding agent's run spends
   its room on it too; a call from anything but a goal answers ask, or is refused
   for want of the control family (`forge.status.md`, 5.9).
+- **Not yet:** 8.1, *temper's own way*: `configuring.txt` names no reference, and
+  its document no column of temper's own values (`configure-temper-own-way`).
 - **Departs:** 8.3: the scripted fake model's goal script names literal
   numbers, project 1 and goal 2 (`temper-fake/src/backends.rs`,
   `model_document`), because its scripts are static, so on `temper box

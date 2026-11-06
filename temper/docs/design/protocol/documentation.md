@@ -17,9 +17,9 @@ help. People read the site, which is outside temper's design.
 - **Pages in `docs/help/`, one table.** `temper-docs` holds a row per
   page: its name, kind, title, summary and text. The table is the map
   (`../draft/agent-docs.md`, section 4), and the directory equals it.
-- **Five kinds, each with its template and bound:** `index`, `concept`,
-  `walk`, `recipe` and `reference`, the last generated from the code's
-  tables (2.2).
+- **Six kinds, each with its template and bound:** `index`, `concept`,
+  `walk`, `recipe`, `way` and `reference`, the last generated from the
+  code's tables (2.2).
 - **Compiled in, as data.** `temper-docs` holds every page as static
   text, and the functions that find, page and search them. It decides
   nothing and has no state: the same binary always says the same thing.
@@ -68,8 +68,14 @@ help. People read the site, which is outside temper's design.
 | `concept` | 8,192 bytes | `What it is`; `How it changes` (optional); `What temper guarantees`; `Acting on it`; `Limits` | the map's nouns |
 | `walk` | 12,288 bytes | `Before you start`; numbered steps, `## 1. …`; `Clean up`; `Next` | the map's walks |
 | `recipe` | 3,072 bytes | `Goal`; `Settings`; `Enforced and followed`; `Checking it took` | the map's recipes |
+| `way` | 8,192 bytes | numbered sections, `## 1. …`, from 1; free otherwise | a way of working temper ships: `how-temper-builds-temper` |
 | `reference` | 32,768 bytes | a heading per row, its usage's words | generated (8.1 of the draft) |
 
+- **A way** is read by a person as well as an agent: the client draws
+  `how-temper-builds-temper` beside "Configure temper"
+  (`../client/README.md`, 3.5), and the configuring agent reads it
+  (`../domain/agent.md`, 8.1). Its summary is the line under its title,
+  of up to two sentences.
 - **A walk's step** holds its commands, then a paragraph that starts
   `Expect:` with the output's first line verbatim, then one that starts
   `If not:` with each other outcome a sound temper gives and its act.
@@ -89,14 +95,18 @@ section 6) is the writer's and the review's.
 
 A crate of no side (`../README.md`, section 9), `#![no_std]` with `alloc`,
 that depends on nothing of temper's and that `temper`,
-`temper-client-tools` and `temper-engine-smith` depend on.
+`temper-client-tools`, `temper-engine-smith` and `temper-client-view` depend
+on.
 
 - **The table:** `PAGES: [Page; N]`, each `Page { name, kind, title,
-  summary, text }` as `&'static str` (kind an enum of section 2.2's five),
+  summary, text }` as `&'static str` (kind an enum of section 2.2's six),
   its text the file's whole bytes by `include_str!`, in this order:
-  `index`, then the concepts, walks, recipes and reference pages, each
-  by name. The table is written by hand; the step test (section 6)
+  `index`, then the concepts, walks, recipes, ways and reference pages,
+  each by name. The table is written by hand; the step test (section 6)
   keeps it equal to the directory.
+- **`HOW_TEMPER_BUILDS_TEMPER`:** that page's row as a `const Page`, the
+  table's entry its copy, so that the client's view takes this page alone
+  and its bundle none of the others.
 - **`find(name) -> Option<&Page>`**, by the exact name.
 - **`page(page, from, bytes) -> Cut`:** the page's text from byte
   `from`, cut at the last line end whose rendered size is within
