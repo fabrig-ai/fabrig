@@ -2,8 +2,6 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, the configuring layout: its line has nothing behind it, and "Models by role" names Claude and a
-  ChatGPT plan whatever is connected.
 - **Not yet:** 3.5, The welcome's Model step, *The sign-in under way*, and `ConnectModel`, *While it waits* and
   *From another computer*: the card's line and the note say a new tab, and nothing opens one: a press still
   sends a `Return` and the page's own tab leaves, until `../draft/sign-in-new-tab.md` is built. So the note shows
