@@ -60,7 +60,6 @@
   running or leaving. Seen by reading; no test holds it.
 - **Not yet:** 3.5, *The configuring chat's page*: the top bar's line joins the first usable account's kind to the first model `me` serves, whatever their LLM providers (`temper-client-view`'s `pages/configure.rs`, `byline`).
 - **Not yet:** 3.5, *Its status*, 5.5, *A run's wait*: a run that can't start reads as starting, with dots, and a configuring chat draws no wait at all (`temper-client-view`'s `pages/chat.rs`, `choice.rs`).
-- **Not yet:** 4.6, *The printed command*: the pages print `temper program-login NAME`, which fails with directories of its own or `temper` off `PATH` (`temper-client-view`'s `accounts/words.rs`).
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
 - **Not yet:** 3.5, *Home on any project*: on the stock policy the status agent
   is left no funding. Its roles' pools are as large as the project's period

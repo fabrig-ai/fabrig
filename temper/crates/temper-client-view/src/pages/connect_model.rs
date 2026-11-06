@@ -478,7 +478,7 @@ pub(super) fn program_body(b: &mut Builder, root: &Domain, w: &Words, bindings: 
         }
         b.close();
     }
-    command(b, w, &name, false);
+    command(b, root, w, &name, false);
     muted(b, &say(w, W::ProgramNote));
     button(
         b,
@@ -507,10 +507,32 @@ fn key_details(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Binding
     button(b, bindings, &w.say(Word::ModelAddKey, &[]), Act::Submit { name: root.pages().account_name() }, busy, true);
     b.close();
 }
-pub(super) fn command(b: &mut Builder, w: &Words, name: &[u8], welcome: bool) {
+/// The whole command for NAME (client/README.md, 4.6, *The printed command*).
+pub(crate) fn printed_command(root: &Domain, w: &Words, name: &[u8]) -> Box<[u8]> {
+    if let Some(answer) = root.forge().deployment()
+        && let Some(line) = &answer.program_login
+    {
+        words::join(&[line, b" ", &crate::choice::shown(name, w)])
+    } else {
+        named(w, W::Command, name)
+    }
+}
+/// The same command with the words saying where to run it.
+pub(crate) fn command_line(root: &Domain, w: &Words, name: &[u8]) -> Box<[u8]> {
+    words::join(&[&command_prompt(root, w), &printed_command(root, w, name)])
+}
+fn command_prompt(root: &Domain, w: &Words) -> Box<[u8]> {
+    let word = match root.forge().deployment() {
+        Some(answer) if answer.program_login.is_some() => W::ProgramCommandHere,
+        Some(_) | None => W::ProgramCommand,
+    };
+    named(w, word, b"")
+}
+pub(crate) fn command(b: &mut Builder, root: &Domain, w: &Words, name: &[u8], welcome: bool) {
+    description(b, &command_prompt(root, w));
     b.open(Role::Code);
     b.style(if welcome { crate::look::WELCOME_CMD } else { crate::look::FLOW_CODE });
-    b.text(Run::Plain, &named(w, W::Command, name));
+    b.text(Run::Plain, &printed_command(root, w, name));
     b.close();
 }
 pub(super) fn ready_body(
@@ -544,7 +566,7 @@ pub(super) fn ready_body(
             );
             crate::cards::text(b, Role::Status, &label);
             text(b, w, Role::Paragraph, W::ProgramRun);
-            command(b, w, name, false);
+            command(b, root, w, name, false);
             text(b, w, Role::Paragraph, W::ProgramNote);
         }
         Way::SignIn { .. } => {

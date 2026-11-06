@@ -813,6 +813,7 @@ pub fn startup_with(
         forges,
         None,
         None,
+        None,
         given,
     )
 }
@@ -842,6 +843,7 @@ pub fn with_setup_given(
     forges: List<crate::ForgeRuntime>,
     setup: Option<&temper_forge_setup::check::Checked>,
     box_line_bytes: Option<u32>,
+    program_login: Option<Box<[u8]>>,
     given: &crate::stock::Given,
 ) -> Result<Service, Problems> {
     let CheckedStart { engine, worker, io, forges, not_set_up } =
@@ -860,7 +862,7 @@ pub fn with_setup_given(
         },
         None => None,
     };
-    match Service::prepared(engine, seeds, accounts, forges, worker, io, box_line_bytes) {
+    match Service::prepared(engine, seeds, accounts, forges, worker, io, box_line_bytes, program_login) {
         Ok(mut service) => {
             for number in &not_set_up {
                 crate::setup::lifecycle::state(
@@ -898,6 +900,7 @@ pub fn with_setup(
         forges,
         setup,
         box_line_bytes,
+        None,
         &crate::stock::Given::Stock,
     )
 }

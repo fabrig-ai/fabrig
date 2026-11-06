@@ -1984,7 +1984,12 @@ fn model_shapes_keep_the_forge_beside_the_column_in_both_shells() {
         (3, "Connect a model", false, "ChatGPT’s sign-in, in this tab"),
         (4, "Signing in to ChatGPT from another computer", true, "Paste it here."),
         (5, "Connect a model", false, "Finishing your sign-in…"),
-        (6, "Your Claude subscription", true, "temper program-login claude-pat"),
+        (
+            6,
+            "Your Claude subscription",
+            true,
+            "temper program-login --config CONFIG --data DATA --cache CACHE claude-pat",
+        ),
         (7, "Signing in to ChatGPT", true, "You signed in without plan usage."),
         (8, "Signing in to ChatGPT", true, "Another person here holds that ChatGPT account."),
         (9, "Signing in to ChatGPT", true, "Needs sign-in"),
@@ -2362,7 +2367,10 @@ fn welcome_claude_states_keep_the_command_and_check_in_both_shells() {
                 assert!(!has_style(tree, crate::look::WELCOME_PANEL));
                 assert!(has_style(tree, crate::look::WELCOME_AWAY));
             } else {
-                assert!(String::from_utf8_lossy(&f::text(tree)).contains("temper program-login claude-pat"));
+                assert!(
+                    String::from_utf8_lossy(&f::text(tree))
+                        .contains("temper program-login --config CONFIG --data DATA --cache CACHE claude-pat")
+                );
                 assert!(has_style(tree, crate::look::WELCOME_CMD));
                 node(tree, Role::Button, "I’ve signed in");
                 node(tree, Role::Link, "All ways");
@@ -2635,6 +2643,32 @@ fn ready_copies_name_the_project_and_lead_in_both_shells() {
             let text = String::from_utf8_lossy(&f::text(view.tree())).into_owned();
             assert!(!text.contains(" made"));
             assert!(!text.contains("Copying"));
+        }
+    }
+}
+
+#[test]
+fn welcome_prints_the_deployments_program_command_or_the_placeholders() {
+    for line in [
+        None,
+        Some(b"'/box/temper' program-login --config '/box/config' --data '/box/data' --cache '/box/cache'".as_slice()),
+    ] {
+        let (mut root, watch) = super::connect_model::program_root_with_line(model_address(d::WayKind::Program), line);
+        let mut doc = super::accounts::document(0);
+        doc.usable = false;
+        doc.settled = true;
+        super::accounts::deliver(&mut root, watch, doc);
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let shown = String::from_utf8(f::text(view.tree()).into_vec()).unwrap();
+            let expected = match line {
+                Some(_) => {
+                    "On this machine, run: '/box/temper' program-login --config '/box/config' --data '/box/data' --cache '/box/cache' claude-pat"
+                }
+                None => {
+                    "On each host, with its directories: temper program-login --config CONFIG --data DATA --cache CACHE claude-pat"
+                }
+            };
+            assert!(shown.contains(expected), "{shown}");
         }
     }
 }
