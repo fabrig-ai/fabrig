@@ -236,7 +236,7 @@ class Walk:
             time.sleep(.4)
         # The mock labels the four checkboxes with its page's words.
         for label in ['Chats can write drafts','Goals','Changes','Away switch']:
-            
+
             if not self.m.js("[...document.querySelectorAll('input[type=checkbox]')].find(e=>(e.getAttribute('aria-label')==="+json.dumps(label)+"||[...e.labels||[]].some(l=>l.innerText.trim()==="+json.dumps(label)+"))).checked"):
                 self.m.click(label,'checkbox')
         if evidence:self.snapshot(2,'rail-features-on','Settings','D11; Ruling 9; By page, Phone: Changes is absent from tabs.')
