@@ -1,4 +1,5 @@
 //! The browser half replays operations and copies events into the pure half.
+//! Patches preserve mounted controls (skein/docs/design/ui-web.md, 7).
 
 use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
 
@@ -663,12 +664,15 @@ impl Mounted {
     }
     fn content(&self, element: &Element, model: &Model) {
         let mut kept = Vec::new();
+        let semantic = self.semantic_children(element);
         let nodes = element.child_nodes();
         let children: Vec<_> = (0..nodes.length()).map(|index| nodes.item(index).expect("child node")).collect();
         for child in children {
-            let preserve = child.dyn_ref::<Element>().is_some_and(|e| {
-                e.has_attribute("data-node") || e.query_selector("[data-node]").expect("node selector").is_some()
-            });
+            // Companions stay with children; a disclosure keeps its focusable summary.
+            let preserve = semantic.iter().any(|root| root.is_same_node(Some(&child)))
+                || child.dyn_ref::<Element>().is_some_and(|e| {
+                    e.tag_name() == "SUMMARY" || e.query_selector("[data-node]").expect("node selector").is_some()
+                });
             if preserve {
                 kept.push(child);
             } else {

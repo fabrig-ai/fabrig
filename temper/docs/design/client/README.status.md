@@ -35,9 +35,6 @@
   number; a row past that window has no "started goal" line. The answer of
   2026-11-05 to `ui-chat-draft/chats-drafts` keeps this one chips window,
   without raising jig's bound.
-- **Not yet:** 5.3: the rename's form stands beside the open project's row, in
-  the rail after the rows, with a visible "Cancel"; an empty or unchanged name
-  leaves it open, and spaces at a name's ends are sent.
 - **Design departs:** 5.3, from the greenfield target, by the request
   `ui-rename-focus` of 2026-11-06: closing the rename's form leaves the project
   menu open with the focus on its summary, where the mock draws the menu closed,
