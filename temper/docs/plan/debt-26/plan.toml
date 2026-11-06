@@ -34,3 +34,71 @@ id = 1
 story = "The user's decisions are recorded, the Forgejo plans hold one written rule, and jig's item and skein's gate say what is true"
 parts = ["records", "forgejo-kinds", "world-kits-item"]
 walk = false
+
+[[part]]
+id = "forge-until"
+title = "Forge connections: the until parameter undone; Closed never reaches Start::Ready"
+mode = "direct"
+needs = []
+design = "skein/docs/design/forge-connection.md, 8.1"
+
+[[part]]
+id = "seam-shapes"
+title = "The seam's shapes: fewer pub, one attribute, no unread names, a gate on its one world"
+mode = "direct"
+needs = ["forge-until"]
+design = "skein/docs/design/forge-connection.md, 10"
+
+[[part]]
+id = "hand-leftovers"
+title = "The hand harness split by dialect, its small copies gone"
+mode = "direct"
+needs = []
+design = "skein/docs/design/forge-connection.md, 10"
+
+[[part]]
+id = "forge-fixtures"
+title = "Two forge harnesses in one package: one fixtures module, the twins cut, D050 opened and paid"
+mode = "direct"
+needs = ["seam-shapes", "hand-leftovers"]
+design = "skein/docs/design/forge-connection.md, 10"
+
+[[part]]
+id = "plan-copies"
+title = "commits.rs's copies and sign-in's Option pair"
+mode = "direct"
+needs = []
+design = "skein/docs/design/oauth.md, 3"
+
+[[part]]
+id = "debug-rows"
+title = "The credential Debug rows go red when a raw-bytes field is printed"
+mode = "direct"
+needs = []
+design = "skein/docs/design/oauth.md, 4"
+
+[[part]]
+id = "jig-spot"
+title = "jig's half of the debt-25 spot review: two sweeps, settled_answer, three items' words"
+mode = "direct"
+needs = []
+design = "jig/docs/design/README.md, 6"
+
+[[part]]
+id = "hearth-spot"
+title = "hearth's builder protocol: three thin leftovers"
+mode = "direct"
+needs = []
+design = "hearth/docs/design/domain/render.md, 2.2"
+
+[[slice]]
+id = 2
+story = "forge-connection's seam and deadlines say less, and its two harnesses share one fixtures module with no twin left"
+parts = ["forge-until", "seam-shapes", "hand-leftovers", "forge-fixtures"]
+walk = false
+
+[[slice]]
+id = 3
+story = "The review's leftovers fall, the credential rows bite, and the items say what remains"
+parts = ["plan-copies", "debug-rows", "jig-spot", "hearth-spot"]
+walk = false
