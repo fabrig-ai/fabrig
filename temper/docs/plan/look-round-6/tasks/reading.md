@@ -121,3 +121,19 @@ Not this task: skein, jig, the line, the answer's drawing but for a fault the re
 ## Report
 
 As the implementer's text asks, and: the account whole; the builder and directory holding the screenshots; which journeys were reprinted, and any re-recorded; what the user is to read on a real chat (the line's verbs, `chat-reading.md`, section 7).
+
+## Rebase (2026-11-06, step merge, foreman look-round-6/reading/foreman-1)
+
+merge both vocabularies and style tables, resolving overlapping identifiers and regenerating declarations.
+The merge conflicts are in `temper/crates/temper-client-view/src/look.rs` and `temper/crates/temper-client-view/src/words.rs`.
+Main’s conflicting changes are `8566a5434b` (sign-in waiting page) and `b0f391ffc0` (model-check status box), reconciled by `df530aacf6`.
+In `look.rs`, preserve main’s welcome changes, including reserved token 367 and removal of `WELCOME_NUMBERED`.
+Keep main’s welcome tokens 447–452; append the branch’s eight style names and assign `WORK_RUN` through `THREAD_LOADING` tokens 453–460 in their existing order.
+Ensure each constant indexes its matching entry in `NAMES.styles`; concatenating constants without renumbering leaves collisions.
+In `words.rs`, preserve main’s welcome vocabulary changes and this branch’s work phrases, Latest/loading phrases, and removal of `ToolCalls`, `ToolRepeated`, and `LinesLeft`.
+Main’s `WelcomeAwayOwn` and `WelcomeAwayAgain` use IDs 3687–3688, colliding with the branch’s work phrases.
+Preserve main’s IDs; assign the branch’s nineteen work phrases and two loading phrases unused IDs above main’s occupied range, checking the complete composed vocabulary. Keep `Latest` at 152.
+Regenerate `ALL`, `PHRASES`, and `SEGMENTS` using `tests::accounts::english_phrase_declarations_match_the_vocabulary` with `SKEIN_CODEGEN_WRITE=1` through heavy; report regenerated declarations.
+Check the merged style-name tests, English vocabulary declarations, reading controls, and welcome/model-check tests through heavy.
+Regenerate and report any prints or goldens made stale by the combined code using their existing tools.
+Preserve both sides’ automatically merged CSS, design text, and gallery assertions; keep this task’s reading behavior and account intact.
