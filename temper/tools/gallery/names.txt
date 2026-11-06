@@ -96,6 +96,7 @@ connect-forge-first-run-6
 connect-forge-yours-admin
 connect-forge-yours-tokens
 connect-model-choose
+connect-model-connected
 connect-model-declined
 connect-model-key-details
 connect-model-key-lost
