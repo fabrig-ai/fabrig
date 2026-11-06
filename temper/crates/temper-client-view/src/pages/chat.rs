@@ -626,12 +626,7 @@ pub(crate) fn conversation_with_times(
         conversation_head(b, root, words, bindings);
     }
     let lines = thread.lines().into_boxed();
-    let mut run = super::chat_line::Run::with_capacity(
-        rows.checked_mul(rows)
-            .expect("bounded blocks")
-            .checked_mul(temper_client_domain::pages::chat::LINES)
-            .expect("window calls fit"),
-    );
+    let mut run = super::chat_line::Run::with_capacity(rows.saturating_mul(rows).saturating_mul(thread.limits.lines));
     let mut started = super::chat_sheet::started(proposals);
     let mut day = None;
     // A chat started with no words opens on its first words line (3.5).
