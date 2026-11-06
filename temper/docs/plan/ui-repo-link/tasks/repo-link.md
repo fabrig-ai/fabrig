@@ -112,3 +112,13 @@ As the implementer's text says, with the 420 finding of acceptance 5, what you c
 ## Answers
 
 2026-11-06 (temper/ui). From the user, journey 20: Settings' Repositories row (work/hello, 'Forgejo on this machine', temper-client-view/src/pages/settings.rs) gets the same link. Build one helper for the address and use it from the switcher, that row, Forges' repository lines and the Forge line, so they can't drift apart; test the helper's cases once. It returns the plain web address now; the signed-in form on an owned Forgejo arrives in part 2 through this one helper.
+
+## Rebase (2026-11-06, step merge, foreman ui-repo-link/repo-link/foreman-1)
+
+resolve forge.status.md by keeping the new sign-in gap and removing only the completed repository-link gap
+Rebase onto the landing target; the conflict is in `temper/docs/design/client/forge.status.md`.
+Commit `c4b4249106` removes the first **Not yet** entry, “A repository's link”.
+Integration commit `029f8142eb` adds the adjacent **Not yet** entry, “A box's Forgejo that can't sign in through temper”.
+Resolve by retaining that new sign-in entry and deleting the completed repository-link entry.
+Preserve all remaining status text, including **Departs** and **Design departs**.
+The refusal reports only this content conflict; no code change is needed for this red.
