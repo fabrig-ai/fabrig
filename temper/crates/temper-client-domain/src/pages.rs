@@ -11,6 +11,7 @@ pub mod accounts;
 mod activity;
 pub mod away;
 pub mod builders;
+pub mod calls;
 pub mod changes;
 pub mod chat;
 /// Whether the project's settings offer writing drafts (client/README.md, 5.13).
@@ -204,6 +205,7 @@ pub enum Act {
         fate: jig_client::shapes::Fate,
     },
     Older,
+    Latest,
     ClosedChats,
     MoreGoals,
     GoalsFilter {
@@ -627,7 +629,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 chat.act(env, client, Act::Mode { mode }, &mut pages.serial, out);
             }
         }
-        Event::Act { act: act @ (Act::ShowSection { .. } | Act::AddDraft) } => {
+        Event::Act { act: act @ (Act::ShowSection { .. } | Act::AddDraft | Act::Latest) } => {
             if let Some(chat) = &mut pages.chat {
                 chat.act(env, client, act, &mut pages.serial, out);
             }
@@ -1570,6 +1572,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::AddDraft
         | Act::Send
         | Act::Older
+        | Act::Latest
         | Act::GoalsFilter { .. }
         | Act::MoreGoals
         | Act::ChatFilter { .. }

@@ -525,6 +525,14 @@ The `configure-temper-own-way` request's hand-made `configure-own-way/`
 pages are not journeys to reprint or land either; the gallery draws those
 states, including the card and the stock reference beside the page.
 
+The hand-made `chat-work/01.html` through `04.html` are the look request's,
+not journeys to reprint or land (section 7). The gallery's isolated
+`chat-work-*` states draw their conversation and their additional states
+through the view (`browser.md`, 7.2). Their summary follows the first
+appearance of a tool, so settings precedes docs where it was called first.
+The growing text, ordered lists and scrolling beyond the pill and loading
+status are tracked in `../draft/chat-reading.status.md`, sections 3, 5 and 6.
+
 The `close-chat` request's hand-made `close-chat/01.html` through `03.html`
 are not journeys to reprint or land (section 7). Their states are the gallery's
 `chat-closing`, `chat-closing-work` and `chat-closed` (`browser.md`, 7.2).

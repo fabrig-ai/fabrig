@@ -1146,6 +1146,13 @@ pub const NAMES: Names<'static> = Names {
         b"temper-confirm-do",
         b"temper-confirm-choices",
         b"temper-writing-end",
+        b"temper-work-run",
+        b"temper-work-running",
+        b"temper-work-failed",
+        b"temper-work-calls",
+        b"temper-work-out",
+        b"temper-latest",
+        b"temper-thread-loading",
     ],
     regions: &[b"temper-link"],
 };
@@ -1342,6 +1349,27 @@ pub const CONFIRM_CHOICES: Style = Style { owner: owner(), token: 468 };
 pub const RAIL_PERSON: Style = Style { owner: owner(), token: 462 };
 /// The Accounts tab's sign-out row (client/README.md, 3.5).
 pub const SETTINGS_SIGN_OUT: Style = Style { owner: owner(), token: 463 };
+
+/// The conversation’s call runs and reading position (client/README.md, 3.5).
+pub const WORK_RUN: Style = Style { owner: owner(), token: 470 };
+
+/// The conversation’s call runs and reading position (client/README.md, 3.5).
+pub const WORK_RUNNING: Style = Style { owner: owner(), token: 471 };
+
+/// The conversation’s call runs and reading position (client/README.md, 3.5).
+pub const WORK_FAILED: Style = Style { owner: owner(), token: 472 };
+
+/// The conversation’s call runs and reading position (client/README.md, 3.5).
+pub const WORK_CALLS: Style = Style { owner: owner(), token: 473 };
+
+/// The conversation’s call runs and reading position (client/README.md, 3.5).
+pub const WORK_OUT: Style = Style { owner: owner(), token: 474 };
+
+/// The conversation’s call runs and reading position (client/README.md, 3.5).
+pub const LATEST: Style = Style { owner: owner(), token: 475 };
+
+/// The conversation’s call runs and reading position (client/README.md, 3.5).
+pub const THREAD_LOADING: Style = Style { owner: owner(), token: 476 };
 
 #[cfg(test)]
 mod tests {

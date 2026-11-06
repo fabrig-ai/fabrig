@@ -915,16 +915,32 @@ pub enum Word {
     UnreadTurn,
     Milestone,
 
-    ToolCalls,
+    WorkReadDocs,
+    WorkReadDoc,
+    WorkReadPage,
+    WorkSearched,
+    WorkCheckedSettings,
+    WorkCheckedSettingsCount,
+    WorkChecked,
+    WorkReading,
+    WorkSearching,
+    WorkChecking,
+    WorkInventory,
+    WorkHistory,
+    WorkFromLine,
+    WorkFailedCount,
+    WorkFailedOut,
+    WorkSeconds,
+    WorkMinutes,
+    WorkRepeated,
+    WorkNumber,
     ToolSeparator,
-    ToolRepeated,
     ChatEnded,
     ChatEndedReport,
     ChatFailed,
     ChatCancelled,
     RunBegan,
     RunEnded,
-    LinesLeft,
     Message,
     MessagePlaceholder,
     Send,
@@ -938,6 +954,9 @@ pub enum Word {
     CancelInstead,
     TakeInstead,
     Older,
+    Latest,
+    LoadingEarlier,
+    LoadingEarlierName,
     FirstChat,
     ChatsKicker,
     ChatsHeadlineIn,
@@ -1320,7 +1339,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The rail menu adds six literal phrases (client/README.md, 5.3).
 // The waiting page removes five phrases across its words and accounts (client/README.md, 3.5).
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
-const PHRASES: u32 = 1800;
+const PHRASES: u32 = 1819;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1343,10 +1362,10 @@ const PHRASES: u32 = 1800;
 // The rail menu adds six literal segments (client/README.md, 5.3).
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
-const SEGMENTS: u32 = 3098;
+const SEGMENTS: u32 = 3144;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 44531;
-const ALL: [Word; 1207] = [
+const ENGLISH_BYTES: u32 = 44719;
+const ALL: [Word; 1226] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -2227,16 +2246,32 @@ const ALL: [Word; 1207] = [
     Word::DecisionMade,
     Word::UnreadTurn,
     Word::Milestone,
-    Word::ToolCalls,
+    Word::WorkReadDocs,
+    Word::WorkReadDoc,
+    Word::WorkReadPage,
+    Word::WorkSearched,
+    Word::WorkCheckedSettings,
+    Word::WorkCheckedSettingsCount,
+    Word::WorkChecked,
+    Word::WorkReading,
+    Word::WorkSearching,
+    Word::WorkChecking,
+    Word::WorkInventory,
+    Word::WorkHistory,
+    Word::WorkFromLine,
+    Word::WorkFailedCount,
+    Word::WorkFailedOut,
+    Word::WorkSeconds,
+    Word::WorkMinutes,
+    Word::WorkRepeated,
+    Word::WorkNumber,
     Word::ToolSeparator,
-    Word::ToolRepeated,
     Word::ChatEnded,
     Word::ChatEndedReport,
     Word::ChatFailed,
     Word::ChatCancelled,
     Word::RunBegan,
     Word::RunEnded,
-    Word::LinesLeft,
     Word::Message,
     Word::MessagePlaceholder,
     Word::Send,
@@ -2250,6 +2285,9 @@ const ALL: [Word; 1207] = [
     Word::CancelInstead,
     Word::TakeInstead,
     Word::Older,
+    Word::Latest,
+    Word::LoadingEarlier,
+    Word::LoadingEarlierName,
     Word::FirstChat,
     Word::ChatsKicker,
     Word::ChatsHeadlineIn,
@@ -3449,7 +3487,25 @@ impl Word {
             Self::CloseRunNow => 160,
             Self::DelegateCancel => 155,
             Self::DelegateMove => 156,
-            Self::ToolCalls => 1040,
+            Self::WorkReadDocs => 3764,
+            Self::WorkReadDoc => 3765,
+            Self::WorkReadPage => 3766,
+            Self::WorkSearched => 3767,
+            Self::WorkCheckedSettings => 3768,
+            Self::WorkCheckedSettingsCount => 3769,
+            Self::WorkChecked => 3770,
+            Self::WorkReading => 3771,
+            Self::WorkSearching => 3772,
+            Self::WorkChecking => 3773,
+            Self::WorkInventory => 3774,
+            Self::WorkHistory => 3775,
+            Self::WorkFromLine => 3776,
+            Self::WorkFailedCount => 3777,
+            Self::WorkFailedOut => 3778,
+            Self::WorkSeconds => 3779,
+            Self::WorkMinutes => 3780,
+            Self::WorkNumber => 3781,
+            Self::WorkRepeated => 3782,
             Self::ToolSeparator => 1041,
             Self::PlusDraft => 3680,
             Self::DraftEmpty => 3681,
@@ -3482,19 +3538,20 @@ impl Word {
             Self::DraftFile => 3619,
             Self::DraftShow => 3620,
             Self::DraftSendHint => 3686,
-            Self::ToolRepeated => 1042,
             Self::ChatEnded => 1043,
             Self::ChatEndedReport => 1044,
             Self::ChatFailed => 1045,
             Self::ChatCancelled => 1046,
             Self::RunBegan => 150,
             Self::RunEnded => 151,
-            Self::LinesLeft => 152,
             Self::Message => 146,
             Self::MessagePlaceholder => 1077,
             Self::Send => 147,
             Self::Stop => 148,
             Self::Older => 149,
+            Self::Latest => 152,
+            Self::LoadingEarlier => 3783,
+            Self::LoadingEarlierName => 3784,
             Self::FirstChat => 2183,
             Self::ChatsKicker => 3246,
             Self::ChatsHeadlineIn => 3247,
@@ -3822,7 +3879,26 @@ fn switcher_repository_bytes(joined: u32) -> Result<u32, Invalid> {
 fn home_answer_bytes(joined: u32) -> Result<u32, Invalid> {
     joined.checked_mul(2).ok_or(Invalid::Overflow)?.checked_add(2).ok_or(Invalid::Overflow)
 }
+#[expect(clippy::too_many_lines, reason = "one table prices each phrase-specific input bound")]
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
+    // A work argument admits 256 bytes plus a from-line suffix and its number (3.5).
+    if kind == HoleKind::Name
+        && [
+            Word::WorkReadPage,
+            Word::WorkSearched,
+            Word::WorkChecked,
+            Word::WorkReading,
+            Word::WorkSearching,
+            Word::WorkChecking,
+            Word::WorkFromLine,
+            Word::WorkFailedOut,
+            Word::WorkRepeated,
+            Word::WorkNumber,
+        ]
+        .contains(&word)
+    {
+        return Ok(288);
+    }
     // The toast wraps the outgoing choice or the reply label (3.5).
     if word == Word::ToastAnswered {
         return temper_client_protocol_wire::CUE_BYTES.checked_add(14).ok_or(Invalid::Overflow);
@@ -3957,33 +4033,24 @@ fn english_language(
             }
         }
         let id = word.id(connector);
-        let plural = if word == Word::WaitingForDelegates || word == Word::ToolCalls || word == Word::ChatDelegates {
-            Some(0)
-        } else {
-            None
-        };
+        let plural = if word == Word::WaitingForDelegates || word == Word::ChatDelegates { Some(0) } else { None };
         shapes.push(PhraseShape { id, holes: holes.into_boxed(), plural }).expect("closed shapes fit");
         let other = Form { class: PluralClass::Other, segments: segments.into_boxed() };
-        let forms: Box<[Form]> =
-            if word == Word::WaitingForDelegates || word == Word::ToolCalls || word == Word::ChatDelegates {
-                Box::new([
-                    Form {
-                        class: PluralClass::One,
-                        segments: Box::new([
-                            Segment::Text(copy_of(if word == Word::ToolCalls || word == Word::ChatDelegates {
-                                b""
-                            } else {
-                                b"waiting on "
-                            })),
-                            Segment::Hole { index: 0, kind: HoleKind::Number },
-                            Segment::Text(copy_of(if word == Word::ToolCalls { b" tool call" } else { b" delegate" })),
-                        ]),
-                    },
-                    other,
-                ])
-            } else {
-                Box::new([other])
-            };
+        let forms: Box<[Form]> = if word == Word::WaitingForDelegates || word == Word::ChatDelegates {
+            Box::new([
+                Form {
+                    class: PluralClass::One,
+                    segments: Box::new([
+                        Segment::Text(copy_of(if word == Word::ChatDelegates { b"" } else { b"waiting on " })),
+                        Segment::Hole { index: 0, kind: HoleKind::Number },
+                        Segment::Text(copy_of(b" delegate")),
+                    ]),
+                },
+                other,
+            ])
+        } else {
+            Box::new([other])
+        };
         phrases.push(Phrase { id, forms }).expect("closed phrases fit");
     }
     for word in jig_client::words::ALL {
@@ -4873,7 +4940,25 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::DecisionMade => (&[b"Decision made"], &[]),
         Word::UnreadTurn => (&[b"Turn could not be decoded"], &[]),
         Word::Milestone => (&[b"Milestone ", b""], &[Number]),
-        Word::ToolCalls => (&[b"", b" tool calls"], &[Number]),
+        Word::WorkReadDocs => (&[b"read ", b" docs"], &[Number]),
+        Word::WorkReadDoc => (&[b"read ", b" doc"], &[Number]),
+        Word::WorkReadPage => (&[b"read the page ", b""], &[Name]),
+        Word::WorkSearched => (&[b"searched the docs for ", b""], &[Name]),
+        Word::WorkCheckedSettings => (&[b"checked settings"], &[]),
+        Word::WorkCheckedSettingsCount => (&[b"checked settings ", b"\xc3\x97"], &[Number]),
+        Word::WorkChecked => (&[b"checked ", b""], &[Name]),
+        Word::WorkReading => (&[b"reading ", b""], &[Name]),
+        Word::WorkSearching => (&[b"searching ", b""], &[Name]),
+        Word::WorkChecking => (&[b"checking ", b""], &[Name]),
+        Word::WorkInventory => (&[b"the inventory"], &[]),
+        Word::WorkHistory => (&[b"history"], &[]),
+        Word::WorkFromLine => (&[b"", b", from ", b""], &[Name, Number]),
+        Word::WorkFailedCount => (&[b"", b" failed"], &[Number]),
+        Word::WorkFailedOut => (&[b"failed: ", b""], &[Name]),
+        Word::WorkSeconds => (&[b"", b" s"], &[Number]),
+        Word::WorkMinutes => (&[b"", b" min"], &[Number]),
+        Word::WorkNumber => (&[b"", b" ", b""], &[Name, Number]),
+        Word::WorkRepeated => (&[b"", b" \xc3\x97", b""], &[Name, Number]),
         Word::ToolSeparator => (&[b" \xc2\xb7 "], &[]),
         Word::PlusDraft => (&[b"+ Draft"], &[]),
         Word::DraftEmpty => (&[b"The draft appears here as you write it together."], &[]),
@@ -4906,7 +4991,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::DraftAdded => (&[b"Added by T", b" ", b""], &[Number, Name]),
         Word::DraftChanged => (&[b"Changed by T", b" ", b""], &[Number, Name]),
         Word::RailUnfold => (&[b"Show the rail"], &[]),
-        Word::ToolRepeated => (&[b"", b" \xc3\x97", b""], &[Name, Number]),
         Word::TimeClosed => (&[b"Closed at ", b""], &[Name]),
         Word::ChatClosed | Word::ClosedChats => (&[b"Closed"], &[]),
         Word::CloseCannotReopen => (&[b"You can still read it, but it can\xe2\x80\x99t be reopened."], &[]),
@@ -5009,7 +5093,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ChatCancelled => (&[b"Cancelled \xc2\xb7 ", b""], &[Name]),
         Word::RunBegan => (&[b"Run ", b" began"], &[Number]),
         Word::RunEnded => (&[b"Run ", b" ended"], &[Number]),
-        Word::LinesLeft => (&[b"Earlier lines omitted ", b""], &[Number]),
         Word::Message => (&[b"Message"], &[]),
         Word::MessagePlaceholder => (&[b"Reply to T"], &[Number]),
         Word::Send => (&[b"Send"], &[]),
@@ -5023,6 +5106,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::DelegateMove => (&[b" ", b" moves to you."], &[Name]),
         Word::Stop => (&[b"Stop"], &[]),
         Word::Older => (&[b"Older"], &[]),
+        Word::Latest => (&[b"Latest"], &[]),
+        Word::LoadingEarlier => (&[b"Loading earlier messages\xe2\x80\xa6"], &[]),
+        Word::LoadingEarlierName => (&[b"Loading earlier messages"], &[]),
         Word::AwaySettingsTitle => (&[b"While you\xe2\x80\x99re away, agents may decide"], &[]),
         Word::AwayKinds => (&[b"Kinds of decision"], &[]),
         Word::AwayKindsLine => (&[b"Each shows afterwards as decided for you, with Overturn."], &[]),
