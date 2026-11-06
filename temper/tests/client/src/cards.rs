@@ -41,6 +41,27 @@ pub fn seen(tree: &Tree) -> Vec<Seen> {
         {
             links_end = index.checked_add(usize::try_from(node.size).expect("link subtree fits")).expect("tree fits");
         }
+        // A taskbar or chat bar remains the release surface on an own pause (client/README.md, 3.5 and 5.11).
+        if node.styles.as_slice().contains(&temper_client_view::look::TASKBAR)
+            || node.styles.as_slice().contains(&temper_client_view::look::SESSION_TOP)
+        {
+            let end = index.checked_add(usize::try_from(node.size).expect("taskbar fits")).expect("tree fits");
+            let task = tree.nodes()[index..end].iter().find_map(|child| {
+                if child.role != (Role::Heading { level: 1 }) {
+                    return None;
+                }
+                let title = child.name.as_deref()?.strip_prefix(b"T")?;
+                let number = title.split(|byte| *byte == b' ').next()?;
+                skein_ui::number(number)
+            });
+            if let Some(task) = task {
+                seen.push(Seen::Card {
+                    key: observe::key(ObjectKey::Escalation(task)),
+                    state: CardSeen::Waiting,
+                    revision: None,
+                });
+            }
+        }
         // The editor is the task's visible decision, named by its number, as
         // "Hold revision N" names a card's revision (client/README.md, 5.11).
         let amending = node.role == Role::Region
@@ -80,33 +101,10 @@ pub fn seen(tree: &Tree) -> Vec<Seen> {
         }
         seen.push(Seen::Card { key, state, revision });
     }
-    // A chat's bar is its persistent decision surface (client/README.md, 3.5).
-    // Resume names the same hold revision as an escalation card, without a sheet.
-    if let Some((index, bar)) = tree
-        .nodes()
-        .iter()
-        .enumerate()
-        .find(|(_, node)| node.styles.as_slice().contains(&temper_client_view::look::SESSION_TOP))
-    {
-        let end = index.checked_add(usize::try_from(bar.size).expect("bar fits")).expect("tree fits");
-        if let Some(task) = tree.nodes()[index..end].iter().find_map(|node| {
-            if node.role != (Role::Heading { level: 1 }) {
-                return None;
-            }
-            let name = node.name.as_deref()?.strip_prefix(b"T")?;
-            skein_ui::number(name.split(|byte| *byte == b' ').next()?)
-        }) {
-            seen.push(Seen::Card {
-                key: observe::key(ObjectKey::Escalation(task)),
-                state: CardSeen::Waiting,
-                revision: None,
-            });
-        }
-    }
     seen
 }
 
-/// Temper's sheets replace jig's danger and per-phase cancellation text (client/README.md, 3.6).
+/// Temper's sheets and immediate Pause/Resume replace jig's deciding text (client/README.md, 3.6).
 /// The view's confirmation tests hold their titles, active counts, fates and retry rules.
 pub fn decision(ask: &jig_client::contract::Ask) -> Option<&jig_client::contract::Ask> {
     use jig_client::contract::{Ask, DecideOn, Decision, Operation};

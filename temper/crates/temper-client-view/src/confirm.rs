@@ -225,24 +225,21 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut
     }
     if let Some(page) = root.pages().task()
         && open.object == jig_client::contract::ObjectKey::Task(page.number)
-        && (open.act == ActKind::Stop || open.act == ActKind::Cancel)
+        && open.act == ActKind::Cancel
         && let Some(task) = page.document(root.client())
     {
-        let goal = page.shape == temper_client_domain::pages::task::Shape::Tracked && open.act == ActKind::Cancel;
+        let goal = page.shape == temper_client_domain::pages::task::Shape::Tracked;
         let sheet = if goal {
-            Sheet { title: Word::GoalStopTitle, keep: Word::KeepGoing, does: Word::StopGoal }
-        } else if open.act == ActKind::Stop {
-            Sheet { title: Word::StopTaskTitle, keep: Word::KeepGoing, does: Word::StopTask }
+            Sheet { title: Word::GoalCloseTitle, keep: Word::KeepIt, does: Word::CloseGoal }
         } else {
-            Sheet { title: Word::CancelTaskTitle, keep: Word::KeepIt, does: Word::CancelTask }
+            Sheet { title: Word::CloseTaskTitle, keep: Word::KeepIt, does: Word::CloseTask }
         };
         sheet_open(b, words, &words.say(sheet.title, &[]));
-        if open.act == ActKind::Stop {
-            lead(b, words, Word::StopHolds);
-        } else if goal {
-            lead(b, words, Word::GoalStopStays);
+        lead(b, words, Word::CloseCannotReopen);
+        if goal {
+            lead(b, words, Word::GoalCloseStays);
         } else {
-            fates(b, task, &[], Word::WhatCancellingDoes, words, bindings);
+            fates(b, task, &[], Word::WhatClosingDoes, words, bindings);
         }
         sheet_why(b, root, words);
         sheet_acts(b, bindings, words, &sheet);
