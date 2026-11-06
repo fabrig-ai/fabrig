@@ -1522,11 +1522,11 @@ fn box_initializes_only_absent_or_empty_configuration_directories() {
             assert!(!data.exists());
             assert!(!cache.exists());
         } else {
-            let (first, held) = result.expect("initialization");
+            let (first, held, _) = result.expect("initialization");
             assert_eq!(held.len(), 5, "init retains its five listeners");
             assert!(data.join("worker.secret").exists());
             assert!(cache.is_dir());
-            let (second, reopened) = temper::box_command::configuration(&dirs).expect("second read");
+            let (second, reopened, _) = temper::box_command::configuration(&dirs).expect("second read");
             assert_eq!(second, first, "existing configuration is kept");
             assert!(reopened.is_empty(), "reading an existing configuration reserves no listeners");
             for (fd, _) in held {
