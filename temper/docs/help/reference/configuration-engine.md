@@ -196,14 +196,14 @@ Shape: `client-provider`. Paths: `engine.clients.provider`. The deployment's Ope
 
 - `key`: text, 4096 bytes; data path; required; init leaves it out. Names the private PKCS#8 PEM file holding the provider's 3072-bit RSA signing key.
 - `clients`: list of provider-client, at least one; required; init leaves it out. Lists clients allowed to use the provider, with unique identifiers.
-- `addresses`: list of integer, 0 to 65535; application providers; required; init leaves it out. Names identity providers whose subjects are verified addresses.
+- `addresses`: list of integer, 0 to 65535; application or link providers; required; init leaves it out. Names identity providers whose subjects are verified addresses.
 
 ## engine.clients.provider.clients[]
 
 Shape: `provider-client`. Paths: `engine.clients.provider.clients[]`. A client allowed to use the deployment provider.
 
 - `id`: text, 1 to 255 visible ASCII bytes; required; init leaves it out. Gives the client's unique identifier.
-- `secret`: text, 4096 bytes; data path; required; init leaves it out. Names the file holding the client's secret.
+- `secret`: text or null, 4096 bytes; data path; required; init leaves it out. Names the client's secret file, or null for a public client.
 - `redirect_uri`: text, 2048 bytes; HTTPS or loopback HTTP with a port; required; init leaves it out. Gives the client's one redirect URI.
 
 ## engine.projects[]

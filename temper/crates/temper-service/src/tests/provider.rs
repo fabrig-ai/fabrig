@@ -55,7 +55,7 @@ fn configuration() -> Configuration {
             addresses: Box::new([3]),
             clients: Box::new([ProviderClient {
                 id: b"forgejo".as_slice().into(),
-                secret: b"forgejo.secret".as_slice().into(),
+                secret: Some(b"forgejo.secret".as_slice().into()),
                 redirect_uri: CALLBACK.as_bytes().into(),
             }]),
         },

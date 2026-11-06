@@ -68,6 +68,14 @@ impl Form {
         }
         false
     }
+    pub(crate) fn contains(&self, name: &[u8]) -> bool {
+        for field in &self.fields {
+            if field.name.as_ref() == name {
+                return true;
+            }
+        }
+        false
+    }
     pub(crate) fn get(&self, name: &[u8]) -> Option<&[u8]> {
         for field in &self.fields {
             if field.name.as_ref() == name {
