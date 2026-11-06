@@ -1568,11 +1568,6 @@ Over generated repositories, valid by construction and then mutated:
 - **Where a resolution's closure is made:** 8.2's `Resolved` carries the
   closure, while 5.3 has the domain match `Inst` triples to `Packages`
   stanzas; one of the two is to change.
-- **What resumed work's order protects** (8.5): the cases searched show
-  a client nothing different when an io event enters with work pending.
-  The guard stays until a consequence is found and a test holds it;
-  pending cache work is to be read beside stdin's room, a child's exit
-  and a pipe's end.
 - **The domain's next event and its own resumed work:** 8.5 orders the
   protocol layer's alone, and the domain's step takes event after event
   without asking whether it has work to resume. Whether it must depends

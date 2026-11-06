@@ -17,14 +17,6 @@
   `hearth/docs/development/debt/D004-service-drives-io-by-hand.md`).
 - **Not yet:** 8.5: `admits`, the same round's. `answers.room()` holds render
   behind a stuck client until then.
-- **Not yet:** 8.5: no test holds that resumed work goes before the next
-  event, so that order rests on `work_pending` and this section alone.
-  Taking `work_pending` out of `protocol_up`'s `told` guard admits an io
-  event with work pending, and changes none of the client's submissions
-  or completions in 384 fixed cases. The guard stays, and section 10
-  keeps what would show the order
-  (`hearth/docs/development/debt/D001-room-checks-and-max-out.md`,
-  "The service-order search").
 - **Departs:** 8.2: unsettled: this section's `Resolved` reply carries
   a closure, while `hearth/docs/design/domain/render.md`, 5.3, puts
   matching `Inst` triples to `Packages` stanzas in the domain. The code
