@@ -67,6 +67,8 @@ first, and each order's test is named beside it.
 | `hearth-domain-render/src/parts/exports.rs`, `push` | `record.room() == 0` | Nothing: it doubles a list by hand and refuses nothing. `List::uncapped` does the same. |
 | `hearth-domain-render/src/schema.rs`, `push`, `fault` and `add_default` | `faults.room() == 0`, twice, and `values.room() == 0` | Nothing, the same. |
 | `hearth-domain-render/src/schema/references.rs`, `condition` | `faults.room() == 0` | Nothing, the same. |
+| `hearth-protocol-builder/src/client.rs`, `Client`'s `requests` | capacity 2 | An order: one demand out at a time, and a `Room` gives one piece, then the next demand or nothing. The printer's `Writing` keeps it. `a_printer_has_one_demand_out_whatever_the_chunk`, in `hearth-client-protocol-records`, and `a_client_s_output_has_one_demand_out_whatever_the_chunk`, in `hearth/tests/builder`. |
+| `hearth-protocol-builder/src/client.rs`, `Client`'s `events` | capacity 1 | An order: a record is answered once, which the printer's state keeps, and `takes` holds the next record until `resume` has taken that answer. `a_record_is_answered_once_whatever_the_chunk`, in `hearth-client-protocol-records`. |
 
 The queues beside git's machines, mmdebstrap's and the config decoder,
 these last in `hearth-protocol-builder/src/resolve.rs`, `indices.rs` and
@@ -80,8 +82,8 @@ known allocate as they fill and refuse nothing.
 The machines' states keep the orders in
 `hearth/docs/design/domain/render.md`, 8.5, and their tests stand in
 `hearth/tests/git`, `hearth/tests/mmdebstrap` and `hearth/tests/config`. The queues beside the
-records machine, `Client`'s in `client.rs`, stay capped with no row yet:
-each gets one, and its order's test, in that machine's round.
+records machine, `Client`'s in `client.rs`, stay capped until that
+machine's round, and their rows are above.
 
 ### The service
 
