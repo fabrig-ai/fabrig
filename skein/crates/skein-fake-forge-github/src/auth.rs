@@ -154,7 +154,7 @@ pub(crate) fn finish_reach(
     add: bool,
     result: Result<Answer, Error>,
 ) -> Response {
-    let Ok(Answer::Permission(Permission::Admin)) = result else {
+    let Ok(Answer::Permission(fake::api::UserPermission { permission: Permission::Admin, .. })) = result else {
         return answers::missing(&service.limits);
     };
     let Some(installed) = service.installations.get(installation) else {

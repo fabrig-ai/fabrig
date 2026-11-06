@@ -1,6 +1,7 @@
 //! Installation account routing and bounded repository discovery (forge-connection.md, 4).
 use super::{Base, Common, GitHubCall, GitHubForge, Waiting, calls};
 use crate::{Event, Limits, connection::Phase, installations::Selected};
+use alloc::boxed::Box;
 use skein_forge::{
     api,
     github::{
@@ -237,7 +238,11 @@ impl Common {
         if github.discovery.is_none() && user == base.forge.access.as_ref()?.user {
             let route = github.route.expect("eligible route");
             let row = gh.state.rows.get(&route.selected.id).expect("eligible row");
-            return Some(api::Answer::Permission(row.permissions.permission()));
+            return Some(api::Answer::Permission(api::UserPermission {
+                user,
+                login: Box::new([]),
+                permission: row.permissions.permission(),
+            }));
         }
         None
     }

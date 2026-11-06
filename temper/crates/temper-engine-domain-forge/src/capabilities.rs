@@ -60,7 +60,7 @@ pub(crate) fn answered(
     let read = match pending.stage {
         Stage::Permission => {
             let Ok(api::Answer::Permission(permission)) = result else { return };
-            pending.permission = Some(permission);
+            pending.permission = Some(permission.permission);
             pending.stage = Stage::Settings;
             api::Read::Settings
         }
