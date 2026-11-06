@@ -3,6 +3,7 @@
 2026-11-06. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
+  - 8.1, 8.5, 11 and 11.1: a change on a run branch, its requester's own run in the slot, and a goal's run delivering to its run branch: `temper/docs/plan/goal-delivery/`. A goal's run starts on g and pushes nothing, and a taken slot stops every change.
   - 8.2, step 3: a head already behind taking its base first stands on the fake
     forge's stories alone
     (`tests/engine/domain/tests/suite/forge_routes/update_first.rs`). The request

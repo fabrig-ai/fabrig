@@ -774,7 +774,9 @@ release the writer; Uncertain and Held retain it for connector recovery.
   writer's, provisionally, and confirmed by what the run's answer
   reports, or, if its attempt is settled as lost, by a fresh read then.
   A procedure decides nothing on a resource while its writer slot is
-  taken.
+  taken, but for a procedure on a resource its requester holds, whose
+  writer is that requester's own run: the run that asked for it goes on,
+  and the procedure decides on what it reads there.
 - **Drift is a change the application did not make** to something it
   owns and relies on: a service restarted by another hand, an environment
   deleted, a branch moved by another identity or backwards, an object

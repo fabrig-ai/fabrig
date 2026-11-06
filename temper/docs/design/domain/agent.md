@@ -132,16 +132,24 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
 - **smith's own families** by the charter's policy: inspecting,
   modifying and the shell in the workspace, and sub-agents, each as the
   charter's `inspect`, `modify`, `shell` and `agents` say; `wait`, always;
-  `deliver`, for a finite change's contract (jig's `domain/hosts.md`,
-  section 8; smith's `domain/run.md`, 8.4), never in an Open run (4.6).
-  A run that cannot deliver cannot modify files: jig's charter
-  translation grants `modify` only with `deliver` and the charter's
-  permission (jig's `domain/hosts.md`, section 8). A chat's, a goal's, an advisor's and a reviewer's
-  runs inspect alone, whatever their charter's `modify` (a rail, not an
-  instruction). Stock charter 1 disables `modify`; repository edits,
-  including small fixes, go through `change` (4.3.1). The stock coder
-  has read, write, edit and remove: a file the change drops is removed
-  once read.
+  `deliver`, for a finite change's contract and for a goal's run (below)
+  (jig's `domain/hosts.md`, section 8; smith's `domain/run.md`, 8.4),
+  never in an Open run (4.6). A run that cannot deliver cannot modify
+  files: jig's charter translation grants `modify` only with `deliver`
+  and the charter's permission (jig's `domain/hosts.md`, section 8). A
+  chat's, an advisor's and a reviewer's runs inspect alone, whatever
+  their charter's `modify` (a rail, not an instruction). Stock charter 1
+  disables `modify`; repository edits, including small fixes, go through
+  `change` (4.3.1). The stock coder has read, write, edit and remove: a
+  file the change drops is removed once read.
+- **A goal's run may modify and deliver** where its charter's `modify` is
+  set and its task holds a goal branch in the repository; otherwise it
+  inspects alone. It delivers to its own run branch (`forge.md`, 11.1),
+  with a `title` and a `body` as a change's delivery has them, and the
+  project's checks run at it (section 6; smith's `domain/run.md`, 8.1).
+  Delivering isn't finishing: it has no change among its outcomes, its
+  `finish` offers a report and a failure, and it goes on after a delivery.
+  What it delivered lands by `change`'s `"branch": "run"` (4.3.1).
 - **Every host tool below,** declared in every charter, each with the
   charter's call timeout, but `read_task`, offered only with the task's read
   family, and those of the `settings` family, declared
@@ -450,6 +458,7 @@ delegate from what it knows:
 {"changes": [{"name": "lexer", "words": "...", "landing": "goal"},
              {"name": "parser", "words": "...", "landing": "goal", "after": ["lexer"]}]}
 {"words": "...", "branch": "mine"}
+{"words": "...", "branch": "run", "landing": "goal"}
 ```
 
 - **`landing`:** `"goal"`, the requester's own goal branch,
@@ -467,8 +476,13 @@ delegate from what it knows:
   `"mine"` from a run whose task holds no goal branch in that repository
   is refused, saying so; with `"landing": "goal"`, a branch into
   itself, refused, saying so; while another live change of the task is
-  on that branch, refused, naming its task; any other value refused,
-  naming it.
+  on that branch, refused, naming its task. `"run"`, its requester's run
+  branch, `temper/<root>/r<task>` in the change's repository, which the
+  change lands as it stands, with no producer (forge.md, 8.1): what the
+  run delivered (4.3). `"run"` from a run whose task holds no goal branch
+  in that repository, or holds no run branch there, is refused, saying
+  so; while another live change of the task is on that branch, refused,
+  naming its task. Any other value refused, naming it.
 - **`name`:** a name for the change within the call, at most 64 bytes,
   unique in it, which another change of the same call names in its
   `after`; it names nothing once the call is decided.
