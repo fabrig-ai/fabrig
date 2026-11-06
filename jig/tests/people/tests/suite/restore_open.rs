@@ -2,12 +2,13 @@ use jig_domain_people::{
     self as people, Ask, Domain, Event, Key, Outcome, Refusal, Reply, Request, RequestKey, Stored, TaskExecutor, fire,
     step,
 };
-use jig_people_world::{LIMITS, fixtures::people_member, identity};
+use jig_people_world::{
+    LIMITS,
+    fixtures::{PERSON, PROJECT, SIGN_IN, people_member},
+    identity,
+};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 
-const PERSON: u64 = 1;
-const SIGN_IN: u64 = 10;
-const PROJECT: u32 = 1;
 const TASK: u64 = 20;
 const PROPOSAL: u64 = 30;
 const KEY: RequestKey = RequestKey { person: PERSON, key: [7; 16] };

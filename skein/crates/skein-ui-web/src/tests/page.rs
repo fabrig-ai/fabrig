@@ -292,20 +292,27 @@ fn a_changed_tag_replaces_the_element() {
     assert_eq!(kinds, ["replace"]);
 }
 
-// Preorder: page, main, dialog, region, button.
-const FOCUS_DIALOG: NodeId = NodeId(3);
-const FOCUS_SUBTREE: NodeId = NodeId(4);
-const FOCUS_BUTTON: NodeId = NodeId(5);
+fn disclosure(builder: &mut Builder) {
+    main(builder);
+    builder.open(Role::Disclosure);
+    builder.name(b"Choices");
+}
+
+// Preorder: page, main, disclosure, dialog, region, button.
+const FOCUS_DIALOG: NodeId = NodeId(4);
+const FOCUS_SUBTREE: NodeId = NodeId(5);
+const FOCUS_BUTTON: NodeId = NodeId(6);
 
 #[test]
 fn a_removal_taking_the_focus_moves_it_to_an_ancestor() {
     let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
     page.apply(
         &fixtures::patches(&mut view, 0, |b| {
-            main(b);
+            disclosure(b);
             b.open(Role::Dialog);
             b.open(Role::Region);
             button(b, b"Go");
+            b.close();
             b.close();
             b.close();
             end(b);
@@ -315,14 +322,45 @@ fn a_removal_taking_the_focus_moves_it_to_an_ancestor() {
     page.focused(FOCUS_BUTTON);
     page.apply(
         &fixtures::patches(&mut view, 1, |b| {
-            main(b);
+            disclosure(b);
             b.open(Role::Dialog);
+            b.close();
             b.close();
             end(b);
         }),
         &mut ops,
     );
     assert_eq!(ops, vec![Op::Remove { node: FOCUS_SUBTREE }, Op::Focus { node: FOCUS_DIALOG }]);
+}
+
+#[test]
+fn a_removal_inside_a_disclosure_moves_the_focus_to_the_disclosure() {
+    // Preorder: page, main, disclosure, form, button.
+    const DISCLOSURE: NodeId = NodeId(3);
+    const FORM: NodeId = NodeId(4);
+    const INSIDE: NodeId = NodeId(5);
+    let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
+    page.apply(
+        &fixtures::patches(&mut view, 0, |b| {
+            disclosure(b);
+            b.open(Role::Form);
+            button(b, b"Go");
+            b.close();
+            b.close();
+            end(b);
+        }),
+        &mut Vec::new(),
+    );
+    page.focused(INSIDE);
+    page.apply(
+        &fixtures::patches(&mut view, 1, |b| {
+            disclosure(b);
+            b.close();
+            end(b);
+        }),
+        &mut ops,
+    );
+    assert_eq!(ops, vec![Op::Remove { node: FORM }, Op::Focus { node: DISCLOSURE }]);
 }
 
 #[test]
