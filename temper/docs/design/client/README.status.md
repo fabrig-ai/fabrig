@@ -68,7 +68,17 @@
   or byline, at each sitting of that period. The request `ui-home-status` of 2026-11-05 has the
   agent always run for now. Both the root's status world and the fake box's walk
   shrink the owner's pool to leave funding, the box's by `project fund`
-  (`../domain/forge.md`, 20, holds the question).
+  (`../protocol/configuration.status.md`, 13.4, holds the stock's room).
+- **Not yet:** 3.5, *Home on any project*: a brief shows only with its `landed`
+  above `seen`, so one written at a return after a look that saw the landing
+  never shows; with 0 landed since, the headline has no landed sentence, so
+  "The last change landed SPAN ago." isn't drawn (`temper-client-view`'s
+  `pages/home.rs`, `brief` and the sentence).
+- **Not yet:** 3.5, *The rail's count*, `Inbox`, and 5.13's card in a chat: a
+  proposal of settings shows in no project's Needs you and counts in no rail,
+  its row's project the deployment, and its card's title names the deployment's
+  number (`temper-client-domain`'s `pages/inbox.rs` and `pages/needs.rs`,
+  `temper-client-view`'s `cards/proposal.rs`).
 - **Not yet:** 10: the walk that request asks of a box: land a change, come back
   past 30 minutes, see the count, the agent's words and the byline. A real box
   has no fake clock, and the 31 minutes do not fit its tier, so

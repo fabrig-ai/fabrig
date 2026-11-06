@@ -3,3 +3,29 @@ repo = "fabrig"
 sources = ["temper/docs/plan/ui-walk-large/inputs/request.md", "temper/crates/temper-service/src/limits.rs", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 priority = true
+
+# Four tasks, W6 and W3 each its engine half first. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "w6-room"
+title = "The stock keeps a chat's room outside the pools, so a fresh project's brief can run"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.4"
+
+[[part]]
+id = "w3-engine"
+title = "A proposal of settings names the projects it belongs to, on its row, its document and the filter"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 17.6"
+
+[[slice]]
+id = 1
+story = "a stock project's status run is funded with the owner's pool open; a project-filtered read holds a proposal of settings"
+parts = ["w6-room", "w3-engine"]
+walk = false
