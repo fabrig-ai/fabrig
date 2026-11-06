@@ -1429,7 +1429,7 @@ const PHRASES: u32 = 1884;
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 const SEGMENTS: u32 = 3313;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 46119;
+const ENGLISH_BYTES: u32 = 46168;
 const ALL: [Word; 1283] = [
     Word::CloseTitle,
     Word::CloseChat,
@@ -4787,7 +4787,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::PublicFailed => (&[b"failed"], &[]),
         Word::PublicLanded => (&[b"landed"], &[]),
         Word::PublicFolded => (&[b"", b" lines folded"], &[Number]),
-        Word::PublicStaleProofs => (&[b"", b" stale proofs"], &[Number]),
+        Word::PublicStaleProofs => (&[b"Times the branch moved and landing checks needed refreshing: ", b"."], &[Number]),
         Word::Projects => (&[b"Projects"], &[]),
         Word::PlaygroundLeaving => (&[b"Leaving the playground\xe2\x80\xa6"], &[]),
         Word::ForgeRemove => (&[b"Remove"], &[]),

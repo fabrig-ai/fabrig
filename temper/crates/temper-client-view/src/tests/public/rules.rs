@@ -199,11 +199,32 @@ fn a_queue_merges_line_and_landing_read_as_a_landing() {
     let lines = paragraphs(&page);
     assert!(lines.contains(&"landed".into()));
     assert!(lines.contains(&"task 3f2a9c01 · Its change: 789ada1".into()));
-    assert!(lines.contains(&"0 stale proofs".into()));
+    assert!(lines.contains(&"Times the branch moved and landing checks needed refreshing: 0.".into()));
     assert!(!lines.iter().any(|line| line.starts_with("Gate ")), "a queue merge has no gate row");
     for view in [&list, &page] {
         assert!(!text(view.tree().nodes()).contains("Holds the turn"));
     }
+}
+#[test]
+fn a_stock_landing_explains_its_zero_stale_proof_count() {
+    let (list, landing) = records::queue_merge();
+    let mut list = render(Public::Landings { project: PROJECT }, &[(Doc::ForgeLandings, list)], 0);
+    let link = super::fixtures::find(list.tree(), Role::Link, b"789ada1").expect("stock landing link");
+    let Some(temper_client_domain::public::PublicEvent::Open { page }) =
+        crate::public::act(&mut list, link, skein_ui::Act::Press)
+    else {
+        panic!("public landing navigation");
+    };
+    let landing = render(page, &[(Doc::ForgeLanding, landing)], 0);
+    assert_eq!(
+        paragraphs(&landing),
+        [
+            "landed",
+            "task 3f2a9c01 · Its change: 789ada1",
+            "Times the branch moved and landing checks needed refreshing: 0.",
+        ],
+        "a stock landing explains its counter beside its landed change, without gate rows"
+    );
 }
 #[test]
 fn a_commit_is_seven_plain_digits_and_no_padding() {
