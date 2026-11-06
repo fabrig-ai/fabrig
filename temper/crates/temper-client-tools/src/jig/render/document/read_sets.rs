@@ -13,7 +13,7 @@ pub(super) fn text(
     out: &mut Text,
 ) {
     if let Some(person) = &reading.person {
-        super::person_text(person, me, book, out);
+        super::person_text(person, reading.person_answerer, me, book, out);
     }
     let call = &reading.called.call;
     if call.tool == 1 {
