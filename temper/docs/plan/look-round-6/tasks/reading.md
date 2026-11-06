@@ -102,6 +102,7 @@ Not this task: skein, jig, the line, the answer's drawing but for a fault the re
     | "Earlier text omitted", "Earlier lines omitted N" gone | landed |
     | the small block, 02 | landed |
     | a bold being written, a marker that waits, the whole live text | deferred, `chat-reading-a`, `chat-reading.status.md`, 3 |
+    | the small block on a closed fenced code block | deferred, `chat-reading-a`'s `chat-live`, `client/README.status.md`, 3.5: it falls on the line after the last |
     | a numbered list's numbers | rules landed; numbers deferred, `chat-reading-d`, status, 6 |
     | "Latest ↓", 04 | landed |
     | "Loading earlier messages…", 04 | landed, as "Older" reads; as the head nears, deferred, `chat-reading` (c), status, 5 |
