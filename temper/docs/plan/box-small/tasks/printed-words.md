@@ -84,3 +84,7 @@ pub(crate) fn running_word(environment: &[crate::directories::EnvironmentEntry])
 ## Report
 
 As the implementer's text asks; and whether `program_login::line` was on your base, and what came of it.
+
+## Answers
+
+2026-11-06 (fabrig/temper). An addition from the user: "Re env variables of course they should be printed only if they are not the default path (~/.config/temper etc)". program_environment is all or nothing today: one directory off its default prints all three. Make it per variable: each prints only when it differs from its own default, so a box with only its data moved says TEMPER_DATA=~/x temper program-login claude-owner, and the defaults say nothing, as now. temper/crates/temper/src/tests/program_environment.rs and temper/docs/design/client/README.md, 4.6 follow.
