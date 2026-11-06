@@ -668,6 +668,48 @@ Standalone is jig's one process (jig's `protocol/service.md`, section 10):
   once (jig's `domain/engine.md`, section 6; `../domain/root.md`, 9.1).
 - **Its world** is `tests/one-process` (`../domain/testing.md`, 2.5).
 
+### 8.1 A long pass
+
+One thread runs every stage of a pass, so a stage that takes long holds
+all the others, and a client sees only that nothing answered. The service's
+log says when that happened; nothing else about the loop changes.
+
+- **The stages,** in the order a pass runs them, are `io` (io's resumes,
+  completions and timers), `route` (its events to their owners), `engine`,
+  `worker` and `out` (closes, the box's pipe, the components' requests,
+  printed links, the publish and the reclaim). `temper-service`'s
+  `iterate` runs them, and `iterate_stage` runs one. The binary's adapter
+  adds its own two: `names` (a forge's name resolved) and `drain` (handover
+  files, operator lines and links), the only stages that may block in a
+  system call.
+- **The clock.** Every stage still sees the pass's one `now`. Only the
+  binary's adapter reads the monotonic clock between stages, and those
+  times reach `temper-service`'s `long_pass::Watch` alone, a step that
+  takes them as arguments and decides nothing but whether to write a line.
+  A world that calls `iterate` has no watch.
+- **The bound is 1 s,** `long_pass::LONG_PASS`, on a whole pass: no stage
+  can pass it without its pass passing it. It is a thirtieth of `temper
+  ctl`'s deadline (`../client/tools.md`, section 12), so a stall big enough
+  to cost a call that deadline shows at once; and across 1,543 `temper ctl
+  me` reads on running boxes under a load of up to 27 on 8 CPUs, the longest
+  whole read was 1.95 s, so a healthy box writes few of these lines or none.
+  A pass of exactly the bound writes nothing.
+- **The line** is one stderr line, which the box keeps in `serve.log`
+  (`setup.md`, 7.2), naming the pass, its longest stage and the bound,
+  with no payload:
+  `temper serve: long pass: 1250 ms, engine 1200 ms of it, past the 1000 ms bound`.
+- **At most one line in 10 s,** `long_pass::LINE_EVERY`. The first long pass
+  writes at once. Those after it within the 10 s are held as the longest
+  of them and a count, and the first pass past the 10 s, long or not,
+  writes that, ending `; 3 more since the last line`, the count being the
+  long passes it does not describe. So a long stall never hides behind a
+  shorter one. A held line left at the service's end is written at its exit.
+- **What it costs when nothing is slow:** seven clock reads and a few
+  comparisons in a pass, no allocation and no write.
+- **Its tests** hold the bound, the rate and the words on supplied times:
+  `temper-service`'s `tests/long_pass.rs`, and the line's words beside
+  `note_line` in `temper`'s `host.rs`.
+
 ## 9. Versions
 
 jig's rules hold (jig's `protocol/README.md`, section 7): one version at a
@@ -915,6 +957,11 @@ Each document keeps its own; these cross them:
   that run, not the start refused (setup.md, 8.3). Default: a restart
   resolves names again; skein's DNS client, or skein-forge-connection
   resolving at its connect, would mend it (a skein addition).
+- **The kernel's share of a pass.** A long pass (8.1) times what the
+  service runs, not the reap and the submit around it, since the submit
+  holds the loop's wait, and `skein-shell`'s `drive` keeps both. A stall
+  there writes no line. Default: so, until a walk's log leaves a stall
+  unexplained.
 - **HTTP/1.1 only.** Forgejo serves it; a forge that required HTTP/2
   would need skein to grow it. Default: HTTP/1.1.
 - **Generating the routing** (jig's `protocol/service.md`, section 9).
