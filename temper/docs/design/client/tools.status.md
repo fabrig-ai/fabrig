@@ -3,27 +3,19 @@
 2026-11-06. Remaining gaps between temper's code and [tools.md](tools.md).
 Unlisted sections have no known gap.
 
-- **Not yet:** 7: `--key` with no name or a name outside the rule is refused with
-  the bare usage line, and `temper help ctl` doesn't say the rule.
 - **Not yet:** 5.2: `task show`'s text says `deployment show` for a host's wait
   (`temper-client-tools`' `render/document/llm.rs`, `wait_explanation`), and ctl has
   no such tool until area 3's is built (5.5), so that line names a command that
   isn't there yet.
-- **Not yet:** 5.3: a settings item's effort its model doesn't offer goes to the
-  engine, and no refusal names the effort.
 - **Not yet:** 5.5: area 2 cannot distinguish a refused creating offer's
   capacity cause from its role cause: jig's `me` carries absence alone
   (`jig/docs/design/client/domain/contract.md`, 5.3). Its diagnostic names
   the role and `documents.lines` as checks, without asserting either cause.
-- **Not yet:** 6.1: a task no account serves prints `Due to run` and `--json`'s
-  `waits_on` `nothing`, against `waiting on: an account`.
 - **Not yet:** 5.5: `temper help task`'s Limits still says temper does not
   let ctl take a task or hand it back, where area 3's `task take` and
   `task hand-back` do so for a person task. The `plainer-panels` request of
   2026-11-06 left the line, saying nothing else changes, so the page's
   `taken by:` stands beside it.
-- **Not yet:** 5.5: `forge setup` ends with the line on protection it could not
-  read.
 - **Not yet:** 5.1: the groups `finding`, `qa`, `party` and
   `deployment`, absent from `temper-client-tools`' `table.rs` `GROUPS`.
   5.2: `repository receipts`, `finding list`, `finding show`, `qa marks`,

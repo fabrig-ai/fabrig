@@ -199,7 +199,7 @@ pub(crate) fn told(adopter: &mut Adopter, limits: &Limits, told: Told, out: &mut
                 Some(called) => called.json,
                 None => adopter.json,
             };
-            let printed = print(&pending.adoption, &outcome, json, pending.called.is_none(), limits);
+            let printed = print(&pending.adoption, &outcome, json, pending.called.is_none(), Unread::Said, limits);
             match pending.called {
                 Some(called) => out.push(Out::Printed { number: called.number, printed }),
                 None => out.push(Out::Kept { line: if printed.status == 0 { printed.stdout } else { printed.stderr } }),
@@ -241,11 +241,19 @@ fn restored(ask: &jig_client::Ask, limits: forge::Limits) -> Option<forge::Adopt
         checks: a.checks.into_boxed(),
     })
 }
+/// Whether an adoption's text says its protection went unread (temper/docs/design/client/tools.md, 5.5).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Unread {
+    Said,
+    Unsaid,
+}
+
 pub(crate) fn print(
     adoption: &forge::Adoption,
     outcome: &Outcome,
     json: bool,
     kept: bool,
+    unread: Unread,
     limits: &Limits,
 ) -> jig::Printed {
     let answer = match outcome {
@@ -300,9 +308,9 @@ pub(crate) fn print(
         if kept { render::outcome::newline(&bytes) } else { bytes }
     } else {
         let mut measure = Text::measure();
-        answer_text(adoption, &answer, kept, limits.tools.text, &mut measure);
+        answer_text(adoption, &answer, kept, unread, limits.tools.text, &mut measure);
         let mut write = Text::writing_exact(measure);
-        answer_text(adoption, &answer, kept, limits.tools.text, &mut write);
+        answer_text(adoption, &answer, kept, unread, limits.tools.text, &mut write);
         write.finish()
     };
     if status == 0 {
@@ -347,7 +355,7 @@ fn word_bytes(word: Word) -> Box<[u8]> {
     phrase(word, &[], &mut out);
     out.finish()
 }
-fn answer_text(a: &forge::Adoption, answer: &forge::Answer, kept: bool, text: u32, out: &mut Text) {
+fn answer_text(a: &forge::Adoption, answer: &forge::Answer, kept: bool, unread: Unread, text: u32, out: &mut Text) {
     if kept {
         out.put(b"kept: adopt ");
     }
@@ -382,7 +390,7 @@ fn answer_text(a: &forge::Adoption, answer: &forge::Answer, kept: bool, text: u3
                     out,
                 );
             }
-            if a.protection == forge::Protection::Unknown {
+            if a.protection == forge::Protection::Unknown && unread == Unread::Said {
                 out.put(b"\n");
                 phrase(Word::Protection, &[], out);
             }

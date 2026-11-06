@@ -102,7 +102,11 @@ fn encode_task_from_label(value: &jig_client::contract::Task, out: &mut Encoder,
     out.key(b"last_activity");
     out.unsigned(value.last_activity.as_nanos());
     out.key(b"waits_on");
-    super::encode_waits_on(&value.waits_on, out, budget);
+    if super::llm::waits_for_account(value) {
+        out.string(b"account");
+    } else {
+        super::encode_waits_on(&value.waits_on, out, budget);
+    }
     out.key(b"chip");
     super::encode_chip(&value.chip, out, budget);
     out.key(b"goal");
