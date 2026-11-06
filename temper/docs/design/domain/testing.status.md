@@ -1,6 +1,8 @@
 # testing: status
 
-2026-11-05. Where temper's code lags or departs from [testing.md](testing.md).
+2026-11-06. Where temper's code lags or departs from [testing.md](testing.md).
+
+- **Not yet:** 6.4: the row of the configuring agent's reads: its stock reads, the inventory's people and a refusal naming no command have no story.
 
 Sections 6.4 and 6.5.3 have no gap in scripted note-backed proposals and single-revision collector evidence.
 

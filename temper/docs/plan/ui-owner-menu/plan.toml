@@ -1,0 +1,37 @@
+draft = "ui-owner-menu"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-owner-menu/inputs/request.md", "temper/crates/temper-client-view/src/frame.rs", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
+
+# Skein's gap first, then the rail's menu that relies on it: see plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "menu-outside"
+title = "A press outside an open menu closes it, and the focus returns to its button"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui-web.md, 7"
+
+[[part]]
+id = "person-menu"
+title = "The rail's foot row opens a menu with Accounts and Sign out; a phone signs out on the Accounts tab"
+mode = "direct"
+needs = ["menu-outside"]
+design = "temper/docs/design/client/README.md, 5.3"
+
+[[slice]]
+id = 1
+story = "a person presses past an open menu: it closes, the press lands, and the focus is where it should be"
+parts = ["menu-outside"]
+walk = false
+
+[[slice]]
+id = 2
+story = "a person opens the menu on their name in the rail, signs out, reloads and stays out"
+parts = ["person-menu"]
+walk = false

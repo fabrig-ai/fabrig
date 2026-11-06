@@ -295,6 +295,14 @@ fn property_fields(b: &mut Builder) {
 }
 fn property_collections(b: &mut Builder) {
     b.open(Role::List);
+    b.ordered(4);
+    leaf(b, Role::Item, b"First numbered item");
+    b.open(Role::Item);
+    b.position(2);
+    b.text(Run::Plain, b"Second numbered item");
+    b.close();
+    b.close();
+    b.open(Role::List);
     b.name(b"Results");
     b.count(5);
     b.open(Role::Item);

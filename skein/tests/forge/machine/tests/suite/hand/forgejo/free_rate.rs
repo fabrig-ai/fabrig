@@ -171,7 +171,15 @@ fn login_lookup_window_survives_a_headerless_permission_answer() {
     let got = terminal(&h);
     assert_eq!(
         (got.cost, got.rate, &got.result),
-        (TWO_REQUESTS, Some(FIRST), &Ok(Answer::Permission(skein_forge::api::Permission::Write)))
+        (
+            TWO_REQUESTS,
+            Some(FIRST),
+            &Ok(Answer::Permission(skein_forge::api::UserPermission {
+                user: f::WRITER,
+                login: Box::from(b"writer".as_slice()),
+                permission: skein_forge::api::Permission::Write
+            }))
+        )
     );
 }
 

@@ -236,6 +236,7 @@ pub fn answer(value: &Answer) -> Option<u64> {
             None => Some(0),
         },
         Answer::Settings(value) => bytes(&value.default_branch),
+        Answer::Permission(value) => bytes(&value.login),
         Answer::Collaborators { collaborators, .. } => rows(collaborators.len(), COLLABORATOR_BYTES),
         Answer::Branches(branches) => {
             let mut held = rows(branches.len(), STRING_BYTES)?;
@@ -245,7 +246,6 @@ pub fn answer(value: &Answer) -> Option<u64> {
             Some(held)
         }
         Answer::Located { .. }
-        | Answer::Permission(_)
         | Answer::Commit(_)
         | Answer::Created(_)
         | Answer::Commented(_)

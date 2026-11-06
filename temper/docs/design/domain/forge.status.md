@@ -3,6 +3,7 @@
 2026-11-06. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
+  - 8.9: an approval's refusal names `repository adopt`, `project show` and `temper help configure` (`temper-engine-domain/src/route/kinds.rs`).
   - 4.1: a removal without the box, its group's act answered in its
     decision: an owned or fake forge's removal asks the box link for
     `remove N` whether or not a pipe is there, and without one waits for
