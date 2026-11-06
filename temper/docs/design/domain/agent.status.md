@@ -1,6 +1,14 @@
 # agent: status
 
 2026-11-06. Where temper's code lags or departs from [agent.md](agent.md).
+
+- **Design departs:** 8.1, from `../draft/model-catalogue.md`, 3, decided
+  by the `model-catalogue-1` cut: settings reads return whole charters,
+  including models outside the offer, because a proposal needs their whole
+  value. The inventory is filtered and the stock instructions forbid
+  mentioning or proposing unoffered models, but validation checks the
+  configured catalogue alone. No supplied real-model walk proves compliance.
+
 The remaining gaps concern verdict follow-up tasks,
 what a delivery keeps of a run's history, change-refusal model wording, shell authority for runs that cannot deliver,
 the fake's goal script, who is offered `decided`, what the configuring agent

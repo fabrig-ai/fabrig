@@ -1594,6 +1594,11 @@ designs (`../../protocol/client.md`):
 
 ## 11. Open questions
 
+- **An account's model list** (5.1): narrowing the offer by each account's
+  last provider-list read waits for a catalogue and those reads
+  (`../../domain/engine.md`, section 16). Until then configured names and
+  usable accounts define it; no list is fetched by a client.
+
 - **Historical public boards** (section 12): ended goals across a restart
   or from before publication need the source index in
   `../../domain/people.md`, section 12. Default: the current public records,
