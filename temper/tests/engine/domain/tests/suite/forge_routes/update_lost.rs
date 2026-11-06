@@ -102,6 +102,8 @@ fn held(world: &mut World, task: u64) {
 
 fn lost_for_good() -> (World, engine::Assignment, u64, u64) {
     let (mut world, goal, task, head, _, _) = pending_update();
+    world.env.limits.forge.change_policy.stall =
+        temper_service::limits::profile(temper_service::limits::Profile::Small).forge.change_policy.stall;
     world.lose_writes = u32::MAX;
     held(&mut world, task);
     assert_eq!(
