@@ -8,6 +8,8 @@ pub mod private;
 
 pub mod private_cuts;
 
+pub mod restart;
+
 pub mod accounts;
 
 pub mod sign_out;

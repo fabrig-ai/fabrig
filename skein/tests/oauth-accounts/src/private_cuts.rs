@@ -5,89 +5,25 @@
 use crate::private::FileSystem;
 use crate::world::{self, Client, Process as Inner, Story};
 use skein_fake_peers::Transport;
-use skein_io::kernel::{Complete, Fd, Op, Submit};
-use skein_lib::{Duration, Queue, Time, Token, Wall, bytes};
+use skein_lib::{Duration, Time, Wall, bytes};
 use skein_world::{Host, Inherited, Memory, Referee, StartupRoot, World};
 use std::net::Ipv4Addr;
 
-const SIGNAL: Token = Token::new(0x7fff_ffff_ffff_ffff);
-const ROOM: u32 = 64;
-
 /// One restartable process, retaining its inherited signal until its owner settles.
-pub struct Process {
-    inner: Inner,
-    signal: Fd,
-    closing: bool,
-    closed: bool,
-    completions: Queue<Complete>,
-    submissions: Queue<Submit>,
-}
-impl Process {
-    fn new(inner: Inner, signal: Fd) -> Self {
-        Self {
-            inner,
-            signal,
-            closing: false,
-            closed: false,
-            completions: Queue::with_capacity(ROOM),
-            submissions: Queue::with_capacity(ROOM),
-        }
-    }
-}
-impl Host for Process {
-    fn iterate(&mut self, now: Time, wall: Wall) {
-        while let Some(complete) = self.completions.pop() {
-            if complete.op == SIGNAL {
-                assert!(complete.result.is_ok());
-                self.closed = true;
-            } else {
-                self.inner.completions().push(complete);
-            }
-        }
-        self.inner.iterate(now, wall);
-        while let Some(submit) = self.inner.submissions().pop() {
-            assert_ne!(submit.op, SIGNAL, "finite child namespaces leave the signal token free");
-            self.submissions.push(submit);
-        }
-        if self.inner.is_empty() && !self.closing {
-            self.closing = true;
-            self.submissions.push(Submit { op: SIGNAL, kind: Op::Close { fd: self.signal } });
-        }
-    }
-    fn completions(&mut self) -> &mut Queue<Complete> {
-        &mut self.completions
-    }
-    fn submissions(&mut self) -> &mut Queue<Submit> {
-        &mut self.submissions
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        !self.completions.is_empty() || self.inner.work_pending(now) || (self.inner.is_empty() && !self.closing)
-    }
-    fn next_mechanism_deadline(&self) -> Option<Time> {
-        self.inner.next_mechanism_deadline()
-    }
-
-    fn next_policy_deadline(&self) -> Option<Time> {
-        self.inner.next_policy_deadline()
-    }
-
-    fn is_empty(&self) -> bool {
-        self.closed && self.inner.is_empty() && self.completions.is_empty() && self.submissions.is_empty()
-    }
-    fn operations(&self) -> u32 {
-        self.inner.operations() + 1
-    }
-}
+pub type Process = crate::restart::Restartable<Inner>;
 
 fn issuer(inherited: &Inherited) -> Process {
     Process::new(
         world::issuer(Transport::Plaintext, Story::NotKept, (Ipv4Addr::LOCALHOST, 31000).into()),
         inherited.signal,
+        false,
+        |_| {},
+        |_, _| {},
     )
 }
 fn owner(inherited: &Inherited) -> Process {
     let root = inherited.roots.first().expect("private startup root").1;
-    Process::new(Inner::Client(Box::new(Client::recovery(root))), inherited.signal)
+    Process::new(Inner::Client(Box::new(Client::recovery(root))), inherited.signal, false, |_| {}, |_, _| {})
 }
 
 /// Only the original owner refreshes; fresh incarnations only recover.
