@@ -5,7 +5,7 @@ use crate::{
 
 #[test]
 fn each_page_round_trips_through_its_path() {
-    let pages: [(Address, &[u8]); 24] = [
+    let pages: [(Address, &[u8]); 27] = [
         (Address::Inbox { filter: Filter::ALL }, b"/"),
         (Address::Chats { filter: ChatsFilter::All }, b"/chats"),
         (Address::Chat { task: 7 }, b"/chats/7"),
@@ -22,6 +22,9 @@ fn each_page_round_trips_through_its_path() {
         (Address::Goals { project: u32::MAX, filter: GoalsFilter::All }, b"/projects/4294967295/goals"),
         (Address::Goals { project: 3, filter: GoalsFilter::All }, b"/projects/3/goals"),
         (Address::Settings { project: 3 }, b"/projects/3/settings"),
+        (Address::Models { project: 0 }, b"/projects/0/settings/models"),
+        (Address::Models { project: 3 }, b"/projects/3/settings/models"),
+        (Address::Models { project: u32::MAX }, b"/projects/4294967295/settings/models"),
         (Address::Builders { project: 0 }, b"/projects/0/settings/builders"),
         (Address::Builders { project: 3 }, b"/projects/3/settings/builders"),
         (Address::Builders { project: u32::MAX }, b"/projects/4294967295/settings/builders"),

@@ -36,6 +36,7 @@ pub enum Then {
     Shown,
     DraftEmpty,
     Mode(temper_client_domain::pages::chat::document::Mode),
+    Models { one_account: bool },
     Hosts { role: bool, connected: bool },
     Working,
     DelegatedGoal,
@@ -105,7 +106,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 276;
+pub const N: usize = 278;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -128,6 +129,18 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "chat-work-separated", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-work-empty", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-work-reading", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
+        Sample {
+            name: "models",
+            world: Reference,
+            address: Address::Models { project: 1 },
+            then: Then::Models { one_account: false },
+        },
+        Sample {
+            name: "models-one-account",
+            world: Reference,
+            address: Address::Models { project: 1 },
+            then: Then::Models { one_account: true },
+        },
         Sample {
             name: "builders",
             world: Solo,
@@ -1044,7 +1057,8 @@ pub fn mockup(sample: &Sample) -> Option<String> {
             Then::Declined => "#other-states-declined",
             Then::Renewed => "#other-states-renewed",
             Then::SignInRefused => "#other-states-refused",
-            Then::Hosts { .. }
+            Then::Models { .. }
+            | Then::Hosts { .. }
             | Then::Shown
             | Then::DraftEmpty
             | Then::Mode(_)
@@ -1094,6 +1108,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Changes { .. }
         | Address::Home { .. }
         | Address::Settings { .. }
+        | Address::Models { .. }
         | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Configure { .. }
@@ -1131,6 +1146,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Models { .. }
         | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Goals { .. }
@@ -1388,7 +1404,8 @@ pub fn domain(sample: &Sample) -> Domain {
                 step(&mut root, Event::Act { action: Action::Pages(Act::ShowSection { line: 17 }) }, &mut out);
             }
         }
-        Then::Hosts { .. }
+        Then::Models { .. }
+        | Then::Hosts { .. }
         | Then::DraftEmpty
         | Then::Shown
         | Then::Working

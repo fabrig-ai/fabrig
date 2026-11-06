@@ -1206,6 +1206,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-public-line",
         b"temper-public-facts",
         b"temper-public-section",
+        b"temper-models-source",
+        b"temper-models-ask",
     ],
     regions: &[b"temper-link"],
 };
@@ -1439,6 +1441,11 @@ pub const PUBLIC_LINE: Style = Style { owner: owner(), token: 523 };
 pub const PUBLIC_FACTS: Style = Style { owner: owner(), token: 524 };
 /// Public pages (temper/docs/design/client/browser.md, 8.3).
 pub const PUBLIC_SECTION: Style = Style { owner: owner(), token: 525 };
+
+/// Models source line (temper/docs/design/client/README.md, 3.5, The `Models` tab).
+pub const MODELS_SOURCE: Style = Style { owner: owner(), token: 526 };
+/// Models configuring link (temper/docs/design/client/README.md, 3.5, The `Models` tab).
+pub const MODELS_ASK: Style = Style { owner: owner(), token: 527 };
 
 #[cfg(test)]
 mod tests {

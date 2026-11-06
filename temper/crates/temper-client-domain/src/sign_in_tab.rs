@@ -42,6 +42,7 @@ pub(crate) fn told(root: &mut Domain, told: &Told, out: &mut Queue<Request>) {
             | Address::Home { .. }
             | Address::Changes { .. }
             | Address::Settings { .. }
+            | Address::Models { .. }
             | Address::Builders { .. }
             | Address::Repositories { .. }
             | Address::Goals { .. }

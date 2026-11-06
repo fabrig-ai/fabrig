@@ -313,6 +313,7 @@ fn welcome(root: &Domain) -> bool {
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Models { .. }
         | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Goals { .. }

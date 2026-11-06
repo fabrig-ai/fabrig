@@ -798,6 +798,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 Address::Home { .. } => out.push(Request::Show { address: Address::Home { project } }),
                 Address::Changes { .. } => out.push(Request::Show { address: Address::Changes { project } }),
                 Address::Settings { .. } => out.push(Request::Show { address: Address::Settings { project } }),
+                Address::Models { .. } => out.push(Request::Show { address: Address::Models { project } }),
                 Address::Builders { .. } => out.push(Request::Show { address: Address::Builders { project } }),
                 Address::Repositories { .. } => out.push(Request::Show { address: Address::Repositories { project } }),
                 Address::Configure { .. } => out.push(Request::Show { address: Address::Configure { project } }),
@@ -874,6 +875,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             | Address::Forges
             | Address::ConnectForge { .. }
             | Address::ConnectModel { .. }
+            | Address::Models { .. }
             | Address::Builders { .. }
             | Address::Repositories { .. }
             | Address::Settings { .. }
@@ -1139,6 +1141,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::Home { .. }
             | Address::Changes { .. }
             | Address::Settings { .. }
+            | Address::Models { .. }
             | Address::Repositories { .. }
             | Address::Configure { .. }
             | Address::Adopt { .. } => false,
@@ -1251,6 +1254,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::Home { .. }
             | Address::Changes { .. }
             | Address::Settings { .. }
+            | Address::Models { .. }
             | Address::Builders { .. }
             | Address::Repositories { .. }
             | Address::Configure { .. }
@@ -1645,6 +1649,7 @@ fn address_project(address: &Address) -> Option<u32> {
         | Address::Goals { project, .. }
         | Address::Changes { project }
         | Address::Settings { project }
+        | Address::Models { project }
         | Address::Builders { project }
         | Address::Repositories { project }
         | Address::Configure { project } => Some(*project),
@@ -1859,6 +1864,7 @@ fn returned(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
         | Address::Home { .. }
         | Address::Changes { .. }
         | Address::Settings { .. }
+        | Address::Models { .. }
         | Address::Builders { .. }
         | Address::Repositories { .. }
         | Address::Configure { .. }

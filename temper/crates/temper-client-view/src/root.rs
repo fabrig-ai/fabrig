@@ -177,6 +177,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         | temper_client_domain::Address::Home { .. }
         | temper_client_domain::Address::Changes { .. }
         | temper_client_domain::Address::Settings { .. }
+        | temper_client_domain::Address::Models { .. }
         | temper_client_domain::Address::Builders { .. }
         | temper_client_domain::Address::Repositories { .. }
         | temper_client_domain::Address::Goals { .. }
@@ -200,6 +201,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         | temper_client_domain::Address::Home { .. }
         | temper_client_domain::Address::Changes { .. }
         | temper_client_domain::Address::Settings { .. }
+        | temper_client_domain::Address::Models { .. }
         | temper_client_domain::Address::Builders { .. }
         | temper_client_domain::Address::Repositories { .. }
         | temper_client_domain::Address::Goals { .. }
@@ -307,6 +309,8 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             *project,
             wall,
         );
+    } else if let temper_client_domain::Address::Models { project } = root.pages().address() {
+        crate::pages::models::main(&mut builder, root, &view.forge_words, &mut view.pages, *project);
     } else if let temper_client_domain::Address::Builders { project } = root.pages().address() {
         crate::pages::builders::main(&mut builder, root, &view.forge_words, &mut view.pages, *project);
     } else if let temper_client_domain::Address::Repositories { project } = root.pages().address() {
