@@ -36,6 +36,20 @@ mode = "direct"
 needs = []
 design = "jig/docs/design/domain/engine.md, 17.1"
 
+[[part]]
+id = "catalogue"
+title = "The catalogue is the current settings, and every part hears it"
+mode = "direct"
+needs = ["setting", "bounds"]
+design = "jig/docs/design/domain/engine.md, 17.11"
+
+[[part]]
+id = "act"
+title = "An owner turns a model on or off and adds one by name, and me says so"
+mode = "direct"
+needs = ["catalogue"]
+design = "jig/docs/design/client/domain/contract.md, 3.2"
+
 [[slice]]
 id = 1
 story = "An owner opens Settings, Models and sees the connected provider's models, each with its default effort and whether the picker shows it, and the other provider's Connect line"
@@ -46,4 +60,10 @@ walk = false
 id = 2
 story = "An agent runs a model no list of its declares, on a served endpoint, and an owner sets a model's setting, which survives a restart"
 parts = ["bounds", "agent", "setting"]
+walk = false
+
+[[slice]]
+id = 3
+story = "An owner's change adds a model, and a new task takes it with no charter's change, while a live task keeps its own"
+parts = ["catalogue", "act"]
 walk = false

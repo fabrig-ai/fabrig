@@ -70,7 +70,7 @@ pub struct ChangeModel { pub act: ModelAct }
 
 A new keyed request beside `ChangeSettings`, by an owner in the deployment. The core makes the one `Item` at the newest revision, `Running::Stays`, and decides it as a `ChangeSettings`; its answers and refusals are `ChangeSettings`' (`not theirs`, `out of shape`, `empty`, `full`), and it is never stale. `Add`:
 
-- **The name's shape:** `settings::catalogue::valid_name`: 1 to `MODEL_NAME_BYTES` bytes of ASCII letters, digits, `-`, `.`, `_` and `:`. Otherwise `Fault::Shape`.
+- **The name's shape:** `settings::catalogue::valid_name`: 1 to 128 bytes, smith's charter's bound, of ASCII letters, digits, `-`, `.`, `_` and `:`. Otherwise `Fault::Shape`.
 - **A name the catalogue holds:** withdrawn, it clears `withdrawn`; otherwise `Fault::Shape`.
 - **The number:** the highest free. None free is `Fault::Count`.
 - **The rest:** `settings::catalogue::new_model(provider, name, source, models, endpoints) -> Option<CatalogueModel>`: the provider's dearest stock row by `most_costly`, or with none the catalogue's dearest stock row on the provider's `endpoint`, gives `endpoint`, `dialect`, `program`, `window`, `output` and prices; no efforts, no effort; `picker: true`, `estimated: true`, `source`. `None` is `Fault::Reference`. `model-catalogue-3` calls it with `ModelSource::List`.
