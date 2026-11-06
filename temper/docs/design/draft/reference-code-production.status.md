@@ -1,15 +1,7 @@
 # reference-code-production: status
 
-2026-11-05. Where the design lags or departs from [reference-code-production.md](reference-code-production.md).
+2026-11-06. Where the design lags or departs from [reference-code-production.md](reference-code-production.md).
 
-- **Design lags:**
-  - **14: the coordinator's tool families.** Its row names `decide`,
-    `propose`, `subscribe_forge`, `subscribe` and `recall`;
-    `../protocol/configuration.md`, 13.9 adds only jig's control and
-    notes families to the rules' and policy 1's, which the stock's 1,671
-    already holds, so the decide, propose, subscribe and recall families
-    are not granted.
-    Stage 1's golden follows 13.9 (`../domain/testing.md`, 6.5.1).
 - **Design departs:**
   - **10, 13: a red of g's tier waking G.** `../domain/after-landing.md`,
     5.4 and 7 wake the goal on a red with a test the branch's previous

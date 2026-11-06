@@ -46,7 +46,7 @@ fn recorded_orphan(selection: &str) -> String {
     use std::io::{BufRead, Write};
     use std::process::{Command, Stdio};
 
-    skein_shell::make_subreaper().expect("adopt recording sender");
+    skein_shell::keeper::make_subreaper().expect("adopt recording sender");
     let scratch = skein_scratch::Scratch::new("recorded-orphan");
     let record = scratch.path().join("target");
     let mut parent = Command::new(skein_scratch::paths::binary("signal_sender_fixture"))
@@ -60,7 +60,7 @@ fn recorded_orphan(selection: &str) -> String {
     let mut line = String::new();
     std::io::BufReader::new(parent.stdout.take().expect("parent output")).read_line(&mut line).expect("sender PID");
     let pid: u32 = line.trim().parse().expect("sender PID");
-    let sender = skein_shell::open_pidfd(pid).expect("keep recording sender");
+    let sender = skein_shell::keeper::open_pidfd(pid).expect("keep recording sender");
     let mut barrier = parent.stdin.take().expect("sender barrier stays open across parent wait");
     assert!(parent.wait().expect("reap intended target before sender runs").success());
     let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).expect("sender identity");
@@ -78,15 +78,18 @@ fn recorded_orphan(selection: &str) -> String {
     deadline.watch_process(pid);
     barrier.write_all(b"go\n").expect("release recording sender");
     let exit = loop {
-        if let Some(exit) = skein_shell::poll_child(sender, true).expect("wait recording sender") {
+        if let Some(exit) = skein_shell::keeper::poll_child(sender, true).expect("wait recording sender") {
             break exit;
         }
         if deadline.passed() {
             let expired = deadline.expired();
             drop(barrier);
-            let _killed =
-                skein_shell::signal_kept_child(sender, skein_io::kernel::Signal::Kill, skein_io::kernel::Target::Child);
-            skein_shell::abandon_binary(Some(sender), &[sender]);
+            let _killed = skein_shell::keeper::signal_kept_child(
+                sender,
+                skein_io::kernel::Signal::Kill,
+                skein_io::kernel::Target::Child,
+            );
+            skein_shell::keeper::abandon_binary(Some(sender), &[sender]);
             drop(parent);
             drop(scratch);
             match expired {
@@ -98,7 +101,7 @@ fn recorded_orphan(selection: &str) -> String {
             deadline.remaining().min(skein_lib::Duration::from_millis(1)).as_nanos(),
         ));
     };
-    skein_shell::close_keeper_fd(sender);
+    skein_shell::keeper::close_keeper_fd(sender);
     assert_eq!(exit, Exit::Code(0), "recording sender exits without a signal");
     std::fs::read_to_string(record).expect("recorded selection")
 }

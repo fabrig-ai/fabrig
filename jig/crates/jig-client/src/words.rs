@@ -12,7 +12,7 @@ pub use decision::DecisionWord;
 use skein_lib::List;
 use skein_ui::phrases::{HoleKind, HoleShape, Language, PhraseId, PhraseShape};
 /// Phrase count, for a caller composing a bounded phrasebook.
-pub const PHRASES: u32 = 126;
+pub const PHRASES: u32 = 127;
 /// Owner of jig's public enum vocabulary.
 pub const OWNER: skein_ui::Owner = skein_ui::Owner { number: 65_537 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -95,6 +95,7 @@ pub enum WaitingWord {
     Delegates,
     News,
     Nothing,
+    Held,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StatusWord {
@@ -238,7 +239,7 @@ impl Word {
     }
 }
 /// All public words, for composing phrasebook capacities without allocation.
-pub const ALL: [Word; 126] = [
+pub const ALL: [Word; 127] = [
     Word::Refusal(RefusalWord::Judged),
     Word::Refusal(RefusalWord::Stale),
     Word::Refusal(RefusalWord::Forgotten),
@@ -325,6 +326,7 @@ pub const ALL: [Word; 126] = [
     Word::Waiting(WaitingWord::Delegates),
     Word::Waiting(WaitingWord::News),
     Word::Waiting(WaitingWord::Nothing),
+    Word::Waiting(WaitingWord::Held),
     Word::Status(StatusWord::Starting),
     Word::Status(StatusWord::Writing),
     Word::Status(StatusWord::Tool),

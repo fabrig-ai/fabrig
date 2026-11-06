@@ -25,11 +25,12 @@ struct Serve {
 impl Serve {
     fn stop(mut self) {
         assert!(self.child.id() > 1, "owned serve group");
-        skein_shell::signal_group(self.child.id(), skein_io::kernel::Signal::Terminate).expect("terminate serve");
+        skein_shell::keeper::signal_group(self.child.id(), skein_io::kernel::Signal::Terminate)
+            .expect("terminate serve");
         let status = self.child.wait().expect("serve exit");
         self.reaped = true;
         assert!(status.success(), "serve drained successfully");
-        assert!(!skein_shell::group_live(self.child.id()).expect("serve group"), "no surviving serve child");
+        assert!(!skein_shell::keeper::group_live(self.child.id()).expect("serve group"), "no surviving serve child");
     }
 }
 impl Drop for Serve {
@@ -37,7 +38,7 @@ impl Drop for Serve {
         if self.reaped {
             return;
         }
-        let _ = skein_shell::signal_group(self.child.id(), skein_io::kernel::Signal::Kill);
+        let _ = skein_shell::keeper::signal_group(self.child.id(), skein_io::kernel::Signal::Kill);
         self.child.wait().expect("serve reaped");
     }
 }
