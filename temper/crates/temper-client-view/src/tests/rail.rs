@@ -381,6 +381,7 @@ pub(super) fn with_goal_fact(root: &mut d::Domain, me_watch: Token, delivered: O
                 | d::Request::Leave { .. }
                 | d::Request::SignOut
                 | d::Request::Dropped { .. }
+                | d::Request::Copy { .. }
                 | d::Request::Fact { .. } => None,
             })
             .expect("goal fact watch");
