@@ -93,20 +93,205 @@ fn a_chats_header_says_its_spend_including_delegates() {
 }
 
 #[test]
-fn provisional_text_is_marked_until_its_turn_commits() {
+fn the_end_goes_when_the_turn_commits() {
     let mut thread = provisional();
-    assert!(fixtures::find(&tree(&thread), Role::Status, b"Writing...").is_some());
+    assert!(fixtures::find(&tree(&thread), Role::Status, "▍".as_bytes()).is_some());
     thread.reading = Some(jig_client::thread::Reading::Latest { known: COMMITTED.into() });
     let mut rows = List::with_capacity(TURN);
     rows.push(crate::tests::documents::turn(
         TURN.into(),
         Wall::EPOCH,
         c::TurnName { attempt: ATTEMPT, number: TURN },
-        c::TurnRead::Undecodable { why: c::TurnProblem::Malformed },
+        c::TurnRead::Decoded(c::Turn {
+            messages: {
+                let mut messages = List::with_capacity(1);
+                messages
+                    .push(fixtures::first_run::message(
+                        c::Speaker::Assistant,
+                        &[c::Block::Text(fixtures::first_run::text(b"Hello"))],
+                    ))
+                    .unwrap();
+                messages
+            },
+            used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
+            spent: 0,
+            read_through: None,
+            cut: false,
+        }),
     ))
     .expect("turn");
     thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
-    assert_eq!(fixtures::find(&tree(&thread), Role::Status, b"Writing..."), None);
+    assert_eq!(fixtures::find(&tree(&thread), Role::Status, "▍".as_bytes()), None);
+}
+
+// Compare the shell-visible nodes, discounting only the live end and its size.
+fn said_without_end(tree: &skein_ui::Tree) -> List<skein_ui::Made> {
+    let says = styled(tree, crate::look::SAYS);
+    let children = subtree(tree, says);
+    let end = style_position(children, crate::look::WRITING_END);
+    let mut result = List::with_capacity(tree.len());
+    for (at, node) in children.iter().enumerate() {
+        let mut node = skein_ui::Made::of(node);
+        if let Some(end) = end {
+            let end_size = usize::try_from(children[end].size).unwrap();
+            if (end..end.checked_add(end_size).unwrap()).contains(&at) {
+                continue;
+            }
+            if at < end && at.checked_add(usize::try_from(node.size).unwrap()).unwrap() > end {
+                node.size = node.size.checked_sub(u32::try_from(end_size).unwrap()).unwrap();
+            }
+        }
+        result.push(node).unwrap();
+    }
+    result
+}
+
+#[test]
+fn a_turn_being_written_draws_as_its_committed_turn_with_its_end() {
+    use fixtures::first_run as run;
+    for input in [
+        b"A **bold** reply.\n\nLast words.".as_slice(),
+        b"- first\n- last",
+        b"> quoted",
+        b"```\ncode\n```",
+        b"| a | b |\n| - | - |\n| c | d |",
+    ] {
+        let live = provisional_with_text(input);
+        let committed =
+            conversation_turn(&[run::message(c::Speaker::Assistant, &[c::Block::Text(run::text(input))])], false);
+        for (live, committed) in
+            [(tree(&live), tree(&committed)), (fixtures::chat::tree(&live), fixtures::chat::tree(&committed))]
+        {
+            let message = &live.nodes()[styled(&live, crate::look::MESSAGE)];
+            assert!(message.styles.as_slice().contains(&crate::look::BY_AGENT));
+            let who = subtree(&live, styled(&live, crate::look::WHO));
+            assert_eq!(who[0].name.as_deref(), Some(b"Temper".as_slice()));
+            let mark = named_position(live.nodes(), Role::Status, Some("▍".as_bytes())).expect("live end");
+            let end = styled(&live, crate::look::WRITING_END);
+            assert_eq!(fixtures::find(&live, Role::Status, b"Writing..."), None);
+            assert!(mark > end && mark < end.checked_add(usize::try_from(live.nodes()[end].size).unwrap()).unwrap());
+            let mut block = None;
+            for (at, node) in live.nodes()[..end].iter().enumerate() {
+                if [Role::Paragraph, Role::Heading { level: 3 }, Role::Item, Role::Quote, Role::Cell, Role::Code]
+                    .contains(&node.role)
+                    && at.checked_add(usize::try_from(node.size).unwrap()).unwrap() > end
+                {
+                    block = Some(at);
+                }
+            }
+            assert!(block.is_some(), "end inside the last word's block: {input:?}");
+            let mut has_words = false;
+            for node in &live.nodes()[block.unwrap()..end] {
+                has_words |= !node.text.is_empty();
+            }
+            assert!(has_words);
+            assert_eq!(said_without_end(&live), said_without_end(&committed));
+        }
+    }
+}
+
+#[test]
+fn a_closed_block_emits_no_patch_as_words_arrive_after_it() {
+    let limits = fixtures::tree_limits();
+    let mut patches = skein_lib::Queue::with_capacity(limits.patches);
+    let mut next = 0;
+    let mut before = tree(&provisional_with_text(b"Closed **bold**.\n\nNext"));
+    skein_ui::diff(&skein_ui::Tree::new(limits.nodes), &mut before, &limits, &mut next, &mut patches);
+    while patches.pop().is_some() {}
+    let says = styled(&before, crate::look::SAYS);
+    let block = says.checked_add(1).unwrap();
+    let through = block.checked_add(usize::try_from(before.nodes()[block].size).unwrap()).unwrap();
+    let mut closed = List::with_capacity(before.len());
+    for node in &before.nodes()[block..through] {
+        closed.push(skein_ui::Made::of(node)).unwrap();
+    }
+    for input in [b"Closed **bold**.\n\nNext word".as_slice(), b"Closed **bold**.\n\nNext words arrive."] {
+        let mut after = tree(&provisional_with_text(input));
+        skein_ui::diff(&before, &mut after, &limits, &mut next, &mut patches);
+        for (expected, node) in closed.iter().zip(&after.nodes()[block..through]) {
+            assert_eq!(*expected, skein_ui::Made::of(node));
+        }
+        let mut changed = false;
+        while let Some(patch) = patches.pop() {
+            let target = match patch {
+                skein_ui::Patch::Insert { parent, .. } => parent,
+                skein_ui::Patch::Remove { node }
+                | skein_ui::Patch::Move { node, .. }
+                | skein_ui::Patch::Text { node, .. }
+                | skein_ui::Patch::Attribute { node, .. }
+                | skein_ui::Patch::Value { node, .. } => node,
+            };
+            for node in &closed {
+                assert_ne!(node.id, target, "closed block patched");
+            }
+            changed = true;
+        }
+        assert!(changed, "the growing block changes");
+        before = after;
+    }
+}
+
+#[test]
+fn a_turn_being_written_shows_no_raw_marker() {
+    for (input, expected, run) in [
+        (b"**bo".as_slice(), b"bo".as_slice(), Some(skein_ui::Run::Strong)),
+        (b"##", b"", None),
+        (b"```rust\ncode", b"code", Some(skein_ui::Run::Code)),
+    ] {
+        for tree in [tree(&provisional_with_text(input)), fixtures::chat::tree(&provisional_with_text(input))] {
+            let nodes = subtree(&tree, styled(&tree, crate::look::SAYS));
+            let mut said = List::with_capacity(TEXT);
+            for node in nodes {
+                for text in &node.text {
+                    if text.text.as_ref() == "▍".as_bytes() {
+                        continue;
+                    }
+                    if let Some(run) = run {
+                        assert_eq!(text.run, run);
+                    }
+                    for byte in &text.text {
+                        said.push(*byte).unwrap();
+                    }
+                }
+            }
+            assert_eq!(said.as_slice(), expected);
+        }
+    }
+}
+
+fn working_tree(thread: &Thread) -> skein_ui::Tree {
+    use crate::pages::chat::{Drawn, Speakers, conversation_with_times};
+    let mut task = configuring_task();
+    task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Due);
+    let root = configuring_task_root(task, true, 1);
+    let mut b = skein_ui::Builder::new(&fixtures::tree_limits());
+    conversation_with_times(
+        &mut b,
+        thread,
+        &fixtures::browser_words(),
+        (LINES, TEXT),
+        Speakers { person: Some(PARTY), requester: true },
+        (Drawn::ChatPage { request: None, root: &root }, Some(&mut crate::words::Times::new(fixtures::NOW))),
+        &mut crate::frame::Bindings::new(fixtures::tree_limits().bindings),
+    );
+    b.finish()
+}
+
+#[test]
+fn a_turn_with_no_words_draws_nothing_and_the_dots_stand() {
+    let empty = provisional_with_text(b"");
+    for tree in [tree(&empty), fixtures::chat::tree(&empty), working_tree(&empty)] {
+        assert!(style_position(tree.nodes(), crate::look::MESSAGE).is_none());
+        assert!(style_position(tree.nodes(), crate::look::TURN).is_none());
+    }
+    assert!(style_position(working_tree(&empty).nodes(), crate::look::TYPING).is_some());
+}
+
+#[test]
+fn the_first_word_takes_the_dots_place() {
+    let tree = working_tree(&provisional());
+    assert!(style_position(tree.nodes(), crate::look::TYPING).is_none());
+    assert!(fixtures::find(&tree, Role::Status, "▍".as_bytes()).is_some());
 }
 
 #[test]
@@ -392,14 +577,14 @@ fn a_chat_rejection_confirmation_keeps_the_persons_reason() {
     assert!(skein_lib::bytes::find(&fixtures::text(tree), b"Too costly").is_some());
 }
 
-const LONG_PROVISIONAL: &[u8] = b"1234567890123456789012345678901\xc3\xa9 and more";
+const LONG_PROVISIONAL: &[u8] = b"a234567890123456789012345678901\xc3\xa9 and more";
 #[test]
 fn a_long_provisional_text_says_nothing_of_what_was_cut() {
     let thread = provisional_with_text(LONG_PROVISIONAL);
     for drawn in [fixtures::chat::projected_tree(&thread), fixtures::chat::tree(&thread)] {
         let said = fixtures::text(&drawn);
         assert!(skein_lib::bytes::find(&said, b"Earlier text omitted").is_none());
-        assert!(skein_lib::bytes::find(&said, b"1234567890123456789012345678901").is_some());
+        assert!(skein_lib::bytes::find(&said, b"a234567890123456789012345678901").is_some());
         assert!(skein_lib::bytes::find(&said, "…".as_bytes()).is_none());
     }
 }
@@ -2531,7 +2716,7 @@ fn provisional_text_replaces_working_dots_and_agent_task_logs_never_have_them() 
             assert_eq!(style_position(tree.nodes(), crate::look::THREAD_INNER).is_some(), !agent_page);
             if provisional_text {
                 assert!(style_position(tree.nodes(), crate::look::BY_AGENT).is_some());
-                assert!(fixtures::find(&tree, Role::Status, b"Writing...").is_some());
+                assert!(fixtures::find(&tree, Role::Status, "▍".as_bytes()).is_some());
             }
         }
     }

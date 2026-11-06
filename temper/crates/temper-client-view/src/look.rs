@@ -1129,6 +1129,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-welcome-check-stopped",
         b"temper-welcome-check-failed",
         b"temper-welcome-check-why",
+        b"temper-writing-end",
     ],
     regions: &[b"temper-link"],
 };
@@ -1296,6 +1297,9 @@ pub const WELCOME_CHECK: Style = Style { owner: owner(), token: 449 };
 pub const WELCOME_CHECK_STOPPED: Style = Style { owner: owner(), token: 450 };
 pub const WELCOME_CHECK_FAILED: Style = Style { owner: owner(), token: 451 };
 pub const WELCOME_CHECK_WHY: Style = Style { owner: owner(), token: 452 };
+
+/// The last word of a turn being written (client/README.md, 3.5).
+pub const WRITING_END: Style = Style { owner: owner(), token: 453 };
 
 #[cfg(test)]
 mod tests {

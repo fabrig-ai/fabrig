@@ -612,6 +612,11 @@ pub(crate) fn conversation_with_times(
         request_message(b, request, speakers.requester, words, clock.as_deref());
     }
     for line in lines {
+        if let Line::Provisional { text, .. } = &line
+            && text.is_empty()
+        {
+            continue;
+        }
         super::chat_sheet::before(b, &mut started, Some(&line), words, bindings);
         if hidden_line(&line, projected, delegations) {
             heard_card(b, &line, delegations, (&mut tasks, &mut shown), words, bindings);
@@ -797,11 +802,21 @@ fn provisional(b: &mut Builder, message: &[u8], words: &Words) {
     b.style(look::BY_AGENT);
     b.open(Role::Slot);
     b.style(look::WHO);
-    words.status(b, P::Provisional, &[]);
+    words.card_text(b, P::Temper, &[]);
     b.close();
     b.open(Role::Slot);
     b.style(look::SAYS);
-    skein_ui::markdown::read(message, 2, b);
+    skein_ui::markdown::read_growing(
+        message,
+        2,
+        |b| {
+            b.open(Role::Slot);
+            b.style(look::WRITING_END);
+            words.status(b, P::Provisional, &[]);
+            b.close();
+        },
+        b,
+    );
     b.close();
     b.close();
 }
@@ -973,7 +988,7 @@ fn person_lines(
 }
 
 // Decoded turns already share the receiving turn_text budget; both drawings
-// retain their text whole, independently of provisional/field text.
+// retain their text whole, independently of field text.
 struct Committed<'a> {
     delegations: Option<(&'a Chat, &'a jig_client::Client)>,
     proposals: Option<(&'a Domain, c::TurnName)>,

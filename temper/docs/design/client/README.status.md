@@ -2,7 +2,6 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, *the turn being written*, *While it works*: the turn being written is read as closed text under "Writing...", with no "▍".
 - **Not yet:** 3.5, The welcome's Model step, *The sign-in under way*, and `ConnectModel`, *While it waits*: the
   card's line and the note say a new tab, and nothing opens one: a press still sends a `Return` and the
   page's own tab leaves, until `../draft/sign-in-new-tab.md` is built. The view has no fact of a tab refused:
