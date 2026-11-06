@@ -116,6 +116,8 @@ impl Originals {
                 | Line::Close
                 | Line::Erase(_)
                 | Line::Writes(_)
+                | Line::Copy { .. }
+                | Line::Copied { .. }
                 | Line::Navigate(_)
                 | Line::Replace(_)
                 | Line::Show { .. }
@@ -206,6 +208,8 @@ pub fn typed(line: &Line) -> bool {
         | Line::Save { .. }
         | Line::Erase(_)
         | Line::Writes(_)
+        | Line::Copy { .. }
+        | Line::Copied { .. }
         | Line::Navigate(_)
         | Line::Replace(_)
         | Line::Show { .. }

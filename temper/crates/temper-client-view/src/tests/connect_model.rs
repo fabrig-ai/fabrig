@@ -212,6 +212,7 @@ pub(super) fn sent(root: &mut d::Domain, act: M) -> skein_lib::Token {
             | d::Request::Leave { .. }
             | d::Request::SignOut
             | d::Request::Dropped { .. }
+            | d::Request::Copy { .. }
             | d::Request::Fact { .. } => None,
         })
         .expect("flow sends one request")

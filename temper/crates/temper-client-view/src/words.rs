@@ -1231,6 +1231,9 @@ pub enum Word {
     WelcomeFinishing,
     WelcomeClaudeTitle,
     WelcomeClaudeBody,
+    WelcomeCopy,
+    WelcomeCopied,
+    WelcomeNotCopied,
     WelcomeClaudeNote,
     WelcomeClaudeSignedIn,
     WelcomeTrying,
@@ -1345,7 +1348,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // Last landing adds two phrases (client/README.md, 3.5).
 // The waiting page removes five phrases across its words and accounts (client/README.md, 3.5).
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
-const PHRASES: u32 = 1825;
+// The command’s Copy adds three literal phrases (client/README.md, 3.5).
+const PHRASES: u32 = 1828;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1370,10 +1374,11 @@ const PHRASES: u32 = 1825;
 // Last landing adds four segments (client/README.md, 3.5).
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
-const SEGMENTS: u32 = 3154;
+// The command’s Copy adds three literal segments (client/README.md, 3.5).
+const SEGMENTS: u32 = 3157;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 44891;
-const ALL: [Word; 1231] = [
+const ENGLISH_BYTES: u32 = 44916;
+const ALL: [Word; 1234] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -2562,6 +2567,9 @@ const ALL: [Word; 1231] = [
     Word::WelcomeFinishing,
     Word::WelcomeClaudeTitle,
     Word::WelcomeClaudeBody,
+    Word::WelcomeCopy,
+    Word::WelcomeCopied,
+    Word::WelcomeNotCopied,
     Word::WelcomeClaudeNote,
     Word::WelcomeClaudeSignedIn,
     Word::WelcomeTrying,
@@ -3806,6 +3814,9 @@ impl Word {
             Self::WelcomeFinishing => 3375,
             Self::WelcomeClaudeTitle => 3376,
             Self::WelcomeClaudeBody => 3377,
+            Self::WelcomeCopy => 3790,
+            Self::WelcomeCopied => 3791,
+            Self::WelcomeNotCopied => 3792,
             Self::WelcomeClaudeNote => 3378,
             Self::WelcomeClaudeSignedIn => 3379,
             Self::WelcomeTrying => 3726,
@@ -4431,6 +4442,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeAwayBody => (&[b"Sign in and approve temper there. This page moves on by itself."], &[]),
         Word::WelcomeClaudeTitle => (&[b"Your Claude subscription"], &[]),
         Word::WelcomeClaudeBody => (&[b"temper sets Claude Code up on this machine in an environment of its own: its settings, sessions and sign-in stay apart from your own Claude Code. In a terminal here:"], &[]),
+        Word::WelcomeCopy => (&[b"Copy"], &[]),
+        Word::WelcomeCopied => (&[b"Copied"], &[]),
+        Word::WelcomeNotCopied => (&[b"Couldn\xe2\x80\x99t copy"], &[]),
         Word::WelcomeClaudeNote => (&[b"It makes that environment, then Claude Code asks you to sign in to your subscription there. temper never reads its login."], &[]),
         Word::WelcomeClaudeSignedIn => (&[b"I\xe2\x80\x99ve signed in"], &[]),
         Word::WelcomeTrying => (&[b"Trying your ", b""], &[Name]),
