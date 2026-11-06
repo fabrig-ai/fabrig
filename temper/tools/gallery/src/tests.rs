@@ -107,6 +107,20 @@ enum Part {
 }
 const HOLDS: [Holds; samples::N] = [
     Holds {
+        name: "agent-work",
+        heading: "T1 · please describe how temper works",
+        parts: &[
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Checked settings 2×, read 1 doc",
+                description: "checking template 2",
+            },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Run 1 · live now" },
+            Part::Named { role: Role::Paragraph, name: "Agent" },
+            Part::Named { role: Role::Button, name: "Latest" },
+        ],
+    },
+    Holds {
         name: "chat-work-done",
         heading: "please describe how temper works",
         parts: &[
@@ -1384,7 +1398,7 @@ const HOLDS: [Holds; samples::N] = [
         name: "welcome-model-claude",
         heading: "Your Claude subscription",
         parts: &[
-            Part::Text { text: "temper program-login claude-pat" },
+            Part::Text { text: "temper program-login --config CONFIG --data DATA --cache CACHE claude-pat" },
             Part::Named { role: Role::Button, name: "I’ve signed in" },
             Part::Absent { role: Role::TextField, name: "Name" },
         ],
@@ -1790,7 +1804,7 @@ const HOLDS: [Holds; samples::N] = [
         name: "configure-chat-document",
         heading: "T10 · Configure temper",
         parts: &[
-            Part::Named { role: Role::Paragraph, name: "T10 · Claude subscription · Opus" },
+            Part::Named { role: Role::Paragraph, name: "T10 · Opus" },
             Part::Named { role: Role::Button, name: "Start over" },
             Part::Named { role: Role::Button, name: "Chat" },
             Part::Named { role: Role::Button, name: "Split" },
@@ -2000,7 +2014,7 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Button, name: "Accept" },
             Part::Named { role: Role::Heading { level: 2 }, name: "JSON output for tally report" },
-            Part::Named { role: Role::Disclosure, name: "read ×2" },
+            Part::Named { role: Role::Disclosure, name: "Read 2 files" },
         ],
     },
     Holds {
@@ -2527,8 +2541,8 @@ const HOLDS: [Holds; samples::N] = [
         heading: "T9 · Produce T8's branch",
         parts: &[
             Part::Named { role: Role::Log, name: "Conversation" },
-            Part::Named { role: Role::Disclosure, name: "read ×4, shell" },
-            Part::Named { role: Role::Disclosure, name: "edit ×3, shell ×2" },
+            Part::Named { role: Role::Disclosure, name: "Read 4 files, ran 1 command" },
+            Part::Named { role: Role::Disclosure, name: "Edited 3 files, ran 2 commands" },
             Part::Named { role: Role::Paragraph, name: "Errors carry their line now" },
         ],
     },
@@ -3397,4 +3411,19 @@ fn settings_away_draws_the_default_choices() {
         let node = view.tree().nodes().iter().find(|node| node.id == id).expect("Away control");
         assert_eq!(node.states.as_slice().contains(&state), expected, "{name}");
     }
+}
+
+#[test]
+fn agent_work_runs_its_line_and_reads_away_from_the_end() {
+    let sample = samples::samples().into_iter().find(|sample| sample.name == "agent-work").expect("agent-work");
+    assert_eq!(sample.address, temper_client_domain::Address::Task { task: 1 });
+    let view = view(&sample);
+    let styles = temper_client_view::look::WORK_RUNNING;
+    let line = view.tree().nodes().iter().find(|node| node.styles.as_slice().contains(&styles)).expect("running run");
+    assert_eq!(line.description.as_deref(), Some(b"checking template 2".as_slice()));
+    assert!(!view.tree().nodes().iter().any(|node| node.styles.as_slice().contains(&temper_client_view::look::TYPING)));
+    let html = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
+    assert!(html.contains("temper-agent-page"));
+    assert!(html.contains("data-log-away"));
+    assert!(html.contains("temper-latest"));
 }

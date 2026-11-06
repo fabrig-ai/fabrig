@@ -97,8 +97,7 @@ Where the client does otherwise:
   client's where it has written none; "Landing: …", including "Landing:
   nothing has landed yet" after Skip, closes the page, and Goals takes
   Chats' place with a goal in the project (`../README.md`, 3.5, *Home on
-  any project*; on the stock policy a person's pool leaves no funding
-  for those words, `../README.status.md`, 3.5). Context, choices,
+  any project*). Context, choices,
   "recommended", "Later", the answer's green line and "Undo" are the
   greenfield mock's (`../README.md`, 3.5). A chat's "landed" waits on
   `../README.md`, 11, *What a chat did, on its line*. An adopted repository's To begin line says chats can change its code,
@@ -269,9 +268,9 @@ unmarked in their main drawing.
 The `chat-work` conversation is drawn through the view in the gallery's
 `chat-work-*` states (`../browser.md`, 7.2): a folded run of calls and its
 rows, an answer's end mark, Latest while reading back, and the loading
-status at the head. The remaining scrolling behaviour, further tools, a run
-of one turn's time, and an agent's running state and pill, belong to
-`../../draft/chat-reading.status.md`, sections 2, 5 and 7.
+status at the head. What remains of the live text and the scrolling is in
+`../../draft/chat-reading.status.md`, sections 3 and 5, and of the line in its
+sections 2 and 7; a numbered list's look is in `../browser.status.md`, 2.5.
 "Older" remains the route to history until the log supplies a head-near act.
 
 Where the client's recorded picks stand against the drawing:

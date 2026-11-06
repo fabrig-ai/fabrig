@@ -3,7 +3,7 @@ use super::fixtures::{self, ALICE, ENDED, LIVE};
 use crate::restore::{Cause, DecodeFailure, Failure, Item};
 use crate::{Cursor, Event, Family, Phase, Request, Restore, Row, SecretOwner, SecretValue, Store, Write, keys};
 use jig_domain_core::{Census, Key, ReadResults, Record, RestoreRange};
-use skein_lib::{List, Queue, Token, Wall};
+use skein_lib::{List, Queue, Token, Wall, length::len_u64};
 
 const OWNER: Token = Token::new(5);
 const ROWS: u32 = 8;
@@ -152,12 +152,8 @@ fn an_undecodable_row_refuses_with_its_family_and_key_and_stops() {
         panic!("typed refusal")
     };
     assert_eq!(owner, OWNER);
-    let site = crate::restore::RowSite {
-        family: Some(Family::People),
-        key_bytes: u64::try_from(key.len()).expect("fixture key length"),
-        key,
-        truncated: false,
-    };
+    let site =
+        crate::restore::RowSite { family: Some(Family::People), key_bytes: len_u64(key.len()), key, truncated: false };
     assert_eq!(failure, Failure { cause: Cause::Decode(DecodeFailure::Value), row: Some(site) });
     assert_eq!(store.phase, Phase::Stopped);
 }

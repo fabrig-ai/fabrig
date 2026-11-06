@@ -3,7 +3,7 @@
 //! tasks and checks current policy; this child never sees task records.
 use alloc::boxed::Box;
 use core::mem::size_of;
-use skein_lib::{Duration, Wall};
+use skein_lib::{Duration, Wall, length::len_u64};
 
 /// A person's whole optional task edit and bounded explanation.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -165,25 +165,24 @@ pub enum Executor {
 /// Checked owned payload size of one amendment, excluding fixed inline fields.
 #[must_use]
 pub fn amendment_bytes(amendment: &Amendment) -> Option<u64> {
-    let mut total = u64::try_from(amendment.reason.len()).ok()?;
+    let mut total = len_u64(amendment.reason.len());
     if let Some(instructions) = &amendment.instructions {
-        total = total.checked_add(u64::try_from(instructions.len()).ok()?)?;
+        total = total.checked_add(len_u64(instructions.len()))?;
     }
     if let Some(spec) = &amendment.spec {
-        total = total.checked_add(u64::try_from(spec.words.len()).ok()?)?;
-        total = total.checked_add(
-            u64::try_from(spec.parameters.len()).ok()?.checked_mul(u64::try_from(size_of::<Parameter>()).ok()?)?,
-        )?;
-        total = total.checked_add(u64::try_from(spec.inputs.len()).ok()?.checked_mul(8)?)?;
+        total = total.checked_add(len_u64(spec.words.len()))?;
+        total = total
+            .checked_add(len_u64(spec.parameters.len()).checked_mul(u64::try_from(size_of::<Parameter>()).ok()?)?)?;
+        total = total.checked_add(len_u64(spec.inputs.len()).checked_mul(8)?)?;
         for parameter in &spec.parameters {
             match parameter {
-                Parameter::Bytes { value, .. } => total = total.checked_add(u64::try_from(value.len()).ok()?)?,
+                Parameter::Bytes { value, .. } => total = total.checked_add(len_u64(value.len()))?,
                 Parameter::Number { .. } | Parameter::Resource { .. } => {}
             }
         }
     }
     if let Some(dependencies) = &amendment.dependencies {
-        total = total.checked_add(u64::try_from(dependencies.len()).ok()?.checked_mul(8)?)?;
+        total = total.checked_add(len_u64(dependencies.len()).checked_mul(8)?)?;
     }
     if let Some(authority) = &amendment.authority {
         total = total.checked_add(authority_bytes(authority)?)?;
@@ -195,41 +194,33 @@ pub fn amendment_bytes(amendment: &Amendment) -> Option<u64> {
 /// Checked deep-byte size of a person's authority value.
 #[must_use]
 pub fn authority_bytes(authority: &Authority) -> Option<u64> {
-    let mut total = u64::try_from(authority.grants.len()).ok()?.checked_mul(u64::try_from(size_of::<Grant>()).ok()?)?;
+    let mut total = len_u64(authority.grants.len()).checked_mul(u64::try_from(size_of::<Grant>()).ok()?)?;
     total = total.checked_add(
-        u64::try_from(authority.note_resources.len())
-            .ok()?
-            .checked_mul(u64::try_from(size_of::<ResourceScope>()).ok()?)?,
+        len_u64(authority.note_resources.len()).checked_mul(u64::try_from(size_of::<ResourceScope>()).ok()?)?,
     )?;
     total = total.checked_add(
-        u64::try_from(authority.delegation.kinds.len())
-            .ok()?
-            .checked_mul(u64::try_from(size_of::<Executor>()).ok()?)?,
+        len_u64(authority.delegation.kinds.len()).checked_mul(u64::try_from(size_of::<Executor>()).ok()?)?,
     )?;
     for grant in &authority.grants {
         total = total.checked_add(
-            u64::try_from(grant.pattern.segments.len())
-                .ok()?
-                .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
+            len_u64(grant.pattern.segments.len()).checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
         )?;
         for segment in &grant.pattern.segments {
-            total = total.checked_add(u64::try_from(segment.len()).ok()?)?;
+            total = total.checked_add(len_u64(segment.len()))?;
         }
         total = total.checked_add(match &grant.pattern.last {
-            Last::Exact(word) | Last::Open(word) => u64::try_from(word.len()).ok()?,
+            Last::Exact(word) | Last::Open(word) => len_u64(word.len()),
         })?;
     }
     for scope in &authority.note_resources {
         total = total.checked_add(
-            u64::try_from(scope.pattern.segments.len())
-                .ok()?
-                .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
+            len_u64(scope.pattern.segments.len()).checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?,
         )?;
         for segment in &scope.pattern.segments {
-            total = total.checked_add(u64::try_from(segment.len()).ok()?)?;
+            total = total.checked_add(len_u64(segment.len()))?;
         }
         total = total.checked_add(match &scope.pattern.last {
-            Last::Exact(word) | Last::Open(word) => u64::try_from(word.len()).ok()?,
+            Last::Exact(word) | Last::Open(word) => len_u64(word.len()),
         })?;
     }
     Some(total)

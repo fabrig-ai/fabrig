@@ -401,6 +401,9 @@ keeps (`../protocol/configuration.md`, section 2).
      line with nothing behind it.
   2. *Its status,* quiet: 12 px, faint, in lower case by the look alone.
      It is the colour of `.state-needs` while it waits for the person.
+     A run that can't start says so ("Waiting for an account"), that colour
+     too, and has no dots: the dots say a run is working, never that it
+     can't start (jig's `client/domain/client.md`, 19.1).
      Every ended chat says "Closed", with no time: its end's line has the time
      (3.6, *Closed ends on one line*).
   3. *Stop and Close,* while allowed, each quiet and small. The mock has
@@ -489,32 +492,48 @@ keeps (`../protocol/configuration.md`, section 2).
       it touched, not its calls: `read_docs` is "read N docs", its distinct
       topics, each search one, a call whose input can't be read one
       ("read 1 doc"); `settings` is "checked settings N×", once "checked
-      settings". Any other tool is its name, counted: "read_file ×2", once
-      "read_file". A run of one call alone says what it touched: "Read the
-      page hold", "Searched the docs for WORDS", "Checked template 2";
-      any other tool still its name;
+      settings"; `read` and `Read` are "read N files", `list` and `Glob`
+      "listed N folders", `write` and `Write` "wrote N files", `edit` and
+      `Edit` "edited N files" and `remove` "removed N files", each its
+      distinct arguments, a call whose input can't be read one; `search`
+      and `Grep` are "searched the files N×", once "searched the files";
+      `shell` and `Bash` are "ran N commands", each call one. Any other
+      tool is its name, counted: "read_file ×2", once "read_file". A run of
+      one call alone says what it touched: "Read the page hold", "Searched
+      the docs for WORDS", "Checked template 2", "Read src/main.rs",
+      "Searched for WORDS", "Ran cargo test", its counted phrase where the
+      input can't be read ("Read 1 file"); any other tool still its name;
     - *its description,* faint: the time the run took, then nothing else.
       "29 s", under a minute in whole seconds, then "4 min": from the
-      first turn of the run to its last, as the committed turns say. A
-      run of one turn, or under a second, has no time and no description;
+      line before the run's first turn to the run's last turn. A committed
+      turn says only when it ended, so the line before it says when it
+      began: any line of the task's activity, drawn or not (a turn, the
+      person's words, the run's beginning). A run with no such line, at the
+      window's head or the second run of one turn, measures from its first
+      turn's end. Under a second has no time and no description;
     - *a failed call* adds "1 failed" ("N failed") before the time in the
       description, "1 failed · 29 s", the description then in the signal's
       colour, `temper-work-failed`, and read after the name with a comma
       the stylesheet draws;
     - *while it runs:* the conversation's last run, while the chat's
-      status is active (`chats::working`), has `temper-work-running` and no
-      time. It counts what has ended, and its description is the call
-      under way, from the run's `call` (jig's `RunState`), the phrase's
-      present form in faint words: "checking template 2", "reading index",
-      any other tool its name; the stylesheet adds the "…". With no call
-      under way, no description. A call under way with none ended is the
-      line alone, its name the present form capitalised;
+      status is active (`chats::working`) or an agent's run is out (5.9),
+      has `temper-work-running` and no time. It counts what has ended, and
+      its description is the call under way, from the run's `call` (jig's
+      `RunState`), the phrase's present form in faint words: "checking
+      template 2", "reading index", "reading src/main.rs", "searching for
+      WORDS", "running cargo test"; any other tool, and a call whose input
+      can't be read, its name. The stylesheet adds the "…", and the
+      terminal, which has none, writes it. With no call under way, no
+      description. A call under way with none ended is the line alone, its
+      name the present form capitalised;
     - *opened,* `temper-work-calls`, a row a call in order, the call under
       way last: a paragraph named "TOOL ARGUMENT: OUTCOME", the tool in
       code, the argument in a few words (`read_docs`: "index", "change,
       from 1438", a search's words; `settings`: "the inventory", "charter
       1", "history"; any other tool: its input's first text or number
-      member, "task 3"; nothing where the input can't be read), and, in
+      member, "task 3", a text's first line; a live call's input cut at its
+      bound as far as its first member closes; nothing where the input
+      can't be read), and, in
       `temper-work-out`, its outcome's first line, a failed call's
       "failed: LINE" in the signal's colour. Never a result's body. A row
       is cut at 160 bytes, and a name at 256 at a phrase's end, with "…".
@@ -601,8 +620,7 @@ keeps (`../protocol/configuration.md`, section 2).
   - *"Older"* is a `.btn.quiet.small`, centred, at the head while an older
     page remains and the window has filled. It is replaced by the loading
     status while that read is out; the agent's page uses the same head,
-    with "Older" whenever an older page remains. An agent's page has no
-    Latest pill. *Its end* has
+    with "Older" whenever an older page remains. *Its end* has
     `.meta-line`'s look, and an ended chat has no composer.
 - **A new chat** (the greenfield mock's `chat.html?id=new`): `NewChat`,
   at `/chats/new`, for the open project. The domain's `Chats` state holds
@@ -1007,8 +1025,8 @@ keeps (`../protocol/configuration.md`, section 2).
     program's name field and "Declare". Declaring a program's login
     asks its name, 1 to 32 of `a` to `z`, `0` to `9` and `-`, `claude-`
     and the person's first name by default (`claude-alice`), and shows
-    the command to run on each host, `temper program-login NAME`, after the
-    words of `program_environment` (4.6) where it has any
+    the command to run on each host, as *The printed command* (4.6) has it,
+    after the words of `program_environment` (4.6) where it has any
     (`../protocol/credentials.md`, section 3). The tools' printed act
     includes the box's directory placeholders and the signed-in skip
     rule (`tools.md`, 5.5, area 5).
@@ -1314,7 +1332,7 @@ keeps (`../protocol/configuration.md`, section 2).
     - *Claude,* "Your Claude subscription": "temper sets Claude Code up on
       this machine in an environment of its own: its settings, sessions
       and sign-in stay apart from your own Claude Code. In a terminal
-      here:"; the command `temper program-login NAME`, NAME the program's
+      here:"; the command (4.6, *The printed command*), NAME the program's
       default name (5.5), with no field for it, after the words of
       `program_environment` (4.6) where it has any; the muted "It makes that
       environment, then Claude Code asks you to sign in to your
@@ -1880,8 +1898,8 @@ keeps (`../protocol/configuration.md`, section 2).
 - **What the client keeps** of what needs the person: in `Pages`, not on
   a page, for this session, gone on reload or on sign-out, none of it a
   stored record, and at most 64 each of the cards marked later, the answered
-  lines and the refused answers, the oldest going first, a line still held
-  never:
+  lines, the refused answers and the proposals of settings, the oldest going
+  first, a line still held never:
   - *Later,* the cards marked later. *The open cards* are the needs'
     groups as `Inbox` reads them, less those answered, in the inbox's
     order, those marked later last.
@@ -1892,6 +1910,9 @@ keeps (`../protocol/configuration.md`, section 2).
     leaves the open ones at once.
   - *At,* the card a Home row asked for, until it is answered or marked
     later, or the person leaves the page.
+  - *Proposals of settings,* each document as the session read it, so that a
+    return to its chat, once it is decided and jig reads it ended, draws its card
+    from it, with no acts, and its state from that read (5.13).
   - *The held send.* jig has no retraction, so a choice or a reply is
     held in the client for 5 seconds, a deadline of the domain's as
     `next_deadline` has. The card moves to answered at once, with the
@@ -2257,9 +2278,13 @@ keeps (`../protocol/configuration.md`, section 2).
     followed by "/", then the level-1 heading "Configure
     temper", the page's title too; on a phone "‹", a link named "Settings", alone before the
     heading. At its right on a wide page, the line of what the chat's
-    runs use, "ChatGPT plan · gpt-6.1-sol", the first usable account's
-    kind, as Ready's model line chooses it, and the first model `me`
-    serves for the project.
+    runs use, "ChatGPT plan · gpt-6.1-sol", in the composer's line's words
+    (5.5): on a configuring chat, what its next run takes, as any chat's
+    byline; with no chat yet, what a new chat's would, the first model `me`
+    serves for the project whose LLM provider is usable for the person,
+    with that provider's first usable account. It never sets one LLM
+    provider's account beside another's model; with no usable account it
+    says what the composer's line says then.
   - *The conversation,* a region named "Conversation", its opening a
     page as `Home` is, starting 28 pixels from the conversation's top, with no
     kicker: the level-2 heading "How should temper run PROJECT?", drawn
@@ -3066,8 +3091,23 @@ for its kind, its user's login and its installations. Its nodes:
   (bool), whether Forgejo on this machine can be set up: the document
   has `application.machine.owned` and the engine runs under the box
   (`../protocol/setup.md`, 7.4). A first run's store keeps no forge, so
-  no row of the `forges` watch can say so (`forge.md`, 5.4). On the
-  wire it is `Reading`'s `deployment`, beside `playground`.
+  no row of the `forges` watch can say so (`forge.md`, 5.4); and
+  `program_login` (optional bytes, at most 8,192), *the printed command*
+  below. On the wire it is `Reading`'s `deployment`, beside `playground`.
+- **The printed command:** what the pages print works when pasted. Where
+  the deployment's one worker is on the engine's machine
+  (`../protocol/configuration.md`, section 1, the standalone shape),
+  `program_login` is that machine's whole command but NAME, the running
+  binary's absolute path and the three directories in effect, each quoted
+  for a POSIX shell: `'/home/alice/temper' program-login --config '…' --data
+  '…' --cache '…'`. The pages print it with NAME after "On this machine,
+  run:". It is a path of a machine that the party signed in to it
+  may read: a read carries a sign-in (jig's `protocol/client.md`), and no
+  answer goes before one. A path that isn't UTF-8, a line past its
+  bound, and a deployment whose workers are elsewhere send none: the pages
+  then print the placeholders the tools do, `temper program-login --config
+  CONFIG --data DATA --cache CACHE NAME`, "On each host, with its
+  directories:".
 - **The program's environment, `program_environment`:** of the deployment's
   scope, with no fields and no subject: what `temper program-login` needs set
   to act on this deployment. It is the party's read, and only the deployment's
@@ -3080,8 +3120,7 @@ for its kind, its user's login and its installations. Its nodes:
   `TEMPER_CONFIG=… TEMPER_DATA=… TEMPER_CACHE=…`, all three, each value a POSIX
   shell word. It is one string, composed where the directories are known, so
   that the client holds no path as a fact, quotes nothing and decides no
-  default; it is a read of its own, not a member of `DeploymentAnswer`, since
-  that one is answered before any party is known, the same to every visitor.
+  default; it is a read of its own, separate from `DeploymentAnswer`.
   A page asks when its address names a program's way, the only place that
   draws the command with these words; Accounts' stays plain (section 11). On the
   wire it is `Reading`'s `program_environment`.
@@ -3883,9 +3922,9 @@ The words for each offered source are:
   configured name ("Added your PROVIDER API key"), and "temper’s
   agents now run on it."; for a program's login: "Declared your Claude
   subscription · claude-alice", then "Run this on each host temper’s
-  agents run on, in a terminal there:", the command, `temper
-  program-login claude-alice`, after the words of `program_environment` (4.6)
-  where it has any, and "If this machine has no Claude Code,
+  agents run on, in a terminal there:", the command (4.6, *The printed
+  command*), after the words of `program_environment` (4.6) where it has any,
+  and "If this machine has no Claude Code,
   this fetches it first. Claude Code asks you to sign in. temper never
   reads its login."; for a sign-in, A sign-in's (below).
   The tools' declaration act names the box's three directories as
@@ -3917,6 +3956,23 @@ The words for each offered source are:
   "Pays for": a plan's, "Your own work, and projects where you’re the
   only member"; a key's or a program's login's with no uses given,
   "Your own work" (jig's `domain/accounts.md`, 4.2).
+- **A run's wait,** above any chat's composer, a configuring chat's too, and
+  on an agent's task's page, says in the person's words why its run can't
+  start, from the task's `run_wait`, and offers the act where there is one:
+  - *No account for it:* "No account can run MODEL yet.", MODEL the task's
+    main, and "Connect a model", to `ConnectModel` with no way chosen.
+  - *An account's login on no host:* "ACCOUNT's login isn't signed in on a
+    host that can run this.", the command (below) where the accounts
+    document names the source, and a link to `Accounts`.
+  - *A source held:* its state's words and its act, as the accounts page has
+    them (`Limited`'s Resume, `NeedsSignIn`'s sign-in, `Refused`'s key).
+  - *A credential:* "This work needs a credential from its forge." and a link
+    to `Forges`.
+  - *A host:* "No host has room for this, or none is connected. It starts
+    when one does.", with nothing to press.
+
+  A wait about to end (jig's `client/domain/client.md`, 19.1) stays
+  "Starting". A Chats row holds no wait, and says "Starting".
 - **The composer's line** names the account and model the work's next
   run takes, on a chat as its bar's byline, before its mode group (3.5, *A chat's
   document*), with the chooser behind it
@@ -3937,8 +3993,8 @@ The words for each offered source are:
     The composer never infers a default from the project catalogue's
     order, including a clipped catalogue. With no preview it uses
     "Using the default model". The preview is an observation, not a
-    reservation: the draft keeps configured intent, and Create resolves
-    omission once (`../protocol/setup.md`, 8.3).
+    reservation: the draft keeps configured intent, and each run's check
+    takes the models of a task given none (jig's `domain/accounts.md`, 4.3).
   - *The account* is named only when the payer is you: your new chat,
     or a task funded by your pool. The accounts document lists only
     your own accounts, in `(place, number)` order. In this slice the
@@ -4549,10 +4605,13 @@ acts on it as its document offers (5.11).
   `thread`), read as the chat's page reads it, is drawn as work, not as
   a chat's (3.5): its latest window; committed turns, the agent's
   "Temper" over its texts; its calls in runs, as a chat's (3.5), one
-  line a run with no running state, a `delegate` call's a row too, since a
+  line a run, running while `task::run` says a run is out and the words
+  being written haven't begun, a `delegate` call's a row too, since a
   delegation's card is the chat's (5.7), and a run's results its rows'
   outcomes, a message that holds only those drawing no "Completed"; "Run N began" and
   "Run N ended"; and a live run's words being written, as the chat's.
+  No three dots: its run's heading says it is live. "Latest" stands over
+  the log's foot while its end is out of view, as a chat's (3.5).
 - **Its result,** once it has ended: a region "Result" after the
   conversation, its state and its words as a goal's "Result" says them
   (5.8), from the same function (`pages::delegation::facts`):
@@ -5053,7 +5112,8 @@ section 5.
   something", quiet, focusing the composer. Replaced by a later proposal, it is
   dimmed, "Replaced by the proposal below"; accepted, "✓ Accepted · new work
   follows it". A person who may not accept it sees neither act: "Waiting for an
-  owner", the parties it waits for as jig's proposal names them. Nothing of it
+  owner", the parties it waits for as jig's proposal names them, "Owners of this
+  deployment" for a holder that is the deployment's policy. Nothing of it
   says which items temper enforces and which agents follow: that is the review
   page's, below, once it is built. In the inbox, its card shows the same lines
   (3.5).
@@ -6167,6 +6227,17 @@ own tests:
 - **A fresh configuring chat from its composer** (3.5, *The configuring chat's
   page*): a command ("/clear") once the composer takes commands. Default: "Start
   over" in its bar.
+- **The line's words** (3.5, *its calls*; `../draft/chat-reading.md`, 7): the user
+  reads the table's verbs on a real chat. `read_file` and the forge's other reads
+  stay their names, as the draft's example has it, and so do `recall` and `message`,
+  whose first members are a number or a body, which read badly as an argument.
+  Default: the table as 3.5 has it.
+- **A run's time** (3.5, *its calls*; `../draft/chat-reading.md`, 7): a committed
+  turn says only when it ended. Storing when it began would change a stored format
+  and a protocol, for a figure the line before it gives nearly as well: it holds the
+  model's writing of any text that opened the turn, and at a window's head or for a
+  turn's second run is often no time at all. The user reads it on a real chat.
+  Default: from the line before, as 3.5 has it.
 - **The sheet the request `ui-chat-draft` of 2026-11-05 draws** (3.5, 5.14): its
   "Budget", in the deployment's unit, and its ways by their fixed words, "Plan, tasks,
   land whole", "Task by task" and "Plan, then wait for me", the last sent by
@@ -6313,14 +6384,16 @@ own tests:
   the goal hearing those words, whose scripts are throwaway. No world keeps it:
   the parser, the stock sentence, the session and the view each hold their own
   side. Default: those tests.
-- **A brief refused, on Home** (3.5, *Home on any project*; the request
-  `ui-final-walk` of 2026-11-05): a status
-  run refused for want of funding leaves Home its computed sentence, with no byline
-  and nothing saying why. How a person sees that goes with what funds the run
-  (`../domain/forge.md`, 20). Default: nothing said.
-- **What a real box's walk has not shown** (3.5; `../protocol/setup.md`, 6.6; that
-  request): the pinned Claude Code fetch and a real browser's Sign out ran by hand,
-  on fresh loopback deployments, and no test keeps them. Not shown: a provider's
+- **A decided proposal of settings' card, past the session** (5.13; 3.5, *What the
+  client keeps*; the request `ui-walk-large` of 2026-11-06, which has the chat's card
+  stay): a return to the chat draws the card, accepted, from what the session keeps;
+  a reload or another device loses it, since an ended proposal asks no card and jig
+  names no `projects` on one. A card from the ended proposal, or a stored record, would
+  keep it. Default: this session's alone.
+- **What a real box's walk has not shown** (3.5; `../protocol/setup.md`, 6.6; the
+  request `ui-final-walk` of 2026-11-05): the pinned Claude Code fetch and a real
+  browser's Sign out ran by hand, on fresh loopback deployments, and no test keeps
+  them. Not shown: a provider's
   sign-in or a paid call; TLS, a proxy or a browser on another machine; Accounts
   with a project or an account on it; the small engine profile whole, whose client
   limits alone ran; another platform's build, a failed or corrupt download, two
@@ -6470,9 +6543,9 @@ own tests:
   on the person sending and across all the window let go. Default: "Older" at the
   head, a window of 16 lines, Latest reading one page and sending leaving the view.
 - **The rest of a run's line** (3.5, 5.9; `../draft/chat-reading.md`, 2 and 7): words
-  for further tools, which are the user's to read on a real chat, a run of one turn's
-  time, and a running run and Latest on an agent's page. Default: any other tool is
-  its name, a run of one turn has no time, and an agent's page has neither.
+  for tools past the table, which are the user's to read on a real chat. Default: any
+  other tool is its name. A run of one turn has its time as *A run's time* says, and an
+  agent's page has a running run and Latest as a chat's, sending not pressing it.
 - **An agent's conversation drawn as a chat's** (5.9): the agent's
   page draws runs as a chat does, and keeps the run markers
   as work lines, which a chat hides (3.5).

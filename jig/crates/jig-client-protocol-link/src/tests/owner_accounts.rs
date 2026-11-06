@@ -1,7 +1,7 @@
 //! Complete accounts receiving admission and field preservation.
 use super::{c, fixtures, w};
 use crate::{Limits, Undecodable, Unusable, translate::watches};
-use skein_lib::{Duration, List, Wall, Writer};
+use skein_lib::{length::len_u64, Duration, List, Wall, Writer};
 fn list<T, const N: usize>(items: [T; N]) -> List<T> {
     List::from_boxed(Box::new(items))
 }
@@ -191,7 +191,7 @@ fn an_accounts_document_past_its_decoded_room_is_refused() {
 #[test]
 fn accounts_delivery_one_byte_over_the_receiving_limit_is_refused() {
     let bytes = bytes(None);
-    let limits = fixtures::limits_for_document(u64::try_from(bytes.len()).unwrap().checked_sub(1).unwrap());
+    let limits = fixtures::limits_for_document(len_u64(bytes.len()).checked_sub(1).unwrap());
     assert_eq!(watches::delivery(&bytes, &limits), Err(Undecodable::TooLarge));
 }
 

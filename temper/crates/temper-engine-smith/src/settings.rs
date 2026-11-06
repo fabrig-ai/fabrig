@@ -492,28 +492,8 @@ pub(crate) fn refusal(why: &jig_domain_people::Refusal) -> Box<[u8]> {
     }
     let view = if let Refusal::Stale { newest } = why {
         settings_form::Refusal::Stale(*newest)
-    } else if let Refusal::NotWellFormed { at, why: Malformed::Settings { setting, fault } } = why {
-        let setting = match setting {
-            s::Setting::ProjectPolicy { project } => c::Setting::ProjectPolicy { project: *project },
-            s::Setting::Charter(number) => c::Setting::Charter(c::SettingNumber { number: *number }),
-            s::Setting::Template(number) => c::Setting::Template(c::SettingNumber { number: *number }),
-            s::Setting::Policy(number) => c::Setting::Policy(c::SettingNumber { number: *number }),
-            s::Setting::Rules => c::Setting::Rules,
-            s::Setting::Application { kind, scope, number } => {
-                c::Setting::Application { kind: *kind, scope: *scope, number: *number }
-            }
-        };
-        let fault = match fault {
-            jig_domain_people::SettingFault::Shape => c::SettingFault::Shape,
-            jig_domain_people::SettingFault::Count => c::SettingFault::Count,
-            jig_domain_people::SettingFault::Reference => c::SettingFault::Reference,
-            jig_domain_people::SettingFault::Rules => c::SettingFault::Rules,
-            jig_domain_people::SettingFault::Budget => c::SettingFault::Budget,
-            jig_domain_people::SettingFault::Grace => c::SettingFault::Grace,
-            jig_domain_people::SettingFault::Owner => c::SettingFault::Owner,
-            jig_domain_people::SettingFault::Judged => c::SettingFault::Judged,
-        };
-        settings_form::Refusal::Malformed { at: *at, setting, fault }
+    } else if let Refusal::NotWellFormed { at, why: Malformed::Settings { setting, fault, detail } } = why {
+        malformed_setting(*at, setting, *fault, *detail)
     } else if let Refusal::NotWellFormed { why: Malformed::SettingsUnchanged, .. } = why {
         settings_form::Refusal::Unchanged
     } else if let Refusal::Authority { lacking: jig_domain_people::Lack::Approver, .. } = why {
@@ -524,4 +504,65 @@ pub(crate) fn refusal(why: &jig_domain_people::Refusal) -> Box<[u8]> {
         settings_form::Refusal::NotOffered
     };
     settings_form::refusal_text(&view)
+}
+
+/// Translate the document refusal facts without checking the settings again.
+fn setting_detail(value: jig_domain_people::SettingDetail) -> c::SettingDetail {
+    c::SettingDetail {
+        member: match value.member {
+            jig_domain_people::SettingMember::Documents => c::SettingMember::Documents,
+            jig_domain_people::SettingMember::NameSegments => c::SettingMember::NameSegments,
+            jig_domain_people::SettingMember::NameSegmentBytes => c::SettingMember::NameSegmentBytes,
+            jig_domain_people::SettingMember::Path => c::SettingMember::Path,
+            jig_domain_people::SettingMember::Heading => c::SettingMember::Heading,
+            jig_domain_people::SettingMember::Connector => c::SettingMember::Connector,
+        },
+        rule: match value.rule {
+            jig_domain_people::SettingRule::Maximum => c::SettingRule::Maximum,
+            jig_domain_people::SettingRule::Minimum => c::SettingRule::Minimum,
+            jig_domain_people::SettingRule::Registered => c::SettingRule::Registered,
+        },
+        document: value.document,
+        segment: value.segment,
+        supplied: value.supplied,
+        bound: value.bound,
+    }
+}
+
+#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
+fn malformed_setting(
+    at: u32,
+    setting: &s::Setting,
+    fault: jig_domain_people::SettingFault,
+    detail: Option<jig_domain_people::SettingDetail>,
+) -> settings_form::Refusal {
+    let setting = match setting {
+        s::Setting::ProjectPolicy { project } => c::Setting::ProjectPolicy { project: *project },
+        s::Setting::Charter(number) => c::Setting::Charter(c::SettingNumber { number: *number }),
+        s::Setting::Template(number) => c::Setting::Template(c::SettingNumber { number: *number }),
+        s::Setting::Policy(number) => c::Setting::Policy(c::SettingNumber { number: *number }),
+        s::Setting::Rules => c::Setting::Rules,
+        s::Setting::Application { kind, scope, number } => {
+            c::Setting::Application { kind: *kind, scope: *scope, number: *number }
+        }
+    };
+    let fault = match fault {
+        jig_domain_people::SettingFault::Shape => c::SettingFault::Shape,
+        jig_domain_people::SettingFault::Count => c::SettingFault::Count,
+        jig_domain_people::SettingFault::Reference => c::SettingFault::Reference,
+        jig_domain_people::SettingFault::Rules => c::SettingFault::Rules,
+        jig_domain_people::SettingFault::Budget => c::SettingFault::Budget,
+        jig_domain_people::SettingFault::Grace => c::SettingFault::Grace,
+        jig_domain_people::SettingFault::Owner => c::SettingFault::Owner,
+        jig_domain_people::SettingFault::Judged => c::SettingFault::Judged,
+    };
+    settings_form::Refusal::Malformed {
+        at,
+        setting,
+        fault,
+        detail: match detail {
+            Some(value) => Some(setting_detail(value)),
+            None => None,
+        },
+    }
 }

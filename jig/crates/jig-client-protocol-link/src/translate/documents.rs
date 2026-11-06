@@ -4,7 +4,7 @@ use crate::Limits;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire::v19 as w;
-use skein_lib::{List, Reader, Wall, bytes};
+use skein_lib::{List, Reader, Wall, bytes, length::len_u64};
 #[path = "accounts.rs"]
 mod accounts;
 #[path = "catalogue.rs"]
@@ -47,7 +47,7 @@ fn text(value: &[u8], limits: &Limits) -> Result<c::Text, w::Problem> {
     }
 }
 fn raw(value: &[u8], limits: &Limits) -> Result<Box<[u8]>, w::Problem> {
-    if u64::try_from(value.len()).expect("usize fits u64") > u64::from(limits.client().text) {
+    if len_u64(value.len()) > u64::from(limits.client().text) {
         return Err(too_large());
     }
     Ok(bytes::copy_of(value))

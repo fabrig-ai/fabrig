@@ -1,13 +1,13 @@
 //! Route per-account lock state without reading a record. `lock_event` settles
 //! each attempt or schedules a retry (shell.md, 7.3; oauth.md, 6.7).
-use super::{LOCK_FILE, RETRY, State};
+use super::{RETRY, State};
 use crate::credentials::{Accounts, oauth};
 use skein_io::file;
 use skein_lib::{Time, Wall};
 
 impl Accounts {
     pub(in crate::credentials) fn lock_event(&mut self, event: file::Event, now: Time, wall: Wall) {
-        let index = u32::try_from(event.owner().raw() & !LOCK_FILE).expect("lock index");
+        let index = u32::try_from(event.owner().untagged()).expect("lock index");
         let lock = self.locks.get_mut(index).expect("lock index");
         let mut answer = None;
         match event {

@@ -10,6 +10,7 @@ mod amend_tools;
 mod away;
 mod b2;
 mod builders;
+mod call_line;
 mod change_panel;
 mod chat;
 mod chat_draft;

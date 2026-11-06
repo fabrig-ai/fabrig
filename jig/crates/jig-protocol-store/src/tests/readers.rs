@@ -4,7 +4,7 @@ use crate::{Cursor, Family, Phase, Restore, Row, Store, codec, keys, restore};
 use alloc::collections::BTreeMap;
 use jig_domain_core::{Census, Key, ReadResults, Record, RestoreRange};
 use restore::{Cause, DecodeFailure, Item, JoinFailure, RangeFailure, WalkFailure};
-use skein_lib::{List, Token};
+use skein_lib::{List, Token, length::len_u64};
 
 const ROWS: u32 = 8;
 const BYTES: u64 = 65_536;
@@ -105,7 +105,7 @@ fn diagnostics_bound_raw_keys_and_retain_original_lengths() {
     {
         let site = restore::site(&store, key);
         assert_eq!(site.key.as_ref(), &key[..3]);
-        assert_eq!(site.key_bytes, u64::try_from(key.len()).expect("test key"));
+        assert_eq!(site.key_bytes, len_u64(key.len()));
         assert_eq!(site.family, family);
         assert!(site.truncated);
     }
@@ -283,7 +283,7 @@ fn malformed_join_keys_and_disagreeing_owners_stay_distinct() {
     let Cause::Join { target, failure } = error.cause else { panic!("join") };
     assert_eq!(failure, JoinFailure::KeyEncoding);
     assert_eq!(target.key.as_ref(), &raw_target[..3]);
-    assert_eq!(target.key_bytes, u64::try_from(raw_target.len()).expect("target length"));
+    assert_eq!(target.key_bytes, len_u64(raw_target.len()));
     assert!(target.truncated);
     assert_eq!(error.row, Some(source));
 }

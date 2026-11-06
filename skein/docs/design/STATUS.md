@@ -33,9 +33,9 @@ connection, oauth and its accounts, llm,
 llm-connection and lib's `RequestTable` depart from
 `../foundation/programming-model.md`, 5.4, and the fakes share their
 product's types against `../foundation/testing-strategy.md`, 4
-(`fake-forge.md`, `fake-llm.md`); Forgejo's plans keep `Some(_) | None` arms
-against `../foundation/programming-model.md`, 10.3, which awaits the user
-(`forge.md`); single departures stand in
+(`fake-forge.md`, `fake-llm.md`); Forgejo's plans end a match over a decoded
+kind in `_` against `../foundation/programming-model.md`, 10.3, for the user's
+later review (`forge.md`); single departures stand in
 `channel.md`, `fake-forge.md`, `forge.md`, `forge-connection.md`, `io.md`,
 `json.md`, `kv.md`, `lib.md`, `link.md`, `llm.md`, `shell.md`,
 `testing.md`, `ui.md` and `ui-web.md`. The foundation's rules (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no

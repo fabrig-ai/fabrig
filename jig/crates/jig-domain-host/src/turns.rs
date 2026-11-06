@@ -3,7 +3,7 @@
 //! bytes and the credit bound that pauses an agent reader.
 
 use skein_lib::bytes::copy_of;
-use skein_lib::{Map, Token};
+use skein_lib::{Map, Token, length::len_u64};
 
 use crate::boundary::Turn;
 use crate::limits::Limits;
@@ -179,5 +179,5 @@ fn copy(turn: &Turn) -> Turn {
 }
 
 fn len(bytes: &[u8]) -> u64 {
-    u64::try_from(bytes.len()).expect("a length fits in u64")
+    len_u64(bytes.len())
 }

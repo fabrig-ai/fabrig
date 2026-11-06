@@ -41,3 +41,10 @@ mod goal_template;
 mod restore;
 
 mod visibility;
+
+fn malformed_setting(
+    setting: jig_client::contract::Setting,
+    fault: jig_client::contract::SettingFault,
+) -> jig_client::contract::Malformed {
+    jig_client::contract::Malformed::Settings(jig_client::contract::MalformedSettings { setting, fault, detail: None })
+}
