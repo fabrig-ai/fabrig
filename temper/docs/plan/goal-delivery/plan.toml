@@ -1,0 +1,38 @@
+draft = "goal-delivery"
+repo = "fabrig"
+sources = ["temper/docs/plan/goal-delivery/inputs/request.md", "temper/docs/design/draft/goal-as-designer.md", "temper/docs/design/draft/goal-as-designer.status.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
+
+# A goal's run writes design and lands it through a change. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "story-red"
+title = "The plan's story, failing, in the engine's domain world"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 11.1"
+
+[[part]]
+id = "delivery-grant"
+title = "jig's charter grants deliver and modify to a report's run whose policy and workspace say so"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/hosts.md, 8"
+
+[[part]]
+id = "run-change"
+title = "change takes branch run, and goes on beside its requester's own run in the slot"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 8.1"
+
+[[slice]]
+id = 1
+story = "A report's run with the grant is offered deliver, and a change on a run branch steps beside the run that made it, with the plan's story written and failing"
+parts = ["story-red", "delivery-grant", "run-change"]
+walk = false
