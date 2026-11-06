@@ -139,6 +139,57 @@ fn only_the_payer_can_read_its_account_wait_in_the_task_document() {
     );
 }
 
+fn owner_fixture() -> (Core, Env<Limits>) {
+    let (mut core, env) = fixture();
+    people::step(
+        &mut core.people,
+        &env.with(env.limits.people),
+        people::Event::Roles {
+            project: PROJECT,
+            holdings: Box::new([people::Holding { person: PERSON, role: people::Role::Owner }]),
+        },
+        &mut Queue::uncapped(),
+    );
+    (core, env)
+}
+
+#[test]
+fn a_deployment_owner_can_read_a_persons_task_without_being_offered_an_act() {
+    let (mut core, env) = owner_fixture();
+    let task = make_person(&mut core, &env);
+    let document = task_document(&core, &env, task);
+    assert!(!document.acts.is_empty(), "the document retains refused acts");
+    for offered in &document.acts {
+        match offered.admission {
+            crate::acts::Admission::Refused(_) => {}
+            crate::acts::Admission::Allowed
+            | crate::acts::Admission::Bounded { .. }
+            | crate::acts::Admission::Proposed { .. } => {
+                panic!("a projectless task is the application's: {offered:?}");
+            }
+        }
+    }
+}
+
+#[test]
+fn a_deployment_owner_cannot_send_words_to_a_persons_task() {
+    let (mut core, env) = owner_fixture();
+    let task = make_person(&mut core, &env);
+    let answer = core.person_message(
+        &env.limits,
+        PersonMessage {
+            request: Token::new(1),
+            person: PERSON,
+            project: PROJECT,
+            task,
+            question: None,
+            words: b"another word".as_slice().into(),
+            at: env.wall,
+        },
+    );
+    assert_eq!(answer, Err(people::Refusal::Role { held: Some(people::Role::Owner) }));
+}
+
 #[test]
 fn a_live_person_task_is_absent_from_chats_inbox_results_and_me_projects() {
     let (mut core, env) = fixture();

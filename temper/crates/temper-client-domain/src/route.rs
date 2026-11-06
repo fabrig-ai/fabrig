@@ -266,6 +266,7 @@ pub(crate) fn route_unlinked(
 pub(crate) fn told(root: &mut Domain, env: &Env<Limits>, told: jig_client::Told, out: &mut Queue<Request>) {
     tell(root, env, told, out);
     crate::pages::home::look(root, env, out);
+    forge::trials::look(root, env, out);
 }
 fn tell(root: &mut Domain, env: &Env<Limits>, told: jig_client::Told, out: &mut Queue<Request>) {
     use jig_client::Told;

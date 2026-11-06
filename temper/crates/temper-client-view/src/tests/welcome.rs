@@ -2434,7 +2434,8 @@ fn ready_orders_forge_then_model_for_every_readiness_combination() {
                     .collect();
                 let [forge, model] = lines.as_slice() else { panic!("pane has Forge and Model lines") };
                 assert_eq!(forge.styles.as_slice().contains(&crate::look::FLOW_DONE), forge_done);
-                assert_eq!(model.styles.as_slice().contains(&crate::look::FLOW_DONE), model_done);
+                assert!(!model.styles.as_slice().contains(&crate::look::FLOW_DONE));
+                assert_eq!(tree.nodes().iter().any(|n| n.role == Role::Disclosure), model_done || !forge_done);
                 let printed = terminal_print(&view);
                 assert!(printed.find("Forgejo").unwrap() < printed.find(model_name).unwrap());
             }
@@ -2517,7 +2518,7 @@ fn ready_names_the_forge_and_only_a_made_first_repository() {
             f::build(&mut view, &root);
             let tree = view.tree();
             let summary = node(tree, Role::Paragraph, expected);
-            assert_eq!(tree.nodes().iter().any(|n| n.role == Role::Disclosure), underway);
+            assert_eq!(tree.nodes().iter().filter(|n| n.role == Role::Disclosure).count(), 1 + usize::from(underway));
             let link = node(tree, Role::Link, "Open Forgejo ↗");
             assert_eq!(forge::parent(tree, summary), forge::parent(tree, link));
             assert!(link > summary);
@@ -2721,7 +2722,11 @@ fn ready_keeps_declare_and_check_refusals_under_models_line() {
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
             let tree = view.tree();
             let pane = node(tree, Role::Complementary, "Forge and model");
-            let model = node(tree, Role::Slot, "Model none yet");
+            let model = if checking {
+                node(tree, Role::Paragraph, "Claude subscription · trying: Claude Code starts on this machine")
+            } else {
+                node(tree, Role::Slot, "Model none yet")
+            };
             let refusal = node(tree, Role::Status, "This act is not offered");
             assert_eq!(forge::parent(tree, model), Some(pane));
             assert!(refusal > model);

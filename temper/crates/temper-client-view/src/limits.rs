@@ -159,6 +159,8 @@ impl Limits {
             // Start a chat heading and its text outside the playground start (2), and
             // a failed playground start's alert, its text leaf and Try again (3).
             .checked_add(5)?
+            // Home's stopped try paragraph and retry button (temper/docs/design/domain/trial.md, 6.3).
+            .checked_add(2)?
             // The rail menu wrapper, menu and three items.
             .checked_add(5)?
             // Start goal's asking group: heading, two choices and their small text leaves.

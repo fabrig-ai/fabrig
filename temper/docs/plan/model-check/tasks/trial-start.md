@@ -85,3 +85,15 @@ The checks: fmt, `old_forms.py` for `temper`, clippy on what you changed, the te
 ## Report
 
 As the implementer's text asks: each test's bite; every world you touched and why; each walk's time before and after.
+
+## Answers
+
+2026-11-06 (temper/forge). **Your question: extend `trial-start` to both view-test files,** `temper/crates/temper-client-view/src/tests/connect_forge.rs` and `welcome.rs`, expectations only: `pane-feed` has landed, so nobody else holds them. **The joined story needs `trial-root`'s admission,** which is still running: merge `origin/model-check/trial-root` once it has landed there. If it hasn't when the rest is done, commit, push and report `Question:`, recommending you wait.
+
+**The user's rule, 2026-11-06: a plan's execution only ever runs the focused and fuzzy suites.** No after-landing tier runs during a plan: we run optimistically, and repair if after-landing flags. A new story in a slow tier is written and compiled, not run. So no walk under `fake_backends/walk` and no `client-browser` story runs. An expectation there that a trial's attempt or line moves is changed by reading, compiled, and named in your report. The 20 s bound's measurement goes with them: after-landing shows it.
+
+2026-11-06 (temper/forge). **Your question: this task repairs it.** No owning task is left, as `person-task` has landed. `jig/crates/jig-domain-core/src/admission/**` and its focused tests are this task's now, for this alone.
+
+By `jig/docs/design/domain/authority.md`, 6.1, project 0 has no policy, and a person's task is the application's. So a member of project 0, a deployment's role at `people::DEPLOYMENT`, holds no act on one, and its Task document offers none, though the person who pays may watch it (`temper/docs/design/domain/trial.md`). In `roles.rs`, before reading the policy, at `people::DEPLOYMENT` refuse as `Role { held: Some(holding) }`, or whichever existing refusal the offers read as none. Every other project keeps its `unreachable!`. Failing first in the lowest tier: an owner reads the Task document of a person's task, with no panic and no offers. Check the other acts `documents::offers::task` admits on project 0, and treat any that panic the same, named in your report. No synthetic policy and no bypass in the core. Then your joined story, as before.
+
+2026-11-06 (temper/forge). **Yes: extend to `jig/crates/jig-domain-core/src/acts/objects/task.rs`,** and refuse project 0 in `write_in` with `Role { held }`, covering the offer and the dispatched request, as you recommend. The acceptance stands: a deployment's member holds no act on a person's task, by `jig/docs/design/domain/authority.md`, 6.1. Any other act your regression shows allowed gets the same, in whichever file judges it under `jig-domain-core`, named in your report, with no need to ask. A judgment outside that crate is a `Question:`. Then go on to `model_check::the_success_story`'s `Trying: Claude Code starts on this machine`, and the rest of your closing checks. `trial-worlds` merges your branch once it holds this, so push as soon as the regression's green.

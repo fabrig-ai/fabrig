@@ -180,6 +180,7 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::Forges { .. }
         | root::Delivery::Application { .. }
         | root::Delivery::ForgeDocument { .. }
+        | root::Delivery::Trials { .. }
         | root::Delivery::Panel { .. }
         | root::Delivery::SourceSignedOut { .. }
         | root::Delivery::Result { .. }
