@@ -494,3 +494,103 @@ fn the_committed_journey_redacted_prints_the_same_pages() {
         assert!(expected == page.document.as_bytes(), "redacted page equals committed page");
     }
 }
+
+#[test]
+fn a_setup_joins_only_the_named_steps() {
+    let scratch = Scratch::new("journeys-setup-join");
+    for name in ["base", "child"] {
+        fs::create_dir(scratch.path().join(name)).expect("setup directory");
+    }
+    fs::write(
+        scratch.path().join("base/setup"),
+        b"setup 1\npress button \"First\"\nreload \"/base\"\nmark 1 \"Base mark\"\n",
+    )
+    .expect("base setup");
+    fs::write(
+        scratch.path().join("child/setup"),
+        b"setup 1\nafter \"base\"\nsee \"Ready\"\nreload \"/child\"\nmark 2 \"Child mark\"\n",
+    )
+    .expect("child setup");
+    let joined = crate::again::setup(scratch.path(), "child").expect("join").expect("setup");
+    assert!(
+        matches!(&joined.steps[..], [journey::SetupStep::Act { name, .. }, journey::SetupStep::See { text }] if name.as_ref() == b"First" && text.as_ref() == b"Ready")
+    );
+    assert_eq!(joined.reload.as_ref(), b"/child");
+    assert_eq!(joined.marks, [journey::MarkWait { mark: 2, text: b"Child mark".as_slice().into() }]);
+    assert!(crate::again::setup(scratch.path(), "missing").expect("optional setup").is_none());
+}
+
+#[test]
+fn a_setups_after_refuses_chains_missing_and_self() {
+    let scratch = Scratch::new("journeys-setup-after");
+    for name in ["base", "parent", "child"] {
+        fs::create_dir(scratch.path().join(name)).expect("setup directory");
+    }
+    fs::write(scratch.path().join("base/setup"), b"setup 1\nreload \"/\"\n").expect("base");
+    fs::write(scratch.path().join("parent/setup"), b"setup 1\nafter \"base\"\nreload \"/\"\n").expect("parent");
+    for (after, why) in [
+        ("parent", "a chain of after is refused"),
+        ("missing", "has no setup"),
+        ("child", "names the journey itself"),
+        ("../base", "invalid setup name"),
+    ] {
+        fs::write(scratch.path().join("child/setup"), format!("setup 1\nafter \"{after}\"\nreload \"/\"\n"))
+            .expect("child");
+        assert!(
+            matches!(crate::again::setup(scratch.path(), "child"), Err(crate::Refusal::SetupAfter { name, after: found, why: reason }) if name == "child" && found == after && reason == why),
+            "after {after}: {why}"
+        );
+    }
+}
+
+#[test]
+fn every_committed_setup_reads_and_joins() {
+    let root = Path::new(JOURNEYS);
+    let mut count = 0;
+    for name in crate::names(root).expect("committed journeys") {
+        if root.join(&name).join("setup").is_file() {
+            let bytes = fs::read(root.join(&name).join("setup")).expect("committed setup");
+            journey::setup(&bytes).expect("read setup natively");
+            let joined = crate::again::setup(root, &name).expect("join setup").expect("setup exists");
+            assert!(!joined.steps.is_empty(), "{name} has setup steps");
+            count += 1;
+        }
+    }
+    assert!(count > 0, "committed setups exercised");
+}
+
+#[test]
+fn project_landings_start_is_welcome_set_ups_recorded_acts() {
+    use skein_fake_person::{Face, Find, Found, TreeFace};
+    let root = Path::new(JOURNEYS);
+    let setup =
+        journey::setup(&fs::read(root.join("project-landing/setup")).expect("project setup")).expect("read setup");
+    let recording = fs::read(root.join("welcome-set-up/recording")).expect("welcome recording");
+    let lines = journey::lines(&recording).expect("welcome records");
+    let acts: Vec<_> = lines
+        .iter()
+        .filter_map(|line| match line {
+            journey::Line::Act { act, .. } => Some(act),
+            _ => None,
+        })
+        .collect();
+    let mut replay = journey::Replay::new(&recording).expect("replay welcome");
+    let mut at = 0;
+    while let Some(mark) = replay.next().expect("welcome replay holds") {
+        if mark.acted.is_empty() {
+            continue;
+        }
+        let journey::SetupStep::Act { role, name, order, act } = &setup.steps[at] else {
+            panic!("setup step {} must act", at + 1)
+        };
+        assert_eq!(act, acts[at], "setup step {} gives the recorded act", at + 1);
+        let find = Find::exactly_named(*role, name).nth(*order);
+        let Found::Node(node) = TreeFace::new(mark.tree).find(&find) else {
+            panic!("setup step {}: no {find}", at + 1)
+        };
+        assert!(mark.acted.contains(&node), "setup step {}: {find} must give the recorded event", at + 1);
+        at += 1;
+    }
+    assert_eq!(at, acts.len(), "every welcome act checked");
+    assert!(at > 0);
+}

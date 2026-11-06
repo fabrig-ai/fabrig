@@ -95,6 +95,7 @@ fn add_arguments(arguments: &[OsString]) -> Result<bool, String> {
 fn record_again(name: &str) -> Result<(), String> {
     // Unwalkable journeys are refused before starting the builds or either child.
     let _steps = again::starting(Path::new(JOURNEYS), name).map_err(refusal)?;
+    let _setup = again::setup(Path::new(JOURNEYS), name).map_err(refusal)?;
     let chromium = env::var_os("SKEIN_TEST_CHROMIUM")
         .ok_or_else(|| format!("{name}: set SKEIN_TEST_CHROMIUM to the Chromium binary"))?;
     let chromium = fs::canonicalize(&chromium)
@@ -172,6 +173,14 @@ fn reprint_all() -> Result<bool, String> {
 
 fn refusal(why: Refusal) -> String {
     match why {
+        Refusal::SetupUnreadable { name, unreadable } => unreadable_message(&format!("{name}/setup"), &unreadable),
+        Refusal::SetupAfter { name, after, why } => format!("{name}/setup: after {after:?}: {why}"),
+        Refusal::SetupTimeout { name, setup, line, sought } => {
+            format!("{name}: {setup}/setup line {line}: {sought} not done within 60 s")
+        }
+        Refusal::MarkTimeout { name, mark, text } => {
+            format!("{name}: mark {mark}: text {:?} not shown within 30 s", String::from_utf8_lossy(&text))
+        }
         Refusal::Undecoded { name, line } => format!("{name} has an undecodable stream record at line {line}"),
         Refusal::Found { name, line, record, place, what } => {
             format!("{name} at line {line}, {record}, {}: found {}", place_message(place), what_message(what))
