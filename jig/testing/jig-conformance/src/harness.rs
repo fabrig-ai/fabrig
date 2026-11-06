@@ -1,7 +1,7 @@
 //! One engine, one ordered store and independently scripted neighbours.
 //! Applications translate boundaries; this loop owns commit application and
 //! checks observations after every iteration (`domain/testing.md`, 5–6).
-use crate::referee::{Observed, Policy, Recovery, Referee, Violation};
+use crate::referee::{Observed, Policy, Referee, Violation};
 use crate::trace::Trace;
 use std::collections::VecDeque;
 use std::fmt::Debug;
@@ -109,10 +109,6 @@ pub trait Application {
     fn peers(config: &Self::Config, seed: u64) -> Self::Peers;
     /// Borrow the complete scenario policy, including independently requested edits.
     fn policy(peers: &Self::Peers) -> &Policy;
-    /// Advance when the independent scenario policy changes.
-    fn policy_generation(peers: &Self::Peers) -> u64;
-    /// Declare each configured effect kind’s recovery class.
-    fn recovery(config: &Self::Config, connector: u16, kind: u16) -> Recovery;
     /// Prepare the initial durable fixture and begin the cold-load script.
     fn start(config: &Self::Config, store: &mut Self::Store) -> Vec<Self::Event>;
     /// Reconnect retained peers and observe the last durable store on a crash.
@@ -195,7 +191,6 @@ pub struct Harness<A: Application> {
     pub peers: A::Peers,
     pub store: A::Store,
     pub referee: Referee,
-    policy_generation: u64,
     pub trace: Trace,
     maximum: u64,
     config: A::Config,
@@ -230,10 +225,6 @@ impl<A: Application> Harness<A> {
         let mut store = A::store(&config);
         let events = A::start(&config, &mut store).into_iter().map(Input::Event).collect();
         let policy = A::policy(&peers).clone();
-        let policy_generation = A::policy_generation(&peers);
-        for (&(connector, kind), entry) in &policy.kinds {
-            assert_eq!(entry.recovery, A::recovery(&config, connector, kind), "declared recovery class");
-        }
         let maximum = A::maximum(&config);
         let meter = skein_world::domain::heap::Meter::new();
         let domain = A::build(&config);
@@ -243,7 +234,6 @@ impl<A: Application> Harness<A> {
             peers,
             store,
             referee: Referee::new(policy),
-            policy_generation,
             trace,
             maximum,
             config,
@@ -401,14 +391,7 @@ impl<A: Application> Harness<A> {
     }
 
     fn inspect(&mut self) -> Result<(), Violation> {
-        Self::inspect_outside(
-            &mut self.peers,
-            &self.systems,
-            &self.store,
-            &mut self.referee,
-            &mut self.policy_generation,
-            self.clock,
-        )
+        Self::inspect_outside(&mut self.peers, &self.systems, &self.store, &mut self.referee, self.clock)
     }
 
     fn inspect_outside(
@@ -416,15 +399,13 @@ impl<A: Application> Harness<A> {
         systems: &A::Systems,
         store: &A::Store,
         referee: &mut Referee,
-        policy_generation: &mut u64,
         clock: Clock,
     ) -> Result<(), Violation> {
         let observations = A::observed(peers, systems, store, clock);
-        let generation = A::policy_generation(peers);
+        let policy = A::policy(peers);
         // Refresh the independent snapshot before this inspection's observations.
-        if *policy_generation != generation {
-            referee.policy.clone_from(A::policy(peers));
-            *policy_generation = generation;
+        if referee.policy != *policy {
+            referee.policy.clone_from(policy);
         }
         for observed in observations {
             referee.observe(clock.now, observed)?;
@@ -499,7 +480,6 @@ pub struct ColdSnapshot<A: Application> {
     peers: A::Peers,
     store: A::Store,
     referee: Referee,
-    policy_generation: u64,
     trace: Trace,
     maximum: u64,
     clock: Clock,
@@ -524,7 +504,6 @@ where
             peers: self.peers.clone(),
             store: self.store.fork(),
             referee: self.referee.clone(),
-            policy_generation: self.policy_generation,
             trace: self.trace.clone(),
             maximum: self.maximum,
             clock: self.clock,
@@ -549,7 +528,6 @@ where
             &snapshot.systems,
             &snapshot.store,
             &mut snapshot.referee,
-            &mut snapshot.policy_generation,
             snapshot.clock,
         )?;
         let domain = A::build(&snapshot.config);
@@ -560,7 +538,6 @@ where
             peers: snapshot.peers,
             store: snapshot.store,
             referee: snapshot.referee,
-            policy_generation: snapshot.policy_generation,
             trace: snapshot.trace,
             maximum: snapshot.maximum,
             config: snapshot.config,
