@@ -349,6 +349,10 @@ impl App for Temper {
                             jig_client::contract::ReadValue::Task(task),
                         )),
                     ..
+                }
+                | jig_client::Up::Watched {
+                    event: jig_client::contract::WatchEvent::Delivered(jig_client::contract::Delivery::Task(task)),
+                    ..
                 } = up
                     && let Some(hold) = &task.hold
                 {

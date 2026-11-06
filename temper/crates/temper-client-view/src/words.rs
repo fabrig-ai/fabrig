@@ -167,8 +167,8 @@ pub enum Word {
 
     GoalTell,
     GoalHint,
-    GoalPause,
-    GoalResume,
+    Pause,
+    Resume,
     ToastPaused,
     ToastResumed,
     ToastProposed,
@@ -1016,6 +1016,8 @@ pub enum Word {
     RejectProposal,
     ChatDelegates,
     ChatSendHint,
+    ChatPaused,
+    ChatSendResumes,
     ChatWorking,
     ConnectForge,
     ChatTitle,
@@ -1374,7 +1376,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The waiting page removes five phrases across its words and accounts (client/README.md, 3.5).
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
-const PHRASES: u32 = 1858;
+const PHRASES: u32 = 1860;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1399,10 +1401,10 @@ const PHRASES: u32 = 1858;
 // Last landing adds four segments (client/README.md, 3.5).
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
-const SEGMENTS: u32 = 3249;
+const SEGMENTS: u32 = 3251;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 45402;
-const ALL: [Word; 1259] = [
+const ENGLISH_BYTES: u32 = 45434;
+const ALL: [Word; 1261] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -1555,8 +1557,8 @@ const ALL: [Word; 1259] = [
     Word::GoalsStartDraft,
     Word::GoalTell,
     Word::GoalHint,
-    Word::GoalPause,
-    Word::GoalResume,
+    Word::Pause,
+    Word::Resume,
     Word::ToastPaused,
     Word::ToastResumed,
     Word::ToastProposed,
@@ -2384,6 +2386,8 @@ const ALL: [Word; 1259] = [
     Word::RejectProposal,
     Word::ChatDelegates,
     Word::ChatSendHint,
+    Word::ChatPaused,
+    Word::ChatSendResumes,
     Word::ChatWorking,
     Word::ConnectForge,
     Word::ChatTitle,
@@ -2707,8 +2711,8 @@ impl Word {
             Self::GoalsStartDraft => 3557,
             Self::GoalTell => 3540,
             Self::GoalHint => 3541,
-            Self::GoalPause => 3532,
-            Self::GoalResume => 3533,
+            Self::Pause => 3532,
+            Self::Resume => 3533,
             Self::ToastPaused => 3534,
             Self::ToastResumed => 3535,
             Self::ToastProposed => 3538,
@@ -3681,6 +3685,8 @@ impl Word {
             Self::RejectProposal => 1405,
             Self::ChatDelegates => 145,
             Self::ChatSendHint => 186,
+            Self::ChatPaused => 3870,
+            Self::ChatSendResumes => 3871,
             Self::ChatWorking => 3287,
             Self::ConnectForge => 275,
             Self::ChatTitle => 276,
@@ -4379,8 +4385,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::GoalsStartDraft => (&[b"Start one from a draft"], &[]),
         Word::GoalTell => (&[b"Tell ", b" something"], &[Name]),
         Word::GoalHint => (&[b"Its agent reads it at once. A change of plan becomes an amendment it shows you first."], &[]),
-        Word::GoalPause => (&[b"Pause"], &[]),
-        Word::GoalResume => (&[b"Resume"], &[]),
+        Word::Pause => (&[b"Pause"], &[]),
+        Word::Resume => (&[b"Resume"], &[]),
         Word::ToastPaused => (&[b"Paused: running tasks stop, nothing new starts."], &[]),
         Word::ToastResumed => (&[b"Resumed."], &[]),
         Word::ToastProposed => (&[b"Proposed to "], &[]),
@@ -5436,6 +5442,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ChatDelegates => (&[b"", b" delegates"], &[Number]),
         Word::ChoiceProvider => (&[b"", b""], &[Name]),
         Word::ChatWorking => (&[b"Writing"], &[]),
+        Word::ChatPaused => (&[b"Paused"], &[]),
+        Word::ChatSendResumes => (&[b"Sending resumes this chat."], &[]),
         Word::ChatSendHint => (&[b"Enter sends \xc2\xb7 Shift+Enter for a new line"], &[]),
         Word::ConnectForge => (&[b"Connect a forge"], &[]),
         Word::ChatTitle => (&[b"T", b" \xc2\xb7 ", b""], &[Number, Name]),

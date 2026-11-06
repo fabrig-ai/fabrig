@@ -1156,7 +1156,7 @@ fn read(handle: Handle, read: c::Read, out: &mut Queue<Request>) {
     out.push(Request::Client(jig_client::Event::Read { handle, read: Readable::Jig(read) }));
 }
 /// The hold's revision a chip says, if it is held.
-fn chip_hold(chip: &c::Chip) -> Option<u64> {
+pub(super) fn chip_hold(chip: &c::Chip) -> Option<u64> {
     match chip.details.as_ref() {
         c::ChipPhaseFacts { phase: c::ChipPhase::Held { revision, .. }, .. } => Some(*revision),
         c::ChipPhaseFacts { .. } => None,

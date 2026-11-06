@@ -1272,6 +1272,8 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-home .temper-home-ledes > a:hover { text-decoration-color: var(--gf-ink); }
 
 /* ==== ui: chats ==== */
+/* A message's effect stays visible where keyboard instructions are hidden. */
+#app > .temper-session .temper-session-foot > .temper-session-hint.temper-hint { display: block; align-self: stretch; white-space: normal; }
 /* close-chat: a confirmation asks in a sentence, says only what will change, and names its acts. */
 #app dialog.temper-confirm { display: flex; flex-direction: column; gap: 16px; width: min(460px, calc(100% - 32px)); padding: 24px 26px; border: 0; border-radius: 14px; background: var(--gf-surface); color: var(--gf-ink); box-shadow: 0 24px 64px rgba(24, 24, 27, .22); font: 15px/1.55 var(--gf-sans); }
 #app dialog.temper-confirm::backdrop { background: rgba(24, 24, 27, .32); }

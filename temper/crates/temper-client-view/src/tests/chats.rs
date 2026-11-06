@@ -1559,3 +1559,30 @@ fn watches_the_goals_chips_and_closes_them() {
     }
     assert!(reopened, "the next open reads a later document");
 }
+
+#[test]
+fn a_paused_chat_s_row_says_paused() {
+    let mut line = line();
+    super::chat::pause_chip(&mut line.chip);
+    for words in [fixtures::words(), fixtures::browser_words()] {
+        let mut b = Builder::new(&fixtures::tree_limits());
+        crate::pages::chats::row(
+            &mut b,
+            &fixtures::root_in_project(Some(fixtures::PROJECT)),
+            &line,
+            &words,
+            &mut crate::frame::Bindings::new(fixtures::tree_limits().bindings),
+            &mut crate::words::Times::new(fixtures::NOW),
+        );
+        let tree = b.finish();
+        let mut status = None;
+        for node in tree.nodes() {
+            if node.role == Role::Status && node.name.as_deref() == Some(b"Paused") {
+                status = Some(node);
+                break;
+            }
+        }
+        let status = status.expect("paused row");
+        assert_eq!(status.styles.as_slice(), [crate::look::STATUS_QUIET]);
+    }
+}

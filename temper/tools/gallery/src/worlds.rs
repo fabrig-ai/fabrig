@@ -3389,6 +3389,7 @@ fn accounts(w: World, then: Then) -> c::Accounts {
             | Then::Working
             | Then::DelegatedGoal
             | Then::HeldChange
+            | Then::Paused
             | Then::HeldTask
             | Then::Filled
             | Then::Refused
@@ -3752,6 +3753,37 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
             parameters: List::with_capacity(0),
             inputs: List::with_capacity(0),
         });
+    }
+    if then == Then::Paused {
+        let hold = c::ChipHold {
+            placed: Some(c::PlacedHold {
+                number: 1,
+                owner: c::HoldOwner::Party { person: frame(w, false, false).party.number },
+                mode: c::HoldMode::Stop,
+                scope: c::HoldScope::Subtree { task },
+                reason: Box::new([]),
+                placed_at: now(w),
+                revision: c::Revision { value: 2 },
+                lifted: false,
+                may_lift: true,
+            }),
+            words: None,
+            circle: None,
+            account: None,
+            source: None,
+            reason: c::HoldCategory::Stopped,
+            revision: 7,
+            before: c::PriorPhase::Active(c::RunStage::Idle),
+            escalation: None,
+            tries: c::FailureTries { transient: 0, permanent: 0, run: 0, agent: 0, lost: 0, invalid: 0 },
+            hold_wait_since: None,
+        };
+        t.hold = Some(Box::new(hold.clone()));
+        t.chip.phase = c::Phase::Held;
+        let (phase, details) = owner(&mut t.chip);
+        *phase = c::ChipPhase::Held { reason: hold.reason, revision: hold.revision };
+        details.hold = Some(hold);
+        t.acts = offers(&[c::ActKind::Release, c::ActKind::Stop, c::ActKind::Message, c::ActKind::Cancel]);
     }
     if then == Then::Working {
         let (phase, _) = owner(&mut t.chip);
