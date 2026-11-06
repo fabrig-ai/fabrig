@@ -620,6 +620,8 @@ private, never edited by hand:
   `ALLOW_ONLY_EXTERNAL_REGISTRATION = true` (`sign-in.md`, 9.4). The
   source itself is not the preparation's: it is added by the command
   `temper forge sign-in` prints, as for a managed Forgejo (6.8);
+- on a box, when `application.machine.owned.sign_in` is not `null`: the same, with
+  `ACCOUNT_LINKING = auto` (`sign-in.md`, 9.9). Its source is its own step's (7.1);
 - `[webhook]`: `ALLOWED_HOST_LIST` the webhooks' listener's IP address,
   when one is configured, and Forgejo's default otherwise, which refuses
   loopback;
@@ -1249,6 +1251,10 @@ its own for any other host.
 
 ### 6.8 Signing in through temper
 
+**A box's owned Forgejo needs none of this:** it makes its key at its first run
+(8.2) and adds its own source (7.1), with no secret and no command for the person
+(`sign-in.md`, 9.9). What follows is for every other arrangement.
+
 `temper forge sign-in [DIRECTORIES] FORGE`, for a Forgejo of
 `application.sign_in.forges` (`sign-in.md`, section 9), managed or
 owned, on temper's host, before `temper serve`:
@@ -1280,7 +1286,7 @@ owned, on temper's host, before `temper serve`:
 
 Then `temper serve`, and the printed command, once, on Forgejo's host.
 
-- **Printed for an owned Forgejo too, not run** (with o/sign-in,
+- **Printed for `temper serve`'s owned Forgejo too, not run** (with o/sign-in,
   2026-10-23), for two reasons: `add-oauth` fetches temper's discovery
   document at once and adds no source when temper does not answer, and
   the preparation runs before `temper serve` (6.3, 7.2); and `add-oauth`
@@ -1343,6 +1349,7 @@ temper box
 ├── temper forge run DIRS N forgejo   long: Forgejo's parent on Linux with fd 3 (6.4)
 │   └── forgejo web                   via temper internal forge-child; execs without fd 3
 ├── forgejo-runner daemon             long: temper forge run DIRS N runner
+├── temper forge source DIRS N        once, whatever its ending, when machine.owned.sign_in is set (`sign-in.md`, 9.9)
 └── temper internal serve DIRS --box  long: its own tree (README.md, section 4); its setup
                                       host takes each handover and reconciles (section 5);
                                       its listeners from fd 3, then its pipe to the box (below)
@@ -1452,6 +1459,7 @@ temper box
   | `start FORGE` | serve, once it has written the group's file: at an owned forge's set up (6.5) and at the playground's start (8.4) | start the forge's group, by its file |
   | `step FORGE STEP` | the box | the group's step `fetch`, `prepare` or `run` is starting, for the client's row (`../client/forge.md`, 5.4) |
   | `fetched FORGE BINARY DONE TOTAL` | the box | how far the group's `fetch` step has gone, one for each line it says (6.6): `BINARY` `forgejo` or `runner`, `DONE` its bytes written, `TOTAL` its size or `none`. Between `step FORGE fetch` and the next step alone (7.2), and at most 64 bytes, `box.line_bytes`'s least, whatever its numbers |
+  | `source FORGE added`, `source FORGE failed WHY` | the box | how the group's `source` step ended (`sign-in.md`, 9.9), before its `started`: `WHY` as `failed`'s, the step's own words or `source exited N`, `source did not start`, within the line's bound, holding no secret. A `start` for a group already standing says its last such line again, before its `started` |
   | `started FORGE` | the box | the group's long steps are started, an owned Forgejo answers, and its record is written; the engine then takes the handover and reconciles (6.5) |
   | `failed FORGE WHY` | the box | the group stopped: `WHY` names the step by its name, as its log file and the box's terminal name it (7.2), such as `prepare-3 exited 1`: `<step> exited <code>`, `<step> killed by signal <n>`, `<step> did not start`, `record not written`, or a removal's `remove: exited <code>`, `remove: did not start` or `remove: files not removed`, cut to fit the line's bound, and holds no secret; a step's own lines are in its log, the last of them under the terminal's `failed` line (7.2) |
   | `stop FORGE` | serve | stop the forge's group, its file and record kept |
@@ -1511,7 +1519,8 @@ temper box
 ### 7.2 What it does
 
 - **In order:** each step starts once the one before it has started, when
-  that one is long, or has exited 0, when it is once or link. A link
+  that one is long, or has exited 0, when it is once or link; the `source` step
+  alone (7.1) ends the group's start whichever way it ends, never failing it. A link
   step starts once the long step before it has written its first line
   to its stdout.
 - **A link step** is given that line whole on its stdin, which is then
@@ -1604,10 +1613,12 @@ temper box
   read on their terminal, in the order it happens, each line beginning with
   the time of day as the terminal's lines do, and no link:
   `First run: wrote the configuration, <path>` when `temper init` ran
-  (7.1); `Logs: <data>/box/logs/`; `Ctrl-C stops temper.`; `Starting
+  (7.1), and `First run: no sign-in through temper: <why>` when it made no
+  provider's key (8.2); `Logs: <data>/box/logs/`; `Ctrl-C stops temper.`; `Starting
   <step>` as each step of `always` starts; for an asked group, named by its
   label (7.3), `<label>: starting` at its `start`, then `<label>: started`
-  and `<label>: stopped` as the pipe says them; `Stopping` at a first
+  and `<label>: stopped` as the pipe says them, and `<label>: no sign-in
+  through temper: <why>` when its `source` step did not add the source; `Stopping` at a first
   termination signal; and last, `Stopped` once every step is closed. An
   asked group's `step` lines are the client's row's alone. Each start of an
   owned forge, an asked group's `started` or the box's own start of one
@@ -2021,7 +2032,8 @@ document.
   | `owned.runner` | the runner's members, or null for none | `capacity` at least 1; `labels` at least one, at most 8 |
   | `owned.listen` | an address, jig's format | a socket address on loopback; unique among the deployment's listeners and the machine's ports |
   | `owned.remote` | an HTTP base | `http://<listen>`: the forge's git base |
-  | `owned.person` | `{"login", "email"}` | a Forgejo login other than the bot's and `temper-admin` |
+  | `owned.person` | `{"login", "email"}` | a Forgejo login other than the bot's and `temper-admin`, and with `sign_in` set other than `work` too, its address not the bot's (`sign-in.md`, 9.9) |
+  | `owned.sign_in` | a client of `engine.clients.provider`, or `null`; absent as `null` | the client a box's owned Forgejo signs in through (`sign-in.md`, 9.9) |
   | `fake` | the playground's fake forge | its members below; the fake kind's group (7.1) and the playground's start (8.4) need it, and `application.demo` beside it |
   | `fake.listen` | an address, jig's format | as `owned.listen` |
   | `fake.remote` | an HTTP base | `http://<listen>` |
@@ -2305,7 +2317,8 @@ finds on the machine. Alone, it writes a bare deployment: no welcome, no
 playground and no Forgejo on this machine.
 
 - **The box's parts, one flag:** `--box` adds them: the welcome's
-  member; the owned Forgejo, its person and its port; and the
+  member; the owned Forgejo, its person and its port, the OpenID provider and
+  its key (`sign-in.md`, 9.9); and the
   playground, `application.demo` with its `demo/` files and its two
   ports. `temper box`'s first run passes it (7.1); a person may pass it
   too. The document keeps them as three members, so that splitting the
@@ -2329,6 +2342,7 @@ playground and no Forgejo on this machine.
   |---|---|---|---|
   | `worker.secret` | data | 0o600 | 32 bytes from the kernel's random source, as 64 lowercase hexadecimal digits and a newline |
   | `worker.digest` | data | 0o600 | the SHA-256 of the secret's digits without its newline, as 64 lowercase hexadecimal digits and a newline, as the walk `box` (`temper help box`) makes it |
+  | `provider.key` | data | 0o600 | with `--box`, the OpenID provider's signing key, made as 6.8's first step, and kept if already there (`sign-in.md`, 9.9); no such file when it can't be made |
   | `demo/llm.key` | data | 0o600 | the scripted model's key (8.4): 32 bytes from the kernel's random source, as 64 lowercase hexadecimal digits and a newline |
   | `demo/bin/git` | data | a link | the playground's git, `temper fake git` (8.4): a symbolic link to the binary |
   | `agent.json` | configuration | 0o644 | smith's agent configuration (configuration.md, section 5): the owned example's endpoints, models and profile (8.1), and, with `--box`, the scripted provider's endpoint and model (8.3); Claude Code's program, its `path` the `claude` found on `PATH` or, with none, `"fetched"` (6.6), and its programs directory, `programs` in the data directory; and its endpoint and model (8.3), whether or not `claude` is on `PATH` |

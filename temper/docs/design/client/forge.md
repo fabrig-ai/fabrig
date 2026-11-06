@@ -436,6 +436,10 @@ and `connect-forge.html`.
   through temper: Forgejo’s sign-in is temper’s.", LOGIN the member's
   login. Forgejo starts its sign-in with the temper source, temper
   answers at once, and Forgejo opens signed in.
+- **A box's Forgejo that can't sign in through temper:** on a row whose page facts
+  say so (`../protocol/sign-in.md`, 9.9), the line "This Forgejo asks for its
+  password: temper couldn't connect its sign-in. box.log says why." under the
+  row's actions. Nothing else changes, and the set-up is done.
 - **A repository's link:** in the browser, wherever a project's repository
   is named with its forge known (the switcher's row, `README.md`, 5.3; the
   body's "Repositories" row below; the Forge line and Settings' Repositories,

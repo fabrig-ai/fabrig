@@ -2,6 +2,7 @@
 
 2026-11-05. Where temper's code lags or departs from [sign-in.md](sign-in.md).
 
+- **Not yet:** 9.7: a member named as the bot refuses no start. 9.9: all of it: a box has no provider, `machine.owned.sign_in` is not read, and an owned Forgejo's `ACCOUNT_LINKING` is `login` on every arrangement (the request `ui-repo-link`).
 - **Not yet:** 2.4: public reading's deployment: no proxy configuration caches `/jig/v1/public/` by deployment, `Host` and path, keeps no stale copy, or limits an address, and no deployment sets jig's public limits.
   2.5: the proxy's own rules are played against scripted upstreams, not
   temper's service (`temper/tests/one-process/src/public/checks.rs`):

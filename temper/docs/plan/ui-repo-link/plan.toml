@@ -20,3 +20,30 @@ id = 1
 story = "A person presses a project's repository in the switcher: a new tab opens on its page on the forge, and the project's name still switches project"
 parts = ["link"]
 walk = false
+
+[[part]]
+id = "issuer"
+title = "skein's issuer takes a public client, and jig's configuration names one"
+mode = "direct"
+needs = []
+design = "skein/docs/design/oauth-issuer.md, 2"
+
+[[part]]
+id = "box"
+title = "A box's owned Forgejo signs its person in through temper, with no command"
+mode = "direct"
+needs = ["issuer", "link"]
+design = "temper/docs/design/protocol/sign-in.md, 9.9"
+
+[[part]]
+id = "proof"
+title = "The real Forgejo's story, the browser's walk and the attacker's review"
+mode = "direct"
+needs = ["box"]
+design = "temper/docs/design/protocol/sign-in.md, 9.9"
+
+[[slice]]
+id = 2
+story = "On a fresh box, a person presses a repository's link and lands on its page in Forgejo, signed in, with no password and no second account"
+parts = ["issuer", "box", "proof"]
+walk = true
