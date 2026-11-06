@@ -5,6 +5,13 @@
 - **Not yet:**
   - 8.2, step 3, and 10: a head already behind waits for CI there and takes its
     base at its turn (`temper-engine-domain-forge-change/src/domain.rs`, `checking`).
+  - 8.11, *The next producer merges the landing tip first*: a tip its start
+    already contains still makes a merge (`temper-engine-domain-forge/src/items.rs`,
+    where its `landing` is `None`, and `worker.status.md`, section 5).
+  - 11: a task's saved work is not deleted as it closes: `s<task>` is no hold,
+    and a close releases holds alone (`temper-engine-domain-forge/src/domain.rs`,
+    `continue_release`), so the branch stays on the forge. From reading: no story
+    closes a task with saved work and looks.
   - 8.11, *Which target*: the coding charter names no target, an authority
     refusal ends with a bare `; `, and a refused `message` does not say where a
     run's requester is (`temper-engine-smith/src/answers.rs`, `authority_findings`).

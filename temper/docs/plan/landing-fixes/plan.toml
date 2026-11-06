@@ -29,6 +29,13 @@ mode = "direct"
 needs = []
 design = "temper/docs/design/domain/forge.md, 8.11"
 
+[[part]]
+id = "resume-merge"
+title = "a producer's start whose branch already holds the landing tip makes no merge, so a resume adds no empty commit"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/worker.md, 5"
+
 [[slice]]
 id = 1
 story = "A change opened behind its base spends no wait on CI at a head its turn would replace; a green head keeps its result"
@@ -39,4 +46,10 @@ walk = false
 id = 2
 story = "A run reads its delivery as delivered, and its first question reaches its change"
 parts = ["delivery-words", "question-target"]
+walk = false
+
+[[slice]]
+id = 3
+story = "A resumed producer with nothing new leaves its head where its report says it is"
+parts = ["resume-merge"]
 walk = false
