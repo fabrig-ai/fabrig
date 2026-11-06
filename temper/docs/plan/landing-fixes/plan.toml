@@ -1,6 +1,7 @@
 draft = "landing-fixes"
 repo = "fabrig"
 sources = ["temper/docs/plan/landing-fixes/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+priority = true
 
 # plan.md says what was decided and why.
 
