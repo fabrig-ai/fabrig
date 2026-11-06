@@ -7,10 +7,13 @@ Step 2 of `temper/docs/design/draft/model-catalogue.md`, section 7: its sections
 | Part | Task | Needs | Minutes | What |
 |---|---|---|---|---|
 | `page` | `models-tab` | | 90 | the read-only tab, from `me` |
+| `bounds` | `fleet-bounds` | | 120 | a hello names endpoints, not models |
+| `agent` | `smith-limits` | `fleet-bounds` | 240 | the agent holds no list |
+| `setting` | `model-surface` | | 200 | the kind and its value, inert, everywhere it's matched |
 
 ## Critical path so far
 
-`models-tab` alone; the store's parts follow.
+`model-surface`, then the catalogue going live, then temper's stock, as the rest is released.
 
 ## Beside it
 

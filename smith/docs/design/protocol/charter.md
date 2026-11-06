@@ -100,11 +100,10 @@ A versioned record (skein's `codec.md`, section 3):
     such as a local model: the start carries no grant for it, and its
     calls carry no credential. No grant stands for no credential, and
     no grant's value is empty;
-  - a model, one the agent's configuration declares for that endpoint;
+  - a model, a name within its bound, which the agent takes from here and
+    checks against no list (agent.md, section 4);
   - **`effort`,** optional: the reasoning effort its completions ask
-    for, one of those the agent's configuration declares for the model
-    when it declares any, and any within its bound when it declares none;
-    without it, the provider's default. It is fixed for the
+    for, any within its bound; without it, the provider's default. It is fixed for the
     conversation's life and may differ in the next activation
     (domain/session.md, section 3);
   - **`window`:** its usable input tokens, the most one prompt may hold,
@@ -122,8 +121,10 @@ A versioned record (skein's `codec.md`, section 3):
     at the entrance (domain/run.md, section 9).
 
   `window` and `output` are the effective values the host chose, at most
-  what the agent's configuration declares for the model (limits.md,
-  section 2.1), so the domain enforces the host's choice;
+  what the agent's configuration declares for the endpoint (limits.md,
+  section 2.1), so the domain enforces the host's choice. An LLM a saved
+  window names that this charter doesn't take its window, output and
+  prices from main's, for that window's compaction;
 - **waiting:** how long the run may wait for a message before it parks, as a
   duration;
 - **resume:** whether the main session opens from the transcript in the
