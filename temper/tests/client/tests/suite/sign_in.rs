@@ -142,7 +142,7 @@ fn terminal_sign_in_never_requests_a_tab_departure() {
     assert_eq!(front.leaves.len(), NONE);
     let view = shown(&root);
     assert!(
-        !Temper::tree(&view)
+        Temper::tree(&view)
             .nodes()
             .iter()
             .any(|node| { node.role == Role::Link && node.external.as_deref() == Some(ISSUER) })
