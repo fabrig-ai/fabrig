@@ -677,7 +677,7 @@ fn setting_start(runner: &Runner, reading: &mut Reading, out: &mut Queue<Out>) {
 fn edge_cursor(edge: &thread::window::Edge) -> Option<c::Cursor> {
     match edge {
         thread::window::Edge::More(cursor) => Some(cursor.clone()),
-        thread::window::Edge::End => None,
+        thread::window::Edge::End | thread::window::Edge::Dropped => None,
     }
 }
 
