@@ -3,7 +3,7 @@ id = "box-link-stories"
 part = "box-stories"
 kind = "feature"
 needs = ["box-readers-early"]
-files = ["temper/crates/temper/tests/suite/box_listeners.rs", "temper/crates/temper/tests/process.rs", "temper/crates/temper/tests/fake_backends/**"]
+files = ["temper/crates/temper/tests/suite/box_listeners.rs", "temper/crates/temper/tests/process.rs", "temper/crates/temper/tests/fake_backends/**", "temper/crates/temper/tests/support/boxed.rs"]
 effort = "high"
 minutes = 60
 +++
@@ -35,7 +35,7 @@ Acceptance, each `temper box` real, no `--echo`:
 
 ## Owns and may change
 
-Owns the files in the header.
+Owns the files in the header; of `tests/support/boxed.rs`, only `run_ctl_peers`' readiness path (see Answers).
 
 **Over budget is red.** A real box's start is seconds of CPU, and `--test suite` is the focused tier. Measure each new test's CPU as heavy reports it. Prefer one box per test, stopped as soon as it has shown its fact. If a suite story puts its tier over budget, answer your text's three questions in order, the third with measurements. Moving it to `process-temper` only to escape the budget is forbidden.
 
@@ -52,3 +52,12 @@ Write each story with its acceptance's name. Each must bite: for the block, brea
 ## Report
 
 As your text says, with each story's CPU, and whether each early open was early.
+
+## Answers
+
+2026-11-06. **Repair the fake-backend readiness read here, or have `box-readers-early` supply it?** Repair it here: `box-readers-early` has landed on the trunk and this task's `tests/fake_backends` acceptance cannot hold without the repair, so `tests/support/boxed.rs` joins this task's files, for this one change.
+
+- In `run_ctl_peers`, about line 989, when the flags hold `--fake-backends`, `data` is `<--data>/box/fake-backends/data`, the effective data directory the box gives serve (`temper/crates/temper/src/fake_backends.rs`, `directories`); otherwise it stays the `--data` flag. Its two readers, `CtlJudge`'s `data` and `Calls::with_serve_data`, then read this run's `serve.log`. `fake_backends` is computed about line 1010: move it up. `serve_listening` keeps its signature, and nothing else in `boxed.rs` changes.
+- No bound, backoff or `BOX_DEADLINE` changes, and no symlink or other workaround.
+- Then, with `heavy`: run `fake_backends::walk::chat_document::a_chat_document_is_written_and_revised_on_the_fake_box` alone, which reaches the assertions you added in `walk.rs`, then every `fake_backends::` test in `--test process` under `process-temper`, since the gate's change reaches them all. Stories without the flag read the same path as before. Report the walk's CPU and wall time.
+- The commit you pushed stays; add this one on top of it. The three biting checks already ran and need no repeat.
