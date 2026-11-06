@@ -275,10 +275,10 @@ fn an_accounts_rows_paste_finishes_that_rows_sign_in() {
     assert_eq!(root.pages().accounts().unwrap().request_row, Some(row));
 }
 #[test]
-fn signing_in_elsewhere_points_its_tab_only_once() {
+fn signing_in_points_its_tab_only_once() {
     let (mut root, _, _) = opened(c::HeldRole::Member);
     flow(&mut root);
-    let sent = sends(model(&mut root, Act::SignInElsewhere { name: NAME, way: WAY })).pop().unwrap();
+    let sent = sends(model(&mut root, Act::SignIn { name: NAME, way: WAY })).pop().unwrap();
     assert_eq!(
         sent.2,
         jig_client::Ask::Jig(Box::new(c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: 17 }))
@@ -305,7 +305,6 @@ fn signing_in_elsewhere_points_its_tab_only_once() {
     crate::route::told(&mut root, &fixtures::env(&fixtures::limits()), told, &mut repeated);
     assert!(repeated.is_empty(), "the same answer never points twice: {repeated:?}");
     let page = root.pages().connect_model().unwrap();
-    assert!(page.elsewhere());
     assert_eq!(page.request.paste_state(root.client()), S::Waiting { ready: false });
     assert_eq!(root.pages().address(), &Address::ConnectModel { way: Some(pages::connect_model::model_way(WAY)) });
 }

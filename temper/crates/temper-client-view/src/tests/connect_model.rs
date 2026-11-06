@@ -581,10 +581,10 @@ fn a_returned_source_waits_without_inventing_a_link() {
 }
 
 const PASTE_FIELD: &[u8] = "Address of the page that couldn’t be reached".as_bytes();
-pub(super) fn pasting(elsewhere: bool) -> (d::Domain, skein_lib::Token) {
+pub(super) fn pasting() -> (d::Domain, skein_lib::Token) {
     let (mut root, watch) = flow_fixture(d::WayKind::SignIn);
     let way = d::pages::accounts::Way::SignIn { provider: PROVIDER, plan: true };
-    let action = if elsewhere { M::SignInElsewhere { name: [1; 16], way } } else { M::SignIn { name: [1; 16], way } };
+    let action = M::SignIn { name: [1; 16], way };
     let attempt = sent(&mut root, action);
     answer(
         &mut root,
@@ -601,7 +601,7 @@ fn paste_input(root: &mut d::Domain, value: &[u8]) {
 }
 #[test]
 fn signing_in_orders_the_note_link_and_folded_paste_in_both_shells() {
-    let (root, _) = pasting(false);
+    let (root, _) = pasting();
     assert_waiting(&root);
 }
 /// The two pages share one waiting shape, including the terminal's honest title.
@@ -680,7 +680,7 @@ pub(super) fn assert_waiting(root: &d::Domain) {
 }
 fn paste_case(case: usize) -> d::Domain {
     use c::SignInRedirectWhy as R;
-    let (mut root, watch) = pasting(false);
+    let (mut root, watch) = pasting();
     if case == 1 {
         paste_input(&mut root, b"fixture");
     }
@@ -802,7 +802,7 @@ fn the_paste_reads_each_state_in_its_words() {
 }
 #[test]
 fn the_paste_field_decodes_to_the_secret_event_and_finish_to_its_act() {
-    let (mut root, _) = pasting(false);
+    let (mut root, _) = pasting();
     let mut view = fixtures::view();
     let node = fixtures::find(fixtures::build(&mut view, &root), Role::TextField, PASTE_FIELD).unwrap();
     let decoded = crate::event(&view, node, Act::Input { value: Box::from(b"fixture-private".as_slice()) }).unwrap();
@@ -826,13 +826,6 @@ fn choose_offers_no_entry_for_another_computer() {
         );
     }
 }
-#[test]
-fn signing_in_elsewhere_uses_the_same_waiting_page() {
-    let (root, _) = pasting(true);
-    assert!(root.pages().connect_model().unwrap().elsewhere());
-    assert_waiting(&root);
-}
-
 #[test]
 fn the_connected_model_offers_continue_as_a_terminal_command() {
     let mut root = ending(c::AccountEnd::Made { account: 1, declined: false }, b"alice@example.com");
@@ -886,10 +879,7 @@ fn both_waiting_pages_reject_an_unsafe_address() {
         }
         let attempt = sent(
             &mut root,
-            M::SignInElsewhere {
-                name: [1; 16],
-                way: d::pages::accounts::Way::SignIn { provider: PROVIDER, plan: true },
-            },
+            M::SignIn { name: [1; 16], way: d::pages::accounts::Way::SignIn { provider: PROVIDER, plan: true } },
         );
         answer(
             &mut root,

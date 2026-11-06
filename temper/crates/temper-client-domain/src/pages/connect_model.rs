@@ -29,7 +29,6 @@ pub struct ConnectModel {
     pub request: Request,
     /// Whether the scripted model was serving when this connection was sent.
     pub playground: bool,
-    pub elsewhere: bool,
     pub(crate) tab_refused: bool,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -37,7 +36,6 @@ pub enum Act {
     Holder { holder: c::AskAccountHolder },
     SignIn { name: RequestKey, way: Way },
     SignedIn { name: RequestKey, way: Way },
-    SignInElsewhere { name: RequestKey, way: Way },
     Finish { name: RequestKey },
     ProgramName { value: Box<[u8]> },
     Submit { name: RequestKey },
@@ -139,10 +137,6 @@ impl ConnectModel {
     pub const fn tab_refused(&self) -> bool {
         self.tab_refused
     }
-    #[must_use]
-    pub const fn elsewhere(&self) -> bool {
-        self.elsewhere
-    }
     pub(crate) fn changing_way(&mut self, current: &Address, next: &Address) {
         if let Address::ConnectModel { .. } = current
             && let Address::Welcome { .. } = next
@@ -172,7 +166,6 @@ impl ConnectModel {
         }
     }
     fn leave_way(&mut self) {
-        self.elsewhere = false;
         self.request.clear_key();
     }
     pub(crate) fn leave(&mut self) {
@@ -212,17 +205,6 @@ impl ConnectModel {
         if self.request.paste.out() {
             return;
         }
-        let elsewhere = match &act {
-            Act::SignInElsewhere { .. } => true,
-            Act::SignIn { .. }
-            | Act::SignedIn { .. }
-            | Act::Holder { .. }
-            | Act::ProgramName { .. }
-            | Act::Submit { .. }
-            | Act::Finish { .. }
-            | Act::SignInAgain
-            | Act::Cancel => false,
-        };
         let Some(me) = accounts::current_me(client) else { return };
         match act {
             Act::Holder { holder } => {
@@ -253,13 +235,12 @@ impl ConnectModel {
                     self.request.cancel();
                 }
             }
-            Act::SignIn { name, way } | Act::SignInElsewhere { name, way } => {
+            Act::SignIn { name, way } => {
                 if model_way(way).kind != WayKind::SignIn
                     || !accounts::ways(&me.providers, playground, self.holder).as_slice().contains(&way)
                 {
                     return;
                 }
-                self.elsewhere = elsewhere;
                 self.tab_refused = false;
                 out.push(Output::OpenTab { provider: way.provider() });
                 self.request.send(
@@ -481,7 +462,6 @@ impl Default for ConnectModel {
             program: None,
             request: Request::default(),
             playground: false,
-            elsewhere: false,
             tab_refused: false,
         }
     }
