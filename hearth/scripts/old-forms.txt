@@ -3,7 +3,7 @@
 max_out 39
 worst_case 0
 # The component kit's counts (skein/docs/design/draft/component-kit.md, 4).
-io_resume 1
+io_resume 0
 earliest_helper 1
 hex_decimal_fn 8
 host_forwarder 1
