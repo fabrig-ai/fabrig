@@ -750,8 +750,8 @@ have one, an engine alone none. Each:
   | `box.log_bytes` | a step's log file, past which it moves to `<name>.log.1` and starts afresh (setup.md, 7.2) |
   | `box.tail_lines` | the lines of a step's log the box holds, and writes under a failure's terminal line (setup.md, 7.2) |
   | `box.groups` | the groups' files the box lists under `box/groups` at a later start, and so the groups it runs from them (setup.md, 7.1) |
-  | `clients.bundle_files` | the bundle's files, its page among them |
-  | `clients.bundle_bytes` | the bundle's files' bytes in all, held in memory while `temper serve` runs |
+  | `clients.bundle_files` | the bundle's files, its page and each compressed form among them |
+  | `clients.bundle_bytes` | the bundle's files' bytes in all, each compressed form's among them, held in memory while `temper serve` runs |
   | `sign_in.members` | the configured members, and the forge connector's bindings held (`forge.bindings`, the members' count) |
   | `sign_in.pending` | the sign-ins under way at once; a start past them is answered the busy page |
   | `sign_in.deadline_ms` | a sign-in's life, from its start to its return's answer; the sign-in cookie's `Max-Age` |

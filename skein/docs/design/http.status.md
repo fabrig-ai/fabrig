@@ -1,6 +1,6 @@
 # http: status
 
-2026-11-05. Where skein's code lags or departs from [http.md](http.md).
+2026-11-06. Where skein's code lags or departs from [http.md](http.md).
 
 - **Not yet:** 2: a server's written head: `server.rs`'s `Responding::Head`
   derives `Debug` over the head it holds until room comes to send it, so a
