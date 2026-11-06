@@ -381,7 +381,7 @@ replay says the same clocks (`README.md`, 5.12).
 - **Signed out,** by "Sign out" (`README.md`, 6.6; jig's sign-out clears
   the cookie) or by a link spent or expired: the main is the view's
   signed-out paragraph (`README.md`, 5.1), in the browser's words:
-  "Signed out. To sign in, open a sign-in link `temper serve` printed."
+  "Signed out. To sign in, open a sign-in link temper printed."
   The view takes its shell's words at construction; the terminal's stay
   "Signed out." with its own line (`README.md`, 6.6).
   With a way of signing in configured, the main is the sign-in page

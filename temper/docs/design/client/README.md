@@ -3614,8 +3614,8 @@ client removes no account and closes no chat of its own.
   of temper's words with no heading:
   - *signed out:* in the shell's words, which the view takes at
     construction: the terminal's "Signed out." (6.6); the browser's
-    "Signed out. To sign in, open a sign-in link `temper serve`
-    printed." (`browser.md`, 2.4);
+    "Signed out. To sign in, open a sign-in link temper printed."
+    (`browser.md`, 2.4);
   - *signed out, with a way of signing in:* in the browser alone, in
     place of the paragraph, the sign-in page: temper's mark, the
     heading "Sign in", and a link for each way the view was given at

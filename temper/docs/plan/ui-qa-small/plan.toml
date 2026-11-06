@@ -1,3 +1,22 @@
 draft = "ui-qa-small"
 repo = "fabrig"
 sources = ["temper/docs/plan/ui-qa-small/inputs/request.md", "temper/crates/temper-service/src/stock/configuring.txt", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+
+# Two tasks, as the request allows; the design moved with this cut. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "words"
+title = "A signed-out word and two sentences of the configuring stock"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 8.1"
+
+[[slice]]
+id = 1
+story = "someone who ran temper box reads a used link's words without temper serve, and a configuring chat tells them a proposal waits for their Accept, with no key, and writes no port into instructions"
+parts = ["words"]
+walk = false
