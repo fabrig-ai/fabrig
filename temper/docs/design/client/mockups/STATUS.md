@@ -211,7 +211,7 @@ Not drawn: two ideas that would change temper's engine, not only its pages. A ch
 - **4a. Connect a model, from another computer:** the mockup's `step=model-choose` still draws Choose, with Continue with ChatGPT and the secondary button “This browser isn't on temper's computer ›”. The client has no secondary button or separate entry for another computer (`../README.md`, 3.5, *The sign-in under way*).
 - **4b. Signing in, with the browser elsewhere:** the mockup's `step=model-elsewhere`, `way=chatgpt`, still draws Signing in, its external sign-in link in another tab and the paste unfolded. Accounts draws that sign-in with the paste folded. The client's welcome and Connect a model share the waiting note, “Open it again ›” and the folded disclosure “Signed in, but the page couldn’t be reached?”; opening it offers the paste, its field the note's width (`../README.md`, 3.5). The greenfield's `app.js` still says “in this tab”: its README's rule puts look requests' changes on top of that drawing (`../greenfield/README.md`). The new-tab behaviour waits on `../README.status.md`'s first **Not yet**; the mockups stay as drawn.
 - **4c. The whole address pasted:** `step=model-pasted`, `way=chatgpt`, draws the secret field written, hidden, and Finish connecting enabled; the button leads to step 5. Accounts has the same paste, folded. No address is sent or stored by a mockup.
-- **5. A model connected:** Sam follows the banner's Connect a model, chooses ChatGPT and finishes by pasting from the browser on another computer; the flow ends on Ready, with Start a chat and Manage usage. The Scripted model leaves Accounts, where ChatGPT · sam@example.com is the one row. The model's half of the demo ends (4.8): the banner says a playground forge alone, the chats page has no demo's start, and the composers' line reads "Using ChatGPT plan · gpt-6.1-sol · Manage usage". The galleries below Connect a model, Accounts and Chats draw the rest of the ChatGPT experience (below).
+- **5. A model connected:** Sam follows the banner's Connect a model, chooses ChatGPT and finishes by pasting from the browser on another computer; the flow ends on Ready, with Start a chat and Manage usage. The Scripted model leaves Accounts, where ChatGPT · sam@example.com is the one row. The model's half of the demo ends (4.8): the banner says a playground forge alone, the chats page has no demo's start, and the composers' pickers name the next run's model and effort. The galleries below Connect a model, Accounts and Chats draw the rest of the ChatGPT experience (below).
 - **6. Setting up a Forgejo:** chosen in the flow, its defaults kept (work/hello, a new project hello); the box has fetched and is preparing. The flow shows each step, and the banner says where it is.
 - **7. A Forgejo connected:** temper connected as its bot, made work/hello and adopted it into the new project hello; its first CI run passed. The flow ends on the new project, opened with no chat yet. The demo is retired: forge 1 stops and disappears, T1 and T4 end at 21:19 with the reason, and playground/widget leaves Playground’s repository lists. Its landing and transcripts stay readable; Recent landings names it “playground/widget · the playground’s, ended”. The banner is gone.
 
@@ -308,17 +308,16 @@ Where the client's recorded picks stand against the drawing:
   for it; the deployment's accounts can show both. No Tasks or
   Workers in the navigation.
 - **Mixed key and program offers** do not establish MODEL's endpoint.
-  The composer's line keeps “Using MODEL” rather than naming an
-  account from its login. Known provider and plan names elsewhere
-  use OpenAI/ChatGPT and Anthropic/Claude.
+  The composer's picker names the next run's model and effort without
+  an account; Manage usage stays on Accounts and an agent's task's line.
+  Known provider and plan names elsewhere use OpenAI/ChatGPT and
+  Anthropic/Claude.
 
 What is not built here, though the main drawings show it:
 
 - A chats row's or update's reply preview; a chats row's ended
   delegates; fractional spend.
-- A program's usage windows (6.3); an account's email display; the
-  composer's account where the provider offers both key and program
-  endpoints.
+- A program's usage windows (6.3); an account's email display.
 - A proposal's template and charter names (`me` has no charter names,
   and a proposed task names no template); a card's lineage beyond
   its own task (the inbox's `Card` carries no ancestry).
