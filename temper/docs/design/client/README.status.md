@@ -59,30 +59,11 @@
   then says why Send stays grey; and no line says there that the playground is
   running or leaving. Seen by reading; no test holds it.
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
-- **Not yet:** 3.5, *Home on any project*: a brief shows only with its `landed`
-  above `seen`, so one written at a return after a look that saw the landing
-  never shows; with 0 landed since, the headline has no landed sentence, so
-  "The last change landed SPAN ago." isn't drawn (`temper-client-view`'s
-  `pages/home.rs`, `brief` and the sentence).
 - **Not yet:** 3.5, *The rail's count*, `Inbox`, and 5.13's card in a chat: a
   proposal of settings shows in no project's Needs you and counts in no rail,
   its row's project the deployment, and its card's title names the deployment's
   number (`temper-client-domain`'s `pages/inbox.rs` and `pages/needs.rs`,
   `temper-client-view`'s `cards/proposal.rs`).
-- **Not yet:** 10: the walk that request asks of a box: land a change, come back
-  past 30 minutes, see the count, the agent's words and the byline. A real box
-  has no fake clock, and the 31 minutes do not fit its tier, so
-  `temper/crates/temper/tests/fake_backends/walk/status.rs` stops inside a
-  sitting: the first look, then the count across a client's and a box's restart,
-  with the byline asserted absent and the charter's scripted words read from the
-  model's document alone. Whether the run by hand the plan allowed in its place
-  was made is unknown here: it left nothing in the repository. Each half is
-  shown apart: a new sitting on the client world's fake clock
-  (`temper/tests/client/tests/suite/status.rs`), the agent's brief in the root's
-  document (`temper/tests/engine/domain/tests/suite/forge_routes/status.rs`), and
-  the lede and byline from a hand-made document (`temper-client-view`'s
-  `tests/home.rs`, the gallery's `home-morning`); no test draws a brief an agent
-  wrote.
 - **Not yet:** 10: a walk from the sheet through planning, a live report and
   delegate tasks, Pause, Resume, a message and Stop, which the request
   `ui-goal-page` of 2026-11-05 asks of the browser tier and of a box. The

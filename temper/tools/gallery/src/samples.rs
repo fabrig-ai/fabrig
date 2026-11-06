@@ -80,7 +80,7 @@ impl Sample {
         if self.name == "rail-new-menu" { Some(b"More ways to start work") } else { None }
     }
 }
-pub const N: usize = 247;
+pub const N: usize = 248;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -141,6 +141,12 @@ pub fn samples() -> [Sample; N] {
         },
         Sample {
             name: "home-morning",
+            world: FirstRun { step: 7 },
+            address: Address::Home { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "home-last-landed",
             world: FirstRun { step: 7 },
             address: Address::Home { project: 1 },
             then: Shown,
@@ -1782,6 +1788,7 @@ fn home_domain(name: &str) -> Domain {
         "home-away"
         | "home-away-one"
         | "home-away-overturned"
+        | "home-last-landed"
         | "home-computed"
         | "home-last-looked-none"
         | "home-landing-none"

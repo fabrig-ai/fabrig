@@ -541,6 +541,15 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "home-last-landed",
+        heading: "The last change landed 6 minutes ago. Nothing needs you.",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Thursday, 21:19 · you last looked 9 hours ago" },
+            Part::Text { text: "main last moved 6 min ago" },
+            Part::Named { role: Role::Link, name: "Changes" },
+        ],
+    },
+    Holds {
         name: "home-computed",
         heading: "2 changes landed since you last looked. Nothing needs you.",
         parts: &[

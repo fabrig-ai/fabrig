@@ -434,6 +434,8 @@ pub enum Word {
     HomeAdoptLink,
     HomeLooked,
     HomeLandedOne,
+    HomeLandedLast,
+    HomeLandedNow,
     HomeLandedMany,
     HomeByline,
     HomeLanding,
@@ -1269,7 +1271,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Settings, Needs you and the chat document include their literal phrases (client/README.md, 3.5, 5.13).
 // The rail menu adds six literal phrases (client/README.md, 5.3).
-const PHRASES: u32 = 1759;
+// Last landing adds two phrases (client/README.md, 3.5).
+const PHRASES: u32 = 1761;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1290,8 +1293,9 @@ const PHRASES: u32 = 1759;
 // Settings, Needs you and the chat document include their literal segments (client/README.md, 3.5, 5.13).
 // The agent check refusal names its charter, adding two segments.
 // The rail menu adds six literal segments (client/README.md, 5.3).
-const SEGMENTS: u32 = 3055;
-const ALL: [Word; 1160] = [
+// Last landing adds four segments (client/README.md, 3.5).
+const SEGMENTS: u32 = 3059;
+const ALL: [Word; 1162] = [
     Word::DraftsChats,
     Word::ChatsDraftLede,
     Word::ChatRowWrites,
@@ -1706,6 +1710,8 @@ const ALL: [Word; 1160] = [
     Word::HomeAdoptLink,
     Word::HomeLooked,
     Word::HomeLandedOne,
+    Word::HomeLandedLast,
+    Word::HomeLandedNow,
     Word::HomeLandedMany,
     Word::HomeByline,
     Word::HomeLanding,
@@ -2844,6 +2850,8 @@ impl Word {
             Self::HomeNewChat => 3133,
             Self::HomeAdoptLink => 3141,
             Self::HomeLooked => 3621,
+            Self::HomeLandedLast => 3687,
+            Self::HomeLandedNow => 3688,
             Self::HomeLandedOne => 3622,
             Self::HomeLandedMany => 3623,
             Self::HomeByline => 3624,
@@ -3906,7 +3914,7 @@ impl Words {
             segments: SEGMENTS,
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
             // Settings and the chat document include their literal bytes (client/README.md, 3.5, 5.13).
-            text_bytes: 43848,
+            text_bytes: 43908,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(byline_bytes(joined)?)
@@ -4273,6 +4281,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeNewChat => (&[b"New chat"], &[]),
         Word::HomeAdoptLink => (&[b"Adopt"], &[]),
         Word::HomeLooked => (&[b"", b" \xc2\xb7 you last looked ", b" ago"], &[Name, Name]),
+        Word::HomeLandedLast => (&[b"The last change landed ", b" ago."], &[Name]),
+        Word::HomeLandedNow => (&[b"The last change landed just now."], &[]),
         Word::HomeLandedOne => (&[b"One change landed since you last looked."], &[]),
         Word::HomeLandedMany => (&[b"", b" changes landed since you last looked."], &[Number]),
         Word::HomeByline => (&[b"Written by the status agent at ", b""], &[Name]),

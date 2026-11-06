@@ -968,7 +968,9 @@ impl Joint {
         reviewer.policy.agents = false;
         config.core.defaults.charters = Box::new([config.core.defaults.charters[0].clone(), reviewer]);
     }
-    fn with_engine(
+    /// Join a story's engine configuration to the client protocol and its observations.
+    #[must_use]
+    pub fn with_engine(
         seed: u64,
         limits: &client::Limits,
         store: Store,
