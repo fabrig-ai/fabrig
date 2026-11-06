@@ -31,8 +31,10 @@ as do operating, development machines, artifacts and reproducible builds
 git, resolution and render conformance, and tool fakes, but lack the complete
 M2 fake machine, joined system world, real builds and boot test; conformance
 has no automatic runner. Tier profiles, memory tests and shared suite
-timeouts depart from the design, the focused suite stands over its 30 CPU s,
-by about 15 on one record and 0.2 or about 2 on the gate's, and measured costs await the user
+timeouts depart from the design; the focused suite takes 41.678860 CPU s,
+11.678860 over its 30 CPU s, and fuzzy takes 100.520668 CPU s. All 2189
+focused and 60 fuzzy tests pass; the focused CPU verdict stays red, and
+whether repairs reach 30 CPU s remains unknown
 (`hearth/docs/design/domain/testing.md`). The design departs
 from the draft in its three processes, subordinate ids, offline sandboxes,
 development loop, live changes and milestone split; pool placement still
