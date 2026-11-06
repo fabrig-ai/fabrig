@@ -69,6 +69,13 @@ them (`protocol/configuration.md`), and the walk that request ends
 with has not passed (`protocol/setup.md`). The box's hour-long Forgejo
 session, source-address refresh, refused public/sign-in pair, empty
 repository-name handling and Linux lifetime wrapper are built. The
+signed-in box also takes its late handover before connecting, and the
+story purse reads init's bare template. No results for the five
+`ui-restart-red` repair stories are supplied; the started cut alone
+uses a box without sign-in. A handover made by Forgejo restarting under
+a running serve stays deferred, and the live landing pair's setup-call
+counts disagree with its shared oracle (`protocol/setup.md`,
+`protocol/sign-in.md`, `domain/testing.md`). The
 combined default-runner, restart, moved-port and terminal-hangup walk
 has no outcome in the supplied inventory, and the real-box sign-in
 story awaits its after-landing run (`protocol/setup.md`,

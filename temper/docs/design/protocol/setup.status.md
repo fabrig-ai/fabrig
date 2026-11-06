@@ -4,9 +4,22 @@
 
 Sections 6.2 and 6.3 have no known implementation gap in the hour-long
 owned session or the later preparation's best-effort source update.
+Section 6.5 has no known implementation gap in taking a signed-in box's
+late handover before connecting: the restored forge reads again after its
+first reconcile, takes and removes a present file, and reconciles again;
+an absent file needs no second reconcile. The service's setup-lifecycle
+tests cover both answers and the single read without sign-in.
 Sections 7.1 and 7.2 have no known implementation gap in an ordered hangup
 stop, ignored hangups, or Linux's parent-death wrapper. macOS's lack of
 a parent-death signal is the designed limit, deferred in section 15.
+
+- **Not yet:** 13.4: the supplied inventory contains no run results for
+  `ui-restart-red`'s five repaired process stories: the CSV landing, the
+  playground copy's source read, the person's plan change, the person's
+  change and the setup/removal cuts. Their requested all-five pass is
+  unverified here; landed parts and focused test code do not establish
+  those outcomes. The started cut's fixture disables sign-in alone,
+  restoring it before the final setup and removal cut (13.4).
 
 - **Not yet:** 7.1, 7.2, 13.4: the `ui-repo-link-2` request's combined
   1440-pixel walk with the default runner, a restart, a moved temper port
