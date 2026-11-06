@@ -8,7 +8,12 @@ use temper_client_world::{
 };
 fn view(root: &Root) -> temper_client_view::View {
     let limits = fixtures::domain_limits();
-    let words = fixtures::phrasebooks(&limits);
+    let words = temper_client_view::words::Words::english(
+        fixtures::FORGE,
+        limits.client.domain.text,
+        temper_client_view::words::Shell::Browser,
+    )
+    .expect("browser words fit");
     let bounds = fixtures::view_bounds(&limits, &words);
     let mut view = temper_client_view::View::new(&bounds, &limits, words, fixtures::FORGE);
     temper_client_view::build(
