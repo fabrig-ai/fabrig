@@ -446,6 +446,25 @@ fn matches_ended(phase: &tasks::Phase) -> bool {
 }
 
 impl Core {
+    /// Projects on a reader's settings row (jig/docs/design/domain/engine.md, 17.6).
+    pub(crate) fn settings_row_projects(&self, party: u64, key: (people::Proposer, u32)) -> List<u32> {
+        let Some(proposal) = self.settings_proposals.get(&key) else { return List::with_capacity(0) };
+        let mut projects = proposal.projects();
+        if !projects.is_empty() {
+            return projects;
+        }
+        if let Some(roles) = self.people.project_roles(party) {
+            for role in &roles {
+                if role.role == people::Role::Owner && self.open_project(role.project) {
+                    if projects.room() == 0 {
+                        break;
+                    }
+                    projects.push(role.project).expect("bounded owned projects");
+                }
+            }
+        }
+        projects
+    }
     /// Deployment settings have proposal identities and no task tally.
     #[must_use]
     pub(crate) fn settings_needs(&self, party: u64) -> u32 {

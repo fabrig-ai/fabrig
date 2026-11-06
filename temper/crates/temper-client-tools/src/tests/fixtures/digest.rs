@@ -173,6 +173,7 @@ pub(crate) fn owner_first_window(rows: u32, more: bool) -> (c::InboxPage, c::Inb
         let object = c::InboxObject::Question { message: u64::from(index) };
         entries
             .push(c::InboxEntry {
+                projects: List::with_capacity(0),
                 reply: None,
                 task: c::TaskLink::Stored { number: task, status: None },
                 project: Some(PROJECT),

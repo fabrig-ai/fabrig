@@ -1,6 +1,6 @@
 # Status
 
-2026-11-05. Where hearth's code lags or departs from its design, and its design from its
+2026-11-06. Where hearth's code lags or departs from its design, and its design from its
 draft, from the status files below. M1 has render and diff in-process, canonical
 encoding and a store without layers; M2 has build keys, planning and ordered
 stage, run, seal and discard, with scripted steps and a fake helper

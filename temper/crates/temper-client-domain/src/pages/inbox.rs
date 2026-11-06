@@ -121,14 +121,7 @@ impl Inbox {
             self.cut = [inbox.next.is_some(); 2];
             for rows in [&inbox.needs, &inbox.updates] {
                 for row in rows {
-                    self.add(
-                        row.card_key(),
-                        row.group(),
-                        row.project,
-                        position(row.object),
-                        unread(row.reply.as_deref()),
-                        out,
-                    );
+                    self.add(row, out);
                 }
             }
         }
@@ -153,27 +146,35 @@ impl Inbox {
             if let Some(page) = self.arrived.get_mut(index).expect("inbox section").take() {
                 *self.cut.get_mut(index).expect("inbox section") = page.cut;
                 for row in &page.rows {
-                    self.add(
-                        row.card_key(),
-                        row.group(),
-                        row.project,
-                        position(row.object),
-                        unread(row.reply.as_deref()),
-                        out,
-                    );
+                    self.add(row, out);
                 }
             } else {
                 for old_index in 0..self.previous.len() {
                     let old = self.previous.get(old_index).expect("bounded card");
                     let updates = old.group == InboxGroup::Replies || old.group == InboxGroup::Results;
                     if usize::from(updates) == index {
-                        self.add(old.object, old.group, old.project, old.position, old.unread, out);
+                        self.add_card(old.object, old.group, old.project, old.position, old.unread, out);
                     }
                 }
             }
         }
     }
-    fn add(
+    fn add(&mut self, row: &contract::InboxEntry, out: &mut Queue<Request>) {
+        if let Some(filter) = self.filter.project
+            && !row.shows_in(filter)
+        {
+            return;
+        }
+        self.add_card(
+            row.card_key(),
+            row.group(),
+            row.project,
+            position(row.object),
+            unread(row.reply.as_deref()),
+            out,
+        );
+    }
+    fn add_card(
         &mut self,
         object: ObjectKey,
         group: InboxGroup,
@@ -183,11 +184,6 @@ impl Inbox {
         out: &mut Queue<Request>,
     ) {
         if self.cards.len() == self.cards.capacity() {
-            return;
-        }
-        if let Some(filter) = self.filter.project
-            && Some(filter) != project
-        {
             return;
         }
         if let Some(filter) = self.filter.kind

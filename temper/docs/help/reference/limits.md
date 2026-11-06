@@ -85,6 +85,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge.tiers.tiers`: count, 2. Bounds tiers retained per repository.
 - `forge.tiers.failing_tests`: count, 16. Bounds failing tests reported per tier run.
 - `forge.tiers.test_id_bytes`: bytes, 256. Bounds a failing test's identifier in a tier's report.
+- `forge.sitting_ms`: milliseconds, 1,800,000. Sets the gap between a person's sittings on Home.
 - `forge.queue_window_ms`: milliseconds, 30,000. Sets the time allowed to gather a landing queue.
 - `forge.client.pending`: count, 4. Bounds logical forge calls retained, queued and in flight.
 - `forge.client.calls`: count, 2. Bounds forge calls in flight.
