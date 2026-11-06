@@ -1007,8 +1007,8 @@ keeps (`../protocol/configuration.md`, section 2).
     program's name field and "Declare". Declaring a program's login
     asks its name, 1 to 32 of `a` to `z`, `0` to `9` and `-`, `claude-`
     and the person's first name by default (`claude-alice`), and shows
-    the command to run on each host, `temper program-login NAME`, after the
-    words of `program_environment` (4.6) where it has any
+    the command to run on each host, `temper program-login NAME`, or, where
+    `program_environment` (4.6) has words, those words and `program-login NAME`
     (`../protocol/credentials.md`, section 3). The tools' printed act
     includes the box's directory placeholders and the signed-in skip
     rule (`tools.md`, 5.5, area 5).
@@ -1315,8 +1315,9 @@ keeps (`../protocol/configuration.md`, section 2).
       this machine in an environment of its own: its settings, sessions
       and sign-in stay apart from your own Claude Code. In a terminal
       here:"; the command `temper program-login NAME`, NAME the program's
-      default name (5.5), with no field for it, after the words of
-      `program_environment` (4.6) where it has any; the muted "It makes that
+      default name (5.5), with no field for it, or, where
+      `program_environment` (4.6) has words, those words and `program-login
+      NAME`; the muted "It makes that
       environment, then Claude Code asks you to sign in to your
       subscription there. temper never reads its login."; the primary "I’ve
       signed in"; "All ways". "I’ve signed in" sends `DeclareProgram` under
@@ -3069,22 +3070,43 @@ for its kind, its user's login and its installations. Its nodes:
   no row of the `forges` watch can say so (`forge.md`, 5.4). On the
   wire it is `Reading`'s `deployment`, beside `playground`.
 - **The program's environment, `program_environment`:** of the deployment's
-  scope, with no fields and no subject: what `temper program-login` needs set
-  to act on this deployment. It is the party's read, and only the deployment's
-  owner has it, at any time, since the welcome's Model step shows them the command
-  during set up and Connect a model after it; anyone else's is refused, and sees
-  the plain command. Its answer is the record
-  `ProgramEnvironmentAnswer`: `environment` (bytes), empty when each of the
-  three directories (`../protocol/configuration.md`, 12) is the one the command
-  finds by itself in the environment the engine started in, and otherwise
-  `TEMPER_CONFIG=… TEMPER_DATA=… TEMPER_CACHE=…`, all three, each value a POSIX
-  shell word. It is one string, composed where the directories are known, so
-  that the client holds no path as a fact, quotes nothing and decides no
-  default; it is a read of its own, not a member of `DeploymentAnswer`, since
-  that one is answered before any party is known, the same to every visitor.
-  A page asks when its address names a program's way, the only place that
-  draws the command with these words; Accounts' stays plain (section 11). On the
-  wire it is `Reading`'s `program_environment`.
+  scope, with no fields and no subject: what `temper program-login` needs
+  around it to act on this deployment, from this machine's shell. It is the
+  party's read, and only the deployment's owner has it, at any time, since the
+  welcome's Model step shows them the command during set up and Connect a model
+  after it; anyone else's is refused, and sees the plain command. Its answer is
+  the record `ProgramEnvironmentAnswer`: `environment` (bytes), the words the
+  command starts with, which a page draws before `program-login NAME`. They are
+  none when `temper` runs this binary and each of the three directories
+  (`../protocol/configuration.md`, 12) is the one the command finds by itself
+  in the environment the engine started in. Otherwise they are the word that
+  runs the binary, after `TEMPER_CONFIG=… TEMPER_DATA=… TEMPER_CACHE=…`, all
+  three, where a directory isn't that one. It is one string, composed where the
+  binary and the directories are known, so that the client holds no path as a
+  fact, quotes nothing and decides no default; it is a read of its own, not a
+  member of `DeploymentAnswer`, since that one is answered before any party is
+  known, the same to every visitor. A page asks when its address names a
+  program's way, the only place that draws the command with these words;
+  Accounts' stays plain (section 11). On the wire it is `Reading`'s
+  `program_environment`.
+- **The words of a command for this machine:** how `program_environment`'s are
+  made.
+  - *The word that runs the binary.* The running process's executable, less the
+    ` (deleted)` Linux adds to one rebuilt while it runs. The word is `temper`
+    when the first executable file named `temper` on the process's `PATH` is
+    that file, by canonical paths: only the first counts, as that is what a
+    shell runs, and an entry of `PATH` that isn't absolute counts for nothing,
+    since the person's shell stands elsewhere. Otherwise it is the executable's
+    path, as a word (below). An executable that can't be read gives `temper`.
+  - *A path as a word,* for the executable and the three `TEMPER_` values alike:
+    repeated slashes collapsed, then a leading `$HOME`, whole components of it,
+    as `~/`, and the path alone as `~`. It stays unquoted where it can, so that
+    the shell expands `~/`, which it does right after `=` in an assignment
+    prefix too. A path needing quotes quotes only what follows `~/`
+    (`~/'my dir/temper'`), and whole where no `$HOME` leads it (`'/my dir/temper'`).
+    `$HOME` unset, relative or `/` leads nothing.
+  - *The bound.* The words fit the answer's 49,216 bytes: a word for the binary
+    that would pass it gives way to `temper`.
 - **A change's panel, the subject `change`** (`forge.md`, 9.2): of a
   project's scope, its window unused, naming the change task's number
   (u64). On the wire it is `Watching`'s `change`, `Watching` naming
@@ -3884,8 +3906,8 @@ The words for each offered source are:
   agents now run on it."; for a program's login: "Declared your Claude
   subscription · claude-alice", then "Run this on each host temper’s
   agents run on, in a terminal there:", the command, `temper
-  program-login claude-alice`, after the words of `program_environment` (4.6)
-  where it has any, and "If this machine has no Claude Code,
+  program-login claude-alice`, or, where `program_environment` (4.6) has
+  words, those words and `program-login claude-alice`, and "If this machine has no Claude Code,
   this fetches it first. Claude Code asks you to sign in. temper never
   reads its login."; for a sign-in, A sign-in's (below).
   The tools' declaration act names the box's three directories as
@@ -6660,8 +6682,12 @@ own tests:
   Default: so, until a deployment says otherwise.
 - **This deployment's directories under "each host"** (4.6, 5.5): Connect a model's
   Ready says "Run this on each host temper’s agents run on" over the command with
-  `program_environment`'s words, which are this deployment's directories, and
-  another host's may differ. Default: so, a box being one host.
+  `program_environment`'s words, which are this deployment's directories and
+  this machine's binary, and another host's may differ. Default: so, a box being
+  one host.
+- **A `~/` in another's shell** (4.6): the words' `~/` is the engine's `$HOME`,
+  and a shell of another user on this machine reads its own. Default: so, the
+  owner being the person at this machine.
 - **The owner's command before its read answers** (4.6): while
   `program_environment` is unanswered, or if its read fails, the owner's page draws
   the plain command and says nothing, and on a box with custom directories that

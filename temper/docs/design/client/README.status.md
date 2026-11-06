@@ -2,6 +2,9 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 4.6, *The program's environment* and *The words of a command for this machine*: `temper`'s
+  `directories.rs` writes the three values quoted whole, with no `~/`, and no word for the binary, and the pages
+  draw `temper program-login NAME` after them.
 - **Not yet:** 3.5, The welcome's Model step, *The sign-in under way*, and `ConnectModel`, *While it waits* and
   *From another computer*: the card's line and the note say a new tab, and nothing opens one: a press still
   sends a `Return` and the page's own tab leaves, until `../draft/sign-in-new-tab.md` is built. So the note shows
