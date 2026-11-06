@@ -21,6 +21,7 @@
   a numbered list takes the browser's margins and padding. Both are seen by reading
   the sheet: no browser test draws a numbered list, the request `chat-reading-d`
   having the user read one on a real chat and leaving the sheet to the look's owner.
+- **Not yet:** 2.5, *temper's own way*: `temper.css` still holds the rules of `.temper-doc-figures`, which the design no longer names.
 - **Not yet:** 2.5, *temper's own way*: no render has checked the picture as an `ol`: the walk
   of the request `ui-walk-3` opened the reference at each width and read its title, flow and
   line, and names nothing of the list's margins. `configure-temper-own-way`'s render check read the numbers as a `ul` item's words, and numbered lists reached skein's
