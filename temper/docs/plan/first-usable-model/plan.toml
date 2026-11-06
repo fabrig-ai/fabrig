@@ -1,0 +1,3 @@
+draft = "first-usable-model"
+repo = "fabrig"
+sources = ["temper/docs/plan/first-usable-model/inputs/request.md", "AGENTS.md", "DESIGN.md"]
