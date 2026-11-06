@@ -917,7 +917,12 @@ fn alone_it_keeps_its_heading_and_lede_with_no_tabs() {
 #[test]
 fn each_flow_draws_its_path_in_the_browser_and_none_in_the_terminal() {
     for (address, tab, to, here) in [
-        (Address::ConnectForge { forge: None }, b"Forges".as_slice(), b"/forges".as_slice(), b"Add a forge".as_slice()),
+        (
+            Address::ConnectForge { forge: None },
+            b"Forges".as_slice(),
+            b"/forges".as_slice(),
+            b"Connect a forge".as_slice(),
+        ),
         (
             Address::ConnectModel { way: None },
             b"Accounts".as_slice(),

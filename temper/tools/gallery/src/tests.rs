@@ -1610,7 +1610,7 @@ const HOLDS: [Holds; samples::N] = [
         heading: "Connect a forge",
         parts: &[
             Part::Named { role: Role::TextField, name: "Organization" },
-            Part::Named { role: Role::TextField, name: "Repository" },
+            Part::Named { role: Role::TextField, name: "Name" },
             Part::Absent { role: Role::TextField, name: "Into a new project, named" },
         ],
     },
@@ -1730,8 +1730,30 @@ const HOLDS: [Holds; samples::N] = [
         heading: "Connect a forge",
         parts: &[
             Part::Named { role: Role::Region, name: "GitHub" },
-            Part::Named { role: Role::Region, name: "Forgejo on this machine" },
-            Part::Named { role: Role::Region, name: "Your Forgejo" },
+            Part::Named { role: Role::Region, name: "Forgejo" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Or a server of your own" },
+            Part::Named { role: Role::Link, name: "Connect your Forgejo" },
+            Part::Absent { role: Role::List, name: "Steps" },
+        ],
+    },
+    Holds {
+        name: "connect-forge-connected",
+        heading: "Connect a forge",
+        parts: &[
+            Part::Text { text: "✓ Connected" },
+            Part::Named { role: Role::Link, name: "Open Forgejo ↗" },
+            Part::Named { role: Role::Button, name: "Connect GitHub" },
+            Part::Absent { role: Role::List, name: "Steps" },
+        ],
+    },
+    Holds {
+        name: "connect-forge-elsewhere",
+        heading: "A Forgejo elsewhere",
+        parts: &[
+            Part::Named { role: Role::Slot, name: "A Forgejo elsewhere" },
+            Part::Named { role: Role::Button, name: "Copy" },
+            Part::Named { role: Role::Link, name: "Other forges" },
+            Part::Absent { role: Role::List, name: "Steps" },
         ],
     },
     Holds {
