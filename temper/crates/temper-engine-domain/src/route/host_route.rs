@@ -12,8 +12,21 @@ use skein_lib::{Decimal, List, ReplyTo, Token, Writer};
 /// Root to protocol: a relayed call to decode, or one the fleet dropped.
 #[derive(PartialEq, Eq, Debug)]
 pub enum HostRequest {
-    Decode { to: ReplyTo, task: u64, attempt: u64, call: fleet::Call },
-    Dropped { call: fleet::Call },
+    Decode {
+        to: ReplyTo,
+        task: u64,
+        attempt: u64,
+        call: fleet::Call,
+    },
+    Dropped {
+        call: fleet::Call,
+    },
+    /// Decode a whole authorized settings note, without the model call's payload ceiling.
+    SettingsNote {
+        to: ReplyTo,
+        call: Box<Call>,
+        body: Box<[u8]>,
+    },
 }
 
 /// An adopted repository's canonical resource identity for settings discovery
@@ -87,6 +100,7 @@ pub(crate) struct Flight {
     pub task: u64,
     pub attempt: u64,
     pub key: Option<CallKey>,
+    pub note_decoding: bool,
     pub render: FlightRender,
     pub name: Box<[u8]>,
     pub tool: Box<[u8]>,
@@ -128,6 +142,7 @@ pub(crate) fn decode(domain: &mut Domain, to: ReplyTo, task: u64, attempt: u64, 
         task,
         attempt,
         key: None,
+        note_decoding: false,
         render: FlightRender::Plain,
         name: call.name.clone(),
         tool: call.tool.clone(),
@@ -148,7 +163,12 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
         return;
     }
     let Some(flight) = domain.call_renders.get_mut(&right) else { return };
-    if flight.key.is_some() {
+    if let Some(key) = flight.key {
+        if flight.note_decoding && key.completion == body.completion && key.position == body.position {
+            flight.note_decoding = false;
+            let body = super::checked_call(body, &env.limits);
+            relay_payload(domain, env, decision, to, key, body);
+        }
         return;
     }
     let body = super::checked_call(body, &env.limits);
@@ -742,4 +762,86 @@ fn settings_forge_people(
         }
     }
     people.into_boxed()
+}
+
+/// Load one settings source without applying it or adding note assembly state.
+pub(crate) fn settings_note(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, to: ReplyTo, call: Call) {
+    let crate::Tool::ProposeSettingsNote { note, ref reason, .. } = call.tool else { unreachable!("note source") };
+    if reason.len() > skein_lib::usize_of(env.limits.tasks.message_bytes) {
+        note_refused(domain, to, b"settings reason exceeds the message bound");
+        return;
+    }
+    let right = to.into_token();
+    let flight = domain.call_renders.get(&right).expect("settings note flight");
+    let key = flight.key.expect("decoded settings note");
+    if let Some(part) = domain
+        .core
+        .authorize_tool(key, jig_domain_core::ToolKind::Recall { by: jig_domain_notes::Recall::Name { name: note } })
+    {
+        domain.work.push(Work::Core(jig_domain_core::Event::NamedAnswer { to: ReplyTo::new(right), key, part }));
+        return;
+    }
+    let read = crate::boundary::Read::SettingsNote { to: right, call: Box::new(call) };
+    match domain.archive_reads.insert(Some(read)) {
+        Ok(id) => emit(
+            decision,
+            &env.limits,
+            Delivery::Load {
+                waiter: id.token(),
+                range: crate::Range::Core(crate::CoreRange::Notes(jig_domain_notes::Range::Entry { name: note })),
+                after: None,
+            },
+        ),
+        Err(_) => note_refused(domain, ReplyTo::new(right), b"settings note load busy"),
+    }
+}
+
+pub(crate) fn note_refused(domain: &mut Domain, to: ReplyTo, words: &[u8]) {
+    rendered(domain, to, SettledAnswer::Host { error: true, body: words.into() });
+}
+
+pub(crate) fn settings_note_loaded(
+    domain: &mut Domain,
+    to: ReplyTo,
+    call: Call,
+    rows: Box<[crate::Record]>,
+    cut: bool,
+) {
+    let right = to.into_token();
+    let Some(flight) = domain.call_renders.get(&right) else { return };
+    let task = flight.task;
+    let crate::Tool::ProposeSettingsNote { note, revision, .. } = call.tool else { unreachable!("note source") };
+    if cut || rows.len() != 1 {
+        note_refused(domain, ReplyTo::new(right), b"settings note missing or exceeds load bounds");
+        return;
+    }
+    let Some(crate::Record::Core(jig_domain_core::Record::Notes(jig_domain_notes::Record::Entry(entry)))) =
+        rows.into_iter().next()
+    else {
+        note_refused(domain, ReplyTo::new(right), b"settings note missing");
+        return;
+    };
+    if entry.name != note
+        || !jig_domain_notes::valid_entry(&entry, &domain.limits.notes)
+        || !domain.core.note_readable(task, &entry.scope)
+    {
+        note_refused(domain, ReplyTo::new(right), b"settings note inaccessible");
+        return;
+    }
+    if entry.revision != revision {
+        note_refused(domain, ReplyTo::new(right), b"settings note revision moved; recall and submit its revision");
+        return;
+    }
+    domain.call_renders.get_mut(&right).expect("note flight").note_decoding = true;
+    assert!(
+        super::now(
+            domain,
+            Request::Worker(crate::WorkerRequest::Host(Box::new(HostRequest::SettingsNote {
+                to: ReplyTo::new(right),
+                call: Box::new(call),
+                body: entry.body,
+            })))
+        ),
+        "note decode door reserved"
+    );
 }

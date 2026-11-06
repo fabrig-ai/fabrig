@@ -1,6 +1,6 @@
 # Status
 
-2026-11-05. Where jig's code lags or departs from its design, from the
+2026-11-06. Where jig's code lags or departs from its design, from the
 status files below. Agents in a host's own process are the widest gap:
 no root composes `smith-inline-agent`, so the engine's own slots, a
 hub's agent capability and the tools a worker begins with their calls
@@ -33,7 +33,8 @@ use jig's (`domain/root.md`, `domain/hosts.md`).
 A transcript's load refused for want of a slot counts as a failure, where
 room should pause its task (`domain/engine.md`). A note's range names the
 revision it read `recalled`, where the `note-parts` request of 2026-11-05 has
-`revision` (`domain/engine.md`).
+`revision` (`domain/engine.md`). The worlds keep 37 calls in bare numbers,
+where the `debt-24` request of 2026-11-05 has at most ten (`domain/testing.md`).
 The code departs in a few single items (`README.md`, `client/domain/client.md`, `domain/engine.md`,
 `client/domain/contract.md`, `client/domain/testing.md`, `domain/hosts.md`, `domain/people.md`, `domain/root.md`, `domain/testing.md`,
 `protocol/README.md`, `protocol/browser.md`, `protocol/client.md`, `protocol/configuration.md`, `protocol/service.md`, `protocol/store.md`). `domain/core.md`,

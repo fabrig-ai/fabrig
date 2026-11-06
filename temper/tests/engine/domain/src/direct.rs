@@ -56,6 +56,7 @@ impl Driver {
     /// Replace a root together with the configuration used by its restart oracle.
     pub fn replace_root(&mut self, configuration: engine::Config) {
         self.restart_config = crate::oracle::config::copy(&configuration);
+        self.protocol.models.clone_from(&configuration.core.settings.models);
         self.root = engine::Domain::new(configuration, &self.env.limits).expect("restart configuration");
     }
     /// Transfer a cold-cut fixture's store; its receiving root runs the oracle.
@@ -96,6 +97,8 @@ impl Driver {
     /// An empty deployment for stories that exercise the real first-start cut itself.
     #[must_use]
     pub fn cold(store: Store, config: engine::Config, limits: &engine::Limits) -> Driver {
+        let mut protocol = Protocol::default();
+        protocol.models.clone_from(&config.core.settings.models);
         Driver {
             broken: crate::oracle::Fixture::Checked,
             restart_config: crate::oracle::config::copy(&config),
@@ -107,7 +110,7 @@ impl Driver {
             events: VecDeque::from([engine::Event::Restart { pending: store.pending_generation }]),
             store,
             delivered: Vec::new(),
-            protocol: Protocol::default(),
+            protocol,
             serial: 100,
             stopped: false,
             fail_archive_once: false,

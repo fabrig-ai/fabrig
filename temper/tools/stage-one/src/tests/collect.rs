@@ -324,3 +324,50 @@ fn current_keeps_an_unset_temper_default_as_reset() {
     let (_, current) = collect::assemble(&outputs).expect("unset default");
     assert_eq!(edit(&current, "landing-rule", Some(1), None), Edit::Reset);
 }
+
+#[test]
+fn one_accepted_revision_retains_the_designer_and_triage_bindings() {
+    let scratch = Scratch::new("stage-one-note-proposal");
+    super::check::profile_evidence(scratch.path(), |_: &mut Vec<crate::golden::Item>| {});
+    let mut evidence = evidence::read(scratch.path()).expect("reference evidence");
+    let accepted = evidence.items.clone();
+    let rows: Vec<_> = accepted
+        .items
+        .iter()
+        .map(|item| {
+            let Edit::Set(value) = &item.edit else { panic!("accepted whole values") };
+            json!({"setting":item.setting,"set":value})
+        })
+        .collect();
+    let mut recorded = outputs();
+    recorded.project = evidence.facts.project;
+    recorded.by_command.insert(words("revision show 5 --json"), json!({"head":{"number":5},"items":rows}).to_string());
+    recorded.by_command.insert(words("settings show --json"), json!({"settings":[]}).to_string());
+    let (items, _) = collect::assemble(&recorded).expect("one complete accepted revision");
+    assert_eq!(items, accepted, "the revision retains every submitted item");
+    evidence.items = items;
+    let golden = crate::golden::reference().expect("reference golden");
+    let profile = crate::golden::profile().expect("reference profile");
+    let report = crate::check::check(&golden, &profile, &evidence);
+    for (role, number) in [("designer", 7), ("triage", 8)] {
+        assert!(report.binding.iter().any(|binding| binding.role == role && binding.number == Some(number)));
+    }
+    // Eleven independent acceptances leave only the last proposal's edits in its revision.
+    recorded.revision = 13;
+    for (at, row) in rows.iter().enumerate() {
+        let number = at + 3;
+        recorded.by_command.insert(
+            words(&format!("revision show {number} --json")),
+            json!({"head":{"number":number},"items":[row]}).to_string(),
+        );
+    }
+    let (incomplete, _) = collect::assemble(&recorded).expect("the final workaround revision alone");
+    assert_eq!(incomplete.items.len(), 1, "current settings cannot fill unrelated accepted edits");
+    evidence.items = incomplete;
+    let report = crate::check::check(&golden, &profile, &evidence);
+    for role in ["designer", "triage"] {
+        assert!(
+            report.binding.iter().any(|binding| binding.role == role && binding.by == crate::check::BoundBy::Unbound)
+        );
+    }
+}

@@ -756,3 +756,249 @@ fn adopt_repository(world: &mut World, project: u32, name: &[u8], key: u8) {
         "repository adopted in project {project}: {reply:?}"
     );
 }
+
+#[test]
+fn a_configuring_chat_proposes_large_settings_from_a_note() {
+    use serde_json::json;
+    let mut world = note_world();
+    let run = world.chat(CONFIGURING, world.owner, 20);
+    let settings = reference_settings(&mut world, &run);
+    let body = settings.to_string();
+    assert!(body.len() > 23_000, "reference-sized settings: {}", body.len());
+    let (note, revision) = settings_note(&mut world, &run, &body);
+    assert_eq!(world.head().number, 1, "note assembly applies nothing");
+    let input = json!({"against":1,"reason":REASON,"note":{"name":note,"revision":revision}});
+    let (answer, error) = bounded_call(&mut world, &run, 100, b"propose_settings", &input);
+    assert!(!error, "{}", String::from_utf8_lossy(&answer));
+    let proposal = std::str::from_utf8(&answer)
+        .expect("proposal answer")
+        .strip_prefix(&format!("proposed as t{}/", run.task))
+        .expect("proposal")
+        .split_whitespace()
+        .next()
+        .expect("proposal number")
+        .parse()
+        .expect("number");
+    let review = world.review(&run, proposal);
+    let core::documents::ProposalAction::Settings { review: Some(review), .. } = review.action else {
+        panic!("whole settings review")
+    };
+    assert_eq!(
+        usize::try_from(review.items.len()).expect("review length"),
+        settings["items"].as_array().expect("items").len()
+    );
+    assert_eq!(world.head().number, 1, "review applies nothing");
+    world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
+    assert_eq!(world.head().number, 2, "one acceptance makes one revision");
+    assert_submitted_settings(&mut world, &run, &settings);
+}
+
+fn assert_submitted_settings(world: &mut World, run: &engine::Assignment, settings: &serde_json::Value) {
+    use serde_json::json;
+    let (record, _) = read_whole(&mut world.driver, run, 200, json!({"revision":2}));
+    assert!(record.contains("charter"));
+    let accepted = world
+        .settings_rows()
+        .into_iter()
+        .find_map(|row| {
+            if let s::Record::Revision { history: false, revision } = row {
+                (revision.head.number == 2).then_some(revision)
+            } else {
+                None
+            }
+        })
+        .expect("accepted revision");
+    assert_eq!(accepted.items.len() + accepted.applications.len(), settings["items"].as_array().expect("items").len());
+    for (at, item) in settings["items"].as_array().expect("items").iter().enumerate() {
+        let (text, _) = read_whole(
+            &mut world.driver,
+            run,
+            30_000 + u32::try_from(at).expect("item") * 100,
+            json!({"setting":item["setting"]}),
+        );
+        let (_, text) = text.split_once('\n').expect("setting heading");
+        let value = serde_json::Deserializer::from_str(text)
+            .into_iter::<serde_json::Value>()
+            .next()
+            .expect("setting value")
+            .expect("setting JSON before application status");
+        assert_eq!(value, item["set"], "whole value: {}", item["setting"]);
+    }
+}
+
+fn reference_settings(world: &mut World, run: &engine::Assignment) -> serde_json::Value {
+    use serde_json::json;
+    let reference: serde_json::Value =
+        serde_json::from_str(include_str!("../../../../../docs/examples/reference/settings.json"))
+            .expect("reference settings");
+    let mut items = Vec::new();
+    for (at, item) in reference["items"].as_array().expect("reference items").iter().enumerate() {
+        if item["setting"]["kind"] == "charter" {
+            let number = item["setting"]["number"].as_u64().expect("charter number");
+            let mut value = read_charter(&mut world.driver, run, 1 + u32::try_from(at).expect("item") * 3, 2);
+            value["number"] = json!(number);
+            value["instructions"] = item["set"]["instructions"].clone();
+            // Keep the fixture's model and authority; transport preserves the reference's words.
+            items.push(json!({"setting":item["setting"],"set":value}));
+        }
+    }
+    for (at, setting) in
+        [json!({"kind":"template","number":2}), json!({"kind":"rules"}), json!({"kind":"policy","number":1})]
+            .into_iter()
+            .enumerate()
+    {
+        let mut value = read_value(
+            &mut world.driver,
+            run,
+            5000 + u32::try_from(at).expect("item") * 100,
+            json!({"setting":setting}),
+        );
+        if setting["kind"] == "template" {
+            value["llm"] = json!({"account":null,"main":{"model":"scripted","effort":null},"subagents":[]});
+        }
+        items.push(json!({"setting":setting,"set":value}));
+    }
+    for item in reference["items"].as_array().expect("reference items") {
+        if item["setting"]["kind"] == "landing-rule" {
+            items.push(item.clone());
+        }
+    }
+    // One setting exceeds a call even before its JSON framing and escaped quotes.
+    items[0]["set"]["instructions"] = json!(format!(
+        "{}{}",
+        items[0]["set"]["instructions"].as_str().expect("instructions"),
+        " Continue carefully.".repeat(200)
+    ));
+    items[1]["set"]["instructions"] = json!(format!(
+        "{}{}",
+        items[1]["set"]["instructions"].as_str().expect("instructions"),
+        " Review carefully.".repeat(200)
+    ));
+    json!({"items":items})
+}
+
+fn bounded_call(
+    world: &mut World,
+    run: &engine::Assignment,
+    completion: u32,
+    tool: &[u8],
+    input: &serde_json::Value,
+) -> (Box<[u8]>, bool) {
+    let input = input.to_string();
+    // configuration.md, 13.8: init's output 8,192 leaves about 10,662 payload bytes.
+    assert!(input.len() <= 10_662, "call exceeds configured payload ceiling: {}", input.len());
+    host_tool(&mut world.driver, run, completion, tool, input.as_bytes())
+}
+
+fn settings_note(world: &mut World, run: &engine::Assignment, body: &str) -> (u64, u32) {
+    use serde_json::json;
+    let mut name = 0;
+    let mut revision = 0;
+    let chars: Vec<char> = body.chars().collect();
+    for (at, chunk) in chars.chunks(2000).enumerate() {
+        let mut input = json!({"scope":{"kind":"goal","project":PROJECT,"goal":run.task},"description":"work: settings","body":chunk.iter().collect::<String>()});
+        if at > 0 {
+            input["name"] = json!(name);
+            input["recalled"] = json!(revision);
+            input["first"] = json!(2);
+            input["remove"] = json!(0);
+            input["join"] = json!(true);
+        }
+        let (answer, error) = bounded_call(world, run, 1000 + u32::try_from(at).expect("chunk"), b"note", &input);
+        assert!(!error, "{}", String::from_utf8_lossy(&answer));
+        // The store supplies the same durable note identity and revision the write answered.
+        let entry = world
+            .driver
+            .store
+            .rows
+            .values()
+            .find_map(|row| {
+                if let engine::Record::Core(core::Record::Notes(jig_domain_notes::Record::Entry(entry))) = row {
+                    Some(entry)
+                } else {
+                    None
+                }
+            })
+            .expect("saved note");
+        name = entry.name;
+        revision = entry.revision;
+    }
+    (name, revision)
+}
+
+fn note_world() -> World {
+    let mut bounds = limits();
+    bounds.notes.body_bytes = 65_536;
+    bounds.journal.transcript_bytes = 131_072;
+    bounds.loads.bytes = 131_072;
+    bounds.loads.reply_bytes = 131_072;
+    bounds.loads.transcript_bytes = 131_072;
+    bounds.tasks.charters = 9;
+    bounds.authority.segments = 8;
+    bounds.call_records = 64;
+    bounds.forge.named_calls = 64;
+    World::with_limits(config(), &bounds)
+}
+
+#[test]
+fn settings_note_sources_refuse_moved_missing_private_and_malformed_values() {
+    use serde_json::json;
+    for (case, expected) in
+        [("moved", "revision moved"), ("missing", "missing"), ("private", "inaccessible"), ("json", "invalid JSON")]
+    {
+        let mut world = note_world();
+        let run = world.chat(CONFIGURING, world.owner, 20);
+        let writer = if case == "private" { world.chat(CONFIGURING, world.owner, 21) } else { run.clone() };
+        let (note, revision) = settings_note(&mut world, &writer, "{");
+        let input = json!({"against":1,"reason":REASON,"note":{
+            "name":if case == "missing" {note + 1} else {note},
+            "revision":if case == "moved" {revision + 1} else {revision}
+        }});
+        let (answer, error) = bounded_call(&mut world, &run, 100, b"propose_settings", &input);
+        assert!(error, "{case}: {}", String::from_utf8_lossy(&answer));
+        assert!(String::from_utf8_lossy(&answer).contains(expected), "{case}: {}", String::from_utf8_lossy(&answer));
+        assert_eq!(world.head().number, 1);
+        assert!(
+            !world.settings_rows().iter().any(|row| matches!(row, s::Record::Proposal { .. })),
+            "no partial proposal"
+        );
+    }
+}
+
+#[test]
+fn a_decided_note_proposal_replays_after_its_note_moves() {
+    use serde_json::json;
+    let mut world = note_world();
+    let run = world.chat(CONFIGURING, world.owner, 20);
+    let value = read_charter(&mut world.driver, &run, 1, CHAT);
+    let settings = json!({"items":charter_item(value, b"Keep commits small.")}).to_string();
+    let (note, revision) = settings_note(&mut world, &run, &settings);
+    let input = json!({"against":1,"reason":REASON,"note":{"name":note,"revision":revision}});
+    let (answer, error) = bounded_call(&mut world, &run, 100, b"propose_settings", &input);
+    assert!(!error);
+    let (changed, error) = bounded_call(
+        &mut world,
+        &run,
+        101,
+        b"note",
+        &json!({
+            "scope":{"kind":"goal","project":PROJECT,"goal":run.task}, "description":"work: settings",
+            "name":note,"recalled":revision,"body":"invalid JSON"
+        }),
+    );
+    assert!(!error, "{}", String::from_utf8_lossy(&changed));
+    let before = world.driver.store.applied;
+    let loads = world.driver.loads.len();
+    let body = engine::Call {
+        completion: 100,
+        position: 0,
+        tool: engine::Tool::ProposeSettingsNote { against: 1, note, revision, reason: REASON.as_bytes().into() },
+    };
+    world.driver.call(CHANNEL, run.task, run.attempt, 900, body);
+    world.driver.settle();
+    assert_eq!(world.driver.store.applied, before, "replay makes no new proposal");
+    assert_eq!(world.driver.loads.len(), loads, "a decided call never rereads its note");
+    assert!(world.driver.delivered.iter().any(|delivery| matches!(delivery,
+        Delivery::Link { down: jig_domain_host::LinkDown::Relayed { call, answer:jig_domain_host::Relayed::Answer {text,error:false},.. },.. }
+        if call.as_ref() == 900_u64.to_be_bytes() && *text == answer)));
+}

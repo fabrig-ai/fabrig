@@ -519,7 +519,7 @@ processes, each a host of an `iterate` (a service, or a fake client):
 - **The real loop** (`tests/echo/tests/suite/real.rs`): the echo and its fake
   clients in one loop over the shell's ring, on loopback, quick, failing
   clearly where `io_uring` is unusable.
-- **End to end** (`tests/echo/tests/end_to_end.rs`, built with the
+- **End to end** (`examples/echo/shell/tests/end_to_end.rs`, in the
   shell's package): the shipped binary against two fake clients, seen
   only through loopback, its stderr and its exit, stopped by SIGTERM.
 

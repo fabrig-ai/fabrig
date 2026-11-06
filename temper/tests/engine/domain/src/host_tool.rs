@@ -5,6 +5,11 @@ use jig_domain_core as core;
 use skein_lib::{Duration, ReplyTo, Token};
 use temper_engine_domain::{self as engine, Delivery, Event};
 
+enum HostReply {
+    Render { to: ReplyTo, answer: smith_domain_run::HostAnswer },
+    Sent { body: Box<[u8]>, error: bool },
+}
+
 const STEPS: usize = 200; // The direct world's settlement step budget.
 
 /// Send a scripted model's host call and return the answer relayed to its run.
@@ -24,7 +29,10 @@ pub fn host_tool(
     let (to, decoded) = decode(driver, run, completion, tool, input, &name);
     let (to, answer) = match decoded {
         temper_engine_smith::Decoded::Answered(answer) => (to, answer),
-        temper_engine_smith::Decoded::Call(body) => render(driver, to, body, &name, tool, run.task),
+        temper_engine_smith::Decoded::Call(body) => match render(driver, to, body, &name, tool, run.task) {
+            HostReply::Render { to, answer } => (to, answer),
+            HostReply::Sent { body, error } => return (body, error),
+        },
     };
     let (body, error) = answer.into_parts();
     driver.send(Event::Worker(engine::WorkerInput::RenderedHostCall {
@@ -52,17 +60,14 @@ pub fn host_tool(
     panic!("settings tool answer reached the run");
 }
 
-fn render(
-    driver: &mut Driver,
-    to: ReplyTo,
-    body: engine::Call,
-    name: &[u8],
-    tool: &[u8],
-    task: u64,
-) -> (ReplyTo, smith_domain_run::HostAnswer) {
+fn render(driver: &mut Driver, to: ReplyTo, body: engine::Call, name: &[u8], tool: &[u8], task: u64) -> HostReply {
+    let delivered = driver.delivered.len();
     driver.send(Event::Worker(engine::WorkerInput::DecodedHostCall { to, body }));
     for _ in 0..STEPS {
         driver.advance(true);
+        if let Some((body, error)) = relayed(driver, name, delivered) {
+            return HostReply::Sent { body, error };
+        }
         if !driver.protocol.pending_renders.is_empty()
             || driver.delivered.iter().any(|delivery| {
                 matches!(delivery,
@@ -73,22 +78,40 @@ fn render(
             break;
         }
     }
-    if let Some(answer) = settings_delivery(driver) {
-        answer
+    if let Some((to, answer)) = settings_delivery(driver) {
+        HostReply::Render { to, answer }
     } else {
         let (to, rendered_name) = driver.protocol.pending_renders.pop().expect("host answer to render");
         assert_eq!(rendered_name.as_ref(), name);
         let (_, answer) = driver.protocol.answers.last().expect("typed answer");
-        (
+        HostReply::Render {
             to,
-            temper_engine_smith::answer_for_task(
+            answer: temper_engine_smith::answer_for_task(
                 answer,
                 tool,
                 driver.env.limits.call_answer_bytes.saturating_sub(u32::try_from(tool.len()).expect("tool name")),
                 task,
             ),
-        )
+        }
     }
+}
+
+fn relayed(driver: &Driver, name: &[u8], delivered: usize) -> Option<(Box<[u8]>, bool)> {
+    driver.delivered[delivered..].iter().rev().find_map(|delivery| {
+        if let Delivery::Link {
+            down:
+                jig_domain_host::LinkDown::Relayed {
+                    call, answer: jig_domain_host::Relayed::Answer { text, error }, ..
+                },
+            ..
+        } = delivery
+            && call.as_ref() == name
+        {
+            Some((text.clone(), *error))
+        } else {
+            None
+        }
+    })
 }
 
 fn decode(

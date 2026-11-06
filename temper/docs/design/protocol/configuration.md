@@ -2199,7 +2199,13 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   larger raises them with its T. A note's body is not bound by it: a
   run builds a body past one call in parts, by line ranges, up to
   `notes.body_bytes` (jig's `domain/engine.md`, section 10;
-  `../domain/agent.md`, 8.3).
+  `../domain/agent.md`, 8.3). `propose_settings` can name that note and
+  its revision instead of inline items: the whole settings file is resolved
+  internally, checked for the proposing task's note access and matching
+  revision, parsed and proposed as one value (`../domain/agent.md`, 8.1).
+  One owner acceptance makes one revision, without increasing a model's
+  output or a deployment budget. A decided call replays its saved proposal
+  before resolving a note again.
 - **Memory:** `engine.memory_bytes` is the engine's byte budget
   (`../domain/root.md`, 4.1), independent of a model's edge bounds.
   The start checks those bounds, without comparing memory with a sum
