@@ -89,3 +89,12 @@ Options, each pre-approved:
 ## Report
 
 The implementer's report, plus: whether the empty merge reproduced as read, and what a story saw of the head after a resume.
+
+## Rebase (2026-11-06, step merge, foreman landing-fixes/resume-merge/foreman-1)
+
+resolve forge.status.md by preserving both adjacent gap removals
+Rebase onto the landing trunk; the sole reported conflict is `temper/docs/design/domain/forge.status.md`.
+Commit `7e964fc7c1`, merged into the integration trunk by `21dc0b0437`, removes the `8.2, step 3, and 10` stale-head gap.
+This branch's `ea9f1c5b05` removes the adjacent `8.11, *The next producer merges the landing tip first*` gap.
+Resolve by deleting both entries, keeping the `11:` saved-work entry and all other status text.
+The resulting `Not yet` list begins with `11:`. No Rust change is needed for this refusal.

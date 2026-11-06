@@ -141,6 +141,64 @@ fn a_delivery_is_exactly_a_title_and_a_body() {
 }
 
 #[test]
+fn a_landed_receipt_says_pushed_at_which_head_on_which_branch() {
+    let delivery = crate::smith_delivery::landings(
+        &[crate::wire::Landing::Landed { commit: [0xab; 32] }],
+        &[Some(Box::from(b"topic".as_slice()))],
+    );
+    let agent::Delivery::Delivered(delivered) = delivery else { panic!("landed delivery: {delivery:?}") };
+    assert_eq!(delivered.receipts().len(), 1);
+    assert_eq!(delivered.receipts()[0].directory(), 0);
+    assert_eq!(
+        delivered.receipts()[0].text(),
+        b"pushed abababababababababababababababababababababababababababababababab to branch topic; your checkout stays detached, as expected"
+    );
+}
+
+#[test]
+fn a_branch_past_the_receipts_bound_leaves_its_words_out() {
+    let without_branch = b"pushed abababababababababababababababababababababababababababababababab; your checkout stays detached, as expected";
+    let at_bound = agent::Receipt::CAPACITY - without_branch.len() - b" to branch ".len();
+    for length in [at_bound, at_bound + 1] {
+        let branch = "b".repeat(length);
+        let delivery = crate::smith_delivery::landings(
+            &[crate::wire::Landing::Landed { commit: [0xab; 32] }],
+            &[Some(Box::from(branch.as_bytes()))],
+        );
+        let agent::Delivery::Delivered(delivered) = delivery else { panic!("landed delivery: {delivery:?}") };
+        let expected = if length == at_bound {
+            let mut text = skein_lib::Writer::new(agent::Receipt::CAPACITY);
+            text.put(b"pushed abababababababababababababababababababababababababababababababab to branch ")
+                .expect("receipt prefix");
+            text.put(branch.as_bytes()).expect("branch at bound");
+            text.put(b"; your checkout stays detached, as expected").expect("receipt suffix");
+            text.finish()
+        } else {
+            Box::from(without_branch.as_slice())
+        };
+        assert_eq!(delivered.receipts()[0].text(), expected.as_ref(), "branch bytes: {length}");
+    }
+}
+
+#[test]
+fn a_delivery_not_made_never_says_pushed() {
+    for (landing, expected) in [
+        (crate::wire::Landing::Moved, agent::Delivery::Stale),
+        (crate::wire::Landing::Unchanged, agent::Delivery::Nothing),
+        (
+            crate::wire::Landing::Failed,
+            agent::Delivery::Failed(agent::DeliveryFailure {
+                directory: 0,
+                reason: agent::DeliveryReason::Unknown,
+                diagnostic: agent::Diagnostic::empty(),
+            }),
+        ),
+    ] {
+        assert_eq!(crate::smith_delivery::landings(&[landing], &[None]), expected);
+    }
+}
+
+#[test]
 fn a_delivery_with_a_field_beyond_its_title_and_body_is_refused() {
     let extra = fields(&[(b"title", b"t"), (b"body", b"b"), (b"tag", b"x")]);
     assert!(crate::smith_delivery::fields(extra, 512).is_none());
