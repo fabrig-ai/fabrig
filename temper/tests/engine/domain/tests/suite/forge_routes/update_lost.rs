@@ -3,7 +3,7 @@
 use super::early_start::{make, observe_push, push, stop};
 use super::light_rules::change_row;
 use super::reviews::next_assignment;
-use super::update_first::{assert_landed, finish, goal_world, move_base, status};
+use super::update_first::{assert_landed, finish, goal_world_stall, move_base, status};
 use super::*;
 use skein_forge_client::Condition;
 use temper_engine_domain_forge_change as change;
@@ -16,8 +16,8 @@ fn update_writes(world: &World) -> usize {
     world.writes.iter().filter(|write| matches!(write, skein_forge::api::Write::Update { .. })).count()
 }
 
-fn pending_update() -> (World, engine::Assignment, u64, u64, u64, Box<[u8]>) {
-    let (mut world, goal, branch, main) = goal_world(true);
+fn pending_update(stall: Option<Duration>) -> (World, engine::Assignment, u64, u64, u64, Box<[u8]>) {
+    let (mut world, goal, branch, main) = goal_world_stall(true, stall);
     let task = make(&mut world, &goal, b"Add change", &[]);
     let producer = next_assignment(&mut world, 1);
     let head = push(&mut world, &producer, main, b"change");
@@ -46,7 +46,7 @@ fn pending_update() -> (World, engine::Assignment, u64, u64, u64, Box<[u8]>) {
 }
 
 fn assert_not_held(world: &World, task: u64) {
-    assert!(!matches!(live_task(world, task).phase, tasks::Phase::Held { .. }), "{:?}", live_task(world, task));
+    assert!(!matches!(live_task(world, task).phase, tasks::Phase::Held { .. }), "{:?}", live_task(world, task).phase);
     assert!(!matches!(change_row(world, task).change.state, change::State::Held { .. }));
 }
 
@@ -101,9 +101,8 @@ fn held(world: &mut World, task: u64) {
 }
 
 fn lost_for_good() -> (World, engine::Assignment, u64, u64) {
-    let (mut world, goal, task, head, _, _) = pending_update();
-    world.env.limits.forge.change_policy.stall =
-        temper_service::limits::profile(temper_service::limits::Profile::Small).forge.change_policy.stall;
+    let stall = temper_service::limits::profile(temper_service::limits::Profile::Small).forge.change_policy.stall;
+    let (mut world, goal, task, head, _, _) = pending_update(Some(stall));
     world.lose_writes = u32::MAX;
     held(&mut world, task);
     assert_eq!(
@@ -111,12 +110,20 @@ fn lost_for_good() -> (World, engine::Assignment, u64, u64) {
         usize::try_from(world.env.limits.forge.change_policy.updates * world.env.limits.forge.client.write_attempts)
             .expect("small write bound")
     );
+    // The lost writes outlast the owner's sixty-second sign-in.
+    world.signed_in = None;
+    world.sign_in();
     (world, goal, task, head)
 }
 
 #[test]
 fn a_lost_update_is_made_again_and_holds_no_one() {
-    let (mut world, goal, task, head, base, _) = pending_update();
+    assert_eq!(
+        forge_top::effect_shape(11),
+        Some((forge_top::EffectForm::Transition, forge_top::Recovery::Idempotent)),
+        "jig's class must permit the update's recovery"
+    );
+    let (mut world, goal, task, head, base, _) = pending_update(None);
     world.lose_writes = 1;
     let updated = checking(&mut world, task, head, 1);
     assert_eq!(update_writes(&world), 2);
@@ -138,6 +145,7 @@ fn an_update_lost_for_good_holds_at_its_count_told_why() {
     assert_eq!(*entry, Some(account.entry));
     assert_eq!(*words, account.words);
     assert!(String::from_utf8_lossy(words).contains("update pull request: forge timed out"));
+    world.lose_writes = 0;
     stop(&mut world, &goal);
 }
 
@@ -168,7 +176,7 @@ fn a_released_update_holds_no_longer() {
 
 #[test]
 fn an_update_whose_base_went_on_while_lost_takes_the_new_tip() {
-    let (mut world, goal, task, head, base, branch) = pending_update();
+    let (mut world, goal, task, head, base, branch) = pending_update(None);
     world.lose_writes = 1;
     for _ in 0..STEPS {
         world.tick();
@@ -186,9 +194,7 @@ fn an_update_whose_base_went_on_while_lost_takes_the_new_tip() {
             && world.store.rows.values().any(|record| {
                 matches!(record,
                 Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::Entry { entry, .. }
-                    if entry.task == task && entry.effect.condition == Condition::Update {
-                        head: translate::commit(head), base: translate::commit(next_base)
-                    }))
+                    if entry.task == task && matches!(entry.effect.write, skein_forge::api::Write::Update { .. })))
             })
         {
             break;
@@ -210,7 +216,7 @@ fn an_update_whose_base_went_on_while_lost_takes_the_new_tip() {
 
 #[test]
 fn an_updates_hold_with_no_lost_write_says_as_it_did() {
-    let (mut world, goal, task, head, _, branch) = pending_update();
+    let (mut world, goal, task, head, _, branch) = pending_update(None);
     let mut checked = translate::commit(head);
     for _ in 0..STEPS {
         world.tick();

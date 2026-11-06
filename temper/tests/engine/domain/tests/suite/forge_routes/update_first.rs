@@ -10,6 +10,13 @@ const STEPS: u32 = 1000; // A full landing with fresh reads and hold release.
 
 // The early-start goal fixture, with this story's landing rule on the goal branch.
 pub(super) fn goal_world(up_to_date: bool) -> (World, engine::Assignment, Box<[u8]>, u64) {
+    goal_world_stall(up_to_date, None)
+}
+
+pub(super) fn goal_world_stall(
+    up_to_date: bool,
+    stall: Option<Duration>,
+) -> (World, engine::Assignment, Box<[u8]>, u64) {
     let mut world = World::configured_limits(
         true,
         true,
@@ -17,7 +24,7 @@ pub(super) fn goal_world(up_to_date: bool) -> (World, engine::Assignment, Box<[u
         STEPS,
         Gate::default(),
         None,
-        StoryLimits { slots: Some(4), ..StoryLimits::default() },
+        StoryLimits { slots: Some(4), stall, ..StoryLimits::default() },
     )
     .with_landing_deployment(Box::new([engine::LandingRule {
         connector: 0,
