@@ -1128,6 +1128,10 @@ pub const NAMES: Names<'static> = Names {
         b"temper-work-calls",
         b"temper-work-out",
         b"temper-writing-end",
+        b"temper-welcome-check",
+        b"temper-welcome-check-stopped",
+        b"temper-welcome-check-failed",
+        b"temper-welcome-check-why",
     ],
     regions: &[b"temper-link"],
 };
@@ -1303,6 +1307,11 @@ pub const WORK_OUT: Style = Style { owner: owner(), token: 451 };
 
 /// The words being written end here (temper/docs/design/client/README.md, 3.5).
 pub const WRITING_END: Style = Style { owner: owner(), token: 452 };
+// The try’s status box (temper/docs/design/client/README.md, 3.5).
+pub const WELCOME_CHECK: Style = Style { owner: owner(), token: 453 };
+pub const WELCOME_CHECK_STOPPED: Style = Style { owner: owner(), token: 454 };
+pub const WELCOME_CHECK_FAILED: Style = Style { owner: owner(), token: 455 };
+pub const WELCOME_CHECK_WHY: Style = Style { owner: owner(), token: 456 };
 
 #[cfg(test)]
 mod tests {

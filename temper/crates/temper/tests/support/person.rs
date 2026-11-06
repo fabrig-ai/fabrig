@@ -323,6 +323,7 @@ enum Departure {
 }
 /// Stdout and the client share one host; the link comes only from the binary.
 pub struct Person {
+    serve_data: Option<std::path::PathBuf>,
     pub client: Option<NativeClient>,
     root: Option<Fd>,
     actor: skein_fake_person::Person<Address>,
@@ -350,6 +351,12 @@ pub struct Person {
     submissions: Queue<Submit>,
 }
 impl Person {
+    /// Start the native sign-in's bound once the box's serve has listened.
+    #[must_use]
+    pub fn with_serve_data(mut self, data: &std::path::Path) -> Self {
+        self.serve_data = Some(data.into());
+        self
+    }
     /// Every byte read from the binary's stdout, including the printed link.
     #[must_use]
     pub fn stdout(&self) -> &[u8] {
@@ -460,6 +467,7 @@ impl Person {
             script.steps
         };
         Self {
+            serve_data: None,
             client: None,
             root: Some(root),
             actor: skein_fake_person::Person::new(steps),
@@ -532,6 +540,11 @@ impl Person {
         if self.client.is_none()
             && let Some(link) = super::printed_link(&self.bytes)
         {
+            if self.serve_data.as_deref().is_some_and(|data| !super::boxed::serve_listening(data)) {
+                self.wake = Some(now.saturating_add(skein_lib::Duration::from_millis(100)));
+                return;
+            }
+            self.wake = None;
             let address = std::str::from_utf8(link)
                 .expect("printed URL")
                 .strip_prefix("http://")
@@ -945,5 +958,34 @@ pub fn inbox_reply(entry: &[u8]) -> Step<Address> {
         find: Find::named(skein_ui::Role::Heading { level: 3 }, b"replied")
             .within(Box::new([Target::Role { role: skein_ui::Role::Item, name: entry.into() }])),
         within: super::WITHIN,
+    }
+}
+
+#[cfg(test)]
+pub mod serve_gate_tests {
+    use super::*;
+
+    pub fn native_sign_in_keeps_its_start_bound_until_serve_listens() {
+        let scratch = super::super::Scratch::new("person-serve-gate");
+        let mut person = Person::with_link(
+            Fd::new(0),
+            Fd::new(1),
+            Fd::new(2),
+            found(),
+            b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=fixture",
+        )
+        .with_serve_data(scratch.path());
+        person.start(Time::ZERO);
+        assert!(person.client.is_none(), "an early link starts no native sign-in");
+        assert!(person.signing_until.is_none(), "serve startup spends none of START_WITHIN");
+        assert!(person.next_policy_deadline().is_some(), "the log is checked again without pipe output");
+        std::fs::create_dir_all(scratch.path().join("box/logs")).expect("logs");
+        std::fs::write(scratch.path().join("box/logs/serve.log"), b"listening clients 127.0.0.1:8367\n")
+            .expect("listening");
+        let now = Time::from_nanos(START_WITHIN.as_nanos());
+        person.start(now);
+        assert!(person.client.is_some(), "listening admits native sign-in");
+        assert_eq!(person.signing_until, Some(now.saturating_add(START_WITHIN)));
+        scratch.remove();
     }
 }

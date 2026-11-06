@@ -49,11 +49,11 @@ A party is who acts in a deployment, a person or a service, numbered, with a rol
   deployment's and the first project's owners, at the first start. On
   a deployment that signs in with Google, each person its configuration
   lists as a member signs in as a party of their own.
-- **Signed in:** `temper serve` prints a sign-in link for the first
-  owner on its stdout, and `temper box` passes it on. A link signs in
+- **Signed in:** `temper box` prints the first owner's sign-in link on
+  its stdout; `temper serve` prints one when run alone. A link signs in
   once, within a short while. A spent or expired link, given again,
-  makes the deployment print a fresh one; the box prints it after `A
-  fresh sign-in link:`.
+  makes the deployment print a fresh one; the box passes on each fresh
+  link alone on the terminal: a blank line, then the link.
 - **Signed out:** `sign-out` ends the sign-in in `DIR` (temper help
   ctl).
 

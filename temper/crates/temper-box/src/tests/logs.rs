@@ -65,8 +65,11 @@ fn quiet_logs_are_private_timestamped_and_rotated_across_three_starts() {
     h.write_child(h.serve_index(), 1, b"http://local/sign-in/link?secret=private\n");
     h.run_until_idle();
     let stderr = h.stderr();
-    assert!(Harness::contains(&stderr, b"Logs: /data/box/logs/\nStarting serve\n"));
-    assert!(Harness::contains(&stderr, b"Ctrl-C stops temper."));
+    assert!(Harness::contains(
+        &h.log(),
+        b"00:00:00Z Logs: /data/box/logs/\n00:00:00Z Ctrl-C stops temper.\n00:00:00Z Starting serve\n"
+    ));
+    assert!(!Harness::contains(&stderr, b"Ctrl-C stops temper."));
     assert!(!Harness::contains(&stderr, b"forge 1: "));
     let (logged, mode) = read(&mut h, b"box/logs/forge-1.log");
     assert_eq!(mode, 0o600);
@@ -260,10 +263,10 @@ fn a_group_failure_carries_its_final_lines_as_one_block_only_when_quiet() {
         h.run_until_idle();
         let output = h.stderr();
         if echo == Echo::None {
-            assert!(Harness::contains(&output, b"Forge 3 (Forgejo): failed, prepare 3 exited 1\n    prepare 3: one\n    prepare 3: two\n    prepare 3: three\n    Log: /data/box/logs/prepare-3.log\n"));
+            assert!(Harness::contains(&output, b"Forge 3 (Forgejo): failed, prepare 3 exited 1\n00:00:00Z     prepare 3: one\n00:00:00Z     prepare 3: two\n00:00:00Z     prepare 3: three\n00:00:00Z     Log: /data/box/logs/prepare-3.log\n"));
         } else {
             assert!(Harness::contains(&output, b"prepare 3: one\nprepare 3: two\nprepare 3: three\n"));
-            assert!(!Harness::contains(&output, b"    prepare 3:"));
+            assert!(!Harness::contains(&output, b"00:00:00Z     prepare 3:"));
             assert!(!Harness::contains(&output, b"    Log:"));
         }
         assert!(h.sim.service_running(serve), "a failed group leaves serve running");
@@ -283,8 +286,8 @@ fn restart_tails_are_bounded_include_the_eof_piece_and_reset_before_spawn() {
     h.sim.finish_service(pid, Exit::Code(1));
     h.run_until_idle();
     let output = h.stderr();
-    assert!(Harness::contains(&output, b"forge 1 exited 1; restarting in 0.5 s\n    forge 1: three\n    forge 1: last\n    Log: /data/box/logs/forge-1.log\n"));
-    assert!(!Harness::contains(&output, b"    forge 1: two\n"));
+    assert!(Harness::contains(&output, b"forge 1 exited 1; restarting in 0.5 s\n00:00:00Z     forge 1: three\n00:00:00Z     forge 1: last\n00:00:00Z     Log: /data/box/logs/forge-1.log\n"));
+    assert!(!Harness::contains(&output, b"00:00:00Z     forge 1: two\n"));
     h.sim.advance_to(h.sim.now().saturating_add(Duration::from_millis(500)));
     h.run_until_idle();
     let child = h.child_index(b"forge 1");
@@ -295,9 +298,9 @@ fn restart_tails_are_bounded_include_the_eof_piece_and_reset_before_spawn() {
     let output = h.stderr();
     assert!(Harness::contains(
         &output,
-        b"forge 1 exited 1; restarting in 1 s\n    forge 1: fresh\n    Log: /data/box/logs/forge-1.log\n"
+        b"forge 1 exited 1; restarting in 1 s\n00:00:00Z     forge 1: fresh\n00:00:00Z     Log: /data/box/logs/forge-1.log\n"
     ));
-    assert!(!Harness::contains(&output, b"    forge 1: last\n"));
+    assert!(!Harness::contains(&output, b"00:00:00Z     forge 1: last\n"));
     stop(&mut h);
 }
 
@@ -332,7 +335,7 @@ fn refusal_retries(diagnostic: &[u8], tail: &[u8]) {
             Some((_, words)) => *words,
             None => b"serve exited 1; giving up\n",
         };
-        let block = crate::lines::joined(&[notice, tail, b"    Log: /data/box/logs/serve.log\n"]);
+        let block = crate::lines::joined(&[notice, tail, b"00:00:00Z     Log: /data/box/logs/serve.log\n"]);
         assert!(Harness::contains(&output, &block), "attempt {attempt} lost the refusal: {output:?}");
         if let Some((delay, _)) = RETRIES.get(attempt) {
             let next = h.sim.now().saturating_add(Duration::from_millis(*delay));
@@ -353,9 +356,9 @@ fn refusal_retries(diagnostic: &[u8], tail: &[u8]) {
 
 #[test]
 fn an_older_store_refusal_is_printed_on_every_retry() {
-    let tail = crate::lines::joined(&[b"    serve: ", OLDER_REFUSAL]);
+    let tail = crate::lines::joined(&[b"00:00:00Z     serve: ", OLDER_REFUSAL]);
     // The two trust-root lines precede this third line in the failure block.
-    let trust = b"    serve: smith: trust roots: 148 taken, 0 skipped, 0 malformed blocks, 0 other blocks\n";
+    let trust = b"00:00:00Z     serve: smith: trust roots: 148 taken, 0 skipped, 0 malformed blocks, 0 other blocks\n";
     refusal_retries(OLDER_REFUSAL, &crate::lines::joined(&[trust, trust, &tail]));
 }
 
@@ -363,8 +366,15 @@ fn an_older_store_refusal_is_printed_on_every_retry() {
 fn a_refusal_spanning_pieces_is_printed_on_every_retry() {
     let prefix = line_cap();
     let diagnostic = crate::lines::joined(&[&prefix, OLDER_REFUSAL]);
-    let trust = b"    serve: smith: trust roots: 148 taken, 0 skipped, 0 malformed blocks, 0 other blocks\n";
-    let tail = crate::lines::joined(&[trust, trust, b"    serve: ", &prefix, b"\n    serve: ", OLDER_REFUSAL]);
+    let trust = b"00:00:00Z     serve: smith: trust roots: 148 taken, 0 skipped, 0 malformed blocks, 0 other blocks\n";
+    let tail = crate::lines::joined(&[
+        trust,
+        trust,
+        b"00:00:00Z     serve: ",
+        &prefix,
+        b"\n00:00:00Z     serve: ",
+        OLDER_REFUSAL,
+    ]);
     refusal_retries(&diagnostic, &tail);
 }
 
@@ -393,7 +403,7 @@ fn a_waiting_give_up_drains_its_log_without_holding_teardown_orders_or_spinning(
     let output = h.stderr();
     assert!(Harness::contains(
         &output,
-        b"forge 1 exited 1; giving up\n    forge 1: held final line\n    Log: /data/box/logs/forge-1.log\n"
+        b"forge 1 exited 1; giving up\n00:00:00Z     forge 1: held final line\n00:00:00Z     Log: /data/box/logs/forge-1.log\n"
     ));
     h.sim.assert_quiescent(h.pid);
     h.sim.assert_no_open_fds(h.pid);
@@ -447,11 +457,51 @@ fn another_logs_refusal_waits_behind_the_failure_without_blocking_its_tail() {
     h.release_terminal_ack();
     h.run_until_idle();
     let output = h.stderr();
-    let block = b"forge 1 exited 1; restarting in 0.5 s\n    forge 1: final\n    Log: /data/box/logs/forge-1.log\n";
+    let block = b"forge 1 exited 1; restarting in 0.5 s\n00:00:00Z     forge 1: final\n00:00:00Z     Log: /data/box/logs/forge-1.log\n";
     let block_at = bytes::find(&output, block).expect("whole failure block");
     let refusal_at =
         bytes::find(&output, b"box: cannot write /data/box/logs/serve.log: NoSpace;").expect("one refusal");
     assert!(block_at < refusal_at, "refusal follows the waiting block");
     assert!(Harness::contains(&output, b"serve: fallback\n"));
     stop(&mut h);
+}
+
+#[test]
+fn box_log_rotates_whole_lines_and_moves_with_the_steps() {
+    let first = crate::lines::joined(&[&[b'a'; 1999], b"\n"]);
+    let second = crate::lines::joined(&[&[b'b'; 1999], b"\n"]);
+    let third = crate::lines::joined(&[&[b'c'; 1999], b"\n"]);
+    let previous_words = crate::lines::joined(&[b"00:00:00Z ", &first, b"00:00:00Z ", &second]);
+    let current_words = crate::lines::joined(&[b"00:00:00Z ", &third]);
+    let mut h = Harness::opening(
+        Steps { always: Box::new([long(b"serve", &[b"never"])]), asked: Box::new([]) },
+        &[],
+        true,
+        16_384,
+        &limits::Limits { log_bytes: RECORD_BYTES, ..limits::small() },
+        Echo::Steps,
+        Box::new([first, second, third]),
+    );
+    h.run_until_idle();
+    assert_eq!(read(&mut h, b"box/logs/box.log").1, 0o600);
+    let previous = read(&mut h, b"box/logs/box.log.1").0;
+    assert_eq!(previous, previous_words);
+    assert_eq!(
+        h.log(),
+        crate::lines::joined(&[
+            &current_words,
+            b"00:00:00Z Logs: /data/box/logs/\n00:00:00Z Ctrl-C stops temper.\n00:00:00Z Starting serve\n",
+        ])
+    );
+    assert!(previous.len() <= usize::try_from(RECORD_BYTES).unwrap());
+    assert!(h.log().len() <= usize::try_from(RECORD_BYTES).unwrap());
+    assert!(h.stderr().is_empty(), "echo adds no box log lines");
+    stop(&mut h);
+    let current = h.log();
+    let items = snapshot(&mut h);
+    let mut next = harness(Echo::None, &items, false, &limits::small());
+    next.run_until_idle();
+    assert_eq!(read(&mut next, b"box/logs.previous/box.log").0, current);
+    assert_eq!(read(&mut next, b"box/logs.previous/box.log.1").0, previous);
+    stop(&mut next);
 }
