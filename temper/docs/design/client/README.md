@@ -5219,8 +5219,9 @@ section 5.
   something", quiet, focusing the composer. A decision goes under the proposal's
   own `project`, never the chat's: a proposal of settings is the deployment's,
   whichever chat made it, and jig knows it under no other project. The card has
-  no "Reject": the person rejects it on its card in *Needs you* (3.5), or says
-  what to change here. Replaced by a later proposal, it is
+  no "Reject": the person rejects it on its card in *Needs you* (3.5). Saying
+  what to change here revises nothing while it waits: the agent answers that an
+  owner rejects it, then proposes afresh (`../domain/agent.md`, 8.1). Replaced by a later proposal, it is
   dimmed, "Replaced by the proposal below"; accepted, "✓ Accepted · new work
   follows it". A person who may not accept it sees neither act: "Waiting for an
   owner", the parties it waits for as jig's proposal names them, "Owners of this
@@ -6502,8 +6503,8 @@ own tests:
   which counts Reject among the card's acts): the mock's `chat.html` draws "Accept" and
   "Change something" alone, and the reason's box stands on the card in *Needs you*.
   Drawing one takes a view change and that box; its ask already goes under the
-  proposal's own `project`. Default: none, a person rejects in *Needs you* or says what
-  to change in the chat.
+  proposal's own `project`. Default: none, a person rejects in *Needs you*, where what
+  they say to change in the chat also leads while it waits (5.13).
 - **A rejected proposal of settings, on its chat's card** (5.13; the same request): its
   title and lines stay with neither acts nor a state line, where the card in *Needs you*
   says "Rejected"; the reason sent and the agent's reply stand in the conversation above
