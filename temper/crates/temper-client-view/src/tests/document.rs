@@ -273,6 +273,9 @@ fn proposal_answer(state: ProposalState, departed: bool) -> c::ReadResult {
             c::ReadResult::Value(c::ReadValue::Ended(Box::new(c::Ended {
                 key: c::ObjectKey::Proposal(PROPOSAL),
                 value: c::EndedValue::Proposal(c::ProposalHistory {
+                    reason: c::DocumentText::complete(
+                        c::Text::new(b"review".as_slice().into(), u32::MAX).expect("fixture reason"),
+                    ),
                     action: c::RetainedAction::Batch(List::with_capacity(0)),
                     number: PROPOSAL.number,
                     proposer: TASK,

@@ -251,7 +251,12 @@ fn settings_action_heads_fit_their_own_receiving_bounds() {
     let limits = fixtures::limits();
     let pending =
         c::ProposalActionSettings { against: 6, items: action_heads(PROPOSAL_ITEMS), review: None, made: None };
-    let retained = c::RetainedActionSettings { against: 6, items: action_heads(PROPOSAL_ITEMS), made: Some(7) };
+    let retained = c::RetainedActionSettings {
+        projects: skein_lib::List::with_capacity(0),
+        against: 6,
+        items: action_heads(PROPOSAL_ITEMS),
+        made: Some(7),
+    };
     let pending_wire = e::wire_owner_proposal_action_settings(&pending, limits.wire()).expect("128 pending heads");
     let retained_wire = e::wire_owner_retained_action_settings(&retained, limits.wire()).expect("128 retained heads");
     assert_eq!(t::restore_owner_proposal_action_settings(&pending_wire, &limits), Ok(pending));
@@ -262,7 +267,12 @@ fn settings_actions_refuse_one_head_past_the_ceiling() {
     let limits = fixtures::limits();
     let pending =
         c::ProposalActionSettings { against: 6, items: action_heads(PROPOSAL_ITEMS + 1), review: None, made: None };
-    let retained = c::RetainedActionSettings { against: 6, items: action_heads(PROPOSAL_ITEMS + 1), made: Some(7) };
+    let retained = c::RetainedActionSettings {
+        projects: skein_lib::List::with_capacity(0),
+        against: 6,
+        items: action_heads(PROPOSAL_ITEMS + 1),
+        made: Some(7),
+    };
     e::wire_owner_proposal_action_settings(&pending, limits.wire()).expect_err("one past the pending head bound");
     e::wire_owner_retained_action_settings(&retained, limits.wire()).expect_err("one past the retained head bound");
 }

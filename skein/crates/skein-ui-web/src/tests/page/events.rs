@@ -863,6 +863,7 @@ fn log_attribute(ops: &[Op], node: NodeId) -> &crate::dom::Element {
             | Op::Choice { .. }
             | Op::Href { .. }
             | Op::Focus { .. }
+            | Op::Reveal { .. }
             | Op::Component { .. }
             | Op::ScrollEnd { .. }
             | Op::HoldView { .. }
@@ -886,6 +887,7 @@ fn scroll_ends(ops: &[Op]) -> Vec<NodeId> {
             | Op::Choice { .. }
             | Op::Href { .. }
             | Op::Focus { .. }
+            | Op::Reveal { .. }
             | Op::HoldView { .. }
             | Op::PutView { .. }
             | Op::Measure { .. }
@@ -1030,6 +1032,7 @@ fn a_log_follows_its_end() {
             | Op::Choice { .. }
             | Op::Href { .. }
             | Op::Focus { .. }
+            | Op::Reveal { .. }
             | Op::HoldView { .. }
             | Op::PutView { .. }
             | Op::Measure { .. }

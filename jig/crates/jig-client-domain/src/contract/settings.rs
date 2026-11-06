@@ -376,6 +376,7 @@ pub struct ProposalActionSettings {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RetainedActionSettings {
+    pub projects: List<u32>,
     pub against: u32,
     pub items: List<RevisionItemHead>,
     pub made: Option<u32>,
