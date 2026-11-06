@@ -1843,7 +1843,7 @@ A person's first run starts with the store empty, no forge and no
 account; choosing the playground makes its records, its fake forge,
 the scripted model's account and its project, the engine adding the
 account and adopting its repository itself (`../protocol/setup.md`,
-8.4). A harness does as the person does: `sign-in -` with serve's
+8.4). A harness does as the person does: `sign-in -` with the box's
 first link, then `playground start` (5.5, area 6), which answers once
 the playground is ready, and `playground end`, which answers once it
 is reset, the store empty again.

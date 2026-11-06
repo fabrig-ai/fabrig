@@ -1118,3 +1118,28 @@ fn goal_chips_cover_only_the_newest_rows_across_both_lists() {
     assert_eq!(count, 1, "one chips watch for both lists");
     assert_eq!(watched.unwrap().as_slice(), [120, 110], "newest chat, then lower-numbered tie");
 }
+
+#[test]
+fn the_chats_list_excludes_working_notes_from_documents() {
+    let limits = fixtures::limits();
+    let root = crate::unlinked(&limits, fixtures::SEED);
+    let mut chats = Chats::new(FIRST);
+    let mut out = Queue::uncapped();
+    chats.open_documents(fixtures::PROJECT, 4, &mut out);
+    while out.pop().is_some() {}
+    chats.notes_told(
+        skein_lib::Time::ZERO,
+        root.client(),
+        &note_page(
+            &[
+                list_note(1, 4, b"work: settings"),
+                list_note(2, 4, b"Visible document"),
+                list_note(3, 8, b"work: only memory"),
+            ],
+            None,
+        ),
+        &mut out,
+    );
+    assert_eq!(chats.documents.get(&4).unwrap().bytes(), b"Visible document");
+    assert!(!chats.documents.contains_key(&8), "a working note is not a draft");
+}

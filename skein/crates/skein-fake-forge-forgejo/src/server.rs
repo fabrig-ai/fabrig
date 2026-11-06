@@ -176,7 +176,9 @@ pub fn down(
         match result {
             Ok(api::Answer::Permission(permission)) => {
                 let accepted = match &mut server.listing {
-                    Some(listing) => listing.accept(&service.setup, &service.config, server.user, permission),
+                    Some(listing) => {
+                        listing.accept(&service.setup, &service.config, server.user, permission.permission)
+                    }
                     None => Err(Error::Limits),
                 };
                 if accepted.is_err() {

@@ -9,6 +9,175 @@ use skein_lib::{ReplyTo, Token};
 use temper_engine_domain::{self as engine, Delivery, Event, PartyInput};
 use temper_engine_domain_world::host_tool::host_tool;
 
+// People in this story: owner (forge 7), signed-in member (8), retained
+// writer (1), another project's person (9), adopted collaborator (2), service.
+// The other initial owner takes number 2; account setup takes number 3.
+const OWNER_PERSON: u64 = 1;
+const MEMBER_PERSON: u64 = 4;
+const WRITER_PERSON: u64 = 5;
+const OTHER_PERSON: u64 = 2;
+const ADOPTED_PERSON: u64 = 7;
+
+fn sign_in_person(world: &mut World, user: u64, login: &[u8], key: u8) {
+    world.driver.send(Event::Party(PartyInput::SignedIn {
+        held: None,
+        reply_to: ReplyTo::new(Token::new(u64::from(key))),
+        identity: people::Identity {
+            key: people::IdentityKey { provider: 0, subject: user.to_be_bytes().into() },
+            login: login.into(),
+            name: b"Private display name".as_slice().into(),
+        },
+    }));
+    world.driver.settle();
+}
+
+fn project_people_setup(mode: temper_engine_domain_forge::Mode, login: &[u8]) -> (engine::Config, engine::Limits) {
+    use temper_engine_domain_forge as forge;
+    let mut config = member_config();
+    let other = core::SeedProject {
+        number: 2,
+        name: "Other project".into(),
+        policy: config.core.seed_projects[0].policy.clone(),
+    };
+    config.core.seed_projects = config.core.seed_projects.into_vec().into_iter().chain([other]).collect();
+    let mut owners = config.core.owners.into_vec();
+    owners.push(people::InitialOwner {
+        project: 2,
+        identity: people::IdentityKey { provider: 0, subject: 9_u64.to_be_bytes().into() },
+    });
+    config.core.owners = owners.into();
+    config.forges[0].mode = mode;
+    let place = forge::Place {
+        api: forge::Address { host: b"forge.example".as_slice().into(), port: 3847, tls: None },
+        git: b"http://forge.example:3847".as_slice().into(),
+        web: None,
+    };
+    config.machine = Some(forge::Machine {
+        owned_person: login.into(),
+        owned: Some(place.clone()),
+        fake: None,
+        github: place,
+        github_git_program: None,
+    });
+    let mut bounds = limits();
+    bounds.people.people = 6; // Five people and the deployment service.
+    bounds.people.sign_ins = 4; // Owner, member, writer and other project's owner.
+    bounds.people.identity_bytes = 128; // Logins and the private display name fit.
+    bounds.people.projects = 3; // Two projects and the deployment.
+    bounds.people.initial_owners = 3;
+    bounds.people.holdings = 8; // Five project parties and two other owner holdings.
+    bounds.authority.projects = 2;
+    (config, bounds)
+}
+
+fn project_people_world(mode: temper_engine_domain_forge::Mode, login: &[u8]) -> (World, u64) {
+    let (config, bounds) = project_people_setup(mode, login);
+    let mut world = World::with_limits(config, &bounds);
+    let member = world.member();
+    sign_in_person(&mut world, 1, b"temper-writer", 13);
+    sign_in_person(&mut world, 9, b"elsewhere", 14);
+    world.driver.forge =
+        Some(temper_engine_domain_world::forge_stand::ForgeStand::with(&[(b"org", b"repo", 2), (b"org", b"other", 3)]));
+    adopt_repository(&mut world, PROJECT, b"repo", 28);
+    // A second readable repository on the same host must not repeat its person.
+    adopt_repository(&mut world, PROJECT, b"other", 29);
+    world.ask(
+        world.owner,
+        15,
+        people::Ask::MakeService {
+            project: PROJECT,
+            name: b"deployment-service".as_slice().into(),
+            role: people::Role::Member,
+        },
+    );
+    let people::Reply::Outcome(people::Outcome::ServiceMade { person: service }) = *world.reply(15) else {
+        panic!("service made: {:?}", world.reply(15))
+    };
+    world.ask(
+        world.owner,
+        16,
+        people::Ask::SetRoles {
+            project: PROJECT,
+            holdings: Box::new([
+                people::Holding { person: OWNER_PERSON, role: people::Role::Owner },
+                people::Holding { person: MEMBER_PERSON, role: people::Role::Member },
+                people::Holding { person: WRITER_PERSON, role: people::Role::Member },
+                people::Holding { person: ADOPTED_PERSON, role: people::Role::Member },
+                people::Holding { person: service, role: people::Role::Member },
+            ]),
+        },
+    );
+    (world, member)
+}
+
+#[test]
+fn an_inventory_names_its_own_projects_people() {
+    use serde_json::json;
+    let (mut world, _) = project_people_world(temper_engine_domain_forge::Mode::Owned, b"box-person");
+    let run = world.chat(CONFIGURING, world.owner, 20);
+    let (inventory, _) = read_whole(&mut world.driver, &run, 1, json!({}));
+    assert!(
+        !inventory.contains(&format!("person {OTHER_PERSON}")),
+        "another project's person stays private: {inventory}"
+    );
+    let (_, people) = inventory.split_once("project people:\n").expect("project people block");
+    assert_eq!(
+        people,
+        "  person 1 person: role 0, you, forge user 7\n  person 4 member: role 2, forge user 8\n  person 5 temper-writer: role 2, forge user 1, temper's own forge writer: never counts as a person\n  person 7: role 2, forge user 2\nforge people:\n  forge forge.example:3847 person box-person\n",
+        "{inventory}"
+    );
+    for forbidden in ["elsewhere", "deployment-service", "Private display name", "Person", "@"] {
+        assert!(!inventory.contains(forbidden), "private identity or service {forbidden}: {inventory}");
+    }
+    let repository_end = inventory.find("project people:").expect("people heading");
+    assert!(inventory[..repository_end].contains("project repositories:\n"));
+    for (completion, input) in [
+        (10, json!({"setting":{"kind":"charter","number":CHAT}})),
+        (11, json!({"revision":1})),
+        (12, json!({"history":{}})),
+    ] {
+        let (text, _) = read_whole(&mut world.driver, &run, completion, input);
+        assert!(!text.contains("project people:") && !text.contains("forge people:"), "{text}");
+    }
+    let (body, error) =
+        host_tool(&mut world.driver, &run, 13, b"settings", br#"{"setting":{"kind":"charter","number":999}}"#);
+    assert!(error);
+    let text = std::str::from_utf8(&body).expect("not-read text");
+    assert!(!text.contains("project people:") && !text.contains("forge people:"), "{text}");
+}
+
+#[test]
+fn a_members_chat_reads_the_same_people() {
+    use serde_json::json;
+    let (mut world, _) = project_people_world(temper_engine_domain_forge::Mode::Owned, b"box-person");
+    let owner_run = world.chat(CONFIGURING, world.owner, 20);
+    let (owner, _) = read_whole(&mut world.driver, &owner_run, 1, json!({}));
+    let (mut world, member) = project_people_world(temper_engine_domain_forge::Mode::Owned, b"box-person");
+    let member_run = world.chat(CONFIGURING, member, 20);
+    let (member, _) = read_whole(&mut world.driver, &member_run, 1, json!({}));
+    let (_, owner) = owner.split_once("project people:\n").expect("owner's people block");
+    let (_, member) = member.split_once("project people:\n").expect("member's people block");
+    assert!(owner.contains("person 1 person: role 0, you, forge user 7"), "{owner}");
+    assert!(member.contains("person 4 member: role 2, you, forge user 8"), "{member}");
+    assert_eq!(owner.replace(", you", ""), member.replace(", you", ""));
+}
+
+#[test]
+fn a_forge_person_requires_owned_mode_and_a_login() {
+    use temper_engine_domain_forge::Mode;
+    for (mode, login) in [
+        (Mode::Connected, b"box-person".as_slice()),
+        (Mode::Managed, b"box-person"),
+        (Mode::Fake, b"box-person"),
+        (Mode::Owned, b""),
+    ] {
+        let (mut world, _) = project_people_world(mode, login);
+        let run = world.chat(CONFIGURING, world.owner, 20);
+        let (inventory, _) = read_whole(&mut world.driver, &run, 1, serde_json::json!({}));
+        assert!(!inventory.contains("forge people:"), "{mode:?}: {inventory}");
+    }
+}
+
 #[test]
 fn a_configuring_chat_discovers_the_forge_host_for_charter_documents() {
     use serde_json::json;
@@ -85,6 +254,71 @@ fn an_owners_configuring_chat_proposes_and_hears_it_accepted() {
     );
     let next = world.next(&run);
     assert_heard(&next, b"accepted: revision 2 made");
+}
+
+#[test]
+fn a_project_with_no_ways_reads_at_their_stock() {
+    use serde_json::json;
+    let mut world = World::stock();
+    let run = world.chat(CONFIGURING, world.owner, 20);
+    for (completion, kind, value) in [
+        (1, "project-ways", r#"{"drafts":false,"goals":false,"changes":false,"away":false,"way":0}"#),
+        (2, "project-questions", r#""none""#),
+    ] {
+        let input = json!({"setting":{"kind":kind,"project":PROJECT}});
+        let (body, error) = host_tool(&mut world.driver, &run, completion, b"settings", input.to_string().as_bytes());
+        let text = std::str::from_utf8(&body).expect("settings UTF-8");
+        assert!(!error, "{text}");
+        let expected = format!("{kind} {PROJECT}, revision 1\n{value}\nthe stock\nend\n");
+        assert_eq!(text, expected);
+        let input = json!({"setting":{"kind":kind,"project":PROJECT},"revision":1});
+        let (body, error) =
+            host_tool(&mut world.driver, &run, completion + 2, b"settings", input.to_string().as_bytes());
+        assert!(!error);
+        assert_eq!(body.as_ref(), expected.as_bytes(), "the named newest revision also takes the stock");
+    }
+}
+
+#[test]
+fn a_projects_stored_ways_read_as_stored() {
+    use serde_json::json;
+    let mut world = World::stock();
+    let run = world.chat(CONFIGURING, world.owner, 20);
+    let setting = json!({"kind":"project-ways","project":PROJECT});
+    let value = json!({"drafts":true,"goals":true,"changes":true,"away":true,"way":1});
+    let items = json!([{"setting":setting,"set":value}]);
+    let proposal = propose(&mut world.driver, &run, 1, 1, &items);
+    world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
+    assert_eq!(world.head().number, 2);
+    let (text, _) = read_whole(&mut world.driver, &run, 2, json!({"setting":setting}));
+    let body = text.strip_prefix("project-ways 1, revision 2\n").expect("newest setting heading");
+    let (body, state) = body.split_once('\n').expect("value and application state");
+    assert_eq!(serde_json::from_str::<serde_json::Value>(body).expect("ways JSON"), value);
+    assert!(state.starts_with("changed at revision 2, "), "{text}");
+    assert!(!text.contains("the stock"), "{text}");
+}
+
+#[test]
+fn a_read_that_finds_nothing_says_it_was_not_read() {
+    use serde_json::json;
+    let mut world = World::stock();
+    let run = world.chat(CONFIGURING, world.owner, 20);
+    world.change(1, 21, Box::new([owner_charter(b"Keep commits small.")]));
+    for (completion, input) in [
+        (1, json!({"setting":{"kind":"project-ways","project":999}})),
+        (2, json!({"setting":{"kind":"project-questions","project":999}})),
+        (3, json!({"setting":{"kind":"charter","number":REMOVED}})),
+        (4, json!({"setting":{"kind":"project-ways","project":PROJECT},"revision":1})),
+        (5, json!({"setting":{"kind":"project-questions","project":PROJECT},"revision":1})),
+    ] {
+        let (body, error) = host_tool(&mut world.driver, &run, completion, b"settings", input.to_string().as_bytes());
+        let text = std::str::from_utf8(&body).expect("settings UTF-8");
+        assert!(error, "{input}: {text}");
+        assert_eq!(
+            text,
+            "not read: no such setting at that revision. This says nothing about the settings: read the inventory and name what it lists; project-ways and project-questions take project and no number.\nend\n"
+        );
+    }
 }
 
 #[test]
@@ -352,6 +586,24 @@ fn a_chat_is_offered_no_settings_tools() {
     assert!(!offered.grants.host_tools.is_empty(), "the chat is offered its other host tools");
     for name in [b"settings".as_slice(), b"propose_settings"] {
         assert!(!offered.grants.host_tools.iter().any(|tool| tool.name.as_ref() == name));
+    }
+    let mut ask = world.driver.chat_ask(PROJECT, b"Read without settings authority");
+    let people::Ask::Create { batch, .. } = &mut ask else { panic!("chat creation") };
+    batch[0].authority.tools &= !core::ToolFamilies::JIG.settings;
+    batch[0].budget = people::Budget::AsAllowed { cap: Some(128) };
+    world.ask(world.owner, 21, ask);
+    let run = world.driver.last_assignment();
+    assert_eq!(run.charter, CHAT);
+    assert_eq!(run.run.authority.tools.0 & core::ToolFamilies::JIG.settings, 0);
+    for (completion, input) in [
+        (1, serde_json::json!({})),
+        (2, serde_json::json!({"setting":{"kind":"project-ways","project":PROJECT}})),
+        (3, serde_json::json!({"setting":{"kind":"project-questions","project":PROJECT}})),
+    ] {
+        let (_, error) = host_tool(&mut world.driver, &run, completion, b"settings", input.to_string().as_bytes());
+        assert!(error, "the stock cannot bypass the settings family");
+        let (_, answer) = world.driver.protocol.answers.last().expect("family denial");
+        assert!(matches!(answer, engine::CallAnswer::ToolDenied { .. }));
     }
 }
 

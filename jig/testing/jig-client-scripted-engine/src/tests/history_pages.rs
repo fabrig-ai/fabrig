@@ -55,7 +55,7 @@ fn scripted_history_pages_keep_change_and_milestone_rows_under_opaque_source_con
     let mut setup = live_script();
     setup.bounds.rows = 1;
     setup.truth.sources.push(Source {
-        party: 1,
+        party: REQUESTER,
         read: Read::History { task: 8, subtree: false, after: None },
         rows: Rows::History(values.clone()),
     });
@@ -66,7 +66,7 @@ fn scripted_history_pages_keep_change_and_milestone_rows_under_opaque_source_con
         engine
             .read(
                 now,
-                11,
+                REQUESTER_SIGN_IN,
                 Token::new(u64::try_from(index).expect("fixture index fits u64") + 20),
                 Read::History { task: 8, subtree: false, after: cursor },
             )

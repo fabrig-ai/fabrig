@@ -140,14 +140,14 @@ const SETTINGS_SPEC: Spec = Spec {
 const COLLABORATORS_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"page":{"type":"integer","description":"The page.","minimum":1,"maximum":4294967295,"default":1}},"required":[]}"#;
 const COLLABORATORS_SPEC: Spec = Spec {
     name: b"read_collaborators",
-    description: b"Read a page of the repository's collaborators.",
+    description: b"Read a page of the repository's collaborators; read_permission names each.",
     schema: COLLABORATORS_SCHEMA,
     effect: run::HostEffect::Read,
 };
 const PERMISSION_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"user":{"type":"integer","description":"The forge user's id.","minimum":1,"maximum":18446744073709551615}},"required":["user"]}"#;
 const PERMISSION_SPEC: Spec = Spec {
     name: b"read_permission",
-    description: b"Read a forge user's permission on the repository.",
+    description: b"Read a forge user's permission on the repository, with their id and login when available.",
     schema: PERMISSION_SCHEMA,
     effect: run::HostEffect::Read,
 };

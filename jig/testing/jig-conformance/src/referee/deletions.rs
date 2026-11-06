@@ -2,7 +2,7 @@
 use super::{Promise, Receipt, Snapshot, Violation, require};
 use std::collections::{BTreeMap, BTreeSet};
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct Project {
     tasks: BTreeSet<u64>,
     removed: bool,
@@ -10,7 +10,7 @@ struct Project {
     ended: bool,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(super) struct Deletions {
     projects: BTreeMap<u32, Project>,
 }

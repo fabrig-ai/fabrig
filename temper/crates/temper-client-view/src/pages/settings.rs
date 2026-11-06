@@ -462,7 +462,7 @@ fn away_settings(
     b.name(&title);
     b.text(Run::Plain, &title);
     let count = root.pages().away_focus();
-    if count > 0 {
+    if count > 0 && root.pages().switcher().renaming().is_none() {
         b.focus(count);
     }
     b.close();
@@ -614,6 +614,7 @@ pub(crate) fn sign_out(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut
     b.open(Role::Form);
     b.name(&w.say(Word::SignOut, &[]));
     b.style(look::SETTINGS_SETTING);
+    b.style(look::SETTINGS_SIGN_OUT);
     b.open(Role::Slot);
     crate::cards::text(b, Role::Text, &w.say(Word::SettingsSignedIn, &[Hole::Name(me.party.name.bytes().into())]));
     text(b, Role::Text, me.party.login.bytes(), look::SETTINGS_DETAIL);

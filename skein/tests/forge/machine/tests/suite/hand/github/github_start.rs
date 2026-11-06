@@ -612,7 +612,14 @@ fn github_bot_permission_waits_for_the_first_full_mint() {
     h.answer(FORGE, &fixtures::ok(fixtures::GITHUB_REPOSITORY));
     h.run(Duration::ZERO);
     let answer = h.answered(1).expect("call terminal");
-    assert_eq!(answer.result, Ok(Answer::Permission(Permission::Write)));
+    assert_eq!(
+        answer.result,
+        Ok(Answer::Permission(skein_forge::api::UserPermission {
+            user: 9,
+            login: Box::from(b"".as_slice()),
+            permission: Permission::Write
+        }))
+    );
     for line in h.request_lines(FORGE).as_slice() {
         assert!(!contains(line, b"/collaborators/"));
     }

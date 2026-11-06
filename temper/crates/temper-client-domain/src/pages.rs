@@ -872,6 +872,20 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     pages.shown = pages.shown.checked_add(1).expect("pages shown count fits");
 }
 fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
+    if let Told::Answered { key, outcome } = &told
+        && let Some(open) = &mut pages.confirm
+        && open.sent == Some(*key)
+    {
+        open.sent = None;
+        if seen_answered(outcome) {
+            pages.confirm = None;
+            if let Some(chat) = &mut pages.chat {
+                chat.closing = None;
+            }
+        } else {
+            open.failed = Some(outcome.clone());
+        }
+    }
     if away::told(pages, env, client, &told, out) {
         return true;
     }
@@ -1189,7 +1203,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
     pages.address = address;
 }
 
-fn seen_answered(outcome: &jig_client::Outcome) -> bool {
+pub(crate) fn seen_answered(outcome: &jig_client::Outcome) -> bool {
     match outcome {
         jig_client::Outcome::Answered(jig_client::Answered::Jig(jig_client::contract::Answer::Done(_))) => true,
         jig_client::Outcome::Answered(
@@ -1243,6 +1257,7 @@ pub(crate) fn account_request_name(serial: u64) -> skein_lib::RequestKey {
     name
 }
 
+#[expect(clippy::too_many_lines, reason = "page replies keep the sheet outcome and route the other page families")]
 fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
     if let Some(page) = &mut pages.connect_model {
         if let Told::Kept { key, request: jig_client::Ask::Jig(ask) } = &told
@@ -1293,7 +1308,11 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
         return true;
     }
     if let Some(task) = &mut pages.task {
-        if let Some(toasted) = task.toasted(&told) {
+        let sheet = match &pages.confirm {
+            Some(open) => open.object == jig_client::contract::ObjectKey::Task(task.number),
+            None => false,
+        };
+        if !sheet && let Some(toasted) = task.toasted(&told) {
             pages.needs.say(toasted, env.now);
         }
         return task_told(task, &mut pages.inbox, env, client, told, out);
@@ -1311,7 +1330,11 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
         if !chat.told(env.now, client, told, out) {
             return false;
         }
-        if chat.restarting && chat.outcome_kind == Some(chat::Sending::Close) {
+        if chat.restarting
+            && chat.outcome_kind == Some(chat::Sending::Close)
+            && let Some(outcome) = &chat.outcome
+            && seen_answered(outcome)
+        {
             if let Some(outcome) = &chat.outcome
                 && seen_answered(outcome)
                 && let Some(task) = chat.task(client)
@@ -1401,8 +1424,15 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
     {
         let kind =
             if open.act == jig_client::contract::ActKind::Stop { task::Sending::Stop } else { task::Sending::Cancel };
-        pages.confirm = None;
-        page.send(env, client, kind, &mut pages.serial, out);
+        if open.sent.is_some() {
+            return;
+        }
+        let open = pages.confirm.as_mut().expect("open sheet");
+        open.failed = None;
+        open.sent = page.send(env, client, kind, &mut pages.serial, out);
+        if open.sent.is_none() {
+            pages.confirm = None;
+        }
         return;
     }
     let closing = match &pages.confirm {
@@ -1434,6 +1464,8 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
                         revision: None,
                         act: jig_client::contract::ActKind::Cancel,
                         again: None,
+                        sent: None,
+                        failed: None,
                     });
                 }
             } else if !restarting {
@@ -1446,9 +1478,18 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
             }
         }
         Act::Confirm if closing => {
-            pages.confirm = None;
-            if let Some(chat) = &mut pages.chat {
-                chat.close(&mut pages.serial, out);
+            if let Some(open) = &mut pages.confirm {
+                if open.sent.is_some() {
+                    return;
+                }
+                open.failed = None;
+                open.sent = match &mut pages.chat {
+                    Some(chat) => chat.close(&mut pages.serial, out),
+                    None => None,
+                };
+                if open.sent.is_none() {
+                    pages.confirm = None;
+                }
             }
         }
         Act::Cancel => {
@@ -1531,6 +1572,8 @@ fn task_confirmation(pages: &mut Pages, client: &Client, act: jig_client::contra
             revision: None,
             act,
             again: None,
+            sent: None,
+            failed: None,
         });
     }
 }

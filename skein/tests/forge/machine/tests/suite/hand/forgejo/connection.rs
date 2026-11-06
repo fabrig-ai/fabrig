@@ -314,7 +314,7 @@ fn an_unheld_connect_keeps_the_request_deadline_in_idle() {
 #[test]
 fn an_idle_connection_without_a_deadline_closes_now() {
     let mut h = fixtures::Harness::ready();
-    h.component.test_last_connection().test_rest(None);
+    h.component.test_last_connection().test_until(None);
     h.run(Duration::ZERO);
     assert_eq!(h.connections_for(fixtures::FORGE), 0, "None is already due");
 }

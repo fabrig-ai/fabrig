@@ -1,11 +1,20 @@
 //! Tiny world scripting the accounts component on the driver's terms.
+//! Fixtures and acts follow jig/docs/design/domain/accounts.md, sections 3 and 5.
 use jig_domain_accounts::{
-    self as accounts, Domain, Ended, Event, Fact, Holder, Kind, Limits, Offers, Provider, Providers, Request, Stored,
+    self as accounts, Answer, Domain, Ended, Event, Fact, Holder, Key, Kind, Limits, Offers, Provider, Providers,
+    Refusal, Request, Stored, ToComponent,
 };
-use skein_lib::{Duration, Env, Queue, Time, Wall};
+use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
+use std::collections::BTreeMap;
 pub const ANALYST: u32 = 7;
 pub const PROVIDER: u32 = 1;
-pub const HOLDER: Holder = Holder::Party(7);
+pub const ALICE_PARTY: u64 = 9;
+pub const BOB_PARTY: u64 = 4;
+pub const ALICE: Holder = Holder::Party(ALICE_PARTY);
+pub const BOB: Holder = Holder::Party(BOB_PARTY);
+pub const OWNER: u64 = 7;
+pub const OTHER_PARTY: u64 = 8;
+pub const HOLDER: Holder = Holder::Party(OWNER);
 /// A holder keeps fewer accounts than the deployment, so that each bound is passed alone.
 pub const LIMITS: Limits = Limits {
     accounts: 3,
@@ -158,4 +167,38 @@ pub fn worker(number: u32) -> accounts::Worker {
     let names = (0..count).map(|index| format!("worker-{index}").into_bytes().into_boxed_slice()).collect();
     let membership = jig_domain_link::Membership::new(names, count, 32).expect("fixture membership");
     membership.worker(number).expect("configured fixture worker")
+}
+
+#[must_use]
+pub fn answer(request: u64, answer: Answer) -> Request {
+    Request::Answer { request: Token::new(request), answer }
+}
+#[must_use]
+pub fn refused(request: u64, refusal: Refusal) -> Vec<Request> {
+    vec![answer(request, Answer::Refused { refusal })]
+}
+#[must_use]
+pub fn save(record: Stored) -> Request {
+    Request::Save { record }
+}
+#[must_use]
+pub fn want(source: u32) -> Request {
+    Request::Component(ToComponent::Want { account: source })
+}
+/// The store commits saves by replacement and erases by key.
+pub fn commit(store: &mut BTreeMap<Key, Stored>, requests: &[Request]) {
+    for request in requests {
+        match request {
+            Request::Save { record } => drop(store.insert(record.key(), record.clone())),
+            Request::Erase { key } => drop(store.remove(key)),
+            Request::Programs { .. }
+            | Request::CheckProgram { .. }
+            | Request::SignOutProgram { .. }
+            | Request::Component(_)
+            | Request::Signing(_)
+            | Request::Answer { .. }
+            | Request::Granted { .. }
+            | Request::Closed => {}
+        }
+    }
 }

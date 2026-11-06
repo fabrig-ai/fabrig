@@ -79,8 +79,9 @@ document is drawn beside their conversation (the look request
 ## 5. Documents a task shows
 
 - **A chat's document:** one note in the chat's own scope, the lowest
-  numbered, with no kind, since every note in a chat's own scope is its
-  document; its description its title, its body Markdown, read by
+  numbered whose description does not begin `work:`, with no kind. A `work:`
+  note is never drawn, and a chat with only working notes has no document;
+  its description its title, its body Markdown, read by
   skein-ui's reader (`skein/docs/design/ui.md`, section 10), flows included
   once skein's diagrams draft is built. Every note's body has the room of a
   document: no bound of its own.
