@@ -521,6 +521,15 @@ Typed, so the engine can act on them without reading prose:
 
 Each carries bounded detail for operators; none of it is shown to an LLM.
 
+An agent fault may arrive before admission. While starting, the hub keeps
+its first typed fault and waits for the agent's `Gone`, without acknowledging
+admission, delivering held messages or sending a cancel to an agent token
+it has not received. `Gone` then answers an agent failure with that fault
+and the bounded diagnostic tail, refusing held messages as ending. Without
+a fault, disappearance while starting remains an unstarted agent failure.
+A cancel decided before the fault keeps its cancellation outcome. Smith
+refuses admission after a fault; a later `Started` cannot admit that run.
+
 **Unusable resume history** retains its own typed reason. A transcript
 that cannot be decoded, a start Smith refuses for its transcript, and a
 run reporting a transcript failure all end as a transient task failure.

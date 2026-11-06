@@ -2503,7 +2503,7 @@ keeps (`../protocol/configuration.md`, section 2).
   so, and to whom; where it offers it as refused, the card says why and
   sends nothing.
 - **The sheet.** Every confirmation of `confirm.rs` is one sheet, from the
-  look request `close-chat`: the mock's `dialog.sheet`, narrower. It asks in a
+  look request `close-chat`: the mock's `dialog.sheet`, narrower, centred over the page. It asks in a
   sentence, says only what will change, and names its acts: what keeps things
   as they are first, then the act itself, primary. There is no "Confirm" and no
   "Dangerous action": the sheet is how temper marks an act that can't be undone
@@ -2540,8 +2540,8 @@ keeps (`../protocol/configuration.md`, section 2).
     saying the ask's progress above its acts. Answered done, it goes. Any other
     outcome leaves it open, saying why above its acts, where a press sends again;
     a press that sends nothing closes it, but for a rejection with no reason, which
-    keeps it open and says nothing. "Keep it" closes it at any time, and an
-    ask in flight goes on, its outcome on the page as before. While the sheet is
+    keeps it open and says nothing. The act that keeps things closes it at any time,
+    Escape pressing it, and an ask in flight goes on, its outcome on the page as before. While the sheet is
     open, the outcome and progress of its own ask are the sheet's alone.
   - *A press stays under the finger* (`browser.md`, *A press a render can lose*):
     the acts are a group of their own, keyed, and each delegate's row keyed by its
@@ -5105,7 +5105,7 @@ section 5.
     reads as the first. A goal's start preselects it.
   - *Status,* disabled, each showing what temper does today: "Status lines and
     reports", "Written words, beside the counts temper keeps itself.";
-    "Rewritten"; "The brief on Home", "What changed since you last looked."
+    "Rewritten"; "The brief on Home", "What changed since you last looked.", "On".
   - *What needs you:* "Questions a goal can answer from its plan", live, kind
     6: "Answered by the goal, kept in its decisions" (`foreman`), "Asked of me
     too" (`up`), "Not asked: each agent decides alone" (`none`); "Funds",
@@ -6483,13 +6483,20 @@ own tests:
   names no `projects` on one. A card from the ended proposal, or a stored record, would
   keep it. Default: this session's alone.
 - **What a real box's walk has not shown** (3.5; `../protocol/setup.md`, 6.6; the
-  request `ui-final-walk` of 2026-11-05): the pinned Claude Code fetch and a real
-  browser's Sign out ran by hand, on fresh loopback deployments, and no test keeps
-  them. Not shown: a provider's
+  requests `ui-final-walk` of 2026-11-05 and `ui-walk-3` of 2026-11-06): the pinned
+  Claude Code fetch, from a box with directories of its own up to the sign-in prompt
+  and reused on a second run, and a real browser's Sign out ran by hand, on fresh
+  loopback deployments, and no test keeps them. Not shown: a provider's
   sign-in or a paid call; TLS, a proxy or a browser on another machine; Accounts
   with a project or an account on it; the small engine profile whole, whose client
   limits alone ran; another platform's build, a failed or corrupt download, two
   fetches at once; a copy from a public host. Default: none, until a plan walks them.
+- **A real check of a model's command alone** (3.5, *The welcome*; 4.6; the request
+  `ui-walk-3` of 2026-11-06): the page's way to that command passes a forge's "Run on
+  this machine", which is already fetching Forgejo when Model offers it, so a check
+  allowed the pinned Claude Code download as its one real service leaves that bound
+  by walking the page. Nothing says Forgejo's setup is wrong. Whether such a check
+  allows both downloads, or starts past the forge. Default: it allows both, and says so.
 - **What feeds the try** (3.5, *The try*; `../draft/model-check.md`): the trial's
   task and charter, how it selects its model, who pays, what ends it and its
   cancelling once its account is removed are that draft's, and are designed as it is built, with
@@ -6839,6 +6846,9 @@ own tests:
 - **A `~/` in another's shell** (4.6): the words' `~/` is the engine's `$HOME`,
   and a shell of another user on this machine reads its own. Default: so, the
   owner being the person at this machine.
+- **A Copy on the other commands** (3.5, *The command's Copy*; 4.6): the welcome's
+  block has one, as the request `box-small` of 2026-11-06 asks; `ConnectModel`'s
+  command and Accounts' have none. Default: so, until a person asks for one.
 - **The command before its read answers** (4.6): while `program_environment` is
   unanswered, or if its read fails, a page with no `program_login` draws the
   placeholders and says nothing. Default: so.

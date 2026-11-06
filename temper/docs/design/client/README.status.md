@@ -156,15 +156,19 @@
   fails say why above its acts: no ask went, and the reason's box is on the card behind
   the sheet.
 - **Not yet:** 3.6, *The sheet*: that request has each confirmation walked. A browser
-  on a fake box pressed Close, a goal's Stop and a Release both ways, a goal's Pause,
-  and Accept on a configuring chat's proposal from *Needs you*, by hand at each width,
-  which no test keeps; a press while the page updates, on a Release alone. A task's Cancel,
-  an agent's task's Stop, Reject and Start over are drawn at each width by their
-  gallery states, and no walk on record presses them.
-- **Not yet:** 3.5, *temper's own way, beside the page*: no walk on record presses "See how it
-  works" or "Start from it", and no journey records them: the view's tests and the gallery's
-  `configure-reference` and `configure-reference-draft` alone draw them, since the plan that built
-  them took no walk.
+  on a fake box pressed Close, Start over, a goal's Stop, a Release both ways, a goal's Pause,
+  and Accept and Reject on a configuring chat's proposal from *Needs you* and *Home*,
+  and Escape and the keeping act on Close, Start over, a goal's Stop, Accept and Reject,
+  by hand at each width, which no test keeps; a press while the page updates, on a Release
+  alone. A task's Cancel and an agent's task's Stop are drawn at each width by their
+  gallery states, the walk of the request `ui-walk-3` of 2026-11-06 having tried the
+  fake box for them first, and no walk on record presses them.
+- **Not yet:** 3.5, *temper's own way, beside the page*: no journey records "See how it works"
+  or "Start from it", and no test presses them on a box: the view's tests and the gallery's
+  `configure-reference` and `configure-reference-draft` alone draw them. The walk of the request
+  `ui-walk-3` pressed both at each width, on a first project and a fresh one, by hand. The fake model
+  answers their words with its fallback, so no walk on record has a configuring run
+  follow them.
 - **Design departs:** 3.5, *The configuring chat's page* and *temper's own way, beside the page*,
   from the request `configure-temper-own-way` of 2026-11-06, by the user's word that day and that
   request's plan's cut. The picture, the figures and the table's Workers and QA stand in
@@ -224,6 +228,26 @@
   and the card has no "Drafts: on". The person accepts on the agent's words. The
   gallery's `configure-chat-proposal` rows alone draw those lines, from a hand-made
   document.
+- **Not yet:** 5.13, *The card in a chat*: the sheet's Accept on a configuring chat's own
+  card is refused "No visible object with that name", the sheet and the proposal
+  staying, where the same proposal accepts from *Needs you* and *Home*. Seen at each
+  width, with and without a cancel first, on the walk of the request `ui-walk-3` of
+  2026-11-06: a fresh fake box, Settings' Start, and the cue "Show drafts and goals for
+  this project." before any setting changes. By reading, and not proved: that card
+  decides under `task.project` (`temper-client-domain`'s `pages/chat.rs`, `proposals`),
+  and the inbox's under its row's own `project` (`pages/inbox.rs`), 0 on a proposal of
+  settings. No test holds it.
+- **Not yet:** 3.5, *Reading back*: on that walk, a long chat's first "Older" stayed
+  "Loading earlier messages" for the 40 seconds watched, at 1280x720 and 1000x600, so
+  no second press was made: a fresh fake box, 66 messages of 24 sentences through ctl,
+  the chat reopened through Chats, six of four sentences through the composer, then the
+  top and one press. `a_full_chat_window_offers_older_and_reads_it_when_asked` passes on
+  the domain's own window. The cause is unknown, and no test holds it.
+- **Not yet:** 3.5, *A chat's bar*: on that walk "Start goal…" went once from a first
+  chat's restored document, at 420, after a round trip through working notes, with no
+  error and no setting, repository or goal changed in between. Eight other fresh boxes
+  kept it, at each width, and `a_page_of_working_notes_does_not_hide_a_later_document`
+  and `start_goal_shows_when_it_may` pass, so the cause is unknown and nothing is fixed.
 - **Not yet:** 3.5, *Needs you*: an accepted proposal of settings stays the flow's
   card, the rail's count gone, where an answered card leaves the open ones and the
   mock moves it to its answered stack (`temper-client-view`'s `pages/needs.rs`). Seen
@@ -476,6 +500,26 @@
   decided by its plan's cut. `program_environment` answers the owner at any time,
   where the request has it during set up, because Connect a model draws the same
   command after set up.
+- **Not yet:** 3.5, The welcome's Model step, *The command's Copy*: no browser test
+  presses it, since no story in `temper/tests/client-browser` reaches the Claude panel,
+  and no walk on record has. skein's `a_clipboard_write_keeps_the_press_and_reports_once`
+  holds the part, and `host_tests_copy.rs` holds that the press's own report asks the
+  write; no test runs the one line between them, in `carry`
+  (`temper-client-shell-web/src/lib.rs`). Seen by reading.
+- **Design departs:** 4.6, *The program's environment*, from the user's word of
+  2026-11-06 on the request `box-small`: `program_environment`
+  (`crates/temper/src/directories.rs`) answers all three `TEMPER_` values where any
+  directory is off its default, where the user has each only where it differs. The word
+  reached that plan's task as it ran, and the task did not take it. `box-small-2`
+  carries it.
+- **Design departs:** 4.6, *The words of a command for this machine*, from the request
+  `box-small` of 2026-11-06, item 1, which has these words in any other command handed
+  to the person for this machine: `temper forge run`'s refusal
+  (`crates/temper/src/forge.rs`, `run_refusal`) says `temper forge prepare` and each
+  directory whole, and the terminal client says `temper open`
+  (`temper-client-shell-terminal/src/terminal.rs`), so with another `temper` first on
+  `PATH` each names that one. That plan's cut names the pages' commands alone, and no
+  reason is recorded. Seen by reading.
 - **Design departs:** 3.5, *The flows' paths* and *Builders*, from the request
   `ui-settings-tabs` of 2026-11-05, decided by its plan's cut. The terminal
   draws no path, where the request has each flow add one: the same request
