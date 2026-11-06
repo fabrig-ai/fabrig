@@ -709,7 +709,9 @@ and the page policy. It knows no route: what a call means is its owner's.
   reference's (`browser.md`, 12.1), but for a field the response already
   holds.
 - **Amounts are `Limits`:** the connections, skein's HTTP limits and the
-  stall. `valid` says whether limits can run at all.
+  stall. `valid` says whether limits can run at all. A full listener closes an
+  idle connection, with no call or request begun, and admits the next once that
+  close settles; it rejects only when none is idle.
 - **A peer's end is a value.** `Limits`' `peer_end` says what a peer's
   end does while a call is unfinished. `PeerEnd::Connection` ends the
   connection and tells the owner the call's connection closed, as
