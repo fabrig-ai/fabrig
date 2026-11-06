@@ -4587,7 +4587,7 @@ fn settings_activity(name: &str) -> c::ActivityPage {
     let keys: &[c::ProposalKey] =
         if name == "configure-chat-replaced" { &[SETTINGS_NEXT, PROPOSAL] } else { &[PROPOSAL] };
     for key in keys {
-        let objects = List::from_boxed(Box::new([c::ObjectKey::Proposal(*key)]));
+        let objects = List::with_capacity(0);
         let call = c::Block::Call(c::Call {
             number: key.number,
             tool: text("propose_settings"),
@@ -4623,6 +4623,11 @@ fn finish_settings_proposal(root: &mut Domain, watch: Token, name: &str, out: &m
             let c::ProposalAction::Settings(settings) = proposal.action else { unreachable!("settings") };
             let state = if name == "configure-chat-accepted" {
                 c::ProposalHistoryState::Accepted { by: c::Requester::Person(73) }
+            } else if name == "configure-chat-rejected" {
+                c::ProposalHistoryState::Rejected {
+                    by: c::Requester::Person(73),
+                    reason: doc("Keep the current settings."),
+                }
             } else {
                 c::ProposalHistoryState::Withdrawn
             };
