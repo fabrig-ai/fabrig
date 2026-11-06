@@ -1261,7 +1261,8 @@ fn event_data(client: &mut Client, event: Up, env: &Env<Limits>, above: &mut Que
                 let mut at = at;
                 for &byte in &bytes {
                     if b"[DONE]".get(usize_of(at)) != Some(&byte) {
-                        fail_closing(client, env, Failure::Protocol, bytes::copy_of(b"invalid provider sentinel"), above, below);
+                        let detail = bytes::copy_of(b"invalid provider sentinel");
+                        fail_closing(client, env, Failure::Protocol, detail, above, below);
                         return;
                     }
                     at = at.checked_add(1).expect("fixed sentinel length");
@@ -1272,7 +1273,8 @@ fn event_data(client: &mut Client, event: Up, env: &Env<Limits>, above: &mut Que
                 if at == 6 {
                     client.event_data = EventData::SentinelEnd;
                 } else {
-                    fail_closing(client, env, Failure::Protocol, bytes::copy_of(b"truncated provider sentinel"), above, below);
+                    let detail = bytes::copy_of(b"truncated provider sentinel");
+                    fail_closing(client, env, Failure::Protocol, detail, above, below);
                 }
             }
             Up::Failed(_) => {}
@@ -1296,7 +1298,8 @@ fn collected_data(
     match client.collector_events.pop() {
         Some(collector::Event::Collected(document)) => client.event_data = EventData::Collected(document),
         Some(collector::Event::Failed(error)) => {
-            fail_closing(client, env, dialect::failure(error, &env.limits), bytes::copy_of(b"provider JSON failed"), above, below);
+            let detail = bytes::copy_of(b"provider JSON failed");
+            fail_closing(client, env, dialect::failure(error, &env.limits), detail, above, below);
         }
         Some(collector::Event::Closed) => unreachable!("the active collector was not closed"),
         None => {}
@@ -1322,26 +1325,16 @@ fn output(
                 match next {
                     Some(next) if next <= u64::from(env.limits.receiving) => receiving.content_bytes = next,
                     Some(_) | None => {
-                        fail_closing(
-                            client,
-                            env,
-                            Failure::Limit { which: crate::Cap::Answer, bound: u64::from(env.limits.receiving) },
-                            bytes::copy_of(b""),
-                            above,
-                            below,
-                        );
+                        let failure =
+                            Failure::Limit { which: crate::Cap::Answer, bound: u64::from(env.limits.receiving) };
+                        fail_closing(client, env, failure, Box::new([]), above, below);
                         return;
                     }
                 }
                 if receiving.content.push(block.clone()).is_err() {
-                    fail_closing(
-                        client,
-                        env,
-                        Failure::Limit { which: crate::Cap::OutputItems, bound: u64::from(env.limits.output_items) },
-                        bytes::copy_of(b""),
-                        above,
-                        below,
-                    );
+                    let failure =
+                        Failure::Limit { which: crate::Cap::OutputItems, bound: u64::from(env.limits.output_items) };
+                    fail_closing(client, env, failure, Box::new([]), above, below);
                 } else {
                     receiving.asked = false;
                     above.push(Event::Block { owner: client.owner, block });
