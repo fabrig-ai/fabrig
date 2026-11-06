@@ -190,6 +190,8 @@ fn root_with_side(task: c::Task, done: u32, total: u32, note: Option<c::Note>, n
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::KeepSignIn { .. }
+            | Request::Tab { .. }
             | Request::Copy { .. }
             | Request::Fact { .. } => None,
         };
@@ -1769,6 +1771,18 @@ mod composer {
                 styled_text(&tree, look::GOAL_HINT).as_ref(),
                 b"Its agent reads it at once. A change of plan becomes an amendment it shows you first."
             );
+        }
+    }
+    #[test]
+    fn a_send_asks_for_the_goals_composer() {
+        let mut root = root(offered(), DONE, TOTAL, None, false);
+        for count in 0..=2 {
+            for words in [fixtures::browser_words(), fixtures::words()] {
+                let tree = draw(&root, &words).0;
+                let composer = &tree.nodes()[named_index(&tree, Role::TextArea, b"Tell Away mode something")];
+                assert_eq!(composer.focus, if count == 0 { None } else { Some(count) });
+            }
+            press(&mut root, Act::Send);
         }
     }
     #[test]

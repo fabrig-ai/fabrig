@@ -65,6 +65,106 @@ fn add_key(front: &mut Joint, root: &mut Root) -> u32 {
     accounts::settle(front, root);
     source
 }
+fn row_sign_in_press() -> (Joint, Root) {
+    let (mut front, mut root, source) = signed_in();
+    front.engine.send(temper_engine_domain::Event::Account(jig_domain_accounts::Event::Component(
+        jig_domain_accounts::FromComponent::Failed {
+            account: source,
+            failure: jig_domain_accounts::Failure::SignInAgain,
+        },
+    )));
+    accounts::settle(&mut front, &mut root);
+    front.tabs.clear();
+    front.shows.clear();
+    let drawn = view(&root);
+    let node = drawn
+        .tree()
+        .nodes()
+        .iter()
+        .find(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Continue with ChatGPT"))
+        .expect("row sign-in button")
+        .id;
+    let event = temper_client_view::event(&drawn, node, Act::Press).expect("row sign-in press");
+    accounts::press_turn(&mut front, &mut root, event.into());
+    (front, root)
+}
+fn row_sign_in_visit(front: &mut Joint, root: &mut Root) {
+    accounts::settle(front, root);
+    let source = accounts::signing(front);
+    front.engine.send(temper_engine_domain::Event::Account(jig_domain_accounts::Event::Visited {
+        source,
+        address: b"https://issuer/visit".as_slice().into(),
+    }));
+}
+#[test]
+fn accounts_row_opens_before_the_answer_and_points_once_without_leaving() {
+    let (mut front, mut root) = row_sign_in_press();
+    assert_eq!(front.tabs, [d::Tab::Open { provider: accounts::PROVIDER }]);
+    assert!(
+        root.person()
+            .pages()
+            .accounts()
+            .expect("accounts page")
+            .request
+            .pending
+            .as_ref()
+            .expect("pending")
+            .outcome
+            .is_none()
+    );
+    assert_eq!(root.person().pages().address(), &Address::Accounts);
+    assert!(front.leaves.is_empty());
+    row_sign_in_visit(&mut front, &mut root);
+    accounts::settle(&mut front, &mut root);
+    let expected = [
+        d::Tab::Open { provider: accounts::PROVIDER },
+        d::Tab::Point { to: b"https://issuer/visit".as_slice().into() },
+    ];
+    assert_eq!(front.tabs, expected);
+    assert_eq!(d::address::print(root.person().pages().address()).as_ref(), b"/accounts");
+    assert!(front.shows.is_empty());
+    assert!(front.leaves.is_empty());
+    view(&root);
+    accounts::settle(&mut front, &mut root);
+    go(&mut front, &mut root, Address::Forges);
+    assert_eq!(front.tabs, expected);
+}
+#[test]
+fn accounts_row_refused_answer_closes_the_tab_without_leaving() {
+    let (mut front, mut root) = row_sign_in_press();
+    row_sign_in_visit(&mut front, &mut root);
+    accounts::refused_answer(&mut front, &mut root);
+    assert_eq!(front.tabs, [d::Tab::Open { provider: accounts::PROVIDER }, d::Tab::Close]);
+    assert_eq!(root.person().pages().address(), &Address::Accounts);
+    assert!(front.shows.is_empty());
+    assert!(front.leaves.is_empty());
+}
+#[test]
+fn accounts_row_refused_tab_keeps_its_link_without_pointing() {
+    let (mut front, mut root) = row_sign_in_press();
+    accounts::event(&mut front, &mut root, d::Event::TabRefused.into());
+    row_sign_in_visit(&mut front, &mut root);
+    accounts::settle(&mut front, &mut root);
+    assert_eq!(front.tabs, [d::Tab::Open { provider: accounts::PROVIDER }]);
+    let drawn = view(&root);
+    assert!(
+        drawn
+            .tree()
+            .nodes()
+            .iter()
+            .any(|node| { node.role == Role::Link && node.external.as_deref() == Some(b"https://issuer/visit") })
+    );
+    assert!(
+        drawn
+            .tree()
+            .nodes()
+            .iter()
+            .any(|node| { node.text.iter().any(|run| run.text.as_ref() == b"Open the sign-in page") })
+    );
+    assert_eq!(root.person().pages().address(), &Address::Accounts);
+    assert!(front.shows.is_empty());
+    assert!(front.leaves.is_empty());
+}
 #[test]
 fn a_folded_account_rows_key_joins_that_account_and_is_shown_there() {
     let (mut front, mut root, _) = signed_in();

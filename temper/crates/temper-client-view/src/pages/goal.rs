@@ -728,6 +728,9 @@ fn composer(
     b.style(look::GOAL_COMPOSER);
     b.open(Role::TextArea);
     b.name(&name);
+    if page.composer_focus != 0 && root.pages().switcher().renaming().is_none() {
+        b.focus(page.composer_focus);
+    }
     b.placeholder(&name);
     if crate::choice::can_send(root) {
         b.state(UiState::SubmitsOnEnter);

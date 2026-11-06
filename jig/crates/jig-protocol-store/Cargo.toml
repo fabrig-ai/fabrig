@@ -20,6 +20,7 @@ jig-domain-accounts.workspace = true
 
 jig-domain-authority.workspace = true
 jig-domain-fleet.workspace = true
+jig-domain-link.workspace = true
 
 [dev-dependencies]
 skein-oauth.workspace = true

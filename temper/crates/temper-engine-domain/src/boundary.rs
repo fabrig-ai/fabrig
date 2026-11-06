@@ -536,13 +536,12 @@ pub enum WorkerInput {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Application {
     Forge(forge::Ask),
-    Return { source: u32, path: Box<[u8]> },
     Dismiss { what: forge::PersonFact },
     Looked { project: u32 },
     SetAway { project: u32, on: bool, until: Option<Wall>, kinds: u8 },
     Overturn { project: u32, number: u32 },
 }
-/// The family's terminal answer; root returns are volatile, like forge setup answers.
+/// The family's terminal answer (client/README.md, 4.6).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ApplicationAnswer {
     Make(forge::MakeAnswer),
@@ -555,7 +554,6 @@ pub enum ApplicationAnswer {
     Install(forge::InstallAnswer),
     Accept(forge::AcceptAnswer),
     Reachable(forge::ReachableAnswer),
-    Returning,
     Dismiss(forge::DismissAnswer),
     Looked(forge::LookedAnswer),
     SetAway(forge::SetAwayAnswer),
@@ -764,11 +762,6 @@ pub enum Request {
     Bound {
         request: Token,
         answer: forge::BindAnswer,
-    },
-    /// Give this sign-in its checked return path (client/README.md, 8).
-    Return {
-        source: u32,
-        path: Box<[u8]>,
     },
     /// Routed to the protocol layer's box link; nothing committed (domain/root.md, 5.1).
     SetUp {

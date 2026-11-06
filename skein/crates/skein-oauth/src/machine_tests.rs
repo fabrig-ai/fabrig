@@ -17,26 +17,8 @@ fn wall(seconds: u64) -> Wall {
 }
 fn limits() -> ClientLimits {
     ClientLimits {
-        document: Limits {
-            document_bytes: 4096,
-            string_bytes: 1024,
-            token_bytes: 256,
-            client_bytes: 64,
-            detail_bytes: 64,
-            record_bytes: 4096,
-            depth: 8,
-            tokens: 128,
-            issued_client_bytes: 64,
-            granted_bytes: 64,
-            subject_bytes: 64,
-            id_token_bytes: 1024,
-        },
-        uri_bytes: 256,
-        scope_bytes: 64,
-        state_bytes: 64,
+        document: Limits { record_bytes: 4096, tokens: 128, ..ClientLimits::TEST.document },
         code_bytes: 128,
-        url_bytes: 1024,
-        request_bytes: 1024,
         parameter_bytes: 256,
         resource_bytes: 128,
         nonce_bytes: 64,
@@ -44,12 +26,7 @@ fn limits() -> ClientLimits {
         key_set_bytes: 4096,
         keys: 4,
         modulus_bits: 4096,
-        skew: Duration::from_secs(0),
-        sign_in_time: Duration::from_secs(120),
-        request_time: Duration::from_secs(10),
-        backoff_base: Duration::from_secs(2),
-        backoff_ceiling: Duration::from_secs(8),
-        max_attempts: 3,
+        ..ClientLimits::TEST
     }
 }
 fn registration(public: bool, wire: WireFormat) -> Registration {

@@ -2,7 +2,7 @@
 use jig_protocol_store::{self as protocol, Event, Request, SecretOwner, Secrets};
 use skein_io::{
     file,
-    file_layer::{self, FileIo},
+    file_layer::{FileIo, Limits, step},
     kernel::{Complete, Exit, Op, Submit},
 };
 use skein_lib::{Env, Queue, Secret, Time, Token, Wall};
@@ -43,13 +43,12 @@ pub(super) fn run_with(
     let mut kernel = match skein_shell::Kernel::open(skein_shell::Config { operations: OPERATIONS }) {
         Ok(kernel) => kernel,
         Err(why) => {
-            skein_shell::close_keeper_fd(fd);
+            skein_shell::keeper::close_keeper_fd(fd);
             return Err(why.to_string());
         }
     };
     let mut drivers: [Driver; 3] = std::array::from_fn(|_| Driver {
-        io: FileIo::new(limits.files + 4, limits.store.chunk.max(limits.core.resume_bytes), 32, limits.store.deadline)
-            .with_effective_user(skein_shell::effective_user()),
+        io: FileIo::with_limits(&file_limits(&limits)).with_effective_user(skein_shell::effective_user()),
         events: Queue::with_capacity(ROOM),
         handles: BTreeSet::new(),
     });
@@ -91,6 +90,10 @@ pub(super) fn run_with(
         Some(why) => Err(why),
         None => Ok(host.rows),
     }
+}
+fn file_limits(limits: &protocol::Limits) -> Limits {
+    let read = limits.store.chunk.max(limits.core.resume_bytes);
+    Limits { files: limits.files + 4, read, entries: 32, whole: read, timeout: limits.store.deadline }
 }
 struct Driver {
     io: FileIo,
@@ -231,6 +234,7 @@ impl StoreHost {
 impl skein_shell::Host for StoreHost {
     fn iterate(&mut self, now: Time, wall: Wall) {
         let env = Env { now, wall, limits: self.limits };
+        let file_env = env.with(file_limits(&self.limits));
         while let Some(mut complete) = self.completions.pop() {
             let index = usize::try_from((complete.op.raw() >> 60) - 8).expect("three driver prefixes");
             complete.op = Token::new(complete.op.raw() & MASK);
@@ -239,7 +243,7 @@ impl skein_shell::Host for StoreHost {
             }
             let mut submitted = Queue::with_capacity(4);
             let driver = &mut self.drivers[index];
-            file_layer::up(&mut driver.io, complete, &mut driver.events, &mut submitted);
+            step::up(&mut driver.io, &file_env, complete, &mut driver.events, &mut submitted);
             self.publish(index, &mut submitted);
         }
         for index in 0..3 {
@@ -276,7 +280,7 @@ impl skein_shell::Host for StoreHost {
         }
         for index in 0..3 {
             let mut submitted = Queue::with_capacity(4);
-            file_layer::expire(&mut self.drivers[index].io, now, &mut submitted);
+            step::expire(&mut self.drivers[index].io, &file_env, &mut submitted);
             if self.drivers[index].io.takes() {
                 let request = if self.closing {
                     while self.queue(index).pop().is_some() {}
@@ -294,7 +298,7 @@ impl skein_shell::Host for StoreHost {
                         self.drivers[index].handles.remove(file);
                     }
                     let driver = &mut self.drivers[index];
-                    file_layer::down(&mut driver.io, now, request, &mut driver.events, &mut submitted);
+                    step::down(&mut driver.io, &file_env, request, &mut driver.events, &mut submitted);
                 }
             }
             self.publish(index, &mut submitted);

@@ -409,6 +409,23 @@ pub fn act_event(view: &mut View, node: NodeId, act: Act) -> Option<temper_clien
     }
     Some(event)
 }
+/// The line a sign-in's tab holds until its address comes (client/README.md, 3.5).
+#[must_use]
+pub fn opening_tab(view: &View, root: &Domain, provider: u32) -> Box<[u8]> {
+    let words = &view.forge_words;
+    let mut name = b"".as_slice();
+    if let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) {
+        for offer in &me.providers {
+            if offer.provider == provider {
+                name = crate::accounts::words::provider_words(offer.name.bytes()).1;
+                break;
+            }
+        }
+    }
+    words
+        .say(crate::words::Word::WelcomeTabOpening, &[skein_ui::phrases::Hole::Name(crate::choice::shown(name, words))])
+}
+
 /// The address a link node opens, which the browser shell gives as its href
 /// (client/browser.md, 2.3 and 7.1): its external address, or the page its press goes to.
 #[must_use]
@@ -450,5 +467,54 @@ pub fn event(view: &View, node: NodeId, act: Act) -> Option<temper_client_domain
         forge::bindings::event(&view.forge, bound.binding.token, bound.act)
     } else {
         None
+    }
+}
+
+#[cfg(test)]
+mod tab_tests {
+    use super::*;
+    use crate::tests::fixtures as f;
+    use jig_client::contract as c;
+    use skein_lib::List;
+
+    #[test]
+    fn opening_tab_names_the_given_providers_plan() {
+        let (mut root, watch) = f::root_with_watch(None);
+        let mut me = temper_client_domain::pages::accounts::current_me(root.client()).expect("fixture me").clone();
+        let mut providers = List::with_capacity(2);
+        for (provider, name) in [(31, b"anthropic".as_slice()), (17, b"openai".as_slice())] {
+            providers
+                .push(c::ProviderOffer {
+                    provider,
+                    name: c::DocumentText::complete(c::Text::new(name.into(), 32).expect("provider name")),
+                    key_bytes: 256,
+                    sign_in: true,
+                    signed_in_plan: true,
+                    key: true,
+                    programs: List::with_capacity(0),
+                    programs_cut: false,
+                    none: false,
+                    manage_usage: None,
+                })
+                .expect("two providers");
+        }
+        me.providers = providers;
+        f::root_event(
+            &mut root,
+            temper_client_domain::Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Watched {
+                        watch,
+                        event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
+                    },
+                },
+            },
+        );
+        let view = f::view();
+        assert_eq!(opening_tab(&view, &root, 17).as_ref(), "Opening ChatGPT’s sign-in…".as_bytes());
+        assert_eq!(opening_tab(&view, &root, 31).as_ref(), "Opening Claude’s sign-in…".as_bytes());
+        assert_eq!(opening_tab(&view, &root, 99).as_ref(), "Opening ’s sign-in…".as_bytes());
+        let root = temper_client_domain::new(&f::limits(), f::SEED);
+        assert_eq!(opening_tab(&view, &root, 17).as_ref(), "Opening ’s sign-in…".as_bytes());
     }
 }

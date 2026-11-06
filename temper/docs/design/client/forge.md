@@ -972,9 +972,8 @@ git token or both."); and the bundle of the action's values past 4 KiB,
 jig's bound on a carried value (`tools.md`, section 12), shows "The
 pasted values are past 4 KiB, the most a request carries." under the
 action's button. The link a connect or an install answers is where
-the browser's tab goes, as a sign-in's address is (`README.md`, 3.5,
-`ConnectModel`, The tab's departure): the root asks its shell to leave
-for it once, from the answer, and the page shows it as an external
+the browser's tab goes: the root asks its shell to leave
+for it once, from the answer, never from its state, and the page shows it as an external
 link meanwhile. The terminal prints it and opens nothing (`README.md`,
 6.5).
 
@@ -1175,8 +1174,8 @@ manifest from it (`../protocol/forge.md`, the setup's host).
   page that sends `Connect` or `Install` names `back`, its own address,
   which the setup's host holds with the state (a connect's passes to
   the install `Convert` starts), and the browser goes to the link in
-  the page's own tab, as a sign-in's does (`README.md`, 3.5,
-  `ConnectModel`, The tab's departure). The setup route sends it back
+  the page's own tab, where a sign-in has a tab of its own (`README.md`, 3.5,
+  `ConnectModel`, The sign-in's tab). The setup route sends it back
   there, so the page that started it shows how it ended, as a new
   client: the welcome's Forge step, `ConnectForge` at the forge, or the
   Forges page. A connect from the terminal names none, and its routes

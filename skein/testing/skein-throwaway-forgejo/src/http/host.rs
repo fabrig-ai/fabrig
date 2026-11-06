@@ -9,16 +9,13 @@ use skein_world::{Deadline, Expired, Starved};
 fn limits() -> io::Limits {
     io::Limits {
         sockets: 1,
-        names: 0,
-        refusals: 1,
         intake: 65_536,
         receive: 16_384,
         output: 65_536,
         sends: 4,
-        accepts: 1,
-        backlog: 1,
         close_timeout: Duration::from_millis(100),
         retry: Duration::from_millis(1),
+        ..io::Limits::TEST
     }
 }
 struct OneShot<'a> {

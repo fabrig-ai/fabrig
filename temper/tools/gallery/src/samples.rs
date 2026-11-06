@@ -1778,11 +1778,7 @@ fn account(root: &mut Domain, then: Then, out: &mut Queue<Request>) {
         out,
     );
     if !key {
-        let act = if matches!(then, Then::Paste(_)) {
-            A::SignInElsewhere { name: [97; 16], way }
-        } else {
-            A::SignIn { name: [97; 16], way }
-        };
+        let act = A::SignIn { name: [97; 16], way };
         step(root, Event::Act { action: Action::Pages(Act::ConnectModel(act)) }, out);
     }
     if key {

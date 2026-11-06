@@ -1069,7 +1069,6 @@ fn the_asked_welcome_stays_until_the_store_is_whole() {
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "one state table checks each Model shape and usable precedence")]
 fn model_step_selects_each_welcome_shape_and_usable_wins_at_every_way() {
     use crate::{ModelWay, WayKind};
     use pages::{
@@ -1078,12 +1077,11 @@ fn model_step_selects_each_welcome_shape_and_usable_wins_at_every_way() {
         welcome::{ModelStep as S, model_step},
     };
     let sign_in = Way::SignIn { provider: 17, plan: true };
-    for (kind, elsewhere, finishing, ended, expected) in [
+    for (kind, started, finishing, ended, expected) in [
         (None, false, false, false, S::Choose),
         (Some(WayKind::Key), false, false, false, S::Key { way: Way::Key { provider: 17 } }),
         (Some(WayKind::Program), false, false, false, S::Program { way: Way::Program { provider: 17 } }),
         (Some(WayKind::SignIn), false, false, false, S::SignIn { way: sign_in }),
-        (Some(WayKind::SignIn), false, true, false, S::Away { way: sign_in }),
         (Some(WayKind::SignIn), true, false, false, S::Away { way: sign_in }),
         (Some(WayKind::SignIn), true, false, true, S::SignIn { way: sign_in }),
         (Some(WayKind::SignIn), true, true, false, S::Finishing { way: sign_in }),
@@ -1106,12 +1104,8 @@ fn model_step_selects_each_welcome_shape_and_usable_wins_at_every_way() {
             },
         };
         go(&mut root, step);
-        if elsewhere || finishing {
-            let act = if elsewhere {
-                A::SignInElsewhere { name: [1; 16], way: sign_in }
-            } else {
-                A::SignIn { name: [1; 16], way: sign_in }
-            };
+        if started {
+            let act = A::SignIn { name: [1; 16], way: sign_in };
             let mut out = event(&mut root, Event::Act { action: Action::Pages(Act::ConnectModel(act)) });
             let mut stored = event(&mut root, Event::Client { event: jig_client::Event::Stored });
             while let Some(request) = stored.pop() {
@@ -1132,7 +1126,7 @@ fn model_step_selects_each_welcome_shape_and_usable_wins_at_every_way() {
                     why: None,
                 },
             );
-            if elsewhere && finishing {
+            if finishing {
                 event(&mut root, Event::SignInAddress { value: Secret::new(b"fixture".as_slice().into()) });
                 let out = event(
                     &mut root,

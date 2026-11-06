@@ -114,24 +114,19 @@ fn client_limits() -> oauth::ClientLimits {
     oauth::ClientLimits {
         document: documents(),
         uri_bytes: 64,
-        scope_bytes: 64,
         state_bytes: 43,
         code_bytes: 43,
-        url_bytes: 1024,
-        request_bytes: 1024,
-        parameter_bytes: 0,
-        resource_bytes: 0,
         nonce_bytes: 43,
         metadata_bytes: 2048,
         key_set_bytes: 2048,
         keys: 1,
-        modulus_bits: 2048,
         skew: Duration::from_secs(60),
         sign_in_time: Duration::from_secs(600),
         request_time: Duration::from_secs(400),
         backoff_base: Duration::from_secs(1),
         backoff_ceiling: Duration::from_secs(4),
         max_attempts: 1,
+        ..oauth::ClientLimits::TEST
     }
 }
 fn registration(public: bool) -> oauth::Registration {

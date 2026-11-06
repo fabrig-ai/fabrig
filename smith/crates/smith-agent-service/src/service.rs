@@ -180,6 +180,7 @@ pub(crate) struct Stages {
     llm_env: Env<llm::ComponentLimits>,
     machine_env: Env<machine::Limits>,
     io_env: Env<io::Limits>,
+    file_env: Env<file_layer::Limits>,
     channel_events: Queue<channel::Heard>,
     pending_messages: Queue<PendingMessage>,
     channel_below: Queue<ChannelLower>,

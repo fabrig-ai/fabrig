@@ -38,7 +38,7 @@ fn a_terminal_sign_in_returns_to_the_real_listener() {
     let [answer] = ran.returned() else { panic!("one native listener answer") };
     assert!(answer.error.is_none(), "listener answered over a real connection");
     assert_eq!(answer.status, Some(200), "listener success page");
-    assert!(answer.body.as_ref() == b"Sign-in received. You may close this page.\n", "fixed success page");
+    assert!(answer.body.as_ref() == b"Sign-in received. You can close this tab.\n", "fixed success page");
     assert_eq!(ran.code_exchanges(), 1, "exactly one code exchange");
     let me: serde_json::Value = serde_json::from_slice(&ran.calls()[ME].stdout).expect("me JSON");
     let person = me["party"]["number"].as_u64().expect("person number");
