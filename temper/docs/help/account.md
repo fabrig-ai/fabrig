@@ -25,7 +25,8 @@ An account is how a deployment pays an LLM provider for its runs, through its so
   needs `attention`.
 - **A model** is one of a provider's, from the configuration: its
   window, its output, its efforts and its prices. `model list` prints
-  each project's, by provider. A charter names the models its runs may
+  each project's offer, what an account can run now, by provider.
+  A charter names the models its runs may
   use (temper help charter); a run's spend is its usage at its model's
   prices (temper help budget).
 

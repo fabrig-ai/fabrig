@@ -1,7 +1,7 @@
 use crate::jig::digest::Digest;
 use crate::tests::fixtures as f;
 use jig_client::contract as c;
-use skein_lib::List;
+use skein_lib::{List, bytes};
 
 #[test]
 fn account_reads_close_authorized_watches_after_the_first_projection() {
@@ -77,7 +77,7 @@ fn a_moving_source_and_a_refused_move_print_their_names() {
     }
 }
 #[test]
-fn models_group_only_project_authorized_models_without_guessing_provider_readiness() {
+fn models_group_the_offer_in_provider_order_with_empty_providers_and_unknown_last() {
     let mut root = f::account_root(false);
     let mut me = f::me(f::PARTY);
     let project = me.projects.get_mut(0).expect("project");
@@ -88,10 +88,6 @@ fn models_group_only_project_authorized_models_without_guessing_provider_readine
         project
             .models
             .push(c::MeModel {
-                effort: efforts.get(0).cloned(),
-                shown: None,
-                accounts: List::with_capacity(0),
-                picker: true,
                 prices: c::ModelPrices { input: 7, cached: 2, cache_write: Some(9), output: 11, unit: 1000 },
                 description: Some(c::Text::new(b"Careful reasoning".as_slice().into(), 64).expect("description")),
                 name: c::Text::new(name.into(), 32).expect("model"),
@@ -99,10 +95,25 @@ fn models_group_only_project_authorized_models_without_guessing_provider_readine
                 window: 8192,
                 output: 1024,
                 efforts,
+                effort: Some(f::act_text(b"low")),
+                shown: Some(f::act_text(b"Shown model")),
+                accounts: {
+                    let mut accounts = List::with_capacity(2);
+                    accounts.push(43).expect("first account");
+                    accounts.push(47).expect("second account");
+                    accounts
+                },
+                picker: false,
             })
             .expect("models");
     }
-    me.providers = f::provider_offers();
+    let supplied = f::provider_offers().get(0).expect("supplied provider").clone();
+    let mut empty = supplied.clone();
+    empty.provider = 7;
+    empty.name = f::document_text(b"Empty provider");
+    me.providers = List::with_capacity(2);
+    me.providers.push(empty).expect("empty provider first");
+    me.providers.push(supplied).expect("offered provider second");
     root.deliver(c::Delivery::Me(Box::new(me)));
     for project in ["absent", "999"] {
         let call = root.submit(&["model", "list", "--project", project]);
@@ -120,18 +131,35 @@ fn models_group_only_project_authorized_models_without_guessing_provider_readine
         }
         for fact in [
             b"\"description\":\"Careful reasoning\"".as_slice(),
+            b"\"shown\":\"Shown model\"",
+            b"\"effort\":\"low\",\"accounts\":[43,47],\"picker\":false",
             b"\"prices\":{\"input\":7,\"cached\":2,\"cache_write\":9,\"output\":11,\"unit\":1000}",
         ] {
             assert!(f::json_has(&printed, fact), "{fact:?}");
         }
-        let mut groups = 0u32;
-        let end = skein_lib::bytes::find(&printed.stdout, b"\"current\":").expect("model projection ends");
-        for window in printed.stdout.get(..end).expect("models").windows(b"\"provider\":9,\"provider_name\"".len()) {
-            if window == b"\"provider\":9,\"provider_name\"" {
-                groups += 1;
-            }
-        }
-        assert_eq!(groups, 1, "one group per supplied provider");
+        let text = printed.stdout.as_ref();
+        let empty = bytes::find(
+            text,
+            b"\"provider\":7,\"provider_name\":{\"bytes\":\"Empty provider\",\"cut\":false},\"models\":[]",
+        )
+        .expect("provider without an offered model");
+        let supplied = bytes::find(text, b"\"provider\":9,\"provider_name\"").expect("supplied provider");
+        let unknown = bytes::find(text, b"\"provider\":null,\"provider_name\":null").expect("unknown provider last");
+        assert!(empty < supplied && supplied < unknown, "providers follow me, null last");
+        let end = bytes::find(text, b"\"current\":").expect("model projection ends");
+        assert_eq!(
+            bytes::count(text.get(..end).expect("model projection"), b"\"provider\":9,\"provider_name\"", u32::MAX),
+            1,
+            "one group per provider"
+        );
+        let first = bytes::find(text, b"\"name\":\"first\"").expect("first offered model");
+        let last = bytes::find(text, b"\"name\":\"last\"").expect("last offered model");
+        let other = bytes::find(text, b"\"name\":\"other\"").expect("unknown provider's model");
+        assert!(supplied < first && first < last && last < unknown && unknown < other);
+        assert_eq!(
+            f::last_digest(&printed.stdout).as_ref(),
+            Digest::of(&f::json_without_digest(&printed.stdout)).hex()
+        );
         for absent in [b"needs an account".as_slice(), b"OpenAI"] {
             assert!(!f::json_has(&printed, absent));
         }
@@ -310,7 +338,7 @@ fn account_projection_includes_configured_worker_login_facts() {
     f::deliver_accounts(&mut root, accounts);
     let printed = root.answer(call).expect("account projection");
     for fact in [b"configured-worker".as_slice(), b"work-login", b"other-method"] {
-        assert!(skein_lib::bytes::find(&printed.stdout, fact).is_some(), "{printed:?}");
+        assert!(bytes::find(&printed.stdout, fact).is_some(), "{printed:?}");
     }
 }
 
@@ -323,19 +351,20 @@ fn model_cache_writes_default_to_the_supplied_input_price() {
     project
         .models
         .push(c::MeModel {
-            effort: None,
-            shown: None,
-            accounts: List::with_capacity(0),
-            picker: true,
             name: c::Text::new(b"reasoner".as_slice().into(), 32).expect("model"),
             provider: Some(f::PROVIDER),
             window: 8192,
             output: 1024,
             efforts: List::with_capacity(0),
+            effort: None,
+            shown: None,
+            accounts: List::with_capacity(0),
+            picker: true,
             description: None,
             prices: c::ModelPrices { input: 17, cached: 3, cache_write: None, output: 29, unit: 100 },
         })
         .expect("model room");
+    me.providers = f::provider_offers();
     root.deliver(c::Delivery::Me(Box::new(me)));
     let call = root.submit(&["model", "list", "--json"]);
     f::deliver_accounts(&mut root, f::accounts());
@@ -381,6 +410,19 @@ fn model_text_prints_supplied_descriptions_prices_efforts_and_provider_name() {
     me.providers = f::provider_offers();
     let model = me.projects.get_mut(0).expect("project").models.get_mut(0).expect("model");
     model.provider = Some(f::PROVIDER);
+    model.shown = Some(f::act_text(b"Chosen shown"));
+    model.effort = Some(f::act_text(b"high"));
+    model.accounts = List::with_capacity(2);
+    model.accounts.push(47).expect("first account");
+    model.accounts.push(43).expect("second account");
+    model.picker = false;
+    let mut empty = me.providers.get(0).expect("provider").clone();
+    empty.provider = 7;
+    empty.name = f::document_text(b"Empty provider");
+    me.providers = List::with_capacity(2);
+    me.providers.push(empty).expect("empty provider");
+    me.providers.push(f::provider_offers().get(0).expect("supplied provider").clone()).expect("provider");
+    let model = me.projects.get_mut(0).expect("project").models.get_mut(0).expect("model");
     model.description = Some(f::act_text(b"Reasoning and code"));
     model.prices = c::ModelPrices { input: 13, cached: 7, cache_write: None, output: 31, unit: 1000 };
     root.deliver(c::Delivery::Me(Box::new(me)));
@@ -390,7 +432,15 @@ fn model_text_prints_supplied_descriptions_prices_efforts_and_provider_name() {
     assert_eq!(printed.status, 0);
     assert!(!printed.stdout.starts_with(b"{"));
     for fact in [
-        b"Scripted".as_slice(),
+        "provider 7 · Empty provider\n  models: none\nprovider 9 · Scripted".as_bytes(),
+        b"shown: Chosen shown",
+        b"default effort: high",
+        b"accounts: 47 43",
+        b"picker: false",
+        b"shown: plain-model",
+        b"default effort: none",
+        b"accounts: 43",
+        b"picker: true",
         b"description: Reasoning and code",
         b"input: 13",
         b"cached input: 7",
