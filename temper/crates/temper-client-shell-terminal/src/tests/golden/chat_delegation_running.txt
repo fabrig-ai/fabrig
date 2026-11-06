@@ -21,7 +21,6 @@ Where:
   [13] Chats
   [14] demo
   [15] Chats
-T1 · Using the default model
 * waiting on 1 delegate
 0 spent · of 1
 Conversation:
@@ -49,3 +48,4 @@ Conversation:
     [17] Message: (empty) (enter sends)
     [-] Send (disabled)
     Enter sends · Shift+Enter for a new line
+    the default model

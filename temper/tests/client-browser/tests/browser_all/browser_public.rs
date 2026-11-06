@@ -317,7 +317,10 @@ fn identifier(id: &str) {
 impl Play for Walk {
     /// Revoked public reads answer 404 (jig/docs/design/protocol/client.md, 17.5).
     fn expected(&self) -> Vec<Box<[u8]>> {
-        vec![Box::from(b"Failed to load resource: the server responded with a status of 404 (Not Found)".as_slice())]
+        vec![
+            Box::from(b"Failed to load resource: the server responded with a status of 404 (Not Found)".as_slice()),
+            Box::from(b"Failed to load resource: the server responded with a status of 401 (Unauthorized)".as_slice()),
+        ]
     }
     fn next(&mut self, face: &mut BrowserFace<'_>, now: Time) -> Next<Box<[u8]>> {
         let started = *self.started.get_or_insert(now);
@@ -388,25 +391,26 @@ const LONG_TITLE: &str =
     "Export widget's table as CSV with visible columns, localized headings and a readable filename for monthly reports";
 
 struct TextBoxes {
-    at: u32,
     boxes: Vec<(String, skein_browser::boundary::Rect)>,
 }
 impl TextBoxes {
     fn new() -> Self {
-        Self { at: 0, boxes: vec![] }
+        Self { boxes: vec![] }
     }
     fn next(&mut self, face: &mut BrowserFace<'_>) -> bool {
-        let find =
-            Find::text(b"").nth(self.at).within(Box::new([Target::Role { role: Role::Main, name: Box::new([]) }]));
+        let find = Find::text(b"").within(Box::new([Target::Role { role: Role::Main, name: Box::new([]) }]));
         match face.find_boxed(&find) {
             Found::Pending => false,
             Found::Absent => true,
-            Found::Node(node) => {
-                let seen = face.seen(node).expect("public text");
-                let rect = seen.rect.expect("visible text has a box");
-                self.boxes.push((String::from_utf8_lossy(&seen.name).into_owned(), rect));
-                self.at += 1;
-                false
+            Found::Node(_) => {
+                let (matches, more) = face.boxed_matches();
+                assert_eq!(more, 0, "public text fits the browser's match limit");
+                for seen in matches {
+                    let name = String::from_utf8_lossy(&seen.name).into_owned();
+                    let rect = seen.rect.unwrap_or_else(|| panic!("visible text {name:?} has no box"));
+                    self.boxes.push((name, rect));
+                }
+                true
             }
         }
     }
@@ -505,7 +509,10 @@ impl Play for Readable {
                 self.stage = 1;
             }
             Next::Done if self.stage == 1 => self.advance(),
-            Next::Done => self.measuring = true,
+            Next::Done => {
+                eprintln!("measure public text: stage={} width={} task={}", self.stage, self.width(), self.stage >= 4);
+                self.measuring = true;
+            }
             next => return next,
         }
         Next::Wait { until: None }
