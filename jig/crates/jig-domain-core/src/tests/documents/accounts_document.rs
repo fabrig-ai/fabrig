@@ -12,6 +12,7 @@ use crate::{
     documents::{AccountLine, Accounts, LastEnd, SignInLine, SourceLine},
     tests::*,
 };
+use jig_domain_link::{Form, Scheme};
 
 const ALICE: u64 = 1;
 const BOB: u64 = 2;
@@ -248,7 +249,7 @@ fn grant(core: &mut Core, env: &Env<Limits>, source: u32) {
         core,
         env,
         Event::Account(accounts::Event::Component(accounts::FromComponent::Granted {
-            form: accounts::Form::Credential(accounts::Scheme::Bearer),
+            form: Form::Credential(Scheme::Bearer),
             account: source,
             generation: 1,
             valid: Duration::from_secs(60),
@@ -484,7 +485,7 @@ fn serves_work_follows_the_uses() {
             &mut core,
             &env,
             Event::Account(accounts::Event::Component(accounts::FromComponent::Granted {
-                form: accounts::Form::Credential(accounts::Scheme::Key),
+                form: Form::Credential(Scheme::Key),
                 account: source,
                 generation: 1,
                 valid: Duration::from_secs(60),

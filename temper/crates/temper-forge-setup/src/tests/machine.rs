@@ -377,3 +377,57 @@ fn github_git_is_optional_bounded_and_resolved_under_data() {
         assert!(bytes::find(&problem::lines(&problems), b"application.machine.github.git:").is_some());
     }
 }
+
+#[test]
+fn sign_in_refuses_machine_owned_person_login_at_its_path() {
+    for login in [b"temper".as_slice(), b"Temper", b"temper-admin", b"TEMPER-ADMIN", b"work", b"Work"] {
+        let input =
+            replace(TEMPLATE_MACHINE, b"\"forgejo\":\"fetched\"", b"\"sign_in\":\"forgejo\",\"forgejo\":\"fetched\"");
+        let input = replace(&input, b"\"ada\"", &crate::check::joined(&[b"\"", login, b"\""]));
+        let mut problems = Problems::empty();
+        assert!(
+            machine::read(&fixtures::document(&input), 0, &limits::small(), &directories(), &mut problems).is_none()
+        );
+        assert_eq!(problem::lines(&problems).as_ref(), b"application.machine.owned.person.login: invalid form\n");
+    }
+}
+#[test]
+fn sign_in_refuses_machine_owned_person_email_at_its_path() {
+    for email in [
+        b"temper@temper.invalid".as_slice(),
+        b"TEMPER@TEMPER.INVALID",
+        b"temper-admin@example.invalid",
+        b"TEMPER-ADMIN@EXAMPLE.INVALID",
+    ] {
+        let input =
+            replace(TEMPLATE_MACHINE, b"\"forgejo\":\"fetched\"", b"\"sign_in\":\"forgejo\",\"forgejo\":\"fetched\"");
+        let input = replace(&input, b"ada@example.invalid", email);
+        let mut problems = Problems::empty();
+        assert!(
+            machine::read(&fixtures::document(&input), 0, &limits::small(), &directories(), &mut problems).is_none()
+        );
+        assert_eq!(problem::lines(&problems).as_ref(), b"application.machine.owned.person.email: invalid form\n");
+    }
+}
+
+#[test]
+fn only_a_box_signing_in_runs_source_last_and_ignores_its_ending() {
+    let mut machine = read(TEMPLATE_MACHINE, &directories());
+    machine.owned.as_mut().unwrap().sign_in = Some(b"forgejo".as_slice().into());
+    let steps = kinds(&machine, &[], Box::new([]), true);
+    assert_eq!(steps.asked[0].before, 1, "the issuer starts before a restored source fetches discovery");
+    let (stage, source) = steps.asked[0].steps.last().unwrap();
+    assert_eq!(*stage, Stage::Source);
+    assert_eq!(source.name(), b"source");
+    assert_eq!(source.kind(), Kind::Once);
+    assert!(source.ignores_ending());
+    let expected = [b"forge".as_slice(), b"source", FORGE_ARGUMENT];
+    assert_eq!(source.arguments().len(), expected.len());
+    for (argument, expected) in source.arguments().iter().zip(expected) {
+        assert_eq!(argument.as_ref(), expected);
+    }
+    machine.owned.as_mut().unwrap().sign_in = None;
+    for (_, step) in &kinds(&machine, &[], Box::new([]), true).asked[0].steps {
+        assert_ne!(step.name(), b"source");
+    }
+}

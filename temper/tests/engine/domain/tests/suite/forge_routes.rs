@@ -131,6 +131,7 @@ mod hints;
 #[path = "forge_routes/ci_poll.rs"]
 mod ci_poll;
 mod update_first;
+mod update_lost;
 
 #[path = "forge_routes/documents.rs"]
 mod documents;

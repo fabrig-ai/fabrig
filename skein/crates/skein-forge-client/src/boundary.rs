@@ -59,8 +59,8 @@ pub fn recovery(write: &Write) -> Recovery {
         Write::Post { .. } => Recovery::Unrecoverable,
         // A review marker and a client-side head check do not deduplicate it.
         Write::Review { .. } => Recovery::Unrecoverable,
-        // Forgejo's update checks neither the old head nor an operation id.
-        Write::Update { .. } => Recovery::Unrecoverable,
+        // Every copy leaves its head containing the base, or changes nothing.
+        Write::Update { .. } => Recovery::Idempotent,
         // Repeating an edit writes the same title and body.
         Write::Edit { .. } => Recovery::Idempotent,
         // Repeating the reviewer set writes the same members.

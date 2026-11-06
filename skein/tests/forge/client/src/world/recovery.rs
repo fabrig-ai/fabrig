@@ -1,6 +1,59 @@
 use super::{Entry, Event, List, Map, RecoveryClock, Resource, Time, World, configured};
+use skein_fake_forge_domain::{self as forge, api as raw};
+use skein_lib::Duration;
 
 impl World {
+    /// Lose the next update in transit before the fake receives any copy.
+    /// Reads and timers run through the world's loop until that send.
+    pub fn lose_next_update(&mut self) {
+        let writes = self.stats.writes;
+        let end = self.env.now.saturating_add(Duration::from_secs(60));
+        for _ in 0..20_000 {
+            assert!(
+                !self.outcomes.as_slice().iter().any(|(_, outcome)| *outcome == super::Outcome::Held),
+                "a lost update must not be held"
+            );
+            assert!(self.iterate(end), "next update sent within the fixture horizon");
+            if self.stats.writes > writes {
+                let forge::Event::Call { reply_to, op, .. } = self.to_forge.pop().expect("submitted update");
+                assert!(matches!(op, raw::Op::Write(raw::Write::Update { .. })));
+                self.forge_out.push(forge::Request::Reply { to: reply_to, result: Err(raw::Error::Timeout) });
+                self.take_forge();
+                return;
+            }
+        }
+        panic!("world update send step budget");
+    }
+
+    /// An update's idempotent class rests on no lifetime: a copy may land
+    /// after another attempt (skein/docs/design/forge-client.md, 7.3).
+    pub fn land_writes_past_lifetime(&mut self, after: Duration) {
+        self.forge_env.limits.landing = 1000;
+        self.forge_env.limits.land_min = after;
+        self.forge_env.limits.land_max = after;
+    }
+
+    #[must_use]
+    pub fn pull_head(&self, number: u64) -> u64 {
+        let raw::Answer::Pull(pull) =
+            self.forge.inspect(&self.forge_env.limits, b"org/repo", &raw::Read::Pull { number }).expect("fixture pull")
+        else {
+            panic!("pull read answers a pull");
+        };
+        pull.commit
+    }
+
+    #[must_use]
+    pub fn is_ancestor(&self, ancestor: u64, commit: u64) -> bool {
+        self.forge.is_ancestor(ancestor, commit)
+    }
+
+    /// Another hand pushes a commit, independently of the client's decisions.
+    pub fn outside_push(&mut self, branch: &[u8], path: &[u8], content: &[u8]) -> u64 {
+        forge::advance(&mut self.forge, &self.forge_env, b"org/repo", branch, path, content, 2)
+            .expect("outside branch push")
+    }
+
     pub fn restart(&mut self) {
         // Volatile budget knowledge belongs to the old live generation.
         // The independent forge keeps its window and can answer 429 again.

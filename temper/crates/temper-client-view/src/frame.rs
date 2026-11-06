@@ -194,6 +194,7 @@ pub(crate) fn switcher(
     bindings: &mut Bindings,
     project: Option<u32>,
     place: Place,
+    sign_in: &crate::forge_sign_in::Forges,
 ) {
     if let Some(me) = root.pages().me(root.client()) {
         if me.projects.is_empty() {
@@ -225,6 +226,11 @@ pub(crate) fn switcher(
                         rename_form(builder, root, words, &name, bindings);
                         continue;
                     }
+                    let split = place == Place::Rail && words.shell == crate::words::Shell::Browser;
+                    if split {
+                        builder.open(Role::Slot);
+                        builder.style(crate::look::PROJECTS_ROW);
+                    }
                     builder.open(Role::Button);
                     if place == Place::Rail {
                         project_row(builder, root, words, row.project, &name);
@@ -236,6 +242,10 @@ pub(crate) fn switcher(
                     }
                     builder.bind(bindings.insert(PageAct::Project { project: row.project }));
                     builder.close();
+                    if split {
+                        project_repository(builder, root, words, row.project, sign_in);
+                        builder.close();
+                    }
                     if selected && place == Place::Banner && row.role == jig_client::contract::HeldRole::Owner {
                         builder.open(Role::Button);
                         builder.style(crate::look::PROJECT_RENAME);
@@ -282,47 +292,55 @@ fn project_row(b: &mut Builder, root: &Domain, w: &crate::words::Words, project:
     use crate::words::{Shell, Word};
     use skein_ui::phrases::Hole;
     use temper_client_domain::forge::listed::{self, Held};
-    let held = listed::held(root.forges(), root.forge().playground(), project);
-    let repository = match held {
+    b.name(name);
+    if w.shell == Shell::Browser {
+        return;
+    }
+    let repository = match listed::held(root.forges(), root.forge().playground(), project) {
         Held::Unknown => None,
         Held::None => Some(w.say(Word::SwitcherNone, &[])),
-        Held::One { owner, name } | Held::Several { owner, name, .. } => {
+        Held::One { owner, name, .. } => {
             Some(w.say(Word::SwitcherRepository, &[Hole::Name(owner.into()), Hole::Name(name.into())]))
         }
+        Held::Several { owner, name, more, .. } => Some(w.say(
+            Word::SwitcherSeveral,
+            &[Hole::Name(owner.into()), Hole::Name(name.into()), Hole::Number(u64::from(more))],
+        )),
     };
-    match w.shell {
-        Shell::Browser => {
-            b.text(Run::Plain, name);
-            if let Some(repository) = repository {
-                b.open(Role::Text);
-                b.style(crate::look::PROJECTS_REPO);
-                b.text(Run::Plain, &repository);
-                match held {
-                    Held::Several { more, .. } => {
-                        b.open(Role::Text);
-                        b.style(crate::look::PROJECTS_MORE);
-                        b.run(Run::Plain, &w.say(Word::SwitcherMore, &[Hole::Number(u64::from(more))]));
-                        b.close();
-                    }
-                    Held::Unknown | Held::None | Held::One { .. } => {}
-                }
-                b.close();
-            }
-        }
-        Shell::Terminal => {
-            b.name(name);
-            let repository = match held {
-                Held::Several { owner, name, more } => Some(w.say(
-                    Word::SwitcherSeveral,
-                    &[Hole::Name(owner.into()), Hole::Name(name.into()), Hole::Number(u64::from(more))],
-                )),
-                Held::Unknown | Held::None | Held::One { .. } => repository,
-            };
-            if let Some(repository) = repository {
-                w.text(b, Word::SwitcherRow, &[Hole::Name(name.into()), Hole::Name(repository)]);
-            }
-        }
+    if let Some(repository) = repository {
+        w.text(b, Word::SwitcherRow, &[Hole::Name(name.into()), Hole::Name(repository)]);
     }
+}
+fn project_repository(
+    b: &mut Builder,
+    root: &Domain,
+    w: &crate::words::Words,
+    project: u32,
+    sign_in: &crate::forge_sign_in::Forges,
+) {
+    use crate::words::Word;
+    use skein_ui::phrases::Hole;
+    use temper_client_domain::forge::listed::{self, Held};
+    let held = listed::held(root.forges(), root.forge().playground(), project);
+    if held == Held::Unknown {
+        return;
+    }
+    b.open(Role::Text);
+    b.style(crate::look::PROJECTS_REPO);
+    match held {
+        Held::One { forge, owner, name } | Held::Several { forge, owner, name, .. } => {
+            crate::forge::repository::name(b, w, forge, sign_in, owner, name);
+        }
+        Held::None => w.text(b, Word::SwitcherNone, &[]),
+        Held::Unknown => {}
+    }
+    if let Held::Several { more, .. } = held {
+        b.open(Role::Text);
+        b.style(crate::look::PROJECTS_MORE);
+        b.run(Run::Plain, &w.say(Word::SwitcherMore, &[Hole::Number(u64::from(more))]));
+        b.close();
+    }
+    b.close();
 }
 // The switcher's forms (temper/docs/design/client/README.md, 5.3).
 fn rename_form(b: &mut Builder, root: &Domain, words: &crate::words::Words, project: &[u8], bindings: &mut Bindings) {
@@ -465,7 +483,7 @@ pub(crate) fn banner(
         builder.close();
         return;
     }
-    switcher(builder, root, words, bindings, pages.project(), Place::Banner);
+    switcher(builder, root, words, bindings, pages.project(), Place::Banner, &crate::forge_sign_in::Forges::new());
     navigation(builder, root, words, bindings);
     builder.open(Role::Slot);
     builder.style(crate::look::CORNER);
@@ -533,6 +551,7 @@ pub(crate) fn rail_project(root: &Domain, words: &crate::words::Words, sign_in: 
 }
 
 /// The rail (temper/docs/design/client/README.md, 5.3).
+#[expect(clippy::too_many_arguments, reason = "the rail carries page-owned forge facts beside its frame bindings")]
 pub(crate) fn rail(
     b: &mut Builder,
     root: &Domain,
@@ -541,6 +560,7 @@ pub(crate) fn rail(
     forge: &mut crate::forge::bindings::Bindings,
     project: u32,
     times: &mut crate::words::Times,
+    sign_in: &crate::forge_sign_in::Forges,
 ) {
     use crate::words::{Shell, Word};
     b.open(Role::Navigation);
@@ -562,7 +582,7 @@ pub(crate) fn rail(
         b.style(crate::look::RAIL_UNFOLD);
         b.close();
     }
-    switcher(b, root, w, bindings, Some(project), Place::Rail);
+    switcher(b, root, w, bindings, Some(project), Place::Rail, sign_in);
     if w.shell == Shell::Browser {
         away(b, root, w, bindings, times, project, crate::look::AWAY_CHIP);
     }
@@ -1139,6 +1159,8 @@ pub(crate) fn toast(
     use temper_client_domain::pages::needs::{self, Toasted};
     let session = root.pages().needs();
     let Some(toast) = session.toast() else { return };
+    b.open(Role::Region);
+    b.name(&w.say(Word::ToastRegion, &[]));
     let (said, undo) = match toast {
         Toasted::Answered { object, label } => {
             let label = crate::pages::ask::answered_label(w, label);
@@ -1227,6 +1249,7 @@ pub(crate) fn toast(
             bindings,
         );
     }
+    b.close();
     b.close();
 }
 

@@ -18,6 +18,7 @@ mod worker;
 mod worker_route;
 mod workers;
 pub use accounts::{AccountsRuntime, TrustBounds};
+use jig_domain_link::Bounds;
 pub use worker::{Worker, WorkerRuntime};
 mod engine;
 pub mod limits;
@@ -46,7 +47,7 @@ pub struct Refused;
 pub struct Agent {
     pub endpoints: smith_protocol_channel::Endpoints,
     pub limits: smith_host_protocol::Limits,
-    pub bounds: jig_domain_host::Bounds,
+    pub bounds: Bounds,
     pub host_limits: smith_host_domain::Limits,
 }
 

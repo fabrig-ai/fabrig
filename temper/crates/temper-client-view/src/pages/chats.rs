@@ -217,7 +217,7 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
             previous = Some((chosen.ended_at.unwrap_or(chosen.last_activity), chosen.chip.task));
         }
         b.close();
-    } else {
+    } else if chats.known(root.client()) && (chats.filter != ChatsFilter::Drafts || chats.documents_known()) {
         let empty = words.say(Word::ChatsNone, &[]);
         b.open(Role::Paragraph);
         b.name(&empty);

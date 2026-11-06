@@ -922,7 +922,7 @@ fn an_ended_delegation_reads_its_task_and_keeps_its_result() {
 }
 
 #[test]
-fn the_chat_composer_keeps_the_send_bound_when_receiving_grows() {
+fn the_chat_composer_holds_past_the_cue_bound() {
     let mut limits = fixtures::limits();
     limits.client.domain.text = 2048;
     limits.client.domain.long_text = 2048;
@@ -936,8 +936,8 @@ fn the_chat_composer_keeps_the_send_bound_when_receiving_grows() {
     over.fill(b'b');
     f.chat.act(&fixtures::env(&limits), &f.client, Act::MessageWords { words: words.clone() }, &mut serial, &mut f.out);
     assert_eq!(f.chat.words, words);
-    f.chat.act(&fixtures::env(&limits), &f.client, Act::MessageWords { words: over }, &mut serial, &mut f.out);
-    assert_eq!(f.chat.words, words, "an oversized edit keeps the previous words");
+    f.chat.act(&fixtures::env(&limits), &f.client, Act::MessageWords { words: over.clone() }, &mut serial, &mut f.out);
+    assert_eq!(f.chat.words, over, "an oversized edit replaces the previous words");
 }
 
 fn window_page(chat: &mut Chat, client: &jig_client::Client, out: &mut Queue<Request>, page: u32, pages: u32) {
@@ -982,14 +982,17 @@ fn a_named_window_bounds_the_thread_and_its_lines() {
     const WINDOW_BYTES: u64 = 131_072;
     let mut limits = fixtures::limits();
     limits.client.domain.document_bytes = WINDOW_BYTES * 2;
+    limits.client.domain.long_text = 64;
     limits.window_bytes = Some(WINDOW_BYTES);
     let window = crate::pages::chat::thread_limits(&limits);
     assert_eq!(window.bytes, WINDOW_BYTES);
+    assert_eq!(window.text, limits.client.domain.long_text);
     assert_eq!(u64::from(window.lines), WINDOW_BYTES / u64::from(c::LINE_ROOM));
 
     limits.window_bytes = None;
     let whole = crate::pages::chat::thread_limits(&limits);
     assert_eq!(whole.bytes, limits.client.domain.document_bytes);
+    assert_eq!(whole.text, limits.client.domain.long_text);
     assert_eq!(u64::from(whole.lines), limits.client.domain.document_bytes / u64::from(c::LINE_ROOM));
 }
 #[test]
@@ -1681,6 +1684,11 @@ fn a_retained_settings_card_keeps_the_documents_acceptance_time() {
     };
 }
 
+fn draft_limits() -> crate::Limits {
+    let mut limits = fixtures::limits();
+    limits.client.domain.long_text = 128;
+    limits
+}
 fn draft_ready() -> f::Fixture {
     let mut f = f::opened();
     f.client.step_unlinked(
@@ -1711,8 +1719,7 @@ fn draft_ready() -> f::Fixture {
     task.acts = fixtures::acts::offered(c::ActKind::Message, c::Admission::Allowed);
     f::deliver(&mut f.client, f.watch, task);
     while f.out.pop().is_some() {}
-    let mut limits = fixtures::limits();
-    limits.client.domain.text = 128;
+    let limits = draft_limits();
     f.chat.thread = jig_client::thread::Thread::new(f::TASK, &crate::pages::chat::thread_limits(&limits));
     f
 }
@@ -1722,7 +1729,7 @@ fn add_draft_sends_and_goes_to_split() {
     f.chat.words = b"Unsent words".as_slice().into();
     let mut serial = SERIAL;
     for _ in 0_u32..2 {
-        f.chat.act(&fixtures::env(&fixtures::limits()), &f.client, Act::AddDraft, &mut serial, &mut f.out);
+        f.chat.act(&fixtures::env(&draft_limits()), &f.client, Act::AddDraft, &mut serial, &mut f.out);
     }
     assert_eq!(f.chat.mode, crate::pages::chat::document::Mode::Split);
     assert!(f.chat.writing);
@@ -1740,7 +1747,7 @@ fn add_draft_sends_and_goes_to_split() {
 #[test]
 fn a_refused_add_keeps_the_pane_and_its_words() {
     let mut f = draft_ready();
-    f.chat.act(&fixtures::env(&fixtures::limits()), &f.client, Act::AddDraft, &mut { SERIAL }, &mut f.out);
+    f.chat.act(&fixtures::env(&draft_limits()), &f.client, Act::AddDraft, &mut { SERIAL }, &mut f.out);
     let key = f.chat.pending.get(0).unwrap().0;
     let refused = jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
         refusal: c::Refusal::NotOffered,
@@ -1986,6 +1993,33 @@ fn send_ready(words: &[u8], admission: c::Admission) -> f::Fixture {
     f
 }
 
+#[test]
+fn an_ended_read_leaves_latest_free() {
+    use jig_client::thread::window::{Edge, End};
+    let (mut chat, client, mut out) = reading_chat(&fixtures::limits());
+    window_page(&mut chat, &client, &mut out, 0, WINDOW_PAGES);
+    while out.pop().is_some() {}
+    chat.thread.lines.edges.before = Edge::Dropped;
+    chat_act(&mut chat, &client, Act::Older, &mut out);
+    assert!(out.pop().is_some());
+    chat.told(
+        Time::ZERO,
+        &client,
+        Told::Page {
+            handle: chat.activity,
+            page: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Malformed)),
+        },
+        &mut out,
+    );
+    assert_eq!(chat.thread.read_failed, Some(End::After));
+    assert_eq!(chat.next_deadline(), None);
+    chat.fire(Time::ZERO.saturating_add(Duration::from_secs(120)), &mut out);
+    assert!(out.is_empty(), "an undecodable answer is not asked again by time alone");
+    chat_act(&mut chat, &client, Act::Latest, &mut out);
+    assert_eq!(out.pop(), Some(first_activity(&chat)), "Latest asks immediately after a lasting end");
+    assert!(out.is_empty());
+}
+
 // client/README.md, 3.5: the person's placed stop and its independently named revision.
 const PAUSE_REVISION: u64 = 19;
 const PAUSE_WORDS: &[u8] = b"And then?";
@@ -2158,4 +2192,328 @@ fn paused_is_the_person_s_own_stop_alone() {
     ] {
         assert_eq!(crate::pages::chat::paused(&chip, &me), expected, "{name}");
     }
+}
+
+fn composer_fixture(limits: &crate::Limits) -> f::Fixture {
+    let mut f = send_ready(b"", c::Admission::Allowed);
+    let task = f.chat.final_task.take();
+    f.chat = Chat::new(f::TASK, crate::pages::chat::document::Mode::Chat, f::FIRST, limits, &mut Queue::uncapped());
+    f.chat.final_task = task;
+    super::composer::deliver_me(&mut f);
+    f
+}
+fn composer_act(f: &mut f::Fixture, limits: &crate::Limits, act: Act) {
+    f.chat.act(&fixtures::env(limits), &f.client, act, &mut { SERIAL }, &mut f.out);
+}
+#[test]
+fn a_kilobyte_pasted_is_sent_whole() {
+    let limits = super::composer::limits();
+    let mut f = composer_fixture(&limits);
+    let words = super::composer::words(super::composer::BOUND);
+    composer_act(&mut f, &limits, Act::MessageWords { words: words.clone() });
+    assert_eq!(f.chat.words, words);
+    composer_act(&mut f, &limits, Act::Send);
+    assert_eq!(
+        fixtures::acts::sent(&mut f.out).as_ref(),
+        [c::Ask::Message {
+            project: fixtures::PROJECT,
+            task: f::TASK,
+            words: c::Text::new(words, super::composer::HOLD).unwrap()
+        }]
+    );
+    assert!(f.chat.words.is_empty());
+}
+#[test]
+fn a_paste_past_the_bound_stays_and_sends_nothing() {
+    let limits = super::composer::limits();
+    for &(typed, kept, beyond, excess) in super::composer::PAST {
+        let mut f = composer_fixture(&limits);
+        composer_act(&mut f, &limits, Act::MessageWords { words: super::composer::words(typed) });
+        let words = super::composer::words(kept);
+        assert_eq!(f.chat.words, words);
+        assert_eq!(f.chat.beyond, beyond);
+        composer_act(&mut f, &limits, Act::Send);
+        assert!(fixtures::acts::sent(&mut f.out).is_empty());
+        assert!(f.chat.pending.is_empty());
+        assert!(f.chat.thread.words.rows.is_empty());
+        assert_eq!(f.chat.words, words);
+        assert_eq!(crate::pages::composer::over(&f.chat.words, f.chat.beyond, super::composer::BOUND), excess);
+        composer_act(&mut f, &limits, Act::MessageWords { words: Box::from(*b"short") });
+        assert_eq!(f.chat.beyond, 0);
+        composer_act(&mut f, &limits, Act::Send);
+        assert_eq!(fixtures::acts::sent(&mut f.out).len(), 1);
+    }
+}
+
+#[test]
+fn a_send_the_thread_refuses_keeps_the_words_and_says_so() {
+    let limits = super::composer::limits();
+    let mut f = composer_fixture(&limits);
+    f.chat.thread = jig_client::thread::Thread::new(
+        f::TASK,
+        &jig_client::thread::Limits { lines: 1, bytes: 4, text: super::composer::HOLD, live: super::composer::HOLD },
+    );
+    composer_act(&mut f, &limits, Act::MessageWords { words: Box::from(*b"Hello") });
+    composer_act(&mut f, &limits, Act::Send);
+    assert_eq!(f.chat.words.as_ref(), b"Hello");
+    assert!(fixtures::acts::sent(&mut f.out).is_empty());
+    assert!(f.chat.pending.is_empty());
+    assert!(f.chat.thread.words.rows.is_empty());
+    assert_eq!(f.chat.outcome, Some(jig_client::Outcome::Limit));
+    assert_eq!(f.chat.outcome_kind, Some(Sending::Message));
+}
+
+fn paused_composer_fixture(limits: &crate::Limits) -> f::Fixture {
+    let mut f = composer_fixture(limits);
+    f.chat.final_task = None;
+    f::deliver(&mut f.client, f.watch, paused_task());
+    f
+}
+#[test]
+fn a_paused_chat_sends_a_kilobyte_and_release_together() {
+    let limits = super::composer::limits();
+    let mut f = paused_composer_fixture(&limits);
+    let words = super::composer::words(super::composer::BOUND);
+    composer_act(&mut f, &limits, Act::MessageWords { words: words.clone() });
+    assert_eq!(f.chat.words, words);
+    composer_act(&mut f, &limits, Act::Send);
+    let sent = fixtures::acts::sent(&mut f.out);
+    let [c::Ask::Compound { project, operations }] = sent.as_ref() else { panic!("one compound: {sent:?}") };
+    assert_eq!(*project, fixtures::PROJECT);
+    assert_eq!(
+        operations.as_slice(),
+        [
+            c::Operation::Message {
+                project: fixtures::PROJECT,
+                task: f::TASK,
+                words: c::Text::new(words, super::composer::HOLD).unwrap(),
+            },
+            c::Operation::Release {
+                project: fixtures::PROJECT,
+                task: f::TASK,
+                revision: c::Revision { value: PAUSE_REVISION },
+                again: None,
+            },
+        ]
+    );
+    assert_eq!(f.chat.pending.len(), 1);
+    assert_eq!(f.chat.thread.words.rows.len(), 1, "compound words wait to be read back");
+    assert!(f.chat.words.is_empty());
+    assert_eq!(f.chat.beyond, 0);
+}
+#[test]
+fn a_paused_chat_past_the_bound_keeps_its_words_without_releasing() {
+    let limits = super::composer::limits();
+    for &(typed, kept, beyond, excess) in super::composer::PAST {
+        let mut f = paused_composer_fixture(&limits);
+        composer_act(&mut f, &limits, Act::MessageWords { words: super::composer::words(typed) });
+        composer_act(&mut f, &limits, Act::Send);
+        assert!(fixtures::acts::sent(&mut f.out).is_empty(), "no message or release past the bound");
+        assert!(f.chat.pending.is_empty());
+        assert!(f.chat.thread.words.rows.is_empty());
+        assert_eq!(f.chat.words, super::composer::words(kept));
+        assert_eq!(f.chat.beyond, beyond);
+        assert_eq!(crate::pages::composer::over(&f.chat.words, f.chat.beyond, super::composer::BOUND), excess);
+        composer_act(&mut f, &limits, Act::MessageWords { words: Box::from(*b"short") });
+        assert_eq!(f.chat.beyond, 0);
+        composer_act(&mut f, &limits, Act::Send);
+        let sent = fixtures::acts::sent(&mut f.out);
+        let [c::Ask::Compound { .. }] = sent.as_ref() else { panic!("one compound: {sent:?}") };
+    }
+}
+#[test]
+fn a_paused_chat_reports_thread_refusal_and_keeps_its_words() {
+    let limits = super::composer::limits();
+    let mut f = paused_composer_fixture(&limits);
+    f.chat.thread = jig_client::thread::Thread::new(
+        f::TASK,
+        &jig_client::thread::Limits { lines: 1, bytes: 4, text: super::composer::HOLD, live: super::composer::HOLD },
+    );
+    composer_act(&mut f, &limits, Act::MessageWords { words: Box::from(*b"Hello") });
+    composer_act(&mut f, &limits, Act::Send);
+    assert_eq!(f.chat.words.as_ref(), b"Hello");
+    assert_eq!(f.chat.beyond, 0);
+    assert!(fixtures::acts::sent(&mut f.out).is_empty(), "thread refusal cannot release the chat");
+    assert!(f.chat.pending.is_empty());
+    assert!(f.chat.thread.words.rows.is_empty());
+    assert_eq!(f.chat.outcome, Some(jig_client::Outcome::Limit));
+    assert_eq!(f.chat.outcome_kind, Some(Sending::Message));
+}
+
+fn request_fixture(cut: bool) -> f::Fixture {
+    let mut f = f::opened();
+    while f.out.pop().is_some() {}
+    let mut task = f::task();
+    task.spec.specification.words = f::document_text(b"Kept");
+    task.spec.specification.words.cut = cut;
+    f::deliver(&mut f.client, f.watch, task);
+    f.chat.told(Time::ZERO, &f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
+    f
+}
+fn request_read(out: &mut Queue<Request>, from: u64) -> jig_client::Handle {
+    while let Some(request) = out.pop() {
+        if let Request::Client(Event::Read {
+            handle,
+            read: Readable::Jig(c::Read::TaskText { task: f::TASK, field: c::TaskTextField::Specification, from: at }),
+        }) = request
+        {
+            assert_eq!(at, from);
+            return handle;
+        }
+    }
+    panic!("a cut request reads its specification from {from}")
+}
+fn request_piece(f: &mut f::Fixture, handle: jig_client::Handle, from: u64, bytes: &[u8], next: Option<u64>) {
+    f.chat.told(
+        Time::ZERO,
+        &f.client,
+        Told::Page {
+            handle,
+            page: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::TaskText(Box::new(c::TaskText {
+                task: f::TASK,
+                field: c::TaskTextField::Specification,
+                from,
+                total: 11,
+                next,
+                text: fixtures::acts::text(bytes),
+            })))),
+        },
+        &mut f.out,
+    );
+}
+#[test]
+fn a_cut_request_is_read_whole() {
+    let mut f = request_fixture(true);
+    assert_eq!(f.chat.request(&f.client), Some((b"Kept".as_slice(), false)));
+    let handle = request_read(&mut f.out, 0);
+    request_piece(&mut f, handle, 0, b"Kept ", Some(5));
+    assert_eq!(f.chat.request(&f.client), Some((b"Kept ".as_slice(), false)));
+    assert_eq!(request_read(&mut f.out, 5), handle);
+    request_piece(&mut f, handle, 5, b"whole!", None);
+    assert_eq!(f.chat.request(&f.client), Some((b"Kept whole!".as_slice(), true)));
+    f.chat.told(Time::ZERO, &f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
+    assert!(f.out.is_empty(), "a repeated task delivery does not restart the read");
+    f.chat.leave(&mut f.out);
+    assert!(f::handles(&mut f.out).contains(&handle), "leaving releases the read handle");
+}
+#[test]
+fn an_uncut_request_asks_nothing() {
+    let f = request_fixture(false);
+    assert_eq!(f.chat.request(&f.client), Some((b"Kept".as_slice(), true)));
+    assert!(f.out.is_empty());
+}
+#[test]
+fn a_request_read_that_ends_keeps_what_it_has() {
+    let mut f = request_fixture(true);
+    let handle = request_read(&mut f.out, 0);
+    request_piece(&mut f, handle, 0, b"Kept ", Some(5));
+    request_read(&mut f.out, 5);
+    f.chat.told(
+        Time::ZERO,
+        &f.client,
+        Told::Page { handle, page: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Gone)) },
+        &mut f.out,
+    );
+    assert_eq!(f.chat.request(&f.client), Some((b"Kept ".as_slice(), false)));
+    assert_eq!(f.chat.next_deadline(), None);
+    f.chat.fire(Time::from_nanos(60_000_000_000), &mut f.out);
+    f.chat.told(Time::ZERO, &f.client, Told::Changed { handle: f.chat.document }, &mut f.out);
+    assert!(f.out.is_empty(), "a lasting end never restarts");
+}
+
+#[test]
+fn a_transient_request_end_retries_with_activitys_waits() {
+    let mut f = request_fixture(true);
+    let handle = request_read(&mut f.out, 0);
+    request_piece(&mut f, handle, 0, b"Kept ", Some(5));
+    request_read(&mut f.out, 5);
+    let mut now = Time::ZERO;
+    for (why, delay) in [(c::ReadNone::Busy, 1), (c::ReadNone::Unreachable, 2)] {
+        f.chat.told(
+            now,
+            &f.client,
+            Told::Page { handle, page: jig_client::Readout::Jig(c::ReadResult::None(why)) },
+            &mut f.out,
+        );
+        let due = now.saturating_add(Duration::from_secs(delay));
+        assert_eq!(f.chat.next_deadline(), Some(due));
+        assert_eq!(f.chat.request(&f.client), Some((b"Kept ".as_slice(), false)));
+        f.chat.fire(Time::from_nanos(due.as_nanos() - 1), &mut f.out);
+        assert!(f.out.is_empty());
+        f.chat.fire(due, &mut f.out);
+        assert_eq!(request_read(&mut f.out, 5), handle);
+        now = due;
+    }
+    request_piece(&mut f, handle, 5, b"whole!", None);
+    assert_eq!(f.chat.next_deadline(), None);
+    assert_eq!(f.chat.request(&f.client), Some((b"Kept whole!".as_slice(), true)));
+}
+
+#[test]
+fn a_request_rejects_pieces_that_do_not_follow() {
+    let good = c::TaskText {
+        task: f::TASK,
+        field: c::TaskTextField::Specification,
+        from: 5,
+        total: 11,
+        next: None,
+        text: fixtures::acts::text(b"whole!"),
+    };
+    for (rule, piece) in [
+        ("task", c::TaskText { task: f::TASK + 1, ..good.clone() }),
+        ("field", c::TaskText { field: c::TaskTextField::Instructions, ..good.clone() }),
+        ("overlap", c::TaskText { from: 4, total: 11, next: Some(10), ..good.clone() }),
+        ("gap", c::TaskText { from: 6, text: fixtures::acts::text(b"hole!"), ..good.clone() }),
+        ("changed total", c::TaskText { total: 12, next: Some(11), ..good.clone() }),
+        ("past total", c::TaskText { text: fixtures::acts::text(b"too long"), ..good.clone() }),
+        ("wrong next", c::TaskText { text: fixtures::acts::text(b"whole"), next: Some(9), ..good.clone() }),
+        ("no progress", c::TaskText { text: fixtures::acts::text(b""), next: Some(5), ..good.clone() }),
+        ("next at total", c::TaskText { next: Some(11), ..good.clone() }),
+        ("unfinished end", c::TaskText { text: fixtures::acts::text(b"whole"), ..good.clone() }),
+        ("overflow", c::TaskText { from: u64::MAX, ..good.clone() }),
+    ] {
+        let mut f = request_fixture(true);
+        let handle = request_read(&mut f.out, 0);
+        request_piece(&mut f, handle, 0, b"Kept ", Some(5));
+        request_read(&mut f.out, 5);
+        f.chat.told(
+            Time::ZERO,
+            &f.client,
+            Told::Page {
+                handle,
+                page: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::TaskText(Box::new(piece)))),
+            },
+            &mut f.out,
+        );
+        assert_eq!(f.chat.request(&f.client), Some((b"Kept ".as_slice(), false)), "{rule}");
+        assert_eq!(f.chat.next_deadline(), None, "{rule}");
+        request_piece(&mut f, handle, 5, b"whole!", None);
+        assert_eq!(f.chat.request(&f.client), Some((b"Kept ".as_slice(), false)), "{rule}: stopped");
+        assert!(f.out.is_empty(), "{rule}");
+    }
+}
+
+#[test]
+fn a_request_past_long_text_stops_before_keeping_a_piece() {
+    let mut f = request_fixture(true);
+    let handle = request_read(&mut f.out, 0);
+    f.chat.told(
+        Time::ZERO,
+        &f.client,
+        Told::Page {
+            handle,
+            page: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::TaskText(Box::new(c::TaskText {
+                task: f::TASK,
+                field: c::TaskTextField::Specification,
+                from: 0,
+                total: u64::from(fixtures::limits().client.domain.long_text) + 1,
+                next: Some(5),
+                text: fixtures::acts::text(b"Other"),
+            })))),
+        },
+        &mut f.out,
+    );
+    assert_eq!(f.chat.request(&f.client), Some((b"Kept".as_slice(), false)));
+    assert_eq!(f.chat.next_deadline(), None);
+    assert!(f.out.is_empty());
 }

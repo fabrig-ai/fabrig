@@ -30,6 +30,7 @@ use crate::{
     settings::revisions,
     *,
 };
+use jig_domain_link::{Form, Hello, Hosting, Phase, Scheme};
 use skein_lib::{Duration, Env, ReplyTo, Time, Token, Wall};
 
 #[test]
@@ -648,6 +649,20 @@ fn make_task_ended_by(core: &mut Core, limits: &Limits, number: u64, ended_by: t
 
 fn window() -> Window {
     Window { rows: 1, after: None }
+}
+
+#[test]
+fn a_frame_says_the_words_bound() {
+    // Distinct from the fixture's people.words of 64.
+    const WORDS_BYTES: u32 = 37;
+    let (core, mut limits) = core();
+    limits.people.words = WORDS_BYTES;
+    let Document::Frame(frame) =
+        make(&core, &limits, 1, &Subject::Frame { party: 1 }, &window(), Wall::EPOCH).expect("owner's frame")
+    else {
+        panic!("frame")
+    };
+    assert_eq!(frame.words_bytes, WORDS_BYTES);
 }
 
 #[test]
@@ -2081,17 +2096,13 @@ fn documents_deployment_keeps_lost_worker_attempts_and_translates_the_grace_cloc
         fleet::Event::Hello {
             worker: 0,
             channel: Token::new(10),
-            hello: fleet::Hello {
+            hello: Hello {
                 jobs: Box::default(),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::from_secs(1),
                 slots: 1,
                 workstreams: Box::new([]),
-                hosting: Box::new([fleet::Hosting {
-                    run: Token::new(2),
-                    attempt: Token::new(9),
-                    phase: fleet::Phase::Active,
-                }]),
+                hosting: Box::new([Hosting { run: Token::new(2), attempt: Token::new(9), phase: Phase::Active }]),
             },
         },
         &mut out,
@@ -2113,7 +2124,7 @@ fn documents_deployment_keeps_lost_worker_attempts_and_translates_the_grace_cloc
         fleet::Event::Hello {
             worker: 1,
             channel: Token::new(11),
-            hello: fleet::Hello {
+            hello: Hello {
                 jobs: Box::default(),
                 bounds: fixtures::bounds(),
                 stop_bound: Duration::ZERO,
@@ -2174,7 +2185,7 @@ fn documents_deployment_accounts_are_secret_free_and_show_unusable_state() {
         &mut core.accounts,
         &env,
         accounts::Event::Component(accounts::FromComponent::Granted {
-            form: accounts::Form::Credential(accounts::Scheme::Bearer),
+            form: Form::Credential(Scheme::Bearer),
             account: 1,
             generation: 1,
             valid: Duration::from_secs(60),

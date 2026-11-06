@@ -214,6 +214,10 @@ pub const PROJECTS_ACTS: Style = Style { owner: owner(), token: 191 };
 pub const PROJECTS_REPO: Style = Style { owner: owner(), token: 192 };
 /// The additional repository count.
 pub const PROJECTS_MORE: Style = Style { owner: owner(), token: 193 };
+/// A switcher row: the name and its small words.
+pub const PROJECTS_ROW: Style = Style { owner: owner(), token: 194 };
+/// A repository link in the look of its surrounding words.
+pub const REPOSITORY_LINK: Style = Style { owner: owner(), token: 195 };
 /// Home's home (client/README.md, 3.5).
 pub const HOME: Style = Style { owner: owner(), token: 200 };
 /// Home's intro (client/README.md, 3.5).
@@ -671,6 +675,14 @@ pub const WELCOME_ACTS: Style = Style { owner: owner(), token: 362 };
 pub const WELCOME_OK: Style = Style { owner: owner(), token: 363 };
 /// The separator between the forge's name and its status.
 pub const WELCOME_SEP: Style = Style { owner: owner(), token: 364 };
+/// The anonymous page's inset reading column (client/browser.md, 8.3).
+pub const PUBLIC_PAGE: Style = Style { owner: owner(), token: 518 };
+/// A public goal or delegate's separated title and facts (client/browser.md, 8.3).
+pub const PUBLIC_ROW: Style = Style { owner: owner(), token: 519 };
+/// A public row's identity link and wrapping title (client/browser.md, 8.3).
+pub const PUBLIC_TITLE: Style = Style { owner: owner(), token: 520 };
+/// A public row's wrapping executor, phase, duration, spend and priority (client/browser.md, 8.3).
+pub const PUBLIC_META: Style = Style { owner: owner(), token: 521 };
 /// The look's names (skein's ui.md, 8): styles by token, regions by number.
 pub const NAMES: Names<'static> = Names {
     owner: owner(),
@@ -870,8 +882,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-projects-acts",
         b"temper-projects-repo",
         b"temper-projects-more",
-        b"temper-reserved-194",
-        b"temper-reserved-195",
+        b"temper-projects-row",
+        b"temper-repository-link",
         b"temper-reserved-196",
         b"temper-reserved-197",
         b"temper-reserved-198",
@@ -1194,6 +1206,10 @@ pub const NAMES: Names<'static> = Names {
         b"temper-reserved-515",
         b"temper-welcome-status-why",
         b"temper-welcome-status-acts",
+        b"temper-public-page",
+        b"temper-public-row",
+        b"temper-public-title",
+        b"temper-public-meta",
     ],
     regions: &[b"temper-link"],
 };

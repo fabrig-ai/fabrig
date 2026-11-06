@@ -200,8 +200,8 @@ impl Hooked {
             None => None,
         };
         self.json = Tokenizer::new(&limits::hook_documents(&env.limits).json);
-        if let Some(decoder) = &decoder {
-            self.json_request(env, decode::first(decoder));
+        if decoder.is_some() {
+            self.json_request(env, json::Request::Next);
         } else {
             self.read(env);
         }

@@ -1,7 +1,8 @@
 //! A worker's account notices, and the account a failed run turned on,
 //! reach the parent from the worker hosting the attempt, and from no other.
 
-use jig_domain_fleet::{self as fleet, Answer, Domain, Event, Hello, Kinds, Limits, Request, Turned};
+use jig_domain_fleet::{self as fleet, Answer, Domain, Event, Kinds, Limits, Request, Turned};
+use jig_domain_link::Hello;
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 
 const LIMITS: Limits = Limits { workers: 2, engine_slots: 0, ..jig_fleet_world::LIMITS };

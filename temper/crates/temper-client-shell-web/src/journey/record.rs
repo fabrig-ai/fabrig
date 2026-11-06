@@ -61,10 +61,7 @@ impl Recorder {
                     assert!(asked(&duties).is_empty(), "an act with no event unexpectedly has duties");
                     return duties;
                 };
-                if !matches!(act, Act::Input { .. }) {
-                    self.mark(page);
-                }
-                self.keep(&Line::Act { act: clone_act(act), event, name: super::name(host.tree(), *node) });
+                self.act(page, act, event, super::name(host.tree(), *node));
             }
             Report::Carried { reports, writes } => {
                 self.keep(&Line::Carried { writes: *writes });
@@ -114,6 +111,12 @@ impl Recorder {
             self.kept = true;
         }
         line.write(&mut self.file);
+    }
+    pub(super) fn act(&mut self, page: &Page<'_>, act: &Act, event: Box<[u8]>, name: Box<[u8]>) {
+        if !matches!(act, Act::Input { .. } | Act::Near { .. }) {
+            self.mark(page);
+        }
+        self.keep(&Line::Act { act: clone_act(act), event, name });
     }
 }
 pub(super) fn asked(duties: &Duties) -> Vec<Line> {

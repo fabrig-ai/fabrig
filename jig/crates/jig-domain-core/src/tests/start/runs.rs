@@ -8,6 +8,7 @@ use crate::{
     },
 };
 use core::panic::AssertUnwindSafe;
+use jig_domain_link::{Form, Scheme};
 use skein_lib::Token;
 use std::panic::catch_unwind;
 
@@ -178,7 +179,7 @@ fn due_agent_preparation_waits_until_open() {
         &mut core,
         &env,
         Event::Account(crate::accounts::Event::Component(crate::accounts::FromComponent::Granted {
-            form: crate::accounts::Form::Credential(crate::accounts::Scheme::Bearer),
+            form: Form::Credential(Scheme::Bearer),
             account: 1,
             generation: 1,
             valid: skein_lib::Duration::from_secs(60),

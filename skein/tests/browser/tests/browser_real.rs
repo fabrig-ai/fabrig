@@ -194,3 +194,11 @@ fn chromium_finds_and_presses_the_page_beside_its_loading_tab() {
     rig.beside_page();
     rig.run();
 }
+
+#[test]
+fn chromium_applies_each_requested_viewport_to_layout() {
+    let profile = Profile::fresh();
+    let mut rig = Rig::new(&chromium(), &profile.0, Scenario::Viewport);
+    rig.fixed_page(b"<!doctype html><style>body{margin:0}h1{width:100vw;margin:0}</style><h1>Viewport</h1>".to_vec());
+    rig.run();
+}

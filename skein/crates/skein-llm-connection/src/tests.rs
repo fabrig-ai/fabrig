@@ -61,7 +61,7 @@ pub(crate) fn credential() -> Credential {
 fn unknown_endpoint_is_refused() {
     let limits = limits();
     let mut component = Component::new(List::with_capacity(1), &limits).expect("empty configuration fits");
-    assert_eq!(component.admit(Token::new(7), 0, prompt(), Some(credential())).err(), Some(Refusal::Endpoint));
+    assert_eq!(component.admit(Token::new(7), 0, prompt(), Some(credential()), false).err(), Some(Refusal::Endpoint));
 }
 
 #[test]
@@ -73,13 +73,13 @@ fn invalid_and_oversized_requests_are_refused() {
     let mut invalid = prompt();
     invalid.model = Box::new([]);
     assert_eq!(
-        component.admit(Token::new(7), 0, invalid, Some(credential())).err(),
+        component.admit(Token::new(7), 0, invalid, Some(credential()), false).err(),
         Some(Refusal::Client(skein_llm::Error::Invalid))
     );
     let mut oversized = prompt();
     oversized.instructions = Box::new([b'x'; 9000]);
     assert_eq!(
-        component.admit(Token::new(7), 0, oversized, Some(credential())).err(),
+        component.admit(Token::new(7), 0, oversized, Some(credential()), false).err(),
         Some(Refusal::Client(skein_llm::Error::Limit {
             which: skein_llm::Cap::Request,
             bound: u64::from(client_limits().request)
@@ -619,13 +619,13 @@ fn the_measured_head_accepts_a_credential_at_its_bound_and_refuses_one_byte_more
     at_bound.value = Box::new([b'x'; 2048]);
     drop(
         component
-            .admit(Token::new(7), 0, prompt(), Some(at_bound))
+            .admit(Token::new(7), 0, prompt(), Some(at_bound), false)
             .expect("the measured head holds the declared credential"),
     );
     let mut too_long = credential();
     too_long.value = Box::new([b'x'; 2049]);
     assert_eq!(
-        component.admit(Token::new(8), 0, prompt(), Some(too_long)).err(),
+        component.admit(Token::new(8), 0, prompt(), Some(too_long), false).err(),
         Some(Refusal::Client(skein_llm::Error::Limit { which: skein_llm::Cap::Value, bound: 2048 }))
     );
 }
@@ -823,7 +823,7 @@ fn a_value_past_its_bound_is_refused_by_name() {
     let mut value = credential();
     value.value = Box::new([b'x'; VALUE_BYTES + 1]);
     assert_eq!(
-        component.admit(Token::new(7), 0, prompt(), Some(value)).err(),
+        component.admit(Token::new(7), 0, prompt(), Some(value), false).err(),
         Some(Refusal::Client(skein_llm::Error::Limit { which: skein_llm::Cap::Value, bound: 2048 }))
     );
 }
@@ -838,7 +838,7 @@ fn a_key_at_its_bound_fits_the_anthropic_measured_head() {
     endpoints.push(destination).expect("one endpoint fits");
     let mut component = Component::new(endpoints, &config).expect("measured endpoint");
     let value = Credential::key(Box::new([b'x'; VALUE_BYTES]));
-    assert_eq!(component.admit(Token::new(7), 0, prompt(), Some(value)).err(), None);
+    assert_eq!(component.admit(Token::new(7), 0, prompt(), Some(value), false).err(), None);
 }
 
 #[test]
@@ -882,7 +882,7 @@ fn measured_admission_keeps_each_providers_lengths_and_refusals() {
                     input.instructions = Box::new([b'x'; 9000]);
                 }
                 let expected = skein_llm::client::measure(&input, Some(&value), &wire, &bounds);
-                let actual = pool.admit_policy(Token::new(7), 0, input, Some(value), Some(enabled));
+                let actual = pool.admit(Token::new(7), 0, input, Some(value), enabled);
                 match expected {
                     Ok(measured) => assert_eq!(actual.unwrap().measured(), measured),
                     Err(error) => assert_eq!(actual.err(), Some(Refusal::Client(error))),
@@ -997,7 +997,7 @@ fn an_owner_that_asks_takes_each_call_s_body() {
         if keep {
             pool.keep_bodies();
         }
-        let mut immediate = pool.admit(Token::new(7), 0, prompt(), Some(credential())).unwrap();
+        let mut immediate = pool.admit(Token::new(7), 0, prompt(), Some(credential()), false).unwrap();
         assert!(immediate.take_kept_body().is_none(), "the connection takes the copy");
         let mut up = Queue::uncapped();
         let mut io = Queue::uncapped();

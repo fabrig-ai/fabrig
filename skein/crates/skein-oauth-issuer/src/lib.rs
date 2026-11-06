@@ -27,10 +27,12 @@ pub struct Settings {
     /// PKCS#8 `PrivateKeyInfo` DER, RSA of 2048 to 4096 bits.
     pub key: Secret,
 }
+/// A client registration (skein/docs/design/oauth-issuer.md, 2).
 #[derive(Debug)]
 pub struct Client {
     pub id: Box<[u8]>,
-    pub secret: Secret,
+    /// None for a public client.
+    pub secret: Option<Secret>,
     pub redirect_uri: Box<[u8]>,
 }
 #[derive(Debug)]

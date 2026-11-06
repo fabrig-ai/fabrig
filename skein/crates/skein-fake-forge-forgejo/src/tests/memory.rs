@@ -97,7 +97,7 @@ mod tests {
         meter.start();
         let mut decoder = git::client::decoder(git::Name::Objects, 200, Time::ZERO, &limits);
         let mut feed = json::Feed::new(&body, &limits.documents.json);
-        let mut request = git::client::first(&decoder);
+        let mut request = json::Request::Next;
         let answer = loop {
             match git::client::step(&mut decoder, &limits, &feed.answer(request)) {
                 git::client::Step::Demand(next) => request = next,

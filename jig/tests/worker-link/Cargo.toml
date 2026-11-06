@@ -15,6 +15,7 @@ doctest = false
 skein-lib.workspace = true
 jig-domain-host.workspace = true
 skein-codec.workspace = true
+jig-domain-link.workspace = true
 jig-protocol-worker-link.workspace = true
 jig-protocol-worker-wire.workspace = true
 skein-channel.workspace = true

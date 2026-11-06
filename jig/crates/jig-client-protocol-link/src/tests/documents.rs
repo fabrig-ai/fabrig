@@ -124,7 +124,7 @@ fn document_decodes_borrow_the_kept_bounds() {
         assert_eq!(bounds.specification_words, long_text.min(w::CEILINGS.specification_words));
         assert_eq!(bounds.edit_note_body, long_text.min(w::CEILINGS.edit_note_body));
         assert_eq!(bounds.call_input, limits.client().text);
-        assert_eq!(bounds.message_words, limits.client().text);
+        assert_eq!(bounds.message_words, long_text.min(w::CEILINGS.message_words));
         let len = 512.max(long_text.min(w::CEILINGS.document_text_bytes));
         let mut bytes = skein_lib::List::with_capacity(len);
         for _ in 0..len {
@@ -426,7 +426,7 @@ fn receiving_inventory_bounds_keep_their_schema_ceilings() {
     let client = jig_client_domain::Limits {
         rows: 32,
         text: 8192,
-        long_text: 8192,
+        long_text: 262_144,
         turn_text: 8192,
         turn_bytes: 8192,
         document_bytes: u64::from(w::CEILINGS.owned_record),
@@ -434,6 +434,10 @@ fn receiving_inventory_bounds_keep_their_schema_ceilings() {
         ..*base.client()
     };
     let limits = Limits::new(client, base.exchanges()).unwrap();
+    assert_eq!(limits.wire().word_words, 262_144);
+    assert_eq!(limits.wire().activity_words_words, 262_144);
+    assert_eq!(limits.wire().message_words, 65_536);
+    assert_eq!(limits.wire().answer_question_words, 65_536);
     assert_eq!(limits.wire().create_tasks, 1_048_576);
     assert_eq!(limits.wire().charter_instructions, 1_114_240);
     assert_eq!(limits.wire().propose_settings_items, 1_114_240);

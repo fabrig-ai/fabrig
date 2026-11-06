@@ -73,12 +73,14 @@ fn intro(b: &mut Builder, root: &Domain, words: &Words, project: u32) {
             Word::GoalsMany
         };
         let holes = [Hole::Number(u64::from(count)), Hole::Number(u64::from(underway))];
-        text(
-            b,
-            Role::Heading { level: 1 },
-            look::GOALS_HEADLINE,
-            &words.say(word, if word == Word::GoalsNone { &[] } else { &holes }),
-        );
+        if word != Word::GoalsNone || page.known(root.client()) {
+            text(
+                b,
+                Role::Heading { level: 1 },
+                look::GOALS_HEADLINE,
+                &words.say(word, if word == Word::GoalsNone { &[] } else { &holes }),
+            );
+        }
     }
     b.open(Role::Paragraph);
     b.style(look::GOALS_LEDE);
@@ -166,7 +168,7 @@ fn list(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings, 
         }
         if any {
             b.close();
-        } else {
+        } else if page.known(root.client()) {
             text(b, Role::Paragraph, look::GOALS_EMPTY, &words.say(Word::GoalsEmpty, &[]));
         }
         if page.more() {

@@ -87,3 +87,14 @@ The before-and-after medians with their load, the steps that went and what prove
 3. **If it's something else,** repair it in the lowest tier that shows it, when the repair is small: a few files, named in your report as a small edit outside the list. A cause in this task's own harness steps is yours too. If the repair is a new mechanism or reaches past that, push what you have and report `Question:` with what you observed. Don't paper over it in the story, by retries, a sleep or a longer deadline.
 4. **Latest's *before* arm** is `figures/story-baseline.md`'s three passing runs, median 12.480270 CPU s and 5.329647 wall s. Don't run the two missing repetitions. Keep your failed baseline run in the table: a second tab's story that fails on the base is a finding for your report, not yours to repair, as that tab goes.
 5. **The rest of acceptance stands:** three *after* runs of each story, the long story's split, and the status entry's removal. In `temper/docs/design/client/browser.status.md`, 4.3, the `browser_public` red's "no cause observed" may say what you saw, as a reading of that story: it isn't run here, so don't call it repaired.
+
+## Rebase (2026-11-06, step merge, foreman browser-budget/history-ctl/foreman-2)
+
+reconcile the browser status conflict, preserving the history-gap removal and incoming status updates
+The merge failed only in `temper/docs/design/client/browser.status.md`.
+Commit `cbd6dfa1d1` removes the three-line `**Not yet:** 4.3, *A chat's history*` entry.
+Integration commit `a62f83207a` retains that entry beside main's new `**Not yet:** 8.4` public-row geometry entry, causing the conflict.
+Resolve by keeping the history entry removed and retaining the incoming 8.4 entry.
+Preserve integration's other status updates, including the seventeen-test count, earlier chat-reading measurements, and corrected reading references.
+Keep the successful automatic merge of `temper/tests/client-browser/src/lib.rs`, including the incoming port-reservation change and this task's history helpers.
+No test failure is reported by this refusal.

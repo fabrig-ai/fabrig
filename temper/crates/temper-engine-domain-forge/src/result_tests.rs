@@ -179,3 +179,22 @@ fn a_green_head_with_no_repair_records_no_repair_words() {
     result.ci_passed(&HEAD, BOUND);
     assert_eq!(result, ChangeResult::empty());
 }
+
+// temper/docs/design/domain/agent.md, 4.4: the producer's whole report and checks fit.
+#[test]
+fn a_report_at_the_bodys_bound_is_kept_whole_at_the_stocks_result_bound() {
+    const ROOM: u32 = 10_660;
+    let report = [b'r'; 3584];
+    let mut result = ChangeResult::empty();
+    result.checked(HEAD, &[check(b"build", Check::Passed)], ROOM);
+    let evidence = result.words(&HEAD, ROOM).fitted(ROOM).unwrap();
+    let words = result.reported(&report, &HEAD, ROOM).fitted(ROOM).unwrap();
+    let mut expected = Writer::new(b"Report:\n".len() + report.len() + 1 + evidence.len());
+    expected.put(b"Report:\n").unwrap();
+    expected.put(&report).unwrap();
+    expected.put(b"\n").unwrap();
+    expected.put(&evidence).unwrap();
+    assert_eq!(words, expected.finish());
+    assert!(skein_lib::bytes::find(&words, b"build passed").is_some());
+    assert!(skein_lib::bytes::find(&words, b"bytes cut]").is_none());
+}

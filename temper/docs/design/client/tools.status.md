@@ -3,6 +3,12 @@
 2026-11-06. Remaining gaps between temper's code and [tools.md](tools.md).
 Unlisted sections have no known gap.
 
+- **Not yet:** 6.3: the deadline's lines: `temper-client-shell-cli`'s
+  `host.rs`, `link_progress`, says `the engine at ADDRESS did not answer
+  within 30 s` whatever is outstanding, and adds nothing of an act.
+- **Not yet:** 8.2, 12: a retry's span: `temper-client-tools`' `limits.rs`
+  doubles a request's and a watch's to 30 s, so a call can sleep past its
+  deadline with nothing in flight. 6.3: the lines naming a retry's why.
 - **Not yet:** 5.2: `task show`'s text says `deployment show` for a host's wait
   (`temper-client-tools`' `render/document/llm.rs`, `wait_explanation`), and ctl has
   no such tool until area 3's is built (5.5), so that line names a command that
@@ -44,7 +50,7 @@ Unlisted sections have no known gap.
   the real loop's connected Forgejo, its tokens connect, a replace of
   its git token and another user's tokens stopped.
 - **Departs:** 5.1: `project` is area 1's (`jig/rows.rs`
-  `PROJECT_SHOW`, `PROJECT_FUND`), not area 3's; the placeholders add
+  `PROJECT_SHOW`, `PROJECT_FUND`, `PROJECT_MAKE`), not area 3's; the placeholders add
   `HOST:PORT` and `URL`. 5.2: `settings show template|policy` takes
   `--revision` too; `landing show` takes `TASK [--project PROJECT]`, not
   `LANDING`; `landing list` takes no `--newer-than` or `--after`, and

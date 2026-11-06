@@ -1620,7 +1620,11 @@ fn a_review_at_a_head_whose_ci_fails_is_cancelled_and_the_repair_is_funded() {
         panic!("review was not cancelled: {:?}", live_task(&world, first_review.task).phase);
     };
     let tasks::Ending::Cancelled { reason, .. } = &closing.ending else { panic!("cancelled review") };
-    assert!(reason.windows(b"CI failed at head".len()).any(|part| part == b"CI failed at head"));
+    let mut digits = String::new();
+    for byte in &translate::commit(first_head)[..20] {
+        write!(&mut digits, "{byte:02x}").expect("head digits");
+    }
+    assert_eq!(reason.as_ref(), format!("CI failed at head {digits}").as_bytes());
     // The worker drains only now. Even a racing approval is discarded on this failed head.
     let event = world.protocol.answer(
         CHANNEL,

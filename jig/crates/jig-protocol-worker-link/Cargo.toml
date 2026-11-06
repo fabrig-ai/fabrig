@@ -13,6 +13,7 @@ skein-channel.workspace = true
 skein-codec.workspace = true
 jig-protocol-worker-wire.workspace = true
 jig-domain-host.workspace = true
+jig-domain-link.workspace = true
 
 [lints]
 workspace = true

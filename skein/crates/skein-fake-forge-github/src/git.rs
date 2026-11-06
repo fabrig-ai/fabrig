@@ -261,7 +261,7 @@ pub(crate) fn limits(limits: &Limits) -> git::Limits {
 fn decode(name: Name, body: &[u8], limits: &git::Limits) -> Option<Call> {
     let mut decoder = git::server::decoder(name, limits);
     let mut feed = json::Feed::new(body, &limits.documents.json);
-    let mut request = git::server::body_first(&decoder);
+    let mut request = json::Request::Next;
     // An answer but the last reads at least a byte.
     for _answer in 0..=body.len() {
         match git::server::body(&mut decoder, limits, &feed.answer(request)) {

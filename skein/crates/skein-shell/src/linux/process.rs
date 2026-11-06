@@ -15,13 +15,13 @@
 )]
 
 use crate::posix::process::{action, cpu, cstring};
-pub(crate) use crate::posix::process::{block_sigpipe, map_error, signal_number};
+pub(crate) use crate::posix::process::{block_sigpipe, map_error, signal_number, usage};
 use std::ffi::CString;
 use std::mem::MaybeUninit;
 use std::os::fd::{AsRawFd, FromRawFd, IntoRawFd, OwnedFd};
 use std::ptr;
 
-use skein_io::kernel::{Done, Error, Fd, Resources, Signal, Spawn, Target, Usage, Way};
+use skein_io::kernel::{Done, Error, Fd, Resources, Signal, Spawn, Target, Way};
 
 unsafe extern "C" {
     fn pidfd_getpid(pidfd: libc::c_int) -> libc::pid_t;
@@ -63,14 +63,6 @@ pub(crate) fn exec_dying_with_parent(
         return std::io::Error::new(std::io::ErrorKind::NotFound, "parent changed before exec");
     }
     command.exec()
-}
-
-/// Blocks SIGINT and SIGTERM on the service thread and opens the signalfd
-/// that io adopts (shell.md, section 6; io.md, section 7). The caller owns
-/// the returned descriptor until io adopts it. Call before opening the ring
-/// and before starting other threads.
-pub(crate) fn open_termination_signals() -> Result<Fd, i32> {
-    open_signals(crate::Watch::Termination)
 }
 
 pub(crate) fn open_signals(watch: crate::Watch) -> Result<Fd, i32> {
@@ -484,12 +476,7 @@ pub(crate) fn abandon_binary(pidfd: Option<Fd>, descriptors: &[Fd]) {
     }
 }
 
-/// Reads the process and its reaped children at one submission (kernel.md, section 6.3).
-pub(crate) fn usage() -> Result<Usage, Error> {
-    Ok(Usage { own: resources(libc::RUSAGE_SELF)?, children: resources(libc::RUSAGE_CHILDREN)? })
-}
-
-fn resources(who: i32) -> Result<Resources, Error> {
+pub(crate) fn resources(who: i32) -> Result<Resources, Error> {
     // SAFETY: rusage is a C output record initialized before its fields are read.
     let mut value: libc::rusage = unsafe { std::mem::zeroed() };
     // SAFETY: value is writable for the duration of this synchronous call.
