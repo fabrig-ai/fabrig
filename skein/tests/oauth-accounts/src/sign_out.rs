@@ -239,9 +239,6 @@ pub fn protocol(seed: u64, story: Story) -> (Vec<world::Fact>, Vec<String>) {
 pub fn facts(processes: &[world::Process]) -> &[world::Fact] {
     processes
         .iter()
-        .find_map(|process| match process {
-            world::Process::Client(client) => Some(client.sign_out.as_ref().expect("story").facts.as_slice()),
-            world::Process::Issuer(_) => None,
-        })
+        .find_map(|process| process.client().map(|client| client.sign_out.as_ref().expect("story").facts.as_slice()))
         .expect("client")
 }
