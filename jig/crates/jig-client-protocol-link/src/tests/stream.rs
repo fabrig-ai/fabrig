@@ -350,3 +350,53 @@ fn a_full_stream_tells_the_bound_and_drops_its_watches_without_signing_out() {
     assert_eq!(harness.ended(fixtures::WATCH), Some(c::WatchEnd::Dropped));
     assert!(!harness.has(&Request::Signing { signing: Signing::SignedOut }));
 }
+
+fn run_delivery(bytes: &[u8]) -> w::RunText {
+    let mut parts = fixtures::text_record().into_parts();
+    parts.from = 0;
+    parts.through = u32::try_from(bytes.len()).unwrap();
+    parts.text = Box::from(bytes);
+    w::RunText::new(&w::CEILINGS, parts).unwrap()
+}
+
+#[test]
+fn a_delivery_past_a_fields_text_is_received_within_long_text() {
+    for long_text in [64, w::CEILINGS.run_text_text + 1] {
+        let base = fixtures::limits();
+        let client = jig_client_domain::Limits {
+            long_text,
+            document_bytes: u64::from(w::CEILINGS.owned_record),
+            ..*base.client()
+        };
+        let limits = Limits::new(client, base.exchanges()).unwrap();
+        let length = long_text.min(w::CEILINGS.run_text_text);
+        let mut bytes = skein_lib::bytes::zeroed(usize::try_from(length).unwrap());
+        bytes.fill(b'x');
+        let mut harness = fixtures::Harness::new(&limits);
+        harness.open(fixtures::WATCH, fixtures::frame_subject());
+        harness.stream_record(&fixtures::hello_event(fixtures::HEARTBEAT));
+        let (_, name) = harness.opening();
+        let event = w::StreamEvent::Text(
+            w::StreamText::new(&w::CEILINGS, w::StreamTextParts { watch: name, value: run_delivery(&bytes) }).unwrap(),
+        );
+        harness.stream_record(&fixtures::event_bytes(&event));
+        let Some(c::Delivery::Run(value)) = harness.delivered() else {
+            panic!("run delivery within long_text");
+        };
+        assert_eq!(value.text.bytes(), bytes.as_ref());
+        assert_eq!(limits.receiving().run_text_text, length);
+        assert_eq!(limits.receiving().current_call_input, client.text);
+        assert_eq!(limits.receiving().call_input, client.text);
+    }
+}
+
+#[test]
+fn a_delivery_past_long_text_is_refused() {
+    let base = fixtures::limits();
+    let client = jig_client_domain::Limits { long_text: 64, ..*base.client() };
+    let limits = Limits::new(client, base.exchanges()).unwrap();
+    assert_eq!(translate::live::run_text(run_delivery(&[b'x'; 65]), &limits), Err(Undecodable::TooLarge));
+    let mut parts = fixtures::text_record().into_parts();
+    parts.text = skein_lib::bytes::zeroed(usize::try_from(w::CEILINGS.run_text_text + 1).unwrap());
+    assert_eq!(w::RunText::new(&w::CEILINGS, parts).unwrap_err().path, w::Path::RunTextText);
+}
