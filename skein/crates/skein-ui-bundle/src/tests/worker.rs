@@ -23,31 +23,25 @@ fn a_worker_is_bundled_beside_the_page() {
     let plain_digest = bundle(&inputs, &glue(), &plain).expect("page bundle");
     let digest = bundle_with(&inputs, &glue(), Some(&worker), &out).expect("worker bundle");
     let files = contents(&out.join(digest.to_string()));
-    assert_eq!(
-        files.keys().map(String::as_str).collect::<Vec<_>>(),
-        [
-            "a.css",
-            "boot-worker.js",
-            "boot.js",
-            "files/about.txt",
-            "notes.js",
-            "notes_bg.wasm",
-            "pictures/notes/icon.svg",
-            "skein-ui.css",
-            "snippets/notes/grow.js",
-            "snippets/world/grow.js",
-            "world.js",
-            "world_bg.wasm",
-        ]
-    );
     let mut expected = contents(&plain.join(plain_digest.to_string()));
+    expected.retain(|name, _| Path::new(name).extension() != Some(std::ffi::OsStr::new("gz")));
     expected.insert(WORKER_STARTER.into(), b"import init from \"./world.js\";\ninit();\n".to_vec());
     expected.insert("world.js".into(), worker.glue.js);
     expected.insert("world_bg.wasm".into(), worker.glue.wasm);
     for (path, bytes) in worker.glue.snippets {
         expected.insert(format!("snippets/{path}"), bytes);
     }
-    assert_eq!(files, expected);
+    for (name, bytes) in &expected {
+        assert_eq!(files.get(name), Some(bytes), "{name}");
+        if crate::types::gzipped(Path::new(name)) {
+            use std::io::Read;
+            let compressed = files.get(&format!("{name}.gz")).expect("worker form");
+            let mut decoded = Vec::new();
+            flate2::read::GzDecoder::new(compressed.as_slice()).read_to_end(&mut decoded).expect("worker gzip");
+            assert_eq!(&decoded, bytes, "{name}");
+        }
+    }
+    assert_eq!(files.len(), 23);
     let plain_page = fs::read_to_string(plain.join("index.html")).expect("plain page");
     let page = fs::read_to_string(out.join("index.html")).expect("worker page");
     let plain_directory = format!("{}{plain_digest}/", inputs.prefix);

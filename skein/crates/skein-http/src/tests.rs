@@ -45,6 +45,50 @@ fn call(method: Method, body: Body) -> Call {
     Call { method, target: boxed(b"/"), headers: Box::new([header(b"Host", b"example.com")]), body, close: false }
 }
 
+#[test]
+fn a_request_takes_gzip_by_its_accept_encoding() {
+    for (values, expected) in [
+        ([].as_slice(), false),
+        ([""].as_slice(), false),
+        (["identity"].as_slice(), false),
+        (["br"].as_slice(), false),
+        (["gzipped"].as_slice(), false),
+        (["gzip;q=0"].as_slice(), false),
+        (["gzip;q=0.000"].as_slice(), false),
+        (["gzip;q=x"].as_slice(), false),
+        (["*;q=0"].as_slice(), false),
+        (["gzip;q=0, *"].as_slice(), false),
+        (["gzip"].as_slice(), true),
+        (["GZIP"].as_slice(), true),
+        (["x-gzip"].as_slice(), true),
+        (["gzip, deflate, br"].as_slice(), true),
+        (["deflate, gzip;q=0.5"].as_slice(), true),
+        (["*"].as_slice(), true),
+        (["br;q=1, *;q=0.1"].as_slice(), true),
+        (["br", "gzip"].as_slice(), true),
+        (["*", "x-gzip;q=0"].as_slice(), false),
+        ([" GzIp ; Q=0.001 "].as_slice(), true),
+        (["gzip;q=1.001"].as_slice(), false),
+        (["gzip;q=-1"].as_slice(), false),
+        (["gzip;q=0.0001"].as_slice(), false),
+        (["gzip;wat=1"].as_slice(), false),
+        (["gzip", "br;q=x"].as_slice(), false),
+    ] {
+        let mut headers = Vec::new();
+        for value in values {
+            headers.push(header(b"aCcEpT-EnCoDiNg", value.as_bytes()));
+        }
+        let request = crate::server::Call {
+            method: Method::Get,
+            target: boxed(b"/"),
+            version: crate::Version::Http11,
+            headers: headers.into_boxed_slice(),
+            body: crate::server::Body::None,
+        };
+        assert_eq!(request.accepts_gzip(), expected, "{values:?}");
+    }
+}
+
 fn get() -> Call {
     call(Method::Get, Body::None)
 }

@@ -14,6 +14,7 @@ fn inputs(scratch: &Scratch) -> Inputs {
     fs::write(path.join("files/about.txt"), b"About").expect("file");
     fs::write(path.join("a.css"), b"body { color: navy; }").expect("stylesheet");
     Inputs {
+        gzip: true,
         name: "notes".into(),
         prefix: "/static/".into(),
         stylesheets: vec![path.join("a.css")],
@@ -78,7 +79,7 @@ fn the_same_inputs_give_the_same_bundle() {
     assert_eq!(first, second);
     let files = contents(&a);
     assert_eq!(files, contents(&b));
-    assert_eq!(files.len(), 9);
+    assert_eq!(files.len(), 16);
     assert_eq!(files.get(&format!("{first}/files/about.txt")), Some(&b"About".to_vec()));
 }
 
@@ -88,6 +89,12 @@ fn the_page_matches_its_golden() {
     let inputs = inputs(&scratch);
     let out = scratch.path().join("out");
     bundle(&inputs, &glue(), &out).expect("bundle");
+    // Regenerate with SKEIN_UPDATE_GOLDENS=1 and this test alone.
+    if std::env::var_os("SKEIN_UPDATE_GOLDENS").is_some() {
+        fs::copy(out.join("index.html"), Path::new(env!("CARGO_MANIFEST_DIR")).join("src/tests/golden/index.html"))
+            .expect("regenerate page golden");
+        return;
+    }
     assert_eq!(fs::read(out.join("index.html")).expect("page"), include_bytes!("tests/golden/index.html"));
 }
 
@@ -231,4 +238,82 @@ fn the_stylesheet_sets_a_progress_for_every_whole_percent() {
         assert!(stylesheet.lines().any(|line| line == rule), "missing rule: {rule}");
     }
     assert_eq!(stylesheet.matches("[data-progress=").count(), 101);
+}
+
+#[test]
+fn the_bundler_writes_a_compressed_form_beside_each_text() {
+    use std::io::Read;
+    let scratch = Scratch::new("bundle-gzip-types");
+    let inputs = inputs(&scratch);
+    let out = scratch.path().join("out");
+    bundle(&inputs, &glue(), &out).expect("bundle");
+    let files = contents(&out);
+    for (name, plain) in &files {
+        if ["wasm", "js", "css", "svg"]
+            .contains(&Path::new(name).extension().and_then(|ext| ext.to_str()).unwrap_or(""))
+        {
+            let compressed = files.get(&format!("{name}.gz")).expect("compressed form");
+            let mut decoded = Vec::new();
+            flate2::read::GzDecoder::new(compressed.as_slice()).read_to_end(&mut decoded).expect("gzip member");
+            assert_eq!(&decoded, plain, "{name}");
+        } else {
+            assert!(!files.contains_key(&format!("{name}.gz")), "no form for {name}");
+        }
+    }
+}
+
+#[test]
+fn a_compressed_form_is_the_same_bytes_each_time() {
+    let scratch = Scratch::new("bundle-gzip-stable");
+    let inputs = inputs(&scratch);
+    let a = scratch.path().join("a");
+    let b = scratch.path().join("b");
+    let digest = bundle(&inputs, &glue(), &a).expect("first");
+    bundle(&inputs, &glue(), &b).expect("second");
+    assert_eq!(contents(&a), contents(&b));
+    let compressed = fs::read(a.join(digest.to_string()).join("notes.js.gz")).expect("compressed form");
+    assert_eq!(&compressed[4..8], &[0; 4], "no time");
+    assert_eq!(compressed[3], 0, "no filename or optional fields");
+}
+
+#[test]
+fn the_digest_covers_the_compressed_forms() {
+    let scratch = Scratch::new("bundle-gzip-digest");
+    let mut inputs = inputs(&scratch);
+    let out = scratch.path().join("out");
+    let compressed = bundle(&inputs, &glue(), &out).expect("gzip bundle");
+    inputs.gzip = false;
+    assert_ne!(compressed, bundle(&inputs, &glue(), &out).expect("plain bundle"));
+}
+
+#[test]
+fn a_gz_input_refuses_the_bundle() {
+    for source in ["stylesheet", "files", "pictures"] {
+        let scratch = Scratch::new("bundle-gzip-input");
+        let mut inputs = inputs(&scratch);
+        let path = match source {
+            "stylesheet" => {
+                let path = scratch.path().join("extra.css.gz");
+                inputs.stylesheets.push(path.clone());
+                path
+            }
+            "files" => scratch.path().join("files/extra.js.gz"),
+            "pictures" => scratch.path().join("pictures/extra.svg.gz"),
+            _ => unreachable!(),
+        };
+        fs::write(&path, b"already compressed").expect("input");
+        assert_eq!(bundle(&inputs, &glue(), &scratch.path().join("out")), Err(Refusal::Type { file: path }));
+    }
+}
+
+#[test]
+fn gzip_off_writes_the_plain_files_alone() {
+    let scratch = Scratch::new("bundle-gzip-off");
+    let mut inputs = inputs(&scratch);
+    inputs.gzip = false;
+    let out = scratch.path().join("out");
+    bundle(&inputs, &glue(), &out).expect("plain bundle");
+    let files = contents(&out);
+    assert_eq!(files.len(), 9);
+    assert!(files.keys().all(|name| Path::new(name).extension() != Some(std::ffi::OsStr::new("gz"))));
 }

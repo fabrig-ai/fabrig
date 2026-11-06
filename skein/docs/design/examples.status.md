@@ -2,7 +2,6 @@
 
 2026-11-06. Where skein's code lags or departs from [examples.md](examples.md).
 
-- **Not yet:** 9.3: each file in the form the request takes.
 - **Not yet:** 9.3: a placeholder.
 - **Not yet:** 6: the echo's referee reads the echo's address from its
   state (`tests/echo/src/referee.rs`), not from its startup fact; the
