@@ -675,9 +675,15 @@ served is held, kept and unsent, for its owner's version (client.md,
     retaining every phase and held count;
   - *an inbox:* the party's entries, each naming its object and its
     project, in its groups, within a window, with the party's read
-    positions: one over results, one per conversation over its turns;
+    positions: one over results, one per conversation over its turns. An
+    entry's `projects` is empty but on a proposal of settings: there, its
+    proposal's `projects`, or, for one of the deployment's, each project the
+    party owns, at most 32, the lowest numbers first
+    (`../../domain/engine.md`, 17.6). `shows_in(project)` holds where `project` or
+    `projects` names it; the `inbox` read's project filter is the same rule;
   - *a proposal, an escalation, a question, a person task, a result:* each
-    object whole, with the acts the party may make on it and what each
+    object whole, a proposal of settings naming its `projects`, empty for one of
+    the deployment's (`../../domain/engine.md`, 17.6), with the acts the party may make on it and what each
     would do; a question's words within the document's text bound, cut
     at a character's boundary and saying so (5.3), their whole in the
     asking task's activity, where the turn that asked has it all, so a

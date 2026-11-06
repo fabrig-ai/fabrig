@@ -516,6 +516,7 @@ const FORGE_LIMITS: forge::Limits = forge::Limits {
         clean_heads: 8,
     },
     queue_window: Duration::from_secs(30),
+    sitting: temper_engine_domain_forge::SITTING,
 };
 
 // Phases and durable continuations for one connector, followed by Idle.

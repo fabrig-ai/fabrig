@@ -72,7 +72,9 @@ fn text(world: &mut ClientWorld, agent: ClientId, words: &[&[u8]]) -> String {
 }
 
 pub(super) fn propose(member: bool, items: Option<Box<[s::Item]>>) -> (ClientWorld, ClientId, u64, String) {
-    let mut world = fixtures::configuring_world(fixtures::SEED, member);
+    propose_in(fixtures::configuring_world(fixtures::SEED, member), items)
+}
+fn propose_in(mut world: ClientWorld, items: Option<Box<[s::Item]>>) -> (ClientWorld, ClientId, u64, String) {
     let agent = fixtures::configuring_agent(&mut world);
     let started = call(
         &mut world,
@@ -188,7 +190,7 @@ fn a_configuring_proposal_is_named_and_titled_in_the_inbox() {
     let row = inbox.lines().find(|row| row.contains(title)).expect("inbox carries the proposal title");
     let key = row.split_once(" · ").expect("proposal row").0;
     assert!(key.starts_with('t'), "{inbox}");
-    assert_eq!(row, format!("{key} · proposal · {title}"));
+    assert_eq!(row, format!("{key} · proposal · {title} · projects: 1"));
     let review = text(&mut world, agent, &[b"proposal", b"show", key.as_bytes()]);
     assert!(review.starts_with(&format!("proposal {key} · ")), "{review}");
     assert!(review.contains(REASON), "{review}");
@@ -353,4 +355,146 @@ fn start_over_closes_and_opens_a_fresh_configure() {
         }),
         "the old conversation stays with its document"
     );
+}
+
+fn see(world: &mut ClientWorld, person: ClientId, find: skein_fake_person::Find) {
+    world.person(person, vec![skein_fake_person::Step::See { find, within: fixtures::WITHIN }]);
+    let outcome = world.run(jig_client_kit::harness::Until::Done);
+    assert_eq!(outcome.verdict, skein_world::domain::Verdict::Passed, "{outcome:?}");
+}
+fn see_proposal(world: &mut ClientWorld, person: ClientId) {
+    see(world, person, skein_fake_person::Find::named(skein_ui::Role::Region, b"Proposal"));
+}
+fn rail(world: &ClientWorld, person: ClientId, project: u32) -> u32 {
+    let root = world.root(person).person();
+    root.pages().needs().count(root.client(), project).count
+}
+fn project_inbox(project: u32) -> Address {
+    Address::Inbox {
+        filter: temper_client_domain::address::Filter {
+            project: Some(project),
+            ..temper_client_domain::address::Filter::ALL
+        },
+    }
+}
+#[test]
+fn a_configuring_proposal_of_a_projects_ways_reaches_its_needs_and_its_rail() {
+    use jig_client::contract as c;
+    let value = temper_engine_domain_forge::settings::Value::Ways(temper_engine_domain_forge::settings::ProjectWays {
+        drafts: true,
+        goals: true,
+        changes: false,
+        away: true,
+        way: 0,
+    });
+    let item = temper_engine_domain_world::kinds::item(7, PROJECT, 1, &value);
+    let (mut world, agent, task, proposal) = propose(false, Some(Box::new([item])));
+    let inbox = text(&mut world, agent, &[b"inbox", b"--project", b"1", b"--json"]);
+    assert!(inbox.contains("\"projects\":[1]"), "{inbox}");
+    let review = text(&mut world, agent, &[b"proposal", b"show", proposal.as_bytes(), b"--json"]);
+    assert!(review.contains("\"project\":0,\"projects\":[1]"), "{review}");
+    let person = world.client(fixtures::PARTY, Address::Home { project: PROJECT });
+    see(&mut world, person, skein_fake_person::Find::named(skein_ui::Role::Region, b"Needs you"));
+    // The Home inbox reads the same row before opening the flow.
+    for _ in 0..32 {
+        if world.root(person).person().pages().inbox().is_some_and(|inbox| !inbox.cards.is_empty()) {
+            break;
+        }
+        world.run(jig_client_kit::harness::Until::Steps(2));
+    }
+    assert_eq!(world.root(person).person().pages().inbox().unwrap().cards.len(), 1);
+    assert_eq!(rail(&world, person, PROJECT), 1);
+    world.go(person, project_inbox(PROJECT));
+    see_proposal(&mut world, person);
+    let object = world.root(person).person().pages().inbox().unwrap().cards.get(0).unwrap().object;
+    world.event(
+        person,
+        Event::Act { action: Action::Pages(Act::Decide { object, revision: None, act: c::ActKind::Accept }) }.into(),
+    );
+    world.event(person, Event::Act { action: Action::Pages(Act::Confirm) }.into());
+    for _ in 0..64 {
+        if rail(&world, person, PROJECT) == 0 {
+            break;
+        }
+        world.run(jig_client_kit::harness::Until::Steps(2));
+    }
+    assert_eq!(rail(&world, person, PROJECT), 0);
+    assert!(text(&mut world, agent, &[b"settings", b"show"]).starts_with("newest revision 2\n"));
+    world.go(person, Address::Chat { task });
+    see(
+        &mut world,
+        person,
+        skein_fake_person::Find::named(skein_ui::Role::Paragraph, "✓ Accepted · new work follows it".as_bytes()),
+    );
+}
+#[test]
+fn a_deployments_proposal_shows_in_each_project_its_owner_owns() {
+    use jig_domain_people as people;
+    let mut limits = fixtures::domain_limits();
+    limits.client.domain.text = 4096;
+    limits.client.domain.long_text = 4096;
+    let front = Joint::with_configuring_projects(fixtures::SEED, limits, false, 3);
+    let world = World::new(jig_client_kit::harness::Settings { seed: fixtures::SEED, ..Default::default() }, front);
+    let (mut world, agent, _, _) = propose_in(world, None);
+    let driver = &mut world.front().engine;
+    let reply = skein_lib::ReplyTo::new(skein_lib::Token::new(2003));
+    driver.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        held: None,
+        reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(2003)),
+        identity: people::Identity {
+            key: people::IdentityKey { provider: 0, subject: 8_u64.to_be_bytes().into() },
+            login: b"other".as_slice().into(),
+            name: b"Other owner".as_slice().into(),
+        },
+    }));
+    driver.settle();
+    let other = driver
+        .delivered
+        .iter()
+        .find_map(|delivery| match delivery {
+            engine::Delivery::WebReply { to, reply: people::Reply::SignedIn { person, .. } } if *to == reply => {
+                Some(*person)
+            }
+            _ => None,
+        })
+        .expect("other owner signed in");
+    let session = driver
+        .store
+        .rows
+        .values()
+        .find_map(|row| match row {
+            engine::Record::Core(jig_domain_core::Record::People(people::Stored::SignIn {
+                number, person, ..
+            })) if *person == fixtures::PARTY => Some(*number),
+            _ => None,
+        })
+        .expect("owner's sign-in number");
+    driver.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(2004)),
+        sign_in: session,
+        key: [203; 16],
+        ask: people::Ask::SetRoles {
+            project: 3,
+            holdings: Box::new([
+                people::Holding { person: other, role: people::Role::Owner },
+                people::Holding { person: fixtures::PARTY, role: people::Role::Member },
+            ]),
+        },
+    }));
+    driver.settle();
+    let person = world.client(fixtures::PARTY, project_inbox(PROJECT));
+    for project in [PROJECT, 2] {
+        world.go(person, project_inbox(project));
+        see_proposal(&mut world, person);
+        assert_eq!(rail(&world, person, project), 1);
+    }
+    world.go(person, project_inbox(3));
+    world.run(jig_client_kit::harness::Until::Steps(64));
+    let root = world.root(person).person();
+    assert!(root.pages().inbox().unwrap().delivered(root.client()));
+    assert!(root.pages().inbox().unwrap().cards.is_empty());
+    assert_eq!(rail(&world, person, 3), 0);
+    let inbox = text(&mut world, agent, &[b"inbox", b"--json"]);
+    assert!(inbox.contains("\"projects\":[1,2]"), "{inbox}");
 }

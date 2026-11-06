@@ -71,6 +71,8 @@ pub enum Word {
     DraftAccepted,
     DraftDecided,
     SettingsProposalTitle,
+    SettingsProposalTitleAll,
+    SettingsProposalDeploymentOwners,
     SettingsProposalDrafts,
     SettingsProposalGoals,
     SettingsProposalChanges,
@@ -458,6 +460,8 @@ pub enum Word {
     HomeAdoptLink,
     HomeLooked,
     HomeLandedOne,
+    HomeLandedLast,
+    HomeLandedNow,
     HomeLandedMany,
     HomeByline,
     HomeLanding,
@@ -1322,9 +1326,10 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The configuring opening replaces one phrase with nineteen (client/README.md, 3.5).
 // Settings, Needs you and the chat document include their literal phrases (client/README.md, 3.5, 5.13).
 // The rail menu adds six literal phrases (client/README.md, 5.3).
+// Last landing adds two phrases (client/README.md, 3.5).
 // The waiting page removes five phrases across its words and accounts (client/README.md, 3.5).
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
-const PHRASES: u32 = 1806;
+const PHRASES: u32 = 1810;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1345,11 +1350,12 @@ const PHRASES: u32 = 1806;
 // Settings, Needs you and the chat document include their literal segments (client/README.md, 3.5, 5.13).
 // The agent check refusal names its charter, adding two segments.
 // The rail menu adds six literal segments (client/README.md, 5.3).
+// Last landing adds four segments (client/README.md, 3.5).
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
-const SEGMENTS: u32 = 3129;
-const TEXT_BYTES: u32 = 44347;
-const ALL: [Word; 1212] = [
+const SEGMENTS: u32 = 3135;
+const TEXT_BYTES: u32 = 44465;
+const ALL: [Word; 1216] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -1408,6 +1414,8 @@ const ALL: [Word; 1212] = [
     Word::DraftAccepted,
     Word::DraftDecided,
     Word::SettingsProposalTitle,
+    Word::SettingsProposalTitleAll,
+    Word::SettingsProposalDeploymentOwners,
     Word::SettingsProposalDrafts,
     Word::SettingsProposalGoals,
     Word::SettingsProposalChanges,
@@ -1787,6 +1795,8 @@ const ALL: [Word; 1212] = [
     Word::HomeAdoptLink,
     Word::HomeLooked,
     Word::HomeLandedOne,
+    Word::HomeLandedLast,
+    Word::HomeLandedNow,
     Word::HomeLandedMany,
     Word::HomeByline,
     Word::HomeLanding,
@@ -2666,6 +2676,8 @@ impl Word {
             Self::GoalRisk => 3585,
             Self::GoalSeparator => 3586,
             Self::SettingsProposalTitle => 3416,
+            Self::SettingsProposalTitleAll => 3689,
+            Self::SettingsProposalDeploymentOwners => 3690,
             Self::SettingsProposalDrafts => 3417,
             Self::SettingsProposalGoals => 3418,
             Self::SettingsProposalChanges => 3419,
@@ -2978,6 +2990,8 @@ impl Word {
             Self::HomeNewChat => 3133,
             Self::HomeAdoptLink => 3141,
             Self::HomeLooked => 3621,
+            Self::HomeLandedLast => 3760,
+            Self::HomeLandedNow => 3761,
             Self::HomeLandedOne => 3622,
             Self::HomeLandedMany => 3623,
             Self::HomeByline => 3624,
@@ -3834,8 +3848,14 @@ fn switcher_repository_bytes(joined: u32) -> Result<u32, Invalid> {
 fn home_answer_bytes(joined: u32) -> Result<u32, Invalid> {
     joined.checked_mul(2).ok_or(Invalid::Overflow)?.checked_add(2).ok_or(Invalid::Overflow)
 }
+// Thirty-two 64-byte project names, each with room for the five-byte conjunction
+// (client/README.md, 5.13).
+const SETTINGS_PROJECT_NAMES_BYTES: u32 = 2208;
 #[expect(clippy::too_many_lines, reason = "one table prices each phrase-specific input bound")]
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
+    if word == Word::SettingsProposalTitle {
+        return Ok(SETTINGS_PROJECT_NAMES_BYTES);
+    }
     // A work argument admits 256 bytes plus a from-line suffix and its number (3.5).
     if kind == HoleKind::Name
         && [
@@ -4095,6 +4115,7 @@ impl Words {
                 .max(byline_bytes(joined)?)
                 .max(switcher_repository_bytes(joined)?)
                 .max(home_answer_bytes(joined)?)
+                .max(SETTINGS_PROJECT_NAMES_BYTES)
                 .max(temper_client_protocol_wire::CUE_BYTES.checked_add(14).ok_or(Invalid::Overflow)?)
                 .max(temper_client_protocol_wire::FIRST_COPIES.checked_mul(203).ok_or(Invalid::Overflow)?)
                 .max(temper_client_domain::forge::PLAYGROUND_FIELD_BYTES)
@@ -4490,6 +4511,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeNewChat => (&[b"New chat"], &[]),
         Word::HomeAdoptLink => (&[b"Adopt"], &[]),
         Word::HomeLooked => (&[b"", b" \xc2\xb7 you last looked ", b" ago"], &[Name, Name]),
+        Word::HomeLandedLast => (&[b"The last change landed ", b" ago."], &[Name]),
+        Word::HomeLandedNow => (&[b"The last change landed just now."], &[]),
         Word::HomeLandedOne => (&[b"One change landed since you last looked."], &[]),
         Word::HomeLandedMany => (&[b"", b" changes landed since you last looked."], &[Number]),
         Word::HomeByline => (&[b"Written by the status agent at ", b""], &[Name]),
@@ -5077,6 +5100,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SettingsAway => (&[b"Away switch"], &[]),
         Word::SettingsAwayLine => (&[b"Lets agents decide within limits while you\xe2\x80\x99re away."], &[]),
         Word::SettingsProposalTitle => (&[b"How temper will run ", b""], &[Name]),
+        Word::SettingsProposalTitleAll => (&[b"How temper will run your projects"], &[]),
+        Word::SettingsProposalDeploymentOwners => (&[b"Owners of this deployment"], &[]),
         Word::SettingsProposalDrafts => (&[b"Drafts: ", b""], &[Name]),
         Word::SettingsProposalGoals => (&[b"Goals: ", b""], &[Name]),
         Word::SettingsProposalChanges => (&[b"Changes page: ", b""], &[Name]),
