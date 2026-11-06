@@ -2,11 +2,10 @@
 
 2026-11-06. Where temper's code lags or departs from [browser.md](browser.md).
 
-Public history retains the three limits the request `ui-public-2` left for
-later (section 5): landed work from before a project went public never shows;
-a restart empties the ended-goal history (jig's `domain/people.md`, 13.9);
-a stock queue's Landings stay empty, since its changes land without a landing
-by turn.
+Public history retains two limits the request `ui-public-2` left for later
+(section 5), which the board's own line states (8.3): landed work from before
+a project went public never shows; a restart empties the ended-goal history
+(jig's `domain/people.md`, 13.9).
 
 - **Design departs:** 8.3, from the request `ui-public-2` of 2026-11-06:
   ended rows say how long ago they ended, where the request says "for how
@@ -130,8 +129,8 @@ by turn.
   of the bundle's answers, the mapping's room and ctl's wait for its `Me` pass and don't
   reproduce it; the listener's eight connections, which a page's parallel files share,
   are a hypothesis, no cause observed (the same figures, on the ctl wait).
-  Its repair waits on the tier's run after landing (the user, 2026-11-06), and no later
-  run is recorded here. The plan `chat-reading-c`'s three whole runs with its stories, on
+  Its repair waits on the tier's run after landing (the user, 2026-11-06). The plan
+  `chat-reading-c`'s three whole runs with its stories, on
   its `reading-browser` branch, every test passing, took 128.618150, 141.214140 and
   143.808163 CPU s, and an earlier one 116, against the 85; which commit each ran on is
   unknown here. The last commit of those stories to report a run in Chromium is `fcd07de4f9`,
@@ -139,6 +138,8 @@ by turn.
   rule of 2026-11-06, that a plan runs focused and fuzzy alone, stopped that task's measuring
   with the budget's question open, so the run after landing reads it, and a flag on the long
   chat's cost looks first at the page's (that task's answers, at `29d0deb002`).
+  The next run on record, after landing at `668f7cd3e5` with `chat-reading-c` on main,
+  took 129.4 CPU s and 70.8 s wall over 17 tests; the plan `browser-budget` is its repair.
 - **Not yet:** 4.6: the request `browser-trim` has a person's page slower to settle as
   the answer most wanted. Settled chat and task pages stood still and no product cause
   was found, but a chat closed on the box took 8.539 s to reach the Closed filter, a

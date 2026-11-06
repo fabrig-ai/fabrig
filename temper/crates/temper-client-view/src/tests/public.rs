@@ -68,6 +68,7 @@ fn the_view_shows_only_what_the_records_carry() {
         b"Sign in",
         b"A public project",
         b"What temper is doing on this project, as it happens. Read-only.",
+        b"Work that ended before this project went public, or before temper last restarted, isn't shown.",
         b" ",
         b" \xc2\xb7 ",
         b"Goal 9abcdef0",

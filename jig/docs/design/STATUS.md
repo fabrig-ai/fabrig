@@ -36,6 +36,9 @@ its admission's yes or no, where the user's request of 2026-11-05 has it
 use jig's (`domain/root.md`, `domain/hosts.md`).
 A task given no LLM choice takes the first model it can use at its run's
 check, but no walk on record has a real box run on it (`domain/accounts.md`).
+Its template preview can differ from its task's next-run model across a worker
+restart with mixed program and direct accounts (`client/domain/contract.md`,
+`domain/engine.md`).
 A transcript's load refused for want of a slot counts as a failure, where
 room should pause its task (`domain/engine.md`). A note's range names the
 revision it read `recalled`, where the `note-parts` request of 2026-11-05 has
