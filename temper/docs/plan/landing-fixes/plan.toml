@@ -1,3 +1,42 @@
 draft = "landing-fixes"
 repo = "fabrig"
 sources = ["temper/docs/plan/landing-fixes/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "update-first"
+title = "a head already behind its base takes the update before its CI concludes, under rules asking up to date"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 8.2"
+
+[[part]]
+id = "delivery-words"
+title = "a delivery's receipt says pushed, at which head, on which branch, and that a detached checkout is expected"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 6"
+
+[[part]]
+id = "question-target"
+title = "a producer is told its change is its requester, and an authority refusal ends with no bare separator"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 8.11"
+
+[[slice]]
+id = 1
+story = "A change opened behind its base spends no wait on CI at a head its turn would replace; a green head keeps its result"
+parts = ["update-first"]
+walk = false
+
+[[slice]]
+id = 2
+story = "A run reads its delivery as delivered, and its first question reaches its change"
+parts = ["delivery-words", "question-target"]
+walk = false

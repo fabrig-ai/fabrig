@@ -1598,6 +1598,22 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    failing output. A repository without CI is checked by its checks
    (8.3). Where they ask no CI, the change goes on to its gates at once,
    and neither a check nor CI at its head holds it or asks a repair.
+   **A head already behind takes its base first.** Where its landing
+   branch's rules ask up to date (8.7), this step's fresh reads (5.3) show
+   its head lacks the base's tip, and CI read at that head has not concluded
+   (unknown or pending), the change is updated now (section 10), since its
+   turn could only replace that head. Of a head a push gave it, one such
+   update at most: the head it leads to waits for its CI though the base
+   moves again, and is updated at its turn. It counts as any update and never
+   takes the change's last, which stays for its turn, so it makes no hold of
+   its own; where it would, the change waits for CI as it would have. A
+   conclusion is kept: a green head goes on to its gates and its turn and is
+   updated there, and a red one is a repair, which takes its base first (below).
+   CI not read at that head is no conclusion, and the change waits. Under
+   rules asking none, nothing here applies. A run the forge has started on
+   the head replaced stays the forge's, since temper has no effect that stops
+   one: the change stops waiting for it, and what it spends goes by the
+   repository's own CI settings.
 4. **Gating:** each gate without a verdict valid at this head runs: a
    task at the exact head. A blocking review or check that asks for
    changes is a repair, given its remarks; a blocking approval a person
@@ -1667,7 +1683,8 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
 
 Lazy, too, for runs: before a repair or a resolution is created, the
 change takes its base if its head lacks the base's tip and its rules ask
-up to date (8.7), so a repair starts from current code. It never updates only because its base moved.
+up to date (8.7), so a repair starts from current code. Beyond that and step 3's
+head already behind, it never updates only because its base moved.
 
 A completed change waits for its live delegates to end before offering
 its result to the core. A landing observed while a resumed repair's
@@ -2378,6 +2395,14 @@ section 9): the foreman and the requester decide, and the change relays
   feedback (below). The stock coding charter tells its run the same, and
   to call `wait` after asking, never `finish`
   (`../protocol/configuration.md`, 13.4).
+- **Which target.** Its change is its requester: the number its brief's
+  `[Requested by task N]` line gives, never its own, `[This task: N]`. The
+  stock coding charter says so. A project's own charter may not, so the
+  `message` tool's refusal of a target the caller does not reference
+  (jig's `domain/tasks.md`, 8.5) says where to find it, for any run:
+  `Authority refused: task reference. Your brief's [Requested by ...] line
+  names your requester; [This task: N] is you.` An authority refusal lists
+  its findings with `; ` between them and ends without one.
 - **Bounded.** It counts the questions it takes, each as its turn comes,
   from its making or its last release, against its bound,
   `forge.change_policy.questions` (4 in `small`, 80 in `standard`, which
@@ -2670,13 +2695,14 @@ adoption says so, 4.4) lands through that queue. Forgejo keeps none.
 Under a project's queue; by turn, a landing prepares its candidates
 instead (`landing.md`, section 5).
 
-- **Lazy:** a change takes its base when it is first in its queue, or
-  about to get a run for another reason (8.2). It never does only
-  because its base moved.
+- **Lazy:** a change takes its base when it is first in its queue, about
+  to get a run for another reason (8.2), or at its check with its head
+  already behind and CI not concluded there, once for a head a push gave
+  it (8.2, step 3). It never does only because its base moved.
 - **By its landing branch's rule:** only where the rules covering its
   landing branch ask up to date (8.7, `Requires`). Under rules asking
-  none it is never updated, first or before a run, and a conflict with
-  its base holds it (8.2, step 6).
+  none it is never updated, first, at its check or before a run, and a
+  conflict with its base holds it (8.2, step 6).
 - **Mechanical:** the update merges the base into the change's branch,
   with no LLM. The forge makes it itself (its pull request's update, by
   a merge), so it is an effect, as a merge is. A merge rather than a
