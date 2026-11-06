@@ -103,7 +103,7 @@ fn a_read_signed_out_is_answered_signed_out() {
     assert_eq!(h.link.next_deadline(), None);
 }
 #[test]
-fn a_read_with_no_answer_is_unreachable() {
+fn a_lost_read_stays_unreachable() {
     let (mut h, exchange) = fixtures::Harness::reading();
     h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
     h.read_unreachable();
@@ -172,11 +172,13 @@ fn a_read_value_from_another_owner_or_version_is_reported() {
     }
 }
 #[test]
-fn a_malformed_read_body_is_unreachable() {
+fn a_malformed_read_body_is_malformed() {
     let (mut h, exchange) = fixtures::Harness::reading();
     h.answer(exchange, &[255]);
-    h.read_unreachable();
+    h.read_malformed();
+    h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
     assert!(h.has(&Request::Fact { fact: Fact::UndecodableDocument }));
+    assert_eq!(h.read_terminals(), 1);
 }
 #[test]
 fn reads_and_attempts_share_the_exchange_admission_bound() {
@@ -203,11 +205,12 @@ fn a_read_is_answered_once_with_its_value() {
     assert_eq!(h.link.next_deadline(), None);
 }
 #[test]
-fn a_value_past_the_client_s_limits_is_unreachable_and_reported() {
+fn a_value_past_the_client_s_limits_is_malformed_and_reported() {
     for value in fixtures::values_past_client_limits() {
         let (mut h, exchange) = fixtures::Harness::reading();
         h.answer(exchange, &fixtures::jig_read_value_answer(&value));
-        h.read_unreachable();
+        h.read_malformed();
+        h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
         assert!(h.has(&Request::Fact { fact: Fact::UndecodableDocument }));
         assert_eq!(h.read_terminals(), 1);
     }
@@ -222,21 +225,25 @@ fn each_discriminated_read_value_reaches_its_contract_variant() {
     }
 }
 #[test]
-fn a_malformed_read_value_is_unreachable_and_reported() {
+fn a_malformed_read_value_is_malformed_and_reported() {
     for value in fixtures::malformed_read_values() {
         let (mut h, exchange) = fixtures::Harness::reading();
         h.answer(exchange, &fixtures::jig_read_record_answer(value, jig_client_protocol_wire::VERSION));
-        h.read_unreachable();
+        h.read_malformed();
+        h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
         assert!(h.has(&Request::Fact { fact: Fact::UndecodableDocument }));
+        assert_eq!(h.read_terminals(), 1);
     }
 }
 #[test]
-fn a_read_value_of_another_wire_version_is_unreachable_and_reported() {
+fn a_read_value_of_another_wire_version_is_malformed_and_reported() {
     let (mut h, exchange) = fixtures::Harness::reading();
     let value = fixtures::encoded_read_value(&fixtures::frame_read_value());
     h.answer(exchange, &fixtures::jig_read_record_answer(value, 2));
-    h.read_unreachable();
+    h.read_malformed();
+    h.link.step(Time::ZERO, Event::Lost { exchange }, &mut h.out);
     assert!(h.has(&Request::Fact { fact: Fact::UndecodableDocument }));
+    assert_eq!(h.read_terminals(), 1);
 }
 #[test]
 fn a_read_value_counts_its_discriminator_against_the_document_byte_bound() {

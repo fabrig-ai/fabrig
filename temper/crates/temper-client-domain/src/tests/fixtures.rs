@@ -63,6 +63,7 @@ pub fn frame(party: u64) -> WatchEvent {
         providers_cut: false,
         key_bytes: 256,
         redirect_bytes: 256,
+        words_bytes: 8192,
         party: MeParty {
             number: party,
             kind: PartyKind::Person,

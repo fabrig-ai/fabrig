@@ -878,11 +878,37 @@ pub fn inbox_facts(
     cut: bool,
     unread: Option<c::Count>,
 ) -> temper_client_domain::Domain {
+    inbox_facts_at(temper_client_domain::Address::Inbox { filter }, document, proposer, cut, unread)
+}
+/// A question's reply on Home, sharing the inbox's delivered card fixture.
+pub fn reply_composer(document: (c::Read, c::ReadValue)) -> temper_client_domain::Domain {
+    inbox_facts_at(
+        temper_client_domain::Address::Home { project: PROJECT },
+        Some(document),
+        c::Proposer::Task(INBOX_TASK),
+        false,
+        None,
+    )
+}
+#[expect(clippy::too_many_lines, reason = "one fixture delivers the inbox and its reply composer through public reads")]
+fn inbox_facts_at(
+    address: temper_client_domain::Address,
+    document: Option<(c::Read, c::ReadValue)>,
+    proposer: c::Proposer,
+    cut: bool,
+    unread: Option<c::Count>,
+) -> temper_client_domain::Domain {
     use jig_client::contract::{self, InboxGroup as Group, ObjectKey as Object};
     let mut limits = domain_limits();
     // Six card reads beside the frame's own bounded reads.
     limits.client.domain.reads = 8;
-    let (mut root, _, watch) = root_at(temper_client_domain::Address::Inbox { filter }, &limits);
+    let (mut root, watch) = if let temper_client_domain::Address::Home { .. } = address {
+        let (root, _, _, watch) = root_at_with_needs(address, &limits);
+        (root, Some(watch))
+    } else {
+        let (root, _, watch) = root_at(address, &limits);
+        (root, watch)
+    };
     let env = Env { now: Time::ZERO, wall: NOW, limits };
     let mut out = Queue::uncapped();
     let mut entries = List::with_capacity(6);
@@ -927,6 +953,7 @@ pub fn inbox_facts(
             cut,
         )
     };
+    let query_rows = inbox.needs.clone();
     temper_client_domain::step(
         &mut root,
         &env,
@@ -942,6 +969,32 @@ pub fn inbox_facts(
     );
     if let Some((read, page)) = document {
         while let Some(request) = out.pop() {
+            if let temper_client_domain::Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down:
+                            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { group, .. }) },
+                    },
+            } = &request
+            {
+                let rows = if *group == c::InboxReadGroup::Needs { query_rows.clone() } else { List::uncapped() };
+                temper_client_domain::step(
+                    &mut root,
+                    &env,
+                    temper_client_domain::Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::ReadDone {
+                                read: *read,
+                                result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(Box::new(
+                                    c::InboxPage { selection: None, cut: false, rows, before: None, after: None },
+                                )))),
+                            },
+                        },
+                    },
+                    &mut out,
+                );
+                continue;
+            }
             if let temper_client_domain::Request::Unlinked {
                 request:
                     jig_client::UnlinkedRequest::Down {
@@ -1447,6 +1500,7 @@ fn fixture_me(project_name: &[u8]) -> c::Me {
         providers_cut: false,
         key_bytes: 256,
         redirect_bytes: 256,
+        words_bytes: 8192,
         party: MeParty {
             number: 73,
             kind: PartyKind::Person,
