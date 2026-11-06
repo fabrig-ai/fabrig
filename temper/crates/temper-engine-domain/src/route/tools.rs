@@ -109,24 +109,16 @@ pub(crate) fn relay_payload(
                 Tool::Decided(call) => super::decided::call(domain, env, decision, reply_to, key, call),
                 Tool::ReadTask { .. } => unreachable!("task reads enter before replay"),
                 Tool::Settings { .. } => unreachable!("settings reads enter before replay"),
-                Tool::ProposeSettings { against, items, reason, kinds } => {
-                    if let Some(jig_domain_people::Refusal::Judged { why, .. }) =
-                        super::room_refusal(domain.host_part, &items)
-                    {
-                        super::host_route::rendered(
-                            domain,
-                            reply_to,
-                            core::SettledAnswer::Host { error: true, body: why },
-                        );
-                        return;
-                    }
-                    domain.kinds = kinds;
-                    domain.work.push(Work::Core(core::Event::NamedAction {
-                        to: reply_to,
-                        key,
-                        action: core::NamedAction::ProposeSettings { against, items, reason },
-                    }));
+                tool @ Tool::ProposeSettingsNote { .. } => {
+                    super::host_route::settings_note(
+                        domain,
+                        env,
+                        decision,
+                        reply_to,
+                        crate::Call { completion: body.completion, position: body.position, tool },
+                    );
                 }
+                tool @ Tool::ProposeSettings { .. } => propose_settings(domain, reply_to, key, tool),
                 Tool::ReadNamed { .. } => unreachable!("named reads resolved before deciding"),
                 tool @ (Tool::Change { .. } | Tool::Goal { .. }) => {
                     if let Tool::Goal { advisor, agree, .. } = &tool
@@ -392,4 +384,18 @@ pub(super) fn settings_value(
         return None;
     }
     domain.forge.setting(kind, scope, number).cloned()
+}
+
+fn propose_settings(domain: &mut Domain, to: ReplyTo, key: crate::CallKey, tool: Tool) {
+    let Tool::ProposeSettings { against, items, reason, kinds } = tool else { unreachable!("whole proposal") };
+    if let Some(jig_domain_people::Refusal::Judged { why, .. }) = super::room_refusal(domain.host_part, &items) {
+        super::host_route::rendered(domain, to, core::SettledAnswer::Host { error: true, body: why });
+        return;
+    }
+    domain.kinds = kinds;
+    domain.work.push(Work::Core(core::Event::NamedAction {
+        to,
+        key,
+        action: core::NamedAction::ProposeSettings { against, items, reason },
+    }));
 }

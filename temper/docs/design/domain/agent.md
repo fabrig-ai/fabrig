@@ -869,6 +869,11 @@ agents must do stays text its runs read.
     its designer, as dependencies temper holds; 'push early' stays a
     rule your producers follow". The person chooses what is
     guaranteed; a rule is never made structure without their choice;
+  - to assemble settings past a few KB in a separate goal-scoped jig note,
+    described `work: settings`, whose body is a whole settings file
+    `{"items":[...]}`. Bounded `note` writes use `first` and `remove`,
+    and `join` to continue a line longer than one call. This note is separate
+    from "How PROJECT works" (8.3); it applies no settings;
   - to propose once, with `propose_settings`, against the newest
     revision it read, with a reason whose first line is the
     proposal's title and whose next lines say, under "temper
@@ -915,6 +920,16 @@ agents must do stays text its runs read.
   `project`), each named and valued as the file names and values it,
   so that a description's landing rules, the forge's charters and a
   project's own policy are proposed as its charters are.
+- **A proposal's source** is exactly one of inline `items` or
+  `note: {name, revision}`. The root checks the settings and recall families
+  and loads the whole named note within the configured notes and load bounds.
+  Its scope must be readable by the proposing task and its revision must match.
+  The shared settings-file parser decodes its body, and the same whole-value
+  validation, base-revision checks and owner review apply to either source.
+  Missing, inaccessible, moved or malformed sources create no proposal and
+  apply nothing. A decided call is replayed before loading the note again;
+  later note edits cannot change its proposal. No fragment state is added;
+  the note keeps jig's revision, retention and cleanup rules.
 - **It changes nothing itself.** Its charter's `settings` family reads
   and proposes; only an owner's decision changes settings (jig's
   `domain/engine.md`, 17.6). A member's configuring chat proposes as

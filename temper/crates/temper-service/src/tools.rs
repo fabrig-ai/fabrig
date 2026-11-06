@@ -41,6 +41,15 @@ pub(crate) fn decode_configured(
         Err(problem) => invalid(to, problem),
     }
 }
+/// Translate an internally authorized whole settings note into a proposal call.
+#[must_use]
+pub fn settings_note(to: ReplyTo, call: engine::Call, body: &[u8], models: &[engine::Model]) -> engine::Event {
+    match temper_engine_smith::settings_note(call, body, models) {
+        Ok(Decoded::Call(body)) => engine::Event::Worker(engine::WorkerInput::DecodedHostCall { to, body }),
+        Ok(Decoded::Answered(answer)) => rendered(to, answer),
+        Err(problem) => invalid(to, problem),
+    }
+}
 fn invalid(to: ReplyTo, problem: Problem) -> engine::Event {
     let (body, member): (&[u8], Option<&[u8]>) = match problem {
         Problem::Malformed => (b"malformed host call", None),
