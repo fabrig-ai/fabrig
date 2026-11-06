@@ -116,12 +116,18 @@ POLL = """JSON.stringify({time: performance.now(),
   paints: performance.getEntriesByType('paint').map(p => ({name:p.name,time:p.startTime})),
   text: document.body ? document.body.innerText.trim() : '',
   node: window.__bundleMeasurement ? window.__bundleMeasurement.node : null,
+  title: document.title,
+  boot: (() => { const b = document.getElementById('boot');
+    return b ? {state: b.dataset.state || '', out: b.classList.contains('out'), inert: b.inert,
+      opacity: getComputedStyle(b).opacity,
+      children: [...b.children].map(e => ({tag:e.tagName, text:e.textContent,
+        display:getComputedStyle(e).display, opacity:getComputedStyle(e).opacity}))} : null; })(),
   background: document.body ? getComputedStyle(document.body).backgroundColor : null,
   ready: document.readyState})"""
 
 
 def measure(pipe, session, args, label):
-    events, transfers, requests, milestones = [], [], {}, {}
+    events, transfers, requests, milestones, samples = [], [], {}, {}, []
     origin = None
     started = time.monotonic()
     loaded = False
@@ -202,6 +208,7 @@ def measure(pipe, session, args, label):
         value = pipe.call("Runtime.evaluate", {"expression": POLL, "returnByValue": True}, session)
         if "exceptionDetails" not in value and "value" in value.get("result", {}):
             snapshot = json.loads(value["result"]["value"])
+            samples.append({key: snapshot[key] for key in ("time", "title", "boot")})
             for paint in snapshot["paints"]:
                 mark(paint["name"], paint["time"], background=snapshot["background"])
             if snapshot["text"]:
@@ -224,7 +231,8 @@ def measure(pipe, session, args, label):
     return {"label": label, "milestones": milestones, "events": events,
             "missing": [name for name in MARKS if name not in milestones],
             "bytes_received": sum(size for _, size in transfers),
-            "transfers": [{"time_ms": (stamp - origin) * 1000, "bytes": size} for stamp, size in transfers]}
+            "transfers": [{"time_ms": (stamp - origin) * 1000, "bytes": size} for stamp, size in transfers],
+            "samples": samples}
 
 
 def main():
