@@ -259,7 +259,9 @@ fn setting_key(v: &Value, path: &str, subject: bool) -> Result<SettingKey, Golde
         .transpose()?;
     match kind.as_str() {
         "rules" if setting_number.is_none() && project.is_none() => {}
-        "project-policy" | "project-ways" | "project-questions" if setting_number.is_none() && project.is_some() => {}
+        "project-policy" if setting_number.is_none() && project.is_some() => {}
+        "project-ways" | "project-questions"
+            if setting_number.is_none() && project.is_some() && project != Some(ProjectRef::Number(0)) => {}
         "landing-rule" if subject || setting_number.is_some() => {}
         "charter" | "template" | "policy" | "forge-charter"
             if project.is_none() && (subject || setting_number.is_some()) => {}

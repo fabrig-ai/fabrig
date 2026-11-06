@@ -6,7 +6,7 @@ use temper_real_loop_world::{
     fixtures, llm, run_on, scripts, terminal,
 };
 // The production view's Provisional word (cards/words.rs).
-const PROVISIONAL: &[u8] = b"Writing...";
+const PROVISIONAL: &[u8] = "▍".as_bytes();
 // The ctl call that signs in and provisions the deployment's key.
 const SIGN_IN: usize = 0;
 
