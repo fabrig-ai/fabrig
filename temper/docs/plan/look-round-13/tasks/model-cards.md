@@ -46,3 +46,15 @@ Acceptance:
 ## Report
 
 As the implementer's text has it, with the differences from the request's pages named.
+
+## Rebase (2026-11-06, step merge, foreman look-round-13/model-cards/foreman-1)
+
+resolve the three merge conflicts while preserving model cards and landed forge/proposal changes
+The merge failed in three shared files; rebase onto the current landing target.
+Relevant incoming commits are `479f51f772` (forge cards) and `d6820c4ad4` (main’s proposal updates).
+
+- `temper/crates/temper-client-shell-web/temper.css`: combine both branches’ selector fixes. Preserve Settings support for the forge sheet and model sign-in/paste panels, shared headline/lede spacing, and model waiting styles. For connect rows, retain the incoming strong label’s `font-size: 15px` and exclude spans containing a strong label from muted description styling.
+- `temper/crates/temper-client-view/src/words.rs`: keep the incoming forge/proposal vocabulary and IDs, plus this task’s `PathConnectAccount` wording, “Connect a model”. Recount `PHRASES`, `SEGMENTS`, and `ENGLISH_BYTES` for the combined code; neither side’s constants alone suffice. Preserve the incoming `ALL` entries.
+- `temper/tools/gallery/src/samples.rs`: retain all incoming forge/proposal samples and this task’s `connect-model-connected` sample and account setup in `domain()`. At the inspected integration tip, the combined sample count is 282; derive it again if the target advances.
+- Check the automatically merged gallery tests/worlds for both sets of behavior. Regenerate gallery names and affected prints/goldens through their tools; keep names sorted. Reprint journeys if the combined rendering makes them stale.
+- Run the spec’s focused checks through `heavy`, including the gallery and committed-journey checks. Browser stories are compiled only.
