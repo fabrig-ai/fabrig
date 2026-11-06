@@ -32,14 +32,7 @@ as do operating, development machines, artifacts and reproducible builds
 git, resolution and render conformance, and tool fakes, but lack the complete
 M2 fake machine, joined system world, real builds and boot test; conformance
 has no automatic runner. Tier profiles, memory tests and shared suite
-timeouts depart from the design. The focused suite's budget reads the queue's
-figure, and for the suite as it stands none has been read, so neither its 30 CPU s
-nor the 27 the request of 2026-11-06 aims for is shown. Outside the queue it reads
-23.767613 and 23.143157 CPU s over 2193 tests, the lower 76.26% of the same
-machine's figure before its repairs, and worlds still repeat per seed what a seed
-doesn't change. Fuzzy reads 68.963035 CPU s, 19.271153 wall s over 60 tests. All
-selected tests pass, without retries, starvation, unobserved tests, leaks or
-incomplete accounting
+timeouts depart from the design. Worlds still repeat per seed what a seed doesn't change
 (`hearth/docs/design/domain/testing.md`). The design departs
 from the draft in its three processes, subordinate ids, offline sandboxes,
 development loop, live changes and milestone split; pool placement still
