@@ -1,3 +1,36 @@
 draft = "debt-27"
 repo = "fabrig"
 sources = ["temper/docs/plan/debt-27/inputs/request.md", "skein/docs/development/debt/D004-utf8-checks.md", "skein/docs/development/debt/D007-joined-and-measure.md", "skein/docs/development/debt/D040-dead-public-api.md", "skein/docs/development/debt/D041-workspace-duplicates.md", "skein/docs/development/debt/D042-shell-backend-copies.md", "jig/docs/development/debt/D011-channel-mechanics-copied.md", "jig/docs/development/debt/D037-copied-goldens.md", "jig/docs/development/debt/D041-unused-parameters.md", "jig/docs/development/debt/D043-length-widening.md", "smith/docs/development/debt/D020-hand-set-token-tags.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "workspace-list"
+title = "D041: each skein crate once in members; no unused skein workspace dependency"
+mode = "direct"
+needs = []
+design = "skein/docs/design/testing.md, 6"
+
+[[part]]
+id = "dead-api"
+title = "D040: skein's public items with no caller, or only a test's, deleted"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui-web.md, 5.1"
+
+[[part]]
+id = "utf8-one"
+title = "D004: one whole-buffer UTF-8 check, text_is_valid delegating to is_utf8"
+mode = "direct"
+needs = []
+design = "skein/docs/design/lib.md, 6"
+
+[[slice]]
+id = 1
+story = "skein's small leftovers are gone: the workspace's list holds each crate once, dead public items are deleted, and one UTF-8 check stands"
+parts = ["workspace-list", "dead-api", "utf8-one"]
+walk = false
