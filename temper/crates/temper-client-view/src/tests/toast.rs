@@ -236,3 +236,23 @@ fn overturn_already_says_it_was_overturned() {
         assert_eq!(f::node_text(view.tree(), toast_at(view.tree()).unwrap()).as_ref(), b"That was overturned already.");
     }
 }
+
+#[test]
+fn an_unsent_answer_says_to_press_again_without_an_act() {
+    let mut root = root();
+    let past_bound = temper_client_protocol_wire::CUE_BYTES.checked_add(1).unwrap();
+    let mut words = List::with_capacity(past_bound);
+    for _ in 0..past_bound {
+        words.push(b'a').unwrap();
+    }
+    act(&mut root, pages::Act::Needs(needs::Act::Choose { object: OBJECT, words: words.into_boxed() }));
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let at = toast_at(view.tree()).unwrap();
+        let toast = super::inbox::subtree(view.tree(), at);
+        assert_eq!(toast[0].role, Role::Status);
+        assert_eq!(f::node_text(view.tree(), at).as_ref(), b"That answer wasn't sent. Press it again.");
+        for node in toast {
+            assert_ne!(node.role, Role::Button);
+        }
+    }
+}

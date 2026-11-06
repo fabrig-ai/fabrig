@@ -83,13 +83,13 @@ pub fn build(exported: Box<[Exported]>) -> Exports {
 }
 #[must_use]
 pub fn items(exports: &Exports) -> Box<[Item]> {
-    let mut record = List::with_capacity(1);
-    push(&mut record, Item::Map(u64::try_from(exports.tasks.len()).expect("task count")));
+    let mut record = List::uncapped();
+    record.push(Item::Map(u64::try_from(exports.tasks.len()).expect("task count"))).expect("uncapped record");
     for task in &exports.tasks {
-        push(&mut record, Item::Bytes(task.task.clone()));
+        record.push(Item::Bytes(task.task.clone())).expect("uncapped record");
         let value = Value::Map(task.values.clone());
         for item in value_items(&value) {
-            push(&mut record, item);
+            record.push(item).expect("uncapped record");
         }
     }
     record.into_boxed()
@@ -128,7 +128,7 @@ fn ordered(entries: &[Entry]) -> Box<[Named<'_>]> {
 /// The one iterative value record walk, also used by equality (hearth/docs/design/domain/render.md, 4.6).
 #[must_use]
 pub fn value_items(value: &Value) -> Box<[Item]> {
-    let mut record = List::with_capacity(1);
+    let mut record = List::uncapped();
     let mut stack = Stack::with_capacity(DEPTH);
     let mut next = Some(value);
     for _ in 0..crate::limits::SHIPPED.expanded.saturating_mul(3).saturating_add(3) {
@@ -149,7 +149,7 @@ pub fn value_items(value: &Value) -> Box<[Item]> {
                     Item::Map(count)
                 }
             };
-            push(&mut record, item);
+            record.push(item).expect("uncapped record");
         }
         let Some(mut frame) = stack.pop() else { return record.into_boxed() };
         next = match &mut frame {
@@ -157,7 +157,7 @@ pub fn value_items(value: &Value) -> Box<[Item]> {
             Frame::Map { entries, next } => {
                 if let Some(entry) = entries.get(*next) {
                     *next = next.saturating_add(1);
-                    push(&mut record, Item::Bytes(bytes::copy_of(entry.name)));
+                    record.push(Item::Bytes(bytes::copy_of(entry.name))).expect("uncapped record");
                     Some(entry.value)
                 } else {
                     None
@@ -178,14 +178,4 @@ fn signed(value: i64) -> Box<[u8]> {
     }
     writer.put(digits.as_bytes()).expect("decimal room");
     writer.finish()
-}
-fn push(record: &mut List<Item>, item: Item) {
-    if record.room() == 0 {
-        let mut larger = List::with_capacity(record.capacity().saturating_mul(2));
-        for item in &*record {
-            larger.push(item.clone()).expect("doubled capacity");
-        }
-        *record = larger;
-    }
-    record.push(item).expect("reserved room");
 }

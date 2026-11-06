@@ -402,3 +402,17 @@ fn a_json_switch_refusal_says_how_to_omit_it() {
         b"temper ctl: task show: --tree is a switch: omit it or use true in --call; temper ctl help task show\n"
     );
 }
+
+#[test]
+fn a_judged_settings_refusal_names_its_item_and_setting() {
+    use jig_client::contract::{Refusal, Setting, Text};
+    let why = Refusal::Judged {
+        at: 1,
+        setting: Setting::Application { kind: 7, scope: 2, number: 1 },
+        why: Text::new(Box::from(b"way 4 is not offered".as_slice()), 128).expect("bounded reason"),
+    };
+    assert_eq!(
+        jig::render::settings_refusal(&why, 128).as_ref(),
+        b"refused; item 1; project-ways 2: way 4 is not offered"
+    );
+}

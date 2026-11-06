@@ -48,14 +48,6 @@ pub enum Told {
     Io(io::Event),
     File(io::file::Event),
 }
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct MaxOut {
-    pub above: u32,
-    pub below: u32,
-}
-pub const MAX_OUT_UP: MaxOut = MaxOut { above: 1, below: 1 };
-pub const MAX_OUT_DOWN: MaxOut = MaxOut { above: 1, below: 1 };
-pub const MAX_OUT_RESUME: MaxOut = MaxOut { above: 1, below: 1 };
 #[derive(Debug)]
 enum Mode {
     Rev {
@@ -117,22 +109,10 @@ impl Current {
             Self::Call(_) | Self::Idle | Self::Step(_) | Self::Keeping(_) | Self::Git { .. } => None,
         }
     }
-    fn keeping(&self) -> Option<&keep::Keep> {
-        match self {
-            Self::Keeping(keep) => Some(keep),
-            Self::Call(_) | Self::Idle | Self::Step(_) | Self::Resolving(_) | Self::Git { .. } => None,
-        }
-    }
     fn keeping_mut(&mut self) -> Option<&mut keep::Keep> {
         match self {
             Self::Keeping(keep) => Some(keep),
             Self::Call(_) | Self::Idle | Self::Step(_) | Self::Resolving(_) | Self::Git { .. } => None,
-        }
-    }
-    fn git(self) -> Option<(git::Child, Mode)> {
-        match self {
-            Self::Git { child, mode } => Some((child, mode)),
-            Self::Call(_) | Self::Idle | Self::Step(_) | Self::Keeping(_) | Self::Resolving(_) => None,
         }
     }
     fn git_mut(&mut self) -> Option<(&mut git::Child, &mut Mode)> {
@@ -404,8 +384,9 @@ pub fn up(protocol: &mut Protocol, env: &Env<Limits>, ev: Told, above: &mut Queu
         Told::File(event) => {
             if event.owner() == store::OWNER {
                 let read = read::current(&mut protocol.current);
+                let before = above.len();
                 protocol.store.up(event, &env.limits, &protocol.roots, read, above, below);
-                if !above.is_empty() {
+                if store_answered(before, above) {
                     match &mut protocol.current {
                         Current::Resolving(resolve) => resolve.index_settled(),
                         Current::Keeping(_) => protocol.current = Current::Idle,
@@ -423,6 +404,11 @@ pub fn up(protocol: &mut Protocol, env: &Env<Limits>, ev: Told, above: &mut Queu
         }
     };
     io_up(protocol, env, event, below);
+}
+/// Whether a store step answered: it added to what this entry gave above, whatever
+/// that queue already held (hearth/docs/design/domain/render.md, 8.5).
+fn store_answered(before: u32, above: &Queue<Event>) -> bool {
+    above.len() != before
 }
 fn io_up(protocol: &mut Protocol, env: &Env<Limits>, event: io::Event, below: &mut Queue<Asked>) {
     if protocol.progress.owns(&event) {
@@ -716,7 +702,12 @@ fn resume_mode(
     }
 }
 fn finish(protocol: &mut Protocol, env: &Env<Limits>, above: &mut Queue<Event>, below: &mut Queue<Asked>) {
-    let (child, mode) = core::mem::replace(&mut protocol.current, Current::Idle).git().expect("closed git child");
+    let (child, mode) = match core::mem::replace(&mut protocol.current, Current::Idle) {
+        Current::Git { child, mode } => (child, mode),
+        Current::Call(_) | Current::Idle | Current::Step(_) | Current::Keeping(_) | Current::Resolving(_) => {
+            unreachable!("closed git child")
+        }
+    };
     let failure = failure(&mode, &child, &env.limits.git);
     let (request, event) = match mode {
         Mode::Rev { request, repository, revision: _, stdout, ended: _ } => {

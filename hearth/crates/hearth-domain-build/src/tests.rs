@@ -57,7 +57,7 @@ fn env() -> Env<crate::limits::Limits> {
 }
 /// Drives one build, answering `Have` for the published layer and `Free` above it.
 fn drive(build: &mut Build, published: Option<Layer>) -> (List<Digest>, Output) {
-    let mut out = Queue::with_capacity(crate::MAX_OUT);
+    let mut out = Queue::with_capacity(1);
     let keys = keys(CLOSURE, PACKAGES, SOFTWARE, CONFIG);
     step(build, &env(), BUILD, &mut out);
     let mut asked = List::with_capacity(3);
@@ -125,7 +125,7 @@ fn keys_of() -> crate::Keys {
 }
 /// Feeds one event and takes the one output.
 fn feed(build: &mut Build, event: Event) -> Output {
-    let mut out = Queue::with_capacity(crate::MAX_OUT);
+    let mut out = Queue::with_capacity(1);
     step(build, &env(), event, &mut out);
     let output = out.pop().expect("one output per event");
     assert!(out.is_empty(), "one output");

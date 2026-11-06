@@ -93,13 +93,13 @@ impl Stand {
         answer: &core::SettingsAnswer,
     ) -> Option<root::Event> {
         let (_, tool) = self.calls.remove(&key)?;
-        let (to, call) = jig_conformance::core::peers::settled_answer(to, tool, protocol::settings_answer(answer));
+        let call = jig_conformance::core::peers::settled_answer(tool, protocol::settings_answer(answer));
         Some(root::Event::CallAnswered { to, call })
     }
 
     pub fn answer(&mut self, to: ReplyTo, key: core::CallKey, part: &core::CallPart, durable: bool) -> root::Event {
         let (name, tool) = self.calls.remove(&key).expect("protocol call envelope");
-        let (to, call) = jig_conformance::core::peers::settled_answer(to, tool, protocol::render(part));
+        let call = jig_conformance::core::peers::settled_answer(tool, protocol::render(part));
         if durable {
             root::Event::Core(core::Event::SettledCall { to, key, name, call })
         } else {

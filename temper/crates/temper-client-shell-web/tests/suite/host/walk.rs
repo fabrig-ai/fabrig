@@ -106,6 +106,29 @@ impl Walk {
             .id;
         exchange(self.turn(vec![Report::Act { node: button, act: Act::Press }]))
     }
+    fn act_on(&mut self, role: Role, name: &[u8], act: Act) -> Vec<Asked> {
+        let node = self
+            .host
+            .tree()
+            .nodes()
+            .iter()
+            .find(|node| node.role == role && node.name.as_deref() == Some(name))
+            .expect("walk's control")
+            .id;
+        self.turn(vec![Report::Act { node, act }])
+    }
+    fn key_event(&self, value: &[u8]) -> Box<[u8]> {
+        let node = self
+            .host
+            .tree()
+            .nodes()
+            .iter()
+            .find(|node| node.role == Role::TextField && node.name.as_deref() == Some(b"Key (pasted once)"))
+            .expect("key field")
+            .id;
+        temper_client_shell_web::journey::event(&self.host, node, &Act::Input { value: value.into() })
+            .expect("key event")
+    }
     fn streamed(&mut self, event: &w::StreamEvent) -> Vec<Asked> {
         let bytes = encoded(event.measure(), |writer| event.encode(writer));
         let size = base64::encoded_len(Alphabet::Standard, u32::try_from(bytes.len()).expect("fixture fits"))
@@ -238,6 +261,111 @@ pub(super) fn walked_with_saves(no_event: bool) -> Saves {
     .expect("family answer");
     walk.answered(returning, &w::KeyedAnswer::FinalAnswer(record));
     Saves { recording: walk.recording.expect("departure ended the walk"), before_press, first, later }
+}
+
+fn key_ready() -> Walk {
+    let mut walk = Walk::new();
+    walk.turn(vec![Report::Start]);
+    walk.turn(vec![Report::Heard(Heard::StreamOpened)]);
+    let mut served = List::with_capacity(2);
+    for (owner, version) in [
+        (w::Owner::Jig, VERSION),
+        (
+            w::Owner::Family(
+                w::Family::new(&w::CEILINGS, w::FamilyParts { number: wire::FORGE }).expect("forge family"),
+            ),
+            wire::CLIENT_VERSION,
+        ),
+    ] {
+        served
+            .push(
+                w::Served::new(&w::CEILINGS, w::ServedParts { owner, first: version, last: version })
+                    .expect("served family"),
+            )
+            .expect("two families");
+    }
+    let asks = walk.streamed(&w::StreamEvent::Hello(
+        w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
+            .expect("hello"),
+    ));
+    let watch = asks
+        .into_iter()
+        .find_map(|ask| {
+            let Asked::Exchange { call, .. } = ask else {
+                return None;
+            };
+            if call.path.as_ref() != b"/jig/v1/watch" {
+                return None;
+            }
+            let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&call.body)).expect("watch envelope");
+            let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject");
+            matches!(subject, w::Subject::Me).then_some(open.watch())
+        })
+        .expect("me watch");
+    let value = me_with_openai_key();
+    walk.streamed(&w::StreamEvent::Delivery(
+        w::Delivery::new(
+            &w::CEILINGS,
+            w::DeliveryParts { watch, document: owned(encoded(value.measure(), |writer| value.encode(writer))) },
+        )
+        .expect("me delivery"),
+    ));
+    walk.act_on(Role::Link, b"Use an API key", Act::Press);
+    walk
+}
+pub(super) fn key_event(value: &[u8]) -> Box<[u8]> {
+    key_ready().key_event(value)
+}
+pub(super) fn keyed(value: &[u8], byte_at_a_time: bool) -> Box<[u8]> {
+    let mut walk = key_ready();
+    if byte_at_a_time {
+        for end in 1..=value.len() {
+            walk.act_on(Role::TextField, b"Key (pasted once)", Act::Input { value: value[..end].into() });
+        }
+    } else {
+        walk.act_on(Role::TextField, b"Key (pasted once)", Act::Input { value: value.into() });
+    }
+    let sent = exchange(walk.act_on(Role::Button, b"Add key", Act::Press));
+    let outcome = w::Outcome::Document(
+        w::OutcomeDocument::new(&w::CEILINGS, w::OutcomeDocumentParts { value: w::DocumentOutcome::AccountChanged })
+            .expect("account outcome"),
+    );
+    let answer = w::Final::Done(w::Done::new(&w::CEILINGS, w::DoneParts { outcome }).expect("done"));
+    walk.answered(sent, &w::KeyedAnswer::FinalAnswer(owned(encoded(answer.measure(), |writer| answer.encode(writer)))));
+    walk.recorder.as_ref().expect("recording").save(&walk.page)
+}
+pub(super) fn stored_stream(record: skein_ui_web::store::Record) -> Box<[u8]> {
+    let facts = Facts {
+        seed: 11,
+        now: Time::ZERO,
+        wall: Wall::EPOCH,
+        primary: Primary::Control,
+        zone_minutes: 0,
+        ways: None,
+        forges: Vec::new(),
+        path: b"/accounts/connect".as_slice().into(),
+        secret: None,
+        stored: vec![record],
+    };
+    let (host, page) = facts.start();
+    let mut walk =
+        Walk { host, page, recorder: Some(Recorder::new(&facts)), recording: None, now: facts.now, wall: facts.wall };
+    walk.turn(vec![Report::Start]);
+    walk.recorder.as_ref().expect("recording").save(&walk.page)
+}
+fn me_with_openai_key() -> w::DeliveryValue {
+    let w::DeliveryValue::Me(me) = me_with_openai() else { panic!("me fixture") };
+    let mut me = me.into_parts();
+    let mut reader = Reader::new(&me.providers);
+    reader.u32().expect("provider's length");
+    let mut provider = w::ProviderOffer::decode(&w::CEILINGS, &mut reader).expect("provider").into_parts();
+    provider.skein_bools[2] = true;
+    let provider = w::ProviderOffer::new(&w::CEILINGS, provider).expect("key provider");
+    me.providers = encoded(provider.measure() + 4, |writer| {
+        writer.put(&provider.measure().to_be_bytes())?;
+        provider.encode(writer)
+    });
+    w::DeliveryValue::Me(w::Me::new(&w::CEILINGS, me).expect("me"))
 }
 
 fn me_with_openai() -> w::DeliveryValue {

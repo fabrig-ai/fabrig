@@ -66,6 +66,9 @@ pub struct Layer {
     owner: Option<Token>,
 }
 impl Layer {
+    pub fn into_protocol(self) -> (Protocol, Env<limits::Limits>) {
+        (self.protocol, self.env)
+    }
     pub fn new() -> Self {
         Self::with_form(crate::Form::Text, limits::SHIPPED)
     }

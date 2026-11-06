@@ -258,6 +258,21 @@ pub fn decode_deployment_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1:
     if reader.is_empty() { Some(record) } else { None }
 }
 
+/// Encode the program's environment (temper/docs/design/client/README.md, 4.6).
+#[must_use]
+pub fn program_environment_answer(record: &v1::ProgramEnvironmentAnswer) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+/// Decode one complete program environment answer (temper/docs/design/client/README.md, 4.6).
+#[must_use]
+pub fn decode_program_environment_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::ProgramEnvironmentAnswer> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::ProgramEnvironmentAnswer::decode(limits, &mut reader).ok()?;
+    if reader.is_empty() { Some(record) } else { None }
+}
+
 /// Encode which of the family's subjects is watched (client/README.md, 4.6).
 #[must_use]
 pub fn watching(record: &v1::Watching) -> Box<[u8]> {
