@@ -212,7 +212,12 @@ fn save_history(domain: &mut Domain, mut row: History, out: &mut Queue<Request>)
     let task = task_mut(domain, row.task).expect("history task live");
     task.record.revision = task.record.revision.checked_add(1).expect("revision preflighted");
     row.revision = task.record.revision;
-    crate::activity::append(&mut task.record, row.at, crate::Line::Decided { revision: row.revision }, out);
+    crate::activity::append(
+        &mut task.record,
+        row.at,
+        crate::Line::Decided { revision: row.revision, proposal: None },
+        out,
+    );
     out.push(Request::Save { record: Stored::History(row) });
 }
 

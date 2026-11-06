@@ -720,7 +720,11 @@ pub(crate) fn propose_run(
         number: next,
         proposer: key.task,
         project: people::DEPLOYMENT,
-        action: tasks::ProposalAction::Settings { against, items: s::proposal_heads(&set.items) },
+        action: tasks::ProposalAction::Settings {
+            against,
+            items: s::proposal_heads(&set.items),
+            projects: set.projects().into_boxed(),
+        },
         reason,
         as_holder: false,
         state: tasks::ProposalState::Pending {
