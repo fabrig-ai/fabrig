@@ -338,7 +338,8 @@ the forge's guarantee, not the owner's choice, and a client's check never
 changes it, because a late copy can pass the check. **Keyed:** the forge
 refuses a second creation with the same identity (no Forgejo write is).
 **Conditional:** it checks the state the write names. **Idempotent:**
-repeating gives the same state. **Unrecoverable:** none of these.
+repeating gives the same state, the one the write names: a set's value,
+an update's head holding its base. **Unrecoverable:** none of these.
 
 `recovery(&Write)` gives the class. A lost write is found again by:
 
@@ -346,7 +347,7 @@ repeating gives the same state. **Unrecoverable:** none of these.
 |---|---|---|
 | open a pull request | Conditional | the open pull of its branches |
 | merge, in the repository's style or fast-forward only | Conditional | its pull merged at its exact head |
-| update from base, by a merge or a rebase | Unrecoverable | its head containing the base |
+| update from base, by a merge or a rebase | Idempotent: every copy leaves its head containing the base, or changes nothing | its head containing the base |
 | dispatch a workflow | Unrecoverable | a run of its workflow at its branch's commit made since start (`Runs`) |
 | rerun a job | Unrecoverable: Forgejo checks no attempt, and refuses only a run not completed | the job's attempt past the one named (`Run`) |
 | update a ref, fast-forward only | Conditional: the forge refuses a move that is not a fast-forward | the branch at the commit, or at a commit containing it (`Branch`, `Compare`): made, though main moved past it since |
@@ -362,6 +363,26 @@ oldest. A comment or a review settles a find only if it is original (not
 revised, provenance known) and carries the entry's key, believed
 (section 7.1). An issue, whose summary carries no provenance, settles
 it by its key, believed, alone.
+
+**What a late copy of an update may do.** An update has no value a copy
+could write over a newer one: whichever copy lands, and whenever, its
+head holds the base it asked for, or the copy is refused or changes
+nothing. So its class rests on no lifetime (jig's
+`domain/connectors.md`, 4.3), and a forge's git work may outlast one. What
+a copy costs is what it moves:
+
+- **By a merge,** the branch only moves forward. A copy that read a head
+  since moved is refused at its push; one that reads a head holding the
+  base changes nothing; one that reads it after the base went on merges
+  the newer tip, a new head.
+- **By a rebase,** the forge's push is forced and names no head. A copy
+  rewrites the head: the same commits on the base, under another id. One
+  that read the head before a later push and lands after it **drops that
+  push from the branch**.
+
+Neither lands anything unchecked: a merge names its exact head and is
+refused at any other (7.4). A head moved under an owner is the owner's to
+judge.
 
 ### 7.4 One write's way
 
@@ -415,6 +436,11 @@ restart the saved deadline.
   lifted. Any other write, or one remade, fails `Timeout` after
   `write_attempts` failures; else it is checked and made under a new
   attempt.
+- **An update checked again** may find its head or its base moved: by a
+  late copy of its own, by another hand, or a base gone on. It fails
+  `Stale`, as any check does, whichever it was: `Stale` says the state it
+  was decided on has gone, not that the update was not made. The owner
+  reads afresh.
 - **A set** (edit, reviewers, close, reopen, status) is not looked for. It
   waits out the first attempt's lifetime and is written again, so a late
   copy cannot land after the second.
@@ -551,7 +577,11 @@ before it writes.
   restart; an uncertain write is found without a second; a created
   branch deleted before its find is held after its deadline; a
   conditional merge lands once; a queued merge settles once, landed or
-  ejected; a late set reaches its final state; an
+  ejected; a late set reaches its final state; an update, by a merge and
+  by a rebase, found if its copy lands within its lifetime, made again if
+  not, its head holding its base whichever copy lands and with a copy past
+  its lifetime, and failed `Timeout` when none lands in `write_attempts`;
+  an
   effect committed before its forge's writer is given, refused, and one
   restored after the writer was kept, made; a
   branch name taken by another writer is reported, not overwritten;
@@ -583,3 +613,7 @@ before it writes.
   write whatever the dialect. A dialect may carry its own (forge.md,
   section 4), the client then taking the class as a value. Default: the
   classes stay in the client, Forgejo and GitHub sharing them.
+- **An update's lifetime.** A forge does an update's git work inside the
+  call and its real time is not known, so `lifetime` may be too short for
+  one. Too short costs a repeated update, and any head a late copy moves.
+  Default: `lifetime` is kept until it is measured.

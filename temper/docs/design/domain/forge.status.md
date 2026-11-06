@@ -3,6 +3,14 @@
 2026-11-06. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
+  - 6, 10 (`update-class`): kind 11 is unrecoverable, and an update not found holds
+    its task for a person.
+  - 10 (`change-decides-again`): a change updating or preparing with no result waits,
+    up to `stall`, and decides nothing.
+  - 10 (`update-let-go`): an update settled `Failed` holds the change `Failed` whatever
+    the error, and a release of `Failed` keeps the result, so it holds again.
+  - 10 (`update-hold-words`): `Updates` names no write's account.
+  - 18 (`update-worlds`): the stories of a lost update.
   - 11: a task's saved work is not deleted as it closes: `s<task>` is no hold,
     and a close releases holds alone (`temper-engine-domain-forge/src/domain.rs`,
     `continue_release`), so the branch stays on the forge. From reading: no story
