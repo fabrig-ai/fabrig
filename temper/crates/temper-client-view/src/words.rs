@@ -864,29 +864,31 @@ pub enum Word {
     TimeNovember,
     TimeDecember,
 
-    ChangeModel,
-    BylineTask,
-    BylineModel,
-    BylineKey,
-    BylinePlan,
-    BylineProgram,
-    BylinePlayground,
     UsingModel,
     UsingDefault,
     UsingKey,
     UsingPlan,
     UsingProgram,
-    ModelNeedsAccount,
     ModelEffort,
+    ModelApiKey,
+    ModelPlanSuffix,
+    ModelPlan,
+    ModelSubscription,
+    ModelChanging,
+    ModelNextTurn,
+    ModelsAccounts,
+    FindModel,
+    ModelsBack,
+    AllModels,
+    Effort,
+    ModelDefault,
+    Model,
 
     WaitRefused,
     DependencyParked,
     WaitInvalid,
-    ChoiceDraft,
-    ChoiceDraftDefault,
     WaitingAccountName,
     WaitingAccount,
-    ChoiceProvider,
     ConnectPlanOrKey,
     AccountReadinessUnknown,
     AccountBanner,
@@ -894,8 +896,6 @@ pub enum Word {
     DefaultModel,
     AccountSignIn,
     AccountKey,
-    ChoiceApply,
-    ChoiceReset,
     AccountWaiting,
     WaitRefreshing,
     WaitMoving,
@@ -905,7 +905,6 @@ pub enum Word {
     WaitCredential,
     WaitCapacity,
     Usage,
-    ChoicePending,
     TaskHeader,
     Plan,
     Agent,
@@ -1392,7 +1391,8 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
 // The command’s Copy adds three literal phrases (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
-const PHRASES: u32 = 1876;
+// The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
+const PHRASES: u32 = 1875;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1418,10 +1418,11 @@ const PHRASES: u32 = 1876;
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 3295;
+// The composer picker removes the bar and explicit-apply phrase segments (3.5).
+const SEGMENTS: u32 = 3266;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 45779;
-const ALL: [Word; 1275] = [
+const ENGLISH_BYTES: u32 = 45708;
+const ALL: [Word; 1274] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -2253,28 +2254,30 @@ const ALL: [Word; 1275] = [
     Word::TimeOctober,
     Word::TimeNovember,
     Word::TimeDecember,
-    Word::ChangeModel,
-    Word::BylineTask,
-    Word::BylineModel,
-    Word::BylineKey,
-    Word::BylinePlan,
-    Word::BylineProgram,
-    Word::BylinePlayground,
     Word::UsingModel,
     Word::UsingDefault,
     Word::UsingKey,
     Word::UsingPlan,
     Word::UsingProgram,
-    Word::ModelNeedsAccount,
     Word::ModelEffort,
+    Word::ModelApiKey,
+    Word::ModelPlanSuffix,
+    Word::ModelPlan,
+    Word::ModelSubscription,
+    Word::ModelChanging,
+    Word::ModelNextTurn,
+    Word::ModelsAccounts,
+    Word::FindModel,
+    Word::ModelsBack,
+    Word::AllModels,
+    Word::Effort,
+    Word::ModelDefault,
+    Word::Model,
     Word::WaitRefused,
     Word::DependencyParked,
     Word::WaitInvalid,
-    Word::ChoiceDraft,
-    Word::ChoiceDraftDefault,
     Word::WaitingAccountName,
     Word::WaitingAccount,
-    Word::ChoiceProvider,
     Word::ConnectPlanOrKey,
     Word::AccountReadinessUnknown,
     Word::AccountBanner,
@@ -2282,8 +2285,6 @@ const ALL: [Word; 1275] = [
     Word::DefaultModel,
     Word::AccountSignIn,
     Word::AccountKey,
-    Word::ChoiceApply,
-    Word::ChoiceReset,
     Word::AccountWaiting,
     Word::WaitRefreshing,
     Word::WaitMoving,
@@ -2293,7 +2294,6 @@ const ALL: [Word; 1275] = [
     Word::WaitCredential,
     Word::WaitCapacity,
     Word::Usage,
-    Word::ChoicePending,
     Word::TaskHeader,
     Word::Plan,
     Word::Agent,
@@ -3536,28 +3536,30 @@ impl Word {
             Self::SignInBusy => 1908,
             Self::SignInNotReady => 1909,
             Self::OutOfDateMain => 183,
-            Self::ChangeModel => 1067,
-            Self::BylineTask => 1505,
-            Self::BylineModel => 1500,
-            Self::BylineKey => 1501,
-            Self::BylinePlan => 1502,
-            Self::BylineProgram => 1503,
-            Self::BylinePlayground => 1504,
             Self::UsingModel => 1068,
             Self::UsingDefault => 1069,
             Self::UsingKey => 1070,
             Self::UsingPlan => 1071,
             Self::UsingProgram => 1072,
-            Self::ModelNeedsAccount => 1073,
             Self::ModelEffort => 1074,
+            Self::ModelApiKey => 3963,
+            Self::ModelPlanSuffix => 3962,
+            Self::ModelPlan => 3961,
+            Self::ModelSubscription => 3960,
+            Self::ModelChanging => 3959,
+            Self::ModelNextTurn => 3958,
+            Self::ModelsAccounts => 3957,
+            Self::FindModel => 3956,
+            Self::ModelsBack => 3955,
+            Self::AllModels => 3954,
+            Self::Effort => 3953,
+            Self::ModelDefault => 3952,
+            Self::Model => 3951,
             Self::WaitRefused => 1029,
             Self::DependencyParked => 1030,
             Self::WaitInvalid => 1028,
-            Self::ChoiceDraft => 1024,
-            Self::ChoiceDraftDefault => 1025,
             Self::WaitingAccountName => 1027,
             Self::WaitingAccount => 1023,
-            Self::ChoiceProvider => 1020,
             Self::ConnectPlanOrKey => 1021,
             Self::AccountReadinessUnknown => 1022,
             Self::AccountBanner => 1000,
@@ -3565,8 +3567,6 @@ impl Word {
             Self::DefaultModel => 1834,
             Self::AccountSignIn => 1001,
             Self::AccountKey => 1003,
-            Self::ChoiceApply => 1009,
-            Self::ChoiceReset => 1010,
             Self::AccountWaiting => 1011,
             Self::WaitRefreshing => 1012,
             Self::WaitMoving => 1850,
@@ -3576,7 +3576,6 @@ impl Word {
             Self::WaitCredential => 1015,
             Self::WaitCapacity => 1016,
             Self::Usage => 1017,
-            Self::ChoicePending => 1018,
             Self::TaskHeader => 161,
             Self::Plan => 163,
             Self::Agent => 165,
@@ -4142,37 +4141,16 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
     {
         return Ok(temper_client_domain::forge::PLAYGROUND_FIELD_BYTES);
     }
-    if word == Word::BylineTask && kind == HoleKind::Name {
-        return byline_bytes(joined);
-    }
     let model_name = joined.min(crate::choice::MODEL_SHOWN);
     if word == Word::ModelEffort {
-        return Ok(model_name);
+        // The closed line prefixes an Anthropic shown name with "Claude ".
+        return model_name.checked_add(7).ok_or(Invalid::Overflow);
     }
-    if last
-        && [
-            Word::UsingModel,
-            Word::UsingKey,
-            Word::UsingPlan,
-            Word::UsingProgram,
-            Word::ModelNeedsAccount,
-            Word::BylineModel,
-            Word::BylineKey,
-            Word::BylinePlan,
-            Word::BylineProgram,
-        ]
-        .contains(&word)
-    {
+    if last && [Word::UsingModel, Word::UsingKey, Word::UsingPlan, Word::UsingProgram].contains(&word) {
         let doubled = model_name.checked_mul(2).ok_or(Invalid::Overflow)?;
         return doubled.checked_add(3).ok_or(Invalid::Overflow);
     }
     Ok(if kind == HoleKind::Name { joined } else { 0 })
-}
-// Provider words, bounded program/model/effort names, and their literals.
-fn byline_bytes(joined: u32) -> Result<u32, Invalid> {
-    let bounded = joined.min(crate::choice::MODEL_SHOWN).checked_mul(3).ok_or(Invalid::Overflow)?;
-    let names = joined.checked_add(bounded).ok_or(Invalid::Overflow)?;
-    names.checked_add(128).ok_or(Invalid::Overflow)
 }
 fn english_language(
     connector: u16,
@@ -4317,7 +4295,6 @@ impl Words {
             text_bytes: ENGLISH_BYTES,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
-                .max(byline_bytes(joined)?)
                 .max(switcher_repository_bytes(joined)?)
                 .max(home_answer_bytes(joined)?)
                 .max(SETTINGS_PROJECT_NAMES_BYTES)
@@ -5073,25 +5050,28 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::Count => (&[b"", b""], &[Number]),
         Word::BudgetDeadlineDate => (&[b"", b""], &[HoleKind::Date]),
         Word::BudgetDeadlineMoment => (&[b"", b" UTC"], &[HoleKind::Moment]),
-        Word::ChangeModel => (&[b"Change model"], &[]),
-        Word::BylineTask => (&[b"T", b" \xc2\xb7 ", b""], &[Number, Name]),
-        Word::BylineModel => (&[b"", b""], &[Name]),
-        Word::BylineKey => (&[b"", b" API key \xc2\xb7 ", b""], &[Name, Name]),
-        Word::BylinePlan => (&[b"", b" plan \xc2\xb7 ", b""], &[Name, Name]),
-        Word::BylineProgram => (&[b"your ", b" subscription, through ", b" \xc2\xb7 ", b""], &[Name, Name, Name]),
-        Word::BylinePlayground => (&[b"Scripted model \xc2\xb7 ", b""], &[Name]),
         Word::UsingModel => (&[b"Using ", b""], &[Name]),
         Word::UsingDefault => (&[b"Using the default model"], &[]),
         Word::UsingKey => (&[b"Using your ", b" API key \xc2\xb7 ", b""], &[Name, Name]),
         Word::UsingPlan => (&[b"Using ", b" plan \xc2\xb7 ", b""], &[Name, Name]),
         Word::UsingProgram => (&[b"Using your ", b" subscription, through ", b" \xc2\xb7 ", b""], &[Name, Name, Name]),
-        Word::ModelNeedsAccount => (&[b"", b" \xc2\xb7 needs an account"], &[Name]),
+        Word::Model => (&[b"Model"], &[]),
+        Word::ModelDefault => (&[b"default"], &[]),
+        Word::Effort => (&[b"Effort"], &[]),
+        Word::AllModels => (&[b"All models"], &[]),
+        Word::ModelsBack => (&[b"\xe2\x80\xb9 Models"], &[]),
+        Word::FindModel => (&[b"Find a model"], &[]),
+        Word::ModelsAccounts => (&[b"Accounts, in Settings"], &[]),
+        Word::ModelNextTurn => (&[b"A change applies from the next turn."], &[]),
+        Word::ModelChanging => (&[b"Changing\xe2\x80\xa6"], &[]),
+        Word::ModelSubscription => (&[b"your subscription"], &[]),
+        Word::ModelPlan => (&[b"your "], &[]),
+        Word::ModelPlanSuffix => (&[b" plan"], &[]),
+        Word::ModelApiKey => (&[b"your API key"], &[]),
         Word::ModelEffort | Word::UpdateTime => (&[b"", b" \xc2\xb7 ", b""], &[Name, Name]),
         Word::WaitRefused => (&[b"Next run refused \xc2\xb7 ", b""], &[Name]),
         Word::DependencyParked => (&[b"parked"], &[]),
         Word::WaitInvalid => (&[b"The requested account cannot serve this work"], &[]),
-        Word::ChoiceDraft => (&[b"Next run if applied: ", b""], &[Name]),
-        Word::ChoiceDraftDefault => (&[b"Next run if applied: engine default"], &[]),
         Word::WaitingAccountName => (&[b"Waiting account: ", b""], &[Name]),
         Word::WaitingAccount => (&[b"Waiting account: ", b""], &[Number]),
         Word::ConnectPlanOrKey => (&[b"Connect a plan or key \xe2\x80\xba"], &[]),
@@ -5101,8 +5081,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::AccountBanner => (&[b"Agents need an LLM account to run."], &[]),
         Word::AccountSignIn => (&[b"Sign in with an LLM provider"], &[]),
         Word::AccountKey => (&[b"Use an API key"], &[]),
-        Word::ChoiceApply => (&[b"Apply to next run"], &[]),
-        Word::ChoiceReset => (&[b"Reset choice"], &[]),
         Word::AccountWaiting => (&[b"Waiting for an account"], &[]),
         Word::WaitRefreshing => (&[b"Refreshing account credentials"], &[]),
         Word::WaitMoving => (&[b"Waiting because the account is moving to another deployment"], &[]),
@@ -5112,7 +5090,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WaitCredential => (&[b"This work needs a credential from its forge."], &[]),
         Word::WaitCapacity => (&[b"No host has room for this, or none is connected. It starts when one does."], &[]),
         Word::Usage => (&[b"Manage usage"], &[]),
-        Word::ChoicePending => (&[b"Next-run choice request in progress"], &[]),
         Word::TaskHeader => (&[b"Task details"], &[]),
         Word::Plan => (&[b"Plan"], &[]),
         Word::Agent => (&[b"Agent"], &[]),
@@ -5499,7 +5476,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ProposalBudget => (&[b"Budget"], &[]),
         Word::ProposalInbox => (&[b"Open in inbox \xe2\x86\x97"], &[]),
         Word::ChatDelegates => (&[b"", b" delegates"], &[Number]),
-        Word::ChoiceProvider => (&[b"", b""], &[Name]),
         Word::ChatWorking => (&[b"Writing"], &[]),
         Word::ChatPaused => (&[b"Paused"], &[]),
         Word::ChatSendResumes => (&[b"Sending resumes this chat."], &[]),

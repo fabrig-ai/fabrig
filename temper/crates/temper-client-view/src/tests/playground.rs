@@ -126,7 +126,9 @@ fn a_chats_banner_precedes_main_and_its_chatbar_in_every_project() {
         );
         assert!(main.unwrap() < chatbar.unwrap() && chatbar.unwrap() < thread.unwrap(), "{row}");
         assert!(f::find(view.tree(), Role::Heading { level: 1 }, "T1 · Ship the update".as_bytes()).is_some(), "{row}");
-        assert!(f::find(view.tree(), Role::Paragraph, b"Scripted model").is_none(), "{row}");
+        for node in &nodes[chatbar.unwrap()..thread.unwrap()] {
+            assert!(!(node.role == Role::Paragraph && node.name.as_deref() == Some(b"Scripted model")), "{row}");
+        }
     }
 }
 #[test]
@@ -246,13 +248,25 @@ fn the_hidden_deployment_playground_account_needs_only_its_public_provider() {
 fn the_playground_chooser_names_the_provider_and_model_but_keeps_the_configured_choice() {
     let mut root = f::playground_root(Address::NewChat { draft: false }, f::PROJECT, true);
     let mut view = f::page_view(&root);
-    assert!(f::find(view.tree(), Role::Paragraph, b"Playground").is_some());
+    assert!(skein_lib::bytes::find(&f::text(view.tree()), b"Playground").is_some());
     assert!(f::find(view.tree(), Role::Button, crate::words::SCRIPTED_MODEL).is_none());
     let model = f::find(view.tree(), Role::Button, b"Scripted model").expect("scripted model");
     let action = crate::act(&mut view, model, skein_ui::Act::Press).expect("model choice");
-    assert_eq!(action, Action::Pages(Act::Choice(temper_client_domain::pages::choice::Act::Model { index: 0 })));
+    assert_eq!(
+        action,
+        Action::Pages(Act::Choice(temper_client_domain::pages::choice::Act::Model { index: 0, account: None }))
+    );
     f::root_event(&mut root, Event::Act { action });
-    assert_eq!(root.pages().choice().requested.as_ref().unwrap().main.model.bytes(), crate::words::SCRIPTED_MODEL);
+    assert_eq!(
+        root.pages()
+            .choice()
+            .chosen(temper_client_domain::pages::accounts::current_me(root.client()).unwrap())
+            .unwrap()
+            .main
+            .model
+            .bytes(),
+        crate::words::SCRIPTED_MODEL
+    );
 }
 
 #[test]

@@ -57,7 +57,7 @@ pub(crate) fn main(
             super::session::Heading::Chat { whole: &title, title: task.chip.title.bytes() },
         );
         super::session::right(b);
-        crate::choice::byline(b, root, Some(task), words, bindings);
+        super::session::number(b, words, task.chip.task);
         super::document::seg(b, chat, words, bindings);
         super::chat_sheet::bar(b, root, words, bindings);
         if chat.draft.is_none()
@@ -260,10 +260,14 @@ fn session_composer(
     words: &Words,
     bindings: &mut Bindings,
 ) {
-    if task.result.is_some()
-        || super::chats::ended(&task.chip)
-        || !temper_client_domain::pages::chat::allowed(task, c::ActKind::Message)
-    {
+    if task.result.is_some() || super::chats::ended(&task.chip) {
+        return;
+    }
+    if !temper_client_domain::pages::chat::allowed(task, c::ActKind::Message) {
+        b.open(Role::Slot);
+        b.style(look::FOOT_ROW);
+        crate::choice::picker(b, root, Some(task), words, bindings);
+        b.close();
         return;
     }
     let over = match root.pages().me(root.client()) {
@@ -300,7 +304,7 @@ fn session_composer(
     } else {
         Word::ChatSendHint
     };
-    super::session::hint(b, words, hint);
+    super::session::foot_row(b, root, Some(task), words, bindings, hint);
     super::session::over(b, words, over);
     if chat.outcome_kind == Some(temper_client_domain::pages::chat::Sending::Message)
         && let Some(outcome) = &chat.outcome

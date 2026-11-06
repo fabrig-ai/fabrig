@@ -34,7 +34,6 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         super::session::Heading::Words(&w.say(Word::ConfigureTitle, &[])),
     );
     super::session::right(b);
-    byline(b, root, w, bindings);
     if let Some(mode) = reference {
         super::document::modes(b, Word::ReferenceGroup, mode, w, bindings);
     }
@@ -190,10 +189,6 @@ fn own_way(b: &mut Builder, w: &Words, bindings: &mut Bindings, name: Box<[u8]>,
     b.close();
 }
 
-fn byline(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
-    crate::choice::byline(b, root, None, w, bindings);
-}
-
 fn model_accounts(root: &Domain, w: &Words) -> Option<[Hole; 2]> {
     let me = root.pages().me(root.client())?;
     let models = temper_client_domain::pages::choice::offer(me, root.pages().project()?)?;
@@ -297,7 +292,14 @@ fn composer(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, 
     }
     b.bind(bindings.insert(Act::StartChat));
     b.close();
-    super::session::hint(b, w, if chats.reference.is_some() { Word::DraftSendHint } else { Word::ChatSendHint });
+    super::session::foot_row(
+        b,
+        root,
+        None,
+        w,
+        bindings,
+        if chats.reference.is_some() { Word::DraftSendHint } else { Word::ChatSendHint },
+    );
     if chats.refusal.is_some() {
         w.refusal(b, &jig_client::contract::Refusal::NotOffered, text_limit);
     }

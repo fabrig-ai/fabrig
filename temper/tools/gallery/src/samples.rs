@@ -90,7 +90,15 @@ impl Sample {
     #[must_use]
     pub fn open_disclosure(&self) -> Option<&[u8]> {
         match self.name {
-            "chat-byline-open" => Some(b"Change model"),
+            "chat-model-open"
+            | "chat-model-both"
+            | "chat-model-all"
+            | "chat-model-two-accounts"
+            | "chat-model-sign-in-again"
+            | "chat-started-model-open"
+            | "chat-started-model-changing"
+            | "chat-started-model-refused"
+            | "configure-model-open" => Some(b"Model"),
             "chat-work-open" => Some("Checked settings 3×, read 7 docs".as_bytes()),
             _ => None,
         }
@@ -105,7 +113,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 276;
+pub const N: usize = 285;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -736,12 +744,26 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "chats-reference", world: Reference, address: CHATS, then: Shown },
         Sample { name: "chat-reference-T1", world: Reference, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-solo-T1", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-model-open", world: Bare, address: Address::NewChat { draft: false }, then: Shown },
+        Sample { name: "chat-model-both", world: Bare, address: Address::NewChat { draft: false }, then: Shown },
+        Sample { name: "chat-model-all", world: Bare, address: Address::NewChat { draft: false }, then: Shown },
         Sample {
-            name: "chat-byline-open",
-            world: FirstRun { step: 7 },
+            name: "chat-model-two-accounts",
+            world: Bare,
             address: Address::NewChat { draft: false },
             then: Shown,
         },
+        Sample {
+            name: "chat-model-sign-in-again",
+            world: Bare,
+            address: Address::NewChat { draft: false },
+            then: Shown,
+        },
+        Sample { name: "chat-model-fixed", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-started-model-open", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-started-model-changing", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-started-model-refused", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "configure-model-open", world: Bare, address: Address::Configure { project: 1 }, then: Shown },
         Sample { name: "chat-paused", world: Solo, address: Address::Chat { task: 6 }, then: Then::Paused },
         Sample { name: "chat-working", world: Solo, address: Address::Chat { task: 6 }, then: Then::Working },
         Sample { name: "chat-solo-T6", world: Solo, address: Address::Chat { task: 6 }, then: Shown },
@@ -1250,6 +1272,12 @@ fn start_domain(sample: &Sample) -> Domain {
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one dispatch keeps each gallery state with its domain setup")]
 pub fn domain(sample: &Sample) -> Domain {
+    if sample.name.starts_with("chat-model-")
+        || sample.name.starts_with("chat-started-model-")
+        || sample.name == "configure-model-open"
+    {
+        return crate::worlds::picker_world(sample.name);
+    }
     if sample.name.starts_with("chat-work-") || sample.name == "agent-work" {
         return crate::worlds::chat_work_world(sample.name);
     }

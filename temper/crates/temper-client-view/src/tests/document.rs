@@ -640,9 +640,9 @@ fn no_document_no_group_on_a_chat() {
         assert!(styled(empty.tree(), look::SEG).is_empty());
         let view = view(&root(Some(BODY), Mode::Chat, &[]), shell);
         let nodes = view.tree().nodes();
-        let byline = nodes.iter().position(|node| node.styles.as_slice().contains(&look::BYLINE)).unwrap();
+        let byline = nodes.iter().position(|node| node.styles.as_slice().contains(&look::SESSION_RIGHT)).unwrap();
         let group = nodes.iter().position(|node| node.styles.as_slice().contains(&look::SEG)).unwrap();
-        assert_eq!(group, byline + usize::try_from(nodes[byline].size).unwrap());
+        assert_eq!(group, byline + if shell == Shell::Browser { 3 } else { 1 });
     }
 }
 
