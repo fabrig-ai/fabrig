@@ -1144,28 +1144,7 @@ fn released_into(
         Delivery::Load { waiter, range, after } => {
             request_load(domain, waiter, range, after, out);
         }
-        Delivery::ReadEscalationDecision { waiter } => {
-            let Some(Some(read)) = domain.archive_reads.get(Id::from_token(waiter)) else { return };
-            let (task, revision) = match read {
-                Read::Escalation(query) => (query.task, query.revision),
-                Read::Ended(_)
-                | Read::Transcript { .. }
-                | Read::GoalWords(_)
-                | Read::InputCheck(_)
-                | Read::Notes { .. }
-                | Read::Proposal(_)
-                | Read::TaskProposal { .. } => {
-                    unreachable!("decision archive waiter")
-                }
-            };
-            request_load(
-                domain,
-                waiter,
-                Range::Core(crate::CoreRange::EscalationDecision { task, revision }),
-                None,
-                out,
-            );
-        }
+        Delivery::ReadEscalationDecision { waiter } => load_escalation_decision(domain, waiter, out),
         delivery @ (Delivery::PlaygroundNote { .. }
         | Delivery::Host(_)
         | Delivery::AssignedJob { .. }
@@ -1224,6 +1203,24 @@ pub enum Refused {
     /// The forges' writers or git identities beyond the forge's repositories,
     /// or the namespace and writers beyond the forge client's `op_bytes`.
     Forges,
+}
+
+fn load_escalation_decision(domain: &mut Domain, waiter: Token, out: &mut Queue<Request>) {
+    let Some(Some(read)) = domain.archive_reads.get(Id::from_token(waiter)) else { return };
+    let (task, revision) = match read {
+        Read::Escalation(query) => (query.task, query.revision),
+        Read::Ended(_)
+        | Read::Transcript { .. }
+        | Read::GoalWords(_)
+        | Read::InputCheck(_)
+        | Read::SettingsNote { .. }
+        | Read::Notes { .. }
+        | Read::Proposal(_)
+        | Read::TaskProposal { .. } => {
+            unreachable!("decision archive waiter")
+        }
+    };
+    request_load(domain, waiter, Range::Core(crate::CoreRange::EscalationDecision { task, revision }), None, out);
 }
 
 /// Hold the configuration to the root's limits as `Domain::new` does, and
