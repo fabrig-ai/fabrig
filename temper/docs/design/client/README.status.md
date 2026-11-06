@@ -89,9 +89,26 @@
   then says why Send stays grey; and no line says there that the playground is
   running or leaving. Seen by reading; no test holds it.
 - **Departs:** 3.6, *Closed ends on one line*: a requester-closed chat hides
-  every "Decision made" activity line, because `Activity::Decided` carries only
-  a revision and cannot identify the closing decision. This keeps the quiet end
-  line, at the cost of hiding earlier decision markers too.
+  every "Decision made" activity line, where the section and the request
+  `close-chat` of 2026-11-06 hide the closing's alone, because `Activity::Decided`
+  carries only a revision and cannot identify the closing decision (section 11).
+  This keeps the quiet end line, at the cost of hiding earlier decision markers too.
+- **Design departs:** 3.6, *The sheet*, from the user's request of 2026-11-06 to land
+  `close-chat`, which asks no change of behaviour: a Release pressed on an uncertain
+  effect before either choice closes the sheet and sends nothing, by the section's
+  rule, which that plan's cut wrote (`temper-client-domain`'s `acts.rs`, `send`;
+  `a_press_that_sends_nothing_closes_the_sheet`). The view draws both choices alike,
+  reading no `again`, so nothing says one was pressed. A Reject pressed with no reason
+  keeps its sheet open and says nothing, where `close-chat` has a confirmation that
+  fails say why above its acts: no ask went, and the reason's box is on the card behind
+  the sheet.
+- **Not yet:** 3.6, *The sheet*: that request has each confirmation walked. A browser
+  on a fake box pressed Close, a goal's Stop and a Release both ways, and a goal's
+  Pause; a press while the page updates, on a Release alone. Accept stands on its
+  gallery state and the client's world, as that plan's cut allowed, since the fake
+  box's self-proposal says "Authority missing" and offers no Accept. A task's Cancel,
+  an agent's task's Stop, Reject and Start over are drawn at each width by their
+  gallery states, and no walk on record presses them.
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
 - **Not yet:** 3.5, *The try*: the view has no fact of a trial, so `model_check::trial`,
   the one function `../draft/model-check.md`, 2 to 4, feeds, reads the host's check alone:
@@ -295,7 +312,9 @@
   4.7: the "not installed" outcome, "temper's App is not installed on
   OWNER.", with "Install on another account": `temper-service/src/family.rs`
   maps `forge::AdoptionRefusal::NotInstalled` to `ForgeReason::NoAccess`;
-  the client wire has no not-installed reason, pinned as a known gap by
+  the client wire has no not-installed reason, so ctl offers repository access
+  and Forgejo collaborator-admin recovery rather than installation recovery.
+  This gap is pinned by
   `temper-service/src/tests/setup_github.rs`,
   `unaccepted_and_other_account_adoptions_keep_the_wire_reason_gap`;
   no reason is recorded.
@@ -417,6 +436,17 @@
   button of a menu with "Accounts" and "Sign out", where the mock draws the
   person's name as plain text, and a browser over 760 px signs out there rather
   than on the `Accounts` tab. `greenfield/README.md` notes it.
+- **Design departs:** 3.5, *Sign out*, and 5.3, from the request `ui-owner-menu` of
+  2026-11-06, decided by its plan's cut. A press outside that took the focus to
+  another control leaves it there, where the request returns the focus to the row:
+  the row would take back what that press landed on. A project-less `Accounts` page
+  keeps its "Sign out" in the banner, where the request keeps it at the tab's foot:
+  that page has no such row (5.1). Over 760 px the tab's whole row leaves, "Signed in
+  as NAME" and the login with "Sign out", where the request moves "Sign out" alone:
+  one form holds them, and the sheet hides it, since the view knows no width (section
+  11, *The person's login over 760 px*). The rail's "+ New chat" menu closes on a
+  press outside too, which the request doesn't name: skein's page part gives it to
+  every menu.
 - **Design departs:** 3.5, *Settings*, 5.3 and 5.13, from the request `ui-settings`
   of 2026-11-05, decided by its plan's cut. "Sign out did not reach the engine."
   stands on the rail's foot as well as the `Accounts` tab, where the request moves

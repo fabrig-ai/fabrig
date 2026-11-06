@@ -3941,6 +3941,14 @@ Each is intended; what it needs is named with it.
   deleted by the reset, and reuses nothing but the name. The user's to
   confirm. Default: as 8.4's start makes it, the reading the draft's
   status records while the user is away.
+- **A progress page while the box starts** (7.2;
+  `../draft/box-link-first.md`, 6): a page the box would serve until it
+  hands the port to serve. A start takes a few seconds, and a browser's
+  own loading covers them. The user's, who chose the block over it for
+  now. Default: none.
+- **The time of day on the terminal's error lines** (7.2;
+  `../draft/box-link-first.md`, 6): the user may prefer none. Default:
+  kept.
 
 ## 17. Connecting GitHub
 

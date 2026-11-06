@@ -441,8 +441,9 @@ replay says the same clocks (`README.md`, 5.12).
   Keep precedes the named primary act in a separate group. An uncertain
   release's choices have a wrapping group of their own, with the same
   secondary buttons; those and the acts keep 44 px phone targets.
-  Progress and refusal stay above the acts. A requester-closed chat's end
-  line is 12.5 px between two hairlines, and the bar has no clock.
+  Progress and refusal stay above the acts. A chat's end line, whichever
+  its words (`README.md`, 3.5), is 12.5 px between two hairlines, and the
+  bar has no clock.
 - **Connection flows:** standalone connection cards use 5 px corners;
   the welcome's steps have a look of their own (The welcome's look,
   below). The
@@ -1159,8 +1160,10 @@ Not in the tier, each in the lowest world that shows it:
   the request `ui-phone` of 2026-11-05 are throwaways by its own words, and the
   browser tier cannot open a phone's width: `skein-browser` sets every page to
   1280 by 800. So nothing holds how the phone's rules draw when the sheet next
-  moves: `temper-client-shell-web`'s suite reads one rule as text, and the CDP
-  walk of the request `ui-final-walk`, which sets the width, goes with its plan.
+  moves: `temper-client-shell-web`'s suite reads one rule as text, the gallery's
+  `the_accounts_tabs_sign_out_hides_over_a_phones_width_alone` another, the proof
+  at 420 px of the request `ui-owner-menu` is a throwaway too, and the CDP walk of
+  the request `ui-final-walk`, which sets the width, goes with its plan.
   Default: none, until a phone's rule breaks unseen.
 - **The rail's foot on a phone** (2.5; `README.md`, 5.3): the top bar holds the
   switcher alone, as the mock's does, so a project's page on a phone shows no

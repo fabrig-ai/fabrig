@@ -615,6 +615,30 @@ nodes by a bounded reader of skein-ui's own:
   nested too deep, a table's lines that make no table are shown as the
   characters they are, never dropped, and nothing is ever made into
   markup of the platform's;
+- **text still being written:** `read_growing` reads a text that may yet
+  grow, a reply as it arrives, with `read`'s subset. What a blank line
+  outside a fence has closed reads as `read` reads it, so its nodes stay
+  the same whatever follows. The last block is read as if it were
+  closed, and shows no marker being written:
+  - *a run still open* holds to the end of the line: a bold still open is
+    bold, an emphasis emphasis, a code span code, a link's label its
+    text. A delimiter alone at the end of the text, a link's target still
+    being written and its `](` make no text yet;
+  - *a marker still being written* waits for its words: a last line that
+    is only a heading's `#`s, a list's `-`, `*` or digits with or without
+    their `.`, or a quote's `>`, with or without the space after it, makes
+    no node yet;
+  - *a fence still open* is code, its body so far. Its opening line makes
+    no node until it ends, nor does a last line of backticks that may
+    close it;
+  - *a table's delimiter still being written:* a last line of `|`, `-`,
+    `:` and spaces under a line that could head a table makes no node, and
+    the line above it reads as a paragraph's until the delimiter holds;
+  - *its end:* once the text holds a word, the caller's `end` adds its
+    nodes after the last word, inside the paragraph, heading, list item,
+    quote, cell or code that holds it. A text that ends closed reads as
+    `read` reads it, with `end`'s nodes added, so its committed text
+    draws the same blocks;
 - **numbered lists,** whose items' markers are a number, a dot and a
   space:
   - *a number:* one to nine digits, either `0` or with no leading zero,
@@ -631,10 +655,10 @@ nodes by a bounded reader of skein-ui's own:
     that form always does: `3.14`, `3 apples`, `3) three`, `1.` alone,
     `007. x`, a number of ten digits. One of that form does within a
     paragraph, whose wrapped sentence may start with a year, unless its
-    number is `1` or the next of the last numbered list the reader closed:
-    that ends the paragraph and starts a list. Nothing else reads a
-    number's sense, so a line alone that says `2026. A year.` is a list
-    from 2026, and shows as written;
+    number is `1` or the next of the last numbered list that anything but
+    an item closed: that ends the paragraph and starts a list. Nothing
+    else reads a number's sense, so a line alone that says `2026. A year.`
+    is a list from 2026, and shows as written;
 - **tables,** GFM's pipe tables, at the top level, where a paragraph
   stands:
   - *what makes one:* a header line, one the reader would otherwise read
@@ -684,7 +708,9 @@ nodes by a bounded reader of skein-ui's own:
   their newlines, are 30 bytes making 11 nodes and 4 bytes of text. A
   cell's text is its bytes, a link's label twice, less a `\|`'s
   backslash. Cells are found by a scan of their line, keeping no
-  offsets, so a table adds no scratch to the reader's `markdown_bound`;
+  offsets, so a table adds no scratch to the reader's `markdown_bound`.
+  `read_growing` keeps the same bounds, and its caller counts `end`'s
+  nodes;
 - **fed real text:** its tests read texts kept as files beside them.
 
 ## 11. Scenes

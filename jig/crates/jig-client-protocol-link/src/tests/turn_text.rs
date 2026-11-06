@@ -73,7 +73,8 @@ fn expected(cut: bool) -> c::TurnRead {
     for block in core::mem::replace(&mut message.blocks, List::with_capacity(0)).into_boxed() {
         blocks.push(block).unwrap();
     }
-    blocks.push(c::Block::Text(c::Text::new(Box::from(&b"def"[..]), FIELD_TEXT).unwrap())).unwrap();
+    let second = if cut { "…".as_bytes() } else { b"def" };
+    blocks.push(c::Block::Text(c::Text::new(Box::from(second), FIELD_TEXT).unwrap())).unwrap();
     message.blocks = blocks;
     c::TurnRead::Decoded(turn)
 }
