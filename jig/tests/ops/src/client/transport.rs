@@ -584,6 +584,7 @@ impl Scripted {
             | Read::Ended { .. }
             | Read::History { .. }
             | Read::Activity { .. }
+            | Read::ActivityBeside { .. }
             | Read::Turn { .. }
             | Read::Inbox { .. }
             | Read::Spend { .. }

@@ -83,7 +83,7 @@ enum Final { done: Done, refused: Refused }
 enum TaskTextField { specification, instructions, result }
 record ReadTaskText { task: u64 field: TaskTextField from: u64 }
 record TaskText { task: u64 field: TaskTextField from: u64 total: u64 next: option u64 words: text 65536 }
-enum Read { tasks: ReadTasks, me, task: ReadTask, proposal: ReadProposal, escalation: ReadEscalation, question: ReadQuestion, person_task: ReadPersonTask, result: ReadResult, ended: ReadEnded, history: ReadHistory, activity: ReadActivity, inbox: ReadInbox, spend: ReadSpend, project: ReadProject, notes: ReadNotes, deployment, turn: ReadTurn, settings, setting: ReadSetting, revision: ReadRevision, revisions: ReadRevisions, task_text: ReadTaskText }
+enum Read { tasks: ReadTasks, me, task: ReadTask, proposal: ReadProposal, escalation: ReadEscalation, question: ReadQuestion, person_task: ReadPersonTask, result: ReadResult, ended: ReadEnded, history: ReadHistory, activity: ReadActivity, inbox: ReadInbox, spend: ReadSpend, project: ReadProject, notes: ReadNotes, deployment, turn: ReadTurn, settings, setting: ReadSetting, revision: ReadRevision, revisions: ReadRevisions, task_text: ReadTaskText, activity_beside: ReadActivityBeside }
 record BeyondRefused { value: Refusal }
 enum Beyond { proposed: BeyondProposed, refused: BeyondRefused }
 record AdmissionBounded { within: Bounds beyond: Beyond }

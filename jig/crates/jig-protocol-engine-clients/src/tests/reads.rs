@@ -352,3 +352,41 @@ fn a_description_on_tasks_is_refused() {
         assert!(exchange.out.is_empty());
     }
 }
+
+#[test]
+fn an_activity_beside_read_crosses_the_wire() {
+    use jig_client_domain::contract as c;
+    for (side, expected) in [(c::Side::Earlier, reads::Side::Earlier), (c::Side::Later, reads::Side::Later)] {
+        let query = c::Read::ActivityBeside { task: 7, position: 11, side };
+        let wire = jig_client_protocol_link::translate::reads::read(&query, &f::wire()).unwrap();
+        let mut exchange = f::read_exchange();
+        let (_, _, read) = exchange.read(&wire);
+        assert_eq!(read, reads::Read::ActivityBeside { task: 7, position: 11, side: expected });
+    }
+}
+
+#[test]
+fn a_later_page_says_more_by_its_after() {
+    let scope = reads::Scope::Activity { task: 7 };
+    let next = reads::Cursor::Store {
+        scope,
+        after: Some(reads::Position::Owner(jig_domain_core::Key::Tasks(jig_domain_tasks::Key::Activity {
+            task: 7,
+            position: 13,
+        }))),
+    };
+    let read = reads::Read::ActivityBeside { task: 7, position: 11, side: reads::Side::Later };
+    let page = reads::Page {
+        rows: skein_lib::List::with_capacity(0),
+        before: None,
+        next: Some(next.clone()),
+        cut: false,
+        inbox_selection: None,
+    };
+    let w::ReadValue::Activity(value) = crate::translate::pages::page(&[], &read, &page, &f::wire()).unwrap() else {
+        panic!("activity page")
+    };
+    assert_eq!(value.before(), &None);
+    let after = value.after().as_ref().expect("more later lines");
+    assert_eq!(crate::translate::cursor::decode(after.value()), Some(next));
+}

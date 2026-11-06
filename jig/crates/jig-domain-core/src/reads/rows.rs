@@ -132,6 +132,7 @@ pub(super) fn needs_store(read: &Read, document: &Document) -> bool {
             | Read::EndedDelegates { .. }
             | Read::History { .. }
             | Read::Activity { .. }
+            | Read::ActivityBeside { .. }
             | Read::Tasks { .. }
             | Read::Project { .. }
             | Read::Notes { .. }
@@ -183,6 +184,7 @@ pub(super) fn live_page(core: &Core, limits: &Limits, party: u64, read: &Read, d
                 | Read::EndedDelegates { .. }
                 | Read::History { .. }
                 | Read::Activity { .. }
+                | Read::ActivityBeside { .. }
                 | Read::Tasks { .. }
                 | Read::Project { .. }
                 | Read::Notes { .. }
