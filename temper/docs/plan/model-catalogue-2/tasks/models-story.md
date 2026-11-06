@@ -40,3 +40,7 @@ Options, pre-approved: the budget's story list, if a tier's table names stories,
 ## Report
 
 That it is compiled and not run.
+
+## Answers
+
+2026-11-06 (temper/ui). No new test in the browser tier: temper's tier is over its cap of 12 (temper/docs/design/client/browser.md, 4.3, the user's rule), and I asked for this story without checking that. Write the page's story in temper/tests/client, the lowest world that shows it: a switch turned off and back, a model added by name, on its own model. If a step truly only shows in a browser, say which and why in your report, and leave it out rather than adding a test; temper/tiers' browser-cap will place it. Name it in 4.6's 'Not in the tier' list.
