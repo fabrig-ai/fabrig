@@ -58,3 +58,17 @@ Relevant incoming commits are `479f51f772` (forge cards) and `d6820c4ad4` (main�
 - `temper/tools/gallery/src/samples.rs`: retain all incoming forge/proposal samples and this task’s `connect-model-connected` sample and account setup in `domain()`. At the inspected integration tip, the combined sample count is 282; derive it again if the target advances.
 - Check the automatically merged gallery tests/worlds for both sets of behavior. Regenerate gallery names and affected prints/goldens through their tools; keep names sorted. Reprint journeys if the combined rendering makes them stale.
 - Run the spec’s focused checks through `heavy`, including the gallery and committed-journey checks. Browser stories are compiled only.
+
+## Rebase (2026-11-06, step merge, foreman look-round-13/model-cards/foreman-2)
+
+resolve the words and gallery conflicts while preserving the landed Your Forgejo changes
+Rebase onto the current landing target. The merge conflicts are in `temper/crates/temper-client-view/src/words.rs` and `temper/tools/gallery/src/samples.rs`.
+The new incoming change is `1cfcc37274` (“Merge Your Forgejo with the Settings proposal vocabulary”), landed by integration merge `d1190606f7`.
+
+- In `words.rs`, preserve incoming `ConnectHow` through `ConnectFirst`, their IDs, English phrases and `ALL` entries, and the removal of `TokensTitle`, `TokensWebhookHint` and `AdminFirst`. Keep this task’s `PathConnectAccount` wording, “Connect a model”.
+- Recount `PHRASES`, `SEGMENTS` and `ENGLISH_BYTES` using the combined vocabulary’s declaration checks; neither branch’s constants suffice.
+- In `samples.rs`, retain incoming `connect-forge-yours-admin` and `connect-forge-yours-tokens`, including their setup in `domain()`. Also retain `connect-model-connected` and this task’s account setup for both model choice samples.
+- The combined sample count at `d1190606f7` is 284, replacing the previous rebase instruction’s 282. Recount if the target advances.
+- Check the automatically merged CSS, gallery names and tests: preserve both forge samples’ assertions and model-card assertions. Keep names sorted and consistent with sample order.
+- Regenerate any stale prints, goldens or journeys through their tools.
+- Run the spec’s focused checks through `heavy`, including gallery checks and `the_committed_journeys_are_their_print`. Browser stories are compiled only; run no walks or render checks.
