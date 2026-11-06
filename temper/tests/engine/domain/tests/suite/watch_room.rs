@@ -15,7 +15,11 @@ const SEED: u64 = 91; // The direct driver's configuration.
 
 fn driver(streams: u32) -> Driver {
     let limits = root::Limits { streams, ..walking::limits() };
-    let mut driver = Driver::configured(Store::new(), [walking::config(SEED), walking::config(SEED)], &limits);
+    driver_with_limits(&limits)
+}
+
+pub(super) fn driver_with_limits(limits: &root::Limits) -> Driver {
+    let mut driver = Driver::configured(Store::new(), [walking::config(SEED), walking::config(SEED)], limits);
     driver.settle();
     driver.sign_in();
     driver.settle();

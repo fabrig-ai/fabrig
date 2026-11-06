@@ -358,3 +358,81 @@ fn candidate_rosters_waiting_snapshots_keyed_history_and_recovery_fit_counted_me
     // transcript in addition to real children and every root transient copy.
     meter.check(measured, bound, &limits);
 }
+
+// Measured peaks: 116,816 bytes at 17 watches; 452,176 at 136, including the
+// driver and fake store. 25% headroom, rounded up to two significant digits.
+const ONE_STREAM_WATCH_HEAP_CEILING: u64 = 150_000;
+const EIGHT_STREAM_WATCH_HEAP_CEILING: u64 = 570_000;
+const WATCH_ROOM_SEED: u64 = 91; // The direct driver's configuration.
+const WATCH_ROOM_PROJECT: u32 = 1; // Walking's seeded project.
+const FIRST_ROOM_WATCH: u64 = 10_000;
+const SHIPPED_JOURNAL_DELIVERIES: u32 = 512; // temper-service's small profile.
+
+fn watch_room_root_heap(streams: u32) -> u64 {
+    let limits = root::Limits { streams, ..temper_engine_domain_world::walking::limits() };
+    let meter = Meter::new();
+    let root = root::Domain::new(temper_engine_domain_world::walking::config(WATCH_ROOM_SEED), &limits).unwrap();
+    let held = meter.held();
+    drop(root);
+    held
+}
+
+fn watch_room_query(label: u32) -> jig_domain_core::documents::Watched {
+    use jig_domain_core::documents::{QueryOrder, TaskQuery, Watched};
+    Watched::Query { query: TaskQuery {
+        project: Some(WATCH_ROOM_PROJECT), requester: None, root: None, parent: None,
+        label: Some(label), phase: None, executor: None, tracked: None, order: QueryOrder::Number,
+    } }
+}
+
+#[test]
+fn a_full_watch_room_fits_its_heap_ceiling() {
+    assert_eq!(watch_room_root_heap(1), watch_room_root_heap(8), "unused watch room allocates nothing");
+    for (streams, room, ceiling) in [
+        (1, 17, ONE_STREAM_WATCH_HEAP_CEILING),
+        (8, 136, EIGHT_STREAM_WATCH_HEAP_CEILING),
+    ] {
+        for distinct in [false, true] {
+            full_watch_room_peak(streams, room, distinct, ceiling);
+        }
+    }
+}
+
+fn full_watch_room_peak(streams: u32, room: u32, distinct: bool, ceiling: u64) {
+    use jig_domain_core::documents::Window;
+    use temper_engine_domain_world::walking;
+    let mut limits = root::Limits { streams, ..walking::limits() };
+    limits.journal.deliveries = SHIPPED_JOURNAL_DELIVERIES;
+    limits.watermark = root::default_watermark(&limits.journal);
+    let meter = Meter::new();
+    let mut driver = super::watch_room::driver_with_limits(&limits);
+    let session = driver.session();
+    driver.delivered = Vec::new();
+    driver.transactions = Vec::new();
+    driver.immediate = Vec::new();
+    for offset in 0..room {
+        let watcher = Token::new(FIRST_ROOM_WATCH + u64::from(offset));
+        driver.send(root::Event::Party(root::PartyInput::Watch {
+            watcher,
+            sign_in: session,
+            subject: watch_room_query(if distinct { offset } else { 0 }),
+            window: Window { rows: 1, after: None },
+        }));
+        driver.settle();
+        driver.send(root::Event::Party(root::PartyInput::Delivered { watcher }));
+        driver.settle();
+        driver.delivered.clear();
+    }
+    driver.delivered = Vec::new();
+    meter.start();
+    driver.send(root::Event::Party(root::PartyInput::Period {
+        project: WATCH_ROOM_PROJECT, period: 2, budget: 1000, next: None,
+    }));
+    driver.settle();
+    let measured = meter.end();
+    let documents = driver.delivered.iter().filter(|value| matches!(value, root::Delivery::Document { .. })).count();
+    assert_eq!(documents, usize::try_from(room).unwrap(), "a full room marked in one commit: {streams}, {distinct}");
+    assert_eq!(driver.transactions.len(), 1, "one commit marks the whole room");
+    assert!(room <= limits.journal.deliveries, "the full room fits the journal's door");
+    meter.check(measured, ceiling, &(streams, distinct));
+}
