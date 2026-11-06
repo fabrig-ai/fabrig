@@ -257,6 +257,7 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
         documents::forges(),
         None,
         None,
+        None,
         &H::given(&document),
     )
     .unwrap_or_else(|problems| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems))));

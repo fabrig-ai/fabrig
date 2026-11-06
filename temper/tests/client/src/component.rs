@@ -423,7 +423,7 @@ impl Composition {
             request,
             &crate::fixtures::forge_settings(),
             None,
-            temper_service::family::Deployment { welcome: true, owned: true },
+            &temper_service::family::Deployment { welcome: true, owned: true, program_login: None },
             None,
             &temper_client_protocol_wire::v1::CEILINGS,
         ) {

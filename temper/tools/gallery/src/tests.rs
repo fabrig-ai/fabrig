@@ -1298,7 +1298,7 @@ const HOLDS: [Holds; samples::N] = [
         name: "welcome-model-claude",
         heading: "Your Claude subscription",
         parts: &[
-            Part::Text { text: "temper program-login claude-pat" },
+            Part::Text { text: "temper program-login --config CONFIG --data DATA --cache CACHE claude-pat" },
             Part::Named { role: Role::Button, name: "I’ve signed in" },
             Part::Absent { role: Role::TextField, name: "Name" },
         ],

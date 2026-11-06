@@ -1305,7 +1305,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The rail menu adds six literal phrases (client/README.md, 5.3).
 // The waiting page removes five phrases across its words and accounts (client/README.md, 3.5).
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
-const PHRASES: u32 = 1789;
+const PHRASES: u32 = 1790;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1328,7 +1328,7 @@ const PHRASES: u32 = 1789;
 // The rail menu adds six literal segments (client/README.md, 5.3).
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
-const SEGMENTS: u32 = 3085;
+const SEGMENTS: u32 = 3088;
 const ALL: [Word; 1193] = [
     Word::CloseTitle,
     Word::CloseChat,
@@ -4012,7 +4012,8 @@ impl Words {
             // Everyday Home adds 288 bytes; More accounts 149; Configure 401 and its tag 11 literal bytes (3.5).
             // Settings and the chat document include their literal bytes (client/README.md, 3.5, 5.13).
             // Confirmation sheets add 436 literal bytes (client/README.md, 3.6).
-            text_bytes: 44284,
+            // The printed command adds 60 literal bytes (client/README.md, 4.6).
+            text_bytes: 44323,
             // Whole playground requests keep their supplied bound.
             hole_bytes: joined
                 .max(byline_bytes(joined)?)

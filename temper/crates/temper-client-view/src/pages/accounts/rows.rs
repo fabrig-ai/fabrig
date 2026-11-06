@@ -761,7 +761,7 @@ fn program_hosts(
             b.close();
             b.close();
             if notice && login.state == Some(c::ProgramState::NotSignedIn) {
-                crate::cards::text(b, Role::Code, &named(w, W::ProgramCommand, &login.name));
+                crate::cards::text(b, Role::Code, &super::super::connect_model::command_line(root, w, &login.name));
             }
             break;
         }

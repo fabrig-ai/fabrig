@@ -190,7 +190,12 @@ impl Limits {
         let tree = skein_ui::Limits {
             nodes,
             depth: receiving.rows.checked_add(34)?,
-            text_per_node: text.max(turn.checked_mul(2)?).max(builder_name),
+            text_per_node: text.max(turn.checked_mul(2)?).max(builder_name).max(
+                temper_client_protocol_wire::v1::CEILINGS
+                    .deployment_answer_program_login_some
+                    .checked_add(words.capacity()?)?
+                    .checked_add(1)?,
+            ),
             // Whole builder names are held once per document row.
             text_bytes: text_bytes.checked_add(receiving.rows.checked_mul(builder_name)?)?,
             drawing_bytes: 0,

@@ -61,7 +61,7 @@ fn record_again(name: &str) -> Result<(), String> {
 }
 
 fn scratch() -> io::Result<PathBuf> {
-    let base = fs::canonicalize(env::temp_dir())?;
+    let base = Path::new("/tmp");
     for attempt in 0..1000 {
         let path = base.join(format!("temper-journey-{}-{attempt}", process::id()));
         match fs::DirBuilder::new().mode(0o700).create(&path) {
@@ -95,7 +95,11 @@ fn build(root: &Path, scratch: &Path, chromium: PathBuf) -> Result<Paths, String
         return Err(format!("scripts/bundle.sh failed: {status}"));
     }
     let target = env::var_os("CARGO_TARGET_DIR").map_or_else(|| root.join("../target"), |target| root.join(target));
-    Ok(Paths { temper: target.join("debug/temper"), bundle, chromium, scratch: scratch.to_owned() })
+    for name in ["temper", "fake-claude"] {
+        fs::copy(target.join("debug").join(name), scratch.join(name))
+            .map_err(|error| format!("cannot copy {name} into {}: {error}", scratch.display()))?;
+    }
+    Ok(Paths { temper: scratch.join("temper"), bundle, chromium, scratch: scratch.to_owned() })
 }
 
 fn reprint_all() -> Result<bool, String> {

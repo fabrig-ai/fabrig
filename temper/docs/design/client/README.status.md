@@ -89,7 +89,6 @@
   then says why Send stays grey; and no line says there that the playground is
   running or leaving. Seen by reading; no test holds it.
 - **Not yet:** 3.5, *Its status*, 5.5, *A run's wait*: a run that can't start reads as starting, with dots, and a configuring chat draws no wait at all (`temper-client-view`'s `pages/chat.rs`, `choice.rs`).
-- **Not yet:** 4.6, *The printed command*: the pages print `temper program-login NAME`, which fails with directories of its own or `temper` off `PATH` (`temper-client-view`'s `accounts/words.rs`).
 - **Departs:** 3.6, *Closed ends on one line*: a requester-closed chat hides
   every "Decision made" activity line, where the section and the request
   `close-chat` of 2026-11-06 hide the closing's alone, because `Activity::Decided`
