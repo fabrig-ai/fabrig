@@ -870,27 +870,22 @@ keeps (`../protocol/configuration.md`, section 2).
     Ready, or the ending's words and acts (5.5, A sign-in). The
     terminal prints the address and opens no browser (6.5). temper
     detects no browser elsewhere (section 11, A browser on another
-    machine): the person says so, below.
+    machine): the page offers the paste to everyone, below.
+  - *While it waits,* a sign-in under way that the page draws is a note
+    in the way's card's place, the same as the welcome's and drawn by
+    the same function (*The welcome*, its Model step, *The sign-in
+    under way*).
   - *From another computer,* for a browser not on the engine's
     machine, whose provider sends it to a loopback address where
-    nothing answers. The sign-in's card on Choose offers, beside its
-    button, "This browser isn't on temper's computer ›", which sends
-    the same sign-in with no departure (no `Return`, no
-    `Request::Leave`) and keeps the page at Signing in: once answered,
-    it draws "Open ChatGPT's sign-in ›", the sign-in's address as an
-    external link, a tab of its own (the person's own click, which no
-    browser blocks as a pop-up), and *The paste* (below) under it. A
-    sign-in under way that the page draws offers the paste too, folded
-    under "Signed in, but the page couldn't be reached?"; unfolded,
-    with "Go forward to that page, or find it in your history, and
-    copy its address." first, at a departed sign-in's address come
-    back to by hand, not by the listener's return, while it still
-    waits. The tunnel still works, and needs neither.
+    nothing answers. No entry says so: that person takes the same page,
+    and *The paste* (below), folded under the note as "Signed in, but
+    the page couldn’t be reached?". The tunnel still works, and needs
+    neither.
   - *The paste:* "When ChatGPT is done, its tab shows a page that
-    can't be reached. Copy that page's whole address from the address
+    can’t be reached. Copy that page’s whole address from the address
     bar, come back here, and paste it. If a page opens instead, such
-    as another program's sign-in, close that program's sign-in and
-    start again." A field, "Address of the page that couldn't be
+    as another program’s sign-in, close that program’s sign-in and
+    start again." A field, "Address of the page that couldn’t be
     reached", and "Finish connecting", which sends jig's `FinishSignIn`
     for the sign-in's source, carrying the address, its surrounding
     spaces and line breaks trimmed, as its value (jig's
@@ -1216,15 +1211,14 @@ keeps (`../protocol/configuration.md`, section 2).
     (the user, 2026-11-04: a key is added from the accounts page):
     "ChatGPT", for the `openai` provider, "Your ChatGPT plan: sign in,
     and temper’s agents use its included usage.", the muted "Sign in,
-    in this tab · about a minute", and "Continue with ChatGPT", the
+    in a new tab · about a minute", and "Continue with ChatGPT", the
     default, the step's one primary act; and "Claude", for `anthropic`,
     "Your Claude subscription, through Claude Code on this machine, with
     a config of its own, apart from your own Claude Code.", the muted
     "One command in a terminal, on this machine", and the secondary link "Use your Claude subscription".
     A provider offering neither its sign-in nor its program has no
     card. No other provider's ways are on the welcome, the box's fake
-    model among them, and no card offers "This browser isn't on
-    temper's computer ›"; with neither provider's plan offered, the
+    model among them; with neither provider's plan offered, the
     step shows Choose's cards as `ConnectModel` does. Entering from a deployment
     chooser resets the holder to the person's own. Inside a way, the
     foot's "‹ Back" and a quiet "All ways", after the primary, return to
@@ -1246,14 +1240,7 @@ keeps (`../protocol/configuration.md`, section 2).
       field "Key, pasted once", the panel's width; "Add key", disabled
       until typed; "All ways"; and "Nothing checks a key when it is added:
       a wrong one shows once OpenAI refuses a run."
-    - *Paste,* a sign-in `elsewhere`, "Signing in to ChatGPT from another
-      computer": a numbered list, "Open ChatGPT’s sign-in › and approve
-      temper.", its first words the sign-in's link, "When ChatGPT is done,
-      its tab shows a page that can’t be reached. Copy that page’s whole
-      address from the address bar." and "Paste it here."; the field
-      "Address of the page that couldn’t be reached", a secret's entry;
-      "Finish connecting", disabled until typed; "All ways". Its refusals
-      and endings keep their words (5.5, A sign-in), in the panel.
+    - *A held sign-in,* including `elsewhere`, takes *The sign-in under way*, below.
     - *Claude,* "Your Claude subscription": "temper sets Claude Code up on
       this machine in an environment of its own: its settings, sessions
       and sign-in stay apart from your own Claude Code. In a terminal
@@ -1264,24 +1251,29 @@ keeps (`../protocol/configuration.md`, section 2).
       signed in"; "All ways". "I’ve signed in" sends `DeclareProgram` under
       NAME unless an account of the person's has that source, then the
       accounts page's `CheckProgram { source }`, as `temper ctl account
-      verify` does. While either is out, in the panel's place, a spinner
-      and "Checking Claude Code’s sign-in on this machine…". Once a model
-      is usable, the step moves on to Ready, its address replacing the
-      step's. Answered with the source not usable, the page stays with the
-      alert "Claude Code isn’t signed in here yet. Run the command above,
-      then press I’ve signed in.", and a second press checks again.
+      verify` does. While either is out, in the panel's place, *The try*
+      (below), its first step under way, with no "one short message". Once a
+      model is usable, the step moves on to Ready, its address replacing the
+      step's. Answered with the source not usable, the page stays with *The
+      try* stopped at its first step, its why "Claude Code isn’t signed in
+      here yet. Sign in again, then try again.": "Try again" checks again,
+      and "Sign in again" brings the panel back.
     - *A plan's sign-in,* its way at its address with none asked, or one
       ended with no model usable, "Signing in to PLAN": `ConnectModel`'s card
       for the way, or its ending's words and acts, in the panel; "All ways".
-      The card's "This browser isn't on temper's computer ›" is how the
-      welcome reaches the paste, its Choose offering none.
 
-    *The sign-in under way,* its tab not gone yet, is a note in the card's
-    place: a spinner, "ChatGPT’s sign-in, in this tab", the muted "You sign
-    in and approve temper; ChatGPT sends this tab back to temper’s listener
-    on this machine, and on to Ready.", and under it the disclosure
-    "Signed in, but the page couldn't be reached?". *Finishing a paste* is
-    the same note, a spinner and "Finishing your sign-in…". A sign-in's
+    *The sign-in under way* is a note in the card's place: a spinner,
+    "Waiting for ChatGPT’s sign-in, in the new tab", the muted "Sign in and
+    approve temper there. This page moves on by itself.", once the address
+    is known "Open it again ›", the address as an underlined external link,
+    a tab of its own, and under the note the disclosure "Signed in, but the
+    page couldn’t be reached?", small and muted, holding *The paste*, its
+    field the note's width. A browser that refuses the new tab reads
+    "ChatGPT’s sign-in", no "in the new tab", with "Open ChatGPT’s sign-in ›"
+    as the primary button in the link's place, the person's own click. The
+    terminal reads "ChatGPT’s sign-in" too, and draws no link: it prints the
+    address (6.5). `ConnectModel` draws the same note, link and disclosure.
+    *Finishing a paste* is the same note, a spinner and "Finishing your sign-in…". A sign-in's
     other endings (declined, held, refused, the port taken) keep their
     words and acts, drawn as `ConnectModel`'s are (5.5, A sign-in). After
     the choices and before the foot, once a forge is acted on, a region
@@ -1329,6 +1321,37 @@ keeps (`../protocol/configuration.md`, section 2).
     ticked one keeps "Each step". *The seam:* the Model step's
     state, acts and Choose are `ConnectModel`'s; the step's frame, heading,
     lead, ways' pages, notes, set up line and foot the welcome's.
+    *The try,* an account tried once it is usable, one short task through
+    the path a chat takes (`../draft/model-check.md`), is one status box,
+    Forge's status box in its look, drawn by one function: on the welcome in
+    the panel's place, under the way's heading, or in the place of *A model
+    usable*'s status; on `ConnectModel` in the way's card's place. Its steps
+    are the list Forge's has, "Each step" its name, each with its state in
+    words: for a Claude subscription "Signed in to your subscription",
+    "Claude Code starts on this machine", "Claude answers"; for a plan's
+    sign-in "Signed in to your PLAN plan", or for a key "Key added", ticked at
+    once, a direct account having no program to start, then "PLAN answers",
+    "ChatGPT answers". ACCOUNT below is "Claude subscription", "ChatGPT plan",
+    "OpenAI API key", in Ready's Model line's words.
+    - *Running:* a spinner, "Trying your ACCOUNT", strong, the muted "one short
+      message" once a message goes, and the list, the step under way marked.
+    - *Answered:* the box green, "✓ ACCOUNT", strong, the muted "answered in N
+      s", the list folded under "Each step"; then "Continue", as *A model
+      usable* has it, or on `ConnectModel` its made account's primary. It
+      does not move on by itself.
+    - *Stopped:* the box on the signal's pale, the alert "WHO didn’t answer",
+      WHO the PLAN, in the signal's colour; the list, the step that
+      stopped "✕" and in that colour, those before it ticked; why, in the
+      person's terms, a paragraph, `temper-welcome-check-why`. Then "Try
+      again", primary; the act that answers the reason, outlined ("Sign in
+      again"), or, with none, "All ways"; then "Continue anyway", quiet, to
+      Ready, or on `ConnectModel` to its made account's primary's address.
+
+    At a phone's width the muted words go under the title. The terminal
+    has the same lines as text, with no spinner: "Trying your ACCOUNT · one
+    short message", "✓ ACCOUNT · answered in N s", "WHO didn’t answer". Ready's
+    Model line, after a try that stopped: its usual line, then, muted, "didn’t
+    answer when tried".
     *Ready* is headed "Almost ready", with "Your first project can be
     created once your forge and model are ready.", until a real forge
     is connected and a model usable, then "Ready", with "Everything is
@@ -3543,16 +3566,22 @@ The acts of both, each one act and one request (3.6):
   rows in the rail, offered while `me`'s role on
   that project is owner, the role jig gives, which the context line
   reads too (5.6); jig judges the request (jig's `domain/people.md`,
-  5.1). Pressed, the row becomes a form, "Rename PROJECT", holding the
-  name's field, its value the project's name and the focus on it, then
-  "Save" and "Cancel". The field's Enter or "Save" sends jig's
-  `Rename { project, name }`, the form's acts disabled while it is out;
-  "Cancel", or Escape, which "Cancel" names (skein's `ui.md`, 6.1),
-  closes the form and sends nothing. An empty name, or the name
-  unchanged, sends nothing. Answered renamed, the form closes, and `me`
+  5.1). Pressed, the open project's row is the form, "Rename PROJECT",
+  in the banner and the rail alike, and the rail's "Rename PROJECT"
+  leaves its acts while the form is open. The form holds the name's
+  field, filling the row, its value the project's name and the focus on
+  it, then "Save", primary and small. The field's Enter or "Save" sends
+  jig's `Rename { project, name }`, its name without the spaces at its
+  ends, the form's acts disabled while it is out; Escape closes the form
+  and sends nothing: the form's "Cancel" names it (skein's `ui.md`,
+  6.1), which the terminal shows and the browser's sheet hides. An empty
+  name, or the name unchanged, sends nothing and closes the form,
+  keeping the old name. Answered renamed, the form closes, and `me`
   brings the new name wherever the project's name shows; refused (the
   name taken, its shape, the role), the form stays and says why under
-  its field.
+  its field. A closed form leaves the focus on the switcher's summary
+  (skein's `ui-web.md`, 7), or on a page's own field where the page asks
+  it (a new chat, Configure).
 - **A new project:** the list ends with a form, "New project", holding
   a name's field, "+ New project" its placeholder, and "Create".
   "Create", or the field's Enter, sends jig's `MakeProject { name,
@@ -3652,8 +3681,7 @@ The words for each offered source are:
   Choose, each way is a card: a plan's sign-in, the plan's name,
   "Your ChatGPT plan. Sign in with your ChatGPT account, and temper’s
   agents use your plan’s included usage." and "In a browser · about a
-  minute", and, beside its button, "This browser isn't on temper's
-  computer ›" (3.5, `ConnectModel`, From another computer); a key, "An OpenAI API key", "A
+  minute"; a key, "An OpenAI API key", "A
   key from OpenAI’s platform. What temper’s agents use is billed to the
   key’s organization." and "Pasted here · at once"; then the way's
   button.
@@ -6001,9 +6029,8 @@ own tests:
   made, nor a repository's CI outside a change. The user kept both facts
   out of the protocol (2026-11-04): the kicker is the current day and
   time, as on any Home (`../draft/to-begin.md`, 2), and the step says
-  "temper can change its code now; checked changes land on main through
-  temper's merge queue.". Supplying a creation age or a first CI result
-  needs its own protocol decision.
+  "Chats can change its code now.". Supplying a creation age or a first CI
+  result needs its own protocol decision.
 - **A project's only goal ending while Home is open** (3.5, 5.3): kind 7
   decides the rail and the tab bar; Home reads `Domain::has_goals` to choose
   Goals or Chats. The fact reads the ended group once, so once the live watch
@@ -6031,10 +6058,11 @@ own tests:
   template's `llm` may be its charter's default, which no client is given.
   Default: the first model `me` serves for the project.
 - **How a project lands, on To begin's second step**
-  (`../draft/to-begin.md`, 3): its line names temper's landing turn for
-  a project landing by turn, and no client is given a project's `by`
-  (`../domain/landing.md`, 13.1). A new fact of a protocol, the user's.
-  Default: the merge queue's words on every project.
+  (`../draft/to-begin.md`, 3): its line names how the project lands, by
+  temper's merge queue or by its landing turn, and no client is given a
+  project's `by` (`../domain/landing.md`, 13.1). A new fact of a protocol,
+  the user's. Default: "Chats can change its code now." on every project,
+  which names no way of landing.
 - **A project's home in the switcher** (5.3, 4.4): `me` does not say
   which repository is a project's home, so the first listed stands in
   for it, and a row with several repositories never reads "3
@@ -6080,6 +6108,52 @@ own tests:
   the goal hearing those words, whose scripts are throwaway. No world keeps it:
   the parser, the stock sentence, the session and the view each hold their own
   side. Default: those tests.
+- **A proposal of settings in a project's Needs you** (3.5, *Needs you*, *What the
+  client keeps*; 5.13; the request `ui-final-walk` of 2026-11-05): jig takes a
+  proposal of settings in the deployment's scope (jig's `client/domain/contract.md`,
+  3.2), so its inbox row says project 0 whatever its items change, and *Needs you*
+  by the open project and the rail's count, the ways a project's frame has, leave
+  it out; the greenfield mock has its card and its count. To see it, on a fake box:
+  `temper ctl settings propose` one `project-ways` item of project 1, then Needs
+  you from the rail. Which inbox holds a proposal whose items span the deployment
+  and several projects is a decision, then one rule for the reads. Default: its
+  card in its chat (5.13) and `temper ctl`'s inbox.
+- **A choice pressed just after Undo** (3.5, *What the client keeps*; that
+  request): on a fake box at 1440, a question with choices, Later, its Reply sent,
+  Undo, then at once a choice: six seconds on the card and the count stood, and
+  the engine held the question unanswered. A repeat on a fresh box at 1440 and the
+  walk at 420 answered. Its cause is unknown and no way shows it reliably. Default:
+  as it stands, until it is seen again.
+- **A brief refused, on Home** (3.5, *Home on any project*; that request): a status
+  run refused for want of funding leaves Home its computed sentence, with no byline
+  and nothing saying why. How a person sees that goes with what funds the run
+  (`../domain/forge.md`, 20). Default: nothing said.
+- **The Claude way's command on a box with directories of its own** (3.5, *Claude*;
+  5.5; that request): the page shows `temper program-login NAME`, which reads the
+  default directories under the person's home, so on such a box it refuses with
+  its configuration absent, before it fetches anything. The answer of 2026-11-05
+  to that plan's task `fix-flow` has the command run as shown: short with the
+  default directories, otherwise `TEMPER_CONFIG=… TEMPER_DATA=… TEMPER_CACHE=…
+  temper program-login NAME`, shell-quoted. No client is given the directories
+  (`temper`'s `directories.rs` holds them; the deployment's answer, `welcome` and
+  `owned` alone), so it takes a new fact from the binary through the service, the
+  wire or the page's bootstrap, the domain and the view. Its proof: tests of both
+  forms, with a space and an apostrophe and no download, then the shown command run
+  as it stands on a fresh real box, the pinned fetch with it. Default: the short
+  command.
+- **What a real box's walk has not shown** (3.5; `../protocol/setup.md`, 6.6; that
+  request): the pinned Claude Code fetch and a real browser's Sign out ran by hand,
+  on fresh loopback deployments, and no test keeps them. Not shown: a provider's
+  sign-in or a paid call; TLS, a proxy or a browser on another machine; Accounts
+  with a project or an account on it; the small engine profile whole, whose client
+  limits alone ran; another platform's build, a failed or corrupt download, two
+  fetches at once; a copy from a public host. Default: none, until a plan walks them.
+- **The rename's opening and closing, as the mock draws them** (5.3; the request
+  `ui-rename-focus` of 2026-11-06): the mock selects the name as the form opens,
+  folds the menu as it closes and says "Renamed" in a toast. A view can neither
+  select a field's words nor fold a disclosure (skein's `ui-web.md`, 15), and that
+  request names none of the three. Default: the name unselected, the menu open with
+  the focus on its summary, and no toast.
 
 - **Pages the mockups do not show:** a project's page with its
   resources, findings, notes and settings (policy, people and roles,
@@ -6138,8 +6212,8 @@ own tests:
   reaches the engine on loopback; a browser elsewhere lands on its own
   error page, and its person finishes by pasting that page's address
   (3.5, `ConnectModel`, From another computer), or through a tunnel
-  (the walk `box`, its account step). The person says which (with the
-  user, 2026-10-23). Candidates for telling by
+  (the walk `box`, its account step). Nothing asks which: the page
+  offers the paste to everyone (the user, 2026-11-06). Candidates for telling by
   itself: before the browser leaves, the page asks the listener for a
   one-time code the engine gave it for this sign-in, and only a browser
   that gets it goes on in its own tab, the others in a tab of their own

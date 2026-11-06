@@ -22,7 +22,7 @@
   and a bearer's token in `Reply::Record`'s encoded `SignedIn`. Of the rest,
   a `FrameWriter` holds a body as it is written, a local in the same way, and
   none has a known credential path. jig's `translate::Up::Visited` and
-  `domain::Event::Visited` print the visit address, with the sign-in's `state`,
+  `jig_domain_accounts::Event::Visited` print the visit address, with the sign-in's `state`,
   challenge and nonce that oauth.md, 4 has hidden, because jig's
   `protocol/llm.md`, 5.2 keeps the address as an answer, spent with its sign-in.
 - **Departs:** 6: a step widens with `usize_of` and `len_u64`, but `try_from`

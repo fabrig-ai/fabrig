@@ -30,6 +30,7 @@ mod watches;
 pub enum Unusable {
     Limits,
     Seed,
+    LinkSecret,
 }
 #[derive(Debug)]
 pub struct Component {
@@ -47,7 +48,8 @@ pub struct Component {
     public: public::State,
 }
 impl Component {
-    pub fn new(settings: Settings, env: &Env<Limits>, out: &mut Queue<Request>) -> Result<Self, Unusable> {
+    pub fn new(mut settings: Settings, env: &Env<Limits>, out: &mut Queue<Request>) -> Result<Self, Unusable> {
+        let given = settings.link_secret.take();
         if !crate::valid(&env.limits) {
             return Err(Unusable::Limits);
         }
@@ -68,6 +70,11 @@ impl Component {
         };
         if hello.measure() > env.limits.queued_bytes {
             return Err(Unusable::Limits);
+        }
+        if let Some(secret) = &given
+            && secret.expose().len() != crate::LINK_SECRET_BYTES
+        {
+            return Err(Unusable::LinkSecret);
         }
         if let Some(identity) = &settings.link {
             let bytes = identity.key.subject.len().checked_add(identity.login.len()).ok_or(Unusable::Limits)?;
@@ -114,7 +121,13 @@ impl Component {
             next: 1,
             phase: closing::Phase::Active,
         };
-        value.fresh_link(env, out);
+        if let Some(secret) = given
+            && value.settings.link.is_some()
+        {
+            value.link = Some(Link { secret, until: env.now.saturating_add(env.limits.link_span) });
+        } else {
+            value.fresh_link(env, out);
+        }
         out.push(Request::Secrets(SecretsRequest::Get { owner: SecretOwner::PublicNames }));
         Ok(value)
     }

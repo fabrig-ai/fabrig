@@ -2136,3 +2136,8 @@ pub fn away_toggle(root: &mut temper_client_domain::Domain) -> Token {
     }
     panic!("Away request sent")
 }
+
+/// An in-flight model sign-in for the shared waiting page's direct render checks.
+pub(crate) fn waiting_root() -> temper_client_domain::Domain {
+    super::connect_model::pasting(true).0
+}
