@@ -134,7 +134,7 @@ enum Destination {
     Erase,
     Restore,
     Settings { to: ReplyTo, key: crate::CallKey },
-    RunTask { to: ReplyTo, key: crate::CallKey, task: u64, field: TaskTextField, from: u64 },
+    RunTask { to: ReplyTo, key: crate::CallKey, read: run_task::Read },
     Done,
 }
 

@@ -38,7 +38,7 @@ pub fn validate(
         let (_, Some(declaration)) = revision.documents.declaration(&task.name)? else { return None };
         let defaults = revision.defaults.of(&task.name)?;
         let against = Against { declaration, defaults, listing: revision.listing };
-        let mut local = List::with_capacity(16);
+        let mut local = List::uncapped();
         let mut value = task.settings.clone();
         value.from = task.from;
         let value = validator.settings(&value, &against, check, left, &mut local);
@@ -211,7 +211,7 @@ pub fn unclaimed(
             let Some(defaults) = revision.defaults.of(&task.name) else { continue };
             let Some(value) = merge.merge(None, &task.value, compose::Layer::Base, index) else { continue };
             let against = Against { declaration, defaults, listing: revision.listing };
-            let mut local = List::with_capacity(16);
+            let mut local = List::uncapped();
             let mut left = u64::MAX;
             let _value = validator.settings(&value, &against, &Check::Patch, &mut left, &mut local);
             for fault in &local {

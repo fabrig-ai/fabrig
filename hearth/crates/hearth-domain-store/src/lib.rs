@@ -14,8 +14,6 @@ pub mod vocabulary;
 use limits::Limits;
 use skein_lib::{Deadlines, Env, Queue, Time};
 use vocabulary::{Event, Output, Request};
-/// Strays and readiness, or a failure and its refused arrival.
-pub const MAX_OUT: u32 = 2;
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 enum Timer {
     Retry,

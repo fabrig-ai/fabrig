@@ -218,7 +218,7 @@ pub fn removed_task() -> (crate::call::Side, crate::compose::Target) {
         &call.entries,
         &mut call.validator,
         &mut call.merge,
-        &mut skein_lib::List::with_capacity(SCHEMA_FAULTS),
+        &mut skein_lib::List::uncapped(),
     );
     let target = crate::compose::Target {
         name: bytes::copy_of(b"x1-prod"),
@@ -575,7 +575,7 @@ pub fn declarations(
     documents
 }
 pub fn check_declarations(documents: &crate::revision::Documents) -> Box<[(Box<[u8]>, crate::schema::Fault)]> {
-    let mut faults = skein_lib::List::with_capacity(4);
+    let mut faults = skein_lib::List::uncapped();
     drop(crate::schema::declarations(
         documents,
         documents.entries(),

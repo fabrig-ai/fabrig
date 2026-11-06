@@ -71,7 +71,7 @@ pub fn again(journeys: &Path, name: &str, paths: &Paths) -> Result<(), Refusal> 
     if let Some(step) = journey::differs(&walker.steps, &new) {
         return Err(Refusal::WalkDiffers { name: name.to_owned(), step });
     }
-    crate::add(journeys, name, &recording)
+    crate::add(journeys, name, &recording, &[]).map(|_| ())
 }
 
 /// Check the old walk before building or starting anything.
