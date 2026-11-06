@@ -554,8 +554,22 @@ fn an_issue_is_opened_with_labels_and_read_back() {
     assert_eq!(item.labels, names(&[b"bug", b"kit"]), "labels in their order");
     assert_eq!(item.created, Time::ZERO);
     assert!(comments.is_empty());
-    assert_eq!(h.ok(PERSON, read(Read::Permission { user: STRANGER })), Answer::Permission(Permission::None));
-    assert_eq!(h.ok(PERSON, read(Read::Permission { user: ADMIN })), Answer::Permission(Permission::Admin));
+    assert_eq!(
+        h.ok(PERSON, read(Read::Permission { user: STRANGER })),
+        Answer::Permission(crate::api::UserPermission {
+            user: STRANGER,
+            login: Box::from(b"".as_slice()),
+            permission: Permission::None
+        })
+    );
+    assert_eq!(
+        h.ok(PERSON, read(Read::Permission { user: ADMIN })),
+        Answer::Permission(crate::api::UserPermission {
+            user: ADMIN,
+            login: Box::from(b"".as_slice()),
+            permission: Permission::Admin
+        })
+    );
     assert_eq!(h.call(STRANGER, read(Read::Item { number: 1, after: 0 })), Err(Error::Forbidden), "no permission");
 }
 
@@ -1578,7 +1592,15 @@ fn a_call_may_land_after_it_was_answered_as_timed_out() {
     assert_eq!(h.domain.tally().landed, 1);
     assert_eq!(h.domain.calls(), 0);
     let permission = h.call(PERSON, read(Read::Permission { user: PERSON }));
-    assert_eq!(permission, Ok(Answer::Permission(Permission::Read)), "a read is never late to land");
+    assert_eq!(
+        permission,
+        Ok(Answer::Permission(crate::api::UserPermission {
+            user: PERSON,
+            login: Box::from(b"".as_slice()),
+            permission: Permission::Read
+        })),
+        "a read is never late to land"
+    );
 }
 
 #[test]
