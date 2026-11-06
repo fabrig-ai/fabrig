@@ -69,7 +69,7 @@ pub fn command(line: &[u8], numbers: Option<&[NodeId]>, tree: &Tree, longest: u3
         return refused(Refusal::Gone, number);
     }
     let words = trim(line.get(split..).expect("words follow the number"));
-    let field = node.role == Role::TextField || node.role == Role::TextArea;
+    let field = node.role.is_text_field();
     if !words.is_empty() && !field {
         return refused(Refusal::TakesNoWords, number);
     }

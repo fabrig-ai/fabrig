@@ -493,7 +493,12 @@ runs as contained processes and whose output it parses.
   tree as the merge, with two parents, the branch's head and the base
   commit, even when the tree is unchanged from either; a file the merge
   left in conflict that still holds a conflict marker is refused at
-  push, and the run is told which.
+  push, and the run is told which. A producer's start, the one naming its
+  landing branch (`forge.md`, 8.11), first asks whether its branch already
+  contains the base: if so there is nothing to merge, and it goes on as a
+  start from that branch or saved work does, with no merge state and no
+  second parent. A resolution's or a merge job's names no landing branch and
+  always merges.
 - **Push commits what the run checked.** When a run asks to deliver, at
   `finish` with a change or mid-run, it has run the repository's checks
   with nothing else writing to the checkout (smith's `domain/run.md`,

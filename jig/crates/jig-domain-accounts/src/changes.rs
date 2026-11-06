@@ -81,7 +81,7 @@ pub(crate) fn change(
             return;
         }
         Change::DeclareProgram { provider, join, name } => {
-            if !crate::records::program_name(&name) {
+            if crate::SourceName::new(&name).is_none() {
                 refuse(request, Refusal::Uses, out);
                 return;
             }

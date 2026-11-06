@@ -31,7 +31,7 @@ pub(crate) fn start_refused(
         | State::Closed => unreachable!("only a pending start can be refused"),
     }
     let entry = domain.hosted.get_mut(id).expect("pending start");
-    let State::Starting { workspace, held } = mem::replace(&mut entry.state, State::Closed) else {
+    let State::Starting { workspace, held, fault: _ } = mem::replace(&mut entry.state, State::Closed) else {
         unreachable!("checked the pending start above");
     };
     crate::refusals::ending(held, &mut entry.refusals);

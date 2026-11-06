@@ -75,6 +75,7 @@ pub struct BrowserFace<'a> {
     failure: Option<String>,
     refusal: Option<Refusal>,
     read_address: Option<Box<[u8]>>,
+    read_tabs: Option<(skein_lib::List<skein_browser::boundary::Tab>, u32)>,
     input: Option<Input>,
     trouble: Vec<Box<[u8]>>,
     downloads: Vec<Download>,
@@ -115,6 +116,7 @@ impl<'a> BrowserFace<'a> {
             failure: None,
             refusal: None,
             read_address: None,
+            read_tabs: None,
             input: None,
             trouble: Vec::new(),
             downloads: Vec::new(),
@@ -337,6 +339,15 @@ impl<'a> BrowserFace<'a> {
         self.acting = Some(op);
         self.requests.push(Request::Address { page: self.page, op });
     }
+    pub(crate) fn tabs(&mut self) {
+        self.read_tabs = None;
+        let op = self.token();
+        self.acting = Some(op);
+        self.requests.push(Request::Tabs { page: self.page, op });
+    }
+    pub(crate) fn take_tabs(&mut self) -> Option<(skein_lib::List<skein_browser::boundary::Tab>, u32)> {
+        self.read_tabs.take()
+    }
     /// Take the last address read once, after its operation completes.
     pub fn take_address(&mut self) -> Option<Box<[u8]>> {
         self.read_address.take()
@@ -479,6 +490,12 @@ impl<'a> BrowserFace<'a> {
                     self.press = None;
                     self.input_next();
                     self.choice_check();
+                }
+            }
+            Event::Tabs { op, tabs, more } => {
+                if self.acting == Some(*op) {
+                    self.acting = None;
+                    self.read_tabs = Some((tabs.clone(), *more));
                 }
             }
             Event::Address { op, url } => self.address_reported(*op, url),

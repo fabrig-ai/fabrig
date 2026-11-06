@@ -329,6 +329,28 @@ fn answer_tree(thread: &Thread, words: &crate::words::Words, projected: bool) ->
 }
 
 #[test]
+fn a_started_or_sent_chat_asks_for_its_composer_and_an_opened_one_does_not() {
+    use temper_client_domain::{Action, Event, pages::Act};
+    let mut root = messaging_root();
+    for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+        for node in view.tree().nodes() {
+            assert_eq!(node.focus, None);
+        }
+    }
+    fixtures::root_event(&mut root, Event::Act { action: Action::Pages(Act::Send) });
+    for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+        let at = named_position(view.tree().nodes(), Role::TextArea, Some(b"Message")).expect("composer");
+        let composer = &view.tree().nodes()[at];
+        assert_eq!(composer.focus, Some(1));
+        for node in view.tree().nodes() {
+            if node.id != composer.id {
+                assert_eq!(node.focus, None);
+            }
+        }
+    }
+}
+
+#[test]
 fn the_playground_project_is_named_playground() {
     let root = fixtures::playground_root(temper_client_domain::Address::Chat { task: TASK }, fixtures::PROJECT, true);
     for words in [fixtures::words(), fixtures::browser_words()] {
@@ -1359,7 +1381,7 @@ fn chat_event(
 fn chat_with_history() -> temper_client_domain::Domain {
     history().0
 }
-#[expect(clippy::too_many_lines, reason = "the history fixture routes every root request exhaustively")]
+#[expect(clippy::too_many_lines, reason = "the fixture carries every root obligation exhaustively")]
 fn history() -> (temper_client_domain::Domain, skein_lib::Queue<temper_client_domain::Request>) {
     use temper_client_domain::{Address, Event, Place, Request};
     let (mut root, _, _) = fixtures::root_at(
@@ -1394,6 +1416,8 @@ fn history() -> (temper_client_domain::Domain, skein_lib::Queue<temper_client_do
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::KeepSignIn { .. }
+            | Request::Tab { .. }
             | Request::Copy { .. }
             | Request::Fact { .. } => {}
         }

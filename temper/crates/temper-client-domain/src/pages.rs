@@ -246,6 +246,7 @@ pub enum Event {
     Left,
     AccountKey { value: skein_lib::Secret },
     SignInAddress { value: skein_lib::Secret },
+    SignInKept { source: u32, address: Box<[u8]>, refused: bool },
     Went { address: Address },
     Act { act: Act },
     Told { told: Told },
@@ -253,6 +254,7 @@ pub enum Event {
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Request {
+    OpenTab { provider: u32 },
     Client(jig_client::Event),
     Show { address: Address },
     Replace { address: Address },
@@ -330,6 +332,10 @@ impl Pages {
     #[must_use]
     pub fn connect_model(&self) -> Option<&connect_model::ConnectModel> {
         if self.party.is_some() { self.connect_model.as_deref() } else { None }
+    }
+    pub(crate) fn sign_in_key(&self) -> Option<jig_client::Key> {
+        let request = if let Some(page) = self.connect_model() { &page.request } else { &self.accounts()?.request };
+        Some(request.pending.as_ref()?.key)
     }
     #[must_use]
     pub const fn welcome(&self) -> Option<&welcome::Welcome> {
@@ -509,6 +515,11 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             went(pages, env, address, out);
             if let Some(project) = address_project(&pages.address) {
                 choose_project(pages, client, project);
+            }
+        }
+        Event::SignInKept { source, address, refused } => {
+            if let Some(page) = &mut pages.connect_model {
+                page.request.keep_sign_in(source, address, refused);
             }
         }
         Event::SignInAddress { value } => {
@@ -1048,11 +1059,13 @@ fn contains(me: &Me, project: Option<u32>) -> bool {
 #[expect(clippy::too_many_lines, reason = "one navigation transition releases page reads and opens its destination")]
 fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<Request>) {
     let mut opening = chat::document::Mode::Chat;
+    let mut started = false;
     if let Some(chats) = &pages.chats
         && let Some((task, mode)) = chats.opening
         && address == (Address::Chat { task })
     {
         opening = mode;
+        started = true;
     }
     if pages.address != address {
         pages.start = None;
@@ -1176,7 +1189,11 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             pages.task = Some(task::Task::new(task, pages.next, &env.limits, out));
         }
         if let Address::Chat { task } = address {
-            pages.chat = Some(chat::Chat::new(task, opening, pages.next, &env.limits, out));
+            let mut chat = chat::Chat::new(task, opening, pages.next, &env.limits, out);
+            if started {
+                chat.composer_focus = 1;
+            }
+            pages.chat = Some(chat);
             pages.needs.restore_settings(pages.chat.as_mut().expect("opened chat"), out);
         }
         if let Address::Changes { project } = address {

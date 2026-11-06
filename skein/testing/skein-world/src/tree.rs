@@ -205,7 +205,7 @@ fn choose(
 
 #[cfg(target_os = "linux")]
 fn prepare_choice(containment: Containment) -> Result<Choice, Error> {
-    choose(containment, true, skein_shell::subreaper()?, WALK_ACTIVE.get(), ACTIVE.get())
+    choose(containment, true, skein_shell::keeper::subreaper()?, WALK_ACTIVE.get(), ACTIVE.get())
 }
 
 #[cfg(not(target_os = "linux"))]
@@ -265,7 +265,8 @@ impl Tree {
             #[cfg(target_os = "linux")]
             Self::Linux(tree) => tree.started(handle),
             Self::Group(tree) => {
-                tree.leader = Some(skein_shell::child_id(handle).expect("a live child handle names its leader"));
+                tree.leader =
+                    Some(skein_shell::keeper::child_id(handle).expect("a live child handle names its leader"));
                 #[cfg(target_os = "linux")]
                 {
                     tree.leader_fd = Some(handle);
@@ -287,7 +288,7 @@ impl Tree {
             #[cfg(target_os = "linux")]
             Self::Linux(tree) => tree.survey(leader),
             Self::Group(tree) => {
-                if skein_shell::poll_child(leader, false).is_ok_and(|exit| exit.is_none()) {
+                if skein_shell::keeper::poll_child(leader, false).is_ok_and(|exit| exit.is_none()) {
                     tree.leader.into_iter().collect()
                 } else {
                     Vec::new()
@@ -320,12 +321,12 @@ impl Tree {
                 if tree.finished {
                     return (Vec::new(), false);
                 }
-                skein_shell::poll_child(leader, false)
+                skein_shell::keeper::poll_child(leader, false)
                     .unwrap_or_else(|error| crate::fail(&format!("retaining group leader: {error:?}")));
                 let id = tree.leader.expect("a started group has its leader");
                 let mut delivered = Vec::new();
                 if group_live(id).unwrap_or_else(|why| crate::fail(&why)) {
-                    match skein_shell::signal_kept_child(leader, signal, Target::Group) {
+                    match skein_shell::keeper::signal_kept_child(leader, signal, Target::Group) {
                         Ok(()) => delivered.push(id),
                         Err(Error::Other(3_i32)) => {} // The group may end between probe and signal.
                         Err(error) => {
@@ -362,7 +363,7 @@ impl Tree {
                 if tree.finished {
                     return;
                 }
-                let _killed = skein_shell::signal_kept_child(leader, Signal::Kill, Target::Group);
+                let _killed = skein_shell::keeper::signal_kept_child(leader, Signal::Kill, Target::Group);
                 if !retain_leader {
                     let _settled = tree.finish(leader, Expectation::Measure, false);
                 }
@@ -375,9 +376,9 @@ impl Tree {
             Self::Linux(tree) => tree.force_settle(leader, retain_leader),
             Self::Group(tree) => {
                 if !tree.finished {
-                    let _killed = skein_shell::signal_kept_child(leader, Signal::Kill, Target::Group);
+                    let _killed = skein_shell::keeper::signal_kept_child(leader, Signal::Kill, Target::Group);
                     if !retain_leader {
-                        skein_shell::abandon_binary(Some(leader), &[]);
+                        skein_shell::keeper::abandon_binary(Some(leader), &[]);
                     }
                     tree.finished = true;
                 }
@@ -418,8 +419,8 @@ impl GroupTree {
             Ok(counts) => Ok(counts),
             Err(Failure::Starved(starved)) => {
                 if !self.finished {
-                    let _killed = skein_shell::signal_kept_child(leader, Signal::Kill, Target::Group);
-                    skein_shell::abandon_binary(Some(leader), &[]);
+                    let _killed = skein_shell::keeper::signal_kept_child(leader, Signal::Kill, Target::Group);
+                    skein_shell::keeper::abandon_binary(Some(leader), &[]);
                     self.finished = true;
                 }
                 starved.pass();
@@ -433,7 +434,7 @@ impl GroupTree {
         let mut deadline = Deadline::arm("the process group settlement", Duration::from_secs(2));
         self.watch(&mut deadline);
         if observed {
-            skein_shell::poll_child(leader, false)
+            skein_shell::keeper::poll_child(leader, false)
                 .map_err(|error| format!("retaining group leader before settlement: {error:?}"))?;
         } else {
             call(&mut kernel, Op::Wait { pidfd: leader, reap: false }, &deadline)?;
@@ -445,10 +446,10 @@ impl GroupTree {
                     call(&mut kernel, Op::Wait { pidfd: leader, reap: true }, &deadline)?;
                 }
                 GroupStep::Others => {
-                    return skein_shell::group_has_other_members(id)
+                    return skein_shell::keeper::group_has_other_members(id)
                         .map_err(|error| Failure::Failed(format!("observing process group {id}: {error:?}")));
                 }
-                GroupStep::Kill => match skein_shell::signal_kept_child(leader, Signal::Kill, Target::Group) {
+                GroupStep::Kill => match skein_shell::keeper::signal_kept_child(leader, Signal::Kill, Target::Group) {
                     Ok(()) | Err(Error::Other(3_i32)) => {}
                     Err(error) => return Err(format!("killing process group {id}: {error:?}").into()),
                 },
@@ -525,7 +526,7 @@ fn settle_group<F: FnMut(GroupStep) -> Result<bool, Failure>>(
 }
 
 fn group_live(id: u32) -> Result<bool, String> {
-    skein_shell::group_live(id).map_err(|error| format!("probing process group {id}: {error:?}"))
+    skein_shell::keeper::group_live(id).map_err(|error| format!("probing process group {id}: {error:?}"))
 }
 
 // An emergency destructor cannot reap a leader while its driver's wait or
@@ -590,8 +591,8 @@ impl LinuxTree {
             return Err(Error::Other(16));
         }
         if ACTIVE.get() == 0 {
-            let previous = skein_shell::subreaper()?;
-            skein_shell::make_subreaper()?;
+            let previous = skein_shell::keeper::subreaper()?;
+            skein_shell::keeper::make_subreaper()?;
             SUBREAPER_BEFORE.set(previous);
             SUBREAPER_OWNED.set(true);
         }
@@ -620,7 +621,7 @@ impl LinuxTree {
     }
 
     pub(crate) fn started(&mut self, pidfd: Fd) {
-        let leader = skein_shell::child_id(pidfd).expect("a live child handle names its leader");
+        let leader = skein_shell::keeper::child_id(pidfd).expect("a live child handle names its leader");
         self.leader = Some(leader);
         self.leader_fd = Some(pidfd);
     }
@@ -632,7 +633,7 @@ impl LinuxTree {
             }
             let descriptor = match self.members.remove(&pid) {
                 Some(descriptor) => descriptor,
-                None => match skein_shell::open_pidfd(pid) {
+                None => match skein_shell::keeper::open_pidfd(pid) {
                     Ok(descriptor) => descriptor,
                     Err(Error::Other(3_i32)) => continue,
                     Err(error) => crate::fail(&format!("opening tree member {pid}: {error:?}")),
@@ -640,12 +641,12 @@ impl LinuxTree {
             };
             // Direct children remain unreaped on this single thread. A wait
             // probe also validates a retained descendant after its adoption.
-            let ours = skein_shell::poll_child(descriptor, false).is_ok()
+            let ours = skein_shell::keeper::poll_child(descriptor, false).is_ok()
                 && self.cgroup.as_ref().is_none_or(|group| in_cgroup(pid, &group.binary));
             if ours {
                 self.children.insert(pid, descriptor);
             } else {
-                skein_shell::close_keeper_fd(descriptor);
+                skein_shell::keeper::close_keeper_fd(descriptor);
             }
         }
     }
@@ -656,7 +657,7 @@ impl LinuxTree {
         self.refresh();
         self.members.retain(|_, descriptor| {
             if exited(*descriptor) {
-                skein_shell::close_keeper_fd(*descriptor);
+                skein_shell::keeper::close_keeper_fd(*descriptor);
                 false
             } else {
                 true
@@ -777,7 +778,7 @@ impl LinuxTree {
         self.watch(&mut deadline);
         let mut lingering = Vec::new();
         for (&pid, &descriptor) in &self.children {
-            if skein_shell::poll_child(descriptor, false).is_ok_and(|status| status.is_none()) {
+            if skein_shell::keeper::poll_child(descriptor, false).is_ok_and(|status| status.is_none()) {
                 lingering.push(pid);
             }
         }
@@ -806,7 +807,7 @@ impl LinuxTree {
             self.refresh();
             let discovered: Vec<_> = self.children.iter().map(|(&pid, &fd)| (pid, fd)).collect();
             for (pid, descriptor) in discovered {
-                if skein_shell::poll_child(descriptor, false).is_ok_and(|status| status.is_none()) {
+                if skein_shell::keeper::poll_child(descriptor, false).is_ok_and(|status| status.is_none()) {
                     lingering.push(pid);
                 }
                 if expectation != Expectation::Supervise {
@@ -830,7 +831,7 @@ impl LinuxTree {
                 break;
             }
             if let Some(group) = &self.cgroup {
-                skein_shell::wait_cgroup_change(Fd::new(group.events.as_raw_fd()), 10)
+                skein_shell::keeper::wait_cgroup_change(Fd::new(group.events.as_raw_fd()), 10)
                     .map_err(|error| format!("cgroup notification: {error:?}"))?;
             }
             if deadline.passed() {
@@ -876,7 +877,7 @@ impl LinuxTree {
             let mut deadline = Deadline::arm("the abandoned tree leader", Duration::from_secs(2));
             self.watch(&mut deadline);
             // Poll without reaping: the shared kernel still owns its wait.
-            while skein_shell::poll_child(leader, false).is_ok_and(|exit| exit.is_none()) {
+            while skein_shell::keeper::poll_child(leader, false).is_ok_and(|exit| exit.is_none()) {
                 if deadline.passed() {
                     match deadline.expired() {
                         Expired::Starved(starved) => {
@@ -907,9 +908,9 @@ impl LinuxTree {
                 let _kill = fs::write(group.binary.join("cgroup.kill"), b"1");
             }
             if !self.leader_reaped {
-                let _killed = skein_shell::signal_kept_child(leader, Signal::Kill, Target::Group);
+                let _killed = skein_shell::keeper::signal_kept_child(leader, Signal::Kill, Target::Group);
                 if !retain_leader {
-                    skein_shell::abandon_binary(Some(leader), &[]);
+                    skein_shell::keeper::abandon_binary(Some(leader), &[]);
                     self.leader_reaped = true;
                 }
             }
@@ -919,8 +920,8 @@ impl LinuxTree {
                     break;
                 }
                 for &descriptor in self.children.values() {
-                    let _killed = skein_shell::signal_kept_child(descriptor, Signal::Kill, Target::Child);
-                    skein_shell::abandon_binary(Some(descriptor), &[descriptor]);
+                    let _killed = skein_shell::keeper::signal_kept_child(descriptor, Signal::Kill, Target::Child);
+                    skein_shell::keeper::abandon_binary(Some(descriptor), &[descriptor]);
                 }
                 self.children.clear();
             }
@@ -955,7 +956,7 @@ fn watch_owned(deadline: &mut Deadline, roots: &[(u32, Fd)]) {
     }
     deadline.watch_threads(&visited.into_iter().collect::<Vec<_>>());
     for descriptor in opened {
-        skein_shell::close_keeper_fd(descriptor);
+        skein_shell::keeper::close_keeper_fd(descriptor);
     }
 }
 
@@ -965,7 +966,7 @@ fn difference(after: Duration, before: Duration) -> Duration {
 
 #[cfg(target_os = "linux")]
 fn exited(descriptor: Fd) -> bool {
-    skein_shell::pidfd_exited(descriptor)
+    skein_shell::keeper::pidfd_exited(descriptor)
         .unwrap_or_else(|error| crate::fail(&format!("polling tree identity: {error:?}")))
 }
 
@@ -974,7 +975,7 @@ fn deliver(descriptor: Fd, signal: Signal) -> bool {
     if exited(descriptor) {
         return false;
     }
-    match skein_shell::signal_kept_child(descriptor, signal, Target::Child) {
+    match skein_shell::keeper::signal_kept_child(descriptor, signal, Target::Child) {
         Ok(()) => true,
         Err(Error::NotFound | Error::Other(3_i32)) => false,
         Err(error) => crate::fail(&format!("signalling tree identity: {error:?}")),
@@ -984,8 +985,8 @@ fn deliver(descriptor: Fd, signal: Signal) -> bool {
 #[cfg(target_os = "linux")]
 fn open_tree_member(pid: u32, parent: Option<(u32, Fd)>, cgroup: Option<&Path>) -> Result<Option<Fd>, Error> {
     let descriptor = match parent {
-        Some((parent, _descriptor)) => skein_shell::open_child_pidfd(pid, parent)?,
-        None => skein_shell::open_pidfd(pid)?,
+        Some((parent, _descriptor)) => skein_shell::keeper::open_child_pidfd(pid, parent)?,
+        None => skein_shell::keeper::open_pidfd(pid)?,
     };
     // Ownership is checked after open. A final poll binds every proc read
     // to that identity even if exit, reap and reuse raced the read.
@@ -994,7 +995,7 @@ fn open_tree_member(pid: u32, parent: Option<(u32, Fd)>, cgroup: Option<&Path>) 
         None => cgroup.is_some_and(|binary| in_cgroup(pid, binary)),
     };
     if !ours || exited(descriptor) {
-        skein_shell::close_keeper_fd(descriptor);
+        skein_shell::keeper::close_keeper_fd(descriptor);
         return Ok(None);
     }
     Ok(Some(descriptor))
@@ -1112,7 +1113,7 @@ impl Cgroup {
                 let binary = base.parent.join(format!("binary-{}", base.next));
                 base.next = base.next.checked_add(1).expect("binary names fit");
                 fs::create_dir(&binary).ok()?;
-                let Ok(descriptor) = skein_shell::open_cgroup(&binary) else {
+                let Ok(descriptor) = skein_shell::keeper::open_cgroup(&binary) else {
                     let _removed = fs::remove_dir(&binary);
                     return None;
                 };
@@ -1151,7 +1152,7 @@ impl Cgroup {
                 let _removed = fs::remove_dir(&parent);
                 continue;
             }
-            match skein_shell::open_cgroup(&binary) {
+            match skein_shell::keeper::open_cgroup(&binary) {
                 Ok(descriptor) => {
                     let events = fs::File::open(binary.join("cgroup.events")).expect("a new cgroup has its event file");
                     CGROUP_BASE.with(|base| {
@@ -1212,12 +1213,14 @@ impl Cgroup {
                     empty = true;
                     break;
                 }
-                if deadline.passed() || skein_shell::wait_cgroup_change(Fd::new(self.events.as_raw_fd()), 10).is_err() {
+                if deadline.passed()
+                    || skein_shell::keeper::wait_cgroup_change(Fd::new(self.events.as_raw_fd()), 10).is_err()
+                {
                     break;
                 }
             }
         }
-        skein_shell::close_keeper_fd(self.descriptor);
+        skein_shell::keeper::close_keeper_fd(self.descriptor);
         drop(self.events);
         if !empty || retain_leader {
             // The shared kernel owns a retained leader's reap. Keep this
@@ -1263,7 +1266,8 @@ impl Drop for LinuxTree {
             group.remove(self.leader.is_some() && !self.leader_reaped);
         }
         if ACTIVE.get() == 0 && SUBREAPER_OWNED.replace(false) {
-            skein_shell::set_subreaper(SUBREAPER_BEFORE.get()).expect("the observer restores its subreaper setting");
+            skein_shell::keeper::set_subreaper(SUBREAPER_BEFORE.get())
+                .expect("the observer restores its subreaper setting");
         }
     }
 }
@@ -1330,7 +1334,7 @@ mod tests {
         let own = std::path::Path::new("/sys/fs/cgroup").join(relative.trim_start_matches('/'));
         let descriptor =
             super::open_tree_member(pid, None, Some(&own)).expect("validate membership").expect("own member");
-        skein_shell::close_keeper_fd(descriptor);
+        skein_shell::keeper::close_keeper_fd(descriptor);
     }
 
     #[test]

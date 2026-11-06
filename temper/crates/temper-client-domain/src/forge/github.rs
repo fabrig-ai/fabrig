@@ -294,7 +294,6 @@ pub(crate) fn decode(outcome: &Outcome, linking: bool, limits: Limits) -> Option
                 | w::Outcome::Running
                 | w::Outcome::StartRefused(_)
                 | w::Outcome::StartFailed(_)
-                | w::Outcome::Returning
                 | w::Outcome::Link(_)
                 | w::Outcome::Removed
                 | w::Outcome::Looked

@@ -153,6 +153,7 @@ impl Replay {
             Line::Start => Report::Start,
             Line::Copied { token, written } => Report::Copied { token: *token, written: *written },
             Line::Due => Report::Due,
+            Line::TabRefused => Report::TabRefused,
             Line::Place(path) => Report::Place { path: path.clone() },
             Line::Heard(heard) => Report::Heard(clone_heard(heard)),
             Line::Act { act, event, .. } => Report::Act {
@@ -195,6 +196,9 @@ impl Replay {
             | Line::Written(_)
             | Line::Unwritten(_)
             | Line::Lost(_)
+            | Line::TabOpen(_)
+            | Line::TabPoint(_)
+            | Line::TabClose
             | Line::Exchange { .. }
             | Line::Open { .. }
             | Line::Close

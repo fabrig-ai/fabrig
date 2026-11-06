@@ -530,15 +530,7 @@ pub const PROGRAM_NAME: u32 = 32;
 pub const PROGRAM_DETAIL: u32 = 4_096;
 #[must_use]
 pub fn valid_program_name(name: &[u8]) -> bool {
-    if name.is_empty() || name.len() > 32 {
-        return false;
-    }
-    for byte in name {
-        if !byte.is_ascii_lowercase() && !byte.is_ascii_digit() && *byte != b'-' {
-            return false;
-        }
-    }
-    true
+    skein_lib::Name::<32>::new(name, skein_lib::Grammar::LowercaseDigitsHyphen).is_some()
 }
 #[must_use]
 pub fn valid_program_method(method: &[u8]) -> bool {

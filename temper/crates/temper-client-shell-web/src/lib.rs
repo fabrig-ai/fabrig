@@ -15,6 +15,8 @@ use skein_ui_web::{
 };
 #[cfg(target_arch = "wasm32")]
 use std::{cell::RefCell, rc::Rc};
+#[cfg(target_arch = "wasm32")]
+mod focus;
 pub mod host;
 #[cfg(any(not(target_arch = "wasm32"), feature = "record"))]
 pub mod journey;
@@ -30,6 +32,7 @@ enum Report {
     #[cfg(feature = "record")]
     Save,
     Due,
+    TabRefused,
     Act(NodeId, Act),
     Fetch(fetch::Report),
     Carried(Vec<transport::Carried>, u32),
@@ -52,6 +55,7 @@ struct Shell<P: ShellPlatform> {
     history: Rc<history::web::History>,
     timer: P::Timer,
     title: title::web::Title,
+    heading_focus: focus::HeadingFocus,
 }
 #[cfg(target_arch = "wasm32")]
 trait ShellPlatform: platform::Platform {
@@ -165,6 +169,7 @@ fn start_signed_in() {
         history,
         timer,
         title: title::web::Title::default(),
+        heading_focus: focus::HeadingFocus::new(),
     };
     inbox.start(Box::new(move |inbox| shell.turn(inbox)));
     inbox.raise(Report::Start);
@@ -241,6 +246,7 @@ impl<P: ShellPlatform> Shell<P> {
                 P::fired(&mut self.timer);
                 host::Report::Due
             }
+            Report::TabRefused => host::Report::TabRefused,
             Report::Act(node, act) => host::Report::Act { node, act },
             Report::Place(path) => host::Report::Place { path },
             Report::Fetch(report) => host::Report::Heard(adapter::fetched(report)),
@@ -258,6 +264,19 @@ impl<P: ShellPlatform> Shell<P> {
     }
     /// Carries one report's requests, navigation, store writes and stream read; returns whether a new page shows.
     fn carry(&mut self, inbox: &Inbox<Report>, duties: host::Duties, read_on: bool) -> bool {
+        // Keep the person's gesture: tabs precede transport in this turn
+        // (skein/docs/design/ui-web.md, section 11).
+        for tab in &duties.tab {
+            match tab {
+                host::TabAct::Open { words } => {
+                    if !platform::Platform::open_tab(&mut self.platform, words) {
+                        inbox.raise(Report::TabRefused);
+                    }
+                }
+                host::TabAct::Point { to } => platform::Platform::point_tab(&mut self.platform, to),
+                host::TabAct::Close => platform::Platform::close_tab(&mut self.platform),
+            }
+        }
         // Keep the person's gesture (skein/docs/design/ui-web.md, section 11).
         if let Some((token, words)) = &duties.copy {
             self.clipboard.write(*token, words);
@@ -311,14 +330,28 @@ impl<P: ShellPlatform> Shell<P> {
         self.title.set(words.as_bytes(), b"temper", b"en", closing_loses);
         if new_page {
             window.scroll_to_with_x_and_y(0.0, 0.0);
-            if !ops.iter().any(|op| matches!(op, skein_ui_web::page::Op::Focus { .. })) {
-                use wasm_bindgen::JsCast;
-                if let Some(target) = heading.or_else(|| document.query_selector("main").expect("main selector")) {
-                    target.set_attribute("tabindex", "-1").expect("focus target");
-                    target.unchecked_ref::<web_sys::HtmlElement>().focus().expect("focus mounted target");
-                }
-            }
         }
+        let requested = ops.iter().any(|op| match op {
+            skein_ui_web::page::Op::Focus { node } => {
+                self.host.tree().nodes().iter().any(|made| made.id == *node && made.focus.is_some())
+            }
+            skein_ui_web::page::Op::Insert { .. }
+            | skein_ui_web::page::Op::Remove { .. }
+            | skein_ui_web::page::Op::Move { .. }
+            | skein_ui_web::page::Op::Replace { .. }
+            | skein_ui_web::page::Op::Attributes { .. }
+            | skein_ui_web::page::Op::Text { .. }
+            | skein_ui_web::page::Op::Value { .. }
+            | skein_ui_web::page::Op::Choice { .. }
+            | skein_ui_web::page::Op::Href { .. }
+            | skein_ui_web::page::Op::ScrollEnd { .. }
+            | skein_ui_web::page::Op::HoldView { .. }
+            | skein_ui_web::page::Op::PutView { .. }
+            | skein_ui_web::page::Op::Measure { .. }
+            | skein_ui_web::page::Op::ScrollScreen { .. }
+            | skein_ui_web::page::Op::Component { .. } => false,
+        });
+        self.heading_focus.finish(&document, heading, new_page, requested);
         self.history.restore();
         let deadline = self.host.deadline();
         #[cfg(feature = "record")]

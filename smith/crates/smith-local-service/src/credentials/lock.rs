@@ -2,7 +2,7 @@
 //! Each successful lock answer owns one root until Unlock closes it.
 use super::Accounts;
 use alloc::boxed::Box;
-use skein_io::{file, file_layer};
+use skein_io::{file, file_layer::step};
 use skein_lib::{Duration, Time, Token, Writer};
 
 mod events;
@@ -172,7 +172,8 @@ impl Accounts {
                     continue;
                 }
             };
-            file_layer::down(&mut self.files, now, request, &mut self.events, &mut self.submissions);
+            let env = self.file_env(now, skein_lib::Wall::EPOCH);
+            step::down(&mut self.files, &env, request, &mut self.events, &mut self.submissions);
             return;
         }
     }

@@ -178,12 +178,14 @@ project's Needs you and rail's count, but its live card lists no item of temper'
 kinds, stays on Needs you once accepted, leaves its chat on a reload and follows a
 "Decision made" while it waits, and Accept on that chat's own card is refused, where
 Needs you's and Home's work (`client/README.md`). "Start goal…" went once from a
-restored document, on no replay since, its cause unknown (`client/README.md`). The welcome's try of a model draws Model's line in
+restored document, on no replay since, its cause unknown (`client/README.md`). The welcome's command names the
+binary that runs it and has a Copy, but no browser test presses the Copy; a `TEMPER_` value named only where it
+differs (`client/README.md`) and a link clickable on a terminal (`protocol/setup.md`) wait on `box-small-2`; and
+`temper forge run`'s refusal and the terminal's `temper open` still say plain `temper` (`client/README.md`). The welcome's try of a model draws Model's line in
 Ready's pane over the host's check alone, no trial being built, and departs from the request
 `model-check-pane` in its list's words, and a sign-in that ends on its way's page stops at
 *A model usable*, where that request goes on to Ready (`client/README.md`). A plan's sign-in draws the waiting page of the request
-`sign-in-new-tab`, whose words say a new tab while a press still leaves in its own,
-until that draft is built; the page departs from the request in the terminal's words
+`sign-in-new-tab`; the page departs from the request in the terminal's words
 and on `ConnectModel`, where a paste finishing also keeps the note's waiting words
 (`client/README.md`). The rail's person's menu departs from the request
 `ui-owner-menu` in a press outside that took the focus, which keeps it, a project-less

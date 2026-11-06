@@ -67,9 +67,9 @@ fn a_navigation_holds_page_reads_until_load() {
         let during = methods(&world);
         loaded(&mut world);
         let expected: &[&[u8]] = if snapshot {
-            &[b"Accessibility.getFullAXTree"]
+            &[b"Page.bringToFront", b"Accessibility.getFullAXTree"]
         } else {
-            &[b"Runtime.evaluate", b"Accessibility.queryAXTree", b"Runtime.releaseObject"]
+            &[b"Page.bringToFront", b"Runtime.evaluate", b"Accessibility.queryAXTree", b"Runtime.releaseObject"]
         };
         let sent = methods(&world);
         let after: Vec<&[u8]> = sent.iter().map(AsRef::as_ref).collect();
@@ -142,8 +142,10 @@ fn a_navigation_discards_the_previous_documents_root() {
     assert_eq!(
         methods,
         [
-            b"Runtime.evaluate".as_slice(),
+            b"Page.bringToFront".as_slice(),
+            b"Runtime.evaluate",
             b"Runtime.releaseObject",
+            b"Page.bringToFront",
             b"Runtime.evaluate",
             b"Accessibility.queryAXTree",
             b"Runtime.releaseObject"
@@ -199,7 +201,8 @@ fn a_cached_history_restore_releases_page_reads() {
     notify(&mut world, b"{\"method\":\"Page.frameNavigated\",\"sessionId\":\"s1\",\"params\":{\"type\":\"BackForwardCacheRestore\",\"frame\":{\"id\":\"f1\"}}}\0");
     assert_eq!(
         methods(&world),
-        [b"Runtime.evaluate".as_slice(), b"Accessibility.queryAXTree", b"Runtime.releaseObject"].map(Box::<[u8]>::from)
+        [b"Page.bringToFront".as_slice(), b"Runtime.evaluate", b"Accessibility.queryAXTree", b"Runtime.releaseObject"]
+            .map(Box::<[u8]>::from)
     );
 }
 
@@ -243,6 +246,7 @@ fn a_scoped_find_asks_under_its_scopes_object() {
     assert_eq!(
         root_commands(&world),
         vec![
+            (Box::from(b"Page.bringToFront".as_slice()), None, None),
             (Box::from(b"DOM.resolveNode".as_slice()), Some(SCOPE), None),
             (Box::from(b"Accessibility.queryAXTree".as_slice()), None, Some(Box::from(b"scope-7".as_slice()))),
             (Box::from(b"Runtime.releaseObject".as_slice()), None, Some(Box::from(b"scope-7".as_slice()))),
@@ -258,7 +262,11 @@ fn a_scope_of_an_earlier_document_is_gone() {
     match world.above.pop() {
         Some(Event::Refused { op, why, .. }) => assert_eq!(
             (op, why, methods(&world)),
-            (READ, Refusal::Gone, vec![Box::from(b"DOM.resolveNode".as_slice())])
+            (
+                READ,
+                Refusal::Gone,
+                vec![Box::from(b"Page.bringToFront".as_slice()), Box::from(b"DOM.resolveNode".as_slice())]
+            )
         ),
         other => panic!("expected a stale scope to be Gone, got {other:?}"),
     }
@@ -276,6 +284,7 @@ fn a_late_resolved_scope_object_is_released() {
     assert_eq!(
         root_commands(&world),
         vec![
+            (Box::from(b"Page.bringToFront".as_slice()), None, None),
             (Box::from(b"DOM.resolveNode".as_slice()), Some(SCOPE), None),
             (Box::from(b"Runtime.releaseObject".as_slice()), None, Some(Box::from(b"scope-7".as_slice()))),
         ]

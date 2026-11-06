@@ -24,11 +24,11 @@ fn request(first: Option<v1::FirstAsk>) -> v1::Requesting {
             .unwrap();
     v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::Connect(connect) }).unwrap()
 }
-// An untrusted peer's Connect: version 14, Connect tag 3, Kept tag 0, forge 1,
+// An untrusted peer's Connect: version 14, Connect tag 2, Kept tag 0, forge 1,
 // ForgejoAdmin tag 2, Some(first), work/hello.
 fn peer(label: &[u8]) -> Box<[u8]> {
     const HEAD: &[u8] =
-        &[0, 14, 3, 0, 0, 1, 2, 1, 0, 0, 0, 4, b'w', b'o', b'r', b'k', 0, 0, 0, 5, b'h', b'e', b'l', b'l', b'o'];
+        &[0, 14, 2, 0, 0, 1, 2, 1, 0, 0, 0, 4, b'w', b'o', b'r', b'k', 0, 0, 0, 5, b'h', b'e', b'l', b'l', b'o'];
     let mut writer = Writer::new(HEAD.len().checked_add(4).unwrap().checked_add(label.len()).unwrap());
     writer.put(HEAD).unwrap();
     writer.put(&u32::try_from(label.len()).unwrap().to_be_bytes()).unwrap();
@@ -36,18 +36,18 @@ fn peer(label: &[u8]) -> Box<[u8]> {
     writer.finish()
 }
 #[test]
-#[expect(clippy::disallowed_macros, reason = "committed wire golden is test input")]
 fn forgejo_admin_without_first_round_trips_its_golden() {
-    let record = request(None);
-    let bytes = include_bytes!("../../golden/connect_forgejo_admin_without_first.bin");
-    assert_eq!(crate::requesting(&record).as_ref(), bytes);
-    assert_eq!(crate::decode_requesting(bytes, &fixtures::limits()), Some(record));
+    golden(None, "connect_forgejo_admin_without_first.bin");
 }
 #[test]
 fn forgejo_admin_with_first_round_trips_its_golden() {
-    let record = request(Some(first(b"docker").unwrap()));
+    golden(Some(first(b"docker").unwrap()), "connect_forgejo_admin_with_first.bin");
+}
+fn golden(first: Option<v1::FirstAsk>, name: &str) {
+    let record = request(first);
     let path = std::path::PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").expect("test package"))
-        .join("golden/connect_forgejo_admin_with_first.bin");
+        .join("golden")
+        .join(name);
     let encoded = crate::requesting(&record);
     let write = match std::env::var_os("SKEIN_CODEGEN_WRITE") {
         Some(value) => value == "1",

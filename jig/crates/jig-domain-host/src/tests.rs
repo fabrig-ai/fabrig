@@ -1047,3 +1047,59 @@ fn admission_classifies_calls_and_link_work_separately_from_completions() {
 }
 
 mod jobs;
+
+#[test]
+fn a_starting_fault_keeps_its_class_until_gone_without_admission() {
+    let mut h = Harness::new();
+    let (owner, workspace) = pending_start(&mut h, 1);
+    h.step(Event::Down(LinkDown::Message {
+        run: Token::new(1),
+        attempt: Token::new(1001),
+        name: Token::new(9),
+        sender: Box::new([]),
+        words: b"pending".as_slice().into(),
+        finish_requested: false,
+    }));
+    for fault in [crate::AgentFailure::Rules, crate::AgentFailure::Exited] {
+        assert!(h.step(Event::Agent(crate::FromAgent::Faulted { owner, fault })).is_empty());
+    }
+    let requests = h.step(Event::Agent(crate::FromAgent::Gone { owner, detail: b"prefix detailed".as_slice().into() }));
+    let [Request::Release { workspace: released }, Request::Up(LinkUp::Answer { answer, .. })] = &*requests else {
+        panic!("fault waits for cleanup: {requests:?}");
+    };
+    assert_eq!(*released, workspace);
+    assert_eq!(answer.refused.as_ref(), &[Refused { name: Token::new(9), reason: MessageRefusal::Ending }]);
+    assert_eq!(
+        answer.ending,
+        crate::Ending::Failed {
+            failure: Failure::Agent(crate::AgentFailure::Rules),
+            detail: b"detailed".as_slice().into(),
+            work: Work { left: None, saved: None },
+        }
+    );
+    while let Some(fact) = h.domain.pop_fact() {
+        if let crate::Fact::Started { .. } = fact {
+            panic!("a faulted startup is never admitted");
+        }
+    }
+}
+
+#[test]
+fn cancellation_before_a_starting_fault_keeps_the_cancellation() {
+    let mut h = Harness::new();
+    let (owner, _) = pending_start(&mut h, 1);
+    h.step(Event::Down(LinkDown::Cancel { run: Token::new(1), attempt: Token::new(1001) }));
+    assert!(h.step(Event::Agent(crate::FromAgent::Faulted { owner, fault: crate::AgentFailure::Rules })).is_empty());
+    let requests = h.step(Event::Agent(crate::FromAgent::Gone { owner, detail: b"fault".as_slice().into() }));
+    let [Request::Release { .. }, Request::Up(LinkUp::Answer { answer, .. })] = &*requests else {
+        panic!("cancel waits for cleanup: {requests:?}");
+    };
+    assert_eq!(
+        answer.ending,
+        crate::Ending::Failed {
+            failure: Failure::Cancelled(Reason::Engine),
+            detail: b"fault".as_slice().into(),
+            work: Work { left: None, saved: None },
+        }
+    );
+}

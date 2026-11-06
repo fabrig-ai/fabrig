@@ -283,9 +283,7 @@ impl<'a> Page<'a> {
         let items: Vec<_> = self
             .nodes
             .iter()
-            .filter_map(|(node, held)| {
-                [Role::Item, Role::TreeItem].contains(&held.made.attribute.role).then_some(*node)
-            })
+            .filter_map(|(node, held)| held.made.attribute.role.is_list_item().then_some(*node))
             .collect();
         for node in items {
             let mut parent = self.held(node).parent;
@@ -295,7 +293,7 @@ impl<'a> Page<'a> {
                 if self.held(node).made.attribute.role == Role::TreeItem && held.made.attribute.role == Role::TreeItem {
                     break;
                 }
-                if [Role::List, Role::Tree].contains(&held.made.attribute.role) {
+                if held.made.attribute.role.is_list() {
                     count = held.made.attribute.count.map(|count| count.to_string());
                     break;
                 }
@@ -396,7 +394,7 @@ impl<'a> Page<'a> {
         if took_focus {
             while ancestor != NodeId(0) {
                 let held = self.held(ancestor);
-                if focusable(held.made.attribute.role) {
+                if held.made.attribute.role.is_focusable() {
                     focus = Some(ancestor);
                     break;
                 }
@@ -481,8 +479,7 @@ impl<'a> Page<'a> {
         } else {
             core
         };
-        let description = if [Role::Item, Role::Cell, Role::ColumnHeader, Role::RowHeader]
-            .contains(&self.held(node).made.attribute.role)
+        let description = if self.held(node).made.attribute.role.describes_inside()
             && self.held(node).made.attribute.description.is_some()
         {
             destination.children.pop()
@@ -579,23 +576,6 @@ pub(crate) fn semantic_mut(element: &mut Element) -> &mut Element {
     element
 }
 
-fn focusable(role: Role) -> bool {
-    [
-        Role::Button,
-        Role::Link,
-        Role::TextField,
-        Role::Select,
-        Role::TextArea,
-        Role::Choice,
-        Role::Check,
-        Role::Dialog,
-        Role::Disclosure,
-        Role::Tab,
-        Role::Main,
-    ]
-    .contains(&role)
-}
-
 /// Platform events as data; shortcut interpretation belongs to the page.
 /// For an unmapped press, `focus_taken` preserves an outside control's focus.
 #[derive(Clone, Debug)]
@@ -654,7 +634,7 @@ impl Page<'_> {
                     return None;
                 }
                 let a = &self.held(node).made.attribute;
-                if !composing && enabled(a) && a.bound && [Role::TextField, Role::TextArea].contains(&a.role) {
+                if !composing && enabled(a) && a.bound && a.role.is_text_field() {
                     Some((node, Act::Input { value }))
                 } else {
                     None
@@ -663,11 +643,7 @@ impl Page<'_> {
             Event::CompositionEnd { node, value } => {
                 self.composition_end = Some((node, value.clone()));
                 let a = &self.held(node).made.attribute;
-                if enabled(a) && a.bound && [Role::TextField, Role::TextArea].contains(&a.role) {
-                    Some((node, Act::Input { value }))
-                } else {
-                    None
-                }
+                if enabled(a) && a.bound && a.role.is_text_field() { Some((node, Act::Input { value })) } else { None }
             }
             Event::Enter { node, shift, composing } => {
                 self.composition_end = None;
@@ -685,7 +661,7 @@ impl Page<'_> {
             }
             Event::Change { node } => {
                 let a = &self.held(node).made.attribute;
-                if enabled(a) && a.bound && [Role::Choice, Role::Check].contains(&a.role) {
+                if enabled(a) && a.bound && a.role.is_toggle() {
                     let state = if a.role == Role::Choice { State::Selected } else { State::Pressed };
                     ops.push(Op::Choice { node, checked: a.states.as_slice().contains(&state) });
                     Some((node, Act::Toggle))
@@ -815,7 +791,7 @@ impl Page<'_> {
         let mut at = node;
         while at != NodeId(0) {
             let held = self.held(at);
-            if [Role::Button, Role::Link, Role::Tab, Role::MenuItem].contains(&held.made.attribute.role) {
+            if held.made.attribute.role.is_pressable() {
                 return at;
             }
             at = held.parent;
@@ -846,9 +822,7 @@ impl Page<'_> {
         if a.role == Role::Link && (modifier || a.external.is_some()) {
             return None;
         }
-        if (a.bound || a.states.as_slice().contains(&State::ToLogEnd))
-            && [Role::Button, Role::Link, Role::Tab, Role::MenuItem].contains(&a.role)
-        {
+        if (a.bound || a.states.as_slice().contains(&State::ToLogEnd)) && a.role.is_pressable() {
             if a.role == Role::MenuItem {
                 self.close_menu(true, ops);
             }

@@ -54,7 +54,7 @@ pub type Lower = skein_io::Request;
 pub type LowerEvent = skein_io::Event;
 
 /// A private keeper request or cancellation for the owner's `FileIo` (oauth.md, section 6.4).
-/// Requests use `file_layer::down_until`; cancellations use `file_layer::cancel`.
+/// Requests use `file_layer::step::down_until`; cancellations use `file_layer::cancel`.
 /// The owner handles controls while `FileIo` is busy. A cancelled request still
 /// queued by the owner is discarded with its one `file::Event::Cancelled`.
 /// Queued requests expire at their stated deadline as well as active requests.

@@ -125,6 +125,176 @@ pub enum Role {
     Drawing,
 }
 
+const FIELD: u32 = 1 << 0;
+const COLLECTION: u32 = 1 << 1;
+const POSITIONED: u32 = 1 << 2;
+const CELL: u32 = 1 << 3;
+const ROW_DATA: u32 = 1 << 4;
+const LIST: u32 = 1 << 5;
+const LIST_ITEM: u32 = 1 << 6;
+const KEYED: u32 = 1 << 7;
+const TOGGLE: u32 = 1 << 8;
+const SELECTABLE: u32 = 1 << 9;
+const PRESSABLE: u32 = 1 << 10;
+const RUNS: u32 = 1 << 11;
+const REQUIRED: u32 = 1 << 12;
+const REGION: u32 = 1 << 13;
+const NATIVE_REQ: u32 = 1 << 14;
+const NATIVE_DISABLED: u32 = 1 << 15;
+const NATIVE_FOCUS: u32 = 1 << 16;
+const FOCUS: u32 = 1 << 17;
+const WORDS_INSIDE: u32 = 1 << 18;
+const DESCRIPTION_INSIDE: u32 = 1 << 19;
+
+impl Role {
+    /// The named sets this role is in; a new role breaks the build here.
+    const fn sets(self) -> u32 {
+        use Role::{Banner, Complementary, ContentInfo, Form, Log, Navigation, Region, Search, Tabs};
+
+        match self {
+            Self::Page
+            | Self::Group
+            | Self::Heading { .. }
+            | Self::Paragraph
+            | Self::Term
+            | Self::Description
+            | Self::Status
+            | Self::Alert
+            | Self::Time
+            | Self::Code
+            | Self::Quote
+            | Self::Separator
+            | Self::Menu
+            | Self::Image
+            | Self::Figure
+            | Self::Drawing => 0,
+            Banner | Navigation | Complementary | ContentInfo | Form | Search | Region | Log | Tabs => REGION,
+            Self::Main => REGION | FOCUS,
+            Self::Text | Self::Progress => RUNS,
+            Self::List | Self::Tree => COLLECTION | LIST,
+            Self::Item => POSITIONED | LIST_ITEM | KEYED | WORDS_INSIDE | DESCRIPTION_INSIDE,
+            Self::Table => COLLECTION,
+            Self::Row => POSITIONED,
+            Self::Cell | Self::RowHeader => CELL | ROW_DATA | WORDS_INSIDE | DESCRIPTION_INSIDE,
+            Self::ColumnHeader => CELL | WORDS_INSIDE | DESCRIPTION_INSIDE,
+            Self::Select => REQUIRED | NATIVE_REQ | NATIVE_DISABLED | NATIVE_FOCUS | FOCUS,
+            Self::Option => SELECTABLE | NATIVE_DISABLED,
+            Self::Button => PRESSABLE | NATIVE_DISABLED | NATIVE_FOCUS | FOCUS,
+            Self::Link | Self::Tab => PRESSABLE | NATIVE_FOCUS | FOCUS,
+            Self::TextField | Self::TextArea => FIELD | REQUIRED | NATIVE_REQ | NATIVE_DISABLED | NATIVE_FOCUS | FOCUS,
+            Self::Choice => TOGGLE | SELECTABLE | NATIVE_DISABLED | NATIVE_FOCUS | FOCUS,
+            Self::ChoiceGroup => REQUIRED,
+            Self::Check => TOGGLE | REQUIRED | NATIVE_REQ | NATIVE_DISABLED | NATIVE_FOCUS | FOCUS,
+            Self::Dialog => REGION | NATIVE_FOCUS | FOCUS,
+            Self::TreeItem => POSITIONED | LIST_ITEM | KEYED,
+            Self::MenuItem => PRESSABLE | WORDS_INSIDE,
+            Self::Disclosure => NATIVE_FOCUS | FOCUS,
+            Self::Slot => KEYED,
+        }
+    }
+
+    /// A field a person types in.
+    #[must_use]
+    pub const fn is_text_field(self) -> bool {
+        self.sets() & FIELD != 0
+    }
+    /// A collection with a whole count.
+    #[must_use]
+    pub const fn is_collection(self) -> bool {
+        self.sets() & COLLECTION != 0
+    }
+    /// An item or row with a position in its collection.
+    #[must_use]
+    pub const fn is_positioned(self) -> bool {
+        self.sets() & POSITIONED != 0
+    }
+    /// A table cell, including its headers.
+    #[must_use]
+    pub const fn is_cell(self) -> bool {
+        self.sets() & CELL != 0
+    }
+    /// A cell carrying row data.
+    #[must_use]
+    pub const fn is_row_data(self) -> bool {
+        self.sets() & ROW_DATA != 0
+    }
+    /// A list or tree of items.
+    #[must_use]
+    pub const fn is_list(self) -> bool {
+        self.sets() & LIST != 0
+    }
+    /// An item in a list or tree.
+    #[must_use]
+    pub const fn is_list_item(self) -> bool {
+        self.sets() & LIST_ITEM != 0
+    }
+    /// A node identified by its object.
+    #[must_use]
+    pub const fn is_keyed(self) -> bool {
+        self.sets() & KEYED != 0
+    }
+    /// A control a person toggles.
+    #[must_use]
+    pub const fn is_toggle(self) -> bool {
+        self.sets() & TOGGLE != 0
+    }
+    /// A choice or option with native selection.
+    #[must_use]
+    pub const fn is_selectable(self) -> bool {
+        self.sets() & SELECTABLE != 0
+    }
+    /// A node a person presses.
+    #[must_use]
+    pub const fn is_pressable(self) -> bool {
+        self.sets() & PRESSABLE != 0
+    }
+    /// A node that holds text runs.
+    #[must_use]
+    pub const fn takes_runs(self) -> bool {
+        self.sets() & RUNS != 0
+    }
+    /// A field or group that may be required.
+    #[must_use]
+    pub const fn takes_required(self) -> bool {
+        self.sets() & REQUIRED != 0
+    }
+    /// A node that takes a region name.
+    #[must_use]
+    pub const fn takes_region(self) -> bool {
+        self.sets() & REGION != 0
+    }
+    /// A control with a native required attribute.
+    #[must_use]
+    pub const fn has_native_required(self) -> bool {
+        self.sets() & NATIVE_REQ != 0
+    }
+    /// A control with a native disabled attribute.
+    #[must_use]
+    pub const fn has_native_disabled(self) -> bool {
+        self.sets() & NATIVE_DISABLED != 0
+    }
+    /// A node with native web focus handling.
+    #[must_use]
+    pub const fn has_native_focus(self) -> bool {
+        self.sets() & NATIVE_FOCUS != 0
+    }
+    /// A node the web page may focus.
+    #[must_use]
+    pub const fn is_focusable(self) -> bool {
+        self.sets() & FOCUS != 0
+    }
+    /// A node whose words stay inside its web element.
+    #[must_use]
+    pub const fn holds_words_inside(self) -> bool {
+        self.sets() & WORDS_INSIDE != 0
+    }
+    /// A node whose description stays inside its web element.
+    #[must_use]
+    pub const fn describes_inside(self) -> bool {
+        self.sets() & DESCRIPTION_INSIDE != 0
+    }
+}
+
 /// A semantic state, never a visual style (ui.md, 3.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum State {
