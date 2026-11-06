@@ -1,3 +1,22 @@
 draft = "debt-25"
 repo = "fabrig"
 sources = ["temper/docs/plan/debt-25/inputs/request.md", "temper/docs/plan/debt-25/inputs/debt23-review.md", "jig/docs/development/debt/D030-conformance-not-drop-in.md", "jig/docs/development/debt/D034-world-replay-cost.md", "jig/docs/development/debt/D035-bare-numbers-in-worlds.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "spot-review"
+title = "debt-23's spot review: impossible cells written out, pins that bite, and hearth, skein and jig's smaller findings"
+mode = "direct"
+needs = []
+design = "skein/docs/design/forge-connection.md, 8.1"
+
+[[slice]]
+id = 1
+story = "every finding is done or skipped with a reason, each new pin goes red when its rule breaks, and net lines fall"
+parts = ["spot-review"]
+walk = false
