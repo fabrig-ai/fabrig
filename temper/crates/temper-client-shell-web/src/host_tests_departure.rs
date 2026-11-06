@@ -136,7 +136,7 @@ fn waiting_for_return() -> (Host, Vec<Asked>, u32) {
         body: encoded(answer.measure(), |writer| answer.encode(writer)),
         headers: Vec::new(),
     });
-    let (asked, writes) = host.duties();
+    let (asked, writes, _) = host.duties();
     assert_eq!(writes, 2, "the sign-in erase and return save are separate batches");
     assert!(asked.iter().any(|ask| matches!(ask, Asked::Save { .. })), "return record");
     assert!(asked.iter().any(|ask| matches!(ask, Asked::Erase { .. })), "finished sign-in record");

@@ -227,6 +227,7 @@ impl Life {
                 | Report::Due
                 | Report::Act(..)
                 | Report::Fetch(_)
+                | Report::TabRefused
                 | Report::Carried(..)
                 | Report::Place(_)) => {
                     if !self.failed

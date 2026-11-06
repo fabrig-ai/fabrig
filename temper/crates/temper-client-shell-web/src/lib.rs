@@ -30,6 +30,7 @@ enum Report {
     #[cfg(feature = "record")]
     Save,
     Due,
+    TabRefused,
     Act(NodeId, Act),
     Fetch(fetch::Report),
     Carried(Vec<transport::Carried>, u32),
@@ -238,6 +239,7 @@ impl<P: ShellPlatform> Shell<P> {
                 P::fired(&mut self.timer);
                 host::Report::Due
             }
+            Report::TabRefused => host::Report::TabRefused,
             Report::Act(node, act) => host::Report::Act { node, act },
             Report::Place(path) => host::Report::Place { path },
             Report::Fetch(report) => host::Report::Heard(adapter::fetched(report)),
@@ -247,6 +249,19 @@ impl<P: ShellPlatform> Shell<P> {
     }
     /// Carries one report's requests, navigation, store writes and stream read; returns whether a new page shows.
     fn carry(&mut self, inbox: &Inbox<Report>, duties: host::Duties, read_on: bool) -> bool {
+        // Keep the person's gesture: tabs precede transport in this turn
+        // (skein/docs/design/ui-web.md, section 11).
+        for tab in &duties.tab {
+            match tab {
+                host::TabAct::Open { words } => {
+                    if !platform::Platform::open_tab(&mut self.platform, words) {
+                        inbox.raise(Report::TabRefused);
+                    }
+                }
+                host::TabAct::Point { to } => platform::Platform::point_tab(&mut self.platform, to),
+                host::TabAct::Close => platform::Platform::close_tab(&mut self.platform),
+            }
+        }
         #[cfg(feature = "record")]
         if duties.departs() {
             self.save_recording(true);

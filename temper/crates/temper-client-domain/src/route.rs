@@ -43,6 +43,8 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
         Event::Forge(event) => forge(root, env, event, out),
         Event::SignInAddress { value } => pages(root, env, crate::pages::Event::SignInAddress { value }, out),
         Event::AccountKey { value } => pages(root, env, crate::pages::Event::AccountKey { value }, out),
+        // sign-in-holds feeds the refusal to the sign-in whose tab is open.
+        Event::TabRefused => {}
         Event::SignedOut => client(root, env, jig_client::Event::Up { up: jig_client::Up::SignedOut }, out),
     }
 }
