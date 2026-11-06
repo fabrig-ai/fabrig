@@ -159,6 +159,8 @@ fn a_box_starts_an_owned_slot_on_start_kind_and_removes_it() {
                 &limits,
                 steps,
                 Settings {
+                    first_link: None,
+                    after_block: Box::new([]),
                     log_lines: Box::new([]),
                     program: b"/bin/sh".as_slice().into(),
                     environment,
