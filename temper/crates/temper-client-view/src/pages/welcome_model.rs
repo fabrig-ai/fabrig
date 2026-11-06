@@ -1,5 +1,5 @@
 //! The welcome's Model shapes (temper/docs/design/client/README.md, 3.5).
-use super::{accounts, connect_model as model};
+use super::{accounts, connect_model as model, model_check};
 use crate::{
     accounts::{Bindings, Meaning},
     flow::{self, Control},
@@ -12,7 +12,7 @@ use temper_client_domain::{
     Address, Domain, Step,
     pages::{
         accounts::{self as domain_accounts, SignInState, Way},
-        connect_model::{Act, ProgramCheck},
+        connect_model::Act,
         welcome::{self, ModelStep},
     },
 };
@@ -84,44 +84,48 @@ fn note(b: &mut Builder, root: &Domain, w: &Words, finishing: bool) {
 }
 fn usable(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
     text(b, root, w, Role::Heading { level: 1 }, Word::WelcomeModelTitle);
-    b.open(Role::Slot);
-    b.style(look::WELCOME_FORGE_STATUS);
-    b.style(look::FLOW_DONE);
-    let account = match accounts::first_usable_short(root, w) {
-        Some(account) => account,
-        None => crate::choice::new_chat_model(root, w),
-    };
-    b.open(Role::Status);
-    b.name(&account);
-    if w.shell == Shell::Browser {
+    if let Some(trial) = model_check::trial(root, w) {
+        model_check::status(b, w, &trial);
+    } else {
         b.open(Role::Slot);
-        b.style(look::WELCOME_OK);
-        b.text(Run::Plain, "✓".as_bytes());
-        b.close();
-    } else {
-        b.text(Run::Plain, "✓ ".as_bytes());
-    }
-    if w.shell == Shell::Browser {
-        let kind = match accounts::first_usable_kind(root, w) {
-            Some(kind) => kind,
-            None => account.clone(),
+        b.style(look::WELCOME_FORGE_STATUS);
+        b.style(look::FLOW_DONE);
+        let account = match accounts::first_usable_short(root, w) {
+            Some(account) => account,
+            None => crate::choice::new_chat_model(root, w),
         };
-        b.open(Role::Text);
-        b.run(Run::Strong, &kind);
-        b.close();
-        if let Some(rest) = account.strip_prefix(kind.as_ref())
-            && !rest.is_empty()
-        {
+        b.open(Role::Status);
+        b.name(&account);
+        if w.shell == Shell::Browser {
             b.open(Role::Slot);
-            b.style(look::FLOW_MUTED);
-            b.text(Run::Plain, rest);
+            b.style(look::WELCOME_OK);
+            b.text(Run::Plain, "✓".as_bytes());
             b.close();
+        } else {
+            b.text(Run::Plain, "✓ ".as_bytes());
         }
-    } else {
-        b.text(Run::Plain, &account);
+        if w.shell == Shell::Browser {
+            let kind = match accounts::first_usable_kind(root, w) {
+                Some(kind) => kind,
+                None => account.clone(),
+            };
+            b.open(Role::Text);
+            b.run(Run::Strong, &kind);
+            b.close();
+            if let Some(rest) = account.strip_prefix(kind.as_ref())
+                && !rest.is_empty()
+            {
+                b.open(Role::Slot);
+                b.style(look::FLOW_MUTED);
+                b.text(Run::Plain, rest);
+                b.close();
+            }
+        } else {
+            b.text(Run::Plain, &account);
+        }
+        b.close();
+        b.close();
     }
-    b.close();
-    b.close();
     acts(b);
     if let Some(to) = bindings.insert(Meaning::Go(Address::Welcome { step: Step::Ready })) {
         flow::control(b, Control::PrimaryLink { name: &w.say(Word::WelcomeContinue, &[]), to });
@@ -231,29 +235,13 @@ fn sign_in(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, w
     b.close();
     b.close();
 }
+#[expect(clippy::match_like_matches_macro, reason = "the strict subset keeps the request pattern explicit")]
 fn program(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, way: Way, text_per_node: u32) {
     let Some(page) = root.pages().connect_model() else { return };
     text(b, root, w, Role::Heading { level: 1 }, Word::WelcomeClaudeTitle);
-    let checking = match page.check {
-        ProgramCheck::Declaring | ProgramCheck::Checking { .. } => true,
-        ProgramCheck::Idle | ProgramCheck::NotYet => false,
-    };
-    if checking {
-        b.open(Role::Slot);
-        b.style(look::WELCOME_AWAY);
-        if w.shell == Shell::Browser {
-            b.open(Role::Slot);
-            b.style(look::WELCOME_SPIN);
-            b.close();
-        }
-        let checking = w.say(Word::WelcomeClaudeChecking, &[]);
-        b.open(Role::Status);
-        b.name(&checking);
-        b.open(Role::Text);
-        b.run(Run::Strong, &checking);
-        b.close();
-        b.close();
-        b.close();
+    if let Some(trial) = model_check::trial(root, w) {
+        model_check::status(b, w, &trial);
+        model_check::stopped_acts(b, root, w, bindings, &trial, way, Address::Welcome { step: Step::Ready });
         return;
     }
     panel(b);
@@ -263,9 +251,20 @@ fn program(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, w
     b.style(look::FLOW_MUTED);
     w.text(b, Word::WelcomeClaudeNote, &[]);
     b.close();
-    if page.check == ProgramCheck::NotYet {
-        text(b, root, w, Role::Alert, Word::WelcomeClaudeNotYet);
+    let check_outcome = if let Some(pending) = &page.request.pending {
+        if let jig_client::contract::Ask::AccountChange {
+            change: jig_client::contract::AccountChange::CheckProgram { .. },
+            ..
+        } = pending.ask
+        {
+            true
+        } else {
+            false
+        }
     } else {
+        false
+    };
+    if !check_outcome {
         accounts::outcome(b, root, w, bindings, &page.request, text_per_node);
     }
     acts(b);
