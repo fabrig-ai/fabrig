@@ -1,0 +1,3 @@
+draft = "skein-world-costs"
+repo = "fabrig"
+sources = ["skein/docs/plan/skein-world-costs/inputs/request.md", "skein/testing/skein-heap/src/lib.rs", "skein/testing/skein-world/src/stream.rs", "skein/tests/heap/tests/suite/main.rs", "AGENTS.md", "DESIGN.md"]
