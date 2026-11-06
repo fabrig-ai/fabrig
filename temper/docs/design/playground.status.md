@@ -3,6 +3,7 @@
 2026-11-06. Where temper's code lags or departs from [playground.md](playground.md).
 
 - **Not yet:**
+  - 7: `scripts/bundle.sh --playground` makes its bundle with `--gzip off`.
   - 4: the reset without the box: its fake forge's removal waits for the
     box (`domain/forge.md`, 4.1, and its status).
   - 6: the playground forge's links shown as text.
