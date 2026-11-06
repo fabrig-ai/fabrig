@@ -632,7 +632,7 @@ fn a_live_lines_prefix_survives_suffix_only_snapshots() {
 
 #[test]
 fn suffix_snapshots_keep_the_live_bound_and_do_not_join_across_a_gap() {
-    for (bound, from, suffix, expected) in [(6, 3, "界z", "aé界"), (5, 3, "界z", "aé"), (16, 6, "z", "z")] {
+    for (bound, from, suffix, expected) in [(6, 3, "界z", "aé界"), (5, 3, "界z", "aé"), (16, 6, "z", "aé")] {
         let mut thread =
             Thread::new(fixtures::SUBJECT_TASK, &crate::thread::Limits { lines: 4, bytes: 64, text: 2, live: bound });
         thread.run(&run(), Some(&provisional(TURN, "aé".as_bytes())));

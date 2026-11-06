@@ -576,7 +576,7 @@ pub fn live_turn(value: RunText, limit: u32) -> LiveTurn {
 }
 
 fn extend_live(held: &mut LiveTurn, value: &RunText, limit: u32) {
-    if value.from == 0 || value.from > held.offset {
+    if value.from == 0 {
         *held = live_turn(value.clone(), limit);
         return;
     }
@@ -591,6 +591,7 @@ fn extend_live(held: &mut LiveTurn, value: &RunText, limit: u32) {
         .checked_add(u32::try_from(held.text.bytes().len()).expect("bounded prefix fits"))
         .expect("prefix is within stream offsets");
     let Some(skip) = end.checked_sub(value.from) else {
+        held.cut = true;
         return;
     };
     let Some(suffix) = value.text.bytes().get(skein_lib::length::usize_of(skip)..) else { return };
