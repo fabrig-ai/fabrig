@@ -102,3 +102,15 @@ Its permitted `MeProject` literal repairs explicitly include `jig/testing/jig-cl
 These changes fall outside picker-offer’s permitted files; do not reassign them here.
 After the completed dependency is available, merge it, finish regeneration, acceptance tests, deliberate rule breaks and closing checks, then commit and push.
 Picker-offer is not accepted as done: its report explicitly says acceptance is unverified.
+
+## Rebase (2026-11-06, step merge, foreman model-catalogue-1/picker-offer/foreman-2)
+
+reconcile words.rs vocabulary changes and recount the combined English declarations
+The merge conflicts in `temper/crates/temper-client-view/src/words.rs`.
+Main’s `b1230cbb3e` combines welcome command Copy and Ready pane vocabulary; picker-offer independently changes the English byte count.
+Preserve main’s welcome vocabulary, IDs, `ALL` entries and declaration updates.
+Retain picker-offer’s replacement of `NeedsAccount` with `ConnectPlanOrKey` throughout the enum, `ALL`, ID mapping and English text.
+Retain `WaitEmpty` as “No account can run this chat yet.”; keep `ModelNeedsAccount` and `WaitEmptyModel` unchanged.
+Recount the combined English declarations using the existing mechanism checked in `src/tests/accounts.rs` through `words::english_declarations()`; choosing either side’s `ENGLISH_BYTES` value loses the other side’s changes.
+Keep the automatically merged `temper/docs/design/client/README.status.md` limited to the task’s permitted status removals while preserving main’s updates.
+Run the focused declaration check and chooser tests through heavy, then complete the spec’s closing checks.
