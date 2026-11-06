@@ -93,6 +93,10 @@ impl Drive {
             out: skein_lib::Queue::uncapped(),
         }
     }
+    pub fn with_source_address(mut self, address: Option<Box<[u8]>>) -> Self {
+        self.machine = self.machine.with_source_address(address, skein_lib::Duration::from_secs(7));
+        self
+    }
     pub fn send(&mut self, event: crate::prepare::Event) -> crate::prepare::Request {
         crate::prepare::step(&mut self.machine, event, &mut self.out);
         let request = self.out.pop().expect("one request");

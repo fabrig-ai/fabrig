@@ -87,7 +87,8 @@ pub(crate) fn run_configuration(
         let named = super::setup::check(bytes, &directories.jig())?.named;
         let listeners = open_listeners(directories, &steps, held, &inherited, &mut owned)?;
         let first_link = first_link(&named, &steps)?;
-        let signals = skein_shell::open_termination_signals().map_err(|errno| format!("signals: errno {errno}"))?;
+        let signals = skein_shell::open_signals(skein_shell::Watch::TerminationAndHangup)
+            .map_err(|errno| format!("signals: errno {errno}"))?;
         owned.push(signals);
         let root = skein_shell::open_root(directory).map_err(|errno| format!("directory: errno {errno}"))?;
         owned.push(root);
@@ -96,6 +97,7 @@ pub(crate) fn run_configuration(
             first_link,
             after_block: opening.after_block,
             log_lines: opening.log_lines,
+            parent: cfg!(target_os = "linux").then(super::forge_exec::id),
             program: program.as_os_str().as_bytes().into(),
             environment,
             listeners: listeners.into_boxed_slice(),

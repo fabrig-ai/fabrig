@@ -844,7 +844,7 @@ The table grows area by area, each with its stories (section 11).
    | Tool | What it does | jig's | K |
    |---|---|---|---|
    | `account list` | the party's accounts, then, for an owner, the deployment's: each with its number, LLM provider, display name and holder; its sources in order, each with its kind, its name for a program's, and its state, per host for a program's, with the reset where the provider gave one; the runs on it and the tasks waiting for it; the sign-ins and checks in progress; its acts | the `accounts` watch (5.4) | |
-   | `model list [--project PROJECT]` | the models the party may use, by LLM provider: each with its efforts, what it is good at and its prices, and "needs an account" beside a provider no account of the party's work serves | `me`'s models, with the `accounts` watch's states | |
+   | `model list [--project PROJECT]` | the project's offer (jig's `client/domain/contract.md`, 5.1), by LLM provider: each model with its efforts, its default effort, what it is good at, its prices and the accounts that can run it; a provider with no model there, its name and no models, never a model of its | `me`'s offer and providers | |
    | `account connect PROVIDER` | starts a sign-in with an LLM provider: prints the address to open in a browser on the engine's machine, and the call that follows it, `account list --until settled`; exits 0 once the request is durable | sign in | yes |
    | `account disconnect ACCOUNT [--source SOURCE]` | signs a source out: a signed-in source's record revoked at the provider, a program's login signed out on each host; the source removed. Unconfirmed, the answer says to disconnect temper in the provider's settings, or names the hosts that did not sign out | sign out | |
    | `account add-key PROVIDER FILE [--account ACCOUNT] [--deployment]` | adds a key read from FILE: to ACCOUNT, or as a new key-only account; the deployment's with `--deployment`, by an owner | add a key | yes |
@@ -938,14 +938,15 @@ The table grows area by area, each with its stories (section 11).
      `domain/tasks.md`, section 3), and area 2's `task amend` changes it.
      Both take `--sub-agent MODEL[:EFFORT]` too, repeatable, each one of
      the choice's sub-agents in the order given (jig's
-     `protocol/configuration.md`, 3.1), a model at most once, its effort
-     required where the model declares efforts as `--model`'s is; given,
+     `protocol/configuration.md`, 3.1), a model at most once, its effort its
+     default where left out as `--model`'s is; given,
      they replace the template's sub-agents whole, and they need
      `--model`. Without them the choice keeps the template's sub-agents,
      or names none.
-     The bracket applies only to a model with no declared efforts: when
-     a model declares efforts, `--effort EFFORT` is required, naming one
-     of them. An amendment replaces the main choice whole; its effort is
+     Left out, the effort is the model's default in the offer; given, it
+     names one of the model's efforts. A model the offer in `me` leaves out
+     is refused before anything is sent, `model not offered: MODEL`. An
+     amendment replaces the main choice whole; its effort is
      the caller's, never inherited from the task's old main.
    - **An account's uses** have no tool: each takes jig's default (jig's
      `domain/accounts.md`, 4.2; section 15).
@@ -1481,12 +1482,22 @@ may change with them.
   its deadline holds, so that a wait outlives the engine's restart. An
   engine that takes the connection and stays quiet takes the deadline too,
   and the line says what it waited for (below).
+- **The engine's watches all in use say so.** A call whose client still
+  holds a watch refused busy at its deadline (jig's
+  `client/domain/client.md`, 8.2) exits 1 with `temper ctl: all the
+  engine's watches are in use, by open pages and waits; close one, or
+  wait and call again`. It comes after the busy sign-in's and the full
+  streams' lines, which are nearer the cause, and before any other line
+  of the deadline. A call that gets its answer first prints no such
+  line, since a closing page gives its room back
+  (`../protocol/configuration.md`, section 7).
 - **The deadline says what it waited for.** A call past the link's
   deadline (section 12) exits 1 with one stderr line, at most 240 bytes,
   which names what was outstanding and holds no request's words and no
-  secret. *Busy* and *streams full* (8.2) keep their own lines, ahead of
-  these. A sign-in's or a sign-out's call says `temper ctl: the engine at
-  ADDRESS did not answer within 30 s`. Any other says, from the link's
+  secret. *Busy*, *streams full* (8.2) and all watches in use keep their
+  own lines, ahead of these. A sign-in's or a sign-out's call says
+  `temper ctl: the engine at ADDRESS did not answer within 30 s`. Any
+  other says, from the link's
   state (jig's `client/domain/client.md`, 8.2):
 
   | Outstanding | When | The line, after `temper ctl: ` |
@@ -2312,8 +2323,18 @@ contract's reads, watches and requests, they take:
 
 ## 14. Later
 
+- **Model catalogue changes** (5.5, area 5): `model list` reads the
+  offer; it fetches no provider list and adds no model. Catalogue settings,
+  adding by name and refreshing an account's list follow the store and list
+  steps (`../draft/model-catalogue.md`, section 7).
+
 Each is named here and designed when it comes.
 
+- **A busy watch's precise cause** (6.3): the deadline's line uses jig's
+  `watches_full`, whose refusal carries no count and does not distinguish
+  watch capacity from an opening's load slot. Distinct lines wait for jig
+  to distinguish the causes (`jig/docs/design/client/domain/client.md`, 18).
+  Until then the line names watches in use, as the `watch-room` request asks.
 - **An MCP endpoint of the engine,** for agents with no shell:
   `temper-service` serves the same tools at `/mcp` on the clients'
   listener, each session a tools' root holding `jig-client` over an

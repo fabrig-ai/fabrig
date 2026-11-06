@@ -67,7 +67,14 @@ fn the_fakes_limits_are_their_constructors() {
 fn the_owned_values_equal_the_test_kits_values() {
     use jig_channel_kit::fixtures as channel;
     assert_eq!(documents::KEY, channel::KEY);
-    assert_eq!(documents::engine_document(), channel::engine_document());
+    let owned: serde_json::Value = serde_json::from_slice(&documents::engine_document()).expect("owned engine JSON");
+    let mut source: serde_json::Value =
+        serde_json::from_slice(&channel::engine_document()).expect("channel engine JSON");
+    // Temper sizes both watch rooms from clients.streams (temper/docs/design/protocol/configuration.md, 7).
+    for name in ["views.watchers", "views.watchers_per_party"] {
+        source["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides").remove(name);
+    }
+    assert_eq!(owned, source);
     assert_eq!(documents::WORKER_DOCUMENT, channel::WORKER_DOCUMENT);
 
     let mut profile = smith_agent_process_world::profile();

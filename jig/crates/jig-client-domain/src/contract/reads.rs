@@ -231,7 +231,7 @@ pub enum ReadNone {
     TooLarge { bytes: u64 },
     /// The first row needs more joins than the whole read bound.
     TooLinked { joins: u32 },
-    /// The visible turn could not be read or decoded whole.
+    /// The answer, or the visible turn, could not be read or decoded whole.
     Malformed,
     /// No object the party may see.
     Unknown,

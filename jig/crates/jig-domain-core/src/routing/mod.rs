@@ -45,7 +45,7 @@ use crate::{
                 route_preparation_failed, start_brief, workspace_prepared,
             },
         },
-        task::{route_connector_repair, route_tasks, tag_task_outputs},
+        task::{route_connector_repair, route_person_task, route_tasks, tag_task_outputs},
         view::routes::{open, route_view},
     },
 };
@@ -575,6 +575,9 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             route_claim_prepared(core, env, work, task, attempt, budget, writes)
         }
         Event::ClaimRefused { task } => route_claim_refused(core, work, task),
+        Event::PersonTask { seed, executor, spec, contract } => {
+            route_person_task(core, work, seed, executor, spec, contract)
+        }
         Event::ConnectorRepair { seed, executor, spec, contract, holdings } => {
             route_connector_repair(core, work, seed, executor, spec, contract, holdings)
         }

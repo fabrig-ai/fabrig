@@ -25,6 +25,8 @@ fn the_page_is_what_fields_renders() {
 
 fn llm() -> jig_protocol_config::Llm {
     jig_protocol_config::Llm {
+        shown: Box::new([None]),
+        pickers: Box::new([true]),
         endpoints: Box::new([]),
         models: Box::new([jig_domain_core::Model {
             dialect: 1,
@@ -49,6 +51,9 @@ fn models(llm: &jig_protocol_config::Llm) -> Box<[jig_protocol_engine_clients::M
     let mut models = Vec::new();
     for model in &llm.models {
         models.push(jig_protocol_engine_clients::Model {
+            effort: model.default_effort().map(skein_lib::bytes::copy_of),
+            shown: None,
+            picker: true,
             name: model.name.clone(),
             provider: None,
             window: model.window,
@@ -187,8 +192,8 @@ fn walk(shape: Shape, value: Json) {
 
 #[test]
 fn every_member_ctl_prints_for_the_stock_is_a_field() {
-    // Stock has six charters, three templates, one policy and the rules.
-    const STOCK_VALUES: usize = 11;
+    // Stock has seven charters, three templates, one policy and the rules.
+    const STOCK_VALUES: usize = 12;
     let llm = llm();
     let models = models(&llm);
     let stock = temper_service::stock::defaults(

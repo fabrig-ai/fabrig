@@ -30,10 +30,11 @@ const OFFLINE: Duration = Duration::from_millis(30);
 type Clients = World<Temper, Joint>;
 
 // Navigation opens a Home before the old page's handle retirements return.
+// The session also holds trials and a running trial task.
 fn limits() -> temper_client_domain::Limits {
     let mut limits = fixtures::domain_limits();
-    limits.client.domain.handles = 16;
-    limits.client.domain.watches = 16;
+    limits.client.domain.handles = 18;
+    limits.client.domain.watches = 18;
     limits
 }
 
@@ -134,7 +135,7 @@ fn skip_on_home_hides_to_begin_on_every_device() {
     hidden(&world, first);
     hidden(&world, second);
     // End the first two sessions before a third Home: settings is session-long,
-    // and the engine admits 17 watches across devices.
+    // and the engine admits 19 watches across devices.
     for who in [first, second] {
         world.event(who, Event::Act { action: Action::Pages(Act::SignOut) }.into());
     }

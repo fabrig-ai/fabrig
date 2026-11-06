@@ -174,6 +174,7 @@ fn frame(watch: u64) -> w::StreamEvent {
             w::MeProject::new(
                 &w::CEILINGS,
                 w::MeProjectParts {
+                    defaults: List::with_capacity(0),
                     public: None,
                     project: PROJECT,
                     name: text(b"First"),
@@ -222,6 +223,7 @@ fn frame(watch: u64) -> w::StreamEvent {
             providers_cut: false,
             key_bytes: 256,
             redirect_bytes: 4096,
+            words_bytes: 8192,
         },
     )
     .expect("frame fixture");

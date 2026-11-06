@@ -81,6 +81,11 @@ pub enum Delivery {
     PlaygroundNote {
         line: Box<[u8]>,
     },
+    /// The person's trials, newest first (temper/docs/design/domain/trial.md, 6).
+    Trials {
+        watcher: Token,
+        rows: Box<[temper_engine_domain_trials::Row]>,
+    },
     /// Whole forge panel, held with the decision that requested it (domain/root.md, 5.1).
     Panel {
         watcher: Token,
@@ -435,6 +440,10 @@ impl Decision {
         assert!(*limits == self.limits, "decision uses its configured limits");
         let within = match &delivery {
             Delivery::Result { words, .. } => words.len() <= skein_lib::usize_of(limits.result_bytes),
+            Delivery::Trials { rows, .. } => {
+                rows.len().saturating_mul(size_of::<temper_engine_domain_trials::Row>())
+                    <= skein_lib::usize_of(limits.result_bytes.max(limits.transcript_bytes))
+            }
             Delivery::ForgeDocument { document, .. } => {
                 document.owned_bytes() <= skein_lib::usize_of(limits.result_bytes.max(limits.transcript_bytes))
             }

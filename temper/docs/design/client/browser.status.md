@@ -2,9 +2,29 @@
 
 2026-11-06. Where temper's code lags or departs from [browser.md](browser.md).
 
+Public history retains two limits the request `ui-public-history` leaves
+for later (section 5), which the board's own line states (8.3): goals ended
+before publication are absent; a restart empties the ended-goal history
+(jig's `domain/people.md`, 13.9). A merge from before publication can still
+show when its change is handed from a live goal's tree, as the plan's cut
+keeps it; publication is not a cutoff on a handed change's commit.
+
+- **Design departs:** 8.3, from the request `ui-public-2` of 2026-11-06:
+  ended rows say how long ago they ended, where the request says "for how
+  long", because "landed for 2 hours" would not describe the ending. The
+  board shows its Landings section with a queue or a retained landing,
+  where the request says only with a queue: the plan's `public-page`
+  contract asks for either, and records no reason for widening that rule.
+
+- **Not yet:** 7.2: `accounts-try-stopped` and the trial's own `welcome-ready-*`
+  samples (starting, answering, answered, stopped-starting, stopped-answering,
+  waiting, waited, plan and key) are not in the gallery. Its Ready samples
+  cover the host's check alone; the view's tests draw the trial states.
 - **Not yet:** 8.4: the retained public row geometry story at 1440 px and 420 px
-  is compiled. Its runtime red and green await the browser tier after landing;
-  the incompatible plan-row placement is the repair's red-first source evidence.
+  (`public_board_and_task_lines_are_readable_at_desktop_and_phone_widths`)
+  is compiled, with the current rows' executor and spend rules. Its runtime
+  check awaits the browser tier after landing, under the user's rule that
+  plans run focused and fuzzy alone.
 - **Not yet:** 2.3, *A heading drawn after its page*: that a focus placed while a heading
   waits keeps its place, which the answer of 2026-11-06 to the `ui-composer-focus` task
   `composer-focus` asks, is seen by reading `temper-client-shell-web`'s `focus.rs`. No test moves the focus meanwhile:
@@ -116,8 +136,8 @@
   of the bundle's answers, the mapping's room and ctl's wait for its `Me` pass and don't
   reproduce it; the listener's eight connections, which a page's parallel files share,
   are a hypothesis, no cause observed (the same figures, on the ctl wait).
-  Its repair waits on the tier's run after landing (the user, 2026-11-06), and no later
-  run is recorded here. The plan `chat-reading-c`'s three whole runs with its stories, on
+  Its repair waits on the tier's run after landing (the user, 2026-11-06). The plan
+  `chat-reading-c`'s three whole runs with its stories, on
   its `reading-browser` branch, every test passing, took 128.618150, 141.214140 and
   143.808163 CPU s, and an earlier one 116, against the 85; which commit each ran on is
   unknown here. The last commit of those stories to report a run in Chromium is `fcd07de4f9`,
@@ -125,6 +145,8 @@
   rule of 2026-11-06, that a plan runs focused and fuzzy alone, stopped that task's measuring
   with the budget's question open, so the run after landing reads it, and a flag on the long
   chat's cost looks first at the page's (that task's answers, at `29d0deb002`).
+  The next run on record, after landing at `668f7cd3e5` with `chat-reading-c` on main,
+  took 129.4 CPU s and 70.8 s wall over 17 tests; the plan `browser-budget` is its repair.
 - **Not yet:** 4.6: the request `browser-trim` has a person's page slower to settle as
   the answer most wanted. Settled chat and task pages stood still and no product cause
   was found, but a chat closed on the box took 8.539 s to reach the Closed filter, a

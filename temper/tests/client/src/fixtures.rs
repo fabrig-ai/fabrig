@@ -45,6 +45,92 @@ pub const REPOSITORIES: &[(&[u8], &[u8], u32)] = &[(b"acme", b"shop", 7), (b"acm
 pub const PARTY: u64 = 1;
 pub const SEED: u64 = 1101;
 pub const WITHIN: Duration = Duration::from_secs(1);
+/// Six delegates keep the chat opening its watch set beside Home's full room.
+pub(crate) const WATCH_ROOM_DELEGATES: u32 = 6;
+
+/// Page watch figures from temper-client-shell-web/src/limits.rs.
+#[must_use]
+pub fn watch_room_limits() -> Limits {
+    let mut limits = domain_limits();
+    limits.client.domain.watches = 17;
+    limits.client.domain.handles = 19;
+    limits.client.domain.delegates = 80;
+    limits.client.domain.reads = 32;
+    limits.client.domain.rows = 16;
+    limits
+}
+
+/// Two shipped page watch sets and a fresh client on the real engine.
+#[must_use]
+pub fn watch_room_world(seed: u64) -> World<Temper, Joint> {
+    world_with(seed, Joint::with_watch_room(seed, &watch_room_limits()))
+}
+
+/// A watch-room story with a named deployment stream count.
+#[must_use]
+pub fn watch_room_world_streams(seed: u64, streams: u32) -> World<Temper, Joint> {
+    world_with(seed, Joint::with_watch_room_streams(seed, &watch_room_limits(), streams))
+}
+
+/// A running chat with enough live delegates to fill its page's watch set.
+pub fn watch_room_chat(front: &mut Joint) -> u64 {
+    use temper_engine_domain_world::fixtures::report_delegate;
+    let driver = &mut front.engine;
+    driver.sign_in();
+    driver.settle();
+    let jig_domain_people::Ask::Create { project, mut batch } = driver.chat_ask(CHAT_PROJECT, b"A long chat") else {
+        panic!("chat creation fixture");
+    };
+    batch[0].authority.delegation.tasks = WATCH_ROOM_DELEGATES;
+    driver.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: skein_lib::ReplyTo::new(CHAT_REPLY),
+        sign_in: driver.session(),
+        key: CHAT_KEY,
+        ask: jig_domain_people::Ask::Create { project, batch },
+    }));
+    driver.settle();
+    let parent = driver.last_assignment();
+    let batch = (0..WATCH_ROOM_DELEGATES).map(|_| report_delegate(b"Investigate the change", Box::new([]))).collect();
+    driver.call(
+        QUESTION_WORKER,
+        parent.task,
+        parent.attempt,
+        DELEGATE_CALL,
+        engine::Call {
+            completion: DELEGATE_COMPLETION,
+            position: DELEGATE_POSITION,
+            tool: engine::Tool::Delegate { batch },
+        },
+    );
+    driver.settle();
+    let Some(engine::CallAnswer::Delegated(children)) = driver.answered(DELEGATE_CALL) else {
+        panic!("watch-room delegates admitted: {:?}", driver.answered(DELEGATE_CALL));
+    };
+    assert_eq!(children.len(), usize::try_from(WATCH_ROOM_DELEGATES).expect("delegate count"));
+    parent.task
+}
+
+/// Start a person root at its own page and transport limits.
+pub fn watch_room_client(
+    world: &mut World<Temper, Joint>,
+    address: temper_client_domain::Address,
+) -> jig_client_kit::harness::ClientId {
+    let limits = watch_room_limits();
+    world.front().next_client_limits(limits);
+    world.client_with(PARTY, address, limits, watch_room_root)
+}
+
+fn watch_room_root(seed: u64) -> (crate::app::Root, crate::app::View) {
+    let limits = watch_room_limits();
+    let words = phrasebooks(&limits);
+    let bounds = view_bounds(&limits, &words);
+    (
+        crate::app::Root::Person(Box::new(temper_client_domain::unlinked(&limits, seed))),
+        crate::app::View::Person(Box::new(view::View::new(&bounds, &limits, words, FORGE))),
+    )
+}
+
 #[must_use]
 pub fn domain_limits() -> Limits {
     {
@@ -65,10 +151,10 @@ pub fn domain_limits() -> Limits {
                 }],
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
-                // Page handles, session settings and Away, project-needs and the goals watch/read.
-                handles: 14,
+                // Page handles, session settings and Away, project-needs and the goals watch/read, trials and a running trial task.
+                handles: 16,
                 // Closing page watches overlap the session watches.
-                watches: 13,
+                watches: 15,
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,
@@ -91,7 +177,7 @@ pub fn domain_limits() -> Limits {
             exchanges: 8,
         };
 
-        Limits { forge: forge::Limits { field_bytes: 256, checks: 8 }, client, row_uses: 8 }
+        Limits { forge: forge::Limits { field_bytes: 256, checks: 8 }, client, row_uses: 8, window_bytes: None }
     }
 }
 
@@ -433,6 +519,14 @@ pub fn agreed_question(front: &mut Joint, words: &[u8]) -> u64 {
 }
 fn question_with_agreement(front: &mut Joint, words: &[u8], text: Option<u32>, agree: bool) -> u64 {
     *front = Joint::with_question_text_bound(SEED, &domain_limits(), text, agree);
+    commit_question(front, words, agree)
+}
+/// A reply composer at the shipped message bound, with the real question and engine.
+pub fn question_composer(front: &mut Joint, words: &[u8]) -> u64 {
+    *front = Joint::with_question_composer(SEED, &whole_turn_limits());
+    commit_question(front, words, false)
+}
+fn commit_question(front: &mut Joint, words: &[u8], agree: bool) -> u64 {
     let driver = &mut front.engine;
     driver.sign_in();
     driver.settle();
@@ -1500,6 +1594,8 @@ pub(crate) fn configuring_configuration(seed: u64, member: bool) -> engine::Conf
             .collect();
     config.kinds_stock = Box::new([]);
     let llm = jig_protocol_config::Llm {
+        shown: Box::new([None]),
+        pickers: Box::new([true]),
         endpoints: Box::new([]),
         models: config.core.settings.models.clone(),
         descriptions: Box::new([]),
@@ -1694,4 +1790,95 @@ fn hello_worker(driver: &mut Driver) {
         hello.bounds.message_bytes = driver.env.limits.tasks.message_bytes;
     }
     driver.send(event);
+}
+
+/// Whole browser-sized lines, with the world's two-row activity pages.
+#[must_use]
+pub fn long_messages_world(seed: u64) -> World<Temper, Joint> {
+    use temper_engine_domain_world::{store::Store, walking};
+    let limits = whole_turn_limits();
+    let small = Joint::with_reading_pages(seed, &limits);
+    let mut engine_limits = small.engine.env.limits;
+    drop(small);
+    engine_limits.people.words = 8192;
+    engine_limits.people.requests = 128;
+    engine_limits.journal.result_bytes = engine_limits.journal.result_bytes.max(engine_limits.people.words);
+    engine_limits.tasks.message_bytes = 10_660;
+    engine_limits.tasks.inbox_bytes = 131_072;
+    engine_limits.tasks.inbox_messages = 128;
+    engine_limits.people.inbox_recipients = 2 * engine_limits.tasks.inbox_messages + engine_limits.authority.roles + 4;
+    let front = Joint::with_engine(
+        seed,
+        &limits,
+        Store::with_limits(&engine_limits),
+        [walking::config(seed), walking::config(seed)],
+        &engine_limits,
+        1,
+    );
+    world_with(seed, front)
+}
+
+pub fn long_messages_client(
+    world: &mut World<Temper, Joint>,
+    address: temper_client_domain::Address,
+) -> jig_client_kit::harness::ClientId {
+    let limits = whole_turn_limits();
+    world.front().next_client_limits(limits);
+    world.client_with(PARTY, address, limits, long_messages_root)
+}
+fn long_messages_root(seed: u64) -> (crate::app::Root, crate::app::View) {
+    let limits = whole_turn_limits();
+    let mut words = phrasebooks(&limits);
+    words.shell = view::words::Shell::Browser;
+    let bounds = view_bounds(&limits, &words);
+    (
+        crate::app::Root::Person(Box::new(temper_client_domain::unlinked(&limits, seed))),
+        crate::app::View::Person(Box::new(view::View::new(&bounds, &limits, words, FORGE))),
+    )
+}
+
+/// A person's message written at the engine, as a ctl caller writes it.
+pub fn long_message(front: &mut Joint, task: u64, number: u8, words: &[u8]) {
+    use jig_domain_people::{Ask, Outcome, Reply};
+    let driver = &mut front.engine;
+    let reply_to = skein_lib::ReplyTo::new(Token::new(9000 + u64::from(number)));
+    driver.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: skein_lib::ReplyTo::new(Token::new(9000 + u64::from(number))),
+        sign_in: driver.session(),
+        key: {
+            let mut key = [77; 16];
+            key[0] = number;
+            key
+        },
+        ask: Ask::Say { project: 1, task, words: words.into() },
+    }));
+    driver.settle();
+    assert!(
+        driver.delivered.iter().any(|delivery| matches!(delivery,
+            engine::Delivery::WebReply { to, reply: Reply::Outcome(Outcome::Said { task: named, .. }) }
+            if *to == reply_to && *named == task
+        )),
+        "the engine admitted message {number}"
+    );
+}
+
+pub fn long_messages_task(front: &mut Joint, agent: bool) -> u64 {
+    let driver = &mut front.engine;
+    driver.sign_in();
+    driver.settle();
+    let mut ask = driver.chat_ask(1, b"Read long messages");
+    if agent {
+        let jig_domain_people::Ask::Create { batch, .. } = &mut ask else { panic!("create") };
+        batch[0].label = 0;
+    }
+    driver.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: skein_lib::ReplyTo::new(CHAT_REPLY),
+        sign_in: driver.session(),
+        key: CHAT_KEY,
+        ask,
+    }));
+    driver.settle();
+    driver.last_assignment().task
 }

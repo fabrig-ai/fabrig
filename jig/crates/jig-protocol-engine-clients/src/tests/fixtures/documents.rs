@@ -21,6 +21,8 @@ pub fn frame_two_projects() -> d::Frame {
                 pool: None,
                 creating: None,
                 models: jig_domain_authority::Models::NONE,
+                offer: List::with_capacity(0),
+                defaults: List::with_capacity(0),
                 templates: List::with_capacity(0),
             })
             .unwrap();
@@ -30,6 +32,7 @@ pub fn frame_two_projects() -> d::Frame {
         providers_cut: false,
         key_bytes: 256,
         redirect_bytes: 4096,
+        words_bytes: 8192,
         party: 7,
         kind: jig_domain_people::Kind::Person,
         login: d::Text { bytes: Box::from("é".as_bytes()), cut: true },

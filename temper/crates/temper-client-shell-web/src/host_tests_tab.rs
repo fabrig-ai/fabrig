@@ -105,11 +105,34 @@ fn linked_at(path: &[u8], records: Vec<skein_ui_web::store::Record>) -> Host {
             .expect("me delivery"),
         ),
     );
-    host.requests();
+    admit_watches(&mut host);
     host.client(jig_client::Event::Stored);
-    host.requests();
+    admit_watches(&mut host);
     build(&mut host);
     host
+}
+
+fn admit_watches(host: &mut Host) {
+    loop {
+        let mut admitted = false;
+        for request in host.requests() {
+            if let Asked::Exchange { id, call, .. } = request
+                && call.path.as_ref() == b"/jig/v1/watch"
+            {
+                let answer = w::OpenAnswer::Admitted;
+                host.heard(Heard::Answered {
+                    exchange: id,
+                    status: 200,
+                    body: encoded(answer.measure(), |writer| answer.encode(writer)),
+                    headers: Vec::new(),
+                });
+                admitted = true;
+            }
+        }
+        if !admitted {
+            return;
+        }
+    }
 }
 
 fn press_sign_in() -> (Host, Duties) {

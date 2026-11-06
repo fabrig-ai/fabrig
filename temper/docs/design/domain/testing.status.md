@@ -10,22 +10,29 @@ approval-identity story covers a refusal naming no command.
 
 Sections 6.4 and 6.5.3 have no gap in scripted note-backed proposals and single-revision collector evidence.
 
-- **Not yet:** 2.6: the process tier stays at one test at a time
-  (`.config/nextest.toml`, `process-temper`), where this section has three
-  and the request `test-speed` of 2026-11-06 has them proven by three whole
-  runs and a loaded one, with no new flake and no test's CPU worse. Its one
-  trial at three, on a loaded builder, took 203.7 s of wall against 503.9 s
-  at one and failed twice: the held-login guard's restart found its retained
-  webhooks port in use, and a turn landing stalled on an uncertain update of
-  its pull. Each passed alone. Who held the port and why the landing stalled
-  are unknown, and 12 tests read over 25% more CPU than at one thread, in that
-  one sample. So no proving run was made, and none at two threads (the plan's
-  figures on threads, at `b23901eab7`).
-  2.6: the tier's CPU against its 360 s: of the seven whole runs in that
-  plan's figures, at differing loads, four read over it (367.8 to 433.7 s) and
-  three within (287.1 to 349.7 s, the last the failed trial), and they hold no
-  run with the plan's parts together. No budget moved, that being the user's.
-  2.6: Goal and Away keep the shipped 5 s poll, where that request has them
+Section 2.8 lists the killed-box lifetime test as Linux-only, matching its
+parent-death mechanism. The combined default-runner browser and terminal
+proof is not established by the supplied inventory (`../protocol/setup.status.md`,
+7.1, 7.2 and 13.4); the existing real-box sign-in story still awaits its
+after-landing execution (`../protocol/sign-in.status.md`, 9.9).
+
+- **Not yet:** 2.6: the supplied inventory has no result for any of
+  `ui-restart-red`'s five repaired process stories
+  (`../protocol/setup.status.md`, 13.4). The stock-purse regression and
+  late-handover tests are present, and the started-cut fixture uses
+  init's no-sign-in configuration while it holds the engine; none is a
+  recorded pass of the five stories.
+
+- **Not yet:** 2.6: no passing whole run is recorded for the three-test
+  profile with the four fixed-callback walks serialized. Its proof belongs
+  to the next after-landing run on main (11), per the request
+  `process-threads` of 2026-11-06; the profile and its callback group are
+  configured in `.config/nextest.toml`.
+  2.6: the tier's CPU against its 360 s: of the seven whole runs in
+  `test-speed`'s figures at `b23901eab7`, at differing loads, four read
+  over it (367.8 to 433.7 s) and three within (287.1 to 349.7 s), and
+  they hold no run with that plan's parts together. The budget is the user's.
+  2.6: Goal and Away keep the shipped 5 s poll, where the request `test-speed` has them
   wake on an event or take the status walks' paces: no poll is what they wait
   for, and a trial of short paces on Away saved less wall than it cost CPU. The
   fake-box walks retain the stock charter's 10 s wait on their single worker
@@ -93,6 +100,12 @@ Sections 6.4 and 6.5.3 have no gap in scripted note-backed proposals and single-
   Claude Code one on `claude-haiku-5-5` included; the pair's `#[ignore]`
   reasons still say "a person's sitting" and "owner-run only"
   (`crates/temper/tests/live.rs`).
+  Its `owned_forge_landing` also passes seven setup calls on a fresh
+  first run and four otherwise to `assert_forgejo_setup`, which expects
+  six and three (`crates/temper/tests/support/forge_land.rs`). Those
+  lengths disagree before the token-file assertion. The late-handover
+  cause reaches both stories through that shared assertion, but its
+  repair establishes no live pass and does not fix this oracle mismatch.
   2.7: the held record's guard is shown on the fake issuer and on stubs
   alone (`crates/temper/tests/process.rs`,
   `a_story_panicking_after_its_box_stopped_leaves_the_held_record_at_its_path`,

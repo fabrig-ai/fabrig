@@ -390,3 +390,44 @@ fn a_later_page_says_more_by_its_after() {
     let after = value.after().as_ref().expect("more later lines");
     assert_eq!(crate::translate::cursor::decode(after.value()), Some(next));
 }
+
+#[test]
+fn an_answer_it_cannot_encode_is_malformed_not_closed() {
+    use jig_domain_tasks as t;
+    // The two-byte words exceed the one-byte wire bound.
+    const WORDS: &[u8] = b"hi";
+    const PAST_BOUND: u32 = 1;
+    let mut exchange = f::read_exchange();
+    exchange.env.limits.wire.activity_words_words = PAST_BOUND;
+    let query = w::Read::Activity(
+        w::ReadActivity::new(&f::wire(), w::ReadActivityParts { task: 7, before: None }).expect("activity"),
+    );
+    let (owner, reply, _) = exchange.read(&query);
+    let page = f::page(skein_lib::List::from_boxed(Box::new([reads::PageRow::Activity {
+        line: t::ActivityLine {
+            task: 7,
+            position: 11,
+            at: skein_lib::Wall::from_nanos(17),
+            line: t::Line::Words {
+                message: 1,
+                by: t::Party::Person(3),
+                kind: t::MessageKind::Words,
+                words: Box::from(WORDS),
+            },
+        },
+        turn: None,
+    }])));
+    let name = reply.into_token();
+    exchange.release_read(ReplyTo::new(name), reads::Answer::Page(Box::new(page)));
+    let answer = exchange.read_answer(owner);
+    assert_eq!(answer, f::read_none(w::ReadNone::Malformed));
+    exchange.release_read(ReplyTo::new(name), reads::Answer::None(reads::Why::Unknown));
+    assert_eq!(exchange.read_answer(owner), answer);
+    let connection = exchange.component.connections.get(&owner).expect("answered exchange");
+    assert!(!connection.closing);
+    assert!(exchange.component.pending.exchanges.is_empty());
+    assert!(exchange.out.is_empty());
+    let (next, reply, _) = exchange.read(&query);
+    exchange.release_read(reply, reads::Answer::None(reads::Why::Unknown));
+    assert_eq!(exchange.read_answer(next), f::read_none(w::ReadNone::Unknown));
+}

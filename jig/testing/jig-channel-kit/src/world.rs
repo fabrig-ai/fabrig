@@ -84,16 +84,20 @@ pub struct Outcome {
 /// Run one person's chat through the actual agent and all channel layers.
 #[must_use]
 pub fn run(settings: Settings, script: Script) -> Outcome {
-    let held_turn = if matches!(script.story, crate::stories::Story::DurableRestart) {
+    let before_cut = if matches!(script.story, crate::stories::Story::DurableRestart) {
         // Replay the identical prefix, releasing its first observed held turn instead of killing it.
-        Some(run_at(settings, script.clone(), None).held_turn_submissions.expect("first observed held turn"))
+        Some(run_at(settings, script.clone(), None).0.held_turn_submissions.expect("first observed held turn"))
+    } else if matches!(script.story, crate::stories::Story::Refusals(crate::stories::MessageRefusal::Replay)) {
+        // Replay the same prefix, cutting after the worker receives the message
+        // and before its next turn carries the refusal back to the engine.
+        Some(run_at(settings, script.clone(), None).1.expect("message received by the native run"))
     } else {
         None
     };
-    run_at(settings, script, held_turn)
+    run_at(settings, script, before_cut).0
 }
 
-fn run_at(mut settings: Settings, script: Script, held_turn: Option<u32>) -> Outcome {
+fn run_at(mut settings: Settings, script: Script, before_cut: Option<u32>) -> (Outcome, Option<u32>) {
     if matches!(script.story, crate::stories::Story::MidFrame) {
         settings.config.buffer = 64;
     }
@@ -103,7 +107,7 @@ fn run_at(mut settings: Settings, script: Script, held_turn: Option<u32>) -> Out
         &script,
         store.clone(),
         views.clone(),
-        matches!(script.story, crate::stories::Story::DurableRestart) && held_turn.is_none(),
+        matches!(script.story, crate::stories::Story::DurableRestart) && before_cut.is_none(),
     );
     let mut machine = skein_fake_machine::Machine::new();
     let _store_root = machine.lay(&[]);
@@ -111,7 +115,7 @@ fn run_at(mut settings: Settings, script: Script, held_turn: Option<u32>) -> Out
     let root = (!matches!(script.story, crate::stories::Story::Opening(_))).then(|| machine.lay(&[]));
     let mut harness = skein_world::World::new(settings.seed, settings.config, referee, skein_world::Memory::Unchecked)
         .with_machine(Machine(machine));
-    launch(&mut harness, root, &script, held_turn);
+    launch(&mut harness, root, &script, before_cut);
     harness.spawn_root(skein_sim::Handle::new(client_root.raw()), |root| {
         let mut client = jig_client_protocol_kit::native::NativeClient::new(
             jig_client_protocol_kit::native::settings(),
@@ -135,7 +139,10 @@ fn run_at(mut settings: Settings, script: Script, held_turn: Option<u32>) -> Out
         Some(skein_sim::Faults { reset: if reset { 1000 } else { 0 }, ..settings.config.faults })
     });
     crate::referee::roots_at_end(&settled.procs);
-    outcome(&settled.procs, &store.borrow(), &views.borrow(), reset_injected, settled.killed.len())
+    (
+        outcome(&settled.procs, &store.borrow(), &views.borrow(), reset_injected, settled.killed.len()),
+        views.borrow().refusal_message_submissions,
+    )
 }
 
 fn outcome(procs: &[Proc], store: &Store, views: &Views, reset_injected: bool, killed: usize) -> Outcome {
@@ -463,6 +470,7 @@ pub(crate) struct Views {
     pub(crate) held_at_restart: Option<u64>,
     pub(crate) query_submissions: Option<u32>,
     pub(crate) held_turn_submissions: Option<u32>,
+    pub(crate) refusal_message_submissions: Option<u32>,
     pub(crate) providers_before: (Option<u32>, Vec<(u32, u32, u32)>),
     pub(crate) providers_after: (Option<u32>, Vec<(u32, u32, u32)>),
 }
@@ -539,7 +547,7 @@ fn launch(
     harness: &mut skein_world::World<Proc, crate::referee::Referee, Machine>,
     root: Option<skein_fake_machine::Opened>,
     script: &Script,
-    held_turn: Option<u32>,
+    before_cut: Option<u32>,
 ) {
     harness.host(skein_world::HostedProgram {
         program: b"agent-program".as_slice().into(),
@@ -584,16 +592,7 @@ fn launch(
         });
     }
     harness.spawn_restartable(roots, engine_factory);
-    // The real key request is kept before these channel-story cuts.
-    if matches!(script.story, crate::stories::Story::Refusals(crate::stories::MessageRefusal::Replay)) {
-        // Counts the engine's submissions from spawn, including generation startup
-        // and generation 1's manifest (ten). The trace sends the assignment at 177
-        // and the message at 193; cut before receive 200 brings the native run's
-        // first turn carrying its refusal.
-        const BEFORE_CARRIED_REFUSAL: u32 = 200;
-        harness.cut(0, BEFORE_CARRIED_REFUSAL, skein_world::Cut::Kill);
-    }
-    if let Some(before) = held_turn {
+    if let Some(before) = before_cut {
         harness.cut(0, before, skein_world::Cut::Kill);
     }
     if let crate::stories::Story::Restart { before } = script.story {

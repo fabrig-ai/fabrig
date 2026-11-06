@@ -159,7 +159,9 @@ both do. `--until changed` returns at the subject's next change.
 - The link's deadline is 30 seconds: no engine answer by then fails
   the call (exit 1), and its line says what it waited for: the link,
   the stream, a read or an act's outcome. An act's line says whether
-  it is kept, and whether the same key may be tried again.
+  it is kept, and whether the same key may be tried again. If all the
+  engine's watches are in use, by open pages and waits, ctl says so:
+  close one, or wait and call again.
 - A wrong argument prints one line naming its tool, the argument and
   what it takes, such as `temper ctl: task activity: --limit COUNT takes a count from 1 to 32; temper ctl help task activity`.
   Naming no tool prints usage: `temper ctl: usage: temper ctl DIR GROUP VERB [ARGUMENT...]; temper ctl help GROUP VERB prints one tool`.

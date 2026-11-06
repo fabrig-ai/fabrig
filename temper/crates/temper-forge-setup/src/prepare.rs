@@ -14,7 +14,7 @@ use alloc::boxed::Box;
 use core::net::IpAddr;
 use skein_forge::forgejo::pin::{RUNNER_VERSION, VERSION, names_forgejo, names_runner};
 use skein_lib::{
-    Queue, Secret, Writer,
+    Duration, Queue, Secret, Writer,
     base64::{self, Alphabet},
     bytes,
 };
@@ -78,6 +78,10 @@ pub enum Request {
     Token { spec: Spec }, // Execute the admin token command.
     /// Generate one missing person token without exposing it in an argument.
     PersonToken { file: File, spec: Spec },
+    /// One of the box's two source commands; no ending fails the preparation.
+    Source { spec: Spec, deadline: Duration },
+    /// One whole line for the preparation's stderr.
+    Note { line: Box<[u8]> },
     /// Write a complete private file.
     Write { file: File, contents: Secret }, // Write the whole private file.
     /// Check for an upgrade backup without changing it.
@@ -131,6 +135,9 @@ enum Phase {
     RunnerSecret,
     RunnerConfiguration,
     Finish,
+    SourceList,
+    SourceUpdate,
+    SourceNote,
     End,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -147,6 +154,8 @@ pub struct Prepare {
     place: Place,
     allowed_host: Option<IpAddr>,
     sign_in: Option<FirstSignIn>,
+    source_address: Option<Box<[u8]>>,
+    source_deadline: Duration,
     phase: Phase,
     found: Option<Found>,
     state: State,
@@ -174,6 +183,8 @@ impl Prepare {
             place,
             allowed_host,
             sign_in: None,
+            source_address: None,
+            source_deadline: Duration::from_secs(0),
             phase: Phase::Found,
             found: None,
             state: State {
@@ -205,6 +216,13 @@ impl Prepare {
     #[must_use]
     pub fn with_sign_in(mut self, sign_in: Option<FirstSignIn>) -> Self {
         self.sign_in = sign_in;
+        self
+    }
+    /// A box's later preparation points its source here, last (setup.md, 6.3).
+    #[must_use]
+    pub fn with_source_address(mut self, discovery: Option<Box<[u8]>>, deadline: Duration) -> Self {
+        self.source_address = discovery;
+        self.source_deadline = deadline;
         self
     }
     fn request(&mut self, phase: Phase, request: Request) -> Request {
@@ -347,8 +365,40 @@ impl Prepare {
                 None => self.finish(),
             }
         } else {
-            self.end(Ok(()))
+            self.source_list()
         }
+    }
+    fn source_list(&mut self) -> Request {
+        if self.source_address.is_none() {
+            return self.end(Ok(()));
+        }
+        let spec = spec::source_list(&self.owned, &self.place);
+        self.request(Phase::SourceList, Request::Source { spec, deadline: self.source_deadline })
+    }
+    fn source_listed(&mut self, ran: &Ran) -> Request {
+        if ran.exit != Exit::Code(0) {
+            return self.source_note(ran);
+        }
+        let Some(id) = crate::sign_in::source_id(ran.stdout.expose()) else {
+            return self.end(Ok(()));
+        };
+        let discovery = self.source_address.as_deref().expect("source address configured");
+        let spec = spec::source_update(&self.owned, &self.place, id, discovery);
+        self.request(Phase::SourceUpdate, Request::Source { spec, deadline: self.source_deadline })
+    }
+    fn source_note(&mut self, ran: &Ran) -> Request {
+        let tail = self.tail(ran);
+        let prefix = b"forge source: discovery address not updated: ";
+        let length =
+            prefix.len().checked_add(tail.len()).expect("bounded source note").checked_add(1).expect("newline");
+        let mut out = Writer::new(length);
+        out.put(prefix).expect("measured source note");
+        for byte in &tail {
+            let byte = if byte.is_ascii_control() { b' ' } else { *byte };
+            out.put(&[byte]).expect("measured source note");
+        }
+        out.put(b"\n").expect("measured source note");
+        self.request(Phase::SourceNote, Request::Note { line: out.finish() })
     }
     fn person_draw(&mut self, file: File, value: &Secret) -> Request {
         assert_eq!(value.expose().len(), 32, "host draws 32 bytes");
@@ -466,7 +516,7 @@ impl Prepare {
             Phase::Ini => self.after_ini(),
             Phase::Finish if !self.first => self.later_token(),
             Phase::AdminToken if self.first => self.run(Command::CreatePerson),
-            Phase::Finish => self.end(Ok(())),
+            Phase::Finish | Phase::SourceNote => self.end(Ok(())),
             Phase::AdminToken | Phase::Password => self.person_headers(),
             Phase::PersonHeader(file) => {
                 *self.person_headers.get_mut(person_index(file)).expect("person header index") = true;
@@ -482,6 +532,8 @@ impl Prepare {
             | Phase::PersonDraw(_)
             | Phase::PersonToken(_)
             | Phase::Backup
+            | Phase::SourceList
+            | Phase::SourceUpdate
             | Phase::End => {
                 unreachable!("phase handled or terminal")
             }
@@ -607,6 +659,14 @@ pub fn step(machine: &mut Prepare, event: Event, out: &mut Queue<Request>) {
             let Event::Ran(ran) = event else { unreachable!("command result expected") };
             machine.ran(command, &ran)
         }
+        Phase::SourceList => {
+            let Event::Ran(ran) = event else { unreachable!("source list result expected") };
+            machine.source_listed(&ran)
+        }
+        Phase::SourceUpdate => {
+            let Event::Ran(ran) = event else { unreachable!("source update result expected") };
+            if ran.exit == Exit::Code(0) { machine.end(Ok(())) } else { machine.source_note(&ran) }
+        }
         Phase::Backup => {
             let Event::Exists(exists) = event else { unreachable!("existence expected") };
             if exists { machine.ini() } else { machine.run(Command::Dump) }
@@ -642,6 +702,7 @@ pub fn step(machine: &mut Prepare, event: Event, out: &mut Queue<Request>) {
         | Phase::RunnerSecret
         | Phase::RunnerConfiguration
         | Phase::Finish
+        | Phase::SourceNote
         | Phase::End) => {
             let Event::Done = event else { unreachable!("effect completion expected") };
             machine.done(phase)

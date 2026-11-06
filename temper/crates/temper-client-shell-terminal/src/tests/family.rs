@@ -27,6 +27,7 @@ fn an_adoption_round_trips_through_the_family_record() {
             | w::Request::RemoveForge(_)
             | w::Request::MakeRepository(_)
             | w::Request::StartPlayground
+            | w::Request::TryAccount(_)
             | w::Request::Dismiss(_)
             | w::Request::SetAway(_)
             | w::Request::Overturn(_)

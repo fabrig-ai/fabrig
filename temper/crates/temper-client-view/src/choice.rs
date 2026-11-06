@@ -156,8 +156,8 @@ fn offered(root: &Domain, task: Option<&c::Task>) -> bool {
             None => true,
         }
         && match (temper_client_domain::pages::accounts::current_me(root.client()), draft.project()) {
-            (Some(me), Some(project)) => match choice::models(me, project) {
-                Some(models) => !models.is_empty(),
+            (Some(me), Some(project)) => match choice::offer(me, project) {
+                Some(models) => !models.is_empty() || !me.providers.is_empty(),
                 None => false,
             },
             (Some(_), None) | (None, _) => false,
@@ -167,50 +167,69 @@ fn panel(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: &Words, bind
     let draft = root.pages().choice();
     let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) else { return };
     let Some(project) = draft.project() else { return };
-    let Some(models) = choice::models(me, project) else { return };
+    let Some(models) = choice::offer(me, project) else { return };
     b.open(Role::List);
     b.style(crate::look::ROWS);
     let selected_model = draft.selected(me);
-    for (model, index) in models.iter().zip(0u32..) {
+    for provider in &me.providers {
+        let mut has_rows = false;
+        for model in models {
+            has_rows |= model.provider == Some(provider.provider);
+        }
+        if !has_rows && Some(provider.provider) == root.forge().playground_provider() {
+            continue;
+        }
         b.open(Role::Item);
         b.style(crate::look::ROW);
-        provider(b, root, task, model.provider, w);
-        let selected = selected_model == Some(index);
-        control(
-            b,
-            bindings,
-            Role::Button,
-            &model_shown(model.name.bytes(), w),
-            Act::Choice(C::Model { index }),
-            selected,
-        );
-        if selected {
-            for (effort, index) in model.efforts.iter().zip(0u32..) {
-                let selected = match &draft.requested {
-                    Some(choice) => choice.main.effort.as_ref() == Some(effort),
-                    None => false,
-                };
-                control(
-                    b,
-                    bindings,
-                    Role::Button,
-                    &shown(effort.bytes(), w),
-                    Act::Choice(C::Effort { index }),
-                    selected,
-                );
+        provider_line(b, root, provider, has_rows, w, bindings);
+        for (model, index) in models.iter().zip(0u32..) {
+            if model.provider == Some(provider.provider) && model.picker {
+                model_button(b, draft, model, index, selected_model, w, bindings);
             }
         }
         b.close();
+    }
+    for (model, index) in models.iter().zip(0u32..) {
+        if model.provider.is_none() && model.picker {
+            b.open(Role::Item);
+            b.style(crate::look::ROW);
+            model_button(b, draft, model, index, selected_model, w, bindings);
+            b.close();
+        }
     }
     b.close();
     control(b, bindings, Role::Button, &w.say(W::ChoiceReset, &[]), Act::Choice(C::Default), false);
     if task.is_some() && draft.requested != draft.original {
         match &draft.requested {
-            Some(choice) => line(b, w, W::ChoiceDraft, &[Hole::Name(model_shown(choice.main.model.bytes(), w))]),
+            Some(choice) => {
+                line(b, w, W::ChoiceDraft, &[Hole::Name(choice_shown(root, project, choice.main.model.bytes(), w))]);
+            }
             None => line(b, w, W::ChoiceDraftDefault, &[]),
         }
         if draft.valid(me) {
             control(b, bindings, Role::Button, &w.say(W::ChoiceApply, &[]), Act::Choice(C::Apply), false);
+        }
+    }
+}
+
+fn model_button(
+    b: &mut Builder,
+    draft: &choice::Draft,
+    model: &c::MeModel,
+    index: u32,
+    selected_model: Option<u32>,
+    w: &Words,
+    bindings: &mut Bindings,
+) {
+    let selected = selected_model == Some(index);
+    control(b, bindings, Role::Button, &model_shown(model, w), Act::Choice(C::Model { index }), selected);
+    if selected {
+        for (effort, index) in model.efforts.iter().zip(0u32..) {
+            let selected = match &draft.requested {
+                Some(choice) => choice.main.effort.as_ref() == Some(effort),
+                None => false,
+            };
+            control(b, bindings, Role::Button, &shown(effort.bytes(), w), Act::Choice(C::Effort { index }), selected);
         }
     }
 }
@@ -240,20 +259,6 @@ pub(crate) fn byline(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: 
         b.text(skein_ui::Run::Plain, &text);
     }
     b.close();
-}
-
-/// The composer's line's words for a byline with nothing behind it (client/README.md, 3.5).
-pub(crate) fn byline_words(root: &Domain, task: Option<&c::Task>, project: u32, w: &Words) -> Box<[u8]> {
-    if task.is_none() {
-        let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) else {
-            return Box::default();
-        };
-        let Some(models) = choice::models(me, project) else { return Box::default() };
-        if models.is_empty() {
-            return Box::default();
-        }
-    }
-    using_words(root, task, Some(project), w, LineForm::Byline).text
 }
 
 /// Feedback and the no-model offer stay above the composer (client/README.md, 5.5).
@@ -306,8 +311,23 @@ fn feedback(
     }
 }
 
-/// Display names keep the catalogue's bounded presentation.
-fn model_shown(name: &[u8], w: &Words) -> Box<[u8]> {
+/// Display names keep the offer's bounded presentation.
+fn model_shown(model: &c::MeModel, w: &Words) -> Box<[u8]> {
+    match &model.shown {
+        Some(name) => shown(name.bytes(), w),
+        None => shown(&w.model_name(model.name.bytes()), w),
+    }
+}
+fn choice_shown(root: &Domain, project: u32, name: &[u8], w: &Words) -> Box<[u8]> {
+    if let Some(me) = temper_client_domain::pages::accounts::current_me(root.client())
+        && let Some(models) = choice::offer(me, project)
+    {
+        for model in models {
+            if model.name.bytes() == name {
+                return model_shown(model, w);
+            }
+        }
+    }
     shown(&w.model_name(name), w)
 }
 
@@ -345,7 +365,7 @@ pub(crate) fn shown(name: &[u8], w: &Words) -> Box<[u8]> {
     out.finish()
 }
 
-/// Keep payer selection shared with the catalogue's provider readiness.
+/// Only work funded by the viewer can name their accounts.
 fn payer(me: &c::Me, task: Option<&c::Task>) -> Option<c::AccountUse> {
     match task {
         None => Some(c::AccountUse::Party(me.party.number)),
@@ -357,14 +377,6 @@ fn payer(me: &c::Me, task: Option<&c::Task>) -> Option<c::AccountUse> {
             c::Funder::Task(_) => None,
         },
     }
-}
-pub(crate) fn readiness(doc: &c::Accounts, provider: Option<u32>, payer: Option<c::AccountUse>) -> c::Readiness {
-    for row in &doc.readiness {
-        if Some(row.provider) == provider && Some(row.payer) == payer {
-            return row.readiness;
-        }
-    }
-    c::Readiness::Unknown
 }
 // Translation of jig-domain-core coverage.rs and jig-domain-accounts selection.rs.
 // The own-party slice alone preserves jig's payer/explicit/deployment ordering.
@@ -529,8 +541,10 @@ fn using_words(root: &Domain, task: Option<&c::Task>, project: Option<u32>, w: &
         None => draft.requested.as_ref(),
     };
     match model_words(root, task, choice, project, w) {
-        Some((name, provider)) => {
-            let name = if task.is_none() && form == LineForm::Byline { new_chat_model(root, w) } else { name };
+        Some((name, provider, offered)) => {
+            if !offered {
+                return selected_line(w, W::ModelNeedsAccount, &[Hole::Name(name)], form);
+            }
             using_line(root, task, choice, provider, name, w, form)
         }
         None => selected_line(w, W::UsingDefault, &[], form),
@@ -542,7 +556,9 @@ pub(crate) fn new_chat_model(root: &Domain, w: &Words) -> Box<[u8]> {
     let project = root.pages().project();
     let choice = match (temper_client_domain::pages::accounts::current_me(root.client()), project) {
         (Some(me), Some(project)) => match jig_client::shapes::template(me, project, jig_client::shapes::CHAT) {
-            Some(template) => template.llm.as_ref(),
+            Some(template) => {
+                template.llm.as_ref().or(jig_client::shapes::resolved_default(me, project, jig_client::shapes::CHAT))
+            }
             None => None,
         },
         _ => None,
@@ -555,7 +571,7 @@ pub(crate) fn new_chat_model(root: &Domain, w: &Words) -> Box<[u8]> {
         choice
     };
     match model_words(root, None, choice, project, w) {
-        Some((name, _)) => name,
+        Some((name, _, _)) => name,
         None => w.say(W::DefaultModel, &[]),
     }
 }
@@ -565,52 +581,48 @@ fn model_words(
     choice: Option<&c::LlmChoice>,
     project: Option<u32>,
     w: &Words,
-) -> Option<(Box<[u8]>, Option<u32>)> {
+) -> Option<(Box<[u8]>, Option<u32>, bool)> {
     let me = temper_client_domain::pages::accounts::current_me(root.client());
-    let doc = temper_client_domain::pages::accounts::document(root.client());
-    let payer = match me {
-        Some(me) => payer(me, task),
-        None => None,
+    let template = match root.pages().choice().context {
+        Some(choice::Context::Template { template, .. }) => template,
+        Some(choice::Context::Task { .. }) | None => jig_client::shapes::CHAT,
+    };
+    let choice = match choice {
+        Some(choice) => choice,
+        None => {
+            if task.is_some() {
+                return None;
+            }
+            jig_client::shapes::resolved_default(me?, project?, template)?
+        }
     };
     let models = match (me, project) {
-        (Some(me), Some(project)) => choice::models(me, project),
-        _ => None,
+        (Some(me), Some(project)) => choice::offer(me, project),
+        (Some(_), None) | (None, _) => None,
     };
     let mut model = None;
     if let Some(models) = models {
         for offered in models {
-            let matches = match choice {
-                Some(choice) => offered.name == choice.main.model,
-                None => match doc {
-                    Some(doc) => readiness(doc, offered.provider, payer) == c::Readiness::Usable,
-                    None => false,
-                },
-            };
-            if matches {
+            if offered.name == choice.main.model {
                 model = Some(offered);
                 break;
             }
         }
     }
-    let name = match choice {
-        Some(choice) => choice.main.model.bytes(),
-        None => match model {
-            Some(model) => model.name.bytes(),
-            None => return None,
-        },
+    let mut name = match model {
+        Some(model) => model_shown(model, w),
+        None => shown(&w.model_name(choice.main.model.bytes()), w),
     };
-    let mut name = model_shown(name, w);
-    if let Some(choice) = choice
-        && let Some(effort) = &choice.main.effort
-    {
+    if let Some(effort) = &choice.main.effort {
         name = w.say(W::ModelEffort, &[Hole::Name(name), Hole::Name(shown(effort.bytes(), w))]);
     }
     let provider = match model {
         Some(model) => model.provider,
         None => None,
     };
-    Some((name, provider))
+    Some((name, provider, model.is_some()))
 }
+
 fn using_line(
     root: &Domain,
     task: Option<&c::Task>,
@@ -625,10 +637,6 @@ fn using_line(
     let payer = match me {
         Some(me) => payer(me, task),
         None => None,
-    };
-    let ready = match doc {
-        Some(doc) => readiness(doc, provider, payer),
-        None => c::Readiness::Unknown,
     };
     let preferred = match choice {
         Some(choice) => choice.account,
@@ -648,11 +656,7 @@ fn using_line(
     };
     // The playground provider is public even when its deployment-held account is outside this slice.
     if pin.is_none() && provider.is_some() && provider == root.forge().playground_provider() {
-        return if ready == c::Readiness::Unavailable {
-            selected_line(w, W::ModelNeedsAccount, &[Hole::Name(name)], form)
-        } else {
-            selected_line(w, W::PlaygroundUsing, &[Hole::Name(w.say(W::Default, &[]))], form)
-        };
+        return selected_line(w, W::PlaygroundUsing, &[Hole::Name(w.say(W::Default, &[]))], form);
     }
     let (Some(me), Some(doc)) = (me, doc) else {
         return selected_line(w, W::UsingModel, &[Hole::Name(name)], form);
@@ -671,11 +675,8 @@ fn using_line(
     };
     if let Some(account) = account {
         let source = chosen_source(account, program.expect("selected with a known endpoint"));
-        let undecidable = match source {
-            SourceChoice::Undecidable => true,
-            SourceChoice::Chosen(_) | SourceChoice::Wait => false,
-        };
-        if account.cut || (ready != c::Readiness::Usable && !undecidable) {
+        // The offer supplies usability; document readiness cannot withdraw a row.
+        if account.cut {
             selected_line(w, W::UsingModel, &[Hole::Name(name)], form)
         } else {
             match source {
@@ -683,16 +684,13 @@ fn using_line(
                     let source = account.sources.get(index).expect("chosen source exists");
                     using_account(root, account, source, name, w, form)
                 }
-                SourceChoice::Wait => selected_line(w, W::ModelNeedsAccount, &[Hole::Name(name)], form),
-                SourceChoice::Undecidable => {
-                    let word = if ready == c::Readiness::Unavailable { W::ModelNeedsAccount } else { W::UsingModel };
-                    selected_line(w, word, &[Hole::Name(name)], form)
+                SourceChoice::Wait | SourceChoice::Undecidable => {
+                    selected_line(w, W::UsingModel, &[Hole::Name(name)], form)
                 }
             }
         }
     } else {
-        let word = if ready == c::Readiness::Unavailable { W::ModelNeedsAccount } else { W::UsingModel };
-        selected_line(w, word, &[Hole::Name(name)], form)
+        selected_line(w, W::UsingModel, &[Hole::Name(name)], form)
     }
 }
 fn program_name(root: &Domain, provider: Option<u32>, w: &Words) -> Box<[u8]> {
@@ -785,27 +783,72 @@ fn account_line(b: &mut Builder, root: &Domain, w: &Words, account: u32, labels:
     }
 }
 
-fn provider(b: &mut Builder, root: &Domain, task: Option<&c::Task>, number: Option<u32>, w: &Words) {
-    let Some(number) = number else { return };
+fn provider_line(
+    b: &mut Builder,
+    root: &Domain,
+    provider: &c::ProviderOffer,
+    has_rows: bool,
+    w: &Words,
+    bindings: &mut Bindings,
+) {
+    use crate::accounts::words::{self, Word as A};
+    let configured = provider_shown(root, Some(provider.provider), provider.name.bytes(), w);
+    let name = words::provider_words(&configured).0;
+    line(b, w, W::ChoiceProvider, &[Hole::Name(skein_lib::bytes::copy_of(name))]);
+    if has_rows {
+        return;
+    }
     let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) else { return };
-    for offer in &me.providers {
-        if offer.provider == number {
-            let configured = provider_shown(root, Some(number), offer.name.bytes(), w);
-            let shown = crate::accounts::words::provider_words(&configured).0;
-            line(b, w, W::ChoiceProvider, &[Hole::Name(skein_lib::bytes::copy_of(shown))]);
-            break;
+    let doc = temper_client_domain::pages::accounts::document(root.client());
+    let mut held_account = false;
+    if let Some(doc) = doc {
+        for account in &doc.accounts {
+            if account.provider != Some(provider.provider) || account.holder != c::AccountHolder::Party(me.party.number)
+            {
+                continue;
+            }
+            held_account = true;
+            let Some(source) = account.sources.get(0) else { continue };
+            let fix = match source.state {
+                c::AccountState::SignInAgain => Some(match source.kind {
+                    c::AccountKind::Program => words::say(w, A::CheckAgain, &[]),
+                    c::AccountKind::Key => words::say(w, A::Replace, &[]),
+                    c::AccountKind::SignIn | c::AccountKind::None => w.say(W::WelcomeSignInAgain, &[]),
+                }),
+                c::AccountState::Misconfigured | c::AccountState::Unloaded { .. }
+                    if source.kind == c::AccountKind::Key =>
+                {
+                    Some(words::say(w, A::Replace, &[]))
+                }
+                c::AccountState::Later { .. } => Some(words::say(w, A::Resume, &[])),
+                c::AccountState::Moving
+                | c::AccountState::Asking
+                | c::AccountState::Granted
+                | c::AccountState::Misconfigured
+                | c::AccountState::Unloaded { .. }
+                | c::AccountState::Cancelled
+                | c::AccountState::Closing => None,
+            };
+            if let Some(fix) = fix {
+                account_link(b, bindings, &words::join(&[&fix, " ›".as_bytes()]));
+                return;
+            }
         }
     }
-    let readiness = match temper_client_domain::pages::accounts::document(root.client()) {
-        Some(doc) => readiness(doc, Some(number), payer(me, task)),
-        None => c::Readiness::Unknown,
-    };
-    match readiness {
-        c::Readiness::Unavailable => line(b, w, W::NeedsAccount, &[]),
-        c::Readiness::Unknown => line(b, w, W::AccountReadinessUnknown, &[]),
-        c::Readiness::Usable => {}
+    if held_account {
+        line(b, w, W::AccountReadinessUnknown, &[]);
+    } else {
+        control(
+            b,
+            bindings,
+            Role::Link,
+            &w.say(W::ConnectPlanOrKey, &[]),
+            Act::Go { address: Address::ConnectModel { way: None } },
+            false,
+        );
     }
 }
+
 fn editable(task: &c::Task) -> bool {
     match jig_client::facts::offer(task.acts.as_slice(), c::ActKind::Amend) {
         Some(c::Admission::Allowed | c::Admission::Bounded { .. } | c::Admission::Proposed { .. }) => true,
@@ -935,7 +978,12 @@ fn account_wait(b: &mut Builder, root: &Domain, task: &c::Task, w: &Words, bindi
         }
         R::Empty => {
             match &task.llm {
-                Some(choice) => line(b, w, W::WaitEmptyModel, &[Hole::Name(w.model_name(choice.main.model.bytes()))]),
+                Some(choice) => line(
+                    b,
+                    w,
+                    W::WaitEmptyModel,
+                    &[Hole::Name(choice_shown(root, task.project, choice.main.model.bytes(), w))],
+                ),
                 None => line(b, w, W::WaitEmpty, &[]),
             }
             control(
@@ -987,4 +1035,94 @@ fn source_wait(b: &mut Builder, w: &Words, word: crate::accounts::words::Word, u
         b.text(skein_ui::Run::Plain, &words::say(w, A::Until, &[Hole::Wall(until)]));
     }
     b.close();
+}
+
+/// The first explanatory line of a run wait, with no command (temper/docs/design/domain/trial.md, 6.4).
+pub(crate) fn wait_why(root: &Domain, w: &Words, wait: &c::TaskRunWait) -> Box<[u8]> {
+    use crate::accounts::words::{self, Word as A};
+    use c::{TaskSourceState as S, TaskWaitWhy as R};
+    let (word, until) = match *wait {
+        c::TaskRunWait::Credential => return w.say(W::WaitCredential, &[]),
+        c::TaskRunWait::Host => return w.say(W::WaitCapacity, &[]),
+        c::TaskRunWait::Refused(why @ c::TaskWaitRefused::Hello { at, .. }) => {
+            return w.say(W::WaitRefused, &[Hole::Name(refused(w, &mut Times::new(at), why))]);
+        }
+        c::TaskRunWait::Account { account, why, .. } => match why {
+            R::Refreshing => return w.say(W::WaitRefreshing, &[]),
+            R::Host => {
+                let row = match account {
+                    Some(number) => account_row(root, number),
+                    None => None,
+                };
+                let name = match row {
+                    Some(row) => skein_lib::bytes::copy_of(row.display.bytes()),
+                    None => w.say(W::AccountRegion, &[]),
+                };
+                return w.say(W::WaitHost, &[Hole::Name(name)]);
+            }
+            R::Empty => return w.say(W::WaitEmpty, &[]),
+            R::Invalid(_) => return w.say(W::WaitInvalid, &[]),
+            R::Source(S::Moving) => return w.say(W::WaitMoving, &[]),
+            R::Source(S::Asking) => (A::Asking, None),
+            R::Source(S::Granted) => (A::Granted, None),
+            R::Source(S::Limited { until }) => (A::Limited, until),
+            R::Source(S::Later { until }) => (A::Later, until),
+            R::Source(S::NeedsSignIn) => (A::NeedsSignIn, None),
+            R::Source(S::Refused) => (A::Refused, None),
+            R::Source(S::Misconfigured) => (A::Misconfigured, None),
+            R::Source(S::Cancelled) => (A::Cancelled, None),
+            R::Source(S::Closing) => (A::Closing, None),
+            R::Source(S::Unloaded { at, why }) => {
+                let place = match at {
+                    c::AccountPlace::Directory => A::Directory,
+                    c::AccountPlace::File => A::File,
+                };
+                let why = match why {
+                    c::AccountUnread::Unreadable => A::Unreadable,
+                    c::AccountUnread::Refused => A::Refused,
+                    c::AccountUnread::Failed => A::Failed,
+                    c::AccountUnread::Stalled => A::Stalled,
+                    c::AccountUnread::TooLarge => A::TooLarge,
+                };
+                return words::join(&[
+                    &words::say(w, A::Unloaded, &[]),
+                    &words::say(w, place, &[]),
+                    b": ",
+                    &words::say(w, why, &[]),
+                ]);
+            }
+        },
+    };
+    let first = words::say(w, word, &[]);
+    match until {
+        Some(until) => words::join(&[&first, &words::say(w, A::Until, &[Hole::Wall(until)])]),
+        None => first,
+    }
+}
+/// Only waits that a moment can settle leave the try running (temper/docs/design/domain/trial.md, 6).
+pub(crate) const fn wait_settles(wait: &c::TaskRunWait) -> bool {
+    use c::{TaskSourceState as S, TaskWaitWhy as R};
+    match wait {
+        c::TaskRunWait::Account { why: R::Refreshing | R::Source(S::Asking | S::Granted | S::Moving), .. } => true,
+        c::TaskRunWait::Account {
+            why:
+                R::Host
+                | R::Empty
+                | R::Invalid(_)
+                | R::Source(
+                    S::Later { .. }
+                    | S::Limited { .. }
+                    | S::Refused
+                    | S::NeedsSignIn
+                    | S::Misconfigured
+                    | S::Unloaded { .. }
+                    | S::Cancelled
+                    | S::Closing,
+                ),
+            ..
+        }
+        | c::TaskRunWait::Credential
+        | c::TaskRunWait::Host
+        | c::TaskRunWait::Refused(_) => false,
+    }
 }

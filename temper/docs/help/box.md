@@ -31,7 +31,7 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
   for one single-job tier plus CI, or 3 for two such tiers plus CI.
   Count concurrent jobs in multi-job workflows and other repositories
   too (temper help tier). Stop real backends with Ctrl-C or SIGTERM;
-  wait for it to exit. Edit this setting in `CONFIG/temper.json`, keep
+  closing the terminal stops the box too. Then wait for it to exit. Edit this setting in `CONFIG/temper.json`, keep
   other settings, then restart (step 2) with the same `CONFIG`,
   `DATA` and `CACHE`, keeping runners'
   registration and secrets.
@@ -60,6 +60,7 @@ temper init --box --config CONFIG --data DATA --cache CACHE
 Init writes loopback ports 8367–8371 (clients, owned Forgejo, fake forge,
 demo LLM, webhooks), or free ports if busy.
 Another box: empty directories; keep the first running.
+A box trusts every program listening on this machine's loopback, since browser cookies ignore ports.
 
 Init releases ports; starts refuse occupied addresses. Step 2 on empty
 directories initializes and retains ports.

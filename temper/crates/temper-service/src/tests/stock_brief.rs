@@ -43,6 +43,8 @@ fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Ass
         if open { jig_domain_tasks::EndedBy::Requester } else { jig_domain_tasks::EndedBy::Result };
     assignment.run.contract = if open {
         jig_domain_tasks::Contract::Report { words: 32 }
+    } else if number == 10 {
+        jig_domain_tasks::Contract::Report { words: 64 }
     } else if number == 9 {
         jig_domain_tasks::Contract::Report { words: 800 }
     } else if number == 4 || number == 6 {
@@ -89,19 +91,21 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
     assert_eq!(configuration.service.limits.channel.bodies.turn_body, 16_803_810);
 
     for (number, open, non_brief, remaining) in [
-        (1, false, 42_108, 358_027),
-        (1, true, 40_018, 360_117),
-        (2, false, 36_001, 364_134),
-        (3, false, 42_077, 358_058),
+        (1, false, 42_177, 357_958),
+        (1, true, 40_087, 360_048),
+        (2, false, 36_070, 364_065),
+        (3, false, 42_392, 357_743),
         (4, false, 32_636, 367_499),
         (6, false, 33_860, 366_275),
         (9, false, 31_303, 368_832),
+        (10, false, 31_018, 369_117),
     ] {
         let assignment = assignment(number, open, 14_592);
         let mut charter = temper_engine_smith::charter(&assignment);
         assert_eq!(charter.brief.sections.len(), 64);
         assert_eq!(charter.brief.sections.iter().map(|section| section.text.len()).sum::<usize>(), 14_592);
-        let workspace = if number == 9 { None } else { Some(workspace(number != 4 && number != 6 && !open)) };
+        let workspace =
+            if number == 9 || number == 10 { None } else { Some(workspace(number != 4 && number != 6 && !open)) };
         let room = run::brief_room(&charter, workspace.as_ref(), &limits).expect("stock declarations fit");
         eprintln!(
             "host-part row: ({number}, {open}, {}, {room}),",
@@ -154,20 +158,22 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     const FRAMING: u32 = 64 * (16 + 7);
     // Task words and contract, then the task identity and requester.
     const TASK_PARTS: u32 = 2;
-    // Four model declarations leave this margin beyond the framed brief.
-    const MARGIN: u32 = 285;
+    // Eight model declarations leave this margin beyond the framed brief.
+    const MARGIN: u32 = 1;
     const OTHER: u32 = 768;
     let configuration = configured();
     let limits = configuration.service.limits.domain.run;
     let brief = crate::limits::profile(crate::limits::Profile::Standard).root.brief;
     assert!(brief.parts >= TASK_PARTS);
-    let largest = temper_engine_smith::charter(&assignment(1, false, 0));
+    let largest = temper_engine_smith::charter(&assignment(3, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
-    assert_eq!(room, 358_027);
+    assert_eq!(room, 357_743);
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
     assert_eq!(full, 395_520);
     assert_eq!(brief.brief_bytes, full.min(room - FRAMING - MARGIN));
-    for (number, open) in [(1, false), (1, true), (2, false), (3, false), (4, false), (6, false), (9, false)] {
+    for (number, open) in
+        [(1, false), (1, true), (2, false), (3, false), (4, false), (6, false), (9, false), (10, false)]
+    {
         let mut assignment = assignment(number, open, 0);
         assignment.sections = whole_spec_sections(&brief, OTHER);
         let mut charter = temper_engine_smith::charter(&assignment);
@@ -176,7 +182,8 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
             charter.brief.sections.iter().map(|section| section.text.len()).sum::<usize>(),
             usize::try_from(brief.brief_bytes).unwrap()
         );
-        let mounted = if number == 9 { None } else { Some(workspace(number != 4 && number != 6 && !open)) };
+        let mounted =
+            if number == 9 || number == 10 { None } else { Some(workspace(number != 4 && number != 6 && !open)) };
         let remaining = run::brief_room(&charter, mounted.as_ref(), &limits).unwrap();
         let rendered = run::brief_bytes(&charter.brief).unwrap();
         assert!(rendered <= u64::from(brief.brief_bytes + FRAMING));

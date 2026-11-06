@@ -236,7 +236,7 @@ fn model_line(
     text_per_node: u32,
 ) {
     if let Some(trial) = super::model_check::trial(root, w) {
-        super::model_check::line(b, root, w, accounts, &trial);
+        super::model_check::line(b, root, w, accounts, &trial, super::model_check::Place::Welcome);
     } else if temper_client_domain::pages::welcome::model_usable(root).is_some() {
         if let Some(provider) = super::accounts::own_signing_name(root, w) {
             let detail = w.say(Word::WelcomeModelSigningIn, &[Hole::Name(provider)]);

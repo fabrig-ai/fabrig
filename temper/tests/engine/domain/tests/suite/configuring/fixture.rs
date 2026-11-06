@@ -11,9 +11,9 @@ pub(super) const PROJECT: u32 = 1;
 pub(super) const CHANNEL: Token = Token::new(7);
 pub(super) const SEED: u64 = 9761;
 pub(super) const REASON: &str = "Explain running work\ntemper enforces: running work stays on its revision\nyour agents follow: push early, in charter 1";
-// Stock has six charters, fourteen grants and nine executor kinds. The
+// Stock has seven charters, fourteen grants and nine executor kinds. The
 // stories need three simultaneous chats, one extra charter, and their replies.
-const CHARTERS: u32 = 7;
+const CHARTERS: u32 = 8;
 const TASKS: u32 = 4;
 const SLOTS: u32 = 3;
 const GRANTS: u32 = 16;
@@ -29,6 +29,8 @@ const CHAT_BUDGET: u64 = 128;
 pub(super) fn config() -> engine::Config {
     let mut config = walking::config(SEED);
     let llm = jig_protocol_config::Llm {
+        shown: Box::new([None]),
+        pickers: Box::new([true]),
         endpoints: Box::new([]),
         models: walking::models(),
         descriptions: Box::new([None]),

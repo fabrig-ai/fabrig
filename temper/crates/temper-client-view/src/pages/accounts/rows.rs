@@ -1,4 +1,4 @@
-//! Folded account rows; every control carries the row that offered it.
+//! Folded account rows; every control carries the row that offered it (temper/docs/design/domain/trial.md, 6.2).
 use super::{
     confirmation, heading, key_field, named, named_control, omitted, outcome, provider_name, run, state, text,
 };
@@ -123,7 +123,7 @@ fn draw(
         c::AskAccountHolder::Own => Box::new([]),
         c::AskAccountHolder::Deployment => use_line(w, runs, waiting),
     };
-    let models = models(root, w, provider, text_bytes / 4);
+    let models = models(root, w, row.account, text_bytes / 4);
     b.open(Role::Disclosure);
     b.style(crate::look::SETTINGS_ROW);
     b.name(&title);
@@ -168,6 +168,9 @@ fn draw(
         text(b, w, Role::Paragraph, W::Moving);
     } else if let Some(source) = deciding {
         notice(b, root, w, bindings, row, provider, name, source, sources, manage, busy);
+    }
+    if let Some(trial) = crate::pages::model_check::of_account(root, w, row.account) {
+        crate::pages::model_check::line(b, root, w, bindings, &trial, crate::pages::model_check::Place::Row);
     }
     crate::cards::text(b, Role::Paragraph, &w.say(crate::words::Word::AccountSources, &[]));
     b.open(Role::List);
@@ -793,7 +796,7 @@ fn ranks(
     }
 }
 
-fn models(root: &Domain, w: &Words, provider: Option<u32>, bound: u32) -> Box<[u8]> {
+fn models(root: &Domain, w: &Words, account: u32, bound: u32) -> Box<[u8]> {
     let mut result: Box<[u8]> = Box::new([]);
     if let Some(me) = accounts::current_me(root.client()) {
         for project in &me.projects {
@@ -801,10 +804,11 @@ fn models(root: &Domain, w: &Words, provider: Option<u32>, bound: u32) -> Box<[u
                 continue;
             }
             for model in &project.models {
-                if model.provider != provider || provider.is_none() {
+                if !model.accounts.as_slice().contains(&account) {
                     continue;
                 }
-                let shown = crate::choice::shown(model.name.bytes(), w);
+                let name = model.shown.as_ref().unwrap_or(&model.name);
+                let shown = crate::choice::shown(name.bytes(), w);
                 let next = words::join(&[&result, if result.is_empty() { b"" } else { b", " }, &shown]);
                 if next.len() > usize::try_from(bound).expect("text bound fits") {
                     return result;

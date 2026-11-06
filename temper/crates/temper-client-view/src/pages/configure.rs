@@ -9,12 +9,20 @@ use skein_ui::{Builder, Role, Run, State, phrases::Hole};
 use temper_client_domain::{Domain, pages::Act};
 
 #[expect(clippy::too_many_lines, reason = "one tree keeps the configuring opening, composer and reference in order")]
-pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32, text_limit: u32) {
+pub(crate) fn main(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    accounts: &mut crate::accounts::Bindings,
+    project: u32,
+    text_limit: u32,
+) {
     if root.pages().me(root.client()).is_some()
         && super::project_name(root.pages().me(root.client()), project).is_none()
     {
         let mut times = crate::words::Times::new(skein_lib::Wall::EPOCH);
-        super::home::main(b, root, w, bindings, project, &mut times, 0);
+        super::home::main(b, root, w, bindings, accounts, project, &mut times, 0);
         return;
     }
     b.open(Role::Main);
@@ -34,7 +42,7 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         super::session::Heading::Words(&w.say(Word::ConfigureTitle, &[])),
     );
     super::session::right(b);
-    byline(b, root, w, project);
+    byline(b, root, w, bindings);
     if let Some(mode) = reference {
         super::document::modes(b, Word::ReferenceGroup, mode, w, bindings);
     }
@@ -63,7 +71,7 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         (Word::ConfigureApprovalsTerm, Word::ConfigureApprovalsLine),
     ] {
         b.open(Role::Item);
-        pair(b, w, term, line);
+        pair(b, w, term, line, &[]);
         b.close();
     }
     b.close();
@@ -92,12 +100,19 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
     for (title, line, sent) in [
         (Word::ConfigureAloneTitle, Word::ConfigureAloneLine, Word::ConfigureAlone),
         (Word::ConfigureDesignTitle, Word::ConfigureDesignLine, Word::ConfigureDesign),
-        (Word::ConfigureModelsTitle, Word::ConfigureModelsCardLine, Word::ConfigureModels),
     ] {
         b.open(Role::Item);
         b.open(Role::Button);
-        pair(b, w, title, line);
+        pair(b, w, title, line, &[]);
         starter(b, w, bindings, sent, &[], pending);
+        b.close();
+        b.close();
+    }
+    if let Some(holes) = model_accounts(root, w) {
+        b.open(Role::Item);
+        b.open(Role::Button);
+        pair(b, w, Word::ConfigureModelsTitle, Word::ConfigureModelsCardLine, &holes);
+        starter(b, w, bindings, Word::ConfigureModels, &holes, pending);
         b.close();
         b.close();
     }
@@ -123,9 +138,9 @@ fn paragraph(b: &mut Builder, words: &[u8], style: skein_ui::Style) {
     b.close();
 }
 
-fn pair(b: &mut Builder, w: &Words, title: Word, line: Word) {
+fn pair(b: &mut Builder, w: &Words, title: Word, line: Word, holes: &[Hole]) {
     let title = w.say(title, &[]);
-    let line = w.say(line, &[]);
+    let line = w.say(line, holes);
     match w.shell {
         Shell::Browser => {
             b.text(Run::Plain, &title);
@@ -183,19 +198,86 @@ fn own_way(b: &mut Builder, w: &Words, bindings: &mut Bindings, name: Box<[u8]>,
     b.close();
 }
 
-pub(crate) fn byline(b: &mut Builder, root: &Domain, w: &Words, project: u32) {
-    let task = match root.pages().chat() {
-        Some(chat) => chat.task(root.client()),
-        None => None,
-    };
-    let line = crate::choice::byline_words(root, task, project, w);
-    if !line.is_empty() {
-        let line = match root.pages().chat() {
-            Some(chat) => w.say(Word::BylineTask, &[Hole::Number(chat.task), Hole::Name(line)]),
-            None => line,
-        };
-        text(b, Role::Paragraph, &line, Some(look::BYLINE));
+fn byline(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
+    crate::choice::byline(b, root, None, w, bindings);
+}
+
+fn model_accounts(root: &Domain, w: &Words) -> Option<[Hole; 2]> {
+    let me = root.pages().me(root.client())?;
+    let models = temper_client_domain::pages::choice::offer(me, root.pages().project()?)?;
+    let mut first = None;
+    for model in models {
+        for account in &model.accounts {
+            if let Some((number, provider)) = first {
+                if number != *account {
+                    return Some([
+                        Hole::Name(account_name(root, me, number, provider, w)),
+                        Hole::Name(account_name(root, me, *account, model.provider, w)),
+                    ]);
+                }
+            } else {
+                first = Some((*account, model.provider));
+            }
+        }
     }
+    None
+}
+
+fn account_name(
+    root: &Domain,
+    me: &jig_client::contract::Me,
+    number: u32,
+    provider: Option<u32>,
+    w: &Words,
+) -> Box<[u8]> {
+    use jig_client::contract::AccountKind;
+    let mut row = None;
+    if let Some(document) = root.pages().accounts_document(root.client()) {
+        for account in &document.accounts {
+            if account.number == number {
+                row = Some(account);
+                break;
+            }
+        }
+    }
+    let provider = match row {
+        Some(row) => row.provider,
+        None => provider,
+    };
+    let mut name = b"".as_slice();
+    for offer in &me.providers {
+        if Some(offer.provider) == provider {
+            name = offer.name.bytes();
+            break;
+        }
+    }
+    if let Some(row) = row
+        && let Some(supplied) = &row.provider_name
+        && !supplied.cut
+        && !supplied.bytes().is_empty()
+    {
+        name = supplied.bytes();
+    }
+    let (brand, plan) = crate::accounts::words::provider_words(name);
+    let Some(row) = row else { return crate::choice::shown(brand, w) };
+    let mut program = false;
+    let mut sign_in = false;
+    let mut key = false;
+    for source in &row.sources {
+        program |= source.kind == AccountKind::Program;
+        sign_in |= source.kind == AccountKind::SignIn;
+        key |= source.kind == AccountKind::Key;
+    }
+    let name = if program {
+        crate::choice::shown(plan, w)
+    } else if row.plan {
+        w.say(Word::ConfigurePlan, &[Hole::Name(crate::choice::shown(plan, w))])
+    } else if key && !sign_in {
+        w.say(Word::ConfigureKey, &[Hole::Name(crate::choice::shown(brand, w))])
+    } else {
+        crate::choice::shown(brand, w)
+    };
+    crate::choice::shown(&name, w)
 }
 
 fn composer(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, pending: bool, text_limit: u32) {

@@ -53,7 +53,7 @@ fn record_answers(service: &mut crate::Service) {
     while engine.setup.answers.pop().is_some() {}
     advance(engine);
 }
-fn reconcile_bot(service: &mut crate::Service, face: &mut Face) {
+pub(super) fn reconcile_bot(service: &mut crate::Service, face: &mut Face) {
     local_sent(service, face, b"GET /api/v1/user ");
     assert!(contains(&face.wire.received, b"test-admin"));
     face.reply(service, br#"{"id":1,"login":"temper-admin","is_admin":true}"#);
@@ -66,7 +66,7 @@ fn reconcile_bot(service: &mut crate::Service, face: &mut Face) {
     }
 }
 #[expect(clippy::disallowed_macros, reason = "the protocol peer formats its repository fixture")]
-fn record_repository(service: &mut crate::Service, face: &mut Face, id: u64, permission: &[u8]) {
+pub(super) fn record_repository(service: &mut crate::Service, face: &mut Face, id: u64, permission: &[u8]) {
     local_sent(service, face, format!("GET /api/v1/repositories/{id} ").as_bytes());
     face.reply(service, format!(r#"{{"id":{id},"owner":{{"id":1,"login":"demo"}},"name":"widget","object_format_name":"sha1","default_branch":"main","default_merge_style":"merge","allow_merge_commits":true,"allow_squash_merge":true,"allow_rebase":true,"html_url":"http://127.0.0.1:9/demo/widget"}}"#).as_bytes());
     local_sent(service, face, b"/collaborators/temper/permission ");

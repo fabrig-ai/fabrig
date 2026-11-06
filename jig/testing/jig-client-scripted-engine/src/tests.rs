@@ -29,6 +29,7 @@ fn frame(number: u64) -> Me {
         providers_cut: false,
         key_bytes: 256,
         redirect_bytes: 4096,
+        words_bytes: 8192,
         party: MeParty {
             number,
             kind: PartyKind::Person,
@@ -36,6 +37,7 @@ fn frame(number: u64) -> Me {
             name: DocumentText::complete(text(b"party")),
         },
         projects: list(vec![MeProject {
+            defaults: List::with_capacity(0),
             public: None,
             models: skein_lib::List::with_capacity(0),
             templates: skein_lib::List::with_capacity(0),

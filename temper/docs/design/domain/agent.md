@@ -913,6 +913,13 @@ and waits in the Needs you of each project it belongs to (jig's
   holds the settings family (in the stock, charter 3's alone) reads them,
   of its own project alone, as for the repositories, and they hold no
   address, display name or credential.
+  The same inventory names the offer to the chat's payer (jig's
+  `client/domain/contract.md`, 5.1), one line a model, with its provider,
+  its efforts and its default effort, and says so where it holds none. It
+  is the list of models the agent may offer. A charter it reads goes back
+  whole and may name others; the agent's instructions leave those as they
+  stand and neither propose nor mention them to the person. The settings
+  check validates configured models, not the current offer.
   A read of a project's ways or questions with none stored answers the
   stock (`../protocol/configuration.md`, 13.4), never unknown. A read that
   finds nothing is an error whose words say it was not read and that this
@@ -966,9 +973,15 @@ and waits in the Needs you of each project it belongs to (jig's
     again is never someone else's side;
   - never to report a read it could not make as a fact about the
     settings;
-  - to say that nothing has changed only when it first gives a proposal's
-    number, or where the person thinks something applied; never before a
+  - to say that nothing has changed only when it first tells the person of a
+    proposal, or where the person thinks something applied; never before a
     proposal, and never to close a reply;
+  - to tell the person that a proposal it made waits in this chat for their
+    Accept, or for an owner's where they are not one, without the key its
+    tool's answer gives, which is `temper ctl`'s;
+  - in instructions and in a proposal's reason, to name a repository by its
+    name, never by an address or a port, which a box changes: only a charter
+    document's `forge` and `repository` hold what the inventory gives;
   - the test for each sentence of a description: would temper's engine
     act differently without it? A sentence that changes what temper
     wakes, schedules, permits, pays for, lands or holds is structure,
@@ -1294,6 +1307,13 @@ host:
 
 ## 10. Open questions
 
+- **Constraining models in settings reads and proposals** (8.1): whole
+  charter values can name models outside the current offer. Restricting what
+  a read exposes while still round-tripping that value, or rejecting a new
+  unoffered choice without rejecting an unchanged charter, needs a settings
+  contract. Default: the inventory is filtered and the stock instructions
+  restrict the agent; whole charter reads and configured-model validation stay.
+
 - **What a delivery keeps, under a deployment's own charter** (6): the stock's
   coding charter and the reference's tell a run its own history isn't kept. A
   deployment's own charter is its author's, so a run under one isn't told.
@@ -1340,9 +1360,9 @@ host:
   the decide family as it stands would also let every chat under policy 1 decide
   proposals and escalations. Default: an owner rejects it, until a walk shows whether
   that asks too much of the person.
-- **What sizes temper's own way** (8.1): a read of the deployment's worker slots
-  and of the models its accounts reach, offered to a run with the settings
-  family, or an answer from the person. Default: the person's, as nothing reads
+- **What sizes temper's own way** (8.1): a read of the deployment's worker slots,
+  offered to a run with the settings family, or an answer from the person.
+  Default: the person's, as nothing reads
   them.
 - **QA in temper's own way** (8.1): `../draft/own-way.md`, 6, has it proposed once
   a tester is set; QA after landing isn't built (`findings.md`, section 8).

@@ -17,6 +17,9 @@ pub use settings::SettingsRevision;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+/// A person's task has no project policy (jig/docs/design/domain/authority.md, 6.1).
+const NO_PROJECT: u32 = 0;
+
 /// The source of a stable effect, independent of connector vocabulary.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum EffectOrigin {
@@ -621,8 +624,19 @@ impl Referee {
             }) {
                 let project = self.policy.projects.get(&task.project);
                 let source = self.source(&snapshot, task);
-                require(
+                let project_authority = if task.project == NO_PROJECT {
+                    task.source == Source::Deployment
+                        && task.scope.tools == 0
+                        && task.scope.grants.is_empty()
+                        && task.scope.notes == 0
+                        && task.scope.note_resources.is_empty()
+                        && task.scope.descendants == 0
+                        && task.scope.depth == 0
+                } else {
                     project.is_some_and(|scope| self.within(&task.scope, scope))
+                };
+                require(
+                    project_authority
                         && self.within(&task.scope, &self.policy.deployment)
                         && source.is_some_and(|scope| self.within(&task.scope, scope)),
                     Promise::Authority,

@@ -92,7 +92,7 @@ pub fn serve() -> ! {
                     Event::Stream { up: Up::Failed(why), .. } => panic!("fake stream failed: {why:?}"),
                     Event::Failed { error, .. } => panic!("fake io failed: {error:?}"),
                     Event::Stream { up: Up::End, .. }
-                    | Event::Shutdown { signal: ServiceSignal::Interrupt, .. }
+                    | Event::Shutdown { signal: ServiceSignal::Interrupt | ServiceSignal::Hangup, .. }
                     | Event::Closed { .. } => {}
                     Event::Connecting { .. }
                     | Event::Connected { .. }

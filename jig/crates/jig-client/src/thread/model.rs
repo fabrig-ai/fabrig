@@ -1,5 +1,5 @@
 //! Public thread inputs and chronological borrowed lines (client.md, 10).
-use super::{Thread, Words, later, live_turn};
+use super::{Thread, Words, extend_live, later, live_turn};
 use crate::{
     Key,
     contract::{
@@ -33,18 +33,18 @@ impl Thread {
         self.prune_live();
         next
     }
-    /// Keeps each provisional turn until its committed replacement arrives.
+    /// Keeps provisional turns across a run's end until replaced or `end_run`.
     pub fn run(&mut self, run: &RunState, text: Option<&RunText>) {
         if run.task != self.task {
+            return;
+        }
+        // A run's end takes no line away: `end_run` does, once the committed activity has been read (client.md, 10).
+        if run.attempt.is_none() {
             return;
         }
         if self.attempt != run.attempt {
             self.live.clear();
             self.attempt = run.attempt;
-        }
-        if run.attempt.is_none() {
-            self.live.clear();
-            return;
         }
         let Some(text) = text else {
             return;
@@ -62,8 +62,10 @@ impl Thread {
         for at in 0..self.live.len() {
             let old = self.live.get_mut(at).expect("bounded live turn exists");
             if old.name.turn() == text.turn.turn() {
-                if old.name.retry <= text.turn.retry {
+                if old.name.retry < text.turn.retry {
                     *old = live_turn(text.clone(), text_bound);
+                } else if old.name.retry == text.turn.retry {
+                    extend_live(old, text, text_bound);
                 }
                 found = true;
                 break;
@@ -123,9 +125,15 @@ impl Thread {
     }
     /// Keeps a pending message under its public request key and compound place.
     pub fn sending(&mut self, key: Key, by: u64, words: Text, place: u32) -> bool {
+        if !words.fits(self.limits.text) || !self.words.admits() {
+            return false;
+        }
+        if self.words.bytes().saturating_add(len_u64(words.bytes().len())) > self.limits.bytes {
+            return false;
+        }
         let author =
             Party { number: by, kind: PartyKind::Person, name: Text::new(Box::from([]), 0).expect("empty name fits") };
-        if !words.fits(self.limits.text) || !self.words.begin(key, Some(author), words) {
+        if !self.words.begin(key, Some(author), words) {
             return false;
         }
         for at in 0..self.words.rows.len() {

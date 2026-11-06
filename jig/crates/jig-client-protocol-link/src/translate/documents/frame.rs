@@ -57,6 +57,7 @@ pub(crate) fn project_role_fields(value: &w::MeProject, limits: &Limits) -> Resu
             None => None,
         },
         models: crate::translate::llm::models(value.models(), limits)?,
+        defaults: crate::translate::llm::defaults(value.defaults(), limits)?,
     })
 }
 
@@ -89,6 +90,7 @@ pub(crate) fn frame_fields(value: &w::Me, limits: &Limits) -> Result<c::Me, w::P
         providers_cut: value.providers_cut(),
         key_bytes: value.key_bytes(),
         redirect_bytes: value.redirect_bytes(),
+        words_bytes: value.words_bytes(),
         party: frame_party_fields(value.party(), limits)?,
         projects: list0,
         needs: needs_fields(value.needs()),

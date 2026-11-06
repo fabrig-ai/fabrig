@@ -108,7 +108,20 @@ fn owned_setup_cuts_start_over_and_a_removal_cut_finishes_on_restart() {
     scratch.remove();
 }
 
+/// Init's document with no `openssl` (protocol/sign-in.md, 9.9): the group has no source
+/// step, which needs the engine this cut holds.
+fn without_sign_in(config: &Path) -> Vec<u8> {
+    let path = config.join("temper.json");
+    let original = std::fs::read(&path).expect("init document");
+    let mut document: serde_json::Value = serde_json::from_slice(&original).expect("init JSON");
+    document["engine"]["clients"]["provider"] = serde_json::Value::Null;
+    document["application"]["machine"]["owned"]["sign_in"] = serde_json::Value::Null;
+    support::write_private(&path, &serde_json::to_vec(&document).expect("document JSON"));
+    original
+}
+
 fn start_over(scratch: &support::Scratch, paths: &[std::path::PathBuf; 3], flags: &[String], cut: Cut, number: u16) {
+    let original = matches!(cut, Cut::Started).then(|| without_sign_in(&paths[0]));
     let number_text = number.to_string();
     let mut engine_paused = false;
     let data = &paths[1];
@@ -165,6 +178,9 @@ fn start_over(scratch: &support::Scratch, paths: &[std::path::PathBuf; 3], flags
     assert_ne!(rows[0]["first"]["state"], "made", "the cut precedes adoption: {list}");
     assert_eq!(String::from_utf8_lossy(&restarted.calls[1].stdout).trim(), "removed");
     absent(data, number);
+    if let Some(original) = original {
+        support::write_private(&paths[0].join("temper.json"), &original);
+    }
 }
 
 fn removal_cut(scratch: &support::Scratch, paths: &[std::path::PathBuf; 3], flags: Vec<String>, number: u16) {

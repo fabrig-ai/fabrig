@@ -12,6 +12,8 @@ mod holdings;
 mod inbox;
 mod jobs;
 mod limits;
+#[path = "tests/person_task.rs"]
+mod person_task_stories;
 mod reads;
 mod routing;
 mod run_policy_tools;
@@ -26,7 +28,6 @@ use crate::{
     documents::{Document, *},
     effects::{connector, projections},
     routing::Work,
-    runs::state as run,
     settings::revisions,
     *,
 };
@@ -652,6 +653,20 @@ fn window() -> Window {
 }
 
 #[test]
+fn a_frame_says_the_words_bound() {
+    // Distinct from the fixture's people.words of 64.
+    const WORDS_BYTES: u32 = 37;
+    let (core, mut limits) = core();
+    limits.people.words = WORDS_BYTES;
+    let Document::Frame(frame) =
+        make(&core, &limits, 1, &Subject::Frame { party: 1 }, &window(), Wall::EPOCH).expect("owner's frame")
+    else {
+        panic!("frame")
+    };
+    assert_eq!(frame.words_bytes, WORDS_BYTES);
+}
+
+#[test]
 fn documents_frame_carries_roles_retention_and_configured_charters() {
     let (core, limits) = core();
     let Document::Frame(frame) = make(&core, &limits, 1, &Subject::Frame { party: 1 }, &window(), Wall::EPOCH).unwrap()
@@ -682,6 +697,8 @@ fn documents_frame_carries_roles_retention_and_configured_charters() {
                 },
             }),
             models: authority::Models::ALL,
+            offer: List::with_capacity(tasks::MODELS),
+            defaults: List::with_capacity(limits.templates),
             templates: List::with_capacity(0),
         }]
     );

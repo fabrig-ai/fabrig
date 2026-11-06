@@ -4,21 +4,21 @@ On a fresh `temper box --fake-backends`, built with
 `temper/scripts/bundle.sh --loopback --record`: set up Forgejo on this
 machine with the offered empty `work/hello`, sign in to the fake ChatGPT
 plan, and create Hello. Wait for Home's status before starting the
-first chat. Home writes note 1; the chat's document is note 2.
+first chat. Home writes note 1; the chat's document is note 3.
 
 Reload `/projects/1/settings` to start the recording at How work runs.
 Mark the page with Alt+Shift+M, turn on "Chats can write drafts", and
 mark it again. Open "+ New chat", send "Let us design Away mode." to
-start the first chat, T1, and mark its settled reply. Press "+ Draft";
+start the first chat, T2, and mark its settled reply. Press "+ Draft";
 the fake model writes the 29-line Away mode document and Split opens.
 Mark it, choose Chat, and send "Add what happens to a running goal."
 The second document turn answers "Edited", "+7 −0". Mark the settled
 Chat, choose Split and mark it, then Draft and mark it.
 
 Press "Start goal…", mark the one sheet with its default `away-mode`
-name and Task by task way, then press "Start goal". The fake goal, T2,
+name and Task by task way, then press "Start goal". The fake goal, T3,
 finishes with its local report. Mark its page, press its "Draft" link
-back to T1, mark the returned chat, and save the recording with
+back to T2, mark the returned chat, and save the recording with
 Alt+Shift+S. The first replay proves all 22 prints against the live
 pages. Split and Draft show the second revision's "A running goal"
 section, and the goal-create request carries that revision, followed
@@ -30,7 +30,7 @@ those provenance lines, beyond its shortened specification preview.
 - `03.html`: drafts On, marked.
 - `04.html`: the same page before opening "+ New chat".
 - `05.html`: the new chat with its opening words entered, before Send.
-- `06.html`: T1 after its opening fake reply, marked.
+- `06.html`: T2 after its opening fake reply, marked.
 - `07.html`: the settled chat before pressing "+ Draft".
 - `08.html`: Split after the first document write, marked.
 - `09.html`: the same Split before choosing Chat.
@@ -45,17 +45,15 @@ those provenance lines, beyond its shortened specification preview.
 - `18.html`: the same sheet before pressing "Start goal".
 - `19.html`: the settled goal page, marked, with its Draft return link.
 - `20.html`: the same goal page before pressing Draft.
-- `21.html`: the returned chat T1, opened in Chat, marked.
+- `21.html`: the returned chat T2, opened in Chat, marked.
 - `22.html`: the same chat at the recording's end.
 
 The walk is recorded by `again chat-draft` from its `setup`, with no
 hand driver.
 
-The chat prints before starting the goal keep the call run and its rows, the document write's
-line and Show, and the end of the answer. Latest is a sibling of the log
-in Chat and Split, hidden until the live log is away from its end. It is
-absent from the terminal. Earlier lines load as the log's head nears the
-view, with "Loading earlier messages…" during the read and no Older
-control (`../../README.md`, 5.15). On returning from the goal, the chat opens
-with one activity page until the browser measures its log; the static
-pages 21 and 22 hold that window, without performing the browser's read.
+The chat prints before starting the goal keep the call run and its rows,
+the document write's line and Show, and the end of the answer. Latest is
+a sibling of the log in Chat and Split, hidden until the live log is away
+from its end. It is absent from the terminal. The returned chat reads
+earlier lines by itself, showing the earlier conversation with the last
+reply in print 21.

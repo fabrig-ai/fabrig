@@ -9,6 +9,7 @@ while [ "$#" -gt 0 ]; do
     case "$1" in
     --release) profile=release; flag=--release ;;
     --loopback) features="${features:+$features,}loopback-navigation" ;;
+    --small-window) features="${features:+$features,}small-window" ;;
     --record) features="${features:+$features,}record" ;;
     --playground) playground=true ;;
     *) break ;;
@@ -16,7 +17,7 @@ while [ "$#" -gt 0 ]; do
     shift
 done
 if [ "$#" -ne 1 ]; then
-    echo "usage: scripts/bundle.sh [--release] [--loopback] [--record] OUT | scripts/bundle.sh --playground OUT" >&2
+    echo "usage: scripts/bundle.sh [--release] [--loopback] [--small-window] [--record] OUT | scripts/bundle.sh --playground OUT" >&2
     exit 2
 fi
 if [ "$playground" = true ] && { [ -n "$flag" ] || [ -n "$features" ]; }; then

@@ -221,8 +221,11 @@ pub struct Model {
     pub output: u32,
     /// The efforts it declares, by name in its order.
     pub efforts: Box<[Box<[u8]>]>,
+    pub effort: Option<Box<[u8]>>,
     pub prices: Prices,
     pub description: Option<Box<[u8]>>,
+    pub shown: Option<Box<[u8]>>,
+    pub picker: bool,
 }
 /// Configured amounts per `unit` tokens in the deployment's spend unit; absent cache writes
 /// are priced at input (configuration.md, 3; domain/authority.md, 1).
