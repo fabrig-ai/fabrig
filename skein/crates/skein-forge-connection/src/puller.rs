@@ -39,14 +39,6 @@ pub enum Action {
     Gap { reread: bool },
     Hint(api::Hint),
 }
-#[cfg_attr(
-    feature = "seam",
-    expect(
-        clippy::must_use_candidate,
-        clippy::new_without_default,
-        reason = "the machine-world seam exposes the existing state operations"
-    )
-)]
 impl Puller {
     pub fn new() -> Self {
         Self { newest: None, validator: None, due: None, state: State::Resting, source: None, poll: None }
@@ -95,7 +87,7 @@ impl Puller {
     pub fn reading(&mut self) {
         self.state = State::Reading;
     }
-    pub fn request(&mut self) -> Option<super::component::OwnPlan> {
+    pub(crate) fn request(&mut self) -> Option<super::component::OwnPlan> {
         match self.state {
             State::Reading => {
                 let ask = self.poll.as_mut().expect("active poll").ask.take()?;

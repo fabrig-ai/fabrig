@@ -10,8 +10,9 @@ Real layer operations, the helper process, build-step runners and sandboxes,
 pins and collection remain unbuilt; the client reports steps as unavailable.
 Tool versions and rebuild times are missing, and the resolution reply,
 reconciled-base retention and mmdebstrap hooks have unsettled
-departures in those documents. One test driver keeps capped queues beside the
-JSON decoder
+departures in those documents. Resumed work's order has a test for an io event
+and none shown for a file event, and one test driver keeps capped queues beside
+the JSON decoder
 (`hearth/docs/design/domain/render.md`). The store reports unreadable or invalid layer
 records as strays and refuses a second staging request, and its scan and chain,
 with the builder's store adapter and keep, hold lifecycles in flags
