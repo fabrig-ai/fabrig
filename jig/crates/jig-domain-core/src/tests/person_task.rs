@@ -139,8 +139,7 @@ fn only_the_payer_can_read_its_account_wait_in_the_task_document() {
     );
 }
 
-#[test]
-fn a_deployment_owner_can_read_a_persons_task_without_being_offered_an_act() {
+fn owner_fixture() -> (Core, Env<Limits>) {
     let (mut core, env) = fixture();
     people::step(
         &mut core.people,
@@ -151,6 +150,12 @@ fn a_deployment_owner_can_read_a_persons_task_without_being_offered_an_act() {
         },
         &mut Queue::uncapped(),
     );
+    (core, env)
+}
+
+#[test]
+fn a_deployment_owner_can_read_a_persons_task_without_being_offered_an_act() {
+    let (mut core, env) = owner_fixture();
     let task = make_person(&mut core, &env);
     let document = task_document(&core, &env, task);
     assert!(!document.acts.is_empty(), "the document retains refused acts");
@@ -164,6 +169,25 @@ fn a_deployment_owner_can_read_a_persons_task_without_being_offered_an_act() {
             }
         }
     }
+}
+
+#[test]
+fn a_deployment_owner_cannot_send_words_to_a_persons_task() {
+    let (mut core, env) = owner_fixture();
+    let task = make_person(&mut core, &env);
+    let answer = core.person_message(
+        &env.limits,
+        PersonMessage {
+            request: Token::new(1),
+            person: PERSON,
+            project: PROJECT,
+            task,
+            question: None,
+            words: b"another word".as_slice().into(),
+            at: env.wall,
+        },
+    );
+    assert_eq!(answer, Err(people::Refusal::Role { held: Some(people::Role::Owner) }));
 }
 
 #[test]
