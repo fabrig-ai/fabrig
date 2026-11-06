@@ -391,7 +391,7 @@ SHEETS = [
 
 
 def sheet_metrics(tab):
-    return tab.js("""(()=>{let d=document.querySelector('dialog[open],[role=dialog]');if(!d)return null;let r=d.getBoundingClientRect(),s=getComputedStyle(d);return {rect:{x:r.x,y:r.y,width:r.width,height:r.height},margin:s.margin,title:d.getAttribute('aria-label')||d.querySelector('h1,h2,h3')?.innerText,text:d.innerText,buttons:[...d.querySelectorAll('button')].map(e=>({name:e.getAttribute('aria-label')||e.innerText,cls:e.className,background:getComputedStyle(e).backgroundColor,color:getComputedStyle(e).color}))}})()""")
+    return tab.js("""(()=>{let d=document.querySelector('dialog[open],[role=dialog]');if(!d)return null;let r=d.getBoundingClientRect(),s=getComputedStyle(d);return {viewport:{width:innerWidth,height:innerHeight,clientWidth:document.documentElement.clientWidth},rect:{x:r.x,y:r.y,width:r.width,height:r.height},margin:s.margin,title:d.getAttribute('aria-label')||d.querySelector('h1,h2,h3')?.innerText,text:d.innerText,buttons:[...d.querySelectorAll('button')].map(e=>({name:e.getAttribute('aria-label')||e.innerText,cls:e.className,background:getComputedStyle(e).backgroundColor,color:getComputedStyle(e).color}))}})()""")
 
 
 def sheet_live(w,case,title,says,keep,does,opener):
