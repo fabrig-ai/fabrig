@@ -227,15 +227,9 @@
   - a phone hides the composer's hint, by the rule every session has there, where the request's page
     shows it.
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
-- **Not yet:** 3.5, *The try*: the view has no fact of a trial, so `model_check::trial`,
-  the one function `../draft/model-check.md`, 2 to 4, feeds, reads the host's check alone:
-  under way is the first step Running, and settled with no usable source the first step
-  Stopped, its why the host's; a usable account is its ticked line with no "answered in N s".
-  No page reaches Running past its first step, Answered, a sign-in's or a key's steps, a stop
-  at a later step, a stop with the account usable, or a reason with no act: each is drawn and
-  tested (`temper-client-view`'s `tests/model_check.rs`), with no gallery state. "Try again"
-  checks the host again. Home's line after a try that stopped and the same lines on an account's
-  row of the accounts page are not drawn: nothing reports a try once the person has left Ready.
+- **Not yet:** 3.5, *The try*: the gallery has no trial past the host's check on
+  Ready, and no `accounts-try-stopped` sample (`browser.md`, 7.2). The view's
+  tests draw those states; `home-try-stopped` draws Home's failed line.
 - **Design departs:** 3.5, *The try*, from the look request `model-check-pane` of 2026-11-06,
   each by the cut of its landing: the steps' list has hidden state words and its accessible name,
   as Forge's has, where the request's pages have the same words, because the terminal reads

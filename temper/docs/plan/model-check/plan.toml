@@ -1,0 +1,105 @@
+draft = "model-check"
+repo = "fabrig"
+sources = ["temper/docs/plan/model-check/inputs/request.md", "temper/docs/design/draft/model-check.md", "AGENTS.md", "DESIGN.md"]
+
+# One real turn through the path a chat takes, shown in the side pane. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "trial-charter"
+title = "Charter 10, a trial's, in the stock"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.4"
+
+[[part]]
+id = "trial-machine"
+title = "The trials' child: a row per account, what moves it, what ends it"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/trial.md, 3"
+
+[[part]]
+id = "trial-wire"
+title = "The trials on the forge's wire and the root's vocabulary, no behaviour"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/trial.md, 6"
+
+[[part]]
+id = "person-task"
+title = "jig: a person's task in no project, funded by their pool, in no list"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/authority.md, 6.1"
+
+[[part]]
+id = "trial-root"
+title = "The root runs a trial: its task, what ends it, its document, a restart"
+mode = "direct"
+needs = ["person-task", "trial-machine", "trial-wire", "trial-charter"]
+design = "temper/docs/design/domain/trial.md, 4"
+
+[[part]]
+id = "trial-facts"
+title = "The client keeps a person's trials for the session, and why a running one waits"
+mode = "direct"
+needs = ["trial-wire"]
+design = "temper/docs/design/domain/trial.md, 6"
+
+[[part]]
+id = "pane-feed"
+title = "Model's line reads the trial: its steps, its answer, its stop and why, Try again"
+mode = "direct"
+needs = ["trial-facts"]
+design = "temper/docs/design/domain/trial.md, 6.1"
+
+[[part]]
+id = "account-row"
+title = "An account's row on the accounts page holds the same lines"
+mode = "direct"
+needs = ["pane-feed"]
+design = "temper/docs/design/domain/trial.md, 6.2"
+
+[[part]]
+id = "home-line"
+title = "Home says a try that stopped, with Try again"
+mode = "direct"
+needs = ["pane-feed"]
+design = "temper/docs/design/domain/trial.md, 6.3"
+
+[[part]]
+id = "trial-start"
+title = "An account becoming usable starts its trial: the meeting point, and every world's fallout"
+mode = "direct"
+needs = ["trial-root", "trial-facts", "pane-feed"]
+design = "temper/docs/design/domain/trial.md, 6"
+
+[[part]]
+id = "trial-worlds"
+title = "The request's stories, joined: each step's failure, no model named, Home, a restart, no flash"
+mode = "direct"
+needs = ["trial-start", "account-row", "home-line"]
+design = "temper/docs/design/domain/trial.md, 6.1"
+
+[[part]]
+id = "trial-close"
+title = "The design says what stands: The try, the gallery, the draft's status"
+mode = "direct"
+needs = ["trial-worlds"]
+design = "temper/docs/design/domain/trial.md, 7"
+
+[[slice]]
+id = 1
+story = "One task of charter 10 can run for a person with no project, in no list, and each state of its trial has a row and a wire"
+parts = ["trial-charter", "trial-machine", "trial-wire", "person-task"]
+walk = false
+
+[[slice]]
+id = 2
+story = "On a real box with a good account, \"I've signed in\" goes on to Ready at once, and the side pane walks the steps to \"answered in N s\" with one real turn, in no list"
+parts = ["trial-root", "trial-facts", "pane-feed", "account-row", "home-line", "trial-start", "trial-worlds", "trial-close"]
+walk = true

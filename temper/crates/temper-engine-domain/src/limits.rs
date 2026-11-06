@@ -125,11 +125,11 @@ pub(crate) fn environment_core(env: &Env<Limits>) -> Env<jig_domain_core::Limits
 /// jig's `crates/jig-protocol-config/src/profile/small.rs` sets it until
 /// temper's configuration names its own (domain/root.md, 10).
 pub const FILL_MARK: u64 = 268_435_456;
-/// Streams use temper's client's own bound of 17, above jig's small
+/// Streams use temper's client's own bound of 19, above jig's small
 /// profile's 4 (`small.rs`, clients; protocol/configuration.md, 7).
-pub const WATCHES_PER_STREAM: u32 = 17;
+pub const WATCHES_PER_STREAM: u32 = 19;
 /// Views for one admitted stream; `views_for` scales both watch rooms.
-/// The deployment and one party each hold `streams` times 17 watches (protocol/configuration.md, 7).
+/// The deployment and one party each hold `streams` times 19 watches (protocol/configuration.md, 7).
 /// Live runs and provisional text retain jig's small profile's limits.
 pub const VIEWS: views::Limits = views::Limits {
     runs: 4,
@@ -464,6 +464,11 @@ fn brief_fetches(limits: &Limits) -> Option<u32> {
 }
 fn inbox_slots(limits: &Limits) -> Option<u32> {
     limits.tasks.tasks.checked_mul(2)?.checked_add(limits.tasks.inbox_messages)
+}
+
+/// The whole trials document fits the family's row bound (domain/trial.md, 3.1 and 6).
+pub(crate) fn trial_limits(limits: &Limits) -> temper_engine_domain_trials::Limits {
+    temper_engine_domain_trials::Limits { rows: crate::room::trial_rows(limits) }
 }
 
 #[cfg(test)]

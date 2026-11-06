@@ -29,6 +29,7 @@ fn a_lost_key_answer_replays_under_the_same_name_without_a_second_account() {
     accounts::event(&mut front, &mut root, act(Act::Submit { name: NAME }));
     let source = accounts::kept(&mut front);
     accounts::settle(&mut front, &mut root);
+    accounts::answer_trial(&mut front, &mut root);
     accounts::lost(&mut front, &mut root);
     let page = root.person().pages().connect_model().expect("account fixture state");
     assert_eq!(page.request.pending.as_ref().expect("account fixture state").outcome, Some(jig_client::Outcome::Lost));
@@ -116,6 +117,7 @@ fn a_sign_in_started_answer_is_followed_by_its_actual_end_on_the_accounts_watch(
         declined: false,
     }));
     accounts::settle(&mut front, &mut root);
+    accounts::answer_trial(&mut front, &mut root);
     let root = root.person();
     assert_eq!(
         root.pages().connect_model().expect("account fixture state").request.sign_in_state(root.client()),
@@ -148,6 +150,7 @@ fn a_client_shows_a_third_account_at_two_rows() {
         accounts::event(&mut front, &mut root, act(Act::Submit { name }));
         accounts::kept(&mut front);
         accounts::settle(&mut front, &mut root);
+        accounts::answer_trial(&mut front, &mut root);
     }
     accounts::event(&mut front, &mut root, d::Event::Went { place: d::Place::Address(d::Address::Accounts) }.into());
     let doc = d::pages::accounts::document(root.person().client()).expect("accounts document");

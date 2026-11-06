@@ -237,7 +237,7 @@ fn llm_document_checks() {
             "/cued",
             Value::Array(
                 (0..8)
-                    .map(|i| json!({"cue":i.to_string(),"turns":(0..8).map(|_|"x".repeat(4_024)).collect::<Vec<_>>()}))
+                    .map(|i| json!({"cue":i.to_string(),"turns":(0..8).map(|_|"x".repeat(8_500)).collect::<Vec<_>>()}))
                     .collect(),
             ),
             "otherwise: scripts past their joint byte bound\n",
@@ -283,6 +283,18 @@ fn llm_document_checks() {
     doc["key"] = json!("/".to_owned() + &"x".repeat(4095));
     doc["tls"] = json!({"root":"/".to_owned()+&"x".repeat(4095)});
     llm::Document::decode(&serde_json::to_vec(&doc).unwrap()).unwrap();
+}
+
+#[test]
+fn distinct_large_replies_fit_the_joint_script_bound() {
+    let mut doc = llm_document();
+    doc["asked"] = json!(
+        (1..=8)
+            .map(|number| json!({"cue":format!("reply {number}"),"turns":[format!("{} {number}", "word ".repeat(10_000))]}))
+            .collect::<Vec<_>>()
+    );
+    let bytes = serde_json::to_vec(&doc).expect("scripted replies");
+    llm::Document::decode(&bytes).expect("distinct replies below the joint script bound");
 }
 
 #[test]

@@ -35,6 +35,8 @@ enum Tools {
     Off,
     On,
     Spend(u64),
+    Trial,
+    TrialSelection,
 }
 #[must_use]
 pub fn small_rows_fixture(seed: u64) -> (Joint, Root) {
@@ -93,6 +95,97 @@ pub fn program_fixture(seed: u64) -> (Joint, Root) {
 pub fn empty_program_fixture(seed: u64) -> (Joint, Root) {
     without_deployment_account(program_fixture(seed))
 }
+/// Claude's welcome trial, with a connected forge and room for Create's project.
+#[must_use]
+pub fn trial_fixture(seed: u64) -> (Joint, Root) {
+    trial_root(seed, Tools::Trial)
+}
+/// Two program models with distinct providers, in the chat's selection order.
+#[must_use]
+pub fn trial_selection_fixture(seed: u64) -> (Joint, Root) {
+    trial_root(seed, Tools::TrialSelection)
+}
+fn trial_root(seed: u64, tools: Tools) -> (Joint, Root) {
+    let (mut front, mut root) = fixture_root(seed, tools, 2, None, false, WelcomeForge::Connected, true);
+    event(&mut front, &mut root, Temper::went(temper_client_domain::Address::Accounts));
+    let (mut front, mut root) = without_deployment_account((front, root));
+    front.deployment = (true, true);
+    front.engine.send(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Connection {
+        forge: 1,
+        state: temper_engine_domain_forge::Connection::Connected { id: 1, login: b"temper".as_slice().into() },
+    })));
+    settle(&mut front, &mut root);
+    (front, root)
+}
+
+/// Cold restart on the account world's configuration and committed store.
+pub fn restart_trial(front: &mut Joint, root: &mut Root) {
+    let logins: Box<[_]> = temper_client_domain::pages::accounts::document(root.person().client())
+        .expect("account fixture document")
+        .accounts
+        .iter()
+        .flat_map(|account| account.sources.iter())
+        .filter(|source| source.kind == jig_client::contract::AccountKind::Program)
+        .map(|source| jig_domain_link::Login {
+            name: jig_domain_link::SourceName::new(source.name.as_deref().expect("program name")).expect("source name"),
+            state: jig_domain_link::LoginState::Usable,
+        })
+        .collect();
+    let config = front.trial_config.take().expect("trial fixture configuration");
+    front.trial_config = Some(temper_engine_domain_world::oracle::config::copy(&config));
+    // The standalone worker dies with its engine.
+    front.hosting.clear();
+    let limits = front.engine.env.limits;
+    let mut hello = Joint::worker_hello(&config, &limits, limits.fleet.slots, false);
+    let channel = skein_lib::Token::new(8);
+    if let engine::Event::Worker(engine::WorkerInput::Link { channel: at, .. }) = &mut hello {
+        *at = channel;
+    }
+    let store = front.engine.take_store();
+    front.engine = temper_engine_domain_world::direct::Driver::with_repositories(
+        store,
+        [temper_engine_domain_world::oracle::config::copy(&config), config],
+        &limits,
+        fixtures::REPOSITORIES,
+    );
+    front.engine.pump();
+    front.engine.send(hello);
+    // The direct world's default worker has no logins. This story's restarted
+    // worker answers each source inventory with the private logins it still holds.
+    for _ in 0..200 {
+        for event in &mut front.engine.events {
+            if let engine::Event::Worker(engine::WorkerInput::Link {
+                link: engine::Link::Up { up: jig_domain_host::LinkUp::Logins { logins: observed }, .. },
+                ..
+            }) = event
+            {
+                observed.clone_from(&logins);
+            }
+        }
+        front.engine.advance(true);
+    }
+    front.engine.send(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Connection {
+        forge: 1,
+        state: temper_engine_domain_forge::Connection::Connected { id: 1, login: b"temper".as_slice().into() },
+    })));
+    front.settle();
+    front.reads = 0;
+    front.read_loads.clear();
+    front.drop_watches();
+    settle(front, root);
+    elapse(front, root, Duration::from_millis(100));
+}
+
+/// Advance the world's clock and deliver the client's due continuations.
+pub fn elapse(front: &mut Joint, root: &mut Root, span: Duration) {
+    front.advance(front.now.saturating_add(span));
+    let env = Env { now: front.now, wall: front.engine.env.wall, limits: front.limits };
+    let mut out = Queue::uncapped();
+    Temper::fire(root, &env, &mut out);
+    flush(front, root, &env, &mut out, &mut Vec::new());
+    settle(front, root);
+}
+
 /// Supply the configured worker's observation of the explicit check it received.
 pub fn program_checked(front: &mut Joint, root: &mut Root, usable: bool) {
     use jig_domain_host::LinkUp;
@@ -129,14 +222,36 @@ pub fn program_checked(front: &mut Joint, root: &mut Root, usable: bool) {
     front.engine.settle();
     settle(front, root);
 }
+
+/// Settle the welcome's trial before a story scripts its own worker attempt
+/// (temper/docs/design/domain/trial.md, 2; temper/docs/design/domain/testing.md, 6.3).
+pub fn answer_trial(front: &mut Joint, root: &mut Root) {
+    settle(front, root);
+    let tasks: Vec<_> = root
+        .person()
+        .forge()
+        .trials()
+        .iter()
+        .filter(|row| row.state == temper_client_domain::forge::trials::State::Running)
+        .filter_map(|row| row.task)
+        .collect();
+    for task in tasks {
+        let attempt = front.hosted_attempt(task).expect("trial reached its scripted worker");
+        let read = front.engine.task(task).expect("trial task").inbox.last().map(|message| message.number);
+        front.finish_reply(task, attempt, read, Some(b"Yes"));
+        settle(front, root);
+    }
+}
 #[must_use]
 pub fn empty_fixture(seed: u64) -> (Joint, Root) {
     without_deployment_account(fixture(seed))
 }
-/// A `ChatGPT` sign-in with no configured model already usable.
+/// An empty first run offering a `ChatGPT` sign-in, with no kept forge or usable model.
 #[must_use]
 pub fn empty_plan_fixture(seed: u64) -> (Joint, Root) {
-    without_deployment_account(plan_fixture(seed))
+    let (mut front, mut root) = fixture_root(seed, Tools::Off, 2, None, true, WelcomeForge::Empty, false);
+    event(&mut front, &mut root, Temper::went(temper_client_domain::Address::Accounts));
+    without_deployment_account((front, root))
 }
 fn without_deployment_account((mut front, mut root): (Joint, Root)) -> (Joint, Root) {
     use temper_client_domain::pages::{
@@ -194,9 +309,11 @@ fn fixture_root(
 ) -> (Joint, Root) {
     let spend = match tools {
         Tools::Spend(spend) => Some(spend),
-        Tools::Off | Tools::On => None,
+        Tools::Off | Tools::On | Tools::Trial | Tools::TrialSelection => None,
     };
-    let tools = tools != Tools::Off;
+    let selection_story = tools == Tools::TrialSelection;
+    let trial_story = matches!(tools, Tools::Trial | Tools::TrialSelection);
+    let tools = matches!(tools, Tools::On | Tools::Spend(_));
     let welcome = forge != WelcomeForge::None;
     let forge_setup = matches!(forge, WelcomeForge::Owned | WelcomeForge::Playground { .. });
     let mut limits = if tools { temper_client_tools::limits::client() } else { fixtures::domain_limits() };
@@ -205,10 +322,29 @@ fn fixture_root(
     }
     let [(bootstrap, engine_limits), (config, _)] = std::array::from_fn(|index| {
         let mut config = walking::config(seed);
+        if trial_story {
+            config.core.workers_in_process = true;
+        }
+        // The joined world's worker scripts trials through the same model as its chats (domain/trial.md, 2).
+        let mut trial = walking::charter();
+        trial.number = 10;
+        trial.policy.turns = 2;
+        trial.policy.inspect = false;
+        trial.policy.modify = false;
+        trial.policy.shell = false;
+        trial.policy.agents = false;
+        trial.policy.tools = jig_domain_tasks::Tools(0);
+        config.core.defaults.charters = Box::new([walking::charter(), trial]);
         config.core.settings.llm_providers = a::Providers {
             providers: Box::new([a::Provider {
                 number: PROVIDER,
-                name: Box::from(if plan { b"openai".as_slice() } else { b"Scripted".as_slice() }),
+                name: Box::from(if trial_story {
+                    b"anthropic".as_slice()
+                } else if plan {
+                    b"openai".as_slice()
+                } else {
+                    b"Scripted".as_slice()
+                }),
                 signed_in_plan: plan,
                 manage_usage: None,
                 models: Box::new([Box::from(b"scripted".as_slice())]),
@@ -236,6 +372,31 @@ fn fixture_root(
             config.core.settings.llm_providers.providers.get_mut(0).expect("fixture provider").models =
                 Box::new([Box::from(b"scripted".as_slice()), Box::from(b"effort-model".as_slice())]);
         }
+        if program {
+            for charter in &mut config.core.defaults.charters {
+                charter.policy.model.program = Some(b"claude_code".as_slice().into());
+            }
+            for model in &mut config.core.settings.models {
+                model.program = Some(b"claude_code".as_slice().into());
+            }
+        }
+        if selection_story {
+            config.core.settings.models[0].program = None;
+            for charter in &mut config.core.defaults.charters {
+                charter.policy.model.program = None;
+            }
+            let mut model = config.core.settings.models[0].clone();
+            model.name = b"second-scripted".as_slice().into();
+            model.program = Some(b"claude_code".as_slice().into());
+            config.core.settings.models = Box::new([config.core.settings.models[0].clone(), model.clone()]);
+            config.core.defaults.charters[1].policy.alternatives = Box::new([model]);
+            let mut provider = config.core.settings.llm_providers.providers[0].clone();
+            provider.number = PROVIDER + 1;
+            provider.name = b"Second".as_slice().into();
+            provider.models = Box::new([b"second-scripted".as_slice().into()]);
+            config.core.settings.llm_providers.providers =
+                Box::new([config.core.settings.llm_providers.providers[0].clone(), provider]);
+        }
         if let Some(spend) = spend {
             let policy = &mut config.core.seed_projects[0].policy.policy;
             policy.roles[0].period_spend = spend;
@@ -254,8 +415,11 @@ fn fixture_root(
             fake: Some(place.clone()),
             github: place,
         });
+        config.core.connectors = Box::new([fixtures::FORGE]);
+        for permission in &mut config.core.seed_projects[0].policy.permissions {
+            permission.connector = fixtures::FORGE;
+        }
         if welcome {
-            config.core.connectors = Box::new([fixtures::FORGE]);
             config.forges = Box::new([temper_engine_domain_forge::Configured {
                 admin_connect: false,
                 bot: Box::new([]),
@@ -277,6 +441,7 @@ fn fixture_root(
             config.forges = Box::new([]);
         }
         let mut engine_limits = engine_limits();
+        engine_limits.tasks.charters = 2;
         // Restore one deployment account and leave the requested room for party accounts.
         engine_limits.documents.lines = engine_limits.documents.lines.max(own_accounts);
         engine_limits.accounts.accounts = own_accounts + 1;
@@ -287,13 +452,25 @@ fn fixture_root(
         // Each extra grant adds one entry to each of the four fleet routing cohorts.
         engine_limits.journal.writes =
             engine_limits.journal.writes.checked_add((engine_limits.fleet.grants - 2) * 4).expect("grant cohorts fit");
-        if forge == WelcomeForge::Owned || matches!(forge, WelcomeForge::Empty) {
+        if trial_story || forge == WelcomeForge::Owned || matches!(forge, WelcomeForge::Empty) {
             super::first_run_projects(&mut config, &mut engine_limits);
+        }
+        if trial_story {
+            // A minute's trial outlives the small world's one-minute sign-in.
+            // Keep the person's session beyond this story's horizon.
+            engine_limits.people.sign_in_lifetime = Duration::from_secs(86_400);
+            // Declaration, verification, trial, Create and Home's keyed acts,
+            // with room for the retry before their retention ends.
+            engine_limits.people.requests = 12;
         }
         (config, engine_limits)
     });
+    let restart_config = trial_story.then(|| temper_engine_domain_world::oracle::config::copy(&config));
     let mut front =
         Joint::with_engine(seed, &limits, Store::with_limits(&engine_limits), [bootstrap, config], &engine_limits, 1);
+    front.trial_config = restart_config;
+    // A running trial keeps its deadline armed while the story plays the worker.
+    front.settles_with_a_deadline_armed = true;
     if forge_setup && !matches!(forge, WelcomeForge::Playground { .. }) {
         front.engine.send(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Connection {
             forge: 1,
@@ -410,7 +587,11 @@ fn settle_traced(front: &mut Joint, root: &mut Root, sent: &mut Vec<jig_client::
             flush(front, root, &env, &mut out, sent);
         }
     }
-    panic!("account root/front did not settle");
+    panic!(
+        "account root/front did not settle: page {:?}, trials {:?}",
+        root.person().pages().address(),
+        root.person().forge().trials()
+    );
 }
 pub fn lose_next(front: &mut Joint) {
     front.fault(front.now, FrontFault::NoAnswer);

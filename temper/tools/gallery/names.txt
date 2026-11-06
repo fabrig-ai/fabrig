@@ -179,6 +179,7 @@ home-ready
 home-refused
 home-skip-refused
 home-three-left
+home-try-stopped
 home-two-left
 home-with-goals
 inbox-empty

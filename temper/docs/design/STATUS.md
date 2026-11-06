@@ -69,6 +69,13 @@ them (`protocol/configuration.md`), and the walk that request ends
 with has not passed (`protocol/setup.md`). The box's hour-long Forgejo
 session, source-address refresh, refused public/sign-in pair, empty
 repository-name handling and Linux lifetime wrapper are built. The
+signed-in box also takes its late handover before connecting, and the
+story purse reads init's bare template. No results for the five
+`ui-restart-red` repair stories are supplied; the started cut alone
+uses a box without sign-in. A handover made by Forgejo restarting under
+a running serve stays deferred, and the live landing pair's setup-call
+counts disagree with its shared oracle (`protocol/setup.md`,
+`protocol/sign-in.md`, `domain/testing.md`). The
 combined default-runner, restart, moved-port and terminal-hangup walk
 has no outcome in the supplied inventory, and the real-box sign-in
 story awaits its after-landing run (`protocol/setup.md`,
@@ -117,9 +124,12 @@ browser, whose story A walks in the browser tier but not yet by hand
 commands and the baseline (`protocol/README.md`), and the release
 (`release.md`). Public pages use a plain column, a goal's spend alone, distinct
 endings and seven-digit commits; public records carry no forge addresses.
-Public history before publication, across a restart and from a stock queue
-is deferred, and the public geometry story's runtime check awaits the
-browser tier after landing (`client/browser.md`, `client/forge.md`).
+Ended-goal history before publication and across a restart is deferred, and
+the board says so; a stock queue's merges read as public landings within the
+landing log and jig's public index, including a pre-publication merge whose
+change is handed from a live goal. The public geometry story's runtime
+check awaits the browser tier after landing
+(`client/browser.md`, `client/forge.md`).
 The browser tier holds 17 tests, five past its cap, its CPU
 measured within its budget on the 12 without the call line's and the welcome's
 sign-in's, at 83.069911 of its 85 on a run of 13 with one red, a public project's
@@ -228,8 +238,9 @@ binary that runs it and has a Copy, but no browser test presses the Copy or sees
 named controls excepts a recommended choice's tag, departing from the request `ui-copy-once`; with no `HOME` and an XDG variable placing
 only some directories it names all three `TEMPER_` values; and
 `temper forge run`'s refusal and the terminal's `temper open` still say plain `temper` (`client/README.md`). The welcome's try of a model draws Model's line in
-Ready's pane over the host's check alone, no trial being built, and departs from the request
-`model-check-pane` in its list's words (`client/README.md`). A plan's sign-in opens a new tab while the page holds and
+Ready's pane from the host's check and then a trial through the worker and model, with
+its line on Accounts and, failed, on Home (`domain/trial.md`). The gallery lacks the
+account's stopped sample and Ready's trial states (`client/browser.md`). Model's line departs from the request `model-check-pane` in its list's words (`client/README.md`). A plan's sign-in opens a new tab while the page holds and
 moves on by itself, but only Chromium has run that, against a fake issuer, and no test has a slow sign-in move on after a
 hidden tab, or a paste's end on the welcome. It draws the waiting page of the request
 `sign-in-new-tab`; the page departs from the request in the terminal's words
@@ -338,6 +349,7 @@ Design documents:
 - [`domain/landing.md`](domain/landing.status.md)
 - [`domain/after-landing.md`](domain/after-landing.status.md)
 - [`domain/findings.md`](domain/findings.status.md)
+- [`domain/trial.md`](domain/trial.status.md)
 - [`domain/worker.md`](domain/worker.status.md)
 - [`domain/agent.md`](domain/agent.status.md)
 - [`domain/testing.md`](domain/testing.status.md)
@@ -376,6 +388,7 @@ Drafts:
 - [`draft/fetch-progress.md`](draft/fetch-progress.status.md)
 - [`draft/first-run-projects.md`](draft/first-run-projects.status.md)
 - [`draft/github.md`](draft/github.status.md)
+- [`draft/goal-as-designer.md`](draft/goal-as-designer.status.md)
 - [`draft/look-requests.md`](draft/look-requests.status.md)
 - [`draft/macos.md`](draft/macos.status.md)
 - [`draft/model-catalogue.md`](draft/model-catalogue.status.md)

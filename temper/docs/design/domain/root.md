@@ -56,7 +56,8 @@ temper-engine-domain                       the root: the journal, routing, trans
 │   ├── temper-engine-domain-forge-change  the change procedure and the landing queues
 │   ├── temper-engine-domain-forge-landing the landing by turn (landing.md)
 │   └── temper-engine-domain-forge-issues  the goals' issues
-└── temper-engine-domain-calendar          each project's funding period, renewed on a span (5.7)
+├── temper-engine-domain-calendar          each project's funding period, renewed on a span (5.7)
+└── temper-engine-domain-trials            a model's trials (trial.md)
 ```
 
 - **One connector, the forge.** Configuration names the core one
@@ -1044,7 +1045,7 @@ Startup also checks the seed policy after enforced landing requirements are join
   twice as many offers behind admitted work.
 - **The watches' rooms follow the streams:** the root's `streams` is
   `clients.streams`, and `core_limits` gives the views `streams` times
-  `WATCHES_PER_STREAM`, 17, one shipped client's bound, in all and to a
+  `WATCHES_PER_STREAM`, 19, one shipped client's bound, in all and to a
   party, above jig's profiles' 4 (`../protocol/configuration.md`, section
   7). The rest of the views'
   limits are jig's small profile's: 4 runs watched, 65,536 bytes of a

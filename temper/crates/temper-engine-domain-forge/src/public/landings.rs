@@ -55,6 +55,13 @@ impl Domain {
                 )
                 .ok()?;
         }
+        for (_, logged) in &self.queue_merges(ask, limits)? {
+            if landings.room() == 0 {
+                break;
+            }
+            let line = self.merge_line(logged, names)?;
+            landings.push(line).ok()?;
+        }
         let mut queues = self.public_queues(ask, limits)?;
         let mut made = List::with_capacity(l.public_landings_queues);
         while made.room() > 0 {
