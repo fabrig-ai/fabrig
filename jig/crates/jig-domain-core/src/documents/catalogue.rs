@@ -144,46 +144,68 @@ fn readiness(core: &Core, payer: tasks::Payer, provider: u32) -> (Readiness, boo
     let coverage = core.account_coverage(payer, None);
     let mut unknown = false;
     let mut refreshing = false;
-    let hosts = core.fleet.host_views();
     for model in &core.settings.models {
         if core.provider(model) != Some(provider) {
             continue;
         }
-        let candidates = core.accounts.candidates(
+        let (state, pending) = core.model_readiness(payer, coverage.as_slice(), model);
+        if state == Readiness::Usable {
+            return (Readiness::Usable, false);
+        }
+        unknown |= state == Readiness::Unknown;
+        refreshing |= pending;
+    }
+    (if unknown || refreshing { Readiness::Unknown } else { Readiness::Unavailable }, refreshing)
+}
+
+impl Core {
+    /// Whether `model` has an account usable for `payer`, on a connected host
+    /// (jig/docs/design/domain/accounts.md, 4.3).
+    pub(crate) fn model_readiness(
+        &self,
+        payer: tasks::Payer,
+        coverage: &[accounts::Coverage],
+        model: &crate::Model,
+    ) -> (Readiness, bool) {
+        let Some(provider) = self.provider(model) else { return (Readiness::Unavailable, false) };
+        let mut unknown = false;
+        let mut refreshing = false;
+        let hosts = self.fleet.host_views();
+        let candidates = self.accounts.candidates(
             crate::runs::coverage::payer(payer),
             provider,
             model.program.as_deref(),
             None,
             None,
-            coverage.as_slice(),
+            coverage,
         );
         if candidates.is_empty() {
-            continue;
+            return (Readiness::Unavailable, false);
         }
-        let mut facts = List::with_capacity(core.host_fact_capacity());
+        let mut facts = List::with_capacity(self.host_fact_capacity());
         for host in &hosts {
             if !host.connected || host.draining || host.slots == 0 {
                 continue;
             }
-            if host.kind == fleet::HostKind::Worker && core.fleet.awaiting_logins(host.channel) {
+            if host.kind == fleet::HostKind::Worker && self.fleet.awaiting_logins(host.channel) {
                 unknown = true;
                 continue;
             }
             let placement = fleet::PlacementConstraint { channel: host.channel, kind: host.kind };
-            if !core.fleet.supports(placement, &[crate::settings::fleet_needs::model(model)]) {
+            if !self.fleet.supports(placement, &[crate::settings::fleet_needs::model(model)]) {
                 continue;
             }
-            core.host_facts(placement, core.host_rule(placement), &mut facts);
+            self.host_facts(placement, self.host_rule(placement), &mut facts);
             for account in &candidates {
-                match core.accounts.select(
+                match self.accounts.select(
                     crate::runs::coverage::payer(payer),
                     provider,
                     model.program.as_deref(),
                     Some(*account),
                     None,
-                    coverage.as_slice(),
+                    coverage,
                     facts.as_slice(),
-                    core.run_now,
+                    self.run_now,
                 ) {
                     accounts::Selection::Chosen { .. } => return (Readiness::Usable, false),
                     accounts::Selection::Wait { why: accounts::WaitWhy::Host, .. } => unknown = true,
@@ -195,8 +217,8 @@ fn readiness(core: &Core, payer: tasks::Payer, provider: u32) -> (Readiness, boo
                 }
             }
         }
+        (if unknown || refreshing { Readiness::Unknown } else { Readiness::Unavailable }, refreshing)
     }
-    (if unknown || refreshing { Readiness::Unknown } else { Readiness::Unavailable }, refreshing)
 }
 
 pub(super) fn offers_bound(limits: &DocumentLimits) -> Option<u64> {

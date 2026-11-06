@@ -87,8 +87,17 @@ impl Snapshot {
 
     pub fn compare_answer(&self, index: usize, answer: Answer) {
         let (sign_in, read) = &self.queries[index];
-        let before = durable::answer(self.answers[index].clone());
-        let after = durable::answer(answer);
+        let mut before = durable::answer(self.answers[index].clone());
+        let mut after = durable::answer(answer);
+        for answer in [&mut before, &mut after] {
+            if let Answer::Document(document) = answer
+                && let core::documents::Document::Task(task) = document.as_mut()
+            {
+                // contract.md 5.1: an omitted choice derives from current accounts and hosts.
+                // compare_rows still compares the stored choice, including every named one.
+                task.llm = None;
+            }
+        }
         if before != after {
             assert_eq!(
                 before,

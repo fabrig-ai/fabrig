@@ -4,7 +4,6 @@
 Unlisted provisions have no known gap, including the saved-window load
 and unread-tail retry guard in 7.1 and 7.2.
 
-- **Not yet:** 7.1, step 1: a check takes no models for a task given none, whose Create has recorded them (accounts.md, 4.3).
 - **Not yet:** 2, 8: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the
   two-claim placement balance. 4.2, 5.3: the remaining point-load fences.

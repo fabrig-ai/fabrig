@@ -1,6 +1,5 @@
-//! The root gives each agent task that names no LLM choice its charter's default, recorded as
-//! given, keeps a given one, and refuses a task whose authority allows none of its charter's
-//! models (domain/tasks.md, section 3; owner's decision D5).
+//! The root keeps an omitted LLM choice omitted and a given one as given, and refuses a
+//! task whose authority allows none of its charter's models (domain/tasks.md, section 3).
 use crate::tests::*;
 
 const FUNDER: tasks::Funder = tasks::Funder::Period { project: 1, period: 1 };
@@ -14,7 +13,7 @@ fn chosen(effort: u8) -> tasks::LlmChoice {
 }
 
 #[test]
-fn members_and_template_members_naming_no_choice_take_their_charter_s_default() {
+fn members_and_template_members_naming_no_choice_keep_none() {
     let (core, _) = tree_core();
     let mut given = new_row(&core, 2, FUNDER, None);
     given.llm = Some(chosen(1));
@@ -28,10 +27,10 @@ fn members_and_template_members_naming_no_choice_take_their_charter_s_default() 
     let mut batch = [new_row(&core, 1, FUNDER, None), given, procedure];
     core.resolve_llm(&mut batch).unwrap();
     let [defaulted, given, procedure] = batch;
-    assert_eq!(defaulted.llm, Some(chosen(0)), "the charter's first model with its first effort");
+    assert_eq!(defaulted.llm, None, "the run check resolves an omitted choice");
     assert_eq!(given.llm, Some(chosen(1)), "a given choice is kept");
     assert_eq!(procedure.llm, None, "a procedure runs no model");
-    assert_eq!(procedure.recurring.unwrap().batch.first().unwrap().llm, Some(chosen(0)));
+    assert_eq!(procedure.recurring.unwrap().batch.first().unwrap().llm, None);
 }
 
 #[test]

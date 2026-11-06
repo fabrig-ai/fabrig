@@ -1957,7 +1957,7 @@ fn settings_task_document(world: &mut World, signed: u64, task: u64) -> document
 fn a_held_versions_documents_show_its_charter_and_nothing_once_released() {
     let (mut world, signed, goal) = held_run();
     let old_instructions = world.assigned.as_ref().expect("goal run").run.policy.instructions.clone();
-    let llm = fixtures::live_row(&world, goal).llm.clone();
+    let llm = settings_task_document(&mut world, signed, goal).llm;
     let mut charter = world.domain.settings().charter(1).expect("charter").clone();
     assert_eq!(charter.hosts, fleet::Kinds::Workers);
     charter.hosts = fleet::Kinds::Engine;
@@ -2040,7 +2040,7 @@ fn a_held_versions_documents_show_its_charter_and_nothing_once_released() {
     assert_eq!(document.settings, Some(documents::TaskSettings { task: 1, run: None, newest: 2 }));
     assert!(document.instructions.is_none());
     assert!(document.run_wait.is_none());
-    assert_eq!(document.llm, llm, "the LLM choice is retained task data");
+    assert_eq!(document.llm, None, "the released charter no longer resolves an omitted choice");
 }
 
 fn goal_description_review(world: &mut World, signed: u64, goal: u64) -> documents::Proposal {

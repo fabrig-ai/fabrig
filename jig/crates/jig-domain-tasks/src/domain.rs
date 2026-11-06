@@ -178,7 +178,7 @@ impl Domain {
             let incompatible = match models {
                 None => true,
                 Some(models) => match &row.llm {
-                    None => false,
+                    None => !crate::llm::any_allowed(models, row.authority.models),
                     Some(choice) => {
                         let mut fits = models.contains(&choice.main.model);
                         for model in &choice.subagents {
