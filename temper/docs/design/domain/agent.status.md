@@ -18,7 +18,6 @@ Section 8.1 has no gap in note-backed whole settings proposals and decided-call 
 Section 8.1 has no gap in discovery of project repository identities for
 charter documents.
 
-- **Not yet:** 4.3: a `read_compare` size refusal doesn't yet say that the commit ids were read and no other id helps, and still names a host answer bound to raise (`landing-fixes-3/compare-words`).
 - **Not yet:** 4.4: a verdict's follow-up tasks.
 - **Not yet:** 4.4: a change's `body` is still held to 1,024 bytes, and the coding and foreman charters don't yet say where a report goes (`landing-fixes-3/report-room`).
 - **Not yet:** 6: a receipt's words are held by tests alone (`a_landed_receipt_says_pushed_at_which_head_on_which_branch`, `temper-worker-domain/src/tests/entrance.rs`): no real run has read them, so whether a run that finds its checkout detached still takes a good delivery for a failure is unobserved. The request `landing-fixes` of 2026-11-06 has its proof in the next landing plan on a real deployment, and no record shows one.
