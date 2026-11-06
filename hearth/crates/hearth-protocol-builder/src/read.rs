@@ -464,12 +464,10 @@ impl Read {
 }
 
 pub(super) fn current(current: &mut Work) -> Option<&mut Read> {
-    match current {
-        Work::Git { mode, .. } => match mode {
-            Mode::Read(read) => Some(read),
-            Mode::Rev { .. } | Mode::Listing { .. } | Mode::Hunks { .. } => None,
-        },
-        Work::Call(_) | Work::Step(_) | Work::Idle | Work::Keeping(_) | Work::Resolving(_) => None,
+    let (_, mode) = current.git_mut()?;
+    match mode {
+        Mode::Read(read) => Some(read),
+        Mode::Rev { .. } | Mode::Listing { .. } | Mode::Hunks { .. } => None,
     }
 }
 

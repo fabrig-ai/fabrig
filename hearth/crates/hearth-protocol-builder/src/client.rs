@@ -86,10 +86,7 @@ impl Client {
         }
     }
     pub fn bound(&self) -> bool {
-        match self.output {
-            Held::Awaited => false,
-            Held::Open(_) | Held::Closing(_) | Held::Closed => true,
-        }
+        self.output != Held::Awaited
     }
     pub fn bind(&mut self, output: Token) {
         assert!(self.output.token().is_none(), "one client output");
@@ -240,10 +237,7 @@ impl Client {
     pub fn work_pending(&self) -> bool {
         !self.requests.is_empty()
             || !self.events.is_empty()
-            || match self.output {
-                Held::Open(_) => self.stream.finished(),
-                Held::Awaited | Held::Closing(_) | Held::Closed => false,
-            }
+            || (self.output.is_open() && self.stream.finished())
     }
     pub fn is_empty(&self) -> bool {
         self.stream.finished() && self.output.token().is_none() && self.stream.outcome().is_some()
@@ -279,14 +273,10 @@ impl Client {
             if self.stream.outcome().is_some() {
                 printer::down(&mut self.printer, env, printer::Request::Finish, &mut self.events, &mut self.requests);
             }
-        } else if self.stream.finished() {
-            self.output = match mem::replace(&mut self.output, Held::Closed) {
-                Held::Open(entity) => {
-                    below.push(Asked::Io(io::Request::Close { entity }));
-                    Held::Closing(entity)
-                }
-                output @ (Held::Awaited | Held::Closing(_) | Held::Closed) => output,
-            };
+        } else if self.stream.finished()
+            && let Some(entity) = self.output.request_close()
+        {
+            below.push(Asked::Io(io::Request::Close { entity }));
         }
     }
 }
