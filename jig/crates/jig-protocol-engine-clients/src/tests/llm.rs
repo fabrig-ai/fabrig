@@ -38,18 +38,26 @@ fn project(record: &w::Me, at: usize) -> w::MeProject {
 }
 
 #[test]
-fn me_lists_only_the_models_the_party_s_authority_allows_by_name() {
+fn me_lists_the_cores_offer_with_its_accounts_in_order() {
     let mut frame = fixtures::frame_two_projects();
-    frame.projects.get_mut(0).unwrap().models = jig_domain_authority::Models::Named(0b10);
-    frame.projects.get_mut(1).unwrap().models = jig_domain_authority::Models::ALL;
+    frame.projects.get_mut(0).unwrap().offer = skein_lib::List::from_boxed(Box::new([jig_domain_core::Offered {
+        model: 1,
+        accounts: skein_lib::List::from_boxed(Box::new([9, 7])),
+    }]));
+    frame.projects.get_mut(1).unwrap().offer = skein_lib::List::from_boxed(Box::new([
+        jig_domain_core::Offered { model: 0, accounts: skein_lib::List::from_boxed(Box::new([7])) },
+        jig_domain_core::Offered { model: 1, accounts: skein_lib::List::from_boxed(Box::new([9, 7])) },
+    ]));
     let record = translate::owner::frame(&frame, &fixtures::models(), &w::CEILINGS).unwrap();
     let some = project(&record, 0);
     assert_eq!(some.models().len(), 1);
     assert_eq!(some.models().get(0).unwrap().name(), b"quick");
+    assert_eq!(some.models().get(0).unwrap().accounts().as_slice(), [9, 7]);
     let all = project(&record, 1);
     assert_eq!(all.models().len(), 2);
     let careful = all.models().get(0).unwrap();
     assert_eq!(careful.name(), b"careful");
+    assert_eq!(careful.accounts().as_slice(), [7]);
     assert_eq!((careful.provider(), careful.window(), careful.output()), (&Some(3), 200_000, 32_000));
     assert_eq!(careful.efforts().len(), 2);
     assert_eq!(careful.efforts().get(0).unwrap().as_ref(), b"low");
@@ -75,8 +83,12 @@ fn a_template_s_and_a_task_s_choice_are_named_by_configuration() {
     let mut template = fixtures::template();
     template.llm = Some(choice());
     frame.projects.get_mut(0).unwrap().templates = skein_lib::List::from_boxed(Box::new([template]));
+    frame.projects.get_mut(0).unwrap().defaults = skein_lib::List::from_boxed(Box::new([(3, choice())]));
     let record = translate::owner::frame(&frame, &models, &w::CEILINGS).unwrap();
     let first = project(&record, 0);
+    let preview = first.defaults().get(0).unwrap();
+    assert_eq!(*preview.template(), 3);
+    assert_named(preview.choice());
     let bytes = skein_codec::piece::split(&mut Reader::new(first.templates())).unwrap().unwrap();
     let template = w::Template::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
     assert_named(template.llm().as_ref().unwrap());
