@@ -626,7 +626,6 @@ pub const ELEMENTS: &[(skein_ui::Owner, skein_ui::Role, Style, &str)] = &[
     (owner(), skein_ui::Role::Heading { level: 3 }, SHEET_FIELDSET, "legend"),
     (owner(), skein_ui::Role::Text, SHEET_MUTED, "small"),
     (owner(), skein_ui::Role::Region, ADMIN_FIRST, "fieldset"),
-    (owner(), skein_ui::Role::List, WELCOME_NUMBERED, "ol"),
     (owner(), skein_ui::Role::Slot, WELCOME_SPIN, "span"),
     (owner(), skein_ui::Role::Slot, WELCOME_OK, "span"),
     (owner(), skein_ui::Role::ChoiceGroup, WELCOME_START, "fieldset"),
@@ -654,8 +653,10 @@ pub const WELCOME_FORGE_STATUS: Style = Style { owner: owner(), token: 373 };
 pub const WELCOME_PANEL: Style = Style { owner: owner(), token: 365 };
 /// A Model sign-in’s note (client/README.md, 3.5).
 pub const WELCOME_AWAY: Style = Style { owner: owner(), token: 366 };
-/// The paste’s numbered instructions (client/README.md, 3.5).
-pub const WELCOME_NUMBERED: Style = Style { owner: owner(), token: 367 };
+/// The waiting note’s external link (client/README.md, 3.5).
+pub const WELCOME_AGAIN: Style = Style { owner: owner(), token: 447 };
+/// The waiting page’s folded paste (client/README.md, 3.5).
+pub const WELCOME_PASTE: Style = Style { owner: owner(), token: 448 };
 /// A Model panel’s full-width secret field (client/README.md, 3.5).
 pub const WELCOME_FIELD: Style = Style { owner: owner(), token: 368 };
 /// The welcome’s terminal command (client/README.md, 3.5).
@@ -1042,7 +1043,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-welcome-sep",
         b"temper-welcome-panel",
         b"temper-welcome-away",
-        b"temper-welcome-numbered",
+        b"temper-reserved-367",
         b"temper-welcome-field",
         b"temper-welcome-cmd",
         b"temper-welcome-current",
@@ -1122,6 +1123,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-decision-why",
         b"temper-decision-late",
         b"temper-decision-overturned",
+        b"temper-welcome-again",
+        b"temper-welcome-paste",
         b"temper-welcome-check",
         b"temper-welcome-check-stopped",
         b"temper-welcome-check-failed",
@@ -1291,10 +1294,10 @@ pub const DECISION_LATE: Style = Style { owner: owner(), token: 445 };
 pub const DECISION_OVERTURNED: Style = Style { owner: owner(), token: 446 };
 
 // The try’s status box (temper/docs/design/client/README.md, 3.5).
-pub const WELCOME_CHECK: Style = Style { owner: owner(), token: 447 };
-pub const WELCOME_CHECK_STOPPED: Style = Style { owner: owner(), token: 448 };
-pub const WELCOME_CHECK_FAILED: Style = Style { owner: owner(), token: 449 };
-pub const WELCOME_CHECK_WHY: Style = Style { owner: owner(), token: 450 };
+pub const WELCOME_CHECK: Style = Style { owner: owner(), token: 449 };
+pub const WELCOME_CHECK_STOPPED: Style = Style { owner: owner(), token: 450 };
+pub const WELCOME_CHECK_FAILED: Style = Style { owner: owner(), token: 451 };
+pub const WELCOME_CHECK_WHY: Style = Style { owner: owner(), token: 452 };
 
 /// The browser's person menu (client/README.md, 5.3).
 pub const RAIL_PERSON: Style = Style { owner: owner(), token: 451 };

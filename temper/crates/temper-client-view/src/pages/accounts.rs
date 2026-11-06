@@ -498,7 +498,6 @@ pub(super) fn key_field(
     }
     b.close();
 }
-#[expect(clippy::too_many_lines, reason = "one request outcome includes its sign-in address and shared paste")]
 pub(super) fn outcome(
     b: &mut Builder,
     root: &Domain,
@@ -580,26 +579,12 @@ pub(super) fn outcome(
         }
     }
     if let Some(address) = form.sign_in_address(root.client()) {
-        let elsewhere = match root.pages().connect_model() {
-            Some(page) => page.elsewhere(),
-            None => false,
-        };
-        if !elsewhere {
-            text(b, w, Role::Paragraph, W::Address);
-        }
+        text(b, w, Role::Paragraph, W::Address);
         if skein_ui::markdown::safe_url(address) {
-            let label = if elsewhere {
-                named(w, W::OpenPlanSignIn, paste_plan(root, form))
-            } else {
-                words::say(w, W::OpenSignIn, &[])
-            };
+            let label = words::say(w, W::OpenSignIn, &[]);
             let bytes = skein_lib::len_u64(label.len()).saturating_add(skein_lib::len_u64(address.len()));
             if bytes <= u64::from(text_per_node) {
                 b.open(Role::Link);
-                if root.pages().connect_model().is_some() {
-                    b.style(look::FLOW_QUIET);
-                    b.style(look::MODEL_SIGN_IN);
-                }
                 b.text(Run::Plain, &label);
                 b.external(address);
                 b.close();
@@ -611,12 +596,11 @@ pub(super) fn outcome(
         } else {
             text(b, w, Role::Alert, W::UnsafeAddress);
         }
-        paste(b, root, w, bindings, form, !elsewhere);
+        paste(b, root, w, bindings, form, true);
     } else if form.paste_state(root.client()) == accounts::PasteState::Ended {
         paste(b, root, w, bindings, form, false);
     } else if form.returned() && form.paste_state(root.client()) != accounts::PasteState::Closed {
         // A departed sign-in's address come back to by hand while it still waits (client/README.md, 5.5).
-        text(b, w, Role::Paragraph, W::PasteHistory);
         paste(b, root, w, bindings, form, false);
     }
 }
@@ -879,7 +863,7 @@ fn paste_restart(
     };
     named_control(b, bindings, &super::connect_model::label(me, way, &ways, w), meaning, false, false);
 }
-/// The wrapper is separate so the elsewhere entry point reuses the same body.
+/// The sign-in’s paste, folded while a model connection waits (client/README.md, 3.5).
 pub(super) fn paste(
     b: &mut Builder,
     root: &Domain,
@@ -895,9 +879,9 @@ pub(super) fn paste(
         b.open(Role::Disclosure);
         if root.pages().connect_model().is_some() {
             b.style(look::MODEL_SIGN_IN);
+            b.style(look::WELCOME_PASTE);
         }
         b.name(&words::say(w, W::PasteDisclosure, &[]));
-        text(b, w, Role::Paragraph, W::PasteHistory);
     }
     paste_body(b, root, w, bindings, form);
     if folded {
@@ -923,8 +907,8 @@ fn paste_body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings
     if paste_ending(b, root, w, bindings, form) {
         return;
     }
-    paste_field(b, root, w, bindings, form, false);
-    paste_finish(b, root, w, bindings, form, false);
+    paste_field(b, root, w, bindings, form, root.pages().connect_model().is_some());
+    paste_finish(b, root, w, bindings, form, root.pages().connect_model().is_some());
 }
 /// Draws a paste’s ending or refusal, and reports whether its field is gone (3.5).
 pub(super) fn paste_ending(
@@ -978,9 +962,6 @@ pub(super) fn paste_field(
     let state = form.paste_state(root.client());
     if let Some(binding) = bindings.insert(Meaning::SignInAddress) {
         b.open(Role::TextField);
-        if root.pages().connect_model().is_some() {
-            b.style(look::FLOW_FIELD);
-        }
         b.name(&if welcome {
             w.say(crate::words::Word::WelcomePasteField, &[])
         } else {
