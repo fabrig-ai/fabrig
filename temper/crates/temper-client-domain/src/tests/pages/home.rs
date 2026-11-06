@@ -364,7 +364,15 @@ fn the_first_project_repository_uses_forge_then_repository_order() {
     );
     assert_eq!(
         forge::listed::held(f.root.forges(), None, f::PROJECT),
-        forge::listed::Held::Several { owner: b"work", name: b"first", more: 2 }
+        forge::listed::Held::Several {
+            forge: match f.root.forges() {
+                forge::forges::State::Rows(rows) => rows.first(),
+                forge::forges::State::Unknown | forge::forges::State::Ended => None,
+            },
+            owner: b"work",
+            name: b"first",
+            more: 2
+        }
     );
 }
 #[test]
@@ -519,7 +527,7 @@ fn playground_repository_comes_from_its_own_read() {
     for state in [forge::forges::State::Unknown, forge::forges::State::Ended] {
         assert_eq!(
             forge::listed::held(&state, Some(&playground), f::PROJECT),
-            forge::listed::Held::One { owner: b"playground", name: b"widget" }
+            forge::listed::Held::One { forge: None, owner: b"playground", name: b"widget" }
         );
     }
 }

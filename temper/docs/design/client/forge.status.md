@@ -2,7 +2,6 @@
 
 2026-11-06. Where temper's code lags or departs from [forge.md](forge.md).
 
-- **Not yet:** 5.4, *A repository's link*: not drawn anywhere yet (the request `ui-repo-link`).
 - **Not yet:** 5.4, *A box's Forgejo that can't sign in through temper*: no such line (the request `ui-repo-link`).
 - **Not yet:** 2.1: "in GitHub's merge queue, n": `Pull.queued` is not
   read (`../domain/forge.md`, 9.1). 2.3:
