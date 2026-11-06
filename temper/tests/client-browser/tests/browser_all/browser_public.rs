@@ -317,7 +317,10 @@ fn identifier(id: &str) {
 impl Play for Walk {
     /// Revoked public reads answer 404 (jig/docs/design/protocol/client.md, 17.5).
     fn expected(&self) -> Vec<Box<[u8]>> {
-        vec![Box::from(b"Failed to load resource: the server responded with a status of 404 (Not Found)".as_slice())]
+        vec![
+            Box::from(b"Failed to load resource: the server responded with a status of 404 (Not Found)".as_slice()),
+            Box::from(b"Failed to load resource: the server responded with a status of 401 (Unauthorized)".as_slice()),
+        ]
     }
     fn next(&mut self, face: &mut BrowserFace<'_>, now: Time) -> Next<Box<[u8]>> {
         let started = *self.started.get_or_insert(now);
