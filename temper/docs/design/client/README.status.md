@@ -253,15 +253,23 @@
   the target, draw only "Accept" and "Change something", so no Reject is drawn, and a person rejects on
   the card in *Needs you*. A Reject's ask from that card goes under the proposal's own `project` all the
   same, and only the client's world sends it, by the act (section 11, *A Reject on a chat's card*).
-- **Not yet:** 5.15: no walk on record reads a long chat by its log's edges on a box, the plan
-  `chat-reading-c` having `walk = false` for the user to read it on a real chat. On the
-  `ui-walk-3` walk of 2026-11-06, before that plan landed, a long chat's first earlier read, by the
-  "Older" since gone, stayed "Loading earlier messages" for the 40 seconds watched, at 1280x720 and
-  1000x600: a fresh fake box, 66 messages of 24 sentences through ctl, the chat reopened through
-  Chats, six of four sentences through the composer, then the top and one press. Its cause is
-  unknown, and so is whether it stands: `temper/tests/client/tests/suite/reading.rs` and
-  `browser_pages`'s `a_long_chat_opens_at_its_end_and_reads_back_from_the_composer` read a long chat
-  back on histories of their own, and no test repeats that one.
+- **Not yet:** 5.4, 5.15: no manual proof on record shows long messages reading
+  whole and the over-bound composer in a browser and a real terminal. The request
+  `long-words` leaves that proof after landing and adds no browser story because
+  the tier is over budget. The joined client's world now reads 66 messages of
+  538 and 1,149 bytes through the real engine and link on a chat and an agent's
+  page (`sixty_six_long_messages_read_to_their_start`,
+  `an_agents_page_reads_long_lines_through_older`); a fresh walk of the reported
+  browser history remains unrecorded. The decoder's 512-byte field bound and a
+  malformed answer treated as unreachable account for that chain, so its cause
+  is no longer unknown.
+- **Design departs:** 5.4, from the request `long-words` of 2026-11-06, by its
+  plan's cut: an edit past `long_text`, 131,072 bytes, keeps only its UTF-8 prefix
+  and the count of characters beyond it in the domain (`pages/composer.rs`,
+  `held`). A mounted browser field keeps the full edit until its value count
+  changes; a new drawing and the terminal have only the prefix, where the request
+  has nothing typed dropped or kept stale. The cut bounds the client's kept edit;
+  section 11 keeps retaining the whole beyond that bound open.
 - **Departs:** 5.15, *While a read is out*: a read that failed with the person at the head is not
   tried again on a move back within one and a half screens (skein's `ui-web.status.md`, 7).
 - **Not yet:** 3.5, *A chat's bar*: on that walk "Start goal…" went once from a first
