@@ -1175,6 +1175,11 @@ host:
   though a note now holds it, built by line ranges (jig's `domain/engine.md`,
   section 10). Naming a note there is left to a plan of its own (the request
   `note-parts` of 2026-11-05). Default: a value fits one call.
+- **A working note in a chat's own scope** (8.3): an agent's note beside its
+  document, its description beginning "work:", not drawn, in which a configuring
+  chat would keep a settings value, as the answer of 2026-11-05 to the `ui-chat-draft`
+  task `document-pane` has it. Default: as that request has it, every note there is
+  the document, the lowest numbered drawn, and no instruction writes a second.
 - **Who may name a plan's members of `change`:** the control family
   says it (4.3.1), since a plan's maker amends, cancels and releases what
   it makes. A family of its own would let a policy grant control without

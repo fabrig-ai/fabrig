@@ -1,6 +1,6 @@
 # notes-memory: status
 
-2026-11-05. Where the design lags or departs from [notes-memory.md](notes-memory.md).
+2026-11-06. Where the design lags or departs from [notes-memory.md](notes-memory.md).
 
 - **Design lags:**
   - 2: `../domain/engine.md`, section 10: an entry has no kind; the scopes are the deployment, a project, a goal (a chat's own among them) and a resource pattern, with no party and no task.
