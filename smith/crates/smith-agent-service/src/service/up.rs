@@ -6,6 +6,7 @@ use super::down::drain_facts;
 use super::routing::route_io_event;
 use super::teardown::Teardown;
 use super::{COMPONENT_TAG, Failure, Frame, Owner, PendingMessage, Stages, credential, face, program, teardown};
+use skein_io::file_layer::step;
 use skein_io::{self as io, file_layer, kernel};
 use skein_lib::{Id, Time, Token};
 use smith_domain::{self as domain, run};
@@ -15,6 +16,7 @@ use smith_protocol_machine as machine;
 
 #[expect(clippy::wildcard_enum_match_arm, reason = "only the external ReadSignal retains a signal read")]
 pub(super) fn io_up(service: &mut Stages, frame: Option<&mut Frame>) {
+    let env = &service.file_env;
     for _ in 0..service.completions.capacity() {
         let Some(complete) = service.completions.pop() else { break };
         service.in_flight = service.in_flight.checked_sub(1).expect("one completion per submitted operation");
@@ -25,7 +27,7 @@ pub(super) fn io_up(service: &mut Stages, frame: Option<&mut Frame>) {
             _ => service.signal_reads,
         };
         if file_layer::owns(complete.op) {
-            file_layer::up(&mut service.files, complete, &mut service.file_events, &mut service.file_submissions);
+            step::up(&mut service.files, env, complete, &mut service.file_events, &mut service.file_submissions);
         } else {
             service.io_completions.push(complete);
         }
@@ -41,7 +43,7 @@ pub(super) fn io_up(service: &mut Stages, frame: Option<&mut Frame>) {
         );
     }
     if service.files.is_due(service.io_env.now) {
-        file_layer::expire(&mut service.files, service.io_env.now, &mut service.file_submissions);
+        step::expire(&mut service.files, env, &mut service.file_submissions);
     }
 }
 
