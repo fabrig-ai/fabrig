@@ -243,8 +243,10 @@ fn an_owner_moves_running_work_through_the_client_and_hears_both_counts() {
     limits.client.domain.long_text = 4096;
     limits.client.domain.document_bytes = 1_048_576;
     let mut client = Client::unlinked(&limits.client, 8455).expect("public client");
-    let codec =
-        jig_protocol_transcript::Limits::new(1_048_576, c::TurnLimits { messages: 64, blocks: 16, text: 65_536 });
+    let codec = jig_protocol_transcript::Limits::new(
+        1_048_576,
+        c::TurnLimits { messages: 64, blocks: 16, text: 65_536, outcome: 65_536 },
+    );
     let mut session = Session::new(driver, limits, codec);
     session.bind(
         ClientId(0),

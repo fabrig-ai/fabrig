@@ -136,6 +136,41 @@ pub fn world_with_long_turns(seed: u64) -> World<Temper, Joint> {
     world_with(seed, Joint::with_long_turns(seed, &domain_limits()))
 }
 
+/// The shipped clients' whole-turn allowance, with a small world's row counts.
+#[must_use]
+pub fn world_with_whole_turns(seed: u64) -> World<Temper, Joint> {
+    let limits = whole_turn_limits();
+    world_with(seed, Joint::with_whole_turns(seed, &limits))
+}
+
+#[must_use]
+pub fn whole_turn_limits() -> Limits {
+    let mut limits = domain_limits();
+    limits.client.domain.long_text = 131_072;
+    limits.client.domain.turn_text = 131_072;
+    limits.client.domain.document_bytes = 1_048_576;
+    limits.client.domain.turn_bytes = 1_048_576;
+    limits.client.domain.requests.bytes = 4_194_304;
+    limits.client.domain.ask_bytes = 1_048_576;
+    limits
+}
+
+/// Start a person with the same whole-turn bounds at every client layer.
+pub fn whole_turn_client(world: &mut World<Temper, Joint>, task: u64) -> jig_client_kit::harness::ClientId {
+    let limits = whole_turn_limits();
+    world.front().next_client_limits(limits);
+    world.client_with(PARTY, chat_page(task), limits, whole_turn_root)
+}
+fn whole_turn_root(seed: u64) -> (crate::app::Root, crate::app::View) {
+    let limits = whole_turn_limits();
+    let words = phrasebooks(&limits);
+    let bounds = view_bounds(&limits, &words);
+    (
+        crate::app::Root::Person(Box::new(temper_client_domain::unlinked(&limits, seed))),
+        crate::app::View::Person(Box::new(view::View::new(&bounds, &limits, words, FORGE))),
+    )
+}
+
 /// Jig's referee checks decision text, independently of the application's view
 /// phrase shapes. Keep its complete jig vocabulary, replacing only the funding
 /// decision that temper renders differently. Held cards use the view's own book.
@@ -165,7 +200,7 @@ fn world_with(seed: u64, front: Joint) -> World<Temper, Joint> {
 pub fn codec() -> jig_protocol_transcript::Limits {
     jig_protocol_transcript::Limits::new(
         32768,
-        jig_client::contract::TurnLimits { messages: 32, blocks: 32, text: 8192 },
+        jig_client::contract::TurnLimits { messages: 32, blocks: 32, text: 8192, outcome: 8192 },
     )
 }
 
@@ -1116,7 +1151,12 @@ pub fn codec_for(limits: &jig_client::DomainLimits) -> jig_protocol_transcript::
     let bytes = limits.document_bytes.min(u64::from(jig_client_protocol_wire::CEILINGS.turn_carried_bytes));
     jig_protocol_transcript::Limits::new(
         u32::try_from(bytes).expect("wire bound fits"),
-        jig_client::contract::TurnLimits { messages: limits.rows, blocks: limits.rows, text: limits.turn_text },
+        jig_client::contract::TurnLimits {
+            messages: limits.rows,
+            blocks: limits.rows,
+            text: limits.turn_text,
+            outcome: limits.turn_text,
+        },
     )
 }
 /// Commit smith's session turn through the worker's real turn boundary.
@@ -1176,6 +1216,48 @@ pub fn large_turn_with_opaque(front: &mut Joint, task: u64, opaque: usize) -> (u
     front.engine.settle();
     (assignment.attempt, FIRST_REPLY_TURN)
 }
+/// Three named calls whose results together exceed the display budget.
+pub fn turn_with_large_results(front: &mut Joint, task: u64) {
+    use smith_domain_session::llm;
+    let mut turn = temper_worker_domain_world::protocol::session_turn(FIRST_REPLY_TURN, REPLY_SPEND, 0, true);
+    let mut calls = Vec::new();
+    let mut results = Vec::new();
+    for name in [b"first_call".as_slice(), b"second_call", b"third_call"] {
+        calls.push(llm::Block::ToolCall(llm::ToolCall {
+            id: name.into(),
+            name: name.into(),
+            input: Box::from(*b"{}"),
+            call: llm::Decoded::Historical,
+            replay: None,
+        }));
+        results.push(llm::Block::ToolResult {
+            id: name.into(),
+            result: llm::Returned::Text { text: vec![b'r'; 65_536].into_boxed_slice(), error: false, replay: None },
+        });
+    }
+    turn.messages = Box::new([
+        llm::Message { role: llm::Role::Assistant, content: calls.into_boxed_slice() },
+        llm::Message { role: llm::Role::User, content: results.into_boxed_slice() },
+    ]);
+    let body = smith_protocol_channel::encode_turn(
+        &turn,
+        &smith_transcript::CEILINGS,
+        &temper_worker_domain_world::protocol::endpoints(),
+    )
+    .expect("large results encode");
+    let assignment = front.engine.last_assignment();
+    front.engine.send(temper_engine_domain_world::protocol::turn(
+        QUESTION_WORKER,
+        task,
+        assignment.attempt,
+        FIRST_REPLY_TURN,
+        REPLY_SPEND,
+        None,
+        &body,
+    ));
+    front.engine.settle();
+}
+
 fn large_turn_body(opaque: usize) -> Box<[u8]> {
     use smith_domain_session::llm;
     let mut turn =

@@ -26,8 +26,8 @@ in `skein-playground`'s manifest (`playground.md`). An owner may ask a call
 to keep its rendered body (`llm.md`, `llm-connection.md`), and a world the
 fake LLM peer to keep what it read (`fake-llm.md`).
 `README.md`, `codec.md`, `world.md`, `fake-checkout.md`,
-`forge-client.md`, `oauth-issuer.md`, `browser.md`, `ui-text.md` and
-`ui-web.md` have no gap. The state machines of io's file store and
+`forge-client.md`, `oauth-issuer.md`, `browser.md` and `ui-text.md` have
+no gap. The state machines of io's file store and
 private opening, forge-connection, Forgejo's plans, the fake forge's
 connection, oauth and its accounts, llm,
 llm-connection and lib's `RequestTable` depart from
@@ -38,7 +38,7 @@ against `../foundation/programming-model.md`, 10.3, which awaits the user
 (`forge.md`); single departures stand in
 `channel.md`, `fake-forge.md`, `forge.md`, `forge-connection.md`, `io.md`,
 `json.md`, `kv.md`, `lib.md`, `link.md`, `llm.md`, `shell.md`,
-`testing.md` and `ui.md`. The foundation's rules (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
+`testing.md`, `ui.md` and `ui-web.md`. The foundation's rules (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
 tree runs transition coverage (`cargo llvm-cov`) or fuzzes a machine or
 a decoder (`cargo fuzz`). Of the drafts, `component-kit.md` waits on
 `lib.md` and `io.md` to name its items, the design departs from

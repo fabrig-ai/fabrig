@@ -78,6 +78,9 @@
       }
     }
   ],
+  "free": [
+    "project-questions"
+  ],
   "obligations": [
     {
       "id": "coordinator.instructions",
@@ -1078,6 +1081,22 @@
       },
       "member": "",
       "test": "only"
+    },
+    {
+      "id": "project.way",
+      "row": "the project's ways",
+      "kind": "setting",
+      "subject": {
+        "setting": {
+          "kind": "project-ways",
+          "project": "box"
+        }
+      },
+      "member": "way",
+      "test": "equal",
+      "value": {
+        "role": "goal-template"
+      }
     },
     {
       "id": "box.model.opus",
