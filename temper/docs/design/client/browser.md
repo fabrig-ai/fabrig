@@ -1401,7 +1401,7 @@ from the engine's own answers, is where the look is tuned.
 | `welcome-model-claude-not-yet` | the settled check without a usable login, its alert and another check |
 | `welcome-model-key-details` | the welcome's API key form, without an unsupported display-name field |
 | `welcome-model-connected` | a usable ChatGPT plan, its ticked status and Continue to Ready |
-| `welcome-model-away` | ChatGPT’s sign-in in this tab, its note and folded paste |
+| `welcome-model-away` | the page waiting for ChatGPT’s sign-in, its note, "Open it again" and folded paste |
 | `welcome-model-signing-in` | the same note while signing in to ChatGPT inside the welcome |
 | `welcome-model-signin-ready` | the connected state after signing in to ChatGPT |
 | `welcome-model-declined`, `welcome-model-renewed`, `welcome-model-refused` | the other sign-in endings inside the welcome |
