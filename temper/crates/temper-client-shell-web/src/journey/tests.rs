@@ -245,6 +245,30 @@ fn a_walk_is_its_acts_key_marks_and_end() {
     assert!(matches!(walk(&recording(&[])[..10]), Err(Unwalkable::Unreadable(_))));
 }
 #[test]
+fn a_walk_leaves_out_what_the_page_part_reports() {
+    let records = [
+        turn(0),
+        act(Act::Near { edge: skein_ui::LogEdge::Head }),
+        act(Act::Near { edge: skein_ui::LogEdge::Foot }),
+        Line::Deadline(None),
+    ];
+    assert_eq!(walk(&recording(&records)), Ok(vec![Step::End]));
+}
+#[test]
+fn a_page_parts_report_keeps_no_print_mark() {
+    let facts = facts();
+    let (_, page) = facts.start();
+    let mut recorder = Recorder::new(&facts);
+    recorder.turn(facts.now, facts.wall);
+    let act = Act::Near { edge: skein_ui::LogEdge::Head };
+    recorder.act(&page, &act, b"Event".as_slice().into(), b"Name".as_slice().into());
+    recorder.deadline(None);
+    let mut expected = lines(&Recorder::new(&facts).save(&page)).expect("facts");
+    let end = expected.pop().expect("end mark");
+    expected.extend([turn(0), self::act(act), Line::Deadline(None), end]);
+    assert_eq!(lines(&recorder.save(&page)).expect("page report"), expected);
+}
+#[test]
 fn a_drawing_is_not_walked_again() {
     let mut records = walk_records();
     records.extend([
@@ -262,6 +286,7 @@ fn a_moving_key_mark_is_not_walked_again() {
         (530, Line::Place(b"/".as_slice().into()), true),
         (531, Line::Heard(Heard::StreamOpened), false),
         (130, Line::Due, false),
+        (130, act(Act::Near { edge: skein_ui::LogEdge::Head }), true),
     ] {
         let mut records = walk_records();
         records.extend([turn(millis), report, Line::Deadline(None)]);
@@ -283,9 +308,11 @@ fn a_still_page_holds_from_save_to_save() {
 #[test]
 fn a_report_between_saves_is_not_still() {
     let earlier = recording(&walk_records());
-    let mut records = walk_records();
-    records.extend([turn(600), Line::Heard(Heard::StreamOpened), Line::Deadline(None)]);
-    assert_eq!(still(&earlier, &recording(&records)), Ok(false));
+    for report in [Line::Heard(Heard::StreamOpened), act(Act::Near { edge: skein_ui::LogEdge::Head })] {
+        let mut records = walk_records();
+        records.extend([turn(600), report, Line::Deadline(None)]);
+        assert_eq!(still(&earlier, &recording(&records)), Ok(false));
+    }
 }
 #[test]
 fn a_due_between_saves_is_still() {
