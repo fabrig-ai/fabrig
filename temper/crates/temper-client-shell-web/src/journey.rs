@@ -9,6 +9,7 @@ mod replay;
 mod walk;
 pub use line::{Line, Unreadable, lines};
 pub use record::Recorder;
+pub use replay::prove_drawn;
 pub use replay::{Mark, Refusal, Replay, Stale, prove};
 pub use walk::{Step, Unwalkable, differs, still, walk};
 #[cfg(test)]
