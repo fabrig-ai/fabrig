@@ -18,20 +18,37 @@ pub fn queued() -> Scenario<'static> {
 }
 
 /// Many more records than the held client's output and answer queues can take.
-pub const STUCK_TARGETS: u32 = 64;
+pub const STUCK_TARGETS: u32 = 16;
+// Shared entries make a queued spec large enough for the ceiling to detect
+// render running past the held output, with only sixteen targets.
+const STUCK_FILES: u32 = 32;
+// A 96-byte directory stays within the listing's 256-byte path limit.
+const DIRECTORY_REPEATS: usize = 16;
 #[must_use]
 pub fn stuck_limits() -> hearth::Limits {
     let mut limits = limits();
     limits.io.sends = 1;
     limits.domain.render.targets = STUCK_TARGETS;
-    // Six shared files and two host documents per target.
-    limits.protocol.git.entries = 6 + 2 * STUCK_TARGETS;
+    // Six thin files, two host documents per target, and the shared static files.
+    limits.protocol.git.entries = 6 + 2 * STUCK_TARGETS + STUCK_FILES;
     limits.protocol.git.paths_total = limits.protocol.git.entries * limits.protocol.git.path;
     limits
 }
 #[must_use]
 pub fn stuck() -> Scenario<'static> {
-    targets(STUCK_TARGETS)
+    // Shared static files enlarge each queued spec without repeating their
+    // contents in the revision or changing the small queued scenario.
+    let mut scenario = targets(STUCK_TARGETS);
+    let mut files = scenario.files.to_vec();
+    for file in 0..STUCK_FILES {
+        files.push(File {
+            path: format!("tasks/motd/tree/etc/{}/banner{file:02}", "shared".repeat(DIRECTORY_REPEATS)).leak(),
+            body: b"banner\n",
+            mode: 0o644,
+        });
+    }
+    scenario.files = files.leak();
+    scenario
 }
 
 fn targets(count: u32) -> Scenario<'static> {

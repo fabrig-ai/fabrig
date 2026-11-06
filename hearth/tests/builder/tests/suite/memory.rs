@@ -3,8 +3,8 @@ use hearth_builder_world::{fixtures, simulated};
 
 #[test]
 fn a_client_that_stops_reading_holds_render_under_its_ceiling() {
-    // Unmeasured: the client keeps reporting work while its output is held.
-    const CEILING: u64 = u64::MAX;
+    // A quarter above the measured 237,107-byte peak, rounded up to two significant digits.
+    const CEILING: u64 = 300_000;
     // Release at one second, before the shipped five-second append timeout.
     const RELEASE: skein_lib::Time = skein_lib::Time::from_nanos(1_000_000_000);
     let outcome = simulated::checked_stuck(&bounds::stuck(), bounds::SEED, bounds::stuck_limits(), CEILING, RELEASE);
