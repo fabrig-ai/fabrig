@@ -581,7 +581,7 @@ fn reference_person_defaults() -> jig_domain_core::settings::Defaults {
 
 fn reference_person_authority(authority: &mut jig_domain_authority::Authority) {
     use jig_domain_authority::Executor;
-    let recipe = include_str!("../../../../../docs/help/configure.md")
+    let recipe = include_str!("../../../../../docs/examples/reference/README.md")
         .split_once("cat > reference-authority.json <<'JSON'\n")
         .expect("recipe")
         .1
