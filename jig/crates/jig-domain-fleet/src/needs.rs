@@ -1,5 +1,5 @@
 //! Agent admission and model eligibility for configured charters (domain/engine.md, section 8).
-use crate::{Bounds, HostKind, Kinds};
+use crate::{Bounds, Figures, HostKind, Kinds};
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, length::len_u64};
 
@@ -119,6 +119,55 @@ pub fn shortfall(needs: &Needs, bounds: &Bounds, kind: HostKind) -> Option<Agent
         }
         if bounds.unacknowledged < needs.unacknowledged {
             return Some(AgentShortfall::Unacknowledged);
+        }
+    }
+    None
+}
+
+/// The amounts of a shortfall `shortfall` selected: None for `Model`, which
+/// has none, or a charter or model those needs and bounds do not hold.
+#[must_use]
+pub fn figures(needs: &Needs, bounds: &Bounds, why: AgentShortfall) -> Option<Figures> {
+    let amounts = match why {
+        AgentShortfall::Model { .. } => return None,
+        AgentShortfall::Window { charter, model } => return model_figures(needs, bounds, charter, model, false),
+        AgentShortfall::Output { charter, model } => return model_figures(needs, bounds, charter, model, true),
+        AgentShortfall::Turns { charter } => (u64::from(charter_need(needs, charter)?.turns), u64::from(bounds.turns)),
+        AgentShortfall::Time { charter } => (charter_need(needs, charter)?.time.as_millis(), bounds.time.as_millis()),
+        AgentShortfall::Waiting { charter } => {
+            (charter_need(needs, charter)?.waiting.as_millis(), bounds.waiting.as_millis())
+        }
+        AgentShortfall::Checks { charter } => {
+            (charter_need(needs, charter)?.change_reserve?.as_millis(), bounds.checks.as_millis())
+        }
+        AgentShortfall::Spend => (needs.spend, bounds.spend),
+        AgentShortfall::Message => (u64::from(needs.message_bytes), u64::from(bounds.message_bytes)),
+        AgentShortfall::Inbox => (u64::from(needs.start_messages), u64::from(bounds.inbox)),
+        AgentShortfall::Unacknowledged => (u64::from(needs.unacknowledged), u64::from(bounds.unacknowledged)),
+    };
+    Some(Figures { required: amounts.0, offered: amounts.1 })
+}
+
+#[expect(clippy::manual_find, reason = "step code scans without closures")]
+fn charter_need(needs: &Needs, number: u32) -> Option<&CharterNeeds> {
+    for charter in &needs.charters {
+        if charter.version.charter == number {
+            return Some(charter);
+        }
+    }
+    None
+}
+
+fn model_figures(needs: &Needs, bounds: &Bounds, charter: u32, model: u32, output: bool) -> Option<Figures> {
+    let charter = charter_need(needs, charter)?;
+    let need = charter.models.get(usize::try_from(model).ok()?)?;
+    for held in &bounds.models {
+        if held.name == need.name {
+            return Some(if output {
+                Figures { required: u64::from(need.output), offered: u64::from(held.output) }
+            } else {
+                Figures { required: u64::from(need.window), offered: u64::from(held.window) }
+            });
         }
     }
     None
