@@ -1,5 +1,6 @@
 //! Live pieces through the existing scripted agent and engine peers (hosts.md, 6.5 and 11).
-use jig_domain_host::{FromAgent, LinkUp, LiveAsk, LiveKind, Phase, Piece};
+use jig_domain_host::{FromAgent, LinkUp, LiveAsk, LiveKind, Piece};
+use jig_domain_link::Phase;
 use jig_host_world::turn_world::World;
 use skein_lib::{Token, length::len_u64};
 

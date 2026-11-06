@@ -1,3 +1,4 @@
+mod deadline;
 pub(crate) mod fixtures;
 use crate::{directory, limits};
 use skein_io::kernel::{Error, Exit, ServiceSignal};
@@ -206,7 +207,7 @@ fn an_unheard_read_exits_1_at_the_link_deadline() {
     let mut f = fixtures::Engine::read(&["me"]);
     f.drain();
     f.advance_past(limits::DEADLINE);
-    assert_eq!(f.stderr(), b"temper ctl: the engine at http://127.0.0.1:4000 did not answer within 30 s\n");
+    assert_eq!(f.stderr(), b"temper ctl: the engine at http://127.0.0.1:4000 did not answer a read within 30 s\n");
     assert_eq!(f.exit(), Some(Exit::Code(1)));
 }
 #[test]
@@ -696,7 +697,7 @@ fn adopt_is_an_act() {
     );
     f.sign_in_then_deliver_me();
     f.advance_past(crate::limits::DEADLINE);
-    assert_eq!(f.stderr(), b"temper ctl: the engine at http://127.0.0.1:4000 did not answer within 30 s\n");
+    assert_eq!(f.stderr(), b"temper ctl: the engine at http://127.0.0.1:4000 gave no outcome for this act within 30 s; it is kept, and the same --key may be tried again\n");
     assert_eq!(f.kept_records(), fixtures::local::ACT_WITH_STREAM);
     assert_eq!(f.locks, 1);
     assert_eq!(f.exit(), Some(Exit::Code(1)));
@@ -712,7 +713,7 @@ fn a_stopping_engine_exits_the_wait_only_at_the_link_deadline() {
         assert_eq!(
             f.stderr(),
             if expected.is_some() {
-                b"temper ctl: the engine at http://127.0.0.1:4000 did not answer within 30 s\n".as_slice()
+                b"temper ctl: the link to the engine at http://127.0.0.1:4000 did not come up within 30 s\n".as_slice()
             } else {
                 b""
             },
@@ -732,7 +733,10 @@ fn a_refused_reconnection_keeps_a_heard_wait_until_the_link_deadline() {
     f.advance_past(skein_lib::Duration::from_secs(28));
     assert_eq!(f.exit(), None);
     f.advance_past(skein_lib::Duration::from_secs(1));
-    assert_eq!(f.stderr(), b"temper ctl: the engine at http://127.0.0.1:4000 did not answer within 30 s\n");
+    assert_eq!(
+        f.stderr(),
+        b"temper ctl: the link to the engine at http://127.0.0.1:4000 did not come up within 30 s\n"
+    );
     assert_eq!(f.exit(), Some(Exit::Code(1)));
 }
 #[test]
@@ -1208,7 +1212,7 @@ fn a_change_wait_retries_not_ready_reads_to_the_link_deadline() {
     assert_eq!(f.stderr(), b"");
     f.advance_live(limits::native().root.domain.client.domain.backoff.first);
     assert_eq!(f.exit(), Some(Exit::Code(1)));
-    assert_eq!(f.stderr(), b"temper ctl: the engine at http://127.0.0.1:4000 did not answer within 30 s\n");
+    assert_eq!(f.stderr(), b"temper ctl: the engine at http://127.0.0.1:4000 did not answer a read within 30 s\n");
 }
 #[test]
 fn a_change_wait_rides_a_stopping_engine_to_its_timeout() {
@@ -1242,7 +1246,10 @@ fn a_stopping_engine_ends_a_change_wait_at_the_link_deadline() {
     assert_eq!(f.exit(), None);
     f.advance_past(limits::native().root.domain.client.domain.backoff.first);
     assert_eq!(f.exit(), Some(Exit::Code(1)));
-    assert_eq!(f.stderr(), b"temper ctl: the engine at http://127.0.0.1:4000 did not answer within 30 s\n");
+    assert_eq!(
+        f.stderr(),
+        b"temper ctl: the link to the engine at http://127.0.0.1:4000 did not come up within 30 s\n"
+    );
 }
 
 #[test]

@@ -2,7 +2,8 @@
 use crate::Core;
 use jig_domain_accounts as accounts;
 use jig_domain_accounts::{Holder, HostSource};
-use jig_domain_fleet::{HostKind, LoginState, PlacementConstraint};
+use jig_domain_fleet::{HostKind, PlacementConstraint};
+use jig_domain_link::LoginState;
 use skein_lib::List;
 
 /// One bounded fact per host, independent of any run or payer.

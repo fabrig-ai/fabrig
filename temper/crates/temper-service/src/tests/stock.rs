@@ -12,6 +12,7 @@ pub(super) fn generated() -> Box<[u8]> {
     use core::num::NonZeroU16;
     let answer = temper_init::files(
         &temper_init::Facts {
+            sign_in: false,
             binary: b"/bin/temper",
             git: Some(b"/bin/git"),
             claude: None,
@@ -294,7 +295,7 @@ fn the_configuring_agent_is_charter_3_and_template_3() {
     assert_eq!(defaults.charters[2], expected);
     assert!(!defaults.charters[2].policy.modify);
     assert!(!defaults.charters[2].policy.agents);
-    assert_eq!(defaults.charters[2].policy.instructions.len(), 5642);
+    assert_eq!(defaults.charters[2].policy.instructions.len(), 5826);
     assert_eq!(defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3]);
     let mut expected = defaults.templates[0].clone();
     expected.number = 3;
@@ -798,7 +799,13 @@ fn the_foremans_words_name_the_three_verdicts() {
     let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     let foreman = defaults.charters.iter().find(|charter| charter.number == 6).expect("foreman charter");
     let words = core::str::from_utf8(&foreman.policy.instructions).expect("foreman instructions");
-    for phrase in ["answer:", "finish:", "escalate:", "never edit, push or run anything"] {
+    for phrase in [
+        "answer:",
+        "finish:",
+        "escalate:",
+        "never edit, push or run anything",
+        "The producer finishes with form change, its report in the field body within its contract's bound; name no other form.",
+    ] {
         assert!(words.contains(phrase), "missing foreman instruction: {phrase}");
     }
 }
@@ -1031,13 +1038,13 @@ fn the_chats_words_route_repository_edits_through_change_and_wait_for_landing() 
 #[test]
 fn the_coders_words_name_which_task_is_its_change() {
     let words = include_str!("../stock/coding.txt");
-    assert!(words.contains("message your change only in the question form. Your change is the task your brief's [Requested by task N] line names, never [This task: N]."));
+    assert!(words.contains("Message your change only in the question form. Your change is the task your brief's [Requested by task N] line names, never [This task: N]."));
 }
 
 #[test]
 fn the_coders_words_put_its_report_in_finish() {
     let words = include_str!("../stock/coding.txt");
-    assert!(words.contains("Summarize the change in finish; message your change only in the question form."));
+    assert!(words.contains("Report in finish's body what your brief asks you to report, whole; with nothing asked, summarize the change there. If it can't fit the bound your contract names, that's no question: cut what can be read elsewhere, naming the file or test instead of quoting it, say under Left what you cut, and finish. Message your change only in the question form."));
 }
 
 #[test]
@@ -1268,9 +1275,25 @@ fn chat_txt_tells_a_chat_to_keep_one_document() {
 fn configuring_txt_says_nothing_has_changed_in_one_place() {
     let words = include_str!("../stock/configuring.txt");
     assert_eq!(words.matches("nothing has changed").count(), 1);
-    assert!(words.contains("only when you first give a proposal's number"));
+    assert!(words.contains("only when you first tell them of a proposal"));
     assert!(words.contains("Never before a proposal; never to close a reply."));
     assert!(words.contains("Say in one sentence what changed in it"));
+}
+
+#[test]
+fn configuring_txt_says_a_proposal_waits_for_an_accept_without_its_key() {
+    let words = include_str!("../stock/configuring.txt");
+    assert!(words.contains("waits in this chat for their Accept"));
+    assert!(words.contains("without its key"));
+    assert!(!words.contains("Give its number"));
+    assert!(!words.contains("awaits an owner"));
+}
+
+#[test]
+fn configuring_txt_names_a_repository_by_its_name() {
+    let words = include_str!("../stock/configuring.txt");
+    assert!(words.contains("name a repository by its name, never by an address or port"));
+    assert!(words.contains("ports too"));
 }
 
 #[test]

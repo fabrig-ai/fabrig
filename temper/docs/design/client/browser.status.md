@@ -2,6 +2,9 @@
 
 2026-11-06. Where temper's code lags or departs from [browser.md](browser.md).
 
+- **Not yet:** 8.4: the retained public row geometry story at 1440 px and 420 px
+  is compiled. Its runtime red and green await the browser tier after landing;
+  the incompatible plan-row placement is the repair's red-first source evidence.
 - **Not yet:** 2.3, *A heading drawn after its page*: that a focus placed while a heading
   waits keeps its place, which the answer of 2026-11-06 to the `ui-composer-focus` task
   `composer-focus` asks, is seen by reading `temper-client-shell-web`'s `focus.rs`. No test moves the focus meanwhile:
@@ -9,14 +12,14 @@
   heading taking it from the main, and that module has no test of its own.
 - **Not yet:** 2.5: the answer of 2026-11-06 to the `ui-rename-focus` task
   `rename-row` asks a test that a long chat's document never exceeds its window at
-  1280x720 and 1000x600 with "Older" pressed twice. What holds it is the sheet's
+  1280x720 and 1000x600 with "Older", since gone (`README.md`, 5.15), pressed twice. What holds it is the sheet's
   rule (`temper-client-shell-web`'s `tests/suite/switcher.rs`,
   `scrolling_panes_contain_their_hidden_absolute_parts`), and no test measures the
   page; no reason is recorded. That test names the session's log and draft pane,
   and the session's thread with no log, which scrolls too, is not positioned. The walk
   of the request `ui-walk-3` of 2026-11-06 measured it by hand: the document at its
-  window at each size, in Chat and Split, one pane scrolling, but with no older read
-  ended (`README.status.md`, 3.5).
+  window at each size, in Chat and Split, one pane scrolling, but with no earlier read
+  ended (`README.status.md`, 5.15).
 - **Not yet:** 2.5: a numbered list read from Markdown
   (`temper/docs/design/draft/chat-reading.md`, 6) shows no numbers in a card of a
   chat's thread: `temper.css` makes `.temper-card:not(.temper-task-card) li` there
@@ -79,8 +82,13 @@
 - **Departs:** 2.5, *The first paint*: "no byte for 15 s" holds only once the module's
   answer has begun: a stall before that answer draws the mark and an empty bar, with no
   line (skein's `ui-web.status.md`, 4.3).
-- **Departs:** 4.3, 4.6: the tier holds 14 tests, two past the cap, and 4.6 names
-  12. `browser_call_line.rs`'s `a_run_of_calls_opens_to_its_rows`, from the request
+- **Departs:** 4.3, 4.6: the tier holds 17 tests, five past the cap, and 4.6 names
+  12. `browser_pages.rs`'s `a_short_chat_opens_whole_without_a_reading_status`,
+  `a_long_chat_opens_at_its_end_and_reads_back_from_the_composer` and
+  `earlier_words_stay_put_without_browser_scroll_anchoring`, from the plan `chat-reading-c`,
+  have no line there: its answers keep the short story and the unanchored one apart, as they
+  expect different things and the second takes a bundle of its own, and none speaks of the cap
+  (that plan's `reading-browser` task, at `29d0deb002`). `browser_call_line.rs`'s `a_run_of_calls_opens_to_its_rows`, from the request
   `chat-reading-b`, has no line there, and its file's header names the story, not what
   only a browser shows. The request `browser-trim` has every test read against the
   tier's rule, but that plan's calls were made before this test reached its trunk, and
@@ -109,7 +117,14 @@
   reproduce it; the listener's eight connections, which a page's parallel files share,
   are a hypothesis, no cause observed (the same figures, on the ctl wait).
   Its repair waits on the tier's run after landing (the user, 2026-11-06), and no later
-  run is recorded here.
+  run is recorded here. The plan `chat-reading-c`'s three whole runs with its stories, on
+  its `reading-browser` branch, every test passing, took 128.618150, 141.214140 and
+  143.808163 CPU s, and an earlier one 116, against the 85; which commit each ran on is
+  unknown here. The last commit of those stories to report a run in Chromium is `fcd07de4f9`,
+  its story at 27.929 CPU s, and the merges after it held them by their compile. The user's
+  rule of 2026-11-06, that a plan runs focused and fuzzy alone, stopped that task's measuring
+  with the budget's question open, so the run after landing reads it, and a flag on the long
+  chat's cost looks first at the page's (that task's answers, at `29d0deb002`).
 - **Not yet:** 4.6: the request `browser-trim` has a person's page slower to settle as
   the answer most wanted. Settled chat and task pages stood still and no product cause
   was found, but a chat closed on the box took 8.539 s to reach the Closed filter, a

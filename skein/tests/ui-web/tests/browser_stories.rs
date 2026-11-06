@@ -6,16 +6,20 @@ use skein_ui::Role;
 use skein_ui_web_tests::{chromium, example_bundle, server_binary};
 
 fn setup() -> Setup<'static> {
+    setup_bundle(example_bundle())
+}
+
+fn setup_bundle(bundle: std::path::PathBuf) -> Setup<'static> {
     Setup {
         server: server_binary(),
-        args: vec!["127.0.0.1:0".into(), "--bundle".into(), example_bundle().into_os_string()],
+        args: vec!["127.0.0.1:0".into(), "--bundle".into(), bundle.as_os_str().into()],
         printed: skein_fake_person_browser::harness::Printed {
             sent: skein_fake_person_browser::harness::Sent::Page,
             prefix: b"skein-ui-example: listening at ",
             on: skein_fake_person_browser::harness::Output::Stderr,
             names: skein_fake_person_browser::harness::Names::Address,
         },
-        restart: vec!["{address}".into(), "--bundle".into(), skein_ui_web_tests::example_bundle().into_os_string()],
+        restart: vec!["{address}".into(), "--bundle".into(), bundle.into_os_string()],
         downloads: None,
         chromium: chromium(),
         origins: vec![],
@@ -138,10 +142,7 @@ fn a_placeholder_gives_way_to_the_client() {
 #[test]
 fn a_module_not_found_says_so_and_offers_to_try_again() {
     let scratch = skein_scratch::Scratch::new("bundle-module-missing");
-    let copied = scratch.path().join("bundle");
-    copy_without_module(&example_bundle(), &copied);
-    let mut setup = setup();
-    setup.args = vec!["127.0.0.1:0".into(), "--bundle".into(), copied.into_os_string()];
+    let mut setup = setup_bundle(bundle_without_module(&scratch));
     setup.expected =
         vec![b"Failed to load resource: the server responded with a status of 404 (Not Found)".as_slice().into()];
     let mut person = Script::new(Box::new([
@@ -158,17 +159,35 @@ fn a_module_not_found_says_so_and_offers_to_try_again() {
     assert_eq!(harness::Harness::new(setup).run(&mut [&mut person]), Outcome::Done);
 }
 
-fn copy_without_module(source: &std::path::Path, target: &std::path::Path) {
-    std::fs::create_dir_all(target).expect("copy directory");
-    for entry in std::fs::read_dir(source).expect("bundle directory") {
-        let entry = entry.expect("bundle entry");
-        let name = entry.file_name();
-        if entry.path().is_dir() {
-            copy_without_module(&entry.path(), &target.join(name));
-        } else if name != "skein_ui_example_shell_web_bg.wasm" && name != "skein_ui_example_shell_web_bg.wasm.gz" {
-            std::fs::copy(entry.path(), target.join(name)).expect("copy bundle file");
-        }
+// The loader's HTTP failure needs a placeholder regardless of a prepared example bundle.
+fn bundle_without_module(scratch: &skein_scratch::Scratch) -> std::path::PathBuf {
+    let example = skein_scratch::paths::tree().join("examples/ui/shell-web");
+    let inputs = skein_ui_bundle::Inputs {
+        gzip: true,
+        title: None,
+        placeholder: Some(skein_ui_bundle::Placeholder {
+            markup: example.join("loading.html"),
+            stylesheet: example.join("loading.css"),
+        }),
+        name: "missing".into(),
+        prefix: "/bundle/".into(),
+        stylesheets: vec![],
+        pictures: vec![],
+        page: None,
+        files: None,
+        noscript: "Notes needs WebAssembly and scripts.".into(),
+    };
+    let glue = skein_ui_bundle::Glue {
+        js: b"export default function init() { throw new Error('missing module reached init'); }".to_vec(),
+        wasm: b"\0asm".to_vec(),
+        snippets: vec![],
+    };
+    let out = scratch.path().join("bundle");
+    let digest = skein_ui_bundle::bundle(&inputs, &glue, &out).expect("placeholder bundle");
+    for name in ["missing_bg.wasm", "missing_bg.wasm.gz"] {
+        std::fs::remove_file(out.join(digest.to_string()).join(name)).expect("remove module form");
     }
+    out
 }
 #[path = "support/tab.rs"]
 mod tab;

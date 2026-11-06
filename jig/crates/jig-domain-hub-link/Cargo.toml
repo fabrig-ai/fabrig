@@ -12,7 +12,6 @@ skein-lib.workspace = true
 jig-domain-core.workspace = true
 jig-domain-host.workspace = true
 jig-domain-link.workspace = true
-jig-domain-accounts.workspace = true
 jig-domain-authority.workspace = true
 jig-domain-brief.workspace = true
 jig-domain-fleet.workspace = true

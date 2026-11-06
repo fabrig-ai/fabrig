@@ -141,7 +141,7 @@ pub fn delivery_decode(
         return Ok(delivery::Delivery::Other);
     };
     let mut feed = tokenizer::Feed::new(body, &limits.json);
-    let mut request = delivery::first(&decoder);
+    let mut request = tokenizer::Request::Next;
     for _answer in 0..=body.len() {
         let event = feed.answer(request);
         match delivery::step(&mut decoder, &limits, &event) {

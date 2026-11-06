@@ -2038,6 +2038,19 @@ fn a_restarted_workstation_keeps_the_directors_question_and_answers_it_once_as_p
 }
 
 #[test]
+fn a_box_signs_its_person_in_to_its_owned_forgejo_with_one_click() {
+    let scratch = support::Scratch::new("forgejo-box-sign-in");
+    support::forgejo_box_sign_in::run(scratch.path());
+    scratch.remove();
+}
+
+#[test]
+fn an_owned_forgejo_accepts_a_public_source_once_and_exchanges_its_code() {
+    let scratch = support::Scratch::new("forgejo_public_source");
+    support::forgejo_sign_in::public(scratch.path());
+    scratch.remove();
+}
+#[test]
 fn an_owned_forgejo_signs_its_member_in_through_temper() {
     let scratch = support::Scratch::new("forgejo_sign_in");
     support::forgejo_sign_in::run(scratch.path());
@@ -2380,7 +2393,7 @@ fn no_model_scripts() -> skein_fake_llm_domain::api::Scripts {
 #[test]
 fn a_killed_serve_keeps_its_port_and_prints_a_fresh_link() {
     use std::{fs, net::TcpStream};
-    let mut boxed = box_link::Boxed::start("killed-serve-link");
+    let mut boxed = box_link::Boxed::start("killed-serve-link", None);
     let first = boxed.link();
     let address = box_link::address(&first);
     boxed.wait(|boxed| support::boxed::serve_listening(&boxed.root().join("data")));

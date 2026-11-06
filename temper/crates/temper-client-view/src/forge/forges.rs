@@ -182,20 +182,7 @@ fn personal(
         b.close();
     }
     owned(b, w, row);
-    if let Some(first) = &row.first
-        && let forge::forges::FirstState::Made { .. } = first.state
-        && let Connection::Connected { .. } = row.connection
-    {
-        b.open(Role::Slot);
-        b.style(look::SETTINGS_SETTING);
-        connect::text(b, w, Role::Term, Word::GitHubRepositories);
-        crate::cards::text(
-            b,
-            Role::Description,
-            &w.say(Word::SetupMade, &[Hole::Name(forge::words::full_name(&first.org, &first.repository))]),
-        );
-        b.close();
-    }
+    repositories(b, w, row, sign_in);
     connect::app_line(b, w, row, true);
     if let Some(line) = forge::words::last_connect(row) {
         crate::cards::text(b, Role::Paragraph, &line);
@@ -236,8 +223,42 @@ fn personal(
             | Connection::Stopped { .. } => {}
         }
     }
+    if w.shell == crate::words::Shell::Browser && row.kind == Kind::Forgejo && sign_in.off(row.number) {
+        connect::text(b, w, Role::Paragraph, Word::SignInOff);
+    }
     replacement(b, root, w, forge, row);
     removal(b, root, w, forge, row);
+    b.close();
+}
+fn repositories(b: &mut Builder, w: &Words, row: &Row, sign_in: &crate::forge_sign_in::Forges) {
+    if row.repositories.is_empty() {
+        if let Some(first) = &row.first
+            && let forge::forges::FirstState::Made { .. } = first.state
+            && let Connection::Connected { .. } = row.connection
+        {
+            repository(b, w, row, sign_in, &first.org, &first.repository);
+        }
+    } else {
+        for adopted in &row.repositories {
+            repository(b, w, row, sign_in, &adopted.owner, &adopted.name);
+        }
+    }
+}
+fn repository(
+    b: &mut Builder,
+    w: &Words,
+    row: &Row,
+    sign_in: &crate::forge_sign_in::Forges,
+    owner: &[u8],
+    name: &[u8],
+) {
+    b.open(Role::Slot);
+    b.style(look::SETTINGS_SETTING);
+    connect::text(b, w, Role::Term, Word::GitHubRepositories);
+    b.open(Role::Description);
+    b.name(&forge::words::full_name(owner, name));
+    super::repository::name(b, w, Some(row), sign_in, owner, name);
+    b.close();
     b.close();
 }
 fn github(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, forge: &mut ForgeBindings, row: &Row) {

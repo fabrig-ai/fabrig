@@ -1,6 +1,7 @@
 //! Routing (protocol/channel.md, sections 2, 3 and 8); Debug (jig/docs/design/protocol/service.md, 11.3).
 use alloc::boxed::Box;
 use jig_domain_host as host;
+use jig_domain_link::SourceName;
 use jig_protocol_worker_wire::Part;
 use skein_channel::{Lower, LowerEvent};
 use skein_io::digest::Digest;
@@ -16,7 +17,7 @@ pub struct Worker {
 pub enum GrantValue {
     Credential { scheme: Scheme, token: Secret },
     Application { secret: Secret },
-    Program { name: host::SourceName },
+    Program { name: SourceName },
 }
 /// How a credential is presented (protocol/channel.md, 8).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -42,7 +43,7 @@ pub enum Request {
     Lower { connection: Token, lower: Lower },
     Close { connection: Token },
     Abort { connection: Token },
-    Hello { channel: Token, worker: u32, hello: host::Hello },
+    Hello { channel: Token, worker: u32, hello: jig_domain_link::Hello },
     Up { channel: Token, up: host::LinkUp, parts: Box<[Part]> },
     Lost { channel: Token },
     Closed,

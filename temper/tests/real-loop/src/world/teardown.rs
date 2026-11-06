@@ -79,6 +79,8 @@ fn a_service_exit_before_its_link_fails_after_the_caller_settles() {
     let listener = TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).expect("occupied listener");
     let scratch = skein_scratch::Scratch::new("failed-start");
     let receipt = Rc::new(Receipt::default());
+    // The chooser's block claim outlives the story and belongs in its descriptor baseline.
+    drop(temper_fixtures::ports::reserve::<1>(&[]));
     let descriptors = std::fs::read_dir("/proc/self/fd").expect("own descriptors").count();
     let result =
         std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| startup(&scratch, Some(&listener), receipt.clone())));

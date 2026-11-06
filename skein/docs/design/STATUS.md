@@ -42,7 +42,8 @@ later review (`forge.md`); single departures stand in
 `testing.md`, `ui.md` and `ui-web.md`. The bundler's loader draws no words for a
 stall before its module's answer, its compressor's crates build optimized in
 development with no sign-off, and no run of the browser tier on record holds the
-loader (`ui-web.md`). The foundation's rules (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
+loader, or a log's reading stories, within its budget. A read that failed at a log's head
+is not asked for again on a move back within its reach (`ui-web.md`). The foundation's rules (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
 tree runs transition coverage (`cargo llvm-cov`) or fuzzes a machine or
 a decoder (`cargo fuzz`). Of the drafts, `component-kit.md` waits on
 `lib.md` and `io.md` to name its items, the design departs from
