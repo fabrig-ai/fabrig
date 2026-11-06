@@ -205,7 +205,9 @@ impl Host for Running {
         &mut self.subs
     }
     fn work_pending(&self, now: Time) -> bool {
-        self.io.is_ready() || self.io.is_due(now) || !self.complete.is_empty()
+        self.io.is_ready()
+            || self.io.is_due(now)
+            || !self.complete.is_empty()
             || self.failure.is_none() && self.deadline.is_some_and(|at| now >= at)
     }
     fn next_mechanism_deadline(&self) -> Option<Time> {

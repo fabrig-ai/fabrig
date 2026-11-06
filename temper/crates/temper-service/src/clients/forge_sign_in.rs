@@ -64,7 +64,8 @@ impl Entries {
         {
             for client in clients {
                 if client.id == *id {
-                    owned_entry = Some(Entry { forge: 0, client: client.id.clone(), redirect_uri: client.redirect_uri.clone() });
+                    owned_entry =
+                        Some(Entry { forge: 0, client: client.id.clone(), redirect_uri: client.redirect_uri.clone() });
                 }
             }
         }
@@ -97,7 +98,14 @@ impl Entries {
                 if forge.mode == Mode::Owned {
                     let mut row = owned.clone();
                     row.forge = forge.number;
-                    if !rows.iter().any(|entry| entry.forge == row.forge) {
+                    let mut present = false;
+                    for entry in &rows {
+                        if entry.forge == row.forge {
+                            present = true;
+                            break;
+                        }
+                    }
+                    if !present {
                         rows.push(row).expect("kept forges counted");
                     }
                 }
@@ -124,7 +132,10 @@ impl super::Clients {
             Some(owned) => owned.public.as_ref(),
             None => None,
         };
-        let owned = settings.machine.owned.as_ref().filter(|owned| self.deployment.owned || owned.sign_in.is_some());
+        let owned = match &settings.machine.owned {
+            Some(owned) if self.deployment.owned || owned.sign_in.is_some() => Some(owned),
+            Some(_) | None => None,
+        };
         self.forge_sign_in = Entries::new(rows, clients, public, owned, settings.limits.clients.bundle_bytes);
     }
 }
@@ -222,11 +233,12 @@ fn decide(
     if entries.box_owned {
         for forge in forges.iter() {
             if forge.mode == Mode::Owned && (entries.owned.is_none() || entries.source != Some(forge.number)) {
-                let number = Decimal::of(u64::from(forge.number));
-                let fact = [b"<meta name=\"temper-forge-sign-in-off\" content=\"".as_slice(), number.as_bytes(), b"\">"].concat();
-                if total(page, files, length, fact.len()).is_some_and(|total| total <= entries.limit) {
+                let fact = off(forge.number);
+                if let Some(total) = total(page, files, length, fact.len())
+                    && total <= entries.limit
+                {
                     length = length.checked_add(fact.len()).expect("bounded fact");
-                    metas.push(fact.into_boxed_slice()).expect("kept forges counted");
+                    metas.push(fact).expect("kept forges counted");
                 }
             }
         }
@@ -238,13 +250,28 @@ fn decide(
     (out.finish(), unserved)
 }
 
+fn off(forge: u16) -> Box<[u8]> {
+    let number = Decimal::of(u64::from(forge));
+    let parts = [b"<meta name=\"temper-forge-sign-in-off\" content=\"".as_slice(), number.as_bytes(), b"\">"];
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len()).expect("bounded off fact");
+    }
+    let mut out = Writer::new(length);
+    for part in parts {
+        out.put(part).expect("measured off fact");
+    }
+    out.finish()
+}
 fn total(page: usize, files: usize, metas: usize, meta: usize) -> Option<usize> {
     page.checked_add(files)?.checked_add(metas)?.checked_add(meta)
 }
 
 /// Decide again, set the page's metas, and name each entry newly not serving.
 pub(crate) fn refresh(engine: &mut crate::engine::Engine) {
-    if !engine.forge_records.done() || (engine.clients.forge_sign_in.rows.is_empty() && !engine.clients.forge_sign_in.box_owned) {
+    if !engine.forge_records.done()
+        || (engine.clients.forge_sign_in.rows.is_empty() && !engine.clients.forge_sign_in.box_owned)
+    {
         return;
     }
     let (page, files) = match &engine.clients.bundle {
@@ -259,7 +286,8 @@ pub(crate) fn refresh(engine: &mut crate::engine::Engine) {
     };
     let (metas, unserved) = decide(&engine.clients.forge_sign_in, &engine.workers.forges, page, files);
     let entries = &mut engine.clients.forge_sign_in;
-    let mut named = Map::with_capacity(entries.rows.len().checked_add(engine.workers.forges.len()).expect("bounded entries"));
+    let mut named =
+        Map::with_capacity(entries.rows.len().checked_add(engine.workers.forges.len()).expect("bounded entries"));
     entries.waiting = false;
     for (number, client, why) in unserved.into_boxed() {
         if entries.named.get(&number) != Some(&why)

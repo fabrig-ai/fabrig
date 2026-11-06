@@ -366,15 +366,19 @@ impl Service {
     }
     fn order_ready(&self) -> bool {
         let forge = match self.orders.iter().next() {
-            Some(Order::Say { said: Said::Started { forge } })
-            | Some(Order::Terminal { fact: Fact::GroupStarted { forge } }) => Some(*forge),
+            Some(
+                Order::Say { said: Said::Started { forge } } | Order::Terminal { fact: Fact::GroupStarted { forge } },
+            ) => Some(*forge),
             Some(_) | None => None,
         };
         if let Some(forge) = forge
             && let Some(step) = self.source_step(forge)
-            && !self.children.get(step).expect("source child").pipes.iter().all(Pipe::settled)
         {
-            return false;
+            for pipe in &self.children.get(step).expect("source child").pipes {
+                if !pipe.settled() {
+                    return false;
+                }
+            }
         }
         match self.orders.iter().next() {
             Some(Order::Terminal { fact: Fact::Starting { step } })
@@ -730,7 +734,10 @@ impl Service {
     }
     fn source_step(&self, forge: u16) -> Option<usize> {
         for (step, placed) in self.steps.iter().enumerate() {
-            if placed.step.ignores_ending() && placed.asked.is_some_and(|asked| asked.forge == forge) {
+            if placed.step.ignores_ending()
+                && let Some(asked) = placed.asked
+                && asked.forge == forge
+            {
                 return Some(step);
             }
         }
@@ -774,7 +781,7 @@ impl Service {
                     self.source_line(forge, wall);
                 }
                 self.terminal_fact(fact, wall);
-            },
+            }
             Order::Record { forge } => self.records.write(forge),
             Order::WriteGroup { forge, kind } => self.records.write_group(forge, kind),
             Order::Unlink { forge } => self.records.unlink(forge),
@@ -1030,10 +1037,10 @@ impl Service {
                                 }
                             }
                             if fd == 0 && description.ignores_ending() {
-                                if let Some(outcome) = Source::read(&bytes) {
-                                    if state.source.is_none() {
-                                        state.source = Some(outcome);
-                                    }
+                                if let Some(outcome) = Source::read(&bytes)
+                                    && state.source.is_none()
+                                {
+                                    state.source = Some(outcome);
                                 }
                                 log_only = true;
                             }

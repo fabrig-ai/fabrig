@@ -1457,7 +1457,7 @@ temper box
   | Line | From | Says |
   |---|---|---|
   | `start FORGE` | serve, once it has written the group's file: at an owned forge's set up (6.5) and at the playground's start (8.4) | start the forge's group, by its file |
-  | `step FORGE STEP` | the box | the group's step `fetch`, `prepare` or `run` is starting, for the client's row (`../client/forge.md`, 5.4) |
+  | `step FORGE STEP` | the box | the group's step `fetch`, `prepare`, `run` or `source` is starting, for the client's row (`../client/forge.md`, 5.4) |
   | `fetched FORGE BINARY DONE TOTAL` | the box | how far the group's `fetch` step has gone, one for each line it says (6.6): `BINARY` `forgejo` or `runner`, `DONE` its bytes written, `TOTAL` its size or `none`. Between `step FORGE fetch` and the next step alone (7.2), and at most 64 bytes, `box.line_bytes`'s least, whatever its numbers |
   | `source FORGE added`, `source FORGE failed WHY` | the box | how the group's `source` step ended (`sign-in.md`, 9.9), before its `started`: `WHY` as `failed`'s, the step's own words or `source exited N`, `source did not start`, within the line's bound, holding no secret. A `start` for a group already standing says its last such line again, before its `started` |
   | `started FORGE` | the box | the group's long steps are started, an owned Forgejo answers, and its record is written; the engine then takes the handover and reconciles (6.5) |

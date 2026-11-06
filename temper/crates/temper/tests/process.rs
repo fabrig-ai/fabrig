@@ -2386,7 +2386,7 @@ fn no_model_scripts() -> skein_fake_llm_domain::api::Scripts {
 #[test]
 fn a_killed_serve_keeps_its_port_and_prints_a_fresh_link() {
     use std::{fs, net::TcpStream};
-    let mut boxed = box_link::Boxed::start("killed-serve-link");
+    let mut boxed = box_link::Boxed::start("killed-serve-link", None);
     let first = boxed.link();
     let address = box_link::address(&first);
     boxed.wait(|boxed| support::boxed::serve_listening(&boxed.root().join("data")));

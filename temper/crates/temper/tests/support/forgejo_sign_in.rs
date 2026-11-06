@@ -166,6 +166,7 @@ pub fn public(directory: &Path) {
         story_socket::finish(error);
     }
 }
+#[expect(clippy::too_many_lines, reason = "the public and confidential clients share one real Forgejo sign-in proof")]
 fn run_owned(directory: &Path, public: bool) -> io::Result<()> {
     let clock = skein_shell::Clock::new();
     let whole = clock.now().now;
@@ -216,9 +217,15 @@ fn run_owned(directory: &Path, public: bool) -> io::Result<()> {
     let link = super::read_line(skein_io::kernel::Fd::new(stdout.as_raw_fd()), super::WITHIN);
     let printed_command = owned_command(directory, printed_command);
     let added = if public {
-        let source = || Command::new(skein_scratch::paths::binary("temper"))
-            .args(["forge", "source"]).args(configuration::flags(directory)).arg("1")
-            .current_dir(directory).output().expect("public source command");
+        let source = || {
+            Command::new(skein_scratch::paths::binary("temper"))
+                .args(["forge", "source"])
+                .args(configuration::flags(directory))
+                .arg("1")
+                .current_dir(directory)
+                .output()
+                .expect("public source command")
+        };
         let first = source();
         success(&first);
         assert_eq!(first.stdout, b"source added\n", "{}", String::from_utf8_lossy(&first.stdout));
@@ -226,21 +233,30 @@ fn run_owned(directory: &Path, public: bool) -> io::Result<()> {
         success(&second);
         assert_eq!(second.stdout, b"source added\n");
         let list = Command::new(super::owned::binaries().0)
-            .arg("--work-path").arg(directory.join("forge-1/forgejo"))
-            .arg("--config").arg(directory.join("forge-1/forgejo/app.ini"))
-            .args(["admin", "auth", "list"]).output().expect("real auth list");
+            .arg("--work-path")
+            .arg(directory.join("forge-1/forgejo"))
+            .arg("--config")
+            .arg(directory.join("forge-1/forgejo/app.ini"))
+            .args(["admin", "auth", "list"])
+            .output()
+            .expect("real auth list");
         success(&list);
         assert!(temper_forge_setup::sign_in::source_present(&list.stdout));
         let renamed = String::from_utf8_lossy(&list.stdout).replace("temper", "temper-other");
         assert!(!temper_forge_setup::sign_in::source_present(renamed.as_bytes()), "source names are exact columns");
-        let count = String::from_utf8_lossy(&list.stdout).lines()
-            .filter(|line| line.split_whitespace().nth(1) == Some("temper")).count();
+        let count = String::from_utf8_lossy(&list.stdout)
+            .lines()
+            .filter(|line| line.split_whitespace().nth(1) == Some("temper"))
+            .count();
         assert_eq!(count, 1, "a second source command keeps exactly one source");
         eprintln!("public source list: {}", String::from_utf8_lossy(&list.stdout));
         first
     } else {
-        Command::new("/bin/sh").args(["-c", &printed_command])
-            .current_dir(directory.join("forge-1/forgejo")).output().expect("printed command")
+        Command::new("/bin/sh")
+            .args(["-c", &printed_command])
+            .current_dir(directory.join("forge-1/forgejo"))
+            .output()
+            .expect("printed command")
     };
     assert!(added.status.success(), "printed add-oauth command failed");
     for output in [&added.stdout, &added.stderr] {

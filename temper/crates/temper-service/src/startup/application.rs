@@ -363,10 +363,15 @@ pub fn parse(
         && let Some(owned) = &machine.owned
         && let Some(client) = &owned.sign_in
     {
-        let found = match &jig.clients.provider {
-            Some(provider) => provider.clients.iter().any(|configured| configured.id == *client),
-            None => false,
-        };
+        let mut found = false;
+        if let Some(provider) = &jig.clients.provider {
+            for configured in &provider.clients {
+                if configured.id == *client {
+                    found = true;
+                    break;
+                }
+            }
+        }
         read::form(sign_in::visible(client), path.member(b"machine").member(b"owned").member(b"sign_in"), problems);
         if !found {
             problems.push(path.member(b"machine").member(b"owned").member(b"sign_in"), What::Jig(config::What::Refers));

@@ -1,6 +1,6 @@
 use super::fixtures;
 use crate::spec::{self, Command, Which};
-use alloc::{boxed::Box, vec::Vec};
+use alloc::boxed::Box;
 use skein_lib::bytes;
 
 fn arguments(command: Command) -> Box<[Box<[u8]>]> {
@@ -229,12 +229,38 @@ fn source_commands_use_the_owned_paths_and_public_client_without_a_secret() {
     let add = spec::source_add(&owned, &place, b"forgejo", b"http://127.0.0.1:8367/.well-known/openid-configuration");
     assert_eq!(list.program, owned.forgejo);
     assert_eq!(list.directory, place.work_path());
-    assert_eq!(list.arguments.iter().map(|arg| arg.as_ref()).collect::<Vec<_>>(), [
-        b"--work-path".as_slice(), b"/srv/forge-2/forgejo", b"--config", b"/srv/forge-2/forgejo/app.ini", b"admin", b"auth", b"list",
-    ]);
-    assert_eq!(add.arguments.iter().map(|arg| arg.as_ref()).collect::<Vec<_>>(), [
-        b"--work-path".as_slice(), b"/srv/forge-2/forgejo", b"--config", b"/srv/forge-2/forgejo/app.ini",
-        b"admin", b"auth", b"add-oauth", b"--name", b"temper", b"--provider", b"openidConnect", b"--key", b"forgejo",
-        b"--auto-discover-url", b"http://127.0.0.1:8367/.well-known/openid-configuration",
-    ]);
+    let expected = [
+        b"--work-path".as_slice(),
+        b"/srv/forge-2/forgejo",
+        b"--config",
+        b"/srv/forge-2/forgejo/app.ini",
+        b"admin",
+        b"auth",
+        b"list",
+    ];
+    assert_eq!(list.arguments.len(), expected.len());
+    for (argument, expected) in list.arguments.iter().zip(expected) {
+        assert_eq!(argument.as_ref(), expected);
+    }
+    let expected = [
+        b"--work-path".as_slice(),
+        b"/srv/forge-2/forgejo",
+        b"--config",
+        b"/srv/forge-2/forgejo/app.ini",
+        b"admin",
+        b"auth",
+        b"add-oauth",
+        b"--name",
+        b"temper",
+        b"--provider",
+        b"openidConnect",
+        b"--key",
+        b"forgejo",
+        b"--auto-discover-url",
+        b"http://127.0.0.1:8367/.well-known/openid-configuration",
+    ];
+    assert_eq!(add.arguments.len(), expected.len());
+    for (argument, expected) in add.arguments.iter().zip(expected) {
+        assert_eq!(argument.as_ref(), expected);
+    }
 }

@@ -236,8 +236,21 @@ pub fn source_list(owned: &Owned, place: &Place) -> Spec {
 /// Adds the box's public client; no credential enters an argument (sign-in.md, 9.9).
 #[must_use]
 pub fn source_add(owned: &Owned, place: &Place, client: &[u8], discovery: &[u8]) -> Spec {
-    forgejo(owned, place, &words(&[
-        b"admin", b"auth", b"add-oauth", b"--name", b"temper", b"--provider", b"openidConnect",
-        b"--key", client, b"--auto-discover-url", discovery,
-    ]))
+    forgejo(
+        owned,
+        place,
+        &words(&[
+            b"admin",
+            b"auth",
+            b"add-oauth",
+            b"--name",
+            b"temper",
+            b"--provider",
+            b"openidConnect",
+            b"--key",
+            client,
+            b"--auto-discover-url",
+            discovery,
+        ]),
+    )
 }

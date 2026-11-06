@@ -27,7 +27,7 @@ pub struct Boxed {
     printed: Vec<u8>,
 }
 impl Boxed {
-    pub fn start(case: &str) -> Self {
+    pub fn start(case: &str, path: Option<&str>) -> Self {
         let scratch = support::Scratch::startup(case);
         let stderr = fs::OpenOptions::new()
             .write(true)
@@ -35,7 +35,11 @@ impl Boxed {
             .mode(0o600)
             .open(scratch.path().join("stderr"))
             .expect("private stderr capture");
-        let mut child = Command::new(skein_scratch::paths::binary("temper"))
+        let mut command = Command::new(skein_scratch::paths::binary("temper"));
+        if let Some(path) = path {
+            command.env("PATH", path);
+        }
+        let mut child = command
             .arg("box")
             .arg("--config")
             .arg(scratch.path().join("config"))

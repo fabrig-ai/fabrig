@@ -49,7 +49,7 @@ Shape: `deployment`. Paths: `engine.deployment`. The deployment's data directory
 Shape: `owner`. Paths: `engine.owners[]`. An identity seeded as one of the deployment's first owners.
 
 - `provider`: integer, 0 to 65535; required; init writes 1. Names the identity's configured provider.
-- `subject`: text, people.identity_bytes; at most 4096 bytes; required; init writes "owner-a". Names the owner's subject under that provider.
+- `subject`: text, people.identity_bytes; at most 4096 bytes; required; init writes "person@localhost". Names the owner's subject under that provider.
 
 ## engine.providers[]
 
@@ -188,23 +188,23 @@ Shape: `clients`. Paths: `engine.clients`. Client stream heartbeats and sign-in 
 
 - `heartbeat_ms`: integer, 0 to 18446744073709 milliseconds; required; init writes 10000. Sets the heartbeat interval of clients' streams.
 - `link`: true or false; required; init writes true. Offers the printed link's one-time secret at start when true.
-- `provider`: client-provider or null; optional; init leaves it out. Configures the deployment's OpenID provider, with none when absent or null.
+- `provider`: client-provider or null; optional; init writes object. Configures the deployment's OpenID provider, with none when absent or null.
 
 ## engine.clients.provider
 
 Shape: `client-provider`. Paths: `engine.clients.provider`. The deployment's OpenID provider.
 
-- `key`: text, 4096 bytes; data path; required; init leaves it out. Names the private PKCS#8 PEM file holding the provider's 3072-bit RSA signing key.
-- `clients`: list of provider-client, at least one; required; init leaves it out. Lists clients allowed to use the provider, with unique identifiers.
-- `addresses`: list of integer, 0 to 65535; application or link providers; required; init leaves it out. Names identity providers whose subjects are verified addresses.
+- `key`: text, 4096 bytes; data path; required; init writes "provider.key". Names the private PKCS#8 PEM file holding the provider's 3072-bit RSA signing key.
+- `clients`: list of provider-client, at least one; required; init writes list (1 entry). Lists clients allowed to use the provider, with unique identifiers.
+- `addresses`: list of integer, 0 to 65535; application or link providers; required; init writes [1]. Names identity providers whose subjects are verified addresses.
 
 ## engine.clients.provider.clients[]
 
 Shape: `provider-client`. Paths: `engine.clients.provider.clients[]`. A client allowed to use the deployment provider.
 
-- `id`: text, 1 to 255 visible ASCII bytes; required; init leaves it out. Gives the client's unique identifier.
-- `secret`: text or null, 4096 bytes; data path; required; init leaves it out. Names the client's secret file, or null for a public client.
-- `redirect_uri`: text, 2048 bytes; HTTPS or loopback HTTP with a port; required; init leaves it out. Gives the client's one redirect URI.
+- `id`: text, 1 to 255 visible ASCII bytes; required; init writes "forgejo". Gives the client's unique identifier.
+- `secret`: text or null, 4096 bytes; data path; required; init writes null. Names the client's secret file, or null for a public client.
+- `redirect_uri`: text, 2048 bytes; HTTPS or loopback HTTP with a port; required; init writes "http://127.0.0.1:8368/user/oauth2/temper/callback". Gives the client's one redirect URI.
 
 ## engine.projects[]
 

@@ -70,7 +70,7 @@ record StartFailed { why: StartFailure }
 # The deployment's forges, in number order (client/README.md, 4.6).
 enum Kind { forgejo, github }
 enum Mode { connected, managed, owned, fake }
-enum SetUpStep { fetch, prepare, run }
+enum SetUpStep { fetch, prepare, run, source }
 enum SetUpBinary { forgejo, runner }
 record SetUpFetched { binary: SetUpBinary done: u64 total: option u64 }
 record SettingUp { step: option SetUpStep fetched: option SetUpFetched }

@@ -12,11 +12,7 @@ use skein_lib::{Duration, Env, Queue, Token};
 pub const BOT_LOGIN: &[u8] = b"temper";
 pub const BOT_EMAIL: &[u8] = b"temper@temper.invalid";
 pub(crate) fn bot() -> Bot {
-    Bot {
-        login: Box::from(BOT_LOGIN),
-        name: Box::from(b"temper".as_slice()),
-        email: Box::from(BOT_EMAIL),
-    }
+    Bot { login: Box::from(BOT_LOGIN), name: Box::from(b"temper".as_slice()), email: Box::from(BOT_EMAIL) }
 }
 
 pub(crate) fn restore_first(d: &mut Domain, record: &ForgeRecord) {

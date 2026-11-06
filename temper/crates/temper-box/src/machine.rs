@@ -120,6 +120,10 @@ enum Role {
     Remover,
 }
 #[derive(Debug)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "ending policy is independent of the step's readiness, wait and withdrawal state"
+)]
 pub(crate) struct State {
     kind: Kind,
     ignore_ending: bool,

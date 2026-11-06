@@ -8,6 +8,7 @@ pub enum Stage {
     Fetch,
     Prepare,
     Run,
+    Source,
 }
 impl Stage {
     #[must_use]
@@ -16,6 +17,7 @@ impl Stage {
             Self::Fetch => b"fetch",
             Self::Prepare => b"prepare",
             Self::Run => b"run",
+            Self::Source => b"source",
         }
     }
 }
@@ -60,7 +62,15 @@ impl Step {
     /// Constructs a step from its display name, arguments and lifetime.
     #[must_use]
     pub fn new(name: Box<[u8]>, arguments: Box<[Box<[u8]>]>, kind: Kind) -> Self {
-        Self { name, arguments, kind, ignore_ending: false, ready: None, listeners: Box::new([]), started_notice: Box::new([]) }
+        Self {
+            name,
+            arguments,
+            kind,
+            ignore_ending: false,
+            ready: None,
+            listeners: Box::new([]),
+            started_notice: Box::new([]),
+        }
     }
     /// Its group goes on however it ends (setup.md, 7.2).
     #[must_use]
@@ -165,7 +175,7 @@ pub fn kinds(
             group.push((Stage::Run, slot(b"run", flags, Some(b"runner")))).expect("runner");
         }
         if owned.sign_in.is_some() {
-            group.push((Stage::Run, slot(b"source", flags, None).ending_ignored())).expect("source");
+            group.push((Stage::Source, slot(b"source", flags, None).ending_ignored())).expect("source");
         }
         result.asked = Box::new([Group {
             kind: Some(BoxKind::Owned),

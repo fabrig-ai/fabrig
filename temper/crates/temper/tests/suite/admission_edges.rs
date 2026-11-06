@@ -152,7 +152,7 @@ fn obsolete_owned_organization_members_refuse_startup() {
             &serde_json::to_vec(&value).expect("JSON"),
         )
         .expect_err("obsolete orgs member");
-        assert!(why.contains("application.machine: invalid form"), "{member}: {why}");
+        assert!(why.contains(&format!("application.machine.owned.{member}: unknown member")), "{member}: {why}");
         scratch.remove();
     }
 }
