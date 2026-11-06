@@ -15,7 +15,7 @@ Sections 3 and 4 of `temper/docs/design/draft/chat-reading.md`, in jig and tempe
 
 **Critical path:** `live-whole` (or `turn-order`, or `chat-committed`) → `turn-prices` → `chat-live`, about 225 implementer-minutes. The first four start at once.
 
-**Why this order:** `turn-prices` waits for the three that make a larger turn safe to raise. `chat-live` waits for it, as a long line would panic the builder before the view is repriced, and it's the second writer of `pages/chat.rs`, after `chat-committed`.
+**Why this order:** `turn-prices` waits for the three that make a larger turn safe to raise. `chat-live` waits for it, as a long line would panic the builder before the view is repriced, and it's the last writer of `pages/chat.rs`, after `chat-committed` and `turn-prices`' one hunk that stops the live line's cut.
 
 ## What didn't hold in the draft
 

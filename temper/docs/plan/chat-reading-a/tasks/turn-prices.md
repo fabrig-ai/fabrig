@@ -5,6 +5,7 @@ kind = "feature"
 needs = ["live-whole", "chat-committed", "turn-order"]
 files = [
   "temper/crates/temper-client-view/src/limits.rs",
+  "temper/crates/temper-client-view/src/pages/chat.rs",
   "temper/crates/temper-client-shell-web/src/limits.rs",
   "temper/crates/temper-client-shell-terminal/src/limits.rs",
   "temper/crates/temper-client-domain/src/pages/chat.rs",
@@ -55,6 +56,7 @@ Owns the two values and the view's bounds, as `files` lists them.
 May also change, these edits alone:
 
 - `temper/crates/temper-client-view/src/tests/**`, `temper/crates/temper-client-domain/src/tests/**`, `temper/crates/temper-client-shell-terminal/src/tests/**`: a test that pins 2,048 or a live line's 512: its expected value. A test that pins a cut at those bounds keeps its rule at its own small limits.
+- `temper/crates/temper-client-view/src/pages/chat.rs`: `provisional` stops cutting the message to `text_limit`, reading all of it with `skein_ui::markdown::read`, and `markdown` goes with its last reader. `conversation_with_times` binds `let (rows, _) = limits;`, its signature unchanged. Nothing else there: the who slot, "Writing...", `read_growing`, the end and the argument's removal are `chat-live`'s.
 - `temper/tools/gallery/src/worlds.rs`: compiles as it is. Change it only if a gallery test proves a cut there is needed, and say so.
 
 Leave `temper/testing/temper-fixtures/src/first_run.rs`: its `received` cuts nothing at 131,072 bytes.
@@ -106,3 +108,7 @@ Options, each pre-approved:
 ## Report
 
 As the implementer's text says, and: `Limits::of`'s `nodes`, `text_bytes` and `patches` before and after at both shells' limits; the heap's figures for a full window; and whether `plan.md`'s table holds.
+
+## Answers
+
+2026-11-06. **The two live stories can't pass while `provisional` cuts the message to `text_limit`, in a file outside this task: widen the task, or move them to `chat-live`?** Widen. The stories stay here and the acceptance is unchanged, as raising `live` proves nothing while the page cuts it, and they are the request's own order of proof. "Owns and may change" names the one hunk in `pages/chat.rs`, and `files` lists it. `Limits::of`, as repriced, already holds a line of `long_text`, so the cut guards nothing here. `a_long_provisional_text_says_nothing_of_what_was_cut` stays as it is. Start from the pushed `d3514d9555`, and finish what stopped with the question: the unfiltered run of step 3, the heap's figures, the content mutations of the committed stories, and the `5.4:` status line.
