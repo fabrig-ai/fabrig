@@ -4,7 +4,6 @@
 Section 4.3's failed and refused answer diagnostics reach serve's stderr and the box's
 `serve.log`; that operator-output path has no gap.
 
-- **Not yet:** 5: a goal's later run's start has no test at the checkout: `temper/docs/plan/goal-delivery/`. The engine doesn't name it yet.
 - **Not yet:** 2: a worker refused at its hello hears the fixed text `not admitted`
   (`temper-service/src/route.rs`, `Delivery::Refuse`, which carries no why), where
   jig's `domain/engine.md`, section 8 has the refusal name why. The request
