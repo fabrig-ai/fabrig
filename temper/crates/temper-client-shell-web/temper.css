@@ -223,14 +223,14 @@ section.temper-accounts button:hover { text-decoration: underline; }
 .temper-agent-page .temper-thread { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .temper-agent-page .temper-thread > [role=log] { position: relative; flex: 0 1 auto; min-height: 0; min-height: calc-size(min-content, min(size, 33%)); width: 100%; padding: 25.67px max(37.33px, calc((100% - 1213.33px) / 2)) 35px; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: #d9d1c5 transparent; }
 .temper-agent-page .temper-thread > [role=log]:not(:last-child) { padding-bottom: 0; }
-.temper-agent-page .temper-thread > :not([role=log]):not(.temper-cards) { flex: none; width: min(1213.33px, calc(100% - 74.67px)); margin-inline: auto; }
+.temper-agent-page .temper-thread > :not([role=log]):not(.temper-cards):not(.temper-latest) { flex: none; width: min(1213.33px, calc(100% - 74.67px)); margin-inline: auto; }
 /* .first-run-context: a direct chat child shares the conversation column. */
 .temper-agent-page > .temper-context { flex: none; width: min(1213.33px, calc(100% - 74.67px)); margin-inline: auto; }
 /* The tail under the log, in the content column as the mockup's proposal. */
-.temper-agent-page .temper-thread > [role=log] ~ :not(.temper-cards):not(.temper-ended) { padding-left: 127.17px; }
-.temper-agent-page .temper-thread > :last-child:not([role=log]):not(.temper-cards):not(.temper-ended) { margin-bottom: 16.33px; }
+.temper-agent-page .temper-thread > [role=log] ~ :not(.temper-cards):not(.temper-ended):not(.temper-latest) { padding-left: 127.17px; }
+.temper-agent-page .temper-thread > :last-child:not([role=log]):not(.temper-cards):not(.temper-ended):not(.temper-latest) { margin-bottom: 16.33px; }
 .temper-agent-page .temper-thread > button { min-height: 32.67px; margin-block: 8.17px -2.33px; border: 0; background: transparent; padding: 3.5px 0; color: #756e65; font-size: 12.83px; text-align: left; }
-.temper-agent-page .temper-thread > button:last-child:not([role=log]):not(.temper-cards) { margin-bottom: 14px; }
+.temper-agent-page .temper-thread > button:last-child:not([role=log]):not(.temper-cards):not(.temper-latest) { margin-bottom: 14px; }
 .temper-agent-page .temper-thread > button:hover { color: var(--temper-accent); text-decoration: underline; }
 .temper-agent-page .temper-thread > p, .temper-agent-page .temper-thread > [role=status] { font-size: 12.83px; color: var(--temper-muted); }
 /* .terminal-day and its rule. */
@@ -331,7 +331,7 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
   .temper-main .temper-taskbar > div:first-child { gap: 10.5px; width: 100%; }
   .temper-main .temper-taskbar > div:last-child { gap: 11.67px; flex-wrap: wrap; white-space: normal; }
   .temper-agent-page .temper-thread > [role=log] { padding: 19.83px 18.67px 35px; }
-  .temper-agent-page .temper-thread > :not([role=log]):not(.temper-cards) { width: calc(100% - 37.33px); }
+  .temper-agent-page .temper-thread > :not([role=log]):not(.temper-cards):not(.temper-latest) { width: calc(100% - 37.33px); }
   .temper-agent-page > .temper-context { width: calc(100% - 37.33px); }
   .temper-agent-page .temper-message { grid-template-columns: 72.33px minmax(0, 1fr); gap: 9.33px; margin-bottom: 19.83px; }
   .temper-agent-page .temper-who { font-size: 11.67px; }
@@ -340,7 +340,7 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
   .temper-agent-page .temper-turn:not(.temper-marker) > :not(.temper-message):not(.temper-work):not(.temper-task-card) { margin-left: 107.33px; }
   .temper-agent-page .temper-cards { padding-inline: 18.67px; }
   .temper-agent-page .temper-cards > .temper-card { margin-left: 81.67px; padding: 14px; }
-  .temper-agent-page .temper-thread > [role=log] ~ :not(.temper-cards):not(.temper-ended) { padding-left: 81.67px; }
+  .temper-agent-page .temper-thread > [role=log] ~ :not(.temper-cards):not(.temper-ended):not(.temper-latest) { padding-left: 81.67px; }
   .temper-agent-page .temper-composer-area { padding: 9.33px 11.67px; }
 }
 /* .terminal-role and .terminal-proposal at 430px. */
@@ -350,7 +350,7 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
   .temper-agent-page .temper-who:has(> time) { display: flex; }
   .temper-agent-page .temper-who time { display: inline; }
   .temper-agent-page .temper-by-tool, .temper-agent-page .temper-cards > .temper-card, .temper-agent-page .temper-turn:not(.temper-marker) > :not(.temper-message):not(.temper-work):not(.temper-task-card) { margin-left: 0; }
-  .temper-agent-page .temper-thread > [role=log] ~ :not(.temper-cards):not(.temper-ended) { padding-left: 0; }
+  .temper-agent-page .temper-thread > [role=log] ~ :not(.temper-cards):not(.temper-ended):not(.temper-latest) { padding-left: 0; }
   .temper-main .temper-taskbar > div:first-child { flex-wrap: wrap; }
   .temper-main .temper-taskbar > div:first-child > p { flex: 1; max-width: max-content; }
   .temper-main .temper-taskbar [role=status] { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
@@ -1565,6 +1565,13 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-session .temper-thread:has(> [role=log][data-log-away]) > .temper-latest { display: block; }
 #app > .temper-session .temper-latest::after { content: ' ↓' / ''; }
 #app > .temper-session .temper-latest:hover { color: var(--gf-ink); border-color: #b4b4ae; }
+
+.temper-agent-page .temper-thread > [role=log]:has(+ .temper-latest) { padding-bottom: 35px; }
+/* The pill's margins take no flex space and place it over the log's foot, before its tail. */
+.temper-agent-page .temper-thread > .temper-latest { display: none; position: relative; align-self: center; flex: none; width: auto; min-height: 0; z-index: 5; margin: calc(-1lh - 24px) auto 12px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 999px; background: var(--gf-surface); box-shadow: 0 2px 8px rgba(24, 24, 27, .1); color: var(--gf-ink-2); font: 400 13px/1.6 var(--gf-sans); }
+.temper-agent-page .temper-thread:has(> [role=log][data-log-away]) > .temper-latest { display: block; }
+.temper-agent-page .temper-latest::after { content: ' ↓' / ''; }
+.temper-agent-page .temper-thread > .temper-latest:hover { color: var(--gf-ink); border-color: #b4b4ae; text-decoration: none; }
 
 /* The answer ends where its last closed Markdown block ends. */
 #app > .temper-session .temper-by-agent > .temper-says ol,
