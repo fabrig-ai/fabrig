@@ -55,3 +55,34 @@ Chromium stops, and `boxes/` and `build/` are removed. Screenshots, logs, the
 index and gallery remain. A fresh output directory is required for another
 run. The two non-fake checks belong to `real-checks`; this driver does not run
 them.
+
+The fixed-tip replay opens Settings immediately after To begin, without the
+old repository/one-second settling wait. The ctl fallback is still evidence of
+a failure, never counted as verification of W1. Two additional fake cues after
+the document's second turn replace its note with `work:` memory and add four
+more working notes, then restore the same document as a later note. Reopening
+the chat checks both the no-document case and continuation beyond the first
+notes page (W7); the existing two document cues and their literal revisions
+stay intact. `working-notes-WIDTH.json` retains the first public ctl notes page.
+The phone Configure reference now provisionally matches W5's hidden hint;
+review the capture before accepting that verdict.
+
+`change()` waits for “main last moved” before labelling a capture landed; a
+queued title alone is insufficient. A live nonempty queue is captured when
+available and the gallery remains a fallback. The working-note proof saves
+all ctl pages and compares Draft with Draft on the mock.
+
+For the final small focus fix, rewalk the affected state on fresh boxes:
+
+```sh
+python3 -B temper/docs/plan/ui-final-walk/driver/focus.py \
+  --width 1440 --out "$HOME/src/fabrig/ui-final-walk/walk-again/focus-after/1440" \
+  --bundle "$PWD/target/ui-final-walk-focus-bundle"
+```
+
+Repeat at 420 with a fresh output directory. This proves that Enter-created
+projects focus the heading without outlining it, and that the next keyboard
+control retains its ring. It also captures the still-different rename form
+and records Escape and Cancel focus. `focus-metrics.json` retains the numbers.
+The full walk's client stays frozen in its copied bundle while this fresh
+bundle runs; the report identifies which captures were replaced.
