@@ -190,26 +190,24 @@ impl Service {
             || ((!self.file_submissions.is_empty() || !self.io_submissions.is_empty()) && self.submissions.room() > 0)
             || !self.io_completions.is_empty()
             || (!self.io_asked.is_empty() && self.io.takes())
-            || (protocol_ready && protocol_room(self, protocol::MAX_OUT_RESUME))
-            || (protocol_room(self, protocol::MAX_OUT_RESUME)
+            || (protocol_ready && protocol_resume_has_room(self))
+            || (protocol_resume_has_room(self)
                 && match protocol::next_deadline(&self.protocol) {
                     Some(at) => at <= now,
                     None => false,
                 })
-            || (!protocol_ready
-                && protocol_room(self, protocol::MAX_OUT_UP)
-                && (!self.file_told.is_empty() || !self.told.is_empty()))
-            || (domain_ready && self.answers.room() >= domain::MAX_OUT_RESUME)
+            || (protocol_accepts_event(self) && (!self.file_told.is_empty() || !self.told.is_empty()))
+            || (domain_ready && domain_resume_has_room(self))
             || (!domain_ready
-                && self.answers.room() >= domain::MAX_OUT
+                && domain_step_has_room(self)
                 && (!self.calls.is_empty()
                     || match domain::next_deadline(&self.domain) {
                         Some(at) => at <= now,
                         None => false,
                     }))
             || !self.completions.is_empty()
-            || (!self.asked.is_empty() && self.io_asked.is_empty() && self.files.takes())
-            || (!self.answers.is_empty() && self.protocol.takes() && protocol_room(self, protocol::MAX_OUT_DOWN))
+            || (!self.asked.is_empty() && io_accepts_request(self))
+            || (!self.answers.is_empty() && protocol_accepts_answer(self))
     }
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
@@ -278,11 +276,11 @@ fn io_up(service: &mut Service) {
     }
 }
 fn protocol_up(service: &mut Service) {
-    if protocol_room(service, protocol::MAX_OUT_RESUME) {
+    if protocol_resume_has_room(service) {
         protocol::fire(&mut service.protocol, &service.protocol_env, &mut service.calls, &mut service.asked);
     }
     for _ in 0..service.queue_limit {
-        if !service.protocol.work_pending() || !protocol_room(service, protocol::MAX_OUT_RESUME) {
+        if !service.protocol.work_pending() || !protocol_resume_has_room(service) {
             break;
         }
         let marks = (service.calls.len(), service.asked.len());
@@ -293,7 +291,7 @@ fn protocol_up(service: &mut Service) {
         return;
     }
     for _ in 0..service.file_told.len() {
-        if service.protocol.work_pending() || !protocol_room(service, protocol::MAX_OUT_UP) {
+        if !protocol_accepts_event(service) {
             break;
         }
         let Some(event) = service.file_told.pop() else {
@@ -308,7 +306,7 @@ fn protocol_up(service: &mut Service) {
         );
     }
     for _ in 0..service.queue_limit {
-        if service.protocol.work_pending() || !protocol_room(service, protocol::MAX_OUT_UP) {
+        if !protocol_accepts_event(service) {
             break;
         }
         let Some(event) = service.told.pop() else {
@@ -327,7 +325,7 @@ fn protocol_up(service: &mut Service) {
 }
 fn domain_stage(service: &mut Service) {
     for _ in 0..service.calls.capacity() {
-        if !service.domain.work_pending() || service.answers.room() < domain::MAX_OUT_RESUME {
+        if !service.domain.work_pending() || !domain_resume_has_room(service) {
             break;
         }
         let before = service.answers.len();
@@ -338,7 +336,7 @@ fn domain_stage(service: &mut Service) {
         return;
     }
     for _ in 0..service.calls.capacity() {
-        if service.answers.room() < domain::MAX_OUT {
+        if !domain_step_has_room(service) {
             break;
         }
         let Some(event) = service.calls.pop() else {
@@ -348,13 +346,13 @@ fn domain_stage(service: &mut Service) {
         domain::step(&mut service.domain, &service.domain_env, event, &mut service.answers);
         within(before, service.answers.len(), domain::MAX_OUT);
     }
-    if service.calls.is_empty() && service.answers.room() >= domain::MAX_OUT {
+    if service.calls.is_empty() && domain_step_has_room(service) {
         domain::fire(&mut service.domain, &service.domain_env, &mut service.answers);
     }
 }
 fn protocol_down(service: &mut Service) {
     for _ in 0..service.answers.capacity() {
-        if !service.protocol.takes() || !protocol_room(service, protocol::MAX_OUT_DOWN) {
+        if !protocol_accepts_answer(service) {
             break;
         }
         let Some(request) = service.answers.pop() else {
@@ -368,7 +366,7 @@ fn protocol_down(service: &mut Service) {
 fn io_down(service: &mut Service) {
     io::stage::down(&mut service.io, &service.io_env, &mut service.io_asked, &mut service.io_submissions);
     for _ in 0..service.asked.len() {
-        if !service.io_asked.is_empty() || !service.files.takes() {
+        if !io_accepts_request(service) {
             break;
         }
         let Some(request) = service.asked.pop() else {
@@ -400,6 +398,24 @@ fn io_down(service: &mut Service) {
             }
         }
     }
+}
+fn protocol_resume_has_room(service: &Service) -> bool {
+    protocol_room(service, protocol::MAX_OUT_RESUME)
+}
+fn protocol_accepts_event(service: &Service) -> bool {
+    !service.protocol.work_pending() && protocol_room(service, protocol::MAX_OUT_UP)
+}
+fn domain_resume_has_room(service: &Service) -> bool {
+    service.answers.room() >= domain::MAX_OUT_RESUME
+}
+fn domain_step_has_room(service: &Service) -> bool {
+    service.answers.room() >= domain::MAX_OUT
+}
+fn protocol_accepts_answer(service: &Service) -> bool {
+    service.protocol.takes() && protocol_room(service, protocol::MAX_OUT_DOWN)
+}
+fn io_accepts_request(service: &Service) -> bool {
+    service.io_asked.is_empty() && service.files.takes()
 }
 fn protocol_room(service: &Service, max: protocol::MaxOut) -> bool {
     service.calls.room() >= max.above && service.asked.room() >= max.below
