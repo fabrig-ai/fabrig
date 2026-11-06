@@ -1257,7 +1257,7 @@ fn a_met_owner_inbox_wait_prints_the_plain_reads_question_and_calls() {
         assert_eq!(answer.status, 0);
         assert_eq!(answer.stdout, f::appended(&plain.stdout, b"met\n"));
         if more && !client_cut {
-            assert_eq!(answer.stdout, f::golden("inbox_wait_question"));
+            f::check_golden("inbox_wait_question", &answer.stdout);
         }
         assert!(root.reads.is_empty());
         assert_eq!(root.watches.len(), f::SHARED_WATCHES);

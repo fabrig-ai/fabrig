@@ -30,6 +30,7 @@ pub fn pending_proposal_record() -> w::Proposal {
     w::Proposal::new(
         limits,
         w::ProposalParts {
+            projects: List::with_capacity(0),
             key: w::ProposalKey::new(
                 limits,
                 w::ProposalKeyParts {
