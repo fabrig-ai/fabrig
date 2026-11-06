@@ -15,8 +15,6 @@ Unlisted sections have no known gap.
   capacity cause from its role cause: jig's `me` carries absence alone
   (`jig/docs/design/client/domain/contract.md`, 5.3). Its diagnostic names
   the role and `documents.lines` as checks, without asserting either cause.
-- **Not yet:** 6.1: a task no account serves prints `Due to run` and `--json`'s
-  `waits_on` `nothing`, against `waiting on: an account`.
 - **Not yet:** 5.5: `temper help task`'s Limits still says temper does not
   let ctl take a task or hand it back, where area 3's `task take` and
   `task hand-back` do so for a person task. The `plainer-panels` request of
