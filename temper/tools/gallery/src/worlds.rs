@@ -937,8 +937,11 @@ fn gallery_pull(
 }
 fn deployment_read(root: &mut Domain, read: Token, out: &mut Queue<Request>) {
     use temper_client_protocol_wire::{self as wire, v1};
-    let answer = v1::DeploymentAnswer::new(&v1::CEILINGS, v1::DeploymentAnswerParts { welcome: true, owned: true })
-        .expect("deployment answer");
+    let answer = v1::DeploymentAnswer::new(
+        &v1::CEILINGS,
+        v1::DeploymentAnswerParts { welcome: true, owned: true, program_login: None },
+    )
+    .expect("deployment answer");
     step(
         root,
         Event::Client {

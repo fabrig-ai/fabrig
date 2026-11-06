@@ -88,7 +88,7 @@ fn declaring_a_program_login_shows_its_command_on_ready() {
     );
     press(&mut front, &mut root, Role::Button, b"Use your Scripted subscription", skein_ui::Act::Press);
     assert!(text(&root).contains("Declared your Scripted subscription · claude-alice"));
-    assert!(text(&root).contains("temper program-login claude-alice"));
+    assert!(text(&root).contains("temper program-login --config CONFIG --data DATA --cache CACHE claude-alice"));
     assert!(text(&root).contains("If this machine has no Claude Code, this fetches it first. Claude Code asks you to sign in. temper never reads its login."));
 }
 #[test]
@@ -284,7 +284,11 @@ fn welcome_claude_checks_on_the_wire_and_reaches_ready_after_the_host_answers() 
         },
     };
     accounts::reopen(&mut front, &mut root, address.clone(), false);
-    assert!(text(&root).contains("temper program-login claude-person"), "{}", text(&root));
+    assert!(
+        text(&root).contains("temper program-login --config CONFIG --data DATA --cache CACHE claude-person"),
+        "{}",
+        text(&root)
+    );
     let view = view(&root);
     let button = view
         .tree()

@@ -148,7 +148,7 @@ fn first_run_page(address: client::Address, landed: bool) -> skein_ui::Tree {
                         record: Some(wire::deployment_answer(
                             &w::DeploymentAnswer::new(
                                 &w::CEILINGS,
-                                w::DeploymentAnswerParts { welcome: true, owned: true },
+                                w::DeploymentAnswerParts { welcome: true, owned: true, program_login: None },
                             )
                             .expect("deployment answer"),
                         )),
