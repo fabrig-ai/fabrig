@@ -166,8 +166,14 @@ fn a_worker_reads_program_resources_from_the_agent_configuration() {
     assert_eq!(sources.directory.as_ref(), directory.join("private-programs").as_os_str().as_bytes());
     assert_eq!(sources.environment.as_ref(), &[Box::<[u8]>::from(b"JIG_SOURCE_CHECK=configured".as_slice())]);
     assert!(
-        jig_test_service::program_sources::from_paths(sources.directory, sources.executable, sources.environment)
-            .is_some()
+        jig_test_service::program_sources::from_paths(
+            sources.directory,
+            sources.executable,
+            sources.environment,
+            1000,
+            None
+        )
+        .is_some()
     );
     fs::remove_dir_all(directory).expect("scratch cleanup");
 }

@@ -20,6 +20,7 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
         | Line::Path(bytes)
         | Line::Secret(bytes)
         | Line::Place(bytes)
+        | Line::Copy { words: bytes, .. }
         | Line::Navigate(bytes)
         | Line::Replace(bytes)
         | Line::Show { path: bytes, .. } => vec![(bytes, Text)],
@@ -61,6 +62,7 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
         | Line::Zone(_)
         | Line::Turn { .. }
         | Line::Start
+        | Line::Copied { .. }
         | Line::Due
         | Line::Carried { .. }
         | Line::Lost(_)

@@ -1244,6 +1244,10 @@ host:
 
 ## 10. Open questions
 
+- **What a delivery keeps, under a deployment's own charter** (6): the stock's
+  coding charter and the reference's tell a run its own history isn't kept. A
+  deployment's own charter is its author's, so a run under one isn't told.
+  Default: so.
 - **A task read where the process has no local agent.** The engine does not
   know its remote agents' reply bound, so a run there reads a task's words in
   pieces of `documents.text_bytes` (`root.md`, 5.2). Going past it needs each

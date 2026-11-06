@@ -1188,7 +1188,7 @@ task 41 · goal · Running · shop · priority 2
 asked: Add a /health endpoint that reports the store's state
 requester: you · spent 120 of 500 · deadline 2026-10-24 17:00 UTC
 instructions: Answer on port 8080 unless the store's file names another one, and keep the /hea… (412 bytes; --json prints them whole)
-waiting on: you: question 3 of task 44, "Which port should it listen on?"
+waiting on: you: question 3 of task 44 · 1 waiting
 plan: 4 live (2 running, 1 waiting, 1 held below)
 acts:
   task answer 44 3 TEXT
@@ -1221,9 +1221,10 @@ digest: task 7c1e09a2b44f0d13
 - **`waiting on:`** prints jig's word for what the task waits on (jig's
   `client/domain/client.md`, 19), or the party and what it must answer. A
   held task that awaits nothing else prints its hold, where `Nothing
-  awaited` would read as if nothing were wrong; one a party or a delegate
-  also keeps prints those. The hold prints as `held` alone. `--json`
-  keeps `waits_on` as jig gives it.
+  awaited` would read as if nothing were wrong; one that awaits anything
+  else prints that. The hold prints as `held` alone (the user, 2026-11-06):
+  the document's `held:` and `way out:` lines carry its reason and what to
+  do. `--json` keeps `waits_on` as jig gives it.
 - **The deadline** has its date and its zone: `deadline 2026-10-24
   17:00 UTC`, or `no deadline`.
 - **Its instructions,** when the document carries them, on a line of
@@ -2248,6 +2249,10 @@ Each is named here and designed when it comes.
   the bound from the contract its read gave, and a restored request,
   which read nothing, prints the refusal bare. Carrying the bound in
   the refusal changes a stored form and jig's protocol.
+- **Who answered, on a closing person task** (5.5, area 3): jig's live
+  document does not say, so with no holder `task show` prints neither
+  line until the task has ended. Naming it changes jig's document and
+  its protocol.
 
 ## 15. Open questions
 
