@@ -228,6 +228,7 @@ impl Domain {
                     state: State::Opening,
                     closing: false,
                     answered: false,
+                    busy: false,
                     own,
                     until: None,
                     span: None,
