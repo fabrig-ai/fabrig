@@ -185,17 +185,42 @@ pub fn fresh(scenario: Scenario, cut: Cut, seed: u64, enabled: bool) -> Result<W
     Ok(world)
 }
 
-/// Complete outside state; formatting is requested by equivalence proofs only.
-#[must_use]
-pub fn outside(world: &World) -> String {
-    format!(
-        "systems={:?}\npeers={:?}\nstore={:?}\nreferee={:?}\nclock={:?}\noutcome={:?}\ntrace={:?}",
-        world.systems,
-        world.peers,
-        world.store,
-        world.referee,
-        world.clock(),
-        world.outcome(),
-        &*world.trace
-    )
+macro_rules! outside_state {
+    ($world:ident; $($field:ident: $kind:ty = $value:expr),+ $(,)?) => {
+        /// Owned outside state compared by snapshot equivalence proofs.
+        #[derive(PartialEq, Eq, Debug)]
+        pub struct Outside { $($field: $kind),+ }
+        /// Complete outside state, including durable store fields and trace lines.
+        #[must_use]
+        pub fn outside($world: &World) -> Outside { Outside { $($field: $value),+ } }
+        impl Outside {
+            /// The field that differs and its first differing `{:#?}` line.
+            #[must_use]
+            pub fn first_difference(&self, other: &Self) -> Option<String> {
+                $(if self.$field != other.$field {
+                    let left = format!("{:#?}", self.$field);
+                    let right = format!("{:#?}", other.$field);
+                    let mut left = left.lines().map(Some).chain(std::iter::repeat(None));
+                    let difference = right.lines().map(Some).chain([None]).zip(&mut left).find(|(b, a)| a != b);
+                    return Some(match difference {
+                        Some((b, a)) => format!("{}: {a:?} != {b:?}", stringify!($field)),
+                        None => format!("{}: values differ with identical Debug lines", stringify!($field)),
+                    });
+                })+
+                None
+            }
+        }
+    };
 }
+outside_state!(world;
+    systems: [jig_test_system::System; 2] = world.systems.clone(),
+    peers: crate::Neighbours = world.peers.clone(),
+    applied: u64 = world.store.applied,
+    rows: std::collections::BTreeMap<jig_test_domain::Key, jig_test_domain::Record> = world.store.rows.clone(),
+    pending: std::collections::VecDeque<jig_test_store_files::Pending> = world.store.pending.clone(),
+    held: std::collections::VecDeque<u64> = world.store.held.clone(),
+    referee: jig_conformance::referee::Referee = world.referee.clone(),
+    clock: u64 = world.clock().now,
+    outcome: Outcome = world.outcome(),
+    trace: Vec<String> = world.trace.to_vec(),
+);
