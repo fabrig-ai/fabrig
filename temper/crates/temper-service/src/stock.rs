@@ -68,6 +68,7 @@ const CONFIGURING_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(1920)
 const REVIEWING_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(512);
 const FOREMAN_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(512);
 const STATUS_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(0);
+const TRIAL_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(0);
 
 /// One stock value past a limit the document set (protocol/configuration.md, 13.4).
 /// `limit` is its override name under `engine.limits`; `setting` needs `needed`.
@@ -180,6 +181,7 @@ pub(crate) fn checked(llm: &jig_protocol_config::Llm, result_bytes: u32) -> Opti
         reviewer(llm),
         foreman(llm),
         status(llm),
+        trial(llm),
     ]);
     // jig prices the costliest completion; one reserve turn plus one is 2C.
     let mut completion = 0;
@@ -323,6 +325,7 @@ fn charter(
                 4 => REVIEWING_TOOLS,
                 6 => FOREMAN_TOOLS,
                 9 => STATUS_TOOLS,
+                10 => TRIAL_TOOLS,
                 _ => unreachable!("stock charter number"),
             },
         },
@@ -352,6 +355,14 @@ fn status(llm: &jig_protocol_config::Llm) -> Charter {
     value.policy.inspect = false;
     value.policy.modify = false;
     value.policy.agents = false;
+    value
+}
+fn trial(llm: &jig_protocol_config::Llm) -> Charter {
+    let mut value = charter(10, 2, Duration::from_secs(120), include_bytes!("stock/trial.txt"), llm, FIRST_CHOICES);
+    value.policy.inspect = false;
+    value.policy.modify = false;
+    value.policy.agents = false;
+    value.policy.resume = false;
     value
 }
 fn grants() -> Box<[authority::Grant]> {

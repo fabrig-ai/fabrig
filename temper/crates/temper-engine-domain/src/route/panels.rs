@@ -15,6 +15,14 @@ pub(crate) fn document(
     subject: Token,
     party: u64,
 ) {
+    let mut trials = if connector == domain.config.forge_connector
+        && scope == ApplicationScope::Own
+        && subject == Token::new(crate::TRIALS_SUBJECT)
+    {
+        Some(trial_rows(domain, &env.limits, party))
+    } else {
+        None
+    };
     let mut forges = if connector == domain.config.forge_connector
         && scope == ApplicationScope::Deployment
         && subject == Token::new(0)
@@ -28,7 +36,7 @@ pub(crate) fn document(
     } else {
         None
     };
-    let outcome = if panel.is_some() || forges.is_some() {
+    let outcome = if panel.is_some() || forges.is_some() || trials.is_some() {
         views::Made::Ready
     } else {
         views::Made::Gone { why: views::End::Gone }
@@ -48,21 +56,24 @@ pub(crate) fn document(
             emit(
                 decision,
                 &env.limits,
-                match forges.take() {
-                    Some(forges) => Delivery::Forges { watcher, forges },
-                    None => match panel.take().expect("one whole ready document") {
-                        temper_engine_domain_forge::Document::Change(panel) => {
-                            Delivery::Panel { watcher, panel: Box::new(panel) }
-                        }
-                        document @ (temper_engine_domain_forge::Document::Landing(_)
-                        | temper_engine_domain_forge::Document::Landings(_)
-                        | temper_engine_domain_forge::Document::Aways(_)
-                        | temper_engine_domain_forge::Document::Decisions(_)
-                        | temper_engine_domain_forge::Document::Status(_)
-                        | temper_engine_domain_forge::Document::Changes(_)
-                        | temper_engine_domain_forge::Document::Dismissals(_)) => {
-                            Delivery::ForgeDocument { watcher, document: Box::new(document) }
-                        }
+                match trials.take() {
+                    Some(rows) => Delivery::Trials { watcher, rows },
+                    None => match forges.take() {
+                        Some(forges) => Delivery::Forges { watcher, forges },
+                        None => match panel.take().expect("one whole ready document") {
+                            temper_engine_domain_forge::Document::Change(panel) => {
+                                Delivery::Panel { watcher, panel: Box::new(panel) }
+                            }
+                            document @ (temper_engine_domain_forge::Document::Landing(_)
+                            | temper_engine_domain_forge::Document::Landings(_)
+                            | temper_engine_domain_forge::Document::Aways(_)
+                            | temper_engine_domain_forge::Document::Decisions(_)
+                            | temper_engine_domain_forge::Document::Status(_)
+                            | temper_engine_domain_forge::Document::Changes(_)
+                            | temper_engine_domain_forge::Document::Dismissals(_)) => {
+                                Delivery::ForgeDocument { watcher, document: Box::new(document) }
+                            }
+                        },
                     },
                 },
             );
@@ -72,5 +83,30 @@ pub(crate) fn document(
             super::route_core_requests(domain, env, decision, forward);
         }
     }
-    assert!(panel.is_none() && forges.is_none(), "every ready document was taken where it was made");
+    assert!(
+        panel.is_none() && forges.is_none() && trials.is_none(),
+        "every ready document was taken where it was made"
+    );
+}
+
+fn trial_rows(domain: &Domain, limits: &Limits, person: u64) -> Box<[temper_engine_domain_trials::Row]> {
+    let mut ordered = skein_lib::Map::with_capacity(crate::limits::trial_limits(limits).rows);
+    for row in domain.trials.rows(person) {
+        let key = (u64::MAX.saturating_sub(row.began.as_nanos()), row.account);
+        ordered.insert(key, row).expect("one row per account");
+    }
+    let mut rows = skein_lib::List::with_capacity(ordered.len());
+    for (_, row) in &ordered {
+        rows.push(temper_engine_domain_trials::Row {
+            account: row.account,
+            person: row.person,
+            task: row.task,
+            began: row.began,
+            took: row.took,
+            step: row.step,
+            state: row.state,
+        })
+        .expect("bounded trials document");
+    }
+    rows.into_boxed()
 }

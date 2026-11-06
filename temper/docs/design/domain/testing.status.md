@@ -16,6 +16,13 @@ proof is not established by the supplied inventory (`../protocol/setup.status.md
 7.1, 7.2 and 13.4); the existing real-box sign-in story still awaits its
 after-landing execution (`../protocol/sign-in.status.md`, 9.9).
 
+- **Not yet:** 2.6: the supplied inventory has no result for any of
+  `ui-restart-red`'s five repaired process stories
+  (`../protocol/setup.status.md`, 13.4). The stock-purse regression and
+  late-handover tests are present, and the started-cut fixture uses
+  init's no-sign-in configuration while it holds the engine; none is a
+  recorded pass of the five stories.
+
 - **Not yet:** 2.6: no passing whole run is recorded for the three-test
   profile with the four fixed-callback walks serialized. Its proof belongs
   to the next after-landing run on main (11), per the request
@@ -93,6 +100,12 @@ after-landing execution (`../protocol/sign-in.status.md`, 9.9).
   Claude Code one on `claude-haiku-5-5` included; the pair's `#[ignore]`
   reasons still say "a person's sitting" and "owner-run only"
   (`crates/temper/tests/live.rs`).
+  Its `owned_forge_landing` also passes seven setup calls on a fresh
+  first run and four otherwise to `assert_forgejo_setup`, which expects
+  six and three (`crates/temper/tests/support/forge_land.rs`). Those
+  lengths disagree before the token-file assertion. The late-handover
+  cause reaches both stories through that shared assertion, but its
+  repair establishes no live pass and does not fix this oracle mismatch.
   2.7: the held record's guard is shown on the fake issuer and on stubs
   alone (`crates/temper/tests/process.rs`,
   `a_story_panicking_after_its_box_stopped_leaves_the_held_record_at_its_path`,

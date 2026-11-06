@@ -53,6 +53,9 @@ mod tests_party;
 mod tests_policy;
 mod value;
 
+/// No project or policy (jig/docs/design/domain/authority.md, 6.1).
+pub const NO_PROJECT: u32 = 0;
+
 pub use allowed::as_allowed;
 pub use boundary::{
     AccountBinding, AccountCheck, Action, Answer, BatchAsk, Call, CallAsk, Checked, Delegate, Effect, EffectAccess,

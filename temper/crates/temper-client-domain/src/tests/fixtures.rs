@@ -27,9 +27,9 @@ pub fn limits() -> Limits {
                 }],
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
-                // Page handles, the project-needs watch and the goals fact.
-                handles: 12,
-                watches: 11,
+                // Page handles, the project-needs watch and the goals fact, trials and a running trial task.
+                handles: 14,
+                watches: 13,
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,
@@ -51,7 +51,7 @@ pub fn limits() -> Limits {
             exchanges: 8,
         };
 
-        Limits { forge: forge::Limits { field_bytes: 256, checks: 8 }, client, row_uses: 8 }
+        Limits { forge: forge::Limits { field_bytes: 256, checks: 8 }, client, row_uses: 8, window_bytes: None }
     }
 }
 pub fn env(limits: &Limits) -> Env<Limits> {

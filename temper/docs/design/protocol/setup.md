@@ -3828,7 +3828,11 @@ it checks of this document:
   box, with Forgejo's binaries placed in the cache as below, the
   owner's set up of an owned Forgejo is killed with the box at each of
   its steps, its fetch, its preparation, its Forgejo's run, and after
-  its `started` record with the engine held before it hears it. Each
+  its `started` record with the engine held before it hears it. That
+  started cut alone uses init's configuration without sign-in, since
+  its source step would need discovery from the held engine
+  (`../domain/testing.md`, 2.6). Sign-in is restored before the final
+  setup and removal cut. Each
   next box finds the forge kept and its first repository not made, and
   its removal, `temper ctl forge remove N`, answers removed and leaves
   no `forge-N`, `box/groups/N` or `box/started/N`. A set up after the
@@ -3907,7 +3911,8 @@ Each is intended; what it needs is named with it.
   which makes a new handover, and no `started` reaches serve for it, so
   the file stays until serve's next start. It needs the box to tell
   serve of that restart, and serve to take a handover on a forge it
-  holds connected.
+  holds connected. Section 6.5's second read handles serve's own start
+  alone.
 
 - **A box killed outright on macOS** (7.1): its steps have no parent-death
   signal, so they can keep running and hold the next start's ports. A

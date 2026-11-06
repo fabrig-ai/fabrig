@@ -409,6 +409,7 @@ mod tests {
             Fd::new(0),
             Fd::new(1),
             Fd::new(2),
+            false,
         );
         let caller = crate::calls::Caller::new(Vec::new(), std::path::PathBuf::new(), Fd::new(4));
         let mut procs = [Proc::new(Kind::Caller(Box::new(caller))), Proc::new(Kind::Terminal(Box::new(host)))];

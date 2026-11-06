@@ -757,8 +757,27 @@ fn proposal(row: &tasks::TaskRecord) -> Option<ProposalRef> {
     }
 }
 
+/// Only the pool's person may read a projectless Task (jig/docs/design/domain/authority.md, 6.1).
+pub(crate) fn person_funded(row: &tasks::TaskRecord, party: u64) -> bool {
+    row.project == jig_domain_people::DEPLOYMENT
+        && match row.funder {
+            tasks::Funder::Pool { person, .. } => person == party,
+            tasks::Funder::Period { .. } | tasks::Funder::Recurring { .. } | tasks::Funder::Task(_) => false,
+        }
+}
+
 pub(super) fn task(core: &Core, limits: &Limits, party: u64, number: u64, decision: Wall) -> Result<Task, Missing> {
-    let row = super::small::visible(core, party, number)?;
+    let row = core.tasks.task(number).ok_or(Missing::Unknown)?;
+    let row = if person_funded(row, party) {
+        match row.phase {
+            tasks::Phase::Ended(_) => return Err(Missing::Ended),
+            tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } => {
+                row
+            }
+        }
+    } else {
+        super::small::visible(core, party, number)?
+    };
     task_from_row(core, limits, party, row, decision)
 }
 
@@ -794,7 +813,8 @@ fn task_with_lineage(
     decision: Wall,
     live_lineage: bool,
 ) -> Result<Task, Missing> {
-    if !core.open_project(row.project) || core.people.role(party, row.project).is_none() {
+    if !(core.open_project(row.project) && core.people.role(party, row.project).is_some() || person_funded(row, party))
+    {
         return Err(Missing::NotAllowed);
     }
     let number = row.number;
@@ -1199,7 +1219,8 @@ pub(super) fn dependency_rows(limits: &Limits, row: &tasks::TaskRecord) -> List<
 
 /// A retained ended root has no live subtree (client/domain/contract.md, 7.2).
 pub(crate) fn ended_tree(core: &Core, limits: &Limits, party: u64, row: &tasks::TaskRecord) -> Result<Tree, Missing> {
-    if !core.open_project(row.project) || core.people.role(party, row.project).is_none() {
+    if !(core.open_project(row.project) && core.people.role(party, row.project).is_some() || person_funded(row, party))
+    {
         return Err(Missing::NotAllowed);
     }
     match row.phase {

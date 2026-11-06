@@ -609,3 +609,5 @@ impl Core {
         })
     }
 }
+
+pub use effects::connector::PersonSeed;

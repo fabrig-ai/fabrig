@@ -129,6 +129,18 @@ impl Short {
     }
 }
 
+/// Trials fit their accounts, the family wire and one whole delivery (domain/trial.md, 3.1 and 6).
+pub(crate) fn trial_rows(limits: &crate::Limits) -> u32 {
+    let row = u32::try_from(size_of::<temper_engine_domain_trials::Row>()).expect("trial row size fits u32");
+    let room = limits
+        .journal
+        .result_bytes
+        .max(limits.journal.transcript_bytes)
+        .checked_div(row)
+        .expect("a trial row has fields");
+    limits.accounts.accounts.min(64).min(room)
+}
+
 #[cfg(test)]
 #[path = "tests/room.rs"]
 mod tests;

@@ -22,7 +22,7 @@ const TRANSCRIPT_BYTES: usize = 1_048_576;
 /// A person's act at the terminal, each one a story's step.
 pub enum Act {
     /// Open on its DIRECTORY by the link the service printed last.
-    Open,
+    Open { welcome: bool },
     /// Open with a small conversation window, so scrolling crosses its byte bound.
     OpenReading,
     /// Type the last page's numbered control with this label, then the words.
@@ -39,7 +39,12 @@ pub enum Act {
 }
 #[must_use]
 pub fn open() -> crate::calls::Step {
-    crate::calls::Step::Terminal(Act::Open)
+    crate::calls::Step::Terminal(Act::Open { welcome: false })
+}
+/// Open the welcome through the native client's navigation entrance.
+#[must_use]
+pub fn open_welcome() -> crate::calls::Step {
+    crate::calls::Step::Terminal(Act::Open { welcome: true })
 }
 #[must_use]
 pub fn open_reading() -> crate::calls::Step {
@@ -106,7 +111,10 @@ pub(crate) fn host(spawn: &Spawn, inherited: &skein_world::Inherited) -> crate::
         pipe(0),
         pipe(1),
         inherited.signal,
-        spawn.args.get(2).is_some_and(|arg| arg.as_ref() == b"reading"),
+        (
+            spawn.args.get(2).is_some_and(|arg| arg.as_ref() == b"welcome"),
+            spawn.args.get(2).is_some_and(|arg| arg.as_ref() == b"reading"),
+        ),
     ))))
 }
 pub(crate) fn compose(
@@ -116,8 +124,9 @@ pub(crate) fn compose(
     stdin: Fd,
     stdout: Fd,
     signals: Fd,
+    welcome: bool,
 ) -> Terminal {
-    compose_with_reading(directory, target, parent, stdin, stdout, signals, false)
+    compose_with_reading(directory, target, parent, stdin, stdout, signals, (welcome, false))
 }
 fn compose_with_reading(
     directory: &Path,
@@ -126,7 +135,7 @@ fn compose_with_reading(
     stdin: Fd,
     stdout: Fd,
     signals: Fd,
-    reading: bool,
+    (welcome, reading): (bool, bool),
 ) -> Terminal {
     let (engine, link, start) = match target {
         temper::open::Target::Link { engine, link } => {
@@ -144,7 +153,7 @@ fn compose_with_reading(
         domain.turn_text = 1024;
     }
     let (view, _) = limits::view(&bounds).expect("native view bounds");
-    let client = NativeClient::new(
+    let mut client = NativeClient::new(
         Settings {
             engine: skein_io::Addr::Ip(engine),
             directory: directory.file_name().expect("terminal directory leaf").as_bytes().into(),
@@ -156,6 +165,9 @@ fn compose_with_reading(
         start,
     )
     .expect("native terminal client");
+    if welcome {
+        client.go(temper_client_domain::Address::Welcome { step: temper_client_domain::Step::Welcome });
+    }
     let settings = limits::Terminal { interval: PRINT_INTERVAL, ..limits::terminal() };
     let state = Loop::new(&settings, &view.tree, directory.as_os_str().as_bytes().into(), link);
     Terminal::new(client, state, stdin, stdout, signals).expect("terminal descriptors")
@@ -170,6 +182,7 @@ pub(crate) fn operations() -> u32 {
         Fd::new(0),
         Fd::new(1),
         Fd::new(2),
+        false,
     )
     .operations()
 }
@@ -249,7 +262,7 @@ impl Typist {
     fn read_pipe(&mut self, fd: Fd, out: &mut Queue<Submit>) {
         self.submit(Op::PipeRead { fd, buf: vec![0; PAGE_BYTES].into_boxed_slice() }, out);
     }
-    fn launch(&mut self, scratch: &Path, root: Fd, links: u32, reading: bool, out: &mut Queue<Submit>) {
+    fn launch(&mut self, scratch: &Path, root: Fd, links: u32, act: &Act, out: &mut Queue<Submit>) {
         let link = std::fs::read(scratch.join("link")).expect("last printed link").trim_ascii().to_vec();
         self.link_count = links;
         self.read.opens += 1;
@@ -258,8 +271,15 @@ impl Typist {
         self.refused.set(false);
         self.active = true;
         let mut args = vec![directory(scratch).as_os_str().as_bytes().into(), link.into()];
-        if reading {
-            args.push(b"reading".as_slice().into());
+        match act {
+            Act::Open { welcome: true } => args.push(b"welcome".as_slice().into()),
+            Act::OpenReading => args.push(b"reading".as_slice().into()),
+            Act::Open { welcome: false }
+            | Act::TypeOn { .. }
+            | Act::TypeKept { .. }
+            | Act::Line { .. }
+            | Act::See { .. }
+            | Act::Close => {}
         }
         self.submit(
             Op::Spawn {
@@ -375,12 +395,16 @@ impl Typist {
     fn fresh(&self) -> impl Iterator<Item = &Page> {
         self.read.pages[self.cursor..].iter().filter(|page| page.commands == self.commands)
     }
-    fn live(&self) -> bool {
-        self.fresh().any(|page| page.bytes.split(|byte| *byte == b'\n').next().is_some_and(|s| s.ends_with(b"== Live")))
+    fn live(&self, welcome: bool) -> bool {
+        self.fresh().any(|page| {
+            page.bytes.split(|byte| *byte == b'\n').next().is_some_and(|s| s.ends_with(b"== Live"))
+                || welcome && control(&page.bytes, b"Ready").is_some()
+        })
     }
     pub(crate) fn ready(&self, act: &Act, links: u32) -> bool {
         match act {
-            Act::Open | Act::OpenReading => !self.opening || self.live() || !self.active && links > self.link_count,
+            Act::Open { welcome } => !self.opening || self.live(*welcome) || !self.active && links > self.link_count,
+            Act::OpenReading => !self.opening || self.live(false) || !self.active && links > self.link_count,
             Act::TypeOn { label, .. } | Act::TypeKept { label } => {
                 if self.acted {
                     !self.writing && self.fresh().next().is_some()
@@ -410,14 +434,15 @@ impl Typist {
         out: &mut Queue<Submit>,
     ) -> bool {
         match act {
-            Act::Open | Act::OpenReading => {
+            Act::Open { .. } | Act::OpenReading => {
+                let welcome = matches!(act, Act::Open { welcome: true });
                 if !self.opening {
                     assert!(!self.active, "one open terminal");
                     self.opening = true;
                     self.attempts = 0;
                     self.cursor = self.read.pages.len();
-                    self.launch(scratch, root, links, matches!(act, Act::OpenReading), out);
-                } else if self.live() {
+                    self.launch(scratch, root, links, act, out);
+                } else if self.live(welcome) {
                     self.opening = false;
                     return true;
                 } else if !self.active {
@@ -425,7 +450,7 @@ impl Typist {
                     assert!(self.refused.get(), "only a spent link permits another open");
                     assert_eq!(self.attempts, 1, "retry a spent link only once");
                     if links > self.link_count {
-                        self.launch(scratch, root, links, matches!(act, Act::OpenReading), out);
+                        self.launch(scratch, root, links, act, out);
                     }
                 }
                 false

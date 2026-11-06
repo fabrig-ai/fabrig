@@ -269,7 +269,7 @@ fn stock_chats_inspect_and_delegate_while_coders_modify() {
     let engine = engine(&single_model());
     let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     for charter in &defaults.charters {
-        assert_eq!(charter.policy.inspect, charter.number != 9);
+        assert_eq!(charter.policy.inspect, charter.number != 9 && charter.number != 10);
         assert!(!charter.policy.shell);
         assert_eq!(charter.policy.modify, charter.number == 2);
         assert_eq!(charter.policy.agents, charter.number == 1 || charter.number == 2);
@@ -282,9 +282,9 @@ fn the_configuring_agent_is_charter_3_and_template_3() {
     let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     assert_eq!(
         defaults.charters.iter().map(|charter| charter.number).collect::<Box<[_]>>().as_ref(),
-        [1, 2, 3, 4, 6, 9]
+        [1, 2, 3, 4, 6, 9, 10]
     );
-    for (charter, tools) in defaults.charters.iter().zip([1023, 514, 1920, 512, 512, 0]) {
+    for (charter, tools) in defaults.charters.iter().zip([1023, 514, 1920, 512, 512, 0, 0]) {
         assert_eq!(charter.policy.tools, jig_domain_tasks::Tools(tools));
     }
     let mut expected = defaults.charters[0].clone();
@@ -351,7 +351,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
         (b"authority.segment_bytes", 5, Setting::Rules, "the stock's rules need 5 bytes"),
         (b"authority.roles", 4, Setting::Policy(1), "the stock's policy 1 needs 4 roles"),
         (b"authority.projects", 1, Setting::Policy(1), "the stock offers 1 policy"),
-        (b"tasks.charters", 6, Setting::Charter(1), "the stock offers 6 charters"),
+        (b"tasks.charters", 7, Setting::Charter(1), "the stock offers 7 charters"),
         (b"core.templates", 3, Setting::Template(1), "the stock offers 3 templates"),
         (b"documents.text_bytes", 11, Setting::Template(3), "the stock's template 3 needs 11 bytes"),
         (b"tasks.grace_ms", 5000, Setting::Template(1), "the stock's template 1 needs 5000 ms of grace"),
@@ -809,7 +809,7 @@ fn the_foremans_charter_reads_and_gives_a_verdict() {
     let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     assert_eq!(
         defaults.charters.iter().map(|charter| charter.number).collect::<Box<[_]>>().as_ref(),
-        [1, 2, 3, 4, 6, 9]
+        [1, 2, 3, 4, 6, 9, 10]
     );
     let foreman = defaults.charters.iter().find(|charter| charter.number == 6).expect("foreman charter");
     let mut expected = defaults.charters[3].clone();
@@ -1506,5 +1506,50 @@ fn the_rules_delegate_to_the_status_charter() {
         .chain(policy.roles.iter().filter(|role| role.authority.budget.spend != 0).map(|role| &role.authority))
     {
         assert!(authority.delegation.kinds.contains(&jig_domain_authority::Executor::Charter(9)));
+    }
+}
+
+// temper/docs/design/protocol/configuration.md, 13.4; temper/docs/design/domain/trial.md, 2.
+#[test]
+fn the_trial_charter_is_one_working_turn_and_reaches_nothing() {
+    let engine = engine(&generated());
+    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let trial = defaults.charters.iter().find(|charter| charter.number == 10).expect("trial charter");
+    let mut expected = defaults.charters[0].clone();
+    expected.number = 10;
+    expected.policy.instructions = include_bytes!("../stock/trial.txt").as_slice().into();
+    expected.policy.turns = 2;
+    expected.policy.time = skein_lib::Duration::from_secs(120);
+    expected.policy.resume = false;
+    expected.policy.inspect = false;
+    expected.policy.agents = false;
+    expected.policy.tools = jig_domain_tasks::Tools(0);
+    assert_eq!(*trial, expected);
+    assert_eq!(trial.policy.reserve_turns, 1);
+    assert_eq!(trial.policy.reserve_time, skein_lib::Duration::from_secs(60));
+    assert!(!trial.policy.modify);
+    assert!(!trial.policy.shell);
+}
+
+#[test]
+fn the_trial_charters_words_ask_for_one_word() {
+    let words = include_str!("../stock/trial.txt");
+    assert_eq!(words, "Say one word and nothing else. Use no tools.");
+    let engine = engine(&single_model());
+    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let trial = defaults.charters.iter().find(|charter| charter.number == 10).expect("trial charter");
+    assert_eq!(trial.policy.instructions.as_ref(), words.as_bytes());
+}
+
+#[test]
+fn no_policy_delegates_to_the_trial_charter() {
+    let engine = engine(&single_model());
+    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let authorities =
+        core::iter::once(&defaults.rules.ceiling).chain(defaults.policies.iter().flat_map(|(_, value)| {
+            core::iter::once(&value.policy.ceiling).chain(value.policy.roles.iter().map(|role| &role.authority))
+        }));
+    for authority in authorities {
+        assert!(!authority.delegation.kinds.contains(&jig_domain_authority::Executor::Charter(10)));
     }
 }

@@ -54,7 +54,7 @@ impl Draw<'_> {
         }
         self.queues(b, app, landings);
         if landings.landings().is_empty() {
-            self.paragraph(b, Word::PublicNothingLanded);
+            self.paragraph(b, Word::PublicNoLandings);
         }
         b.open(Role::List);
         b.style(crate::look::PUBLIC_ROWS);

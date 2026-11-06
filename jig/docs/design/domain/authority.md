@@ -304,6 +304,36 @@ deployment's rules       the most any project may have; requirements on effects
     is cancelled, and its task's next run starts within the new ceiling;
     its other calls are checked as they come.
 
+### 6.1 A person's task in no project
+
+An application may need one short agent task for a person who has no
+project yet: to find out whether an account answers as a chat of theirs
+would. Project 0 names no project and has no policy (people.md, section
+3; core.md, 6.1), and this is the one kind of task it holds.
+
+- **Who makes it:** the application, for a person it has authenticated:
+  `Core::person_seed`, then `Event::PersonTask`. Its creator is
+  `Party::Deployment { project: 0 }`, so what selects by a person
+  requester (Chats, results, updates, the inbox) never selects it.
+- **Who pays:** the person's pool in project 0, `Funder::Pool { project:
+  0, person, period: 0 }`. Its payer is the person, as a chat's is, so it
+  takes what a chat of theirs takes (accounts.md, 4.3). Only a key whose
+  `uses` name a project alone doesn't cover it: it names no project.
+- **Its money:** period 0's budget is the rules' `period_spend`, the
+  pool's the rules' ceiling's spend, each opened at the first such task;
+  the task's budget is the rules' `maximum_run_spend`, at most what the
+  pool has left. No calendar renews them: what it spends stays spent, and
+  a seed past the pool's room is refused.
+- **Its authority:** the rules' ceiling with no tools, grants, notes or
+  delegation, and its spend its budget, whatever its charter names.
+- **Who sees it:** the person who pays may watch its Task document. No
+  other document or read selects it but the deployment's attempts, where
+  it is one more attempt.
+- **A hold** has no role to escalate to, so it stays with its task until
+  the application cancels it.
+- **A restart** restores it, as any live task: whether it runs again is
+  the application's, which cancels it first if it shouldn't.
+
 ## 7. Budgets and spend
 
 - **Four numbers per funder:** its budget (what it was given), what it

@@ -1047,6 +1047,20 @@ real key in that restored form.
   runs alike over a binary built with or without its own (2.6). It holds
   the compressed forms and Chromium takes gzip on loopback, so every
   test loads the compressed module under temper's policy.
+- **The tier's window:** the tier's bundle also turns on
+  `temper-client-shell-web`'s `small-window`, which names a conversation's
+  window of 131,072 bytes (`README.md`, 5.15), an eighth of a person's
+  `document_bytes`: the same mechanism, at an eighth of what a page draws and
+  a find walks. Reading's stories (4.6, 14) pass that bound by at least two
+  windows' worth, at both ends. The ordinary binary bundle and the journeys'
+  never turn it on, and a long chat at the whole bound is read by hand.
+- **A chat's history:** what a reading story reads is made through
+  `temper ctl` before a page opens on it: `playground start`, `chat start`
+  and `task message`, each answer waited for with
+  `task show --until replied`. A face of its own signs ctl in with the printed
+  link and opens the spent link, so that the server prints the reader's, as
+  8.4's walk does. A page types only what its story is about: in reading's,
+  the message sent from far back.
 - **The playground's test** (4.6, 12) runs on the built playground
   instead, `scripts/bundle.sh --playground` in its own profiles
   (`../playground.md`, 7), served as static files with their `headers`
@@ -1247,11 +1261,11 @@ Not in the tier, each in the lowest world that shows it:
   visitor never holds a stream.
 - **Public history** (8.3): ended goals from before publication or across
   a restart need jig's source index (`jig/docs/design/domain/people.md`,
-  section 12); a stock queue's past merges need the forge's public landing
-  history (`forge.md`, section 10). Default: goals ended while the public
-  index kept the project, and landings by turn alone. "Nothing has landed
-  yet." describes an empty landing list even when a stock queue has merged
-  earlier work; changing those words waits with that history.
+  section 12). Default: goals ended while the public index kept the
+  project, and the board's line says what it leaves out. A merge from
+  before publication can show while its change is handed from a live
+  goal's tree; publication is not a commit-time cutoff. A merge past the
+  forge's log is `forge.md`, section 10's.
 - **The kit's stylesheet without a bundle:** the gallery takes
   `skein-ui.css` by running skein's bundler with no module (7.1).
   Default: so, until skein's bundler offers the stylesheet alone.
@@ -1279,11 +1293,6 @@ Not in the tier, each in the lowest world that shows it:
   home bar alone, and at 760 px and under alone. A phone on its side, wider than
   that, draws the rail and a chat's foot under its notch and its home bar.
   Default: as the mock draws it, until a look request.
-- **The try's states in the gallery** (7.2; `README.md`, 3.5, *The try*;
-  `../draft/model-check.md`): Model's line past the host's check has no state of its
-  own, since the gallery draws what the view draws and no fact reaches it. Default:
-  the host's two rows, the view's tests holding the rest, until that draft gives
-  the facts.
 - **A tab refused in the gallery** (7.2; `README.md`, 3.5, *The sign-in under way*;
   `../draft/sign-in-new-tab.md`, 2): the gallery draws what the view draws, and the
   view has no fact of a tab refused, so the note's plain title and primary link have
@@ -1391,6 +1400,7 @@ from the engine's own answers, is where the look is tuned.
 | `changes-empty` | a hand-made `ChangesPanel` delivery: nothing queued and nothing landed |
 | `changes-one` | a hand-made `ChangesPanel` delivery: one queued and four landed |
 | `changes-landed-only` | a hand-made `ChangesPanel` delivery, the mock's `hello`: nothing queued, something landed |
+| `home-try-stopped` | a failed trial below Home's intro: "WHO didn’t answer when tried" and Try again; no change to its counts |
 | `home-away` | hand-made Home deliveries: `AwayRow` on, four `Decision`s and live tasks; the mock's `home.html` in *Back from away* |
 | `home-away-one` | hand-made Home deliveries: one `Decision`, the switch off: "One thing was decided for you." and the kicker's two times |
 | `home-away-overturned` | hand-made Home deliveries: a row overturned, its task live, and one ended, "landed 03:12" |
@@ -1477,6 +1487,7 @@ from the engine's own answers, is where the look is tuned.
 | `accounts-key` | the reference world's accounts, a row's key field open |
 | `accounts-removing` | the reference world's accounts, an account's removal asking first |
 | `accounts-signing-in` | the reference world's accounts, a row's sign-in under way with its field for the page's address |
+| `accounts-try-stopped` | a failed trial under an account's head and before Sources, its why and Try again; Sign in again goes to Connect a model |
 | `accounts-program-needs-sign-in` | the solo world's accounts: a program's login not signed in on its host, with "Check again" |
 | `builders` | the Builders tab, its hosts connected, draining and not connected |
 | `builders-not-owner` | the Builders tab for a person with no role in the deployment |
@@ -1586,6 +1597,15 @@ from the engine's own answers, is where the look is tuned.
 | `welcome-paste-sending`, `welcome-paste-finishing` | the finish request in flight, then accepted |
 | `welcome-paste-too-many`, `welcome-paste-ended`, `welcome-paste-expired` | the restart endings, with no paste field |
 | `welcome-paste-lost`, `welcome-paste-unsent` | the address cleared after a lost or unsent finish request |
+| `welcome-ready-starting` | a usable subscription's trial at Starts: its first step ticked, Claude Code starts on this machine under way |
+| `welcome-ready-answering` | the trial past Starting: its first two steps ticked, Claude answers under way |
+| `welcome-ready-answered` | an answered trial: ticked, answered in N s, no Each step |
+| `welcome-ready-stopped-starting` | a trial whose run ended before starting: stopped at its second step, the run's why, Try again; Ready and Create stay usable |
+| `welcome-ready-stopped-answering` | a trial whose run ended before answering: stopped at its third step, the run's why and Try again |
+| `welcome-ready-waiting` | a running trial with a wait that won't settle in a moment: stopped at its step, the wait's words, no Try again until it ends |
+| `welcome-ready-waited` | a trial ended after a minute: the last wait's words, or no answer within a minute; Try again |
+| `welcome-ready-plan` | a plan's trial: Signed in to your PLAN plan ticked, then PLAN answers under way |
+| `welcome-ready-key` | a key's trial: Key added ticked, then PLAN answers under way |
 | `welcome-ready-checking` | Ready from its first frame, the declaration or host check under way, Model's line at its first step, its bar and Each step |
 | `welcome-ready-copies` | Ready offers Widget and names the two repositories its act will copy into the project |
 | `welcome-ready-none` | Ready with neither forge nor model, the pane's two lines, their inline connect links and the offered playground |
@@ -1742,12 +1762,13 @@ never streaming (`../draft/first-release.md`, 5.3).
   closed with neither, by the same endings as the Goals page; a task
   reads "done", "failed" or "ended".
 - **The board:** the project's name as its title and, under it, "What
-  temper is doing on this project, as it happens. Read-only."; each
-  goal's row, with its tree's rows below it and the count of lines
-  folded; "No goals yet." when it has none. Below the goals, only when
-  the forge's landings hold a queue or a landing, "Landings", a link to
-  them, with the queues' lines, and "Nothing has landed yet." until one
-  has.
+  temper is doing on this project, as it happens. Read-only." and, in the
+  same muted form, "Work that ended before this project went public, or
+  before temper last restarted, isn't shown."; each goal's row, with its
+  tree's rows below it and the count of lines folded; "No goals to show
+  yet." when it has none. Below the goals, only when the forge's landings
+  hold a queue or a landing, "Landings", a link to them, with the queues'
+  lines, and "No landings to show yet." until one has.
 - **A task:** its row, its executor first among the muted words ("an
   agent · running · for 14 minutes"), its lineage up to its goal as
   links, its delegates' rows, and where it makes a change, the change's
@@ -1761,9 +1782,11 @@ never streaming (`../draft/first-release.md`, 5.3).
   with at least 16 CSS pixels of horizontal gutter, including navigation.
 - **The landings:** the turn, each queue in order, without places, and
   the recent landings, each landed commit a link to its public landing;
-  "Nothing has landed yet." when there are none. A landing's member
+  "No landings to show yet." when there are none. A landing's member
   reads "Its change:" and its landed commit, or its candidate until
-  then.
+  then. What a stock queue merged is a recent landing in this same form
+  (`forge.md`, 11.2): its line says landed, its change and its commit,
+  and its public landing holds its change, with no gates.
 - **The projects:** each public project's name, a link to its board; "No
   public projects yet." when there are none.
 - **A short commit** is the first seven digits, plain text on a change
@@ -1775,8 +1798,9 @@ never streaming (`../draft/first-release.md`, 5.3).
 - **Words never touch:** where a line holds several, a visible separator
   or space stands between them in the page's text, not only in its
   layout.
-- **Never** a person's name, any words but a title, or anything the
-  records do not carry: the view reads only the public records.
+- **Public data comes only from the public records:** their text is titles
+  and the project's name, never a person's name. The view adds the page's
+  own words specified above.
 
 ### 8.4 Its tests
 
@@ -1786,9 +1810,10 @@ never streaming (`../draft/first-release.md`, 5.3).
   freshness and `Age`, a hidden tab reading nothing, busy keeping the
   page until its freshness ends and then dropping it, backing off,
   unknown's main; a goal's row and a task's, an ended row's words, each
-  page's empty words, Landings on the board only with a queue or a
-  landing, a 40-digit commit's seven digits as plain text, and no link to
-  the forge on any page.
+  page's empty words, the board's line of what it doesn't hold, Landings
+  on the board only with a queue or a landing, a queue merge's line and
+  its landing, a 40-digit commit's seven digits as plain text, and no link
+  to the forge on any page.
 - **Fuzzy tests:** the address codec's parser over seeded paths under
   `/public`, never panicking and printing back what it read.
 - **The browser tier** (section 4): a public project on fakes read at
@@ -1799,4 +1824,5 @@ never streaming (`../draft/first-release.md`, 5.3).
   text boxes stay separate, titles remain readable, navigation stays inset
   and content stays within the viewport. A project made private has its pages
   unknown at the next read. The goal it reads is under way: a landed goal's pages
-  hold nothing a browser alone shows (4.6).
+  hold nothing a browser alone shows (4.6). Its landings page reads "No landings to
+  show yet." or the stock queue's merge, by whether the merge came before the read.

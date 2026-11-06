@@ -32,6 +32,9 @@ configuring agent, 4 for reviews, 6 for foremen and 9 for the status agent. The 
 agent turns how a person describes their work into a proposal of
 settings (`temper help chat`). The status agent writes the few lines at the top
 of a project's Home from the facts in its task, with no tools.
+The stock also holds charter 10 for a model's trial: one short turn,
+with no tools, paid by the person. It is never offered as an executor;
+the stock's rules still offer six charter executors and three procedures.
 
 The forge's procedures run a change's agent work under three charters,
 which the change keeps from its making to its end: its producing and

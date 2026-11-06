@@ -14,7 +14,7 @@ fn an_accepted_connection_s_call_goes_to_the_mount() {
     assert_eq!(*f::calls(&mut out), [(Box::from(b"/jig/v1/read".as_slice()), Method::Post)]);
 }
 #[test]
-fn a_connection_past_the_limit_is_rejected() {
+fn a_connection_past_the_limit_is_rejected_when_none_is_idle() {
     const FIRST_SOCKET: u64 = 100;
     const REJECTED_SOCKET: u64 = 108;
     const ROUTED_CAPACITY: u32 = 32;
@@ -22,7 +22,7 @@ fn a_connection_past_the_limit_is_rejected() {
     let mut server = f::server();
     let mut out = Queue::with_capacity(ROUTED_CAPACITY);
     for socket in FIRST_SOCKET..REJECTED_SOCKET {
-        server.up(f::accepted(Token::new(socket)), &mut out);
+        f::server::retained_call(&mut server, &mut out, Token::new(socket));
     }
     server.up(f::accepted(Token::new(REJECTED_SOCKET)), &mut out);
     let mut rejected = List::with_capacity(REFUSAL_CAPACITY);

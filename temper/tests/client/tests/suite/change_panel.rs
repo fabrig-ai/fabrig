@@ -567,15 +567,17 @@ fn playground_change_page(playground_forge: u16) {
     }
 }
 fn facts_after_open(world: &mut World<Temper, Joint>) -> Facts {
+    use skein_lib::Duration;
+
     for _ in 0..STEPS {
         if world.front().engine.store.rows.values().any(|record| matches!(record,
             engine::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Change(change) if change.pull.is_some()))) {
             return facts(world.front());
         }
-        let outcome = world.run(Until::Steps(2));
+        let outcome = world.run(Until::Time(world.now().saturating_add(Duration::from_millis(10))));
         assert!(matches!(outcome.verdict, Verdict::Passed | Verdict::Open { .. }), "{outcome:?}");
     }
-    panic!("pull opened within the step budget");
+    panic!("pull opened within 200 slices of 10 ms");
 }
 #[test]
 fn a_playground_changes_address_is_text_not_a_link() {
