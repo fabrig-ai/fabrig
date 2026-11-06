@@ -23,7 +23,10 @@
     proof as 8.2's, so whether a producer's first question now reaches its change
     is unobserved.
   - 8.11, *The next producer merges the landing tip first*: a tip its start
-    already contains has no real run on record (`worker.status.md`, section 5).
+    already contains, a clean merge committed before its run and the advice
+    for a conflict have scripted coverage alone. No deployment replay on
+    record proves the `resume-told` request's resumed producer and its answerers
+    read the tree rightly (`worker.status.md`, sections 5 and 10).
   - 8.9: a refusal's "adopt the repository again" has no story from the browser. The engine takes an adopted repository's adoption (`readopt`, `temper/tests/engine/domain/tests/suite/forge_routes/approval_identity.rs`), and by reading alone the form sends one (`../client/README.md`, 4.4); it opens at its defaults, so the person types the repository, its role, prefix and landing branch again.
   - 4.1: a removal without the box, its group's act answered in its
     decision: an owned or fake forge's removal asks the box link for
