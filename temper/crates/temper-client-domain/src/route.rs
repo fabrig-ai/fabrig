@@ -9,6 +9,7 @@ pub(crate) fn forge(root: &mut Domain, env: &Env<Limits>, event: forge::Event, o
 }
 pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
+        Event::Copied { token, written } => root.copy.copied(env.now, token, written),
         Event::Start { address, kept, with } => {
             if !root.unlinked {
                 client(root, env, jig_client::Event::Start { kept }, out);
@@ -23,6 +24,7 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
         }
         Event::Went { place } => went(root, env, place, out),
         Event::Act { action } => match action {
+            Action::Copy { words } => root.copy.press(words, out),
             Action::Pages(crate::pages::Act::SignOut) => {
                 root.signed_out = true;
                 root.authorization_revision = root.authorization_revision.checked_add(1).expect("revision fits");

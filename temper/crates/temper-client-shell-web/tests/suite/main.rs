@@ -36,3 +36,5 @@ fn programmatic_page_targets_do_not_draw_control_focus_rings() {
     let (rule, _) = rule.split_once('}').expect("focus declarations");
     assert!(rule.contains("outline: none;"), "page focus target: {rule}");
 }
+
+mod welcome_copy;
