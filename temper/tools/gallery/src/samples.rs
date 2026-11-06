@@ -105,7 +105,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 279;
+pub const N: usize = 281;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -518,7 +518,9 @@ pub fn samples() -> [Sample; N] {
         },
         Sample { name: "configure-chat-proposal", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "configure-chat-accepted", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
+        Sample { name: "configure-chat-rejected", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "configure-chat-replaced", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
+        Sample { name: "configure-chat-withdrawn", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "configure-chats-tag", world: Solo, address: CHATS, then: Shown },
         Sample { name: "chat-draft-empty", world: Solo, address: Address::Chat { task: 1 }, then: Then::DraftEmpty },
         Sample { name: "chat-start-goal", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
@@ -1682,6 +1684,8 @@ fn configure_domain(sample: &Sample) -> Domain {
             | "configure-chat-proposal-deployment"
             | "configure-chat-proposal-two-projects"
             | "configure-chat-accepted"
+            | "configure-chat-rejected"
+            | "configure-chat-withdrawn"
             | "configure-chat-replaced"
     ) {
         return crate::worlds::settings_chat_world(sample.name);

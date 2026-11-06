@@ -310,9 +310,10 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   directory reads at both commits. It directs selected `read_file` calls
   at the head for after and the comparison's base commit for before;
   the base commit must be resolved separately. Advancing pages alone cannot
-  recover the oversized page. A forge size refusal, whose measured size
-  is unknown, names that uncertainty, the forge bounds and the numeric host
-  bound with the same tool-specific recovery. At a host bound too small
+  recover the oversized page. A file or pull-file forge size refusal, whose
+  measured size is unknown, names that uncertainty, the forge bounds and
+  the numeric host bound with the same tool-specific recovery. A compare's
+  forge size refusal follows the compare guidance above. At a host bound too small
   for the guidance, the refusal itself is cut to fit.
 - **Reads and writes:** the forge's reads, `recall`, `settings` and `read_docs` are reads; every
   other host tool is a write, which smith runs alone (smith's
@@ -1404,10 +1405,17 @@ host:
 - **A report past 3,584 bytes.** The bound sits inside smith's fixed
   4,096-byte outcome (`smith-domain-run`'s `Limits::outcome_bytes`) and
   `hub.outcome_bytes`. The rest of the path is already sized for 10,660
-  (`tasks.result_bytes`, `checkout.message_bytes`, `forge.client.op_bytes`).
+  (`tasks.result_bytes`, `forge.client.op_bytes`), with 10,662 for
+  `checkout.message_bytes`.
   Going there means smith deriving its outcome from `tool_payload`, the
   hub's profile value and jig's constant moving together, across three
   trees. Default: 3,584, until a real run shows a report that a cut loses.
+- **A larger whole compare** (4.3). Nine files, nine commits or one line
+  changed in a long file can exceed the stock's forge bounds. Raising the
+  row bound alone cannot fit both whole sides of a long file; a paths-only
+  comparison would change what the settled answer holds. Default: keep
+  the bounds and direct the run to pull-file pages and selected file reads,
+  until a real landing shows that recovery cannot serve the change.
 - **A cancel's grace:** jig's `cancel` takes one, if the run gives it
   (jig's `domain/engine.md`, 7.3); temper's takes none.
 - **A code graph** for a workspace (worker.md, section 12), as an MCP

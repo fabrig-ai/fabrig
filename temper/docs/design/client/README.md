@@ -369,7 +369,7 @@ keeps (`../protocol/configuration.md`, section 2).
 | `Inbox` (the root) | the greenfield mock's `needs.html`; the terminal's, `inbox.html` | in the browser, *Needs you* (below): what needs the person, one card at a time, across projects or filtered by project, kind and goal (its root), a proposal of settings in each project it shows in (jig's `domain/engine.md`, 17.6), its card, count and Accept as in its chat. In the terminal, the list: proposals, questions, held tasks, person tasks; then updates (results, replies); its filters; "+ New chat", a link to `NewChat` (`/chats/new`) | `inbox` with its filters; the `proposal` or `task` an entry's card needs | a question's choice, reply and Later (*What the client keeps,* below); accept ("Accept"), reject with a reason, release, leave held, take, hand back; in the terminal, answer in words |
 | `Chats { filter }` | the greenfield mock's `chats.html` | a page of the frame (*The Chats page,* below): its head; while the project has no repository, its band; the list, under All, Live, Drafts or Closed, with "+ New chat"; "More closed chats" | `tasks{query}`: requester the person, the chat label, its live group by last activity, its ended pages by when each ended; the project's documents, as it opens (*A chat's document,* below); the person's facts (4.6) | choose the list's filter; more closed chats |
 | `NewChat { draft }` | the greenfield mock's `chat.html?id=new`, and `&draft=` for a draft; the playground's start at the first run's first step | a new chat in the open project, on the layout every chat takes (*A new chat,* below), in the playground's project the playground's start (4.8, 5.6); with `draft`, the empty document beside it (*A chat's document,* below) | as `Chats`; the playground, from the forge's side (4.8) | start a chat, from the composer or a suggested request; "+ Draft" |
-| `Chat { task }` | the greenfield mock's `chat.html` | the layout every chat takes (*One layout for every chat,* below): its bar, with its path, its heading, its byline and chooser, its status, Pause or Resume, and Close, and its spend in the view alone; the context line, only in the playground's project while the playground runs (4.8, 5.6); the conversation (below): its request, the agent's words with its calls folded, the person's words, provisional text, and its end once it has ended; each task it delegated as that task's card, at the call that made it (a `delegate`, a `change` or a `goal`), or else at the result it sent back, or else after the conversation while it runs (5.7); the proposals waiting in its subtree, each at the call that made it where its turn names it, and after the conversation otherwise (jig's `client/domain/objects.md`, section 10); the composer, while the chat lives: the chooser's feedback above it, its text area "Message" with the placeholder "Reply to T6", T6 the chat's number, shown while it is empty and never its name, and "Send", the hint "Enter sends · Shift+Enter for a new line", or "Sending resumes this chat." on a chat the person paused (*A person's pause,* below), then a message's refusal or failure, if any: a message or the chat's start accepted draws no status of its own, neither at the conversation's end nor in the composer, since the conversation shows its words, "Being sent", then "Sent" (below); while Message is not offered, the feedback alone; an ended chat draws no composer | `task`, `activity` a page at a time, earlier and later pages at the conversation's log edges (5.15), `run` while one is live; each `proposal` its `task` names; each delegated `task` its calls, results and live delegates name, up to the domain's `reads` (5.7); its document, read again when its run writes it (*A chat's document,* below); the person's facts (4.6) | message, pause, resume, close, change the next run's model, accept or reject a proposal in place; choose Chat, Split or Draft; "+ Draft"; start a goal from its document; on a configuring chat, start over |
+| `Chat { task }` | the greenfield mock's `chat.html` | the layout every chat takes (*One layout for every chat,* below): its bar, with its path, its heading, its byline and chooser, its status, Pause or Resume, and Close, and its spend in the view alone; the context line, only in the playground's project while the playground runs (4.8, 5.6); the conversation (below): its request, the agent's words with its calls folded, the person's words, provisional text, and its end once it has ended; each task it delegated as that task's card, at the call that made it (a `delegate`, a `change` or a `goal`), or else at the result it sent back, or else after the conversation while it runs (5.7); the proposals waiting in its subtree (jig's `client/domain/objects.md`, section 10) and the decided proposals of settings its activity says it made, each at the call that made it where its turn names it, and otherwise after the turn that was running when it was made, so that what comes later comes after it (5.13); the composer, while the chat lives: the chooser's feedback above it, its text area "Message" with the placeholder "Reply to T6", T6 the chat's number, shown while it is empty and never its name, and "Send", the hint "Enter sends · Shift+Enter for a new line", or "Sending resumes this chat." on a chat the person paused (*A person's pause,* below), then a message's refusal or failure, if any: a message or the chat's start accepted draws no status of its own, neither at the conversation's end nor in the composer, since the conversation shows its words, "Being sent", then "Sent" (below); while Message is not offered, the feedback alone; an ended chat draws no composer | `task`, `activity` a page at a time, earlier and later pages at the conversation's log edges (5.15), `run` while one is live; each `proposal` its `task` names, or its activity's lines say it made; each delegated `task` its calls, results and live delegates name, up to the domain's `reads` (5.7); its document, read again when its run writes it (*A chat's document,* below); the person's facts (4.6) | message, pause, resume, close, change the next run's model, accept or reject a proposal in place; choose Chat, Split or Draft; "+ Draft"; start a goal from its document; on a configuring chat, start over |
 | `Goals { project, filter }` | the greenfield mock's `goals.html` | the project's goals: its intro, its filters, a row a goal, each its state and its report's headline (*Goals,* below) | `me`; `tasks{query}`: the project, the goal template's label, tracked, by priority, its live group watched, its ended pages by when each ended; a row's report, one read at a time; `inbox`'s needs for that project | choose the filter; more goals |
 | `Task { task }` | the greenfield mock's `goal.html`, for a goal; `task.html` otherwise | a goal: its header, its needs as bands, its report, its tasks, landing, how it runs and what it decided, what the person sent (5.8), with Amend, Pause or Resume, Close and its composer (5.11); a change: its header and "View on forge ↗", its steps, its step's line, its hold, its tasks live and ended, its gates at its head and its bounds (5.10); an agent's task: its lineage, its brief, its run's heading, its conversation as a chat's, its result once ended and its plan's held cards (5.9), with Amend, Pause or Resume, Close and its composer (5.11), and its own held card while it is held for any cause but the person's own pause | `task`, `tree`, `activity` a page at a time, earlier and later pages at an agent's conversation's log edges (5.15); `run` while one is live; a change's panel, through the forge's side (`forge.md`, 9.2); a goal's or a procedure's ended delegates, a page read once and again on a change; a goal's report, its own line and its needs (5.8) | as its document offers them (5.11): on a goal amend, pause, resume, close, message, and answer its needs; on an agent's task message, amend, pause, resume, close, release its own held task or one of its plan |
 | `Changes { project }` | the greenfield mock's `changes.html` | what is on the way to the project's landing branches and what last landed there (*Changes,* below; `forge.md`, section 3) | the subject `changes`, through the forge's side (4.2, 4.6); a `task` per row shown, for where it came from | none: each row links to its change's `Task` |
@@ -1994,7 +1994,7 @@ keeps (`../protocol/configuration.md`, section 2).
   - *By its kind.* A question reads its words by their line form
     (`../domain/agent.md`, 8.2); words in no such form are answered by
     "Reply…" alone. A proposal's question line is its reason's first
-    sentence, its facts and rows as `.ctx` beneath, then Accept (primary,
+    sentence, without a heading's marks, its facts and rows as `.ctx` beneath, then Accept (primary,
     with no "recommended") and Reject (plain, its reason's textarea as on
     the terminal's card), through the confirmation they have (3.6). A
     held task: its title and its words, its facts as the terminal's card
@@ -2033,9 +2033,6 @@ keeps (`../protocol/configuration.md`, section 2).
     leaves the open ones at once.
   - *At,* the card a Home row asked for, until it is answered or marked
     later, or the person leaves the page.
-  - *Proposals of settings,* each document as the session read it, so that a
-    return to its chat, once it is decided and jig reads it ended, draws its card
-    from it, with no acts, and its state from that read (5.13).
   - *The held send.* jig has no retraction, so a choice or a reply is
     held in the client for 5 seconds, a deadline of the domain's as
     `next_deadline` has. The card moves to answered at once, with the
@@ -5374,10 +5371,10 @@ section 5.
   and these open the tab, `Address` having no anchors: Home's "Turn on drafts
   and goals", "See the settings" and "Limits".
 - **The card in a chat:** a proposal of settings is a card at the call that
-  made it where its turn names it, and after the conversation otherwise, as
-  every proposal is (3.5): the title "How temper will run
+  made it where its turn names it, and otherwise after the turn that was running
+  when it was made, as every proposal is (3.5; *Where a card stands,* below): the title "How temper will run
   PROJECT", PROJECT its `projects`' names joined by ", " and " and ", or, with
-  none, the deployment's, "How temper will run your projects"; a line per line of the proposal's reason, in the person's words;
+  none, the deployment's, "How temper will run your projects"; the proposal's reason, in the person's words, its Markdown drawn as the Accept sheet draws it (3.6);
   then each item, in small mono type, faint, in the words of `temper ctl` but
   for temper's kinds of a project: kind 7 as "Drafts: on", "Goals: shown",
   "Changes page: shown", "Away switch: shown" and "Way: NAME", kind 6 as
@@ -5387,19 +5384,43 @@ section 5.
   in the deployment (`../protocol/configuration.md`, 13.2): without one, or until
   it is delivered, kinds 6 and 7 are named as `temper ctl` names them. Then
   "Accept", primary, jig's `Decide` with running work staying, and "Change
-  something", quiet, focusing the composer. A decision goes under the proposal's
+  something", quiet: it focuses the composer, brings it into view and sets its
+  placeholder to "What should change?", until something is sent or the proposal
+  is decided, when the placeholder goes back. A decision goes under the proposal's
   own `project`, never the chat's: a proposal of settings is the deployment's,
   whichever chat made it, and jig knows it under no other project. The card has
   no "Reject": the person rejects it on its card in *Needs you* (3.5). Saying
   what to change here revises nothing while it waits: the agent answers that an
-  owner rejects it, then proposes afresh (`../domain/agent.md`, 8.1). Replaced by a later proposal, it is
-  dimmed, "Replaced by the proposal below"; accepted, "✓ Accepted · new work
-  follows it". A person who may not accept it sees neither act: "Waiting for an
-  owner", the parties it waits for as jig's proposal names them, "Owners of this
-  deployment" for a holder that is the deployment's policy. Nothing of it
+  owner rejects it, then proposes afresh (`../domain/agent.md`, 8.1). Decided, it ends in a muted state line in place of its
+  acts, however the decision was made (*Needs you*, another tab, `temper ctl`), the
+  chat's task document telling it with no reload: accepted, "✓ Accepted · new work
+  follows it"; rejected, "Rejected · nothing changes"; withdrawn, "Withdrawn · nothing
+  changes", or, a later proposal of settings of the chat's having replaced it, dimmed,
+  "Replaced by the proposal below". While it is pending, a person who may not accept it
+  sees neither act: "Waiting for an owner", the parties it waits for as jig's proposal
+  names them, "Owners of this deployment" for a holder that is the deployment's policy.
+  Before its document is read it says none of these. Nothing of it
   says which items temper enforces and which agents follow: that is the review
   page's, below, once it is built. In the inbox, its card shows the same lines
   (3.5).
+- **Where a card stands:** jig's activity says when a proposal was made: a
+  `Decided` line naming it, with `made` (jig's `client/domain/contract.md`, 5.1).
+  With no call naming it, its card stands after the first committed turn after that
+  line, and with no such turn yet, its turn still running, at the conversation's end.
+  So a new pending card is the last thing in the chat, the chat stays at its end as
+  usual, and the reply after an Accept follows the card. A pending card whose line
+  isn't in the window (a delegate's has none) goes by its waiting time: after the first
+  turn committed at or after it, or at the end. A card whose place is past the window's
+  end isn't drawn until the window gets there. Cards at one place stand in the order
+  they were made.
+- **A decided card after a reload:** that same line brings its card back, read as a
+  pending one is: jig answers an ended proposal with its reason, items and `projects`.
+  It stands at its place, through a reload and paging back, with its state line. Past
+  the bound of what jig retains (`inbox_messages`, its read answering `Gone`), no card
+  stands. A proposal that isn't of settings draws no card once decided.
+- **"Decision made":** a line of a proposal's making draws no row, being no
+  decision; and where a card stands, its proposal's lines draw none. A card and a row
+  never both say it. A proposal with no card standing keeps its row.
 
 **Later: the fuller page.** Roles, ways to start work, rules, running work and
 history join the tab, the review page opens, and the card gains "Review". The
@@ -6752,12 +6773,6 @@ own tests:
   the goal hearing those words, whose scripts are throwaway. No world keeps it:
   the parser, the stock sentence, the session and the view each hold their own
   side. Default: those tests.
-- **A decided proposal of settings' card, past the session** (5.13; 3.5, *What the
-  client keeps*; the request `ui-walk-large` of 2026-11-06, which has the chat's card
-  stay): a return to the chat draws the card, accepted, from what the session keeps;
-  a reload or another device loses it, since an ended proposal asks no card and jig
-  names no `projects` on one. A card from the ended proposal, or a stored record, would
-  keep it. Default: this session's alone.
 - **A Reject on a chat's card** (5.13; the request `ui-chat-accept` of 2026-11-06,
   which counts Reject among the card's acts): the mock's `chat.html` draws "Accept" and
   "Change something" alone, and the reason's box stands on the card in *Needs you*.

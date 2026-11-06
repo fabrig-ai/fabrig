@@ -700,7 +700,9 @@ the host tests (section 14).
   whose count moved, takes the focus. An element that cannot take it by
   itself (a heading, a region) gets `tabindex="-1"` first, so it takes
   the focus without joining the tab order. A disclosure takes it on its
-  `<summary>`.
+  `<summary>`. The node then comes into view by the least scrolling that
+  shows it, even where it already held the focus, when a browser's own
+  focus moves nothing. A focus moved by a removal or by keys doesn't ask this.
 - **Acts,** each reported with its node's id (ui.md, section 6), none on
   a disabled node; the view refuses one that races a patch disabling
   its node, and an option of a disabled select is disabled:

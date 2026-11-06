@@ -75,7 +75,7 @@ pub(super) fn decided(
     }
 }
 
-fn retained(action: ProposalAction) -> Option<RetainedAction> {
+fn retained(action: ProposalAction, projects: skein_lib::List<u32>) -> Option<RetainedAction> {
     Some(match action {
         ProposalAction::Batch(tasks) => RetainedAction::Batch(tasks),
         ProposalAction::Effect { part, authority, attempt, completion, position, purpose } => {
@@ -87,6 +87,7 @@ fn retained(action: ProposalAction) -> Option<RetainedAction> {
         ProposalAction::Release { task, .. } => RetainedAction::Release { task: task.number() },
         ProposalAction::Widen { task, after, .. } => RetainedAction::Widen { task: task.number(), authority: after },
         ProposalAction::Settings(value) => RetainedAction::Settings(RetainedActionSettings {
+            projects,
             against: value.against,
             items: value.items,
             made: value.made,
@@ -113,7 +114,7 @@ fn proposal_decided(
         }
         Decision::PassedUp | Decision::Released { .. } | Decision::LeftHeld { .. } => return None,
     };
-    let action = retained(value.action)?;
+    let action = retained(value.action, value.projects)?;
     let proposer = match value.key.proposer {
         Proposer::Task(task) | Proposer::Party(task) => task,
     };
@@ -122,6 +123,7 @@ fn proposal_decided(
         ReadValue::Ended(Box::new(Ended {
             key: ObjectKey::Proposal(value.key),
             value: EndedValue::Proposal(ProposalHistory {
+                reason: value.reason,
                 action,
                 number: value.key.number,
                 proposer,

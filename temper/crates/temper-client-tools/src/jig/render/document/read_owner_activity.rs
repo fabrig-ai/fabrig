@@ -85,7 +85,7 @@ pub(super) fn encode_owner_activity(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::Activity::Decided { revision } => {
+        jig_client::contract::Activity::Decided { revision, .. } => {
             out.object_start();
             out.key(b"decided");
             out.object_start();

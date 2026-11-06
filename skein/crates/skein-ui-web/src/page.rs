@@ -44,6 +44,7 @@ pub enum Op {
     Choice { node: NodeId, checked: bool },
     Href { node: NodeId, path: Box<[u8]> },
     Focus { node: NodeId },
+    Reveal { node: NodeId },
     ScrollEnd { node: NodeId },
     HoldView { node: NodeId },
     PutView { node: NodeId },
@@ -214,6 +215,7 @@ impl<'a> Page<'a> {
         if let Some(node) = focus.filter(|node| self.nodes.contains_key(node)) {
             self.focused = Some(node);
             ops.push(Op::Focus { node });
+            ops.push(Op::Reveal { node });
         }
         if !patches.is_empty() {
             self.finish_logs(ops);

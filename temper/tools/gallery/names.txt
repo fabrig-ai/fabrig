@@ -80,7 +80,9 @@ configure-chat-document-split
 configure-chat-proposal
 configure-chat-proposal-deployment
 configure-chat-proposal-two-projects
+configure-chat-rejected
 configure-chat-replaced
+configure-chat-withdrawn
 configure-chats-tag
 configure-reference
 configure-reference-draft
