@@ -260,6 +260,21 @@ fn model(
     if let Some(at) = object.member(document, b"efforts") {
         efforts = model_efforts(document, at, &path.member(b"efforts"), problems);
     }
+    let mut effort = None;
+    if let Some(at) = object.member(document, b"effort") {
+        match read::text(document, at, jig_domain_core::EFFORT_BYTES) {
+            Ok(value) if value.is_empty() => problems.push(path.member(b"effort"), What::Form),
+            Ok(value) => {
+                if let Some(efforts) = &efforts
+                    && !efforts.contains(&value)
+                {
+                    problems.push(path.member(b"effort"), What::Refers);
+                }
+                effort = Some(value);
+            }
+            Err(what) => problems.push(path.member(b"effort"), what),
+        }
+    }
     let mut prices = None;
     if let Some(at) = object.required(document, b"prices", path, problems) {
         prices = price(document, at, &path.member(b"prices"), problems);
@@ -294,6 +309,7 @@ fn model(
     model.window = window?;
     model.output = output?;
     model.efforts = efforts?;
+    model.effort = effort;
     Some(ParsedModel { model, description })
 }
 /// The efforts a model takes, by name in order, none when absent (configuration.md, 3).
