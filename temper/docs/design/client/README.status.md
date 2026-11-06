@@ -2,7 +2,6 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, *its calls*, its description: a run of one turn has no time.
 - **Not yet:** 5.9, *The conversation*: an agent's page has no running run and no "Latest".
 - **Not yet:** 3.5, The welcome's Model step, *The sign-in under way*, and `ConnectModel`, *While it waits* and
   *From another computer*: the card's line and the note say a new tab, and nothing opens one: a press still
