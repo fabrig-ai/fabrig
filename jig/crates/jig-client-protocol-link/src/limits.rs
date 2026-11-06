@@ -190,11 +190,12 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
 // Receiving records share the client's text, row, path and document bounds.
 fn receiving(mut wire: w::Limits, client: &jig_client_domain::Limits) -> Option<w::Limits> {
     let document_bytes = wire.owned_record;
+    narrow(client.long_text, &mut [&mut wire.run_text_text]);
     #[rustfmt::skip]
     narrow(client.text, &mut [
         &mut wire.call_tool, &mut wire.call_input, &mut wire.call_outcome_some, &mut wire.current_call_tool,
         &mut wire.current_call_input, &mut wire.chip_work_tool_call, &mut wire.chip_work_tool_tool,
-        &mut wire.run_text_text, &mut wire.escalation_decision_reject_reason,
+        &mut wire.escalation_decision_reject_reason,
         &mut wire.person_proposal_state_rejected_reason,
     ]);
     #[rustfmt::skip]

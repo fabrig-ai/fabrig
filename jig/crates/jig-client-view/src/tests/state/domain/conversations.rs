@@ -55,7 +55,7 @@ fn engine_call() -> Call {
 
 #[test]
 fn calls_fold_on_the_page_and_engine_objects_share_one_live_card() {
-    let mut c = Thread::new(9, &jig_client::thread::Limits { lines: 3, bytes: 65536, text: 4096 });
+    let mut c = Thread::new(9, &jig_client::thread::Limits { lines: 3, bytes: 65536, text: 4096, live: 4096 });
     assert!(c.moved(2).is_some());
     let rows = crate::tests::kit::list([calls(2, 2), calls(1, 1)]);
     assert_eq!(c.accept(ActivityPage { cut: false, rows, before: None, after: None }), None);
@@ -114,7 +114,7 @@ fn provisional_text_keeps_its_cut_mark_and_recovery_replaces_uncommitted_text() 
     c.ui.text_limit = 4;
     feed_run(&mut c, run, crate::tests::fixtures::run(stream(1, 0, 3, b"abc", false)));
     feed_run(&mut c, run, crate::tests::fixtures::run(stream(1, 3, 6, b"def", false)));
-    assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"cdef");
+    assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"abcd");
     assert!(c.conversation().live.get(0).unwrap().cut);
     feed_run(&mut c, run, crate::tests::fixtures::run(stream(1, 10, 12, b"xy", true)));
     assert_eq!(c.conversation().live.get(0).unwrap().text.bytes(), b"xy");

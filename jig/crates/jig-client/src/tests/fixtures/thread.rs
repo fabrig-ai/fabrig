@@ -53,5 +53,5 @@ pub fn positions(c: &Thread) -> Box<[u64]> {
 }
 
 pub fn model() -> Thread {
-    Thread::new(super::SUBJECT_TASK, &Limits { lines: 4, bytes: 65536, text: 100 })
+    Thread::new(super::SUBJECT_TASK, &Limits { lines: 4, bytes: 65536, text: 100, live: 100 })
 }
