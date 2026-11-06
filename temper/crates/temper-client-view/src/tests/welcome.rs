@@ -1923,7 +1923,7 @@ fn forge_status_keeps_the_complete_login_and_repository() {
     }
 }
 
-fn model_with_forge(kind: d::WayKind) -> (d::Domain, skein_lib::Token) {
+pub(super) fn model_with_forge(kind: d::WayKind) -> (d::Domain, skein_lib::Token) {
     let (offered, _) = super::connect_model::flow_fixture(kind);
     let me = pages::accounts::current_me(offered.client()).unwrap().clone();
     let (mut root, me_watch, _, _, accounts, _) = f::root_at_with_forges(
@@ -2357,22 +2357,24 @@ fn welcome_claude_states_keep_the_command_and_check_in_both_shells() {
             node(tree, Role::Heading { level: 1 }, "Your Claude subscription");
             assert!(f::find(tree, Role::TextField, b"Name").is_none(), "the default has no field");
             if frame == 1 || frame == 2 {
-                node(tree, Role::Status, "Checking Claude Code’s sign-in on this machine…");
+                node(tree, Role::Status, "Trying your Claude subscription");
                 assert!(f::find(tree, Role::Button, "I’ve signed in".as_bytes()).is_none());
                 assert!(!has_style(tree, crate::look::WELCOME_PANEL));
-                assert!(has_style(tree, crate::look::WELCOME_AWAY));
+                assert!(has_style(tree, crate::look::WELCOME_CHECK));
+            } else if frame == 3 {
+                node(tree, Role::Alert, "Claude didn’t answer");
+                node(tree, Role::Paragraph, "Claude Code isn’t signed in here yet. Sign in again, then try again.");
+                node(tree, Role::Button, "Try again");
+                node(tree, Role::Button, "Sign in again");
+                node(tree, Role::Link, "Continue anyway");
+                assert!(!has_style(tree, crate::look::WELCOME_CMD));
+                assert!(!has_style(tree, crate::look::WELCOME_PANEL));
+                assert!(!String::from_utf8_lossy(&f::text(tree)).contains("temper program-login"));
             } else {
                 assert!(String::from_utf8_lossy(&f::text(tree)).contains("temper program-login claude-pat"));
                 assert!(has_style(tree, crate::look::WELCOME_CMD));
                 node(tree, Role::Button, "I’ve signed in");
                 node(tree, Role::Link, "All ways");
-                if frame == 3 {
-                    node(
-                        tree,
-                        Role::Alert,
-                        "Claude Code isn’t signed in here yet. Run the command above, then press I’ve signed in.",
-                    );
-                }
             }
         }
         let browser = f::browser_page_view(&root);
