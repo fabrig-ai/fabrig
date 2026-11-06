@@ -1394,7 +1394,7 @@ fn playground_start_outcomes_encode_every_failure_and_unknown() {
 }
 
 #[test]
-fn return_install_and_manifest_paths_are_bounded_visible_paths_on_this_listener() {
+fn install_and_manifest_paths_are_bounded_visible_paths_on_this_listener() {
     let mut at_bound = [b'a'; 512];
     at_bound[0] = b'/';
     let mut past_bound = [b'a'; 513];
@@ -1421,9 +1421,6 @@ fn return_install_and_manifest_paths_are_bounded_visible_paths_on_this_listener(
         // Oversized values cannot pass the wire's own bound; all other rows also cross decode.
         if path.len() <= 512 {
             for request in [
-                w::Request::Return(
-                    w::Return::new(&w::CEILINGS, w::ReturnParts { source: 7, path: path.into() }).unwrap(),
-                ),
                 w::Request::Install(
                     w::Install::new(&w::CEILINGS, w::InstallParts { forge: 1, back: Some(path.into()) }).unwrap(),
                 ),
@@ -1459,15 +1456,11 @@ fn return_install_and_manifest_paths_are_bounded_visible_paths_on_this_listener(
                         panic!("{name}: application")
                     };
                     let actual = match request {
-                        root::Application::Return { source, path } => {
-                            assert_eq!(source, 7, "{name}");
-                            path
-                        }
                         root::Application::Dismiss { .. }
                         | root::Application::Looked { .. }
                         | root::Application::SetAway { .. }
                         | root::Application::Overturn { .. } => {
-                            panic!("return or install")
+                            panic!("manifest or install")
                         }
                         root::Application::Forge(ask) => {
                             let (forge::Ask::Install { forge, back: Some(back) }

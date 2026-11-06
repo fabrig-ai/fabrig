@@ -89,7 +89,6 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Request]> {
                 | Request::MakingCopied { .. }
                 | Request::SetUp { .. }
                 | Request::Bound { .. }
-                | Request::Return { .. }
                 | Request::Connect { .. }
                 | Request::Replace { .. }
                 | Request::Manifest { .. }
@@ -249,7 +248,7 @@ fn a_party_without_a_deployment_role_cannot_watch_forges_or_ask_the_box() {
     };
     crate::try_step(&mut domain, &env, setup(1)).unwrap();
     for request in settle(&mut domain, &env) {
-        if let Request::SetUp { .. } | Request::Bound { .. } | Request::Return { .. } = request {
+        if let Request::SetUp { .. } | Request::Bound { .. } = request {
             panic!("a party without a deployment role never reaches the box")
         }
     }

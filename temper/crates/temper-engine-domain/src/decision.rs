@@ -640,7 +640,6 @@ pub fn resume(journal: &mut Journal, out: &mut Queue<Output>) {
             | crate::Output::Account(_)
             | crate::Output::Busy(_)
             | crate::Output::Drained
-            | crate::Output::Return { .. }
             | crate::Output::Connect { .. }
             | crate::Output::Replace { .. }
             | crate::Output::Manifest { .. }
