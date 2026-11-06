@@ -2,9 +2,7 @@
 
 2026-11-06. Where smith's code lags or departs from [run.md](run.md).
 
-- **Not yet:** 8.3: the system text names the files in conflict and says
-  nothing of `HEAD`, `MERGE_HEAD` or the merge's other staged files
-  (`smith-domain-run/src/prompt.rs`, `render_checkout`). 6, 9.2: messages mid-work and threshold notes. The run
+- **Not yet:** 6, 9.2: messages mid-work and threshold notes. The run
   offers queued messages only at main's opening and when main yields
   (`smith-domain-run/src/run.rs`, `continue_messages`), and no note
   marks the budget's thresholds.
