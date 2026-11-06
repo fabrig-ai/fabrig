@@ -14,6 +14,8 @@ files = [
   "jig/crates/jig-protocol-engine-clients/src/translate/llm.rs",
   "jig/crates/jig-protocol-engine-clients/src/translate/owner.rs",
   "jig/crates/jig-protocol-engine-clients/src/tests/llm.rs",
+  "jig/testing/jig-core-kit/src/oracle.rs",
+  "temper/tests/engine/domain/src/oracle/durable.rs",
 ]
 effort = "high"
 minutes = 150
@@ -114,3 +116,30 @@ Resolve both paths without taking either side wholesale:
 
 These combined values implement `notes/contracts.md` and `jig/docs/design/client/domain/contract.md`, 5.1.
 Validate through heavy with `TEMPER_BUNDLE=none`: run `jig-protocol-engine-clients`’ lib tests filtered to `tests::llm::`, then the spec’s required temper reader tests.
+
+## Answers
+
+2026-11-06. **May this task update the cold-restart document projections for the offer and the previews, or should a
+separate task own it?** This task does: its own acceptance needs the readers green, and `one-account-offer` and
+`configuring-told` wait on it. Both files are now in `files`. No more than this widens.
+
+They are fields a restart rebuilds, which `jig/docs/design/domain/engine.md`, 15 has each document declare in its one
+projection, with the step that makes it so. A key's account is usable through `source_grant`, a run-time grant, and a
+program's through a connected host; 11.1 calls the offer and the preview observations. The same projections already
+clear `run_wait` and a task's omitted `llm` for this reason.
+
+- **In each of `jig/testing/jig-core-kit/src/oracle.rs`, `durable`, and `temper/tests/engine/domain/src/oracle/durable.rs`,
+  `durable_frame`,** for every project of the frame: clear `offer`; keep in `defaults` only the rows whose template names
+  its own `llm` in that project's `templates`, since such a preview is the template's choice and a setting's, not an
+  observation. Drop the others. A field in doubt stays durable, so `models`, `templates`, `providers` and the rest stay
+  compared. Replace `durable_frame`'s comment, which says the frame is entirely retained, and say in each why these go.
+- **No test's expectation moves:** change no story, and no selection or restore code so that an offer survives a restart.
+  The rows and the accounts document still catch a lost account.
+- **Prove it bites:** break it once each way and name both in the report. Clearing a named template's preview on one side
+  only must still fail the oracle; so must removing the projection. No new story is needed for this.
+- **Run,** beside the readers' command above: `heavy cargo nextest run -p jig-core-world -p temper-engine-domain-world`,
+  since both go through these projections. The fail-fast left 3,498 readers unobserved, so run the readers to the end
+  (`--no-fail-fast`) and report each failure left.
+- **What may come next:** a world that reads the offer live and finds it empty takes the spec's one-line fixture
+  allowance. A difference left after this projection is a finding (15): a writer not keeping what its document shows.
+  Report it, with its log, as a question; don't widen the projection to pass it.
