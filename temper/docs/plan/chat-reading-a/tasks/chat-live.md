@@ -105,3 +105,12 @@ As the implementer's text says, and: what the terminal prints for a turn being w
 - **Run also:** `heavy cargo nextest run -p skein-ui`, and clippy on it.
 
 2026-11-06. **`a_live_answer_past_the_engines_retained_bytes_arrives_whole` fails at its first step, cause unknown: what of it?** Merge `origin/chat-reading-a/integration` first. Its `10b93181f6` read the live text without the field's cut and changed this story to follow the answer from its start, piece by piece; your branch predates it. Where the merge meets, keep that story's shape with your `WRITING`, and your `provisional` with `read_growing`. If the story still fails after the merge, it's yours: read its log and find the cause.
+
+## Rebase (2026-11-06, step merge, foreman chat-reading-a/chat-live/foreman-2)
+
+Resolve the client status conflict by keeping the sign-in gap and removing the implemented live-turn gap.
+The merge conflicts only in `temper/docs/design/client/README.status.md`.
+Integration commit `e51da83033489a8bf8d09bdbea5f07bde7b6deb0` adds the welcome/ConnectModel sign-in waiting **Not yet** paragraph beside the live-turn entry.
+Task commit `5cbb9c69ecd9013751725ffc4126908bfee04dac` deletes that live-turn entry.
+Merge the current integration tip and resolve the hunk by retaining the complete sign-in waiting paragraph while keeping the line beginning `3.5, *the turn being written*` deleted.
+Preserve the remaining status entries and the automatically merged code and CSS changes.
