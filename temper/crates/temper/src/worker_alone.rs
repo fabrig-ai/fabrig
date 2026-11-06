@@ -38,9 +38,15 @@ pub(super) fn prepare(
             )
             .map_err(|why| format!("programs.claude_code: {why}"))?;
         }
-        let resources =
-            service::program_sources::configured(program, configuration.service.environment.command_entries())
-                .ok_or("workers[0].agent.configuration: program source resources exceed their bounds")?;
+        let parent =
+            skein_shell::open_root(crate::path(&program.directory).parent().unwrap_or(std::path::Path::new("/"))).ok();
+        let resources = service::program_sources::configured(
+            program,
+            configuration.service.environment.command_entries(),
+            user,
+            parent,
+        )
+        .ok_or("workers[0].agent.configuration: program source resources exceed their bounds")?;
         service.configure_program_sources(resources).map_err(|_| "worker refused program source resources")?;
     }
     Ok(service)

@@ -396,6 +396,9 @@ impl NativeClient {
                 }
                 Down::Notice(notice) => self.notices.push(Shown::Notice(notice)),
                 Down::Duty(duty) => match duty {
+                    Duty::Copy { token } => {
+                        self.event(domain::Event::Copied { token, written: domain::copy::Written::Refused });
+                    }
                     Duty::Show { address, .. } => {
                         if self.address != address {
                             self.go(address);

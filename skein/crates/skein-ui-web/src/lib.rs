@@ -2,6 +2,7 @@
 #![forbid(unsafe_code)]
 
 pub mod bridge;
+pub mod clipboard;
 pub mod dom;
 pub mod inbox;
 pub mod log;

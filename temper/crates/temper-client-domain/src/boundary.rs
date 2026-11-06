@@ -5,12 +5,17 @@ use skein_lib::List;
 /// A view act routed exhaustively to its child.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Action {
+    Copy { words: Box<[u8]> },
     Forge(crate::forge::Act),
     Pages(crate::pages::Act),
 }
 /// One external fact or act for the root to route.
 #[derive(Debug)]
 pub enum Event {
+    Copied {
+        token: u32,
+        written: crate::copy::Written,
+    },
     Forge(crate::forge::Event),
     Start {
         address: Address,
@@ -67,6 +72,10 @@ pub enum Request {
     },
     Tab {
         tab: Tab,
+    },
+    Copy {
+        token: u32,
+        words: Box<[u8]>,
     },
     Client {
         request: jig_client::Request,

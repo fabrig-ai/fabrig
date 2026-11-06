@@ -14,6 +14,7 @@ use temper_client_view as view;
 
 /// One report of a turn, as the shell gives it to the host (client/journeys.md, 2).
 pub enum Report {
+    Copied { token: u32, written: root::copy::Written },
     Start,
     Due,
     TabRefused,
@@ -35,6 +36,7 @@ pub enum TabAct {
 #[derive(Debug, Default)]
 pub struct Duties {
     pub tab: Vec<TabAct>,
+    pub copy: Option<(u32, Box<[u8]>)>,
     pub asked: Vec<Asked>,
     pub writes: u32,
     pub navigate: Option<Box<[u8]>>,
@@ -65,6 +67,7 @@ pub struct Host {
     navigate: Option<Box<[u8]>>,
     replace: Option<Box<[u8]>>,
     show: Option<(Box<[u8]>, bool)>,
+    copy: Option<(u32, Box<[u8]>)>,
 }
 impl Host {
     #[must_use]
@@ -87,6 +90,7 @@ impl Host {
             tickets: BTreeMap::new(),
             next: 0,
             show: None,
+            copy: None,
             navigate: None,
             replace: None,
         }
@@ -149,6 +153,7 @@ impl Host {
     }
     pub fn report(&mut self, report: Report) -> Duties {
         match report {
+            Report::Copied { token, written } => self.event(Event::Copied { token, written }),
             Report::Start => {}
             Report::Due => self.due(),
             Report::TabRefused => self.event(Event::TabRefused),
@@ -162,6 +167,7 @@ impl Host {
             tab,
             asked,
             writes,
+            copy: self.copy.take(),
             navigate: self.navigate.take(),
             replace: self.replace.take(),
             show: self.show.take(),
@@ -270,6 +276,7 @@ impl Host {
                         value: records::encode_sign_in(&records::SignIn { source, address, refused }),
                     });
                 }
+                Request::Copy { token, words } => self.copy = Some((token, words)),
                 Request::Client { request } => {
                     if matches!(request, jig_client::Request::Save { .. } | jig_client::Request::Erase { .. }) {
                         writes = writes.checked_add(1).expect("bounded client write batches");

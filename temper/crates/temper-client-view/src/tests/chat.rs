@@ -1087,6 +1087,7 @@ fn history() -> (temper_client_domain::Domain, skein_lib::Queue<temper_client_do
             | Request::Dropped { .. }
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
+            | Request::Copy { .. }
             | Request::Fact { .. } => {}
         }
     }

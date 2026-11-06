@@ -23,6 +23,35 @@ fn setup() -> Setup<'static> {
     }
 }
 
+/// Each write reports once, with the gesture kept (skein/docs/design/ui-web.md, 14.3).
+#[test]
+fn a_clipboard_write_keeps_the_press_and_reports_once() {
+    let see =
+        |words: &[u8]| harness::Step::Person(Step::See { find: Find::text(words), within: Duration::from_secs(10) });
+    let go = |address: &[u8]| harness::Step::Person(Step::Go { address: address.into() });
+    let press = || harness::Step::Person(Step::Press { find: Find::exactly_named(Role::Button, b"Copy") });
+    let settle = || harness::Step::Person(Step::Pause { span: Duration::from_millis(100) });
+    let mut pressed = Script::new(Box::new([
+        go(b"/test/copy"),
+        see(b"Ready"),
+        press(),
+        see(b"Done active, 1"),
+        settle(),
+        see(b"Done active, 1"),
+    ]));
+    let mut at_start =
+        Script::new(Box::new([go(b"/test/copy?at-start"), see(b"Refused idle, 1"), settle(), see(b"Refused idle, 1")]));
+    let mut missing = Script::new(Box::new([
+        go(b"/test/copy?no-clipboard"),
+        see(b"Ready"),
+        press(),
+        see(b"Refused active, 1"),
+        settle(),
+        see(b"Refused active, 1"),
+    ]));
+    assert_eq!(harness::Harness::new(setup()).run(&mut [&mut pressed, &mut at_start, &mut missing]), Outcome::Done);
+}
+
 #[test]
 fn a_panic_reloads_then_says_it_failed() {
     assert_eq!(stories::panic(&setup(), b"/test/panic", Find::text(b"The application failed.")), Outcome::Done);

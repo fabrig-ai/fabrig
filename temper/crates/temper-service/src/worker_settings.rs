@@ -8,10 +8,10 @@ use smith_host_protocol as host;
 use temper_protocol_worker_wire::{self as payload, v1};
 use temper_worker_domain as root;
 
-/// Git's operations, job files and the worker root's close. Git's operation
+/// Git's operations, job files, source inspection and the worker root's close. Git's operation
 /// count covers the checkout workspaces, which cover the worker's slots.
 pub(crate) fn operations(git: &temper_worker_protocol_git::Limits) -> Option<u32> {
-    temper_worker_protocol_git::limits::operations(git)?.checked_add(1)?.checked_add(git.operations)
+    temper_worker_protocol_git::limits::operations(git)?.checked_add(3)?.checked_add(git.operations)
 }
 
 /// Every queue and component bound established before constructing a worker.

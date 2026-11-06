@@ -1081,6 +1081,7 @@ fn deployment_chats_root(welcome: Option<bool>, me: Option<Me>) -> Domain {
             | Request::Dropped { .. }
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
+            | Request::Copy { .. }
             | Request::Fact { .. } => {}
         }
     }

@@ -36,6 +36,7 @@ fn fixture_forges(forges: Option<&temper_client_protocol_wire::v1::Forges>) -> H
             | Request::Dropped { .. }
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
+            | Request::Copy { .. }
             | Request::Fact { .. } => None,
         })
         .expect("me watch");
@@ -90,6 +91,7 @@ fn deliver_forges(host: &mut Host, forges: &temper_client_protocol_wire::v1::For
             | Request::Dropped { .. }
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
+            | Request::Copy { .. }
             | Request::Fact { .. } => None,
         })
         .expect("forges watch");
@@ -145,6 +147,7 @@ fn send(host: &mut Host, name: &[u8]) -> Token {
             | Request::Dropped { .. }
             | Request::KeepSignIn { .. }
             | Request::Tab { .. }
+            | Request::Copy { .. }
             | Request::Fact { .. } => None,
         })
         .expect("account request left the host")
@@ -564,3 +567,6 @@ fn a_stream_refused_full_reaches_the_client_link() {
         assert!(host.requests().iter().any(|request| matches!(request, Asked::CloseStream)));
     }
 }
+
+#[path = "host_tests_copy.rs"]
+mod copy;
