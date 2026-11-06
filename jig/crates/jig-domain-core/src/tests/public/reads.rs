@@ -87,7 +87,7 @@ fn finish(core: &mut Core, limits: &Limits, token: Token, reply: u64, answer: Pu
     outputs(crate::step(core, &env, Event::PublicAnswered { reply: ReplyTo::new(token), answer: None }), &[]);
 }
 
-fn line(task: u64, parent: Option<u64>, priority: Option<u32>, budget: u64, working: u32) -> PublicLine {
+fn line(task: u64, parent: Option<u64>, priority: Option<u32>, working: u32) -> PublicLine {
     PublicLine {
         task,
         title: Text { bytes: Box::from(b"Public title".as_slice()), cut: false },
@@ -101,8 +101,7 @@ fn line(task: u64, parent: Option<u64>, priority: Option<u32>, budget: u64, work
         changed: 10,
         active: None,
         ended: None,
-        spent: 0,
-        budget,
+        spent: if priority.is_some() { Some(0) } else { None },
         delegates: PublicCounts { working, ..zero() },
     }
 }
@@ -128,7 +127,7 @@ fn a_board_and_a_card_are_projected_from_the_index_alone() {
         end(&mut core, &limits, task);
     }
     let ended = |task| PublicGoal {
-        line: PublicLine { phase: PublicPhase::Ended, ended: Some(10), ..line(task, None, Some(0), 100, 0) },
+        line: PublicLine { phase: PublicPhase::Cancelled, ended: Some(10), ..line(task, None, Some(0), 0) },
         tree: Box::new([]),
         folded: 0,
     };
@@ -136,10 +135,10 @@ fn a_board_and_a_card_are_projected_from_the_index_alone() {
         project: 1,
         name: Box::from("Project 1"),
         live: Box::new([
-            PublicGoal { line: line(6, None, Some(1), 100, 0), tree: Box::new([]), folded: 0 },
+            PublicGoal { line: line(6, None, Some(1), 0), tree: Box::new([]), folded: 0 },
             PublicGoal {
-                line: line(1, None, Some(7), 100, 1),
-                tree: Box::new([line(2, Some(1), None, 33, 1), line(3, Some(2), None, 11, 0)]),
+                line: line(1, None, Some(7), 1),
+                tree: Box::new([line(2, Some(1), None, 1), line(3, Some(2), None, 0)]),
                 folded: 1,
             },
         ]),
@@ -152,25 +151,25 @@ fn a_board_and_a_card_are_projected_from_the_index_alone() {
         (
             1,
             PublicCard {
-                line: line(1, None, Some(7), 100, 1),
+                line: line(1, None, Some(7), 1),
                 lineage: Box::new([]),
-                delegates: Box::new([line(2, Some(1), None, 33, 1)]),
+                delegates: Box::new([line(2, Some(1), None, 1)]),
                 folded: 1,
             },
         ),
         (
             2,
             PublicCard {
-                line: line(2, Some(1), None, 33, 1),
+                line: line(2, Some(1), None, 1),
                 lineage: Box::new([1]),
-                delegates: Box::new([line(3, Some(2), None, 11, 0)]),
+                delegates: Box::new([line(3, Some(2), None, 0)]),
                 folded: 0,
             },
         ),
         (
             3,
             PublicCard {
-                line: line(3, Some(2), None, 11, 0),
+                line: line(3, Some(2), None, 0),
                 lineage: Box::new([2, 1]),
                 delegates: Box::new([]),
                 folded: 0,
@@ -219,9 +218,9 @@ fn a_card_of_a_task_that_is_not_public_answers_as_a_missing_project() {
     }
     let token = wait(start(&mut core, &limits, 84, read(3, Some(2))));
     let card = PublicCard {
-        line: line(2, None, Some(1), 33, 1),
+        line: line(2, None, Some(1), 1),
         lineage: Box::new([]),
-        delegates: Box::new([line(3, Some(2), None, 11, 0)]),
+        delegates: Box::new([line(3, Some(2), None, 0)]),
         folded: 1,
     };
     finish(&mut core, &limits, token, 84, document(PublicDocument::Card(card), Time::ZERO), Time::ZERO);
@@ -334,7 +333,7 @@ fn decided_is_the_completing_steps_time() {
     let current = PublicLine {
         title: Text { bytes: Box::from(b"Current title".as_slice()), cut: false },
         changed: 20,
-        ..line(1, None, Some(1), 100, 0)
+        ..line(1, None, Some(1), 0)
     };
     let card =
         PublicDocument::Card(PublicCard { line: current, lineage: Box::new([]), delegates: Box::new([]), folded: 0 });

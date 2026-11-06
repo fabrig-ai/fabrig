@@ -151,8 +151,6 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
         ("documents.lines", DOCUMENT_LINES),
         ("documents.text_bytes", 128),
         ("people.sign_ins", 2),
-        ("views.watchers", 16),
-        ("views.watchers_per_party", 16),
     ] {
         value["engine"]["limits"]["overrides"][name] = count.into();
     }

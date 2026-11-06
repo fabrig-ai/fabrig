@@ -96,10 +96,7 @@ impl Domain {
                     )
                     .ok()?;
             }
-            made.push(
-                w::PublicQueue::new(l, w::PublicQueueParts { repository: queue.repository.clone(), changes }).ok()?,
-            )
-            .ok()?;
+            made.push(w::PublicQueue::new(l, w::PublicQueueParts { changes }).ok()?).ok()?;
         }
         w::PublicLandings::new(l, w::PublicLandingsParts { turn, landings, queues: made }).ok()
     }

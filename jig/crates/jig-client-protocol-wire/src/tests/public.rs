@@ -98,8 +98,8 @@ fn every_schema_ceiling_is_accepted() {
 
 #[test]
 fn proposed_index_figures_have_explicit_answer_reservations() {
-    // Each maximally populated line is 358 bytes. Names are 64 bytes plus their length.
-    // Projects: 8 + 64 * 76; board: 88 + 40 * (366 + 50 * 358);
-    // card: 370 + 16 * 8 + 50 * 358.
-    assert_eq!(public_bounds(&PROPOSED), [4_872, 730_728, 18_398]);
+    // Each maximally populated line is 351 bytes. Names are 64 bytes plus their length.
+    // Projects: 8 + 64 * 76; board: 88 + 40 * (359 + 50 * 351);
+    // card: 363 + 16 * 8 + 50 * 351.
+    assert_eq!(public_bounds(&PROPOSED), [4_872, 716_448, 18_041]);
 }

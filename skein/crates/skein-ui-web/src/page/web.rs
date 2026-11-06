@@ -7,7 +7,7 @@ use skein_ui::{Act, NodeId};
 use wasm_bindgen::{JsCast, closure::Closure};
 use web_sys::{
     Document, Element, HtmlElement, HtmlInputElement, HtmlOptionElement, HtmlSelectElement, HtmlTextAreaElement,
-    KeyboardEvent, MouseEvent, Node, ResizeObserver, ResizeObserverEntry,
+    KeyboardEvent, MouseEvent, Node, ResizeObserver, ResizeObserverEntry, WheelEvent,
 };
 
 use super::{Event, Op, Page, measure::pixels};
@@ -70,6 +70,7 @@ impl Dom {
         let mut listeners = Vec::new();
         for (kind, on_document) in [
             ("click", true),
+            ("mousedown", false),
             ("input", false),
             ("compositionend", false),
             ("keydown", false),
@@ -79,6 +80,7 @@ impl Dom {
             ("close", false),
             ("focusin", false),
             ("scroll", false),
+            ("wheel", false),
         ] {
             let (target, model, reports) = (Rc::clone(&document), Rc::clone(page), Rc::clone(inbox));
             let listener = Closure::new(move |event: web_sys::Event| {
@@ -115,6 +117,16 @@ impl Dom {
                     return;
                 }
                 if in_component && event.type_() != "keydown" {
+                    return;
+                }
+                if let Some(wheel) = event.dyn_ref::<WheelEvent>() {
+                    target.wheel(&element, wheel);
+                    return;
+                }
+                if event.type_() == "mousedown" {
+                    if target.nearest(&element).is_some_and(|node| model.borrow().press_keeps_focus(node)) {
+                        event.prevent_default();
+                    }
                     return;
                 }
                 let node = target.nearest(&element);
@@ -523,14 +535,19 @@ impl Mounted {
 
     fn scroll_screen(&self, node: NodeId, down: bool) {
         let element = self.group(node).element;
+        let screen = (f64::from(element.client_height()) - self.line_height(&element)).max(1.0);
+        scroll_to(&element, f64::from(element.scroll_top()) + if down { screen } else { -screen });
+    }
+
+    fn line_height(&self, element: &Element) -> f64 {
         let style = self
             .document
             .default_view()
             .expect("window")
-            .get_computed_style(&element)
+            .get_computed_style(element)
             .expect("log style")
             .expect("mounted log has style");
-        let line = style
+        style
             .get_property_value("line-height")
             .expect("line height")
             .trim_end_matches("px")
@@ -543,9 +560,61 @@ impl Mounted {
                     .parse::<f64>()
                     .expect("computed font size")
                     * 1.2
-            });
-        let screen = (f64::from(element.client_height()) - line).max(1.0);
-        scroll_to(&element, f64::from(element.scroll_top()) + if down { screen } else { -screen });
+            })
+    }
+
+    // A wheel's movement and follow decision share one turn, as a page key's do (ui-web.md, 7).
+    fn wheel(&self, element: &Element, event: &WheelEvent) {
+        if !event.cancelable()
+            || event.default_prevented()
+            || event.ctrl_key()
+            || event.meta_key()
+            || event.alt_key()
+            || event.shift_key()
+            || event.delta_x() != 0.0
+            || event.delta_y() == 0.0
+            || !event.delta_y().is_finite()
+        {
+            return;
+        }
+        let Some(log) = element.closest("[role=log]").expect("log selector") else { return };
+        let Some(node) = self.id(&log) else { return };
+        if log.scroll_height() <= log.client_height() {
+            return;
+        }
+        // A nested pane or control keeps its own native scrolling.
+        let mut child = Some(element.clone());
+        while let Some(element) = child {
+            if element == log {
+                break;
+            }
+            if ["TEXTAREA", "INPUT", "SELECT"].contains(&element.tag_name().as_str()) {
+                return;
+            }
+            if element.scroll_height() > element.client_height() {
+                let style = self
+                    .document
+                    .default_view()
+                    .expect("window")
+                    .get_computed_style(&element)
+                    .expect("pane style")
+                    .expect("mounted pane has style");
+                let overflow = style.get_property_value("overflow-y").expect("vertical overflow");
+                if ["auto", "scroll"].contains(&overflow.as_str()) {
+                    return;
+                }
+            }
+            child = element.parent_element();
+        }
+        let unit = match event.delta_mode() {
+            0 => 1.0,
+            1 => self.line_height(&log),
+            2 => f64::from(log.client_height()),
+            _ => return,
+        };
+        event.prevent_default();
+        scroll_to(&log, f64::from(log.scroll_top()) + event.delta_y() * unit);
+        self.measure(node);
     }
 
     // Four deepest entries reaching the screen bound the notes per log (ui-web.md, 7).

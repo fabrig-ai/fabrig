@@ -1,5 +1,5 @@
 use crate::support;
-use std::{fs, os::unix::fs::PermissionsExt, process::Command};
+use std::{fmt::Write as _, fs, os::unix::fs::PermissionsExt, process::Command};
 use temper_forge_setup_shell::process;
 #[test]
 fn prepare_uses_the_owned_machine_without_a_group_file() {
@@ -688,5 +688,149 @@ fn forge_no_registration_follows_the_switch_on_every_preparation_and_print() {
     forge_sign_in::success(&owned::prepare_no_registration(directory, 1));
     assert!(fs::read(&path).expect("unnamed closed ini") == unnamed);
     assert!(!unnamed.windows(b"[oauth2_client]".len()).any(|part| part == b"[oauth2_client]"));
+    scratch.remove();
+}
+
+/// The public client and owner written by init --box; no provider key is read by prepare.
+fn source_configuration(directory: &std::path::Path, port: u16) {
+    let path = directory.join("temper.json");
+    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+    value["engine"]["owners"] = serde_json::json!([{"provider":1,"subject":"ada@example.invalid"}]);
+    value["engine"]["clients"]["provider"] = serde_json::json!({
+        "key":"provider.key", "addresses":[1],
+        "clients":[{"id":"forgejo","secret":null,"redirect_uri":"http://127.0.0.1:3000/user/oauth2/temper/callback"}]
+    });
+    value["application"]["clients"]["listener"] = serde_json::json!({"socket":format!("127.0.0.1:{port}")});
+    value["application"]["machine"]["owned"]["sign_in"] = "forgejo".into();
+    support::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
+}
+fn source_script(directory: &std::path::Path, extra: &str) {
+    let path = directory.join("forgejo");
+    let body = fs::read_to_string(&path).expect("script");
+    let body = body.strip_prefix("#!/bin/sh\n").expect("shell program");
+    let prefix = format!(
+        r#"#!/bin/sh
+base='{}'
+{}
+if [ "$5 $6 $7" = 'admin auth list' ]; then
+    printf '%s\n' "$@" >> "$base/source-arguments"
+    printf 'ID Name Type Enabled\n27 temper OAuth2 true\n'
+    exit 0
+fi
+if [ "$5 $6 $7" = 'admin auth update-oauth' ]; then
+    printf '%s\n' "$@" >> "$base/source-arguments"
+    exit 0
+fi
+"#,
+        directory.display(),
+        extra
+    );
+    fs::write(&path, format!("{prefix}{body}")).expect("source script");
+}
+#[test]
+fn a_later_prepare_gives_a_listed_source_the_current_address() {
+    let scratch = support::Scratch::new("forge_source_address");
+    let directory = scratch.path();
+    let _programs = support::owned::scripted(directory);
+    source_script(directory, "");
+    source_configuration(directory, 31000);
+    support::forge_sign_in::success(&support::owned::prepare(directory, 1));
+    assert!(!directory.join("source-arguments").exists(), "first preparation has no source");
+    let mut expected = String::new();
+    for port in [31000, 31001] {
+        source_configuration(directory, port);
+        let output = support::owned::prepare(directory, 1);
+        support::forge_sign_in::success(&output);
+        assert!(output.stderr.is_empty(), "successful maintenance is silent");
+        let prefix = format!(
+            "--work-path\n{0}/forge-1/forgejo\n--config\n{0}/forge-1/forgejo/app.ini\nadmin\nauth\n",
+            directory.display()
+        );
+        write!(expected, "{prefix}list\n{prefix}update-oauth\n--id\n27\n--use-custom-urls\nfalse\n--auto-discover-url\nhttp://127.0.0.1:{port}/.well-known/openid-configuration\n").expect("source arguments");
+        assert_eq!(fs::read_to_string(directory.join("source-arguments")).expect("source commands"), expected);
+    }
+    scratch.remove();
+}
+#[test]
+fn a_refused_update_leaves_prepare_succeeding_with_one_line() {
+    let scratch = support::Scratch::new("forge_source_refused");
+    let directory = scratch.path();
+    let _programs = support::owned::scripted(directory);
+    source_configuration(directory, 31000);
+    support::forge_sign_in::success(&support::owned::prepare(directory, 1));
+    source_script(
+        directory,
+        r#"if [ "$5 $6 $7" = 'admin auth update-oauth' ]; then printf 'refused\nsecond line\n' >&2; exit 1; fi"#,
+    );
+    let output = support::owned::prepare(directory, 1);
+    support::forge_sign_in::success(&output);
+    assert_eq!(output.stderr, b"forge source: discovery address not updated: refused second line \n");
+    assert!(output.stdout.is_empty());
+    scratch.remove();
+}
+
+#[test]
+fn source_deadlines_and_spawn_failures_leave_preparation_succeeding() {
+    for (command, spawn) in [("list", false), ("update-oauth", false), ("list", true), ("update-oauth", true)] {
+        let scratch = support::Scratch::new("forge_source_host_failure");
+        let directory = scratch.path();
+        let _programs = support::owned::scripted(directory);
+        source_configuration(directory, 31000);
+        support::forge_sign_in::success(&support::owned::prepare(directory, 1));
+        let extra = if spawn && command == "list" {
+            format!(
+                "if [ \"$1\" = --version ]; then chmod 600 \"$0\"; echo 'forgejo version {}'; exit 0; fi",
+                skein_forge::forgejo::pin::VERSION
+            )
+        } else if spawn {
+            r#"if [ "$5 $6 $7" = 'admin auth list' ]; then chmod 600 "$0"; printf '27 temper OAuth2 true\n'; exit 0; fi"#.into()
+        } else {
+            format!("if [ \"$5 $6 $7\" = 'admin auth {command}' ]; then exec sleep 60; fi")
+        };
+        source_script(directory, &extra);
+        let path = directory.join("temper.json");
+        let mut value: serde_json::Value =
+            serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+        for (name, number) in [("setup.deadline_ms", 200_u64), ("setup.backoff_ms", 1), ("setup.backoff_max_ms", 100)] {
+            value["application"]["limits"]["overrides"][name] = number.into();
+        }
+        support::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
+        let output = support::owned::prepare(directory, 1);
+        support::forge_sign_in::success(&output);
+        let line = String::from_utf8(output.stderr).expect("source diagnostic");
+        assert_eq!(line.lines().count(), 1, "{command}, spawn={spawn}: {line}");
+        assert!(line.starts_with("forge source: discovery address not updated: "));
+        assert!(line.contains(if spawn { "spawn:" } else { "source deadline expired" }), "{line}");
+        assert!(output.stdout.is_empty());
+        scratch.remove();
+    }
+}
+#[test]
+fn a_termination_signal_during_source_maintenance_still_stops_preparation() {
+    let scratch = support::Scratch::new("forge_source_interrupted");
+    let directory = scratch.path();
+    let programs = support::owned::scripted(directory);
+    source_configuration(directory, 31000);
+    support::forge_sign_in::success(&support::owned::prepare(directory, 1));
+    source_script(
+        directory,
+        r#"if [ "$5 $6 $7" = 'admin auth list' ]; then sleep 60 & echo $! > "$base/hung"; wait; exit; fi"#,
+    );
+    let mut child = support::owned::prepare_command(directory, 1)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("preparation");
+    let _sleep = programs.hung(&mut child, support::WITHIN);
+    assert!(
+        Command::new("/bin/sh")
+            .args(["-c", &format!("kill -TERM {}", child.id())])
+            .status()
+            .expect("terminate preparation")
+            .success()
+    );
+    let output = child.wait_with_output().expect("interrupted preparation ends");
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(output.stderr, b"temper forge prepare: forge 1: interrupted\n");
     scratch.remove();
 }

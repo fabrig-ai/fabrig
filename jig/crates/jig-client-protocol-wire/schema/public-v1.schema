@@ -3,7 +3,7 @@ family jig-public-wire 1
 # Identifiers are public u64 values; times are u64 seconds since the epoch.
 # Unit variants carry kinds alone, never identities or reasons.
 enum PublicExecutor { agent, procedure, person, job }
-enum PublicPhase { waiting, idle, due, preparing, claimed, running, backing_off, active, closing, held, ended, done, failed, cancelled }
+enum PublicPhase { waiting, idle, due, preparing, claimed, running, backing_off, active, closing, held, done, failed, cancelled }
 enum PublicHold { failures, stalled, dependency, stopped, placed, drift, effects, effect_failed, uncertain, budget, deadline, holds_waited, resource_unavailable, resource_access, pool_lost, procedure, circle, exceeded }
 record PublicCounts { working: u32 waiting: u32 held: u32 closing: u32 ended: u32 }
 record PublicLine {
@@ -20,8 +20,7 @@ record PublicLine {
     changed: u64
     active: option u64
     ended: option u64
-    spent: u64
-    budget: u64
+    spent: option u64
     delegates: PublicCounts
 }
 record PublicProject { project: u64 name: text 64 }

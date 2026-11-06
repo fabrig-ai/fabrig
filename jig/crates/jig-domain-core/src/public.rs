@@ -91,8 +91,7 @@ pub struct PublicLine {
     pub changed: u64,
     pub active: Option<u64>,
     pub ended: Option<u64>,
-    pub spent: u64,
-    pub budget: u64,
+    pub spent: Option<u64>,
     pub delegates: PublicCounts,
 }
 
@@ -135,7 +134,6 @@ pub enum PublicPhase {
     Active,
     Closing,
     Held,
-    Ended,
     Done,
     Failed,
     Cancelled,

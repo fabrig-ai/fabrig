@@ -366,8 +366,8 @@ fn jig_kinds_reserve_the_configured_index_in_public_version_one() {
     let kinds = crate::jig_kinds(&bounds);
     for (kind, expected) in kinds.into_iter().zip([
         crate::PublicKind { owner: 0, kind: 1, first: 1, last: 1, task: false, bound: 4_872 },
-        crate::PublicKind { owner: 0, kind: 2, first: 1, last: 1, task: false, bound: 730_728 },
-        crate::PublicKind { owner: 0, kind: 3, first: 1, last: 1, task: true, bound: 18_398 },
+        crate::PublicKind { owner: 0, kind: 2, first: 1, last: 1, task: false, bound: 716_448 },
+        crate::PublicKind { owner: 0, kind: 3, first: 1, last: 1, task: true, bound: 18_041 },
     ]) {
         assert_eq!(kind, expected);
     }

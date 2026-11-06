@@ -175,6 +175,97 @@ fn restored_forges(store: Store, bootstrap: engine::Config, config: &engine::Con
     store
 }
 impl Joint {
+    /// Shipped page watch sets beside a third client (temper/docs/design/protocol/configuration.md, 7).
+    #[must_use]
+    pub fn with_watch_room(seed: u64, limits: &client::Limits) -> Self {
+        Self::with_watch_room_streams(seed, limits, 8)
+    }
+
+    /// A bounded room for the Busy and recovery stories (protocol/configuration.md, 7).
+    #[must_use]
+    pub fn with_watch_room_streams(seed: u64, limits: &client::Limits, streams: u32) -> Self {
+        let delegates = fixtures::WATCH_ROOM_DELEGATES;
+        let tasks = delegates + 1;
+        let configs = std::array::from_fn(|_| {
+            use jig_domain_authority as authority;
+            let mut config = walking::config(seed);
+            config.core.defaults.rules.ceiling.delegation.tasks = tasks;
+            config.core.defaults.rules.ceiling.delegation.depth = 2;
+            let policy = &mut config.core.seed_projects[0].policy.policy;
+            policy.ceiling.delegation.tasks = tasks;
+            policy.ceiling.delegation.depth = 2;
+            policy.roles[0].authority.delegation.tasks = tasks;
+            policy.roles[0].authority.delegation.depth = 2;
+            let mut authority_limits = walking::limits().authority;
+            authority_limits.batch = delegates;
+            let mut domain = authority::Domain::new(config.core.defaults.rules.clone(), authority_limits)
+                .expect("watch-room authority");
+            let mut out = skein_lib::Queue::uncapped();
+            authority::step(
+                &mut domain,
+                authority::Event::Policy { project: fixtures::QUESTION_PROJECT, policy: policy.clone() },
+                &mut out,
+            );
+            assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: fixtures::QUESTION_PROJECT }));
+            config.core.seed_projects[0].policy.policy =
+                domain.policy(fixtures::QUESTION_PROJECT).expect("watch-room project policy").clone();
+            config.core.defaults.rules = domain.rules().clone();
+            config
+        });
+        let mut engine_limits = engine_limits();
+        engine_limits.streams = streams;
+        // The goal's driver and three independent client roots.
+        engine_limits.people.sign_ins = 4;
+        engine_limits.tasks.tasks = tasks;
+        engine_limits.tasks.project_tasks = tasks;
+        engine_limits.tasks.tree_tasks = tasks;
+        engine_limits.tasks.delegates = delegates;
+        engine_limits.tasks.batch = delegates;
+        engine_limits.tasks.inbox_messages = tasks;
+        engine_limits.tasks.inbox_bytes = engine_limits.tasks.message_bytes * tasks;
+        engine_limits.authority.batch = delegates;
+        engine_limits.people.inbox_tasks = tasks * 2;
+        engine_limits.people.inbox_recipients = tasks * 2 + engine_limits.authority.roles + 4;
+        engine_limits.documents.rows = limits.client.domain.rows;
+        // The delegated batch retains its writes and deliveries together.
+        engine_limits.journal.writes = 4096;
+        engine_limits.journal.deliveries = 64;
+        engine_limits.journal.held = 192;
+        engine_limits.fleet.slots = tasks;
+        engine_limits.fleet.attempts = tasks * 2;
+        let mut front =
+            Self::with_engine(seed, limits, Store::with_limits(&engine_limits), configs, &engine_limits, tasks);
+        // A reachable engine can refuse admission. This story checks readiness through
+        // its person's waits and tools call, rather than promising every link is admitted.
+        front.observed.clear();
+        front
+    }
+
+    /// The page retains its address and its unlinked `Start` supplies `SignedIn` itself.
+    pub fn resume_watch_room_page(&mut self, client: ClientId) {
+        self.callbacks.retain(|(owner, event)| {
+            *owner != client
+                || !matches!(
+                    event,
+                    Event::Root(
+                        RootEvent::Went { .. }
+                            | RootEvent::Client { event: jig_client::Event::Up { up: jig_client::Up::SignedIn } }
+                    )
+                )
+        });
+    }
+
+    /// Close the tab's transport and drain its engine watches.
+    pub fn close_client(&mut self, client: ClientId) {
+        self.detach(client);
+    }
+
+    /// Open protocol watches, leaving closing ones out (temper/docs/design/protocol/configuration.md, 7).
+    #[must_use]
+    pub fn open_watches(&self) -> usize {
+        self.transport.watches().len()
+    }
+
     pub fn finish_playground_reset(&mut self) {
         self.callbacks.append(&mut self.held_playground_end);
     }

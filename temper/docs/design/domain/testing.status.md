@@ -10,18 +10,15 @@ approval-identity story covers a refusal naming no command.
 
 Sections 6.4 and 6.5.3 have no gap in scripted note-backed proposals and single-revision collector evidence.
 
-- **Not yet:** 2.6: no whole run at three tests at a time has passed: the
-  request `process-threads` of 2026-11-06 leaves that to the next after-landing
-  run, in place of the three whole runs and a loaded one the request `test-speed`
-  of that day asks for. The one sample at three, on a loaded builder, came before
-  the retained ports' blocks and the update that decides again: it took 203.7 s
-  of wall against 503.9 s at one, failed twice on what those address, and read
-  12 tests over 25% more CPU than at one thread (the `test-speed` plan's figures
-  on threads, at `b23901eab7`).
-  2.6: the tier's CPU against its 360 s: of the seven whole runs in those
-  figures, at differing loads, four read over it (367.8 to 433.7 s) and
-  three within (287.1 to 349.7 s, the last that sample), and they hold no
-  run with the plan's parts together. No budget moved, that being the user's.
+- **Not yet:** 2.6: no passing whole run is recorded for the three-test
+  profile with the four fixed-callback walks serialized. Its proof belongs
+  to the next after-landing run on main (11), per the request
+  `process-threads` of 2026-11-06; the profile and its callback group are
+  configured in `.config/nextest.toml`.
+  2.6: the tier's CPU against its 360 s: of the seven whole runs in
+  `test-speed`'s figures at `b23901eab7`, at differing loads, four read
+  over it (367.8 to 433.7 s) and three within (287.1 to 349.7 s), and
+  they hold no run with that plan's parts together. The budget is the user's.
   2.6: Goal and Away keep the shipped 5 s poll, where the request `test-speed` has them
   wake on an event or take the status walks' paces: no poll is what they wait
   for, and a trial of short paces on Away saved less wall than it cost CPU. The

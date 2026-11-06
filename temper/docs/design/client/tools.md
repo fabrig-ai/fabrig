@@ -1461,12 +1461,22 @@ may change with them.
   its deadline holds, so that a wait outlives the engine's restart. An
   engine that takes the connection and stays quiet takes the deadline too,
   and the line says what it waited for (below).
+- **The engine's watches all in use say so.** A call whose client still
+  holds a watch refused busy at its deadline (jig's
+  `client/domain/client.md`, 8.2) exits 1 with `temper ctl: all the
+  engine's watches are in use, by open pages and waits; close one, or
+  wait and call again`. It comes after the busy sign-in's and the full
+  streams' lines, which are nearer the cause, and before any other line
+  of the deadline. A call that gets its answer first prints no such
+  line, since a closing page gives its room back
+  (`../protocol/configuration.md`, section 7).
 - **The deadline says what it waited for.** A call past the link's
   deadline (section 12) exits 1 with one stderr line, at most 240 bytes,
   which names what was outstanding and holds no request's words and no
-  secret. *Busy* and *streams full* (8.2) keep their own lines, ahead of
-  these. A sign-in's or a sign-out's call says `temper ctl: the engine at
-  ADDRESS did not answer within 30 s`. Any other says, from the link's
+  secret. *Busy*, *streams full* (8.2) and all watches in use keep their
+  own lines, ahead of these. A sign-in's or a sign-out's call says
+  `temper ctl: the engine at ADDRESS did not answer within 30 s`. Any
+  other says, from the link's
   state (jig's `client/domain/client.md`, 8.2):
 
   | Outstanding | When | The line, after `temper ctl: ` |

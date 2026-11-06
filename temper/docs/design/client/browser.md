@@ -1245,6 +1245,13 @@ Not in the tier, each in the lowest world that shows it:
   to every visitor reading it, in place of each page reading again
   (section 8). Default: none; pages read again at the `max-age`, and a
   visitor never holds a stream.
+- **Public history** (8.3): ended goals from before publication or across
+  a restart need jig's source index (`jig/docs/design/domain/people.md`,
+  section 12); a stock queue's past merges need the forge's public landing
+  history (`forge.md`, section 10). Default: goals ended while the public
+  index kept the project, and landings by turn alone. "Nothing has landed
+  yet." describes an empty landing list even when a stock queue has merged
+  earlier work; changing those words waits with that history.
 - **The kit's stylesheet without a bundle:** the gallery takes
   `skein-ui.css` by running skein's bundler with no module (7.1).
   Default: so, until skein's bundler offers the stylesheet alone.
@@ -1720,24 +1727,54 @@ never streaming (`../draft/first-release.md`, 5.3).
   its name, and a goal is "Goal" and a task "task", each with the first
   eight digits of its public identifier, then its title, with "…" where
   cut; an executor is its kind, "an agent", "a procedure", "a person".
+- **The look:** one plain column, the same at every width from 320 to
+  1440 px, in the client's type and colours (`temper.css`'s tokens), its
+  rows modelled on the Chats page's: no table, no monospace, and nothing
+  overlapping at any width. A long title wraps inside its row.
+- **A row:** a goal's is its identifier and title, then, muted, on one
+  line that wraps cleanly, its phase in words, for how long, and its
+  spend: "running · for 14 minutes · 126 spent". A task's is the same
+  form without spend, indented below its goal: "task 3f2a9c01 Write the
+  parser", then "running · for 14 minutes". No row shows a budget or a
+  priority; a goal's priority orders the board.
+- **An ended row** says how it ended and how long ago: "landed · 2 hours
+  ago · 126 spent". A goal reads "landed", "failed", or "ended" for one
+  closed with neither, by the same endings as the Goals page; a task
+  reads "done", "failed" or "ended".
+- **The board:** the project's name as its title and, under it, "What
+  temper is doing on this project, as it happens. Read-only."; each
+  goal's row, with its tree's rows below it and the count of lines
+  folded; "No goals yet." when it has none. Below the goals, only when
+  the forge's landings hold a queue or a landing, "Landings", a link to
+  them, with the queues' lines, and "Nothing has landed yet." until one
+  has.
+- **A task:** its row, its executor first among the muted words ("an
+  agent · running · for 14 minutes"), its lineage up to its goal as
+  links, its delegates' rows, and where it makes a change, the change's
+  step in words, CI's state, its gates' verdicts by number and kind, and
+  "Its change: 789ada1", the merge's short commit once it has landed and
+  the head's until then.
 - **Public lines wrap at desktop and phone widths:** the identity link and
-  title form one group; executor, phase, duration, spend and priority form
+  title form one group; the row's executor, phase, duration and spend form
   a second group with gaps between facts. Titles wrap without truncation
   beyond the public record's cut. Public content is a block reading column
   with at least 16 CSS pixels of horizontal gutter, including navigation.
-- **The board:** the project's goals, each a line: its identifier and
-  title, its phase in words, for how long, its spend; under it its
-  tree's lines: "task 3f2a9c01 Write the parser, an agent, running for
-  14 minutes", its phase, its
-  times; the count of lines folded; and the queues' lines from the
-  landings.
-- **A task:** its line, its lineage up to its goal as links, its
-  delegates, and where it makes a change, the change's step in words,
-  CI's state, its gates' verdicts by number and kind, and "its change
-  on the forge", the pull's address, with the head's commit linked by
-  its short hash.
 - **The landings:** the turn, each queue in order, without places, and
-  the recent landings, each landed commit a link.
+  the recent landings, each landed commit a link to its public landing;
+  "Nothing has landed yet." when there are none. A landing's member
+  reads "Its change:" and its landed commit, or its candidate until
+  then.
+- **The projects:** each public project's name, a link to its board; "No
+  public projects yet." when there are none.
+- **A short commit** is the first seven digits, plain text on a change
+  or a landing's member. In the recent landings list it links to the
+  public landing, as above. A commit is held in 32 bytes, a 40-digit one
+  zero-padded, so a page never prints one whole.
+- **No link to the forge:** a commit, a pull request and a CI run are
+  never links to the forge, for the reason in `forge.md`, 11.3.
+- **Words never touch:** where a line holds several, a visible separator
+  or space stands between them in the page's text, not only in its
+  layout.
 - **Never** a person's name, any words but a title, or anything the
   records do not carry: the view reads only the public records.
 
@@ -1748,7 +1785,10 @@ never streaming (`../draft/first-release.md`, 5.3).
   as `/public`; the public mode's reads, its timer from the answer's
   freshness and `Age`, a hidden tab reading nothing, busy keeping the
   page until its freshness ends and then dropping it, backing off,
-  unknown's main.
+  unknown's main; a goal's row and a task's, an ended row's words, each
+  page's empty words, Landings on the board only with a queue or a
+  landing, a 40-digit commit's seven digits as plain text, and no link to
+  the forge on any page.
 - **Fuzzy tests:** the address codec's parser over seeded paths under
   `/public`, never panicking and printing back what it read.
 - **The browser tier** (section 4): a public project on fakes read at

@@ -772,7 +772,8 @@ the host tests (section 14).
   has `data-log-away`, for a stylesheet, until it is back at its end. A
   press of a button with the state *to log end* (ui.md, 3.2) takes every
   log of the page to its end, keeping it there, before the press goes on
-  to its owner, where the button is bound.
+  to its owner, where the button is bound. A pointer's press on it leaves
+  the focus where it was: the person is reading, and may be writing too.
 - **Going to another page** (a new entry a step shows): after the turn's
   patches, its disclosures folded (above), the reference starts the
   page at its top, the focus on its
@@ -815,7 +816,11 @@ the host tests (section 14).
     anywhere on the page, the focus in a field or on nothing among it, their
     default prevented. A menu or a dialog open, a component holding the
     focus, or no such log leaves them to the platform. Home and End stay the
-    platform's, which takes them while the focus is on the log.
+    platform's, which takes them while the focus is on the log. Such a scroll
+    is a person's at once: the page part measures the log in the same apply,
+    since the platform's scroll event waits for its next frame and a
+    delivery can come first. So a PageUp has stopped the following before
+    that delivery, and a PageDown that reaches the end has started it.
 - **The title,** as the reference sets it: the main's first level-1
   heading's text, then ` · ` and the application's name; the name alone
   when there is none. `<html lang>` is the phrasebook's language.

@@ -59,8 +59,6 @@ variant PublicWay queue tag=0 payload=-
 variant PublicWay turn tag=1 payload=-
 record PublicChange versioned=true
 field PublicChange task type=u16 tag=- default=-
-field PublicChange repository type=bytes 2048 tag=- default=-
-field PublicChange pull type=option bytes 2048 tag=- default=-
 field PublicChange head type=option fixed 32 tag=- default=-
 field PublicChange step type=PublicStep tag=- default=-
 field PublicChange repair type=option PublicRepair tag=- default=-
@@ -91,7 +89,6 @@ field PublicQueued task type=u16 tag=- default=-
 field PublicQueued goal type=u16 tag=- default=-
 field PublicQueued ready_since type=u64 tag=- default=-
 record PublicQueue versioned=false
-field PublicQueue repository type=bytes 2048 tag=- default=-
 field PublicQueue changes type=list 64 PublicQueued tag=- default=-
 record PublicLandings versioned=true
 field PublicLandings turn type=option u16 tag=- default=-
@@ -109,11 +106,8 @@ field PublicGateProof number type=u64 tag=- default=-
 field PublicGateProof kind type=PublicGateKind tag=- default=-
 field PublicGateProof blocks type=bool tag=- default=-
 field PublicGateProof proof type=PublicProof tag=- default=-
-field PublicGateProof run type=option bytes 2048 tag=- default=-
 record PublicMember versioned=false
 field PublicMember task type=u16 tag=- default=-
-field PublicMember repository type=bytes 2048 tag=- default=-
-field PublicMember pull type=option bytes 2048 tag=- default=-
 field PublicMember base type=option fixed 32 tag=- default=-
 field PublicMember candidate type=option fixed 32 tag=- default=-
 field PublicMember landed type=option fixed 32 tag=- default=-

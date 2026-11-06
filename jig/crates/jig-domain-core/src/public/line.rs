@@ -32,8 +32,10 @@ pub(super) fn make(row: &tasks::TaskRecord, parent: Option<u64>, delegates: Publ
             Some(at) => Some(at.as_secs()),
             None => None,
         },
-        spent: row.numbers.spent.checked_add(row.numbers.spent_below).expect("bounded task spend"),
-        budget: row.numbers.budget,
+        spent: match row.tracked {
+            Some(_) => Some(row.numbers.spent.checked_add(row.numbers.spent_below).expect("bounded task spend")),
+            None => None,
+        },
         delegates,
     }
 }
@@ -56,7 +58,11 @@ fn phase(row: &tasks::TaskRecord) -> PublicPhase {
         },
         tasks::Phase::Closing(_) => PublicPhase::Closing,
         tasks::Phase::Held { .. } => PublicPhase::Held,
-        tasks::Phase::Ended(_) => PublicPhase::Ended,
+        tasks::Phase::Ended(ref ending) => match ending {
+            tasks::Ending::Done(_) => PublicPhase::Done,
+            tasks::Ending::Failed { .. } => PublicPhase::Failed,
+            tasks::Ending::Cancelled { .. } => PublicPhase::Cancelled,
+        },
     }
 }
 
