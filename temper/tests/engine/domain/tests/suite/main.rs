@@ -37,6 +37,7 @@ mod roles;
 mod root_routes;
 mod settings;
 mod switch;
+mod trials;
 mod walking;
 
 mod fuzzy {
