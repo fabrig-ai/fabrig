@@ -1415,7 +1415,7 @@ const PHRASES: u32 = 1872;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 const SEGMENTS: u32 = 3281;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 45807;
+const ENGLISH_BYTES: u32 = 45801;
 const ALL: [Word; 1271] = [
     Word::CloseTitle,
     Word::CloseChat,
@@ -5600,7 +5600,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ContinueGoogle => (&[b"Continue with Google"], &[]),
         Word::SignedOutMain => match shell {
             Shell::Terminal => (&[b"Signed out."], &[]),
-            Shell::Browser => (&[b"Signed out. To sign in, open a sign-in link temper serve printed."], &[]),
+            Shell::Browser => (&[b"Signed out. To sign in, open a sign-in link temper printed."], &[]),
         },
         Word::SignInFull => (&[b"All ", b" sign-ins are in use; the earliest ends ", b" UTC. This link stays usable until ", b" UTC; after that, opening it has temper serve print a fresh one."], &[Number, HoleKind::Moment, HoleKind::Moment]),
         Word::SignInBusy => (&[b"temper is busy. This link stays usable until it expires: open it again in a moment."], &[]),

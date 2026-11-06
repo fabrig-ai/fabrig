@@ -40,6 +40,9 @@ fn a_trial_runs_through_the_worker_and_the_fake_model() {
                 terminal::see(b"answered in "),
                 terminal::type_on(b"Create your project", b""),
                 terminal::see(b"Nothing needs you."),
+                terminal::see(b"Optional Skip"),
+                terminal::type_on(b"Optional Skip", b""),
+                terminal::see(b"No chats yet."),
                 terminal::type_on(b"Chats", b""),
                 terminal::see(b"None."),
                 terminal::close(),
@@ -66,12 +69,11 @@ fn a_trial_runs_through_the_worker_and_the_fake_model() {
         .pages
         .iter()
         .find(|page| {
-            page.commands == 3
-                && page.bytes.windows(b"Nothing needs you.".len()).any(|part| part == b"Nothing needs you.")
+            page.commands == 4 && page.bytes.windows(b"No chats yet.".len()).any(|part| part == b"No chats yet.")
         })
-        .expect("Home has no needs");
+        .expect("Home has read its chats");
     let text = std::str::from_utf8(&home.bytes).expect("Home text");
-    assert!(text.contains("No chats yet."), "Home counts no chats: {text}");
+    assert!(text.contains("Nothing needs you."), "Home has no needs: {text}");
     assert!(ran.llm().is_empty(), "the program's model answers, with no direct-key call");
     let bytes = std::fs::read(ran.path().join("programs").join(SOURCE).join(smith_fake_claude::OBSERVATIONS_FILE))
         .expect("fake program observations");

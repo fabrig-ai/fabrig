@@ -480,7 +480,7 @@ fn needs(
                 phone(b, first, count, w, bindings, project);
             }
         }
-    } else {
+    } else if let Needs::Count { .. } = facts.needs {
         text(b, Role::Paragraph, &w.say(Word::HomeNeedsEmpty, &[]), Some(look::HOME_EMPTY));
     }
     b.close();
@@ -614,7 +614,11 @@ fn chats(
     }
     b.close();
     if count == 0 {
-        text(b, Role::Paragraph, &w.say(Word::NoChats, &[]), Some(look::HOME_EMPTY));
+        if let Some(chats) = chats
+            && chats.known(root.client())
+        {
+            text(b, Role::Paragraph, &w.say(Word::NoChats, &[]), Some(look::HOME_EMPTY));
+        }
     } else {
         b.open(Role::List);
         b.style(look::HOME_ROWS);

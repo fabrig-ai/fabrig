@@ -22,7 +22,7 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         b.close();
         return;
     };
-    let mut have_page = inbox.delivered(root.client());
+    let mut have_page = inbox.known();
     for card in &inbox.cards {
         have_page |= card.page.is_some();
     }
