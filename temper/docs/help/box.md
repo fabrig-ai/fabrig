@@ -121,8 +121,8 @@ Open this link in a browser on this machine.
 
 http://127.0.0.1:8367/jig/v1/sign-in/link?secret=...
 
-It signs you in as this temper's owner, once and for a short while.
-Opened again once spent, it prints a fresh one here.
+It signs you in as this temper's owner, once, within 2 hours.
+Opened after that, it prints a fresh one here.
 ```
 
 The link alone is on stdout; the other lines are on stderr. Fake backends
