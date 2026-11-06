@@ -200,7 +200,8 @@ on a reload, stands below the chat's newest reply rather than at its call and fo
 "Decision made" while it waits; the chat's card draws no Reject, departing from the
 request `ui-chat-accept` (`client/README.md`). "Start goal…" went once from a
 restored document, on no replay since, its cause unknown (`client/README.md`). The welcome's command names the
-binary that runs it and has a Copy, but no browser test presses the Copy; with no `HOME` and an XDG variable placing
+binary that runs it and has a Copy, but no browser test presses the Copy or sees its word change; the gallery's walk of
+named controls excepts a recommended choice's tag, departing from the request `ui-copy-once`; with no `HOME` and an XDG variable placing
 only some directories it names all three `TEMPER_` values; and
 `temper forge run`'s refusal and the terminal's `temper open` still say plain `temper` (`client/README.md`). The welcome's try of a model draws Model's line in
 Ready's pane over the host's check alone, no trial being built, and departs from the request
