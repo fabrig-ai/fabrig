@@ -5,6 +5,7 @@ static HEAP: Counting = Counting;
 
 mod host;
 mod memory;
+mod switcher;
 
 #[test]
 fn draft_section_headings_keep_the_document_line_height() {

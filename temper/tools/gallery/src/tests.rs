@@ -1176,7 +1176,7 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "welcome-paste-expired",
-        heading: "Signing in to ChatGPT from another computer",
+        heading: "Signing in to ChatGPT",
         parts: &[
             Part::Named { role: Role::Status, name: "This sign-in has ended." },
             Part::Named { role: Role::Button, name: "Continue with ChatGPT" },
@@ -1200,22 +1200,22 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "welcome-paste-waiting",
-        heading: "Signing in to ChatGPT from another computer",
+        heading: "Connect a model",
         parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-written",
-        heading: "Signing in to ChatGPT from another computer",
+        heading: "Connect a model",
         parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-too-long",
-        heading: "Signing in to ChatGPT from another computer",
+        heading: "Connect a model",
         parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-sending",
-        heading: "Signing in to ChatGPT from another computer",
+        heading: "Connect a model",
         parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
@@ -1225,32 +1225,32 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "welcome-paste-address",
-        heading: "Signing in to ChatGPT from another computer",
+        heading: "Connect a model",
         parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-state",
-        heading: "Signing in to ChatGPT from another computer",
+        heading: "Connect a model",
         parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-too-many",
-        heading: "Signing in to ChatGPT from another computer",
+        heading: "Connect a model",
         parts: &[Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
     },
     Holds {
         name: "welcome-paste-ended",
-        heading: "Signing in to ChatGPT from another computer",
+        heading: "Connect a model",
         parts: &[Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
     },
     Holds {
         name: "welcome-paste-lost",
-        heading: "Signing in to ChatGPT from another computer",
+        heading: "Connect a model",
         parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-unsent",
-        heading: "Signing in to ChatGPT from another computer",
+        heading: "Connect a model",
         parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
@@ -1298,7 +1298,7 @@ const HOLDS: [Holds; samples::N] = [
         name: "welcome-model-claude-checking",
         heading: "Your Claude subscription",
         parts: &[
-            Part::Named { role: Role::Status, name: "Checking Claude Code’s sign-in on this machine…" },
+            Part::Named { role: Role::Status, name: "Trying your Claude subscription" },
             Part::Absent { role: Role::Button, name: "I’ve signed in" },
         ],
     },
@@ -1306,12 +1306,15 @@ const HOLDS: [Holds; samples::N] = [
         name: "welcome-model-claude-not-yet",
         heading: "Your Claude subscription",
         parts: &[
-            Part::Text { text: "temper program-login claude-pat" },
+            Part::Named { role: Role::Alert, name: "Claude didn’t answer" },
             Part::Named {
-                role: Role::Alert,
-                name: "Claude Code isn’t signed in here yet. Run the command above, then press I’ve signed in.",
+                role: Role::Paragraph,
+                name: "Claude Code isn’t signed in here yet. Sign in again, then try again.",
             },
-            Part::Named { role: Role::Button, name: "I’ve signed in" },
+            Part::Named { role: Role::Button, name: "Try again" },
+            Part::Named { role: Role::Button, name: "Sign in again" },
+            Part::Named { role: Role::Link, name: "Continue anyway" },
+            Part::Absent { role: Role::Button, name: "I’ve signed in" },
         ],
     },
     Holds {
@@ -1331,14 +1334,19 @@ const HOLDS: [Holds; samples::N] = [
         name: "welcome-model-away",
         heading: "Connect a model",
         parts: &[
-            Part::Named { role: Role::Status, name: "ChatGPT’s sign-in, in this tab" },
-            Part::Named { role: Role::Disclosure, name: "Signed in, but the page couldn't be reached?" },
+            Part::Named { role: Role::Status, name: "Waiting for ChatGPT’s sign-in, in the new tab" },
+            Part::Named { role: Role::Link, name: "Open it again" },
+            Part::Named { role: Role::Disclosure, name: "Signed in, but the page couldn’t be reached?" },
         ],
     },
     Holds {
         name: "welcome-model-signing-in",
         heading: "Connect a model",
-        parts: &[Part::Named { role: Role::Status, name: "ChatGPT’s sign-in, in this tab" }],
+        parts: &[
+            Part::Named { role: Role::Status, name: "Waiting for ChatGPT’s sign-in, in the new tab" },
+            Part::Named { role: Role::Link, name: "Open it again" },
+            Part::Named { role: Role::Disclosure, name: "Signed in, but the page couldn’t be reached?" },
+        ],
     },
     Holds {
         name: "welcome-model-signin-ready",
@@ -1463,7 +1471,7 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Heading { level: 2 }, name: "ChatGPT" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Claude" },
-            Part::Named { role: Role::Paragraph, name: "Sign in, in this tab · about a minute" },
+            Part::Named { role: Role::Paragraph, name: "Sign in, in a new tab · about a minute" },
             Part::Named { role: Role::Button, name: "Continue with ChatGPT" },
         ],
     },
@@ -2334,7 +2342,11 @@ const HOLDS: [Holds; samples::N] = [
     Holds {
         name: "connect-model-signing-in",
         heading: "Connect a model",
-        parts: &[Part::Named { role: Role::Link, name: "Open the sign-in page" }],
+        parts: &[
+            Part::Named { role: Role::Status, name: "Waiting for ChatGPT’s sign-in, in the new tab" },
+            Part::Named { role: Role::Link, name: "Open it again" },
+            Part::Named { role: Role::Disclosure, name: "Signed in, but the page couldn’t be reached?" },
+        ],
     },
     Holds {
         name: "connect-model-key-lost",

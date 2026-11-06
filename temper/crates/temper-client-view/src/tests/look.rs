@@ -22,7 +22,9 @@ fn the_looks_names_pass_skeins_check() {
         assert_eq!(NAMES.style(token), Some(name));
     }
 }
-const FLOW_NAMES: [(skein_ui::Style, &[u8]); 25] = [
+const FLOW_NAMES: [(skein_ui::Style, &[u8]); 27] = [
+    (WELCOME_CHECK, b"temper-welcome-check"),
+    (WELCOME_CHECK_WHY, b"temper-welcome-check-why"),
     (FLOW_BUSY, b"temper-flow-busy"),
     (FLOW_METER, b"temper-flow-meter"),
     (FLOW_PRIMARY, b"temper-flow-primary"),
@@ -644,7 +646,8 @@ fn welcome_and_repository_styles_keep_their_css_names() {
         (WELCOME_SEP, b"temper-welcome-sep"),
         (WELCOME_PANEL, b"temper-welcome-panel"),
         (WELCOME_AWAY, b"temper-welcome-away"),
-        (WELCOME_NUMBERED, b"temper-welcome-numbered"),
+        (WELCOME_AGAIN, b"temper-welcome-again"),
+        (WELCOME_PASTE, b"temper-welcome-paste"),
         (WELCOME_FIELD, b"temper-welcome-field"),
         (WELCOME_CMD, b"temper-welcome-cmd"),
         (WELCOME_CURRENT, b"temper-welcome-current"),

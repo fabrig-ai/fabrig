@@ -187,6 +187,7 @@ pub struct Settings {
     pub provider: Option<skein_oauth_issuer::Issuer>,
     pub addresses: Box<[u16]>,
     pub link: Option<people::Identity>,
+    pub link_secret: Option<Secret>,
     pub deployment_provider: u16,
     pub heartbeat: Duration,
     /// Default watch window from the receiving core's document limits.

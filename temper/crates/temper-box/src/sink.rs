@@ -38,6 +38,11 @@ impl Terminal {
     pub fn failed(&self) -> bool {
         self.phase == Phase::Failed
     }
+    /// Every admitted item has received its full-budget write acknowledgement.
+    #[must_use]
+    pub fn drained(&self) -> bool {
+        self.phase == Phase::Idle && self.active.is_none() && self.queued.is_empty()
+    }
     #[must_use]
     pub fn takes(&self, entries: u32) -> bool {
         !self.failed()

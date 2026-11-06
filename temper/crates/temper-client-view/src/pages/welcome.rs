@@ -269,6 +269,9 @@ fn model_line(
             super::connect_model::welcome_end(b, root, w, accounts);
             b.close();
         }
+        if super::model_check::last_try_failed() {
+            super::model_check::ready_note(b, w);
+        }
         if usable {
             text(b, w, Role::Status, Word::FlowDone);
         }

@@ -87,18 +87,18 @@ fn block_admission_counts_the_active_item_and_is_atomic() {
     terminal.up(STDERR, Up::Room, OUTPUT, &mut out);
     out.pop();
     out.pop();
-    let block = formatter.block(bytes::copy_of(b"link\n"), skein_lib::Wall::EPOCH);
+    let block = formatter.block(bytes::copy_of(b"link\n"));
     assert!(terminal.block(block).is_err(), "two slots cannot admit the first three");
     assert!(!terminal.takes(FIRST_ENTRIES), "active payload has moved but still owns a slot");
     terminal.up(STDERR, Up::Room, OUTPUT, &mut out);
-    terminal.block(formatter.block(bytes::copy_of(b"link\n"), skein_lib::Wall::EPOCH)).unwrap();
+    terminal.block(formatter.block(bytes::copy_of(b"link\n"))).unwrap();
     formatter.admitted_block();
     assert!(!terminal.takes(1), "the first block fills three adjacent slots");
     // A fresh two-item block also refuses when only one slot is available.
     let mut fresh = fifo();
     fresh.push(item(Target::Stderr, b"one"));
     fresh.push(item(Target::Stdout, b"two"));
-    assert!(fresh.block(formatter.block(bytes::copy_of(b"fresh\n"), skein_lib::Wall::EPOCH)).is_err());
+    assert!(fresh.block(formatter.block(bytes::copy_of(b"fresh\n"))).is_err());
     assert!(fresh.takes(1), "refusal added no partial announcement");
 }
 #[test]
