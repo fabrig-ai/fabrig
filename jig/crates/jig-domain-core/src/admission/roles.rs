@@ -71,6 +71,9 @@ impl Core {
             else {
                 unreachable!("a state refusal is permanent")
             };
+            if why == people::Refusal::NotWaiting && context.requester == tasks::Party::Person(person) {
+                return Err(people::Refusal::NotOffered);
+            }
             return Err(why);
         }
         Ok(())
