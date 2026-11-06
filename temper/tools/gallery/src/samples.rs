@@ -26,8 +26,7 @@ pub enum Confirmation {
     CloseProposal,
     Closed,
     StartOver,
-    CancelTask,
-    StopTask,
+    CloseTask,
     Accept,
     Reject,
     ReleaseUncertain,
@@ -51,6 +50,7 @@ pub enum Then {
     Sheet(Confirmation),
     Rejecting,
     Held,
+    TaskPaused,
     Releasing,
     SigningIn,
     Paste(PasteFrame),
@@ -617,7 +617,7 @@ pub fn samples() -> [Sample; N] {
             then: Shown,
         },
         Sample { name: "goal-amending", world: Reference, address: task(108), then: Shown },
-        Sample { name: "goal-stop-dialog", world: Reference, address: task(108), then: Shown },
+        Sample { name: "goal-closing", world: Reference, address: task(108), then: Shown },
         Sample { name: "goal-toast", world: Reference, address: task(108), then: Shown },
         Sample { name: "goal-sending", world: Reference, address: task(108), then: Shown },
         Sample { name: "goal-running", world: Reference, address: task(108), then: Shown },
@@ -627,7 +627,7 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "goal-paused", world: Reference, address: task(108), then: Shown },
         Sample { name: "goal-landed", world: Reference, address: task(123), then: Shown },
         Sample { name: "goal-landed-open", world: Reference, address: task(123), then: Shown },
-        Sample { name: "goal-stopped", world: Reference, address: task(118), then: Shown },
+        Sample { name: "goal-closed", world: Reference, address: task(118), then: Shown },
         Sample { name: "goal-failed", world: Reference, address: task(122), then: Shown },
         Sample { name: "goal-no-report", world: Reference, address: task(108), then: Shown },
         Sample { name: "start-goal", world: Reference, address: CHATS, then: Shown },
@@ -824,8 +824,8 @@ pub fn samples() -> [Sample; N] {
             address: Address::Chat { task: 10 },
             then: Then::Sheet(Confirmation::StartOver),
         },
-        Sample { name: "task-cancelling", world: Solo, address: task(3), then: Then::Sheet(Confirmation::CancelTask) },
-        Sample { name: "task-stopping", world: Solo, address: task(3), then: Then::Sheet(Confirmation::StopTask) },
+        Sample { name: "task-closing", world: Solo, address: task(3), then: Then::Sheet(Confirmation::CloseTask) },
+        Sample { name: "task-paused", world: Solo, address: task(3), then: Then::TaskPaused },
         Sample {
             name: "proposal-accepting",
             world: Solo,
@@ -999,7 +999,7 @@ fn special_mockup(name: &str) -> Option<String> {
 pub fn mockup(sample: &Sample) -> Option<String> {
     if sample.name.starts_with("goal-") {
         let goal = match sample.name {
-            "goal-needs-question" | "goal-stopped" => "welcome-stall",
+            "goal-needs-question" | "goal-closed" => "welcome-stall",
             "goal-planning" | "goal-failed" => "forge-cards",
             "goal-landed" | "goal-landed-open" => "pane-chat-line",
             _ => "first-run-projects",
@@ -1059,6 +1059,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
             | Then::Sheet(_)
             | Then::Rejecting
             | Then::Held
+            | Then::TaskPaused
             | Then::Releasing
             | Then::SigningIn
             | Then::Paste(_)
@@ -1146,13 +1147,13 @@ pub fn mockup(sample: &Sample) -> Option<String> {
 }
 fn goal_domain(sample: &Sample) -> Domain {
     let base = match sample.name {
-        "goal-amending" | "goal-stop-dialog" | "goal-toast" | "goal-sending" => "goal-running",
+        "goal-amending" | "goal-closing" | "goal-toast" | "goal-sending" => "goal-running",
         name => name,
     };
     let mut root = crate::worlds::goals_world(sample.world, sample.address.clone(), base);
     let act = match sample.name {
         "goal-amending" => Act::Amend,
-        "goal-stop-dialog" => Act::Close,
+        "goal-closing" => Act::Close,
         "goal-toast" => Act::Pause,
         "goal-sending" => {
             step(
@@ -1389,6 +1390,7 @@ pub fn domain(sample: &Sample) -> Domain {
         | Then::Shown
         | Then::Working
         | Then::Held
+        | Then::TaskPaused
         | Then::DelegatedGoal
         | Then::HeldChange
         | Then::HeldTask => {}
@@ -2692,9 +2694,8 @@ fn confirmation(root: &mut Domain, kind: Confirmation, out: &mut Queue<Request>)
         | Confirmation::CloseFailed
         | Confirmation::CloseBelow
         | Confirmation::CloseProposal
-        | Confirmation::CancelTask => Act::Close,
+        | Confirmation::CloseTask => Act::Close,
         Confirmation::StartOver => Act::StartOver,
-        Confirmation::StopTask => Act::Stop,
         Confirmation::Accept | Confirmation::Reject => Act::Decide {
             object: c::ObjectKey::Proposal(crate::worlds::PROPOSAL),
             revision: None,
