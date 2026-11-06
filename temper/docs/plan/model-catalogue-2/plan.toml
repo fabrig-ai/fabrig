@@ -1,0 +1,22 @@
+draft = "model-catalogue-2"
+repo = "fabrig"
+sources = ["temper/docs/plan/model-catalogue-2/inputs/request.md", "temper/docs/design/draft/model-catalogue.md", "temper/docs/design/draft/model-catalogue.status.md", "temper/docs/design/draft/look-requests.md", "jig/crates/jig-domain-tasks/src/llm.rs", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "page"
+title = "Settings has a Models tab: what the picker offers, by what pays"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 1
+story = "An owner opens Settings, Models and sees the connected provider's models, each with its default effort and whether the picker shows it, and the other provider's Connect line"
+parts = ["page"]
+walk = false

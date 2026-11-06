@@ -8,6 +8,14 @@
   simulated plan sign-in; they do not prove the browser's geometry or a real
   provider's response. The plan's slices deliberately have `walk = false`.
 
+- **Not yet:** 3.5, *The `Models` tab*: no tab, switch or form; `me` has no model's source,
+  estimated prices or how many were left out. `Accounts`' "All models" link stays until the
+  tab exists (`look-round-11`).
+- **Design departs:** 3.5, *The `Models` tab*, from the look request `model-picker`'s 07, for
+  now and on purpose: an address under the project, `/projects/<project>/settings/models`, as
+  `me`'s offer is a project's, where 07 draws `/models`; and "the default" on one row, as `me`
+  names one model for a template, where 07 also draws "the default without Claude".
+
 - **Design departs:** 3.5, 5.8, 5.11, from the greenfield target: "Pause", "Resume" and "Close" on a chat, a goal and an
   agent's task, where its goal says "Stop", which meant a goal's end and a chat's hold. The user's word, 2026-11-06, the
   request `ui-pause-close`.
