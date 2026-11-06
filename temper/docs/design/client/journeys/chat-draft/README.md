@@ -48,13 +48,12 @@ those provenance lines, beyond its shortened specification preview.
 - `21.html`: the returned chat T1, opened in Chat, marked.
 - `22.html`: the same chat at the recording's end.
 
-The walk used a throwaway Chromium CDP driver, accepting JavaScript
-dialogs and using `Emulation.setDeviceMetricsOverride` for 420-pixel
-renders. No driver is kept. Screenshots are outside the checkout.
+The walk is recorded by `again chat-draft` from its `setup`, with no
+hand driver.
 
-Each chat print keeps the call run and its rows, the document write's
-line and Show, and the end of the answer. Latest is a sibling of the log
-in Chat and Split, hidden until the live log is away from its end. It is
-absent from the terminal. An older read replaces Older with "Loading
-earlier messages…"; this short conversation reaches its start without
-that control.
+The chat prints before starting the goal keep the call run and its rows,
+the document write's line and Show, and the end of the answer. Latest is
+a sibling of the log in Chat and Split, hidden until the live log is away
+from its end. It is absent from the terminal. The returned chat shows
+the last reply and offers Older for the earlier conversation. An older
+read replaces Older with "Loading earlier messages…".
