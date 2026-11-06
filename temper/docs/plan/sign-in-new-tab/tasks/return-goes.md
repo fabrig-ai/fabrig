@@ -76,3 +76,17 @@ Then finish what stopped with the question: all of step 3, the non-write drift c
 - **What a print's diff may hold, for both journeys:** times, loopback ports, and what a fresh walk generates afresh (ids, hashes, a seed's values). A changed word, control, page or number of marks is still red: stop and ask, naming the print and the line. `welcome-playground`'s `README.md` stays as it is too.
 - **If `chat-draft`'s walk can't finish** (no browser or box on your builder, or a step the README's words no longer reach): `Question:` with the step and its log, having pushed what passes. Don't leave it under `## Left`: the gate runs `temper-client-journeys` and would be red.
 - **Then the rest of step 3:** the nine-package nextest run, which holds the print test, the `temper` and `temper-client-shell-cli` check, the engine and system worlds' focused tests, and the non-write drift test. Commit the recordings and prints apart from the code. Report each journey as regenerated, walked anew or left unmoved, with the reprint's words.
+
+## Rebase (2026-11-06, step merge, foreman sign-in-new-tab/return-goes/foreman-3)
+
+Rebase onto the landing trunk and regenerate the wire and chat-draft artifacts from the combined code.
+The merge conflicts in `temper/crates/temper-client-protocol-wire/src/generated/v1.rs` and `temper/docs/design/client/journeys/chat-draft/{06.html–22.html,recording}` belong to this branch.
+Main’s `bde57f3afd` adds `Read::ProgramEnvironment` and `ProgramEnvironmentAnswer`; preserve them alongside this task’s removal of `Return` and `returning`.
+Regenerate `src/generated/v1.rs` and the wire goldens from the combined schema using their tools; resolve no generated code by hand. Keep `CLIENT_VERSION` unchanged.
+Main’s `b98e82dc7c` refreshes `chat-draft` for the current inbox exchange, carried into the integration by `6d7fca9954`. This branch’s `f8fcac040a` independently refreshes it after removing Return.
+Neither recording alone proves the combined code. Walk `chat-draft` anew on the rebased code using the existing README and the task’s answered browser procedure.
+Import it with `heavy cargo run -p temper-client-journeys -- add chat-draft FILE`; require its first replay to prove all 22 prints. Generate the conflicting HTML pages through the journey tool.
+Preserve the README’s words. Apply the existing permitted print differences and question rules; never splice recording bytes or HTML hunks.
+Retain this branch’s regenerated `welcome-playground` recording unless combined-code replay identifies it as stale.
+Run the journey reprint and print tests, wire checks and non-write drift checks, then finish the spec’s remaining validation through heavy.
+Report the regenerated golden counts and each journey’s disposition; commit regenerated journeys separately from code.
