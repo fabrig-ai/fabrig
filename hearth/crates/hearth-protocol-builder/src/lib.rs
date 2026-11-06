@@ -404,8 +404,9 @@ pub fn up(protocol: &mut Protocol, env: &Env<Limits>, ev: Told, above: &mut Queu
         Told::File(event) => {
             if event.owner() == store::OWNER {
                 let read = read::current(&mut protocol.current);
+                let before = above.len();
                 protocol.store.up(event, &env.limits, &protocol.roots, read, above, below);
-                if !above.is_empty() {
+                if store_answered(before, above) {
                     match &mut protocol.current {
                         Current::Resolving(resolve) => resolve.index_settled(),
                         Current::Keeping(_) => protocol.current = Current::Idle,
@@ -423,6 +424,11 @@ pub fn up(protocol: &mut Protocol, env: &Env<Limits>, ev: Told, above: &mut Queu
         }
     };
     io_up(protocol, env, event, below);
+}
+/// Whether a store step answered: it added to what this entry gave above, whatever
+/// that queue already held (hearth/docs/design/domain/render.md, 8.5).
+fn store_answered(before: u32, above: &Queue<Event>) -> bool {
+    above.len() != before
 }
 fn io_up(protocol: &mut Protocol, env: &Env<Limits>, event: io::Event, below: &mut Queue<Asked>) {
     if protocol.progress.owns(&event) {
