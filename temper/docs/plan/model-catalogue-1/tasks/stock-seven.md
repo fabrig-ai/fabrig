@@ -123,3 +123,5 @@ further `unused_imports` or `unused_qualifications` the closing clippy reports i
 export, each edit the removal of a name alone, and named in your report. An expectation, a test's body otherwise, or
 production code in jig other than the one export line stays a new question. Then finish the outstanding checks the last
 answer lists, with `startup::turn_bounds`'s T.
+
+2026-11-06 (temper/forge). **The user's rule, 2026-11-06: a plan's execution only ever runs the focused and fuzzy suites.** No after-landing tier runs during a plan: we run optimistically, and repair if after-landing flags. A new story in a slow tier is written and compiled, not run. Step 7 goes: no process test and no walk runs, and `notes/stock-readers.md`, *The live and process tiers*, is for reading alone. Read those tests and walks and change what the stock's change plainly needs; `heavy cargo check -p temper --tests` compiles them, as step 6 has. Your report names what you changed without running and what you didn't check, so that a red after landing starts from there.
