@@ -5,6 +5,8 @@ kind = "feature"
 needs = ["chat-page", "page-reading", "log-busy", "beside-store"]
 files = [
   "temper/tests/client-browser/tests/browser_all/browser_pages.rs",
+  "temper/crates/temper-client-view/src/pages/chat.rs",
+  "temper/crates/temper-client-view/src/tests/task.rs",
   "temper/crates/temper-client-shell-web/temper.css",
   "temper/tests/client-browser/src/lib.rs",
   "skein/testing/skein-fake-person-browser/src/harness/script.rs",
@@ -78,3 +80,12 @@ As the implementer's text asks, with: wall and CPU against the tier; and, plainl
 - **The two matches:** `journey/fields.rs` and `journey/originals.rs` already hold their `Act::Near` arms on the trunk (`80c3200e26`).
 - **A third, found checking the trunk:** `browser_all` still failed on `PersonStep::Near` at `temper/tests/client-browser/tests/browser_all/browser_playground.rs:68`. This answer adds its one pass-through arm on the trunk, and `browser_all` compiles there.
 - **If another inherited match stops `browser_all` compiling** after the catch-up, add the missing arm yourself, whatever file it is in, in a commit of its own that says so, and name it in your report. That is a compiler repair, not a change of scope: do not park on it. Anything more than an arm is still a `Question:`.
+
+2026-11-06. **May chat-page move the unchanging context heading outside the bound log, or should page-reading gain a generic boundary identifying conversation entries?** Neither. The context stays in the log and draws only at the chat's start, and the day's label stops staying at the window's head. `chat.rs` and `tests/task.rs` are this task's now, for these two hunks alone. No page part change, no new interface, no look change, so nothing here waits on fabrig/ui.
+
+- **Why:** the context is at the thread's head (`temper/docs/design/client/README.md`, 5.6), so it belongs where the chat starts, not at whichever line the window has reached. While a page remains above, an entry drawn above the lines is one the lines arrive below, and the first entry in view is what holds the view (`skein/docs/design/ui-web.md`, section 7). Moving it out of the log would pin a line above every long chat, which is a look nobody asked for.
+- **The context:** in `conversation_head`, call `context` only when `chat.thread.lines.edges.reaches(End::After)`. A long chat opens with its head 1.5 screens up, so the context was out of view there already. It arrives with the chat's start, an insert above the words, which the page part holds.
+- **The day's label has the same fault:** the context is only the first of two. `turn_time` keys the label by its date alone, so a same-day page read in above leaves it first in the log with the lines arriving below it, and with the context gone it is what the page part notes. Key it by the date and the first line under it: `Key { a: date as today, b: at.as_nanos(), ..fixed_key(46) }`. A page read in above then replaces the label at the head, and the page part goes on to the next noted entry that is still there. A label further down keeps its key, since its first line doesn't change.
+- **Failing first, in the lowest tier:** in `temper-client-view`'s `tests/task.rs`, beside `latest_binds_where_the_window_let_its_end_go`: with an earlier page remaining the log draws no context, and with the chat's start held it draws it; and the day's label changes key when an earlier line of its day arrives, and keeps it when an earlier day's does. Then the position story, red today at 1,365 px, is the proof, as the acceptance says.
+- **If it still moves:** another entry that stays at the head while lines arrive below it gets the same treatment in `chat.rs`, named in your report. That is no new question. `322c826760`'s status skip stays.
+- **The rest stands:** the acceptance is unchanged, with everything your report lists as pending. The status clause in `skein/docs/design/ui-web.status.md`, 7, *The view stays*, is yours to remove once your skein commit lands with it. A journey that moves, a long playground chat losing its context until its start is read, is named for fabrig/ui.

@@ -4162,7 +4162,7 @@ repository, and the cues the playground's, copied in from its read:
   message, so the start has no task and no number; once a suggestion
   or the composer starts the chat, its page opens in place of `NewChat`
   and keeps the frame (3.5).
-- **The context line,** at the thread's head, in `.meta-line`'s look: on a chat's page,
+- **The context line,** at the thread's head (5.15), in `.meta-line`'s look: on a chat's page,
   "PROJECT · OWNER/NAME on Playground forge", PROJECT the project as
   the switcher names it; then "Signed in
   as the deployment’s owner" while `me`'s role on the deployment is
@@ -5323,6 +5323,11 @@ measures it (skein's `ui-web.md`, section 7).
   its first turn's, a person's words by their message, an activity line by its
   position. So a page read in above is an insert, nothing already drawn is
   rewritten, and the page part can keep the words where they are.
+- **The log's head holds nothing that stays while lines arrive below it,** but
+  the status below: the page part holds the first entry in view. So the context
+  line (5.6) draws once the window holds the chat's start, and a day's label is
+  keyed by its date and the first line under it, so that a page of the same day
+  read in above replaces it.
 - **While a read is out** the log is *busy*, and so it stays after a failure,
   which the page part then leaves alone until the person moves. At the head:
   "Loading earlier messages…" while an earlier page is out, "Couldn't load
