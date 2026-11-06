@@ -6,6 +6,7 @@ use super::request::domain_request;
 use super::routing::component_owner;
 use super::{Frame, Owner, PendingMessage, Stages, face, program};
 use skein_channel::Lower as ChannelLower;
+use skein_io::file_layer::step;
 use skein_io::{self as io, file, file_layer, kernel};
 use skein_lib::stream;
 use smith_domain as domain;
@@ -153,8 +154,9 @@ pub(super) fn component_down(service: &mut Stages) {
         match request {
             machine::Below::File { request, deadline } => {
                 service.files.seed_randomness(service.submitted);
-                file_layer::down_until(
+                step::down_until(
                     &mut service.files,
+                    &service.file_env,
                     deadline,
                     request,
                     &mut service.file_events,
@@ -166,8 +168,9 @@ pub(super) fn component_down(service: &mut Stages) {
             }
             machine::Below::OpenRead { owner, root, path, deadline } => {
                 let descriptor = service.files.descriptor(root).expect("machine admitted an installed root");
-                file_layer::down_until(
+                step::down_until(
                     &mut service.files,
+                    &service.file_env,
                     deadline,
                     file::Request::OpenRead { owner, root: descriptor, name: path },
                     &mut service.file_events,
@@ -176,8 +179,9 @@ pub(super) fn component_down(service: &mut Stages) {
             }
             machine::Below::Remove { owner, parent, name, directory, deadline } => {
                 let descriptor = service.files.descriptor(parent).expect("removal owns its parent");
-                file_layer::down_until(
+                step::down_until(
                     &mut service.files,
+                    &service.file_env,
                     deadline,
                     file::Request::Remove { owner, root: descriptor, name, directory },
                     &mut service.file_events,
@@ -186,8 +190,9 @@ pub(super) fn component_down(service: &mut Stages) {
             }
             machine::Below::OpenDirectory { owner, root, path, no_follow, deadline } => {
                 let descriptor = service.files.descriptor(root).expect("machine admitted an installed root");
-                file_layer::down_until(
+                step::down_until(
                     &mut service.files,
+                    &service.file_env,
                     deadline,
                     file::Request::OpenDirectory { owner, root: descriptor, name: path, no_follow },
                     &mut service.file_events,

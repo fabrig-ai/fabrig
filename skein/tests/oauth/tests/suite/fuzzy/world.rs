@@ -22,25 +22,17 @@ fn scenario(seed: u64) {
     let document = documents();
     let mut client = oauth::Client::new(oauth::ClientLimits {
         document,
-        uri_bytes: 256,
         scope_bytes: 32,
         state_bytes: 32,
         code_bytes: 32,
         url_bytes: 512,
         request_bytes: 512,
-        parameter_bytes: 0,
-        resource_bytes: 0,
-        nonce_bytes: 0,
-        metadata_bytes: 0,
-        key_set_bytes: 0,
-        keys: 0,
-        modulus_bits: 2048,
         skew: Duration::from_secs(60),
         sign_in_time: Duration::from_secs(60),
-        request_time: Duration::from_secs(10),
         backoff_base: Duration::from_secs(1),
         backoff_ceiling: Duration::from_secs(4),
         max_attempts: 2,
+        ..oauth::ClientLimits::TEST
     })
     .expect("client");
     let mut issuer = fake::Issuer::new(

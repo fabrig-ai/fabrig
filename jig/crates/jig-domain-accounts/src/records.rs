@@ -98,11 +98,6 @@ pub(crate) fn within(bytes: &[u8], bound: u32) -> bool {
     }
 }
 
-/// A program source's name: 1 to 32 characters of `a-z`, `0-9` and `-` (accounts.md, 3.4).
-pub(crate) fn program_name(name: &[u8]) -> bool {
-    crate::SourceName::new(name).is_some()
-}
-
 /// Explicit uses are bounded and contain no repeated payer.
 pub(crate) fn valid_uses(uses: Option<&[Use]>) -> bool {
     let Some(uses) = uses else { return true };

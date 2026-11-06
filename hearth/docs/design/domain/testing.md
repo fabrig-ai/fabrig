@@ -1656,11 +1656,9 @@ VM tier its one real machine relies on.
   figure stands as an idle-machine figure
   (`skein/docs/foundation/testing-strategy.md`, 8.1). It depends on the
   user's ruling on the measurements.
-- **The focused suite's way to its figure** (9.1): whether the queue's figure
-  is under 30 CPU seconds, and whether the per-crate `opt-level`s of the root
-  `Cargo.toml` stand, where `skein/docs/foundation/testing-strategy.md`, 8 has
-  one hot leaf crate on a profile and the user's sign-off, or give way to repairs
-  in the code and its tests. Those not tried: work a world repeats whatever its
+- **The focused suite's way to its figure** (9.1): how the queue's figure comes
+  under 30 CPU seconds by repairs in the code and its tests, since test builds stay
+  unoptimized (`skein/docs/foundation/testing-strategy.md`, 8). Those not tried: work a world repeats whatever its
   seed, computed once in a test's process; a scratch repository's objects written
   without `git add` and `git commit`; and what a profile of the suite shows, which
   needs a machine with a profiler. Failing those, the measurements go to the user

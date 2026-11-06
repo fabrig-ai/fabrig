@@ -110,7 +110,7 @@ fn failed_setup_keeps_steps_and_names_the_failed_one() {
 fn unavailable_playground_read_does_not_retire_a_project() {
     let (mut front, mut root) = harness::playground_fixture(fixtures::SEED, true);
     front.playground = None;
-    harness::reopen(&mut front, &mut root, fixtures::chats_page(), false);
+    harness::reopen(&mut front, &mut root, fixtures::chats_page());
     let view = page(&mut front, &mut root, fixtures::chats_page());
     let tree = Temper::tree(&view);
     assert!(

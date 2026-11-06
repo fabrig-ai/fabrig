@@ -1,11 +1,15 @@
 //! Real Chromium in one service loop with a skein-http page server.
 
+#[path = "real/beside.rs"]
+mod beside;
 #[path = "real/dialogs.rs"]
 mod dialogs;
 #[path = "real/downloads.rs"]
 mod downloads;
 #[path = "real/scope.rs"]
 mod scope;
+#[path = "real/tabs.rs"]
+mod tabs;
 use skein_fake_person_browser::{
     BrowserFace, origins as serve,
     person::{Doing, Face, Find, Found},
@@ -142,6 +146,8 @@ enum Stage {
 #[derive(Clone, Copy, Debug)]
 pub enum Scenario {
     Button,
+    Tabs,
+    TabBeside,
     MouseDown { replace: bool },
     Form,
     Covered,
@@ -178,6 +184,8 @@ impl Scenario {
             Scenario::Words => "/words",
             Scenario::Figure => "/figure",
             Scenario::Facts
+            | Scenario::Tabs
+            | Scenario::TabBeside
             | Scenario::MouseDown { .. }
             | Scenario::Choose { .. }
             | Scenario::Select
@@ -227,6 +235,8 @@ pub struct Rig {
     pub downloaded: Option<(Box<[u8]>, PathBuf)>,
     pub download_trouble: bool,
     form_node: u64,
+    tabs_cut: Option<u64>,
+    tab_due: Option<Time>,
 }
 
 impl Rig {
@@ -272,6 +282,8 @@ impl Rig {
             downloaded: None,
             download_trouble: false,
             form_node: 0,
+            tabs_cut: None,
+            tab_due: None,
             context_ready: false,
             exception_seen: false,
             csp_log_seen: false,
@@ -304,6 +316,10 @@ impl Rig {
                 self.io_event(event);
             }
             self.browser_steps(now.now);
+            if self.tab_due.is_some_and(|due| due <= now.now) {
+                self.tab_due = None;
+                self.ask(Request::Tabs { page: PAGE, op: FIND });
+            }
             for _ in 0..self.events.len() {
                 let event = self.events.pop().expect("this browser stage's events");
                 self.browser_event(event);
@@ -348,6 +364,9 @@ impl Rig {
             } else {
                 let mut until = deadline.until();
                 if let Some(next) = self.io.next_deadline() {
+                    until = until.min(next);
+                }
+                if let Some(next) = self.tab_due {
                     until = until.min(next);
                 }
                 if let Some(next) = self.browser.next_deadline() {
@@ -432,7 +451,7 @@ impl Rig {
                 }
                 if let Some(deadline) = deadline.as_deref_mut()
                     && let Ok(Done::Spawned { pidfd, .. }) = &complete.result
-                    && let Some(pid) = skein_shell::child_id(*pidfd).ok().filter(|pid| *pid != 0)
+                    && let Some(pid) = skein_shell::keeper::child_id(*pidfd).ok().filter(|pid| *pid != 0)
                 {
                     deadline.watch_process(pid);
                 }
@@ -626,6 +645,22 @@ impl Rig {
         } else {
             event
         };
+        let event = if matches!(self.scenario, Scenario::TabBeside) {
+            match self.beside_event(event) {
+                Ok(()) => return,
+                Err(event) => event,
+            }
+        } else {
+            event
+        };
+        let event = if matches!(self.scenario, Scenario::Tabs) {
+            match self.tabs_event(event) {
+                Ok(()) => return,
+                Err(event) => event,
+            }
+        } else {
+            event
+        };
         let event = if matches!(self.scenario, Scenario::ScopeReload) {
             match self.scope_event(event) {
                 Ok(()) => return,
@@ -666,6 +701,8 @@ impl Rig {
                     | Scenario::Leave
                     | Scenario::Confirm
                     | Scenario::ScopeReload
+                    | Scenario::Tabs
+                    | Scenario::TabBeside
                     | Scenario::Attribute { .. } => {
                         unreachable!("dialog scenario handled above")
                     }
@@ -770,6 +807,8 @@ impl Rig {
                     | Scenario::Leave
                     | Scenario::Confirm
                     | Scenario::ScopeReload
+                    | Scenario::Tabs
+                    | Scenario::TabBeside
                     | Scenario::Attribute { .. } => {
                         unreachable!("dialog scenario handled above")
                     }
@@ -883,6 +922,8 @@ impl Rig {
                         | Scenario::Download { .. }
                         | Scenario::Letter
                         | Scenario::ScopeReload
+                        | Scenario::Tabs
+                        | Scenario::TabBeside
                         | Scenario::Attribute { .. } => {
                             panic!("no action should complete for {:?}", self.scenario)
                         }

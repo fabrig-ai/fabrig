@@ -954,7 +954,10 @@ impl Chat {
                 self.mode = Mode::Split;
                 self.send(env, client, Sending::Message, Some(document::WRITE_THIS_UP), serial, out);
             }
-            Act::Send => self.send(env, client, Sending::Message, None, serial, out),
+            Act::Send => {
+                self.send(env, client, Sending::Message, None, serial, out);
+                self.composer_focus = self.composer_focus.checked_add(1).expect("focus count fits");
+            }
             Act::Stop => self.send(env, client, Sending::Stop, None, serial, out),
             Act::OpenStart { .. }
             | Act::StartDraft { .. }

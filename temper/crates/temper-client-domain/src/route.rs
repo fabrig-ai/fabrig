@@ -45,6 +45,10 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
         Event::Forge(event) => forge(root, env, event, out),
         Event::SignInAddress { value } => pages(root, env, crate::pages::Event::SignInAddress { value }, out),
         Event::AccountKey { value } => pages(root, env, crate::pages::Event::AccountKey { value }, out),
+        Event::SignInKept { source, address, refused } => {
+            pages(root, env, crate::pages::Event::SignInKept { source, address, refused }, out);
+        }
+        Event::TabRefused => crate::sign_in_tab::refused(root),
         Event::SignedOut => client(root, env, jig_client::Event::Up { up: jig_client::Up::SignedOut }, out),
     }
 }
@@ -77,6 +81,7 @@ pub(crate) fn pages(root: &mut Domain, env: &Env<Limits>, event: crate::pages::E
         },
         crate::pages::Event::Started
         | crate::pages::Event::Left
+        | crate::pages::Event::SignInKept { .. }
         | crate::pages::Event::SignInAddress { .. }
         | crate::pages::Event::AccountKey { .. }
         | crate::pages::Event::Went { .. }
@@ -143,6 +148,10 @@ fn route_pages(
 ) {
     for _ in 0..child.len() {
         match child.pop().expect("counted pages output") {
+            crate::pages::Request::OpenTab { provider } => {
+                root.tab = root.pages.sign_in_key();
+                out.push(Request::Tab { tab: crate::Tab::Open { provider } });
+            }
             crate::pages::Request::Client(event) => client(root, env, event, out),
             crate::pages::Request::Replace { address } => out.push(Request::Show { address, replace: true }),
             crate::pages::Request::Show { address } => out.push(Request::Show { address, replace: false }),
@@ -269,9 +278,7 @@ pub(crate) fn told(root: &mut Domain, env: &Env<Limits>, told: jig_client::Told,
 }
 fn tell(root: &mut Domain, env: &Env<Limits>, told: jig_client::Told, out: &mut Queue<Request>) {
     use jig_client::Told;
-    if crate::departure::told(root, env, &told, out) {
-        return;
-    }
+    crate::sign_in_tab::told(root, &told, out);
     let asker = match &told {
         Told::Link { link } => {
             pages(root, env, crate::pages::Event::Link { link: *link }, out);
@@ -373,6 +380,7 @@ fn suggest(root: &mut Domain, env: &Env<Limits>, cue: u8, out: &mut Queue<Reques
     root.pages.suggest(env, &root.client, &words, &mut child);
     while let Some(request) = child.pop() {
         match request {
+            crate::pages::Request::OpenTab { .. } => unreachable!("a suggestion asks no sign-in"),
             crate::pages::Request::Client(event) => client(root, env, event, out),
             crate::pages::Request::Replace { address } => out.push(Request::Show { address, replace: true }),
             crate::pages::Request::Show { address } => out.push(Request::Show { address, replace: false }),
@@ -509,12 +517,24 @@ fn forge_ways(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out
     consumed
 }
 
-/// Settle the host check on its accounts observation; advance a key once added and usable (client/README.md, 3.5).
-pub(crate) fn welcome_program_progress(root: &mut Domain, out: &mut Queue<Request>) {
-    use crate::pages::connect_model::ProgramCheck;
+/// Settle the host check and advance a held sign-in or added key once usable (client/README.md, 3.5).
+pub(crate) fn welcome_model_progress(root: &mut Domain, out: &mut Queue<Request>) {
+    use crate::pages::{accounts::SignInState, connect_model::ProgramCheck};
     let usable = crate::pages::welcome::model_usable(root) == Some(true);
     let address = root.pages.address().clone();
     let Some(page) = &mut root.pages.connect_model else { return };
+    if let Address::Welcome { step: crate::Step::Model { way: Some(way) } } = &address
+        && way.kind == crate::WayKind::SignIn
+    {
+        let held = match page.request.sign_in_state(&root.client) {
+            SignInState::Signing { .. } | SignInState::Ended { .. } => true,
+            SignInState::Unknown | SignInState::Started { .. } => false,
+        };
+        if usable && held {
+            out.push(Request::Show { address: Address::Welcome { step: crate::Step::Ready }, replace: true });
+        }
+        return;
+    }
     if let Address::Welcome { step: crate::Step::Model { way: Some(way) } } = address
         && way.kind == crate::WayKind::Key
         && let Some(pending) = &page.request.pending

@@ -34,10 +34,10 @@ fn full_node(b: &mut Builder, role: Role, byte: u8) {
     if role == Role::Item {
         b.state(State::Completed);
     }
-    if [Role::List, Role::Table, Role::Tree].contains(&role) {
+    if role.is_collection() {
         b.count(u32::MAX);
     }
-    if [Role::Item, Role::Row, Role::TreeItem].contains(&role) {
+    if role.is_positioned() {
         b.position(u32::MAX);
     }
     if role == Role::ColumnHeader {

@@ -183,6 +183,7 @@ impl Life {
             history: Rc::clone(&self.history),
             timer: (),
             title: title::web::Title::default(),
+            heading_focus: crate::focus::HeadingFocus::new(),
         });
         hidden(super::LOADING, true);
         hidden(super::APP, false);
@@ -228,6 +229,7 @@ impl Life {
                 | Report::Due
                 | Report::Act(..)
                 | Report::Fetch(_)
+                | Report::TabRefused
                 | Report::Copied(_)
                 | Report::Carried(..)
                 | Report::Place(_)) => {

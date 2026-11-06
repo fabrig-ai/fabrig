@@ -181,7 +181,7 @@ pub fn render(tree: &Tree, name: &[u8], status: Option<Region>, print: &mut Prin
         let number = item_number(&mut parents, n.role);
         match node(tree, index, indent, number, print) {
             Some(indent) => {
-                if n.role == Role::Item || n.role == Role::TreeItem {
+                if n.role.is_list_item() {
                     pending
                         .push(PendingItem { at: index, line: offset, indent })
                         .expect("pending items fit tree nodes");
@@ -282,7 +282,7 @@ fn node(tree: &Tree, at: u32, indent: u32, number: Option<u64>, print: &mut Prin
             let mut first = true;
             for child in at.saturating_add(1)..at.saturating_add(n.size) {
                 let cell = tree.get(child).expect("row child exists");
-                if [Role::Cell, Role::ColumnHeader, Role::RowHeader].contains(&cell.role) {
+                if cell.role.is_cell() {
                     if !first {
                         raw(&mut print.text, b" | ");
                     }
@@ -353,7 +353,7 @@ fn empty_header_row(tree: &Tree, at: u32) -> bool {
     let mut header = false;
     for child in at.saturating_add(1)..at.saturating_add(row.size) {
         let cell = tree.get(child).expect("row descendant exists");
-        if cell.role == Role::Cell || cell.role == Role::RowHeader {
+        if cell.role.is_row_data() {
             return false;
         }
         if cell.role != Role::ColumnHeader {
@@ -380,14 +380,14 @@ fn control(tree: &Tree, at: u32, indent: u32, print: &mut Print) {
     if n.external.is_none() {
         number(tree, n, print);
     }
-    if n.role == Role::Choice || n.role == Role::Option {
+    if n.role.is_selectable() {
         raw(&mut print.text, if has(n, State::Selected) { b"(*) " } else { b"( ) " });
     }
     if n.role == Role::Check {
         raw(&mut print.text, if has(n, State::Pressed) || has(n, State::Selected) { b"[x] " } else { b"[ ] " });
     }
     content(tree, at, &mut print.text, indent, false);
-    if n.role == Role::TextField || n.role == Role::TextArea {
+    if n.role.is_text_field() {
         raw(&mut print.text, b": ");
         match &n.value {
             Some(v) if !v.text.is_empty() => {
@@ -454,14 +454,14 @@ fn first_line_end(out: &List<u8>, begin: u32) -> u32 {
 }
 fn position(tree: &Tree, at: u32, line: u32, out: &mut List<u8>) {
     let n = tree.get(at).expect("positioned node exists");
-    if ![Role::Item, Role::Row, Role::TreeItem].contains(&n.role) {
+    if !n.role.is_positioned() {
         return;
     }
     let Some(position) = n.position else { return };
     let mut count = None;
     for ancestor in 0..at {
         let parent = tree.get(ancestor).expect("ancestor exists");
-        if ancestor.saturating_add(parent.size) > at && [Role::List, Role::Table, Role::Tree].contains(&parent.role) {
+        if ancestor.saturating_add(parent.size) > at && parent.role.is_collection() {
             count = parent.count;
         }
     }
@@ -596,7 +596,7 @@ fn states(n: &Node, out: &mut List<u8>) {
             State::Required => raw(out, b" (required)"),
             State::Completed => raw(out, b" (completed)"),
             State::SubmitsOnEnter => {
-                if n.role == Role::TextField || n.role == Role::TextArea {
+                if n.role.is_text_field() {
                     raw(out, b" (enter sends)");
                 }
             }

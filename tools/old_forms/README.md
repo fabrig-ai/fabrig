@@ -41,7 +41,8 @@ Smith's structural forms have these scopes:
 - `full_limits` counts literals whose type's final name is `Limits`, including
   qualified types, without a struct update at the literal's outer level.
   Nested expressions do not end the literal. Declarations, impls, return-type
-  function bodies and simple destructuring patterns are excluded.
+  function bodies and simple destructuring patterns are excluded, and so is
+  `file_layer::Limits`, which `skein/docs/design/io.md`, 5, has a reader write out.
 - `bare_wire_kind` counts two-digit hex literals in `kind:` fields or as the
   first argument to `frame_writer`, `write_record`, `push_record` or
   `encode_record`. It excludes arbitrary byte arrays and wider wire kinds.

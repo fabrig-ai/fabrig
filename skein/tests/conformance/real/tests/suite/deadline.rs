@@ -86,8 +86,8 @@ fn cleanup_drains_an_accept_and_reaps_its_child() {
         let complete = completed(&mut real, process, Token::new(1), Op::Spawn { spawn: Box::new(spawn) });
         let Ok(Done::Spawned { pidfd, .. }) = complete.result else { panic!("the waiting child spawned") };
         #[cfg(target_os = "linux")]
-        let keeper = skein_shell::open_child_pidfd(
-            skein_shell::child_id(pidfd).expect("the owned child's PID"),
+        let keeper = skein_shell::keeper::open_child_pidfd(
+            skein_shell::keeper::child_id(pidfd).expect("the owned child's PID"),
             std::process::id(),
         )
         .expect("retain the child's identity while checking its reap");
@@ -97,17 +97,17 @@ fn cleanup_drains_an_accept_and_reaps_its_child() {
         drop(real);
         #[cfg(target_os = "linux")]
         {
-            let reaped = skein_shell::poll_child(keeper, false);
-            skein_shell::close_keeper_fd(keeper);
+            let reaped = skein_shell::keeper::poll_child(keeper, false);
+            skein_shell::keeper::close_keeper_fd(keeper);
             assert_eq!(reaped, Err(skein_io::kernel::Error::Other(libc::ECHILD)), "cleanup reaps its owned child");
         }
         assert_eq!(
-            skein_shell::poll_child(pidfd, false),
+            skein_shell::keeper::poll_child(pidfd, false),
             Err(skein_io::kernel::Error::Other(libc::EBADF)),
             "cleanup reaps the child and closes its identity descriptor"
         );
         assert_eq!(
-            skein_shell::wait_readable(root, Duration::ZERO),
+            skein_shell::keeper::wait_readable(root, Duration::ZERO),
             Err(libc::EBADF),
             "cleanup closes its root after draining the kernel"
         );

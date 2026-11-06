@@ -650,7 +650,7 @@ fn anthropic(member: &str) -> Value {
     }
 }
 fn anthropic_agent() -> Value {
-    parse(br#"{"name":"anthropic","number":2,"dialect":2,"provider":"anthropic","program":"claude_code","address":"api.anthropic.com:443","transport":"tls","server_name":"api.anthropic.com","connect":10000,"handshake":10000,"headers":[],"models":[{"name":"claude-opus-5-5","prices":{"input":1,"cached":1,"output":1,"unit":1000000},"window":1048576,"output":8192,"reasoning_item":65536,"head":60000,"idle":30000}]}"#)
+    parse(br#"{"name":"anthropic","number":2,"dialect":2,"provider":"anthropic","program":"claude_code","address":"api.anthropic.com:443","transport":"tls","server_name":"api.anthropic.com","connect":10000,"handshake":10000,"headers":[],"models":[{"name":"claude-opus-5-5","prices":{"input":1,"cached":1,"output":1,"unit":1000000},"window":1048576,"output":8192,"reasoning_item":65536,"head":60000,"idle":120000}]}"#)
 }
 #[test]
 fn every_deployment_offers_claude_found_or_fetched() {

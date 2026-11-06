@@ -76,8 +76,11 @@ impl Boxed {
             if let Some(figures) = patience.failed() {
                 panic!("box link: {figures}");
             }
-            if !skein_shell::wait_readable(Fd::new(self.stdout.as_raw_fd()), skein_lib::Duration::from_millis(10))
-                .expect("stdout readiness")
+            if !skein_shell::keeper::wait_readable(
+                Fd::new(self.stdout.as_raw_fd()),
+                skein_lib::Duration::from_millis(10),
+            )
+            .expect("stdout readiness")
             {
                 continue;
             }

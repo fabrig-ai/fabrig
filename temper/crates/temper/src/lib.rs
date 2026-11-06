@@ -560,7 +560,7 @@ fn configure_sources(
 
 fn close(owned: Vec<Fd>) {
     for fd in owned {
-        skein_shell::close_keeper_fd(fd);
+        skein_shell::close_startup_fd(fd);
     }
 }
 /// The kernel operations a standalone start keeps in flight at most (its ring's size),

@@ -893,6 +893,27 @@ fn offered_task(kind: c::ActKind, admission: Option<c::Admission>) -> c::Task {
     task
 }
 #[test]
+fn a_send_asks_for_a_task_s_composer() {
+    for priority in [None, Some(PRIORITY)] {
+        let mut task = offered_task(c::ActKind::Message, Some(c::Admission::Allowed));
+        task.priority = priority;
+        let (mut pages, client) = task_pages(task);
+        assert_eq!(pages.task().expect("task").composer_focus, 0);
+        page_act(&mut pages, &client, Act::MessageWords { words: Box::from(WORDS) });
+        assert_eq!(pages.task().expect("task").composer_focus, 0);
+        assert_eq!(fixtures::acts::sent(&mut page_act(&mut pages, &client, Act::Send)).len(), 1);
+        assert_eq!(pages.task().expect("task").composer_focus, 1);
+        assert!(pages.task().expect("task").words.is_empty());
+        assert!(fixtures::acts::sent(&mut page_act(&mut pages, &client, Act::Send)).is_empty());
+        assert_eq!(pages.task().expect("task").composer_focus, 2);
+        for act in [Act::Stop, Act::AddDraft, Act::MessageWords { words: Box::from(WORDS) }] {
+            page_act(&mut pages, &client, act);
+            assert_eq!(pages.task().expect("task").composer_focus, 2);
+        }
+    }
+}
+
+#[test]
 fn an_agents_send_is_one_message_only_when_allowed() {
     for (admission, sent) in [
         (Some(c::Admission::Allowed), true),

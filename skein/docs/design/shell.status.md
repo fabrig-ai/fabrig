@@ -26,14 +26,7 @@
   `temper-forge-setup-shell/src/fetch.rs`) say nothing of a malformed block, where
   the section has startup say the counts: the request `first-usable-model` of
   2026-11-06 asked only that smith's line go quiet. Seen by reading.
-  7.5: the system parts have no design for the keeper's
-  `poll_child`, `close_keeper_fd`, `abandon_binary` or `wait_readable`,
-  but `skein-shell/src/process.rs`, and `posix.rs` through `linux.rs` and
-  `darwin.rs`, expose them in the crate's public API through `lib.rs`; no
-  reason is recorded
-  (the code's side is
-  `skein/docs/development/debt/D045-shell-keeper-syscalls.md`).
-  6.7: the user's request of 2026-11-04 asked each part of its round to
-  end with fewer lines than it started; the part that built `store_file`
+- **Not yet:** 6.7: the user's request of 2026-11-04 asked each part of its
+  round to end with fewer lines than it started; the part that built `store_file`
   and `bytes::concat` ended 190 lines up, 215 in skein against 25 down
   in smith, since a host and its first tests replaced two copies.

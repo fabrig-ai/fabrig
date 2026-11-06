@@ -7,16 +7,8 @@
 - **Not yet:** 5.4, *A chat's first message*: the chat's page draws its spec as the engine cut it.
 - **Not yet:** 5.15, *An answer the client cannot decode*: it ends unreachable, and so is asked again for as long as the page is open; a chat's first read, failed, says nothing.
 - **Not yet:** 5.15: a conversation read by scrolling, whole. Until it lands, 3.5, 5.4, 5.9 and 5.11 say "Older" and a window of 16 lines, and the words under `chat-reading`'s section 5 stay as they stand.
-- **Not yet:** 3.5, The welcome's Model step, *The sign-in under way*, and `ConnectModel`, *While it waits* and
-  *From another computer*: the card's line and the note say a new tab, and nothing opens one: a press still
-  sends a `Return` and the page's own tab leaves, until `../draft/sign-in-new-tab.md` is built. So the note shows
-  for a moment before the tab goes, and again on a page come back while the sign-in waits, and a browser on
-  another computer presses, leaves, comes back by hand and finds the note's folded paste. The view has no fact of a tab refused:
-  `sign_in_wait::tab_refused` is false, the one function that draft feeds. The new tab's two lines, its closing on
-  a refusal at the press, and a reload's same page are that draft's. A page come back holds no address, so
-  it draws no "Open it again". `Act::SignInElsewhere` and `ConnectModel::elsewhere` stay in the domain with no
-  entry in the view, the paste's tests and gallery states reaching the page through them, until that draft
-  makes every sign-in hold its page.
+- **Not yet:** 3.5, The welcome's Model step, *The sign-in under way*, and `ConnectModel`, *The sign-in's tab*,
+  *Its end*, *A reload while it waits* and *From another computer*; 7, *A sign-in's address in the small store*; 10:
 - **Design departs:** 3.5, *The sign-in under way* and `ConnectModel`, *While it waits*, from the request
   `sign-in-new-tab` of 2026-11-06, by its plan's cut and its account. The terminal draws the note's plain title,
   its muted line and "Open the sign-in page" above the folded paste, where the request has the terminal as today:
@@ -162,7 +154,8 @@
 - **Not yet:** 3.6, *The sheet*: that request has each confirmation walked. A browser
   on a fake box pressed Close, Start over, a goal's Stop, a Release both ways, a goal's Pause,
   and Accept and Reject on a configuring chat's proposal from *Needs you* and *Home*,
-  and Escape and the keeping act on Close, Start over, a goal's Stop, Accept and Reject,
+  and Accept from the chat itself; Reject from *Needs you* included a reason. Escape and
+  the keeping act on Close, Start over, a goal's Stop, Accept and Reject were also pressed
   by hand at each width, which no test keeps; a press while the page updates, on a Release
   alone. A task's Cancel and an agent's task's Stop are drawn at each width by their
   gallery states, the walk of the request `ui-walk-3` of 2026-11-06 having tried the
@@ -232,16 +225,7 @@
   and the card has no "Drafts: on". The person accepts on the agent's words. The
   gallery's `configure-chat-proposal` rows alone draw those lines, from a hand-made
   document.
-- **Not yet:** 5.13, *The card in a chat*: the sheet's Accept on a configuring chat's own
-  card is refused "No visible object with that name", the sheet and the proposal
-  staying, where the same proposal accepts from *Needs you* and *Home*. Seen at each
-  width, with and without a cancel first, on the walk of the request `ui-walk-3` of
-  2026-11-06: a fresh fake box, Settings' Start, and the cue "Show drafts and goals for
-  this project." before any setting changes. By reading, and not proved: that card
-  decides under `task.project` (`temper-client-domain`'s `pages/chat.rs`, `proposals`),
-  and the inbox's under its row's own `project` (`pages/inbox.rs`), 0 on a proposal of
-  settings. No test holds it.
-- **Not yet:** 3.5, *Reading back*: on that walk, a long chat's first "Older" stayed
+- **Not yet:** 3.5, *Reading back*: on the `ui-walk-3` walk of 2026-11-06, a long chat's first "Older" stayed
   "Loading earlier messages" for the 40 seconds watched, at 1280x720 and 1000x600, so
   no second press was made: a fresh fake box, 66 messages of 24 sentences through ctl,
   the chat reopened through Chats, six of four sentences through the composer, then the
@@ -328,6 +312,8 @@
   that can't start, where the request has a run that isn't about to start say why,
   because a row holds no run wait and its query carries no run's check per row
   (jig's `client/domain/client.md`, 19.1). The chat's own page says why.
+- **Not yet:** 3.5, *Where the focus stands on a chat*, 5.3 and 5.11: a chat started by sending opens on its
+  heading, and after a send a composer asks for no focus: a press of "Send" leaves it on a button that disables.
 - **Not yet:** 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. Until it
@@ -504,6 +490,26 @@
   decided by its plan's cut. `program_environment` answers the owner at any time,
   where the request has it during set up, because Connect a model draws the same
   command after set up.
+- **Not yet:** 3.5, The welcome's Model step, *The command's Copy*: no browser test
+  presses it, since no story in `temper/tests/client-browser` reaches the Claude panel,
+  and no walk on record has. skein's `a_clipboard_write_keeps_the_press_and_reports_once`
+  holds the part, and `host_tests_copy.rs` holds that the press's own report asks the
+  write; no test runs the one line between them, in `carry`
+  (`temper-client-shell-web/src/lib.rs`). Seen by reading.
+- **Design departs:** 4.6, *The program's environment*, from the user's word of
+  2026-11-06 on the request `box-small`: `program_environment`
+  (`crates/temper/src/directories.rs`) answers all three `TEMPER_` values where any
+  directory is off its default, where the user has each only where it differs. The word
+  reached that plan's task as it ran, and the task did not take it. `box-small-2`
+  carries it.
+- **Design departs:** 4.6, *The words of a command for this machine*, from the request
+  `box-small` of 2026-11-06, item 1, which has these words in any other command handed
+  to the person for this machine: `temper forge run`'s refusal
+  (`crates/temper/src/forge.rs`, `run_refusal`) says `temper forge prepare` and each
+  directory whole, and the terminal client says `temper open`
+  (`temper-client-shell-terminal/src/terminal.rs`), so with another `temper` first on
+  `PATH` each names that one. That plan's cut names the pages' commands alone, and no
+  reason is recorded. Seen by reading.
 - **Design departs:** 3.5, *The flows' paths* and *Builders*, from the request
   `ui-settings-tabs` of 2026-11-05, decided by its plan's cut. The terminal
   draws no path, where the request has each flow add one: the same request

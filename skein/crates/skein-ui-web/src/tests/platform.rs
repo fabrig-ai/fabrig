@@ -15,3 +15,16 @@ fn the_primary_modifier_is_meta_on_apples_platforms_alone() {
         assert_eq!(primary(*platform), *expected, "{platform:?}");
     }
 }
+
+#[test]
+fn a_platform_without_tabs_refuses_and_does_nothing_else() {
+    use crate::platform::Platform;
+
+    let mut platform = super::fixtures::FakePlatform::default();
+    assert!(!platform.open_tab(b"Opening sign-in"));
+    assert!(platform.calls.is_empty());
+    platform.point_tab(b"/sign-in");
+    assert!(platform.calls.is_empty());
+    platform.close_tab();
+    assert!(platform.calls.is_empty());
+}
