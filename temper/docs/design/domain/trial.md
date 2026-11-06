@@ -86,7 +86,8 @@ Every change asks `Changed { person }`. An event for a task no row holds is noth
 `temper-engine-domain`'s `route/trials.rs` joins the child to the core, and holds nothing:
 
 - **`Application::Try { account, again }`,** admitted with its person, whose answer is `Tried` or, where the person
-  doesn't hold that account, `NotTheirs`.
+  doesn't hold that account, `NotTheirs`. `route/applications.rs` keeps that answer in memory for its key's retention, as
+  it keeps a return's, so a replayed key spends nothing.
 - **`Make`:** `Core::person_seed`, then `Event::PersonTask` with `Executor::Agent { charter: TRIAL_CHARTER }`,
   and `Made` with the seed's number; no seed, `Refused`.
 - **Lines:** what `route_core_requests` sees saved for a task a row holds: `Line::Turn` is `Turn`, `Line::RunEnded`
