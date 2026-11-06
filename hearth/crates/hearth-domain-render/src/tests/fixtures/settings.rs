@@ -42,7 +42,7 @@ pub fn oversized() -> (Side, Box<[compose::Target]>) {
         &side.entries,
         &mut side.validator,
         &mut side.merge,
-        &mut List::with_capacity(super::SCHEMA_FAULTS),
+        &mut List::uncapped(),
     );
     side.tasks = super::target_tasks(&targets, &side.documents);
     side.targets = targets.clone();
