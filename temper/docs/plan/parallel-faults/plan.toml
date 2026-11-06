@@ -1,0 +1,3 @@
+draft = "parallel-faults"
+repo = "fabrig"
+sources = ["temper/docs/plan/parallel-faults/inputs/request.md", "AGENTS.md", "DESIGN.md"]
