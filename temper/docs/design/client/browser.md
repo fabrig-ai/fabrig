@@ -983,7 +983,8 @@ real key in that restored form.
   instead, `scripts/bundle.sh --playground` in its own profiles
   (`../playground.md`, 7), served as static files with their `headers`
   by the tier's own static server, which maps them as a site's host
-  would; the tier reads the world's figures from the page's frame.
+  would; the tier reads the world's figures from the page's frame, and
+  compresses the download's with the machine's `gzip` (`../playground.md`, 9).
 - **A cap: at most 12 tests, and 120 seconds** on the slowest of the
   machines that build temper (the user, 10-27, temper#15). Past it,
   stories that share a setup become one test of several steps before
@@ -1003,8 +1004,7 @@ real key in that restored form.
 
 ### 4.4 GitHub's manifest page
 
-One test, the github plan's, counted in 4.3's guide: with the ten
-tests 4.1's stories take and 4.2's story, the tier reaches its 12.
+One test, the github plan's: 4.6's 10, counted in 4.3's cap.
 
 - **What only a browser shows:** the manifest page's form posted under
   the page's own policy, `form-action WEB` (`forge.md`, 9.1). The
@@ -1062,8 +1062,9 @@ One test, the provider's (`../protocol/sign-in.md`, 9.8).
 ### 4.6 The twelve
 
 The tier's tests, each on its own `temper serve` (the playground's on its
-built playground, 2 and 11 on `temper box`, whose first run is over). Each
-is one test of the steps it names; 2 and 11 share one, and 4 and 5 another:
+built playground; 2 and 11, 13 and 14 on `temper box`, whose first run is
+over). Each is one test of the steps it names; 2 and 11 share one, and 4 and
+5 another:
 
 1. **Signing in** (4.1, 1): the printed link signs in, a reload on a
    chat signs in by the cookie, and the link spent shows the
@@ -1212,6 +1213,25 @@ Not in the tier, each in the lowest world that shows it:
   view has no fact of a tab refused, so the note's plain title and primary link have
   no state of their own. Default: the view's test holds them, until that draft gives
   the fact.
+- **A chat's way to the Closed filter** (4.6): a chat closed on the box took 8.5 s
+  to show there, and no measure splits that between the chat template's 5 s of
+  grace (`temper-service`'s `stock.rs`) and the box's 5 s `agent_stop_ms`. A person
+  waits it, and no test of the tier does. Default: as it stands, until the wait is
+  split and a request asks it shorter.
+- **The box's pace in the tier** (4.6): the stories on `temper box` keep story A's
+  paces, a reply's 1200 ms and CI's 4000 ms. None waits for a landing, and unpaced
+  fakes would land in the background for CPU nobody reads. Default: paced.
+- **A wait's CPU in the tier** (4.3): a `See` asks Chromium's accessibility tree
+  again at `skein-browser`'s `poll`, 50 ms, so a long wait costs browser and harness
+  CPU: 519 queries in a story of 23 s. Default: the kit's poll stands, and a story
+  doesn't wait long.
+- **A public page's text in one query** (8.4): the public walk reads each page's text
+  a node at a time, about 0.8 CPU s over its seven pages. Default: so, until that
+  passes 1 CPU s, when the browser kit would read a page's text at once.
+- **A compile cache across the tier's tests** (4.3): each test's fresh profile
+  compiles the bundle's wasm again, where a second load in one profile hits
+  Chromium's own cache. Default: none, since a shared profile would change what each
+  test starts from.
 
 ## 7. The gallery
 
