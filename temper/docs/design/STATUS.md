@@ -35,7 +35,8 @@ built through ctl, but the restore's stories in the domain world and
 the joined client world are ignored (`protocol/configuration.md`,
 `client/tools.md`). The configuring agent, charter 3 and template 3,
 is in the stock and the reference pages it reads are built, but its
-runs cannot read a project's own policy (`domain/agent.md`), and a
+runs cannot read a project's own policy, its inventory names no project
+people and its words lag (`domain/agent.md`), and a
 charter's `tools` decides only whether its runs are offered the
 settings family (`protocol/configuration.md`). The limits' check
 leaves temper's kinds out of the settings answer's bound

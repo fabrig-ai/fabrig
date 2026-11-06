@@ -249,7 +249,7 @@ pub fn settings_text(
             )
             .or(Err(Problem::Range(b"items")))?,
         )),
-        SettingsAnswer::Unknown => return Ok(Box::from(b"unknown\n".as_slice())),
+        SettingsAnswer::Unknown => return Ok(Box::from(b"not read: no such setting at that revision. This says nothing about the settings: read the inventory and name what it lists; project-ways and project-questions take project and no number.\n".as_slice())),
     };
     Ok(settings_form::settings_text(&value, requested, &limits))
 }
@@ -277,12 +277,13 @@ pub fn settings_answer_bounded(
     application: Option<&temper_engine_domain_forge::settings::SizedValue>,
     max_bytes: u32,
 ) -> run::HostAnswer {
-    settings_repository_answer(answer, from, requested, models, application, &[], max_bytes)
+    settings_repository_answer(answer, from, requested, models, application, &[], &[], &[], max_bytes)
 }
 
-/// Render an authorized inventory's project repository identities within the
+/// Render an authorized inventory's repository and people context within the
 /// host allowance and the same byte-offset pagination as its settings.
 #[must_use]
+#[expect(clippy::too_many_arguments, reason = "inventory context travels beside the settings read and host allowance")]
 pub fn settings_repository_answer(
     answer: &SettingsAnswer,
     from: u32,
@@ -290,6 +291,8 @@ pub fn settings_repository_answer(
     models: &[engine::Model],
     application: Option<&temper_engine_domain_forge::settings::SizedValue>,
     repositories: &[engine::RepositoryIdentity],
+    people: &[engine::ProjectPerson],
+    forge_people: &[engine::ForgePerson],
     max_bytes: u32,
 ) -> run::HostAnswer {
     let maximum = skein_lib::usize_of(max_bytes).min(run::HostAnswer::CAPACITY);
@@ -300,6 +303,8 @@ pub fn settings_repository_answer(
         models,
         application,
         repositories,
+        people,
+        forge_people,
         u32::try_from(maximum).expect("host bound"),
     );
     match result {
@@ -312,6 +317,7 @@ pub fn settings_repository_answer(
     }
 }
 
+#[expect(clippy::too_many_arguments, reason = "inventory context travels beside the settings read and host allowance")]
 fn settings_page(
     answer: &SettingsAnswer,
     from: u32,
@@ -319,6 +325,8 @@ fn settings_page(
     models: &[engine::Model],
     application: Option<&temper_engine_domain_forge::settings::SizedValue>,
     repositories: &[engine::RepositoryIdentity],
+    people: &[engine::ProjectPerson],
+    forge_people: &[engine::ForgePerson],
     maximum: u32,
 ) -> Result<run::HostAnswer, &'static [u8]> {
     let enriched;
@@ -332,7 +340,11 @@ fn settings_page(
     };
     match settings_text(answer, requested, models) {
         Ok(text) => {
-            match settings_form::page::page_bounded(&repository_text(answer, text, repositories), from, maximum) {
+            match settings_form::page::page_bounded(
+                &repository_text(answer, text, repositories, people, forge_people),
+                from,
+                maximum,
+            ) {
                 Ok(body) => {
                     let error = match answer {
                         SettingsAnswer::Unknown => true,
@@ -351,24 +363,35 @@ fn settings_page(
     }
 }
 
-fn repository_text(answer: &SettingsAnswer, text: Box<[u8]>, repositories: &[engine::RepositoryIdentity]) -> Box<[u8]> {
+fn repository_text(
+    answer: &SettingsAnswer,
+    text: Box<[u8]>,
+    repositories: &[engine::RepositoryIdentity],
+    people: &[engine::ProjectPerson],
+    forge_people: &[engine::ForgePerson],
+) -> Box<[u8]> {
     if let SettingsAnswer::Inventory(_) = answer {
         let mut measure = settings_form::Text::measure();
-        repository_rows(&mut measure, &text, repositories);
+        repository_rows(&mut measure, &text, repositories, people, forge_people);
         let mut out = settings_form::Text::writing_exact(measure);
-        repository_rows(&mut out, &text, repositories);
+        repository_rows(&mut out, &text, repositories, people, forge_people);
         out.finish()
     } else {
         text
     }
 }
 
-fn repository_rows(out: &mut settings_form::Text, text: &[u8], repositories: &[engine::RepositoryIdentity]) {
+fn repository_rows(
+    out: &mut settings_form::Text,
+    text: &[u8],
+    repositories: &[engine::RepositoryIdentity],
+    people: &[engine::ProjectPerson],
+    forge_people: &[engine::ForgePerson],
+) {
     out.put(text);
-    if repositories.is_empty() {
-        return;
+    if !repositories.is_empty() {
+        out.put(b"project repositories:\n");
     }
-    out.put(b"project repositories:\n");
     for repository in repositories {
         out.put(b"  forge ");
         out.put(&repository.host);
@@ -376,6 +399,40 @@ fn repository_rows(out: &mut settings_form::Text, text: &[u8], repositories: &[e
         out.put(&repository.owner);
         out.put(b"/");
         out.put(&repository.name);
+        out.put(b"\n");
+    }
+    if !people.is_empty() {
+        out.put(b"project people:\n");
+    }
+    for person in people {
+        out.put(b"  person ");
+        out.number(person.person);
+        if !person.login.is_empty() {
+            out.put(b" ");
+            out.put(&person.login);
+        }
+        out.put(b": role ");
+        out.number(u64::from(person.role));
+        if person.you {
+            out.put(b", you");
+        }
+        if let Some(user) = person.forge_user {
+            out.put(b", forge user ");
+            out.number(user);
+        }
+        if person.writer {
+            out.put(b", temper's own forge writer: never counts as a person");
+        }
+        out.put(b"\n");
+    }
+    if !forge_people.is_empty() {
+        out.put(b"forge people:\n");
+    }
+    for person in forge_people {
+        out.put(b"  forge ");
+        out.put(&person.host);
+        out.put(b" person ");
+        out.put(&person.login);
         out.put(b"\n");
     }
 }

@@ -715,30 +715,74 @@ fn settings_pages_reserve_escaped_framing_within_the_allowance() {
 
 #[test]
 #[expect(clippy::disallowed_methods, reason = "the test reconstructs rendered UTF-8 pages")]
-fn repository_identities_share_settings_pagination_and_stay_out_of_other_reads() {
-    let mut repositories = List::with_capacity(20);
-    for _ in 0..20_u32 {
-        repositories
-            .push(engine::RepositoryIdentity {
-                host: b"forge.example:3847".as_slice().into(),
-                owner: b"org".as_slice().into(),
-                name: b"repo".as_slice().into(),
-            })
-            .expect("fixture repository capacity");
-    }
-    let repositories = repositories.into_boxed();
+fn inventory_people_forms_share_repository_pagination() {
+    let repositories = [engine::RepositoryIdentity {
+        host: b"forge.example:3847".as_slice().into(),
+        owner: b"org".as_slice().into(),
+        name: b"repo".as_slice().into(),
+    }];
+    let people = [
+        engine::ProjectPerson {
+            person: 1,
+            role: 0,
+            login: b"owner".as_slice().into(),
+            forge_user: None,
+            writer: false,
+            you: true,
+        },
+        engine::ProjectPerson {
+            person: 4,
+            role: 1,
+            login: b"ada".as_slice().into(),
+            forge_user: Some(3),
+            writer: false,
+            you: false,
+        },
+        engine::ProjectPerson {
+            person: 5,
+            role: 2,
+            login: Box::new([]),
+            forge_user: Some(7),
+            writer: false,
+            you: false,
+        },
+        engine::ProjectPerson {
+            person: 6,
+            role: 2,
+            login: Box::new([]),
+            forge_user: Some(2),
+            writer: true,
+            you: false,
+        },
+    ];
+    let forge_people =
+        [engine::ForgePerson { host: b"127.0.0.1:3000".as_slice().into(), login: b"ada".as_slice().into() }];
     let answer = inventory(0);
+    let (empty, _) = crate::settings_repository_answer(&answer, 0, None, &[], None, &[], &[], &[], 8192).into_parts();
+    let empty = core::str::from_utf8(&empty).expect("empty inventory UTF-8");
+    assert!(!empty.contains("project people:") && !empty.contains("forge people:"));
     let (whole, error) =
-        crate::settings_repository_answer(&answer, 0, None, &[], None, &repositories, 8192).into_parts();
+        crate::settings_repository_answer(&answer, 0, None, &[], None, &repositories, &people, &forge_people, 8192)
+            .into_parts();
     assert!(!error);
     let expected = whole.strip_suffix(b"end\n").expect("terminal marker");
-    assert!(expected.ends_with(b"  forge forge.example:3847 repository org/repo\n"));
+    assert!(expected.ends_with(b"project repositories:\n  forge forge.example:3847 repository org/repo\nproject people:\n  person 1 owner: role 0, you\n  person 4 ada: role 1, forge user 3\n  person 5: role 2, forge user 7\n  person 6: role 2, forge user 2, temper's own forge writer: never counts as a person\nforge people:\n  forge 127.0.0.1:3000 person ada\n"), "{}", core::str::from_utf8(expected).expect("inventory UTF-8"));
     let mut combined = skein_lib::Writer::new(expected.len());
     let mut from = 0;
     let mut pages = 0_u32;
     loop {
-        let (body, error) =
-            crate::settings_repository_answer(&answer, from, None, &[], None, &repositories, 256).into_parts();
+        let (body, error) = crate::settings_repository_answer(
+            &answer,
+            from,
+            None,
+            &[],
+            None,
+            &repositories,
+            &people,
+            &forge_people,
+            256,
+        )
+        .into_parts();
         assert!(!error);
         assert!(body.len() <= 256);
         let text = core::str::from_utf8(&body).expect("page UTF-8");
@@ -755,11 +799,20 @@ fn repository_identities_share_settings_pagination_and_stay_out_of_other_reads()
     }
     assert!(pages > 1);
     assert_eq!(combined.finish().as_ref(), expected);
-    let (unknown, error) =
-        crate::settings_repository_answer(&SettingsAnswer::Unknown, 0, None, &[], None, &repositories, 256)
-            .into_parts();
+    let (unknown, error) = crate::settings_repository_answer(
+        &SettingsAnswer::Unknown,
+        0,
+        None,
+        &[],
+        None,
+        &repositories,
+        &people,
+        &forge_people,
+        256,
+    )
+    .into_parts();
     assert!(error);
-    assert_eq!(unknown.as_ref(), b"unknown\nend\n", "context belongs only to an inventory");
+    assert_eq!(unknown.as_ref(), b"not read: no such setting at that revision. This says nothing about the settings: read the inventory and name what it lists; project-ways and project-questions take project and no number.\nend\n", "context belongs only to an inventory");
 }
 
 #[test]
