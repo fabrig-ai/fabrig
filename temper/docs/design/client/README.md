@@ -6805,6 +6805,9 @@ own tests:
 - **A `~/` in another's shell** (4.6): the words' `~/` is the engine's `$HOME`,
   and a shell of another user on this machine reads its own. Default: so, the
   owner being the person at this machine.
+- **A Copy on the other commands** (3.5, *The command's Copy*; 4.6): the welcome's
+  block has one, as the request `box-small` of 2026-11-06 asks; `ConnectModel`'s
+  command and Accounts' have none. Default: so, until a person asks for one.
 - **The command before its read answers** (4.6): while `program_environment` is
   unanswered, or if its read fails, a page with no `program_login` draws the
   placeholders and says nothing. Default: so.
