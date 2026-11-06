@@ -24,8 +24,8 @@ fn the_reference_golden_decodes() {
             ObligationKind::Gap(_) => 2,
         }] += 1;
     }
-    assert_eq!(counts, [79, 13, 0]);
-    assert_eq!(golden.free, ["project-questions"]);
+    assert_eq!(counts, [68, 13, 0]);
+    assert_eq!(golden.free, ["project-questions", "policy"]);
     assert_eq!(golden.rules.len(), 16);
     for rule in &golden.rules {
         assert!(ids.insert(&rule.id));
