@@ -82,6 +82,7 @@ impl Harness {
             w::Request::Adopt(adopt) => adopt,
             w::Request::SetUp(_)
             | w::Request::RemoveForge(_)
+            | w::Request::DismissMaking(_)
             | w::Request::MakeRepository(_)
             | w::Request::StartPlayground
             | w::Request::SetAway(_)

@@ -1,4 +1,4 @@
-family temper-client-wire 14
+family temper-client-wire 15
 
 # The role, as temper-engine-domain-forge's Role, in its order.
 enum Role { owned, adopted, fork, context }
@@ -66,7 +66,8 @@ record MakeCopy { address: bytes 512 }
 enum MakeFrom { empty, copy: MakeCopy }
 record MakeInto { project: u32 home: bool }
 record MakeRepository { forge: u16 org: bytes 1024 name: bytes 1024 from: MakeFrom into: option MakeInto }
-enum Request { adopt: Adopt, set_up: SetUp, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground, replace: Replace, dismiss: Dismiss, make_repository: MakeRepository, looked: Looked, set_away: SetAway, overturn: Overturn, try_account: TryAccount }
+record DismissMaking { forge: u16 org: bytes 1024 name: bytes 1024 }
+enum Request { adopt: Adopt, set_up: SetUp, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground, replace: Replace, dismiss: Dismiss, make_repository: MakeRepository, dismiss_making: DismissMaking, looked: Looked, set_away: SetAway, overturn: Overturn, try_account: TryAccount }
 versioned record Requesting { request: Request }
 enum SetUpRefusal { not_offered, not_under_the_box, busy, invalid }
 record SetUpRefused { why: SetUpRefusal }
@@ -222,7 +223,7 @@ record AcceptedInstallation { installation: u64 }
 enum EndRefusal { not_offered }
 record EndRefused { why: EndRefusal }
 record RemoveRefused { why: ForgeRefusal }
-enum MakeRefusal { no_such_forge, not_offered, not_owner, invalid, home_held, full }
+enum MakeRefusal { no_such_forge, not_offered, not_owner, invalid, home_held, full, not_failed }
 record MakeRefused { why: MakeRefusal }
 enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation, removed, remove_refused: RemoveRefused, reset, end_refused: EndRefused, dismissed, make_kept, make_refused: MakeRefused, looked, away, overturned, overturn_refused: OverturnRefused, tried, not_theirs }
 versioned record Answer { outcome: Outcome }

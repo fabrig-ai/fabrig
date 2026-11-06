@@ -639,3 +639,96 @@ fn copy_address_admission_uses_512_bytes_instead_of_name_bytes() {
     );
     answer(&d, MakeAnswer::Kept);
 }
+
+fn dismiss(d: &mut Domain, value: &RepositoryMaking, role: Option<jig_domain_people::Role>) -> Box<[Request]> {
+    outputs(
+        d,
+        Event::Application {
+            request: Token::new(102),
+            token: Token::new(201),
+            retention: Duration::from_secs(60),
+            role,
+            carried: None,
+            ask: Ask::DismissMaking {
+                forge: value.key.forge,
+                org: value.key.org.clone(),
+                name: value.key.name.clone(),
+            },
+        },
+    )
+}
+#[test]
+fn dismissing_a_failed_row_erases_it_and_frees_its_place() {
+    let mut d = kept();
+    let mut failed = intent();
+    failed.state = MakingState::Failed(failure(MakeFailure::Other));
+    restore(&mut d, failed.clone());
+    for number in 1..LIMITS.makings {
+        restore(&mut d, row(number));
+    }
+    let mut next = intent();
+    next.key.name = b"next".as_slice().into();
+    owner(&mut d, &next);
+    answer(&d, MakeAnswer::Refused(MakeRefusal::Full));
+    let requests = dismiss(&mut d, &failed, Some(jig_domain_people::Role::Owner));
+    answer(&d, MakeAnswer::Kept);
+    erased(&requests, &failed.key);
+    assert!(d.making(&failed.key).is_none());
+    assert!(requests.iter().any(|r| if let Request::MarkedForges = r { true } else { false }));
+    let Some(Request::ApplicationDone { .. }) = requests.last() else { panic!("erasure precedes answer") };
+    let requests = owner(&mut d, &next);
+    answer(&d, MakeAnswer::Kept);
+    assert_eq!(saved(&requests).key, next.key);
+}
+#[test]
+fn dismissing_no_row_is_kept() {
+    let mut d = kept();
+    let requests = dismiss(&mut d, &intent(), Some(jig_domain_people::Role::Owner));
+    answer(&d, MakeAnswer::Kept);
+    assert_eq!(d.makings(FORGE).count(), 0);
+    assert!(!requests.iter().any(|r| if let Request::Erase { .. } | Request::MarkedForges = r { true } else { false }));
+}
+#[test]
+fn dismissing_a_running_row_refuses_and_leaves_it_unchanged() {
+    for state in [
+        MakingState::Waiting,
+        MakingState::Making,
+        MakingState::Made { id: 2, branch: b"main".as_slice().into() },
+        MakingState::Adopting { id: 2, branch: b"main".as_slice().into() },
+    ] {
+        let mut d = kept();
+        let mut value = intent();
+        value.state = state;
+        restore(&mut d, value.clone());
+        if value.state == MakingState::Making {
+            outputs(&mut d, Event::MakingStarted { key: value.key.clone() });
+        }
+        let requests = dismiss(&mut d, &value, Some(jig_domain_people::Role::Owner));
+        answer(&d, MakeAnswer::Refused(MakeRefusal::NotFailed));
+        assert_eq!(d.making(&value.key), Some(&value));
+        assert!(!requests.iter().any(|r| {
+            if let Request::Erase { .. } | Request::Save { record: Stored::Making(_), .. } | Request::MarkedForges = r {
+                true
+            } else {
+                false
+            }
+        }));
+    }
+}
+#[test]
+fn only_an_owner_may_dismiss() {
+    for role in [
+        None,
+        Some(jig_domain_people::Role::Observer),
+        Some(jig_domain_people::Role::Member),
+        Some(jig_domain_people::Role::Maintainer),
+    ] {
+        let mut d = kept();
+        let mut failed = intent();
+        failed.state = MakingState::Failed(failure(MakeFailure::Other));
+        restore(&mut d, failed.clone());
+        dismiss(&mut d, &failed, role);
+        answer(&d, MakeAnswer::Refused(MakeRefusal::NotOwner));
+        assert_eq!(d.making(&failed.key), Some(&failed));
+    }
+}
