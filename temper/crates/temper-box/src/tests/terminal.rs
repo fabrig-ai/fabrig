@@ -12,7 +12,7 @@ fn the_first_block_has_exact_words_and_three_targets() {
     assert_eq!(formatter.block(bytes::copy_of(b"http://link\n")).as_slice(), &[
         item(Target::Stderr, b"Open this link in a browser on this machine.\n\n"),
         item(Target::Stdout, b"http://link\n"),
-        item(Target::Stderr, b"\nIt signs you in as this temper's owner, once and for a short while.\nOpened again once spent, it prints a fresh one here.\n"),
+        item(Target::Stderr, b"\nIt signs you in as this temper's owner, once, within 2 hours.\nOpened after that, it prints a fresh one here.\n"),
     ]);
 }
 #[test]

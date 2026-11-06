@@ -9,7 +9,10 @@
   rule (`temper-client-shell-web`'s `tests/suite/switcher.rs`,
   `scrolling_panes_contain_their_hidden_absolute_parts`), and no test measures the
   page; no reason is recorded. That test names the session's log and draft pane,
-  and the session's thread with no log, which scrolls too, is not positioned.
+  and the session's thread with no log, which scrolls too, is not positioned. The walk
+  of the request `ui-walk-3` of 2026-11-06 measured it by hand: the document at its
+  window at each size, in Chat and Split, one pane scrolling, but with no older read
+  ended (`README.status.md`, 3.5).
 - **Not yet:** 2.5: a numbered list read from Markdown
   (`temper/docs/design/draft/chat-reading.md`, 6) shows no numbers in a card of a
   chat's thread: `temper.css` makes `.temper-card:not(.temper-task-card) li` there
@@ -19,8 +22,9 @@
   a numbered list takes the browser's margins and padding. Both are seen by reading
   the sheet: no browser test draws a numbered list, the request `chat-reading-d`
   having the user read one on a real chat and leaving the sheet to the look's owner.
-- **Not yet:** 2.5, *temper's own way*: no render has drawn the picture as an `ol`. 
-  `configure-temper-own-way`'s render check read the numbers as a `ul` item's words, and numbered lists reached skein's
+- **Not yet:** 2.5, *temper's own way*: no render has checked the picture as an `ol`: the walk
+  of the request `ui-walk-3` opened the reference at each width and read its title, flow and
+  line, and names nothing of the list's margins. `configure-temper-own-way`'s render check read the numbers as a `ul` item's words, and numbered lists reached skein's
   reader after it, so the `ol` takes `.temper-doc-flow ol`'s padding and the browser's margins, and
   `.temper-doc-flow ul` now matches nothing, left for whoever next edits that rule. Seen by
   reading; the view's tests read the terminal's print, which says `1. Design draft` either way.

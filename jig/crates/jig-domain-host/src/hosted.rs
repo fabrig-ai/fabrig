@@ -98,7 +98,7 @@ enum State {
     /// has settled.
     Cancelling { reason: Reason },
     /// Its agent is starting, with a workspace when it has items.
-    Starting { workspace: Option<Token>, held: Queue<NamedEvent> },
+    Starting { workspace: Option<Token>, held: Queue<NamedEvent>, fault: Option<AgentFailure> },
     /// Cancelled for `reason` as its agent started: the agent is stopped once
     /// it has started.
     Unwanted { workspace: Option<Token>, reason: Reason },
@@ -282,9 +282,9 @@ pub(crate) fn inbound_named(
             crate::refusals::hold(&mut held, message, &mut entry.refusals);
             State::Preparing { charter, held }
         }
-        State::Starting { workspace, mut held } => {
+        State::Starting { workspace, mut held, fault } => {
             crate::refusals::hold(&mut held, message, &mut entry.refusals);
-            State::Starting { workspace, held }
+            State::Starting { workspace, held, fault }
         }
         State::Active { workspace, agent } => {
             deliver_message(agent, message, out);
@@ -451,7 +451,7 @@ fn start_prepared(domain: &mut Hub, owner: Token, workspace: Option<Token>, out:
                 }),
             }));
             entry.refreshed = false;
-            State::Starting { workspace, held }
+            State::Starting { workspace, held, fault: None }
         }
         State::Cancelling { reason } => {
             let ending = RunEnding::Stopped { failure: Failure::Cancelled(reason), detail: Box::new([]) };
@@ -512,7 +512,7 @@ pub(crate) fn started(domain: &mut Hub, env: &Env<Limits>, owner: Token, agent: 
     facts.push(Fact::Started { run: entry.run, attempt: entry.attempt });
     let state = mem::replace(&mut entry.state, State::Closed);
     entry.state = match state {
-        State::Starting { workspace, mut held } => {
+        State::Starting { workspace, mut held, fault: None } => {
             if entry.refreshed {
                 for grant in &entry.grants {
                     if agent_grant(grant.form) {
@@ -535,6 +535,7 @@ pub(crate) fn started(domain: &mut Hub, env: &Env<Limits>, owner: Token, agent: 
             let ending = RunEnding::Stopped { failure: Failure::Cancelled(reason), detail: Box::new([]) };
             State::Stopping { workspace, agent, ending, gone: false }
         }
+        State::Starting { fault: Some(_), .. } => unreachable!("Smith refuses admission after a fault"),
         State::Preparing { .. }
         | State::Cancelling { .. }
         | State::Active { .. }
@@ -708,13 +709,14 @@ pub(crate) fn faulted(
             State::Stopping { workspace, agent, ending, gone: false }
         }
         // How the run ends is decided already, or the host stopped it first.
-        state @ State::Stopping { .. } => state,
-        State::Preparing { .. }
-        | State::Cancelling { .. }
-        | State::Starting { .. }
-        | State::Unwanted { .. }
-        | State::Saving { .. }
-        | State::Closed => unreachable!("only an agent that has started and not gone is faulted"),
+        state @ (State::Stopping { .. } | State::Unwanted { .. }) => state,
+        State::Starting { workspace, held, fault: earlier } => {
+            let fault = earlier.or(Some(fault));
+            State::Starting { workspace, held, fault }
+        }
+        State::Preparing { .. } | State::Cancelling { .. } | State::Saving { .. } | State::Closed => {
+            unreachable!("only an agent that was requested and not gone is faulted")
+        }
     };
     drain_stopping(domain, env, id, out);
     conclude(domain, id, out);
@@ -728,9 +730,10 @@ pub(crate) fn gone(domain: &mut Hub, env: &Env<Limits>, owner: Token, detail: Bo
     let state = mem::replace(&mut entry.state, State::Closed);
     entry.state = match state {
         // Nothing ran: nothing to save.
-        State::Starting { workspace, held } => {
+        State::Starting { workspace, held, fault } => {
             crate::refusals::ending(held, &mut entry.refusals);
-            let ending = RunEnding::Failed { failure: Failure::Agent(AgentFailure::Unstarted), detail };
+            let failure = Failure::Agent(fault.unwrap_or(AgentFailure::Unstarted));
+            let ending = RunEnding::Failed { failure, detail };
             release(entry, facts, workspace, ending, None, out)
         }
         State::Unwanted { workspace, reason } => {
@@ -850,7 +853,7 @@ fn stop(domain: &mut Hub, env: &Env<Limits>, id: Id<Hosted>, reason: Reason, out
             out.push(Request::Abort { owner: id.token() });
             State::Cancelling { reason }
         }
-        State::Starting { workspace, held } => {
+        State::Starting { workspace, held, fault: _ } => {
             crate::refusals::ending(held, &mut entry.refusals);
             State::Unwanted { workspace, reason }
         }
