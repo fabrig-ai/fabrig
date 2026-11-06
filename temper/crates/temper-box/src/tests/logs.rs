@@ -69,7 +69,7 @@ fn quiet_logs_are_private_timestamped_and_rotated_across_three_starts() {
         &h.log(),
         b"00:00:00Z Logs: /data/box/logs/\n00:00:00Z Ctrl-C stops temper.\n00:00:00Z Starting serve\n"
     ));
-    assert!(Harness::contains(&stderr, b"Ctrl-C stops temper."));
+    assert!(!Harness::contains(&stderr, b"Ctrl-C stops temper."));
     assert!(!Harness::contains(&stderr, b"forge 1: "));
     let (logged, mode) = read(&mut h, b"box/logs/forge-1.log");
     assert_eq!(mode, 0o600);

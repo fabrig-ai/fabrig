@@ -50,8 +50,9 @@ pub struct Item {
     pub target: Target,
     pub bytes: Box<[u8]>,
 }
-pub const PRELUDE: &[u8] = b"\nOpen this link in a browser on this machine. It signs you in as this\ntemper's owner, once and for a short while, so keep it private.\nOpened again once spent, it prints a fresh one here.\n\n";
-pub const FOOTER: &[u8] = b"\nCtrl-C stops temper.\n\n";
+pub const PRELUDE: &[u8] = b"Open this link in a browser on this machine.\n\n";
+pub const FOOTER: &[u8] = b"\nIt signs you in as this temper's owner, once and for a short while.\nOpened again once spent, it prints a fresh one here.\n";
+pub const FRESH: &[u8] = b"\n";
 pub const CTRL_C: &[u8] = b"Ctrl-C stops temper.\n";
 pub const REFUSAL: &[u8] = b"box: serve: sign-in link too long\n";
 /// Largest fixed item, also allowing the ten-byte UTC prefix.
@@ -74,10 +75,10 @@ impl Formatter {
     /// Caller reserves `block_entries` before extracting the line. State changes
     /// only after the complete adjacent block has entered the terminal FIFO.
     #[must_use]
-    pub fn block(&self, url: Box<[u8]>, wall: Wall) -> List<Item> {
+    pub fn block(&self, url: Box<[u8]>) -> List<Item> {
         let mut items = List::with_capacity(self.block_entries());
         let words = if self.first_printed {
-            self.notice(b"A fresh sign-in link:\n", wall)
+            Item { target: Target::Stderr, bytes: skein_lib::bytes::copy_of(FRESH) }
         } else {
             Item { target: Target::Stderr, bytes: skein_lib::bytes::copy_of(PRELUDE) }
         };
