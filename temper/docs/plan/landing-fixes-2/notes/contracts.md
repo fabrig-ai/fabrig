@@ -27,10 +27,10 @@ pub struct HelloRefused {
 In `src/needs.rs`, beside `shortfall`, exported as `shortfall` is:
 
 ```rust
-/// The amounts of a shortfall `shortfall` selected: None for `Model`, which
-/// has none, or a charter or model those needs and bounds do not hold.
+/// The amounts of a shortfall `shortfall` selected for this host kind: None
+/// for `Model`, which has none, or a `why` no version `kind` allows gives.
 #[must_use]
-pub fn figures(needs: &Needs, bounds: &Bounds, why: AgentShortfall) -> Option<Figures>
+pub fn figures(needs: &Needs, bounds: &Bounds, kind: HostKind, why: AgentShortfall) -> Option<Figures>
 ```
 
 | `why` | `required` | `offered` |
@@ -46,7 +46,7 @@ pub fn figures(needs: &Needs, bounds: &Bounds, why: AgentShortfall) -> Option<Fi
 | `Inbox` | `needs.start_messages` | `bounds.inbox` |
 | `Unacknowledged` | `needs.unacknowledged` | `bounds.unacknowledged` |
 
-A charter is found by `version.charter`, as `shortfall` reports it. A model is found by its index in the charter's `models`, then by name in `bounds.models`.
+`Needs` may hold several versions of one charter number, with different host kinds and bounds (`jig-domain-core/src/settings/fleet_needs.rs`, `current`), so a number alone doesn't name one, and `AgentShortfall` keeps its shape. "The charter" is the version `shortfall` stopped at: the first in configured order that `kind` allows and whose own checks give `why`. One private per-version check in `needs.rs`, returning `Option<AgentShortfall>`, serves both functions, so they can't disagree. A model is found by its index in that version's `models`, then by name in `bounds.models`. The deployment-wide rows take no version.
 
 The carriers:
 
