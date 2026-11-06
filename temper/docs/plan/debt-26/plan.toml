@@ -1,0 +1,3 @@
+draft = "debt-26"
+repo = "fabrig"
+sources = ["temper/docs/plan/debt-26/inputs/request.md", "temper/docs/plan/debt-26/inputs/debt22-review.md", "temper/docs/plan/debt-26/inputs/debt24-review.md", "jig/docs/development/debt/D004-ops-root-jig-wiring.md"]
