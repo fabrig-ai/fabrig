@@ -3,3 +3,30 @@ repo = "fabrig"
 sources = ["temper/docs/plan/ui-chat-accept/inputs/request.md", "temper/crates/temper-client-domain/src/pages/chat.rs", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 priority = true
+
+# The cause is settled by reading (plan.md): the chat's card decides under the chat's project.
+# One fix with its worlds, then the browser's whole path. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "decide"
+title = "A proposal's decision goes under the proposal's own project, from every card that holds it"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 5.13"
+
+[[part]]
+id = "prove"
+title = "The configuring chat's whole path in a browser on a fresh fake box, at 1440 and 420"
+mode = "direct"
+needs = ["decide"]
+design = "temper/docs/design/client/README.md, 5.13"
+
+[[slice]]
+id = 1
+story = "a person accepts a settings proposal in the chat that made it, the rail changes, and the chat goes on answering"
+parts = ["decide", "prove"]
+walk = false
