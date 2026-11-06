@@ -288,12 +288,14 @@ impl Documents {
         }
     }
     #[must_use]
+    #[expect(clippy::disallowed_methods, reason = "library bisection compares task names in sorted document paths")]
     pub fn declaration(&self, name: &[u8]) -> Option<(u32, Option<&declaration::Declaration>)> {
         // new's Map keeps paths sorted and unique. Only declarations remain under
         // tasks/, whose identifier bytes (lowercase, digits, _) all sort above /,
         // so their path order is also their task order.
         let first = self.entries.partition_point(|entry| entry.path.as_ref() < b"tasks/".as_slice());
-        let at = self.entries.get(first..)?.binary_search_by(|entry| task(&entry.path).unwrap_or(b"").cmp(name)).ok()?;
+        let at =
+            self.entries.get(first..)?.binary_search_by(|entry| task(&entry.path).unwrap_or(b"").cmp(name)).ok()?;
         let index = first.checked_add(at).expect("bounded listing");
         Some((u32::try_from(index).expect("bounded listing"), self.declared.get(index)?.as_ref()))
     }
@@ -330,6 +332,7 @@ impl Documents {
         &self.entries
     }
     #[must_use]
+    #[expect(clippy::disallowed_methods, reason = "library bisection compares sorted document paths")]
     pub fn find(&self, path: &[u8]) -> Option<u32> {
         let index = self.entries.binary_search_by(|entry| entry.path.as_ref().cmp(path)).ok()?;
         u32::try_from(index).ok()

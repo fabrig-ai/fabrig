@@ -39,20 +39,24 @@ fn document_lookups_agree_with_a_scan_across_task_name_boundaries() {
     documents.set_declaration(&Oid(copy_of(b"tasks/a1/task.json")), declaration.clone());
 
     for name in [b"a".as_slice(), b"a1", b"a_b", b"b", b"A", b"a-b", b"a/b", b""] {
-        let expected = documents.entries().iter().enumerate().find_map(|(index, entry)| {
-            (class(&entry.path) == Class::Declaration { task: name }).then(|| {
+        let mut expected = None;
+        for (index, entry) in documents.entries().iter().enumerate() {
+            if class(&entry.path) == (Class::Declaration { task: name }) {
                 let decoded = if name == b"a1" { Some(&declaration) } else { None };
-                (u32::try_from(index).expect("listing count"), decoded)
-            })
-        });
+                expected = Some((u32::try_from(index).expect("listing count"), decoded));
+                break;
+            }
+        }
         assert_eq!(documents.declaration(name), expected, "task {name:?}");
     }
     for path in [b"tasks/a_b/task.json".as_slice(), b"tasks/absent/task.json"] {
-        let expected = documents
-            .entries()
-            .iter()
-            .position(|entry| entry.path.as_ref() == path)
-            .map(|index| u32::try_from(index).expect("listing count"));
+        let mut expected = None;
+        for (index, entry) in documents.entries().iter().enumerate() {
+            if entry.path.as_ref() == path {
+                expected = Some(u32::try_from(index).expect("listing count"));
+                break;
+            }
+        }
         assert_eq!(documents.find(path), expected, "path {path:?}");
     }
 }
