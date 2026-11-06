@@ -4137,6 +4137,7 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
 pub(super) fn home_status(name: &str) -> Option<temper_client_protocol_wire::v1::ProjectStatus> {
     use temper_client_protocol_wire::v1 as w;
     let (landed, seen, queued, red, previous, last) = match name {
+        "home-last-landed" => (1, 1, 0, false, Some(540), Some(6)),
         "home-computed" => (3, 1, 3, false, Some(540), Some(6)),
         "home-last-looked-none" => (3, 1, 3, false, None, Some(6)),
         "home-landing-none" => (0, 0, 0, false, Some(540), None),

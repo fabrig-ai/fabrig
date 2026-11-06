@@ -2008,7 +2008,7 @@ fn under_a_minute_says_nothing() {
 fn the_headline_counts_what_landed() {
     for (landed, seen, headline) in [
         (0, 0, "Nothing needs you."),
-        (3, 3, "Nothing needs you."),
+        (3, 3, "The last change landed 6 minutes ago. Nothing needs you."),
         (3, 2, "One change landed since you last looked. Nothing needs you."),
         (5, 2, "3 changes landed since you last looked. Nothing needs you."),
     ] {
@@ -2565,9 +2565,10 @@ fn a_brief_above_seen_says_its_words() {
 }
 
 #[test]
-fn a_brief_at_seen_is_the_computed_words() {
+fn an_old_brief_with_new_landings_uses_the_computed_words() {
     for landed in [0, 1] {
-        let root = status_home(brief_parts(landed, BRIEF_LEDE, STATUS_NOW), true, false, false);
+        let root =
+            status_home(brief_parts(landed, BRIEF_LEDE, STATUS_NOW - 10 * 60 * STATUS_MINUTE), true, false, false);
         for browser in [false, true] {
             let view = status_view(&root, browser);
             main_find(
@@ -3424,5 +3425,76 @@ fn another_overturn_disables_the_button() {
                 .as_slice()
                 .contains(&skein_ui::State::Disabled)
         );
+    }
+}
+
+#[test]
+fn a_brief_written_since_the_last_look_shows_with_nothing_new_landed() {
+    let mut parts = brief_parts(1, BRIEF_LEDE, STATUS_NOW);
+    parts.landed = 1;
+    parts.seen = 1;
+    let root = status_home(parts, true, false, false);
+    for browser in [false, true] {
+        let view = status_view(&root, browser);
+        contains(&f::main_text(view.tree()), BRIEF_SENTENCE);
+        assert_eq!(styled(view.tree(), crate::look::HOME_LEDE).name.as_deref(), Some(BRIEF_LEDE.as_bytes()));
+        assert_eq!(
+            styled(view.tree(), crate::look::HOME_BYLINE).name.as_deref(),
+            Some(b"Written by the status agent at 00:00".as_slice())
+        );
+    }
+}
+
+#[test]
+fn an_old_brief_gives_way_to_the_last_landing() {
+    for previous in [STATUS_NOW - STATUS_MINUTE, STATUS_NOW] {
+        let mut parts = brief_parts(1, BRIEF_LEDE, STATUS_NOW - STATUS_MINUTE);
+        parts.landed = 1;
+        parts.seen = 1;
+        parts.previous = Some(previous);
+        let root = status_home(parts, true, false, false);
+        for browser in [false, true] {
+            let view = status_view(&root, browser);
+            contains(&f::main_text(view.tree()), "The last change landed 6 minutes ago. Nothing needs you.");
+            no_brief_prose(&view);
+        }
+    }
+}
+
+#[test]
+fn a_landing_never_stands_under_nothing_needs_you_alone() {
+    for (landed, last, beginning, expected) in [
+        (1, Some(STATUS_NOW - 6 * STATUS_MINUTE), false, "The last change landed 6 minutes ago. Nothing needs you."),
+        (1, Some(STATUS_NOW - STATUS_MINUTE), false, "The last change landed a minute ago. Nothing needs you."),
+        (1, Some(STATUS_NOW - 1), false, "The last change landed just now. Nothing needs you."),
+        (0, None, false, "Nothing needs you."),
+        (1, Some(STATUS_NOW), true, "Shop is ready."),
+    ] {
+        let mut parts = status_parts();
+        parts.landed = landed;
+        parts.seen = landed;
+        parts.last_landed = last;
+        let root = status_home(parts, true, beginning, false);
+        for browser in [false, true] {
+            let mut view = status_view(&root, browser);
+            main_find(view.tree(), Role::Heading { level: 1 }, expected.as_bytes());
+            contains(&printed(&view), expected);
+            if !beginning {
+                no_brief_prose(&view);
+            }
+            if landed > 0 && !beginning {
+                assert!(view.next_change().is_some());
+                crate::build(
+                    &mut view,
+                    &root,
+                    skein_lib::Wall::from_nanos(STATUS_NOW + STATUS_MINUTE),
+                    &mut Queue::uncapped(),
+                );
+                let text = f::main_text(view.tree());
+                if last == Some(STATUS_NOW - 6 * STATUS_MINUTE) {
+                    contains(&text, "The last change landed 7 minutes ago.");
+                }
+            }
+        }
     }
 }
