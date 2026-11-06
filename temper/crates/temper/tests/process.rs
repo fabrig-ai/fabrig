@@ -1961,17 +1961,17 @@ exec "$@"
         BOX_DEADLINE,
     );
     let diagnostic = String::from_utf8_lossy(&ended.stderr).into_owned();
-    let linked = support::printed_link(&ended.stdout).is_some();
+    let listening = support::boxed::serve_listening(&paths[1]);
     scratch.remove();
     assert!(!diagnostic.contains("application.forges"), "forge preparation refused: {diagnostic}");
     assert!(!diagnostic.contains("workers[0].agent"), "agent preflight fixture refused: {diagnostic}");
     assert!(
-        linked || diagnostic.contains("failed to lookup address information"),
+        listening || diagnostic.contains("failed to lookup address information"),
         "unexpected startup refusal: {diagnostic}"
     );
     assert!(
-        linked,
-        "no-DNS start must reach its printed link; the current sign-in endpoint resolution refuses it: {diagnostic}"
+        listening,
+        "no-DNS start must reach serve's listening; the current sign-in endpoint resolution refuses it: {diagnostic}"
     );
     assert_eq!(ended.exit, Some(Exit::Code(0)), "{diagnostic}");
     assert_eq!(ended.left, Some(Vec::new()), "no process outlived the box: {diagnostic}");
