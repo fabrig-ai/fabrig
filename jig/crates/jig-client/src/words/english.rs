@@ -55,6 +55,7 @@ pub(super) fn language() -> Language {
 }
 
 impl Word {
+    #[expect(clippy::too_many_lines, reason = "One exhaustive match defines the closed phrase vocabulary.")]
     pub(super) const fn data(self) -> (u16, &'static [u8], &'static [HoleKind]) {
         match self {
             Self::Decision(value) => value.data(),
@@ -143,6 +144,7 @@ impl Word {
             Self::Waiting(WaitingWord::Delegates) => (45, b"Waiting for delegates", &[]),
             Self::Waiting(WaitingWord::News) => (46, b"Waiting for news", &[]),
             Self::Waiting(WaitingWord::Nothing) => (47, b"Nothing awaited", &[]),
+            Self::Waiting(WaitingWord::Held) => (124, b"held", &[]),
             Self::Status(StatusWord::HostRefused) => (96, b"Cannot start yet", &[]),
             Self::Status(StatusWord::Starting) => (48, b"Starting", &[]),
             Self::Status(StatusWord::Writing) => (49, b"Writing", &[]),
