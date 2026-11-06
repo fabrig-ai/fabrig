@@ -8,10 +8,10 @@ use crate::{
 use alloc::boxed::Box;
 use skein_io::{
     file::{self, Event, Request},
-    file_layer::{self, FileIo},
+    file_layer::{FileIo, Limits, step},
     kernel::{Complete, Error, Fd, Op, Submit},
 };
-use skein_lib::{Decimal, Duration, List, Queue, Time, Token, bytes};
+use skein_lib::{Decimal, Duration, Env, List, Queue, Time, Token, Wall, bytes};
 use temper_forge_setup::machine::{BoxKind, group_file, group_path, parse_group_file};
 const TAG: u64 = 1_u64 << 62;
 const OWNER: Token = Token::new(1);
@@ -42,6 +42,7 @@ enum Phase {
 #[derive(Debug)]
 pub(crate) struct GroupFiles {
     io: FileIo,
+    limits: Limits,
     root: Option<Token>,
     raw: Queue<Submit>,
     events: Queue<Event>,
@@ -55,8 +56,10 @@ pub(crate) struct GroupFiles {
 }
 impl GroupFiles {
     pub fn new(groups: u32, enabled: bool) -> Self {
+        let limits = Limits { files: 2, read: 8, entries: groups.max(1), whole: 8, timeout: Duration::from_secs(30) };
         Self {
-            io: FileIo::new(2, 8, groups.max(1), Duration::from_secs(30)),
+            io: FileIo::with_limits(&limits),
+            limits,
             root: None,
             raw: Queue::with_capacity(2),
             events: Queue::uncapped(),
@@ -139,17 +142,19 @@ impl GroupFiles {
             | Op::Usage
             | Op::Window { .. } => {}
         }
-        file_layer::up(&mut self.io, complete, &mut self.events, &mut self.raw);
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.limits };
+        step::up(&mut self.io, &env, complete, &mut self.events, &mut self.raw);
     }
     pub fn deadline(&self) -> Option<Time> {
         self.io.next_deadline()
     }
     pub fn tick(&mut self, root: Fd, now: Time, subs: &mut Queue<Submit>) {
+        let env = Env { now, wall: Wall::EPOCH, limits: self.limits };
         if self.root.is_none() {
             self.root = Some(self.io.adopt_root(root).expect("root slot"));
         }
         if self.io.is_due(now) && self.raw.room() > 0 {
-            file_layer::expire(&mut self.io, now, &mut self.raw);
+            step::expire(&mut self.io, &env, &mut self.raw);
         }
         if self.notice.is_none() && self.answer.is_none() {
             if let Some(event) = self.events.pop() {
@@ -210,7 +215,7 @@ impl GroupFiles {
                     },
                 };
                 self.waiting = true;
-                file_layer::down(&mut self.io, now, request, &mut self.events, &mut self.raw);
+                step::down(&mut self.io, &env, request, &mut self.events, &mut self.raw);
             }
         }
         self.publish(subs);
