@@ -16,6 +16,8 @@ files = [
   "temper/tests/real-loop/tests/suite/terminal.rs",
   "temper/tests/real-loop/tests/live_text.rs",
   "temper/docs/design/client/README.status.md",
+  "skein/crates/skein-ui/src/markdown.rs",
+  "skein/crates/skein-ui/src/tests/markdown.rs",
 ]
 effort = "high"
 minutes = 75
@@ -91,3 +93,15 @@ Options, each pre-approved:
 ## Report
 
 As the implementer's text says, and: what the terminal prints for a turn being written, and the rule added to `temper.css`.
+
+## Answers
+
+2026-11-06. **Who repairs the end of a reply that ends in a table: `growing-reader`, or this task in `skein-ui`?** This task. `growing-reader` has landed and is not reopened. Your acceptance can't hold without the change, `skein/docs/design/ui.md`, section 10, and `notes/contracts.md` both put the end inside the block holding the last word, and the draft's end stands "after the last word". The option `growing-reader` took, the table's next sibling, gives way to them, and leaves no departure to record. Resume from `f546abb559`.
+
+- **May also change, these edits alone:** `skein/crates/skein-ui/src/markdown.rs` and `skein/crates/skein-ui/src/tests/markdown.rs`, for this repair. `read` makes exactly what it made.
+- **The repair:** the pending closes already there. `row` takes `blocks`, and opens its row and cells with `open_block` and closes them with `close_block`; `close_table` closes with `close_block`. `read` has no pending closes, so nothing changes for it. `read_growing`'s doc comment loses its table sentence.
+- **Red first, in skein:** in `the_end_stands_after_the_last_word_in_the_block_that_holds_it`, the case `(b"| word |\n|--|\n| last |", Role::Page)` expects `Role::Cell`, the one expectation that moves. Add a case that the end stands in the column header for `b"| word |\n|--|"`. Your red view test stands unweakened and goes green.
+- **A last cell with no word yet** (`| a |\n|--|\n| c | **`): the end stands in that cell, where the next word comes. Don't add scanning for an earlier cell.
+- **Run also:** `heavy cargo nextest run -p skein-ui`, and clippy on it.
+
+2026-11-06. **`a_live_answer_past_the_engines_retained_bytes_arrives_whole` fails at its first step, cause unknown: what of it?** Merge `origin/chat-reading-a/integration` first. Its `10b93181f6` read the live text without the field's cut and changed this story to follow the answer from its start, piece by piece; your branch predates it. Where the merge meets, keep that story's shape with your `WRITING`, and your `provisional` with `read_growing`. If the story still fails after the merge, it's yours: read its log and find the cause.
