@@ -24,6 +24,8 @@ pub(super) fn clocks(service: &mut Stages, now: Time, wall: Wall) {
     service.machine_env.wall = wall;
     service.io_env.now = now;
     service.io_env.wall = wall;
+    service.file_env.now = now;
+    service.file_env.wall = wall;
 }
 
 /// Earliest active deadline over all child machines.
@@ -147,7 +149,7 @@ impl Stages {
     pub(super) fn parts(config: Config) -> Result<Parts, ConfigError> {
         let events = crate::event_producer(&config);
         let Config { mut limits, domain, channel_endpoints, llm_endpoints, environment, stream_mode, program } = config;
-        let program::Parts { program, files } = program::parts(program, &mut limits, &environment)?;
+        let program::Parts { program, files, file_limits } = program::parts(program, &mut limits, &environment)?;
         if limits.routes > 1 << 28_u32 {
             return Err(ConfigError::Queue);
         }
@@ -174,6 +176,7 @@ impl Stages {
                 llm_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.llm },
                 machine_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.machine },
                 io_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.io },
+                file_env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: file_limits },
                 channel_events: Queue::with_capacity(frames),
                 pending_messages: Queue::with_capacity(frames),
                 channel_below: Queue::with_capacity(frames),

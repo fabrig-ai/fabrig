@@ -121,7 +121,7 @@ pub fn main() -> ExitCode {
         Some(root) => match skein_shell::open_append(root, OBSERVATIONS_FILE.as_bytes(), 0o600) {
             Ok(file) => Some(file),
             Err(error) => {
-                skein_shell::close_keeper_fd(root);
+                skein_shell::keeper::close_keeper_fd(root);
                 eprintln!("fake claude: cannot open observations: {error:?}");
                 return ExitCode::FAILURE;
             }
@@ -132,7 +132,7 @@ pub fn main() -> ExitCode {
         Ok(signal) => signal,
         Err(error) => {
             for fd in config.into_iter().chain(observations) {
-                skein_shell::close_keeper_fd(fd);
+                skein_shell::keeper::close_keeper_fd(fd);
             }
             eprintln!("fake claude: cannot open signals: errno {error}");
             return ExitCode::FAILURE;

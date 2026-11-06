@@ -1531,7 +1531,7 @@ fn box_initializes_only_absent_or_empty_configuration_directories() {
             assert_eq!(second, first, "existing configuration is kept");
             assert!(reopened.is_empty(), "reading an existing configuration reserves no listeners");
             for (fd, _) in held {
-                skein_shell::close_keeper_fd(fd);
+                skein_shell::keeper::close_keeper_fd(fd);
             }
         }
         scratch.remove();

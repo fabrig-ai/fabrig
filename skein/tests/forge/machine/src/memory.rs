@@ -42,26 +42,45 @@ pub struct Full {
     pub jwt_bytes: u32,
     pub answer_bytes: u32,
 }
+/// Holders filled at the component boundary in each memory scenario.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Saturation {
+    pub forges: u32,
+    pub calls: u32,
+    pub connections: u32,
+    pub repositories: u32,
+    pub users: u32,
+    pub hooks: u32,
+    pub installations: u32,
+    pub minted_tokens: u32,
+    pub held_answers: u32,
+    pub file_rows: u32,
+    pub compare_commits: u32,
+    pub reviewers: u32,
+    pub queued: u32,
+    pub raw_bytes: u32,
+    pub held_hints: u32,
+}
 impl Full {
     #[must_use]
-    pub const fn saturation(&self) -> [u32; 15] {
-        [
-            self.forges,
-            self.calls,
-            self.connections,
-            self.repositories,
-            self.users,
-            self.hooks,
-            self.installations,
-            self.minted_tokens,
-            self.held_answers,
-            self.file_rows,
-            self.compare_commits,
-            self.reviewers,
-            self.queued,
-            self.raw_bytes,
-            self.held_hints,
-        ]
+    pub const fn saturation(&self) -> Saturation {
+        Saturation {
+            forges: self.forges,
+            calls: self.calls,
+            connections: self.connections,
+            repositories: self.repositories,
+            users: self.users,
+            hooks: self.hooks,
+            installations: self.installations,
+            minted_tokens: self.minted_tokens,
+            held_answers: self.held_answers,
+            file_rows: self.file_rows,
+            compare_commits: self.compare_commits,
+            reviewers: self.reviewers,
+            queued: self.queued,
+            raw_bytes: self.raw_bytes,
+            held_hints: self.held_hints,
+        }
     }
 }
 

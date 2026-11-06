@@ -662,7 +662,18 @@ traits, takes no closures, and uses no `dyn` (programming-model.md,
 final. It is generic over the asker's owner value and the requests it
 holds, and inspects neither owners, requests nor answers. It belongs in
 lib because it is a data structure with a lifecycle, like a queue or the journal; a service does not hand-roll one
-(programming-model.md, 10.2).
+(programming-model.md, 10.2). jig's client is its one user outside skein
+(`jig/docs/design/client/domain/root.md`, 4), and lib keeps it all the same: it
+is generic over the owner and the request, as no jig step crate may be
+(`jig/AGENTS.md`), and a crate of its own would hold this one module and add a
+manifest to save nothing.
+
+An entry lives through three lifecycles at once, one enum each
+(programming-model.md, 5.4): its sending (parked, ready, in flight, retrying,
+retired); its keeping (not yet saved, saved, or restored, which needs known
+retention and has nothing to save until its first sending); and its progress
+(nothing to say, a change not taken, or the last taken). Its age's anchor is a
+value learned once, read beside all three, and is no phase.
 
 - **Owner:** each request keeps the asker's own value, of a `Copy` type,
   held and handed back with progress and a final answer, never read. An

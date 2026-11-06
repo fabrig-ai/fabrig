@@ -17,19 +17,7 @@ use crate::{Limits, Service, Unusable, iterate, operations};
 
 const fn limits() -> Limits {
     Limits {
-        io: skein_io::Limits {
-            sockets: 4,
-            refusals: 1,
-            intake: 24,
-            receive: 8,
-            output: 32,
-            sends: 2,
-            accepts: 1,
-            backlog: 2,
-            close_timeout: Duration::from_secs(1),
-            names: 0,
-            retry: Duration::from_millis(10),
-        },
+        io: skein_io::Limits { sockets: 4, intake: 24, receive: 8, output: 32, backlog: 2, ..skein_io::Limits::TEST },
         protocol: protocol::Limits {
             conns: 2,
             line: 16,

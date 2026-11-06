@@ -119,19 +119,5 @@ pub use refusals::{
     NAMED_TASKS, Party, Refusal,
 };
 
-/// The source directory's portable public grammar (accounts.md, 3.4).
-#[must_use]
-pub fn program_name(name: &[u8]) -> bool {
-    if name.is_empty() || name.len() > 32 {
-        return false;
-    }
-    for byte in name {
-        if !byte.is_ascii_lowercase() && !byte.is_ascii_digit() && *byte != b'-' {
-            return false;
-        }
-    }
-    true
-}
-
 /// The deployment’s roster, not a project (people.md, 3: the deployment’s roles).
 pub const DEPLOYMENT: u32 = 0;

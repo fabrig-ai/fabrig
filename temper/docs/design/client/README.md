@@ -655,6 +655,24 @@ keeps (`../protocol/configuration.md`, section 2).
     hold?". The first message starts the chat with, under the person's words
     after a blank line, "Write this up as a draft beside us."; those words are
     visible as sent. The chat opens in Split.
+- **Where the focus stands on a chat** (the request `ui-composer-focus` of
+  2026-11-06):
+  - *Started by sending:* a chat a person has just started opens with its
+    composer focused, as soon as its composer shows (skein's `ui-web.md`, 7):
+    from a new chat, its draft, `Configure`, a starter and a suggested request
+    alike. "Start goal" is none of these: it opens the goal's page, its heading
+    focused. A start refused stays on its page and moves nothing.
+  - *Opened any other way* (a list, a link, an address, Back or Forward, a
+    reload): the chat opens on its heading, so that a person reading with a
+    screen reader or the keyboard lands on what the page is.
+  - *After a send,* by Enter or by "Send", the focus is in the composer, on a
+    chat's, a goal's and an agent's task's (5.11) alike: "Send" disables as the
+    words clear, and a disabled button holds no focus.
+  - *While the rename's form is open* it keeps the focus (5.3), and a composer
+    that has asked for it takes it back as the form closes.
+  - *On a phone* the same acts ask the same, as a phone's messaging app does:
+    the keyboard stays up after a send, and a chat opened from a list raises
+    none (section 11). The terminal draws no focus.
 - **A chat's document** (the greenfield mock's `chat.html`; the look request
   `configure-chat-draft`, for every chat): a chat keeps one Markdown document
   beside its conversation, which its agent writes (`../domain/agent.md`, 8.3).
@@ -3846,7 +3864,7 @@ The acts of both, each one act and one request (3.6):
   name taken, its shape, the role), the form stays and says why under
   its field. A closed form leaves the focus on the switcher's summary
   (skein's `ui-web.md`, 7), or on a page's own field where the page asks
-  it (a new chat, Configure).
+  it (a new chat, Configure, a composer after a send, 3.5).
 - **A new project:** the list ends with a form, "New project", holding
   a name's field, "+ New project" its placeholder, and "Create".
   "Create", or the field's Enter, sends jig's `MakeProject { name,
@@ -4915,7 +4933,8 @@ Its rules on a goal's page:
   bands, in the page's look: `.field`, `.text`, `.btn`.
 - **The composer,** while live and Message offered: the mock's `.composer`, as
   the chat's: its placeholder and name "Tell TITLE something", Send disabled
-  while empty, Enter sends, Shift+Enter a new line, growing to 220 px; then
+  while empty, Enter sends, Shift+Enter a new line, the focus in it after a
+  send (3.5), growing to 220 px; then
   `.composer-hint` "Its agent reads it at once. A change of plan becomes an
   amendment it shows you first." While Message is refused as `NotWaiting`, the
   composer's place holds nothing; ended, no composer.
@@ -6470,6 +6489,13 @@ own tests:
   select a field's words nor fold a disclosure (skein's `ui-web.md`, 15), and that
   request names none of the three. Default: the name unselected, the menu open with
   the focus on its summary, and no toast.
+- **A press that starts a chat, on a phone** (3.5, *Where the focus stands on a
+  chat*; the request `ui-composer-focus` of 2026-11-06): the tree has no width, so
+  a starter's or a suggested request's press asks for the composer's focus there
+  too, and a browser that lets a press's activation outlive the answer may raise
+  a keyboard the person did not ask for. Telling them apart takes a kit mechanism,
+  a focus request that raises no keyboard (skein's `ui-web.md`, 7). Default: the
+  same focus at every width.
 
 - **Pages the mockups do not show:** a project's page with its
   resources, findings, notes and settings (policy, people and roles,

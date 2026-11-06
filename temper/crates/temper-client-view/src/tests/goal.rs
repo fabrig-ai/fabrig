@@ -1774,6 +1774,18 @@ mod composer {
         }
     }
     #[test]
+    fn a_send_asks_for_the_goals_composer() {
+        let mut root = root(offered(), DONE, TOTAL, None, false);
+        for count in 0..=2 {
+            for words in [fixtures::browser_words(), fixtures::words()] {
+                let tree = draw(&root, &words).0;
+                let composer = &tree.nodes()[named_index(&tree, Role::TextArea, b"Tell Away mode something")];
+                assert_eq!(composer.focus, if count == 0 { None } else { Some(count) });
+            }
+            press(&mut root, Act::Send);
+        }
+    }
+    #[test]
     fn send_disabled_while_empty() {
         let mut root = root(offered(), DONE, TOTAL, None, false);
         for (draft, disabled) in [(b"".as_slice(), true), (PENDING, false), (b"", true)] {

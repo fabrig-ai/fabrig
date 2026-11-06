@@ -3,7 +3,7 @@
 //! It knows neither terminal demand nor child state. `begin`, root answers and
 //! shutdown update the machine; `follow_close` submits roots in the down pass.
 
-use super::{HostIo, PROGRAM_ROOT, file, file_layer, kernel};
+use super::{HostIo, PROGRAM_ROOT, file, file_layer::step, kernel};
 use skein_lib::{Time, Token};
 
 const ROOT_OWNER: Token = Token::new(u64::MAX);
@@ -115,9 +115,10 @@ impl HostIo {
             let position = self.close.next_root();
             let root =
                 *self.file_roots.get(usize::try_from(position).expect("root position fits")).expect("adopted root");
-            file_layer::down(
+            let env = self.file_env(now, skein_lib::Wall::EPOCH);
+            step::down(
                 &mut self.files,
-                now,
+                &env,
                 file::Request::Close { owner: ROOT_OWNER, file: root },
                 &mut self.file_events,
                 &mut self.file_submissions,
