@@ -1159,6 +1159,8 @@ pub(crate) fn toast(
     use temper_client_domain::pages::needs::{self, Toasted};
     let session = root.pages().needs();
     let Some(toast) = session.toast() else { return };
+    b.open(Role::Region);
+    b.name(&w.say(Word::ToastRegion, &[]));
     let (said, undo) = match toast {
         Toasted::Answered { object, label } => {
             let label = crate::pages::ask::answered_label(w, label);
@@ -1247,6 +1249,7 @@ pub(crate) fn toast(
             bindings,
         );
     }
+    b.close();
     b.close();
 }
 

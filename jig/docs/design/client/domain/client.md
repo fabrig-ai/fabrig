@@ -485,8 +485,9 @@ handles, as every presentation does (sections 7 and 8).
   { handle, page }`: the document, or the page with its cursors, or why
   there is none: unknown, gone, too large with its size, malformed,
   refused, busy, signed out, version not served, or unreachable, when
-  its exchange is lost (gone, too large and malformed for a turn read
-  alone, contract.md, section 6). A read is one attempt
+  its exchange is lost (gone and too large for a turn read alone,
+  contract.md, section 6; malformed for a turn that does not decode, and
+  for any read whose answer does not, section 16). A read is one attempt
   (`../../protocol/client.md`, section 6): the application reads again
   if it wants.
 - **What is live is watched; what is past is read.** The engine holds
@@ -788,7 +789,9 @@ for any presentation of a chat or of any agent task's activity.
 - **A person's words, in three states:** being sent, while their
   `Message` is pending; sent, once its answer names their message in
   the task's inbox; read, once a committed turn says it read through
-  that message.
+  that message. A thread keeps at most its `bytes` of them, each within its
+  `text`: `sending` refuses words past either, and whoever drafted them keeps
+  them and says so.
 - **A window bounded by size.** A thread's `bytes` bound its lines: a
   line weighs its bytes of words, texts, names, inputs, outcomes and
   summaries, and `LINE_ROOM` (64) for itself and for each message, block,
@@ -1056,9 +1059,13 @@ outcome needs its line. It is at least the receiving field bound `text` and at
 most `turn_bytes`; limits outside those bounds are refused.
 
 `DomainLimits.long_text` bounds what a person may read or send whole past a
-field's `text`: a note's body, a document's text and a task's words, and what one
-delivery of a run's text carries, within the wire's ceiling for it. It is at
-least `text` and at most `document_bytes`, and a request's `ask_bytes` holds it.
+field's `text`: a note's body, a document's text and a task's words, the words of
+an activity line (a `Words` line, a word heard or notified) and of a `Message` or
+an answer to a question, and what one delivery of a run's text carries, within the
+wire's ceiling for it. It is at least `text` and at most `document_bytes`, and a
+request's `ask_bytes` holds it. A line holds what the store took, whoever wrote it,
+so a deployment whose `tasks.message_bytes` or `tasks.result_bytes` pass `long_text`,
+or whose page of lines passes `document_bytes`, has that page refused (section 16).
 
 Reads have room independently of watch handles; a read need not own a
 watch. Pending entries price both their token and optional family. A
@@ -1137,7 +1144,9 @@ the client's protocol designs (`../../protocol/client.md`):
 - **The clients' component,** at the engine's end, takes jig's messages
   with their credentials, answers each exchange with one record, and
   writes the stream (`../../protocol/client.md`, 4.2). It knows no
-  HTTP.
+  HTTP. A read's answer it cannot encode within its wire's bounds is
+  answered malformed: closing the exchange would read as a lost one, which
+  a client asks again.
 - **Documents decoded whole,** into the client's types, and checked
   against the client's limits before they reach its domain
   (programming-model.md, 4.4); a document past them is refused at
@@ -1151,6 +1160,12 @@ the client's protocol designs (`../../protocol/client.md`):
   what its rows decode to is charged against the bytes the domain holds
   for a document, twice the client's document limit (section 14). A
   document past a count or that room is refused as too large.
+- **An answer that came and does not decode ends its read.** Whatever the
+  cause, malformed, past the client's bounds or of another version, a jig
+  read ends malformed, beside the link's `UndecodableDocument` fact: asking
+  again would get the same answer. A family's read ends with no record, as any
+  of its failures does. Only a lost exchange ends unreachable, which an
+  application may ask again by itself.
 
 ## 17. The world
 
