@@ -87,7 +87,6 @@ fn story_steps() -> Vec<Step> {
                 PersonStep::Gone { find, within } => PersonStep::Gone { find, within },
                 PersonStep::Reload => PersonStep::Reload,
                 PersonStep::Pause { span } => PersonStep::Pause { span },
-                PersonStep::Near { find, edge } => PersonStep::Near { find, edge },
             }))
         })
         .collect()
