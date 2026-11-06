@@ -724,6 +724,24 @@ fn proposal_short_stops_at_sentence_or_first_line_and_batch_uses_heading() {
     );
 }
 #[test]
+fn a_proposal_s_question_line_leaves_off_a_heading_s_marks() {
+    for (reason, expected) in [
+        ("## temper enforces\nNo direct pushes.", Some("temper enforces")),
+        ("##\nNo direct pushes. More.", Some("No direct pushes.")),
+        ("##\n###", None),
+        ("  \n## temper enforces", Some("temper enforces")),
+        ("#hashtag stays", Some("#hashtag stays")),
+    ] {
+        let mut p = proposal(c::Proposer::Task(9));
+        p.reason = words(reason);
+        let root = kinds(&[proposal_row(p)]);
+        let card = root.pages().needs().shown(root.pages().inbox().unwrap()).unwrap();
+        let asked = crate::pages::ask::read(card, &f::words());
+        assert_eq!(asked.short.as_ref(), expected.map(str::as_bytes).unwrap_or(&asked.title), "{reason}");
+        assert_eq!(styled(&f::browser_page_view(&root), look::FLOW_Q).name.as_deref(), Some(asked.short.as_ref()));
+    }
+}
+#[test]
 fn held_parts_release_leave_held_and_missing_hold() {
     for reason in [Some(c::HoldCategory::Stalled), None] {
         let h = held(reason);
