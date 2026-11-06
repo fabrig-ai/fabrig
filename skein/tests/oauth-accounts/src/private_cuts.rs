@@ -100,14 +100,8 @@ pub struct Judge {
 }
 impl Referee<Process> for Judge {
     fn act(&mut self, _now: Time, procs: &mut [Process]) {
-        let address = match &procs[0].inner {
-            Inner::Issuer(peer) => peer.address(),
-            Inner::Client(_) => unreachable!("issuer"),
-        };
-        let client = match &mut procs[1].inner {
-            Inner::Client(client) => client,
-            Inner::Issuer(_) => unreachable!("owner"),
-        };
+        let address = procs[0].inner.issuer().expect("issuer process").address();
+        let client = procs[1].inner.client_mut().expect("client process");
         if let Some(address) = address {
             client.address = Some(address);
             if !self.started && client.unstarted() {
@@ -117,21 +111,12 @@ impl Referee<Process> for Judge {
         }
         if procs[1].is_empty() && !self.shutdown {
             self.shutdown = true;
-            match &mut procs[0].inner {
-                Inner::Issuer(peer) => peer.shutdown(),
-                Inner::Client(_) => unreachable!("issuer"),
-            }
+            procs[0].inner.issuer_mut().expect("issuer").shutdown();
         }
     }
     fn observe(&mut self, now: Time, procs: &[Process]) {
-        let address_ready = match &procs[0].inner {
-            Inner::Issuer(peer) => peer.address().is_some(),
-            Inner::Client(_) => false,
-        };
-        let client = match &procs[1].inner {
-            Inner::Client(client) => client,
-            Inner::Issuer(_) => unreachable!("owner"),
-        };
+        let address_ready = procs[0].inner.issuer().is_some_and(|peer| peer.address().is_some());
+        let client = procs[1].inner.client().expect("client process");
         self.wake = ((client.unstarted() && address_ready) || (procs[1].is_empty() && !self.shutdown)).then_some(now);
         self.passed = self.shutdown && procs.iter().all(Host::is_empty);
     }
@@ -163,8 +148,5 @@ pub fn world(seed: u64) -> World<Process, Judge, FileSystem> {
 /// The kept generation loaded by the fresh owner after a cut.
 #[must_use]
 pub fn recovered(procs: &[Process]) -> u64 {
-    match &procs[1].inner {
-        Inner::Client(client) => client.recovered.expect("recovery loaded a record"),
-        Inner::Issuer(_) => unreachable!("owner"),
-    }
+    procs[1].inner.client().expect("client process").recovered.expect("recovery loaded a record")
 }

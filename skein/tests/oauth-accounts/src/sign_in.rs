@@ -1,14 +1,16 @@
 //! Actual accounts sign-in with an independent issuer and scripted browser.
 //! The shared world owns schedules, replay and process heaps (oauth.md, 6.8).
+use crate::world::Client;
+pub use crate::world::Process;
 use skein_fake_oauth as fake;
 use skein_fake_peers::{Transport, oauth as peer};
 use skein_io::{self as io, kernel};
-use skein_lib::{Duration, Env, List, Queue, Time, Wall, bytes};
+use skein_lib::{Duration, Env, List, Time, Wall, bytes};
 use skein_oauth as oauth;
 use skein_oauth_accounts as accounts;
 use skein_world::domain::Ledger;
-use skein_world::{Delegate, Host, Memory, Outcome, Referee, World};
-use std::net::{Ipv4Addr, SocketAddr};
+use skein_world::{Host, Memory, Outcome, Referee, World};
+use std::net::Ipv4Addr;
 mod browser;
 #[cfg(test)]
 mod cuts;
@@ -282,29 +284,15 @@ impl Default for Contracts {
         Self::new()
     }
 }
-/// The actual owner adapter routes io to the accounts component.
-pub struct Client {
-    io: io::Io,
-    component: Option<accounts::Component>,
-    limits: accounts::Limits,
-    events: Queue<io::Event>,
-    requests: Queue<io::Request>,
-    files: Queue<accounts::FileLower>,
-    file_driver: Option<skein_world::files::Driver>,
-    file_keep: Option<(skein_lib::Token, oauth::SavedToken)>,
+/// Sign-in decisions and observations on the shared owner harness.
+pub(crate) struct Owner {
     opened_private: Option<Time>,
     stored_private: Option<Time>,
-    above: Queue<accounts::Event>,
-    completions: Queue<kernel::Complete>,
-    submissions: Queue<kernel::Submit>,
-    address: Option<SocketAddr>,
     story: Story,
     facts: Vec<Fact>,
     records: Vec<oauth::SavedToken>,
     contracts: Vec<Contracts>,
     visits: Vec<Box<[u8]>>,
-    closing: bool,
-    closed: bool,
     large: bool,
     redirected: [u8; 1024],
     redirected_len: usize,
@@ -313,235 +301,81 @@ pub struct Client {
     pending_keep: Option<(u32, u64)>,
     expired_paste: Option<Box<[u8]>>,
 }
-impl Client {
-    fn new(story: Story, large: bool) -> Self {
-        Self::with_limits(story, large, &super::world::limits(), ROOM)
-    }
-    fn with_limits(story: Story, large: bool, limits: &accounts::Limits, room: u32) -> Self {
-        let mut limits = *limits;
-        if matches!(story, Story::Return(_)) {
-            limits.server.response = limits.server.response.max(4096);
-        }
-        if matches!(story, Story::TwoPorts | Story::Restart) {
-            limits.listeners = 2;
-            limits.io.sockets = 6;
-        }
-        Self {
-            io: io::Io::new(&limits.io),
-            component: None,
-            limits,
-            events: Queue::uncapped(),
-            requests: Queue::uncapped(),
-            files: Queue::uncapped(),
-            file_driver: None,
-            file_keep: None,
-            opened_private: None,
-            stored_private: None,
-            above: Queue::uncapped(),
-            completions: Queue::with_capacity(room),
-            submissions: Queue::with_capacity(room),
-            address: None,
-            story,
-            facts: Vec::with_capacity(16),
-            records: Vec::with_capacity(2),
-            contracts: (0..if story == Story::TwoPorts { 2 } else { 1 }).map(|_| Contracts::new()).collect(),
-            visits: Vec::with_capacity(2),
-            closing: false,
-            closed: false,
-            large,
-            redirected: [0; 1024],
-            redirected_len: 0,
-            again_at: None,
-            callback: paste::Callback::Waiting,
-            pending_keep: None,
-            expired_paste: None,
-        }
-    }
-    fn private_io(&mut self, env: &Env<accounts::Limits>) {
-        if self.file_driver.is_none() {
-            return;
-        }
-        while let Some(lower) = self.files.pop() {
-            match lower {
-                accounts::FileLower::Request { request, deadline } => {
-                    if let io::file::Request::Store { owner, bytes, .. } = &request {
-                        let record =
-                            oauth::decode_record(bytes, &env.limits.client.document).expect("candidate record");
-                        self.contracts[0].keep(record.generation);
-                        self.facts.push(Fact::Keep(record.generation));
-                        assert!(self.file_keep.is_none());
-                        self.file_keep = Some((*owner, record));
-                    }
-                    self.file_driver.as_mut().expect("file driver").request(request, deadline);
-                }
-                accounts::FileLower::Remove { owner, root, name, directory, deadline } => {
-                    let driver = self.file_driver.as_mut().expect("file driver");
-                    let root = driver.descriptor(root).expect("private root");
-                    driver.request(io::file::Request::Remove { owner, root, name, directory }, deadline);
-                }
-                accounts::FileLower::Cancel { owner } => self.file_driver.as_mut().expect("file driver").cancel(owner),
-            }
-        }
-        self.file_driver.as_mut().expect("file driver").progress(env.now);
-        while let Some(event) = self.file_driver.as_mut().expect("file driver").take_event() {
-            if event.owner() == skein_lib::Token::new(u64::MAX) {
-                continue;
-            }
-            if matches!(event, io::file::Event::Opened { .. }) {
-                self.opened_private = Some(env.now);
-            }
-            if matches!(event, io::file::Event::Stored { .. }) {
-                self.stored_private = Some(env.now);
-            }
-            if self.file_keep.as_ref().is_some_and(|(owner, _)| *owner == event.owner()) {
-                let (_, record) = self.file_keep.take().expect("matching keep");
-                self.contracts[0].kept(record.generation, matches!(event, io::file::Event::Stored { .. }));
-                self.records.push(record);
-            }
-            self.component.as_mut().expect("started component").filed(
-                env,
-                event,
-                &mut self.above,
-                &mut self.requests,
-                &mut self.files,
-            );
-        }
-        while let Some(submit) = self.file_driver.as_mut().expect("file driver").take_submit() {
-            self.submissions.push(submit);
-        }
-    }
+
+fn client(story: Story, large: bool) -> Client {
+    client_with_limits(story, large, &crate::world::limits(), ROOM)
 }
-impl Host for Client {
-    fn iterate(&mut self, now: Time, wall: Wall) {
-        let env = Env { now, wall, limits: self.limits };
-        self.restart(&env);
-        if self.component.is_none() && self.address.is_some() {
-            self.start(&env);
-        }
-        if self.redirected_len > 0 {
-            let uri = bytes::copy_of(&self.redirected[..self.redirected_len]);
-            self.redirected_len = 0;
-            self.paste(&env, uri);
-        }
-        let io_env = Env { now, wall, limits: self.limits.io };
-        self.private_io(&env);
-        // The file driver shares the kernel's completions: it takes its own (they submit only into its
-        // queue, which `private_io` drains), and io's stage takes the rest in their order.
-        for _ in 0..self.completions.len() {
-            let Some(complete) = self.completions.pop() else { break };
-            if skein_world::files::Driver::owns(complete.op) {
-                self.file_driver.as_mut().expect("tagged file completion").up(complete);
-            } else {
-                self.completions.push(complete);
-            }
-        }
-        io::stage::up(&mut self.io, &io_env, &mut self.completions, &mut self.events, &mut self.submissions, now);
-        for _ in 0..ROOM {
-            let Some(event) = self.events.pop() else { break };
-            if matches!(event, io::Event::Accepted { .. }) {
-                self.callback = paste::Callback::Accepted;
-            }
-            self.component.as_mut().expect("io follows started component").up(
-                &env,
-                event,
-                &mut self.above,
-                &mut self.requests,
-                &mut self.files,
-            );
-        }
-        if let Some(component) = &mut self.component
-            && (component.has_work() || component.next_deadline().is_some_and(|due| due <= now))
-        {
-            component.fire(&env, &mut self.above, &mut self.requests, &mut self.files);
-        }
-        {
-            self.observe(&env);
-        }
-        io::stage::down(&mut self.io, &io_env, &mut self.requests, &mut self.submissions);
-        self.private_io(&env);
-        self.io.reclaim();
-        if let Some(component) = &mut self.component {
-            component.reclaim();
-        }
+fn client_with_limits(story: Story, large: bool, limits: &accounts::Limits, room: u32) -> Client {
+    let mut tuned = *limits;
+    if matches!(story, Story::Return(_)) {
+        tuned.server.response = tuned.server.response.max(4096);
     }
-    fn completions(&mut self) -> &mut Queue<kernel::Complete> {
-        &mut self.completions
+    if matches!(story, Story::TwoPorts | Story::Restart) {
+        tuned.listeners = 2;
+        tuned.io.sockets = 6;
     }
-    fn submissions(&mut self) -> &mut Queue<kernel::Submit> {
-        &mut self.submissions
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        self.file_driver.as_ref().is_some_and(skein_world::files::Driver::has_work)
-            || !self.files.is_empty()
-            || self.io.is_ready()
-            || !self.events.is_empty()
-            || !self.requests.is_empty()
-            || !self.above.is_empty()
-            || !self.completions.is_empty()
-            || self.redirected_len > 0
-            || (self.pending_keep.is_some() && self.callback == paste::Callback::Finished)
-            || (self.component.is_none() && self.address.is_some())
-            || self.component.as_ref().is_some_and(|component| {
-                component.has_work() || component.next_deadline().is_some_and(|due| due <= now)
-            })
-    }
-    fn next_mechanism_deadline(&self) -> Option<Time> {
-        [
-            self.io.next_deadline(),
-            self.again_at,
-            self.file_driver.as_ref().and_then(skein_world::files::Driver::next_deadline),
-        ]
-        .into_iter()
-        .flatten()
-        .min()
-    }
-
-    fn next_policy_deadline(&self) -> Option<Time> {
-        self.component.as_ref().and_then(accounts::Component::next_deadline)
-    }
-
-    fn is_empty(&self) -> bool {
-        self.closed
-            && self.io.is_empty()
-            && self.file_driver.as_ref().is_none_or(skein_world::files::Driver::is_empty)
-            && self.events.is_empty()
-            && self.requests.is_empty()
-            && self.files.is_empty()
-            && self.above.is_empty()
-            && self.completions.is_empty()
-            && self.submissions.is_empty()
-    }
-    fn operations(&self) -> u32 {
-        io::operations(&self.limits.io).expect("io operations")
-    }
+    let mut client = Client::with_limits(crate::world::Story::Rotate, Transport::Plaintext, &tuned, room);
+    client.sign_in = Some(Owner {
+        opened_private: None,
+        stored_private: None,
+        story,
+        facts: Vec::with_capacity(16),
+        records: Vec::with_capacity(2),
+        contracts: (0..if story == Story::TwoPorts { 2 } else { 1 }).map(|_| Contracts::new()).collect(),
+        visits: Vec::with_capacity(2),
+        large,
+        redirected: [0; 1024],
+        redirected_len: 0,
+        again_at: None,
+        callback: paste::Callback::Waiting,
+        pending_keep: None,
+        expired_paste: None,
+    });
+    client
 }
 
-/// The two actual processes of a component world.
-pub enum Process {
-    /// The owner-driven component with its own io loop.
-    Client(Box<Client>),
-    /// The independent scripted issuer, which stays live until the owner settles.
-    Issuer(Box<peer::Peer>),
-    /// The browser receives the authorization redirect and callback page.
-    Browser(Box<Browser>),
+fn owner(client: &Client) -> &Owner {
+    client.sign_in.as_ref().expect("sign-in story")
 }
+fn owner_mut(client: &mut Client) -> &mut Owner {
+    client.sign_in.as_mut().expect("sign-in story")
+}
+pub(crate) use owner::{observe, restart, start};
 
-impl Delegate for Process {
-    fn host(&self) -> &dyn Host {
-        match self {
-            Process::Client(host) => host.as_ref(),
-            Process::Issuer(host) => host.as_ref(),
-            Process::Browser(host) => host.as_ref(),
-        }
+pub(crate) fn accepted(client: &mut Client, event: &io::Event) {
+    if matches!(event, io::Event::Accepted { .. }) {
+        owner_mut(client).callback = paste::Callback::Accepted;
     }
-
-    fn host_mut(&mut self) -> &mut dyn Host {
-        match self {
-            Process::Client(host) => host.as_mut(),
-            Process::Issuer(host) => host.as_mut(),
-            Process::Browser(host) => host.as_mut(),
-        }
+}
+pub(crate) fn redirected(client: &mut Client, env: &Env<accounts::Limits>) {
+    if owner(client).redirected_len > 0 {
+        let state = owner_mut(client);
+        let uri = bytes::copy_of(&state.redirected[..state.redirected_len]);
+        state.redirected_len = 0;
+        paste::paste(client, env, uri);
     }
+}
+pub(crate) fn work_pending(owner: &Owner) -> bool {
+    owner.redirected_len > 0 || (owner.pending_keep.is_some() && owner.callback == paste::Callback::Finished)
+}
+pub(crate) fn next_deadline(owner: &Owner) -> Option<Time> {
+    owner.again_at
+}
+pub(crate) fn file_event(client: &mut Client, now: Time, event: &io::file::Event) {
+    if matches!(event, io::file::Event::Opened { .. }) {
+        owner_mut(client).opened_private = Some(now);
+    }
+    if matches!(event, io::file::Event::Stored { .. }) {
+        owner_mut(client).stored_private = Some(now);
+    }
+}
+pub(crate) fn keeping(owner: &mut Owner, generation: u64) {
+    owner.contracts[0].keep(generation);
+    owner.facts.push(Fact::Keep(generation));
+}
+pub(crate) fn kept(owner: &mut Owner, record: oauth::SavedToken, yes: bool) {
+    owner.contracts[0].kept(record.generation, yes);
+    owner.records.push(record);
 }
 
 #[expect(clippy::struct_excessive_bools, reason = "independent outside delivery, shutdown and success observations")]
@@ -567,8 +401,8 @@ impl Referee<Process> for Judge {
             .iter()
             .find_map(|process| match process {
                 Process::Client(client) => Some((
-                    paste::delivery_ready(self.story, client.callback, browser_done, &client.facts),
-                    paste::callback_permitted(self.story, &client.facts),
+                    paste::delivery_ready(self.story, owner(client).callback, browser_done, &owner(client).facts),
+                    paste::callback_permitted(self.story, &owner(client).facts),
                 )),
                 Process::Browser(_) | Process::Issuer(_) => None,
             })
@@ -580,7 +414,7 @@ impl Referee<Process> for Judge {
         for process in processes.iter() {
             match process {
                 Process::Client(client) => {
-                    if let Some(url) = client.visits.get(self.delivered) {
+                    if let Some(url) = owner(client).visits.get(self.delivered) {
                         visit_len = url.len();
                         visit[..visit_len].copy_from_slice(url);
                     }
@@ -602,15 +436,15 @@ impl Referee<Process> for Judge {
                         client.address = address;
                     }
                     if browser_done {
-                        client.callback = paste::Callback::Finished;
+                        owner_mut(client).callback = paste::Callback::Finished;
                     }
                     if (confidential(self.story) || paste::story(self.story))
                         && paste_ready
                         && !self.redirected
                         && redirect_len > 0
                     {
-                        client.redirected[..redirect_len].copy_from_slice(&redirect[..redirect_len]);
-                        client.redirected_len = redirect_len;
+                        owner_mut(client).redirected[..redirect_len].copy_from_slice(&redirect[..redirect_len]);
+                        owner_mut(client).redirected_len = redirect_len;
                         self.redirected = true;
                     }
                 }
@@ -632,38 +466,20 @@ impl Referee<Process> for Judge {
         }
     }
     fn observe(&mut self, now: Time, processes: &[Process]) {
-        let client = processes
-            .iter()
-            .find_map(|process| match process {
-                Process::Client(client) => Some(client),
-                Process::Browser(_) | Process::Issuer(_) => None,
-            })
-            .expect("owner");
-        let browser = processes
-            .iter()
-            .find_map(|process| match process {
-                Process::Browser(browser) => Some(browser),
-                Process::Client(_) | Process::Issuer(_) => None,
-            })
-            .expect("browser");
-        let issuer = processes
-            .iter()
-            .find_map(|process| match process {
-                Process::Issuer(peer) => Some(peer),
-                Process::Client(_) | Process::Browser(_) => None,
-            })
-            .expect("issuer");
+        let client = processes.iter().find_map(Process::client).expect("owner");
+        let browser = processes.iter().find_map(Process::browser).expect("browser");
+        let issuer = processes.iter().find_map(Process::issuer).expect("issuer");
         self.wake = ((client.component.is_none()
             && issuer.address().is_some()
             && (self.story != Story::VaryingTaken || browser.holder.is_some()))
-            || (client.visits.len() > self.delivered
+            || (owner(client).visits.len() > self.delivered
                 && !matches!(self.story, Story::Cancel | Story::Abort | Story::Timeout))
             || ((confidential(self.story) || paste::story(self.story))
-                && paste::delivery_ready(self.story, client.callback, browser.done, &client.facts)
+                && paste::delivery_ready(self.story, owner(client).callback, browser.done, &owner(client).facts)
                 && !self.redirected
                 && browser.redirect.is_some())
-            || browser.callback_permitted != paste::callback_permitted(self.story, &client.facts)
-            || (browser.done && client.pending_keep.is_some())
+            || browser.callback_permitted != paste::callback_permitted(self.story, &owner(client).facts)
+            || (browser.done && owner(client).pending_keep.is_some())
             || (!self.shutdown && client.is_empty() && browser.is_empty()))
         .then_some(now);
         if client.closed {
@@ -739,7 +555,7 @@ pub fn run(seed: u64, story: Story, faulted: bool, large: bool, memory: Memory) 
         memory,
     );
     world.spawn(|| issuer(story, large));
-    world.spawn(|| Process::Client(Box::new(Client::new(story, large))));
+    world.spawn(|| Process::Client(Box::new(client(story, large))));
     world.spawn(|| Process::Browser(Box::new(Browser::new(story))));
     world.run()
 }
@@ -749,7 +565,7 @@ pub fn facts(processes: &[Process]) -> &[Fact] {
     processes
         .iter()
         .find_map(|process| match process {
-            Process::Client(client) => Some(client.facts.as_slice()),
+            Process::Client(client) => Some(owner(client).facts.as_slice()),
             Process::Issuer(_) | Process::Browser(_) => None,
         })
         .expect("client")
@@ -760,9 +576,9 @@ pub fn assert_replay(first: &Outcome<Process>, second: &Outcome<Process>) {
     for (first, second) in first.procs.iter().zip(&second.procs) {
         match (first, second) {
             (Process::Client(first), Process::Client(second)) => {
-                assert_eq!(first.facts, second.facts);
-                assert!(first.records == second.records);
-                assert!(first.visits == second.visits);
+                assert_eq!(owner(first).facts, owner(second).facts);
+                assert!(owner(first).records == owner(second).records);
+                assert!(owner(first).visits == owner(second).visits);
             }
             (Process::Issuer(first), Process::Issuer(second)) => assert!(first.observations() == second.observations()),
             (Process::Browser(first), Process::Browser(second)) => {
@@ -815,7 +631,7 @@ fn private_story(
     .with_machine(files);
     world.spawn(|| issuer(story, false));
     world.spawn_root(root, |fd| {
-        let mut client = Client::new(story, false);
+        let mut client = client(story, false);
         client.file_driver = Some(skein_world::files::Driver::new(
             fd,
             4,
