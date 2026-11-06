@@ -920,8 +920,8 @@ have one, an engine alone none. Each:
   holds its place until the engine has ended it, so a deployment allows
   each party, and each stream, at least the watches one client opens at
   its limit, `me`'s included (jig's `client/domain/contract.md`, 7.2;
-  jig's `protocol/client.md`, section 13). temper's client opens 17, so
-  its engine allows 17 a party, 17 a stream and 17 in all, temper's own
+  jig's `protocol/client.md`, section 13). temper's client opens 19, so
+  its engine allows 19 a party, 19 a stream and 19 in all, temper's own
   numbers above jig's profiles' 4, which the root holds whatever
   `engine.limits` says (`../domain/root.md`, section 10). It checks none
   of this at start, as for documents (above); the same test holds these
