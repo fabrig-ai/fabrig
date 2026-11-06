@@ -1134,6 +1134,8 @@ pub const NAMES: Names<'static> = Names {
         b"temper-confirm-acts",
         b"temper-confirm-do",
         b"temper-confirm-choices",
+        b"temper-rail-person",
+        b"temper-settings-sign-out",
     ],
     regions: &[b"temper-link"],
 };
@@ -1312,6 +1314,10 @@ pub const CONFIRM_ACTS: Style = Style { owner: owner(), token: 455 };
 pub const CONFIRM_DO: Style = Style { owner: owner(), token: 456 };
 /// An uncertain release's choices (client/README.md, 3.6, The sheet).
 pub const CONFIRM_CHOICES: Style = Style { owner: owner(), token: 457 };
+/// The browser's person menu (client/README.md, 5.3).
+pub const RAIL_PERSON: Style = Style { owner: owner(), token: 458 };
+/// The Accounts tab's sign-out row (client/README.md, 3.5).
+pub const SETTINGS_SIGN_OUT: Style = Style { owner: owner(), token: 459 };
 
 #[cfg(test)]
 mod tests {

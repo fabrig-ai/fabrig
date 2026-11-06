@@ -584,3 +584,34 @@ fn a_keyed_slot_keeps_its_node_as_its_sibling_changes() {
         equal(&model, view.tree());
     }
 }
+
+#[test]
+fn a_changed_order_is_one_attribute_patch() {
+    let mut view = View::new(&LIMITS);
+    let mut out = Queue::with_capacity(LIMITS.patches);
+    let mut ids = Vec::new();
+    for first in [1, 4] {
+        let mut b = view.builder();
+        b.open(Role::List);
+        b.ordered(first);
+        for word in [b"one".as_slice(), b"two"] {
+            b.open(Role::Item);
+            b.text(Run::Plain, word);
+            b.close();
+        }
+        b.close();
+        view.finish(b, u64::from(first), &mut out);
+        if first == 1 {
+            ids = view.tree().nodes().iter().map(|node| node.id).collect();
+            out.clear();
+        }
+    }
+    assert_eq!(view.tree().nodes().iter().map(|node| node.id).collect::<Vec<_>>(), ids);
+    assert_eq!(out.len(), 1);
+    match out.pop().unwrap() {
+        Patch::Attribute { node, attribute } => assert_eq!((node, attribute.ordered), (ids[0], Some(4))),
+        Patch::Insert { .. } | Patch::Remove { .. } | Patch::Move { .. } | Patch::Text { .. } | Patch::Value { .. } => {
+            panic!("only order changed")
+        }
+    }
+}

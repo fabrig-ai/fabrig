@@ -11,7 +11,7 @@ use skein_lib::{List, Stack};
 #[derive(Clone, Copy, Debug)]
 struct ListLevel {
     indent: usize,
-    ordered: bool,
+    number: Option<u32>,
 }
 #[derive(Clone, Copy, Debug)]
 struct Fence {
@@ -22,6 +22,7 @@ struct Fence {
 struct Blocks {
     lists: Stack<ListLevel>,
     paragraph: bool,
+    follows: Option<u32>,
     fence: Option<Fence>,
     table: bool,
     delimiter: bool,
@@ -46,6 +47,7 @@ pub fn read(input: &[u8], heading_base: u8, builder: &mut Builder) {
     let mut blocks = Blocks {
         lists: Stack::with_capacity(builder.limits.markdown_depth),
         paragraph: false,
+        follows: None,
         fence: None,
         table: false,
         delimiter: false,
@@ -71,6 +73,10 @@ pub fn read(input: &[u8], heading_base: u8, builder: &mut Builder) {
     close_lists(&mut blocks, builder);
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "block dispatch keeps numbered paragraph interruption beside the other block rules"
+)]
 fn line(input: &[u8], start: usize, end: usize, next: usize, base: u8, blocks: &mut Blocks, builder: &mut Builder) {
     let raw = input.get(start..end).expect("line is in input");
     let raw = raw.strip_suffix(b"\r").unwrap_or(raw);
@@ -137,12 +143,14 @@ fn line(input: &[u8], start: usize, end: usize, next: usize, base: u8, blocks: &
         builder.close();
         return;
     }
-    if let Some(item) = list_item(raw) {
+    if let Some(item) = list_item(raw)
+        && (!blocks.paragraph
+            || item.level.number.is_none()
+            || item.level.number == Some(1)
+            || item.level.number == blocks.follows)
+    {
         close_paragraph(blocks, builder);
         if list_step(blocks, item.level, builder) {
-            if item.level.ordered {
-                builder.text(Run::Plain, raw.get(item.level.indent..item.body).expect("ordered marker exists"));
-            }
             inline(raw.get(item.body..).expect("list body exists"), false, builder);
         } else {
             close_lists(blocks, builder);
@@ -340,24 +348,32 @@ fn list_item(line: &[u8]) -> Option<Item> {
     let rest = line.get(indent..)?;
     for marker in [b"- ", b"* ", b"+ "] {
         if rest.starts_with(marker) {
-            return Some(Item { level: ListLevel { indent, ordered: false }, body: indent.checked_add(2)? });
+            return Some(Item { level: ListLevel { indent, number: None }, body: indent.checked_add(2)? });
         }
     }
     let mut digits = 0_usize;
+    let mut number = 0_u32;
     for byte in rest {
         if !byte.is_ascii_digit() {
             break;
         }
         digits = digits.checked_add(1)?;
+        if digits > 9 || (digits > 1 && rest.first() == Some(&b'0')) {
+            return None;
+        }
+        number = number.checked_mul(10)?.checked_add(u32::from(byte.checked_sub(b'0')?))?;
     }
     if digits > 0 && rest.get(digits..digits.checked_add(2)?) == Some(b". ") {
-        Some(Item { level: ListLevel { indent, ordered: true }, body: indent.checked_add(digits)?.checked_add(2)? })
+        Some(Item {
+            level: ListLevel { indent, number: Some(number) },
+            body: indent.checked_add(digits)?.checked_add(2)?,
+        })
     } else {
         None
     }
 }
 
-fn list_step(blocks: &mut Blocks, level: ListLevel, builder: &mut Builder) -> bool {
+fn list_step(blocks: &mut Blocks, mut level: ListLevel, builder: &mut Builder) -> bool {
     let limit = builder.limits.markdown_depth;
     if u32::try_from(level.indent.checked_div(2).expect("nonzero divisor")).expect("input indentation fits u32")
         >= limit
@@ -372,8 +388,11 @@ fn list_step(blocks: &mut Blocks, level: ListLevel, builder: &mut Builder) -> bo
         builder.close();
         let _closed = blocks.lists.pop().expect("list level remains");
     }
-    if let Some(top) = blocks.lists.top() {
-        if top.indent == level.indent && top.ordered == level.ordered {
+    if let Some(top) = blocks.lists.top_mut() {
+        if top.indent == level.indent && top.number == level.number {
+            if let Some(number) = top.number {
+                top.number = Some(number.checked_add(1).expect("nine-digit list number has a successor"));
+            }
             builder.close();
             builder.open(Role::Item);
             return true;
@@ -388,13 +407,20 @@ fn list_step(blocks: &mut Blocks, level: ListLevel, builder: &mut Builder) -> bo
         return false;
     }
     builder.open(Role::List);
+    if let Some(first) = level.number {
+        builder.ordered(first);
+        level.number = Some(first.checked_add(1).expect("nine-digit list number has a successor"));
+    }
     blocks.lists.push(level).expect("list nesting fits its bound");
     builder.open(Role::Item);
     true
 }
 fn close_lists(blocks: &mut Blocks, builder: &mut Builder) {
     for _level in 0..blocks.lists.len() {
-        let _closed = blocks.lists.pop().expect("list level remains");
+        let closed = blocks.lists.pop().expect("list level remains");
+        if let Some(number) = closed.number {
+            blocks.follows = Some(number);
+        }
         builder.close();
         builder.close();
     }

@@ -370,11 +370,11 @@ pub(crate) fn adoption_read(
         }
         AdoptionStage::Permission => match result {
             Ok(api::Answer::Permission(permission)) => {
-                if permission == api::Permission::None {
+                if permission.permission == api::Permission::None {
                     adopted(d, out, owner, Err(api::Error::Forbidden));
                     return;
                 }
-                pending.permission = Some(permission);
+                pending.permission = Some(permission.permission);
                 let check_prefix = pending.request.role != Role::Context;
                 pending.stage = if check_prefix { AdoptionStage::Branches } else { AdoptionStage::Settings };
                 let read = if check_prefix {

@@ -684,7 +684,11 @@ fn the_foot_keeps_status_identity_and_lost_sign_out_and_places_behind_for_each_s
                 jig_client::Link::OutOfDate => b"Out of date",
             };
             assert!(foot.iter().any(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Settings")));
-            assert_eq!(foot.last().unwrap().name.as_deref(), Some(b"Pat".as_slice()));
+            if browser {
+                assert!(f::find(view.tree(), Role::Menu, b"Pat").is_some());
+            } else {
+                assert_eq!(foot.last().unwrap().name.as_deref(), Some(b"Pat".as_slice()));
+            }
             let region = foot[0];
             let status = f::find(view.tree(), Role::Status, expected).unwrap();
             assert!(

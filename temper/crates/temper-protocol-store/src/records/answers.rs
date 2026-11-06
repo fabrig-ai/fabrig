@@ -185,8 +185,15 @@ pub(super) fn encode(value: &d::Answer) -> w::Answer {
         ),
         d::Answer::Settings(value) => w::Answer::Settings(names::encode_settings(value)),
         d::Answer::Permission(value) => w::Answer::Permission(
-            w::PermissionValue::new(&w::CEILINGS, w::PermissionValueParts { permission: encode_permission(*value) })
-                .expect(FITS),
+            w::PermissionValue::new(
+                &w::CEILINGS,
+                w::PermissionValueParts {
+                    permission: encode_permission(value.permission),
+                    user: value.user,
+                    login: value.login.clone(),
+                },
+            )
+            .expect(FITS),
         ),
         d::Answer::Created(number) => {
             w::Answer::Created(w::Number::new(&w::CEILINGS, w::NumberParts { number: *number }).expect(FITS))
@@ -298,7 +305,10 @@ pub(super) fn decode(value: w::Answer, bounds: &Bounds) -> Result<d::Answer, Und
             None => None,
         }),
         w::Answer::Settings(value) => d::Answer::Settings(names::decode_settings(value)),
-        w::Answer::Permission(value) => d::Answer::Permission(decode_permission(value.into_parts().permission)),
+        w::Answer::Permission(value) => {
+            let w::PermissionValueParts { permission, user, login } = value.into_parts();
+            d::Answer::Permission(d::UserPermission { permission: decode_permission(permission), user, login })
+        }
         w::Answer::Created(value) => d::Answer::Created(value.number()),
         w::Answer::Commented(value) => d::Answer::Commented(value.number()),
         w::Answer::Reviewed(value) => d::Answer::Reviewed(value.number()),

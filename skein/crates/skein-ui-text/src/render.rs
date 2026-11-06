@@ -36,7 +36,8 @@ fn room(nodes: u32, depth: u32, text: u64) -> Option<(u32, u64)> {
         .checked_mul(width)?
         .checked_add(text.checked_mul(5)?)?
         // Base words, longest entry kind, required, and two u32 positions.
-        .checked_add(u64::from(nodes).checked_mul(400 + 19 + 11 + 27)?)?
+        // Ten more bytes cover a number of up to ten digits past the two of "- ".
+        .checked_add(u64::from(nodes).checked_mul(400 + 19 + 11 + 27 + 10)?)?
         .checked_add(16)?;
     Some((u32::try_from(lines).ok()?, bytes))
 }
@@ -70,6 +71,7 @@ fn tree_room(tree: &Tree, name: &[u8]) -> Option<u32> {
 struct Parent {
     end: u32,
     indent: u32,
+    next: Option<u64>,
 }
 #[derive(Debug)]
 struct PendingItem {
@@ -176,7 +178,8 @@ pub fn render(tree: &Tree, name: &[u8], status: Option<Region>, print: &mut Prin
             skip = end;
             continue;
         }
-        match node(tree, index, indent, print) {
+        let number = item_number(&mut parents, n.role);
+        match node(tree, index, indent, number, print) {
             Some(indent) => {
                 if n.role == Role::Item || n.role == Role::TreeItem {
                     pending
@@ -191,7 +194,11 @@ pub fn render(tree: &Tree, name: &[u8], status: Option<Region>, print: &mut Prin
                     }
                     finish_items(tree, &mut pending, &mut print.text);
                 }
-                parents.push(Parent { end, indent }).expect("parents fit tree nodes");
+                let mut next = None;
+                if let Some(first) = n.ordered {
+                    next = Some(u64::from(first));
+                }
+                parents.push(Parent { end, indent, next }).expect("parents fit tree nodes");
             }
             None => {
                 position(tree, index, offset, &mut print.text);
@@ -211,7 +218,16 @@ pub fn render(tree: &Tree, name: &[u8], status: Option<Region>, print: &mut Prin
         raw(&mut print.text, b"\n");
     }
 }
-fn node(tree: &Tree, at: u32, indent: u32, print: &mut Print) -> Option<u32> {
+fn item_number(parents: &mut Stack<Parent>, role: Role) -> Option<u64> {
+    if role != Role::Item {
+        return None;
+    }
+    let parent = parents.top_mut()?;
+    let number = parent.next?;
+    parent.next = Some(number.checked_add(1).expect("u32 first number and tree item count fit u64"));
+    Some(number)
+}
+fn node(tree: &Tree, at: u32, indent: u32, number: Option<u64>, print: &mut Print) -> Option<u32> {
     let n = tree.get(at).expect("preorder node exists");
     match n.role {
         Role::Page | Role::Table | Role::Group | Role::Slot => Some(indent),
@@ -237,7 +253,12 @@ fn node(tree: &Tree, at: u32, indent: u32, print: &mut Print) -> Option<u32> {
         Role::Description => Some(indent.saturating_add(2)),
         Role::Item | Role::TreeItem => {
             start(&mut print.text, indent);
-            raw(&mut print.text, b"- ");
+            if let Some(number) = number {
+                raw(&mut print.text, Decimal::of(number).as_bytes());
+                raw(&mut print.text, b". ");
+            } else {
+                raw(&mut print.text, b"- ");
+            }
             if n.size == 1 {
                 content(tree, at, &mut print.text, indent, false);
                 finish(n, &mut print.text);
