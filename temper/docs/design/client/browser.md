@@ -1050,9 +1050,11 @@ real key in that restored form.
 - **The tier's window:** the tier's bundle also turns on
   `temper-client-shell-web`'s `small-window`, which names a conversation's
   window of 131,072 bytes (`README.md`, 5.15), an eighth of a person's
-  `document_bytes`: the same mechanism, at an eighth of what a page draws and
-  a find walks. Reading's stories (4.6, 14) pass that bound by at least two
-  windows' worth, at both ends. The ordinary binary bundle and the journeys'
+  `document_bytes`, through the same window mechanism. The long reading
+  story (4.6, 14) passes that bound by at least two windows' worth and
+  evicts and recovers lines at both ends. The unanchored position story
+  stays within one window; it checks the words holding across a read above.
+  The ordinary binary bundle and the journeys'
   never turn it on, and a long chat at the whole bound is read by hand.
 - **A chat's history:** what a reading story reads is made through
   `temper ctl` before a page opens on it: `playground start`, `chat start`
@@ -1307,9 +1309,19 @@ Not in the tier, each in the lowest world that shows it:
   paces, a reply's 1200 ms and CI's 4000 ms. None waits for a landing, and unpaced
   fakes would land in the background for CPU nobody reads. Default: paced.
 - **A wait's CPU in the tier** (4.3): a `See` asks Chromium's accessibility tree
-  again at `skein-browser`'s `poll`, 50 ms, so a long wait costs browser and harness
-  CPU: 519 queries in a story of 23 s. Default: the kit's poll stands, and a story
-  doesn't wait long.
+  again at `skein-browser`'s `poll`, 50 ms. Default: that poll stays. Repeated-miss
+  backoff needs a measured saving without delaying presses or the notice of a
+  change; the repaired long story's query count alone gives no reason to add it.
+- **The remaining browser cost** (4.3, 4.6): another repair may prepare the
+  other stories' histories outside the page, and combine stories sharing a setup
+  before dropping a browser-only proof. Default: keep the CPU budget, timeouts,
+  membership and cap; the four reading stories retain their layout, focus and
+  scroll proofs. A whole-tier run after landing decides its remaining cost.
+- **A long chat at the person's whole bound** (4.3; `README.md`, 5.15): the
+  small-window stories prove eviction and recovery through the same mechanism,
+  but leave the 1,048,576-byte window's manual reading check separate. Default:
+  keep the person's bound and check opening, position, both ends, Latest and
+  sending there by hand.
 - **A public page's text in one query** (8.4): the public walk reads each page's text
   a node at a time, about 0.8 CPU s over its seven pages. Default: so, until that
   passes 1 CPU s, when the browser kit would read a page's text at once.

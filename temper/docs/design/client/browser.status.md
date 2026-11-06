@@ -120,35 +120,25 @@ keeps it; publication is not a cutoff on a handed change's commit.
   setup become one test first: the call line's and test 14 both start a chat on
   `temper box`, though it scripts its own model's turns, and the welcome's and test 9
   both sign in on `Tier::accounts_sign_in`. No reason is recorded for either.
-- **Not yet:** 4.3: no run on record shows the tier as it stands within its budget
-  (`tools/tiers/budgets.toml`, `browser-temper`, 85 CPU s): its total with the call
-  line's and the welcome's sign-in's tests is unknown. The `browser-trim` plan's three
-  runs, at `970302c050`, before they reached its trunk, took 78.557098, 73.801674 and
-  57.755442 CPU s over 12
-  tests, on one slot of a shared machine whose load rose from 6 to 31, where its request
-  has a slot as idle as can be had. Those totals are in `tools/tiers/design.md`, 7.2's
-  scope, which live sampling of the same tests read higher (that document's section 8).
-  The `bundle-loading` plan's run of 13 tests, one fewer than the tier holds, with the
-  placeholder on every page but the playground's, took 83.069911 CPU s with one red, against 61.048855 with
-  none before it, and no figure splits the page's cost from the machine's load
-  (that plan's figures on the browser tier, at `668f7cd3e5`). The red is
-  `browser_public`'s `a_visitor_reads_a_public_project_and_loses_it_when_made_private`:
-  `temper ctl`'s `project amend --visibility public` outlasts its ten-second deadline
-  with the page at Ready and the placeholder gone, in that run and alone. Focused tests
-  of the bundle's answers, the mapping's room and ctl's wait for its `Me` pass and don't
-  reproduce it; the listener's eight connections, which a page's parallel files share,
-  are a hypothesis, no cause observed (the same figures, on the ctl wait).
-  Its repair waits on the tier's run after landing (the user, 2026-11-06). The plan
-  `chat-reading-c`'s three whole runs with its stories, on
-  its `reading-browser` branch, every test passing, took 128.618150, 141.214140 and
-  143.808163 CPU s, and an earlier one 116, against the 85; which commit each ran on is
-  unknown here. The last commit of those stories to report a run in Chromium is `fcd07de4f9`,
-  its story at 27.929 CPU s, and the merges after it held them by their compile. The user's
-  rule of 2026-11-06, that a plan runs focused and fuzzy alone, stopped that task's measuring
-  with the budget's question open, so the run after landing reads it, and a flag on the long
-  chat's cost looks first at the page's (that task's answers, at `29d0deb002`).
-  The next run on record, after landing at `668f7cd3e5` with `chat-reading-c` on main,
-  took 129.4 CPU s and 70.8 s wall over 17 tests; the plan `browser-budget` is its repair.
+- **Not yet:** 4.3: no whole-tier run on record establishes that the repaired
+  17-test tier fits its unchanged 85 CPU-second budget. The flagged run was
+  129.4 CPU s, 70.8 s wall. With ctl history and the 131,072-byte window,
+  all twelve final comparison runs passed, but the CPU medians remain
+  20.858273 s for long, 9.178371 s for Latest and 8.399148 s for unanchored,
+  above the request's targets of about 12, 6 and 5. Short rose to 6.414108 s
+  from the baseline's 4.193832 s. The four sum to 44.849900 s, leaving
+  40.150100 s for the other thirteen; their final cost awaits after-landing.
+  Loads, all samples and the limits of the comparison are in
+  `temper/docs/development/browser-budget.md`. Backoff failed its CPU and wall
+  criteria and is absent; the smaller window alone establishes no CPU saving.
+  The listener-full ctl failure is repaired by ending an idle connection while
+  preserving calls, partial requests and bounds. Whether that also repairs
+  `browser_public`'s earlier visibility-command deadline failure is unverified:
+  that story was outside the four selected for this repair.
+- **Not yet:** 4.3: no supplied manual proof checks a long chat at the person's
+  1,048,576-byte bound. The passing long browser story spans three small
+  windows, while the unanchored position history stays within one; neither
+  substitutes for that whole-bound check (section 5).
 - **Not yet:** 4.6: the request `browser-trim` has a person's page slower to settle as
   the answer most wanted. Settled chat and task pages stood still and no product cause
   was found, but a chat closed on the box took 8.539 s to reach the Closed filter, a
