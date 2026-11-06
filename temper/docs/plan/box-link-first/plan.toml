@@ -1,0 +1,76 @@
+draft = "box-link-first"
+repo = "fabrig"
+sources = ["temper/docs/plan/box-link-first/inputs/request.md", "temper/docs/design/draft/box-link-first.md", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "jig-given-secret"
+title = "jig's sign-in component takes a given first secret"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/client.md, 8"
+
+[[slice]]
+id = 1
+story = "a secret given at start signs in as the first link, and the component says no Link for it"
+parts = ["jig-given-secret"]
+walk = false
+
+[[part]]
+id = "box-help"
+title = "temper help box says what the box now prints"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/setup.md, 7.2"
+
+[[part]]
+id = "serve-takes-secret"
+title = "temper internal serve --box takes the first link's secret from its standard input"
+mode = "direct"
+needs = ["jig-given-secret"]
+design = "temper/docs/design/protocol/setup.md, 7.1"
+
+[[part]]
+id = "box-terminal"
+title = "the box's lifecycle in box.log; its block before any step; the secret on serve's first stdin"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/setup.md, 7.2"
+
+[[part]]
+id = "box-wiring"
+title = "temper box draws the first link and hands over its opening lines"
+mode = "direct"
+needs = ["serve-takes-secret", "box-terminal"]
+design = "temper/docs/design/protocol/setup.md, 7.2"
+
+[[part]]
+id = "box-readers"
+title = "what reads the box's output reads box.log, and no longer takes the first link for serve's being up"
+mode = "direct"
+needs = ["box-wiring"]
+design = "temper/docs/design/protocol/setup.md, 13.4"
+
+[[part]]
+id = "box-stories"
+title = "the real binary's stories: block, early open, restart"
+mode = "direct"
+needs = ["box-readers"]
+design = "temper/docs/design/protocol/setup.md, 13.4"
+
+[[slice]]
+id = 2
+story = "a person's temper box prints its block at once and nothing else, a browser's early open waits and signs in, and a killed serve's fresh link follows"
+parts = ["serve-takes-secret", "box-terminal", "box-wiring", "box-readers", "box-stories"]
+walk = false
+
+[[slice]]
+id = 3
+story = "temper help box says what the box now prints"
+parts = ["box-help"]
+walk = false

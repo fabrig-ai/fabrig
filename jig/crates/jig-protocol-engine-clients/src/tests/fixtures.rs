@@ -38,6 +38,7 @@ pub fn settings() -> Settings {
         addresses: Box::new([]),
         deployment_provider: 2,
         link: None,
+        link_secret: None,
         heartbeat: Duration::from_secs(5),
         rows: 32,
         served,

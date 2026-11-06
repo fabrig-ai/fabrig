@@ -53,11 +53,6 @@ enum Phase {
     Cleanup,
     Closed,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Announcement {
-    Waiting,
-    Said,
-}
 #[derive(Debug)]
 pub(crate) struct Logs {
     files: List<Log>,
@@ -77,11 +72,11 @@ pub(crate) struct Logs {
     record: Option<Box<[u8]>>,
     written: u32,
     done: bool,
-    announcement: Announcement,
 }
 impl Logs {
     pub fn new(steps: &[Placed], data: &[u8], bound: u32) -> Self {
-        let mut logs = List::with_capacity(u32::try_from(steps.len()).expect("bounded steps"));
+        let mut logs =
+            List::with_capacity(u32::try_from(steps.len()).expect("bounded steps").checked_add(1).expect("box log"));
         for placed in steps {
             let mut name = bytes::copy_of(placed.step.name());
             for byte in &mut name {
@@ -104,6 +99,15 @@ impl Logs {
             })
             .expect("one log per step");
         }
+        logs.push(Log {
+            name: bytes::copy_of(b"box.log"),
+            enabled: true,
+            retiring: None,
+            fd: None,
+            size: 0,
+            failed: false,
+        })
+        .expect("box log after steps");
         Self {
             files: logs,
             data: bytes::copy_of(data),
@@ -122,8 +126,10 @@ impl Logs {
             record: None,
             written: 0,
             done: false,
-            announcement: Announcement::Waiting,
         }
+    }
+    pub fn box_step(&self) -> usize {
+        usize::try_from(self.files.len().checked_sub(1).expect("box log")).expect("log index")
     }
     pub fn rebind(&mut self, step: usize, name: &[u8]) {
         let log = self.files.get_mut(u32::try_from(step).expect("step index")).expect("log step");
@@ -151,7 +157,7 @@ impl Logs {
     pub fn path(&self, step: usize) -> Box<[u8]> {
         joined(&[&self.directory(), &self.files.get(u32::try_from(step).expect("step index")).expect("log step").name])
     }
-    fn directory(&self) -> Box<[u8]> {
+    pub fn directory(&self) -> Box<[u8]> {
         joined(&[&self.data, if self.data.as_ref() == b"/" { b"" } else { b"/" }, b"box/logs/"])
     }
     pub fn take_notice(&mut self) -> Option<Box<[u8]>> {
@@ -167,7 +173,7 @@ impl Logs {
         if self.failed(piece.step) {
             self.done = true;
         } else {
-            let record = record(&piece);
+            let record = if piece.step == self.box_step() { piece.bytes.clone() } else { record(&piece) };
             let log = self.files.get(step).expect("log step");
             let length = u32::try_from(record.len()).expect("bounded record");
             assert!(length <= self.bound, "one whole record fits");
@@ -276,7 +282,6 @@ impl Logs {
             Phase::Create => {
                 if self.at == self.files.len() {
                     self.phase = Phase::Idle;
-                    self.announce_logs();
                     return;
                 }
                 if !self.log().enabled || self.log().fd.is_some() {
@@ -328,12 +333,6 @@ impl Logs {
         };
         out.push(Submit { op: OP, kind });
         self.waiting = true;
-    }
-    fn announce_logs(&mut self) {
-        if self.announcement == Announcement::Waiting {
-            self.announcement = Announcement::Said;
-            self.notice = Some(joined(&[b"Logs: ", &self.directory(), b"\n"]));
-        }
     }
     fn retiring(&mut self) -> Option<Fd> {
         for index in 0..self.files.len() {
