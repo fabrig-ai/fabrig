@@ -168,6 +168,7 @@ pub enum Ask {
         forge: u16,
         org: Box<[u8]>,
         name: Box<[u8]>,
+        into: Option<u32>,
     },
     MakeRepository {
         forge: u16,

@@ -234,6 +234,7 @@ pub fn to_root(
                             forge: value.forge,
                             org: value.org,
                             name: value.name,
+                            into: value.into,
                         }),
                     }));
                 }

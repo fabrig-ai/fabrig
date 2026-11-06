@@ -200,16 +200,23 @@ pub(crate) fn dismiss(
     retention: Duration,
     role: Option<jig_domain_people::Role>,
     key: MakingKey,
+    into: Option<u32>,
     out: &mut Queue<Request>,
 ) {
     if !crate::adoption::room(d, env, request, out) {
         return;
     }
-    let outcome = if role != Some(jig_domain_people::Role::Owner) {
-        ApplicationOutcome::MakeRefused(MakeRefusal::NotOwner)
-    } else {
+    let outcome = if role == Some(jig_domain_people::Role::Owner) {
         match d.making(&key) {
             None => ApplicationOutcome::MakeKept,
+            Some(row)
+                if match &row.into {
+                    Some(held) => into != Some(held.project),
+                    None => into.is_some(),
+                } =>
+            {
+                ApplicationOutcome::MakeRefused(MakeRefusal::NotOwner)
+            }
             Some(row) => match &row.state {
                 MakingState::Failed(_) => {
                     erase(d, key, out);
@@ -221,6 +228,8 @@ pub(crate) fn dismiss(
                 | MakingState::Adopting { .. } => ApplicationOutcome::MakeRefused(MakeRefusal::NotFailed),
             },
         }
+    } else {
+        ApplicationOutcome::MakeRefused(MakeRefusal::NotOwner)
     };
     crate::adoption::finish(
         d,

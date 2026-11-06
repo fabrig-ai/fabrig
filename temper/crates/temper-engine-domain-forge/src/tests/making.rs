@@ -653,6 +653,7 @@ fn dismiss(d: &mut Domain, value: &RepositoryMaking, role: Option<jig_domain_peo
                 forge: value.key.forge,
                 org: value.key.org.clone(),
                 name: value.key.name.clone(),
+                into: value.into.as_ref().map(|into| into.project),
             },
         },
     )
@@ -730,5 +731,29 @@ fn only_an_owner_may_dismiss() {
         dismiss(&mut d, &failed, role);
         answer(&d, MakeAnswer::Refused(MakeRefusal::NotOwner));
         assert_eq!(d.making(&failed.key), Some(&failed));
+    }
+}
+
+#[test]
+fn dismissal_cannot_erase_a_row_from_another_scope() {
+    let destination = intent().into;
+    let mut other = destination.clone().expect("project destination");
+    other.project = 2;
+    for (held, requested) in [(destination.clone(), Some(other)), (destination.clone(), None), (None, destination)] {
+        let mut d = kept();
+        let mut failed = intent();
+        failed.into = held;
+        failed.state = MakingState::Failed(failure(MakeFailure::Other));
+        restore(&mut d, failed.clone());
+        let mut request = failed.clone();
+        request.into = requested;
+        let requests = dismiss(&mut d, &request, Some(jig_domain_people::Role::Owner));
+        answer(&d, MakeAnswer::Refused(MakeRefusal::NotOwner));
+        assert_eq!(d.making(&failed.key), Some(&failed));
+        assert!(!requests.iter().any(|r| if let Request::Erase { .. } | Request::MarkedForges = r {
+            true
+        } else {
+            false
+        }));
     }
 }

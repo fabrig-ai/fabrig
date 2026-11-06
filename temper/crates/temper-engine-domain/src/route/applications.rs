@@ -38,30 +38,10 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
             Some(into) => people::ApplicationScope::Project(into.project),
             None => people::ApplicationScope::Deployment,
         },
-        Application::Forge(forge::Ask::DismissMaking { forge, org, name }) => {
-            let key = forge::MakingKey { forge: *forge, org: org.clone(), name: name.clone() };
-            match domain.forge.making(&key) {
-                Some(row) => match &row.into {
-                    Some(into) => people::ApplicationScope::Project(into.project),
-                    None => people::ApplicationScope::Deployment,
-                },
-                None => {
-                    let mut scope = people::ApplicationScope::Deployment;
-                    if let Some(person) = domain.core.people.sign_in_person(sign_in)
-                        && domain.core.people.role(person, people::DEPLOYMENT) != Some(people::Role::Owner)
-                        && let Some(roles) = domain.core.people.project_roles(person)
-                    {
-                        for held in &roles {
-                            if held.role == people::Role::Owner {
-                                scope = people::ApplicationScope::Project(held.project);
-                                break;
-                            }
-                        }
-                    }
-                    scope
-                }
-            }
-        }
+        Application::Forge(forge::Ask::DismissMaking { into, .. }) => match into {
+            Some(project) => people::ApplicationScope::Project(*project),
+            None => people::ApplicationScope::Deployment,
+        },
         Application::Forge(forge::Ask::Adopt(_)) => scope,
         Application::Try { .. } => people::ApplicationScope::Own,
         Application::Dismiss {

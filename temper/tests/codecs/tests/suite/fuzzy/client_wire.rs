@@ -31,6 +31,7 @@ fn playground_answer(bytes: &[u8]) {
     }
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "one mutation sweep checks the forge-family decoders and request outcomes")]
 fn client_wire_decoders_never_panic_and_reencode_the_same() {
     let decoders: [fn(&[u8]); 11] = [
         requesting,
@@ -358,22 +359,25 @@ fn drawn_makings(rng: &mut Rng) -> v1::Forges {
 }
 
 fn drawn_request(rng: &mut Rng) -> v1::Request {
-    if rng.chance(500) {
-        v1::Request::StartPlayground
-    } else if rng.chance(500) {
-        v1::Request::DismissMaking(
+    match rng.below(3) {
+        0 => v1::Request::StartPlayground,
+        1 => v1::Request::DismissMaking(
             v1::DismissMaking::new(
                 &v1::CEILINGS,
                 v1::DismissMakingParts {
+                    into: if rng.chance(500) {
+                        Some(u32::try_from(rng.below(1_u64 << 32)).expect("u32 draw"))
+                    } else {
+                        None
+                    },
                     forge: u16::try_from(rng.below(65_536)).expect("u16 draw"),
                     org: temper_codecs_world::drawn(rng, 1024).into_boxed_slice(),
                     name: temper_codecs_world::drawn(rng, 1024).into_boxed_slice(),
                 },
             )
             .expect("bounded dismissal"),
-        )
-    } else {
-        v1::Request::MakeRepository(
+        ),
+        _ => v1::Request::MakeRepository(
             v1::MakeRepository::new(
                 &v1::CEILINGS,
                 v1::MakeRepositoryParts {
@@ -385,6 +389,6 @@ fn drawn_request(rng: &mut Rng) -> v1::Request {
                 },
             )
             .expect("bounded make request"),
-        )
+        ),
     }
 }

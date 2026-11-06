@@ -366,7 +366,7 @@ fn failed_copy(d: &mut Driver) {
     );
     assert!(matches!(row(d).state, forge::MakingState::Failed(_)));
 }
-fn dismiss(d: &mut Driver, number: u8) {
+fn dismiss(d: &mut Driver, number: u8, into: Option<u32>) {
     d.send(engine::Event::Party(engine::PartyInput::Application {
         scope: people::ApplicationScope::Own,
         reply_to: ReplyTo::new(Token::new(u64::from(number))),
@@ -374,7 +374,12 @@ fn dismiss(d: &mut Driver, number: u8) {
         key: [number; 16],
         digest: [number; 32],
         carried: None,
-        request: engine::Application::Forge(forge::Ask::DismissMaking { forge: 1, org: key().org, name: key().name }),
+        request: engine::Application::Forge(forge::Ask::DismissMaking {
+            forge: 1,
+            org: key().org,
+            name: key().name,
+            into,
+        }),
     }));
     d.settle();
 }
@@ -406,7 +411,7 @@ fn a_failed_copy_dismissed_disappears_from_the_watch_and_stays_gone_after_restar
     d.delivered.retain(|delivery| {
         matches!(delivery, engine::Delivery::WebReply { reply: people::Reply::SignedIn { .. }, .. })
     });
-    dismiss(&mut d, 52);
+    dismiss(&mut d, 52, Some(1));
     assert!(kept(&d));
     assert!(d.delivered.iter().any(|delivery| matches!(delivery,
         engine::Delivery::Forges { watcher: actual, forges } if *actual == watcher && forges.rows[0].makings.is_empty()
@@ -421,12 +426,12 @@ fn a_failed_copy_dismissed_disappears_from_the_watch_and_stays_gone_after_restar
     d.delivered.retain(|delivery| {
         matches!(delivery, engine::Delivery::WebReply { reply: people::Reply::SignedIn { .. }, .. })
     });
-    dismiss(&mut d, 52);
+    dismiss(&mut d, 52, Some(1));
     assert!(kept(&d), "the original key joins its kept answer after restart: {:?}", d.delivered);
     d.delivered.retain(|delivery| {
         matches!(delivery, engine::Delivery::WebReply { reply: people::Reply::SignedIn { .. }, .. })
     });
-    dismiss(&mut d, 53);
+    dismiss(&mut d, 53, Some(1));
     assert!(kept(&d), "a fresh key with no row is kept too");
 }
 fn roles(d: &mut Driver, deployment: people::Role, project: people::Role, making: Option<forge::RepositoryMaking>) {
@@ -461,7 +466,7 @@ fn roles(d: &mut Driver, deployment: people::Role, project: people::Role, making
     });
 }
 #[test]
-fn dismissal_authority_comes_from_the_rows_destination() {
+fn dismissal_authority_comes_from_the_requests_destination() {
     use people::Role::{Member, Owner};
     for (destination, deployment, project, allowed) in [
         (Some(into(1)), Member, Owner, true),
@@ -474,7 +479,7 @@ fn dismissal_authority_comes_from_the_rows_destination() {
         let mut failed = row(&d).clone();
         failed.into = destination;
         roles(&mut d, deployment, project, Some(failed.clone()));
-        dismiss(&mut d, 52);
+        dismiss(&mut d, 52, failed.into.as_ref().map(|into| into.project));
         assert_eq!(kept(&d), allowed, "row {:?}, deployment {deployment:?}, project {project:?}", failed.into);
         if allowed {
             assert!(d.root.making(&key()).is_none());
@@ -493,12 +498,17 @@ fn dismissal_authority_comes_from_the_rows_destination() {
     }
 }
 #[test]
-fn dismissal_without_a_row_admits_a_deployment_or_project_owner() {
+fn dismissal_without_a_row_keeps_the_requests_scope() {
     use people::Role::{Member, Owner};
-    for (deployment, project, allowed) in [(Member, Owner, true), (Owner, Member, true), (Member, Member, false)] {
+    for (into, deployment, project, allowed) in [
+        (Some(1), Member, Owner, true),
+        (Some(1), Owner, Member, false),
+        (None, Owner, Member, true),
+        (None, Member, Owner, false),
+    ] {
         let mut d = driver(true);
         roles(&mut d, deployment, project, None);
-        dismiss(&mut d, 52);
+        dismiss(&mut d, 52, into);
         assert_eq!(kept(&d), allowed, "deployment {deployment:?}, project {project:?}");
         assert!(d.root.making(&key()).is_none());
         if !allowed {

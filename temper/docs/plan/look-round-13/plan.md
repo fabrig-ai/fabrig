@@ -16,6 +16,8 @@ The look request `connect-flows` (`97ad67393b`), landed by `temper/docs/design/d
 
 ## Decisions
 
+- **Dismissal keeps its scope in the request** (temper/ui, 2026-11-06): `DismissMaking` carries `into: Option<u32>`, the failed row's project or none for the deployment. Admission derives its scope from that field, so the same key joins its kept answer after erasure and restart. An existing row with another project is refused. This departs from the task's row lookup and the initial contract's request without `into`.
+
 - **`Address::Adopt` stays,** as the sheet's address: every link keeps working, a reload draws the sheet, and the fewest readers change. Cancel goes to `Repositories`.
 - **`Near` reaches a list, in skein,** rather than the picker reading all at once (it would read what isn't wanted) or a list dressed as a `log` (a log's live region and following are wrong for checkboxes).
 - **Plural sends are the client's,** one `Adopt` at a time and one `MakeRepository` a line; the wire is unchanged for them. `DismissMaking` and `MakeRefusal::NotFailed` are new, in the wire and the store, with no compatibility kept (the user's rule).
