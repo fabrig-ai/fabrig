@@ -3,7 +3,8 @@
 2026-11-06. Where temper's code lags or departs from [agent.md](agent.md).
 The remaining gaps concern verdict follow-up tasks,
 change-refusal model wording, shell authority for runs that cannot deliver,
-the fake's goal script, who is offered `decided`, and what no real model has
+the fake's goal script, who is offered `decided`, what the configuring agent
+can read to size temper's own way, and what no real model has
 shown: the configuring agent's words and a document built in parts.
 Section 4.3 has no gap in combined charter and workspace ownership fitting.
 Section 4.3 has no gap in file, pull-file and compare fitting to the checked
@@ -16,6 +17,7 @@ charter documents.
 
 - **Not yet:** 4.4: a verdict's follow-up tasks.
 - **Not yet:** 8.1: the configuring agent's words have phrase assertions and scripted context coverage (`configuring_txt_speaks_the_persons_terms`, `temper-service/src/tests/stock.rs`): no walk on record has run a real model on them, so whether it answers in the person's terms, keeps back the `temper ctl` of the pages it reads, which still speak it, starts who approves from the person and says that nothing has changed once is unobserved. The request `configuring-words` of 2026-11-06 has that walk follow its landing.
+- **Not yet:** 8.1, *temper's own way*: `configuring.txt` has it size its settings for the deployment's worker slots and account models, but nothing a configuring run is offered reads them: `settings`' inventory (`temper-client-tools`'s `jig/render/document/settings.rs`, `inventory_text`), the forge's reads and `read_docs` name no worker's slots and no model an account reaches, so those facts can only come from the person. Seen by reading. `configuring_txt_starts_from_temper_own_way` (`temper-service/src/tests/stock.rs`) holds the words alone, and no walk on record has run a real model on them, so whether it reads the page, says what the deployment cannot do and keeps temper's own column in "How PROJECT works" is unobserved: the gallery's `configure-chat-document-split` is a script's document.
 - **Design departs:** 8.1, from the request `configuring-words` of 2026-11-06, decided by its plan's cut: a revision may be named in a proposal's outcome too, where the request has a proposal or when asked, because the accepted line names the revision it made.
 - **Design departs:** 4.3, from the same request, decided by its plan's cut: `read_permission`'s login reaches every run with the forge reads, the stock's charters 1, 2, 3, 4 and 6, where the request holds a person's identity to what an agent's authority may read, because it is the forge's own answer about a user of a repository that run may already read (section 10 keeps it open). It is carried through skein's answer and temper's stored record, where the request sizes the work in temper, because adoption seeds a person with an empty login and skein's answer dropped the one its dialects read.
 

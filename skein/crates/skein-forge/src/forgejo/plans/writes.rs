@@ -158,6 +158,7 @@ impl Plan {
             State::Writing { written, .. } => written.exchange().1,
         }
     }
+    #[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
     pub fn heard(
         &mut self,
         heard: Heard,
@@ -176,28 +177,7 @@ impl Plan {
                     tables.keep_user(self.repository.forge, user.id, user.login);
                     Ok(None)
                 }
-                d::Row::Found(_)
-                | d::Row::Reachable(_)
-                | d::Row::Token(_)
-                | d::Row::Issue(_)
-                | d::Row::Comment(_)
-                | d::Row::Status(_)
-                | d::Row::Review(_)
-                | d::Row::ReviewComment(_)
-                | d::Row::Branch(_)
-                | d::Row::Protection(_)
-                | d::Row::Pull(_)
-                | d::Row::Entry { .. }
-                | d::Row::File(_)
-                | d::Row::Commit(_)
-                | d::Row::Artifact(_)
-                | d::Row::CommitMessage(_)
-                | d::Row::TreeEntry(_)
-                | d::Row::Run(_)
-                | d::Row::Hook(_)
-                | d::Row::Team(_)
-                | d::Row::Step(_)
-                | d::Row::Job(_) => Ok(None),
+                _ => Ok(None),
             },
             Heard::Failed(fault) => Err(self.error(failure::transport(fault))),
             Heard::Done(body) => self.done(body, bounds, word, tables),
@@ -281,6 +261,7 @@ impl Plan {
             State::Ended => unreachable!("ended write has no conflict"),
         }
     }
+    #[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
     fn check_repository(&self, document: Option<&d::Document>) -> Result<(), api::Error> {
         match &self.state {
             State::Resolving { .. } => {}
@@ -296,8 +277,8 @@ impl Plan {
             | State::Removing { .. } => return Ok(()),
             State::Ended => unreachable!("ended write has no repository answer"),
         }
-        match document {
-            Some(d::Document::Repository(repository)) => {
+        match document.ok_or(self.error(api::Error::Timeout))? {
+            d::Document::Repository(repository) => {
                 let Ok(id) = u32::try_from(repository.id) else {
                     return Err(api::Error::TooLarge);
                 };
@@ -306,12 +287,14 @@ impl Plan {
                 }
                 Ok(())
             }
-            Some(_) | None => Err(self.error(api::Error::Timeout)),
+            _ => Err(self.error(api::Error::Timeout)),
         }
     }
+    #[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
     fn check_pull_ids(&self, document: Option<&d::Document>) -> Result<(), api::Error> {
+        let Some(document) = document else { return Ok(()) };
         match document {
-            Some(d::Document::Pull(pull)) => {
+            d::Document::Pull(pull) => {
                 let row = match &self.state {
                     State::Writing { row, .. }
                     | State::Merged { row }
@@ -334,7 +317,7 @@ impl Plan {
                 }
                 Ok(())
             }
-            Some(_) | None => Ok(()),
+            _ => Ok(()),
         }
     }
     #[must_use]
@@ -442,6 +425,7 @@ fn writing(write: &api::Write) -> Option<Written> {
         api::Write::SetReviewers { .. } => return None,
     })
 }
+#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
 fn next(
     state: State,
     document: Option<d::Document>,
@@ -451,13 +435,13 @@ fn next(
     tables: &mut Tables,
 ) -> Result<(State, Step), api::Error> {
     match state {
-        State::Resolving { write } => match document {
-            Some(d::Document::Repository(document)) => {
+        State::Resolving { write } => match document.ok_or(api::Error::Timeout)? {
+            d::Document::Repository(document) => {
                 let row = reading::repository(document);
                 tables.keep_repository(repository, row.clone());
                 initial(row, write, bounds, word)
             }
-            Some(_) | None => Err(api::Error::Timeout),
+            _ => Err(api::Error::Timeout),
         },
         State::Writing { row, written: kind } => written(row, kind, document),
         State::OpenHead { row, open } => {
@@ -471,14 +455,14 @@ fn next(
             Ok((State::OpenCompare { row, open }, Step::send(request)))
         }
         State::OpenCompare { row, open } => compared(row, open, document),
-        State::Reviewers { row, number, reviewers: desired } => match document {
-            Some(d::Document::Pull(pull)) => Ok(reviewers(row, number, &desired, pull, repository.forge, tables)),
-            Some(_) | None => Err(api::Error::Timeout),
+        State::Reviewers { row, number, reviewers: desired } => match document.ok_or(api::Error::Timeout)? {
+            d::Document::Pull(pull) => Ok(reviewers(row, number, &desired, pull, repository.forge, tables)),
+            _ => Err(api::Error::Timeout),
         },
         State::Searching { row, number, mut looking } => {
-            match document {
-                Some(d::Document::Search { ok: true }) => {}
-                Some(_) | None => return Err(api::Error::Missing),
+            match document.ok_or(api::Error::Missing)? {
+                d::Document::Search { ok: true } => {}
+                _ => return Err(api::Error::Missing),
             }
             let id = *looking.missing.get(looking.position).expect("looked-up reviewer");
             let Some(login) = tables.user(repository.forge, id) else {
@@ -490,20 +474,21 @@ fn next(
         }
         State::Adding { row, number, remove } => Ok(remove_reviewers(row, number, remove)),
         State::Removing { .. } => Ok((State::Ended, Step::Done(Ok(api::Answer::Done)))),
-        State::Merged { row } => match document {
-            Some(d::Document::Pull(pull)) => {
+        State::Merged { row } => match document.ok_or(api::Error::Timeout)? {
+            d::Document::Pull(pull) => {
                 let commit = pull.merge_commit_sha.ok_or(api::Error::Timeout)?;
                 let commit = reading::commit(commit, row.object_format).ok_or(api::Error::Timeout)?;
                 Ok((State::Ended, Step::Done(Ok(api::Answer::Merged(commit)))))
             }
-            Some(_) | None => Err(api::Error::Timeout),
+            _ => Err(api::Error::Timeout),
         },
         State::New { .. } | State::Ended => unreachable!("write answer needs an exchange"),
     }
 }
+#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
 fn compared(row: Repository, open: Open, document: Option<d::Document>) -> Result<(State, Step), api::Error> {
-    match document {
-        Some(d::Document::Compare(compare)) => {
+    match document.ok_or(api::Error::InvalidAnswer)? {
+        d::Document::Compare(compare) => {
             if compare.total_commits == 0 {
                 return Ok((State::Ended, Step::Done(Err(api::Error::NothingToMerge))));
             }
@@ -511,18 +496,19 @@ fn compared(row: Repository, open: Open, document: Option<d::Document>) -> Resul
             let request = Request::OpenPull { at: row.at(), title, body, head, base };
             Ok((State::Writing { row, written: Written::Pull }, Step::send(request)))
         }
-        Some(_) | None => Err(api::Error::InvalidAnswer),
+        _ => Err(api::Error::InvalidAnswer),
     }
 }
+#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
 fn branch(row: &Repository, document: Option<d::Document>) -> Result<ObjectId, api::Error> {
-    match document {
-        Some(d::Document::Branch(branch)) => {
+    match document.ok_or(api::Error::InvalidAnswer)? {
+        d::Document::Branch(branch) => {
             if reading::commit(branch.commit, row.object_format).is_none() {
                 return Err(api::Error::InvalidAnswer);
             }
             Ok(branch.commit)
         }
-        Some(_) | None => Err(api::Error::InvalidAnswer),
+        _ => Err(api::Error::InvalidAnswer),
     }
 }
 fn reviewers(
@@ -581,45 +567,46 @@ fn remove_reviewers(row: Repository, number: u64, remove: List<Box<[u8]>>) -> (S
     let request = Request::RemoveReviewers { at: row.at(), number, reviewers: remove.into_boxed() };
     (State::Removing { row }, Step::send(request))
 }
+#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
 fn written(row: Repository, written: Written, document: Option<d::Document>) -> Result<(State, Step), api::Error> {
     let answer = match written {
-        Written::Issue => match document {
-            Some(d::Document::Issue(issue)) => Ok(api::Answer::Created(issue.number)),
-            Some(_) | None => Err(api::Error::Timeout),
+        Written::Issue => match document.ok_or(api::Error::Timeout)? {
+            d::Document::Issue(issue) => Ok(api::Answer::Created(issue.number)),
+            _ => Err(api::Error::Timeout),
         },
-        Written::Comment => match document {
-            Some(d::Document::Comment(comment)) => Ok(api::Answer::Commented(comment.id)),
-            Some(_) | None => Err(api::Error::Timeout),
+        Written::Comment => match document.ok_or(api::Error::Timeout)? {
+            d::Document::Comment(comment) => Ok(api::Answer::Commented(comment.id)),
+            _ => Err(api::Error::Timeout),
         },
-        Written::Review => match document {
-            Some(d::Document::Review(review)) => {
+        Written::Review => match document.ok_or(api::Error::Timeout)? {
+            d::Document::Review(review) => {
                 reading::commit(review.commit_id, row.object_format).ok_or(api::Error::Timeout)?;
                 Ok(api::Answer::Reviewed(review.id))
             }
-            Some(_) | None => Err(api::Error::Timeout),
+            _ => Err(api::Error::Timeout),
         },
-        Written::Edited => match document {
-            Some(d::Document::Issue(_)) => Ok(api::Answer::Done),
-            Some(_) | None => Err(api::Error::Timeout),
+        Written::Edited => match document.ok_or(api::Error::Timeout)? {
+            d::Document::Issue(_) => Ok(api::Answer::Done),
+            _ => Err(api::Error::Timeout),
         },
-        Written::Status => match document {
-            Some(d::Document::Status(_)) => Ok(api::Answer::Done),
-            Some(_) | None => Err(api::Error::Timeout),
+        Written::Status => match document.ok_or(api::Error::Timeout)? {
+            d::Document::Status(_) => Ok(api::Answer::Done),
+            _ => Err(api::Error::Timeout),
         },
-        Written::Branch => match document {
-            Some(d::Document::Branch(branch)) => {
+        Written::Branch => match document.ok_or(api::Error::Timeout)? {
+            d::Document::Branch(branch) => {
                 reading::commit(branch.commit, row.object_format).ok_or(api::Error::Timeout)?;
                 Ok(api::Answer::Branch(api::BranchCreation::Created))
             }
-            Some(_) | None => Err(api::Error::Timeout),
+            _ => Err(api::Error::Timeout),
         },
         Written::Bare | Written::Update(_) | Written::Deleted => match document {
             None => Ok(api::Answer::Done),
             Some(_) => Err(api::Error::Timeout),
         },
-        Written::Pull => match document {
-            Some(d::Document::Pull(pull)) => Ok(api::Answer::Created(pull.number)),
-            Some(_) | None => Err(api::Error::Timeout),
+        Written::Pull => match document.ok_or(api::Error::Timeout)? {
+            d::Document::Pull(pull) => Ok(api::Answer::Created(pull.number)),
+            _ => Err(api::Error::Timeout),
         },
         Written::Merge { number } => {
             if document.is_some() {

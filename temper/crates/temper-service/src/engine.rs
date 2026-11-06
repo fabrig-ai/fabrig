@@ -13,7 +13,6 @@ const RELEASE_CYCLES: u32 = 22;
     reason = "fact-drain readiness is independent of start, release and input admission"
 )]
 pub(crate) struct Engine {
-    pub(crate) host_reply_bytes: Option<u32>,
     pub(crate) domain: root::Domain,
     pub(crate) env: Env<root::Limits>,
     pub(crate) store: crate::store::Store,
@@ -142,7 +141,6 @@ impl Engine {
         };
         domain.connection_limits(own.forge.forges, own.forge_component.installations);
         let mut engine = Self {
-            host_reply_bytes: None,
             credentials,
             domain,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },

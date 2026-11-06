@@ -66,7 +66,7 @@ pub fn built(documents: revision::Documents) -> Readers {
     let mut faults = errors::Collector::new(&SHIPPED);
     let targets = compose::targets(&documents, &SHIPPED, &mut faults).expect("targets").targets;
     let mut merge = compose::Merge::new(&SHIPPED);
-    let mut schemas = List::with_capacity(16);
+    let mut schemas = List::uncapped();
     let defaults = schema::declarations(
         &documents,
         documents.entries(),

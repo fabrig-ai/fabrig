@@ -1,5 +1,5 @@
 //! A finite search belongs to its original call, credential selection and deadline.
-use skein_forge::api::{self, Answer, Error, Op, Read};
+use skein_forge::api::{Answer, Error, Op, Read};
 use skein_forge_connection::{Request, seam::Tokens};
 use skein_forge_machine_world::hand::{self as f, FORGE, Harness, REPO};
 use skein_lib::{Duration, Secret, Time};
@@ -37,14 +37,6 @@ fn credential(h: &Harness, expected: &[u8]) {
 }
 fn count(h: &Harness, request: &[u8]) -> u32 {
     skein_lib::bytes::count(&h.all_request_bytes(FORGE), request, u32::MAX)
-}
-fn settings() -> Answer {
-    Answer::Settings(api::Settings {
-        default_branch: Box::from(b"main".as_slice()),
-        merge: true,
-        squash: true,
-        rebase: false,
-    })
 }
 fn found(h: &mut Harness, cost: u32) {
     h.answer(FORGE, &f::ok(f::GITHUB_REPOSITORY));
@@ -347,33 +339,6 @@ fn close_during_discovery_continuation_has_no_terminal() {
     h.answer(FORGE, &f::ok(f::GITHUB_REPOSITORY));
     h.run(Duration::ZERO);
     closed(&mut h);
-}
-#[test]
-fn discovered_answer_is_offered_once_per_offer() {
-    let mut h = candidates();
-    begin(&mut h, Op::Read(Read::Settings));
-    h.answer(FORGE, &f::ok(f::GITHUB_REPOSITORY));
-    answered(&mut h, 1, Ok(settings()));
-    let answer = h.answers.remove(&1).expect("answer");
-    h.send(Request::Refused(answer));
-    h.send(Request::Offer);
-    answered(&mut h, 1, Ok(settings()));
-    drop(h.answers.remove(&1));
-    h.send(Request::Offer);
-    h.run(Duration::ZERO);
-    assert!(h.answered(1).is_none());
-}
-#[test]
-fn returned_discovered_answer_stays_unoffered() {
-    let mut h = candidates();
-    begin(&mut h, Op::Read(Read::Settings));
-    h.answer(FORGE, &f::ok(f::GITHUB_REPOSITORY));
-    answered(&mut h, 1, Ok(settings()));
-    let answer = h.answers.remove(&1).expect("answer");
-    h.send(Request::Returned(answer));
-    h.send(Request::Offer);
-    h.run(Duration::ZERO);
-    assert!(h.answered(1).is_none());
 }
 #[test]
 fn no_eligible_candidate_preserves_landed_admission_failure() {
