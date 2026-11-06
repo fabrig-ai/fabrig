@@ -618,7 +618,7 @@ pub(crate) enum Drawn<'a> {
 
 struct Drawing<'a> {
     projected: bool,
-    request: Option<&'a c::SpecificationDocument>,
+    request: Option<(&'a [u8], bool)>,
     delegations: Option<(&'a Chat, &'a jig_client::Client)>,
     proposals: Option<&'a Domain>,
     agent_run: bool,
@@ -628,7 +628,10 @@ fn drawing(drawn: Drawn<'_>) -> Drawing<'_> {
     match drawn {
         Drawn::ChatPage { request, root } => Drawing {
             projected: true,
-            request,
+            request: match request {
+                Some(_) => root.pages().chat().expect("chat page").request(root.client()),
+                None => None,
+            },
             delegations: Some((root.pages().chat().expect("chat page"), root.client())),
             proposals: Some(root),
             agent_run: false,
@@ -636,6 +639,10 @@ fn drawing(drawn: Drawn<'_>) -> Drawing<'_> {
         },
         #[cfg(test)]
         Drawn::Chat { request, delegations } => {
+            let request = match request {
+                Some(request) => Some((request.specification.words.bytes(), !request.specification.words.cut)),
+                None => None,
+            };
             Drawing { projected: true, request, delegations, proposals: None, agent_run: false, current: None }
         }
         Drawn::AgentRun { current } => {
@@ -755,7 +762,7 @@ pub(crate) fn conversation_with_times(
     // A chat started with no words opens on its first words line (3.5).
     if thread.lines.edges.after == jig_client::thread::window::Edge::End
         && let Some(request) = request
-        && !request.specification.words.bytes().is_empty()
+        && (!request.0.is_empty() || !request.1)
     {
         let clock = turn_time(b, first_time(&lines), &mut times, &mut day, words);
         request_message(b, request, speakers.requester, words, clock.as_deref());
@@ -910,17 +917,23 @@ fn undecoded(b: &mut Builder, why: c::TurnProblem, words: &Words, clock: Option<
         b.close();
     }
 }
-fn request_message(
-    b: &mut Builder,
-    request: &c::SpecificationDocument,
-    requester: bool,
-    words: &Words,
-    clock: Option<&[u8]>,
-) {
+fn request_message(b: &mut Builder, request: (&[u8], bool), requester: bool, words: &Words, clock: Option<&[u8]>) {
     b.open(Role::Region);
     b.style(look::TURN);
     let label = if requester { words.say_card(P::You, &[]) } else { words.say_card(P::Person, &[]) };
-    person_message(b, &label, request.specification.words.bytes(), WordState::Read { message: 0 }, words, clock);
+    let (bytes, whole) = request;
+    if whole {
+        person_message(b, &label, bytes, WordState::Read { message: 0 }, words, clock);
+    } else {
+        let mut marked = List::with_capacity(u32::try_from(bytes.len()).expect("request bound fits").saturating_add(3));
+        for byte in bytes {
+            marked.push(*byte).expect("request and mark fit");
+        }
+        for byte in "…".as_bytes() {
+            marked.push(*byte).expect("request and mark fit");
+        }
+        person_message(b, &label, marked.as_slice(), WordState::Read { message: 0 }, words, clock);
+    }
     b.close();
 }
 fn first_time(lines: &[Line<'_>]) -> Option<skein_lib::Wall> {
