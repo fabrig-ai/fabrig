@@ -1,0 +1,3 @@
+draft = "sign-in-new-tab"
+repo = "fabrig"
+sources = ["temper/docs/plan/sign-in-new-tab/inputs/request.md", "temper/docs/design/draft/sign-in-new-tab.md", "AGENTS.md", "DESIGN.md"]
