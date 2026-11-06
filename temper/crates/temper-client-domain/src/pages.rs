@@ -661,6 +661,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 task.amend(env, client, act, &mut pages.serial, out);
             }
         }
+        Event::Act { act: Act::Resume } if pages.chat.is_some() => {
+            pages.chat.as_mut().expect("open chat").act(env, client, Act::Resume, &mut pages.serial, out);
+        }
         Event::Act { act: act @ (Act::Pause | Act::Resume) } => {
             if act == Act::Resume
                 && let Some(inbox) = &pages.inbox

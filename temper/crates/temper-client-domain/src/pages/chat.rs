@@ -14,6 +14,7 @@ pub const LINES: u32 = 16;
 pub enum Sending {
     Message,
     Stop,
+    Resume,
     Seen,
     Close,
 }
@@ -118,7 +119,7 @@ impl Chat {
             words: Box::default(),
             composer_focus: 0,
             settings_proposals: List::with_capacity(limits.client.domain.reads),
-            pending: List::with_capacity(4),
+            pending: List::with_capacity(5),
             outcome: None,
             outcome_kind: None,
             seen: 0,
@@ -958,6 +959,7 @@ impl Chat {
             }
             Act::Send => self.send(env, client, Sending::Message, None, serial, out),
             Act::Stop => self.send(env, client, Sending::Stop, None, serial, out),
+            Act::Resume => self.send(env, client, Sending::Resume, None, serial, out),
             Act::OpenStart { .. }
             | Act::StartDraft { .. }
             | Act::StartName { .. }
@@ -1006,7 +1008,6 @@ impl Chat {
             | Act::StartOver
             | Act::DelegateFate { .. }
             | Act::Pause
-            | Act::Resume
             | Act::Amend
             | Act::AmendWords { .. }
             | Act::AmendTracked
@@ -1052,14 +1053,51 @@ impl Chat {
     ) {
         let message = supplied.unwrap_or(&self.words);
         let Some(task) = self.task(client) else { return };
+        let me = match latest(client, super::me_handle()) {
+            Some(Latest::Jig(c::Delivery::Me(me))) => Some(me.as_ref()),
+            Some(Latest::Jig(_) | Latest::Family(_)) | None => None,
+        };
+        let resumes = match me {
+            Some(me) => paused(&task.chip, me) && allowed(task, c::ActKind::Release),
+            None => false,
+        };
+        let words = match kind {
+            Sending::Message if !message.is_empty() && allowed(task, c::ActKind::Message) => {
+                Some(c::Text::new(message.into(), temper_client_protocol_wire::CUE_BYTES).expect("composer bounded"))
+            }
+            Sending::Message => return,
+            Sending::Stop | Sending::Resume | Sending::Seen | Sending::Close => None,
+        };
         let ask = match kind {
-            Sending::Message if !message.is_empty() && allowed(task, c::ActKind::Message) => c::Ask::Message {
+            Sending::Message => {
+                let words = words.as_ref().expect("message words checked").clone();
+                if resumes {
+                    c::Ask::Compound {
+                        project: task.project,
+                        operations: List::from_boxed(Box::new([
+                            c::Operation::Message { project: task.project, task: self.task, words },
+                            c::Operation::Release {
+                                project: task.project,
+                                task: self.task,
+                                revision: c::Revision {
+                                    value: super::task::chip_hold(&task.chip).expect("paused is held"),
+                                },
+                                again: None,
+                            },
+                        ])),
+                    }
+                } else {
+                    c::Ask::Message { project: task.project, task: self.task, words }
+                }
+            }
+            Sending::Resume if resumes => c::Ask::Release {
                 project: task.project,
                 task: self.task,
-                words: c::Text::new(message.into(), temper_client_protocol_wire::CUE_BYTES).expect("composer bounded"),
+                revision: c::Revision { value: super::task::chip_hold(&task.chip).expect("paused is held") },
+                again: None,
             },
             Sending::Stop if allowed(task, c::ActKind::Stop) => c::Ask::Stop { project: task.project, task: self.task },
-            Sending::Message | Sending::Stop | Sending::Seen | Sending::Close => return,
+            Sending::Stop | Sending::Resume | Sending::Seen | Sending::Close => return,
         };
         for (_, pending) in &self.pending {
             if *pending == kind {
@@ -1068,11 +1106,9 @@ impl Chat {
         }
         *serial = serial.checked_add(1).expect("chat keys fit");
         let key = Key { asker: Owner::Pages.asker(), number: *serial };
-        if let c::Ask::Message { words, .. } = &ask {
-            let Some(Latest::Jig(c::Delivery::Me(me))) = latest(client, super::me_handle()) else {
-                return;
-            };
-            if !self.thread.sending(key, me.party.number, words.clone(), 0) {
+        if let Some(words) = words {
+            let Some(me) = me else { return };
+            if !self.thread.sending(key, me.party.number, words, 0) {
                 return;
             }
             if supplied.is_none() {
@@ -1167,4 +1203,25 @@ fn remember_settings(proposals: &mut List<c::Proposal>, proposal: &c::Proposal) 
         }
     }
     proposals.push(proposal.clone()).expect("bounded settings snapshots");
+}
+
+/// The person's own pause (client/README.md, 3.5): held by a placed hold of theirs, mode Stop, over the task's own subtree.
+#[must_use]
+pub fn paused(chip: &c::Chip, me: &c::Me) -> bool {
+    let c::ChipPhaseFacts { phase, details } = chip.details.as_ref();
+    match phase {
+        c::ChipPhase::Held { .. } => {
+            let Some(hold) = &details.hold else { return false };
+            let Some(placed) = &hold.placed else { return false };
+            placed.mode == c::HoldMode::Stop
+                && placed.scope == (c::HoldScope::Subtree { task: chip.task })
+                && !placed.lifted
+                && placed.owner == (c::HoldOwner::Party { person: me.party.number })
+        }
+        c::ChipPhase::Waiting { .. }
+        | c::ChipPhase::Active(_)
+        | c::ChipPhase::Person { .. }
+        | c::ChipPhase::Closing(_)
+        | c::ChipPhase::Ended => false,
+    }
 }
