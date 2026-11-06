@@ -3,7 +3,7 @@
 use temper_fixtures::client_documents as documents;
 mod github;
 use crate::driver::{answer, deliver, limits, step};
-use crate::samples::{Then, World};
+use crate::samples::{Confirmation, Then, World};
 use World::{FirstRun, Reference, Solo};
 use jig_client::contract as c;
 use skein_lib::{Duration, List, Queue, Token, Wall};
@@ -297,6 +297,15 @@ fn world_in_layout(
                     let document = match subject {
                         c::Subject::Me => {
                             let mut me = frame(w, connecting, configuring);
+                            if matches!(then, Then::Sheet(Confirmation::CloseWork | Confirmation::CloseFailed)) {
+                                me.projects
+                                    .get_mut(0)
+                                    .expect("project")
+                                    .templates
+                                    .get_mut(0)
+                                    .expect("chat template")
+                                    .grace = Some(Duration::from_secs(5));
+                            }
                             if matches!(then, Then::Mode(_) | Then::DraftEmpty) {
                                 let templates = me.projects.get(0).expect("draft project").templates.clone();
                                 configure_frame(&mut me);
@@ -1259,7 +1268,9 @@ fn read_value(w: World, what: &c::Read, then: Then, goals: Option<&str>) -> Opti
                     .expect("chat document");
                 }
                 c::NotePage { rows, before: None, after: None, cut: false }
-            } else if matches!(then, Then::Mode(_)) && *scope == (c::NoteScope::Task { project: PROJECT, task: 10 }) {
+            } else if matches!(then, Then::Mode(_) | Then::Sheet(Confirmation::StartOver))
+                && *scope == (c::NoteScope::Task { project: PROJECT, task: 10 })
+            {
                 configuring_note(scope)
             } else if matches!(then, Then::Mode(_)) && *scope == (c::NoteScope::Task { project: PROJECT, task: 1 }) {
                 chat_note(scope)
@@ -3336,6 +3347,7 @@ fn accounts(w: World, then: Then) -> c::Accounts {
             | Then::GoogleSignIn
             | Then::OutOfDate
             | Then::Closing
+            | Then::Sheet(_)
             | Then::Rejecting
             | Then::Held
             | Then::Releasing
@@ -3661,6 +3673,7 @@ fn activity_window(w: World, task: u64, before: Option<&c::Cursor>) -> c::Activi
     }
     document
 }
+#[expect(clippy::too_many_lines, reason = "the task fixture holds each confirmation's run, delegate and effect facts")]
 fn shown_task(w: World, task: u64, then: Then) -> c::Task {
     let mut t = document(w, task);
     if matches!(then, Then::Mode(_) | Then::DraftEmpty) && task == 1 {
@@ -3703,7 +3716,11 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
         t.flags.conversation = false;
         t.flags.listed = true;
     }
-    if then == Then::Held || then == Then::Releasing || (then == Then::HeldChange && task == 2) {
+    if then == Then::Held
+        || then == Then::Releasing
+        || then == Then::Sheet(Confirmation::ReleaseUncertain)
+        || (then == Then::HeldChange && task == 2)
+    {
         t.priority = None;
         t.flags.conversation = false;
         t.flags.listed = true;
@@ -3734,6 +3751,108 @@ fn shown_task(w: World, task: u64, then: Then) -> c::Task {
             })
             .expect("release");
     }
+    if let Then::Sheet(kind) = then {
+        match kind {
+            Confirmation::CloseWork | Confirmation::CloseFailed | Confirmation::Closed if task == 6 => {
+                t.chip.phase = c::Phase::Running;
+                t.chip.details.phase = c::ChipPhase::Active(c::RunStage::Running { attempt: 1 });
+                t.delegates = List::with_capacity(2);
+                for (number, title) in [(4, "Fix the parser"), (5, "Review the parser")] {
+                    let mut chip = t.chip.clone();
+                    chip.task = number;
+                    chip.title = doc(title);
+                    t.delegates.push(c::LiveDelegate { chip, takeover_budget: 0 }).expect("two delegates");
+                }
+                t.acts = offers(&[c::ActKind::Cancel]);
+                t.acts.get_mut(0).expect("cancel").effect = Some(c::Effect::Cancel(c::Impact {
+                    tasks: c::ImpactCounts {
+                        waiting: 2,
+                        running: 0,
+                        held: 0,
+                        closing: 0,
+                        ended: 0,
+                        done: 7,
+                        failed: 3,
+                        cancelled: 1,
+                    },
+                    live_runs: 1,
+                    proposals: 2,
+                }));
+                if kind == Confirmation::Closed {
+                    let at = Wall::from_nanos(
+                        now(w).as_nanos() / 86_400_000_000_000 * 86_400_000_000_000 + 75_900_000_000_000,
+                    );
+                    t.chip.phase = c::Phase::Cancelled;
+                    t.chip.details.phase = c::ChipPhase::Ended;
+                    t.chip.details.details.ended_at = Some(at);
+                    t.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Cancelled {
+                        reason: doc("Chat closed"),
+                        by: t.requester,
+                        result: None,
+                        at,
+                    })));
+                }
+            }
+            Confirmation::CancelTask | Confirmation::StopTask if task == 3 => {
+                t.priority = None;
+                t.flags.conversation = false;
+                t.flags.listed = true;
+                t.chip.executor = c::ChipExecutor::Agent { charter: 1 };
+                t.chip.phase = c::Phase::Running;
+                t.chip.details.phase = c::ChipPhase::Active(c::RunStage::Running { attempt: 1 });
+                t.acts = offers(&[c::ActKind::Stop, c::ActKind::Cancel]);
+                t.acts.get_mut(1).expect("cancel").effect = Some(c::Effect::Cancel(c::Impact {
+                    tasks: c::ImpactCounts {
+                        waiting: 1,
+                        running: 0,
+                        held: 0,
+                        closing: 0,
+                        ended: 0,
+                        done: 0,
+                        failed: 0,
+                        cancelled: 0,
+                    },
+                    live_runs: 1,
+                    proposals: 0,
+                }));
+            }
+            Confirmation::CloseBelow | Confirmation::CloseProposal if task == 6 => {
+                t.chip.phase = c::Phase::Idle;
+                t.chip.details.phase = c::ChipPhase::Active(c::RunStage::Idle);
+                t.delegates.clear();
+                t.acts = offers(&[c::ActKind::Cancel]);
+                t.acts.get_mut(0).expect("cancel").effect = Some(c::Effect::Cancel(c::Impact {
+                    tasks: c::ImpactCounts {
+                        waiting: u32::from(kind == Confirmation::CloseBelow),
+                        running: 0,
+                        held: 0,
+                        closing: 0,
+                        ended: 0,
+                        done: 0,
+                        failed: 0,
+                        cancelled: 0,
+                    },
+                    live_runs: 0,
+                    proposals: u32::from(kind == Confirmation::CloseProposal),
+                }));
+            }
+            Confirmation::ReleaseUncertain if task == 3 => {
+                t.acts.get_mut(0).expect("release").effect = Some(c::Effect::Release(c::ReleaseEffect::Uncertain));
+            }
+            Confirmation::CloseWork
+            | Confirmation::CloseFailed
+            | Confirmation::CloseBelow
+            | Confirmation::CloseProposal
+            | Confirmation::Closed
+            | Confirmation::StartOver
+            | Confirmation::CancelTask
+            | Confirmation::StopTask
+            | Confirmation::Accept
+            | Confirmation::Reject
+            | Confirmation::ReleaseUncertain => {}
+        }
+    }
+
     t
 }
 fn plan_tree(w: World, task: u64, window: u32, then: Then) -> c::Delivery {
