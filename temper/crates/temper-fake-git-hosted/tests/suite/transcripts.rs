@@ -17,6 +17,7 @@ const CASES: &[(&str, Fault)] = &[
     ("checkout-1", Fault::None),
     ("checkout-2", Fault::None),
     ("merge-clean", Fault::None),
+    ("merge-in-progress", Fault::None),
     ("merge-up-to-date", Fault::None),
     ("merge-conflict", Fault::None),
     ("merge-conflict-2", Fault::None),
@@ -72,6 +73,7 @@ fn each_transcript_s_exit_and_masked_stdout_match_the_fake_s() {
 fn each_failure_transcript_s_stderr_classifies_as_the_fake_s() {
     let rows = [
         ("checkout-index-locked", Fault::None, git::Kind::CheckOut),
+        ("merge-in-progress", Fault::None, git::Kind::Merge),
         ("clone-missing-repository", Fault::MissingRepository, git::Kind::Clone),
         ("clone-stranger-private", Fault::MissingRepository, git::Kind::Clone),
         ("fetch-missing-branch", Fault::MissingBranch, git::Kind::Fetch),
@@ -356,6 +358,49 @@ fn hosted_git_stages_files_and_commits_the_requested_parents_without_moving_head
     assert_eq!(disk.read(&scenario.at, b".git/temper-head"), 1_u64.to_le_bytes());
     assert_eq!(disk.read(&scenario.at, b".git/MERGE_HEAD"), 2_u64.to_le_bytes());
     assert_eq!(disk.read(&scenario.at, b".git/objects/3"), b"");
+}
+
+#[test]
+fn hosted_git_refuses_a_second_merge_until_a_checkout_clears_the_first() {
+    let mut scenario = fixtures::scenario();
+    let second = scenario.transport.commit_tree(
+        scenario.base,
+        None,
+        [(b"conflict.txt".to_vec(), b"base\n".to_vec()), (b"other".to_vec(), b"second\n".to_vec())].into(),
+        b"second head\n",
+    );
+    scenario.checkout.write(&[scenario.at.as_slice(), format!("/.git/objects/{second}").as_bytes()].concat(), b"");
+    let mut disk = Disk::new(&scenario);
+    let mut parent = commit(scenario.base);
+    for (head, merged) in [(scenario.topic, 4_u64), (second, 5)] {
+        let merge = Command::Merge { theirs: commit(head) };
+        assert_eq!(disk.run(&scenario, &merge, b"").exit, 0);
+        assert_eq!(disk.run(&scenario, &Command::Add, b"").exit, 0);
+        let tree = disk.run(&scenario, &Command::WriteTree, b"");
+        let tree = invocation::object(tree.stdout.strip_suffix(b"\n").expect("one tree id")).expect("tree id");
+        let committed =
+            disk.run(&scenario, &Command::CommitTree { tree, parent, merging: Some(commit(head)) }, b"merge head\n");
+        assert_eq!(committed.exit, 0);
+        let committed =
+            invocation::object(committed.stdout.strip_suffix(b"\n").expect("one commit id")).expect("merge commit id");
+        assert_eq!(committed, commit(merged));
+        assert_eq!(disk.read(&scenario.at, b".git/MERGE_HEAD"), head.to_le_bytes());
+        let refused = disk.run(&scenario, &Command::Merge { theirs: commit(second) }, b"");
+        assert_eq!(refused.exit, 128);
+        assert!(refused.stdout.is_empty());
+        assert_eq!(
+            refused.stderr,
+            b"fatal: You have not concluded your merge (MERGE_HEAD exists).\nPlease, commit your changes before you merge.\n"
+        );
+        assert_eq!(disk.run(&scenario, &Command::CheckOut { commit: committed }, b"").exit, 0);
+        assert_eq!(disk.run(&scenario, &Command::Clean, b"").exit, 0);
+        assert_eq!(disk.read(&scenario.at, b".git/temper-head"), merged.to_le_bytes());
+        assert_eq!(
+            disk.machine.open(disk.root, &[scenario.at.as_slice(), b"/.git/MERGE_HEAD"].concat(), How::PathNoFollow),
+            Err(skein_fake_machine::Refusal::NotFound)
+        );
+        parent = committed;
+    }
 }
 
 #[test]
