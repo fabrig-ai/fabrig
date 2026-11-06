@@ -75,6 +75,7 @@ pub fn native() -> Limits {
                 client,
                 // An account's row names eight uses.
                 row_uses: 8,
+                window_bytes: None,
             }
         },
         connections: jig_client_shell_native::Limits {

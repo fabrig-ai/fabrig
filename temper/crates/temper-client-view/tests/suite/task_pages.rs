@@ -57,7 +57,7 @@ mod tests {
                 exchanges: 8,
             };
 
-            Limits { forge: forge::Limits { field_bytes: 256, checks: 8 }, client, row_uses: 8 }
+            Limits { forge: forge::Limits { field_bytes: 256, checks: 8 }, client, row_uses: 8, window_bytes: None }
         }
     }
     fn fixture_me(project_name: &[u8]) -> c::Me {
