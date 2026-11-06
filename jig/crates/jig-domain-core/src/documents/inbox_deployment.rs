@@ -33,6 +33,13 @@ pub struct InboxEntry {
     pub at: Option<Wall>,
     pub unread: Option<bool>,
     pub cursor: Cursor,
+    pub projects: List<u32>,
+}
+impl InboxEntry {
+    #[must_use]
+    pub fn shows_in(&self, project: u32) -> bool {
+        self.project == Some(project) || self.projects.as_slice().contains(&project)
+    }
 }
 /// A bounded page across both groups. Needs precede updates. Known-time needs
 /// are oldest first and updates newest first.
@@ -308,6 +315,16 @@ pub(super) fn inbox(core: &Core, limits: &Limits, party: u64, window: &Window) -
             at: Some(*at),
             unread: Some(*unread),
             cursor: *cursor,
+            projects: match *object {
+                InboxObject::Proposal { proposer, number } if *task == jig_domain_tasks::PROPOSAL_WITHOUT_TASK => core
+                    .settings_row_projects(party, (proposer, u32::try_from(number).expect("settings proposal number"))),
+                InboxObject::Proposal { .. }
+                | InboxObject::Question { .. }
+                | InboxObject::Escalation { .. }
+                | InboxObject::PersonTask
+                | InboxObject::Reply { .. }
+                | InboxObject::Result { .. } => List::with_capacity(0),
+            },
         };
         let context = super::inbox_selection::live(core, limits, *task, *cursor)?;
         selection.push(context).expect("one context per bounded inbox row");
