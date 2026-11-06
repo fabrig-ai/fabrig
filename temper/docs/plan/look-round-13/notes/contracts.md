@@ -14,9 +14,9 @@ Binding. A task builds to these and needs no other task's text.
 
 ## `DismissMaking` (`dismiss-making`)
 
-- Wire, `temper-client-protocol-wire/schema/client-wire-v1.schema`: `record DismissMaking { forge: u16 org: bytes 1024 name: bytes 1024 }`; `Request` gains `dismiss_making: DismissMaking`; the wire's `MakeRefusal` gains `not_failed`, and so does the store's (`temper-protocol-store`, where a kept answer holds it).
-- Engine, `temper-engine-domain-forge`: `Ask::DismissMaking { forge: u16, org: Box<[u8]>, name: Box<[u8]> }`, answered with `MakeAnswer` (`Kept` or `Refused(MakeRefusal::NotFailed)`).
-- Client, `temper_client_domain::forge::dismiss_making(forge: u16, org: &[u8], name: &[u8], limits: &w::Limits) -> Option<jig_client::Family>`, beside `family.rs`'s `make_repository`.
+- Wire, `temper-client-protocol-wire/schema/client-wire-v1.schema`: `record DismissMaking { forge: u16 org: bytes 1024 name: bytes 1024 project: option u32 }`, the project the failed row's `into` names, read by the client from the row on the `forges` watch; `Request` gains `dismiss_making: DismissMaking`; the wire's `MakeRefusal` gains `not_failed`, and so does the store's (`temper-protocol-store`, where a kept answer holds it).
+- Engine, `temper-engine-domain-forge`: `Ask::DismissMaking { forge: u16, org: Box<[u8]>, name: Box<[u8]>, project: Option<u32> }`, answered with `MakeAnswer` (`Kept`, `Refused(MakeRefusal::NotFailed)`, or `Refused(MakeRefusal::NotOwner)`, by role or for a row whose `into` is another project's). The scope is the request's `project`, or the deployment with none, so a repeat of a key has the same scope and jig replays it.
+- Client, `temper_client_domain::forge::dismiss_making(forge: u16, org: &[u8], name: &[u8], project: Option<u32>, limits: &w::Limits) -> Option<jig_client::Family>`, beside `family.rs`'s `make_repository`.
 
 ## A bound list's `Near` (`list-near`)
 
