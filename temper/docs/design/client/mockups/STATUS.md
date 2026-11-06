@@ -30,6 +30,15 @@ What the client doesn't draw yet:
 
 Where the client does otherwise:
 
+- **Claude's host check** (the client README's 3.5, *The try*): while
+  checking, the panel's place holds the model status box, its first step
+  under way, without "one short message". Not signed in, the same box
+  marks that first step failed and says why, with "Try again", "Sign in
+  again" and "Continue anyway". The mockup's checking note and separate
+  not-yet alert are not drawn. A real turn, the later steps and their
+  endings await `../../draft/model-check.md`, 2 to 4; the host's check
+  still moves a usable model on to Ready. The mockup is not edited.
+
 - **Model's forge pane** (the client README's 3.5; `../browser.md`, 2.5;
   the user, 2026-11-04): its named Forge region follows the choices and
   precedes the foot, beside the column from 1280 px and under the
