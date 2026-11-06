@@ -8,8 +8,6 @@ a restart empties the ended-goal history (jig's `domain/people.md`, 13.9);
 a stock queue's Landings stay empty, since its changes land without a landing
 by turn.
 
-- **Not yet:** 4.3, *The tier's window*: the tier's bundle holds the whole `document_bytes`,
-  and `reading_tier`'s replies are sized for it.
 - **Design departs:** 8.3, from the request `ui-public-2` of 2026-11-06:
   ended rows say how long ago they ended, where the request says "for how
   long", because "landed for 2 hours" would not describe the ending. The

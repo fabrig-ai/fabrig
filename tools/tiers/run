@@ -92,7 +92,7 @@ def bundle(tree, target, env):
                    "--stylesheet", f"{shell}/task-pages.css",
                    "--files", f"{shell}/files",
                    "--noscript", "temper needs WebAssembly and scripts."]
-        features = ["--features", "loopback-navigation"]
+        features = ["--features", "loopback-navigation,small-window"]
     build("wasm module", ["--target", "wasm32-unknown-unknown", *features, "-p", package], env)
     build("bundle tool", ["-p", "skein-ui-bundle"], env)
     module = package.replace("-", "_")
