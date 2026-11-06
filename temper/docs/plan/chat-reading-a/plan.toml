@@ -41,3 +41,23 @@ id = 1
 story = "a committed turn whose results are large keeps every call's name, says nothing of what was cut and draws no reasoning, and jig's client carries a live answer past a field's bound"
 parts = ["reader", "committed-turn", "live-text", "conversation"]
 walk = false
+
+[[part]]
+id = "turn-budget"
+title = "temper's clients hold a turn of 131,072 bytes, and the view prices it"
+mode = "direct"
+needs = ["committed-turn", "live-text", "conversation"]
+design = "temper/docs/design/client/README.md, 5.4"
+
+[[part]]
+id = "live-page"
+title = "The answer only grows, and takes its committed place without moving"
+mode = "direct"
+needs = ["reader", "turn-budget"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 2
+story = "a live answer longer than today's window arrives whole, is never seen with raw markers, and takes its committed place without moving"
+parts = ["turn-budget", "live-page"]
+walk = false
