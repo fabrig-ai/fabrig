@@ -2,8 +2,6 @@
 
 2026-11-06. Where temper's code lags or departs from [root.md](root.md).
 
-- **Not yet:** 5.2: a task read names no room (`route/tools.rs`, `relay_payload`), so jig
-  chunks it at `documents.text_bytes` and a run reads a spec in pieces of 512 bytes.
 - **Not yet:** 7.2: a section for each
   document a charter names (the forge's brief sources are CI, reviews, the
   pull request and the home: `temper-engine-domain-forge/src/boundary.rs`,
