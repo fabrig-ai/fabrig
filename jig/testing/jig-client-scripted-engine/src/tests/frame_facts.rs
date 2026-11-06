@@ -1,4 +1,4 @@
-use super::{frame, list, text};
+use super::{PROJECT, REQUESTER, frame, list, text};
 use crate::Bounds;
 use jig_client_domain::contract::*;
 use skein_lib::Wall;
@@ -13,18 +13,18 @@ fn builtin_roles_remain_memberships_without_becoming_numeric_policy_recipients()
         HeldRole::Policy { role: u32::MAX },
     ];
     for role in roles {
-        let mut row = frame(1);
+        let mut row = frame(REQUESTER);
         row.projects.get_mut(0).expect("fixture project").role = role;
         row.projects.get_mut(0).expect("fixture project").pool = None;
         let mut truth = crate::Truth::default();
-        truth.frames.insert(1, row.clone());
-        assert!(truth.visible(1, 1));
-        assert!(!truth.visible(1, 2));
+        truth.frames.insert(REQUESTER, row.clone());
+        assert!(truth.visible(REQUESTER, PROJECT));
+        assert!(!truth.visible(REQUESTER, 2));
         assert_eq!(
-            crate::requests::recipient(&truth, 1, &Recipient::Role { project: 1, role: u32::MAX }),
+            crate::requests::recipient(&truth, REQUESTER, &Recipient::Role { project: PROJECT, role: u32::MAX }),
             role == HeldRole::Policy { role: u32::MAX }
         );
-        assert!(!crate::requests::recipient(&truth, 1, &Recipient::Role { project: 1, role: 1 }));
+        assert!(!crate::requests::recipient(&truth, REQUESTER, &Recipient::Role { project: PROJECT, role: 1 }));
         let request = Ask::SetRoles { project: u32::MAX, holdings: list(vec![Holding { party: u64::MAX, role }]) };
         assert!(crate::codec::ask(&request, &Bounds::default()).is_ok());
         let service = Ask::MakeService { project: u32::MAX, name: text(b"actual-service"), role };

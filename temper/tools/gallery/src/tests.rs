@@ -106,6 +106,112 @@ enum Part {
 }
 const HOLDS: [Holds; samples::N] = [
     Holds {
+        name: "chat-closing-below",
+        heading: "T6 · Why is tally sum slow on big files?",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Close this chat?" },
+            Part::Text { text: "1 task below it is cancelled." },
+        ],
+    },
+    Holds {
+        name: "chat-closing-proposal",
+        heading: "T6 · Why is tally sum slow on big files?",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Close this chat?" },
+            Part::Text { text: "1 proposal is withdrawn." },
+        ],
+    },
+    Holds {
+        name: "task-releasing-uncertain",
+        heading: "T3 · CSV import",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Release this task?" },
+            Part::Named { role: Role::Button, name: "Repeat the effect" },
+            Part::Named { role: Role::Button, name: "Do not repeat the effect" },
+        ],
+    },
+    Holds {
+        name: "chat-closing-work",
+        heading: "T6 · Why is tally sum slow on big files?",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Close this chat?" },
+            Part::Named { role: Role::Button, name: "Keep it" },
+            Part::Named { role: Role::Button, name: "Close chat" },
+        ],
+    },
+    Holds {
+        name: "chat-closing-failed",
+        heading: "T6 · Why is tally sum slow on big files?",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Close this chat?" },
+            Part::Named { role: Role::Button, name: "Keep it" },
+            Part::Named { role: Role::Button, name: "Close chat" },
+        ],
+    },
+    Holds {
+        name: "chat-closing-start-over",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Start over?" },
+            Part::Named { role: Role::Button, name: "Keep going" },
+            Part::Named { role: Role::Button, name: "Start over" },
+        ],
+    },
+    Holds {
+        name: "task-cancelling",
+        heading: "T3 · CSV import",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Cancel this task?" },
+            Part::Named { role: Role::Button, name: "Keep it" },
+            Part::Named { role: Role::Button, name: "Cancel task" },
+        ],
+    },
+    Holds {
+        name: "task-stopping",
+        heading: "T3 · CSV import",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Stop this task?" },
+            Part::Named { role: Role::Button, name: "Keep going" },
+            Part::Named { role: Role::Button, name: "Stop task" },
+        ],
+    },
+    Holds {
+        name: "proposal-accepting",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Accept this proposal?" },
+            Part::Named { role: Role::Button, name: "Not yet" },
+            Part::Named { role: Role::Button, name: "Accept" },
+        ],
+    },
+    Holds {
+        name: "proposal-rejecting",
+        heading: "T10 · Add a --json flag to tally report",
+        parts: &[
+            Part::Named { role: Role::Dialog, name: "Reject this proposal?" },
+            Part::Named { role: Role::Button, name: "Keep it" },
+            Part::Named { role: Role::Button, name: "Reject" },
+        ],
+    },
+    Holds {
+        name: "chat-closed",
+        heading: "T6 · Why is tally sum slow on big files?",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "Closed at 21:05" },
+            Part::Named { role: Role::Status, name: "Closed" },
+            Part::Absent { role: Role::TextArea, name: "Message" },
+        ],
+    },
+    Holds {
+        name: "rail-person-menu",
+        heading: "tally",
+        parts: &[
+            Part::Named { role: Role::Menu, name: "Robin" },
+            Part::Named { role: Role::MenuItem, name: "Accounts" },
+            Part::Named { role: Role::MenuItem, name: "Sign out" },
+        ],
+    },
+    Holds {
         name: "rail-new-menu",
         heading: "tally",
         parts: &[
@@ -204,7 +310,7 @@ const HOLDS: [Holds; samples::N] = [
         name: "goal-stop-dialog",
         heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
         parts: &[
-            Part::Named { role: Role::Dialog, name: "Stop first-run-projects?" },
+            Part::Named { role: Role::Dialog, name: "Stop this goal?" },
             Part::Text { text: "What landed on its branch stays there." },
         ],
     },
@@ -1079,7 +1185,7 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "welcome-paste-expired",
-        heading: "Signing in to ChatGPT from another computer",
+        heading: "Signing in to ChatGPT",
         parts: &[
             Part::Named { role: Role::Status, name: "This sign-in has ended." },
             Part::Named { role: Role::Button, name: "Continue with ChatGPT" },
@@ -1103,22 +1209,22 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "welcome-paste-waiting",
-        heading: "Signing in to ChatGPT from another computer",
+        heading: "Connect a model",
         parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-written",
-        heading: "Signing in to ChatGPT from another computer",
+        heading: "Connect a model",
         parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-too-long",
-        heading: "Signing in to ChatGPT from another computer",
+        heading: "Connect a model",
         parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-sending",
-        heading: "Signing in to ChatGPT from another computer",
+        heading: "Connect a model",
         parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
@@ -1128,32 +1234,32 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "welcome-paste-address",
-        heading: "Signing in to ChatGPT from another computer",
+        heading: "Connect a model",
         parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-state",
-        heading: "Signing in to ChatGPT from another computer",
+        heading: "Connect a model",
         parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-too-many",
-        heading: "Signing in to ChatGPT from another computer",
+        heading: "Connect a model",
         parts: &[Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
     },
     Holds {
         name: "welcome-paste-ended",
-        heading: "Signing in to ChatGPT from another computer",
+        heading: "Connect a model",
         parts: &[Part::Named { role: Role::Button, name: "Continue with ChatGPT" }],
     },
     Holds {
         name: "welcome-paste-lost",
-        heading: "Signing in to ChatGPT from another computer",
+        heading: "Connect a model",
         parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
         name: "welcome-paste-unsent",
-        heading: "Signing in to ChatGPT from another computer",
+        heading: "Connect a model",
         parts: &[Part::Named { role: Role::TextField, name: "Address of the page that couldn’t be reached" }],
     },
     Holds {
@@ -1201,7 +1307,7 @@ const HOLDS: [Holds; samples::N] = [
         name: "welcome-model-claude-checking",
         heading: "Your Claude subscription",
         parts: &[
-            Part::Named { role: Role::Status, name: "Checking Claude Code’s sign-in on this machine…" },
+            Part::Named { role: Role::Status, name: "Trying your Claude subscription" },
             Part::Absent { role: Role::Button, name: "I’ve signed in" },
         ],
     },
@@ -1209,12 +1315,15 @@ const HOLDS: [Holds; samples::N] = [
         name: "welcome-model-claude-not-yet",
         heading: "Your Claude subscription",
         parts: &[
-            Part::Text { text: "temper program-login claude-pat" },
+            Part::Named { role: Role::Alert, name: "Claude didn’t answer" },
             Part::Named {
-                role: Role::Alert,
-                name: "Claude Code isn’t signed in here yet. Run the command above, then press I’ve signed in.",
+                role: Role::Paragraph,
+                name: "Claude Code isn’t signed in here yet. Sign in again, then try again.",
             },
-            Part::Named { role: Role::Button, name: "I’ve signed in" },
+            Part::Named { role: Role::Button, name: "Try again" },
+            Part::Named { role: Role::Button, name: "Sign in again" },
+            Part::Named { role: Role::Link, name: "Continue anyway" },
+            Part::Absent { role: Role::Button, name: "I’ve signed in" },
         ],
     },
     Holds {
@@ -1234,14 +1343,19 @@ const HOLDS: [Holds; samples::N] = [
         name: "welcome-model-away",
         heading: "Connect a model",
         parts: &[
-            Part::Named { role: Role::Status, name: "ChatGPT’s sign-in, in this tab" },
-            Part::Named { role: Role::Disclosure, name: "Signed in, but the page couldn't be reached?" },
+            Part::Named { role: Role::Status, name: "Waiting for ChatGPT’s sign-in, in the new tab" },
+            Part::Named { role: Role::Link, name: "Open it again" },
+            Part::Named { role: Role::Disclosure, name: "Signed in, but the page couldn’t be reached?" },
         ],
     },
     Holds {
         name: "welcome-model-signing-in",
         heading: "Connect a model",
-        parts: &[Part::Named { role: Role::Status, name: "ChatGPT’s sign-in, in this tab" }],
+        parts: &[
+            Part::Named { role: Role::Status, name: "Waiting for ChatGPT’s sign-in, in the new tab" },
+            Part::Named { role: Role::Link, name: "Open it again" },
+            Part::Named { role: Role::Disclosure, name: "Signed in, but the page couldn’t be reached?" },
+        ],
     },
     Holds {
         name: "welcome-model-signin-ready",
@@ -1366,7 +1480,7 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Heading { level: 2 }, name: "ChatGPT" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Claude" },
-            Part::Named { role: Role::Paragraph, name: "Sign in, in this tab · about a minute" },
+            Part::Named { role: Role::Paragraph, name: "Sign in, in a new tab · about a minute" },
             Part::Named { role: Role::Button, name: "Continue with ChatGPT" },
         ],
     },
@@ -2164,7 +2278,7 @@ const HOLDS: [Holds; samples::N] = [
     Holds {
         name: "chat-closing",
         heading: "T6 · Why is tally sum slow on big files?",
-        parts: &[Part::Named { role: Role::Dialog, name: "Close" }],
+        parts: &[Part::Named { role: Role::Dialog, name: "Close this chat?" }],
     },
     Holds {
         name: "chat-rejecting",
@@ -2186,7 +2300,7 @@ const HOLDS: [Holds; samples::N] = [
     Holds {
         name: "task-releasing",
         heading: "T3 · CSV import",
-        parts: &[Part::Named { role: Role::Dialog, name: "Release" }],
+        parts: &[Part::Named { role: Role::Dialog, name: "Release this task?" }],
     },
     Holds {
         name: "connect-model-choose",
@@ -2237,7 +2351,11 @@ const HOLDS: [Holds; samples::N] = [
     Holds {
         name: "connect-model-signing-in",
         heading: "Connect a model",
-        parts: &[Part::Named { role: Role::Link, name: "Open the sign-in page" }],
+        parts: &[
+            Part::Named { role: Role::Status, name: "Waiting for ChatGPT’s sign-in, in the new tab" },
+            Part::Named { role: Role::Link, name: "Open it again" },
+            Part::Named { role: Role::Disclosure, name: "Signed in, but the page couldn’t be reached?" },
+        ],
     },
     Holds {
         name: "connect-model-key-lost",
@@ -2293,7 +2411,13 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
 ];
-const SPENDS: [(&str, Role, &str); 25] = [
+const SPENDS: [(&str, Role, &str); 31] = [
+    ("chat-closed", Role::Paragraph, "1 spent · of 40"),
+    ("chat-closing-below", Role::Paragraph, "1 spent · of 40"),
+    ("chat-closing-proposal", Role::Paragraph, "1 spent · of 40"),
+    ("chat-closing-work", Role::Paragraph, "1 spent · of 40"),
+    ("chat-closing-failed", Role::Paragraph, "1 spent · of 40"),
+    ("chat-closing-start-over", Role::Paragraph, "0 spent · of 40"),
     ("chat-first-run-7-T1", Role::Paragraph, "0 spent · of 20"),
     ("chat-solo-T10", Role::Paragraph, "0 spent · of 40"),
     ("chat-held-task", Role::Paragraph, "0 spent · of 40"),
@@ -2917,7 +3041,7 @@ fn each_settings_switch_off_keeps_its_value_and_changes_its_navigation() {
 fn goal_acts_samples_reach_the_editor_dialog_and_answered_toast() {
     for (name, role, label) in [
         ("goal-amending", Role::Region, "Amend task 108"),
-        ("goal-stop-dialog", Role::Dialog, "Stop first-run-projects?"),
+        ("goal-stop-dialog", Role::Dialog, "Stop this goal?"),
         ("goal-toast", Role::Status, ""),
     ] {
         let sample = samples::samples().into_iter().find(|sample| sample.name == name).unwrap();
@@ -2957,6 +3081,56 @@ fn the_rail_menu_sample_opens_the_menu() {
     assert!(!menu.contains("hidden"), "{menu}");
     assert!(html.contains("Ask a question or ask for a change."));
     assert!(html.contains("Agents plan a larger change and land it."));
+}
+
+#[test]
+fn the_person_menu_sample_opens_above_its_row() {
+    let sample = samples::samples().into_iter().find(|s| s.name == "rail-person-menu").unwrap();
+    let html = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
+    let person = html.split("class=\"temper-rail-person\"").nth(1).unwrap();
+    assert!(person.contains("aria-expanded=\"true\""));
+    let menu = person.split("role=\"menu\"").nth(1).unwrap().split('>').next().unwrap();
+    assert!(!menu.contains("hidden"), "{menu}");
+    assert!(person.contains("role=\"menuitem\">Accounts</div>"));
+    assert!(person.contains("role=\"menuitem\">Sign out</div>"));
+    let css = fs::read_to_string(STYLESHEETS[0]).unwrap();
+    let panel = css
+        .lines()
+        .find(|line| line.starts_with("#app > .temper-rail > .temper-rail-foot > .temper-rail-person > [role=menu] {"))
+        .unwrap();
+    assert!(panel.contains("bottom: calc(100% + 6px)"));
+    assert!(!panel.contains("top:"));
+}
+
+#[test]
+fn the_accounts_tabs_sign_out_hides_over_a_phones_width_alone() {
+    let css = fs::read_to_string(STYLESHEETS[0]).unwrap();
+    let mut selectors = Vec::new();
+    let mut start = 0;
+    let mut hiding_rules = 0;
+    for (at, character) in css.char_indices() {
+        match character {
+            '{' => {
+                selectors.push(css[start..at].trim());
+                start = at + 1;
+            }
+            '}' => {
+                let selector = selectors.pop().unwrap();
+                let declarations = css[start..at].split_whitespace().collect::<String>();
+                if selector.contains("temper-settings-sign-out") && declarations.contains("display:none") {
+                    assert!(
+                        selectors.contains(&"@media (min-width: 761px)"),
+                        "Sign out must hide only over a phone's width: {selector}"
+                    );
+                    assert_eq!(selector, ".temper-settings-setting.temper-settings-sign-out");
+                    hiding_rules += 1;
+                }
+                start = at + 1;
+            }
+            _ => {}
+        }
+    }
+    assert_eq!(hiding_rules, 1, "one desktop-only hiding rule");
 }
 
 #[test]

@@ -2,7 +2,7 @@ use jig_domain_tasks::{
     self as tasks, Active, AuthorityExecutor, Contract, Domain, End, Event, Funder, Grant, Hold, Last, Limits,
     Parameter, Party, Pattern, Request, Stored, TaskResult, Verdict,
 };
-use jig_tasks_world::{LIMITS, task};
+use jig_tasks_world::{LIMITS, PERSON, PERSON_PARTY, task};
 use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
 use skein_world::domain::heap::Meter;
 
@@ -47,7 +47,7 @@ impl Measured {
             self.event(Event::OpenPeriod { reply_to, project: 1, period, budget: 100_000 });
         }
         let reply_to = self.to();
-        self.event(Event::CarvePool { reply_to, project: 1, person: 9, period: 7, budget: 100_000 });
+        self.event(Event::CarvePool { reply_to, project: 1, person: PERSON, period: 7, budget: 100_000 });
     }
 
     fn fire(&mut self) {
@@ -117,7 +117,7 @@ fn measure_saturated_payloads_graph_backoff_held_closing_retirement_and_restore_
         let batch = (1..=u64::from(l.tasks))
             .map(|number| {
                 let mut new = filled(&l, number);
-                new.funder = Funder::Pool { project: 1, person: 9, period: 7 };
+                new.funder = Funder::Pool { project: 1, person: PERSON, period: 7 };
                 new
             })
             .collect::<Vec<_>>();
@@ -326,7 +326,7 @@ fn saturated_finite_sources_and_oversized_refusals_fit_without_input_copies() {
     m.bootstrap();
     let reply_to = m.to();
     let mut new = task(1, &[]);
-    new.funder = Funder::Pool { project: 1, person: 9, period: 7 };
+    new.funder = Funder::Pool { project: 1, person: PERSON, period: 7 };
     m.event(Event::Make { reply_to, creator: Party::Person(1), batch: Box::new([new]) });
     let reply_to = m.to();
     m.event(Event::OpenPeriod { reply_to, project: 1, period: 8, budget: 100 });
@@ -523,8 +523,8 @@ fn saturated_approval_states_parts_and_results_fit_the_owner_bound() {
     let batch = (1..=u64::from(l.tasks))
         .map(|number| {
             let mut new = filled(&l, number);
-            new.executor = tasks::Executor::Person(tasks::PersonAddress::Person(9));
-            new.funder = Funder::Pool { project: 1, person: 9, period: 7 };
+            new.executor = tasks::Executor::Person(tasks::PersonAddress::Person(PERSON));
+            new.funder = Funder::Pool { project: 1, person: PERSON, period: 7 };
             new.contract = Contract::Approval {
                 state: vec![5; skein_lib::length::usize_of(l.result_bytes)].into_boxed_slice(),
                 part: tasks::Part {
@@ -539,7 +539,7 @@ fn saturated_approval_states_parts_and_results_fit_the_owner_bound() {
     let reply_to = m.to();
     m.event(Event::Make {
         reply_to,
-        creator: Party::Person(9),
+        creator: PERSON_PARTY,
         batch: batch[..skein_lib::length::usize_of(l.batch)].to_vec().into_boxed_slice(),
     });
     assert!(!m.refused);
@@ -548,7 +548,7 @@ fn saturated_approval_states_parts_and_results_fit_the_owner_bound() {
         m.event(Event::AnswerPerson {
             reply_to,
             task: number,
-            person: 9,
+            person: PERSON,
             result: TaskResult::Approved {
                 state: vec![5; skein_lib::length::usize_of(l.result_bytes)].into_boxed_slice(),
                 words: Some(Box::new([])),
@@ -605,21 +605,21 @@ fn check_verdict_arrays(l: &Limits) {
     let batch: Box<[tasks::New]> = (1..=u64::from(l.batch))
         .map(|number| {
             let mut new = filled(l, number);
-            new.executor = tasks::Executor::Person(tasks::PersonAddress::Person(9));
-            new.funder = Funder::Pool { project: 1, person: 9, period: 7 };
+            new.executor = tasks::Executor::Person(tasks::PersonAddress::Person(PERSON));
+            new.funder = Funder::Pool { project: 1, person: PERSON, period: 7 };
             new.contract = Contract::Verdict { choices: choices.clone() };
             new
         })
         .collect();
     let reply_to = measured.to();
-    measured.event(Event::Make { reply_to, creator: Party::Person(9), batch });
+    measured.event(Event::Make { reply_to, creator: PERSON_PARTY, batch });
     assert!(!measured.refused);
     for task in 1..=u64::from(l.batch) {
         let reply_to = measured.to();
         measured.event(Event::AnswerPerson {
             reply_to,
             task,
-            person: 9,
+            person: PERSON,
             result: TaskResult::Verdict { code: 0, words: Box::new([]), fields: fields.clone() },
         });
         assert!(!measured.refused);
@@ -641,7 +641,7 @@ fn a_wide_back_walk_with_ancestors_and_dependents_fits_its_priced_scratch() {
     let mut measured = Measured::new(&limits);
     measured.bootstrap();
     let reply_to = measured.to();
-    measured.event(Event::Make { reply_to, creator: Party::Person(9), batch: Box::new([pool_task(ROOT, &[])]) });
+    measured.event(Event::Make { reply_to, creator: PERSON_PARTY, batch: Box::new([pool_task(ROOT, &[])]) });
     let batch = (MIDDLE..FIRST_LEAF).map(|number| pool_task(number, &[])).collect();
     let reply_to = measured.to();
     measured.event(Event::Make { reply_to, creator: Party::Task(ROOT), batch });
@@ -676,7 +676,7 @@ fn retained_root_holds_and_new_live_holds_fit_the_index_together() {
     let mut world = jig_tasks_world::World::new(321, limits);
     let kind = tasks::Kind { connector: 1, kind: 1, hold: tasks::HoldKind::Exclusive { taken: tasks::Taken::Waits } };
     world.configure_holds(1, vec![kind]);
-    world.make(Party::Person(9), vec![task(ROOT, &[])]);
+    world.make(PERSON_PARTY, vec![task(ROOT, &[])]);
     for child in 2..=LIVE_CHILD {
         let holding = tasks::Holding::Write {
             resource: tasks::Name {
@@ -713,7 +713,7 @@ fn retained_root_holds_and_new_live_holds_fit_the_index_together() {
 
 fn pool_task(number: u64, dependencies: &[u64]) -> tasks::New {
     let mut new = task(number, dependencies);
-    new.funder = Funder::Pool { project: 1, person: 9, period: 7 };
+    new.funder = Funder::Pool { project: 1, person: PERSON, period: 7 };
     new
 }
 

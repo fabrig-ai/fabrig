@@ -98,7 +98,7 @@ record DirectoryEntry { name: bytes 1048576 kind: DirectoryKind }
 record DirectoryAnswer { head: fixed 32 path: bytes 1048576 entries: bytes 2097152 pieces DirectoryEntry truncated: bool }
 record BranchesAnswer { branches: bytes 2097152 pieces AnswerName }
 record ProtectionAnswer { protection: option Protection }
-record PermissionValue { permission: Permission }
+record PermissionValue { permission: Permission user: u64 login: bytes 1048576 }
 record BranchCreationValue { creation: BranchCreation }
 
 # 04.3ca: item summaries, comments and reviews in answer pieces.

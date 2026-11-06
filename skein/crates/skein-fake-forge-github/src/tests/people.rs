@@ -42,11 +42,19 @@ fn github_fake_people_plans_resolve_users_permissions_and_collaborator_pages() {
     let token = r::token(&mut h);
     assert_eq!(
         r::read(&mut h, &token, api::Read::Permission { user: 31 }),
-        Ok(api::Answer::Permission(api::Permission::Admin))
+        Ok(api::Answer::Permission(api::UserPermission {
+            user: 31,
+            login: Box::from(b"alice".as_slice()),
+            permission: api::Permission::Admin
+        }))
     );
     assert_eq!(
         r::read(&mut h, &token, api::Read::Permission { user: 22 }),
-        Ok(api::Answer::Permission(api::Permission::None))
+        Ok(api::Answer::Permission(api::UserPermission {
+            user: 22,
+            login: Box::from(b"acme".as_slice()),
+            permission: api::Permission::None
+        }))
     );
     assert_eq!(r::read(&mut h, &token, api::Read::Permission { user: 999 }), Err(api::Error::Missing));
     for (page, count, more) in [(1, 2, true), (2, 1, false)] {
@@ -80,7 +88,7 @@ fn github_fake_people_scope_and_all_permissions() {
             a::Permission::Write => api::Permission::Write,
             a::Permission::Admin => api::Permission::Admin,
         };
-        assert_eq!(actual, expected);
+        assert_eq!(actual.permission, expected);
     }
     for request in [
         Request::Collaborators { owner: f::boxed(b"acme"), name: f::boxed(b"absent"), page: 1, per_page: 100 },

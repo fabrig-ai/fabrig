@@ -19,11 +19,13 @@ fn accepting_sends_nothing_until_the_confirmation_is_confirmed() {
     );
 }
 #[test]
-fn a_double_press_of_confirm_sends_one_request() {
+fn a_second_press_in_flight_sends_nothing() {
     let mut pages = f::pages(PROPOSAL, f::proposal(ActKind::Accept, Admission::Allowed));
     f::act(&mut pages, f::decide(PROPOSAL, ActKind::Accept));
     assert_eq!(f::sent(&mut f::act(&mut pages, Act::Confirm)).len(), 1);
+    let key = pages.confirmation().unwrap().sent;
     assert_eq!(f::sent(&mut f::act(&mut pages, Act::Confirm)).len(), 0);
+    assert_eq!(pages.confirmation().expect("second press leaves the sheet").sent, key);
     assert_eq!(f::sent(&mut f::act(&mut pages, f::decide(PROPOSAL, ActKind::Accept))).len(), 0);
 }
 #[test]
@@ -37,7 +39,14 @@ fn a_page_holds_at_most_one_open_confirmation() {
     f::act(&mut pages, f::decide(other, ActKind::Accept));
     assert_eq!(
         pages.confirmation(),
-        Some(&acts::Confirm { object: other, act: ActKind::Accept, revision: Some(f::REVISION), again: None })
+        Some(&acts::Confirm {
+            object: other,
+            act: ActKind::Accept,
+            revision: Some(f::REVISION),
+            again: None,
+            sent: None,
+            failed: None
+        })
     );
 }
 #[test]
@@ -198,4 +207,74 @@ fn card_words_keep_a_persons_whole_reply_to_the_receiving_bound() {
     );
     acts::step(&mut pages, &fixtures::env(&limits), Act::CardWords { object: PROPOSAL, words: over }, &mut out);
     assert_eq!(pages.inbox().unwrap().cards.get(FIRST_CARD).unwrap().words.as_ref().unwrap().bytes(), &*words);
+}
+
+fn pressed_sheet() -> crate::pages::Pages {
+    let mut pages = f::pages(PROPOSAL, f::proposal(ActKind::Accept, Admission::Allowed));
+    f::act(&mut pages, f::decide(PROPOSAL, ActKind::Accept));
+    f::act(&mut pages, Act::Confirm);
+    pages
+}
+fn sheet_answer(pages: &mut crate::pages::Pages, key: jig_client::Key, outcome: jig_client::Outcome) {
+    let limits = fixtures::limits();
+    crate::pages::step(
+        pages,
+        &fixtures::env(&limits),
+        crate::unlinked(&limits, fixtures::SEED).client(),
+        crate::pages::Event::Told { told: jig_client::Told::Answered { key, outcome } },
+        &mut skein_lib::Queue::uncapped(),
+    );
+}
+#[test]
+fn the_sheet_stays_until_its_ask_is_answered() {
+    let mut pages = pressed_sheet();
+    let key = pages.confirmation().expect("sheet stays").sent.expect("sent");
+    let other = jig_client::Key { asker: key.asker, number: key.number.saturating_add(1) };
+    sheet_answer(&mut pages, other, jig_client::Outcome::Unknown);
+    assert_eq!(pages.confirmation().expect("another answer leaves the sheet").sent, Some(key));
+    sheet_answer(
+        &mut pages,
+        key,
+        jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+            c::DocumentOutcome::Amended { task: f::TASK },
+        )))),
+    );
+    assert!(pages.confirmation().is_none());
+}
+#[test]
+fn a_failed_ask_keeps_the_sheet_and_presses_send_again() {
+    let mut pages = pressed_sheet();
+    let key = pages.confirmation().expect("sheet").sent.expect("sent");
+    sheet_answer(&mut pages, key, jig_client::Outcome::NotKept);
+    let open = pages.confirmation().expect("failed sheet stays");
+    assert_eq!(open.failed, Some(jig_client::Outcome::NotKept));
+    assert_eq!(open.sent, None);
+    assert_eq!(f::sent(&mut f::act(&mut pages, Act::Confirm)).len(), 1);
+    let open = pages.confirmation().expect("retry stays");
+    assert_ne!(open.sent, Some(key));
+    assert!(open.failed.is_none());
+}
+#[test]
+fn the_keep_closes_it_with_an_ask_in_flight() {
+    let mut pages = pressed_sheet();
+    let key = pages.confirmation().expect("sheet").sent.expect("sent");
+    assert!(f::sent(&mut f::act(&mut pages, Act::Cancel)).is_empty());
+    assert!(pages.confirmation().is_none());
+    sheet_answer(&mut pages, key, jig_client::Outcome::NotKept);
+    assert_eq!(
+        pages.inbox().expect("inbox").cards.get(FIRST_CARD).expect("card").outcome,
+        Some(jig_client::Outcome::NotKept)
+    );
+}
+#[test]
+fn a_press_that_sends_nothing_closes_the_sheet() {
+    for (revision, effect) in [(None, c::ReleaseEffect::Judged), (Some(f::REVISION), c::ReleaseEffect::Uncertain)] {
+        let mut page = f::held(ActKind::Release);
+        let c::ReadValue::Escalation(held) = &mut page else { panic!("held fixture") };
+        held.acts.get_mut(0).unwrap().effect = Some(c::Effect::Release(effect));
+        let mut pages = f::pages(HELD, page);
+        f::act(&mut pages, Act::Decide { object: HELD, act: ActKind::Release, revision });
+        assert!(f::sent(&mut f::act(&mut pages, Act::Confirm)).is_empty());
+        assert!(pages.confirmation().is_none());
+    }
 }

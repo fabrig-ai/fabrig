@@ -661,6 +661,16 @@ recipient.
   a time: a sign-in with a secret spent, expired or unknown is refused,
   and the component draws a fresh one, which the startup prints again,
   unless the live one is reserved (below).
+  - *A secret given.* An application's startup may draw the first link's
+    secret itself, 32 bytes from the platform's randomness, and print its
+    URL before the engine starts. It gives the secret in the component's
+    settings (`link_secret`), and the component takes it at start in the
+    draw's place: its short while runs from that taking, it says no
+    `Link`, since the startup holds it, and all below holds of it as of a
+    drawn one. It is the first link's alone: every later link is drawn,
+    and a component started with none given draws its first. A secret of
+    any other length is refused at start, as unusable settings; one given
+    where the printed link is not enabled is dropped, no link being live.
   - *The secret is the link's, or its exchange's.* A sign-in that finds
     the secret live, before its expiry, reserves it for its exchange
     until people answers. While it is reserved, a sign-in with the same

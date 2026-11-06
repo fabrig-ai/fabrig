@@ -2,6 +2,26 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 3.5, The welcome's Model step, *The sign-in under way*, and `ConnectModel`, *While it waits* and
+  *From another computer*: the card's line and the note say a new tab, and nothing opens one: a press still
+  sends a `Return` and the page's own tab leaves, until `../draft/sign-in-new-tab.md` is built. So the note shows
+  for a moment before the tab goes, and again on a page come back while the sign-in waits, and a browser on
+  another computer presses, leaves, comes back by hand and finds the note's folded paste. The view has no fact of a tab refused:
+  `sign_in_wait::tab_refused` is false, the one function that draft feeds. The new tab's two lines, its closing on
+  a refusal at the press, and a reload's same page are that draft's. A page come back holds no address, so
+  it draws no "Open it again". `Act::SignInElsewhere` and `ConnectModel::elsewhere` stay in the domain with no
+  entry in the view, the paste's tests and gallery states reaching the page through them, until that draft
+  makes every sign-in hold its page.
+- **Design departs:** 3.5, *The sign-in under way* and `ConnectModel`, *While it waits*, from the request
+  `sign-in-new-tab` of 2026-11-06, by its plan's cut and its account. The terminal draws the note's plain title,
+  its muted line and "Open the sign-in page" above the folded paste, where the request has the terminal as today:
+  one function draws the page for both shells. `ConnectModel`'s disclosure takes auto side margins, where the
+  request's rule has none, so that it keeps its note's edges under that page's width. The note's "‹ Back" goes to
+  Choose, where the request's page, made by hand from Choose's, goes to Forge.
+- **Departs:** 3.5, `ConnectModel`, *The paste*: a paste answered *finishing* keeps the note's "Waiting for
+  ChatGPT’s sign-in, in the new tab" and its link, and reads "Finishing your sign-in…" in the disclosure, where the
+  welcome's note reads those words alone (*Finishing a paste*): `temper-client-view`'s `pages/connect_model.rs`,
+  `body`, draws `sign_in_wait::waiting` while the sign-in runs, whatever its paste. No reason is recorded.
 - **Design departs:** 3.5, *Starting a goal from a chat's document*, and 5.14, from
   the request `ui-chat-draft` of 2026-11-05, decided by the answers that day to its
   tasks `goal-sheet-state` and `goal-sheet`: one sheet, `ui-goal-page`'s, where the
@@ -35,6 +55,16 @@
   number; a row past that window has no "started goal" line. The answer of
   2026-11-05 to `ui-chat-draft/chats-drafts` keeps this one chips window,
   without raising jig's bound.
+- **Design departs:** 5.3, from the greenfield target, by the request
+  `ui-rename-focus` of 2026-11-06: closing the rename's form leaves the project
+  menu open with the focus on its summary, where the mock draws the menu closed,
+  since a disclosure's fold is skein's page part's (`ui-web.md`, 7). The field does
+  not select its name on opening, and no toast says "Renamed": the request names
+  neither, and section 11 holds them. On a new chat or Configure the closed form
+  leaves the focus on the page's own field, where the request has the opener or the
+  summary, because that plan's cut keeps a page's own request. The field's hidden
+  label says "Rename", where the mock's says "Project name": no one sees it, and
+  that plan's cut took no new word for it.
 - **Design departs:** 3.5, 5.3, 5.8, 5.13, from the greenfield target:
   the switcher keeps its inline new-project form; a chat keeps its status,
   Stop and Close, and offers Change model only with supplied choices;
@@ -58,7 +88,35 @@
   configuring chat (`temper-client-view`'s `pages/chat.rs`, `main`), where nothing
   then says why Send stays grey; and no line says there that the playground is
   running or leaving. Seen by reading; no test holds it.
+- **Departs:** 3.6, *Closed ends on one line*: a requester-closed chat hides
+  every "Decision made" activity line, because `Activity::Decided` carries only
+  a revision and cannot identify the closing decision. This keeps the quiet end
+  line, at the cost of hiding earlier decision markers too.
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
+- **Not yet:** 3.5, *The try*: the view has no fact of a trial, so `model_check::trial`,
+  the one function `../draft/model-check.md`, 2 to 4, feeds, reads the host's check alone:
+  under way is the first step Running with no "one short message", and settled with no
+  usable source is the first step Stopped, its why the host's. No page reaches Running past
+  its first step, Answered, a sign-in's or a key's steps, a stop at a later step, a reason
+  with no act, or the box on `ConnectModel`: each is drawn and tested
+  (`temper-client-view`'s `tests/model_check.rs`), with no gallery state, and
+  `model_check::last_try_failed` is false, so Ready's muted line is not said. "Try again"
+  checks the host again, and it and "Sign in again" act on the welcome's Claude way alone
+  (`temper-client-domain`'s `pages/connect_model.rs`, `matches_welcome_program`), so on a
+  plan's, a key's or `ConnectModel`'s box a press would do nothing. A model usable moves on
+  to Ready by itself until that draft is built.
+- **Design departs:** 3.5, *The try*, from the look request `model-check` of 2026-11-06, each
+  by the cut of its landing: the steps are Forge's list, named "Each step" with hidden state
+  words, where the request's pages have neither, because the terminal reads them, so an
+  answered box prints "Each step" twice there, its disclosure's name and its list's, the same
+  tree as Forge's. "Sign in again" is a button, where 03 has a link, because its address is
+  the page it stands on. A reason with no act keeps "Continue anyway" after "All ways", where
+  the request's words have "Try again" and "All ways" alone, because
+  `../draft/model-check.md`, 4 keeps no one out. At a phone's width answered's muted words
+  take a row of their own, where 02 draws them inline, because the request's words put them
+  under the title. The host's why ends "Sign in again, then try again.", where the request
+  keeps the alert's words, because the box stands in the panel's place, with no command above
+  it.
 - **Not yet:** 3.5, *Home on any project*: on the stock policy the status agent
   is left no funding. Its roles' pools are as large as the project's period
   (`temper-service`'s `stock.rs`, `project_policy`), so once a person's pool has
@@ -75,8 +133,12 @@
   `temper/crates/temper/tests/fake_backends/walk/status.rs` stops inside a
   sitting: the first look, then the count across a client's and a box's restart,
   with the byline asserted absent and the charter's scripted words read from the
-  model's document alone. Whether the run by hand the plan allowed in its place
-  was made is unknown here: it left nothing in the repository. Each half is
+  model's document alone. Walked by hand on a fake box, its owner's pool as the
+  stock leaves it, at 1440 and 420 (the request `ui-final-walk` of 2026-11-05): the
+  landing stands in Changes, and past 31 minutes Home says "you last looked 31
+  minutes ago" over the computed sentence, with no brief and nothing saying why
+  (section 11, *A brief refused, on Home*). The period's 8,117,760 stood all
+  reserved, so the cause above is read from those balances, not proved. Each half is
   shown apart: a new sitting on the client world's fake clock
   (`temper/tests/client/tests/suite/status.rs`), the agent's brief in the root's
   document (`temper/tests/engine/domain/tests/suite/forge_routes/status.rs`), and
@@ -91,9 +153,38 @@
   ended goal's report from its Goals row, in the terminal's client
   (`a_chats_goal_on_the_fake_box_shows_its_report_in_the_goals_list`). The fake
   box's model (`temper-fake/src/backends.rs`, `model_document`) writes a report
-  only for the first chat's goal, task 2, then finishes it without delegates, so
-  it can show none of those live states: the journey `chat-draft` walks a chat's
-  sheet to that finished goal's page and back to the chat alone.
+  only for the first chat's goal, task 2, and has it ask, wait or finish with no
+  delegates, so it can show no planning and no delegate task: the journey
+  `chat-draft` walks a chat's sheet to that goal's page and back to the chat alone.
+  The request `ui-final-walk` of 2026-11-05 walked a live report, Pause, Resume and
+  Stop there by hand, which no test keeps. That model has no script of a configuring
+  agent's document or proposal and no hold of temper's own, so the gallery alone
+  draws those states.
+- **Not yet:** 3.5, *Needs you*, 5.13: a proposal of settings has its inbox row say
+  project 0, so *Needs you* by the open project and the rail's count
+  (`temper-client-domain`'s `pages/needs.rs`, `count`) leave it out, whichever
+  project's kinds its items change, where the greenfield mock, the target, has its
+  card and its count. No live walk shows that card: the gallery's
+  `configure-chat-proposal` draws it in a chat, and `needs-proposal` is a goal's.
+  Section 11 holds the decision.
+- **Not yet:** 3.5, *Claude*, 5.5: the command is the same words whatever the box's
+  directories (`temper-client-view`'s `pages/connect_model.rs`, `command`), so on a
+  box given its own it refuses, where the answer of 2026-11-05 to the `ui-final-walk`
+  task `fix-flow` has it run as shown. The pinned fetch has run by hand only with the
+  three directories exported, to Claude Code's first sign-in prompt. Section 11
+  holds it, because it needs a fact no client is given.
+- **Not yet:** 3.5, *What the client keeps*, its held send: once, on a fake box at
+  1440, a choice pressed just after Undo left the card, the count and the engine's
+  question as they were after six seconds, and a repeat on a fresh box and the walk
+  at 420 answered. The cause is unknown; no test holds it (section 11).
+- **Not yet:** 5.3: the rename's form asks the focus, and so does an open reply:
+  `temper-client-view`'s `pages/ask.rs`, `reply_form`, calls `b.focus(0)` with no
+  guard, where `pages/chat.rs`, `document.rs`, `settings.rs`, `new_chat.rs` and
+  `configure.rs` ask only while no rename is open. So an owner who presses "Rename
+  PROJECT" with a reply open on Home or Needs you meets skein-ui's
+  `Builder::focus`, at most one per tree, which asserts. The `ui-rename-focus` task
+  `rename-row` has opening the form on such a page not panic; no reason is recorded
+  for this site. Seen by reading; no test holds it.
 - **Not yet:** 3.5, *Away*, 4.6: with the `away` watch refused, ended or not
   delivered yet the switch draws off, but its act is still offered, where 4.6
   has it not offered: `temper-client-view`'s `frame.rs`, `away`, and
@@ -204,7 +295,9 @@
   4.7: the "not installed" outcome, "temper's App is not installed on
   OWNER.", with "Install on another account": `temper-service/src/family.rs`
   maps `forge::AdoptionRefusal::NotInstalled` to `ForgeReason::NoAccess`;
-  the client wire has no not-installed reason, pinned as a known gap by
+  the client wire has no not-installed reason, so ctl offers repository access
+  and Forgejo collaborator-admin recovery rather than installation recovery.
+  This gap is pinned by
   `temper-service/src/tests/setup_github.rs`,
   `unaccepted_and_other_account_adoptions_keep_the_wire_reason_gap`;
   no reason is recorded.
@@ -321,6 +414,22 @@
   number order, as the request's words have it, so the reference's read "task
   by task, plan, tasks, land whole", where its mock, the target, draws them the
   other way round: number order is what a project's settings decide.
+- **Design departs:** 5.3, from the greenfield target, by the request
+  `ui-owner-menu` of 2026-11-06, at the user's word: the rail's foot row is the
+  button of a menu with "Accounts" and "Sign out", where the mock draws the
+  person's name as plain text, and a browser over 760 px signs out there rather
+  than on the `Accounts` tab. `greenfield/README.md` notes it.
+- **Design departs:** 3.5, *Sign out*, and 5.3, from the request `ui-owner-menu` of
+  2026-11-06, decided by its plan's cut. A press outside that took the focus to
+  another control leaves it there, where the request returns the focus to the row:
+  the row would take back what that press landed on. A project-less `Accounts` page
+  keeps its "Sign out" in the banner, where the request keeps it at the tab's foot:
+  that page has no such row (5.1). Over 760 px the tab's whole row leaves, "Signed in
+  as NAME" and the login with "Sign out", where the request moves "Sign out" alone:
+  one form holds them, and the sheet hides it, since the view knows no width (section
+  11, *The person's login over 760 px*). The rail's "+ New chat" menu closes on a
+  press outside too, which the request doesn't name: skein's page part gives it to
+  every menu.
 - **Design departs:** 3.5, *Settings*, 5.3 and 5.13, from the request `ui-settings`
   of 2026-11-05, decided by its plan's cut. "Sign out did not reach the engine."
   stands on the rail's foot as well as the `Accounts` tab, where the request moves
@@ -334,9 +443,10 @@
 - **Design departs:** 3.5, *The welcome* and *Home*, from the request `ui-welcome`
   of 2026-11-05, decided by its plan's cut. A plan's way at its address, with no
   sign-in asked, keeps its card in the panel, where the request draws a way's page
-  for the key, the paste and Claude alone: that card is how the welcome reaches
-  the paste. A repository Home's sheet asked leaves the step's lines once in and
-  reads as any in the project, "ORG/NAME is in PROJECT" and the merge queue's
-  line, where the request has each copy ticked and then "Chats can change its code
-  now…": section 11 holds it. The sheet alerts past 16 addresses, where the request
+  for the key, the paste and Claude alone: the request `sign-in-new-tab` took the
+  paste's page and the card's way to it, the reason that cut gave, and no plan has
+  weighed the card since. A repository Home's sheet asked leaves the step's lines once in and
+  reads as any in the project, "ORG/NAME is in PROJECT" and "Chats can change its
+  code now.", where the request has each copy ticked and then "Chats can change its
+  code now…": section 11 holds it. The sheet alerts past 16 addresses, where the request
   names no bound: the wire and the store need one (`../protocol/setup.md`, 6.7).

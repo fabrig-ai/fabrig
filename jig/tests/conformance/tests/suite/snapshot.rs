@@ -9,62 +9,56 @@ fn a_forked_snapshot_replays_to_the_durable_rows() {
     assert_eq!(forked.store.rows, rows);
 }
 
-fn compare(scenario: Scenario, seed: u64) {
+pub(super) fn compare(scenario: Scenario, seed: u64, selected: Option<&[u64]>) {
     let cuts = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
     let reached = std::rc::Rc::clone(&cuts);
-    let baseline = replay::chosen_cuts_traced(scenario, seed, Some(true), &[1, 2, 3], move |cut, resumed| {
+    let visit = move |cut, resumed: jig_conformance_world::actions::World| {
         let actual = replay::outside(&resumed);
         assert!(resumed.outcome().crashes.contains(&cut));
         drop(resumed);
         let fresh = replay::fresh(scenario, Cut::AfterCommit(cut), seed, true).expect("fresh selected cut");
-        assert_eq!(
-            actual,
-            replay::outside(&fresh),
-            "{scenario:?}, cut {cut}, seed {seed}: complete outside state and whole trace"
-        );
+        if let Some(difference) = actual.first_difference(&replay::outside(&fresh)) {
+            panic!("{scenario:?}, cut {cut}, seed {seed}: {difference}");
+        }
         reached.borrow_mut().push(cut);
-    })
-    .expect("chosen snapshot cut");
-    assert_eq!(*cuts.borrow(), vec![1, 2, 3]);
-    assert!(baseline.commits >= 3);
+    };
+    let baseline = match selected {
+        Some(cuts) => replay::chosen_cuts_traced(scenario, seed, Some(true), cuts, visit),
+        None => replay::every_cut_traced(scenario, seed, Some(true), visit),
+    }
+    .expect("snapshot cuts");
+    assert_eq!(*cuts.borrow(), selected.map_or_else(|| (1..=baseline.commits).collect::<Vec<_>>(), <[u64]>::to_vec));
+    assert!(baseline.commits >= if selected.is_some() { 3 } else { 1 });
 }
-
 #[test]
 fn late_copy_snapshots_match_complete_fresh_state() {
-    compare(Scenario::LateCopy, 81);
+    compare(Scenario::LateCopy, 81, Some(&[1, 2, 3]));
 }
-
 #[test]
 fn other_hand_snapshots_match_complete_fresh_state() {
-    compare(Scenario::OtherHand, 82);
+    compare(Scenario::OtherHand, 82, Some(&[1, 2, 3]));
 }
-
 #[test]
 fn uncertain_restarts_snapshots_match_complete_fresh_state() {
-    compare(Scenario::UncertainRestarts, 83);
+    compare(Scenario::UncertainRestarts, 83, Some(&[1, 2, 3]));
 }
-
 #[test]
 fn changed_judge_snapshots_match_complete_fresh_state() {
-    compare(Scenario::ChangedJudge, 84);
+    compare(Scenario::ChangedJudge, 84, Some(&[1, 2, 3]));
 }
-
 #[test]
 fn shrinking_pool_snapshots_match_complete_fresh_state() {
-    compare(Scenario::ShrinkingPool, 85);
+    compare(Scenario::ShrinkingPool, 85, Some(&[1, 2, 3]));
 }
-
 #[test]
 fn narrowing_policy_snapshots_match_complete_fresh_state() {
-    compare(Scenario::NarrowingPolicy, 86);
+    compare(Scenario::NarrowingPolicy, 86, Some(&[1, 2, 3]));
 }
-
 #[test]
 fn standing_task_snapshots_match_complete_fresh_state() {
-    compare(Scenario::StandingTask, 87);
+    compare(Scenario::StandingTask, 87, Some(&[1, 2, 3]));
 }
-
 #[test]
 fn run_budget_snapshots_match_complete_fresh_state() {
-    compare(Scenario::RunBudget, 88);
+    compare(Scenario::RunBudget, 88, Some(&[1, 2, 3]));
 }

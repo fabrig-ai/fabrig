@@ -1,5 +1,5 @@
 //! Ordered account choice and the source barrier belong to accounts, below placement.
-use jig_accounts_world::{World, account, provider, providers, source};
+use jig_accounts_world::{OTHER_PARTY, OWNER, PROVIDER, World, account, provider, providers, source};
 use jig_domain_accounts::{
     Coverage, Event, Excluded, Failure, Form, FromComponent, Held, Holder, HostSource, Kind, Place, Selection, State,
     Stored, Unread, Use, WaitWhy,
@@ -8,9 +8,6 @@ use skein_lib::{Duration, Time};
 
 // More than eleven simulated days, far beyond the grant and retry spans.
 const LONG_ADVANCE: u64 = 1_000_000;
-const PROVIDER: u32 = 1;
-const ALICE: u64 = 7;
-const BOB: u64 = 8;
 const OWN: u32 = 10;
 const OTHER: u32 = 20;
 const DEPLOYMENT: u32 = 30;
@@ -48,10 +45,10 @@ fn choose(
     proofs: &[Coverage],
     host: &[HostSource],
 ) -> Selection {
-    world.domain.select(Use::Party(ALICE), PROVIDER, None, preferred, excluded, proofs, host, world.now)
+    world.domain.select(Use::Party(OWNER), PROVIDER, None, preferred, excluded, proofs, host, world.now)
 }
 fn ranked(own_holder: Holder, own_place: u32) -> World {
-    ranked_with_other(own_holder, own_place, Holder::Party(ALICE))
+    ranked_with_other(own_holder, own_place, Holder::Party(OWNER))
 }
 fn ranked_with_other(own_holder: Holder, own_place: u32, other_holder: Holder) -> World {
     let mut first = account(OWN, PROVIDER, own_holder, b"");
@@ -60,7 +57,7 @@ fn ranked_with_other(own_holder: Holder, own_place: u32, other_holder: Holder) -
     }
     let mut other = account(OTHER, PROVIDER, other_holder, b"");
     if let Stored::Account { uses, .. } = &mut other {
-        *uses = Some(Box::new([Use::Party(ALICE)]));
+        *uses = Some(Box::new([Use::Party(OWNER)]));
     }
     let mut world = fixture(vec![
         first,
@@ -78,9 +75,9 @@ fn ranked_with_other(own_holder: Holder, own_place: u32, other_holder: Holder) -
 
 #[test]
 fn holder_order_precedes_explicit_uses_and_deployment_fallback() {
-    let world = ranked(Holder::Party(ALICE), 1);
+    let world = ranked(Holder::Party(OWNER), 1);
     assert_eq!(choose(&world, None, None, &PROOFS, &[]), Selection::Chosen { account: OTHER, source: OTHER_SOURCE });
-    let world = ranked(Holder::Party(BOB), 0);
+    let world = ranked(Holder::Party(OTHER_PARTY), 0);
     assert_eq!(choose(&world, None, None, &PROOFS, &[]), Selection::Chosen { account: OTHER, source: OTHER_SOURCE });
     let narrowed = [Coverage { account: OWN, serves: false }, Coverage { account: OTHER, serves: false }, PROOFS[2]];
     assert_eq!(
@@ -91,14 +88,14 @@ fn holder_order_precedes_explicit_uses_and_deployment_fallback() {
 
 #[test]
 fn a_preferred_account_waits_while_fresh_selection_can_continue() {
-    let mut world = ranked(Holder::Party(ALICE), 0);
+    let mut world = ranked(Holder::Party(OWNER), 0);
     world.step(Event::Limited { account: FIRST, reset: None });
     assert_eq!(
         choose(&world, Some(OWN), None, &PROOFS, &[]),
         Selection::Wait { account: OWN, source: Some(FIRST), why: WaitWhy::Source(State::Limited { until: None }) }
     );
     assert_eq!(choose(&world, None, None, &PROOFS, &[]), Selection::Chosen { account: OTHER, source: OTHER_SOURCE });
-    let excluded = Some(Excluded { holder: Holder::Party(ALICE), provider: PROVIDER });
+    let excluded = Some(Excluded { holder: Holder::Party(OWNER), provider: PROVIDER });
     assert_eq!(
         choose(&world, Some(OWN), excluded, &PROOFS, &[]),
         Selection::Wait { account: OWN, source: Some(FIRST), why: WaitWhy::Source(State::Limited { until: None }) }
@@ -113,7 +110,7 @@ fn a_preferred_account_waits_while_fresh_selection_can_continue() {
         Selection::Chosen { account: OTHER, source: OTHER_SOURCE }
     );
     assert_eq!(
-        world.domain.select(Use::Party(ALICE), 99, None, Some(OWN), None, &PROOFS, &[], world.now),
+        world.domain.select(Use::Party(OWNER), 99, None, Some(OWN), None, &PROOFS, &[], world.now),
         Selection::NoAccount
     );
 }
@@ -126,11 +123,11 @@ fn two_sources(kind: Kind, held: Option<Held>) -> World {
             *name = b"runner".as_slice().into();
         }
     }
-    let mut rows = vec![account(OWN, PROVIDER, Holder::Party(ALICE), b""), earlier, source(OWN, SECOND, 1, Kind::Key)];
+    let mut rows = vec![account(OWN, PROVIDER, Holder::Party(OWNER), b""), earlier, source(OWN, SECOND, 1, Kind::Key)];
     if kind == Kind::Program {
         rows.push(Stored::Issued {
             number: FIRST,
-            holder: Holder::Party(ALICE),
+            holder: Holder::Party(OWNER),
             name: b"runner".as_slice().into(),
             signed_out: false,
         });
@@ -178,7 +175,7 @@ fn a_program_endpoint_chooses_only_program_sources() {
     let world = two_sources(Kind::Program, None);
     let choose = |host: &[HostSource]| {
         world.domain.select(
-            Use::Party(ALICE),
+            Use::Party(OWNER),
             PROVIDER,
             Some(b"claude_code"),
             Some(OWN),
@@ -223,7 +220,7 @@ fn a_none_source_is_chosen_without_a_grant() {
 fn unknown_reset_waits_across_time_grants_and_restart_until_resume() {
     let rows = |held| {
         vec![
-            account(OWN, PROVIDER, Holder::Party(ALICE), b""),
+            account(OWN, PROVIDER, Holder::Party(OWNER), b""),
             Stored::Source { account: OWN, number: FIRST, place: 0, kind: Kind::Key, name: Box::new([]), held },
         ]
     };
@@ -243,7 +240,7 @@ fn unknown_reset_waits_across_time_grants_and_restart_until_resume() {
     assert_eq!(choose(&world, Some(OWN), None, &PROOFS, &[]), wait);
     world.step(Event::Change {
         request: skein_lib::Token::new(1),
-        holder: Holder::Party(ALICE),
+        holder: Holder::Party(OWNER),
         change: jig_domain_accounts::Change::Resume { source: FIRST },
     });
     assert_eq!(choose(&world, Some(OWN), None, &PROOFS, &[]), Selection::Chosen { account: OWN, source: FIRST });
@@ -251,7 +248,7 @@ fn unknown_reset_waits_across_time_grants_and_restart_until_resume() {
 
 #[test]
 fn explicit_zero_reset_lifts_but_later_notices_never_shorten_a_limit() {
-    let mut world = ranked(Holder::Party(ALICE), 0);
+    let mut world = ranked(Holder::Party(OWNER), 0);
     world.step(Event::Limited { account: FIRST, reset: Some(Time::ZERO) });
     world.fire_at(0);
     assert_eq!(choose(&world, Some(OWN), None, &PROOFS, &[]), Selection::Chosen { account: OWN, source: FIRST });
@@ -276,7 +273,7 @@ fn explicit_zero_reset_lifts_but_later_notices_never_shorten_a_limit() {
 
 #[test]
 fn selection_evidence_is_bounded_and_duplicate_evidence_is_refused() {
-    let world = ranked(Holder::Party(ALICE), 0);
+    let world = ranked(Holder::Party(OWNER), 0);
     let over = [PROOFS[0], PROOFS[1], PROOFS[2], Coverage { account: 99, serves: true }];
     assert_eq!(choose(&world, None, None, &over, &[]), Selection::NoAccount);
     assert_eq!(choose(&world, None, None, &[PROOFS[0], PROOFS[0]], &[]), Selection::NoAccount);
@@ -294,10 +291,10 @@ fn selection_evidence_is_bounded_and_duplicate_evidence_is_refused() {
 
 #[test]
 fn a_removed_preference_allows_fresh_account_choice() {
-    let mut world = ranked(Holder::Party(ALICE), 0);
+    let mut world = ranked(Holder::Party(OWNER), 0);
     world.step(Event::Change {
         request: skein_lib::Token::new(1),
-        holder: Holder::Party(ALICE),
+        holder: Holder::Party(OWNER),
         change: jig_domain_accounts::Change::Remove { account: OWN },
     });
     assert_eq!(
@@ -315,7 +312,7 @@ fn a_changed_main_provider_allows_fresh_account_choice() {
         &[],
     );
     world.restore(vec![
-        account(OWN, PROVIDER, Holder::Party(ALICE), b""),
+        account(OWN, PROVIDER, Holder::Party(OWNER), b""),
         source(OWN, FIRST, 0, Kind::Key),
         account(DEPLOYMENT, NEW_PROVIDER, Holder::Deployment, b""),
         source(DEPLOYMENT, DEPLOYMENT_SOURCE, 0, Kind::Key),
@@ -324,14 +321,14 @@ fn a_changed_main_provider_allows_fresh_account_choice() {
     grant(&mut world, FIRST);
     grant(&mut world, DEPLOYMENT_SOURCE);
     assert_eq!(
-        world.domain.select(Use::Party(ALICE), NEW_PROVIDER, None, Some(OWN), None, &PROOFS, &[], world.now),
+        world.domain.select(Use::Party(OWNER), NEW_PROVIDER, None, Some(OWN), None, &PROOFS, &[], world.now),
         Selection::Chosen { account: DEPLOYMENT, source: DEPLOYMENT_SOURCE }
     );
 }
 
 #[test]
 fn host_rules_filter_direct_accounts_before_fresh_ranking() {
-    let world = ranked_with_other(Holder::Party(ALICE), 0, Holder::Party(BOB));
+    let world = ranked_with_other(Holder::Party(OWNER), 0, Holder::Party(OTHER_PARTY));
     let host = [
         HostSource { source: FIRST, usable: false },
         HostSource { source: OTHER_SOURCE, usable: true },
@@ -352,16 +349,16 @@ fn host_rules_filter_direct_accounts_before_fresh_ranking() {
 
 #[test]
 fn only_host_local_program_unavailability_passes_to_the_next_program_source() {
-    let mut rows = vec![account(OWN, PROVIDER, Holder::Party(ALICE), b"")];
+    let mut rows = vec![account(OWN, PROVIDER, Holder::Party(OWNER), b"")];
     for (number, place, name) in [(FIRST, 0, b"first".as_slice()), (SECOND, 1, b"second".as_slice())] {
         rows.push(Stored::Source { account: OWN, number, place, kind: Kind::Program, name: name.into(), held: None });
-        rows.push(Stored::Issued { number, holder: Holder::Party(ALICE), name: name.into(), signed_out: false });
+        rows.push(Stored::Issued { number, holder: Holder::Party(OWNER), name: name.into(), signed_out: false });
     }
     let mut world = fixture(rows);
     let host = [HostSource { source: FIRST, usable: false }, HostSource { source: SECOND, usable: true }];
     let choose = |world: &World| {
         world.domain.select(
-            Use::Party(ALICE),
+            Use::Party(OWNER),
             PROVIDER,
             Some(b"claude_code"),
             Some(OWN),
