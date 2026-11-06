@@ -130,12 +130,13 @@ fn conversation_head(b: &mut Builder, root: &Domain, words: &Words) {
 /// The read's status at the conversation's head (client/README.md, 5.15).
 pub(crate) fn older(b: &mut Builder, thread: &Thread, words: &Words) {
     use jig_client::thread::{Reading, window::End};
-    if thread.lines.edges.reaches(End::After) {
+    let first_failed = thread.lines.rows.is_empty() && thread.read_failed == Some(End::Before);
+    if thread.lines.edges.reaches(End::After) && !first_failed {
         return;
     }
     let status = if let Some(Reading::Older) = thread.reading {
         Word::LoadingEarlier
-    } else if thread.read_failed == Some(End::After) {
+    } else if thread.read_failed == Some(End::After) || first_failed {
         Word::LoadingEarlierFailed
     } else {
         return;
