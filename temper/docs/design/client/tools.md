@@ -921,7 +921,7 @@ The table grows area by area, each with its stories (section 11).
      ACCOUNT as `account list` shows it.
    - **The task's model** is chosen with this area: `chat start` and area
      2's `goal start` take `--model MODEL [--effort EFFORT]`, the task's
-     LLM choice, the template's choice or the charter's default without them (jig's
+     LLM choice, the template's choice or what each run's check takes without them (jig's
      `domain/tasks.md`, section 3), and area 2's `task amend` changes it.
      Both take `--sub-agent MODEL[:EFFORT]` too, repeatable, each one of
      the choice's sub-agents in the order given (jig's

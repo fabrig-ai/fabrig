@@ -1149,6 +1149,9 @@ with a person in front of a tree, are view.md's, 18.10.
 
 ## 18. Open questions
 
+- **A run's wait on a summary row** (19.1): a row holds no run wait, since
+  a task query carries no run's check per row, so a chat that can't start
+  says starting in a list, and its document alone says why. Default: so.
 - **Several clients of one party,** such as two tabs: whether pending
   requests should be shared between them, which they are not; and the
   party's room for watches on the engine (contract.md, 7.2), which they
@@ -1241,8 +1244,8 @@ with a person in front of a tree, are view.md's, 18.10.
     wall where the template has it given, so that no shape reads a
     clock; no wake policy, so the executor's own;
     the template's LLM choice, or the goal draft's where it names one,
-    by configured names (contract.md, 3.2), none being the charter's
-    default resolved at Create. Shapes copy configured intent, never
+    by configured names (contract.md, 3.2), none leaving it to each run's
+    check (`../../domain/accounts.md`, 4.3). Shapes copy configured intent, never
     `resolved_default`, the separate preview served in `me`;
     no parameters, inputs or dependencies; symbolic resources copied
     from the template for the engine to resolve;

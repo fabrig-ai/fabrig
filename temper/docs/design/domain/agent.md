@@ -512,8 +512,8 @@ delegate from what it knows:
   the run's authority: a model not configured or named twice, an effort
   its model does not declare, a model, main or sub-agent, outside that
   charter's models or the authority's refuses the call, naming the
-  model and why. A role left out takes its charter's default as each of
-  its agents is made (jig's `domain/tasks.md`, section 3).
+  model and why. A role left out names none, and each of its agents takes
+  its models at each run's check (jig's `domain/tasks.md`, section 3).
 - **`repairs`:** the red landing the change repairs
   (`after-landing.md`, section 7), by its merge commit's full
   hexadecimal digits, as the red's news names it: a landing of temper's

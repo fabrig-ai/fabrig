@@ -1410,7 +1410,7 @@ branch. Its parameters:
   3): the producer's, for its producing task, its repairs, its
   resolutions and its checks' gates; the reviews', for its agents'
   gates. Each is given as the LLM choice of every delegate of its role;
-  a role without one leaves its delegates to their charter's default;
+  a role without one leaves its delegates to their runs' checks;
 - **its gates** (8.3);
 - **`with`,** under its project's turn: the changes it must land with,
   in any repository and of any goal its requester may name
