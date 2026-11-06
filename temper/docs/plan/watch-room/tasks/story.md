@@ -86,3 +86,7 @@ Options, each pre-approved:
 ## Report
 
 The implementer's report, plus: each tab's watch count, whether the room filled settled or reopening, the assert that fired, the figures from step 4, and which of the options you took.
+
+## Answers
+
+2026-11-06 (temper/forge). **Two more, from temper/ui, which reached the request after your plan was cut.** A person's reload and a third tab are stories too, on the happy path: with Home and the long chat open, a reload of one, and a third client root opening a page, each come up whole, within the world's bound. Like the fresh tools client, they fail today and pass once `size-budget` lands, so hold them as your story holds its own until then. **And for whoever finishes the budget:** say in the report whether a page can still be refused Busy after it, and how a person would reach it in normal use. temper/ui gives that case words only if it can happen.
