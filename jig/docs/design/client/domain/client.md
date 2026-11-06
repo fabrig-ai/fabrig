@@ -1337,6 +1337,10 @@ with a person in front of a tree, are view.md's, 18.10.
   `held` says what a held task waits on when it awaits nothing else:
   `WaitsOn` names no hold, so a client that reads the task's hold chooses
   the word, and no `WaitsOn` maps to it.
+  `an account` says what a task waits on when no account serves its next
+  run and it awaits nothing else: `WaitsOn` names no run wait either, so a
+  client that reads the task's `run_wait` chooses the word, and no
+  `WaitsOn` maps to it.
 - **What jig adopts.** Sugar starts in an application. jig adopts it
   when a second consumer uses it, or early when it is hard to interpret
   consistently (what "waiting for you" means, how committed turns and
