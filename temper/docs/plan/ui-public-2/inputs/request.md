@@ -1,14 +1,8 @@
-# ui-public-2: public reading crosses nothing anyone wrote, and gets a look
+# ui-public-2: public reading's spend, look and sense
 
-temper/qa walked `rung-public` (loopback, nothing public) and it failed. Public reading stays off regardless of this plan: going public is the user's word. This plan fixes what the walk found. Isolation held: another project, emails, logins, models, cookies and unknown identifiers all behaved. temper/ui's picks, for the user to steer: they're subtractive, and nothing is deployed.
+temper/qa walked `rung-public` (loopback, nothing public) and it failed. Public reading stays off regardless of this plan: going public is the user's word. This plan fixes what the walk found that's temper/ui's to fix. Isolation held: another project, emails, logins, models, cookies and unknown identifiers all behaved.
 
-## 1. No agent-written title crosses
-
-**What the walk found:** a task's title is the first line of its spec, and specs are agent-written from what a person said. A marked word typed in a chat, and one from a goal's body past its title line, both reached a stranger, and an inbox answer did in paraphrase. It's by the design (`jig/docs/design/domain/people.md`, 13.3 "No text but titles and the project's name", 13.7: a goal under a chat is public). So anything said in a chat may publish, and a search for marks can't catch paraphrase, so this needs design, not a cleaner filter.
-
-**Ruling:** the only words that cross are the project's name. A public line loses its title: remove the field from the public index, the projection and the public records, rather than blanking it, so it can't come back by accident. A goal reads "Goal 7169df3c", a task "task e7bba3c9", then its kind, phase and times. Bring `people.md` 13.3, jig's `client/domain/contract.md` section 12, and temper's `temper/docs/design/client/browser.md` 8.3 with it, and say there why: a title is written from private words.
-
-**Test:** a world where marked words are in a chat, a spec's first line, a goal's body and an answer, and no public answer, on any route, holds any of them. Show it red before the removal. Formats may change: nothing is deployed.
+**Titles are not this plan's.** The walk also found that agent-written titles carry words from a chat to a stranger. That titles cross is the user's decision of 2026-11-03 (`jig/docs/design/domain/people.md`, 13.3), and it's with them now. Don't change what a title is, whether it crosses, or the words about it. Nothing here should make either answer harder.
 
 ## 2. Goals' spend alone
 
@@ -22,7 +16,7 @@ temper/qa walked `rung-public` (loopback, nothing public) and it failed. Public 
 
 **Ruling:** a plain single column, in the client's type and colours (`temper.css`'s tokens, the Chats page's rows as the model, not a table, no monospace), the same at both widths:
 - the project's name as the title, and one line under it: "What temper is doing on this project, as it happens. Read-only."
-- each goal a row: "Goal 7169df3c", then its phase in words, for how long, its spend, muted, on one line that wraps cleanly; its tasks indented below it in the same form, without spend.
+- each goal a row: "Goal 7169df3c" and its title (`browser.md` 8.3), then its phase in words, for how long, its spend, muted, on one line that wraps cleanly; its tasks indented below it in the same form, without spend.
 - Landings below the goals, only when there's a queue; "Nothing has landed yet." when it's empty.
 - empty pages say so: "No goals yet."
 
@@ -39,7 +33,7 @@ Nothing overlaps at any width from 320 to 1440; check with a throwaway render, a
 
 Landed work from before a project went public never shows; a restart empties the history; a stock queue's Landings stay empty. Say in `browser.status.md` that these remain.
 
-Only focused and fuzzy run in the plan, as below; update any browser story this changes, compiled, not run. Two or three tasks, `jig` first.
+Only focused and fuzzy run in the plan, as below; update any browser story this changes, compiled, not run. Two tasks at most, `jig` first.
 
 ## Sources
 
