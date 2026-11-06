@@ -43,6 +43,8 @@ fn a_drawn_page_carries_the_views_hrefs() {
     );
 }
 
+#[path = "host/redacted.rs"]
+mod redacted;
 #[path = "host/walk.rs"]
 mod walk;
 use temper_client_shell_web::journey::{Line, Refusal, Replay, Stale, lines, prove, prove_drawn};
