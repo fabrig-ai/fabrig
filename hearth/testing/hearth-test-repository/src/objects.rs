@@ -1,6 +1,6 @@
 //! A scratch repository's objects as `git add -A` and `git commit` would write them
 //! (hearth/docs/design/domain/testing.md, 9.1).
-use sha1::{Digest, Sha1};
+use sha1::{Digest, Sha1, digest::Output};
 use std::{
     fmt::Write,
     fs,
@@ -23,7 +23,7 @@ pub(crate) fn lay_out(work_tree: &Path) {
 pub(crate) fn commit(work_tree: &Path, message: &str) -> String {
     let git = work_tree.join(".git");
     let root = tree(&git, work_tree).unwrap_or_else(|| object(&git, "tree", &[]));
-    let mut body = format!("tree {}\n", hex(root));
+    let mut body = format!("tree {:x}\n", Output::<Sha1>::from(root));
     let head = git.join("refs/heads/main");
     match fs::read_to_string(&head) {
         Ok(parent) => writeln!(body, "parent {}", parent.trim()).expect("parent line"),
@@ -34,8 +34,8 @@ pub(crate) fn commit(work_tree: &Path, message: &str) -> String {
         writeln!(body, "{role} {} <{}> {}", super::COMMIT_NAME, super::COMMIT_EMAIL, super::COMMIT_DATE)
             .expect("identity line");
     }
-    write!(body, "\n{message}\n").expect("commit message");
-    let id = hex(object(&git, "commit", body.as_bytes()));
+    writeln!(body, "\n{message}").expect("commit message");
+    let id = format!("{:x}", Output::<Sha1>::from(object(&git, "commit", body.as_bytes())));
     fs::write(head, format!("{id}\n")).expect("commit ref");
     id
 }
@@ -82,21 +82,16 @@ fn tree(git: &Path, directory: &Path) -> Option<[u8; 20]> {
 fn object(git: &Path, kind: &str, body: &[u8]) -> [u8; 20] {
     let mut raw = format!("{kind} {}\0", body.len()).into_bytes();
     raw.extend_from_slice(body);
-    let id = Sha1::digest(&raw).into();
-    let name = hex(id);
+    let id = Sha1::digest(&raw);
+    let name = format!("{id:x}");
     let (prefix, suffix) = name.split_at(2);
     let directory = git.join("objects").join(prefix);
     fs::create_dir_all(&directory).expect("loose object directory");
-    fs::write(directory.join(suffix), stored(&raw)).expect("loose object");
-    id
-}
-
-fn hex(id: [u8; 20]) -> String {
-    let mut text = String::with_capacity(40);
-    for byte in id {
-        write!(text, "{byte:02x}").expect("object hex");
+    let path = directory.join(suffix);
+    if !path.exists() {
+        fs::write(path, stored(&raw)).expect("loose object");
     }
-    text
+    id.into()
 }
 
 fn stored(raw: &[u8]) -> Vec<u8> {

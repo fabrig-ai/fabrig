@@ -81,11 +81,7 @@ impl Repository {
     }
     #[must_use]
     pub fn head(&self) -> String {
-        let path = reserved::git_path();
-        String::from_utf8(git_output(&self.work_tree, &path, &["rev-parse", "HEAD"]))
-            .expect("commit id")
-            .trim()
-            .to_owned()
+        fs::read_to_string(self.work_tree.join(".git/refs/heads/main")).expect("commit ref").trim().to_owned()
     }
     #[must_use]
     pub fn next(&self, files: &[File], removed: &[&str]) -> String {
@@ -93,10 +89,7 @@ impl Repository {
         for path in removed {
             fs::remove_file(self.work_tree.join(path)).expect("removed file");
         }
-        let path = reserved::git_path();
-        git(&self.work_tree, &path, &["add", "-A"]);
-        git(&self.work_tree, &path, &["commit", "--allow-empty", "-q", "-m", "next"]);
-        self.head()
+        objects::commit(&self.work_tree, "next")
     }
     #[must_use]
     pub fn empty(label: &str) -> Self {

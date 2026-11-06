@@ -18,6 +18,8 @@ fn a_written_repository_is_the_one_git_makes() {
     drop(written.git(&["fsck", "--strict"]));
     let changed = [File { path: "a.b", body: b"changed\n", mode: 0o644 }];
     drop(real.next(&changed, &["a/c"]));
+    drop(real.git(&["add", "-A"]));
+    drop(real.git(&["commit", "--allow-empty", "--amend", "-q", "-m", "next"]));
     drop(written.next(&changed, &["a/c"]));
     assert_eq!(written.git(&["rev-parse", "HEAD"]), real.git(&["rev-parse", "HEAD"]));
     drop(written.git(&["fsck", "--strict"]));
