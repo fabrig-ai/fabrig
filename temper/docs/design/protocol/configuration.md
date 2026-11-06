@@ -1856,13 +1856,13 @@ init`'s document carries none of them (`setup.md`, 8.3).
 
 | Setting | Its value |
 |---|---|
-| charter 1, a chat's | the instructions in the `stock` module's `chat.txt`, a goal's part among them asking for its report (`../domain/agent.md`, 8.3) and for `decided` before it asks its requester anything (`../domain/agent.md`, 4.3), a goal whose words hold the line `Asks: always` asking them instead; this table holds the structure alone; models: every model `engine.llm` configures, in the document's order, the first its default; hosts `workers`; waiting 10 s; resume; a run of 64 turns and 3,600 s, a reserve of 1 turn and 60 s; a default spend of K (below); the inspect and agents tool families, no modify, no shell; a call's timeout 10 s |
+| charter 1, a chat's | the instructions in the `stock` module's `chat.txt`, a goal's part among them asking for its report (`../domain/agent.md`, 8.3) and for `decided` before it asks its requester anything (`../domain/agent.md`, 4.3), a goal whose words hold the line `Asks: always` asking them instead; this table holds the structure alone; models: the stock's order (below); hosts `workers`; waiting 10 s; resume; a run of 64 turns and 3,600 s, a reserve of 1 turn and 60 s; a default spend of K (below); the inspect and agents tool families, no modify, no shell; a call's timeout 10 s |
 | charter 2, a coding agent's | as charter 1, with the `stock` module's `coding.txt`, which puts what a brief asks it to report in `finish`'s `body` and has a report past that bound cut and said under Left, never asked about (`../domain/agent.md`, 4.4), and the modify family, but a run of 800 turns and 28,800 s (8 hours), a reserve of 1 turn and 60 s: five times the longest run fabrig's development has had, 156 turns and 76 minutes; K is unmoved, its floor of 4 units a run turn counting the chat's 64, so a coding agent's run is held by its spend, a run's own, its person funding more (`../domain/forge.md`, 8.4), long before its turns |
 | charter 4, a reviewer's | its instructions in the `stock` module's `review.txt`; charter 2's models, hosts and run, so 800 turns and 8 hours; the inspect family and the forge's reads alone, no modify, no shell, no agents, no delegation; a review's verdict as its contract (`../domain/forge.md`, 8.3) |
 | charter 6, a foreman's | as charter 4, with the `stock` module's `foreman.txt`: settle the question its brief carries from the change's words, the design in its checkout and the change's pushed head, read through the forge's reads; `answer` only what they settle, `finish` where the work done holds and the rest is the asker's Left list, naming only the form `change`, the report in its `body`, `escalate` with its reasons otherwise, never guessing past them; a foreman's verdict as its contract (`../domain/forge.md`, 8.11) |
 | charter 9, the status agent's | the instructions in the `stock` module's `status.txt`: the few lines at the top of a project's Home, from the facts in its task (`../domain/forge.md`, 5.7); charter 1's models and hosts; a run of at most 4 turns and 300 s, a reserve of 1 turn and 60 s; no inspect, modify, shell or agents, and no host family. The forge's procedure delegates it, its authority holding no tools, grants, notes or delegation, and its run no workspace, so what it can do is finish; the constant `STATUS_CHARTER` names it, as `FOREMAN_CHARTER` does, no setting of kind 3. Numbered past the reference's charters 5, 7 and 8 (13.9) |
 | template 1, a chat | jig's chat, run by charter 1; its report the deployment's `tasks.result_bytes`, read at each start as C is (below) |
-| charter 3, the configuring agent's | as charter 1, with the `stock` module's `configuring.txt` (`../domain/agent.md`, 8.1: each sentence of a description sorted into structure, which becomes settings, and rules, which stay text runs read; a rule offered as structure where the settings can say it, the person choosing; one question at a time until it can propose, then one proposal) and no sub-agents (`agents` false); its `tools` the settings, read, note and recall families, 1,920, so that its runs alone in the stock are offered jig's `settings` family (jig's `domain/engine.md`, 7.3), as `settings` and `propose_settings`, beside the forge's reads, `read_docs` and its document (`../domain/agent.md`, 8.3); no workspace (it names no repository), and its instructions delegate nothing and effect nothing |
+| charter 3, the configuring agent's | as charter 1, with the `stock` module's `configuring.txt` (`../domain/agent.md`, 8.1: each sentence of a description sorted into structure, which becomes settings, and rules, which stay text runs read; a rule offered as structure where the settings can say it, the person choosing; one question at a time until it can propose, then one proposal) and no sub-agents (`agents` false); its models the configuring agent's order (below); its `tools` the settings, read, note and recall families, 1,920, so that its runs alone in the stock are offered jig's `settings` family (jig's `domain/engine.md`, 7.3), as `settings` and `propose_settings`, beside the forge's reads, `read_docs` and its document (`../domain/agent.md`, 8.3); no workspace (it names no repository), and its instructions delegate nothing and effect nothing |
 | template 2, a goal | jig's goal, its executor chosen; its report as template 1's |
 | template 3, the configuring chat | a chat named `configuring`, flagged conversation and labelled as jig's chat is, its contract and budget template 1's, run by charter 3 |
 | policy 1 | no requirements; owner 0 is the escalation role; forge admin (3) maps to maintainer 1, write (2) to member 2, read (1) to observer 3; no forge permission maps to owner. Maintainer: owner authority and period spend, requests 255 (no policy changes), decisions 31. Member: owner task authority, period spend 24K, requests 185 (create, amend, cancel, release, watch), no decisions. Observer: watch alone (128), no decisions, spend, tools, models, grants or delegation. The project and owner: role 0 requests and decides everything, a period's spend of 80 × 24K, 1,920K, for role 0 and of 81 × 24K, 1,944K, for the project, an authority's spend of 24K (below), with the rules' grants and delegation; its ceiling's and role 0's tool families 1,927, delegation, messages, control, reads, settings, notes and recall (jig's `ToolFamilies` Delegate, Message, Control, Read, Settings, Note and Recall), so that a chat reads the forge it works on, answers its delegates' questions and keeps its document, a goal writes its report (`../domain/agent.md`, 8.3), a goal's `change` names its plan's members (`../domain/agent.md`, 4.3.1), and a configuring chat (template 3) reads the settings and proposes, a proposal changing nothing until an owner decides it (jig's `domain/engine.md`, 17.6); its ceiling's and every role's note scopes a goal's, `Scopes(1)`, but an observer's, none, so that a chat writes its own scope and only it (jig's `domain/engine.md`, section 10; `../domain/agent.md`, 8.3); a goal has its own scope for its report, while an advisor and a change have none (`../domain/agent.md`, 4.3.2); its ceiling's and role 0's delegation 384 tasks 32 deep, jig's `standard` tree and depth, so that one goal's tree holds five times the largest fabrig's development has made, 73 tasks, and five times its depth, 5 |
@@ -1932,11 +1932,15 @@ init`'s document carries none of them (`setup.md`, 8.3).
   defaults of its own in that field's place, the settings its stories
   need, so that a story not about settings makes no change to reach
   them; the binary always passes the stock.
-- **Budgets in runs of the default model.** The stock computes C at
-  each start: one worst-case completion of the default model (the first
-  `engine.llm` configures), in the deployment's units, as jig prices it
+- **Budgets in runs of the costliest model.** The stock computes C at
+  each start: one worst-case completion of the costliest model
+  `engine.llm` configures, in the deployment's units, as jig prices it
   for a run's admission (its window and output at its costliest
-  prices). A run is admitted only with two of them free (its reserve,
+  prices), since a person may pick any of them and a charter's order
+  falls to any of them: sized by the first alone, K would admit no run on
+  Astra 6 where Opus 5.5 comes first. At `temper init`'s models that is
+  Fable 5.1's and Astra 6's, 10,896, so K is 43,584 and a chat's 24K
+  1,046,016. A run is admitted only with two of them free (its reserve,
   reserve turns 1 + 1), so its allowance is K = 4C: its admission and
   room for its working turns; and at least four units for each of a
   charter's run turns (256 for the chat's 64), so that where C is small
@@ -1959,9 +1963,28 @@ init`'s document carries none of them (`setup.md`, 8.3).
   a person may spend is the same as without it. A deployment whose models change
   between starts gets new defaults, a release's revision (13.6, step 1).
 - **A fine unit.** smith charges each completion at least one whole
-  unit, so `temper init` states its models' prices in a unit a thousandth
-  of a coarse one, that floor costing a run nothing it needs; C, and so
-  every budget above, scales with it.
+  unit, so `temper init` states its models' prices in thousandths of a
+  dollar per 1,000,000 tokens, that floor costing a run nothing it
+  needs; C, and so every budget above, scales with it.
+- **`temper init`'s models,** as read from the providers' pages on
+  2026-11-06, in the document's order, the scripted model last, its
+  prices its own (`setup.md`, 8.3). Each has a window of 1,048,576 and an
+  output of 8,192, whatever a provider allows; takes the efforts `low`,
+  `medium`, `high`, `xhigh` and `max`, low to high, so that a picker has
+  one scale, where Terra and Luna also take OpenAI's `none`; and is
+  priced for cached input as for input, so that a budget stops early
+  rather than late, its provider's page giving no figure on the stock's
+  terms:
+
+  | `name` | `shown` | Provider | `effort` | Input, output |
+  |---|---|---|---|---|
+  | `claude-opus-5-5` | Opus 5.5 | Anthropic | `high` | 4,000, 20,000 |
+  | `claude-sonnet-5-5` | Sonnet 5.5 | Anthropic | `high` | 2,000, 10,000 |
+  | `claude-fable-5-1` | Fable 5.1 | Anthropic | `high` | 10,000, 50,000 |
+  | `gpt-6.1-sol` | GPT-6.1 Sol | OpenAI | `high` | 2,000, 10,000 |
+  | `gpt-6-astra` | GPT-6 Astra | OpenAI | `high` | 10,000, 50,000 |
+  | `gpt-6.1-terra` | GPT-6.1 Terra | OpenAI | `medium` | 1,000, 5,000 |
+  | `gpt-6-luna` | GPT-6 Luna | OpenAI | `medium` | 100, 500 |
 - **The box's limits for that work.** `temper init`'s document, and
   `docs/examples/owned.json`, name the `standard` profiles, jig's and
   temper's (section 7; jig's `protocol/configuration.md`, section 6),
@@ -2028,10 +2051,21 @@ init`'s document carries none of them (`setup.md`, 8.3).
   `authority.grants` is below the rules' grants, is refused at the
   start, naming the limit and the stock setting. A start's problem about
   a stock setting names it as ctl does, `charter 1.hosts`.
-- **The stock charters' models are the document's:** a charter names
-  configured models, and the binary knows none, so it gives every model
+- **The stock charters' models are the document's, in the stock's
+  order:** a charter names configured models, so it gives every model
   `engine.llm` configures, the scripted model's among them where `demo`
-  is configured. A document whose models change between starts gives new
+  is configured. The binary knows the first choices' names alone: those
+  configured come first, in this order, then the rest in the document's,
+  so that a document naming none of them keeps its own order. A task
+  given no LLM choice takes the first with an account usable now, at
+  that model's default effort (jig's `domain/accounts.md`, 4.3):
+
+  | Charter | First choices, in order | Then |
+  |---|---|---|
+  | charter 3, the configuring agent's | `claude-opus-5-5`, `gpt-6-astra`, `gpt-6.1-sol` | the rest |
+  | every other stock charter | `claude-opus-5-5`, `gpt-6.1-sol` | the rest |
+
+  A document whose models change between starts gives new
   defaults, which make a revision recorded as the release's (jig's
   `domain/engine.md`, 17.7).
 - **A release that changes a default** reaches every deployment that
@@ -2212,8 +2246,8 @@ repository and branch form above (2026-11-04).
 
 ### 13.8 A model with a larger output
 
-`temper init`'s limits hold its model, a window of 1,048,576 tokens and
-an output of 8,192 (13.4's C). A deployment that configures a larger
+`temper init`'s limits hold its models, each a window of 1,048,576 tokens
+and an output of 8,192 (13.4). A deployment that configures a larger
 output (gpt-6.1-sol at effort high, output 32,000, for one) overrides its profile's turn limits, each derived
 from the agent's largest turn, T, which the start checks name "the
 agent's largest turn" (`temper-service`'s `startup/checks.rs`).
@@ -2223,8 +2257,10 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   smallest shared room over every configured model, so one set of bounds
   holds whichever model a charter names (smith's `limits.md`, 3.9).
   `temper init`'s agent takes 48 calls per response and 26
-  conversations (13.4's table), its models an output of 8,192 and a
-  `reasoning_item` of at most 65,536; T is what smith measures for it,
+  conversations (13.4's table), its models an output of 8,192, a
+  `reasoning_item` of at most 65,536 and five declared efforts each,
+  which move no figure of T, smith charging an effort's name at the charter
+  codec's fixed bound; T is what smith measures for it,
   within smith's own ceiling of 33,554,432 bytes (smith's
   `protocol/limits.md`, 4, `turn-in-channel`), and init's document
   holds it, written by the test's writer (`setup.md`, 8.1). A box

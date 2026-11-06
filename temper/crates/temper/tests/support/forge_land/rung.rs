@@ -128,18 +128,28 @@ pub fn deployment(paths: &[PathBuf; 3]) {
     let agent = paths[0].join("agent.json");
     let mut value = read_json(&config);
     let mut worker = read_json(&agent);
-    let old = value["engine"]["llm"]["models"][0]["name"].as_str().expect("first model").to_owned();
-    for provider in value["engine"]["llm"]["providers"].as_array_mut().expect("providers") {
-        for model in provider["models"].as_array_mut().expect("provider models") {
-            if *model == old {
-                *model = "gpt-6.1-sol".into();
-            }
-        }
+    for table in ["providers", "endpoints"] {
+        value["engine"]["llm"][table].as_array_mut().expect("LLM table").retain(|row| row["name"] != "anthropic");
     }
-    value["engine"]["llm"]["models"][0]["name"] = "gpt-6.1-sol".into();
-    value["engine"]["llm"]["models"][0]["output"] = 32_000.into();
-    value["engine"]["llm"]["models"][0]["efforts"] = json!(["high", "medium", "low"]);
-    worker["endpoints"][0]["models"][0]["name"] = "gpt-6.1-sol".into();
+    value["engine"]["llm"]["providers"][0]["models"] = json!(["gpt-6.1-sol"]);
+    value["engine"]["llm"]["models"]
+        .as_array_mut()
+        .expect("models")
+        .retain(|model| model["name"] == "gpt-6.1-sol" || model["name"] == "demo");
+    let sol = value["engine"]["llm"]["models"]
+        .as_array_mut()
+        .expect("models")
+        .iter_mut()
+        .find(|model| model["name"] == "gpt-6.1-sol")
+        .expect("Sol");
+    sol["output"] = 32_000.into();
+    for endpoint in worker["endpoints"].as_array_mut().expect("endpoints") {
+        endpoint["models"]
+            .as_array_mut()
+            .expect("models")
+            .retain(|model| model["name"] == "gpt-6.1-sol" || model["name"] == "demo");
+    }
+    worker["endpoints"].as_array_mut().expect("endpoints").retain(|endpoint| endpoint["name"] != "anthropic");
     worker["endpoints"][0]["models"][0]["output"] = 32_000.into();
     worker["endpoints"][0]["models"][0]["reasoning_item"] = 32_768.into();
     // B0's carriers follow its one-call recipe.
@@ -149,7 +159,7 @@ pub fn deployment(paths: &[PathBuf; 3]) {
     // Walk 1's admitted declarations, not a phase-bound increase.
     value["engine"]["memory_bytes"] = 817_372_775_016_049_u64.into();
     value["workers"][0]["memory_bytes"] = 3_700_000_000_000_u64.into();
-    assert_eq!(value["engine"]["llm"]["models"][0]["efforts"][0], "high");
+    assert_eq!(value["engine"]["llm"]["models"][0]["effort"], "high");
     assert_eq!(value["engine"]["llm"]["models"][0]["output"], 32_000);
     assert_eq!(value["engine"]["limits"]["overrides"]["people.requests"], 256);
     assert_eq!(value["engine"]["limits"]["overrides"]["hub.turn_bytes"], turn);
@@ -864,8 +874,8 @@ fn setup_tools(driver: &mut Driver) -> Result<(), String> {
     let me = driver.ctl(&["me"], None)?;
     let project = super::super::first_repository::project_number(&me, "widget")?.to_string();
     driver.project.clone_from(&project);
-    driver.ctl(&["project", "fund", &project, "449696", "--key", "rung-project-funds"], None)?;
-    driver.ctl(&["project", "fund", &project, "415104", "--role", "0", "--key", "rung-role-funds"], None)?;
+    driver.ctl(&["project", "fund", &project, "1005888", "--key", "rung-project-funds"], None)?;
+    driver.ctl(&["project", "fund", &project, "928512", "--role", "0", "--key", "rung-role-funds"], None)?;
     let charter = driver.ctl(&["settings", "show", "charter", "1"], None)?;
     require(charter["value"]["model"]["name"] == "gpt-6.1-sol", "QA charter uses sol")?;
     Ok(())
@@ -886,7 +896,7 @@ fn setup_observer(driver: &mut Driver, paths: &[PathBuf; 3]) -> Result<Value, St
     require(log.lines().any(|line| line.contains("Forgejo: person ")), "Forgejo step logged the person's login")?;
     driver.header = paths[1].join(format!("forge-{}/person_read.header", driver.forge));
     super::super::live::notice(
-        "SETUP sol high output=32000; engine memory=derived-before-start worker memory=4300000000000; rules/policy ceiling=8302080 period=449696 role authority=103776 period=415104",
+        "SETUP sol high output=32000; engine memory=derived-before-start worker memory=4300000000000; rules/policy ceiling=18570240 period=1005888 role authority=232128 period=928512",
     );
     let memory = read_json(&paths[0].join("temper.json"))["engine"]["memory_bytes"].clone();
     super::super::live::notice(&format!("SETUP engine memory={memory}"));
@@ -938,16 +948,16 @@ pub fn offline_setup(root: &Path) {
             let project = driver.project.clone();
             let project = driver.ctl(&["project", "show", &project], None)?;
             require(
-                project["policy"]["period_spend"] == 449_696
-                    && project["current_period"]["numbers"]["budget"] == 449_696,
+                project["policy"]["period_spend"] == 1_005_888
+                    && project["current_period"]["numbers"]["budget"] == 1_005_888,
                 "project policy and open period funded",
             )?;
             require(
                 project["policy"]["roles"].as_array().is_some_and(|roles| {
                     roles.iter().any(|role| {
                         role["number"] == 0
-                            && role["period_spend"] == 415_104
-                            && role["authority"]["authority"]["spend"] == 103_776
+                            && role["period_spend"] == 928_512
+                            && role["authority"]["authority"]["spend"] == 232_128
                             && role["authority"]["cut"] == false
                     })
                 }),

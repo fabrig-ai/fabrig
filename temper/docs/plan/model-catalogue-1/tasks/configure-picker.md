@@ -1,0 +1,123 @@
++++
+id = "configure-picker"
+part = "configure-picker"
+kind = "feature"
+needs = ["picker-offer"]
+files = [
+  "temper/crates/temper-client-domain/src/pages/choice.rs",
+  "temper/crates/temper-client-domain/src/pages/chats.rs",
+  "temper/crates/temper-client-view/src/pages/configure.rs",
+  "temper/crates/temper-client-view/src/pages/chat.rs",
+  "temper/crates/temper-client-view/src/tests/configure.rs",
+  "temper/crates/temper-client-view/src/words.rs",
+  "temper/crates/temper-client-view/src/choice.rs",
+  "temper/crates/temper-client-view/src/tests/choice.rs",
+  "temper/crates/temper-client-domain/src/tests/pages/chats.rs",
+  "temper/tests/client/tests/suite/configuring_chat.rs",
+]
+effort = "high"
+minutes = 90
++++
+
+# The configuring chat gets the picker, and its starter names what is connected
+
+## Goal
+
+"It's not possible to select the model for the configuring agent." Give Configure temper, and a configuring chat once
+started, the same chooser as any chat, in today's look. Its starter "Models by role" names only connected accounts,
+and goes with a single account.
+
+Acceptance:
+
+1. On `Configure`, the line is template 3's `resolved_default`, with the chooser behind it: Opus 5.5 at high with Claude,
+   Astra 6 at high with a ChatGPT plan alone, as `me` gives them. No chat exists yet.
+2. A choice made there is the chat's: a starter or typed words send `Create` naming it; with no press, `Create` names none
+   (`temper/tests/client/tests/suite/configuring_chat.rs`).
+3. On a configuring chat, `choice::byline` as any chat's: its bar's line with the chooser behind it, and a press amends
+   its next run. Its path stays through `Settings`.
+4. "Models by role": with accounts A and B in the offer, title as now, line "A for reviews, B for the rest.", words "Use A
+   for reviews and B for everything else."; with one account, or none, no such starter. The first two accounts met in
+   the offer's order, each worded as the accounts page names its kind ("Claude", "my ChatGPT plan", "my OpenAI API key"),
+   a number the accounts document doesn't hold by its provider's name (`tests/configure.rs`).
+
+## Inputs
+
+- `temper/docs/plan/model-catalogue-1/notes/common.md`, `temper/docs/plan/model-catalogue-1/notes/contracts.md`
+  (*The client*).
+- `temper/docs/design/client/README.md`, 3.5, *One layout for every chat* and the configuring layout's line, conversation
+  and composer.
+- `git show origin/look-requests:temper/docs/design/client/journeys/model-picker/05.html`, for reading only: the look is
+  `fabrig/ui`'s, and this task adds no CSS.
+
+## Owns and may change
+
+- Owns its `files`. `chat.rs` and `words.rs` are shared: small hunks (`notes/common.md`).
+- May change, each for its compile or words alone: `temper/crates/temper-client-view/src/tests/{chat,task}.rs`;
+  `temper-client-domain/src/tests/pages/chats.rs`.
+- `Word::ConfigureModelsCardLine` and `Word::ConfigureModels` gain two `Name` holes.
+- The browser's `temper/tests/client-browser` world isn't yours; run it only if a test there fails at the trunk's end
+  check, as a repair. Journeys' prints are `fabrig/ui`'s catch-up.
+- `temper/docs/design/client/README.status.md`: removes what remains of this plan's **Not yet** on the configuring
+  layout's line and "Models by role".
+- Options, pre-approved:
+  - `Configure`'s `pages.chats` is what `refresh` sees, as a new chat's is: tell them apart by `pages.address()`.
+  - `configure_chat` takes the `Draft`, as `start` does, and passes `Some(choice)` to `send`.
+
+## Steps
+
+1. Domain: `refresh` sets `Context::Template { template: configuring_template(..), .. }` on `Address::Configure`;
+   `configure_chat` carries the draft.
+2. View: `configure::byline` calls `crate::choice::byline(b, root, None, w, bindings)`, and `chat.rs`'s bar drops its
+   configuring branch. `configure.rs`'s starters: "Models by role" from the offer's accounts.
+3. The tests, each rule broken once to see it bite.
+4. Narrow tests, then the implementer's text's closing checks over `temper-client-domain`, `temper-client-view` and
+   `temper-client-world`. Commit and push.
+
+## Report
+
+As the implementer's text says; each shared file you changed, by name.
+
+## Answers
+
+2026-11-06. Extend this task to remove the unused byline helper and repair the two stale tests, or leave them to their
+owners? **Extend it.** The commit pushed on `model-catalogue-1/configure-picker` stands; build on it. This task's
+acceptance and closing checks can't hold without these three, no other task owns them, and `picker-offer`, which last
+held them, is done. The two tests' new expectations are the user's own: "The configuring chat gets the picker", and
+acceptance 2 here. They now belong to this task's `files`, beyond "compile or words alone":
+
+1. `temper-client-view/src/choice.rs`: remove `byline_words`, and only what its removal leaves unused.
+2. `temper-client-domain/src/tests/pages/chats.rs`, `a_start_from_configure_keeps_its_templates_models`: a start from
+   Configure now behaves as an ordinary chat's start with the same draft, on both `me`s and both acts:
+   - draft untouched: `Create` names the template's own `llm` (`expected`), so the test's name still holds;
+   - an offered model in the draft (`other`): `Create` names it;
+   - draft reset to `None`: `Create` names none;
+   - a model the offer leaves out (`unoffered`): `Draft::valid` fails, and no `Create` is sent.
+   Assert the last by what was sent, not through `page.task()`.
+3. `temper-client-view/src/tests/choice.rs`, `provider_byline_root`: on `Configure`, stop clearing the templates, and
+   give the default preview to the template the page resolves (`configuring_template`), so that
+   `every_byline_keeps_the_accounts_provider_with_its_models` keeps its provider and account assertions unchanged.
+
+Break each repaired rule once to see it bite, then rerun the failed checks and the closing checks, clippy included.
+
+## Rebase (2026-11-06, step merge, foreman model-catalogue-1/configure-picker/foreman-2)
+
+reconcile words.rs vocabulary counts with the integration branch
+The merge conflicts only in `temper/crates/temper-client-view/src/words.rs`.
+Integration commit `4373c7d8d8` updates the English vocabulary counts for executable-aware login commands.
+Preserve those changes alongside this task’s Configure words, two `Name` holes, and `ConfigurePlan`/`ConfigureKey` entries and IDs.
+Regenerate the combined declarations using `tests::accounts::english_phrase_declarations_match_the_vocabulary` with `SKEIN_CODEGEN_WRITE=1`, through heavy.
+For the inspected integration tip, the combined counts should be `PHRASES = 1864`, `SEGMENTS = 3269`, `ENGLISH_BYTES = 45432`, with `ALL` length 1264.
+Run the declaration test again without write mode, then the task’s required closing checks.
+Keep the automatically merged `temper/docs/design/client/README.status.md` changes from both sides.
+
+## Rebase (2026-11-06, step merge, foreman model-catalogue-1/configure-picker/foreman-3)
+
+reconcile the combined vocabulary and preserve both sides’ client status changes
+The merge conflicts in `temper/crates/temper-client-view/src/words.rs` and `temper/docs/design/client/README.status.md`.
+Integration merge `8fec9dd573` brings main’s sign-in changes, including `WelcomeTabOpening` from `020c221a40`.
+In `words.rs`, preserve `WelcomeTabOpening`, its English phrase and ID 3793 alongside this task’s Configure words, two `Name` holes, and `ConfigurePlan`/`ConfigureKey` entries and IDs.
+Regenerate declarations through heavy using `tests::accounts::english_phrase_declarations_match_the_vocabulary` with `SKEIN_CODEGEN_WRITE=1`.
+For the inspected integration tip `adff400a8b`, the combined counts should be `PHRASES = 1865`, `SEGMENTS = 3272`, `ENGLISH_BYTES = 45455`, and `ALL` length 1265; the previous Rebase section’s counts are stale.
+In `README.status.md`, retain this task’s removal of the configuring-layout “Not yet” entry while preserving integration’s revised sign-in entry and all other status updates.
+Keep the automatically merged domain and test changes.
+Run the declaration test without write mode, then the task’s required closing checks, including clippy, through heavy with `TEMPER_BUNDLE=none`.

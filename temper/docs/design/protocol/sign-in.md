@@ -920,6 +920,12 @@ bot's and the person's tokens, and neither passes this provider.
 
 ## 10. Open questions
 
+- **Links after a failed source-address update** (9.9): whether a box
+  records the failure between preparation and the source step, so the
+  entry and its links stay off until the current discovery address is
+  stored. Default: the preparation logs the failure and succeeds, the
+  entry still serves, and Forgejo may send the press to the old address.
+
 - **`temper serve`'s owned Forgejo signing in with no command** (9.9). Default: its
   printed command, until `auto`'s reasoning has been checked for several members.
 - **A box's owned Forgejo behind `machine.owned.public`** (9.9). Default: the pair is

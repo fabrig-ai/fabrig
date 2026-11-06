@@ -922,7 +922,7 @@ fn shipped_bounds_fit_the_configured_charters_and_worker() {
     assert!(worker.jig.limits.hub.event_bytes >= u64::from(agent.bounds.message_bytes));
     assert!(u64::from(own.checkout.message_bytes) >= agent.host_limits.call_bytes);
     let prepared = service::worker_settings::prepare(worker, agent, own).expect("complete worker bounds");
-    // Each receiver one byte below its actual sender's bound fails its own rule.
+    // Each receiver one byte below its sender's bound fails its own rule.
     let mut short = prepared.root.clone();
     short.host.event_bytes = u64::from(agent.bounds.message_bytes).checked_sub(1).expect("nonempty message");
     assert_eq!(temper_worker_domain::unfit(&short).as_slice(), &[temper_worker_domain::Unfit::BoundsMessage]);

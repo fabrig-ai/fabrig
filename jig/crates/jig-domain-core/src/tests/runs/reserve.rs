@@ -9,7 +9,7 @@ fn most_costly_matches_smiths_rounding_on_a_large_window() {
     model.cached_price = 1;
     model.output_price = 15;
     model.price_unit = 1_000;
-    assert_eq!(run::most_costly(&model), Some(723));
+    assert_eq!(most_costly(&model), Some(723));
 }
 
 #[test]
@@ -22,7 +22,7 @@ fn most_costly_takes_the_highest_input_rate() {
     model.cache_write_price = Some(4);
     model.output_price = 1;
     model.price_unit = 1;
-    assert_eq!(run::most_costly(&model), Some(41));
+    assert_eq!(most_costly(&model), Some(41));
 }
 
 #[test]

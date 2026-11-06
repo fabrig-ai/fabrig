@@ -18,7 +18,7 @@ const CHAT: u32 = 1;
 const GOAL: u32 = 2;
 const STEPS: u32 = 200; // The forge world's durable round-trip bound.
 const CHATS: u8 = 80; // configuration.md, 13.4: eighty simultaneous 24K allotments.
-const K: u64 = 4228; // Init's default model: C = ceil(1,056,768 / 1000), K = 4C.
+const K: u64 = 8_720; // Sol: C = ceil((1,048,576 × 2,000 + 8,192 × 10,000) / 1,000,000), K = 4C.
 const CHAT_SPEND: u64 = 24 * K;
 const POOL_SPEND: u64 = CHATS as u64 * CHAT_SPEND;
 const WORKER: Token = Token::new(7);
@@ -27,6 +27,8 @@ const LEAVES: [u32; 4] = [95, 95, 95, 94]; // Goal + four coordinators + 379 rep
 
 fn stock_world() -> (World, core::settings::Defaults) {
     let llm = jig_protocol_config::Llm {
+        shown: Box::new([None]),
+        pickers: Box::new([true]),
         endpoints: Box::new([]),
         providers: Box::new([]),
         descriptions: Box::new([None]),

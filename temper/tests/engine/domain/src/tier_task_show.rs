@@ -128,6 +128,9 @@ fn answer(world: &mut World, read: reads::Read) -> c::ReadValue {
         .models()
         .iter()
         .map(|model| jig_protocol_engine_clients::Model {
+            effort: model.default_effort().map(skein_lib::bytes::copy_of),
+            shown: None,
+            picker: true,
             name: model.name.clone(),
             provider: None,
             window: model.window,

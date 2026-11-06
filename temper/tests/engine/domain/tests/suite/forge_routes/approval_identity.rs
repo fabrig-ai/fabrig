@@ -14,6 +14,8 @@ fn box_world() -> World {
 
 fn defaults() -> s::Defaults {
     let llm = jig_protocol_config::Llm {
+        shown: Box::new([None]),
+        pickers: Box::new([true]),
         endpoints: Box::new([]),
         models: walking::models(),
         descriptions: Box::new([None]),

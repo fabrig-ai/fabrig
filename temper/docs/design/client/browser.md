@@ -1245,6 +1245,13 @@ Not in the tier, each in the lowest world that shows it:
   to every visitor reading it, in place of each page reading again
   (section 8). Default: none; pages read again at the `max-age`, and a
   visitor never holds a stream.
+- **Public history** (8.3): ended goals from before publication or across
+  a restart need jig's source index (`jig/docs/design/domain/people.md`,
+  section 12); a stock queue's past merges need the forge's public landing
+  history (`forge.md`, section 10). Default: goals ended while the public
+  index kept the project, and landings by turn alone. "Nothing has landed
+  yet." describes an empty landing list even when a stock queue has merged
+  earlier work; changing those words waits with that history.
 - **The kit's stylesheet without a bundle:** the gallery takes
   `skein-ui.css` by running skein's bundler with no module (7.1).
   Default: so, until skein's bundler offers the stylesheet alone.
@@ -1759,11 +1766,12 @@ never streaming (`../draft/first-release.md`, 5.3).
   then.
 - **The projects:** each public project's name, a link to its board; "No
   public projects yet." when there are none.
-- **A short commit** is the first seven digits, as plain text. A commit
-  is held in 32 bytes, a 40-digit one zero-padded, so a page never prints
-  one whole.
+- **A short commit** is the first seven digits, plain text on a change
+  or a landing's member. In the recent landings list it links to the
+  public landing, as above. A commit is held in 32 bytes, a 40-digit one
+  zero-padded, so a page never prints one whole.
 - **No link to the forge:** a commit, a pull request and a CI run are
-  never links, for the reason in `forge.md`, 11.3.
+  never links to the forge, for the reason in `forge.md`, 11.3.
 - **Words never touch:** where a line holds several, a visible separator
   or space stands between them in the page's text, not only in its
   layout.

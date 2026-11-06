@@ -129,8 +129,9 @@ The charters and templates stories check `me`'s
 `resolved_default` with catalogue and charter orders opposed, explicit
 and omitted intent, a chosen executor, no eligible model, and account,
 policy, membership and effective-executor changes that refresh the
-preview. The rule is a run's check's (accounts.md, 4.3), and the payer
-the current receiving party (engine.md, 11.1).
+preview, and each project's offer: a provider with no usable account gives
+no model, and an account's change changes it. The rule is a run's check's
+(accounts.md, 4.3), and the payer the current receiving party (engine.md, 11.1).
 
 Settings (engine.md, section 17) are tested where each part lives, most
 of it below this world: the current settings from defaults and changes,
