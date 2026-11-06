@@ -187,7 +187,12 @@ pub(super) fn texts(
                 let bound = u32::try_from(turn.transcript.len()).expect("bounded stored turn");
                 let limits = jig_protocol_transcript::Limits::new(
                     bound,
-                    jig_protocol_transcript::TurnLimits { messages: u32::MAX, blocks: u32::MAX, text: bound },
+                    jig_protocol_transcript::TurnLimits {
+                        messages: u32::MAX,
+                        blocks: u32::MAX,
+                        text: bound,
+                        outcome: bound,
+                    },
                 );
                 match jig_protocol_transcript::brief_text(&limits, &turn.transcript) {
                     Ok(text) => Some(text_end(&text)),

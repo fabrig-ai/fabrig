@@ -42,6 +42,7 @@ impl Limits {
             messages: client.rows,
             blocks: client.rows,
             text: client.turn_text,
+            outcome: client.text,
         };
         let receiving = Receiving {
             wire: receiving,
