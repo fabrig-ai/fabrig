@@ -46,3 +46,7 @@ Acceptance:
 ## Report
 
 As the implementer's text has it.
+
+## Answers
+
+2026-11-06 (temper/ui). Neither as asked: no schema change, and no invented fact. temper/ui answers. For a GitHub account with an installation, whatever its selection, the Not listed remedy is one line that's true either way: 'Check OWNER/NAME exists, and grant it to temper's App on GitHub.', linked to the App's installation page by its slug if the client holds that (github.com/apps/SLUG/installations/new, which asks for the account itself), and with no link if not. Emit that in place of Remedy::Grant's two cases, and don't add installation fields. Change forge.md 5.1's row to match, and note in its status file that GitHub's repository selection mode isn't carried, so the two cases aren't told apart. Keep NotInstalled and connected Forgejo's collaborator remedy as you have them. Focused and fuzzy alone.
