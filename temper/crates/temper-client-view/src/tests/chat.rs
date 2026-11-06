@@ -1101,10 +1101,30 @@ fn a_line_break_counts_within_the_message_bound() {
     let mut over = skein_lib::bytes::zeroed(bound.checked_add(1).unwrap());
     over.fill(b'a');
     over[3] = b'\n';
-    let words = &over[..bound];
-    assert_eq!(&*fixtures::type_into(&mut root, b"Message", words), words);
-    assert_eq!(&*fixtures::type_into(&mut root, b"Message", &over), words);
+    let mut limits = fixtures::domain_limits();
+    limits.client.domain.long_text = u32::try_from(over.len()).unwrap();
+    for words in [&over[..bound], &over] {
+        let mut view = fixtures::page_view(&root);
+        let composer = fixtures::find(view.tree(), Role::TextArea, b"Message").unwrap();
+        let action = crate::act(&mut view, composer, skein_ui::Act::Input { value: Box::from(words) }).unwrap();
+        temper_client_domain::step(
+            &mut root,
+            &skein_lib::Env { now: skein_lib::Time::ZERO, wall: fixtures::NOW, limits },
+            temper_client_domain::Event::Act { action },
+            &mut skein_lib::Queue::uncapped(),
+        );
+        let view = fixtures::page_view(&root);
+        let composer = fixtures::find(view.tree(), Role::TextArea, b"Message").unwrap();
+        let mut held = None;
+        for node in view.tree().nodes() {
+            if node.id == composer {
+                held = Some(node.value.as_ref().unwrap().text.as_ref());
+            }
+        }
+        assert_eq!(held, Some(words));
+    }
 }
+
 #[test]
 fn enter_in_a_cards_reason_does_nothing() {
     let mut view = fixtures::page_view(&proposal_root());

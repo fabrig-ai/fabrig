@@ -922,7 +922,7 @@ fn an_ended_delegation_reads_its_task_and_keeps_its_result() {
 }
 
 #[test]
-fn the_chat_composer_keeps_the_send_bound_when_receiving_grows() {
+fn the_chat_composer_holds_past_the_cue_bound() {
     let mut limits = fixtures::limits();
     limits.client.domain.text = 2048;
     limits.client.domain.long_text = 2048;
@@ -936,8 +936,8 @@ fn the_chat_composer_keeps_the_send_bound_when_receiving_grows() {
     over.fill(b'b');
     f.chat.act(&fixtures::env(&limits), &f.client, Act::MessageWords { words: words.clone() }, &mut serial, &mut f.out);
     assert_eq!(f.chat.words, words);
-    f.chat.act(&fixtures::env(&limits), &f.client, Act::MessageWords { words: over }, &mut serial, &mut f.out);
-    assert_eq!(f.chat.words, words, "an oversized edit keeps the previous words");
+    f.chat.act(&fixtures::env(&limits), &f.client, Act::MessageWords { words: over.clone() }, &mut serial, &mut f.out);
+    assert_eq!(f.chat.words, over, "an oversized edit replaces the previous words");
 }
 
 fn window_page(chat: &mut Chat, client: &jig_client::Client, out: &mut Queue<Request>, page: u32, pages: u32) {
@@ -1652,6 +1652,11 @@ fn a_retained_settings_card_keeps_the_documents_acceptance_time() {
     };
 }
 
+fn draft_limits() -> crate::Limits {
+    let mut limits = fixtures::limits();
+    limits.client.domain.long_text = 128;
+    limits
+}
 fn draft_ready() -> f::Fixture {
     let mut f = f::opened();
     f.client.step_unlinked(
@@ -1682,8 +1687,7 @@ fn draft_ready() -> f::Fixture {
     task.acts = fixtures::acts::offered(c::ActKind::Message, c::Admission::Allowed);
     f::deliver(&mut f.client, f.watch, task);
     while f.out.pop().is_some() {}
-    let mut limits = fixtures::limits();
-    limits.client.domain.text = 128;
+    let limits = draft_limits();
     f.chat.thread = jig_client::thread::Thread::new(f::TASK, &crate::pages::chat::thread_limits(&limits));
     f
 }
@@ -1693,7 +1697,7 @@ fn add_draft_sends_and_goes_to_split() {
     f.chat.words = b"Unsent words".as_slice().into();
     let mut serial = SERIAL;
     for _ in 0_u32..2 {
-        f.chat.act(&fixtures::env(&fixtures::limits()), &f.client, Act::AddDraft, &mut serial, &mut f.out);
+        f.chat.act(&fixtures::env(&draft_limits()), &f.client, Act::AddDraft, &mut serial, &mut f.out);
     }
     assert_eq!(f.chat.mode, crate::pages::chat::document::Mode::Split);
     assert!(f.chat.writing);
@@ -1711,7 +1715,7 @@ fn add_draft_sends_and_goes_to_split() {
 #[test]
 fn a_refused_add_keeps_the_pane_and_its_words() {
     let mut f = draft_ready();
-    f.chat.act(&fixtures::env(&fixtures::limits()), &f.client, Act::AddDraft, &mut { SERIAL }, &mut f.out);
+    f.chat.act(&fixtures::env(&draft_limits()), &f.client, Act::AddDraft, &mut { SERIAL }, &mut f.out);
     let key = f.chat.pending.get(0).unwrap().0;
     let refused = jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
         refusal: c::Refusal::NotOffered,
@@ -1864,7 +1868,10 @@ fn latest_and_sending_go_to_the_end_and_read_it_where_it_went() {
                         read_count += 1;
                     }
                     Request::Client(Event::Send { .. }) => send_count += 1,
-                    other @ (Request::Client(_) | Request::Show { .. } | Request::Replace { .. }) => {
+                    other @ (Request::Client(_)
+                    | Request::Show { .. }
+                    | Request::Replace { .. }
+                    | Request::OpenTab { .. }) => {
                         panic!("unexpected {other:?}")
                     }
                 }
@@ -1979,4 +1986,73 @@ fn an_ended_read_leaves_latest_free() {
     chat_act(&mut chat, &client, Act::Latest, &mut out);
     assert_eq!(out.pop(), Some(first_activity(&chat)), "Latest asks immediately after a lasting end");
     assert!(out.is_empty());
+}
+
+fn composer_fixture(limits: &crate::Limits) -> f::Fixture {
+    let mut f = send_ready(b"", c::Admission::Allowed);
+    let task = f.chat.final_task.take();
+    f.chat = Chat::new(f::TASK, crate::pages::chat::document::Mode::Chat, f::FIRST, limits, &mut Queue::uncapped());
+    f.chat.final_task = task;
+    super::composer::deliver_me(&mut f);
+    f
+}
+fn composer_act(f: &mut f::Fixture, limits: &crate::Limits, act: Act) {
+    f.chat.act(&fixtures::env(limits), &f.client, act, &mut { SERIAL }, &mut f.out);
+}
+#[test]
+fn a_kilobyte_pasted_is_sent_whole() {
+    let limits = super::composer::limits();
+    let mut f = composer_fixture(&limits);
+    let words = super::composer::words(super::composer::BOUND);
+    composer_act(&mut f, &limits, Act::MessageWords { words: words.clone() });
+    assert_eq!(f.chat.words, words);
+    composer_act(&mut f, &limits, Act::Send);
+    assert_eq!(
+        fixtures::acts::sent(&mut f.out).as_ref(),
+        [c::Ask::Message {
+            project: fixtures::PROJECT,
+            task: f::TASK,
+            words: c::Text::new(words, super::composer::HOLD).unwrap()
+        }]
+    );
+    assert!(f.chat.words.is_empty());
+}
+#[test]
+fn a_paste_past_the_bound_stays_and_sends_nothing() {
+    let limits = super::composer::limits();
+    for &(typed, kept, beyond, excess) in super::composer::PAST {
+        let mut f = composer_fixture(&limits);
+        composer_act(&mut f, &limits, Act::MessageWords { words: super::composer::words(typed) });
+        let words = super::composer::words(kept);
+        assert_eq!(f.chat.words, words);
+        assert_eq!(f.chat.beyond, beyond);
+        composer_act(&mut f, &limits, Act::Send);
+        assert!(fixtures::acts::sent(&mut f.out).is_empty());
+        assert!(f.chat.pending.is_empty());
+        assert!(f.chat.thread.words.rows.is_empty());
+        assert_eq!(f.chat.words, words);
+        assert_eq!(crate::pages::composer::over(&f.chat.words, f.chat.beyond, super::composer::BOUND), excess);
+        composer_act(&mut f, &limits, Act::MessageWords { words: Box::from(*b"short") });
+        assert_eq!(f.chat.beyond, 0);
+        composer_act(&mut f, &limits, Act::Send);
+        assert_eq!(fixtures::acts::sent(&mut f.out).len(), 1);
+    }
+}
+
+#[test]
+fn a_send_the_thread_refuses_keeps_the_words_and_says_so() {
+    let limits = super::composer::limits();
+    let mut f = composer_fixture(&limits);
+    f.chat.thread = jig_client::thread::Thread::new(
+        f::TASK,
+        &jig_client::thread::Limits { lines: 1, bytes: 4, text: super::composer::HOLD, live: super::composer::HOLD },
+    );
+    composer_act(&mut f, &limits, Act::MessageWords { words: Box::from(*b"Hello") });
+    composer_act(&mut f, &limits, Act::Send);
+    assert_eq!(f.chat.words.as_ref(), b"Hello");
+    assert!(fixtures::acts::sent(&mut f.out).is_empty());
+    assert!(f.chat.pending.is_empty());
+    assert!(f.chat.thread.words.rows.is_empty());
+    assert_eq!(f.chat.outcome, Some(jig_client::Outcome::Limit));
+    assert_eq!(f.chat.outcome_kind, Some(Sending::Message));
 }

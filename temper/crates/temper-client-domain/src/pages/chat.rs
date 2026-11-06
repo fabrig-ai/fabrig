@@ -55,6 +55,7 @@ pub struct Chat {
     pub thread: Thread,
     to_end: u64,
     pub words: Box<[u8]>,
+    pub beyond: u64,
     pub composer_focus: u64,
     pub settings_proposals: List<c::Proposal>,
     pub pending: List<(Key, Sending)>,
@@ -123,6 +124,7 @@ impl Chat {
             thread,
             to_end: 0,
             words: Box::default(),
+            beyond: 0,
             composer_focus: 0,
             settings_proposals: List::with_capacity(limits.client.domain.reads),
             pending: List::with_capacity(4),
@@ -930,9 +932,7 @@ impl Chat {
         match act {
             Act::FocusComposer => self.composer_focus = self.composer_focus.checked_add(1).expect("focus count fits"),
             Act::MessageWords { words } => {
-                if words.len() <= usize::try_from(temper_client_protocol_wire::CUE_BYTES).expect("text bound fits") {
-                    self.words = words;
-                }
+                (self.words, self.beyond) = super::composer::held(words, env.limits.client.domain.long_text);
             }
             Act::Mode { mode } => self.mode = mode,
             Act::ShowSection { line } => {
@@ -1044,7 +1044,7 @@ impl Chat {
     }
     fn send(
         &mut self,
-        _env: &Env<Limits>,
+        env: &Env<Limits>,
         client: &Client,
         kind: Sending,
         supplied: Option<&[u8]>,
@@ -1054,11 +1054,14 @@ impl Chat {
         let message = supplied.unwrap_or(&self.words);
         let Some(task) = self.task(client) else { return };
         let ask = match kind {
-            Sending::Message if !message.is_empty() && allowed(task, c::ActKind::Message) => c::Ask::Message {
-                project: task.project,
-                task: self.task,
-                words: c::Text::new(message.into(), temper_client_protocol_wire::CUE_BYTES).expect("composer bounded"),
-            },
+            Sending::Message if !message.is_empty() && allowed(task, c::ActKind::Message) => {
+                let Some(Latest::Jig(c::Delivery::Me(me))) = latest(client, super::me_handle()) else { return };
+                if supplied.is_none() && super::composer::over(&self.words, self.beyond, me.words_bytes) > 0 {
+                    return;
+                }
+                let Ok(words) = c::Text::new(message.into(), env.limits.client.domain.long_text) else { return };
+                c::Ask::Message { project: task.project, task: self.task, words }
+            }
             Sending::Stop if allowed(task, c::ActKind::Stop) => c::Ask::Stop { project: task.project, task: self.task },
             Sending::Message | Sending::Stop | Sending::Seen | Sending::Close => return,
         };
@@ -1074,10 +1077,13 @@ impl Chat {
                 return;
             };
             if !self.thread.sending(key, me.party.number, words.clone(), 0) {
+                self.outcome = Some(jig_client::Outcome::Limit);
+                self.outcome_kind = Some(kind);
                 return;
             }
             if supplied.is_none() {
                 self.words = Box::default();
+                self.beyond = 0;
             }
         }
         self.pending.push((key, kind)).expect("one request per chat act fits");
@@ -1101,7 +1107,7 @@ pub fn thread_limits(limits: &Limits) -> jig_client::thread::Limits {
         )
         .unwrap_or(u32::MAX),
         bytes: limits.client.domain.document_bytes,
-        text: limits.client.domain.text,
+        text: limits.client.domain.long_text,
         live: limits.client.domain.long_text,
     }
 }
