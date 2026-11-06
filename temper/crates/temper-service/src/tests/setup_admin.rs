@@ -116,7 +116,17 @@ fn turn(service: &mut crate::Service, forge: &mut Forge, tick: u64) {
     engine.env.now = Time::from_nanos(tick.checked_mul(1_000_000).unwrap());
     advance(engine);
     engine.forge.iterate(engine.env.now, Wall::EPOCH);
+    // This peer owns one socket: finish its exchange before serving the other component.
+    let setup = match forge.socket {
+        Some((_, setup)) => setup,
+        None => !engine.setup.io.is_empty() || !engine.setup.runs.is_empty(),
+    };
+    let deferred =
+        core::mem::replace(if setup { &mut engine.forge.io } else { &mut engine.setup.io }, Queue::uncapped());
     forge.turn_io(engine);
+    let waiting = if setup { &mut engine.forge.io } else { &mut engine.setup.io };
+    assert!(waiting.is_empty());
+    *waiting = deferred;
     forge.turn_server(engine);
     for _ in 0_u32..4 {
         scan(engine);
@@ -675,7 +685,7 @@ fn reconcile_and_create_use_the_paste_instead_of_an_older_admin_record() {
 }
 
 #[test]
-fn string_managed_serves_no_listener_even_when_owned_forges_have_webhooks() {
+fn a_managed_forge_on_this_host_is_served_the_listener() {
     let forge = forge(true, true, false);
     let mut config = config();
     config.webhooks =
@@ -684,11 +694,11 @@ fn string_managed_serves_no_listener_even_when_owned_forges_have_webhooks() {
     let engine = service.engine.as_ref().unwrap();
     let (settings, _) = engine.setup.pending.as_ref().unwrap();
     let host::Kind::Forgejo(given) = &settings.forges.get(0).unwrap().kind else { panic!("Forgejo") };
-    assert!(given.listener.is_none());
+    assert_eq!(given.listener, Some(([127, 0, 0, 1], 7101).into()));
     assert!(given.orgs.is_empty());
     assert!(given.org_owner.is_none());
     assert!(!engine.setup.waiting_for_webhooks);
-    assert!(!engine.setup.lifecycle.local(1).unwrap().webhooks);
+    assert!(engine.setup.lifecycle.local(1).unwrap().webhooks);
 }
 
 #[test]
@@ -926,13 +936,15 @@ pub(super) fn finish_access(service: &mut crate::Service, forge: &mut Forge) {
 }
 
 #[test]
-fn a_managed_adoption_grants_write_on_a_private_repository_without_a_hook() {
+fn a_managed_adoption_on_this_host_grants_write_and_makes_one_hook_at_the_listener() {
     let (mut service, mut forge) = access_host(false);
     assert!(forge.service.setup().collaborator(1, b"temper").is_none());
     adopt_private(&mut service, 70);
     finish_access(&mut service, &mut forge);
     assert_eq!(forge.service.setup().collaborator(1, b"temper"), Some(skein_forge::forgejo::request::Grant::Write));
-    assert_eq!(forge.service.setup().repository_hooks(1).count(), 0);
+    let mut hooks = forge.service.setup().repository_hooks(1);
+    assert_eq!(hooks.next().expect("adoption hook").url.as_ref(), b"http://127.0.0.1:7101/hooks/1");
+    assert!(hooks.next().is_none(), "one hook");
 }
 #[test]
 fn an_adoption_without_admin_repository_scope_refuses_and_names_its_step() {
@@ -1152,4 +1164,110 @@ fn access_answered(engine: &crate::engine::Engine, request: Option<Token>, expec
         },
         _ => false,
     })
+}
+
+#[test]
+fn a_secret_drawn_at_a_first_adoption_reaches_the_connection() {
+    let (mut service, mut forge) = access_host(false);
+    let engine = service.engine.as_ref().unwrap();
+    assert_eq!(
+        engine.forge_records.rows.forge(1).unwrap().get(Item::WebhookSecret),
+        Err(records::NotConnected::Incomplete)
+    );
+    assert!(engine.forge.starts.iter().last().unwrap().1.webhook_secret.is_none());
+    adopt_private(&mut service, 70);
+    finish_access(&mut service, &mut forge);
+    let engine = service.engine.as_ref().unwrap();
+    let secret = engine.forge_records.rows.forge(1).unwrap().get(Item::WebhookSecret).unwrap();
+    assert_eq!(
+        engine
+            .forge
+            .starts
+            .iter()
+            .last()
+            .unwrap()
+            .1
+            .webhook_secret
+            .as_ref()
+            .expect("connection receives the drawn secret")
+            .expose(),
+        secret
+    );
+    assert!(match engine.domain.forge_connection(1) {
+        domain::Connection::Connected { .. } => true,
+        _ => false,
+    });
+}
+
+#[test]
+fn a_managed_forge_whose_hook_delivers_nothing_stays_connected_and_keeps_reading() {
+    let (mut service, mut forge) = access_host(false);
+    adopt_private(&mut service, 70);
+    finish_access(&mut service, &mut forge);
+    assert_eq!(forge.service.setup().repository_hooks(1).count(), 1);
+    for tick in 40_016_u64..40_272 {
+        turn(&mut service, &mut forge, tick.checked_mul(10_000).unwrap());
+    }
+    let engine = service.engine.as_ref().unwrap();
+    assert!(match engine.domain.forge_connection(1) {
+        domain::Connection::Connected { .. } => true,
+        _ => false,
+    });
+    let rows = engine.domain.forges();
+    assert!(rows.rows[0].ended.is_none());
+    assert!(rows.rows[0].ended_stop.is_none());
+    for line in &forge.requests {
+        assert!(!(contains(line, b"/hooks/") && contains(line, b"/tasks")));
+    }
+}
+
+#[test]
+fn a_managed_forge_elsewhere_is_served_no_listener() {
+    let forge = forge(true, true, false);
+    let mut config = config();
+    config.webhooks =
+        Some(skein_forge_connection::hooks::Webhooks { listener: skein_io::Addr::Ip(([127, 0, 0, 1], 7101).into()) });
+    let mut service = local_service(config, store(&forge));
+    let roots = roots();
+    service.configure_forge_runtime(
+        crate::ForgeRuntime {
+            log_origins: List::with_capacity(0),
+            number: 0,
+            address: ([192, 0, 2, 9], 443).into(),
+            transport: skein_forge_connection::settings::Transport::Tls {
+                server_name: skein_tls::Name::new("forge.example").unwrap(),
+                trust: roots.clone(),
+            },
+        },
+        roots,
+    );
+    let mut remote = fixtures::forge_record(2);
+    remote.mode = domain::Mode::Managed;
+    remote.place.api.host = b"192.0.2.9".as_slice().into();
+    remote.place.api.port = 443;
+    remote.place.api.tls = Some(b"forge.example".as_slice().into());
+    crate::route::request(service.engine.as_mut().unwrap(), root::Request::ForgeKept(remote));
+    let engine = service.engine.as_ref().unwrap();
+    let host::Kind::Forgejo(given) = &engine.setup.served.get(&2).unwrap().kind else { panic!("Forgejo") };
+    assert!(given.listener.is_none());
+    assert!(!engine.setup.lifecycle.local(2).unwrap().webhooks);
+    assert!(engine.forge.io.is_empty() && engine.setup.io.is_empty(), "no exchange with the documentation address");
+}
+
+fn roots() -> skein_tls::Config {
+    let root = skein_lib::base64::decode(
+        skein_lib::base64::Alphabet::Standard,
+        concat!(
+            "MIIBmDCCAT+gAwIBAgIUHvatnWfGKnu6ssb8pgtoqmWxTcQwCgYIKoZIzj0EAwIwGjEYMBYGA1UEAwwPc2tlaW4gdGVzdCByb290",
+            "MB4XDTI2MDEwMTAwMDAwMFoXDTM2MDEwMTAwMDAwMFowGjEYMBYGA1UEAwwPc2tlaW4gdGVzdCByb290MFkwEwYHKoZIzj0CAQYI",
+            "KoZIzj0DAQcDQgAElnuG+BWgtzb++8N0S1weL+2KuE3Fb9nx992dyCDQ6GJdAwludLQPNm9HNipn55h9kfFjKtdy/de0tsxuavfE",
+            "UqNjMGEwHQYDVR0OBBYEFPmq8/JFoN7ZJ8taLdr3/hphqvWjMB8GA1UdIwQYMBaAFPmq8/JFoN7ZJ8taLdr3/hphqvWjMA8GA1Ud",
+            "EwEB/wQFMAMBAf8wDgYDVR0PAQH/BAQDAgEGMAoGCCqGSM49BAMCA0cAMEQCIEtpmEfeTnDuXGC/OGm3Q7fM97DmGIwA3AUsfwTn",
+            "AaLNAiAdXjbm1OYLV5vW4t68UIk4Kzxdk5qEue0bPNUZ9oISMw==",
+        )
+        .as_bytes(),
+        412,
+    )
+    .unwrap();
+    skein_tls::Config::from_der(core::slice::from_ref(&root), &[]).unwrap().0
 }

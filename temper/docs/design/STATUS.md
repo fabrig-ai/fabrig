@@ -100,9 +100,7 @@ request of 2026-11-05 has a restart too
 (`protocol/sign-in.md`); a connected Forgejo, its connect with its
 bot's tokens and a forge's Replace are built, but for the real
 loop's story (`client/tools.md`) and a connected Forgejo made
-managed (`protocol/setup.md`); a Forgejo connected as its admin on this
-host polls, with no hook, where the design has one, and on a real
-Forgejo no story shows a plan making a hook (`protocol/setup.md`); a
+managed (`protocol/setup.md`); a
 managed row set up failed offers Connect to ctl alone
 (`client/forge.md`), and the adoption form draws no read-only line
 (`client/README.md`); `temper forge sign-in` prints an owned
