@@ -184,8 +184,7 @@
     it checked "by CI and a review on the way": the reference's goal branches have neither
     (`../draft/reference-code-production.md`, sections 6 and 10);
   - a table's row name is bold in a cell, where the request's rule is `th[scope=row]`, since
-    skein's reader draws no row header; a figure's term and value are `role=term` and
-    `role=definition`, where its rules are `dt` and `dd`;
+    skein's reader draws no row header;
   - the thread's padding of 28 and 8 reaches the opening alone, at wide widths, where the request's
     rule reaches every chat; a phone keeps its 20 and 16;
   - the card's steps are a list with no marker and the pane a region of slots, where the request's
