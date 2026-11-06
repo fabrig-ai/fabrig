@@ -15,6 +15,8 @@ use skein_ui_web::{
 };
 #[cfg(target_arch = "wasm32")]
 use std::{cell::RefCell, rc::Rc};
+#[cfg(target_arch = "wasm32")]
+mod focus;
 pub mod host;
 #[cfg(any(not(target_arch = "wasm32"), feature = "record"))]
 pub mod journey;
@@ -50,6 +52,7 @@ struct Shell<P: ShellPlatform> {
     history: Rc<history::web::History>,
     timer: P::Timer,
     title: title::web::Title,
+    heading_focus: focus::HeadingFocus,
 }
 #[cfg(target_arch = "wasm32")]
 trait ShellPlatform: platform::Platform {
@@ -162,6 +165,7 @@ fn start_signed_in() {
         history,
         timer,
         title: title::web::Title::default(),
+        heading_focus: focus::HeadingFocus::new(),
     };
     inbox.start(Box::new(move |inbox| shell.turn(inbox)));
     inbox.raise(Report::Start);
@@ -296,14 +300,24 @@ impl<P: ShellPlatform> Shell<P> {
         self.title.set(words.as_bytes(), b"temper", b"en", closing_loses);
         if new_page {
             window.scroll_to_with_x_and_y(0.0, 0.0);
-            if !ops.iter().any(|op| matches!(op, skein_ui_web::page::Op::Focus { .. })) {
-                use wasm_bindgen::JsCast;
-                if let Some(target) = heading.or_else(|| document.query_selector("main").expect("main selector")) {
-                    target.set_attribute("tabindex", "-1").expect("focus target");
-                    target.unchecked_ref::<web_sys::HtmlElement>().focus().expect("focus mounted target");
-                }
-            }
         }
+        let requested = ops.iter().any(|op| match op {
+            skein_ui_web::page::Op::Focus { node } => {
+                self.host.tree().nodes().iter().any(|made| made.id == *node && made.focus.is_some())
+            }
+            skein_ui_web::page::Op::Insert { .. }
+            | skein_ui_web::page::Op::Remove { .. }
+            | skein_ui_web::page::Op::Move { .. }
+            | skein_ui_web::page::Op::Replace { .. }
+            | skein_ui_web::page::Op::Attributes { .. }
+            | skein_ui_web::page::Op::Text { .. }
+            | skein_ui_web::page::Op::Value { .. }
+            | skein_ui_web::page::Op::Choice { .. }
+            | skein_ui_web::page::Op::Href { .. }
+            | skein_ui_web::page::Op::ScrollEnd { .. }
+            | skein_ui_web::page::Op::Component { .. } => false,
+        });
+        self.heading_focus.finish(&document, heading, new_page, requested);
         self.history.restore();
         let deadline = self.host.deadline();
         #[cfg(feature = "record")]

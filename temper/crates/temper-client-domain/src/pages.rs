@@ -1046,11 +1046,13 @@ fn contains(me: &Me, project: Option<u32>) -> bool {
 #[expect(clippy::too_many_lines, reason = "one navigation transition releases page reads and opens its destination")]
 fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<Request>) {
     let mut opening = chat::document::Mode::Chat;
+    let mut started = false;
     if let Some(chats) = &pages.chats
         && let Some((task, mode)) = chats.opening
         && address == (Address::Chat { task })
     {
         opening = mode;
+        started = true;
     }
     if pages.address != address {
         pages.start = None;
@@ -1174,7 +1176,11 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             pages.task = Some(task::Task::new(task, pages.next, &env.limits, out));
         }
         if let Address::Chat { task } = address {
-            pages.chat = Some(chat::Chat::new(task, opening, pages.next, &env.limits, out));
+            let mut chat = chat::Chat::new(task, opening, pages.next, &env.limits, out);
+            if started {
+                chat.composer_focus = 1;
+            }
+            pages.chat = Some(chat);
             pages.needs.restore_settings(pages.chat.as_mut().expect("opened chat"), out);
         }
         if let Address::Changes { project } = address {
