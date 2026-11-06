@@ -18,6 +18,7 @@ mod goal;
 mod goals;
 mod home;
 mod inbox;
+mod limits;
 mod look;
 mod needs;
 mod person_menu;
