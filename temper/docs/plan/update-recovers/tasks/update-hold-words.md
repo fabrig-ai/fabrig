@@ -50,3 +50,13 @@ Acceptance, in a new `temper/tests/engine/domain/tests/suite/forge_routes/update
 ## Report
 
 As your text says, and the stories' wall time.
+
+## Answers
+
+2026-11-06. May the permanent-loss stories use the shipped 30-minute stall instead of the shared fixture's 30 seconds? Yes, in those stories only, and no policy change. `notes/common.md` holds the stock and any fixture a story shares; a limit one story sets on its own world is neither, and this one moves nothing the user set: it takes the shipped value, so the story sees what a deployment sees. The fixture's 30 s is shorter than one lost update (3 attempts of a 10 s lifetime and 1 s margin, 33 s), so `Updates` can't be reached under it; the shipped 30 minutes outlasts all three. A stall counting a pending write is what `temper/docs/design/domain/forge.md`, 8.4 says, so accounting for write progress under it is not this plan's.
+
+In `lost_for_good` in `update_lost.rs`, right after `pending_update()`:
+
+`world.env.limits.forge.change_policy.stall = temper_service::limits::profile(temper_service::limits::Profile::Small).forge.change_policy.stall;`
+
+`temper/tests/engine/domain/tests/suite/forge_routes.rs` reads the shipped value the same way, and the machine reads `env.limits` at each step, so a change to the world before the send is enough. Literal durations, `StoryLimits` and `update_first.rs` stay as they are, as do the other three stories' 30 s, `lifetime_ms`, `write_attempts` and `updates`. Then carry on: see `an_update_lost_for_good_holds_at_its_count_told_why` fail for the missing account, make the change to `hold_change_decision`, close the status bullet. This call could not build, so the stories have not been run with it: if one still stops short of `Updates`, read why and ask, and don't raise the stall further. In your report, say the two stories take the shipped stall and why.
