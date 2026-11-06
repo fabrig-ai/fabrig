@@ -72,3 +72,174 @@ fn a_full_table_evicts_the_oldest_ended_row() {
     assert!(t.rows.as_slice().iter().all(|row| row.account != THIRD));
     made_and_changed(&mut out, THIRD + 1);
 }
+
+#[test]
+fn a_second_try_of_an_account_asks_nothing() {
+    for state in [State::Running, State::Answered { seconds: 1 }, State::Failed { why: Why::Refused }] {
+        let mut t = seed([row(ACCOUNT, ALICE, Some(TASK), 0, state)]);
+        assert!(decide(&mut t, SECOND, try_it(ACCOUNT, false)).is_empty());
+        assert_eq!(first(&t), &row(ACCOUNT, ALICE, Some(TASK), 0, state));
+    }
+}
+
+#[test]
+fn again_while_running_asks_nothing() {
+    let mut t = seed([running(ACCOUNT, Some(TASK), 0)]);
+    assert!(decide(&mut t, SECOND, try_it(ACCOUNT, true)).is_empty());
+    assert_eq!(first(&t), &running(ACCOUNT, Some(TASK), 0));
+}
+
+#[test]
+fn made_sets_the_task() {
+    let mut t = seed([running(ACCOUNT, None, 0)]);
+    let mut out = decide(&mut t, 0, Event::Made { account: ACCOUNT, task: TASK });
+    assert_eq!(first(&t).task, Some(TASK));
+    requests(&mut out, &[Request::Changed { person: ALICE }]);
+}
+
+#[test]
+fn refused_fails_it() {
+    let mut t = seed([running(ACCOUNT, None, 0)]);
+    let mut out = decide(&mut t, 0, Event::Refused { account: ACCOUNT });
+    assert_eq!(first(&t).state, State::Failed { why: Why::Refused });
+    requests(&mut out, &[Request::Changed { person: ALICE }]);
+}
+
+#[test]
+fn observed_moves_only_forward() {
+    let mut t = seed([running(ACCOUNT, Some(TASK), 0)]);
+    let mut out = decide(&mut t, 0, Event::Observed { task: TASK, past_starting: true, took: Some(OTHER) });
+    assert_eq!(first(&t).step, Step::Answers);
+    assert_eq!(first(&t).took, Some(OTHER));
+    requests(&mut out, &[Request::Changed { person: ALICE }]);
+    for took in [None, Some(THIRD), Some(OTHER)] {
+        assert!(decide(&mut t, 0, Event::Observed { task: TASK, past_starting: false, took }).is_empty());
+        assert_eq!(first(&t).step, Step::Answers);
+        assert_eq!(first(&t).took, Some(OTHER));
+    }
+}
+
+fn answered(event: Event) {
+    let mut t = seed([running(ACCOUNT, Some(TASK), 0)]);
+    let mut out = decide(&mut t, SECOND, event);
+    assert_eq!(first(&t).state, State::Answered { seconds: 1 });
+    requests(&mut out, &[Request::Cancel { task: TASK }, Request::Changed { person: ALICE }]);
+    assert!(decide(&mut t, MINUTE, event).is_empty());
+}
+
+#[test]
+fn a_turn_answers_and_cancels() { answered(Event::Turn { task: TASK }); }
+#[test]
+fn finished_answers() { answered(Event::Finished { task: TASK }); }
+
+#[test]
+fn seconds_round_up_and_are_at_least_one() {
+    // Zero, fractional and exact seconds; clock reversal; saturation of the wire's u32.
+    for (began, wall, seconds) in [
+        (SECOND, SECOND, 1), (SECOND, SECOND + 1, 1), (0, SECOND, 1),
+        (SECOND, 2 * SECOND + 1, 2), (0, 2 * SECOND, 2), (SECOND, 0, 1), (0, u64::MAX, u32::MAX),
+    ] {
+        let mut t = seed([running(ACCOUNT, Some(TASK), began)]);
+        drop(decide(&mut t, wall, Event::Turn { task: TASK }));
+        assert_eq!(first(&t).state, State::Answered { seconds });
+    }
+}
+
+#[test]
+fn a_failed_run_fails_it_and_cancels() {
+    for class in [Class::Transient, Class::Permanent, Class::Run, Class::Agent, Class::Lost, Class::Invalid, Class::Refused] {
+        let mut t = seed([running(ACCOUNT, Some(TASK), 0)]);
+        let event = Event::RunFailed { task: TASK, class };
+        let mut out = decide(&mut t, 0, event);
+        assert_eq!(first(&t).state, State::Failed { why: Why::Ended { class } });
+        requests(&mut out, &[Request::Cancel { task: TASK }, Request::Changed { person: ALICE }]);
+        assert!(decide(&mut t, 0, event).is_empty());
+    }
+}
+
+#[test]
+fn a_minute_fails_it_and_cancels() {
+    for step in [Step::Starts, Step::Answers] {
+        let mut t = seed([running(ACCOUNT, Some(TASK), 0), running(OTHER, None, 0), running(THIRD, Some(THIRD_TASK), SECOND)]);
+        t.rows.get_mut(0).expect("fixture row").step = step;
+        assert!(decide(&mut t, MINUTE - 1, Event::Due).is_empty());
+        let mut out = decide(&mut t, MINUTE, Event::Due);
+        assert_eq!(first(&t).state, State::Failed { why: Why::Waited });
+        assert_eq!(t.rows.get(1).expect("fixture row").state, State::Failed { why: Why::Waited });
+        assert_eq!(t.rows.get(2).expect("fixture row").state, State::Running);
+        requests(&mut out, &[Request::Cancel { task: TASK }, Request::Changed { person: ALICE }, Request::Changed { person: ALICE }]);
+        let mut out = decide(&mut t, MINUTE + SECOND + 1, Event::Due);
+        requests(&mut out, &[Request::Cancel { task: THIRD_TASK }, Request::Changed { person: ALICE }]);
+        assert!(decide(&mut t, u64::MAX, Event::Due).is_empty());
+    }
+}
+
+#[test]
+fn next_due_is_the_earliest_runner() {
+    let mut t = seed([
+        running(ACCOUNT, Some(TASK), SECOND),
+        row(OTHER, ALICE, Some(OTHER_TASK), 0, State::Answered { seconds: 1 }),
+        running(THIRD, None, 0),
+    ]);
+    assert_eq!(t.next_due(), Some(Wall::from_nanos(MINUTE)));
+    drop(decide(&mut t, 0, Event::Refused { account: THIRD }));
+    assert_eq!(t.next_due(), Some(Wall::from_nanos(MINUTE + SECOND)));
+    drop(decide(&mut t, 0, Event::Turn { task: TASK }));
+    assert_eq!(t.next_due(), None);
+    assert_eq!(trials().next_due(), None);
+    let t = seed([running(ACCOUNT, None, u64::MAX)]);
+    assert_eq!(t.next_due(), Some(Wall::from_nanos(u64::MAX)));
+}
+
+#[test]
+fn a_removed_account_cancels_what_it_started_and_what_took_it() {
+    for state in [State::Running, State::Answered { seconds: 1 }, State::Failed { why: Why::Refused }] {
+        let mut started = row(ACCOUNT, ALICE, Some(TASK), 0, state);
+        started.took = Some(ACCOUNT);
+        let mut took = running(OTHER, Some(OTHER_TASK), 0);
+        took.took = Some(ACCOUNT);
+        took.person = BOB;
+        let mut t = seed([started, took, running(THIRD, Some(THIRD_TASK), 0)]);
+        let mut out = decide(&mut t, 0, Event::AccountGone { account: ACCOUNT });
+        assert_eq!(t.rows.as_slice(), &[running(THIRD, Some(THIRD_TASK), 0)]);
+        let mut expected = Queue::uncapped();
+        if state == State::Running { expected.push(Request::Cancel { task: TASK }); }
+        expected.push(Request::Changed { person: ALICE });
+        expected.push(Request::Cancel { task: OTHER_TASK });
+        expected.push(Request::Changed { person: BOB });
+        while let Some(request) = expected.pop() { assert_eq!(out.pop(), Some(request)); }
+        assert!(out.is_empty());
+        assert!(decide(&mut t, 0, Event::AccountGone { account: ACCOUNT }).is_empty());
+    }
+    let mut t = seed([running(ACCOUNT, None, 0)]);
+    requests(&mut decide(&mut t, 0, Event::AccountGone { account: ACCOUNT }), &[Request::Changed { person: ALICE }]);
+    assert!(t.rows.is_empty());
+}
+
+#[test]
+fn each_person_reads_their_own_rows() {
+    let t = seed([running(ACCOUNT, Some(TASK), 0), row(OTHER, BOB, None, 0, State::Running), running(THIRD, Some(THIRD_TASK), 0)]);
+    assert_eq!(t.rows(ALICE).map(|row| row.account).collect::<alloc::boxed::Box<[_]>>().as_ref(), &[ACCOUNT, THIRD]);
+    assert_eq!(t.rows(BOB).map(|row| row.account).collect::<alloc::boxed::Box<[_]>>().as_ref(), &[OTHER]);
+    assert_eq!(t.rows(0).count(), 0);
+}
+
+#[test]
+fn every_change_asks_changed_once() {
+    // Observing both progress and the taken account changes one row once.
+    let mut t = seed([running(ACCOUNT, Some(TASK), 0)]);
+    requests(&mut decide(&mut t, 0, Event::Observed { task: TASK, past_starting: true, took: Some(OTHER) }), &[Request::Changed { person: ALICE }]);
+}
+
+#[test]
+fn only_running_tasks_are_observed_but_ended_tasks_are_held() {
+    let t = seed([
+        running(ACCOUNT, Some(TASK), 0),
+        row(OTHER, ALICE, Some(OTHER_TASK), 0, State::Answered { seconds: 1 }),
+        running(THIRD, None, 0),
+    ]);
+    assert_eq!(t.running().collect::<alloc::boxed::Box<[_]>>().as_ref(), &[TASK]);
+    assert!(t.holds(TASK));
+    assert!(t.holds(OTHER_TASK));
+    assert!(!t.holds(THIRD_TASK));
+}
