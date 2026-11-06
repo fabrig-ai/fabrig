@@ -2,7 +2,7 @@ use jig_domain_tasks::{
     Accepted, Active, End, Event, MessageKind, NewsClass, Party, Phase, Refusal, Subscription, SubscriptionKind,
     WakeRule, Word,
 };
-use jig_tasks_world::{LIMITS, Reply, World, task};
+use jig_tasks_world::{LIMITS, PERSON_PARTY, Reply, World, task};
 use skein_lib::{ReplyTo, Token, Wall};
 
 fn say(world: &mut World, number: u64) {
@@ -14,7 +14,7 @@ fn say(world: &mut World, number: u64) {
             task: 1,
             word: Word {
                 number,
-                from: Party::Person(9),
+                from: PERSON_PARTY,
                 kind: jig_domain_tasks::MessageKind::Words,
                 words: Box::from([u8::try_from(number).expect("small message")]),
                 at: Wall::EPOCH,
@@ -28,7 +28,7 @@ fn say(world: &mut World, number: u64) {
 #[test]
 fn a_read_fence_takes_only_offered_words() {
     let mut world = World::new(81, LIMITS);
-    world.make(Party::Person(9), vec![task(1, &[])]);
+    world.make(PERSON_PARTY, vec![task(1, &[])]);
     world.claim_task(1);
     say(&mut world, 1);
     say(&mut world, 2);
@@ -67,7 +67,7 @@ fn a_read_fence_takes_only_offered_words() {
 #[test]
 fn a_parked_chat_wakes_on_its_persons_words() {
     let mut world = World::new(82, LIMITS);
-    world.make(Party::Person(9), vec![task(1, &[])]);
+    world.make(PERSON_PARTY, vec![task(1, &[])]);
     world.claim_task(1);
     assert_eq!(world.terminal(1, End::Parked), Reply::Acknowledged(Accepted::New));
     say(&mut world, 1);
@@ -133,7 +133,7 @@ fn a_question_keeps_room_for_its_answer_while_words_fill_the_inbox() {
     limits.inbox_messages = 2;
     limits.run_inbox = 2;
     let mut world = World::new(83, limits);
-    world.make(Party::Person(9), vec![task(1, &[])]);
+    world.make(PERSON_PARTY, vec![task(1, &[])]);
     world.make(Party::Task(1), vec![task(2, &[])]);
     world.make(Party::Task(2), vec![task(3, &[])]);
     assert!(matches!(task_words(&mut world, 3, 2, 1, MessageKind::Question), Reply::Done));
@@ -151,7 +151,7 @@ fn a_question_keeps_room_for_its_answer_while_words_fill_the_inbox() {
 #[test]
 fn a_person_answers_one_numbered_question_in_their_active_task() {
     let mut world = World::new(830, LIMITS);
-    world.make(Party::Person(9), vec![task(1, &[])]);
+    world.make(PERSON_PARTY, vec![task(1, &[])]);
     world.make(Party::Task(1), vec![task(2, &[])]);
     world.claim_task(1);
     assert!(matches!(task_words(&mut world, 2, 1, 1, MessageKind::Question), Reply::Done));
@@ -164,7 +164,7 @@ fn a_person_answers_one_numbered_question_in_their_active_task() {
             task: 1,
             word: Word {
                 number: 2,
-                from: Party::Person(9),
+                from: PERSON_PARTY,
                 kind: MessageKind::Answer { question: 1 },
                 words: Box::from(&b"yes"[..]),
                 at: Wall::EPOCH,
@@ -184,7 +184,7 @@ fn a_person_answers_one_numbered_question_in_their_active_task() {
             task: 1,
             word: Word {
                 number: 3,
-                from: Party::Person(9),
+                from: PERSON_PARTY,
                 kind: MessageKind::Answer { question: 1 },
                 words: Box::from(&b"twice"[..]),
                 at: Wall::EPOCH,
@@ -202,7 +202,7 @@ fn a_coordinator_is_woken_once_by_a_burst() {
     let mut world = World::new(84, LIMITS);
     let mut coordinator = task(1, &[]);
     coordinator.wake.words = WakeRule::Batch { count: 3, age: skein_lib::Duration::from_nanos(20) };
-    world.make(Party::Person(9), vec![coordinator]);
+    world.make(PERSON_PARTY, vec![coordinator]);
     world.make(Party::Task(1), vec![task(2, &[])]);
     world.claim_task(1);
     assert_eq!(world.terminal(1, End::Parked), Reply::Acknowledged(Accepted::New));
@@ -222,7 +222,7 @@ fn an_inbox_filling_merges_news_refuses_words_and_still_takes_a_result() {
     limits.inbox_messages = 3;
     limits.run_inbox = 3;
     let mut world = World::new(85, limits);
-    world.make(Party::Person(9), vec![task(1, &[])]);
+    world.make(PERSON_PARTY, vec![task(1, &[])]);
     world.make(Party::Task(1), vec![task(2, &[])]);
     let call = 1000;
     let reply_to = ReplyTo::new(Token::new(call));
@@ -265,7 +265,7 @@ fn a_watch_woken_once_by_a_burst_of_news() {
     watch.flags =
         jig_domain_tasks::Flags { conversation: true, ended_by: jig_domain_tasks::EndedBy::Requester, ..watch.flags };
     watch.wake.news = WakeRule::Batch { count: 2, age: skein_lib::Duration::from_nanos(20) };
-    world.make(Party::Person(9), vec![watch]);
+    world.make(PERSON_PARTY, vec![watch]);
     world.claim_task(1);
     assert_eq!(world.terminal(1, End::Parked), Reply::Acknowledged(Accepted::New));
     let reply_to = world.to();
@@ -321,7 +321,7 @@ fn procedure_watch(seed: u64, count: u32, age: u64) -> World {
     let mut watch = task(1, &[]);
     watch.executor = jig_domain_tasks::Executor::Procedure { connector: 0, code: 1 };
     watch.wake.news = WakeRule::Batch { count, age: skein_lib::Duration::from_nanos(age) };
-    assert_eq!(world.make(Party::Person(9), vec![watch]), Reply::Made(vec![1]));
+    assert_eq!(world.make(PERSON_PARTY, vec![watch]), Reply::Made(vec![1]));
     let reply_to = world.to();
     let call = reply_to.into_token().raw();
     world.send(Event::SubscribeTopic {
@@ -643,7 +643,7 @@ fn the_referee_rejects_a_procedure_keeping_its_prefix_or_taking_later_words() {
 #[test]
 fn a_connector_topic_subscription_ends_with_its_task() {
     let mut world = World::new(87, LIMITS);
-    world.make(Party::Person(9), vec![task(1, &[])]);
+    world.make(PERSON_PARTY, vec![task(1, &[])]);
     let reply_to = world.to();
     world.send(Event::SubscribeTopic {
         reply_to,
@@ -659,7 +659,7 @@ fn a_connector_topic_subscription_ends_with_its_task() {
 #[test]
 fn only_introduced_peers_can_message_each_other() {
     let mut world = World::new(88, LIMITS);
-    world.make(Party::Person(9), vec![task(1, &[])]);
+    world.make(PERSON_PARTY, vec![task(1, &[])]);
     world.make(Party::Task(1), vec![task(2, &[]), task(3, &[]), task(4, &[])]);
     assert!(matches!(task_words(&mut world, 2, 3, 1, MessageKind::Words), Reply::Refused(_)));
     let reply_to = world.to();
@@ -673,7 +673,7 @@ fn only_introduced_peers_can_message_each_other() {
 
 fn refusal_world(seed: u64) -> World {
     let mut world = World::new(seed, LIMITS);
-    world.make(Party::Person(9), vec![task(1, &[])]);
+    world.make(PERSON_PARTY, vec![task(1, &[])]);
     world.claim_task(1);
     say(&mut world, 1);
     say(&mut world, 2);

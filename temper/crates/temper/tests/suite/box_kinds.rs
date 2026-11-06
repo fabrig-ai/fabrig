@@ -95,6 +95,7 @@ exec /bin/sleep 30
 "#;
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "the owned-slot story keeps its start and removal evidence together")]
 fn a_box_starts_an_owned_slot_on_start_kind_and_removes_it() {
     let scratch = support::Scratch::new("box-owned-kind");
     let root = scratch.path();
@@ -159,6 +160,9 @@ fn a_box_starts_an_owned_slot_on_start_kind_and_removes_it() {
                 &limits,
                 steps,
                 Settings {
+                    first_link: None,
+                    after_block: Box::new([]),
+                    log_lines: Box::new([]),
                     program: b"/bin/sh".as_slice().into(),
                     environment,
                     serve: b"serve".as_slice().into(),
@@ -183,8 +187,9 @@ fn a_box_starts_an_owned_slot_on_start_kind_and_removes_it() {
         assert!(!root.join(path).exists(), "{path}");
     }
     assert!(cached[0].is_file(), "Forgejo's cached binary stays");
+    let log = support::boxed::box_log(root);
     for words in ["Forge 17 (Forgejo): starting", "Forge 17 (Forgejo): started", "Forge 17 (Forgejo): stopped"] {
-        assert_eq!(stderr.lines().filter(|line| line.ends_with(words)).count(), 1, "{stderr}");
+        assert_eq!(log.lines().filter(|line| line.ends_with(words)).count(), 1, "{log}");
     }
     assert!(!stderr.contains("Forgejo: api ") && !stderr.contains("Forgejo: person "), "{stderr}");
     let log = fs::read_to_string(root.join("box/logs/forgejo-17.log")).expect("Forgejo step log");

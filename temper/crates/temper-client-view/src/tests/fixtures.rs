@@ -1034,9 +1034,9 @@ pub mod chat {
     pub const CLOSE_OPERATIONS: u32 = 3;
     pub const FRACTIONAL_GRACE: skein_lib::Duration = skein_lib::Duration::from_millis(125);
     pub const GRACES: [(Option<skein_lib::Duration>, &[u8]); 3] = [
-        (Some(CLOSE_GRACE), b"allow 5 seconds to finish, then cancel"),
-        (Some(FRACTIONAL_GRACE), b"allow 125000000 nanoseconds to finish, then cancel"),
-        (None, b"Close chat now"),
+        (Some(CLOSE_GRACE), b"gets 5 seconds to finish, then stops."),
+        (Some(FRACTIONAL_GRACE), b"gets 125000000 nanoseconds to finish, then stops."),
+        (None, b"The run under way stops now."),
     ];
     pub const CHAT_LABEL: u32 = 7;
     pub const CHAT_TEMPLATE: u32 = 1;
@@ -1126,11 +1126,14 @@ pub mod chat {
             .push(c::Operation::Cancel { project: fixtures::PROJECT, task: TASK, reason, grace })
             .expect("chat close");
         let mut b = Builder::new(&fixtures::tree_limits());
-        crate::confirm::close_choices(
+        let root = chat_root();
+        let mut task = root.pages().chat().unwrap().task(root.client()).unwrap().clone();
+        task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Running { attempt: 1 });
+        crate::confirm::fates(
             &mut b,
-            TASK,
-            &operations,
-            true,
+            &task,
+            operations.as_slice(),
+            crate::words::Word::WhatClosingDoes,
             &fixtures::words(),
             &mut crate::frame::Bindings::new(fixtures::tree_limits().bindings),
         );
@@ -2132,4 +2135,9 @@ pub fn away_toggle(root: &mut temper_client_domain::Domain) -> Token {
         }
     }
     panic!("Away request sent")
+}
+
+/// An in-flight model sign-in for the shared waiting page's direct render checks.
+pub(crate) fn waiting_root() -> temper_client_domain::Domain {
+    super::connect_model::pasting(true).0
 }

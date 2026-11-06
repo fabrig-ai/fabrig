@@ -119,6 +119,7 @@ pub(super) fn run_spend(runs: u64) -> u64 {
     for member in ["providers", "endpoints", "models"] {
         template["engine"]["llm"][member].as_array_mut().expect("model configuration").truncate(1);
     }
+    template["engine"]["llm"]["providers"][0]["models"].as_array_mut().expect("provider models").truncate(1);
     let bytes = serde_json::to_vec(&template).expect("single-model template");
     let document = jig_protocol_config::document(
         &bytes,
@@ -549,8 +550,8 @@ pub fn owned_row(read: &Value) -> &Value {
 /// The process story checks the printed API and person, and the public header
 /// files under the assigned forge directory, before the normal ctl evidence.
 #[must_use]
-pub fn live_from_hands(config: &Path, data: &Path, client: &Path, stderr: &[u8]) -> Evidence {
-    let words = std::str::from_utf8(stderr).expect("box terminal UTF-8");
+pub fn live_from_hands(config: &Path, data: &Path, client: &Path) -> Evidence {
+    let words = fs::read_to_string(data.join("box/logs/box.log")).expect("box log");
     let number = owned_forge(client)["number"].as_u64().expect("forge number");
     assert!(
         words.lines().any(|line| line.ends_with(&format!("Forge {number} (Forgejo): started"))),

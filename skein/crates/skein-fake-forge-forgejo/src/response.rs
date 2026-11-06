@@ -367,7 +367,7 @@ fn document(
                 | Select::Raw(_) => return Err(a::Error::Refused),
             };
             Ok(server::Answer::Permission(d::CollaboratorPermission {
-                permission: answers::permission(*permission),
+                permission: answers::permission(permission.permission),
                 user: setup.resolve_user(config, user),
             }))
         }

@@ -33,8 +33,8 @@ fn seven_offers_cross_normal_task_read_and_delivery_whole_with_two_paged_rows() 
     setup.bounds = Bounds { rows: 2, text: 32, ..setup.bounds };
     setup.truth.objects.insert(ObjectKey::Task(8), ReadValue::Task(Box::new(value.clone())));
     let mut engine = Engine::new(setup, 17).expect("valid script");
-    engine.read(Time::ZERO, 11, Token::new(1), Read::Task { task: 8 }).expect("typed read fits");
-    engine.open(Time::ZERO, 11, Token::new(2), Subject::Task { task: 8 }).expect("typed watch fits");
+    engine.read(Time::ZERO, REQUESTER_SIGN_IN, Token::new(1), Read::Task { task: 8 }).expect("typed read fits");
+    engine.open(Time::ZERO, REQUESTER_SIGN_IN, Token::new(2), Subject::Task { task: 8 }).expect("typed watch fits");
     let outputs = engine.poll(Time::ZERO);
     assert!(outputs.contains(&Up::Read {
         token: Token::new(1),

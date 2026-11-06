@@ -19,6 +19,7 @@ mod home;
 mod inbox;
 mod look;
 mod needs;
+mod person_menu;
 mod playground;
 mod playground_start;
 mod public;
@@ -166,3 +167,5 @@ fn validity_accepts_large_ui_edges_and_refuses_overflowing_scene_capacity() {
 }
 
 mod words;
+
+mod model_check;

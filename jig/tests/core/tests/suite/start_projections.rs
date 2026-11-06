@@ -1,4 +1,5 @@
 //! Direct started-start projection rows become ordinary serving feeds.
+use jig_core_world::fixtures::{link, phase};
 use jig_domain_core::{
     self as core,
     start::{Action, Phase, SweepInput},
@@ -20,7 +21,7 @@ impl Harness {
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),
         };
-        assert_step(&h.core.start_begin(false, Wall::EPOCH), Phase::LoadCore);
+        phase(&h.core.start_begin(false, Wall::EPOCH), Phase::LoadCore);
         let mut header = h.core.counters.deployment();
         header.commits = 1;
         assert_eq!(
@@ -35,20 +36,6 @@ impl Harness {
             core::Restore::Kept
         );
     }
-    fn link(&mut self) -> Action {
-        assert_step(&self.core.start_done(&self.env, Phase::LoadCore, &mut self.out), Phase::LoadInbox);
-        let mut previous = Phase::LoadInbox;
-        for connector in self.core.connectors.clone() {
-            let next = Phase::RestoreConnector { connector };
-            assert_step(&self.core.start_done(&self.env, previous, &mut self.out), next);
-            previous = next;
-        }
-        assert_step(&self.core.start_done(&self.env, previous, &mut self.out), Phase::Link);
-        self.core.start_done(&self.env, Phase::Link, &mut self.out)
-    }
-}
-fn assert_step(action: &Action, expected: Phase) {
-    assert!(matches!(action, Action::Step(found) if *found == expected));
 }
 fn closing() -> tasks::Phase {
     tasks::Phase::Closing(tasks::Closing {
@@ -98,14 +85,14 @@ fn early_pieces_and_pending_closing_header_become_a_serving_feed() {
     let header = goal(pending.clone());
     h.row(header.clone());
     assert_eq!(h.core.start_failure(), None);
-    assert_step(&h.link(), Phase::Sweep);
+    phase(&link(&mut h.core, &h.env, &mut h.out), Phase::Sweep);
     assert!(h.out.is_empty());
-    assert_step(&h.core.start_sweep(&h.env, SweepInput::Finished, &mut h.out), Phase::Switch);
-    assert_step(&h.core.start_done(&h.env, Phase::Switch, &mut h.out), Phase::Wires);
+    phase(&h.core.start_sweep(&h.env, SweepInput::Finished, &mut h.out), Phase::Switch);
+    phase(&h.core.start_done(&h.env, Phase::Switch, &mut h.out), Phase::Wires);
     let Action::Commit(token) = h.core.start_done(&h.env, Phase::Wires, &mut h.out) else {
         panic!("Wires waits for release")
     };
-    assert_step(&h.core.start_resume(&h.env, token, &mut h.out), Phase::AdoptRuns);
+    phase(&h.core.start_resume(&h.env, token, &mut h.out), Phase::AdoptRuns);
     let mut output = core::finish_decision(&mut h.core, &h.env);
     let mut feeds = 0;
     while let Some(request) = output.pop() {
@@ -127,7 +114,7 @@ fn an_orphan_stays_loaded_until_the_link_step() {
     let mut h = Harness::new();
     h.row(piece());
     assert_eq!(h.core.start_failure(), None);
-    let missing = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| h.link()));
+    let missing = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| link(&mut h.core, &h.env, &mut h.out)));
     let _panic = missing.expect_err("orphan asserts at Link");
     assert_eq!(h.core.start_phase(), Some(Phase::Link));
     assert!(h.out.is_empty());

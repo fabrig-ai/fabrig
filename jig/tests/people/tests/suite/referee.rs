@@ -1,5 +1,8 @@
 use jig_domain_people::{RequestKey, Role};
-use jig_people_world::referee::{People, RouteKind, Seen};
+use jig_people_world::{
+    fixtures::PERSON,
+    referee::{People, RouteKind, Seen},
+};
 use skein_lib::Time;
 use skein_world::domain::{Referee, Verdict};
 
@@ -43,7 +46,7 @@ fn rejects_a_role_entry_that_does_not_leave_every_inbox() {
 
 #[test]
 fn rejects_a_key_made_twice() {
-    let key = RequestKey { person: 1, key: [1; 16] };
+    let key = RequestKey { person: PERSON, key: [1; 16] };
     fails(&[Seen::Created { key }, Seen::Created { key }]);
 }
 

@@ -222,7 +222,7 @@ impl Connection {
     pub(crate) fn deadline(&self) -> Option<Time> {
         self.state.until()
     }
-    pub(crate) fn rest(&mut self, until: Option<Time>) {
+    pub(crate) fn until(&mut self, until: Option<Time>) {
         match &mut self.state {
             Closed { .. } => {}
             Connecting { until: held }
@@ -318,7 +318,12 @@ impl Connection {
     }
     pub fn connect(&mut self, env: &Env<Limits>) {
         let until = self.deadline();
-        let state = self.state.take();
+        let state = match self.state.take() {
+            Handshaking { .. } | Sending { .. } | Reading { .. } | Idle { .. } => {
+                unreachable!("a connect completes once")
+            }
+            state @ (Connecting { .. } | Closed { .. }) => state,
+        };
         self.state = match self.link.connected(&self.link_env(env)) {
             Start::Handshaking => Handshaking { until },
             Start::Ready => state.idle(),

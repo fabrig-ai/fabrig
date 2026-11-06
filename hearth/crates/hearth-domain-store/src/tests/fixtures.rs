@@ -158,7 +158,11 @@ pub fn full() -> Harness {
     store
 }
 pub fn failed_entry() -> Harness {
+    failed_entry_from(crate::Standing::Usable)
+}
+pub fn failed_entry_from(standing: crate::Standing) -> Harness {
     let mut store = ready(crate::limits::SHIPPED, &[]);
+    store.store.standing = standing;
     drop(store.step(Time::ZERO, blob(ARRIVAL, MOTD)));
     drop(store.step(Time::ZERO, Event::Failed));
     store
