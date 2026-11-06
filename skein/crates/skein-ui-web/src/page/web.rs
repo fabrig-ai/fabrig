@@ -394,11 +394,18 @@ impl Mounted {
                     let group = self.group(*node);
                     let element = if group.element.get_attribute("role").as_deref() == Some("menu") {
                         group.roots[0].clone().unchecked_into::<Element>()
+                    } else if group.element.tag_name() == "DETAILS" {
+                        group
+                            .element
+                            .query_selector(":scope > summary")
+                            .expect("summary selector")
+                            .expect("disclosure has a summary")
                     } else {
                         group.element
                     };
                     if !element.has_attribute("tabindex")
-                        && !["INPUT", "TEXTAREA", "BUTTON", "A", "SELECT"].contains(&element.tag_name().as_str())
+                        && !["INPUT", "TEXTAREA", "BUTTON", "A", "SELECT", "SUMMARY"]
+                            .contains(&element.tag_name().as_str())
                     {
                         element.set_attribute("tabindex", "-1").expect("focus target accepts tabindex");
                     }
