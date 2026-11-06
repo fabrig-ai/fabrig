@@ -648,22 +648,79 @@ fn a_held_task_that_awaits_nothing_else_waits_on_its_hold() {
 
 #[test]
 fn a_task_no_account_serves_waits_on_an_account() {
-    let mut task = f::goal(f::TASK, c::WaitsOn::Nothing);
-    task.run_wait = Some(c::TaskRunWait::Account { account: None, source: None, why: c::TaskWaitWhy::Empty });
+    let mut task = task_without_account(c::WaitsOn::Nothing);
+    task.chip.phase = c::Phase::Running;
+    header(task.clone(), "task 41 · goal · Running · shop · priority 2".as_bytes());
     let answer = f::read_answer(f::TASK_CALL, f::task_result(task));
     assert_eq!(answer.status, 0);
     assert!(f::has(&answer, b"\nwaiting on: an account\n"), "{answer:?}");
     assert!(!f::has(&answer, b"Nothing awaited"), "{answer:?}");
 }
 
+fn task_without_account(wait: c::WaitsOn) -> c::Task {
+    let mut task = f::goal(f::TASK, wait);
+    task.chip.phase = c::Phase::Due;
+    task.run_wait = Some(c::TaskRunWait::Account { account: None, source: None, why: c::TaskWaitWhy::Empty });
+    task
+}
+
+#[test]
+fn a_task_no_account_serves_says_so_in_its_header_and_json() {
+    let task = task_without_account(c::WaitsOn::Nothing);
+    let latest = jig_client::Latest::Jig(c::Delivery::Task(Box::new(task.clone())));
+    assert_eq!(f::holds(crate::jig::subject::Condition::Phase(c::Phase::Due), &latest, None), Some(true));
+    header(task.clone(), "task 41 · goal · Waiting for an account · shop · priority 2".as_bytes());
+    let answer = f::read_answer(f::TASK_CALL, f::task_result(task.clone()));
+    assert_eq!(answer.status, 0);
+    assert!(f::has(&answer, b"\nwaiting on: an account\n"), "{answer:?}");
+    assert!(!f::has(&answer, b"Due to run"), "{answer:?}");
+    let answer = f::read_answer(f::TASK_JSON_CALL, f::task_result(task));
+    assert_eq!(answer.status, 0);
+    let json = crate::jig::json::document_depth(&answer.stdout, 32).expect("task JSON document");
+    let wait = json.member(0, b"waits_on").expect("task wait member");
+    assert_eq!(json.text(json.token(wait).expect("task wait token")), Some(b"account".as_slice()));
+    let chip = json.member(0, b"chip").expect("task chip member");
+    let phase = json.member(chip, b"phase").expect("chip phase member");
+    assert_eq!(json.text(json.token(phase).expect("chip phase token")), Some(b"due".as_slice()));
+    assert!(f::has(&answer, br#""run_wait":{"account":{"account":null,"source":null,"why":"empty"}}"#));
+}
+
 #[test]
 fn a_held_task_no_account_serves_waits_on_its_hold() {
-    let mut task = f::held_task(f::goal(f::TASK, c::WaitsOn::Nothing), c::HoldCategory::Effects);
-    task.run_wait = Some(c::TaskRunWait::Account { account: None, source: None, why: c::TaskWaitWhy::Empty });
-    let answer = f::read_answer(f::TASK_CALL, f::task_result(task));
+    let task = f::held_task(task_without_account(c::WaitsOn::Nothing), c::HoldCategory::Effects);
+    header(task.clone(), "task 41 · goal · Held · shop · priority 2".as_bytes());
+    let answer = f::read_answer(f::TASK_CALL, f::task_result(task.clone()));
     assert_eq!(answer.status, 0);
     assert!(f::has(&answer, b"\nwaiting on: held\n"), "{answer:?}");
     assert!(!f::has(&answer, b"waiting on: an account"), "{answer:?}");
+    let answer = f::read_answer(f::TASK_JSON_CALL, f::task_result(task));
+    assert_eq!(answer.status, 0);
+    assert!(f::has(&answer, br#""waits_on":"nothing""#), "{answer:?}");
+}
+
+#[test]
+fn a_task_no_account_serves_keeps_its_delegates_wait() {
+    let task = task_without_account(c::WaitsOn::Delegates);
+    header(task.clone(), "task 41 · goal · Due to run · shop · priority 2".as_bytes());
+    let answer = f::read_answer(f::TASK_CALL, f::task_result(task.clone()));
+    assert_eq!(answer.status, 0);
+    assert!(f::has(&answer, b"\nwaiting on: Waiting for delegates\n"), "{answer:?}");
+    let answer = f::read_answer(f::TASK_JSON_CALL, f::task_result(task));
+    assert_eq!(answer.status, 0);
+    assert!(f::has(&answer, br#""waits_on":"delegates""#), "{answer:?}");
+}
+
+#[test]
+fn a_task_pinned_to_an_empty_account_keeps_its_phase_and_wait() {
+    let mut task = task_without_account(c::WaitsOn::Nothing);
+    task.run_wait = Some(c::TaskRunWait::Account { account: Some(43), source: None, why: c::TaskWaitWhy::Empty });
+    header(task.clone(), "task 41 · goal · Due to run · shop · priority 2".as_bytes());
+    let answer = f::read_answer(f::TASK_CALL, f::task_result(task.clone()));
+    assert_eq!(answer.status, 0);
+    assert!(f::has(&answer, b"\nwaiting on: Nothing awaited\n"), "{answer:?}");
+    let answer = f::read_answer(f::TASK_JSON_CALL, f::task_result(task));
+    assert_eq!(answer.status, 0);
+    assert!(f::has(&answer, br#""waits_on":"nothing""#), "{answer:?}");
 }
 
 #[test]
@@ -761,6 +818,29 @@ fn a_held_tasks_text_names_its_reason_and_release_revision() {
         assert_eq!(answer.status, 0);
         assert!(skein_lib::bytes::find(&answer.stdout, words).is_some());
         assert!(skein_lib::bytes::find(&answer.stdout, b"task release 41 --hold 9").is_some());
+    }
+}
+
+#[test]
+fn a_hold_for_failed_runs_says_where_to_look() {
+    for class in [
+        c::HoldFailure::Transient,
+        c::HoldFailure::Permanent,
+        c::HoldFailure::Run,
+        c::HoldFailure::Agent,
+        c::HoldFailure::Lost,
+        c::HoldFailure::Invalid,
+    ] {
+        let task = f::held_task(f::goal(f::TASK, c::WaitsOn::Nothing), c::HoldCategory::Failures { class });
+        let answer = f::read_answer(f::TASK_CALL, f::task_result(task));
+        assert_eq!(answer.status, 0);
+        assert!(
+            f::has(
+                &answer,
+                b"\nway out: the engine's log names each failure (temper help hold), then task release 41 --hold 9; or cancel it: task cancel 41 REASON\n",
+            ),
+            "{class:?}: {answer:?}"
+        );
     }
 }
 

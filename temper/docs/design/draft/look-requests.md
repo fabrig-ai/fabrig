@@ -19,12 +19,14 @@ beside `../client/journeys.md`, whose section 7 then cites it.
   page change, into `temper.css` and the view, for every state the
   request names, at every width, in the browser and the terminal
   (section 3).
-- **A landing proves it by rendering:** the request's pages under their
-  overlay against the reprint under the landed stylesheets, at three
-  widths with each disclosure and menu open (section 4).
+- **The render check follows the landing:** the request's pages under
+  their overlay against the reprint under the landed stylesheets, at
+  three widths with each disclosure and menu open, on main; what differs
+  goes back as a finding (section 4).
 - **A landing accounts for each item:** a table in its last commit,
   each rule and change landed, differing with its reason, or deferred
-  to a named owner; done only when no row is left open (section 5).
+  to a named owner; the plan is complete when it lands with no row left
+  open (section 5).
 - **What is not the look's is split off,** never dropped: a question to
   the user, or a draft, named in the account (section 6).
 - **This document is the brief:** whoever is handed requests to land is
@@ -64,7 +66,9 @@ beside `../client/journeys.md`, whose section 7 then cites it.
 ## 3. The landing
 
 In order, for each request on the branch, oldest first, stopping at
-the first held one (section 2):
+the first held one (section 2). A plan runs its focused and fuzzy suites
+alone, starts no browser to compare, and is complete when it lands (the
+user, 2026-11-06):
 
 1. **Read it:** its own commit's diff (`git show`) and whole message;
    the requests below it are its base.
@@ -84,8 +88,7 @@ the first held one (section 2):
    meaning: a heading the browser drops by style stays a heading.
 6. **Reprint** every journey whose pages change, and record one again
    where it has gone stale (`../client/journeys.md`, 8).
-7. **Render and compare** (section 4).
-8. **Account** (section 5), and bring the design text in line: the
+7. **Account** (section 5), and bring the design text in line: the
    client's `README.md` and `browser.md`, the journeys' `README.md`
    files, `../client/journeys.md`, 9, and the mockups'
    `mockups/STATUS.md`.
@@ -96,6 +99,8 @@ of what it missed included; one that lacks it hides the fix from
 
 ## 4. The render check
 
+After the landing, on main, outside the plan.
+
 - **What is compared:** each page the request changes, from its own
   commit with the overlay as it stood there, against the same page
   reprinted with the landed stylesheets and an empty overlay.
@@ -104,8 +109,8 @@ of what it missed included; one that lacks it hides the fix from
   computed style and box, then the screenshots for what styles miss.
 - **States in words** are rendered too: through a gallery state or a
   hand-made page, beside the request's words.
-- **The result** goes into the account: identical, or each difference
-  with its reason.
+- **The result:** identical, or each difference a finding filed back,
+  whose repair carries the request's trailer.
 
 ## 5. The account
 
@@ -116,8 +121,8 @@ per page change and per state the message names.
 |---|---|
 | a rule's selector, a page's change, a state | landed; differs, and why; or deferred, to whom and where it is tracked |
 
-- **Done** is every row landed or explained, and the render check
-  recorded. A deferred row is carried by the design status or draft
+- **Done** is every row landed or explained, and the render check, after
+  the landing, finding nothing it hasn't filed. A deferred row is carried by the design status or draft
   status that names its owner, not by the request.
 - **A request is dropped** from the branch by `look-refresh.sh` once
   `main` carries its trailer; a deferred row survives it only where the
@@ -141,9 +146,9 @@ per page change and per state the message names.
   and nothing else is needed to start: the branch, the order, the
   checks and what done means are here. temper's `AGENTS.md` points
   here, for any agent that meets a request.
-- **What comes back to the person:** for each request, the account,
-  the render check's screenshots of each changed page beside the
-  request's, and the questions of section 6.
+- **What comes back to the person:** for each request, the account and
+  the questions of section 6 at its landing, then the render check's
+  screenshots of each changed page beside the request's.
 - **Each round teaches the next:** the person walks the landed pages;
   each miss is fixed under its request's trailer, and its cause becomes
   a line of this document (a thing a message must say, a step, a

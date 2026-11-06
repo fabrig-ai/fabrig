@@ -934,7 +934,7 @@ fn an_ended_chat_has_no_composer_or_chooser() {
         for token in [look::SESSION_FOOT, look::CHOICE] {
             assert!(!node.styles.as_slice().contains(&token));
         }
-        assert!(!(node.role == Role::Disclosure && node.name.as_deref() == Some(b"Change model")));
+        assert!(!(node.role == Role::Disclosure && node.name.as_deref() == Some(b"Model")));
     }
 }
 

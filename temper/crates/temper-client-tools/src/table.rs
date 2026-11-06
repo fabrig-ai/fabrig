@@ -144,6 +144,12 @@ pub fn refusal(why: Usage, words: &[&[u8]], out: &mut skein_lib::Writer) -> Resu
             out.put(b" lists them")
         }
         Usage::Timeout => out.put(b"--timeout needs --since or --until"),
+        Usage::KeyName { tool } => {
+            let row = TOOLS.get(usize::from(tool)).ok_or(skein_lib::Overflow)?;
+            out.put(row.name)?;
+            out.put(b": --key KEY takes 1 to 64 lower-case letters, digits or hyphens; temper ctl help ")?;
+            out.put(row.name)
+        }
         Usage::TerminalPhase { phase } => {
             out.put(b"--until phase:")?;
             out.put(crate::jig::subject::phase_word(phase))?;

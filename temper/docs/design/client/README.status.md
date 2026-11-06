@@ -152,7 +152,7 @@
   that plan's cut took no new word for it.
 - **Design departs:** 3.5, 5.3, 5.8, 5.13, from the greenfield target:
   the switcher keeps its inline new-project form; a chat keeps its status,
-  Pause or Resume, and Close, and offers Change model only with supplied choices;
+  Pause or Resume, and Close, and offers the picker only with supplied choices;
   a goal uses supplied budget units, not dollars, and offers neither the
   mock's budget field nor its earlier reports. Settings adds Configure
   temper and keeps unsupported status, funds and notification controls
@@ -225,6 +225,12 @@
 - **Not yet:** 3.5, *The try*: the gallery has no trial past the host's check on
   Ready, and no `accounts-try-stopped` sample (`browser.md`, 7.2). The view's
   tests draw those states; `home-try-stopped` draws Home's failed line.
+- **Departs:** 3.5, *The try*, 5.5: simultaneous usable accounts can lose all
+  but the first trial request, and account rows share one running task's
+  wait and last wait, so a stopped row can say another trial's reason or
+  lose its earlier reason (`../domain/trial.status.md`, 6). No reason for
+  these limits is recorded. The draft's missing "one short message" spend
+  notice remains a design gap (`../draft/model-check.status.md`, 2).
 - **Design departs:** 3.5, *The try*, from the look request `model-check-pane` of 2026-11-06,
   each by the cut of its landing: the steps' list has hidden state words and its accessible name,
   as Forge's has, where the request's pages have the same words, because the terminal reads
@@ -257,6 +263,9 @@
   `translate_block`) and nothing fills them, so `temper-client-view`'s `pages/chat.rs`,
   `proposal_anchor`, finds none; only the view's tests, which fill them by hand, draw a card at its call.
   Seen at each width on the walk of the request `ui-chat-accept` of 2026-11-06, its cause by reading.
+  The `ui-proposal-card` plan keeps this gap: filling the core's turn record,
+  archived turn and call-to-proposal mapping is separate work (section 11,
+  *Calls naming their proposals*). The making line supplies the card's place.
 - **Design departs:** 5.13, *The card in a chat*, from the request `ui-chat-accept` of 2026-11-06,
   by its plan's cut: that request has the fix reach both of the card's acts, reading "the unavailable
   direct Reject control" as one family with the refused Accept. The section and the mock's `chat.html`,
@@ -280,6 +289,10 @@
   changes; a new drawing and the terminal have only the prefix, where the request
   has nothing typed dropped or kept stale. The cut bounds the client's kept edit;
   section 11 keeps retaining the whole beyond that bound open.
+- **Not yet:** 5.15: the whole-bound manual reading check is not on record
+  (`browser.status.md`, 4.3). The four repaired browser stories passed, with ctl
+  history and the smaller window; they do not prove the person's whole-bound
+  layout or repair the failed-head-read retry below.
 - **Departs:** 5.15, *While a read is out*: a read that failed with the person at the head is not
   tried again on a move back within one and a half screens (skein's `ui-web.status.md`, 7).
 - **Not yet:** 3.5, *A chat's bar*: on that walk "Start goal…" went once from a first

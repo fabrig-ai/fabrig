@@ -2,7 +2,8 @@
 
 2026-11-06. Where skein's code lags or departs from [ui-web.md](ui-web.md).
 
-Unlisted sections have no known gap.
+Unlisted sections, including 7's requested focus bringing its node into
+view even when already focused, have no known gap.
 
 - **Not yet:** 7: *A bound list*: only a log reports `Near` (look-round-13's `list-near`).
 

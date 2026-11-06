@@ -1411,9 +1411,6 @@ made by the forge connector from what it keeps of the change
   no older history. The board's line names the loss of ended goals before
   publication and across a restart (`browser.md`, 8.3), not eviction from
   the log's ring or jig's index.
-- **A landing's zero stale proofs** (11.1; `browser.md`, 8.3): whether to
-  omit the count when zero. Default: shown, including on a queue merge's
-  landing, in the same form as a landing by turn.
 - **What else `Changes` could draw** (section 3): a ready change's goal
   and priority and when it became ready; a change past the queue's window
   marked as going ahead; the order's rule in a line; changes not ready
