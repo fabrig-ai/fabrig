@@ -4,9 +4,7 @@
 
 - **Not yet:** 3.5, The welcome's Model step, *The sign-in under way*, and `ConnectModel`, *The sign-in's tab*,
   *Its end*, *A reload while it waits* and *From another computer*; 7, *A sign-in's address in the small store*; 10:
-  the view has no fact of a tab refused:
-  `sign_in_wait::tab_refused` is false, the one function that draft feeds. A page reloaded holds no address, so it
-  draws no "Open it again".
+  A page reloaded holds no address, so it draws no "Open it again".
 - **Not yet:** 4.6, 8: the family still carries `return`, `Return`, answered `returning`, the root sends it, and the
   engine gives the return, until `../draft/sign-in-new-tab.md`, 5 is built.
 - **Design departs:** 3.5, *The sign-in under way* and `ConnectModel`, *While it waits*, from the request
