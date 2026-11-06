@@ -840,6 +840,9 @@ impl World {
         let event = match request {
             engine::Request::Worker(engine::WorkerRequest::Host(host_request)) => match *host_request {
                 engine::HostRequest::Decode { to, call, .. } => review::decode(to, &call),
+                engine::HostRequest::SettingsNote { to, call, body } => {
+                    return Ok(vec![temper_service::settings_note(to, *call, &body, self.root.models())]);
+                }
                 engine::HostRequest::Dropped { .. } => return Ok(Vec::new()),
             },
             engine::Request::Worker(engine::WorkerRequest::Deliver(Delivery::Host(delivery))) => match *delivery {

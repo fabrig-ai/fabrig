@@ -399,3 +399,11 @@ than cutting the cover.
 - **Coverage of the root's arms:** whether the harness should report
   which of the root's routes a suite never exercised, as transition
   coverage does for state machines.
+- **A world's bare numbers** (7): the rows of
+  `jig/docs/development/debt/D035-bare-numbers-in-worlds.md` take a name or say
+  why the number is the point. A request's key stays literal: a retry repeats
+  it, and its `[key; 16]` and reply token follow from it. A seed stays per file,
+  naming its run.
+- **Smith's world kit** (7): `smith-agent-process-world` is a kit by name, as
+  smith has no `testing/`. Default: as it stands, until a debt item of smith's
+  names it.

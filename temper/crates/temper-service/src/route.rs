@@ -266,12 +266,7 @@ fn store(engine: &mut Engine, request: root::StoreRequest) {
 
 fn worker(engine: &mut Engine, request: root::WorkerRequest) {
     match request {
-        root::WorkerRequest::Host(request) => match *request {
-            root::HostRequest::Decode { to, task, attempt, call } => {
-                engine.events.push(crate::tools::decode_configured(to, task, attempt, &call, engine.domain.models()));
-            }
-            root::HostRequest::Dropped { .. } => {}
-        },
+        root::WorkerRequest::Host(request) => host_request(engine, *request),
         root::WorkerRequest::ReadResult { payload, outcome } => {
             let change = match engine.domain.change_resource(payload) {
                 Some((connector, kind, resource)) => {
@@ -356,6 +351,18 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
             | root::Delivery::Load { .. }
             | root::Delivery::Drained => stop::unavailable(engine, b"workers"),
         },
+    }
+}
+
+fn host_request(engine: &mut Engine, request: root::HostRequest) {
+    match request {
+        root::HostRequest::Decode { to, task, attempt, call } => {
+            engine.events.push(crate::tools::decode_configured(to, task, attempt, &call, engine.domain.models()));
+        }
+        root::HostRequest::SettingsNote { to, call, body } => {
+            engine.events.push(crate::tools::settings_note(to, *call, &body, engine.domain.models()));
+        }
+        root::HostRequest::Dropped { .. } => {}
     }
 }
 

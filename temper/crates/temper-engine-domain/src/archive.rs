@@ -33,7 +33,7 @@ pub(crate) fn waiting(domain: &Domain, waiter: Token) -> Option<Waiting> {
         Some(Read::Transcript { .. }) => Some(Waiting::Transcript),
         Some(Read::InputCheck(_)) => Some(Waiting::Input),
         Some(Read::GoalWords(_)) => Some(Waiting::GoalWords),
-        Some(Read::Notes { .. }) => Some(Waiting::Notes),
+        Some(Read::Notes { .. } | Read::SettingsNote { .. }) => Some(Waiting::Notes),
         None => None,
     }
 }
@@ -119,7 +119,8 @@ pub(crate) fn take_note_owner(domain: &mut Domain, waiter: Token) -> Option<Toke
     match take_read(domain, waiter) {
         Some(Read::Notes { owner }) => Some(owner),
         Some(
-            Read::Ended(_)
+            Read::SettingsNote { .. }
+            | Read::Ended(_)
             | Read::Escalation(_)
             | Read::Proposal(_)
             | Read::TaskProposal { .. }
@@ -132,12 +133,40 @@ pub(crate) fn take_note_owner(domain: &mut Domain, waiter: Token) -> Option<Toke
 }
 
 pub(crate) fn note_failed(domain: &mut Domain, waiter: Token) {
+    if let Some(Some(Read::SettingsNote { to, .. })) = domain.archive_reads.get(Id::from_token(waiter)) {
+        let to = *to;
+        retire_read(domain, waiter);
+        crate::route::host_route::note_refused(domain, ReplyTo::new(to), b"settings note could not be loaded");
+        return;
+    }
     let Some(owner) = take_note_owner(domain, waiter) else { return };
     domain.archive_reads.retire(Id::from_token(waiter));
     domain.work.push(Work::Core(jig_domain_core::Event::Notes(jig_domain_notes::Event::LoadFailed { owner })));
 }
 
 pub(crate) fn note_loaded(
+    domain: &mut Domain,
+    waiter: Token,
+    rows: Box<[Record]>,
+    next: Option<Key>,
+    cut: Option<loads::Cut>,
+) {
+    if let Some(Some(Read::SettingsNote { .. })) = domain.archive_reads.get(Id::from_token(waiter)) {
+        let Some(Read::SettingsNote { to, call }) = take_read(domain, waiter) else { unreachable!("note waiter") };
+        domain.archive_reads.retire(Id::from_token(waiter));
+        crate::route::host_route::settings_note_loaded(
+            domain,
+            ReplyTo::new(to),
+            *call,
+            rows,
+            next.is_some() || cut.is_some(),
+        );
+        return;
+    }
+    ordinary_note_loaded(domain, waiter, rows, next, cut);
+}
+
+fn ordinary_note_loaded(
     domain: &mut Domain,
     waiter: Token,
     rows: Box<[Record]>,
