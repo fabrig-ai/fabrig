@@ -7,6 +7,7 @@ use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
+use skein_lib::length::len_u64;
 
 /// Check the maps in place: no third materialised set of values is constructed.
 pub fn check(current: &Current, settings: &Settings, connectors: &[u16], limits: &Limits) -> Result<(), Failure> {
@@ -437,7 +438,7 @@ fn contract_fits(value: &tasks::Contract, limits: &tasks::Limits) -> bool {
                 }
                 let mut bytes = u64::from(choice.words);
                 for field in &choice.fields {
-                    let Some(total) = bytes.checked_add(u64::try_from(field.name.len()).expect("field bytes")) else {
+                    let Some(total) = bytes.checked_add(len_u64(field.name.len())) else {
                         return false;
                     };
                     let Some(total) = total.checked_add(u64::from(field.max)) else {

@@ -96,7 +96,6 @@ pub(crate) fn chip_phase(value: &w::ChipPhase) -> c::ChipPhase {
 
 pub(crate) fn chip_phase_fields(
     value: &w::ChipPhaseOwnerFields,
-    _limits: &Limits,
     index: u32,
     children: &mut Map<u32, Child>,
 ) -> Result<c::ChipPhaseFacts, w::Problem> {

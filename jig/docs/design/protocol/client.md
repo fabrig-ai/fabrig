@@ -273,9 +273,10 @@ the offer alone, each `MeModel` with its `effort`, `shown`, `accounts` and
 codecs,
 translations, golden records and served-version declarations carry those
 fields (sections 9 and 14), changed in place before the first release. The
-preview says what a run's check would take now, never task intent or a
-reservation; no store family carries it or the offer, and application
-families' versions are their own.
+preview says what a run's check would take now for a task keeping no
+account (`../domain/accounts.md`, 4.3), never task intent or a reservation;
+no store family carries it or the offer, and application families' versions
+are their own.
 
 The account's move (`../domain/accounts.md`, section 6) is in jig's
 wire: the account changes `move_out { account }`, `written { number }`

@@ -1,11 +1,11 @@
 {
   "ceiling": {
-    "models": "all", "tools": 1671, "grants": [],
+    "models": "all", "tools": 1983, "grants": [],
     "delegation": {
       "kinds": [{"charter": 5}, {"charter": 7}, {"charter": 2}, {"charter": 6}, {"charter": 8}, {"procedure": 2}, {"procedure": 3}, {"procedure": 4}, {"job": 3}, {"role": 0}],
       "tasks": 1024, "depth": 4
     },
-    "spend": 1000000, "deadline": null, "notes": 0, "note_resources": []
+    "spend": 1000000, "deadline": null, "notes": 3, "note_resources": []
   },
   "period_spend": 1000000, "minimum_run_spend": 1, "maximum_run_spend": 1000000,
   "implies": [], "requirements": []

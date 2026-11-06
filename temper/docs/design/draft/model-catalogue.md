@@ -191,8 +191,9 @@ makes a `model` as section 5's new names are, on the picker. It is the way to
 a new Claude model on a subscription before a release, and the rest of what a
 provider doesn't list. temper checks the name's shape alone: the first run
 shows whether the provider serves it. It is the one kind of offered model that
-neither a list nor the stock vouches for, so it reads "added by you", and goes
-with its provider's accounts as any other (section 3).
+neither a list nor the stock vouches for, which the user took on being asked, so
+it reads "added by you", and goes with its provider's accounts as any other
+(section 3).
 
 ## 7. In steps
 
@@ -210,9 +211,6 @@ with its provider's accounts as any other (section 3).
   cheap, and may suit the status charter.
 - **Plans that lack a model:** a Claude subscription may not serve Fable 5.1,
   and it has no list to say so. The first run shows it.
-- **Adding by name** (section 6) stretches the user's rule, which names lists
-  and the stock alone. It stays for the reason section 6 gives, until the user
-  says otherwise.
 - **A role's models on a page:** Settings, Models lists the catalogue. Which
   charter runs on what stays with the configuring chat.
 

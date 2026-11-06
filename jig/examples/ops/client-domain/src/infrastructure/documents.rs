@@ -3,7 +3,7 @@
 //! The owner supplies prices, end facts and drift (examples.md, 3 and 8).
 use alloc::boxed::Box;
 use jig_client::contract::{ApplicationPart, ObjectKey, ProposalKey, Revision};
-use skein_lib::List;
+use skein_lib::{List, length::len_u64};
 /// Scope supplied with every read and watch.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Scope {
@@ -162,14 +162,14 @@ pub(crate) fn subject_price(subject: &Subject, limits: &jig_client::DomainLimits
             {
                 return None;
             }
-            u64::try_from(environment.pool.len()).ok()?.checked_add(u64::try_from(environment.name.len()).ok()?)
+            len_u64(environment.pool.len()).checked_add(len_u64(environment.name.len()))
         }
         Kind::Environments { pool } => match pool {
             Some(pool) => {
                 if pool.0.len() > usize::try_from(limits.text).ok()? {
                     return None;
                 }
-                u64::try_from(pool.0.len()).ok()
+                Some(len_u64(pool.0.len()))
             }
             None => Some(0),
         },

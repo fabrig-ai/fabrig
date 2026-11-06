@@ -3,6 +3,7 @@
 //! makes or amends the task; this child only keeps it with the request.
 use alloc::boxed::Box;
 use core::mem::size_of;
+use skein_lib::length::len_u64;
 
 /// The most sub-agent models one choice names, the tasks child's `MODELS`.
 pub const MODELS: u32 = 64;
@@ -49,7 +50,7 @@ pub fn llm_bytes(choice: Option<&LlmChoice>) -> Option<u64> {
     let Some(choice) = choice else {
         return Some(0);
     };
-    u64::try_from(choice.subagents.len()).ok()?.checked_mul(u64::try_from(size_of::<ModelEffort>()).ok()?)
+    len_u64(choice.subagents.len()).checked_mul(u64::try_from(size_of::<ModelEffort>()).ok()?)
 }
 
 /// Whether an optional choice has the shape a request keeps.

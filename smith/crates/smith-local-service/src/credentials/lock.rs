@@ -10,7 +10,7 @@ mod events;
 // Retry contention without occupying the loop between attempts.
 const RETRY: Duration = Duration::from_millis(10);
 
-pub(super) const LOCK_FILE: u64 = 1 << 62;
+pub(super) const LOCK_TAG: u8 = 4;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum State {
@@ -154,7 +154,7 @@ impl Accounts {
                 | State::Close
                 | State::Closing => {}
             }
-            let owner = Token::new(LOCK_FILE | u64::from(index));
+            let owner = Token::tagged(LOCK_TAG, u64::from(index)).expect("lock index fits namespace");
             let request = match lock.state {
                 State::Open => {
                     lock.state = State::Opening;

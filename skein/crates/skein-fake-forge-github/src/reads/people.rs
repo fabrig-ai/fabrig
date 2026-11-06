@@ -7,9 +7,10 @@ use alloc::boxed::Box;
 use skein_fake_forge_domain::api as a;
 use skein_forge::{api, github::document as d};
 use skein_lib::List;
+use skein_lib::bytes::concat;
 
 pub(crate) fn id(service: &Service, login: &[u8]) -> Option<u64> {
-    if login == crate::service::joined(&service.app.slug, b"[bot]")?.as_ref() {
+    if login == concat(&[&service.app.slug, b"[bot]"]).as_ref() {
         return Some(service.bot);
     }
     for account in &service.accounts {
@@ -20,8 +21,7 @@ pub(crate) fn id(service: &Service, login: &[u8]) -> Option<u64> {
     None
 }
 pub(super) fn user(service: &Service, id: u64, body_fits: bool) -> Response {
-    let login =
-        if id == service.bot { crate::service::joined(&service.app.slug, b"[bot]") } else { login(service, id) };
+    let login = if id == service.bot { Some(concat(&[&service.app.slug, b"[bot]"])) } else { login(service, id) };
     let Some(login) = login else {
         return answers::missing(&service.limits);
     };

@@ -449,7 +449,7 @@ impl Target {
         self.text(text, true)
     }
     fn text(&mut self, text: &[u8], slashes: bool) -> Result<(), Refusal> {
-        if !valid_text(text) {
+        if !bytes::is_utf8(text) {
             return Err(Refusal::Text);
         }
         for byte in text {
@@ -492,10 +492,6 @@ impl Target {
         self.put(b"&page=");
         self.number(u64::from(page));
     }
-}
-#[expect(clippy::disallowed_methods, reason = "the dialect is the protocol layer validating path and query text")]
-pub(crate) fn valid_text(text: &[u8]) -> bool {
-    core::str::from_utf8(text).is_ok()
 }
 #[expect(clippy::too_many_lines, reason = "exhaustive target dispatch includes read and write requests")]
 fn target(request: &Request, out: &mut Target) -> Result<(), Refusal> {
@@ -814,7 +810,7 @@ pub(crate) fn unescape(text: &[u8]) -> Option<Box<[u8]>> {
         out.push(byte).ok()?;
     }
     let out = out.into_boxed();
-    if valid_text(&out) { Some(out) } else { None }
+    if bytes::is_utf8(&out) { Some(out) } else { None }
 }
 
 fn selection(request: &Request) -> (Method, Auth) {

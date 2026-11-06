@@ -219,7 +219,8 @@ not select accounts or infer provider membership. The public JSON refuses
     *kept* or *forgotten once read* (`../domain/tasks.md`, section 3);
   - the label: an opaque 32-bit number, which jig gives no meaning;
   - the grace its helpers give a close or a deletion, or none;
-  - the LLM choice: none, for the charter's default; or a main model
+  - the LLM choice: none, for the first of the charter's models each run
+    can use (`../domain/accounts.md`, 4.3); or a main model
     with its effort, and the models its run's sub-agents may use, each
     with an effort (`../domain/tasks.md`, section 3). It names no
     account.
@@ -251,7 +252,7 @@ not select accounts or infer provider membership. The public JSON refuses
 | retention | kept | kept |
 | label | 1 | 2 |
 | grace | a span, which the helpers closing a chat or deleting a project give | none |
-| LLM choice | none: the charter's default | none: the charter's default |
+| LLM choice | none | none |
 
 - **A project's policy may override,** per template number, the
   executor, the budget and its cap, the deadline and the default
@@ -277,7 +278,8 @@ not select accounts or infer provider membership. The public JSON refuses
   the policy, but has no effect: the merged template stays untracked.
 - **A served preview is separate from configuration.** `me` adds
   `resolved_default: Option<LlmChoice>` beside each effective template's
-  configured intent, what a run's check would take now, in charter order,
+  configured intent, what a run's check would take now for a task keeping no
+  account (`../domain/accounts.md`, 4.3), in charter order,
   under the effective creating authority and current receiving-party payer
   (`../domain/engine.md`, 11.1). Explicit intent previews itself; omitted
   intent with a chosen executor or no usable model gives `None`. It is not a
@@ -800,7 +802,7 @@ the same capacities even when every run slot is occupied.
   `"given"`; `deadline`, `"none"`, `{"span_ms": n}` or `"given"`;
   `tracked`, `null` or `{"priority": n}`; `conversation` and `listed`,
   booleans; `retention`, `"kept"` or `"forgotten_once_read"`; `label`;
-  `grace_ms`, or `null`; and `llm`, `null` for the charter's default, or
+  `grace_ms`, or `null`; and `llm`, `null` for none, or
   `{"main": {"model": m, "effort": e}, "sub_agents": [{"model": m,
   "effort": e}]}`, each `m` a configured model's name and each `e` an
   effort it takes. jig's chat: `{"number": 1, "name": "chat",

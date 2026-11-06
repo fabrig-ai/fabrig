@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use jig_client_domain::Watchable;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire::{VERSION, v19 as w};
-use skein_lib::{List, Reader, Writer};
+use skein_lib::{List, Reader, Writer, length::len_u64};
 
 pub fn subject(value: &c::Subject, limits: &w::Limits) -> Result<w::Subject, w::Problem> {
     Ok(match value {
@@ -82,7 +82,7 @@ pub fn ended(value: &w::WatchEnd) -> c::WatchEnd {
 
 /// A delivery's discriminator and its whole record are admitted before decoding.
 pub fn delivery(bytes: &[u8], limits: &Limits) -> Result<c::Delivery, Undecodable> {
-    if u64::try_from(bytes.len()).expect("usize fits u64") > limits.client().document_bytes {
+    if len_u64(bytes.len()) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
     let value = match w::DeliveryValue::decode(limits.receiving(), &mut Reader::new(bytes)) {

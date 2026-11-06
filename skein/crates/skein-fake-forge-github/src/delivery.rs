@@ -6,6 +6,7 @@ use crate::{
 use alloc::boxed::Box;
 use core::net::SocketAddr;
 use skein_forge::github::{self, delivery::Delivery, log, request, server};
+use skein_lib::bytes::concat;
 use skein_lib::{Decimal, Duration, List, Rng, Secret, Wall, Writer, bytes, usize_of};
 
 /// A scenario's loopback destination; the App's advertised hook URL need not resolve.
@@ -487,9 +488,8 @@ impl crate::Service {
         };
         let mut known = None;
         for (id, row) in &self.repositories {
-            let prefix = crate::service::joined(&row.owner, b"/").ok_or(Problem::Config)?;
-            let full = crate::service::joined(&prefix, &row.name);
-            if full.as_deref() == Some(repository.as_ref()) {
+            let full = concat(&[&row.owner, b"/", &row.name]);
+            if full.as_ref() == repository.as_ref() {
                 known = Some(*id);
             }
         }

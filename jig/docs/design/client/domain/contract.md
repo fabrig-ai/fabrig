@@ -602,8 +602,9 @@ served is held, kept and unsent, for its owner's version (client.md,
     templates (3.6), and for each with one a `resolved_default: LlmChoice`
     beside them (`defaults`, by the template's number), separate from its
     configured LLM intent. The preview is what a run's check of a task
-    given none would take now (`../../domain/accounts.md`, 4.3): the first
-    model in charter order with an account usable now, at its default
+    given none and keeping no account would take now
+    (`../../domain/accounts.md`, 4.3): the first model in charter order with
+    an account usable now, at its default
     effort, under the effective creating authority and the current receiving
     party as payer (`../../domain/engine.md`, 11.1), so that it is one of
     the project's offer (below) where that authority's models are. An

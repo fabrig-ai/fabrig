@@ -2,7 +2,7 @@
 use crate::frame_reads;
 use frame_reads::{FRAME_KEY_BYTES, decode, turn};
 use jig_test_patches_jig::frames;
-use skein_lib::Rng;
+use skein_lib::{Rng, length::len_u64};
 const CASES: u32 = 512;
 const SEED: u64 = 0x0003_5a17_2026;
 
@@ -25,7 +25,7 @@ fn random_fixture_frames_match_patched_bytes_or_unread() {
         }
         let mut raw = frames::frame(body, &transcript);
         if corrupt {
-            let index = usize::try_from(rng.below(u64::try_from(raw.len()).expect("frame"))).expect("index");
+            let index = usize::try_from(rng.below(len_u64(raw.len()))).expect("index");
             raw[index] ^= 1;
         }
         let valid = [5, 6].contains(&body)

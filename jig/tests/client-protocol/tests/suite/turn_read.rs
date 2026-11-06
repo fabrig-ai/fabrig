@@ -3,7 +3,7 @@ use jig_client_protocol_world::{
     client::Story,
     fixtures::{self, PROJECT},
 };
-use skein_lib::Duration;
+use skein_lib::{Duration, length::len_u64};
 // These handles belong to this story's single read, activity page and task watch.
 const TURN: Handle = Handle { asker: Asker::JIG, number: 31 };
 const ACTIVITY: Handle = Handle { asker: Asker::JIG, number: 32 };
@@ -67,7 +67,7 @@ fn a_committed_turn_is_read_whole_through_the_client() {
 #[test]
 fn an_activity_size_marker_keeps_its_bytes_through_the_client() {
     let body = fixtures::large_turn();
-    let bytes = u64::try_from(body.len()).expect("source bytes");
+    let bytes = len_u64(body.len());
     assert!(bytes > u64::from(fixtures::TURN_PAGE_BYTES));
     let story = Story::reading_chat_with(fixtures::SEED, body, fixtures::domain_limits(), fixtures::turn_page_limits());
     let (_, archive) = committed_turn(story);
@@ -99,7 +99,7 @@ fn read_archive(story: &mut Story, archive: &c::ArchivedTurn) -> c::ArchivedTurn
 #[test]
 fn a_page_sized_turn_is_read_whole_once() {
     let body = fixtures::callable_turn();
-    let bytes = u64::try_from(body.len()).expect("source size");
+    let bytes = len_u64(body.len());
     let story = Story::reading_chat_with(
         fixtures::SEED,
         body.clone(),
@@ -138,7 +138,7 @@ fn a_turn_read_after_restart_keeps_its_archive() {
 
 fn oversized_turn(client: jig_client_domain::Limits, core: &jig_test_domain::Limits) {
     let body = fixtures::large_turn();
-    assert_eq!(u64::try_from(body.len()).expect("source size"), fixtures::LARGE_TURN_BYTES);
+    assert_eq!(len_u64(body.len()), fixtures::LARGE_TURN_BYTES);
     let story = Story::reading_chat_with(fixtures::SEED, body, client, *core);
     let (mut story, task) = committed_story(story);
     assert_eq!(
