@@ -277,7 +277,7 @@ fn landed(world: &mut World, task: u64) {
     assert!(ended(world, task));
 }
 
-fn stop(world: &mut World, goal: &engine::Assignment) {
+pub(super) fn stop(world: &mut World, goal: &engine::Assignment) {
     world.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
         reply_to: ReplyTo::new(Token::new(99)),

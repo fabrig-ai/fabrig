@@ -53,3 +53,25 @@ alone does not demonstrate a scheduled stall wake. A delayed or absent offered
 step can therefore delay observation too; the real deployment's step schedule
 is unknown. The test supplies the hint explicitly instead of assuming polling
 that the initial delegate decision does not promise.
+
+## With the fix
+
+The same world story passes: both changes remain unheld across the producer's
+stall and take their pushed head and title, opening a pull without a release.
+Its teardown signs the fake person in again after the small profile's 60-second
+sign-in expires, then cancels the goal through the existing early-start helper
+and runs the restart oracle.
+
+A live producer can no longer reach this stalled row through the world story.
+The forge step tests seed the held row with `Event::Change` to cover a result
+ending a producer, repair, resolution or merge-job stall, a title followed by a
+result opening a pull, a no-change ending with its words, and a questions hold
+keeping a result until release. They also check a delegate's result resets the
+stall to its end while a gate's leaves the clock alone.
+
+The reverse title/result order is not offered by the root: `keep_produced_title`
+(`temper-engine-domain/src/route.rs`) emits the title from the durable ended
+record before the result wakes its requester; `start_change` reads that result
+from the procedure's inbox. The forge boundary also documents `ProducedTitle`
+as preceding the result's wake. The tests keep that order rather than inventing
+a later title event after the delegate's terminal cleared its identity.

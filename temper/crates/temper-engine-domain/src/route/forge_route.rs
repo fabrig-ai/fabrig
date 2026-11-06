@@ -2188,6 +2188,24 @@ fn change_delegate_status(kind: &tasks::MessageKind) -> Option<(forge_change::St
     }
 }
 
+// A delegate's task, including between attempts, suspends its change's stall (domain/forge.md, 8.4).
+fn change_delegate_live(domain: &Domain, task: u64) -> bool {
+    let Some(row) = domain.forge.change(task) else { return false };
+    let Some((child, kind)) = row.delegate else { return false };
+    match kind {
+        forge_change::Delegate::Gate { .. } => return false,
+        forge_change::Delegate::Produce
+        | forge_change::Delegate::Repair(_)
+        | forge_change::Delegate::Resolve { .. }
+        | forge_change::Delegate::Merge { .. } => {}
+    }
+    let Some(child) = domain.core.tasks.task(child) else { return false };
+    match &child.phase {
+        tasks::Phase::Ended(_) => false,
+        tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } | tasks::Phase::Waiting => true,
+    }
+}
+
 // A task between attempts is not a run in progress (temper/docs/design/domain/forge.md, 8.4).
 fn change_delegate_running(domain: &Domain, task: u64) -> bool {
     let Some(row) = domain.forge.change(task) else { return false };
@@ -2454,6 +2472,7 @@ fn change_step(
             spend: change_spend(domain, task),
             delegate: forge_change::Status::Unknown,
             delegate_running: change_delegate_running(domain, task),
+            delegate_live: change_delegate_live(domain, task),
             effect: forge_change::EffectResult::None,
             // A held read is no release, even if a past release remains the task's due reason.
             // The forge consumes a person's release before starting asynchronous reads.
