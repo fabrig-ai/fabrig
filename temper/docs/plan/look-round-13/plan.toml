@@ -1,0 +1,5 @@
+draft = "look-round-13"
+repo = "fabrig"
+sources = ["temper/docs/plan/look-round-13/inputs/request.md", "temper/docs/design/draft/look-requests.md", "temper/docs/design/draft/repository-copies.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
