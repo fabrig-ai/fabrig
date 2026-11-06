@@ -46,7 +46,7 @@ else
     cargo build --target wasm32-unknown-unknown --profile web --features playground -p temper-client-shell-web
     cargo build --target wasm32-unknown-unknown --profile playground -p temper-playground
     cargo build -p skein-ui-bundle
-    directory=$("$target/debug/skein-ui-bundle" \
+    directory=$("$target/debug/skein-ui-bundle" --gzip off \
         --module "$target/wasm32-unknown-unknown/web/temper_client_shell_web.wasm" \
         --name temper_client_shell_web --prefix /bundle/ \
         --worker "temper_playground=$target/wasm32-unknown-unknown/playground/temper_playground.wasm" \

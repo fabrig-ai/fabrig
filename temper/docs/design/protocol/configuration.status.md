@@ -2,7 +2,6 @@
 
 2026-11-06. Where temper's code lags or departs from [configuration.md](configuration.md).
 
-- **Not yet:** 7: `clients.bundle_bytes` is still 16 MiB in `standard`, where both forms need 32 MiB; a compressed form isn't yet counted, as the reader refuses it.
 
 Section 13.2 has no gap in judging project ways against prospective templates
 or in the terminal refusal naming the item and rejected way.
