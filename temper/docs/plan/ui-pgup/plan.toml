@@ -1,0 +1,24 @@
+draft = "ui-pgup"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-pgup/inputs/request.md", "temper/docs/design/draft/chat-reading.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
+
+# What each step does today goes out first and alone; the fixes follow it. See plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "reproduce"
+title = "What PgUp, PgDn, a wheel and Latest do today while a fake model writes and as its turn ends, at 1440 and 420"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/chat-reading.md, 5"
+
+[[slice]]
+id = 1
+story = "A driver presses PgUp, PgDn, a wheel and Latest on a fake box while its model writes and as its turn ends, and reports each step's offsets at 1440 and 420"
+parts = ["reproduce"]
+walk = false
