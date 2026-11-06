@@ -753,6 +753,10 @@ The `configure-temper-own-way` request's hand-made `configure-own-way/`
 pages are not journeys to reprint or land either; the gallery draws those
 states, including the card and the stock reference beside the page.
 
+The `bundle-loading` request's hand-made `bundle-loading/01.html` through
+`04.html` are not journeys to reprint or land (section 7): they draw the
+placeholder before the client starts (`browser.md`, 2.5).
+
 The hand-made `chat-work/01.html` through `04.html` are the look request's,
 not journeys to reprint or land (section 7). The gallery's isolated
 `chat-work-*` states draw their conversation and their additional states

@@ -2,7 +2,6 @@
 
 2026-11-06. Where temper's code lags or departs from [browser.md](browser.md).
 
-- **Not yet:** 2.5: the first paint, the placeholder's; `temper.css` still has `body > noscript`. 2.6: the title and the placeholder among the build's inputs and what reruns it.
 - **Not yet:** 2.5: the answer of 2026-11-06 to the `ui-rename-focus` task
   `rename-row` asks a test that a long chat's document never exceeds its window at
   1280x720 and 1000x600 with "Older" pressed twice. What holds it is the sheet's
