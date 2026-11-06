@@ -4,6 +4,7 @@ use super::{
     decode_requirement, decode_resource_scope, domain, encode_executor, encode_grant, encode_parameter,
     encode_permission_role, encode_requirement, encode_resource_scope, problem, wire,
 };
+use skein_lib::length::len_u64;
 
 pub(super) const EMPTY: wire::Limits = wire::Limits {
     member_words: 0,
@@ -56,10 +57,9 @@ fn owned(inline: usize, payload: usize) -> Option<u64> {
     u64::try_from(inline).ok()?.checked_add(u64::try_from(payload).ok()?)
 }
 fn pattern_bytes(value: &domain::Pattern) -> Option<u64> {
-    let mut bytes =
-        u64::try_from(value.segments.len()).ok()?.checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
+    let mut bytes = len_u64(value.segments.len()).checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
     for segment in &value.segments {
-        bytes = bytes.checked_add(u64::try_from(segment.len()).ok()?)?;
+        bytes = bytes.checked_add(len_u64(segment.len()))?;
     }
     let last = match &value.last {
         domain::Last::Exact(value) | domain::Last::Open(value) => value.len(),

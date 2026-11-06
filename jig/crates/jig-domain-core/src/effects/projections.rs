@@ -14,7 +14,7 @@
 use crate::{Ask, Core, CoreKey, CoreRecord, Limits, Record, Request, Write};
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
-use skein_lib::{Env, List, Queue};
+use skein_lib::{Env, List, Queue, length::len_u64};
 
 /// Current tracked-goal facts, independent of executable authority and inboxes.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -430,15 +430,12 @@ pub fn projection_record_bytes(row: &ProjectionRecord) -> Option<u64> {
 
 fn record_bytes(row: &ProjectionRecord) -> Option<u64> {
     match row {
-        ProjectionRecord::Goal { goal, pending, .. } => u64::try_from(goal.words.len())
-            .ok()?
+        ProjectionRecord::Goal { goal, pending, .. } => len_u64(goal.words.len())
             .checked_add(tasks::phase_bytes(&goal.phase)?)?
-            .checked_add(u64::try_from(pending.len()).ok()?.checked_mul(2)?),
-        ProjectionRecord::Task { task, .. } => {
-            u64::try_from(task.words.len()).ok()?.checked_add(tasks::phase_bytes(&task.phase)?)
-        }
+            .checked_add(len_u64(pending.len()).checked_mul(2)?),
+        ProjectionRecord::Task { task, .. } => len_u64(task.words.len()).checked_add(tasks::phase_bytes(&task.phase)?),
         ProjectionRecord::Milestone { milestone, .. } => {
-            u64::try_from(milestone.words.len()).ok()?.checked_add(match &milestone.phase {
+            len_u64(milestone.words.len()).checked_add(match &milestone.phase {
                 Some(phase) => tasks::phase_bytes(phase)?,
                 None => 0,
             })

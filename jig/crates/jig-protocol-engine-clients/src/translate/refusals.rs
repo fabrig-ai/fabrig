@@ -57,13 +57,9 @@ pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusa
             w::RefusalMalformedParts {
                 at,
                 why: match why {
-                    p::Malformed::Settings { setting, fault } => w::Malformed::Settings(w::MalformedSettings::new(
-                        limits,
-                        w::MalformedSettingsParts {
-                            setting: encode_setting(setting, limits)?,
-                            fault: encode_setting_fault(fault),
-                        },
-                    )?),
+                    p::Malformed::Settings { setting, fault, detail } => {
+                        encode_malformed_settings(setting, fault, detail, limits)?
+                    }
                     p::Malformed::SettingsUnchanged => w::Malformed::SettingsUnchanged,
                     p::Malformed::Running => w::Malformed::Running,
                     p::Malformed::Name(rule) => w::Malformed::Name(w::MalformedName::new(
@@ -472,4 +468,49 @@ fn ceiling_dimension(value: p::CeilingDimension) -> w::CeilingDimension {
         p::CeilingDimension::Deadline => w::CeilingDimension::Deadline,
         p::CeilingDimension::Notes => w::CeilingDimension::Notes,
     }
+}
+
+/// Translate the document refusal facts without checking the settings again.
+fn encode_setting_detail(value: p::SettingDetail, limits: &w::Limits) -> Result<w::SettingDetail, w::Problem> {
+    w::SettingDetail::new(
+        limits,
+        w::SettingDetailParts {
+            member: match value.member {
+                p::SettingMember::Documents => w::SettingMember::Documents,
+                p::SettingMember::NameSegments => w::SettingMember::NameSegments,
+                p::SettingMember::NameSegmentBytes => w::SettingMember::NameSegmentBytes,
+                p::SettingMember::Path => w::SettingMember::Path,
+                p::SettingMember::Heading => w::SettingMember::Heading,
+                p::SettingMember::Connector => w::SettingMember::Connector,
+            },
+            rule: match value.rule {
+                p::SettingRule::Maximum => w::SettingRule::Maximum,
+                p::SettingRule::Minimum => w::SettingRule::Minimum,
+                p::SettingRule::Registered => w::SettingRule::Registered,
+            },
+            document: value.document,
+            segment: value.segment,
+            supplied: value.supplied,
+            bound: value.bound,
+        },
+    )
+}
+
+fn encode_malformed_settings(
+    setting: p::Setting,
+    fault: p::SettingFault,
+    detail: Option<p::SettingDetail>,
+    limits: &w::Limits,
+) -> Result<w::Malformed, w::Problem> {
+    Ok(w::Malformed::Settings(w::MalformedSettings::new(
+        limits,
+        w::MalformedSettingsParts {
+            setting: encode_setting(setting, limits)?,
+            fault: encode_setting_fault(fault),
+            detail: match detail {
+                Some(value) => Some(encode_setting_detail(value, limits)?),
+                None => None,
+            },
+        },
+    )?))
 }

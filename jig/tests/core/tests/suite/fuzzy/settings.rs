@@ -6,7 +6,7 @@ use jig_domain_core::{self as core, settings};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
-use skein_lib::{Duration, Rng};
+use skein_lib::{Duration, Rng, length::len_u64};
 use support::*;
 
 fn agree(world: &jig_core_world::world::World) {
@@ -223,9 +223,7 @@ fn random_small_settings_changes_and_stale_requests_survive_restarts() {
                             root::Record::Core(_) | root::Record::Connector { .. } => None,
                         })
                         .collect();
-                    let from =
-                        held[usize::try_from(rng.below(u64::try_from(held.len()).expect("bounded held revisions")))
-                            .expect("held index")];
+                    let from = held[usize::try_from(rng.below(len_u64(held.len()))).expect("held index")];
                     reached[6] |= from != previous;
                     let reply = ask(&mut world, signed, step + 10, people::Ask::MoveToNewest { revision: from });
                     assert!(

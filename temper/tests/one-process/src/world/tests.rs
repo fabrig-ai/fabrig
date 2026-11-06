@@ -68,6 +68,7 @@ fn a_refused_restore_ends_with_its_in_process_worker() {
                 failure: jig_domain_core::settings::Failure {
                     setting: jig_domain_core::settings::Setting::Policy(1),
                     fault: jig_domain_core::settings::Fault::Shape,
+                    detail: None
                 },
                 changed: false,
             },

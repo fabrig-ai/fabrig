@@ -14,6 +14,8 @@ use temper_client_domain::{
 mod records;
 const PROJECT: u64 = 0x3f2a_9c01_7654_3210;
 const TASK: u64 = 0x9abc_def0_7654_3210;
+// The board and card fixtures each carry a goal/task and one delegate with the same title.
+const TITLED_LINES: usize = 2;
 fn reader(page: Public) -> Reader {
     let limits = PublicLimits { jig: j::CEILINGS, forge: temper_client_protocol_wire::public_v1::CEILINGS };
     let mut reader = Reader::new(&limits);
@@ -32,8 +34,11 @@ fn answer(reader: &mut Reader, doc: Doc, heard: Heard) {
 }
 fn board() -> Box<[u8]> {
     let line = records::line(true);
-    let goal = j::PublicGoal::new(&j::CEILINGS, j::PublicGoalParts { line, tree: List::with_capacity(0), folded: 2 })
-        .expect("goal");
+    let goal = j::PublicGoal::new(
+        &j::CEILINGS,
+        j::PublicGoalParts { line, tree: List::from_boxed(Box::new([records::line(false)])), folded: 2 },
+    )
+    .expect("goal");
     let board = j::PublicBoard::new(
         &j::CEILINGS,
         j::PublicBoardParts {
@@ -63,6 +68,7 @@ fn the_view_shows_only_what_the_records_carry() {
         b"A public project",
         b"Landings",
         b"Goal 9abcdef0",
+        b"task 9abcdef0",
         b"A public goal title",
         b"an agent",
         b"running",
@@ -71,6 +77,7 @@ fn the_view_shows_only_what_the_records_carry() {
         b"2 lines folded",
     ];
     only_words(&view, allowed);
+    assert_eq!(title_count(&view), TITLED_LINES, "board shows its goal and delegate titles");
     let goal = fixtures::find(view.tree(), Role::Link, b"Goal 9abcdef0").expect("goal link");
     assert_eq!(
         crate::public::href(&mut view, goal).as_deref(),
@@ -134,6 +141,10 @@ fn the_task_and_forge_pages_use_public_links_and_mechanics() {
         b"12121212",
     ];
     only_words(&task_view, allowed);
+    assert_eq!(title_count(&task_view), TITLED_LINES, "card shows its task and delegate titles");
+    for words in [b"Passed".as_slice(), b"Approved", b"Gate 3 \xc2\xb7 review \xc2\xb7 blocking"] {
+        assert!(has_text(&task_view, words), "public change field {words:?}");
+    }
     let pull = fixtures::find(task_view.tree(), Role::Link, b"its change on the forge").expect("public pull link");
     assert_eq!(crate::public::href(&mut task_view, pull).as_deref(), Some(records::PULL));
     let hash = fixtures::find(task_view.tree(), Role::Link, b"12121212").expect("head hash");
@@ -198,6 +209,8 @@ fn the_landing_pages_show_the_turn_queues_commits_and_proofs() {
             b"2 stale proofs",
         ],
     );
+    assert!(has_text(&list, b"landed"), "public landings list keeps its landed phase");
+    assert!(has_text(&page, b"landed"), "public landing keeps its landed phase");
     let proof = fixtures::find(page.tree(), Role::Link, b"Passed").expect("proof run");
     assert_eq!(crate::public::href(&mut page, proof).as_deref(), Some(records::RUN));
 }
@@ -241,6 +254,18 @@ fn an_unavailable_companion_keeps_the_fresh_board() {
     build_public(&mut view, &reader, Wall::EPOCH, &mut Queue::uncapped());
     assert!(fixtures::find(view.tree(), Role::Heading { level: 1 }, b"A public project").is_some());
     assert!(has_text(&view, b"Not available just now."));
+}
+
+fn title_count(view: &PublicView) -> usize {
+    let mut count = 0_usize;
+    for node in view.tree().nodes() {
+        for run in &node.text {
+            if run.text.as_ref() == b"A public goal title" {
+                count = count.checked_add(1).expect("bounded public text");
+            }
+        }
+    }
+    count
 }
 
 fn has_text(view: &PublicView, text: &[u8]) -> bool {

@@ -12,6 +12,7 @@ use skein_fake_forge_http::{
 };
 use skein_forge::github::request::Method;
 use skein_http::{Header, Method as HttpMethod, server as http};
+use skein_lib::bytes::concat;
 use skein_lib::{
     Env, Intake, List, Queue, ReplyTo, Token, bytes,
     stream::{Down, Read, Up},
@@ -524,7 +525,7 @@ fn respond(server: &mut Server, limits: &Limits, mut reply: Response, mut locati
     let mut headers = List::with_capacity(11);
     if server.blob && server.first_byte && reply.status == 200 && !reply.body.is_empty() {
         let size = skein_lib::Decimal::of(skein_lib::len_u64(reply.body.len()));
-        let value = crate::service::joined(b"bytes 0-0/", size.as_bytes()).expect("range header");
+        let value = concat(&[b"bytes 0-0/", size.as_bytes()]);
         headers.push(Header { name: bytes::copy_of(b"Content-Range"), value }).expect("range slot");
         reply.status = 206;
         reply.body = bytes::copy_of(reply.body.get(..1).expect("nonempty blob"));

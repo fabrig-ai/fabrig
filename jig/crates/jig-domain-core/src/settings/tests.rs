@@ -127,7 +127,7 @@ fn fault_case(fault: Fault) {
     };
     assert_eq!(
         check(&current, &config.settings, &config.connectors, &limits),
-        Err(Failure { setting, fault }),
+        Err(Failure { setting, fault, detail: None }),
         "{fault:?}"
     );
 }
@@ -192,7 +192,7 @@ fn the_whole_check_refuses_unconfigured_model_bits() {
         .unwrap();
     assert_eq!(
         check(&current, &config.settings, &config.connectors, &limits()),
-        Err(Failure { setting: Setting::Rules, fault: Fault::Reference })
+        Err(Failure { setting: Setting::Rules, fault: Fault::Reference, detail: None })
     );
 }
 #[test]
@@ -207,7 +207,7 @@ fn the_whole_check_refuses_unconfigured_contract_connectors() {
         .unwrap();
     assert_eq!(
         check(&current, &config.settings, &config.connectors, &limits()),
-        Err(Failure { setting: Setting::Template(1), fault: Fault::Reference })
+        Err(Failure { setting: Setting::Template(1), fault: Fault::Reference, detail: None })
     );
 }
 
@@ -245,7 +245,7 @@ fn decision_edits_apply_each_kind_over_defaults_and_additions() {
         if setting == Setting::Rules {
             assert_eq!(
                 change_shape(&[Item { setting, edit: Edit::Removed }], &limits),
-                Err(Failure { setting, fault: Fault::Shape })
+                Err(Failure { setting, fault: Fault::Shape, detail: None })
             );
         } else {
             let removed = [Item { setting, edit: Edit::Removed }];
@@ -287,13 +287,16 @@ fn zero_numbered_edits_and_repeated_settings_are_malformed() {
     let limits = limits();
     for setting in [Setting::Charter(0), Setting::Template(0), Setting::Policy(0)] {
         for edit in [Edit::Removed, Edit::Reset] {
-            assert_eq!(change_shape(&[Item { setting, edit }], &limits), Err(Failure { setting, fault: Fault::Shape }));
+            assert_eq!(
+                change_shape(&[Item { setting, edit }], &limits),
+                Err(Failure { setting, fault: Fault::Shape, detail: None })
+            );
         }
     }
     let setting = Setting::Template(1);
     assert_eq!(
         change_shape(&[Item { setting, edit: Edit::Removed }, Item { setting, edit: Edit::Reset }], &limits),
-        Err(Failure { setting, fault: Fault::Shape })
+        Err(Failure { setting, fault: Fault::Shape, detail: None })
     );
 }
 
@@ -348,7 +351,7 @@ fn oversized_settings_policy_restore_keeps_its_named_failure() {
     let (mut core, limits, record) = stored_policy_change(oversized);
     assert_eq!(core.restore_core(CoreRecord::Settings(record), &limits), Restored::Rejected);
     let failure = crate::start::Failure::Settings {
-        failure: Failure { setting: Setting::Policy(RESTORE_PROJECT), fault: Fault::Shape },
+        failure: Failure { setting: Setting::Policy(RESTORE_PROJECT), fault: Fault::Shape, detail: None },
         changed: true,
     };
     assert_eq!(core.start_failure(), Some(failure.clone()));
@@ -737,7 +740,7 @@ fn a_charter_with_a_zero_paced_span_is_refused_as_shape() {
     let mut invalid = current.charter(1).unwrap().clone();
     invalid.wake.news = tasks::WakeRule::Paced { span: Duration::ZERO };
     let setting = Setting::Charter(1);
-    let expected = Err(Failure { setting, fault: Fault::Shape });
+    let expected = Err(Failure { setting, fault: Fault::Shape, detail: None });
     let value = Value::Charter(Box::new(invalid));
     assert_eq!(check::shape(setting, &value, &limits), expected);
     let items = [Item { setting, edit: Edit::Set(value.clone()) }];
@@ -791,7 +794,7 @@ fn delegation_count_accepts_the_limit_and_names_overflow() {
         let expected = if count <= limits.authority.executors {
             Ok(())
         } else {
-            Err(Failure { setting: Setting::Rules, fault: Fault::Count })
+            Err(Failure { setting: Setting::Rules, fault: Fault::Count, detail: None })
         };
         let items = [Item { setting: Setting::Rules, edit: Edit::Set(value.clone()) }];
         assert_eq!(check_change(&current, &items, &config.settings, &config.connectors, &limits), expected);
@@ -808,7 +811,7 @@ fn malformed_rules_within_the_delegation_limit_remain_shape() {
     rules.minimum_run_spend = rules.maximum_run_spend;
     assert_eq!(
         check::shape(Setting::Rules, &Value::Rules(rules), &limits),
-        Err(Failure { setting: Setting::Rules, fault: Fault::Shape })
+        Err(Failure { setting: Setting::Rules, fault: Fault::Shape, detail: None })
     );
 }
 
@@ -818,7 +821,7 @@ fn delegation_count_restore_names_overflow() {
     let value = delegation_rules(limits.authority.executors + 1);
     assert_eq!(
         check::restore_fit(Setting::Rules, &value, &limits),
-        Err(Failure { setting: Setting::Rules, fault: Fault::Count })
+        Err(Failure { setting: Setting::Rules, fault: Fault::Count, detail: None })
     );
 }
 

@@ -8,6 +8,7 @@ use skein_forge::{
         request::{Method, Request},
     },
 };
+use skein_lib::bytes::concat;
 
 #[test]
 fn github_fake_commit_ranges_preserve_order_and_pages() {
@@ -226,9 +227,7 @@ fn github_fake_mergeable_is_null_until_drawn_head_or_base_settle_deadline() {
             .unwrap();
             let start = h.env.now;
             r::call(&mut h, a::Op::Git(a::Git::Push { branch: f::boxed(branch), commit: next, expected: None }));
-            let target =
-                crate::service::joined(b"/repos/acme/widgets/pulls/", skein_lib::Decimal::of(number).as_bytes())
-                    .unwrap();
+            let target = concat(&[b"/repos/acme/widgets/pulls/", skein_lib::Decimal::of(number).as_bytes()]);
             let before = h.ask(Method::Get, &target, Some(token.expose()), b"");
             assert!(skein_lib::bytes::find(&before.body, b"\"mergeable\":null").is_some());
             let mut deadline = None;

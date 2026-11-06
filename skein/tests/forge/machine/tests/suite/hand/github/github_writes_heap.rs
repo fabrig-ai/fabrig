@@ -1,6 +1,7 @@
 //! Write prerequisites and pending requests stay under scenario ceilings.
 use skein_forge::api::{Answer, Error, Op, Read, Write};
 use skein_forge_machine_world::hand::{self as f, CallHeap};
+use skein_lib::bytes::concat;
 use skein_lib::{Decimal, Duration, List, Writer};
 use std::boxed::Box;
 
@@ -82,7 +83,7 @@ fn largest_github_set_reviewers_stays_under_the_ceiling() {
             reviewers.put(Decimal::of(u64::from(id)).as_bytes()).expect("id");
             reviewers.put(b"}").expect("reviewer end");
         }
-        let pull = joined(&[
+        let pull = concat(&[
             br#"{"number":7,"state":"open","merged":false,"mergeable":true,"head":{"ref":""#,
             &login,
             br#"","sha":"0000000000000000000000000000000000000000"},"base":{"ref":""#,
@@ -120,7 +121,7 @@ fn github_queue_merge_stays_under_the_ceiling() {
     const CEILING: u64 = 9_300;
     let mut h = warm();
     let text = f::filled(usize::try_from(f::limits().string_bytes).expect("string bound"), b'n');
-    let pull = joined(&[
+    let pull = concat(&[
         br#"{"data":{"repository":{"pullRequest":{"id":""#,
         &text,
         br#"","mergeCommit":null,"mergeQueueEntry":null,"timelineItems":{"nodes":[{"reason":""#,
@@ -149,14 +150,3 @@ fn github_queue_merge_stays_under_the_ceiling() {
 }
 
 // Scripted peer allocations stay outside the component's measurement spans.
-fn joined(parts: &[&[u8]]) -> Box<[u8]> {
-    let mut size = 0_usize;
-    for part in parts {
-        size = size.checked_add(part.len()).expect("fixture size");
-    }
-    let mut out = Writer::new(size);
-    for part in parts {
-        out.put(part).expect("fixture bytes");
-    }
-    out.finish()
-}

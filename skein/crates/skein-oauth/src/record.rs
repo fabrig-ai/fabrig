@@ -7,7 +7,6 @@ use crate::{DecodeError, Limits, TokenResponse, common, documents, jwt, v3};
 use alloc::boxed::Box;
 use skein_lib::{Duration, Reader, Secret, Wall, Writer, usize_of};
 
-pub const RECORD_VERSION: u16 = 3;
 /// Caller-selected nested JWT claim to keep as opaque metadata.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ClaimSelector {

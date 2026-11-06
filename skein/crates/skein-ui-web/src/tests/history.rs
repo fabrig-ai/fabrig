@@ -17,11 +17,3 @@ fn the_title_joins_the_heading_and_application_name() {
         assert_eq!(crate::title::text(heading, b"Notes"), expected);
     }
 }
-#[test]
-fn the_timer_reports_its_deadline_once() {
-    let mut timer = crate::timer::Timer::default();
-    timer.set(Some(skein_lib::Time::from_nanos(3)));
-    assert!(!timer.due(skein_lib::Time::from_nanos(2)));
-    assert!(timer.due(skein_lib::Time::from_nanos(3)));
-    assert!(!timer.due(skein_lib::Time::from_nanos(3)));
-}

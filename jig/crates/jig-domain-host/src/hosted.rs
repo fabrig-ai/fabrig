@@ -11,7 +11,7 @@ use alloc::boxed::Box;
 use core::mem;
 
 use skein_lib::bytes::copy_of;
-use skein_lib::{Env, Id, List, Map, Queue, Set, Slab, Token};
+use skein_lib::{Env, Id, List, Map, Queue, Set, Slab, Token, length::len_u64};
 
 use crate::assignment::{self, len};
 use crate::boundary::{
@@ -149,12 +149,12 @@ pub(crate) fn assign(domain: &mut Hub, env: &Env<Limits>, next: Assignment, out:
 }
 
 fn conversation_fits(turns: &[Box<[u8]>], answered: &[AnsweredCall], limits: &Limits) -> bool {
-    let Ok(turn_count) = u64::try_from(turns.len()) else { return false };
+    let turn_count = len_u64(turns.len());
     let Ok(turn_size) = u64::try_from(size_of::<Box<[u8]>>()) else { return false };
     let Some(mut bytes) = turn_count.checked_mul(turn_size) else {
         return false;
     };
-    let Ok(answer_count) = u64::try_from(answered.len()) else { return false };
+    let answer_count = len_u64(answered.len());
     let Ok(answer_size) = u64::try_from(size_of::<AnsweredCall>()) else { return false };
     let Some(rows) = answer_count.checked_mul(answer_size) else {
         return false;

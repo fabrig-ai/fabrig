@@ -4,6 +4,7 @@
 
 use alloc::boxed::Box;
 
+use skein_lib::length::Measure;
 use skein_lib::{Decimal, Writer, usize_of};
 
 use super::Limits;
@@ -69,12 +70,17 @@ const CRLF: &[u8] = b"\r\n";
 /// field, its name before its value, then the one `Host`, then the length.
 pub(super) fn write(call: &Call, limits: &Limits) -> Result<Box<[u8]>, Refusal> {
     check(call)?;
-    let mut fields = Measure(Some(0));
+    let mut fields = Measure::ZERO;
     for header in &call.headers {
         fields.add(field_len(header.name.len(), header.value.len()).ok_or(Refusal::TooLong)?);
     }
-    let len =
-        request_head_len(call.method, call.target.len(), fields.0.ok_or(Refusal::TooLong)?, call.body, call.close);
+    let len = request_head_len(
+        call.method,
+        call.target.len(),
+        fields.total().ok_or(Refusal::TooLong)?,
+        call.body,
+        call.close,
+    );
     let len = match len {
         Some(len) => u32::try_from(len).ok(),
         None => None,
@@ -154,7 +160,7 @@ fn framing(method: Method, body: Body) -> Option<Decimal> {
 /// ([`field_len`]).
 #[must_use]
 pub fn request_head_len(method: Method, target: usize, fields: usize, body: Body, close: bool) -> Option<usize> {
-    let mut len = Measure(Some(0));
+    let mut len = Measure::ZERO;
     len.add(method.as_bytes().len());
     len.add(1);
     len.add(target);
@@ -169,17 +175,7 @@ pub fn request_head_len(method: Method, target: usize, fields: usize, body: Body
         len.add(CLOSE.len());
     }
     len.add(CRLF.len());
-    len.0
-}
-
-/// A head's length, added up with checks: `None` past a `usize`.
-struct Measure(Option<usize>);
-
-impl Measure {
-    fn add(&mut self, len: usize) {
-        let Some(sum) = self.0 else { return };
-        self.0 = sum.checked_add(len);
-    }
+    len.total()
 }
 
 /// Puts what was measured to fit.

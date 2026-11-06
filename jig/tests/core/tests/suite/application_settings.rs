@@ -120,7 +120,7 @@ fn changes_proposals_and_changed_defaults_keep_both_owners_in_step() {
         change(&mut world, owner, 5, 3, removal),
         people::Reply::Outcome(people::Outcome::Refused(people::Refusal::NotWellFormed {
             at: 0,
-            why: people::Malformed::Settings { setting: SETTING, fault: settings::Fault::Reference }
+            why: people::Malformed::Settings { setting: SETTING, fault: settings::Fault::Reference, detail: None }
         }))
     );
 

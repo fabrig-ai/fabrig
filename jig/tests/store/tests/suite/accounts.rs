@@ -6,7 +6,7 @@ use jig_domain_accounts::{Held, Holder, Key, Kind, Stored};
 use jig_domain_core as core;
 use jig_protocol_store::Write;
 use jig_store_world::{World, referee::Referee, root};
-use skein_lib::Wall;
+use skein_lib::{Wall, length::len_u64};
 
 fn next(number: u32) -> core::Record {
     core::Record::Accounts(Stored::Next { number })
@@ -67,7 +67,7 @@ fn cut(commits: &[Commit], last: Commit, at: Option<u32>) -> (World, Option<u64>
     if let Some(at) = at {
         world.cut_at(at);
     }
-    let number = u64::try_from(commits.len()).expect("few commits") + 2;
+    let number = len_u64(commits.len()) + 2;
     let acknowledged = world.commit(last(number));
     (world, acknowledged)
 }
