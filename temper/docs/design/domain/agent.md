@@ -1259,6 +1259,13 @@ host:
   declare only what the charter names for the other families too, which
   the host part's budget (4.3) may force, and how a brief teaches an LLM
   when to delegate a task rather than a sub-agent.
+- **What sizes temper's own way** (8.1): a read of the deployment's worker slots
+  and of the models its accounts reach, offered to a run with the settings
+  family, or an answer from the person. Default: the person's, as nothing reads
+  them.
+- **QA in temper's own way** (8.1): `../draft/own-way.md`, 6, has it proposed once
+  a tester is set; QA after landing isn't built (`findings.md`, section 8).
+  Default: the agent says so, and leaves it out.
 - **The configuring agent woken by a landing** of a document a charter
   names, where the landing touches structure, to say what it means for
   the settings ("the process document changed; here is what it means

@@ -6144,6 +6144,17 @@ own tests:
 - **A document's drawing** (3.5; the look request `configure-chat-draft`): its flow
   and figure wait on `skein/docs/design/draft/diagrams.md`. Default: a fenced block
   reads as code, and the agent isn't told to draw.
+- **The reference's picture as a flow** (3.5, *temper's own way, beside the page*;
+  `../draft/own-way.md`, 3): skein's flows are neither built nor planned
+  (`skein/docs/design/draft/diagrams.md`), and a flow is one path, its parts in
+  parallel a caption until they branch. Default: the numbered list.
+- **The reference kept beside a chat** (3.5, *temper's own way, beside the page*):
+  `../draft/own-way.md`, 3, has a question about it be the configuring chat's,
+  beside it. Default: a chat started there closes it, and a question about it
+  goes to a chat that no longer shows it.
+- **The table's QA row** (3.5, *temper's own way, beside the page*): it says "Later"
+  until QA after landing is built (`../domain/findings.md`, section 8), then names
+  its range as the other rows do. Default: "Later".
 - **A repository being made, on a page** (4.4; `../draft/repository-copies.md`,
   sections 7, 9 and 10): the forges' rows carry `makings`, `temper ctl
   forge list` says them, and Home's second step says a project's while To
