@@ -26,16 +26,16 @@ pub(crate) fn text(task: &c::Task, vocabulary: &dyn Parts, out: &mut Text) {
     out.put(b"held: ");
     reason(task, vocabulary, out);
     out.put(b"\nway out: ");
-    way_out(task, out);
+    way_out(task, vocabulary, out);
     out.put(b"\n");
 }
 
-pub(crate) fn way_out(task: &c::Task, out: &mut Text) {
+pub(crate) fn way_out(task: &c::Task, vocabulary: &dyn Parts, out: &mut Text) {
     let uncertain = task.hold.as_ref().expect("supplied hold").uncertain();
     if uncertain {
         out.put(b"check whether the effect happened before deciding to repeat it; ");
     } else {
-        out.put(recovery(task.hold.as_ref().expect("supplied hold")));
+        out.put(recovery(task.hold.as_ref().expect("supplied hold"), vocabulary));
     }
     out.put(b"task release ");
     out.number(task.chip.task);
@@ -49,7 +49,7 @@ pub(crate) fn way_out(task: &c::Task, out: &mut Text) {
     out.put(b" REASON");
 }
 
-fn recovery(hold: &c::ChipHold) -> &'static [u8] {
+fn recovery(hold: &c::ChipHold, vocabulary: &dyn Parts) -> &'static [u8] {
     match hold.reason {
         c::HoldCategory::Exceeded(value) if value.bound == c::Bound::Items => {
             b"reduce calls per response or raise agent.json's calls_per_response, then "
@@ -58,7 +58,7 @@ fn recovery(hold: &c::ChipHold) -> &'static [u8] {
         c::HoldCategory::Budget => b"",
         c::HoldCategory::Deadline => b"amend the task's deadline, then ",
         c::HoldCategory::Effects | c::HoldCategory::EffectFailed => b"review and resolve the effects, then ",
-        c::HoldCategory::Failures { .. } => b"the engine's log names each failure (temper help hold), then ",
+        c::HoldCategory::Failures { .. } => vocabulary.failures_recovery(),
         c::HoldCategory::Stalled
         | c::HoldCategory::Dependency { .. }
         | c::HoldCategory::Stopped
