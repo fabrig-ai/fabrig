@@ -2,6 +2,7 @@
 use jig_domain_core as core;
 use jig_protocol_store::{Restore, Row, SecretOwner, SecretValue, Secrets, Write, codec, keys, restore::Item, sizes};
 use jig_store_world::{World, root};
+use skein_lib::length::len_u64;
 use std::collections::BTreeMap;
 
 const SEED: u64 = 19;
@@ -201,7 +202,7 @@ fn census_pairs_with_writer_sized_payloads_fit_exact_decoded_bytes() {
     let ended = core::Record::Tasks(tasks::Stored::Ended(task));
     let position =
         core::Record::People(jig_domain_people::Stored::EndedRead { task: root::LIVE, party: 1, through: 1 });
-    let bytes = u64::try_from(raw(&ended).1.len() + raw(&position).1.len()).expect("pair decoded bytes");
+    let bytes = len_u64(raw(&ended).1.len() + raw(&position).1.len());
     let mut world = World::unopened_observed(SEED, limits, None);
     world.open().expect("open");
     world

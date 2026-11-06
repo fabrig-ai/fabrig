@@ -11,6 +11,7 @@ use jig_domain_core::{self as core, documents, reads, settings};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
+use skein_lib::length::len_u64;
 use std::fmt::Write as _;
 use support::*;
 
@@ -1014,7 +1015,7 @@ fn run_charter_review(world: &mut World, signed: u64, task: u64, proposal: u64, 
         panic!("settings review")
     };
     let settings::Value::Charter(charter) = expected else { panic!("proposed charter") };
-    assert!(u64::try_from(charter.policy.instructions.len()).expect("instructions size") > review.value_bytes);
+    assert!(len_u64(charter.policy.instructions.len()) > review.value_bytes);
     let item = review.items.get(0).expect("reviewed charter");
     assert_eq!(item.setting, settings::Setting::Charter(charter.number));
     assert_eq!(item.would_be.as_ref(), Some(expected));

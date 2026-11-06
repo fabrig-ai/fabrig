@@ -8,7 +8,7 @@
 
 use alloc::boxed::Box;
 
-use skein_lib::{Deadlines, Decimal, Env, List, Map, Queue, Time, Token, Writer};
+use skein_lib::{Deadlines, Decimal, Env, List, Map, Queue, Time, Token, Writer, length::len_u64};
 
 use crate::limits::Limits;
 use crate::planned::{self, ConnectorAction, Core, Planned};
@@ -562,7 +562,7 @@ fn can_cut(text: &[u8], size: u32) -> bool {
     if text.len() <= skein_lib::length::usize_of(size) {
         return true;
     }
-    let lost = u64::try_from(text.len()).expect("bounded text");
+    let lost = len_u64(text.len());
     let marker = b"[".len().saturating_add(Decimal::of(lost).as_bytes().len()).saturating_add(b" bytes cut]\n".len());
     marker <= skein_lib::length::usize_of(size)
 }
@@ -589,7 +589,7 @@ fn cut_core(kind: Core, text: Box<[u8]>, size: u32) -> Box<[u8]> {
         let lost = text.len().saturating_sub(keep.len());
         let marker = usize::from(!tail && !keep.is_empty())
             .saturating_add(b"[".len())
-            .saturating_add(Decimal::of(u64::try_from(lost).expect("bounded text")).as_bytes().len())
+            .saturating_add(Decimal::of(len_u64(lost)).as_bytes().len())
             .saturating_add(b" bytes cut]\n".len());
         if keep.len().saturating_add(marker) <= room {
             low = mid;
@@ -599,7 +599,7 @@ fn cut_core(kind: Core, text: Box<[u8]>, size: u32) -> Box<[u8]> {
     }
     let keep = edge(&text, low, tail);
     let lost = text.len().saturating_sub(keep.len());
-    let digits = Decimal::of(u64::try_from(lost).expect("bounded text"));
+    let digits = Decimal::of(len_u64(lost));
     let marker = usize::from(!tail && !keep.is_empty())
         .saturating_add(b"[".len())
         .saturating_add(digits.as_bytes().len())

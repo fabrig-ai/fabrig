@@ -23,7 +23,7 @@ use skein_io::{
     file_layer::{self, FileIo},
     kernel::{Complete, Error, Kind, Submit},
 };
-use skein_lib::{Queue, Token};
+use skein_lib::{Queue, Token, length::len_u64};
 use skein_sim::{Answer, Ask, Config, Handle, Pid, Sim};
 
 const CHUNK: u32 = 4096;
@@ -1037,7 +1037,7 @@ fn fixture_rows(store: &mut Store, shelf_version: u16, note_version: u16) -> Vec
             let expected = u64::from(number.checked_add(1).expect("books"))
                 .checked_mul(10)
                 .expect("weight")
-                .checked_add(u64::try_from(relative.len()).expect("key bytes"))
+                .checked_add(len_u64(relative.len()))
                 .expect("weight");
             assert_eq!(weight, expected);
         }

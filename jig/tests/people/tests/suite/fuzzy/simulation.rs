@@ -1,5 +1,6 @@
 use jig_people_world::fixtures::{OWNER, PERSON, PROJECT};
 use jig_people_world::{ENDINGS, Settings, World};
+use skein_lib::length::len_u64;
 use std::collections::BTreeSet;
 
 #[test]
@@ -69,16 +70,14 @@ fn selected_projections_and_stored_diagnostics_replay_by_seed() {
             });
         }
         while !pending.is_empty() {
-            let index = usize::try_from(rng.below(u64::try_from(pending.len()).expect("eight pending tasks")))
-                .expect("index into eight items");
+            let index = usize::try_from(rng.below(len_u64(pending.len()))).expect("index into eight items");
             let entry = pending.swap_remove(index);
             assert!(selected.start_project(&limits, P::Waiting { task: entry.task, entries: Box::new([entry]) }));
             p::step(&mut ordinary, &env, p::Event::Waiting { task: entry.task, entries: Box::new([entry]) }, &mut out);
         }
         let mut positions: Vec<u64> = (1..=8).collect();
         while !positions.is_empty() {
-            let index = usize::try_from(rng.below(u64::try_from(positions.len()).expect("eight result positions")))
-                .expect("index into eight items");
+            let index = usize::try_from(rng.below(len_u64(positions.len()))).expect("index into eight items");
             let position = positions.swap_remove(index);
             let entry = p::ResultRef {
                 task: position + 10,
