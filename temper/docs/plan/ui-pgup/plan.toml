@@ -22,3 +22,43 @@ id = 1
 story = "A driver presses PgUp, PgDn, a wheel and Latest on a fake box while its model writes and as its turn ends, and reports each step's offsets at 1440 and 420"
 parts = ["reproduce"]
 walk = false
+
+[[part]]
+id = "log-page"
+title = "A key's scroll counts at once, and a pointer's press to a log's end leaves the focus"
+mode = "direct"
+needs = ["reproduce"]
+design = "skein/docs/design/ui-web.md, 7"
+
+[[part]]
+id = "live-kept"
+title = "A run's end leaves a thread's live words until their committed turn takes their place"
+mode = "direct"
+needs = ["reproduce"]
+design = "jig/docs/design/client/domain/client.md, 10"
+
+[[part]]
+id = "ending-keeps"
+title = "A turn's ending keeps the nodes of the words being read, at every step"
+mode = "direct"
+needs = ["live-kept"]
+design = "temper/docs/design/draft/chat-reading.md, 3"
+
+[[part]]
+id = "proof"
+title = "The same driver on the fixed code, at 1440 and 420, with the scroll offsets and a screenshot of the view holding"
+mode = "direct"
+needs = ["log-page", "live-kept", "ending-keeps"]
+design = "temper/docs/design/draft/chat-reading.md, 5"
+
+[[slice]]
+id = 2
+story = "A person presses PgUp while the agent writes and as its turn ends, and the words being read stay where they are, with the focus in the composer"
+parts = ["log-page", "live-kept", "ending-keeps"]
+walk = false
+
+[[slice]]
+id = 3
+story = "The driver's report shows each step of the request holding at 1440 and 420"
+parts = ["proof"]
+walk = false
