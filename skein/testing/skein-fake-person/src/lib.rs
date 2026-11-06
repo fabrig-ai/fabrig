@@ -85,6 +85,8 @@ pub enum Step<A> {
     Go { address: A },
     /// Press a named control.
     Press { find: Find },
+    /// Bring an edge of a log near the view.
+    Near { find: Find, edge: skein_ui::LogEdge },
     /// Replace the whole typed value of a field.
     Type { find: Find, words: Box<[u8]> },
     /// Press Enter in a composer that submits on Enter.
@@ -209,6 +211,17 @@ impl<A: Clone> Person<A> {
                 self.advance();
                 return Next::Wait { until: None };
             }
+            Step::Near { find, edge } => match face.find(find) {
+                Found::Node(node) => {
+                    let act = Act::Near { edge: *edge };
+                    if !face.allows(node, &act) {
+                        return self.fail(Why::Unexpected { find: find.clone() });
+                    }
+                    Next::Do(Doing::Act { node, act })
+                }
+                Found::Absent => return self.fail(Why::Missing { find: find.clone() }),
+                Found::Pending => return Next::Wait { until: None },
+            },
             Step::Press { find } | Step::Type { find, .. } | Step::Send { find } => match face.find(find) {
                 Found::Node(node) => {
                     let act = match step {
@@ -223,7 +236,12 @@ impl<A: Clone> Person<A> {
                         }
                         Step::Type { words, .. } => Act::Input { value: words.clone() },
                         Step::Send { .. } => Act::Submit,
-                        Step::Go { .. } | Step::See { .. } | Step::Gone { .. } | Step::Reload | Step::Pause { .. } => {
+                        Step::Go { .. }
+                        | Step::Near { .. }
+                        | Step::See { .. }
+                        | Step::Gone { .. }
+                        | Step::Reload
+                        | Step::Pause { .. } => {
                             unreachable!("interactive step")
                         }
                     };
@@ -241,6 +259,7 @@ impl<A: Clone> Person<A> {
                     Step::See { .. } => matches!(found, Found::Node(_)),
                     Step::Gone { .. } => found == Found::Absent,
                     Step::Go { .. }
+                    | Step::Near { .. }
                     | Step::Press { .. }
                     | Step::Type { .. }
                     | Step::Send { .. }
@@ -259,6 +278,7 @@ impl<A: Clone> Person<A> {
                     Step::See { .. } => Why::Missing { find: find.clone() },
                     Step::Gone { .. } => Why::StillThere { find: find.clone() },
                     Step::Go { .. }
+                    | Step::Near { .. }
                     | Step::Press { .. }
                     | Step::Type { .. }
                     | Step::Send { .. }
