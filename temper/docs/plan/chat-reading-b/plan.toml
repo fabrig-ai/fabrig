@@ -27,3 +27,57 @@ id = 1
 story = "a run of file and command calls reads in words, counted by what it touched, and says the call under way"
 parts = ["words", "agent-surface"]
 walk = false
+
+[[part]]
+id = "time"
+title = "A run of one turn has a time, from the line before it"
+mode = "direct"
+needs = ["words"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "agent-page"
+title = "An agent's page runs the line and has Latest"
+mode = "direct"
+needs = ["agent-surface", "time"]
+design = "temper/docs/design/client/README.md, 5.9"
+
+[[slice]]
+id = 2
+story = "a run of one turn says its time, and an agent's page says the call under way and returns to its end"
+parts = ["time", "agent-page"]
+walk = false
+
+[[part]]
+id = "world"
+title = "The line through the client and the engine, on a chat's page and an agent's"
+mode = "direct"
+needs = ["agent-page"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "terminal"
+title = "A person at a real terminal reads a real chat's line"
+mode = "direct"
+needs = ["time"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "browser"
+title = "A person in Chromium opens the line, and it stays open"
+mode = "direct"
+needs = ["time"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "close"
+title = "The prints reach the line's words, and what the user reads is said"
+mode = "direct"
+needs = ["world", "terminal", "browser"]
+design = "temper/docs/design/client/journeys.md, 5"
+
+[[slice]]
+id = 3
+story = "a real chat's calls read as one line through the engine, a terminal and a browser, and the user reads it"
+parts = ["world", "terminal", "browser", "close"]
+walk = false
