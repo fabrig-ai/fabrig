@@ -176,14 +176,21 @@ impl Common {
                 let deadline = waiting.deadline;
                 let plan = &mut forgejo.plan;
                 if let Some(request) = plan.pending() {
-                    c.until(Some(deadline));
                     c.raw_room(plan.raw_room(self.shared.answer_bytes));
                     let forge = &base.forge;
                     let authorization = skein_forge::forgejo::credential::authorization(
                         &forge.access.as_ref().expect("held access").credential,
                     )
                     .expect("checked credential length");
-                    match forgejo.exchange.start(c, env, forge, &self.owner.user_agent, request, authorization) {
+                    match forgejo.exchange.start(
+                        c,
+                        Some(deadline),
+                        env,
+                        forge,
+                        &self.owner.user_agent,
+                        request,
+                        authorization,
+                    ) {
                         Ok(()) => {
                             forgejo.exchange.keep_after(plan.after());
                         }

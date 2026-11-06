@@ -567,8 +567,19 @@ impl Common {
                     return false;
                 };
                 let authorization = github::credential::bearer(&secret).expect("bounded bearer");
-                c.until(Some(env.now.saturating_add(env.limits.deadline)));
-                if gh.exchange.start(c, env, forge, &self.owner.user_agent, exchange, Some(authorization)).is_err() {
+                if gh
+                    .exchange
+                    .start(
+                        c,
+                        Some(env.now.saturating_add(env.limits.deadline)),
+                        env,
+                        forge,
+                        &self.owner.user_agent,
+                        exchange,
+                        Some(authorization),
+                    )
+                    .is_err()
+                {
                     Self::github_wait(base, gh, env);
                     return false;
                 }
