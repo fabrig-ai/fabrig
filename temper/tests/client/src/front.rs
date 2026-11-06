@@ -582,6 +582,11 @@ impl Joint {
     pub fn with_long_turns(seed: u64, limits: &client::Limits) -> Self {
         Self::with_turn_bytes(seed, limits, 131_072, 262_144)
     }
+    /// Whole display turns and three large tool results fit the stored transcript.
+    #[must_use]
+    pub fn with_whole_turns(seed: u64, limits: &client::Limits) -> Self {
+        Self::with_turn_bytes(seed, limits, 1_048_576, 2_097_152)
+    }
     fn with_turn_bytes(seed: u64, limits: &client::Limits, bytes: u32, read_bytes: u64) -> Self {
         let mut engine_limits = engine_limits();
         engine_limits.journal.transcript_bytes = bytes;

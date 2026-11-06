@@ -20,7 +20,7 @@ pub(crate) fn merge(watch: &Watch, mut value: RunText, limit: u32) -> Option<Run
             return None;
         }
         let replayed = watch.state == crate::State::Behind && value.from == 0;
-        if value.turn == held.turn && !replayed && !(value.cut && value.through >= held.through) {
+        if value.turn == held.turn && !replayed && !(value.cut && value.from > held.through) {
             if value.through <= held.through {
                 let mut kept = held.clone();
                 if value.through == held.through {

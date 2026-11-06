@@ -195,7 +195,12 @@ fn pending_words_without_a_party_are_named_you() {
     use jig_client::contract as c;
     let mut thread = jig_client::thread::Thread::new(
         1,
-        &jig_client::thread::Limits { lines: f::chat::LINES, bytes: f::chat::BYTES, text: f::chat::TEXT },
+        &jig_client::thread::Limits {
+            lines: f::chat::LINES,
+            bytes: f::chat::BYTES,
+            text: f::chat::TEXT,
+            live: f::chat::TEXT,
+        },
     );
     assert!(thread.words.begin(
         jig_client::Key { asker: jig_client::Asker::JIG, number: 1 },

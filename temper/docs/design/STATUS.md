@@ -171,7 +171,12 @@ open reply, where a tree holds one request, seen by reading (`client/README.md`)
 and no test measures a long chat's document against its window, where the user's
 answer of 2026-11-06 asks one (`client/browser.md`). A numbered list shows no
 numbers in a chat's card, whose items the sheet makes flex, and a document page's
-takes the browser's margins (`client/browser.md`). A document
+takes the browser's margins (`client/browser.md`). Every confirmation of a chat, a
+task or a card is one sheet, but a closed chat hides every "Decision made", where the
+request `close-chat` hides the closing's alone, a Release pressed before an uncertain
+effect's choice closes its sheet, no walk on record presses Accept, a task's Cancel, an
+agent's task's Stop, Reject or Start over (`client/README.md`), and a sheet's acts stand
+44 px on a phone, where that request has 38 (`client/browser.md`). A document
 built in parts is proved on a script alone, no real model having built one
 and no walk drawing a long one in its pane, and a later note write's words
 close with its lines where the `note-parts` request of 2026-11-05 keeps the
