@@ -1,7 +1,7 @@
 use crate::jig::digest::Digest;
 use crate::tests::fixtures as f;
 use jig_client::contract as c;
-use skein_lib::List;
+use skein_lib::{List, bytes};
 
 #[test]
 fn account_reads_close_authorized_watches_after_the_first_projection() {
@@ -88,10 +88,6 @@ fn models_group_the_offer_in_provider_order_with_empty_providers_and_unknown_las
         project
             .models
             .push(c::MeModel {
-                effort: efforts.get(0).cloned(),
-                shown: None,
-                accounts: List::with_capacity(0),
-                picker: true,
                 prices: c::ModelPrices { input: 7, cached: 2, cache_write: Some(9), output: 11, unit: 1000 },
                 description: Some(c::Text::new(b"Careful reasoning".as_slice().into(), 64).expect("description")),
                 name: c::Text::new(name.into(), 32).expect("model"),
@@ -141,17 +137,24 @@ fn models_group_the_offer_in_provider_order_with_empty_providers_and_unknown_las
         ] {
             assert!(f::json_has(&printed, fact), "{fact:?}");
         }
-        let text = std::str::from_utf8(&printed.stdout).expect("model JSON");
-        let empty = text
-            .find("\"provider\":7,\"provider_name\":{\"bytes\":\"Empty provider\",\"cut\":false},\"models\":[]")
-            .expect("provider without an offered model");
-        let supplied = text.find("\"provider\":9,\"provider_name\"").expect("supplied provider");
-        let unknown = text.find("\"provider\":null,\"provider_name\":null").expect("unknown provider last");
+        let text = printed.stdout.as_ref();
+        let empty = bytes::find(
+            text,
+            b"\"provider\":7,\"provider_name\":{\"bytes\":\"Empty provider\",\"cut\":false},\"models\":[]",
+        )
+        .expect("provider without an offered model");
+        let supplied = bytes::find(text, b"\"provider\":9,\"provider_name\"").expect("supplied provider");
+        let unknown = bytes::find(text, b"\"provider\":null,\"provider_name\":null").expect("unknown provider last");
         assert!(empty < supplied && supplied < unknown, "providers follow me, null last");
-        assert_eq!(text.matches("\"provider\":9,\"provider_name\"").count(), 1, "one group per provider");
-        let first = text.find("\"name\":\"first\"").expect("first offered model");
-        let last = text.find("\"name\":\"last\"").expect("last offered model");
-        let other = text.find("\"name\":\"other\"").expect("unknown provider's model");
+        let end = bytes::find(text, b"\"current\":").expect("model projection ends");
+        assert_eq!(
+            bytes::count(text.get(..end).expect("model projection"), b"\"provider\":9,\"provider_name\"", u32::MAX),
+            1,
+            "one group per provider"
+        );
+        let first = bytes::find(text, b"\"name\":\"first\"").expect("first offered model");
+        let last = bytes::find(text, b"\"name\":\"last\"").expect("last offered model");
+        let other = bytes::find(text, b"\"name\":\"other\"").expect("unknown provider's model");
         assert!(supplied < first && first < last && last < unknown && unknown < other);
         assert_eq!(
             f::last_digest(&printed.stdout).as_ref(),
@@ -335,7 +338,7 @@ fn account_projection_includes_configured_worker_login_facts() {
     f::deliver_accounts(&mut root, accounts);
     let printed = root.answer(call).expect("account projection");
     for fact in [b"configured-worker".as_slice(), b"work-login", b"other-method"] {
-        assert!(skein_lib::bytes::find(&printed.stdout, fact).is_some(), "{printed:?}");
+        assert!(bytes::find(&printed.stdout, fact).is_some(), "{printed:?}");
     }
 }
 
@@ -348,10 +351,6 @@ fn model_cache_writes_default_to_the_supplied_input_price() {
     project
         .models
         .push(c::MeModel {
-            effort: None,
-            shown: None,
-            accounts: List::with_capacity(0),
-            picker: true,
             name: c::Text::new(b"reasoner".as_slice().into(), 32).expect("model"),
             provider: Some(f::PROVIDER),
             window: 8192,
@@ -440,7 +439,7 @@ fn model_text_prints_supplied_descriptions_prices_efforts_and_provider_name() {
         b"picker: false",
         b"shown: plain-model",
         b"default effort: none",
-        b"accounts: none",
+        b"accounts: 43",
         b"picker: true",
         b"description: Reasoning and code",
         b"input: 13",

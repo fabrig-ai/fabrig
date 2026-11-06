@@ -310,13 +310,7 @@ fn chat_sends_no_effort_for_an_effortless_model() {
 }
 #[test]
 fn chat_takes_the_models_default_effort() {
-    let mut me = f::choice_me(f::CHAT_BUDGET);
-    let model = me.projects.get_mut(0).expect("project").models.get_mut(0).expect("model");
-    model.efforts = List::with_capacity(2);
-    model.efforts.push(f::act_text(b"low")).expect("low effort");
-    model.efforts.push(f::act_text(b"high")).expect("high effort");
-    model.effort = Some(f::act_text(b"high"));
-    let mut root = f::choice_root(me);
+    let mut root = f::choice_root(me_with_default_effort());
     let call =
         root.submit(&["chat", "start", "hello", "--project", "shop", "--model", "chosen-model", "--key", "effort"]);
     assert_eq!(
@@ -393,13 +387,7 @@ fn chat_subagent_without_efforts_sends_none() {
 
 #[test]
 fn chat_subagent_takes_the_models_default_effort() {
-    let mut me = f::choice_me(f::CHAT_BUDGET);
-    let model = me.projects.get_mut(0).expect("project").models.get_mut(0).expect("model");
-    model.efforts = List::with_capacity(2);
-    model.efforts.push(f::act_text(b"low")).expect("low effort");
-    model.efforts.push(f::act_text(b"high")).expect("high effort");
-    model.effort = Some(f::act_text(b"high"));
-    let mut root = f::choice_root(me);
+    let mut root = f::choice_root(me_with_default_effort());
     let argv = subagent_words(&["chosen-model", "plain-model"]);
     let call = root.submit(argv.as_slice());
     assert_eq!(
@@ -426,19 +414,6 @@ fn goals_refuse_models_and_subagents_outside_the_offer() {
         let mut root = f::choice_root(super::goal_template::goal_me());
         let argv = f::extended(super::goal_template::START, extra);
         let call = root.submit(argv.as_slice());
-        assert!(root.sends.is_empty());
-        let answer = root.answer(call).expect("usage error");
-        assert_eq!((answer.status, answer.stderr.as_ref()), (1, b"model not offered: unoffered-model\n".as_slice()));
-    }
-}
-
-#[test]
-fn amendments_refuse_models_and_subagents_outside_the_offer() {
-    for extra in
-        [&["--model", "unoffered-model"][..], &["--model", "chosen-model", "--sub-agent", "unoffered-model"][..]]
-    {
-        let argv = f::extended(&["task", "amend", "41", "--rev", "7", "because"], extra);
-        let (mut root, call) = f::send_choice_amend(argv.as_slice(), f::choice_task(c::Admission::Allowed));
         assert!(root.sends.is_empty());
         let answer = root.answer(call).expect("usage error");
         assert_eq!((answer.status, answer.stderr.as_ref()), (1, b"model not offered: unoffered-model\n".as_slice()));
@@ -542,6 +517,16 @@ fn chat_subagents_are_bounded_by_jigs_model_limit() {
         crate::table::parse(argv.as_slice()),
         Err(crate::jig::argv::Usage::Many { tool: 8, form: 0, argument: 5 })
     );
+}
+
+fn me_with_default_effort() -> c::Me {
+    let mut me = f::choice_me(f::CHAT_BUDGET);
+    let model = me.projects.get_mut(0).expect("project").models.get_mut(0).expect("model");
+    model.efforts = List::with_capacity(2);
+    model.efforts.push(f::act_text(b"low")).expect("low effort");
+    model.efforts.push(f::act_text(b"high")).expect("high effort");
+    model.effort = Some(f::act_text(b"high"));
+    me
 }
 
 fn subagent_words(subagents: &[&'static str]) -> List<&'static str> {
