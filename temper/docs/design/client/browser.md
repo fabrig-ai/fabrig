@@ -1047,6 +1047,20 @@ real key in that restored form.
   runs alike over a binary built with or without its own (2.6). It holds
   the compressed forms and Chromium takes gzip on loopback, so every
   test loads the compressed module under temper's policy.
+- **The tier's window:** the tier's bundle also turns on
+  `temper-client-shell-web`'s `small-window`, which names a conversation's
+  window of 131,072 bytes (`README.md`, 5.15), an eighth of a person's
+  `document_bytes`: the same mechanism, at an eighth of what a page draws and
+  a find walks. Reading's stories (4.6, 14) pass that bound by at least two
+  windows' worth, at both ends. The ordinary binary bundle and the journeys'
+  never turn it on, and a long chat at the whole bound is read by hand.
+- **A chat's history:** what a reading story reads is made through
+  `temper ctl` before a page opens on it: `playground start`, `chat start`
+  and `task message`, each answer waited for with
+  `task show --until replied`. A face of its own signs ctl in with the printed
+  link and opens the spent link, so that the server prints the reader's, as
+  8.4's walk does. A page types only what its story is about: in reading's,
+  the message sent from far back.
 - **The playground's test** (4.6, 12) runs on the built playground
   instead, `scripts/bundle.sh --playground` in its own profiles
   (`../playground.md`, 7), served as static files with their `headers`

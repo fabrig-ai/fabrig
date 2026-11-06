@@ -69,6 +69,7 @@ pub fn client() -> client::Limits {
         client,
         // An account's row names eight uses.
         row_uses: 8,
+        window_bytes: None,
     }
 }
 /// Bounds consumed by the generic tools.
