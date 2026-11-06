@@ -149,3 +149,15 @@ The merge failed on four content conflicts; resolve each by combining the task�
 Verify the affected document and stock-brief tests through heavy, using focused checks; retain both catalogue and wording assertions in the auto-merged service stock tests.
 Compile temper’s test targets with `heavy cargo check -p temper --tests`.
 Follow the final Answers: run no process tests, walks or after-landing tiers; leave the duplicate-sign-in-link failure outside this repair’s scope and report unobserved coverage accurately.
+
+## Answers
+
+2026-11-06. Four runs without landing, the fourth reporting its acceptance met, its merge refused on four conflicts and two focused reds under `## Left`: what now?
+
+One more run, which does `## Rebase` above and nothing else: merge the trunk, resolve the four conflicts, check, push. The implementation stands, and no acceptance changes or widens. Three earlier stops were answered questions, and the fourth a trunk that moved on, none of them a fault in the work.
+
+- **The two focused reds are stale on the branch, and the merge brings their repairs.** `channel::a_restarted_engine_keeps_a_refusal_carried_by_its_native_run` held a fixed cut, which trunk's `9fc4e6d705` calibrates from the world; `connect_model_edges::welcome_model_keeps_its_frame_with_a_model_already_usable` expected the old status, and trunk's `8fec9dd573` expects `scripted`. Edit neither. After the merge, run each once by name (`-p jig-channel-world`, `-p temper-client-world`). Should one stay red, report it under `## Left` with its log and repair nothing.
+- **The idle presets are a true trap, as the rebase says.** The merge leaves in both `agent.json` and `bare-agent.json`: Sol, Astra, Opus and Sonnet 30,000, Terra and Luna 300,000, Fable 120,000. Each should read its provider's: OpenAI's four 300,000, Anthropic's three 120,000, demo's unchanged.
+- **The brief still fits.** Adding each side's change to the common base gives charter 1 `(42_177, 357_958)` and open `(40_087, 360_048)`, charter 2 `(35_432, 364_703)`, charter 3 `(42_077, 358_058)`, `room` 357,958, `MARGIN` 216, and `brief_bytes` stays 356,270. These are arithmetic, not observed: take the test's where it differs, as the options allow, and report it. Its comment says eight model declarations. A margin that went negative would be a new question; the room is not to be raised.
+- **Not repeated:** the mutation checks (`stock-seven-3`'s report holds them, so cite it rather than saying unknown), the source survey, and the 46 dependents' full run beyond the two tests above. The rebase's focused checks and `heavy cargo check -p temper --tests` stand as written, with closing clippy and fmt on what the merge touched.
+- **Still not run:** no process test, walk or after-landing tier. The CSV story's two sign-in links at `temper/crates/temper/tests/process.rs:577` stay under `## Left`, as a failure stock-seven-3 observed.
