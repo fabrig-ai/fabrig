@@ -3757,13 +3757,16 @@ fn place_accepted(key: c::ProposalKey) -> c::ReadValue {
         }),
     }))
 }
-#[expect(
-    clippy::too_many_lines,
-    reason = "one pump delivers the activity, live snapshots and decisions through their requests"
-)]
 fn place_root(
     rows: &[c::DecodedActivityLine],
     pages: &[(c::ProposalKey, c::ReadValue)],
+) -> temper_client_domain::Domain {
+    place_read_root(rows, pages, false)
+}
+fn place_read_root(
+    rows: &[c::DecodedActivityLine],
+    pages: &[(c::ProposalKey, c::ReadValue)],
+    gone: bool,
 ) -> temper_client_domain::Domain {
     use temper_client_domain::{Address, Event, Place, Request};
     let mut limits = fixtures::domain_limits();
@@ -3785,103 +3788,71 @@ fn place_root(
         None => 0,
     };
     task.proposals = List::with_capacity(u32::try_from(pages.len()).unwrap());
-    // Deliver in reverse number order, so placement must use the card order.
-    for (key, _) in pages.iter().rev() {
-        task.proposals.push(*key).unwrap();
+    // Live keys arrive in reverse number order; ended keys come from activity alone.
+    for (key, page) in pages.iter().rev() {
+        if let c::ReadValue::Ended(_) = page {
+        } else {
+            task.proposals.push(*key).unwrap();
+        }
     }
-    let mut task_watch = None;
-    for ended in [false, true] {
-        if ended {
-            task.proposals = List::with_capacity(u32::try_from(pages.len()).unwrap());
-            for (key, page) in pages {
-                if let c::ReadValue::Ended(_) = page {
+    while let Some(request) = out.pop() {
+        let up = match request {
+            Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down:
+                            jig_client::Down::Open {
+                                watch,
+                                subject: jig_client::Watchable::Jig(c::Subject::Task { task: TASK }),
+                            },
+                    },
+            } => Some(jig_client::Up::Watched {
+                watch,
+                event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task.clone()))),
+            }),
+            Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Activity { .. }) },
+                    },
+            } => Some(jig_client::Up::ReadDone {
+                read,
+                result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(Box::new(
+                    c::ActivityPage { rows: place_rows(rows), before: None, after: None, cut: false },
+                )))),
+            }),
+            Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down:
+                            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Proposal { proposal }) },
+                    },
+            } => Some(jig_client::Up::ReadDone {
+                read,
+                result: jig_client::Readout::Jig(if gone {
+                    c::ReadResult::None(c::ReadNone::Gone)
                 } else {
-                    task.proposals.push(*key).unwrap();
-                }
-            }
+                    c::ReadResult::Value(place_page(pages, proposal).clone())
+                }),
+            }),
+            Request::Client { .. }
+            | Request::Unlinked { .. }
+            | Request::Show { .. }
+            | Request::Leave { .. }
+            | Request::SignOut
+            | Request::Dropped { .. }
+            | Request::KeepSignIn { .. }
+            | Request::Tab { .. }
+            | Request::Copy { .. }
+            | Request::Fact { .. } => None,
+        };
+        if let Some(up) = up {
             temper_client_domain::step(
                 &mut root,
                 &env,
-                Event::Client {
-                    event: jig_client::Event::Up {
-                        up: jig_client::Up::Watched {
-                            watch: task_watch.unwrap(),
-                            event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task.clone()))),
-                        },
-                    },
-                },
+                Event::Client { event: jig_client::Event::Up { up } },
                 &mut out,
             );
-        }
-        while let Some(request) = out.pop() {
-            let up = match request {
-                Request::Unlinked {
-                    request:
-                        jig_client::UnlinkedRequest::Down {
-                            down:
-                                jig_client::Down::Open {
-                                    watch,
-                                    subject: jig_client::Watchable::Jig(c::Subject::Task { task: TASK }),
-                                },
-                        },
-                } => {
-                    task_watch = Some(watch);
-                    Some(jig_client::Up::Watched {
-                        watch,
-                        event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(task.clone()))),
-                    })
-                }
-                Request::Unlinked {
-                    request:
-                        jig_client::UnlinkedRequest::Down {
-                            down:
-                                jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Activity { .. }) },
-                        },
-                } => Some(jig_client::Up::ReadDone {
-                    read,
-                    result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(Box::new(
-                        c::ActivityPage { rows: place_rows(rows), before: None, after: None, cut: false },
-                    )))),
-                }),
-                Request::Unlinked {
-                    request:
-                        jig_client::UnlinkedRequest::Down {
-                            down:
-                                jig_client::Down::Read {
-                                    read,
-                                    what: jig_client::Readable::Jig(c::Read::Proposal { proposal }),
-                                },
-                        },
-                } => Some(jig_client::Up::ReadDone {
-                    read,
-                    result: jig_client::Readout::Jig(c::ReadResult::Value({
-                        let page = place_page(pages, proposal);
-                        let mut document = page.clone();
-                        if !ended && let c::ReadValue::Ended(_) = page {
-                            document = place_proposal(proposal, 0);
-                        }
-                        document
-                    })),
-                }),
-                Request::Client { .. }
-                | Request::Unlinked { .. }
-                | Request::Show { .. }
-                | Request::Leave { .. }
-                | Request::SignOut
-                | Request::Dropped { .. }
-                | Request::KeepSignIn { .. }
-                | Request::Tab { .. }
-                | Request::Copy { .. }
-                | Request::Fact { .. } => None,
-            };
-            if let Some(up) = up {
-                temper_client_domain::step(
-                    &mut root,
-                    &env,
-                    Event::Client { event: jig_client::Event::Up { up } },
-                    &mut out,
-                );
-            }
         }
     }
     root
@@ -4133,5 +4104,79 @@ fn a_card_keeps_its_element_as_lines_arrive_around_it() {
                 assert_ne!(node, id);
             }
         }
+    }
+}
+
+fn place_decision(position: u64, key: c::ProposalKey) -> c::DecodedActivityLine {
+    let mut line = place_made(position, position, key);
+    let c::Activity::Decided { proposal: Some(proposal), .. } = &mut line.source.line else { panic!("decision") };
+    proposal.made = false;
+    line
+}
+#[test]
+fn a_decided_card_stands_at_its_place_after_a_reload() {
+    let root = place_root(
+        &[
+            place_turn(1, 1, b"First reply"),
+            place_made(2, 2, FIRST_CARD),
+            place_turn(3, 3, b"Making turn"),
+            place_decision(4, FIRST_CARD),
+            place_turn(5, 5, b"Later reply"),
+        ],
+        &[(FIRST_CARD, place_accepted(FIRST_CARD))],
+    );
+    assert_place_order(&root, &["First reply", "Making turn", "First card", "Later reply"]);
+}
+#[test]
+fn where_a_card_stands_there_is_no_decision_row() {
+    let root = place_root(
+        &[place_made(1, 1, FIRST_CARD), place_turn(2, 2, b"Making turn"), place_decision(3, FIRST_CARD)],
+        &[(FIRST_CARD, place_accepted(FIRST_CARD))],
+    );
+    for shell in [crate::words::Shell::Terminal, crate::words::Shell::Browser] {
+        let tree = place_tree(&root, &root.pages().chat().unwrap().thread, shell);
+        assert_eq!(place_order(&tree).as_slice(), &["Making turn", "First card"]);
+        assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"Decision made").is_none());
+    }
+}
+#[test]
+fn a_row_stays_where_no_card_stands() {
+    let made = [place_made(1, 1, FIRST_CARD), place_turn(2, 2, b"Making turn"), place_decision(3, FIRST_CARD)];
+    let decision = [place_decision(3, FIRST_CARD)];
+    let pages = [(FIRST_CARD, place_accepted(FIRST_CARD))];
+    for (root, rows) in [
+        (Box::new(place_root(&decision, &[])), decision.as_slice()),
+        (Box::new(place_root(&made, &pages)), decision.as_slice()),
+        (Box::new(place_read_root(&made, &pages, true)), made.as_slice()),
+    ] {
+        let mut thread = Thread::new(
+            TASK,
+            &jig_client::thread::Limits { lines: PLACE_ROWS, bytes: BYTES, text: PLACE_TEXT, live: PLACE_TEXT },
+        );
+        thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
+        thread.page(c::ActivityPage { rows: place_rows(rows), before: None, after: None, cut: false });
+        for shell in [crate::words::Shell::Terminal, crate::words::Shell::Browser] {
+            let tree = place_tree(&root, &thread, shell);
+            assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"Decision made").is_some());
+            for node in tree.nodes() {
+                assert_ne!(node.key, Some(crate::pages::inbox::card_key(c::ObjectKey::Proposal(FIRST_CARD))));
+            }
+        }
+    }
+}
+#[test]
+fn a_decided_proposal_of_another_kind_keeps_its_row_and_draws_no_card() {
+    let mut ended = place_accepted(FIRST_CARD);
+    let c::ReadValue::Ended(value) = &mut ended else { panic!("ended") };
+    let c::EndedValue::Proposal(proposal) = &mut value.value else { panic!("proposal") };
+    proposal.action = c::RetainedAction::Batch(List::with_capacity(0));
+    let root = place_root(
+        &[place_made(1, 1, FIRST_CARD), place_turn(2, 2, b"Making turn"), place_decision(3, FIRST_CARD)],
+        &[(FIRST_CARD, ended)],
+    );
+    for shell in [crate::words::Shell::Terminal, crate::words::Shell::Browser] {
+        let tree = place_tree(&root, &root.pages().chat().unwrap().thread, shell);
+        assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"Decision made").is_some());
+        assert_eq!(place_order(&tree).as_slice(), &["Making turn"]);
     }
 }

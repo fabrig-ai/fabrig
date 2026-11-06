@@ -2361,3 +2361,84 @@ fn paused_is_the_person_s_own_stop_alone() {
         assert_eq!(crate::pages::chat::paused(&chip, &me), expected, "{name}");
     }
 }
+
+fn making_page(f: &mut f::Fixture, number: u64) {
+    making_lines(f, &[number]);
+}
+fn making_lines(f: &mut f::Fixture, numbers: &[u64]) {
+    let mut rows = skein_lib::List::with_capacity(u32::try_from(numbers.len()).unwrap());
+    for (index, number) in numbers.iter().enumerate() {
+        rows.push(owner_activity(
+            u64::try_from(index).unwrap().checked_add(1).unwrap(),
+            c::Activity::Decided { revision: 1, proposal: Some(c::DecidedProposal { number: *number, made: true }) },
+        ))
+        .unwrap();
+    }
+    f.chat.thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
+    let handle = f.chat.activity;
+    card_page(f, Time::ZERO, handle, activity_answer(c::ActivityPage { rows, before: None, after: None, cut: false }));
+}
+#[test]
+fn a_making_line_asks_for_its_proposal() {
+    let mut f = f::opened();
+    making_page(&mut f, 1);
+    let first = reads(&mut f.out);
+    assert_eq!(first.len(), 1);
+    assert_eq!(first[0].1, c::ProposalKey { proposer: c::Proposer::Task(f::TASK), number: 1 });
+}
+fn read_making_card(f: &mut f::Fixture) -> (jig_client::Handle, c::ProposalKey) {
+    making_page(f, 1);
+    reads(&mut f.out)[0]
+}
+#[test]
+fn a_second_page_with_the_line_asks_once() {
+    let mut f = f::opened();
+    let (handle, _) = read_making_card(&mut f);
+    making_page(&mut f, 1);
+    assert!(reads(&mut f.out).is_empty());
+    assert_eq!(f.chat.cards.get(0).unwrap().handle, handle);
+}
+#[test]
+fn a_decided_card_stays_when_the_document_arrives_after_its_line() {
+    let mut f = f::opened();
+    let (handle, key) = read_making_card(&mut f);
+    card_page(&mut f, Time::ZERO, handle, accepted_proposal(key, skein_lib::Wall::EPOCH));
+    proposals(&mut f, &[]);
+    making_page(&mut f, 1);
+    assert!(reads(&mut f.out).is_empty(), "document and line must not restart the read");
+    assert!(f.chat.departures().is_empty());
+    assert_eq!(f.chat.cards.get(0).unwrap().handle, handle);
+}
+#[test]
+fn a_gone_proposal_has_no_card_and_is_not_asked_again() {
+    let mut f = f::opened();
+    let (handle, _) = read_making_card(&mut f);
+    card_page(&mut f, Time::ZERO, handle, jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Gone)));
+    proposals(&mut f, &[]);
+    making_page(&mut f, 1);
+    assert!(reads(&mut f.out).is_empty());
+    assert_eq!(f.chat.cards.len(), 1, "remember the answered read");
+    assert!(f.chat.cards.get(0).unwrap().page.is_none(), "no drawable page");
+}
+#[test]
+fn a_full_list_lets_a_decided_card_out_of_the_window_go() {
+    let key = c::ProposalKey { proposer: c::Proposer::Task(f::TASK), number: 1 };
+    for answer in [
+        accepted_proposal(key, skein_lib::Wall::EPOCH),
+        jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Gone)),
+    ] {
+        let mut f = f::opened();
+        f.chat.cards = skein_lib::List::with_capacity(1);
+        let (handle, _) = read_making_card(&mut f);
+        card_page(&mut f, Time::ZERO, handle, answer);
+        making_lines(&mut f, &[1, 2]);
+        assert!(reads(&mut f.out).is_empty(), "a card whose making line stands keeps its place at the bound");
+        making_page(&mut f, 2);
+        let second = reads(&mut f.out);
+        assert_eq!(second.len(), 1);
+        assert_eq!(second[0].1.number, 2);
+        assert_eq!(f.chat.cards.len(), 1);
+        assert_eq!(f.chat.cards.get(0).unwrap().handle, second[0].0);
+        assert_ne!(second[0].0, handle);
+    }
+}

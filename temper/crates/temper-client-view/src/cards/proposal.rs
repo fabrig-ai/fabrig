@@ -439,10 +439,9 @@ pub(crate) fn settings(
     bindings: &mut crate::frame::Bindings,
     replaced: bool,
 ) -> bool {
-    let Some(proposal) = settings_proposal(root, card) else { return false };
-    let c::ProposalAction::Settings(settings) = &proposal.action else { return false };
+    let Some(facts) = settings_facts(card) else { return false };
     let state = settings_state(card);
-    let accepted = state == SettingsState::Accepted || settings.made.is_some();
+    let accepted = state == SettingsState::Accepted || facts.made.is_some();
     let superseded = replaced && state == SettingsState::Withdrawn;
     b.open(Role::Region);
     b.style(crate::look::SETTINGS_PROPOSAL);
@@ -452,11 +451,11 @@ pub(crate) fn settings(
     b.name(&words.say(Word::Proposal, &[]));
     b.open(Role::Paragraph);
     b.style(crate::look::SETTINGS_PROPOSAL_TITLE);
-    let title = settings_title(root, proposal, words);
+    let title = settings_title(root, &facts, words);
     b.name(&title);
     b.text(skein_ui::Run::Plain, &title);
     b.close();
-    settings_lines(b, root, proposal, words);
+    settings_lines(b, root, &facts, words);
     let ending = if accepted {
         Some(Word::SettingsProposalAccepted)
     } else {
@@ -478,7 +477,9 @@ pub(crate) fn settings(
         b.name(&said);
         b.text(skein_ui::Run::Plain, &said);
         b.close();
-    } else if state == SettingsState::Pending {
+    } else if state == SettingsState::Pending
+        && let Some(proposal) = facts.live
+    {
         let offered = jig_client::facts::offer(proposal.acts.as_slice(), c::ActKind::Accept);
         if let Some(c::Admission::Allowed | c::Admission::Bounded { .. }) = offered {
             b.open(Role::Slot);
@@ -523,21 +524,44 @@ pub(crate) fn settings(
     true
 }
 
-pub(crate) fn settings_proposal<'a>(
-    root: &'a temper_client_domain::Domain,
-    card: &'a temper_client_domain::pages::inbox::Card,
-) -> Option<&'a c::Proposal> {
+/// What a settings card draws, from a live proposal or its retained record (client/README.md, 5.13).
+pub(crate) struct SettingsFacts<'a> {
+    pub(crate) key: c::ProposalKey,
+    pub(crate) projects: &'a [u32],
+    pub(crate) reason: &'a c::DocumentText,
+    pub(crate) items: &'a [c::RevisionItemHead],
+    pub(crate) made: Option<u32>,
+    /// The live proposal, for its acts and who it waits for; none once it has ended.
+    pub(crate) live: Option<&'a c::Proposal>,
+}
+pub(crate) fn settings_facts(card: &temper_client_domain::pages::inbox::Card) -> Option<SettingsFacts<'_>> {
+    let c::ObjectKey::Proposal(key) = card.object else { return None };
     if let Some(c::ReadValue::Proposal(proposal)) = &card.page
-        && let c::ProposalAction::Settings(_) = &proposal.action
+        && proposal.key == key
+        && let c::ProposalAction::Settings(settings) = &proposal.action
     {
-        return Some(proposal);
+        return Some(SettingsFacts {
+            key,
+            projects: proposal.projects.as_slice(),
+            reason: &proposal.reason,
+            items: settings.items.as_slice(),
+            made: settings.made,
+            live: Some(proposal),
+        });
     }
-    if let Some(chat) = root.pages().chat() {
-        for proposal in &chat.settings_proposals {
-            if card.object == c::ObjectKey::Proposal(proposal.key) {
-                return Some(proposal);
-            }
-        }
+    if let Some(c::ReadValue::Ended(ended)) = &card.page
+        && ended.matches(card.object)
+        && let c::EndedValue::Proposal(proposal) = &ended.value
+        && let c::RetainedAction::Settings(settings) = &proposal.action
+    {
+        return Some(SettingsFacts {
+            key,
+            projects: settings.projects.as_slice(),
+            reason: &proposal.reason,
+            items: settings.items.as_slice(),
+            made: settings.made,
+            live: None,
+        });
     }
     None
 }
@@ -625,21 +649,20 @@ fn waiting(b: &mut Builder, root: &temper_client_domain::Domain, holder: c::Hist
     }
 }
 
-fn settings_lines(b: &mut Builder, root: &temper_client_domain::Domain, proposal: &c::Proposal, words: &Words) {
+fn settings_lines(b: &mut Builder, root: &temper_client_domain::Domain, facts: &SettingsFacts<'_>, words: &Words) {
     use temper_client_domain::forge::ways::Proposed;
-    let c::ProposalAction::Settings(settings) = &proposal.action else { return };
     b.open(Role::Slot);
     b.style(crate::look::SETTINGS_PROPOSAL_REASON);
-    super::document(b, &proposal.reason);
+    super::document(b, facts.reason);
     b.close();
-    if settings.items.is_empty() {
+    if facts.items.is_empty() {
         return;
     }
     b.open(Role::List);
     b.style(crate::look::SETTINGS_PROPOSAL_ITEMS);
-    for item in &settings.items {
+    for item in facts.items {
         let mut rendered = false;
-        if let Some(values) = root.forge().proposed(proposal.key.number) {
+        if let Some(values) = root.forge().proposed(facts.key.number) {
             for value in values {
                 match value {
                     Proposed::Ways { project, ways }
@@ -775,15 +798,15 @@ fn project_label(root: &temper_client_domain::Domain, project: u32) -> Box<[u8]>
     }
 }
 
-fn settings_title(root: &temper_client_domain::Domain, proposal: &c::Proposal, words: &Words) -> Box<[u8]> {
-    if proposal.projects.is_empty() {
+fn settings_title(root: &temper_client_domain::Domain, facts: &SettingsFacts<'_>, words: &Words) -> Box<[u8]> {
+    if facts.projects.is_empty() {
         return words.say(Word::SettingsProposalTitleAll, &[]);
     }
     let mut names = skein_lib::bytes::copy_of(b"");
-    for (index, project) in proposal.projects.iter().enumerate() {
+    for (index, project) in facts.projects.iter().enumerate() {
         let separator: &[u8] = if index == 0 {
             b"".as_slice()
-        } else if index.checked_add(1).expect("bounded projects") == proposal.projects.as_slice().len() {
+        } else if index.checked_add(1).expect("bounded projects") == facts.projects.len() {
             b" and "
         } else {
             b", "

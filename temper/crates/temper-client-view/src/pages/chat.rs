@@ -426,9 +426,12 @@ fn proposal_card(
     (rows, times): (u32, Option<&mut Times>),
     role: Role,
 ) {
+    if !proposal_draws(card) {
+        return;
+    }
     b.open(role);
     b.name(&super::inbox::card_name(root, card.object, Word::Proposal, words));
-    if crate::cards::proposal::settings_proposal(root, card).is_none() {
+    if crate::cards::proposal::settings_facts(card).is_none() {
         b.style(look::CARD);
         b.style(look::KIND_PROPOSAL);
     }
@@ -446,6 +449,13 @@ fn proposal_card(
         crate::confirm::card(b, root, card, words, bindings, rows);
     }
     b.close();
+}
+
+fn proposal_draws(card: &temper_client_domain::pages::inbox::Card) -> bool {
+    if let Some(c::ReadValue::Ended(_)) = &card.page {
+        return crate::cards::proposal::settings_facts(card).is_some();
+    }
+    card.page.is_some()
 }
 
 // Only assistant calls inside the displayed row bounds can stand for a card.
@@ -499,6 +509,9 @@ fn proposal_place(
     lines: &[Line<'_>],
     rows: u32,
 ) -> Place {
+    if !proposal_draws(card) {
+        return Place::Outside;
+    }
     if proposal_anchor(chat, card.object, rows).is_some() {
         return Place::Call;
     }
@@ -524,6 +537,9 @@ fn proposal_place(
             }
         }
         return end;
+    }
+    if let Some(c::ReadValue::Ended(_)) = &card.page {
+        return Place::Outside;
     }
     if let Some(page) = &card.page
         && let Some(since) = super::inbox::waiting_since(page)
@@ -816,6 +832,18 @@ pub(crate) fn conversation_with_times(
     }
     let lines = thread.lines().into_boxed();
     let places = proposal_places(proposals, thread, &lines, rows);
+    let mut standing = List::with_capacity(places.capacity());
+    if let Some(root) = proposals {
+        let chat = root.pages().chat().expect("chat page");
+        for (card, place) in chat.cards.iter().zip(&places) {
+            if *place != Place::Outside
+                && let c::ObjectKey::Proposal(key) = card.object
+                && key.proposer == c::Proposer::Task(chat.task)
+            {
+                standing.push(key.number).expect("standing cards fit");
+            }
+        }
+    }
     let mut run = super::chat_line::Run::with_capacity(rows.saturating_mul(rows).saturating_mul(thread.limits.lines));
     let mut started = super::chat_sheet::started(proposals);
     let mut day = None;
@@ -859,7 +887,7 @@ pub(crate) fn conversation_with_times(
             continue;
         }
         start_fact(b, &mut started, Some(&line), words, bindings);
-        if hidden_line(&line, projected, delegations) {
+        if hidden_line(&line, projected, delegations, standing.as_slice()) {
             if let Line::Activity { line: event } = &line
                 && let Some(task) = delegation::heard(&event.source.line)
                 && !shown.as_slice().contains(&task)
@@ -1152,9 +1180,19 @@ fn owner_line(
     }
     super::task::owner_activity(b, line, words);
 }
-fn hidden_line(line: &Line<'_>, projected: bool, delegations: Option<(&Chat, &jig_client::Client)>) -> bool {
+fn hidden_line(
+    line: &Line<'_>,
+    projected: bool,
+    delegations: Option<(&Chat, &jig_client::Client)>,
+    standing: &[u64],
+) -> bool {
     match line {
         Line::Activity { line } => {
+            if let c::Activity::Decided { proposal: Some(proposal), .. } = line.source.line
+                && standing.contains(&proposal.number)
+            {
+                return true;
+            }
             if let c::Activity::Decided { .. } = line.source.line
                 && let Some((chat, client)) = delegations
                 && let Some(task) = chat.task(client)
@@ -1683,7 +1721,7 @@ fn settings_replaced(root: &Domain, object: c::ObjectKey) -> bool {
     let c::ObjectKey::Proposal(key) = object else { return false };
     let Some(chat) = root.pages().chat() else { return false };
     for card in &chat.cards {
-        if let Some(proposal) = crate::cards::proposal::settings_proposal(root, card)
+        if let Some(proposal) = crate::cards::proposal::settings_facts(card)
             && proposal.key.number > key.number
         {
             return true;

@@ -712,74 +712,22 @@ fn a_person_who_may_not_accept_sees_who_decides() {
     assert!(fixtures::find(&tree, Role::Paragraph, b"Waiting for an owner").is_some());
     assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"Pat").is_some());
 }
-fn settings_read_token(out: &Queue<d::Request>) -> skein_lib::Token {
-    let mut found = None;
-    for request in out {
-        if let d::Request::Unlinked {
-            request:
-                jig_client::UnlinkedRequest::Down {
-                    down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Proposal { .. }) },
-                },
-        } = request
-        {
-            found = Some(*read);
-        }
-    }
-    found.expect("settings proposal read")
-}
-fn restored_settings() -> (d::Domain, skein_lib::Token) {
-    let (mut root, _, _) =
-        fixtures::root_at(d::Address::Home { project: fixtures::PROJECT }, &fixtures::domain_limits());
-    let out = settings_drive(
-        &mut root,
-        Event::Client {
-            event: jig_client::Event::Read {
-                handle: jig_client::Handle { asker: d::owner::Owner::Pages.asker(), number: 100 },
-                read: jig_client::Readable::Jig(c::Read::Proposal { proposal: SETTINGS_KEY }),
-            },
-        },
-    );
-    let read = settings_read_token(&out);
-    settings_up(
-        &mut root,
-        jig_client::Up::ReadDone {
-            read,
-            result: jig_client::Readout::Jig(c::ReadResult::Value(settings_page(&[], true))),
-        },
-    );
-    let out = settings_drive(
-        &mut root,
-        Event::Went { place: d::Place::Address(d::Address::Chat { task: fixtures::chat::DELEGATE }) },
-    );
-    let read = settings_read_token(&out);
-    assert!(settings_card(&root).page.is_none());
-    assert!(root.pages().chat().unwrap().settings_proposals.get(0).unwrap().acts.is_empty());
-    (root, read)
-}
-#[expect(clippy::disallowed_methods, reason = "ordinary tests inspect semantic nodes and retained reason lines")]
-fn assert_reading_settings(root: &d::Domain) {
-    let tree = draw_settings(root, &settings_card(root), false);
+#[test]
+fn an_unread_card_says_no_waiting_before_its_read() {
+    let (root, _) = settings_root(settings_page(&[], true));
+    let mut card = settings_card(&root);
+    card.page = None;
+    let mut builder = Builder::new(&fixtures::tree_limits());
+    assert!(!crate::cards::proposal::settings(
+        &mut builder,
+        &root,
+        &card,
+        &fixtures::words(),
+        &mut crate::frame::Bindings::new(64),
+        false
+    ));
+    let tree = builder.finish();
     assert!(fixtures::find(&tree, Role::Paragraph, b"Waiting for an owner").is_none());
-    assert!(fixtures::find(&tree, Role::Paragraph, b"How temper will run Shop").is_some());
-    for line in SETTINGS_REASON.split(|byte| *byte == b'\n') {
-        assert!(skein_lib::bytes::find(&fixtures::text(&tree), line).is_some());
-    }
-    assert!(tree.nodes().iter().all(|node| !node.styles.as_slice().contains(&crate::look::SETTINGS_PROPOSAL_STATE)));
-    assert!(tree.nodes().iter().all(|node| node.role != Role::Button));
-}
-#[test]
-fn a_restored_card_says_no_waiting_before_its_read() {
-    let (root, _) = restored_settings();
-    assert_reading_settings(&root);
-}
-#[test]
-fn a_restored_card_says_no_waiting_when_its_read_is_busy() {
-    let (mut root, read) = restored_settings();
-    settings_up(
-        &mut root,
-        jig_client::Up::ReadDone { read, result: jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Busy)) },
-    );
-    assert_reading_settings(&root);
 }
 #[expect(clippy::disallowed_methods, reason = "ordinary tests inspect semantic state lines and styles")]
 fn decided_settings(state: c::ProposalHistoryState, choice: c::ProposalChoice, replaced: bool, expected: &str) {
@@ -946,4 +894,72 @@ fn a_settings_proposal_waiting_on_policy_zero_names_deployment_owners() {
     let said = fixtures::text(&draw_settings(&root, &settings_card(&root), false));
     assert!(skein_lib::bytes::find(&said, b"Owners of this deployment").is_some());
     assert!(skein_lib::bytes::find(&said, b"Owners of project 0").is_none());
+}
+
+#[test]
+fn a_decided_card_draws_from_what_jig_retains() {
+    for (state, expected) in [
+        (
+            c::ProposalHistoryState::Accepted { by: c::Requester::Person(fixtures::chat::PARTY) },
+            "✓ Accepted · new work follows it",
+        ),
+        (
+            c::ProposalHistoryState::Rejected {
+                by: c::Requester::Person(fixtures::chat::PARTY),
+                reason: c::DocumentText::complete(c::Text::new(b"Keep it".as_slice().into(), 128).unwrap()),
+            },
+            "Rejected · nothing changes",
+        ),
+        (c::ProposalHistoryState::Withdrawn, "Withdrawn · nothing changes"),
+    ] {
+        let mut projects = List::with_capacity(1);
+        projects.push(fixtures::PROJECT).unwrap();
+        let mut items = List::with_capacity(1);
+        items
+            .push(c::RevisionItemHead {
+                setting: c::Setting::Charter(c::SettingNumber { number: 2 }),
+                edit: c::RevisionItemEdit::Set,
+            })
+            .unwrap();
+        let (root, _) = settings_root(c::ReadValue::Ended(Box::new(c::Ended {
+            key: c::ObjectKey::Proposal(SETTINGS_KEY),
+            at: None,
+            by: None,
+            value: c::EndedValue::Proposal(c::ProposalHistory {
+                number: SETTINGS_KEY.number,
+                proposer: fixtures::chat::DELEGATE,
+                as_holder: true,
+                reason: c::DocumentText::complete(
+                    c::Text::new(b"## temper enforces\nKeep the settings".as_slice().into(), 128).unwrap(),
+                ),
+                state,
+                action: c::RetainedAction::Settings(c::RetainedActionSettings {
+                    projects,
+                    against: 1,
+                    items,
+                    made: None,
+                }),
+            }),
+        })));
+        for words in [fixtures::words(), fixtures::browser_words()] {
+            let mut builder = Builder::new(&fixtures::tree_limits());
+            assert!(crate::cards::proposal::settings(
+                &mut builder,
+                &root,
+                &settings_card(&root),
+                &words,
+                &mut crate::frame::Bindings::new(64),
+                false
+            ));
+            let tree = builder.finish();
+            assert!(fixtures::find(&tree, Role::Paragraph, b"How temper will run Shop").is_some());
+            assert!(fixtures::person_find(&tree, Role::Heading { level: 5 }, b"temper enforces").is_some());
+            let said = fixtures::text(&tree);
+            for expected in [expected.as_bytes(), b"charter 2", b"Keep the settings"] {
+                assert!(skein_lib::bytes::find(&said, expected).is_some());
+            }
+            assert!(fixtures::find(&tree, Role::Paragraph, b"Waiting for an owner").is_none());
+            assert!(fixtures::find(&tree, Role::Button, b"Accept").is_none());
+        }
+    }
 }

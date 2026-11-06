@@ -4653,7 +4653,7 @@ fn finish_settings_proposal(root: &mut Domain, watch: Token, name: &str, out: &m
                     value: c::EndedValue::Proposal(c::ProposalHistory {
                         reason: proposal.reason,
                         action: c::RetainedAction::Settings(c::RetainedActionSettings {
-                            projects: skein_lib::List::with_capacity(0),
+                            projects: proposal.projects,
                             against: settings.against,
                             items: settings.items,
                             made: if name == "configure-chat-accepted" { Some(1) } else { None },
