@@ -1131,7 +1131,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-starter-own-acts",
         b"temper-doc-sub",
         b"temper-doc-flow",
-        b"temper-doc-figures",
+        b"temper-reserved-455",
         b"temper-reserved-456",
         b"temper-reserved-457",
         b"temper-reserved-458",
@@ -1367,7 +1367,6 @@ pub const STARTER_OWN_ACTS: Style = Style { owner: owner(), token: 452 };
 /// The stock reference beside Configure (temper/docs/design/client/README.md, 3.5).
 pub const DOC_SUB: Style = Style { owner: owner(), token: 453 };
 pub const DOC_FLOW: Style = Style { owner: owner(), token: 454 };
-pub const DOC_FIGURES: Style = Style { owner: owner(), token: 455 };
 
 /// The last word of a turn being written (client/README.md, 3.5).
 pub const WRITING_END: Style = Style { owner: owner(), token: 469 };

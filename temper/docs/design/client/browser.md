@@ -646,7 +646,7 @@ replay says the same clocks (`README.md`, 5.12).
 - **temper's own way** (`README.md`, 3.5) is `configure-temper-own-way`'s rules, in
   `temper.css` under `/* ==== ui: settings ==== */`: on the page
   `.temper-starter-head` and `.temper-starter-own` with its parts; in the pane, beside
-  a chat's document's, `.temper-doc-figures` and `.temper-doc-flow`, which holds the
+  a chat's document's, `.temper-doc-flow`, which holds the
   picture's numbered list and no flow, with `.temper-doc-sub` and `.temper-doc-muted`
   under the chats' marker.
 - **What the mock lacks and a print needs** stays in the view, hidden by the

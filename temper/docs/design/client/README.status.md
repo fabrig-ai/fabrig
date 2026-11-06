@@ -163,7 +163,7 @@
   follow them.
 - **Design departs:** 3.5, *The configuring chat's page* and *temper's own way, beside the page*,
   from the request `configure-temper-own-way` of 2026-11-06, by the user's word that day and that
-  request's plan's cut. The picture, the figures and the table's Workers and QA stand in
+  request's plan's cut. The picture and the table's Workers and QA stand in
   `../draft/own-way.status.md`. Beside them:
   - the reference's title is level 2 at 28 px over level 3 sections at 17 px, as a chat's document
     has them, where the request's page has a small level 3 title over large level 2 sections;
