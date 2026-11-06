@@ -65,3 +65,22 @@ Not this task: new behaviour.
 ## Report
 
 As the implementer's text asks, and **the journeys that moved, for fabrig/ui**, each with what moved. Then what the user reads on a real chat: this plan's `walk` is false, as the user reads it.
+
+## Rebase (2026-11-06, step merge, foreman chat-reading-c/reading-close/foreman-1)
+
+reconcile reading-close with main’s newer client design and regenerate journey prints
+The merge failed on documentation and generated `chat-draft` HTML; this is a branch conflict, not an infrastructure failure.
+Rebase onto current main, preserving its unrelated changes throughout the conflicting files.
+In `temper/docs/design/client/README.md`, retain Pause/Resume/Close from `17327a3918` and composer-focus rules from `cbb15d02a5`; apply this task’s edge-reading corrections within those newer paragraphs.
+Preserve agent Latest from `68dc9aeb23` and chat-reading-b’s design. Reconcile this branch’s stale “agent has no pill” statements, including section 5.15, with the combined implementation.
+In `README.status.md`, remove only the task’s completed 5.15 gap; retain main’s other findings and completed removals.
+In `draft/chat-reading.status.md`, preserve main’s section 2 departures and section 7 wording, remove section 5’s Design lags entry, and retain this branch’s three section 5 Design departs entries.
+Merge `temper/docs/design/STATUS.md` accordingly, preserving main’s other status updates.
+In `client/journeys.md` and `client/mockups/STATUS.md`, retain main’s newer journey/setup and model-check wording while applying the no-Older, edge-reading corrections. Keep main’s numbered-list status citation.
+Main refreshed `chat-draft` in `cdfa781cb4`, added setup-based recording in `8a332171b3`, and refreshed it again in `37558b97dd`; preserve those recording/setup sources.
+Merge `journeys/chat-draft/README.md`: keep main’s setup-based provenance and this task’s description of edge loading and the returned chat’s measured window.
+Resolve conflicting `chat-draft/08.html`–`18.html`, `21.html`, and `22.html` by regeneration, not hand merging (`client/journeys.md`, 5.2); regenerate the automatically merged prints too.
+Run `heavy cargo run -p temper-client-journeys`; for each stale fake journey, try `again NAME` as specified. Report any refusal and each journey’s changed behavior for fabrig/ui.
+Regenerate any gallery or golden outputs made stale by the combined code using their existing tools; these remain this task’s responsibility.
+Review the automatically merged `client/browser.md` for agreement with both changes.
+Run the spec’s citation check and focused journey/gallery tests through heavy, then commit and push under the new rebase branch name.
