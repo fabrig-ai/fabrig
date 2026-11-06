@@ -2138,9 +2138,13 @@ keeps (`../protocol/configuration.md`, section 2).
     followed by "/", then the level-1 heading "Configure
     temper", the page's title too; on a phone "‹", a link named "Settings", alone before the
     heading. At its right on a wide page, the line of what the chat's
-    runs use, "ChatGPT plan · gpt-6.1-sol", the first usable account's
-    kind, as Ready's model line chooses it, and the first model `me`
-    serves for the project.
+    runs use, "ChatGPT plan · gpt-6.1-sol", in the composer's line's words
+    (5.5): on a configuring chat, what its next run takes, as any chat's
+    byline; with no chat yet, what a new chat's would, the first model `me`
+    serves for the project whose LLM provider is usable for the person,
+    with that provider's first usable account. It never sets one LLM
+    provider's account beside another's model; with no usable account it
+    says what the composer's line says then.
   - *The conversation,* a region named "Conversation", its opening a
     page as `Home` is, starting at the conversation's top, with no
     kicker: the level-2 heading "How should temper run PROJECT?", drawn
