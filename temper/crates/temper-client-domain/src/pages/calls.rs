@@ -105,7 +105,6 @@ fn number(doc: &Document, object: u32, key: &[u8]) -> Option<u64> {
     Some(number)
 }
 fn bounded(bytes: &[u8]) -> Box<[u8]> {
-    let bytes = first_line(bytes);
     let mut end = bytes.len().min(256);
     for _continuation in 0_u8..3 {
         match bytes.get(end) {
