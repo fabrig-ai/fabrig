@@ -880,6 +880,7 @@ pub enum Word {
     WaitMoving,
     WaitHost,
     WaitEmpty,
+    WaitEmptyModel,
     WaitCredential,
     WaitCapacity,
     Usage,
@@ -1324,7 +1325,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The rail menu adds six literal phrases (client/README.md, 5.3).
 // The waiting page removes five phrases across its words and accounts (client/README.md, 3.5).
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
-const PHRASES: u32 = 1809;
+const PHRASES: u32 = 1810;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1347,9 +1348,9 @@ const PHRASES: u32 = 1809;
 // The rail menu adds six literal segments (client/README.md, 5.3).
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
-const SEGMENTS: u32 = 3134;
-const TEXT_BYTES: u32 = 44467;
-const ALL: [Word; 1212] = [
+const SEGMENTS: u32 = 3139;
+const TEXT_BYTES: u32 = 44577;
+const ALL: [Word; 1213] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -2197,6 +2198,7 @@ const ALL: [Word; 1212] = [
     Word::WaitMoving,
     Word::WaitHost,
     Word::WaitEmpty,
+    Word::WaitEmptyModel,
     Word::WaitCredential,
     Word::WaitCapacity,
     Word::Usage,
@@ -3417,6 +3419,7 @@ impl Word {
             Self::WaitMoving => 1850,
             Self::WaitHost => 1013,
             Self::WaitEmpty => 1014,
+            Self::WaitEmptyModel => 1078,
             Self::WaitCredential => 1015,
             Self::WaitCapacity => 1016,
             Self::Usage => 1017,
@@ -4865,13 +4868,14 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::AccountKey => (&[b"Use an API key"], &[]),
         Word::ChoiceApply => (&[b"Apply to next run"], &[]),
         Word::ChoiceReset => (&[b"Reset choice"], &[]),
-        Word::AccountWaiting => (&[b"Starting: waiting for an account"], &[]),
+        Word::AccountWaiting => (&[b"Waiting for an account"], &[]),
         Word::WaitRefreshing => (&[b"Refreshing account credentials"], &[]),
         Word::WaitMoving => (&[b"Waiting because the account is moving to another deployment"], &[]),
-        Word::WaitHost => (&[b"Waiting for an account on a host"], &[]),
+        Word::WaitHost => (&[b"", b"'s login isn't signed in on a host that can run this."], &[Name]),
         Word::WaitEmpty => (&[b"No account serving this work"], &[]),
-        Word::WaitCredential => (&[b"Waiting for a credential"], &[]),
-        Word::WaitCapacity => (&[b"Waiting for a host"], &[]),
+        Word::WaitEmptyModel => (&[b"No account can run ", b" yet."], &[Name]),
+        Word::WaitCredential => (&[b"This work needs a credential from its forge."], &[]),
+        Word::WaitCapacity => (&[b"No host has room for this, or none is connected. It starts when one does."], &[]),
         Word::Usage => (&[b"Manage usage"], &[]),
         Word::ChoicePending => (&[b"Next-run choice request in progress"], &[]),
         Word::TaskHeader => (&[b"Task details"], &[]),
