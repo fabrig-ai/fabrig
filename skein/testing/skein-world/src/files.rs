@@ -7,9 +7,9 @@
 
 use alloc::collections::VecDeque;
 use skein_io::file::{Event, Request};
-use skein_io::file_layer::{self, FileIo};
+use skein_io::file_layer::{self, FileIo, step};
 use skein_io::kernel::{Complete, Error, Fd, Submit};
-use skein_lib::{Duration, Queue, Time, Token};
+use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 
 const ROOM: u32 = 64;
 
@@ -22,6 +22,7 @@ struct Queued {
 #[expect(missing_debug_implementations, reason = "file requests may contain private bytes")]
 pub struct Driver {
     io: FileIo,
+    file_limits: file_layer::Limits,
     root: Token,
     queue: VecDeque<Queued>,
     events: Queue<Event>,
@@ -33,11 +34,13 @@ impl Driver {
     /// Adopts the owner's startup root after configuring its effective user.
     #[must_use]
     pub fn new(root: Fd, files: u32, max: u32, stall: Duration, user: u32) -> Driver {
-        let mut io = FileIo::with_whole_limit(files, 32, 4, max, stall).with_effective_user(user);
+        let file_limits = file_layer::Limits { files, read: 32, entries: 4, whole: max, timeout: stall };
+        let mut io = FileIo::with_limits(&file_limits).with_effective_user(user);
         io.seed_randomness(123);
         let root = io.adopt_root(root).expect("world startup root");
         Driver {
             io,
+            file_limits,
             root,
             queue: VecDeque::with_capacity(usize::try_from(ROOM).expect("room")),
             events: Queue::with_capacity(ROOM),
@@ -81,8 +84,9 @@ impl Driver {
 
     /// Fires deadlines and starts the next request once `FileIo` has settled.
     pub fn progress(&mut self, now: Time) {
+        let env = Env { now, wall: Wall::EPOCH, limits: self.file_limits };
         if self.io.is_due(now) {
-            file_layer::expire(&mut self.io, now, &mut self.submissions);
+            step::expire(&mut self.io, &env, &mut self.submissions);
         }
         for index in (0..self.queue.len()).rev() {
             let queued = self.queue.get(index).expect("queued request");
@@ -97,23 +101,17 @@ impl Driver {
             }
         }
         if self.io.takes()
-            && let Some(queued) = self.queue.pop_front()
+            && let Some(Queued { request, deadline }) = self.queue.pop_front()
         {
-            if now >= queued.deadline && !matches!(queued.request, Request::Close { .. }) {
+            if now >= deadline && !matches!(request, Request::Close { .. }) {
                 self.events.push(Event::Failed {
-                    owner: owner_of(&queued.request),
+                    owner: owner_of(&request),
                     error: Error::TimedOut,
                     committed: false,
                     residue: None,
                 });
             } else {
-                file_layer::down_until(
-                    &mut self.io,
-                    queued.deadline,
-                    queued.request,
-                    &mut self.events,
-                    &mut self.submissions,
-                );
+                step::down_until(&mut self.io, &env, deadline, request, &mut self.events, &mut self.submissions);
             }
         }
     }
@@ -121,7 +119,8 @@ impl Driver {
     /// Routes one kernel completion back to the file driver.
     pub fn up(&mut self, complete: Complete) {
         assert!(Self::owns(complete.op), "completion belongs to the file namespace");
-        file_layer::up(&mut self.io, complete, &mut self.events, &mut self.submissions);
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.file_limits };
+        step::up(&mut self.io, &env, complete, &mut self.events, &mut self.submissions);
     }
 
     /// Whether this kernel owner token belongs to the file driver.

@@ -93,6 +93,14 @@ let s = "Limits { x: 1 }"; // Limits { x: 1 }
 ''')
         self.assertEqual(totals['full_limits'], 6)
 
+    def test_limits_of_the_file_layer_are_the_new_form(self):
+        totals = self.count('''
+let a = file_layer::Limits { files: 2 };
+let b = skein_io::file_layer::Limits { files: 2 };
+let c = other_layer::Limits { files: 2 };
+''')
+        self.assertEqual(totals['full_limits'], 1)
+
     def test_test_windows_in_files_and_inline_items(self):
         source = '''fn production() { bytes.windows(2); }
 #[cfg(test)] mod checks { #[test] fn check() { bytes.windows(2); } }

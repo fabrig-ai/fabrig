@@ -485,60 +485,21 @@ fn full_socket_buffers_and_listener_admission_stay_under_their_ceilings() {
 
 fn workloads() -> [Limits; 4] {
     [
-        Limits {
-            sockets: 2,
-            refusals: 1,
-            intake: 16,
-            receive: 4,
-            output: 16,
-            sends: 1,
-            accepts: 1,
-            backlog: 2,
-            close_timeout: Duration::from_secs(1),
-            names: 0,
-            retry: Duration::from_millis(10),
-        },
+        Limits { intake: 16, receive: 4, output: 16, sends: 1, backlog: 2, ..Limits::TEST },
         Limits {
             sockets: 8,
             refusals: 4,
             intake: 4096,
-            receive: 1024,
             output: 8192,
             sends: 4,
             accepts: 2,
             backlog: 16,
-            close_timeout: Duration::from_secs(1),
-            names: 0,
-            retry: Duration::from_millis(10),
+            ..Limits::TEST
         },
-        Limits {
-            sockets: 33,
-            refusals: 3,
-            intake: 300,
-            receive: 100,
-            output: 600,
-            sends: 2,
-            accepts: 1,
-            backlog: 8,
-            close_timeout: Duration::from_secs(1),
-            names: 0,
-            retry: Duration::from_millis(10),
-        },
+        Limits { sockets: 33, refusals: 3, intake: 300, receive: 100, output: 600, backlog: 8, ..Limits::TEST },
         // Receive buffers that dwarf the rest: a receive's buffer is freed
         // before the next is made, never both held at once.
-        Limits {
-            sockets: 2,
-            refusals: 1,
-            intake: 32768,
-            receive: 16384,
-            output: 64,
-            sends: 1,
-            accepts: 1,
-            backlog: 2,
-            close_timeout: Duration::from_secs(1),
-            names: 0,
-            retry: Duration::from_millis(10),
-        },
+        Limits { receive: 16384, output: 64, sends: 1, backlog: 2, ..Limits::TEST },
     ]
 }
 

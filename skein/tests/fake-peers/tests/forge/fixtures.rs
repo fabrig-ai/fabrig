@@ -29,19 +29,7 @@ pub fn address() -> SocketAddr {
 }
 pub fn limits() -> Limits {
     Limits {
-        io: skein_io::Limits {
-            sockets: 5,
-            refusals: 1,
-            intake: 32_768,
-            receive: 1024,
-            output: 32_768,
-            sends: 2,
-            accepts: 1,
-            backlog: 1,
-            close_timeout: Duration::from_secs(1),
-            names: 0,
-            retry: Duration::from_millis(1),
-        },
+        io: skein_io::Limits { sockets: 5, retry: Duration::from_millis(1), ..skein_io::Limits::TEST },
         connections: 2,
         queue: 64,
         plaintext: 32_768,

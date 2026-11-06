@@ -26,7 +26,7 @@ impl Patience {
 
     pub fn watch_spawn(&mut self, complete: &io::kernel::Complete) {
         if let Ok(io::kernel::Done::Spawned { pidfd, .. }) = complete.result {
-            self.watch_process(skein_shell::child_id(pidfd).expect("the spawned child's PID"));
+            self.watch_process(skein_shell::keeper::child_id(pidfd).expect("the spawned child's PID"));
         }
     }
 

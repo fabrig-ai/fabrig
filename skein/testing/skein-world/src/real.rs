@@ -240,7 +240,7 @@ impl<P: Host, R: Referee<P>> World<P, R> {
 
     /// Adds a service whose signal records arrive through its own real pipe.
     pub fn spawn_signals<F: FnOnce(Fd) -> P>(&mut self, make: F) -> usize {
-        let (reader, writer) = skein_shell::open_signal_pipe().expect("open the service signal pipe");
+        let (reader, writer) = skein_shell::keeper::open_signal_pipe().expect("open the service signal pipe");
         let host = self.spawn_with_fds(vec![reader], || make(reader));
         self.signals.insert(host, SignalSource::Pipe(writer));
         host
@@ -799,10 +799,10 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             );
             match self.world.signals.get(&host).expect("a service declares its signal source") {
                 SignalSource::Pipe(writer) => {
-                    skein_shell::write_service_signal(*writer, signal).expect("deliver the referee signal");
+                    skein_shell::keeper::write_service_signal(*writer, signal).expect("deliver the referee signal");
                 }
                 SignalSource::Real => {
-                    skein_shell::signal_current_thread(signal).expect("deliver the real termination signal");
+                    skein_shell::keeper::signal_current_thread(signal).expect("deliver the real termination signal");
                 }
             }
         }
@@ -880,10 +880,14 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                         Err(Error::Other(3))
                     } else {
                         match signal {
-                            Signal::Interrupt => skein_shell::write_service_signal(writer, ServiceSignal::Interrupt)
-                                .map(|()| Done::Nothing),
-                            Signal::Terminate => skein_shell::write_service_signal(writer, ServiceSignal::Terminate)
-                                .map(|()| Done::Nothing),
+                            Signal::Interrupt => {
+                                skein_shell::keeper::write_service_signal(writer, ServiceSignal::Interrupt)
+                                    .map(|()| Done::Nothing)
+                            }
+                            Signal::Terminate => {
+                                skein_shell::keeper::write_service_signal(writer, ServiceSignal::Terminate)
+                                    .map(|()| Done::Nothing)
+                            }
                             Signal::Stop | Signal::Continue => Err(Error::InvalidArgument),
                             Signal::Kill => {
                                 self.kill(child_host);
@@ -985,7 +989,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
                 }
             }
         }
-        match skein_shell::hosted_pipes(spawn) {
+        match skein_shell::keeper::hosted_pipes(spawn) {
             Ok(pipes) => {
                 let inherited = Inherited { pipes: pipes.pipes, roots, appends, signal: pipes.signal };
                 let proc = match &mut self.world.heap {
@@ -1181,7 +1185,7 @@ fn open_startup_append(declaration: &crate::StartupAppend) -> Result<Fd, Error> 
         _ => Error::Other(errno),
     })?;
     let opened = skein_shell::open_append(root, &declaration.path, declaration.mode);
-    skein_shell::close_keeper_fd(root);
+    skein_shell::keeper::close_keeper_fd(root);
     opened
 }
 

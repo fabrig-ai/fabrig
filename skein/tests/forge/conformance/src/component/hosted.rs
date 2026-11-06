@@ -55,19 +55,8 @@ pub(super) struct Hosted {
 }
 impl Hosted {
     fn limits() -> (skein_io::Limits, skein_forge_client::Limits, skein_forge_connection::Limits) {
-        let io_limits = skein_io::Limits {
-            sockets: 8,
-            names: 0,
-            refusals: 2,
-            intake: 32768,
-            receive: 16384,
-            output: 32768,
-            sends: 4,
-            accepts: 1,
-            backlog: 1,
-            close_timeout: Duration::from_secs(1),
-            retry: Duration::from_millis(10),
-        };
+        let io_limits =
+            skein_io::Limits { sockets: 8, refusals: 2, receive: 16384, sends: 4, ..skein_io::Limits::TEST };
         let client = skein_forge_client::Limits {
             pending: 4,
             calls: 2,

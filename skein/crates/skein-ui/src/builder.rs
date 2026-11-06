@@ -94,7 +94,7 @@ impl Builder {
 
     /// Begin a node; calls between this and `close` build its children.
     pub fn open(&mut self, role: Role) {
-        let runs = if role == Role::Text || role == Role::Progress { self.limits.text_per_node } else { 0 };
+        let runs = if role.takes_runs() { self.limits.text_per_node } else { 0 };
         self.open_with_runs(role, runs);
     }
 
@@ -151,10 +151,7 @@ impl Builder {
 
     /// Append a nonempty run to an open text node or progress; empty spans take no storage.
     pub fn run(&mut self, run: Run, bytes: &[u8]) {
-        assert!(
-            self.node().role == Role::Text || self.node().role == Role::Progress,
-            "runs belong to text nodes or progress"
-        );
+        assert!(self.node().role.takes_runs(), "runs belong to text nodes or progress");
         if bytes.is_empty() {
             return;
         }
@@ -194,10 +191,7 @@ impl Builder {
     }
     /// Hint what to write in an empty text field or text area.
     pub fn placeholder(&mut self, bytes: &[u8]) {
-        assert!(
-            [Role::TextField, Role::TextArea].contains(&self.node().role),
-            "placeholders belong to text fields or text areas"
-        );
+        assert!(self.node().role.is_text_field(), "placeholders belong to text fields or text areas");
         let old = match &self.node().placeholder {
             Some(placeholder) => length(placeholder),
             None => 0,
@@ -220,7 +214,7 @@ impl Builder {
 
     /// Count the whole collection when only part of it is shown.
     pub fn count(&mut self, count: u32) {
-        assert!([Role::List, Role::Table, Role::Tree].contains(&self.node().role), "counts belong to collections");
+        assert!(self.node().role.is_collection(), "counts belong to collections");
         self.node_mut().count = Some(count);
     }
 
@@ -231,19 +225,13 @@ impl Builder {
     }
     /// Place an item in its whole collection, starting at one.
     pub fn position(&mut self, position: u32) {
-        assert!(
-            [Role::Item, Role::Row, Role::TreeItem].contains(&self.node().role),
-            "positions belong to items or rows"
-        );
+        assert!(self.node().role.is_positioned(), "positions belong to items or rows");
         assert!(position > 0, "positions start at one");
         self.node_mut().position = Some(position);
     }
     /// Span rows and columns from a cell.
     pub fn spans(&mut self, spans: Spans) {
-        assert!(
-            [Role::Cell, Role::ColumnHeader, Role::RowHeader].contains(&self.node().role),
-            "spans belong to cells or headers"
-        );
+        assert!(self.node().role.is_cell(), "spans belong to cells or headers");
         assert!(spans.rows > 0 && spans.columns > 0, "spans start at one");
         self.node_mut().spans = Some(spans);
     }
@@ -257,11 +245,7 @@ impl Builder {
     /// Add a semantic state once.
     pub fn state(&mut self, state: State) {
         if state == State::Required {
-            assert!(
-                [Role::TextField, Role::TextArea, Role::Select, Role::Check, Role::ChoiceGroup]
-                    .contains(&self.node().role),
-                "required belongs to fields"
-            );
+            assert!(self.node().role.takes_required(), "required belongs to fields");
         }
         if state == State::Completed {
             assert!(self.node().role == Role::Item, "completed belongs to items");
@@ -285,23 +269,7 @@ impl Builder {
     }
 
     pub fn region(&mut self, region: Region) {
-        assert!(
-            [
-                Role::Banner,
-                Role::Navigation,
-                Role::Main,
-                Role::Complementary,
-                Role::ContentInfo,
-                Role::Form,
-                Role::Search,
-                Role::Region,
-                Role::Dialog,
-                Role::Tabs,
-                Role::Log
-            ]
-            .contains(&self.node().role),
-            "region names belong to landmarks, regions, dialogs, tabs or logs"
-        );
+        assert!(self.node().role.takes_region(), "region names belong to landmarks, regions, dialogs, tabs or logs");
         self.node_mut().region = Some(region);
     }
     pub fn shortcut(&mut self, shortcut: Shortcut) {
@@ -343,16 +311,13 @@ impl Builder {
 
     /// Identify a list item, tree item or slot by its object.
     pub fn key(&mut self, key: Key) {
-        assert!(
-            [Role::Item, Role::TreeItem, Role::Slot].contains(&self.node().role),
-            "keys belong to list items, tree items or slots"
-        );
+        assert!(self.node().role.is_keyed(), "keys belong to list items, tree items or slots");
         self.node_mut().key = Some(key);
     }
 
     /// Set a field's value together with the owner's own-write count.
     pub fn value(&mut self, bytes: &[u8], written: u64) {
-        assert!(self.node().role == Role::TextField || self.node().role == Role::TextArea, "values belong to fields");
+        assert!(self.node().role.is_text_field(), "values belong to fields");
         let old = match &self.node().value {
             Some(value) => length(&value.text),
             None => 0,

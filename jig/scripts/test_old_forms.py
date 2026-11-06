@@ -9,7 +9,7 @@ import unittest
 
 
 SCRIPT = Path(__file__).with_name("old_forms.py").resolve()
-FORMS = ("max_out", "JournalRoom", "takes", "worst_case")
+FORMS = ("max_out", "JournalRoom", "takes", "worst_case", "inner_allow")
 HEADER = (
     "# Uses of the old forms (skein's docs/foundation/programming-model.md, 6.3): each count may only fall.\n"
     "# Lower them with `python3 -I -B scripts/old_forms.py --write`; "
@@ -18,7 +18,8 @@ HEADER = (
 RULE = (
     "Uses of the old forms may only fall (skein's docs/foundation/programming-model.md, 6.3): "
     "new code takes the new forms (Queue::uncapped, Journal::uncapped, decide, backlog), "
-    "or removes as many old uses as it adds."
+    "or removes as many old uses as it adds. "
+    "A lint exception is a scoped #[expect], never an inner allow (AGENTS.md, 2)."
 )
 
 
@@ -40,6 +41,7 @@ class OldForms(unittest.TestCase):
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(source, encoding="utf-8")
         (root / "scripts").mkdir(exist_ok=True)
+        counts += (0,) * (len(FORMS) - len(counts))
         (root / "scripts/old-forms.txt").write_text(
             HEADER + "".join(f"{form} {count}\n" for form, count in zip(FORMS, counts))
             + "comment:actual 0\ncomment:genuine 0\n",
@@ -55,6 +57,7 @@ class OldForms(unittest.TestCase):
 
     def test_a_count_above_its_baseline_fails_naming_the_form_and_the_rule(self):
         root = self.repository({"src/lib.rs": """
+#![allow(dead_code)]
 const max_out_events: usize = 1;
 let room: JournalRoom = journal.room();
 journal.takes(&room);
@@ -62,6 +65,15 @@ let size = payload.worst_case();
 """})
         self.run_script(root, exit=1, lines=[
             *(f"{form}: count 1, baseline 0" for form in FORMS), RULE])
+
+    def test_only_an_inner_allow_attribute_counts(self):
+        for source, count in (("#![allow(dead_code)]", 1),
+                              ("#[allow(dead_code)]", 0),
+                              ("// #![allow(dead_code)]", 0)):
+            with self.subTest(source=source):
+                root = self.repository({"src/lib.rs": source + "\n"})
+                self.run_script(root, exit=count, lines=[
+                    "inner_allow: count 1, baseline 0", RULE] if count else [])
 
     def test_a_use_in_a_comment_or_a_doc_comment_does_not_count(self):
         root = self.repository({"src/lib.rs": """

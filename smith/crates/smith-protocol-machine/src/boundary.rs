@@ -45,12 +45,12 @@ pub enum ToDomain {
 #[derive(Debug, PartialEq, Eq)]
 pub enum Below {
     /// One bounded operation with its absolute domain deadline; the service
-    /// calls `file_layer::down_until` after earlier requests are submitted.
+    /// calls `file_layer::step::down_until` after earlier requests are submitted.
     File { request: file::Request, deadline: Time },
     /// Withdraw this active file owner through `file_layer::cancel`.
     CancelFile { owner: Token },
     /// Open a path through its root token; the service resolves the root
-    /// with `FileIo::descriptor` before calling `file_layer::down_until`.
+    /// with `FileIo::descriptor` before calling `file_layer::step::down_until`.
     OpenRead { owner: Token, root: Token, path: Box<[u8]>, deadline: Time },
     /// Open a listing directory through the installed root, closed before rg starts.
     OpenDirectory { owner: Token, root: Token, path: Box<[u8]>, no_follow: bool, deadline: Time },
