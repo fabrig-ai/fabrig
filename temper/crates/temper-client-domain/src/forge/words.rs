@@ -1248,3 +1248,70 @@ pub fn app_head(slug: &[u8], empty: bool) -> Box<[u8]> {
 pub fn app_installation(installation: &super::forges::Installation, first: bool) -> Box<[u8]> {
     join_words(&[if first { b"" } else { b", " }, &installation_words(installation)])
 }
+
+/// A sheet keeps the refusal beside the remaining selections (client/README.md, 4.4).
+#[must_use]
+pub fn sheet_adoption(answer: &super::Answer) -> Box<[u8]> {
+    use super::{Answer, Reason};
+    copy_of(match answer {
+        Answer::Adopted(_) => b"Adopted.",
+        Answer::CoreRefused(_) => b"The project refused this adoption.",
+        Answer::EntranceRefused(_) => b"Your role cannot adopt into this project.",
+        Answer::Unknown => b"It is not known whether the repository was adopted.",
+        Answer::ForgeRefused(reason) => match reason {
+            Reason::NoSuchForge => b"No such forge is configured.",
+            Reason::NotFound => b"The repository was not found.",
+            Reason::NoAccess => b"temper cannot access this repository.",
+            Reason::Refused => b"The forge refused the adoption.",
+            Reason::InFlight => b"An adoption is already running.",
+            Reason::TooLarge => b"The forge's answer was too large.",
+            Reason::Unreachable => b"The forge did not answer.",
+            Reason::InvalidAnswer => b"The forge answered what temper did not expect.",
+            Reason::AnotherProject => b"The repository is in another project.",
+            Reason::HomeHeld => b"The project already has a home.",
+            Reason::PrefixOccupied => b"Another deployment uses this branch prefix.",
+        },
+    })
+}
+/// Making's admission words, kept by the sheet until its next edit.
+#[must_use]
+pub fn sheet_outcome(outcome: &temper_client_protocol_wire::v1::Outcome) -> Box<[u8]> {
+    use temper_client_protocol_wire::v1::{MakeRefusal, Outcome};
+    copy_of(match outcome {
+        Outcome::MakeRefused(why) => match why.why() {
+            MakeRefusal::NoSuchForge => b"No such forge is configured.",
+            MakeRefusal::NotOffered => b"This forge does not make repositories.",
+            MakeRefusal::NotOwner => b"Only the deployment's owner makes repositories.",
+            MakeRefusal::Invalid => b"The repository's name or source is invalid.",
+            MakeRefusal::HomeHeld => b"The project already has a home.",
+            MakeRefusal::Full => b"Too many repositories are being made. Try again.",
+            MakeRefusal::NotFailed => b"This repository is not a failed making.",
+        },
+        Outcome::Adopted(_)
+        | Outcome::CoreRefused(_)
+        | Outcome::ForgeRefused(_)
+        | Outcome::Unknown
+        | Outcome::SettingUp
+        | Outcome::SetUpRefused(_)
+        | Outcome::Running
+        | Outcome::StartRefused(_)
+        | Outcome::StartFailed(_)
+        | Outcome::Connecting
+        | Outcome::Link(_)
+        | Outcome::ConnectRefused(_)
+        | Outcome::Page(_)
+        | Outcome::Accepted(_)
+        | Outcome::Removed
+        | Outcome::RemoveRefused(_)
+        | Outcome::Reset
+        | Outcome::EndRefused(_)
+        | Outcome::Dismissed
+        | Outcome::MakeKept
+        | Outcome::Looked
+        | Outcome::Away
+        | Outcome::Overturned
+        | Outcome::OverturnRefused(_)
+        | Outcome::Tried
+        | Outcome::NotTheirs => b"The forge did not answer the request.",
+    })
+}

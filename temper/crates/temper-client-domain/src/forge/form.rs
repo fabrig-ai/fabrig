@@ -35,6 +35,7 @@ pub enum Broken {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Act {
+    Sheet(super::sheet::Act),
     Ways(super::ways::Act),
     Forges(super::forges::Act),
     Go { address: Address },
@@ -97,7 +98,7 @@ pub struct Marks {
     pub texts: [Option<Broken>; 6],
     pub home: Option<Broken>,
 }
-fn field(text: &[u8], typed: Typed) -> Field {
+pub(super) fn field(text: &[u8], typed: Typed) -> Field {
     Field { text: Box::from(text), written: 0, broken: None, typed }
 }
 #[must_use]

@@ -50,6 +50,14 @@ pub fn make_repository(request: &w::MakeRepository, limits: &w::Limits) -> Optio
         w::Requesting::new(limits, w::RequestingParts { request: w::Request::MakeRepository(request.clone()) }).ok()?;
     Some(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) })
 }
+/// Read one picker page (temper/docs/design/client/forge.md, 5.1).
+#[must_use]
+pub fn reachable(forge: u16, installation: Option<u64>, page: u32, limits: &w::Limits) -> Option<jig_client::Family> {
+    let request = w::Reachable::new(limits, w::ReachableParts { forge, installation, page }).ok()?;
+    let record = w::Requesting::new(limits, w::RequestingParts { request: w::Request::Reachable(request) }).ok()?;
+    Some(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) })
+}
+
 /// Dismiss a failed making by name (temper/docs/design/client/README.md, 4.6).
 #[must_use]
 pub fn dismiss_making(forge: u16, org: &[u8], name: &[u8], limits: &w::Limits) -> Option<jig_client::Family> {
@@ -542,7 +550,6 @@ mod tests {
     use super::*;
 
     #[test]
-    #[expect(clippy::panic, reason = "the request builder must choose the dismissal variant")]
     fn dismiss_making_builds_a_bounded_forge_request() {
         let limits = wire::limits(&wire::Bounds {
             segments: 1,
@@ -555,7 +562,7 @@ mod tests {
             refusal_bytes: 64,
         })
         .expect("test bounds");
-        let family = super::super::dismiss_making(7, b"org", b"repo", &limits).expect("bounded dismissal");
+        let family = dismiss_making(7, b"org", b"repo", &limits).expect("bounded dismissal");
         assert_eq!(family.family, wire::FORGE);
         assert_eq!(family.version, wire::CLIENT_VERSION);
         let record = wire::decode_requesting(&family.bytes, &limits).expect("dismissal decodes");

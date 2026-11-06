@@ -20,6 +20,7 @@ pub mod model;
 pub mod panel;
 pub mod playground;
 pub mod replace;
+pub mod sheet;
 pub mod start;
 pub mod status;
 pub mod tokens;
@@ -39,6 +40,8 @@ pub struct Limits {
 #[derive(Debug)]
 pub enum Event {
     Act { act: Act },
+    SheetRead { request: skein_lib::Token, answer: Result<temper_client_protocol_wire::v1::Page, sheet::Refused> },
+    SheetMade { request: skein_lib::Token, answer: Result<(), Box<[u8]>> },
     Trials { event: trials::Event, adoption: Option<Answer> },
     AdminToken { value: skein_lib::Secret },
     ForgejoToken { field: tokens::Field, value: skein_lib::Secret },
@@ -55,6 +58,7 @@ pub enum Event {
 }
 #[derive(Debug)]
 pub enum Request {
+    Repositories { project: u32 },
     PlaygroundReset,
     PanelEnded { subject: panel::Subject },
     Show { address: Address },
@@ -90,6 +94,7 @@ pub struct Side {
     address: Option<Address>,
     served: Served,
     form: Option<Form>,
+    sheet: Option<sheet::Sheet>,
     serial: u64,
     party: Option<u64>,
     me: bool,
@@ -124,6 +129,7 @@ impl Side {
             address: None,
             served: Served::Unknown,
             form: None,
+            sheet: None,
             serial: skein_lib::Rng::new(seed).next_u64(),
             party: None,
             me: false,
@@ -138,6 +144,10 @@ impl Side {
     #[must_use]
     pub const fn served(&self) -> Served {
         self.served
+    }
+    #[must_use]
+    pub const fn sheet(&self) -> Option<&sheet::Sheet> {
+        self.sheet.as_ref()
     }
     #[must_use]
     pub const fn form(&self) -> Option<&Form> {
@@ -255,6 +265,8 @@ impl Side {
 }
 pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
+        Event::SheetRead { request, answer } => sheet::received(side, request, answer, env.limits, out),
+        Event::SheetMade { request, answer } => sheet::made(side, request, answer, env.limits, out),
         Event::Trials { event, adoption } => {
             let request = match &event {
                 trials::Event::Answered { key, .. } => Some(skein_lib::Token::new(key.number)),
@@ -267,7 +279,7 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
             if let Some(request) = request
                 && let Some(answer) = adoption
             {
-                answered(side, request, answer);
+                answered(side, request, answer, env.limits, out);
             }
         }
         Event::AdminToken { value } => admin::token(side, value),
@@ -285,11 +297,14 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
             draft.served = side.served;
             draft.confirmed = side.party.is_some();
             side.form = Some(draft);
+            side.sheet = Some(sheet::Sheet::new(project, &side.forges));
+            sheet::progress(side, env.limits, out);
             side.changed();
         }
         Event::Left => {
             side.replacements.clear();
             side.form = None;
+            side.sheet = None;
             if side.address.take().is_some() {
                 side.changed();
             }
@@ -319,10 +334,13 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
                 side.changed();
             }
         }
-        Event::Answered { request, answer } => answered(side, request, answer),
+        Event::Answered { request, answer } => answered(side, request, answer, env.limits, out),
     }
 }
-fn answered(side: &mut Side, request: skein_lib::Token, answer: Answer) {
+fn answered(side: &mut Side, request: skein_lib::Token, answer: Answer, limits: Limits, out: &mut Queue<Request>) {
+    if sheet::adopted(side, request, &answer, limits, out) {
+        return;
+    }
     if let Some(draft) = &mut side.form
         && let Some((pending, _)) = draft.pending
         && pending == request
@@ -339,6 +357,7 @@ fn answered(side: &mut Side, request: skein_lib::Token, answer: Answer) {
 }
 fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
     match act {
+        Act::Sheet(act) => sheet::act(side, limits, act, out),
         Act::Ways(act) => ways::act(side, limits, act, out),
         Act::Forges(act) => forges::act(side, limits, act, out),
         Act::Go { address } => out.push(Request::Show { address }),
