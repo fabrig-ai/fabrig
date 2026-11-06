@@ -14,7 +14,10 @@ findings, whole (`domain/findings.md`, with their families in
 worker runs temper's merge kind, and the merge job settles a
 change's conflict before a resolution and produces a catch-up into a
 goal's branch; a goal's landing whose update conflicts takes it, but
-no story runs that (`domain/forge.md`). The prepare and key kinds
+no story runs that (`domain/forge.md`). Lost updates and prepares recover
+in the worlds, with a reason at their retry bound; the three-thread
+real-process restart proof awaits its after-landing trial
+(`domain/forge.md`, `domain/landing.md`). The prepare and key kinds
 are not built, so the turn's tooling and the `Rewrite` delivery lag
 (`domain/worker.md`, `protocol/tooling.md`, `domain/landing.md`,
 `protocol/git.md`). The landing rules and the forge's charters are
@@ -36,8 +39,8 @@ the joined client world are ignored (`protocol/configuration.md`,
 `client/tools.md`). The configuring agent, charter 3 and template 3,
 is in the stock and the reference pages it reads are built, but no walk
 on record has run a real model on its words as they stand, nothing it reads names the
-worker slots it is to size temper's own way by, no story that runs has an owner reject
-its proposal under Needs you, with `temper help proposal` still saying that press fails,
+worker slots it is to size temper's own way by, `temper help proposal` still says an
+owner's rejection under Needs you fails,
 and a second proposal's refusal offers a `withdraw` it can't make (`domain/agent.md`), and a
 charter's `tools` decides only whether its runs are offered the
 settings family (`protocol/configuration.md`). Seven stock models and their
@@ -50,7 +53,14 @@ outside the offer and only instructions restrict proposals to it
 (`domain/agent.md`, `draft/model-catalogue.md`). Model settings and provider
 list reads remain the catalogue's later steps. The watch rooms follow admitted
 streams, with the whole room available to one party; obsolete watch-room overrides are refused and ctl names a watch
-refused busy at its deadline. A fair share, the other ineffective views
+refused busy at its deadline. Ctl's deadline names the link, stream, read or
+act's outcome, with retention and retry words; request and watch retries
+span at most 2 s. A full-inbox message and same-key replay are covered, but
+the reported long-chat resume-refusal wait and settings silence remain
+unreproduced (`client/tools.md`). The service logs passes past 1 s, naming
+the longest stage and holding suppressed passes for its 10 s rate limit;
+the kernel's reap and submit remain outside that timing
+(`protocol/README.md`). A fair share, the other ineffective views
 overrides, precise Busy causes and the manual browser check remain deferred
 (`protocol/configuration.md`, `client/tools.md`). The limits' check
 leaves temper's kinds out of the settings answer's bound
@@ -78,7 +88,11 @@ counts disagree with its shared oracle (`protocol/setup.md`,
 `protocol/sign-in.md`, `domain/testing.md`). The
 combined default-runner, restart, moved-port and terminal-hangup walk
 has no outcome in the supplied inventory, and the real-box sign-in
-story awaits its after-landing run (`protocol/setup.md`,
+story awaits its after-landing run. Repository links and box-owned sign-in
+are built, with native browser clicks at 1440 and Settings links at 420;
+the runner was disabled. No separate attacker-review outcome is supplied,
+three laptop baseline cases remain unrepeated, and an intermittent busy
+authorization page without a request is unresolved (`protocol/setup.md`,
 `protocol/sign-in.md`, `client/forge.md`, `domain/testing.md`). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
@@ -95,9 +109,14 @@ asks a run to name no commit off its branch (`domain/agent.md`). A head already 
 takes its base first, a receipt says what it pushed, a producer is told which task to ask
 and a resume holding the landing tip makes no merge, but no record shows the next landing
 plan on a real deployment, which the `landing-fixes` request has as their proof. The first
-saves a change's wait and not a run the forge started (`domain/forge.md`), and a resume on
-saved work whose save changes nothing leaves the engine's saved set
-(`domain/worker.md`, `protocol/channel.md`). That request's other items stand open: a
+saves a change's wait and not a run the forge started (`domain/forge.md`). A resume on
+saved work keeps that work when its save lands nothing. A producer's clean merge is
+committed before its run; a conflict's start, the help page and stock charters explain
+its staged files. The parked producer's proof uses fake git and disk, with a delivery
+as its first commit; the `resume-told` request's real-checkout proof and deployment
+replay are not on record. Parking with markers still loses that run's own edits,
+while earlier saved work stands (`domain/worker.md`, `protocol/channel.md`).
+The `landing-fixes` request's other items stand open: a
 task's saved work outlives its close and a repair's brief with no cause is untraced
 (`domain/forge.md`), a refused worker hears no why (`domain/worker.md`), and a unit test's
 port reservation flakes (`domain/testing.md`). A green head ends a CI repair
@@ -229,10 +248,9 @@ an account with no source still reads `Nothing awaited` beneath `no account
 serving this work yet`, and a person task's `task amend` prints no arguments
 (`client/tools.md`). A proposal of settings reaches a
 project's Needs you and rail's count and is accepted on its chat's card, but its live
-card lists no item of temper's kinds, stays on Needs you once accepted, leaves its chat
-on a reload, stands below the chat's newest reply rather than at its call and follows a
-"Decision made" while it waits; the chat's card draws no Reject, departing from the
-request `ui-chat-accept` (`client/README.md`). "Start goal…" went once from a
+card lists no item of temper's kinds and stays on Needs you once accepted. No live turn
+names its proposal, so its card stands after the turn that made it; the chat's card
+draws no Reject, departing from the request `ui-chat-accept` (`client/README.md`). "Start goal…" went once from a
 restored document, on no replay since, its cause unknown (`client/README.md`). The welcome's command names the
 binary that runs it and has a Copy, but no browser test presses the Copy or sees its word change; the gallery's walk of
 named controls excepts a recommended choice's tag, departing from the request `ui-copy-once`; with no `HOME` and an XDG variable placing
@@ -301,7 +319,12 @@ where it is. The browser tier runs Chromium alone, with
 themselves are read, not run (`draft/chat-reading.md`, 5, **Design departs**). A read
 that failed at the head is not tried again on a move back within its reach (`client/README.md`).
 The process tier's three tests at a time await a passing whole run after landing,
-and its CPU-budget overages remain (`domain/testing.md`). The
+and its CPU-budget overages remain. Reusable listener ports come from
+process-held blocks below Linux's configured ephemeral range; macOS uses
+its default boundary, and the concurrent restart proof remains after
+landing (`domain/testing.md`). A fake sandbox keeps its ports across a
+valid new choice, but a malformed test override still refuses a retained
+start (`protocol/setup.md`). The
 case library's purpose is retired, the fake
 git program drives skein's JSON tokenizer over a whole body by hand,
 the ladder has no twin past B1 and no live story but B0's, neither

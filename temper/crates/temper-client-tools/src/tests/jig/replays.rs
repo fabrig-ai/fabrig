@@ -63,6 +63,9 @@ fn retired(call: &call::Call) -> c::ReadResult {
         return ended(
             c::ObjectKey::Proposal(*key),
             c::EndedValue::Proposal(c::ProposalHistory {
+                reason: c::DocumentText::complete(
+                    c::Text::new(b"review".as_slice().into(), u32::MAX).expect("fixture reason"),
+                ),
                 number: key.number,
                 proposer,
                 as_holder: false,

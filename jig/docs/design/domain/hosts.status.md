@@ -5,6 +5,11 @@ Section 6.3 has no gap in transcript refusal classification across the worker
 channel or in closing refused starts without an acknowledgement.
 Section 6.3 has no gap in retaining a pre-admission agent fault and its
 bounded diagnostic through cleanup, or in cancellation winning first.
+Section 8 has no known gap in the change body's 3,584-byte maximum:
+the contract keeps the task's smaller words bound, and other texts keep
+their 1,024-byte maximum. The boundary encoding test holds a change at
+the body's maximum and the agent's 4,096-byte ownership limit through
+the hub codec without losing fields. Larger reports remain in section 12.
 
 - **Not yet:** 3, 5.2, 6.5, 11: `smith-inline-agent` as a hub's agent
   capability. 4: an admitted run's answers passing a held assignment.

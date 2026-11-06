@@ -394,7 +394,7 @@ fn world_in_layout(
                             }
                             if let Some(name) = settings_chat {
                                 settings_chat_watch = Some(watch);
-                                task.activity = if name == "configure-chat-replaced" { 2 } else { 1 };
+                                task.activity = if name == "configure-chat-replaced" { 6 } else { 3 };
                                 task.proposals = List::with_capacity(2);
                                 task.proposals.push(PROPOSAL).expect("settings proposal");
                                 if name == "configure-chat-replaced" {
@@ -4544,7 +4544,7 @@ fn settings_proposal(key: c::ProposalKey, name: &str) -> c::ReadValue {
     if name == "configure-chat-proposal-two-projects" {
         proposal.projects.push(2).expect("second project");
     }
-    proposal.reason = doc("I work alone on small changes.\nKeep drafts beside the code.");
+    proposal.reason = doc("## temper enforces\nI work alone on small changes.\nKeep drafts beside the code.");
     let mut items = List::with_capacity(3);
     let settings = if name == "configure-chat-proposal-deployment" {
         List::from_boxed(Box::new([c::Setting::Charter(c::SettingNumber { number: 1 })]))
@@ -4603,24 +4603,38 @@ fn settings_proposal_values(root: &mut Domain, read: Token, out: &mut Queue<Requ
     );
 }
 fn settings_activity(name: &str) -> c::ActivityPage {
-    let mut rows = List::with_capacity(2);
+    // Each proposal has its making line, tool completion and following reply.
+    let mut rows = List::with_capacity(6);
     let keys: &[c::ProposalKey] =
-        if name == "configure-chat-replaced" { &[SETTINGS_NEXT, PROPOSAL] } else { &[PROPOSAL] };
+        if name == "configure-chat-replaced" { &[PROPOSAL, SETTINGS_NEXT] } else { &[PROPOSAL] };
     for key in keys {
-        let objects = List::from_boxed(Box::new([c::ObjectKey::Proposal(*key)]));
+        let made = documents::line(
+            1,
+            Wall::EPOCH,
+            c::Activity::Decided { revision: 1, proposal: Some(c::DecidedProposal { number: key.number, made: true }) },
+        );
         let call = c::Block::Call(c::Call {
             number: key.number,
             tool: text("propose_settings"),
             input: text(""),
             outcome: None,
             failed: false,
-            objects,
+            objects: List::with_capacity(0),
             parts: List::with_capacity(0),
         });
         let blocks = List::from_boxed(Box::new([call]));
-        let mut line = turn_line(&blocks, u32::try_from(key.number).expect("small turn"), None, false);
-        line.source.position = key.number;
-        rows.push(line).expect("settings turns");
+        let number = u32::try_from(key.number.checked_mul(2).expect("small turn")).expect("small turn");
+        let turn = turn_line(&blocks, number.checked_sub(1).expect("nonzero turn"), None, false);
+        let reply = agent_line("Tell me what you would change.", number, None);
+        for mut line in [made, turn, reply] {
+            line.source.position = u64::from(rows.len()).checked_add(1).expect("small activity");
+            line.source.task = 10;
+            if let Some(decoded) = &mut line.decoded {
+                decoded.task = 10;
+                decoded.cumulative = line.source.position;
+            }
+            rows.push(line).expect("settings activity");
+        }
     }
     c::ActivityPage { rows, cut: false, before: None, after: None }
 }
@@ -4643,6 +4657,11 @@ fn finish_settings_proposal(root: &mut Domain, watch: Token, name: &str, out: &m
             let c::ProposalAction::Settings(settings) = proposal.action else { unreachable!("settings") };
             let state = if name == "configure-chat-accepted" {
                 c::ProposalHistoryState::Accepted { by: c::Requester::Person(73) }
+            } else if name == "configure-chat-rejected" {
+                c::ProposalHistoryState::Rejected {
+                    by: c::Requester::Person(73),
+                    reason: doc("Keep the current settings."),
+                }
             } else {
                 c::ProposalHistoryState::Withdrawn
             };
@@ -4652,7 +4671,9 @@ fn finish_settings_proposal(root: &mut Domain, watch: Token, name: &str, out: &m
                 c::ReadValue::Ended(Box::new(c::Ended {
                     key: c::ObjectKey::Proposal(key),
                     value: c::EndedValue::Proposal(c::ProposalHistory {
+                        reason: proposal.reason,
                         action: c::RetainedAction::Settings(c::RetainedActionSettings {
+                            projects: proposal.projects,
                             against: settings.against,
                             items: settings.items,
                             made: if name == "configure-chat-accepted" { Some(1) } else { None },

@@ -397,6 +397,7 @@ impl Mounted {
             | Op::Choice { .. }
             | Op::Href { .. }
             | Op::Focus { .. }
+            | Op::Reveal { .. }
             | Op::ScrollEnd { .. }
             | Op::HoldView { .. }
             | Op::PutView { .. }
@@ -469,6 +470,12 @@ impl Mounted {
                         element.set_attribute("tabindex", "-1").expect("focus target accepts tabindex");
                     }
                     element.unchecked_into::<HtmlElement>().focus().expect("focus target is mounted");
+                }
+                Op::Reveal { node } => {
+                    let options = web_sys::ScrollIntoViewOptions::new();
+                    options.set_block(web_sys::ScrollLogicalPosition::Nearest);
+                    options.set_inline(web_sys::ScrollLogicalPosition::Nearest);
+                    self.group(*node).element.scroll_into_view_with_scroll_into_view_options(&options);
                 }
                 Op::ScrollEnd { node } => {
                     self.views.borrow_mut().remove(node);

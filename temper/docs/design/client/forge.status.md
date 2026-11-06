@@ -57,6 +57,11 @@ history and omitting zero stale proofs remain deferred in section 10.
   their own connect's new stop alone (`forge/tokens.rs` `stopped`); the
   code records no reason, and a code task gives the admin's form the
   tokens' rule.
+- **Design departs:** 5.4, from the request `ui-repo-link` of 2026-11-06,
+  decided by its plan's cut: a folded forge row's repository stays plain,
+  with its link in the body's Repositories, because the summary's description
+  is text inside a disclosure's control. The request asks for a link wherever
+  the repository is named. A separate control while folded waits in section 10.
 - **Design departs:** 5.4, from the request `ui-settings-tabs` of 2026-11-05,
   decided by its plan's cut: a row's first line is the forge's name, and
   "Forge N · KIND" opens its second, before its connection's words, with its

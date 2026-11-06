@@ -68,7 +68,7 @@ pub(crate) fn read<'a>(card: &'a Card, w: &Words) -> Asked<'a> {
                         | jig_client::contract::ProposalAction::Release { .. } => title.clone(),
                     }
                 } else {
-                    first_sentence(proposal.reason.bytes())
+                    first_sentence(proposal.reason.bytes(), &title)
                 }
             }
             Some(page) => {
@@ -285,13 +285,32 @@ pub(crate) fn link(b: &mut Builder, bindings: &mut Bindings, words: &[u8], addre
     b.close();
 }
 
-fn first_sentence(words: &[u8]) -> Box<[u8]> {
-    let sentence = match skein_lib::bytes::find(words, b". ") {
-        Some(at) => at.checked_add(1).expect("sentence end fits"),
-        None => words.len(),
-    };
-    let line = skein_lib::bytes::find(words, b"\n").unwrap_or(words.len());
-    words.get(..sentence.min(line)).expect("sentence in words").into()
+fn first_sentence(words: &[u8], fallback: &[u8]) -> Box<[u8]> {
+    let mut start = 0;
+    for end in 0..=words.len() {
+        if end == words.len() || words.get(end) == Some(&b'\n') {
+            let mut line = words.get(start..end).expect("reason line bounds").trim_ascii();
+            let mut marks = 0_usize;
+            for byte in line {
+                if *byte != b'#' {
+                    break;
+                }
+                marks = marks.checked_add(1).expect("bounded heading marks");
+            }
+            if (1..=6).contains(&marks) && (line.get(marks) == Some(&b' ') || marks == line.len()) {
+                line = line.get(marks..).expect("heading marks in line").trim_ascii_start();
+            }
+            if !line.is_empty() {
+                let sentence = match skein_lib::bytes::find(line, b". ") {
+                    Some(at) => at.checked_add(1).expect("sentence end fits"),
+                    None => line.len(),
+                };
+                return line.get(..sentence).expect("sentence in line").into();
+            }
+            start = end.checked_add(1).expect("bounded reason line");
+        }
+    }
+    fallback.into()
 }
 
 /// Home's parsed card and in-place controls (client/README.md, 3.5).
