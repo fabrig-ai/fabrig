@@ -485,8 +485,8 @@ handles, as every presentation does (sections 7 and 8).
   { handle, page }`: the document, or the page with its cursors, or why
   there is none: unknown, gone, too large with its size, malformed,
   refused, busy, signed out, version not served, or unreachable, when
-  its exchange is lost (gone and too large for a turn read alone,
-  contract.md, section 6; malformed for a turn that does not decode, and
+  its exchange is lost or not sent for want of room (gone and too large for a
+  turn read alone, contract.md, section 6; malformed for a turn that does not decode, and
   for any read whose answer does not, section 16). A read is one attempt
   (`../../protocol/client.md`, section 6): the application reads again
   if it wants.
@@ -782,8 +782,13 @@ for any presentation of a chat or of any agent task's activity.
   committed turn of the same attempt and number takes its place: the
   thread keeps each turn's line, since the client holds only the turn
   being written (8.3). A line keeps its text's start, up to the thread's
-  `live` bound, so it only grows; past the bound it stays as it is until
-  its committed turn takes its place. A run's end takes no line away by
+  `live` bound. Within the same retry, suffix snapshots extend that prefix
+  only where their bytes meet or overlap it; a gap leaves the prefix in
+  place, marked cut, never joined across missing bytes. Its retained start
+  and the newest stream offset are separate. A snapshot from the full
+  origin, a newer retry or a new attempt replaces it; otherwise it only
+  grows, and past the bound stays as it is until its committed turn takes
+  its place. A run's end takes no line away by
   itself, since its committed turn may be a read away and a person may be
   reading those words: once the run has ended and the committed activity has
   been read, a line no committed turn replaced goes. That is a turn lost with
@@ -1167,8 +1172,8 @@ the client's protocol designs (`../../protocol/client.md`):
   cause, malformed, past the client's bounds or of another version, a jig
   read ends malformed, beside the link's `UndecodableDocument` fact: asking
   again would get the same answer. A family's read ends with no record, as any
-  of its failures does. Only a lost exchange ends unreachable, which an
-  application may ask again by itself.
+  of its failures does. A lost exchange, or one not sent for want of room, ends
+  unreachable, which an application may ask again by itself.
 
 ## 17. The world
 
@@ -1192,6 +1197,11 @@ with a person in front of a tree, are view.md's, 18.10.
 
 ## 18. Open questions
 
+- **Activity past a client's read bounds** (sections 14 and 16): a line past
+  `long_text`, or a page past `document_bytes`, ends the read malformed without
+  cutting its words. Whether an application grows its bounds for a larger
+  deployment, or the engine pages to a client's negotiated bounds. Default: the
+  read ends; no bound is negotiated.
 - **A run's wait on a summary row** (19.1): a row holds no run wait, since
   a task query carries no run's check per row, so a chat that can't start
   says starting in a list, and its document alone says why. Default: so.
@@ -1232,7 +1242,10 @@ with a person in front of a tree, are view.md's, 18.10.
   `views.text_bytes` and the wire's `run_text_text` stop at one bound, so a client
   following a turn from its start holds it whole, and one opened later holds the
   retained end until its committed turn comes. Holding the whole takes a delivery in
-  pieces, a change of a protocol, the user's. Default: as it stands.
+  pieces, a change of a protocol, the user's. A thread whose next suffix
+  skips bytes likewise keeps its prefix marked cut until a full-origin
+  snapshot or its committed turn replaces it (section 10); it asks for no
+  missing provisional bytes. Default: as it stands.
 - **A committed turn past a client's document bound** (sections 10 and 16): a turn
   past `document_bytes` on the wire is refused as too large, with its size, so it
   shows no calls' names, whatever `turn_text` would keep of it. Reading it takes a

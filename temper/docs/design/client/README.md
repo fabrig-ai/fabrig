@@ -3965,9 +3965,10 @@ and an agent's message, question or answer and a result, up to
 `tasks.message_bytes` and `tasks.result_bytes` (10,660 on it). Each draws whole in
 the browser and the terminal, never cut (jig's `client/domain/client.md`, section
 16). The window's bytes do not move: a line weighs what it holds within
-`document_bytes`, so a window holds at least eight lines at `long_text`, and fewer
-lines the longer they are. The view's window already prices those bytes, at two
-nodes and two bytes of text a byte. A person's words waiting to be read total at
+`document_bytes`, including `LINE_ROOM` for each line and its parts, so a window
+holds fewer lines the longer they are. The view prices the bytes at Markdown's
+maximum nodes and text, plus ten structural nodes per `LINE_ROOM`, with room for
+their names and text. A person's words waiting to be read total at
 most `document_bytes` too (jig's `client/domain/client.md`, section 10), and the
 view prices them so. A line past `long_text`, or a page of lines past
 `document_bytes`, has its page refused and its read ended (5.15): no box `temper
@@ -5522,7 +5523,8 @@ measures it (skein's `ui-web.md`, section 7).
   failed with no line to show, says the same at the head. An answer the client
   cannot decode is such a failure (jig's `client/domain/client.md`, section 16): it
   asks nothing again until the person moves, or a new line is committed, and the
-  page's other lines and acts go on. Only a lost exchange is asked again by itself.
+  page's other lines and acts go on. Lost exchanges and busy reads keep their
+  transient retries.
 - **"Latest":** the view returns to the window's foot. On a chat where the
   window let the end go, a press reads the end again (`Thread::latest`),
   which replaces the window. A person sending on a chat does the same
@@ -6463,6 +6465,12 @@ own tests:
 
 ## 11. Open questions
 
+- **Sign-in words in the terminal and command help** (6.1, 6.6): the browser's
+  signed-out paragraph names the link temper printed (5.1; `browser.md`, 2.4),
+  while `temper open`'s refusals, the terminal's link instructions and the
+  command's help still name `temper serve`. A person may have run `temper box`.
+  Default: those words stay until a wording change covers the terminal and
+  command help; the request `ui-qa-small` names the browser paragraph alone.
 - **A line past `long_text`** (5.4): `standard` with no override takes a message of
   262,144 bytes (`../protocol/configuration.md`, 13.8), past `long_text`, and a page
   of its `documents.rows` lines can pass `document_bytes`. Its read ends and says so
@@ -6473,6 +6481,11 @@ own tests:
   `tasks.spec_bytes`, 131,072, and its composer stops at `words_bytes`, 8,192, which
   jig's `client/domain/contract.md`, 5.1 gives for a spec, a message and an answer
   alike. Default: one bound for every composer.
+- **An edit past `long_text`** (5.4): the client keeps its prefix and a count of
+  the characters beyond it; the browser keeps the whole value only while that
+  field stays mounted and its value count stays unchanged. Keeping the whole
+  edit across a new drawing, or in the terminal, needs room beyond that bound.
+  Default: the bounded prefix and count, with Send disabled while any lies beyond.
 - **A fresh configuring chat from its composer** (3.5, *The configuring chat's
   page*): a command ("/clear") once the composer takes commands. Default: "Start
   over" in its bar.
@@ -6584,7 +6597,10 @@ own tests:
   `../draft/chat-reading.md`, 3): a page following it from its start shows it whole
   up to `long_text`. One opened later shows the end the engine retains, 65,536
   bytes, until the turn commits, since one delivery stops at the same bound (jig's
-  `client/domain/client.md`, section 18). Default: as it stands.
+  `client/domain/client.md`, section 18). A gap between suffix snapshots keeps
+  the held prefix incomplete until a full-origin snapshot or commitment, even
+  below `long_text`; recovering the missing provisional bytes needs a read
+  the thread does not ask for. Default: keep the prefix and its reading position.
 - **A turn too large for a page** (5.4; `../draft/chat-reading.md`, 4): a turn past
   `document_bytes` on the wire, 1,048,576 bytes, reads as too large, with no calls'
   names (jig's `client/domain/client.md`, section 18). Default: its line says so,
@@ -6826,6 +6842,12 @@ own tests:
   the position staying put when lines load above is for the user to read on a
   real chat. Default: the browser tier runs Chromium, including with
   `overflow-anchor: none`; Firefox and Safari themselves are read, not run.
+- **A turn with a call before its first text** (3.5, 5.15;
+  `../draft/chat-reading.md`, 3): keeping that text's nodes through commitment
+  needs its key independent of the preceding call or card's place. Default:
+  keep the current block keys until this ordering is reproduced; the
+  `ui-pgup` request uses a render driver at 1440 and 420 px for its proof,
+  with no new browser story, since the tier is at its budget.
 - **An agent's page going to its end** (5.15; `../draft/chat-reading.md`, 5): its
   log has no end request, so a person sending from far back stays where they read,
   and Latest reaches the end a page at a time. A chat's `to_end` and

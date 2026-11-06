@@ -58,11 +58,13 @@ fn auth_list_finds_temper_only_in_the_sources_name_column() {
     // Forgejo 17's real add-oauth/list proof, with table whitespace normalized.
     const TABLE: &[u8] = b"ID\tName\tType\tEnabled\n1\ttemper\tOAuth2\ttrue\n";
     assert!(crate::sign_in::source_present(TABLE));
+    assert_eq!(crate::sign_in::source_id(TABLE), Some(b"1".as_slice()));
     for table in [
         b"ID Name Type Enabled\n1 temper-other OAuth2 true\n".as_slice(),
         b"ID Name Type Enabled\n1 other temper true\n",
         b"temper Name Type Enabled\n",
     ] {
         assert!(!crate::sign_in::source_present(table));
+        assert_eq!(crate::sign_in::source_id(table), None);
     }
 }

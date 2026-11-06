@@ -172,6 +172,7 @@ fn words(what: What) -> &'static [u8] {
 }
 fn jig_words(what: config::What) -> &'static [u8] {
     match what {
+        config::What::Because(words) => words,
         config::What::PolicyEnvelope { .. }
         | config::What::AmendmentEnvelope { .. }
         | config::What::CodecCeiling { .. }
@@ -499,7 +500,8 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
                 put(writer, &mut length, measuring, Decimal::of(u64::from(charter)).as_bytes());
             }
             What::Jig(
-                config::What::Json
+                config::What::Because(_)
+                | config::What::Json
                 | config::What::Stored
                 | config::What::Unknown
                 | config::What::Missing
