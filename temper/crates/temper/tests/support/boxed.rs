@@ -20,6 +20,16 @@ use std::{
 /// (domain/testing.md 6.1). Keep a duration under test separate from this horizon.
 pub const BOX_DEADLINE: Duration = Duration::from_secs(240);
 
+/// The box's own log of this run, empty before its first line (protocol/setup.md, 7.2).
+#[must_use]
+pub fn box_log(data: &Path) -> String {
+    match std::fs::read_to_string(data.join("box/logs/box.log")) {
+        Ok(log) => log,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(error) => panic!("box log: {error}"),
+    }
+}
+
 /// What the referee does after the link arrives.
 #[derive(Clone, Copy, Debug)]
 pub enum Plan {
@@ -585,7 +595,7 @@ fn restart_engine(
 }
 impl<F, T> CtlJudge<'_, F, T> {
     fn resume_playground(&mut self, binary: &Binary) {
-        if skein_lib::bytes::find(binary.stderr(), b"Starting serve\n").is_some()
+        if find(&binary.tree_status().live_pids, &skein_scratch::paths::binary("temper"), b"serve").is_some()
             && let Some([config, client]) = self.resuming_playground.take()
         {
             let parent = super::playground::interrupt_reset(binary, &config, &client);
