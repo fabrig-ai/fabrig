@@ -2311,8 +2311,11 @@ that changes the stock changes nothing of them.
   role 0's, so the coordinator may name `change`'s plan members
   (`../domain/agent.md`, 4.3.1), and role 0 to their delegation, so the
   coordinator may ask its person through a person task (jig's
-  `domain/people.md`, section 8), and jig's notes family beside it, so
-  that it notes what it learns, then applied whole. The box's sixteen
+  `domain/people.md`, section 8), and jig's notes family beside it, in
+  the goal's and the project's scopes, so that it notes what it learns:
+  in all, tools 1,983 with the decide, propose, subscribe and recall
+  families its row names and no effect family, and notes 3, as the
+  profile's `README.md` gives them, then applied whole. The box's sixteen
   executor places (13.4) hold this delegation without a delegation-limit
   change or restart; the profile's limits (below) reserve room for
   further work.

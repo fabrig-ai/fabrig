@@ -10,28 +10,29 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   procedure, person or role), authority (what it may do, delegate and spend,
   and by when), and a contract: report, change, verdict or approval.
   `task show` prints these.
-- **Delegates:** an agent's run makes child tasks of its own; each
-  is a delegate of its parent, and together they make a tree. A
-  delegate's result reaches its parent, which its run hears as its
-  rules for waking say. A change task is a delegate run by the forge,
-  whose result is a change landed (temper help box) or an explanation
-  that no change applies; it starts with
-  half its parent's remaining spend. Questions go to `none`, a `foreman`
+- **A person task** prints `taken by:` naming its holder, or `none`.
+  Once an answer has ended the task, `answered by:` takes its place.
+  A closing person task with no holder prints neither line.
+- **Delegates:** an agent's run makes a tree of child tasks (delegates).
+  Results reach their parent; its run hears them under its waking rules.
+  A change task is a delegate run by the forge, returning a landed
+  change (temper help box) or why none applies; it starts with half its
+  parent's remaining spend. Questions go to `none`, a `foreman`
   (answers, finishes or escalates), or `up` to its requester.
-  It relays producer, repair and resolution questions,
-  holds answers until dependencies land, and holds past its question bound.
-  To answer an escalation, use `read_task` on the change for its answer number, then `message` with
-  `form=answer`. Words and amendment reasons leave questions open; a party's
-  words are taken unanswered.
-  A change whose authority no longer covers its next step (its tasks all
-  made, its depth used, too little left to spend) holds, saying what it
-  lacks; released with nothing more, it holds again, and its way out is
-  for exhausted tasks to grant more with `task amend TASK --rev REV --tasks N REASON`,
-  then `task release TASK --hold REV`, or cancel it. `N` replaces the
-  lifetime allowance; a release keeps the tasks already made. Widening
+  It relays producer, repair and resolution questions, holds answers until
+  dependencies land, and holds past its question bound.
+  To answer an escalation, get its answer number with `read_task` on the
+  change, then `message` with `form=answer`. Words and amendment reasons
+  leave questions open; a party's words are taken unanswered.
+  A change lacking authority to proceed (tasks exhausted, depth
+  used, too little spend) holds, saying what it lacks; released unchanged,
+  it holds again. For exhausted tasks, grant more with
+  `task amend TASK --rev REV --tasks N REASON`, then
+  `task release TASK --hold REV`, or cancel it. `N` replaces the lifetime
+  allowance; release keeps tasks already made. Widening
   stays within the giver's authority and funding.
-  A change runs nothing of its own, so `task release --again` on it is
-  refused: release its hold, and it decides afresh.
+  A change runs nothing itself: `task release --again` is refused;
+  release its hold for a fresh decision.
 - **Its parts:** tree (live delegates), activity (events, newest last),
   turns (model words, calls and results per step), and run (current attempt).
 - **Its settings revision:** `task show` prints the task's
@@ -55,6 +56,7 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
 - **What it waits on** prints after `waiting on:`: `Kept by its
   dependencies`, `Waiting for delegates`, `Waiting for news`, `Nothing
   awaited`, or a party and what it must answer: `you: question 3 of task 44 · 1 waiting`.
+  For a held task that awaits nothing else, `waiting on:` prints `held`.
 - **Held:** a held task runs no more until someone decides. Its hold
   has a reason (out of tries, stopped, its deadline passed, an
   insufficient budget, an effect whose outcome is uncertain, among
@@ -100,7 +102,7 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
 - **Reading:** `task list` lists a project's tasks; `task show` reads
   one; `task tree`, `task activity`, `task turn` and `task run` read its parts; `task show`,
   `task tree` and `task run` wait with `--until` or `--since`.
-- **Acting:** the acts `task show` lists under `acts:`, among them
+- **Acting:** `task show`'s `acts:` include
   `task message`, `task answer`, `task amend`, `task stop`, `task cancel`, `task release`, `hold lift`, `task decide` and `proposal decide`.
 - **temper's runs** act on their delegates with the host tools
   `delegate`, `change`, `goal`, `decided`, `amend`, `message`, `cancel`, `release`,
@@ -111,9 +113,8 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   `from=next` continues; restart revised specs. Durable question numbers and
   answerers survive delivery: use `message` to the printed target with
   `form=answer` and that `question` number.
-  `message` is offered only to a run whose authority holds the message
-  family: a change's coder, repairer and resolver are offered it where
-  the change relays their questions; its reviewer is not offered it.
+  Only runs with authority for the message family get `message`: a change's
+  coder, repairer and resolver where it relays their questions; not its reviewer.
 
 An “invalid results” hold may mean an assignment was refused before any model turn.
 For the precise refusal reason or failed-run detail, read serve's stderr or

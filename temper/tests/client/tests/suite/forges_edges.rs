@@ -974,14 +974,14 @@ fn welcome_accepted_setup_moves_to_model_and_follows_its_forge() {
         client,
         vec![
             PersonStep::Go { address: Address::Welcome { step: Step::Ready } },
-            see(Role::Heading { level: 1 }, b"Almost ready"),
+            see(Role::Heading { level: 1 }, b"Ready"),
             see(Role::TextField, b"Your first project"),
-            gone(Role::Disclosure, b"Each step"),
+            see(Role::Disclosure, b"Each step"),
             gone(Role::Heading { level: 2 }, b"Setting up Forgejo on this machine"),
             gone(Role::Link, b"Later"),
         ],
     );
-    node(&world, client, Role::Paragraph, "Forge Forgejo on this machine · connected as qa-bot".as_bytes());
+    node(&world, client, Role::Paragraph, "Forgejo on this machine · work/hello · Connected as qa-bot (1)".as_bytes());
     assert!(!node(&world, client, Role::Button, b"Create your project").states.as_slice().contains(&State::Disabled));
     assert_eq!(world.front().set_ups().len(), ONE_SETUP);
 }

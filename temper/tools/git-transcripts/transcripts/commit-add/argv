@@ -27,3 +27,6 @@ merge.conflictStyle=merge
 submodule.recurse=false
 add
 --all
+--
+.
+:(exclude,glob)**/.*.log

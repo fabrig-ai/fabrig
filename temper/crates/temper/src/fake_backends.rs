@@ -548,13 +548,8 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>, adapter: &Path) -> 
         let bytes = replace_bundle(&effective, content, bundle, adapter)?;
         return Ok(Prepared { directories: effective, bytes, listeners: Listeners(Vec::new()), peers, _lock: lock });
     }
-    let written = crate::init::write_with_program(
-        &effective,
-        &skein_shell::environment(),
-        &binary,
-        [8367, 8368, 8369, 8370, 8371],
-        Some(adapter),
-    )?;
+    let written =
+        crate::init::write_with_program(&effective, &skein_shell::environment(), &binary, [0; 5], Some(adapter))?;
     let mut held = Listeners(written.listeners);
     // Init deliberately writes public documents 0644; every retained sandbox document is private.
     for path in written.paths {
@@ -624,6 +619,10 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>, adapter: &Path) -> 
 }
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[path = "tests/fake_box_ports.rs"]
+mod port_tests;
 
 #[cfg(test)]
 mod source_lines_tests {

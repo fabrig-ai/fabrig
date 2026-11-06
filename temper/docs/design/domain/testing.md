@@ -1099,6 +1099,22 @@ terminal client, the captures and the faults.
   2.10). The owned preparation command watches its child with a deadline;
   the ctl referee reports overdue work to the world's starvation judge.
 
+- **Three at a time:** the profile runs three tests at once, a story being
+  one thread and one loop as ever, and the tier's budgets stand. A story
+  shares its machine: its listeners are the kernel's or
+  `support::free_addresses`', and a fake box's are the kernel's
+  (`../protocol/setup.md`, 7.5). A story that can't share one runs in a
+  named nextest test group, as `temper-real-loop` does, the reason beside
+  the group.
+
+- **A walk wakes on what it waits for:** a fake-box walk
+  (`crates/temper/tests/fake_backends/walk`) waits on an event where one
+  exists, such as ctl's `--until`, and where only the forge's poll brings
+  the news, it runs on the short paces the status walks set
+  (`forge.client.poll_ms` and its fellows), so that no walk waits out a
+  5 s poll. A wait a person meets too is a finding of the product's,
+  repaired there (testing-strategy.md, 9).
+
 ### 2.7 The live tier
 
 Nothing is handed in: no input takes a record, no tool reads another
@@ -2405,9 +2421,10 @@ profile, `docs/examples/reference/` (`../protocol/configuration.md`,
 Each obligation is one field of one row of the reference's table, and
 of one kind:
 
-- *a setting*, which the accepted settings hold, by one of eight
+- *a setting*, which the accepted settings hold, by one of nine
   tests: `equal` (the value, whole), `at-least` (a number no smaller),
   `bits` (each expected bit of a family mask set, others allowed),
+  `lacks` (no expected bit of a mask set),
   `contains` (each expected element of a list present, a member it does
   not name free and one absent counting as null, others allowed),
   `set` (present and not null, whatever its value), `judged` (text the
@@ -2457,7 +2474,7 @@ obligations missing.
 | the foreman's charter | setting: its instructions (`judged`); its model, `model.name`, gpt-6.1-sol, set on the charter (the draft's status records the departure); `inspect` true, `modify`, `shell` and `agents` false |
 | the forge's charters (kind 3) | setting: 1 names the coding agent's, its anchor; 2, the reviews', `unchanged` (unused, since neither landing rule asks a gate); the foremen's, the foreman's role's number |
 | each change's LLM choices | setting: the coding agent's model, `model.name`, gpt-6.1-sol; the coordinator's instructions (`judged`: a coding change at gpt-6.1-sol at the spec's effort, a designer's at section 4's choice); box: gpt-6.1-sol on smith's direct backend with an OpenAI account's key |
-| the project's policy and rules | setting: the rules' ceiling's, policy 1's ceiling's and its role 0's tool families (`bits`: the profile's, the stock's with jig's control and notes families, 13.9); their delegation's kinds (`contains`: each charter role's charter, the stock's procedures 2 to 4, the merge job, job 3, and role 0) and its tasks and depth (`at-least`: 1,024 tasks, 4 deep, N21); policy 1's role 0 and the project's own policy's the same |
+| the project's policy and rules | setting: the rules' ceiling's, policy 1's ceiling's and its role 0's tool families (`bits`: 1,983, the stock's with the families the coordinator's row names, 13.9), their note scopes (`bits`: 3, the goal's and the project's), and for role 0 no effect family (`lacks`: 64); their delegation's kinds (`contains`: each charter role's charter, the stock's procedures 2 to 4, the merge job, job 3, and role 0) and its tasks and depth (`at-least`: 1,024 tasks, 4 deep, N21); policy 1's role 0 and the project's own policy's the same |
 | the project's ways | setting: its `way`, the goal template for drafts, by role; its switches free. The project's questions are free too, a kind no obligation asks for: the coordinator names each change's route |
 | the landing rule for goal branches | setting: `goal-rule`'s `pattern`; `ci` false, `up_to_date` false; `gates` and `approvals` empty |
 | the landing rule for main | setting: `main-rule`'s `pattern`; `enforce` true, `ci` true, `up_to_date` true; `gates` and `approvals` empty; the deployment's rules `only` the two, so the stock's rule on every branch, which asks CI and a review, is replaced or removed |

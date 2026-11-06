@@ -65,6 +65,8 @@ pub struct OneShot {
     startup: Startup,
     until: Option<Time>,
     link: jig_client::Link,
+    heard: Option<()>,
+    connection_refused: Option<()>,
     io: io::Io,
     env: Env<io::Limits>,
     output: Output,
@@ -153,6 +155,8 @@ impl OneShot {
             startup,
             until: None,
             link: jig_client::Link::SignedOut,
+            heard: None,
+            connection_refused: None,
             io,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.io },
             output,
@@ -300,6 +304,9 @@ impl OneShot {
                 self.signing.as_mut().and_then(|s| s.shell.as_mut()).and_then(|s| s.events().pop())
             };
             let Some(event) = event else { break };
+            if matches!(&event, jig_client::Event::Reply { .. } | jig_client::Event::Streamed { .. }) {
+                self.heard = Some(());
+            }
             if self.class == Class::Act && !self.recovery.event(&event) {
                 self.fail(b"not kept (DIRECTORY's store not written)");
                 return;
@@ -307,7 +314,7 @@ impl OneShot {
             let signed = self.signing.as_mut().is_some_and(|s| {
                 if matches!(&event, jig_client::Event::Reply { exchange, .. } | jig_client::Event::Lost { exchange } if Some(*exchange) == s.exchange) {
                     s.exchange = None;
-                    true
+                    matches!(&event, jig_client::Event::Reply { .. })
                 } else { false }
             });
             self.root_event(event);
@@ -577,7 +584,15 @@ impl OneShot {
         if self.status.is_some() && self.signing.as_ref().is_some_and(Signing::is_empty) {
             self.directory.close();
         }
-        if self.status.is_none() && self.until.is_some_and(|at| now >= at) {
+        let refused = self.heard.is_none()
+            && (self.connection_refused.is_some() || self.transport.as_ref().is_some_and(Memory::refused));
+        if self.status.is_none() && (refused || self.until.is_some_and(|at| now >= at)) {
+            let address = std::str::from_utf8(self.directory.address.as_deref().expect("loaded address"))
+                .expect("numeric address");
+            if refused {
+                self.fail(format!("nothing listens at {address}; is temper running?").as_bytes());
+                return;
+            }
             if self.signing.as_ref().is_some_and(|signing| signing.last == Some(jig_client::NotSignedIn::Busy)) {
                 self.fail(b"temper is busy; this link stays usable until it expires");
                 return;
@@ -586,8 +601,6 @@ impl OneShot {
                 self.fail(format!("the engine's {} streams are all in use, by waits and open clients; end one, or wait and call again", full.size).as_bytes());
                 return;
             }
-            let address = std::str::from_utf8(self.directory.address.as_deref().expect("loaded address"))
-                .expect("numeric address");
             self.fail(format!("the engine at {address} did not answer within 30 s").as_bytes());
         }
     }
@@ -652,6 +665,10 @@ impl OneShot {
     }
     fn complete(&mut self, mut complete: Complete) {
         if complete.op.raw() & (TAG | FILES) == 0 {
+            // The native shell owns the act and sign-in sockets (client/tools.md, 6.3).
+            if matches!(complete.kind, Op::Connect { .. }) && complete.result == Err(io::kernel::Error::Refused) {
+                self.connection_refused = Some(());
+            }
             if matches!(complete.kind, Op::Connect { .. } | Op::Send { .. }) {
                 self.recovery.sending -= 1;
             }
