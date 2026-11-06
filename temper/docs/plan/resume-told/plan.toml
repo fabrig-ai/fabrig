@@ -1,0 +1,5 @@
+draft = "resume-told"
+repo = "fabrig"
+sources = ["temper/docs/plan/resume-told/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
