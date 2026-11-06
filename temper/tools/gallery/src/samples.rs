@@ -2269,7 +2269,7 @@ fn home_domain(name: &str) -> Domain {
                     w::Read::Deployment => Some(wire::deployment_answer(
                         &w::DeploymentAnswer::new(
                             &w::CEILINGS,
-                            w::DeploymentAnswerParts { welcome: true, owned: true },
+                            w::DeploymentAnswerParts { welcome: true, owned: true, program_login: None },
                         )
                         .expect("deployment"),
                     )),

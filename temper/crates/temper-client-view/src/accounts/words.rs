@@ -199,6 +199,7 @@ pub(crate) enum Word {
     PlanSignIn,
     CodeLogin,
     ProgramCommand,
+    ProgramCommandHere,
     MadeNamed,
     RenewedNamed,
     MadePlan,
@@ -443,13 +444,14 @@ const NAMED: &[(Word, &[u8], &[u8])] = &[
     (Word::HeldBy, b"held by ", b""),
     (Word::PlanSignIn, b"", b" sign-in"),
     (Word::CodeLogin, b"Claude Code login ", b""),
-    (Word::ProgramCommand, b"On each host, run: temper program-login ", b""),
+    (Word::ProgramCommand, b"On each host, with its directories: ", b""),
     (Word::KeyTitle, "An ".as_bytes(), " API key".as_bytes()),
     (Word::KeyAdded, "Added your ".as_bytes(), " API key".as_bytes()),
     (Word::PlanRuns, "temper’s agents now run on your ".as_bytes(), " plan.".as_bytes()),
-    (Word::Command, "temper program-login ".as_bytes(), "".as_bytes()),
+    (Word::Command, "temper program-login --config CONFIG --data DATA --cache CACHE ".as_bytes(), "".as_bytes()),
     (Word::PasteInstructions, b"When ", " is done, its tab shows a page that can’t be reached. Copy that page’s whole address from the address bar, come back here, and paste it. If a page opens instead, such as another program’s sign-in, close that program’s sign-in and start again.".as_bytes()),
     (Word::PasteTooMany, b"That's too many addresses from other sign-ins. Continue with ", b" to start again."),
+    (Word::ProgramCommandHere, b"On this machine, run: ", b""),
 ];
 // PLAN is hole 0 and DISPLAY hole 1; hole 2 repeats PLAN in a renewal.
 struct EndWords {
