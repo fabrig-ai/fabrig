@@ -174,7 +174,6 @@ impl Issuer {
         write_userinfo(&mut out, person);
         Ok(out.finish())
     }
-    #[expect(clippy::disallowed_methods, reason = "the issuer protocol encoder validates each bounded claim as UTF-8")]
     fn person(&self, person: &Person) -> Result<(), Error> {
         if person.subject.is_empty() {
             return Err(Error::Claims);
@@ -183,7 +182,7 @@ impl Issuer {
             .into_iter()
             .flatten()
         {
-            if settings::bounded(value, self.limits.claim_bytes).is_err() || core::str::from_utf8(value).is_err() {
+            if settings::bounded(value, self.limits.claim_bytes).is_err() || !bytes::is_utf8(value) {
                 return Err(Error::Claims);
             }
         }
