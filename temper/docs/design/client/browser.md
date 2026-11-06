@@ -182,7 +182,8 @@ replay says the same clocks (`README.md`, 5.12).
      name a bundle's directory in application.clients.bundle, and
      restart temper." (`../protocol/setup.md`, 8.2);
   3. a request other than `GET`: `405`;
-  4. `/bundle/<digest>/…`: the bundle's files, immutable; any other path
+  4. `/bundle/<digest>/…`: the bundle's files, immutable, each in the
+     form the request takes (skein's `ui-web.md`, 4.4); any other path
      under `/bundle/`: not found;
   5. `/robots.txt`, the bundle's one root file (skein's `ui-web.md`,
      3.3, step 5; jig's `protocol/browser.md`, section 12), disallowing
@@ -224,7 +225,12 @@ replay says the same clocks (`README.md`, 5.12).
   (`../protocol/configuration.md`, section 7), and refuses the start
   past them, or when it is no bundle (its page and its digest's
   directory), by one code for both: a directory's files read, or the
-  binary's, already in memory, copied (2.6). A new bundle is served
+  binary's, already in memory, copied (2.6). **Both forms stay whole in
+  memory,** a file and its `NAME.gz`: the service holds no inflater, and
+  a client not taking gzip is rare but is answered without one, a
+  `curl` among them. A `NAME.gz` with no `NAME` beside it refuses the
+  start, as no bundle does; a directory without its forms (built with
+  `--gzip off`) serves `NAME` alone. A new bundle is served
   after a restart; a tab on the old one is answered not found for its
   files, and a reload loads the new (skein's `ui-web.md`, 4.4). A page
   from the binary's own bundle always speaks its engine's records, so a
@@ -706,7 +712,8 @@ without it.
 
 - **One file.** The binary holds the bundle: the shell's module, its
   glue, and the stylesheets and files skein's bundler puts beside them
-  (2.2, 2.5). Running it is the whole install: no directory beside it,
+  (2.2, 2.5), and their compressed forms (skein's `ui-web.md`, 4.2).
+  Running it is the whole install: no directory beside it,
   no `scripts/bundle.sh` step.
 - **A plain `cargo build` makes it.** `cargo build`, then
   `./target/debug/temper box`, serves the browser; so do `cargo build
@@ -980,13 +987,16 @@ real key in that restored form.
   round trip (4.2) can send its tab to the fake issuer on plaintext
   loopback; the ordinary binary bundle never does (skein's `ui-web.md`,
   section 10). The tier names that bundle in its configuration, so it
-  runs alike over a binary built with or without its own (2.6).
+  runs alike over a binary built with or without its own (2.6). It holds
+  the compressed forms and Chromium takes gzip on loopback, so every
+  test loads the compressed module under temper's policy.
 - **The playground's test** (4.6, 12) runs on the built playground
   instead, `scripts/bundle.sh --playground` in its own profiles
   (`../playground.md`, 7), served as static files with their `headers`
   by the tier's own static server, which maps them as a site's host
   would; the tier reads the world's figures from the page's frame, and
   compresses the download's with the machine's `gzip` (`../playground.md`, 9).
+  That bundle has no compressed forms (`../playground.md`, 7).
 - **A cap: at most 12 tests, and 120 seconds** on the slowest of the
   machines that build temper (the user, 10-27, temper#15). Past it,
   stories that share a setup become one test of several steps before

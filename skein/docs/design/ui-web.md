@@ -190,7 +190,8 @@ Steps from the standard, each needing one before it only where it says.
   the bundle's prefix (4.3), its stylesheets in order, each owner's
   pictures' directory, its page and its files where it has them
   (3.3, steps 4 and 5), and a playground's worker module where it has
-  one (playground.md, 7).
+  one (playground.md, 7). Its compressed forms are on unless the
+  application turns them off.
 - **The bundle is a directory, written whole:**
   - `index.html`, the page, the bundler's or the application's (4.3);
   - beside it, one directory **named by the digest of everything in
@@ -205,13 +206,27 @@ Steps from the standard, each needing one before it only where it says.
       never clash;
     - `files/`, the application's files;
     - a worker's starter, glue and module, its snippets in `snippets/`
-      with the page's (playground.md, 7).
+      with the page's (playground.md, 7);
+    - beside each `.wasm`, `.js`, `.css` and `.svg` among them,
+      `NAME.gz`, its compressed form.
+- **A compressed form** is `NAME` as one gzip member (RFC 1952), at the
+  compressor's best level, its header holding no time and no name, so
+  that the same inputs give the same bytes. Gzip alone: every browser
+  accepts it, on plain http too, where browsers offer no Brotli. A
+  `.woff2` or a picture is compressed already. The compressor, `flate2`
+  on its Rust backend, is the bundler's alone, never linked into a
+  service or a module. An application whose host compresses for it
+  turns the forms off (`--gzip off`; `temper/docs/design/playground.md`,
+  7), and its directory holds `NAME` alone.
 - **The same inputs give the same bundle,** byte for byte; a change to
   any file in the directory gives another digest, and so another
   directory.
 - **Only the closed list of types** (4.4): a file whose extension is not
   in it refuses the bundle, naming it; so do a stylesheet named
-  `skein-ui.css` and two stylesheets of one name.
+  `skein-ui.css` and two stylesheets of one name. `.gz` is not in it:
+  an input so named refuses the bundle, so that the only `.gz` files in
+  a directory are those the bundler wrote, and nothing is compressed
+  twice.
 - **skein's texts that are not Rust:** the page and the starter, which
   the bundler writes, and `skein-ui.css`. Nothing inline.
 - **Its size is a guide:** the example's module, built with `web`, has
@@ -274,6 +289,14 @@ section 9), in code an application's server may copy.
   `.txt` as `text/plain; charset=utf-8`, `.webmanifest` as
   `application/manifest+json`; with `X-Content-Type-Options: nosniff`
   on every answer.
+- **A compressed answer:** where a file has its `NAME.gz` and the
+  request's `Accept-Encoding` takes gzip (`http.md`, 5.2), the answer's
+  body is `NAME.gz`, with `Content-Encoding: gzip` and `NAME`'s type;
+  where it doesn't, or the field is absent, `NAME`. Both answers say
+  `Vary: Accept-Encoding`. The rest of this section holds of either.
+  `NAME.gz` has no address of its own: asked for by that name, not
+  found. A server holds the two forms as it likes; decoded, the one
+  equals the other. The page and a root file are never compressed.
 - **The strict policy the parts run under:** they and the bundle need
   no more than `Content-Security-Policy: script-src 'self'
   'wasm-unsafe-eval'; style-src 'self'`, with nothing inline: no inline
@@ -1250,9 +1273,9 @@ the application that needs it.
 - **Tabs of one person sharing one stream,** so that many tabs hold one
   connection, and HTTP/2: wait for HTTP/2 in skein's HTTP, or for people
   keeping many tabs open.
-- **The bundle served compressed,** compressed by the bundler and served
-  in its encoding to a browser that accepts it: waits for a bundle whose
-  size over the network matters.
+- **Brotli beside gzip:** it saves more, and browsers offer it on https
+  alone. It waits for an application served over https whose wait still
+  matters with gzip.
 - **Graphics beyond a scene** (a canvas of hundreds of thousands of
   points, three dimensions, video) are a component of the application's
   (6.1), never a part of skein's.

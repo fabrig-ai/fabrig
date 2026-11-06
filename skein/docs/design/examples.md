@@ -624,8 +624,8 @@ a service copies that.
 - **The bundle,** written by `skein-ui-bundle` with `/bundle/` as the
   bundle's prefix (ui-web.md, 4.2), is read from the directory its
   arguments name, at startup (shell.md, 6.1), and served under
-  ui-web.md, 4.4: the digest directory immutable, the page with an
-  `ETag` and `no-cache`.
+  ui-web.md, 4.4: the digest directory immutable, each file in the
+  form the request takes, the page with an `ETag` and `no-cache`.
 - **The strict content security policy** of ui-web.md, 4.4, on every
   answer, so the browser tier sees any violation of it.
 - **Bounded:** the notes it keeps, a record's bytes, and the streams
