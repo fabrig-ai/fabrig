@@ -451,7 +451,36 @@ fn visibility_end(core: &Core, watcher: Token, binding: &crate::WatchBinding) ->
                 Some(views::End::NotAllowed)
             }
         }
-        Subject::Task { task } | Subject::Tree { task } | Subject::Run { task } => {
+        Subject::Task { task } => {
+            let Some(row) = core.tasks.task(*task) else {
+                return if core.views.is_making(watcher) { None } else { Some(views::End::Gone) };
+            };
+            match row.phase {
+                tasks::Phase::Ended(_) if core.views.is_making(watcher) => {
+                    if core.open_project(row.project) && core.people.role(binding.party, row.project).is_some()
+                        || documents::task_tree::person_funded(row, binding.party)
+                    {
+                        None
+                    } else {
+                        Some(views::End::NotAllowed)
+                    }
+                }
+                tasks::Phase::Ended(_) => Some(views::End::Gone),
+                tasks::Phase::Waiting
+                | tasks::Phase::Active(_)
+                | tasks::Phase::Closing(_)
+                | tasks::Phase::Held { .. } => {
+                    if core.open_project(row.project) && core.people.role(binding.party, row.project).is_some()
+                        || documents::task_tree::person_funded(row, binding.party)
+                    {
+                        None
+                    } else {
+                        Some(views::End::NotAllowed)
+                    }
+                }
+            }
+        }
+        Subject::Tree { task } | Subject::Run { task } => {
             let Some(row) = core.tasks.task(*task) else {
                 return if core.views.is_making(watcher) { None } else { Some(views::End::Gone) };
             };

@@ -145,3 +145,122 @@ fn a_projectless_failure_stays_held_and_reaches_no_person() {
     })));
     assert!(world.domain.core_mut().tasks.task(task).is_none_or(|row| matches!(row.phase, tasks::Phase::Ended(_))));
 }
+
+#[test]
+fn the_payers_task_watch_refreshes_and_ends_on_completion_or_cancellation() {
+    use core::documents::{ChipWork, Watched};
+    for cancel in [false, true] {
+        let mut world = world();
+        let task = make(&mut world);
+        let attempt = world.assigned.as_ref().expect("worker run").attempt;
+        // The client peer accepts host observations between durable task changes.
+        world.client_peer = Some(jig_core_world::client_peer::ClientPeer::routed());
+        watches::open(&mut world, 20, Watched::Task { task });
+        assert_eq!(peer_task(&world, 20).kept_account, Some(1));
+        world.send(root::Event::Core(core::Event::Delivered { watcher: Token::new(20) }));
+        let before = world.client_peer.as_ref().expect("watch").delivered.len();
+        world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Observe {
+            channel: Token::new(7),
+            run: Token::new(task),
+            attempt: Token::new(attempt),
+            report: fleet::Report::Activity(fleet::Activity::Active),
+        })));
+        let document = peer_task(&world, 20);
+        assert_eq!(document.chip.details.observation.as_ref().expect("current run").work, ChipWork::Active);
+        assert!(world.domain.core_mut().run_past_starting(task));
+        assert!(world.client_peer.as_ref().expect("watch").delivered.len() > before, "run refreshes payer's watch");
+        world.send(root::Event::Core(core::Event::Delivered { watcher: Token::new(20) }));
+        if cancel {
+            world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Cancel {
+                reply_to: ReplyTo::new(Token::new(900)),
+                by: tasks::Party::Deployment { project: PROJECT },
+                operation: tasks::Cancel { task, reason: Box::new([]), grace: None, message: None },
+            })));
+            world.end(tasks::End::Parked, 0);
+        } else {
+            world.end(
+                tasks::End::Finished {
+                    result: tasks::TaskResult::Report { words: b"answered".as_slice().into() },
+                    cancel_delegates: false,
+                },
+                0,
+            );
+        }
+        world.send(root::Event::Core(core::Event::Delivered { watcher: Token::new(20) }));
+        assert!(world.client_peer.as_ref().expect("watch").delivered.iter().any(|(_, delivery)| matches!(
+            delivery,
+            root::Delivery::Core(core::Held::WatchEnded { watcher, why: jig_domain_views::End::Gone })
+                if *watcher == Token::new(20)
+        )));
+        assert!(!world.domain.core_mut().run_past_starting(task));
+    }
+}
+
+fn peer_task(world: &World, watcher: u64) -> &core::documents::Task {
+    world
+        .client_peer
+        .as_ref()
+        .expect("watch caller")
+        .delivered
+        .iter()
+        .rev()
+        .find_map(|(_, delivery)| {
+            let root::Delivery::Core(core::Held::Delivery { watcher: received, document }) = delivery else {
+                return None;
+            };
+            let core::documents::Document::Task(task) = document.as_ref() else { return None };
+            (*received == Token::new(watcher)).then_some(task.as_ref())
+        })
+        .expect("Task document")
+}
+
+fn refused_watch(world: &mut World, watcher: u64, subject: core::documents::Watched) {
+    world.client_peer = Some(jig_core_world::client_peer::ClientPeer::routed());
+    watches::open(world, watcher, subject);
+    let peer = world.client_peer.take().expect("watch caller");
+    assert!(peer.delivered.is_empty(), "a refused watch serves no document");
+    let [core::Now::WatchRefused { watcher: refused, why }] = peer.now.as_slice() else {
+        panic!("one watch refusal: {:?}", peer.now)
+    };
+    assert_eq!(*refused, Token::new(watcher));
+    assert_eq!(*why, core::WatchRefusal::NotAllowed);
+}
+
+#[test]
+fn the_payers_exception_admits_no_other_viewer_or_subject() {
+    use core::documents::Watched;
+    let mut world = world();
+    let task = make(&mut world);
+    refused_watch(&mut world, 21, Watched::Tree { task });
+    refused_watch(&mut world, 22, Watched::Run { task });
+    world.send(jig_core_world::fixtures::sign_in(Token::new(902), 0, b"another", b"other", b"Other"));
+    refused_watch(&mut world, 23, Watched::Task { task });
+    let sign_in = world.sign_in.expect("another person");
+    let person = world
+        .store
+        .rows
+        .values()
+        .find_map(|row| match row {
+            root::Record::Core(core::Record::People(people::Stored::SignIn { number, person, .. }))
+                if *number == sign_in =>
+            {
+                Some(*person)
+            }
+            _ => None,
+        })
+        .expect("another person's stored identity");
+    assert_ne!(person, PERSON);
+    world.send(root::Event::Core(core::Event::People(people::Event::Roles {
+        project: PROJECT,
+        holdings: Box::new([people::Holding { person, role: people::Role::Owner }]),
+    })));
+    refused_watch(&mut world, 24, Watched::Task { task });
+}
+
+#[test]
+fn a_real_projects_task_watch_still_requires_a_project_role() {
+    let mut world = World::new(Setup { seed: SEED, ..Setup::default() });
+    let task = world.assigned.as_ref().expect("real project's task").task;
+    world.send(root::Event::Core(core::Event::People(people::Event::Roles { project: 1, holdings: Box::new([]) })));
+    refused_watch(&mut world, 25, core::documents::Watched::Task { task });
+}
