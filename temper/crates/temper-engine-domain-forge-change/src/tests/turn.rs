@@ -74,7 +74,10 @@ fn a_prepare_ask_makes_a_rebase_update() {
     assert_eq!(next.decision, Decision::Effect(Effect::Prepare { head: HEAD, main: BASE }));
     assert_eq!(next.change.state, State::Preparing { from: HEAD, main: BASE, ready_since: at(0) });
     assert_eq!(next.change.updates, 1);
-    assert_eq!(decide(&next.change, &prepare_facts(), &heard()).decision, Decision::Wait { until: Some(at(31)) });
+    assert_eq!(
+        decide(&next.change, &prepare_facts(), &Heard { effect: EffectResult::Pending, ..heard() }).decision,
+        Decision::Wait { until: Some(at(31)) }
+    );
 }
 
 #[test]
@@ -244,4 +247,116 @@ fn clean_prepare_history_and_updates_are_bounded() {
     let mut h = heard();
     h.effect = EffectResult::Made;
     assert_eq!(decide(&prepared.change, &f, &h).decision, Decision::Hold(Hold::Updates));
+}
+
+fn preparing_change() -> Change {
+    let mut c = turn(State::Preparing { from: HEAD, main: BASE, ready_since: at(0) });
+    c.updates = 1;
+    c.clean = Box::new([MERGE]);
+    c.gates = Box::new([gate(9, Freshness::Exact)]);
+    c
+}
+
+#[test]
+fn a_prepare_let_go_updates_again_where_its_head_is_behind() {
+    let c = preparing_change();
+    let f = Facts { contains_base: Status::Failed, ..facts() };
+    let next = decide(&c, &f, &heard());
+    assert_eq!(next.decision, Decision::Effect(Effect::Prepare { head: HEAD, main: BASE }));
+    assert_eq!(next.change.updates, 2);
+    assert_eq!(next.change.state, State::Preparing { from: HEAD, main: BASE, ready_since: at(0) });
+    assert_eq!(next.change.since, at(1));
+}
+
+#[test]
+fn a_prepare_let_go_holds_updates_at_its_bound() {
+    let mut c = preparing_change();
+    c.updates = LIMITS.updates;
+    let f = Facts { contains_base: Status::Failed, ..facts() };
+    assert_eq!(decide(&c, &f, &heard()).decision, Decision::Hold(Hold::Updates));
+}
+
+#[test]
+fn a_prepare_let_go_goes_on_where_its_head_holds_the_base() {
+    let c = preparing_change();
+    let next = decide(&c, &facts(), &heard());
+    assert_eq!(next, decide(&c, &facts(), &Heard { effect: EffectResult::Made, ..heard() }));
+    assert_eq!(next.change.state, State::Gating { head: HEAD, asked: Box::new([9]) });
+    assert_eq!(next.decision, Decision::Delegate(Delegate::Gate { number: 9, head: HEAD }));
+    assert_eq!(next.change.clean, c.clean);
+    assert_eq!(next.change.last_head, Some(HEAD));
+    assert_eq!(next.change.ready_since, Some(at(0)));
+    assert_eq!(next.change.since, at(1));
+}
+
+#[test]
+fn a_prepare_let_go_takes_a_moved_head_holding_the_base() {
+    let mut c = preparing_change();
+    let f = Facts { branch: Some(NEW), ..facts() };
+    let next = decide(&c, &f, &heard());
+    assert_eq!(next, decide(&c, &f, &Heard { effect: EffectResult::Made, ..heard() }));
+    assert_eq!(next.change.state, State::Gating { head: NEW, asked: Box::new([9]) });
+    assert_eq!(next.decision, Decision::Delegate(Delegate::Gate { number: 9, head: NEW }));
+    assert_eq!(next.change.clean.as_ref(), &[MERGE, HEAD]);
+    assert_eq!(next.change.last_head, Some(NEW));
+    assert_eq!(next.change.ready_since, Some(at(0)));
+    assert_eq!(next.change.since, at(1));
+    c.clean = Box::new([MERGE; 4]);
+    assert_eq!(decide(&c, &f, &heard()).decision, Decision::Hold(Hold::Updates));
+}
+
+#[test]
+fn a_prepare_let_go_holds_a_moved_head_not_holding_the_base() {
+    let f = Facts { branch: Some(NEW), contains_base: Status::Failed, ..facts() };
+    assert_eq!(decide(&preparing_change(), &f, &heard()).decision, Decision::Hold(Hold::BranchMoved));
+}
+
+#[test]
+fn a_prepare_let_go_waits_on_what_it_cannot_read() {
+    let c = preparing_change();
+    for (branch, contains_base) in [
+        (None, Status::Passed),
+        (None, Status::Failed),
+        (Some(HEAD), Status::Unknown),
+        (Some(HEAD), Status::Pending),
+        (Some(NEW), Status::Unknown),
+        (Some(NEW), Status::Pending),
+    ] {
+        let f = Facts { branch, contains_base, ..facts() };
+        let next = decide(&c, &f, &heard());
+        assert_eq!(next.decision, Decision::Wait { until: Some(at(30)) });
+        assert_eq!(next.change, c);
+        assert_eq!(step(&c, &f, &heard(), at(31), &LIMITS).decision, Decision::Hold(Hold::Stalled));
+    }
+}
+
+#[test]
+fn a_released_failed_prepare_decides_again() {
+    let mut c = preparing_change();
+    c.updates = LIMITS.updates;
+    c.state = State::Held { was: Box::new(c.state), why: Hold::Failed };
+    let f = Facts { contains_base: Status::Failed, ..facts() };
+    let lifted = released(&c, at(1));
+    let resumed = decide(&lifted, &f, &heard());
+    assert_eq!(resumed.decision, Decision::None);
+    let next = decide(&resumed.change, &f, &heard());
+    assert_eq!(next.decision, Decision::Effect(Effect::Prepare { head: HEAD, main: BASE }));
+    assert_eq!(next.change.updates, 1);
+}
+
+#[test]
+fn a_prepare_let_go_at_a_main_that_moved_asks_its_own_main_again() {
+    let f = Facts { base_tip: NEW, contains_base: Status::Failed, ..facts() };
+    let next = decide(&preparing_change(), &f, &heard());
+    assert_eq!(next.decision, Decision::Effect(Effect::Prepare { head: HEAD, main: BASE }));
+    assert_eq!(next.change.state, State::Preparing { from: HEAD, main: BASE, ready_since: at(0) });
+}
+
+#[test]
+fn a_prepare_outstanding_still_waits() {
+    let c = preparing_change();
+    let f = Facts { contains_base: Status::Failed, ..facts() };
+    let next = decide(&c, &f, &Heard { effect: EffectResult::Pending, ..heard() });
+    assert_eq!(next.decision, Decision::Wait { until: Some(at(30)) });
+    assert_eq!(next.change, c);
 }
