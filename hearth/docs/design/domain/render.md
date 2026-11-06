@@ -1570,8 +1570,15 @@ Over generated repositories, valid by construction and then mutated:
   stanzas; one of the two is to change.
 - **The domain's next event and its own resumed work:** 8.5 orders the
   protocol layer's alone, and the domain's step takes event after event
-  without asking whether it has work to resume. Whether it must depends
-  on the first build step that streams its events.
+  without asking whether it has work to resume, and `calls` stands outside
+  the watermark's backlog (8.4). Whether it must ask, and whether a stream's
+  events need a watermark of their own, depends on the first build step that
+  streams its events.
+- **What the service orders with no document asking** (8.5): `file_told` drains
+  before `told`, by the order of the loops, and a search that swapped them failed
+  no test; `asked` leaves in one order, a request that can't be taken holding those
+  behind it (`io_accepts_request`). Neither is stated as an order. Whether either
+  is one. Default: as they stand, until a test shows one.
 - **The store adapter's and a keep's lifecycles** (8): `store.rs` and `keep.rs`
   in `hearth-protocol-builder` keep theirs in flags and `Option`s
   (`skein/docs/foundation/programming-model.md`, 5.4). Default: as they stand,

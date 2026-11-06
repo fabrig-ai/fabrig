@@ -64,6 +64,9 @@ fn due_installation_renews_without_reconnecting() {
     assert!(expiry(&world, 1) > expiry(&world, 0));
     // Exactly the two renewal requests: no further Listing or Viewer.
     assert_eq!(world.requests().len(), START_REQUESTS + 2);
+    let renewal = &world.requests()[START_REQUESTS..];
+    assert!(renewal[0].ends_with(b"\r\n\r\n"), "Full is minted first, without a body");
+    assert!(renewal[1].ends_with(b"{\"permissions\":{\"contents\":\"write\"}}"), "Contents follows Full");
     assert!(world.script_done());
     assert!(world.close());
 }
@@ -77,6 +80,7 @@ fn failed_renewal_waits_then_renews() {
     let due = due(&world);
     world.advance_to(due);
     ready(&world);
+    assert_eq!(world.next_deadline(), Some(due.saturating_add(SECOND)));
     assert_eq!(world.requests().len(), START_REQUESTS + 1);
     world.advance_to(due.saturating_add(Duration::from_millis(999)));
     ready(&world);
@@ -99,6 +103,7 @@ fn renewal_key_refusal_stops_a_ready_generation() {
     assert_eq!(world.stopped(), Some((FORGE, Stopped::KeyRefused)));
     assert_eq!(world.git_tokens().len(), 1);
     assert_eq!(world.requests().len(), START_REQUESTS + 1);
+    assert_eq!(world.next_deadline(), None);
     assert!(world.script_done());
     assert!(world.close());
 }

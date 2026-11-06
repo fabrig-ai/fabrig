@@ -51,6 +51,7 @@ impl Plan {
         }
     }
     #[expect(clippy::too_many_lines, reason = "each read state consumes its exchange's terminal document")]
+    #[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
     fn done(
         &mut self,
         state: State,
@@ -61,7 +62,6 @@ impl Plan {
     ) -> Result<(State, Option<Step>), api::Error> {
         check_repository(&state, &document, self.repository.repository)?;
         keep_document(&document, self.repository.forge, tables);
-        let document = Some(document);
         let answer = match state {
             State::Resolving { read } => {
                 let repository = repository(document)?;
@@ -77,8 +77,8 @@ impl Plan {
             State::Settings => api::Answer::Settings(reading::settings(self.keep_repository(document, tables)?)),
             State::Issue { row, after } => {
                 let item = match document {
-                    Some(d::Document::Issue(issue)) => reading::summary(word, issue),
-                    Some(_) | None => return Err(api::Error::InvalidAnswer),
+                    d::Document::Issue(issue) => reading::summary(word, issue),
+                    _ => return Err(api::Error::InvalidAnswer),
                 };
                 let size = size::summary(&item, bounds.rows)?;
                 if size > u64::from(bounds.answer_bytes) {
@@ -117,15 +117,15 @@ impl Plan {
                 return Self::pull_status(row, *pull, bounds);
             }
             State::Branch { format } => match document {
-                Some(d::Document::Branch(branch)) => {
+                d::Document::Branch(branch) => {
                     api::Answer::Commit(reading::commit(branch.commit, format).ok_or(api::Error::InvalidAnswer)?)
                 }
-                Some(_) | None => return Err(api::Error::InvalidAnswer),
+                _ => return Err(api::Error::InvalidAnswer),
             },
             State::ProtectionBranch { row } => {
                 let protection = match document {
-                    Some(d::Document::Branch(branch)) => branch.effective_branch_protection_name,
-                    Some(_) | None => return Err(api::Error::InvalidAnswer),
+                    d::Document::Branch(branch) => branch.effective_branch_protection_name,
+                    _ => return Err(api::Error::InvalidAnswer),
                 };
                 let request = match protection {
                     Some(name) => Request::Protection { at: row.at(), name },
@@ -134,20 +134,18 @@ impl Plan {
                 return Ok((State::Protection, Some(self.send(request))));
             }
             State::Protection => match document {
-                Some(d::Document::Protection(protection)) => {
-                    api::Answer::Protection(Some(reading::protection(protection)))
-                }
-                Some(d::Document::Listed { .. }) => api::Answer::Protection(None),
-                Some(_) | None => return Err(api::Error::InvalidAnswer),
+                d::Document::Protection(protection) => api::Answer::Protection(Some(reading::protection(protection))),
+                d::Document::Listed { .. } => api::Answer::Protection(None),
+                _ => return Err(api::Error::InvalidAnswer),
             },
             State::Permission { row, whose } => {
                 let permission = match document {
-                    Some(d::Document::Permission(permission)) => api::UserPermission {
+                    d::Document::Permission(permission) => api::UserPermission {
                         user: permission.user.id,
                         login: permission.user.login,
                         permission: reading::permission(permission.permission),
                     },
-                    Some(_) | None => return Err(api::Error::InvalidAnswer),
+                    _ => return Err(api::Error::InvalidAnswer),
                 };
                 match whose {
                     Whose::One => api::Answer::Permission(permission),
@@ -161,12 +159,12 @@ impl Plan {
             }
             State::Searching { row, user, whose } => {
                 match document {
-                    Some(d::Document::Search { ok }) => {
+                    d::Document::Search { ok } => {
                         if !ok || self.count == 0 {
                             return Err(api::Error::Missing);
                         }
                     }
-                    Some(_) | None => return Err(api::Error::InvalidAnswer),
+                    _ => return Err(api::Error::InvalidAnswer),
                 }
                 let login = tables.user(self.repository.forge, user).ok_or(api::Error::Missing)?;
                 let step = self.send(Request::Permission { at: row.at(), login: bytes::copy_of(login) });
@@ -209,7 +207,7 @@ impl Plan {
         };
         ended(answer, bounds)
     }
-    fn keep_repository(&self, document: Option<d::Document>, tables: &mut Tables) -> Result<d::Repository, api::Error> {
+    fn keep_repository(&self, document: d::Document, tables: &mut Tables) -> Result<d::Repository, api::Error> {
         let repository = repository(document)?;
         let id = u32::try_from(repository.id).expect("repository checked");
         tables.keep_repository(
@@ -254,28 +252,32 @@ impl Plan {
 fn ended(answer: api::Answer, bounds: Bounds) -> Result<(State, Option<Step>), api::Error> {
     Ok((State::Ended, Some(terminal(answer, bounds)?)))
 }
-fn repository(document: Option<d::Document>) -> Result<d::Repository, api::Error> {
+#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
+fn repository(document: d::Document) -> Result<d::Repository, api::Error> {
     match document {
-        Some(d::Document::Repository(repository)) => Ok(repository),
-        Some(_) | None => Err(api::Error::InvalidAnswer),
+        d::Document::Repository(repository) => Ok(repository),
+        _ => Err(api::Error::InvalidAnswer),
     }
 }
-fn pull(document: Option<d::Document>) -> Result<d::PullRequest, api::Error> {
+#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
+fn pull(document: d::Document) -> Result<d::PullRequest, api::Error> {
     match document {
-        Some(d::Document::Pull(pull)) => Ok(pull),
-        Some(_) | None => Err(api::Error::InvalidAnswer),
+        d::Document::Pull(pull) => Ok(pull),
+        _ => Err(api::Error::InvalidAnswer),
     }
 }
-fn listed(document: Option<d::Document>) -> Result<u32, api::Error> {
+#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
+fn listed(document: d::Document) -> Result<u32, api::Error> {
     match document {
-        Some(d::Document::Listed { skipped }) => Ok(skipped),
-        Some(_) | None => Err(api::Error::InvalidAnswer),
+        d::Document::Listed { skipped } => Ok(skipped),
+        _ => Err(api::Error::InvalidAnswer),
     }
 }
+#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
 fn check_repository(state: &State, document: &d::Document, expected: u32) -> Result<(), api::Error> {
-    let id = match Some(document) {
-        Some(d::Document::Repository(repository)) => u32::try_from(repository.id),
-        Some(_) | None => return Ok(()),
+    let id = match document {
+        d::Document::Repository(repository) => u32::try_from(repository.id),
+        _ => return Ok(()),
     };
     let Ok(id) = id else {
         return Err(api::Error::TooLarge);

@@ -1668,9 +1668,12 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
     wants the stock's back resets it;
   - *a project's questions* that is not one of the three routes;
   - *a project's ways* with a `way` neither 0 nor a template the project
-    offers, read by the root from the core as an approval's eligible
-    people are; a removed or reset item of kind 6 or 7 is always good,
-    the project going back to the stock (13.4);
+    would offer after the whole decision, read by the root from the core
+    through its active settings decision as an approval's eligible people
+    are read from its people; a removed or reset item of kind 6 or 7 is always good,
+    the project going back to the stock (13.4). A proposal may install a
+    template and select it as the project's way in the same acceptance.
+    A refusal names the item and the rejected way number;
   - *any item* whose value is not its kind's (a rule for
     kind 1 or 2, a charter's number for kind 3), or whose kind, scope or number
     the table above does not have.
@@ -2446,7 +2449,7 @@ that changes the stock changes nothing of them.
     and policy 1 changed as above, before the case's project is made,
     since a project takes policy 1 as it is made (13.6, step 1);
   - `project.json`, applied once the case's project is made, its number
-    set by `jq` as `temper help configure` sets a `project-policy`'s: kind
+    set by `jq` as its `README.md` sets a `project-policy`'s: kind
     7 of that project, all four shown and `way` 4, so that the project
     shows its goals. A project's setting cannot be in `settings.json`,
     which is applied before the project exists;
