@@ -675,7 +675,7 @@ have one, an engine alone none. Each:
   | Prefix | Owner |
   |---|---|
   | `root.` | the engine root's own limits, beyond those jig's `engine.limits` sets |
-  | `forge.` | `temper-engine-domain-forge`'s `Limits`: `forge.client.`, `forge.change_policy.` and `forge.issue_policy.` for its children, `forge.queue_window_ms` |
+  | `forge.` | `temper-engine-domain-forge`'s `Limits`: `forge.client.`, `forge.change_policy.` and `forge.issue_policy.` for its children, `forge.queue_window_ms`, `forge.sitting_ms` |
   | `checkout.` | `temper-worker-domain-checkout`'s `Limits` |
   | `forge_component.` | the forge component's, its webhooks' listener's and its GitHub App's among them (forge.md, section 7): the owner's, given once for every forge as the component is made (skein's `forge-connection.md`, 7.2), so none is per forge |
   | `git_component.` | the git component's (git.md, section 8) |

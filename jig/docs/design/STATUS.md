@@ -12,7 +12,8 @@ built (the protocol documents), nor the store's retention, rehearsal and
 going back (`protocol/store.md`, `protocol/client.md`). An
 application's own kinds of setting, a project's policy in a change of
 settings and a settings revision's `Restore` are built, but a proposal
-of settings waits for the deployment's owners whatever it names, and the
+of settings waits for the deployment's owners whatever it names, so a
+project's owner alone reads no row of it, and the
 core world's restore stories are ignored (`domain/engine.md`,
 `domain/connectors.md`). A start does not check an application's declared
 kinds against its limits, and a project's deletion as a whole has no price

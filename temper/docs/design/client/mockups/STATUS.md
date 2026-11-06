@@ -97,8 +97,7 @@ Where the client does otherwise:
   client's where it has written none; "Landing: …", including "Landing:
   nothing has landed yet" after Skip, closes the page, and Goals takes
   Chats' place with a goal in the project (`../README.md`, 3.5, *Home on
-  any project*; on the stock policy a person's pool leaves no funding
-  for those words, `../README.status.md`, 3.5). Context, choices,
+  any project*). Context, choices,
   "recommended", "Later", the answer's green line and "Undo" are the
   greenfield mock's (`../README.md`, 3.5). A chat's "landed" waits on
   `../README.md`, 11, *What a chat did, on its line*. An adopted repository's To begin line says chats can change its code,

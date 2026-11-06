@@ -1877,8 +1877,8 @@ keeps (`../protocol/configuration.md`, section 2).
 - **What the client keeps** of what needs the person: in `Pages`, not on
   a page, for this session, gone on reload or on sign-out, none of it a
   stored record, and at most 64 each of the cards marked later, the answered
-  lines and the refused answers, the oldest going first, a line still held
-  never:
+  lines, the refused answers and the proposals of settings, the oldest going
+  first, a line still held never:
   - *Later,* the cards marked later. *The open cards* are the needs'
     groups as `Inbox` reads them, less those answered, in the inbox's
     order, those marked later last.
@@ -1889,6 +1889,9 @@ keeps (`../protocol/configuration.md`, section 2).
     leaves the open ones at once.
   - *At,* the card a Home row asked for, until it is answered or marked
     later, or the person leaves the page.
+  - *Proposals of settings,* each document as the session read it, so that a
+    return to its chat, once it is decided and jig reads it ended, draws its card
+    from it, with no acts, and its state from that read (5.13).
   - *The held send.* jig has no retraction, so a choice or a reply is
     held in the client for 5 seconds, a deadline of the domain's as
     `next_deadline` has. The card moves to answered at once, with the
@@ -5021,7 +5024,8 @@ section 5.
   something", quiet, focusing the composer. Replaced by a later proposal, it is
   dimmed, "Replaced by the proposal below"; accepted, "✓ Accepted · new work
   follows it". A person who may not accept it sees neither act: "Waiting for an
-  owner", the parties it waits for as jig's proposal names them. Nothing of it
+  owner", the parties it waits for as jig's proposal names them, "Owners of this
+  deployment" for a holder that is the deployment's policy. Nothing of it
   says which items temper enforces and which agents follow: that is the review
   page's, below, once it is built. In the inbox, its card shows the same lines
   (3.5).
@@ -6261,26 +6265,18 @@ own tests:
   the goal hearing those words, whose scripts are throwaway. No world keeps it:
   the parser, the stock sentence, the session and the view each hold their own
   side. Default: those tests.
-- **A proposal of settings in a project's Needs you** (3.5, *Needs you*, *What the
-  client keeps*; 5.13; the request `ui-final-walk` of 2026-11-05): jig takes a
-  proposal of settings in the deployment's scope (jig's `client/domain/contract.md`,
-  3.2), so its inbox row says project 0 whatever its items change, and *Needs you*
-  by the open project and the rail's count, the ways a project's frame has, leave
-  it out; the greenfield mock has its card and its count. To see it, on a fake box:
-  `temper ctl settings propose` one `project-ways` item of project 1, then Needs
-  you from the rail. Which inbox holds a proposal whose items span the deployment
-  and several projects is a decision, then one rule for the reads. Default: its
-  card in its chat (5.13) and `temper ctl`'s inbox.
-- **A choice pressed just after Undo** (3.5, *What the client keeps*; that
-  request): on a fake box at 1440, a question with choices, Later, its Reply sent,
+- **A decided proposal of settings' card, past the session** (5.13; 3.5, *What the
+  client keeps*; the request `ui-walk-large` of 2026-11-06, which has the chat's card
+  stay): a return to the chat draws the card, accepted, from what the session keeps;
+  a reload or another device loses it, since an ended proposal asks no card and jig
+  names no `projects` on one. A card from the ended proposal, or a stored record, would
+  keep it. Default: this session's alone.
+- **A choice pressed just after Undo** (3.5, *What the client keeps*; the request
+  `ui-final-walk` of 2026-11-05): on a fake box at 1440, a question with choices, Later, its Reply sent,
   Undo, then at once a choice: six seconds on the card and the count stood, and
   the engine held the question unanswered. A repeat on a fresh box at 1440 and the
   walk at 420 answered. Its cause is unknown and no way shows it reliably. Default:
   as it stands, until it is seen again.
-- **A brief refused, on Home** (3.5, *Home on any project*; that request): a status
-  run refused for want of funding leaves Home its computed sentence, with no byline
-  and nothing saying why. How a person sees that goes with what funds the run
-  (`../domain/forge.md`, 20). Default: nothing said.
 - **The Claude way's command on a box with directories of its own** (3.5, *Claude*;
   5.5; that request): the page shows `temper program-login NAME`, which reads the
   default directories under the person's home, so on such a box it refuses with

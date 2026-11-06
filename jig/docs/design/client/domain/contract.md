@@ -676,7 +676,7 @@ served is held, kept and unsent, for its owner's version (client.md,
   - *an inbox:* the party's entries, each naming its object and its
     project, in its groups, within a window, with the party's read
     positions: one over results, one per conversation over its turns. An
-    entry's `projects` is empty but on a proposal of settings: there, its
+    entry's `projects` is empty but on a pending proposal of settings: there, its
     proposal's `projects`, or, for one of the deployment's, each project the
     party owns, at most 32, the lowest numbers first
     (`../../domain/engine.md`, 17.6). `shows_in(project)` holds where `project` or
