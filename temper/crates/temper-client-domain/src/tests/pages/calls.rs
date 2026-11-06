@@ -17,6 +17,7 @@ fn tool_shapes_keep_the_argument_the_line_needs() {
         (b"settings", br#"{"history":true}"#, Touched::SettingHistory),
         (b"other", br#"{"nested":{},"task":3}"#, Touched::Other { argument: Some(Box::from(b"task 3".as_slice())) }),
         (b"other", br#"{"path":"file"}"#, Touched::Other { argument: Some(Box::from(b"file".as_slice())) }),
+        (b"other", br#"{"path":"file\nnext"}"#, Touched::Other { argument: Some(Box::from(b"file\nnext".as_slice())) }),
         (b"read_docs", br#"{"topic":"cut"#, Touched::Other { argument: None }),
     ];
     for (tool, input, expected) in rows {
