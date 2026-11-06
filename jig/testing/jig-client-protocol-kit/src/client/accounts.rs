@@ -1,6 +1,7 @@
 //! Inputs and commit pacing for LLM account sign-in protocol stories.
 use super::{Duration, Story, client, fixtures};
 use jig_domain_accounts as accounts;
+use jig_domain_link::{Form, Scheme};
 
 impl Story {
     #[must_use]
@@ -46,7 +47,7 @@ impl Story {
     pub fn grant_account_sign_in(&mut self, source: u32) {
         self.engine.driver.world.send(jig_test_domain::Event::Core(jig_domain_core::Event::Account(
             accounts::Event::Component(accounts::FromComponent::Granted {
-                form: accounts::Form::Credential(accounts::Scheme::Bearer),
+                form: Form::Credential(Scheme::Bearer),
                 account: source,
                 generation: 1,
                 valid: Duration::from_secs(60),

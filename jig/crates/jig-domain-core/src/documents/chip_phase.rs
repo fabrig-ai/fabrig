@@ -6,6 +6,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use jig_domain_fleet as fleet;
+use jig_domain_link::Operation;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Token, Wall};
 
@@ -126,6 +127,7 @@ pub(super) fn from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<ChipD
     })
 }
 
+#[expect(clippy::match_same_arms, reason = "activity variants retain their domain order")]
 pub(super) fn observe(
     core: &Core,
     limits: &Limits,
@@ -184,12 +186,10 @@ pub(super) fn observe(
             fleet::Activity::Preparing => ChipWork::Preparing,
             fleet::Activity::Starting => ChipWork::Starting,
             fleet::Activity::Active => ChipWork::Active,
-            fleet::Activity::Writing | fleet::Activity::Long { operation: fleet::Operation::Completion, .. } => {
+            fleet::Activity::Writing | fleet::Activity::Long { operation: Operation::Completion, .. } => {
                 ChipWork::Writing
             }
-            fleet::Activity::Long { operation: fleet::Operation::Checks | fleet::Operation::Command, .. } => {
-                ChipWork::Active
-            }
+            fleet::Activity::Long { operation: Operation::Checks | Operation::Command, .. } => ChipWork::Active,
             fleet::Activity::Waiting => ChipWork::Waiting,
             fleet::Activity::Ending => ChipWork::Ending,
             fleet::Activity::Tool { call, tool } => {

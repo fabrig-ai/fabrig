@@ -6,6 +6,7 @@ use jig_domain_accounts::{
     Change, Domain, Event, Held, Holder, Key, Kind, Limits, Providers, Request, RestoreLimit, RestoreSet, State,
     Stored, Use, programs,
 };
+use jig_domain_link::{Form, Scheme};
 use skein_lib::{Token, Wall};
 
 const ACCOUNT: u32 = 20;
@@ -400,7 +401,7 @@ fn live_keys_append_after_sparse_restored_places() {
         world.step(Event::Component(jig_domain_accounts::FromComponent::Granted {
             account: 22,
             generation: 1,
-            form: jig_domain_accounts::Form::Credential(jig_domain_accounts::Scheme::Key),
+            form: Form::Credential(Scheme::Key),
             valid: skein_lib::Duration::from_secs(60),
         }));
         let sources = world.domain.account(ACCOUNT).expect("kept").sources();
@@ -452,7 +453,7 @@ fn source_readback(world: &World) -> Vec<(u32, u32, Kind, Option<Held>)> {
 
 /// Saves and erases are the writer's; every cold reader loads the resulting keyed snapshot.
 pub(crate) fn writer_readback(seed: u64) -> Vec<Stored> {
-    use jig_domain_accounts::{Form, FromComponent, Scheme, Signing};
+    use jig_domain_accounts::{FromComponent, Signing};
     let mut rng = skein_lib::Rng::new(seed);
     let mut world = World::with_start(jig_accounts_world::LIMITS, configured(), &[]);
     let mut store = std::collections::BTreeMap::new();

@@ -69,7 +69,9 @@ pub struct Frame {
     pub full_link: Option<(u32, Wall, Wall)>,
     pub streams_full: Option<(w::StreamBound, u32)>,
     pub link_posts: Vec<Box<[u8]>>,
-    hold_stores: Option<()>,
+    pub hold_stores: Option<()>,
+    pub hold_connect: bool,
+    pub quiet: Vec<&'static [u8]>,
     store: Option<Box<[u8]>>,
     offers: Option<()>,
     answer_kept: Option<()>,
@@ -96,6 +98,11 @@ pub struct Frame {
     now: Time,
     start: Time,
     signal: Option<Submit>,
+    pub act_retry: Option<w::KeyedAnswer>,
+    pub complete_acts: bool,
+    pub me_busy: bool,
+    pub act_attempts: Vec<Time>,
+    pub me_attempts: Vec<Time>,
     pub busy: bool,
     pub absent: bool,
     pub refused: bool,
@@ -176,6 +183,8 @@ impl Frame {
             streams_full: None,
             link_posts: Vec::new(),
             hold_stores: None,
+            hold_connect: false,
+            quiet: Vec::new(),
             store: None,
             offers: None,
             answer_kept: None,
@@ -202,6 +211,11 @@ impl Frame {
             now: Time::ZERO,
             start: Time::ZERO,
             signal: None,
+            act_retry: None,
+            complete_acts: false,
+            me_busy: false,
+            act_attempts: Vec::new(),
+            me_attempts: Vec::new(),
             busy: false,
             absent: false,
             refused: false,
@@ -317,6 +331,10 @@ impl Frame {
             self.probe_reply();
             let mut answered = false;
             while let Some(mut submit) = self.host.submissions().pop() {
+                if self.hold_connect && matches!(submit.kind, Op::Connect { .. }) {
+                    self.held.push(submit);
+                    continue;
+                }
                 if self.hold_record_create
                     && matches!(&submit.kind, Op::Open { path, how: OpenHow::CreateNoFollow { .. }, .. } if path.as_ref() == b"record")
                 {
@@ -602,7 +620,7 @@ impl Frame {
         }
         let path = head.split_whitespace().nth(1).expect("request path").as_bytes().to_vec();
         self.requests.push(path.clone().into_boxed_slice());
-        if self.stopping.is_some() {
+        if self.stopping.is_some() || self.quiet.contains(&path.as_slice()) {
             return;
         }
         socket.answered = true;
@@ -671,6 +689,18 @@ impl Frame {
                 let subject = w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject().record()))
                     .expect("watch subject");
                 if subject == w::Subject::Me {
+                    self.me_attempts.push(self.now);
+                    if self.me_busy {
+                        let answer = w::OpenAnswer::Refused(
+                            w::OpenAnswerRefused::new(
+                                &w::CEILINGS,
+                                w::OpenAnswerRefusedParts { why: w::WatchRefusal::Busy },
+                            )
+                            .expect("busy me"),
+                        );
+                        self.reply(fd, &encode!(answer));
+                        return;
+                    }
                     self.watch = Some(open.watch());
                 } else {
                     self.wait_task = Some(open.watch());
@@ -693,7 +723,19 @@ impl Frame {
             }
             b"/jig/v1/request" => {
                 let body = socket.request[end + 4..].to_vec();
-                self.act_reply(fd, &body);
+                self.act_attempts.push(self.now);
+                if let Some(answer) = &self.act_retry {
+                    let body = encode!(answer);
+                    self.reply(fd, &body);
+                } else {
+                    if self.complete_acts {
+                        self.answer_new = Some(());
+                    }
+                    self.act_reply(fd, &body);
+                    if self.complete_acts {
+                        self.hold_stores = None;
+                    }
+                }
             }
             b"/jig/v1/read" => self.read_task(fd),
             b"/jig/v1/sign-out" => {

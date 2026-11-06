@@ -26,6 +26,7 @@ mod forges;
 mod hold_commands;
 mod inbox;
 mod inbox_observation;
+mod kept_message;
 mod names;
 mod open_chat;
 mod playground;

@@ -293,7 +293,8 @@ impl<'a> BrowserFace<'a> {
         self.requests.push(request);
         Ok(())
     }
-    pub(crate) fn find_boxed(&mut self, find: &Find) -> Found {
+    /// Find a semantic node and read its viewport rectangle for layout assertions.
+    pub fn find_boxed(&mut self, find: &Find) -> Found {
         if let Some(answer) = self.answer.take() {
             return answer;
         }
@@ -335,6 +336,13 @@ impl<'a> BrowserFace<'a> {
         let op = self.token();
         self.acting = Some(op);
         self.requests.push(Request::Key { page: self.page, op, key, shift });
+    }
+    /// Set this page's viewport in CSS pixels, keeping desktop input behaviour.
+    pub fn viewport(&mut self, width: u32, height: u32) {
+        self.refusal = None;
+        let op = self.token();
+        self.acting = Some(op);
+        self.requests.push(Request::Viewport { page: self.page, op, width, height });
     }
     /// Read the current whole URL; take its answer once the face is no longer pending.
     pub fn address(&mut self) {

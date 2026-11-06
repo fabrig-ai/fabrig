@@ -3,6 +3,7 @@ use super::*;
 use crate::composed::{CHANNEL, World, report_script};
 use jig_domain_accounts as accounts;
 use jig_domain_host as host;
+use jig_domain_link::{Form, Scheme};
 use skein_lib::{Duration, Wall};
 
 fn saves(world: &World) -> Vec<accounts::Stored> {
@@ -120,7 +121,7 @@ fn composed_notice_fences_drop_old_channels_attempts_sources_and_generations() {
                 account: 1,
                 generation: 2,
                 valid: Duration::from_secs(3600),
-                form: accounts::Form::Credential(accounts::Scheme::Bearer),
+                form: Form::Credential(Scheme::Bearer),
             })));
         }
         let assignment = world.assignment();

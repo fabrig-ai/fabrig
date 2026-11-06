@@ -5,6 +5,7 @@ use super::fixtures::{ATTEMPT, RUN, assignment, assignment_of, grant, items, par
 use super::harness::{Harness, answered, operated};
 use crate::{Event, Request, agent, host};
 use alloc::boxed::Box;
+use jig_domain_link::{GrantTable, Phase};
 
 /// The start smith's agent is sent, among `rows`.
 fn sent_start(rows: &[Request]) -> &agent::Start {
@@ -30,17 +31,20 @@ fn a_run_with_no_repository_starts_smith_with_no_workspace() {
 #[test]
 fn only_the_llm_accounts_grants_reach_smith() {
     for (form, expected_form) in [
-        (host::Form::Credential(host::Scheme::Bearer), agent::Form::Credential(agent::Scheme::Bearer)),
-        (host::Form::Credential(host::Scheme::Key), agent::Form::Credential(agent::Scheme::Key)),
         (
-            host::Form::Program(host::SourceName::new(b"claude").unwrap()),
+            jig_domain_link::Form::Credential(jig_domain_link::Scheme::Bearer),
+            agent::Form::Credential(agent::Scheme::Bearer),
+        ),
+        (jig_domain_link::Form::Credential(jig_domain_link::Scheme::Key), agent::Form::Credential(agent::Scheme::Key)),
+        (
+            jig_domain_link::Form::Program(jig_domain_link::SourceName::new(b"claude").unwrap()),
             agent::Form::Program(agent::SourceName::new(b"claude").unwrap()),
         ),
     ] {
         let mut h = Harness::new();
-        let mut llm = grant(host::GrantTable::Accounts, 1);
+        let mut llm = grant(GrantTable::Accounts, 1);
         llm.form = form;
-        let grants = Box::new([llm, grant(host::GrantTable::Application, 7)]);
+        let grants = Box::new([llm, grant(GrantTable::Application, 7)]);
         let assign = Event::Assign { assignment: assignment(true, grants), items: Ok(items(&[])) };
         let rows = h.run(assign);
         let expected =
@@ -52,7 +56,7 @@ fn only_the_llm_accounts_grants_reach_smith() {
 #[test]
 fn a_program_grant_renewal_reaches_smith_through_the_hub() {
     let mut h = Harness::new();
-    let mut grant = grant(host::GrantTable::Name, 1);
+    let mut grant = grant(GrantTable::Name, 1);
     let rows = h.run(Event::Link(host::LinkDown::Assign { assignment: assignment(false, Box::new([grant])) }));
     let mut expected = agent::Grant {
         account: grant.account,
@@ -97,7 +101,7 @@ fn an_agents_end_waits_behind_its_hand_outs() {
     let rows = h.gone();
     let owner = h.owner.expect("a hosted run");
     let hosting = h.domain.host().hosting(owner).expect("a hosted run");
-    assert_eq!(hosting.phase, host::Phase::Active, "{rows:?}");
+    assert_eq!(hosting.phase, Phase::Active, "{rows:?}");
     let ending = host::Ending::Parked { work: host::Work { left: None, saved: None } };
     assert!(answered(&h.release(), &ending));
 }
@@ -183,7 +187,7 @@ fn notices_keep_the_source_and_reset_and_do_not_replace_the_terminal() {
         };
         let mut h = Harness::new();
         h.run(Event::Link(host::LinkDown::Assign {
-            assignment: assignment(false, Box::new([grant(host::GrantTable::Accounts, SOURCE)])),
+            assignment: assignment(false, Box::new([grant(GrantTable::Accounts, SOURCE)])),
         }));
         h.say(agent::Up::Admitted);
         let again = match &notice {

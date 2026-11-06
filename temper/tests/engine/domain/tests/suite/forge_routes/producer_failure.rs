@@ -2,6 +2,7 @@
 use super::questions::row as change_row;
 use super::*;
 use jig_domain_core::reads;
+use jig_domain_link::ModelBound;
 use temper_engine_domain_forge_change::{Hold, State};
 
 const CHANNEL: Token = Token::new(7);
@@ -127,7 +128,7 @@ fn stock_search_chat() -> (World, engine::Assignment) {
     hello.bounds.turns = 800;
     hello.bounds.time = Duration::from_secs(28_800);
     hello.bounds.spend = defaults.rules.maximum_run_spend;
-    hello.bounds.models = Box::new([host::ModelBound { name: model.name, window: model.window, output: model.output }]);
+    hello.bounds.models = Box::new([ModelBound { name: model.name, window: model.window, output: model.output }]);
     hello.bounds.message_bytes = world.env.limits.tasks.result_bytes.max(world.env.limits.tasks.message_bytes);
     hello.bounds.inbox = world.env.limits.tasks.run_inbox;
     world.send(event);

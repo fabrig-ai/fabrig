@@ -2,6 +2,7 @@
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_host as host;
+use jig_domain_link::{Form, Scheme};
 use jig_domain_people as people;
 use jig_ops_domain as root;
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
@@ -38,7 +39,7 @@ impl World {
             core::Event::Period { project: 1, period: 1, budget: 1000, next: None },
             core::Event::Account(accounts::Event::Want),
             core::Event::Account(accounts::Event::Component(accounts::FromComponent::Granted {
-                form: accounts::Form::Credential(accounts::Scheme::Bearer),
+                form: Form::Credential(Scheme::Bearer),
                 account: 1,
                 generation: 1,
                 valid: Duration::from_secs(60),

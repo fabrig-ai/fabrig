@@ -555,19 +555,24 @@ fn multiple_models_and_providers_preserve_the_supplied_grant_list() {
     charter.models = Box::new([alternative, other]);
     let charter = smith_protocol_channel::encode_charter(&charter, &agent.limits.charter, &agent.endpoints).unwrap();
     let grants = [
-        hub::Grant {
+        jig_domain_link::Grant {
             account: 19,
             generation: 8,
             valid: Duration::from_secs(11),
-            form: hub::Form::Credential(hub::Scheme::Key),
+            form: jig_domain_link::Form::Credential(jig_domain_link::Scheme::Key),
         },
-        hub::Grant {
+        jig_domain_link::Grant {
             account: 7,
             generation: 3,
             valid: Duration::from_secs(5),
-            form: hub::Form::Credential(hub::Scheme::Bearer),
+            form: jig_domain_link::Form::Credential(jig_domain_link::Scheme::Bearer),
         },
-        hub::Grant { account: 99, generation: 1, valid: Duration::from_secs(6), form: hub::Form::Application },
+        jig_domain_link::Grant {
+            account: 99,
+            generation: 1,
+            valid: Duration::from_secs(6),
+            form: jig_domain_link::Form::Application,
+        },
     ];
     let start = crate::worker_route::decode(
         Token::new(31),

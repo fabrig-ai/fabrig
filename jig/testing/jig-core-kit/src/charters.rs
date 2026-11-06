@@ -3,6 +3,7 @@
 use crate::world::World;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
+use jig_domain_link::{Form, Scheme};
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
 use skein_lib::{Duration, ReplyTo, Token};
@@ -12,7 +13,7 @@ impl World {
     pub fn grant_account(&mut self, account: u32) {
         self.send(root::Event::Core(core::Event::Account(accounts::Event::Component(
             accounts::FromComponent::Granted {
-                form: accounts::Form::Credential(accounts::Scheme::Bearer),
+                form: Form::Credential(Scheme::Bearer),
                 account,
                 generation: 1,
                 valid: Duration::from_secs(60),

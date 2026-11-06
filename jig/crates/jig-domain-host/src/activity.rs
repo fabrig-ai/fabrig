@@ -1,5 +1,5 @@
 //! Content-free best-effort activity (domain/hosts.md, section 6.5).
-use crate::{AgentOperation, CountKind};
+use crate::{CountKind, Operation};
 use crate::{Hub, LinkUp, Phase, Request};
 use alloc::boxed::Box;
 use skein_lib::{Duration, Queue, Token};
@@ -7,7 +7,7 @@ use skein_lib::{Duration, Queue, Token};
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum AgentActivity {
     Phase(Phase),
-    Long { operation: AgentOperation, span: Duration },
+    Long { operation: Operation, span: Duration },
     LongDone,
     Count { kind: CountKind, elapsed: Duration, count: u64 },
 }

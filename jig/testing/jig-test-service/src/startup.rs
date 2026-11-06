@@ -1,6 +1,7 @@
 //! Parse and check everything before constructing a running service (service.md, 3).
 use crate::{Agent, Engine, Files, Limits, Seeds, Service, limits, system::System};
 use alloc::boxed::Box;
+use jig_domain_link::valid_program_endpoints;
 use jig_protocol_config::{self as config, Path, Problems, Profile, Segment, What, read};
 use jig_test_connector as connector;
 use jig_test_domain as root;
@@ -643,7 +644,7 @@ pub fn startup(
                 What::Unreadable,
             ));
         }
-        if !jig_domain_host::valid_program_endpoints(&agent.bounds.program_endpoints) {
+        if !valid_program_endpoints(&agent.bounds.program_endpoints) {
             return Err(problem(path.clone(), What::Bound));
         }
         io.sockets = io.sockets.checked_add(spec.config.limits.io.sockets).ok_or(problem(path.clone(), What::Bound))?;

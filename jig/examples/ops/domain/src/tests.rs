@@ -7,6 +7,7 @@ use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_host as host;
+use jig_domain_link::{Form, Scheme};
 use jig_ops_domain_infrastructure as infrastructure;
 use jig_ops_domain_observability as observability;
 use skein_lib::{Duration, Env, List, Queue, Time, Token, Wall};
@@ -433,7 +434,7 @@ fn started_chat() -> (Domain, Env<Limits>, Token) {
         core::Event::Period { project: 1, period: 1, budget: 1000, next: None },
         core::Event::Account(accounts::Event::Want),
         core::Event::Account(accounts::Event::Component(accounts::FromComponent::Granted {
-            form: accounts::Form::Credential(accounts::Scheme::Bearer),
+            form: Form::Credential(Scheme::Bearer),
             account: 1,
             generation: 1,
             valid: Duration::from_secs(60),

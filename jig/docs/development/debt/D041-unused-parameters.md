@@ -13,7 +13,8 @@
 ## What
 
 27 such parameters remain, all in `jig/crates/jig-client-view`
-(about 205 across jig at the review). This plan left the crate alone for fabrig/ui.
+(about 205 across jig at the review). What blocks them: fabrig/ui holds that crate, so no
+debt round edits it until it lets go.
 
 ## Why it matters
 
