@@ -2,7 +2,6 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 5.4: `turn_text` and a thread's `live` stay at 2,048 and 512 bytes, and `text_bytes` is the nodes at a node's most text.
 - **Not yet:** 3.5, *the turn being written*, *While it works*: the turn being written is read as closed text under "Writing...", with no "▍".
 - **Design departs:** 3.5, *Starting a goal from a chat's document*, and 5.14, from
   the request `ui-chat-draft` of 2026-11-05, decided by the answers that day to its
@@ -42,7 +41,11 @@
   menu open with the focus on its summary, where the mock draws the menu closed,
   since a disclosure's fold is skein's page part's (`ui-web.md`, 7). The field does
   not select its name on opening, and no toast says "Renamed": the request names
-  neither.
+  neither, and section 11 holds them. On a new chat or Configure the closed form
+  leaves the focus on the page's own field, where the request has the opener or the
+  summary, because that plan's cut keeps a page's own request. The field's hidden
+  label says "Rename", where the mock's says "Project name": no one sees it, and
+  that plan's cut took no new word for it.
 - **Design departs:** 3.5, 5.3, 5.8, 5.13, from the greenfield target:
   the switcher keeps its inline new-project form; a chat keeps its status,
   Stop and Close, and offers Change model only with supplied choices;
@@ -67,6 +70,13 @@
   then says why Send stays grey; and no line says there that the playground is
   running or leaving. Seen by reading; no test holds it.
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
+- **Not yet:** 3.5, *The try*: the view has no fact of a trial, so `model_check::trial`,
+  the one function `../draft/model-check.md`, 2 to 4, feeds, reads the host's check alone:
+  under way is the first step Running with no "one short message", and settled with no
+  usable source is the first step Stopped. No page reaches Answered, a sign-in's or a
+  key's steps, a stop at a later step, a reason with no act, or the box on `ConnectModel`:
+  each is drawn and tested, and `model_check::last_try_failed` is false, so Ready's muted
+  line is not said. A model usable moves on to Ready by itself until that draft is built.
 - **Not yet:** 3.5, *Home on any project*: on the stock policy the status agent
   is left no funding. Its roles' pools are as large as the project's period
   (`temper-service`'s `stock.rs`, `project_policy`), so once a person's pool has
@@ -127,13 +137,14 @@
   1440, a choice pressed just after Undo left the card, the count and the engine's
   question as they were after six seconds, and a repeat on a fresh box and the walk
   at 420 answered. The cause is unknown; no test holds it (section 11).
-- **Not yet:** 5.3, from the answer of 2026-11-06 to the `ui-final-walk` task `fix-look`: in
-  the rail the rename's form stands after the rows, the row kept, with a secondary
-  "Save", a visible "Cancel" and a field 25 pixels high (`temper-client-view`'s
-  `frame.rs`, `rename_form`), and closing it gives no focus back
-  (`temper-client-domain`'s `pages/switcher.rs`, `close`): the walk at both widths
-  found Escape on the new project's field and "Cancel" on main. That plan fixed the
-  answer's ring alone and left the rest for its size; section 11 holds it.
+- **Not yet:** 5.3: the rename's form asks the focus, and so does an open reply:
+  `temper-client-view`'s `pages/ask.rs`, `reply_form`, calls `b.focus(0)` with no
+  guard, where `pages/chat.rs`, `document.rs`, `settings.rs`, `new_chat.rs` and
+  `configure.rs` ask only while no rename is open. So an owner who presses "Rename
+  PROJECT" with a reply open on Home or Needs you meets skein-ui's
+  `Builder::focus`, at most one per tree, which asserts. The `ui-rename-focus` task
+  `rename-row` has opening the form on such a page not panic; no reason is recorded
+  for this site. Seen by reading; no test holds it.
 - **Not yet:** 3.5, *Away*, 4.6: with the `away` watch refused, ended or not
   delivered yet the switch draws off, but its act is still offered, where 4.6
   has it not offered: `temper-client-view`'s `frame.rs`, `away`, and

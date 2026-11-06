@@ -1382,6 +1382,7 @@ fn prefix<T>(values: &[T], most: u32) -> &[T] {
     let end = values.len().min(usize::try_from(most).expect("window fits"));
     values.get(..end).expect("bounded prefix")
 }
+
 // Only a later settings proposal anchored in this conversation replaces an ended one.
 fn settings_replaced(root: &Domain, object: c::ObjectKey, rows: u32) -> bool {
     let Some(chat) = root.pages().chat() else { return false };
