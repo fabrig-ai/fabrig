@@ -4,9 +4,6 @@
 Section 4.3's failed and refused answer diagnostics reach serve's stderr and the box's
 `serve.log`; that operator-output path has no gap.
 
-- **Not yet:** 5, *A merge in progress*: a producer's start whose branch already
-  contains the base still merges, so its next push adds an empty two-parent
-  commit (`temper-worker-domain-checkout/src/hold.rs`, `checked_out_merge`).
 - **Not yet:** 4.3: a held task names no run's failure, which the user's
   request of 2026-11-05 asked for if cheap: it needs a stored-format
   change, so it is section 12's question, and `temper help server` says
