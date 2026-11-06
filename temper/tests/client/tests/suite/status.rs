@@ -50,8 +50,9 @@ impl Story {
     fn new() -> Self {
         let mut limits = fixtures::domain_limits();
         // A new page opens before the previous page's handles finish retiring.
-        limits.client.domain.handles = 16;
-        limits.client.domain.watches = 16;
+        // The session also holds trials and a running trial task.
+        limits.client.domain.handles = 18;
+        limits.client.domain.watches = 18;
         Self {
             front: Joint::with_status_people(fixtures::SEED, limits),
             probes: Vec::new(),

@@ -378,7 +378,7 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
             {"name":"claude", "number":2, "dialect":2, "provider":"anthropic", "program":"claude_code",
                 "address":"api.anthropic.com:443", "transport":"tls", "server_name":"api.anthropic.com",
                 "connect":10000, "handshake":10000, "headers":[],
-                "models":[{"name":"claude-haiku-5-5", "prices":{"input":1, "cached":1, "output":1, "unit":1000},
+                "models":[{"name":"claude-haiku-5-5", "prices":{"input":2000, "cached":2000, "output":10000, "unit":1_000_000},
                     "window":1_048_576, "output":8192, "reasoning_item":65536, "head":60000, "idle":300_000}]},
             agent_before["endpoints"].as_array().unwrap().iter().find(|endpoint| endpoint["name"] == "demo").unwrap()
         ])
@@ -395,7 +395,7 @@ fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
                 "address":{"host":"api.anthropic.com", "port":443}, "transport":"tls", "server_name":"api.anthropic.com",
                 "headers":[], "connect_ms":10000, "handshake_ms":10000}, before["engine"]["llm"]["endpoints"].as_array().unwrap().iter().find(|entry| entry["name"] == "demo").unwrap()],
             "models":[{"name":"claude-haiku-5-5", "endpoint":"claude", "window":1_048_576, "output":8192,
-                "prices":{"input":1, "cached":1, "output":1, "unit":1000}}, before["engine"]["llm"]["models"].as_array().unwrap().iter().find(|entry| entry["name"] == "demo").unwrap()]
+                "prices":{"input":2000, "cached":2000, "output":10000, "unit":1_000_000}}, before["engine"]["llm"]["models"].as_array().unwrap().iter().find(|entry| entry["name"] == "demo").unwrap()]
         })
     );
     assert_eq!(value["application"], before["application"], "including init's demo");
@@ -1238,6 +1238,7 @@ fn referee_me() -> jig_client::contract::Me {
         providers_cut: false,
         key_bytes: 256,
         redirect_bytes: 256,
+        words_bytes: 8192,
         needs: c::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 0 },
         needs_total: 0,
         updates: c::Count { value: 0, limited: false },

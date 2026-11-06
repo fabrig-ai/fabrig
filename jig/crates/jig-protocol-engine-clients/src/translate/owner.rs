@@ -144,6 +144,13 @@ fn project(
     names: Option<&crate::public::Names>,
     limits: &w::Limits,
 ) -> Result<w::MeProject, w::Problem> {
+    let mut defaults = List::with_capacity(value.defaults.len());
+    for (template, choice) in &value.defaults {
+        let choice = super::llm::choice(Some(choice), models, limits)?.expect("present preview");
+        defaults
+            .push(w::MeDefault::new(limits, w::MeDefaultParts { template: *template, choice })?)
+            .expect("same preview count");
+    }
     w::MeProject::new(
         limits,
         w::MeProjectParts {
@@ -163,7 +170,8 @@ fn project(
                 Some(value) => Some(super::me::creating(models, value, limits)?),
                 None => None,
             },
-            models: super::llm::models(value.models, models, limits)?,
+            models: super::llm::models(value.offer.as_slice(), models, limits)?,
+            defaults,
         },
     )
 }
@@ -192,6 +200,7 @@ pub(crate) fn frame_named(
             providers_cut: value.providers_cut,
             key_bytes: value.key_bytes,
             redirect_bytes: value.redirect_bytes,
+            words_bytes: value.words_bytes,
             party: w::MeParty::new(
                 limits,
                 w::MePartyParts {

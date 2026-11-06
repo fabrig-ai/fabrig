@@ -1,0 +1,70 @@
+draft = "browser-budget"
+repo = "fabrig"
+sources = ["temper/docs/plan/browser-budget/inputs/request.md", "temper/tests/client-browser/tests/browser_all/browser_pages.rs", "skein/testing/skein-fake-person-browser/src/face.rs", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+
+# The four stories' repair, a lever a part, each measured by name; see plan.md.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "figures"
+title = "What the four stories cost before the repair, and where it goes"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[part]]
+id = "history"
+title = "A reading story's history is made through ctl, and the page opens on it"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/browser.md, 4.3"
+
+[[part]]
+id = "window"
+title = "The tier's bundle holds a smaller window, by the same mechanism"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 5.15"
+
+[[part]]
+id = "delivery"
+title = "What one delivery costs a page holding a long chat"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/chat-reading.md, 3"
+
+[[slice]]
+id = 1
+story = "the four stories are measured, their history no longer typed, and a delivery's cost is known at the whole bound"
+parts = ["figures", "history", "window", "delivery"]
+walk = false
+
+[[part]]
+id = "window-on"
+title = "The tier's bundle turns the smaller window on, and the stories pass it at both ends"
+mode = "direct"
+needs = ["history", "window"]
+design = "temper/docs/design/client/browser.md, 4.3"
+
+[[part]]
+id = "finds"
+title = "A find that keeps missing looks less often, if that pays"
+mode = "direct"
+needs = ["window-on"]
+design = "skein/docs/design/browser.md, 6"
+
+[[part]]
+id = "close"
+title = "The repair's account: before, after, and what's left"
+mode = "direct"
+needs = ["figures", "delivery", "finds"]
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[slice]]
+id = 2
+story = "the reading stories pass a smaller window at both ends, a find's back-off lands if it pays, and the numbers go to the user"
+parts = ["window-on", "finds", "close"]
+walk = false

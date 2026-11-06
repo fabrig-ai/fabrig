@@ -1386,7 +1386,10 @@ pub struct Rlimit { pub resource: Resource, pub soft: u64, pub hard: u64 }
 
 Termination signals are blocked at startup (shell.md, 6), read from a
 signalfd through the ring, and arrive as `Shutdown` events. The domain
-decides what shutting down means.
+decides what shutting down means. A service that asks also reads `SIGHUP`
+so, as `ServiceSignal::Hangup` (shell.md, 6.3): a terminal's closing, which
+may arrive more than once, and which the domain tells from a second
+termination by its name.
 
 `Shutdown { signal: ServiceSignal, from: Option<Token> }` names the sender
 only when it is a live child this io spawned: `from` is `Some(child)` after

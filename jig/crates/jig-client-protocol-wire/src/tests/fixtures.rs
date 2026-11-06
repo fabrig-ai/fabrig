@@ -305,6 +305,7 @@ pub fn project_role(limits: &Limits) -> MeProject {
     MeProject::new(
         limits,
         MeProjectParts {
+            defaults: List::with_capacity(0),
             public: None,
             models: List::with_capacity(0),
             templates: Box::from([]),
@@ -430,6 +431,7 @@ pub fn frame_at_ceilings(limits: &Limits) -> Me {
             providers_cut: false,
             key_bytes: 256,
             redirect_bytes: 4096,
+            words_bytes: 8192,
             party: frame_party(limits),
             projects: piece_items(&repeated(project_role(limits), 2), MeProject::measure, MeProject::encode),
             needs: needs(limits),

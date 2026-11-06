@@ -485,8 +485,9 @@ handles, as every presentation does (sections 7 and 8).
   { handle, page }`: the document, or the page with its cursors, or why
   there is none: unknown, gone, too large with its size, malformed,
   refused, busy, signed out, version not served, or unreachable, when
-  its exchange is lost (gone, too large and malformed for a turn read
-  alone, contract.md, section 6). A read is one attempt
+  its exchange is lost or not sent for want of room (gone and too large for a
+  turn read alone, contract.md, section 6; malformed for a turn that does not decode, and
+  for any read whose answer does not, section 16). A read is one attempt
   (`../../protocol/client.md`, section 6): the application reads again
   if it wants.
 - **What is live is watched; what is past is read.** The engine holds
@@ -634,6 +635,11 @@ handles, as every presentation does (sections 7 and 8).
   transport bound (`../../protocol/client.md`, 4 and 17.2). `Link(state)`
   tells the caller when this fact arrives even if the state is unchanged;
   it stays through retries until `me` returns or the sign-in ends.
+  `watches_full` says that a watch the client holds, `me`'s or an
+  application's, was last answered busy (8.1) and has had no answer since.
+  It clears when that watch is answered, or is closed or ended. It carries
+  no count, since a refusal names none, and tells no `Link(state)`: an
+  application reads it when it has cause to, as at a deadline.
 - **Judged from the stream alone,** whatever the application watches. A
   request that got no answer while the link is live is sent again after
   a backoff, and does not by itself make the client offline.
@@ -776,14 +782,24 @@ for any presentation of a chat or of any agent task's activity.
   committed turn of the same attempt and number takes its place: the
   thread keeps each turn's line, since the client holds only the turn
   being written (8.3). A line keeps its text's start, up to the thread's
-  `live` bound, so it only grows; past the bound it stays as it is until
-  its committed turn takes its place. A turn lost with its host never commits: its
-  provisional text is dropped when the run ends, and the next run
-  starts after the last committed turn.
+  `live` bound. Within the same retry, suffix snapshots extend that prefix
+  only where their bytes meet or overlap it; a gap leaves the prefix in
+  place, marked cut, never joined across missing bytes. Its retained start
+  and the newest stream offset are separate. A snapshot from the full
+  origin, a newer retry or a new attempt replaces it; otherwise it only
+  grows, and past the bound stays as it is until its committed turn takes
+  its place. A run's end takes no line away by
+  itself, since its committed turn may be a read away and a person may be
+  reading those words: once the run has ended and the committed activity has
+  been read, a line no committed turn replaced goes. That is a turn lost with
+  its host, which never commits, and the next run starts after the last
+  committed turn.
 - **A person's words, in three states:** being sent, while their
   `Message` is pending; sent, once its answer names their message in
   the task's inbox; read, once a committed turn says it read through
-  that message.
+  that message. A thread keeps at most its `bytes` of them, each within its
+  `text`: `sending` refuses words past either, and whoever drafted them keeps
+  them and says so.
 - **A window bounded by size.** A thread's `bytes` bound its lines: a
   line weighs its bytes of words, texts, names, inputs, outcomes and
   summaries, and `LINE_ROOM` (64) for itself and for each message, block,
@@ -1051,9 +1067,13 @@ outcome needs its line. It is at least the receiving field bound `text` and at
 most `turn_bytes`; limits outside those bounds are refused.
 
 `DomainLimits.long_text` bounds what a person may read or send whole past a
-field's `text`: a note's body, a document's text and a task's words, and what one
-delivery of a run's text carries, within the wire's ceiling for it. It is at
-least `text` and at most `document_bytes`, and a request's `ask_bytes` holds it.
+field's `text`: a note's body, a document's text and a task's words, the words of
+an activity line (a `Words` line, a word heard or notified) and of a `Message` or
+an answer to a question, and what one delivery of a run's text carries, within the
+wire's ceiling for it. It is at least `text` and at most `document_bytes`, and a
+request's `ask_bytes` holds it. A line holds what the store took, whoever wrote it,
+so a deployment whose `tasks.message_bytes` or `tasks.result_bytes` pass `long_text`,
+or whose page of lines passes `document_bytes`, has that page refused (section 16).
 
 Reads have room independently of watch handles; a read need not own a
 watch. Pending entries price both their token and optional family. A
@@ -1132,7 +1152,9 @@ the client's protocol designs (`../../protocol/client.md`):
 - **The clients' component,** at the engine's end, takes jig's messages
   with their credentials, answers each exchange with one record, and
   writes the stream (`../../protocol/client.md`, 4.2). It knows no
-  HTTP.
+  HTTP. A read's answer it cannot encode within its wire's bounds is
+  answered malformed: closing the exchange would read as a lost one, which
+  a client asks again.
 - **Documents decoded whole,** into the client's types, and checked
   against the client's limits before they reach its domain
   (programming-model.md, 4.4); a document past them is refused at
@@ -1146,6 +1168,12 @@ the client's protocol designs (`../../protocol/client.md`):
   what its rows decode to is charged against the bytes the domain holds
   for a document, twice the client's document limit (section 14). A
   document past a count or that room is refused as too large.
+- **An answer that came and does not decode ends its read.** Whatever the
+  cause, malformed, past the client's bounds or of another version, a jig
+  read ends malformed, beside the link's `UndecodableDocument` fact: asking
+  again would get the same answer. A family's read ends with no record, as any
+  of its failures does. A lost exchange, or one not sent for want of room, ends
+  unreachable, which an application may ask again by itself.
 
 ## 17. The world
 
@@ -1169,6 +1197,15 @@ with a person in front of a tree, are view.md's, 18.10.
 
 ## 18. Open questions
 
+- **A busy watch's cause** (8.2): `watches_full` records the refusal,
+  which carries no count or separate capacity cause. Whether to distinguish
+  watch room from another admission bound is a protocol decision. Default:
+  the existing Busy refusal and a boolean, read on demand by the application.
+- **Activity past a client's read bounds** (sections 14 and 16): a line past
+  `long_text`, or a page past `document_bytes`, ends the read malformed without
+  cutting its words. Whether an application grows its bounds for a larger
+  deployment, or the engine pages to a client's negotiated bounds. Default: the
+  read ends; no bound is negotiated.
 - **A run's wait on a summary row** (19.1): a row holds no run wait, since
   a task query carries no run's check per row, so a chat that can't start
   says starting in a list, and its document alone says why. Default: so.
@@ -1209,7 +1246,10 @@ with a person in front of a tree, are view.md's, 18.10.
   `views.text_bytes` and the wire's `run_text_text` stop at one bound, so a client
   following a turn from its start holds it whole, and one opened later holds the
   retained end until its committed turn comes. Holding the whole takes a delivery in
-  pieces, a change of a protocol, the user's. Default: as it stands.
+  pieces, a change of a protocol, the user's. A thread whose next suffix
+  skips bytes likewise keeps its prefix marked cut until a full-origin
+  snapshot or its committed turn replaces it (section 10); it asks for no
+  missing provisional bytes. Default: as it stands.
 - **A committed turn past a client's document bound** (sections 10 and 16): a turn
   past `document_bytes` on the wire is refused as too large, with its size, so it
   shows no calls' names, whatever `turn_text` would keep of it. Reading it takes a
@@ -1268,9 +1308,10 @@ with a person in front of a tree, are view.md's, 18.10.
     wall where the template has it given, so that no shape reads a
     clock; no wake policy, so the executor's own;
     the template's LLM choice, or the goal draft's where it names one,
-    by configured names (contract.md, 3.2), none leaving it to each run's
-    check (`../../domain/accounts.md`, 4.3). Shapes copy configured intent, never
-    `resolved_default`, the separate preview served in `me`;
+    by configured names (contract.md, 3.2), none being the charter's default
+    taken at each run's check (`../../domain/accounts.md`, 4.3). Shapes copy
+    configured intent, never `resolved_default`, the separate preview served
+    in `me`;
     no parameters, inputs or dependencies; symbolic resources copied
     from the template for the engine to resolve;
   - a template it cannot fill gives `NotOffered::Template`, and nothing

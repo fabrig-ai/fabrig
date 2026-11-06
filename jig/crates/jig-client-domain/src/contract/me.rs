@@ -25,6 +25,8 @@ pub struct Me {
     pub key_bytes: u32,
     /// The driver's redirect bound: the most bytes a pasted sign-in address may have.
     pub redirect_bytes: u32,
+    /// The most bytes a party's words may have: a task's spec, a message, an answer.
+    pub words_bytes: u32,
 }
 
 /// The authenticated identity, with independently supplied local text loss.
@@ -47,6 +49,7 @@ pub struct MeProject {
     pub creating: Option<Creating>,
     /// The models the party may choose here, as its authority allows them, in configuration's order.
     pub models: List<super::MeModel>,
+    pub defaults: List<MeDefault>,
     /// Its public identifier while public, none while private.
     pub public: Option<u64>,
 }
@@ -94,4 +97,11 @@ pub struct Template {
     pub grace: Option<Duration>,
     /// The LLM choice the template gives its task; `None` is its charter's default.
     pub llm: Option<super::LlmChoice>,
+}
+
+/// A template's preview, separate from its configured LLM intent (contract.md, 5.1).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct MeDefault {
+    pub template: u32,
+    pub choice: super::LlmChoice,
 }

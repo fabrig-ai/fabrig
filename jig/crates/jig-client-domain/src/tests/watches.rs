@@ -281,3 +281,122 @@ fn a_full_stream_tells_its_caller_and_keeps_retrying_until_me_returns() {
         assert_eq!(c.domain.streams_full(), None);
     }
 }
+
+#[test]
+fn a_me_refused_busy_is_named_until_it_is_answered() {
+    let mut c = Client::started();
+    assert!(!c.domain.watches_full());
+    c.end(fixtures::ME_WATCH, contract::WatchEnd::Busy);
+    assert!(c.domain.watches_full());
+    assert_eq!(c.domain.link(), Link::Offline);
+    assert_eq!(c.told().as_ref(), &[Told::Link { link: Link::Offline }]);
+    let deadline = next_deadline(&c.domain).unwrap();
+    c.at(Time::from_nanos(deadline.as_nanos() - 1));
+    assert!(c.downs().is_empty());
+    assert!(c.domain.watches_full());
+    c.at(deadline);
+    let watch = c.name(Watchable::Jig(contract::Subject::Me));
+    assert_ne!(watch, fixtures::ME_WATCH);
+    assert_eq!(c.downs().as_ref(), &[Down::Open { watch, subject: Watchable::Jig(contract::Subject::Me) }]);
+    assert!(c.domain.watches_full());
+    assert_eq!(c.domain.link(), Link::Offline);
+    let mut up = fixtures::me(fixtures::PARTY, Duration::from_secs(1));
+    let Up::Watched { watch: name, .. } = &mut up else { unreachable!("me delivery") };
+    *name = watch;
+    c.step(Event::Up { up });
+    assert!(!c.domain.watches_full());
+    assert_eq!(c.domain.link(), Link::Live);
+    c.end(watch, contract::WatchEnd::Busy);
+    c.step(Event::Up { up: Up::SignedOut });
+    assert!(!c.domain.watches_full());
+}
+
+fn application_watch() -> Client {
+    let mut c = Client::live();
+    c.step(Event::Watch { handle: TASK, subject: task(SUBJECT_TASK) });
+    c.downs();
+    c
+}
+
+fn busy_application_watch() -> Client {
+    let mut c = application_watch();
+    c.end(c.name(task(SUBJECT_TASK)), contract::WatchEnd::Busy);
+    c
+}
+
+fn reopened_busy_application_watch() -> Client {
+    let mut c = busy_application_watch();
+    c.at(next_deadline(&c.domain).unwrap());
+    c.downs();
+    c
+}
+
+#[test]
+fn an_applications_watch_refused_busy_is_named_with_the_link_live() {
+    let mut c = application_watch();
+    let watch = c.name(task(SUBJECT_TASK));
+    assert!(!c.domain.watches_full());
+    c.end(watch, contract::WatchEnd::Busy);
+    assert!(c.domain.watches_full());
+    assert_eq!(c.domain.link(), Link::Live);
+    assert_eq!(c.told().as_ref(), &[Told::Changed { handle: TASK }]);
+    let deadline = next_deadline(&c.domain).unwrap();
+    c.at(Time::from_nanos(deadline.as_nanos() - 1));
+    assert!(c.downs().is_empty());
+    assert!(c.domain.watches_full());
+    assert_eq!(c.domain.link(), Link::Live);
+    c.at(deadline);
+    let reopened = c.name(task(SUBJECT_TASK));
+    assert_ne!(reopened, watch);
+    assert_eq!(c.downs().as_ref(), &[Down::Open { watch: reopened, subject: task(SUBJECT_TASK) }]);
+    assert!(c.domain.watches_full());
+    assert_eq!(c.domain.link(), Link::Live);
+    c.deliver(SUBJECT_TASK);
+    assert!(!c.domain.watches_full());
+    assert_eq!(c.domain.link(), Link::Live);
+}
+
+#[test]
+fn a_watch_answered_after_busy_is_no_longer_named() {
+    let mut c = reopened_busy_application_watch();
+    assert!(c.domain.watches_full());
+    c.told();
+    c.step(Event::Up { up: Up::Watched { watch: c.name(task(SUBJECT_TASK)), event: contract::WatchEvent::Opened } });
+    assert!(!c.domain.watches_full());
+    assert_eq!(c.domain.link(), Link::Live);
+    assert!(c.told().is_empty());
+}
+
+#[test]
+fn a_drop_after_busy_is_not_named() {
+    for end in [
+        contract::WatchEnd::Dropped,
+        contract::WatchEnd::Stopping,
+        contract::WatchEnd::Closed,
+        contract::WatchEnd::SubjectEnded,
+        contract::WatchEnd::Unknown,
+        contract::WatchEnd::NotAllowed,
+        contract::WatchEnd::NotServed,
+        contract::WatchEnd::SignedOut,
+    ] {
+        let mut c = reopened_busy_application_watch();
+        assert!(c.domain.watches_full());
+        c.end(c.name(task(SUBJECT_TASK)), end);
+        assert!(!c.domain.watches_full(), "{end:?}");
+    }
+}
+
+#[test]
+fn a_closed_watch_refused_busy_is_not_named() {
+    let mut c = reopened_busy_application_watch();
+    let watch = c.name(task(SUBJECT_TASK));
+    assert!(c.domain.watches_full());
+    c.step(Event::Unwatch { handle: TASK });
+    assert!(!c.domain.watches_full());
+    c.end(watch, contract::WatchEnd::Busy);
+    assert!(!c.domain.watches_full());
+
+    let mut c = busy_application_watch();
+    c.step(Event::Up { up: Up::SignedOut });
+    assert!(!c.domain.watches_full());
+}

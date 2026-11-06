@@ -481,7 +481,7 @@ fn end(value: c::AccountEnd, out: &mut Encoder) {
     out.object_end();
 }
 fn models(me: &c::Me, project: Option<u32>, out: &mut Encoder, cut: &mut Cut, window: &mut Window) {
-    window.cut |= me.cut;
+    window.cut |= me.cut || me.providers_cut;
     out.key(b"models");
     out.array_start();
     for held in &me.projects {
@@ -497,81 +497,96 @@ fn models(me: &c::Me, project: Option<u32>, out: &mut Encoder, cut: &mut Cut, wi
         number(b"project", u64::from(held.project), out);
         out.key(b"providers");
         out.array_start();
-        for (index, model) in held.models.as_slice().iter().enumerate() {
-            if window.left == 0 {
-                window.cut = true;
-                break;
-            }
-            let mut seen = false;
-            for previous in held.models.as_slice().get(..index).expect("preceding models") {
-                seen |= previous.provider == model.provider;
-            }
-            if seen {
-                continue;
-            }
+        for offer in &me.providers {
             if !window.take(128) {
                 break;
             }
             out.object_start();
-            provider(model.provider, out);
+            provider(Some(offer.provider), out);
             out.key(b"provider_name");
-            let mut name = None;
-            for offer in &me.providers {
-                if Some(offer.provider) == model.provider {
-                    name = Some(&offer.name);
-                    break;
-                }
-            }
-            match name {
-                Some(name) => {
-                    super::encode_document_text(name, out, cut);
-                    window.cut |= name.cut;
-                }
-                None => out.null(),
-            }
-            out.key(b"models");
-            out.array_start();
-            for item in &held.models {
-                if item.provider != model.provider {
-                    continue;
-                }
-                if !window.take(512) {
-                    break;
-                }
-                out.object_start();
-                out.key(b"name");
-                cut.words(item.name.bytes(), out);
-                number(b"window", u64::from(item.window), out);
-                number(b"output", u64::from(item.output), out);
-                out.key(b"description");
-                match &item.description {
-                    Some(description) => cut.words(description.bytes(), out),
-                    None => out.null(),
-                }
-                out.key(b"prices");
-                out.object_start();
-                number(b"input", item.prices.input, out);
-                number(b"cached", item.prices.cached, out);
-                // jig prices cache writes at input when no separate price is configured.
-                number(b"cache_write", item.prices.cache_write.unwrap_or(item.prices.input), out);
-                number(b"output", item.prices.output, out);
-                number(b"unit", u64::from(item.prices.unit), out);
-                out.object_end();
-                out.key(b"efforts");
-                out.array_start();
-                for effort in &item.efforts {
-                    if !window.take(32) {
-                        break;
-                    }
-                    cut.words(effort.bytes(), out);
-                }
-                out.array_end();
-                out.object_end();
-            }
-            out.array_end();
+            super::encode_document_text(&offer.name, out, cut);
+            window.cut |= offer.name.cut;
+            model_rows(held, Some(offer.provider), out, cut, window);
             out.object_end();
         }
+        for model in &held.models {
+            if model.provider.is_none() {
+                if !window.take(128) {
+                    break;
+                }
+                out.object_start();
+                provider(None, out);
+                out.key(b"provider_name");
+                out.null();
+                model_rows(held, None, out, cut, window);
+                out.object_end();
+                break;
+            }
+        }
         out.array_end();
+        out.object_end();
+    }
+    out.array_end();
+}
+fn model_rows(held: &c::MeProject, provider: Option<u32>, out: &mut Encoder, cut: &mut Cut, window: &mut Window) {
+    out.key(b"models");
+    out.array_start();
+    for item in &held.models {
+        if item.provider != provider {
+            continue;
+        }
+        if !window.take(512) {
+            break;
+        }
+        out.object_start();
+        out.key(b"name");
+        cut.words(item.name.bytes(), out);
+        out.key(b"shown");
+        match &item.shown {
+            Some(shown) => cut.words(shown.bytes(), out),
+            None => out.null(),
+        }
+        number(b"window", u64::from(item.window), out);
+        number(b"output", u64::from(item.output), out);
+        out.key(b"description");
+        match &item.description {
+            Some(description) => cut.words(description.bytes(), out),
+            None => out.null(),
+        }
+        out.key(b"prices");
+        out.object_start();
+        number(b"input", item.prices.input, out);
+        number(b"cached", item.prices.cached, out);
+        // jig prices cache writes at input when no separate price is configured.
+        number(b"cache_write", item.prices.cache_write.unwrap_or(item.prices.input), out);
+        number(b"output", item.prices.output, out);
+        number(b"unit", u64::from(item.prices.unit), out);
+        out.object_end();
+        out.key(b"efforts");
+        out.array_start();
+        for effort in &item.efforts {
+            if !window.take(32) {
+                break;
+            }
+            cut.words(effort.bytes(), out);
+        }
+        out.array_end();
+        out.key(b"effort");
+        match &item.effort {
+            Some(effort) => cut.words(effort.bytes(), out),
+            None => out.null(),
+        }
+        out.key(b"accounts");
+        out.array_start();
+        for account in &item.accounts {
+            if !window.take(32) {
+                break;
+            }
+            out.unsigned(u64::from(*account));
+        }
+        out.array_end();
+        out.key(b"picker");
+        out.boolean(item.picker);
         out.object_end();
     }
     out.array_end();

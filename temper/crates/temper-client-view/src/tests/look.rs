@@ -13,6 +13,14 @@ fn the_frame_carries_its_tokens() {
 fn the_looks_names_pass_skeins_check() {
     assert!(skein_ui::look::check(&[NAMES]).is_none());
     for (token, name) in [
+        (PUBLIC_PAGE, b"temper-public-page".as_slice()),
+        (PUBLIC_INTRO, b"temper-public-intro".as_slice()),
+        (PUBLIC_LEDE, b"temper-public-lede".as_slice()),
+        (PUBLIC_ROWS, b"temper-public-rows".as_slice()),
+        (PUBLIC_ROW, b"temper-public-row".as_slice()),
+        (PUBLIC_LINE, b"temper-public-line".as_slice()),
+        (PUBLIC_FACTS, b"temper-public-facts".as_slice()),
+        (PUBLIC_SECTION, b"temper-public-section".as_slice()),
         (CHAT_GOAL, b"temper-chat-goal".as_slice()),
         (WRITING_END, b"temper-writing-end"),
         (WELCOME_COPY, b"temper-welcome-copy"),

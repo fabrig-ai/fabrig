@@ -103,9 +103,20 @@ fn frame(w: World, connecting: bool, configuring: bool) -> c::Me {
             prices: c::ModelPrices { input: 0, cached: 0, cache_write: None, output: 0, unit: 1 },
             window: 200_000,
             output: 16_384,
+            effort: efforts.get(0).cloned(),
+            shown: None,
+            accounts: {
+                let mut accounts = List::with_capacity(1);
+                accounts.push(1).expect("account");
+                accounts
+            },
+            picker: true,
             efforts,
         })
         .expect("model");
+    if matches!(w, World::Bare | FirstRun { step: 0 }) {
+        member.models.clear();
+    }
     if matches!(w, FirstRun { step: 6..=9 }) {
         let mut models = List::with_capacity(2);
         let mut model = member.models.get(0).expect("demo model").clone();
@@ -147,12 +158,18 @@ fn frame(w: World, connecting: bool, configuring: bool) -> c::Me {
     me
 }
 fn template_preview(member: &mut c::MeProject) {
-    let template = member.templates.get_mut(0).expect("chat template");
-    template.llm = Some(c::LlmChoice {
-        account: None,
-        main: c::ModelEffort { model: text("gpt-6-luna"), effort: None },
-        subagents: List::with_capacity(0),
-    });
+    member.defaults = List::with_capacity(1);
+    member
+        .defaults
+        .push(c::MeDefault {
+            template: jig_client::shapes::CHAT,
+            choice: c::LlmChoice {
+                account: None,
+                main: c::ModelEffort { model: text("gpt-6-luna"), effort: None },
+                subagents: List::with_capacity(0),
+            },
+        })
+        .expect("template preview");
 }
 fn providers(w: World) -> List<c::ProviderOffer> {
     let mut rows = List::with_capacity(3);
@@ -581,6 +598,7 @@ fn world_in_layout(
                         | w::Watch::Landings(_)
                         | w::Watch::Decided(_)
                         | w::Watch::Status(_)
+                        | w::Watch::Trials
                         | w::Watch::Changes(_)
                         | w::Watch::Dismissed => {
                             continue;
@@ -3159,7 +3177,7 @@ fn activity(w: World, task: u64) -> c::ActivityPage {
     c::ActivityPage { rows, after: None, before: None, cut: false }
 }
 #[expect(clippy::too_many_lines, reason = "literal account and source facts from the mockup worlds")]
-fn accounts(w: World, then: Then) -> c::Accounts {
+pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
     let mut rows = List::with_capacity(2);
     match w {
         Reference => {
@@ -3504,6 +3522,7 @@ fn base_frame(person: &str, project: &str) -> c::Me {
     let mut projects = List::with_capacity(1);
     projects
         .push(c::MeProject {
+            defaults: List::with_capacity(0),
             public: None,
             project: PROJECT,
             name: doc(project),
@@ -3528,6 +3547,7 @@ fn base_frame(person: &str, project: &str) -> c::Me {
         providers_cut: false,
         key_bytes: 4096,
         redirect_bytes: 4096,
+        words_bytes: 8192,
     }
 }
 #[expect(clippy::too_many_lines, reason = "the gallery's base task spells out every specification field")]

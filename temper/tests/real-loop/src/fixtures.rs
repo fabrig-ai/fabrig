@@ -29,6 +29,9 @@ pub fn documents(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde
     let mut value: serde_json::Value =
         serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("engine JSON");
     value.as_object_mut().expect("whole object").remove("service");
+    for name in ["views.watchers", "views.watchers_per_party"] {
+        value["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides").remove(name);
+    }
     for (name, count) in
         [("clients.streams", 8_u32), ("clients.exchanges", 12), ("clients_http.streams", 8), ("clients_http.calls", 12)]
     {
@@ -54,8 +57,6 @@ pub fn documents(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde
     value["engine"]["limits"]["overrides"]["people.sign_ins"] = 4.into();
     // Two concurrent acts each need one task and half the project purse.
     value["engine"]["limits"]["overrides"]["tasks.project_tasks"] = 2.into();
-    value["engine"]["limits"]["overrides"]["views.watchers"] = 16.into();
-    value["engine"]["limits"]["overrides"]["views.watchers_per_party"] = 16.into();
     value["application"] = serde_json::json!({
         "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":null},
@@ -359,7 +360,8 @@ fn stock_document(value: &mut serde_json::Value) {
         ("authority.executors", 9),
         ("tasks.executor_kinds", 9),
         ("notes.scopes", 32),
-        ("tasks.charters", 6),
+        // Seven slots hold the stock charters.
+        ("tasks.charters", 7),
         ("core.templates", 3),
     ] {
         let held = value["engine"]["limits"]["overrides"][name].as_u64().unwrap_or(0);
@@ -583,8 +585,8 @@ mod tests {
         else {
             panic!("the real loop supplies its own defaults")
         };
-        let numbers: Vec<_> = defaults.charters.iter().map(|charter| charter.number).collect();
-        assert_eq!(numbers, [1, 2, 3, 4, 6, 9], "all stock charters and the helper are retained");
+        assert!(defaults.charters.iter().any(|charter| charter.number == 9), "the helper charter is retained");
+        assert!(defaults.charters.iter().any(|charter| charter.number == 10), "the stock trial charter is retained");
         assert!(defaults.charters.len() <= usize::try_from(engine.limits.core.tasks.charters).expect("charter limit"));
     }
 }

@@ -29,9 +29,9 @@ pub fn limits() -> Limits {
                 }],
                 requests,
                 ask_bytes: requests.bytes / u64::from(requests.requests),
-                // The page handles, project-needs, session Away and Home decisions watches.
-                handles: 12,
-                watches: 12,
+                // The page handles, project-needs, session Away and Home decisions watches, trials and a running trial task.
+                handles: 14,
+                watches: 14,
                 turn_bytes: 65536,
                 backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                 authority: 12,
@@ -53,7 +53,7 @@ pub fn limits() -> Limits {
             exchanges: 8,
         };
 
-        Limits { forge: forge::Limits { field_bytes: 256, checks: 8 }, client, row_uses: 8 }
+        Limits { forge: forge::Limits { field_bytes: 256, checks: 8 }, client, row_uses: 8, window_bytes: None }
     }
 }
 pub fn words() -> crate::words::Words {
@@ -878,11 +878,37 @@ pub fn inbox_facts(
     cut: bool,
     unread: Option<c::Count>,
 ) -> temper_client_domain::Domain {
+    inbox_facts_at(temper_client_domain::Address::Inbox { filter }, document, proposer, cut, unread)
+}
+/// A question's reply on Home, sharing the inbox's delivered card fixture.
+pub fn reply_composer(document: (c::Read, c::ReadValue)) -> temper_client_domain::Domain {
+    inbox_facts_at(
+        temper_client_domain::Address::Home { project: PROJECT },
+        Some(document),
+        c::Proposer::Task(INBOX_TASK),
+        false,
+        None,
+    )
+}
+#[expect(clippy::too_many_lines, reason = "one fixture delivers the inbox and its reply composer through public reads")]
+fn inbox_facts_at(
+    address: temper_client_domain::Address,
+    document: Option<(c::Read, c::ReadValue)>,
+    proposer: c::Proposer,
+    cut: bool,
+    unread: Option<c::Count>,
+) -> temper_client_domain::Domain {
     use jig_client::contract::{self, InboxGroup as Group, ObjectKey as Object};
     let mut limits = domain_limits();
     // Six card reads beside the frame's own bounded reads.
     limits.client.domain.reads = 8;
-    let (mut root, _, watch) = root_at(temper_client_domain::Address::Inbox { filter }, &limits);
+    let (mut root, watch) = if let temper_client_domain::Address::Home { .. } = address {
+        let (root, _, _, watch) = root_at_with_needs(address, &limits);
+        (root, Some(watch))
+    } else {
+        let (root, _, watch) = root_at(address, &limits);
+        (root, watch)
+    };
     let env = Env { now: Time::ZERO, wall: NOW, limits };
     let mut out = Queue::uncapped();
     let mut entries = List::with_capacity(6);
@@ -927,6 +953,7 @@ pub fn inbox_facts(
             cut,
         )
     };
+    let query_rows = inbox.needs.clone();
     temper_client_domain::step(
         &mut root,
         &env,
@@ -942,6 +969,32 @@ pub fn inbox_facts(
     );
     if let Some((read, page)) = document {
         while let Some(request) = out.pop() {
+            if let temper_client_domain::Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down:
+                            jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { group, .. }) },
+                    },
+            } = &request
+            {
+                let rows = if *group == c::InboxReadGroup::Needs { query_rows.clone() } else { List::uncapped() };
+                temper_client_domain::step(
+                    &mut root,
+                    &env,
+                    temper_client_domain::Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::ReadDone {
+                                read: *read,
+                                result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(Box::new(
+                                    c::InboxPage { selection: None, cut: false, rows, before: None, after: None },
+                                )))),
+                            },
+                        },
+                    },
+                    &mut out,
+                );
+                continue;
+            }
             if let temper_client_domain::Request::Unlinked {
                 request:
                     jig_client::UnlinkedRequest::Down {
@@ -1382,7 +1435,7 @@ pub mod chat {
 }
 
 pub fn chats_root() -> temper_client_domain::Domain {
-    root_at(temper_client_domain::Address::Chats { filter: temper_client_domain::ChatsFilter::All }, &domain_limits()).0
+    super::chats::listed(&[], &[], false)
 }
 /// Act `Input` on the named text area, as a person typing, and return the area's value after the root took it.
 pub fn type_into(root: &mut temper_client_domain::Domain, name: &[u8], words: &[u8]) -> Box<[u8]> {
@@ -1426,6 +1479,7 @@ fn fixture_me(project_name: &[u8]) -> c::Me {
     let mut projects = List::with_capacity(2);
     projects
         .push(MeProject {
+            defaults: List::with_capacity(0),
             public: None,
             project: PROJECT,
             name: DocumentText::complete(
@@ -1447,6 +1501,7 @@ fn fixture_me(project_name: &[u8]) -> c::Me {
         providers_cut: false,
         key_bytes: 256,
         redirect_bytes: 256,
+        words_bytes: 8192,
         party: MeParty {
             number: 73,
             kind: PartyKind::Person,
@@ -1470,7 +1525,11 @@ pub fn playground_root(
     project: u32,
     model: bool,
 ) -> temper_client_domain::Domain {
-    playground_choice_root(address, project, model, None)
+    let mut root = playground_choice_root(address.clone(), project, model, None);
+    if let temper_client_domain::Address::Chats { .. } = address {
+        answer_empty_chats(&mut root);
+    }
+    root
 }
 pub fn playground_choice_root(
     address: temper_client_domain::Address,
@@ -1489,6 +1548,7 @@ pub fn playground_frame_root(
 ) -> temper_client_domain::Domain {
     playground_frame_with_watch(address, project, model, llm, frame).0
 }
+#[expect(clippy::too_many_lines, reason = "the fixture delivers playground offer, preview and task through watches")]
 pub fn playground_frame_with_watch(
     address: temper_client_domain::Address,
     project: u32,
@@ -1511,6 +1571,10 @@ pub fn playground_frame_with_watch(
     for name in [crate::words::SCRIPTED_MODEL, b"selected"] {
         models
             .push(c::MeModel {
+                effort: None,
+                shown: None,
+                accounts: List::from_boxed(Box::new([2])),
+                picker: true,
                 name: c::Text::new(Box::from(name), 32).unwrap(),
                 provider: Some(17),
                 prices: c::ModelPrices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1000 },
@@ -1522,6 +1586,17 @@ pub fn playground_frame_with_watch(
             .unwrap();
     }
     me.projects.get_mut(0).unwrap().models = models;
+    me.projects.get_mut(0).unwrap().defaults = List::from_boxed(Box::new([c::MeDefault {
+        template: jig_client::shapes::CHAT,
+        choice: c::LlmChoice {
+            account: None,
+            main: c::ModelEffort {
+                model: c::Text::new(Box::from(crate::words::SCRIPTED_MODEL), 32).unwrap(),
+                effort: None,
+            },
+            subagents: List::with_capacity(0),
+        },
+    }]));
     let mut charters = List::with_capacity(1);
     charters.push(1).expect("chat charter");
     me.projects.get_mut(0).expect("playground project").creating = Some(c::Creating {
@@ -2143,4 +2218,230 @@ pub fn away_toggle(root: &mut temper_client_domain::Domain) -> Token {
 /// An in-flight model sign-in for the shared waiting page's direct render checks.
 pub(crate) fn waiting_root() -> temper_client_domain::Domain {
     super::connect_model::pasting().0
+}
+
+/// A page whose watches open but whose list reads remain under the test's control.
+pub(super) struct ReadPage {
+    pub root: temper_client_domain::Domain,
+    pub out: Queue<temper_client_domain::Request>,
+    pub inbox: Option<Token>,
+    pub me: Option<Token>,
+    pub chats: Option<Token>,
+    pub reads: List<(Token, c::Read)>,
+}
+impl ReadPage {
+    pub fn new(address: temper_client_domain::Address) -> Self {
+        use jig_client::{Down, Readable, Up, Watchable};
+        use temper_client_domain::{Event, Request};
+        let mut page = Self {
+            root: temper_client_domain::unlinked(&domain_limits(), SEED),
+            out: Queue::uncapped(),
+            inbox: None,
+            me: None,
+            chats: None,
+            reads: List::uncapped(),
+        };
+        page.event(Event::Start { address, kept: List::with_capacity(0), with: Some(jig_client::With::Transport) });
+        page.up(Up::Served { served: true, versions: None });
+        while let Some(request) = page.out.pop() {
+            let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
+            match down {
+                Down::Open { watch, subject: Watchable::Jig(c::Subject::Me) } => {
+                    page.me = Some(watch);
+                    let source = chat::messaging_root();
+                    let mut me = source.pages().me(source.client()).unwrap().clone();
+                    me.projects.get_mut(0).unwrap().name = fixture_me(b"Shop").projects.get(0).unwrap().name.clone();
+                    page.up(Up::Watched { watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) });
+                }
+                Down::Open { watch, subject: Watchable::Jig(c::Subject::Inbox { .. }) } => {
+                    page.inbox = Some(watch);
+                    page.up(Up::Watched { watch, event: c::WatchEvent::Opened });
+                }
+                Down::Open { watch, subject: Watchable::Jig(c::Subject::Tasks { .. }) } => {
+                    page.chats = Some(watch);
+                    page.up(Up::Watched { watch, event: c::WatchEvent::Opened });
+                }
+                Down::Open { watch, subject }
+                    if Some(subject.clone()) == forge::forges::watch(&domain_limits().forge) =>
+                {
+                    let rows = List::with_capacity(0);
+                    page.up(Up::FamilyDelivered {
+                        watch,
+                        record: jig_client::Family {
+                            family: wire::FORGE,
+                            version: wire::CLIENT_VERSION,
+                            bytes: wire::forges(
+                                &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).unwrap(),
+                            ),
+                        },
+                    });
+                }
+                Down::Read { read, what: Readable::Jig(what) } => {
+                    page.reads.push((read, what)).unwrap();
+                }
+                Down::Open { .. }
+                | Down::Read { .. }
+                | Down::Continue { .. }
+                | Down::Close { .. }
+                | Down::Save { .. }
+                | Down::Erase { .. }
+                | Down::Send { .. } => {}
+            }
+        }
+        page
+    }
+    pub fn event(&mut self, event: temper_client_domain::Event) {
+        temper_client_domain::step(
+            &mut self.root,
+            &Env { now: Time::ZERO, wall: NOW, limits: domain_limits() },
+            event,
+            &mut self.out,
+        );
+    }
+    pub fn up(&mut self, up: jig_client::Up) {
+        self.event(temper_client_domain::Event::Client { event: jig_client::Event::Up { up } });
+    }
+    pub fn collect(&mut self) {
+        while let Some(request) = self.out.pop() {
+            if let temper_client_domain::Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(what) },
+                    },
+            } = request
+            {
+                self.reads.push((read, what)).unwrap();
+            }
+        }
+    }
+    pub fn drop_inbox(&mut self) {
+        self.up(jig_client::Up::WatchEnded { watch: self.inbox.unwrap(), end: c::WatchEnd::Dropped });
+        if self.root.pages().inbox().is_none() {
+            self.up(jig_client::Up::WatchEnded { watch: self.me.unwrap(), end: c::WatchEnd::Dropped });
+        }
+        self.collect();
+    }
+    pub fn live_chats(&mut self, lines: &[c::TaskLine]) {
+        self.up(jig_client::Up::Watched {
+            watch: self.chats.unwrap(),
+            event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                rows: List::from_boxed(lines.into()),
+                more: false,
+            }))),
+        });
+        self.collect();
+    }
+    pub fn refresh_inbox(&mut self) {
+        self.up(jig_client::Up::Watched {
+            watch: self.inbox.unwrap(),
+            event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(c::Inbox {
+                needs: List::with_capacity(0),
+                updates: List::with_capacity(0),
+                next: None,
+                party: chat::PARTY,
+                cached_needs: 0,
+                cached_updates: c::Count { value: 0, limited: false },
+                results_seen: 0,
+                updates_time_complete: true,
+                selection: None,
+            }))),
+        });
+        self.collect();
+    }
+    pub fn answer(&mut self, read: Token, result: c::ReadResult) {
+        self.up(jig_client::Up::ReadDone { read, result: jig_client::Readout::Jig(result) });
+        self.collect();
+    }
+    pub fn closed(&mut self, lines: &[c::TaskLine]) {
+        self.collect();
+        let mut read = None;
+        for (token, what) in &self.reads {
+            if let c::Read::Tasks { .. } = what {
+                read = Some(*token);
+            }
+        }
+        let read = read.expect("closed read");
+        self.answer(
+            read,
+            c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                live: List::with_capacity(0),
+                live_after: None,
+                ended: c::EndedGroup::Rows { rows: List::from_boxed(lines.into()), after: None, cut: false },
+            }))),
+        );
+    }
+    pub fn sections(&mut self, lost: bool) {
+        self.collect();
+        let reads = self.reads.clone();
+        for (read, what) in &reads {
+            if let c::Read::Inbox { .. } = what {
+                let result = if lost {
+                    c::ReadResult::None(c::ReadNone::Unreachable)
+                } else {
+                    c::ReadResult::Value(c::ReadValue::Inbox(Box::new(c::InboxPage {
+                        rows: List::with_capacity(0),
+                        before: None,
+                        after: None,
+                        cut: false,
+                        selection: None,
+                    })))
+                };
+                self.answer(*read, result);
+            }
+        }
+    }
+}
+
+/// Answers the list that an empty Chats fixture asserts on.
+fn answer_empty_chats(root: &mut temper_client_domain::Domain) {
+    use temper_client_domain::{Address, Event, Place, Request};
+    let mut out = Queue::uncapped();
+    let env = Env { now: Time::ZERO, wall: NOW, limits: domain_limits() };
+    for address in [
+        Address::Inbox { filter: temper_client_domain::address::Filter::ALL },
+        Address::Chats { filter: temper_client_domain::ChatsFilter::All },
+    ] {
+        temper_client_domain::step(root, &env, Event::Went { place: Place::Address(address) }, &mut out);
+    }
+    while let Some(request) = out.pop() {
+        let up = match request {
+            Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down:
+                            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Tasks { .. }) },
+                    },
+            } => jig_client::Up::Watched {
+                watch,
+                event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                    rows: List::with_capacity(0),
+                    more: false,
+                }))),
+            },
+            Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) },
+                    },
+            } => jig_client::Up::ReadDone {
+                read,
+                result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
+                    live: List::with_capacity(0),
+                    live_after: None,
+                    ended: c::EndedGroup::Rows { rows: List::with_capacity(0), after: None, cut: false },
+                })))),
+            },
+            Request::KeepSignIn { .. }
+            | Request::Tab { .. }
+            | Request::Copy { .. }
+            | Request::Client { .. }
+            | Request::Unlinked { .. }
+            | Request::Show { .. }
+            | Request::Leave { .. }
+            | Request::SignOut
+            | Request::Dropped { .. }
+            | Request::Fact { .. } => continue,
+        };
+        temper_client_domain::step(root, &env, Event::Client { event: jig_client::Event::Up { up } }, &mut out);
+    }
 }

@@ -402,6 +402,8 @@ fn producer_refusal_world() -> (temper_engine_domain_world::forge_routes::World,
     };
     let model = crate::stock::box_model();
     let llm = jig_protocol_config::Llm {
+        shown: Box::new([None]),
+        pickers: Box::new([true]),
         endpoints: Box::new([]),
         providers: Box::new([]),
         descriptions: Box::new([None]),
@@ -546,6 +548,8 @@ fn reference_person_defaults() -> jig_domain_core::settings::Defaults {
     use jig_domain_core::settings::{Edit, Value};
     let model = crate::stock::box_model();
     let llm = jig_protocol_config::Llm {
+        shown: Box::new([None]),
+        pickers: Box::new([true]),
         endpoints: Box::new([]),
         providers: Box::new([]),
         descriptions: Box::new([None]),
@@ -558,6 +562,7 @@ fn reference_person_defaults() -> jig_domain_core::settings::Defaults {
             Edit::Set(Value::Charter(mut charter)) => {
                 // Scripted turns use the fake worker's model and no checkout document reads.
                 charter.policy.model = model.clone();
+                charter.spend = defaults.charters[0].spend;
                 if charter.policy.waiting == skein_lib::Duration::ZERO {
                     charter.policy.waiting = defaults.charters[0].policy.waiting;
                 }

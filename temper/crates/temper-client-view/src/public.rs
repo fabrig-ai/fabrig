@@ -102,6 +102,7 @@ pub fn build_public(view: &mut PublicView, reader: &Reader, wall: Wall, patches:
     b.close();
     b.open(Role::Main);
     b.style(crate::look::MAIN);
+    b.style(crate::look::PAGE);
     b.style(crate::look::PUBLIC_PAGE);
     d.main(&mut b, reader.shown());
     b.close();

@@ -70,6 +70,9 @@ pub struct LiveTurn {
     pub name: ProvisionalTurnName,
     pub began: Option<Wall>,
     pub text: Text,
+    /// The stream offset where the retained prefix begins.
+    pub from: u32,
+    /// The newest stream offset accepted for this retry.
     pub offset: u32,
     pub cut: bool,
     pub call: Option<LiveCall>,
@@ -560,14 +563,45 @@ fn has_call(rows: &List<DecodedActivityLine>, name: CallName) -> bool {
 #[must_use]
 pub fn live_turn(value: RunText, limit: u32) -> LiveTurn {
     let cut = value.cut || value.from > 0 || !value.text.fits(limit);
+    let text = prefix(value.text.bytes(), limit);
     LiveTurn {
         name: value.turn,
         began: value.began,
-        text: prefix(value.text.bytes(), limit),
+        text,
+        from: value.from,
         offset: value.through,
         cut,
         call: value.call,
     }
+}
+
+fn extend_live(held: &mut LiveTurn, value: &RunText, limit: u32) {
+    if value.from == 0 {
+        *held = live_turn(value.clone(), limit);
+        return;
+    }
+    if value.through < held.offset {
+        return;
+    }
+    held.began = value.began.or(held.began);
+    held.call.clone_from(&value.call);
+    held.offset = value.through;
+    let end = held
+        .from
+        .checked_add(u32::try_from(held.text.bytes().len()).expect("bounded prefix fits"))
+        .expect("prefix is within stream offsets");
+    let Some(skip) = end.checked_sub(value.from) else {
+        held.cut = true;
+        return;
+    };
+    let Some(suffix) = value.text.bytes().get(skein_lib::length::usize_of(skip)..) else { return };
+    let room = skein_lib::length::usize_of(limit).saturating_sub(held.text.bytes().len());
+    let kept = bytes::utf8_prefix(suffix, room);
+    if !kept.is_empty() {
+        let joined = bytes::concat(&[held.text.bytes(), kept]);
+        held.text = Text::new(joined, limit).expect("joined prefix stays within its bound");
+    }
+    held.cut |= kept.len() < suffix.len();
 }
 
 #[must_use]

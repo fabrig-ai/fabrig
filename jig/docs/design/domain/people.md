@@ -1065,10 +1065,12 @@ what outlives it (5.2).
 - **A deleted project's spend:** kept in the deployment's and its
   parties' totals for the period, never per task (5.2). Default: as
   said.
-- **A public board's ended goals across a restart:** a store index of
-  a project's ended goals, newest first, that the public index loads
-  once at start and at publication (13.9). Default: none; the board's
-  ended goals are those ended since.
+- **A public board's ended goals across a restart or before publication:**
+  a store index of a project's ended goals, newest first, that the public
+  index loads once at start and at publication (13.9). Default: none; the
+  board's ended goals are those ended while the index kept the project,
+  and its page states the publication and restart limits. A connector's
+  kept record does not widen which tasks the index hands it (13.3).
 - **A human publication capability:** a way for a person to publish
   another configured name they wrote, that an agent holding their
   credential could not use, since a credential proves who sent a
@@ -1171,8 +1173,8 @@ its own beside jig's (13.3). How a public read travels is
 Each public document is a type of its own, made by a projection from
 the public index (13.9); a field reaches it only when it is added
 there. jig's hold structure and mechanics alone: public identifiers,
-states, times, the shape of a tree, kinds, spend, task titles and the
-project's name. Their records, and each field's source, are
+states, times, the shape of a tree, kinds, a goal's spend, task titles
+and the project's name. Their records, and each field's source, are
 `../client/domain/contract.md`, section 12.
 
 - **The deployment's public projects:** each public project's public
@@ -1191,10 +1193,11 @@ project's name. Their records, and each field's source, are
   cut; its parent's identifier, or none for a public goal, whose
   ancestry is never shown; whether it is
   a goal, and its priority; its executor's kind alone, never who
-  or which; its phase, and if held, the hold's kind without
-  its reason; when it was made, last changed, last active and ended,
-  each to the second; its spend and its budget; its public delegates'
-  counts by phase.
+  or which; its phase, if held, the hold's kind without
+  its reason, and if ended, how it ended, done, failed or cancelled,
+  without its reason; when it was made, last changed, last active and
+  ended, each to the second; a goal's spend, never a task's, and no
+  budget; its public delegates' counts by phase.
 - **No text but titles and the project's name.** The task's title and
   the project's name cross without an author flag or a human
   publication capability. Nothing else a person or an agent could
@@ -1216,7 +1219,9 @@ project's name. Their records, and each field's source, are
   own, private by default, no text, and every task it names one of
   those it was handed, named through the read's list of tasks
   (`../protocol/client.md`, section 19), which the core checks again
-  before it answers (13.10).
+  before it answers (13.10). What a connector kept of a task past its
+  end, such as temper's landed commit (temper's `client/forge.md`, 11.2),
+  it gives only while that task is handed; keeping it makes nothing public.
 
 ### 13.4 Who sees what
 
@@ -1376,7 +1381,9 @@ One rule, the same for every field, list, count and connector:
   are those that ended while it kept the project, frozen as they ended;
   the store keeps no index of a project's ended goals to load from
   (`../protocol/store.md`, 7.4), so a start, or a project made public,
-  begins with none. Loading them is open (section 12).
+  begins with none. Loading them is open (section 12). A page drawing a
+  board says what this leaves out, so that its empty lists are not read
+  as no work (temper's `client/browser.md`, 8.3).
 - **Bounded per read:** a board examines at most its goals' bound times
   its lines' bound, a card its lineage's depth and its delegates'
   bound; each answer's bytes are known from those bounds, which its

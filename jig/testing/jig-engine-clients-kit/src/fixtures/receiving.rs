@@ -28,6 +28,9 @@ fn model() -> core::Model {
 pub fn models() -> Box<[jig_protocol_engine_clients::Model]> {
     let model = model();
     Box::new([jig_protocol_engine_clients::Model {
+        effort: model.default_effort().map(skein_lib::bytes::copy_of),
+        shown: None,
+        picker: true,
         name: model.name,
         provider: None,
         window: model.window,

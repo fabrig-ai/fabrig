@@ -199,7 +199,7 @@ class RunnerTests(unittest.TestCase):
         )
         shell = "temper/crates/temper-client-shell-web"
         cases += (("temper", "browser", "temper-client-shell-web", "temper", "TEMPER_TEST_BUNDLE",
-                   "temper-bundle", ["--features", "loopback-navigation"],
+                   "temper-bundle", ["--features", "loopback-navigation,small-window"],
                    ["--title", "temper", "--placeholder", f"{shell}/loading.html",
                     "--placeholder-stylesheet", f"{shell}/loading.css",
                     "--stylesheet", f"{shell}/temper.css", "--stylesheet", f"{shell}/task-pages.css",

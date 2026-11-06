@@ -81,6 +81,7 @@ pub(in crate::codec) fn wire_me(value: &c::Me, limits: &w::Limits) -> Result<w::
             providers_cut: value.providers_cut,
             key_bytes: value.key_bytes,
             redirect_bytes: value.redirect_bytes,
+            words_bytes: value.words_bytes,
         },
     )
 }
@@ -113,6 +114,15 @@ pub(in crate::codec) fn wire_me_project(value: &c::MeProject, limits: &w::Limits
             )?,
             creating: value.creating.as_ref().map(|item| wire_creating_bounds(item, limits)).transpose()?,
             models: list(value.models.iter().map(|item| wire_me_model(item, limits)))?,
+            defaults: list(value.defaults.iter().map(|item| {
+                w::MeDefault::new(
+                    limits,
+                    w::MeDefaultParts {
+                        template: item.template,
+                        choice: super::wire_llm_choice(&item.choice, limits)?,
+                    },
+                )
+            }))?,
         },
     )
 }

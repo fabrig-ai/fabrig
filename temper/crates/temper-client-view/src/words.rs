@@ -1,4 +1,5 @@
 //! temper's frame and forge words as checked English data.
+//! Trial endings: temper/docs/design/domain/trial.md, 6.4.
 //! Playground and forge setup words (temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 3.5 and 5.6).
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
@@ -348,6 +349,8 @@ pub enum Word {
     ConfigureModelsTitle,
     ConfigureModelsCardLine,
     ConfigureModels,
+    ConfigurePlan,
+    ConfigureKey,
     ConfigureUnsureTitle,
     ConfigureWays,
     ConfigureAlone,
@@ -477,6 +480,7 @@ pub enum Word {
     HomeLandedNow,
     HomeLandedMany,
     HomeByline,
+    HomeTryStopped,
     HomeLanding,
     HomeChatsSentence,
     LookedMinute,
@@ -885,7 +889,7 @@ pub enum Word {
     WaitingAccountName,
     WaitingAccount,
     ChoiceProvider,
-    NeedsAccount,
+    ConnectPlanOrKey,
     AccountReadinessUnknown,
     AccountBanner,
     AccountRegion,
@@ -1007,6 +1011,9 @@ pub enum Word {
     ChatRowSpend,
     ChatKept,
     ComposerNoModel,
+    ComposerOverOne,
+    ComposerOver,
+    ToastRegion,
     ProposalWhy,
     ProposalLanding,
     ProposalBudget,
@@ -1235,11 +1242,19 @@ pub enum Word {
     PublicEnded,
     PublicDone,
     PublicFailed,
-    PublicCancelled,
+    PublicLanded,
     PublicFolded,
     PublicStaleProofs,
     PublicTitleCut,
     PublicAsOf,
+    PublicBoardLede,
+    PublicBoardHeld,
+    PublicNoGoals,
+    PublicNoLandings,
+    PublicNoProjects,
+    PublicTimeParts,
+    PublicUnderMinute,
+
     WelcomeBoxName,
     WelcomeBoxLine,
     WelcomeBoxServer,
@@ -1277,6 +1292,12 @@ pub enum Word {
     WelcomeTryKey,
     WelcomeTryStarts,
     WelcomeTryAnswers,
+    WelcomeTryBusy,
+    WelcomeTryRefused,
+    WelcomeTryRun,
+    WelcomeTryLost,
+    WelcomeTryCouldNotStart,
+    WelcomeTryWaited,
     WelcomeTryAgain,
     WelcomeSignInAgain,
     WelcomeClaudeNotYet,
@@ -1380,7 +1401,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
 // The command’s Copy adds three literal phrases (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
-const PHRASES: u32 = 1865;
+const PHRASES: u32 = 1884;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1406,10 +1427,10 @@ const PHRASES: u32 = 1865;
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 3264;
+const SEGMENTS: u32 = 3313;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 45570;
-const ALL: [Word; 1264] = [
+const ENGLISH_BYTES: u32 = 46119;
+const ALL: [Word; 1283] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -1739,6 +1760,8 @@ const ALL: [Word; 1264] = [
     Word::ConfigureModelsTitle,
     Word::ConfigureModelsCardLine,
     Word::ConfigureModels,
+    Word::ConfigurePlan,
+    Word::ConfigureKey,
     Word::ConfigureUnsureTitle,
     Word::ConfigureWays,
     Word::ConfigureAlone,
@@ -1865,6 +1888,7 @@ const ALL: [Word; 1264] = [
     Word::HomeLandedNow,
     Word::HomeLandedMany,
     Word::HomeByline,
+    Word::HomeTryStopped,
     Word::HomeLanding,
     Word::HomeChatsSentence,
     Word::LookedMinute,
@@ -2261,7 +2285,7 @@ const ALL: [Word; 1264] = [
     Word::WaitingAccountName,
     Word::WaitingAccount,
     Word::ChoiceProvider,
-    Word::NeedsAccount,
+    Word::ConnectPlanOrKey,
     Word::AccountReadinessUnknown,
     Word::AccountBanner,
     Word::AccountRegion,
@@ -2382,6 +2406,9 @@ const ALL: [Word; 1264] = [
     Word::ChatRowSpend,
     Word::ChatKept,
     Word::ComposerNoModel,
+    Word::ComposerOverOne,
+    Word::ComposerOver,
+    Word::ToastRegion,
     Word::ProposalWhy,
     Word::ProposalLanding,
     Word::ProposalBudget,
@@ -2602,11 +2629,18 @@ const ALL: [Word; 1264] = [
     Word::PublicEnded,
     Word::PublicDone,
     Word::PublicFailed,
-    Word::PublicCancelled,
+    Word::PublicLanded,
     Word::PublicFolded,
     Word::PublicStaleProofs,
     Word::PublicTitleCut,
     Word::PublicAsOf,
+    Word::PublicBoardLede,
+    Word::PublicBoardHeld,
+    Word::PublicNoGoals,
+    Word::PublicNoLandings,
+    Word::PublicNoProjects,
+    Word::PublicTimeParts,
+    Word::PublicUnderMinute,
     Word::WelcomeBoxName,
     Word::WelcomeBoxLine,
     Word::WelcomeBoxServer,
@@ -2644,6 +2678,12 @@ const ALL: [Word; 1264] = [
     Word::WelcomeTryKey,
     Word::WelcomeTryStarts,
     Word::WelcomeTryAnswers,
+    Word::WelcomeTryBusy,
+    Word::WelcomeTryRefused,
+    Word::WelcomeTryRun,
+    Word::WelcomeTryLost,
+    Word::WelcomeTryCouldNotStart,
+    Word::WelcomeTryWaited,
     Word::WelcomeTryAgain,
     Word::WelcomeSignInAgain,
     Word::WelcomeClaudeNotYet,
@@ -2979,6 +3019,8 @@ impl Word {
             Self::ConfigureModelsTitle => 3204,
             Self::ConfigureModelsCardLine => 3205,
             Self::ConfigureModels => 3206,
+            Self::ConfigurePlan => 3910,
+            Self::ConfigureKey => 3911,
             Self::ConfigureUnsureTitle => 3207,
             Self::ConfigureWays => 3182,
             Self::ConfigureAlone => 3183,
@@ -3107,6 +3149,7 @@ impl Word {
             Self::HomeLandedOne => 3622,
             Self::HomeLandedMany => 3623,
             Self::HomeByline => 3624,
+            Self::HomeTryStopped => 3876,
             Self::HomeLanding => 3625,
             Self::HomeChatsSentence => 3626,
             Self::LookedMinute => 3627,
@@ -3533,7 +3576,7 @@ impl Word {
             Self::WaitingAccountName => 1027,
             Self::WaitingAccount => 1023,
             Self::ChoiceProvider => 1020,
-            Self::NeedsAccount => 1021,
+            Self::ConnectPlanOrKey => 1021,
             Self::AccountReadinessUnknown => 1022,
             Self::AccountBanner => 1000,
             Self::AccountRegion => 1833,
@@ -3686,6 +3729,9 @@ impl Word {
             Self::ChatRowSpend => 2124,
             Self::ChatKept => 2125,
             Self::ComposerNoModel => 2126,
+            Self::ComposerOverOne => 3879,
+            Self::ComposerOver => 3880,
+            Self::ToastRegion => 3881,
             Self::ProposalWhy => 1401,
             Self::ProposalLanding => 1402,
             Self::ProposalBudget => 1403,
@@ -3879,11 +3925,19 @@ impl Word {
             Self::PublicEnded => 3018,
             Self::PublicDone => 3019,
             Self::PublicFailed => 3020,
-            Self::PublicCancelled => 3021,
+            Self::PublicLanded => 3021,
             Self::PublicFolded => 3022,
             Self::PublicStaleProofs => 3023,
             Self::PublicTitleCut => 3024,
             Self::PublicAsOf => 3025,
+            Self::PublicBoardLede => 3915,
+            Self::PublicNoGoals => 3916,
+            Self::PublicNoLandings => 3917,
+            Self::PublicBoardHeld => 3918,
+            Self::PublicNoProjects => 3912,
+            Self::PublicTimeParts => 3914,
+            Self::PublicUnderMinute => 3913,
+
             Self::WelcomeBoxName => 3026,
             Self::WelcomeBoxLine => 3027,
             Self::WelcomeBoxServer => 3028,
@@ -3921,6 +3975,12 @@ impl Word {
             Self::WelcomeTryKey => 3732,
             Self::WelcomeTryStarts => 3733,
             Self::WelcomeTryAnswers => 3734,
+            Self::WelcomeTryBusy => 3877,
+            Self::WelcomeTryRefused => 3878,
+            Self::WelcomeTryRun => 3872,
+            Self::WelcomeTryLost => 3873,
+            Self::WelcomeTryCouldNotStart => 3874,
+            Self::WelcomeTryWaited => 3875,
             Self::WelcomeTryAgain => 3735,
             Self::WelcomeSignInAgain => 3736,
             Self::WelcomeClaudeNotYet => 3381,
@@ -4525,6 +4585,13 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::PlaygroundBanner => (&[b"This is the playground: a scripted model and in-memory forge. Use the wizard to"], &[]),
         Word::PlaygroundSetUp => (&[b"set up temper"], &[]),
         Word::BannerSetUp => (&[b"Set up temper"], &[]),
+        Word::PublicBoardHeld => (&[b"Work that ended before this project went public, or before temper last restarted, isn't shown."], &[]),
+        Word::PublicBoardLede => (&[b"What temper is doing on this project, as it happens. Read-only."], &[]),
+        Word::PublicNoGoals => (&[b"No goals to show yet."], &[]),
+        Word::PublicNoLandings => (&[b"No landings to show yet."], &[]),
+        Word::PublicUnderMinute => (&[b"under 1 minute"], &[]),
+        Word::PublicTimeParts => (&[b"", b" ", b""], &[Name, Name]),
+        Word::PublicNoProjects => (&[b"No public projects yet."], &[]),
         Word::PublicAsOf => (&[b"As of ", b""], &[Name]),
         Word::WelcomeBoxName => (&[b"temper box"], &[]),
         Word::WelcomeBoxLine => (&[b" \xc2\xb7 on this machine, to try it \xc2\xb7 more later, from Settings \xc2\xb7 "], &[]),
@@ -4561,6 +4628,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeTryKey => (&[b"Key added"], &[]),
         Word::WelcomeTryStarts => (&[b"Claude Code starts on this machine"], &[]),
         Word::WelcomeTryAnswers => (&[b"", b" answers"], &[Name]),
+        Word::WelcomeTryBusy => (&[b"", b" was busy or out of reach just now."], &[Name]),
+        Word::WelcomeTryRefused => (&[b"", b" refused the request. Its account may need attention."], &[Name]),
+        Word::WelcomeTryRun => (&[b"The run stopped before ", b" answered."], &[Name]),
+        Word::WelcomeTryLost => (&[b"The machine running it went away."], &[]),
+        Word::WelcomeTryCouldNotStart => (&[b"The try couldn't start."], &[]),
+        Word::WelcomeTryWaited => (&[b"", b" didn\xe2\x80\x99t answer within a minute."], &[Name]),
         Word::WelcomeTryAgain => (&[b"Try again"], &[]),
         Word::WelcomeSignInAgain => (&[b"Sign in again"], &[]),
         Word::WelcomeClaudeNotYet => (&[b"Claude Code isn\xe2\x80\x99t signed in here yet. Sign in again, then try again."], &[]),
@@ -4687,6 +4760,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeLandedNow => (&[b"The last change landed just now."], &[]),
         Word::HomeLandedOne => (&[b"One change landed since you last looked."], &[]),
         Word::HomeLandedMany => (&[b"", b" changes landed since you last looked."], &[Number]),
+        Word::HomeTryStopped => (&[b"", b" didn\xe2\x80\x99t answer when tried"], &[Name]),
         Word::HomeByline => (&[b"Written by the status agent at ", b""], &[Name]),
         Word::HomeLanding => (&[b"Landing: "], &[]),
         Word::HomeChatsSentence => (&[b"A chat suits one change. For bigger work, a chat can write a draft beside it and start a goal from it: a plan, its tasks, landing."], &[]),
@@ -4703,7 +4777,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::PublicUnavailable => (&[b"Not available just now."], &[]),
         Word::ReadPublic => (&[b"Read public projects"], &[]),
         Word::PublicFor => (&[b"for ", b""], &[Name]),
-        Word::PublicChange => (&[b"its change on the forge"], &[]),
+        Word::PublicChange => (&[b"Its change: ", b""], &[Name]),
         Word::PublicLandings => (&[b"Landings"], &[]),
         Word::PublicTurn => (&[b"Holds the turn"], &[]),
         Word::PublicQueue => (&[b"Queue"], &[]),
@@ -4711,7 +4785,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::PublicEnded => (&[b"ended"], &[]),
         Word::PublicDone => (&[b"done"], &[]),
         Word::PublicFailed => (&[b"failed"], &[]),
-        Word::PublicCancelled => (&[b"cancelled"], &[]),
+        Word::PublicLanded => (&[b"landed"], &[]),
         Word::PublicFolded => (&[b"", b" lines folded"], &[Number]),
         Word::PublicStaleProofs => (&[b"", b" stale proofs"], &[Number]),
         Word::Projects => (&[b"Projects"], &[]),
@@ -5053,7 +5127,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ChoiceDraftDefault => (&[b"Next run if applied: engine default"], &[]),
         Word::WaitingAccountName => (&[b"Waiting account: ", b""], &[Name]),
         Word::WaitingAccount => (&[b"Waiting account: ", b""], &[Number]),
-        Word::NeedsAccount => (&[b"needs an account"], &[]),
+        Word::ConnectPlanOrKey => (&[b"Connect a plan or key \xe2\x80\xba"], &[]),
         Word::AccountReadinessUnknown => (&[b"Account readiness unknown"], &[]),
         Word::AccountRegion => (&[b"LLM account"], &[]),
         Word::DefaultModel => (&[b"the default model"], &[]),
@@ -5066,7 +5140,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WaitRefreshing => (&[b"Refreshing account credentials"], &[]),
         Word::WaitMoving => (&[b"Waiting because the account is moving to another deployment"], &[]),
         Word::WaitHost => (&[b"", b"'s login isn't signed in on a host that can run this."], &[Name]),
-        Word::WaitEmpty => (&[b"No account serving this work"], &[]),
+        Word::WaitEmpty => (&[b"No account can run this chat yet."], &[]),
         Word::WaitEmptyModel => (&[b"No account can run ", b" yet."], &[Name]),
         Word::WaitCredential => (&[b"This work needs a credential from its forge."], &[]),
         Word::WaitCapacity => (&[b"No host has room for this, or none is connected. It starts when one does."], &[]),
@@ -5408,8 +5482,10 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ConfigureDesignTitle => (&[b"A design draft first"], &[]),
         Word::ConfigureDesignLine => (&[b"Agents plan its tasks; they land together."], &[]),
         Word::ConfigureModelsTitle => (&[b"Models by role"], &[]),
-        Word::ConfigureModelsCardLine => (&[b"Claude for reviews, my ChatGPT plan for the rest."], &[]),
-        Word::ConfigureModels => (&[b"Use Claude for reviews and my ChatGPT plan for everything else."], &[]),
+        Word::ConfigureModelsCardLine => (&[b"", b" for reviews, ", b" for the rest."], &[Name, Name]),
+        Word::ConfigureModels => (&[b"Use ", b" for reviews and ", b" for everything else."], &[Name, Name]),
+        Word::ConfigurePlan => (&[b"my ", b" plan"], &[Name]),
+        Word::ConfigureKey => (&[b"my ", b" API key"], &[Name]),
         Word::ConfigureUnsureTitle => (&[b"Not sure yet? Ask what temper can do."], &[]),
         Word::ConfigureWays => (&[b"Ways to begin"], &[]),
         Word::ConfigureAlone => (&[b"I work alone on small changes: one chat per change, landed once CI passes."], &[]),
@@ -5447,6 +5523,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         }
         Word::ChatRowSpend => (&[b"", b" spent"], &[Number]),
         Word::ChatKept => (&[b"Closed. Its transcript is kept."], &[]),
+        Word::ComposerOverOne => (&[b"That's 1 character over what one message holds."], &[]),
+        Word::ComposerOver => (&[b"That's ", b" characters over what one message holds."], &[Name]),
+        Word::ToastRegion => (&[b"Notices"], &[]),
         Word::ComposerNoModel => (&[b"No model yet \xc2\xb7 "], &[]),
         Word::ProposalWhy => (&[b"Why"], &[]),
         Word::ProposalLanding => (&[b"Landing"], &[]),
@@ -5572,7 +5651,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ContinueGoogle => (&[b"Continue with Google"], &[]),
         Word::SignedOutMain => match shell {
             Shell::Terminal => (&[b"Signed out."], &[]),
-            Shell::Browser => (&[b"Signed out. To sign in, open a sign-in link temper serve printed."], &[]),
+            Shell::Browser => (&[b"Signed out. To sign in, open a sign-in link temper printed."], &[]),
         },
         Word::SignInFull => (&[b"All ", b" sign-ins are in use; the earliest ends ", b" UTC. This link stays usable until ", b" UTC; after that, opening it has temper serve print a fresh one."], &[Number, HoleKind::Moment, HoleKind::Moment]),
         Word::SignInBusy => (&[b"temper is busy. This link stays usable until it expires: open it again in a moment."], &[]),
@@ -5741,6 +5820,18 @@ impl Times {
         self.next = [self.next, next].into_iter().flatten().min();
         text
     }
+    /// Public rows use full units with the same span, ago and reconsideration rules (client/browser.md, 8.3).
+    pub(crate) fn public_time(&mut self, words: &Words, form: TimeForm, at: skein_lib::Wall) -> Box<[u8]> {
+        let text = self.say(words, form, at);
+        let minutes = self.now.as_nanos().saturating_sub(at.as_nanos()).checked_div(MINUTE).expect("nonzero minute");
+        match form {
+            TimeForm::Span => words.public_span(minutes),
+            TimeForm::Ago if minutes > 0 && minutes < 720 => {
+                words.say(Word::TimeAgo, &[Hole::Name(words.public_span(minutes))])
+            }
+            TimeForm::Ago | TimeForm::Looked | TimeForm::Clock | TimeForm::Weekday | TimeForm::Day => text,
+        }
+    }
 }
 impl Words {
     /// Words and the instant at which to reconsider them. No clock is read here.
@@ -5778,6 +5869,17 @@ impl Words {
             1440..2880 => self.say(Word::LookedDay, &[]),
             2880..=u64::MAX => self.say(Word::LookedDays, &[Hole::Number(minutes / 1440)]),
         }
+    }
+    fn public_span(&self, minutes: u64) -> Box<[u8]> {
+        if minutes == 0 {
+            return self.say(Word::PublicUnderMinute, &[]);
+        }
+        let remainder = minutes.checked_rem(60).expect("nonzero hour");
+        if !(60..1440).contains(&minutes) || remainder == 0 {
+            return self.looked_span(minutes);
+        }
+        let hours = minutes.checked_sub(remainder).expect("whole hours precede minutes");
+        self.say(Word::PublicTimeParts, &[Hole::Name(self.looked_span(hours)), Hole::Name(self.looked_span(remainder))])
     }
     fn time_span(&self, minutes: u64) -> Box<[u8]> {
         match minutes {

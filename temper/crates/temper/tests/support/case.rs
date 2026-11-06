@@ -172,7 +172,8 @@ fn process_settings(value: &mut Value) -> Value {
         value["engine"].as_object_mut().expect("engine").remove(member);
     }
     for (name, minimum) in [
-        ("tasks.charters", 6),
+        // Seven slots hold the stock charters.
+        ("tasks.charters", 7),
         ("core.templates", 3),
         ("authority.grants", 16),
         ("notes.scopes", 32),

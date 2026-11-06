@@ -23,6 +23,7 @@ pub mod replace;
 pub mod start;
 pub mod status;
 pub mod tokens;
+pub mod trials;
 mod vocabulary;
 pub mod ways;
 pub mod words;
@@ -37,6 +38,7 @@ pub struct Limits {
 #[derive(Debug)]
 pub enum Event {
     Act { act: Act },
+    Trials { event: trials::Event, adoption: Option<Answer> },
     AdminToken { value: skein_lib::Secret },
     ForgejoToken { field: tokens::Field, value: skein_lib::Secret },
     ReplaceValue { forge: u16, field: replace::Field, value: skein_lib::Secret },
@@ -70,6 +72,7 @@ pub struct Side {
     forges_open: bool,
     dismissed: dismissed::State,
     dismissed_open: bool,
+    trials: trials::Trials,
     away: away::State,
     away_open: bool,
     set_up: Option<Box<forges::SetUp>>,
@@ -103,6 +106,7 @@ impl Side {
             forges_open: false,
             dismissed: dismissed::State::Unknown,
             dismissed_open: false,
+            trials: trials::Trials::new(),
             away: away::State::Unknown,
             away_open: false,
             set_up: None,
@@ -250,6 +254,21 @@ impl Side {
 }
 pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
+        Event::Trials { event, adoption } => {
+            let request = match &event {
+                trials::Event::Answered { key, .. } => Some(skein_lib::Token::new(key.number)),
+                trials::Event::Rows { .. }
+                | trials::Event::RowsEnded
+                | trials::Event::Wait { .. }
+                | trials::Event::TaskEnded => None,
+            };
+            trials::receive(side, event, out);
+            if let Some(request) = request
+                && let Some(answer) = adoption
+            {
+                answered(side, request, answer);
+            }
+        }
         Event::AdminToken { value } => admin::token(side, value),
         Event::ForgejoToken { field, value } => tokens::write(side, field, value),
         Event::ReplaceValue { forge, field, value } => replace::write(side, forge, field, value),
@@ -299,21 +318,22 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
                 side.changed();
             }
         }
-        Event::Answered { request, answer } => {
-            if let Some(draft) = &mut side.form
-                && let Some((pending, _)) = draft.pending
-                && pending == request
-            {
-                draft.pending = None;
-                match answer {
-                    Answer::Adopted(_) => form::reset(draft, answer),
-                    Answer::CoreRefused(_) | Answer::ForgeRefused(_) | Answer::EntranceRefused(_) | Answer::Unknown => {
-                        draft.outcome = Some(answer);
-                    }
-                }
-                side.changed();
+        Event::Answered { request, answer } => answered(side, request, answer),
+    }
+}
+fn answered(side: &mut Side, request: skein_lib::Token, answer: Answer) {
+    if let Some(draft) = &mut side.form
+        && let Some((pending, _)) = draft.pending
+        && pending == request
+    {
+        draft.pending = None;
+        match answer {
+            Answer::Adopted(_) => form::reset(draft, answer),
+            Answer::CoreRefused(_) | Answer::ForgeRefused(_) | Answer::EntranceRefused(_) | Answer::Unknown => {
+                draft.outcome = Some(answer);
             }
         }
+        side.changed();
     }
 }
 fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
@@ -328,6 +348,7 @@ fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
         Act::ConnectManifest { forge, back } => github::manifest(side, limits, forge, back, out),
         Act::ConnectApp { forge } => github::send(side, limits, forge, None, out),
         Act::Install { forge, back } => github::send(side, limits, forge, Some(back), out),
+        Act::TryAccount { account, again } => trials::send(side, account, again, limits, out),
         Act::StartPlayground => playground::start(side, limits, out),
         Act::EndPlayground => playground::end(side, limits, out),
         Act::SetUp { forge } => forges::set_up(side, limits, forge, out),
@@ -436,6 +457,20 @@ pub fn wire_limits(limits: &Limits) -> Option<temper_client_protocol_wire::v1::L
 }
 pub(crate) fn told(client: &jig_client::Client, limits: &crate::Limits, told: jig_client::Told) -> Option<Event> {
     use jig_client::{Outcome, Told};
+    if let Some(event) = trials::told(client, &told, limits.forge) {
+        let adoption = match &told {
+            Told::Answered { outcome: Outcome::Answered(value), .. } => answer(limits, value),
+            Told::Pending { .. } | Told::Answered { .. } => Some(Answer::Unknown),
+            Told::Changed { .. }
+            | Told::Ended { .. }
+            | Told::Link { .. }
+            | Told::Kept { .. }
+            | Told::Dropped { .. }
+            | Told::Text { .. }
+            | Told::Page { .. } => None,
+        };
+        return Some(Event::Trials { event, adoption });
+    }
     match told {
         Told::Changed { handle } => {
             Some(Event::Watched { handle, watched: panel::decode(client, handle, limits.forge) })

@@ -34,8 +34,9 @@ mod tests {
                     }],
                     requests,
                     ask_bytes: requests.bytes / u64::from(requests.requests),
-                    handles: 9,
-                    watches: 9,
+                    // Page handles, trials and a running trial task.
+                    handles: 11,
+                    watches: 11,
                     turn_bytes: 65536,
                     backoff: jig_client::Backoff { first: Duration::from_millis(10), most: Duration::from_millis(80) },
                     authority: 12,
@@ -57,7 +58,7 @@ mod tests {
                 exchanges: 8,
             };
 
-            Limits { forge: forge::Limits { field_bytes: 256, checks: 8 }, client, row_uses: 8 }
+            Limits { forge: forge::Limits { field_bytes: 256, checks: 8 }, client, row_uses: 8, window_bytes: None }
         }
     }
     fn fixture_me(project_name: &[u8]) -> c::Me {
@@ -65,6 +66,7 @@ mod tests {
         let mut projects = List::with_capacity(2);
         projects
             .push(MeProject {
+                defaults: List::with_capacity(0),
                 public: None,
                 project: 1,
                 name: DocumentText::complete(
@@ -86,6 +88,7 @@ mod tests {
             providers_cut: false,
             key_bytes: 256,
             redirect_bytes: 256,
+            words_bytes: 8192,
             party: MeParty {
                 number: 73,
                 kind: PartyKind::Person,

@@ -18,6 +18,10 @@ const CONFIGURING_TEMPLATE: u32 = 3;
 
 #[derive(Debug)]
 #[expect(clippy::partial_pub_fields, reason = "the configured query is private watch bookkeeping")]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "pagination, delivery and independent read answers are separate facts"
+)]
 pub struct Chats {
     pub filter: ChatsFilter,
     pub live: Handle,
@@ -31,6 +35,7 @@ pub struct Chats {
     asking: super::activity::Asking,
     goal_tasks: List<u64>,
     pub words: Box<[u8]>,
+    pub beyond: u64,
     pub start: Option<Key>,
     /// The reference's mode beside Configure, once opened; the page's alone (client/README.md, 3.5).
     pub reference: Option<Mode>,
@@ -42,6 +47,8 @@ pub struct Chats {
     query: Option<TaskQuery>,
     first: bool,
     page_delivered: bool,
+    page_answered: bool,
+    documents_known: bool,
 }
 impl Chats {
     pub(crate) fn new(first: u64) -> Self {
@@ -58,6 +65,7 @@ impl Chats {
             asking: super::activity::Asking::new(),
             goal_tasks: List::with_capacity(0),
             words: Box::default(),
+            beyond: 0,
             start: None,
             reference: None,
             page: None,
@@ -68,6 +76,8 @@ impl Chats {
             query: None,
             first: true,
             page_delivered: false,
+            page_answered: false,
+            documents_known: false,
         }
     }
     pub(crate) fn leave(&self, out: &mut Queue<Request>) -> u64 {
@@ -114,6 +124,8 @@ impl Chats {
         self.note_numbers = Map::with_capacity(0);
         self.page = None;
         self.page_delivered = false;
+        self.page_answered = false;
+        self.documents_known = false;
         self.first = true;
         self.query = Some(query);
         out.push(Request::Client(jig_client::Event::Watch {
@@ -126,6 +138,7 @@ impl Chats {
         if self.notes_project == Some(project) {
             return;
         }
+        self.documents_known = false;
         self.notes_project = Some(project);
         self.notes_seen = 0;
         self.documents = Map::with_capacity(rows);
@@ -137,6 +150,7 @@ impl Chats {
         );
     }
     pub(crate) fn close_documents(&mut self, out: &mut Queue<Request>) {
+        self.documents_known = false;
         if self.notes_project.take().is_none() {
             return;
         }
@@ -160,6 +174,7 @@ impl Chats {
             return false;
         }
         if let Readout::Jig(ReadResult::Value(ReadValue::Notes(page))) = page {
+            self.documents_known = true;
             self.asking.answered();
             let Some(project) = self.notes_project else { return true };
             let bound = self.documents.capacity();
@@ -316,10 +331,8 @@ impl Chats {
             self.read(Some(after.clone()), out);
         }
     }
-    pub(crate) fn write(&mut self, words: Box<[u8]>, _limits: &Limits) {
-        if words.len() <= usize::try_from(temper_client_protocol_wire::CUE_BYTES).expect("text bound fits") {
-            self.words = words;
-        }
+    pub(crate) fn write(&mut self, words: Box<[u8]>, limits: &Limits) {
+        (self.words, self.beyond) = super::composer::held(words, limits.client.domain.long_text);
     }
     #[expect(clippy::too_many_arguments, reason = "the route selects the first message and opening mode")]
     pub(crate) fn start(
@@ -335,21 +348,22 @@ impl Chats {
         if self.start.is_some() || self.words.is_empty() {
             return;
         }
+        let Some(me) = me else { return };
+        if super::composer::over(&self.words, self.beyond, me.words_bytes) > 0 {
+            return;
+        }
         let words = if draft {
             let Some(size) = self.words.len().checked_add(2) else { return };
             let Some(size) = size.checked_add(WRITE_THIS_UP.len()) else { return };
-            if size > usize::try_from(temper_client_protocol_wire::CUE_BYTES).expect("cue bound fits") {
-                return;
-            }
             let mut words = Writer::new(size);
-            words.put(&self.words).expect("measured cue");
+            words.put(&self.words).expect("measured words");
             words.put(b"\n\n").expect("measured separator");
             words.put(WRITE_THIS_UP).expect("measured draft request");
             words.finish()
         } else {
             self.words.clone()
         };
-        self.send(env, me, project, jig_client::shapes::CHAT, words, Some(choice), serial, out);
+        self.send(env, Some(me), project, jig_client::shapes::CHAT, words, Some(choice), serial, out);
         if self.start.is_some() {
             self.starting_mode = if draft { Mode::Split } else { Mode::Chat };
         }
@@ -368,14 +382,22 @@ impl Chats {
         serial: &mut u64,
         out: &mut Queue<Request>,
     ) {
+        if words.len() > usize::try_from(temper_client_protocol_wire::CUE_BYTES).expect("cue bound fits") {
+            return;
+        }
         self.send(env, me, project, jig_client::shapes::CHAT, words.into(), Some(choice), serial, out);
     }
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "configuring starts share the composer's identity, choice and send state"
+    )]
     pub(crate) fn configure_chat(
         &mut self,
         env: &Env<Limits>,
         me: Option<&Me>,
         project: Option<u32>,
         words: Box<[u8]>,
+        choice: &super::choice::Draft,
         serial: &mut u64,
         out: &mut Queue<Request>,
     ) {
@@ -385,8 +407,9 @@ impl Chats {
             return;
         }
         self.words = words;
+        self.beyond = 0;
         let template = configuring_template(me, project);
-        self.send(env, me, project, template, self.words.clone(), None, serial, out);
+        self.send(env, me, project, template, self.words.clone(), Some(choice), serial, out);
     }
     #[expect(
         clippy::too_many_arguments,
@@ -412,7 +435,8 @@ impl Chats {
         {
             return;
         }
-        let Ok(words) = Text::new(words, temper_client_protocol_wire::CUE_BYTES) else { return };
+        // Callers bound typed words or cues before a draft's instruction is appended.
+        let Ok(words) = Text::new(words, u32::MAX) else { return };
         let ask = if template == jig_client::shapes::CHAT {
             jig_client::shapes::chat(me, project, words)
         } else {
@@ -456,12 +480,12 @@ impl Chats {
                 if handle == self.closed =>
             {
                 self.page_delivered = true;
+                self.page_answered = true;
                 self.page = Some(*page);
                 true
             }
             Told::Page { handle, .. } if handle == self.closed => {
                 self.page_delivered = true;
-                self.page = None;
                 true
             }
             Told::Ended { handle, .. } if handle == self.live => true,
@@ -472,11 +496,15 @@ impl Chats {
                     if let c::Outcome::Document(c::DocumentOutcome::Created { first, .. }) = value {
                         self.opening = Some((*first, self.starting_mode));
                         show_chat(*first, address, out);
+                        self.words = Box::default();
+                        self.beyond = 0;
                     } else if let c::Outcome::Made { what: c::Made::Tasks { tasks } } = value
                         && let Some(task) = tasks.get(0)
                     {
                         self.opening = Some((*task, self.starting_mode));
                         show_chat(*task, address, out);
+                        self.words = Box::default();
+                        self.beyond = 0;
                     }
                 }
                 self.outcome = Some(outcome);
@@ -493,6 +521,16 @@ impl Chats {
             | Told::Ended { .. }
             | Told::Page { .. } => false,
         }
+    }
+    /// The live watch has delivered and the closed read has answered with its value, for this query.
+    #[must_use]
+    pub fn known(&self, client: &Client) -> bool {
+        self.page_answered && self.live(client).is_some()
+    }
+    /// The notes read has answered with its value, for the Drafts filter.
+    #[must_use]
+    pub const fn documents_known(&self) -> bool {
+        self.documents_known
     }
     pub(super) fn delivered(&self, client: &Client, project: u32) -> bool {
         let Some(query) = self.query else { return false };
@@ -582,7 +620,7 @@ fn count_rows(rows: &List<c::TaskLine>, me: Option<&Me>, project: u32, counts: &
     }
 }
 
-fn configuring_template(me: Option<&Me>, project: Option<u32>) -> u32 {
+pub(super) fn configuring_template(me: Option<&Me>, project: Option<u32>) -> u32 {
     if let Some(me) = me
         && let Some(project) = project
         && jig_client::shapes::template(me, project, CONFIGURING_TEMPLATE).is_some()

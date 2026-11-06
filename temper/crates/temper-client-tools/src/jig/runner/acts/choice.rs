@@ -44,18 +44,13 @@ pub(crate) fn llm(
     before: Option<&c::LlmChoice>,
 ) -> Result<Option<c::LlmChoice>, Failed> {
     let Some(Value::Text(name)) = value(call, usize::from(model_argument)) else { return Ok(before.cloned()) };
-    let model = offered(me, project, name).ok_or(Failed::Unknown { what: b"model", name: reported(name) })?;
+    let model = offered(me, project, name).ok_or(Failed::NotOffered { name: reported(name) })?;
     let effort = match value(call, usize::from(effort_argument)) {
         Some(value) => {
             let Value::Text(name) = value else { return Err(Failed::Fixed(b"effort not loaded")) };
             Some(offered_effort(model, name).ok_or(Failed::Unknown { what: b"effort", name: reported(name) })?)
         }
-        None => {
-            if !model.efforts.is_empty() {
-                return Err(Failed::EffortRequired { name: reported(name) });
-            }
-            None
-        }
+        None => model.effort.clone(),
     };
     let main = c::ModelEffort { model: model.name.clone(), effort };
     let mut choice = match before {
@@ -89,7 +84,7 @@ pub(crate) fn sub_agents(
             }
             None => (text.as_ref(), None),
         };
-        let model = offered(me, project, name).ok_or(Failed::Unknown { what: b"model", name: reported(name) })?;
+        let model = offered(me, project, name).ok_or(Failed::NotOffered { name: reported(name) })?;
         for previous in &subagents {
             if previous.model == model.name {
                 return Err(Failed::SubAgentNamedTwice { name: reported(name) });
@@ -99,12 +94,7 @@ pub(crate) fn sub_agents(
             Some(name) => {
                 Some(offered_effort(model, name).ok_or(Failed::Unknown { what: b"effort", name: reported(name) })?)
             }
-            None => {
-                if !model.efforts.is_empty() {
-                    return Err(Failed::EffortRequired { name: reported(name) });
-                }
-                None
-            }
+            None => model.effort.clone(),
         };
         subagents.push(c::ModelEffort { model: model.name.clone(), effort }).expect("parsed sub-agents fit");
     }

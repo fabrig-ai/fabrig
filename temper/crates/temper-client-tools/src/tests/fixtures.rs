@@ -347,6 +347,7 @@ pub(crate) fn me(party: u64) -> c::Me {
     let mut projects = List::with_capacity(PROJECTS);
     projects
         .push(c::MeProject {
+            defaults: List::with_capacity(0),
             public: None,
             project: PROJECT,
             name: document_text(b"shop"),
@@ -362,6 +363,7 @@ pub(crate) fn me(party: u64) -> c::Me {
         providers_cut: false,
         key_bytes: 256,
         redirect_bytes: 256,
+        words_bytes: 8192,
         party: c::MeParty {
             number: party,
             kind: c::PartyKind::Service,

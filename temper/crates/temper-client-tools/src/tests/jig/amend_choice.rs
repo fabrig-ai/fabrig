@@ -129,7 +129,7 @@ fn amend_refuses_an_unknown_model() {
     );
     assert!(root.sends.is_empty());
     let answer = root.answer(call).expect("unknown model");
-    assert_eq!((answer.status, answer.stderr.as_ref()), (1, b"unknown model: unknown\n".as_slice()));
+    assert_eq!((answer.status, answer.stderr.as_ref()), (1, b"model not offered: unknown\n".as_slice()));
 }
 #[test]
 fn amend_refuses_an_unknown_effort() {
@@ -305,16 +305,6 @@ fn a_named_amend_is_stable_across_clocks() {
     );
 }
 
-#[test]
-fn amend_requires_an_effort_for_a_model_with_efforts() {
-    let mut task = f::choice_task(c::Admission::Allowed);
-    task.llm.as_mut().expect("prior choice").main = f::model_effort(f::MODEL_NAME, Some(f::EFFORT_NAME));
-    let (mut root, call) =
-        f::send_choice_amend(&["task", "amend", "41", "--rev", "7", "--model", "chosen-model", "because"], task);
-    assert!(root.sends.is_empty());
-    let answer = root.answer(call).expect("usage error");
-    assert_eq!((answer.status, answer.stderr.as_ref()), (1, b"effort required: chosen-model\n".as_slice()));
-}
 #[test]
 fn amend_sends_no_effort_for_an_effortless_model() {
     let (root, call) = f::send_choice_amend(f::EFFORTLESS_AMEND, f::choice_task(c::Admission::Allowed));

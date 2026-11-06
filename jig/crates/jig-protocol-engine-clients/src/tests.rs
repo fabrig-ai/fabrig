@@ -122,6 +122,9 @@ mod jobs;
 #[path = "tests/public.rs"]
 mod public;
 
+#[path = "tests/model_offers.rs"]
+mod model_offers;
+
 mod provider_claims {
     use super::fixtures;
     use crate::component::provider::person;

@@ -329,6 +329,14 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "home-try-stopped",
+        heading: "Nothing needs you.",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "ChatGPT didn’t answer when tried" },
+            Part::Named { role: Role::Button, name: "Try again" },
+        ],
+    },
+    Holds {
         name: "home-away",
         heading: "57 changes landed. Four things were decided for you.",
         parts: &[
@@ -2406,7 +2414,7 @@ const HOLDS: [Holds; samples::N] = [
         heading: "",
         parts: &[Part::Named {
             role: Role::Paragraph,
-            name: "Signed out. To sign in, open a sign-in link temper serve printed.",
+            name: "Signed out. To sign in, open a sign-in link temper printed.",
         }],
     },
     Holds {

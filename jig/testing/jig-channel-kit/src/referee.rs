@@ -871,6 +871,23 @@ impl Referee {
     }
     fn inject_refusal(&mut self, procs: &mut [Proc]) {
         if let crate::stories::Story::Refusals(reason) = self.story {
+            if matches!(reason, crate::stories::MessageRefusal::Replay)
+                && self.views.borrow().refusal_message_submissions.is_none()
+                && worker_wire(procs)
+                    .frames
+                    .iter()
+                    .any(|(_, kind, _)| *kind == jig_protocol_worker_wire::Kind::Message.number())
+                && procs.iter().any(|proc| {
+                    matches!(proc, Proc::Engine(host)
+                    if host.wire.frames.iter().any(|(_, kind, _)| {
+                        *kind == jig_protocol_worker_wire::Kind::Message.number()
+                    }))
+                })
+            {
+                self.views.borrow_mut().refusal_message_submissions = procs
+                    .iter()
+                    .find_map(|proc| if let Proc::Engine(host) = proc { Some(host.submitted) } else { None });
+            }
             let ending = matches!(reason, crate::stories::MessageRefusal::Ending);
             if ending && !self.injected {
                 for proc in procs.iter_mut() {

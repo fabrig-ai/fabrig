@@ -630,3 +630,166 @@ fn authorize_maps_under_the_prefix_and_uses_record_error_statuses() {
 }
 
 mod public;
+
+// The listener's bound is two so that a call and an idle connection can coexist.
+const SERVER_CONNECTIONS: u32 = 2;
+// One connection reaches the bound with either an idle peer or a partial head.
+const SERVER_ONE_CONNECTION: u32 = 1;
+const SERVER_FIRST: Token = Token::new(100);
+const SERVER_SECOND: Token = Token::new(101);
+const SERVER_NEXT: Token = Token::new(102);
+const SERVER_HEAD: &[u8] = b"GET /read HTTP/1.1\r\nHost: localhost\r\n\r\n";
+fn listener(connections: u32) -> (server::Server, Queue<server::Routed>) {
+    let limits = server::Limits {
+        connections,
+        http: http::Limits { head: 4096, headers: 32, body: 1024, read: 256, response: 4096, send: 256 },
+        stall: skein_lib::Duration::from_secs(30),
+        peer_end: server::PeerEnd::Connection,
+    };
+    let mut server = server::Server::new(server_address(), &limits);
+    let mut out = Queue::uncapped();
+    server.advance(&mut out);
+    out.pop();
+    (server, out)
+}
+fn server_address() -> skein_io::Addr {
+    skein_io::Addr::Ip(([127, 0, 0, 1], 7100).into())
+}
+fn accepted(socket: Token) -> skein_io::Event {
+    skein_io::Event::Accepted { owner: Token::new(0), socket, peer: server_address() }
+}
+fn server_settle(server: &mut server::Server, out: &mut Queue<server::Routed>) {
+    while server.advance(out) {}
+}
+fn server_connection(server: &mut server::Server, out: &mut Queue<server::Routed>, socket: Token) -> Token {
+    server.up(accepted(socket), out);
+    let Some(server::Routed::Io(skein_io::Request::Bind { owner, .. })) = out.pop() else {
+        panic!("connection admitted");
+    };
+    server_settle(server, out);
+    server.up(skein_io::Event::Stream { owner, up: Up::Room }, out);
+    server_settle(server, out);
+    *out = Queue::uncapped();
+    owner
+}
+fn server_head(server: &mut server::Server, out: &mut Queue<server::Routed>, owner: Token, head: &[u8]) {
+    for line in head.split_inclusive(|byte| *byte == b'\n') {
+        server.up(skein_io::Event::Stream { owner, up: Up::Bytes(line.into()) }, out);
+        server_settle(server, out);
+    }
+}
+fn server_call(server: &mut server::Server, out: &mut Queue<server::Routed>, owner: Token) -> Token {
+    server_head(server, out, owner, SERVER_HEAD);
+    while let Some(routed) = out.pop() {
+        if let server::Routed::Call { call, .. } = routed {
+            return call;
+        }
+    }
+    panic!("parsed call");
+}
+fn server_response(server: &mut server::Server, out: &mut Queue<server::Routed>, call: Token) {
+    server.answer(call, http::Request::Discard, out);
+    server.answer(
+        call,
+        http::Request::Respond(http::Response {
+            status: 200,
+            headers: Box::new([]),
+            body: http::Body::None,
+            close: false,
+        }),
+        out,
+    );
+    server_settle(server, out);
+}
+#[test]
+fn a_full_listener_replaces_an_idle_connection_after_its_close() {
+    let (mut server, mut out) = listener(SERVER_ONE_CONNECTION);
+    let idle = server_connection(&mut server, &mut out, SERVER_FIRST);
+    server.up(accepted(SERVER_NEXT), &mut out);
+    let Some(server::Routed::Io(skein_io::Request::Abort { entity })) = out.pop() else {
+        panic!("idle connection closes instead of rejecting the next");
+    };
+    assert_eq!(entity, SERVER_FIRST);
+    assert!(out.is_empty(), "admission waits for the close terminal");
+    server.up(skein_io::Event::Closed { owner: idle }, &mut out);
+    let Some(server::Routed::Io(skein_io::Request::Bind { socket, .. })) = out.pop() else {
+        panic!("the next connection is admitted");
+    };
+    assert_eq!(socket, SERVER_NEXT);
+}
+#[test]
+fn a_full_listener_rejects_when_every_connection_has_a_call() {
+    let (mut server, mut out) = listener(SERVER_CONNECTIONS);
+    for socket in [SERVER_FIRST, SERVER_SECOND] {
+        let owner = server_connection(&mut server, &mut out, socket);
+        server_call(&mut server, &mut out, owner);
+    }
+    server.up(accepted(SERVER_NEXT), &mut out);
+    let Some(server::Routed::Io(skein_io::Request::Reject { socket })) = out.pop() else {
+        panic!("calls leave no idle connection to replace");
+    };
+    assert_eq!(socket, SERVER_NEXT);
+    assert!(out.is_empty(), "no call is closed");
+}
+#[test]
+fn a_call_continues_while_an_idle_connection_is_replaced() {
+    let (mut server, mut out) = listener(SERVER_CONNECTIONS);
+    let active = server_connection(&mut server, &mut out, SERVER_FIRST);
+    let call = server_call(&mut server, &mut out, active);
+    let idle = server_connection(&mut server, &mut out, SERVER_SECOND);
+    server.up(accepted(SERVER_NEXT), &mut out);
+    let Some(server::Routed::Io(skein_io::Request::Abort { entity })) = out.pop() else {
+        panic!("idle connection closes");
+    };
+    assert_eq!(entity, SERVER_SECOND, "the call's connection stays open");
+    server.up(skein_io::Event::Closed { owner: idle }, &mut out);
+    server_response(&mut server, &mut out, call);
+    let mut completed = None;
+    while let Some(routed) = out.pop() {
+        if let server::Routed::Http { call, event: http::Event::Done(_) } = routed {
+            completed = Some(call);
+        }
+    }
+    assert_eq!(completed, Some(call), "the original call still answers");
+}
+#[test]
+fn a_partial_request_is_never_replaced_as_idle() {
+    let (mut server, mut out) = listener(SERVER_ONE_CONNECTION);
+    let owner = server_connection(&mut server, &mut out, SERVER_FIRST);
+    server_head(&mut server, &mut out, owner, b"GET /read HTTP/1.1\r\n");
+    out = Queue::uncapped();
+    server.up(accepted(SERVER_NEXT), &mut out);
+    let Some(server::Routed::Io(skein_io::Request::Reject { socket })) = out.pop() else {
+        panic!("a request begun cannot be replaced");
+    };
+    assert_eq!(socket, SERVER_NEXT);
+    assert!(out.is_empty());
+}
+#[test]
+fn a_connection_is_idle_again_after_its_call_is_done() {
+    let (mut server, mut out) = listener(SERVER_ONE_CONNECTION);
+    let owner = server_connection(&mut server, &mut out, SERVER_FIRST);
+    let call = server_call(&mut server, &mut out, owner);
+    server_response(&mut server, &mut out, call);
+    server.done(call, &mut out);
+    server_settle(&mut server, &mut out);
+    out = Queue::uncapped();
+    server.up(accepted(SERVER_NEXT), &mut out);
+    let Some(server::Routed::Io(skein_io::Request::Abort { entity })) = out.pop() else {
+        panic!("a completed call leaves its connection idle");
+    };
+    assert_eq!(entity, SERVER_FIRST);
+}
+#[test]
+fn a_stopped_listener_rejects_the_replacement_after_the_close() {
+    let (mut server, mut out) = listener(SERVER_ONE_CONNECTION);
+    let owner = server_connection(&mut server, &mut out, SERVER_FIRST);
+    server.up(accepted(SERVER_NEXT), &mut out);
+    server.stop(&mut out);
+    out = Queue::uncapped();
+    server.up(skein_io::Event::Closed { owner }, &mut out);
+    let Some(server::Routed::Io(skein_io::Request::Reject { socket })) = out.pop() else {
+        panic!("a stopped listener cannot admit the waiting connection");
+    };
+    assert_eq!(socket, SERVER_NEXT);
+}

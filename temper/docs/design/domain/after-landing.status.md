@@ -1,6 +1,10 @@
 # after-landing: status
 
-2026-11-05. Where temper's code lags or departs from [after-landing.md](after-landing.md).
+2026-11-06. Where temper's code lags or departs from [after-landing.md](after-landing.md).
+
+Section 10's public queue merges read the log's commits and tasks alone;
+there is no known gap in that projection. Older public history is deferred
+in section 14. The log's other gaps and the retained change rows remain below.
 
 - **Not yet:** 3: the pending verdict status a run posts on its tip
   before it is held (section 9's). 5.2, 11: the suspects' rule and a

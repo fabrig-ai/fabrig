@@ -467,6 +467,42 @@ fn a_new_attempt_clears_every_provisional_turn() {
     assert!(thread.lines().is_empty());
 }
 
+fn ended_live_thread() -> Thread {
+    let mut thread = model();
+    thread.run(&run(), Some(&provisional(TURN, b"first")));
+    thread.run(&RunState { attempt: None, ..run() }, None);
+    thread
+}
+
+#[test]
+fn a_runs_end_keeps_its_live_turn_until_its_committed_page() {
+    let mut thread = ended_live_thread();
+    assert_eq!(
+        thread.lines().as_slice(),
+        &[Line::Provisional { name: provisional(TURN, b"").turn, text: b"first", cut: false }]
+    );
+    let turn = empty_turn();
+    commit(&mut thread, TurnRead::Decoded(turn.clone()));
+    assert_eq!(
+        thread.lines().as_slice(),
+        &[Line::Turn { name: TurnName { attempt: ATTEMPT, number: TURN }, turn: &turn, at: TURN_AT }]
+    );
+}
+
+#[test]
+fn end_run_takes_a_turn_lost_with_its_host() {
+    let mut thread = ended_live_thread();
+    thread.end_run();
+    assert!(thread.lines().is_empty());
+}
+
+#[test]
+fn a_new_attempt_after_a_runs_end_clears_the_lost_turn() {
+    let mut thread = ended_live_thread();
+    thread.run(&RunState { attempt: Some(ATTEMPT + 1), ..run() }, None);
+    assert!(thread.lines().is_empty());
+}
+
 #[test]
 fn a_turn_that_does_not_decode_stays_a_line_saying_why() {
     let mut thread = model();
@@ -575,6 +611,44 @@ fn a_live_line_past_a_fields_text_arrives_whole_within_its_bound() {
 }
 
 #[test]
+fn a_live_lines_prefix_survives_suffix_only_snapshots() {
+    for (from, suffix, expected) in
+        [(5, b"".as_slice(), b"first".as_slice()), (5, b" last", b"first last"), (3, b"st last", b"first last")]
+    {
+        let mut thread = model();
+        thread.run(&run(), Some(&provisional(TURN, b"first")));
+        let mut snapshot = provisional(TURN, suffix);
+        snapshot.from = from;
+        snapshot.through = from + u32::try_from(suffix.len()).unwrap();
+        snapshot.cut = true;
+        thread.run(&run(), Some(&snapshot));
+        assert_eq!(
+            thread.lines().as_slice(),
+            &[Line::Provisional { name: snapshot.turn, text: expected, cut: false }],
+            "suffix from {from} must extend the prefix already held"
+        );
+    }
+}
+
+#[test]
+fn suffix_snapshots_keep_the_live_bound_and_do_not_join_across_a_gap() {
+    for (bound, from, suffix, expected) in [(6, 3, "界z", "aé界"), (5, 3, "界z", "aé"), (16, 6, "z", "aé")] {
+        let mut thread =
+            Thread::new(fixtures::SUBJECT_TASK, &crate::thread::Limits { lines: 4, bytes: 64, text: 2, live: bound });
+        thread.run(&run(), Some(&provisional(TURN, "aé".as_bytes())));
+        let mut snapshot = provisional(TURN, suffix.as_bytes());
+        snapshot.from = from;
+        snapshot.through = from + u32::try_from(suffix.len()).unwrap();
+        thread.run(&run(), Some(&snapshot));
+        assert_eq!(
+            thread.lines().as_slice(),
+            &[Line::Provisional { name: snapshot.turn, text: expected.as_bytes(), cut: true }],
+            "bound {bound}, suffix from {from}"
+        );
+    }
+}
+
+#[test]
 fn a_live_line_past_its_bound_keeps_its_start_on_a_character_boundary() {
     for (bound, expected) in [(0, ""), (1, "a"), (2, "a"), (3, "aé"), (5, "aé"), (6, "aé界")] {
         let mut thread =
@@ -597,4 +671,41 @@ fn a_persons_words_stay_bounded_by_text_beside_a_larger_live_bound() {
     assert!(!thread.sending(fixtures::STOP, fixtures::PARTY, text(b"abc"), 0));
     assert!(thread.sending(fixtures::STOP, fixtures::PARTY, text(b"ab"), 0));
     assert_eq!(thread.words.rows.get(0).unwrap().words.bytes(), b"ab");
+}
+
+// "ab" and "é" fill four bytes; three rows leave room for a refused third send.
+const KEPT_WORD_BYTES: u64 = 4;
+const KEPT_WORD_LINES: u32 = 3;
+const EXTRA_WORDS: crate::Key = crate::Key { asker: crate::Asker::JIG, number: 78 };
+
+#[test]
+fn kept_words_stop_at_the_threads_bytes() {
+    let mut thread = bounded_window(KEPT_WORD_BYTES, KEPT_WORD_LINES);
+    assert_eq!(thread.words.bytes(), 0);
+    assert!(thread.sending(fixtures::STOP, fixtures::PARTY, text(b"ab"), 0));
+    assert!(thread.sending(ARCHIVE_WORDS, fixtures::PARTY, text("é".as_bytes()), 0));
+    assert!(!thread.sending(EXTRA_WORDS, fixtures::PARTY, text(b"x"), 0));
+    assert_eq!(thread.words.rows.len(), 2);
+    assert_eq!(thread.words.rows.get(0).unwrap().words.bytes(), b"ab");
+    assert_eq!(thread.words.rows.get(1).unwrap().words.bytes(), "é".as_bytes());
+    assert_eq!(thread.words.bytes(), KEPT_WORD_BYTES);
+}
+
+#[test]
+fn words_read_free_their_bytes() {
+    let mut thread = bounded_window(KEPT_WORD_BYTES, KEPT_WORD_LINES);
+    assert!(thread.sending(fixtures::STOP, fixtures::PARTY, text(b"abcd"), 0));
+    thread.answered(
+        fixtures::STOP,
+        &Answer::Done(Outcome::Document(DocumentOutcome::Said { task: fixtures::SUBJECT_TASK, message: MESSAGE })),
+    );
+    let mut read = page(&[1], None, None);
+    read.rows.get_mut(0).unwrap().source.line =
+        Activity::Turn { reply: 1, attempt: ATTEMPT, turn: TURN, read: Some(MESSAGE) };
+    assert!(thread.moved(1).is_some());
+    assert_eq!(thread.page(read), None);
+    assert!(thread.sending(ARCHIVE_WORDS, fixtures::PARTY, text(b"next"), 0));
+    assert_eq!(thread.words.rows.len(), 1);
+    assert_eq!(thread.words.rows.get(0).unwrap().words.bytes(), b"next");
+    assert_eq!(thread.words.bytes(), KEPT_WORD_BYTES);
 }

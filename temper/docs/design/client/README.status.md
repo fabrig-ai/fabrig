@@ -2,6 +2,12 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 3.5, 5.5: no supplied record establishes a real-box walk of
+  the offer, effort choice, configuring chat's chooser and connected-account
+  starters. Tree and domain stories exercise these facts, including a
+  simulated plan sign-in; they do not prove the browser's geometry or a real
+  provider's response. The plan's slices deliberately have `walk = false`.
+
 - **Design departs:** 3.5, 5.8, 5.11, from the greenfield target: "Pause", "Resume" and "Close" on a chat, a goal and an
   agent's task, where its goal says "Stop", which meant a goal's end and a chat's hold. The user's word, 2026-11-06, the
   request `ui-pause-close`.
@@ -60,10 +66,18 @@
   alone saying so (`pages/chat_line.rs`, `Run::flush`; the colour seen by reading the
   sheet). No reason is recorded.
 - **Not yet:** 3.5, *the words being written* and *While it works*: no browser test
-  draws the words being written, so the "▍" faint and in the line of the last word,
-  and the place held as the turn commits, are seen by reading the sheet's
-  `.temper-writing-end`. The gallery's `chat-work-writing` draws them and holds nothing
-  of the mark. The request `chat-reading-a` has the user read them on a real chat.
+  holds the writing mark's placement for Markdown beyond paragraphs. The
+  `ui-pgup` render proof at `e7bd0179d9` holds paragraphs through streaming and
+  commitment at 1440 and 420 px, with focus, draft and caret kept; it does not
+  settle the fence and open-marker cases below. The request `chat-reading-a`
+  has the user read them on a real chat.
+- **Departs:** 3.5, *the words being written*, and 5.15: a call or card drawn
+  at position zero of a committed turn takes the provisional text's key,
+  giving the later text another and replacing its nodes
+  (`pages/chat.rs`, `committed`, `block_key`). The plan `ui-pgup` left this
+  case outside its fix unless its reproduction saw it; its view test
+  `a_committed_redraw_keeps_the_nodes_of_the_words_being_read` commits a text
+  first. No render proof records the other order.
 - **Departs:** 3.5, *the words being written*. Before its first word the page and the
   dots ask only whether the text is empty (`temper-client-view`'s `pages/chat.rs`,
   `conversation_with_times`, and `pages/chats.rs`, `working`), where `read_growing`
@@ -205,15 +219,9 @@
   - a phone hides the composer's hint, by the rule every session has there, where the request's page
     shows it.
 - **Not yet:** 4.7: the form draws no read-only line on an adopted repository (`temper-client-view/src/forge/page.rs`).
-- **Not yet:** 3.5, *The try*: the view has no fact of a trial, so `model_check::trial`,
-  the one function `../draft/model-check.md`, 2 to 4, feeds, reads the host's check alone:
-  under way is the first step Running, and settled with no usable source the first step
-  Stopped, its why the host's; a usable account is its ticked line with no "answered in N s".
-  No page reaches Running past its first step, Answered, a sign-in's or a key's steps, a stop
-  at a later step, a stop with the account usable, or a reason with no act: each is drawn and
-  tested (`temper-client-view`'s `tests/model_check.rs`), with no gallery state. "Try again"
-  checks the host again. Home's line after a try that stopped and the same lines on an account's
-  row of the accounts page are not drawn: nothing reports a try once the person has left Ready.
+- **Not yet:** 3.5, *The try*: the gallery has no trial past the host's check on
+  Ready, and no `accounts-try-stopped` sample (`browser.md`, 7.2). The view's
+  tests draw those states; `home-try-stopped` draws Home's failed line.
 - **Design departs:** 3.5, *The try*, from the look request `model-check-pane` of 2026-11-06,
   each by the cut of its landing: the steps' list has hidden state words and its accessible name,
   as Forge's has, where the request's pages have the same words, because the terminal reads
@@ -253,15 +261,23 @@
   the target, draw only "Accept" and "Change something", so no Reject is drawn, and a person rejects on
   the card in *Needs you*. A Reject's ask from that card goes under the proposal's own `project` all the
   same, and only the client's world sends it, by the act (section 11, *A Reject on a chat's card*).
-- **Not yet:** 5.15: no walk on record reads a long chat by its log's edges on a box, the plan
-  `chat-reading-c` having `walk = false` for the user to read it on a real chat. On the
-  `ui-walk-3` walk of 2026-11-06, before that plan landed, a long chat's first earlier read, by the
-  "Older" since gone, stayed "Loading earlier messages" for the 40 seconds watched, at 1280x720 and
-  1000x600: a fresh fake box, 66 messages of 24 sentences through ctl, the chat reopened through
-  Chats, six of four sentences through the composer, then the top and one press. Its cause is
-  unknown, and so is whether it stands: `temper/tests/client/tests/suite/reading.rs` and
-  `browser_pages`'s `a_long_chat_opens_at_its_end_and_reads_back_from_the_composer` read a long chat
-  back on histories of their own, and no test repeats that one.
+- **Not yet:** 5.4, 5.15: no manual proof on record shows long messages reading
+  whole and the over-bound composer in a browser and a real terminal. The request
+  `long-words` leaves that proof after landing and adds no browser story because
+  the tier is over budget. The joined client's world now reads 66 messages of
+  538 and 1,149 bytes through the real engine and link on a chat and an agent's
+  page (`sixty_six_long_messages_read_to_their_start`,
+  `an_agents_page_reads_long_lines_through_older`); a fresh walk of the reported
+  browser history remains unrecorded. The decoder's 512-byte field bound and a
+  malformed answer treated as unreachable account for that chain, so its cause
+  is no longer unknown.
+- **Design departs:** 5.4, from the request `long-words` of 2026-11-06, by its
+  plan's cut: an edit past `long_text`, 131,072 bytes, keeps only its UTF-8 prefix
+  and the count of characters beyond it in the domain (`pages/composer.rs`,
+  `held`). A mounted browser field keeps the full edit until its value count
+  changes; a new drawing and the terminal have only the prefix, where the request
+  has nothing typed dropped or kept stale. The cut bounds the client's kept edit;
+  section 11 keeps retaining the whole beyond that bound open.
 - **Departs:** 5.15, *While a read is out*: a read that failed with the person at the head is not
   tried again on a move back within one and a half screens (skein's `ui-web.status.md`, 7).
 - **Not yet:** 3.5, *A chat's bar*: on that walk "Start goal…" went once from a first
@@ -351,15 +367,7 @@
   them apart takes a kit mechanism (section 11). Whether a keyboard rises is unknown, for those and for the request's own
   answers, up after a send and down on a chat opened from a list: no run on record has a real phone, and headless
   Chromium draws no keyboard.
-- **Not yet:** 3.4, 5.5: the composer's
-  supplied default, jig's
-  `resolved_default`, which neither jig's `Me` nor temper carries. Until it
-  does, a new chat's line and the `Configure` page's take the first model of
-  the catalogue whose provider is usable (3.5), in place of "Using the default
-  model". That is what the run takes on the stock settings, whose charters keep
-  the catalogue's order; it can differ where a configured charter orders its
-  models otherwise, a catalogue is clipped, or a configured template 3 names a
-  model. 3.5:
+- **Not yet:** 3.5:
   `Board { project }` with its reordering: no
   address in `temper-client-domain`'s `address.rs`.
   5.13: a person with a project's role alone can read kinds 6 and 7,

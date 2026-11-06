@@ -24,6 +24,7 @@ pub fn drafts_offered(root: &crate::Domain, project: u32) -> bool {
 }
 pub mod chats;
 pub mod choice;
+pub mod composer;
 pub mod connect_model;
 pub mod delegation;
 pub mod goal;
@@ -595,7 +596,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             let me = pages.me(client);
             pages.switcher.act(me, pages.project, act, &mut pages.serial, out);
         }
-        Event::Act { act: Act::Needs(act) } => needs::act(pages, env, act, out),
+        Event::Act { act: Act::Needs(act) } => needs::act(pages, env, client, act, out),
         Event::Act { act: Act::Choice(act) } => choice::act(pages, client, act, out),
         Event::Act { act: Act::ChatWords { words } } => {
             if let Some(chats) = &mut pages.chats {
@@ -607,7 +608,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             if let Address::Configure { project } = pages.address {
                 let me = pages.me(client);
                 if let Some(chats) = &mut pages.chats {
-                    chats.configure_chat(env, me, Some(project), words, &mut pages.serial, out);
+                    chats.configure_chat(env, me, Some(project), words, &pages.choice, &mut pages.serial, out);
                 }
             }
         }
@@ -1824,7 +1825,7 @@ fn start_chat(pages: &mut Pages, env: &Env<Limits>, client: &Client, out: &mut Q
     let me = pages.me(client);
     if let Some(chats) = &mut pages.chats {
         if let Address::Configure { project } = pages.address {
-            chats.configure_chat(env, me, Some(project), chats.words.clone(), &mut pages.serial, out);
+            chats.configure_chat(env, me, Some(project), chats.words.clone(), &pages.choice, &mut pages.serial, out);
         } else {
             let draft = pages.address == (Address::NewChat { draft: true });
             chats.start(env, me, pages.project, &pages.choice, draft, &mut pages.serial, out);

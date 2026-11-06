@@ -640,9 +640,13 @@ person's downloads and drives the box and the browser, as ordinary Rust
 over skein's harness.
 
 - **The walk** is the journey's recording read as its steps, in order:
-  each act, with its value and event, each key's mark, and the end. Each
-  act is a step, an `input` among them (typing is given an act at a
-  time, so that the new walk asks what the old one asked after each). A
+  each person's act, with its value and event, each key's mark, and the end.
+  An `input` is a step (typing is given an act at a time, so that the new
+  walk asks what the old one asked after each). A `near` act is the page
+  part's report, no step: a page reading by itself reads again on the new
+  walk. It keeps no print mark before it, as an `input` keeps none, but
+  still counts as a report when deciding whether the page is still or a
+  key's mark caught it moving. Replay gives it as recorded (section 4). A
   `drawing` act is no person's to give, and a key's mark that caught the
   page moving (a report other than a due within half a second after it)
   is no state a still page shows: such a journey is refused before
@@ -673,8 +677,7 @@ over skein's harness.
     control on the live page (the fake person's n-th match, skein's
     `ui.md` 17.1) and acts on it as a person: a press, a submit, a
     toggle, or the field's value selected and the act's value typed;
-  - **a key's mark:** Alt+Shift+M, then a second's wait, so that the
-    half second after the mark has passed before another control is acted on;
+  - **a key's mark:** Alt+Shift+M; its two saves are three seconds apart, since a fake box's set up pauses for over a second;
   - **the end:** the still save is the new recording.
 
   A step whose event no control gives, in a still save, within 10

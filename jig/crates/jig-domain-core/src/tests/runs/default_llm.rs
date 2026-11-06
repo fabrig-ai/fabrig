@@ -3,6 +3,71 @@
 use crate::tests::*;
 
 const FUNDER: tasks::Funder = tasks::Funder::Period { project: 1, period: 1 };
+const TASK: u64 = 1;
+
+fn model_with_default() -> Model {
+    let mut model = scripted_model();
+    model.efforts = Box::new([b"low".as_slice().into(), b"medium".as_slice().into(), b"high".as_slice().into()]);
+    model.effort = Some(b"medium".as_slice().into());
+    model
+}
+
+fn task_with_default(choice: Option<tasks::LlmChoice>) -> Core {
+    let (base, limits) = tree_core();
+    let mut configuration = config(17);
+    let main = model_with_default();
+    let mut subagent = main.clone();
+    subagent.name = b"subagent".as_slice().into();
+    subagent.effort = Some(b"high".as_slice().into());
+    configuration.settings.models = Box::new([main.clone(), subagent.clone()]);
+    configuration.settings.llm_providers.providers[0].models = Box::new([main.name.clone(), subagent.name.clone()]);
+    configuration.defaults.charters[0].policy.model = main;
+    configuration.defaults.charters[0].policy.alternatives = Box::new([subagent]);
+    let mut core = seeded_core(configuration, &limits).unwrap();
+    core.people = base.people;
+    core.accounts = base.accounts;
+    send_task(&mut core, &limits, tasks::Event::Check);
+    send_task(&mut core, &limits, tasks::Event::Restored);
+    send_task(
+        &mut core,
+        &limits,
+        tasks::Event::OpenPeriod { reply_to: ReplyTo::new(Token::new(1)), project: 1, period: 1, budget: 1000 },
+    );
+    let mut row = new_row(&core, TASK, FUNDER, None);
+    row.llm = choice;
+    let mut batch = [row];
+    core.resolve_llm(&mut batch).unwrap();
+    fixtures::make_batch(&mut core, &limits, tasks::Party::Person(1), batch.into());
+    core
+}
+
+#[test]
+fn a_models_default_is_named_else_first_else_none() {
+    let mut model = model_with_default();
+    assert_eq!(model.default_effort(), Some(b"medium".as_slice()));
+    model.effort = None;
+    assert_eq!(model.default_effort(), Some(b"low".as_slice()));
+    model.efforts = Box::new([]);
+    assert_eq!(model.default_effort(), None);
+}
+
+#[test]
+fn an_omitted_choice_takes_each_models_own_default() {
+    let core = task_with_default(None);
+    let choice = core.next_llm(core.tasks.task(TASK).unwrap()).unwrap();
+    assert_eq!(choice.main, tasks::ModelEffort { model: 0, effort: Some(1) });
+    assert_eq!(choice.subagents.as_ref(), [tasks::ModelEffort { model: 1, effort: Some(2) }]);
+    let policy = core.chosen_policy(TASK);
+    assert_eq!(policy.model.effort.as_deref(), Some(b"medium".as_slice()));
+    assert_eq!(policy.alternatives[0].effort.as_deref(), Some(b"high".as_slice()));
+}
+
+#[test]
+fn a_given_choice_keeps_low_despite_the_models_default() {
+    let core = task_with_default(Some(chosen(0)));
+    assert_eq!(core.next_llm(core.tasks.task(TASK).unwrap()).unwrap(), chosen(0));
+    assert_eq!(core.chosen_policy(TASK).model.effort.as_deref(), Some(b"low".as_slice()));
+}
 
 fn chosen(effort: u8) -> tasks::LlmChoice {
     tasks::LlmChoice {

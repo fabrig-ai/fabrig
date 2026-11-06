@@ -450,7 +450,8 @@ and `connect-forge.html`.
     Forgejo ↗", so that one click signs the member in and lands on the
     repository's page;
   - any other forge, GitHub among them, with a `web` address: `WEB/OWNER/NAME`;
-  - otherwise none, and the words stay plain, as the playground's do.
+  - otherwise none, and the words stay plain, as the playground's do. An empty
+    OWNER or NAME has no address either, on any forge.
 
   OWNER and NAME are each percent-encoded as a path's segment, all but ASCII
   letters, digits, `-`, `.`, `_` and `~`, and in `redirect_to` that path is
@@ -1354,6 +1355,18 @@ made by the forge connector from what it keeps of the change
 
 ## 10. Open questions
 
+- **A visitor's links to the forge** (11.3): a commit, a pull request or a
+  run linked where its repository is known public. Default: none. The
+  forge's state would have to keep whether a repository is private, and
+  notice when that changes.
+- **A public queue merge past the log** (11.2): a merge shows while the
+  landing log's ring holds it and jig hands its change's task. Default:
+  no older history. The board's line names the loss of ended goals before
+  publication and across a restart (`browser.md`, 8.3), not eviction from
+  the log's ring or jig's index.
+- **A landing's zero stale proofs** (11.1; `browser.md`, 8.3): whether to
+  omit the count when zero. Default: shown, including on a queue merge's
+  landing, in the same form as a landing by turn.
 - **What else `Changes` could draw** (section 3): a ready change's goal
   and priority and when it became ready; a change past the queue's window
   marked as going ahead; the order's rule in a line; changes not ready
@@ -1451,24 +1464,23 @@ What a visitor reads of a public project's forge, without signing in
 5.3): the forge's public projections, beside jig's board and cards. Each
 is a record of its own, made by a projection from the forge's state,
 never a cut of a panel: a field is in it only once added there. None
-holds words, a configured name or an internal number; its only strings
-are the forge's addresses it links (11.3).
+holds words, a configured name, an internal number or a forge's address:
+no string at all (11.3).
 
 ### 11.1 Their kinds
 
 Declared by the forge family to jig's clients' component at start, read
 by jig's `PublicRead` (jig's `protocol/client.md`, section 19; over HTTP,
 17.5), each naming a public project first, made by the forge child from
-its state and encoded there in `public-v1`, its addresses from the forge
-records it holds, as the panels' are, and carried in jig's
+its state and encoded there in `public-v1`, and carried in jig's
 `PublicApplication`, whose list names every task a record refers to by
 its place (jig's `client/domain/contract.md`, section 12):
 
 | Kind | Names | Answered with |
 |---|---|---|
-| *change* | a project, a public change's task | `PublicChange`: the change's task; its repository's and its pull's addresses on the forge; its head's hash; its step, without words; its hold's kind; CI's state; its gates, each its number, kind, whether it blocks and its verdict; its repairs, resolutions and updates, used and allowed; its way; and whether it is a member of a public landing |
-| *landings* | a project | `PublicLandings`: the public landing that holds the turn, if one does; the project's public landings, newest first within the panel's bound, each its members' tasks, its phase and its landed commits' hashes; and each landing branch's queue, as its repository's address and its public changes in order, each its task, its public goal and when it became ready |
-| *landing* | a project, a public change's task | `PublicLanding`, of the public landing that change is a member of: its phase; its hold's kind and counts; its members, each its change's task, its repository's and pull's addresses, its base's, candidate's and landed commits' hashes, and its gates, each its number, kind, whether it blocks, its proof's state and, once run, the run's address; its stale proofs' count; whether it holds the turn |
+| *change* | a project, a public change's task | `PublicChange`: the change's task; its head's hash; its step, without words; its hold's kind; CI's state; its gates, each its number, kind, whether it blocks and its verdict; its repairs, resolutions and updates, used and allowed; its way; and whether it is a member of a public landing |
+| *landings* | a project | `PublicLandings`: the public landing that holds the turn, if one does; the project's public landings, newest first, then its public queue merges, newest first, together within the panel's bound, each its members' tasks, its phase and its landed commits' hashes, a queue merge's phase landed and its one commit; and each landing branch's queue, as its public changes in order, each its task, its public goal and when it became ready |
+| *landing* | a project, a public change's task | `PublicLanding`, of the public landing that change is a member of: its phase; its hold's kind and counts; its members, each its change's task, its base's, candidate's and landed commits' hashes, and its gates, each its number, kind, whether it blocks and its proof's state; its stale proofs' count; whether it holds the turn. Of a public queue merge, where the change has no landing: phase landed, no hold, each of its changes a member with its landed commit alone and no gates, its counts zero, and no turn |
 
 ### 11.2 Which are public
 
@@ -1485,6 +1497,14 @@ the public tasks jig's core hands it with the ask:
   members is unknown. A landing's own task, which the deployment
   requests for the project (`../domain/landing.md`, 4.2), is never
   named: a public landing is reached through one of its members.
+- **A public queue merge** is a landing the landing log holds
+  (`../domain/after-landing.md`, section 10) with at least one change,
+  every one of them a public change that went by the queue. A queue's
+  merge has no landing's row or task, so the log is its record and
+  its change's task the way to it. Past the log's ring, or once jig no
+  longer hands one of its changes' tasks, it leaves *landings* and its
+  *landing* is unknown. A change by turn is never one: it is read through
+  its landing, while that landing's row lasts.
 - **Filtered before it is ordered or counted:** a queue lists its
   public changes alone, in the queue's order; a change's place and the
   tasks ahead of it are not given, since they count changes that are
@@ -1501,10 +1521,13 @@ the public tasks jig's core hands it with the ask:
 - **Structure and mechanics:** steps and phases, holds' kinds, CI's
   states, gates' numbers, kinds and verdicts, counts, commit hashes,
   times to the second, a run's state.
-- **Linked, not shown:** a pull request, a commit and a CI run are
-  addresses on the forge, its web address with the repository's path,
-  the pull's number, the commit's hash or the run's number, never a
-  title, body or message; the forge decides who reads there.
+- **No address on the forge:** no record holds a repository's, a pull
+  request's, a commit's or a CI run's address. A forge answers a stranger
+  404 on a private repository, as every box's is, and the forge's state
+  does not hold which are public: whether a repository is private is read
+  only in the list of what can be adopted, and kept nowhere (section 10).
+  So a visitor reads a commit's hash as text, never a title, body or
+  message, and a repository's owner and name never cross.
 - **A step without words:** the step's name; for a repair, its
   reason's kind (CI, a gate's number, semantic) without its words; for
   a landed change, its merge's hash.
@@ -1513,14 +1536,14 @@ the public tasks jig's core hands it with the ask:
   tiers' count alone), a change's or a landing branch's name, a gate's
   or a charter's configured name, a review's words, a result, findings,
   the outbox's descriptions, a forge's credentials, installations or
-  accounts, the settings, and a task's or a project's number.
+  accounts, the settings, a logged landing's branch, title or pull
+  request's number, and a task's or a project's number.
 - **Every field's source:**
 
   | Field | Source | Made by |
   |---|---|---|
   | a task, a member's task, a queue's change and its goal | the change's or landing member's task, the goal of its public tree | its place in the answer's tasks |
-  | a repository's, a pull's, a run's address | the adoption's forge and repository, the pull's number, CI's run | the forge's web address and path |
-  | a head, base, candidate, landed or merge hash | the change's and landing's commits | as is |
+  | a head, base, candidate, landed or merge hash | the change's and landing's commits; a queue merge's landed hash, the landing log's commit | as is |
   | step, repair kind, hold's kind, phase, CI's state, way, proof's state | the change's and landing's state | its kind alone, never its words |
   | a gate's number, kind, whether it blocks, verdict | the landing rule's gates and their verdicts | never the gate's name |
   | counts used and allowed, stale proofs | the change's and landing's counters | public members alone |
@@ -1556,10 +1579,13 @@ In the forge's world (`../domain/forge.md`, section 18): a public
 project's change, from producing to landed, read at each step as its
 public document, with no question line, branch, gate name or reason in
 it; a landing with two members and a failed gate read as its public
-document, the run's address in it, reached through either member; a
+document, the failed proof's state in it, reached through either member; a
 change of a private project, one outside every goal's tree, and one in
 a conversation's tree, unknown; a queue holding a change outside every
 goal's tree, which the landings leave out and count nowhere; a landing
-with a member that is not public, absent and unknown; a task jig did
-not hand never named; and the golden test failing on a field added to
-`public-v1.schema` until the golden says it.
+with a member that is not public, absent and unknown; a queue's merge
+read as a landed line and through its change as its landing, its commit
+the change's merge and no branch, title or pull request's number of the
+log's in it, and absent and unknown once its task is not handed; a task
+jig did not hand never named; and the golden test failing on a field
+added to `public-v1.schema` until the golden says it.

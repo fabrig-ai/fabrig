@@ -17,16 +17,19 @@ pub(crate) fn ready_to_start(root: &Domain) -> bool {
     let Some(me) = root.pages().me(root.client()) else { return false };
     root.pages().choice().valid(me)
         && crate::choice::can_send(root)
+        && temper_client_domain::pages::composer::over(&chats.words, chats.beyond, me.words_bytes) == 0
         && chats.start.is_none()
         && !root.forge().playground_starting()
         && root.forge().playground_failure().is_none()
 }
 
+#[expect(clippy::too_many_arguments, reason = "new chat passes the Home fallback its trial retry bindings")]
 pub(crate) fn main(
     b: &mut Builder,
     root: &Domain,
     w: &Words,
     bindings: &mut Bindings,
+    accounts: &mut crate::accounts::Bindings,
     _forge: &mut crate::forge::bindings::Bindings,
     text_limit: u32,
     times: &mut Times,
@@ -36,7 +39,7 @@ pub(crate) fn main(
         && root.pages().me(root.client()).is_some()
         && super::project_name(root.pages().me(root.client()), project).is_none()
     {
-        super::home::main(b, root, w, bindings, project, times, 0);
+        super::home::main(b, root, w, bindings, accounts, project, times, 0);
         return;
     }
     b.open(Role::Main);
@@ -159,6 +162,13 @@ fn composer(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, 
     b.bind(bindings.insert(Act::StartChat));
     b.close();
     super::session::hint(b, w, Word::ChatSendHint);
+    if let Some(me) = root.pages().me(root.client()) {
+        super::session::over(
+            b,
+            w,
+            temper_client_domain::pages::composer::over(&chats.words, chats.beyond, me.words_bytes),
+        );
+    }
     if chats.refusal.is_some() {
         w.refusal(b, &jig_client::contract::Refusal::NotOffered, text_limit);
     }

@@ -345,11 +345,10 @@ impl Link {
             Err(_) => {
                 out.push(Request::Fact { fact: Fact::UndecodableDocument });
                 match attempt.kind {
-                    ExchangeKind::Read { turn: Some(_) } => {
+                    ExchangeKind::Read { .. } => {
                         read_none(attempt.token, &attempt.owner, jig_client_domain::contract::ReadNone::Malformed, out);
                     }
-                    ExchangeKind::Read { turn: None }
-                    | ExchangeKind::Authorize
+                    ExchangeKind::Authorize
                     | ExchangeKind::Attempt { .. }
                     | ExchangeKind::SignIn
                     | ExchangeKind::SignOut { .. }

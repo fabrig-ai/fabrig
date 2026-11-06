@@ -303,8 +303,22 @@ fn durable(mut document: Document) -> Document {
             row.run_wait = None;
             row.llm = None;
         }
-        Document::Frame(_)
-        | Document::Chips(_)
+        // Engine 6 step 1 restores accounts without runtime grants; step 3 awaits
+        // reconnecting workers' logins. Engine 11.1's offers and inferred previews
+        // observe those facts; a template's named choice is a retained setting.
+        Document::Frame(frame) => {
+            for project in frame.projects.iter_mut() {
+                project.offer.clear();
+                let mut defaults = skein_lib::List::with_capacity(project.defaults.capacity());
+                for (number, choice) in &project.defaults {
+                    if project.templates.iter().any(|template| template.number == *number && template.llm.is_some()) {
+                        defaults.push((*number, choice.clone())).expect("retained preview subset");
+                    }
+                }
+                project.defaults = defaults;
+            }
+        }
+        Document::Chips(_)
         | Document::Run(_)
         | Document::Tree(_)
         | Document::Lines(_)
@@ -393,6 +407,7 @@ fn compare_answer(key: &(u64, Option<u64>), expected: &core::reads::Answer, foun
                 providers_cut,
                 key_bytes,
                 redirect_bytes,
+                words_bytes,
             );
         }
     }

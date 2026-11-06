@@ -60,6 +60,10 @@ impl Agent {
         self.ready
     }
     #[must_use]
+    pub fn watches_full(&self) -> bool {
+        self.root.client().link().watches_full
+    }
+    #[must_use]
     pub fn kept(&self) -> u32 {
         self.root.kept()
     }

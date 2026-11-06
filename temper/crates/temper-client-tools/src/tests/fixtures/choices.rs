@@ -38,6 +38,10 @@ pub(crate) fn choice_me(budget: u64) -> c::Me {
     project
         .models
         .push(c::MeModel {
+            effort: efforts.get(0).cloned(),
+            shown: None,
+            accounts: List::from_boxed(Box::new([ACCOUNT])),
+            picker: true,
             prices: c::ModelPrices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1000 },
             description: None,
             name: act_text(MODEL_NAME),
@@ -50,6 +54,10 @@ pub(crate) fn choice_me(budget: u64) -> c::Me {
     project
         .models
         .push(c::MeModel {
+            effort: None,
+            shown: None,
+            accounts: List::from_boxed(Box::new([ACCOUNT])),
+            picker: true,
             prices: c::ModelPrices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1000 },
             description: None,
             name: act_text(EFFORTLESS_MODEL_NAME),

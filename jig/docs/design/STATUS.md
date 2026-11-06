@@ -22,17 +22,23 @@ Of the acts, `Hold`, `Move` under another task, `Succeed`, successors,
 markers, a drain and a conversation's questions lag (`domain/people.md`,
 `domain/tasks.md`, `domain/engine.md`, `client/domain/contract.md`); of
 the client, a committed turn's objects,
-`me`'s `resolved_default`, a service's root, the one-shot mode and the
-drawing family (`client/domain/`); and `ops` standalone, with its
+`me`'s amendment bound, a service's root, the one-shot
+mode and the drawing family (`client/domain/`); and `ops` standalone, with its
 service and its connectors' protocols (`examples.md`). `RemoveProject`
 is offered in no project's document (`client/domain/contract.md`).
-Public reading's remaining departure is the public index's memory fit
-check (`protocol/configuration.md`). The test root is not in `ops`'s
+Public lines carry a goal's spend alone, no budget, and distinct endings
+(`domain/people.md`, `client/domain/contract.md`). Public reading's remaining
+departure is the public index's memory fit check (`protocol/configuration.md`);
+ended goals across a restart or before publication are deferred
+(`domain/people.md`, section 12). The test root is not in `ops`'s
 shape, which the user deferred, 2026-11-06, and temper keeps its own message words and
 its admission's yes or no, where the user's request of 2026-11-05 has it
 use jig's (`domain/root.md`, `domain/hosts.md`).
 A task given no LLM choice takes the first model it can use at its run's
 check, but no walk on record has a real box run on it (`domain/accounts.md`).
+Its template preview can differ from its task's next-run model across a worker
+restart with mixed program and direct accounts (`client/domain/contract.md`,
+`domain/engine.md`).
 A transcript's load refused for want of a slot counts as a failure, where
 room should pause its task (`domain/engine.md`). A note's range names the
 revision it read `recalled`, where the `note-parts` request of 2026-11-05 has
@@ -40,6 +46,9 @@ revision it read `recalled`, where the `note-parts` request of 2026-11-05 has
 where the `debt-24` request of 2026-11-05 has each named once, and the core's
 observer rebuilds its snapshot at each commit, where the `debt-25` request of
 2026-11-06 has it read the commit's rows (`domain/testing.md`).
+The client's link exposes a watch's Busy refusal through retries and clears
+it on recovery; distinguishing its capacity cause remains deferred
+(`client/domain/client.md`, section 18).
 The code departs in a few single items (`README.md`, `client/domain/client.md`, `domain/engine.md`,
 `client/domain/contract.md`, `client/domain/testing.md`, `client/domain/view.md`, `domain/hosts.md`, `domain/people.md`, `domain/root.md`, `domain/testing.md`,
 `protocol/README.md`, `protocol/browser.md`, `protocol/client.md`, `protocol/configuration.md`, `protocol/service.md`, `protocol/store.md`). `domain/core.md`,

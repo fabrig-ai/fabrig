@@ -137,7 +137,7 @@
         "tasks.authority_grants": 14,
         "tasks.batch": 1,
         "tasks.charter_documents": 0,
-        "tasks.charters": 5,
+        "tasks.charters": 6,
         "tasks.delegates": 1,
         "tasks.dependencies": 2,
         "tasks.executor_kinds": 8,
@@ -154,9 +154,7 @@
         "tasks.tasks": 4,
         "tasks.tree_tasks": 6,
         "views.runs": 1,
-        "views.text_bytes": 1024,
-        "views.watchers": 16,
-        "views.watchers_per_party": 16
+        "views.text_bytes": 1024
       },
       "profile": "small"
     },

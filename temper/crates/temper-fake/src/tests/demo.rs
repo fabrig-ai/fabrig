@@ -168,7 +168,7 @@ fn demo_refusals() {
                 Some(json!(
                     (0..8)
                         .map(
-                            |i| json!({"cue":i.to_string(),"turns":(0..8).map(|_|"x".repeat(4024)).collect::<Vec<_>>()})
+                            |i| json!({"cue":i.to_string(),"turns":(0..8).map(|_|"x".repeat(8_500)).collect::<Vec<_>>()})
                         )
                         .collect::<Vec<_>>()
                 )),
@@ -286,7 +286,7 @@ fn cued_refusals_and_shared_bounds() {
         ),
         (json!([scripts[0], scripts[0]]), "application.demo.llm.cued[1].cue: must be unique\n"),
         (
-            json!((0..7).map(|i| json!({"cue":i.to_string(),"turns":vec!["x".repeat(5000);8]})).collect::<Vec<_>>()),
+            json!((0..7).map(|i| json!({"cue":i.to_string(),"turns":vec!["x".repeat(10_000);8]})).collect::<Vec<_>>()),
             "application.demo.llm.otherwise: scripts past their joint byte bound\n",
         ),
         (json!(scripts), "application.demo.llm.cued: past its bound\n"),
@@ -464,7 +464,7 @@ fn the_csv_chat_delegates_waits_and_reports_landing_before_waiting_again() {
     assert_eq!(answers[2].parts.len(), 2);
     assert_eq!(answers[2].parts[0], Part::Text { text: "CSV export is available from widget’s table. The change landed on Playground forge. This was a scripted change.".as_bytes().into() });
     assert_eq!(call(&answers[2], b"wait"), json!({}));
-    assert_eq!(answers.iter().map(|a| a.usage.output).collect::<Vec<_>>(), [Some(269), Some(2), Some(30)]);
+    assert_eq!(answers.iter().map(|a| a.usage.output).collect::<Vec<_>>(), [Some(270), Some(2), Some(30)]);
 }
 
 #[test]

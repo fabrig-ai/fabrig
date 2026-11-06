@@ -13,11 +13,10 @@ use temper_client_domain::{self as d, Address, pages};
 
 const TITLE: &[u8] = b"Configure temper";
 const ENTRY: &[u8] = b"Describe how you work, or what to change";
-const STARTERS: [&[u8]; 5] = [
+const STARTERS: [&[u8]; 4] = [
     b"Not sure yet. What can temper do?",
     b"I work alone on small changes: one chat per change, landed once CI passes.",
     b"I write a design draft first; agents plan its tasks and land them together once checked.",
-    b"Use Claude for reviews and my ChatGPT plan for everything else.",
     b"Set Shop up the way temper builds itself, sized for this machine.",
 ];
 const QUESTION: &str = "How should temper run Shop?";
@@ -28,10 +27,9 @@ const SETS: [(&str, &str); 3] = [
     ("Models", "which plan or model each role runs on"),
     ("Approvals", "what waits for you, and what lands on its own"),
 ];
-const CARDS: [(&str, &str); 3] = [
+const CARDS: [(&str, &str); 2] = [
     ("Small changes, alone", "One chat per change, landed once CI passes."),
     ("A design draft first", "Agents plan its tasks; they land together."),
-    ("Models by role", "Claude for reviews, my ChatGPT plan for the rest."),
 ];
 const UNSURE: &str = "Not sure yet? Ask what temper can do.";
 const DRAFT: &[u8] = b"My way of working";
@@ -151,7 +149,7 @@ fn requested_main_keeps_order_classes_and_phone_parts() {
             ),
             (look::STARTER_OWN_STEPS, vec![(Role::Item, vec![]); 5]),
             (look::STARTER_OWN_ACTS, vec![(Role::Button, vec![]); 2]),
-            (look::STARTERS, vec![(Role::Item, vec![]), (Role::Item, vec![]), (Role::Item, vec![])]),
+            (look::STARTERS, vec![(Role::Item, vec![]), (Role::Item, vec![])]),
             (
                 look::SESSION_FOOT,
                 vec![(Role::Slot, vec![look::SESSION_COMPOSER]), (Role::Paragraph, vec![look::SESSION_HINT])],
@@ -199,12 +197,12 @@ fn requested_main_keeps_order_classes_and_phone_parts() {
             styled(tree, look::SESSION_HINT)[0].name.as_deref(),
             Some(b"Enter sends \xc2\xb7 Shift+Enter for a new line".as_slice())
         );
-        assert_eq!(starters(tree).len(), 5);
+        assert_eq!(starters(tree).len(), 4);
         for node in starters(tree) {
             assert!(!disabled(node));
         }
         assert_eq!(named(tree, Role::Button, UNSURE.as_bytes()).styles.as_slice(), [look::STARTER_UNSURE]);
-        assert!(f::find(tree, Role::Disclosure, b"Change model").is_none());
+        assert!(f::find(tree, Role::Disclosure, b"Change model").is_some());
     }
 }
 
@@ -274,7 +272,7 @@ fn pending_starts_disable_starters_and_send_keep_the_words() {
                     n.id
                 })
                 .collect();
-            assert_eq!(buttons.len(), 5);
+            assert_eq!(buttons.len(), 4);
             for id in buttons {
                 assert_eq!(crate::act(&mut view, id, Act::Press), None);
             }
@@ -460,31 +458,221 @@ fn unlisted_project_says_what_home_says_in_both_shells() {
     }
 }
 
+// The offer crosses three accounts: two providers, with both a plan and a key at OpenAI.
+const CLAUDE: u32 = 18;
+const PLAN: u32 = 17;
+const KEY: u32 = 19;
+const UNKNOWN_ACCOUNT: u32 = 20;
+
+fn configure_root(offers: &[(u32, &[u32])], held: &[u32], preview: &[u8]) -> d::Domain {
+    use skein_lib::List;
+    let (sample, _) = super::choice::provider_byline_root(
+        Address::NewChat { draft: false },
+        [c::Readiness::Usable, c::Readiness::Usable],
+        [true, true],
+        true,
+    );
+    let mut me = f::configuring_me(sample.pages().me(sample.client()).unwrap().clone());
+    let mut document = sample.pages().accounts_document(sample.client()).unwrap().clone();
+    let mut key = document.accounts.iter().find(|row| row.number == PLAN).unwrap().clone();
+    key.number = KEY;
+    key.plan = false;
+    key.sources.get_mut(0).unwrap().kind = c::AccountKind::Key;
+    let mut accounts = document.accounts.as_slice().to_vec();
+    accounts.push(key);
+    document.accounts = List::from_boxed(accounts.into_iter().filter(|row| held.contains(&row.number)).collect());
+    let project = me.projects.get_mut(0).unwrap();
+    for template in project.templates.iter_mut() {
+        template.llm = None;
+    }
+    let sample_model = project.models.get(0).unwrap().clone();
+    project.models = List::with_capacity(u32::try_from(offers.len()).unwrap());
+    for (provider, accounts) in offers {
+        let mut model = sample_model.clone();
+        let (name, shown) = if *provider == CLAUDE {
+            (b"claude-opus-5-5".as_slice(), b"Opus 5.5".as_slice())
+        } else {
+            (b"gpt-6-astra".as_slice(), b"Astra 6".as_slice())
+        };
+        model.name = f::first_run::text(name);
+        model.shown = Some(f::first_run::text(shown));
+        model.provider = Some(*provider);
+        model.accounts = List::from_boxed(accounts.to_vec().into_boxed_slice());
+        model.efforts = List::from_boxed(Box::new([f::first_run::text(b"low"), f::first_run::text(b"high")]));
+        model.effort = Some(f::first_run::text(b"high"));
+        project.models.push(model).unwrap();
+    }
+    project.defaults = List::from_boxed(Box::new([
+        c::MeDefault {
+            template: jig_client::shapes::CHAT,
+            choice: c::LlmChoice {
+                account: None,
+                main: c::ModelEffort { model: f::first_run::text(b"ordinary-chat"), effort: None },
+                subagents: List::with_capacity(0),
+            },
+        },
+        c::MeDefault {
+            template: 3,
+            choice: c::LlmChoice {
+                account: None,
+                main: c::ModelEffort { model: f::first_run::text(preview), effort: Some(f::first_run::text(b"high")) },
+                subagents: List::with_capacity(0),
+            },
+        },
+    ]));
+    let (mut root, me_watch, _, _, accounts_watch) =
+        f::root_at_full(Address::Configure { project: f::PROJECT }, &f::domain_limits(), b"Shop");
+    f::deliver_me(&mut root, me_watch, me);
+    f::root_event(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Watched {
+                    watch: accounts_watch.unwrap(),
+                    event: c::WatchEvent::Delivered(c::Delivery::Accounts(Box::new(document))),
+                },
+            },
+        },
+    );
+    root
+}
+
 #[test]
-fn byline_uses_the_projects_first_ready_provider_and_its_account() {
-    use c::Readiness::{Unavailable, Unknown, Usable};
-    for (ready, accounts, models, expected) in [
+fn configure_uses_template_threes_preview_with_a_chooser() {
+    for (offers, held, preview, expected) in [
         (
-            [Usable, Unavailable],
-            [true, false],
-            true,
-            Some("your Claude subscription, through Claude Code · claude-opus-5-5"),
+            vec![(CLAUDE, &[CLAUDE][..]), (PLAN, &[PLAN][..])],
+            vec![CLAUDE, PLAN],
+            b"claude-opus-5-5".as_slice(),
+            "your Claude subscription, through Claude Code · Opus 5.5 · high",
         ),
-        ([Usable, Usable], [true, true], true, Some("ChatGPT plan · gpt-6.1-sol")),
-        ([Unavailable, Usable], [true, true], true, Some("ChatGPT plan · gpt-6.1-sol")),
-        ([Unknown, Usable], [true, true], true, Some("ChatGPT plan · gpt-6.1-sol")),
-        ([Unavailable, Unavailable], [false, false], true, Some("Using the default model")),
-        ([Unknown, Unknown], [true, true], true, Some("Using the default model")),
-        ([Usable, Usable], [true, true], false, None),
-        ([Unavailable, Unavailable], [false, false], false, None),
+        (vec![(PLAN, &[PLAN][..])], vec![PLAN], b"gpt-6-astra", "ChatGPT plan · Astra 6 · high"),
     ] {
-        let (root, _) =
-            super::choice::provider_byline_root(Address::Configure { project: f::PROJECT }, ready, accounts, models);
-        assert_eq!(root.pages().choice().project(), None);
+        let root = configure_root(&offers, &held, preview);
+        assert!(root.pages().chat().is_none());
+        assert!(root.pages().choice().requested.is_none(), "a preview stays out of the draft");
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
-            let line = view.tree().nodes().iter().find(|n| n.styles.as_slice().contains(&look::BYLINE));
-            assert_eq!(line.and_then(|n| n.name.as_deref()), expected.map(str::as_bytes), "{ready:?}, {accounts:?}");
+            let byline = named(view.tree(), Role::Disclosure, b"Change model");
+            assert_eq!(byline.description.as_deref(), Some(expected.as_bytes()));
+            assert!(byline.states.as_slice().contains(&State::FoldsAway));
+            assert!(byline.styles.as_slice().contains(&look::BYLINE));
         }
+    }
+}
+
+#[test]
+fn configure_picker_buttons_edit_the_draft() {
+    use pages::choice::Act as Choice;
+    for browser in [false, true] {
+        let mut root = configure_root(&[(CLAUDE, &[CLAUDE]), (PLAN, &[PLAN])], &[CLAUDE, PLAN], b"claude-opus-5-5");
+        for (label, expected) in
+            [(b"Astra 6".as_slice(), Choice::Model { index: 1 }), (b"low", Choice::Effort { index: 0 })]
+        {
+            let mut view = if browser { f::browser_page_view(&root) } else { f::page_view(&root) };
+            let node = named(view.tree(), Role::Button, label).id;
+            let action = crate::act(&mut view, node, Act::Press).expect("model choice");
+            assert_eq!(action, d::Action::Pages(pages::Act::Choice(expected)));
+            f::root_event(&mut root, d::Event::Act { action });
+        }
+        let choice = root.pages().choice().requested.as_ref().unwrap();
+        assert_eq!(choice.main.model.bytes(), b"gpt-6-astra");
+        assert_eq!(choice.main.effort.as_ref().unwrap().bytes(), b"low");
+        assert!(root.pages().chat().is_none());
+    }
+}
+
+#[test]
+fn models_by_role_names_the_first_two_distinct_offered_accounts() {
+    for (offers, held, line, sent) in [
+        (
+            vec![(CLAUDE, &[CLAUDE][..]), (PLAN, &[CLAUDE, PLAN, KEY][..])],
+            vec![CLAUDE, PLAN, KEY],
+            "Claude for reviews, my ChatGPT plan for the rest.",
+            "Use Claude for reviews and my ChatGPT plan for everything else.",
+        ),
+        (
+            vec![(PLAN, &[PLAN, KEY][..]), (CLAUDE, &[CLAUDE][..])],
+            vec![CLAUDE, PLAN, KEY],
+            "my ChatGPT plan for reviews, my OpenAI API key for the rest.",
+            "Use my ChatGPT plan for reviews and my OpenAI API key for everything else.",
+        ),
+        (
+            vec![(PLAN, &[UNKNOWN_ACCOUNT][..]), (CLAUDE, &[CLAUDE][..])],
+            vec![CLAUDE],
+            "OpenAI for reviews, Claude for the rest.",
+            "Use OpenAI for reviews and Claude for everything else.",
+        ),
+    ] {
+        let root = configure_root(&offers, &held, b"gpt-6-astra");
+        for (mut view, browser) in [(f::page_view(&root), false), (f::browser_page_view(&root), true)] {
+            let button = styled(view.tree(), look::STARTERS)
+                .iter()
+                .find(|node| {
+                    node.role == Role::Button
+                        && leaves(view.tree(), node).iter().any(|leaf| leaf.starts_with(b"Models by role"))
+                })
+                .expect("models starter");
+            let expected = if browser {
+                vec![b"Models by role".to_vec(), line.as_bytes().to_vec()]
+            } else {
+                vec![format!("Models by role: {line}").into_bytes()]
+            };
+            assert_eq!(leaves(view.tree(), button), expected);
+            let id = button.id;
+            assert_eq!(
+                crate::act(&mut view, id, Act::Press),
+                Some(d::Action::Pages(pages::Act::Starter { words: sent.as_bytes().into() })),
+            );
+        }
+    }
+}
+
+#[test]
+fn models_by_role_needs_two_distinct_offered_accounts() {
+    for offers in [
+        vec![],
+        vec![(CLAUDE, &[][..])],
+        vec![(CLAUDE, &[CLAUDE][..])],
+        vec![(CLAUDE, &[CLAUDE][..]), (CLAUDE, &[CLAUDE][..])],
+    ] {
+        let root = configure_root(&offers, &[CLAUDE, PLAN], b"claude-opus-5-5");
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            assert!(!String::from_utf8_lossy(&f::main_text(view.tree())).contains("Models by role"));
+        }
+    }
+}
+
+#[test]
+fn configuring_chat_picker_applies_to_its_next_run() {
+    use pages::choice::Act as Choice;
+    let mut task = super::chat::configuring_task();
+    task.llm = Some(c::LlmChoice {
+        account: None,
+        main: c::ModelEffort { model: f::first_run::text(b"chosen"), effort: None },
+        subagents: skein_lib::List::with_capacity(0),
+    });
+    let mut acts = task.acts.as_slice().to_vec();
+    acts.push(c::Offered { act: c::ActKind::Amend, admission: c::Admission::Allowed, effect: None });
+    task.acts = skein_lib::List::from_boxed(acts.into_boxed_slice());
+    for browser in [false, true] {
+        let mut root = super::chat::configuring_task_root(task.clone(), true, 37);
+        let mut view = if browser { f::browser_page_view(&root) } else { f::page_view(&root) };
+        let byline = named(view.tree(), Role::Disclosure, b"Change model");
+        assert_eq!(byline.description.as_deref(), Some("T9 · chosen".as_bytes()));
+        assert!(byline.styles.as_slice().contains(&look::BYLINE));
+        let settings = named(view.tree(), Role::Link, b"Settings").id;
+        assert_eq!(crate::href(&mut view, settings).as_deref(), Some(b"/projects/1/settings".as_slice()));
+        for (label, expected) in
+            [(b"second".as_slice(), Choice::Model { index: 1 }), (b"Apply to next run", Choice::Apply)]
+        {
+            let mut view = if browser { f::browser_page_view(&root) } else { f::page_view(&root) };
+            let id = named(view.tree(), Role::Button, label).id;
+            let action = crate::act(&mut view, id, Act::Press).expect("picker action");
+            assert_eq!(action, d::Action::Pages(pages::Act::Choice(expected)));
+            f::root_event(&mut root, d::Event::Act { action });
+        }
+        assert_eq!(root.pages().choice().requested.as_ref().unwrap().main.model.bytes(), b"second");
+        assert!(root.pages().choice().pending.is_some(), "the next-run amendment was sent");
     }
 }
 
