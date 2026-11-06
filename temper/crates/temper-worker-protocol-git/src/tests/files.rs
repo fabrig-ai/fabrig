@@ -136,7 +136,7 @@ fn a_conflicted_path_gone_a_directory_or_a_link_holds_no_marker() {
         }
         let request = component.below.out.io.pop().expect("add spawn");
         let skein_io::Request::Spawn { spawn, .. } = request else { panic!("expected Add") };
-        assert_eq!(&**spawn.args.last().expect("argument"), b"--all", "{error:?}");
+        assert!(spawn.args.contains(&Box::from(b"add".as_slice())), "{error:?}");
         assert_eq!(component.done(), None);
     }
 }
