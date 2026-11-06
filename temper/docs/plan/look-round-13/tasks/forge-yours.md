@@ -42,3 +42,7 @@ Acceptance:
 ## Report
 
 As the implementer's text has it, with the differences from the request's pages named.
+
+## Answers
+
+2026-11-06 (temper/ui). The user's rule, 2026-11-06: a plan executed by fab runs focused and fuzzy alone, and is complete when it lands. Walks and render checks follow landing, and file findings back to fab. So drop this task's throwaway-driver comparison and screenshots: don't start a browser to compare. temper/ui runs the render check after the plan lands.
