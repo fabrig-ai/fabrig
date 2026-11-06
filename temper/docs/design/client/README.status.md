@@ -5,6 +5,17 @@
 - **Design departs:** 3.5, 5.8, 5.11, from the greenfield target: "Pause", "Resume" and "Close" on a chat, a goal and an
   agent's task, where its goal says "Stop", which meant a goal's end and a chat's hold. The user's word, 2026-11-06, the
   request `ui-pause-close`.
+- **Design departs:** 5.11, from that request, which has an agent's task's "Stop task" and "Stop this task?" become
+  "Close task" and "Close this task?". That act is jig's hold, which "can't be reopened" would misstate, so the hold is
+  "Pause" and "Resume", sent at once, and "Close" is `Ask::Cancel`, on the sheet the request names. Its cut decided it,
+  and section 11 keeps the sheet on Pause as a candidate.
+- **Not yet:** 3.5, *A person's pause*: no browser test walks a Pause, a Resume or a message that resumes. The client's
+  world holds them on the engine's root, with no browser (`a_chat_pauses_resumes_and_a_message_resumes_it`,
+  `a_delegate_paused_from_its_page_is_held_then_resumed`), and the check that request asks on a fake box leaves its
+  proofs on a builder, outside the repository, so no record here shows it ran. A refused message is held on an answered
+  refusal in the domain (`a_refused_message_to_a_paused_chat_stays_in_the_composer_s_refusal`) and by jig's all-or-none:
+  no world moves a hold's revision between the read and the send. "Paused" on Home is seen by reading: the view's tests
+  draw it on a Chats row (`a_paused_chat_s_row_says_paused`) and none on Home.
 - **Not yet:** 3.5, `ConnectModel`, *The sign-in's tab*: only Chromium has run it, and against skein's fake issuer
   alone. Firefox's and Safari's gesture is read and not run (skein's `ui-web.md`, 14.3), and no walk on record has a
   provider's own page in the tab: the request `sign-in-new-tab` of 2026-11-06 leaves a real box to the user.
@@ -165,9 +176,9 @@
   by hand at each width, which no test keeps; a press while the page updates, on a Release
   alone. The client's world holds the chat's Accept and Reject's ask, with no browser
   (`a_configuring_chat_accepts_its_own_proposal`, `a_configuring_chat_rejects_its_own_proposal`).
-  A task's Cancel and an agent's task's Close are drawn at each width by their
-  gallery states, the walk of the request `ui-walk-3` of 2026-11-06 having tried the
-  fake box for them first, and no walk on record presses them.
+  An agent's task's Close is drawn at each width by its gallery state, the walk of the
+  request `ui-walk-3` of 2026-11-06 having tried the fake box for it first, and no walk
+  on record presses it.
 - **Not yet:** 3.5, *temper's own way, beside the page*: no journey records "See how it works"
   or "Start from it", and no test presses them on a box: the view's tests and the gallery's
   `configure-reference` and `configure-reference-draft` alone draw them. The walk of the request
@@ -184,8 +195,7 @@
     it checked "by CI and a review on the way": the reference's goal branches have neither
     (`../draft/reference-code-production.md`, sections 6 and 10);
   - a table's row name is bold in a cell, where the request's rule is `th[scope=row]`, since
-    skein's reader draws no row header; a figure's term and value are `role=term` and
-    `role=definition`, where its rules are `dt` and `dd`;
+    skein's reader draws no row header;
   - the thread's padding of 28 and 8 reaches the opening alone, at wide widths, where the request's
     rule reaches every chat; a phone keeps its 20 and 16;
   - the card's steps are a list with no marker and the pane a region of slots, where the request's
@@ -328,8 +338,12 @@
   that can't start, where the request has a run that isn't about to start say why,
   because a row holds no run wait and its query carries no run's check per row
   (jig's `client/domain/client.md`, 19.1). The chat's own page says why.
-- **Not yet:** 3.5, *Where the focus stands on a chat*, 5.3 and 5.11: a chat started by sending opens on its
-  heading, and after a send a composer asks for no focus: a press of "Send" leaves it on a button that disables.
+- **Design departs:** 3.5, *Where the focus stands on a chat*, from the request `ui-composer-focus` of 2026-11-06,
+  decided by its plan's cut: a starter's or a suggested request's press asks for the composer's focus on a phone too,
+  where the request has no press raise a keyboard the person did not ask for, because the tree has no width and telling
+  them apart takes a kit mechanism (section 11). Whether a keyboard rises is unknown, for those and for the request's own
+  answers, up after a send and down on a chat opened from a list: no run on record has a real phone, and headless
+  Chromium draws no keyboard.
 - **Not yet:** 3.5:
   `Board { project }` with its reordering: no
   address in `temper-client-domain`'s `address.rs`.

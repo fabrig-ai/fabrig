@@ -1225,7 +1225,23 @@ digest: task 7c1e09a2b44f0d13
   awaited` would read as if nothing were wrong; one that awaits anything
   else prints that. The hold prints as `held` alone (the user, 2026-11-06):
   the document's `held:` and `way out:` lines carry its reason and what to
-  do. `--json` keeps `waits_on` as jig gives it.
+  do. A task that awaits nothing else, holds no hold, and whose next run no
+  account serves prints jig's `an account`, where `Nothing awaited` would
+  say the opposite of the lines above it. `--json` keeps `waits_on` as jig
+  gives it.
+- **`next run:`** prints what a run that can't start waits for, then the
+  lines that say why and what to run (5.2). When no account serves the
+  work, an account wait with neither an account nor a source and the why
+  `Empty`, the label stands alone and those lines speak:
+
+  ```
+  next run:
+    no account serving this work yet
+  ```
+
+  Every other wait keeps its words, an account wait that names its
+  account among them: `next run: account 43 source unknown: empty`.
+  `--json` keeps `run_wait` as jig gives it.
 - **The deadline** has its date and its zone: `deadline 2026-10-24
   17:00 UTC`, or `no deadline`.
 - **Its instructions,** when the document carries them, on a line of
@@ -1300,7 +1316,13 @@ digest: task 7c1e09a2b44f0d13
 - **Acts as calls,** without the `temper ctl DIRECTORY` prefix; a keyed
   act's call ends with `--key NAME`. A proposable act says to whom; a
   refused one says why, and prints no call. The host gives the
-  rendering how a call is printed.
+  rendering how a call is printed. A bounded act prints its bounds after
+  its call, but for `task amend`, which prints its call alone: its whole
+  authority, over a kilobyte, would bury the words above it, and what the
+  bounds decide is the tool's when it sends (5.5, area 2). What lies
+  beyond them goes with them, since `proposed to` beside a bare call
+  would say the whole act asks another party first. `--json` prints the
+  admission whole.
 - **An offered act with no tool** (5.3 has none for it) prints its name
   in the tools' words and ` (no tool)`, in the document's order, with no
   call and no admission: the agent learns the act is there and may hand
@@ -2258,6 +2280,18 @@ Each is named here and designed when it comes.
   that nothing listens (6.3); the terminal keeps the native shell's reset
   and retry. Whether it says so too waits on a timing of what a person
   meets there.
+- **An account with no source for this work** (6.1): a wait that names its
+  account with the why `Empty` keeps its number on `next run:`, above `no
+  account serving this work yet`, and `waiting on: Nothing awaited` beneath
+  says the opposite. Whether it names what the account lacks, and whether
+  `waiting on:` prints `an account` there too, waits on QA meeting one: its
+  walks of a stock box meet the wait that names no account.
+- **A bounded act other than `task amend`** (6.1): jig bounds no other act on
+  a task's document, so no engine prints the general line. The goldens
+  `task_bounded_proposed` and `task_bounded_refused` hold it on `task stop`,
+  and a person task's `acts:` prints such bounds with no space before them
+  and nothing of what lies beyond. Whether the line stays, and its person
+  form, is settled when jig bounds another act.
 
 ## 15. Open questions
 

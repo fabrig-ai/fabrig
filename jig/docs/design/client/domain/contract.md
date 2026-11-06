@@ -1586,6 +1586,13 @@ designs (`../../protocol/client.md`):
   bounds derived so that it cannot happen, as a path's segments are, or
   an answer of its own. Until it is settled, a watch's is refused as
   unknown and a delivery's ends its watch (7.2).
+- **A compound's project on the wire** (3.4): each of its operations names a
+  project on the client wire, and the clients' protocol layer refuses one other
+  than the compound's before the ask goes further. Whether people refuses it,
+  which takes a project in each of its `Operation`s and a refusal its stored
+  enum has no variant for, or the check stays as the wire's own shape
+  (`jig/docs/development/debt/D026-engine-clients-project-mismatch.md`). Default:
+  it stays.
 
 ## 12. Public documents
 

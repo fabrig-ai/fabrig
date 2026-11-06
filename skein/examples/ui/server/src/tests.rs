@@ -147,3 +147,24 @@ fn a_replayed_add_is_not_broadcast_again() {
     state.add(add).expect("fixture add accepted");
     assert_eq!(state.take_made(), None);
 }
+
+#[test]
+fn a_compressed_form_needs_its_plain_file() {
+    let mut files = BTreeMap::new();
+    files.insert("boot.js.gz".into(), Box::from(&b"form"[..]));
+    assert_eq!(
+        Bundle::new(Box::from([]), "0123456789abcdef".into(), files).expect_err("orphan refused"),
+        "a compressed form with no file"
+    );
+}
+
+#[test]
+fn a_form_outside_the_compressed_types_is_refused() {
+    let mut files = BTreeMap::new();
+    files.insert("about.txt".into(), Box::from(&b"plain"[..]));
+    files.insert("about.txt.gz".into(), Box::from(&b"form"[..]));
+    assert_eq!(
+        Bundle::new(Box::from([]), "0123456789abcdef".into(), files).expect_err("unsupported form"),
+        "invalid bundle file"
+    );
+}

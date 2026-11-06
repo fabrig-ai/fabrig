@@ -3,11 +3,19 @@ use skein_http::server::{Body, Call};
 use skein_http::{Method, Version};
 #[must_use]
 pub fn get(path: &[u8]) -> Call {
+    get_with_headers(path, &[])
+}
+
+#[must_use]
+pub fn get_with_headers(path: &[u8], headers: &[(&[u8], &[u8])]) -> Call {
     Call {
         method: Method::Get,
         target: Box::from(path),
         version: Version::Http11,
-        headers: Box::from([]),
+        headers: headers
+            .iter()
+            .map(|(name, value)| skein_http::Header { name: Box::from(*name), value: Box::from(*value) })
+            .collect(),
         body: Body::None,
     }
 }
@@ -46,6 +54,9 @@ pub fn chromium() -> std::path::PathBuf {
 pub fn fixture_bundle(scratch: &skein_scratch::Scratch, module: &[u8]) -> std::path::PathBuf {
     let out = scratch.path().join("bundle");
     let inputs = skein_ui_bundle::Inputs {
+        gzip: true,
+        title: None,
+        placeholder: None,
         name: "fixture".into(),
         prefix: "/bundle/".into(),
         stylesheets: vec![],

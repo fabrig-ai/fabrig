@@ -150,7 +150,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 ## clients
 
 - `clients.bundle_files`: count, 128. Bounds bundle files, including the browser's page.
-- `clients.bundle_bytes`: bytes, 16,777,216. Bounds all bundle file bytes held in memory while the service runs.
+- `clients.bundle_bytes`: bytes, 33,554,432. Bounds all bundle file bytes held in memory while the service runs.
 
 ## records
 

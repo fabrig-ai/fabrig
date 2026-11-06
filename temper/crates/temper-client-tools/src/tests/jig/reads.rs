@@ -1007,7 +1007,8 @@ fn empty_account_wait_names_claude_login_path() {
         let answer = root.answer(call).expect("empty-account task answered");
         assert_eq!(answer.status, 0);
         assert!(answer.stderr.is_empty());
-        assert!(skein_lib::bytes::find(&answer.stdout, b"next run: account unknown source unknown: empty").is_some());
+        assert!(skein_lib::bytes::find(&answer.stdout, b"\nnext run:\n  no account serving this work yet").is_some());
+        assert!(skein_lib::bytes::find(&answer.stdout, b"account unknown").is_none());
         assert_eq!(skein_lib::bytes::find(&answer.stdout, b"main model: gpt-6.1-sol").is_some(), model.is_some());
         for words in [
             "Claude Code: account declare PROVIDER claude_code NAME --key KEY, then temper program-login --config BOX --data STORE --cache SCRATCH NAME",
@@ -1020,6 +1021,38 @@ fn empty_account_wait_names_claude_login_path() {
         }
         assert!(next_run_line(&answer.stdout).starts_with(b"  no account serving this work yet"));
     }
+}
+
+#[test]
+fn an_empty_wait_naming_its_account_keeps_its_words() {
+    use jig_client::contract as c;
+    let mut task = fixtures::goal(fixtures::TASK, c::WaitsOn::Nothing);
+    task.run_wait = Some(c::TaskRunWait::Account { account: Some(43), source: None, why: c::TaskWaitWhy::Empty });
+    let answer = fixtures::read_answer(fixtures::TASK_CALL, fixtures::task_result(task));
+    assert_eq!(answer.status, 0);
+    assert!(skein_lib::bytes::find(&answer.stdout, b"\nnext run: account 43 source unknown: empty\n").is_some());
+    assert!(skein_lib::bytes::find(&answer.stdout, b"\nwaiting on: Nothing awaited\n").is_some());
+}
+
+#[test]
+fn no_account_keeps_its_wait_in_json() {
+    use jig_client::contract as c;
+    let mut task = fixtures::goal(fixtures::TASK, c::WaitsOn::Nothing);
+    task.run_wait = Some(c::TaskRunWait::Account { account: None, source: None, why: c::TaskWaitWhy::Empty });
+    let answer = fixtures::read_answer(fixtures::TASK_JSON_CALL, fixtures::task_result(task));
+    assert_eq!(answer.status, 0);
+    assert!(
+        skein_lib::bytes::find(
+            &answer.stdout,
+            br#""run_wait":{"account":{"account":null,"source":null,"why":"empty"}}"#
+        )
+        .is_some()
+    );
+    let json = crate::jig::json::document_depth(&answer.stdout, 32).expect("task JSON document");
+    let wait = json.member(0, b"waits_on").expect("task wait member");
+    let wait = json.token(wait).expect("task wait token");
+    assert_eq!(wait.kind, skein_json::Kind::String);
+    assert_eq!(json.text(wait), Some(b"nothing".as_slice()));
 }
 
 #[test]
@@ -1106,7 +1139,7 @@ fn waits_about_to_end_add_no_explanation_line() {
 }
 
 fn next_run_line(bytes: &[u8]) -> &[u8] {
-    let code = skein_lib::bytes::find(bytes, b"\nnext run: ").expect("code line retained");
+    let code = skein_lib::bytes::find(bytes, b"\nnext run:").expect("code line retained");
     let after = code.checked_add(1).unwrap();
     let newline = skein_lib::bytes::find_from(bytes, b"\n", after).expect("code line ends");
     let start = newline.checked_add(1).unwrap();
