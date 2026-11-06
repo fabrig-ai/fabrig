@@ -96,3 +96,50 @@ Push.
 ## Report
 
 As the implementer's text asks: each test's bite, and which options you took.
+
+## Answers
+
+2026-11-06. **Question:** widen the task to the other fixtures whose explicit limits hold the stock's charters, or give
+them to another task? **Answer: widen, for this one count.** The task's own checks can't pass without it, no other task's
+`files` names these fixtures, and charter 9's commit (`269b2576c1`) moved the same lines. A fixture's capacity following
+the stock changes no test's expectation. Keep the pushed commit `be74823c3f` and go on from it.
+
+The rule: where a fixture holds the stock's whole catalogue and sets `tasks.charters` to the stock's present count, that
+count goes up by one, and a comment on the same line or the line above says the new number. Nothing else moves in it.
+
+May also change, for that rule only:
+
+- `temper/crates/temper-service/src/tests/fixtures.rs` and `tests/root_checks.rs`.
+- `temper/crates/temper/tests/fixtures/cluster/engine.json`.
+- In `temper/crates/temper/tests/support/`: `configuration.rs`, `forgejo.rs`, `case.rs`, `github_land.rs`,
+  `github/engine.json`.
+- `temper/crates/temper/src/tests/settings_fields.rs`: `STOCK_VALUES` and its comment, as `reference_settings.rs`'s count
+  follows.
+- `temper/tests/engine/domain/tests/suite/settings.rs`: `stock_limits`.
+- `temper/tests/real-loop/src/fixtures.rs` and `case.rs`, the line with `tasks.executor_kinds`: its helper replaces
+  charter 9, so the catalogue with it holds seven.
+- `temper/tests/client-browser/src/configuration.rs`.
+- The playground: `temper/crates/temper-playground/src/documents.rs`, `("tasks.charters", 5)` becomes 6, and
+  `stories/a/deployment.json` the same. It drops only charter 3, as its comment says. Don't filter charter 10 out:
+  `trial-start` is what keeps a trial from the playground.
+
+Stay as they are:
+
+- Every other `documents.lines`, `tasks.executor_kinds`, `authority.executors`, `people.amendment_bytes` and
+  `core.policy_bytes`, and `welcome_policy.rs`'s lists: charter 10 is in no delegation, so its offers and policy don't
+  move. Charter 9's commit moved these because charter 9 is delegated; if one moves here, charter 10 has reached a
+  delegation, and that's the fault to fix.
+- A limit that doesn't hold the stock's whole catalogue, or already has room: `temper/tests/real-loop/src/landing.rs`,
+  `temper/tests/client/src/front.rs`, `temper/tests/client/tests/suite/settings_tools.rs`,
+  `temper/tests/engine/domain/src/forge_routes.rs`, `tests/suite/configuring/fixture.rs`,
+  `temper/crates/temper-engine-domain/src/route/forge_route/tests.rs`. If one of these refuses in a run you made, it comes
+  under the rule, and you name it in your report.
+- `temper/docs/help/**`: `trial-close` owns it and its spec now has the lines.
+
+If a fix needs any other kind of change, it's a question.
+
+The checks, through heavy, one at a time: the spec's own, the whole `temper-service --lib` and `-p temper --test suite
+-E 'test(creating)'`; then `-p temper --lib -E 'test(settings_fields)'`, `-p temper-playground --lib`, and
+`-p temper --test suite -E 'test(startup)'`. Then, for each other package you changed, clippy, and its narrowest test that
+holds the stock: `settings.rs`'s for the engine's domain. Don't run a slow tier's profile for this: list `real-loop` and
+`client-browser` under `## Left` as compiled and unobserved, and the trunk's end check takes them.
