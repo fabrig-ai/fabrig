@@ -264,6 +264,14 @@ fn fixture_root(
             config.core.settings.llm_providers.providers.get_mut(0).expect("fixture provider").models =
                 Box::new([Box::from(b"scripted".as_slice()), Box::from(b"effort-model".as_slice())]);
         }
+        if program {
+            for charter in &mut config.core.defaults.charters {
+                charter.policy.model.program = Some(b"claude_code".as_slice().into());
+            }
+            for model in &mut config.core.settings.models {
+                model.program = Some(b"claude_code".as_slice().into());
+            }
+        }
         if let Some(spend) = spend {
             let policy = &mut config.core.seed_projects[0].policy.policy;
             policy.roles[0].period_spend = spend;
