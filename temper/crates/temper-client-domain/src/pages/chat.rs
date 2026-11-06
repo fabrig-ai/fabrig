@@ -345,7 +345,12 @@ impl Chat {
         if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(page))) = page {
             let scope = c::NoteScope::Task { project: self.draft_project.expect("task arrived"), task: self.task };
             let mut lowest: Option<&c::Note> = None;
+            let mut working = false;
             for note in &page.rows {
+                if note.scope == scope && note.description.bytes().starts_with(b"work:") {
+                    working = true;
+                    continue;
+                }
                 if note.scope == scope
                     && match lowest {
                         Some(old) => note.number < old.number,
@@ -365,6 +370,8 @@ impl Chat {
                     body: Box::from(note.body.bytes()),
                     changed: note.changed,
                 });
+            } else if working {
+                self.draft = None;
             }
         } else if super::activity::read_end(client, &page).transient() {
             self.draft_asking.ended(now);

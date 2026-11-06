@@ -1359,6 +1359,33 @@ fn the_lowest_numbered_is_the_document() {
     );
 }
 #[test]
+fn a_work_note_never_displaces_the_lowest_document_in_the_chats_scope() {
+    let mut f = f::opened();
+    take_draft_reads(&mut f);
+    let mut work = draft_note(1, 1, b"Internal working memory");
+    work.description = f::document_text(b"work: settings");
+    let mut foreign = draft_note(2, 1, b"Another chat");
+    foreign.scope = c::NoteScope::Task { project: fixtures::PROJECT, task: f::TASK + 1 };
+    draft_answer(&mut f, notes_page(&[draft_note(13, 1, b"Later"), work, foreign, draft_note(12, 1, b"Document")]));
+    assert_eq!(f.chat.draft.as_ref().expect("document").note, 12);
+}
+#[test]
+fn a_chat_with_only_work_notes_has_no_document() {
+    for previous_document in [false, true] {
+        let mut f = f::opened();
+        take_draft_reads(&mut f);
+        if previous_document {
+            draft_answer(&mut f, notes_page(&[draft_note(1, 1, b"Document")]));
+            note_call(&mut f, 11, f::POSITION);
+            take_draft_reads(&mut f);
+        }
+        let mut work = draft_note(1, 2, b"Internal working memory");
+        work.description = f::document_text(b"work: settings");
+        draft_answer(&mut f, notes_page(&[work]));
+        assert!(f.chat.draft.is_none(), "work: notes must never be drawn, including a renamed document");
+    }
+}
+#[test]
 fn mode_and_show_section_are_page_state() {
     use crate::pages::chat::document::Mode;
     let mut f = f::opened();

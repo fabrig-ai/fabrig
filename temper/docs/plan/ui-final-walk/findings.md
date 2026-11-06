@@ -14,6 +14,8 @@ The state column is filled in by each finding’s fix task.
 | W5 | 2, Configure temper introduction, 420 | Composer has the hint below it; its textarea starts at y=919.8125 in a 1000px viewport. | Look request 727f3523ee / configure-chat / 01 hides the hint on the phone; its textarea starts at y=945. The client design currently says the hint stays, so reconcile that line with the reference rather than silently treating them as equal. | look | small | fix-look | Fixed in `99dc682b1f`; red first: `phone_session_hides_the_keyboard_hint` (phone hide rule absent). Reconciled the design with the look request. |
 | W6 | 3, Home, return after over 31 minutes, 1440 and the same live state at 420 | A real landing remains in Changes, but Home returns to “Nothing needs you” with no brief, error or way to fund it. The project's whole period is reserved by the owner's pool; period left is 0. | D2 asks for the stock brief on a new sitting after something landed. The mock shows its brief. No carried decision explains a fresh project's funding preventing it silently. | other | large | fabrig/ui | |
 
+| W7 | Addition, chat draft | A lower-numbered `work:` note displaces the document. | Draw the lowest-numbered non-`work:` note in the chat’s own scope; only working notes means no document. | other | small | fix-flow | Fixed in this commit; red first: `a_work_note_never_displaces_the_lowest_document_in_the_chats_scope` (selected note 1 instead of 12) and `a_chat_with_only_work_notes_has_no_document` (drew working memory). |
+
 ## W1 reproduction and evidence
 
 Use a fresh fake box. Complete Forgejo's empty `work/hello`, ChatGPT and Ready.

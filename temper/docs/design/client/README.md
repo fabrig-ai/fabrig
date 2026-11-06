@@ -571,9 +571,11 @@ keeps (`../protocol/configuration.md`, section 2).
 - **A chat's document** (the greenfield mock's `chat.html`; the look request
   `configure-chat-draft`, for every chat): a chat keeps one Markdown document
   beside its conversation, which its agent writes (`../domain/agent.md`, 8.3).
-  It is the lowest-numbered note in the chat's own scope, its description its
-  title, its body Markdown, its name the mock's `slug` of the title, 28
-  characters, plus `.md`: `away-mode.md`. There are no file drafts: a document
+  It is the lowest-numbered note in the chat's own scope whose description
+  does not begin `work:`; working notes are never drawn, and a chat with only
+  working notes has no document. Its description is its title, its body Markdown,
+  its name the mock's `slug` of the title, 28 characters, plus `.md`:
+  `away-mode.md`. There are no file drafts: a document
   is always a chat's.
   - *Offered:* `pages::drafts_offered(me, project)` is true while `me` lists a
     template of that project with `tracked` and no conversation flag. It gates
