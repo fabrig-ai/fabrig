@@ -137,3 +137,7 @@ Regenerate `ALL`, `PHRASES`, and `SEGMENTS` using `tests::accounts::english_phra
 Check the merged style-name tests, English vocabulary declarations, reading controls, and welcome/model-check tests through heavy.
 Regenerate and report any prints or goldens made stale by the combined code using their existing tools.
 Preserve both sides’ automatically merged CSS, design text, and gallery assertions; keep this task’s reading behavior and account intact.
+
+## Answers
+
+2026-11-06 (fabrig/ui). (A): restore main's sign-in waiting implementation here, all of it: this trunk's catch-up fd8de0eec7 wrongly reverted look-round-7, which landed on main. The tree should equal main's for every path chat-work doesn't touch: use git diff origin/main to check, and list what remains in your report. Regenerate prints.
