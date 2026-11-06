@@ -936,15 +936,6 @@ pub fn head_bytes(headers: &[Header]) -> Option<u64> {
     Some(bytes)
 }
 
-/// Bounds one HTTP request head.
-/// Checked maximum ownership of one admitted HTTP request head.
-#[must_use]
-pub fn head_bound(limits: &Limits) -> Option<u64> {
-    u64::from(limits.http.headers)
-        .checked_mul(u64::try_from(size_of::<Header>()).ok()?)?
-        .checked_add(u64::from(limits.http.head))
-}
-
 /// The room a request body takes: the larger document cap, or the gzip
 /// member a body at that cap can be sent as, which a stored block makes a
 /// few bytes larger.

@@ -152,7 +152,7 @@ pub(super) fn component_down(service: &mut Stages) {
         let Some(request) = service.machine_below.pop() else { break };
         match request {
             machine::Below::File { request, deadline } => {
-                service.files.seed_randomness(service.next_operation);
+                service.files.seed_randomness(service.submitted);
                 file_layer::down_until(
                     &mut service.files,
                     deadline,

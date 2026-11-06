@@ -275,7 +275,7 @@ impl Core {
             let _refused = self.start_refuse(Failure::ProjectPolicy { project });
             return;
         }
-        if !self.people.start_link(&Env { wall: self.start.at, ..env.with(env.limits.people) }) {
+        if !self.people.start_link() {
             self.start_collect_failure();
             return;
         }

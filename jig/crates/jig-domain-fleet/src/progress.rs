@@ -5,7 +5,7 @@ use crate::facts::Fact;
 use crate::{CountKind, Operation};
 use crate::{Domain, Limits, Request};
 use alloc::boxed::Box;
-use skein_lib::{Duration, Env, Queue, Token, Wall};
+use skein_lib::{Duration, Env, Queue, Token, Wall, length::len_u64};
 
 /// What the host last reported, independent of assignment/adoption time.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -110,8 +110,8 @@ pub(crate) fn received(
     let fits = match &activity {
         Activity::Tool { call, tool } => {
             env.limits.progress_bytes > 0
-                && u64::try_from(call.len()).expect("length fits") <= env.limits.call_name_bytes
-                && u64::try_from(tool.len()).expect("length fits") <= env.limits.progress_bytes
+                && len_u64(call.len()) <= env.limits.call_name_bytes
+                && len_u64(tool.len()) <= env.limits.progress_bytes
         }
         Activity::Preparing
         | Activity::Starting

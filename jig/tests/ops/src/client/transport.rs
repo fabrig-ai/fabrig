@@ -7,7 +7,7 @@ use jig_client_scripted_engine::{self as engine, ApplicationScope, Envelope, Up}
 use jig_ops_client_domain::{self as domain, Event, Request, infrastructure as infra, observability as obs};
 use jig_ops_domain_connectors::{Connector, number};
 use sha2::{Digest, Sha256};
-use skein_lib::{RequestEnvelope, Time, Token, Wall};
+use skein_lib::{RequestEnvelope, Time, Token, Wall, length::len_u64};
 use skein_world::domain::Ledger;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -177,9 +177,9 @@ impl Front<Ops> for Scripted {
                         let mut canonical = Sha256::new();
                         canonical.update(b"Ops.MoveEnd.v1");
                         canonical.update(project.to_be_bytes());
-                        canonical.update(u64::try_from(environment.pool.len()).expect("pool length").to_be_bytes());
+                        canonical.update(len_u64(environment.pool.len()).to_be_bytes());
                         canonical.update(&environment.pool);
-                        canonical.update(u64::try_from(environment.name.len()).expect("name length").to_be_bytes());
+                        canonical.update(len_u64(environment.name.len()).to_be_bytes());
                         canonical.update(&environment.name);
                         canonical.update(revision.value.to_be_bytes());
                         canonical.update(until.to_be_bytes());

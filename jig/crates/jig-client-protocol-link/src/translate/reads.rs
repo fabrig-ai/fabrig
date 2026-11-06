@@ -7,7 +7,7 @@ use jig_client_domain::Readable;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire::VERSION;
 use jig_client_protocol_wire::v19 as w;
-use skein_lib::{Reader, Writer, bytes};
+use skein_lib::{Reader, Writer, bytes, length::len_u64};
 
 pub fn read(read: &c::Read, limits: &w::Limits) -> Result<w::Read, w::Problem> {
     Ok(match read {
@@ -158,7 +158,7 @@ pub fn none(value: &w::ReadNone) -> c::ReadNone {
 
 /// Decodes a whole discriminated document against the original client limits.
 pub fn value(bytes: &[u8], limits: &Limits) -> Result<c::ReadValue, Undecodable> {
-    if u64::try_from(bytes.len()).expect("usize fits u64") > limits.client().document_bytes {
+    if len_u64(bytes.len()) > limits.client().document_bytes {
         return Err(Undecodable::TooLarge);
     }
     let record = match w::ReadValue::decode(limits.receiving(), &mut Reader::new(bytes)) {
@@ -215,10 +215,7 @@ pub fn value(bytes: &[u8], limits: &Limits) -> Result<c::ReadValue, Undecodable>
 fn task_text(value: w::TaskText, limits: &Limits) -> Result<c::TaskText, Undecodable> {
     let value = value.into_parts();
     let Ok(text) = c::Text::new(value.words, limits.client().text) else { return Err(Undecodable::TooLarge) };
-    let end = value
-        .from
-        .checked_add(u64::try_from(text.bytes().len()).expect("text length fits"))
-        .ok_or(Undecodable::Malformed)?;
+    let end = value.from.checked_add(len_u64(text.bytes().len())).ok_or(Undecodable::Malformed)?;
     let next = if end < value.total { Some(end) } else { None };
     if end > value.total || value.next != next || (value.next.is_some() && text.bytes().is_empty()) {
         return Err(Undecodable::Malformed);

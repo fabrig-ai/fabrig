@@ -1,6 +1,7 @@
 //! Accounts watch decoding and shared deployment source facts (contract.md, 5.1).
 use super::{Limits, List, Reader, Wall, c, chip_piece, piece_problem, too_large, w};
 use alloc::boxed::Box;
+use skein_lib::length::len_u64;
 pub(crate) fn account_use(value: &w::AccountUse) -> c::AccountUse {
     match value {
         w::AccountUse::Party(row) => c::AccountUse::Party(row.party()),
@@ -104,7 +105,7 @@ pub(crate) fn account_source(value: &w::AccountSource, room: &mut u64) -> Result
             if !c::valid_program_name(name) {
                 return Err(piece_problem(skein_codec::Reason::Malformed));
             }
-            charge(room, u64::try_from(name.len()).ok())?;
+            charge(room, Some(len_u64(name.len())))?;
             Some(skein_lib::bytes::copy_of(name))
         }
         None => None,
@@ -135,7 +136,7 @@ pub(crate) fn charge_account(
         None => Some(0),
     };
     charge(room, uses)?;
-    charge(room, Some(u64::try_from(display.bytes().len()).expect("text fits u64")))
+    charge(room, Some(len_u64(display.bytes().len())))
 }
 pub(crate) fn account_line(
     value: &w::AccountLine,

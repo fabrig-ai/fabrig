@@ -4,7 +4,7 @@ use super::{Destination, Loaded, Pending, Range, Scope, TaskText, TaskTextField}
 use crate::{CallKey, Core, Held, Limits, Now, Request};
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
-use skein_lib::{Env, Id, Queue, ReplyTo};
+use skein_lib::{Env, Id, Queue, ReplyTo, length::len_u64};
 
 /// The application-named task text and answer room (engine.md, 7.3).
 #[derive(Clone, Copy, Debug)]
@@ -277,11 +277,11 @@ pub(super) fn loaded(core: &mut Core, env: &Env<Limits>, name: Id<Pending>, resu
 /// Heap retained by one successful read, excluding its inline carrier.
 #[must_use]
 pub fn owned_bytes(read: &TaskRead) -> u64 {
-    let mut bytes = u64::try_from(read.words.bytes.len()).expect("bounded words");
+    let mut bytes = len_u64(read.words.bytes.len());
     bytes = bytes.saturating_add(u64::try_from(size_of_val(read.dependencies.as_ref())).expect("bounded dependencies"));
     bytes = bytes.saturating_add(u64::try_from(size_of_val(read.questions.as_ref())).expect("bounded questions"));
     if let Some(TaskHold { words: Some(words), .. }) = &read.hold {
-        bytes = bytes.saturating_add(u64::try_from(words.len()).expect("bounded hold words"));
+        bytes = bytes.saturating_add(len_u64(words.len()));
     }
     bytes
 }
@@ -640,7 +640,7 @@ mod tests {
                 let read = retained_reply(&mut core, &limits, row, from)
                     .expect("goal may reread its ended producer through the ended change");
                 assert_eq!(read.words.field, TaskTextField::Result);
-                assert_eq!(read.words.total, u64::try_from(REPORT.len()).expect("report size"));
+                assert_eq!(read.words.total, len_u64(REPORT.len()));
                 assert_eq!(read.words.from, from);
                 report.put(&read.words.bytes).expect("report chunks fit the source length");
                 match read.words.next {
@@ -806,7 +806,7 @@ mod tests {
             let read = retained_reply(core, limits, retained, from).expect("goal may reread kept result words");
             assert_eq!(read.state, TaskState::Ended(tasks::Status::Done));
             assert_eq!(read.words.field, TaskTextField::Result);
-            assert_eq!(read.words.total, u64::try_from(expected.len()).expect("report size"));
+            assert_eq!(read.words.total, len_u64(expected.len()));
             assert_eq!(read.words.from, from);
             assert!(read.words.bytes.len() <= skein_lib::length::usize_of(CHUNK_BYTES));
             assert!(skein_lib::bytes::is_utf8(&read.words.bytes));

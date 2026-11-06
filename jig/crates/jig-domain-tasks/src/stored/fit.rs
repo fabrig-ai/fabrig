@@ -4,6 +4,7 @@ use crate::{
     New, Numbers, Parameter, PersonAction, PersonProposal, Phase, ProposalAction, RestoreBound, RestoreCause,
     RestoreLlmWhy, ResultField, ResultKind, Separate, Spec, TaskRecord, TaskResult, Was,
 };
+use skein_lib::length::len_u64;
 
 pub(crate) fn bound(which: RestoreBound, held: u64, limit: u64) -> Result<(), RestoreCause> {
     if held > limit { Err(RestoreCause::Bound { which, held, limit }) } else { Ok(()) }
@@ -324,7 +325,7 @@ pub(super) fn task(limits: &Limits, value: &TaskRecord) -> Result<(), RestoreCau
         .ok_or(RestoreCause::Accounting)?
         .checked_add(3)
         .ok_or(RestoreCause::Accounting)?;
-    bound(RestoreBound::RefusedRows, u64::try_from(value.refused.len()).or(Err(RestoreCause::Accounting))?, refused)?;
+    bound(RestoreBound::RefusedRows, len_u64(value.refused.len()), refused)?;
     let (which, holding_bound) = if value.root == value.number {
         (
             RestoreBound::RootHoldings,
@@ -333,7 +334,7 @@ pub(super) fn task(limits: &Limits, value: &TaskRecord) -> Result<(), RestoreCau
     } else {
         (RestoreBound::Holdings, u64::from(limits.holdings))
     };
-    bound(which, u64::try_from(value.holdings.len()).or(Err(RestoreCause::Accounting))?, holding_bound)?;
+    bound(which, len_u64(value.holdings.len()), holding_bound)?;
     holdings(&value.holdings, limits)?;
     for saved in &value.saved {
         count(RestoreBound::AuthoritySegments, saved.path.len(), limits.authority_segments)?;

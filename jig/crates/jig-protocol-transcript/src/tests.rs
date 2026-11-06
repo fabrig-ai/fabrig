@@ -596,7 +596,7 @@ fn receiving_limits_cut_without_growing_or_losing_call_outcomes() {
 #[test]
 #[expect(clippy::disallowed_macros, reason = "fixed wire fixtures belong to decoder unit tests")]
 fn smith_smallest_golden_decodes_at_its_whole_length() {
-    let bytes = include_bytes!("../tests/data/record_turn_smallest.bin");
+    let bytes = include_bytes!("../../../../smith/crates/smith-transcript/golden/v6/record_turn_smallest.bin");
     assert_eq!(bytes.len(), 42);
     let value = decode(&limits(), bytes).unwrap();
     assert_eq!(
@@ -614,7 +614,7 @@ fn smith_smallest_golden_decodes_at_its_whole_length() {
 #[test]
 #[expect(clippy::disallowed_macros, reason = "fixed wire fixtures belong to decoder unit tests")]
 fn smith_full_golden_preserves_maximum_usage_at_its_whole_length() {
-    let bytes = include_bytes!("../tests/data/record_turn_full.bin");
+    let bytes = include_bytes!("../../../../smith/crates/smith-transcript/golden/v6/record_turn_full.bin");
     assert_eq!(bytes.len(), 146);
     let mut blocks = List::with_capacity(1);
     blocks.push(Block::Text(Text::new(Box::from(&b"abc"[..]), 3).unwrap())).unwrap();

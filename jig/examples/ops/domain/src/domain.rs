@@ -9,7 +9,7 @@ use jig_domain_host as host;
 use jig_ops_domain_connectors::Connector;
 use jig_ops_domain_infrastructure as infrastructure;
 use jig_ops_domain_observability as observability;
-use skein_lib::{Decision, Env, Journal, Queue, Token};
+use skein_lib::{Decision, Env, Journal, Queue, Token, length::len_u64};
 
 /// Configuration is handed to the child that owns each value.
 #[derive(Debug)]
@@ -91,27 +91,21 @@ impl Domain {
             "bounded codec endpoints"
         );
         for endpoint in &config.charter_endpoints {
-            assert!(
-                u64::try_from(endpoint.name.len()).expect("endpoint bytes") <= limits.host.charter_bytes,
-                "endpoint name bound"
-            );
+            assert!(len_u64(endpoint.name.len()) <= limits.host.charter_bytes, "endpoint name bound");
         }
         let mut tool_bytes = 0_u64;
         for tool in &config.tools {
             tool_bytes = tool_bytes
                 .checked_add(u64::try_from(::core::mem::size_of::<jig_protocol_charter::Tool>()).expect("tool size"))
                 .expect("tool structs")
-                .checked_add(
-                    u64::try_from(
-                        tool.name
-                            .len()
-                            .checked_add(tool.description.len())
-                            .expect("tool description")
-                            .checked_add(tool.schema.len())
-                            .expect("tool schema"),
-                    )
-                    .expect("tool bytes"),
-                )
+                .checked_add(len_u64(
+                    tool.name
+                        .len()
+                        .checked_add(tool.description.len())
+                        .expect("tool description")
+                        .checked_add(tool.schema.len())
+                        .expect("tool schema"),
+                ))
                 .expect("tool room");
         }
         assert!(tool_bytes <= limits.host.charter_bytes, "configured tools fit the charter byte bound");

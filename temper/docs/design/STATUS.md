@@ -181,10 +181,17 @@ numbers in a chat's card, whose items the sheet makes flex, and a document page'
 takes the browser's margins (`client/browser.md`). temper's own way stands on
 Configure, departing from the request `configure-temper-own-way` in its reference's
 words and look (`client/README.md`), but no walk on record presses its acts and no
-render has drawn its picture as a numbered list (`client/browser.md`). The words being written draw an
+render has drawn its picture as a numbered list (`client/browser.md`). A chat's answer only grows, but
+the line departs from the request `chat-work` in a failed call's colour, and the end
+mark is a glyph that does not blink (`client/README.md`); a chat is read by "Older" in a
+window of 16 lines until `draft/chat-reading.md`, 5 is built. The words being written draw an
 empty message in the dots' place until they hold a word, their "▍" falls below a closed
 fence, a last block still open changes as it commits, and no browser test draws them
-(`client/README.md`). Every confirmation of a chat, a
+(`client/README.md`). A run of calls is one line on a chat's page and an agent's, its
+verbs and time for the user to read on a real chat (`draft/chat-reading.md`), but no test
+takes its call under way from the engine or draws it running in a browser or a real
+terminal, a call under way with none ended says its words twice, and a run still out says
+no "1 failed" (`client/README.md`). Every confirmation of a chat, a
 task or a card is one sheet, but a closed chat hides every "Decision made", where the
 request `close-chat` hides the closing's alone, a Release pressed before an uncertain
 effect's choice closes its sheet, no walk on record presses a task's Cancel, an
@@ -267,6 +274,7 @@ Design documents:
 - [`client/tools.md`](client/tools.status.md)
 
 Drafts:
+- [`draft/bundle-loading.md`](draft/bundle-loading.status.md)
 - [`draft/reference-code-production.md`](draft/reference-code-production.status.md)
 - [`draft/reference-landing.md`](draft/reference-landing.status.md)
 - [`draft/reference-case.md`](draft/reference-case.status.md)

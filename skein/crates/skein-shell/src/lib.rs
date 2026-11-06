@@ -20,7 +20,7 @@
 //! [`Host`] adapts the service; [`drive`] runs it until settlement (shell.md, 12 and 13).
 //!
 //! This is ordinary Rust (programming-model.md, 10.2). System calls live
-//! in `linux`, including its ring adapter, and `darwin`. The crate's
+//! in `linux`, including its ring adapter, `darwin` and `posix`. The crate's
 //! lints confine the audited boundary to these modules (testing.md, 6).
 
 #[cfg(unix)]
@@ -46,6 +46,8 @@ compile_error!(
 );
 #[cfg(not(any(target_os = "linux", target_os = "macos", all(target_arch = "wasm32", target_os = "unknown"))))]
 compile_error!("skein-shell supports Linux, aarch64-apple-darwin and wasm32-unknown-unknown");
+#[cfg(unix)]
+mod posix;
 #[cfg(unix)]
 mod process;
 #[cfg(unix)]

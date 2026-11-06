@@ -1,6 +1,6 @@
 //! Hostile cursor bytes (jig/docs/design/protocol/client.md, 6; skein/docs/design/codec.md, 6).
 use jig_protocol_engine_clients::cursor_v1::{CEILINGS, Held};
-use skein_lib::{Reader, Rng, Writer};
+use skein_lib::{Reader, Rng, Writer, length::len_u64};
 use std::fs;
 
 fn check(bytes: &[u8]) {
@@ -66,7 +66,7 @@ fn mutated_cursor_goldens_never_panic_and_round_trip_when_they_decode() {
         assert!(Held::decode(&CEILINGS, &mut Reader::new(&trailing)).is_err());
         for _ in 0..100 {
             let mut bytes = golden.clone();
-            let index = usize::try_from(rng.below(u64::try_from(bytes.len()).expect("small golden"))).expect("index");
+            let index = usize::try_from(rng.below(len_u64(bytes.len()))).expect("index");
             *bytes.get_mut(index).expect("chosen byte") = u8::try_from(rng.next_u64() & 0xff).expect("low byte");
             check(&bytes);
         }

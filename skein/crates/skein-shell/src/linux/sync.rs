@@ -15,6 +15,7 @@
 //! - Zeroed socket, stat and time structures contain only integer fields.
 //!   Child-exit decoding reads the status union only after successful waitid.
 
+pub(crate) use crate::posix::files::kind_of;
 use std::ffi::CString;
 use std::io;
 use std::mem::{self, size_of};
@@ -160,16 +161,6 @@ pub(crate) fn stat(raw: &libc::statx) -> Stat {
     let kind = if raw.stx_mask & libc::STATX_TYPE == 0 { Kind::Other } else { kind_of(u32::from(raw.stx_mode)) };
     let mode = if raw.stx_mask & libc::STATX_MODE == 0 { 0 } else { u32::from(raw.stx_mode) & PERMISSIONS };
     Stat { kind, size: raw.stx_size, mode, owner: raw.stx_uid, links: raw.stx_nlink }
-}
-
-/// The kind of a file whose mode is `mode`.
-pub(crate) fn kind_of(mode: libc::mode_t) -> Kind {
-    match mode & libc::S_IFMT {
-        libc::S_IFREG => Kind::File,
-        libc::S_IFDIR => Kind::Directory,
-        libc::S_IFLNK => Kind::Symlink,
-        _ => Kind::Other,
-    }
 }
 
 /// The kind of a `getdents64` entry, or `None` when its filesystem did not
