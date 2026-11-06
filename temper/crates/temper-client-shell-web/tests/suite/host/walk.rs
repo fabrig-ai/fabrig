@@ -7,18 +7,19 @@ use skein_lib::{
 };
 use skein_ui::{Act, Role};
 use skein_ui_web::{mapping::Primary, page::Page, transport::Carried};
-use temper_client_protocol_wire::{self as wire, v1 as f};
+use temper_client_protocol_wire as wire;
 use temper_client_shell_web::{
-    host::{Duties, Host, Report},
+    host::{Duties, Host, Report, TabAct},
     journey::{Facts, Recorder},
 };
 
-const ADDRESS: &[u8] = b"http://127.0.0.1:9/authorize?state=test";
+pub(super) const ADDRESS: &[u8] = b"http://127.0.0.1:9/authorize?state=test";
 struct Walk {
     host: Host,
     page: Page<'static>,
-    recorder: Option<Recorder>,
-    recording: Option<Box<[u8]>>,
+    recorder: Recorder,
+    accounts: Option<u64>,
+    refuse_tab: bool,
     now: Time,
     wall: Wall,
 }
@@ -37,28 +38,42 @@ impl Walk {
             stored: Vec::new(),
         };
         let (host, page) = facts.start();
-        Self { host, page, recorder: Some(Recorder::new(&facts)), recording: None, now: facts.now, wall: facts.wall }
+        Self {
+            host,
+            page,
+            recorder: Recorder::new(&facts),
+            accounts: None,
+            refuse_tab: false,
+            now: facts.now,
+            wall: facts.wall,
+        }
     }
     fn turn(&mut self, reports: Vec<Report>) -> Vec<Asked> {
         self.now = self.now.saturating_add(Duration::from_millis(10));
         self.wall = Wall::from_nanos(self.wall.as_nanos() + Duration::from_millis(10).as_nanos());
         self.host.clocks(self.now, self.wall);
-        self.recorder.as_mut().expect("recording until departure").turn(self.now, self.wall);
+        self.recorder.turn(self.now, self.wall);
         let mut pending: std::collections::VecDeque<_> = reports.into();
         let mut asks = Vec::new();
         while let Some(report) = pending.pop_front() {
-            let duties =
-                self.recorder.as_mut().expect("recording until departure").report(&mut self.host, &self.page, report);
-            if duties.departs() {
-                self.recording = Some(self.recorder.take().expect("departure consumes recorder").end(&self.page));
-                asks.extend(duties.asked);
-                return asks;
+            let duties = self.recorder.report(&mut self.host, &self.page, report);
+            assert!(duties.navigate.is_none() && duties.replace.is_none(), "sign-in keeps the page");
+            if self.refuse_tab && duties.tab.iter().any(|tab| matches!(tab, TabAct::Open { .. })) {
+                pending.push_front(Report::TabRefused);
             }
             let Duties { asked, writes, .. } = duties;
             for ask in &asked {
                 if let Asked::Exchange { id, call, .. } = ask
                     && call.path.as_ref() == b"/jig/v1/watch"
                 {
+                    let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&call.body)).expect("watch envelope");
+                    if *open.subject().owner() == w::Owner::Jig {
+                        let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record()))
+                            .expect("subject");
+                        if subject == w::Subject::Accounts {
+                            self.accounts = Some(open.watch());
+                        }
+                    }
                     let answer = w::OpenAnswer::Admitted;
                     pending.push_back(Report::Heard(Heard::Answered {
                         exchange: *id,
@@ -80,7 +95,7 @@ impl Walk {
             }
         }
         self.host.draw(&mut self.page, &mut Vec::new());
-        self.recorder.as_mut().expect("recording until departure").deadline(self.host.deadline());
+        self.recorder.deadline(self.host.deadline());
         asks
     }
     fn press_heading(&mut self) {
@@ -157,7 +172,7 @@ pub(super) struct Saves {
     pub first: Box<[u8]>,
     pub later: Box<[u8]>,
 }
-pub(super) fn walked_with_saves(no_event: bool) -> Saves {
+fn linked() -> Walk {
     let mut walk = Walk::new();
     walk.turn(vec![Report::Start]);
     walk.turn(vec![Report::Heard(Heard::StreamOpened)]);
@@ -204,12 +219,23 @@ pub(super) fn walked_with_saves(no_event: bool) -> Saves {
         )
         .expect("me delivery"),
     ));
+    walk
+}
+pub(super) fn walked_with_saves(no_event: bool) -> Saves {
+    sign_in(no_event, false)
+}
+pub(super) fn walked_with_refused_tab() -> Box<[u8]> {
+    sign_in(false, true).recording
+}
+fn sign_in(no_event: bool, refuse_tab: bool) -> Saves {
+    let mut walk = linked();
+    walk.refuse_tab = refuse_tab;
     if no_event {
         walk.press_heading();
     }
-    let before_press = walk.recorder.as_ref().expect("recording").save(&walk.page);
+    let before_press = walk.recorder.save(&walk.page);
     let signing = walk.continue_with_chatgpt();
-    let first = walk.recorder.as_ref().expect("recording").save(&walk.page);
+    let first = walk.recorder.save(&walk.page);
     let started = w::DocumentOutcome::AccountSignInStarted(
         w::OutcomeAccountSignInStarted::new(
             &w::CEILINGS,
@@ -222,22 +248,103 @@ pub(super) fn walked_with_saves(no_event: bool) -> Saves {
     );
     let answer = w::Final::Done(w::Done::new(&w::CEILINGS, w::DoneParts { outcome }).expect("done"));
     let answer = w::KeyedAnswer::FinalAnswer(owned(encoded(answer.measure(), |writer| answer.encode(writer))));
-    let returning = exchange(walk.answered(signing, &answer));
-    let later = walk.recorder.as_ref().expect("recording").save(&walk.page);
-    let answer = f::Answer::new(&f::CEILINGS, f::AnswerParts { outcome: f::Outcome::Returning }).expect("returning");
-    let record = w::Owned::new(
+    walk.answered(signing, &answer);
+    let later = walk.recorder.save(&walk.page);
+    let watch = walk.accounts.expect("accounts watch");
+    for ended in [false, true] {
+        let value = accounts(ended);
+        walk.streamed(&w::StreamEvent::Delivery(
+            w::Delivery::new(
+                &w::CEILINGS,
+                w::DeliveryParts { watch, document: owned(encoded(value.measure(), |writer| value.encode(writer))) },
+            )
+            .expect("accounts delivery"),
+        ));
+    }
+    Saves { recording: walk.recorder.save(&walk.page), before_press, first, later }
+}
+fn accounts(ended: bool) -> w::DeliveryValue {
+    let signing = w::AccountSignIn::new(
         &w::CEILINGS,
-        w::OwnedParts {
-            owner: w::Owner::Family(
-                w::Family::new(&w::CEILINGS, w::FamilyParts { number: wire::FORGE }).expect("forge family"),
+        w::AccountSignInParts {
+            source: 43,
+            provider: 17,
+            holder: w::AccountHolder::Party(
+                w::AccountHolderParty::new(&w::CEILINGS, w::AccountHolderPartyParts { party: 23 }).expect("holder"),
             ),
-            version: wire::CLIENT_VERSION,
-            record: encoded(answer.measure(), |writer| answer.encode(writer)),
         },
     )
-    .expect("family answer");
-    walk.answered(returning, &w::KeyedAnswer::FinalAnswer(record));
-    Saves { recording: walk.recording.expect("departure ended the walk"), before_press, first, later }
+    .expect("signing");
+    let signing = if ended {
+        Box::default()
+    } else {
+        encoded(signing.measure() + 4, |writer| {
+            writer.put(&signing.measure().to_be_bytes())?;
+            signing.encode(writer)
+        })
+    };
+    let last_end = ended.then(|| {
+        w::AccountLastEnd::new(
+            &w::CEILINGS,
+            w::AccountLastEndParts {
+                source: 43,
+                end: w::AccountEnd::Made(
+                    w::AccountEndMade::new(&w::CEILINGS, w::AccountEndMadeParts { account: 7, declined: false })
+                        .expect("made"),
+                ),
+            },
+        )
+        .expect("sign-in end")
+    });
+    w::DeliveryValue::Accounts(
+        w::Accounts::new(
+            &w::CEILINGS,
+            w::AccountsParts {
+                skein_bools: [false; 4],
+                program_hosts: Box::default(),
+                accounts: Box::default(),
+                signing,
+                last_end,
+                readiness: Box::default(),
+            },
+        )
+        .expect("accounts"),
+    )
+}
+pub(super) fn departed() -> Box<[u8]> {
+    let mut walk = linked();
+    let asks =
+        walk.turn(vec![Report::Place { path: b"/oauth/authorize?client_id=forgejo&state=test".as_slice().into() }]);
+    let exchange = asks
+        .into_iter()
+        .find_map(|ask| {
+            if let Asked::Exchange { id, call, .. } = ask {
+                (call.path.as_ref() == b"/jig/v1/authorize").then_some(id)
+            } else {
+                None
+            }
+        })
+        .expect("authorization exchange");
+    let answer = w::AuthorizeAnswer::Go(
+        w::AuthorizeGo::new(
+            &w::CEILINGS,
+            w::AuthorizeGoParts { location: b"http://127.0.0.1:9/callback?code=test&state=test".as_slice().into() },
+        )
+        .expect("authorization location"),
+    );
+    walk.recorder.turn(walk.now, walk.wall);
+    let duties = walk.recorder.report(
+        &mut walk.host,
+        &walk.page,
+        Report::Heard(Heard::Answered {
+            exchange,
+            status: 200,
+            body: encoded(answer.measure(), |writer| answer.encode(writer)),
+            headers: Vec::new(),
+        }),
+    );
+    assert!(duties.departs(), "authorization ends the recording before drawing or more reports");
+    walk.recorder.end(&walk.page)
 }
 
 fn me_with_openai() -> w::DeliveryValue {
