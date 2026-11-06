@@ -164,7 +164,10 @@ has it keep no notes (`domain/agent.md`). A box with one kind of account runs on
 the first model it can use, and a run that can't start says why on its page and
 in `task show`, but no walk on record has a real box do either, a Chats row still
 says "Starting", and `task show` names a `deployment show` ctl lacks
-(`client/README.md`, `client/tools.md`). A proposal of settings reaches a
+(`client/README.md`, `client/tools.md`). `task show` names who answered a person
+task and says a held task waits on its hold, but `temper help task` still says ctl
+takes no task and numbers a party's question, which `waiting on:` does not
+(`client/tools.md`). A proposal of settings reaches a
 project's Needs you and rail's count, but its live card lists no item of temper's
 kinds, stays on Needs you once accepted, leaves its chat on a reload and follows a
 "Decision made" while it waits (`client/README.md`). `again` can't record a journey
