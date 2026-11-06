@@ -61,6 +61,7 @@ pub mod help;
 mod host;
 mod init;
 pub mod open;
+mod printed;
 mod program_login;
 mod restart_fault;
 mod setup;
@@ -495,6 +496,7 @@ fn prepare_with_limits(
         directories.program_environment(
             &skein_shell::environment(),
             std::env::current_dir().map_err(|why| why.to_string())?.as_os_str().as_bytes(),
+            &printed::running_word(&skein_shell::environment()),
         ),
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
