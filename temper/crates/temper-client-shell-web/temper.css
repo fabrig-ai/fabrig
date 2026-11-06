@@ -1187,6 +1187,8 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 /* Home's column. */
 
 /* ==== ui: home ==== */
+/* Navigation focuses page targets without drawing a control ring. */
+#app :is(main, h1)[tabindex="-1"]:focus { outline: none; }
 #app > .temper-home .temper-home-byline { margin: 0; font-size: 12px; color: var(--gf-faint); }
 #app > .temper-home .temper-home-facts { font-size: 13.5px; color: var(--gf-muted); }
 #app > .temper-home .temper-home-facts > a { text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
