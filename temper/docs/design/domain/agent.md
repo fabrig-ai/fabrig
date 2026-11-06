@@ -661,6 +661,15 @@ smith's (smith's `domain/run.md`, 7.1):
 | a connector's result: a change landed or a successful no-change conclusion | a change, requiring the fields `title` and `body`, each within the contract's bound, its checks required; a `no_change` verdict with bounded text and no fields or items; a failure within the same bound |
 | an approval | a failure only, of at most 1,024 bytes: approvals are people's |
 
+A change's `body` holds the producer's report, what its brief asks it to
+report, whole, at most 3,584 bytes (jig's `domain/hosts.md`, 8); its `title`
+and the contract's other texts stay within 1,024. The run's contract prints
+the bound. The coding charter's words say that the report goes there, and that
+one past the bound is no question: the run cuts what can be read elsewhere and
+says under Left what it cut (`../protocol/configuration.md`, 13.4's charter 2
+row). A foreman that settles a question about it names no other form (13.4's
+charter 6 row).
+
 The `no_change` verdict becomes jig's successful `NoChange` result. It
 retains the explanation, supplies no resource or landing, and ends the
 change without a hold or escalation. The requester receives that result.
@@ -1359,6 +1368,13 @@ host:
   the foreman's charter's, the reference setting its model there
   (`../protocol/configuration.md`, 13.9); a `foreman` role once a plan
   needs foremen of different weights.
+- **A report past 3,584 bytes.** The bound sits inside smith's fixed
+  4,096-byte outcome (`smith-domain-run`'s `Limits::outcome_bytes`) and
+  `hub.outcome_bytes`. The rest of the path is already sized for 10,660
+  (`tasks.result_bytes`, `checkout.message_bytes`, `forge.client.op_bytes`).
+  Going there means smith deriving its outcome from `tool_payload`, the
+  hub's profile value and jig's constant moving together, across three
+  trees. Default: 3,584, until a real run shows a report that a cut loses.
 - **A cancel's grace:** jig's `cancel` takes one, if the run gives it
   (jig's `domain/engine.md`, 7.3); temper's takes none.
 - **A code graph** for a workspace (worker.md, section 12), as an MCP

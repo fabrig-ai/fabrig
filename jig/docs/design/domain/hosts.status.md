@@ -6,6 +6,8 @@ channel or in closing refused starts without an acknowledgement.
 Section 6.3 has no gap in retaining a pre-admission agent fault and its
 bounded diagnostic through cleanup, or in cancellation winning first.
 
+- **Not yet:** 8: a change's `body` is still held to 1024 bytes
+  (`landing-fixes-3/report-room`).
 - **Not yet:** 3, 5.2, 6.5, 11: `smith-inline-agent` as a hub's agent
   capability. 4: an admitted run's answers passing a held assignment.
   6.1: the engine hub's hello before placement. 8, 9: the test root puts

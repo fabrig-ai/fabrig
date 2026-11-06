@@ -24,8 +24,21 @@ mode = "direct"
 needs = []
 design = "temper/docs/design/domain/agent.md, 4.3"
 
+[[part]]
+id = "report-room"
+title = "A change's body holds a spec's report, and the stock says it goes there"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 4.4"
+
 [[slice]]
 id = 1
 story = "A run's receipt prints a 40-digit head, and a refused compare tells it what to read rather than to try another hash"
 parts = ["head-words", "compare-words"]
+walk = false
+
+[[slice]]
+id = 2
+story = "A producer's report of up to 3,584 bytes goes whole through finish to the change's result, and one past that is cut and listed rather than asked about"
+parts = ["report-room"]
 walk = false
