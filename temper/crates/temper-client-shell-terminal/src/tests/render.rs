@@ -272,3 +272,14 @@ fn an_agents_heard_or_notified_long_word_draws_whole() {
         }
     }
 }
+
+#[test]
+fn a_composer_past_the_bound_prints_its_line() {
+    let words = vec![b'x'; 8193];
+    let tree = fixtures::chat::composer_over_page(&words);
+    let mut print = skein_ui_text::Print::new(&crate::limits::view(&crate::limits::native()).unwrap().0.tree).unwrap();
+    skein_ui_text::render(&tree, b"temper", None, &mut print);
+    let printed = String::from_utf8_lossy(print.text.as_slice());
+    assert!(printed.contains("That's 1 character over what one message holds."));
+    assert!(printed.contains(String::from_utf8_lossy(&words).as_ref()));
+}

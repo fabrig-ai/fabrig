@@ -433,6 +433,14 @@ pub fn agreed_question(front: &mut Joint, words: &[u8]) -> u64 {
 }
 fn question_with_agreement(front: &mut Joint, words: &[u8], text: Option<u32>, agree: bool) -> u64 {
     *front = Joint::with_question_text_bound(SEED, &domain_limits(), text, agree);
+    commit_question(front, words, agree)
+}
+/// A reply composer at the shipped message bound, with the real question and engine.
+pub fn question_composer(front: &mut Joint, words: &[u8]) -> u64 {
+    *front = Joint::with_question_composer(SEED, &whole_turn_limits());
+    commit_question(front, words, false)
+}
+fn commit_question(front: &mut Joint, words: &[u8], agree: bool) -> u64 {
     let driver = &mut front.engine;
     driver.sign_in();
     driver.settle();
