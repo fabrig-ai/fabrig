@@ -14,7 +14,7 @@ Chromium runs a sign-in in a new tab against skein's fake issuer: the press open
 
 Acceptance, as `temper/docs/design/client/browser.md`, 4.2, *`ConnectModel`'s sign-in, in a new tab* has it:
 
-- `the_sign_in_leaves_the_page_and_comes_back_to_ready` becomes `the_sign_in_opens_a_tab_and_the_page_moves_on_to_ready`. Its `Step::Tabs` holds one tab, whose address holds the listener's redirect path (`callback`) and whose `opener` is false. Its `Step::Address` holds the source, in a history entry that replaced Choose's. It sees "Signed in to Test provider", and a reload shows it again, with one `Authorize` and one `Post` observed.
+- `the_sign_in_leaves_the_page_and_comes_back_to_ready` becomes `the_sign_in_opens_a_tab_and_the_page_moves_on_to_ready`. Its `Step::Tabs` holds one tab, whose address holds the listener's redirect path (`callback`) and whose `opener` is false. Its `Step::Address` holds the source, in a history entry in place of the way's entry, with Choose's behind it. It sees "Signed in to Test provider", and a reload shows it again, with one `Authorize` and one `Post` observed.
 - A story on the welcome's Model step: the same press, and the page moves on to `/welcome?at=ready` by itself.
 - Remove `temper/docs/design/client/browser.status.md`'s **Not yet** line for 2.1, 2.3 and 4.2. This task may make that one edit, against the implementer's text.
 
@@ -46,3 +46,9 @@ As the implementer's text asks. Say plainly what ran on Chromium, its version, a
 2026-11-06. Should a separate skein task take the Chromium queries that fail once the sign-in tab has opened, or this task? A separate one, `kit-behind-tab`, which this task now needs. `kit-tabs` and `web-tab-story` met the same fault and went round it, so it is skein's, reproduced in skein (`AGENTS.md`, 5), and this task's acceptance can't hold without it: a story must see "Signed in to Test provider" on the page that stayed.
 
 Take the partial stories on from commit `6eae35ee87` on `sign-in-new-tab/browser-story`, changing no expectation for them. What stays outstanding is the task's: the standalone story passing, the welcome's story run, the two-tab break seen failing, the tier's wall time, and the status line. If they still fail with `kit-behind-tab` landed, stop and ask again, with the log.
+
+2026-11-06. Back from a sign-in's page lands on Choose, and this task's acceptance said its entry "replaced Choose's": which holds? The user's answer, from temper/forge as the plan's owner, and the user may overturn it on the report: keep the code and the design. `temper/docs/design/client/README.md`, 3.5, and `temper/docs/design/client/browser.md`, 2.3 and 4.2, say the source goes in place of the way's history entry, and the code does that; only this task's line differed, a slip in the plan, now corrected above. No code or design changes and no repair task; this is not the retained-page fault the last run feared.
+
+Give `RoundTrip`'s second script these steps after its `Step::Address` of the source: `Step::Back`, see "Connect a model" (level 1 heading) at `/accounts/connect`; `Step::Back`, see "Talk to an agent" at `/chats`; `Step::Forward` twice, see "Signed in to Test provider" at the address with the source. Its reload, the reload's see and address, and `sign_in_tab()` follow as they stand. That script's other expectations don't change.
+
+What stays outstanding is this task's: the welcome's story, the two-tab break seen failing, the reload and the issuer's counts, the tier's wall time against 120 s, and the status line.
