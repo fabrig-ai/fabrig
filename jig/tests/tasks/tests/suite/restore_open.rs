@@ -1,16 +1,13 @@
-use jig_domain_tasks::{self as tasks, Event, Executor, Party, PersonAddress, Stored};
-use jig_tasks_world::{LIMITS, PROJECT, World, task};
+use jig_domain_tasks::{self as tasks, Event, Executor, PersonAddress, Stored};
+use jig_tasks_world::{LIMITS, MEMBER, OWNER, PERSON, PERSON_PARTY, PROJECT, World, task};
 use skein_lib::Queue;
 
-const PERSON: u64 = 9;
-const OWNER: u64 = 1;
-const MEMBER: u64 = 2;
 const PROPOSAL: u64 = 100;
 const SEED: u64 = 860;
 
 fn proposals() -> [(Stored, Vec<Stored>); 2] {
     let mut world = World::new(SEED, LIMITS);
-    world.make(Party::Person(PERSON), vec![task(OWNER, &[])]);
+    world.make(PERSON_PARTY, vec![task(OWNER, &[])]);
     let mut member = task(MEMBER, &[]);
     member.funder = tasks::Funder::Task(OWNER);
     let reply_to = world.to();
@@ -156,7 +153,7 @@ fn nested_proposal_fit_reports_the_outer_key_and_exact_bytes() {
 fn preparation_reason_restore_refuses_one_byte_past_its_named_bound() {
     use tasks::{Active, Class, Hold, HoldSource, Phase, RetryNotice, Was};
     let mut world = World::new(SEED, LIMITS);
-    world.make(Party::Person(PERSON), vec![task(OWNER, &[])]);
+    world.make(PERSON_PARTY, vec![task(OWNER, &[])]);
     let bound = usize::try_from(tasks::REASON_BYTES).expect("reason bound");
     for (size, expected) in [
         (bound, None),

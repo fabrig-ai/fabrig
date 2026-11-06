@@ -1,6 +1,7 @@
 use jig_core_world::Fault;
 use jig_core_world::client_peer::ClientPeer;
 use jig_core_world::conformance::Observer;
+use jig_core_world::fixtures::sign_in as signin;
 use jig_core_world::peers::Peers;
 use jig_core_world::peers::fixture;
 use jig_core_world::referee::Observed;
@@ -37,15 +38,7 @@ fn world(peer: ClientPeer) -> World {
 }
 
 fn sign_in(token: Token) -> root::Event {
-    root::Event::Core(core::Event::SignIn {
-        held: None,
-        reply_to: ReplyTo::new(token),
-        identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: SUBJECT.into() },
-            login: b"person".as_slice().into(),
-            name: b"Person".as_slice().into(),
-        },
-    })
+    signin(token, 0, SUBJECT, b"person", b"Person")
 }
 
 fn scripted_sign_in(world: &mut World) {

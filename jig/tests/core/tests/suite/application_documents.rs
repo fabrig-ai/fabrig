@@ -1,6 +1,6 @@
 //! Connector values through the real root and independently observed store.
 
-use jig_core_world::fixtures::PROJECT;
+use jig_core_world::fixtures::{CONNECTOR, PROJECT};
 use jig_core_world::reads;
 use jig_core_world::watches;
 use jig_core_world::world::Cut;
@@ -12,7 +12,6 @@ use jig_test_connector::{self as connector, ClientDocument, ClientSubject};
 use jig_test_domain as root;
 use skein_lib::{ReplyTo, Token};
 
-const CONNECTOR: u16 = 1;
 const OBJECT: u64 = 1;
 const OWN_REQUEST: u64 = 40001;
 const OWN_KEY: u8 = 17;
@@ -26,7 +25,7 @@ fn world(seed: u64) -> World {
     world.watches = Some(watches::Parties::new(seed, world.store.applied, false, world.sign_in.expect("signed in")));
     world.reads = Some(reads::Parties::new(world.store.applied));
     world.send(root::Event::Connector {
-        number: 1,
+        number: CONNECTOR,
         event: connector::Event::Adopt {
             project: 1,
             resource: jig_test_connector_kit::path(1, 1),
@@ -39,7 +38,7 @@ fn world(seed: u64) -> World {
         connector::SystemRequest::ReadFact { resource: path, observed: skein_lib::Wall::from_nanos(1) },
         jig_test_system::Fault::None,
     );
-    world.send(root::Event::Connector { number: 1, event: connector::Event::System(present) });
+    world.send(root::Event::Connector { number: CONNECTOR, event: connector::Event::System(present) });
     world
 }
 
@@ -49,7 +48,7 @@ fn change(world: &mut World, revision: u8, value: u64) {
         sign_in: world.sign_in.expect("story fixture supplies this value"),
         key: [revision + 1; 16],
         scope: jig_domain_people::ApplicationScope::Project(1),
-        number: 1,
+        number: CONNECTOR,
         digest: [revision + 1; 32],
         value: connector::ApplicationRequest { object: 1, revision: u64::from(revision), value, release: None },
         carried: None,
@@ -64,7 +63,7 @@ fn received(world: &World, watcher: u64) -> Vec<&ClientDocument> {
         .application_deliveries
         .iter()
         .filter_map(|(id, _, number, document)| {
-            assert_eq!(*number, 1);
+            assert_eq!(*number, CONNECTOR);
             (*id == watcher).then_some(document)
         })
         .collect()
@@ -75,7 +74,7 @@ fn a_watched_connector_subject_is_delivered_whole_after_each_change() {
     let mut world = world(881);
     let subject = ClientSubject::Object { project: 1, object: 1 };
     for watcher in [51, 52] {
-        watches::application(&mut world, watcher, ApplicationScope::Project(1), 1, subject);
+        watches::application(&mut world, watcher, ApplicationScope::Project(1), CONNECTOR, subject);
     }
     assert_eq!(
         received(&world, 51),
@@ -113,21 +112,33 @@ fn a_panel_read_waits_for_the_commit_it_reflects() {
     let task = world.assigned.as_ref().expect("story fixture supplies this value").task;
     let path = jig_test_connector_kit::path(1, 2);
     world.send(root::Event::Connector {
-        number: 1,
+        number: CONNECTOR,
         event: connector::Event::Adopt { project: 1, resource: path.clone(), role: connector::ResourceRole::Owned },
     });
     let commit = world.store.applied + 1;
     world.store.fault(jig_core_world::Fault::Hold { commits: 1 });
     world.cut = Some(Cut::Submitted(commit));
     world.send(root::Event::Connector {
-        number: 1,
+        number: CONNECTOR,
         event: connector::Event::Names { task, project: 1, resources: Box::new([path.clone()]) },
     });
     assert_eq!(world.reached_cut, Some(Cut::Submitted(commit)));
     assert!(world.store.applied < commit);
-    watches::application(&mut world, 54, ApplicationScope::Project(1), 1, ClientSubject::Panel { project: 1, task });
+    watches::application(
+        &mut world,
+        54,
+        ApplicationScope::Project(1),
+        CONNECTOR,
+        ClientSubject::Panel { project: 1, task },
+    );
     assert!(received(&world, 54).is_empty(), "the watched panel also waits for the owner commit");
-    reads::application(&mut world, 1, ApplicationScope::Project(1), 1, ClientSubject::Panel { project: 1, task });
+    reads::application(
+        &mut world,
+        1,
+        ApplicationScope::Project(1),
+        CONNECTOR,
+        ClientSubject::Panel { project: 1, task },
+    );
     assert!(world.reads.as_ref().expect("story fixture supplies this value").application_receipts.is_empty());
     let durable = world.store.release_held().expect("story fixture supplies this value");
     world.send(root::Event::Committed { number: durable, fill: 0 });
@@ -141,7 +152,13 @@ fn a_panel_read_waits_for_the_commit_it_reflects() {
     assert_eq!(*named, task);
     assert_eq!(resources.len(), 1);
     assert_eq!(resources.get(0).expect("story fixture supplies this value").path, path);
-    reads::application(&mut world, 2, ApplicationScope::Project(1), 1, ClientSubject::Panel { project: 2, task });
+    reads::application(
+        &mut world,
+        2,
+        ApplicationScope::Project(1),
+        CONNECTOR,
+        ClientSubject::Panel { project: 2, task },
+    );
     assert_eq!(
         world.reads.as_ref().expect("story fixture supplies this value").application_receipts[1].3,
         Err(connector::DocumentMissing::Unknown)
@@ -161,7 +178,7 @@ fn a_connector_subject_ends_when_its_object_does() {
         &mut world,
         51,
         ApplicationScope::Project(1),
-        1,
+        CONNECTOR,
         ClientSubject::Object { project: 1, object: 1 },
     );
     world.send(root::Event::Core(core::Event::Delivered { watcher: Token::new(51) }));
@@ -171,7 +188,7 @@ fn a_connector_subject_ends_when_its_object_does() {
         connector::SystemRequest::ReadFact { resource: path.clone(), observed: skein_lib::Wall::from_nanos(100) },
         jig_test_system::Fault::None,
     );
-    world.send(root::Event::Connector { number: 1, event: connector::Event::System(gone) });
+    world.send(root::Event::Connector { number: CONNECTOR, event: connector::Event::System(gone) });
     assert_eq!(world.systems[0].state(&path), None);
     assert!(
         world
@@ -220,7 +237,7 @@ fn a_deployment_scope_watch_without_a_deployment_role_is_refused() {
             sign_in: world.sign_in.expect("signed in"),
             subject: core::documents::Watched::Application {
                 scope: ApplicationScope::Deployment,
-                connector: 1,
+                connector: CONNECTOR,
                 subject: Token::new(UNKNOWN_SUBJECT),
             },
             window: core::documents::Window { rows: 1, after: None },
@@ -242,14 +259,14 @@ fn an_application_read_carries_its_window_to_the_connector() {
     let mut world = world(886);
     let path = jig_test_connector_kit::path(1, 2);
     world.send(root::Event::Connector {
-        number: 1,
+        number: CONNECTOR,
         event: connector::Event::Adopt { project: 1, resource: path.clone(), role: connector::ResourceRole::Owned },
     });
     reads::application_window(
         &mut world,
         1,
         ApplicationScope::Project(1),
-        1,
+        CONNECTOR,
         ClientSubject::Project { project: 1 },
         core::documents::Window { rows: 1, after: Some(core::documents::Cursor::Number { number: 1 }) },
     );

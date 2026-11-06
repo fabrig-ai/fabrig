@@ -3,7 +3,7 @@
 use super::{Input, Peers, Store, config, core, people, root};
 use skein_lib::{ReplyTo, Token};
 
-pub(super) fn poll(peers: &mut Peers, store: &Store) -> Vec<Input<root::Event, root::Record>> {
+pub(super) fn poll(peers: &mut Peers, store: &Store) -> Vec<Input<root::Event>> {
     let sign_in = peers.sign_in.or_else(|| {
         store.rows.values().find_map(|row| match row {
             root::Record::Core(core::Record::People(people::Stored::SignIn { number, person: 1, .. })) => Some(*number),

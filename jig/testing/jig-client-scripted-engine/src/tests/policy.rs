@@ -32,24 +32,24 @@ fn each_closed_policy_edit_is_one_durable_keyed_request_and_replays_without_spli
         },
     ];
     for (position, edit) in edits.into_iter().enumerate() {
-        let ask = Ask::ChangePolicy { project: 1, edit };
+        let ask = Ask::ChangePolicy { project: PROJECT, edit };
         let mut setup = script();
         setup.truth.projects.insert(1, policy_project());
         setup.rules.push(Rule {
-            party: Some(1),
+            party: Some(REQUESTER),
             ask: ask.clone(),
-            answer: Answer::Done(Outcome::Document(DocumentOutcome::PolicyChanged { project: 1 })),
+            answer: Answer::Done(Outcome::Document(DocumentOutcome::PolicyChanged { project: PROJECT })),
             changes: vec![],
         });
         let mut engine = Engine::new(setup, position as u64 + 300).expect("valid script");
-        send(&mut engine, 0, 11, 1, 1, ask.clone());
-        send(&mut engine, 1, 12, 1, 2, ask.clone());
+        send(&mut engine, 0, REQUESTER_SIGN_IN, 1, 1, ask.clone());
+        send(&mut engine, 1, REQUESTER_OTHER_SIGN_IN, 1, 2, ask.clone());
         assert!(engine.commits().is_empty());
         let answers = engine.poll(Time::from_nanos(10_000_001));
         assert_eq!(answers.len(), 2);
         assert_eq!(
             final_answer(&answers[0]),
-            &Answer::Done(Outcome::Document(DocumentOutcome::PolicyChanged { project: 1 }))
+            &Answer::Done(Outcome::Document(DocumentOutcome::PolicyChanged { project: PROJECT }))
         );
         assert_eq!(final_answer(&answers[1]), final_answer(&answers[0]));
         assert_eq!(engine.commits().len(), 1);
@@ -57,19 +57,19 @@ fn each_closed_policy_edit_is_one_durable_keyed_request_and_replays_without_spli
         send(
             &mut engine,
             20_000_000,
-            11,
+            REQUESTER_SIGN_IN,
             1,
             3,
-            Ask::ChangePolicy { project: 1, edit: PolicyEdit::ProjectSpend { period_spend: 0 } },
+            Ask::ChangePolicy { project: PROJECT, edit: PolicyEdit::ProjectSpend { period_spend: 0 } },
         );
         assert_eq!(
             final_answer(&engine.poll(Time::from_nanos(20_000_000))[0]),
             &Answer::Refused { refusal: Refusal::KeyConflict, at: None }
         );
-        send(&mut engine, 20_000_000, 11, 1, 4, ask);
+        send(&mut engine, 20_000_000, REQUESTER_SIGN_IN, 1, 4, ask);
         assert_eq!(
             final_answer(&engine.poll(Time::from_nanos(20_000_000))[0]),
-            &Answer::Done(Outcome::Document(DocumentOutcome::PolicyChanged { project: 1 }))
+            &Answer::Done(Outcome::Document(DocumentOutcome::PolicyChanged { project: PROJECT }))
         );
         assert_eq!(engine.commits().len(), 1);
     }

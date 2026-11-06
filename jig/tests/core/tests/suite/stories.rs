@@ -1,4 +1,6 @@
-use jig_core_world::fixtures::{ask, delegate, live_row, member};
+use jig_core_world::fixtures::{
+    CONNECTOR as FIRST_CONNECTOR, PARTY as OWNER, ask, delegate, live_row, member, sign_in as signin,
+};
 pub(crate) use jig_core_world::fixtures::{ask_as, configure_resources, resource_member};
 use jig_core_world::world::Setup;
 use jig_core_world::world::{World, fixture};
@@ -16,7 +18,6 @@ mod address;
 #[path = "../stories/note_room.rs"]
 mod note_room;
 
-const FIRST_CONNECTOR: u16 = 1;
 const SECOND_CONNECTOR: u16 = 2;
 
 fn action(world: &mut World, completion: u32, action: core::NamedAction) {
@@ -110,7 +111,8 @@ fn a_plan_of_reports_and_a_procedure_is_revised_midway_and_done() {
             cancel_delegates: false,
         },
     });
-    let mut procedure = member(&world, tasks::Executor::Procedure { connector: 1, code: 1 }, b"carry out the choice");
+    let mut procedure =
+        member(&world, tasks::Executor::Procedure { connector: FIRST_CONNECTOR, code: 1 }, b"carry out the choice");
     procedure.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
     let procedure = delegate(&mut world, parent, 5, procedure);
     assert!(world.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Ended(procedure)))));
@@ -204,7 +206,7 @@ fn narrowed_policy_world() -> (World, u64, (u64, u64)) {
             project: 1,
             change: people::PolicyChange::Requirements {
                 requirements: Box::new([people::Requirement {
-                    connector: 1,
+                    connector: FIRST_CONNECTOR,
                     kind: 5,
                     pattern: people::Pattern { segments: Box::new([]), last: people::Last::Open(Box::new([])) },
                     judge: people::Judge { connector: 2, requirement: 9, parameters: 0 },
@@ -229,12 +231,10 @@ fn a_policy_narrowed_while_a_proposal_waits_keeps_the_committed_entry_and_checks
     world.release_writes();
     assert_eq!(world.systems[0].observed().iter().filter(|row| row.applied).count(), 1);
     world.decide_proposal(proposal, true, 44);
-    assert!(
-        world
-            .store
-            .rows
-            .contains_key(&root::Key::Connector { number: 1, key: connector::RecordKey::Proposal(proposal) })
-    );
+    assert!(world.store.rows.contains_key(&root::Key::Connector {
+        number: FIRST_CONNECTOR,
+        key: connector::RecordKey::Proposal(proposal)
+    }));
     world.call(3, 9203);
     assert!(matches!(
         world.answers.last(),
@@ -252,17 +252,17 @@ fn drift_holds_a_task_and_the_client_reads_why_it_needs_a_decision() {
     let task = world.call_key(1).task;
     let resource = jig_test_connector_kit::path(1, 1);
     world.send(root::Event::Connector {
-        number: 1,
+        number: FIRST_CONNECTOR,
         event: connector::Event::Adopt { project: 1, resource: resource.clone(), role: connector::ResourceRole::Owned },
     });
     world.send(root::Event::Connector {
-        number: 1,
+        number: FIRST_CONNECTOR,
         event: connector::Event::Names { task, project: 1, resources: Box::new([resource.clone()]) },
     });
     for state in [10, 11] {
         world.systems[0].other_hand(&resource, state);
         world.send(root::Event::Connector {
-            number: 1,
+            number: FIRST_CONNECTOR,
             event: connector::Event::System(connector::SystemEvent::Fact {
                 resource: resource.clone(),
                 fact: connector::Fact { state: Some(state), observed: world.wall_time(), pending: false },
@@ -412,7 +412,7 @@ fn a_note_written_corrected_by_a_person_and_recalled_keeps_the_corrected_body() 
         matches!(world.answers.last(), Some((_, _, core::CallPart::NoteRecalled { entries, more: false })) if entries.len()==1 && entries[0].revision==2 && entries[0].body.as_ref()==b"second body")
     );
     assert!(
-        matches!(world.store.rows.get(&root::Key::Core(core::Key::Notes(notes::Key::Entry { name }))), Some(root::Record::Core(core::Record::Notes(notes::Record::Entry(entry)))) if entry.revision==2 && entry.author==notes::Author::Party { party: 1 })
+        matches!(world.store.rows.get(&root::Key::Core(core::Key::Notes(notes::Key::Entry { name }))), Some(root::Record::Core(core::Record::Notes(notes::Record::Entry(entry)))) if entry.revision==2 && entry.author==notes::Author::Party { party: OWNER })
     );
 }
 
@@ -421,7 +421,7 @@ fn a_chat_writes_its_own_scope_and_a_party_reads_it() {
     use core::reads::{Answer, PageRow, Read, Why};
     use jig_core_world::reads::{ask as read, latest};
     const PROJECT: u32 = 1;
-    const OWNER: u64 = 1;
+
     let mut world = note_world(125, authority::Scopes(authority::Scopes::GOAL.0 | authority::Scopes::PROJECT.0));
     let key = world.call_key(1);
     let scope = notes::Scope::Goal { project: PROJECT, goal: key.task };
@@ -714,12 +714,12 @@ fn assert_leave_delivered(world: &World, parent: u64, child: u64) {
     let words: Vec<_> =
         live_row(world, parent).inbox.iter().filter(|word| word.words.as_ref() == LEAVE_REASON).collect();
     assert_eq!(words.len(), 1, "the coordinating goal receives exactly one leave reason");
-    assert_eq!(words[0].from, tasks::Party::Person(1));
+    assert_eq!(words[0].from, tasks::Party::Person(OWNER));
 }
 
 fn pool_size(world: &mut World, slots: u32) {
     world.send(root::Event::Connector {
-        number: 1,
+        number: FIRST_CONNECTOR,
         event: connector::Event::System(connector::SystemEvent::Pool {
             path: jig_test_connector_kit::path(1, 2),
             slots,
@@ -784,7 +784,7 @@ fn a_run_hands_a_resource_to_a_procedure_while_retaining_its_writer_slot() {
     let holder = delegate(&mut world, parent, 1, holder);
     let holder_run = running(&world, holder);
     let mut procedure = resource_member(&world, 1, b"carry out the write");
-    procedure.executor = tasks::Executor::Procedure { connector: 1, code: 1 };
+    procedure.executor = tasks::Executor::Procedure { connector: FIRST_CONNECTOR, code: 1 };
     procedure.authority.budget.spend = 5;
     let procedure = delegate(&mut world, holder_run, 1, procedure);
     let row = |task| match world.store.rows.get(&root::Key::Core(core::Key::Tasks(tasks::Key::Live(task)))) {
@@ -841,7 +841,7 @@ fn a_procedures_effect_writer_survives_a_cold_restart_and_frees_after_settlement
     configure_resources(&mut world);
     let parent = world.assignments[0];
     let mut procedure = resource_member(&world, 1, b"durable write flight");
-    procedure.executor = tasks::Executor::Procedure { connector: 1, code: 1 };
+    procedure.executor = tasks::Executor::Procedure { connector: FIRST_CONNECTOR, code: 1 };
     procedure.authority.budget.spend = 5;
     world.hold_writes = true;
     let procedure = delegate(&mut world, parent, 1, procedure);
@@ -853,7 +853,7 @@ fn a_procedures_effect_writer_survives_a_cold_restart_and_frees_after_settlement
     world.release_writes();
     assert!(world.domain.ready(), "restart trace: {:#?}", world.trace.iter().rev().take(16).collect::<Vec<_>>());
     world.advance(skein_lib::Duration::from_secs(2));
-    world.send(root::Event::ConnectorTimer { number: 1 });
+    world.send(root::Event::ConnectorTimer { number: FIRST_CONNECTOR });
     assert_eq!(world.systems[0].observed().iter().filter(|row| row.applied).count(), 1);
     assert!(!world.store.rows.values().any(|row| matches!(row,
         root::Record::Core(core::Record::Tasks(tasks::Stored::Writer(slot)))
@@ -918,7 +918,7 @@ fn a_batch_waits_without_creating_a_task_or_reserving_funding_until_its_resource
             funder: tasks::Funder::Task(parent.0),
             dependencies: Box::new([]),
             holdings: Box::new([tasks::Holding::Write {
-                resource: tasks::Name { connector: 1, path: resource.segments().into() },
+                resource: tasks::Name { connector: FIRST_CONNECTOR, path: resource.segments().into() },
                 kind: 1,
             }]),
             wake: tasks::WakePolicy::DEFAULT,
@@ -932,11 +932,11 @@ fn a_batch_waits_without_creating_a_task_or_reserving_funding_until_its_resource
     let row = world.store.rows.get(&root::Key::Core(core::Key::Tasks(tasks::Key::Live(parent.0)))).expect("parent row");
     assert!(matches!(row, root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))) if row.numbers == before));
     world.send(root::Event::Connector {
-        number: 1,
+        number: FIRST_CONNECTOR,
         event: connector::Event::Adopt { project: 1, resource: resource.clone(), role: connector::ResourceRole::Owned },
     });
     world.send(root::Event::Connector {
-        number: 1,
+        number: FIRST_CONNECTOR,
         event: connector::Event::Names { task: 100, project: 1, resources: Box::new([resource]) },
     });
     assert!(world.store.rows.contains_key(&key), "a connector report resumes the whole batch");
@@ -952,21 +952,21 @@ fn re_adopting_a_resource_as_context_refuses_the_existing_tasks_next_effect() {
     let resource = jig_test_connector_kit::path(1, 1);
     let task = world.call_key(1).task;
     world.send(root::Event::Connector {
-        number: 1,
+        number: FIRST_CONNECTOR,
         event: connector::Event::Adopt { project: 1, resource: resource.clone(), role: connector::ResourceRole::Owned },
     });
     world.send(root::Event::Connector {
-        number: 1,
+        number: FIRST_CONNECTOR,
         event: connector::Event::Names { task, project: 1, resources: Box::new([resource.clone()]) },
     });
     world.send(root::Event::Core(core::Event::EffectConnector(core::effects::connector::Event::Resource {
         project: 2,
-        name: tasks::Name { connector: 1, path: resource.segments().into() },
+        name: tasks::Name { connector: FIRST_CONNECTOR, path: resource.segments().into() },
         role: core::effects::connector::ResourceRole::Context,
         hold: core::effects::connector::HoldKind::Exclusive { wait: true },
     })));
     world.send(root::Event::Connector {
-        number: 1,
+        number: FIRST_CONNECTOR,
         event: connector::Event::Adopt {
             project: 1,
             resource: resource.clone(),
@@ -977,7 +977,7 @@ fn re_adopting_a_resource_as_context_refuses_the_existing_tasks_next_effect() {
     assert_eq!(world.systems[0].observed().iter().filter(|entry| entry.applied).count(), 1);
     let spent = world.spent();
     world.send(root::Event::Connector {
-        number: 1,
+        number: FIRST_CONNECTOR,
         event: connector::Event::Adopt { project: 1, resource, role: connector::ResourceRole::Context },
     });
     let mut context_effect = World::effect();
@@ -1008,7 +1008,7 @@ fn a_resource_becoming_unavailable_holds_its_waiter_and_refuses_a_new_hold() {
     let waiting = delegate(&mut world, parent, 2, spec);
     assert_eq!(world.assignments.len(), 2);
     world.send(root::Event::Connector {
-        number: 1,
+        number: FIRST_CONNECTOR,
         event: connector::Event::System(connector::SystemEvent::Unavailable {
             project: 1,
             resource: jig_test_connector_kit::path(1, 1),
@@ -1040,7 +1040,7 @@ fn re_adopting_a_running_workspace_as_context_stops_its_writer() {
     let child = delegate(&mut world, parent, 1, spec);
     assert_eq!(world.assignments.len(), 2);
     world.send(root::Event::Connector {
-        number: 1,
+        number: FIRST_CONNECTOR,
         event: connector::Event::Adopt {
             project: 1,
             resource: jig_test_connector_kit::path(1, 1),
@@ -1057,7 +1057,7 @@ fn re_adopting_a_running_workspace_as_context_stops_its_writer() {
 fn a_context_adoption_still_refuses_effects_after_a_cold_restart() {
     let mut world = World::new(Setup { seed: 156, ..Setup::default() });
     world.send(root::Event::Connector {
-        number: 1,
+        number: FIRST_CONNECTOR,
         event: connector::Event::Adopt {
             project: 1,
             resource: jig_test_connector_kit::path(1, 1),
@@ -1284,15 +1284,7 @@ fn a_person_answering_a_person_task_whose_inputs_changed_is_refused_as_moved() {
         tasks::Party::Person(person) => person,
         tasks::Party::Task(_) | tasks::Party::Deployment { .. } => panic!("person's chat"),
     };
-    world.send(root::Event::Core(core::Event::SignIn {
-        held: None,
-        reply_to: ReplyTo::new(Token::new(6100)),
-        identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: 8_u64.to_be_bytes().into() },
-            login: b"second".as_slice().into(),
-            name: b"second holder".as_slice().into(),
-        },
-    }));
+    world.send(signin(Token::new(6100), 0, &8_u64.to_be_bytes(), b"second", b"second holder"));
     let second_sign_in = world.sign_in.expect("second party signed in");
     let Some(people::Reply::SignedIn { person: second_person, .. }) = world.people_answers.last().cloned() else {
         panic!("second sign-in")
@@ -1390,7 +1382,7 @@ fn a_widening_amendment_with_release_is_proposed_and_released_on_acceptance(worl
         tools: 1023,
         models: None,
         grants: Box::new([people::Grant {
-            connector: 1,
+            connector: FIRST_CONNECTOR,
             kind: 5,
             pattern: people::Pattern { segments: Box::new([]), last: people::Last::Open(Box::new([])) },
         }]),
@@ -1532,7 +1524,7 @@ fn a_goal_with_a_deadline_is_held_past_it() {
                     tools: 1023,
                     models: None,
                     grants: Box::new([people::Grant {
-                        connector: 1,
+                        connector: FIRST_CONNECTOR,
                         kind: 5,
                         pattern: people::Pattern { segments: Box::new([]), last: people::Last::Open(Box::new([])) },
                     }]),
@@ -1601,7 +1593,11 @@ fn approval_world(seed: u64) -> (World, u64, u64, u64) {
     approval.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
     approval.contract = tasks::Contract::Approval {
         state: Box::from(&b"state\x00\xff"[..]),
-        part: tasks::Part { connector: 1, kind: tasks::PartKind::Resource, key: tasks::PartKey::Number(45) },
+        part: tasks::Part {
+            connector: FIRST_CONNECTOR,
+            kind: tasks::PartKind::Resource,
+            key: tasks::PartKey::Number(45),
+        },
     };
     let task = delegate(&mut world, parent, 1, approval);
     ask(&mut world, 81, people::Ask::TakePerson { project: 1, task });
@@ -1783,7 +1779,11 @@ fn an_approval_reaches_its_asking_procedure_connector_as_the_whole_durable_input
     child.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
     child.contract = tasks::Contract::Approval {
         state: Box::from(&b"procedure\x00\xff"[..]),
-        part: tasks::Part { connector: 1, kind: tasks::PartKind::Resource, key: tasks::PartKey::Number(45) },
+        part: tasks::Part {
+            connector: FIRST_CONNECTOR,
+            kind: tasks::PartKind::Resource,
+            key: tasks::PartKey::Number(45),
+        },
     };
     world.send(root::Event::Core(core::Event::ProcedureStep {
         task: parent,
@@ -1981,7 +1981,7 @@ fn a_procedure_delegate_identity_is_committed_with_its_child_by_the_actual_conne
         world.store.rows.get(&root::Key::Connector { number: 2, key: record.key() }),
         Some(&root::Record::Connector { number: 2, record: record.clone() })
     );
-    assert!(!world.store.rows.contains_key(&root::Key::Connector { number: 1, key: record.key() }));
+    assert!(!world.store.rows.contains_key(&root::Key::Connector { number: FIRST_CONNECTOR, key: record.key() }));
     assert!(world.commits.iter().any(|writes| {
         writes.iter().any(|write| matches!(write, root::Write::Save(root::Record::Connector { number: 2, record: saved }) if saved == &record))
             && writes.iter().any(|write| matches!(write, root::Write::Save(root::Record::Core(core::Record::Tasks(tasks::Stored::Live(saved)))) if saved.number == child))
@@ -2110,7 +2110,7 @@ fn a_held_chats_delegate_waits_for_its_person_without_a_stall() {
     });
     assert!(matches!(
         live_row(&world, child).escalation,
-        tasks::Escalation::Waiting { holder: tasks::EscalationHolder::Person(1), .. }
+        tasks::Escalation::Waiting { holder: tasks::EscalationHolder::Person(OWNER), .. }
     ));
 }
 

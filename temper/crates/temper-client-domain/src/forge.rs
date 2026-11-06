@@ -393,8 +393,8 @@ fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
     }
 }
 #[must_use]
-pub const fn next_deadline(_side: &Side) -> Option<Time> {
-    None
+pub const fn next_deadline(side: &Side) -> Option<Time> {
+    ways::next_deadline(side)
 }
 pub const fn reclaim(_side: &mut Side) {}
 #[must_use]

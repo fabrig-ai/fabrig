@@ -18,9 +18,9 @@ fn task_windows_filter_the_supplied_served_goal_without_reconstructing_it_from_l
             engine
                 .open(
                     Time::ZERO,
-                    11,
+                    REQUESTER_SIGN_IN,
                     Token::new(3),
-                    Subject::Tasks { query: TaskQuery { root: wanted, ..query(1) }, window: 2 },
+                    Subject::Tasks { query: TaskQuery { root: wanted, ..query(PROJECT) }, window: 2 },
                 )
                 .expect("typed watch fits");
             let up = engine.poll(Time::ZERO);

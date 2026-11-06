@@ -571,9 +571,11 @@ keeps (`../protocol/configuration.md`, section 2).
 - **A chat's document** (the greenfield mock's `chat.html`; the look request
   `configure-chat-draft`, for every chat): a chat keeps one Markdown document
   beside its conversation, which its agent writes (`../domain/agent.md`, 8.3).
-  It is the lowest-numbered note in the chat's own scope, its description its
-  title, its body Markdown, its name the mock's `slug` of the title, 28
-  characters, plus `.md`: `away-mode.md`. There are no file drafts: a document
+  It is the lowest-numbered note in the chat's own scope whose description
+  does not begin `work:`; working notes are never drawn, and a chat with only
+  working notes has no document. Its description is its title, its body Markdown,
+  its name the mock's `slug` of the title, 28 characters, plus `.md`:
+  `away-mode.md`. There are no file drafts: a document
   is always a chat's.
   - *Offered:* `pages::drafts_offered(root, project)` is that project's kind 7
     `drafts` (5.13), false in the stock. It gates "+ Draft", the Drafts filter, the
@@ -1519,8 +1521,9 @@ keeps (`../protocol/configuration.md`, section 2).
     says them in words); its title, a level-3 heading, over one short
     line; its act at the row's right while the step is left. Done, the
     title is muted and regular (`temper-home-done`).
-    1. "Tell temper how you work", "temper runs its default way of
-       working until you change it.", with "Start", filled, the act of
+    1. "Tell temper how you work", "In your own words: how you plan, review
+       and land work. temper proposes how it will run that, and nothing
+       changes until you accept.", with "Start", filled, the act of
        *The first chat* (below). Done once a configuring chat runs or ran
        in the project, or a line of the `settings` document follows a
        change; done, its title alone. A configuring chat is a row of the
@@ -1533,8 +1536,8 @@ keeps (`../protocol/configuration.md`, section 2).
        change.
     2. The repository, in the first state that holds: adopted (a row's
        `repositories` names the project), done, "ORG/NAME is in PROJECT",
-       "temper can change its code now; checked changes land on main
-       through temper's merge queue.", ORG/NAME the project's first
+       "Chats can change its code now.", with no claim that CI passed, since
+       the forge rows supply no check result; ORG/NAME the project's first
        adopted (5.3), one line on a laptop; with the rows' copies all in,
        done, "acme/widget is in Widget", or "acme/widget, acme/other are in
        Widget", its line "Chats can change its code now, on your Forgejo;
@@ -2176,8 +2179,8 @@ keeps (`../protocol/configuration.md`, section 2).
     new line". It has no composer's line and no chooser: the configuring
     role's models are a setting (5.13), which this chat can change. On a
     phone the frame's top bar and tab bar go, so that the composer keeps
-    the foot, and with them the model's line. The hint stays under the
-    composer.
+    the foot, and with them the model's line and the composer's hint,
+    as the configure-chat look request draws it.
 
   The conversation and the composer's foot each keep a scrollbar's gutter
   on both edges and hold one column, at most 720 pixels and centred, so
@@ -4765,7 +4768,11 @@ section 5.
   kind 7 of the open project as the project opens, and kind 6 on the tab,
   through the forge's reads in that project's scope (`forge.md`, section 9),
   and again whenever the document's line for that setting says it changed and
-  when the link comes back. Until read, or if refused, the optional entries,
+  when the link comes back. A transient read failure (busy, unreachable, local
+  read capacity, or sign-in still settling) retries after one second, doubling
+  to at most 30 seconds; a successful answer resets the wait. Kind 7 retries
+  while its project is open, kind 6 while the tab is open; leaving that scope
+  drops its retry. Until first read, or after a lasting refusal, the optional entries,
   the tab's live controls and `drafts` all read as hidden, off and absent; a
   value of none reads as the stock (`../protocol/configuration.md`, 13.4).
 - **Its acts:** each live control sends at once jig's `ChangeSettings` with one

@@ -1,4 +1,5 @@
 use super::*;
+use jig_core_world::fixtures::sign_in as signin;
 use jig_core_world::world::Setup;
 use jig_test_profile::fixtures::unchanged;
 
@@ -171,15 +172,7 @@ fn members_dependency_world(seed: u64) -> (World, u64, u64, u64, u64, u64) {
     let inside = delegate(&mut world, parent, 2, inside);
     let member_sign_in = world.sign_in.expect("requester signed in");
     let tasks::Party::Person(person) = live_row(&world, parent.0).requester else { panic!("person's tree") };
-    world.send(root::Event::Core(core::Event::SignIn {
-        held: None,
-        reply_to: ReplyTo::new(Token::new(6100)),
-        identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: 8_u64.to_be_bytes().into() },
-            login: b"second".as_slice().into(),
-            name: b"other requester".as_slice().into(),
-        },
-    }));
+    world.send(signin(Token::new(6100), 0, &8_u64.to_be_bytes(), b"second", b"other requester"));
     let owner_sign_in = world.sign_in.expect("other requester signed in");
     let Some(people::Reply::SignedIn { person: other, .. }) = world.people_answers.last().cloned() else {
         panic!("second sign-in");
