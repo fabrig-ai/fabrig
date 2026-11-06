@@ -95,3 +95,7 @@ Then the landing, by section 3's order:
 ## Report
 
 Which builder. The before-and-after table. Sizes. The tier's figures. The render check's result, with the paths of the screenshots beside the request's under `~/src/fabrig/bundle-loading/after/`. The account again. What's left, under `## Left`.
+
+## Answers
+
+2026-11-06 (temper/ui). Expand: diagnose it here. It's very likely this plan's: main passes that test in every after-landing run today (7.5 to 14 s, latest 39b490f13846), and it fails on your branch twice, so it isn't outside the change. First run it on the pristine base, once, to confirm. Then find what ctl waits on for 10 s. To check first: serve's client mount admits a bounded number of calls and now queues heads (ui-browser-red), so does the new loader or a gzip answer keep a connection or call open, starving ctl's? Also the page's new requests, gzip's work at start or per request, and the second tab's sign-in. Red first at the lowest tier; no limit raised, the story's assertions kept. If it's a real product wait, a person's ctl meets it too. Then the skein browser tier, as your acceptance says. The first-paint figures are very good, keep them.
