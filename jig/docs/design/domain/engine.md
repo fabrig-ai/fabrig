@@ -1203,7 +1203,11 @@ The fleet child domain knows the hosts and the runs they host:
   an inbox that holds fewer than a start carries; fewer turns kept
   unacknowledged than the hub's bound (hosts.md, 6.4). So no run is
   placed where smith would refuse its start, and no run refuses a
-  message as too large or its start's messages as full.
+  message as too large or its start's messages as full. The fleet's
+  refusal hands its parent that reason and, for a shortfall, what the
+  configuration needs and what the agent offers, so that the refusal's
+  text can say both (`protocol/channel.md`, 4.3); bounds set after the
+  start refuse the same way.
   The core exposes these owned requirements as
   `jig_domain_core::settings::fleet_needs::configured(&Config, &Limits)`, for a
   validated configuration with the same limits used to construct the core.

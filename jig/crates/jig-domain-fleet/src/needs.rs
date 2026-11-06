@@ -1,5 +1,5 @@
 //! Agent admission and model eligibility for configured charters (domain/engine.md, section 8).
-use crate::{Bounds, HostKind, Kinds};
+use crate::{Bounds, Figures, HostKind, Kinds};
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, length::len_u64};
 
@@ -75,36 +75,8 @@ pub fn shortfall(needs: &Needs, bounds: &Bounds, kind: HostKind) -> Option<Agent
             continue;
         }
         applicable = true;
-        for (index, need) in charter.models.iter().enumerate() {
-            let number = u32::try_from(index).expect("configured model count");
-            let mut held = None;
-            for model in &bounds.models {
-                if model.name == need.name {
-                    held = Some(model);
-                    break;
-                }
-            }
-            let Some(held) = held else { continue };
-            if held.window < need.window {
-                return Some(AgentShortfall::Window { charter: charter.version.charter, model: number });
-            }
-            if held.output < need.output {
-                return Some(AgentShortfall::Output { charter: charter.version.charter, model: number });
-            }
-        }
-        if bounds.turns < charter.turns {
-            return Some(AgentShortfall::Turns { charter: charter.version.charter });
-        }
-        if bounds.time < charter.time {
-            return Some(AgentShortfall::Time { charter: charter.version.charter });
-        }
-        if bounds.waiting < charter.waiting {
-            return Some(AgentShortfall::Waiting { charter: charter.version.charter });
-        }
-        if let Some(reserve) = charter.change_reserve
-            && bounds.checks > reserve
-        {
-            return Some(AgentShortfall::Checks { charter: charter.version.charter });
+        if let Some(why) = charter_shortfall(charter, bounds) {
+            return Some(why);
         }
     }
     if applicable {
@@ -119,6 +91,103 @@ pub fn shortfall(needs: &Needs, bounds: &Bounds, kind: HostKind) -> Option<Agent
         }
         if bounds.unacknowledged < needs.unacknowledged {
             return Some(AgentShortfall::Unacknowledged);
+        }
+    }
+    None
+}
+
+/// The first shortfall within one charter version, in admission order.
+fn charter_shortfall(charter: &CharterNeeds, bounds: &Bounds) -> Option<AgentShortfall> {
+    for (index, need) in charter.models.iter().enumerate() {
+        let number = u32::try_from(index).expect("configured model count");
+        let mut held = None;
+        for model in &bounds.models {
+            if model.name == need.name {
+                held = Some(model);
+                break;
+            }
+        }
+        let Some(held) = held else { continue };
+        if held.window < need.window {
+            return Some(AgentShortfall::Window { charter: charter.version.charter, model: number });
+        }
+        if held.output < need.output {
+            return Some(AgentShortfall::Output { charter: charter.version.charter, model: number });
+        }
+    }
+    if bounds.turns < charter.turns {
+        return Some(AgentShortfall::Turns { charter: charter.version.charter });
+    }
+    if bounds.time < charter.time {
+        return Some(AgentShortfall::Time { charter: charter.version.charter });
+    }
+    if bounds.waiting < charter.waiting {
+        return Some(AgentShortfall::Waiting { charter: charter.version.charter });
+    }
+    if let Some(reserve) = charter.change_reserve
+        && bounds.checks > reserve
+    {
+        return Some(AgentShortfall::Checks { charter: charter.version.charter });
+    }
+    None
+}
+
+/// The amounts of a shortfall `shortfall` selected for this host kind: None
+/// for `Model`, which has none, or a `why` no version `kind` allows gives.
+#[must_use]
+pub fn figures(needs: &Needs, bounds: &Bounds, kind: HostKind, why: AgentShortfall) -> Option<Figures> {
+    let amounts = match why {
+        AgentShortfall::Model { .. } => return None,
+        AgentShortfall::Window { model, .. } => {
+            return model_figures(charter_need(needs, bounds, kind, why)?, bounds, model, false);
+        }
+        AgentShortfall::Output { model, .. } => {
+            return model_figures(charter_need(needs, bounds, kind, why)?, bounds, model, true);
+        }
+        AgentShortfall::Turns { .. } => {
+            (u64::from(charter_need(needs, bounds, kind, why)?.turns), u64::from(bounds.turns))
+        }
+        AgentShortfall::Time { .. } => {
+            (charter_need(needs, bounds, kind, why)?.time.as_millis(), bounds.time.as_millis())
+        }
+        AgentShortfall::Waiting { .. } => {
+            (charter_need(needs, bounds, kind, why)?.waiting.as_millis(), bounds.waiting.as_millis())
+        }
+        AgentShortfall::Checks { .. } => {
+            (charter_need(needs, bounds, kind, why)?.change_reserve?.as_millis(), bounds.checks.as_millis())
+        }
+        AgentShortfall::Spend => (needs.spend, bounds.spend),
+        AgentShortfall::Message => (u64::from(needs.message_bytes), u64::from(bounds.message_bytes)),
+        AgentShortfall::Inbox => (u64::from(needs.start_messages), u64::from(bounds.inbox)),
+        AgentShortfall::Unacknowledged => (u64::from(needs.unacknowledged), u64::from(bounds.unacknowledged)),
+    };
+    Some(Figures { required: amounts.0, offered: amounts.1 })
+}
+
+#[expect(clippy::manual_find, reason = "step code scans without closures")]
+fn charter_need<'a>(
+    needs: &'a Needs,
+    bounds: &Bounds,
+    kind: HostKind,
+    why: AgentShortfall,
+) -> Option<&'a CharterNeeds> {
+    for charter in &needs.charters {
+        if charter.kinds.allows(kind) && charter_shortfall(charter, bounds) == Some(why) {
+            return Some(charter);
+        }
+    }
+    None
+}
+
+fn model_figures(charter: &CharterNeeds, bounds: &Bounds, model: u32, output: bool) -> Option<Figures> {
+    let need = charter.models.get(usize::try_from(model).ok()?)?;
+    for held in &bounds.models {
+        if held.name == need.name {
+            return Some(if output {
+                Figures { required: u64::from(need.output), offered: u64::from(held.output) }
+            } else {
+                Figures { required: u64::from(need.window), offered: u64::from(held.window) }
+            });
         }
     }
     None
