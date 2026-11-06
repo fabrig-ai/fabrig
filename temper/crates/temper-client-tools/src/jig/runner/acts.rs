@@ -86,6 +86,11 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
     if called.call.tool == rows::CHANGE_SETTINGS_AT || called.call.tool == rows::PROPOSE_SETTINGS_AT {
         let request = match crate::jig::settings_file::request(&called.call, &env.limits) {
             Ok(ask) => {
+                let Some(me) = me(runner, client) else { return };
+                if let Some(why) = choice::settings_effort(ask.items.as_slice(), me) {
+                    prepared(runner, client, env, called, Err(Failed::Detail(why)), out);
+                    return;
+                }
                 let ask = if called.call.tool == rows::PROPOSE_SETTINGS_AT {
                     c::Ask::Propose {
                         project: 0,
