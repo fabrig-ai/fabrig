@@ -77,7 +77,9 @@ fn subtree(core: &Core, task: u64, root: u64, depth: u32) -> bool {
 }
 
 fn inbox_filter(core: &Core, limits: &Limits, filter: Filter, entry: &documents::InboxEntry) -> bool {
-    if filter.project.is_some() && entry.project != filter.project {
+    if let Some(project) = filter.project
+        && !entry.shows_in(project)
+    {
         return false;
     }
     match filter.goal {
@@ -1139,6 +1141,7 @@ fn inbox_row(
                 return Err(Missing::Unknown);
             }
             Ok(Some(PageRow::Inbox(documents::InboxEntry {
+                projects: List::with_capacity(0),
                 reply: None,
                 task: documents::TaskLink::Retained {
                     chip: documents::chip_from_row_with_core(core, limits, owner)?,
@@ -1185,6 +1188,7 @@ fn inbox_row(
                     continue;
                 }
                 return Ok(Some(PageRow::Inbox(documents::InboxEntry {
+                    projects: List::with_capacity(0),
                     reply: None,
                     task: documents::TaskLink::Live(documents::chip_from_row_with_core(core, limits, owner)?),
                     project: Some(owner.project),
@@ -1210,9 +1214,20 @@ fn person_proposal_need(
 ) -> Result<Option<PageRow>, Missing> {
     let object =
         documents::InboxObject::Proposal { proposer: Proposer::Party(proposal.proposer), number: proposal.number };
+    let projects = match proposal.action {
+        tasks::PersonAction::Settings { .. } if !group.updates() => core.settings_row_projects(
+            party,
+            (Proposer::Party(proposal.proposer), u32::try_from(proposal.number).expect("settings proposal number")),
+        ),
+        tasks::PersonAction::Settings { .. } | tasks::PersonAction::Batch(_) | tasks::PersonAction::Amend { .. } => {
+            List::with_capacity(0)
+        }
+    };
     if (proposal.project != jig_domain_people::DEPLOYMENT && !core.open_project(proposal.project))
         || !group.includes(object)
-        || (filter.project.is_some() && filter.project != Some(proposal.project))
+        || (filter.project.is_some()
+            && filter.project != Some(proposal.project)
+            && !projects.as_slice().contains(&filter.project.expect("project filter")))
         || (filter.goal.is_some() && filter.goal != Some(proposal.first()))
     {
         return Ok(None);
@@ -1260,6 +1275,7 @@ fn person_proposal_need(
     Ok(Some(PageRow::Inbox(documents::InboxEntry {
         reply: None,
         task: documents::TaskLink::Stored { number: proposal.first(), status: None },
+        projects,
         project: Some(proposal.project),
         object,
         activity: None,
@@ -1311,6 +1327,7 @@ fn reply_update(
         return Err(Missing::Unknown);
     }
     Ok(Some(PageRow::Inbox(documents::InboxEntry {
+        projects: List::with_capacity(0),
         reply,
         task: documents::TaskLink::Retained {
             chip: documents::chip_from_row_with_core(core, limits, owner)?,

@@ -986,6 +986,7 @@ impl Chat {
             | Act::SignOut
             | Act::ChatWords { .. }
             | Act::StartChat
+            | Act::ShowReference
             | Act::Starter { .. }
             | Act::SkipToBegin
             | Act::RetryPlayground

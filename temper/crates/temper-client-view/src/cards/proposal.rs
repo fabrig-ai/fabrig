@@ -452,8 +452,7 @@ pub(crate) fn settings(
     b.name(&words.say(Word::Proposal, &[]));
     b.open(Role::Paragraph);
     b.style(crate::look::SETTINGS_PROPOSAL_TITLE);
-    let project = project_label(root, proposal.project);
-    let title = words.say(Word::SettingsProposalTitle, &[super::name(&project)]);
+    let title = settings_title(root, proposal, words);
     b.name(&title);
     b.text(skein_ui::Run::Plain, &title);
     b.close();
@@ -599,6 +598,9 @@ fn waiting(b: &mut Builder, root: &temper_client_domain::Domain, holder: c::Hist
             text(b, Role::Paragraph, &words.say(Word::WaitingForPerson, &[Hole::Number(person)]));
         }
         c::HistoryHolder::Task(task) => text(b, Role::Paragraph, &words.say(Word::TaskWho, &[Hole::Number(task)])),
+        c::HistoryHolder::Policy { project: 0, .. } => {
+            text(b, Role::Paragraph, &words.say(Word::SettingsProposalDeploymentOwners, &[]));
+        }
         c::HistoryHolder::Policy { project, .. } => {
             let project = project_label(root, project);
             text(b, Role::Paragraph, &words.say(Word::SettingsProposalOwners, &[super::name(&project)]));
@@ -765,4 +767,23 @@ fn reason_line(b: &mut Builder, line: &[u8]) {
     b.run(skein_ui::Run::Plain, line);
     b.close();
     b.close();
+}
+
+fn settings_title(root: &temper_client_domain::Domain, proposal: &c::Proposal, words: &Words) -> Box<[u8]> {
+    if proposal.projects.is_empty() {
+        return words.say(Word::SettingsProposalTitleAll, &[]);
+    }
+    let mut names = skein_lib::bytes::copy_of(b"");
+    for (index, project) in proposal.projects.iter().enumerate() {
+        let separator: &[u8] = if index == 0 {
+            b"".as_slice()
+        } else if index.checked_add(1).expect("bounded projects") == proposal.projects.as_slice().len() {
+            b" and "
+        } else {
+            b", "
+        };
+        let name = project_label(root, *project);
+        names = joined(&[&names, separator, &name]);
+    }
+    words.say(Word::SettingsProposalTitle, &[super::name(&names)])
 }
