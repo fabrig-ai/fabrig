@@ -377,7 +377,7 @@ fn world_in_layout(
                             }
                             if let Some(name) = settings_chat {
                                 settings_chat_watch = Some(watch);
-                                task.activity = if name == "configure-chat-replaced" { 2 } else { 1 };
+                                task.activity = if name == "configure-chat-replaced" { 6 } else { 3 };
                                 task.proposals = List::with_capacity(2);
                                 task.proposals.push(PROPOSAL).expect("settings proposal");
                                 if name == "configure-chat-replaced" {
@@ -4583,24 +4583,38 @@ fn settings_proposal_values(root: &mut Domain, read: Token, out: &mut Queue<Requ
     );
 }
 fn settings_activity(name: &str) -> c::ActivityPage {
-    let mut rows = List::with_capacity(2);
+    // Each proposal has its making line, tool completion and following reply.
+    let mut rows = List::with_capacity(6);
     let keys: &[c::ProposalKey] =
-        if name == "configure-chat-replaced" { &[SETTINGS_NEXT, PROPOSAL] } else { &[PROPOSAL] };
+        if name == "configure-chat-replaced" { &[PROPOSAL, SETTINGS_NEXT] } else { &[PROPOSAL] };
     for key in keys {
-        let objects = List::with_capacity(0);
+        let made = documents::line(
+            1,
+            Wall::EPOCH,
+            c::Activity::Decided { revision: 1, proposal: Some(c::DecidedProposal { number: key.number, made: true }) },
+        );
         let call = c::Block::Call(c::Call {
             number: key.number,
             tool: text("propose_settings"),
             input: text(""),
             outcome: None,
             failed: false,
-            objects,
+            objects: List::with_capacity(0),
             parts: List::with_capacity(0),
         });
         let blocks = List::from_boxed(Box::new([call]));
-        let mut line = turn_line(&blocks, u32::try_from(key.number).expect("small turn"), None, false);
-        line.source.position = key.number;
-        rows.push(line).expect("settings turns");
+        let number = u32::try_from(key.number.checked_mul(2).expect("small turn")).expect("small turn");
+        let turn = turn_line(&blocks, number.checked_sub(1).expect("nonzero turn"), None, false);
+        let reply = agent_line("Tell me what you would change.", number, None);
+        for mut line in [made, turn, reply] {
+            line.source.position = u64::from(rows.len()).checked_add(1).expect("small activity");
+            line.source.task = 10;
+            if let Some(decoded) = &mut line.decoded {
+                decoded.task = 10;
+                decoded.cumulative = line.source.position;
+            }
+            rows.push(line).expect("settings activity");
+        }
     }
     c::ActivityPage { rows, cut: false, before: None, after: None }
 }
