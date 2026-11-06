@@ -1,5 +1,5 @@
 use super::*;
-use skein_lib::{List, Secret, Wall};
+use skein_lib::{List, Secret, Wall, length::len_u64};
 pub const HOST: &[u8] = b"127.0.0.1:8080";
 pub const PUBLIC: &[u8] = b"app.example.com";
 pub const EXCHANGE: Token = Token::new(11);
@@ -104,10 +104,7 @@ pub fn call_named(
 ) -> Token {
     mount.down(
         &env(),
-        Event::Call {
-            call: name,
-            head: head(method, target, headers, http::Body::Length(u64::try_from(body.len()).expect("test body"))),
-        },
+        Event::Call { call: name, head: head(method, target, headers, http::Body::Length(len_u64(body.len()))) },
     );
     pump(mount, out);
     if !body.is_empty() {

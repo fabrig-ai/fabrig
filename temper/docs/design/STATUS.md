@@ -78,11 +78,12 @@ cannot script, How work runs' controls for a person with a project's role
 alone, and many of ctl's tools (`client/README.md`,
 `client/forge.md`, `client/tools.md`), the playground in the
 browser, whose story A walks in the browser tier but not yet by hand
-and whose download is past its bar (`playground.md`), upgrades'
+(`playground.md`), upgrades'
 commands and the baseline (`protocol/README.md`), and the release
-(`release.md`). The browser tier's CPU against its budget awaits the
-user, and no test shows a head waiting for room ended by the stall
-deadline (`client/browser.md`). On a phone a chat's page hides the accounts'
+(`release.md`). The browser tier holds 13 tests, one past its cap, its CPU
+measured within its budget on the 12 without the call line's alone, a closed
+chat's wait is located but not split, and no test shows a head waiting for room
+ended by the stall deadline (`client/browser.md`). On a phone a chat's page hides the accounts'
 and the playground's banners (`client/README.md`), and the gallery's comparison
 pages draw their own worlds, not the mock's scenario (`client/browser.md`).
 Forges kept in the store, a forge's removal and the
@@ -159,14 +160,17 @@ goal starts from a document through the one sheet, which has none of the request
 opens nothing for a party with no creating bound; drafts follow kind 7's setting,
 off in the stock, where that request has them follow a tracked template
 (`client/README.md`), and a goal keeps its own note scope, where that request
-has it keep no notes (`domain/agent.md`). A proposal of settings reaches a
+has it keep no notes (`domain/agent.md`). A box with one kind of account runs on
+the first model it can use, and a run that can't start says why on its page and
+in `task show`, but no walk on record has a real box do either, a Chats row still
+says "Starting", and `task show` names a `deployment show` ctl lacks
+(`client/README.md`, `client/tools.md`). A proposal of settings reaches a
 project's Needs you and rail's count, but its live card lists no item of temper's
 kinds, stays on Needs you once accepted, leaves its chat on a reload and follows a
 "Decision made" while it waits (`client/README.md`). `again` can't record a journey
-that begins past the welcome (`client/journeys.md`). The welcome's try of a model
-draws its box over the host's check alone, no trial being built, and departs from the request
-`model-check` in its list's names and a few of its acts and words
-(`client/README.md`). A plan's sign-in draws the waiting page of the request
+that begins past the welcome (`client/journeys.md`). The welcome's try of a model draws Model's line in
+Ready's pane over the host's check alone, no trial being built, and departs from the request
+`model-check-pane` in its list's words (`client/README.md`). A plan's sign-in draws the waiting page of the request
 `sign-in-new-tab`, whose words say a new tab while a press still leaves in its own,
 until that draft is built; the page departs from the request in the terminal's words
 and on `ConnectModel`, where a paste finishing also keeps the note's waiting words
@@ -181,10 +185,17 @@ numbers in a chat's card, whose items the sheet makes flex, and a document page'
 takes the browser's margins (`client/browser.md`). temper's own way stands on
 Configure, departing from the request `configure-temper-own-way` in its reference's
 words and look (`client/README.md`), but no walk on record presses its acts and no
-render has drawn its picture as a numbered list (`client/browser.md`). The words being written draw an
+render has drawn its picture as a numbered list (`client/browser.md`). A chat's answer only grows, but
+the line departs from the request `chat-work` in a failed call's colour, and the end
+mark is a glyph that does not blink (`client/README.md`); a chat is read by "Older" in a
+window of 16 lines until `draft/chat-reading.md`, 5 is built. The words being written draw an
 empty message in the dots' place until they hold a word, their "▍" falls below a closed
 fence, a last block still open changes as it commits, and no browser test draws them
-(`client/README.md`). Every confirmation of a chat, a
+(`client/README.md`). A run of calls is one line on a chat's page and an agent's, its
+verbs and time for the user to read on a real chat (`draft/chat-reading.md`), but no test
+takes its call under way from the engine or draws it running in a browser or a real
+terminal, a call under way with none ended says its words twice, and a run still out says
+no "1 failed" (`client/README.md`). Every confirmation of a chat, a
 task or a card is one sheet, but a closed chat hides every "Decision made", where the
 request `close-chat` hides the closing's alone, a Release pressed before an uncertain
 effect's choice closes its sheet, no walk on record presses a task's Cancel, an
@@ -267,6 +278,7 @@ Design documents:
 - [`client/tools.md`](client/tools.status.md)
 
 Drafts:
+- [`draft/bundle-loading.md`](draft/bundle-loading.status.md)
 - [`draft/reference-code-production.md`](draft/reference-code-production.status.md)
 - [`draft/reference-landing.md`](draft/reference-landing.status.md)
 - [`draft/reference-case.md`](draft/reference-case.status.md)

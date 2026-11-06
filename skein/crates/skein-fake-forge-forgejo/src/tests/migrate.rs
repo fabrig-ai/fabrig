@@ -12,6 +12,7 @@ use skein_forge::forgejo::{
     document::{Document, Row},
     request::{Repo, Request},
 };
+use skein_lib::bytes::concat;
 use skein_lib::{Duration, Secret, Time, Token};
 
 const SOURCE: &[u8] = b"https://sources.invalid/upstream/repository";
@@ -46,7 +47,7 @@ fn id(h: &Harness) -> u64 {
     panic!("reserved row")
 }
 fn git(h: &mut Harness, repository: &[u8], name: &[u8], body: &[u8]) {
-    let clear = joined(&[b"engine:", fixtures::TOKEN]);
+    let clear = concat(&[b"engine:", fixtures::TOKEN]);
     let size = skein_lib::base64::encoded_len(
         skein_lib::base64::Alphabet::Standard,
         clear.len().try_into().expect("credential size"),
@@ -56,7 +57,7 @@ fn git(h: &mut Harness, repository: &[u8], name: &[u8], body: &[u8]) {
     skein_lib::base64::encode(skein_lib::base64::Alphabet::Standard, &clear, &mut credential).expect("credential");
     let credential = credential.finish();
     let length = skein_lib::Decimal::of(body.len().try_into().expect("body size"));
-    let request = joined(&[
+    let request = concat(&[
         b"POST /.fake/git/",
         name,
         b" HTTP/1.1\r\nHost: localhost\r\nAuthorization: Basic ",
@@ -71,7 +72,7 @@ fn git(h: &mut Harness, repository: &[u8], name: &[u8], body: &[u8]) {
     h.run();
 }
 fn clone(h: &mut Harness, repository: &[u8]) {
-    let body = joined(&[b"{\"repository\":\"", repository, b"\"}"]);
+    let body = concat(&[b"{\"repository\":\"", repository, b"\"}"]);
     git(h, repository, b"clone", &body);
 }
 fn decoded_clone(h: &Harness) -> git::Answer {
@@ -352,16 +353,4 @@ fn the_scopes_are_write_repository() {
     assert_eq!(h.status(), 201);
     h.ask_as(b"DELETE", b"/api/v1/repos/creation/copied", b"", b"writer");
     assert_eq!(h.status(), 204);
-}
-
-fn joined(parts: &[&[u8]]) -> Box<[u8]> {
-    let mut size = 0usize;
-    for part in parts {
-        size = size.checked_add(part.len()).expect("fixture size");
-    }
-    let mut out = skein_lib::Writer::new(size);
-    for part in parts {
-        out.put(part).expect("fixture buffer");
-    }
-    out.finish()
 }

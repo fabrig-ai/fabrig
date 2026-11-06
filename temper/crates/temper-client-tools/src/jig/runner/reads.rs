@@ -24,6 +24,7 @@ pub(crate) struct Reading {
     pub questions: BTreeMap<(u64, u64), Option<Box<c::Question>>>,
     pub question: Option<(u64, u64)>,
     pub person: Option<Box<c::PersonTask>>,
+    pub person_answerer: Option<u64>,
     pub proposals: BTreeMap<c::ProposalKey, Option<c::DocumentText>>,
     pub proposal: Option<c::ProposalKey>,
     pub met_inbox: Option<Printed>,
@@ -89,6 +90,7 @@ fn start_reading(
         questions: BTreeMap::new(),
         question: None,
         person: None,
+        person_answerer: None,
         proposals: BTreeMap::new(),
         proposal: None,
         met_inbox,
@@ -405,6 +407,7 @@ fn person_page(
         && person.task.task == number(&reading.called.call, 0).expect("task")
     {
         reading.person = Some(Box::new(person.clone()));
+        reading.person_answerer = render::person_answerer(document);
         complete(runner, client, env, reading, out);
     } else {
         let printed = render::read(

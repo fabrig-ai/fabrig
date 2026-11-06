@@ -1,8 +1,9 @@
-//! The pages a browser moves between (client/browser.md, 4.1, stories 2 to 4): back and forward between the chats
-//! and a chat, an address that names no page opens the inbox at `/`, Enter starts one chat where Shift+Enter breaks
-//! its line, and a panic shows the failure page.
+//! Only a browser shows Back and Forward, a replaced history entry, the composer's focus,
+//! a filter's address across a reload, and an address that's no page; the page's own bounds
+//! on the box's Me (client/browser.md, 4.6, item 11). Keys in a text area, a details dismissed by
+//! a press or Escape, the panic page, and where project rename returns focus stay here too.
 use skein_browser::boundary::Key;
-use skein_fake_person::{Find, Step as PersonStep, Target};
+use skein_fake_person::{Find, Step as PersonStep};
 use skein_fake_person_browser::{Harness, Outcome, Script, Step};
 use skein_ui::Role;
 use temper_client_browser_world::{ABSENT, FIRST_CHAT, FIRST_CHAT_ADDRESS, Tier, WITHIN, first_chat};
@@ -73,7 +74,7 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
         Step::Forward,
         see(first_chat(words)),
     ]);
-    steps.extend(change_and_close_steps(&tier));
+    steps.extend(reload_chats(&tier));
     steps.extend([
         press(Role::Link, FIRST_CHAT),
         see(first_chat(words)),
@@ -93,7 +94,6 @@ fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
         Step::Address(b"/chats/new".as_slice().into()),
         press(Role::Link, b"Chats"),
         press(Role::Button, b"Closed"),
-        see(Find::exactly_named(Role::Link, FIRST_CHAT)),
         Step::Address(b"/chats?state=closed".as_slice().into()),
         Step::Person(PersonStep::Reload),
         see(Find::exactly_named(Role::Button, b"Closed")),
@@ -134,64 +134,27 @@ fn byline_steps() -> Vec<Step> {
     ]
 }
 
-// client/README.md, 5.7: the same change card changes from Running to Landed in the chat.
-fn change_and_close_steps(tier: &Tier) -> Vec<Step> {
+fn reload_chats(tier: &Tier) -> Vec<Step> {
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
-    let press = |role, name: &[u8]| Step::Person(PersonStep::Press { find: Find::exactly_named(role, name) });
-    let card = |find: Find| {
-        find.within(Box::new([Target::ExactRole { role: Role::Region, name: b"Task 2".as_slice().into() }]))
-    };
-    let mut steps = vec![
-        see(card(Find::exactly_named(Role::Paragraph, b"Change"))),
-        see(card(Find::exactly_named(Role::Heading { level: 3 }, b"Export widget's table as CSV"))),
-        see(card(Find::exactly_named(Role::Status, b"Running"))),
-        see(card(Find::exactly_named(Role::Link, b"Task 2"))),
-        see(card(
-            Find::text(b"Open")
-                .within(Box::new([Target::ExactRole { role: Role::Link, name: b"Task 2".as_slice().into() }])),
-        )),
-        // Meta and progress steps stay in the terminal; Chromium reads one tool line.
-        Step::Person(PersonStep::Gone { find: card(Find::exactly_named(Role::List, b"Steps")), within: ABSENT }),
-    ];
-    steps.extend(super::browser_task_pages::plan_and_agent_steps(tier));
-    steps.extend([
-        press(Role::Link, FIRST_CHAT),
-        see(first_chat(b"Add CSV export to widget")),
-        Step::Address(FIRST_CHAT_ADDRESS.into()),
-        playground_landed(card(Find::exactly_named(Role::Status, b"Landed"))),
-        see(card(Find::text("CI passed. Landed · merge commit ".as_bytes()))),
-        press(Role::Button, b"Close"),
-        see(Find::exactly_named(Role::Dialog, b"Close this chat?")),
-        press(Role::Button, b"Close chat"),
-        see(Find::named(Role::Status, b"Closed")),
-        Step::Person(PersonStep::Gone { find: Find::exactly_named(Role::TextArea, b"Message"), within: ABSENT }),
-        press(Role::Link, b"Chats"),
-        see(Find::named(Role::Heading { level: 1 }, b"Talk to an agent")),
-        press(Role::Button, b"Closed"),
-        see(Find::exactly_named(Role::Link, FIRST_CHAT)),
-        see(Find::exactly_named(Role::Status, b"Closed")
-            .within(Box::new([Target::ExactRole { role: Role::List, name: b"Your chats".as_slice().into() }]))),
-        see(Find::exactly_named(Role::Paragraph, b"Add CSV export to widget")),
-        Step::Address(b"/chats?state=closed".as_slice().into()),
-    ]);
-    steps
-}
-
-// The native story owns the completion allowance for this same scripted change.
-fn playground_landed(find: Find) -> Step {
-    let within = temper_playground_world::stories::a()
-        .into_iter()
-        .find_map(|step| {
-            if let PersonStep::See { find, within } = step
-                && find == Find::exactly_named(Role::Status, b"Landed")
-            {
-                Some(within)
-            } else {
-                None
-            }
-        })
-        .expect("the playground story observes its landed change");
-    Step::Person(PersonStep::See { find, within })
+    let heading = |level, name: &[u8]| Find::exactly_named(Role::Heading { level }, name);
+    let behind = || Find::exactly_named(Role::Status, b"Behind");
+    let chat = || Find::exactly_named(Role::Link, FIRST_CHAT);
+    vec![
+        // The playground's project made, the link stays up across a reload: the page's own
+        // client bounds receive the box's Me (temper/docs/design/client/README.md, 2).
+        Step::Person(PersonStep::Go { address: b"/chats".as_slice().into() }),
+        see(heading(1, b"Talk to an agent about playground/widget.")),
+        see(tier.states().live),
+        temper_client_browser_world::connected(),
+        Step::Person(PersonStep::Gone { find: behind(), within: ABSENT }),
+        see(chat()),
+        Step::Person(PersonStep::Reload),
+        see(heading(1, b"Talk to an agent about playground/widget.")),
+        see(tier.states().live),
+        temper_client_browser_world::connected(),
+        Step::Person(PersonStep::Gone { find: behind(), within: ABSENT }),
+        see(chat()),
+    ]
 }
 
 #[test]
@@ -275,6 +238,7 @@ impl skein_fake_person_browser::Play for Together<'_> {
         }
     }
 }
+/// Scrolling with the browser's keys, and the view staying put.
 #[test]
 fn latest_returns_a_chat_to_its_end_after_new_words_while_reading_back() {
     const MESSAGES: u32 = 6;

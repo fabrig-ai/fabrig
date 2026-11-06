@@ -1,6 +1,7 @@
 //! Catalogue decoding owns no account selection (contract.md, 5.1 and 7.1).
 use super::accounts::{charge, checked_manage_usage, piece_count};
 use super::{Limits, List, Reader, c, piece_problem, too_large, w};
+use skein_lib::length::len_u64;
 
 pub(super) fn offers(bytes: &[u8], limits: &Limits, room: &mut u64) -> Result<List<c::ProviderOffer>, w::Problem> {
     let count = piece_count(bytes)?;
@@ -20,17 +21,17 @@ pub(super) fn offers(bytes: &[u8], limits: &Limits, room: &mut u64) -> Result<Li
             return Err(too_large());
         }
         charge(room, List::<c::Text>::price(value.programs().len()))?;
-        charge(room, Some(u64::try_from(value.name().bytes().len()).or(Err(too_large()))?))?;
+        charge(room, Some(len_u64(value.name().bytes().len())))?;
         let mut programs = List::with_capacity(value.programs().len());
         for name in value.programs() {
-            charge(room, Some(u64::try_from(name.len()).or(Err(too_large()))?))?;
+            charge(room, Some(len_u64(name.len())))?;
             programs
                 .push(c::Text::new(name.clone(), limits.receiving().provider_offer_programs_item).or(Err(too_large()))?)
                 .or(Err(too_large()))?;
         }
         let address = checked_manage_usage(value.manage_usage().as_deref(), w::Path::ProviderOfferManageUsage)?;
         if let Some(address) = &address {
-            charge(room, Some(u64::try_from(address.len()).or(Err(too_large()))?))?;
+            charge(room, Some(len_u64(address.len())))?;
         }
         for old in &rows {
             if old.provider == value.provider() {

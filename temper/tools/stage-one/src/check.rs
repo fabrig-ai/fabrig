@@ -353,6 +353,10 @@ fn compare(test: Test, found: &Value, expected: &Value) -> bool {
             (Some(f), Some(e)) => f & e == e,
             _ => false,
         },
+        Test::Lacks => match (found.as_u64(), expected.as_u64()) {
+            (Some(f), Some(e)) => f & e == 0,
+            _ => false,
+        },
         Test::Contains => match (found.as_array(), expected.as_array()) {
             (Some(f), Some(e)) => e.iter().all(|v| f.iter().any(|item| holds(item, v))),
             _ => false,
@@ -422,7 +426,7 @@ fn setting_outcome(
         Test::Judged => {
             return if found.as_str().is_some_and(|s| !s.is_empty()) { Outcome::Judged } else { Outcome::Missing };
         }
-        Test::Equal | Test::AtLeast | Test::Bits | Test::Contains | Test::Unchanged | Test::Only => {}
+        Test::Equal | Test::AtLeast | Test::Bits | Test::Lacks | Test::Contains | Test::Unchanged | Test::Only => {}
     }
     let Some(mut expected) = expected(setting, golden, profile) else { return Outcome::Missing };
     if substitute(&mut expected, golden, evidence, keys).is_none() {

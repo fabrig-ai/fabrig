@@ -1,6 +1,6 @@
 use jig_accounts_world::{ANALYST, World};
 use jig_domain_accounts::{Event, Failure, Form, FromComponent, Place, Request, Scheme, ToComponent, Unread};
-use skein_lib::{Duration, Rng};
+use skein_lib::{Duration, Rng, length::len_u64};
 fn respond(world: &mut World, rng: &mut Rng, requests: Vec<Request>, trace: &mut Vec<Request>) {
     for request in &requests {
         let response = match *request {
@@ -98,9 +98,7 @@ fn changes(seed: u64) -> Vec<Request> {
     let mut trace = world.step(Event::Want);
     for request in 0..160_u64 {
         let views = world.views();
-        let chosen = views.get(
-            usize::try_from(rng.below(u64::try_from(views.len().max(1)).expect("tiny views"))).expect("tiny index"),
-        );
+        let chosen = views.get(usize::try_from(rng.below(len_u64(views.len().max(1)))).expect("tiny index"));
         let account = chosen.map_or(u32::MAX, |view| view.account);
         let source = chosen.map_or(u32::MAX, |view| view.source);
         let choice = rng.below(15);

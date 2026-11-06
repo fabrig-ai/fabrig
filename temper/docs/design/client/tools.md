@@ -794,7 +794,12 @@ The table grows area by area, each with its stories (section 11).
 
    `task show TASK` joins a person task's document to its generic task:
    its question, result contract, choice codes and bounds, person revision,
-   holder, and each offered act with its admission. The inbox's person-task
+   holder, and each offered act with its admission. Its holder prints as
+   `taken by: PARTY`, or `taken by: none`. Once an answer has ended the
+   task, `answered by: PARTY` takes that line's place, from the retained
+   result's `chosen_by`. A closing person task with no holder prints
+   neither: its live document does not say who answered. `--json` keeps
+   `taken_by` as jig gives it. The inbox's person-task
    line prints `read: task show TASK`. Role-addressed work offers
    `task take TASK` and `task hand-back TASK`; it must be taken before an
    answer. These commands and person answers are optionally keyed.
@@ -921,7 +926,7 @@ The table grows area by area, each with its stories (section 11).
      ACCOUNT as `account list` shows it.
    - **The task's model** is chosen with this area: `chat start` and area
      2's `goal start` take `--model MODEL [--effort EFFORT]`, the task's
-     LLM choice, the template's choice or the charter's default without them (jig's
+     LLM choice, the template's choice or what each run's check takes without them (jig's
      `domain/tasks.md`, section 3), and area 2's `task amend` changes it.
      Both take `--sub-agent MODEL[:EFFORT]` too, repeatable, each one of
      the choice's sub-agents in the order given (jig's
@@ -956,7 +961,7 @@ The table grows area by area, each with its stories (section 11).
    - **The file's versions** (`../draft/upgrades.md`, 4.2 to 4.4): it
      carries two families, each with its version, a version naming one
      layout: jig's moved form (form 1) and, inside it, skein's
-     OAuth record (its `RECORD_VERSION`). It holds one value, not a
+     OAuth record (its record version). It holds one value, not a
      store, so no store's levels; the nesting fixes a patch's order,
      the form's patches first, then skein's on the record inside it.
      `account export` writes the form the engine's jig makes. A newer
@@ -1213,6 +1218,12 @@ digest: task 7c1e09a2b44f0d13
   Its tracking is `priority P` while it is tracked, and `untracked`
   otherwise. A change delegate, ended: `task 2 · change · Ended ·
   project 1 · untracked`.
+- **`waiting on:`** prints jig's word for what the task waits on (jig's
+  `client/domain/client.md`, 19), or the party and what it must answer. A
+  held task that awaits nothing else prints its hold, where `Nothing
+  awaited` would read as if nothing were wrong; one a party or a delegate
+  also keeps prints those. The hold prints as `held` alone. `--json`
+  keeps `waits_on` as jig gives it.
 - **The deadline** has its date and its zone: `deadline 2026-10-24
   17:00 UTC`, or `no deadline`.
 - **Its instructions,** when the document carries them, on a line of
@@ -1377,7 +1388,7 @@ may change with them.
 | Status | Meaning | Prints |
 |---|---|---|
 | 0 | a read answered, an act done or proposed, a wait's condition met | the result |
-| 1 | the call failed: usage, the directory refused, its store unreadable (5.6), or busy past the lock's wait (8.3), the engine's address not on loopback, the engine unreachable or the link down past its deadline, signed out, a request past the client's limits, a name the client holds already (`Held`, section 7), unknown past the retention, not kept (DIRECTORY's store not written); the client's own answers alike, a read past its limits among them; a wait's watch ended by the sign-in's end | one line on stderr, `temper ctl: ...` |
+| 1 | the call failed: usage, the directory refused, its store unreadable (5.6), or busy past the lock's wait (8.3), the engine's address not on loopback, nothing listening at the engine's address, the engine unreachable or the link down past its deadline, signed out, a request past the client's limits, a name the client holds already (`Held`, section 7), unknown past the retention, not kept (DIRECTORY's store not written); the client's own answers alike, a read past its limits among them; a wait's watch ended by the sign-in's end | one line on stderr, `temper ctl: ...` |
 | 2 | refused by the engine, and only by it: a key conflict among them (section 7); a wait's subject no longer visible to the party | jig's refusal, typed in JSON, in words in text; the act's alternatives where the refusal names them (read again, propose instead) |
 | 3 | a wait's timeout, or its subject's watch ended, its condition not met | the current document, or the last, and its digest |
 | 128 + N | ended by signal N, `SIGINT` or `SIGTERM`: 130 or 143 (8.2) | nothing more |
@@ -1415,6 +1426,15 @@ may change with them.
   signal's number, never 0 (8.2).
 - **A call whose link stays down** past its deadline exits 1, and what
   it sent stays in the small store, for the next call that sends (8.2).
+- **Nothing listening says so at once.** A call whose connection to the
+  engine's address is refused, before the engine has answered anything in
+  this call, exits 1 then, with no deadline waited out: `temper ctl:
+  nothing listens at ADDRESS; is temper running?`. What it sent stays in
+  the small store, as above. The sign-in's call is such a call. Once this
+  call has heard the engine, a refused connection is the link down, and
+  its deadline holds, so that a wait outlives the engine's restart. An
+  engine that takes the connection and stays quiet takes the deadline too,
+  `the engine at ADDRESS did not answer within 30 s`.
 - **An account's move** (5.5, area 5) keeps the rule: 2 is the
   engine's refusal alone, "not signed in", "not ours", "held",
   "moving" and "cancelled"; FILE's faults are the tool's own, exit 1,

@@ -1169,6 +1169,9 @@ with a person in front of a tree, are view.md's, 18.10.
 
 ## 18. Open questions
 
+- **A run's wait on a summary row** (19.1): a row holds no run wait, since
+  a task query carries no run's check per row, so a chat that can't start
+  says starting in a list, and its document alone says why. Default: so.
 - **Several clients of one party,** such as two tabs: whether pending
   requests should be shared between them, which they are not; and the
   party's room for watches on the engine (contract.md, 7.2), which they
@@ -1261,8 +1264,8 @@ with a person in front of a tree, are view.md's, 18.10.
     wall where the template has it given, so that no shape reads a
     clock; no wake policy, so the executor's own;
     the template's LLM choice, or the goal draft's where it names one,
-    by configured names (contract.md, 3.2), none being the charter's
-    default resolved at Create. Shapes copy configured intent, never
+    by configured names (contract.md, 3.2), none leaving it to each run's
+    check (`../../domain/accounts.md`, 4.3). Shapes copy configured intent, never
     `resolved_default`, the separate preview served in `me`;
     no parameters, inputs or dependencies; symbolic resources copied
     from the template for the engine to resolve;
@@ -1331,6 +1334,9 @@ with a person in front of a tree, are view.md's, 18.10.
   reference UI says them through skein-ui's phrasebook (view.md,
   section 7), and jig's check says a decision's facts in them, with the
   application's overrides (testing.md, 6.2).
+  `held` says what a held task waits on when it awaits nothing else:
+  `WaitsOn` names no hold, so a client that reads the task's hold chooses
+  the word, and no `WaitsOn` maps to it.
 - **What jig adopts.** Sugar starts in an application. jig adopts it
   when a second consumer uses it, or early when it is hard to interpret
   consistently (what "waiting for you" means, how committed turns and

@@ -1093,6 +1093,9 @@ Each within skein's suites' budgets (testing-strategy.md, section 8).
   (browser.md, section 7); and writes the accessibility snapshot, a
   screenshot, and Chromium's and the binary's stderr's tails on a
   failure (browser.md, section 10).
+  **Its run ends at forty seconds,** io's close window inside them, on
+  which every test stands; a program that is no test, with bounds of its
+  own on each step, may set another horizon on the harness.
   **Its persons' downloads** go to a directory the test names in its
   setup, or are refused when it names none (browser.md, section 5). The
   face keeps each person's `Downloaded` in order, its suggested name and
@@ -1275,6 +1278,9 @@ the application that needs it.
   field's words as it takes the focus. Each waits for an application that
   needs it; temper's rename draws without them
   (`temper/docs/design/client/README.md`, 11).
+- **A log's head near** (ui.md, section 18): the page part says when a
+  person has left a log's end (section 7), and nothing when its head nears
+  the view.
 - **The vocabulary that waits** (ui.md, 4.2), each with its row in
   section 6 when the light path brings it.
 - **Tabs of one person sharing one stream,** so that many tabs hold one

@@ -9,7 +9,7 @@ use core::mem::{size_of, size_of_val};
 use jig_domain_notes as notes;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{List, Wall};
+use skein_lib::{List, Wall, length::len_u64};
 
 /// Which inbox group the page selects.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -563,16 +563,15 @@ pub(crate) fn record_bytes(value: &Record) -> Option<u64> {
     let carrier = u64::try_from(size_of::<Record>()).ok()?;
     let owned = match value {
         Record::Tasks(value) => tasks::stored_bytes(value)?,
-        Record::Core(CoreRecord::Turn(value)) => u64::try_from(value.transcript.len()).ok()?,
+        Record::Core(CoreRecord::Turn(value)) => len_u64(value.transcript.len()),
         Record::Core(CoreRecord::Terminal(value)) => tasks::terminal_bytes(&value.end)?,
         Record::Core(CoreRecord::EscalationDecision(value)) => match &value.decision {
-            jig_domain_people::EscalationDecision::Reject { reason } => u64::try_from(reason.len()).ok()?,
+            jig_domain_people::EscalationDecision::Reject { reason } => len_u64(reason.len()),
             jig_domain_people::EscalationDecision::Release | jig_domain_people::EscalationDecision::Pass => 0,
         },
         Record::Core(CoreRecord::ProposalDecision(_)) => 0,
-        Record::Notes(notes::Record::Entry(entry)) => u64::try_from(entry.body.len())
-            .ok()?
-            .checked_add(u64::try_from(entry.description.len()).ok()?)?
+        Record::Notes(notes::Record::Entry(entry)) => len_u64(entry.body.len())
+            .checked_add(len_u64(entry.description.len()))?
             .checked_add(List::<u64>::price(entry.references.len())?)?
             .checked_add(match &entry.scope {
                 notes::Scope::Deployment | notes::Scope::Project { .. } | notes::Scope::Goal { .. } => 0,
@@ -580,10 +579,10 @@ pub(crate) fn record_bytes(value: &Record) -> Option<u64> {
                     let mut total = u64::try_from(size_of_val(pattern)).ok()?;
                     total = total.checked_add(u64::try_from(size_of_val(pattern.segments.as_ref())).ok()?)?;
                     total = total.checked_add(match &pattern.last {
-                        notes::Last::Exact(bytes) | notes::Last::Open(bytes) => u64::try_from(bytes.len()).ok()?,
+                        notes::Last::Exact(bytes) | notes::Last::Open(bytes) => len_u64(bytes.len()),
                     })?;
                     for segment in &pattern.segments {
-                        total = total.checked_add(u64::try_from(segment.len()).ok()?)?;
+                        total = total.checked_add(len_u64(segment.len()))?;
                     }
                     total
                 }

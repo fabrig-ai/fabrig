@@ -5,7 +5,7 @@ use jig_domain_core::{self as core, reads};
 use jig_domain_notes as notes;
 use jig_domain_tasks as tasks;
 use skein_kv::Range;
-use skein_lib::List;
+use skein_lib::{List, length::len_u64};
 
 fn activity_position(range: &reads::Range, task: u64) -> Result<Option<u64>, Failure> {
     match &range.after {
@@ -95,10 +95,7 @@ pub(super) fn activity(
             }
             continue;
         };
-        let size = u64::try_from(item.row.key.len())
-            .or(Err(Failure::Corrupt))?
-            .checked_add(u64::try_from(item.row.value.len()).or(Err(Failure::Corrupt))?)
-            .ok_or(Failure::Corrupt)?;
+        let size = len_u64(item.row.key.len()).checked_add(len_u64(item.row.value.len())).ok_or(Failure::Corrupt)?;
         encoded = encoded.checked_add(size).ok_or(Failure::Corrupt)?;
         if encoded > u64::from(store.limits.store.page.bytes) {
             more = true;

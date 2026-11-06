@@ -372,6 +372,7 @@ pub struct DelegateSpend {
 }
 
 /// Current task and effect standing, independent of the wake trigger.
+#[expect(clippy::struct_excessive_bools, reason = "independent task and effect standing")]
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Heard {
     /// The head its live producing delegate conflicted on, until that delegate ends.
@@ -383,6 +384,8 @@ pub struct Heard {
     /// Its delegate has a claimed or running attempt, or is closing: it finishes
     /// as a run does (temper/docs/design/domain/forge.md, 8.4).
     pub delegate_running: bool,
+    /// The change's producer, repair, resolution or merge job is a live task (domain/forge.md, 8.4).
+    pub delegate_live: bool,
     pub effect: EffectResult,
     pub released: bool,
     pub cancelled: bool,

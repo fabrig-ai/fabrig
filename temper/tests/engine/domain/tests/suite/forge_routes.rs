@@ -72,6 +72,7 @@ mod producer_failure;
 #[path = "forge_routes/repair_cancel.rs"]
 mod repair_cancel;
 mod repair_green;
+mod stall_hold;
 
 #[path = "forge_routes/result.rs"]
 mod result;
@@ -3711,3 +3712,6 @@ fn assert_named_call_writer_oracle(world: &World) {
 
 #[path = "forge_routes/decided.rs"]
 mod decided;
+
+#[path = "forge_routes/live_delegate.rs"]
+mod live_delegate;

@@ -1,3 +1,4 @@
+use skein_lib::bytes::concat;
 fn copies(ids: &[&[u8]]) -> Box<[Box<[u8]>]> {
     let mut out = List::with_capacity(u32::try_from(ids.len()).expect("fixture length"));
     for id in ids {
@@ -65,7 +66,7 @@ fn authorize(issuer: &mut Issuer) -> Option<Request> {
     authorization(issuer, b"http://127.0.0.1:1234/callback", b"")
 }
 fn authorization(issuer: &mut Issuer, redirect: &[u8], extra: &[u8]) -> Option<Request> {
-    let url = joined(&[
+    let url = concat(&[
         b"https://issuer.example/authorize?response_type=code&client_id=client&redirect_uri=",
         redirect,
         b"&state=0123456789abcdef",
@@ -187,7 +188,7 @@ fn a_varying_port_redirect_is_held_for_its_exchange() {
             panic!("redirect")
         };
         assert_eq!(uri.as_ref(), bound);
-        let body = joined(&[
+        let body = concat(&[
             b"grant_type=authorization_code&client_id=client&client_secret=secret&code=",
             code.expose(),
             b"&redirect_uri=",
@@ -274,18 +275,6 @@ fn is_refused(answer: Option<Request>) -> bool {
     }
 }
 
-fn joined(parts: &[&[u8]]) -> Box<[u8]> {
-    let mut size = 0_usize;
-    for part in parts {
-        size = size.checked_add(part.len()).expect("fixture fits");
-    }
-    let mut out = Writer::new(size);
-    for part in parts {
-        out.put(part).expect("measured");
-    }
-    out.finish()
-}
-
 use skein_lib::base64::{Alphabet, decode};
 use skein_lib::bytes::{find, find_from};
 use skein_tls::verify_rs256;
@@ -326,7 +315,7 @@ fn exchange(issuer: &mut Issuer) -> Box<[u8]> {
     exchange_code(issuer, code.expose())
 }
 fn exchange_code(issuer: &mut Issuer, code: &[u8]) -> Box<[u8]> {
-    let body = joined(&[b"grant_type=authorization_code&client_id=client&client_secret=secret&redirect_uri=http://127.0.0.1:1234/callback&code=", code]);
+    let body = concat(&[b"grant_type=authorization_code&client_id=client&client_secret=secret&redirect_uri=http://127.0.0.1:1234/callback&code=", code]);
     let Some(Request::Http(answer)) = step(
         issuer,
         Event::Post {

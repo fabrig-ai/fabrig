@@ -2188,6 +2188,24 @@ fn change_delegate_status(kind: &tasks::MessageKind) -> Option<(forge_change::St
     }
 }
 
+// A delegate's task, including between attempts, suspends its change's stall (domain/forge.md, 8.4).
+fn change_delegate_live(domain: &Domain, task: u64) -> bool {
+    let Some(row) = domain.forge.change(task) else { return false };
+    let Some((child, kind)) = row.delegate else { return false };
+    match kind {
+        forge_change::Delegate::Gate { .. } => return false,
+        forge_change::Delegate::Produce
+        | forge_change::Delegate::Repair(_)
+        | forge_change::Delegate::Resolve { .. }
+        | forge_change::Delegate::Merge { .. } => {}
+    }
+    let Some(child) = domain.core.tasks.task(child) else { return false };
+    match &child.phase {
+        tasks::Phase::Ended(_) => false,
+        tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } | tasks::Phase::Waiting => true,
+    }
+}
+
 // A task between attempts is not a run in progress (temper/docs/design/domain/forge.md, 8.4).
 fn change_delegate_running(domain: &Domain, task: u64) -> bool {
     let Some(row) = domain.forge.change(task) else { return false };
@@ -2454,6 +2472,7 @@ fn change_step(
             spend: change_spend(domain, task),
             delegate: forge_change::Status::Unknown,
             delegate_running: change_delegate_running(domain, task),
+            delegate_live: change_delegate_live(domain, task),
             effect: forge_change::EffectResult::None,
             // A held read is no release, even if a past release remains the task's due reason.
             // The forge consumes a person's release before starting asynchronous reads.
@@ -4297,7 +4316,16 @@ fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: fo
     let (connector, code, step) = match domain.core.tasks.procedure_due(task) {
         Some(due) if due.0 == domain.config.forge_connector && due.1 == CHANGE_CODE => due,
         Some(_) | None => {
-            if let forge_change::Decision::Delegate(kind) = choice {
+            if let forge_change::Decision::Hold(why) = choice {
+                // The row's hold reaches its task even after another step has parked it.
+                match hold_change_decision(domain, env, task, why).end {
+                    StepEnd::Hold(why) => domain.work.push(Work::Tasks(tasks::Event::Hold { task, why })),
+                    StepEnd::HoldFrom { why, source } => {
+                        domain.work.push(Work::Tasks(tasks::Event::HoldFrom { task, why, source }));
+                    }
+                    StepEnd::Result(_) | StepEnd::Wait => unreachable!("a change hold decides a task hold"),
+                }
+            } else if let forge_change::Decision::Delegate(kind) = choice {
                 domain.work.push(Work::Forge(forge::Event::DelegateAdmissionRefused { task, kind }));
             }
             return;

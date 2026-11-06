@@ -7,7 +7,7 @@ use super::stages::{clocks, done, next_deadline, work_pending};
 use super::down::{component_down, domain_down};
 use super::routing::io_down;
 use super::up::{component_up, io_up, lower_events};
-use super::{COMPONENT_OWNER_BIT, Config, ConfigError, Failure, USAGE_OWNER, credential, effects_valid, teardown};
+use super::{COMPONENT_TAG, Config, ConfigError, Failure, USAGE_OWNER, credential, effects_valid, teardown};
 use alloc::boxed::Box;
 use skein_io::{self as io, kernel};
 use skein_lib::{Id, Map, Queue, Time, Token, Wall};
@@ -198,8 +198,7 @@ impl Effects {
         {
             return true;
         }
-        owner.raw() & COMPONENT_OWNER_BIT != 0
-            && service.owners.get(Id::from_token(Token::new(owner.raw() & !COMPONENT_OWNER_BIT))).is_some()
+        owner.tag() == COMPONENT_TAG && service.owners.get(Id::from_token(Token::new(owner.untagged()))).is_some()
     }
 
     /// Open destinations retained while the common owner closes its other entities.
