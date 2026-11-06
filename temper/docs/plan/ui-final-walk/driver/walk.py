@@ -263,8 +263,13 @@ class Walk:
         self.snapshot(3,'changes-queue','Changes')
         # Landing can be held by a real setup fault; record it instead of hiding it.
         self.c.wait('Record the local hello status change',120)
+        queued = 'main last moved' not in self.c.text()
+        if queued:
+            self.snapshot(3,'changes-queued-row','Changes','By page, Changes: no green time; live queued row.')
+        self.c.wait('main last moved',120)
         self.snapshot(3,'changes-landed','Changes')
-        self.gallery(3,'changes-queued-row','changes-one','The local change landed before Queue could be observed nonempty; gallery shows a queued row.')
+        if not queued:
+            self.gallery(3,'changes-queued-row','changes-one','The local change landed before Queue could be observed nonempty; gallery shows a queued row.')
         self.nav('Home');self.mock_nav('Home')
         if any(x['name']=='Skip' for x in self.c.controls()): self.c.click('Skip','button')
         self.snapshot(3,'home-after-change','Home','D2; By page, Home: brief waits for a new sitting.')
@@ -381,8 +386,14 @@ class Walk:
         self.box.login_ctl()
         notes = self.box.ctl('task', 'notes', '1', '--project', '1', '--json')
         (self.out / f'working-notes-{self.width}.json').write_text(notes)
+        pages = [json.loads(notes)]
+        while pages[-1].get('after'):
+            pages.append(json.loads(self.box.ctl('task', 'notes', '1', '--project', '1', '--after', pages[-1]['after'], '--json')))
+        (self.out / f'working-notes-all-{self.width}.json').write_text(json.dumps(pages, indent=2))
+        self.m.click('Draft', 'button')
         self.snapshot(4, 'document-after-working-notes', 'Draft', 'W7 fixed: reopened document follows five lower-numbered work: notes, across a page boundary.')
         self.c.click('Chat', 'button')
+        self.m.click('Chat', 'button')
 
     def gallery(self, step, state, name, why):
         old=self.c

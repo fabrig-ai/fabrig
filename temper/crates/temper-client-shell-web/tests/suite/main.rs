@@ -29,9 +29,8 @@ fn phone_session_hides_the_keyboard_hint() {
 #[test]
 fn programmatic_page_targets_do_not_draw_control_focus_rings() {
     let css = include_str!("../../temper.css");
-    let (_, rule) = css
-        .split_once("#app :is(main, h1)[tabindex=\"-1\"]:focus {")
-        .expect("page focus targets have their own rule");
+    let (_, rule) =
+        css.split_once("#app :is(main, h1)[tabindex=\"-1\"]:focus {").expect("page focus targets have their own rule");
     let (rule, _) = rule.split_once('}').expect("focus declarations");
     assert!(rule.contains("outline: none;"), "page focus target: {rule}");
 }

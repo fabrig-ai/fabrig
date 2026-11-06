@@ -110,3 +110,16 @@ exported variables does not prove the displayed command.
 - The full small engine profile; only its client limits ran, as described above. There was no synthetic saturation traffic to force all four ordinary exchanges to stay occupied.
 - Other platforms, a failed download, digest corruption and concurrent fetches. Only the real Linux x64 pin and one subsequent reuse were exercised here.
 - Copying from a public host. The real Forgejo made the requested empty repository; no external repository was contacted.
+
+## Fixed-tip walk disposition, 2026-11-06
+
+The full fake-box walk ran on `debian-32gb-hel1-11`, under
+`~/src/fabrig/ui-final-walk/walk-again/`. R1 remains `large, moved`; the browser
+command is still the short command with no deployment-directory facts. No row
+claims a repair. The requirement above is to repeat the real fetch **after
+that repair**, so this task did not download it again. The successful pinned
+fetch with exported variables and the seven non-fake Sign outs remain the
+2026-11-05 observations, not new results at this tip. Their limits and R1 are
+carried into `report.md` in its own real-checks section. The fake walk also
+signed out, reloaded and signed back in at both widths, without replacing the
+non-fake evidence.
