@@ -223,6 +223,12 @@ impl Builder {
         assert!([Role::List, Role::Table, Role::Tree].contains(&self.node().role), "counts belong to collections");
         self.node_mut().count = Some(count);
     }
+
+    /// Number a list's items, the first one `first` (ui.md, 3.2).
+    pub fn ordered(&mut self, first: u32) {
+        assert!(self.node().role == Role::List, "orders belong to lists");
+        self.node_mut().ordered = Some(first);
+    }
     /// Place an item in its whole collection, starting at one.
     pub fn position(&mut self, position: u32) {
         assert!(
