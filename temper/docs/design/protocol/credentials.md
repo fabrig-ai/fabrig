@@ -398,7 +398,9 @@ sources in its holder's order. temper configures the LLM providers
 - **`temper program-login [DIRECTORIES] NAME`:**
   - `NAME` is a program source's name, 1 to 32 of `a` to `z`, `0` to `9`
     and `-` (jig's `domain/accounts.md`, 3.4), as the accounts page and
-    `temper ctl account declare` give it with this command. The tools'
+    `temper ctl account declare` give it with this command, the accounts
+    page as the box's whole command (`../client/README.md`, 4.6, *The
+    printed command*). The tools'
     printed act is `temper program-login --config CONFIG --data DATA
     --cache CACHE NAME`: CONFIG, DATA and CACHE stand for that box's
     directories; ctl reads no box configuration. Skip the command where

@@ -627,7 +627,9 @@ served is held, kept and unsent, for its owner's version (client.md,
   - *a task:* its header, overview, budget and authority; its fields
     (3.2): tracked and priority, label, flags, when it was made
     (`made`, its record's `created_at`), last activity, and what it
-    waits on; its LLM choice with the creator's optional account preference,
+    waits on; the LLM choice its next run takes, what it was given or,
+    given none, what its check would take now (`../../domain/accounts.md`,
+    4.3), with the creator's optional account preference,
     the separate account kept by the last successful claim, and its next-run
     account/source wait with the source's typed state and optional wall reset
     (unknown stays unknown), or a credential or host wait. `Task.run_wait`
@@ -1501,8 +1503,10 @@ What `../../domain/` owes this contract, each designed where named:
     says (`../../domain/accounts.md`, sections 3 to 5;
     `../../domain/people.md`, 5.1).
 19. **A task's LLM choice** (3.2): given at `Create`, changed by
-    `Amend` for the next run, its charter's default where it gives
-    none, within the authority's models; the models a party may choose
+    `Amend` for the next run, or, where it gives none, taken at each
+    run's check, the first of the charter's models it can use
+    (`../../domain/accounts.md`, 4.3), within the authority's models; the
+    models a party may choose
     in `me` (`../../domain/tasks.md`, sections 3, 4 and 7;
     `../../domain/authority.md`, section 3).
 

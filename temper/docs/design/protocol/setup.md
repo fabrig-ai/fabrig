@@ -2467,12 +2467,12 @@ override.
   forge's procedures start agents' work under (kind 3's number 1,
   configuration.md, 13.2);
   the templates `chat` and `goal`. A task with no model chosen takes the
-  first of its charter's models whose provider has an account serving
-  its payer (jig's `jig-domain-core` `llm.rs`), so in the playground,
+  first of its charter's models whose provider has an account usable for
+  its payer (jig's `domain/accounts.md`, 4.3), so in the playground,
   whose project's one account is the scripted one (8.4), a chat and the
   coding agent of the change it delegates both run on the scripted
-  model, with no pick. jig resolves that default once, at the task's
-  Create, and records it: a chat started before an account of a real
+  model, with no pick. jig takes it at each run's check until the task
+  keeps an account: a chat started before an account of a real
   provider stays on the model it took, and a chat started after takes
   the charter's first,
   `gpt-6.1-sol` once an OpenAI key serves it. The composer's line says

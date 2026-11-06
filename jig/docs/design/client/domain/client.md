@@ -1240,6 +1240,7 @@ with a person in front of a tree, are view.md's, 18.10.
     | Status | The chat is |
     |---|---|
     | starting | waiting to start, due, preparing or claimed; or its host preparing or starting its run |
+    | waiting for its run | due or preparing, and its run can't start yet: for an account, a credential or a host (19.1) |
     | writing | running, writing |
     | a tool | running a tool its host names: which, and since when |
     | working | running, neither writing nor in a tool its host names, or nothing reported yet; and since when |
@@ -1310,6 +1311,16 @@ one claimed or running reads its host's report. A summary row, which
 holds no run wait, passes none and is never refused. A refusal is not a
 reply. The reference view shows the refusal's observed host kind, time
 and cause; it promises no automatic source switch.
+
+A chat due or preparing whose run wait is any other is waiting for its
+run (`RunWaiting`, naming an account, a credential or a host), in the same
+place in the order: *starting* says a run is about to start, never that
+it can't. The exception is an account wait about to end by itself, the
+account `Refreshing` or its source `Asking` or `Granted`, which stays
+starting. A summary row, holding no run wait, says starting: the task's
+document says why. A run waiting for an account has replied, as far as a
+caller waiting for a reply goes, since nothing moves it but an act; one
+waiting for a credential or a host has not.
 
 ## 20. Modes
 
