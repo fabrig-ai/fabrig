@@ -1,0 +1,22 @@
+draft = "box-link-first"
+repo = "fabrig"
+sources = ["temper/docs/plan/box-link-first/inputs/request.md", "temper/docs/design/draft/box-link-first.md", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "jig-given-secret"
+title = "jig's sign-in component takes a given first secret"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/client.md, 8"
+
+[[slice]]
+id = 1
+story = "a secret given at start signs in as the first link, and the component says no Link for it"
+parts = ["jig-given-secret"]
+walk = false
