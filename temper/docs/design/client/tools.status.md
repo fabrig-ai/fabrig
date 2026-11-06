@@ -7,8 +7,6 @@ Unlisted sections have no known gap.
   (`temper-client-tools`' `render/document/llm.rs`, `wait_explanation`), and ctl has
   no such tool until area 3's is built (5.5), so that line names a command that
   isn't there yet.
-- **Not yet:** 5.3: a settings item's effort its model doesn't offer goes to the
-  engine, and no refusal names the effort.
 - **Not yet:** 5.5: area 2 cannot distinguish a refused creating offer's
   capacity cause from its role cause: jig's `me` carries absence alone
   (`jig/docs/design/client/domain/contract.md`, 5.3). Its diagnostic names
