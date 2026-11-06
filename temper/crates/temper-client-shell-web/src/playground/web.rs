@@ -182,6 +182,7 @@ impl Life {
             history: Rc::clone(&self.history),
             timer: (),
             title: title::web::Title::default(),
+            heading_focus: crate::focus::HeadingFocus::new(),
         });
         hidden(super::LOADING, true);
         hidden(super::APP, false);
