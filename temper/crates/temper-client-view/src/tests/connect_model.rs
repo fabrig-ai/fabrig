@@ -662,12 +662,17 @@ pub(super) fn assert_waiting(root: &d::Domain) {
                 root.pages().connect_model().unwrap().request.sign_in_address(root.client())
             );
         } else {
-            assert!(!nodes[note..disclosure].iter().any(|n| n.external.is_some()));
+            let link = nodes[note..disclosure]
+                .iter()
+                .find(|n| n.role == Role::Link && n.external.is_some())
+                .expect("the terminal offers the sign-in address");
+            assert_eq!(link.external.as_deref(), Some(b"https://issuer.example/visit".as_slice()));
             assert!(!text.contains("in the new tab"));
             let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
             skein_ui_text::render(tree, b"temper", None, &mut print);
             let text = String::from_utf8_lossy(print.text.as_slice());
             assert!(text.contains(title));
+            assert!(text.contains("Open the sign-in page <https://issuer.example/visit>"));
             assert!(text.contains("Signed in, but the page couldn’t be reached?"));
         }
     }

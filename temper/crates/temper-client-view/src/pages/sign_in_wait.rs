@@ -57,8 +57,11 @@ pub(super) fn waiting(
     b.close();
     if let Some(address) = form.sign_in_address(root.client()) {
         if skein_ui::markdown::safe_url(address) {
-            let label =
-                welcome_model::said(w, root, if refused { Word::WelcomePasteOpen } else { Word::WelcomeAwayAgain });
+            let label = if w.shell == Shell::Terminal {
+                words::say(w, W::OpenSignIn, &[])
+            } else {
+                welcome_model::said(w, root, if refused { Word::WelcomePasteOpen } else { Word::WelcomeAwayAgain })
+            };
             let bytes = skein_lib::len_u64(label.len()).saturating_add(skein_lib::len_u64(address.len()));
             if bytes > u64::from(text_per_node) {
                 crate::cards::text(
@@ -70,6 +73,11 @@ pub(super) fn waiting(
                 b.open(Role::Link);
                 b.style(if refused { look::FLOW_PRIMARY } else { look::WELCOME_AGAIN });
                 b.name(if refused { &label } else { label.strip_suffix(" ›".as_bytes()).unwrap_or(&label) });
+                b.text(Run::Plain, &label);
+                b.external(address);
+                b.close();
+            } else {
+                b.open(Role::Link);
                 b.text(Run::Plain, &label);
                 b.external(address);
                 b.close();
