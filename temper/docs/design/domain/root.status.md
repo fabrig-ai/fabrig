@@ -32,3 +32,4 @@
   `jig/docs/design/domain/engine.md`, 6 has a start judge no record and
   panic at a link it cannot make (the user, 10-28). Which holds is the
   user's, unanswered (that document's section 16).
+- **Not yet:** 10: the root has no `streams`, and `core_limits` gives the views 17 in all and 17 a party (`temper-engine-domain/src/limits.rs`, `VIEWS`).

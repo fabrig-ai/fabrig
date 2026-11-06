@@ -1,0 +1,35 @@
+draft = "watch-room"
+repo = "fabrig"
+sources = ["temper/docs/plan/watch-room/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "watch-story"
+title = "two open tabs and a fresh tools client: the story that fails today"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 7"
+
+[[part]]
+id = "link-told"
+title = "jig's link names a watch refused busy"
+mode = "direct"
+needs = []
+design = "jig/docs/design/client/domain/client.md, 8.2"
+
+[[slice]]
+id = 1
+story = "Two open tabs lock out a fresh tools client, and a test says so"
+parts = ["watch-story"]
+walk = false
+
+[[slice]]
+id = 2
+story = "A client whose watch is refused busy knows it"
+parts = ["link-told"]
+walk = false
