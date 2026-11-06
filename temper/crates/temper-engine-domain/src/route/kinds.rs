@@ -312,6 +312,7 @@ pub(super) fn read(
         Some(why) => crate::Delivery::Read { reply, answer: Answer::None(why) },
         None => {
             let answer = match query {
+                crate::ForgeRead::ProgramEnvironment => crate::ForgeReadAnswer::ProgramEnvironment,
                 crate::ForgeRead::Setting { kind, scope, number } => {
                     crate::ForgeReadAnswer::Setting(domain.forge.setting(kind, scope, number).cloned())
                 }
@@ -340,14 +341,21 @@ fn read_refusal(
         None => Some(if domain.core.people.ready() { Why::SignedOut } else { Why::Unknown }),
         Some(party) => {
             let permitted = match scope {
-                ApplicationScope::Deployment => domain.core.people.role(party, DEPLOYMENT).is_some(),
+                ApplicationScope::Deployment => match query {
+                    crate::ForgeRead::ProgramEnvironment => {
+                        domain.core.people.role(party, DEPLOYMENT) == Some(jig_domain_people::Role::Owner)
+                    }
+                    crate::ForgeRead::Setting { .. }
+                    | crate::ForgeRead::RevisionSetting { .. }
+                    | crate::ForgeRead::ProposalItems { .. } => domain.core.people.role(party, DEPLOYMENT).is_some(),
+                },
                 ApplicationScope::Project(project) => {
                     let own_kind = match query {
                         crate::ForgeRead::Setting { kind, scope, .. }
                         | crate::ForgeRead::RevisionSetting { kind, scope, .. } => {
                             (*kind == 2 || *kind == 6 || *kind == 7) && *scope == project
                         }
-                        crate::ForgeRead::ProposalItems { .. } => false,
+                        crate::ForgeRead::ProposalItems { .. } | crate::ForgeRead::ProgramEnvironment => false,
                     };
                     project != DEPLOYMENT && own_kind && domain.core.people.role(party, project).is_some()
                 }

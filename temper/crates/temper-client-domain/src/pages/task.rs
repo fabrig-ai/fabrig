@@ -407,7 +407,12 @@ impl Task {
                     self.asking.ask(self.activity, older, out);
                 }
             }
-            Act::Older => {}
+            Act::Newer if self.shape == Shape::Agent => {
+                if let Some(newer) = self.thread.newer() {
+                    self.asking.ask(self.activity, newer, out);
+                }
+            }
+            Act::Older | Act::Newer => {}
             Act::Latest
             | Act::FocusComposer
             | Act::Amend
@@ -593,6 +598,7 @@ impl Task {
             | Act::StartOver
             | Act::DelegateFate { .. }
             | Act::Older
+            | Act::Newer
             | Act::Latest
             | Act::ClosedChats
             | Act::MoreGoals
@@ -948,8 +954,12 @@ impl Task {
         if let Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(page))) = page {
             self.asking.answered();
             if self.shape == Shape::Agent {
+                let empty_with_more = page.rows.is_empty() && page.before.is_some();
                 if let Some(reading) = self.thread.page(*page) {
                     self.asking.ask(self.activity, reading, out);
+                }
+                if empty_with_more && let Some(older) = self.thread.older() {
+                    self.asking.ask(self.activity, older, out);
                 }
             } else {
                 self.latest = Some(page);

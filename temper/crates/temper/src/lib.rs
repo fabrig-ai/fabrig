@@ -414,6 +414,7 @@ fn prepare_with_store(
     prepare_with_limits(directories, bytes, owned, false, None, &service::stock::Given::Stock)
         .map(|(service, store, _)| (service, store))
 }
+#[expect(clippy::too_many_lines, reason = "startup passes the checked machine and its program environment together")]
 fn prepare_with_limits(
     directories: &Directories,
     bytes: &[u8],
@@ -491,6 +492,10 @@ fn prepare_with_limits(
         Some(&checked),
         if under_box { Some(limits.line_bytes) } else { None },
         given,
+        directories.program_environment(
+            &skein_shell::environment(),
+            std::env::current_dir().map_err(|why| why.to_string())?.as_os_str().as_bytes(),
+        ),
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     if workspace_reuse() {
