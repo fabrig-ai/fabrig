@@ -130,14 +130,14 @@ fn run_store(path: &Path, mut host: StoreHost) -> Result<Rows, String> {
     let mut kernel = match skein_shell::Kernel::open(skein_shell::Config { operations: host.operations() }) {
         Ok(kernel) => kernel,
         Err(why) => {
-            skein_shell::close_keeper_fd(root);
+            skein_shell::keeper::close_keeper_fd(root);
             return Err(format!("opening kernel: {why}"));
         }
     };
     host.request = Some(Request::Open { owner: OWNER, root });
     skein_shell::drive(&mut kernel, &skein_shell::Clock::new(), &mut host);
     // The KV borrows its root; Close settles its own files first.
-    skein_shell::close_keeper_fd(root);
+    skein_shell::keeper::close_keeper_fd(root);
     match host.error {
         Some(why) => Err(why),
         None => Ok(host.rows.into_boxed_slice()),

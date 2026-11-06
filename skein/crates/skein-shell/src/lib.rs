@@ -1,6 +1,7 @@
 //! The shell kit (shell.md): what a service's `main` runs its
-//! loop on (programming-model.md, section 2). Host and settings are portable;
-//! system access and the drive loop are native, under `cfg(unix)` (shell.md, 14).
+//! loop on (programming-model.md, section 2). The root holds a service's calls.
+//! Host and settings are portable; system access and the drive loop are native,
+//! under `cfg(unix)` (shell.md, 14).
 //!
 //! - [`Kernel`]: the ring or readiness backend of io's kernel records
 //!   (`skein_io::kernel`; shell.md, 3), opened once, then submitted to
@@ -32,6 +33,8 @@ mod darwin;
 mod drive;
 #[cfg(unix)]
 mod group;
+#[cfg(unix)]
+pub mod keeper;
 #[cfg(unix)]
 mod kernel;
 #[cfg(unix)]
@@ -73,19 +76,13 @@ pub use drive::{Delegate, Host};
 pub(crate) use linux as system;
 
 #[cfg(unix)]
-pub use group::{child_id, group_has_other_members, group_live, process_live, signal_group};
-#[cfg(unix)]
 pub use kernel::{Backend, Chosen, Config, Kernel, OpenError, Wait};
 #[cfg(unix)]
 pub use listeners::{
     ListenerCheck, ListenersRefusal, MAX_INHERITED_LISTENERS, inherited_listeners, listener_at, open_listener,
 };
 #[cfg(unix)]
-pub use process::{
-    HostedPipes, abandon_binary, close_keeper_fd, exec_dying_with_parent, hosted_pipes, open_child_pidfd,
-    open_signal_pipe, open_termination_signals, poll_child, signal_current_thread, signal_kept_child, start_binary,
-    write_service_signal,
-};
+pub use process::{close_startup_fd, exec_dying_with_parent, open_termination_signals};
 #[cfg(unix)]
 pub use seed::{crypto_seed, seed};
 pub use settings::{Base, Fallback, Origin, Reason, Refusal, Resolved, Setting, Settings, Value, help, resolve};
@@ -97,14 +94,6 @@ pub use startup::{
     Stored, Trust, Unread, Unstored, directory_access, effective_user, make_root, open_append, open_root,
     prepare_output, process_id, read_file, read_private_file, read_trust_roots, store_file,
 };
-#[cfg(unix)]
-pub use system::wait_readable;
 
 #[cfg(unix)]
 pub use terminal::{Input, Kept, Keys, Modes, Watch, open_signals, raw_input, resize_terminal, terminal_modes};
-
-#[cfg(all(unix, target_os = "linux"))]
-pub use process::{
-    make_subreaper, open_cgroup, open_pidfd, pidfd_exited, set_subreaper, start_binary_in_cgroup, subreaper,
-    wait_cgroup_change,
-};

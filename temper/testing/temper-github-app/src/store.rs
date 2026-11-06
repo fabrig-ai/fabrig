@@ -43,7 +43,7 @@ pub(super) fn run_with(
     let mut kernel = match skein_shell::Kernel::open(skein_shell::Config { operations: OPERATIONS }) {
         Ok(kernel) => kernel,
         Err(why) => {
-            skein_shell::close_keeper_fd(fd);
+            skein_shell::keeper::close_keeper_fd(fd);
             return Err(why.to_string());
         }
     };

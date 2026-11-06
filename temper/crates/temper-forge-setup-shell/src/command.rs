@@ -27,14 +27,14 @@ pub fn run_one(limits: &Limits, spec: &Spec) -> Result<Ran, Error> {
     let mut kernel = match Kernel::open(Config { operations }) {
         Ok(kernel) => kernel,
         Err(why) => {
-            skein_shell::close_keeper_fd(signals);
+            skein_shell::close_startup_fd(signals);
             return Err(Error::Kernel(why.to_string()));
         }
     };
     let root = match skein_shell::open_root(std::path::Path::new("/")) {
         Ok(root) => root,
         Err(n) => {
-            skein_shell::close_keeper_fd(signals);
+            skein_shell::close_startup_fd(signals);
             return Err(Error::Kernel(format!("root: errno {n}")));
         }
     };
@@ -71,7 +71,7 @@ pub fn run_one(limits: &Limits, spec: &Spec) -> Result<Ran, Error> {
         events: Queue::uncapped(),
     };
     skein_shell::drive(&mut kernel, &Clock::new(), &mut host);
-    skein_shell::close_keeper_fd(root);
+    skein_shell::close_startup_fd(root);
     if let Some(why) = host.failure {
         return Err(why);
     }

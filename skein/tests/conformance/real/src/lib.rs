@@ -149,7 +149,7 @@ impl ConformanceBackend for Real {
     fn wait_for_connection(&mut self, process: usize, listener: Fd, bound: Duration) {
         self.wait_begins("the conformance listener's queued connection", bound);
         let remaining = self.deadline.as_ref().expect("the listener wait began").remaining();
-        let readable = skein_shell::wait_readable(listener, remaining)
+        let readable = skein_shell::keeper::wait_readable(listener, remaining)
             .unwrap_or_else(|errno| panic!("polling listener {listener:?} of process {process} failed: errno {errno}"));
         if !readable {
             self.wait_unanswered();
@@ -315,7 +315,7 @@ impl OwnedKernel {
             self.reap(&mut completions);
             while completions.pop().is_some() {}
             for child in &self.children {
-                let _sent = skein_shell::signal_kept_child(*child, Signal::Kill, Target::Group);
+                let _sent = skein_shell::keeper::signal_kept_child(*child, Signal::Kill, Target::Group);
             }
             if self.flights.is_empty() {
                 break;
@@ -354,11 +354,11 @@ impl OwnedKernel {
             self.submit(&mut records, Wait::Until(until));
         }
         for child in &self.children {
-            skein_shell::abandon_binary(Some(*child), &[]);
+            skein_shell::keeper::abandon_binary(Some(*child), &[]);
         }
         self.children.clear();
         for descriptor in &self.descriptors {
-            skein_shell::close_keeper_fd(*descriptor);
+            skein_shell::keeper::close_keeper_fd(*descriptor);
         }
         self.descriptors.clear();
     }
