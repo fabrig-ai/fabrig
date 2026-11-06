@@ -2,7 +2,7 @@
 use jig_domain_core as core;
 use jig_protocol_store::{Event, Owner, PatchSet, PatchSets, Request, TranscriptRead, Write, codec};
 use jig_store_world::{World, patches, referee::Referee, root, world::Change};
-use skein_lib::Token;
+use skein_lib::{Token, length::len_u64};
 use std::collections::BTreeMap;
 
 const SEED: u64 = 719;
@@ -180,7 +180,7 @@ fn closing_pages_have_own_commits_before_the_seal() {
     let seal: Vec<_> = world.written().iter().filter(|(_, write)| contains(write, &header)).collect();
     assert_eq!(seal.len(), 1);
     assert!(closing.iter().all(|operation| *operation < seal[0].0));
-    let source_last = u64::try_from(patches::FRESH_WINDOWS.len()).expect("tasks") * COMMITS_PER_TASK;
+    let source_last = len_u64(patches::FRESH_WINDOWS.len()) * COMMITS_PER_TASK;
     assert_eq!(
         last,
         source_last + u64::try_from(CLOSING_PAGES).expect("page count") + SEAL_COMMITS,
@@ -262,8 +262,7 @@ fn patched_frame_charge_holds_at_bound_and_refuses_one_below() {
         &[],
         FRAME_KEY_BYTES + u32::try_from(patches::FRESH_REPLAY.len()).expect("replay size"),
     );
-    let size =
-        u64::try_from(jig_test_patches_jig::frames::body(6, &patched).len() + FRAMING_BYTES).expect("frame size");
+    let size = len_u64(jig_test_patches_jig::frames::body(6, &patched).len() + FRAMING_BYTES);
     for (bytes, expected) in [(size, 1), (size - 1, 0)] {
         let events = world.answered(Request::Transcript {
             owner: Token::new(719),

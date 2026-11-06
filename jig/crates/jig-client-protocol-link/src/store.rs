@@ -2,7 +2,7 @@
 use crate::{Fact, Limits, Link, Message, Record, Request, Saved, translate};
 use alloc::boxed::Box;
 use jig_client_protocol_wire::v19 as w;
-use skein_lib::{List, Queue, Reader, RequestKey, Token, Writer, bytes};
+use skein_lib::{List, Queue, Reader, RequestKey, Token, Writer, bytes, length::len_u64};
 #[derive(Debug)]
 struct Held {
     exchange: Token,
@@ -190,8 +190,7 @@ impl Link {
         for entry in kept.into_boxed() {
             let mut reader = Reader::new(&entry.bytes);
             let result = if (entry.key.len() != 16 && entry.key.as_ref() != crate::STREAM_KEY)
-                || u64::try_from(entry.bytes.len()).expect("bounded bytes fit u64")
-                    > self.limits.client().document_bytes
+                || len_u64(entry.bytes.len()) > self.limits.client().document_bytes
             {
                 Err(translate::too_large())
             } else {

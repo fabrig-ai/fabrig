@@ -1,6 +1,6 @@
 //! Front-neutral starting facts (jig/docs/design/client/domain/testing.md, 4–5).
 use crate::joint::engine::Driver;
-use skein_lib::{Time, Wall};
+use skein_lib::{Time, Wall, length::len_u64};
 
 /// Facts installed before admitting any clients. Each front owns their translation.
 #[derive(Clone, Debug)]
@@ -64,7 +64,7 @@ pub fn seed_core(driver: &mut Driver, now: Time, wall: Wall, seed: Seed) {
         Seed::TwoProjects { .. } => unreachable!("the front rebuilds its project configuration"),
         Seed::Conversation { party, project, words } => {
             let peers = driver.world.peers.as_ref().expect("ordinary core peers");
-            let number = u64::try_from(peers.parties.len()).expect("seed party count fits");
+            let number = len_u64(peers.parties.len());
             let mut key = [0; 16];
             key[..8].copy_from_slice(b"seedchat");
             key[8..].copy_from_slice(&number.to_be_bytes());

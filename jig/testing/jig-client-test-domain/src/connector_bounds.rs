@@ -4,21 +4,19 @@ use crate::connector_values::{ConnectorAnswer, ConnectorDocument};
 use alloc::boxed::Box;
 use core::mem::size_of;
 use jig_test_connector::{ClientDocument, ClientResource, OutboxEntry, Path};
-use skein_lib::List;
+use skein_lib::{List, length::len_u64};
 
 fn path_heap(path: &Path) -> Option<u64> {
-    let mut bytes = u64::try_from(path.segments().len())
-        .ok()?
+    let mut bytes = len_u64(path.segments().len())
         .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).expect("inline carrier size fits u64"))?;
     for segment in path.segments() {
-        bytes = bytes.checked_add(u64::try_from(segment.len()).ok()?)?;
+        bytes = bytes.checked_add(len_u64(segment.len()))?;
     }
     Some(bytes)
 }
 fn paths_heap(paths: &[Path]) -> Option<u64> {
-    let mut bytes = u64::try_from(paths.len())
-        .ok()?
-        .checked_mul(u64::try_from(size_of::<Path>()).expect("inline carrier size fits u64"))?;
+    let mut bytes =
+        len_u64(paths.len()).checked_mul(u64::try_from(size_of::<Path>()).expect("inline carrier size fits u64"))?;
     for path in paths {
         bytes = bytes.checked_add(path_heap(path)?)?;
     }
@@ -76,16 +74,12 @@ pub fn answer_bytes(_value: &ConnectorAnswer) -> u64 {
     u64::try_from(size_of::<ConnectorAnswer>()).expect("inline carrier size fits u64")
 }
 fn path_fits(path: &Path, bounds: &Bounds) -> bool {
-    let Ok(count) = u64::try_from(path.segments().len()) else {
-        return false;
-    };
+    let count = len_u64(path.segments().len());
     if count > u64::from(bounds.segments) {
         return false;
     }
     for segment in path.segments() {
-        let Ok(bytes) = u64::try_from(segment.len()) else {
-            return false;
-        };
+        let bytes = len_u64(segment.len());
         if bytes > u64::from(bounds.segment_bytes) {
             return false;
         }
@@ -93,9 +87,7 @@ fn path_fits(path: &Path, bounds: &Bounds) -> bool {
     true
 }
 fn paths_fit(paths: &[Path], bounds: &Bounds) -> bool {
-    let Ok(count) = u64::try_from(paths.len()) else {
-        return false;
-    };
+    let count = len_u64(paths.len());
     if count > u64::from(bounds.paths) {
         return false;
     }

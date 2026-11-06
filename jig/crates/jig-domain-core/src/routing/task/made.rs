@@ -8,7 +8,7 @@ use crate::{
 use alloc::boxed::Box;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{Env, Queue, ReplyTo};
+use skein_lib::{Env, Queue, ReplyTo, length::len_u64};
 
 pub(crate) fn made(
     core: &mut Core,
@@ -27,7 +27,7 @@ pub(crate) fn made(
             Some(count) => count.checked_add(1),
             None => None,
         };
-        assert_eq!(count, u64::try_from(tasks.len()).ok(), "batch numbers are consecutive");
+        assert_eq!(count, Some(len_u64(tasks.len())), "batch numbers are consecutive");
         let project = core.tasks.task(*proposer).expect("accepted proposer").project;
         out.push(Request::Write(Write::Save(Record::Core(CoreRecord::ProposalDecision(
             crate::ProposalDecisionRecord {

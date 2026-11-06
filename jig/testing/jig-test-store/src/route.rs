@@ -6,7 +6,7 @@ use jig_domain_core as core;
 use jig_domain_notes as notes;
 use jig_protocol_store::{self as store, Event, Request, Restore, Row};
 use jig_test_domain as root;
-use skein_lib::{List, Queue, Token};
+use skein_lib::{List, Queue, Token, length::len_u64};
 
 /// An ordered owner table that grows with admitted store operations.
 #[derive(Debug)]
@@ -347,7 +347,7 @@ fn decode(row: Row, limits: &root::Limits) -> Result<root::Record, store::restor
             let site = RowSite {
                 family: Some(store::Family::Application),
                 key: store::keys::application(&key, u32::MAX).expect("bounded application key"),
-                key_bytes: u64::try_from(key.len()).expect("bounded key").checked_add(1).expect("bounded tagged key"),
+                key_bytes: len_u64(key.len()).checked_add(1).expect("bounded tagged key"),
                 truncated: false,
             };
             let Some((number, _)) = keys::decode(&key, &limits.connector) else {

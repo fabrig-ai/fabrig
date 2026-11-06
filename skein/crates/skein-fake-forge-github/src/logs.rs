@@ -6,6 +6,7 @@ use crate::{
 use alloc::boxed::Box;
 use skein_fake_forge_domain::{self as domain, api as a};
 use skein_forge::github::request::Method;
+use skein_lib::bytes::concat;
 use skein_lib::{Decimal, Queue, ReplyTo, Rng, Secret, Wall, Writer, bytes, sha256::Hmac, usize_of};
 
 const LIFE: u64 = 600_000_000_000;
@@ -101,9 +102,7 @@ impl Service {
         if let Some(origin) = &self.logs.redirect {
             return Outcome::Reply(redirect_to(origin, target));
         }
-        let Some(repository) = reads::full(row) else {
-            return Outcome::Reply(answers::failed());
-        };
+        let repository = reads::full(row);
         Outcome::Call(
             Pending { rate: None, kind: PendingKind::Blob },
             domain::Event::Call {
@@ -147,9 +146,7 @@ pub(crate) fn redirect(service: &Service, repository: u32, answer: a::Answer, no
     redirect_to(origin, &path)
 }
 fn redirect_to(origin: &[u8], target: &[u8]) -> Response {
-    let Some(location) = crate::service::joined(origin, target) else {
-        return answers::failed();
-    };
+    let location = concat(&[origin, target]);
     let mut response = empty(302);
     response.location = Some(location);
     response

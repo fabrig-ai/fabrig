@@ -11,6 +11,7 @@ use crate::{
 use alloc::boxed::Box;
 use skein_fake_forge_domain as fake;
 use skein_forge::github::{self, document as d, request, server};
+use skein_lib::bytes::concat;
 use skein_lib::{List, Map, Overflow, ReplyTo, Rng, Secret, Wall, Writer, usize_of};
 
 /// GitHub's repository metadata absent from the shared domain.
@@ -811,7 +812,8 @@ impl Service {
         response
     }
     fn viewer(&self, user: u64) -> Response {
-        let login = if user == self.bot { joined(&self.app.slug, b"[bot]") } else { reads::people::login(self, user) };
+        let login =
+            if user == self.bot { Some(concat(&[&self.app.slug, b"[bot]"])) } else { reads::people::login(self, user) };
         let Some(login) = login else {
             return answers::failed();
         };
@@ -888,12 +890,6 @@ fn installation(row: &installations::Installation) -> d::Installation {
         created: row.created,
         suspended: row.suspended,
     }
-}
-pub(crate) fn joined(first: &[u8], last: &[u8]) -> Option<Box<[u8]>> {
-    let mut out = Writer::new(first.len().checked_add(last.len())?);
-    out.put(first).ok()?;
-    out.put(last).ok()?;
-    Some(out.finish())
 }
 
 /// Whether these limits are representable: every edge bound they size is finite

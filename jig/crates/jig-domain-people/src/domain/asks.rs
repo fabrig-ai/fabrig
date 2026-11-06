@@ -331,7 +331,7 @@ mod classifications {
             let mut domain = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
             let env = Env { limits: LIMITS, now: Time::ZERO, wall: Wall::EPOCH };
             domain.start_restore(env.wall);
-            assert!(domain.start_link(&env));
+            assert!(domain.start_link());
             domain.start_sweep();
             assert!(domain.start_complete(&env));
             domain.roles.insert(7, Box::new([Holding { person: 9, role: Role::Owner }])).unwrap();

@@ -3,6 +3,7 @@ use alloc::boxed::Box;
 use skein_forge::api;
 use skein_forge::forgejo::document as d;
 use skein_forge::forgejo::plans::reading;
+use skein_lib::bytes::concat;
 use skein_lib::{Time, Wall};
 
 #[test]
@@ -157,17 +158,7 @@ fn comment(id: u64) -> api::Comment {
         body: Box::from(&b"abc"[..]),
     }
 }
-fn joined(pieces: &[&[u8]]) -> Box<[u8]> {
-    let mut length = 0_usize;
-    for piece in pieces {
-        length = length.saturating_add(piece.len());
-    }
-    let mut out = skein_lib::Writer::new(length);
-    for piece in pieces {
-        out.put(piece).expect("pieces measured");
-    }
-    out.finish()
-}
+
 fn expected_pull(number: u64, state: api::State) -> api::Pull {
     api::Pull {
         queued: None,
@@ -257,7 +248,7 @@ fn json_body_demands_are_batched_across_bounded_pumps() {
     // Many structural bytes exceed one pump's 64 movements while the
     // whole body fits the local intake. Whitespace after the object must
     // be checked before the HTTP terminal is consumed.
-    let body = joined(&[br#"{"id":2,"login":"writer","ignored":["#, &fixtures::filled(180, b' '), b"]}"]);
+    let body = concat(&[br#"{"id":2,"login":"writer","ignored":["#, &fixtures::filled(180, b' '), b"]}"]);
     let response = fixtures::ok(&body);
     let mut h = fixtures::ConnectionHarness::new();
     h.start_forgejo(request::Request::User, None).expect("user request");
@@ -307,7 +298,7 @@ fn json_body_fragments_and_final_bytes_precede_end() {
 
 #[test]
 fn json_body_batches_cross_intake_boundaries_and_reuse_cleanly() {
-    let body = joined(&[br#"{"id":2,"login":"writer","ignored":["#, &fixtures::filled(2500, b' '), b"]}"]);
+    let body = concat(&[br#"{"id":2,"login":"writer","ignored":["#, &fixtures::filled(2500, b' '), b"]}"]);
     let response = fixtures::ok(&body);
     let mut h = fixtures::ConnectionHarness::new();
     user_request(&mut h);
@@ -352,7 +343,7 @@ fn json_body_intakes_stay_under_the_ceiling_and_release_on_teardown() {
         for _ in 0..fixtures::limits().connections {
             let mut h = fixtures::ConnectionHarness::new();
             user_request(&mut h);
-            let body = joined(&[br#"{"id":2,"login":"writer","ignored":["#, &fixtures::filled(2500, b' '), b"]}"]);
+            let body = concat(&[br#"{"id":2,"login":"writer","ignored":["#, &fixtures::filled(2500, b' '), b"]}"]);
             let response = fixtures::ok(&body);
             user_decoded(&h.buffered_answer(&response, response.len(), false));
             connections.push(h).expect("all configured connections");
