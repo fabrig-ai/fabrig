@@ -593,7 +593,11 @@ keeps (`../protocol/configuration.md`, section 2).
     centred at the head of a chat's conversation or an agent's, a status
     named "Loading earlier messages", only while an older read is out, in
     place of "Older". Nothing once the chat's start is shown.
-  - *"Older"* is a `.btn.quiet.small`, centred, at the head. *Its end* has
+  - *"Older"* is a `.btn.quiet.small`, centred, at the head while an older
+    page remains and the window has filled. It is replaced by the loading
+    status while that read is out; the agent's page uses the same head,
+    with "Older" whenever an older page remains. An agent's page has no
+    Latest pill. *Its end* has
     `.meta-line`'s look, and an ended chat has no composer.
 - **A new chat** (the greenfield mock's `chat.html?id=new`): `NewChat`,
   at `/chats/new`, for the open project. The domain's `Chats` state holds
