@@ -4034,6 +4034,7 @@ fn hold_change_decision(domain: &Domain, env: &Env<Limits>, task: u64, why: forg
     } else {
         None
     };
+    let updates = why == forge_change::Hold::Updates;
     let why = match why {
         forge_change::Hold::BranchMoved
         | forge_change::Hold::BranchMissing
@@ -4052,9 +4053,9 @@ fn hold_change_decision(domain: &Domain, env: &Env<Limits>, task: u64, why: forg
     };
     let end = if let Some(words) = account {
         StepEnd::HoldFrom { why, source: Box::new(holds::source(domain, None, words)) }
-    } else if why == tasks::Hold::EffectFailed
+    } else if (updates || why == tasks::Hold::EffectFailed)
         && let Some(row) = domain.forge.change(task)
-        && row.effect == forge_change::EffectResult::Failed
+        && (updates || row.effect == forge_change::EffectResult::Failed)
         && let Some(account) = &row.effect_account
     {
         StepEnd::HoldFrom { why, source: Box::new(holds::source(domain, Some(account.entry), account.words.clone())) }

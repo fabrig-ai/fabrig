@@ -9,7 +9,14 @@ use temper_engine_domain_forge_change as change;
 const STEPS: u32 = 1000; // A full landing with fresh reads and hold release.
 
 // The early-start goal fixture, with this story's landing rule on the goal branch.
-fn goal_world(up_to_date: bool) -> (World, engine::Assignment, Box<[u8]>, u64) {
+pub(super) fn goal_world(up_to_date: bool) -> (World, engine::Assignment, Box<[u8]>, u64) {
+    goal_world_stall(up_to_date, None)
+}
+
+pub(super) fn goal_world_stall(
+    up_to_date: bool,
+    stall: Option<Duration>,
+) -> (World, engine::Assignment, Box<[u8]>, u64) {
     let mut world = World::configured_limits(
         true,
         true,
@@ -17,7 +24,7 @@ fn goal_world(up_to_date: bool) -> (World, engine::Assignment, Box<[u8]>, u64) {
         STEPS,
         Gate::default(),
         None,
-        StoryLimits { slots: Some(4), ..StoryLimits::default() },
+        StoryLimits { slots: Some(4), stall, ..StoryLimits::default() },
     )
     .with_landing_deployment(Box::new([engine::LandingRule {
         connector: 0,
@@ -43,7 +50,7 @@ fn goal_world(up_to_date: bool) -> (World, engine::Assignment, Box<[u8]>, u64) {
     (world, goal, branch, main)
 }
 
-fn finish(world: &mut World, producer: &engine::Assignment) {
+pub(super) fn finish(world: &mut World, producer: &engine::Assignment) {
     let event = world.protocol.answer(
         Token::new(7),
         producer.task,
@@ -64,7 +71,7 @@ fn finish(world: &mut World, producer: &engine::Assignment) {
     world.send(event);
 }
 
-fn status(world: &mut World, head: u64, state: raw::Check) {
+pub(super) fn status(world: &mut World, head: u64, state: raw::Check) {
     assert_eq!(
         world.external(
             1,
@@ -80,12 +87,12 @@ fn status(world: &mut World, head: u64, state: raw::Check) {
     );
 }
 
-fn move_base(world: &mut World, branch: &[u8]) -> u64 {
+pub(super) fn move_base(world: &mut World, branch: &[u8]) -> u64 {
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", branch, b"other", b"base moved", 1)
         .expect("base moved after the producer pushed")
 }
 
-fn assert_landed(world: &mut World, task: u64, head: u64, updates: u32) {
+pub(super) fn assert_landed(world: &mut World, task: u64, head: u64, updates: u32) {
     for _ in 0..STEPS {
         world.tick();
         if matches!(change_row(world, task).change.state, change::State::Landed { .. }) {

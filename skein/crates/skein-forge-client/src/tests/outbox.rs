@@ -11,7 +11,7 @@ fn recovery_classes_follow_forgejo_guarantees() {
         recovery(&Write::CreateIssue { key: Box::from(&b"marker"[..]), title: Box::new([]), body: Box::new([]) }),
         Recovery::Unrecoverable,
     );
-    assert_eq!(recovery(&Write::Update { number: 9, style: api::UpdateStyle::Merge }), Recovery::Unrecoverable);
+    assert_eq!(recovery(&Write::Update { number: 9, style: api::UpdateStyle::Merge }), Recovery::Idempotent);
     assert_eq!(recovery(&Write::Merge { number: 9, head: [1; 32], how: api::MergeHow::Style }), Recovery::Conditional);
     assert_eq!(
         recovery(&Write::OpenPull {

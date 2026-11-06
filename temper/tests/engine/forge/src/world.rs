@@ -126,6 +126,7 @@ pub struct World {
     writer: Option<skein_forge_client::Writer>,
     writer_saves: u32,
     writes: u32,
+    lose_writes: bool,
     calls: u32,
     call_ops: Vec<skein_forge::api::Op>,
     hints: Vec<skein_forge::api::Hint>,
@@ -451,6 +452,7 @@ impl World {
             writer,
             writer_saves: 0,
             writes: 0,
+            lose_writes: false,
             calls: 0,
             call_ops: Vec::new(),
             hints: Vec::new(),
@@ -1000,7 +1002,7 @@ impl World {
         self.forge.branch(b"org/repo", branch).expect("fixture branch")
     }
 
-    fn external(&mut self, op: raw::Op, user: u64) -> raw::Answer {
+    pub fn external(&mut self, op: raw::Op, user: u64) -> raw::Answer {
         self.external_repository(b"org/repo", op, user)
     }
     fn external_repository(&mut self, repository: &[u8], op: raw::Op, user: u64) -> raw::Answer {
@@ -1229,6 +1231,19 @@ impl World {
         }
         if let skein_forge::api::Op::Write(_) = op {
             self.writes += 1;
+            if self.lose_writes {
+                self.to_top.push((
+                    self.generation,
+                    top::Event::Client(skein_forge_client::Event::Answered {
+                        free: 0,
+                        rate: None,
+                        call,
+                        cost: 1,
+                        result: Err(skein_forge::api::Error::Timeout),
+                    }),
+                ));
+                return;
+            }
         }
         self.serial += 1;
         let token = Token::new(self.serial);
@@ -1310,6 +1325,25 @@ impl World {
                 hook @ forge::Request::Hook { .. } => self.hear(&hook),
             }
         }
+    }
+
+    /// Answer writes as timed out, then apply their copies after this delay.
+    /// Updates may arrive beyond their lifetime (domain/forge.md, 10).
+    pub fn land_writes_late(&mut self, after: Duration) {
+        self.forge_env.limits.landing = 1000;
+        self.forge_env.limits.land_min = after;
+        self.forge_env.limits.land_max = after;
+    }
+
+    /// Lose writes in transit, with no copy reaching the forge.
+    pub fn lose_writes(&mut self) {
+        self.lose_writes = true;
+    }
+
+    /// Answer subsequent writes normally; already sent copies keep their timers.
+    pub fn answer_writes(&mut self) {
+        self.lose_writes = false;
+        self.forge_env.limits.landing = 0;
     }
 }
 
