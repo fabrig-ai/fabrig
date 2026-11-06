@@ -18,7 +18,7 @@ const DELEGATE_COMPLETION: u32 = 1;
 const ADOPTION_WAIT: u64 = 6_000_000_000;
 const RETRY_WAIT: u64 = 1_000_000_000;
 const REASON: &[u8] = b"finish within grace";
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct State {
     finishes: bool,
     pub(super) ready: u64,

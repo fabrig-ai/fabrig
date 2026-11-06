@@ -47,10 +47,24 @@ fn a_connected_notice_keeps_the_close_under_way() {
     let mut c = Connection::new(&forge, &env.limits, f::shared(), env.now);
     let mut io = Queue::uncapped();
     c.link.connecting(Token::new(100), &mut io);
+    c.failed(Failure::Unseen);
     c.close(&env, false, &mut io);
     c.connect(&env);
     assert!(c.closing(), "the connected notice keeps the close");
     assert_eq!(c.phase(), Phase::Closed);
+    let Some(Ended::Failed(failure)) = c.take_ended() else {
+        unreachable!("the failure survives the connected notice")
+    };
+    assert_eq!(failure, Failure::Unseen);
+}
+
+#[test]
+#[should_panic(expected = "a connect completes once")]
+fn a_second_connect_cannot_drop_a_sending_exchange() {
+    let mut h = f::ConnectionHarness::new();
+    h.start_forgejo(skein_forge::forgejo::request::Request::User, None).expect("valid request");
+    assert_eq!(h.connection.phase(), Phase::Sending { written: false });
+    h.connection.connect(&h.env);
 }
 
 #[test]

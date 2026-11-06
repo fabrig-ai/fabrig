@@ -40,10 +40,6 @@ pub enum ModelStep {
     Finishing {
         way: Way,
     },
-    /// A sign-in `elsewhere`.
-    Paste {
-        way: Way,
-    },
     Key {
         way: Way,
     },
@@ -68,8 +64,6 @@ pub fn model_step(root: &Domain) -> Option<ModelStep> {
         Way::SignIn { .. } => {
             if page.request.paste_state(root.client()) == PasteState::Finishing {
                 ModelStep::Finishing { way }
-            } else if page.elsewhere() {
-                ModelStep::Paste { way }
             } else {
                 match page.request.sign_in_state(root.client()) {
                     SignInState::Started { .. } | SignInState::Signing { .. } => ModelStep::Away { way },

@@ -109,7 +109,7 @@ Refused, changing nothing, when the configuration directory already holds temper
             DIRECTORIES,
             Argument {
                 shown: "--echo",
-                line: "none prints the box's own lines and a failed step's log; steps prints every step's lines too, prefixed by its name.",
+                line: "none prints errors and a failed step's log; steps prints every step's lines too, prefixed by its name.",
             },
             Argument {
                 shown: "--fake-backends",
@@ -121,7 +121,7 @@ Refused, changing nothing, when the configuration directory already holds temper
             },
         ],
         settings: &[&directories::SETTINGS, &box_command::ECHO_SETTINGS],
-        notes: "Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is temper serve's sign-in links, each line whole; its stderr, what --echo chooses; each step logs under the data directory.",
+        notes: "Steps run in order, each restarted when it exits until it has exited too often within its window, when the box gives up, stops the others and exits 1; they stop in reverse order. Its stdout is its sign-in links, each line whole; its stderr, the block's other lines and errors, and what --echo chooses; the box and each step log under the data directory.",
     },
     Row {
         words: &["program-login"],

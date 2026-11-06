@@ -411,15 +411,21 @@ pub(crate) fn open(
     out.push(Request::Done { reply_to: to });
 }
 
+pub(crate) struct Carving {
+    pub(crate) period: u64,
+    pub(crate) budget: u64,
+}
+
 pub(crate) fn carve(
     domain: &mut Domain,
     env: &Env<Limits>,
     to: ReplyTo,
     project: u32,
     person: u64,
-    (period, budget): (u64, u64),
+    carving: Carving,
     out: &mut Queue<Request>,
 ) {
+    let Carving { period, budget } = carving;
     if !domain.ready() {
         return refused(to, None, Refusal::NotReady, out);
     }

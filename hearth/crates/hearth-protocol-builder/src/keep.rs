@@ -103,9 +103,8 @@ impl Keep {
 
 impl crate::Protocol {
     pub(super) fn temporary(&mut self) -> Option<Box<[u8]>> {
-        match &self.current {
-            Current::Keeping(keep) => return Some(keep.temporary()),
-            Current::Call(_) | Current::Step(_) | Current::Idle | Current::Resolving(_) | Current::Git { .. } => {}
+        if let Some(keep) = self.current.keeping() {
+            return Some(keep.temporary());
         }
         Some(crate::read::current(&mut self.current)?.temporary())
     }

@@ -2,7 +2,7 @@ use jig_domain_tasks::{
     self as tasks, Cause, Contract, Event, Executor, Funder, Key, LlmChoice, ModelEffort, Models, New, Numbers, Party,
     RecurringOverlap, RecurringTemplate, Stored, Subscription, SubscriptionKind,
 };
-use jig_tasks_world::{LIMITS, Reply, World, task};
+use jig_tasks_world::{LIMITS, PERSON, PERSON_PARTY, Reply, World, task};
 
 const OCCURRENCE: u64 = 10;
 const OLD_DELEGATE: u64 = 21;
@@ -228,8 +228,8 @@ fn a_persons_standing_procedure_renews_from_the_project_after_its_first_period()
     watch.executor = Executor::Procedure { connector: 1, code: 1 };
     watch.authority.budget.spend = 30;
     watch.numbers.budget = 30;
-    watch.funder = Funder::Pool { project: 1, person: 9, period: 0 };
-    assert_eq!(world.make(Party::Person(9), vec![watch]), Reply::Made(vec![30]));
+    watch.funder = Funder::Pool { project: 1, person: PERSON, period: 0 };
+    assert_eq!(world.make(PERSON_PARTY, vec![watch]), Reply::Made(vec![30]));
     let reply_to = world.to();
     world.send(Event::SubscribeTopic {
         reply_to,
@@ -239,7 +239,7 @@ fn a_persons_standing_procedure_renews_from_the_project_after_its_first_period()
     world.open_period(1, 30);
     world.send(Event::RenewStanding { task: 30, period: 1 });
     assert_eq!(world.record(30).funder, Funder::Period { project: 1, period: 1 });
-    assert!(matches!(world.records.get(&Key::ClosedLedger(Funder::Pool { project: 1, person: 9, period: 0 })),
+    assert!(matches!(world.records.get(&Key::ClosedLedger(Funder::Pool { project: 1, person: PERSON, period: 0 })),
         Some(Stored::ClosedLedger(row)) if row.numbers.budget == 0 && row.numbers.reserved == 0));
     world.restart();
     assert_eq!(world.record(30).funder, Funder::Period { project: 1, period: 1 });
@@ -265,7 +265,7 @@ fn recurring_and_accepted_creation_revisions_are_checked_by_the_world_referee() 
 
     let mut proposer = task(20, &[]);
     proposer.funder = Funder::Period { project: 1, period: 1 };
-    assert_eq!(world.make(Party::Person(9), vec![proposer]), Reply::Made(vec![20]));
+    assert_eq!(world.make(PERSON_PARTY, vec![proposer]), Reply::Made(vec![20]));
     let mut member = task(21, &[]);
     member.funder = Funder::Task(20);
     member.numbers.budget = 30;
@@ -281,7 +281,10 @@ fn recurring_and_accepted_creation_revisions_are_checked_by_the_world_referee() 
             action: tasks::ProposalAction::Batch(proposed_batch.clone()),
             reason: b"Please make this delegate".as_slice().into(),
             as_holder: false,
-            state: tasks::ProposalState::Pending { holder: tasks::ProposalHolder::Person(9), since: world.env.wall },
+            state: tasks::ProposalState::Pending {
+                holder: tasks::ProposalHolder::Person(PERSON),
+                since: world.env.wall,
+            },
         },
     });
     assert!(world.record(20).proposal.is_some());
@@ -300,7 +303,7 @@ fn recurring_and_accepted_creation_revisions_are_checked_by_the_world_referee() 
         proposer: 20,
         proposal: 100,
         message: Some(101),
-        by: Party::Person(9),
+        by: PERSON_PARTY,
         decision: tasks::ProposalDecision::Accept,
     });
     assert!(world.record(20).proposal.is_none());
