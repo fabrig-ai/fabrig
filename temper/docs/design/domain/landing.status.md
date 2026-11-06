@@ -1,8 +1,9 @@
 # landing: status
 
-2026-11-03. Where temper's code lags or departs from [landing.md](landing.md).
+2026-11-06. Where temper's code lags or departs from [landing.md](landing.md).
 
-- **Not yet:** 4.1: `with`; pin-only members; a stack of
+- **Not yet:** 5.2, 16 (`update-worlds`): a prepare's lost rebase holds its task for
+  a person (`forge.status.md`, its 6 and 10). 4.1: `with`; pin-only members; a stack of
   members in one repository, whose second member a later landing takes
   (`temper-engine-domain-forge/src/landing.rs`). 5.3, 6.1: the project's
   prepare and key commands, as jobs (`worker.md`, 4.4). 6.2: the baseline
