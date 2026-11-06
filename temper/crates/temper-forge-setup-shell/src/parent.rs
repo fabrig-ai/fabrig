@@ -170,7 +170,7 @@ impl Running {
                 self.act(env, ParentEvent::Exited(status));
             } else if let Event::Shutdown { signal, from } = event {
                 let stop = match signal {
-                    ServiceSignal::Terminate => Stop::Terminate,
+                    ServiceSignal::Terminate | ServiceSignal::Hangup => Stop::Terminate,
                     ServiceSignal::Interrupt => Stop::Interrupt,
                 };
                 self.act(env, ParentEvent::Shutdown { stop, from_forgejo: from.is_some() && from == self.child });
