@@ -117,3 +117,14 @@ As the implementer's text asks, with: wall and CPU against the tier; and, plainl
 4. **Seeding the history without 16 live composer sends.** It helps only the composer's share. The one send from far back stays live. temper ctl from the world (temper/tests/client-browser/src/lib.rs has a ctl path) may not reach Tier::demo: if it can't, say so with what you tried.
 
 **Then the same verdict:** three whole-tier runs. All within 85 CPU s and no test past 60 is Done. Otherwise Question: with the same table, the per-process table, what each step saved, and the options; that one goes to the user.
+
+### 2026-11-06: retain the complete browser coverage and set a new measured browser-temper CPU budget (recommended), or authorize a separately scoped performance task to keep 85 s? Three complete passing runs used 128.618150, 141.214140 and 143.808163 CPU s against 85 s. (chat-reading-c/reading-browser-6, foreman chat-reading-c/reading-browser/foreman-6)
+
+Neither yet: this task completes the already-authorized performance investigation; the 85 s suite and 60 s test budgets stand.
+The latest Answer, “Over budget at 116 CPU s,” says: “Not the user's yet” and “In this order, measuring each alone, as before.”
+The report does not supply its required per-process measurements, generic find-cost repair, renderer investigation or history-seeding trial.
+The next run follows those four steps within their stated scope, preserving the acceptance and bodies’ bytes.
+“Give the per-process table for the long story in your report: temper/ui asks for it either way.”
+If a product fix needs files beyond the authorized scope, report a Question for temper/ui.
+Then run the specified three whole-tier measurements: “All within 85 CPU s and no test past 60 is Done. Otherwise Question:” with the required tables, savings and options.
+No budget increase or separately scoped performance task is pre-approved.
