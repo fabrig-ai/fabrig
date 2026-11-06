@@ -327,6 +327,7 @@ impl World {
             return format!("{{\"attributes\":{}}}", self.attributes);
         }
         let result = match method {
+            b"Target.getTargets" => r#"{"targetInfos":[]}"#,
             b"DOM.getDocument" => r#"{"root":{"nodeId":1}}"#,
             b"Browser.getVersion" => r#"{"product":"Chrome/153"}"#,
             b"Target.createBrowserContext" => r#"{"browserContextId":"ctx1"}"#,

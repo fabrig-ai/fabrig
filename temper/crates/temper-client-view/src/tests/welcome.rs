@@ -1949,10 +1949,10 @@ pub(super) fn model_with_forge(kind: d::WayKind) -> (d::Domain, skein_lib::Token
     );
     (root, accounts.unwrap())
 }
-fn start_model(root: &mut d::Domain, elsewhere: bool) {
+fn start_model(root: &mut d::Domain) {
     use pages::{accounts::Way, connect_model::Act as A};
     let way = Way::SignIn { provider: 17, plan: true };
-    let act = if elsewhere { A::SignInElsewhere { name: [1; 16], way } } else { A::SignIn { name: [1; 16], way } };
+    let act = A::SignIn { name: [1; 16], way };
     let attempt = super::connect_model::sent(root, act);
     super::connect_model::answer(
         root,
@@ -1981,7 +1981,6 @@ fn model_shapes_keep_the_forge_beside_the_column_in_both_shells() {
         ),
         (2, "Signing in to ChatGPT", true, "Your ChatGPT plan."),
         (3, "Connect a model", false, "ChatGPT’s sign-in"),
-        (4, "Connect a model", false, "Copy that page’s whole address from the address bar"),
         (5, "Connect a model", false, "Finishing your sign-in…"),
         (
             6,
@@ -2006,7 +2005,7 @@ fn model_shapes_keep_the_forge_beside_the_column_in_both_shells() {
             );
         }
         if (3..=5).contains(&case) || case >= 7 {
-            start_model(&mut root, case == 4 || case == 5);
+            start_model(&mut root);
         }
         if case == 5 {
             f::root_event(
@@ -2046,7 +2045,7 @@ fn model_shapes_keep_the_forge_beside_the_column_in_both_shells() {
             let text = String::from_utf8_lossy(&f::text(tree)).into_owned();
             assert!(text.contains(message), "case {case}: {text}");
             assert!(f::find(tree, Role::Link, "‹ All ways".as_bytes()).is_none());
-            if case == 3 || case == 4 || case == 5 {
+            if case == 3 || case == 5 {
                 assert!(has_style(tree, look::WELCOME_AWAY));
                 assert_eq!(has_style(tree, look::WELCOME_SPIN), browser);
                 assert!(!text.contains("LLM account sign-in started"));
@@ -2108,7 +2107,7 @@ fn model_panels_enable_the_primary_only_after_a_secret_is_written() {
     for paste in [false, true] {
         let (mut root, _) = model_with_forge(if paste { d::WayKind::SignIn } else { d::WayKind::Key });
         if paste {
-            start_model(&mut root, true);
+            start_model(&mut root);
         }
         let field = if paste { "Address of the page that couldn’t be reached" } else { "Key, pasted once" };
         let primary = if paste { "Finish connecting" } else { "Add key" };
@@ -2181,7 +2180,7 @@ fn model_paste_refusals_and_endings_keep_their_words() {
         (7, "This sign-in has ended.", false),
     ] {
         let (mut root, watch) = model_with_forge(d::WayKind::SignIn);
-        start_model(&mut root, true);
+        start_model(&mut root);
         f::root_event(
             &mut root,
             d::Event::SignInAddress {
@@ -2326,6 +2325,8 @@ fn welcome_claude_states_keep_the_command_and_check_in_both_shells() {
                             | d::Request::Leave { .. }
                             | d::Request::SignOut
                             | d::Request::Dropped { .. }
+                            | d::Request::KeepSignIn { .. }
+                            | d::Request::Tab { .. }
                             | d::Request::Copy { .. }
                             | d::Request::Fact { .. } => None,
                         })
@@ -2673,7 +2674,7 @@ fn the_command_takes_the_words_first() {
 #[test]
 fn welcome_waiting_orders_the_note_link_and_folded_paste_in_both_shells() {
     let (mut root, _) = model_with_forge(d::WayKind::SignIn);
-    start_model(&mut root, true);
+    start_model(&mut root);
     super::connect_model::assert_waiting(&root);
 }
 

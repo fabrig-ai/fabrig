@@ -86,7 +86,7 @@ smith-fake-claude.workspace = true
 smith-local-process-world.workspace = true
 temper-engine-domain.workspace = true
 skein-throwaway-forgejo.workspace = true
-temper-client-shell-terminal = { workspace = true, features = ["browser-root"] }
+temper-client-shell-terminal.workspace = true
 temper-client-domain.workspace = true
 skein-fake-person.workspace = true
 skein-ui.workspace = true

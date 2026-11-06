@@ -59,16 +59,12 @@ impl Writer {
     pub fn new(file: Fd, story: Story, write_timeout: Duration) -> Self {
         let limits = Limits {
             sockets: 1,
-            refusals: 1,
             intake: 4,
             receive: 4,
             output: 9,
-            sends: 2,
-            accepts: 1,
-            backlog: 1,
             close_timeout: Duration::from_millis(100),
-            names: 0,
             retry: Duration::from_millis(1),
+            ..Limits::TEST
         };
         let mut io = Io::new(&limits);
         let stream = io.adopt_append(file, write_timeout).expect("one startup append file");

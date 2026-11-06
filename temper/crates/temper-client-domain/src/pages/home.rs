@@ -1050,7 +1050,9 @@ pub(crate) fn look(root: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<
     for _index in 0..reads.len() {
         match reads.pop().expect("bounded read queue") {
             Request::Client(event) => crate::route::client(root, env, event, out),
-            Request::Show { .. } | Request::Replace { .. } => unreachable!("Home reconciles client reads"),
+            Request::Show { .. } | Request::Replace { .. } | Request::OpenTab { .. } => {
+                unreachable!("Home reconciles client reads")
+            }
         }
     }
     let Some(home) = root.pages.home.as_ref() else { return };

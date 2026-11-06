@@ -27,7 +27,8 @@ pub struct Joint {
     /// The ctl caller in this world; existing stories use person 1.
     pub caller: u64,
     pub leaves: Vec<Box<[u8]>>,
-    pub refuse_return: bool,
+    pub tabs: Vec<client::Tab>,
+    pub shows: Vec<(client::Address, bool)>,
     set_ups: Vec<(u16, Token)>,
     pub admin_connects: Vec<(u16, Token)>,
     pub replacements: Vec<(u16, Token)>,
@@ -1085,7 +1086,8 @@ impl Joint {
             status_looks: BTreeMap::new(),
             caller: fixtures::PARTY,
             leaves: Vec::new(),
-            refuse_return: false,
+            tabs: Vec::new(),
+            shows: Vec::new(),
             set_ups: Vec::new(),
             admin_connects: Vec::new(),
             replacements: Vec::new(),
@@ -1311,41 +1313,6 @@ impl Joint {
         }
         false
     }
-    fn refused_return(&mut self, who: ClientId, request: &Request) -> bool {
-        if self.refuse_return
-            && let Request::Unlinked {
-                request:
-                    jig_client::UnlinkedRequest::Down {
-                        down: jig_client::Down::Send { attempt, request: jig_client::Ask::Family { record, .. }, .. },
-                    },
-            } = request
-            && let Some(decoded) = temper_client_protocol_wire::decode_requesting(
-                &record.bytes,
-                &temper_client_protocol_wire::v1::CEILINGS,
-            )
-            && matches!(decoded.request(), temper_client_protocol_wire::v1::Request::Return(_))
-        {
-            self.callbacks.push((
-                who,
-                RootEvent::Client {
-                    event: jig_client::Event::Up {
-                        up: jig_client::Up::Answer {
-                            attempt: *attempt,
-                            envelope: RequestEnvelope::Final,
-                            why: None,
-                            answer: Some(jig_client::Answered::Jig(jig_client::contract::Answer::Refused {
-                                refusal: jig_client::contract::Refusal::Unknown,
-                                at: None,
-                            })),
-                        },
-                    },
-                }
-                .into(),
-            ));
-            return true;
-        }
-        false
-    }
     fn note_read_end(&mut self, who: ClientId, request: &Request) -> bool {
         if let Request::Unlinked {
             request:
@@ -1498,9 +1465,6 @@ impl Joint {
         false
     }
     fn request(&mut self, who: ClientId, request: Request) {
-        if self.refused_return(who, &request) {
-            return;
-        }
         if self.offline_until.is_some() || self.transport.sign_in(who).is_none() {
             if let Request::Unlinked {
                 request:

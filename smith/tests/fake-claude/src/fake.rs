@@ -4,7 +4,7 @@
 
 use skein_io::{
     Event, Io, Limits, Request, file,
-    file_layer::{self, FileIo},
+    file_layer::{self, FileIo, step},
     kernel::{self, Complete, Fd, Submit},
 };
 use skein_lib::{
@@ -46,6 +46,7 @@ pub struct Faces {
 pub struct Fake {
     io: Io,
     files: FileIo,
+    file_limits: file_layer::Limits,
     limits: Limits,
     config: Config,
     input: Option<Token>,
@@ -137,7 +138,9 @@ impl Fake {
         let signal = io.adopt_signals(faces.signal).expect("signal slot");
         let mut observation =
             Output::new(faces.observations.map(|fd| io.adopt_append(fd, FILE_TIMEOUT).expect("observation slot")));
-        let mut files = FileIo::new(2, FILE_BYTES, 1, FILE_TIMEOUT);
+        let file_limits =
+            file_layer::Limits { files: 2, read: FILE_BYTES, entries: 1, whole: FILE_BYTES, timeout: FILE_TIMEOUT };
+        let mut files = FileIo::with_limits(&file_limits);
         files.seed_randomness(7);
         let config = Config {
             root: faces.config.map(|fd| files.adopt_root(fd).expect("root slot")),
@@ -182,6 +185,7 @@ impl Fake {
         let mut fake = Self {
             io,
             files,
+            file_limits,
             limits,
             config,
             input,
@@ -408,6 +412,7 @@ impl Fake {
     }
 
     fn progress(&mut self, now: Time) {
+        let env = Env { now, wall: Wall::EPOCH, limits: self.file_limits };
         if self.code.is_none()
             && self.command.is_none()
             && self.observation.drained()
@@ -419,14 +424,14 @@ impl Fake {
         }
         if self.files.takes() {
             if let Some(request) = self.file_request.take() {
-                file_layer::down(&mut self.files, now, request, &mut self.file_events, &mut self.file_submissions);
+                step::down(&mut self.files, &env, request, &mut self.file_events, &mut self.file_submissions);
             } else if self.code.is_some()
                 && let Some(root) = self.config.root.take().or_else(|| self.config.mcp.take())
             {
                 self.root_closing = true;
-                file_layer::down(
+                step::down(
                     &mut self.files,
-                    now,
+                    &env,
                     file::Request::Close { owner: CLOSE_ROOT, file: root },
                     &mut self.file_events,
                     &mut self.file_submissions,
@@ -461,18 +466,19 @@ impl Host for Fake {
             self.effects(vec![Effect::ReadCode]);
         }
         let env = Env { now, wall, limits: self.limits };
+        let file_env = Env { now, wall, limits: self.file_limits };
         for _ in 0..self.completions.len() {
             let mut complete = self.completions.pop().expect("completion present at stage entry");
             if complete.op.raw() & FILE_BIT != 0 {
                 file_namespace(&mut complete.op, &mut complete.kind);
-                file_layer::up(&mut self.files, complete, &mut self.file_events, &mut self.file_submissions);
+                step::up(&mut self.files, &file_env, complete, &mut self.file_events, &mut self.file_submissions);
             } else {
                 self.completions.push(complete);
             }
         }
         skein_io::stage::up(&mut self.io, &env, &mut self.completions, &mut self.io_events, &mut self.submissions, now);
         if self.files.is_due(now) {
-            file_layer::expire(&mut self.files, now, &mut self.file_submissions);
+            step::expire(&mut self.files, &file_env, &mut self.file_submissions);
         }
         while let Some(event) = self.io_events.pop() {
             self.io_event(event);
