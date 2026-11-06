@@ -177,3 +177,46 @@ fn an_invisible_turn_is_unknown_after_its_task_ends() {
     restart_story(&mut story);
     assert_eq!(read_once(&mut story, archive_read(&archive)), Readout::Jig(c::ReadResult::None(c::ReadNone::Unknown)));
 }
+
+fn activity_page(story: &mut Story, handle: Handle, read: c::Read) -> c::ActivityPage {
+    story.read(handle, Readable::Jig(read));
+    assert!(story.run_until(|s| !s.pages(handle).is_empty(), WAIT));
+    let pages = story.pages(handle);
+    let [Readout::Jig(c::ReadResult::Value(c::ReadValue::Activity(page)))] = pages.as_slice() else {
+        panic!("one activity page: {pages:?}")
+    };
+    *page.clone()
+}
+
+#[test]
+fn a_page_beside_a_line_reads_both_ways_through_the_engine() {
+    // Four durable lines fit two pages; the worker then waits without adding rows.
+    const EARLIER: Handle = Handle { asker: Asker::JIG, number: 34 };
+    const LATER: Handle = Handle { asker: Asker::JIG, number: 35 };
+    const NEWEST: Handle = Handle { asker: Asker::JIG, number: 36 };
+    let (mut story, task) = committed_story(Story::reading_chat(fixtures::SEED));
+    let tail = activity_page(&mut story, ACTIVITY, c::Read::Activity { task, before: None });
+    assert_eq!(tail.rows.iter().map(|row| row.source.position).collect::<Vec<_>>(), [4, 3]);
+    assert!(tail.before.is_some());
+    assert_eq!(tail.after, None);
+    let earlier =
+        activity_page(&mut story, EARLIER, c::Read::ActivityBeside { task, position: 3, side: c::Side::Earlier });
+    assert_eq!(earlier.rows.iter().map(|row| row.source.position).collect::<Vec<_>>(), [2, 1]);
+    assert_eq!(earlier.before, None);
+    assert_eq!(earlier.after, None);
+    // Keep the oldest line, then read upward beside held lines to recover the end.
+    let later = activity_page(&mut story, LATER, c::Read::ActivityBeside { task, position: 1, side: c::Side::Later });
+    assert_eq!(later.rows.iter().map(|row| row.source.position).collect::<Vec<_>>(), [2, 3]);
+    assert_eq!(later.before, None);
+    assert!(later.after.is_some());
+    let newest = activity_page(&mut story, NEWEST, c::Read::ActivityBeside { task, position: 3, side: c::Side::Later });
+    assert_eq!(newest.before, None);
+    assert_eq!(newest.after, None);
+    let mut window = vec![earlier.rows.get(1).expect("oldest line").clone()];
+    window.extend(later.rows.into_boxed().into_vec());
+    window.extend(newest.rows.into_boxed().into_vec());
+    assert_eq!(window.iter().map(|row| row.source.position).collect::<Vec<_>>(), [1, 2, 3, 4]);
+    assert!(window.last().expect("committed turn").decoded.is_some());
+    let recovered = window.get(2..).expect("recovered tail").iter().rev().cloned().collect::<Vec<_>>();
+    assert_eq!(recovered, tail.rows.into_boxed().into_vec());
+}

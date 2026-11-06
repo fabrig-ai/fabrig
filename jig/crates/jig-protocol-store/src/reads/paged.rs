@@ -1,28 +1,13 @@
-//! Bounded family pages and dense backwards activity (protocol/store.md, 7.3).
+//! Bounded family pages and dense activity in either direction (protocol/store.md, 7.3 and 7.4).
 use super::{Failure, Spent, empty, joins};
-use crate::{Cursor, Row, Store, intervals, keys, pages};
+use crate::{Cursor, Row, Store, intervals, keys, pages, restore};
 use jig_domain_core::{self as core, reads};
 use jig_domain_notes as notes;
 use jig_domain_tasks as tasks;
 use skein_kv::Range;
 use skein_lib::List;
 
-pub(super) fn backwards_interval(task: u64, last: u64, before: Option<u64>, rows: u32) -> Range {
-    let high = match before {
-        Some(before) => last.min(before.saturating_sub(1)),
-        None => last,
-    };
-    let end = intervals::point(&core::Key::Tasks(tasks::Key::Activity { task, position: high }));
-    if rows == 0 {
-        return Range { start: end.start.clone(), end: Some(end.start) };
-    }
-    let low = high.saturating_sub(u64::from(rows.saturating_sub(1))).max(1);
-    let start = keys::encode(&core::Key::Tasks(tasks::Key::Activity { task, position: low }), u32::MAX)
-        .expect("fixed-width activity key fits");
-    Range { start, end: end.end }
-}
-
-fn activity_before(range: &reads::Range, task: u64) -> Result<Option<u64>, Failure> {
+fn activity_position(range: &reads::Range, task: u64) -> Result<Option<u64>, Failure> {
     match &range.after {
         Some(reads::Position::Owner(core::Key::Tasks(tasks::Key::Activity { task: owner, position })))
             if *owner == task =>
@@ -40,42 +25,68 @@ pub(super) fn activity(
     task: u64,
     spent: &mut Spent,
 ) -> Result<reads::Loaded, Failure> {
-    if !range.backwards {
-        return Ok(empty());
-    }
     let Some(owner) = joins::owner(store, task, spent)? else { return Ok(empty()) };
     let capacity = spent.rows.max(1).min(store.limits.store.page.bytes);
-    let before = activity_before(range, task)?;
-    let interval = backwards_interval(task, owner.activity, before, capacity);
-    let high = match before {
-        Some(before) => owner.activity.min(before.saturating_sub(1)),
-        None => owner.activity,
+    let before = activity_position(range, task)?;
+    if !range.backwards && before.unwrap_or(0) >= owner.activity {
+        return Ok(empty());
+    }
+    let first = if range.backwards {
+        match before {
+            Some(before) => owner.activity.min(before.saturating_sub(1)),
+            None => owner.activity,
+        }
+    } else {
+        before.unwrap_or(0).checked_add(1).ok_or(Failure::Corrupt)?
     };
     let mut found = List::with_capacity(capacity);
     // An exclusive cursor just before this window retries its first row when
-    // a bound prevents taking even that row. Overflow leaves no continuation,
-    // as before; it is unreachable because activity counts committed rows.
-    let start = match before {
-        Some(before) => Some(before),
-        None => owner.activity.checked_add(1),
+    // a bound prevents taking even that row. A forward window retries from
+    // its exclusive lower position instead.
+    let start = if range.backwards {
+        match before {
+            Some(before) => Some(before),
+            None => owner.activity.checked_add(1),
+        }
+    } else {
+        Some(before.unwrap_or(0))
     };
     let mut last = None;
     if let Some(position) = start {
         last = Some(reads::Position::Owner(core::Key::Tasks(tasks::Key::Activity { task, position })));
     }
     let mut encoded = 0_u64;
-    let mut more = high.saturating_sub(u64::from(capacity)) > 0;
+    let mut more = if range.backwards {
+        first.saturating_sub(u64::from(capacity)) > 0
+    } else {
+        owner.activity.saturating_sub(first) >= u64::from(capacity)
+    };
     // Walk only the requested dense window, with exact forward intervals in
-    // descending position order. Reversing an ascending encoded prefix would
-    // lose its newest rows when the encoded-byte bound cuts that prefix.
+    // page order. A backward page must take its newest rows before an
+    // encoded-byte bound cuts the window.
     for offset in 0..capacity {
-        let position = high.saturating_sub(u64::from(offset));
-        let key = core::Key::Tasks(tasks::Key::Activity { task, position });
-        let point = intervals::point(&key);
-        if point.start < interval.start {
+        let position = if range.backwards {
+            first.saturating_sub(u64::from(offset))
+        } else {
+            let Some(position) = first.checked_add(u64::from(offset)) else { break };
+            position
+        };
+        if position == 0 || position > owner.activity {
             break;
         }
-        let walked = pages::reader::walk(store, &[point], None, 1).or(Err(Failure::Corrupt))?;
+        let key = core::Key::Tasks(tasks::Key::Activity { task, position });
+        let point = intervals::point(&key);
+        let walked = match pages::reader::walk(store, &[point], None, 1) {
+            Ok(walked) => walked,
+            Err(failure)
+                if failure.cause
+                    == restore::Cause::Walk(restore::WalkFailure::Refused(skein_kv::Refusal::TooLarge)) =>
+            {
+                more = true;
+                break;
+            }
+            Err(_failure) => return Err(Failure::Corrupt),
+        };
         let mut rows = walked.rows.into_iter();
         let Some(item) = rows.next() else {
             if walked.next.is_some() {
