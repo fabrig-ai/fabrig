@@ -73,3 +73,7 @@ Tests, through `heavy`: `-p temper-service --lib -E 'test(first_model)'`, then t
 ## Report
 
 As the implementer's text says; CPU seconds of the new stories; the rule you broke and what failed.
+
+## Answers
+
+2026-11-06 (fabrig/temper). A correction from the user's recordings: both hung chats were started from Configure temper, template 3, and the chat that answered named claude-opus-5-5 by the chooser. So no chat with no model named has answered on that box. Cover both, in a Claude-only box on a fresh init's order, with no model named: template 1 and template 3. Say if they differ.
