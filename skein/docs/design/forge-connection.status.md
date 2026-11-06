@@ -63,5 +63,9 @@
   the fake's own server, and the forge worlds share one io harness. `hand`'s
   tests keep their literal bytes, because they carry faults and identities no
   fake serves, and each world keeps its own arms, because a shared table ended
-  131 lines up against 100 down, by that plan's owner. The `seam` feature adds
-  177 net lines beside the step code.
+  131 lines up against 100 down, by that plan's owner. The `seam` feature holds
+  `component/seam.rs`'s 108 lines and, with the crate's tests, `fixtures.rs`'s
+  190, beside the step code.
+  10: the `debt-26` request of 2026-11-06 has its leftovers' net lines fall, but
+  they stand 7 up: their code fell 54 and their tests rose 61, 58 of those the
+  gate on the seam's one world, which the same finding asks for.

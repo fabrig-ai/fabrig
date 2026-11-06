@@ -427,6 +427,10 @@ pub fn restore_malformed_settings(value: &w::MalformedSettings) -> Result<c::Mal
     Ok(c::MalformedSettings {
         setting: restore_setting(value.setting())?,
         fault: restore_setting_fault(value.fault())?,
+        detail: match value.detail() {
+            Some(value) => Some(restore_setting_detail(value)),
+            None => None,
+        },
     })
 }
 pub fn wire_read_setting(value: &c::ReadSetting, limits: &w::Limits) -> Result<w::ReadSetting, w::Problem> {
@@ -907,4 +911,27 @@ pub fn restore_revision_replaced(
         w::RevisionReplaced::NotOffered => c::RevisionReplaced::NotOffered,
         w::RevisionReplaced::Application(v) => c::RevisionReplaced::Application { size: v.size() },
     })
+}
+
+/// Translate the document refusal facts without checking the settings again.
+fn restore_setting_detail(value: &w::SettingDetail) -> c::SettingDetail {
+    c::SettingDetail {
+        member: match value.member() {
+            w::SettingMember::Documents => c::SettingMember::Documents,
+            w::SettingMember::NameSegments => c::SettingMember::NameSegments,
+            w::SettingMember::NameSegmentBytes => c::SettingMember::NameSegmentBytes,
+            w::SettingMember::Path => c::SettingMember::Path,
+            w::SettingMember::Heading => c::SettingMember::Heading,
+            w::SettingMember::Connector => c::SettingMember::Connector,
+        },
+        rule: match value.rule() {
+            w::SettingRule::Maximum => c::SettingRule::Maximum,
+            w::SettingRule::Minimum => c::SettingRule::Minimum,
+            w::SettingRule::Registered => c::SettingRule::Registered,
+        },
+        document: value.document(),
+        segment: value.segment(),
+        supplied: value.supplied(),
+        bound: value.bound(),
+    }
 }

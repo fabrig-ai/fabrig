@@ -82,7 +82,7 @@ setup.md's (section 9). What is open is listed in section 8.
 | an installation's token | temper | a GitHub token, expiring within the hour | minted by the forge component with the App's key, one per accepted installation (section 5); by the setup host, for a page of the picker | the forge component; the forge's git identity; the setup host, while a page is read; never kept | that installation's API requests; git's, through the identity; the picker's page | minted again `renew_before` ahead of its expiry; a picker's page's, dropped with the page |
 | a worker's secret | jig | a shared secret | the worker's secret file; the engine's digest file | the worker; the engine, its digest | the link's opening | an operator replaces both |
 | a sign-in's secret | jig | a bearer token | the printed link, then the sign-in | `jig-client` in `temper open`, which keeps it in its directory; the engine, its digest | each of the client's exchanges and its stream | the sign-in ends or expires |
-| a Forgejo forge's webhooks' secret | temper | a shared secret, the `WebhookSecret` record; a GitHub forge has none | pasted at a connected Forgejo's connect; or drawn by the setup host and set on a managed or owned Forgejo's hooks by reconcile | jig's secrets' store; the forge component's webhooks' listener, on loopback; the forge's hooks, which sign each delivery with it | checking each delivery's signature (forge.md, section 5) | replaced from the client with the forge's tokens; reconcile sets a managed or owned Forgejo's hooks' secret to the record's |
+| a Forgejo forge's webhooks' secret | temper | a shared secret, the `WebhookSecret` record; a GitHub forge has none | pasted at a connected Forgejo's connect; or drawn by the setup host and set on the hooks of a managed or owned Forgejo served the listener (setup.md, 5.3), by the plan that makes them | jig's secrets' store; the forge component's webhooks' listener, on loopback; the forge's hooks, which sign each delivery with it | checking each delivery's signature (forge.md, section 5) | replaced from the client with the forge's tokens; reconcile sets a managed or owned Forgejo's hooks' secret to the record's |
 | a site admin's token | temper | a Forgejo token, the `AdminToken` record | pasted from the client at a managed connect; an owned Forgejo's handover file, taken once and removed (setup.md, section 9) | jig's secrets' store; the setup host, only while a plan runs | reconcile, access at an adoption, and the picker's reads on a managed or owned Forgejo (a `Reachable` plan) | erased by Forget, after which the forge is connected |
 
 - **Every forge credential the engine uses is in jig's secrets' store,**
@@ -398,7 +398,9 @@ sources in its holder's order. temper configures the LLM providers
 - **`temper program-login [DIRECTORIES] NAME`:**
   - `NAME` is a program source's name, 1 to 32 of `a` to `z`, `0` to `9`
     and `-` (jig's `domain/accounts.md`, 3.4), as the accounts page and
-    `temper ctl account declare` give it with this command. The tools'
+    `temper ctl account declare` give it with this command, the accounts
+    page as the box's whole command (`../client/README.md`, 4.6, *The
+    printed command*). The tools'
     printed act is `temper program-login --config CONFIG --data DATA
     --cache CACHE NAME`: CONFIG, DATA and CACHE stand for that box's
     directories; ctl reads no box configuration. Skip the command where
@@ -432,7 +434,9 @@ sources in its holder's order. temper configures the LLM providers
     1, its reason on stderr: temper writes one line beginning
     `temper program-login:`. Smith's configuration reader may precede it with
     its own secret-free `smith: ` diagnostics, as under the other commands
-    that read a smith configuration. No diagnostic is redirected or suppressed.
+    that read a smith configuration; of its trust roots it says nothing
+    unless a block is malformed (skein's `shell.md`, 6.2). Temper redirects
+    and suppresses none of them.
   - It reads nothing of the login. The host's half checks it (smith's
     `protocol/programs.md`, section 3; smith's `protocol/hosts.md`,
     section 2) at its hello, when told of a new source, on its holder's

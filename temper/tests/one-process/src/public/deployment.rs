@@ -19,6 +19,7 @@ fn start(value: &serde_json::Value) -> Result<temper_service::Service, String> {
         temper_playground::documents::forges(),
         None,
         None,
+        None,
         &stories::given(&fixtures::world_document()),
         Box::new([]),
     )

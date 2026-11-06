@@ -84,7 +84,7 @@ pub(crate) fn malformed(failure: s::Failure) -> people::Outcome {
 pub(crate) fn malformed_refusal(failure: s::Failure) -> people::Refusal {
     people::Refusal::NotWellFormed {
         at: 0,
-        why: people::Malformed::Settings { setting: failure.setting, fault: failure.fault },
+        why: people::Malformed::Settings { setting: failure.setting, fault: failure.fault, detail: failure.detail },
     }
 }
 fn has_application(items: &[s::Item]) -> bool {
@@ -656,11 +656,16 @@ pub(super) fn prepare_proposal(core: &mut Core, env: &Env<Limits>, against: u32,
         Err(people::Malformed::Settings {
             setting: items.first().expect("past item bound").setting,
             fault: s::Fault::Count,
+            detail: None,
         })
     } else {
         match s::change_shape(&items, &env.limits) {
             Ok(()) => Ok(Box::new(s::Proposal { key: None, applications: Box::default(), against, items })),
-            Err(failure) => Err(people::Malformed::Settings { setting: failure.setting, fault: failure.fault }),
+            Err(failure) => Err(people::Malformed::Settings {
+                setting: failure.setting,
+                fault: failure.fault,
+                detail: failure.detail,
+            }),
         }
     });
 }

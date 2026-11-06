@@ -100,9 +100,10 @@ section 16; connecting GitHub, section 17.
 - **Reconcile converges at every start** of a managed or owned Forgejo,
   in the engine: the bot user, made when missing and otherwise checked,
   never edited; its two tokens; and each
-  adopted repository's access, the bot a collaborator with write and the
-  repository's hook; each made when missing, repaired when changed, and
-  left alone otherwise (section 5).
+  adopted repository's access, the bot a collaborator with write and, on
+  a forge served the listener (5.3), the repository's hook; each made
+  when missing, repaired when changed, and left alone otherwise (section
+  5).
 - **Access at adoption.** Adopting a repository of a managed or owned
   Forgejo first gives the bot its access (`Adopt`, 5.4); nothing is
   granted org-wide. The picker offers every repository the site admin
@@ -140,7 +141,7 @@ section 16; connecting GitHub, section 17.
 | | connected | managed | owned | fake |
 |---|---|---|---|---|
 | Runs the forge and CI's runner | the person | the person | temper | temper: its fake forge, `temper fake forge`, whose CI answers each push itself; no runner |
-| Makes temper's bot, its tokens, its access and the webhooks | the person | temper: on Forgejo with a site admin's token; on GitHub, an App from temper's manifest | temper, with an admin it makes | temper, with the admin the fake is seeded with |
+| Makes temper's bot, its tokens, its access and the webhooks | the person | temper: on Forgejo with a site admin's token, the webhooks on this host alone (5.5); on GitHub, an App from temper's manifest | temper, with an admin it makes | temper, with the admin the fake is seeded with |
 | temper is given, on Forgejo | the bot's two tokens, pasted; optionally a webhooks' secret | a site admin's token, pasted | the Forgejo and runner binaries, or `"fetched"` for temper's (6.6); an address on loopback; the person's login and email | an address on loopback; the seed's owner and repositories |
 | temper is given, on GitHub | an App's id and its private key, pasted | the person's steps in their browser, from a link temper prints | none: GitHub is never owned | none: the fake is a Forgejo |
 
@@ -242,7 +243,7 @@ connected  the forge component       ◄── its access, built from the record
   | Forge | Records |
   |---|---|
   | Forgejo, connected | `ApiToken`, `GitToken`, `User`, `Origin`; `WebhookSecret` when the person gave one |
-  | Forgejo, managed, owned or fake | those, and `AdminToken`; `WebhookSecret` drawn by reconcile when the webhooks' listener is configured |
+  | Forgejo, managed, owned or fake | those, and `AdminToken`; `WebhookSecret` drawn by the plan that makes its first hook, on a forge served the listener (5.3, 5.4) |
   | GitHub, managed or connected | `AppId`, `AppSlug`, `AppKey`, `User` (the App's bot user), `Accepted`, `Origin`; no `WebhookSecret` |
 
 - **Written by the setup host's plans alone,** each write kept before
@@ -449,7 +450,7 @@ runs it or writes what it makes.
   |---|---|
   | the admin's token | at a managed connect, the pasted value; otherwise the `AdminToken` record |
   | the API and git tokens, the bot's id | the `ApiToken`, `GitToken` and `User` records, or none when absent |
-  | the webhooks' secret | the `WebhookSecret` record, or none, and reconcile then draws one |
+  | the webhooks' secret | the `WebhookSecret` record, or none, and the plan that makes a first hook then draws one (5.4) |
 
   Each answer is a record or a pasted value, never a file: a forge's
   `api_token`, `git_token`, `user` or `webhook_secret` file, from a
@@ -465,8 +466,8 @@ runs it or writes what it makes.
   managed, owned or fake Forgejo (skein's `forge-setup.md`, 4.5): the bot made
   a collaborator with write, and the repository's hook made when the
   forge is served the listener (5.3), with the forge's secret; a managed
-  forge elsewhere is served none (5.5). A person's adoption gives the
-  plan the path its request carries, since the bot may not see the
+  forge on another host is served none (5.5). A person's adoption gives
+  the plan the path its request carries, since the bot may not see the
   repository yet; the
   fake's start-time plans give ids. Stopped, the adoption
   is refused, named (`../domain/forge.md`, access at adoption). A
@@ -508,9 +509,9 @@ runs it or writes what it makes.
 ### 5.5 Connecting as its admin, and forgetting
 
 - **"Connect as its admin"** (`Connect` with `ForgejoAdmin`;
-  `../client/forge.md`, the deployment's page), for a Forgejo elsewhere:
-  its connect makes the forge's record, managed, from the address the
-  person gives, its API's host, port and transport, its git and web
+  `../client/forge.md`, the deployment's page), for a Forgejo temper does
+  not run, on this host or another: its connect makes the forge's record,
+  managed, from the address the person gives, its API's host, port and transport, its git and web
   bases, and its git program when given, numbered next (forge.md, 2.2),
   in the connect's admission, before any run; or, on a managed Forgejo
   kept and neither connected nor connecting, connects it again. Any
@@ -531,8 +532,9 @@ runs it or writes what it makes.
 - **Its listener:** a forge whose API is on loopback, by its record's
   address as resolved, so on this host, is served the listener, and its
   hooks are made and checked as an owned forge's are (5.4, section 10).
-  One elsewhere is served none and polls: a loopback listener is out of
-  its reach, and given one it would post, signed, to its own loopback.
+  One on another host is served none and polls: a loopback listener is
+  out of its reach, and given one it would post, signed, to its own
+  loopback.
 - **Its bot:** on a forge with no secret records, its record's bot,
   the one its connect carries, `temper` unless it names another, made
   when missing; on a forge with them, the recorded user's login.
@@ -1131,8 +1133,9 @@ its own for any other host.
   as `SetUp`'s are. After Reconcile and its
   `AdminOrigin` write are kept, Create makes the repository
   before the admin token is kept and the forge connects (5.5). A missing
-  organization is owned by the admin Create has verified. No listener is
-  supplied, so Create adds no hook.
+  organization is owned by the admin Create has verified. On a forge
+  served the listener Create adds the repository's hook, and the forge
+  connects with its secret; on another host it adds none (5.5).
   The forge's row carries `admin`, the string form's admin-connect offer;
   `first.label`, the runner label; and `ended_stop`, an optional
   `AdminStop`: `NotAdmin`, `Refused { status, stage: SetupStage }`,
@@ -2475,8 +2478,8 @@ override.
 
 - **The webhooks' listener,** `application.webhooks.listener`,
   `127.0.0.1:<its port>` (8.2). Each Forgejo's `WebhookSecret` is a
-  record, drawn by the engine's reconcile. Adoption makes the
-  repository's hook; the fake's start-time adoption hooks its seeded
+  record, drawn by the setup plan that makes its first hook (5.4).
+  Adoption makes the repository's hook; the fake's start-time adoption hooks its seeded
   repositories (8.4). GitHub's hints come from its App's delivery log.
 - **Its LLM providers:** the owned example's `engine.llm`, whole (8.1),
   with no account; 2, `anthropic`, on every document, whatever is on
@@ -2542,12 +2545,12 @@ override.
   forge's procedures start agents' work under (kind 3's number 1,
   configuration.md, 13.2);
   the templates `chat` and `goal`. A task with no model chosen takes the
-  first of its charter's models whose provider has an account serving
-  its payer (jig's `jig-domain-core` `llm.rs`), so in the playground,
+  first of its charter's models whose provider has an account usable for
+  its payer (jig's `domain/accounts.md`, 4.3), so in the playground,
   whose project's one account is the scripted one (8.4), a chat and the
   coding agent of the change it delegates both run on the scripted
-  model, with no pick. jig resolves that default once, at the task's
-  Create, and records it: a chat started before an account of a real
+  model, with no pick. jig takes it at each run's check until the task
+  keeps an account: a chat started before an account of a real
   provider stays on the model it took, and a chat started after takes
   the charter's first,
   `gpt-6.1-sol` once an OpenAI key serves it. The composer's line says
@@ -3222,7 +3225,7 @@ them as it does any Forgejo.
 | the person's first password | owned | Forgejo, random, at the first preparation | `person_password` | the person |
 | the runner's secret | owned | the preparation | `runner/secret` | Forgejo's command line; the runner's connection, through the token's file it names |
 | Forgejo's own secrets | owned | the preparation | `state`, and `app.ini` | Forgejo |
-| the webhooks' secret | Forgejo, every mode | the person, pasted; reconcile, drawn | the `WebhookSecret` record | the webhooks' listener; Forgejo's hooks |
+| the webhooks' secret | Forgejo, every mode | the person, pasted; a setup plan, drawn (5.4) | the `WebhookSecret` record | the webhooks' listener; Forgejo's hooks |
 | a GitHub App's key | GitHub | GitHub, at the manifest's conversion; the person, pasted as PEM | the `AppKey` record, DER; a PEM never | the forge component, for its tokens; the setup host, while a plan runs |
 | an installation's token; a GitHub git token | GitHub | the forge component, from the App's key | memory alone | the forge component; git |
 | the scripted model's key | the playground | `temper init`, random (8.2), or the fake LLM from its seed in a document's form (8.4) | `demo/llm.key`, or the document's `key` | the fake LLM, its one credential; the service, which carries it at the playground's start for the deployment's scripted account (8.4) |
@@ -3261,8 +3264,8 @@ that they cover what its work waits on.
   skein's `forge.md`, section 7, and the forge's secret. An owned
   Forgejo's `app.ini` allows the listener's address (6.2). On a box,
   nothing is left to the person. A managed Forgejo on this host has the
-  same hooks and its `app.ini` is the person's (5.6); one elsewhere has
-  none (5.5).
+  same hooks and its `app.ini` is the person's (5.6); one on another
+  host has none (5.5).
 - **What a box's work waits on, and what ends each wait,** with the keep
   reading the forge within `hinted` of the hint, which gathers one
   change's hints into one read (`../domain/forge.md`, 5.2):
@@ -3779,8 +3782,10 @@ it checks of this document:
   with its API on loopback, each repository adopted has one hook at
   `http://<listener>/hooks/<number>` (5.4), and has it again, with its
   collaborator, after a restart with both removed by hand (reconcile's
-  step 6). Its delivery is not this story's: a step test and the worlds
-  show polling with a hook that delivers nothing (section 10).
+  step 6). Its delivery is not this story's. With a hook that delivers
+  nothing, a step test shows the forge staying connected with nothing
+  ended, and the walks on fake backends, whose Forgejo elsewhere delivers
+  nothing, land by polling (section 10).
 - **The first-run behaviours** past these use their lower owners: the
   stock scripts' data tests, the real-loop playground stories, and the
   client and engine setup/reset worlds. The process tier has one short
@@ -3833,6 +3838,11 @@ Each is intended; what it needs is named with it.
   section 9).
 - **Webhooks from another host,** over TLS (skein's
   `forge-connection.md`, section 6), once skein has TLS's server side.
+  Until then a managed Forgejo on another host polls (5.5).
+- **A secret drawn at a reconcile with no repository,** so that a forge's
+  first hook needs no access handed again, which ends the calls then open
+  (5.4). It is a change to skein's plan (skein's `forge-setup.md`, 4.3),
+  which the request `managed-listener` left to keep to one task.
 - **CI's isolation.** An owned runner's jobs in host mode run as the
   box's user, who can read every file of temper's as credentials.md,
   section 8 accepts of agents in standalone, the handover among them

@@ -90,9 +90,10 @@ fn trust_notice(line: &str) -> bool {
         let fields: Vec<_> = counts.split(", ").collect();
         const ROOT_FIELDS: usize = 4; // taken, skipped, malformed blocks, other blocks.
         fields.len() == ROOT_FIELDS
-            && fields
-                .iter()
-                .zip([" taken", " skipped", " malformed blocks", " other blocks"])
-                .all(|(field, suffix)| field.strip_suffix(suffix).is_some_and(|count| count.parse::<u32>().is_ok()))
+            && fields.iter().zip([" taken", " skipped", " malformed blocks", " other blocks"]).all(|(field, suffix)| {
+                field.strip_suffix(suffix).is_some_and(|count| {
+                    count.parse::<u32>().is_ok_and(|count| suffix != " malformed blocks" || count > 0)
+                })
+            })
     })
 }

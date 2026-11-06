@@ -2,15 +2,24 @@
 //! contract.md, 5.3–5.4).
 use crate::contract::{
     ActKind, Admission, Chip, ChipDetails, ChipPhase, ChipPhaseFacts, ChipWork, Effect, HeldRole, HoldCategory, Me,
-    Offered, RetryNotice, RunStage, WaitedFor, WaitsOn, Whom,
+    Offered, RetryNotice, RunStage, TaskRunWait, TaskSourceState, TaskWaitWhy, WaitedFor, WaitsOn, Whom,
 };
 use alloc::boxed::Box;
 use skein_lib::Wall;
+
+/// What a run that can't start waits for (client/domain/client.md, 19.1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RunWaitKind {
+    Account,
+    Credential,
+    Host,
+}
 
 /// A chat's status, in the precedence of client/domain/client.md, 19.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ChatStatus {
     Starting,
+    RunWaiting(RunWaitKind),
     HostRefused(crate::contract::TaskWaitRefused),
     Writing,
     Tool { tool: Box<[u8]>, since: Wall },
@@ -29,7 +38,7 @@ pub enum ChatStatus {
 pub fn chat_status(
     chip: &Chip,
     waits_on: &WaitsOn,
-    run_wait: Option<&crate::contract::TaskRunWait>,
+    run_wait: Option<&TaskRunWait>,
     project: u32,
     me: &Me,
 ) -> ChatStatus {
@@ -48,12 +57,38 @@ pub fn chat_status(
                     false
                 }
             };
-            if unplaced && let Some(crate::contract::TaskRunWait::Refused(why)) = run_wait {
-                return ChatStatus::HostRefused(*why);
+            if unplaced && let Some(wait) = run_wait {
+                return run_wait_status(wait);
             }
             active(*stage, details)
         }
         ChipPhase::Waiting { .. } | ChipPhase::Person { .. } => ChatStatus::Starting,
+    }
+}
+
+fn run_wait_status(wait: &TaskRunWait) -> ChatStatus {
+    match wait {
+        TaskRunWait::Refused(why) => ChatStatus::HostRefused(*why),
+        TaskRunWait::Credential => ChatStatus::RunWaiting(RunWaitKind::Credential),
+        TaskRunWait::Host => ChatStatus::RunWaiting(RunWaitKind::Host),
+        TaskRunWait::Account { why, .. } => match why {
+            TaskWaitWhy::Refreshing => ChatStatus::Starting,
+            TaskWaitWhy::Source(source) => match source {
+                TaskSourceState::Asking | TaskSourceState::Granted => ChatStatus::Starting,
+                TaskSourceState::Later { .. }
+                | TaskSourceState::Limited { .. }
+                | TaskSourceState::Refused
+                | TaskSourceState::NeedsSignIn
+                | TaskSourceState::Misconfigured
+                | TaskSourceState::Unloaded { .. }
+                | TaskSourceState::Cancelled
+                | TaskSourceState::Closing
+                | TaskSourceState::Moving => ChatStatus::RunWaiting(RunWaitKind::Account),
+            },
+            TaskWaitWhy::Host | TaskWaitWhy::Empty | TaskWaitWhy::Invalid(_) => {
+                ChatStatus::RunWaiting(RunWaitKind::Account)
+            }
+        },
     }
 }
 

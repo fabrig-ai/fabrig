@@ -3162,6 +3162,11 @@ whole.
   never forgotten, as jig forgets a result only for a person's request. At
   most one a sitting and an hour, each small. Default: kept, until jig
   forgets a deployment's reads.
+- **A stock project's room, shared** (5.7; `../protocol/configuration.md`, 13.4):
+  the chat's 24K outside the pools is what no pool reserved, and no brief's own: the
+  forge's repairs draw on it and a member's first spend in a period reserves it, and
+  a shared project's plan doesn't serve the run. Home then keeps its computed
+  sentence, and nothing tells the owners why. Default: so; they can fund the period.
 - **What lands on a goal's branch and then on main** (5.6) counts twice,
   each a change landed. Default: so, said here and in the design of Home.
 - **A failed row, dismissed** (4.5; `../draft/repository-copies.md`,

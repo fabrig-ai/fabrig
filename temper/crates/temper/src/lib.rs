@@ -414,7 +414,7 @@ fn prepare_with_store(
     prepare_with_limits(directories, bytes, owned, false, None, &service::stock::Given::Stock)
         .map(|(service, store, _)| (service, store))
 }
-#[expect(clippy::too_many_lines, reason = "startup passes the checked machine and its program environment together")]
+#[expect(clippy::too_many_lines, reason = "startup supplies resolved process facts beside the checked deployment")]
 fn prepare_with_limits(
     directories: &Directories,
     bytes: &[u8],
@@ -491,6 +491,10 @@ fn prepare_with_limits(
         forges,
         Some(&checked),
         if under_box { Some(limits.line_bytes) } else { None },
+        std::env::current_exe()
+            .ok()
+            .and_then(|binary| program_login::line(directories, &binary))
+            .map(|line| line.into_bytes().into_boxed_slice()),
         given,
         directories.program_environment(
             &skein_shell::environment(),

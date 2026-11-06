@@ -125,6 +125,7 @@ pub enum Malformed {
     Settings {
         setting: crate::Setting,
         fault: crate::SettingFault,
+        detail: Option<crate::SettingDetail>,
     },
     SettingsUnchanged,
     /// Running work is chosen only on accepting a settings proposal.
