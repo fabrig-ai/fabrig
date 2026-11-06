@@ -178,8 +178,7 @@ project's Needs you and rail's count, but its live card lists no item of temper'
 kinds, stays on Needs you once accepted, leaves its chat on a reload and follows a
 "Decision made" while it waits, and Accept on that chat's own card is refused, where
 Needs you's and Home's work (`client/README.md`). "Start goal…" went once from a
-restored document, on no replay since, its cause unknown (`client/README.md`). `again` can't record a journey
-that begins past the welcome (`client/journeys.md`). The welcome's try of a model draws Model's line in
+restored document, on no replay since, its cause unknown (`client/README.md`). The welcome's try of a model draws Model's line in
 Ready's pane over the host's check alone, no trial being built, and departs from the request
 `model-check-pane` in its list's words, and a sign-in that ends on its way's page stops at
 *A model usable*, where that request goes on to Ready (`client/README.md`). A plan's sign-in draws the waiting page of the request
@@ -219,9 +218,12 @@ and no walk drawing a long one in its pane, and a later note write's words
 close with its lines where the `note-parts` request of 2026-11-05 keeps the
 answer as it stood (`domain/agent.md`). A journey's `add` redacts, proves
 and scans before it writes, but no real box's recording has been through it, the
-committed recordings keep their fake boxes' dummies until next added, nothing
+two welcome journeys keep their fake boxes' link secrets until next added, nothing
 refuses `again` on a real journey, and the refusal's process tests watch two
-directories, not every path (`client/journeys.md`). The
+directories, not every path (`client/journeys.md`). The process tier runs one test
+at a time where its design has three, its one trial at three having failed twice on
+causes not found, and most of the `test-speed` plan's whole runs read over its CPU
+budget (`domain/testing.md`). The
 case library's purpose is retired, the fake
 git program drives skein's JSON tokenizer over a whole body by hand,
 the ladder has no twin past B1 and no live story but B0's, neither
