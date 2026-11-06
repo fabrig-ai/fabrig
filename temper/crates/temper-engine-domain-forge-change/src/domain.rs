@@ -1017,7 +1017,10 @@ fn repair_due(mut change: Change, why: Repair, facts: &Facts, now: Wall, limits:
     }
     change.repairs = change.repairs.checked_add(1).expect("repair count below limit");
     change.owns_turn = false;
-    change.clean = Box::new([]);
+    match why {
+        Repair::Semantic => {}
+        Repair::Ci | Repair::Gate(_) | Repair::Landing { .. } => change.clean = Box::new([]),
+    }
     change.state = State::Repairing { requested: true, why };
     change.since = now;
     Stepped { change, decision: Decision::Delegate(Delegate::Repair(why)) }

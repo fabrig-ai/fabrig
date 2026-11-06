@@ -708,6 +708,36 @@ fn a_failed_clean_update_is_a_semantic_repair_and_a_broken_base_gets_one_queue_r
     f.queue_repair_active = true;
     assert_eq!(decide(&c, &f, &heard()).decision, Decision::Wait { until: None });
 }
+
+#[test]
+fn a_semantic_repair_keeps_clean_predecessors_until_its_push_is_taken() {
+    let mut c = change(State::Checking { head: HEAD });
+    c.clean = Box::new([NEW]);
+    let mut f = facts();
+    f.ci.status = Status::Failed;
+    let due = decide(&c, &f, &heard());
+    assert_eq!(due.decision, Decision::Delegate(Delegate::Repair(Repair::Semantic)));
+    assert_eq!(due.change.clean.as_ref(), &[NEW]);
+    f.branch = Some(MERGE);
+    let pushed = decide(&due.change, &f, &Heard { delegate: Status::Passed, ..heard() });
+    assert_eq!(pushed.change.last_head, Some(MERGE));
+    assert_eq!(pushed.change.state, State::Checking { head: MERGE });
+    assert!(pushed.change.clean.is_empty());
+}
+
+#[test]
+fn ci_and_gate_repairs_clear_clean_predecessors_when_due() {
+    for why in [Repair::Ci, Repair::Gate(9)] {
+        let mut c = change(State::Repairing { requested: false, why });
+        c.clean = Box::new([NEW]);
+        let mut f = facts();
+        f.ci.status = Status::Failed;
+        let due = decide(&c, &f, &heard());
+        assert_eq!(due.decision, Decision::Delegate(Delegate::Repair(why)));
+        assert!(due.change.clean.is_empty(), "{why:?}");
+    }
+}
+
 #[test]
 fn release_reopens_a_closed_pull_and_recreates_a_deleted_branch() {
     let mut c = change(State::Held { was: Box::new(State::Checking { head: HEAD }), why: Hold::PullClosed });

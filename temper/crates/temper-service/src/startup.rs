@@ -17,6 +17,7 @@ pub use application::sign_in::{Endpoints, SignIn, url as sign_in_url};
 pub use application::{Forge, Identity, Transport, USER_BYTES, User};
 pub use checks::redirect_ports;
 use jig_protocol_config::{self as config, Path, Segment, read};
+pub(crate) use problems::admission_words;
 pub use problems::{Problem, Problems, What, lines};
 use skein_lib::List;
 

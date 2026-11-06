@@ -311,7 +311,7 @@ Steps from the standard, each needing one before it only where it says.
   - **The line:** the figure; with `data-left` once 3 s of data gives an
     estimate over 5 s; `data-waiting` after 15 s with no byte, which is no
     failure; `data-starting` once every byte is in. `#boot-note`: after
-    8 s, `data-keeps`.
+    8 s, `data-keeps`, and nothing while the line waits.
   - **A failure** is a fetch's error, an answer that isn't OK, a stylesheet
     that didn't load, no WebAssembly, or an `init` that threw:
     `data-state="failed"` on `#boot`, `data-failed` as the line, why as
@@ -1426,6 +1426,12 @@ the application that needs it.
 - **Brotli beside gzip:** it saves more, and browsers offer it on https
   alone. It waits for an application served over https whose wait still
   matters with gzip.
+- **The loader's other states in a test:** the browser tier holds its
+  hand-over and a module not found. The estimate, the 8 s note, a stall, a
+  drop and `data-starting` need an answer held or cut part-way, which the
+  example's server doesn't do; the `bundle-loading` plan's proof walked them
+  once behind a proxy of its own (its figures on the render check, at
+  `668f7cd3e5`). They wait for a change of the loader that breaks one unseen.
 - **Graphics beyond a scene** (a canvas of hundreds of thousands of
   points, three dimensions, video) are a component of the application's
   (6.1), never a part of skein's.

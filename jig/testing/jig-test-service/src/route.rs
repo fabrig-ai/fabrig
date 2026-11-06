@@ -321,7 +321,7 @@ fn core_held(engine: &mut Engine, held: core::Held) {
                 );
             }
         }
-        core::Held::Refuse { channel } => {
+        core::Held::Refuse { channel, .. } => {
             if let Some(workers) = &mut engine.workers {
                 workers.down(
                     engine.env.now,
