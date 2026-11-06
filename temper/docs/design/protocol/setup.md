@@ -213,7 +213,7 @@ connected  the forge component       ◄── its access, built from the record
   | `runner/` | prepare | the runner, through `run` | the runner's configuration, its registration, its jobs' directories, `secret` |
   | `backups/` | prepare | the person | one dump before each upgrade's migration |
   | `state` | prepare | prepare, `run` | owned's record: the versions prepared, whether the first preparation ended, Forgejo's own secrets |
-  | `admin_token` | prepare, when missing | the engine's setup host, once, at start or the box's `started` (6.5) | the handover: temper's admin's token, kept as the forge's `AdminToken` record by `TakeOver`, after whose `Done` the file is removed (6.5) |
+  | `admin_token` | prepare, when missing | the engine's setup host, once, at start or the box's `started`, and once more on a restart of a box that signs its person in (6.5) | the handover: temper's admin's token, kept as the forge's `AdminToken` record by `TakeOver`, after whose `Done` the file is removed (6.5) |
   | `person_password` | prepare | the person | the person's first password on the owned Forgejo |
   | `person_read.header`, `person_write.header` | prepare | the person, or their agent (`../client/tools.md`, 11.5) | the person's two tokens as one header line each, `Authorization: token TOKEN`: one that reads (`read:repository`, `read:issue`, `read:organization`, `read:user`), one that writes (`write:repository`, `write:issue`, `read:organization`, `read:user`) |
 
@@ -875,6 +875,17 @@ binaries; and decides by
   older tokens; taking the same token again is harmless. No owned or
   fake forge's `api_token`, `git_token`, `user` or `webhook_secret` file
   is written or read.
+- **A box's restart, when it signs its person in** (7.1): serve starts
+  before the group, so its read at the start comes before preparation
+  has made the new handover. That start's `Reconcile`, from the kept
+  `AdminToken`, waits for the forge (skein's `forge-setup.md`, 4.4), and
+  Forgejo runs only after preparation has ended. So once that
+  `Reconcile` is done, before the first repository or the connect, the
+  host reads `admin_token` once more. A file there is taken over,
+  removed and reconciled again, as above; with none, the forge goes on.
+  The forge stays connecting throughout, so it reads connected only with
+  the handover gone. This second read is once per start, for a forge
+  that start restored, and a stop along the way is a stop as below.
 - **A step that stops blocks that forge's connect.** A `TakeOver`,
   `Reconcile`, `Create` or `Adopt` stop, a handover read that fails, or a removal
   that fails leaves the forge not connected, named by the plan's step or file
@@ -1408,8 +1419,11 @@ temper box
 - **At a later start,** the box lists `box/groups`, at most `box.groups`
   files (configuration.md, section 7), and runs each group whose
   `started` record exists from its file, in its place, as an unasked
-  group, before `temper serve`; a group with a file and no record stays
-  dormant until asked. A file it cannot read, or a record it cannot look
+  group, before `temper serve`, or just after it when the box signs its
+  person in through that forge: a later preparation's source commands
+  and Forgejo, loading its source, fetch discovery from temper
+  (`sign-in.md`, 9.9), and serve takes the handover later for it (6.5). A
+  group with a file and no record stays dormant until asked. A file it cannot read, or a record it cannot look
   at, is named on its stderr, and its group stays dormant; of two
   started groups of one kind, the one of the higher number runs, and the
   other is named and stays dormant.
@@ -2552,17 +2566,18 @@ override.
   record, drawn by the setup plan that makes its first hook (5.4).
   Adoption makes the repository's hook; the fake's start-time adoption hooks its seeded
   repositories (8.4). GitHub's hints come from its App's delivery log.
-- **Its LLM providers:** the owned example's `engine.llm`, whole (8.1),
-  with no account; 2, `anthropic`, on every document, whatever is on
+- **Its LLM providers:** the owned example's `engine.llm` with no
+  account, its models `temper init`'s (configuration.md, 13.4), each with
+  its `shown`, `efforts` and `effort`, where the owned example's are its
+  own; 2, `anthropic`, on every document, whatever is on
   `PATH`, so that the Model step offers ChatGPT and Claude
   (`../client/README.md`, 3.5): `signed_in_plan` false, `manage_usage`
-  `https://claude.ai/settings/usage`, its one model `claude-opus-5-5`,
+  `https://claude.ai/settings/usage`, its models Anthropic's of that table,
   through Claude Code's `--model` (smith's `protocol/programs.md`, 5.1),
   and its one source Claude Code's program, `claude_code`; one
   endpoint, `anthropic`, naming that program, Anthropic's dialect, 2, at
-  `api.anthropic.com:443` on TLS, with OpenAI's bounds; the model's
-  window 1,048,576 and output 8,192, as the shipped model's, and 1 per
-  1,000,000 for input, cached and output, figures a subscription bills
+  `api.anthropic.com:443` on TLS, with OpenAI's bounds; its models'
+  prices are that table's, figures a subscription bills
   to nobody; the agent's configuration declares them too (8.2), and the
   `standard` profile's `documents.lines`, 16, holds the offer's three
   lines, so that no override is written; and 3, `demo`, the scripted
@@ -2623,15 +2638,16 @@ override.
   model, with no pick. jig takes it at each run's check until the task
   keeps an account: a chat started before an account of a real
   provider stays on the model it took, and a chat started after takes
-  the charter's first,
-  `gpt-6.1-sol` once an OpenAI key serves it. The composer's line says
+  the first of its charter's models with an account usable,
+  `claude-opus-5-5` once a Claude login is. The composer's line says
   which, before the start, from jig's `resolved_default` preview in
   `me`, never by guessing from catalogue order (`../client/README.md`,
   5.5). The request keeps its omitted choice; the preview does not turn
   it into an explicit one. The charters, the
   templates and the forge's charter are the binary's stock settings,
-  their models every model `engine.llm` configures in the document's
-  order, the scripted model last as `temper init --box` writes it; the document names
+  their models every model `engine.llm` configures in the stock's order
+  (configuration.md, 13.4), the scripted model last as `temper init --box`
+  writes it; the document names
   none of them (configuration.md, 13.4), and a person changes them from
   "How work runs" (`../client/README.md`, 5.13).
 - **One worker,** in the process, its `root` `workspaces` in the data
@@ -3858,8 +3874,8 @@ it checks of this document:
   and its generation (forge.md, section 10, the box's link). A second
   box on the same directories starts the group by its record, before
   `temper serve` unless the box signs its person in through that forge; then
-  serve starts first, to answer the source's discovery (sign-in.md, 9.9). Preparation makes a new handover; serve takes it over
-  and connects forge 1 from its records (6.5), and the task is found
+  serve starts first, to answer the source's discovery (sign-in.md, 9.9). Preparation makes a new handover; serve takes it over,
+  its file gone again, and connects forge 1 from its records (6.5), and the task is found
   landed, its CI at its head unknown until a next step reads it
   (`../domain/forge.md`, 8.8).
 - **A Forgejo connected as its admin, on this host:** on a real Forgejo
@@ -3879,6 +3895,24 @@ it checks of this document:
 ## 15. Later
 
 Each is intended; what it needs is named with it.
+
+- **Models kept beyond init** (8.3): the catalogue's store step moves
+  models out of both generated configuration documents, keeping the seven
+  as release defaults; the list step adds discovery per usable account
+  (`../draft/model-catalogue.md`, section 7). Until then offering another
+  model edits both documents.
+
+- **A handover made by a Forgejo's own restart** (6.5, 7.1): a Forgejo
+  step that exits under a running serve runs its preparation again,
+  which makes a new handover, and no `started` reaches serve for it, so
+  the file stays until serve's next start. It needs the box to tell
+  serve of that restart, and serve to take a handover on a forge it
+  holds connected.
+
+- **A box killed outright on macOS** (7.1): its steps have no parent-death
+  signal, so they can keep running and hold the next start's ports. A
+  lifetime guard on macOS needs a mechanism of its own; until one is
+  designed, the box's ordered stop, including a hangup, is its cleanup.
 
 - **A start holding the engine's documents to temper's clients** (8.1):
   no start compares `documents.text_bytes` with what the web and terminal
@@ -3968,9 +4002,6 @@ Each is intended; what it needs is named with it.
 - **The person's `claude` installed after init** (6.6, 8.2): taken in
   place of the fetched build, or not; for now init's choice holds until
   the box is made again (`../draft/claude-provider.md`, 6).
-- **Choosing Claude's model and effort** (8.3): init writes Opus alone;
-  choosing is the work the user asked for apart, for ChatGPT and Claude
-  alike (`../draft/claude-provider.md`, 4).
 - **The other fake peers' refused connections** (7.5): the issuer's log
   takes a line for each connection it turns away at its cap, from skein's
   OAuth peer's count; `fake github`, `fake forgejo` and `fake model` turn

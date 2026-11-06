@@ -40,7 +40,19 @@ worker slots it is to size temper's own way by, no story that runs has an owner 
 its proposal under Needs you, with `temper help proposal` still saying that press fails,
 and a second proposal's refusal offers a `withdraw` it can't make (`domain/agent.md`), and a
 charter's `tools` decides only whether its runs are offered the
-settings family (`protocol/configuration.md`). The limits' check
+settings family (`protocol/configuration.md`). Seven stock models and their
+default efforts, the per-project offer and per-template previews, ctl's offer
+listing and the configuring chat's chooser are built. Account groups and
+"All models" await the separate picker look; an unusable account's fix is
+hidden beside a usable one of the same provider (`client/README.md`). The
+configuring inventory is filtered, but whole charter reads still name models
+outside the offer and only instructions restrict proposals to it
+(`domain/agent.md`, `draft/model-catalogue.md`). Model settings and provider
+list reads remain the catalogue's later steps. The watch rooms follow admitted
+streams, with the whole room available to one party; obsolete watch-room overrides are refused and ctl names a watch
+refused busy at its deadline. A fair share, the other ineffective views
+overrides, precise Busy causes and the manual browser check remain deferred
+(`protocol/configuration.md`, `client/tools.md`). The limits' check
 leaves temper's kinds out of the settings answer's bound
 (`domain/root.md`), and a change's refusal omits what authority it
 lacked and which model its charter refused (`domain/agent.md`). A
@@ -54,7 +66,13 @@ CI or tiers' workflows, and no walk applies the case's project file
 user's request of 2026-11-03 but for a message, a report, a person's
 spec and a run's brief, which its agent and smith's room bound below
 them (`protocol/configuration.md`), and the walk that request ends
-with has not passed (`protocol/setup.md`). `temper init`'s documents hold
+with has not passed (`protocol/setup.md`). The box's hour-long Forgejo
+session, source-address refresh, refused public/sign-in pair, empty
+repository-name handling and Linux lifetime wrapper are built. The
+combined default-runner, restart, moved-port and terminal-hangup walk
+has no outcome in the supplied inventory, and the real-box sign-in
+story awaits its after-landing run (`protocol/setup.md`,
+`protocol/sign-in.md`, `client/forge.md`, `domain/testing.md`). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
 reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words in

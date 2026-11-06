@@ -162,8 +162,8 @@ it is live:
   of its runs' checks takes its models from its charter, within its
   authority, the first it can use its main and the others its sub-agents'
   (accounts.md, 4.3); each takes the effort its charter selects, or else
-  the first it declares, or none where it declares none, which leaves its
-  LLM provider's default. Its document shows what its next run would take
+  its model's default (`effort`, `../protocol/configuration.md`, section 3),
+  or none where it declares none, which leaves its LLM provider's default. Its document shows what its next run would take
   (`../client/domain/contract.md`, 5.1). A batch or an amendment that
   leaves such a task with an authority allowing none of its charter's
   models is refused, naming the charter's first.

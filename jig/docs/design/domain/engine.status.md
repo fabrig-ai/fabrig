@@ -6,14 +6,20 @@ and unread-tail retry guard in 7.1 and 7.2, and the prospective templates
 query for settings judges in 17.5, and the bounded document refusal
 facts carried through proposal answers in 17.9.
 
+- **Departs:** 11.1: an omitted template's preview uses the first offered
+  model, while a task's next-run selection needs a supporting host to call
+  even a direct account usable and otherwise takes the first serving one.
+  These can differ across a worker restart with Claude and OpenAI accounts;
+  `../client/domain/contract.status.md`, 5.1 records the source paths and
+  reason. The offer remains available as this section requires.
+
 - **Not yet:** 2, 8: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the
   two-claim placement balance. 4.2, 5.3: the remaining point-load fences.
   7.1, 9: the brief's lineage, calls and waiting sections. 7.2: what a
   turn's calls made, written beside the turn. 7.3: the tools `move`, `succeed`,
   `hold` and `lift`.
-  11.1: `me`'s
-  `resolved_default`. 15: core-world stories that opt out of the restart
+  15: core-world stories that opt out of the restart
   oracle with a named finding (`broken()` in `jig/tests/core`), most for
   a claim the start settles (6, step 3) changing a task's `chip`, `acts`
   or run `settings`, which the projection keeps durable, others for a

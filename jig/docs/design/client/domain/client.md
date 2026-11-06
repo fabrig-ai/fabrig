@@ -1197,6 +1197,10 @@ with a person in front of a tree, are view.md's, 18.10.
 
 ## 18. Open questions
 
+- **A busy watch's cause** (8.2): `watches_full` records the refusal,
+  which carries no count or separate capacity cause. Whether to distinguish
+  watch room from another admission bound is a protocol decision. Default:
+  the existing Busy refusal and a boolean, read on demand by the application.
 - **Activity past a client's read bounds** (sections 14 and 16): a line past
   `long_text`, or a page past `document_bytes`, ends the read malformed without
   cutting its words. Whether an application grows its bounds for a larger
@@ -1304,9 +1308,10 @@ with a person in front of a tree, are view.md's, 18.10.
     wall where the template has it given, so that no shape reads a
     clock; no wake policy, so the executor's own;
     the template's LLM choice, or the goal draft's where it names one,
-    by configured names (contract.md, 3.2), none leaving it to each run's
-    check (`../../domain/accounts.md`, 4.3). Shapes copy configured intent, never
-    `resolved_default`, the separate preview served in `me`;
+    by configured names (contract.md, 3.2), none being the charter's default
+    taken at each run's check (`../../domain/accounts.md`, 4.3). Shapes copy
+    configured intent, never `resolved_default`, the separate preview served
+    in `me`;
     no parameters, inputs or dependencies; symbolic resources copied
     from the template for the engine to resolve;
   - a template it cannot fill gives `NotOffered::Template`, and nothing

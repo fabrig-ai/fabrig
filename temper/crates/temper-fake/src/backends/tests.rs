@@ -483,7 +483,8 @@ fn program_offer_has_a_runnable_model_route_in_both_documents() {
     let stock = temper_service::stock::defaults(&admitted.llm, admitted.limits.core.tasks.result_bytes);
     for charter in &stock.charters {
         assert!(charter.policy.alternatives.iter().any(|model| model.name.as_ref() == b"fake-claude"));
-        assert_eq!(charter.policy.model.name.as_ref(), b"gpt-6.1-sol", "default remains credential-backed");
+        let expected = if charter.number == 3 { b"gpt-6-astra".as_slice() } else { b"gpt-6.1-sol" };
+        assert_eq!(charter.policy.model.name.as_ref(), expected, "default remains credential-backed");
     }
 }
 
@@ -562,6 +563,8 @@ fn written_anthropic_entries_are_replaced_once() {
     assert_eq!(models.len(), 1);
     assert_eq!(models[0]["name"], "fake-claude");
     for document in [&effective, &effective_agent] {
-        assert!(!serde_json::to_string(document).unwrap().contains("claude-opus-5-5"));
+        for name in ["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1"] {
+            assert!(!serde_json::to_string(document).unwrap().contains(name));
+        }
     }
 }

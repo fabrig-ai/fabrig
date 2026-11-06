@@ -771,7 +771,7 @@ fn a_retry_keeps_a_stronger_expected_and_verifies_an_ambiguous_push() {
         &*landings(h.one(Event::Done { owner: hold, done: Done::Fetched { commit: commit(1) } })),
         &[Landing::Landed { commit: commit(1) }]
     );
-    // Saving keeps the actual start baseline even after retry delivery.
+    // Saving keeps the start baseline even after retry delivery.
     h.one(Event::Save { hold, message: message() });
     assert_eq!(&*landings(h.one(Event::Done { owner: hold, done: Done::Unchanged })), &[Landing::Unchanged]);
     // A later real edit follows the normal commit/push path, with no comparison.

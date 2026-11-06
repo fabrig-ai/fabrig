@@ -1479,6 +1479,7 @@ fn fixture_me(project_name: &[u8]) -> c::Me {
     let mut projects = List::with_capacity(2);
     projects
         .push(MeProject {
+            defaults: List::with_capacity(0),
             public: None,
             project: PROJECT,
             name: DocumentText::complete(
@@ -1547,6 +1548,7 @@ pub fn playground_frame_root(
 ) -> temper_client_domain::Domain {
     playground_frame_with_watch(address, project, model, llm, frame).0
 }
+#[expect(clippy::too_many_lines, reason = "the fixture delivers playground offer, preview and task through watches")]
 pub fn playground_frame_with_watch(
     address: temper_client_domain::Address,
     project: u32,
@@ -1569,6 +1571,10 @@ pub fn playground_frame_with_watch(
     for name in [crate::words::SCRIPTED_MODEL, b"selected"] {
         models
             .push(c::MeModel {
+                effort: None,
+                shown: None,
+                accounts: List::from_boxed(Box::new([2])),
+                picker: true,
                 name: c::Text::new(Box::from(name), 32).unwrap(),
                 provider: Some(17),
                 prices: c::ModelPrices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1000 },
@@ -1580,6 +1586,17 @@ pub fn playground_frame_with_watch(
             .unwrap();
     }
     me.projects.get_mut(0).unwrap().models = models;
+    me.projects.get_mut(0).unwrap().defaults = List::from_boxed(Box::new([c::MeDefault {
+        template: jig_client::shapes::CHAT,
+        choice: c::LlmChoice {
+            account: None,
+            main: c::ModelEffort {
+                model: c::Text::new(Box::from(crate::words::SCRIPTED_MODEL), 32).unwrap(),
+                effort: None,
+            },
+            subagents: List::with_capacity(0),
+        },
+    }]));
     let mut charters = List::with_capacity(1);
     charters.push(1).expect("chat charter");
     me.projects.get_mut(0).expect("playground project").creating = Some(c::Creating {

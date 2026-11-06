@@ -97,6 +97,8 @@ impl Limits {
         let choices = temper_client_domain::pages::choice::MODELS
             .checked_mul(4)?
             .checked_add(temper_client_domain::pages::choice::EFFORTS)?
+            // Providers without models: item, name paragraph/text, and link/text or unknown paragraph/text.
+            .checked_add(receiving.rows.checked_mul(5)?)?
             .checked_add(32)?
             // Change model disclosure and the plan line's separator/link/text.
             .checked_add(4)?;

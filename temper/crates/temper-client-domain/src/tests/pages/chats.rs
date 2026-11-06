@@ -270,6 +270,10 @@ fn a_start_from_configure_keeps_its_templates_models() {
         let mut models = List::with_capacity(MODELS);
         models
             .push(MeModel {
+                effort: None,
+                shown: None,
+                accounts: List::with_capacity(0),
+                picker: true,
                 prices: ModelPrices { input: 1, cached: 1, cache_write: None, output: 1, unit: 1000 },
                 description: None,
                 name: fixtures::acts::text(b"other"),
@@ -280,13 +284,26 @@ fn a_start_from_configure_keeps_its_templates_models() {
             })
             .unwrap();
         me.projects.get_mut(0).expect("project").models = models;
-        for requested in [None, Some(llm(b"other")), Some(llm(b"unoffered"))] {
+        for (edited, requested, valid) in [
+            (false, Some(expected.clone()), true),
+            (true, Some(llm(b"other")), true),
+            (true, None, true),
+            (true, Some(llm(b"unoffered")), false),
+        ] {
             for act in [Act::StartChat, Act::Starter { words: b"My workflow".as_slice().into() }] {
                 let mut page = Page::new(me.clone(), Address::Configure { project: fixtures::PROJECT });
                 page.words(b"My workflow");
-                page.pages.choice.requested = requested.clone();
+                assert_eq!(page.pages.choice.requested, Some(expected.clone()));
+                if edited {
+                    page.pages.choice.requested = requested.clone();
+                }
+                assert_eq!(page.pages.choice.valid(&me), valid);
                 page.act(act);
-                assert_eq!(page.task().llm, Some(expected.clone()));
+                if valid {
+                    assert_eq!(page.task().llm, requested);
+                } else {
+                    assert!(fixtures::acts::sent(&mut page.out).is_empty(), "an unoffered draft sends no Create");
+                }
             }
         }
     }
@@ -436,6 +453,7 @@ fn suggestions_and_configuring_chats_keep_the_cue_bound_when_receiving_grows() {
                     Some(&me),
                     Some(fixtures::PROJECT),
                     words.clone(),
+                    &crate::pages::choice::Draft::default(),
                     &mut serial,
                     &mut out,
                 );

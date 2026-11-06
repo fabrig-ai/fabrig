@@ -2316,6 +2316,8 @@ fn a_stock_goal_can_subscribe_to_main_with_its_held_branches() {
 fn stock_subscription_goal() -> (World, engine::Assignment) {
     let limits = temper_engine_domain_world::forge_routes::box_limits();
     let llm = jig_protocol_config::Llm {
+        shown: Box::new([None]),
+        pickers: Box::new([true]),
         endpoints: Box::new([]),
         providers: Box::new([]),
         descriptions: Box::new([None]),

@@ -883,10 +883,13 @@ other rules are skein's, per client, so no other client is weakened.
 it, by `add-oauth --name temper --provider openidConnect --key forgejo
 --auto-discover-url ISSUER/.well-known/openid-configuration` with `--work-path` and
 `--config`. temper is serving by then, since it asked for the group. On a restart, serve
-starts before this group too: Forgejo fetches discovery while loading its source.
+starts before this group too: a later preparation's source commands and Forgejo, loading its
+source, fetch discovery. So serve's read at its start comes before preparation's new handover,
+which it reads again once its first reconcile has waited for Forgejo, taking it before the
+connect (`setup.md`, 6.5).
 A restored group reports started only after its final source outcome, as on its first start.
 Its source fact is accepted for the kept box-owned Forgejo even with no setup ask in flight;
-the restored forge is already connected. An unknown or non-owned forge cannot set this fact.
+the restored forge needs no ask. An unknown or non-owned forge cannot set this fact.
 
 **A moved port.** The discovery address names temper's own listener, and a port a box
 finds taken is one its person may edit (`setup.md`, 7.1). Forgejo reads a source's
@@ -916,6 +919,12 @@ as it is. `temper ctl` and a coding run's credentials are untouched: they are th
 bot's and the person's tokens, and neither passes this provider.
 
 ## 10. Open questions
+
+- **Links after a failed source-address update** (9.9): whether a box
+  records the failure between preparation and the source step, so the
+  entry and its links stay off until the current discovery address is
+  stored. Default: the preparation logs the failure and succeeds, the
+  entry still serves, and Forgejo may send the press to the old address.
 
 - **`temper serve`'s owned Forgejo signing in with no command** (9.9). Default: its
   printed command, until `auto`'s reasoning has been checked for several members.

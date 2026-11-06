@@ -19,7 +19,11 @@ pub(super) fn text(bytes: &[u8], out: &mut Text) {
             out.put(b" \xc2\xb7 ");
             panel.print(*provider, b"provider_name", out);
             out.put(b"\n");
-            for model in &panel.rows(*provider, b"models") {
+            let models = panel.rows(*provider, b"models");
+            if models.is_empty() {
+                out.put(b"  models: none\n");
+            }
+            for model in &models {
                 panel.model(*model, out);
             }
         }
@@ -54,6 +58,10 @@ impl Panel {
         let token = self.document.token(at).expect("projected scalar");
         if token.kind == Kind::Null {
             out.put(b"unknown");
+        } else if token.kind == Kind::True {
+            out.put(b"true");
+        } else if token.kind == Kind::False {
+            out.put(b"false");
         } else {
             out.words(self.document.text(token).expect("projected text or number"));
         }
@@ -64,6 +72,13 @@ impl Panel {
     fn model(&self, model: u32, out: &mut Text) {
         out.put(b"  model ");
         self.print(model, b"name", out);
+        out.put(b"\n    shown: ");
+        let shown = self.document.member(model, b"shown").expect("projected shown name");
+        if self.document.token(shown).expect("shown name").kind == Kind::Null {
+            self.print(model, b"name", out);
+        } else {
+            self.word(shown, out);
+        }
         out.put(b"\n    description: ");
         self.print(model, b"description", out);
         out.put(b"\n    window: ");
@@ -79,6 +94,24 @@ impl Panel {
             out.put(b" ");
             self.word(*effort, out);
         }
+        out.put(b"\n    default effort: ");
+        let effort = self.document.member(model, b"effort").expect("projected default effort");
+        if self.document.token(effort).expect("default effort").kind == Kind::Null {
+            out.put(b"none");
+        } else {
+            self.word(effort, out);
+        }
+        out.put(b"\n    accounts:");
+        let accounts = self.rows(model, b"accounts");
+        if accounts.is_empty() {
+            out.put(b" none");
+        }
+        for account in &accounts {
+            out.put(b" ");
+            self.word(*account, out);
+        }
+        out.put(b"\n    picker: ");
+        self.print(model, b"picker", out);
         out.put(b"\n");
         self.prices(self.document.member(model, b"prices").expect("projected prices"), out);
     }
