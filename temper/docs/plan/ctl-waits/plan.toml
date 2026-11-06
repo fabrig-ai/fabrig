@@ -1,0 +1,3 @@
+draft = "ctl-waits"
+repo = "fabrig"
+sources = ["temper/docs/plan/ctl-waits/inputs/request.md", "AGENTS.md", "DESIGN.md"]
