@@ -1,9 +1,9 @@
 //! A person reads a held reply's live prefix before reading its committed turn.
 use skein_world::domain::heap::Counting;
 use temper_real_loop_world::{
-    Exit,
+    Exit, Scratch,
     calls::{D1, release_hold, sign_in},
-    run, scripts, terminal,
+    fixtures, llm, run_on, scripts, terminal,
 };
 #[global_allocator]
 static HEAP: Counting = Counting;
@@ -16,19 +16,26 @@ const SIGN_IN: usize = 0;
 
 #[test]
 fn a_person_reads_a_chats_reply_as_it_is_written_then_its_committed_turn() {
-    let ran = run(scripts::live_scripts, || {
-        vec![
-            sign_in(D1),
-            terminal::open(),
-            terminal::type_on(b"+ New chat", b""),
-            terminal::see(b"What do you want done?"),
-            terminal::type_on(b"What do you want done?", scripts::WORDS.as_bytes()),
-            terminal::see(scripts::FIRST),
-            release_hold(scripts::LIVE),
-            terminal::see_without(REPLY, PROVISIONAL.as_bytes()),
-            terminal::close(),
-        ]
-    });
+    let scratch = Scratch::new("live-terminal");
+    fixtures::standing_chats(scratch.path()).expect("standing chat fixture");
+    let ran = run_on(
+        scratch,
+        || llm::scripted(scripts::live_scripts()),
+        || {
+            vec![
+                sign_in(D1),
+                terminal::open(),
+                terminal::type_on(b"+ New chat", b""),
+                terminal::see(b"What do you want done?"),
+                terminal::type_on(b"What do you want done?", scripts::WORDS.as_bytes()),
+                terminal::see(scripts::FIRST),
+                release_hold(scripts::LIVE),
+                terminal::see_without(REPLY, PROVISIONAL.as_bytes()),
+                terminal::see(b"waiting on your words"),
+                terminal::close(),
+            ]
+        },
+    );
     assert_eq!(ran.calls()[SIGN_IN].exit, Some(Exit::Code(0)), "ctl signed in before provisioning the key");
     let read = ran.terminal();
     let first = read
@@ -56,7 +63,8 @@ fn a_person_reads_a_chats_reply_as_it_is_written_then_its_committed_turn() {
             previous = prefix.len();
         }
         if let Some((_, assistant)) = text.split_once("Conversation:\n").and_then(|(_, c)| c.split_once("Temper\n"))
-            // The committed turn's lines follow its speaker and clock.
+            // Only a committed turn has a clock after its speaker.
+            && assistant.lines().next().is_some_and(|clock| clock.trim_ascii().len() == 5 && clock.contains(':'))
             && assistant.lines().any(|line| line.trim_ascii_start() == reply)
         {
             assert!(

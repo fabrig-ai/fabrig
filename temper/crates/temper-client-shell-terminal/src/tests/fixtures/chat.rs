@@ -19,8 +19,8 @@ pub fn page() -> skein_ui::Tree {
     text(&mut b, Role::Paragraph, b"Hello");
     text(&mut b, Role::Paragraph, b"Temper");
     golden_cards::report(&mut b, b"I can help.");
-    text(&mut b, Role::Status, b"Writing...");
     text(&mut b, Role::Paragraph, b"Writing an answer");
+    text(&mut b, Role::Status, "▌".as_bytes());
     b.close();
     for (role, name) in [
         (Role::TextArea, b"Message".as_slice()),

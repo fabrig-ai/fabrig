@@ -11,6 +11,7 @@ publish.workspace = true
 temper-protocol-records.workspace = true
 jig-client.workspace = true
 skein-lib.workspace = true
+skein-json.workspace = true
 skein-ui.workspace = true
 
 temper-client-protocol-wire.workspace = true
