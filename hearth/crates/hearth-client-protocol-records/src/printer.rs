@@ -11,21 +11,11 @@ use crate::{
     limits::Limits,
     records::{Record, Type},
 };
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct MaxOut {
-    pub above: u32,
-    pub below: u32,
-}
-
 /// Whether a printer can make progress (skein/docs/foundation/programming-model.md, 6.3).
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
     limits.chunk != 0
 }
-
-pub const UP_MAX_OUT: MaxOut = MaxOut { above: 1, below: 2 };
-
-pub const DOWN_MAX_OUT: MaxOut = MaxOut { above: 1, below: 1 };
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Request {

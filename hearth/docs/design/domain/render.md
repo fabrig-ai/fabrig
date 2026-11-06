@@ -1333,6 +1333,12 @@ room check that remains, and what it keeps.
   comes last, and once.
 - **Resumed work goes before the next event.** While the protocol layer
   has work to resume, no io or file event enters it (`work_pending`).
+- **One write at a time.** The client's printer has at most one demand
+  out, and makes the next once the last is answered. A `Room` gives one
+  piece, within the room it answers, and then the next demand or nothing.
+- **A record is answered once.** The printer gives one event a record:
+  `Printed` once its last piece has gone down, `Refused` with no bytes,
+  or `Failed`. `Client` takes it before the next record.
 - **One record at a time.** The client's printer takes the next record
   once the last has gone out, on standard output and standard error alike
   (`takes`), so answers print in the order render gave them.
@@ -1535,11 +1541,6 @@ Over generated repositories, valid by construction and then mutated:
 - **Where a resolution's closure is made:** 8.2's `Resolved` carries the
   closure, while 5.3 has the domain match `Inst` triples to `Packages`
   stanzas; one of the two is to change.
-- **What the queues beside the records machine keep:** `Client`'s, in
-  `hearth-protocol-builder`, hold what one entry point of the machine
-  gives. What each keeps goes in 8.5, with its test, before its cap goes;
-  it depends on that machine's move to the model
-  (`hearth/docs/development/debt/D001-room-checks-and-max-out.md`).
 - **How the builder paces with its own queues uncapped:** an uncapped
   `answers` can hold a copy of every target's spec, so it takes a
   watermark (`skein/docs/foundation/programming-model.md`, 7.1) or a stop
