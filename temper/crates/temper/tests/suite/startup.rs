@@ -2479,3 +2479,8 @@ fn ctl_link_sign_in_waits_for_serve_before_starting_its_bound() {
 fn native_sign_in_keeps_its_start_bound_until_serve_listens() {
     support::person::serve_gate_tests::native_sign_in_keeps_its_start_bound_until_serve_listens();
 }
+
+#[test]
+fn a_story_purse_is_priced_from_the_init_template() {
+    assert!(support::first_repository::run_spend(5).is_power_of_two());
+}
