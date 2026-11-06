@@ -4,7 +4,7 @@ use jig_conformance::Input;
 use jig_domain_host as host;
 use jig_ops_domain as root;
 
-pub(super) fn agent(peers: &mut Peers, request: host::ToAgent) -> Vec<Input<root::Event, root::Record>> {
+pub(super) fn agent(peers: &mut Peers, request: host::ToAgent) -> Vec<Input<root::Event>> {
     if let host::ToAgent::Answer { answer: host::CallAnswer::Relayed { error, text }, .. } = &request {
         peers.call_answers.push((*error, text.clone()));
     }

@@ -468,7 +468,15 @@ fn making_asked_adopts_with_no_locate() {
     let [Request::Call { call, repository, op }] = requests.as_ref() else { panic!("one permission read") };
     assert_eq!(*repository, REPO);
     assert_eq!(*op, api::Op::Read(api::Read::Permission { user: 7 }));
-    fixtures::answer(&mut d, *call, Ok(api::Answer::Permission(api::Permission::Write)));
+    fixtures::answer(
+        &mut d,
+        *call,
+        Ok(api::Answer::Permission(api::UserPermission {
+            user: 1,
+            login: Box::from(b"".as_slice()),
+            permission: api::Permission::Write,
+        })),
+    );
     for result in
         [api::Answer::Branches(Box::new([])), api::Answer::Settings(adopted().settings), api::Answer::Protection(None)]
     {

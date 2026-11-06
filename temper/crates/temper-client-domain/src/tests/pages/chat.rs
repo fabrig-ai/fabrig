@@ -1359,6 +1359,33 @@ fn the_lowest_numbered_is_the_document() {
     );
 }
 #[test]
+fn a_work_note_never_displaces_the_lowest_document_in_the_chats_scope() {
+    let mut f = f::opened();
+    take_draft_reads(&mut f);
+    let mut work = draft_note(1, 1, b"Internal working memory");
+    work.description = f::document_text(b"work: settings");
+    let mut foreign = draft_note(2, 1, b"Another chat");
+    foreign.scope = c::NoteScope::Task { project: fixtures::PROJECT, task: f::TASK + 1 };
+    draft_answer(&mut f, notes_page(&[draft_note(13, 1, b"Later"), work, foreign, draft_note(12, 1, b"Document")]));
+    assert_eq!(f.chat.draft.as_ref().expect("document").note, 12);
+}
+#[test]
+fn a_chat_with_only_work_notes_has_no_document() {
+    for previous_document in [false, true] {
+        let mut f = f::opened();
+        take_draft_reads(&mut f);
+        if previous_document {
+            draft_answer(&mut f, notes_page(&[draft_note(1, 1, b"Document")]));
+            note_call(&mut f, 11, f::POSITION);
+            take_draft_reads(&mut f);
+        }
+        let mut work = draft_note(1, 2, b"Internal working memory");
+        work.description = f::document_text(b"work: settings");
+        draft_answer(&mut f, notes_page(&[work]));
+        assert!(f.chat.draft.is_none(), "work: notes must never be drawn, including a renamed document");
+    }
+}
+#[test]
 fn mode_and_show_section_are_page_state() {
     use crate::pages::chat::document::Mode;
     let mut f = f::opened();
@@ -1434,7 +1461,7 @@ fn confirmed_it_closes_with_the_chats_own_close() {
     let expected = pages.chat().unwrap().closing.clone().unwrap();
     let mut out = start_over_act(&mut pages, &client, Act::Confirm);
     assert_eq!(fixtures::acts::sent(&mut out).as_ref(), [expected]);
-    assert!(pages.confirmation().is_none());
+    assert!(pages.confirmation().unwrap().sent.is_some());
     assert_eq!(pages.chat().unwrap().pending.get(0).unwrap().1, Sending::Close);
     assert!(start_over_act(&mut pages, &client, Act::Confirm).is_empty());
 }
@@ -1455,18 +1482,22 @@ fn answer_start_over(
     out
 }
 #[test]
-fn the_close_answered_shows_configure() {
+fn a_done_start_over_shows_configure() {
     let (mut pages, client) = start_over_pages();
     start_over_act(&mut pages, &client, Act::StartOver);
     start_over_act(&mut pages, &client, Act::Confirm);
     let mut out = answer_start_over(&mut pages, &client, seen_answer());
     assert_eq!(out.pop(), Some(Request::Show { address: crate::Address::Configure { project: fixtures::PROJECT } }));
     assert!(out.is_empty());
+    assert!(pages.confirmation().is_none());
+    assert!(pages.chat().unwrap().closing.is_none());
+    assert!(!pages.chat().unwrap().restarting);
 }
 #[test]
-fn a_refused_close_stays() {
+fn a_failed_close_keeps_its_fates_and_restarting() {
     let (mut pages, client) = start_over_pages();
     start_over_act(&mut pages, &client, Act::StartOver);
+    let closing = pages.chat().unwrap().closing.clone();
     start_over_act(&mut pages, &client, Act::Confirm);
     let refused = jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
         refusal: c::Refusal::NotOffered,
@@ -1476,7 +1507,10 @@ fn a_refused_close_stays() {
     assert_eq!(pages.address(), &crate::Address::Chat { task: f::TASK });
     assert_eq!(pages.chat().unwrap().outcome.as_ref(), Some(&refused));
     assert_eq!(pages.chat().unwrap().outcome_kind, Some(Sending::Close));
-    assert!(!pages.chat().unwrap().restarting);
+    assert!(pages.chat().unwrap().restarting);
+    assert_eq!(pages.chat().unwrap().closing, closing);
+    assert_eq!(pages.confirmation().unwrap().failed.as_ref(), Some(&refused));
+    assert_eq!(fixtures::acts::sent(&mut start_over_act(&mut pages, &client, Act::Confirm)).len(), 1);
 }
 #[test]
 fn cancel_changes_nothing() {
@@ -1663,4 +1697,35 @@ fn a_refused_add_keeps_the_pane_and_its_words() {
     assert_eq!(f.chat.outcome, Some(refused));
     assert_eq!(f.chat.outcome_kind, Some(Sending::Message));
     assert!(f.chat.pending.is_empty());
+}
+
+#[test]
+fn a_page_of_working_notes_does_not_hide_a_later_document() {
+    let mut f = f::opened();
+    take_draft_reads(&mut f);
+    let mut work = draft_note(1, 1, b"Internal working memory");
+    work.description = f::document_text(b"work: settings");
+    let jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(mut page))) = notes_page(&[work]) else {
+        panic!("notes page")
+    };
+    let after = c::Cursor::new(Box::from(*b"next"), 4).unwrap();
+    page.after = Some(after.clone());
+    draft_answer(&mut f, jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(page))));
+    assert!(f.chat.draft.is_none());
+    assert_eq!(
+        f.out.pop(),
+        Some(Request::Client(Event::Read {
+            handle: draft_handle(&f.chat),
+            read: Readable::Jig(c::Read::Notes {
+                scope: c::NoteScope::Task { project: fixtures::PROJECT, task: f::TASK },
+                description: None,
+                after: Some(after),
+            }),
+        })),
+        "continue past working notes rather than claiming the chat has no document"
+    );
+    draft_answer(&mut f, notes_page(&[draft_note(2, 1, b"Visible document")]));
+    assert_eq!(f.chat.draft.as_ref().unwrap().note, 2);
+    assert_eq!(f.chat.next_deadline(), None);
+    assert!(f.out.is_empty());
 }

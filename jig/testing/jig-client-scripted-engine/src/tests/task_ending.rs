@@ -15,11 +15,11 @@ fn scripted_task_ending_refusals_keep_whole_facts_after_keyed_durability_and_rep
     let mut row = task();
     row.result = Some(TaskResult::Ending(Box::new(ending.clone())));
     setup.truth.objects.insert(ObjectKey::Task(8), ReadValue::Task(Box::new(row)));
-    let ask = Ask::Cancel { project: 1, task: 8, reason: text(b"cancel"), grace: None };
+    let ask = Ask::Cancel { project: PROJECT, task: 8, reason: text(b"cancel"), grace: None };
     let expected = Answer::Refused { refusal: Refusal::Ended { how: Ending::Task(Box::new(ending)) }, at: None };
     let mut engine = Engine::new(setup, 1).expect("valid script");
-    send(&mut engine, 0, 11, 1, 1, ask.clone());
-    send(&mut engine, 1, 12, 1, 2, ask.clone());
+    send(&mut engine, 0, REQUESTER_SIGN_IN, 1, 1, ask.clone());
+    send(&mut engine, 1, REQUESTER_OTHER_SIGN_IN, 1, 2, ask.clone());
     assert!(engine.poll(Time::from_nanos(9_999_999)).is_empty());
     let answers = engine.poll(Time::from_nanos(10_000_001));
     assert_eq!(answers.len(), 2);
@@ -27,7 +27,7 @@ fn scripted_task_ending_refusals_keep_whole_facts_after_keyed_durability_and_rep
     assert_eq!(final_answer(&answers[1]), &expected);
     assert_eq!(engine.commits().len(), 1);
     assert_eq!(engine.commits()[0].ask, Some(ask.clone()));
-    send(&mut engine, 20_000_000, 11, 1, 3, ask);
+    send(&mut engine, 20_000_000, REQUESTER_SIGN_IN, 1, 3, ask);
     let replay = engine.poll(Time::from_nanos(20_000_000));
     assert_eq!(replay.len(), 1);
     assert_eq!(final_answer(&replay[0]), &expected);

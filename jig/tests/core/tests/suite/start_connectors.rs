@@ -1,4 +1,5 @@
 //! Direct core starts and connector recovery (jig/docs/design/domain/engine.md, 6).
+use jig_core_world::fixtures::phase;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_core::{
@@ -27,10 +28,6 @@ struct Harness {
     outcome: Option<core::effects::connector::OutboxOutcome>,
     complete: bool,
     wires: bool,
-}
-
-fn phase(action: &Action, expected: Phase) {
-    assert!(matches!(action, Action::Step(found) if *found == expected));
 }
 
 fn task_name(path: &connector::Path) -> tasks::Name {

@@ -17,6 +17,21 @@ pub enum World {
     FirstRun { step: u8 },
     Bare,
 }
+/// Confirmation states named by client/README.md, 3.6.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Confirmation {
+    CloseWork,
+    CloseFailed,
+    CloseBelow,
+    CloseProposal,
+    Closed,
+    StartOver,
+    CancelTask,
+    StopTask,
+    Accept,
+    Reject,
+    ReleaseUncertain,
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Then {
     Shown,
@@ -33,6 +48,7 @@ pub enum Then {
     GoogleSignIn,
     OutOfDate,
     Closing,
+    Sheet(Confirmation),
     Rejecting,
     Held,
     Releasing,
@@ -77,10 +93,14 @@ impl Sample {
     /// Opens the rail menu through the page part in the static print (client/browser.md, 7).
     #[must_use]
     pub fn open_menu(&self) -> Option<&[u8]> {
-        if self.name == "rail-new-menu" { Some(b"More ways to start work") } else { None }
+        match self.name {
+            "rail-new-menu" => Some(b"More ways to start work"),
+            "rail-person-menu" => Some(b"Robin"),
+            _ => None,
+        }
     }
 }
-pub const N: usize = 247;
+pub const N: usize = 259;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -488,6 +508,7 @@ pub fn samples() -> [Sample; N] {
             address: Address::Home { project: 1 },
             then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Chat),
         },
+        Sample { name: "rail-person-menu", world: Solo, address: Address::Home { project: 1 }, then: Shown },
         Sample { name: "repositories", world: Solo, address: Address::Repositories { project: 1 }, then: Shown },
         Sample { name: "repositories-none", world: Bare, address: Address::Repositories { project: 1 }, then: Shown },
         Sample { name: "forges-empty", world: Bare, address: Address::Forges, then: Shown },
@@ -716,6 +737,62 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "out-of-date", world: Bare, address: CHATS, then: OutOfDate },
         Sample { name: "chats-empty", world: Bare, address: CHATS, then: Shown },
         Sample { name: "inbox-empty", world: Bare, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample {
+            name: "chat-closing-below",
+            world: Solo,
+            address: Address::Chat { task: 6 },
+            then: Then::Sheet(Confirmation::CloseBelow),
+        },
+        Sample {
+            name: "chat-closing-proposal",
+            world: Solo,
+            address: Address::Chat { task: 6 },
+            then: Then::Sheet(Confirmation::CloseProposal),
+        },
+        Sample {
+            name: "task-releasing-uncertain",
+            world: Solo,
+            address: task(3),
+            then: Then::Sheet(Confirmation::ReleaseUncertain),
+        },
+        Sample {
+            name: "chat-closing-work",
+            world: Solo,
+            address: Address::Chat { task: 6 },
+            then: Then::Sheet(Confirmation::CloseWork),
+        },
+        Sample {
+            name: "chat-closing-failed",
+            world: Solo,
+            address: Address::Chat { task: 6 },
+            then: Then::Sheet(Confirmation::CloseFailed),
+        },
+        Sample {
+            name: "chat-closed",
+            world: Solo,
+            address: Address::Chat { task: 6 },
+            then: Then::Sheet(Confirmation::Closed),
+        },
+        Sample {
+            name: "chat-closing-start-over",
+            world: Solo,
+            address: Address::Chat { task: 10 },
+            then: Then::Sheet(Confirmation::StartOver),
+        },
+        Sample { name: "task-cancelling", world: Solo, address: task(3), then: Then::Sheet(Confirmation::CancelTask) },
+        Sample { name: "task-stopping", world: Solo, address: task(3), then: Then::Sheet(Confirmation::StopTask) },
+        Sample {
+            name: "proposal-accepting",
+            world: Solo,
+            address: Address::Chat { task: 10 },
+            then: Then::Sheet(Confirmation::Accept),
+        },
+        Sample {
+            name: "proposal-rejecting",
+            world: Solo,
+            address: Address::Chat { task: 10 },
+            then: Then::Sheet(Confirmation::Reject),
+        },
         Sample { name: "chat-closing", world: Solo, address: Address::Chat { task: 6 }, then: Closing },
         Sample { name: "chat-rejecting", world: Solo, address: Address::Chat { task: 10 }, then: Rejecting },
         Sample { name: "task-held", world: Solo, address: task(3), then: Held },
@@ -930,6 +1007,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
             | Then::GoogleSignIn
             | Then::OutOfDate
             | Then::Closing
+            | Then::Sheet(_)
             | Then::Rejecting
             | Then::Held
             | Then::Releasing
@@ -1167,7 +1245,11 @@ pub fn domain(sample: &Sample) -> Domain {
     if sample.name.starts_with("goals-") || sample.name.starts_with("goal-") {
         return goal_domain(sample);
     }
-    let (mut root, accounts_watch) = crate::worlds::world(sample.world, sample.address.clone(), sample.then);
+    let (mut root, accounts_watch) = if sample.then == Then::Sheet(Confirmation::StartOver) {
+        crate::worlds::configuring_world(sample.world, sample.address.clone(), sample.then)
+    } else {
+        crate::worlds::world(sample.world, sample.address.clone(), sample.then)
+    };
     let mut out = Queue::uncapped();
     if sample.name.starts_with("welcome-sheet-") {
         use temper_client_domain::forge::{
@@ -1260,6 +1342,7 @@ pub fn domain(sample: &Sample) -> Domain {
             },
             &mut out,
         ),
+        Then::Sheet(kind) => confirmation(&mut root, kind, &mut out),
         Then::Closing => step(&mut root, Event::Act { action: Action::Pages(Act::Close) }, &mut out),
         Then::Rejecting => step(
             &mut root,
@@ -2520,4 +2603,71 @@ fn morning_status() -> temper_client_protocol_wire::v1::ProjectStatus {
         red: false,
         branch: b"main".as_slice().into(),
     }).expect("morning status fits")
+}
+
+fn confirmation(root: &mut Domain, kind: Confirmation, out: &mut Queue<Request>) {
+    let act = match kind {
+        Confirmation::CloseWork
+        | Confirmation::CloseFailed
+        | Confirmation::CloseBelow
+        | Confirmation::CloseProposal
+        | Confirmation::CancelTask => Act::Close,
+        Confirmation::StartOver => Act::StartOver,
+        Confirmation::StopTask => Act::Stop,
+        Confirmation::Accept | Confirmation::Reject => Act::Decide {
+            object: c::ObjectKey::Proposal(crate::worlds::PROPOSAL),
+            revision: None,
+            act: if kind == Confirmation::Accept { c::ActKind::Accept } else { c::ActKind::Reject },
+        },
+        Confirmation::ReleaseUncertain => Act::Decide {
+            object: c::ObjectKey::Task(3),
+            revision: Some(c::Revision { value: 7 }),
+            act: c::ActKind::Release,
+        },
+        Confirmation::Closed => return,
+    };
+    if kind == Confirmation::Reject {
+        step(
+            root,
+            Event::Act {
+                action: Action::Pages(Act::CardWords {
+                    object: c::ObjectKey::Proposal(crate::worlds::PROPOSAL),
+                    words: Box::from(b"Keep the existing output.".as_slice()),
+                }),
+            },
+            out,
+        );
+    }
+    step(root, Event::Act { action: Action::Pages(act) }, out);
+    if kind == Confirmation::CloseWork || kind == Confirmation::CloseFailed {
+        step(
+            root,
+            Event::Act { action: Action::Pages(Act::DelegateFate { task: 5, fate: jig_client::shapes::Fate::Move }) },
+            out,
+        );
+    }
+    if kind == Confirmation::CloseFailed {
+        step(root, Event::Act { action: Action::Pages(Act::Confirm) }, out);
+        while let Some(request) = out.pop() {
+            if let Some(jig_client::Down::Send { attempt, .. }) = crate::driver::down(request) {
+                step(
+                    root,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::Answer {
+                                attempt,
+                                envelope: skein_lib::RequestEnvelope::Final,
+                                answer: Some(jig_client::Answered::Jig(c::Answer::Refused {
+                                    refusal: c::Refusal::NotOffered,
+                                    at: None,
+                                })),
+                                why: None,
+                            },
+                        },
+                    },
+                    &mut Queue::uncapped(),
+                );
+            }
+        }
+    }
 }

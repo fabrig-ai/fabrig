@@ -572,16 +572,22 @@ pub(crate) fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Reque
     }
 }
 
+pub(crate) struct Stalled {
+    pub(crate) proposer: u64,
+    pub(crate) number: u64,
+}
+
 /// Apply root's fresh next-holder choice only if the exact old proposal still waits.
 pub(crate) fn stalled(
     domain: &mut Domain,
     env: &Env<Limits>,
-    (proposer, number): (u64, u64),
+    stalled: Stalled,
     from: ProposalHolder,
     revision: u64,
     holder: ProposalHolder,
     out: &mut Queue<Request>,
 ) {
+    let Stalled { proposer, number } = stalled;
     let Some(mut proposal) = context(domain, proposer, number) else { return };
     let current = match proposal.state {
         ProposalState::Pending { holder, .. } => holder,

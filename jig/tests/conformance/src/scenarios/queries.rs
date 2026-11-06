@@ -9,7 +9,7 @@ use skein_lib::{ReplyTo, Token};
 
 const WATCH: u64 = 7090;
 const READ: u64 = 7091;
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct State {
     next: Option<reads::Cursor>,
     found: Vec<u64>,

@@ -407,7 +407,14 @@ fn the_groundwork_reads_keep_the_fake_api_facts_in_the_client_projection() {
     world.run_for(1);
     assert_eq!(world.read_result(1), Some(&Err(api::Error::MissingJob)));
     assert_eq!(world.read_result(2), Some(&Ok(api::Answer::Protection(None))));
-    assert_eq!(world.read_result(4), Some(&Ok(api::Answer::Permission(api::Permission::Write))));
+    assert_eq!(
+        world.read_result(4),
+        Some(&Ok(api::Answer::Permission(api::UserPermission {
+            user: 2,
+            login: Box::new([]),
+            permission: api::Permission::Write,
+        })))
+    );
     match world.read_result(3).expect("settings answered") {
         Ok(api::Answer::Settings(settings)) => {
             assert_eq!(&*settings.default_branch, b"main");

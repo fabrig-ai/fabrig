@@ -48,7 +48,7 @@ fn round_trip(value: Deployment) {
     let mut setup = script();
     setup.truth.deployment = Some(value.clone());
     let mut engine = Engine::new(setup, 1).expect("valid script");
-    engine.read(Time::ZERO, 11, Token::new(1), Read::Deployment).expect("typed read fits");
+    engine.read(Time::ZERO, REQUESTER_SIGN_IN, Token::new(1), Read::Deployment).expect("typed read fits");
     assert_eq!(
         engine.poll(Time::ZERO),
         vec![Up::Read {
@@ -56,7 +56,7 @@ fn round_trip(value: Deployment) {
             terminal: ReadResult::Value(ReadValue::Deployment(Box::new(value.clone())))
         }]
     );
-    engine.open(Time::ZERO, 11, Token::new(2), Subject::Deployment).expect("typed watch fits");
+    engine.open(Time::ZERO, REQUESTER_SIGN_IN, Token::new(2), Subject::Deployment).expect("typed watch fits");
     let events = engine.poll(Time::ZERO);
     let expected =
         Up::Watch { token: Token::new(2), event: WatchEvent::Delivered(Delivery::Deployment(Box::new(value))) };

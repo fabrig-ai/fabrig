@@ -433,7 +433,16 @@ replay says the same clocks (`README.md`, 5.12).
   spacing; a native control's own size; skein's sheet's lengths inside
   main (its focus ring, its visually hidden boxes); and a viewport
   length, which a zoom grows like any other. Dialogs are drawn inside
-  main, and scale with it.
+  main, and scale with it. Confirmation sheets stand under `#app` at their
+  own scale (`README.md`, 3.6).
+- **Confirmation sheets:** `dialog.temper-confirm`, 460 px wide at most,
+  with 24 px by 26 px padding, 14 px corners and a native `::backdrop`.
+  The title is 19 px; the lead 14.5 px; impacts 14 px under a hairline.
+  Keep precedes the named primary act in a separate group. An uncertain
+  release's choices have a wrapping group of their own, with the same
+  secondary buttons; those and the acts keep 44 px phone targets.
+  Progress and refusal stay above the acts. A requester-closed chat's end
+  line is 12.5 px between two hairlines, and the bar has no clock.
 - **Connection flows:** standalone connection cards use 5 px corners;
   the welcome's steps have a look of their own (The welcome's look,
   below). The
@@ -567,7 +576,10 @@ replay says the same clocks (`README.md`, 5.12).
   a top bar of the switcher alone, the brand's star before the
   project's name, its menu at least 220 px wide, and the tab bar fixed
   at the foot, four links, the page leaving it room. The link's state
-  shows at the rail's foot, with its dot, while it is not live.
+  shows at the rail's foot, with its dot, while it is not live. The person's
+  menu goes with the foot, so the `Accounts` tab's row with "Sign out", which
+  `temper.css` hides over 760 px, stands at that width alone (`README.md`, 3.5
+  and 5.3).
 - **The page covers the display,** `viewport-fit=cover`, as the greenfield
   mock's does, wherever a page's head is printed: the bundler's page
   (skein's `ui-web.md`, 4.3), the playground's, the setup pages', and the
@@ -609,7 +621,9 @@ replay says the same clocks (`README.md`, 5.12).
   `/* ==== ui: chats ==== */` marker, in the `--gf-*` tokens, with
   `--gf-hint: #8a8a93`, `--gf-signal-ink: #9a3412` and
   `--gf-signal-line: #f1d5bd`; the mock's phone rules for those selectors
-  come from its last `@media (max-width: 760px)` block. The tokens:
+  come from its last `@media (max-width: 760px)` block. At that width the
+  session's keyboard hint is hidden, as the configure-chat look request
+  draws it. The tokens:
   `CHATS_PAGE` on the Chats page's main and `SESSION` on every chat's and
   `NewChat`'s. An agent's task's page keeps its own look, `AGENT_PAGE` and
   `TASKBAR`, with `ENTRY`, `COMPOSER_AREA`, `COMPOSER` and `HINT` for its
@@ -645,6 +659,14 @@ replay says the same clocks (`README.md`, 5.12).
   `--gf-*` variables, as Home's are, on tokens of its own, `temper-goals*`.
   A row's top line is `--gf-mono`, 12 px, faint: IBM Plex Mono 400 and 500,
   bundled as the sans is, then JetBrains Mono, `ui-monospace`, `monospace`.
+- **A page target draws no ring:** anything given `tabindex=-1` only to take
+  focus (`main`, a heading, a document's section) draws no outline, by
+  `skein-ui.css` (skein's `ui-web.md`, 12), and `temper.css` says so again of
+  `main` and a level-1 heading; a control keeps its ring.
+- **A scrolling pane holds its hidden parts:** a chat's log and its draft pane are
+  positioned, so a visually hidden absolute part (a who-line) is clipped by the
+  pane's overflow and does not lengthen the page: a long chat's document never
+  exceeds its window.
 - **Light only:** the mockups' palette is light, and `temper.css` sets
   `color-scheme: light`, where `skein-ui.css` follows the system's dark
   preference. A dark palette is open (section 5).
@@ -1136,11 +1158,16 @@ Not in the tier, each in the lowest world that shows it:
 - **A phone's width in a test** (2.5): the sweep, the walk and the renders of
   the request `ui-phone` of 2026-11-05 are throwaways by its own words, and the
   browser tier cannot open a phone's width: `skein-browser` sets every page to
-  1280 by 800. So nothing holds the phone's rules when the sheet next moves.
+  1280 by 800. So nothing holds how the phone's rules draw when the sheet next
+  moves: `temper-client-shell-web`'s suite reads one rule as text, the gallery's
+  `the_accounts_tabs_sign_out_hides_over_a_phones_width_alone` another, the proof
+  at 420 px of the request `ui-owner-menu` is a throwaway too, and the CDP walk of
+  the request `ui-final-walk`, which sets the width, goes with its plan.
   Default: none, until a phone's rule breaks unseen.
 - **The rail's foot on a phone** (2.5; `README.md`, 5.3): the top bar holds the
   switcher alone, as the mock's does, so a project's page on a phone shows no
-  link's state, no "Behind" and no "Sign out did not reach the engine.", and
+  link's state, no "Behind" and, but on the `Accounts` tab, no "Sign out did
+  not reach the engine.", and
   the way out of the playground is its banner on `Chats` alone. The mock has no
   link to say so of. Default: so; whether a link not live takes a place in the
   top bar is a look request's.
@@ -1148,6 +1175,16 @@ Not in the tier, each in the lowest world that shows it:
   home bar alone, and at 760 px and under alone. A phone on its side, wider than
   that, draws the rail and a chat's foot under its notch and its home bar.
   Default: as the mock draws it, until a look request.
+- **The try's states in the gallery** (7.2; `README.md`, 3.5, *The try*;
+  `../draft/model-check.md`): the box past the host's check has no state of its
+  own, since the gallery draws what the view draws and no fact reaches it. Default:
+  the host's two rows, the view's tests holding the rest, until that draft gives
+  the facts.
+- **A tab refused in the gallery** (7.2; `README.md`, 3.5, *The sign-in under way*;
+  `../draft/sign-in-new-tab.md`, 2): the gallery draws what the view draws, and the
+  view has no fact of a tab refused, so the note's plain title and primary link have
+  no state of their own. Default: the view's test holds them, until that draft gives
+  the fact.
 
 ## 7. The gallery
 
@@ -1298,7 +1335,7 @@ from the engine's own answers, is where the look is tuned.
 | `repositories` | the Repositories tab with rows |
 | `repositories-none` | the Repositories tab's quiet band |
 | `forges-in-settings` | `Forges` inside Settings' frame |
-| `accounts-in-settings` | `Accounts` inside Settings' frame, "Sign out" at its foot |
+| `accounts-in-settings` | `Accounts` inside Settings' frame, "Sign out" at its foot at a phone's width alone |
 | `forges-empty` | the Forges tab's quiet band, in a world with no forge |
 | `forges-setting-up` | the first run's Forges at step 6: a row setting up |
 | `forges-fetching` | the first run's Forges at step 24: a row fetching Forgejo, its percent in its summary |
@@ -1341,6 +1378,7 @@ from the engine's own answers, is where the look is tuned.
 | `configure-chat-document` | a configuring chat in Chat, its document written |
 | `configure-chat-document-split` | the same chat in Split, its pane's line and "Start over" |
 | `rail-new-menu` | the rail's "+ New chat" with its menu open |
+| `rail-person-menu` | the rail's person with its menu open |
 | `chat-solo-T10` | the solo world's chat T10, its proposal in place |
 | `inbox-solo` | the solo world's *Needs you* (`README.md`, 3.5): the first of a proposal and a question |
 | `needs-one` | *Needs you*: a question in the line form, the first of three |
@@ -1397,15 +1435,15 @@ from the engine's own answers, is where the look is tuned.
 | `welcome-model-forge-done` | Model at first run step 7, Forgejo connected, its marked Forge pane without Each step |
 | `welcome-model-forge-failed` | Model at first run step 9, Forgejo failed, its Forge pane and Each step |
 | `welcome-model-claude` | Claude’s welcome command and I’ve signed in, with no Name field |
-| `welcome-model-claude-checking` | the declaration or host check under way, its note and spinner |
-| `welcome-model-claude-not-yet` | the settled check without a usable login, its alert and another check |
+| `welcome-model-claude-checking` | the declaration or host check under way, the try's box at its first step |
+| `welcome-model-claude-not-yet` | the settled check without a usable login, the try's box stopped at its first step, Try again, Sign in again and Continue anyway |
 | `welcome-model-key-details` | the welcome's API key form, without an unsupported display-name field |
 | `welcome-model-connected` | a usable ChatGPT plan, its ticked status and Continue to Ready |
-| `welcome-model-away` | ChatGPT’s sign-in in this tab, its note and folded paste |
+| `welcome-model-away` | the page waiting for ChatGPT’s sign-in, its note, "Open it again" and folded paste |
 | `welcome-model-signing-in` | the same note while signing in to ChatGPT inside the welcome |
 | `welcome-model-signin-ready` | the connected state after signing in to ChatGPT |
 | `welcome-model-declined`, `welcome-model-renewed`, `welcome-model-refused` | the other sign-in endings inside the welcome |
-| `welcome-paste-waiting`, `welcome-paste-written` | the elsewhere entry, with an empty or supplied secret address |
+| `welcome-paste-waiting`, `welcome-paste-written` | the waiting page’s folded paste, with an empty or supplied secret address |
 | `welcome-paste-too-long`, `welcome-paste-address`, `welcome-paste-state` | the length and address refusals, ready for a fresh paste |
 | `welcome-paste-sending`, `welcome-paste-finishing` | the finish request in flight, then accepted |
 | `welcome-paste-too-many`, `welcome-paste-ended`, `welcome-paste-expired` | the restart endings, with no paste field |
@@ -1439,6 +1477,17 @@ from the engine's own answers, is where the look is tuned.
 | `out-of-date` | a bundle older than the engine |
 | `chats-empty` | the chats with none, outside the playground |
 | `inbox-empty` | nothing needs the person |
+| `chat-closing-below` | a chat at rest with one task below it: a singular count and the hairline |
+| `chat-closing-proposal` | a chat at rest with one proposal: a singular count and the hairline |
+| `task-releasing-uncertain` | a release with an uncertain effect and its two choices |
+| `chat-closing-work` | a run, two delegates with opposite fates, and two proposals: what closing changes |
+| `chat-closing-failed` | the same close refused: the sheet keeps its choices and says why |
+| `chat-closed` | the requester closed it: one end line at 21:05, with a quiet bar |
+| `chat-closing-start-over` | a configuring chat's Start over confirmation |
+| `task-cancelling` | an agent's task Cancel confirmation, with a task below it |
+| `task-stopping` | an agent's task Stop confirmation |
+| `proposal-accepting` | a proposal's Accept confirmation |
+| `proposal-rejecting` | a proposal's Reject confirmation with its reason |
 | `chat-closing` | `chat-solo-T6` with Close pressed: its confirmation |
 | `chat-rejecting` | `chat-solo-T10` with Reject pressed: the reason's box |
 | `task-held` | an agent's task's plan with a held task, Release offered |
@@ -1446,7 +1495,7 @@ from the engine's own answers, is where the look is tuned.
 | `connect-model-choose` | the offered ways and the owner's holder choice |
 | `connect-model-key-details` | a key's secret field and Add key |
 | `connect-model-program-details` | a program's name, command and Declare |
-| `connect-model-signing-in` | a sign-in started, its address an external link |
+| `connect-model-signing-in` | the waiting note, "Open it again" and folded paste |
 | `connect-model-key-ready` | a key kept, Ready with Start a chat |
 | `connect-model-signin-ready` | a sign-in made an account, Ready |
 | `connect-model-declined` | plan usage declined, with another sign-in and a key way |

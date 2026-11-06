@@ -643,7 +643,7 @@ fn box_and_tier_help_explain_shared_capacity_and_existing_boxes() {
             "multi-job workflows",
             "other repositories",
             "Ctrl-C or SIGTERM",
-            "`Stopped`",
+            "wait for it to exit",
             "`CONFIG/temper.json`",
             "same",
             "registration and secrets",

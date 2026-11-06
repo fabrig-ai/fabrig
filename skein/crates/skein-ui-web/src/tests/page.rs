@@ -69,25 +69,40 @@ fn an_insert_builds_the_golden_page() {
 
 #[test]
 fn a_markdown_table_builds_the_golden_page() {
-    const INPUT: &[u8] = include_bytes!("../../../skein-ui/src/tests/markdown/13.md");
+    const READER_LEVELS: u32 = 5; // ui.md, 10: table, row, cell, link, text.
+    assert_eq!(
+        markdown_page(include_bytes!("../../../skein-ui/src/tests/markdown/13.md"), 1, READER_LEVELS),
+        include_str!("golden/markdown-table.html").trim_end()
+    );
+}
+
+#[test]
+fn numbered_markdown_builds_the_golden_page() {
+    const READER_LEVELS: u32 = 6; // ui.md, 10: two list/item pairs, link, text.
+    assert_eq!(
+        markdown_page(include_bytes!("../../../skein-ui/src/tests/markdown/17.md"), 2, READER_LEVELS),
+        include_str!("golden/markdown-numbered.html").trim_end()
+    );
+}
+
+fn markdown_page(input: &[u8], nesting: u32, reader_levels: u32) -> String {
     const PARENTS: u32 = 2; // page and main above the reader.
-    const DEPTH: u32 = 5 + PARENTS; // ui.md, 10: five reader levels.
-    let bytes = u32::try_from(INPUT.len()).expect("fixture markdown length fits u32");
+    let bytes = u32::try_from(input.len()).expect("fixture markdown length fits u32");
     let nodes = skein_ui::markdown::max_nodes(bytes).expect("fixture markdown node bound fits") + PARENTS;
     let limits = skein_ui::Limits {
         nodes,
-        depth: DEPTH,
+        depth: reader_levels + PARENTS, // ui.md, 10: caller reserves the reader's levels.
         text_per_node: skein_ui::markdown::max_text_bytes(bytes).expect("fixture markdown text bound fits"),
         text_bytes: skein_ui::markdown::max_text_bytes(bytes).expect("fixture markdown text bound fits"),
         patches: nodes * 4, // ui.md, 7: at most four patches per node.
-        markdown_depth: 1,
+        markdown_depth: nesting,
         ..LIMITS
     };
     let mut page = Page::new(fixtures::look(), &limits, b"/bundle/digest/", Primary::Control);
     let mut view = View::new(&limits);
     let mut builder = view.builder();
     main(&mut builder);
-    skein_ui::markdown::read(INPUT, 0, &mut builder);
+    skein_ui::markdown::read(input, 0, &mut builder);
     end(&mut builder);
     let mut out = skein_lib::Queue::with_capacity(limits.patches);
     view.finish(builder, 0, &mut out);
@@ -96,7 +111,7 @@ fn a_markdown_table_builds_the_golden_page() {
         patches.push(out.pop().expect("one patch per remaining queue entry"));
     }
     page.apply(&patches, &mut Vec::new());
-    assert_eq!(page.html(), include_str!("golden/markdown-table.html").trim_end());
+    page.html()
 }
 
 #[test]
@@ -277,20 +292,27 @@ fn a_changed_tag_replaces_the_element() {
     assert_eq!(kinds, ["replace"]);
 }
 
-// Preorder: page, main, dialog, region, button.
-const FOCUS_DIALOG: NodeId = NodeId(3);
-const FOCUS_SUBTREE: NodeId = NodeId(4);
-const FOCUS_BUTTON: NodeId = NodeId(5);
+fn disclosure(builder: &mut Builder) {
+    main(builder);
+    builder.open(Role::Disclosure);
+    builder.name(b"Choices");
+}
+
+// Preorder: page, main, disclosure, dialog, region, button.
+const FOCUS_DIALOG: NodeId = NodeId(4);
+const FOCUS_SUBTREE: NodeId = NodeId(5);
+const FOCUS_BUTTON: NodeId = NodeId(6);
 
 #[test]
 fn a_removal_taking_the_focus_moves_it_to_an_ancestor() {
     let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
     page.apply(
         &fixtures::patches(&mut view, 0, |b| {
-            main(b);
+            disclosure(b);
             b.open(Role::Dialog);
             b.open(Role::Region);
             button(b, b"Go");
+            b.close();
             b.close();
             b.close();
             end(b);
@@ -300,14 +322,45 @@ fn a_removal_taking_the_focus_moves_it_to_an_ancestor() {
     page.focused(FOCUS_BUTTON);
     page.apply(
         &fixtures::patches(&mut view, 1, |b| {
-            main(b);
+            disclosure(b);
             b.open(Role::Dialog);
+            b.close();
             b.close();
             end(b);
         }),
         &mut ops,
     );
     assert_eq!(ops, vec![Op::Remove { node: FOCUS_SUBTREE }, Op::Focus { node: FOCUS_DIALOG }]);
+}
+
+#[test]
+fn a_removal_inside_a_disclosure_moves_the_focus_to_the_disclosure() {
+    // Preorder: page, main, disclosure, form, button.
+    const DISCLOSURE: NodeId = NodeId(3);
+    const FORM: NodeId = NodeId(4);
+    const INSIDE: NodeId = NodeId(5);
+    let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
+    page.apply(
+        &fixtures::patches(&mut view, 0, |b| {
+            disclosure(b);
+            b.open(Role::Form);
+            button(b, b"Go");
+            b.close();
+            b.close();
+            end(b);
+        }),
+        &mut Vec::new(),
+    );
+    page.focused(INSIDE);
+    page.apply(
+        &fixtures::patches(&mut view, 1, |b| {
+            disclosure(b);
+            b.close();
+            end(b);
+        }),
+        &mut ops,
+    );
+    assert_eq!(ops, vec![Op::Remove { node: FORM }, Op::Focus { node: DISCLOSURE }]);
 }
 
 #[test]
@@ -987,4 +1040,66 @@ fn a_progress_that_moves_keeps_its_element_and_says_its_new_words() {
         }
     }
     assert_eq!(page.html(), include_str!("golden/progress-moved.html").trim_end());
+}
+
+fn ordered_list(builder: &mut Builder, first: Option<u32>) {
+    main(builder);
+    builder.open(Role::List);
+    if let Some(first) = first {
+        builder.ordered(first);
+    }
+    for word in [b"One".as_slice(), b"Two"] {
+        builder.open(Role::Item);
+        builder.text(Run::Plain, word);
+        builder.close();
+    }
+    builder.close();
+    end(builder);
+}
+
+#[test]
+fn a_lists_order_replaces_its_tag_and_keeps_its_items() {
+    for (before, after, tag, start) in [(None, Some(1), "ol", " start=\"1\""), (Some(1), None, "ul", "")] {
+        let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
+        page.apply(&fixtures::patches(&mut view, 0, |b| ordered_list(b, before)), &mut Vec::new());
+        page.apply(&fixtures::patches(&mut view, 1, |b| ordered_list(b, after)), &mut ops);
+        assert_eq!(list_op_kinds(&ops), ["replace"]);
+        assert_eq!(
+            page.html(),
+            format!(
+                r#"<div><main data-node="2"><{tag} data-node="3"{start}><li data-node="4"><span data-node="5">One</span></li><li data-node="6"><span data-node="7">Two</span></li></{tag}></main></div>"#
+            )
+        );
+    }
+}
+
+#[test]
+fn a_lists_first_number_changes_only_attributes() {
+    let (mut page, mut view, mut ops) = (page(), View::new(&LIMITS), Vec::new());
+    page.apply(&fixtures::patches(&mut view, 0, |b| ordered_list(b, Some(1))), &mut Vec::new());
+    page.apply(&fixtures::patches(&mut view, 1, |b| ordered_list(b, Some(4))), &mut ops);
+    assert_eq!(list_op_kinds(&ops), ["attributes"]);
+    assert_eq!(
+        page.html(),
+        r#"<div><main data-node="2"><ol data-node="3" start="4"><li data-node="4"><span data-node="5">One</span></li><li data-node="6"><span data-node="7">Two</span></li></ol></main></div>"#
+    );
+}
+
+fn list_op_kinds(ops: &[Op]) -> Vec<&str> {
+    ops.iter()
+        .map(|op| match op {
+            Op::Replace { .. } => "replace",
+            Op::Attributes { .. } => "attributes",
+            Op::Insert { .. }
+            | Op::Remove { .. }
+            | Op::Move { .. }
+            | Op::Text { .. }
+            | Op::Value { .. }
+            | Op::Choice { .. }
+            | Op::Href { .. }
+            | Op::Focus { .. }
+            | Op::ScrollEnd { .. }
+            | Op::Component { .. } => "other",
+        })
+        .collect()
 }

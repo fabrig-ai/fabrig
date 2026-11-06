@@ -355,7 +355,11 @@ pub fn answer_as(
             squash: s.squash,
         }),
         forge::Answer::Collaborators(rows) => collaborators_answer(asked, &rows, l),
-        forge::Answer::Permission(p) => client::Answer::Permission(permission(p)),
+        forge::Answer::Permission(p) => client::Answer::Permission(client::UserPermission {
+            user: p.user,
+            login: p.login,
+            permission: permission(p.permission),
+        }),
         forge::Answer::Created(n) => client::Answer::Created(n),
         forge::Answer::Commented(n) => client::Answer::Commented(n),
         forge::Answer::Reviewed(n) => client::Answer::Reviewed(n),

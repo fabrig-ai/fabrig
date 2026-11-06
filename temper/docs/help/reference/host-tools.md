@@ -406,7 +406,7 @@ A read.
 
 ## read_collaborators
 
-Read a page of the repository's collaborators.
+Read a page of the repository's collaborators; read_permission names each.
 
 A read.
 
@@ -415,7 +415,7 @@ A read.
 
 ## read_permission
 
-Read a forge user's permission on the repository.
+Read a forge user's permission on the repository, with their id and login when available.
 
 A read.
 

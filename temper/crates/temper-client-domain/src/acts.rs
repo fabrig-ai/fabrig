@@ -17,6 +17,10 @@ pub struct Confirm {
     pub revision: Option<contract::Revision>,
     pub act: ActKind,
     pub again: Option<bool>,
+    /// The ask this sheet sent, until it is answered (client/README.md, 3.6).
+    pub sent: Option<Key>,
+    /// Its last answer other than done, said above its acts.
+    pub failed: Option<jig_client::Outcome>,
 }
 #[must_use]
 pub fn offers(page: &ReadValue) -> &[Offered] {
@@ -94,6 +98,7 @@ fn find_card(pages: &mut Pages, object: ObjectKey) -> Option<&mut Card> {
     }
     None
 }
+#[expect(clippy::too_many_lines, reason = "deciding dispatch lists each act and retains the sheet through its ask")]
 pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queue<Request>) {
     match act {
         Act::CardWords { object, words } => {
@@ -112,11 +117,11 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
             if !allowed(page, act) {
                 return;
             }
-            let confirm = Confirm { object, revision, act, again: None };
+            let confirm = Confirm { object, revision, act, again: None, sent: None, failed: None };
             if jig_client::facts::dangerous(act) || (act == ActKind::Accept || act == ActKind::Release) {
                 pages.confirm = Some(confirm);
             } else {
-                send(pages, confirm, out);
+                let _sent = send(pages, confirm, out);
             }
         }
         Act::Again { again } => {
@@ -125,8 +130,16 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
             }
         }
         Act::Confirm => {
-            if let Some(open) = pages.confirm.take() {
-                send(pages, open, out);
+            if let Some(mut open) = pages.confirm.take() {
+                if open.sent.is_none() {
+                    open.failed = None;
+                    if let Some(key) = send(pages, open.clone(), out) {
+                        open.sent = Some(key);
+                        pages.confirm = Some(open);
+                    }
+                } else {
+                    pages.confirm = Some(open);
+                }
             }
         }
         Act::Cancel => pages.confirm = None,
@@ -194,15 +207,15 @@ pub(super) fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Que
         }
     }
 }
-fn send(pages: &mut Pages, open: Confirm, out: &mut Queue<Request>) {
-    let Some(card) = find_card(pages, open.object) else { return };
+fn send(pages: &mut Pages, open: Confirm, out: &mut Queue<Request>) -> Option<Key> {
+    let card = find_card(pages, open.object)?;
     if card.key.is_some() {
-        return;
+        return None;
     }
-    let Some(project) = card.project else { return };
-    let Some(page) = &card.page else { return };
+    let project = card.project?;
+    let Some(page) = &card.page else { return None };
     if !allowed(page, open.act) {
-        return;
+        return None;
     }
     let words = card.words.clone();
     let ask = match (open.object, open.act) {
@@ -222,7 +235,7 @@ fn send(pages: &mut Pages, open: Confirm, out: &mut Queue<Request>) {
                 } else {
                     let Some(reason) = words else {
                         pages.confirm = Some(open);
-                        return;
+                        return None;
                     };
                     Decision::Rejected { reason }
                 },
@@ -233,35 +246,37 @@ fn send(pages: &mut Pages, open: Confirm, out: &mut Queue<Request>) {
                 == Some(&contract::Effect::Release(contract::ReleaseEffect::Uncertain))
                 && open.again.is_none()
             {
-                pages.confirm = Some(open);
-                return;
+                return None;
             }
-            let Some(revision) = open.revision else { return };
+            let revision = open.revision?;
             Ask::Release { project, task, revision, again: open.again }
         }
         (ObjectKey::Escalation(task), ActKind::LeaveHeld) => {
-            let (Some(revision), Some(reason)) = (open.revision, words) else { return };
+            let (Some(revision), Some(reason)) = (open.revision, words) else { return None };
             Ask::Decide {
                 project,
                 on: DecideOn::Escalation { task, revision, decision: Decision::LeftHeld { reason } },
             }
         }
         (ObjectKey::Question { task, message }, ActKind::Answer) => {
-            let Some(words) = words else { return };
+            let words = words?;
             Ask::Answer { project, on: contract::AnswerOn::Question { task, message, words } }
         }
         (ObjectKey::PersonTask(task), ActKind::Take) => Ask::Take { project, task },
         (ObjectKey::PersonTask(task), ActKind::HandBack) => Ask::HandBack { project, task },
-        _ => return,
+        _ => return None,
     };
     pages.serial = pages.serial.checked_add(1).expect("pages keys fit");
     let key = Key { asker: Owner::Pages.asker(), number: pages.serial };
-    find_card(pages, open.object).expect("card retained").key = Some(key);
+    let card = find_card(pages, open.object).expect("card retained");
+    card.key = Some(key);
+    card.outcome = None;
     out.push(Request::Client(jig_client::Event::Send {
         key,
         name: None,
         request: jig_client::Ask::Jig(Box::new(ask)),
     }));
+    Some(key)
 }
 pub(super) fn told(pages: &mut Pages, told: &Told) -> bool {
     if let Told::Answered { key, outcome } = told
@@ -270,6 +285,9 @@ pub(super) fn told(pages: &mut Pages, told: &Told) -> bool {
         for index in 0..cards.len() {
             let card = cards.get_mut(index).expect("bounded index");
             if card.key == Some(*key) {
+                if !super::pages::seen_answered(outcome) {
+                    card.key = None;
+                }
                 card.outcome = Some(outcome.clone());
                 return true;
             }

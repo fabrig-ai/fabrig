@@ -202,10 +202,10 @@ comment, no blank.
   (5.3), and the next act's mark shows what was typed.
 - **The page's own state:** skein's page draws one state that its host
   never hears of, an open menu (`Role::Menu`), and a mark taken with
-  one open fails the first replay's proof. temper's view draws no such
-  menu (on a page that is no project's, its banner's "Menu" is a
-  disclosure, the browser's own); one that does will need the page's
-  events recorded too (section 10).
+  one open fails the first replay's proof. temper's rail draws two such
+  menus, and no journey opens one (on a page that is no project's, its
+  banner's "Menu" is a disclosure, the browser's own); a journey that
+  does will need the page's events recorded too (section 10).
 
 ### 3.5 Fake only
 
@@ -521,6 +521,13 @@ through `04.html` and its README are not journeys to reprint or land
 the configuring proposal states, Start over and the rail strip are also
 drawn by the gallery (`browser.md`, 7.2). Its drawing and figure wait on
 `skein/docs/design/draft/diagrams.md`.
+
+The `close-chat` request's hand-made `close-chat/01.html` through `03.html`
+are not journeys to reprint or land (section 7). Their states are the gallery's
+`chat-closing`, `chat-closing-work` and `chat-closed` (`browser.md`, 7.2).
+The other confirmations and failures use the same sheet (`README.md`, 3.6);
+their gallery states include Start over, Stop, Cancel, Accept, Reject and
+Release, with its uncertain pair. These add no recorded journey or page.
 
 ## 10. Open questions
 

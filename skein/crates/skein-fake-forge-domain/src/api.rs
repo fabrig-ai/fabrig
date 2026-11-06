@@ -29,6 +29,14 @@ pub enum Permission {
     Admin,
 }
 
+/// A numeric user's permission; this fake keeps no logins (fake-forge.md, section 2).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct UserPermission {
+    pub user: u64,
+    pub login: Box<[u8]>,
+    pub permission: Permission,
+}
+
 /// What a call asks of a repository.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Op {
@@ -505,7 +513,7 @@ pub enum Answer {
     Collaborators(Box<[Collaborator]>),
     /// In their contexts' order.
     Statuses(Box<[Status]>),
-    Permission(Permission),
+    Permission(UserPermission),
     /// A comment, and the item it is on.
     Comment {
         number: u64,
