@@ -1191,6 +1191,7 @@ fn proposal() -> c::ReadValue {
             })
             .expect("one funding source");
         c::Proposal {
+            projects: List::with_capacity(0),
             key: PROPOSAL,
             project: PROJECT,
             reason: c::DocumentText::complete(text(JSON_WHY)),
@@ -1753,6 +1754,7 @@ fn goal_inbox(
         let at = Some(offset(w, -18));
         let cursor = c::InboxCursor::Inbox { task: 3, object, at };
         rows.push(c::InboxEntry {
+            projects: List::with_capacity(0),
             reply: None,
             task: c::TaskLink::Live(document(w, 3).chip),
             project: Some(PROJECT),
@@ -1781,6 +1783,7 @@ fn goal_inbox(
             };
             let cursor = c::InboxCursor::Inbox { task: f.number, object, at: Some(offset(w, f.at)) };
             rows.push(c::InboxEntry {
+                projects: List::with_capacity(0),
                 reply: None,
                 task: c::TaskLink::Live(goal_line(w, f).chip),
                 project: Some(PROJECT),
@@ -2126,6 +2129,7 @@ impl GoalPage {
                     let cursor = c::InboxCursor::Inbox { task, object, at: Some(goal_wall(w, -40)) };
                     let chip = if task == self.facts.number { self.document(w).chip } else { self.delegate(w, 1).chip };
                     rows.push(c::InboxEntry {
+                        projects: List::with_capacity(0),
                         reply: None,
                         task: c::TaskLink::Live(chip),
                         project: Some(PROJECT),
@@ -3599,6 +3603,7 @@ fn inbox_window(w: World, window: u32) -> c::Inbox {
         let cursor = c::InboxCursor::Inbox { task, object, at: row.at };
         let reply = if row.group() == c::InboxGroup::Replies { Some(Box::new(reply_line(w, task))) } else { None };
         let entry = c::InboxEntry {
+            projects: List::with_capacity(0),
             reply,
             task: c::TaskLink::Live(chip(w, task)),
             project: Some(PROJECT),

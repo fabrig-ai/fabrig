@@ -284,6 +284,7 @@ fn owner_tree_departure_keeps_a_separately_named_deciding_card_until_its_answer_
             .unwrap();
     let acts = crate::tests::kit::list([Offered { effect: None, act: ActKind::Accept, admission: Admission::Allowed }]);
     let proposal = Proposal {
+        projects: List::with_capacity(0),
         key,
         project: 4,
         reason: DocumentText::complete(crate::tests::tree::cards::text(b"supplied pending reason")),

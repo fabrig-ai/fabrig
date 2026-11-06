@@ -15,6 +15,7 @@ use skein_lib::{List, Time, Token, Wall};
 
 fn source(maker: Proposer, part: Part) -> Proposal {
     Proposal {
+        projects: List::with_capacity(0),
         key: ProposalKey { proposer: maker, number: 7 },
         project: 41,
         reason: DocumentText { bytes: objects::text(UTF8_TEXT), cut: true },
