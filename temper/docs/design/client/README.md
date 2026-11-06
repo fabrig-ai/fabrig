@@ -4794,7 +4794,11 @@ section 5.
   kind 7 of the open project as the project opens, and kind 6 on the tab,
   through the forge's reads in that project's scope (`forge.md`, section 9),
   and again whenever the document's line for that setting says it changed and
-  when the link comes back. Until read, or if refused, the optional entries,
+  when the link comes back. A transient read failure (busy, unreachable, local
+  read capacity, or sign-in still settling) retries after one second, doubling
+  to at most 30 seconds; a successful answer resets the wait. Kind 7 retries
+  while its project is open, kind 6 while the tab is open; leaving that scope
+  drops its retry. Until read, or if refused, the optional entries,
   the tab's live controls and `drafts` all read as hidden, off and absent; a
   value of none reads as the stock (`../protocol/configuration.md`, 13.4).
 - **Its acts:** each live control sends at once jig's `ChangeSettings` with one
