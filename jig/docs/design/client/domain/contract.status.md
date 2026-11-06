@@ -3,6 +3,17 @@
 2026-11-06. Where jig's code lags or departs from [contract.md](contract.md).
 Unlisted sections, including public documents (12), have no known gap.
 
+- **Departs:** 5.1: an omitted template's preview and its new task's next-run
+  model can differ while no supporting worker is ready. `Core::preview_llm`
+  (`jig-domain-core/src/runs/llm.rs`) takes the first of `Core::offer`, which
+  needs no host for a direct source; `task_llm` uses `model_readiness`, which
+  needs a host even for that source, then falls back to the first serving
+  account. With a Claude program account and an OpenAI direct account, no
+  ready worker leaves Sol in the preview and Opus in the task document.
+  The plan deliberately kept direct sources offered across worker restarts
+  and left the run's readiness check unchanged; that does not establish
+  the promised agreement. Seen by reading; no runtime result is supplied.
+
 - **Not yet:** 5.1: `me` gives `words_bytes` from `people.words` for a party's
   spec, message and answer, but says no bound on an amendment's: the long-words
   plan carries the words bound alone.

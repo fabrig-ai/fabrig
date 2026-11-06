@@ -731,6 +731,12 @@ the same capacities even when every run slot is occupied.
 
 ## 9. Open questions
 
+- **Models out of configuration** (section 3): a catalogue of model
+  settings would replace the engine's model declarations and let a charter
+  choose from that catalogue. It needs the settings and agent contracts to
+  carry the same bounds and defaults (`../domain/engine.md`, section 16).
+  Until then `effort`, `shown` and `picker` are configuration members.
+
 - **Reloading without a restart:** a deployment's limits changed while
   it runs. Its rules, charters, templates and policies change at
   runtime as settings (`../domain/engine.md`, section 17).

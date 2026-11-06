@@ -40,7 +40,15 @@ worker slots it is to size temper's own way by, no story that runs has an owner 
 its proposal under Needs you, with `temper help proposal` still saying that press fails,
 and a second proposal's refusal offers a `withdraw` it can't make (`domain/agent.md`), and a
 charter's `tools` decides only whether its runs are offered the
-settings family (`protocol/configuration.md`). The watch rooms follow admitted
+settings family (`protocol/configuration.md`). Seven stock models and their
+default efforts, the per-project offer and per-template previews, ctl's offer
+listing and the configuring chat's chooser are built. Account groups and
+"All models" await the separate picker look; an unusable account's fix is
+hidden beside a usable one of the same provider (`client/README.md`). The
+configuring inventory is filtered, but whole charter reads still name models
+outside the offer and only instructions restrict proposals to it
+(`domain/agent.md`, `draft/model-catalogue.md`). Model settings and provider
+list reads remain the catalogue's later steps. The watch rooms follow admitted
 streams, with the whole room available to one party; obsolete watch-room overrides are refused and ctl names a watch
 refused busy at its deadline. A fair share, the other ineffective views
 overrides, precise Busy causes and the manual browser check remain deferred

@@ -916,10 +916,10 @@ and waits in the Needs you of each project it belongs to (jig's
   The same inventory names the offer to the chat's payer (jig's
   `client/domain/contract.md`, 5.1), one line a model, with its provider,
   its efforts and its default effort, and says so where it holds none. It
-  is the only list of models the agent is told, so that it neither proposes
-  nor mentions a model no account can run: a charter it reads may name
-  others, and the agent's instructions leave those as they stand and name
-  none of them to the person.
+  is the list of models the agent may offer. A charter it reads goes back
+  whole and may name others; the agent's instructions leave those as they
+  stand and neither propose nor mention them to the person. The settings
+  check validates configured models, not the current offer.
   A read of a project's ways or questions with none stored answers the
   stock (`../protocol/configuration.md`, 13.4), never unknown. A read that
   finds nothing is an error whose words say it was not read and that this
@@ -1306,6 +1306,13 @@ host:
   host tool answered busy by the engine, asked again and decided once.
 
 ## 10. Open questions
+
+- **Constraining models in settings reads and proposals** (8.1): whole
+  charter values can name models outside the current offer. Restricting what
+  a read exposes while still round-tripping that value, or rejecting a new
+  unoffered choice without rejecting an unchanged charter, needs a settings
+  contract. Default: the inventory is filtered and the stock instructions
+  restrict the agent; whole charter reads and configured-model validation stay.
 
 - **What a delivery keeps, under a deployment's own charter** (6): the stock's
   coding charter and the reference's tell a run its own history isn't kept. A
