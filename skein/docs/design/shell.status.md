@@ -1,6 +1,6 @@
 # shell: status
 
-2026-11-04. Where skein's code lags or departs from [shell.md](shell.md).
+2026-11-06. Where skein's code lags or departs from [shell.md](shell.md).
 
 - **Not yet:** 6: the configured peer names resolved at startup (step 5).
   6.4: the helper's dispatch, and the service's own cgroup opened at
@@ -8,7 +8,8 @@
   read from published XNU, whose `main` may lag `macos-26`'s kernel, and
   no recorded run shows it: a Linux test holds `listening`
   (`skein-shell/src/listener_calls.rs`) on both answers, and only the
-  constant that selects macOS's goes unrun. 9: temper's one story has not
+  constant that selects macOS's goes unrun. 7.5: `posix`: `linux` and
+  `darwin` each still write what it is to hold. 9: temper's one story has not
   been seen green on the macOS workflow
   (`temper/docs/design/domain/testing.md`, 2.8), and no macOS runner runs
   skein's suites.

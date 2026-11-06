@@ -223,6 +223,7 @@ where it holds it.
   traces without its bytes (http.md, 2; channel.md, 3). Only what oauth.md, 4
   names as no credential prints as it came.
 - **Widening:** `length::usize_of` widens a `u32` count to an index and `length::len_u64` a length to a count, so no step writes `try_from` for either.
+- **A length added up with checks:** `length::Measure` starts at `Measure::ZERO` and `add`s lengths: past a `usize` it stays `None`. `total` gives the sum, and `total_u32` the sum a `u32` holds. A writer measures a head or a frame with it before `Writer::new`.
 
 ### 6.1 Base64
 
