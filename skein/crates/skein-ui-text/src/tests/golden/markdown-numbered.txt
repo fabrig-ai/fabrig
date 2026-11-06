@@ -1,0 +1,15 @@
+== ops == 
+The release needs three things, in this order:
+1. Update the manifest.
+   Bump the version.
+2. Run the checks.
+  - the focused tier
+  - the slow tier
+3. Tag it.
+   Only once the checks are green.
+4. Push the tag.
+7. Write the notes.
+1. Tell the team.
+It shipped in
+2026. That was late.
+3.14 is not a list, nor is 3 apples.

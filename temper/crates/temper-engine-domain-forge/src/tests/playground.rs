@@ -21,7 +21,13 @@ fn configured() -> Domain {
         true,
     )
     .expect("empty connector");
-    d.set_machine(Machine { owned: None, fake: Some(place()), github: place(), github_git_program: None });
+    d.set_machine(Machine {
+        owned_person: Box::new([]),
+        owned: None,
+        fake: Some(place()),
+        github: place(),
+        github_git_program: None,
+    });
     d.configure_playground(Some(PlaygroundConfig { provider: 1, deadline: Duration::from_secs(10) }));
     d
 }

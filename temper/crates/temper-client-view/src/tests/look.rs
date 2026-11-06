@@ -143,12 +143,13 @@ const GOALS_NAMES: [(skein_ui::Style, &[u8]); 65] = [
     (SHEET_FOOT, b"temper-sheet-foot"),
     (SHEET_ERROR, b"temper-sheet-error"),
 ];
-const RAIL_NAMES: [(skein_ui::Style, &[u8]); 9] = [
+const RAIL_NAMES: [(skein_ui::Style, &[u8]); 10] = [
     (RAIL, b"temper-rail"),
     (RAIL_NAV, b"temper-rail-nav"),
     (RAIL_NEW, b"temper-rail-new"),
     (RAIL_NEW_ALL, b"temper-rail-new-all"),
     (RAIL_FOOT, b"temper-rail-foot"),
+    (RAIL_PERSON, b"temper-rail-person"),
     (TABBAR, b"temper-tabbar"),
     (AWAY, b"temper-away"),
     (AWAY_CHIP, b"temper-away-chip"),
@@ -629,6 +630,7 @@ fn settings_styles_keep_their_css_names_beside_main_pages() {
         (SETTINGS_TABS, b"temper-settings-tabs".as_slice()),
         (SETTINGS_BODY, b"temper-settings-body".as_slice()),
         (SETTINGS_SETTING, b"temper-settings-setting".as_slice()),
+        (SETTINGS_SIGN_OUT, b"temper-settings-sign-out"),
         (SETTINGS_SECTION, b"temper-settings-section".as_slice()),
         (SETTINGS_SECTION_HEAD, b"temper-settings-section-head".as_slice()),
         (SETTINGS_SECTION_TITLE, b"temper-settings-section-title".as_slice()),

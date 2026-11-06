@@ -247,25 +247,37 @@ fn control_bytes_print_as_replacements_everywhere() {
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the reader's report and hand-checked text golden are shared fixtures")]
 fn a_markdown_table_prints_each_row_with_its_cells() {
-    const INPUT: &[u8] = include_bytes!("../../skein-ui/src/tests/markdown/13.md");
-    const PAGE_DEPTH: u32 = 6; // ui.md, 10: five reader levels below the page.
-    let bytes = u32::try_from(INPUT.len()).unwrap();
+    const READER_LEVELS: u32 = 5; // ui.md, 10: table, row, cell, link, text.
+    let print = markdown_print(include_bytes!("../../skein-ui/src/tests/markdown/13.md"), 1, READER_LEVELS);
+    assert_eq!(print.text.as_slice(), include_bytes!("tests/golden/markdown-table.txt"));
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the reader's report and hand-checked text golden are shared fixtures")]
+fn numbered_markdown_prints_its_numbers_as_written() {
+    const READER_LEVELS: u32 = 6; // ui.md, 10: two list/item pairs, link, text.
+    let print = markdown_print(include_bytes!("../../skein-ui/src/tests/markdown/17.md"), 2, READER_LEVELS);
+    assert_eq!(print.text.as_slice(), include_bytes!("tests/golden/markdown-numbered.txt"));
+}
+
+fn markdown_print(input: &[u8], nesting: u32, reader_levels: u32) -> Print {
+    let bytes = u32::try_from(input.len()).unwrap();
     let limits = skein_ui::Limits {
         nodes: skein_ui::markdown::max_nodes(bytes).unwrap().checked_add(1).unwrap(),
-        depth: PAGE_DEPTH,
+        depth: reader_levels.checked_add(1).unwrap(), // ui.md, 10: reader levels below the page.
         text_per_node: skein_ui::markdown::max_text_bytes(bytes).unwrap(),
         text_bytes: skein_ui::markdown::max_text_bytes(bytes).unwrap(),
-        markdown_depth: 1,
+        markdown_depth: nesting,
         ..fixtures::LIMITS
     };
     let mut builder = skein_ui::Builder::new(&limits);
     builder.open(Role::Page);
-    skein_ui::markdown::read(INPUT, 0, &mut builder);
+    skein_ui::markdown::read(input, 0, &mut builder);
     builder.close();
     let tree = builder.finish();
     let mut print = Print::new(&limits).unwrap();
     render(&tree, b"ops", None, &mut print);
-    assert_eq!(print.text.as_slice(), include_bytes!("tests/golden/markdown-table.txt"));
+    print
 }
 
 #[test]
@@ -306,5 +318,38 @@ fn an_ordinary_group_prints_its_children_as_a_slot_does() {
         } else {
             expected = Some(text);
         }
+    }
+}
+
+#[test]
+fn only_direct_items_take_their_lists_numbers_without_wrapping() {
+    for (first, expected) in [
+        (0, b"== ops == \n0. first\n- indirect\n- indirect\n- tree item\n1. second\n".as_slice()),
+        (
+            u32::MAX,
+            b"== ops == \n4294967295. first\n- indirect\n- indirect\n- tree item\n4294967296. second\n".as_slice(),
+        ),
+    ] {
+        let mut builder = skein_ui::Builder::new(&fixtures::LIMITS);
+        builder.open(Role::Page);
+        {
+            let b = &mut builder;
+            b.open(Role::List);
+            b.ordered(first);
+            fixtures::leaf(b, Role::Item, b"first");
+            for role in [Role::Group, Role::Slot] {
+                b.open(role);
+                fixtures::leaf(b, Role::Item, b"indirect");
+                b.close();
+            }
+            fixtures::leaf(b, Role::TreeItem, b"tree item");
+            fixtures::leaf(b, Role::Item, b"second");
+            b.close();
+        }
+        builder.close();
+        let tree = builder.finish();
+        let mut print = Print::new(&fixtures::LIMITS).unwrap();
+        render(&tree, b"ops", None, &mut print);
+        assert_eq!(print.text.as_slice(), expected);
     }
 }
