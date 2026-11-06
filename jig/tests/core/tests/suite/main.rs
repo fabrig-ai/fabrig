@@ -45,6 +45,7 @@ mod oracle;
 mod orders;
 mod parties;
 mod peers;
+mod person_task;
 mod placed_holds;
 mod procedure_seeds;
 mod procedure_steps;

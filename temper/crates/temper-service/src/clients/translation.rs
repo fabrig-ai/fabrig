@@ -78,6 +78,7 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::ClaimPrepared { .. }
         | core::Event::ClaimRefused { .. }
         | core::Event::ConnectorRepair { .. }
+        | core::Event::PersonTask { .. }
         | core::Event::Period { .. }
         | core::Event::TranscriptLoaded { .. }
         | core::Event::People(..)

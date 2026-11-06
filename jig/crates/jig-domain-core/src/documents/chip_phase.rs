@@ -63,6 +63,38 @@ pub struct ChipDetails {
     pub observation: Option<ChipObservation>,
 }
 
+fn current_attempt(row: &tasks::TaskRecord) -> Option<u64> {
+    match row.phase {
+        tasks::Phase::Active(tasks::Active::Claimed { attempt } | tasks::Active::Running { attempt }) => Some(attempt),
+        tasks::Phase::Waiting
+        | tasks::Phase::Active(
+            tasks::Active::Idle | tasks::Active::Due | tasks::Active::Preparing | tasks::Active::BackingOff { .. },
+        )
+        | tasks::Phase::Closing(_)
+        | tasks::Phase::Held { .. }
+        | tasks::Phase::Ended(_) => None,
+    }
+}
+
+impl Core {
+    /// Whether the task's current run is past Starting (the Task document's chip.work).
+    #[must_use]
+    pub fn run_past_starting(&self, task: u64) -> bool {
+        let Some(row) = self.tasks.task(task) else { return false };
+        let Some(attempt) = current_attempt(row) else { return false };
+        let Some(observation) = self.fleet.observation(Token::new(task), Token::new(attempt)) else { return false };
+        match observation.activity {
+            fleet::Activity::Preparing | fleet::Activity::Starting => false,
+            fleet::Activity::Active
+            | fleet::Activity::Writing
+            | fleet::Activity::Long { .. }
+            | fleet::Activity::Tool { .. }
+            | fleet::Activity::Waiting
+            | fleet::Activity::Ending => true,
+        }
+    }
+}
+
 pub(super) fn from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<ChipDetails, Missing> {
     let needs_resources = match row.phase {
         tasks::Phase::Waiting | tasks::Phase::Held { .. } => true,
@@ -167,16 +199,7 @@ pub(super) fn observe(
         }
         details.closing_connectors = Some(connectors);
     }
-    let current = match row.phase {
-        tasks::Phase::Active(tasks::Active::Claimed { attempt } | tasks::Active::Running { attempt }) => Some(attempt),
-        tasks::Phase::Waiting
-        | tasks::Phase::Active(
-            tasks::Active::Idle | tasks::Active::Due | tasks::Active::Preparing | tasks::Active::BackingOff { .. },
-        )
-        | tasks::Phase::Closing(_)
-        | tasks::Phase::Held { .. }
-        | tasks::Phase::Ended(_) => None,
-    };
+    let current = current_attempt(row);
     if let Some(attempt) = current
         && let Some(observation) = core.fleet.observation(Token::new(row.number), Token::new(attempt))
     {
