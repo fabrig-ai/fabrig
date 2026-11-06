@@ -718,7 +718,9 @@ the host tests (section 14).
     reach into the view and where each stands; after it, it moves the scroll
     by as far as the first of them still there has moved. A browser's own
     scroll anchoring (`overflow-anchor`) has by then done its part or, as
-    in Safari, has none to do, so the two never add up.
+    in Safari, has none to do, so the two never add up. A status is no entry:
+    it may stay at the head while entries arrive below it. Any other node
+    there would be what holds, so an owner draws none.
   - *Keys:* PageUp and PageDown, with no modifier, scroll the page's first
     log by its screen less a line, from anywhere on the page, the focus in a
     field or on nothing among it, their default prevented. A menu or a
