@@ -25,7 +25,7 @@ mod route;
 pub mod sign_in;
 pub mod words;
 pub use address::{Address, ChatsFilter, Choice, GoalsFilter, ModelWay, Place, Step, WayKind};
-pub use boundary::{Action, Event, Fact, Request};
+pub use boundary::{Action, Event, Fact, Request, Tab};
 pub use domain::{Domain, fire, new, new_departing, next_deadline, shown, step, take, unlinked, unlinked_departing};
 pub use limits::{Limits, valid};
 #[cfg(test)]

@@ -19,15 +19,29 @@ pub enum Event {
     AccountKey { value: skein_lib::Secret },
     SignInAddress { value: skein_lib::Secret },
     SignedOut,
+    TabRefused,
 }
 /// Bounded routing and child facts for the shell to observe.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Fact {
     UnknownAsker,
 }
+/// What the shell does with a sign-in's tab (client/README.md, 3.5, `ConnectModel`, The sign-in's tab).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Tab {
+    /// In the press's own turn, before the sign-in is carried; the provider names its words.
+    Open { provider: u32 },
+    /// The answer's address, its opener cut: once, from that answer.
+    Point { to: Box<[u8]> },
+    /// An answer with no address, or one the page has left.
+    Close,
+}
 /// One shell obligation; keyed sends come only from the table.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Request {
+    Tab {
+        tab: Tab,
+    },
     Client {
         request: jig_client::Request,
     },

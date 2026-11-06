@@ -26,6 +26,10 @@ fn every_record_reads_back_as_written() {
         Line::Turn { now: Time::from_nanos(u64::MAX), wall: Wall::from_nanos(u64::MAX) },
         Line::Start,
         Line::Due,
+        Line::TabOpen(bytes()),
+        Line::TabPoint(bytes()),
+        Line::TabClose,
+        Line::TabRefused,
         Line::Place(bytes()),
         Line::Heard(Heard::Answered { exchange: u32::MAX, status: 200, body: bytes(), headers: Vec::new() }),
         Line::Heard(Heard::Failed { exchange: 2 }),
@@ -425,4 +429,58 @@ fn a_journey_keeps_the_shells_zone_and_omits_zero() {
         let (replayed, _) = replay::facts(&read).expect("replay zone facts");
         assert_eq!(replayed.zone_minutes, zone);
     }
+}
+
+#[test]
+fn a_changed_tab_open_is_stale_at_its_turn_and_line() {
+    use crate::host::{Duties, Report, TabAct};
+    let facts = facts();
+    let (mut host, mut page) = facts.start();
+    let mut recorder = Recorder::new(&facts);
+    recorder.turn(facts.now, facts.wall);
+    recorder.report(&mut host, &page, Report::Start);
+    host.draw(&mut page, &mut Vec::new());
+    recorder.deadline(host.deadline());
+    recorder.turn(Time::from_nanos(1), facts.wall);
+    recorder.report(&mut host, &page, Report::TabRefused);
+    host.draw(&mut page, &mut Vec::new());
+    recorder.deadline(host.deadline());
+    let save = recorder.save(&page);
+    prove(&save).expect("a refusal replays with no tab duty");
+    let mut records = lines(&save).expect("recorded refusal");
+    let at = records.iter().position(|line| *line == Line::TabRefused).expect("refusal kept") + 1;
+    let duties =
+        Duties { tab: vec![TabAct::Open { words: b"Other opening words".as_slice().into() }], ..Duties::default() };
+    records.splice(at..at, record::asked(&duties));
+    let mut replay = Replay::new(&written(&records)).expect("changed recording reads");
+    let stale = replay.next().err().expect("a tab not asked is stale");
+    assert_eq!(stale.turn, 2);
+    assert_eq!(stale.line, u32::try_from(at + 1).expect("line fits"));
+    assert_eq!(stale.recorded, "tab-open \"Other opening words\"");
+    assert_eq!(stale.asked, "nothing");
+}
+
+#[test]
+fn tab_duties_precede_transport_in_their_order() {
+    use crate::host::{Duties, TabAct};
+    use jig_client_shell_web::adapter::Asked;
+    let duties = Duties {
+        tab: vec![
+            TabAct::Open { words: b"Opening".as_slice().into() },
+            TabAct::Point { to: b"https://issuer.example/sign-in".as_slice().into() },
+            TabAct::Close,
+        ],
+        asked: vec![Asked::CloseStream],
+        ..Duties::default()
+    };
+    assert!(!duties.departs());
+    assert_eq!(
+        record::asked(&duties),
+        vec![
+            Line::TabOpen(b"Opening".as_slice().into()),
+            Line::TabPoint(b"https://issuer.example/sign-in".as_slice().into()),
+            Line::TabClose,
+            Line::Close,
+        ]
+    );
 }

@@ -16,15 +16,25 @@ use temper_client_view as view;
 pub enum Report {
     Start,
     Due,
+    TabRefused,
     Act { node: NodeId, act: Act },
     Place { path: Box<[u8]> },
     Heard(Heard),
     Carried { reports: Vec<skein_ui_web::transport::Carried>, writes: u32 },
 }
 
+/// A sign-in's tab, carried before the transport (client/browser.md, 2.1).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum TabAct {
+    Open { words: Box<[u8]> },
+    Point { to: Box<[u8]> },
+    Close,
+}
+
 /// What the host asks after one report.
 #[derive(Debug, Default)]
 pub struct Duties {
+    pub tab: Vec<TabAct>,
     pub asked: Vec<Asked>,
     pub writes: u32,
     pub navigate: Option<Box<[u8]>>,
@@ -134,13 +144,21 @@ impl Host {
         match report {
             Report::Start => {}
             Report::Due => self.due(),
+            Report::TabRefused => self.event(Event::TabRefused),
             Report::Act { node, act } => self.act(node, act),
             Report::Place { path } => self.went(&path),
             Report::Heard(heard) => self.heard(heard),
             Report::Carried { reports, writes } => self.carried(reports, writes),
         }
-        let (asked, writes) = self.duties();
-        Duties { asked, writes, navigate: self.navigate.take(), replace: self.replace.take(), show: self.show.take() }
+        let (asked, writes, tab) = self.duties();
+        Duties {
+            tab,
+            asked,
+            writes,
+            navigate: self.navigate.take(),
+            replace: self.replace.take(),
+            show: self.show.take(),
+        }
     }
     pub fn draw(&mut self, page: &mut Page<'_>, ops: &mut Vec<skein_ui_web::page::Op>) {
         page.apply(&self.patches(), ops);
@@ -226,11 +244,19 @@ impl Host {
     pub fn requests(&mut self) -> Vec<Asked> {
         self.duties().0
     }
-    fn duties(&mut self) -> (Vec<Asked>, u32) {
+    fn duties(&mut self) -> (Vec<Asked>, u32, Vec<TabAct>) {
+        let mut tab = Vec::new();
         let mut asked = Vec::new();
         let mut writes = 0_u32;
         while let Some(request) = self.out.pop() {
             match request {
+                Request::Tab { tab: request } => tab.push(match request {
+                    root::Tab::Open { provider } => {
+                        TabAct::Open { words: view::opening_tab(&self.view, &self.root, provider) }
+                    }
+                    root::Tab::Point { to } => TabAct::Point { to },
+                    root::Tab::Close => TabAct::Close,
+                }),
                 Request::Client { request } => {
                     if matches!(request, jig_client::Request::Save { .. } | jig_client::Request::Erase { .. }) {
                         writes = writes.checked_add(1).expect("bounded client write batches");
@@ -259,7 +285,7 @@ impl Host {
             }
         }
         root::take(&mut self.root, &self.env, &mut self.out);
-        (asked, writes)
+        (asked, writes, tab)
     }
     #[expect(
         clippy::wildcard_enum_match_arm,
@@ -355,5 +381,42 @@ mod zone_tests {
             let host = Host::new(11, Time::ZERO, Wall::EPOCH, zone, view::sign_in::Ways::NONE);
             assert_eq!(host.root.zone_minutes(), zone);
         }
+    }
+}
+
+#[cfg(test)]
+mod tab_tests {
+    use super::*;
+
+    #[test]
+    fn tab_requests_keep_their_order_and_do_not_depart() {
+        let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
+        let to = b"https://issuer.example/sign-in".as_slice();
+        for tab in [root::Tab::Open { provider: 17 }, root::Tab::Point { to: to.into() }, root::Tab::Close] {
+            host.out.push(Request::Tab { tab });
+        }
+        let duties = host.report(Report::Start);
+        assert_eq!(
+            duties.tab,
+            vec![
+                TabAct::Open { words: "Opening ’s sign-in…".as_bytes().into() },
+                TabAct::Point { to: to.into() },
+                TabAct::Close,
+            ]
+        );
+        assert!(duties.asked.is_empty());
+        assert!(!duties.departs());
+    }
+
+    #[test]
+    fn a_tab_refusal_has_no_duty_yet() {
+        let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
+        let duties = host.report(Report::TabRefused);
+        assert!(duties.tab.is_empty());
+        assert!(duties.asked.is_empty());
+        assert_eq!(duties.writes, 0);
+        assert!(duties.navigate.is_none());
+        assert!(duties.replace.is_none());
+        assert!(duties.show.is_none());
     }
 }

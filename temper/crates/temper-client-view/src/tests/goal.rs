@@ -190,6 +190,7 @@ fn root_with_side(task: c::Task, done: u32, total: u32, note: Option<c::Note>, n
             | Request::Leave { .. }
             | Request::SignOut
             | Request::Dropped { .. }
+            | Request::Tab { .. }
             | Request::Fact { .. } => None,
         };
         if let Some(up) = up {
