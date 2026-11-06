@@ -6414,7 +6414,7 @@ own tests:
   fetches at once; a copy from a public host. Default: none, until a plan walks them.
 - **What feeds the try** (3.5, *The try*; `../draft/model-check.md`): the trial's
   task and charter, how it selects its model, who pays, what ends it and its
-  cancelling on leaving are that draft's, and are designed as it is built, with
+  cancelling once its account is removed are that draft's, and are designed as it is built, with
   what it leaves open: an act on Settings' accounts, and a world for the wait.
   Default: the host's check feeds Model's line at its first step, and no line says
   "answered".

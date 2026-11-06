@@ -179,7 +179,8 @@ kinds, stays on Needs you once accepted, leaves its chat on a reload and follows
 "Decision made" while it waits (`client/README.md`). `again` can't record a journey
 that begins past the welcome (`client/journeys.md`). The welcome's try of a model draws Model's line in
 Ready's pane over the host's check alone, no trial being built, and departs from the request
-`model-check-pane` in its list's words (`client/README.md`). A plan's sign-in draws the waiting page of the request
+`model-check-pane` in its list's words, and a sign-in that ends on its way's page stops at
+*A model usable*, where that request goes on to Ready (`client/README.md`). A plan's sign-in draws the waiting page of the request
 `sign-in-new-tab`, whose words say a new tab while a press still leaves in its own,
 until that draft is built; the page departs from the request in the terminal's words
 and on `ConnectModel`, where a paste finishing also keeps the note's waiting words
