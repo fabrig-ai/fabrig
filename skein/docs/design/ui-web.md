@@ -782,6 +782,10 @@ the host tests (section 14).
   its height and its screen, at each scroll, and a bound log after each
   apply that patched anything, a log's first among them, and from those
   alone:
+  - *A bound list:* a `list` bound for `Near` (ui.md, section 6) is measured
+    the same, at each scroll and after each apply that patched it, and reports
+    its foot alone, while it continues, by the rules of *Near* below. It has no
+    head to report and nothing follows: its scroll stays the person's.
   - *Near:* a bound log's head is near when what lies above the view is
     under one and a half of its screens; the foot of one that continues
     (ui.md, 3.2), when what lies below it is. The page part reports `Near`

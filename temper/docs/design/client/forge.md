@@ -445,7 +445,7 @@ and `connect-forge.html`.
   set up or connected. It is Settings' `Forges` tab (`README.md`, 3.5,
   *The `Forges` tab*), whose lede says "Each forge temper is connected to,
   or setting up. Add one to bring its repositories to temper.": the
-  level-2 heading "Your forges · N", with "+ Add a forge", a link to
+  level-2 heading "Your forges · N", with "+ Connect a forge", a link to
   `ConnectForge`, in its head; with none, a quiet band: the tag "No forge
   yet", "No forge of yours yet." and "Connect a forge", the same link. With
   no project its level-1 heading is "Forges", and the lede follows it. While the playground runs, neither link is
@@ -540,20 +540,33 @@ and `connect-forge.html`.
   Details keeps "Forgejo and its runner"; without `owned.runner`,
   that first step keeps its unversioned wording. These are shared by
   Connect a forge and the welcome. Preparing names no future login.
-- **Connecting a forge,** `ConnectForge { forge }`, is four steps,
-  named along its top: Choose, Details, Setting up ("Connecting" for a
-  Forgejo of the person's) and Ready. GitHub's, through temper's App, is
-  three, Choose, Connecting and Ready, with no step of temper's
-  between Choose and GitHub; an App of the person's own adds Details
-  (with the user, 2026-10-23). `forge` is none at Choose,
+- **Connecting a forge,** `ConnectForge { forge }` (the request
+  `connect-flows`): the welcome's cards, panels and words, under Settings'
+  path and in its column, with no list of steps; one or two pages, then the
+  forge's row on `Forges`. Choose has the heading "Connect a forge", the
+  lede "Where your code lives: you tell temper what you want, agents push
+  and land code.", the cards for Forgejo on this machine and GitHub, the
+  first way not connected the default (a connected one says "✓ Connected ·
+  ORG/NAME" and "Open Forgejo ↗"), and under them "Or a server of your own",
+  the row "Your Forgejo" with "Connect your Forgejo". A forge's Details is
+  one panel, with a quiet "Other forges", to Choose, beside its main button.
+  "Your Forgejo" shows one way at a time, "As its admin" or "With its bot’s
+  tokens", the rare fields folded ("Its git or web address, if they differ",
+  "Its runner label: docker", "A webhook secret, if you made hooks to
+  temper’s listener"); before its restart, it is the panel "A Forgejo
+  elsewhere", numbered steps each with its Copy. Forgejo on this machine's
+  way is the welcome's sheet. **Setting up lives in the row:** from a forge's
+  connect on, for a managed Forgejo and for GitHub's return, the address is
+  `Forges`, and the forge's row is open with its live steps (below), with
+  `Forges`' line saying what was added once it is connected, as `Accounts'`
+  does. `forge` is none at Choose,
   or the choice: a kind to make, GitHub, Forgejo on this machine or
   Your Forgejo, or a kept forge's number (`browser.md`, 2.3). The step
   shown is the choice's: none, Choose; a kind to make, or a forge whose
   row offers its connect or set up, Details (on GitHub, an App of the
   person's own); a forge
-  setting up, set up failed or connecting, Setting up, or Connecting;
-  a forge connected, Ready, but a GitHub forge with no accepted
-  installation, Connecting (below). A number that names no row, or
+  setting up, set up failed, connecting or connected, the row (above),
+  but a GitHub forge with no accepted installation, Connecting (below). A number that names no row, or
   the playground's forge, is Choose; at Choose, a forge of the
   person's cut short is shown in the choices' place, "FORGE · not
   finished", with "Start over" and, on GitHub, "Go on", as the

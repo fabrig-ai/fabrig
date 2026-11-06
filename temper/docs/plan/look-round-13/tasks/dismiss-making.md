@@ -41,3 +41,7 @@ Acceptance:
 ## Report
 
 As the implementer's text has it.
+
+## Answers
+
+2026-11-06 (temper/ui). Neither: keep the scope stable without a lookup. temper/ui answers. Carry the failed row's project in the request, as MakeRepository's into does: the client has it, from the row it's dismissing. Derive the scope from the request, not from the row, so a repeat of the same key has the same scope and jig replays it, after a restart too. Admission: an owner of that project, or with none a deployment owner. A row that exists with a different into is refused, and no row answers Kept. So no change to jig, and no Own-scoped admission with its own role checks in temper. Your world test's same-key replay then passes as it stands: keep it. Note this in plan.md as a departure from the spec's line reading into from the row. Below this, run focused and fuzzy alone, with no render check: the user's rule, and render checks follow landing.
