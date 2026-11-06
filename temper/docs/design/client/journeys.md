@@ -574,6 +574,13 @@ Release, with its uncertain pair. These add no recorded journey or page.
   40 seconds, which holds the box's start and every step's saves;
   `welcome-set-up`'s fits in about 10. A journey that doesn't would need
   the harness's horizon set by its setup, skein's.
+- **A prepared start for `again`:** its walk starts at a fresh box's
+  printed link (8.1), so it serves only a journey recorded from there.
+  `project-landing` and `chat-draft` start after a set up: `again` can't
+  reach their pages, and with no act to miss, `project-landing`'s would
+  prove the welcome in place of Home. Each is walked anew when stale
+  (section 8). `again` might refuse a recording that starts past the
+  welcome, or take the set up as a preparation.
 - **Later, if wanted:** the one-tag-per-line print as skein-ui-web's,
   for another application's journeys.
 - **Real accounts:** a recording against a box with real accounts would
