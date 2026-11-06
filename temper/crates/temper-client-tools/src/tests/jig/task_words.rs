@@ -638,6 +638,49 @@ fn instruction_previews_count_characters_and_keep_utf8_whole() {
 }
 
 #[test]
+fn a_held_task_that_awaits_nothing_else_waits_on_its_hold() {
+    let task = f::held_task(f::goal(f::TASK, c::WaitsOn::Nothing), c::HoldCategory::Effects);
+    let answer = f::read_answer(f::TASK_CALL, f::task_result(task));
+    assert_eq!(answer.status, 0);
+    assert!(f::has(&answer, b"\nwaiting on: held\n"), "{answer:?}");
+    assert!(!f::has(&answer, b"Nothing awaited"), "{answer:?}");
+}
+
+#[test]
+fn a_held_task_a_delegate_keeps_prints_its_delegates() {
+    for (wait, expected) in [
+        (c::WaitsOn::Delegates, b"\nwaiting on: Waiting for delegates\n".as_slice()),
+        (f::waiting_on_me(), "\nwaiting on: you: question of task 42 · 1 waiting\n".as_bytes()),
+    ] {
+        let task = f::held_task(f::goal(f::TASK, wait), c::HoldCategory::Effects);
+        let answer = f::read_answer(f::TASK_CALL, f::task_result(task));
+        assert_eq!(answer.status, 0);
+        assert!(f::has(&answer, expected), "{answer:?}");
+    }
+}
+
+#[test]
+fn a_task_with_no_hold_keeps_nothing_awaited() {
+    let answer = f::read_answer(f::TASK_CALL, f::task_result(f::goal(f::TASK, c::WaitsOn::Nothing)));
+    assert_eq!(answer.status, 0);
+    assert!(f::has(&answer, b"\nwaiting on: Nothing awaited\n"), "{answer:?}");
+}
+
+#[test]
+fn a_held_tasks_json_keeps_its_wait() {
+    let task = f::goal(f::TASK, c::WaitsOn::Nothing);
+    for task in [task.clone(), f::held_task(task, c::HoldCategory::Effects)] {
+        let answer = f::read_answer(f::TASK_JSON_CALL, f::task_result(task));
+        assert_eq!(answer.status, 0);
+        let json = crate::jig::json::document_depth(&answer.stdout, 32).expect("task JSON document");
+        let wait = json.member(0, b"waits_on").expect("task wait member");
+        let wait = json.token(wait).expect("task wait token");
+        assert_eq!(wait.kind, skein_json::Kind::String);
+        assert_eq!(json.text(wait), Some(b"nothing".as_slice()));
+    }
+}
+
+#[test]
 fn a_held_tasks_text_names_its_reason_and_release_revision() {
     for (reason, words) in [
         (c::HoldCategory::Effects, b"Effects need a decision".as_slice()),
