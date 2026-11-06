@@ -84,7 +84,17 @@ fn at_line(recording: &[u8], at: impl Fn(&Line) -> bool) -> (u32, u32, Line) {
 }
 #[test]
 fn a_recorded_walk_proves_and_replays_its_marks() {
-    let recording = prove(&walk::walked()).expect("live walk proves");
+    let live = walk::walked();
+    let tabs: Vec<_> = lines(&live)
+        .expect("walk records")
+        .into_iter()
+        .filter(|line| matches!(line, Line::TabOpen(_) | Line::TabPoint(_)))
+        .collect();
+    assert_eq!(
+        tabs,
+        [Line::TabOpen("Opening ChatGPT’s sign-in…".as_bytes().into()), Line::TabPoint(walk::ADDRESS.into()),]
+    );
+    let recording = prove(&live).expect("live walk proves");
     let mut replay = Replay::new(&recording).expect("read proved recording");
     let act = replay.next().expect("replay act").expect("act mark");
     assert_eq!(act.number, 1);
@@ -98,6 +108,7 @@ fn a_recorded_walk_proves_and_replays_its_marks() {
     assert!(end.end);
     assert!(end.acted.is_empty());
     assert!(end.recorded.is_none());
+    assert!(end.page.html().contains("Signed in to ChatGPT"), "the accounts watch completes the sign-in");
     assert!(replay.next().expect("after end").is_none());
 }
 #[test]
@@ -135,14 +146,17 @@ fn a_changed_deadline_is_stale_at_its_line() {
     );
 }
 #[test]
-fn a_departure_not_recorded_is_stale() {
+fn a_tab_not_recorded_is_stale() {
     let recording = walk::walked();
-    let (turn, number, navigate) = at_line(&recording, |line| matches!(line, Line::Navigate(_)));
-    let mut records = lines(&recording).expect("walk's lines");
-    records.remove(usize::try_from(number - 1).expect("index fits"));
-    let recorded = line_text(&records[usize::try_from(number - 1).expect("index fits")]);
-    assert!(matches!(records.last(), Some(Line::End(_))));
-    assert_eq!(stopped(&written(&records)), Stale { turn, line: number, recorded, asked: line_text(&navigate) });
+    let cases: [fn(&Line) -> bool; 2] =
+        [|line| matches!(line, Line::TabOpen(_)), |line| matches!(line, Line::TabPoint(_))];
+    for is_tab in cases {
+        let (turn, number, tab) = at_line(&recording, is_tab);
+        let mut records = lines(&recording).expect("walk's lines");
+        records.remove(usize::try_from(number - 1).expect("index fits"));
+        let recorded = line_text(&records[usize::try_from(number - 1).expect("index fits")]);
+        assert_eq!(stopped(&written(&records)), Stale { turn, line: number, recorded, asked: line_text(&tab) });
+    }
 }
 #[test]
 fn an_event_no_control_gives_is_stale_at_its_act() {
@@ -207,13 +221,16 @@ fn a_save_is_whole_and_the_recording_goes_on() {
     let saves = walk::walked_with_saves(false);
     prove(&saves.first).expect("first act's save proves");
     prove(&saves.later).expect("later save proves");
-    prove(&saves.recording).expect("departure still proves");
+    prove(&saves.recording).expect("completed sign-in still proves");
     let first = lines(&saves.first).expect("first records");
     let later = lines(&saves.later).expect("later records");
     assert_eq!(first.iter().filter(|line| matches!(line, Line::Act { .. })).count(), 1);
     assert!(later.len() > first.len());
     assert_eq!(&first[..first.len() - 1], &later[..first.len() - 1]);
     assert!(later[first.len() - 1..].iter().any(|line| matches!(line, Line::Heard(_))));
+    let completed = lines(&saves.recording).expect("completed records");
+    assert!(completed.len() > later.len());
+    assert_eq!(&later[..later.len() - 1], &completed[..later.len() - 1]);
 }
 #[test]
 fn a_saves_control_is_found_by_its_event() {
@@ -233,4 +250,29 @@ fn a_saves_control_is_found_by_its_event() {
     let stale = edited(&saves.before_press, |line| matches!(line, Line::Deadline(_)), Line::Deadline(Some(Time::ZERO)));
     assert!(matches!(control(&stale, &Act::Press, event), Err(Refusal::Stale(_))));
     assert!(matches!(control(b"bad", &Act::Press, event), Err(Refusal::Unreadable(_))));
+}
+
+#[test]
+fn a_refused_tab_replays_without_pointing() {
+    let recording = walk::walked_with_refused_tab();
+    let records = lines(&recording).expect("refused tab records");
+    assert_eq!(records.iter().filter(|line| matches!(line, Line::TabOpen(_))).count(), 1);
+    assert_eq!(records.iter().filter(|line| matches!(line, Line::TabRefused)).count(), 1);
+    assert!(!records.iter().any(|line| matches!(line, Line::TabPoint(_))));
+    prove(&recording).expect("refused tab walk proves and replays");
+}
+
+#[test]
+fn an_authorization_departure_ends_the_recording() {
+    let recording = walk::departed();
+    prove(&recording).expect("authorization departure proves");
+    let (turn, number, _) = at_line(&recording, |line| matches!(line, Line::Replace(_)));
+    let mut records = lines(&recording).expect("authorization records");
+    let at = usize::try_from(number).expect("index fits");
+    assert!(matches!(records[at], Line::End(_)), "departure ends before any more reports or drawing");
+    records.insert(at, Line::Due);
+    assert_eq!(
+        stopped(&written(&records)),
+        Stale { turn, line: number + 1, recorded: "due".into(), asked: "end".into() }
+    );
 }
