@@ -266,16 +266,6 @@ impl Application for Ops {
     fn policy(peers: &Peers) -> &r::Policy {
         &peers.observer.referee.policy
     }
-    fn policy_generation(peers: &Peers) -> u64 {
-        peers.observer.policy_generation()
-    }
-    fn recovery(_: &Config, connector: u16, kind: u16) -> r::Recovery {
-        match (connector, kind) {
-            (2, 1 | 4) => r::Recovery::Keyed,
-            (2, 2 | 5) => r::Recovery::Conditional,
-            _ => panic!("declared story kinds"),
-        }
-    }
     fn start(config: &Config, store: &mut Store) -> Vec<root::Event> {
         if store.rows.is_empty() {
             let configuration = config::root_for(config.seed, config.story == Story::Environment).0;

@@ -260,7 +260,6 @@ pub struct Observer {
     pub referee: r::Referee,
     pub intents: intents::Intents,
     project_makes: projects::Makes,
-    policy_generation: u64,
     roles: BTreeMap<(u32, u32), r::Scope>,
     decisions_by_role: BTreeMap<(u32, u32), u8>,
     applied: u64,
@@ -350,7 +349,6 @@ impl Observer {
         }
         Self {
             referee: r::Referee::new(policy),
-            policy_generation: 0,
             roles,
             decisions_by_role,
             applied: 0,
@@ -432,19 +430,12 @@ impl Observer {
         }
     }
 
-    /// Revision of the independently observed policy used by the enclosing referee.
-    #[must_use]
-    pub const fn policy_generation(&self) -> u64 {
-        self.policy_generation
-    }
-
     /// A restart changes future makes' configured policies, never an existing project's.
     pub fn configure_projects(&mut self, config: &core::Config) {
         self.project_makes.configure(config);
     }
 
     fn made_project(&mut self, project: u32, policy: &authority::Policy) {
-        self.policy_generation = self.policy_generation.checked_add(1).expect("policy generation fits");
         self.referee.policy.projects.insert(project, scope(&policy.ceiling));
         self.referee.policy.projections.insert(project, authority_grants(&policy.projections));
         for role in &policy.roles {
@@ -467,7 +458,6 @@ impl Observer {
     }
 
     fn policy_change(&mut self, project: u32, change: &people::PolicyChange) {
-        self.policy_generation = self.policy_generation.checked_add(1).expect("policy generation fits");
         match change {
             people::PolicyChange::Projections { grants } => {
                 self.referee.policy.projections.insert(
@@ -711,7 +701,6 @@ impl Observer {
                     }
                 }
                 core::Record::People(people::Stored::Roles { project, holdings }) => {
-                    self.policy_generation = self.policy_generation.checked_add(1).expect("policy generation fits");
                     self.referee.policy.people.retain(|(number, _), _| number != project);
                     self.referee.policy.effect_accepters.retain(|(number, _)| number != project);
                     for holding in holdings {

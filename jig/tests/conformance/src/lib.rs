@@ -410,20 +410,6 @@ impl Application for Testing {
     fn policy(peers: &Neighbours) -> &jig_conformance::referee::Policy {
         &peers.observer.referee.policy
     }
-    fn policy_generation(peers: &Neighbours) -> u64 {
-        peers.observer.policy_generation()
-    }
-
-    fn recovery(config: &Config, number: u16, kind: u16) -> jig_conformance::referee::Recovery {
-        let configuration = config.root().0;
-        let connector = if number == 1 { configuration.first } else { configuration.second };
-        match connector.kinds.iter().find(|entry| entry.kind == kind).expect("configured kind").recovery {
-            connector::Recovery::Keyed => jig_conformance::referee::Recovery::Keyed,
-            connector::Recovery::Conditional => jig_conformance::referee::Recovery::Conditional,
-            connector::Recovery::Idempotent => jig_conformance::referee::Recovery::Idempotent,
-            connector::Recovery::Unrecoverable => jig_conformance::referee::Recovery::Unrecoverable,
-        }
-    }
 
     fn start(_: &Config, store: &mut Store) -> Vec<root::Event> {
         vec![root::Event::StartBegin { pending: store.generation_pending }]

@@ -196,13 +196,7 @@ impl Application for OpsApplication {
     fn policy(peers: &Peers) -> &referee::Policy {
         Ops::policy(&peers.conformance)
     }
-    fn policy_generation(peers: &Self::Peers) -> u64 {
-        Ops::policy_generation(&peers.conformance)
-    }
 
-    fn recovery(config: &Config, connector: u16, kind: u16) -> referee::Recovery {
-        Ops::recovery(config, connector, kind)
-    }
     fn start(config: &Config, store: &mut Rows) -> Vec<root::Event> {
         Ops::start(config, store)
     }
