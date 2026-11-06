@@ -1,6 +1,7 @@
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_core as core;
+use jig_domain_link::{Form, Scheme};
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
 use skein_lib::{ReplyTo, Token};
@@ -627,7 +628,7 @@ fn account_failed(world: &mut World) {
 fn account_granted(world: &mut World) {
     world.send(root::Event::Core(core::Event::Account(jig_domain_accounts::Event::Component(
         jig_domain_accounts::FromComponent::Granted {
-            form: jig_domain_accounts::Form::Credential(jig_domain_accounts::Scheme::Bearer),
+            form: Form::Credential(Scheme::Bearer),
             account: 1,
             generation: 9,
             valid: skein_lib::Duration::from_secs(60),

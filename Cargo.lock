@@ -968,6 +968,7 @@ dependencies = [
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-core",
+ "jig-domain-link",
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-fake-parties",
@@ -1236,6 +1237,7 @@ dependencies = [
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-core",
+ "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -1294,6 +1296,7 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -1329,6 +1332,7 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -1412,7 +1416,6 @@ dependencies = [
 name = "jig-domain-hub-link"
 version = "0.0.0"
 dependencies = [
- "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-brief",
  "jig-domain-core",
@@ -1744,6 +1747,7 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -1805,6 +1809,7 @@ name = "jig-protocol-accounts"
 version = "0.0.0"
 dependencies = [
  "jig-domain-accounts",
+ "jig-domain-link",
  "jig-protocol-config",
  "jig-protocol-store",
  "skein-codec",
@@ -1845,6 +1850,7 @@ version = "0.0.0"
 dependencies = [
  "jig-domain-accounts",
  "jig-domain-core",
+ "jig-domain-link",
  "jig-protocol-accounts",
  "jig-protocol-accounts-kit",
  "jig-protocol-config",
@@ -2260,6 +2266,7 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-link",
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-protocol-accounts",

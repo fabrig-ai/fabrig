@@ -1,4 +1,5 @@
 use jig_core_world::world::Setup;
+use jig_domain_link::{Form, Scheme};
 const FIRST_GOAL: u8 = 151;
 const CHAT: u8 = 152;
 const TURN: u32 = 1;
@@ -35,7 +36,7 @@ fn account(world: &mut World) {
 fn grant_account(world: &mut World, account: u32, generation: u64) {
     world.send(root::Event::Core(core::Event::Account(jig_domain_accounts::Event::Component(
         jig_domain_accounts::FromComponent::Granted {
-            form: jig_domain_accounts::Form::Credential(jig_domain_accounts::Scheme::Bearer),
+            form: Form::Credential(Scheme::Bearer),
             account,
             generation,
             valid: Duration::from_secs(60),
@@ -610,11 +611,7 @@ fn a_generation_renewed_while_the_assignment_is_held_reaches_the_attempt_after_i
     const SECOND_ANALYST: u32 = 2;
     let mut world = jig_core_world::fixtures::waiting_on_source(163, SECOND_ANALYST);
     assert!(world.assigned.is_none());
-    world.renew_on_assignment(
-        SECOND_ANALYST,
-        2,
-        jig_domain_accounts::Form::Credential(jig_domain_accounts::Scheme::Bearer),
-    );
+    world.renew_on_assignment(SECOND_ANALYST, 2, Form::Credential(Scheme::Bearer));
     grant_account(&mut world, SECOND_ANALYST, 1);
     assert_eq!(world.assigned.as_ref().expect("assigned after commit").grants[0].generation, 1);
     let grant = received(&world);

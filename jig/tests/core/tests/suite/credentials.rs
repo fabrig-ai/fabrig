@@ -70,8 +70,8 @@ fn a_run_needing_a_credential_waits_until_it_is_granted() {
 fn the_assignment_carries_the_credential_named_by_its_table() {
     let world = delegated(151);
     let assignment = world.assigned.as_ref().expect("the delegate is assigned");
-    assert!(assignment.grants.contains(&accounts::Grant {
-        form: accounts::Form::Application,
+    assert!(assignment.grants.contains(&jig_domain_link::Grant {
+        form: jig_domain_link::Form::Application,
         account: WORKSPACE_CREDENTIAL,
         generation: 3,
         valid: Duration::from_secs(60),
@@ -341,10 +341,10 @@ fn the_deployment_watch_shows_the_deployments_accounts_and_not_a_partys_own() {
 fn a_sources_form_reaches_the_fleet_as_the_component_named_it() {
     const SECOND_ANALYST: u32 = 2;
     let mut world = jig_core_world::fixtures::waiting_on_source(166, SECOND_ANALYST);
-    world.announce_grant(SECOND_ANALYST, 1, accounts::Form::Credential(accounts::Scheme::Key));
+    world.announce_grant(SECOND_ANALYST, 1, jig_domain_link::Form::Credential(jig_domain_link::Scheme::Key));
     assert_eq!(
         world.assigned.as_ref().expect("the fleet started the run").grants[0].form,
-        accounts::Form::Credential(accounts::Scheme::Key),
+        jig_domain_link::Form::Credential(jig_domain_link::Scheme::Key),
     );
     hello(&mut world);
     assert_eq!(received(&world).1.form, fleet::Form::Credential(fleet::Scheme::Key));

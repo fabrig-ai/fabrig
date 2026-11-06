@@ -4,9 +4,10 @@ use jig_accounts_world::{
     save, source, want,
 };
 use jig_domain_accounts::{
-    Answer, Bound, Change, End, Event, Failure, Form, FromComponent, Grant, Held, Holder, Key, KeyFailure, Kind,
-    Refusal, Request, Scheme, Signing, State, Stored, ToComponent, Turned, Use,
+    Answer, Bound, Change, End, Event, Failure, FromComponent, Held, Holder, Key, KeyFailure, Kind, Refusal, Request,
+    Signing, State, Stored, ToComponent, Turned, Use,
 };
+use jig_domain_link::{Form, Grant, Scheme};
 use skein_lib::{Duration, Time, Token};
 use std::collections::BTreeMap;
 

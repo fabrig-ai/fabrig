@@ -32,6 +32,7 @@ jig-test-system.workspace = true
 jig-domain-host.workspace = true
 jig-domain-authority.workspace = true
 jig-domain-accounts.workspace = true
+jig-domain-link.workspace = true
 jig-domain-brief.workspace = true
 jig-domain-notes.workspace = true
 jig-domain-views.workspace = true

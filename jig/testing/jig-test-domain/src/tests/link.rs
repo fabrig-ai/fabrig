@@ -3,6 +3,7 @@ use crate::{Delivery, Payload, Request, link};
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
+use jig_domain_link::GrantTable;
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Queue, Token};
 
@@ -80,7 +81,7 @@ fn an_assignment_for_a_channel_leaves_as_the_hub_s_record() {
     assert_eq!((assignment.task, assignment.attempt, assignment.conversation, assignment.charter), (2, 3, 1, 1));
     assert_eq!(assignment.run, fixtures::run());
     assert_eq!(assignment.transcript.as_ref(), [Box::<[u8]>::from(b"prior turn".as_slice())]);
-    assert_eq!(assignment.grants[0].form.table(), jig_domain_accounts::GrantTable::Accounts);
+    assert_eq!(assignment.grants[0].form.table(), GrantTable::Accounts);
 }
 #[test]
 fn a_lost_link_reaches_the_fleet_as_its_channel_lost() {

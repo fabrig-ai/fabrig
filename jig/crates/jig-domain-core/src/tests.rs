@@ -30,6 +30,7 @@ use crate::{
     settings::revisions,
     *,
 };
+use jig_domain_link::{Form, Scheme};
 use skein_lib::{Duration, Env, ReplyTo, Time, Token, Wall};
 
 #[test]
@@ -2174,7 +2175,7 @@ fn documents_deployment_accounts_are_secret_free_and_show_unusable_state() {
         &mut core.accounts,
         &env,
         accounts::Event::Component(accounts::FromComponent::Granted {
-            form: accounts::Form::Credential(accounts::Scheme::Bearer),
+            form: Form::Credential(Scheme::Bearer),
             account: 1,
             generation: 1,
             valid: Duration::from_secs(60),

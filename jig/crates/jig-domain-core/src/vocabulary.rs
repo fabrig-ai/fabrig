@@ -31,7 +31,7 @@ pub struct Assignment {
     pub transcript: Box<[Box<[u8]>]>,
     pub answered: Box<[crate::Settled]>,
     /// The selected account and application credential grants.
-    pub grants: Box<[jig_domain_accounts::Grant]>,
+    pub grants: Box<[jig_domain_link::Grant]>,
 }
 
 /// A charter document's section in a core plan, for the root to give its connector
@@ -172,7 +172,7 @@ pub enum Ask {
         spec: Box<[u8]>,
         deadline: skein_lib::Duration,
         result: u32,
-        grants: Box<[jig_domain_accounts::Grant]>,
+        grants: Box<[jig_domain_link::Grant]>,
         workspace: Option<Box<[u8]>>,
     },
     /// Discard one rejected connector subscription flight.
@@ -411,7 +411,7 @@ pub enum Now {
         saved: Box<[tasks::SavedResource]>,
         transcript: Box<[Box<[u8]>]>,
         answered: Box<[CallKey]>,
-        grants: Box<[accounts::Grant]>,
+        grants: Box<[jig_domain_link::Grant]>,
     },
     /// Load one held-chat decision that has left live task memory.
     EndedEscalation { request: Token, person: u64, project: u32, task: u64, revision: u64 },

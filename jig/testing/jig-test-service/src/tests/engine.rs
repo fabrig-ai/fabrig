@@ -821,7 +821,7 @@ fn program_names_share_the_wire_and_domain_bounds() {
     for (length, admitted) in [(bound, true), (past, false)] {
         let value = name.get(..length).expect("fixture spans both sides of the bound");
         assert_eq!(jig_domain_host::SourceName::new(value).is_some(), admitted);
-        assert_eq!(jig_domain_accounts::SourceName::new(value).is_some(), admitted);
+        assert_eq!(jig_domain_link::SourceName::new(value).is_some(), admitted);
     }
 }
 

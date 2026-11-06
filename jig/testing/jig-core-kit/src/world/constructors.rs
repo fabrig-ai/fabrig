@@ -3,6 +3,7 @@ use super::{
     Boot, Duration, ReplyTo, Setup, Store, System, Token, VecDeque, World, accounts, connector, core, fleet, people,
     root,
 };
+use jig_domain_link::{Form, Scheme};
 pub use jig_test_profile::effect_fixture as fixture;
 
 pub(super) fn limits() -> root::Limits {
@@ -84,7 +85,7 @@ impl World {
             world.hello_engine();
             world.send(root::Event::Core(core::Event::Account(accounts::Event::Component(
                 accounts::FromComponent::Granted {
-                    form: accounts::Form::Credential(accounts::Scheme::Bearer),
+                    form: Form::Credential(Scheme::Bearer),
                     account: 1,
                     generation: 1,
                     valid: Duration::from_secs(60),
@@ -97,7 +98,7 @@ impl World {
             }
             world.events.extend([
                 root::Event::Core(core::Event::Account(accounts::Event::Component(accounts::FromComponent::Granted {
-                    form: accounts::Form::Credential(accounts::Scheme::Bearer),
+                    form: Form::Credential(Scheme::Bearer),
                     account: 1,
                     generation: 1,
                     valid: Duration::from_secs(60),
