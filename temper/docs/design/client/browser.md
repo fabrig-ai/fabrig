@@ -1205,11 +1205,6 @@ Not in the tier, each in the lowest world that shows it:
   home bar alone, and at 760 px and under alone. A phone on its side, wider than
   that, draws the rail and a chat's foot under its notch and its home bar.
   Default: as the mock draws it, until a look request.
-- **The try's states in the gallery** (7.2; `README.md`, 3.5, *The try*;
-  `../draft/model-check.md`): Model's line past the host's check has no state of its
-  own, since the gallery draws what the view draws and no fact reaches it. Default:
-  the host's two rows, the view's tests holding the rest, until that draft gives
-  the facts.
 - **A tab refused in the gallery** (7.2; `README.md`, 3.5, *The sign-in under way*;
   `../draft/sign-in-new-tab.md`, 2): the gallery draws what the view draws, and the
   view has no fact of a tab refused, so the note's plain title and primary link have
@@ -1313,6 +1308,7 @@ from the engine's own answers, is where the look is tuned.
 | `changes-empty` | a hand-made `ChangesPanel` delivery: nothing queued and nothing landed |
 | `changes-one` | a hand-made `ChangesPanel` delivery: one queued and four landed |
 | `changes-landed-only` | a hand-made `ChangesPanel` delivery, the mock's `hello`: nothing queued, something landed |
+| `home-try-stopped` | a failed trial below Home's intro: "WHO didn’t answer when tried" and Try again; no change to its counts |
 | `home-away` | hand-made Home deliveries: `AwayRow` on, four `Decision`s and live tasks; the mock's `home.html` in *Back from away* |
 | `home-away-one` | hand-made Home deliveries: one `Decision`, the switch off: "One thing was decided for you." and the kicker's two times |
 | `home-away-overturned` | hand-made Home deliveries: a row overturned, its task live, and one ended, "landed 03:12" |
@@ -1399,6 +1395,7 @@ from the engine's own answers, is where the look is tuned.
 | `accounts-key` | the reference world's accounts, a row's key field open |
 | `accounts-removing` | the reference world's accounts, an account's removal asking first |
 | `accounts-signing-in` | the reference world's accounts, a row's sign-in under way with its field for the page's address |
+| `accounts-try-stopped` | a failed trial under an account's head and before Sources, its why and Try again; Sign in again goes to Connect a model |
 | `accounts-program-needs-sign-in` | the solo world's accounts: a program's login not signed in on its host, with "Check again" |
 | `builders` | the Builders tab, its hosts connected, draining and not connected |
 | `builders-not-owner` | the Builders tab for a person with no role in the deployment |
@@ -1508,6 +1505,15 @@ from the engine's own answers, is where the look is tuned.
 | `welcome-paste-sending`, `welcome-paste-finishing` | the finish request in flight, then accepted |
 | `welcome-paste-too-many`, `welcome-paste-ended`, `welcome-paste-expired` | the restart endings, with no paste field |
 | `welcome-paste-lost`, `welcome-paste-unsent` | the address cleared after a lost or unsent finish request |
+| `welcome-ready-starting` | a usable subscription's trial at Starts: its first step ticked, Claude Code starts on this machine under way |
+| `welcome-ready-answering` | the trial past Starting: its first two steps ticked, Claude answers under way |
+| `welcome-ready-answered` | an answered trial: ticked, answered in N s, no Each step |
+| `welcome-ready-stopped-starting` | a trial whose run ended before starting: stopped at its second step, the run's why, Try again; Ready and Create stay usable |
+| `welcome-ready-stopped-answering` | a trial whose run ended before answering: stopped at its third step, the run's why and Try again |
+| `welcome-ready-waiting` | a running trial with a wait that won't settle in a moment: stopped at its step, the wait's words, no Try again until it ends |
+| `welcome-ready-waited` | a trial ended after a minute: the last wait's words, or no answer within a minute; Try again |
+| `welcome-ready-plan` | a plan's trial: Signed in to your PLAN plan ticked, then PLAN answers under way |
+| `welcome-ready-key` | a key's trial: Key added ticked, then PLAN answers under way |
 | `welcome-ready-checking` | Ready from its first frame, the declaration or host check under way, Model's line at its first step, its bar and Each step |
 | `welcome-ready-copies` | Ready offers Widget and names the two repositories its act will copy into the project |
 | `welcome-ready-none` | Ready with neither forge nor model, the pane's two lines, their inline connect links and the offered playground |

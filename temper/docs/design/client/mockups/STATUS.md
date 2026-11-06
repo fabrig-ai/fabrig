@@ -35,8 +35,10 @@ Where the client does otherwise:
   Ready's pane, its first step under way. Not signed in, Ready reads Almost
   ready, the line marks that first step failed and says why, with "Try
   again" and "Sign in again". The mockup's checking note and separate not-yet
-  alert are not drawn. A real turn, the later steps and their endings await
-  `../../draft/model-check.md`, 2 to 4. The mockup is not edited.
+  alert are not drawn. Once usable, the account starts a trial through the
+  worker and model; Model's line draws its later steps, answer or stop
+  (`../../domain/trial.md`, 6.1 to 6.4), also on Accounts and, failed, on Home.
+  The mockup is not edited.
 
 - **Model's forge pane** (the client README's 3.5; `../browser.md`, 2.5;
   the user, 2026-11-04): its named Forge region follows the choices and
