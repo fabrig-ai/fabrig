@@ -19,7 +19,6 @@ pub fn decode_error(
     }
 }
 
-pub const SCHEMA_FAULTS: u32 = 16; // The schema validator's bounded diagnostics per task.
 pub const DOCUMENT_BYTES: u32 = 16; // Below error_call's 24-byte documents.
 pub const REVISION_BYTES: u64 = 132; // Two decoded 66-byte maps fit; the third crosses.
 pub const STATIC_BYTES: u32 = 8; // The oversized static fixture is one byte larger.

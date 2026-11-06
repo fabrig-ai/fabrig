@@ -125,7 +125,7 @@ const DECLARATION_PLACES: &[(fixtures::ReferencePlace, u32)] = &[
 #[test]
 fn every_declarations_expression_is_checked_at_its_string() {
     for (row, &(place, column)) in DECLARATION_PLACES.iter().enumerate() {
-        let mut faults = skein_lib::List::with_capacity(0);
+        let mut faults = skein_lib::List::uncapped();
         references::declaration(&fixtures::reference_declaration(place), 7, &mut faults);
         assert_eq!(
             faults.as_slice(),

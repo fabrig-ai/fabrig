@@ -194,7 +194,7 @@ fn a_big_batch_is_written_in_pieces_within_the_bound() {
 /// Steps the walk with `event` and takes its one output.
 fn feed(tree: &mut Tree, event: Event) -> Output {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: SHIPPED };
-    let mut out = Queue::with_capacity(crate::MAX_OUT);
+    let mut out = Queue::with_capacity(1);
     crate::step(tree, &env, event, &mut out);
     out.pop().expect("one output a step")
 }

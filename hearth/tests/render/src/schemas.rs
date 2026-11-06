@@ -180,7 +180,7 @@ pub fn validate(declaration: &Declaration, settings: &Composed) -> Result<Value,
     let listing = [super::fixtures::entry(b"a", b'8'), entry];
     let mut documents = revision::Documents::new(&listing);
     documents.set_declaration(&super::fixtures::oid(b'7'), declaration.clone());
-    let mut faults = List::with_capacity(16);
+    let mut faults = List::uncapped();
     let defaults = schema::declarations(
         &documents,
         &listing,
@@ -191,7 +191,7 @@ pub fn validate(declaration: &Declaration, settings: &Composed) -> Result<Value,
     assert_eq!(faults.len(), 0, "generated defaults are sound");
     let against =
         Against { declaration, defaults: defaults.of(b"task").expect("sound declaration"), listing: &listing };
-    let mut faults = List::with_capacity(16);
+    let mut faults = List::uncapped();
     let mut left = u64::MAX;
     match Validator::new(&limits::SHIPPED).settings(settings, &against, &Check::Default, &mut left, &mut faults) {
         Some(value) => Ok(value),
