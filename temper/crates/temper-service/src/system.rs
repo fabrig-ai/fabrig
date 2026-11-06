@@ -187,6 +187,7 @@ impl Service {
         let mut limits =
             limits::engine(&settings.jig.limits, &settings.limits).ok_or(start_problem(b"limits", What::Bound))?;
         limits.memory_bytes = settings.jig.memory;
+        limits.host_reply_bytes = settings.host_reply_bytes;
         if !temper_engine_domain::valid(&limits) {
             return Err(start_problem(b"memory_bytes", What::Bound));
         }
@@ -263,7 +264,6 @@ impl Service {
             values,
             first_periods,
         )?;
-        engine.host_reply_bytes = settings.host_reply_bytes;
         if let Some(line_bytes) = box_line_bytes {
             engine.box_link = box_link::Link::new(line_bytes, false);
         }
