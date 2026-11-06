@@ -40,6 +40,14 @@ Sections 6.4 and 6.5.3 have no gap in scripted note-backed proposals and single-
   paces are 1 s with 100 ms hints; the measured ranges, remaining costs and
   rejected pace change are in the plan's figures on the walks' waits,
   at `289ef784ef`.
+- **Not yet:** 2.4, on a port the kernel assigns: a unit test of `temper`'s,
+  `fake_backends::tests::repeating_the_same_bundle_preserves_document_bytes_and_inode`,
+  failed twice on a port reservation and passed alone, by the request
+  `landing-fixes` of 2026-11-06, item 8, which has it hold. Its plan dropped it
+  past its ceiling of four tasks, untraced: the test takes no port itself, and the
+  `prepare` it reaches reserves the fake peers' from the kernel, past those it
+  excludes (`temper/crates/temper/src/fake_backends.rs`, `reserve`). Which
+  reservation failed, and who held its port, are unknown.
 - **Not yet:** 2.4: GitHub's real-loop stories 3, 4, 5, 7 and 8; 1, 2 and 6
   run (`tests/real-loop/tests/suite/github_land.rs`, `github.rs`). 2.4:
   the twins' documents among `temper-playground`'s stories: B0's and

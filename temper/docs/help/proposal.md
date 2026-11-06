@@ -94,9 +94,11 @@ change, or a start, makes a new revision.
 
 For the configuration members that need a restart, read `temper help configuration`.
 
-- The person's client shows a proposal of settings in its inbox without
-  its values, and can reject it but not accept it: accept it with
-  `temper ctl`.
+- The person's client shows a proposal of settings with its reason and
+  summary, without its whole values. An owner can accept it, with running
+  work staying. Reject with reason under Needs you currently fails; reject
+  it with `temper ctl`.
+- A run can't replace a proposal of settings that waits, since a task holds one pending proposal, and the stock's configuring chat can't withdraw it, holding no decide family. An owner rejects it, with a reason the chat hears, and the chat proposes afresh.
 - A party's proposal withdrawn as stale names the revision it was made
   against, not the newest: read `settings show`, and propose again.
 - temper does not let ctl withdraw a proposal.

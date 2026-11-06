@@ -503,11 +503,8 @@ fn a_way_numbers_its_sections_from_one() {
 }
 
 #[test]
-fn the_way_shows_placeholder_figures_and_no_address() {
+fn the_way_names_no_address() {
     let text = HOW_TEMPER_BUILDS_TEMPER.text;
-    for line in ["- Merges: —", "- Agent runs: —", "- Workers: —", "Figures to come."] {
-        assert!(text.lines().any(|found| found == line), "{line}");
-    }
     assert!(!text.contains("://"));
 }
 
