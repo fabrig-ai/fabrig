@@ -315,38 +315,24 @@ impl Observer {
 /// Borrow the durable core rows and translate only the test connector's facts.
 #[must_use]
 pub fn store_view(store: &Store) -> conformance::Store<'_> {
-    let mut view = conformance::Store {
-        applied: store.applied,
-        rows: store
-            .rows
-            .values()
-            .filter_map(|row| match row {
-                root::Record::Core(row) => Some((row.key(), row)),
-                root::Record::Connector { .. } => None,
-            })
-            .collect(),
-        pending: store
-            .pending
-            .iter()
-            .map(|pending| conformance::Commit {
-                number: pending.number,
-                writes: pending
-                    .writes
-                    .iter()
-                    .map(|write| match write {
-                        root::Write::Save(root::Record::Core(row)) => conformance::Write::Save(row),
-                        root::Write::Erase(root::Key::Core(key)) => conformance::Write::Erase(key.clone()),
-                        root::Write::Save(root::Record::Connector { .. })
-                        | root::Write::Erase(root::Key::Connector { .. })
-                        | root::Write::Wires
-                        | root::Write::CopySettingsRevision(_)
-                        | root::Write::DropTranscript { .. } => conformance::Write::Other,
-                    })
-                    .collect(),
-            })
-            .collect(),
-        ..conformance::Store::default()
-    };
+    let mut view = conformance::view(
+        store.applied,
+        store.rows.values(),
+        store.pending.iter().map(|pending| (pending.number, pending.writes.as_ref())),
+        |row| match row {
+            root::Record::Core(row) => Some(row),
+            root::Record::Connector { .. } => None,
+        },
+        |write| match write {
+            root::Write::Save(root::Record::Core(row)) => conformance::Write::Save(row),
+            root::Write::Erase(root::Key::Core(key)) => conformance::Write::Erase(key.clone()),
+            root::Write::Save(root::Record::Connector { .. })
+            | root::Write::Erase(root::Key::Connector { .. })
+            | root::Write::Wires
+            | root::Write::CopySettingsRevision(_)
+            | root::Write::DropTranscript { .. } => conformance::Write::Other,
+        },
+    );
     let snapshot = &mut view.effects;
     for (key, row) in &store.rows {
         if let root::Record::Connector { .. } = row
