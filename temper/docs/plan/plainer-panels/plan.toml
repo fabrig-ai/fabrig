@@ -1,0 +1,3 @@
+draft = "plainer-panels"
+repo = "fabrig"
+sources = ["temper/docs/plan/plainer-panels/inputs/request.md", "temper/docs/help/task.md", "AGENTS.md", "DESIGN.md"]
