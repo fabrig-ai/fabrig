@@ -154,7 +154,7 @@ fn the_default_is_the_owned_example_so_edited() {
         expected["application"]["welcome"] = json!(true);
         expected["engine"]["owners"][0]["subject"] = json!("ada@localhost");
         expected["engine"]["clients"]["provider"] = json!({
-            "key": "provider.key", "addresses": [1],
+            "key": "provider.key", "addresses": [1_u32],
             "clients": [{"id": "forgejo", "secret": null,
                 "redirect_uri": format!("http://127.0.0.1:{}/user/oauth2/temper/callback", facts.ports.owned)}]
         });
@@ -707,11 +707,14 @@ fn a_box_signs_its_person_in_with_a_public_forgejo_client() {
     let answer = files(&facts, &DIRECTORIES, &[0; 32], &[0xab; 32]).unwrap();
     let document = parse(content(&answer, b"temper.json"));
     assert_eq!(document["engine"]["owners"][0]["subject"], "ada@localhost");
-    assert_eq!(document["engine"]["clients"]["provider"], json!({
-        "key": "provider.key", "addresses": [1],
-        "clients": [{"id": "forgejo", "secret": null,
-            "redirect_uri": format!("http://127.0.0.1:{}/user/oauth2/temper/callback", facts.ports.owned)}]
-    }));
+    assert_eq!(
+        document["engine"]["clients"]["provider"],
+        json!({
+            "key": "provider.key", "addresses": [1_u32],
+            "clients": [{"id": "forgejo", "secret": null,
+                "redirect_uri": format!("http://127.0.0.1:{}/user/oauth2/temper/callback", facts.ports.owned)}]
+        })
+    );
     assert_eq!(document["application"]["machine"]["owned"]["sign_in"], "forgejo");
     assert!(document["application"]["sign_in"].is_null());
 }

@@ -195,7 +195,9 @@ pub(crate) fn start(
     let owned = match &entry.mode {
         Mode::Owned(owned) => Some(owned),
         Mode::Managed { .. } => return Err(refused("it is managed, not owned".into())),
-        Mode::Fake(_) if which.is_some() || verb == "fetch" || verb == "source" => return Err(refused("it is fake, not owned".into())),
+        Mode::Fake(_) if which.is_some() || verb == "fetch" || verb == "source" => {
+            return Err(refused("it is fake, not owned".into()));
+        }
         Mode::Fake(_) => None,
     };
     if verb == "fetch" {
@@ -322,7 +324,12 @@ pub fn run(directories: &super::Directories, arguments: &[OsString], ssl_cert_fi
         Ok(code) => code,
         Err(why) => {
             if arguments.first().is_some_and(|verb| verb == "source") {
-                let reason: String = why.why.bytes().take(1024).map(|c| if c.is_ascii_graphic() || c == b' ' { char::from(c) } else { ' ' }).collect();
+                let reason: String = why
+                    .why
+                    .bytes()
+                    .take(1024)
+                    .map(|c| if c.is_ascii_graphic() || c == b' ' { char::from(c) } else { ' ' })
+                    .collect();
                 println!("source failed {reason}");
                 0
             } else {

@@ -7,6 +7,7 @@ use alloc::boxed::Box;
 use skein_lib::{
     Secret, Writer,
     base64::{self, Alphabet},
+    bytes,
 };
 
 /// What a person's first sign-in through temper does on their forge
@@ -145,11 +146,33 @@ impl Source {
 /// Forgejo's auth list is a table: its second column is the exact source name.
 #[must_use]
 pub fn source_present(table: &[u8]) -> bool {
-    for line in table.split(|byte| *byte == b'\n') {
-        let mut columns = line.split(|byte| byte.is_ascii_whitespace()).filter(|column| !column.is_empty());
-        if columns.next().is_some() && columns.next() == Some(b"temper".as_slice()) {
+    let mut rest = table;
+    while !rest.is_empty() {
+        let end = bytes::find(rest, b"\n").unwrap_or(rest.len());
+        let line = rest.get(..end).expect("line boundary");
+        let (_, columns) = column(line);
+        if column(columns).0 == b"temper" {
             return true;
         }
+        rest = rest.get(end..).expect("line boundary").strip_prefix(b"\n").unwrap_or_default();
     }
     false
+}
+
+fn column(input: &[u8]) -> (&[u8], &[u8]) {
+    let mut rest = input;
+    while let Some((byte, tail)) = rest.split_first() {
+        if !byte.is_ascii_whitespace() {
+            break;
+        }
+        rest = tail;
+    }
+    let mut end = 0_usize;
+    for byte in rest {
+        if byte.is_ascii_whitespace() {
+            break;
+        }
+        end = end.checked_add(1).expect("column within input");
+    }
+    rest.split_at_checked(end).expect("column within input")
 }

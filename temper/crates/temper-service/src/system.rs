@@ -227,7 +227,7 @@ impl Service {
             seeds,
             &limits.journal,
             settings.sign_in.as_ref(),
-        settings.machine.owned.as_ref(),
+            settings.machine.owned.as_ref(),
             settings.files.entries.as_slice(),
         )?;
         clients.program_environment.clone_from(&settings.program_environment);

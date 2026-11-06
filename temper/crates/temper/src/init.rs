@@ -315,8 +315,8 @@ fn write_deployment(
     })();
     match result {
         Ok((paths, missing_git, person, login, no_sign_in)) => {
-            Ok(Written { paths, listeners, missing_git, person, login, no_sign_in })
-        },
+            Ok(Written { paths, listeners, missing_git, no_sign_in, person, login })
+        }
         Err(why) => {
             for (fd, _) in listeners {
                 io.close(fd);

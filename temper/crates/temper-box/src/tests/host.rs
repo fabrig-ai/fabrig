@@ -2327,9 +2327,12 @@ fn the_widest_link_is_whole_on_a_terminal_and_one_byte_more_is_refused() {
 
 fn source_steps() -> temper_forge_setup::Steps {
     let mut steps = grouped_steps();
-    let mut group = steps.asked[0].steps.to_vec();
-    group.push((temper_forge_setup::Stage::Run, once(b"source 3", &[b"never"]).ending_ignored()));
-    steps.asked[0].steps = group.into_boxed_slice();
+    let mut group = List::with_capacity(u32::try_from(steps.asked[0].steps.len().checked_add(1).unwrap()).unwrap());
+    for step in &steps.asked[0].steps {
+        group.push(step.clone()).unwrap();
+    }
+    group.push((temper_forge_setup::Stage::Source, once(b"source 3", &[b"never"]).ending_ignored())).unwrap();
+    steps.asked[0].steps = group.into_boxed();
     steps
 }
 #[test]

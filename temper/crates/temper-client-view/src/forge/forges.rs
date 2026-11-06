@@ -223,7 +223,7 @@ fn personal(
             | Connection::Stopped { .. } => {}
         }
     }
-    if w.shell == crate::words::Shell::Browser && sign_in.off(row.number) {
+    if w.shell == crate::words::Shell::Browser && row.kind == Kind::Forgejo && sign_in.off(row.number) {
         connect::text(b, w, Role::Paragraph, Word::SignInOff);
     }
     replacement(b, root, w, forge, row);

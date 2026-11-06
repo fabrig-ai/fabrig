@@ -455,17 +455,41 @@ fn init_makes_a_private_3072_bit_provider_key_before_writing_its_document() {
     let env = vec![(b"PATH".as_slice().into(), b"/usr/bin:/bin".as_slice().into())];
     let mut io = Io::open().unwrap();
     let Done::Usage(before) = io.perform(Op::Usage).unwrap() else { panic!("usage") };
-    let started = std::time::Instant::now();
+    let clock = skein_shell::Clock::new();
+    let started = clock.now().now;
     let written = write(&dirs, &env, &root.join("temper"), [0; 5]).unwrap();
-    let elapsed = started.elapsed();
+    let elapsed = clock.now().now.saturating_since(started);
     let Done::Usage(after) = io.perform(Op::Usage).unwrap() else { panic!("usage") };
-    eprintln!("init provider key: wall {elapsed:?}, child user {} ns, child system {} ns", after.children.user.as_nanos().saturating_sub(before.children.user.as_nanos()), after.children.system.as_nanos().saturating_sub(before.children.system.as_nanos()));
+    eprintln!(
+        "init provider key: wall {elapsed:?}, child user {} ns, child system {} ns",
+        after.children.user.as_nanos().saturating_sub(before.children.user.as_nanos()),
+        after.children.system.as_nanos().saturating_sub(before.children.system.as_nanos())
+    );
     assert!(written.no_sign_in.is_none());
     let key = path(&dirs.data).join("provider.key");
     assert_eq!(fs::metadata(&key).unwrap().mode() & 0o777, 0o600);
     let public = root.join("public.pem");
-    assert!(Command::new("openssl").args(["pkey", "-in"]).arg(&key).arg("-pubout").arg("-out").arg(&public).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status().unwrap().success());
-    let details = Command::new("openssl").args(["pkey", "-pubin", "-in"]).arg(&public).args(["-text", "-noout"]).stdin(Stdio::null()).output().unwrap();
+    assert!(
+        Command::new("openssl")
+            .args(["pkey", "-in"])
+            .arg(&key)
+            .arg("-pubout")
+            .arg("-out")
+            .arg(&public)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .unwrap()
+            .success()
+    );
+    let details = Command::new("openssl")
+        .args(["pkey", "-pubin", "-in"])
+        .arg(&public)
+        .args(["-text", "-noout"])
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
     assert!(details.status.success());
     assert!(details.stdout.starts_with(b"Public-Key: (3072 bit)"));
     let value: serde_json::Value = serde_json::from_slice(&fs::read(dirs.document()).unwrap()).unwrap();

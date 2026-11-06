@@ -553,7 +553,7 @@ fn clients_public_admits_the_public_and_listener_hosts_and_refuses_an_unknown_ho
             &super::fixtures::seeds(),
             &config.limits.root.journal,
             None,
-        None,
+            None,
             &[],
         )
         .unwrap();

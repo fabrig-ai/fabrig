@@ -1252,6 +1252,7 @@ pub enum SetUpStep {
     Fetch,
     Prepare,
     Run,
+    Source,
 }
 /// The binary named by the box's fetch line (protocol/forge.md, 2.8).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

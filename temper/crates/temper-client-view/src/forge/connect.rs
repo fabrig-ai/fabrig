@@ -812,7 +812,7 @@ pub(crate) fn progress_in(b: &mut Builder, root: Option<&Domain>, w: &Words, row
         match row.connection {
             Connection::SettingUp { step: Some(forge::forges::Step::Fetch) } => Some(0),
             Connection::SettingUp { step: Some(forge::forges::Step::Prepare) } => Some(1),
-            Connection::SettingUp { step: Some(forge::forges::Step::Run) } => Some(2),
+            Connection::SettingUp { step: Some(forge::forges::Step::Run | forge::forges::Step::Source) } => Some(2),
             Connection::Connecting => Some(3),
             Connection::Connected { .. } => Some(match &row.first {
                 Some(first) => match first.state {
@@ -844,7 +844,7 @@ pub(crate) fn progress_in(b: &mut Builder, root: Option<&Domain>, w: &Words, row
         fetch
     };
     let prepare = w.say(Word::ForgePrepare, &[]);
-    let run = w.say(Word::ForgeRun, &[]);
+    let run = w.say(run_word(row), &[]);
     let connecting = w.say(Word::ForgeConnectingAsTemper, &[]);
     let target = match &row.first {
         Some(first) => Some((first.org.as_ref(), first.repository.as_ref())),
@@ -875,6 +875,13 @@ pub(crate) fn progress_in(b: &mut Builder, root: Option<&Domain>, w: &Words, row
     flow::progress(b, w, &w.say(Word::ForgeProgress, &[]), steps);
     if connect::failed(row) {
         failure(b, w, row);
+    }
+}
+fn run_word(row: &Row) -> Word {
+    if let Connection::SettingUp { step: Some(forge::forges::Step::Source) } = row.connection {
+        Word::ForgeSource
+    } else {
+        Word::ForgeRun
     }
 }
 fn stage_mark(current: Option<usize>, failed: Option<usize>, index: usize) -> Mark {

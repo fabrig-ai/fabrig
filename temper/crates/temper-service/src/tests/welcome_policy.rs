@@ -110,7 +110,7 @@ fn sign_in_owner(driver: &mut Driver) {
         held: None,
         reply_to: ReplyTo::new(Token::new(900)),
         identity: people::Identity {
-            key: people::IdentityKey { provider: 1, subject: b"owner-a".as_slice().into() },
+            key: people::IdentityKey { provider: 1, subject: b"ada@localhost".as_slice().into() },
             login: b"ada".as_slice().into(),
             name: b"Ada".as_slice().into(),
         },

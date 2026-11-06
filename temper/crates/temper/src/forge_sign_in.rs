@@ -109,16 +109,24 @@ pub(crate) fn source(
 ) -> Result<u8, String> {
     use temper_forge_setup::{prepare::Exit, spec};
     use temper_forge_setup_shell::command;
-    let client = named.machine.owned.as_ref().and_then(|owned| owned.sign_in.as_deref())
+    let client = named
+        .machine
+        .owned
+        .as_ref()
+        .and_then(|owned| owned.sign_in.as_deref())
         .ok_or("machine.owned.sign_in is not configured")?;
-    let document = config::document(bytes, &config::DocumentLimits { bytes: super::CONFIG_BYTES, tokens: super::CONFIG_BYTES, depth: 32 })
-        .expect("checked document");
+    let document = config::document(
+        bytes,
+        &config::DocumentLimits { bytes: super::CONFIG_BYTES, tokens: super::CONFIG_BYTES, depth: 32 },
+    )
+    .expect("checked document");
     let application = super::member(&document, 0, b"application");
     let clients = super::member(&document, application, b"clients");
     let public = config::read::Object::new(&document, clients).expect("checked clients").member(&document, b"public");
     let mut discovery = match public {
-        Some(at) if document.token(at).expect("public value").kind != skein_json::document::Kind::Null =>
-            config::read::text(&document, at, 4096).expect("checked public origin").to_vec(),
+        Some(at) if document.token(at).expect("public value").kind != skein_json::document::Kind::Null => {
+            config::read::text(&document, at, 4096).expect("checked public origin").to_vec()
+        }
         Some(_) | None => format!("http://{}", super::address(&named.clients)?).into_bytes(),
     };
     discovery.extend_from_slice(b"/.well-known/openid-configuration");
@@ -132,8 +140,13 @@ pub(crate) fn source(
         let answer = command::run_until(&limits, &spec::source_add(owned, place, client, &discovery), until)
             .map_err(super::forge::command_error)?;
         if answer.exit != Exit::Code(0) {
-            let diagnostic = if answer.stderr.expose().is_empty() { answer.stdout.expose() } else { answer.stderr.expose() };
-            return Err(format!("source registration ended: {:?}: {}", answer.exit, String::from_utf8_lossy(diagnostic.get(..diagnostic.len().min(512)).expect("bounded diagnostic"))));
+            let diagnostic =
+                if answer.stderr.expose().is_empty() { answer.stdout.expose() } else { answer.stderr.expose() };
+            return Err(format!(
+                "source registration ended: {:?}: {}",
+                answer.exit,
+                String::from_utf8_lossy(diagnostic.get(..diagnostic.len().min(512)).expect("bounded diagnostic"))
+            ));
         }
     }
     std::io::stdout().write_all(&sign_in::Source::Added.line()).map_err(|why| format!("source outcome: {why}"))?;

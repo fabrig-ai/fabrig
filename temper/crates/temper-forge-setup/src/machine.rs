@@ -160,13 +160,7 @@ pub fn read_config(
             resolve_path(directories, config::Directory::Data, git, p.member(b"github").member(b"git"), ps);
         }
         if let Some(fake) = &mut machine.fake {
-            resolve_path(
-                directories,
-                config::Directory::Data,
-                &mut fake.git,
-                p.member(b"fake").member(b"git"),
-                ps,
-            );
+            resolve_path(directories, config::Directory::Data, &mut fake.git, p.member(b"fake").member(b"git"), ps);
         }
     }
     if ps.is_empty() { result } else { None }

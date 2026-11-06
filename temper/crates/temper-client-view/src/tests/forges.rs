@@ -995,7 +995,7 @@ fn the_old_chrome_is_gone() {
 fn only_the_forges_row_named_by_the_off_fact_says_its_password_is_needed_in_the_browser() {
     let root = root(Address::Forges, cf::connected());
     let line = "This Forgejo asks for its password: temper couldn't connect its sign-in. box.log says why.";
-    for (browser, number, expected) in [(true, "3", 1), (true, "99", 0), (false, "3", 0)] {
+    for (browser, number, expected) in [(true, "3", 1), (true, "2", 0), (false, "3", 0)] {
         let mut view = f::view_of(if browser { f::browser_words() } else { f::words() });
         let mut facts = crate::forge_sign_in::Forges::new();
         facts.read_off(number);
@@ -1005,4 +1005,17 @@ fn only_the_forges_row_named_by_the_off_fact_says_its_password_is_needed_in_the_
         let text = f::main_text(view.tree());
         assert_eq!(core::str::from_utf8(&text).unwrap().matches(line).count(), expected);
     }
+}
+
+#[test]
+fn the_source_stage_says_it_is_connecting_sign_in_after_forgejo_has_started() {
+    let connection = w::Connection::SettingUp(
+        w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(w::SetUpStep::Source), fetched: None }).unwrap(),
+    );
+    let root = root(Address::ConnectForge { forge: Some(Choice::Forge(HERE)) }, connection);
+    let view = f::browser_page_view(&root);
+    let text = f::main_text(view.tree());
+    let text = core::str::from_utf8(&text).unwrap();
+    assert!(text.contains("Connecting sign-in through temper"));
+    assert!(!text.contains("Starting Forgejo and its runner"));
 }

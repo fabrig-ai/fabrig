@@ -1887,14 +1887,21 @@ fn an_exited_fetch_is_not_relayed() {
 
 fn ignored_source_ending(ending: Option<Exit>) {
     use super::fixtures::step;
-    use crate::{layout, machine::{Machine, Said}};
+    use crate::{
+        layout,
+        machine::{Machine, Said},
+    };
     use skein_lib::{Queue, Time};
     use temper_forge_setup::{Group, Stage, Steps};
     let placed = layout::flatten(Steps {
         always: Box::new([step(b"serve", Kind::Long)]),
         asked: Box::new([Group {
-            kind: None, remover: None, label: b"Forge 9".as_slice().into(),
-            recorded: false, forge: 9, before: 0,
+            kind: None,
+            remover: None,
+            label: b"Forge 9".as_slice().into(),
+            recorded: false,
+            forge: 9,
+            before: 0,
             steps: Box::new([
                 (Stage::Run, step(b"forgejo", Kind::Long)),
                 (Stage::Run, step(b"source", Kind::Once).ending_ignored()),

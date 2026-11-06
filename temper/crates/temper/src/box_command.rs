@@ -1,7 +1,7 @@
 //! The box's steps and kind slots (temper/docs/design/protocol/setup.md, 7.1).
 use skein_io::kernel::{Exit, Fd};
 use skein_shell::{Clock, Config, Host, Kernel};
-use std::os::unix::ffi::OsStrExt;
+use std::{fmt::Write, os::unix::ffi::OsStrExt};
 use temper_box::host::{Echo, Service, Settings};
 
 /// How the box's stdout takes a sign-in link (temper/docs/design/protocol/setup.md, 7.2).
@@ -256,8 +256,8 @@ pub fn configuration(directories: &super::Directories) -> Result<Configuration, 
     let first_run = if empty {
         let written = super::init::core(directories)?;
         held = written.listeners;
-        let mut opening = written.no_sign_in.map_or_else(String::new, |why| format!("First run: no sign-in through temper: {why}\n"));
-        use std::fmt::Write;
+        let mut opening =
+            written.no_sign_in.map_or_else(String::new, |why| format!("First run: no sign-in through temper: {why}\n"));
         writeln!(opening, "First run: wrote the configuration, {}", directories.document().display()).expect("string");
         Some(opening.into_bytes().into())
     } else {

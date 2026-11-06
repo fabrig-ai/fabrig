@@ -10,6 +10,7 @@ pub(crate) enum Step {
     Fetch,
     Prepare,
     Run,
+    Source,
 }
 /// Why the link refuses an ask (protocol/forge.md, 2.8).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -252,7 +253,10 @@ fn line(asked: &mut Option<Ask>, line: &[u8], out: &mut Queue<Out>) {
     };
     let forge = reply.forge();
     let matches = match (*asked, &reply) {
-        (Some(Ask::Start(active)), Reply::Step(..) | Reply::Fetched(..) | Reply::Source(..) | Reply::Started(_) | Reply::Failed(..))
+        (
+            Some(Ask::Start(active)),
+            Reply::Step(..) | Reply::Fetched(..) | Reply::Source(..) | Reply::Started(_) | Reply::Failed(..),
+        )
         | (Some(Ask::End(End::Remove(active))), Reply::Removed(_) | Reply::Failed(..)) => active == forge,
         _ => false,
     };
@@ -318,8 +322,13 @@ fn decoded(line: &[u8]) -> Option<Reply> {
             true
         } else {
             let why = outcome.strip_prefix(b"failed ")?;
-            if why.is_empty() || why.iter().any(|byte| byte.is_ascii_control()) {
+            if why.is_empty() {
                 return None;
+            }
+            for byte in why {
+                if byte.is_ascii_control() {
+                    return None;
+                }
             }
             false
         };
@@ -368,6 +377,7 @@ fn decoded(line: &[u8]) -> Option<Reply> {
             b"fetch" => Step::Fetch,
             b"prepare" => Step::Prepare,
             b"run" => Step::Run,
+            b"source" => Step::Source,
             _ => return None,
         };
         Some(Reply::Step(forge, step))
@@ -440,6 +450,7 @@ pub(crate) fn drain(engine: &mut crate::engine::Engine, out: &mut Queue<Out>) {
                     Some(Step::Fetch) => Some(SetUpStep::Fetch),
                     Some(Step::Prepare) => Some(SetUpStep::Prepare),
                     Some(Step::Run) => Some(SetUpStep::Run),
+                    Some(Step::Source) => Some(SetUpStep::Source),
                 };
                 state(engine, forge, Connection::SettingUp { step });
             }

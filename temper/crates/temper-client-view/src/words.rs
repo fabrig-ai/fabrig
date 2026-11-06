@@ -1100,6 +1100,7 @@ pub enum Word {
     SignInOpen,
     SignInOpenBody,
     SignInOff,
+    ForgeSource,
 
     SignInFull,
     SignInBusy,
@@ -1381,7 +1382,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
 // The command’s Copy adds three literal phrases (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
-const PHRASES: u32 = 1865;
+const PHRASES: u32 = 1866;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1407,10 +1408,10 @@ const PHRASES: u32 = 1865;
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 3264;
+const SEGMENTS: u32 = 3265;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 45559;
-const ALL: [Word; 1265] = [
+const ENGLISH_BYTES: u32 = 45592;
+const ALL: [Word; 1266] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -2473,6 +2474,7 @@ const ALL: [Word; 1265] = [
     Word::SignInOpen,
     Word::SignInOpenBody,
     Word::SignInOff,
+    Word::ForgeSource,
     Word::SignInFull,
     Word::SignInBusy,
     Word::SignInNotReady,
@@ -3509,6 +3511,7 @@ impl Word {
             Self::SignInOpen => 2010,
             Self::SignInOpenBody => 2011,
             Self::SignInOff => 2099,
+            Self::ForgeSource => 2098,
             Self::ContinueGoogle => 1911,
             Self::SignInFull => 1907,
             Self::SignInBusy => 1908,
@@ -5569,6 +5572,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SignInForgeAt => (&[b"Forgejo at ", b""], &[Name]),
         Word::SignInContinue => (&[b"to continue to "], &[]),
         Word::SignInSignedOut => (&[b"You signed out. ", b" keeps its own sign-in: sign out there too."], &[Name]),
+        Word::ForgeSource => (&[b"Connecting sign-in through temper"], &[]),
         Word::SignInOff => (&[b"This Forgejo asks for its password: temper couldn't connect its sign-in. box.log says why."], &[]),
         Word::SignInOpen => (&[b"Open Forgejo \xe2\x86\x97"], &[]),
         Word::SignInOpenBody => (&[b"Open Forgejo signs you in as ", b", through temper: Forgejo\xe2\x80\x99s sign-in is temper\xe2\x80\x99s."], &[Name]),

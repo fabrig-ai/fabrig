@@ -92,11 +92,13 @@ fn sign_in_links_only_without_registration() {
 fn a_box_links_by_name_but_other_owned_forges_keep_password_linking() {
     let registration = b"ALLOW_ONLY_EXTERNAL_REGISTRATION = true\n[oauth2_client]\nENABLE_AUTO_REGISTRATION = true\nUSERNAME = preferred_username\nACCOUNT_LINKING = auto\n";
     let at = skein_lib::bytes::find(APP_INI_WITH_RUNNER, b"[mailer]").unwrap();
-    let mut expected = APP_INI_WITH_RUNNER[..at].to_vec();
-    expected.extend_from_slice(registration);
-    expected.extend_from_slice(&APP_INI_WITH_RUNNER[at..]);
-    let text = ini::text(&fixtures::owned(), &fixtures::place(), &fixtures::secrets(), None, Some(FirstSignIn::LinksByName));
-    assert_eq!(text.expose(), expected);
+    let mut expected = skein_lib::Writer::new(APP_INI_WITH_RUNNER.len() + registration.len());
+    expected.put(APP_INI_WITH_RUNNER.get(..at).unwrap()).unwrap();
+    expected.put(registration).unwrap();
+    expected.put(APP_INI_WITH_RUNNER.get(at..).unwrap()).unwrap();
+    let text =
+        ini::text(&fixtures::owned(), &fixtures::place(), &fixtures::secrets(), None, Some(FirstSignIn::LinksByName));
+    assert_eq!(text.expose(), expected.finish().as_ref());
     assert!(skein_lib::bytes::find(FirstSignIn::MakesAccount.settings(), b"ACCOUNT_LINKING = login\n").is_some());
     assert!(skein_lib::bytes::find(FirstSignIn::LinksByName.settings(), b"ACCOUNT_LINKING = auto\n").is_some());
 }
