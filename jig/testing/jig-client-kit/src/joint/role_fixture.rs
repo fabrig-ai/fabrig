@@ -107,7 +107,7 @@ fn with_driver(driver: Driver, receiving: &jig_client_test_domain::Limits) -> Jo
     let codec = jig_protocol_transcript::Limits {
         smith: smith_transcript::v6::CEILINGS,
         bytes: 1_048_576,
-        turn: client::TurnLimits { messages: 8, blocks: 8, text: 128 },
+        turn: client::TurnLimits { messages: 8, blocks: 8, text: 128, outcome: 128 },
     };
     let identities = (1..=4)
         .map(|id| {

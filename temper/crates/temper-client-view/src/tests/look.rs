@@ -14,6 +14,7 @@ fn the_looks_names_pass_skeins_check() {
     assert!(skein_ui::look::check(&[NAMES]).is_none());
     for (token, name) in [
         (CHAT_GOAL, b"temper-chat-goal".as_slice()),
+        (WRITING_END, b"temper-writing-end"),
         (CONFIRM, b"temper-confirm"),
         (CONFIRM_FATES, b"temper-confirm-fates"),
         (CONFIRM_ACTS, b"temper-confirm-acts"),

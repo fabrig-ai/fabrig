@@ -1547,6 +1547,7 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 #app > .temper-session .temper-day, #app > .temper-session .temper-turn > .temper-who { display: none; }
 #app > .temper-session :is(.temper-marker, .temper-ended) { margin: 0; padding: 0; text-align: center; font-size: 12px; color: var(--gf-faint); }
 #app > .temper-session .temper-marker > [role=status] { margin: 0; padding: 0; border: 0; background: none; color: inherit; font: inherit; }
+.temper-writing-end, .temper-writing-end > * { display: inline; color: var(--gf-hint); }
 #app > .temper-session .temper-typing { display: flex; gap: 4px; padding: 6px 0; }
 #app > .temper-session .temper-typing > div { width: 6px; height: 6px; border-radius: 50%; background: var(--gf-hint); animation: chat-typing 1s infinite ease-in-out; }
 #app > .temper-session .temper-typing > :nth-child(2) { animation-delay: .15s; }
@@ -1570,17 +1571,6 @@ body > noscript, #app:not(:empty):not(:has(*)) { margin-top: 213px; }
 .temper-agent-page .temper-by-agent > .temper-says ol { padding-left: 22px; }
 #app > .temper-session .temper-by-agent > .temper-says ol > li::marker,
 .temper-agent-page .temper-by-agent > .temper-says ol > li::marker { color: var(--gf-faint); }
-#app > .temper-session .temper-writing-end,
-.temper-agent-page .temper-writing-end { display: none; }
-#app > .temper-session .temper-writing-end:only-child,
-.temper-agent-page .temper-writing-end:only-child,
-#app > .temper-session .temper-says:has(> .temper-writing-end) > :nth-last-child(2):not(ol, ul)::after,
-#app > .temper-session .temper-says:has(> .temper-writing-end) > :is(ol, ul):nth-last-child(2) > li:last-child::after,
-.temper-agent-page .temper-says:has(> .temper-writing-end) > :nth-last-child(2):not(ol, ul)::after,
-.temper-agent-page .temper-says:has(> .temper-writing-end) > :is(ol, ul):nth-last-child(2) > li:last-child::after { content: '' / ''; display: inline-block; width: 7px; height: 15px; margin-left: 2px; vertical-align: -2px; border-radius: 1px; background: var(--gf-hint); animation: chat-writing-end 1s steps(2) infinite; }
-#app > .temper-session .temper-says:has(> .temper-writing-end) > :nth-last-child(2) { margin-bottom: 0; }
-@keyframes chat-writing-end { to { visibility: hidden; } }
-
 /* Playground suggestions keep the centred new-chat opening beside configuring's cards. */
 #app > .temper-session .temper-starter:not(:has(> .temper-starter-ways)) { margin: 12vh auto 0; align-items: center; gap: 16px; }
 #app > .temper-session .temper-starter > .temper-starters { width: min(520px, 100%); display: flex; flex-direction: column; gap: 8px; }

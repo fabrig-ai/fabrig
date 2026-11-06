@@ -7,6 +7,24 @@ use jig_client::{contract as c, thread::Thread};
 use skein_lib::{List, Wall};
 use skein_ui::Role;
 
+fn answer_tree(thread: &Thread, words: &crate::words::Words, projected: bool) -> skein_ui::Tree {
+    let mut b = skein_ui::Builder::new(&fixtures::tree_limits());
+    crate::pages::chat::conversation(
+        &mut b,
+        thread,
+        words,
+        (LINES, TEXT),
+        crate::pages::chat::Speakers { person: None, requester: false },
+        if projected {
+            crate::pages::chat::Drawn::Chat { request: None, delegations: None }
+        } else {
+            crate::pages::chat::Drawn::Lines
+        },
+        &mut crate::frame::Bindings::new(fixtures::tree_limits().bindings),
+    );
+    b.finish()
+}
+
 #[test]
 fn the_playground_project_is_named_playground() {
     let root = fixtures::playground_root(temper_client_domain::Address::Chat { task: TASK }, fixtures::PROJECT, true);
@@ -92,102 +110,206 @@ fn a_chats_header_says_its_spend_including_delegates() {
     assert!(fixtures::find(&tree, Role::Paragraph, "7 spent · of 7".as_bytes()).is_some());
 }
 
-fn answer_tree(thread: &Thread, words: &crate::words::Words, projected: bool) -> skein_ui::Tree {
+#[test]
+fn the_end_goes_when_the_turn_commits() {
+    let mut thread = provisional();
+    assert!(fixtures::find(&tree(&thread), Role::Status, "▍".as_bytes()).is_some());
+    thread.reading = Some(jig_client::thread::Reading::Latest { known: COMMITTED.into() });
+    let mut rows = List::with_capacity(TURN);
+    rows.push(crate::tests::documents::turn(
+        TURN.into(),
+        Wall::EPOCH,
+        c::TurnName { attempt: ATTEMPT, number: TURN },
+        c::TurnRead::Decoded(c::Turn {
+            messages: {
+                let mut messages = List::with_capacity(1);
+                messages
+                    .push(fixtures::first_run::message(
+                        c::Speaker::Assistant,
+                        &[c::Block::Text(fixtures::first_run::text(b"Hello"))],
+                    ))
+                    .unwrap();
+                messages
+            },
+            used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
+            spent: 0,
+            read_through: None,
+            cut: false,
+        }),
+    ))
+    .expect("turn");
+    thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
+    assert_eq!(fixtures::find(&tree(&thread), Role::Status, "▍".as_bytes()), None);
+}
+
+// Compare the shell-visible nodes, discounting only the live end and its size.
+fn said_without_end(tree: &skein_ui::Tree) -> List<skein_ui::Made> {
+    let says = styled(tree, crate::look::SAYS);
+    let children = subtree(tree, says);
+    let end = style_position(children, crate::look::WRITING_END);
+    let mut result = List::with_capacity(tree.len());
+    for (at, node) in children.iter().enumerate() {
+        let mut node = skein_ui::Made::of(node);
+        if let Some(end) = end {
+            let end_size = usize::try_from(children[end].size).unwrap();
+            if (end..end.checked_add(end_size).unwrap()).contains(&at) {
+                continue;
+            }
+            if at < end && at.checked_add(usize::try_from(node.size).unwrap()).unwrap() > end {
+                node.size = node.size.checked_sub(u32::try_from(end_size).unwrap()).unwrap();
+            }
+        }
+        result.push(node).unwrap();
+    }
+    result
+}
+
+#[test]
+fn a_turn_being_written_draws_as_its_committed_turn_with_its_end() {
+    use fixtures::first_run as run;
+    for input in [
+        b"A **bold** reply.\n\nLast words.".as_slice(),
+        b"- first\n- last",
+        b"> quoted",
+        b"```\ncode\n```",
+        b"| a | b |\n| - | - |\n| c | d |",
+    ] {
+        let live = provisional_with_text(input);
+        let committed =
+            conversation_turn(&[run::message(c::Speaker::Assistant, &[c::Block::Text(run::text(input))])], false);
+        for (live, committed) in
+            [(tree(&live), tree(&committed)), (fixtures::chat::tree(&live), fixtures::chat::tree(&committed))]
+        {
+            let message = &live.nodes()[styled(&live, crate::look::MESSAGE)];
+            assert!(message.styles.as_slice().contains(&crate::look::BY_AGENT));
+            let who = subtree(&live, styled(&live, crate::look::WHO));
+            assert_eq!(who[0].name.as_deref(), Some(b"Temper".as_slice()));
+            let mark = named_position(live.nodes(), Role::Status, Some("▍".as_bytes())).expect("live end");
+            let end = styled(&live, crate::look::WRITING_END);
+            assert_eq!(fixtures::find(&live, Role::Status, b"Writing..."), None);
+            assert!(mark > end && mark < end.checked_add(usize::try_from(live.nodes()[end].size).unwrap()).unwrap());
+            let mut block = None;
+            for (at, node) in live.nodes()[..end].iter().enumerate() {
+                if [Role::Paragraph, Role::Heading { level: 3 }, Role::Item, Role::Quote, Role::Cell, Role::Code]
+                    .contains(&node.role)
+                    && at.checked_add(usize::try_from(node.size).unwrap()).unwrap() > end
+                {
+                    block = Some(at);
+                }
+            }
+            assert!(block.is_some(), "end inside the last word's block: {input:?}");
+            let mut has_words = false;
+            for node in &live.nodes()[block.unwrap()..end] {
+                has_words |= !node.text.is_empty();
+            }
+            assert!(has_words);
+            assert_eq!(said_without_end(&live), said_without_end(&committed));
+        }
+    }
+}
+
+#[test]
+fn a_closed_block_emits_no_patch_as_words_arrive_after_it() {
+    let limits = fixtures::tree_limits();
+    let mut patches = skein_lib::Queue::with_capacity(limits.patches);
+    let mut next = 0;
+    let mut before = tree(&provisional_with_text(b"Closed **bold**.\n\nNext"));
+    skein_ui::diff(&skein_ui::Tree::new(limits.nodes), &mut before, &limits, &mut next, &mut patches);
+    while patches.pop().is_some() {}
+    let says = styled(&before, crate::look::SAYS);
+    let block = says.checked_add(1).unwrap();
+    let through = block.checked_add(usize::try_from(before.nodes()[block].size).unwrap()).unwrap();
+    let mut closed = List::with_capacity(before.len());
+    for node in &before.nodes()[block..through] {
+        closed.push(skein_ui::Made::of(node)).unwrap();
+    }
+    for input in [b"Closed **bold**.\n\nNext word".as_slice(), b"Closed **bold**.\n\nNext words arrive."] {
+        let mut after = tree(&provisional_with_text(input));
+        skein_ui::diff(&before, &mut after, &limits, &mut next, &mut patches);
+        for (expected, node) in closed.iter().zip(&after.nodes()[block..through]) {
+            assert_eq!(*expected, skein_ui::Made::of(node));
+        }
+        let mut changed = false;
+        while let Some(patch) = patches.pop() {
+            let target = match patch {
+                skein_ui::Patch::Insert { parent, .. } => parent,
+                skein_ui::Patch::Remove { node }
+                | skein_ui::Patch::Move { node, .. }
+                | skein_ui::Patch::Text { node, .. }
+                | skein_ui::Patch::Attribute { node, .. }
+                | skein_ui::Patch::Value { node, .. } => node,
+            };
+            for node in &closed {
+                assert_ne!(node.id, target, "closed block patched");
+            }
+            changed = true;
+        }
+        assert!(changed, "the growing block changes");
+        before = after;
+    }
+}
+
+#[test]
+fn a_turn_being_written_shows_no_raw_marker() {
+    for (input, expected, run) in [
+        (b"**bo".as_slice(), b"bo".as_slice(), Some(skein_ui::Run::Strong)),
+        (b"##", b"", None),
+        (b"```rust\ncode", b"code", Some(skein_ui::Run::Code)),
+    ] {
+        for tree in [tree(&provisional_with_text(input)), fixtures::chat::tree(&provisional_with_text(input))] {
+            let nodes = subtree(&tree, styled(&tree, crate::look::SAYS));
+            let mut said = List::with_capacity(TEXT);
+            for node in nodes {
+                for text in &node.text {
+                    if text.text.as_ref() == "▍".as_bytes() {
+                        continue;
+                    }
+                    if let Some(run) = run {
+                        assert_eq!(text.run, run);
+                    }
+                    for byte in &text.text {
+                        said.push(*byte).unwrap();
+                    }
+                }
+            }
+            assert_eq!(said.as_slice(), expected);
+        }
+    }
+}
+
+fn working_tree(thread: &Thread) -> skein_ui::Tree {
+    use crate::pages::chat::{Drawn, Speakers, conversation_with_times};
+    let mut task = configuring_task();
+    task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Due);
+    let root = configuring_task_root(task, true, 1);
     let mut b = skein_ui::Builder::new(&fixtures::tree_limits());
-    crate::pages::chat::conversation(
+    conversation_with_times(
         &mut b,
         thread,
-        words,
+        &fixtures::browser_words(),
         (LINES, TEXT),
-        crate::pages::chat::Speakers { person: None, requester: false },
-        if projected {
-            crate::pages::chat::Drawn::Chat { request: None, delegations: None }
-        } else {
-            crate::pages::chat::Drawn::Lines
-        },
+        Speakers { person: Some(PARTY), requester: true },
+        (Drawn::ChatPage { request: None, root: &root }, Some(&mut crate::words::Times::new(fixtures::NOW))),
         &mut crate::frame::Bindings::new(fixtures::tree_limits().bindings),
     );
     b.finish()
 }
 
 #[test]
-fn the_words_being_written_end_in_the_mark() {
-    for value in [b"An answer".as_slice(), b"- one\n- two", b"# Heading", b"```\ncode\n```", b""] {
-        let thread = provisional_with_text(value);
-        for words in [fixtures::words(), fixtures::browser_words()] {
-            for projected in [true, false] {
-                let drawn = answer_tree(&thread, &words, projected);
-                let who = styled(&drawn, crate::look::WHO);
-                assert_eq!(fixtures::node_text(&drawn, who).as_ref(), b"Temper");
-                let says = styled(&drawn, crate::look::SAYS);
-                let nodes = subtree(&drawn, says);
-                match words.shell {
-                    crate::words::Shell::Browser => {
-                        let mark = style_position(nodes, crate::look::WRITING_END).expect("browser mark");
-                        assert_eq!(mark, nodes.len() - 1, "the mark follows the Markdown");
-                        assert_eq!(nodes[mark].role, Role::Text);
-                        assert!(nodes[mark].text.is_empty());
-                        assert_eq!(nodes[mark].name, None);
-                    }
-                    crate::words::Shell::Terminal => {
-                        let mark = named_position(nodes, Role::Status, Some("▌".as_bytes())).expect("terminal mark");
-                        assert_eq!(mark + usize::try_from(nodes[mark].size).unwrap(), nodes.len());
-                    }
-                }
-                assert!(fixtures::find(&drawn, Role::Status, b"Writing...").is_none());
-            }
-        }
+fn a_turn_with_no_words_draws_nothing_and_the_dots_stand() {
+    let empty = provisional_with_text(b"");
+    for tree in [tree(&empty), fixtures::chat::tree(&empty), working_tree(&empty)] {
+        assert!(style_position(tree.nodes(), crate::look::MESSAGE).is_none());
+        assert!(style_position(tree.nodes(), crate::look::TURN).is_none());
     }
+    assert!(style_position(working_tree(&empty).nodes(), crate::look::TYPING).is_some());
 }
 
 #[test]
-fn the_mark_goes_when_the_turn_commits_and_the_words_stay() {
-    use fixtures::first_run as run;
-    for value in [b"An answer".as_slice(), b"- one\n- two", b"# Heading", b"```\ncode\n```"] {
-        for words in [fixtures::words(), fixtures::browser_words()] {
-            for projected in [true, false] {
-                let mut thread = provisional_with_text(value);
-                let before = answer_tree(&thread, &words, projected);
-                thread.reading = Some(jig_client::thread::Reading::Latest { known: COMMITTED.into() });
-                let mut rows = List::with_capacity(1);
-                rows.push(run::turn(
-                    TURN.into(),
-                    ATTEMPT,
-                    TURN,
-                    &[run::message(c::Speaker::Assistant, &[c::Block::Text(run::text(value))])],
-                    512,
-                ))
-                .unwrap();
-                thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
-                let after = answer_tree(&thread, &words, projected);
-                assert!(style_position(after.nodes(), crate::look::WRITING_END).is_none());
-                assert!(fixtures::find(&after, Role::Status, "▌".as_bytes()).is_none());
-                let mut before_text = List::with_capacity(32);
-                let mut after_text = List::with_capacity(32);
-                for (drawn, text, writing) in [(&before, &mut before_text, true), (&after, &mut after_text, false)] {
-                    let says = styled(drawn, crate::look::SAYS);
-                    let nodes = subtree(drawn, says);
-                    let end = if writing {
-                        match words.shell {
-                            crate::words::Shell::Browser => style_position(nodes, crate::look::WRITING_END).unwrap(),
-                            crate::words::Shell::Terminal => {
-                                named_position(nodes, Role::Status, Some("▌".as_bytes())).unwrap()
-                            }
-                        }
-                    } else {
-                        nodes.len()
-                    };
-                    for node in &nodes[..end] {
-                        if !node.text.is_empty() {
-                            text.push((node.role, node.text.clone())).unwrap();
-                        }
-                    }
-                }
-                assert!(!before_text.is_empty(), "the reply has text nodes");
-                assert_eq!(before_text, after_text, "the same text nodes stay in order");
-            }
-        }
-    }
+fn the_first_word_takes_the_dots_place() {
+    let tree = working_tree(&provisional());
+    assert!(style_position(tree.nodes(), crate::look::TYPING).is_none());
+    assert!(fixtures::find(&tree, Role::Status, "▍".as_bytes()).is_some());
 }
 
 #[test]
@@ -198,7 +320,8 @@ fn an_owner_activity_message_is_shown_in_the_chat() {
 
 #[test]
 fn an_inbox_answer_is_acknowledged_in_the_chat_conversation() {
-    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
+    let mut thread =
+        Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
     thread.reading = Some(jig_client::thread::Reading::Latest { known: COMMITTED.into() });
     let mut rows = List::with_capacity(1);
     rows.push(jig_client::contract::DecodedActivityLine {
@@ -254,7 +377,8 @@ fn a_chat_whose_spec_is_empty_draws_no_opening_turn() {
 }
 
 fn owner_words_thread() -> Thread {
-    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
+    let mut thread =
+        Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
     thread.reading = Some(jig_client::thread::Reading::Latest { known: COMMITTED.into() });
     let mut rows = List::with_capacity(TURN);
     rows.push(jig_client::contract::DecodedActivityLine {
@@ -467,13 +591,143 @@ fn a_chat_rejection_confirmation_keeps_the_persons_reason() {
     assert!(skein_lib::bytes::find(&fixtures::text(tree), b"Too costly").is_some());
 }
 
-const LONG_PROVISIONAL: &[u8] = b"1234567890123456789012345678901\xc3\xa9 and more";
+const LONG_PROVISIONAL: &[u8] = b"a234567890123456789012345678901\xc3\xa9 and more";
 #[test]
-fn long_provisional_text_says_nothing_of_what_was_cut() {
+fn a_long_provisional_text_says_nothing_of_what_was_cut() {
     let thread = provisional_with_text(LONG_PROVISIONAL);
-    let tree = tree(&thread);
-    assert!(fixtures::find(&tree, Role::Status, b"Earlier text omitted").is_none());
-    assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"\xc3\xa9 and more").is_some());
+    for drawn in [fixtures::chat::projected_tree(&thread), fixtures::chat::tree(&thread)] {
+        let said = fixtures::text(&drawn);
+        assert!(skein_lib::bytes::find(&said, b"Earlier text omitted").is_none());
+        assert!(skein_lib::bytes::find(&said, b"a234567890123456789012345678901").is_some());
+        assert!(skein_lib::bytes::find(&said, "…".as_bytes()).is_none());
+    }
+}
+
+fn conversation_turn(messages: &[c::Message], cut: bool) -> Thread {
+    let mut kept = List::with_capacity(u32::try_from(messages.len()).expect("message count"));
+    for message in messages {
+        kept.push(message.clone()).expect("message");
+    }
+    let turn = c::Turn {
+        messages: kept,
+        used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
+        spent: 0,
+        read_through: None,
+        cut,
+    };
+    let mut rows = List::with_capacity(1);
+    rows.push(super::documents::turn(
+        1,
+        Wall::EPOCH,
+        c::TurnName { attempt: ATTEMPT, number: TURN },
+        c::TurnRead::Decoded(turn),
+    ))
+    .expect("turn");
+    let mut thread =
+        Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
+    thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
+    thread.page(c::ActivityPage { rows, before: None, after: None, cut: false });
+    thread
+}
+
+#[test]
+fn a_cut_committed_turn_says_nothing_of_what_was_cut() {
+    use fixtures::first_run as run;
+    let thread = conversation_turn(
+        &[run::message(c::Speaker::Assistant, &[c::Block::Text(run::text("Kept…".as_bytes()))])],
+        true,
+    );
+    for drawn in [fixtures::chat::projected_tree(&thread), fixtures::chat::tree(&thread)] {
+        let said = fixtures::text(&drawn);
+        assert!(skein_lib::bytes::find(&said, b"Earlier text omitted").is_none());
+        assert!(skein_lib::bytes::find(&said, "Kept…".as_bytes()).is_some());
+    }
+}
+
+#[test]
+fn a_turns_opaque_blocks_are_not_drawn() {
+    use fixtures::first_run as run;
+    let thread = conversation_turn(
+        &[run::message(
+            c::Speaker::Assistant,
+            &[c::Block::Opaque { dialect: run::text(b"3"), size: 2164 }, c::Block::Text(run::text(b"Kept words"))],
+        )],
+        false,
+    );
+    for drawn in [fixtures::chat::projected_tree(&thread), fixtures::chat::tree(&thread)] {
+        let said = fixtures::text(&drawn);
+        assert!(skein_lib::bytes::find(&said, b"Content in").is_none());
+        assert!(skein_lib::bytes::find(&said, b"bytes").is_none());
+        assert!(skein_lib::bytes::find(&said, b"Kept words").is_some());
+    }
+}
+
+#[test]
+fn a_message_of_opaque_blocks_alone_draws_no_message() {
+    use fixtures::first_run as run;
+    for speaker in [c::Speaker::Assistant, c::Speaker::Person, c::Speaker::Tool, c::Speaker::System] {
+        let thread = conversation_turn(
+            &[run::message(speaker, &[c::Block::Opaque { dialect: run::text(b"3"), size: 2164 }])],
+            false,
+        );
+        for drawn in [fixtures::chat::projected_tree(&thread), fixtures::chat::tree(&thread)] {
+            assert!(style_position(drawn.nodes(), crate::look::MESSAGE).is_none(), "opaque message has no shell");
+            assert!(fixtures::text(&drawn).is_empty(), "opaque message has no words");
+        }
+    }
+}
+
+#[test]
+fn an_agents_result_line_is_its_first_line() {
+    use fixtures::first_run as run;
+    for summary in [b"first\nsecond".as_slice(), b"\n\r\n \t\r\nfirst\r\nsecond"] {
+        let thread = conversation_turn(
+            &[run::message(
+                c::Speaker::Tool,
+                &[c::Block::Result { call: 1, summary: run::text(summary), failed: false }],
+            )],
+            false,
+        );
+        let drawn = fixtures::chat::tree(&thread);
+        assert!(fixtures::find(&drawn, Role::Paragraph, b"first").is_some());
+        assert!(skein_lib::bytes::find(&fixtures::text(&drawn), b"second").is_none());
+    }
+}
+
+#[test]
+fn a_conversation_past_its_rows_says_nothing_of_what_was_cut() {
+    use fixtures::first_run as run;
+    let block = c::Block::Text(run::text(b"Kept"));
+    let mut blocks = List::with_capacity(LINES + 1);
+    let mut messages = List::with_capacity(LINES + 1);
+    for _ in 0..=LINES {
+        blocks.push(block.clone()).expect("block");
+        messages.push(run::message(c::Speaker::Assistant, core::slice::from_ref(&block))).expect("message");
+    }
+    for thread in [
+        conversation_turn(&[run::message(c::Speaker::Assistant, blocks.as_slice())], false),
+        conversation_turn(messages.as_slice(), false),
+    ] {
+        for drawn in [fixtures::chat::projected_tree(&thread), fixtures::chat::tree(&thread)] {
+            assert!(skein_lib::bytes::find(&fixtures::text(&drawn), b"Earlier text omitted").is_none());
+            assert_eq!(skein_lib::bytes::count(&fixtures::text(&drawn), b"Kept", LINES + 1), LINES);
+        }
+    }
+}
+
+#[test]
+fn a_cut_request_says_nothing_of_what_was_cut() {
+    let thread = owner_words_thread();
+    let mut request = c::SpecificationDocument::complete(c::Specification {
+        asks: false,
+        words: fixtures::first_run::text(b"Kept request"),
+        parameters: List::with_capacity(0),
+        inputs: List::with_capacity(0),
+    });
+    request.specification.words.cut = true;
+    let drawn = fixtures::chat::requested_tree(&thread, &request);
+    assert!(fixtures::find(&drawn, Role::Paragraph, b"Kept request").is_some());
+    assert!(skein_lib::bytes::find(&fixtures::text(&drawn), b"Earlier text omitted").is_none());
 }
 
 #[test]
@@ -666,7 +920,7 @@ fn structured_messages() -> List<c::Message> {
     messages
 }
 pub(super) fn structured_thread() -> Thread {
-    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: 12, bytes: BYTES, text: 128 });
+    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: 12, bytes: BYTES, text: 128, live: 128 });
     thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
     let messages = structured_messages();
     let mut rows = List::with_capacity(5);
@@ -1073,7 +1327,8 @@ fn the_chatbar_keeps_jigs_word_without_the_requesters_words_wake() {
 
 fn assistant_blocks(blocks: &[c::Block]) -> skein_ui::Tree {
     use fixtures::first_run as run;
-    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: 512 });
+    let mut thread =
+        Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: 512, live: 512 });
     thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
     let mut rows = List::with_capacity(1);
     rows.push(run::turn(1, ATTEMPT, 1, &[run::message(c::Speaker::Assistant, blocks)], 512)).expect("turn");
@@ -1153,7 +1408,10 @@ fn a_tool_name_using_the_whole_turn_budget_fits_its_fold_description() {
     let mut call = run::call(1, b"read", b"", None);
     let c::Block::Call(source) = &mut call else { panic!("call") };
     source.tool = c::Text::new(Box::from(tool.as_ref()), TURN_BYTES).unwrap();
-    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TURN_BYTES });
+    let mut thread = Thread::new(
+        TASK,
+        &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TURN_BYTES, live: TURN_BYTES },
+    );
     thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
     let mut rows = List::with_capacity(1);
     rows.push(run::turn(1, ATTEMPT, 1, &[run::message(c::Speaker::Assistant, &[call])], TURN_BYTES)).unwrap();
@@ -1199,7 +1457,8 @@ pub(super) fn assert_run_line(tree: &skein_ui::Tree, name: &[u8], description: &
 fn an_opaque_block_draws_nothing_and_no_shell() {
     use fixtures::first_run as run;
     for speaker in [c::Speaker::Assistant, c::Speaker::Person, c::Speaker::Tool, c::Speaker::System] {
-        let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
+        let mut thread =
+            Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
         thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
         let mut rows = List::with_capacity(1);
         rows.push(run::turn(
@@ -1250,7 +1509,8 @@ fn a_persons_words_are_paragraphs_without_a_read_label() {
 
 #[test]
 fn an_owners_person_words_have_a_person_shell_and_one_paragraph_per_line() {
-    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: 512 });
+    let mut thread =
+        Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: 512, live: 512 });
     thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
     let mut rows = List::with_capacity(1);
     rows.push(jig_client::contract::DecodedActivityLine {
@@ -1280,7 +1540,8 @@ fn an_owners_person_words_have_a_person_shell_and_one_paragraph_per_line() {
 
 #[test]
 fn a_tasks_words_have_an_agent_shell_named_by_the_task() {
-    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
+    let mut thread =
+        Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
     thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
     let mut rows = List::with_capacity(1);
     rows.push(jig_client::contract::DecodedActivityLine {
@@ -1333,7 +1594,8 @@ fn a_tasks_words_have_an_agent_shell_named_by_the_task() {
 fn committed_text_exceeds_field_text_on_both_conversation_pages() {
     use fixtures::first_run as run;
     let value = [b'x'; 256];
-    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
+    let mut thread =
+        Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
     thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
     let mut rows = List::with_capacity(1);
     rows.push(run::turn(
@@ -1586,7 +1848,7 @@ fn turn_wall(seconds: u64) -> Wall {
     Wall::from_nanos(seconds.checked_mul(1_000_000_000).expect("fixture wall fits"))
 }
 fn timed_thread(events: &[(u64, jig_client::contract::DecodedActivityLine)]) -> Thread {
-    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: 12, bytes: BYTES, text: 512 });
+    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: 12, bytes: BYTES, text: 512, live: 512 });
     thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
     let mut rows = List::with_capacity(u32::try_from(events.len()).unwrap());
     for (index, (at, event)) in events.iter().enumerate().rev() {
@@ -1685,7 +1947,8 @@ fn turn_clocks_follow_separately_named_speakers_on_both_paths() {
 }
 #[test]
 fn pending_words_and_provisional_text_have_no_clock_or_day() {
-    let mut pending = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
+    let mut pending =
+        Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
     assert!(pending.words.begin(
         jig_client::Key { asker: jig_client::Asker::JIG, number: 1 },
         None,
@@ -2472,7 +2735,7 @@ fn provisional_text_replaces_working_dots_and_agent_task_logs_never_have_them() 
         let thread = if provisional_text {
             provisional()
         } else {
-            Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT })
+            Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT })
         };
         for agent_page in [false, true] {
             let mut b = skein_ui::Builder::new(&fixtures::tree_limits());
@@ -2494,7 +2757,7 @@ fn provisional_text_replaces_working_dots_and_agent_task_logs_never_have_them() 
             assert_eq!(style_position(tree.nodes(), crate::look::THREAD_INNER).is_some(), !agent_page);
             if provisional_text {
                 assert!(style_position(tree.nodes(), crate::look::BY_AGENT).is_some());
-                assert!(style_position(tree.nodes(), crate::look::WRITING_END).is_some());
+                assert!(fixtures::find(&tree, Role::Status, "▍".as_bytes()).is_some());
             }
         }
     }
@@ -2570,7 +2833,8 @@ fn a_cut_text_says_nothing() {
         turn.cut = true;
         line.source.task = TASK;
         line.decoded.as_mut().unwrap().task = TASK;
-        let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
+        let mut thread =
+            Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
         thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
         let mut rows = List::with_capacity(1);
         rows.push(line).unwrap();
@@ -2579,6 +2843,113 @@ fn a_cut_text_says_nothing() {
         assert!(fixtures::find(&tree, Role::Status, b"Earlier text omitted").is_none());
         assert!(fixtures::find(&tree, Role::Button, b"Show").is_some());
     }
+}
+
+fn whole_turn_shell_limits() -> temper_client_domain::Limits {
+    let mut domain = fixtures::domain_limits();
+    let receiving = &mut domain.client.domain;
+    receiving.text = 512;
+    receiving.turn_text = 131_072;
+    receiving.long_text = 131_072;
+    receiving.rows = 16;
+    receiving.reads = 32;
+    receiving.delegates = 80;
+    receiving.turn_bytes = 1_048_576;
+    receiving.document_bytes = 1_048_576;
+    receiving.requests.bytes = 16_777_216;
+    receiving.ask_bytes = 4_194_304;
+    domain
+}
+
+fn full_turn_window(domain: &temper_client_domain::Limits, input: &[u8], count: u32) -> c::ActivityPage {
+    use fixtures::first_run as run;
+    let mut rows = List::with_capacity(count);
+    let text = c::Text::new(input.into(), domain.client.domain.turn_text).unwrap();
+    for position in 1..=count {
+        rows.push(run::turn(
+            u64::from(position),
+            ATTEMPT,
+            position,
+            &[run::message(c::Speaker::Assistant, &[c::Block::Text(text.clone())])],
+            domain.client.domain.turn_text,
+        ))
+        .unwrap();
+    }
+    c::ActivityPage { rows, before: None, after: None, cut: false }
+}
+
+#[test]
+fn a_full_window_of_dense_turn_markdown_fits_the_derived_bound() {
+    const TURN_BYTES: u32 = 8192;
+    let mut domain = fixtures::domain_limits();
+    domain.client.domain.turn_text = TURN_BYTES;
+    domain.client.domain.turn_bytes = 1_048_576;
+    domain.client.domain.document_bytes = 1_048_576;
+    let words = fixtures::words();
+    let bounds = crate::Limits::of(&domain, &words).unwrap();
+    // Short list items and quotes make many nodes; links duplicate their labels
+    // and retain targets, stressing the reader's text price as well.
+    for pattern in [b"- x\n".as_slice(), b"> x\n", b"[x](https://x) "] {
+        let length = usize::try_from(TURN_BYTES).unwrap();
+        let input = repeated_markdown(pattern, length);
+        let mut thread = Thread::new(TASK, &temper_client_domain::pages::chat::thread_limits(&domain));
+        thread.reading = Some(jig_client::thread::Reading::Latest { known: 0 });
+        thread.page(full_turn_window(&domain, &input, temper_client_domain::pages::chat::LINES));
+        assert_eq!(thread.lines().len(), temper_client_domain::pages::chat::LINES);
+        let mut b = skein_ui::Builder::new(&bounds.tree);
+        crate::pages::chat::conversation(
+            &mut b,
+            &thread,
+            &words,
+            (domain.client.domain.rows, domain.client.domain.text),
+            crate::pages::chat::Speakers { person: None, requester: false },
+            crate::pages::chat::Drawn::Chat { request: None, delegations: None },
+            &mut crate::frame::Bindings::new(bounds.tree.bindings),
+        );
+        let tree = b.finish();
+        assert!(tree.len() <= bounds.tree.nodes);
+        let mut bytes = 0_u32;
+        for node in tree.nodes() {
+            bytes = bytes.checked_add(node.text_bytes()).unwrap();
+        }
+        assert!(bytes <= bounds.tree.text_bytes);
+    }
+}
+
+#[test]
+fn a_whole_markdown_turn_builds_and_prints_at_the_shells_limits() {
+    let domain = whole_turn_shell_limits();
+    let input = b"Ordinary **Markdown** words.\n\n";
+    let length = usize::try_from(domain.client.domain.turn_text).unwrap();
+    let text = repeated_markdown(input, length);
+    let activity = full_turn_window(&domain, &text, 1);
+    let (mut root, _, watch, _, _, _) = fixtures::root_at_with_forges(
+        temper_client_domain::Address::Chat { task: TASK },
+        &domain,
+        b"Shop",
+        None,
+        Some(activity),
+        None,
+    );
+    deliver_chat(&mut root, watch.unwrap(), c::Delivery::Task(Box::new(configuring_task())));
+    for shell in [crate::words::Shell::Browser, crate::words::Shell::Terminal] {
+        let words = crate::words::Words::english(fixtures::FORGE, domain.client.domain.text, shell).unwrap();
+        let bounds = crate::Limits::of(&domain, &words).unwrap();
+        let mut view = crate::View::new(&bounds, &domain, words, fixtures::FORGE);
+        let tree = fixtures::build(&mut view, &root);
+        let mut print = skein_ui_text::Print::new(&bounds.tree).expect("shell print bounds");
+        skein_ui_text::render(tree, b"temper", None, &mut print);
+        assert!(skein_lib::bytes::find(print.text.as_slice(), b"Ordinary Markdown words.").is_some());
+        assert!(print.text.len() > 100_000);
+    }
+}
+
+fn repeated_markdown(pattern: &[u8], length: usize) -> Box<[u8]> {
+    let mut input = skein_lib::bytes::zeroed(length);
+    for (at, byte) in input.iter_mut().enumerate() {
+        *byte = *pattern.get(at.checked_rem(pattern.len()).unwrap()).unwrap();
+    }
+    input
 }
 
 #[test]
@@ -2629,7 +3000,8 @@ fn the_message_stands_for_older_while_a_read_is_out() {
         (None, true, false, false),
         (Some(Reading::Older), true, false, false),
     ] {
-        let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
+        let mut thread =
+            Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
         thread.reading = reading;
         thread.lines.edges.after =
             if at_start { Edge::End } else { Edge::More(c::Cursor::new(b"older".as_slice().into(), TEXT).unwrap()) };
@@ -2655,7 +3027,8 @@ fn the_message_stands_for_older_while_a_read_is_out() {
 
 #[test]
 fn no_line_is_drawn_for_lines_left() {
-    let mut thread = Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT });
+    let mut thread =
+        Thread::new(TASK, &jig_client::thread::Limits { lines: LINES, bytes: BYTES, text: TEXT, live: TEXT });
     thread.left = 7;
     let drawn = answer_tree(&thread, &fixtures::words(), true);
     assert_eq!(drawn.nodes().len(), 1, "only the empty log, no region for omitted lines");
