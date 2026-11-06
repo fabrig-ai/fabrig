@@ -245,6 +245,7 @@ pub fn demo_change() -> Script {
                 find: Find::text("CSV export is available from widget’s table. The change landed on Playground forge. This was a scripted change.".as_bytes()).within(conversation()),
                 within: DEMO_LANDS_WITHIN,
             },
+            // client/README.md, 5.4: the committed opening turn fits whole.
             Step::Gone { find: Find::exactly_named(Role::Paragraph, b"delegate").within(conversation()), within: START_WITHIN },
             // client/README.md, 5.7: the delegated change's card says it landed.
             Step::See { find: Find::text("T2 · CHANGE".as_bytes()).within(card()), within: START_WITHIN },
