@@ -922,7 +922,6 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     pages.shown = pages.shown.checked_add(1).expect("pages shown count fits");
 }
 fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: &mut Queue<Request>) -> bool {
-    pages.needs.remember_settings(&told);
     if let Told::Answered { key, outcome } = &told
         && let Some(open) = &mut pages.confirm
         && open.sent == Some(*key)
@@ -1204,7 +1203,6 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
                 chat.composer_focus = 1;
             }
             pages.chat = Some(chat);
-            pages.needs.restore_settings(pages.chat.as_mut().expect("opened chat"), out);
         }
         if let Address::Changes { project } = address {
             pages.changes = Some(changes::Changes::new(project, &mut pages.next, env.limits.forge, out));
