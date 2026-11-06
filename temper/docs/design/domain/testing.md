@@ -2761,6 +2761,14 @@ scripts/proof-live.sh               the live tier
 
 ## 11. Later
 
+- **A started cut with the box's sign-in enabled** (2.6): the cut holds
+  the engine before it hears the group's `started`, while the source
+  step needs that engine's discovery before the group can finish. A
+  proof on that configuration needs a cut or a source step that breaks
+  this dependency without weakening the cut's assertions. Default:
+  2.6's no-sign-in fixture for this cut alone; the final setup and
+  removal cut use the box's sign-in.
+
 - **A default box's combined browser and terminal proof** (2.6;
   `../protocol/setup.md`, 7.1, 7.2 and 13.4): one 1440-pixel walk with the
   default runner and separate configuration, data and cache directories,

@@ -920,6 +920,12 @@ bot's and the person's tokens, and neither passes this provider.
 
 ## 10. Open questions
 
+- **A handover after Forgejo restarts with serve still running** (9.9):
+  discovery can be answered, but taking preparation's new handover
+  needs a notification and a takeover while the forge is connected
+  (`setup.md`, section 15). Default: it waits for serve's next start;
+  9.9's second read is once per serve start, not per Forgejo restart.
+
 - **Links after a failed source-address update** (9.9): whether a box
   records the failure between preparation and the source step, so the
   entry and its links stay off until the current discovery address is
