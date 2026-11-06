@@ -329,6 +329,10 @@ impl Pages {
     pub fn connect_model(&self) -> Option<&connect_model::ConnectModel> {
         if self.party.is_some() { self.connect_model.as_deref() } else { None }
     }
+    pub(crate) fn sign_in_key(&self) -> Option<jig_client::Key> {
+        let request = if let Some(page) = self.connect_model() { &page.request } else { &self.accounts()?.request };
+        Some(request.pending.as_ref()?.key)
+    }
     #[must_use]
     pub const fn welcome(&self) -> Option<&welcome::Welcome> {
         self.welcome.as_ref()

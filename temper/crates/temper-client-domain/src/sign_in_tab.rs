@@ -10,9 +10,7 @@ pub(crate) fn told(root: &mut Domain, told: &Told, out: &mut Queue<Request>) {
         return;
     }
     root.tab = None;
-    if let Some(page) = root.pages.connect_model()
-        && let Some(pending) = &page.request.pending
-        && pending.key == *key
+    if root.pages.sign_in_key() == Some(*key)
         && let Outcome::Answered(Answered::Jig(c::Answer::Done(c::Outcome::Document(
             c::DocumentOutcome::AccountSignInStarted { source, address },
         )))) = outcome

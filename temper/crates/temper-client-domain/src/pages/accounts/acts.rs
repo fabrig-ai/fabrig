@@ -125,6 +125,18 @@ impl Accounts {
         if operation.confirms() {
             self.request.confirm = Some((name, ask));
         } else {
+            match operation {
+                Operation::SignIn { provider } => out.push(Request::OpenTab { provider }),
+                Operation::SignOut { .. }
+                | Operation::AddKey { .. }
+                | Operation::ReplaceKey { .. }
+                | Operation::RemoveKey { .. }
+                | Operation::RemoveAccount
+                | Operation::Resume { .. }
+                | Operation::MoveAccount { .. }
+                | Operation::MoveSource { .. }
+                | Operation::CheckProgram { .. } => {}
+            }
             self.request.send(name, ask, operation.carries(), serial, out);
         }
     }
