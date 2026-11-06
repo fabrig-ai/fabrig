@@ -31,8 +31,8 @@ fn terminal(recording: &Path, trace: &Path) -> Result<(), Box<dyn Error>> {
     line.clear();
     input.read_line(&mut line)?;
     drop(input);
-    skein_shell::close_keeper_fd(skein_io::kernel::Fd::new(0));
-    skein_shell::close_keeper_fd(skein_io::kernel::Fd::new(1));
+    skein_shell::keeper::close_keeper_fd(skein_io::kernel::Fd::new(0));
+    skein_shell::keeper::close_keeper_fd(skein_io::kernel::Fd::new(1));
     std::io::stderr().write_all(b"tty stdio closed before leader exit\n")?;
     std::thread::sleep(std::time::Duration::from_millis(5));
     Ok(())

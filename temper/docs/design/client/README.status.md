@@ -85,6 +85,18 @@
   lists a tracked template with no conversation flag. So a fresh project offers no "+
   Draft", Drafts filter, "Start goal…" or rail's "Goal" until "Chats can write drafts"
   is turned on, as the journey `chat-draft` does first.
+- **Design departs:** 3.5, *A chat's conversation*, from the look request `chat-work` of
+  2026-11-06. A failed call's "1 failed" shares the description with the run's time, both
+  in the signal's colour, where the request adds ", 1 failed" alone in it, and a document's
+  write ends a run (`../draft/chat-reading.status.md`, 2); "Older" and its rule stay at both
+  conversations' heads, where the request removes them, as the one way to earlier lines
+  (`../draft/chat-reading.status.md`, 5): each decided by that plan's cut. The words being
+  written end in a faint, inline "▍" that does not blink, where the request's overlay draws
+  a block 7 px by 15 that blinks: the plan `chat-reading-a` set the mark, this request's
+  landing took it at a catch-up, and no reason is recorded. Its pages' line says "Read 7
+  docs, checked settings 3×" of calls that start with `settings`, where a phrase follows the
+  first call, so the gallery's reads "Checked settings 3×, read 7 docs"; and its 01 gives
+  the call under way an outcome, which a client is not given.
 - **Departs:** 5.14: a party whose `me` gives the project no creating bound still
   sees a chat's "Start goal…" (`temper-client-view`'s `pages/chat_sheet.rs`, `bar`),
   and a press opens nothing (`pages/start_goal.rs`, `open`;
@@ -126,10 +138,8 @@
   (`#app:has(> .temper-session) > .temper-accounts`), where the section draws
   them there, because the request `ui-phone` of 2026-11-05 has those pages whole
   at `100dvh`, which a banner above them would cut. With no usable account "No
-  model yet · Connect a model" still stands above the composer, but for a
-  configuring chat (`temper-client-view`'s `pages/chat.rs`, `main`), where nothing
-  then says why Send stays grey; and no line says there that the playground is
-  running or leaving. Seen by reading; no test holds it.
+  model yet · Connect a model" still stands above the composer; no line says there
+  that the playground is running or leaving. Seen by reading; no test holds it.
 - **Departs:** 3.6, *Closed ends on one line*: a requester-closed chat hides
   every "Decision made" activity line, where the section and the request
   `close-chat` of 2026-11-06 hide the closing's alone, because `Activity::Decided`
@@ -200,8 +210,8 @@
 - **Not yet:** 10: a walk from the sheet through planning, a live report and
   delegate tasks, Pause, Resume, a message and Stop, which the request
   `ui-goal-page` of 2026-11-05 asks of the browser tier and of a box. The
-  browser tier walks Goals' link to `/chats` and back alone
-  (`start_goal_opens_chats_for_a_draft`), and the fake box's walk reaches an
+  view holds Goals' link to `/chats` (`the_link_shows_with_a_tracked_template`),
+  and the fake box's walk reaches an
   ended goal's report from its Goals row, in the terminal's client
   (`a_chats_goal_on_the_fake_box_shows_its_report_in_the_goals_list`). The fake
   box's model (`temper-fake/src/backends.rs`, `model_document`) writes a report
@@ -282,6 +292,19 @@
   where the request has its title alone, and the row has none. A goal's counts
   search at most 8 pages for its own line and are then what the page holds, where
   the request has them true past one page (section 11, *A goal's own line*).
+- **Not yet:** 3.5, 4.6, 5.5: the walk the request `first-usable-model` of
+  2026-11-06 asks: none on record has a real box with one account, unedited, start
+  a chat that answers, or a box with no usable account say why it waits. A real
+  `temper program-login` needs a person's sign-in, so such a walk starts from a login
+  already signed in, or a key, and pastes the printed command only as far as the
+  program's prompt. No test runs that command through `temper program-login`:
+  `temper`'s `program_login/tests.rs` runs it by `sh -c` against a stub, so that it
+  reaches the sign-in for that box's `programs/NAME` is seen by reading.
+- **Design departs:** 5.5, *A run's wait*, from the request `first-usable-model` of
+  2026-11-06, decided by its plan's cut: a Chats row says "Starting" for a chat
+  that can't start, where the request has a run that isn't about to start say why,
+  because a row holds no run wait and its query carries no run's check per row
+  (jig's `client/domain/client.md`, 19.1). The chat's own page says why.
 - **Not yet:** 3.4, 5.5: the composer's
   supplied default, jig's
   `resolved_default`, which neither jig's `Me` nor temper carries. Until it

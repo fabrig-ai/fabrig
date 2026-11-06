@@ -388,7 +388,7 @@ fn serve(path: &Path) -> Result<Exit, String> {
         Ok(service) => service,
         Err(why) => {
             for fd in owned {
-                skein_shell::close_keeper_fd(fd);
+                skein_shell::keeper::close_keeper_fd(fd);
             }
             return Err(why);
         }
@@ -404,7 +404,7 @@ fn serve(path: &Path) -> Result<Exit, String> {
         Ok(kernel) => kernel,
         Err(why) => {
             for fd in owned {
-                skein_shell::close_keeper_fd(fd);
+                skein_shell::keeper::close_keeper_fd(fd);
             }
             return Err(why);
         }

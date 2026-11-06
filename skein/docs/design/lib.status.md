@@ -37,12 +37,4 @@
   `u64`'s or a signed count's, which can fail and are outside the rule. And
   136 lines of step code write `usize::try_from(..)` with no `.expect(..)` on
   the line, over a `u32` or a `u64`, `skein-kv`'s frames and snapshots among
-  them, which that item does not name and that form does not count. 12:
-  `skein/docs/foundation/programming-model.md`, 5.4
-  asks for one explicit state enum per lifecycle, each state holding
-  exactly its data, no lifecycle in flags or `Option`s beside it,
-  exhaustive matches and one handler per cell;
-  `skein-lib/src/requests.rs`'s `RequestTable` keeps `Entry`'s
-  `restored`, `save` and `changed` flags and its `progress` option
-  beside `state`, where section 12 gives them lifecycle states (the code's
-  side is `skein/docs/development/debt/D025-request-table-in-lib.md`).
+  them, which that item does not name and that form does not count.

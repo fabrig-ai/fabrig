@@ -579,7 +579,7 @@ fn account_holder(value: &w::AskAccountHolder) -> p::AccountHolder {
 fn account_change(value: &w::AccountChange) -> Result<p::AccountChange, Untranslatable> {
     Ok(match value {
         w::AccountChange::DeclareProgram(row) => {
-            if !p::program_name(row.name()) {
+            if jig_domain_link::SourceName::new(row.name()).is_none() {
                 return Err(Untranslatable { path: w::Path::AccountChangeDeclareProgramName });
             }
             p::AccountChange::DeclareProgram {

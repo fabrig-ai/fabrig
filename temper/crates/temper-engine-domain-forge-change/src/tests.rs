@@ -84,6 +84,7 @@ fn heard() -> Heard {
         spend: None,
         delegate: Status::Pending,
         delegate_running: false,
+        delegate_live: false,
         effect: EffectResult::None,
         released: false,
         cancelled: false,
@@ -113,6 +114,50 @@ fn an_agent_with_an_open_question_never_stalls() {
         assert_eq!(next.change.since, at(3600));
         assert_eq!(next.change.state, c.state);
     }
+}
+
+#[test]
+fn a_live_delegate_waits_another_stall_without_polling_faster() {
+    let mut f = facts();
+    f.branch = None;
+    f.pull = Pull::Missing;
+    let h = Heard { delegate_live: true, ..heard() };
+    for (state, early) in [
+        (State::Producing { requested: true }, Early::None),
+        (State::Producing { requested: true }, Early::Started(Box::new([StartedFrom { task: 11, head: HEAD }]))),
+        (State::Producing { requested: true }, Early::Spent(Box::new([StartedFrom { task: 11, head: HEAD }]))),
+        (State::Repairing { requested: true, why: Repair::Ci }, Early::None),
+        (State::Resolving { requested: true, base: BASE }, Early::None),
+    ] {
+        let mut c = change(state);
+        c.early = early;
+        let next = step(&c, &f, &h, at(3600), &LIMITS);
+        assert_eq!(next.decision, Decision::Wait { until: Some(at(3630)) });
+        assert_eq!(next.change.since, at(3600));
+        assert_eq!(next.change.state, c.state);
+    }
+}
+
+#[test]
+fn a_live_task_does_not_suspend_ci_or_gate_stalls() {
+    let mut f = facts();
+    f.ci.status = Status::Pending;
+    let h = Heard { delegate_live: true, ..heard() };
+    assert_eq!(
+        step(&change(State::Checking { head: HEAD }), &f, &h, at(3600), &LIMITS).decision,
+        Decision::Hold(Hold::Stalled)
+    );
+    f.ci.status = Status::Passed;
+    let mut c = change(State::Gating { head: HEAD, asked: Box::new([1]) });
+    c.gates = Box::new([Gate {
+        number: 1,
+        kind: GateKind::Agent,
+        blocking: true,
+        freshness: Freshness::Clean,
+        eager: false,
+    }]);
+    f.live_gate = Some(HEAD);
+    assert_eq!(step(&c, &f, &h, at(3600), &LIMITS).decision, Decision::Hold(Hold::Stalled));
 }
 
 #[test]

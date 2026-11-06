@@ -3737,3 +3737,65 @@ fn inherited_foreman_changes_share_the_call_task_room() {
         assert_eq!(member.authority.delegation.tasks, 12);
     }
 }
+
+fn idle_change_procedure() -> (super::Domain, skein_lib::Env<super::Limits>, u64) {
+    use super::tasks;
+    let (mut domain, env, task) =
+        crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: super::CHANGE_CODE });
+    let (_, _, step) = domain.core.tasks.procedure_due(task).expect("due procedure");
+    tasks::step(
+        &mut domain.core.tasks,
+        &env.with(env.limits.tasks),
+        tasks::Event::Procedure {
+            reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(9)),
+            read: None,
+            task,
+            step,
+            decision: tasks::ProcedureDecision::new(tasks::ProcedureEnd::Wait),
+        },
+        &mut skein_lib::Queue::uncapped(),
+    );
+    assert!(domain.core.tasks.procedure_due(task).is_none());
+    (domain, env, task)
+}
+
+#[test]
+fn a_hold_decided_while_its_procedure_is_not_due_still_holds_its_task() {
+    use super::{Work, forge_change, tasks};
+    let (mut domain, env, task) = idle_change_procedure();
+    super::change_decision(&mut domain, &env, task, forge_change::Decision::Hold(forge_change::Hold::Stalled));
+    let Some(Work::Tasks(event @ tasks::Event::Hold { task: held, why: tasks::Hold::Stalled })) = domain.work.pop()
+    else {
+        panic!("a hold must reach an idle procedure without another fenced step")
+    };
+    assert_eq!(held, task);
+    tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut skein_lib::Queue::uncapped());
+    let tasks::Phase::Held { why, .. } = domain.core.tasks.task(task).expect("held task").phase else {
+        panic!("idle procedure held")
+    };
+    assert_eq!(why, tasks::Hold::Stalled);
+}
+
+#[test]
+fn a_hold_decided_while_its_procedure_is_not_due_keeps_its_account() {
+    use super::{Work, forge_change, tasks};
+    let (mut domain, env, task) = idle_change_procedure();
+    super::change_decision(&mut domain, &env, task, forge_change::Decision::Hold(forge_change::Hold::Questions));
+    let Some(Work::Tasks(event @ tasks::Event::HoldFrom { .. })) = domain.work.pop() else {
+        panic!("an idle procedure's hold keeps its account")
+    };
+    tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut skein_lib::Queue::uncapped());
+    let tasks::Phase::Held { why: tasks::Hold::Procedure, source: Some(source), .. } =
+        &domain.core.tasks.task(task).expect("held task").phase
+    else {
+        panic!("accounted procedure hold")
+    };
+    assert_eq!(
+        source.as_ref(),
+        &tasks::HoldSource::Account {
+            connector: 0,
+            entry: None,
+            words: b"its questions are spent: 4 of 4 taken".as_slice().into(),
+        }
+    );
+}

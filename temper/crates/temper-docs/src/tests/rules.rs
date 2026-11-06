@@ -78,6 +78,19 @@ fn task_help_explains_refused_invalid_results() {
 }
 
 #[test]
+fn task_help_says_what_taken_by_and_waiting_on_print() {
+    let text = find(b"task").expect("task page").text.split_whitespace().collect::<Vec<_>>().join(" ");
+    for instruction in [
+        "**A person task** prints `taken by:` naming its holder, or `none`.",
+        "Once an answer has ended the task, `answered by:` takes its place.",
+        "A closing person task with no holder prints neither line.",
+        "For a held task that awaits nothing else, `waiting on:` prints `held`.",
+    ] {
+        assert!(text.contains(instruction), "task help must explain: {instruction}");
+    }
+}
+
+#[test]
 fn configuration_help_gives_the_merge_commands_contract() {
     let page = find(b"configuration").expect("configuration page").text;
     let text = page.split_whitespace().collect::<Vec<_>>().join(" ");

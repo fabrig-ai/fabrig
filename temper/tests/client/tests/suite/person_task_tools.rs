@@ -169,6 +169,9 @@ fn answer_choice(ctl: &mut Ctl, task: u64, key: &[u8]) {
     ctl.text(words);
     assert_eq!(ctl.front.assignments.len(), assignments, "keyed replay starts no new goal run");
     completed(ctl, task);
+    let shown = ctl.text(&[b"task", b"show", number.as_bytes()]);
+    assert!(shown.contains("answered by: you"), "answered task: {shown}");
+    assert!(!shown.contains("taken by:"), "answered task: {shown}");
 }
 fn completed(ctl: &mut Ctl, task: u64) {
     let driver = &ctl.front.engine;
