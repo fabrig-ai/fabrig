@@ -27,19 +27,19 @@ impl Machine {
         Self {
             printer: Printer::new(form, &limits),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-            above: Queue::with_capacity(printer::UP_MAX_OUT.above.max(printer::DOWN_MAX_OUT.above)),
-            below: Queue::with_capacity(printer::UP_MAX_OUT.below.max(printer::DOWN_MAX_OUT.below)),
+            above: Queue::uncapped(),
+            below: Queue::uncapped(),
         }
     }
     fn down(&mut self, request: Request) {
         printer::down(&mut self.printer, &self.env, request, &mut self.above, &mut self.below);
-        assert!(self.above.len() <= printer::DOWN_MAX_OUT.above, "down MAX_OUT above");
-        assert!(self.below.len() <= printer::DOWN_MAX_OUT.below, "down MAX_OUT below");
+        assert!(self.above.len() <= 1, "one event a down");
+        assert!(self.below.len() <= 1, "one request a down");
     }
     fn up(&mut self, event: Up) {
         printer::up(&mut self.printer, &self.env, event, &mut self.above, &mut self.below);
-        assert!(self.above.len() <= printer::UP_MAX_OUT.above, "up MAX_OUT above");
-        assert!(self.below.len() <= printer::UP_MAX_OUT.below, "up MAX_OUT below");
+        assert!(self.above.len() <= 1, "one event an up");
+        assert!(self.below.len() <= 2, "a piece, then the next demand");
     }
     fn print(&mut self, record: Record) -> Printed {
         self.down(Request::Print(record));
