@@ -119,9 +119,9 @@ fn another_oversized_file_is_refused_naming_it() {
     assert!(error.contains("TooLarge"), "{error}");
 }
 
-const FULL_BUNDLE_MODULE_BYTES: u64 = 16_777_216;
+const FULL_BUNDLE_MODULE_BYTES: u64 = 33_554_432;
 #[test]
-fn a_bundle_above_sixteen_mebibytes_is_refused() {
+fn a_bundle_above_thirty_two_mebibytes_is_refused() {
     let directory = scratch("oversized-bundle");
     fixture_bundle(&directory);
     let path = directory.join("0123456789abcdef/test_bg.wasm");
