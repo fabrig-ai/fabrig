@@ -234,9 +234,19 @@ fn configure_frame(me: &mut c::Me) {
 pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<Token>) {
     world_in_layout(w, address, then, false, None, None, false)
 }
+fn agent_work_task() -> c::Task {
+    let mut task = chat_work::task("chat-work-running");
+    task.label = 0;
+    task.flags.conversation = false;
+    task.chip.executor = c::ChipExecutor::Agent { charter: 3 };
+    task.chip.details.details.executor = c::Executor::Agent { charter: 3 };
+    task.chip.details.details.attempt = Some(1);
+    task.chip.details.details.run_since = Some(Wall::from_nanos(chat_work::AT));
+    task
+}
 pub(super) fn chat_work_world(name: &str) -> Domain {
-    let mut root =
-        world_in_layout(World::Bare, Address::Chat { task: 1 }, Then::Shown, false, Some(name), None, false).0;
+    let address = if name == "agent-work" { Address::Task { task: 1 } } else { Address::Chat { task: 1 } };
+    let mut root = world_in_layout(World::Bare, address, Then::Shown, false, Some(name), None, false).0;
     if name == "chat-work-reading" {
         step(
             &mut root,
@@ -289,6 +299,8 @@ fn world_in_layout(
     settings: Option<&str>,
     copies: bool,
 ) -> (Domain, Option<Token>) {
+    let agent_work = goals == Some("agent-work");
+    let goals = if agent_work { Some("chat-work-running") } else { goals };
     let configuring = configuring_chat || matches!(address, Address::Configure { .. });
     let connecting = matches!(
         address,
@@ -351,7 +363,9 @@ fn world_in_layout(
                         }
                         c::Subject::Inbox { window } => Some(c::Delivery::Inbox(Box::new(inbox_window(w, window)))),
                         c::Subject::Task { task: number } => {
-                            let mut task = if let Some(name) = goals.filter(|name| name.starts_with("chat-work-")) {
+                            let mut task = if agent_work {
+                                agent_work_task()
+                            } else if let Some(name) = goals.filter(|name| name.starts_with("chat-work-")) {
                                 chat_work::task(name)
                             } else {
                                 page_goal(goals)
@@ -372,6 +386,13 @@ fn world_in_layout(
                             }
                             Some(c::Delivery::Task(Box::new(task)))
                         }
+                        c::Subject::Tree { .. } if agent_work => Some(c::Delivery::Tree(Box::new(c::Tree {
+                            root: agent_work_task().chip,
+                            rows: List::with_capacity(0),
+                            folded: List::with_capacity(0),
+                            held_below: 0,
+                            next: None,
+                        }))),
                         c::Subject::Tree { task, window } => Some(
                             page_goal(goals)
                                 .filter(|g| g.facts.number == task)
@@ -4052,7 +4073,9 @@ fn adopt_owned_sample(root: &mut Domain, watch: Token, out: &mut Queue<Request>)
 /// Sample clocks keep the mock’s dates and relative ages (client/browser.md, 7.2).
 pub(super) fn sample_now(world: World, name: &str) -> Wall {
     match name {
-        name if name.starts_with("chat-work-") => Wall::from_nanos(chat_work::AT + 60_000_000_000),
+        name if name.starts_with("chat-work-") || name == "agent-work" => {
+            Wall::from_nanos(chat_work::AT + 60_000_000_000)
+        }
         "home-morning" | "home-away" | "home-away-one" | "home-away-overturned" => {
             Wall::from_nanos(1_792_483_440_000_000_000)
         }

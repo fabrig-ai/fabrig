@@ -1400,6 +1400,7 @@ from the engine's own answers, is where the look is tuned.
 | `chat-work-empty` | before the first word or call, the three dots |
 | `chat-work-reading` | earlier messages loading and Latest over the foot while away from the end |
 | `chat-working` | a live chat at work: its three dots |
+| `agent-work` | an agent's page, its last run running with a call under way, and Latest over the foot while away from the end |
 | `chat-change-running` | a chat with a delegated change running: its one line |
 | `chat-change-landed` | a chat with a delegated change landed: its one line with its result's words |
 | `chat-change-held` | the first run's chat T1 at step 2, its change held: its one line says so |
