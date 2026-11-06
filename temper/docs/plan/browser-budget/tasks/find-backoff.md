@@ -82,3 +82,16 @@ Landed or not, by the rule, with each arm's medians and load and each query coun
 fab may start this run before `window-story` merges, on what it has pushed. So, before any build or measurement, `git fetch origin` and merge `origin/browser-budget/window-story`, then read `temper/docs/plan/browser-budget/figures/window-story.md`: the repair is in when its after arm shows passing runs of all four stories, in place of `unobserved: joint script bound blocks after arm` (or when that branch is an ancestor of `origin/browser-budget/integration`). If it isn't in, fetch again every five minutes for up to thirty, building and measuring nothing. If it's still not in, stop with `Question: window-story's repair isn't pushed; resume after it`, changing nothing. Don't run the long story to find out.
 
 Once it's in, take all 24 comparison runs on that base, and merge again before pushing; if the merge changes `browser_pages.rs`, the tier's bundle or `face.rs`, measure again. In `figures/find-backoff.md`, keep the failed `A/1` row of `7485300d7b` as a run of the old base, counted in no median, and replace the rest of what's written there with the comparison and the decision by the rule above. The thresholds, the patch's figures and the *Steps* stay as they are.
+
+## Rebase (2026-11-06, step merge, foreman browser-budget/find-backoff/foreman-2)
+
+reconcile browser.status.md with integration’s public-history status and resolved window gap
+The merge conflicts only in `temper/docs/design/client/browser.status.md`.
+Merge the current integration into the task branch and resolve that file by preserving:
+- Main’s public-history limits paragraph and section 8.3 **Design departs** entry.
+- Main’s updated section 8.4 entry naming `public_board_and_task_lines_are_readable_at_desktop_and_phone_widths` and its pending runtime check.
+- The removal of section 4.3’s obsolete **Not yet: The tier’s window** entry.
+
+Integration commits `aeba68c39b` and `0268dac74c` already reconcile these entries; the latter’s file is the intended resolution against the refused tip.
+Keep `abcf3e0159`’s figures and decision that backoff does not pay; introduce no backoff code.
+This status reconciliation needs no new measurements. If merging also changes `browser_pages.rs`, the tier’s bundle or `face.rs`, follow the spec’s remeasurement requirement.
