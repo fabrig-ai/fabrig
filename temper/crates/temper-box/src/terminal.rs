@@ -51,7 +51,7 @@ pub struct Item {
     pub bytes: Box<[u8]>,
 }
 pub const PRELUDE: &[u8] = b"Open this link in a browser on this machine.\n\n";
-pub const FOOTER: &[u8] = b"\nIt signs you in as this temper's owner, once and for a short while.\nOpened again once spent, it prints a fresh one here.\n";
+pub const FOOTER: &[u8] = b"\nIt signs you in as this temper's owner, once, within 2 hours.\nOpened after that, it prints a fresh one here.\n";
 pub const FRESH: &[u8] = b"\n";
 pub const CTRL_C: &[u8] = b"Ctrl-C stops temper.\n";
 pub const REFUSAL: &[u8] = b"box: serve: sign-in link too long\n";
