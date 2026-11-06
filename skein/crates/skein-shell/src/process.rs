@@ -84,6 +84,11 @@ pub fn signal_kept_child(
     system::process::signal_child(pidfd, signal, to).map(|_| ())
 }
 
+/// Closes a descriptor opened at startup and never given to io (shell.md, 7.5).
+pub fn close_startup_fd(descriptor: Fd) {
+    system::process::close_keeper_fd(descriptor);
+}
+
 /// Closes an exclusively owned test keeper descriptor during cleanup.
 pub fn close_keeper_fd(descriptor: Fd) {
     system::process::close_keeper_fd(descriptor);

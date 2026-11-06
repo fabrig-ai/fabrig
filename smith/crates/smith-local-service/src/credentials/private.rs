@@ -1,5 +1,6 @@
 //! Private keeper requests, queued cancellation and owner settlement.
 use super::{Accounts, Origin, oauth};
+use skein_io::file_layer::step::down_until;
 use skein_io::{file, file_layer, kernel};
 use skein_lib::{Time, Token, Wall};
 
@@ -53,6 +54,7 @@ impl Accounts {
     }
 
     pub(super) fn private_files(&mut self, now: Time, wall: Wall) {
+        let env = self.file_env(now, wall);
         if !self.account_file_events_dispatched() || self.submissions.room() < 2 {
             return;
         }
@@ -72,13 +74,7 @@ impl Accounts {
                         return;
                     }
                     if self.files.takes() {
-                        file_layer::down_until(
-                            &mut self.files,
-                            deadline,
-                            request,
-                            &mut self.events,
-                            &mut self.submissions,
-                        );
+                        down_until(&mut self.files, &env, deadline, request, &mut self.events, &mut self.submissions);
                         return;
                     }
                     self.file_requests.push(oauth::FileLower::Request { request, deadline });
@@ -95,8 +91,9 @@ impl Accounts {
                     }
                     if self.files.takes() {
                         let root = self.files.descriptor(root).expect("private removal root");
-                        file_layer::down_until(
+                        down_until(
                             &mut self.files,
+                            &env,
                             deadline,
                             file::Request::Remove { owner, root, name, directory },
                             &mut self.events,

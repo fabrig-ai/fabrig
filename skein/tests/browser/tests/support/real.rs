@@ -451,7 +451,7 @@ impl Rig {
                 }
                 if let Some(deadline) = deadline.as_deref_mut()
                     && let Ok(Done::Spawned { pidfd, .. }) = &complete.result
-                    && let Some(pid) = skein_shell::child_id(*pidfd).ok().filter(|pid| *pid != 0)
+                    && let Some(pid) = skein_shell::keeper::child_id(*pidfd).ok().filter(|pid| *pid != 0)
                 {
                     deadline.watch_process(pid);
                 }

@@ -1,11 +1,12 @@
 //! Crate-local real-directory Store/FileIo adapter for the focused layout tests.
 //! No fake, Host, application trait or generic test framework is used.
+use skein_io::file_layer::step::down_until;
 use skein_io::{
     file,
-    file_layer::{self, FileIo},
+    file_layer::{self, FileIo, step},
     kernel::{Complete, Submit},
 };
-use skein_lib::{Duration, List, Queue, Token};
+use skein_lib::{Duration, Env, List, Queue, Token};
 use skein_scratch::Scratch;
 use skein_shell::{Backend, Clock, Config, Kernel, Wait};
 use skein_world::{Deadline, Expired};
@@ -94,6 +95,7 @@ pub struct Disk {
     store: Store,
     limits: StoreLimits,
     io: FileIo,
+    file_limits: file_layer::Limits,
     kernel: Kernel,
     clock: Clock,
     actions: Queue<Action>,
@@ -126,7 +128,10 @@ impl Disk {
             .checked_add(limits.deliveries)
             .and_then(|count| count.checked_add(4))
             .expect("tiny scan capacity");
-        let mut io = FileIo::with_whole_limit(4, limits.file_bytes, scan, limits.file_bytes, Duration::from_secs(30));
+        let timeout = Duration::from_secs(30);
+        let file_limits =
+            file_layer::Limits { files: 4, read: limits.file_bytes, entries: scan, whole: limits.file_bytes, timeout };
+        let mut io = FileIo::with_limits(&file_limits);
         io.seed_randomness(713);
         let root = io.adopt_root(fd).unwrap();
         let endpoints = endpoints();
@@ -135,6 +140,7 @@ impl Disk {
             scratch,
             store,
             io,
+            file_limits,
             limits,
             kernel: Kernel::open_on(Config { operations: 8 }, Backend::Readiness).expect("real readiness backend"),
             clock: Clock::new(),
@@ -158,14 +164,7 @@ impl Disk {
     pub fn reopen(&mut self) {
         self.close();
         let fd = skein_shell::open_root(self.path()).unwrap();
-        let scan = self
-            .limits
-            .turns
-            .checked_add(self.limits.deliveries)
-            .and_then(|count| count.checked_add(4))
-            .expect("tiny scan capacity");
-        self.io =
-            FileIo::with_whole_limit(4, self.limits.file_bytes, scan, self.limits.file_bytes, Duration::from_secs(30));
+        self.io = FileIo::with_limits(&self.file_limits);
         self.io.seed_randomness(714);
         let root = self.io.adopt_root(fd).unwrap();
         self.store = Store::new(Token::new(1), root, fd, self.limits, endpoints()).unwrap();
@@ -216,10 +215,12 @@ impl Disk {
                     Expired::Failed(figures) => panic!("a tiny Store operation settles promptly: {figures}"),
                 }
             }
-            let now = self.clock.now().now;
+            let clock = self.clock.now();
+            let now = clock.now;
+            let env = Env { now, wall: clock.wall, limits: self.file_limits };
             self.kernel.reap(&mut self.completions);
             while let Some(complete) = self.completions.pop() {
-                file_layer::up(&mut self.io, complete, &mut self.events, &mut self.submissions);
+                step::up(&mut self.io, &env, complete, &mut self.events, &mut self.submissions);
             }
             while let Some(event) = self.events.pop() {
                 if let file::Event::Opened { file, .. } = &event {
@@ -231,13 +232,7 @@ impl Disk {
                 match action {
                     Action::Io { request, deadline } => {
                         self.requests.push(kind(&request));
-                        file_layer::down_until(
-                            &mut self.io,
-                            deadline,
-                            request,
-                            &mut self.events,
-                            &mut self.submissions,
-                        );
+                        down_until(&mut self.io, &env, deadline, request, &mut self.events, &mut self.submissions);
                     }
                     Action::Domain(event) => {
                         assert!(self.actions.is_empty());
@@ -254,7 +249,7 @@ impl Disk {
                 }
             }
             if self.io.is_due(now) {
-                file_layer::expire(&mut self.io, now, &mut self.submissions);
+                step::expire(&mut self.io, &env, &mut self.submissions);
             }
             let wait = if self.events.is_empty() { Wait::Until(deadline.until()) } else { Wait::No };
             self.kernel.submit(&mut self.submissions, wait);

@@ -1,7 +1,7 @@
 //! The store through the real `io_uring` adapter and a scratch directory.
 
 use skein_io::file;
-use skein_io::file_layer::{self, FileIo};
+use skein_io::file_layer::{FileIo, Limits as FileLimits, step};
 use skein_io::kernel::{Complete, Submit};
 use skein_kv::{Event, Limits, Op, Page, Request, Store};
 use skein_lib::{Duration, Env, Queue, Time, Token};
@@ -30,6 +30,7 @@ struct World {
     kernel: Kernel,
     clock: Clock,
     io: FileIo,
+    file_limits: FileLimits,
     store: Store,
     limits: Limits,
     above: Queue<Event>,
@@ -43,10 +44,13 @@ struct World {
 impl World {
     fn new() -> Self {
         let limits = limits();
+        let Limits { chunk, deadline, .. } = limits;
+        let file_limits = FileLimits { files: 8, read: chunk, entries: 1024, whole: chunk, timeout: deadline };
         Self {
             kernel: Kernel::open(Config { operations: 32 }).expect("io_uring is available"),
             clock: Clock::new(),
-            io: FileIo::new(8, limits.chunk, 1024, limits.deadline),
+            io: FileIo::with_limits(&file_limits),
+            file_limits,
             store: Store::new(&limits),
             limits,
             above: Queue::with_capacity(128),
@@ -83,13 +87,14 @@ impl World {
     }
 
     fn step(&mut self, until: Time) {
-        if self.io.is_due(self.clock.now().now) {
-            file_layer::expire(&mut self.io, self.clock.now().now, &mut self.subs);
+        let env = self.clock.now().with(self.file_limits);
+        if self.io.is_due(env.now) {
+            step::expire(&mut self.io, &env, &mut self.subs);
         }
         if self.io.takes()
             && let Some(request) = self.below.pop()
         {
-            file_layer::down(&mut self.io, self.clock.now().now, request, &mut self.file_events, &mut self.subs);
+            step::down(&mut self.io, &env, request, &mut self.file_events, &mut self.subs);
         }
         if !self.subs.is_empty() {
             self.kernel.submit(&mut self.subs, Wait::No);
@@ -101,7 +106,7 @@ impl World {
             self.kernel.reap(&mut self.completes);
         }
         while let Some(complete) = self.completes.pop() {
-            file_layer::up(&mut self.io, complete, &mut self.file_events, &mut self.subs);
+            step::up(&mut self.io, &env, complete, &mut self.file_events, &mut self.subs);
         }
         while let Some(event) = self.file_events.pop() {
             let env = self.env();
@@ -114,7 +119,7 @@ impl World {
     }
 
     fn reset(&mut self) {
-        self.io = FileIo::new(8, self.limits.chunk, 1024, self.limits.deadline);
+        self.io = FileIo::with_limits(&self.file_limits);
         self.store = Store::new(&self.limits);
     }
 }

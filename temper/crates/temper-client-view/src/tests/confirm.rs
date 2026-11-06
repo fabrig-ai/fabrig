@@ -307,7 +307,7 @@ fn task_sheet(act: ActKind, goal: bool) -> temper_client_domain::Domain {
     task.acts = List::with_capacity(1);
     task.acts.push(c::Offered { act, admission: Admission::Allowed, effect: None }).unwrap();
     let mut root = fixtures::task::supplied_root(task, false);
-    press(&mut root, if act == ActKind::Stop { Act::Stop } else { Act::Close });
+    press(&mut root, Act::Close);
     root
 }
 fn close_root(stage: c::RunStage, below: u32, proposals: u32, delegates: bool) -> temper_client_domain::Domain {
@@ -376,15 +376,14 @@ fn restart_sheet() -> temper_client_domain::Domain {
 }
 type SheetRow = (Box<temper_client_domain::Domain>, &'static [u8], &'static [u8], &'static [u8]);
 // One row for each confirmation in client/README.md, 3.6.
-const SHEET_ROWS: usize = 8;
+const SHEET_ROWS: usize = 7;
 const TWO_ACTS: u32 = 2;
 fn sheet_rows() -> [SheetRow; SHEET_ROWS] {
     [
         (Box::new(close_root(c::RunStage::Idle, 0, 0, false)), b"Close this chat?", b"Keep it", b"Close chat"),
         (Box::new(restart_sheet()), b"Start over?", b"Keep going", b"Start over"),
-        (Box::new(task_sheet(ActKind::Cancel, true)), b"Stop this goal?", b"Keep going", b"Stop goal"),
-        (Box::new(task_sheet(ActKind::Cancel, false)), b"Cancel this task?", b"Keep it", b"Cancel task"),
-        (Box::new(task_sheet(ActKind::Stop, false)), b"Stop this task?", b"Keep going", b"Stop task"),
+        (Box::new(task_sheet(ActKind::Cancel, true)), b"Close this goal?", b"Keep it", b"Close goal"),
+        (Box::new(task_sheet(ActKind::Cancel, false)), b"Close this task?", b"Keep it", b"Close task"),
         (Box::new(proposal_sheet(ActKind::Accept)), b"Accept this proposal?", b"Not yet", b"Accept"),
         (Box::new(proposal_sheet(ActKind::Reject)), b"Reject this proposal?", b"Keep it", b"Reject"),
         (Box::new(release_sheet()), b"Release this task?", b"Keep it held", b"Release"),
