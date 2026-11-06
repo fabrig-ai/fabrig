@@ -2,7 +2,7 @@
 //! outside observations; the conformance harness owns the engine and store.
 #![forbid(unsafe_code)]
 use jig_conformance::scenarios::Scenario;
-use jig_conformance::{Application, Clock, Input, Output};
+use jig_conformance::{Application, Clock, Input, Output, core::peers};
 use jig_core_kit::Store;
 use jig_core_kit::conformance::Observer;
 use jig_core_kit::peers::Peers;
@@ -545,7 +545,7 @@ impl Application for Testing {
                     .map(Input::Event)
                     .collect(),
                 Delivery::Now(core::Now::Account(accounts::Request::Component(request))) => {
-                    jig_conformance::core::peers::account(request, Duration::from_secs(60))
+                    peers::account(request, Duration::from_secs(60))
                         .into_iter()
                         .map(|event| Input::Event(root::Event::Core(event)))
                         .collect()
@@ -688,11 +688,7 @@ impl Application for Testing {
                     rows,
                     more,
                 }))) => {
-                    events.push(Input::Event(root::Event::Core(jig_conformance::core::peers::notes_loaded(
-                        owner,
-                        rows.records,
-                        more,
-                    ))));
+                    events.push(Input::Event(root::Event::Core(peers::notes_loaded(owner, rows.records, more))));
                 }
                 Up::Root(event) => {
                     events.push(Input::Event(event));
@@ -712,14 +708,11 @@ impl Application for Testing {
                     budget: 1000,
                     next: None,
                 })));
-                events.push(Input::Event(root::Event::Core(core::Event::Account(accounts::Event::Component(
-                    accounts::FromComponent::Granted {
-                        form: accounts::Form::Credential(accounts::Scheme::Bearer),
-                        account: 1,
-                        generation: 1,
-                        valid: Duration::from_secs(60),
-                    },
-                )))));
+                events.extend(
+                    peers::account(accounts::ToComponent::Want { account: 1 }, Duration::from_secs(60))
+                        .into_iter()
+                        .map(|event| Input::Event(root::Event::Core(event))),
+                );
             }
             events.extend(peers.peers.tick(store, Time::from_nanos(clock.now)).into_iter().map(Input::Event));
         }

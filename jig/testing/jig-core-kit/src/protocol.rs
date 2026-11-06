@@ -95,15 +95,9 @@ impl Stand {
         answer: &core::SettingsAnswer,
     ) -> Option<root::Event> {
         let (_, tool) = self.calls.remove(&key)?;
-        let rendered = tools::settings_answer(answer);
-        Some(root::Event::CallAnswered {
-            to: ReplyTo::new(to),
-            call: core::SettledCall {
-                serial: 0,
-                tool,
-                answer: core::SettledAnswer::Host { error: rendered.error, body: rendered.text },
-            },
-        })
+        let (to, call) =
+            jig_conformance::core::peers::settled_answer(ReplyTo::new(to), tool, tools::settings_answer(answer));
+        Some(root::Event::CallAnswered { to, call })
     }
 
     pub fn answer(
@@ -115,12 +109,7 @@ impl Stand {
     ) -> Option<root::Event> {
         let to = ReplyTo::new(to);
         let (name, tool) = self.calls.remove(&key)?;
-        let rendered = tools::render(part);
-        let call = core::SettledCall {
-            serial: 0,
-            tool,
-            answer: core::SettledAnswer::Host { error: rendered.error, body: rendered.text },
-        };
+        let (to, call) = jig_conformance::core::peers::settled_answer(to, tool, tools::render(part));
         Some(if durable {
             root::Event::Core(core::Event::SettledCall { to, key, name, call })
         } else {
