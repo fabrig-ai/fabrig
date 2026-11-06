@@ -113,6 +113,7 @@ pub fn change_step_task_running(
             spend: None,
             delegate: heard,
             delegate_running,
+            delegate_live: false,
             effect: change::EffectResult::None,
             released,
             cancelled: false,

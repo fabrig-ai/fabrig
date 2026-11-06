@@ -108,7 +108,7 @@ fn rows() -> [(Command, &'static [&'static [u8]]); 18] {
         (Command::Clean, &[b"clean", b"-ffdxq"]),
         (Command::Merge { theirs: commit }, &[b"merge", b"--no-commit", b"--no-ff", b"--", ID]),
         (Command::Unmerged, &[b"diff-files", b"--name-only", b"-z", b"--diff-filter=U"]),
-        (Command::Add, &[b"add", b"--all"]),
+        (Command::Add, &[b"add", b"--all", b"--", b".", b":(exclude,glob)**/.*.log"]),
         (Command::DiffIndex { parent: commit }, &[b"diff-index", b"--cached", b"--quiet", ID, b"--"]),
         (Command::WriteTree, &[b"write-tree"]),
         (

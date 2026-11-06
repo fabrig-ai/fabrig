@@ -1242,6 +1242,9 @@ the application that needs it.
   field's words as it takes the focus. Each waits for an application that
   needs it; temper's rename draws without them
   (`temper/docs/design/client/README.md`, 11).
+- **A log's head near** (ui.md, section 18): the page part says when a
+  person has left a log's end (section 7), and nothing when its head nears
+  the view.
 - **The vocabulary that waits** (ui.md, 4.2), each with its row in
   section 6 when the light path brings it.
 - **Tabs of one person sharing one stream,** so that many tabs hold one
