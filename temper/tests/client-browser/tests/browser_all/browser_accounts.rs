@@ -69,10 +69,17 @@ impl skein_fake_person_browser::harness::Play for RoundTrip {
                 Step::Address(format!("/{path}").into_bytes().into_boxed_slice()),
                 Step::Back,
                 Step::Person(PersonStep::See {
+                    find: Find::exactly_named(Role::Heading { level: 1 }, b"Connect a model"),
+                    within: WITHIN,
+                }),
+                Step::Address(b"/accounts/connect".as_slice().into()),
+                Step::Back,
+                Step::Person(PersonStep::See {
                     find: Find::named(Role::Heading { level: 1 }, b"Talk to an agent"),
                     within: WITHIN,
                 }),
                 Step::Address(b"/chats".as_slice().into()),
+                Step::Forward,
                 Step::Forward,
                 Step::Person(PersonStep::See { find: Find::text(b"Signed in to Test provider"), within: WITHIN }),
                 Step::Address(format!("/{path}").into_bytes().into_boxed_slice()),
