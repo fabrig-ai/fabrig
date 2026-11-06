@@ -61,6 +61,7 @@ pub mod help;
 mod host;
 mod init;
 pub mod open;
+mod printed;
 mod program_login;
 mod restart_fault;
 mod setup;
@@ -491,14 +492,20 @@ fn prepare_with_limits(
         forges,
         Some(&checked),
         if under_box { Some(limits.line_bytes) } else { None },
-        std::env::current_exe()
-            .ok()
-            .and_then(|binary| program_login::line(directories, &binary))
-            .map(|line| line.into_bytes().into_boxed_slice()),
+        program_login::line(
+            directories,
+            &printed::running_word(&skein_shell::environment()),
+            skein_shell::environment()
+                .iter()
+                .find(|(name, _)| name.as_ref() == b"HOME")
+                .map(|(_, value)| value.as_ref()),
+        )
+        .map(|line| line.into_bytes().into_boxed_slice()),
         given,
         directories.program_environment(
             &skein_shell::environment(),
             std::env::current_dir().map_err(|why| why.to_string())?.as_os_str().as_bytes(),
+            &printed::running_word(&skein_shell::environment()),
         ),
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;

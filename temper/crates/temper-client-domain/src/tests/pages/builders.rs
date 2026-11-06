@@ -35,6 +35,7 @@ fn deployment_watch(out: &Queue<Request>) -> Option<Token> {
         | Request::Leave { .. }
         | Request::SignOut
         | Request::Dropped { .. }
+        | Request::Copy { .. }
         | Request::Fact { .. } => None,
     })
 }

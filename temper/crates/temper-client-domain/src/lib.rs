@@ -12,6 +12,7 @@ pub mod address;
 pub mod amend;
 pub mod authorize;
 pub mod boundary;
+pub mod copy;
 mod departure;
 pub mod domain;
 pub mod forge;
