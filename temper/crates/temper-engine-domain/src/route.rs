@@ -9,7 +9,7 @@ pub(crate) mod held;
 pub(crate) mod host_route;
 mod making;
 pub(crate) mod playground;
-pub use host_route::{ForgePerson, HostDelivery, HostRequest, ProjectPerson, RepositoryIdentity};
+pub use host_route::{ForgePerson, HostDelivery, HostRequest, OfferedModel, ProjectPerson, RepositoryIdentity};
 mod decided;
 mod goal;
 mod kinds;

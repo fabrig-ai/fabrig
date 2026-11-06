@@ -382,6 +382,7 @@ fn host_delivery(engine: &mut Engine, delivery: root::HostDelivery) {
             repositories,
             people,
             forge_people,
+            offer,
             application,
             from,
             requested,
@@ -395,6 +396,7 @@ fn host_delivery(engine: &mut Engine, delivery: root::HostDelivery) {
                 &repositories,
                 &people,
                 &forge_people,
+                &offer,
                 engine.env.limits.call_answer_bytes.saturating_sub(8),
             )
             .into_parts();

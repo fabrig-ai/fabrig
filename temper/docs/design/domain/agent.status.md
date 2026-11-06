@@ -15,7 +15,6 @@ Section 8.1 has no gap in note-backed whole settings proposals and decided-call 
 Section 8.1 has no gap in discovery of project repository identities for
 charter documents.
 
-- **Not yet:** 8.1: the inventory names no offer, and `configuring.txt` says nothing of which models it may name.
 - **Not yet:** 4.4: a verdict's follow-up tasks.
 - **Design departs:** 6, from the request `parallel-faults` of 2026-11-06, item 4, decided by its plan's cut: a run's local commits still don't reach its next run, and a fold on a saved start is still lost, where the request reports both as faults, because a delivery commits the tree on the worker's own record of the head (`../protocol/git.md`, 4.7), and its receipt names what it pushed. That a run's words name no commit off the branch is asked by the coding charter alone, since those names come from its own transcript or summary, not the host's resume words: nothing refuses such a word, and no walk on record has run a real model on the sentence.
 - **Not yet:** 8.1: the configuring agent's words have phrase assertions and scripted context coverage (`configuring_txt_speaks_the_persons_terms`, `temper-service/src/tests/stock.rs`): no walk on record has run a real model on them, so whether it answers in the person's terms, keeps back the `temper ctl` of the pages it reads, which still speak it, starts who approves from the person and says that nothing has changed once is unobserved. The request `configuring-words` of 2026-11-06 has that walk follow its landing.

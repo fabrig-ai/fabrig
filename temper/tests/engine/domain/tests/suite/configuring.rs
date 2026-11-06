@@ -320,6 +320,7 @@ fn an_inventory_names_its_own_projects_people() {
         "another project's person stays private: {inventory}"
     );
     let (_, people) = inventory.split_once("project people:\n").expect("project people block");
+    let (people, _) = people.split_once("models you can offer:").expect("offer follows people");
     assert_eq!(
         people,
         "  person 1 person: role 0, requester, forge user 7\n  person 4 member: role 2, forge user 8\n  person 5 temper-writer: role 2, forge user 1, temper's own forge writer: never counts as a person\n  person 7: role 2, forge user 2\nforge people:\n  forge forge.example:3847 configured owned-forge account box-person; project membership unverified by this row\n",
@@ -343,6 +344,213 @@ fn an_inventory_names_its_own_projects_people() {
     assert!(error);
     let text = std::str::from_utf8(&body).expect("not-read text");
     assert!(!text.contains("project people:") && !text.contains("forge people:"), "{text}");
+}
+
+// Keep the scripted run live while changing the accounts its inventory observes.
+fn remove_scripted_account(world: &mut World) {
+    let account = world
+        .driver
+        .store
+        .rows
+        .values()
+        .find_map(|record| {
+            if let engine::Record::Core(core::Record::Accounts(jig_domain_accounts::Stored::Account {
+                number,
+                provider: 1,
+                ..
+            })) = record
+            {
+                Some(*number)
+            } else {
+                None
+            }
+        })
+        .expect("scripted account");
+    world.ask(
+        world.owner,
+        31,
+        people::Ask::AccountChange {
+            holder: people::AccountHolder::Deployment,
+            change: people::AccountChange::Remove { account },
+        },
+    );
+    assert!(
+        matches!(world.reply(31), people::Reply::Outcome(people::Outcome::AccountRemoved { .. })),
+        "{:?}",
+        world.reply(31)
+    );
+}
+
+fn claude_offer_setup() -> (engine::Config, engine::Limits) {
+    use jig_domain_accounts as accounts;
+    use temper_engine_domain_world::walking;
+    let (mut config, mut bounds) = project_people_setup(temper_engine_domain_forge::Mode::Owned, b"ada");
+    bounds.accounts.accounts = 2; // Scripted key and the payer's Claude login.
+    bounds.accounts.holder_accounts = 2;
+    bounds.fleet.grants = bounds.accounts.credentials + bounds.accounts.accounts;
+    let mut models = config.core.settings.models.clone().into_vec();
+    // Cheap scripted models exercise the shipped names without a real provider or program.
+    for name in ["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1", "gpt-6.1-sol"] {
+        let mut model = walking::models()[0].clone();
+        model.name = name.as_bytes().into();
+        model.program = Some(b"claude_code".as_slice().into());
+        model.efforts = Box::new([b"low".as_slice().into(), b"high".as_slice().into()]);
+        model.effort = Some(b"high".as_slice().into());
+        models.push(model);
+    }
+    let mut providers = config.core.settings.llm_providers.providers.clone().into_vec();
+    for (number, name, names) in [
+        (2, "anthropic", vec!["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1"]),
+        (3, "openai", vec!["gpt-6.1-sol"]),
+    ] {
+        providers.push(accounts::Provider {
+            number,
+            name: name.as_bytes().into(),
+            signed_in_plan: true,
+            manage_usage: None,
+            models: names.iter().map(|name| name.as_bytes().into()).collect(),
+            offers: accounts::Offers {
+                sign_in: false,
+                key: false,
+                programs: Box::new([b"claude_code".as_slice().into()]),
+            },
+        });
+    }
+    // A setting keeps every configured alternative, even those the offer omits.
+    for charter in &mut config.core.defaults.charters {
+        charter.policy.alternatives = models[1..].into();
+    }
+    config.core.settings.models = models.into();
+    config.core.settings.llm_providers.providers = providers.into();
+    (config, bounds)
+}
+
+fn claude_offer_world() -> World {
+    use temper_engine_domain_world::protocol;
+    let (config, bounds) = claude_offer_setup();
+    let capabilities = config
+        .core
+        .settings
+        .models
+        .iter()
+        .map(|model| jig_domain_host::ModelBound {
+            name: model.name.clone(),
+            window: model.window,
+            output: model.output,
+        })
+        .collect();
+    let mut world = World::with_limits(config, &bounds);
+    world.ask(
+        world.owner,
+        30,
+        people::Ask::AccountChange {
+            holder: people::AccountHolder::Own,
+            change: people::AccountChange::DeclareProgram {
+                provider: 2,
+                join: None,
+                name: b"claude-login".as_slice().into(),
+            },
+        },
+    );
+    assert!(
+        matches!(world.reply(30), people::Reply::Outcome(people::Outcome::AccountProgramDeclared { .. })),
+        "{:?}",
+        world.reply(30)
+    );
+    world.driver.send(protocol::lost(CHANNEL));
+    world.driver.settle();
+    let mut greeting = protocol::hello_slots(CHANNEL, 3, Box::new([]));
+    let Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut greeting else {
+        panic!("hello")
+    };
+    hello.bounds.models = capabilities;
+    hello.bounds.program_endpoints = Box::new([1]);
+    hello.bounds.time = skein_lib::Duration::from_secs(28_800);
+    hello.bounds.turns = 800;
+    hello.bounds.message_bytes = bounds.tasks.message_bytes;
+    world.driver.send(greeting);
+    // The shared protocol queues an empty inventory; this worker answers its declared login.
+    let mut answered = false;
+    for _ in 0..200 {
+        // The direct world's settlement step bound.
+        for event in &mut world.driver.events {
+            if let Event::Worker(engine::WorkerInput::Link {
+                channel,
+                link: engine::Link::Up { up: jig_domain_host::LinkUp::Logins { logins }, .. },
+            }) = event
+            {
+                assert_eq!(*channel, CHANNEL);
+                *logins = Box::new([jig_domain_host::Login {
+                    name: jig_domain_host::SourceName::new(b"claude-login").expect("fake login name"),
+                    state: jig_domain_host::LoginState::Usable,
+                }]);
+                answered = true;
+            }
+        }
+        if answered {
+            break;
+        }
+        world.driver.advance(true);
+    }
+    assert!(answered, "the worker is asked for its program login inventory");
+    world.driver.settle();
+    world
+}
+
+#[test]
+fn an_inventory_names_the_payers_usable_claude_offer() {
+    use serde_json::json;
+    let mut world = claude_offer_world();
+    let run = world.chat(CONFIGURING, world.owner, 20);
+    remove_scripted_account(&mut world);
+    let (inventory, _) = read_whole(&mut world.driver, &run, 1, json!({}));
+    let (_, offer) = inventory.split_once("models you can offer:\n").expect("offer heading");
+    assert_eq!(
+        offer,
+        "  claude-opus-5-5: anthropic; efforts low, high; default high\n  claude-sonnet-5-5: anthropic; efforts low, high; default high\n  claude-fable-5-1: anthropic; efforts low, high; default high\n",
+        "{inventory}"
+    );
+    assert!(!inventory.contains("gpt-") && !inventory.contains("openai"), "{inventory}");
+}
+
+#[test]
+fn an_inventory_says_when_no_account_can_run_a_model() {
+    use serde_json::json;
+    let mut world = box_approval_world();
+    let run = world.chat(CONFIGURING, world.owner, 20);
+    remove_scripted_account(&mut world);
+    let (inventory, _) = read_whole(&mut world.driver, &run, 1, json!({}));
+    assert!(inventory.ends_with("models you can offer: none; no account can run a model yet\n"), "{inventory}");
+}
+
+#[test]
+fn settings_and_revision_reads_carry_no_model_offer() {
+    use serde_json::json;
+    let mut world = claude_offer_world();
+    let run = world.chat(CONFIGURING, world.owner, 20);
+    remove_scripted_account(&mut world);
+    for (completion, input) in [
+        (1, json!({"setting":{"kind":"charter","number":CONFIGURING}})),
+        (100, json!({"revision":1})),
+        (110, json!({"history":{}})),
+    ] {
+        let (text, _) = read_whole(&mut world.driver, &run, completion, input);
+        assert!(
+            !text.lines().any(|line| line.starts_with("models you can offer:")) && !text.contains("project people:"),
+            "{text}"
+        );
+        if completion == 1 {
+            assert!(text.contains("gpt-6.1-sol"), "a setting keeps its complete model list: {text}");
+        }
+    }
+}
+
+#[test]
+fn the_configuring_agent_speaks_from_the_inventory_offer() {
+    let mut world = box_approval_world();
+    let run = world.chat(CONFIGURING, world.owner, 20);
+    let instructions = std::str::from_utf8(&run.run.policy.instructions).expect("stock instructions");
+    assert!(instructions.contains("Inventory: models you can offer: all that accounts can run now. Propose and mention only those, even where a charter names others; where it names none, say no account can run a model yet, and to connect one."), "{instructions}");
 }
 
 #[test]
