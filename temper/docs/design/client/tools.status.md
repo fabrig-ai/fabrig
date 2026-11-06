@@ -4,6 +4,8 @@
 Unlisted sections have no known gap, including 6.3's watch-capacity
 diagnostic and deadline words, and 8.2's retry spans.
 
+- **Not yet:** 5.3, 6.2: `project amend --visibility public` says nothing of what
+  may show, in its help or its answer.
 - **Not yet:** 5.2: `task show`'s text says `deployment show` for a host's wait
   (`temper-client-tools`' `render/document/llm.rs`, `wait_explanation`), and ctl has
   no such tool until area 3's is built (5.5), so that line names a command that
