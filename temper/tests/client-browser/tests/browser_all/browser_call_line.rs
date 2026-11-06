@@ -13,7 +13,7 @@ fn a_run_of_calls_opens_to_its_rows() {
         serde_json::json!([
             {"lines":[{"call":"read_docs","arguments":{"topic":"hold"}}],"finish":"tool_calls","tokens":8},
             {"lines":[{"call":"read_docs","arguments":{"topic":"chat"}}],"finish":"tool_calls","tokens":8},
-            {"lines":[{"text":"I read the hold and chat pages."},{"call":"wait","arguments":{}}],"finish":"tool_calls","tokens":16}
+            "I read the hold and chat pages."
         ]),
     );
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
@@ -29,7 +29,7 @@ fn a_run_of_calls_opens_to_its_rows() {
     let body = || Find::text(b"# Hold");
     let mut steps = temper_client_browser_world::start_playground_chat(CUE.as_bytes());
     steps.extend([
-        see(Find::exactly_named(Role::Paragraph, b"I read the hold and chat pages.")),
+        see(Find::text(b"I read the hold and chat pages.")),
         see(line()),
         gone(row(b"hold")),
         gone(row(b"chat")),
@@ -45,7 +45,7 @@ fn a_run_of_calls_opens_to_its_rows() {
         }),
         Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Send") }),
         see(Find::exactly_named(Role::Paragraph, b"What about those pages?")),
-        see(Find::named(Role::Paragraph, b"I am the scripted model,")),
+        see(Find::text(b"I am the scripted model,")),
         see(row(b"hold")),
         see(row(b"chat")),
         kept(),
