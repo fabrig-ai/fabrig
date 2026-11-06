@@ -26,6 +26,8 @@ const HOLD_DUE: u64 = 5000;
 const SECOND_CHOICE: u64 = 1000;
 const SECOND_HOLD: u64 = 6000;
 const CHOICE: &[u8] = b"Use the first";
+// The four bytes in "past" are one beyond this reply bound.
+const REFUSED_REPLY_BOUND: u32 = 3;
 fn fixture() -> Pages {
     let mut pages = f::pages(FIRST, f::question());
     pages.inbox.as_mut().unwrap().cards.get_mut(0).unwrap().group = c::InboxGroup::Questions;
@@ -687,4 +689,116 @@ fn reply_past_choice_bound_is_held_whole_for_the_engine() {
     let (_, ask) = sent(&mut fire(&mut pages, HOLD_DUE));
     let c::Ask::Answer { on: c::AnswerOn::Question { words: sent, .. }, .. } = ask else { panic!("question reply") };
     assert_eq!(sent.bytes(), &*words);
+}
+
+#[test]
+fn a_choice_pressed_while_the_inbox_reads_again_is_held_and_sent() {
+    for filter in [
+        crate::address::Filter { project: Some(fixtures::PROJECT), ..crate::address::Filter::ALL },
+        crate::address::Filter::ALL,
+    ] {
+        let (mut root, watch) = fixtures::inbox_home(filter);
+        let rows = refresh_rows();
+        fixtures::inbox_entries(&mut root, watch, rows.clone());
+        if filter.project.is_some() {
+            let queries = root.pages().inbox().unwrap().queries;
+            for (index, handle) in queries.into_iter().enumerate() {
+                let rows = if index == 0 { rows.clone() } else { List::with_capacity(0) };
+                refresh_page(
+                    &mut root,
+                    handle,
+                    c::ReadValue::Inbox(Box::new(c::InboxPage {
+                        rows,
+                        cut: false,
+                        before: None,
+                        after: None,
+                        selection: None,
+                    })),
+                );
+            }
+        }
+        let handle = root.pages().inbox().unwrap().cards.get(0).unwrap().handle;
+        let mut question = f::question();
+        if let c::ReadValue::Question(question) = &mut question {
+            question.words = c::DocumentText::complete(f::text(b"Which?\nChoice: Use the first"));
+        }
+        refresh_page(&mut root, handle, question);
+        choose(&mut root.pages, 0, FIRST);
+        act(&mut root.pages, 0, Act::Undo { object: FIRST });
+        fixtures::inbox_entries(&mut root, watch, refresh_rows());
+        assert!(choose(&mut root.pages, 0, FIRST).is_empty());
+        assert!(root.pages().needs().held(FIRST), "choice during refresh at {filter:?}");
+        assert!(fire(&mut root.pages, BEFORE_HOLD).is_empty());
+        assert_eq!(sent(&mut fire(&mut root.pages, HOLD_DUE)).1, expected(FIRST, CHOICE, fixtures::PROJECT));
+        assert!(fire(&mut root.pages, SECOND_HOLD).is_empty());
+    }
+}
+fn refresh_rows() -> List<c::InboxEntry> {
+    let mut rows = List::with_capacity(1);
+    rows.push(fixtures::inbox_entry(FIRST, c::InboxGroup::Questions, fixtures::PROJECT, 1)).unwrap();
+    rows
+}
+fn refresh_page(root: &mut crate::Domain, handle: jig_client::Handle, value: c::ReadValue) {
+    crate::route::told(
+        root,
+        &fixtures::env(&fixtures::limits()),
+        Told::Page { handle, page: jig_client::Readout::Jig(c::ReadResult::Value(value)) },
+        &mut Queue::uncapped(),
+    );
+}
+
+#[test]
+fn later_reply_undo_choose_sends_the_choice_once() {
+    let mut pages = fixture();
+    act(&mut pages, 0, Act::Later { object: FIRST });
+    reply(&mut pages, b"Reply words");
+    act(&mut pages, SECOND_CHOICE, Act::Undo { object: FIRST });
+    choose(&mut pages, SECOND_CHOICE, FIRST);
+    // A late completion for an earlier send cannot take a new held line.
+    outcome(&mut pages, Key { asker: crate::owner::Owner::Pages.asker(), number: 1 }, Outcome::Lost);
+    assert!(fire(&mut pages, HOLD_DUE).is_empty());
+    assert!(pages.needs().held(FIRST));
+    assert_eq!(sent(&mut fire(&mut pages, SECOND_HOLD)).1, expected(FIRST, CHOICE, fixtures::PROJECT));
+    assert!(fire(&mut pages, SECOND_HOLD + HOLD_DUE).is_empty());
+}
+#[test]
+fn a_refused_bound_says_the_answer_was_not_sent() {
+    let mut cue = fixture();
+    act(&mut cue, 0, Act::Choose { object: FIRST, words: repeated(temper_client_protocol_wire::CUE_BYTES + 1, b"") });
+    let mut full = capacity_fixture();
+    for number in 0..CAPACITY {
+        choose(&mut full, 0, object(number));
+    }
+    choose(&mut full, 0, object(CAPACITY));
+    let mut reply = fixture();
+    reply.inbox.as_mut().unwrap().cards.get_mut(0).unwrap().words = Some(f::text(b"past"));
+    let mut limits = fixtures::limits();
+    limits.client.domain.text = REFUSED_REPLY_BOUND;
+    pages::step(
+        &mut reply,
+        &fixtures::env(&limits),
+        crate::unlinked(&limits, fixtures::SEED).client(),
+        pages::Event::Act { act: pages::Act::Needs(Act::SendReply { object: FIRST }) },
+        &mut Queue::uncapped(),
+    );
+    for (pages, object, count) in [
+        (&mut cue, FIRST, 0),
+        (&mut full, object(CAPACITY), usize::try_from(CAPACITY).unwrap()),
+        (&mut reply, FIRST, 0),
+    ] {
+        assert_eq!(lines(pages).len(), count);
+        assert!(!pages.needs().held(object));
+        assert_eq!(pages.needs().toast(), Some(&Toasted::NotSent));
+    }
+    assert!(fire(&mut cue, HOLD_DUE).is_empty());
+    assert!(fire(&mut reply, HOLD_DUE).is_empty());
+    let mut out = fire(&mut full, HOLD_DUE);
+    let mut sends = 0;
+    while let Some(request) = out.pop() {
+        if let Request::Client(jig_client::Event::Send { request: jig_client::Ask::Jig(ask), .. }) = request {
+            assert_ne!(*ask, expected(object(CAPACITY), CHOICE, fixtures::PROJECT));
+            sends += 1;
+        }
+    }
+    assert_eq!(sends, CAPACITY);
 }

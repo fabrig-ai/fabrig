@@ -5,8 +5,9 @@ use super::{
 };
 use crate::{Address, ModelWay, Step, WayKind};
 use alloc::boxed::Box;
-use jig_client::{Client, Told, contract as c};
+use jig_client::{Client, Handle, Link, Readable, Readout, Told, contract as c};
 use skein_lib::{Queue, RequestKey};
+use temper_client_protocol_wire::{self as wire, v1 as w};
 /// The welcome's "I've signed in" (client/README.md, 3.5, A way's page).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ProgramCheck {
@@ -21,7 +22,10 @@ pub enum ProgramCheck {
     NotYet,
 }
 #[derive(Debug)]
-#[expect(clippy::partial_pub_fields, reason = "the root sets the tab refusal; the view reads its accessor")]
+#[expect(
+    clippy::partial_pub_fields,
+    reason = "request state is public; the tab refusal and environment have read-only accessors"
+)]
 pub struct ConnectModel {
     pub holder: c::AskAccountHolder,
     pub check: ProgramCheck,
@@ -30,6 +34,9 @@ pub struct ConnectModel {
     /// Whether the scripted model was serving when this connection was sent.
     pub playground: bool,
     pub(crate) tab_refused: bool,
+    program_environment: Box<[u8]>,
+    environment_read: Option<Handle>,
+    environment_asked: bool,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Act {
@@ -132,6 +139,68 @@ pub fn way(pages: &Pages, client: &Client) -> Option<Way> {
     None
 }
 impl ConnectModel {
+    /// The owner's `program_environment`, empty until answered (temper/docs/design/client/README.md, 4.6).
+    #[must_use]
+    pub fn program_environment(&self) -> &[u8] {
+        &self.program_environment
+    }
+
+    pub(crate) fn read_environment(&mut self, address: &Address, link: Link, next: &mut u64, out: &mut Queue<Output>) {
+        let program = match chosen_way(address) {
+            Some(way) => way.kind == WayKind::Program,
+            None => false,
+        };
+        if !program || self.environment_asked || link != Link::Live {
+            return;
+        }
+        let handle = Handle { asker: crate::owner::Owner::Pages.asker(), number: *next };
+        *next = next.checked_add(1).expect("pages handles fit");
+        self.environment_read = Some(handle);
+        self.environment_asked = true;
+        let record = w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::ProgramEnvironment })
+            .expect("fieldless program environment read");
+        out.push(Output::Client(jig_client::Event::Read {
+            handle,
+            read: Readable::Family {
+                scope: c::Scope::Deployment,
+                window: c::Window { rows: 0, after: None },
+                record: jig_client::Family {
+                    family: wire::FORGE,
+                    version: wire::CLIENT_VERSION,
+                    bytes: wire::reading(&record),
+                },
+            },
+        }));
+    }
+    pub(crate) fn environment_told(&mut self, told: &Told) -> bool {
+        match told {
+            Told::Page { handle, page } if Some(*handle) == self.environment_read => {
+                self.environment_read = None;
+                self.program_environment = match page {
+                    Readout::Family { family, record: Some(record) } if *family == wire::FORGE => {
+                        match wire::decode_program_environment_answer(record, &w::CEILINGS) {
+                            Some(record) => record.into_parts().environment,
+                            None => Box::new([]),
+                        }
+                    }
+                    Readout::Family { .. } | Readout::NotServed { .. } | Readout::Limit | Readout::Jig(_) => {
+                        Box::new([])
+                    }
+                };
+                true
+            }
+            Told::Page { .. }
+            | Told::Link { .. }
+            | Told::Changed { .. }
+            | Told::Ended { .. }
+            | Told::Text { .. }
+            | Told::Pending { .. }
+            | Told::Answered { .. }
+            | Told::Kept { .. }
+            | Told::Dropped { .. } => false,
+        }
+    }
+
     /// Whether the shell refused this sign-in's tab (temper/docs/design/client/README.md, 3.5).
     #[must_use]
     pub const fn tab_refused(&self) -> bool {
@@ -463,6 +532,9 @@ impl Default for ConnectModel {
             request: Request::default(),
             playground: false,
             tab_refused: false,
+            program_environment: Box::new([]),
+            environment_read: None,
+            environment_asked: false,
         }
     }
 }
