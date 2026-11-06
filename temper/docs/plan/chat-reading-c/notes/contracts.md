@@ -53,3 +53,37 @@ pub enum Side { Earlier, Later }
 - **Client wire:** in `jig/crates/jig-client-protocol-wire/schema/`, `record ReadActivityBeside { task: u64 position: u64 side: ActivitySide }`, `enum ActivitySide { earlier, later }`, and `activity_beside: ReadActivityBeside` last in `enum Read`. Its answer is `ReadValue::activity`: an `ActivityPage`, no new value.
 - **The answer:** `Earlier`: rows just below `position`, newest first; `before` the usual older cursor, `after` none. `Later`: rows just above `position`, `after` some cursor when more remain above and none at the end, `before` none. The thread orders a page's rows itself. A `Later` page's `after` is a flag to the client: it reads on beside its newest line, and never gives that cursor back.
 - **Core:** `jig_domain_core::reads::Read::ActivityBeside { task, position, side: reads::Side }`: `Scope::Activity { task }`, `Range.after = Some(Position::Owner(Key::Tasks(Activity { task, position })))`, `Range.backwards = side == Earlier`, read with `activity{n}`'s access.
+
+## The thread's window (task `thread-window`)
+
+```rust
+// jig-client-domain/src/contract/documents.rs
+/// What a line weighs in a window: its bytes, and this for it and for each
+/// message, block, object and part it holds (client.md, section 10).
+pub const LINE_ROOM: u32 = 64;
+impl DecodedActivityLine { #[must_use] pub fn weight(&self) -> u64; }
+
+// jig-client/src/thread/window.rs
+pub enum Edge {
+    End,
+    More(Cursor),
+    /// The window let lines go at this end; they are read again beside the line next to it.
+    Dropped,
+}
+// Edges::reaches holds for Edge::End alone.
+
+// jig-client/src/thread.rs
+impl Thread {
+    /// `More(cursor)`: as today. `Dropped`: `ActivityBeside { position: oldest held, side: Earlier }`.
+    pub fn older(&mut self) -> Option<Read>;
+    /// `End`: `moved`. `More(_)` or `Dropped`: `ActivityBeside { position: newest held, side: Later }`.
+    pub fn newer(&mut self) -> Option<Read>;
+    /// The list's end again: `Read::Activity { before: None }`, whose page replaces the window.
+    pub fn latest(&mut self) -> Option<Read>;
+}
+pub struct Thread { /* as today, without `left` */ pub read_failed: Option<End> }
+```
+
+- `Line::Left` and `Thread.left` are gone. `thread::Limits` keeps its four fields: `lines` is the reference UI's and the tools', whose trees are priced by rows. temper's is `document_bytes / LINE_ROOM`, set by `chat-reads`, so that it never bites: the draft's own alternative ("or it grows far past what the bytes hold").
+- `Thread::lines()` holds no `Words` or `Provisional` line while `lines.edges` doesn't reach `End::Before`.
+- `reads` on `Thread` (`Reading::Older`, `Reading::Newer`, `Reading::Latest { known }`) keep their names. `latest` reads with `known: 0`, and `moved` still reads a new tail only while the window reaches it.
