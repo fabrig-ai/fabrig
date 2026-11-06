@@ -92,7 +92,15 @@ fn wait_cancelled(world: &mut World, change: u64, repair: u64) {
         }
     }
     let ended = ended(world, repair).expect("green head cancelled its repair");
-    assert!(matches!(ended.phase, tasks::Phase::Ended(tasks::Ending::Cancelled { .. })), "{:?}", ended.phase);
+    let tasks::Phase::Ended(tasks::Ending::Cancelled { reason, .. }) = &ended.phase else {
+        panic!("green head cancels its repair: {:?}", ended.phase);
+    };
+    let head = row(world, change).change.last_head.expect("observed change head");
+    let mut digits = String::new();
+    for byte in &head[..20] {
+        write!(&mut digits, "{byte:02x}").expect("head digits");
+    }
+    assert_eq!(reason.as_ref(), format!("CI passed at head {digits}").as_bytes());
     assert!(!matches!(row(world, change).change.state, State::Repairing { .. } | State::Held { .. }));
     assert_eq!(task(world, change).made, MADE);
     assert!(row(world, change).producer_failure.is_none());

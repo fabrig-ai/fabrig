@@ -1022,7 +1022,7 @@ pub fn forge_connection(row: &super::forges::Row) -> Box<[u8]> {
             (Some(Step::Fetch), Some(fetched)) => {
                 join_words(&[&forge_connection_bare(row), b" \xc2\xb7 ", &fetched_figure(fetched)])
             }
-            (Some(Step::Fetch), None) | (Some(Step::Prepare | Step::Run) | None, Some(_) | None) => {
+            (Some(Step::Fetch), None) | (Some(Step::Prepare | Step::Run | Step::Source) | None, Some(_) | None) => {
                 forge_connection_bare(row)
             }
         },
@@ -1065,6 +1065,7 @@ pub fn forge_connection_bare(row: &super::forges::Row) -> Box<[u8]> {
             (Some(Step::Fetch), None) => b"Setting up: fetching".as_slice(),
             (Some(Step::Prepare), Some(_) | None) => b"Setting up: preparing".as_slice(),
             (Some(Step::Run), Some(_) | None) => b"Setting up: starting".as_slice(),
+            (Some(Step::Source), Some(_) | None) => b"Setting up: connecting sign-in".as_slice(),
             (None, Some(_) | None) => b"Setting up".as_slice(),
         }),
         C::SetUpFailed { why, .. } => join_words(&[b"Set up failed: ", &lossy(why)]),

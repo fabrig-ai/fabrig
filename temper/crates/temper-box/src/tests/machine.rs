@@ -1592,6 +1592,54 @@ fn a_restored_owned_forge_announces_started_only_after_readiness() {
     assert!(take_facts(&mut out).is_empty(), "readiness is announced once");
 }
 
+#[test]
+fn a_restored_ready_forge_waits_for_its_final_source_outcome() {
+    use super::fixtures::{step, take_facts};
+    use crate::{
+        layout,
+        machine::{Machine, Said},
+        terminal::Fact,
+    };
+    use skein_lib::{Queue, Time};
+    use temper_forge_setup::{Group, Stage, Steps};
+    let steps = Steps {
+        always: Box::new([]),
+        asked: Box::new([Group {
+            kind: None,
+            remover: None,
+            forge: 37,
+            label: b"Forge 37".as_slice().into(),
+            recorded: true,
+            before: 0,
+            steps: Box::new([
+                (Stage::Run, step(b"forge", Kind::Long).with_ready(([127, 0, 0, 1], 3000).into())),
+                (Stage::Source, step(b"source", Kind::Once).ending_ignored()),
+            ]),
+        }]),
+    };
+    let mut machine = Machine::new(&limits::small(), &layout::flatten(steps)).unwrap();
+    let mut out = Queue::uncapped();
+    machine.start(Time::ZERO, &[37], &mut out);
+    take_effects(&mut out);
+    machine.input(Time::ZERO, Input::Started { step: 0 }, &mut out);
+    take_effects(&mut out);
+    machine.input(Time::ZERO, Input::Ready { step: 0 }, &mut out);
+    assert_eq!(
+        take_facts(&mut out).as_ref(),
+        &[Fact::Starting { step: 1 }],
+        "readiness starts the source without reporting the group started"
+    );
+    machine.input(Time::ZERO, Input::Ask { forge: 37 }, &mut out);
+    assert!(out.is_empty(), "a start request waits for the final source result");
+    machine.input(Time::ZERO, Input::Started { step: 1 }, &mut out);
+    machine.input(Time::ZERO, Input::Exited { step: 1, exit: Exit::Code(0) }, &mut out);
+    take_effects(&mut out);
+    machine.input(Time::ZERO, Input::Closed { step: 1 }, &mut out);
+    assert_eq!(out.pop(), Some(Order::Terminal { fact: Fact::GroupStarted { forge: 37 } }));
+    assert_eq!(out.pop(), Some(Order::Say { said: Said::Started { forge: 37 } }));
+    assert!(out.is_empty());
+}
+
 fn stopping_forgejo_spawn() -> Rig {
     let mut rig = Rig::new(&limits::small());
     rig.effects();
@@ -1883,4 +1931,64 @@ fn an_exited_fetch_is_not_relayed() {
     rig.started(0);
     rig.exited(0, Exit::Code(0));
     assert_eq!(rig.machine.relay(0), crate::machine::Relay::Exited);
+}
+
+fn ignored_source_ending(ending: Option<Exit>) {
+    use super::fixtures::step;
+    use crate::{
+        layout,
+        machine::{Machine, Said},
+    };
+    use skein_lib::{Queue, Time};
+    use temper_forge_setup::{Group, Stage, Steps};
+    let placed = layout::flatten(Steps {
+        always: Box::new([step(b"serve", Kind::Long)]),
+        asked: Box::new([Group {
+            kind: None,
+            remover: None,
+            label: b"Forge 9".as_slice().into(),
+            recorded: false,
+            forge: 9,
+            before: 0,
+            steps: Box::new([
+                (Stage::Run, step(b"forgejo", Kind::Long)),
+                (Stage::Run, step(b"source", Kind::Once).ending_ignored()),
+            ]),
+        }]),
+    });
+    let mut machine = Machine::new(&limits::small(), &placed).unwrap();
+    let mut out = Queue::uncapped();
+    machine.start(Time::ZERO, &[], &mut out);
+    machine.input(Time::ZERO, Input::Started { step: 2 }, &mut out);
+    machine.input(Time::ZERO, Input::Ask { forge: 9 }, &mut out);
+    machine.input(Time::ZERO, Input::Started { step: 0 }, &mut out);
+    take_effects(&mut out);
+    if let Some(exit) = ending {
+        machine.input(Time::ZERO, Input::Started { step: 1 }, &mut out);
+        machine.input(Time::ZERO, Input::Exited { step: 1, exit }, &mut out);
+        assert_eq!(pop_effect(&mut out), Some(Order::Close { step: 1 }));
+        machine.input(Time::ZERO, Input::Closed { step: 1 }, &mut out);
+    } else {
+        machine.input(Time::ZERO, Input::NotStarted { step: 1 }, &mut out);
+    }
+    assert_eq!(pop_effect(&mut out), Some(Order::Say { said: Said::Started { forge: 9 } }));
+    assert!(effects_empty(&out));
+    assert!(machine.outcome().is_none(), "the box keeps running");
+    machine.fire(Time::from_nanos(1_000_000_000), &mut out);
+    assert!(effects_empty(&out), "the source is never restarted");
+    machine.input(Time::ZERO, Input::Ask { forge: 9 }, &mut out);
+    assert_eq!(pop_effect(&mut out), Some(Order::Say { said: Said::Started { forge: 9 } }));
+    assert!(effects_empty(&out));
+}
+#[test]
+fn an_ignored_source_nonzero_exit_starts_the_group_and_keeps_the_box_running() {
+    ignored_source_ending(Some(Exit::Code(1)));
+}
+#[test]
+fn an_ignored_source_signal_starts_the_group_and_keeps_the_box_running() {
+    ignored_source_ending(Some(Exit::Signal(9)));
+}
+#[test]
+fn an_ignored_source_that_did_not_start_starts_the_group_and_keeps_the_box_running() {
+    ignored_source_ending(None);
 }

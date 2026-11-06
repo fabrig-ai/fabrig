@@ -1871,6 +1871,7 @@ fn runtime_config() -> fixtures::ConfiguredEngine {
     let setup::Mode::Owned(owned) = fixtures::owned_setup(2).entry.mode else { panic!("owned fixture") };
     config.machine = machine::Machine {
         owned: Some(machine::OwnedMachine {
+            sign_in: None,
             listen: owned.listen,
             remote: b"http://127.0.0.1:9".as_slice().into(),
             person: owned.person,

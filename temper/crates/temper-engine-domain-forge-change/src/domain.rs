@@ -1,8 +1,9 @@
 //! One level-triggered change step (domain/forge.md, section 8).
+//! Updates with no result or outstanding write decide again (temper/docs/design/domain/forge.md, 10).
 //!
 //! The top keeps the returned state and commits each decision before it sends
-//! a delegate or effect. Pending states make a repeated step wait. This policy
-//! never reads the forge or commits an outbox entry itself.
+//! a delegate or effect. The top reports Pending while a write is outstanding.
+//! This policy never reads the forge or commits an outbox entry itself.
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
 
@@ -216,7 +217,9 @@ fn advance_phase(
         State::CancellingGates { head } => cancelling_gates(next, *head, facts, now, limits),
         State::Queued { head, ready_since } => queued(next, *head, *ready_since, facts),
         State::First { head, ready_since } => first(next, *head, *ready_since, facts, now, limits),
-        State::Updating { from, base, ready_since: _ } => updating(next, *from, *base, facts, standing, now, limits),
+        State::Updating { from, base, ready_since } => {
+            updating(next, *from, *base, *ready_since, facts, standing, now, limits)
+        }
         State::Resolving { requested, base } => resolving(next, *requested, *base, facts, standing, now, limits),
         State::Repairing { requested, why } => repairing(next, *requested, *why, facts, standing, now, limits),
         State::Landing { head } => landing(next, *head, facts, standing, now, limits),
@@ -932,10 +935,12 @@ fn first(mut change: Change, head: [u8; 32], ready_since: Wall, facts: &Facts, n
     }
 }
 
+#[expect(clippy::too_many_arguments, reason = "the pending update keeps both heads and the ready time")]
 fn updating(
     mut change: Change,
     from: [u8; 32],
     base: [u8; 32],
+    ready_since: Wall,
     facts: &Facts,
     standing: &Heard,
     now: Wall,
@@ -949,22 +954,48 @@ fn updating(
             if head == from {
                 return waiting(change, now, limits);
             }
-            if change.clean.len() >= skein_lib::usize_of(limits.clean_heads) {
-                return hold(change, Hold::Updates);
-            }
-            let mut clean = List::with_capacity(limits.clean_heads);
-            for predecessor in &change.clean {
-                clean.push(*predecessor).expect("clean history admitted");
-            }
-            clean.push(from).expect("clean history has room");
-            change.clean = clean.into_boxed();
-            change.state = pushed(&change, head);
-            change.last_head = Some(head);
-            change.since = now;
-            Stepped { change, decision: Decision::None }
+            updated(change, from, head, now, limits)
         }
-        EffectResult::None | EffectResult::Pending => waiting(change, now, limits),
+        EffectResult::None => {
+            let Some(head) = facts.branch else { return waiting(change, now, limits) };
+            match facts.contains_base {
+                Status::Unknown | Status::Pending => waiting(change, now, limits),
+                Status::Failed => {
+                    if head == from {
+                        update_due(change, from, facts.base_tip, ready_since, now, limits)
+                    } else {
+                        hold(change, Hold::BranchMoved)
+                    }
+                }
+                Status::Passed => {
+                    if head != from {
+                        return updated(change, from, head, now, limits);
+                    }
+                    change.state = pushed(&change, head);
+                    change.last_head = Some(head);
+                    change.since = now;
+                    Stepped { change, decision: Decision::None }
+                }
+            }
+        }
+        EffectResult::Pending => waiting(change, now, limits),
     }
+}
+
+fn updated(mut change: Change, from: [u8; 32], head: [u8; 32], now: Wall, limits: &Limits) -> Stepped {
+    if change.clean.len() >= skein_lib::usize_of(limits.clean_heads) {
+        return hold(change, Hold::Updates);
+    }
+    let mut clean = List::with_capacity(limits.clean_heads);
+    for predecessor in &change.clean {
+        clean.push(*predecessor).expect("clean history admitted");
+    }
+    clean.push(from).expect("clean history has room");
+    change.clean = clean.into_boxed();
+    change.state = pushed(&change, head);
+    change.last_head = Some(head);
+    change.since = now;
+    Stepped { change, decision: Decision::None }
 }
 
 fn repair_due(mut change: Change, why: Repair, facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
@@ -1300,7 +1331,7 @@ fn pushed(change: &Change, head: [u8; 32]) -> State {
     }
 }
 
-fn ready(mut change: Change, head: [u8; 32], ready_since: Wall, facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
+fn ready(change: Change, head: [u8; 32], ready_since: Wall, facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
     if facts.branch != Some(head) {
         return hold(change, Hold::BranchMoved);
     }
@@ -1310,21 +1341,32 @@ fn ready(mut change: Change, head: [u8; 32], ready_since: Wall, facts: &Facts, n
             if head != expected {
                 return hold(change, Hold::BranchMoved);
             }
-            if change.updates >= limits.updates {
-                return hold(change, Hold::Updates);
-            }
-            change.updates = change.updates.checked_add(1).expect("update count below limit");
-            change.state = State::Preparing { from: head, main, ready_since };
-            change.since = now;
-            Stepped { change, decision: Decision::Effect(Effect::Prepare { head, main }) }
+            prepare_due(change, head, main, ready_since, now, limits)
         }
         Some(Ask::Repair { gate, candidate: _ }) => repair_due(change, Repair::Landing { gate }, facts, now, limits),
     }
 }
 
+fn prepare_due(
+    mut change: Change,
+    head: [u8; 32],
+    main: [u8; 32],
+    ready_since: Wall,
+    now: Wall,
+    limits: &Limits,
+) -> Stepped {
+    if change.updates >= limits.updates {
+        return hold(change, Hold::Updates);
+    }
+    change.updates = change.updates.checked_add(1).expect("update count below limit");
+    change.state = State::Preparing { from: head, main, ready_since };
+    change.since = now;
+    Stepped { change, decision: Decision::Effect(Effect::Prepare { head, main }) }
+}
+
 #[expect(clippy::too_many_arguments, reason = "the pending prepare keeps both heads and the ready time")]
 fn preparing(
-    mut change: Change,
+    change: Change,
     from: [u8; 32],
     main: [u8; 32],
     ready_since: Wall,
@@ -1336,29 +1378,53 @@ fn preparing(
     match standing.effect {
         EffectResult::Conflict => resolving_due(change, main, now, limits),
         EffectResult::Failed => hold(change, Hold::Failed),
-        EffectResult::Made => {
+        EffectResult::Made => prepared(change, from, main, ready_since, facts, now, limits),
+        EffectResult::None => {
             let Some(head) = facts.branch else { return waiting(change, now, limits) };
-            if facts.contains_base != Status::Passed || facts.base_tip != main {
-                return waiting(change, now, limits);
-            }
-            if head != from {
-                if change.clean.len() >= skein_lib::usize_of(limits.clean_heads) {
-                    return hold(change, Hold::Updates);
+            match facts.contains_base {
+                Status::Unknown | Status::Pending => waiting(change, now, limits),
+                Status::Failed => {
+                    if head == from {
+                        prepare_due(change, from, main, ready_since, now, limits)
+                    } else {
+                        hold(change, Hold::BranchMoved)
+                    }
                 }
-                let mut clean = List::with_capacity(limits.clean_heads);
-                for predecessor in &change.clean {
-                    clean.push(*predecessor).expect("clean history admitted");
-                }
-                clean.push(from).expect("clean history has room");
-                change.clean = clean.into_boxed();
+                Status::Passed => prepared(change, from, main, ready_since, facts, now, limits),
             }
-            change.last_head = Some(head);
-            change.ready_since = Some(ready_since);
-            change.since = now;
-            change.state = State::Gating { head, asked: Box::new([]) };
-            // Clean verdicts carry; exact verdicts are sought at the candidate (domain/landing.md, 3).
-            gating(change, head, &[], facts, now, limits)
         }
-        EffectResult::None | EffectResult::Pending => waiting(change, now, limits),
+        EffectResult::Pending => waiting(change, now, limits),
     }
+}
+
+fn prepared(
+    mut change: Change,
+    from: [u8; 32],
+    main: [u8; 32],
+    ready_since: Wall,
+    facts: &Facts,
+    now: Wall,
+    limits: &Limits,
+) -> Stepped {
+    let Some(head) = facts.branch else { return waiting(change, now, limits) };
+    if facts.contains_base != Status::Passed || facts.base_tip != main {
+        return waiting(change, now, limits);
+    }
+    if head != from {
+        if change.clean.len() >= skein_lib::usize_of(limits.clean_heads) {
+            return hold(change, Hold::Updates);
+        }
+        let mut clean = List::with_capacity(limits.clean_heads);
+        for predecessor in &change.clean {
+            clean.push(*predecessor).expect("clean history admitted");
+        }
+        clean.push(from).expect("clean history has room");
+        change.clean = clean.into_boxed();
+    }
+    change.last_head = Some(head);
+    change.ready_since = Some(ready_since);
+    change.since = now;
+    change.state = State::Gating { head, asked: Box::new([]) };
+    // Clean verdicts carry; exact verdicts are sought at the candidate (domain/landing.md, 3).
+    gating(change, head, &[], facts, now, limits)
 }

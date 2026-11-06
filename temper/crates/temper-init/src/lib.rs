@@ -30,6 +30,8 @@ pub struct Facts<'a> {
     pub ports: Ports,
     /// The effective uid's name in /etc/passwd, or none.
     pub login: Option<&'a [u8]>,
+    /// Whether the host made or found the provider key (sign-in.md, 9.9).
+    pub sign_in: bool,
 }
 
 /// What a bare document needs, without the box's parts (setup.md, 8.3).
