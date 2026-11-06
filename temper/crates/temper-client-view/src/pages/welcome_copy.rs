@@ -28,7 +28,6 @@ pub(super) fn block(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bi
             b.style(look::FLOW_QUIET);
             b.style(look::WELCOME_COPY);
             b.name(&w.say(word, &[]));
-            w.text(b, word, &[]);
             b.bind(to);
             b.close();
         }

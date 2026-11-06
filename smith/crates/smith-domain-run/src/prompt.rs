@@ -673,6 +673,7 @@ fn render_checkout(text: &mut Text, repositories: &[Directory], checks: &[u32], 
         }
     }
     let mut index: u32 = 0;
+    let mut merging = false;
     for Directory { name, host: _, root: _, writable, git, conflicts } in repositories {
         if repositories.len() == 1 {
             text.put(b"- The working directory");
@@ -684,6 +685,7 @@ fn render_checkout(text: &mut Text, repositories: &[Directory], checks: &[u32], 
         text.put(if *writable { b", which you may change" } else { b", which you may only read" });
         text.put(if *git { b", a git working tree" } else { b", a plain directory" });
         if !conflicts.is_empty() {
+            merging = true;
             text.put(b", with initial merge conflicts: ");
             for path in conflicts {
                 text.put(b"`");
@@ -698,6 +700,9 @@ fn render_checkout(text: &mut Text, repositories: &[Directory], checks: &[u32], 
         }
         text.put(b"\n");
         index = index.saturating_add(1);
+    }
+    if merging {
+        text.put(b"A directory with initial merge conflicts holds a merge in progress: `HEAD` is your work so far and `MERGE_HEAD` the tip the host merged into it. Every other staged file is what that merge brought in, not stray work: leave those files in place and restore nothing. Settle the files named; a delivery commits the whole tree as the merge, with both parents.\n");
     }
     text.host = false;
 }

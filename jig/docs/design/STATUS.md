@@ -41,7 +41,7 @@ where the `debt-24` request of 2026-11-05 has each named once, and the core's
 observer rebuilds its snapshot at each commit, where the `debt-25` request of
 2026-11-06 has it read the commit's rows (`domain/testing.md`).
 The code departs in a few single items (`README.md`, `client/domain/client.md`, `domain/engine.md`,
-`client/domain/contract.md`, `client/domain/testing.md`, `domain/hosts.md`, `domain/people.md`, `domain/root.md`, `domain/testing.md`,
+`client/domain/contract.md`, `client/domain/testing.md`, `client/domain/view.md`, `domain/hosts.md`, `domain/people.md`, `domain/root.md`, `domain/testing.md`,
 `protocol/README.md`, `protocol/browser.md`, `protocol/client.md`, `protocol/configuration.md`, `protocol/service.md`, `protocol/store.md`). `domain/core.md`,
 `domain/providers.md` and `client/domain/README.md` have no gap of their
 own. Its drafts: `draft/account-facts.md` says what a provider

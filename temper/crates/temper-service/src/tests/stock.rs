@@ -1048,6 +1048,19 @@ fn the_coders_words_explain_what_a_delivery_keeps() {
 }
 
 #[test]
+fn the_coders_words_say_what_a_resume_holds() {
+    let words = include_str!("../stock/coding.txt");
+    assert!(words.contains("After an answer, your head may be a commit titled Merge and an id: temper merged your landing branch's tip into your work before this run, so that tip's files belong there, and your earlier edits are in that head, so git status shows none of them."));
+    assert!(words.contains("Settle a merge's conflicts before you ask: a run that parks with a conflict marker left keeps none of that run's edits."));
+}
+
+#[test]
+fn the_foremans_words_keep_a_resumed_merge() {
+    let words = include_str!("../stock/foreman.txt");
+    assert!(words.contains("A producer going on after an answer may hold a merge of its landing branch's tip, committed as its head or, with conflicts, staged in progress: other tasks' files there are by design and its earlier edits are in its head, so never tell it to remove them or restore its tree."));
+}
+
+#[test]
 fn the_coders_words_wait_after_asking() {
     let engine = engine(&single_model());
     let stock = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
