@@ -1,0 +1,3 @@
+draft = "ui-model-line"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-model-line/inputs/request.md", "temper/crates/temper-client-view/src/choice.rs", "temper/docs/design/draft/model-catalogue.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
