@@ -1,5 +1,5 @@
-//! Add repositories: reads, selections and sends (temper/docs/design/client/README.md, 4.4 and
-//! 4.5; temper/docs/design/client/forge.md, 5.1).
+//! Add repositories: reads, selections and sends (temper/docs/design/client/README.md, 4.4,
+//! 4.5 and 4.6; temper/docs/design/client/forge.md, 5.1).
 use super::{
     Field, Limits, Request, Side, Typed,
     forges::{Connection, Kind, Mode, Row, State},
@@ -87,6 +87,10 @@ pub enum Act {
     Target(u16),
     UseIt { line: Box<[u8]> },
     AdoptIt { org: Box<[u8]>, name: Box<[u8]> },
+    CopyAgain { forge: u16, org: Box<[u8]>, name: Box<[u8]> },
+    AdoptAgain { forge: u16, org: Box<[u8]>, name: Box<[u8]> },
+    MakeAgain { forge: u16, org: Box<[u8]>, name: Box<[u8]> },
+    Dismiss { forge: u16, org: Box<[u8]>, name: Box<[u8]> },
     Send,
 }
 #[derive(Debug)]
@@ -278,7 +282,16 @@ pub fn shown<'a>(sheet: &'a Sheet, project: u32, rows: &State) -> List<Shown<'a>
             if let Some(row) = row(rows, sheet.forge) {
                 for making in &row.makings {
                     if making.org.as_ref() == reached.owner().login() && making.name.as_ref() == reached.name() {
-                        mark = Mark::Copying;
+                        let taken = match &making.state {
+                            w::MakingState::Failed(failed) => *failed.reason() == w::MakeFailure::Taken,
+                            w::MakingState::Waiting
+                            | w::MakingState::Making
+                            | w::MakingState::Made(_)
+                            | w::MakingState::Adopting(_) => false,
+                        };
+                        if !taken {
+                            mark = Mark::Copying;
+                        }
                     }
                 }
                 for repository in &row.repositories {
@@ -380,7 +393,13 @@ pub fn lines(sheet: &Sheet, rows: &State) -> List<super::making::Line> {
             }
             for making in &row.makings {
                 if making.org.as_ref() == org && making.name.as_ref() == name {
-                    return true;
+                    match &making.state {
+                        w::MakingState::Failed(_) => {}
+                        w::MakingState::Waiting
+                        | w::MakingState::Making
+                        | w::MakingState::Made(_)
+                        | w::MakingState::Adopting(_) => return true,
+                    }
                 }
             }
         }
@@ -467,6 +486,15 @@ fn matches_connection(connection: &Connection) -> bool {
 }
 
 pub(crate) fn progress(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
+    if let State::Rows(_) = &side.forges {
+        let mut kept = List::uncapped();
+        for dismissal in &side.sheet_dismissals {
+            if making(side, dismissal.forge, &dismissal.org, &dismissal.name).is_some() {
+                kept.push(dismissal.clone()).expect("uncapped dismissals");
+            }
+        }
+        side.sheet_dismissals = kept;
+    }
     let Some(sheet) = &mut side.sheet else { return };
     sheet.defaults(&side.forges);
     if let Some(form) = &mut side.form
@@ -508,6 +536,37 @@ fn read(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
 }
 #[expect(clippy::too_many_lines, reason = "the sheet contract lists its independent field acts in one dispatch")]
 pub(crate) fn act(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
+    match &act {
+        Act::Dismiss { forge, org, name } => {
+            dismiss(side, limits, *forge, org, name, out);
+            return;
+        }
+        Act::CopyAgain { forge, org, name }
+        | Act::AdoptAgain { forge, org, name }
+        | Act::MakeAgain { forge, org, name } => {
+            let Some(making) = making(side, *forge, org, name) else { return };
+            let Some(into) = &making.into else { return };
+            let w::MakingState::Failed(_) = making.state else { return };
+            let project = into.project();
+            side.sheet_again = Some(act);
+            out.push(Request::Show { address: super::Address::Adopt { project } });
+            return;
+        }
+        Act::Source(_)
+        | Act::Forge(_)
+        | Act::Installation(_)
+        | Act::Find(_)
+        | Act::Pick { .. }
+        | Act::NearEnd
+        | Act::NotListed { .. }
+        | Act::Org(_)
+        | Act::Name(_)
+        | Act::Addresses(_)
+        | Act::Target(_)
+        | Act::UseIt { .. }
+        | Act::AdoptIt { .. }
+        | Act::Send => {}
+    }
     let Some(sheet) = &mut side.sheet else { return };
     if let Some(form) = &side.form
         && form.pending.is_some()
@@ -515,6 +574,7 @@ pub(crate) fn act(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Req
         return;
     }
     match act {
+        Act::CopyAgain { .. } | Act::AdoptAgain { .. } | Act::MakeAgain { .. } | Act::Dismiss { .. } => return,
         Act::Send => {
             send(side, limits, out);
             return;
@@ -955,6 +1015,117 @@ pub(crate) fn made(
     side.changed();
 }
 
+/// A dismissal waits for the watch to remove the row; refusals belong to that row.
+#[derive(Clone, Debug)]
+pub struct Dismissal {
+    pub forge: u16,
+    pub org: Box<[u8]>,
+    pub name: Box<[u8]>,
+    pub pending: Option<Token>,
+    pub words: Option<Box<[u8]>>,
+}
+#[expect(clippy::manual_find, reason = "step code searches with a loop rather than a closure")]
+pub(crate) fn dismissal<'a>(side: &'a Side, forge: u16, org: &[u8], name: &[u8]) -> Option<&'a Dismissal> {
+    for dismissal in &side.sheet_dismissals {
+        if dismissal.forge == forge && dismissal.org.as_ref() == org && dismissal.name.as_ref() == name {
+            return Some(dismissal);
+        }
+    }
+    None
+}
+#[expect(clippy::manual_find, reason = "step code searches with a loop rather than a closure")]
+fn making<'a>(side: &'a Side, forge: u16, org: &[u8], name: &[u8]) -> Option<&'a super::making::Making> {
+    for making in &row(&side.forges, Some(forge))?.makings {
+        if making.org.as_ref() == org && making.name.as_ref() == name {
+            return Some(making);
+        }
+    }
+    None
+}
+fn dismiss(side: &mut Side, limits: Limits, forge: u16, org: &[u8], name: &[u8], out: &mut Queue<Request>) {
+    let Some(making) = making(side, forge, org, name) else { return };
+    let w::MakingState::Failed(_) = making.state else { return };
+    if let Some(dismissal) = dismissal(side, forge, org, name)
+        && dismissal.pending.is_some()
+    {
+        return;
+    }
+    let project = match &making.into {
+        Some(into) => Some(into.project()),
+        None => None,
+    };
+    let Some(bounds) = super::wire_limits(&limits) else { return };
+    let Some(record) = super::dismiss_making(forge, org, name, project, &bounds) else { return };
+    let scope = match project {
+        Some(project) => jig_client::contract::Scope::Project(project),
+        None => jig_client::contract::Scope::Deployment,
+    };
+    side.serial = side.serial.checked_add(1).expect("request serial fits");
+    let request = Token::new(side.serial);
+    let mut found = false;
+    for dismissal in side.sheet_dismissals.iter_mut() {
+        if dismissal.forge == forge && dismissal.org.as_ref() == org && dismissal.name.as_ref() == name {
+            dismissal.pending = Some(request);
+            dismissal.words = None;
+            found = true;
+        }
+    }
+    if !found {
+        side.sheet_dismissals
+            .push(Dismissal { forge, org: Box::from(org), name: Box::from(name), pending: Some(request), words: None })
+            .expect("uncapped dismissals");
+    }
+    out.push(Request::Send { request, name: None, ask: jig_client::Ask::Family { scope, record } });
+    side.changed();
+}
+pub(crate) fn again(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
+    let (forge, org, name, source) = match act {
+        Act::CopyAgain { forge, org, name } => (forge, org, name, Source::Copy),
+        Act::AdoptAgain { forge, org, name } => (forge, org, name, Source::Forge),
+        Act::MakeAgain { forge, org, name } => (forge, org, name, Source::Empty),
+        Act::Dismiss { .. }
+        | Act::Source(_)
+        | Act::Forge(_)
+        | Act::Installation(_)
+        | Act::Find(_)
+        | Act::Pick { .. }
+        | Act::NearEnd
+        | Act::NotListed { .. }
+        | Act::Org(_)
+        | Act::Name(_)
+        | Act::Addresses(_)
+        | Act::Target(_)
+        | Act::UseIt { .. }
+        | Act::AdoptIt { .. }
+        | Act::Send => return,
+    };
+    let Some(making) = making(side, forge, &org, &name).cloned() else { return };
+    let Some(sheet) = &mut side.sheet else { return };
+    let Some(into) = &making.into else { return };
+    if into.project() != sheet.project {
+        return;
+    }
+    sheet.source = source;
+    sheet.target = Some(forge);
+    sheet.forge = Some(forge);
+    sheet.installation = None;
+    sheet.reset();
+    match source {
+        Source::Copy => {
+            if let w::MakeFrom::Copy(copy) = making.from {
+                put(&mut sheet.addresses, Box::from(copy.address()), limits.field_bytes);
+            }
+        }
+        Source::Empty => {
+            put(&mut sheet.org, org, limits.field_bytes);
+            put(&mut sheet.name, name, limits.field_bytes);
+        }
+        Source::Forge => sheet.adopt_when_read = Some(Pick { id: 0, owner_id: 0, owner: org, name }),
+    }
+    read(side, limits, out);
+    side.changed();
+}
+
 /// Reads and making answers are decoded here before the adoption family's terminal.
 pub(crate) fn told(
     side: &mut Side,
@@ -963,7 +1134,6 @@ pub(crate) fn told(
     limits: Limits,
     out: &mut Queue<Request>,
 ) -> bool {
-    let Some(sheet) = &side.sheet else { return false };
     let (key, outcome) = match told {
         jig_client::Told::Answered { key, outcome } => (*key, Some(outcome)),
         jig_client::Told::Pending { key } => {
@@ -984,6 +1154,19 @@ pub(crate) fn told(
         | jig_client::Told::Page { .. } => return false,
     };
     let token = Token::new(key.number);
+    for dismissal in side.sheet_dismissals.iter_mut() {
+        if dismissal.pending == Some(token) {
+            dismissal.pending = None;
+            dismissal.words = match decode(outcome, limits) {
+                Some(w::Outcome::MakeKept) => None,
+                Some(value) => Some(super::words::sheet_outcome(&value)),
+                None => Some(Box::from(b"The forge did not answer.".as_slice())),
+            };
+            side.changed();
+            return true;
+        }
+    }
+    let Some(sheet) = &side.sheet else { return false };
     let reading = match sheet.reading {
         Reading::Asked { key, .. } => key == token,
         Reading::Idle | Reading::Refused(_) => false,

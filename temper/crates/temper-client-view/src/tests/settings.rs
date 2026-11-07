@@ -1027,7 +1027,7 @@ fn away_deliver(root: &mut d::Domain, watch: Token, row: Option<w::AwayRowParts>
         },
     );
 }
-fn away_send(root: &mut d::Domain, view: &mut crate::View, role: Role, name: &[u8]) -> (Token, w::SetAwayParts) {
+fn settings_send(root: &mut d::Domain, view: &mut crate::View, role: Role, name: &[u8]) -> Queue<d::Request> {
     let id = find(view.tree(), role, name);
     let event = crate::act_event(view, id, if role == Role::Check { Act::Toggle } else { Act::Press }).unwrap();
     let mut out = drive(root, event);
@@ -1035,6 +1035,10 @@ fn away_send(root: &mut d::Domain, view: &mut crate::View, role: Role, name: &[u
     while let Some(request) = stored.pop() {
         out.push(request);
     }
+    out
+}
+fn away_send(root: &mut d::Domain, view: &mut crate::View, role: Role, name: &[u8]) -> (Token, w::SetAwayParts) {
+    let out = settings_send(root, view, role, name);
     let sent: Vec<_> =
         out.iter()
             .filter_map(|request| {
@@ -1066,7 +1070,7 @@ fn away_send(root: &mut d::Domain, view: &mut crate::View, role: Role, name: &[u
     assert_eq!(sent.len(), 1);
     sent.into_iter().next().unwrap()
 }
-fn away_answer(root: &mut d::Domain, attempt: Token) {
+fn settings_answer(root: &mut d::Domain, attempt: Token, outcome: w::Outcome) {
     drive(
         root,
         d::Event::Client {
@@ -1079,13 +1083,16 @@ fn away_answer(root: &mut d::Domain, attempt: Token) {
                         family: f::FORGE,
                         version: temper_client_protocol_wire::CLIENT_VERSION,
                         bytes: temper_client_protocol_wire::answer(
-                            &w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: w::Outcome::Away }).unwrap(),
+                            &w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap(),
                         ),
                     })),
                 },
             },
         },
     );
+}
+fn away_answer(root: &mut d::Domain, attempt: Token) {
+    settings_answer(root, attempt, w::Outcome::Away);
 }
 fn drawn_choices(view: &crate::View, kinds: u8, until: &[u8]) {
     for (label, bit) in AWAY_KINDS {
@@ -1234,5 +1241,180 @@ fn away_controls_are_numbered_in_the_terminal() {
         (Role::Option, b"I turn it off".as_slice()),
     ] {
         assert!(controls.contains(&find(view.tree(), role, label)), "numbered {label:?}");
+    }
+}
+
+fn making_rows(copy: bool, state: w::MakingState) -> List<w::ForgeRow> {
+    let mut row = cf::row(3, w::Kind::Forgejo, w::Mode::Owned, cf::connected(), w::Offer::Offered).into_parts();
+    row.makings = List::with_capacity(3);
+    for project in [Some(f::PROJECT), Some(f::SECOND_PROJECT), None] {
+        row.makings
+            .push(
+                w::RepositoryMaking::new(
+                    &w::CEILINGS,
+                    w::RepositoryMakingParts {
+                        org: b"acme".as_slice().into(),
+                        name: if project == Some(f::PROJECT) {
+                            b"again".as_slice().into()
+                        } else {
+                            b"hidden".as_slice().into()
+                        },
+                        from: if copy {
+                            w::MakeFrom::Copy(
+                                w::MakeCopy::new(
+                                    &w::CEILINGS,
+                                    w::MakeCopyParts {
+                                        address: b"https://source.example/acme/again".as_slice().into(),
+                                    },
+                                )
+                                .unwrap(),
+                            )
+                        } else {
+                            w::MakeFrom::Empty
+                        },
+                        into: project.map(|project| {
+                            w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project, home: false }).unwrap()
+                        }),
+                        state: state.clone(),
+                    },
+                )
+                .unwrap(),
+            )
+            .unwrap();
+    }
+    let mut rows = List::with_capacity(1);
+    rows.push(w::ForgeRow::new(&w::CEILINGS, row).unwrap()).unwrap();
+    rows
+}
+fn failed(reason: w::MakeFailure) -> w::MakingState {
+    w::MakingState::Failed(
+        w::MakingFailed::new(
+            &w::CEILINGS,
+            w::MakingFailedParts {
+                step: w::MakeStep::Repository,
+                reason,
+                words: b"You can not import from disallowed hosts.".as_slice().into(),
+            },
+        )
+        .unwrap(),
+    )
+}
+#[test]
+fn making_rows_name_the_state_and_only_their_project() {
+    for (copy, state, expected) in [
+        (true, w::MakingState::Waiting, "Copying · Forgejo on this machine"),
+        (false, w::MakingState::Making, "Making · Forgejo on this machine"),
+        (true, failed(w::MakeFailure::Other), "Copy failed · Forgejo on this machine"),
+        (false, failed(w::MakeFailure::Other), "Make failed · Forgejo on this machine"),
+    ] {
+        let root = f::forge_root(repositories(), making_rows(copy, state));
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            assert_eq!(skein_ui::outline::check(view.tree()), None);
+            find(view.tree(), Role::Heading { level: 2 }, "Repositories · 0".as_bytes());
+            let rows = styled(view.tree(), look::SETTINGS_LINES);
+            let text = String::from_utf8_lossy(&f::nodes_text(rows)).into_owned();
+            assert!(text.contains("acme/again"));
+            assert!(text.contains(expected), "{text}");
+            assert!(!text.contains("hidden"));
+            assert!(!main(view.tree()).iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_QUIET_BAND)));
+        }
+    }
+}
+#[test]
+fn failed_rows_offer_their_retry_and_dismissal() {
+    use d::forge::sheet::Act as Sheet;
+    let forge = 3;
+    let org = b"acme".as_slice();
+    let name = b"again".as_slice();
+    for (copy, reason, label, expected) in [
+        (
+            true,
+            w::MakeFailure::Other,
+            b"Copy again".as_slice(),
+            Sheet::CopyAgain { forge, org: org.into(), name: name.into() },
+        ),
+        (
+            false,
+            w::MakeFailure::Other,
+            b"Make again".as_slice(),
+            Sheet::MakeAgain { forge, org: org.into(), name: name.into() },
+        ),
+        (
+            true,
+            w::MakeFailure::Taken,
+            b"Adopt it".as_slice(),
+            Sheet::AdoptAgain { forge, org: org.into(), name: name.into() },
+        ),
+    ] {
+        let root = f::forge_root(repositories(), making_rows(copy, failed(reason)));
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let row = styled(view.tree(), look::CONNECT_FAILED);
+            assert_eq!(row[0].role, Role::Slot);
+            assert!(
+                String::from_utf8_lossy(&f::nodes_text(row))
+                    .contains("Forgejo said: “You can not import from disallowed hosts.”")
+            );
+            let retry = find(view.tree(), Role::Button, label);
+            assert_eq!(node(view.tree(), retry).styles.as_slice(), &[look::CONNECT_QUIET]);
+            assert_eq!(
+                crate::act(&mut view, retry, Act::Press),
+                Some(d::Action::Forge(d::forge::Act::Sheet(expected.clone())))
+            );
+            let dismiss = find(view.tree(), Role::Button, b"Dismiss");
+            assert_eq!(
+                crate::act(&mut view, dismiss, Act::Press),
+                Some(d::Action::Forge(d::forge::Act::Sheet(Sheet::Dismiss {
+                    forge,
+                    org: org.into(),
+                    name: name.into()
+                })))
+            );
+        }
+    }
+}
+
+#[test]
+fn dismissal_refusals_stay_in_the_repository_row() {
+    let (mut root, watch) = f::forge_root_watch(repositories(), making_rows(true, failed(w::MakeFailure::Other)));
+    let mut view = f::page_view(&root);
+    let out = settings_send(&mut root, &mut view, Role::Button, b"Dismiss");
+    let attempt = out
+        .iter()
+        .find_map(|request| match request {
+            d::Request::Unlinked {
+                request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
+            } => Some(*attempt),
+            d::Request::KeepSignIn { .. }
+            | d::Request::Tab { .. }
+            | d::Request::Copy { .. }
+            | d::Request::Client { .. }
+            | d::Request::Unlinked { .. }
+            | d::Request::Show { .. }
+            | d::Request::Leave { .. }
+            | d::Request::SignOut
+            | d::Request::Dropped { .. }
+            | d::Request::Fact { .. } => None,
+        })
+        .unwrap();
+    let refused = w::MakeRefused::new(&w::CEILINGS, w::MakeRefusedParts { why: w::MakeRefusal::NotFailed }).unwrap();
+    settings_answer(&mut root, attempt, w::Outcome::MakeRefused(refused));
+    for state in [failed(w::MakeFailure::Other), w::MakingState::Making] {
+        let rows = making_rows(true, state);
+        let record = jig_client::Family {
+            family: f::FORGE,
+            version: temper_client_protocol_wire::CLIENT_VERSION,
+            bytes: temper_client_protocol_wire::forges(
+                &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).unwrap(),
+            ),
+        };
+        drive(
+            &mut root,
+            d::Event::Client { event: jig_client::Event::Up { up: jig_client::Up::FamilyDelivered { watch, record } } },
+        );
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let rows = styled(view.tree(), look::SETTINGS_LINES);
+            assert!(rows.iter().any(|node| node.role == Role::Alert
+                && node.name.as_deref() == Some(b"This repository is not a failed making.")));
+        }
     }
 }

@@ -571,7 +571,9 @@ fn world_in_layout(
                     let subject = match watching.watch() {
                         w::Watch::Forges => {
                             forge_watch = Some(watch);
-                            if copies {
+                            if settings == Some("repositories-making") {
+                                repositories_making_watched(&mut root, watch, &mut out);
+                            } else if copies {
                                 copies_watched(&mut root, watch, &mut out);
                             } else {
                                 forges_watched(&mut root, w, watch, &mut out);
@@ -716,6 +718,76 @@ fn first_run_ready(root: &mut Domain, w: World, forge_watch: Option<Token>, out:
 fn forges_watched(root: &mut Domain, world: World, watch: Token, out: &mut Queue<Request>) {
     use temper_client_protocol_wire as wire;
     let record = jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: forges(world) };
+    step(
+        root,
+        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::FamilyDelivered { watch, record } } },
+        out,
+    );
+}
+pub(super) fn repositories_making_world() -> Domain {
+    world_in_layout(
+        FirstRun { step: 7 },
+        Address::Repositories { project: PROJECT },
+        Then::Shown,
+        false,
+        None,
+        Some("repositories-making"),
+        false,
+    )
+    .0
+}
+fn repositories_making_watched(root: &mut Domain, watch: Token, out: &mut Queue<Request>) {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut rows =
+        wire::decode_forges(&forges(FirstRun { step: 7 }), &w::CEILINGS).expect("making forge").into_parts().forges;
+    let row = rows.get_mut(0).expect("owned forge");
+    let mut parts = home_copies(row.clone().into_parts(), "home-copying");
+    let mut makings = List::with_capacity(3);
+    for making in parts.makings.into_boxed() {
+        makings.push(making).expect("making fixture rows");
+    }
+    parts.makings = makings;
+    parts
+        .makings
+        .push(
+            w::RepositoryMaking::new(
+                &w::CEILINGS,
+                w::RepositoryMakingParts {
+                    org: b"octo".as_slice().into(),
+                    name: b"vsr".as_slice().into(),
+                    from: w::MakeFrom::Copy(
+                        w::MakeCopy::new(
+                            &w::CEILINGS,
+                            w::MakeCopyParts { address: b"https://github.com/octo/vsr".as_slice().into() },
+                        )
+                        .expect("failed source"),
+                    ),
+                    into: Some(
+                        w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project: PROJECT, home: false })
+                            .expect("failed project"),
+                    ),
+                    state: w::MakingState::Failed(
+                        w::MakingFailed::new(
+                            &w::CEILINGS,
+                            w::MakingFailedParts {
+                                step: w::MakeStep::Repository,
+                                reason: w::MakeFailure::NotAllowed,
+                                words: b"You can not import from disallowed hosts.".as_slice().into(),
+                            },
+                        )
+                        .expect("forge words"),
+                    ),
+                },
+            )
+            .expect("failed making"),
+        )
+        .expect("failed row room");
+    *row = w::ForgeRow::new(&w::CEILINGS, parts).expect("making fixture");
+    let record = jig_client::Family {
+        family: wire::FORGE,
+        version: wire::CLIENT_VERSION,
+        bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).expect("making rows")),
+    };
     step(
         root,
         Event::Client { event: jig_client::Event::Up { up: jig_client::Up::FamilyDelivered { watch, record } } },

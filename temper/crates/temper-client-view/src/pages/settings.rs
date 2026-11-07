@@ -536,7 +536,7 @@ pub(crate) fn repositories(
     main(b);
     open(b, root, w, bindings, project, Tab::Repositories);
     if !missing(b, root, w, bindings, project) {
-        repository_section(b, root, w, bindings, project, sign_in);
+        repository_section(b, root, w, bindings, project, sign_in, forge);
     }
     if let Address::Adopt { .. } = root.pages().address() {
         crate::forge::sheet::draw(b, root, w, bindings, forge, project);
@@ -544,6 +544,7 @@ pub(crate) fn repositories(
     b.close();
     b.close();
 }
+#[expect(clippy::too_many_lines, reason = "the section keeps adopted counts and making rows in one list")]
 fn repository_section(
     b: &mut Builder,
     root: &Domain,
@@ -551,6 +552,7 @@ fn repository_section(
     bindings: &mut Bindings,
     project: u32,
     sign_in: &crate::forge_sign_in::Forges,
+    forge: &mut ForgeBindings,
 ) {
     let playground = root.forge().playground();
     let own_playground = match playground {
@@ -589,7 +591,16 @@ fn repository_section(
     b.text(Run::Plain, &crate::forge::words::say(w, forge::words::Word::AddRepositories, &[]));
     b.close();
     b.close();
-    if known && count == 0 {
+    let mut has_makings = false;
+    for row in &rows {
+        for making in &row.makings {
+            has_makings |= match &making.into {
+                Some(into) => into.project() == project,
+                None => false,
+            };
+        }
+    }
+    if known && count == 0 && !has_makings {
         quiet_band(
             b,
             &w.say(Word::SettingsNoneTag, &[]),
@@ -633,7 +644,92 @@ fn repository_section(
                 }
             }
         }
+        for row in &rows {
+            for making in &row.makings {
+                if match &making.into {
+                    Some(into) => into.project() == project,
+                    None => false,
+                } {
+                    making_row(b, root, w, forge, row, making);
+                }
+            }
+        }
         b.close();
+    }
+    b.close();
+}
+fn making_row(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut ForgeBindings,
+    row: &forge::forges::Row,
+    making: &forge::making::Making,
+) {
+    use forge::{sheet::Act, words::Word};
+    use temper_client_protocol_wire::v1 as wire;
+    let failed = match &making.state {
+        wire::MakingState::Failed(failed) => Some(failed),
+        wire::MakingState::Waiting
+        | wire::MakingState::Making
+        | wire::MakingState::Made(_)
+        | wire::MakingState::Adopting(_) => None,
+    };
+    b.open(Role::Slot);
+    if failed.is_some() {
+        b.style(look::CONNECT_FAILED);
+    }
+    crate::cards::text(b, Role::Text, &forge::words::full_name(&making.org, &making.name));
+    let word = match (&making.from, failed.is_some()) {
+        (wire::MakeFrom::Copy(_), false) => Word::CopyingOn,
+        (wire::MakeFrom::Empty, false) => Word::MakingOn,
+        (wire::MakeFrom::Copy(_), true) => Word::CopyFailedOn,
+        (wire::MakeFrom::Empty, true) => Word::MakeFailedOn,
+    };
+    text(
+        b,
+        Role::Text,
+        &crate::forge::words::say(w, word, &[Hole::Name(crate::forge::connect::name(w, row, root))]),
+        look::SETTINGS_WHEN,
+    );
+    let dismissal = root.forge().making_dismissal(row.number, &making.org, &making.name);
+    if let Some(failed) = failed {
+        b.open(Role::Paragraph);
+        crate::forge::words::text(w, b, Word::ForgeSaid, &[Hole::Name(forge::words::lossy(failed.words()))]);
+        let forge = row.number;
+        let org = making.org.clone();
+        let name = making.name.clone();
+        let (word, act) = if *failed.reason() == wire::MakeFailure::Taken {
+            (Word::AdoptIt, Act::AdoptAgain { forge, org, name })
+        } else {
+            match &making.from {
+                wire::MakeFrom::Copy(_) => (Word::CopyAgain, Act::CopyAgain { forge, org, name }),
+                wire::MakeFrom::Empty => (Word::MakeAgain, Act::MakeAgain { forge, org, name }),
+            }
+        };
+        let busy = match dismissal {
+            Some(dismissal) => dismissal.pending.is_some(),
+            None => false,
+        };
+        for (word, act) in [
+            (word, act),
+            (Word::DismissMaking, Act::Dismiss { forge, org: making.org.clone(), name: making.name.clone() }),
+        ] {
+            b.open(Role::Button);
+            b.style(look::CONNECT_QUIET);
+            b.name(&crate::forge::words::say(w, word, &[]));
+            b.bind(bindings.insert(Meaning::Sheet(act)));
+            if busy {
+                b.state(State::Disabled);
+            }
+            b.close();
+        }
+        b.close();
+    }
+    if let Some(dismissal) = dismissal
+        && let Some(words) = &dismissal.words
+    {
+        crate::cards::text(b, Role::Alert, words);
     }
     b.close();
 }

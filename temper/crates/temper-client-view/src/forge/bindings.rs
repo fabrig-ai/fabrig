@@ -194,6 +194,10 @@ fn sheet_input(meaning: forge::sheet::Act, value: Box<[u8]>) -> Option<Action> {
         | forge::sheet::Act::Target(_)
         | forge::sheet::Act::UseIt { .. }
         | forge::sheet::Act::AdoptIt { .. }
+        | forge::sheet::Act::CopyAgain { .. }
+        | forge::sheet::Act::AdoptAgain { .. }
+        | forge::sheet::Act::MakeAgain { .. }
+        | forge::sheet::Act::Dismiss { .. }
         | forge::sheet::Act::Send => return None,
     };
     Some(Action::Forge(forge::Act::Sheet(act)))

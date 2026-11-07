@@ -2151,6 +2151,19 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "repositories-making",
+        heading: "What Hello works on.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Repositories · 0" },
+            Part::Named { role: Role::Text, name: "acme/other" },
+            Part::Named { role: Role::Text, name: "acme/widget" },
+            Part::Named { role: Role::Text, name: "octo/vsr" },
+            Part::Text { text: "Forgejo said: “You can not import from disallowed hosts.”" },
+            Part::Named { role: Role::Button, name: "Copy again" },
+            Part::Named { role: Role::Button, name: "Dismiss" },
+        ],
+    },
+    Holds {
         name: "repositories-none",
         heading: "What gallery works on.",
         parts: &[
