@@ -91,3 +91,15 @@ Acceptance:
 
 As the implementer's text says, and also: each scenario and what it asserts; the bundle's
 time; any row left out and why.
+
+## Answers
+
+### 2026-11-07: Assign a separate jig-domain-core repair to preserve prepared parts when a question arrives before claim (recommended), or revise row 6's contract to permit abandoning the preparation and backing off? (per-wake/story-1, foreman per-wake/story/foreman-1)
+
+Retain row 6’s contract; route the preparation defect to a separate jig-domain-core repair.
+The acceptance requires a question arriving between preparation and claim to be “kept from it and wakes the next.”
+`jig/docs/design/domain/tasks.md`, 8.6: “The parts are those its preparation chose … so a message that arrives between its preparation and its claim is offered or kept by them.”
+The ownership rule says: “A row that fails for a reason in jig's code, not the story, is not yours to fix.”
+The reported invalidation lies in `jig/crates/jig-domain-core/src/routing/task/save.rs` and `jig/crates/jig-domain-core/src/routing/run/preparation.rs`, outside this task’s files.
+The repair run preserves the prepared offering; the story run then completes row 6’s restart oracle and the remaining acceptance checks.
+This does not accept the story as done: its report explicitly says acceptance remains blocked.
