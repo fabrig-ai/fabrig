@@ -52,12 +52,7 @@ impl std::fmt::Debug for Process {
 }
 
 pub(crate) fn limits() -> io::Limits {
-    io::Limits {
-        intake: 4096,
-        receive: 4096,
-        output: 4096,
-        ..crate::list::limits()
-    }
+    io::Limits { intake: 4096, receive: 4096, output: 4096, ..crate::list::limits() }
 }
 
 /// Kernel ring size for the relay's I/O limits (smith/docs/design/protocol/programs.md, section 5.3).
