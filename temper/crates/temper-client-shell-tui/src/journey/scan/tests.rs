@@ -11,7 +11,8 @@ use temper_client_shell_web::journey::{Kind, Shape};
 
 #[test]
 fn codes_and_shapes_are_scanned_in_fields_and_turn_frames() {
-    let empty = Originals::new(Vec::new(), &[]);
+    // Short fake bytes keep both TUI link forms visible in one frame's row.
+    let empty = Originals::new(vec![(Kind::Link, Box::new([0; 4]))], &[]);
     let shown = b"WDJB-MJHT".as_slice();
     let browse = Line::Browse([b"http://127.0.0.1:8367/approve?code=".as_slice(), shown].concat().into());
     let codes = codes(&[browse]);
@@ -24,6 +25,8 @@ fn codes_and_shapes_are_scanned_in_fields_and_turn_frames() {
         ("known code prefix", b"code=WDJB-MJHTsuffix".as_slice(), Some(What::Shape(Shape::Code))),
         ("key", key.as_slice(), Some(What::Shape(Shape::Key))),
         ("bearer", bearer.as_slice(), Some(What::Shape(Shape::Bearer))),
+        ("link base64", b"AAAAAA".as_slice(), Some(What::Original)),
+        ("link decimal", b"[65, 65, 65, 65, 65, 65]".as_slice(), Some(What::Original)),
     ];
     let mut failures = Vec::new();
     if codes != vec![Box::<[u8]>::from(shown)] {

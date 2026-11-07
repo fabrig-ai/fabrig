@@ -127,6 +127,7 @@ fn each_original_is_replaced_and_scanned_in_each_field() {
             failures.push("form's framing".to_owned());
         }
     }
+    pasted_forms(&mut failures);
     // The host decodes the pasted URL's base64 into the wire's 32-byte secret.
     // Its recorded Typed event is the Debug print of the URL's byte vector.
     let mut world = World::new();
@@ -159,6 +160,54 @@ fn each_original_is_replaced_and_scanned_in_each_field() {
         failures.push("native pasted link: redaction is stale".to_owned());
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+fn pasted_forms(failures: &mut Vec<String>) {
+    let source = send(Sent::SignInLink(body(&[0; 32])), None);
+    let encoded = b"A".repeat(43);
+    let hidden = b"eHh4".repeat(10).into_iter().chain(b"eHg".iter().copied()).collect::<Vec<_>>();
+    let decimal = |bytes: &[u8]| {
+        bytes.iter().map(u8::to_string).collect::<Vec<_>>().join(", ").into_bytes()
+    };
+    for (name, before, after) in [
+        ("paste base64", encoded.clone(), hidden.clone()),
+        ("event decimal", [b"Typed { value: [".as_slice(), &decimal(&encoded), b"] }"].concat(),
+            [b"Typed { value: [".as_slice(), &decimal(&hidden), b"] }"].concat()),
+    ] {
+        let originals = originals(std::slice::from_ref(&source), &[]);
+        for (line, expected) in places(&before).into_iter().zip(places(&after)) {
+            let kind = line.kind();
+            let field_count = fields_mut(&mut line.clone()).len();
+            let redacted = redact(&written(&[source.clone(), line.clone()]), &[]).expect("encoded link");
+            let after = lines(&redacted.recording).expect("redacted link").pop().expect("target");
+            if after != expected || redacted.places != u32::try_from(field_count + 1).expect("places") {
+                failures.push(format!("{name} in {kind}: replacement or count"));
+            }
+            for (field, _) in fields_mut(&mut line.clone()) {
+                if scan_bytes(field, &[], &originals) != Some(crate::journey::What::Original) {
+                    failures.push(format!("{name} in {kind}: not scanned"));
+                }
+            }
+            for (field, _) in fields_mut(&mut after.clone()) {
+                if scan_bytes(field, &[], &originals).is_some() {
+                    failures.push(format!("{name} in {kind}: replacement refused"));
+                }
+            }
+        }
+    }
+    for (prefix, suffix, replace) in [
+        ("[", "]", true), ("[1, ", ", 2]", true),
+        ("[1", "]", false), ("[", "0]", false), ("", "", false),
+    ] {
+        let before = [prefix.as_bytes(), &decimal(&encoded), suffix.as_bytes()].concat();
+        let expected = [prefix.as_bytes(), &decimal(if replace { &hidden } else { &encoded }), suffix.as_bytes()].concat();
+        let redacted = redact(&written(&[source.clone(), Line::Signed(before.clone().into())]), &[]).expect("boundary");
+        if lines(&redacted.recording).expect("boundary lines").pop() != Some(Line::Signed(expected.into()))
+            || scan_bytes(&before, &[], &redacted.originals).is_some() != replace
+        {
+            failures.push("decimal element boundary".to_owned());
+        }
+    }
 }
 
 pub(in crate::journey) fn credential() -> Box<[u8]> {
