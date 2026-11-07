@@ -139,6 +139,22 @@ pub struct KindValue {
     pub value: forge::settings::SizedValue,
 }
 
+/// Whether a charter offers only the asking family's tools and optional settings
+/// (temper/docs/design/domain/agent.md, 4.3).
+#[must_use]
+pub fn asking(tools: jig_domain_tasks::Tools) -> bool {
+    let families = jig_domain_core::ToolFamilies::JIG;
+    tools.0 & families.ask.0 != 0 && tools.0 & !(families.ask.0 | families.settings) == 0
+}
+
+/// What a `document` call does with its body (temper/docs/design/domain/agent.md, 8.4.3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum DocumentAction {
+    Write,
+    Append,
+    Replace,
+}
+
 /// One typed engine tool request from the current worker claim
 /// (domain/root.md, sections 3 and 5.2). Later routes extend this vocabulary.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -149,6 +165,10 @@ pub enum Tool {
     ReadTask { task: u64, field: jig_domain_core::reads::TaskTextField, from: u64 },
     /// Read settings without retaining a named-call record.
     Settings { read: jig_domain_core::SettingsRead, from: u32 },
+    /// Read by one address line, from a byte offset of its answer (domain/agent.md, 8.4.1).
+    See { line: Box<[u8]>, from: u32 },
+    /// Write the chat's one document whole, or one section of it (domain/agent.md, 8.4.3).
+    Document { action: DocumentAction, body: Box<[u8]> },
     /// Propose whole settings to the deployment's owners.
     ProposeSettings {
         against: u32,

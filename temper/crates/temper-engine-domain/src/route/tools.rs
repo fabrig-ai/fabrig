@@ -70,13 +70,23 @@ pub(crate) fn relay_payload(
         }));
         return;
     }
-    match call_answer(domain, key) {
+    let reading = crate::translate::is_core_read(&body.tool);
+    let replay = if reading { None } else { call_answer(domain, key) };
+    match replay {
         Some(answer) => relay_call(domain, &env.limits, decision, reply_to, answer),
         None => {
             if let Some(kind) = tool_kind(&body.tool)
                 && let Some(part) = domain.core.authorize_tool(key, kind)
             {
-                domain.work.push(Work::Core(core::Event::NamedAnswer { to: reply_to, key, part }));
+                if reading {
+                    super::host_route::read(
+                        domain,
+                        reply_to,
+                        super::CallAnswer::from_core(&part).expect("core tool authorization answer"),
+                    );
+                } else {
+                    domain.work.push(Work::Core(core::Event::NamedAnswer { to: reply_to, key, part }));
+                }
                 return;
             }
             let tool = if let Tool::ReadNamed { repository, mut read } = body.tool {
@@ -111,6 +121,8 @@ pub(crate) fn relay_payload(
                 body.tool
             };
             match tool {
+                Tool::See { .. } => super::see::call(domain, reply_to),
+                Tool::Document { .. } => super::document::call(domain, reply_to),
                 Tool::Decided(call) => super::decided::call(domain, env, decision, reply_to, key, call),
                 Tool::ReadTask { .. } => unreachable!("task reads enter before replay"),
                 Tool::Settings { .. } => unreachable!("settings reads enter before replay"),

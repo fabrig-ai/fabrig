@@ -183,6 +183,7 @@ fn settings_tools_are_offered_only_with_the_runs_settings_family() {
 
 #[test]
 fn settings_tools_need_the_charters_family_too() {
+    type AskingNames = Option<&'static [&'static [u8]]>;
     let stock = 1_539;
     let mut assignment = assignment();
     assignment.run.policy.tools = tasks::Tools(512);
@@ -195,6 +196,68 @@ fn settings_tools_need_the_charters_family_too() {
         }
     }
     assert_eq!(offered.next(), None, "no settings or additional tools");
+    let timeout = Duration::from_secs(13);
+    let rows: [(u64, u64, AskingNames); 7] = [
+        (u64::MAX, u64::MAX, None),
+        (3_584, 3_584, None),
+        (3_072, 3_072, Some(&[b"see", b"document", b"propose_settings"])),
+        (2_048, 3_072, Some(&[b"see", b"document"])),
+        (3_072, 1_024, Some(&[b"propose_settings"])),
+        (1_023, u64::MAX, None),
+        (1_920, u64::MAX, None),
+    ];
+    for (charter, authority, asking_names) in rows {
+        let offered = crate::calls::tools_for(timeout, tasks::Tools(charter), tasks::Tools(authority));
+        for tool in &offered {
+            assert_eq!(tool.timeout, timeout);
+        }
+        if let Some(names) = asking_names {
+            assert_eq!(offered.len(), names.len(), "charter {charter}");
+            for (tool, name) in offered.iter().zip(names) {
+                assert_eq!(tool.name.as_ref(), *name, "charter {charter}");
+            }
+            for tool in &offered {
+                if tool.name.as_ref() == b"propose_settings" {
+                    let schema = crate::json::parse(&tool.schema).unwrap();
+                    let properties = schema.required(b"properties").unwrap();
+                    assert!(properties.field(b"note").unwrap().is_none());
+                    assert!(properties.field(b"more").unwrap().is_some());
+                    assert_eq!(
+                        schema.required(b"required").unwrap(),
+                        &crate::json::Value::Array(Box::new([
+                            crate::json::Value::String(b"against".as_slice().into()),
+                            crate::json::Value::String(b"reason".as_slice().into()),
+                            crate::json::Value::String(b"items".as_slice().into()),
+                        ]))
+                    );
+                }
+            }
+        } else {
+            let expected = crate::calls::tools_for(
+                timeout,
+                engine::RunPolicy::EVERY_FAMILY,
+                tasks::Tools(authority & if charter & 1_024 == 0 { !1_024 } else { u64::MAX }),
+            );
+            assert_eq!(offered, expected, "unchanged declarations for charter {charter}");
+            let mut proposal = false;
+            for tool in &offered {
+                assert!(tool.name.as_ref() != b"see" && tool.name.as_ref() != b"document");
+                if tool.name.as_ref() == b"propose_settings" {
+                    proposal = true;
+                    assert!(
+                        crate::json::parse(&tool.schema)
+                            .unwrap()
+                            .required(b"properties")
+                            .unwrap()
+                            .field(b"note")
+                            .unwrap()
+                            .is_some()
+                    );
+                }
+            }
+            assert_eq!(proposal, charter & authority & 1_024 != 0);
+        }
+    }
 }
 
 #[test]
@@ -449,6 +512,8 @@ fn message_schema_decodes_a_named_question_and_rejects_a_malformed_body() {
 
 fn tool_cases() -> &'static [(&'static [u8], &'static [u8], &'static [u8])] {
     &[
+        (b"see", br#"{"address":" settings charter 3 "}"#, br#"{"address":3}"#),
+        (b"document", br##"{"action":"write","body":"# Title"}"##, br#"{"action":"unknown","body":""}"#),
         (b"settings", br"{}", br#"{"from":-1}"#),
         (b"read_task", br#"{"task":23}"#, br#"{"task":0}"#),
         (b"propose_settings", br#"{"against":1,"items":[],"reason":"why"}"#, br#"{"against":0,"items":[],"reason":"why"}"#),
@@ -558,6 +623,47 @@ fn a_note_without_first_decodes_as_today() {
 
 #[test]
 fn every_declared_tool_decodes_its_minimum_shape_and_rejects_a_wrong_shape() {
+    assert_eq!(
+        decided(b"see", br#"{"address":" settings charter 3 "}"#).unwrap().tool,
+        engine::Tool::See { line: b"settings charter 3".as_slice().into(), from: 0 }
+    );
+    for (length, valid) in [(0, false), (512, true), (513, false)] {
+        let input = format!(r#"{{"address":"{}"}}"#, "x".repeat(length));
+        match decoded(b"see", input.as_bytes()).unwrap() {
+            crate::Decoded::Call(_) => assert!(valid, "address {length}"),
+            crate::Decoded::Answered(answer) => {
+                assert!(!valid, "address {length}");
+                assert!(answer.error());
+                assert!(skein_lib::bytes::find(answer.text(), b"512").is_some());
+            }
+        }
+    }
+    for (action, expected) in [
+        ("write", engine::DocumentAction::Write),
+        ("append", engine::DocumentAction::Append),
+        ("replace", engine::DocumentAction::Replace),
+    ] {
+        let input = format!(r###"{{"action":"{action}","body":"## Section"}}"###);
+        assert_eq!(
+            decided(b"document", input.as_bytes()).unwrap().tool,
+            engine::Tool::Document { action: expected, body: b"## Section".as_slice().into() }
+        );
+    }
+    for (more, answered) in [("true", true), ("false", false)] {
+        let input = format!(r#"{{"against":1,"items":[],"reason":"why","more":{more}}}"#);
+        match decoded(b"propose_settings", input.as_bytes()).unwrap() {
+            crate::Decoded::Answered(answer) => {
+                assert!(answered);
+                assert!(answer.error());
+                assert_eq!(answer.text(), b"propose_settings: more is not taken yet; give the whole set in one call.");
+            }
+            crate::Decoded::Call(call) => {
+                assert!(!answered);
+                assert_eq!(call, decided(b"propose_settings", br#"{"against":1,"items":[],"reason":"why"}"#).unwrap());
+            }
+        }
+    }
+
     let cases = tool_cases();
     let declared = tools(Duration::from_secs(10));
     assert_eq!(declared.len(), cases.len());

@@ -107,7 +107,18 @@ pub(crate) fn proposal(
     configured: &[s::CatalogueModel],
 ) -> Result<Decoded, Problem> {
     let value = crate::json::parse(bytes)?;
-    only(&value, &[b"against", b"items", b"note", b"reason"], b"propose_settings")?;
+    only(&value, &[b"against", b"items", b"note", b"reason", b"more"], b"propose_settings")?;
+    if let Some(more) = value.field(b"more")?
+        && more.boolean(b"more")?
+    {
+        return Ok(Decoded::Answered(
+            run::HostAnswer::new(
+                b"propose_settings: more is not taken yet; give the whole set in one call.".as_slice().into(),
+                true,
+            )
+            .ok_or(Problem::TooLarge)?,
+        ));
+    }
     let against = positive(value.required(b"against")?, b"against")?;
     let reason = value.required(b"reason")?.text(b"reason")?;
     if let Some(note) = value.field(b"note")? {
@@ -132,8 +143,60 @@ pub(crate) fn proposal(
     }
     value.required(b"items")?;
     let limits = settings_form::Limits::standard();
+    let normalized;
+    let bytes = if value.field(b"more")?.is_some() {
+        normalized = proposal_without_more(bytes)?;
+        normalized.as_ref()
+    } else {
+        bytes
+    };
     let items = settings_form::file::proposal_items(bytes, &limits);
     proposal_items(name.completion, name.position, against, reason, items, configured)
+}
+
+// The shared settings-file parser takes no batching member. A false more
+// carries the same whole proposal, with that member removed at the host boundary.
+fn proposal_without_more(bytes: &[u8]) -> Result<Box<[u8]>, Problem> {
+    let length = u32::try_from(bytes.len()).or(Err(Problem::TooLarge))?;
+    let parsed = skein_json::parse(
+        bytes,
+        &skein_json::tokenizer::Limits { depth: 16, string: length, number: 24, chunk: length.max(1), length },
+        &skein_json::document::Limits { tokens: length, text: length },
+    )
+    .or(Err(Problem::Malformed))?;
+    let more = parsed.member(0, b"more").ok_or(Problem::Missing(b"more"))?;
+    let key = more.checked_sub(1).ok_or(Problem::Malformed)?;
+    let limits = skein_json::writer::Limits { depth: 16, length };
+    let mut measure = skein_json::writer::Encoder::measure(&limits);
+    encode_without_more(&mut measure, &parsed, key, more);
+    let length = measure.measured().or(Err(Problem::TooLarge))?;
+    let mut out = skein_json::writer::Encoder::write(length, &limits);
+    encode_without_more(&mut out, &parsed, key, more);
+    Ok(out.finish())
+}
+
+fn encode_without_more(out: &mut skein_json::writer::Encoder, parsed: &skein_json::Document, key: u32, more: u32) {
+    use skein_json::Kind;
+    for at in 0..parsed.len() {
+        if at == key || at == more {
+            continue;
+        }
+        let record = parsed.token(at).expect("retained JSON token");
+        let text = parsed.text(record).expect("retained JSON text");
+        match record.kind {
+            Kind::ObjectStart => out.object_start(),
+            Kind::ObjectEnd => out.object_end(),
+            Kind::ArrayStart => out.array_start(),
+            Kind::ArrayEnd => out.array_end(),
+            Kind::Key => out.key(text),
+            Kind::String => out.string(text),
+            Kind::Number => out.number(text),
+            Kind::True => out.boolean(true),
+            Kind::False => out.boolean(false),
+            Kind::Null => out.null(),
+            Kind::Long => unreachable!("whole host JSON retains every string"),
+        }
+    }
 }
 
 /// Decode an authorized, revision-checked note's whole settings file through
