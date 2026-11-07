@@ -117,6 +117,7 @@ offers visibility.
   instructions alone.
 
 - **Not yet:** 4.4: a verdict's follow-up tasks.
+- **Not yet:** 4.3.2, the live request `live-change-call` of 2026-11-07: the shipped chat on `gpt-6-luna` called `goal` for a plain change, and its goal made the change. Whether it chooses `change` once `goal`'s declaration says when to call it, as `testing.md`, 2.7 has the chat do, is unobserved until the owned-forge landing story runs after landing; whether its `change` was refused before its `goal` is unknown without the run's transcript.
 - **Not yet:** 4.3, 4.4, 6: no supplied real-model landing proves the
   corrected receipt's words, a refused compare's recovery, or the producer
   and foreman following the report instructions, including listing cuts
