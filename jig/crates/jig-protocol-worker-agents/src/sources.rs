@@ -18,7 +18,7 @@ const ENVIRONMENT_BYTES: u64 = 4096;
 
 /// Shell-provided paths, environment, effective user and programs parent.
 pub struct Resources {
-    programs: Programs,
+    programs: Option<Programs>,
     environment: Box<[Box<[u8]>]>,
     user: u32,
     parent: Option<Fd>,
@@ -31,7 +31,10 @@ pub struct Resources {
 )]
 impl core::fmt::Debug for Resources {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("Resources").field("programs", &1).field("environment_entries", &self.environment.len()).finish()
+        f.debug_struct("Resources")
+            .field("programs", &usize::from(self.programs.is_some()))
+            .field("environment_entries", &self.environment.len())
+            .finish()
     }
 }
 impl Resources {
@@ -74,7 +77,7 @@ impl Resources {
             Some(launch) => Some(Box::new(launch)),
             None => None,
         };
-        Some(Self { programs, environment, user, parent, launch })
+        Some(Self { programs: Some(programs), environment, user, parent, launch })
     }
 }
 #[derive(Debug)]
@@ -115,6 +118,20 @@ impl Component {
         self.resources = Some(resources);
         Ok(())
     }
+    /// Bind a list launch independently of optional program-login resources.
+    #[expect(clippy::manual_map, reason = "step code matches optional fields without callbacks")]
+    pub fn list_launch(&mut self, launch: Option<ListLaunch>) {
+        if self.resources.is_none() && launch.is_some() {
+            self.resources =
+                Some(Resources { programs: None, environment: Box::default(), user: 0, parent: None, launch: None });
+        }
+        if let Some(resources) = &mut self.resources {
+            resources.launch = match launch {
+                Some(launch) => Some(Box::new(launch)),
+                None => None,
+            };
+        }
+    }
     /// Whether an I/O or file owner belongs to this source operation.
     #[must_use]
     pub fn owns(&self, owner: Token) -> bool {
@@ -151,6 +168,9 @@ impl Component {
         let Some(resources) = &self.resources else {
             return Some(failed(owner, operation, SourceFailure::Unconfigured, b"no program configured", self.detail));
         };
+        let Some(programs) = &resources.programs else {
+            return Some(failed(owner, operation, SourceFailure::Unconfigured, b"no program configured", self.detail));
+        };
         let Some(source) = smith::SourceName::new(name.as_bytes()) else {
             return Some(failed(owner, operation, SourceFailure::Unconfigured, b"invalid source name", self.detail));
         };
@@ -169,7 +189,7 @@ impl Component {
                         self.detail,
                     ));
                 };
-                let name = directory_name(&resources.programs.directory);
+                let name = directory_name(&programs.directory);
                 Some(SourceInspection::new(io_owner, parent, Box::from(name), source, resources.user, deadline, files))
             }
             SourceAsk::SignOut => None,
@@ -301,7 +321,7 @@ impl Component {
             match ProgramSource::new(
                 command.io_owner,
                 command.ask,
-                &resources.programs,
+                resources.programs.as_ref().expect("configured source program"),
                 command.source,
                 &resources.environment,
                 command.root,
