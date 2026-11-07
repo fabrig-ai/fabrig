@@ -15,6 +15,7 @@ pub fn link_region() -> Region {
 #[derive(Debug)]
 enum Act {
     Page(PageAct),
+    Approve(temper_client_domain::approve::Act),
     Reading,
 }
 #[derive(Debug)]
@@ -43,6 +44,9 @@ impl Bindings {
     pub(crate) fn insert(&mut self, act: PageAct) -> Binding {
         self.meaning(Act::Page(act))
     }
+    pub(crate) fn insert_approve(&mut self, act: temper_client_domain::approve::Act) -> Binding {
+        self.meaning(Act::Approve(act))
+    }
     pub(crate) fn reading(&mut self) -> Binding {
         self.meaning(Act::Reading)
     }
@@ -69,6 +73,7 @@ impl Bindings {
                             | skein_ui::Act::Drawing { .. } => None,
                         };
                     }
+                    Act::Approve(meaning) => return decode_approve(meaning, act),
                     Act::Page(meaning) => meaning,
                 };
                 if !self.submissions
@@ -154,6 +159,29 @@ impl Bindings {
         None
     }
 }
+fn decode_approve(
+    meaning: &temper_client_domain::approve::Act,
+    act: skein_ui::Act,
+) -> Option<temper_client_domain::Action> {
+    use temper_client_domain::{Action, approve::Act};
+    let decoded = match act {
+        skein_ui::Act::Input { value } => match meaning {
+            Act::Words { .. } => Act::Words { words: value },
+            Act::Check | Act::Approve | Act::Refuse | Act::Type | Act::Again => return None,
+        },
+        skein_ui::Act::Submit => match meaning {
+            Act::Words { .. } => Act::Check,
+            Act::Check | Act::Approve | Act::Refuse | Act::Type | Act::Again => return None,
+        },
+        skein_ui::Act::Press => match meaning {
+            Act::Check | Act::Approve | Act::Refuse | Act::Type | Act::Again => meaning.clone(),
+            Act::Words { .. } => return None,
+        },
+        skein_ui::Act::Toggle | skein_ui::Act::Near { .. } | skein_ui::Act::Drawing { .. } => return None,
+    };
+    Some(Action::Approve(decoded))
+}
+
 fn text(builder: &mut Builder, role: Role, words: &[u8], style: Option<skein_ui::Style>) {
     builder.open(role);
     if let Some(style) = style {
@@ -200,7 +228,7 @@ pub(crate) fn unavailable_main(builder: &mut Builder, root: &Domain, words: &cra
             Some(NotSignedIn::LinkExpired) => words.text(builder, Word::SignInLinkExpired, &[]),
             Some(NotSignedIn::LinkUnknown) => words.text(builder, Word::SignInLinkUnknown, &[]),
             Some(NotSignedIn::NotReady) => words.text(builder, Word::SignInNotReady, &[]),
-            None => words.text(builder, Word::SignedOutMain, &[]),
+            Some(NotSignedIn::Approval(_)) | None => words.text(builder, Word::SignedOutMain, &[]),
         }
     } else {
         words.text(builder, Word::OutOfDateMain, &[]);
@@ -567,7 +595,11 @@ pub(crate) fn rail_project(root: &Domain, words: &crate::words::Words, sign_in: 
     if let Address::Welcome { .. } = root.pages().address() {
         return None;
     }
-    if unavailable(root).is_some() || root.authorization().is_some() || crate::sign_in::offered(root, words, sign_in) {
+    if unavailable(root).is_some()
+        || root.authorization().is_some()
+        || root.approval().is_some()
+        || crate::sign_in::offered(root, words, sign_in)
+    {
         return None;
     }
     root.pages().me(root.client())?;

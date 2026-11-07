@@ -188,6 +188,7 @@ fn public_calls_past_their_room_are_503_and_signed_in_calls_are_not() {
     assert_eq!(
         f::component(&mut out).as_ref(),
         &[kit::FromTransport::Exchange {
+            browser: false,
             exchange: Token::new(20),
             credential: Some(f::credential()),
             message: kit::Message::Read(Box::new([]))

@@ -45,7 +45,10 @@ impl Story {
                             | client::Down::Open { .. }
                             | client::Down::Read { .. }) => panic!("unexpected public down: {other:?}"),
                         },
-                        other @ (client::UnlinkedRequest::SignOut | client::UnlinkedRequest::Authorized(_)) => {
+                        other @ (client::UnlinkedRequest::SignOut
+                        | client::UnlinkedRequest::ApprovalAct(_)
+                        | client::UnlinkedRequest::Approval(_)
+                        | client::UnlinkedRequest::Authorized(_)) => {
                             panic!("unexpected public request: {other:?}")
                         }
                     }

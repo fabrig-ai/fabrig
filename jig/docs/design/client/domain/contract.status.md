@@ -75,3 +75,7 @@ both proposers with and without a running-work choice.
   without carrying its refusal reason, including an authority-limit
   refusal when an executor list exceeds `documents.lines`.
 - **Not yet:** 3.2: `Hold`; `Move` of a live task as its new requester; `Succeed` (neither `contract::Ask` nor the client wire's v19 schema has them). 5.1: the accounts document's aggregate `settled` counts only the party's pending sign-ins, not the program checks they asked, and lists no host whose answer is pending (`jig/crates/jig-domain-core/src/documents/accounts.rs`). 5.3: creating's executors list charters and procedures, not persons or roles (`CreateBounds`); a result's texts are not checked as UTF-8 where the tasks child admits a result; a project's document offers `RemoveProject` to no one, its owners included (`jig/crates/jig-domain-core/src/acts/objects.rs`, `admit`, refuses `Act::RemoveProject` not offered; `documents/offers.rs` leaves it out of a project's acts). 5.6: the `holds{project}` read. 6: a turn read past its transcript's horizon: the client reads `Gone`, and no engine path answers it. 7.4: an application's streams.
+
+Section 2's browser-approved sign-in is present on the client wire and
+in the clients' component. Only a take with the secret makes the ordinary
+sign-in of the browser's party; a bearer's decision is refused.

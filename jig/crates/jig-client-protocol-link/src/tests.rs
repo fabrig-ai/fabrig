@@ -115,3 +115,5 @@ fn job_kinds_hello_refusal_round_trips() {
 
 mod answers;
 mod encoders;
+
+mod approval;

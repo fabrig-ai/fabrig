@@ -12,6 +12,7 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
         crate::pages::acted(&mut root.pages);
     }
     match event {
+        Event::AskApproval => crate::asked::ask(root, env, out),
         Event::ScreenLeft => pages(
             root,
             env,
@@ -34,6 +35,7 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
         }
         Event::Went { place } => went(root, env, place, out),
         Event::Act { action } => match action {
+            Action::Approve(act) => crate::approve::act(root, act),
             Action::Copy { words } => root.copy.press(words, out),
             Action::Pages(crate::pages::Act::SignOut) => {
                 root.signed_out = true;
@@ -64,6 +66,7 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
 }
 fn went(root: &mut Domain, env: &Env<Limits>, place: Place, out: &mut Queue<Request>) {
     crate::authorize::went(root, &place);
+    crate::approve::went(root, &place);
     match place {
         Place::Address(address) => {
             pages(root, env, crate::pages::Event::Went { address: address.clone() }, out);
@@ -73,7 +76,11 @@ fn went(root: &mut Domain, env: &Env<Limits>, place: Place, out: &mut Queue<Requ
                 forge(root, env, forge::Event::Left, out);
             }
         }
-        Place::Authorize { .. } | Place::AuthorizeMalformed | Place::Missing | Place::Public(_) => {
+        Place::Approve { .. }
+        | Place::Authorize { .. }
+        | Place::AuthorizeMalformed
+        | Place::Missing
+        | Place::Public(_) => {
             pages(root, env, crate::pages::Event::Left, out);
             forge(root, env, forge::Event::Left, out);
         }
@@ -260,6 +267,7 @@ pub(crate) fn route_client(
     while let Some(request) = child.pop() {
         match request {
             jig_client::Request::Told { told: value } => told(root, env, value, out),
+            jig_client::Request::Approval(answer) => approval(root, env, answer, out),
             jig_client::Request::Authorized(answer) => crate::authorize::answered(root, answer, out),
             request @ (jig_client::Request::Save { .. }
             | jig_client::Request::Erase { .. }
@@ -280,8 +288,11 @@ pub(crate) fn route_unlinked(
     while let Some(request) = child.pop() {
         match request {
             jig_client::UnlinkedRequest::Told { told: value } => told(root, env, value, out),
+            jig_client::UnlinkedRequest::Approval(answer) => approval(root, env, answer, out),
             jig_client::UnlinkedRequest::Authorized(answer) => crate::authorize::answered(root, answer, out),
-            request @ (jig_client::UnlinkedRequest::Down { .. } | jig_client::UnlinkedRequest::SignOut) => {
+            request @ (jig_client::UnlinkedRequest::ApprovalAct(_)
+            | jig_client::UnlinkedRequest::Down { .. }
+            | jig_client::UnlinkedRequest::SignOut) => {
                 out.push(Request::Unlinked { request });
             }
         }
@@ -624,4 +635,15 @@ fn program_settled(accounts: &jig_client::contract::Accounts, source: u32) -> bo
         }
     }
     false
+}
+
+fn approval(root: &mut Domain, env: &Env<Limits>, answer: jig_client::Approval, out: &mut Queue<Request>) {
+    match answer {
+        answer @ (jig_client::Approval::Asked { .. } | jig_client::Approval::NotAsked(_)) => {
+            crate::asked::answered(root, env, answer, out);
+        }
+        answer @ (jig_client::Approval::Read { .. } | jig_client::Approval::Decided { .. }) => {
+            crate::approve::answered(root, env, answer);
+        }
+    }
 }

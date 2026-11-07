@@ -131,6 +131,76 @@ enum Part {
 }
 const HOLDS: [Holds; samples::N] = [
     Holds {
+        name: "approve-typing",
+        heading: "Sign in a terminal?",
+        parts: &[
+            Part::Value { role: Role::TextField, name: "Code", value: "wdjb mjht" },
+            Part::Named { role: Role::Button, name: "Check" },
+        ],
+    },
+    Holds {
+        name: "approve-unread",
+        heading: "Sign in a terminal?",
+        parts: &[Part::Named {
+            role: Role::Alert,
+            name: "That isn’t a terminal’s code. Type the eight letters your terminal shows.",
+        }],
+    },
+    Holds {
+        name: "approve-asking",
+        heading: "Sign in a terminal?",
+        parts: &[
+            Part::Named { role: Role::Paragraph, name: "WDJB-MJHT" },
+            Part::Text { text: "Asked 2 min ago" },
+            Part::Named { role: Role::Button, name: "Approve" },
+            Part::Named { role: Role::Button, name: "Refuse" },
+        ],
+    },
+    Holds {
+        name: "approve-approved",
+        heading: "Approved",
+        parts: &[Part::Named { role: Role::Paragraph, name: "WDJB-MJHT" }],
+    },
+    Holds {
+        name: "approve-signed-in",
+        heading: "Terminal signed in",
+        parts: &[Part::Text { text: "Signed in. You can close this tab." }],
+    },
+    Holds {
+        name: "approve-refused",
+        heading: "Sign-in refused",
+        parts: &[Part::Text { text: "This terminal’s sign-in was refused. Nothing was signed in." }],
+    },
+    Holds {
+        name: "approve-expired",
+        heading: "Code expired",
+        parts: &[Part::Text { text: "This code has expired. Ask again in your terminal." }],
+    },
+    Holds {
+        name: "approve-used",
+        heading: "Code already used",
+        parts: &[Part::Text {
+            text: "This code was already approved or refused. If your terminal isn’t signed in, ask again there.",
+        }],
+    },
+    Holds {
+        name: "approve-unknown",
+        heading: "Unknown code",
+        parts: &[Part::Named { role: Role::Button, name: "Type a code" }],
+    },
+    Holds {
+        name: "approve-signed-out",
+        heading: "Sign in first",
+        parts: &[Part::Text {
+            text: "This browser isn’t signed in to temper. Open the sign-in link temper printed first, then open this page’s address again: your terminal shows it.",
+        }],
+    },
+    Holds {
+        name: "approve-busy",
+        heading: "temper couldn’t answer just now",
+        parts: &[Part::Named { role: Role::Button, name: "Try again" }],
+    },
+    Holds {
         name: "chat-terminal-question",
         heading: "T1 · Make tally sum stream its input",
         parts: &[
@@ -3094,6 +3164,7 @@ fn find(tree: &skein_ui::Tree, role: Role, name: &str, sample: &str) -> skein_ui
 #[test]
 #[expect(clippy::too_many_lines, reason = "the gallery table walk checks each kind of named part")]
 fn each_state_holds_what_its_name_says() {
+    assert_eq!(HOLDS.len(), samples::N, "every promised row has a sample");
     let inputs = ViewInputs::new();
     for sample in samples::samples() {
         let mut row = None;

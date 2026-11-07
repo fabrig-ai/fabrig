@@ -14,6 +14,10 @@ pub struct Domain {
     pub(crate) authorization: Option<crate::authorize::Authorization>,
     pub(crate) authorizing: crate::authorize::Flight,
     pub(crate) authorization_revision: u64,
+    pub(crate) approval: Option<crate::approve::Page>,
+    pub(crate) approving: crate::approve::Flight,
+    pub(crate) approval_revision: u64,
+    pub(crate) asked: Option<crate::asked::State>,
     pub(crate) signed_out: bool,
 }
 #[must_use]
@@ -45,10 +49,24 @@ fn build(limits: &Limits, seed: u64, unlinked: bool) -> Domain {
         authorization: None,
         authorizing: crate::authorize::Flight::Idle,
         authorization_revision: 0,
+        approval: None,
+        approving: crate::approve::Flight::Idle,
+        approval_revision: 0,
+        asked: None,
         signed_out: false,
     }
 }
 impl Domain {
+    /// The approval page (client/README.md, 3.5, The approval page).
+    #[must_use]
+    pub const fn approval(&self) -> Option<&crate::approve::Page> {
+        self.approval.as_ref()
+    }
+    /// A native client's ask (client/README.md, 7.1).
+    #[must_use]
+    pub const fn asked(&self) -> Option<crate::asked::State> {
+        self.asked
+    }
     #[must_use]
     pub const fn copy_label(&self) -> crate::copy::Label {
         self.copy.label()
@@ -122,6 +140,8 @@ pub fn step(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<
     route::playground_progress(root, env, out);
     route::ways_progress(root, env, out);
     crate::authorize::progress(root, env, out);
+    crate::approve::progress(root, env, out);
+    crate::asked::progress(root);
     welcome(root, out);
 }
 pub fn fire(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
@@ -141,12 +161,15 @@ pub fn fire(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     route::playground_progress(root, env, out);
     route::ways_progress(root, env, out);
     crate::authorize::progress(root, env, out);
+    crate::approve::progress(root, env, out);
+    crate::asked::progress(root);
     welcome(root, out);
 }
 #[must_use]
 pub fn next_deadline(root: &Domain) -> Option<Time> {
     [
         root.copy.next_deadline(),
+        crate::approve::next_deadline(root),
         crate::pages::next_deadline(&root.pages),
         forge::next_deadline(&root.forge),
         root.client.next_deadline(),
@@ -170,12 +193,14 @@ pub fn shown(root: &Domain) -> u64 {
         .expect("copy shown count fits")
         .checked_add(root.authorization_revision)
         .expect("authorization revision fits")
+        .checked_add(root.approval_revision)
+        .expect("approval revision fits")
         .checked_add(root.tab_revision)
         .expect("tab revision fits")
 }
 
 fn welcome(root: &mut Domain, out: &mut Queue<Request>) {
-    if root.authorization.is_some() {
+    if root.authorization.is_some() || root.approval.is_some() {
         return;
     }
     if let crate::Address::Welcome { .. } = root.pages.address()
