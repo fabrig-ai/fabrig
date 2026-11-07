@@ -2,6 +2,10 @@
 
 2026-11-07. Where skein's code lags or departs from [forge-connection.md](forge-connection.md).
 
+Unlisted sections have no known gap. Sections 3.5 and 5.2's key checks
+are present: access admission parses without signing, and a key refused
+only at signing stops the forge before any request goes out on it.
+
 - **Departs:** 8: `skein/docs/foundation/programming-model.md`, 5.4 asks
   for one explicit state enum per lifecycle, each state holding exactly
   its data, no lifecycle in flags or `Option`s beside it, exhaustive

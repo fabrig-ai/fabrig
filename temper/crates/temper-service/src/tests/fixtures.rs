@@ -84,6 +84,7 @@ pub fn engine() -> settings::Engine {
 
 pub fn small_model() -> jig_domain_core::settings::CatalogueModel {
     jig_domain_core::settings::CatalogueModel {
+        first_read: None,
         number: 1,
         model: jig_domain_core::Model {
             provider: 1,
@@ -933,6 +934,7 @@ fn restored_key() -> crate::Service {
         .unwrap();
     for row in [
         Stored::Account {
+            list: None,
             number: 1,
             provider: 1,
             holder: Holder::Deployment,

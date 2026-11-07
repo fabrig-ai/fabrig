@@ -1,5 +1,6 @@
 //! The link's shared values and fixed worker membership (jig/docs/design/domain/root.md, 2; hosts.md, 6.1).
 //! The fleet, hub and accounts share these values; the crate holds no domain state.
+//! Account lists follow jig/docs/design/protocol/channel.md, 5.1.
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -389,4 +390,31 @@ pub struct JobBound {
     pub spec: u32,
     pub result: u32,
     pub deadline: Duration,
+}
+
+/// Account list bounds and values (jig/docs/design/protocol/channel.md, 5.1).
+pub const LIST_ROWS: u32 = 256;
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ListedModel {
+    pub name: Box<[u8]>,
+    pub shown: Option<Box<[u8]>>,
+    pub window: Option<u32>,
+    pub output: Option<u32>,
+    pub efforts: Box<[Box<[u8]>]>,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum ListFailure {
+    Refused { status: u16 },
+    Unreachable,
+    Unreadable,
+    Deadline,
+    Agent,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum ListOutcome {
+    Listed(Box<[ListedModel]>),
+    Failed(ListFailure),
 }

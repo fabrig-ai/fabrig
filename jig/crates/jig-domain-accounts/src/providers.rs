@@ -40,6 +40,14 @@ pub struct Provider {
     pub signed_in_plan: bool,
     pub manage_usage: Option<Box<[u8]>>,
     pub offers: Offers,
+    pub list: Option<ProviderList>,
+}
+
+/// Which names of a provider's list are models for this work (jig/docs/design/domain/accounts.md, 3.7).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ProviderList {
+    pub keep: Box<[Box<[u8]>]>,
+    pub drop: Box<[Box<[u8]>]>,
 }
 
 /// The sources a provider offers its accounts. Offering none of them is the `none` source:

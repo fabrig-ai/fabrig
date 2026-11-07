@@ -3,6 +3,7 @@
 #![forbid(unsafe_code)]
 
 mod charters;
+pub mod lists;
 pub mod world;
 
 mod application_observations;

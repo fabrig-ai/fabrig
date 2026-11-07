@@ -61,6 +61,7 @@ pub fn up(domain: &mut Link, channel: Token, up: host::LinkUp) -> Option<core::E
             fleet::Event::Answer { channel, run, attempt, answer: kind, payload }
         }
         host::LinkUp::Piece { run, attempt, piece } => return live_piece(domain, run, attempt, piece),
+        host::LinkUp::ListRead { read, outcome } => fleet::Event::ListRead { channel, read, outcome },
         host::LinkUp::Logins { logins } => fleet::Event::Logins { channel, logins },
         host::LinkUp::SignedOut { name, result } => fleet::Event::SignedOut { channel, name, result },
         host::LinkUp::Turn { run, attempt, turn } => {

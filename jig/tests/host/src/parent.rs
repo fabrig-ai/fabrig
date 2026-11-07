@@ -275,7 +275,9 @@ impl Parent {
                 self.tally.stops += 1;
                 Vec::new()
             }
-            Request::Source { .. } | Request::SourceFault => unreachable!("source scheduling has its own world"),
+            Request::ReadList { .. } | Request::CancelRead { .. } | Request::Source { .. } | Request::SourceFault => {
+                unreachable!("source scheduling has its own world")
+            }
             Request::Prepare { owner, workspace } => self.prepare(owner, &workspace),
             // A notice: the prepare still ends as it was going to, which the
             // world checks the host takes.
@@ -297,7 +299,8 @@ impl Parent {
             Request::Release { workspace } => self.release(workspace),
             Request::Agent(ToAgent::Grant { .. }) => Vec::new(),
             Request::Up(
-                LinkUp::Logins { .. }
+                LinkUp::ListRead { .. }
+                | LinkUp::Logins { .. }
                 | LinkUp::SignedOut { .. }
                 | LinkUp::Piece { .. }
                 | LinkUp::Activity { .. }

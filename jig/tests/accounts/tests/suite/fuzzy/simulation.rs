@@ -26,6 +26,7 @@ fn respond(world: &mut World, rng: &mut Rng, requests: Vec<Request>, trace: &mut
             }
             Request::Component(ToComponent::Close) => Some(FromComponent::Closed),
             Request::Programs { .. }
+            | Request::ReadList { .. }
             | Request::CheckProgram { .. }
             | Request::SignOutProgram { .. }
             | Request::Component(ToComponent::Release { .. })
@@ -217,6 +218,7 @@ fn change_response(world: &mut World, rng: &mut Rng, output: &Request, trace: &m
             | Signing::Restored,
         )
         | Request::Programs { .. }
+        | Request::ReadList { .. }
         | Request::CheckProgram { .. }
         | Request::SignOutProgram { .. }
         | Request::Component(_)

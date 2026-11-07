@@ -4,6 +4,7 @@ static HEAP: skein_heap::Counting = skein_heap::Counting;
 mod close;
 mod failures;
 mod fake_protocol;
+mod list;
 mod memory;
 mod protocol;
 mod simulated;

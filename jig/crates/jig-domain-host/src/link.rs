@@ -5,6 +5,7 @@ use skein_lib::{Duration, Token};
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum LinkDown {
+    ReadList { read: u64, endpoint: u32, grant: Grant },
     Sources { sources: Box<[SourceName]> },
     Check { name: SourceName },
     SignOut { name: SourceName },
@@ -20,6 +21,10 @@ pub enum LinkDown {
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum LinkUp {
+    ListRead {
+        read: u64,
+        outcome: jig_domain_link::ListOutcome,
+    },
     JobAnswer {
         run: Token,
         attempt: Token,
@@ -89,7 +94,8 @@ impl LinkUp {
     pub const fn new_work(&self) -> bool {
         match self {
             Self::Call { .. } => true,
-            Self::JobAnswer { .. }
+            Self::ListRead { .. }
+            | Self::JobAnswer { .. }
             | Self::Piece { .. }
             | Self::Logins { .. }
             | Self::SignedOut { .. }
@@ -148,6 +154,7 @@ mod tests {
                 attempt,
                 piece: Piece { turn: 1, retry: 0, kind: LiveKind::Text, offset: 0, bytes: Box::new([]) },
             },
+            LinkUp::ListRead { read: 7, outcome: jig_domain_link::ListOutcome::Listed(Box::new([])) },
             LinkUp::Logins { logins: Box::new([]) },
             LinkUp::SignedOut {
                 name: SourceName::new(b"source").expect("source name"),

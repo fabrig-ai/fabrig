@@ -1,4 +1,4 @@
-//! Grant names retained with attempts (domain/engine.md, sections 8 and 12).
+//! Grant names retained with attempts and queued reads (domain/engine.md, sections 8, 12 and 17.12).
 //! Values stay in their owners' protocol tables.
 
 use crate::attempt::{Attempt, State, Where};
@@ -67,6 +67,7 @@ fn newer(kept: &mut Kept, grant: Grant, now: Time) -> bool {
 }
 
 pub(crate) fn renew(domain: &mut Domain, env: &Env<Limits>, grant: Grant, out: &mut Queue<Request>) {
+    domain.reads.renew(grant, env.now);
     for (_, &id) in &domain.names {
         let attempt = domain.attempts.get_mut(id).expect("a named attempt is tracked");
         if attempt.job.is_some() {

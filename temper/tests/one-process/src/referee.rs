@@ -273,7 +273,7 @@ impl Referee {
                 self.run.borrow().restarts > 0 && self.cold.is_none() && self.adopted > 0
             }
             crate::world::Phase::Story => match self.story {
-                crate::world::Story::NoWelcome => other
+                crate::world::Story::NoWelcome | crate::world::Story::ModelsList => other
                     .iter()
                     .any(|proc| matches!(proc, Proc::Other(HarnessProcess::Client(person)) if person.finished)),
                 crate::world::Story::Chat { .. } => terminals(&self.store.borrow()) > 0,
@@ -343,6 +343,7 @@ impl skein_world::Referee<Proc> for Referee {
             Proc::Other(HarnessProcess::Client(person)) => person.is_empty(),
             Proc::Service(_)
             | Proc::Agent(_)
+            | Proc::List(_)
             | Proc::Peer(_)
             | Proc::GitRoute(_)
             | Proc::Git(_)
@@ -523,6 +524,7 @@ impl skein_world::Referee<Proc> for Referee {
                             self.story,
                             crate::world::Story::Adoption
                                 | crate::world::Story::NoWelcome
+                                | crate::world::Story::ModelsList
                                 | crate::world::Story::Adopt
                                 | crate::world::Story::Merge
                                 | crate::world::Story::HeldChange
@@ -629,6 +631,7 @@ pub(crate) fn shutdown_peer(proc: &mut Proc) {
         Proc::Forge(forge) => forge.shutdown(),
         Proc::Service(_)
         | Proc::Agent(_)
+        | Proc::List(_)
         | Proc::GitRoute(_)
         | Proc::Git(_)
         | Proc::Shell(_)

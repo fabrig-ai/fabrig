@@ -628,6 +628,7 @@ fn a_charters_tools_round_trip_from_core_through_wire() {
 #[test]
 fn a_model_setting_round_trips_whole_in_both_directions() {
     let source = s::CatalogueModel {
+        first_read: None,
         number: 9,
         model: charter().policy.model,
         shown: Some(b"Shown model".as_slice().into()),
@@ -658,5 +659,32 @@ fn a_model_setting_round_trips_whole_in_both_directions() {
     let mut encoded = skein_lib::Writer::new(usize::try_from(item.measure()).unwrap());
     item.encode(&mut encoded).unwrap();
     let items = translate::items(f::pieces(&[encoded.finish()]), &f::models(), &w::CEILINGS).unwrap();
-    assert_eq!(items.as_ref(), &[s::Item { setting: s::Setting::Model(9), edit: s::Edit::Set(source) }]);
+    assert_eq!(items.as_ref(), &[s::Item { setting: s::Setting::Model(9), edit: s::Edit::Set(source.clone()) }]);
+    let revision = s::Revision {
+        head: s::Head { by: s::Decider::List { provider: u32::MAX }, ..head() },
+        applications: Box::default(),
+        items: Box::new([s::RevisionItem {
+            setting: s::Setting::Model(9),
+            edit: s::Edit::Set(source),
+            replaced: s::Replaced::NotOffered,
+        }]),
+    };
+    let wire = translate::revision(
+        &reads::RevisionAnswer::Revision { revision, value_bytes: u64::MAX },
+        &f::models(),
+        &w::CEILINGS,
+    )
+    .unwrap();
+    let mut encoded = skein_lib::Writer::new(usize::try_from(wire.measure()).unwrap());
+    wire.encode(&mut encoded).unwrap();
+    let wire = w::RevisionAnswer::decode(&w::CEILINGS, &mut Reader::new(&encoded.finish())).unwrap();
+    let restored =
+        jig_client_protocol_link::translate::settings::restore_revision_answer(&wire, &f::client_limits()).unwrap();
+    let jig_client_domain::contract::RevisionAnswer::Revision(document) = restored else { panic!("whole revision") };
+    assert_eq!(document.head.by, jig_client_domain::contract::RevisionDecider::List { provider: u32::MAX });
+    assert_eq!(document.items.len(), 1);
+    assert_eq!(
+        document.items.get(0).unwrap().edit,
+        jig_client_domain::contract::RevisionEdit::Set(jig_client_domain::contract::SettingSet { value: client })
+    );
 }

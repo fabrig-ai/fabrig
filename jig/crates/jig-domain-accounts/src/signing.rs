@@ -259,6 +259,7 @@ fn make(
     let display = if within(&made.display, DISPLAY) { made.display } else { Box::new([]) };
     out.push(Request::Save {
         record: crate::Stored::Account {
+            list: None,
             number: account,
             provider: made.provider,
             holder: made.holder,
@@ -269,6 +270,7 @@ fn make(
         },
     });
     let entry = Account {
+        list: None,
         provider: made.provider,
         holder: made.holder,
         place: domain.last_place(made.holder),

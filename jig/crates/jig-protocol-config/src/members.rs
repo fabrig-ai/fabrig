@@ -333,7 +333,7 @@ pub static SHAPES: [Shape; 61] = [
 ];
 
 /// Every named member, including settings read only by the document-defaults bridge.
-pub static MEMBERS: [Member; 263] = [
+pub static MEMBERS: [Member; 265] = [
     Member {
         shape: "engine",
         name: "limits",
@@ -908,6 +908,24 @@ pub static MEMBERS: [Member; 263] = [
         bound: "4096 bytes; a configured endpoint name",
         required: false,
         line: "Names the endpoint its added models take.",
+        gone: None,
+    },
+    Member {
+        shape: "llm-provider",
+        name: "keep",
+        kind: "list of text",
+        bound: "16 patterns; 1 to 64 model-name bytes or * and ?; requires endpoint",
+        required: false,
+        line: "Keeps list names matching any whole-name pattern; absent disables reading the list.",
+        gone: None,
+    },
+    Member {
+        shape: "llm-provider",
+        name: "drop",
+        kind: "list of text",
+        bound: "16 patterns; 1 to 64 model-name bytes or * and ?; requires keep",
+        required: false,
+        line: "Excludes list names matching any whole-name pattern, even when kept.",
         gone: None,
     },
     Member {

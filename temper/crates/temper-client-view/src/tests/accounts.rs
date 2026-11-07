@@ -555,6 +555,7 @@ pub(super) fn document(count: u32) -> c::Accounts {
         }
         accounts
             .push(c::AccountLine {
+                list: None,
                 facts: List::with_capacity(0),
                 number,
                 place: number,

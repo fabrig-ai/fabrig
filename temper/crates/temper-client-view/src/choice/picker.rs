@@ -434,7 +434,7 @@ fn rows(
             None => model.accounts.is_empty(),
         };
         if model.provider == group.0 && fits && (all || model.picker) && (!all || draft.finds(model)) {
-            row(b, root, model, index, if multi { group.1 } else { None }, group.1, w, bindings);
+            row(b, root, model, index, if multi { group.1 } else { None }, group.1, w, bindings, all);
         }
     }
     b.close();
@@ -449,6 +449,7 @@ fn row(
     account: Option<u32>,
     w: &Words,
     bindings: &mut Bindings,
+    all: bool,
 ) {
     let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) else { return };
     let draft = root.pages().choice();
@@ -476,6 +477,15 @@ fn row(
             w.text(b, W::ToolSeparator, &[]);
         }
         w.text(b, W::ModelDefault, &[]);
+        b.close();
+    }
+    if all && bindings.model_times.model_new(model) {
+        b.open(Role::Slot);
+        b.style(look::MODEL_TAG);
+        if w.shell == crate::words::Shell::Terminal {
+            w.text(b, W::ToolSeparator, &[]);
+        }
+        w.text(b, W::ModelsNew, &[]);
         b.close();
     }
     b.close();

@@ -151,6 +151,7 @@ pub(in crate::codec) fn wire_me_model(value: &c::MeModel, limits: &w::Limits) ->
     w::MeModel::new(
         limits,
         w::MeModelParts {
+            new_until: value.new_until.map(skein_lib::Wall::as_nanos),
             number: value.number,
             source: match value.source {
                 c::ModelSource::Stock => w::ModelSource::Stock,

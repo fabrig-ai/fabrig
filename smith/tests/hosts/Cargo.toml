@@ -19,6 +19,7 @@ skein-shell.workspace = true
 skein-fake-peers.workspace = true
 skein-io.workspace = true
 skein-lib.workspace = true
+skein-llm.workspace = true
 skein-sim.workspace = true
 skein-fake-machine.workspace = true
 skein-world.workspace = true

@@ -27,6 +27,8 @@
           "name": "openai",
           "number": 1,
           "endpoint": "openai",
+          "keep": ["gpt-*"],
+          "drop": ["*audio*", "*image*", "*realtime*", "*search*", "*transcribe*", "*tts*", "*-20??-??-??"],
           "signed_in_plan": true,
           "manage_usage": "https://chatgpt.com/settings/usage",
           "sources": {

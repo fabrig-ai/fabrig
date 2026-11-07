@@ -722,6 +722,7 @@ fn face_found(face: &mut skein_fake_person_browser::BrowserFace<'_>, node: Optio
                 checked: false,
                 expanded: false,
                 selected: false,
+                pressed: false,
             },
             rect: None,
         })
