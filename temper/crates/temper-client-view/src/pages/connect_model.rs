@@ -963,7 +963,7 @@ fn facts(b: &mut Builder, root: &Domain, w: &Words, way: Way) {
         None => None,
     };
     let display = match account {
-        Some(row) => row.display.bytes(),
+        Some(row) => words::who(row.email(), row.display.bytes()),
         None => b"",
     };
     let name = if model::model_way(way).kind == WayKind::Key {
@@ -1047,7 +1047,7 @@ fn made_words(root: &Domain, w: &Words, way: Way, account: u32, renewed: bool) -
     if let Some(doc) = accounts::document(root.client()) {
         for row in &doc.accounts {
             if row.number == account {
-                display = row.display.bytes();
+                display = words::who(row.email(), row.display.bytes());
                 break;
             }
         }

@@ -3438,9 +3438,7 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
             let mut sources = List::with_capacity(2);
             sources
                 .push(c::AccountSource {
-                    name: Some(Box::from(
-                        if matches!(w, FirstRun { step: 5..=9 }) { "sam@example.com" } else { "playground" }.as_bytes(),
-                    )),
+                    name: Some(Box::from(b"playground".as_slice())),
                     place: 1,
                     number: 1,
                     kind: if matches!(w, FirstRun { step: 5..=9 }) {
@@ -3456,7 +3454,18 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
                 })
                 .expect("source");
             rows.push(c::AccountLine {
-                facts: List::with_capacity(0),
+                facts: if matches!(w, FirstRun { step: 5..=9 }) {
+                    List::from_boxed(Box::new([c::AccountFact {
+                        kind: c::FACT_EMAIL,
+                        label: Box::new([]),
+                        value: c::AccountFactValue::Text(Box::from(b"sam@example.com".as_slice())),
+                        seen: now(w),
+                        source: Some(1),
+                        origin: 1,
+                    }]))
+                } else {
+                    List::with_capacity(0)
+                },
                 number: 1,
                 place: 1,
                 uses: None,
@@ -3468,7 +3477,7 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
                 } else {
                     None
                 },
-                display: doc(if matches!(w, FirstRun { step: 5..=9 }) { "sam@example.com" } else { "Scripted model" }),
+                display: doc(if matches!(w, FirstRun { step: 5..=9 }) { "" } else { "Scripted model" }),
                 holder: c::AccountHolder::Party(73),
                 sources,
                 cut: false,
