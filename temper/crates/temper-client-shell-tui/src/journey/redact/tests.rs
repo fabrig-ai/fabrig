@@ -1,0 +1,194 @@
+use super::*;
+use crate::{host::{Duties, Host, Report}, journey::{Facts, Kind, Recorder, Replay, Sent, Streamed, lines, prove, scan, scan_bytes}};
+use skein_lib::{Time, Token, Wall};
+use skein_ui_screen::Size;
+use skein_ui_screen_terminal::Key;
+use temper_client_tui::Scheme;
+
+pub(in crate::journey) fn written(records: &[Line]) -> Box<[u8]> {
+    let mut bytes = Vec::new();
+    for record in records {
+        record.write(&mut bytes);
+    }
+    bytes.into()
+}
+
+fn body(secret: &[u8]) -> Box<[u8]> {
+    let mut bytes = u32::try_from(secret.len()).expect("fake secret length").to_be_bytes().to_vec();
+    bytes.extend_from_slice(secret);
+    bytes.into()
+}
+
+fn send(message: Sent, credential: Option<Box<[u8]>>) -> Line {
+    Line::Send { exchange: 1, message, credential }
+}
+
+fn places(bytes: &[u8]) -> Vec<Line> {
+    let value = || Box::<[u8]>::from(bytes);
+    let mut result = vec![
+        Line::Reply { exchange: 1, bytes: body(bytes) },
+        Line::Streamed(Streamed::Record(body(bytes))),
+        Line::Stored { key: value(), bytes: value() },
+        Line::Save { key: value(), bytes: value() },
+        Line::Erase(value()),
+        Line::Credential(value()),
+        Line::Keep(Some(value())),
+        send(Sent::SignOut, Some(value())),
+        Line::Stream(Some(value())),
+        Line::Key { key: Key::Paste(value()), event: Some(value()) },
+        Line::Address(value()),
+        Line::Signed(value()),
+        Line::Browse(value()),
+        Line::Mark(Some(value())),
+        Line::End(Some(value())),
+    ];
+    for message in [Sent::Authorize, Sent::ApprovalAsk, Sent::ApprovalRead, Sent::ApprovalDecide,
+        Sent::SignInApproval, Sent::Request, Sent::Read, Sent::Watch, Sent::Unwatch,
+        Sent::StreamGone, Sent::SignInLink] {
+        result.push(send(message(body(bytes)), None));
+    }
+    result
+}
+
+#[test]
+fn each_original_is_replaced_and_scanned_in_each_field() {
+    let approval = [7; 32];
+    let credential = credential();
+    let bearer = [9; 40];
+    let link = vec![b'A'; 43];
+    let given = b"fake&given";
+    let sources = [
+        ("approval take", Kind::Approval, approval.as_slice(), vec![send(Sent::SignInApproval(body(&approval)), None)], vec![]),
+        ("credential start", Kind::Credential, credential.as_ref(), vec![Line::Credential(credential.clone())], vec![]),
+        ("credential keep", Kind::Credential, credential.as_ref(), vec![Line::Keep(Some(credential.clone()))], vec![]),
+        ("bearer send", Kind::Bearer, bearer.as_slice(), vec![send(Sent::SignOut, Some(bearer.into()))], vec![]),
+        ("bearer stream", Kind::Bearer, bearer.as_slice(), vec![Line::Stream(Some(bearer.into()))], vec![]),
+        ("link send", Kind::Link, link.as_slice(), vec![send(Sent::SignInLink(body(&link)), None)], vec![]),
+        ("given text", Kind::Given, given.as_slice(), vec![], vec![Box::<[u8]>::from(given.as_slice())]),
+    ];
+    let mut failures = Vec::new();
+    for (name, kind, secret, source, given) in sources {
+        let originals = originals(&source, &given);
+        if originals.count(kind) != 1 {
+            failures.push(format!("{name}: original not collected"));
+        }
+        let hidden = vec![b'x'; secret.len()];
+        for (line, expected) in places(secret).into_iter().zip(places(&hidden)) {
+            let kind = line.kind();
+            let redacted = redact(&written(&[source.clone(), vec![line.clone()]].concat()), &given).expect("lines");
+            let after = lines(&redacted.recording).expect("redacted lines").pop().expect("target");
+            if after != expected || redacted.places == 0 {
+                failures.push(format!("{name} in {kind}: replacement"));
+            }
+            let fields = fields_mut(&mut line.clone()).len();
+            if fields == 0 {
+                failures.push(format!("{name} in {kind}: field omitted"));
+            }
+            for (field, _) in fields_mut(&mut line.clone()) {
+                if scan_bytes(field, &[], &originals) != Some(crate::journey::What::Original) {
+                    failures.push(format!("{name} in {kind}: original not scanned"));
+                }
+            }
+            for (field, _) in fields_mut(&mut after.clone()) {
+                if scan_bytes(field, &[], &originals).is_some() {
+                    failures.push(format!("{name} in {kind}: replacement refused"));
+                }
+            }
+        }
+    }
+    // An escaped form keeps its encoded size in a framed field and shrinks to
+    // the original's placeholder in text.
+    let given = [Box::<[u8]>::from(given.as_slice())];
+    for (line, expected) in [
+        (Line::Erase(b"fake%26given".as_slice().into()), Line::Erase(vec![b'x'; 12].into())),
+        (Line::Address(b"fake%26given".as_slice().into()), Line::Address(vec![b'x'; 10].into())),
+    ] {
+        let redacted = redact(&written(&[line]), &given).expect("encoded form");
+        if lines(&redacted.recording).expect("form lines") != vec![expected] {
+            failures.push("form's framing".to_owned());
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+pub(in crate::journey) fn credential() -> Box<[u8]> {
+    let mut bytes = 7_u64.to_be_bytes().to_vec();
+    bytes.extend_from_slice(&[8; 32]);
+    bytes.into()
+}
+
+pub(in crate::journey) struct World {
+    pub host: Host,
+    pub recorder: Recorder,
+    now: u64,
+}
+impl World {
+    pub fn new() -> Self {
+        let facts = Facts { seed: 7, now: Time::ZERO, wall: Wall::EPOCH,
+            size: Size { rows: 16, columns: 100 }, scheme: Scheme::Dark,
+            address: b"127.0.0.1:8367".as_slice().into(), kept: Vec::new(), credential: None };
+        let (host, start) = facts.start();
+        let mut world = Self { host, recorder: Recorder::new(&facts), now: 1 };
+        world.report(start);
+        world
+    }
+    pub fn report(&mut self, report: Report) -> Duties {
+        self.reports(vec![report]).pop().expect("one report")
+    }
+    pub fn reports(&mut self, reports: Vec<Report>) -> Vec<Duties> {
+        let now = Time::from_nanos(self.now);
+        let wall = Wall::from_nanos(self.now);
+        self.now += 1;
+        self.host.clocks(now, wall);
+        self.recorder.turn(now, wall);
+        let duties = reports.into_iter().map(|report| self.recorder.report(&mut self.host, report)).collect();
+        self.host.frame();
+        self.recorder.deadline(self.host.deadline());
+        duties
+    }
+    pub fn save(&mut self) -> Box<[u8]> {
+        self.recorder.save(&mut self.host)
+    }
+    pub fn exchange(&mut self, approval: bool) -> Token {
+        lines(&self.save()).expect("recorded lines").iter().rev().find_map(|line| {
+            if let Line::Send { exchange, message, .. } = line {
+                let wanted = if approval { matches!(message, Sent::SignInApproval(_)) }
+                    else { matches!(message, Sent::ApprovalAsk(_)) };
+                if wanted { return Some(Token::new(*exchange)); }
+            }
+            None
+        }).expect("sign-in exchange")
+    }
+}
+
+#[test]
+fn redacted_approval_proves_and_replays_to_its_end() {
+    let mut world = World::new();
+    let exchange = world.exchange(false);
+    let mut asked = vec![0];
+    asked.extend_from_slice(&body(&[7; 32]));
+    asked.extend_from_slice(b"WDJBMJHT");
+    asked.extend_from_slice(&300_000_000_000_u64.to_be_bytes());
+    world.report(Report::Heard(jig_client::Event::Reply { exchange, message: asked.into() }));
+    world.report(Report::Opened { opened: false });
+    let exchange = world.exchange(true);
+    let mut answer = vec![0, 1];
+    answer.extend_from_slice(&body(&credential()));
+    answer.extend_from_slice(&7_u64.to_be_bytes());
+    answer.extend_from_slice(&300_000_000_000_u64.to_be_bytes());
+    world.report(Report::Heard(jig_client::Event::Reply { exchange, message: answer.into() }));
+    world.report(Report::Kept { written: true });
+    let original = world.save();
+    assert!(prove(&original).is_ok(), "host's live proof");
+    let redacted = redact(&original, &[]).expect("redact approval");
+    assert_eq!(redacted.originals.count(Kind::Approval), 1);
+    assert_eq!(redacted.originals.count(Kind::Credential), 1);
+    assert_eq!(redacted.originals.count(Kind::Bearer), 1);
+    assert_eq!(scan(&original, &redacted.originals).expect("scan original").expect("original").place, crate::journey::Place::Field);
+    let proved = prove(&redacted.recording).expect("redacted live proof");
+    assert_eq!(scan(&proved, &redacted.originals).expect("last scan"), None);
+    let mut replay = Replay::new(&proved).expect("redacted replay");
+    let mut marks = 0;
+    while replay.next().expect("redacted duties").is_some() { marks += 1; }
+    assert!(marks > 0, "replayed to end");
+}
