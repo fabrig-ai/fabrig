@@ -1,10 +1,7 @@
 # README: status
 
-2026-11-06. Where temper's code lags or departs from [README.md](README.md).
+2026-11-07. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, *Needs you*, *A person task in words*: a person task draws
-  its title, its spec and "Answer in words" under Needs you, and that act sends
-  nothing, there and on the terminal's inbox.
 - **Not yet:** 3.5, 5.5: no supplied record establishes a real-box walk of
   the offer, effort choice, configuring chat's chooser and connected-account
   starters with a real provider. The `model-picker` account at `1d82a937df` records the picker
