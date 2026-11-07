@@ -896,6 +896,8 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 @font-face { font-family: 'IBM Plex Sans'; font-style: normal; font-weight: 600; font-display: swap; src: url(files/fonts/ibm-plex-sans-latin-600-normal.woff2) format('woff2'); }
 @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url(files/fonts/ibm-plex-mono-latin-400-normal.woff2) format('woff2'); }
 @font-face { font-family: 'IBM Plex Mono'; font-style: normal; font-weight: 500; font-display: swap; src: url(files/fonts/ibm-plex-mono-latin-500-normal.woff2) format('woff2'); }
+@font-face { font-family: 'DejaVu Sans Mono'; font-style: normal; font-weight: 400; font-display: swap; src: url(files/fonts/dejavu-sans-mono-400.woff2) format('woff2'); }
+@font-face { font-family: 'DejaVu Sans Mono'; font-style: normal; font-weight: 700; font-display: swap; src: url(files/fonts/dejavu-sans-mono-700.woff2) format('woff2'); }
 :root:has(.temper-welcome) {
   --gf-paper: #f7f7f5; --gf-surface: #ffffff; --gf-ink: #18181b; --gf-ink-2: #3f3f46; --gf-muted: #5b5b63; --gf-faint: #6b6b73;
   --gf-line: #e7e7e3; --gf-line-2: #d4d4cf; --gf-signal: #c2410c; --gf-good: #15803d;
@@ -1662,6 +1664,15 @@ a.temper-repository-link:hover { text-decoration: underline; }
 #app:has(> .temper-mode-split) > .temper-rail:has(> .temper-rail-unfold[open]) > :not(.temper-brand, .temper-rail-unfold) { display: flex; }
 #app:has(> .temper-mode-split) > .temper-rail:has(> .temper-rail-unfold[open]) > .temper-brand { font-size: 17px; }
 
+
+/* chat-terminal-font: the request's single size and two bundled weights. */
+#app > .temper-terminal {
+  --bold: 700;
+  font: 400 11pt/1.6 'DejaVu Sans Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-variant-ligatures: none; -webkit-font-smoothing: antialiased;
+}
+#app > .temper-terminal.temper-terminal-plex { --bold: 500; font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 14px; }
+@media (max-width: 760px) { #app > .temper-terminal { font-size: 13px; } }
 
 /* ==== ui: needs ==== */
 
