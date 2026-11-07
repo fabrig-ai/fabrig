@@ -1409,8 +1409,15 @@ fn reference_settings(world: &mut World, run: &engine::Assignment) -> serde_json
             let number = item["setting"]["number"].as_u64().expect("charter number");
             let mut value = read_charter(&mut world.driver, run, 1 + u32::try_from(at).expect("item") * 3, 2);
             value["number"] = json!(number);
-            value["instructions"] = item["set"]["instructions"].clone();
-            // Keep the fixture's model and authority; transport preserves the reference's words.
+            let mut instructions = vec![item["set"]["instructions"].as_str().expect("shared instructions")];
+            if let Some(parts) = item["set"].get("parts") {
+                for part in parts.as_array().expect("reference parts") {
+                    instructions.push(part["instructions"].as_str().expect("part instructions"));
+                }
+            }
+            value["instructions"] = json!(instructions.join("\n\n"));
+            // The fixture has no parts; transport preserves every part's words together.
+            // Keep the fixture's model and authority.
             items.push(json!({"setting":item["setting"],"set":value}));
         }
     }
