@@ -139,7 +139,7 @@ fn reports_keep_their_order() {
 fn the_shipped_limits_are_valid() {
     let limits = limits::tui();
     assert!(limits::valid(&limits));
-    Host::new(&Settings { limits: limits.clone() }, 7, Time::ZERO, Wall::EPOCH);
+    let _ = Host::new(&Settings { limits: limits.clone() }, 7, Time::ZERO, Wall::EPOCH);
     let mut too_small = limits;
     too_small.view.nodes = 0;
     assert!(!limits::valid(&too_small));
