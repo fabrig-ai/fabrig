@@ -1106,13 +1106,7 @@ pub enum CallPayload {
 }
 
 /// The connector's durable records, wrapped by the root store.
-#[cfg_attr(
-    not(target_arch = "wasm32"),
-    expect(
-        clippy::large_enum_variant,
-        reason = "the durable change row keeps role choices and merge-job state inline"
-    )
-)]
+#[expect(clippy::large_enum_variant, reason = "the durable change row keeps role choices and merge-job state inline")]
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Stored {
     /// The connector part of a live named call.
