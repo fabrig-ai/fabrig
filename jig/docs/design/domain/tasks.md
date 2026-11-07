@@ -435,7 +435,11 @@ contract (5.6), or by **parking**, its transcript kept, the task idle
 until its next wake. A task has one run at most at a time. Whether a
 waiting run holds its host's slot or parks is engine.md, 7.4. A claim
 that no host reports after a restart, its attempt having committed no
-turn and no call, counts as not started: no try is spent on it. A kept
+turn and no call, counts as not started: no try is spent on it. Nor is
+one on a host in the engine's own process when that engine stops
+(engine.md, 6.1): its attempt ends interrupted, as a recheck ends, with
+no try spent and no backoff, keeping the turns and calls it committed,
+and the task is due again. A kept
 task is never due, and a run of it that finishes done parks instead
 (5.7).
 

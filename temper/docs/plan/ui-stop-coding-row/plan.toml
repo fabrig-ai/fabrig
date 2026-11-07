@@ -1,0 +1,25 @@
+draft = "ui-stop-coding-row"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-stop-coding-row/inputs/request.md", "temper/tests/one-process/tests/suite/one_process.rs", "temper/tests/one-process/src/world.rs", "temper/tests/real-loop/tests/suite/lifecycle.rs", "temper/crates/temper-worker-domain/src/route.rs", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/ui"
+priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "stop-interrupts"
+title = "jig's core, on hearing it stops, settles its in-process runs' agent claims as interrupted, so a stop spends no try and the task is due again"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 6.1"
+
+[[slice]]
+id = 1
+story = "A signal mid-run drains, and the next start finds the run's task due with no try spent, where a crash still spends one"
+parts = ["stop-interrupts"]
+walk = false
