@@ -182,12 +182,12 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
 - **The host part's budget.** smith refuses a run whose host part (its
   host tools, instructions, brief, and finish and deliver schemas) passes
   its bound, the room of the agent's smallest window (4.6), before any
-  turn. The largest stock charter's non-brief host part is charter 1's
+  turn. The largest stock charter's non-brief host part is charter 3's
   with a Change contract and the control family's plan form of
   `change` (4.3.1); with the authorised brief, its task section a whole
   spec (`../protocol/configuration.md`, section 7), and 1,472 bytes for
   64 stock sections' titles and framing (16 title bytes and 7 framing
-  bytes each), it leaves at least 361 bytes at `temper init`'s
+  bytes each), it leaves at least 1 byte at `temper init`'s
   models; `temper-service`'s step tests hold each stock charter's
   figures. A gathered brief spends what the non-brief host part leaves. So a new
   host tool is offered only where a family and the charter gate it,
@@ -681,13 +681,24 @@ smith's (smith's `domain/run.md`, 7.1):
 | an approval | a failure only, of at most 1,024 bytes: approvals are people's |
 
 A change's `body` holds the producer's report, what its brief asks it to
-report, whole, at most 3,584 bytes (jig's `domain/hosts.md`, 8); its `title`
-and the contract's other texts stay within 1,024. The run's contract prints
+report, whole, within the contract's words (jig's `domain/hosts.md`, 8), which
+for a change the `change` tool or its procedure makes are `tasks.result_bytes`:
+so a report follows the call's payload and is a setting
+(`../protocol/configuration.md`, 13.8). Smith's outcome holds the `title`, the
+`body` and their framing together, at the payload; its `title` and the
+contract's other texts stay within 1,024. The run's contract prints
 the bound. The coding charter's words say that the report goes there, and that
 one past the bound is no question: the run cuts what can be read elsewhere and
 says under Left what it cut (`../protocol/configuration.md`, 13.4's charter 2
 row). A foreman that settles a question about it names no other form (13.4's
 charter 6 row).
+
+A rendering of a report may cut what it shows, and the store keeps it whole. A
+landing's result to its requester holds the report as far as the contract's
+words leave room for its evidence and for the label the requester's run
+reads it under, with its cut marked (`../domain/forge.md`, 8.1); `read_task`
+with `field=result` gives the producer's report whole, in pieces. A document's
+card shows what `documents.text_bytes` holds, marked as cut.
 
 The `no_change` verdict becomes jig's successful `NoChange` result. It
 retains the explanation, supplies no resource or landing, and ends the
@@ -1382,6 +1393,20 @@ host:
 
 ## 10. Open questions
 
+- **A direct change result's rendering room** (4.4): the landing procedure
+  reserves 59 bytes for its result's label and sender before fitting its
+  report. A task made directly by `delegate` with a Change contract has
+  no such reserve, so its result at the contract's bound can be refused
+  by a live requester's receiving bound. Default: keep the durable result
+  whole and read it through `read_task`; the rendering allowance remains
+  jig's `domain/hosts.md`, section 12's question.
+
+- **A configuring model changing the catalogue** (8.1): observe a real
+  model reading and proposing a model setting, including estimated prices,
+  and keeping its suggestions within the offer. Default: scripted settings
+  tool stories and stock instruction checks; the real-provider observation
+  follows landing.
+
 - **The approval warning in a real configuring chat** (8.1): whether a
   model keeps forge-identity advice to an approval being asked about or
   proposed. Default: the conditional stock instruction and its phrase
@@ -1419,9 +1444,10 @@ host:
   `../draft/goal-as-designer.md`, sections 3, 5, 6, 7 and 9): the delivery
   path is independent of the stock and reference instructions, their
   wakes and their location. Those words and settings are folded into the
-  reference workflow together; the room for whole specs, batches, briefs
-  and reports is a separate change. Default: the existing stock and
-  reference words and bounds; test charters exercise goal delivery.
+  reference workflow together. Calls, briefs and reports take the room
+  of `../protocol/configuration.md`, 13.8, with the reference's fallback.
+  Default: the existing stock and reference words and wakes; test charters
+  exercise goal delivery.
 
 - **Constraining models in settings reads and proposals** (8.1): whole
   charter values can name models outside the current offer. Restricting what
@@ -1505,14 +1531,6 @@ host:
   the foreman's charter's, the reference setting its model there
   (`../protocol/configuration.md`, 13.9); a `foreman` role once a plan
   needs foremen of different weights.
-- **A report past 3,584 bytes.** The bound sits inside smith's fixed
-  4,096-byte outcome (`smith-domain-run`'s `Limits::outcome_bytes`) and
-  `hub.outcome_bytes`. The rest of the path is already sized for 10,660
-  (`tasks.result_bytes`, `forge.client.op_bytes`), with 10,662 for
-  `checkout.message_bytes`.
-  Going there means smith deriving its outcome from `tool_payload`, the
-  hub's profile value and jig's constant moving together, across three
-  trees. Default: 3,584, until a real run shows a report that a cut loses.
 - **A larger whole compare** (4.3). Nine files, nine commits or one line
   changed in a long file can exceed the stock's forge bounds. Raising the
   row bound alone cannot fit both whole sides of a long file; a paths-only

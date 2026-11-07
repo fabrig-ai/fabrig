@@ -2,6 +2,10 @@
 
 2026-11-07. Where temper's code lags or departs from [journeys.md](journeys.md).
 
+Section 9 has the Models gallery states and the picker link to that
+project's Models tab. The page 07 account is commit `415e659c54`; its
+render comparison remains temper/ui's later work (section 10).
+
 Unlisted sections have no known gap. Section 9's `connect-flows` pages
 remain hand-made request pages, with the shipped states in the gallery;
 no request CSS or script is part of a journey. The `project-landing`

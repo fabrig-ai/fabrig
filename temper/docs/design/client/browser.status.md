@@ -2,12 +2,25 @@
 
 2026-11-07. Where temper's code lags or departs from [browser.md](browser.md).
 
+Sections 2.5 and 7.2 have the Models tab's shipped view and gallery states.
+Every Settings select has the chevron rule above its scoped backgrounds
+and padding. Models' add row does not wrap, its field's label stays
+accessible while visually hidden, and the Provider and Add headings have
+6 px bottom margins. Page 07's four-width render comparison and screenshots
+belong to temper/ui after landing (section 5); the rule checks establish
+no rendered equality.
+
 Section 2.5's flow tokens have the acceptance preview's rules under the
 chats marker. The page draws the case's scene and retains its fallback;
 temper/ui's rendered comparison in a chat and its document is deferred
 in section 5. No browser story is added for flows.
 
 Sections 2.5 and 4.6 carry the connect panels and repository sheet.
+The source chooser is excluded from the radiogroup grid; the list has
+zero margins and its empty row has 14 px vertical padding. Copy public's
+field has a 107 px minimum height and a browser caption. Control captions
+and connection actions retain their requested type rules. The repair
+account is `73fd6f4bae`; comparison of these controls remains in section 5.
 The tier keeps twelve test functions: Accounts history and key re-entry
 share both sign-ins' setup; sheet scrolling, search, adoption and 420 px
 geometry share one test. The repaired versions have no supplied passing

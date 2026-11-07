@@ -180,21 +180,33 @@ fn a_green_head_with_no_repair_records_no_repair_words() {
     assert_eq!(result, ChangeResult::empty());
 }
 
-// temper/docs/design/domain/agent.md, 4.4: the producer's whole report and checks fit.
+// temper/docs/design/domain/agent.md, 4.4: the report shares room with its evidence.
 #[test]
-fn a_report_at_the_bodys_bound_is_kept_whole_at_the_stocks_result_bound() {
+fn the_largest_report_beside_its_evidence_is_whole_then_marked() {
     const ROOM: u32 = 10_660;
-    let report = [b'r'; 3584];
-    let mut result = ChangeResult::empty();
-    result.checked(HEAD, &[check(b"build", Check::Passed)], ROOM);
-    let evidence = result.words(&HEAD, ROOM).fitted(ROOM).unwrap();
-    let words = result.reported(&report, &HEAD, ROOM).fitted(ROOM).unwrap();
-    let mut expected = Writer::new(b"Report:\n".len() + report.len() + 1 + evidence.len());
-    expected.put(b"Report:\n").unwrap();
-    expected.put(&report).unwrap();
-    expected.put(b"\n").unwrap();
-    expected.put(&evidence).unwrap();
-    assert_eq!(words, expected.finish());
-    assert!(skein_lib::bytes::find(&words, b"build passed").is_some());
-    assert!(skein_lib::bytes::find(&words, b"bytes cut]").is_none());
+    // Report label and newline: 9; checks at HEAD, build passed, repairs and reviews: 113.
+    const WHOLE_REPORT: usize = 10_538;
+    // Both boundary rows measured 2.6 ms CPU together.
+    for (bytes, cut) in [(WHOLE_REPORT, false), (WHOLE_REPORT + 1, true)] {
+        let mut report = skein_lib::bytes::zeroed(bytes);
+        report.fill(b'r');
+        let mut result = ChangeResult::empty();
+        result.checked(HEAD, &[check(b"build", Check::Passed)], ROOM);
+        let evidence = b"checks at 0303030303030303030303030303030303030303030303030303030303030303: build passed\nrepairs: 0\nreviews: none";
+        let mut whole = Writer::new(b"Report:\n".len() + report.len() + 1 + evidence.len());
+        whole.put(b"Report:\n").unwrap();
+        whole.put(&report).unwrap();
+        whole.put(b"\n").unwrap();
+        whole.put(evidence).unwrap();
+        let whole = whole.finish();
+        let words = result.reported(&report, &HEAD, ROOM).fitted(ROOM).unwrap();
+        assert_eq!(words.len(), usize::try_from(ROOM).unwrap());
+        if cut {
+            let prefix = words.strip_suffix(b"\n[17 bytes cut]\n").expect("one byte past room plus its cut marker");
+            assert!(whole.starts_with(prefix));
+            assert_eq!(whole.len() - prefix.len(), 17);
+        } else {
+            assert_eq!(words, whole);
+        }
+    }
 }

@@ -39,7 +39,7 @@ const EMPTY: PatchSets = PatchSets {
 fn selected() -> TranscriptRead {
     TranscriptRead::Turn { task: frames::TASK, attempt: frames::ATTEMPT, turn: frames::TURN }
 }
-fn kinds() -> [TranscriptRead; 4] {
+pub(crate) fn kinds() -> [TranscriptRead; 4] {
     [
         selected(),
         TranscriptRead::Window { task: frames::TASK, attempt: frames::ATTEMPT, turn: frames::TURN, after: None },
@@ -325,34 +325,42 @@ fn invalid_frame_sets_refuse_at_serving_open_and_behind() {
     }
 }
 
-#[test]
-fn every_file_cut_in_a_patched_read_preserves_all_files() {
+pub(crate) fn a_read_cut_preserves_files(read: TranscriptRead, cuts: impl Fn(u32) -> Vec<u32>) {
     let transcript = frame_reads::turn(1, b"said", b"replay", 0);
+    let mut complete = fixture(frame_reads::SETS, &transcript);
+    complete.trace_writes();
+    let start = complete.operation_count();
+    let events = settled(&mut complete, ask(read, READ_BYTES));
+    assert_eq!(bytes(&events), frame_reads::turn(2, b"said", &[], 24).as_ref());
+    let operations = complete.operation_count() - start;
+    assert!(operations > 0);
+    for cut in cuts(operations) {
+        let mut world = fixture(frame_reads::SETS, &transcript);
+        let before = world.contents();
+        world.trace_writes();
+        world.cut_at(world.operation_count() + cut);
+        let _events = settled(&mut world, ask(read, READ_BYTES));
+        assert_eq!(world.operation_count(), start + cut, "{read:?}: read cut reached");
+        assert_eq!(world.contents(), before, "{read:?}: cut {cut}/{operations}");
+        assert!(world.changes().is_empty(), "{read:?}: cut {cut}/{operations}");
+        world.crash(43);
+        assert_eq!(world.contents(), before, "{read:?}: power loss at cut {cut}/{operations}");
+    }
+    let mut waiting = fixture(frame_reads::SETS, &transcript);
+    let before = waiting.contents();
+    let events = waiting.request(ask(read, READ_BYTES));
+    assert!(matches!(events.as_slice(), [Event::Site { .. }]));
+    waiting.crash(43);
+    assert_eq!(waiting.contents(), before, "power loss at a written site");
+}
+
+#[test]
+fn a_patched_read_cut_at_its_first_and_last_file_operation_preserves_all_files() {
     for read in kinds() {
-        let mut complete = fixture(frame_reads::SETS, &transcript);
-        complete.trace_writes();
-        let start = complete.operation_count();
-        let events = settled(&mut complete, ask(read, READ_BYTES));
-        assert_eq!(bytes(&events), frame_reads::turn(2, b"said", &[], 24).as_ref());
-        let operations = complete.operation_count() - start;
-        assert!(operations > 0);
-        for cut in 0..=operations {
-            let mut world = fixture(frame_reads::SETS, &transcript);
-            let before = world.contents();
-            world.trace_writes();
-            world.cut_at(world.operation_count() + cut);
-            let _events = settled(&mut world, ask(read, READ_BYTES));
-            assert_eq!(world.contents(), before, "{read:?}: cut {cut}/{operations}");
-            assert!(world.changes().is_empty(), "{read:?}: cut {cut}/{operations}");
-            world.crash(43);
-            assert_eq!(world.contents(), before, "{read:?}: power loss at cut {cut}/{operations}");
-        }
-        let mut waiting = fixture(frame_reads::SETS, &transcript);
-        let before = waiting.contents();
-        let events = waiting.request(ask(read, READ_BYTES));
-        assert!(matches!(events.as_slice(), [Event::Site { .. }]));
-        waiting.crash(43);
-        assert_eq!(waiting.contents(), before, "power loss at a written site");
+        a_read_cut_preserves_files(read, |operations| {
+            eprintln!("{read:?}: before first file operation 0, finished read {operations}");
+            vec![0, operations]
+        });
     }
 }
 

@@ -768,7 +768,7 @@ pub(crate) fn line_key(line: &Line<'_>) -> Option<Key> {
     };
     Some(Key { owner: crate::frame::owner(), kind, a, b })
 }
-fn fixed_key(kind: u16) -> Key {
+pub(super) fn fixed_key(kind: u16) -> Key {
     Key { owner: crate::frame::owner(), kind, a: 0, b: 0 }
 }
 // A turn's later blocks share its name, with a separate high word for their place.
@@ -801,6 +801,7 @@ fn start_fact(
     b.close();
 }
 
+#[cfg(test)]
 pub(crate) fn conversation(
     b: &mut Builder,
     thread: &Thread,
@@ -813,9 +814,41 @@ pub(crate) fn conversation(
     conversation_with_times(b, thread, words, limits, speakers, (drawn, None), bindings);
 }
 
+pub(crate) fn conversation_with_times(
+    b: &mut Builder,
+    thread: &Thread,
+    words: &Words,
+    limits: (u32, u32),
+    speakers: Speakers,
+    reading: (Drawn<'_>, Option<&mut Times>),
+    bindings: &mut Bindings,
+) {
+    open_log(b, thread, words, bindings);
+    conversation_lines(b, thread, words, limits, speakers, reading, bindings);
+    b.close();
+}
+
+/// Opens the conversation's log, bound to read its edges (client/README.md, 5.15).
+pub(crate) fn open_log(b: &mut Builder, thread: &Thread, words: &Words, bindings: &mut Bindings) {
+    b.open(Role::Log);
+    b.name(&words.say_card(P::ConversationLog, &[]));
+    if !thread.lines.edges.reaches(jig_client::thread::window::End::After)
+        || !thread.lines.edges.reaches(jig_client::thread::window::End::Before)
+    {
+        b.bind(bindings.reading());
+    }
+    if !thread.lines.edges.reaches(jig_client::thread::window::End::Before) {
+        b.state(State::Continues);
+    }
+    if thread.reading.is_some() || thread.read_failed.is_some() {
+        b.state(State::Busy);
+    }
+}
+
+/// The log's lines, into a log its caller opened and closes.
 // Agent task pages keep their own treatment of moments (client/README.md, 5.12).
 #[expect(clippy::too_many_lines, reason = "the conversation walk interleaves its run, text and card anchors")]
-pub(crate) fn conversation_with_times(
+pub(crate) fn conversation_lines(
     b: &mut Builder,
     thread: &Thread,
     words: &Words,
@@ -832,19 +865,6 @@ pub(crate) fn conversation_with_times(
     };
     let mut tasks = List::with_capacity(bound);
     let mut shown = List::with_capacity(bound);
-    b.open(Role::Log);
-    b.name(&words.say_card(P::ConversationLog, &[]));
-    if !thread.lines.edges.reaches(jig_client::thread::window::End::After)
-        || !thread.lines.edges.reaches(jig_client::thread::window::End::Before)
-    {
-        b.bind(bindings.reading());
-    }
-    if !thread.lines.edges.reaches(jig_client::thread::window::End::Before) {
-        b.state(State::Continues);
-    }
-    if thread.reading.is_some() || thread.read_failed.is_some() {
-        b.state(State::Busy);
-    }
     if let Some(root) = proposals {
         b.end_request(root.pages().chat().expect("chat page").to_end());
         b.open(Role::Slot);
@@ -1018,7 +1038,6 @@ pub(crate) fn conversation_with_times(
         }
         b.close();
     }
-    b.close();
 }
 fn undecoded(b: &mut Builder, why: c::TurnProblem, words: &Words, clock: Option<&[u8]>) {
     match why {

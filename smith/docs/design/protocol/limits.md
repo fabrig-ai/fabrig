@@ -179,7 +179,10 @@ in every deployment:
   (skein's `llm.md`, 2.5 and 7); and its reason, text of at most 512
   bytes, the failure's detail cut at a character's boundary. Both are
   the channel schema's, and a failed run's refused account carries the
-  code within the same bound (channel.md, section 4).
+  code within the same bound (channel.md, section 4);
+- **a host's input and answer:** at most 262,144 bytes each, the most a
+  deployment's `tool_payload` can make them: a start with more is refused,
+  whatever the channel's own larger ceiling (domain/run.md, section 5).
 
 ## 3. The derivation
 
@@ -672,6 +675,26 @@ marker where they would pass it (llm.md, section 5). History before
 them is unchanged, so the compaction still reads the cached prefix, but
 for what its tool choice costs on the Anthropic dialect (llm.md, 2.2).
 
+### 3.10 A run's charter and outcome
+
+Both follow `tool_payload`, so a host that hands a run one call's worth of
+words keeps them whole, and a run can answer in one call's worth:
+
+- **The charter's allowance,** `run_bytes`, is the larger of 65,536 and
+  twice `tool_payload`: room for a whole spec of one call beside the
+  charter's instructions and tools. It bounds a charter's decoded ownership
+  with its workspace's (domain/run.md, section 4), and a host's
+  `charter_bytes` takes it.
+- **The outcome,** `outcome_bytes`, is the larger of 4,096 and
+  `tool_payload`: what one `finish` or `deliver` call can say. It bounds the
+  declared values together, their names and cells among them, so a field's
+  own bound may be near it and leave the rest to the others. A host's
+  `outcome_bytes` takes it, and the host's own bound must hold it.
+
+Each enters T through a sub-agent's feedback, which holds four times the
+larger of them (domain/run.md, section 5): up to a `tool_payload` of 32,768
+the allowance stays 65,536, the outcome stays below it, and T doesn't move.
+
 ## 4. Checked at startup
 
 Each relationship has a name. A configuration that breaks one is
@@ -717,8 +740,8 @@ them:
 | `watchdog-over-silence` | the host kit | its no-progress deadline exceeds the longest deadline the run may be silent for between reports: io's short operations and its own steps (domain/host.md, section 4) |
 
 What a run asks for is checked at its entrance, not at startup
-(domain/run.md, section 4): a model the configuration does not declare;
-each model entry's `window` and `output` against the model's
+(domain/run.md, section 4): an endpoint the configuration does not declare;
+each charter model entry's `window` and `output` against its endpoint's
 declaration, its room against the one the limits were derived for, and
 its window above the threshold against one `output` and
 `run.compaction_material`, so that its spare is not negative (3.9),

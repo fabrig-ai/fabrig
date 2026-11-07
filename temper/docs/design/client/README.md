@@ -375,7 +375,7 @@ keeps (`../protocol/configuration.md`, section 2).
 | `Task { task }` | the greenfield mock's `goal.html`, for a goal; `task.html` otherwise | a goal: its header, its needs as bands, its report, its tasks, landing, how it runs and what it decided, what the person sent (5.8), with Amend, Pause or Resume, Close and its composer (5.11); a change: its header and "View on forge ↗", its steps, its step's line, its hold, its tasks live and ended, its gates at its head and its bounds (5.10); an agent's task: its lineage, its brief, its run's heading, its conversation as a chat's, its result once ended and its plan's held cards (5.9), with Amend, Pause or Resume, Close and its composer (5.11), and its own held card while it is held for any cause but the person's own pause | `task`, `tree`, `activity` a page at a time, earlier and later pages at an agent's conversation's log edges (5.15); `run` while one is live; a change's panel, through the forge's side (`forge.md`, 9.2); a goal's or a procedure's ended delegates, a page read once and again on a change; a goal's report, its own line and its needs (5.8) | as its document offers them (5.11): on a goal amend, pause, resume, close, message, and answer its needs; on an agent's task message, amend, pause, resume, close, release its own held task or one of its plan |
 | `Changes { project }` | the greenfield mock's `changes.html` | what is on the way to the project's landing branches and what last landed there (*Changes,* below; `forge.md`, section 3) | the subject `changes`, through the forge's side (4.2, 4.6); a `task` per row shown, for where it came from | none: each row links to its change's `Task` |
 | `Adopt { project }` | none: 4.4 | under its path (*Settings,* below), the adoption form, into `project` (4.4), with the picker of the repositories temper can reach on the chosen forge | `me`; the chosen forge's deployment part, for its kind, mode, user and installations (`forge.md`, 5.4); the picker's page, a `Reachable` request (section 8) | adopt a repository (4.4) |
-| `Forges` | `forges.html` | inside Settings' frame while a project is open (*Settings,* below): the person's forges, each row folded until opened: its connection, its mode and access, on GitHub temper's App and its installations, a connect under way and how the last ended, its load; then the playground's forge, folded, while the playground is read (4.8); "+ Add a forge", to `ConnectForge`, but while the playground runs (`forge.md`, 5.4) | the forge's, through the forge's side (4.2) | connect a stopped forge; replace a key or tokens; install on another account; new repository; forget the admin's token; set up again; remove a forge, confirmed (section 8) |
+| `Forges` | `forges.html` | inside Settings' frame while a project is open (*Settings,* below): the person's forges, each row folded until opened: its connection, its mode and access, on GitHub temper's App and its installations, a connect under way and how the last ended, its load; then the playground's forge, folded, while the playground is read (4.8); "+ Connect a forge", to `ConnectForge`, but while the playground runs (`forge.md`, 5.4) | the forge's, through the forge's side (4.2) | connect a stopped forge; replace a key or tokens; install on another account; new repository; forget the admin's token; set up again; remove a forge, confirmed (section 8) |
 | `ConnectForge { forge }` | `connect-forge.html` | under its path (*Settings,* below), connecting one more forge, `forge` the choice it is at: the shared choice cards or a way’s panel, then the open row on Forges, adopting nothing (`forge.md`, 5.4) | the forge's, through the forge's side (4.2) | connect; connect as its admin; set up a Forgejo here (section 8) |
 | `Welcome { step }` | `welcome.html`; the first run's step 0 | the first run's welcome, by the store's state, empty, unfinished or whole (below): "Try the playground" or "Set up temper", the latter a wizard of Welcome, Forge, Model and Ready, its `step` (5.6; `../draft/archive/first-run.md`, 2.3) | the playground's read (4.8); `accounts`; the `forges` watch, for a person whose role holds the deployment's forges; the forge's, as `ConnectForge` reads it | start the playground; start a forge cut short over, or go on with it; `ConnectForge`'s and `ConnectModel`'s acts |
 | `Accounts` | `accounts.html` | inside Settings' frame while a project is open (*Settings,* below), and there "Sign out" at its foot, in a browser at a phone's width alone: the person's LLM accounts, then, for an owner, the deployment's, each row folded until opened: its LLM provider and display name, its holder, its deciding source's state and its line (5.5, An account's line); opened, that state's words and acts, its trial's line under the head and before the sources (`../domain/trial.md`, 6.2), its sources in order, each with its state in words and, for a program's, on which hosts (5.5), what it pays for, the runs using it and the tasks waiting for it (facts jig gives the deployment's accounts alone for now, so a person's own leave them out: 5.5) and its acts; the checks under way, and how the last ended; then the playground's account, folded, while the playground is read (4.8); "+ Connect a model", to `ConnectModel`, but while the playground is read | `accounts` (jig's `client/domain/contract.md`, 7.1); `me`'s LLM providers | sign in again or add a key from a state's acts, as `ConnectModel`'s ways; sign a source out; add a key to an account; replace a key; remove a source or an account; check a program's login again; move an account, or a source, up or down; resume a limited source |
@@ -2260,7 +2260,8 @@ keeps (`../protocol/configuration.md`, section 2).
       `client/domain/contract.md`, 5.1).
     - *"Add a model by name",* a section, for an owner in the deployment: a
       provider's select, of the providers `me` offers but the playground's; a
-      field named "The model’s name", its placeholder "model-name"; "Add"; and, in
+      field whose accessible name is "The model’s name", drawn by its placeholder
+      "model-name" alone; "Add", the three on one row at every width; and, in
       `small`, "For a model the list doesn’t show. It runs through the account you
       have with that provider." The name's shape is checked here as the engine
       checks it, 1 to 128 bytes of letters, digits, `-`, `.`, `_` and `:`, and "Add"
@@ -3015,7 +3016,7 @@ that said "Adopt a repository", go to it; its Cancel and its Escape go to
   an Account field, GitHub's, one per installation, where there are several,
   "LOGIN · selected repositories" or "LOGIN · suspended" where they are; then
   the picker of `forge.md`, 5.1; "Not listed", folded; "More", folded, its
-  summary saying what it's set to ("Owned, it runs CI"), holding the fields
+  summary saying what it's set to ("More · Owned, it runs CI"), holding the fields
   below: "What temper does with it" and its three roles, "Branch prefix",
   "Landing branch", "Checks: gate numbers, separated by spaces or commas",
   "It runs CI" and "Make it the project's home". A chosen new forge or account
@@ -3023,9 +3024,10 @@ that said "Adopt a repository", go to it; its Cancel and its Escape go to
 - **Make empty:** "Organization" (`work`), "Name", then "On FORGE, with a
   README and a starter CI check.". The button says "Make ORG/NAME", or "Make
   it" until both are typed.
-- **Copy public:** "Their addresses, one per line", read as typed, a line at
-  a time, each with its own words: "Not an address: LINE. Write it as
-  github.com/owner/name."; "HOST isn’t a host. Did you mean
+- **Copy public:** "Their addresses, one per line", the browser's caption over
+  a field four lines high; the terminal prints the field's name once.
+  Read as typed, a line at a time, each with its own words: "Not an address:
+  LINE. Write it as github.com/owner/name."; "HOST isn’t a host. Did you mean
   github.com/OWNER/NAME?", with "Use it"; and, for a name the target forge
   has already, among the rows read of it and its makings, "OWNER/NAME is
   already on this forge.", with "Adopt it", which moves to "Adopt" with its
@@ -3975,7 +3977,7 @@ client removes no account and closes no chat of its own.
   group of three choices, home and ci as checks, the button, and after
   them a status for progress and an outcome, or an alert for a refusal.
 - **The forges' page:** a level-1 heading, "Forges", then "Your
-  forges" with their count and "+ Add a forge", then a disclosure per
+  forges" with their count and "+ Connect a forge", then a disclosure per
   listed forge, folded, named by the forge's name, its summary the
   forge's number, kind and `web` address, its connection and its line,
   holding its rows and its actions, "Remove" last, its confirmation in
@@ -4984,6 +4986,16 @@ acts on it as its document offers (5.11).
   open (3.6). At phone width the order is
   the same: the lineage bar keeps one line, its titles cut short, and
   the taskbar's parts wrap.
+- **What scrolls,** in a browser: the log alone, as on a chat's page, so
+  that PgUp and PgDn from the message box, "Latest" and the kept place
+  (5.15) act on it as there. From "Task brief" to "Plan", the parts above
+  stand in their order inside the log, around its lines, and "Latest"
+  beside it, after it, as a chat's. The log follows its end, so that the
+  page opens there and the brief is read back to (section 11). The
+  amendment's editor (5.11) stands above the log, where it is seen when
+  it opens, since it takes no focus; it scrolls itself where a short
+  window can't hold it. A terminal scrolls nothing of its own: it prints
+  those parts around its log, in the same order.
 - **The lineage bar:** its parent, the last of its lineage
   (`lineage_chips`, root first), as its "Task N" link and its title,
   after an arrow; then the task itself, "Task M" and its title. With no
@@ -6753,18 +6765,39 @@ own tests:
 
 ## 11. Open questions
 
+- **Settings, Models after landing** (3.5): temper/ui compares page 07 of
+  `model-picker` with the shipped page at 1440, 1280, 1000 and 420 px,
+  including the named states and screenshots (`../draft/look-requests.md`,
+  section 4). Default: the client world's switch and add-by-name stories
+  across reloads; browser and real-provider checks remain after landing.
+  The comparison includes Provider's chevron, the single-row add form
+  and its section headings. Settings' shared H1 and the open project
+  menu row keep their frame's design, as the repair request leaves them.
+
 - **A document's drawing after landing** (3.5): temper/ui looks at a flow
   in a chat and in its document, including both layouts and the narrow
   fallback (`browser.md`, section 5). Default: skein's acceptance cases
   and temper's host test hold the scene's bytes; the rendered comparison
   follows landing.
 
+- **An agent's page opening at its end** (5.9, 5.15): a long conversation's
+  page opens below its brief and, on a held task, below its own held card;
+  the taskbar says the state. Earlier lines load as the log's head nears, so
+  a brief past a screen and a half above a cut window lets a reader pass the
+  oldest held line before the read starts; the lines then arrive under the
+  brief, the view kept. Default: so, until temper/qa's walk after landing
+  says otherwise. Otherwise the card moves to the log's foot, or the brief
+  draws only once the window reaches the start, as a chat's context does.
+
 - **The connect-flows comparison** (3.5, 4.4, 5.2): temper/ui compares
   request pages 01–23 with main, including named states and open menus
   and disclosures at 1440, 1000 and 420 px, with screenshots also at
   1280 px (`../draft/look-requests.md`, 4). Default: the source and print
   account is distinct from rendered equality; differences return as
-  findings after landing.
+  findings after landing. Compare the request-owned parts, including
+  Settings' select chevrons, the sheet's chooser, captions, list and empty
+  search, More's summary, connection actions and each model way's path;
+  the shared H1 and open project menu row keep their frame's design.
 - **One repository sheet from Home** (3.5, 4.3, 4.4): the
   repository-copies follow-up, owned by temper/ui, unifies Home's own
   empty-or-copy sheet with Add repositories and draws the entry from a

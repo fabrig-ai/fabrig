@@ -1,0 +1,16 @@
+{
+  "agent": {
+    "tool_payload": 63740,
+    "output": 48000
+  },
+  "worker": {
+    "limits": {
+      "overrides": {
+        "hub.event_bytes": 63738,
+        "hub.transcript_bytes": 73727378,
+        "hub.turn_bytes": 18431842,
+        "hub.turn_queue_bytes": 147454736
+      }
+    }
+  }
+}

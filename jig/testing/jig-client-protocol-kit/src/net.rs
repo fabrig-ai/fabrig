@@ -10,6 +10,8 @@ use skein_lib::{
 use skein_world::stream::Wire;
 use std::collections::BTreeMap;
 mod records;
+#[cfg(test)]
+mod tests;
 use records::Records;
 #[derive(Default)]
 struct Checked {
@@ -22,6 +24,50 @@ struct Room {
     shell: bool,
     engine: bool,
 }
+#[derive(Default)]
+struct Reads {
+    request: Message,
+    response: Message,
+}
+
+/// One direction's HTTP message: its head is parsed once, when its end has
+/// arrived, and each later look compares a length.
+#[derive(Default)]
+struct Message {
+    /// How far the search for the head's end has come.
+    searched: usize,
+    head: Option<Head>,
+}
+struct Head {
+    body: usize,
+    /// `None` for a head that isn't UTF-8 or declares no length: never whole.
+    length: Option<usize>,
+}
+impl Message {
+    /// What `whole` answers for these bytes. Bytes are only ever appended.
+    fn whole<'a>(&mut self, http: &'a [u8]) -> Option<&'a [u8]> {
+        if self.head.is_none() {
+            let body = head_end(http, &mut self.searched)?;
+            self.head = Some(Head::parse(http, body));
+        }
+        self.head.as_ref()?.whole(http)
+    }
+}
+impl Head {
+    fn parse(http: &[u8], body: usize) -> Self {
+        let length = std::str::from_utf8(&http[..body]).ok().and_then(|head| {
+            head.lines().find_map(|line| {
+                line.to_ascii_lowercase().strip_prefix("content-length:").and_then(|s| s.trim().parse::<usize>().ok())
+            })
+        });
+        Self { body, length }
+    }
+    fn whole<'a>(&self, http: &'a [u8]) -> Option<&'a [u8]> {
+        let bytes = &http[self.body..];
+        (bytes.len() == self.length?).then_some(bytes)
+    }
+}
+
 struct Socket {
     client: ClientId,
     conn: Conn,
@@ -33,6 +79,7 @@ struct Socket {
     request: Vec<u8>,
     response: Vec<u8>,
     checked: Checked,
+    reads: Reads,
     source_records: Records,
     crossed_records: Records,
     broken: bool,
@@ -161,6 +208,7 @@ impl Net {
                     request: Vec::new(),
                     response: Vec::new(),
                     checked: Checked::default(),
+                    reads: Reads::default(),
                     source_records: Records::default(),
                     crossed_records: Records::default(),
                     broken: false,
@@ -220,6 +268,9 @@ impl Net {
         let mut clients = Vec::new();
         let mut changed = false;
         for socket in self.sockets.values_mut() {
+            if socket.broken && !socket.fail && self.cut_upload.is_none() {
+                continue;
+            }
             let keyed = !socket.checked.response && socket.shell.received.starts_with(b"POST /jig/v1/request ");
             if keyed
                 && socket.upload_limit.is_none()
@@ -264,7 +315,7 @@ impl Net {
             let mut record_changed = false;
             let slow = self.slow.is_some_and(|(client, _)| client == socket.client && stream(socket));
             let shell_progress = socket.shell.trace.len();
-            let shell_up = if slow { None } else { socket.shell.answer() };
+            let shell_up = if slow || !socket.shell.work_pending() { None } else { socket.shell.answer() };
             // A seeded Wire may buffer a fragment before it can answer a
             // complete line. That is progress even without a callback.
             changed |= socket.shell.trace.len() != shell_progress;
@@ -284,6 +335,7 @@ impl Net {
             if !slow
                 && !socket.closed
                 && let Some(owner) = socket.owner
+                && socket.engine.work_pending()
                 && let Some(up) = socket.engine.answer()
             {
                 if let Up::Bytes(bytes) = &up {
@@ -309,19 +361,25 @@ fn body(http: &[u8]) -> Option<&[u8]> {
     let end = http.windows(4).position(|bytes| bytes == b"\r\n\r\n")?;
     Some(&http[end + 4..])
 }
+/// Resume the head delimiter search, retaining its possible partial suffix.
+fn head_end(http: &[u8], searched: &mut usize) -> Option<usize> {
+    let end = http[*searched..].windows(4).position(|bytes| bytes == b"\r\n\r\n");
+    if let Some(end) = end {
+        Some(*searched + end + 4)
+    } else {
+        *searched = http.len().saturating_sub(3);
+        None
+    }
+}
 fn whole(http: &[u8]) -> Option<&[u8]> {
     let bytes = body(http)?;
-    let head = std::str::from_utf8(&http[..http.len() - bytes.len()]).ok()?;
-    let length = head.lines().find_map(|line| {
-        line.to_ascii_lowercase().strip_prefix("content-length:").and_then(|s| s.trim().parse::<usize>().ok())
-    })?;
-    (bytes.len() == length).then_some(bytes)
+    Head::parse(http, http.len() - bytes.len()).whole(http)
 }
 fn check(socket: &mut Socket, rules: &mut Rules) {
     let Some(path) = socket.shell.received.split(|b| *b == b' ').nth(1) else { return };
     if !socket.checked.request
         && !stream(socket)
-        && let Some(actual) = whole(&socket.request)
+        && let Some(actual) = socket.reads.request.whole(&socket.request)
     {
         let encoded = whole(&socket.shell.received).expect("complete source");
         rules.record(path, false, encoded, actual).expect("request crossed unchanged");
@@ -337,7 +395,7 @@ fn check(socket: &mut Socket, rules: &mut Rules) {
             socket.checked.events += 1;
         }
     } else if !socket.checked.response
-        && let Some(actual) = whole(&socket.response)
+        && let Some(actual) = socket.reads.response.whole(&socket.response)
     {
         let encoded = whole(&socket.engine.received).expect("complete response source");
         if actual.is_empty() && encoded.is_empty() && !socket.response.starts_with(b"HTTP/1.1 200 ") {

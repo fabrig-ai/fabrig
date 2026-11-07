@@ -18,7 +18,14 @@ core world's restore stories are ignored (`domain/engine.md`,
 `domain/connectors.md`). A run's fresh settings proposal replaces its own
 pending one atomically, preserving it on refusal; at the deployment
 proposal bound, refusal remains the default (`domain/tasks.md`, section 9;
-`domain/engine.md`, 17.6). A start does not check an application's declared
+`domain/engine.md`, 17.6). Numbered model settings, catalogue-derived
+charter versions and endpoint bounds at hello are built; provider-list reads and per-account
+narrowing remain deferred (`domain/engine.md`, 16 and 17.11).
+Standard admits batches of 32, charters of 262,144 bytes and outcomes of
+131,072; a change body's bound follows its contract's words. Message
+rendering room remains deferred (`domain/hosts.md`, sections 8 and 12;
+`protocol/configuration.md`, section 6).
+A start does not check an application's declared
 kinds against its limits, and a project's deletion as a whole has no price
 against `journal.writes` (`domain/engine.md`).
 An ended settings acceptance reaches its retained decision with the
@@ -58,7 +65,14 @@ observer updates keyed evidence from durable commit rows and keeps complete
 ordered snapshots, with whole rebuilding for cold reads and bulk changes.
 Views are made only for readers; further observation-cost work and proof
 that the focused suite fits 30 CPU s remain
-(`domain/testing.md`, sections 5, 9 and 10). The channel's root checks at every
+(`domain/testing.md`, sections 5, 9 and 10). Typed core row names and shared
+setup avoid repeated formatting and construction; protocol wires skip idle
+polls and parse only new bytes, and due agents check holds and credentials
+before joint account and host selection. The seven store sweeps run in fuzzy
+with the focused cuts' checks; the focused stray story selects a directory
+creation where `domain/testing.md`, 9 requires its first removal. Whole-suite savings and
+fuzzy's fit remain unproved (`domain/testing.md`, sections 7, 9 and 10;
+`protocol/store.md`, section 14). The channel's root checks at every
 step cover its fuzzy stories; the other stories can miss transient grant
 values between arrival and end checks (`protocol/channel.md`, sections 12
 and 14).

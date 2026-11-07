@@ -70,11 +70,11 @@ const CHAT_AND_BOTH_PRODUCERS: usize = 3;
 const TWO_CHANGES: usize = 2;
 
 fn plan_world(control: bool) -> (World, engine::Assignment) {
-    let mut world = World::configured(true, true);
-    world.env.limits.tasks.batch = u32::try_from(TWO_CHANGES).expect("two changes fit u32");
-    // This constructor rebuilds the cold root with its configured policy and current bounds.
-    let client = world.env.limits.forge.client;
-    world = world.with_forge_client(client);
+    plan_world_with_limits(control, StoryLimits { tasks_batch: Some(2), ..StoryLimits::default() })
+}
+
+fn plan_world_with_limits(control: bool, limits: StoryLimits) -> (World, engine::Assignment) {
+    let mut world = World::configured_limits(true, true, false, PLAN_STEPS, Gate::default(), None, limits);
     world.adopt();
     world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
     let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { panic!("create") };
@@ -90,6 +90,25 @@ fn plan_world(control: bool) -> (World, engine::Assignment) {
 }
 
 fn plan_change(world: &mut World, chat: &engine::Assignment, input: &[u8]) -> Option<engine::CallAnswer> {
+    let before = start_plan_change(world, chat, input);
+    world.until(Until::Ready);
+    world.answers.get(before).cloned()
+}
+
+fn plan_change_admission(world: &mut World, chat: &engine::Assignment, input: &[u8]) -> Option<engine::CallAnswer> {
+    let errors = world.call_errors.len();
+    let before = start_plan_change(world, chat, input);
+    // Observe the committed admission without running every admitted procedure to idle.
+    for _ in 0..200 {
+        world.tick();
+        if world.answers.len() > before || world.call_errors.len() > errors {
+            return world.answers.get(before).cloned();
+        }
+    }
+    panic!("change admission was not answered");
+}
+
+fn start_plan_change(world: &mut World, chat: &engine::Assignment, input: &[u8]) -> usize {
     world.until(Until::Ready);
     let before = world.answers.len();
     let input = smith_domain_run::HostInput::attested(input.into()).expect("bounded input");
@@ -105,8 +124,7 @@ fn plan_change(world: &mut World, chat: &engine::Assignment, input: &[u8]) -> Op
     };
     let event = world.protocol.call(Token::new(7), chat.task, chat.attempt, PLAN_CALL, call);
     world.send(event);
-    world.until(Until::Ready);
-    world.answers.get(before).cloned()
+    before
 }
 
 fn stored_change(world: &World, task: u64) -> &forge_top::ChangeRow {
@@ -228,6 +246,55 @@ fn two_changes_in_one_call_are_one_batch_the_second_after_the_first() {
     assert_eq!(world.merges, 1);
     assert_eq!(world.assigned.len(), CHAT_AND_BOTH_PRODUCERS);
     assert_eq!(live(&world, world.assigned[2].task).requester, tasks::Party::Task(made[1].task));
+}
+
+#[test]
+fn a_change_batch_admits_thirty_two_members_and_refuses_one_more() {
+    const BATCH: u32 = 32; // temper/docs/design/protocol/configuration.md, 13.8, A batch.
+    const ONE_MORE: u32 = BATCH + 1;
+    const TASK_ROOM: u32 = ONE_MORE * 2; // One change and one producer for each member.
+    // Both admission rows, including their world setup, measured 102 ms CPU together.
+    for (count, expected) in [
+        (BATCH, Ok(usize::try_from(BATCH).unwrap())),
+        (ONE_MORE, Err((authority::Answer::Refuse, Box::from([authority::Finding::Oversized])))),
+    ] {
+        let (mut world, chat) = plan_world_with_limits(
+            true,
+            StoryLimits {
+                authority_batch: Some(BATCH),
+                tasks_batch: Some(ONE_MORE),
+                task_delegates: Some(ONE_MORE),
+                tasks: Some(TASK_ROOM + 1),
+                tree_tasks: Some(TASK_ROOM + 1),
+                inbox_messages: Some(ONE_MORE),
+                inbox_bytes: Some(ONE_MORE * 128),
+                ..StoryLimits::default()
+            },
+        );
+        let input = serde_json::to_vec(&serde_json::json!({
+            "changes": vec![serde_json::json!({"words": "Small fix"}); usize::try_from(count).unwrap()]
+        }))
+        .expect("change batch JSON");
+        let answer = plan_change_admission(&mut world, &chat, &input);
+        let outcome = match answer {
+            Some(engine::CallAnswer::Delegated(made)) => Ok(made.len()),
+            Some(engine::CallAnswer::DelegationDenied { answer, findings }) => Err((answer, findings)),
+            other => panic!("batch of {count}: {other:?}; errors: {:?}", world.call_errors),
+        };
+        assert_eq!(outcome, expected, "batch of {count}");
+        let admitted = outcome.unwrap_or(0);
+        assert_eq!(world.answers.len(), 1, "one answer for one batch");
+        assert_eq!(
+            world
+                .store
+                .rows
+                .keys()
+                .filter(|key| matches!(key, Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(_)))))
+                .count(),
+            admitted + 1
+        );
+        assert_eq!(live(&world, chat.task).delegates.len(), admitted);
+    }
 }
 
 #[test]

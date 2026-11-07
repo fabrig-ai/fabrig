@@ -2,21 +2,25 @@
 
 2026-11-07. Where jig's code lags or departs from [hosts.md](hosts.md).
 
+Sections 2 and 8 have no known gap in endpoint bounds at hello and
+charter-supplied model names; the host keeps no model allowlist.
+
 Section 6.3 has no gap in transcript refusal classification across the worker
 channel or in closing refused starts without an acknowledgement.
 Section 6.3 has no gap in retaining a pre-admission agent fault and its
 bounded diagnostic through cleanup, or in cancellation winning first.
-Section 8 has no known gap in the change body's 3,584-byte maximum:
-the contract keeps the task's smaller words bound, and other texts keep
-their 1,024-byte maximum. The boundary encoding test holds a change at
-the body's maximum and the agent's 4,096-byte ownership limit through
-the hub codec without losing fields. Larger reports remain in section 12.
 Section 8's independent delivery grant for a Finite report is present:
 the policy's `modify` and the root's workspace delivery fact are both
 required, and delivery leaves the report and failure forms unchanged.
 The charter tests cover the grant's combinations, bounds and encoding;
 Open and verdict runs still receive no delivery grant. The shell
 departure below remains.
+
+Section 8 has no known gap in a change's `body` following the contract's
+words, or an independent report delivery's body taking the larger of
+those words and 1,024. The outcome still holds all fields and framing
+together; a field's bound alone does not promise that the whole fits.
+Section 12 defers the general message-rendering allowance.
 
 - **Not yet:** 3, 5.2, 6.5, 11: `smith-inline-agent` as a hub's agent
   capability. 4: an admitted run's answers passing a held assignment.

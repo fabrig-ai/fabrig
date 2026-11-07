@@ -34,6 +34,7 @@ fn source() -> Charter {
         workspace: crate::WorkspaceTools { inspect: false, modify: false, shell: false },
         delivers: false,
         conventions: None,
+        words: 512,
         contract: Contract {
             report: Some(TextRule { max: 512, fields: Box::new([]) }),
             failure: None,
@@ -406,6 +407,7 @@ fn report_fixture_charter(instructions: &[u8], words: u32, spend: u64, turns: u3
         workspace: crate::WorkspaceTools { inspect: false, modify: false, shell: false },
         delivers: false,
         conventions: None,
+        words,
         contract: Contract {
             report: Some(TextRule { max: words, fields: Box::new([]) }),
             failure: Some(TextRule { max: words, fields: Box::new([]) }),
@@ -533,6 +535,8 @@ fn delivery_follows_contract_policy_and_workspace() {
     use jig_domain_tasks::{Contract, EndedBy};
     use smith_domain_run::outcome::{ChangeSpec, FieldRule};
     const WORDS: u32 = 16;
+    // A whole-spec report bound (jig/docs/design/domain/hosts.md, 8).
+    const LARGE_WORDS: u32 = 131_070;
     let report = Contract::Report { words: WORDS };
     let change = Contract::Change { connector: 1, kind: 1, words: WORDS };
     let verdict = Contract::Verdict {
@@ -542,9 +546,11 @@ fn delivery_follows_contract_policy_and_workspace() {
         checks_must_pass: crate::CONTRACT_CHECKS_MUST_PASS,
         fields: Box::new([
             FieldRule { name: b"title".as_slice().into(), max: crate::CONTRACT_TEXT_MAX },
-            FieldRule { name: b"body".as_slice().into(), max: crate::CHANGE_BODY_MAX },
+            FieldRule { name: b"body".as_slice().into(), max: crate::CONTRACT_TEXT_MAX },
         ]),
     };
+    let mut large_report_delivery = report_delivery.clone();
+    large_report_delivery.fields.get_mut(1).expect("body rule").max = LARGE_WORDS;
     let change_delivery = ChangeSpec {
         checks_must_pass: crate::CONTRACT_CHECKS_MUST_PASS,
         fields: Box::new([
@@ -554,6 +560,7 @@ fn delivery_follows_contract_policy_and_workspace() {
     };
     for (contract, ended_by, modify, delivers, delivery, writable) in [
         (report.clone(), EndedBy::Result, true, true, Some(&report_delivery), true),
+        (Contract::Report { words: LARGE_WORDS }, EndedBy::Result, true, true, Some(&large_report_delivery), true),
         (report.clone(), EndedBy::Result, true, false, None, false),
         (report.clone(), EndedBy::Result, false, true, None, false),
         (report, EndedBy::Requester, true, true, None, false),
@@ -576,36 +583,38 @@ fn delivery_follows_contract_policy_and_workspace() {
 
 #[test]
 fn delivering_report_keeps_its_outcome_and_independent_delivery_bounds() {
-    const WORDS: u32 = 16;
-    let mut value = assignment_fixture(b"Delivery", WORDS, 20, 4);
-    value.policy.modify = true;
-    let mut assembled = crate::assignment(value, Box::new([]), Box::new([]), false).expect("report charter");
-    assembled.delivers = true;
-    let mut without_delivery = assembled.clone();
-    without_delivery.delivers = false;
-    let expected = charter(without_delivery).expect("bounded charter").outcome;
-    let translated = charter(assembled).expect("bounded charter");
-    assert_eq!(translated.outcome, expected, "delivery preserves the contract's finish forms");
-    assert!(translated.outcome.change.is_none());
-    assert_eq!(translated.outcome.report.expect("report text").max, WORDS);
-    assert_eq!(translated.outcome.failure.expect("failure text").max, WORDS);
-    assert!(translated.outcome.verdicts.is_empty(), "a report offers no no_change verdict");
-    let delivery = translated.grants.deliver.expect("report's workspace delivers");
-    assert!(delivery.checks_must_pass);
-    assert_eq!(delivery.fields.len(), 2);
-    let title = delivery.fields.first().expect("title rule");
-    let body = delivery.fields.get(1).expect("body rule");
-    assert_eq!(title.name.as_ref(), b"title");
-    assert_eq!(body.name.as_ref(), b"body");
-    assert_eq!(title.max, crate::CONTRACT_TEXT_MAX);
-    assert_eq!(body.max, crate::CHANGE_BODY_MAX);
+    // Small reports keep a useful delivery floor; large reports keep their contract bound.
+    for (words, text_max, body_max) in [(16, 16, 1024), (131_070, 1024, 131_070)] {
+        let mut value = assignment_fixture(b"Delivery", words, 20, 4);
+        value.policy.modify = true;
+        let mut assembled = crate::assignment(value, Box::new([]), Box::new([]), false).expect("report charter");
+        assembled.delivers = true;
+        let mut without_delivery = assembled.clone();
+        without_delivery.delivers = false;
+        let expected = charter(without_delivery).expect("bounded charter").outcome;
+        let translated = charter(assembled).expect("bounded charter");
+        assert_eq!(translated.outcome, expected, "delivery preserves the contract's finish forms");
+        assert!(translated.outcome.change.is_none());
+        assert_eq!(translated.outcome.report.expect("report text").max, text_max);
+        assert_eq!(translated.outcome.failure.expect("failure text").max, text_max);
+        assert!(translated.outcome.verdicts.is_empty(), "a report offers no no_change verdict");
+        let delivery = translated.grants.deliver.expect("report's workspace delivers");
+        assert!(delivery.checks_must_pass);
+        assert_eq!(delivery.fields.len(), 2);
+        let title = delivery.fields.first().expect("title rule");
+        let body = delivery.fields.get(1).expect("body rule");
+        assert_eq!(title.name.as_ref(), b"title");
+        assert_eq!(body.name.as_ref(), b"body");
+        assert_eq!(title.max, crate::CONTRACT_TEXT_MAX);
+        assert_eq!(body.max, body_max);
+    }
 }
 
 #[test]
 fn contract_text_is_bounded_and_change_checks_are_required() {
     use jig_domain_tasks as tasks;
-    assert_eq!(crate::CHANGE_BODY_MAX, 3584);
-    for words in [1023, 1024, 1025, 3583, 3584, 3585] {
+    // The contract text boundary and a whole-spec body bound (hosts.md, 8).
+    for words in [1023, 1024, 1025, 131_070] {
         let mut value = assignment_fixture(b"Contract", words, 20, 4);
         let report = crate::assignment(value.clone(), Box::new([]), Box::new([]), false).expect("report");
         assert_eq!(report.contract.report.expect("report text").max, words.min(crate::CONTRACT_TEXT_MAX));
@@ -623,7 +632,7 @@ fn contract_text_is_bounded_and_change_checks_are_required() {
         assert_eq!(rule.fields[0].name.as_ref(), b"title");
         assert_eq!(rule.fields[1].name.as_ref(), b"body");
         assert_eq!(rule.fields[0].max, words.min(crate::CONTRACT_TEXT_MAX));
-        assert_eq!(rule.fields[1].max, words.min(crate::CHANGE_BODY_MAX));
+        assert_eq!(rule.fields[1].max, words);
     }
 }
 
