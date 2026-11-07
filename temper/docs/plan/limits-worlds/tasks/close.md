@@ -61,3 +61,15 @@ Options, each decided:
 ## Report
 
 The account's first table, the suites against their limits, what stands for the user, and your implementation and check minutes apart.
+
+## Rebase (2026-11-07, step merge, foreman limits-worlds/close/foreman-1)
+
+reconcile the testing status conflict while preserving both plans’ findings
+Rebase `limits-worlds/close` onto main; the conflict is in `temper/docs/design/domain/testing.status.md`.
+Main commit `1096b2385590f907c86ebabb5ee5111e4324a5b9` adds the `limits-heavy` account and updates the same budget paragraph that close replaces.
+Preserve main’s paragraph on the `limits-heavy` repairs, unexplained 19.3 CPU s and deferred causes.
+Preserve its **Not yet:** 2.6 entry for the hangup/rebind and Linux killed-box stories: compiled, runtime results absent, process-tier budget fit unknown.
+Replace the overlapping **Not yet:** 6.1 paragraph with close’s measured-budget **Departs:** 6.1 entry, retaining its qualification that whole-suite totals remain unknown.
+Keep close’s separate **Departs:** 5.3 and 6.1 entry for the eighteen surviving fuzzy real-loop stories and the user’s placement decision.
+Keep unrelated status entries intact; no measurement rerun is needed for this textual conflict.
+Run `python3 -I -B tools/citations/citations.py --base origin/main` after resolving.
