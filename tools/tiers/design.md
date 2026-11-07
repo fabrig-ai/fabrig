@@ -343,6 +343,8 @@ a run that goes over rather than refusing it.
 Smith's and Skein's `default` and `fuzzy` entries use `cpu_suite_s` alone,
 at 30 and 120 respectively; whether those are their CPU figures remains
 open (section 8).
+Jig's `fuzzy` entry uses `cpu_suite_s` alone at 120, with its CPU figure
+likewise open (section 8); Jig has no `default` entry.
 `--verify-all` validates every budget key, value and configured
 pair before any command. CPU mode validates it too. A test's CPU budget
 covers all its attempts; a pair's covers every test attempt. The summary exits
@@ -579,6 +581,11 @@ Whether Smith's and Skein's focused and fuzzy figures, 30 s and 120 s from
 `skein/docs/foundation/testing-strategy.md`, section 8, are CPU seconds
 per tree remains open. Their `cpu_suite_s` entries settle no such decision,
 and no measurement establishes them here.
+
+Whether Jig's fuzzy figure, 120 s from the same strategy section, is its
+CPU figure remains open too. Its focused entry awaits the user's word:
+the request reports that suite over its figure. No measurement is made
+here to settle either.
 
 `budgets()` validates `[gate.<tree>.<profile>]` and nothing here reads it
 beyond that (7.3): what measures a tree's share of a gate suite and records
