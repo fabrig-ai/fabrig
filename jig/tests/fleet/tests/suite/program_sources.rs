@@ -3,6 +3,9 @@ use jig_domain_link::{
     Hello, Login, LoginMethod, LoginState, Membership, SignOutResult, SourceFailure, SourceName, Worker,
 };
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
+// jig/docs/design/protocol/channel.md, 5.1 bounds a login email in bytes.
+const EMAIL_BYTES: usize = 255;
+
 const CHANNEL: Token = Token::new(101);
 struct World {
     domain: fleet::Domain,
@@ -58,7 +61,10 @@ impl World {
     fn inventory(&mut self, names: &[&[u8]]) -> Vec<Request> {
         self.step(Event::Logins {
             channel: CHANNEL,
-            logins: names.iter().map(|name| Login { name: source(name), state: LoginState::NotSignedIn }).collect(),
+            logins: names
+                .iter()
+                .map(|name| Login { name: source(name), state: LoginState::NotSignedIn, email: None })
+                .collect(),
         })
     }
     fn available(&self) -> bool {
@@ -95,8 +101,8 @@ fn old_whole_snapshot_crossing_a_replacement_updates_nothing() {
             .step(Event::Logins {
                 channel: CHANNEL,
                 logins: Box::new([
-                    Login { name: source(b"a"), state: LoginState::Usable },
-                    Login { name: source(b"b"), state: LoginState::Usable },
+                    Login { name: source(b"a"), state: LoginState::Usable, email: None },
+                    Login { name: source(b"b"), state: LoginState::Usable, email: None },
                 ])
             })
             .is_empty()
@@ -133,7 +139,10 @@ fn a_kept_login_no_longer_withholds_a_probe() {
     ] {
         let mut world = World::new(&[b"a"]);
         world.hello(CHANNEL);
-        world.step(Event::Logins { channel: CHANNEL, logins: Box::new([Login { name: source(b"a"), state }]) });
+        world.step(Event::Logins {
+            channel: CHANNEL,
+            logins: Box::new([Login { name: source(b"a"), state, email: None }]),
+        });
         assert!(
             world
                 .domain
@@ -156,6 +165,7 @@ fn an_unconfigured_program_counts_as_absent() {
         logins: Box::new([Login {
             name: source(b"a"),
             state: LoginState::Failed { reason: SourceFailure::Unconfigured, detail: Box::new([]) },
+            email: None,
         }]),
     });
     assert!(world.available());
@@ -238,7 +248,7 @@ fn reconnect_cleanup_is_separate_from_the_original_answer() {
     assert_eq!(
         world.step(Event::Logins {
             channel: CHANNEL,
-            logins: Box::new([Login { name: source(b"a"), state: LoginState::Usable },])
+            logins: Box::new([Login { name: source(b"a"), state: LoginState::Usable, email: None },])
         }),
         vec![Request::SignOut { channel: CHANNEL, name: source(b"a") }]
     );
@@ -254,7 +264,7 @@ fn a_failed_cleanup_is_not_retried_by_periodic_inventory() {
     let mut world = configured();
     world.step(Event::CleanupPrograms { names: Box::new([source(b"a")]) });
     world.hello(CHANNEL);
-    let rows = Box::new([Login { name: source(b"a"), state: LoginState::Usable }]);
+    let rows = Box::new([Login { name: source(b"a"), state: LoginState::Usable, email: None }]);
     world.step(Event::Logins { channel: CHANNEL, logins: rows.clone() });
     world.step(Event::SignedOut {
         channel: CHANNEL,
@@ -311,7 +321,7 @@ fn fan_out_reaches_distinct_configured_positions() {
     world.inventory(&[b"a"]);
     world.step(Event::Logins {
         channel: other,
-        logins: Box::new([Login { name: source(b"a"), state: LoginState::NotSignedIn }]),
+        logins: Box::new([Login { name: source(b"a"), state: LoginState::NotSignedIn, email: None }]),
     });
     let rows = world.step(Event::SignOutProgram { source: 7, name: source(b"a") });
     assert_eq!(
@@ -331,7 +341,7 @@ fn a_holder_sign_out_joins_pending_cleanup() {
     world.hello(CHANNEL);
     world.step(Event::Logins {
         channel: CHANNEL,
-        logins: Box::new([Login { name: source(b"a"), state: LoginState::Usable }]),
+        logins: Box::new([Login { name: source(b"a"), state: LoginState::Usable, email: None }]),
     });
     let started = world.step(Event::SignOutProgram { source: 7, name: source(b"a") });
     assert_eq!(
@@ -471,7 +481,7 @@ fn an_unconstrained_choice_avoids_kept_logins() {
     world.hello(CHANNEL);
     world.step(Event::Logins {
         channel: CHANNEL,
-        logins: Box::new([Login { name: source(b"a"), state: LoginState::Usable }]),
+        logins: Box::new([Login { name: source(b"a"), state: LoginState::Usable, email: None }]),
     });
     assert_eq!(
         world.domain.free_kind(fleet::Kinds::Workers, 1, jig_domain_fleet::Version { charter: 0, revision: 1 }),
@@ -485,7 +495,7 @@ fn a_held_retired_name_still_withholds_its_host() {
     world.hello(CHANNEL);
     world.step(Event::Logins {
         channel: CHANNEL,
-        logins: Box::new([Login { name: source(b"a"), state: LoginState::Usable }]),
+        logins: Box::new([Login { name: source(b"a"), state: LoginState::Usable, email: None }]),
     });
     world.step(Event::Sources { sources: Box::new([]) });
     world.inventory(&[]);
@@ -495,4 +505,40 @@ fn a_held_retired_name_still_withholds_its_host() {
             .probe(fleet::Kinds::Workers, 1, jig_domain_fleet::Version { charter: 0, revision: 1 }, &[], &[])
             .is_none()
     );
+}
+
+#[test]
+fn login_text_bounds_are_checked_before_keeping_the_inventory() {
+    const DETAIL_BYTES: usize = 16; // A tiny host detail bound, checked on both sides.
+    for (state, email, valid) in [
+        (LoginState::Usable, None, true),
+        (LoginState::Usable, Some(b"you@example.com".as_slice().into()), true),
+        (LoginState::Usable, Some(Box::from([b'e'; EMAIL_BYTES])), true),
+        (LoginState::Usable, Some(Box::from([b'e'; EMAIL_BYTES + 1])), false),
+        (LoginState::Failed { reason: SourceFailure::Exited, detail: Box::from([b'e'; DETAIL_BYTES]) }, None, true),
+        (
+            LoginState::Failed { reason: SourceFailure::Exited, detail: Box::from([b'e'; DETAIL_BYTES + 1]) },
+            None,
+            false,
+        ),
+    ] {
+        let mut world = World::under(
+            &[b"a"],
+            fleet::Limits {
+                source_detail_bytes: u32::try_from(DETAIL_BYTES).expect("tiny detail bound"),
+                program_sources: 2,
+                ..jig_fleet_world::LIMITS
+            },
+        );
+        world.hello(CHANNEL);
+        let row = Login { name: source(b"a"), state, email };
+        let requests = world.step(Event::Logins { channel: CHANNEL, logins: Box::new([row.clone()]) });
+        if valid {
+            assert!(requests.is_empty());
+            assert_eq!(world.domain.program_logins(CHANNEL), Some([row].as_slice()));
+        } else {
+            assert_eq!(requests, vec![Request::Refuse { channel: CHANNEL, hello: None }]);
+            assert_eq!(world.domain.program_logins(CHANNEL), None);
+        }
+    }
 }

@@ -38,8 +38,12 @@ fn hosted_records(records: Vec<accounts::Stored>, granted: bool) -> (Core, Env<L
         },
         &mut out,
     );
-    let logins =
-        core.fleet.program_names().iter().map(|name| Login { name: *name, state: LoginState::NotSignedIn }).collect();
+    let logins = core
+        .fleet
+        .program_names()
+        .iter()
+        .map(|name| Login { name: *name, state: LoginState::NotSignedIn, email: None })
+        .collect();
     fleet::step(&mut core.fleet, &host_env, fleet::Event::Logins { channel: Token::new(77), logins }, &mut out);
     (core, env)
 }
@@ -282,8 +286,8 @@ fn usable_requires_a_current_program_login() {
             Event::Fleet(fleet::Event::Logins {
                 channel: host.channel,
                 logins: Box::new([
-                    Login { name: SourceName::new(b"personal").unwrap(), state: LoginState::Usable },
-                    Login { name: SourceName::new(b"pending").unwrap(), state: LoginState::NotSignedIn },
+                    Login { name: SourceName::new(b"personal").unwrap(), state: LoginState::Usable, email: None },
+                    Login { name: SourceName::new(b"pending").unwrap(), state: LoginState::NotSignedIn, email: None },
                 ]),
             }),
         ));
