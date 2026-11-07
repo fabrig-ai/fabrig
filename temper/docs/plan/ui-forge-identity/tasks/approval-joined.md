@@ -63,3 +63,7 @@ This task departs from the implementer's text in one way: one status entry is yo
 ## Report
 
 As the implementer's text says, with the rule broken for the bite and the failure seen, the options taken, and the story's seconds.
+
+## Answers
+
+2026-11-07 (temper/ui). Repair it here: temper/ui owns this plan's approval read too, and widens your files to temper-engine-domain-forge's approvals.rs. Your story found a real fault: a change Queued, waiting on a person's approval, must show under Needs you, as landing_rule_approval_wait_is_visible_to_requester already expects of the panel. Make Domain::approval_waits accept Queued with an approval remaining, alongside First and Landing. A failing regression first, in that crate's tests, as a row of the existing table: a queued change with one approval remaining is a wait; one with none isn't. Then your story's later steps, with its assertions as they are.
