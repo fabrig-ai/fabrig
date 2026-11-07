@@ -37,9 +37,9 @@ workers carry unread, and its version must be the one its agents read
 - **Checked twice, in two places:**
   - **the codec** checks what a schema can check: bounds, tags, text;
   - **the domain** checks the rest at the entrance: an endpoint not
-    configured, a model its configuration does not declare or a window
-    or output beyond what it declares or too small for the agent's
-    limits, an effort outside the efforts it declares for the model, text too large for a window's host part, a host tool named
+    configured, a window or output beyond its endpoint's declaration or
+    too small for the agent's limits, text too large for a window's host
+    part, a host tool named
     like one of smith's or named twice, a contract that cannot be met, a
     reserve its budget cannot hold (domain/run.md, section 4).
 - **A writer needs only this crate.** It depends on no domain, no channel
@@ -235,8 +235,9 @@ and a refusal names what was too large.
 - **The domain's entrance,** from encoded charters:
   - each refusal of domain/run.md, section 4;
   - an endpoint name the configuration lacks;
-  - a model the configuration does not declare, and a window or an output
-    above its declaration, or leaving less room than the limits assume,
+  - a model name supplied only by the charter, admitted on a configured endpoint;
+  - a window or an output above its endpoint's declaration, or leaving
+    less room than the limits assume,
     or a negative spare, refused as `llm`, and one whose spare is zero,
     admitted;
   - text past a window's host part;

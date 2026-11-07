@@ -2,6 +2,9 @@
 
 2026-11-07. Where jig's code lags or departs from [hosts.md](hosts.md).
 
+Sections 2 and 8 have no known gap in endpoint bounds at hello and
+charter-supplied model names; the host keeps no model allowlist.
+
 Section 6.3 has no gap in transcript refusal classification across the worker
 channel or in closing refused starts without an acknowledgement.
 Section 6.3 has no gap in retaining a pre-admission agent fault and its

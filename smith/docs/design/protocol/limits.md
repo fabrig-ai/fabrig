@@ -740,8 +740,8 @@ them:
 | `watchdog-over-silence` | the host kit | its no-progress deadline exceeds the longest deadline the run may be silent for between reports: io's short operations and its own steps (domain/host.md, section 4) |
 
 What a run asks for is checked at its entrance, not at startup
-(domain/run.md, section 4): a model the configuration does not declare;
-each model entry's `window` and `output` against the model's
+(domain/run.md, section 4): an endpoint the configuration does not declare;
+each charter model entry's `window` and `output` against its endpoint's
 declaration, its room against the one the limits were derived for, and
 its window above the threshold against one `output` and
 `run.compaction_material`, so that its spare is not negative (3.9),
