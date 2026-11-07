@@ -168,9 +168,11 @@ impl Draw<'_> {
             b.close();
         }
         b.close();
-        b.open(Role::Paragraph);
-        self.words.text(b, Word::PublicStaleProofs, &[Hole::Number(u64::from(landing.stale_proofs()))]);
-        b.close();
+        if landing.stale_proofs() > 0 {
+            b.open(Role::Paragraph);
+            self.words.text(b, Word::PublicStaleProofs, &[Hole::Number(u64::from(landing.stale_proofs()))]);
+            b.close();
+        }
     }
 }
 fn seconds(seconds: u64) -> Wall {

@@ -56,7 +56,6 @@ pub(crate) fn main(
         super::session::Heading::Words(&w.say(Word::NewChat, &[])),
     );
     super::session::right(b);
-    crate::choice::byline(b, root, None, w, bindings);
     if !draft
         && let Some(project) = project
         && temper_client_domain::pages::drafts_offered(root, project)
@@ -161,7 +160,7 @@ fn composer(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, 
     }
     b.bind(bindings.insert(Act::StartChat));
     b.close();
-    super::session::hint(b, w, Word::ChatSendHint);
+    super::session::foot_row(b, root, None, w, bindings, Word::ChatSendHint);
     if let Some(me) = root.pages().me(root.client()) {
         super::session::over(
             b,

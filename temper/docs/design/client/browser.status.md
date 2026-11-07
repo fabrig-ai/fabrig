@@ -22,11 +22,10 @@ keeps it; publication is not a cutoff on a handed change's commit.
   cover the host's check alone; the view's tests draw the trial states.
   The model-check plan's close added the catalogue rows in section 7.2,
   but not their sample fixtures or names. `home-try-stopped` is present.
-- **Not yet:** 8.4: the retained public row geometry story at 1440 px and 420 px
-  (`public_board_and_task_lines_are_readable_at_desktop_and_phone_widths`)
-  is compiled, with the current rows' executor and spend rules. Its runtime
-  check awaits the browser tier after landing, under the user's rule that
-  plans run focused and fuzzy alone.
+- **Not yet:** 8.4: the browser kit returns the first content quad of each text
+  node, so the public geometry story cannot check every wrapped fragment.
+  Its result needs a browser testing interface decision before it can retain those
+  fragments. Missing rectangles remain failures.
 - **Not yet:** 2.3, *A heading drawn after its page*: that a focus placed while a heading
   waits keeps its place, which the answer of 2026-11-06 to the `ui-composer-focus` task
   `composer-focus` asks, is seen by reading `temper-client-shell-web`'s `focus.rs`. No test moves the focus meanwhile:
@@ -104,51 +103,34 @@ keeps it; publication is not a cutoff on a handed change's commit.
 - **Departs:** 2.5, *The first paint*: "no byte for 15 s" holds only once the module's
   answer has begun: a stall before that answer draws the mark and an empty bar, with no
   line (skein's `ui-web.status.md`, 4.3).
-- **Departs:** 4.3, 4.6: the tier holds 17 tests, five past the cap, and 4.6 names
-  12. `browser_pages.rs`'s `a_short_chat_opens_whole_without_a_reading_status`,
-  `a_long_chat_opens_at_its_end_and_reads_back_from_the_composer` and
-  `earlier_words_stay_put_without_browser_scroll_anchoring`, from the plan `chat-reading-c`,
-  have no line there: its answers keep the short story and the unanchored one apart, as they
-  expect different things and the second takes a bundle of its own, and none speaks of the cap
-  (that plan's `reading-browser` task, at `29d0deb002`). `browser_call_line.rs`'s `a_run_of_calls_opens_to_its_rows`, from the request
-  `chat-reading-b`, has no line there, and its file's header names the story, not what
-  only a browser shows. The request `browser-trim` has every test read against the
-  tier's rule, but that plan's calls were made before this test reached its trunk, and
-  no reading of it is recorded. `browser_accounts.rs`'s
-  `the_welcome_sign_in_opens_a_tab_and_moves_on_to_ready`, which 4.2 names at the
-  request `sign-in-new-tab`, has no line there either. 4.3 has stories that share a
-  setup become one test first: the call line's and test 14 both start a chat on
-  `temper box`, though it scripts its own model's turns, and the welcome's and test 9
-  both sign in on `Tier::accounts_sign_in`. No reason is recorded for either.
-- **Not yet:** 4.3: no run on record shows the tier as it stands within its budget
-  (`tools/tiers/budgets.toml`, `browser-temper`, 85 CPU s): its total with the call
-  line's and the welcome's sign-in's tests is unknown. The `browser-trim` plan's three
-  runs, at `970302c050`, before they reached its trunk, took 78.557098, 73.801674 and
-  57.755442 CPU s over 12
-  tests, on one slot of a shared machine whose load rose from 6 to 31, where its request
-  has a slot as idle as can be had. Those totals are in `tools/tiers/design.md`, 7.2's
-  scope, which live sampling of the same tests read higher (that document's section 8).
-  The `bundle-loading` plan's run of 13 tests, one fewer than the tier holds, with the
-  placeholder on every page but the playground's, took 83.069911 CPU s with one red, against 61.048855 with
-  none before it, and no figure splits the page's cost from the machine's load
-  (that plan's figures on the browser tier, at `668f7cd3e5`). The red is
-  `browser_public`'s `a_visitor_reads_a_public_project_and_loses_it_when_made_private`:
-  `temper ctl`'s `project amend --visibility public` outlasts its ten-second deadline
-  with the page at Ready and the placeholder gone, in that run and alone. Focused tests
-  of the bundle's answers, the mapping's room and ctl's wait for its `Me` pass and don't
-  reproduce it; the listener's eight connections, which a page's parallel files share,
-  are a hypothesis, no cause observed (the same figures, on the ctl wait).
-  Its repair waits on the tier's run after landing (the user, 2026-11-06). The plan
-  `chat-reading-c`'s three whole runs with its stories, on
-  its `reading-browser` branch, every test passing, took 128.618150, 141.214140 and
-  143.808163 CPU s, and an earlier one 116, against the 85; which commit each ran on is
-  unknown here. The last commit of those stories to report a run in Chromium is `fcd07de4f9`,
-  its story at 27.929 CPU s, and the merges after it held them by their compile. The user's
-  rule of 2026-11-06, that a plan runs focused and fuzzy alone, stopped that task's measuring
-  with the budget's question open, so the run after landing reads it, and a flag on the long
-  chat's cost looks first at the page's (that task's answers, at `29d0deb002`).
-  The next run on record, after landing at `668f7cd3e5` with `chat-reading-c` on main,
-  took 129.4 CPU s and 70.8 s wall over 17 tests; the plan `browser-budget` is its repair.
+- **Not yet:** 4.3, 4.2, 4.6: the merged forms of tests 2, 4, 9 and 14 are compiled,
+  and have not run in Chromium, under the user's rule that plans run focused and
+  fuzzy alone: nothing has yet seen a step change anchoring on a live page (4.3), or
+  a second sign-in after the welcome's in one browser (4.2). Whether reading's four
+  stories fit one run's forty seconds is unmeasured: apart, their wall medians add to
+  25.761 s (`temper/docs/development/browser-budget.md`), each with a setup they now
+  share. The long story's replies are smaller than those figures' by the bytes that
+  leave room for the position story's in the fake's joint allowance, with no line
+  fewer; its bytes alone changed.
+- **Not yet:** 4.3: no whole-tier run on record establishes that the repaired
+  tier fits its unchanged 85 CPU-second budget. The flagged run, of 17 tests, was
+  129.4 CPU s, 70.8 s wall. With ctl history and the 131,072-byte window,
+  all twelve final comparison runs passed, but the CPU medians remain
+  20.858273 s for long, 9.178371 s for Latest and 8.399148 s for unanchored,
+  above the request's targets of about 12, 6 and 5. Short rose to 6.414108 s
+  from the baseline's 4.193832 s. Those four sum to 44.849900 s, leaving
+  40.150100 s for the rest of the tier; the final cost awaits after-landing.
+  Loads, all samples and the limits of the comparison are in
+  `temper/docs/development/browser-budget.md`. Backoff failed its CPU and wall
+  criteria and is absent; the smaller window alone establishes no CPU saving.
+  The listener-full ctl failure is repaired by ending an idle connection while
+  preserving calls, partial requests and bounds. Whether that also repairs
+  `browser_public`'s earlier visibility-command deadline failure is unverified:
+  that story was outside the four selected for this repair.
+- **Not yet:** 4.3: no supplied manual proof checks a long chat at the person's
+  1,048,576-byte bound. The passing long browser story spans three small
+  windows, while the unanchored position history stays within one; neither
+  substitutes for that whole-bound check (section 5).
 - **Not yet:** 4.6: the request `browser-trim` has a person's page slower to settle as
   the answer most wanted. Settled chat and task pages stood still and no product cause
   was found, but a chat closed on the box took 8.539 s to reach the Closed filter, a
