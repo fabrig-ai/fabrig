@@ -42,7 +42,6 @@ unknown-proposal explanation; the generated help states the same limit.
   reproduced cause on record; the settings-effort tests likewise guard an
   existing final refusal, without reproducing that walk's silence. The next
   QA walk remains the requested proof (section 14).
-- **Not yet:** 5.3: a settings file's charter takes no `parts` and a template's model choice no `later`: the decoder refuses both as unknown members, and `settings show … --json` and the form's round trips drop both from a value that has them.
 - **Not yet:** 5.3: in text, `settings show charter N` prints no line per part with its `on` and bytes, and `settings show template N` no line for a later choice.
 - **Not yet:** 5.5: area 2 cannot distinguish a refused creating offer's
   capacity cause from its role cause: jig's `me` carries absence alone

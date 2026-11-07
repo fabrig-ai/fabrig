@@ -10,7 +10,7 @@ pub(super) type Fields = List<(Box<[u8]>, u32)>;
 
 pub(super) struct Error {
     member: Box<[u8]>,
-    rule: &'static [u8],
+    rule: Box<[u8]>,
     bound: Option<u64>,
 }
 impl Error {
@@ -36,10 +36,10 @@ impl Error {
     }
 }
 pub(super) fn error(member: &[u8], rule: &'static [u8]) -> Error {
-    Error { member: member.into(), rule, bound: None }
+    Error { member: member.into(), rule: rule.into(), bound: None }
 }
 fn bound(member: &[u8], maximum: u32) -> Error {
-    Error { member: member.into(), rule: b"bound", bound: Some(u64::from(maximum)) }
+    Error { member: member.into(), rule: b"bound".as_slice().into(), bound: Some(u64::from(maximum)) }
 }
 fn message(item: Option<u32>, why: Error) -> Box<[u8]> {
     let mut measured = crate::Text::measure();
@@ -57,7 +57,7 @@ fn describe(item: Option<u32>, why: &Error, out: &mut crate::Text) {
     out.put(b": ");
     out.put(&why.member);
     out.put(b": ");
-    out.put(why.rule);
+    out.put(&why.rule);
     if let Some(bound) = why.bound {
         out.put(b" ");
         out.number(bound);

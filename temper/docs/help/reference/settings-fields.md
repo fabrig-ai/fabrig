@@ -53,6 +53,14 @@ How an agent's run works: its instructions, models, tools, hosts and budget. A t
 - `spend`: integer. A spend the charter must hold: at least `reserve_turns` plus one of the default model's completions at their costliest, else refused as `budget`. A run is given its task's funds left, at most `rules.maximum_run_spend`.
 - `wake`: `wake`, or null. Which messages wake a task made under the charter whose batch names no wake policy; null, or left out, for jig's default: every rule `"immediate"`, `results` `"last_or_failure"`, and questions, answers and timers waking.
 - `documents`: list of at most 8, each `document`. The documents the charter's runs read, each as a brief section of its own; at most `tasks.charter_documents`, else refused as `shape`.
+- `parts`: list of at most 8, each `charter-part`. Optional, left out []: ordered parts chosen by a run's reasons; at most tasks.charter_parts. A charter that resumes takes no parts.
+
+## charter-part
+
+Instructions a run reads after the charter's shared text when its reasons meet this part's on.
+
+- `on`: list of at most 14, each `"first"`, `"question"`, `"question_answered"`, `"question_ended"`, `"question_owed"`, `"escalation"`, `"proposal"`, `"person_stalled"`, `"result"`, `"notice"`, `"nothing_awaited"`, `"news"`, `"timer"` or `"words"`. Nonempty, each name once. Names offered to every run choose no part and are refused.
+- `instructions`: text, at most 1,048,576 bytes. Text appended after the shared instructions when this part is chosen.
 
 ## document
 
@@ -269,6 +277,14 @@ The models a task asks for.
 - `account`: integer, 0 to 4,294,967,295, or null. The account to pay with, or null for any that can.
 - `main`: `model_effort`. The main model and its effort.
 - `subagents`: list of at most 64, each `model_effort`. The models its runs' sub-agents may use, each named once.
+- `later`: `llm-later`. Optional, left out none: the choice after the task's first activation.
+
+## llm-later
+
+The choice every run after the task's first activation takes.
+
+- `main`: `model_effort`. The later main model and its effort.
+- `subagents`: list of at most 64, each `model_effort`. Optional, left out []: the models later runs' sub-agents may use, each named once.
 
 ## model_effort
 
