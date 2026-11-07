@@ -220,6 +220,25 @@ fn signed_out_draws_sign_in_first() {
     let mut root = reading();
     assert!(read(&mut root, Read::SignedOut).is_empty());
     assert_eq!(state(&root), State::SignedOut);
+    for deciding in [false, true] {
+        let mut root = reading();
+        if deciding {
+            read(&mut root, Read::Waiting { asked: Wall::EPOCH });
+            act(&mut root, Act::Approve);
+        }
+        assert!(step(&mut root, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::SignedOut } }).is_empty());
+        assert_eq!(state(&root), State::SignedOut, "pending decision: {deciding}");
+        assert_eq!(root.approving, approve::Flight::Idle);
+        for late in [
+            Approval::Read { code: code(), state: Read::Approved },
+            Approval::Decided { code: code(), decided: Decided::Approved },
+        ] {
+            let shown = crate::shown(&root);
+            assert!(answer(&mut root, late).is_empty());
+            assert_eq!(state(&root), State::SignedOut);
+            assert_eq!(crate::shown(&root), shown);
+        }
+    }
 }
 #[test]
 fn try_again_reads_and_type_a_code_returns_to_the_field() {
