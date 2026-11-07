@@ -2,6 +2,9 @@
 
 2026-11-06. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 3.5, *The work's account and model*, *With no composer*; 5.5, *The composer's line*: a closed chat's
+  bar says its number alone, a closed agent's task keeps its composer's line, a task with no choice reads "Using the
+  default model" whatever its template's `resolved_default`, and a line drops the effort its choice doesn't name.
 - **Not yet:** 3.5, 5.5: no supplied record establishes a real-box walk of
   the offer, effort choice, configuring chat's chooser and connected-account
   starters. Tree and domain stories exercise these facts, including a
