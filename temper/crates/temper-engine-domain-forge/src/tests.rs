@@ -155,6 +155,107 @@ fn client_limits_must_be_coherent_and_their_capacities_representable() {
     }
 }
 
+#[test]
+fn the_roots_read_range_is_its_own() {
+    for (serial, owner) in [
+        (0, Some(1 << 61_u32)),
+        (1, Some((1 << 61_u32) | 1)),
+        ((1 << 59_u32) - 1, Some((1 << 61_u32) | ((1 << 59_u32) - 1))),
+        (1 << 59_u32, None),
+    ] {
+        let read = root_read(serial);
+        let expected = match owner {
+            Some(raw) => Some(Token::new(raw)),
+            None => None,
+        };
+        assert_eq!(read, expected, "serial {serial}");
+        if let Some(read) = read {
+            assert!(is_root_read(read), "root serial {serial}");
+        }
+    }
+    for owner in [
+        7 | (1 << 62_u32),
+        7 | (1 << 61_u32) | (1 << 59_u32),
+        7 | (1 << 60_u32),
+        7 | (1 << 63_u32),
+        7 | (1 << 59_u32),
+        10_000,
+    ] {
+        assert!(!is_root_read(Token::new(owner)), "foreign owner {owner}");
+    }
+}
+
+#[test]
+fn the_connectors_own_reads_are_outside_the_roots_range() {
+    use temper_engine_domain_forge_landing as policy;
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let mut row = fixtures::opening_row();
+    row.pull = Some(1);
+    row.pending = None;
+    row.effect = temper_engine_domain_forge_change::EffectResult::None;
+    outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::SettleOutbox);
+    fixtures::step_change(&mut d);
+    assert!(d.project_landing(
+        5,
+        temper_engine_domain_forge_change::Way::Turn,
+        Box::new([]),
+        AfterLanding {
+            verdict: temper_engine_domain_forge_tiers::Settings {
+                retries: 2,
+                suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
+            },
+            bound: Duration::from_secs(7200),
+        },
+    ));
+    outputs(
+        &mut d,
+        Event::Landing {
+            row: LandingRow {
+                landing: policy::Landing {
+                    task: 61,
+                    project: 5,
+                    phase: policy::Phase::Turn { at: env().wall },
+                    members: Box::new([policy::Member {
+                        change: fixtures::CHANGE,
+                        repository: policy::Repository { forge: REPO.forge, repository: REPO.repository },
+                        pull: 1,
+                        head: Some(fixtures::HEAD),
+                        base: Some(fixtures::BASE),
+                        candidate: Some(fixtures::HEAD),
+                        gates: Box::new([]),
+                        asked: None,
+                        landed: None,
+                    }]),
+                    preparation: 0,
+                    stale_proofs: 0,
+                },
+                asks: Box::new([None]),
+                entries: Box::new([]),
+            },
+        },
+    );
+    outputs(
+        &mut d,
+        Event::StepLanding {
+            task: 61,
+            entry: 91,
+            heard: LandingHeard { released: false, cancelled: false, kept: Box::new([]) },
+        },
+    );
+    assert_eq!(d.steps.len(), 1, "the change's first read is pending");
+    assert_eq!(d.landing.pending.len(), 1, "the landing's first read is pending");
+    for (owner, _) in &d.steps {
+        assert!(!is_root_read(*owner), "step owner {owner:?}");
+    }
+    for (owner, _) in &d.landing.pending {
+        assert!(!is_root_read(*owner), "landing owner {owner:?}");
+    }
+}
+
 fn restoring_domain(started: Wall) -> Domain {
     let mut d = domain();
     d.restore_begin(started);
