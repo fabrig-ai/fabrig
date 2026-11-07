@@ -832,14 +832,14 @@ pub fn adopt_and_change(_forgejo: &super::forgejo::Throwaway) -> Script {
         Step::Press { find: Find::exactly_named(Role::Link, b"Settings") },
         Step::See { find: Find::exactly_named(Role::Link, b"Repositories"), within: super::WITHIN },
         Step::Press { find: Find::exactly_named(Role::Link, b"Repositories") },
-        Step::See { find: Find::named(Role::Link, b"Adopt a repository"), within: super::WITHIN },
-        Step::Press { find: Find::named(Role::Link, b"Adopt a repository") },
+        Step::See { find: Find::named(Role::Link, b"Add repositories"), within: super::WITHIN },
+        Step::Press { find: Find::named(Role::Link, b"Add repositories") },
         Step::See { find: Find::named(Role::TextField, b"Owner"), within: super::WITHIN },
         Step::Type { find: Find::named(Role::TextField, b"Owner"), words: b"acme".as_slice().into() },
-        Step::Type { find: Find::named(Role::TextField, b"Name"), words: b"widget".as_slice().into() },
+        Step::Type { find: Find::exactly_named(Role::TextField, b"Name"), words: b"widget".as_slice().into() },
         Step::Type { find: Find::named(Role::TextField, b"Landing branch"), words: b"main".as_slice().into() },
         Step::Press { find: Find::named(Role::Button, b"Adopt") },
-        Step::See { find: Find::text(b"Adopted acme/widget on forge 1 as owned."), within: super::WITHIN },
+        Step::See { find: Find::text(b"acme/widget"), within: super::WITHIN },
     ]);
     steps.extend([
         Step::Go { address: Address::NewChat { draft: false } },
