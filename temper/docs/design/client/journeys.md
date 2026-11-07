@@ -823,6 +823,15 @@ the requests with main after landing (`../draft/look-requests.md`, 4).
 
 ## 10. Open questions
 
+- **The chat terminal's comparison** (9): temper/ui compares all four
+  `chat-terminal` requests' hand-made pages and named states against
+  the shipped view after landing, at 1440, 1000 and 420 px, with menus
+  and disclosures open (`../draft/look-requests.md`, sections 4 and 5;
+  `browser.md`, section 5). Default: the nine gallery states and
+  reprinted `chat-draft` and `welcome-playground` pages; they establish
+  no rendered equality. Real-key checks remain `README.md`, section
+  11's work, distinct from journey replay.
+
 - **The chat heading's comparison** (9): temper/ui compares `chat-title`'s
   hand-made page 01 and the request's named states against the shipped
   view after landing, at 1440, 1000 and 420 px, including open disclosures

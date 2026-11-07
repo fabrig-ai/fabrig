@@ -20,8 +20,8 @@ settings proposals retain Accept and Change something, commands match
 case exactly, background presses do not focus the box, options do not
 select on hover, adjacent help notes share paragraph spacing, and Plex
 stays 14px on a phone; temper/ui owns these recorded departures. Its
-render comparison follows landing, and compilation and print checks
-establish no rendered equality (`client/README.md`, 3.5 and 11;
+render and real-key comparisons follow landing, and compilation and print
+checks establish no rendered equality (`client/README.md`, 3.5 and 11;
 `client/browser.md`, 2.5, 7.2 and 5; `draft/look-requests.md`, 4 and 5).
 Home says "Nothing needs you."
 once, semantic repair names the updated head without blame, and failed
