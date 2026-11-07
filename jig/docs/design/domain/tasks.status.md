@@ -15,12 +15,12 @@ parks without spending a try.
 
 - **Not yet:** 3, 8.6: a task keeps no reasons, and its claim no offered
   kinds (`jig-domain-tasks/src/boundary.rs`, `TaskRecord`).
-  8.2, 8.3, 8.6, 9: every message waiting is offered to a run, whatever its
+- **Not yet:** 8.2, 8.3, 8.6, 9: every message waiting is offered to a run, whatever its
   charter's parts; a turn's fence takes every message before it, offered or
   not (`jig-domain-tasks/src/inbox.rs`, `take`); and an entry left undecided
   when a run ends doesn't wake the task again (`jig-domain-tasks/src/wake.rs`,
   `after_run`).
-  3, 7: a task's LLM choice has no `later` (`jig-domain-tasks/src/llm.rs`).
+- **Not yet:** 3, 7: a task's LLM choice has no `later` (`jig-domain-tasks/src/llm.rs`).
 - **Not yet:** 5.9: a drain; a project's scope; a
   party's proposal of a release; a hold parked until an event.
   7: a widening funded by whoever gives it (the task's existing funder is
