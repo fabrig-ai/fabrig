@@ -310,3 +310,12 @@ pub fn refused_host(mount: &mut Mount, host: &[u8]) {
 pub fn cookie_for(via: Via) -> skein_http::Header {
     cookie(&public_mount().settings, via, &credential(), skein_lib::Duration::from_nanos(IN_A_DAY))
 }
+
+pub fn no_component(out: &Queue<Request>) {
+    for request in out {
+        match request {
+            Request::Component(_) => panic!("refused call reached the component"),
+            Request::Http { .. } => {}
+        }
+    }
+}

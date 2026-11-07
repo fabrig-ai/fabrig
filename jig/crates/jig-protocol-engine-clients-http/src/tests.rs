@@ -267,24 +267,26 @@ const APPROVAL_ROUTES: &[ApprovalRoute] = &[
 ];
 #[test]
 fn the_approval_routes_reach_the_component_as_their_messages() {
-    let mut exchanges = Vec::new();
-    let mut expected = Vec::new();
+    let mut exchanges = List::uncapped();
+    let mut expected = List::uncapped();
     for (path, message) in APPROVAL_ROUTES {
         let mut mount = fixtures::mount();
         let mut out = Queue::with_capacity(16);
         fixtures::call(&mut mount, &mut out, Method::Post, path, &[], b"ask");
-        exchanges.push((path, fixtures::component(&mut out)));
-        expected.push((
-            path,
-            Box::<[kit::FromTransport]>::from([kit::FromTransport::Exchange {
-                exchange: fixtures::EXCHANGE,
-                credential: None,
-                browser: false,
-                message: message(Box::from(b"ask".as_slice())),
-            }]),
-        ));
+        exchanges.push((path, fixtures::component(&mut out))).expect("route row");
+        expected
+            .push((
+                path,
+                Box::<[kit::FromTransport]>::from([kit::FromTransport::Exchange {
+                    exchange: fixtures::EXCHANGE,
+                    credential: None,
+                    browser: false,
+                    message: message(Box::from(b"ask".as_slice())),
+                }]),
+            ))
+            .expect("expected route row");
     }
-    assert_eq!(exchanges, expected);
+    assert_eq!(exchanges.into_boxed(), expected.into_boxed());
 }
 #[test]
 fn the_approval_routes_refuse_every_other_method() {
@@ -293,7 +295,7 @@ fn the_approval_routes_refuse_every_other_method() {
             let mut mount = fixtures::mount();
             let mut out = Queue::with_capacity(16);
             let call = fixtures::call(&mut mount, &mut out, method, path, &[], b"");
-            assert!(!(&out).into_iter().any(|request| matches!(request, Request::Component(_))), "{path:?} {method:?}");
+            fixtures::no_component(&out);
             assert_eq!(fixtures::answered(&mut mount, &mut out, call).0, 404, "{path:?} {method:?}");
         }
     }
@@ -312,8 +314,8 @@ const CARRIERS: &[(&str, Fields, Option<bool>)] = &[
 ];
 #[test]
 fn an_exchange_is_a_browser_s_only_by_its_cookie() {
-    let mut exchanges = Vec::new();
-    let mut expected = Vec::new();
+    let mut exchanges = List::uncapped();
+    let mut expected = List::uncapped();
     for path in [b"/jig/v1/approval/decide".as_slice(), b"/jig/v1/read"] {
         for (name, fields, browser) in CARRIERS {
             let mut mount = fixtures::mount();
@@ -326,14 +328,16 @@ fn an_exchange_is_a_browser_s_only_by_its_cookie() {
                     _ => (None, 0),
                 }
             } else {
-                assert!(!(&out).into_iter().any(|request| matches!(request, Request::Component(_))), "{path:?} {name}");
+                fixtures::no_component(&out);
                 (None, fixtures::answered(&mut mount, &mut out, call).0)
             };
-            exchanges.push((path, name, observed, status));
-            expected.push((path, name, *browser, if browser.is_some() { 0 } else { 403 }));
+            exchanges.push((path, name, observed, status)).expect("carrier row");
+            expected
+                .push((path, name, *browser, if browser.is_some() { 0 } else { 403 }))
+                .expect("expected carrier row");
         }
     }
-    assert_eq!(exchanges, expected);
+    assert_eq!(exchanges.into_boxed(), expected.into_boxed());
 }
 const REFUSED: &[(Method, &[u8], Fields, u16)] = &[
     (
@@ -521,13 +525,13 @@ fn busy_and_full_answer_200_without_setting_a_cookie() {
     let approval_full = w::ApprovalSignInAnswer::Full(
         w::ApprovalFull::new(&w::CEILINGS, w::ApprovalFullParts { sign_ins: 2, earliest: 400, until: 300 }).unwrap(),
     );
-    let mut rows = Vec::new();
+    let mut rows = List::uncapped();
     for record in [w::SignInAnswer::Busy, full] {
         let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
         record.encode(&mut bytes).unwrap();
         let bytes = bytes.finish();
         for path in [b"/jig/v1/sign-in/link".as_slice(), b"/jig/v1/sign-in/deployment"] {
-            rows.push((path, bytes.clone()));
+            rows.push((path, bytes.clone())).expect("sign-in row");
         }
     }
     for record in [
@@ -542,9 +546,9 @@ fn busy_and_full_answer_200_without_setting_a_cookie() {
     ] {
         let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
         record.encode(&mut bytes).unwrap();
-        rows.push((b"/jig/v1/sign-in/approval", bytes.finish()));
+        rows.push((b"/jig/v1/sign-in/approval".as_slice(), bytes.finish())).expect("approval row");
     }
-    for (path, bytes) in rows {
+    for (path, bytes) in &rows {
         for browser in [false, true] {
             let mut mount = fixtures::mount();
             let mut out = Queue::with_capacity(16);
@@ -555,7 +559,7 @@ fn busy_and_full_answer_200_without_setting_a_cookie() {
             fixtures::reply(&mut mount, &mut out, call, kit::Reply::Record(bytes.clone()));
             let (status, body, headers) = fixtures::answered(&mut mount, &mut out, call);
             assert_eq!(status, 200, "{path:?}");
-            assert_eq!(body, bytes, "{path:?}");
+            assert_eq!(&body, bytes, "{path:?}");
             assert_eq!(fixtures::header(&headers, b"set-cookie"), None, "{path:?}");
         }
     }
