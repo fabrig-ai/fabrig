@@ -33,38 +33,35 @@ fn charter_parts_keep_their_shape_at_change_start_and_restore() {
     // The configured part count is eight (configuration.md, 6); test both sides.
     let count = limits.tasks.charter_parts;
     let none: Box<[CharterPart]> = Box::new([]);
-    for (name, parts, resume, fault) in [
-        ("none", none, false, None),
-        ("none may resume", Box::new([]), true, None),
-        ("two", Box::new([part(Reasons::FIRST, 1), part(Reasons::QUESTION, 1)]), false, None),
-        ("at count", repeated_parts(count), false, None),
-        ("past count", repeated_parts(count.checked_add(1).unwrap()), false, Some(Fault::Count)),
-        ("empty on", Box::new([part(Reasons::EMPTY, 1)]), false, Some(Fault::Shape)),
-        ("unknown on", Box::new([part(Reasons(1 << 14), 1)]), false, Some(Fault::Shape)),
-        ("resume", Box::new([part(Reasons::FIRST, 1)]), true, Some(Fault::Shape)),
-        ("at run bytes", Box::new([part(Reasons::FIRST, at_bytes)]), false, None),
-        ("past run bytes", Box::new([part(Reasons::FIRST, at_bytes + 1)]), false, Some(Fault::Shape)),
+    let past_parts = Box::new([part(Reasons::FIRST, at_bytes + 1)]);
+    let supplied = policy_owned_bytes(&base.policy)
+        .unwrap()
+        .checked_add(parts_owned_bytes(past_parts.as_slice()).unwrap())
+        .unwrap();
+    let past_detail = Some(people::SettingDetail {
+        member: people::SettingMember::StoredPolicy,
+        document: 0,
+        segment: 0,
+        rule: people::SettingRule::Maximum,
+        supplied: u32::try_from(supplied).unwrap(),
+        bound: limits.run_bytes,
+    });
+    for (name, parts, resume, fault, detail) in [
+        ("none", none, false, None, None),
+        ("none may resume", Box::new([]), true, None, None),
+        ("two", Box::new([part(Reasons::FIRST, 1), part(Reasons::QUESTION, 1)]), false, None, None),
+        ("at count", repeated_parts(count), false, None, None),
+        ("past count", repeated_parts(count.checked_add(1).unwrap()), false, Some(Fault::Count), None),
+        ("empty on", Box::new([part(Reasons::EMPTY, 1)]), false, Some(Fault::Shape), None),
+        ("unknown on", Box::new([part(Reasons(1 << 14), 1)]), false, Some(Fault::Shape), None),
+        ("resume", Box::new([part(Reasons::FIRST, 1)]), true, Some(Fault::Shape), None),
+        ("at run bytes", Box::new([part(Reasons::FIRST, at_bytes)]), false, None, None),
+        ("past run bytes", past_parts, false, Some(Fault::Shape), past_detail),
     ] {
         let mut charter = base.clone();
         charter.parts = parts;
         charter.policy.resume = resume;
-        let supplied = policy_owned_bytes(&charter.policy)
-            .unwrap()
-            .checked_add(parts_owned_bytes(&charter.parts).unwrap())
-            .unwrap();
         let value = Value::Charter(Box::new(charter));
-        let detail = if name == "past run bytes" {
-            Some(people::SettingDetail {
-                member: people::SettingMember::StoredPolicy,
-                document: 0,
-                segment: 0,
-                rule: people::SettingRule::Maximum,
-                supplied: u32::try_from(supplied).unwrap(),
-                bound: limits.run_bytes,
-            })
-        } else {
-            None
-        };
         let expected = match fault {
             Some(fault) => Err(Failure { setting: Setting::Charter(1), fault, detail }),
             None => Ok(()),
