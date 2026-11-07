@@ -1,8 +1,9 @@
 # json: status
 
-2026-11-04. Where skein's code lags or departs from [json.md](json.md).
+2026-11-06. Where skein's code lags or departs from [json.md](json.md).
 
-- **Not yet:** 6: the fuzz target.
+- **Not yet:**
+  - 6: the fuzz target.
 - **Departs:**
   - 5.1: `skein/docs/foundation/programming-model.md`, 6.1 has the queues
     between components uncapped, but `skein-json/src/collector.rs`'s

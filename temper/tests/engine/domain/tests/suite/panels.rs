@@ -407,7 +407,7 @@ fn panel_sign_in(driver: &mut Driver, identity: u64) -> (u64, u64) {
         held: None,
         reply_to: ReplyTo::new(reply),
         identity: jig_domain_people::Identity {
-            key: jig_domain_people::IdentityKey { provider: 0, subject: identity.to_be_bytes().into() },
+            key: temper_engine_domain_forge::user_key(1, identity),
             login: b"person".as_slice().into(),
             name: b"Person".as_slice().into(),
         },

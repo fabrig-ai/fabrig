@@ -319,6 +319,16 @@ fn owned_capacity_refusal_preserves_the_opaque_address_without_a_tool_effect() {
 #[test]
 fn a_flat_forge_read_error_names_its_missing_member() {
     for (tool, input, expected) in [
+        (
+            b"settings".as_slice(),
+            br#"{"setting":{"kind":"landing-rule"}}"#.as_slice(),
+            b"landing-rule needs number; read the inventory and name what it lists".as_slice(),
+        ),
+        (
+            b"settings",
+            br#"{"setting":{"kind":"project-ways"}}"#,
+            b"project-ways needs project; read the inventory and name what it lists",
+        ),
         (b"read_branch".as_slice(), b"{}".as_slice(), b"host call member missing: branch".as_slice()),
         (b"read_branch", br#"{"branch":1}"#, b"host call member of wrong type: branch"),
         (b"read_reviews", br#"{"number":1,"page":0}"#, b"host call out of range: page"),

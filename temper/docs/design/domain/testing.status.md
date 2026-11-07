@@ -2,6 +2,23 @@
 
 2026-11-07. Where temper's code lags or departs from [testing.md](testing.md).
 
+Sections 2.1, 2.3 and 6.1 have the cheaper service fixtures, consuming
+bootstrap-store transfer, restart configuration construction, phrasebook
+loading and lookup, root-only client setups, setup settling and checked
+startup-machine reuse. The `limits-fixtures` figures at `7a5cd795d9`
+record all request rows, 68 passing single-test traces, and unchanged
+suite membership, assertions, build settings and budgets for that plan.
+The sampled setup median falls 59.63%, the engine question/restart median
+19.62%, the joined-client dismissal median 60.42%, and the view median
+20.48% in instructions. Remaining costs and the work they need are
+deferred in section 11; these samples establish no whole-suite CPU total.
+
+- **Not yet:** 6.1: temper's focused suite meeting its 30 CPU s budget.
+  The `limits-fixtures` request measures about 336 CPU s before its
+  repairs; its closing figures measure individual instruction counts,
+  with intervening plans included, and supply no new whole-suite CPU
+  result. The current total and remaining overage are unknown.
+
 Section 2.4's real-loop goal-delivery story is present, alongside the six
 engine domain stories and the checkout world's later-run cases. It uses
 real smith and a worker with scripted model replies, fake git and the

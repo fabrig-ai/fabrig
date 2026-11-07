@@ -466,7 +466,7 @@ fn a_nonowner_cannot_change_the_deployments_settings() {
         reply_to: ReplyTo::new(Token::new(991)),
         held: None,
         identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: OTHER.to_be_bytes().into() },
+            key: temper_engine_domain_forge::user_key(1, OTHER),
             login: Box::new([]),
             name: Box::new([]),
         },

@@ -525,7 +525,11 @@ fn changed_ways(change: &c::ChangeSettings) -> Ways {
 }
 #[test]
 fn the_shows_section_reads_kind_seven() {
-    for shown in [Ways::STOCK, SHOWN] {
+    for (shown, pressed) in [
+        (Ways::STOCK, [true, false, false, false]),
+        (Ways { drafts: false, ..Ways::STOCK }, [false; 4]),
+        (SHOWN, [true; 4]),
+    ] {
         let root = how(Some(shown));
         for browser in [false, true] {
             let view = how_view(&root, browser);
@@ -537,14 +541,14 @@ fn the_shows_section_reads_kind_seven() {
                 assert!(row.iter().any(|n| n.styles.as_slice().contains(&look::SETTINGS_DETAIL)
                     && n.name.as_deref() == Some(small.as_bytes())));
                 let check = node(view.tree(), find(view.tree(), Role::Check, label.as_bytes()));
-                assert_eq!(check.states.as_slice().contains(&State::Pressed), shown == SHOWN, "{label}");
+                assert_eq!(check.states.as_slice().contains(&State::Pressed), pressed[index], "{label}");
                 assert!(!check.states.as_slice().contains(&State::Disabled));
                 assert!(check.styles.as_slice().contains(&look::SETTINGS_SWITCH));
                 let toggle = row.iter().find(|n| n.styles.as_slice().contains(&look::SETTINGS_TOGGLE_ROW)).unwrap();
                 let text = f::nodes_text(subtree(view.tree(), toggle.id));
                 assert_eq!(
                     text.as_ref(),
-                    if shown == SHOWN {
+                    if pressed[index] {
                         on.as_bytes()
                     } else if index == 0 {
                         b"Off".as_slice()
@@ -861,15 +865,15 @@ fn funds_says_so_in_its_small() {
     assert!(node(view.tree(), find(view.tree(), Role::Select, b"Funds")).states.as_slice().contains(&State::Disabled));
 }
 #[test]
-fn until_read_the_switches_are_disabled_and_unchecked() {
+fn until_read_the_switches_are_disabled_and_show_stock() {
     for root in f::pair(how(None), f::root_with_refused_ways(settings())) {
         for browser in [false, true] {
             let mut view = how_view(&root, browser);
-            for (label, ..) in SWITCHES {
+            for (index, (label, ..)) in SWITCHES.iter().enumerate() {
                 let id = find(view.tree(), Role::Check, label.as_bytes());
                 let check = node(view.tree(), id);
                 assert!(check.states.as_slice().contains(&State::Disabled));
-                assert!(!check.states.as_slice().contains(&State::Pressed));
+                assert_eq!(check.states.as_slice().contains(&State::Pressed), index == 0);
                 assert_eq!(crate::act(&mut view, id, Act::Toggle), None);
             }
             assert!(

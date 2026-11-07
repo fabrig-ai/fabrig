@@ -2766,7 +2766,15 @@ fn unavailable_models_block_send_and_enter_in_the_view() {
     }
 }
 
-pub(super) fn configuring_task_root(mut task: c::Task, template: bool, charter: u32) -> temper_client_domain::Domain {
+pub(super) fn configuring_task_root(task: c::Task, template: bool, charter: u32) -> temper_client_domain::Domain {
+    configuring_task_root_owned(task, template, charter, true)
+}
+fn configuring_task_root_owned(
+    mut task: c::Task,
+    template: bool,
+    charter: u32,
+    owned: bool,
+) -> temper_client_domain::Domain {
     let (mut root, me_watch, task_watch) =
         fixtures::root_at(temper_client_domain::Address::Chat { task: TASK }, &fixtures::domain_limits());
     let source = messaging_root();
@@ -2776,6 +2784,9 @@ pub(super) fn configuring_task_root(mut task: c::Task, template: bool, charter: 
     }
     me.projects.get_mut(0).unwrap().models = super::choice::line_models(true);
     fixtures::deliver_me(&mut root, me_watch, me);
+    if !owned {
+        super::connect_forge::reread_deployment(&mut root, me_watch, owned);
+    }
     task.chip.executor = c::ChipExecutor::Agent { charter };
     deliver_chat(&mut root, task_watch.expect("task watch"), c::Delivery::Task(Box::new(task)));
     root
@@ -2938,6 +2949,9 @@ fn every_chat_omits_the_foot_when_ended_or_message_is_not_offered() {
                 assert!(fixtures::find(view.tree(), Role::TextArea, b"Message").is_none());
                 assert!(fixtures::find(view.tree(), Role::Button, b"Send").is_none());
                 assert_eq!(style_position(view.tree().nodes(), crate::look::CHOICE).is_some(), !ended && !result);
+                if configuring {
+                    assert_eq!(fixtures::find(view.tree(), Role::Button, b"+ Draft").is_some(), !ended && !result);
+                }
             }
         }
     }
@@ -3062,13 +3076,13 @@ fn goals_navigation_shows_when_the_setting_is_on() {
     goals_navigation(&root, true);
 }
 #[test]
-fn goals_navigation_hides_an_existing_goal_until_kind_seven_shows_it() {
+fn goals_navigation_keeps_an_existing_goal_when_kind_seven_hides_it() {
     let (mut root, me, _) = fixtures::root_at(
         temper_client_domain::Address::Home { project: fixtures::PROJECT },
         &fixtures::domain_limits(),
     );
     super::rail::with_goal_fact(&mut root, me, Some(true));
-    goals_navigation(&root, false);
+    goals_navigation(&root, true);
 }
 
 #[test]
@@ -3574,17 +3588,20 @@ fn a_closed_chat_ends_on_one_line() {
 #[test]
 fn every_chats_run_wait_says_why_above_the_composer_without_working_dots() {
     use crate::look;
-    for (wait, reason) in [
+    for (wait, owned, reason) in [
         (
             c::TaskRunWait::Account { account: None, source: None, why: c::TaskWaitWhy::Empty },
+            true,
             b"No account can run Scripted model yet.".as_slice(),
         ),
         (
             c::TaskRunWait::Account { account: Some(7), source: Some(8), why: c::TaskWaitWhy::Host },
+            true,
             b"LLM account's login isn't signed in on a host that can run this.",
         ),
-        (c::TaskRunWait::Credential, b"This work needs a credential from its forge."),
-        (c::TaskRunWait::Host, b"No host has room for this, or none is connected. It starts when one does."),
+        (c::TaskRunWait::Credential, true, b"This work needs a credential from its forge."),
+        (c::TaskRunWait::Host, true, b"Waiting for other work to finish. It starts by itself."),
+        (c::TaskRunWait::Host, false, b"No host has room for this, or none is connected. It starts when one does."),
     ] {
         for configuring in [false, true] {
             let mut task = configuring_task();
@@ -3595,7 +3612,7 @@ fn every_chats_run_wait_says_why_above_the_composer_without_working_dots() {
                 main: c::ModelEffort { model: fixtures::first_run::text(b"demo"), effort: None },
                 subagents: List::with_capacity(0),
             });
-            let root = configuring_task_root(task, true, if configuring { 37 } else { 1 });
+            let root = configuring_task_root_owned(task, true, if configuring { 37 } else { 1 }, owned);
             for mut view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
                 let tree = view.tree();
                 let feedback = named_position(tree.nodes(), Role::Paragraph, Some(reason)).expect("wait reason");

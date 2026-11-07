@@ -37,7 +37,7 @@ Shape: `application`. Paths: `application`. The application’s machine parts, r
 Shape: `application-limits`. Paths: `application.limits`. The application’s limits profile and named overrides.
 
 - `profile`: text, small or standard; required; init writes "standard". The limits profile used before applying overrides.
-- `overrides`: named limits, see temper help limits; required; init writes {"checkout.message_bytes":10662,"forge.client.op_bytes":10660,"forge.client.repositories":3,"forge.judge_projects":8,"forge.output":82,"forge.repositories":3,"forge_component.body_bytes":21341,"root.journal.transcript_bytes":16803814,"root.loads.bytes":16804058,"root.loads.read_bytes":33607620,"root.loads.reply_bytes":16804058,"root.loads.transcript_bytes":16803810}. The dotted limit names whose values replace the profile’s.
+- `overrides`: named limits, see temper help limits; required; init writes {"checkout.message_bytes":10662,"checkout.workspaces":4,"forge.client.op_bytes":10660,"forge.client.repositories":3,"forge.judge_projects":8,"forge.output":82,"forge.repositories":3,"forge_component.body_bytes":21341,"git_component.operations":4,"root.journal.transcript_bytes":16803814,"root.loads.bytes":16804058,"root.loads.read_bytes":33607620,"root.loads.reply_bytes":16804058,"root.loads.transcript_bytes":16803810}. The dotted limit names whose values replace the profile’s.
 
 ## application.workers[]
 

@@ -2149,7 +2149,7 @@ textarea.temper-connect-addresses { display: block; width: 100%; min-height: 96p
 .temper-settings-setting > div > .temper-settings-detail { display: block; margin-top: 2px; font-size: 13.5px; color: var(--gf-muted); }
 .temper-settings-setting select, .temper-settings-setting .temper-settings-text { width: 100%; min-width: 0; min-height: 38px; padding: 6px 10px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); font-size: 14px; }
 /* A select's arrow sits as far in as its text, where the browser's own hugs the border. */
-.temper-settings select { appearance: none; padding-right: 36px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%2371717a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; background-size: 12px; text-overflow: ellipsis; }
+.temper-settings select { appearance: none; padding-right: 36px; background-image: url(files/chevron.svg); background-repeat: no-repeat; background-position: right 14px center; background-size: 12px; text-overflow: ellipsis; }
 .temper-settings-setting select:disabled { color: var(--gf-faint); background-color: transparent; }
 .temper-settings-checks { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
 .temper-settings-checks label { display: flex; align-items: baseline; gap: 10px; }

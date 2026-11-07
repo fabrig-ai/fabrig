@@ -79,7 +79,7 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
             scope: KindScope::Project,
             connector,
             value_bytes: size(&settings::Value::Ways(settings::ProjectWays {
-                drafts: false,
+                drafts: true,
                 goals: false,
                 changes: false,
                 away: false,

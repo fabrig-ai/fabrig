@@ -7,9 +7,8 @@ plan, and create Hello. Wait for Home's status before starting the
 first chat. Home writes note 1; the chat's document is note 3.
 
 Reload `/projects/1/settings` to start the recording at How work runs.
-Mark the page with Alt+Shift+M, turn on "Chats can write drafts", and
-mark it again. Open "+ New chat", send "Let us design Away mode." to
-start the first chat, T2, and mark its settled reply. Press "+ Draft";
+Mark the page with Alt+Shift+M. Open "+ New chat", send "Let us design
+Away mode." to start the first chat, T2, and mark its settled reply. Press "+ Draft";
 the fake model writes the 29-line Away mode document and Split opens.
 Mark it, choose Chat, and send "Add what happens to a running goal."
 The second document turn answers "Edited", "+7 −0". Mark the settled
@@ -19,34 +18,32 @@ Press "Start goal…", mark the one sheet with its default `away-mode`
 name and Task by task way, then press "Start goal". The fake goal, T3,
 finishes with its local report. Mark its page, press its "Draft" link
 back to T2, mark the returned chat, and save the recording with
-Alt+Shift+S. The first replay proves all 22 prints against the live
+Alt+Shift+S. The first replay proves all 20 prints against the live
 pages. Split and Draft show the second revision's "A running goal"
 section, and the goal-create request carries that revision, followed
 by its draft and chat provenance. The goal's Draft link is read from
 those provenance lines, beyond its shortened specification preview.
 
-- `01.html`: How work runs with drafts Off, marked.
-- `02.html`: the same page before toggling "Chats can write drafts".
-- `03.html`: drafts On, marked.
-- `04.html`: the same page before opening "+ New chat".
-- `05.html`: the new chat with its opening words entered, before Send.
-- `06.html`: T2 after its opening fake reply, marked.
-- `07.html`: the settled chat before pressing "+ Draft".
-- `08.html`: Split after the first document write, marked.
-- `09.html`: the same Split before choosing Chat.
-- `10.html`: Chat with the revision request entered, before Send.
-- `11.html`: Chat after the second document turn, marked.
-- `12.html`: the same Chat before choosing Split.
-- `13.html`: Split after the second document turn, marked.
-- `14.html`: the same Split before choosing Draft.
-- `15.html`: Draft after the second document turn, marked.
-- `16.html`: the same Draft before pressing "Start goal…".
-- `17.html`: the Start goal sheet, marked.
-- `18.html`: the same sheet before pressing "Start goal".
-- `19.html`: the settled goal page, marked, with its Draft return link.
-- `20.html`: the same goal page before pressing Draft.
-- `21.html`: the returned chat T2, opened in Chat, marked.
-- `22.html`: the same chat at the recording's end.
+- `01.html`: How work runs with drafts On, marked.
+- `02.html`: the same page before opening "+ New chat".
+- `03.html`: the new chat with its opening words entered, before Send.
+- `04.html`: T2 after its opening fake reply, marked.
+- `05.html`: the settled chat before pressing "+ Draft".
+- `06.html`: Split after the first document write, marked.
+- `07.html`: the same Split before choosing Chat.
+- `08.html`: Chat with the revision request entered, before Send.
+- `09.html`: Chat after the second document turn, marked.
+- `10.html`: the same Chat before choosing Split.
+- `11.html`: Split after the second document turn, marked.
+- `12.html`: the same Split before choosing Draft.
+- `13.html`: Draft after the second document turn, marked.
+- `14.html`: the same Draft before pressing "Start goal…".
+- `15.html`: the Start goal sheet, marked.
+- `16.html`: the same sheet before pressing "Start goal".
+- `17.html`: the settled goal page, marked, with its Draft return link.
+- `18.html`: the same goal page before pressing Draft.
+- `19.html`: the returned chat T2, opened in Chat, marked.
+- `20.html`: the same chat at the recording's end.
 
 The walk is recorded by `again chat-draft` from its `setup`, with no
 hand driver.
@@ -56,4 +53,4 @@ the document write's line and Show, and the end of the answer. Latest is
 a sibling of the log in Chat and Split, hidden until the live log is away
 from its end. It is absent from the terminal. The returned chat reads
 earlier lines by itself, showing the earlier conversation with the last
-reply in print 21.
+reply in print 19.

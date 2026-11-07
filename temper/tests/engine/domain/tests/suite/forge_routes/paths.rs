@@ -23,7 +23,7 @@ fn sign_in_reader(world: &mut World) {
         held: None,
         reply_to: ReplyTo::new(SIGN_IN_READER),
         identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: READER_SUBJECT.to_be_bytes().into() },
+            key: temper_engine_domain_forge::user_key(1, READER_SUBJECT),
             login: Box::from(&b"reader"[..]),
             name: Box::from(&b"Reader"[..]),
         },
