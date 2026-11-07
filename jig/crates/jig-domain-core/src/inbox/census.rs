@@ -8,7 +8,7 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::List;
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Progress {
     unread_result: u64,
     read_conversation: u64,

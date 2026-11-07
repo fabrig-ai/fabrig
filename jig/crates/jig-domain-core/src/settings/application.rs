@@ -3,14 +3,14 @@
 use alloc::boxed::Box;
 
 /// Where a kind's values are kept (jig/docs/design/domain/engine.md, 17.5).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum KindScope {
     Deployment,
     Project,
 }
 
 /// A declared application kind and its bounds (jig/docs/design/domain/engine.md, 17.5).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Kind {
     pub number: u32,
     pub scope: KindScope,
@@ -249,7 +249,7 @@ fn translate(item: &super::Item) -> Option<Item> {
 }
 
 /// The change and its keyed people continuation live only until the same step's judges answer.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 struct Decision {
     request: Token,
     person: u64,
@@ -257,13 +257,13 @@ struct Decision {
     room: u32,
     proposal: Option<(people::Proposer, u32)>,
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 struct Group {
     connector: u16,
     positions: Box<[u32]>,
     judged: Option<Box<[connector::Judged]>>,
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Judging {
     decision: Option<Decision>,
     groups: Slab<Option<Group>>,
@@ -772,7 +772,7 @@ fn finish_proposal(
 }
 
 /// Replies may precede settings restore; preparation waits for every owner (engine.md, 17.5–17.7).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) enum Starting {
     Waiting { replies: Map<u16, Box<[connector::DefaultState]>> },
     Prepared { connectors: Box<[u16]>, edits: Box<[Recorded]>, writes: Box<[crate::Write]> },

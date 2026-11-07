@@ -3,7 +3,7 @@ use crate::{Assignment, Grant, Login, RunAnswer, SignOutResult, SourceName, Turn
 use alloc::boxed::Box;
 use skein_lib::{Duration, Token};
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum LinkDown {
     Sources { sources: Box<[SourceName]> },
     Check { name: SourceName },
@@ -18,7 +18,7 @@ pub enum LinkDown {
     Grant { run: Token, attempt: Token, grant: Grant },
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum LinkUp {
     JobAnswer {
         run: Token,

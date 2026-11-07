@@ -19,14 +19,14 @@ use alloc::boxed::Box;
 use skein_lib::{Env, Id, List, Queue, ReplyTo, Token};
 
 /// One read, bounded by `Limits::load_slots`, apart from authenticated loads.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Pending {
     reply: ReplyTo,
     read: PublicRead,
     state: State,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 enum State {
     Asking { public: Box<[u64]> },
     Waiting { document: Option<PublicDocument>, after: u64 },

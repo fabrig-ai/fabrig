@@ -1,7 +1,7 @@
 //! Bounds for notes (jig's domain/engine.md, sections 10 and 13).
 
 /// The parent's fixed bounds for notes and store pages.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     /// Scope indexes kept in memory at once.
     pub scopes: u32,

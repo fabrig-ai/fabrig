@@ -11,7 +11,7 @@ use skein_lib::{Env, List, Queue, Token};
 
 use crate::{Core, Event, Held, Limits, Now, Request, RetainedResult};
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct ResultRead {
     pub why: ReadFor,
     pub ids: Box<[u64]>,
@@ -19,7 +19,7 @@ pub(crate) struct ResultRead {
     pub results: List<RetainedResult>,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) enum ReadFor {
     DeploymentClose { request: Token, project: u32 },
     Preparation { task: u64, last_message: u64 },

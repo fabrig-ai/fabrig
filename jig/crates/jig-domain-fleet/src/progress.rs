@@ -29,7 +29,7 @@ pub enum Activity {
 }
 
 /// A decoded report, translated by the protocol below the core.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Report {
     /// The agent actually started; receipt time is not the host's start clock.
     Started,

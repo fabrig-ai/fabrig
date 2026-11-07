@@ -6,7 +6,7 @@ use skein_lib::{Queue, Token};
 
 use crate::{Domain, Key, Limits, Range, Record, Refusal, Request, Rows, Scope};
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Dropping {
     owner: Token,
     project: u32,

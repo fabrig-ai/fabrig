@@ -40,7 +40,7 @@ use crate::facts::Fact;
 use crate::limits::Limits;
 
 /// A worker in contact.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Channel {
     pub(crate) jobs: Box<[jig_domain_link::JobBound]>,
     pub(crate) evidence: crate::Bounds,

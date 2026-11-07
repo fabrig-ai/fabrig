@@ -9,14 +9,14 @@ use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Env, List, Map, Queue, ReplyTo, Token};
 
 /// Per kept deletion: its step, compound, connectors still owed and notes walk.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Deletions {
     live: Map<u32, Deleting>,
     resume: bool,
     walk: Option<u32>,
     routing: bool,
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 struct Deleting {
     step: people::DeletionStep,
     grace: Option<Duration>,

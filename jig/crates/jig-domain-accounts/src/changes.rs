@@ -8,7 +8,7 @@ pub(crate) enum Leaving {
     Source(Token),
     Account(u32),
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Removing {
     pub(crate) request: Token,
     pub(crate) left: u32,

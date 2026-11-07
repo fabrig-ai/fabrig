@@ -3,14 +3,14 @@
 use crate::{Key, ModelEffort};
 
 /// The first live stored row that this configuration cannot retain.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub struct RestoreFailure {
     pub key: Key,
     pub cause: RestoreCause,
 }
 
 /// A measured capacity, unrepresentable accounting, or unavailable executor choice.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub enum RestoreCause {
     Bound { which: RestoreBound, held: u64, limit: u64 },
     Accounting,
@@ -18,7 +18,7 @@ pub enum RestoreCause {
 }
 
 /// Why configuration no longer offers a retained model and effort.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub enum RestoreLlmWhy {
     Unconfigured,
     Charter,
@@ -26,7 +26,7 @@ pub enum RestoreLlmWhy {
 }
 
 /// The existing configured or retained envelope exceeded by a stored row.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub enum RestoreBound {
     Tasks,
     Stubs,

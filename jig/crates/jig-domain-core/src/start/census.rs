@@ -2,12 +2,12 @@
 use crate::Key;
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct ReadResults {
     pub party: u64,
     pub after: u64,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Census {
     /// Exact activity keys of unanswered questions, reconstructed at restart.
     pub questions: Box<[(u64, u64)]>,

@@ -44,7 +44,7 @@ enum Start {
 /// Bounded secret-free identities, sign-ins/deadlines, project holdings, completed keys and
 /// volatile flights and task-derived inbox references; knows no task content.
 /// (domain/people.md, sections 2–6).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct Domain {
     deletions: Map<u32, crate::KeptDeletion>,
     start: Start,

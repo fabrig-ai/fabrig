@@ -5,7 +5,7 @@ use crate::{Event, Fact, Limits, Request};
 use skein_lib::{Env, Id, List, Lossy, Map, Queue, Slab, Token};
 
 /// A bounded set of watches, discarded on restart.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct Domain {
     pub(crate) watchers: Slab<Watcher>,
     pub(crate) runs: Map<Token, crate::RetainedRun>,

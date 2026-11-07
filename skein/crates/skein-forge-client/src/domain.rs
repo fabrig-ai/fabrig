@@ -20,7 +20,7 @@ pub(crate) enum Alarm {
     Repository(api::Repository),
 }
 /// The forge client’s bounded working set and call scheduler.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct Domain {
     pub(crate) config: Option<crate::Config>,
     pub(crate) writers: Map<u16, u64>,

@@ -6,7 +6,7 @@ use crate::domain::Domain;
 use crate::{Form, Grant, GrantName, Limits, Request};
 use skein_lib::{Duration, Env, List, Queue, Time, Token};
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Kept {
     name: GrantName,
     current: Option<(u64, Time, Form)>,

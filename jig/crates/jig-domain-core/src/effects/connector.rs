@@ -12,7 +12,7 @@ use skein_lib::{List, Queue, Token, Wall};
 use crate::{Core, Family, fresh, settings, translate};
 
 /// Core-authorized task identity and funding for one connector repair.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct RepairSeed {
     pub(crate) number: u64,
     pub(crate) project: u32,
@@ -32,7 +32,7 @@ impl RepairSeed {
 }
 
 /// A person's task in no project (jig/docs/design/domain/authority.md, 6.1).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct PersonSeed {
     pub(crate) number: u64,
     pub(crate) funder: tasks::Funder,
@@ -49,7 +49,7 @@ impl PersonSeed {
 }
 
 /// What one adopted resource permits this project to do.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ResourceRole {
     /// The deployment owns the resource.
     Owned,
@@ -62,7 +62,7 @@ pub enum ResourceRole {
 }
 
 /// How a named resource is held while a task uses it.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum HoldKind {
     /// No task hold is needed.
     Shared,
@@ -73,7 +73,7 @@ pub enum HoldKind {
 }
 
 /// What a connector's effect does to its resource.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum EffectForm {
     Creation,
     Transition,
@@ -81,7 +81,7 @@ pub enum EffectForm {
 }
 
 /// Promise available after an effect's uncertain outcome.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Recovery {
     Keyed,
     Conditional,
@@ -90,7 +90,7 @@ pub enum Recovery {
 }
 
 /// The inspectable part of a connector-owned effect.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct EffectDescription {
     /// Whether this kind waits while its task has pending dependencies.
     pub waits_for_dependencies: bool,
@@ -107,7 +107,7 @@ pub struct EffectDescription {
 }
 
 /// Why a described effect was not admitted, including refusals before authority checked it.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum EffectRefusal {
     Authority,
     Obsolete,
@@ -121,7 +121,7 @@ pub enum EffectRefusal {
 /// A connector's answer in jig's vocabulary, after root translation.
 /// Application settings: jig/docs/design/domain/engine.md, 17.5;
 /// jig/docs/design/domain/connectors.md, section 17.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum Event {
     /// A restore's judged items (jig/docs/design/domain/engine.md, 17.10; jig/docs/design/domain/connectors.md, 17).
     SettingsRestored {
@@ -233,7 +233,7 @@ pub enum OutboxOutcome {
 }
 
 /// The connector's place in the core-owned restart order.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum RestartStage {
     Restored,
     ReadAfresh,
@@ -241,7 +241,7 @@ pub enum RestartStage {
 }
 
 /// A project's durable adoption role (domain/core.md, 6.1; domain/connectors.md, 12).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum AdoptionRole {
     Owned,
     Participant,
@@ -258,7 +258,7 @@ pub struct AdoptedParty {
 
 /// A connector's judgment of one item (jig/docs/design/domain/engine.md, 17.5;
 /// jig/docs/design/domain/connectors.md, section 17).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Judged {
     Accept { size: u32, charters: Box<[u32]> },
     Same,
@@ -267,7 +267,7 @@ pub enum Judged {
 
 /// A connector's default metadata (jig/docs/design/domain/engine.md, 17.5;
 /// jig/docs/design/domain/connectors.md, section 17).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct DefaultState {
     pub kind: u32,
     pub scope: u32,
@@ -280,7 +280,7 @@ pub struct DefaultState {
 /// What the core asks a numbered connector to do.
 /// Application settings: jig/docs/design/domain/engine.md, 17.5;
 /// jig/docs/design/domain/connectors.md, section 17.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum Ask {
     /// Erase replaced values below the history cutoff (jig/docs/design/domain/engine.md, 17.10; jig/docs/design/domain/connectors.md, 17).
     ForgetReplaced {

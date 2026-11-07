@@ -13,7 +13,7 @@ use alloc::boxed::Box;
 use skein_lib::{Env, List, Map, Queue, Set};
 
 /// Compare every wait lost at publication, including phase and delegate changes (domain/tasks.md, 6.7).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Indexed {
     holdings: Box<[Holding]>,
     pending: Box<[u64]>,
@@ -25,7 +25,7 @@ pub(crate) struct Indexed {
 
 /// Ordered resource ranges and reversed dependency pairs, bounded by the live edge limits.
 /// The names belong to the index, independently of the durable records (domain/tasks.md, 6.7).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Index {
     pub holders: Map<(Name, u64), ()>,
     pub waiters: Map<(Name, u64), ()>,
@@ -165,7 +165,7 @@ fn threshold(domain: &Domain, holding: &Holding) -> Option<u32> {
 }
 
 /// Changes may outnumber live rows during a cascade; saturation rejudges all holds (domain/tasks.md, 6.7).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct CircleChanges {
     tasks: Set<u64>,
     all: bool,
@@ -1047,7 +1047,7 @@ fn dependencies_wait(phase: &Phase) -> bool {
 }
 
 /// Tasks wait on dependencies and delegates, delegates alone, or no task (domain/tasks.md, 6.7).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 enum WaitPhase {
     Tasks,
     Delegates,
