@@ -443,6 +443,9 @@ two rows of one name, is that same panic before any row runs. A test
 that reads what an earlier row of its process would disturb, such as a
 heap ceiling, stays a test of its own. The kit shares nothing between
 rows; a fixture a body builds is built per row.
+`skein_rows::panics(expected, call)` holds for a row what
+`#[should_panic(expected = "...")]` holds for a test: `call` must panic,
+with a message holding `expected`.
 
 A fake that runs as a step machine, as `skein-echo-client` does,
 is held to the subset instead (testing-strategy.md, 4): it has no
