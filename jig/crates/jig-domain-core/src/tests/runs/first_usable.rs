@@ -199,6 +199,133 @@ fn only_an_openai_key_takes_the_first_charter_model() {
 }
 
 #[test]
+#[expect(clippy::disallowed_macros, reason = "ordinary unit-test rows build account records")]
+fn lists_narrow_only_unclaimed_implicit_choices_and_their_previews() {
+    use fixtures::list_record;
+    const OWN: u32 = 20;
+    const SOURCE: u32 = 21;
+    const SECOND: u32 = 30;
+    const SECOND_SOURCE: u32 = 31;
+    // The two OpenAI models are catalogue settings 1 and 2, bits 0 and 1.
+    const FIRST: u64 = 0b01;
+    const NEXT: u64 = 0b10;
+    for (label, named, kept, records, limited, expected, preview) in [
+        ("no list", false, false, vec![(OWN, SOURCE, None)], None, Ok((0, OWN)), Some(0)),
+        (
+            "first name missing",
+            false,
+            false,
+            vec![(OWN, SOURCE, Some(list_record(NEXT, true, None)))],
+            None,
+            Ok((1, OWN)),
+            Some(1),
+        ),
+        (
+            "failed read retains names",
+            false,
+            false,
+            vec![(OWN, SOURCE, Some(list_record(NEXT, true, Some(accounts::ReadFailure::Deadline))))],
+            None,
+            Ok((1, OWN)),
+            Some(1),
+        ),
+        (
+            "only failures use stock",
+            false,
+            false,
+            vec![(OWN, SOURCE, Some(list_record(0, false, Some(accounts::ReadFailure::Unreachable))))],
+            None,
+            Ok((0, OWN)),
+            Some(0),
+        ),
+        (
+            "no allowed model",
+            false,
+            false,
+            vec![(OWN, SOURCE, Some(list_record(0, true, None)))],
+            None,
+            Err(EMPTY),
+            None,
+        ),
+        (
+            "skip a disallowing account for the same model",
+            false,
+            false,
+            vec![
+                (OWN, SOURCE, Some(list_record(NEXT, true, None))),
+                (SECOND, SECOND_SOURCE, Some(list_record(FIRST, true, None))),
+            ],
+            None,
+            Ok((0, SECOND)),
+            Some(0),
+        ),
+        (
+            "only an unusable account allows the first model",
+            false,
+            false,
+            vec![
+                (OWN, SOURCE, Some(list_record(FIRST, true, None))),
+                (SECOND, SECOND_SOURCE, Some(list_record(NEXT, true, None))),
+            ],
+            Some(SOURCE),
+            Ok((1, SECOND)),
+            Some(1),
+        ),
+        (
+            "explicit choice survives a lost name",
+            true,
+            false,
+            vec![(OWN, SOURCE, Some(list_record(NEXT, true, None)))],
+            None,
+            Ok((0, OWN)),
+            Some(1),
+        ),
+        (
+            "kept account survives a lost name",
+            false,
+            true,
+            vec![(OWN, SOURCE, Some(list_record(NEXT, true, None)))],
+            None,
+            Ok((0, OWN)),
+            Some(1),
+        ),
+    ] {
+        let (mut core, limits) = fixture(named);
+        if kept {
+            fixtures::listed_accounts(&mut core, &limits, OPENAI, &[(OWN, SOURCE, None)]);
+            claim(&mut core, &limits);
+        }
+        fixtures::listed_accounts(&mut core, &limits, OPENAI, &records);
+        if let Some(source) = limited {
+            account(&mut core, &limits, accounts::Event::Limited { account: source, reset: None });
+        }
+        assert_eq!(
+            core.run_choice(TASK).map(|choice| {
+                (
+                    NAMES.iter().position(|name| *name == choice.policy.model.name.as_ref()).unwrap(),
+                    choice.accounts[0].account,
+                )
+            }),
+            expected,
+            "{label}"
+        );
+        assert_eq!(
+            core.preview_llm(1, core.current.newest(), tasks::Models::ALL, tasks::Payer::Project(1), 1)
+                .map(|choice| choice.main.model),
+            preview,
+            "{label}: a template without a choice previews current availability"
+        );
+        if !named && !kept {
+            assert_eq!(
+                document(&core, &limits).llm.map(|choice| choice.main.model),
+                preview,
+                "{label}: task and preview agree"
+            );
+        }
+    }
+}
+
+#[test]
 fn a_claimed_login_stays_main_when_an_earlier_provider_arrives() {
     let (mut core, limits) = fixture(false);
     let login = claude(&mut core, &limits, LoginState::Usable);
