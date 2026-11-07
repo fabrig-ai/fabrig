@@ -425,13 +425,14 @@ impl Client {
                 link::Signing::LinkUnknown => Some(NotSignedIn::LinkUnknown),
                 link::Signing::Again => Some(NotSignedIn::NotReady),
                 link::Signing::Busy => Some(NotSignedIn::Busy),
+                link::Signing::Lost => match self.send_again {
+                    Some(SendAgain::Approval { .. }) => Some(NotSignedIn::Busy),
+                    Some(SendAgain::Link { .. } | SendAgain::Service(_)) | None => None,
+                },
                 link::Signing::Full { sign_ins, earliest, link_until } => {
                     Some(NotSignedIn::Full { sign_ins: *sign_ins, earliest: *earliest, link_until: *link_until })
                 }
-                link::Signing::SignedIn { .. }
-                | link::Signing::SignedOut
-                | link::Signing::Lost
-                | link::Signing::Refused => None,
+                link::Signing::SignedIn { .. } | link::Signing::SignedOut | link::Signing::Refused => None,
             };
             self.not_signed_in(why);
         }
