@@ -1,7 +1,7 @@
 //! Reports in and duties out (temper/docs/design/client/README.md, 6.13).
 use crate::limits::{self, Limits};
 use jig_client::{Link, Message, With};
-use skein_lib::{Env, List, Queue, Secret, Set, Time, Token, Wall};
+use skein_lib::{Duration, Env, List, Queue, Secret, Set, Time, Token, Wall};
 use skein_ui::Patch;
 use skein_ui_screen::{Cell, Focus, Frame, Size, Theme};
 use skein_ui_screen_terminal::{Command, Key, command};
@@ -24,6 +24,7 @@ pub enum Report {
     Resize(Size),
     Heard(jig_client::Event),
     Kept { written: bool },
+    Opened { opened: bool },
 }
 
 #[derive(Default)]
@@ -54,6 +55,8 @@ pub struct Host {
     mapping: jig_client_protocol_http::Mapping,
     credential: Option<Secret>,
     signing: Set<Token>,
+    asked_opening: Option<u64>,
+    browse: bool,
     addressed: bool,
     closed: bool,
 }
@@ -81,6 +84,8 @@ impl Host {
             mapping: jig_client_protocol_http::Mapping::new(b"/jig").expect("mapping prefix"),
             credential: None,
             signing: Set::with_capacity(temper_client_shell_terminal::limits::EXCHANGES),
+            asked_opening: None,
+            browse: false,
             addressed: false,
             closed: false,
         }
@@ -114,6 +119,7 @@ impl Host {
             Report::Resize(size) => self.size = size,
             Report::Heard(event) => self.heard(event),
             Report::Kept { written } => self.tell(Told::Kept { written }),
+            Report::Opened { opened } => self.tell(Told::Opened { opened }),
         }
         self.route(&mut duties);
         root::take(&mut self.root, &self.env, &mut self.out);
@@ -131,6 +137,7 @@ impl Host {
             duties.address = Some(self.state().address().into());
             self.addressed = true;
         }
+        self.approval(&mut duties);
         tui::build(
             &mut self.view,
             self.state.as_ref().expect("started TUI"),
@@ -174,6 +181,9 @@ impl Host {
     fn event(&mut self, event: tui::Event, duties: &mut Duties) {
         match event {
             tui::Event::Typed { value } => self.tell(Told::Typed { value }),
+            tui::Event::SignIn if self.state().field().is_empty() && tui::may_ask_again(self.state(), &self.root) => {
+                self.ask();
+            }
             tui::Event::SignIn => match jig_client_protocol_http::printed(&self.mapping, self.state().field()) {
                 Err(_) => self.tell(Told::Refused { refusal: Refusal::NotALink }),
                 Ok(link) if link.host.as_ref() != self.state().address() => {
@@ -186,6 +196,35 @@ impl Host {
                 }),
             },
             tui::Event::Quit => self.close(duties),
+        }
+    }
+
+    fn ask(&mut self) {
+        self.step(Event::AskApproval);
+        self.asked_opening = Some(self.state().openings());
+        self.browse = true;
+    }
+
+    fn approval(&mut self, duties: &mut Duties) {
+        if self.closed {
+            return;
+        }
+        if self.root.client().link().state == Link::SignedOut
+            && self.asked_opening != Some(self.state().openings())
+        {
+            self.ask();
+            self.route(duties);
+        }
+        if self.browse {
+            match self.root.asked() {
+                Some(root::asked::State::Asked { code, .. }) => {
+                    duties.open = Some(tui::approval_address(self.state().address(), code));
+                    self.tell(Told::Browse);
+                    self.browse = false;
+                }
+                Some(root::asked::State::NotAsked(_)) => self.browse = false,
+                None | Some(root::asked::State::Asking) => {}
+            }
         }
     }
 
@@ -254,7 +293,14 @@ impl Host {
 
     #[must_use]
     pub fn deadline(&self) -> Option<Time> {
-        if self.closed { None } else { root::next_deadline(&self.root) }
+        if self.closed {
+            return None;
+        }
+        let tick = self.view.tick().map(|tick| {
+            let span = Duration::from_nanos(tick.as_nanos().saturating_sub(self.env.wall.as_nanos()));
+            self.env.now.saturating_add(span)
+        });
+        skein_lib::earliest(root::next_deadline(&self.root), tick)
     }
 }
 

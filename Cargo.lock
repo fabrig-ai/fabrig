@@ -5089,6 +5089,7 @@ version = "0.0.0"
 dependencies = [
  "jig-client",
  "jig-client-protocol-http",
+ "jig-client-protocol-wire",
  "jig-client-shell-native",
  "skein-fake-machine",
  "skein-io",
