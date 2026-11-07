@@ -57,7 +57,7 @@ fn pending(records: &Records) -> World {
     world
 }
 
-fn second_generation() -> World {
+pub(crate) fn second_generation() -> World {
     let mut world = Records::story().committed(SEED, BASE);
     world.patch_sets(MID);
     world.open_switched().expect("intermediate upgrade opens");
@@ -259,30 +259,64 @@ fn first_start_recovers_after_every_disk_mutation() {
     }
 }
 
+pub(crate) fn a_drop_copy_or_switch_cut_recovers(
+    operation: u32,
+    change: jig_store_world::world::Change,
+    expected_last: u64,
+) {
+    let mut world = second_generation();
+    let source: std::collections::BTreeMap<_, _> =
+        world.contents().into_iter().filter(|(path, _)| path.starts_with(b"generations/2/")).collect();
+    world.trace_writes();
+    world.cut_at(operation);
+    let _ = world.open_switched();
+    assert_eq!(world.operation_count(), operation, "drop/copy/switch cut reached");
+    world.crash(SEED);
+    assert_eq!(world.open_switched(), Some(expected_last), "cut {operation} {change:?}: {:?}", world.refusal());
+    assert_eq!(world.active(), b"3\n", "cut {operation} {change:?}");
+    Records::story().check(&mut world, PATCHED, &(operation, change));
+    let after = world.contents();
+    for (path, bytes) in &source {
+        assert_eq!(after.get(path), Some(bytes), "source changed at {operation}: {path:?}");
+    }
+    assert!(!after.keys().any(|path| path.starts_with(b"generations/1/") || path.starts_with(b"generations/dropped")));
+}
+
 #[test]
-fn drop_copy_and_switch_recover_after_every_mutation() {
-    // store.md 10.4: a cut during the previous drop, copy, patch or switch opens the old whole generation or the new.
+fn drop_copy_and_switch_recover_at_each_step_s_first_mutation() {
+    use jig_store_world::world::Change;
     let mut trace = second_generation();
     trace.trace_writes();
     let expected_last = trace.open_switched().expect("traced second upgrade");
-    for &(operation, change) in trace.changes() {
-        let mut world = second_generation();
-        let source: std::collections::BTreeMap<_, _> =
-            world.contents().into_iter().filter(|(path, _)| path.starts_with(b"generations/2/")).collect();
-        world.trace_writes();
-        world.cut_at(operation);
-        let _ = world.open_switched();
-        world.crash(SEED);
-        assert_eq!(world.open_switched(), Some(expected_last), "cut {operation} {change:?}: {:?}", world.refusal());
-        assert_eq!(world.active(), b"3\n", "cut {operation} {change:?}");
-        Records::story().check(&mut world, PATCHED, &(operation, change));
-        let after = world.contents();
-        for (path, bytes) in &source {
-            assert_eq!(after.get(path), Some(bytes), "source changed at {operation}: {path:?}");
-        }
-        assert!(
-            !after.keys().any(|path| path.starts_with(b"generations/1/") || path.starts_with(b"generations/dropped"))
-        );
+    let drop = patches::first_change(&trace, Change::Rename);
+    let removal = trace
+        .changes()
+        .iter()
+        .find(|(operation, change)| *operation > drop && *change == Change::Remove)
+        .expect("drop removal after its rename")
+        .0;
+    let copy = trace
+        .changes()
+        .iter()
+        .find(|(operation, change)| *operation > drop && *change == Change::Make)
+        .expect("copy directory after the drop")
+        .0;
+    let rename = patches::last_change(&trace, Change::Rename);
+    let sync = trace
+        .changes()
+        .iter()
+        .find(|(operation, change)| *operation > rename && *change == Change::Sync)
+        .expect("switch sync")
+        .0;
+    for (why, operation, change) in [
+        ("drop rename", drop, Change::Rename),
+        ("drop removal", removal, Change::Remove),
+        ("copy directory", copy, Change::Make),
+        ("switch rename", rename, Change::Rename),
+        ("switch sync", sync, Change::Sync),
+    ] {
+        eprintln!("{why}: {operation}");
+        a_drop_copy_or_switch_cut_recovers(operation, change, expected_last);
     }
 }
 
