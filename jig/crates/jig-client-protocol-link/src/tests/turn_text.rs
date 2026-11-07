@@ -37,8 +37,8 @@ fn decoded(second: &[u8]) -> c::TurnRead {
 
 #[test]
 fn a_pages_archived_turn_past_the_live_turns_field_is_decoded() {
-    // The live turn's field stops at 65,536 bytes; a page's archived turn is
-    // bounded as the archive is (`translate::turn::archive`).
+    // The live turn's field stops at 65,536 bytes; a page's archived turn keeps
+    // turn_text within the archive's byte bound. A turn read alone is decoded whole.
     let mut text = Writer::new(65_536);
     for _ in 0_u32..65_536 {
         text.put(b"a").unwrap();
