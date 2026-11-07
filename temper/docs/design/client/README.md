@@ -2395,7 +2395,7 @@ keeps (`../protocol/configuration.md`, section 2).
     PROJECT, a link to `Home`, and "Settings", a link to `Settings`, each
     followed by "/", then the level-1 heading "Configure
     temper", the page's title too; on a phone "‹", a link named "Settings", alone before the
-    heading. Its bar names no model: what the chat's runs use is the picker's,
+    heading. With a composer its bar names no model: what the chat's runs use is the picker's,
     under its composer (*The work's account and model,* below): on a
     configuring chat, what its next run takes, as any chat's; with no chat
     yet, what one would, template 3's `resolved_default` in `me` (5.5), and a
@@ -2541,9 +2541,25 @@ keeps (`../protocol/configuration.md`, section 2).
     5.1), a configuring chat's its charter's template, any other's template 1;
     "the default model" where neither names one. "Claude" goes before the shown
     name of a model of the `anthropic` provider and no other provider's name
-    goes before one, so "Claude Opus 5.5 · high" and "GPT-6.1 Sol · high". What
+    goes before one, so "Claude Opus 5.5 · high" and "GPT-6.1 Sol · high". Its
+    effort is the one the choice names or, where it names none, that model's
+    default in the offer. What
     a task holds stays its own: a model the offer leaves out is still named, and
     its wait says why (5.5).
+  - *With no composer,* a closed chat, one with a result or ended, says it in its
+    bar instead, in the bar's muted form where the number was: "T2 · GPT-6 Astra ·
+    high", in the closed line's shown names, in the browser and the terminal
+    alike. It says what the chat ran on: the model and effort of the latest
+    turn read (jig's `client/domain/client.md`, section 10), the effort only where
+    that turn asked for one. A chat with no turn hasn't run, and says what its
+    next run would have taken: its LLM choice, or with none its template's
+    `resolved_default`, as *Its closed line* has them. "T2 · Using the default
+    model" is only where neither names one, where temper can't know. Until the
+    conversation is read to its end the bar says the number alone, and names no
+    model it would take back. A closed agent's task says the same words without
+    the number, which its heading holds, in its taskbar (5.9), with no line or
+    picker at its composer. A goal's page draws no such line. A phone's bar shows
+    no byline, so a closed chat's words are left out there as its number is.
   - *The menu* rises from it, by what pays, drawn from the project's offer in
     `me` (jig's `client/domain/contract.md`, 5.1), working nothing out, so that
     no page shows what the offer leaves out. In order:
@@ -4250,15 +4266,19 @@ The words for each offered source are:
   disabled, and Enter sends nothing; the draft stays editable. Unknown usability keeps
   today's behavior. Otherwise:
   - *MODEL* is the draft's model (a task's LLM choice; a new chat's,
-    its template's), then " · EFFORT" where the choice names an effort.
-    Where the template names none, it is the supplied `resolved_default` of
-    that template in `me` (jig's
-    `client/domain/contract.md`, 5.1), what a run's check would take now for
+    its template's), then " · EFFORT", the effort the choice names or, where
+    it names none, that model's default in the offer.
+    Where neither the task nor the template names a model, it is the supplied
+    `resolved_default` of the page's template in `me` (jig's
+    `client/domain/contract.md`, 5.1), a configuring chat's its charter's
+    template, any other's template 1, what a run's check would take now for
     a task keeping no account, in charter order, under the effective
     authority and the current receiving party as payer.
     The composer never infers a default from the project catalogue's
-    order, including a clipped catalogue. With no preview it uses
-    "Using the default model". The preview is an observation, not a
+    order, including a clipped catalogue. Only with no preview, where temper
+    can't know, it uses "Using the default model", and the terminal takes the
+    same words. A closed chat says what it ran on instead (3.5, *The work's
+    account and model*). The preview is an observation, not a
     reservation: the draft keeps configured intent, and each run's check
     takes the models of a task given none (jig's `domain/accounts.md`, 4.3).
   - *The account* is named only when the payer is you: your new chat,
@@ -4298,7 +4318,7 @@ The words for each offered source are:
     an eligible own preferred or kept account wins, use 5.6's "Using
     Scripted model · Default". An unknown or missing row keeps the
     playground's line, including on another member's chat.
-  - *Unsettled:* with no model settled, "Using the default model".
+  - *Unsettled:* with no choice and no preview, "Using the default model".
     Otherwise, when no account is named, "Using MODEL". A model a task or
     its draft holds that the offer leaves out reads "Using MODEL" too: the
     offer gives no provider for it, what a task holds stays its own, and
@@ -4839,7 +4859,8 @@ acts on it as its document offers (5.11).
   TITLE", as a chat's; its state, in 5.8's words, from the same
   function (`pages::task::header_state`), with its status token; then
   its executor, "Agent", and its own spend, "N spent", its `budget.spent`
-  as a plan row's (5.8).
+  as a plan row's (5.8); on a closed task, then what it ran on (3.5, *The
+  work's account and model*).
 - **"Task brief":** a region, the mockup's "TASK BRIEF", whose capitals
   are the look's: its specification as written (`spec`, read as Markdown); who asked, in 5.8's words ("Asked by
   task N"); then its dependency line, as a plan row's (5.8): the list

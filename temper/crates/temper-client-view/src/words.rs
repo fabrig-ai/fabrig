@@ -869,6 +869,7 @@ pub enum Word {
     TimeNovember,
     TimeDecember,
 
+    BylineTask,
     UsingModel,
     UsingDefault,
     UsingKey,
@@ -1411,7 +1412,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The command’s Copy adds three literal phrases (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
-const PHRASES: u32 = 1893;
+const PHRASES: u32 = 1894;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1438,10 +1439,10 @@ const PHRASES: u32 = 1893;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3294;
+const SEGMENTS: u32 = 3299;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 46398;
-const ALL: [Word; 1292] = [
+const ENGLISH_BYTES: u32 = 46403;
+const ALL: [Word; 1293] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -2277,6 +2278,7 @@ const ALL: [Word; 1292] = [
     Word::TimeOctober,
     Word::TimeNovember,
     Word::TimeDecember,
+    Word::BylineTask,
     Word::UsingModel,
     Word::UsingDefault,
     Word::UsingKey,
@@ -3580,6 +3582,7 @@ impl Word {
             Self::SignInLinkExpired => 1918,
             Self::SignInLinkUnknown => 1919,
             Self::OutOfDateMain => 183,
+            Self::BylineTask => 1505,
             Self::UsingModel => 1068,
             Self::UsingDefault => 1069,
             Self::UsingKey => 1070,
@@ -4195,6 +4198,11 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
         || word == Word::PlaygroundAdoptionFailed
     {
         return Ok(temper_client_domain::forge::PLAYGROUND_FIELD_BYTES);
+    }
+    if word == Word::BylineTask && kind == HoleKind::Name {
+        // Two shown names, the Anthropic prefix, and the effort separator.
+        let names = joined.min(crate::choice::MODEL_SHOWN).checked_mul(2).ok_or(Invalid::Overflow)?;
+        return names.checked_add(12).ok_or(Invalid::Overflow);
     }
     let model_name = joined.min(crate::choice::MODEL_SHOWN);
     if word == Word::ModelEffort {
@@ -5113,6 +5121,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::Count => (&[b"", b""], &[Number]),
         Word::BudgetDeadlineDate => (&[b"", b""], &[HoleKind::Date]),
         Word::BudgetDeadlineMoment => (&[b"", b" UTC"], &[HoleKind::Moment]),
+        Word::BylineTask => (&[b"T", b" \xc2\xb7 ", b""], &[Number, Name]),
         Word::UsingModel => (&[b"Using ", b""], &[Name]),
         Word::UsingDefault => (&[b"Using the default model"], &[]),
         Word::UsingKey => (&[b"Using your ", b" API key \xc2\xb7 ", b""], &[Name, Name]),

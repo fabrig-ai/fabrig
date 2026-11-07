@@ -211,6 +211,7 @@ pub(crate) fn turn_blocks(blocks: List<c::Block>) -> c::ReadResult {
         used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
         spent: 0,
         read_through: None,
+        llm: None,
         cut: false,
     })))))
 }

@@ -756,15 +756,26 @@ for any presentation of a chat or of any agent task's activity.
   with `jig-protocol-transcript` into the client's own turn: its
   messages; their blocks of text, calls and results, each call named by
   its tool with its input as written and its outcome summarised; what
-  it used and spent. A call to the engine carries, as its objects and
+  it used and spent; and `llm`, the model its completion was made with and
+  the effort it asked for, as the turn names them (smith's
+  `protocol/transcript.md`, section 2), none where it names no model. A
+  call to the engine carries, as its objects and
   parts, what the core wrote beside the turn under its name
   (`../../domain/engine.md`, 7.2), never what its answer's words say.
   A call's outcome is its result's first line with words, within a
   field's `text`; its result block keeps the summary whole. The committed
   turn shares one `turn_text` budget, priced in section 14's order, so its
-  calls' names go last. A text cut at the bound ends in "…", where it was
+  calls' names go last; `llm` stands outside that budget, as its usage
+  does, and is never cut. A text cut at the bound ends in "…", where it was
   cut, and the decoded turn is marked.
   Neither the application nor the helpers link smith.
+- **What the conversation last ran on.** `Thread.latest_llm` is the `llm`
+  of the newest decoded turn, taken when the window reaches the end where
+  live rows are added; reading older pages leaves it as it is. It is what
+  the latest run used, whatever that run was given, and is none until a
+  turn is read, so a run that committed no turn names nothing.
+  `Thread::caught_up` says the thread has read as far as the task's
+  document announces, so that a page can tell "none yet" from "none".
 - **A job is a call's outcome,** worded like any other call's. A call
   that answered `running` reads "started as job N", never "is running":
   a job ends with its activation (smith's `protocol/transcript.md`,
@@ -1256,6 +1267,11 @@ with a person in front of a tree, are view.md's, 18.10.
   past `document_bytes` on the wire is refused as too large, with its size, so it
   shows no calls' names, whatever `turn_text` would keep of it. Reading it takes a
   page past that bound. Default: too large, and the tools read it by its parts.
+- **A run that committed no turn** (section 10) names no model to its client,
+  and a line of activity past a thread's first page can leave its last turn
+  unread. A task's claim could keep the model and effort on the task for every
+  page, at the price of a stored field and a field of the client's wire.
+  Default: as it stands, from the turns.
 
 ## 19. Helpers
 
