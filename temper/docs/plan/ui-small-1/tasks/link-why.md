@@ -165,3 +165,14 @@ Rebase onto the current landing trunk. The conflicting commit is `738ed091e3` (�
 - Regenerate the combined phrase declarations; neither side’s counts describe the combined vocabulary. Run `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-client-view --lib -E 'test(=tests::accounts::english_phrase_declarations_match_the_vocabulary)'`, then verify the same test without write mode.
 - In `temper/docs/design/client/README.status.md`, retain both deletions: remove the completed 5.1 spent-link **Not yet** entry and the completed 3.5 Home / 5.10 semantic-conflict **Not yet** entry. Preserve the surrounding **Design departs** entries.
 - Run `each_link_reason_has_its_paragraph_in_either_shell` in `temper-client-view` through heavy to verify the retained link paragraphs.
+
+## Rebase (2026-11-07, step merge, foreman ui-small-1/link-why/foreman-2)
+
+rebase words.rs preserving both vocabularies and regenerate combined declarations
+Rebase onto the current landing trunk, `origin/ui-small-1/integration`.
+- The merge conflicts in `temper/crates/temper-client-view/src/words.rs`. Main’s `183c94f536` (“Show reviewed proposal settings and keep phone controls clear”), incorporated through `c1d54122b3`, adds proposal words beside this branch’s link words.
+- Preserve `WorkProposedChange`, `WorkProposedChangeCount` and `WorkProposingChange`, including their IDs, list entries and English phrases.
+- Preserve all three `SignInLink*` variants, IDs, list entries and exact paragraphs. Keep the shortened `HomeNeedsEmpty` paragraph already retained.
+- Regenerate the combined declarations rather than choosing either side’s counts: `SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-client-view --lib -E 'test(=tests::accounts::english_phrase_declarations_match_the_vocabulary)'`.
+- Verify that same test without write mode, then run `heavy cargo nextest run -p temper-client-view --lib -E 'test(=tests::frame::each_link_reason_has_its_paragraph_in_either_shell)'`.
+- `temper/docs/design/client/README.status.md` merged automatically. Preserve incoming proposal status changes and this branch’s removal of the completed 5.1 spent-link **Not yet** entry.
