@@ -31,13 +31,18 @@ pub(crate) fn signing(signing: &jig_client_protocol_link::Signing, out: bool) ->
         Signing::Full { sign_ins, earliest, link_until } if !out => {
             Some(Notice::SignInFull { sign_ins: *sign_ins, earliest: *earliest, link_until: *link_until })
         }
-        Signing::Refused if !out => Some(Notice::SignInRefused),
+        Signing::LinkUsed | Signing::LinkExpired | Signing::LinkUnknown | Signing::Refused if !out => {
+            Some(Notice::SignInRefused)
+        }
         Signing::SignedIn { .. }
         | Signing::SignedOut
         | Signing::Again
         | Signing::Busy
         | Signing::Full { .. }
         | Signing::Lost
+        | Signing::LinkUsed
+        | Signing::LinkExpired
+        | Signing::LinkUnknown
         | Signing::Refused => None,
     }
 }

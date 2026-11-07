@@ -1,6 +1,6 @@
 # browser: status
 
-2026-11-04. Where jig's code lags or departs from [browser.md](browser.md).
+2026-11-07. Where jig's code lags or departs from [browser.md](browser.md).
 
 - **Departs:** 15: the browser tier runs through `tools/tiers/run`, but
   `jig/scripts/browser.sh` stays, and ends in `--profile browser`, which

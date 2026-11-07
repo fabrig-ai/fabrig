@@ -239,6 +239,76 @@ pub fn printed_link(stdout: &[u8]) -> Option<&[u8]> {
     let end = stdout.iter().position(|byte| *byte == b'\n')?;
     Some(&stdout[..end])
 }
+fn is_printed_link(line: &[u8]) -> bool {
+    let Some(line) = line.strip_suffix(b"\n") else { return false };
+    let Ok(line) = std::str::from_utf8(line) else { return false };
+    (line.starts_with("http://") || line.starts_with("https://"))
+        && line.split_once("/jig/v1/sign-in/link?secret=").is_some_and(|(_, secret)| !secret.is_empty())
+        && !line.bytes().any(|byte| byte.is_ascii_whitespace())
+}
+/// A box's stdout holds its links alone, one to a line (temper/docs/design/domain/testing.md, 2.6).
+#[must_use]
+pub fn printed_links(stdout: &[u8]) -> usize {
+    stdout.split_inclusive(|byte| *byte == b'\n').filter(|line| is_printed_link(line)).count()
+}
+/// `stderr` without its lines holding `secret=`.
+#[must_use]
+pub fn without_secrets(stderr: &[u8]) -> String {
+    String::from_utf8_lossy(stderr).split_inclusive('\n').filter(|line| !line.contains("secret=")).collect()
+}
+/// Panics with `run`, the count and filtered stderr, never a link's bytes.
+pub fn assert_one_printed_link(run: &str, stdout: &[u8], stderr: &[u8]) {
+    let count = printed_links(stdout);
+    assert!(
+        count == 1 && stdout.split_inclusive(|byte| *byte == b'\n').all(is_printed_link),
+        "{run}: expected one printed link; count={count}; stdout must hold complete link lines alone; box stderr:\n{}",
+        without_secrets(stderr)
+    );
+}
+
+pub mod printed_link_tests {
+    pub fn printed_links_count_and_fail_without_disclosing_secrets() {
+        const LINK: &[u8] = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=fixture-private";
+        let one = [LINK, b"\n"].concat();
+        let two = [one.as_slice(), one.as_slice()].concat();
+        let mixed = [one.as_slice(), b"not a link\n"].concat();
+        let blank = [one.as_slice(), b"\n"].concat();
+        let unfinished = [one.as_slice(), LINK].concat();
+        for (name, stdout, stderr, count, valid, diagnostic) in [
+            ("one", one.as_slice(), b"ready\n".as_slice(), 1, true, "ready\n"),
+            ("two", two.as_slice(), b"Restarting\n", 2, false, "Restarting\n"),
+            ("none", b"", b"serve exited\n", 0, false, "serve exited\n"),
+            (
+                "secrets",
+                two.as_slice(),
+                b"secret=fixture-private\nRestarting\nurl secret=fixture-private\nready\n\xffsecret=fixture-private",
+                2,
+                false,
+                "Restarting\nready\n",
+            ),
+            ("non-link", mixed.as_slice(), b"ready\n", 1, false, "ready\n"),
+            ("blank", blank.as_slice(), b"ready\n", 1, false, "ready\n"),
+            ("no-line-feed", LINK, b"ready", 0, false, "ready"),
+            ("unfinished-second", unfinished.as_slice(), b"ready\n", 1, false, "ready\n"),
+            ("only-non-link", b"not a link\n", b"ready\n", 0, false, "ready\n"),
+        ] {
+            assert_eq!(super::printed_links(stdout), count, "{name}: link count");
+            assert_eq!(super::without_secrets(stderr), diagnostic, "{name}: filtered stderr");
+            let result = std::panic::catch_unwind(|| super::assert_one_printed_link(name, stdout, stderr));
+            if valid {
+                assert!(result.is_ok(), "{name}: one complete link passes");
+            } else {
+                let panic = result.expect_err("invalid stdout fails");
+                let message = panic.downcast_ref::<String>().expect("formatted panic");
+                assert!(message.contains(name), "run is named");
+                assert!(message.contains(&format!("count={count}")), "link count is reported");
+                assert!(message.ends_with(diagnostic), "filtered stderr is carried");
+                assert!(!message.contains("secret=") && !message.contains("fixture-private"), "secret stays private");
+                assert!(!message.contains("104, 116, 116, 112"), "link bytes stay private");
+            }
+        }
+    }
+}
 pub struct Ended {
     pub exit: Option<Exit>,
     pub stdout: Vec<u8>,

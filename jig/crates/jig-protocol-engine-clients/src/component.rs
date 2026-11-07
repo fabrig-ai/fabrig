@@ -3,7 +3,7 @@ use crate::{
     Event, Kept, Limits, Request, SecretOwner, SecretsAnswer, SecretsRequest, Settings,
     exchange::Exchange,
     routes::{self, Route},
-    sign_in::{self, Link, Pending, Waiting},
+    sign_in::{self, Link, Past, Pending, Waiting},
 };
 use alloc::boxed::Box;
 use jig_client_protocol_wire::v19 as w;
@@ -38,6 +38,7 @@ pub struct Component {
     provider: provider::State,
     rng: CryptoRng,
     link: Option<Link>,
+    past_links: Queue<(skein_lib::Secret, Past)>,
     /// The link a sign-in spends while the core answers it, given back on not ready, busy or full (client.md, 8).
     spending: Option<(Token, Link)>,
     connections: Map<Token, Exchange>,
@@ -106,6 +107,7 @@ impl Component {
             settings,
             rng,
             link: None,
+            past_links: Queue::with_capacity(sign_in::PAST_LINKS),
             spending: None,
             connections: Map::with_capacity(env.limits.exchanges),
             pending: Pending {
@@ -136,6 +138,31 @@ impl Component {
         self.next = self.next.checked_add(1).expect("component names do not exhaust");
         token
     }
+    fn remember_link(&mut self, link: Link, past: Past) {
+        if self.past_links.room() == 0 {
+            self.past_links.pop();
+        }
+        let digest = sign_in::digest(link.secret.expose());
+        self.past_links.push((digest, past));
+    }
+    // Why a secret is not live; refused where the printed link is disabled.
+    fn link_answer(&self, secret: &[u8]) -> Box<[u8]> {
+        if self.settings.link.is_none() {
+            return routes::refused();
+        }
+        let digest = sign_in::digest(secret);
+        let mut found = None;
+        for (past_digest, past) in &self.past_links {
+            if sign_in::constant_time_eq(digest.expose(), past_digest.expose()) {
+                found = Some(*past);
+            }
+        }
+        match found {
+            Some(Past::Used) => routes::link_used(),
+            Some(Past::Expired) => routes::link_expired(),
+            None => routes::link_unknown(),
+        }
+    }
     fn fresh_link(&mut self, env: &Env<Limits>, out: &mut Queue<Request>) {
         if self.settings.link.is_none() || self.link.is_some() || self.spending.is_some() {
             return;
@@ -158,7 +185,8 @@ impl Component {
                 if let Some((reserved, _)) = &self.spending
                     && *reserved == exchange
                 {
-                    self.spending = None;
+                    let (_, link) = self.spending.take().expect("matching reservation");
+                    self.remember_link(link, Past::Used);
                 }
                 let why = if self.stopping() { crate::MintRefusal::NotReady } else { crate::MintRefusal::Bound };
                 if !self.mint_refused(exchange, why, out) {
@@ -419,28 +447,34 @@ impl Component {
                     connection.respond(crate::Reply::NotARecord);
                     return;
                 };
+                let digest = sign_in::digest(record.secret().expose());
                 if let Some((_, link)) = &self.spending {
-                    let answer = if sign_in::constant_time_eq(link.secret.expose(), record.secret().expose()) {
-                        routes::sign_in_busy()
-                    } else {
-                        routes::refused()
-                    };
+                    let answer =
+                        if sign_in::constant_time_eq(sign_in::digest(link.secret.expose()).expose(), digest.expose()) {
+                            routes::sign_in_busy()
+                        } else {
+                            self.link_answer(record.secret().expose())
+                        };
                     connection.respond(crate::Reply::Record(answer));
                     return;
                 }
                 let live = match &self.link {
                     Some(link) => {
                         env.now < link.until
-                            && sign_in::constant_time_eq(link.secret.expose(), record.secret().expose())
+                            && sign_in::constant_time_eq(
+                                sign_in::digest(link.secret.expose()).expose(),
+                                digest.expose(),
+                            )
                     }
                     None => false,
                 };
                 if !live {
                     if expired(self.link.as_ref(), env.now) {
-                        self.link = None;
+                        let link = self.link.take().expect("expired link");
+                        self.remember_link(link, Past::Expired);
                     }
                     self.fresh_link(env, out);
-                    connection.respond(crate::Reply::Record(routes::refused()));
+                    connection.respond(crate::Reply::Record(self.link_answer(record.secret().expose())));
                     return;
                 }
                 if self.admitted() >= env.limits.exchanges {
@@ -738,7 +772,8 @@ impl Component {
     }
     pub fn fire(&mut self, env: &Env<Limits>) {
         if expired(self.link.as_ref(), env.now) {
-            self.link = None;
+            let link = self.link.take().expect("expired link");
+            self.remember_link(link, Past::Expired);
             return;
         }
         let mut due = None;

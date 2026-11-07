@@ -1881,8 +1881,8 @@ keeps (`../protocol/configuration.md`, section 2).
     "Needs you", "Needs you · N" in the signal colour while something
     does, and, at its right on a wide page while more than one does,
     "Answer in a row", to that filtered *Needs you*. Empty, once its read has
-    answered: "Nothing needs you. Work carries on, and this page tells you what changed when you
-    come back."
+    answered: "Work carries on, and this page tells you what changed when you come back.", the
+    headline above having said "Nothing needs you." once.
     - *Answered lines,* under the head: what was answered in the last 2
       minutes (*What the client keeps,* below): the mock's `.answered`,
       a tick by style, "TITLE:" a link to its task, the label, and at
@@ -1978,8 +1978,8 @@ keeps (`../protocol/configuration.md`, section 2).
       opacity .72;
     - `.pair`, two columns, gap 10: "Reply…" and "Later", min-height 46,
       radius 12, no border, `--gf-hover`, centred; on a proposal, a held
-      task or a person task the first is "Open", to its task's or chat's
-      page, and with no such page it is left out;
+      task or a person task other than one in words the first is "Open",
+      to its task's or chat's page, and with no such page it is left out;
     - the reply form under the pair, hidden until "Reply…": a textarea,
       min-height 72, `--gf-line-2`, radius 8, `--gf-paper`, its
       placeholder "Your words go to TITLE’s agent"; "Send reply" (primary,
@@ -1999,11 +1999,15 @@ keeps (`../protocol/configuration.md`, section 2).
     one addressed to a person with a report as its contract, as a goal
     asks the person who started it (`../domain/agent.md`, 8.2), reads as a
     question: its spec's words by the same line form, its kind "a
-    question", its choices, "Reply…" and "Later", and each answers it in
-    those words, naming the revision the card showed. Its line's TITLE is
+    question", its choices, "Reply…" and "Later". Choosing or replying
+    answers it in those words, naming the revision the card showed;
+    Later keeps it open. With a task as requester, its line's TITLE is
     "Task N", N its requester, a link there, since the card reads no second
-    task, and its answered line's title is its own. In the inbox's filter
-    it stays a person task.
+    task; another requester keeps the person task's title and link.
+    Its answered line's title is its own. In the inbox's filter it stays
+    a person task. On the terminal's inbox, Answer sends its words with
+    the shown person revision. A role's task or a contract other than a
+    report keeps the ordinary person-task card.
   - *SHORT,* what a next-up line or a Home line says of a card: a
     question's line, or a person task in words'; a proposal's reason's first
     sentence; a held task's or another person task's title, a funds card's
@@ -3821,8 +3825,15 @@ client removes no account and closes no chat of its own.
     the link serves a little past what it says); busy, "temper is busy. This
     link stays usable until it expires: open it again in a moment."; not
     ready, "temper is starting or stopping. This link stays usable until
-    it expires: open it again in a moment." A link opened again past its
-    expiry is refused, and `temper serve` prints a fresh one;
+    it expires: open it again in a moment.";
+  - *signed out, the link spent:* while the link's view says why it can't
+    sign in, the paragraph says so in place of the shell's words and of the
+    sign-in page, in either shell, saying only what whoever holds the link already knows: used,
+    "This link was already used. A fresh one is in your terminal."; past
+    its expiry, "This link has expired. A fresh one is in your terminal.";
+    any other, a real link of an older box or one that never was, "This
+    link isn't from this temper. Use the one its terminal printed." A page
+    reached with no link keeps the shell's words;
   - *out of date,* the engine serving no version of jig's records that
     this client speaks: "This temper is out of date: run the temper the
     engine runs." What is pending stays in the small store (jig's
@@ -4720,8 +4731,8 @@ an open need on it, whether it has a report, and its direct delegates' total.
   `<p><span class=tag>Needs you · KIND</span>QUESTION</p>`, KIND and QUESTION
   as Needs you's card reads them (3.5, *Needs you*): "a question", "a
   proposal", "held", "a person task", "funds". Then:
-  - a question's parsed choices, in `.choices`, answering as Needs you does,
-    with no Reply and no Later;
+  - the parsed choices of a question or a person task in words, in
+    `.choices`, answering as Needs you does, with no Reply and no Later;
   - no choices: `.btn.primary` "Answer" for a question or a person task,
     "Open" otherwise, to `Inbox` filtered by this goal;
   - a funds card, with no "Add $10" and no "Stop the goal": its Release and
@@ -5066,7 +5077,7 @@ supplies it: the page computes none (jig's `client/domain/contract.md`,
   | first | "First in the queue for LANDING." |
   | updating | "Updating from LANDING." |
   | resolving | "Resolving its conflicts with LANDING." |
-  | repairing | "Repairing: CI failed at its head.", "Repairing: gate N asked for changes." or "Repairing: a semantic conflict with LANDING." |
+  | repairing | "Repairing: CI failed at its head.", "Repairing: gate N asked for changes." or, for a semantic conflict, "Repairing: CI failed at its updated head.", which blames neither the change nor what it was updated with |
   | landing | "Merging at its head." |
   | landed | "Landed · merge commit ABCDEFG", its first seven digits, as a delegation's card says it (5.7) |
 
@@ -6668,6 +6679,13 @@ own tests:
   (`browser.md`, section 4).
 
 ## 11. Open questions
+
+- **The person-started question flow after landing** (3.5, 5.8; the
+  request `ui-goal-asks`): the focused client world starts a goal from
+  the sheet, supplies its person-task question, answers under Needs you
+  and checks the answer in the resumed goal's report-result message.
+  Browser, walk and render checks of this flow follow landing. Default:
+  the focused story and shared view tables, with no new browser test.
 
 - **A closed page's latest-run model** (3.5, 5.9; the request
   `ui-model-line`): a run with no committed turn, a tail page with no turn,
