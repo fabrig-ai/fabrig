@@ -398,10 +398,28 @@ impl Observer {
         std::mem::take(self.recorded.as_mut().expect("recording observer"))
     }
 
-    /// Observe inbound peer traffic, before the root may decide it.
-    pub fn inbound(&mut self, store: &Store<'_>, now: u64, event: &mut core::Event) {
-        self.project_makes.inbound(store, event);
-        for observed in self.intents.inbound_core(store, event) {
+    /// Observe inbound peer traffic, before the root may decide it. `store` runs
+    /// only for an event whose check reads a row (`jig/docs/design/domain/testing.md`, 5).
+    pub fn inbound<'a>(&mut self, store: impl FnOnce() -> Store<'a>, now: u64, event: &mut core::Event) {
+        self.project_makes.act(event);
+        let reads_row = matches!(
+            event,
+            core::Event::People(people::Event::Ask { .. })
+                | core::Event::ProposeSettings { .. }
+                | core::Event::NamedAction {
+                    action: core::NamedAction::DecideProposal { choice: core::ProposalChoice::Accept, .. },
+                    ..
+                }
+        );
+        if !reads_row {
+            for observed in self.intents.inbound(event) {
+                self.observe(now, observed);
+            }
+            return;
+        }
+        let store = store();
+        self.project_makes.ask(&store, event);
+        for observed in self.intents.inbound_core(&store, event) {
             self.observe(now, observed);
         }
         if let core::Event::People(people::Event::Ask { models: _, reply_to, sign_in, key, ask }) = event {
@@ -418,7 +436,7 @@ impl Observer {
             if let Some(person) = person {
                 let to = destination(reply_to);
                 let seen = if let people::Ask::MarkSeen { seen } = ask {
-                    Some(SeenFence::new(store, person, *seen))
+                    Some(SeenFence::new(&store, person, *seen))
                 } else {
                     None
                 };
@@ -546,10 +564,16 @@ impl Observer {
         self.observe(now, r::Observed::ColdStore { receipts });
     }
 
-    /// Observe the application records the store has just received.
-    pub fn submitted(&mut self, store: &Store<'_>) {
-        self.intents.submitted(store);
-        if let Some(pending) = store.pending.back() {
+    /// Observe the commit the store has just received, and the revisions it names.
+    /// `store` runs only for a commit that erases a task's activity or an ended task.
+    pub fn submitted<'a>(
+        &mut self,
+        commit: Option<Commit<'a>>,
+        named: Vec<NamedRevision>,
+        store: impl FnOnce() -> Store<'a>,
+    ) {
+        self.intents.submitted(commit.as_ref().map(|commit| commit.number), named);
+        if let Some(pending) = commit {
             for (person, _, seen) in self.requests.values_mut() {
                 let Some(fence) = seen else { continue };
                 let Some(position) = fence.position else { continue };
@@ -574,6 +598,13 @@ impl Observer {
                     }
                 }
             }
+            let erases_task = pending.writes.iter().any(|write| {
+                matches!(write, Write::Erase(core::Key::Tasks(tasks::Key::Activity { .. } | tasks::Key::Ended(_))))
+            });
+            if !erases_task {
+                return;
+            }
+            let store = store();
             let mut tasks = Vec::new();
             for write in &pending.writes {
                 if let Write::Erase(core::Key::Tasks(tasks::Key::Activity { task, position })) = write
@@ -658,7 +689,7 @@ impl Observer {
         for decision in &mut snapshot.decisions {
             decision.accepted_by = self.accepted.get(&(decision.connector, decision.key)).copied();
         }
-        let decisions = proposal_decisions(&store.rows);
+        let mut decisions = Vec::new();
         let mut task_acceptances = Vec::new();
         let mut words = Vec::new();
         let mut reached = Vec::new();
@@ -731,6 +762,11 @@ impl Observer {
                             words.push((*task, *message));
                         }
                     }
+                }
+                core::Record::Core(core::CoreRecord::ProposalDecision(value))
+                    if value.choice == people::ProposalChoice::Accepted =>
+                {
+                    decisions.push(*value);
                 }
                 core::Record::Core(core::CoreRecord::RunProof(value)) => {
                     self.claims.insert((value.task, value.attempt));

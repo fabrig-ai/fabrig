@@ -500,34 +500,98 @@ fn a_deleted_projects_chat_finishes_within_the_deletions_grace() {
     assert!(!final_rows(&world).contains_key(&deletion()));
 }
 
-#[test]
-fn a_deletion_cut_after_any_commit_ends_the_same() {
+/// The uncut run's first and last commit of the deletion, and its final rows.
+pub(crate) fn uncut_deletion() -> (u64, u64, BTreeMap<root::Key, root::Record>) {
     let mut uncut = deleted_world(SEED);
-    let first = uncut.store.applied + 1;
+    let before = uncut.store.applied;
     remove(&mut uncut, REMOVE);
     finish(&mut uncut);
-    let last = uncut.store.applied;
-    let expected = final_rows(&uncut);
+    let decision_from_end = uncut
+        .commits
+        .iter()
+        .rev()
+        .rposition(|writes| {
+            writes.iter().any(|write| {
+                matches!(
+                    write,
+                    root::Write::Save(root::Record::Core(core::Record::People(people::Stored::Deletion {
+                        project: PROJECT,
+                        step: people::DeletionStep::Tasks,
+                        ..
+                    })))
+                )
+            })
+        })
+        .expect("closing decision saves deletion");
+    let last_step_from_end = uncut
+        .commits
+        .iter()
+        .rev()
+        .position(|writes| writes.contains(&root::Write::Erase(deletion())))
+        .expect("last step erases deletion");
+    let first = uncut.store.applied - u64::try_from(decision_from_end).expect("decision distance");
+    let last = uncut.store.applied - u64::try_from(last_step_from_end).expect("last step distance");
+    assert_eq!(first, before + 1, "the sweep starts with the closing decision");
+    assert_eq!(last, uncut.store.applied, "the sweep ends with the last deletion step");
     assert!(last > first, "the sweep crosses deletion steps");
-    for number in first..=last {
-        for cut in [Cut::Durable(number), Cut::Submitted(number)] {
-            let mut world = deleted_world(SEED);
-            world.cut = Some(cut);
-            remove(&mut world, REMOVE);
-            if world.reached_cut != Some(cut) {
-                settle_hosts(&mut world);
-            }
-            assert_eq!(world.reached_cut, Some(cut), "every deletion commit is cut");
-            restart_world(&mut world);
-            // Only a submission lost before the closing decision needs the requester again.
-            if cut == Cut::Submitted(first) {
-                remove(&mut world, REMOVE);
-            }
-            finish(&mut world);
-            assert!(world.domain.ready(), "restart finishes deletion before opening");
-            assert_eq!(rows_naming(&world, PROJECT), Vec::<String>::new(), "{cut:?}");
-            assert_eq!(final_rows(&world), expected, "{cut:?}");
-        }
+    (first, last, final_rows(&uncut))
+}
+
+/// Cut one commit of the deletion, restart, finish, and end as the uncut run did.
+pub(crate) fn a_cut_deletion_ends_the_same(first: u64, cut: Cut, expected: &BTreeMap<root::Key, root::Record>) {
+    let mut world = deleted_world(SEED);
+    world.cut = Some(cut);
+    remove(&mut world, REMOVE);
+    if world.reached_cut != Some(cut) {
+        settle_hosts(&mut world);
+    }
+    assert_eq!(world.reached_cut, Some(cut), "every deletion commit is cut");
+    if cut == Cut::Submitted(first) {
+        assert!(!world.store.rows.contains_key(&deletion()), "the closing decision is lost");
+    } else if cut == Cut::Durable(first) {
+        assert!(
+            matches!(
+                world.store.rows.get(&deletion()),
+                Some(root::Record::Core(core::Record::People(people::Stored::Deletion {
+                    project: PROJECT,
+                    step: people::DeletionStep::Tasks,
+                    ..
+                })))
+            ),
+            "the closing decision keeps deletion before its family steps"
+        );
+        assert!(
+            world.store.rows.values().any(|row| matches!(
+                row,
+                root::Record::Core(core::Record::People(people::Stored::Acted {
+                    outcome: people::Outcome::ProjectRemoved { project: PROJECT },
+                    ..
+                }))
+            )),
+            "the closing decision keeps its answer"
+        );
+    }
+    if world.commits.last().expect("cut deletion commit").contains(&root::Write::Erase(deletion())) {
+        // The last step erases the deletion rather than saving a row.
+        assert_eq!(world.store.rows.contains_key(&deletion()), matches!(cut, Cut::Submitted(_)));
+    }
+    restart_world(&mut world);
+    // Only a submission lost before the closing decision needs the requester again.
+    if cut == Cut::Submitted(first) {
+        remove(&mut world, REMOVE);
+    }
+    finish(&mut world);
+    assert!(world.domain.ready(), "restart finishes deletion before opening");
+    assert_eq!(rows_naming(&world, PROJECT), Vec::<String>::new(), "{cut:?}");
+    assert_eq!(&final_rows(&world), expected, "{cut:?}");
+}
+
+#[test]
+fn a_deletion_cut_around_its_decision_and_last_step_ends_the_same() {
+    let (first, last, expected) = uncut_deletion();
+    let between_family_steps = first + (last - first) / 2;
+    for cut in [Cut::Submitted(first), Cut::Durable(first), Cut::Durable(between_family_steps), Cut::Durable(last)] {
+        a_cut_deletion_ends_the_same(first, cut, &expected);
     }
 }
 

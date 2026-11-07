@@ -367,7 +367,7 @@ impl Application for Ops {
     }
     fn inbound(peers: &mut Peers, store: &Store, clock: Clock, event: &mut root::Event) {
         if let root::Event::Core(event) = event {
-            peers.observer.inbound(&observations::core_store(store), clock.now, event);
+            peers.observer.inbound(|| observations::core_store(store), clock.now, event);
         }
         if let root::Event::Effect { key, proposal: Some(_), .. } = event {
             let observations = peers.observer.intents.propose(*key);
@@ -868,7 +868,10 @@ impl Application for Ops {
         events
     }
     fn submitted(peers: &mut Peers, store: &Store, _: Clock) {
-        peers.observer.submitted(&observations::core_store(store));
+        let commit = store.pending.back().map(|pending| {
+            jig_conformance::core::commit(pending.number, pending.writes.as_ref(), observations::core_write)
+        });
+        peers.observer.submitted(commit, Vec::new(), || observations::core_store(store));
         documents::leads_submitted(peers, store);
         if peers.document_story || peers.client_documents {
             documents::submitted(peers, store);
