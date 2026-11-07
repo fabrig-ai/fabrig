@@ -183,6 +183,236 @@ keeps this form, rendered as text by `temper/crates/temper-engine-smith/src/see.
 - **A refusal** says in a line what the read did not reach, an error: the existing
   reads' refusals in their words, prefixed `see ADDRESS: `.
 
+## 9. `see`'s reads: the root's answer, its delivery, its renderer, jig's proposal read
+
+`temper/docs/design/domain/agent.md`, 8.4.1; `jig/docs/design/domain/engine.md`, 7.3.
+
+`see` writes the whole skeleton, every type, variant, dispatch arm and branch below, with
+stubs; `see-forge` and `see-proposal` fill their stubs' bodies in their own modules and
+functions, and touch neither `route/host_route.rs` nor `temper-engine-smith/src/settings.rs`.
+
+### 9.1 What the root read, and its delivery (the task `see`)
+
+In `temper/crates/temper-engine-domain/src/route/see.rs`, exported from the crate root as
+the host route's types are (`route.rs`'s `pub use`, then `lib.rs`'s `pub use route::{..}`):
+
+```rust
+/// What a `see` call read, for its renderer (domain/agent.md, 8.4.1).
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub enum SeeAnswer {
+    /// A `settings` family read's answer, with an inventory's context.
+    Settings(Box<SeeSettings>),
+    /// A read's own answer as the tool `tool` renders it: the settings family's refusal
+    /// (`b"settings"`); a branch or file read's answer or refusal (`b"read_branch"`,
+    /// `b"read_file"`); a repository the project has none of (`b"read_file"`).
+    Call { tool: &'static [u8], answer: Box<crate::CallAnswer> },
+    /// `help` (the page `index`) and `help NAME`.
+    Page { name: Box<[u8]> },
+    /// `help search WORDS`, the words joined by single spaces.
+    Search { words: Box<[u8]> },
+    /// `settings landing` (filled by `see-forge`).
+    Landing(Box<SeeLanding>),
+    /// `settings gates OWNER/NAME` (filled by `see-forge`).
+    Gates(Box<SeeRepository>),
+    /// `proposal tN/K`, `proposal pN/K` (filled by `see-proposal`).
+    Proposal(Box<SeeProposal>),
+    /// An address of `ask-temper.md`, 5.1 this milestone does not read, or does not read
+    /// yet in this plan (the stubs).
+    NotYet,
+    /// No address.
+    Unknown,
+}
+
+/// What `HostDelivery::Settings` carries beside its reply and offset.
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub struct SeeSettings {
+    pub answer: jig_domain_core::SettingsAnswer,
+    pub repositories: Box<[RepositoryIdentity]>,
+    pub people: Box<[ProjectPerson]>,
+    pub forge_people: Box<[ForgePerson]>,
+    pub offer: Box<[OfferedModel]>,
+    pub application: Option<temper_engine_domain_forge::settings::SizedValue>,
+    pub requested: Option<u64>,
+}
+
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub struct SeeLanding {
+    pub by: temper_engine_domain_forge_change::Way,
+    pub merge_job: Option<Box<[u8]>>,
+    /// The project's after-landing settings, where its configuration gives them.
+    pub after: Option<temper_engine_domain_forge::AfterLanding>,
+    /// Each of the project's readable repositories, in the inventory's order.
+    pub repositories: Box<[SeeRepository]>,
+}
+
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub struct SeeRepository {
+    /// `OWNER/NAME`, as the inventory names it.
+    pub name: Box<[u8]>,
+    /// Its gates and tiers; both empty where the configuration gives it none.
+    pub checks: temper_engine_domain_forge::RepositoryGates,
+}
+
+/// A proposal of settings as jig's run read answers it (9.4).
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub enum SeeProposal {
+    Waiting(jig_domain_core::documents::Proposal),
+    Decided(jig_domain_core::reads::Ended),
+    Unknown,
+}
+```
+
+`HostDelivery` (`route/host_route.rs`) gains, after `Settings`:
+
+```rust
+/// A `see` read's answer, for its outer form (domain/agent.md, 8.4.1).
+See { to: ReplyTo, line: Box<[u8]>, from: u32, answer: Box<SeeAnswer> },
+```
+
+- `line` is the address as read: the call's line, trimmed, or the words `more`'s token
+  names, joined by single spaces. `from` is the byte offset the part starts at.
+- No codec: `HostDelivery` has no stored or wire form.
+
+The flight of every `see` read that waits for an answer, crate-private, in `route/see.rs`:
+
+```rust
+/// A `see` read in flight: its line, and which read answers next (domain/agent.md, 8.4.1).
+pub(crate) struct SeeFlight {
+    pub line: Box<[u8]>,
+    pub reading: SeeReading,
+}
+pub(crate) enum SeeReading {
+    /// A `settings` family read, `revisions`, `revision N`.
+    Settings,
+    /// `file`'s branch read, then its file read.
+    Head,
+    File,
+    /// jig's proposal read.
+    Proposal,
+}
+```
+
+- `FlightRender::Settings` gains `see: Option<Box<SeeFlight>>` (`None` where `decoded`
+  builds it); a `see` read's flight is `Settings { see: Some(..), from, requested, asked
+  }`, `requested` and `asked` none but for a settings read.
+- `host_route::settings` emits `HostDelivery::See` for it; `host_route::render` emits it
+  with `SeeAnswer::Call { tool: b"settings", .. }` for the core's refusal of a
+  `Settings` or `Proposal` read; `host_route::read` passes a forge answer for it to
+  `route/see/forge.rs`'s `answered`, unchanged otherwise.
+
+### 9.2 The renderer (the task `see`)
+
+In `temper/crates/temper-engine-smith/src/see.rs`, exported from the crate root:
+
+```rust
+/// The most an answer's body holds (domain/agent.md, 8.4.1).
+pub const SEE_PART: u32 = 6_144;
+
+/// The line of addresses an unknown address answers with, as `ask.txt` gives it.
+pub const ADDRESSES: &str = "me · project · goals [ended] · tasks · task N [tree | activity | turn A.T] · change N · changes · inbox · settings [KIND N | rules | landing-rule N [project] | landing | gates OWNER/NAME | project-ways | project-questions] · revisions · revision N · proposal tN/K or pN/K · help [NAME | search WORDS] · file OWNER/NAME PATH [BRANCH] · more TOKEN";
+
+/// Render a `see` read's answer in its outer form, within `max_bytes`: the call's
+/// answer allowance less the tool's name, and the receiving agent's.
+#[must_use]
+pub fn see_answer(
+    line: &[u8],
+    from: u32,
+    answer: &temper_engine_domain::SeeAnswer,
+    catalogue: &[jig_domain_core::settings::CatalogueModel],
+    max_bytes: u32,
+) -> smith_domain_run::HostAnswer;
+```
+
+- `ADDRESSES` is, byte for byte, the line after "see reads by address, in your project:"
+  in `ask-temper.md`, section 8, which `stock/ask.txt` holds (` · `, U+00B7 between
+  spaces).
+- Inside `see.rs`, each answer's whole text comes from a function of its own, which the
+  form then cuts: `see` writes the settings, help, `Call` and error ones, and three
+  stubs, `landing_text`, `gates_text` (`see-forge`'s) and `proposal_text`
+  (`see-proposal`'s), each answering the not-yet line until filled.
+- Called by `temper-service`'s `route.rs` (`host_delivery`) with
+  `call_answer_bytes − 3`, at most `host_reply_bytes`, and by the engine's domain world
+  (`temper/tests/engine/domain/src/host_tool.rs`) and the system world
+  (`temper/tests/system/src/composed.rs`) with `call_answer_bytes − 3`.
+
+### 9.3 The forge's addresses (the task `see-forge`)
+
+In `temper/crates/temper-engine-domain-forge/src/landing.rs`, `impl Domain`, beside
+`merge_job` and `after_landing`:
+
+```rust
+/// A project's landing way: queue where its configuration gives none (domain/landing.md, 13.1).
+#[must_use]
+pub fn landing_way(&self, project: u32) -> temper_engine_domain_forge_change::Way;
+/// A repository's configured gates and tiers in its project, if it has any.
+#[must_use]
+pub fn repository_gates(&self, project: u32, repository: skein_forge::api::Repository) -> Option<&RepositoryGates>;
+```
+
+- `file` answers with `SeeAnswer::Call { tool: b"read_file", .. }` (the file or the
+  directory, or the file read's refusal) or `{ tool: b"read_branch", .. }` (the head's
+  read refused or missing).
+
+### 9.4 jig's proposal read (the task `proposal-read`)
+
+A core action and answer of its own, beside the settings reads, so that temper's
+exhaustive matches on `SettingsRead` and `SettingsAnswer` stay as they are. In
+`jig/crates/jig-domain-core/src/vocabulary.rs` (or where `NamedAction` and `Now` are):
+
+```rust
+// NamedAction gains:
+/// A run's read of one proposal of settings, by the `settings` family (engine.md, 7.3).
+ReadProposal { proposer: jig_domain_people::Proposer, number: u64 },
+
+// Now gains:
+/// A run's proposal read answered (engine.md, 7.3).
+ProposalRead { to: ReplyTo, key: CallKey, answer: Box<ProposalRead> },
+```
+
+In `jig/crates/jig-domain-core/src/reads/settings.rs`, exported beside `SettingsAnswer`:
+
+```rust
+/// One proposal of settings, as a run reads it (engine.md, 7.3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum ProposalRead {
+    /// Waiting, with its review, as a party's live proposal read gives it, with no acts.
+    Waiting(crate::documents::Proposal),
+    /// Decided, withdrawn or replaced, as its history row keeps it.
+    Decided(crate::reads::Ended),
+    /// None, not settings, or a task's of another project.
+    Unknown,
+}
+```
+
+- `number` is `Read::Proposal`'s `proposal`: the deployment-wide number a `tN/K` or
+  `pN/K` names as K; N is the task or the party.
+- Like `NamedAction::Settings`, it takes the unrecorded path
+  (`routing/run/calls.rs`): decided by the `settings` family, no call record; a refusal
+  answers `Now::EffectAnswer`, as a settings read's does.
+- jig's own `settings` tool (`jig-protocol-tools`) decodes `{"kind":"proposal","task":N,"number":K}`
+  and `{"kind":"proposal","party":N,"number":K}` into it, and renders the answer in one
+  line: `Proposal waiting`, `Proposal decided`, `Unknown proposal`.
+- temper's one forced arm: `temper/crates/temper-engine-domain/src/route/now.rs`,
+  `core::Now::ProposalRead { .. }`, unreachable until `see-proposal` sends the action
+  and replaces it with a call into `route/see/proposal.rs`.
+- No wire or stored schema changes: neither is encoded.
+
+### 9.5 Files beyond section 7
+
+| File | Written by | What |
+|---|---|---|
+| `temper/crates/temper-engine-domain/src/route/see.rs` | `see` | the parser, the routing, 9.1's types and every arm |
+| `temper/crates/temper-engine-domain/src/route/see/forge.rs` | `see` (stubs answering `NotYet`: `landing`, `gates`, `file`, `answered`) | `see-forge` |
+| `temper/crates/temper-engine-domain/src/route/see/proposal.rs` | `see` (stubs answering `NotYet`: `read`, `answered`) | `see-proposal` |
+| `temper/crates/temper-engine-domain/src/route/host_route.rs` | `see` | `HostDelivery::See`; `FlightRender::Settings`' `see` and its uses in `settings`, `render` and `read` (9.1) |
+| `temper/crates/temper-engine-domain/src/route/now.rs` | `proposal-read` (the unreachable arm) | `see-proposal` (that arm's body) |
+| `temper/crates/temper-engine-domain/src/route/forge_route/reads.rs` | (exists) | `see-forge`: the file read's admission from `domain.limits` |
+| `temper/crates/temper-engine-domain-forge/src/landing.rs` | (exists) | `see-forge`: 9.3's accessors |
+| `temper/crates/temper-engine-smith/src/see.rs` | `declare` (decode) | `see` (the token, the form, every arm, the settings, help and error texts, the three stubs); `see-forge` (`landing_text`, `gates_text`, the file's `see:` line); `see-proposal` (`proposal_text`) |
+| `temper/crates/temper-engine-smith/src/settings.rs` | (exists) | `propose` (its decoders); `see`: `settings_page`'s text before its page as one `pub(crate)` function |
+| `temper/crates/temper-settings-form/src/render.rs` (or a module beside it) | (exists) | `see-proposal`: a proposal's and a decided proposal's text |
+| `jig/crates/jig-domain-core/src/vocabulary.rs`, `reads/settings.rs`, `reads.rs`, `reads/rows.rs`, `documents/objects.rs`, `routing/run/calls.rs` | (exist) | `proposal-read` |
+
 ## 10. `document` and `propose_settings`' asking form
 
 `temper/docs/design/domain/agent.md`, 8.4.2 and 8.4.3. Section 9 is `see`'s.

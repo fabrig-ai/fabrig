@@ -19,15 +19,19 @@ standing rules `notes/common.md`. The design each batch cites is pushed with it.
 | declare | `workspace` | declare | an asking charter's runs get no repository |
 | stock | `stock` | declare | charter 11, template 5, `ask.txt`; the rules' and policy 1's tools 3,975 and delegation to charter 11 |
 | stock | `bound` | stock, mechanics | the step test holding what temper gives charter 11's first request to 16,384 bytes on both shapes |
+| proposal-read | `proposal-read` | | jig's core: a run's read of one proposal of settings, a task's of its project or a party's, decided by the settings family |
+| see | `see` | declare, stock, document | `see`'s parser and routing; the settings addresses, `revisions`, `revision N`, `help`, `more`; the bound, `see:` lines, not-yet and unknown; the skeleton for the forge's and the proposal's addresses |
 | document | `document` | declare | `document` writes the chat's one note by section (write, append, replace), the root splicing it and writing through jig's note family; the client reads a `document` call as a `note` call |
 
-Further batches (being written by two designers): `see` (its M1 addresses, then the
-forge's and the proposal's) and `propose_settings`' asking mechanics.
+Further batches (being written by two designers): `see-forge` (`file`, `settings
+landing`, `settings gates`), `see-proposal`, and `propose` (`propose_settings`' asking
+mechanics, after `see`).
 
 ## Critical path, as it stands
 
-`family` (45 min), `declare` (180), `document` (240): about 465 implementer-minutes;
-`stock` (150) then `bound` (90) beside `document`; `see` and `propose` follow `declare`.
+`family` (45 min), `declare` (180), `document` (240), `see` (240), then `see-forge`,
+`see-proposal` and `propose` beside each other: about 705 implementer-minutes to `see`.
+`stock` (150) and `bound` (90) run beside `document`; `proposal-read` (150) from the start.
 
 ## Shared pieces, for the heads-ups
 
@@ -39,6 +43,8 @@ forge's and the proposal's) and `propose_settings`' asking mechanics.
   run with no workspace changes, temper's status agent (charter 9) and trials
   (charter 10) among them.
 - **jig's tool families:** a twelfth, asking, bit 2,048 (`jig-domain-core`, `family`).
+- **jig's run reads:** `NamedAction::ReadProposal` and `Now::ProposalRead`, a run's read
+  of one proposal of settings (`jig-domain-core`, `proposal-read`).
 - **The new host tools, in `temper-engine-domain` and `forge_route.rs`:** `Tool::See`,
   `Tool::Document` and `DocumentAction` in the root's vocabulary, `ToolKind::Ask`, the
   stubs `route/see.rs` and `route/document.rs` (`declare`); `run_workspace` gives an
@@ -56,6 +62,10 @@ forge's and the proposal's) and `propose_settings`' asking mechanics.
 
 ## Overlaps with drafts beside this one
 
+- `ui-stop-coding-row/jig-stop-interrupts` lists `jig/docs/design/domain/engine.status.md`:
+  `proposal-read`'s design adds its **Not yet** as that file's last bullet, and the task
+  deletes it there; textually apart from that plan's lines.
+
 - `tui-approval/temper-domain` and `tui-approval/temper-view` (merged to their trunk)
   list `temper/crates/temper-client-domain/**`, `temper/crates/temper-client-view/**`,
   `temper.css` and the gallery: `client` edits the Settings page, the configure page,
@@ -68,6 +78,14 @@ forge's and the proposal's) and `propose_settings`' asking mechanics.
 - No draft beside this one lists `smith/**`.
 
 ## Decisions
+
+- **One writer per file in the engine's crates:** `document`, then `see`, then
+  `propose`, since each writes `route/host_route.rs` or `temper-engine-smith/src/settings.rs`
+  and the crates' `mod` lines; `see` writes the whole skeleton for `see-forge` and
+  `see-proposal`, which write their own modules alone.
+- **`help` through the root:** `see help` is routed and decided by the asking family,
+  not answered at decode as `read_docs` is, so that its part may be 6,144 bytes
+  (`agent.md`, 8.4.1).
 
 - **An asking charter** is one whose `tools` hold the asking bit and nothing but it and
   settings, so that a mask of every family (`RunPolicy::EVERY_FAMILY`, a record with no

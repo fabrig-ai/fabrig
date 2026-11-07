@@ -85,6 +85,16 @@ person's next words, whether the previous run still listens or has parked.
   (`temper-service/src/stock.rs`).
 - **Not yet:** 8.4: no step test holds what temper gives an asking charter's first
   request to 16,384 bytes on both shapes (`temper-service/src/tests/`).
+- **Not yet:** 8.4.1: `see` reads no address: no parser or routing of the
+  settings, revision and help addresses (`temper-engine-domain/src/route/see.rs`),
+  no `more` token, bound, `see:` line, not-yet or unknown answer
+  (`temper-engine-smith/src/see.rs`).
+- **Not yet:** 8.4.1: `settings landing`, `settings gates OWNER/NAME` and `file
+  OWNER/NAME PATH [BRANCH]` read nothing of the forge
+  (`temper-engine-domain/src/route/see/forge.rs`).
+- **Not yet:** 8.4.1: `proposal tN/K` and `pN/K` read nothing: no proposal read
+  reaches the root, and `temper-settings-form` has no proposal text
+  (`temper-engine-domain/src/route/see/proposal.rs`).
 - **Not yet:** 8.4.3: no `document` call writes the chat's document: the root has
   no flow over jig's notes for it (`temper-engine-domain/src/route/document.rs`),
   and its answer and refusals have no words of their own
