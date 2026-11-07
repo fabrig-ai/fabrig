@@ -3892,6 +3892,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "skein-ui-screen"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "skein-ui",
+]
+
+[[package]]
 name = "skein-ui-tests"
 version = "0.0.0"
 dependencies = [
