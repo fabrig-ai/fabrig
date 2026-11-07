@@ -2236,6 +2236,18 @@ Every world checks what the strategy lists (testing-strategy.md, section
 
 - **Contracts** include each operation's deadline and identity, and each
   component's own (`worker.md`, section 10).
+- **Engine replay** runs two independent walking, escalation or role
+  worlds in lockstep under the same stimuli. After each iteration it
+  compares their complete traces exactly, and hashes the frozen root,
+  children, store and pending scripts through their `Hash` implementations
+  (skein's `lib.md`, 5.1). The world's test store hashes the four fields
+  its `Debug` prints: `applied`, `rows`, `pending` and `held`.
+  The comparison uses a test-only 64-bit word hasher: its
+  digests are compared within one process and never kept, with no
+  cross-run or cross-target promise. A digest mismatch fails with both
+  states' text even when that text agrees. At each seed's end the worlds
+  also compare their complete `Debug` text, retaining checks of what
+  `Hash` omits, before both close through the cold restart oracle.
 - **Secrets stay beside the domains:** in every world with the protocol
   layer, no git identity's value or API token appears in a domain's
   state, a fact, a store record or a log; the fake git program checks
@@ -2807,18 +2819,56 @@ scripts/proof-live.sh               the live tier
   refusal and note recall, and 6.5's inbox, effort and advisor checks.
   Recorded-model twins retain their independent transcript histories.
   Cost grants no exception, and moving a story to escape a budget raises
-  it. Whole-suite CPU measurement remains necessary; partial package
-  sums and failed-prefix instruction profiles prove no suite pass.
+  it. Whole-suite focused CPU measurement and the gate's fuzzy accounting
+  remain necessary; partial package sums and failed-prefix instruction
+  profiles prove no suite pass.
   Further cause work needs bounded shared schema representations and
   prompt admission measurements without changing validation or refusal
-  order, and separate profiles of engine-domain and one-process fuzzy
-  sweeps. Required engine steps, deadline queries, configuration admissions,
+  order. Engine-domain and one-process fuzzy profiles and their retained
+  causes are in `temper/docs/development/limits-fuzzy.md`.
+  Required engine steps, deadline queries, configuration admissions,
   restart/readback and token searches stay until a profile supports an
   equivalent algorithm. Real-loop matching and public setup candidates
   below roughly 2% of a story stay. Complete repair-story instruction
   totals need a successful profile; instrumentation failures establish
   none. Budgets, the real-loop ceiling and any hot-leaf build override
   remain the user's decisions.
+
+- **Further fuzzy-suite cost work** (2.5, 6, 6.1):
+  `temper/docs/development/limits-fuzzy.md` holds the instruction pairs,
+  complete-suite CPU samples and remaining causes. Keep all seeds,
+  drawn inputs, crash cuts, invariants, endings and independent readbacks;
+  neither fewer draws nor a cost-driven move resolves an overage.
+  Further work needs:
+  - A different admitted allocation contract for eager decoder lists,
+    or coalesced scalar writing that preserves field order, whole-put
+    refusal and overflow progress (skein's `lib.md`, sections 5 and 6).
+    Required decoding and scalar reads remain; smaller measurement,
+    conversion and scratch costs stay below the roughly 2% stop rule.
+  - Cheaper independent native sessions and equivalent fake-person and
+    service stepping, retaining every deadline, root secret check and
+    cold readback. One-process prefixes have different process graphs
+    and startup sources, so sharing them needs a mechanism that preserves
+    each story and fault. Smaller setup and observation tails stay.
+  - Cheaper complete mutable-state traversal and store/restore work,
+    retaining both engine roots, exact trace comparisons and the final
+    complete text. Required final text stays; the measured streaming
+    alternative costs more, and old trace-prefix equality is below 2%.
+  - Retained tool-schema admission with designed ownership and
+    invalidation by charter, namespace and grants. Independent JSON
+    validation, configuration admissions, prompt checks, allocation
+    headers and byte searches remain; their inclusive footprints do
+    not establish a removable real-loop gain above about 2 CPU s.
+  - Separate investigation of instrumented observation-cap failures and
+    intermittent raised-patience real-loop nonsettling. The suspected
+    release/hold ordering is unproved; ordinary exact-name base and
+    changed runs passed. Preserve the cap and ordinary patience.
+  Default: fix a profiled cause with the same checks, or take the
+  measurements to the user under testing-strategy.md, 8.1. Serial runs
+  including the driver do not replace the gate's per-test accounting;
+  the request's roughly 15 CPU s saving and reliable headroom require
+  further evidence. Budgets and enforcement settings remain separate
+  user decisions.
 
 - **The second printed link's cause** (2.6): a serve restart draws a new
   link; a retry whose earlier sign-in spent its secret can also ask for

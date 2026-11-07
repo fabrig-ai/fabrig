@@ -1,6 +1,12 @@
 # lib: status
 
-2026-11-06. Where skein's code lags or departs from [lib.md](lib.md).
+2026-11-07. Where skein's code lags or departs from [lib.md](lib.md).
+
+Sections 5 and 5.1 have the cheaper list append bookkeeping and
+`Env<L>`'s derived `Hash` where `L: Hash`, including its clocks and
+limits for a world's complete frozen-state comparison. The logical cap,
+growth and refusal semantics remain. Further decoder allocation and
+scalar costs are deferred in section 14; existing gaps below remain.
 
 - **Not yet:** 3: `Slab::get2_mut`. 6: a carrier's lengths, beyond
   skein-http's heads, skein-channel's frames and the oauth crates' bodies
