@@ -157,6 +157,7 @@ impl Mount {
                     credential::Read::Bearer(secret) => Some(secret),
                     credential::Read::Cookie(secret) => {
                         forbidden = !value.browser;
+                        value.cookie = true;
                         Some(secret)
                     }
                     credential::Read::None => None,

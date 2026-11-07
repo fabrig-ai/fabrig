@@ -62,7 +62,7 @@ impl Wire {
                 };
                 Kind::Read(subject)
             }
-            Message::SignInLink(_) | Message::SignInService => Kind::SignIn,
+            Message::SignInApproval(_) | Message::SignInLink(_) | Message::SignInService => Kind::SignIn,
             Message::SignOut => Kind::SignOut,
             Message::Watch(bytes) => {
                 let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("open bytes");
@@ -81,7 +81,12 @@ impl Wire {
                 }
                 Kind::Other
             }
-            Message::Authorize(_) | Message::Unwatch(_) | Message::StreamGone(_) => Kind::Other,
+            Message::ApprovalAsk(_)
+            | Message::ApprovalRead(_)
+            | Message::ApprovalDecide(_)
+            | Message::Authorize(_)
+            | Message::Unwatch(_)
+            | Message::StreamGone(_) => Kind::Other,
         };
         self.exchanges.insert(*exchange, kind);
         if let Message::Request(bytes) = message {
@@ -127,12 +132,22 @@ impl Wire {
             Some(Kind::Request(words)) => {
                 match w::KeyedAnswer::decode(&w::CEILINGS, &mut Reader::new(message)).expect("answer bytes") {
                     w::KeyedAnswer::FinalAnswer(value) if matches!(value.owner(), w::Owner::Family(_)) => {
-                        vec![Receipt::Answer { attempt: *exchange, final_answer: true, words: None }]
+                        vec![Receipt::Answer {
+                            attempt: *exchange,
+                            final_answer: true,
+                            unconfigured_model: false,
+                            words: None,
+                        }]
                     }
                     w::KeyedAnswer::FinalAnswer(value) => compound::receipt(*exchange, *words, value.record()),
                     w::KeyedAnswer::NotServed(_) | w::KeyedAnswer::SignedOut => vec![Receipt::Parked],
                     w::KeyedAnswer::Busy | w::KeyedAnswer::NotReady | w::KeyedAnswer::AnswersFull(_) => {
-                        vec![Receipt::Answer { attempt: *exchange, final_answer: false, words: None }]
+                        vec![Receipt::Answer {
+                            attempt: *exchange,
+                            final_answer: false,
+                            unconfigured_model: false,
+                            words: None,
+                        }]
                     }
                 }
             }
@@ -221,6 +236,10 @@ impl Wire {
             Event::Start { .. }
             | Event::StartUnlinked { .. }
             | Event::SignIn { .. }
+            | Event::AskApproval
+            | Event::ReadApproval { .. }
+            | Event::DecideApproval { .. }
+            | Event::ApprovalAnswer { .. }
             | Event::Authorize { .. }
             | Event::SignOut
             | Event::SignOutLost

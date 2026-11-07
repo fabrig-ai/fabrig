@@ -63,7 +63,11 @@ impl Link {
             | Message::SignInLink(_)
             | Message::SignInService
             | Message::SignOut
-            | Message::Authorize(_) => false,
+            | Message::Authorize(_)
+            | Message::ApprovalAsk(_)
+            | Message::ApprovalRead(_)
+            | Message::ApprovalDecide(_)
+            | Message::SignInApproval(_) => false,
         };
         if !self.attempts.contains_key(&exchange) && tracked {
             return;
@@ -81,7 +85,11 @@ impl Link {
             | Message::SignInLink(_)
             | Message::SignInService
             | Message::SignOut
-            | Message::Authorize(_) => false,
+            | Message::Authorize(_)
+            | Message::ApprovalAsk(_)
+            | Message::ApprovalRead(_)
+            | Message::ApprovalDecide(_)
+            | Message::SignInApproval(_) => false,
         };
         if !keyed {
             out.push(Request::Exchange { exchange, message, credential: self.credential.clone() });
@@ -102,7 +110,21 @@ impl Link {
         let count = out.len();
         for _ in 0..count {
             match out.pop().expect("counted step outputs") {
-                Request::Exchange { exchange, message, .. } => self.exchange(exchange, message, out),
+                Request::Exchange { exchange, message, credential } => match message {
+                    message @ (Message::ApprovalAsk(_)
+                    | Message::ApprovalRead(_)
+                    | Message::ApprovalDecide(_)
+                    | Message::SignInApproval(_)) => out.push(Request::Exchange { exchange, message, credential }),
+                    message @ (Message::Authorize(_)
+                    | Message::Request(_)
+                    | Message::Read(_)
+                    | Message::Watch(_)
+                    | Message::Unwatch(_)
+                    | Message::StreamGone(_)
+                    | Message::SignInLink(_)
+                    | Message::SignInService
+                    | Message::SignOut) => self.exchange(exchange, message, out),
+                },
                 value @ (Request::Save { .. }
                 | Request::Erase { .. }
                 | Request::Kept { .. }
@@ -117,6 +139,7 @@ impl Link {
                 | Request::Ended { .. }
                 | Request::Hello { .. }
                 | Request::Read { .. }
+                | Request::Approval(_)
                 | Request::Authorized(_)
                 | Request::Signing { .. }
                 | Request::ServiceCredential { .. }

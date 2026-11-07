@@ -1427,19 +1427,26 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
     super::write_private(&agent_path, &serde_json::to_vec(&agent).expect("live agent"));
 }
 
-/// The settings change a fresh sitting applies (domain/testing.md, 2.7):
-/// charters 1 and 2 name the story's model alone. A model taken by name is
-/// added in the same change, at the highest model number the inventory
-/// leaves free, from the stock row it copies.
+/// A settings change a fresh sitting applies, and its `settings apply`'s key.
+#[derive(Debug, PartialEq)]
+pub struct LiveChange {
+    pub key: &'static str,
+    pub file: serde_json::Value,
+}
+
+/// The settings changes a fresh sitting applies, in order (domain/testing.md, 2.7):
+/// a model taken by name first, alone, at the highest model number the inventory
+/// leaves free, from the stock row it copies (`live-model`); then charters 1 and 2
+/// naming the story's model alone (`live-settings`).
 pub fn live_settings(
     model: LiveModel<'_>,
     inventory: &serde_json::Value,
     charters: [&serde_json::Value; 2],
     row: &serde_json::Value,
-) -> Result<serde_json::Value, String> {
+) -> Result<Vec<LiveChange>, String> {
     require(row["value"]["model"]["name"] == model.row(), &format!("the selected live stock model: {}", model.row()))?;
     let mut value = row["value"].clone();
-    let mut items = Vec::new();
+    let mut changes = Vec::new();
     if let Some(effort) = model.by_name() {
         let settings = inventory["settings"].as_array().ok_or("settings inventory missing")?;
         let number = (1..=jig_domain_tasks::MODELS)
@@ -1461,8 +1468,12 @@ pub fn live_settings(
         value["withdrawn"] = false.into();
         value["source"] = "person".into();
         value["estimated"] = true.into();
-        items.push(serde_json::json!({"setting":{"kind":"model","number":number},"set":value}));
+        changes.push(LiveChange {
+            key: "live-model",
+            file: serde_json::json!({"items":[{"setting":{"kind":"model","number":number},"set":value}]}),
+        });
     }
+    let mut items = Vec::new();
     for charter in charters {
         let mut charter_value = charter["value"].clone();
         charter_value["model"] = value["model"].clone();
@@ -1471,7 +1482,21 @@ pub fn live_settings(
         charter_value["time"] = 240_000_000_000_u64.into();
         items.push(serde_json::json!({"setting":charter["setting"],"set":charter_value}));
     }
-    Ok(serde_json::json!({"items":items}))
+    changes.push(LiveChange { key: "live-settings", file: serde_json::json!({"items":items}) });
+    Ok(changes)
+}
+
+/// The `settings apply` of the change at `at` in `live_settings`' order, read from
+/// `file`: the first against the inventory's `newest`, each later one against the
+/// revision the one before it made.
+#[must_use]
+pub fn live_apply(change: &LiveChange, at: usize, newest: u64, file: &str) -> Vec<String> {
+    let revision =
+        newest.checked_add(u64::try_from(at).expect("change index fits revision")).expect("settings revision fits");
+    ["settings", "apply", file, "--against", &revision.to_string(), "--key", change.key]
+        .into_iter()
+        .map(str::to_owned)
+        .collect()
 }
 
 pub struct LivePlan<'a> {
@@ -1902,19 +1927,18 @@ impl LiveJudge<'_> {
         let revision = inventory["newest"].as_u64().ok_or("settings revision missing")?;
         let catalogue = live_json(&reads[3])?;
         let charters = [live_json(&reads[1])?, live_json(&reads[2])?];
-        let change = live_settings(self.plan.model, &inventory, [&charters[0], &charters[1]], &catalogue)?;
-        let file = self.plan.client.join("settings.json");
-        fs::write(&file, serde_json::to_vec(&change).map_err(|error| error.to_string())?)
-            .map_err(|error| error.to_string())?;
-        self.queue(&[
-            "settings",
-            "apply",
-            file.to_str().ok_or("settings FILE path is not UTF-8")?,
-            "--against",
-            &revision.to_string(),
-            "--key",
-            "live-settings",
-        ]);
+        let changes = live_settings(self.plan.model, &inventory, [&charters[0], &charters[1]], &catalogue)?;
+        for (at, change) in changes.iter().enumerate() {
+            let file = self.plan.client.join(format!("{}.json", change.key));
+            fs::write(&file, serde_json::to_vec(&change.file).map_err(|error| error.to_string())?)
+                .map_err(|error| error.to_string())?;
+            self.pending.push_back(live_apply(
+                change,
+                at,
+                revision,
+                file.to_str().ok_or("settings FILE path is not UTF-8")?,
+            ));
+        }
         self.phase = LivePhase::SettingsChanged;
         Ok(())
     }

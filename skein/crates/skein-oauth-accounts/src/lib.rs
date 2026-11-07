@@ -21,7 +21,10 @@ mod route;
 pub use accounts::{Account, Endpoint, Keeper, Origin, Transport};
 pub use boundary::{Asked, Ends, Event, Failure, Keeping, Locked, Place, Refusal, Request, Unloaded};
 pub use component::{Component, FileLower, Lower, LowerEvent, Unusable};
-pub use limits::{Limits, valid};
+pub use limits::{BROWSER_FIELDS, Limits, listener_head, redirect_room, valid};
+
+/// The longest application name the listener's long page names (skein/docs/design/oauth.md, 6.7).
+pub const APPLICATION_BYTES: usize = 64;
 
 /// The largest return location for one sign-in (oauth.md, section 6.5).
 pub const RETURN_BYTES: usize = 2048;

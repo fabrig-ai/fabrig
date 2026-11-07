@@ -13,6 +13,17 @@ before aborting the remaining worker resources. The real-loop held-turn
 test checks Claude's interrupt and end before serve ends drained. The
 live proof and forced-stop containment remain in `setup.md`, section 15.
 
+Section 8 also has no known gap in the task's accounting and saved work
+at an orderly stop. The one-process drain table holds chat and coding
+agents mid-turn, drains and restarts the same disk and store, and checks
+one interrupted terminal, no claim settled at restart, unchanged task
+tries and saved work, and a new attempt. Its coding row checks unchanged
+change counts and saved branch head, a writer slot owned by the new
+attempt, and a prepared checkout at that head with the saved edit.
+This is simulated proof; the live no-survivor proof above remains
+separate. A worker stopped apart from its engine retains section 15.7's
+deferred failure accounting.
+
 - **Not yet:** 15.6: the retained case 4.6 process story is ignored until
   jig's fleet removes a draining worker from placement before its runs
   end. No reference-case story runs in this tier; the task-per-worker,

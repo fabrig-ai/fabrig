@@ -5,10 +5,15 @@ its design from its drafts, from the status files below. The TUI's
 connected milestone is built: bare `temper` or `temper ADDRESS`, a
 pasted-link sign-in and a live first screen, with golden frames,
 simulated closing and joint-world restart and sign-out stories. Its
-post-landing terminal walk, browser approval, recording and later
+post-landing terminal walk, TUI approval flow, recording and later
 surfaces remain deferred; the sign-in field takes `q` as text and
 Ctrl+C closes there (`client/README.md`, sections 6.11 to 6.16 and 11;
-`draft/tui.status.md`). The reference
+`draft/tui.status.md`). Browser-approved sign-in's engine configuration,
+native client-root half and web page at `/terminal` are built, with eleven
+gallery states and joint-client stories. The TUI's opener, lines and
+retry flow remain unbuilt (`client/README.md`, 7.1 and 11); the web's
+rendered check follows landing (`client/browser.md`, section 5). The
+reference
 merges a 65,536-byte journal run bound from `room.json`. A pull's files
 page past the forge client's bound leaves an omitted-page notice;
 the exact bound and measure still need an interface and stored-answer
@@ -106,7 +111,14 @@ drafts on, and the real-box checks follow landing (`client/README.md`,
 agents with four workspaces and git operations; their agent-process memory
 on a laptop remains an after-landing measurement (`protocol/setup.md`, section 15).
 Serve's orderly stop cancels its worker's runs and waits for every agent
-to end, letting each end its program before the worker closes. The
+to end, letting each end its program before the worker closes. The engine
+settles in-process agent claims as interrupted before draining, spending
+no try. The one-process chat and coding drain table checks unchanged
+tries, saved work and change counts across restart, with the coding
+attempt's new writer slot and checkout at its saved head
+(`protocol/README.md`, section 8). A worker stopped apart from its engine
+still spends an agent try; changing that remains cluster work
+(`protocol/README.md`, 15.7). The
 real-loop held-Claude-turn test checks the interrupt and both ends; the
 owned-forge live no-survivor proof remains after landing. Forced agent
 stops still need contained trees (`protocol/README.md`, sections 8 and 14;

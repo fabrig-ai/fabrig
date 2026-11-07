@@ -485,7 +485,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             core.fill = bytes;
             stopping::empty()
         }
-        Event::Stopping => stopping::start(core),
+        Event::Stopping => stopping::start(core, env),
         Event::Marked { connector, subjects } => view::routes::marked(core, connector, subjects),
         Event::Act { reply_to, connector, key, act, carried } => {
             party::deployment_acts::start(core, env, work, reply_to, people::ActKey { connector, key }, act, carried)

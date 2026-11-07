@@ -869,3 +869,12 @@ read's head explicit.
   headline say "N of M tasks done.", where the mock says "landed", and a goal's task
   ended done with no change has its own "done" line. Counting landings on a row needs
   a stored and a wire field for a small word; section 11 holds it.
+- **Not yet:** 7.1: the TUI's flow, its tab's address made from its own parts, its opener, its lines and the address printed when no browser opens, and asking again: the plan after the TUI's first screen builds it (`../draft/tui.execution.md`, M2).
+
+Sections 3.5, 5.1 and 5.12 have the browser's approval page, its root
+state and actions, the asked time, signed-out card and approved read each
+second. Section 7.1's native half asks and starts the take, keeping only
+the code and expiry in the root. The domain and view tables, eleven
+gallery states and joint-client stories cover the page and an approving
+browser's party, with a non-browser refused. The TUI's flow remains
+unbuilt; the browser and terminal checks follow landing in section 11.

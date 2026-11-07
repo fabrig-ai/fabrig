@@ -361,10 +361,20 @@ member for member:
 
 | Member | Type | Bounds | Feeds |
 |---|---|---|---|
-| `listener` | an address, jig's format | a socket address; on loopback (in `127.0.0.0/8`, or `::1`) in standalone, and wherever `engine.clients` enables the printed link (jig's `protocol/service.md`, section 3); a fixed port, never 0, for a GitHub forge to be connected | the listener on which jig's clients' component is mounted with jig's default HTTP mapping, under `/jig`; the mapping's Host allow-list; the address of the sign-in links `temper serve` prints (`../client/README.md`, section 7); and temper's forge routes beside it, whose addresses a GitHub App's redirect and setup URLs name (`../client/README.md`, the routes) |
+| `listener` | an address, jig's format | a socket address; on loopback (in `127.0.0.0/8`, or `::1`) in standalone, and wherever `engine.clients` enables the printed link or the approval (jig's `protocol/service.md`, section 3); a fixed port, never 0, for a GitHub forge to be connected | the listener on which jig's clients' component is mounted with jig's default HTTP mapping, under `/jig`; the mapping's Host allow-list; the address of the sign-in links `temper serve` prints (`../client/README.md`, section 7); and temper's forge routes beside it, whose addresses a GitHub App's redirect and setup URLs name (`../client/README.md`, the routes) |
 | `bundle` | an absolute directory, or `null` | a bundle of skein's bundler, built apart (`scripts/bundle.sh`): its page and its digest's directory; its files, and the binary's own, within `clients.bundle_files` and `clients.bundle_bytes` (section 7) | the browser's page and bundle, made at start and served on the clients' listener (`../client/browser.md`, 2.2): `null` serves the bundle the binary holds (2.6), or, from a binary built without one, the page for no bundle; a directory serves its bundle in place of the binary's. A document naming an old `share/temper/bundle` keeps serving that directory, older than the binary once it is rebuilt: set it to `null` |
 | `public` | an origin, or `null` | `https://HOST[:PORT]`: HOST a lower-case DNS name, the port not 443 when written, no user, path, query, fragment or final `/`; `http://` only to a loopback host, for a test; within 253 bytes | the address people's browsers use, behind a TLS proxy (`sign-in.md`, 2.2): the mapping's Host allow-list holds its host beside the listener's (jig's `Settings.public`, the host with its port where not 443), jig's cookie is `Secure` by it, and every address temper gives out is the origin's: Google's return, a GitHub App's redirect and setup URLs. `null`: the listener's address alone, `public: None` |
 
+- **The printed link and a terminal's approval** are jig's members,
+  `engine.clients.link` and `engine.clients.approval` (jig's
+  `protocol/configuration.md`, section 3, clients): `temper init`'s
+  documents, so a box's, and the owned example enable both
+  (`setup.md`, 8.3), the approval being how the TUI signs in from the
+  person's browser (`../client/README.md`, 7.1). Neither runs off
+  loopback: a start refuses a clients' listener off loopback in
+  standalone (section 2), whichever is enabled, naming
+  `application.clients.listener`; the approval absent is the approval
+  off, and its ask is refused.
 - **A fixed port for a GitHub forge:** a GitHub App's `redirect_url`
   and `setup_url` name the clients' listener's address, and GitHub's API
   cannot change them once the App is made. A GitHub `Connect` on a
@@ -1274,7 +1284,7 @@ not itself valid JSON):
       "listener": [{"in_process": "workers"}]
     },
     "llm": ...,
-    "clients": {"link": true, ...},
+    "clients": {"link": true, "approval": true, ...},
     "connectors": [1],
     "limits": {"profile": "small", "overrides": {"authority.segments": 8, ...}},
     "memory_bytes": ...
@@ -1303,6 +1313,11 @@ The owned example, `docs/examples/owned.json`, is a whole document for
 one owned Forgejo's place, with its own values (setup.md, 8.1).
 
 ## 11. Open questions
+
+- **A terminal approved at a public name** (3, clients): Google on the
+  web and the between-hosts approval wait for `../draft/tui.md`, section
+  7's flow. Init's `approval` enables the loopback flow beside the
+  printed link; it grants no approval on a listener beyond loopback.
 
 - **The reference story's catalogue** (13.9): retaining the configured
   model catalogue across the forge world's crash and restart is test

@@ -124,7 +124,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 320;
+pub const N: usize = 331;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -137,6 +137,22 @@ fn task(task: u64) -> Address {
 #[expect(clippy::large_stack_arrays, reason = "the gallery returns its bounded named-state table as a fixed array")]
 pub fn samples() -> [Sample; N] {
     let mut samples = [
+        Sample { name: "approve-typing", world: Bare, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample { name: "approve-unread", world: Bare, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample { name: "approve-asking", world: Bare, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample { name: "approve-approved", world: Bare, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample { name: "approve-signed-in", world: Bare, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample { name: "approve-refused", world: Bare, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample { name: "approve-expired", world: Bare, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample { name: "approve-used", world: Bare, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample { name: "approve-unknown", world: Bare, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample {
+            name: "approve-signed-out",
+            world: Bare,
+            address: Address::Inbox { filter: Filter::ALL },
+            then: Shown,
+        },
+        Sample { name: "approve-busy", world: Bare, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
         Sample { name: "chat-terminal-question", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-terminal-proposal", world: Solo, address: Address::Chat { task: 10 }, then: Shown },
         Sample { name: "chat-terminal-draft", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
@@ -1174,6 +1190,9 @@ fn special_mockup(name: &str) -> Option<String> {
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one address table maps the gallery pages to their mockups")]
 pub fn mockup(sample: &Sample) -> Option<String> {
+    if sample.name.starts_with("approve-") {
+        return None;
+    }
     if sample.name.starts_with("goal-") {
         let goal = match sample.name {
             "goal-needs-question" | "goal-closed" => "welcome-stall",
@@ -1432,6 +1451,9 @@ fn start_domain(sample: &Sample) -> Domain {
 #[expect(clippy::too_many_lines, reason = "one dispatch keeps each gallery state with its domain setup")]
 pub fn domain(sample: &Sample) -> Domain {
     use temper_client_domain::pages::terminal::{Act as T, Command};
+    if sample.name.starts_with("approve-") {
+        return crate::worlds::approve_world(sample.name);
+    }
     if sample.name.starts_with("chat-terminal") {
         let mut root = if sample.name == "chat-terminal-question" {
             crate::worlds::goals_world(sample.world, sample.address.clone(), sample.name)

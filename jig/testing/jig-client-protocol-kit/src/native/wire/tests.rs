@@ -69,7 +69,7 @@ fn a_compound_word_receipt_joins_its_observed_target_and_answered_message() {
     let mut wire = Wire::default();
     wire.sent(&request());
     let receipts = wire.additional_receipts(&reply());
-    let [Receipt::Answer { attempt, final_answer, words }] = receipts.as_slice() else {
+    let [Receipt::Answer { attempt, final_answer, words, .. }] = receipts.as_slice() else {
         panic!("compound words receipt: {receipts:?}");
     };
     assert_eq!((*attempt, *final_answer, *words), (ATTEMPT, true, Some((WIRE_TASK, FIRST_MESSAGE))));

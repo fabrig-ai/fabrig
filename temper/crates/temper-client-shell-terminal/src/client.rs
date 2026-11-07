@@ -277,6 +277,10 @@ impl NativeClient {
             | jig_client::Event::Read { .. }
             | jig_client::Event::Send { .. }
             | jig_client::Event::Carry { .. }
+            | jig_client::Event::AskApproval
+            | jig_client::Event::ReadApproval { .. }
+            | jig_client::Event::DecideApproval { .. }
+            | jig_client::Event::ApprovalAnswer { .. }
             | jig_client::Event::Authorize { .. }
             | jig_client::Event::Streamed { .. }
             | jig_client::Event::StreamGone
@@ -326,6 +330,10 @@ impl NativeClient {
             | jig_client::Event::Read { .. }
             | jig_client::Event::Send { .. }
             | jig_client::Event::Carry { .. }
+            | jig_client::Event::AskApproval
+            | jig_client::Event::ReadApproval { .. }
+            | jig_client::Event::DecideApproval { .. }
+            | jig_client::Event::ApprovalAnswer { .. }
             | jig_client::Event::Authorize { .. }
             | jig_client::Event::Streamed { .. }
             | jig_client::Event::StreamGone
@@ -362,7 +370,8 @@ impl NativeClient {
                 self.signing_out = false;
                 self.notices.push(Shown::Terminal(crate::terminal::Notice::SignedOut));
             }
-            Signing::Again
+            Signing::Approval(_)
+            | Signing::Again
             | Signing::Busy
             | Signing::Full { .. }
             | Signing::Lost
@@ -386,9 +395,14 @@ impl NativeClient {
                 Down::Shell(request) => {
                     if let jig_client::Request::Exchange { exchange, message, .. } = &request {
                         let kind = match message {
-                            jig_client::Message::SignInLink(_) | jig_client::Message::SignInService => Some(false),
+                            jig_client::Message::SignInApproval(_)
+                            | jig_client::Message::SignInLink(_)
+                            | jig_client::Message::SignInService => Some(false),
                             jig_client::Message::SignOut => Some(true),
-                            jig_client::Message::Authorize(_)
+                            jig_client::Message::ApprovalAsk(_)
+                            | jig_client::Message::ApprovalRead(_)
+                            | jig_client::Message::ApprovalDecide(_)
+                            | jig_client::Message::Authorize(_)
                             | jig_client::Message::Request(_)
                             | jig_client::Message::Read(_)
                             | jig_client::Message::Watch(_)

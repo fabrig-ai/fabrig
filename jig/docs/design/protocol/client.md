@@ -358,7 +358,9 @@ the engine's messages to the client as they come.
 | opening a watch | the stream's name; the client's name for the watch; the subject, with its owner, version and window | admitted, or refused (section 7) |
 | closing a watch | the stream's name and the watch's | closed, once the engine has ended it |
 | a stream gone | the stream's name | nothing more: the engine ends the stream and its watches, when it is the sign-in's and still open (section 4) |
-| signing in | the printed link's secret; or, as a service, nothing more than the service's credential, as the message's credential | a sign-in's credential, refused, not ready, or why a printed link's secret can't sign in (section 8) |
+| signing in | the printed link's secret; or, as a service, nothing more than the service's credential, as the message's credential; or an approval's secret | a sign-in's credential, refused, not ready, or why a printed link's secret or an approval's can't sign in (section 8) |
+| asking an approval | nothing | the approval's secret, its code and its expiry; refused, not ready or busy (section 8) |
+| reading an approval, deciding one | its code; and approve or refuse, to decide | what the approval is, or the decision's answer; not a browser, signed out, not ready or busy (section 8) |
 | signing out | nothing more than the credential of the sign-in it ends | signed out, or not ready |
 
 On the stream, in its owner's version: the hello; a delivery (a watch's
@@ -369,7 +371,7 @@ watch ended, with why.
 
 ```
 in, from the transport:
-  Exchange { exchange, credential, message }   one of jig's messages (4.1), an application's record inside it where its owner is the application; the credential as opaque bytes, or none
+  Exchange { exchange, credential, browser, message }   one of jig's messages (4.1), an application's record inside it where its owner is the application; the credential as opaque bytes, or none; browser, whether the transport carried that credential itself, as a browser's cookie (17.3)
   StreamOpen { stream, credential }            a client opened its stream
   StreamTaken { stream }                       the transport took the last message streamed
   StreamGone { stream }                        the stream's connection ended
@@ -626,9 +628,10 @@ recipient.
 ## 8. Signing in
 
 - **jig owns credentials; the flows that ask for one are the
-  application's,** but for jig's two built-ins
+  application's,** but for jig's three built-ins
   (`../client/domain/contract.md`, section 2): the printed link, for one
-  person's machine, and a service's credential.
+  person's machine; a service's credential; and a sign-in approved by a
+  browser, for another client of a person signed in there (below).
 - **A credential** is a sign-in's number beside 32 random bytes, so the
   engine finds its digest by number (`README.md`, section 8; `store.md`,
   section 9). Credentials come from a cryptographic generator of the
@@ -743,6 +746,85 @@ recipient.
   It is enabled by configuration (`configuration.md`, section 3,
   clients), and only where the application's clients' listener is on
   loopback, which its startup checks (`service.md`, section 3).
+- **A sign-in approved by a browser,** for that browser's own party:
+  a client that can't open the printed link, a program in a terminal
+  on the person's machine, asks; the person's browser, signed in by
+  its cookie, approves; and the client takes the sign-in with the
+  secret its ask was answered with. Approving makes nothing: only the
+  take makes the sign-in and draws its credential. Until then the
+  approval is the component's, in memory, as the printed link's state
+  is: nothing is committed, kept or written, and a restart forgets
+  every approval.
+  - *Asked:* `ApprovalAsk`, with no credential. The component draws
+    32 bytes from its generator, the approval's secret, and a code of
+    8 letters of `BCDFGHJKLMNPQRSTVWXZ`, twenty consonants, none like
+    another or like a digit and no vowel, so no word, each drawn
+    uniformly, the code none of the live approvals has. It answers
+    `asked` with the secret, the code and the approval's expiry, its
+    wall time, 10 minutes on; and keeps the secret's digest, never the
+    secret, the code, the wall time it was asked and its expiry on the
+    monotonic clock. The secret is the client's alone, never shown;
+    the code is for the person to compare, on the client and in the
+    browser. At most 4 approvals are live at once in the deployment,
+    whoever asked, and an ask past them is answered busy until one
+    ends. Where approval isn't enabled, an ask is refused; while the
+    engine stops, not ready.
+  - *Read and decided by a browser alone:* `ApprovalRead { code }` and
+    `ApprovalDecide { code, approve }`, each sent with a credential the
+    transport carried itself, a browser's cookie (17.3). The transport
+    says that of each exchange it hands the component (4.2); any other
+    exchange, a bearer's among them even beside the browser header, is
+    answered `not_a_browser` before anything is read, so that a
+    program holding a person's credential, an agent driving the
+    application's command line among them, never approves. The
+    credential is checked as any exchange's (above), and one that
+    fails is answered `signed_out`. A read answers what the approval
+    is: waiting, with the wall time it was asked; approved, taken,
+    refused or expired; or `unknown`, for a code no approval live or
+    remembered (below) has. It reads by code alone, and nothing lists
+    the approvals that wait. A decision spends the approval: approving
+    marks it approved, its approver the deciding sign-in, and makes
+    nothing; refusing ends it, refused. Any decision after the first is
+    answered `used`, one past its expiry `expired`.
+  - *Taken:* `ApprovalSignIn { secret }`, with no credential. An
+    approval still waiting is answered `waiting`, and the client asks
+    again; refused, expired, taken already (`used`) and unknown are
+    answered so, the secret's digest compared in constant time. An
+    approved one is reserved for the take's exchange, and a take with
+    the same secret meanwhile is answered busy. The component asks
+    people whose the approver's sign-in is (`Whose`,
+    `../domain/people.md`, section 3) and signs that identity in, held
+    none, as it signs in the printed link's owner: a sign-in made, its
+    credential drawn and its digest kept (above), and handed out in
+    that answer alone, never again. Its party is the approver's, and
+    no other party's sign-in comes of it. The approval is then taken.
+    An approver whose sign-in has ended by then signs no one in: the
+    take is refused, and the approval spent. Not ready, busy and full
+    spend nothing: the approval stays approved until its expiry, and
+    full carries the deployment's room, the earliest saved expiry among
+    its sign-ins and the approval's own expiry, as the link's full does.
+  - *Never taken, nothing made:* an approval approved and not taken
+    before its expiry, its client gone, ends expired with no sign-in
+    made, and nothing past its expiry is taken. The sign-in a take makes
+    counts against the deployment's sign-ins as any does (*Full*,
+    above), only once it is made.
+  - *Remembered:* the component keeps, in memory, its last 8 approvals
+    ended, each by its secret's digest and its code, marked taken,
+    refused or expired, so that a take, a read or a decision of one is
+    answered why; past those 8, and after a restart, an approval is
+    unknown, as a link is.
+  - *Its risk:* a client may carry the code in the browser's address,
+    so that one press approves, and the person's check is that the
+    code their own client shows is the code their browser shows. On
+    loopback, whoever could ask an approval and send its address to
+    the person is on the engine's machine already, as whoever can read
+    the printed link is.
+
+  It is enabled by configuration apart from the printed link
+  (`configuration.md`, section 3, clients, `approval`), and only where
+  the application's clients' listener is on loopback, which its startup
+  checks as for the link (`service.md`, section 3). Over TLS, between
+  hosts, it is later (section 15).
 - **A service's credential** is issued when an owner makes the service:
   the component draws it, keeps its digest in the secrets' store under
   the service's number (`store.md`, section 9), and answers the owner's
@@ -993,7 +1075,8 @@ recipient.
   queued before nothing more is handed out, the heartbeat's span, mints
   in flight; and the public reads' own: in flight, per second and its
   burst, their answers' bytes per second and its burst, and the answer
-  ceiling (section 19).
+  ceiling (section 19); and the approvals', fixed: 4 live, 8 ended
+  remembered, each 10 minutes long (section 8).
 - **The public answers' `max-age`,** the deployment's, at most a bound
   of jig's (17.5).
 - **The default mapping's,** at each end: its HTTP machines', TLS's, and
@@ -1113,6 +1196,13 @@ Each within jig's suites' budgets.
   sign in through a standard server writes no flow of its own (section
   8). It is sugar over `Mint`, which jig adopts once a second
   application needs it (`../client/domain/client.md`, section 19).
+- **A browser's approval between hosts** (8): over TLS, at a public
+  name, a client asking from another machine, the code typed in the
+  browser rather than carried in its address, and the page saying where
+  the ask came from and how long ago. Default: loopback alone, as the
+  printed link.
+- **A person's sign-ins listed and each ended** from a browser, the
+  approved ones among them. Default: none; signing out ends one's own.
 
 ## 16. What it owes and is owed
 
@@ -1168,6 +1258,10 @@ prefix; jig's test application mounts it at `/jig`.
 | `POST <prefix>/v1/stream-gone` | a stream gone |
 | `POST <prefix>/v1/sign-in/link` | signing in with the printed link's secret |
 | `POST <prefix>/v1/sign-in/deployment` | signing in as a service, its credential as the bearer |
+| `POST <prefix>/v1/sign-in/approval` | taking an approval with its secret (section 8) |
+| `POST <prefix>/v1/approval/ask` | asking an approval |
+| `POST <prefix>/v1/approval/read` | reading an approval by its code |
+| `POST <prefix>/v1/approval/decide` | approving or refusing an approval by its code |
 | `POST <prefix>/v1/sign-out` | signing out |
 | `POST <prefix>/v1/authorize` | an OpenID authorization (section 18) |
 | `GET <prefix>/v1/public/<owner>/<version>/<kind>[/<id>[/<id>]]` | a public read (17.5, section 19) |
@@ -1268,6 +1362,13 @@ prefix; jig's test application mounts it at `/jig`.
   (`browser.md`, 12.2): an exchange carrying it is a browser's, its
   sign-in answered with the cookie; any other, with the credential in
   its answer's body.
+- **The credential's carrier, told to the component:** the engine end
+  says an exchange is a browser's (4.2) when its credential came by the
+  cookie, which the guard lets through only beside the browser header;
+  never when it came as a bearer, with the header or without, since a
+  valid bearer is read first. That is what reading and deciding an
+  approval admit (section 8); a take's `signed_in` is answered to a
+  browser as a link's is, the cookie set and no credential in the body.
 
 ### 17.4 Its two ends
 

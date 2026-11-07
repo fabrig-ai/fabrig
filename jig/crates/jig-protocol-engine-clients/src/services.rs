@@ -39,6 +39,10 @@ impl Component {
                     && let Some(Waiting::Keep { answer, .. }) = self.pending.exchanges.remove(&exchange)
                 {
                     match answer {
+                        Answer::Approval(value) => self.respond(
+                            exchange,
+                            routes::approval_sign_in(super::w::ApprovalSignInAnswer::SignedIn(value)),
+                        ),
                         Answer::SignedIn(value) => {
                             self.respond(exchange, routes::signed_in(value));
                         }
@@ -63,6 +67,8 @@ impl Component {
                             Waiting::LinkGet { sign_in, .. } => Some(SecretOwner::SignIn(*sign_in)),
                             Waiting::Made { party, .. } => Some(SecretOwner::Service(*party)),
                             Waiting::Moving { .. }
+                            | Waiting::ApprovalWhose { .. }
+                            | Waiting::ApprovalCore { .. }
                             | Waiting::Core { .. }
                             | Waiting::SignOut { .. }
                             | Waiting::Watch { .. }
@@ -109,7 +115,9 @@ impl Component {
                         Waiting::Made { sign_in, party } => {
                             self.made(env, exchange, sign_in, party, value.as_ref(), out);
                         }
-                        Waiting::Core { .. }
+                        Waiting::ApprovalWhose { .. }
+                        | Waiting::ApprovalCore { .. }
+                        | Waiting::Core { .. }
                         | Waiting::SignOut { .. }
                         | Waiting::Watch { .. }
                         | Waiting::Keep { .. }

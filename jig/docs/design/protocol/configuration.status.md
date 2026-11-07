@@ -28,3 +28,6 @@ aggregate bounds without reserving their capacity ahead.
   `public_index_bytes`), rather than the process's fit check, because
   configuration has no per-process estimate.
 - **Departs:** 5: the reference service's first periods come from its engine's routing, which hands the core each `Period` (`jig/testing/jig-test-service/src/engine.rs`), not from a child of its root, because jig's test root composes no period child.
+
+Section 3's optional clients' `approval` boolean is present, defaults to
+false when absent, and reaches the clients' component's settings.

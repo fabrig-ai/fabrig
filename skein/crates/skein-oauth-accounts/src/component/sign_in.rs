@@ -309,7 +309,7 @@ impl Component {
             Some(listener) => listener.registered.as_ref(),
             None => registered,
         };
-        let result = match redirect::parse(uri, registered, &env.limits.client) {
+        let result = match redirect::parse(uri, registered, &env.limits.client, env.limits.redirect_bytes) {
             Some(redirect) => judge(exchange, redirect, env.now),
             None => Err(Refusal::Redirect),
         };

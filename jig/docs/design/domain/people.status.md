@@ -35,3 +35,8 @@ client step remains deferred in temper's `client/tools.md`, section 14.
   before it was set, naming a task answerer, route by the question's
   current inbox owner, and moving a recipient re-points its incoming
   person-answerer credits to its new person.
+
+Section 3's browser-approved sign-in uses the clients' component's
+`Whose` and an ordinary sign-in with no held credential. Nothing reaches
+people before the take; the joint-client stories cover the approving
+party and an approval never taken making no sign-in.

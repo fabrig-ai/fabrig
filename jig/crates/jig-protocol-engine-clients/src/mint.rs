@@ -53,6 +53,7 @@ impl Component {
         exchange: Token,
         reply: people::Reply,
         held: Option<u64>,
+        approval: bool,
         out: &mut Queue<Request>,
     ) {
         if self.stopping() && self.mint_refused(exchange, MintRefusal::NotReady, out) {
@@ -89,7 +90,7 @@ impl Component {
                         w::SignedInParts { token: Some(token), party: person, expires: expires.as_nanos() },
                     )
                     .expect("40-byte token admitted");
-                    sign_in::Answer::SignedIn(value)
+                    if approval { sign_in::Answer::Approval(value) } else { sign_in::Answer::SignedIn(value) }
                 };
                 self.pending
                     .exchanges

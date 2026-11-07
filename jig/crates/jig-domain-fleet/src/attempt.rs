@@ -544,6 +544,43 @@ pub(crate) fn cancel(domain: &mut Domain, run: Token, attempt: Token, out: &mut 
     follow(domain, id, before);
 }
 
+/// The engine has settled this claim itself. Releasing its placement does
+/// not tell the host: the service ends it after draining (engine.md, 6.1).
+/// Relayed calls keep only their answer correlation until the parent answers;
+/// their retired attempt makes that answer a drop (engine.md, section 8).
+pub(crate) fn interrupt(domain: &mut Domain, run: Token, attempt: Token, out: &mut Queue<Request>) {
+    let Some(&id) = domain.names.get(&(run, attempt)) else { return };
+    let entry = domain.attempts.get_mut(id).expect("a named attempt is tracked");
+    let before = implied(&entry.state);
+    let state = mem::replace(&mut entry.state, State::Closed);
+    match state {
+        State::Kept { payload, .. } => out.push(Request::Drop { payload }),
+        State::Waiting { .. }
+        | State::Adopted { .. }
+        | State::Claimed { .. }
+        | State::Cancelled { .. }
+        | State::Crossed { .. }
+        | State::Handed { .. }
+        | State::Acknowledged { .. }
+        | State::Stray { .. }
+        | State::Fenced { .. } => {}
+        State::Closed => unreachable!("a closed attempt is no longer named"),
+    }
+    let mut turns = List::with_capacity(domain.turns.len());
+    for (&key, _) in &domain.turns {
+        if key.0 == id {
+            turns.push(key).expect("at most one key per pending turn");
+        }
+    }
+    for key in &turns {
+        match domain.turns.remove(key).expect("selected interrupted turn") {
+            crate::turn::Pending::Held { body } => out.push(Request::Drop { payload: body }),
+            crate::turn::Pending::Handed => {}
+        }
+    }
+    follow(domain, id, before);
+}
+
 /// Acknowledge, from the parent: the answer it was handed is durable, or not
 /// wanted, and its worker may forget it. One for an attempt the fleet no
 /// longer tracks (a refusal's, or one whose grace passed) changes nothing.

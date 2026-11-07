@@ -1,7 +1,14 @@
 # Status
 
 2026-11-07. Where jig's code lags or departs from its design, from the
-status files below. The deployment's sole-owner read is built, including
+status files below. Browser-approved sign-in is built through the wire,
+clients' component, HTTP mapping, configuration and linked and unlinked
+clients. Only the secret's take makes the approving browser's party's
+sign-in; bearers cannot read or decide approvals. An admitted take's
+reservation can outlive expiry (`protocol/client.status.md`, section 8).
+Approval between hosts and listing sign-ins remain deferred
+(`protocol/client.md`, section 15). The deployment's sole-owner read is
+built, including
 during restore, answering none with no owner, several or an unreadable
 roster (`domain/people.md`, section 4). Agents in a host's own process
 are the widest gap:
@@ -13,7 +20,13 @@ are not in jig (`README.md`, `domain/README.md`, `domain/engine.md`,
 between hosts and contained process trees for workers' agents are not
 built (the protocol documents). The reference test service still aborts
 workers without first cancelling their runs; temper's service implements
-that ordering (`protocol/service.md`, section 10). The store's retention,
+that ordering (`protocol/service.md`, section 10). An orderly engine stop
+settles its in-process agent claims as interrupted before draining,
+keeping their committed work and spending no try; crash recovery still
+settles claims as lost or not started (`domain/engine.md`, sections 6
+and 6.1; `domain/tasks.md`, 5.2). A worker stopped in another process
+still spends an agent try on its Shutdown cancel; changing that remains
+deferred (`protocol/service.md`, section 9). The store's retention,
 rehearsal and going back are not built (`protocol/store.md`,
 `protocol/client.md`). An
 application's own kinds of setting, a project's policy in a change of

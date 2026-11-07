@@ -6,8 +6,8 @@ use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Secret, Writer, bytes};
 use skein_oauth::{ClientLimits, Redirect};
 
-pub(crate) fn parse(uri: &[u8], registered: &[u8], limits: &ClientLimits) -> Option<Redirect> {
-    if uri.len() > usize::try_from(limits.url_bytes).ok()? || uri.contains(&b'#') {
+pub(crate) fn parse(uri: &[u8], registered: &[u8], limits: &ClientLimits, redirect_bytes: u32) -> Option<Redirect> {
+    if uri.len() > usize::try_from(redirect_bytes).ok()? || uri.contains(&b'#') {
         return None;
     }
     for byte in uri {
@@ -106,7 +106,59 @@ fn decode(value: &[u8], bound: u32) -> Option<Box<[u8]>> {
     Some(output.to_boxed())
 }
 
-pub(crate) fn from_head(call: &skein_http::server::Call, registered: &[u8], limits: &ClientLimits) -> Option<Redirect> {
+/// The listener lends the component a bounded redirect or only an over-long
+/// address's length and decoded state (skein/docs/design/oauth.md, 6.5).
+pub(crate) enum Read {
+    Redirect(Redirect),
+    Long { length: u32, state: Secret },
+}
+
+fn long(uri: &[u8], registered: &[u8], limits: &ClientLimits) -> Option<Read> {
+    if uri.contains(&b'#') {
+        return None;
+    }
+    for byte in uri {
+        if !(0x21..=0x7e).contains(byte) {
+            return None;
+        }
+    }
+    let rest = uri.strip_prefix(registered)?;
+    let separator = if registered.contains(&b'?') { b'&' } else { b'?' };
+    if rest.first() != Some(&separator) {
+        return None;
+    }
+    let query = rest.get(1..)?;
+    let mut state = None;
+    let mut start = 0;
+    for index in 0..query.len() {
+        if query.get(index) == Some(&b'&') {
+            long_state(query.get(start..index)?, limits.state_bytes, &mut state)?;
+            start = index.checked_add(1)?;
+        }
+    }
+    long_state(query.get(start..)?, limits.state_bytes, &mut state)?;
+    Some(Read::Long { length: u32::try_from(uri.len()).ok()?, state: state? })
+}
+
+fn long_state(pair: &[u8], bound: u32, state: &mut Option<Secret>) -> Option<()> {
+    if pair == b"state" {
+        return None;
+    }
+    if let Some(value) = pair.strip_prefix(b"state=") {
+        if state.is_some() {
+            return None;
+        }
+        *state = Some(Secret::new(decode(value, bound)?));
+    }
+    Some(())
+}
+
+pub(crate) fn from_head(
+    call: &skein_http::server::Call,
+    registered: &[u8],
+    limits: &ClientLimits,
+    redirect_bytes: u32,
+) -> Option<Read> {
     if call.method != skein_http::Method::Get {
         return None;
     }
@@ -129,16 +181,18 @@ pub(crate) fn from_head(call: &skein_http::server::Call, registered: &[u8], limi
     let origin = call.target.starts_with(b"/");
     let length =
         if origin { 7_usize.checked_add(host?.len())?.checked_add(call.target.len())? } else { call.target.len() };
-    if length > usize::try_from(limits.url_bytes).ok()? {
-        return None;
-    }
     let mut uri = Writer::new(length);
     if origin {
         uri.put(b"http://").ok()?;
         uri.put(host?).ok()?;
     }
     uri.put(&call.target).ok()?;
-    parse(&uri.finish(), registered, limits)
+    let uri = uri.finish();
+    if length > usize::try_from(redirect_bytes).ok()? {
+        long(&uri, registered, limits)
+    } else {
+        Some(Read::Redirect(parse(&uri, registered, limits, redirect_bytes)?))
+    }
 }
 
 /// The registered authority's port, including zero for a varying redirect.

@@ -38,6 +38,7 @@ pub fn driver_limits() -> driver::Limits {
         lock_wait: Duration::from_secs(1),
         exchanges: 2,
         listeners: 1,
+        redirect_bytes: 1024,
         server: skein_http::server::Limits {
             head: 2048,
             headers: 16,

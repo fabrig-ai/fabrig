@@ -615,8 +615,9 @@ What the store asks of the domain is `store.md`, section 15.
   (`../client/domain/`).
 - **jig owns credentials, the application owns sign-in flows.** jig
   mints, verifies, expires and revokes credentials, and keeps their
-  digests; its built-in ways of signing in are the printed link and
-  services' credentials. Every other way runs on the application's
+  digests; its built-in ways of signing in are the printed link,
+  services' credentials and a sign-in approved by a signed-in browser.
+  Every other way runs on the application's
   routes and ends in a `Mint`, which only its server code sends, and
   which names an identity of a provider of kind application
   (`configuration.md`, section 3). jig adds no "acting for": a bot
@@ -651,6 +652,10 @@ What the store asks of the domain is `store.md`, section 15.
   loopback, with no TLS.
 
 ## 14. Open questions
+
+- **Browser-approved sign-ins between hosts** (13), and a person's
+  sign-ins listed and each ended: `client.md`, section 15. Approval's
+  transport and startup remain confined to loopback.
 
 - **A sign-in's redirect relayed by a client,** for a browser on
   another machine than the engine's (`llm.md`, section 10).
