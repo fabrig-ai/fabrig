@@ -2774,7 +2774,9 @@ keeps (`../protocol/configuration.md`, section 2).
   (jig's `client/domain/client.md`, 19.1), each sentence ending with a
   full stop: for a host's hello, "An engine host was refused at HH:MM"
   or "A worker was refused at HH:MM" (5.12's clock), then its cause, in
-  the words jig's reference view gives a hello's refusal. A refusal is not a reply: the chat
+  the words jig's reference view gives a hello's refusal. A run no worker
+  can ever take, a refused hello with its figures among them, says 5.5's
+  "No worker can take this: ..." instead. A refusal is not a reply: the chat
   starts nothing, and keeps its composer, so the person can choose
   another model. The scripted model is offered where `me` serves it,
   in the playground's project alone (4.8). Setting a goal names its planner's model and
@@ -4426,6 +4428,48 @@ The words for each offered source are:
     a person who has only run `temper box` doesn't know "host". Otherwise,
     and until that read answers, "No host has room for this, or none is
     connected. It starts when one does." Either way, with nothing to press.
+  - *No worker can ever take it:* jig's `Refused(Bounds { kind, why,
+    figures })` (jig's `client/domain/contract.md`, 5.1), every connected
+    worker too small for a bound of its charter, says "No worker can take
+    this: ASKED, and the largest worker takes OFFERED.", box or not, one
+    form for every bound (the request `ui-wait-words`, 2026-11-07), with
+    nothing to press:
+
+    | Bound | ASKED | OFFERED |
+    |---|---|---|
+    | turns | its charter asks 100,000 turns | 800 |
+    | time | its charter asks 2 h a run | 1 h |
+    | waiting | its charter asks 30 min of waiting | 10 min |
+    | checks | its charter keeps 5 min for checks | 10 min, said "and the quickest worker's checks take 10 min" |
+    | window | its charter's model at position 1 asks a window of 200,000 tokens | 128,000 |
+    | output | its charter's model at position 1 asks 64,000 output tokens | 32,000 |
+    | spend | a run here may spend 5,000 | 2,000 |
+    | message | a message here may be 65,536 bytes | 16,384 |
+    | inbox | a start here sends 12 messages | 8 |
+    | unacknowledged | a run here keeps 64 turns unacknowledged | 32 |
+
+    Counts and spend are grouped digits, spend in the units a chat's spend
+    is said in, and durations are said in minutes and hours as the
+    page says a span; the figures come in the bound's unit, durations in
+    milliseconds. Where each worker falls short of another bound, jig
+    names none: "No worker can take this: each falls short of another
+    bound its charter asks." On the engine's own host, a kind temper never
+    runs on (`../domain/root.md`), "The engine's own host can't take this:
+    ASKED, and it takes OFFERED." Without figures, "No worker can take
+    this." then the cause as a refused hello gives it (3.5).
+
+    A refused hello whose cause is an agent's shortfall with figures, no
+    worker admitted at all, says the same of the refused worker: "No worker
+    can take this: charter 3 asks 100,000 turns, and the worker refused at
+    10:42 takes 800." (5.12's clock), its charter named, as the refusal may
+    be another charter's. Every other refused hello keeps 3.5's "Next run
+    refused · WHY". The status above the composer is "Cannot start yet"
+    for both.
+  - *A command it names exists:* a wait's words in the page and the
+    terminal name no ctl command; one that names a help page names
+    `temper help NAME` with NAME a page (`../protocol/documentation.md`), as a
+    shortfall of the checks timeout does: "See temper help settings for
+    held revisions."
 
   A wait about to end (jig's `client/domain/client.md`, 19.1) stays
   "Starting". A Chats row holds no wait, and says "Starting".

@@ -456,6 +456,21 @@ fn assert_task_refusal_round_trip(
     let client_limits = fixtures::client_limits();
     let mut task = fixtures::task_with_hold();
     task.run_wait = Some(d::TaskRunWait::Refused(source));
+    match (source, expected) {
+        (d::TaskWaitRefused::Hello { why, .. }, c::TaskWaitRefused::Hello { why: expected, .. }) => {
+            let mut deployment = fixtures::deployment_document();
+            deployment.hello_refusals.get_mut(0).unwrap().why = why;
+            let record = translate::deployment::document(&deployment, &limits).unwrap();
+            let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
+            record.encode(&mut writer).unwrap();
+            let bytes = writer.finish();
+            let decoded = w::Deployment::decode(&limits, &mut Reader::new(&bytes)).unwrap();
+            let client = jig_client_protocol_link::translate::documents::deployment(decoded, &client_limits).unwrap();
+            assert_eq!(client.hello_refusals.get(0).unwrap().why, expected);
+        }
+        (d::TaskWaitRefused::Bounds { .. }, c::TaskWaitRefused::Bounds { .. }) => {}
+        _ => panic!("matching refusal shapes"),
+    }
     let record = translate::task::document(&task, &[], &limits).unwrap();
     let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
     record.encode(&mut writer).unwrap();
@@ -478,7 +493,7 @@ fn hello_refusals_reuse_the_deployment_context_through_server_bytes_and_client_t
     for (why, expected) in [
         (
             fleet::HelloRefusal::Agent { why: fleet::AgentShortfall::Turns { charter: 17 } },
-            c::HelloRefusal::Agent { why: c::AgentShortfall::Turns },
+            c::HelloRefusal::Agent { why: c::AgentShortfall::Turns { charter: 17 } },
         ),
         (
             fleet::HelloRefusal::Agent { why: fleet::AgentShortfall::Window { charter: 17, model: 2 } },
@@ -491,15 +506,62 @@ fn hello_refusals_reuse_the_deployment_context_through_server_bytes_and_client_t
         (fleet::HelloRefusal::JobKinds, c::HelloRefusal::JobKinds),
         (fleet::HelloRefusal::Position { worker: 7 }, c::HelloRefusal::Position { worker: 7 }),
         (fleet::HelloRefusal::Workers { limit: 3 }, c::HelloRefusal::Workers { limit: 3 }),
+        (
+            fleet::HelloRefusal::Agent { why: fleet::AgentShortfall::Time { charter: 19 } },
+            c::HelloRefusal::Agent { why: c::AgentShortfall::Time { charter: 19 } },
+        ),
+        (
+            fleet::HelloRefusal::Agent { why: fleet::AgentShortfall::Waiting { charter: 23 } },
+            c::HelloRefusal::Agent { why: c::AgentShortfall::Waiting { charter: 23 } },
+        ),
     ] {
         for (kind, client_kind) in
             [(fleet::HostKind::Engine, c::HostKind::Engine), (fleet::HostKind::Worker, c::HostKind::Worker)]
         {
             assert_task_refusal_round_trip(
-                d::TaskWaitRefused::Hello { kind, at: Wall::from_nanos(1234), why },
-                c::TaskWaitRefused::Hello { kind: client_kind, at: Wall::from_nanos(1234), why: expected },
+                d::TaskWaitRefused::Hello { kind, at: Wall::from_nanos(1234), why, figures: None },
+                c::TaskWaitRefused::Hello {
+                    kind: client_kind,
+                    at: Wall::from_nanos(1234),
+                    why: expected,
+                    figures: None,
+                },
             );
         }
+    }
+    for (source, expected) in [
+        (
+            d::TaskWaitRefused::Hello {
+                kind: fleet::HostKind::Worker,
+                at: Wall::EPOCH,
+                why: fleet::HelloRefusal::Agent { why: fleet::AgentShortfall::Turns { charter: 17 } },
+                figures: Some(fleet::Figures { required: 100_000, offered: 800 }),
+            },
+            c::TaskWaitRefused::Hello {
+                kind: c::HostKind::Worker,
+                at: Wall::EPOCH,
+                why: c::HelloRefusal::Agent { why: c::AgentShortfall::Turns { charter: 17 } },
+                figures: Some(c::Figures { required: 100_000, offered: 800 }),
+            },
+        ),
+        (
+            d::TaskWaitRefused::Bounds {
+                kind: fleet::HostKind::Worker,
+                why: Some(fleet::AgentShortfall::Turns { charter: 17 }),
+                figures: Some(fleet::Figures { required: 100_000, offered: 1000 }),
+            },
+            c::TaskWaitRefused::Bounds {
+                kind: c::HostKind::Worker,
+                why: Some(c::AgentShortfall::Turns { charter: 17 }),
+                figures: Some(c::Figures { required: 100_000, offered: 1000 }),
+            },
+        ),
+        (
+            d::TaskWaitRefused::Bounds { kind: fleet::HostKind::Engine, why: None, figures: None },
+            c::TaskWaitRefused::Bounds { kind: c::HostKind::Engine, why: None, figures: None },
+        ),
+    ] {
+        assert_task_refusal_round_trip(source, expected);
     }
 }
 
@@ -514,11 +576,13 @@ fn checks_refusal_preserves_charter_through_server_bytes_and_client_tasks() {
             kind: fleet::HostKind::Worker,
             at,
             why: fleet::HelloRefusal::Agent { why: fleet::AgentShortfall::Checks { charter: 2 } },
+            figures: None,
         },
         c::TaskWaitRefused::Hello {
             kind: c::HostKind::Worker,
             at,
             why: c::HelloRefusal::Agent { why: c::AgentShortfall::Checks { charter: 2 } },
+            figures: None,
         },
     );
 }

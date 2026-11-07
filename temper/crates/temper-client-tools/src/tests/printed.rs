@@ -95,7 +95,7 @@ fn every_printed_call_parses() {
             };
             if let Some(call) = call {
                 count = count.checked_add(1).expect("fixture call count");
-                let words = substitute(call);
+                let words = f::substitute(call);
                 let argv: Vec<&str> = words.iter().map(String::as_str).collect();
                 let parsed = f::parse(&argv);
                 match &parsed {
@@ -119,25 +119,6 @@ fn marked_call(line: &str) -> Option<&str> {
         return line.get(at..).expect("call suffix").strip_prefix(" · ");
     }
     line.strip_prefix("temper ctl DIR ").or_else(|| line.starts_with("account list --until ").then_some(line))
-}
-
-fn substitute(call: &str) -> Vec<String> {
-    let mut words = Vec::new();
-    for word in call.split_whitespace() {
-        // CHANGE... stands for one or more named amendment controls.
-        if word == "CHANGE..." {
-            words.extend([String::from("--priority"), String::from("1")]);
-        } else if word == "TEXT" || word == "REASON" {
-            words.push(String::from("word"));
-        } else if word.bytes().all(|byte| byte.is_ascii_uppercase()) {
-            words.push(String::from("1"));
-        } else if word.starts_with('t') && word.ends_with("/K") {
-            words.push(word.replace("/K", "/1"));
-        } else {
-            words.push(word.into());
-        }
-    }
-    words
 }
 
 #[test]
@@ -171,7 +152,7 @@ fn every_other_holds_offered_commands_parse() {
         let (release, cancel) = way[start..].split_once("; or cancel it: ").expect("both offered commands");
         let release = release.split(" (").next().expect("command before explanation");
         for command in [release, cancel] {
-            let words = substitute(command);
+            let words = f::substitute(command);
             let argv: Vec<&str> = words.iter().map(String::as_str).collect();
             match f::parse(&argv) {
                 Ok(Parsed::Call { .. }) => {}

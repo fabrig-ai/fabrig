@@ -1230,11 +1230,37 @@ The fleet child domain knows the hosts and the runs they host:
   host of any allowed kind exists. Busy slots and model eligibility do not
   weaken that suppression. The engine's construction placeholder is not an
   admitted hello. History eviction and fact drains do not affect this query;
-  a new fleet starts with neither fact.
+  a new fleet starts with neither fact. A fact keeps its refusal's figures,
+  the `HelloRefused` amounts: some for an agent's shortfall that has them,
+  none for every other reason.
   The core uses it only to refine an agent's Active Due or Preparing
   `RunWait::Host` into `TaskRunWait::Refused(TaskWaitRefused::Hello { kind,
-  at, why })`. Account and credential waits keep their precedence. No task
+  at, why, figures })`. Account and credential waits keep their precedence. No task
   state, placement decision, attempt, retry or stored record changes.
+- **A run its hosts are all too small for says which bound keeps it out.**
+  Hosts admitted before a charter grows stay admitted: `needs::replace`
+  only clears their eligibility for it, and no hello is refused, so the
+  standing refusal stays suppressed while the run can never be placed on
+  them. Where `standing_refusal` answers none, the core asks the fleet
+  `bounds_refusal(version, kinds)`, `version` the charter version the
+  task's run takes and `kinds` its hosts. It answers only while at least
+  one admitted, connected, non-draining host of an allowed kind exists and
+  every one of them falls short of a bound of that version, the bounds
+  `shortfall` checks for one charter (a declared endpoint's window and
+  output, turns, time, waiting, the checks timeout), then the
+  deployment-wide ones (spend, message, inbox, unacknowledged turns). Its
+  `kind` is the worker if any of those hosts is a worker, else the engine,
+  and it reads that kind's hosts alone: `why` is the first bound, in that
+  order, that every one of them falls short of, and `figures` the
+  version's need and the most any of them offers, the least for the checks
+  timeout, so that a client can say what the largest host takes. Where
+  each falls short of another bound, `why` and `figures` are none. The core
+  refines the wait into `TaskRunWait::Refused(TaskWaitRefused::Bounds {
+  kind, why, figures })`. Busy slots, a source's readiness, logins, model
+  declarations and the host rule never make this answer: those are waits
+  for room or readiness, and stay `Host`. It is derived as the standing
+  refusal is: nothing is stored, and no task state, placement, attempt or
+  retry changes.
 - **Grants follow their attempts:** each new generation of an LLM
   account's source or an application's credential goes to every live
   attempt that holds one (section 12), and each attempt the fleet keeps

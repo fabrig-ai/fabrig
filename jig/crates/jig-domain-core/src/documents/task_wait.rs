@@ -16,7 +16,17 @@ pub enum TaskRunWait {
 /// Hello keeps the fleet's observed receipt time and cause until admission or restart.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum TaskWaitRefused {
-    Hello { kind: jig_domain_fleet::HostKind, at: Wall, why: jig_domain_fleet::HelloRefusal },
+    Hello {
+        kind: jig_domain_fleet::HostKind,
+        at: Wall,
+        why: jig_domain_fleet::HelloRefusal,
+        figures: Option<jig_domain_fleet::Figures>,
+    },
+    Bounds {
+        kind: jig_domain_fleet::HostKind,
+        why: Option<jig_domain_fleet::AgentShortfall>,
+        figures: Option<jig_domain_fleet::Figures>,
+    },
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -63,10 +73,23 @@ pub(super) fn waiting(core: &Core, row: &tasks::TaskRecord) -> Option<TaskRunWai
         }
         Err(RunWait::Credential) => Some(TaskRunWait::Credential),
         Err(RunWait::Host) => Some(match core.fleet.standing_refusal(core.charter_of(row.number).hosts) {
-            Some((kind, record)) => {
-                TaskRunWait::Refused(TaskWaitRefused::Hello { kind, at: record.at, why: record.why })
-            }
-            None => TaskRunWait::Host,
+            Some((kind, record)) => TaskRunWait::Refused(TaskWaitRefused::Hello {
+                kind,
+                at: record.at,
+                why: record.why,
+                figures: record.figures,
+            }),
+            None => match core.charter_version(row.number) {
+                Some(version) => match core.fleet.bounds_refusal(version, core.charter_of(row.number).hosts) {
+                    Some(value) => TaskRunWait::Refused(TaskWaitRefused::Bounds {
+                        kind: value.kind,
+                        why: value.why,
+                        figures: value.figures,
+                    }),
+                    None => TaskRunWait::Host,
+                },
+                None => TaskRunWait::Host,
+            },
         }),
         Err(RunWait::Account { account, source, why }) => Some(TaskRunWait::Account {
             account,

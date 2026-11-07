@@ -3841,7 +3841,17 @@ fn every_chats_run_wait_says_why_above_the_composer_without_working_dots() {
         (c::TaskRunWait::Credential, true, b"This work needs a credential from its forge."),
         (c::TaskRunWait::Host, true, b"Waiting for other work to finish. It starts by itself."),
         (c::TaskRunWait::Host, false, b"No host has room for this, or none is connected. It starts when one does."),
+        (
+            c::TaskRunWait::Refused(c::TaskWaitRefused::Bounds {
+                kind: c::HostKind::Worker,
+                why: Some(c::AgentShortfall::Turns { charter: 1 }),
+                figures: Some(c::Figures { required: 100_000, offered: 800 }),
+            }),
+            true,
+            b"No worker can take this: its charter asks 100,000 turns, and the largest worker takes 800.",
+        ),
     ] {
+        super::choice::wait_pointers(reason);
         for configuring in [false, true] {
             let mut task = configuring_task();
             task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Due);
@@ -3854,6 +3864,7 @@ fn every_chats_run_wait_says_why_above_the_composer_without_working_dots() {
             let root = configuring_task_root_owned(task, true, if configuring { 37 } else { 1 }, owned);
             for mut view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
                 let tree = view.tree();
+                super::choice::wait_pointers(&fixtures::text(tree));
                 let feedback = named_position(tree.nodes(), Role::Paragraph, Some(reason)).expect("wait reason");
                 let composer = styled(tree, look::SESSION_COMPOSER);
                 assert!(feedback < composer);
