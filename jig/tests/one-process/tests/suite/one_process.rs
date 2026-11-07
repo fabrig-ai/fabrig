@@ -19,11 +19,13 @@ fn a_signal_mid_run_drains_then_ends_the_worker_with_nothing_waiting() {
 }
 
 #[test]
-fn the_next_start_settles_the_worker_s_claims_at_once() {
+fn a_drained_stop_interrupts_the_worker_s_claims_and_spends_no_try() {
     let outcome = world::drain_mid_run(fixtures::calm(fixtures::SEED), true);
     assert_eq!(outcome.verdict, Verdict::Passed);
     assert!(outcome.drained);
-    assert_eq!(outcome.claims_settled_at_restart, 1);
+    assert_eq!(outcome.claims_interrupted_at_stop, 1);
+    assert_eq!(outcome.claims_settled_at_restart, 0);
+    assert_eq!(outcome.lost_tries, 0);
 }
 
 #[test]

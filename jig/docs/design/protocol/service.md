@@ -226,9 +226,10 @@ down:  released and door outputs → components → io submissions
 - **A shutdown drains,** from a signal or an operator:
   1. **The listeners stop admitting:** workers' openings refused as
      stopping, clients' requests answered not ready.
-  2. **The core hears that the engine is stopping** and from then on
-     takes nothing that would make a commit, and ends every watch saying
-     so (`../domain/engine.md`, 6.1).
+  2. **The core hears that the engine is stopping,** settles the claims
+     of its runs in this process as interrupted, spending no try, in one
+     decision, and from then on takes nothing that would make a commit,
+     and ends every watch saying so (`../domain/engine.md`, 6.1).
   3. **What is in flight finishes:** the commits made before are answered,
      and their held outputs released, until nothing waits for a commit,
      which the core says.
@@ -249,7 +250,8 @@ down:  released and door outputs → components → io submissions
 
   A second signal turns the drain into an abort: what is in flight is
   dropped, which a restart recovers from, as from a crash.
-- **Runs in the engine** die with it: the next start settles their claims
+- **Runs in the engine** die with it: a drain has settled their claims as
+  interrupted (step 2); after a crash the next start settles them
   (`../domain/engine.md`, section 6). Runs on workers go on for the
   engine's grace and are adopted when their workers dial in again.
 
@@ -519,8 +521,10 @@ between hosts.
   processes' groups are killed, and whatever an agent started in a group
   of its own outlives it until agents run in contained trees (README.md,
   section 10). Their runs end with the service, as the engine's own
-  slots' do. The next start settles their claims at once
-  (`../domain/engine.md`, section 6).
+  slots' do, so the engine settled their agent claims as interrupted when
+  it heard it was stopping, spending no try of their tasks
+  (`../domain/engine.md`, 6.1). After a crash the next start settles
+  them at once (`../domain/engine.md`, section 6).
 - **Its world** is the protocol world of section 8, with workers: the
   engine's and a test worker's services in one loop, joined by in-process
   addresses, the test worker's agents smith's agent processes over skein's

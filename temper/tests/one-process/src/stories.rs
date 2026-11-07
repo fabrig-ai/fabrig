@@ -1,6 +1,6 @@
 //! Native forms, LLM scripts and independent forge observations for repository stories.
 use crate::{fixtures, world::Story};
-use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+use skein_fake_llm_domain::api::{Finish, Line, Piece, Script, Turn};
 use skein_fake_person::{Find, Step};
 use skein_lib::Duration;
 use skein_ui::Role;
@@ -42,7 +42,7 @@ pub(crate) fn set(story: Story) {
 
 pub(crate) fn client_limits() -> temper_client_shell_terminal::limits::Limits {
     let mut limits = fixtures::client_limits();
-    if STORY.with(|slot| matches!(slot.get(), Story::Adopt)) {
+    if STORY.with(|slot| matches!(slot.get(), Story::Adopt | Story::CodingAtStop)) {
         // Batch this whole-exchange story without changing the other stories' schedule.
         limits.io.receive = 16_384;
         limits.io.intake = limits.io.receive;
@@ -137,7 +137,14 @@ pub(crate) fn provider(story: Story) -> skein_fake_peers::llm::Peer {
         b"finish",
         br#"{"form":"change","text":"","fields":{"title":"Fix the file","body":"The file is fixed."}}"#,
     );
-    let edits = if matches!(story, Story::Merge) {
+    let edits = if matches!(story, Story::CodingAtStop) {
+        vec![
+            call(b"shell", br#"{"command":"echo fixed > conflict.txt"}"#),
+            call(b"wait", b"{}"),
+            call(b"shell", br#"{"command":"echo fixed > conflict.txt"}"#),
+            held_turn(),
+        ]
+    } else if matches!(story, Story::Merge) {
         vec![finish.clone()]
     } else {
         vec![call(b"shell", br#"{"command":"echo fixed > conflict.txt"}"#), finish.clone()]
@@ -338,12 +345,18 @@ pub(crate) fn setup_settings(phase: crate::world::Phase) {
         slot.set(
             !playground()
                 && !STORY.with(|story| matches!(story.get(), Story::NoWelcome))
-                && matches!(phase, crate::world::Phase::Story | crate::world::Phase::Fault { .. }),
+                && (matches!(phase, crate::world::Phase::Story | crate::world::Phase::Fault { .. })
+                    || matches!(phase, crate::world::Phase::Drain)
+                        && STORY.with(|story| matches!(story.get(), Story::CodingAtStop))),
         );
     });
-    SETTINGS.with(|slot| slot.set(matches!(phase, crate::world::Phase::Drain)));
+    SETTINGS.with(|slot| slot.set(matches!(phase, crate::world::Phase::Drain) && uses_stock()));
     REVISION.with(|slot| {
-        slot.set(if matches!(phase, crate::world::Phase::Drain | crate::world::Phase::Restart) { 2 } else { 1 });
+        slot.set(if uses_stock() && matches!(phase, crate::world::Phase::Drain | crate::world::Phase::Restart) {
+            2
+        } else {
+            1
+        });
     });
 }
 pub(crate) fn needs_settings() -> bool {
@@ -367,6 +380,22 @@ pub(crate) fn given(document: &serde_json::Value) -> temper_service::stock::Give
         jig.charters[0].policy.waiting = skein_lib::Duration::from_millis(u64::from(fixtures::CHAT_WAIT_MS));
         jig.templates[0].budget = jig_domain_people::TemplateBudget::AsAllowed { cap: Some(50) };
     }
+    if STORY.with(|slot| matches!(slot.get(), Story::CodingAtStop)) {
+        let temper_service::stock::Given::Own { jig, .. } = &mut given else { panic!("repository defaults") };
+        jig.charters[0].policy.waiting = Duration::from_millis(u64::from(fixtures::CHAT_WAIT_MS));
+    }
     crate::review_delivery::given(&mut given);
     given
+}
+
+/// The provider releases this only after serve has ended the agent.
+pub(crate) const STOP_HOLD: &[u8] = b"stop-mid-turn";
+fn held_turn() -> Turn {
+    Turn {
+        lines: Box::new([Line::Pieces {
+            pieces: Box::new([Piece { text: b"after stop".as_slice().into(), hold: Some(STOP_HOLD.into()) }]),
+        }]),
+        finish: Finish::Stop,
+        tokens: fixtures::CALL_TOKENS,
+    }
 }

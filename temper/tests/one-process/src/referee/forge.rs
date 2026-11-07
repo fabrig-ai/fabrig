@@ -124,6 +124,16 @@ impl Forge {
             "the story's own hooks have all been released"
         );
     }
+    pub(super) fn saved_head(&self, task: u64) -> Option<u64> {
+        let suffix = format!("/s{task}");
+        self.transport
+            .forge
+            .borrow()
+            .domain
+            .branches(b"acme/app")
+            .iter()
+            .find_map(|(branch, head)| branch.ends_with(suffix.as_bytes()).then_some(*head))
+    }
     pub(crate) fn complete(&self) -> bool {
         if matches!(self.story, Story::PlaygroundA) && crate::world::playground_answers() != 3 {
             return false;
