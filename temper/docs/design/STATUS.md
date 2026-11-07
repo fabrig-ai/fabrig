@@ -7,7 +7,12 @@ page past the forge client's bound leaves an omitted-page notice;
 the exact bound and measure still need an interface and stored-answer
 decision. Settings-position wording and progress from the repository's
 quiet checks remain later work (`protocol/configuration.md`, 13.9 and 11;
-`domain/forge.md`, 8.4 and 20). The first
+`domain/forge.md`, 8.4 and 20). Root forge reads have their own owner
+range, and unexpected answer kinds become refused reads with a
+`host-render` note. The owner-collision regression and rendering table
+cover the mechanism below live; the existing ChatGPT and Claude Code
+landing stories remain the after-landing check (`domain/forge.md`, 5.3
+and 20; `domain/agent.md`, sections 8 and 10). The first
 milestone stands in the code (`README.md`). Markdown flows draw in chats
 and their documents with temper's look, and both stock agents are told
 the subset. Temper/ui's rendered comparison follows landing; the
@@ -15,7 +20,11 @@ reference keeps its numbered words without figures (`client/README.md`,
 3.5 and 11; `client/browser.md`, 2.5 and 5; `domain/agent.md`, section 8).
 A browser's other chat look is built: its terminal frame, commands, kept
 mode/theme/font, full screen, document, question list and compact cards,
-with nine gallery states. Its quiet line retains the bar's budget words,
+with nine gallery states. Terminal acts and closing lists advance the
+shown count in their step; the terminal ground wins in phone Split, the
+draft scrolls thin without a reserved gutter, the quiet model button is
+plain and the running line sits inside the foot. Their rendered comparison
+remains temper/ui's after-landing work. Its quiet line retains the bar's budget words,
 settings proposals retain Accept and Change something, commands match
 case exactly, background presses do not focus the box, options do not
 select on hover, adjacent help notes share paragraph spacing, and Plex

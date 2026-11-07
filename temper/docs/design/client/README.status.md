@@ -48,12 +48,21 @@ section 11's later work.
 
 Section 3.5's terminal frame, commands, kept look, full screen, document,
 questions and compact cards have no known implementation gap beyond
-the departures below. The four request accounts are `2f653fffa3`
+the departures below. Every terminal act, look restoration and closing
+of an open command list advances the pages' shown count. The domain's
+existing table checks the count across acts, restoration and full-screen
+departure, including a list with no command words left in the box.
+The redraw repair account is `703628ea00`: it corrects the Escape
+account's claim that Enter already drew the terminal in its press's step.
+The four request accounts are `2f653fffa3`
 (`chat-terminal`), `a00892e4f2` (`chat-terminal-font`), `cfe973620f`
 (`chat-terminal-draft`) and `2a62e07db5` (`chat-terminal-esc`);
 compilation and print checks establish no rendered equality. Temper/ui's
 render comparison follows landing (`../draft/look-requests.md`, 4 and 5;
-section 11).
+section 11). The ground, scrollbar and foot repairs are recorded in
+`browser.status.md`, 2.5. The ordinary bar's two-row title at 1000 px
+remains intentional: `>_` and the status words leave the path less than
+its 320 px, as the user accepted in `look-round-17`.
 
 - **Departs:** 3.5, *A chat's terminal*: the quiet line says "N spent · of B",
   because `temper-client-view`'s `pages/terminal.rs`, `under`, reuses

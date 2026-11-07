@@ -701,7 +701,9 @@ replay says the same clocks (`README.md`, 5.12).
     `temper-terminal-plex` for `[data-font="plex"]`; `temper-terminal-top`,
     `-where`, `-star`, `-place`, `-sep`, `-task`, `-acts` and `-btn` for the top
     line; `temper-terminal-run` for the running line; `temper-terminal-line` and
-    `-hint` for the quiet line; `temper-terminal-head` for a list's head;
+    `-hint` for the quiet line, whose model button takes no token, as the
+    request's `.tt-model`, and so none of `-btn`'s padding or ground;
+    `temper-terminal-head` for a list's head;
     `temper-terminal-note` for a note; `temper-to-terminal` for `>_` in the bar.
     The conversation, the box, the list and the pane keep the page's own tokens
     (`SESSION_COMPOSER`, `TURN_TOOL`, `DOC` and the rest), which the terminal's
@@ -724,15 +726,21 @@ replay says the same clocks (`README.md`, 5.12).
   - *Its layout:* fixed over the whole window, a grid of the top line and the
     panes; the conversation's column 100 characters at most, left; Split two
     halves behind a rule, the phone's one pane with the box at the foot; the
-    request's 760 px rules.
+    request's 760 px rules. The running line is the first line of the box's
+    form, the request's `.tt-foot`, so that only its own padding stands between
+    it and the box. The conversation's ground is the terminal's `--bg` in every
+    mode and at every width, scoped above the shell's own Split and Draft rules,
+    whose `--gf-surface` is the browser look's.
   - *The draft beside it:* the pane keeps `.temper-doc`'s rules from *A chat's
     document*, above; the terminal sets their variables on its pane, its ground
     `--doc-bg` a shade lighter than the terminal's, its ink softer, a box a shade
     above the ground, the strong box in the ink, a changed section's pale block
     and note in the terminal's accent (the request's `--doc-*` values, light and
     dark), and adds only what the shell's rules don't say: the pane's ground, its
-    padding and its rule. It restates none of the shell's document rules, which
-    `terminal.css` restates as a page outside `#app` must.
+    padding, its rule and its scrollbar, the request's `scrollbar-width: thin`
+    with `scrollbar-gutter: auto` at every width, where the shell's pane keeps a
+    stable gutter on both edges. It restates none of the shell's document rules,
+    which `terminal.css` restates as a page outside `#app` must.
 - **temper's own way** (`README.md`, 3.5) is `configure-temper-own-way`'s rules, in
   `temper.css` under `/* ==== ui: settings ==== */`: on the page
   `.temper-starter-head` and `.temper-starter-own` with its parts; in the pane, beside
@@ -1374,7 +1382,13 @@ Not in the tier, each in the lowest world that shows it:
   open (`../draft/look-requests.md`, sections 4 and 5). Include dark
   and light, both fonts, phone Split, a draft being written, tables,
   changed-section flash, the figure, questions, proposals, delegations
-  and failures. Real keys check the full-screen behaviours named in
+  and failures. Include the phone Split conversation and composer's dark
+  ground, the draft's thin scrollbar without a reserved gutter at every
+  width, the quiet model button's line height and the running line's
+  placement inside the foot without a gap above the box. The ordinary
+  bar's two-row title at 1000 px stays: `>_` and its status words share
+  the bar, by the user's `look-round-17` request.
+  Real keys check the full-screen behaviours named in
   `README.md`, section 11. Default: the shared document rules and
   focused tables and prints; these establish no rendered equality or
   real-key result. Temper/ui retains the departures in
