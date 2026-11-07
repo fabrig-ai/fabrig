@@ -44,13 +44,16 @@ const LIMITS: Limits = Limits {
 const REPO: Repository = Repository { forge: 2, repository: 5 };
 
 #[test]
-fn a_fresh_read_meeting_no_connection_ends_once() {
-    fresh_read_refusal_ends_once(Error::NotConnected);
+fn missing_provider_configuration_ends_fresh_reads_exactly_once() {
+    skein_rows::check(
+        [
+            ("a_fresh_read_meeting_no_connection_ends_once", Error::NotConnected),
+            ("a_fresh_read_meeting_no_installation_ends_once", Error::NotInstalled),
+        ],
+        fresh_read_refusal_ends_once,
+    );
 }
-#[test]
-fn a_fresh_read_meeting_no_installation_ends_once() {
-    fresh_read_refusal_ends_once(Error::NotInstalled);
-}
+
 fn fresh_read_refusal_ends_once(error: Error) {
     let mut h = Harness::new(LIMITS);
     h.read(1);
@@ -203,23 +206,38 @@ fn full_and_oversized_admission_answer_once_without_an_api_call() {
     drop(h.one());
 }
 #[test]
-fn malformed_item_identity_order_or_kind_finishes_as_a_typed_failure() {
-    for items in [
-        Box::new([listing_item(1, 100, api::Kind::Issue), listing_item(1, 101, api::Kind::Issue)]),
-        Box::new([listing_item(1, 101, api::Kind::Issue), listing_item(2, 100, api::Kind::Issue)]),
-        Box::new([listing_item(2, 100, api::Kind::Issue), listing_item(1, 100, api::Kind::Issue)]),
-        Box::new([listing_item(1, 100, api::Kind::Issue), listing_item(2, 100, api::Kind::Pull)]),
-    ] {
-        let mut h = Harness::new(LIMITS);
-        drop(h.step(Event::Read {
-            owner: Token::new(1),
-            repository: REPO,
-            read: Read::Items { since: at(100), page: 1, kind: Some(api::Kind::Issue) },
-        }));
-        let sent = h.one();
-        terminal(&h.answer(&sent, 1, Ok(Answer::Items { items, more: false, now: at(101) })), 1, Error::InvalidAnswer);
-        assert!(h.send().is_none());
-    }
+fn fresh_reads_reject_answers_inconsistent_with_their_calls() {
+    skein_rows::check(
+        [
+            ("malformed_item_identity_order_or_kind_finishes_as_a_typed_failure: duplicate", (Read::Items { since: at(100), page: 1, kind: Some(api::Kind::Issue) }, Answer::Items { items: Box::new([listing_item(1, 100, api::Kind::Issue), listing_item(1, 101, api::Kind::Issue)]), more: false, now: at(101) }, 1)),
+            ("malformed_item_identity_order_or_kind_finishes_as_a_typed_failure: order", (Read::Items { since: at(100), page: 1, kind: Some(api::Kind::Issue) }, Answer::Items { items: Box::new([listing_item(1, 101, api::Kind::Issue), listing_item(2, 100, api::Kind::Issue)]), more: false, now: at(101) }, 1)),
+            ("malformed_item_identity_order_or_kind_finishes_as_a_typed_failure: identity", (Read::Items { since: at(100), page: 1, kind: Some(api::Kind::Issue) }, Answer::Items { items: Box::new([listing_item(2, 100, api::Kind::Issue), listing_item(1, 100, api::Kind::Issue)]), more: false, now: at(101) }, 1)),
+            ("malformed_item_identity_order_or_kind_finishes_as_a_typed_failure: kind", (Read::Items { since: at(100), page: 1, kind: Some(api::Kind::Issue) }, Answer::Items { items: Box::new([listing_item(1, 100, api::Kind::Issue), listing_item(2, 100, api::Kind::Pull)]), more: false, now: at(101) }, 1)),
+            ("an_answer_with_the_wrong_shape_is_typed_failure", (Read::Pull { number: 1 }, Answer::Done, 1)),
+            ("comparisons_must_return_the_requested_endpoints", (Read::Compare { before: [1; 32], after: [2; 32] }, Answer::Compare { before: [0; 32], after: [2; 32], contains_before: false, files: Box::new([]), commits: Box::new([]) }, 1)),
+            ("an_answer_for_another_pull_cannot_satisfy_a_fresh_read", (Read::Pull { number: 8 }, Answer::Pull(api::Pull {
+        queued: None,
+        dequeued: None,
+        reviewers: Box::new([]),
+        number: 9,
+        state: api::State::Open,
+        head: Box::new([]),
+        base: Box::new([]),
+        commit: [1; 32],
+        base_commit: None,
+        merged: None,
+        mergeable: true,
+        ci: api::Ci::None,
+    }), 8)),
+        ],
+        |(read, answer, owner)| {
+            let mut h = Harness::new(LIMITS);
+            assert!(h.step(Event::Read { owner: Token::new(owner), repository: REPO, read }).is_empty());
+            let sent = h.one();
+            terminal(&h.answer(&sent, 1, Ok(answer)), owner, Error::InvalidAnswer);
+            assert!(h.send().is_none());
+        },
+    );
 }
 #[test]
 fn arbitrary_item_since_tolerates_the_providers_coarse_inclusive_overlap() {
@@ -308,13 +326,7 @@ fn compare_files_and_commits_each_fit_eight_rows() {
         assert!(h.send().is_none());
     }
 }
-#[test]
-fn an_answer_with_the_wrong_shape_is_typed_failure() {
-    let mut h = Harness::new(LIMITS);
-    h.read(1);
-    let sent = h.one();
-    terminal(&h.answer(&sent, 1, Ok(Answer::Done)), 1, Error::InvalidAnswer);
-}
+
 #[test]
 fn files_at_a_different_head_are_refused_and_deletions_survive() {
     let mut h = Harness::new(LIMITS);
@@ -489,31 +501,7 @@ fn protection_nested_contexts_and_checks_provider_details_are_bounded() {
     assert!(crate::bounds::answer(&checks, &LIMITS));
     assert!(!crate::bounds::answer(&checks, &Limits { rows: 0, ..LIMITS }));
 }
-#[test]
-fn comparisons_must_return_the_requested_endpoints() {
-    let mut h = Harness::new(LIMITS);
-    drop(h.step(Event::Read {
-        owner: Token::new(1),
-        repository: REPO,
-        read: Read::Compare { before: [1; 32], after: [2; 32] },
-    }));
-    let sent = h.one();
-    terminal(
-        &h.answer(
-            &sent,
-            1,
-            Ok(Answer::Compare {
-                before: [0; 32],
-                after: [2; 32],
-                contains_before: false,
-                files: Box::new([]),
-                commits: Box::new([]),
-            }),
-        ),
-        1,
-        Error::InvalidAnswer,
-    );
-}
+
 #[test]
 fn entry_refusal_is_observable_even_without_diagnostics() {
     let mut h = Harness::new(Limits { entries: 1, facts: 0, ..LIMITS });
@@ -541,29 +529,7 @@ fn entry_refusal_is_observable_even_without_diagnostics() {
     }
     assert!(h.domain.pop_fact().is_none());
 }
-#[test]
-fn an_answer_for_another_pull_cannot_satisfy_a_fresh_read() {
-    let mut h = Harness::new(LIMITS);
-    h.read(8);
-    let call = h.one();
-    let answer = api::Pull {
-        queued: None,
-        dequeued: None,
-        reviewers: Box::new([]),
-        number: 9,
-        state: api::State::Open,
-        head: Box::new([]),
-        base: Box::new([]),
-        commit: [1; 32],
-        base_commit: None,
-        merged: None,
-        mergeable: true,
-        ci: api::Ci::None,
-    };
-    let out =
-        h.step(Event::Answered { call: call.call, cost: 1, free: 0, rate: None, result: Ok(Answer::Pull(answer)) });
-    assert_eq!(out.as_ref(), &[Request::Read { owner: Token::new(8), result: Err(Error::InvalidAnswer) }]);
-}
+
 
 #[test]
 fn deployment_config_and_decoded_key_frames_are_checked() {
@@ -663,11 +629,41 @@ fn a_job_answers_step_name_counts_against_answer_bytes() {
 }
 
 #[test]
-#[should_panic(expected = "forge client limits are valid")]
-fn valid_refuses_a_zero_settle_window() {
-    let limits = Limits { settle: Duration::ZERO, ..LIMITS };
-    assert!(!crate::valid(&limits));
-    let _domain = Domain::new(&limits);
+fn invalid_forge_limits_fail_validation_and_construction() {
+    skein_rows::check(
+        [
+            ("valid_refuses_a_zero_settle_window", Limits { settle: Duration::ZERO, ..LIMITS }),
+            ("valid_refuses_zero_pending", Limits { pending: 0, ..LIMITS }),
+            ("valid_refuses_zero_calls", Limits { calls: 0, ..LIMITS }),
+            ("valid_refuses_calls_past_pending", Limits { calls: 9, ..LIMITS }),
+            ("valid_refuses_zero_rate", Limits { rate: 0, ..LIMITS }),
+            ("valid_refuses_reserve_past_rate", Limits { reserve: 5, ..LIMITS }),
+            ("valid_refuses_zero_window", Limits { window: Duration::ZERO, ..LIMITS }),
+            ("valid_refuses_zero_read_attempts", Limits { read_attempts: 0, ..LIMITS }),
+            ("valid_refuses_zero_backoff", Limits { backoff: Duration::ZERO, ..LIMITS }),
+            ("valid_refuses_backoff_past_its_ceiling", Limits { backoff_max: Duration::ZERO, ..LIMITS }),
+            ("valid_refuses_zero_entries", Limits { entries: 0, ..LIMITS }),
+            ("valid_refuses_zero_write_attempts", Limits { write_attempts: 0, ..LIMITS }),
+            ("valid_refuses_zero_lifetime", Limits { lifetime: Duration::ZERO, ..LIMITS }),
+            ("valid_refuses_zero_clock_margin", Limits { clock_margin: Duration::ZERO, ..LIMITS }),
+            ("valid_refuses_zero_rows", Limits { rows: 0, ..LIMITS }),
+            ("valid_refuses_zero_inbox", Limits { inbox: 0, ..LIMITS }),
+            ("valid_refuses_zero_resources", Limits { resources: 0, ..LIMITS }),
+            ("valid_refuses_zero_repositories", Limits { repositories: 0, ..LIMITS }),
+            ("valid_refuses_zero_poll", Limits { poll: Duration::ZERO, ..LIMITS }),
+            ("valid_refuses_poll_past_its_ceiling", Limits { poll_max: Duration::ZERO, ..LIMITS }),
+            ("valid_refuses_zero_hinted", Limits { hinted: Duration::ZERO, ..LIMITS }),
+            ("valid_refuses_zero_slow", Limits { slow: Duration::ZERO, ..LIMITS }),
+            ("valid_refuses_alarm_capacity_past_u32", Limits { pending: u32::MAX, ..LIMITS }),
+            ("valid_refuses_keep_capacity_past_u32", Limits { resources: u32::MAX / 2, ..LIMITS }),
+        ],
+        |limits| {
+            assert!(!crate::valid(&limits));
+            skein_rows::panics("forge client limits are valid", || {
+                let _domain = Domain::new(&limits);
+            });
+        },
+    );
 }
 
 #[test]
@@ -748,196 +744,60 @@ fn directory_bytes_do_not_use_the_row_limit() {
 mod turn;
 
 #[test]
-fn valid_accepts_test_limits() {
-    assert!(crate::valid(&LIMITS));
+fn permitted_forge_limits_pass_validation_including_large_bounds() {
+    skein_rows::check(
+        [
+            ("valid_accepts_test_limits", LIMITS),
+            ("valid_ignores_heap_cached_operations", Limits { resources: 1_000_000_000, op_bytes: u32::MAX, ..LIMITS }),
+        ],
+        |limits| assert!(crate::valid(&limits)),
+    );
 }
 
-#[test]
-#[should_panic(expected = "forge client limits are valid")]
-fn valid_refuses_zero_pending() {
-    let limits = Limits { pending: 0, ..LIMITS };
-    assert!(!crate::valid(&limits));
-    let _domain = Domain::new(&limits);
-}
 
-#[test]
-#[should_panic(expected = "forge client limits are valid")]
-fn valid_refuses_zero_calls() {
-    let limits = Limits { calls: 0, ..LIMITS };
-    assert!(!crate::valid(&limits));
-    let _domain = Domain::new(&limits);
-}
 
-#[test]
-#[should_panic(expected = "forge client limits are valid")]
-fn valid_refuses_calls_past_pending() {
-    let limits = Limits { calls: 9, ..LIMITS };
-    assert!(!crate::valid(&limits));
-    let _domain = Domain::new(&limits);
-}
 
-#[test]
-#[should_panic(expected = "forge client limits are valid")]
-fn valid_refuses_zero_rate() {
-    let limits = Limits { rate: 0, ..LIMITS };
-    assert!(!crate::valid(&limits));
-    let _domain = Domain::new(&limits);
-}
 
-#[test]
-#[should_panic(expected = "forge client limits are valid")]
-fn valid_refuses_reserve_past_rate() {
-    let limits = Limits { reserve: 5, ..LIMITS };
-    assert!(!crate::valid(&limits));
-    let _domain = Domain::new(&limits);
-}
 
-#[test]
-#[should_panic(expected = "forge client limits are valid")]
-fn valid_refuses_zero_window() {
-    let limits = Limits { window: Duration::ZERO, ..LIMITS };
-    assert!(!crate::valid(&limits));
-    let _domain = Domain::new(&limits);
-}
 
-#[test]
-#[should_panic(expected = "forge client limits are valid")]
-fn valid_refuses_zero_read_attempts() {
-    let limits = Limits { read_attempts: 0, ..LIMITS };
-    assert!(!crate::valid(&limits));
-    let _domain = Domain::new(&limits);
-}
 
-#[test]
-#[should_panic(expected = "forge client limits are valid")]
-fn valid_refuses_zero_backoff() {
-    let limits = Limits { backoff: Duration::ZERO, ..LIMITS };
-    assert!(!crate::valid(&limits));
-    let _domain = Domain::new(&limits);
-}
 
-#[test]
-#[should_panic(expected = "forge client limits are valid")]
-fn valid_refuses_backoff_past_its_ceiling() {
-    let limits = Limits { backoff_max: Duration::ZERO, ..LIMITS };
-    assert!(!crate::valid(&limits));
-    let _domain = Domain::new(&limits);
-}
 
-#[test]
-#[should_panic(expected = "forge client limits are valid")]
-fn valid_refuses_zero_entries() {
-    let limits = Limits { entries: 0, ..LIMITS };
-    assert!(!crate::valid(&limits));
-    let _domain = Domain::new(&limits);
-}
 
-#[test]
-#[should_panic(expected = "forge client limits are valid")]
-fn valid_refuses_zero_write_attempts() {
-    let limits = Limits { write_attempts: 0, ..LIMITS };
-    assert!(!crate::valid(&limits));
-    let _domain = Domain::new(&limits);
-}
 
-#[test]
-#[should_panic(expected = "forge client limits are valid")]
-fn valid_refuses_zero_lifetime() {
-    let limits = Limits { lifetime: Duration::ZERO, ..LIMITS };
-    assert!(!crate::valid(&limits));
-    let _domain = Domain::new(&limits);
-}
 
-#[test]
-#[should_panic(expected = "forge client limits are valid")]
-fn valid_refuses_zero_clock_margin() {
-    let limits = Limits { clock_margin: Duration::ZERO, ..LIMITS };
-    assert!(!crate::valid(&limits));
-    let _domain = Domain::new(&limits);
-}
 
-#[test]
-#[should_panic(expected = "forge client limits are valid")]
-fn valid_refuses_zero_rows() {
-    let limits = Limits { rows: 0, ..LIMITS };
-    assert!(!crate::valid(&limits));
-    let _domain = Domain::new(&limits);
-}
 
-#[test]
-#[should_panic(expected = "forge client limits are valid")]
-fn valid_refuses_zero_inbox() {
-    let limits = Limits { inbox: 0, ..LIMITS };
-    assert!(!crate::valid(&limits));
-    let _domain = Domain::new(&limits);
-}
 
-#[test]
-#[should_panic(expected = "forge client limits are valid")]
-fn valid_refuses_zero_resources() {
-    let limits = Limits { resources: 0, ..LIMITS };
-    assert!(!crate::valid(&limits));
-    let _domain = Domain::new(&limits);
-}
 
-#[test]
-#[should_panic(expected = "forge client limits are valid")]
-fn valid_refuses_zero_repositories() {
-    let limits = Limits { repositories: 0, ..LIMITS };
-    assert!(!crate::valid(&limits));
-    let _domain = Domain::new(&limits);
-}
 
-#[test]
-#[should_panic(expected = "forge client limits are valid")]
-fn valid_refuses_zero_poll() {
-    let limits = Limits { poll: Duration::ZERO, ..LIMITS };
-    assert!(!crate::valid(&limits));
-    let _domain = Domain::new(&limits);
-}
 
-#[test]
-#[should_panic(expected = "forge client limits are valid")]
-fn valid_refuses_poll_past_its_ceiling() {
-    let limits = Limits { poll_max: Duration::ZERO, ..LIMITS };
-    assert!(!crate::valid(&limits));
-    let _domain = Domain::new(&limits);
-}
 
-#[test]
-#[should_panic(expected = "forge client limits are valid")]
-fn valid_refuses_zero_hinted() {
-    let limits = Limits { hinted: Duration::ZERO, ..LIMITS };
-    assert!(!crate::valid(&limits));
-    let _domain = Domain::new(&limits);
-}
 
-#[test]
-#[should_panic(expected = "forge client limits are valid")]
-fn valid_refuses_zero_slow() {
-    let limits = Limits { slow: Duration::ZERO, ..LIMITS };
-    assert!(!crate::valid(&limits));
-    let _domain = Domain::new(&limits);
-}
 
-#[test]
-#[should_panic(expected = "forge client limits are valid")]
-fn valid_refuses_alarm_capacity_past_u32() {
-    let limits = Limits { pending: u32::MAX, ..LIMITS };
-    assert!(!crate::valid(&limits));
-    let _domain = Domain::new(&limits);
-}
 
-#[test]
-#[should_panic(expected = "forge client limits are valid")]
-fn valid_refuses_keep_capacity_past_u32() {
-    let limits = Limits { resources: u32::MAX / 2, ..LIMITS };
-    assert!(!crate::valid(&limits));
-    let _domain = Domain::new(&limits);
-}
 
-#[test]
-fn valid_ignores_heap_cached_operations() {
-    let limits = Limits { resources: 1_000_000_000, op_bytes: u32::MAX, ..LIMITS };
-    assert!(crate::valid(&limits));
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

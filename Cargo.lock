@@ -3200,6 +3200,7 @@ version = "0.0.0"
 dependencies = [
  "skein-forge",
  "skein-lib",
+ "skein-rows",
 ]
 
 [[package]]

@@ -57,9 +57,6 @@ pub(in crate::tests) fn failed_restore(name: &str, rows: Box<[Stored]>) {
     assert_busy(&mut h, name);
     assert!(h.domain.restoration_failed(), "failed instance {name}");
 }
-pub(in crate::tests) fn bad_live(name: &str, row: LiveRecord) {
-    failed_restore(name, Box::new([Stored::Live(row), Stored::Repository(repository())]));
-}
 pub(in crate::tests) fn assert_busy(h: &mut Harness, name: &str) {
     assert_eq!(
         h.step(Event::Keep { owner: Token::new(1), watches: Box::new([live().watch]) }).as_ref(),
