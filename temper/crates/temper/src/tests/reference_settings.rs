@@ -157,7 +157,7 @@ fn the_reference_settings_file_decodes() {
     assert!(coder.instructions.bytes().starts_with(instructions.as_bytes()));
     let coder_instructions = std::str::from_utf8(coder.instructions.bytes()).expect("coding instructions are UTF-8");
     assert!(coder_instructions.contains("in the question form"));
-    assert!(coder_instructions.contains("Then call wait: the answer reaches this run."));
+    assert!(coder_instructions.contains("After asking, call wait, not finish: the answer reaches this run."));
     let SettingValue::Charter(foreman) = value(&items, Setting::Charter(SettingNumber { number: FOREMAN })) else {
         panic!("foreman charter")
     };
@@ -253,6 +253,95 @@ fn the_reference_settings_fit_the_reference_profile() {
         bytes::find(coordinator.instructions.bytes(), b"A `change` call carries what one call's payload holds")
             .is_some()
     );
+}
+
+#[test]
+fn the_reference_charters_fit_a_stock_worker_and_the_run_bound() {
+    use jig_domain_core::settings;
+    use jig_domain_fleet::{CharterNeeds, HostKind, ModelNeed, Needs, Version};
+
+    let room: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../../../../docs/examples/reference/room.json"))
+            .expect("reference room");
+    let run_bytes =
+        room["application"]["limits"]["overrides"]["root.journal.run_bytes"].as_u64().expect("reference run bound");
+    let bounds = reference_worker_bounds(&room["agent"]);
+    let init: serde_json::Value = serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json"))
+        .expect("init configuration");
+    let engine = reference_engine(&init["engine"]["limits"]);
+    let config = jig_protocol_config::core(&engine, [0; 16], 1);
+    let reference = temper_client_tools::jig::settings_file::decode(
+        include_bytes!("../../../../docs/examples/reference/settings.json"),
+        &temper_client_tools::limits::tools(),
+    )
+    .expect("reference settings");
+    for number in [CODER, COORDINATOR, FOREMAN, DESIGNER, TRIAGE] {
+        let item = reference
+            .iter()
+            .find(|item| {
+                item.setting == jig_client::contract::Setting::Charter(jig_client::contract::SettingNumber { number })
+            })
+            .expect("reference charter");
+        let settings::Edit::Set(settings::Value::Charter(charter)) = core_item(item).edit else {
+            panic!("charter {number}")
+        };
+        let policy = &charter.policy;
+        let models = std::iter::once(&policy.model)
+            .chain(policy.alternatives.iter())
+            .map(|model| ModelNeed {
+                endpoint: model.endpoint,
+                name: model.name.clone(),
+                window: model.window,
+                output: model.output,
+            })
+            .collect();
+        let needs = Needs {
+            charters: Box::new([CharterNeeds {
+                version: Version { charter: number, revision: 1 },
+                kinds: charter.hosts,
+                models,
+                turns: policy.turns,
+                time: policy.time,
+                waiting: policy.waiting,
+                change_reserve: if policy.modify { Some(policy.reserve_time) } else { None },
+            }]),
+            spend: config.defaults.rules.maximum_run_spend,
+            message_bytes: engine.limits.core.tasks.message_bytes,
+            start_messages: engine.limits.core.tasks.run_inbox,
+            unacknowledged: config.hub_turns,
+        };
+        assert_eq!(
+            jig_domain_fleet::shortfall(&needs, &bounds, HostKind::Worker),
+            None,
+            "charter {number}: stock worker bounds {bounds:?}"
+        );
+        let stored = jig_domain_core::policy_owned_bytes(policy)
+            .and_then(|bytes| bytes.checked_add(jig_domain_core::parts_owned_bytes(&charter.parts)?))
+            .unwrap_or_else(|| panic!("charter {number}: stored policy byte count overflow"));
+        assert!(
+            stored <= run_bytes,
+            "charter {number}: stored policy {stored} exceeds root.journal.run_bytes {run_bytes}"
+        );
+    }
+}
+
+fn reference_worker_bounds(room: &serde_json::Value) -> jig_domain_link::Bounds {
+    let mut agent: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../../../temper-init/template/agent.json"))
+            .expect("init agent configuration");
+    agent["profile"]["declared"]["tool_payload"] = room["tool_payload"].clone();
+    // Only addresses and template placeholders change; no endpoint is contacted.
+    for endpoint in agent["endpoints"].as_array_mut().expect("init endpoints") {
+        endpoint["limits"]["output"] = room["output"].clone();
+        endpoint["address"] = "127.0.0.1:1".into();
+    }
+    let scratch = skein_scratch::Scratch::new("reference-worker");
+    agent["programs"] = serde_json::json!({"claude_code": {
+        "path": scratch.path().join("claude"), "directory": scratch.path().join("programs")
+    }});
+    let path = scratch.path().join("agent.json");
+    std::fs::write(&path, serde_json::to_vec(&agent).expect("agent JSON")).expect("scratch agent");
+    crate::agent::read(&path).expect("stock worker with reference room").bounds
 }
 
 #[test]
