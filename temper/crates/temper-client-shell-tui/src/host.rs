@@ -200,7 +200,10 @@ impl Host {
     fn route(&mut self, duties: &mut Duties) {
         while let Some(request) = self.out.pop() {
             match route::down(request) {
-                Down::Shell(jig_client::Request::ServiceCredential { .. }) => {}
+                Down::Shell(jig_client::Request::ServiceCredential { .. })
+                | Down::Duty(Duty::Show { .. } | Duty::SignOut | Duty::Fact(_))
+                | Down::Notice(_)
+                | Down::Unlinked(_) => {}
                 Down::Shell(request) => {
                     if let jig_client::Request::Exchange { exchange, message: Message::SignInLink(_), .. } = &request {
                         self.signing.insert(*exchange).expect("bounded sign-in exchanges");
@@ -210,8 +213,6 @@ impl Host {
                 }
                 Down::Duty(Duty::Copy { token }) => {
                     self.step(Event::Copied { token, written: root::copy::Written::Refused });
-                }
-                Down::Duty(Duty::Show { .. } | Duty::SignOut | Duty::Fact(_)) | Down::Notice(_) | Down::Unlinked(_) => {
                 }
             }
         }
