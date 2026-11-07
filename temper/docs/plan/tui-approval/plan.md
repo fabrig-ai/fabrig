@@ -14,16 +14,28 @@ The binding calls are `notes/contracts.md`. In short:
 
 ## Parts and tasks
 
-| Part | Task | Needs | Crates |
-|---|---|---|---|
-| `jig-approval` | `wire` | none | `jig-client-protocol-wire` |
-| | `surface` | `wire` | `jig-protocol-engine-clients` (boundary, routes); the compiler's fields in every tree |
+| Part | Task | Needs | Crates | Minutes |
+|---|---|---|---|---|
+| `jig-approval` | `wire` | none | `jig-client-protocol-wire` | 60 |
+| | `surface` | `wire` | `jig-protocol-engine-clients`'s boundary and routes; the compiler's fields in every tree | 75 |
+| | `component` | `surface` | `jig-protocol-engine-clients` (the approval, its tables) | 210 |
+| | `http` | `surface` | `jig-protocol-engine-clients-http` | 75 |
+| | `config` | `surface` | `jig-protocol-config`, `jig-test-service` | 45 |
+| | `client` | `surface` | `jig-client-protocol-link`, `jig-client-protocol-http`, `jig-client`; the compiler's arms in every tree | 180 |
+| | `jig-story` | `component`, `client` | `jig-client-kit`'s joint, `jig/tests/client` | 120 |
 
-Later batches (this file grows with each push): the engine's approval (`component`), the HTTP routes (`http`), configuration (`config`), the client (`client`), jig's joint story (`jig-story`); then temper's part: configuration, the client root's half and the page's state, the view and the gallery, the client world's story.
+- **`wire`** adds 2.1's records and `ApprovalCode`; nothing existing changes.
+- **`surface`** is small on purpose: the component's four messages, `browser` and `Settings.approval`, answered as not enabled, with every literal and pattern they force. `component`, `http`, `config` and `client` then start at once.
+- **`component`** builds the approval in the component, red tests first for each refusal, in the crate's own tables.
+- **`http`** routes the four paths and tells the component a browser's exchange by its cookie alone.
+- **`client`** builds both halves in the client, the take sent again each second while it waits, and the unlinked mode the gallery and temper's joint world step.
+- **`jig-story`** is the meeting point: jig's joint world, real component, real core.
+
+temper's part follows in the next batch (its design is being written): configuration, the client root's half and the page's state, the view and the gallery, the client world's story.
 
 ## Critical path, as it stands
 
-`wire` (60) → `surface` (75) → `client` → `temper-domain` → `temper-view`. `component`, `http` and `config` run beside `client` once `surface` lands.
+`wire` (60) → `surface` (75) → `client` (180) → `temper-domain` → `temper-view`. `component` (210) runs beside `client`, and `jig-story` follows both; `http` and `config` are off the path.
 
 ## Decisions
 
