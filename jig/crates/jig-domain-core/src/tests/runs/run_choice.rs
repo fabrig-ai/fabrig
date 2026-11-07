@@ -108,6 +108,7 @@ fn ready(none: bool) -> (Core, Limits) {
     config.defaults.charters[0].policy.alternatives = Box::new([same, other]);
 
     let provider = accounts::Provider {
+        list: None,
         name: b"Fake".as_slice().into(),
         signed_in_plan: !none,
         manage_usage: Some(b"https://usage.example/".as_slice().into()),

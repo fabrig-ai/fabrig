@@ -38,6 +38,54 @@ pub fn valid_name(name: &[u8]) -> bool {
     true
 }
 
+/// Whole-name byte glob matching (jig/docs/design/protocol/configuration.md, 3).
+#[must_use]
+pub fn matches(pattern: &[u8], name: &[u8]) -> bool {
+    let mut at = 0_usize;
+    let mut next = 0_usize;
+    let mut star = None;
+    let mut retry = 0_usize;
+    // Between retries the pattern advances; each retry consumes one more name byte.
+    let steps = pattern.len().saturating_add(1).saturating_mul(name.len().saturating_add(1));
+    for _ in 0..steps {
+        if pattern.get(at) == Some(&b'*') {
+            at = at.checked_add(1).expect("pattern position");
+            star = Some(at);
+            retry = next;
+        } else if let Some(&byte) = name.get(next) {
+            if pattern.get(at) == Some(&b'?') || pattern.get(at) == Some(&byte) {
+                at = at.checked_add(1).expect("pattern position");
+                next = next.checked_add(1).expect("name position");
+            } else if let Some(after) = star {
+                retry = retry.checked_add(1).expect("retry position");
+                next = retry;
+                at = after;
+            } else {
+                return false;
+            }
+        } else {
+            return at == pattern.len();
+        }
+    }
+    false
+}
+
+/// A drop wins over any keep (jig/docs/design/domain/accounts.md, 3.7).
+#[must_use]
+pub fn kept(name: &[u8], list: &jig_domain_accounts::ProviderList) -> bool {
+    for pattern in &list.drop {
+        if matches(pattern, name) {
+            return false;
+        }
+    }
+    for pattern in &list.keep {
+        if matches(pattern, name) {
+            return true;
+        }
+    }
+    false
+}
+
 pub(crate) fn fits(value: &CatalogueModel, number: u32) -> bool {
     let model = &value.model;
     if number == 0

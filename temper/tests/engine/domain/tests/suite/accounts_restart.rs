@@ -34,6 +34,7 @@ fn config() -> engine::Config {
     config.core.settings.llm_providers = accounts::Providers {
         providers: Box::new([
             accounts::Provider {
+                list: None,
                 number: CLAUDE,
                 name: b"Fake Claude".as_slice().into(),
                 signed_in_plan: true,
@@ -45,6 +46,7 @@ fn config() -> engine::Config {
                 },
             },
             accounts::Provider {
+                list: None,
                 number: CHATGPT,
                 name: b"Fake ChatGPT".as_slice().into(),
                 signed_in_plan: true,

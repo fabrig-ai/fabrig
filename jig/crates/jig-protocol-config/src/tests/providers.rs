@@ -46,6 +46,27 @@ fn settings(bytes: &[u8]) -> accounts::Providers {
     crate::core(&engine, [0; 16], 7).settings.llm_providers
 }
 
+/// Append provider fields without changing any shared fixture document.
+fn with_patterns(fields: &[u8]) -> Box<[u8]> {
+    const NUMBER: &[u8] = br#""number": 1, "#;
+    let mut writer = skein_lib::Writer::new(fields.len().checked_add(NUMBER.len()).unwrap());
+    writer.put(NUMBER).unwrap();
+    writer.put(fields).unwrap();
+    one(br#""number": 1"#, &writer.finish())
+}
+
+// The two pattern bounds in configuration.md, 3.
+const PATTERN_BYTES: usize = 64;
+const PATTERNS: usize = 16;
+
+#[expect(clippy::disallowed_macros, clippy::disallowed_methods, reason = "bounded JSON test data")]
+fn pattern_fields(member: &str, pattern_bytes: usize, count: usize) -> Box<[u8]> {
+    let pattern = "a".repeat(pattern_bytes);
+    let items = vec![format!("\"{pattern}\""); count].join(",");
+    let keep = if member == "drop" { "\"keep\":[]," } else { "" };
+    format!("\"endpoint\":\"fake\",{keep}\"{member}\":[{items}]").into_bytes().into_boxed_slice()
+}
+
 #[test]
 fn providers_reach_the_accounts_settings() {
     let engine = fixtures::engine(&the_provider()).unwrap();
@@ -60,6 +81,7 @@ fn providers_reach_the_accounts_settings() {
         settings(&the_provider()),
         accounts::Providers {
             providers: Box::new([accounts::Provider {
+                list: None,
                 name: b"Fake".as_slice().into(),
                 signed_in_plan: true,
                 manage_usage: Some(b"https://usage.example/".as_slice().into()),
@@ -72,6 +94,36 @@ fn providers_reach_the_accounts_settings() {
             }]),
         }
     );
+    for (fields, expected) in [
+        (br#""endpoint":"fake""#.as_slice(), None),
+        (br#""endpoint":"fake","keep":[]"#, Some(accounts::ProviderList { keep: Box::new([]), drop: Box::new([]) })),
+        (
+            br#""endpoint":"fake","keep":["gpt-*","A0-._:?"]"#,
+            Some(accounts::ProviderList {
+                keep: Box::new([Box::from(b"gpt-*".as_slice()), Box::from(b"A0-._:?".as_slice())]),
+                drop: Box::new([]),
+            }),
+        ),
+        (
+            br#""endpoint":"fake","keep":["*"],"drop":["*audio*"]"#,
+            Some(accounts::ProviderList {
+                keep: Box::new([Box::from(b"*".as_slice())]),
+                drop: Box::new([Box::from(b"*audio*".as_slice())]),
+            }),
+        ),
+    ] {
+        assert_eq!(settings(&with_patterns(fields)).providers[0].list, expected, "{fields:?}");
+    }
+    for member in ["keep", "drop"] {
+        let fields = pattern_fields(member, PATTERN_BYTES, PATTERNS);
+        let providers = settings(&with_patterns(&fields));
+        let list = providers.providers[0].list.as_ref().unwrap();
+        let patterns = if member == "keep" { &list.keep } else { &list.drop };
+        assert_eq!(patterns.len(), PATTERNS);
+        for pattern in patterns {
+            assert_eq!(pattern.len(), PATTERN_BYTES);
+        }
+    }
 }
 #[test]
 fn a_model_without_a_provider_is_refused_when_providers_is_omitted() {
@@ -200,6 +252,39 @@ fn provider_problems_name_the_provider_and_field() {
         ("a_scope_with_a_space_is_refused", a_scope_with_a_space_is_refused),
         ("an_unknown_source_is_refused", an_unknown_source_is_refused),
     ]);
+    for (fields, field, index, what) in [
+        (br#""endpoint":"fake","keep":[""]"#.as_slice(), b"keep".as_slice(), Some(0), What::Form),
+        (br#""endpoint":"fake","keep":["slash/name"]"#, b"keep", Some(0), What::Form),
+        (br#""endpoint":"fake","keep":["ok","space name"]"#, b"keep", Some(1), What::Form),
+        (br#""endpoint":"fake","keep":["\u0000"]"#, b"keep", Some(0), What::Form),
+        (br#""endpoint":"fake","keep":["mod\u00e8le"]"#, b"keep", Some(0), What::Form),
+        (br#""endpoint":"fake","keep":[],"drop":[""]"#, b"drop", Some(0), What::Form),
+        (br#""endpoint":"fake","keep":[],"drop":["bad/name"]"#, b"drop", Some(0), What::Form),
+        (br#""keep":["*"]"#, b"keep", None, What::Refers),
+        (br#""drop":["*"]"#, b"drop", None, What::Refers),
+        (br#""endpoint":"fake","keep":null"#, b"keep", None, What::Kind),
+        (br#""endpoint":"fake","keep":[],"drop":[1]"#, b"drop", Some(0), What::Kind),
+    ] {
+        let path = provider_path(0).member(field);
+        let path = match index {
+            Some(index) => path.child(Segment::Index(index)),
+            None => path,
+        };
+        first_problem(&with_patterns(fields), path, what);
+    }
+    for (member, bytes, count, index) in [
+        ("keep", PATTERN_BYTES + 1, 1, Some(0)),
+        ("drop", PATTERN_BYTES + 1, 1, Some(0)),
+        ("keep", 1, PATTERNS + 1, None),
+        ("drop", 1, PATTERNS + 1, None),
+    ] {
+        let path = provider_path(0).member(member.as_bytes());
+        let path = match index {
+            Some(index) => path.child(Segment::Index(index)),
+            None => path,
+        };
+        first_problem(&with_patterns(&pattern_fields(member, bytes, count)), path, What::Bound);
+    }
 }
 
 type Case = (&'static str, fn());
