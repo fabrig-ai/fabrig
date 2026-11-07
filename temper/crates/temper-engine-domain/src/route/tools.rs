@@ -122,7 +122,9 @@ pub(crate) fn relay_payload(
             };
             match tool {
                 Tool::See { .. } => super::see::call(domain, reply_to),
-                Tool::Document { .. } => super::document::call(domain, reply_to),
+                Tool::Document { action, body } => {
+                    super::document::call(domain, env, decision, reply_to, key, action, body);
+                }
                 Tool::Decided(call) => super::decided::call(domain, env, decision, reply_to, key, call),
                 Tool::ReadTask { .. } => unreachable!("task reads enter before replay"),
                 Tool::Settings { .. } => unreachable!("settings reads enter before replay"),

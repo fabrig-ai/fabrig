@@ -458,7 +458,7 @@ impl Chat {
                 for message in &turn.messages {
                     for block in &message.blocks {
                         if let c::Block::Call(call) = block
-                            && call.tool.bytes() == b"note"
+                            && document::writes(call.tool.bytes())
                         {
                             newest = newest.max((name.attempt, name.number, call.number));
                         }
@@ -479,10 +479,10 @@ impl Chat {
                 for message in turn.messages.iter().rev() {
                     for block in message.blocks.iter().rev() {
                         if let c::Block::Call(call) = block
-                            && call.tool.bytes() == b"note"
+                            && document::writes(call.tool.bytes())
                             && !call.failed
                             && let Some(outcome) = &call.outcome
-                            && let Some(write) = document::note_write(outcome.bytes())
+                            && let Some(write) = document::tool_write(call.tool.bytes(), outcome.bytes())
                         {
                             return Some(write);
                         }
@@ -1405,7 +1405,7 @@ fn ask_activity(asking: &mut Asking, handle: Handle, read: Option<c::Read>, out:
 
 fn run_notes(run: &c::RunState) -> bool {
     match &run.call {
-        Some(call) => call.tool.bytes() == b"note",
+        Some(call) => document::writes(call.tool.bytes()),
         None => false,
     }
 }

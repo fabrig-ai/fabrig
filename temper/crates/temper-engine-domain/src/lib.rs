@@ -31,8 +31,9 @@ pub use decision::{
     fresh, resume, uncommitted, valid as journal_valid,
 };
 pub use store::{
-    CallAnswer, CallKey, CallRecord, Changed, CoreRange, Deployment, EscalationDecisionRecord, Family, Key,
-    ProposalDecisionRecord, Range, Record, RunProof, TerminalRecord, TurnProof, TurnRecord, Write, record_bytes,
+    CallAnswer, CallKey, CallRecord, Changed, CoreRange, Deployment, DocumentOutcome, DocumentRefusal, Documented,
+    EscalationDecisionRecord, Family, Key, NoteFamily, ProposalDecisionRecord, Range, Record, RunProof, TerminalRecord,
+    TurnProof, TurnRecord, Write, record_bytes,
 };
 
 pub use admission::{completes, try_step};

@@ -564,6 +564,7 @@ pub(crate) fn keep_connector_answer(
         | CallAnswer::DelegationRefused(_)
         | CallAnswer::NoteWritten { .. }
         | CallAnswer::NoteRecalled { .. }
+        | CallAnswer::Document(_)
         | CallAnswer::NoteRefused(_)
         | CallAnswer::SettingsRefused(_)
         | CallAnswer::HoldOwner { .. }

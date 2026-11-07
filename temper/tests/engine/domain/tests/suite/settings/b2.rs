@@ -411,7 +411,7 @@ fn asking_declarations() {
             let (answer, error) =
                 host_tool(&mut driver, &run, 2, b"document", br##"{"action":"write","body":"# Title"}"##);
             assert!(error);
-            assert_eq!(answer.as_ref(), b"document: not there yet.");
+            assert_eq!(answer.as_ref(), b"document: Authority refused: missing note scope (task authority.notes)");
         } else {
             assert_eq!(answer.as_ref(), b"Authority needs proposal: tool family asking");
             assert_eq!(driver.store.rows, original, "a denied see keeps no call record");
