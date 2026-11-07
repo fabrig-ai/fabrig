@@ -4,7 +4,7 @@ use crate::{MessageKind, Party, Word};
 
 /// Why a run runs, and the reasons a charter's part is for: one bit each
 /// (jig/docs/design/domain/tasks.md, 8.6; jig/docs/design/protocol/store.md, 5).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Reasons(pub u32);
 
 impl Reasons {
