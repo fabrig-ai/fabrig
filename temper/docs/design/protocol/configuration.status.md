@@ -66,9 +66,6 @@ remain section 11's deferred work.
   262,144-byte vocabulary bound cited here
   (`smith/docs/design/protocol/limits.status.md`, 2.4). This does not
   refuse the reference's fallback.
-- **Not yet:** 13.9: `room.json` has no `application` member, so the
-  reference's `root.journal.run_bytes` stays the box's 20,480; its
-  `README.md`'s commands and the tests that merge the room carry none.
 - **Departs:** 13.8: smith's host input admits 1,048,576 rather than the
   cited 262,144, matching its channel and transcript ceilings; the
   deployment's receiving limit still applies

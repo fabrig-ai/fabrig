@@ -12,5 +12,12 @@
         "hub.turn_queue_bytes": 147454736
       }
     }
+  },
+  "application": {
+    "limits": {
+      "overrides": {
+        "root.journal.run_bytes": 65536
+      }
+    }
   }
 }
