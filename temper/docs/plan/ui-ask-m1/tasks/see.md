@@ -231,3 +231,13 @@ pub(crate) fn address(line: &[u8], project: u32) -> Address;
 
 As the implementer's text says; give the bytes of `see settings`' first part in the
 stock world, and say which of the pre-approved options you took.
+
+## Rebase (2026-11-07, step merge, foreman ui-ask-m1/see/foreman-1)
+
+resolve agent.status.md by preserving both branches’ gap removals
+The merge conflicts only in `temper/docs/design/domain/agent.status.md`.
+Commit `7bbc4e4ab368bdf23a765dc95acdb997ed34fffe` on the integration trunk removes the 8.4 “no step test holds … 16,384 bytes” bullet.
+This task’s `1bf62c5020cfcbdd21e1df4231d7512dd1d9af46` removes the adjacent 8.4.1 “`see` reads no address” bullet.
+Resolve the conflict with both bullets absent.
+Keep the remaining forge-read, proposal-read and 8.4.2 gaps unchanged.
+The log reports clean automatic merges for `temper-engine-smith/src/settings.rs` and `src/tests.rs`; retain those combined changes.
