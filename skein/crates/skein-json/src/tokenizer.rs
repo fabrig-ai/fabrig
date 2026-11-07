@@ -56,7 +56,7 @@ pub use position::Position;
 use core::mem;
 
 use skein_lib::stream::{Delimiter, Down, Fault, Read, Up};
-use skein_lib::{Env, List, Queue, Stack, usize_of};
+use skein_lib::{Env, Intake, Queue, Stack, usize_of};
 
 use crate::Token;
 use crate::number::{After, Number};
@@ -112,7 +112,7 @@ pub fn tokenizer_bound(limits: &Limits) -> Option<u64> {
         return None;
     }
     let open = Stack::<Container>::price(limits.depth)?;
-    let text = List::<u8>::price(text_capacity(limits))?;
+    let text = Intake::price(text_capacity(limits))?;
     open.checked_add(text)?.checked_add(u64::from(largest_demand(limits)))
 }
 
@@ -247,7 +247,7 @@ impl Tokenizer {
                 expect: Expect::Value,
                 open: Stack::with_capacity(limits.depth),
                 text: Buffer {
-                    bytes: List::with_capacity(text_capacity(limits)),
+                    bytes: Intake::with_capacity(text_capacity(limits)),
                     length: 0,
                     retention: Retention::Strict(limits.string),
                     begun: 0,
@@ -948,7 +948,7 @@ fn number_more(document: &mut Document, limits: &Limits, number: Number, byte: u
     match document.mode {
         Mode::Skip { .. } => {}
         Mode::Next | Mode::Text(_) => {
-            document.text.bytes.push(byte).expect("the text holds the longest number");
+            document.text.bytes.append(&[byte]).expect("the text holds the longest number");
         }
     }
     Step::Read(Reading::Number(number))
@@ -956,7 +956,7 @@ fn number_more(document: &mut Document, limits: &Limits, number: Number, byte: u
 
 /// The number read, as a token, the text emptied for the next.
 fn number_token(document: &mut Document) -> Token {
-    let text = document.text.bytes.to_boxed();
+    let text = document.text.take();
     document.text.reset(Retention::Discard);
     after_value(document);
     Token::Number(text)
@@ -964,8 +964,7 @@ fn number_token(document: &mut Document) -> Token {
 
 /// The string or key read, as a token, the text emptied for the next.
 fn string_token(document: &mut Document, key: bool) -> Step {
-    let text = document.text.bytes.to_boxed();
-    document.text.bytes.clear();
+    let text = document.text.take();
     if key {
         document.expect = Expect::Colon;
         return match document.mode {

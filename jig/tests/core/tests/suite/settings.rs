@@ -2072,25 +2072,8 @@ fn goal_description_review(world: &mut World, signed: u64, goal: u64) -> documen
 }
 
 #[test]
-fn stock_profiles_hold_a_day_of_deciding_requests() {
-    for (profile, parties) in [(jig_protocol_config::Profile::Small, 4), (jig_protocol_config::Profile::Standard, 16)] {
-        let (config, mut limits) = configuration();
-        let people = jig_protocol_config::profile(profile).core.people;
-        limits.core.people.requests = people.requests;
-        limits.core.people.request_retention = people.request_retention;
-        let mut world = RequestWorld::new(config, &limits);
-        let signed = world.sign_in();
-        // Twenty conversations per person: creation, three messages and a decision; fivefold room.
-        let requests = parties * 20 * 5 * 5;
-        for number in 1..requests {
-            world.change(signed, number);
-            assert_answer(&world.store.rows, number, &people::Outcome::SettingsChanged { revision: number + 1 });
-        }
-        world.visibility(signed, requests);
-        assert_answer(&world.store.rows, requests, &people::Outcome::VisibilitySet { project: 1, public: true });
-        world.restart();
-        world.change(signed, 1);
-    }
+fn a_small_profile_s_whole_room_of_answers_holds_and_restarts() {
+    support::whole_room_of_answers(jig_protocol_config::Profile::Small);
 }
 
 fn request_world(config: root::Config, limits: &root::Limits) -> World {
@@ -2107,17 +2090,6 @@ fn request_world(config: root::Config, limits: &root::Limits) -> World {
 
 fn assert_saved_answer(world: &World, number: u32, expected: &people::Outcome) {
     assert_answer(&world.store.rows, number, expected);
-}
-
-fn assert_answer(rows: &std::collections::BTreeMap<root::Key, root::Record>, number: u32, expected: &people::Outcome) {
-    let address = root::Key::Core(core::Key::People(people::Key::Answer(people::RequestKey {
-        person: OWNER,
-        key: request_key(number),
-    })));
-    let root::Record::Core(core::Record::People(people::Stored::Answer { outcome, .. })) = &rows[&address] else {
-        panic!("durable deciding answer")
-    };
-    assert_eq!(outcome, expected);
 }
 
 #[test]

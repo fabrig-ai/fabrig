@@ -7,6 +7,7 @@ charter 3's 357,438-byte room after its publication instructions. The
 stock's fit assertions and `temper-service/src/limits.rs` agree; the
 larger brief requested in section 11 remains undecided.
 
+
 Section 13.4 has no known gap in charter 10: the stock trial has one
 working turn, no tools or resume, and charter 1's model choices. Its
 projectless task and the client's remaining trial gaps are

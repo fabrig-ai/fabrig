@@ -22,7 +22,7 @@ impl Makes {
         self.configured =
             config.defaults.policies.iter().map(|(number, seed)| (*number, seed.policy.clone())).collect();
     }
-    pub(super) fn inbound(&mut self, store: &Store<'_>, event: &core::Event) {
+    pub(super) fn ask(&mut self, store: &Store<'_>, event: &core::Event) {
         if let core::Event::People(people::Event::Ask {
             sign_in,
             key,
@@ -37,6 +37,8 @@ impl Makes {
                 self.requests.insert(people::RequestKey { person: *person, key: *key }, policy.clone());
             }
         }
+    }
+    pub(super) fn act(&mut self, event: &core::Event) {
         if let core::Event::Act { connector, key, act, .. } = event
             && let people::Act::MakeProject { policy, .. } = &**act
             && let Some(policy) = self.configured.get(policy)

@@ -10,7 +10,6 @@ pub struct Store<'a> {
     pub rows: BTreeMap<core::Key, &'a core::Record>,
     pub pending: VecDeque<Commit<'a>>,
     pub effects: Effects,
-    pub named: Vec<NamedRevision>,
 }
 
 /// One atomic decision in the application's store.
@@ -28,6 +27,12 @@ pub enum Write<'a> {
     Other,
 }
 
+/// One submitted commit's core part (an adapter's `submitted` reads no other).
+#[must_use]
+pub fn commit<'a, W: 'a>(number: u64, writes: &'a [W], write: impl FnMut(&'a W) -> Write<'a>) -> Commit<'a> {
+    Commit { number, writes: writes.iter().map(write).collect() }
+}
+
 /// Borrow core rows and translate submitted writes; the adapter adds connector evidence.
 #[must_use]
 pub fn view<'a, R: 'a, W: 'a>(
@@ -40,10 +45,7 @@ pub fn view<'a, R: 'a, W: 'a>(
     Store {
         applied,
         rows: rows.into_iter().filter_map(row).map(|row| (row.key(), row)).collect(),
-        pending: pending
-            .into_iter()
-            .map(|(number, writes)| Commit { number, writes: writes.iter().map(&mut write).collect() })
-            .collect(),
+        pending: pending.into_iter().map(|(number, writes)| commit(number, writes, &mut write)).collect(),
         ..Store::default()
     }
 }
