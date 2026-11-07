@@ -434,6 +434,38 @@ agent must name.
   temper's settings with jig's, by the names above, and no project's
   policy, which is no setting (`project show` prints its roles and
   spends).
+- **A charter's parts and a later choice** (`../draft/per-wake.md`,
+  sections 3 and 5; jig's `protocol/configuration.md`, sections 3 and
+  3.1). A charter's `parts`, which `FIELDS` marks optional, left out
+  `[]`, is a list, in order, of `{"on": [REASON, ...], "instructions":
+  TEXT}`: each `on` a nonempty list of `first` and the kinds that
+  choose parts, by jig's store names (jig's
+  `client/domain/contract.md`, 3.2), each named once, and its
+  instructions text, bounded as the charter's own are. A run reads the
+  charter's `instructions`, then each part whose `on` meets why it runs.
+  A template's model choice may add `"later": {"main": {"model": M,
+  "effort": E}, "subagents": [...]}`, its `subagents` left out empty:
+  the choice every run after the task's first activation's takes (jig's
+  `domain/tasks.md`, section 3), its efforts checked against `me` as
+  the first choice's are; left out, it has none. `settings show … --json`
+  prints `parts` only for a charter that has some and `later` only for
+  a choice that has one, so a value without them prints as before. The
+  decoder refuses, before anything is sent, naming the item and the
+  member's path, its indices from 0 as a document's are: a name that is
+  no reason, or one every run is offered, `settings file item 1:
+  charter.parts[1].on[0]: "answer" goes to every run and chooses no
+  part`; a name twice; an empty `on`; more
+  parts than `tasks.charter_parts`; and parts on a charter whose runs
+  resume, `charter.parts: a charter that resumes takes no parts`. jig's
+  refusal of a change names the charter and no part
+  (`../draft/per-wake.status.md`, 3), so what the engine refuses of a
+  charter's parts, its stored policy past `root.journal.run_bytes`
+  among it, prints as any refusal of a charter does, `settings apply:
+  out of shape; item 1; charter 5: shape`. In text, `settings show charter N` prints,
+  after the value, a line per part, by its path, with its `on` and its
+  instructions' bytes, `parts[0]: on first; 4210 bytes`,
+  and `settings show template N` a line for a later choice, `later:
+  claude-opus-5-5 high`.
 - **The form's fields are one table,** `FIELDS`, beside the form's
   decoder in the crate ctl and the runs' `propose_settings` share
   (`temper-settings-form`): a row per member of a shape, by the shape's
