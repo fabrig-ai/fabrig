@@ -73,6 +73,11 @@ Each task fills its own subsection. Suite totals aren't quoted here: the gate re
 | `skein-http` | `tests` | 143 | 135 | 4 | 31 | 12.0 |
 | `skein-fake-forge-domain` | `tests` | 244 | 227 | 7 | 39 | 27.2 |
 
+| `skein-forge-setup-world::suite` | `host` | 24 | 22 | 2 | 4 | 5.0 |
+| `skein-forge-setup-world::suite` | `create` | 8 | 7 | 1 | 2 | 2.5 |
+| `skein-forge-setup-world::suite` | `reconcile` | 15 | 14 | 1 | 2 | 2.5 |
+| `skein-forge-setup-world::suite` | `github` | 13 | 12 | 1 | 2 | 2.5 |
+
 Left apart:
 
 - `skein-rows::tests`, 8 tests: independent runner admission, continuation, diagnostics and panic-message contracts.
@@ -83,6 +88,8 @@ Left apart:
 - `skein-oauth`, other client exchanges, OpenID claims, registrations, byte encodings and generated golden tests: distinct validation and lifecycle contracts or existing tables. All eight surveyed groups fold; generated code stays untouched.
 - `skein-http::tests` and `tests::server`: all six surveyed groups fold. Other framing failures, gzip algorithms, stream lifecycle, demand ordering and misuse panics have different assertions and remain separate. Request-body rows all check the final 204 suffix.
 - `skein-fake-forge-domain::tests`: surveyed verdict, log and report groups fold. Three forced-failure tests and the compatible foreign label, edit, deletion and queue-name failures also fold as profile/observation/decision data. Marker parsing, successful permission streams, verdict precedence, checkpoints, exact rebase exemptions and other domain operations retain separate contracts or existing tables.
+- `skein-forge-setup-world::suite`: all five surveyed groups fold. Heap measurements, fuzzy sweeps and distinct host, creation, reconciliation, permissions and GitHub lifecycle paths stay separate; common page reads, connection facts and mutation-route absence checks hold for every folded row.
+- `skein-forge-setup-world::suite`: all five surveyed groups fold. Heap measurements, fuzzy sweeps and distinct host, creation, reconciliation, permissions and GitHub lifecycle paths stay separate; common page reads, connection facts and mutation-route absence checks hold for every folded row.
 
 ### rows-forge
 

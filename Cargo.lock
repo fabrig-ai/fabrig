@@ -3335,6 +3335,7 @@ dependencies = [
  "skein-io",
  "skein-json",
  "skein-lib",
+ "skein-rows",
  "skein-tls-kit",
 ]
 
