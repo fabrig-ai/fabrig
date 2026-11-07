@@ -1,4 +1,4 @@
-//! Mirrors the process tier's `support/sign_in.rs` issuer: one synthetic `OpenID` grant,
+//! Mirrors the process tier's `support/sign_in.rs` issuer: two sign-ins of one synthetic `OpenID` grant,
 //! the same registration and varying callback port, hosted by the browser harness.
 use skein_fake_peers::{Transport, oauth};
 use skein_lib::Duration;
@@ -11,7 +11,8 @@ pub(super) fn peer(address: std::net::SocketAddr, registration: &serde_json::Val
         document: profile.driver.client.document,
         uri_bytes: 1024,
         request_bytes: 4096,
-        codes: 1,
+        // A redeemed code keeps its place alongside the second sign-in's.
+        codes: 2,
         rotations: 2,
         carried: 5,
         plans: 1,
@@ -21,7 +22,8 @@ pub(super) fn peer(address: std::net::SocketAddr, registration: &serde_json::Val
         Transport::Plaintext,
         skein_fake_peers::Limits {
             io: profile.io,
-            connections: 2,
+            // Each sign-in tab may hold a connection beside the engine's.
+            connections: 4,
             queue: 64,
             plaintext: 131_072,
             ciphertext: 131_072,

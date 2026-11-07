@@ -95,7 +95,7 @@ work; no new real-model or phone press outcome is supplied.
   unable to leave a call unanswered (`temper/tests/client/tests/suite/call_line.rs`,
   `outstanding`). Chromium's story opens a committed line alone, since the demo's fake
   LLM holds text pieces, not calls, and a held text ends a run
-  (`temper/tests/client-browser/tests/browser_all/browser_call_line.rs`), and the real
+  (`temper/tests/client-browser/tests/browser_all/browser_pages.rs`, its history's test), and the real
   terminal's reads a committed line alone (`temper/tests/real-loop/tests/suite/terminal.rs`,
   `a_person_at_the_terminal_reads_a_run_of_calls`). A browser's running line is seen in
   the gallery's `chat-work-running`; a terminal's in the view's tests and that world.
