@@ -158,6 +158,7 @@ impl Call {
                     let credential = self.credential.take();
                     let message = match crate::dispatch::message(&self.route, body) {
                         Some(message) => jig_protocol_engine_clients::FromTransport::Exchange {
+                            browser: false,
                             exchange: self.name,
                             credential,
                             message,

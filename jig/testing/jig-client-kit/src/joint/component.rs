@@ -65,6 +65,7 @@ impl Composition {
         let settings = clients::Settings {
             provider: None,
             link_secret: None,
+            approval: false,
             addresses: Box::new([]),
             link: None,
             deployment_provider: 2,
@@ -472,6 +473,7 @@ impl Composition {
         }
     }
 
+    #[expect(clippy::too_many_lines, reason = "transport wiring carries the browser marker beside the credential")]
     fn link_request(&mut self, client: ClientId, request: link::Request, driver: &mut Driver) {
         let up = match request {
             link::Request::StreamsFull { full } => jig_client::Up::StreamsFull { full },
@@ -489,7 +491,12 @@ impl Composition {
                     link::Message::SignInService => clients::Message::SignInService(Box::new([])),
                     link::Message::SignOut => clients::Message::SignOut(Box::new([])),
                 };
-                self.event(Event::Transport(clients::FromTransport::Exchange { exchange: name, credential, message }));
+                self.event(Event::Transport(clients::FromTransport::Exchange {
+                    browser: false,
+                    exchange: name,
+                    credential,
+                    message,
+                }));
                 return;
             }
             link::Request::OpenStream { credential } => {

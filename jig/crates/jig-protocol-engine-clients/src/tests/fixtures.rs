@@ -39,6 +39,7 @@ pub fn settings() -> Settings {
         deployment_provider: 2,
         link: None,
         link_secret: None,
+        approval: false,
         heartbeat: Duration::from_secs(5),
         rows: 32,
         served,
@@ -196,6 +197,7 @@ impl Exchange {
         self.component.down(
             &self.env,
             Event::Transport(crate::FromTransport::Exchange {
+                browser: false,
                 exchange: owner,
                 credential: Some(Secret::new(self.token.clone())),
                 message,
