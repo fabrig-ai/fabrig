@@ -105,3 +105,21 @@ adapter scans in effect evidence cost about 386 / 860 million inclusive Ir;
 fixture construction for repeated public document watches is another cause
 in CI repair. They are considered next, with independent full-walk comparisons
 for indexed evidence and every public readback retained.
+
+## Fourth fix: typed effect evidence lookups
+
+Commit `04347dd69c` narrows entry and call discovery to their typed key ranges,
+and looks up known calls, tasks and issues by key. Purpose, task, goal, phase
+and origin predicates stay checked. Unit builds compare identities, outcomes,
+issue evidence and the complete seen/held/settled accounting with full walks.
+Inverting the entry match fails by relabeling a call as a procedure.
+
+| Story | Arm | Run | Ir | Native CPU s (user + system, with descendants) | Result |
+|---|---|---:|---:|---:|---|
+| CI repair | Indexed effect evidence | 1 | 19,437,631,801 | 6.779 | 1 passed; 78 children |
+| Changed judge | Indexed effect evidence | 1 | 15,589,228,169 | 5.476 | 1 passed; 77 children |
+
+This removes another 412,112,143 / 952,988,136 Ir, 2.08% / 5.76% of the
+preceding arm. The native CI timing rose; instructions remain the comparison.
+A compatibility check also holds the referee's existing Send and Sync traits;
+the final arm uses atomic immutable policy sharing, with edits still detached.

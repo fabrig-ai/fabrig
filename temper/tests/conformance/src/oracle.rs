@@ -47,18 +47,24 @@ fn document(
     sign_in: u64,
     project: u32,
     subject: u64,
+    (connector, rows): (u16, u32),
 ) -> Result<Option<forge::Document>, Violation> {
-    let (configuration, limits) = crate::config::root(world.peers.seed, world.peers.scenario, world.peers.story);
+    #[cfg(test)]
+    {
+        let (configuration, limits) = crate::config::root(world.peers.seed, world.peers.scenario, world.peers.story);
+        assert_eq!((connector, rows), (configuration.core.connectors[0], limits.documents.rows),
+            "shared watch parameters");
+    }
     let watcher = Token::new(REPLY);
     world.send(Event::Root(Input::Party(PartyInput::Watch {
         watcher,
         sign_in,
         subject: documents::Watched::Application {
             scope: jig_domain_people::ApplicationScope::Project(project),
-            connector: configuration.core.connectors[0],
+            connector,
             subject: Token::new(subject),
         },
-        window: documents::Window { rows: limits.documents.rows, after: None },
+        window: documents::Window { rows, after: None },
     })));
     world.drain()?;
     let answer = world.peers.oracle.documents.remove(&REPLY);
@@ -73,9 +79,16 @@ pub(super) fn close(world: &mut Harness<Temper>) -> Result<(), Violation> {
         snapshot.answers.push(read(world, *sign_in, query.clone())?);
     }
     let subjects = oracle::forge_subjects(&world.store.rows);
+    // Fixture inputs stay fixed through readback and its cold restart. Retain
+    // only the two watch parameters, with the constructed configuration dropped.
+    let watch = (!subjects.is_empty()).then(|| {
+        let (configuration, limits) = crate::config::root(world.peers.seed, world.peers.scenario, world.peers.story);
+        (configuration.core.connectors[0], limits.documents.rows)
+    });
     let mut documents = Vec::new();
     for (sign_in, project, subject) in &subjects {
-        documents.push(document(world, *sign_in, *project, *subject)?);
+        documents.push(document(world, *sign_in, *project, *subject,
+            watch.expect("document subjects have watch parameters"))?);
     }
     let forges = world.domain.root.forges();
     world.crash()?;
@@ -85,7 +98,8 @@ pub(super) fn close(world: &mut Harness<Temper>) -> Result<(), Violation> {
         snapshot.compare_answer(index, read(world, *sign_in, query.clone())?);
     }
     for ((sign_in, project, subject), before) in subjects.into_iter().zip(documents) {
-        oracle::compare_forge(project, subject, before, document(world, sign_in, project, subject)?);
+        oracle::compare_forge(project, subject, before, document(world, sign_in, project, subject,
+            watch.expect("document subjects have watch parameters"))?);
     }
     Ok(())
 }
