@@ -101,6 +101,9 @@ pub fn feedback_bound(limits: &run::Limits) -> Option<u64> {
     // Rules 1 and 2: all problem names share the contract/declaration total;
     // only the names' arbitrary bytes need the invalid-UTF-8 expansion.
     let problems = fields.checked_add(u64::from(Problems::LISTED).checked_mul(256)?)?.checked_add(128)?;
+    // Admission prices repository names and custom check paths together within
+    // run_bytes. Both and the tail may expand fourfold; 256 holds the default
+    // path, labels, exit and both u64 counts (given_ms and cut).
     let checks = limits.run_bytes.checked_add(u64::from(limits.check_tail))?.checked_mul(4)?.checked_add(256)?;
     let count = u64::from(limits.directories.min(run::MAX_DIRECTORIES));
     let receipts = u64::try_from(run::Receipt::CAPACITY)
@@ -160,7 +163,7 @@ fn render(text: &mut Text, returned: &Returned) {
                 render_problem(text, problem);
             }
         }
-        Returned::ChecksFailed { repository, ran } => render_checks(text, repository, ran),
+        Returned::ChecksFailed { repository, check, given, ran } => render_checks(text, repository, check, *given, ran),
         Returned::Stale => text.put(b"stale"),
         Returned::DeliveryFailed { failure } => {
             text.put(b"delivery-failed directory=");
@@ -246,11 +249,15 @@ fn render_delivery_refusal(text: &mut Text, refusal: &run::DeliveryRefusal) {
     }
 }
 
-fn render_checks(text: &mut Text, repository: &[u8], ran: &run::Ran) {
+fn render_checks(text: &mut Text, repository: &[u8], check: &[u8], given: skein_lib::Duration, ran: &run::Ran) {
     text.put(b"checks-failed repository=");
     text.bytes(repository);
+    text.put(b" check=");
+    text.bytes(check);
     text.put(b" exit=");
     render_exit(text, ran.exit);
+    text.put(b" given_ms=");
+    text.number(given.as_millis());
     text.put(b" cut=");
     text.number(ran.cut);
     text.put(b" tail=");

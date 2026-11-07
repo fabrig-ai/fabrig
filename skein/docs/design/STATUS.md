@@ -39,7 +39,10 @@ check after landing (`browser.md`).
 Markdown flows have their own owner, bounded reader and deterministic
 layout; scenes may state their height and the web puts that SVG in its
 figure's flow. The case scenes and text fallback are held by host tests
-(`ui.md`, `ui-web.md`, `ui-text.md`). Branches, merges, more shapes and
+(`ui.md`, `ui-web.md`, `ui-text.md`). Node hints are bounded text carried
+by attribute patches, shown as `title` on the web and omitted by the text
+shell (`ui.md`, 3.2; `ui-web.md`, section 6; `ui-text.md`, section 5).
+Branches, merges, more shapes and
 sequence diagrams remain later work (`ui.md`, section 18); the practice
 and home of draft acceptance cases remain the user's open decision
 (`draft/diagrams.md`, section 10).

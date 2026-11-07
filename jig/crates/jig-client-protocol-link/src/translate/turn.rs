@@ -77,7 +77,7 @@ pub(crate) fn inspect(
 
 pub(crate) fn archive(record: w::ArchivedTurn, limits: &Limits) -> Result<c::ArchivedTurn, Undecodable> {
     let w::TurnBytes::Carried(carried) = record.turn() else { return Err(Undecodable::TooLarge) };
-    let c::TurnRead::Decoded(turn) = decode(carried.bytes(), limits.archived_turn()) else {
+    let c::TurnRead::Decoded(turn) = decode(carried.bytes(), limits.turn_read()) else {
         return Err(Undecodable::Malformed);
     };
     Ok(c::ArchivedTurn {

@@ -35,6 +35,11 @@ Ctl distinguishes a retained decision from an unknown proposal, saying
 the latter may have been decided or replaced; returning decided first
 for an automatically replaced task proposal needs jig's decision history
 (`client/tools.md`, 7 and 14).
+A chat's heading shows its first sentence or line within 72 characters
+in both shells, retaining the whole name and, where cut, a hover hint;
+the crumbs yield to the bar's controls. Temper/ui's render comparison
+and a possible model-written title remain later work (`client/README.md`,
+3.5 and 11; `client/journeys.md`, sections 9 and 10).
 Fresh projects offer drafts;
 configuring chats offer one even with drafts off, and a project holding a
 goal shows Goals in its bar. Home can still show To begin and Chats, so

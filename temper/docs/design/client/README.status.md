@@ -9,6 +9,15 @@ Waiting-line pointers name no ctl call, and their help pages are checked.
 The after-landing check and the non-waiting forge-key command pointer
 remain section 11's later work.
 
+Section 3.5, *A chat's heading is short*, has no known implementation
+gap: one view function makes the first sentence or line, cut within 72
+characters, for both shells. The whole numbered name and conditional
+whole-title hint remain, and the crumbs take `flex: 1 1 320px`. The
+focused tables cover the short forms and both shells' headings, including
+a title at its text bound. The `chat-title` account is commit
+`4283afdd91`; its render comparison and a possible model-written title
+remain section 11's later work. No rendered-equality result is supplied.
+
 Sections 3.5 and 5.5 have no known implementation gap in naming accounts
 by email on Ready, the Model step, the model-check pane, the picker or
 Accounts, including terminal words and the display/source-name fallback.

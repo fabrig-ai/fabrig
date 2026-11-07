@@ -1,0 +1,92 @@
+draft = "replay-repairs"
+repo = "fabrig"
+sources = ["temper/docs/plan/replay-repairs/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "refusal-at"
+title = "An out-of-shape settings refusal names the failing item's position"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 17.2"
+
+[[part]]
+id = "room"
+title = "The reference's room carries the journal's run bound and says what a charter must fit"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.9"
+
+[[slice]]
+id = 1
+story = "A change whose third item, a charter, fails its check is refused naming item 2, its settings rows unchanged"
+parts = ["refusal-at"]
+walk = false
+
+[[slice]]
+id = 2
+story = "The reference's room, merged as its README says, starts with root.journal.run_bytes 65,536"
+parts = ["room"]
+walk = false
+
+[[part]]
+id = "walk-order"
+title = "A setting's derived order is the store's key order, so a restart's settings walk advances across a model's setting"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/store.md, 4.1"
+
+[[part]]
+id = "review-files"
+title = "A pull section whose page of files is past the forge client's limit keeps its identity with a files-omitted notice"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 8.4"
+
+[[part]]
+id = "turn-input"
+title = "A turn read alone is decoded whole, so a call's input pages to its last byte"
+mode = "direct"
+needs = []
+design = "jig/docs/design/client/domain/client.md, 10"
+
+[[part]]
+id = "check-refusal"
+title = "A failed check's feedback names its check and the time it was given, and carries what it wrote"
+mode = "direct"
+needs = []
+design = "smith/docs/design/domain/run.md, 8.1"
+
+[[slice]]
+id = 3
+story = "A store holding an application's setting or a project's policy and a model's setting restarts, its startup walk paging across them one row at a time"
+parts = ["walk-order"]
+walk = false
+
+[[slice]]
+id = 4
+story = "A review of a pull whose one file is past the forge client's answer bytes starts, its brief naming the pull and the omitted page"
+parts = ["review-files"]
+walk = false
+
+[[slice]]
+id = 5
+story = "A turn read alone whose call input passes turn_text decodes with that input whole and unmarked"
+parts = ["turn-input"]
+walk = false
+
+[[slice]]
+id = 6
+story = "A delivery whose check times out after writing is refused naming its repository, its check, the time given and its tail"
+parts = ["check-refusal"]
+walk = false
+
+[[question]]
+id = "too-large-measure"
+text = "Should a forge read refused as too large say which bound it met and the size it measured, as request item 2 asks? Today skein's forge vocabulary refuses with a bare `api::Error::TooLarge` (skein/crates/skein-forge/src/api.rs), so the review's held reason and `read_pull_files`'s refusal (temper/crates/temper-engine-smith/src/answers.rs, `read_size`) can only say 'forge.client.rows or forge.client.answer_bytes (measured size unknown)'. The forge client knows both where it refuses an answer (skein-forge-client, `bounds.rs`); a provider plan stopping on a file side knows the cap and a lower bound only. Carrying them changes skein's forge interface (`TooLarge` gains the bound and the measure, exact or at least) and temper's stored answer (temper-protocol-store's store-v11 `too_large`, its codec and goldens), so it is a public interface and a stored format: yours, and the request makes it a question first. This plan builds the rest of item 2 without it: a review of a small change to a large document starts, with a files-omitted notice. Options: yes, in place before v0.1.0, as a plan of its own of about three tasks (skein's vocabulary and client, with skein's heads-up; temper's stored record; the words in the brief's log and the tool's refusal), recommended; yes in skein's interface only, kept in memory and dropped at rest, so a restart's replayed answer says unknown; or no, the words name the client's configured bounds (rows 8, answer bytes 255,570 in the reference) without a measure."
+parts = ["review-files"]
