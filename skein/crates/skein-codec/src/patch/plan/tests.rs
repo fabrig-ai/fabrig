@@ -36,7 +36,8 @@ const F: Target = Target::Field(FieldIx::new(0));
 const V: Target = Target::Variant(VariantIx::new(0));
 
 struct ChangeRow {
-    name: &'static str,
+    accepted_name: &'static str,
+    missing_name: &'static str,
     old: &'static str,
     new: &'static str,
     lines: &'static str,
@@ -47,7 +48,8 @@ struct ChangeRow {
 
 const CHANGES: &[ChangeRow] = &[
     ChangeRow {
-        name: "add declaration",
+        accepted_name: "each_layout_change_accepts_its_line: add declaration",
+        missing_name: "each_layout_change_requires_its_line_in_diff_order: add declaration",
         old: "",
         new: "record D {}",
         lines: "add D\n",
@@ -56,7 +58,8 @@ const CHANGES: &[ChangeRow] = &[
         target: D,
     },
     ChangeRow {
-        name: "drop declaration",
+        accepted_name: "each_layout_change_accepts_its_line: drop declaration",
+        missing_name: "each_layout_change_requires_its_line_in_diff_order: drop declaration",
         old: "record D {}",
         new: "",
         lines: "drop D\n",
@@ -65,7 +68,8 @@ const CHANGES: &[ChangeRow] = &[
         target: D,
     },
     ChangeRow {
-        name: "reshape",
+        accepted_name: "each_layout_change_accepts_its_line: reshape",
+        missing_name: "each_layout_change_requires_its_line_in_diff_order: reshape",
         old: "record D {}",
         new: "enum D { a }",
         lines: "reshape D\nwritten D\n",
@@ -74,7 +78,8 @@ const CHANGES: &[ChangeRow] = &[
         target: D,
     },
     ChangeRow {
-        name: "versioned",
+        accepted_name: "each_layout_change_accepts_its_line: versioned",
+        missing_name: "each_layout_change_requires_its_line_in_diff_order: versioned",
         old: "record D {}",
         new: "versioned record D {}",
         lines: "versioned D\n",
@@ -83,7 +88,8 @@ const CHANGES: &[ChangeRow] = &[
         target: D,
     },
     ChangeRow {
-        name: "unversioned",
+        accepted_name: "each_layout_change_accepts_its_line: unversioned",
+        missing_name: "each_layout_change_requires_its_line_in_diff_order: unversioned",
         old: "versioned record D {}",
         new: "record D {}",
         lines: "unversioned D\n",
@@ -92,7 +98,8 @@ const CHANGES: &[ChangeRow] = &[
         target: D,
     },
     ChangeRow {
-        name: "add field",
+        accepted_name: "each_layout_change_accepts_its_line: add field",
+        missing_name: "each_layout_change_requires_its_line_in_diff_order: add field",
         old: "record D {}",
         new: "record D { f: u8 }",
         lines: "add D.f u8 1\n",
@@ -101,7 +108,8 @@ const CHANGES: &[ChangeRow] = &[
         target: F,
     },
     ChangeRow {
-        name: "drop field",
+        accepted_name: "each_layout_change_accepts_its_line: drop field",
+        missing_name: "each_layout_change_requires_its_line_in_diff_order: drop field",
         old: "record D { f: u8 }",
         new: "record D {}",
         lines: "drop D.f\n",
@@ -110,7 +118,8 @@ const CHANGES: &[ChangeRow] = &[
         target: F,
     },
     ChangeRow {
-        name: "widen",
+        accepted_name: "each_layout_change_accepts_its_line: widen",
+        missing_name: "each_layout_change_requires_its_line_in_diff_order: widen",
         old: "record D { f: u8 }",
         new: "record D { f: u16 }",
         lines: "widen D.f u8 u16\n",
@@ -119,7 +128,8 @@ const CHANGES: &[ChangeRow] = &[
         target: F,
     },
     ChangeRow {
-        name: "wrap inner",
+        accepted_name: "each_layout_change_accepts_its_line: wrap inner",
+        missing_name: "each_layout_change_requires_its_line_in_diff_order: wrap inner",
         old: "record D { f: list 8 text 32 }",
         new: "record D { f: list 8 option text 32 }",
         lines: "wrap D.f list 8 text 32 list 8 option text 32\n",
@@ -128,7 +138,8 @@ const CHANGES: &[ChangeRow] = &[
         target: F,
     },
     ChangeRow {
-        name: "retype",
+        accepted_name: "each_layout_change_accepts_its_line: retype",
+        missing_name: "each_layout_change_requires_its_line_in_diff_order: retype",
         old: "record D { f: u8 }",
         new: "record D { f: bool }",
         lines: "retype D.f u8 bool\nwritten D\n",
@@ -137,7 +148,8 @@ const CHANGES: &[ChangeRow] = &[
         target: F,
     },
     ChangeRow {
-        name: "add held secret",
+        accepted_name: "each_layout_change_accepts_its_line: add held secret",
+        missing_name: "each_layout_change_requires_its_line_in_diff_order: add held secret",
         old: "record D {}",
         new: "record D { f: secret 8 holds other R }",
         lines: "add D.f secret 8 holds other R written\nwritten D.f\n",
@@ -146,7 +158,8 @@ const CHANGES: &[ChangeRow] = &[
         target: F,
     },
     ChangeRow {
-        name: "retype held secret",
+        accepted_name: "each_layout_change_accepts_its_line: retype held secret",
+        missing_name: "each_layout_change_requires_its_line_in_diff_order: retype held secret",
         old: "record D { f: secret 8 holds other R }",
         new: "record D { f: secret 8 holds other S }",
         lines: "retype D.f secret 8 holds other R secret 8 holds other S\nwritten D.f\n",
@@ -155,7 +168,8 @@ const CHANGES: &[ChangeRow] = &[
         target: F,
     },
     ChangeRow {
-        name: "order fields",
+        accepted_name: "each_layout_change_accepts_its_line: order fields",
+        missing_name: "each_layout_change_requires_its_line_in_diff_order: order fields",
         old: "record D { a: u8 b: u8 }",
         new: "record D { b: u8 a: u8 }",
         lines: "order D b a\n",
@@ -164,7 +178,8 @@ const CHANGES: &[ChangeRow] = &[
         target: D,
     },
     ChangeRow {
-        name: "order variants",
+        accepted_name: "each_layout_change_accepts_its_line: order variants",
+        missing_name: "each_layout_change_requires_its_line_in_diff_order: order variants",
         old: "enum D { a b }",
         new: "enum D { b a }",
         lines: "order D b a\n",
@@ -173,7 +188,8 @@ const CHANGES: &[ChangeRow] = &[
         target: D,
     },
     ChangeRow {
-        name: "insert variant",
+        accepted_name: "each_layout_change_accepts_its_line: insert variant",
+        missing_name: "each_layout_change_requires_its_line_in_diff_order: insert variant",
         old: "enum D { a }",
         new: "enum D { b a }",
         lines: "add D.b\n",
@@ -182,7 +198,8 @@ const CHANGES: &[ChangeRow] = &[
         target: V,
     },
     ChangeRow {
-        name: "drop variant",
+        accepted_name: "each_layout_change_accepts_its_line: drop variant",
+        missing_name: "each_layout_change_requires_its_line_in_diff_order: drop variant",
         old: "enum D { a b }",
         new: "enum D { b }",
         lines: "drop D.a\nwritten D\n",
@@ -191,7 +208,8 @@ const CHANGES: &[ChangeRow] = &[
         target: V,
     },
     ChangeRow {
-        name: "payload",
+        accepted_name: "each_layout_change_accepts_its_line: payload",
+        missing_name: "each_layout_change_requires_its_line_in_diff_order: payload",
         old: "record R {} enum D { a }",
         new: "record R {} enum D { a: R }",
         lines: "payload D.a - R\nwritten D\n",
@@ -202,46 +220,215 @@ const CHANGES: &[ChangeRow] = &[
 ];
 
 #[test]
-fn each_layout_change_accepts_its_line() {
+fn explicit_layout_lines_admit_their_matching_schema_changes() {
+    let mut changes = Vec::new();
     for row in CHANGES {
-        planned(row.old, row.new, row.lines);
+        changes.push((row.accepted_name, (row.old, row.new, row.lines)));
     }
-}
-
-#[test]
-fn each_layout_change_requires_its_line_in_diff_order() {
-    for row in CHANGES {
-        let error = refused(row.old, row.new, row.without);
-        assert_eq!(
-            error,
-            super::super::error(3, Span { start: 18, end: 24 }, missing(row.op, row.target)),
-            "{}",
-            row.name
-        );
-    }
-}
-
-#[test]
-fn a_line_requires_the_change_it_names() {
-    let rows = [
-        ("add declaration", "record D {}", "record D {}", "add D\n"),
-        ("drop declaration", "record D {}", "record D {}", "drop D\n"),
-        ("reshape", "record D {}", "record D {}", "reshape D\n"),
-        ("versioned", "versioned record D {}", "versioned record D {}", "versioned D\n"),
-        ("unversioned", "record D {}", "record D {}", "unversioned D\n"),
-        ("add field", "record D { f: u8 }", "record D { f: u8 }", "add D.f u8 1\n"),
-        ("drop field", "record D { f: u8 }", "record D { f: u8 }", "drop D.f\n"),
-        ("widen", "record D { f: u8 }", "record D { f: u8 }", "widen D.f u8 u8\n"),
-        ("wrap", "record D { f: u8 }", "record D { f: u16 }", "wrap D.f u8 u16\n"),
-        ("retype", "record D { f: u8 }", "record D { f: u16 }", "retype D.f u8 u16\n"),
-        ("order", "record D { a: u8 b: u8 }", "record D { b: u8 a: u8 }", "order D a b\n"),
-        ("add variant", "enum D { a }", "enum D { a }", "add D.a\n"),
-        ("drop variant", "enum D { a }", "enum D { a }", "drop D.a\n"),
-        ("payload", "enum D { a }", "enum D { a }", "payload D.a - -\n"),
+    let extra = [
+        (
+            "secret_clauses_accept_their_explicit_widen_lines: case 1",
+            (
+                "record D { f: secret 8 }",
+                "record D { f: secret 8 holds other R }",
+                "widen D.f secret 8 secret 8 holds other R\n",
+            ),
+        ),
+        (
+            "secret_clauses_accept_their_explicit_widen_lines: case 2",
+            (
+                "record D { f: secret 8 holds other R }",
+                "record D { f: secret 8 }",
+                "widen D.f secret 8 holds other R secret 8\n",
+            ),
+        ),
+        (
+            "secret_clauses_accept_their_explicit_widen_lines: case 3",
+            (
+                "record R {} record D { f: secret 8 }",
+                "record R {} record D { f: secret 8 pieces R }",
+                "widen D.f secret 8 secret 8 pieces R\n",
+            ),
+        ),
+        (
+            "a_rename_then_widen_is_one_operation_of_each_kind",
+            ("record D { a: u8 }", "record D { b: u16 }", "rename D.a b\nwiden D.b u8 u16\n"),
+        ),
     ];
-    for (name, old, new, lines) in rows {
-        assert_eq!(refused(old, new, lines).wrong, PatchWrong::Mismatch, "{name}");
+    skein_rows::check(changes.into_iter().chain(extra), |(old, new, lines)| {
+        planned(old, new, lines);
+    });
+}
+
+struct MissingRow {
+    old: &'static str,
+    new: &'static str,
+    lines: &'static str,
+    op: Op,
+    target: Target,
+}
+
+#[test]
+fn missing_changes_report_the_first_required_operation_in_order() {
+    const OLD: &str = "record Gone {} record D { old: u8 a: u8 }";
+    const NEW: &str = "record Added {} record D { a: u16 f: u8 }";
+    let mut changes = Vec::new();
+    for row in CHANGES {
+        changes.push((
+            row.missing_name,
+            MissingRow { old: row.old, new: row.new, lines: row.without, op: row.op, target: row.target },
+        ));
     }
+    let extra = [
+        (
+            "missing_changes_follow_new_then_old_text_order: declaration first",
+            MissingRow { old: OLD, new: NEW, lines: "", op: Op::Add, target: Target::Declaration(DeclIx::new(0)) },
+        ),
+        (
+            "missing_changes_follow_new_then_old_text_order: matched field",
+            MissingRow {
+                old: OLD,
+                new: NEW,
+                lines: "add Added\n",
+                op: Op::Widen,
+                target: Target::Field(FieldIx::new(0)),
+            },
+        ),
+        (
+            "missing_changes_follow_new_then_old_text_order: added field",
+            MissingRow {
+                old: OLD,
+                new: NEW,
+                lines: "add Added\nwiden D.a u8 u16\n",
+                op: Op::Add,
+                target: Target::Field(FieldIx::new(1)),
+            },
+        ),
+        (
+            "missing_changes_follow_new_then_old_text_order: dropped part",
+            MissingRow {
+                old: OLD,
+                new: NEW,
+                lines: "add Added\nwiden D.a u8 u16\nadd D.f u8 0\n",
+                op: Op::Drop,
+                target: Target::Field(FieldIx::new(0)),
+            },
+        ),
+        (
+            "missing_changes_follow_new_then_old_text_order: dropped declaration",
+            MissingRow {
+                old: OLD,
+                new: NEW,
+                lines: "add Added\nwiden D.a u8 u16\nadd D.f u8 0\ndrop D.old\n",
+                op: Op::Drop,
+                target: Target::Declaration(DeclIx::new(0)),
+            },
+        ),
+        (
+            "written_changes_require_a_site_after_their_line: reshape",
+            MissingRow { old: "record D {}", new: "enum D { a }", lines: "reshape D\n", op: Op::Written, target: D },
+        ),
+        (
+            "written_changes_require_a_site_after_their_line: retype",
+            MissingRow {
+                old: "record D { f: u8 }",
+                new: "record D { f: bool }",
+                lines: "retype D.f u8 bool\n",
+                op: Op::Written,
+                target: F,
+            },
+        ),
+        (
+            "written_changes_require_a_site_after_their_line: drop variant",
+            MissingRow { old: "enum D { a b }", new: "enum D { b }", lines: "drop D.a\n", op: Op::Written, target: D },
+        ),
+        (
+            "written_changes_require_a_site_after_their_line: payload",
+            MissingRow {
+                old: "record R {} enum D { a }",
+                new: "record R {} enum D { a: R }",
+                lines: "payload D.a - R\n",
+                op: Op::Written,
+                target: Target::Declaration(DeclIx::new(1)),
+            },
+        ),
+    ];
+    skein_rows::check(changes.into_iter().chain(extra), |row| {
+        assert_eq!(
+            refused(row.old, row.new, row.lines),
+            super::super::error(3, Span { start: 18, end: 24 }, missing(row.op, row.target))
+        );
+    });
+}
+
+#[test]
+fn patch_lines_must_match_the_schema_changes_they_describe() {
+    skein_rows::check(
+        [
+            ("a_line_requires_the_change_it_names: add declaration", ("record D {}", "record D {}", "add D\n")),
+            ("a_line_requires_the_change_it_names: drop declaration", ("record D {}", "record D {}", "drop D\n")),
+            ("a_line_requires_the_change_it_names: reshape", ("record D {}", "record D {}", "reshape D\n")),
+            (
+                "a_line_requires_the_change_it_names: versioned",
+                ("versioned record D {}", "versioned record D {}", "versioned D\n"),
+            ),
+            ("a_line_requires_the_change_it_names: unversioned", ("record D {}", "record D {}", "unversioned D\n")),
+            (
+                "a_line_requires_the_change_it_names: add field",
+                ("record D { f: u8 }", "record D { f: u8 }", "add D.f u8 1\n"),
+            ),
+            (
+                "a_line_requires_the_change_it_names: drop field",
+                ("record D { f: u8 }", "record D { f: u8 }", "drop D.f\n"),
+            ),
+            (
+                "a_line_requires_the_change_it_names: widen",
+                ("record D { f: u8 }", "record D { f: u8 }", "widen D.f u8 u8\n"),
+            ),
+            (
+                "a_line_requires_the_change_it_names: wrap",
+                ("record D { f: u8 }", "record D { f: u16 }", "wrap D.f u8 u16\n"),
+            ),
+            (
+                "a_line_requires_the_change_it_names: retype",
+                ("record D { f: u8 }", "record D { f: u16 }", "retype D.f u8 u16\n"),
+            ),
+            (
+                "a_line_requires_the_change_it_names: order",
+                ("record D { a: u8 b: u8 }", "record D { b: u8 a: u8 }", "order D a b\n"),
+            ),
+            ("a_line_requires_the_change_it_names: add variant", ("enum D { a }", "enum D { a }", "add D.a\n")),
+            ("a_line_requires_the_change_it_names: drop variant", ("enum D { a }", "enum D { a }", "drop D.a\n")),
+            ("a_line_requires_the_change_it_names: payload", ("enum D { a }", "enum D { a }", "payload D.a - -\n")),
+            (
+                "mismatched_types_payloads_and_unmatched_renames_are_refused: old type",
+                ("record D { f: u8 }", "record D { f: u16 }", "widen D.f u16 u16\n"),
+            ),
+            (
+                "mismatched_types_payloads_and_unmatched_renames_are_refused: new type",
+                ("record D { f: u8 }", "record D { f: u16 }", "widen D.f u8 u32\n"),
+            ),
+            (
+                "mismatched_types_payloads_and_unmatched_renames_are_refused: added type",
+                ("record D {}", "record D { f: u16 }", "add D.f u8 1\n"),
+            ),
+            (
+                "mismatched_types_payloads_and_unmatched_renames_are_refused: same rename",
+                ("record D {}", "record D {}", "rename D D\n"),
+            ),
+            (
+                "mismatched_types_payloads_and_unmatched_renames_are_refused: unmatched part",
+                ("record A { a: u8 }", "record D { b: u8 }", "rename D.a b\n"),
+            ),
+            (
+                "mismatched_types_payloads_and_unmatched_renames_are_refused: payload name",
+                ("record R {} enum D { a }", "record R {} enum D { a: R }", "payload D.a - Wrong\n"),
+            ),
+        ],
+        |(old, new, lines)| {
+            assert_eq!(refused(old, new, lines).wrong, PatchWrong::Mismatch);
+        },
+    );
 }
 
 #[test]
@@ -257,25 +444,6 @@ fn implicit_bound_widen_and_appended_variant_need_no_line() {
             explicit.declarations.get(0).expect("conversion").copies,
             implicit.declarations.get(0).expect("conversion").copies
         );
-    }
-}
-
-#[test]
-fn written_changes_require_a_site_after_their_line() {
-    let rows = [
-        ("reshape", "record D {}", "enum D { a }", "reshape D\n", D),
-        ("retype", "record D { f: u8 }", "record D { f: bool }", "retype D.f u8 bool\n", F),
-        ("drop variant", "enum D { a b }", "enum D { b }", "drop D.a\n", D),
-        (
-            "payload",
-            "record R {} enum D { a }",
-            "record R {} enum D { a: R }",
-            "payload D.a - R\n",
-            Target::Declaration(DeclIx::new(1)),
-        ),
-    ];
-    for (name, old, new, line, target) in rows {
-        assert_eq!(refused(old, new, line).wrong, missing(Op::Written, target), "{name}");
     }
 }
 
@@ -296,11 +464,6 @@ fn confirmed_renames_match_declarations_fields_and_variants_first() {
     assert_eq!(plan.olds.as_slice(), [Some(DeclIx::new(1)), Some(DeclIx::new(0)), Some(DeclIx::new(2))]);
     assert_eq!(plan.sources.as_slice(), [Source::Old(FieldIx::new(1)), Source::Old(FieldIx::new(0))]);
     assert_eq!(plan.variants.as_slice(), [Some(VariantIx::new(1)), Some(VariantIx::new(0))]);
-}
-
-#[test]
-fn a_rename_then_widen_is_one_operation_of_each_kind() {
-    planned("record D { a: u8 }", "record D { b: u16 }", "rename D.a b\nwiden D.b u8 u16\n");
 }
 
 #[test]
@@ -330,21 +493,6 @@ fn unknown_names_are_checked_in_their_own_text() {
     ];
     for (name, lines) in rows {
         assert_eq!(refused("record D { f: u8 }", "record D { f: u8 }", lines).wrong, PatchWrong::Unknown, "{name}");
-    }
-}
-
-#[test]
-fn mismatched_types_payloads_and_unmatched_renames_are_refused() {
-    let rows = [
-        ("old type", "record D { f: u8 }", "record D { f: u16 }", "widen D.f u16 u16\n"),
-        ("new type", "record D { f: u8 }", "record D { f: u16 }", "widen D.f u8 u32\n"),
-        ("added type", "record D {}", "record D { f: u16 }", "add D.f u8 1\n"),
-        ("same rename", "record D {}", "record D {}", "rename D D\n"),
-        ("unmatched part", "record A { a: u8 }", "record D { b: u8 }", "rename D.a b\n"),
-        ("payload name", "record R {} enum D { a }", "record R {} enum D { a: R }", "payload D.a - Wrong\n"),
-    ];
-    for (name, old, new, lines) in rows {
-        assert_eq!(refused(old, new, lines).wrong, PatchWrong::Mismatch, "{name}");
     }
 }
 
@@ -516,29 +664,6 @@ fn asked_values_are_refused_without_invention() {
 }
 
 #[test]
-fn secret_clauses_accept_their_explicit_widen_lines() {
-    for (old, new, lines) in [
-        (
-            "record D { f: secret 8 }",
-            "record D { f: secret 8 holds other R }",
-            "widen D.f secret 8 secret 8 holds other R\n",
-        ),
-        (
-            "record D { f: secret 8 holds other R }",
-            "record D { f: secret 8 }",
-            "widen D.f secret 8 holds other R secret 8\n",
-        ),
-        (
-            "record R {} record D { f: secret 8 }",
-            "record R {} record D { f: secret 8 pieces R }",
-            "widen D.f secret 8 secret 8 pieces R\n",
-        ),
-    ] {
-        planned(old, new, lines);
-    }
-}
-
-#[test]
 fn comparison_walks_wrappers_and_clauses_level_by_level() {
     let rows = [
         ("equal", "option list 2 u8", "option list 2 u8", Comparison::Equal),
@@ -635,23 +760,26 @@ fn reshape_and_payload_disable_their_old_parts_derived_flags() {
 }
 
 #[test]
-fn identity_copies_versioned_records_and_stops_at_held_fields() {
-    let mut patcher =
-        kept("versioned record Copy {} record Held { f: bytes 8 holds other R } record Nested { f: Held }", "");
-    patcher.identity(1).expect("identity");
-    let plan = patcher.build.tables.plans.get(0).expect("identity plan");
-    assert_eq!(flags(plan), [(true, false), (false, true), (false, true)]);
-    assert_eq!(plan.fields.as_slice(), [true, true]);
-}
-
-#[test]
-fn identity_stops_at_held_secrets_through_nested_records() {
-    let mut patcher =
-        kept("versioned record Copy {} record Held { f: secret 8 holds other R } record Nested { f: Held }", "");
-    patcher.identity(1).expect("identity");
-    let plan = patcher.build.tables.plans.get(0).expect("identity plan");
-    assert_eq!(flags(plan), [(true, false), (false, true), (false, true)]);
-    assert_eq!(plan.fields.as_slice(), [true, true]);
+fn identity_plans_propagate_held_stops_through_nested_record_declarations() {
+    skein_rows::check(
+        [
+            (
+                "identity_copies_versioned_records_and_stops_at_held_fields",
+                "versioned record Copy {} record Held { f: bytes 8 holds other R } record Nested { f: Held }",
+            ),
+            (
+                "identity_stops_at_held_secrets_through_nested_records",
+                "versioned record Copy {} record Held { f: secret 8 holds other R } record Nested { f: Held }",
+            ),
+        ],
+        |text| {
+            let mut patcher = kept(text, "");
+            patcher.identity(1).expect("identity");
+            let plan = patcher.build.tables.plans.get(0).expect("identity plan");
+            assert_eq!(flags(plan), [(true, false), (false, true), (false, true)]);
+            assert_eq!(plan.fields.as_slice(), [true, true]);
+        },
+    );
 }
 
 #[test]
@@ -701,15 +829,23 @@ fn copying_pieces_and_unreached_pieces_are_accepted() {
 }
 
 #[test]
-fn identity_pieces_refuse_items_reaching_held_fields() {
-    let mut patcher = kept("record R { a: bytes 8 holds other X } record D { p: bytes 32 pieces R }", "");
-    assert_eq!(patcher.identity(1), Err(PatchWrong::Pieces));
-}
-
-#[test]
-fn identity_secret_pieces_refuse_items_reaching_held_fields() {
-    let mut patcher = kept("record R { a: secret 8 holds other X } record D { p: secret 32 pieces R }", "");
-    assert_eq!(patcher.identity(1), Err(PatchWrong::Pieces));
+fn identity_pieces_refuse_items_that_reach_held_fields() {
+    skein_rows::check(
+        [
+            (
+                "identity_pieces_refuse_items_reaching_held_fields",
+                "record R { a: bytes 8 holds other X } record D { p: bytes 32 pieces R }",
+            ),
+            (
+                "identity_secret_pieces_refuse_items_reaching_held_fields",
+                "record R { a: secret 8 holds other X } record D { p: secret 32 pieces R }",
+            ),
+        ],
+        |text| {
+            let mut patcher = kept(text, "");
+            assert_eq!(patcher.identity(1), Err(PatchWrong::Pieces));
+        },
+    );
 }
 
 #[test]
@@ -742,29 +878,33 @@ fn plan_retains_global_refusals_marks_and_its_own_sites() {
 }
 
 #[test]
-fn held_stops_require_the_same_other_family_in_both_texts() {
-    let rows = [
-        ("same family", "bytes 8 holds f R", "bytes 8 holds f R"),
-        ("clause added", "bytes 8", "bytes 8 holds other R"),
-        ("clause removed", "bytes 8 holds other R", "bytes 8"),
-    ];
-    for (name, a, b) in rows {
-        let plan = planned(&format!("record D {{ f: {a} }}"), &format!("record D {{ f: {b} }}"), "");
-        assert_eq!(flags(&plan), [(true, false)], "{name}");
-    }
-}
-
-#[test]
-fn held_secret_stops_require_the_same_other_family() {
-    let rows = [
-        ("same family", "secret 8 holds f R", "secret 8 holds f R"),
-        ("clause added", "secret 8", "secret 8 holds other R"),
-        ("clause removed", "secret 8 holds other R", "secret 8"),
-    ];
-    for (name, a, b) in rows {
-        let plan = planned(&format!("record D {{ f: {a} }}"), &format!("record D {{ f: {b} }}"), "");
-        assert_eq!(flags(&plan), [(true, false)], "{name}");
-    }
+fn held_stops_require_matching_foreign_clauses_in_both_schemas() {
+    skein_rows::check(
+        [
+            (
+                "held_stops_require_the_same_other_family_in_both_texts: same family",
+                ("bytes 8 holds f R", "bytes 8 holds f R"),
+            ),
+            (
+                "held_stops_require_the_same_other_family_in_both_texts: clause added",
+                ("bytes 8", "bytes 8 holds other R"),
+            ),
+            (
+                "held_stops_require_the_same_other_family_in_both_texts: clause removed",
+                ("bytes 8 holds other R", "bytes 8"),
+            ),
+            (
+                "held_secret_stops_require_the_same_other_family: same family",
+                ("secret 8 holds f R", "secret 8 holds f R"),
+            ),
+            ("held_secret_stops_require_the_same_other_family: clause added", ("secret 8", "secret 8 holds other R")),
+            ("held_secret_stops_require_the_same_other_family: clause removed", ("secret 8 holds other R", "secret 8")),
+        ],
+        |(a, b)| {
+            let plan = planned(&format!("record D {{ f: {a} }}"), &format!("record D {{ f: {b} }}"), "");
+            assert_eq!(flags(&plan), [(true, false)]);
+        },
+    );
 }
 
 #[test]
@@ -806,27 +946,6 @@ fn a_failed_plan_does_not_reserve_its_version() {
     let plan =
         patcher.plan(format!("{HEADER}widen D.f u8 u16\n").as_bytes()).expect("corrected patch").expect("family block");
     assert_eq!(plan.index(), 0);
-}
-
-#[test]
-fn missing_changes_follow_new_then_old_text_order() {
-    const OLD: &str = "record Gone {} record D { old: u8 a: u8 }";
-    const NEW: &str = "record Added {} record D { a: u16 f: u8 }";
-    let rows = [
-        ("declaration first", "", Op::Add, Target::Declaration(DeclIx::new(0))),
-        ("matched field", "add Added\n", Op::Widen, Target::Field(FieldIx::new(0))),
-        ("added field", "add Added\nwiden D.a u8 u16\n", Op::Add, Target::Field(FieldIx::new(1))),
-        ("dropped part", "add Added\nwiden D.a u8 u16\nadd D.f u8 0\n", Op::Drop, Target::Field(FieldIx::new(0))),
-        (
-            "dropped declaration",
-            "add Added\nwiden D.a u8 u16\nadd D.f u8 0\ndrop D.old\n",
-            Op::Drop,
-            Target::Declaration(DeclIx::new(0)),
-        ),
-    ];
-    for (name, lines, op, target) in rows {
-        assert_eq!(refused(OLD, NEW, lines).wrong, missing(op, target), "{name}");
-    }
 }
 
 #[test]

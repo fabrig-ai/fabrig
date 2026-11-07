@@ -19,16 +19,48 @@ fn github_rate_maps_all_three_headers() {
 }
 
 #[test]
-fn github_rate_is_none_when_one_header_is_absent() {
-    for omitted in 0..RATE_HEADERS.len() {
-        let mut head = Head::new();
-        for (index, (name, value)) in RATE_HEADERS.iter().enumerate() {
-            if index != omitted {
+fn rate_extraction_requires_three_valid_numeric_header_values() {
+    skein_rows::check(
+        [
+            ("github_rate_is_none_when_one_header_is_absent: missing 0", Box::from([RATE_HEADERS[1], RATE_HEADERS[2]])),
+            ("github_rate_is_none_when_one_header_is_absent: missing 1", Box::from([RATE_HEADERS[0], RATE_HEADERS[2]])),
+            ("github_rate_is_none_when_one_header_is_absent: missing 2", Box::from([RATE_HEADERS[0], RATE_HEADERS[1]])),
+            (
+                "github_rate_is_none_when_one_header_is_malformed: malformed 0",
+                Box::<[(&[u8], &[u8])]>::from([
+                    RATE_HEADERS[0],
+                    RATE_HEADERS[1],
+                    RATE_HEADERS[2],
+                    (RATE_HEADERS[0].0, b"invalid".as_slice()),
+                ]),
+            ),
+            (
+                "github_rate_is_none_when_one_header_is_malformed: malformed 1",
+                Box::<[(&[u8], &[u8])]>::from([
+                    RATE_HEADERS[0],
+                    RATE_HEADERS[1],
+                    RATE_HEADERS[2],
+                    (RATE_HEADERS[1].0, b"invalid".as_slice()),
+                ]),
+            ),
+            (
+                "github_rate_is_none_when_one_header_is_malformed: malformed 2",
+                Box::<[(&[u8], &[u8])]>::from([
+                    RATE_HEADERS[0],
+                    RATE_HEADERS[1],
+                    RATE_HEADERS[2],
+                    (RATE_HEADERS[2].0, b"invalid".as_slice()),
+                ]),
+            ),
+        ],
+        |fields| {
+            let mut head = Head::new();
+            for (name, value) in fields {
                 header::field(&mut head, name, value, &limits());
             }
-        }
-        assert_eq!(header::rate(&head), None, "absent field {omitted}");
-    }
+            assert_eq!(header::rate(&head), None);
+        },
+    );
 }
 
 #[test]
@@ -40,50 +72,68 @@ fn github_rate_is_none_for_a_jwt_call_head() {
 }
 
 #[test]
-fn github_validator_maps_a_printable_etag() {
-    let boundary = [b'a'; api::VALIDATOR_BYTES];
-    for bytes in [b"\"example-app\"".as_slice(), boundary.as_slice()] {
-        let mut head = Head::new();
-        header::field(&mut head, b"ETag", bytes, &limits());
-        let validator = header::validator(&head).expect("printable bounded tag");
-        assert_eq!(validator.as_bytes(), bytes);
-    }
+fn printable_bounded_etags_retain_their_complete_original_spelling() {
+    skein_rows::check(
+        [
+            ("github_validator_maps_a_printable_etag: ordinary", b"\"example-app\"".as_slice()),
+            ("github_validator_maps_a_printable_etag: bound", &[b'a'; api::VALIDATOR_BYTES][..]),
+            ("github_validator_keeps_a_weak_etag_as_sent", b"W/\"example-app\"".as_slice()),
+        ],
+        |bytes| {
+            let mut head = Head::new();
+            header::field(&mut head, b"ETag", bytes, &limits());
+            assert_eq!(header::validator(&head).expect("printable bounded tag").as_bytes(), bytes);
+        },
+    );
 }
 
 #[test]
-fn github_validator_drops_a_129_byte_etag() {
-    let mut head = Head::new();
-    header::field(&mut head, b"ETag", b"\"example-app\"", &limits());
-    header::field(&mut head, b"ETag", &[b'a'; 129], &limits());
-    assert_eq!(head.etag, None);
-    assert_eq!(header::validator(&head), None);
-}
-
-#[test]
-fn github_validator_keeps_a_weak_etag_as_sent() {
-    let bytes = b"W/\"example-app\"";
-    let mut head = Head::new();
-    header::field(&mut head, b"ETag", bytes, &limits());
-    assert_eq!(header::validator(&head).expect("weak printable tag").as_bytes(), bytes);
-}
-
-#[test]
-fn github_rate_is_none_when_one_header_is_malformed() {
-    for (malformed, (name, _)) in RATE_HEADERS.iter().enumerate() {
-        let mut head = Head::new();
-        for (name, value) in RATE_HEADERS {
-            header::field(&mut head, name, value, &limits());
-        }
-        header::field(&mut head, name, b"invalid", &limits());
-        assert_eq!(header::rate(&head), None, "malformed field {malformed}");
-    }
-}
-
-#[test]
-fn github_validator_drops_empty_and_nonprintable_etags() {
-    for bytes in [b"".as_slice(), b"\"example-app\"\r\n", b"\x1f", b"\x7f", b"\x80"] {
-        let mut head = Head::new();
-        header::field(&mut head, b"ETag", bytes, &limits());
-        assert_eq!(header::validator(&head), None, "{bytes:?}");
-    }
+#[expect(clippy::manual_map, reason = "the workspace subset uses explicit matches instead of Option::map")]
+fn invalid_etags_never_become_usable_conditional_request_validators() {
+    skein_rows::check(
+        [
+            (
+                "github_validator_drops_a_129_byte_etag",
+                (
+                    Box::<[(&[u8], &[u8])]>::from([
+                        (b"ETag".as_slice(), b"\"example-app\"".as_slice()),
+                        (b"ETag".as_slice(), &[b'a'; 129][..]),
+                    ]),
+                    None,
+                ),
+            ),
+            (
+                "github_validator_drops_empty_and_nonprintable_etags: empty",
+                (Box::<[(&[u8], &[u8])]>::from([(b"ETag".as_slice(), b"".as_slice())]), Some(b"".as_slice())),
+            ),
+            (
+                "github_validator_drops_empty_and_nonprintable_etags: line break",
+                (Box::<[(&[u8], &[u8])]>::from([(b"ETag".as_slice(), b"\"example-app\"\r\n".as_slice())]), None),
+            ),
+            (
+                "github_validator_drops_empty_and_nonprintable_etags: control",
+                (Box::<[(&[u8], &[u8])]>::from([(b"ETag".as_slice(), b"\x1f".as_slice())]), None),
+            ),
+            (
+                "github_validator_drops_empty_and_nonprintable_etags: delete",
+                (Box::<[(&[u8], &[u8])]>::from([(b"ETag".as_slice(), b"\x7f".as_slice())]), None),
+            ),
+            (
+                "github_validator_drops_empty_and_nonprintable_etags: nonascii",
+                (Box::<[(&[u8], &[u8])]>::from([(b"ETag".as_slice(), b"\x80".as_slice())]), None),
+            ),
+        ],
+        |(fields, expected_etag)| {
+            let mut head = Head::new();
+            for (name, value) in fields {
+                header::field(&mut head, name, value, &limits());
+            }
+            let etag = match &head.etag {
+                Some(etag) => Some(etag.as_bytes()),
+                None => None,
+            };
+            assert_eq!(etag, expected_etag);
+            assert_eq!(header::validator(&head), None);
+        },
+    );
 }

@@ -192,22 +192,30 @@ fn a_state_life_of_an_hour_is_admitted_and_one_nanosecond_more_refused() {
     limit_refused(&given, Place::Deadline, None);
 }
 #[test]
-fn backoff_above_its_maximum_names_the_pair() {
-    let mut given = fixtures::given();
-    given.limits.backoff = given.limits.backoff_max;
-    assert_eq!(limits::check(&given.limits), Ok(()));
-    assert_eq!(given::check(&given), Ok(()));
-    given.limits.backoff = given.limits.backoff_max.checked_add(ONE_NS).unwrap();
-    limit_refused(&given, Place::Backoff, Some(Place::BackoffMax));
-}
-#[test]
-fn a_maximum_at_the_deadline_names_the_pair() {
-    let mut given = fixtures::given();
-    given.limits.backoff_max = Duration::from_nanos(given.limits.deadline.as_nanos() - ONE_NS.as_nanos());
-    assert_eq!(limits::check(&given.limits), Ok(()));
-    assert_eq!(given::check(&given), Ok(()));
-    given.limits.backoff_max = given.limits.deadline;
-    limit_refused(&given, Place::BackoffMax, Some(Place::Deadline));
+fn timing_relations_accept_the_bound_and_name_excess() {
+    skein_rows::check(
+        [
+            ("backoff_above_its_maximum_names_the_pair", {
+                let mut valid = fixtures::given();
+                valid.limits.backoff = valid.limits.backoff_max;
+                let mut invalid = valid.clone();
+                invalid.limits.backoff = invalid.limits.backoff_max.checked_add(ONE_NS).unwrap();
+                (valid, invalid, (Place::Backoff, Place::BackoffMax))
+            }),
+            ("a_maximum_at_the_deadline_names_the_pair", {
+                let mut valid = fixtures::given();
+                valid.limits.backoff_max = Duration::from_nanos(valid.limits.deadline.as_nanos() - ONE_NS.as_nanos());
+                let mut invalid = valid.clone();
+                invalid.limits.backoff_max = invalid.limits.deadline;
+                (valid, invalid, (Place::BackoffMax, Place::Deadline))
+            }),
+        ],
+        |(valid, invalid, (place, other))| {
+            assert_eq!(limits::check(&valid.limits), Ok(()));
+            assert_eq!(given::check(&valid), Ok(()));
+            limit_refused(&invalid, place, Some(other));
+        },
+    );
 }
 #[test]
 fn the_given_is_checked_before_its_limits() {
