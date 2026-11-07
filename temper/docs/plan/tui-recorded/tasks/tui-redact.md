@@ -51,3 +51,13 @@ Acceptance:
 ## Report
 
 The implementer's report, with: each original and place and its red run; how the credential's bytes stood in the take's reply; anything 3.8 should say for the TUI that 5 doesn't.
+
+## Answers
+
+2026-11-07. *The pasted link's secret stands in the `key paste` as URL-base64 and in its event as decimal bytes, forms the shared redactor doesn't have: extend the shared code, or refuse pasted-link recordings?* Neither. `temper-client-shell-web` stays unchanged, and the pasted-link rows stand as written. The TUI's own `redact.rs` and `scan.rs` give each *link* original two TUI forms beside the shared ones, so a pasted link is found and replaced:
+
+- **The paste's form:** the secret's URL-base64, `skein_lib::base64::encode(Alphabet::Url, ..)`, the canonical unpadded text that `jig-client-protocol-http`'s `printed` decodes (so it is the only text that gives the secret). It is replaced by the URL-base64 of the placeholder (32 `x`s give `eHh4…eHg`, 43 bytes, the same length), never by `x`s. Replayed, the paste then decodes to the `x`s that `redact_field` wrote into the `sign-in-link` send, so the proof holds.
+- **The event's form:** that URL-base64 run's bytes as the `Typed` event's `Debug` prints them: decimal, joined by `, `, matched only at element boundaries (after `[` or `, `, before `]` or `,`). It is replaced by the same print of the placeholder's URL-base64, so the replay's `event_of` for the redacted key gives the redacted event.
+- **Where and how they count:** both forms are sought in every field of every line, whatever its framing, since the replacement keeps the paste form's length. Each replaced place adds to `places`. The link stays one original, counted once under `Kind::Link`; `originals` and the contracts' signatures are unchanged. Take each link's bytes from the `Originals` given (`sought()`, `Kind::Link`, `forms()[0]`), so the scan works from the originals and not from the redacted lines.
+- **The scan** seeks both forms of each link original, in every field and every frame, as originals (`What` for an original). The placeholder's encodings aren't any original's form and match no shape, so they pass.
+- The browser's 3.8 (*Other encodings*) stays the browser's. In your report, say under `## Left` that `temper/docs/design/client/tui/journeys.md`, section 5, should name these two link forms; don't edit the design.
