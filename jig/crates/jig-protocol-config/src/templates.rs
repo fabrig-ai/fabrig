@@ -355,12 +355,39 @@ fn choice(
         return Ok(None);
     }
     let mut object = check::object(document, at, path, problems, "llm-choice").ok_or(What::Kind)?;
+    let first = choice_models(&mut object, document, path, models, problems);
+    let later = match object.member(document, b"later") {
+        Some(at) => {
+            let path = path.member(b"later");
+            match check::object(document, at, &path, problems, "llm-later") {
+                Some(mut object) => {
+                    let later = choice_models(&mut object, document, &path, models, problems);
+                    object.finish(document, &path, problems);
+                    Some(later?)
+                }
+                None => return Err(What::Kind),
+            }
+        }
+        None => None,
+    };
+    object.finish(document, path, problems);
+    let first = first?;
+    Ok(Some(tasks::LlmChoice { account: None, main: first.main, subagents: first.subagents, later }))
+}
+
+/// Both choices name and resolve their models alike (configuration.md, 3.1).
+fn choice_models(
+    object: &mut read::Object,
+    document: &Document,
+    path: &Path,
+    models: &[Model],
+    problems: &mut Problems,
+) -> Result<tasks::LlmLater, What> {
     let main = match object.required(document, b"main", path, problems) {
         Some(at) => model_effort(document, at, &path.member(b"main"), models, problems),
         None => None,
     };
-    let items = check::list(&mut object, document, b"sub_agents", tasks::MODELS, path, problems);
-    object.finish(document, path, problems);
+    let items = check::list(object, document, b"sub_agents", tasks::MODELS, path, problems);
     let items = items.ok_or(What::Kind)?;
     let mut subagents = List::<tasks::ModelEffort>::with_capacity(items.len());
     let mut whole = true;
@@ -382,9 +409,7 @@ fn choice(
         }
     }
     match main {
-        Some(main) if whole => {
-            Ok(Some(tasks::LlmChoice { later: None, account: None, main, subagents: subagents.into_boxed() }))
-        }
+        Some(main) if whole => Ok(tasks::LlmLater { main, subagents: subagents.into_boxed() }),
         Some(_) | None => Err(What::Refers),
     }
 }
