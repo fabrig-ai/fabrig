@@ -455,7 +455,10 @@ impl<B: Backend> World<B> {
                 Job::Coding | Job::Delegating | Job::Wandering | Job::MidReport | Job::MidChange | Job::MarkerReport
             );
         let within = charter.budget.time.saturating_add(Duration::from_secs(120));
-        let mut model_prices = BTreeMap::new();
+        let config = configuration(settings.window);
+        // A resumed window may compact on a declared model absent from the new charter.
+        let mut model_prices =
+            config.models.iter().map(|model| (model.model.clone(), model.prices)).collect::<BTreeMap<_, _>>();
         model_prices.insert(charter.llm.model.clone(), charter.llm.prices);
         for model in &charter.models {
             model_prices.insert(model.model.clone(), model.prices);
@@ -483,7 +486,7 @@ impl<B: Backend> World<B> {
             settings: *settings,
             now: Time::ZERO,
             rng: Rng::new(settings.seed ^ 0x0b),
-            agent: agent::Domain::new(&settings.limits, configuration(settings.window), settings.seed ^ 0x17),
+            agent: agent::Domain::new(&settings.limits, config, settings.seed ^ 0x17),
             stage,
             backend,
             parent_deliveries: false,

@@ -1158,8 +1158,11 @@ pub struct TaskRecord {
     pub activity: u64,
     /// Actual activation cause, retained through preparation and restart.
     pub due_reason: crate::Why,
-    /// An admitted authority narrowing stopped the current run; its terminal starts the task anew.
+    /// A narrowing or next-turn message stopped the current run; its terminal starts the task anew.
     pub narrowing: bool,
+    /// The task's LLM choice changed while this Open run was live: the next message for it
+    /// stops the run rather than reach it (domain/tasks.md, section 7).
+    pub llm_changed: bool,
     /// Root-issued commit order for an ended result; zero while live and until the root saves an ending.
     pub result_position: u64,
     /// Consecutive committed reply ordinal across attempts.
@@ -2023,6 +2026,8 @@ pub enum Request {
         attempt: u64,
         /** New lifecycle admission or existing last-answer identity; exact payload replay is separately verified by root. */
         accepted: Accepted,
+        /// The newly admitted terminal parks; an already admitted terminal retains its proof.
+        parked: bool,
     },
     /// One newly admitted turn reply; root saves its transcript with the charged task state before
     /// outward acknowledgement.

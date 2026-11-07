@@ -571,3 +571,106 @@ fn expected_merge_message(head: u64) -> String {
     }
     message
 }
+
+/// A goal starts on main (g), brings its run head in, and writes only topic (r)
+/// (temper/docs/design/domain/worker.md, 5).
+pub fn goal_later_run(case: Case) {
+    let mut world = World::new(73, case, 64);
+    assert!(matches!(case, Case::Contained | Case::Resumed | Case::Conflict));
+    if matches!(case, Case::Contained) {
+        assert_eq!(
+            world.forge.push(b"forge/temper", b"main", world.ours, None).expect("g holds r"),
+            temper_fake_checkout::git::Pushed::Pushed
+        );
+        world.base = world.forge.advance(b"forge/temper", b"main", b"goal-only", b"landed in g\n");
+        world.expected = world.forge.tree(world.base);
+    }
+    world.forge.moves();
+    let spec = Spec {
+        key: b"goal".as_slice().into(),
+        repositories: Box::new([Repository {
+            name: b"temper".as_slice().into(),
+            remote: b"forge/temper".as_slice().into(),
+            git: None,
+            start: Start::Merge { branch: b"main".as_slice().into(), base: translate::commit(world.ours) },
+            identity: 17,
+            account: None,
+            push: Some(b"topic".as_slice().into()),
+            expected: None,
+            landing: Some(b"main".as_slice().into()),
+            save: Some(b"saved".as_slice().into()),
+        }]),
+    };
+    let Request::Prepared { prepared: Prepared::Ready { workspace, conflicts }, .. } =
+        world.finish(Event::Prepare { client: Token::new(9), spec }, false)
+    else {
+        panic!("goal start prepared")
+    };
+    let at = translate::path(&temper_worker_domain_checkout::git::Place {
+        git: None,
+        workspace,
+        repository: b"temper".as_slice().into(),
+    });
+    assert!(world.forge.moves().is_empty(), "prepare moves neither g nor r");
+    let prepared = match case {
+        Case::Contained => {
+            assert!(conflicts.is_empty());
+            assert!(world.commits.is_empty(), "g already contains r: prepare adds no merge");
+            assert!(!world.disk.exists(&[at.as_slice(), b"/.git/MERGE_HEAD"].concat()));
+            Some(world.base)
+        }
+        Case::Resumed => {
+            assert!(conflicts.is_empty());
+            assert_eq!(
+                world.commits,
+                vec![(
+                    translate::commit(world.base),
+                    translate::commit(world.ours),
+                    17,
+                    expected_merge_message(world.ours).into_bytes(),
+                )],
+                "the clean merge into g is committed before the run"
+            );
+            assert!(!world.disk.exists(&[at.as_slice(), b"/.git/MERGE_HEAD"].concat()));
+            let head = world.disk.content(&[at.as_slice(), b"/.git/temper-head"].concat()).expect("prepared head");
+            Some(u64::from_le_bytes(head.try_into().expect("fake head spelling")))
+        }
+        Case::Conflict => {
+            assert_eq!(conflicts.len(), 1);
+            assert_eq!(conflicts[0].repository, 0);
+            assert_eq!(&*conflicts[0].files, &[Box::<[u8]>::from(b"code".as_slice())]);
+            assert!(world.commits.is_empty(), "the conflicting merge stays in progress");
+            assert!(world.disk.exists(&[at.as_slice(), b"/.git/MERGE_HEAD"].concat()));
+            assert_eq!(
+                &*world.push(false, false),
+                &[Landing::Conflicted { files: Box::new([b"code".as_slice().into()]) }]
+            );
+            assert!(world.forge.moves().is_empty(), "markers prevent delivery");
+            world.disk.write(&[at.as_slice(), b"/code"].concat(), b"resolved\n");
+            None
+        }
+        Case::Clean | Case::Unchanged | Case::Moved | Case::Ambiguous | Case::Saved => unreachable!("goal cases"),
+    };
+    let mut tree = world.disk.tree(&at);
+    tree.retain(|path, _| !path.starts_with(b".git/"));
+    assert_eq!(tree, world.expected, "the run sees g with r's work");
+    assert_eq!(world.forge.branch(b"forge/temper", b"topic"), Some(world.ours));
+    let pushed = world.push(false, false);
+    let [Landing::Landed { commit }] = &*pushed else { panic!("delivery fast-forwards r: {pushed:?}") };
+    let head = translate::fake(*commit);
+    if let Some(prepared) = prepared {
+        assert_eq!(head, prepared, "empty delivery pushes the prepared head without another commit");
+    }
+    if matches!(case, Case::Contained) {
+        assert_eq!(world.forge.parent(head), Some(world.ours));
+        assert_eq!(world.forge.merge_parent(head), None);
+    } else {
+        assert_eq!(world.forge.parent(head), Some(world.base));
+        assert_eq!(world.forge.merge_parent(head), Some(world.ours));
+    }
+    assert_eq!(world.forge.tree(head), world.expected);
+    assert_eq!(world.forge.branch(b"forge/temper", b"topic"), Some(head));
+    assert_eq!(world.forge.branch(b"forge/temper", b"main"), Some(world.base), "g is never pushed");
+    assert_eq!(world.push(false, false), pushed, "a repeated delivery keeps the same head");
+    release_heads(&mut world);
+}

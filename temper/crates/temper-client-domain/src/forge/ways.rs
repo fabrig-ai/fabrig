@@ -62,6 +62,7 @@ pub(super) struct State {
 }
 #[derive(Debug)]
 struct ProposalRead {
+    number: u64,
     key: u64,
     pending: Option<Handle>,
     values: Option<List<Proposed>>,
@@ -142,9 +143,9 @@ impl State {
 impl Side {
     /// Kinds 6 and 7 from a proposal's deployment-scoped items read.
     #[must_use]
-    pub fn proposed(&self, key: u64) -> Option<&[Proposed]> {
+    pub fn proposed(&self, number: u64) -> Option<&[Proposed]> {
         for read in &self.ways.proposals {
-            if read.key == key {
+            if read.number == number {
                 return Some(read.values.as_ref()?.as_slice());
             }
         }
@@ -320,7 +321,6 @@ pub(crate) fn told(
                 for index in 0..side.ways.proposals.len() {
                     let read = side.ways.proposals.get_mut(index).expect("bounded proposal read");
                     read.again = true;
-                    read.values = None;
                 }
                 side.ways.ways.again = true;
                 side.ways.questions.again = true;
@@ -628,18 +628,13 @@ pub(crate) fn proposals(
     let Some(cards) = cards else { return };
     let skip = cards.len().saturating_sub(super::forges::ROWS);
     for card in cards.iter().skip(usize::try_from(skip).expect("bounded cards")) {
-        let (key, items) = if let Some(c::ReadValue::Proposal(proposal)) = &card.page {
-            let c::ProposalAction::Settings(settings) = &proposal.action else { continue };
-            (proposal.key.number, &settings.items)
-        } else if let Some(c::ReadValue::Ended(ended)) = &card.page {
-            let c::EndedValue::Proposal(proposal) = &ended.value else { continue };
-            let c::RetainedAction::Settings(settings) = &proposal.action else { continue };
-            (proposal.number, &settings.items)
-        } else {
-            continue;
-        };
+        let Some(c::ReadValue::Proposal(proposal)) = &card.page else { continue };
+        let c::ProposalAction::Settings(settings) = &proposal.action else { continue };
+        let Some(review) = &settings.review else { continue };
+        let Some(key) = review.key else { continue };
+        let number = proposal.key.number;
         let mut needed = false;
-        for item in items {
+        for item in &review.items {
             if let c::Setting::Application { kind: 6 | 7, .. } = item.setting {
                 needed = true;
             }
@@ -649,7 +644,7 @@ pub(crate) fn proposals(
         }
         let mut found = None;
         for (index, read) in side.ways.proposals.iter().enumerate() {
-            if read.key == key {
+            if read.number == number {
                 found = Some(u32::try_from(index).expect("bounded proposal index"));
             }
         }
@@ -667,7 +662,7 @@ pub(crate) fn proposals(
                 let index = side.ways.proposals.len();
                 side.ways
                     .proposals
-                    .push(ProposalRead { key, pending: None, values: None, again: true })
+                    .push(ProposalRead { number, key, pending: None, values: None, again: true })
                     .expect("bounded proposals");
                 index
             }
@@ -681,7 +676,8 @@ pub(crate) fn proposals(
             &bounds,
             w::ReadingParts {
                 read: w::Read::ProposalItems(
-                    w::ProposalItemsRead::new(&bounds, w::ProposalItemsReadParts { key }).expect("fixed proposal read"),
+                    w::ProposalItemsRead::new(&bounds, w::ProposalItemsReadParts { key: read.key })
+                        .expect("fixed proposal read"),
                 ),
             },
         )

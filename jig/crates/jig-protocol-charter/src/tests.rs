@@ -32,6 +32,7 @@ fn source() -> Charter {
         wait: true,
         agents: false,
         workspace: crate::WorkspaceTools { inspect: false, modify: false, shell: false },
+        delivers: false,
         conventions: None,
         contract: Contract {
             report: Some(TextRule { max: 512, fields: Box::new([]) }),
@@ -305,6 +306,25 @@ fn finite_mode_is_encoded_with_delivery() {
     assert!(decoded.tools().deliver().is_some());
 }
 
+#[test]
+fn finite_report_is_encoded_with_delivery() {
+    let mut value = assignment_fixture(b"Delivery", 16, 20, 4);
+    value.policy.modify = true;
+    let mut assembled = crate::assignment(value, Box::new([]), Box::new([]), false).expect("report charter");
+    assembled.delivers = true;
+    let translated = charter(assembled).expect("bounded charter");
+    let names = [EndpointName { number: 1, dialect: 3, name: b"primary".as_slice().into() }];
+    let bytes = encode(translated, &names, &crate::limits()).expect("bounded encoding");
+    let decoded = wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(&bytes)).expect("Smith codec accepts it");
+    assert_eq!(*decoded.mode(), wire::Mode::Finite);
+    assert!(decoded.tools().deliver().is_some());
+    assert!(decoded.tools().families().modify());
+    assert!(decoded.contract().change().is_none());
+    assert!(decoded.contract().report().is_some());
+    assert!(decoded.contract().failure().is_some());
+    assert!(decoded.contract().verdicts().is_empty());
+}
+
 fn encoded_mode(mode: smith_domain_run::Mode) -> wire::Charter {
     let mut value = source();
     value.mode = mode;
@@ -383,6 +403,7 @@ fn report_fixture_charter(instructions: &[u8], words: u32, spend: u64, turns: u3
         wait: true,
         agents: false,
         workspace: crate::WorkspaceTools { inspect: false, modify: false, shell: false },
+        delivers: false,
         conventions: None,
         contract: Contract {
             report: Some(TextRule { max: words, fields: Box::new([]) }),
@@ -504,6 +525,79 @@ fn modify_needs_a_delivery() {
         let translated = charter(assembled).expect("bounded charter");
         assert_eq!(translated.grants.tools.modify, expected, "{row}");
     }
+}
+
+#[test]
+fn delivery_follows_contract_policy_and_workspace() {
+    use jig_domain_tasks::{Contract, EndedBy};
+    use smith_domain_run::outcome::{ChangeSpec, FieldRule};
+    const WORDS: u32 = 16;
+    let report = Contract::Report { words: WORDS };
+    let change = Contract::Change { connector: 1, kind: 1, words: WORDS };
+    let verdict = Contract::Verdict {
+        choices: Box::new([jig_domain_tasks::Verdict { code: 1, followups: 0, words: WORDS, fields: Box::new([]) }]),
+    };
+    let report_delivery = ChangeSpec {
+        checks_must_pass: crate::CONTRACT_CHECKS_MUST_PASS,
+        fields: Box::new([
+            FieldRule { name: b"title".as_slice().into(), max: crate::CONTRACT_TEXT_MAX },
+            FieldRule { name: b"body".as_slice().into(), max: crate::CHANGE_BODY_MAX },
+        ]),
+    };
+    let change_delivery = ChangeSpec {
+        checks_must_pass: crate::CONTRACT_CHECKS_MUST_PASS,
+        fields: Box::new([
+            FieldRule { name: b"title".as_slice().into(), max: WORDS },
+            FieldRule { name: b"body".as_slice().into(), max: WORDS },
+        ]),
+    };
+    for (contract, ended_by, modify, delivers, delivery, writable) in [
+        (report.clone(), EndedBy::Result, true, true, Some(&report_delivery), true),
+        (report.clone(), EndedBy::Result, true, false, None, false),
+        (report.clone(), EndedBy::Result, false, true, None, false),
+        (report, EndedBy::Requester, true, true, None, false),
+        (verdict, EndedBy::Result, true, true, None, false),
+        (change.clone(), EndedBy::Result, true, false, Some(&change_delivery), true),
+        (change.clone(), EndedBy::Result, false, false, Some(&change_delivery), false),
+        (change, EndedBy::Requester, true, true, None, false),
+    ] {
+        let mut value = assignment_fixture(b"Delivery", WORDS, 20, 4);
+        value.contract = contract.clone();
+        value.ended_by = ended_by;
+        value.policy.modify = modify;
+        let mut assembled = crate::assignment(value, Box::new([]), Box::new([]), false).expect("agent charter");
+        assembled.delivers = delivers;
+        let translated = charter(assembled).expect("bounded charter");
+        assert_eq!(translated.grants.deliver.as_ref(), delivery, "{contract:?} / {ended_by:?} / {modify} / {delivers}");
+        assert_eq!(translated.grants.tools.modify, writable, "{contract:?} / {ended_by:?} / {modify} / {delivers}");
+    }
+}
+
+#[test]
+fn delivering_report_keeps_its_outcome_and_independent_delivery_bounds() {
+    const WORDS: u32 = 16;
+    let mut value = assignment_fixture(b"Delivery", WORDS, 20, 4);
+    value.policy.modify = true;
+    let mut assembled = crate::assignment(value, Box::new([]), Box::new([]), false).expect("report charter");
+    assembled.delivers = true;
+    let mut without_delivery = assembled.clone();
+    without_delivery.delivers = false;
+    let expected = charter(without_delivery).expect("bounded charter").outcome;
+    let translated = charter(assembled).expect("bounded charter");
+    assert_eq!(translated.outcome, expected, "delivery preserves the contract's finish forms");
+    assert!(translated.outcome.change.is_none());
+    assert_eq!(translated.outcome.report.expect("report text").max, WORDS);
+    assert_eq!(translated.outcome.failure.expect("failure text").max, WORDS);
+    assert!(translated.outcome.verdicts.is_empty(), "a report offers no no_change verdict");
+    let delivery = translated.grants.deliver.expect("report's workspace delivers");
+    assert!(delivery.checks_must_pass);
+    assert_eq!(delivery.fields.len(), 2);
+    let title = delivery.fields.first().expect("title rule");
+    let body = delivery.fields.get(1).expect("body rule");
+    assert_eq!(title.name.as_ref(), b"title");
+    assert_eq!(body.name.as_ref(), b"body");
+    assert_eq!(title.max, crate::CONTRACT_TEXT_MAX);
+    assert_eq!(body.max, crate::CHANGE_BODY_MAX);
 }
 
 #[test]
