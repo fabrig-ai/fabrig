@@ -2,6 +2,20 @@
 use crate::support;
 
 #[test]
+fn the_retained_cluster_charter_overrides_have_no_documents() {
+    // The process story overlays these values on current settings before decoding.
+    // Charter documents follow temper/docs/design/protocol/configuration.md, 13.7.
+    let fixture: serde_json::Value = serde_json::from_slice(include_bytes!("../fixtures/cluster/settings.json"))
+        .expect("retained cluster settings overrides");
+    let items = fixture["items"].as_array().expect("cluster settings items");
+    let charters: Vec<_> = items.iter().filter(|item| item["setting"]["kind"] == "charter").collect();
+    assert_eq!(charters.len(), 2);
+    for item in charters {
+        assert_eq!(item["set"]["documents"], serde_json::json!([]), "cluster charter: {}", item["setting"]);
+    }
+}
+
+#[test]
 fn printed_links_count_and_fail_without_disclosing_secrets() {
     support::printed_link_tests::printed_links_count_and_fail_without_disclosing_secrets();
 }
