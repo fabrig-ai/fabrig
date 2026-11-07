@@ -362,56 +362,58 @@ fn refuses_limits(limits: super::Limits, shared: Shared, settings: crate::Settin
 }
 
 #[test]
-fn valid_refuses_an_unrepresentable_http_head() {
-    refuses_limits(super::Limits { head_bytes: 1, ..fixtures::limits() }, fixtures::shared(), fixtures::settings());
-}
-
-#[test]
-fn valid_refuses_unrepresentable_tls_intake() {
-    let mut limits = fixtures::limits();
+fn unrepresentable_forge_limits_refuse_checking_and_component_construction() {
+    skein_rows::check(
+        [
+            ("valid_refuses_an_unrepresentable_http_head", {  (super::Limits { head_bytes: 1, ..fixtures::limits() }, fixtures::shared(), fixtures::settings()) }),
+            ("valid_refuses_unrepresentable_tls_intake", { let mut limits = fixtures::limits();
     limits.tls.read = u32::MAX;
-    refuses_limits(limits, fixtures::shared(), fixtures::settings());
-}
-
-#[test]
-fn valid_refuses_a_json_wire_length_past_u32() {
-    refuses_limits(
+     (limits, fixtures::shared(), fixtures::settings()) }),
+            ("valid_refuses_a_json_wire_length_past_u32", {  (
         super::Limits { body_bytes_in: u32::MAX, ..fixtures::limits() },
         fixtures::shared(),
         fixtures::settings(),
-    );
-}
-
-#[test]
-fn valid_refuses_a_hook_wire_length_past_u32() {
-    refuses_limits(
+    ) }),
+            ("valid_refuses_a_hook_wire_length_past_u32", {  (
         super::Limits { hook_body_bytes: u32::MAX, ..fixtures::limits() },
         fixtures::shared(),
         fixtures::settings(),
+    ) }),
+        ],
+        |(limits, shared, settings)| refuses_limits(limits, shared, settings),
     );
 }
 
+
+
+
+
+
+
+struct CapacityRow {
+    limits: super::Limits,
+    shared: Shared,
+    forges: super::Forges,
+    settings: crate::Settings,
+}
 #[test]
-fn valid_refuses_socket_slots_past_u32() {
-    let limits = super::Limits { connections: u32::MAX, ..fixtures::limits() };
-    let shared = Shared { calls: u32::MAX, ..fixtures::shared() };
-    assert!(super::capacity_bound(&limits, &shared, super::Forges { forgejo: 0, github: 1 }).is_none());
-    refuses_limits(limits, shared, fixtures::github_settings());
+fn unrepresentable_capacity_bounds_refuse_validation_and_component_construction() {
+    skein_rows::check(
+        [
+            ("valid_refuses_socket_slots_past_u32", CapacityRow { limits: super::Limits { connections: u32::MAX, ..fixtures::limits() }, shared: Shared { calls: u32::MAX, ..fixtures::shared() }, forges: super::Forges { forgejo: 0, github: 1 }, settings: fixtures::github_settings() }),
+            ("valid_refuses_staging_slots_past_u32", CapacityRow { limits: super::Limits { inner: u32::MAX, ..fixtures::limits() }, shared: fixtures::shared(), forges: super::Forges { forgejo: 1, github: 0 }, settings: fixtures::settings() }),
+            ("valid_refuses_a_log_page_past_u32", CapacityRow { limits: super::Limits { string_bytes: u32::MAX, ..fixtures::limits() }, shared: fixtures::shared(), forges: super::Forges { forgejo: 0, github: 1 }, settings: fixtures::github_settings() }),
+        ],
+        |row| {
+            assert!(super::capacity_bound(&row.limits, &row.shared, row.forges).is_none());
+            refuses_limits(row.limits, row.shared, row.settings);
+        },
+    );
 }
 
-#[test]
-fn valid_refuses_staging_slots_past_u32() {
-    let limits = super::Limits { inner: u32::MAX, ..fixtures::limits() };
-    assert!(super::capacity_bound(&limits, &fixtures::shared(), super::Forges { forgejo: 1, github: 0 }).is_none());
-    refuses_limits(limits, fixtures::shared(), fixtures::settings());
-}
 
-#[test]
-fn valid_refuses_a_log_page_past_u32() {
-    let limits = super::Limits { string_bytes: u32::MAX, ..fixtures::limits() };
-    assert!(super::capacity_bound(&limits, &fixtures::shared(), super::Forges { forgejo: 0, github: 1 }).is_none());
-    refuses_limits(limits, fixtures::shared(), fixtures::github_settings());
-}
+
+
 
 #[test]
 fn valid_ignores_heap_call_tables() {

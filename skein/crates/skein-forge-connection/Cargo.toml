@@ -22,6 +22,7 @@ skein-tls.workspace = true
 skein-json.workspace = true
 
 [dev-dependencies]
+skein-rows.workspace = true
 skein-heap.workspace = true
 skein-fake-forge-github.workspace = true
 skein-world.workspace = true
