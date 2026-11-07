@@ -79,3 +79,10 @@ The latest Answers entry settles this: “Then merge approval-story's repair fro
 The run reports that the revert was committed and pushed as 0ac11457d3ccc5fe5cc253b77784c81a15bdc329.
 Keep the heading fix, constructor, joined story and status removal; do not restore the Queued workaround or change the dependency instruction.
 Acceptance remains pending. Resume after the repair reaches the plan trunk and complete the outstanding checks.
+
+### 2026-11-07: Resume after approval-story's merge-veto repair reaches the plan trunk (recommended), or change the dependency instruction? (ui-forge-identity/approval-joined-4, foreman ui-forge-identity/approval-joined/foreman-2)
+
+Wait for approval-story’s repair on the plan trunk, then fetch and merge it and run the joined story by name.
+The task’s Answers entry explicitly settles this: “Then merge approval-story's repair from the plan's trunk once it's there, and run your story by name. If it's not there yet, push the revert and stop with a Question saying you're waiting on it.”
+Keep the heading fix, approval-only constructor, joined story and status removal. Do not restore the Queued workaround or change the dependency instruction.
+Acceptance remains pending. Resume after the prerequisite reaches the plan trunk and complete the outstanding checks and mutation bites.
