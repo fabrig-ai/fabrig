@@ -225,7 +225,7 @@ fn made_into_a_project_is_adopted_by_the_connectors_act() {
     assert!(
         !d.store.rows.values().any(|record| matches!(record,
             engine::Record::Core(core::Record::People(people::Stored::Person { identity, .. }))
-            if identity.key.provider == 0 && identity.key.subject.as_ref() == 1_u64.to_be_bytes()
+            if identity.key == temper_engine_domain_forge::user_key(1, 1_u64)
         )),
         "temper's writer is not seeded as a person"
     );

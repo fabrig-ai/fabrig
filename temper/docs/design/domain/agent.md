@@ -920,9 +920,11 @@ and waits in the Needs you of each project it belongs to (jig's
   This lets a configuring chat name documents without a workspace or ctl.
   The same inventory names the caller project's people, one line each:
   its number, its login where temper holds one, its role's number, its
-  forge user's id where its identity is the forge's, and marks for the
-  task requester and for temper's own forge writer, who never counts as
-  a person. An absent forge identity is explicit and cannot count for
+  account on each forge of the project's repositories, by the host their
+  lines use, that forge's user's id or unknown (`forge.md`, section 4), and
+  marks for the task requester and for temper's own forge writer, who never
+  counts as a person. Someone known on none of them is said so once: an
+  absent forge identity is explicit and cannot count for
   approvals. Services are left out. It then names each configured owned-forge
   account (`../protocol/setup.md`, section 8), whose login alone verifies
   no project membership. The requester, a known forge identity and that
@@ -1340,6 +1342,11 @@ host:
 
 ## 10. Open questions
 
+- **Proposal-form diagnostics** (8.1): `settings` reads name the kind
+  and its missing member; `propose_settings` keeps the shared settings-file
+  parser's errors. Default: those words, until a proposal needs the same
+  kind-specific guidance. Both tools' schemas name the numbered kinds.
+
 - **A real model revising a proposal** (8.1; the request `ui-proposal-2`
   of 2026-11-06): after landing, check that a request from "Change
   something" leads to a fresh proposal without a trip to Needs you, and
@@ -1387,8 +1394,11 @@ host:
   only they could meet (`forge.md`, 8.9). It proposes, says what acceptance
   checks and, refused, who to add on the forge before adopting again, in
   the browser the adoption form typed afresh (`../client/README.md`, 4.4).
-  Default: as it stands, until a walk shows whether that asks too much of
-  the person.
+  The box owner's link and its setup evidence, the per-forge eligibility
+  check and the approval card are separate work
+  (`../draft/forge-identity.md`, sections 3, 4, 7, 8 and 9).
+  Default: adoption's seeds and the refusal above; a configured login alone
+  supplies no verified forge identity.
 - **Which host tools a charter offers.** jig's charter carries the host
   families its charter's `tools` names and its task's authority holds
   (jig's `domain/engine.md`, 7.1), each stock charter's named in

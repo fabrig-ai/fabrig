@@ -2,9 +2,19 @@
 
 2026-11-07. Where temper's code lags or departs from its design, and
 its design from its drafts, from the status files below. The first
-milestone stands in the code (`README.md`). A goal with a confirmed goal
-branch and a modifying charter delivers to its own run branch and lands
-through a change into g; later runs merge r into g's tip before delivering
+milestone stands in the code (`README.md`). Fresh projects offer drafts;
+configuring chats offer one even with drafts off, and a project holding a
+goal shows Goals in its bar. Home can still show To begin and Chats, so
+the bar supplies the goal's entry. The mock's drafts-off default remains
+a recorded departure; the fake-model `chat-draft` journey starts with
+drafts on, and the real-box checks follow landing (`client/README.md`,
+`client/journeys.md`, `protocol/configuration.md`). Fresh box documents admit four
+agents with four workspaces and git operations; their agent-process memory
+on a laptop remains an after-landing measurement (`protocol/setup.md`, section 15). The chat's
+box wait uses the deployment's `owned` read, and failed settings reads
+name the kind and missing member (`client/README.md`, `domain/agent.md`).
+A goal with a confirmed goal branch and a modifying charter delivers to
+its own run branch and lands through a change into g; later runs merge r into g's tip before delivering
 again. The domain, checkout and real-loop stories use scripted models and
 fake forge/git; stock and reference workflow words, larger calls and
 reports, and a saved start overtaken by a repair remain separate work
@@ -56,7 +66,12 @@ and fake-box press proof is recorded. A chat's model or effort amendment
 answers its person's next words on the new choice; a model change within a
 resumable window first asks the window's model for a summary
 (`domain/agent.md`, `client/README.md`). An unusable account's fix remains
-hidden beside a usable one of the same provider (`client/README.md`). The
+hidden beside a usable one of the same provider (`client/README.md`).
+Forge account subjects and review lookups name both forge and user, and the
+configuring inventory names each forge's known or unknown account. The box
+owner's link, per-repository forge eligibility and the approval card remain
+separate work (`draft/forge-identity.md`, `domain/forge.md`,
+`domain/agent.md`, `protocol/forge.md`, `protocol/store.md`). The
 configuring inventory is filtered, but whole charter reads still name models
 outside the offer and only instructions restrict proposals to it
 (`domain/agent.md`, `draft/model-catalogue.md`). Model settings and provider

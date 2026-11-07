@@ -1231,6 +1231,12 @@ Not in the tier, each in the lowest world that shows it:
 
 ## 5. Open questions
 
+- **The fresh project's draft flow** (`README.md`, 3.5, 5.3, 5.13):
+  the real-box check of the configuring chat's offer and the draft-to-goal
+  flow, including Goals in the phone tab bar, is after-landing work
+  (`README.md`, section 11). Default: the view tables and fake-model
+  `chat-draft` journey, with no browser or render check during the plan.
+
 - **Kept work in the browser** (`README.md`, 3.4 and 6.6): another
   party's kept work, and kept work dropped at start, which the terminal
   says in lines of its own. Default: not shown; the small store lives
@@ -1500,7 +1506,7 @@ from the engine's own answers, is where the look is tuned.
 | `configure-chat-accepted` | that proposal accepted: "✓ Accepted · new work follows it" |
 | `configure-chat-replaced` | that proposal dimmed, "Replaced by the proposal below", the later one under it |
 | `settings` | hand-made settings deliveries: How work runs with every part of kind 7 shown |
-| `settings-all-hidden` | hand-made settings deliveries: kind 7's stock, the mock's `settings.html?project=hello` |
+| `settings-all-hidden` | hand-made settings deliveries: every switch of kind 7 off, the mock's `settings.html?project=hello` |
 | `settings-goals` | hand-made settings deliveries: Goals shown, its ways of working with one the default |
 | `settings-chat-open` | hand-made settings deliveries: a configuring chat open, "Go on" |
 | `settings-drafts-off` | `settings` with "Chats can write drafts" off |

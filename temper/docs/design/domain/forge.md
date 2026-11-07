@@ -256,7 +256,9 @@ temper-engine-domain-forge              the connector's top: resources and holds
 - **People the forge knows.** Adoption reads the repository's
   collaborators, each with its permission (read, write or admin), and
   gives the human collaborators to the core as parties known by their forge
-  user's id. temper's own writer is excluded. The
+  account: provider 0, with the subject of the repository's forge and the
+  collaborator's user (`../protocol/store.md`, section 2). temper's own writer
+  is excluded. The
   project's configuration maps each permission to a role, given to those
   with no role in the project yet (jig's `domain/people.md`, section 4):
   temper's usual mapping is admin to maintainer, write to member, read to
@@ -264,6 +266,16 @@ temper-engine-domain-forge              the connector's top: resources and holds
   owner). Re-adoption seeds people still without a role; it does not replace
   existing project roles. After that, roles are the core's: a permission that changes
   on the forge changes no role.
+- **Who a forge's user is: one lookup, by forge and user.** A user's number
+  means nothing without its forge: GitHub's user 3 isn't Forgejo's, and anyone
+  may post a review on a public repository's pull request. The root's
+  `forge_person` answers the party whose key is provider 0's subject for that
+  pair, with their role in the project, else unknown. Every reader of a
+  person's forge account goes through it: the reviews counted (8.7), the people
+  eligible (8.9) and the inventory's people (`agent.md`, 8.1). Going the other
+  way, `person_forge_user` answers the user a party is on a forge only where
+  `forge_person` answers that party for that user. The subject's form is known
+  to the forge's `user_key` and `key_user` alone.
 - **Access is given per repository, at adoption.** On a managed or
   owned Forgejo, the adoption asks for it first: temper's user made a
   collaborator with write, and the repository's hook made when the
@@ -2173,8 +2185,10 @@ merge, kind 4, on a pattern of landing branches (jig's
   pull request on the forge, as themselves, apart from a person's gate
   answered in the client (8.3). The forge reads the pull request's
   reviews, keeps each author's latest, and counts the distinct people
-  among them whom the core knows by their forge user's id with the role
-  in the project (section 4); a review that only comments counts for
+  among them whom the lookup by forge and user (section 4) knows on the
+  pull request's forge, with the role in the project; the same user's number
+  on another forge is another account, shown as one unmapped. A review that
+  only comments counts for
   nothing. temper's retained forge writer never counts as a human, even if
   an existing identity holds the required project role, including after restart.
   It is the one thing temper reads of what people write on its pull
@@ -2323,7 +2337,8 @@ sizes and never reads them (jig's `domain/connectors.md`, section 17).
   For each project in the setting's scope with an adopted writable
   repository whose branch names overlap the pattern, each enforcing
   approval needs at least its required count of distinct project members
-  with the named role and a forge user id known to the core. The root
+  with the named role and a forge account known to the core on a forge of
+  that project (section 4). The root
   joins the people's identities and roles with the forge's rule; a
   deployment login or display name supplies no forge identity. A refusal
   names the project, role, required and eligible counts, and asks for
@@ -2336,7 +2351,7 @@ sizes and never reads them (jig's `domain/connectors.md`, section 17).
   temper's retained forge writer is ineligible even with an existing role. No rule
   or accompanying settings become effective on refusal. Later membership
   changes can leave a held rule waiting; the merge still counts only
-  people known by forge user id (8.7).
+  people known on the review's forge (8.7).
 - **It holds them** decoded, the deployment's rules and each project's,
   within `landing_rules` per scope and `judge_projects` projects, keeps
   their values in its family `Setting`, and replaces a scope's whole
@@ -2988,7 +3003,9 @@ Off by default: a project's setting turns it on.
   words (jig's `domain/people.md`, section 8), addressed to a party
   whose forge account adoption mapped (section 4), is projected as an
   issue in the repository it concerns (its goal's changes' repository,
-  else the project's home), labelled `waiting-on-person`, carrying the
+  else the project's home), provided that account is on that repository's
+  forge: a party known on another has no mapped account here. It is
+  labelled `waiting-on-person`, carrying the
   question's words and the asking task, keyed by the person task (a
   purpose of tag 10: the task, 8 bytes).
 - **The person answers in a comment.** A comment on that issue by the
@@ -3278,6 +3295,17 @@ whole.
 
 ## 20. Open questions
 
+- **A person's link to a forge's user, and eligibility per forge** (section 4,
+  8.9; `../draft/forge-identity.md`, sections 3, 4 and 7): the lookup knows
+  only what adoption seeded, and eligibility counts an account on any forge of
+  the project. The draft's link would answer first in `forge_person`, and its
+  count asks for an account on the forge of each repository the rule covers.
+  Default: as it stands, until the plans that carry those sections.
+- **An approval under Needs you** (`../draft/forge-identity.md`, section 8):
+  the watchable approval read, its viewer's eligibility, the review link
+  and the client's card are separate work. Default: an approval waits at
+  the merge, with review evidence on the change's panel; evidence stays
+  until the change ends, rather than leaving at merge admission.
 - **A goal closing with a run branch g lacks** (section 11): the branch goes
   with its goal, what it held with it. A goal's own branch is kept where no
   change landed it. Retaining unlanded run work on close would need a

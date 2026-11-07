@@ -14,6 +14,7 @@ fn readable(number: u32, words: &[u8]) -> DecodedActivityLine {
             used: Usage { input: 1, output: 1, cached: 0, cache_written: 0 },
             spent: 1,
             read_through: None,
+            llm: None,
             cut: false,
         }),
     )
