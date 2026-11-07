@@ -118,6 +118,24 @@ pub fn bands() -> Tree {
     b.close();
     finish(b)
 }
+pub fn styled_bands() -> Tree {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Page);
+    b.open(Role::Banner);
+    b.region(TOP);
+    b.open(Role::Heading { level: 1 });
+    b.style(RED);
+    b.text(Run::Plain, b"Title");
+    b.close();
+    leaf(&mut b, Role::Paragraph, b"Inside");
+    b.close();
+    b.open(Role::ContentInfo);
+    b.region(BOTTOM);
+    leaf(&mut b, Role::Status, b"End");
+    b.close();
+    b.close();
+    finish(b)
+}
 pub fn text() -> Tree {
     let mut b = Builder::new(&LIMITS);
     b.open(Role::Page);
