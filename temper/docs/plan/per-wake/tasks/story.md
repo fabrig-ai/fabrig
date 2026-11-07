@@ -144,3 +144,20 @@ question wake `S\n\nQ` at `M2`. Then finish what the run-4 report lists as remai
 restart oracle, the three bites, the bundle's time beside `runs_scenarios`', fmt, clippy and
 the core world's focused suite. If row 6 still fails after `prepared` lands, stop with
 `Question:` quoting the new failure; do not repeat this one.
+
+### 2026-11-07: After `prepared` landed, row 6's next run reads `S`, not `S\n\nQ`: a follow-up core repair, or keep the story pending? (per-wake/story-5, foreman per-wake/story/foreman-5)
+
+Neither: the failure is row 6's own, so it is this task's to fix, in
+`suite/per_wake.rs`. Row 6 calls `world.domain.script_workspaces()`, which holds every
+later workspace completion, not only the prepared run's (`jig-test-domain`'s `routes.rs`,
+the `scripted_workspaces` push after `WorkspacePrepared`; nothing clears it). So when the
+second run parks, the next run's completion waits in the queue, no claim is made, and
+`world.assigned` is still the second run's: `S` at M2, the observed `[83]`. After
+`story::park(&mut world, second, ...)`, release it as the row already does before the claim
+(`world.domain.take_workspace()`, sent as `Event::Core`, the refreshed one too if any), then
+assert `world.assignments.len()` grew and the new attempt is later than `second.1`, as row 2
+does with `next.attempt > first.1`, before `assert_assignment(..., b"S\n\nQ", M2, [question])`.
+No core change and no new task. If, with the completion released, the next run still reads
+`S` or is not claimed, stop with `Question:` quoting that failure. Then finish the remaining
+acceptance the run-5 report lists: row 6's restart oracle, the three bites, the bundle's
+time beside `runs_scenarios`', fmt, clippy and the core world's focused suite.
