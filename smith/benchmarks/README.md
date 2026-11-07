@@ -25,7 +25,7 @@ archives are refused. `--commit`, `--control` and `--parent` reuse these
 archives; live commands never compile a smith arm.
 
 ```text
-probe PROBE [--agent smith|codex|smith-claude-code] [--attempts N] [--commit COMMIT | --arm DIRECTORY]
+probe PROBE [--agent smith|codex|smith-claude-code] [--attempts N] [--commit COMMIT | --arm DIRECTORY] [--shared-temporary DIRECTORY]
 calibrate PROBE [--attempts N] [--passes N] [--control COMMIT] [--commit COMMIT | --arm DIRECTORY]
 fix PROBE --parent COMMIT [--commit COMMIT]
 suite NAME [--include TASK]... [--seed N] [--commit COMMIT | --arm DIRECTORY]

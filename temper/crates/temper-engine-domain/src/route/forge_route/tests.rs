@@ -3158,6 +3158,112 @@ fn a_changes_start_keeps_parameter_elevens_charter_and_role_choices() {
     }
 }
 
+fn run_branch_fixture(holds: &[u8]) -> (super::Domain, skein_lib::Env<super::Limits>, u64, super::forge::Repository) {
+    use super::{forge, tasks};
+    let (mut domain, env, task) = crate::tests::live_task(None, tasks::Executor::Agent { charter: 1 });
+    let repository = adopted(1);
+    domain.forge.restore_begin(env.wall);
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Restore { record: forge::Stored::Repository(repository.clone()) },
+        &mut skein_lib::Queue::uncapped(),
+    );
+    for letter in holds {
+        let branch = super::tree_branch(&repository, task, *letter, task, None, env.limits.forge.name_bytes).unwrap();
+        let resource = forge::Name {
+            forge: repository.provider.forge,
+            repository: repository.provider.repository,
+            what: super::branch_what(&branch, env.limits.forge.name_bytes).unwrap(),
+        };
+        forge::step(
+            &mut domain.forge,
+            &env.with(env.limits.forge),
+            forge::Event::Hold { entry: 0, task, resource, from: None },
+            &mut skein_lib::Queue::uncapped(),
+        );
+    }
+    (domain, env, task, repository)
+}
+
+fn run_change() -> crate::ChangeCall {
+    crate::ChangeCall {
+        branch: Some(crate::ChangeBranch::Run),
+        landing: Some(crate::ChangeLanding::Goal),
+        ..crate::ChangeCall::words(b"Land delivery".as_slice().into(), None)
+    }
+}
+
+fn branch_run_refused(holds: &[u8], expected: &[u8]) {
+    let (domain, env, task, repository) = run_branch_fixture(holds);
+    let Err(super::ChangeRefused::Words(words)) =
+        super::change_branch(&domain, &env, task, &repository, &run_change(), &[])
+    else {
+        panic!("missing holding refuses the run branch")
+    };
+    assert_eq!(words.as_ref(), expected);
+}
+
+#[test]
+fn branch_run_refuses_without_its_goal_holding() {
+    for holds in [b"".as_slice(), b"r"] {
+        branch_run_refused(holds, b"branch run: this task holds no goal branch in org/repo.");
+    }
+}
+
+#[test]
+fn branch_run_refuses_without_its_run_holding() {
+    branch_run_refused(b"g", b"branch run: this task holds no run branch in org/repo.");
+}
+
+#[test]
+fn branch_run_refuses_a_live_change_on_it() {
+    use super::forge;
+    let (mut domain, env, task, repository) = run_branch_fixture(b"gr");
+    let mut row = change_row(None);
+    row.task = task;
+    row.change.task = task;
+    row.repository = repository.provider;
+    row.branch = super::tree_branch(&repository, task, b'r', task, None, env.limits.forge.name_bytes).unwrap();
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Change { row },
+        &mut skein_lib::Queue::uncapped(),
+    );
+    let Err(super::ChangeRefused::Words(words)) =
+        super::change_branch(&domain, &env, task, &repository, &run_change(), &[])
+    else {
+        panic!("live change refuses the run branch")
+    };
+    assert_eq!(words.as_ref(), b"branch run: change task 1 is on it already.");
+}
+
+#[test]
+fn branch_run_refuses_an_earlier_member_of_the_call() {
+    let (domain, env, task, repository) = run_branch_fixture(b"gr");
+    let (choices, mut choice_env, context) = change_choice_world();
+    choice_env.limits.tasks.parameters = 5; // Repository, base, branch, held flag and title.
+    let branch = super::tree_branch(&repository, task, b'r', task, None, env.limits.forge.name_bytes).unwrap();
+    let prior = super::chat_change(
+        &choices,
+        &choice_env,
+        &context,
+        &run_change(),
+        &repository,
+        b"main".as_slice().into(),
+        Some(branch),
+        50,
+    )
+    .unwrap();
+    let Err(super::ChangeRefused::Words(words)) =
+        super::change_branch(&domain, &env, task, &repository, &run_change(), &[prior])
+    else {
+        panic!("earlier member refuses the run branch")
+    };
+    assert_eq!(words.as_ref(), b"branch run: an earlier change of this call is on it.");
+}
+
 #[test]
 fn a_requesters_branch_and_role_choices_reach_start_together() {
     use super::{Work, forge, tasks};

@@ -1,12 +1,22 @@
 # README: status
 
-2026-11-06. Where temper's code lags or departs from [README.md](README.md).
+2026-11-07. Where temper's code lags or departs from [README.md](README.md).
+
+Sections 3.5 and 5.13 have no known implementation gap in replacing a
+proposal through "Change something", drawing live application rows from
+the review under its key, naming templates and proposal activity in the
+person's words, or placing Latest in flow on a phone. The joined client
+world holds replacement and the Goals row through the engine; its stale
+Accept is dropped before jig, whose core world checks the refusal. The
+phone test asserts CSS rules, not measured geometry or a press. The
+after-landing checks and ended-card row retention are section 11's later
+work; no new real-model or phone press outcome is supplied.
 
 - **Not yet:** 3.5, 5.5: no supplied record establishes a real-box walk of
   the offer, effort choice, configuring chat's chooser and connected-account
-  starters. Tree and domain stories exercise these facts, including a
-  simulated plan sign-in; they do not prove the browser's geometry or a real
-  provider's response. The plan's slices deliberately have `walk = false`.
+  starters with a real provider. The `model-picker` account at `1d82a937df` records the picker
+  geometry at 1440, 1280, 1000 and 420 px and fake-box model and effort presses,
+  with the stored choice surviving a reload. It supplies no real-provider walk.
 
 - **Design departs:** 3.5, 5.8, 5.11, from the greenfield target: "Pause", "Resume" and "Close" on a chat, a goal and an
   agent's task, where its goal says "Stop", which meant a goal's end and a chat's hold. The user's word, 2026-11-06, the
@@ -247,13 +257,9 @@
   Close there by hand, which no test keeps. Of a configuring agent, that model scripts
   one proposal, the cue "Show drafts and goals for this project.", and no document,
   and it has no hold of temper's own, so the gallery alone draws those states.
-- **Not yet:** 5.13, *The card in a chat*: a live proposal of temper's kinds draws its
-  reason's lines and none of its items: jig's document heads leave out every
-  application's item and project's policy (`jig-domain-core`'s `settings.rs`,
-  `proposal_heads`), so `temper-client-domain`'s `forge/ways.rs` asks no values for it
-  and the card has no "Drafts: on". The person accepts on the agent's words. The
-  gallery's `configure-chat-proposal` rows alone draw those lines, from a hand-made
-  document.
+- **Design departs:** 5.13, *The card in a chat*, from the greenfield target's `mock.css`, by the
+  request `ui-proposal-2` of 2026-11-06: a proposal's items stand in the card's type, where the mock
+  has them mono, so that a template's name reads as a person's word.
 - **Not yet:** 5.13, *The card in a chat*, and 3.5's `Chat { task }`: no live turn names its
   proposal, so a live card always takes the place of one no call names, and its call stays a line of
   its own above it. A turn's calls come with no `objects` (`jig-protocol-transcript`'s
@@ -623,9 +629,10 @@
   it there: a person with a lost sign-out may be on any page (6.6). Kind 7's
   controls are disabled together while one is out, where the request disables the
   one pressed: they write one record, so two at once would lose one. And a
-  proposal's card names kinds 6 and 7 as `temper ctl` names them for a person with
-  no role in the deployment, where the request has their values for everyone: a
-  proposal's items span scopes, so their read keeps that role
+  proposal's card has no application rows for a person with no review,
+  including one with no role in the deployment, where the request has their
+  values for everyone: the heads omit application items, and the review and
+  proposal-value read keep the deployment role because items span scopes
   (`../protocol/configuration.md`, 13.2).
 - **Design departs:** 3.5, *The welcome* and *Home*, from the request `ui-welcome`
   of 2026-11-05, decided by its plan's cut. A plan's way at its address, with no

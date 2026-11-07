@@ -35,13 +35,21 @@ impl Fixture {
 
     fn requests(&self, agent: ProbeAgent, arm: &ArmRef, attempts: u32) -> Vec<crate::run::Request> {
         let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let shared_temporary = planned_temporary(None);
         let inputs = RequestInputs {
+            shared_temporary: &shared_temporary,
             repository: root.parent().expect("smith tree"),
             logins: self.directory.join("logins/codex"),
             host: "supplied-host".into(),
             cpus: vec![0],
         };
-        let order = Order { probe: "probes/smoke-tools".into(), agent, attempts, source: Source::Head };
+        let order = Order {
+            probe: "probes/smoke-tools".into(),
+            agent,
+            attempts,
+            source: Source::Head,
+            shared_temporary: shared_temporary.clone(),
+        };
         let value = narrowed(&root.join("suites/probes.toml"), &order).expect("narrow order");
         let suite: Suite = value.try_into().expect("suite");
         let manifest = root.join("tasks/probes/smoke-tools/task.toml");
@@ -49,7 +57,7 @@ impl Fixture {
             crate::CatalogueTask { name: order.probe, task: crate::read_task(&manifest).expect("task"), manifest };
         let repetitions = suite.task_repetitions(&entry.name, entry.task.repetitions, true).expect("repetitions");
         let mut requests = Vec::new();
-        task_requests_in(
+        task_requests(
             &inputs,
             &entry,
             &suite,
@@ -75,6 +83,7 @@ fn supplied_arm_plans_each_attempt_with_pin_and_tier() {
     let requests = fixture.requests(ProbeAgent::Smith, &fixture.arm, ATTEMPTS);
     assert_eq!(requests.len(), 2);
     for (request, attempt) in requests.iter().zip(["01", "02"]) {
+        assert_eq!(request.shared_temporary, Path::new("/tmp"));
         assert_eq!(request.identity.attempt, attempt);
         assert_eq!(request.identity.model.requested_model, "gpt-6-luna");
         assert_eq!(request.identity.model.requested_effort, "low");
@@ -89,6 +98,11 @@ fn supplied_arm_plans_each_attempt_with_pin_and_tier() {
             &fs::read(fixture.directory.join(format!("{attempt}.json"))).expect("one request file per attempt"),
         )
         .expect("persisted request");
+        assert_eq!(persisted.shared_temporary, Path::new("/tmp"));
+        let mut document = serde_json::to_value(&persisted).expect("request document");
+        document.as_object_mut().expect("request fields").remove("shared_temporary");
+        let unnamed: crate::run::Request = serde_json::from_value(document).expect("request without directory");
+        assert_eq!(unnamed.shared_temporary, Path::new("/tmp"));
         assert_eq!(persisted.identity.attempt, attempt);
         assert_eq!(persisted.identity.run, RUN);
     }
@@ -116,4 +130,11 @@ fn program_order_keeps_provider_model_pin_and_arm_identity() {
     assert_eq!(request.identity.model.requested_model, "claude-haiku-5-5");
     assert_eq!(request.identity.arm, "smith-claude-code-bbbbbbbb");
     assert!(request.configuration.as_ref().expect("program pin").ends_with("smith/smith-claude-code.pin.toml"));
+}
+
+#[test]
+fn planned_temporary_uses_the_machine_default_unless_named() {
+    for (named, expected) in [(None, "/tmp"), (Some("/owned/shared-tmp"), "/owned/shared-tmp")] {
+        assert_eq!(planned_temporary(named), Path::new(expected), "{named:?}");
+    }
 }

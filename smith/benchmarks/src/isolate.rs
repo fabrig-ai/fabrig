@@ -24,11 +24,11 @@ pub(crate) struct TemporaryEntry {
     modified_nanoseconds: i64,
 }
 
-/// List the user's entries directly under /tmp, outside this attempt's private root.
-pub(crate) fn temporary_entries(private: &Path) -> Result<BTreeMap<PathBuf, TemporaryEntry>, Fault> {
+/// List the user's entries directly under the shared directory, outside this attempt's private root.
+pub(crate) fn temporary_entries(shared: &Path, private: &Path) -> Result<BTreeMap<PathBuf, TemporaryEntry>, Fault> {
     let owner = fs::metadata("/proc/self")?.uid();
     let mut entries = BTreeMap::new();
-    for entry in fs::read_dir("/tmp")? {
+    for entry in fs::read_dir(shared)? {
         let path = entry?.path();
         if path.starts_with(private) {
             continue;
@@ -56,10 +56,11 @@ pub(crate) fn temporary_entries(private: &Path) -> Result<BTreeMap<PathBuf, Temp
 /// Retain the path and both metadata records for each new or changed user entry.
 pub(crate) fn temporary_changes(
     before: Result<BTreeMap<PathBuf, TemporaryEntry>, Fault>,
+    shared: &Path,
     private: &Path,
 ) -> Result<Vec<(PathBuf, String)>, Fault> {
     let before = before?;
-    let after = temporary_entries(private)?;
+    let after = temporary_entries(shared, private)?;
     Ok(after
         .into_iter()
         .filter(|(path, entry)| before.get(path) != Some(entry))
