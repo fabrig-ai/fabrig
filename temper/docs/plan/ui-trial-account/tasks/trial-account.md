@@ -90,3 +90,7 @@ Each new or changed test breaks its rule once by hand: make the first trial's ca
 ## Report
 
 As the implementer's text says, with each test's wall time before and after, each story outside the header's files you repaired and why, and the journeys recorded again with what each print's diff held.
+
+## Answers
+
+2026-11-07 (temper/ui). Smallest first, and temper/ui widens your files for whichever it takes. First choice: decide the trial's account, and whether it can be served (account_llm, charter 10), before Core::person_seed, so a refused trial makes no seed at all: the sketch's order isn't a rule. If account_llm truly needs the seed, then defer open_person_pool until route_person_task consumes the seed, so that an unused seed is safe to drop. It's generic in jig, with a failing regression first at jig-domain-core's tier: a seed dropped unused leaves the engine quiescent. Not a new cancel operation. The five joined stories then settle as they did; keep their fixture's lack of charter 10 as the refusal's case.
