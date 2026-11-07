@@ -38,6 +38,7 @@ fn new_world(kind: forge::Kind) -> Pages {
         Box::new([
             engine::Record::Forge {
                 row: Box::new(forge::Stored::Forge(forge::ForgeRecord {
+                    person: None,
                     git_program: None,
                     number: FORGE,
                     kind,

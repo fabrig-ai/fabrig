@@ -811,6 +811,7 @@ impl World {
             | Delivery::Forges { .. }
             | Delivery::ForgeDocument { .. }
             | Delivery::Trials { .. }
+            | Delivery::Approvals { .. }
             | Delivery::Panel { .. }
             | Delivery::WebReply { .. }
             | Delivery::CarriedUnused { .. }

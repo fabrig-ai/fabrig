@@ -301,7 +301,8 @@ record CopyIntent { addresses: list 16 bytes 512 }
 enum FirstIntent { empty: EmptyIntent, copies: CopyIntent, nothing }
 record EndedForge { secrets_erased: bool box_removed: bool }
 enum ForgeState { kept, ended: EndedForge }
-record Forge { number: u16 kind: ForgeKind mode: ForgeMode state: ForgeState place: Place git_program: option bytes 4096 read_only: bool bot: Bot asked: bool first: option FirstIntent }
+record ForgeLink { user: u64 person: u64 }
+record Forge { number: u16 kind: ForgeKind mode: ForgeMode state: ForgeState place: Place git_program: option bytes 4096 read_only: bool bot: Bot asked: bool first: option FirstIntent person: option ForgeLink }
 record ForgeNumber { last: u16 }
 enum ResetStep { project, forge, account }
 record Resetting { step: ResetStep }

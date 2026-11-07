@@ -25,8 +25,7 @@ forge-scoped party keys and the shared lookup. Adoption seeds the forge
 and user pair; reviews use the pull request's forge, and eligibility uses
 that same lookup. The step tables cover equal
 user numbers on different forges, unknown accounts and each forge's writer.
-Eligibility still counts an account on any forge of the project; section
-20 defers the owner's link and eligibility on each covered repository's forge.
+
 Section 12.1's questions on the forge remain unbuilt, as listed below;
 their designed account mapping also requires the repository's forge.
 

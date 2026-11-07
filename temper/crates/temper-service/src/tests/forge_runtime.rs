@@ -11,6 +11,7 @@ const PORT: u16 = 3076;
 
 fn record(host: &[u8]) -> domain::ForgeRecord {
     domain::ForgeRecord {
+        person: None,
         git_program: Some(b"/data/bin/git".as_slice().into()),
         number: NUMBER,
         kind: domain::Kind::Forgejo,

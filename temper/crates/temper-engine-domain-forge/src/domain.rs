@@ -141,6 +141,7 @@ pub struct Domain {
     pub(crate) forge_number: u16,
     pub(crate) configured: Map<u16, crate::Configured>,
     pub(crate) under_box: bool,
+    pub(crate) owner: Option<u64>,
     pub(crate) playground_config: Option<crate::PlaygroundConfig>,
     pub(crate) playground: Option<crate::Playground>,
     pub(crate) playground_pending: Map<Token, Token>,
@@ -178,6 +179,7 @@ pub struct Domain {
     pull_mergeable: Map<Name, bool>,
     /// Last judged reviews per live change, unsaved: a restart reads them afresh.
     pub(crate) review_facts: Map<u64, crate::ReviewFacts>,
+    pub(crate) review_since: Map<u64, skein_lib::Wall>,
     ci: Map<(skein_forge::api::Repository, skein_forge::api::Commit), CiState>,
     pub(crate) entries: Map<u64, Outboxed>,
     pub(crate) flights: Map<(u64, u64), ()>,
@@ -541,11 +543,20 @@ impl Domain {
     }
 
     /// Retain the last judged reviews for a live change without writing its record.
+    /// The same facts answer false; facts at the kept head keep their first time,
+    /// and facts at another head take `wall` (domain/forge.md, 8.7 and 8.12).
     /// Returns whether a watched panel needs a new document.
-    pub fn keep_review_facts(&mut self, task: u64, facts: crate::ReviewFacts) -> bool {
+    pub fn keep_review_facts(&mut self, wall: skein_lib::Wall, task: u64, facts: crate::ReviewFacts) -> bool {
         let Some(row) = self.changes.get(&task) else { return false };
         if row.terminal() || self.review_facts.get(&task) == Some(&facts) {
             return false;
+        }
+        let same_head = match self.review_facts.get(&task) {
+            Some(kept) => kept.head == facts.head,
+            None => false,
+        };
+        if !same_head {
+            self.review_since.insert(task, wall).expect("one review time per bounded live change");
         }
         self.review_facts.insert(task, facts).expect("one review read per bounded live change");
         true
@@ -635,6 +646,7 @@ impl Domain {
             forge_number,
             configured,
             under_box,
+            owner: None,
             playground_config: None,
             playground: None,
             playground_pending: Map::with_capacity(l.applications),
@@ -669,6 +681,7 @@ impl Domain {
             pulls: Map::with_capacity(l.client.resources),
             pull_mergeable: Map::with_capacity(l.client.resources),
             review_facts: Map::with_capacity(l.changes),
+            review_since: Map::with_capacity(l.changes),
             ci: Map::with_capacity(l.subscriptions),
             entries: Map::with_capacity(l.entries),
             flights: Map::with_capacity(l.entries),
@@ -1253,6 +1266,8 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::InstallAnswered { forge, request, answer, stopped } => {
             crate::connect::installed(d, forge, request, answer, stopped, out);
         }
+        Event::Owner { party } => crate::link::owner(d, party, out),
+        Event::PersonOf { forge, answer } => crate::link::person_of(d, forge, answer, out),
         Event::BotLogin { forge, login } => crate::connect::bot_login(d, forge, login, out),
         Event::ConnectEnded { forge, request, connected, why, stop } => {
             crate::connect::ended(d, forge, request, connected, why, stop, out);
@@ -3757,6 +3772,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
         row.delegate = None;
     }
     for _ in 0_u32..16 {
+        let effect_prior = row.change.clone();
         let stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
         let advanced = stepped.change != row.change;
         row.change = stepped.change;
@@ -3770,6 +3786,16 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &m
                 heard.delegate = change::Status::Unknown;
             }
             change::Decision::Effect(effect) => {
+                // An approval wait keeps its turn (temper/docs/design/domain/forge.md, 8.12).
+                let prior = match effect {
+                    change::Effect::Merge { .. } => effect_prior,
+                    change::Effect::Open
+                    | change::Effect::CreateBranch { .. }
+                    | change::Effect::Reopen
+                    | change::Effect::Prepare { .. }
+                    | change::Effect::Retarget
+                    | change::Effect::Update { .. } => prior,
+                };
                 emit_change_effect(d, env, &mut row, pending, prior, effect, out);
                 return;
             }
@@ -5185,6 +5211,38 @@ fn committed(d: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Req
     if d.stopping {
         return;
     }
+    if let Some(row) = d.entries.get(&number) {
+        let task = row.entry.task;
+        let merge = match row.entry.effect.write {
+            skein_forge::api::Write::Merge { .. } => true,
+            skein_forge::api::Write::CreateIssue { .. }
+            | skein_forge::api::Write::Post { .. }
+            | skein_forge::api::Write::Edit { .. }
+            | skein_forge::api::Write::Close { .. }
+            | skein_forge::api::Write::OpenPull { .. }
+            | skein_forge::api::Write::Status { .. }
+            | skein_forge::api::Write::Review { .. }
+            | skein_forge::api::Write::SetReviewers { .. }
+            | skein_forge::api::Write::Reopen { .. }
+            | skein_forge::api::Write::Update { .. }
+            | skein_forge::api::Write::CreateBranch { .. }
+            | skein_forge::api::Write::Dispatch { .. }
+            | skein_forge::api::Write::Rerun { .. }
+            | skein_forge::api::Write::DeleteBranch { .. } => false,
+        };
+        if merge {
+            let direct = d.changes.contains_key(&task);
+            for (change, row) in &d.changes {
+                if (direct && *change == task) || (!direct && row.change.landing == Some(task)) {
+                    let facts = d.review_facts.remove(change);
+                    d.review_since.remove(change);
+                    if facts.is_some() {
+                        emit(out, Request::Marked { tasks: Box::new([crate::APPROVALS_SUBJECT, *change]) });
+                    }
+                }
+            }
+        }
+    }
     if let Some(row) = d.entries.get_mut(&number)
         && row.handoff == Handoff::Uncommitted
     {
@@ -6411,6 +6469,7 @@ fn retain_terminal_ci(d: &mut Domain, row: &mut ChangeRow) {
         return;
     }
     d.review_facts.remove(&row.task);
+    d.review_since.remove(&row.task);
     let read = match d.panel_ci.get(&row.task) {
         Some(read) if Some(read.head) == row.change.last_head => Some(*read),
         Some(_) | None => row.ci,

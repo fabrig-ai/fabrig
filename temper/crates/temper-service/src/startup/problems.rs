@@ -72,6 +72,7 @@ pub enum What {
     Credentials,
     Escalation,
     Provider,
+    BoxSignIn,
     Handover,
     MissingNull,
     InlineSeedPolicy,
@@ -167,6 +168,7 @@ fn words(what: What) -> &'static [u8] {
         What::Escalation => b"an owner's project must name an escalation role from 0 to 3",
         What::Handover => b"admin_token must be exactly 40 lowercase hexadecimal digits",
         What::Provider => b"the deployment's provider must not be 0, the forge's sign-in provider",
+        What::BoxSignIn => b"a box's sign-in takes application.sign_in null",
         What::Jig(what) => jig_words(what),
     }
 }
@@ -541,6 +543,7 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
             | What::Credentials
             | What::Escalation
             | What::Provider
+            | What::BoxSignIn
             | What::MissingNull
             | What::InlineSeedPolicy
             | What::LandingStored

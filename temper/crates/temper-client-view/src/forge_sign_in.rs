@@ -191,7 +191,12 @@ impl Forge {
     #[must_use]
     pub fn open_repository(&self, owner: &[u8], name: &[u8]) -> Option<Box<[u8]>> {
         let path = crate::forge::repository::web_address(b"", owner, name)?;
-        let query = crate::forge::repository::encoded(&path, false)?;
+        self.open_path(&path)
+    }
+    /// The encoded path as the sign-in redirect (client/forge.md, 4.1 and 5.4).
+    #[must_use]
+    pub fn open_path(&self, path: &[u8]) -> Option<Box<[u8]>> {
+        let query = crate::forge::repository::encoded(path, false)?;
         let root = self.open();
         let bytes = root.len().checked_add(b"?redirect_to=".len())?.checked_add(query.len())?;
         if bytes > usize::try_from(temper_client_domain::forge::change::ADDRESS_BYTES).ok()? {

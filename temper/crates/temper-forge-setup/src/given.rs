@@ -107,7 +107,10 @@ pub fn values(
         bot_login: entry.bot.login.clone(),
         bot_email: entry.bot.email.clone(),
         orgs: Box::new([]),
-        person: None,
+        person: match &entry.mode {
+            crate::setup::Mode::Managed { .. } | crate::setup::Mode::Fake(_) => None,
+            crate::setup::Mode::Owned(owned) => Some(owned.person.login.clone()),
+        },
         // The runtime supplies the restored adopted ids in its Reconcile plan.
         adopted: Box::new([]),
         org_owner: match &entry.mode {

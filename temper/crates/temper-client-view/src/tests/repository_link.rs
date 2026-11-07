@@ -64,6 +64,33 @@ fn an_address_for_each_kind_of_forge() {
         row.kind = kind;
         row.web = web.map(Into::into);
         assert_eq!(address(&row, if signed { &facts } else { &empty }, b"work", b"hello").as_deref(), expected);
+        let mut approval = super::needs::approval_row();
+        approval.kind = kind;
+        approval.forge = row.number;
+        approval.owner = b"work".as_slice().into();
+        approval.name = b"hello".as_slice().into();
+        approval.address = match web {
+            Some(web) => skein_lib::bytes::concat(&[
+                web.strip_suffix(b"/").unwrap_or(web),
+                if kind == Kind::GitHub { b"/work/hello/pull/24/files" } else { b"/work/hello/pulls/24/files" },
+            ]),
+            None => Box::default(),
+        };
+        let expected = if signed && kind == Kind::Forgejo {
+            Some(
+                b"https://sign-in.example/root/user/oauth2/temper?redirect_to=%2Fwork%2Fhello%2Fpulls%2F24%2Ffiles"
+                    .as_slice()
+                    .into(),
+            )
+        } else {
+            expected.map(|url| {
+                skein_lib::bytes::concat(&[
+                    url,
+                    if kind == Kind::GitHub { b"/pull/24/files" } else { b"/pulls/24/files" },
+                ])
+            })
+        };
+        assert_eq!(crate::pages::approval::address(&approval, if signed { &facts } else { &empty }), expected);
     }
 }
 #[test]
@@ -87,6 +114,11 @@ fn a_name_cannot_leave_its_segment_or_the_query() {
         assert_eq!(address(&row, &Forges::new(), name, name).as_deref(), Some(expected.as_bytes()));
         let expected = format!("https://forge.example/user/oauth2/temper?redirect_to=%2F{query}%2F{query}");
         assert_eq!(address(&row, &facts, name, name).as_deref(), Some(expected.as_bytes()));
+        let mut approval = super::needs::approval_row();
+        approval.owner = name.into();
+        approval.name = name.into();
+        let expected = format!("{expected}%2Fpulls%2F24%2Ffiles");
+        assert_eq!(crate::pages::approval::address(&approval, &facts).as_deref(), Some(expected.as_bytes()));
     }
 }
 

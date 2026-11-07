@@ -1,9 +1,33 @@
 //! Project asks reach the core with the correct scope (people.md, 5.1–5.2).
 use super::*;
 const PARTY: u64 = 1;
+const OTHER: u64 = 2;
 const SIGN_IN: u64 = 10;
 const PROJECT: u32 = 1;
 const KEY: u8 = 1;
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "step tests are ordinary Rust (testing-strategy.md, section 10)")]
+fn the_deployments_sole_owner_is_its_one_owner_or_none() {
+    for (project, holdings, expected) in [
+        (DEPLOYMENT, vec![], None),
+        (DEPLOYMENT, vec![(PARTY, Role::Owner)], Some(PARTY)),
+        (DEPLOYMENT, vec![(PARTY, Role::Owner), (OTHER, Role::Member)], Some(PARTY)),
+        (DEPLOYMENT, vec![(PARTY, Role::Owner), (OTHER, Role::Owner)], None),
+        (DEPLOYMENT, vec![(PARTY, Role::Maintainer)], None),
+        (DEPLOYMENT, vec![(PARTY, Role::Policy { role: 9 })], None),
+        (PROJECT, vec![(PARTY, Role::Owner)], None),
+    ] {
+        let mut test = Test::new(LIMITS);
+        test.signin(PARTY, SIGN_IN, identity(0, PARTY));
+        test.signin(OTHER, SIGN_IN + 1, identity(0, OTHER));
+        test.send(Event::Roles {
+            project,
+            holdings: holdings.iter().map(|&(person, role)| Holding { person, role }).collect(),
+        });
+        assert_eq!(test.d.sole_owner(), expected, "project {project}, holdings {holdings:?}");
+    }
+}
 
 #[test]
 fn project_asks_route_with_their_own_scopes_role() {

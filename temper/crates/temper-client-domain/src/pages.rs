@@ -654,7 +654,9 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             let me = pages.me(client);
             pages.switcher.act(me, pages.project, act, &mut pages.serial, out);
         }
-        Event::Act { act: Act::Needs(act) } => needs::act(pages, env, client, act, out),
+        Event::Act { act: Act::Needs(act) } => {
+            needs::act(pages, env, client, &crate::forge::approvals::Approvals::default(), act, out);
+        }
         Event::Act { act: Act::Choice(act) } => choice::act(pages, client, act, out),
         Event::Act { act: Act::ChatWords { words } } => {
             if let Some(chats) = &mut pages.chats {

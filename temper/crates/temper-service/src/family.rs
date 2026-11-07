@@ -447,6 +447,11 @@ pub fn to_root(
                         connector: wire::FORGE,
                         subject: Token::new(forge::changes_subject(subject.project())),
                     },
+                    w::Watch::Approvals => jig_domain_core::documents::Watched::Application {
+                        scope: jig_domain_people::ApplicationScope::Own,
+                        connector: wire::FORGE,
+                        subject: Token::new(root::APPROVALS_SUBJECT),
+                    },
                     w::Watch::Trials => jig_domain_core::documents::Watched::Application {
                         scope: jig_domain_people::ApplicationScope::Own,
                         connector: wire::FORGE,
@@ -1799,7 +1804,7 @@ pub fn forge_read(answer: root::ForgeReadAnswer, program_environment: &[u8], lim
             let record = w::SettingAnswer::new(limits, w::SettingAnswerParts { value }).ok()?;
             Some(wire::setting_answer(&record))
         }
-        root::ForgeReadAnswer::ProposalItems(values) => {
+        root::ForgeReadAnswer::ProposalItems { items: values, owned_approval } => {
             let mut items = List::with_capacity(limits.proposal_items_answer_items);
             for (key, edit) in values {
                 let edit = match edit {
@@ -1823,7 +1828,8 @@ pub fn forge_read(answer: root::ForgeReadAnswer, program_environment: &[u8], lim
                     )
                     .ok()?;
             }
-            let record = w::ProposalItemsAnswer::new(limits, w::ProposalItemsAnswerParts { items }).ok()?;
+            let record =
+                w::ProposalItemsAnswer::new(limits, w::ProposalItemsAnswerParts { items, owned_approval }).ok()?;
             Some(wire::proposal_items_answer(&record))
         }
     }
@@ -1933,4 +1939,64 @@ pub fn trials(rows: Box<[temper_engine_domain_trials::Row]>, limits: &w::Limits)
     let mut writer = Writer::new(usize::try_from(document.measure()).ok()?);
     document.encode(&mut writer).ok()?;
     Some(writer.finish())
+}
+
+/// The watcher's approvals document, each row's kind and files-page address from configuration,
+/// as a panel's pull request's are (client/README.md, 4.6; client/forge.md, 4.1).
+#[must_use]
+pub fn approvals(document: root::Approvals, forges: &crate::forges::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
+    let mut rows = List::with_capacity(32);
+    for row in document.rows {
+        let kind = match forges.get(row.forge) {
+            Some(forge) => match forge.kind {
+                crate::settings::Kind::GitHub => w::Kind::Github,
+                crate::settings::Kind::Forgejo => w::Kind::Forgejo,
+            },
+            None => w::Kind::Forgejo,
+        };
+        let pull = pull_address(row.forge, &row.owner, &row.name, row.pull, forges);
+        let address = if pull.is_empty() || pull.len().saturating_add(6) > 2048 {
+            Box::default()
+        } else {
+            let mut address = Writer::new(pull.len().saturating_add(6));
+            address.put(&pull).expect("measured pull address");
+            address.put(b"/files").expect("measured files suffix");
+            address.finish()
+        };
+        rows.push(
+            w::ApprovalRow::new(
+                limits,
+                w::ApprovalRowParts {
+                    task: row.task,
+                    project: row.project,
+                    goal: row.goal,
+                    forge: row.forge,
+                    kind,
+                    owner: row.owner,
+                    name: row.name,
+                    pull: row.pull,
+                    address,
+                    title: row.title,
+                    since: row.since.as_nanos(),
+                    scope: row.scope,
+                    rule: row.rule,
+                    role: row.role,
+                    required: row.required,
+                    counted: row.counted,
+                    behind: row.behind,
+                    whole: row.whole,
+                    yours: match row.yours {
+                        root::YourReview::Counts => w::ApprovalYours::Counts,
+                        root::YourReview::NoAccount => w::ApprovalYours::NoAccount,
+                        root::YourReview::TooFew => w::ApprovalYours::TooFew,
+                        root::YourReview::OtherRole => w::ApprovalYours::OtherRole,
+                    },
+                },
+            )
+            .ok()?,
+        )
+        .ok()?;
+    }
+    let document = w::Approvals::new(limits, w::ApprovalsParts { rows, more: document.more }).ok()?;
+    Some(wire::approvals(&document))
 }

@@ -100,7 +100,7 @@ section 7).
 
   | Byte | Family | Key | What a row holds | Bounded by |
   |---|---|---|---|---|
-  | 25 | `Forge` | `Forge(forge)`: the forge's number | a forge, a record of the forge connector's (forge.md, 2.1): its kind, Forgejo or GitHub; its mode, connected, managed, owned or fake; its place, the API's host, port and TLS name, the remotes' base and the pages; its git program; whether a pasted App is read-only; its bot's login, name and email; whether its start waits to be asked, an owned forge's; a first set up's intent, and no project (setup.md, 6.7): empty, its organization, repository, runner label and whether it is the playground's; copies, its addresses; or nothing; and its state, kept or ended with whether its secrets are erased and its box group removed. Written by the act that makes the forge and at each change, erased once its removal is whole (forge.md, 2.3) | `forges` |
+  | 25 | `Forge` | `Forge(forge)`: the forge's number | a forge, a record of the forge connector's (forge.md, 2.1): its kind, Forgejo or GitHub; its mode, connected, managed, owned or fake; its place, the API's host, port and TLS name, the remotes' base and the pages; its git program; whether a pasted App is read-only; its bot's login, name and email; whether its start waits to be asked, an owned forge's; a first set up's intent, and no project (setup.md, 6.7): empty, its organization, repository, runner label and whether it is the playground's; copies, its addresses; or nothing; its link to a box's person, the forge's user and the person's party, or none (`../domain/forge.md`, 4.6); and its state, kept or ended with whether its secrets are erased and its box group removed. Written by the act that makes the forge and at each change, erased once its removal is whole (forge.md, 2.3) | `forges` |
   | 26 | `ForgeNumber` | `ForgeNumber`: one row | the last forge number given, `{ last }`, so a number is never given twice (forge.md, 2.1). Written as each forge is made, never erased | one row |
   | 27 | `Playground` | `Playground`: one row | the playground's state, starting, running, or resetting at its step, the project's, the forge's or the account's; its fake forge's number; and its project's and scripted account's numbers once its start has made them (setup.md, 8.4). Written at its start, at each act its start makes, and at each step of its reset; erased when the reset ends; no row is no playground | one row |
 
@@ -393,10 +393,6 @@ Within the suites' budgets (`../domain/testing.md`, section 2):
 
 ## 7. Open questions
 
-- **The box owner's forge link** (`../draft/forge-identity.md`, sections
-  3, 4 and 9): its field on the forge record and the setup's evidence are
-  separate work. Default: no link in family 25 `Forge`; the party subjects
-  remain the forge and user pair of section 2.
 - **`Landed` grows with history.** A merge temper made is kept for
   own-change news, and no row is erased; once the forge's `landings`
   limit is reached, later merges are not recorded, and news of them reads

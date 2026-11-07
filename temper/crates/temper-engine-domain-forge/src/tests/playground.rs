@@ -100,6 +100,7 @@ fn a_real_forge_kept_refuses_the_start_not_offered() {
         &mut d,
         Event::Restore {
             record: Stored::Forge(ForgeRecord {
+                person: None,
                 git_program: None,
                 number: 2,
                 kind: Kind::Forgejo,

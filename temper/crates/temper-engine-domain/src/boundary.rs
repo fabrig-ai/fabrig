@@ -1,4 +1,5 @@
 //! The engine boundary, wrapping its typed peers (jig's domain/root.md, 2).
+pub use crate::route::approvals::{ApprovalRow, Approvals, YourReview};
 use crate::route::{HostRequest, escalation, forge_route, proposals};
 use crate::{CallKey, Delivery, Key, Range, Record, Write};
 use alloc::boxed::Box;
@@ -504,6 +505,8 @@ pub enum Missing {
 /// An observation of the root, which decides nothing (domain/root.md, 3 and 7.4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Fact {
+    /// A forge's link changed or was refused (temper/docs/design/domain/forge.md, 4.6).
+    ForgeLink { forge: u16, note: forge::LinkNote },
     /// A forge read refused locally or by the connector, for operator diagnostics.
     ReadRefused {
         task: u64,
@@ -573,6 +576,8 @@ pub enum TryAnswer {
     Tried,
     NotTheirs,
 }
+pub use temper_engine_domain_forge::APPROVALS_SUBJECT;
+
 /// A person's trials document (temper/docs/design/domain/trial.md, 6).
 pub const TRIALS_SUBJECT: u64 = temper_engine_domain_trials::TRIALS_SUBJECT;
 
@@ -602,7 +607,11 @@ pub enum ForgeRead {
 pub enum ForgeReadAnswer {
     ProgramEnvironment,
     Setting(Option<forge::settings::SizedValue>),
-    ProposalItems(Box<[(forge::settings::SettingKey, forge::settings::Edit)]>),
+    /// The proposal's items and whether an enforcing approval covers an owned Forgejo (domain/forge.md, 8.12).
+    ProposalItems {
+        items: Box<[(forge::settings::SettingKey, forge::settings::Edit)]>,
+        owned_approval: bool,
+    },
 }
 #[derive(Hash, Debug)]
 pub enum PartyInput {
@@ -1065,6 +1074,7 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         | Delivery::Forges { .. }
         | Delivery::ForgeDocument { .. }
         | Delivery::Trials { .. }
+        | Delivery::Approvals { .. }
         | Delivery::Panel { .. }
         | Delivery::Application { .. }
         | Delivery::Public { .. }

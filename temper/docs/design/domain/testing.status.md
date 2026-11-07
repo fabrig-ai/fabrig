@@ -2,6 +2,20 @@
 
 2026-11-07. Where temper's code lags or departs from [testing.md](testing.md).
 
+Sections 2.5, 6 and 6.1 have the profiled fuzzy repairs: engine walking,
+terminal-cut, escalation and role sweeps compare exact traces and
+complete frozen-state digests each iteration, with full text on a
+mismatch and at each seed's end. Reachable state types derive `Hash`;
+role observations consume new history, and teardown transfers the store
+to its cold oracle. One-process setups reuse fixed codec/default/settings
+construction and refresh observations at history or durable changes,
+including the initial empty observation. The public-record sweep keeps
+all 2,000 seeds and 24,000 drawn checks, with six fixed checks once.
+Shared list append bookkeeping and fixed-width generated measurement
+are cheaper. No test, draw, crash, invariant or ending is removed or
+moved. Remaining mechanisms and reliability investigations are deferred
+in section 11; the measured suite overage remains below.
+
 Section 5.2's conformance sweeps fork every live commit from one baseline,
 retaining cold restart and independent readback. Section 5.3's retained
 stories and lower holders agree with its table; further costs and the
@@ -49,10 +63,15 @@ are deferred in section 11, with all bounds, orders and checks retained.
   is 31.769481 CPU s against its standing 15 s ceiling. The whole-temper
   fuzzy median is 125.579032 CPU s against 120, in three warm serial runs
   including the driver (119.288299–127.664356 CPU s).
+  All 81 tests passed in each run, but two runs and the median exceed
+  120; the request's roughly 15 CPU s reduction and reliable headroom
+  are not achieved. The gate's own per-test CPU result is unknown from
+  these serial samples, whose driver and feature unions differ from
+  the request's gate baseline.
   [`limits-fuzzy.md`](../../development/limits-fuzzy.md) records these runs,
   their accounting limits, retained causes and next decisions.
-  The measurements, their load and accounting limits, retained causes and
-  the next decisions are in
+  The focused measurements, their load and accounting limits, retained
+  causes and next decisions are in
   [`limits-worlds.md`](../../development/limits-worlds.md). The whole-temper
   focused suite total remains unknown; package sums include warm nextest
   overhead.

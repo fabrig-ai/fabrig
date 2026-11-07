@@ -18,6 +18,16 @@ impl Domain {
         self.records.get(&forge)
     }
 
+    /// The kept forge's link, absent for an ended or unknown forge (temper/docs/design/domain/forge.md, 4.6).
+    #[must_use]
+    pub fn link(&self, forge: u16) -> Option<crate::Link> {
+        let record = self.records.get(&forge)?;
+        match record.state {
+            ForgeState::Kept => record.person,
+            ForgeState::Ended { .. } => None,
+        }
+    }
+
     /// Ended at removal's decision, or absent (temper/docs/design/domain/forge.md, 4.1).
     #[must_use]
     pub fn forge_ended(&self, forge: u16) -> bool {
@@ -62,8 +72,19 @@ pub(crate) fn make(
     let number = d.forge_number.checked_add(1)?;
     d.forge_number = number;
     out.push(Request::Save { record: Stored::ForgeNumber { last: number }, release: None, read_afresh: None });
-    let record =
-        ForgeRecord { number, kind, mode, state: ForgeState::Kept, place, git_program, read_only, bot, asked, first };
+    let record = ForgeRecord {
+        number,
+        kind,
+        mode,
+        state: ForgeState::Kept,
+        place,
+        git_program,
+        read_only,
+        bot,
+        asked,
+        first,
+        person: None,
+    };
     save(d, record.clone(), out);
     out.push(Request::ForgeKept(record));
     Some(number)

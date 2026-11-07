@@ -320,6 +320,15 @@ fn long_pass_line(long: LongPass) -> String {
 
 pub(crate) fn note_line(note: temper_service::Note) -> String {
     match note {
+        temper_service::Note::ForgeLink { forge, note } => {
+            let words = match note {
+                temper_engine_domain_forge::LinkNote::Gone => "their account is gone, the link kept",
+                temper_engine_domain_forge::LinkNote::Writer => "refused, temper's writer",
+                temper_engine_domain_forge::LinkNote::Replaced => "replaced",
+                temper_engine_domain_forge::LinkNote::Cleared => "cleared",
+            };
+            format!("forge {forge}'s person: {words}\n")
+        }
         temper_service::Note::RunFailed(diagnostic) => run_failure_line(
             diagnostic.task,
             diagnostic.run,
@@ -1016,17 +1025,29 @@ fn restore_pages_name_only_the_store_supplied_cause_family_and_key() {
 
 #[test]
 fn refusal_lines_name_the_task_attempt_tool_layer_and_reason() {
+    use temper_engine_domain_forge::LinkNote;
     use temper_service::Note;
-    assert_eq!(
-        note_line(Note::CallAdmissionRefused {
-            task: 7,
-            attempt: 2,
-            tool: b"read_file".as_slice().into(),
-            layer: "core-call-room",
-            reason: "call record room full",
-        }),
-        "temper serve: call admission refused task=7 attempt=2 tool=read_file layer=core-call-room reason=call record room full\n"
-    );
+    for (note, expected) in [
+        (
+            Note::CallAdmissionRefused {
+                task: 7,
+                attempt: 2,
+                tool: b"read_file".as_slice().into(),
+                layer: "core-call-room",
+                reason: "call record room full",
+            },
+            "temper serve: call admission refused task=7 attempt=2 tool=read_file layer=core-call-room reason=call record room full\n",
+        ),
+        (
+            Note::ForgeLink { forge: 7, note: LinkNote::Gone },
+            "forge 7's person: their account is gone, the link kept\n",
+        ),
+        (Note::ForgeLink { forge: 7, note: LinkNote::Writer }, "forge 7's person: refused, temper's writer\n"),
+        (Note::ForgeLink { forge: 7, note: LinkNote::Replaced }, "forge 7's person: replaced\n"),
+        (Note::ForgeLink { forge: 7, note: LinkNote::Cleared }, "forge 7's person: cleared\n"),
+    ] {
+        assert_eq!(note_line(note), expected);
+    }
     let line = note_line(Note::ReadRefused {
         task: 7,
         attempt: 2,

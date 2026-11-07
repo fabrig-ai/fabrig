@@ -60,14 +60,16 @@ tests merely to escape it is not a repair
 
 ## Figures and unchanged draws
 
-The following keys identify the full source paths:
+The plan's figures are preserved in `5d847a4fdb` under
+`temper/docs/plan/limits-fuzzy/figures/`; these keys name each by its
+file's name there:
 
-- **P:** [public-wire](../plan/limits-fuzzy/figures/public-wire.md).
-- **O:** [one-process-sweeps](../plan/limits-fuzzy/figures/one-process-sweeps.md).
-- **S:** [state-hash](../plan/limits-fuzzy/figures/state-hash.md).
-- **E:** [engine-sweeps](../plan/limits-fuzzy/figures/engine-sweeps.md).
-- **U:** [under-causes](../plan/limits-fuzzy/figures/under-causes.md).
-- **C:** [close](../plan/limits-fuzzy/figures/close.md), the combined-trunk runs.
+- **P:** `public-wire`.
+- **O:** `one-process-sweeps`.
+- **S:** `state-hash`.
+- **E:** `engine-sweeps`.
+- **U:** `under-causes`.
+- **C:** `close`, the combined-trunk runs.
 
 Ir means executed instructions, with the test binary run unoptimized under
 Callgrind. Before counts are copied from the sweep tasks. E's baseline

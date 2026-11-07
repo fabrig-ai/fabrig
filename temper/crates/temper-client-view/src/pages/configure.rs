@@ -22,7 +22,7 @@ pub(crate) fn main(
         && super::project_name(root.pages().me(root.client()), project).is_none()
     {
         let mut times = crate::words::Times::new(skein_lib::Wall::EPOCH);
-        super::home::main(b, root, w, bindings, accounts, project, &mut times, 0);
+        super::home::main(b, root, w, bindings, accounts, project, &mut times, 0, &crate::forge_sign_in::Forges::new());
         return;
     }
     let terminal = super::terminal::shown(root, w);

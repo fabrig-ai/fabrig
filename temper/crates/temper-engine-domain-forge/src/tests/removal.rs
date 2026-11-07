@@ -9,6 +9,7 @@ use jig_domain_people::Role as PartyRole;
 
 pub(super) fn record(number: u16, mode: Mode) -> ForgeRecord {
     ForgeRecord {
+        person: None,
         git_program: None,
         number,
         kind: Kind::Forgejo,

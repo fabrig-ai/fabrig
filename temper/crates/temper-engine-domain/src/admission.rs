@@ -85,6 +85,8 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::AcceptAnswered { .. }
             | forge::Event::InstallAnswered { .. }
             | forge::Event::ConnectEnded { .. }
+            | forge::Event::Owner { .. }
+            | forge::Event::PersonOf { .. }
             | forge::Event::BotLogin { .. }
             | forge::Event::SetUpAnswered { .. }
             | forge::Event::FirstMade { .. }

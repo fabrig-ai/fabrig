@@ -28,6 +28,11 @@ const SECOND_HOLD: u64 = 6000;
 const CHOICE: &[u8] = b"Use the first";
 fn fixture() -> Pages {
     let mut pages = f::pages(FIRST, f::question());
+    let (mut root, watch) = fixtures::inbox_home(crate::address::Filter::ALL);
+    fixtures::inbox_entries(&mut root, watch, List::with_capacity(0));
+    let mut inbox = root.pages.inbox.take().unwrap();
+    inbox.cards = pages.inbox.take().unwrap().cards;
+    pages.inbox = Some(inbox);
     pages.inbox.as_mut().unwrap().cards.get_mut(0).unwrap().group = c::InboxGroup::Questions;
     pages
 }
@@ -349,12 +354,18 @@ fn later_moves_last_keeps_its_count_and_advances_shown() {
     act(&mut pages, 0, Act::OpenReply { object: FIRST });
     act(&mut pages, 0, Act::Later { object: FIRST });
     assert_eq!(open(&pages).as_ref(), [SECOND, FIRST]);
-    assert_eq!(pages.needs().shown(pages.inbox().unwrap()).unwrap().object, SECOND);
+    assert_eq!(
+        pages.needs().shown(pages.inbox().unwrap(), &crate::forge::approvals::Approvals::default()).unwrap().object(),
+        SECOND
+    );
     assert!(pages.needs().later(FIRST));
     assert!(!pages.needs().replying(FIRST));
     assert_eq!(pages.needs().toast(), Some(&Toasted::Later));
     choose(&mut pages, 0, SECOND);
-    assert_eq!(pages.needs().shown(pages.inbox().unwrap()).unwrap().object, FIRST);
+    assert_eq!(
+        pages.needs().shown(pages.inbox().unwrap(), &crate::forge::approvals::Approvals::default()).unwrap().object(),
+        FIRST
+    );
     choose(&mut pages, 0, FIRST);
     assert!(!pages.needs().later(FIRST));
 }
@@ -372,11 +383,16 @@ fn open_selects_the_card_with_homes_project_filter() {
             })
         );
         went(&mut pages, Address::Inbox { filter: crate::address::Filter::ALL });
-        let mut card = fixture().inbox().unwrap().cards.get(0).unwrap().clone();
-        pages.inbox.as_mut().unwrap().cards.push(card.clone()).unwrap();
-        card.object = SECOND;
-        pages.inbox.as_mut().unwrap().cards.push(card).unwrap();
-        assert_eq!(pages.needs().shown(pages.inbox().unwrap()).unwrap().object, SECOND);
+        pages.inbox = fixture().inbox;
+        add(&mut pages, SECOND, fixtures::PROJECT);
+        assert_eq!(
+            pages
+                .needs()
+                .shown(pages.inbox().unwrap(), &crate::forge::approvals::Approvals::default())
+                .unwrap()
+                .object(),
+            SECOND
+        );
     }
 }
 #[test]
@@ -385,21 +401,35 @@ fn at_clears_on_answer_later_or_leaving_and_missing_falls_back() {
     add(&mut pages, SECOND, fixtures::PROJECT);
     act(&mut pages, 0, Act::Open { object: SECOND });
     act(&mut pages, 0, Act::Later { object: SECOND });
-    assert_eq!(pages.needs().shown(pages.inbox().unwrap()).unwrap().object, FIRST);
+    assert_eq!(
+        pages.needs().shown(pages.inbox().unwrap(), &crate::forge::approvals::Approvals::default()).unwrap().object(),
+        FIRST
+    );
     act(&mut pages, 0, Act::Open { object: SECOND });
     choose(&mut pages, 0, SECOND);
-    assert_eq!(pages.needs().shown(pages.inbox().unwrap()).unwrap().object, FIRST);
+    assert_eq!(
+        pages.needs().shown(pages.inbox().unwrap(), &crate::forge::approvals::Approvals::default()).unwrap().object(),
+        FIRST
+    );
     act(&mut pages, 0, Act::Undo { object: SECOND });
-    assert_eq!(pages.needs().shown(pages.inbox().unwrap()).unwrap().object, FIRST);
+    assert_eq!(
+        pages.needs().shown(pages.inbox().unwrap(), &crate::forge::approvals::Approvals::default()).unwrap().object(),
+        FIRST
+    );
     act(&mut pages, 0, Act::Open { object: SECOND });
     pages.inbox.as_mut().unwrap().cards.truncate(1);
-    assert_eq!(pages.needs().shown(pages.inbox().unwrap()).unwrap().object, FIRST);
+    assert_eq!(
+        pages.needs().shown(pages.inbox().unwrap(), &crate::forge::approvals::Approvals::default()).unwrap().object(),
+        FIRST
+    );
     went(&mut pages, chats());
     went(&mut pages, Address::Inbox { filter: crate::address::Filter::ALL });
-    let card = fixture().inbox().unwrap().cards.get(0).unwrap().clone();
-    pages.inbox.as_mut().unwrap().cards.push(card).unwrap();
+    pages.inbox = fixture().inbox;
     add(&mut pages, SECOND, fixtures::PROJECT);
-    assert_eq!(pages.needs().shown(pages.inbox().unwrap()).unwrap().object, FIRST);
+    assert_eq!(
+        pages.needs().shown(pages.inbox().unwrap(), &crate::forge::approvals::Approvals::default()).unwrap().object(),
+        FIRST
+    );
 }
 #[test]
 fn navigation_closes_the_reply_form() {
@@ -448,7 +478,14 @@ fn signout_and_outofdate_drop_every_session_field_unsent() {
         assert_eq!(pages.needs().refused(FIRST), None);
         assert_eq!(pages.needs().toast(), None);
         assert_eq!(pages::next_deadline(&pages), None);
-        assert_eq!(pages.needs().shown(pages.inbox().unwrap()).unwrap().object, FIRST);
+        assert_eq!(
+            pages
+                .needs()
+                .shown(pages.inbox().unwrap(), &crate::forge::approvals::Approvals::default())
+                .unwrap()
+                .object(),
+            FIRST
+        );
         assert!(fire(&mut pages, SECOND_HOLD + HOLD_DUE).is_empty());
     }
 }
@@ -568,7 +605,10 @@ fn later_clears_the_refusal_and_the_chosen_at() {
     act(&mut pages, SECOND_HOLD, Act::Open { object: FIRST });
     act(&mut pages, SECOND_HOLD, Act::Later { object: FIRST });
     assert_eq!(pages.needs().refused(FIRST), None);
-    assert_eq!(pages.needs().shown(pages.inbox().unwrap()).unwrap().object, SECOND);
+    assert_eq!(
+        pages.needs().shown(pages.inbox().unwrap(), &crate::forge::approvals::Approvals::default()).unwrap().object(),
+        SECOND
+    );
 }
 #[test]
 fn undo_preserves_another_cards_toast() {
@@ -637,12 +677,175 @@ fn page_event(pages: &mut Pages, client: &jig_client::Client, event: pages::Even
     out
 }
 fn count_root() -> (crate::Domain, skein_lib::Token) {
+    let (root, inbox, _) = approval_root();
+    (root, inbox)
+}
+fn approval_root() -> (crate::Domain, skein_lib::Token, skein_lib::Token) {
     let mut root = crate::unlinked(&fixtures::limits(), fixtures::SEED);
     let me = fixtures::start(&mut root, List::with_capacity(0));
     let out = super::welcome::deliver(&mut root, me, c::Delivery::Me(Box::new(fixtures::chats::me())));
     let watches = opens(&out);
     assert_eq!(watches.len(), 1);
-    (root, *watches.get(0).unwrap())
+    let approvals = crate::tests::approvals::opening(&out).expect("session approvals");
+    (root, *watches.get(0).unwrap(), approvals)
+}
+const NO_GOAL_CHANGE: u64 = 83;
+type ApprovalCase = (
+    &'static str,
+    crate::address::Filter,
+    &'static [ObjectKey],
+    bool,
+    Option<ObjectKey>,
+    Option<ObjectKey>,
+    &'static [ObjectKey],
+    Option<ObjectKey>,
+);
+fn approval_cases() -> &'static [ApprovalCase] {
+    use crate::{
+        address::{Filter, Kind},
+        tests::approvals as a,
+    };
+    const APPROVAL: ObjectKey = ObjectKey::Task(a::CHANGE);
+    const OTHER_APPROVAL: ObjectKey = ObjectKey::Task(a::OTHER_CHANGE);
+    const NO_GOAL: ObjectKey = ObjectKey::Task(NO_GOAL_CHANGE);
+    &[
+        (
+            "all",
+            Filter::ALL,
+            &[FIRST, SECOND],
+            true,
+            None,
+            None,
+            &[FIRST, SECOND, APPROVAL, OTHER_APPROVAL, NO_GOAL],
+            Some(FIRST),
+        ),
+        (
+            "project",
+            Filter { project: Some(fixtures::PROJECT), ..Filter::ALL },
+            &[],
+            true,
+            None,
+            None,
+            &[APPROVAL, NO_GOAL],
+            Some(APPROVAL),
+        ),
+        (
+            "goal",
+            Filter { goal: Some(a::GOAL), ..Filter::ALL },
+            &[],
+            true,
+            None,
+            None,
+            &[APPROVAL, OTHER_APPROVAL],
+            Some(APPROVAL),
+        ),
+        (
+            "project and goal",
+            Filter { project: Some(OTHER_PROJECT), goal: Some(a::GOAL), ..Filter::ALL },
+            &[],
+            true,
+            None,
+            None,
+            &[OTHER_APPROVAL],
+            Some(OTHER_APPROVAL),
+        ),
+        (
+            "kind",
+            Filter { kind: Some(Kind::Question), ..Filter::ALL },
+            &[FIRST],
+            true,
+            None,
+            None,
+            &[FIRST],
+            Some(FIRST),
+        ),
+        (
+            "later approval",
+            Filter::ALL,
+            &[FIRST],
+            true,
+            Some(APPROVAL),
+            Some(APPROVAL),
+            &[FIRST, OTHER_APPROVAL, NO_GOAL, APPROVAL],
+            Some(FIRST),
+        ),
+        (
+            "later inbox",
+            Filter::ALL,
+            &[FIRST, SECOND],
+            true,
+            Some(FIRST),
+            None,
+            &[SECOND, APPROVAL, OTHER_APPROVAL, NO_GOAL, FIRST],
+            Some(SECOND),
+        ),
+        (
+            "open approval",
+            Filter::ALL,
+            &[FIRST],
+            true,
+            None,
+            Some(OTHER_APPROVAL),
+            &[FIRST, APPROVAL, OTHER_APPROVAL, NO_GOAL],
+            Some(OTHER_APPROVAL),
+        ),
+        ("unknown inbox", Filter::ALL, &[FIRST], false, None, None, &[], None),
+    ]
+}
+#[test]
+fn needs_take_the_approvals_after_the_inbox_by_its_filter() {
+    use crate::tests::approvals as a;
+    for (name, filter, objects, known, later, at, expected, shown) in approval_cases() {
+        let (mut root, _, watch) = approval_root();
+        let mut cards = if *known { fixture() } else { f::pages(FIRST, f::question()) };
+        let inbox = cards.inbox.as_mut().unwrap();
+        let template = inbox.cards.get(0).unwrap().clone();
+        inbox.cards.clear();
+        inbox.filter = *filter;
+        for object in *objects {
+            let mut card = template.clone();
+            card.object = *object;
+            card.group = c::InboxGroup::Questions;
+            inbox.cards.push(card).unwrap();
+        }
+        root.pages.inbox = cards.inbox.take();
+        a::deliver(
+            &mut root,
+            watch,
+            &[
+                a::row(a::CHANGE, fixtures::PROJECT, Some(a::GOAL)),
+                a::row(a::OTHER_CHANGE, OTHER_PROJECT, Some(a::GOAL)),
+                a::row(NO_GOAL_CHANGE, fixtures::PROJECT, None),
+            ],
+            0,
+        );
+        if let Some(object) = at {
+            root_event(
+                &mut root,
+                crate::Event::Act { action: crate::Action::Pages(pages::Act::Needs(Act::Open { object: *object })) },
+            );
+        }
+        if let Some(object) = later {
+            root_event(
+                &mut root,
+                crate::Event::Act { action: crate::Action::Pages(pages::Act::Needs(Act::Later { object: *object })) },
+            );
+            assert!(root.pages().needs().later(*object), "{name}");
+        }
+        let session = root.pages().needs();
+        let inbox = root.pages().inbox().unwrap();
+        let needs = session.needs(inbox, root.forge().approvals());
+        let mut objects = List::with_capacity(u32::try_from(needs.len()).unwrap());
+        for need in &needs {
+            objects.push(need.object()).unwrap();
+        }
+        assert_eq!(objects.as_slice(), *expected, "{name}");
+        let selected = match session.shown(inbox, root.forge().approvals()) {
+            Some(need) => Some(need.object()),
+            None => None,
+        };
+        assert_eq!(selected, *shown, "{name}");
+    }
 }
 #[test]
 fn standing_watch_opens_once_for_project_closes_on_welcome_and_signout_and_reopens() {
@@ -670,47 +873,76 @@ fn standing_watch_opens_once_for_project_closes_on_welcome_and_signout_and_reope
 }
 #[test]
 fn standing_count_filters_projects_subtracts_answered_keeps_later_and_reports_cut_and_end() {
-    let (mut root, watch) = count_root();
-    assert_eq!(root.pages().needs().count(root.client(), fixtures::PROJECT), needs::Count::default());
-    let mut rows = List::with_capacity(4);
-    for (object, project) in [
-        (FIRST, fixtures::PROJECT),
-        (SECOND, fixtures::PROJECT),
-        (THIRD, OTHER_PROJECT),
-        (ObjectKey::Result(f::TASK), fixtures::PROJECT),
-    ] {
-        rows.push(crate::tests::documents::entry(object, project, 1, Wall::EPOCH, None)).unwrap();
+    for (inbox_cut, more) in [(false, 1), (true, 0)] {
+        let (mut root, watch, approvals) = approval_root();
+        assert_eq!(
+            root.pages().needs().count(root.client(), root.forge().approvals(), fixtures::PROJECT),
+            needs::Count::default()
+        );
+        crate::tests::approvals::deliver(
+            &mut root,
+            approvals,
+            &[
+                crate::tests::approvals::row(crate::tests::approvals::CHANGE, fixtures::PROJECT, None),
+                crate::tests::approvals::row(crate::tests::approvals::OTHER_CHANGE, OTHER_PROJECT, None),
+            ],
+            more,
+        );
+        let mut rows = List::with_capacity(4);
+        for (object, project) in [
+            (FIRST, fixtures::PROJECT),
+            (SECOND, fixtures::PROJECT),
+            (THIRD, OTHER_PROJECT),
+            (ObjectKey::Result(f::TASK), fixtures::PROJECT),
+        ] {
+            rows.push(crate::tests::documents::entry(object, project, 1, Wall::EPOCH, None)).unwrap();
+        }
+        let inbox = crate::tests::documents::inbox(rows, 99, c::Count { value: 1, limited: false }, 0, inbox_cut);
+        let before = pages::shown(root.pages());
+        super::welcome::deliver(&mut root, watch, c::Delivery::Inbox(Box::new(inbox)));
+        assert!(pages::shown(root.pages()) > before);
+        assert_eq!(
+            root.pages().needs().count(root.client(), root.forge().approvals(), fixtures::PROJECT),
+            needs::Count { count: 3, cut: true }
+        );
+        let mut cards = fixture();
+        add(&mut cards, SECOND, fixtures::PROJECT);
+        root.pages.inbox = cards.inbox.take();
+        root_event(
+            &mut root,
+            crate::Event::Act {
+                action: crate::Action::Pages(pages::Act::Needs(Act::Later {
+                    object: ObjectKey::Task(crate::tests::approvals::CHANGE),
+                })),
+            },
+        );
+        assert_eq!(root.pages().needs().count(root.client(), root.forge().approvals(), fixtures::PROJECT).count, 3);
+        root_event(
+            &mut root,
+            crate::Event::Act {
+                action: crate::Action::Pages(pages::Act::Needs(Act::Choose {
+                    object: FIRST,
+                    words: Box::from(CHOICE),
+                })),
+            },
+        );
+        assert_eq!(root.pages().needs().count(root.client(), root.forge().approvals(), fixtures::PROJECT).count, 2);
+        let before = pages::shown(root.pages());
+        let out = root_event(
+            &mut root,
+            crate::Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::WatchEnded { watch, end: c::WatchEnd::SubjectEnded },
+                },
+            },
+        );
+        assert!(pages::shown(root.pages()) > before);
+        assert_eq!(
+            root.pages().needs().count(root.client(), root.forge().approvals(), fixtures::PROJECT),
+            needs::Count::default()
+        );
+        assert!(opens(&out).is_empty());
     }
-    let inbox = crate::tests::documents::inbox(rows, 99, c::Count { value: 1, limited: false }, 0, true);
-    let before = pages::shown(root.pages());
-    super::welcome::deliver(&mut root, watch, c::Delivery::Inbox(Box::new(inbox)));
-    assert!(pages::shown(root.pages()) > before);
-    assert_eq!(root.pages().needs().count(root.client(), fixtures::PROJECT), needs::Count { count: 2, cut: true });
-    let mut cards = fixture();
-    add(&mut cards, SECOND, fixtures::PROJECT);
-    root.pages.inbox = cards.inbox.take();
-    root_event(
-        &mut root,
-        crate::Event::Act { action: crate::Action::Pages(pages::Act::Needs(Act::Later { object: FIRST })) },
-    );
-    assert_eq!(root.pages().needs().count(root.client(), fixtures::PROJECT).count, 2);
-    root_event(
-        &mut root,
-        crate::Event::Act {
-            action: crate::Action::Pages(pages::Act::Needs(Act::Choose { object: FIRST, words: Box::from(CHOICE) })),
-        },
-    );
-    assert_eq!(root.pages().needs().count(root.client(), fixtures::PROJECT).count, 1);
-    let before = pages::shown(root.pages());
-    let out = root_event(
-        &mut root,
-        crate::Event::Client {
-            event: jig_client::Event::Up { up: jig_client::Up::WatchEnded { watch, end: c::WatchEnd::SubjectEnded } },
-        },
-    );
-    assert!(pages::shown(root.pages()) > before);
-    assert_eq!(root.pages().needs().count(root.client(), fixtures::PROJECT), needs::Count::default());
-    assert!(opens(&out).is_empty());
 }
 
 #[test]

@@ -40,7 +40,7 @@ pub(crate) fn main(
         && root.pages().me(root.client()).is_some()
         && super::project_name(root.pages().me(root.client()), project).is_none()
     {
-        super::home::main(b, root, w, bindings, accounts, project, times, 0);
+        super::home::main(b, root, w, bindings, accounts, project, times, 0, &crate::forge_sign_in::Forges::new());
         return;
     }
     let terminal = super::terminal::shown(root, w);

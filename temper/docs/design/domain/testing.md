@@ -2236,6 +2236,18 @@ Every world checks what the strategy lists (testing-strategy.md, section
 
 - **Contracts** include each operation's deadline and identity, and each
   component's own (`worker.md`, section 10).
+- **Engine replay** runs two independent walking, escalation or role
+  worlds in lockstep under the same stimuli. After each iteration it
+  compares their complete traces exactly, and hashes the frozen root,
+  children, store and pending scripts through their `Hash` implementations
+  (skein's `lib.md`, 5.1). The world's test store hashes the four fields
+  its `Debug` prints: `applied`, `rows`, `pending` and `held`.
+  The comparison uses a test-only 64-bit word hasher: its
+  digests are compared within one process and never kept, with no
+  cross-run or cross-target promise. A digest mismatch fails with both
+  states' text even when that text agrees. At each seed's end the worlds
+  also compare their complete `Debug` text, retaining checks of what
+  `Hash` omits, before both close through the cold restart oracle.
 - **Secrets stay beside the domains:** in every world with the protocol
   layer, no git identity's value or API token appears in a domain's
   state, a fact, a store record or a log; the fake git program checks
@@ -2380,6 +2392,17 @@ world of temper's on a scripted engine (../client/README.md, section 10).
   `domain/engine.md`, section 11); this story checks temper's wiring
   from the engine's root to the chat's page. The same story over real
   agents runs in the real loop (2.4).
+- **A change waiting on a review on the forge** extends the story of a change
+  watched through CI, its gate and landing: with a landing rule asking for the
+  person's approval, the change waits at its merge, the person's *Needs you*
+  draws its card (`../client/forge.md`, 4.1) with "Review on Forgejo ↗" at its
+  files page's address, a review approving it at its head is posted on the
+  forge, and the card goes as the merge is admitted, before the change lands.
+  This is where the card and its link are checked whole, rather than in the
+  browser tier: no browser story there reaches a change waiting on a forge
+  with an address, the box's demo forge refusing such a rule
+  (`forge.md`, 8.9), and the tier is at its cap (`../client/browser.md`,
+  4.3).
 
 ### 6.4 Settings in the store
 
@@ -2396,7 +2419,8 @@ each behaviour in the lowest world that owns it, and one smoke above:
 | the engine's domain world (`tests/engine/domain`) | through the root and the core on jig's store: a change naming a landing rule and a charter committed in one decision, and refused whole when the forge refuses its rule; a project's rule changed by its owner, refused as not theirs for another; a new forge's charter reaching the next change's delegates while a live change keeps its own; a project made after the first start covered by the deployment's rule; the two requirements removed from the rules, landing left to the procedure's waits; the resume fixture restarting with changed values. A stored settings policy and a stored project policy, each admitted under a larger policy allowance and committed through the real store, refuse a cold start under the smaller allowance naming the setting or project; a policy at the bound is admitted in its own story. Root and store use the same test envelope, including sufficient journal and page bytes. | about 0.6 s |
 | the engine's domain world, the configuring agent (`agent.md`, 8.1) | scripted runs of charter 3: an owner's chat proposing and its acceptance heard; a member's, waiting for an owner; one withdrawn as stale, read again and proposed afresh; one rejected with a reason and revised; one accepted with running work moved; `settings` reads of each kind, a held charter, a revision and a history page, each within the answer's bound; `propose_settings` refused for a stale revision and for an item out of shape; a run with no `settings` family refused by its authority | about 0.5 s, its stories at the world's usual cost |
 | the engine's domain world, the configuring agent's reads (`agent.md`, 8.1) | scripted runs of charter 3: a project's ways and questions read at their stock with none stored, and as stored once a change sets them; a read of a project that isn't one, answered not read; the inventory's people, its own project's alone, the person and temper's writer marked; a member's chat reads what an owner's does and a run without the settings family is refused; an approval's refusal naming no command | its stories at the world's usual cost, not measured apart |
-| the engine's domain world, a box's approval identities (`agent.md`, 8.1) | a requester without a forge identity and a separate configured owned-forge account; delivered inventory, landing-rule help and project-policy mapping; owner-role refusal before and after the human is adopted as admin, a separate maintainer party and acceptance of a fresh role-1 proposal. The script checks context and outcomes, not a real model's judgement | within the domain world's focused budget |
+| the engine's domain world, a box's approval identities (`agent.md`, 8.1; `forge.md`, 4.6) | on a box whose owned Forgejo's `Reconcile` answered the person's id, and on one whose manifest-made App's account is the person's: the inventory names the person's forge account by the link; their owner-role rule with `people: 1` is accepted, and `people: 2` refused naming the forge; a link cleared when the deployment has a second owner, and the rule then refused. On a deployment of several members, and on a pasted App, the requester without a forge identity is refused as before, and accepted once a human collaborator is adopted as admin. The script checks context and outcomes, not a real model's judgement | within the domain world's focused budget |
+| the engine's domain world, a box's approval waiting (`forge.md`, 8.12) | on a box whose forge links its person and whose rule of theirs is accepted, as in the box's approval identities, on each forge it links: a change made and stepped to its merge waits on the person's approval; the person's `approvals` document holds its row, theirs to give, while a second party of another project reads none; the linked user's review approving it at the head is posted on the fake forge; the row goes as the merge is admitted, and the change lands. The read's rows by state, head and role are the root's and the forge's step tables | within the domain world's focused budget, steps of an existing story |
 | the engine's domain world, a charter's documents (`../protocol/configuration.md`, 13.7) | through the core's plan, the root's binding and the forge's gather: a run of a charter naming a document gets its section at the branch's head; after a change lands that edits the file, the next run's section has the new text; a heading's part alone; a missing file, heading or repository, a section saying so and the run going on. The gather's own cases (a heading's bounds, a cut at a line end, each section saying why) are the forge crate's step tests | about 0.1 s, four stories |
 | fuzzy, in an existing sweep | one operation in the forge world's `suite::fuzzy::simulation`: random changes of landing rules among the changes stepping and merging; its referee holds that no merge lands without each requirement of the rules held at its decision | within the fuzzy suite's 120 s, measured with it; no new binary |
 | the client and the engine, joined (6.3) | "Tell temper how you work" starting the configuring chat, whose run proposes; "How work runs" read at its defaults and after a change, with its revisions in use; a proposal's review page split into temper enforces and your agents follow, with its effect; one accepted, making a revision; one withdrawn as stale; a member's, waiting for an owner | about 0.4 s against the 8 s guide |
@@ -2795,18 +2819,56 @@ scripts/proof-live.sh               the live tier
   refusal and note recall, and 6.5's inbox, effort and advisor checks.
   Recorded-model twins retain their independent transcript histories.
   Cost grants no exception, and moving a story to escape a budget raises
-  it. Whole-suite CPU measurement remains necessary; partial package
-  sums and failed-prefix instruction profiles prove no suite pass.
+  it. Whole-suite focused CPU measurement and the gate's fuzzy accounting
+  remain necessary; partial package sums and failed-prefix instruction
+  profiles prove no suite pass.
   Further cause work needs bounded shared schema representations and
   prompt admission measurements without changing validation or refusal
-  order, and separate profiles of engine-domain and one-process fuzzy
-  sweeps. Required engine steps, deadline queries, configuration admissions,
+  order. Engine-domain and one-process fuzzy profiles and their retained
+  causes are in `temper/docs/development/limits-fuzzy.md`.
+  Required engine steps, deadline queries, configuration admissions,
   restart/readback and token searches stay until a profile supports an
   equivalent algorithm. Real-loop matching and public setup candidates
   below roughly 2% of a story stay. Complete repair-story instruction
   totals need a successful profile; instrumentation failures establish
   none. Budgets, the real-loop ceiling and any hot-leaf build override
   remain the user's decisions.
+
+- **Further fuzzy-suite cost work** (2.5, 6, 6.1):
+  `temper/docs/development/limits-fuzzy.md` holds the instruction pairs,
+  complete-suite CPU samples and remaining causes. Keep all seeds,
+  drawn inputs, crash cuts, invariants, endings and independent readbacks;
+  neither fewer draws nor a cost-driven move resolves an overage.
+  Further work needs:
+  - A different admitted allocation contract for eager decoder lists,
+    or coalesced scalar writing that preserves field order, whole-put
+    refusal and overflow progress (skein's `lib.md`, sections 5 and 6).
+    Required decoding and scalar reads remain; smaller measurement,
+    conversion and scratch costs stay below the roughly 2% stop rule.
+  - Cheaper independent native sessions and equivalent fake-person and
+    service stepping, retaining every deadline, root secret check and
+    cold readback. One-process prefixes have different process graphs
+    and startup sources, so sharing them needs a mechanism that preserves
+    each story and fault. Smaller setup and observation tails stay.
+  - Cheaper complete mutable-state traversal and store/restore work,
+    retaining both engine roots, exact trace comparisons and the final
+    complete text. Required final text stays; the measured streaming
+    alternative costs more, and old trace-prefix equality is below 2%.
+  - Retained tool-schema admission with designed ownership and
+    invalidation by charter, namespace and grants. Independent JSON
+    validation, configuration admissions, prompt checks, allocation
+    headers and byte searches remain; their inclusive footprints do
+    not establish a removable real-loop gain above about 2 CPU s.
+  - Separate investigation of instrumented observation-cap failures and
+    intermittent raised-patience real-loop nonsettling. The suspected
+    release/hold ordering is unproved; ordinary exact-name base and
+    changed runs passed. Preserve the cap and ordinary patience.
+  Default: fix a profiled cause with the same checks, or take the
+  measurements to the user under testing-strategy.md, 8.1. Serial runs
+  including the driver do not replace the gate's per-test accounting;
+  the request's roughly 15 CPU s saving and reliable headroom require
+  further evidence. Budgets and enforcement settings remain separate
+  user decisions.
 
 - **The second printed link's cause** (2.6): a serve restart draws a new
   link; a retry whose earlier sign-in spent its secret can also ask for

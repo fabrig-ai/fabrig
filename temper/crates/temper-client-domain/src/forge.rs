@@ -2,6 +2,7 @@
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue, Time};
 pub mod admin;
+pub mod approvals;
 pub mod away;
 pub mod change;
 pub mod changes;
@@ -42,6 +43,7 @@ pub enum Event {
     Act { act: Act },
     SheetRead { request: skein_lib::Token, answer: Result<temper_client_protocol_wire::v1::Page, sheet::Refused> },
     SheetMade { request: skein_lib::Token, answer: Result<(), Box<[u8]>> },
+    Approvals { event: approvals::Event },
     Trials { event: trials::Event, adoption: Option<Answer> },
     AdminToken { value: skein_lib::Secret },
     ForgejoToken { field: tokens::Field, value: skein_lib::Secret },
@@ -78,6 +80,8 @@ pub struct Side {
     dismissed: dismissed::State,
     dismissed_open: bool,
     trials: trials::Trials,
+    approvals: approvals::Approvals,
+    approvals_open: bool,
     away: away::State,
     away_open: bool,
     set_up: Option<Box<forges::SetUp>>,
@@ -115,6 +119,8 @@ impl Side {
             dismissed: dismissed::State::Unknown,
             dismissed_open: false,
             trials: trials::Trials::new(),
+            approvals: approvals::Approvals::default(),
+            approvals_open: false,
             away: away::State::Unknown,
             away_open: false,
             set_up: None,
@@ -275,6 +281,7 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
     match event {
         Event::SheetRead { request, answer } => sheet::received(side, request, answer, env.limits, out),
         Event::SheetMade { request, answer } => sheet::made(side, request, answer, env.limits, out),
+        Event::Approvals { event } => approvals::receive(side, event, out),
         Event::Trials { event, adoption } => {
             let request = match &event {
                 trials::Event::Answered { key, .. } => Some(skein_lib::Token::new(key.number)),
@@ -489,6 +496,9 @@ pub fn wire_limits(limits: &Limits) -> Option<temper_client_protocol_wire::v1::L
 }
 pub(crate) fn told(client: &jig_client::Client, limits: &crate::Limits, told: jig_client::Told) -> Option<Event> {
     use jig_client::{Outcome, Told};
+    if let Some(event) = approvals::told(client, &told, limits.forge) {
+        return Some(Event::Approvals { event });
+    }
     if let Some(event) = trials::told(client, &told, limits.forge) {
         let adoption = match &told {
             Told::Answered { outcome: Outcome::Answered(value), .. } => answer(limits, value),

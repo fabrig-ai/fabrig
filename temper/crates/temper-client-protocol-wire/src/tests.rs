@@ -1354,7 +1354,8 @@ fn settings_reads_and_answers_require_one_complete_bounded_record() {
             .unwrap(),
         )
         .unwrap();
-    let record = w::ProposalItemsAnswer::new(&w::CEILINGS, w::ProposalItemsAnswerParts { items }).unwrap();
+    let record =
+        w::ProposalItemsAnswer::new(&w::CEILINGS, w::ProposalItemsAnswerParts { items, owned_approval: true }).unwrap();
     let bytes = wire::proposal_items_answer(&record);
     assert_eq!(wire::decode_proposal_items_answer(&bytes, &w::CEILINGS), Some(record));
     limits.proposal_items_answer_items = 0;
@@ -1813,4 +1814,54 @@ fn trial_rows_round_trip_each_step_state_and_failure() {
             }
         }
     }
+}
+
+#[test]
+fn approvals_round_trip_each_review_of_yours_and_their_watch() {
+    let limits = v1::CEILINGS;
+    let mut rows = List::with_capacity(4);
+    for (yours, goal) in [
+        (v1::ApprovalYours::Counts, Some(u64::MAX)),
+        (v1::ApprovalYours::NoAccount, None),
+        (v1::ApprovalYours::TooFew, None),
+        (v1::ApprovalYours::OtherRole, None),
+    ] {
+        rows.push(
+            v1::ApprovalRow::new(
+                &limits,
+                v1::ApprovalRowParts {
+                    task: u64::MAX,
+                    project: u32::MAX,
+                    goal,
+                    forge: u16::MAX,
+                    kind: v1::Kind::Forgejo,
+                    owner: Box::new([b'o'; 1024]),
+                    name: Box::new([b'n'; 1024]),
+                    pull: u64::MAX,
+                    address: Box::new([b'a'; 2048]),
+                    title: Box::new([b't'; 256]),
+                    since: u64::MAX,
+                    scope: 0,
+                    rule: 1,
+                    role: 2,
+                    required: 3,
+                    counted: 1,
+                    behind: u32::MAX,
+                    whole: true,
+                    yours,
+                },
+            )
+            .expect("approval row at its byte bounds"),
+        )
+        .expect("four rows fit");
+    }
+    let document = v1::Approvals::new(&limits, v1::ApprovalsParts { rows, more: 7 }).expect("approvals");
+    let bytes = crate::approvals(&document);
+    assert_eq!(crate::decode_approvals(&bytes, &limits), Some(document));
+    assert_eq!(crate::decode_approvals(&fixtures::trailing(&bytes), &limits), None, "trailing byte refused");
+    let fewer_rows = v1::Limits { approvals_rows: 3, ..limits };
+    assert_eq!(crate::decode_approvals(&bytes, &fewer_rows), None, "rows past the limit refused");
+    let watch = v1::Watching::new(&limits, v1::WatchingParts { watch: v1::Watch::Approvals }).expect("watch");
+    let bytes = crate::watching(&watch);
+    assert_eq!(crate::decode_watching(&bytes, &limits), Some(watch));
 }

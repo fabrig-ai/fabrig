@@ -38,6 +38,7 @@ fn configured_with_makings(under_box: bool, makings: Option<u32>) -> ClientWorld
         Box::new([
             engine::Record::Forge {
                 row: Box::new(forge::Stored::Forge(forge::ForgeRecord {
+                    person: None,
                     git_program: None,
                     number: FORGE,
                     kind: forge::Kind::Forgejo,

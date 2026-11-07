@@ -35,6 +35,7 @@ fn driver_with_requests(granted: bool, requests: u32) -> Driver {
         Box::new([
             engine::Record::Forge {
                 row: Box::new(forge::Stored::Forge(forge::ForgeRecord {
+                    person: None,
                     git_program: None,
                     number: 1,
                     kind: forge::Kind::Forgejo,
