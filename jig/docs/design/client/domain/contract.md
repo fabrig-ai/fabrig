@@ -821,9 +821,10 @@ value, when it was said, the source it came through and its origin. A row
 carries only those whose kind, origin and window state this build registers, and
 applies each kind's audience to its reader: a holder's kinds to the account's
 holder alone, an account's to whoever sees the account. A party's `accounts`
-holds the party's own accounts, and an owner reads the deployment's for its
-holder (`../../domain/accounts.md`, 3.2), so both rows carry every registered
-kind while no document shows an account to anyone else. A fact is whole, at its
+holds the party's own accounts, so it carries every registered kind. In the
+deployment's, whoever may decide on the deployment's accounts reads for its holder
+(`../../domain/accounts.md`, 3.2), and any other reader with a deployment role
+gets the account's kinds alone. A fact is whole, at its
 own bounds: neither the document's text bound nor a line's `cut` touches it.
 The wire and the client's contract carry the registry's numbers, and the
 contract names those a client reads. The client link refuses a share past 10000.

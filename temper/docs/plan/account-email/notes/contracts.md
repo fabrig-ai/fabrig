@@ -117,6 +117,12 @@ Answer::Checked { state: LoginState, email: Option<Box<[u8]>> }
 
 In `worker-wire-v9.schema`, in place: `record Login { name: text 32 state: LoginState email: option text 255 }`.
 
+```rust
+// jig-domain-fleet, once it has taken a host's whole logins: one per usable row naming an email
+Request::ProgramEmail { name: Box<[u8]>, email: Box<[u8]> }
+// jig-domain-core's route turns it into accounts::Event::ProgramSaid
+```
+
 ## 6. jig: the client's line (`jig/docs/design/client/domain/contract.md`, 5.1)
 
 ```rust
