@@ -98,6 +98,13 @@ pub enum HostDelivery {
         from: u32,
         requested: Option<u64>,
     },
+    /// A `see` read's answer (domain/agent.md, 8.4.1).
+    See {
+        to: ReplyTo,
+        line: Box<[u8]>,
+        from: u32,
+        answer: Box<super::see::SeeAnswer>,
+    },
     Render {
         to: ReplyTo,
         key: CallKey,
@@ -132,7 +139,12 @@ pub(crate) enum FlightRender {
     Plain,
     TaskRead,
     ForgeRead,
-    Settings { from: u32, requested: Option<u64>, asked: Option<(jig_domain_core::settings::Setting, u32)> },
+    Settings {
+        see: Option<Box<super::see::SeeFlight>>,
+        from: u32,
+        requested: Option<u64>,
+        asked: Option<(jig_domain_core::settings::Setting, u32)>,
+    },
     Amended(crate::Changed),
     Change(Box<ChangeChoice>),
     PersonRoles(Box<[u32]>),
@@ -293,7 +305,7 @@ pub(crate) fn decoded(domain: &mut Domain, env: &Env<Limits>, decision: &mut Dec
             | jig_domain_core::SettingsRead::Revision { .. }
             | jig_domain_core::SettingsRead::Revisions { .. } => None,
         };
-        FlightRender::Settings { from: *from, requested, asked }
+        FlightRender::Settings { see: None, from: *from, requested, asked }
     } else if let crate::Tool::Document { action, body } = &body.tool {
         FlightRender::Document(Box::new(DocumentFlight {
             action: *action,
@@ -457,6 +469,24 @@ pub(crate) fn render(domain: &mut Domain, limits: &Limits, decision: &mut Decisi
         drop(domain.call_renders.remove(&right));
         settled(domain, limits, decision, to, call);
         return;
+    }
+    if let FlightRender::Settings { see: Some(see), from, .. } = &flight.render {
+        match see.reading {
+            super::see::SeeReading::Settings | super::see::SeeReading::Proposal => {
+                emit(
+                    decision,
+                    limits,
+                    Delivery::Host(Box::new(HostDelivery::See {
+                        to,
+                        line: see.line.clone(),
+                        from: *from,
+                        answer: Box::new(super::see::SeeAnswer::Call { tool: b"settings", answer: Box::new(answer) }),
+                    })),
+                );
+                return;
+            }
+            super::see::SeeReading::Head | super::see::SeeReading::File => {}
+        }
     }
     // Fresh and unsettled replay replies carry only the core's part.
     let answer = match &flight.render {
@@ -706,6 +736,11 @@ pub(crate) fn relayed(
 pub(crate) fn read(domain: &mut Domain, to: ReplyTo, answer: CallAnswer) {
     let right = to.into_token();
     let to = ReplyTo::new(right);
+    if let FlightRender::Settings { see: Some(_), .. } = &domain.call_renders.get(&right).expect("decoded read").render
+    {
+        super::see::forge::answered(domain, to, answer);
+        return;
+    }
     let key = domain.call_renders.get(&right).expect("a read answers its decoded flight").key.expect("decoded read");
     if let CallAnswer::ReadRepositoryRefused { .. } = &answer {
         super::diagnostics::read(domain, key, "forge-route", "repository name unresolved", None, Box::new([]));
@@ -726,7 +761,7 @@ pub(crate) fn settings(domain: &mut Domain, to: ReplyTo, answer: Box<jig_domain_
     let right = to.into_token();
     let to = ReplyTo::new(right);
     let flight = domain.call_renders.get(&right).expect("settings read flight");
-    let FlightRender::Settings { from, requested, asked } = flight.render else {
+    let FlightRender::Settings { see, from, requested, asked } = &flight.render else {
         unreachable!("settings rendering context")
     };
     let mut application = super::tools::settings_value(domain, &answer);
@@ -736,7 +771,7 @@ pub(crate) fn settings(domain: &mut Domain, to: ReplyTo, answer: Box<jig_domain_
         && let Some((
             setting @ jig_domain_core::settings::Setting::Application { kind: kind @ (6 | 7), scope, number: 1 },
             revision,
-        )) = asked
+        )) = *asked
         && (revision == 0 || revision == newest)
         && domain.core.people.project_members(scope).is_some()
     {
@@ -749,17 +784,38 @@ pub(crate) fn settings(domain: &mut Domain, to: ReplyTo, answer: Box<jig_domain_
             proposed: None,
         }));
     }
-    let request = crate::boundary::delivery_output(Delivery::Host(Box::new(HostDelivery::Settings {
-        to,
-        repositories: settings_repositories(domain, flight, &answer),
-        people: settings_people(domain, flight, &answer),
-        forge_people: settings_forge_people(domain, flight, &answer),
-        offer: settings_offer(domain, flight, &answer),
-        application,
-        answer,
-        from,
-        requested,
-    })));
+    let repositories = settings_repositories(domain, flight, &answer);
+    let people = settings_people(domain, flight, &answer);
+    let forge_people = settings_forge_people(domain, flight, &answer);
+    let offer = settings_offer(domain, flight, &answer);
+    let delivery = match see {
+        Some(see) => HostDelivery::See {
+            to,
+            line: see.line.clone(),
+            from: *from,
+            answer: Box::new(super::see::SeeAnswer::Settings(Box::new(super::see::SeeSettings {
+                answer: *answer,
+                repositories,
+                people,
+                forge_people,
+                offer,
+                application,
+                requested: *requested,
+            }))),
+        },
+        None => HostDelivery::Settings {
+            to,
+            repositories,
+            people,
+            forge_people,
+            offer,
+            application,
+            answer,
+            from: *from,
+            requested: *requested,
+        },
+    };
+    let request = crate::boundary::delivery_output(Delivery::Host(Box::new(delivery)));
     assert!(super::now(domain, request), "settings read render door reserved");
 }
 

@@ -840,6 +840,7 @@ impl World {
     /// The protocol layer's part: the engine's host calls decoded and their
     /// answers rendered, ended answers' outcomes read, by `link`; accounts
     /// and core reads as the engine world's protocol plays them.
+    #[expect(clippy::too_many_lines, reason = "the protocol dispatcher lists every host delivery beside settings")]
     fn play(&mut self, request: engine::Request) -> Result<Vec<engine::Event>, Box<engine::Request>> {
         let event = match request {
             engine::Request::Worker(engine::WorkerRequest::Host(host_request)) => match *host_request {
@@ -860,6 +861,20 @@ impl World {
                         self.worker_env.limits.reply_bytes,
                     ),
                 },
+                engine::HostDelivery::See { to, line, from, answer } => {
+                    let (body, error) = temper_engine_smith::see_answer(
+                        &line,
+                        from,
+                        &answer,
+                        &self.root.catalogue(),
+                        self.env.limits.call_answer_bytes.saturating_sub(3),
+                    )
+                    .into_parts();
+                    engine::WorkerInput::RenderedHostCall {
+                        to,
+                        answer: jig_domain_core::SettledAnswer::Host { body, error },
+                    }
+                }
                 engine::HostDelivery::Settings {
                     to,
                     answer,

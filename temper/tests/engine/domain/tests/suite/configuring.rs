@@ -1111,6 +1111,125 @@ fn the_configuring_agent_reads_each_kind() {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one stock-world table checks every address, continuation and read authority"
+)]
+fn an_asking_chat_reads_each_address() {
+    use serde_json::json;
+    let mut world = World::stock();
+    world.change(1, 21, Box::new([owner_charter(b"The newest chat instructions.")]));
+    let run = world.chat(5, world.owner, 20);
+    assert_eq!(run.charter, 11);
+    assert!(std::str::from_utf8(&run.run.policy.instructions).unwrap().contains(temper_engine_smith::ADDRESSES));
+    let before = world.driver.store.rows.clone();
+    let mut completion = 1;
+    for (address, heading, content, expected_error) in [
+        ("settings", "newest revision 2", "held revisions:", false),
+        ("settings charter 1", "charter 1, revision 2", "The newest chat instructions.", false),
+        ("settings template 5", "template 5, revision 2", "ask", false),
+        ("settings model 1", "model 1, revision 2", "scripted", false),
+        ("settings rules", "rules, revision 2", "\"ceiling\":", false),
+        ("settings landing-rule 1", "landing-rule 1, revision 2", "\"enforce\":true", false),
+        ("settings forge-charter 1", "forge-charter 1, revision 2", "default, ", false),
+        ("settings project-ways", "project-ways 1, revision 2", "the stock", false),
+        ("settings project-questions", "project-questions 1, revision 2", "the stock", false),
+        ("revisions", "revision 2, against revision 1,", "revision 1, against revision 0,", false),
+        ("revision 2", "revision 2, against revision 1,", "The newest chat instructions.", false),
+        ("help", "index: temper", "What temper is", false),
+        ("help settings", "settings: Settings", "Settings", false),
+        (
+            "help no-such-page",
+            "no page no-such-page; the sections holding its words:",
+            "sections holding its words:",
+            false,
+        ),
+        (
+            "help search landing rule",
+            "index: The map: - temper help change: a change's way to landing: its pull request, CI,",
+            "landing-rule:",
+            false,
+        ),
+        ("settings landing", "see settings landing: not there yet.", "not there yet.", true),
+        ("settings gates OWNER/NAME", "see settings gates OWNER/NAME: not there yet.", "not there yet.", true),
+        ("file OWNER/NAME README.md", "see file OWNER/NAME README.md: not there yet.", "not there yet.", true),
+        ("proposal t1/1", "see proposal t1/1: not there yet.", "not there yet.", true),
+        ("me", "see me: not there yet.", "not there yet.", true),
+        ("task 4 tree", "see task 4 tree: not there yet.", "not there yet.", true),
+        ("goals ended", "see goals ended: not there yet.", "not there yet.", true),
+        ("bogus", "see: no address bogus; addresses:", temper_engine_smith::ADDRESSES, true),
+        (
+            "settings charter 99",
+            "see settings charter 99: not read: no such setting.",
+            "see settings lists them.",
+            true,
+        ),
+    ] {
+        let (body, error) =
+            host_tool(&mut world.driver, &run, completion, b"see", json!({"address":address}).to_string().as_bytes());
+        let text = std::str::from_utf8(&body).unwrap();
+        assert_eq!(error, expected_error, "{address}: {text}");
+        assert!(text.starts_with(heading), "{address}: {text}");
+        assert!(text.contains(content), "{address}: {text}");
+        assert!(body.len() <= usize::try_from(world.driver.env.limits.call_answer_bytes - 3).unwrap());
+        if let Some(bound) = world.driver.env.limits.host_reply_bytes {
+            assert!(body.len() <= usize::try_from(bound).unwrap());
+        }
+        if !error {
+            assert!(text.lines().last().unwrap().starts_with("see: "), "{address}: {text}");
+            let end = text.find("more: ").or_else(|| text.find("see: ")).unwrap();
+            assert!(end <= usize::try_from(temper_engine_smith::SEE_PART).unwrap());
+        }
+        assert_eq!(world.driver.store.rows, before, "{address} commits nothing");
+        if address == "settings" {
+            eprintln!("see settings first part: {} bytes", body.len());
+        }
+        completion += 1;
+    }
+    let mut address = "settings policy 1".to_string();
+    let mut whole = String::new();
+    let mut from = 0_usize;
+    loop {
+        let (body, error) =
+            host_tool(&mut world.driver, &run, completion, b"see", json!({"address":address}).to_string().as_bytes());
+        assert!(!error, "{}", String::from_utf8_lossy(&body));
+        let text = std::str::from_utf8(&body).unwrap();
+        let end = text.find("more: ").or_else(|| text.find("see: ")).unwrap();
+        assert!(end <= usize::try_from(temper_engine_smith::SEE_PART).unwrap());
+        let next = text.lines().find_map(|line| line.strip_prefix("more: "));
+        let next_offset = next.map(|token| token.rsplit_once('@').unwrap().1.parse::<usize>().unwrap());
+        let bytes = next_offset.map_or(end, |offset| offset - from);
+        whole.push_str(&text[..bytes]);
+        from += bytes;
+        assert_eq!(world.driver.store.rows, before, "each part commits nothing");
+        completion += 1;
+        if let Some(token) = next {
+            address = format!("more {token}");
+        } else {
+            break;
+        }
+    }
+    assert!(whole.len() > 7000);
+    let (_, value) = whole.split_once('\n').unwrap();
+    let actual: serde_json::Value = serde_json::from_str(value.trim()).unwrap();
+    let configuring = world.chat(CONFIGURING, world.owner, 22);
+    let expected = read_value(&mut world.driver, &configuring, 1, json!({"setting":{"kind":"policy","number":1}}));
+    assert_eq!(actual, expected);
+    let mut ask = world.driver.chat_ask(PROJECT, b"Read without settings authority");
+    let people::Ask::Create { batch, .. } = &mut ask else { panic!("chat") };
+    batch[0].executor = people::TaskExecutor::Agent { charter: 11 };
+    batch[0].authority.tools &= !core::ToolFamilies::JIG.settings;
+    batch[0].budget = people::Budget::AsAllowed { cap: Some(128) };
+    world.ask(world.owner, 23, ask);
+    let run = world.driver.last_assignment();
+    assert_eq!(run.charter, 11);
+    let (body, error) = host_tool(&mut world.driver, &run, 1, b"see", br#"{"address":"settings"}"#);
+    assert!(error);
+    assert!(body.starts_with(b"see settings: "), "{}", String::from_utf8_lossy(&body));
+    assert!(String::from_utf8_lossy(&body).contains("tool family settings"));
+}
+
+#[test]
 fn propose_settings_refuses_a_stale_revision_and_an_item_out_of_shape() {
     use serde_json::json;
     let mut world = World::stock();

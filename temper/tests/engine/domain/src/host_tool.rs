@@ -71,7 +71,7 @@ fn render(driver: &mut Driver, to: ReplyTo, body: engine::Call, name: &[u8], too
         if !driver.protocol.pending_renders.is_empty()
             || driver.delivered.iter().any(|delivery| {
                 matches!(delivery,
-                    Delivery::Host(value) if matches!(value.as_ref(), engine::HostDelivery::Settings { .. })
+                    Delivery::Host(value) if matches!(value.as_ref(), engine::HostDelivery::Settings { .. } | engine::HostDelivery::See { .. })
                 )
             })
         {
@@ -161,7 +161,7 @@ fn settings_delivery(driver: &mut Driver) -> Option<(ReplyTo, smith_domain_run::
     let mut settings_delivery = None;
     for (index, delivery) in driver.delivered.iter().enumerate() {
         if let Delivery::Host(delivery) = delivery
-            && matches!(delivery.as_ref(), engine::HostDelivery::Settings { .. })
+            && matches!(delivery.as_ref(), engine::HostDelivery::Settings { .. } | engine::HostDelivery::See { .. })
         {
             settings_delivery = Some(index);
             break;
@@ -169,6 +169,18 @@ fn settings_delivery(driver: &mut Driver) -> Option<(ReplyTo, smith_domain_run::
     }
     if let Some(index) = settings_delivery {
         let Delivery::Host(delivery) = driver.delivered.remove(index) else { panic!("settings delivery") };
+        if let engine::HostDelivery::See { to, line, from, answer } = *delivery {
+            return Some((
+                to,
+                temper_engine_smith::see_answer(
+                    &line,
+                    from,
+                    &answer,
+                    &driver.root.catalogue(),
+                    driver.env.limits.call_answer_bytes.saturating_sub(3),
+                ),
+            ));
+        }
         let engine::HostDelivery::Settings {
             to,
             answer,
