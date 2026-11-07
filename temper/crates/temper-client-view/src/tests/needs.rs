@@ -173,7 +173,11 @@ fn has(view: &crate::View, words: &[u8]) -> bool {
     skein_lib::bytes::find(&f::main_text(view.tree()), words).is_some()
 }
 fn home_parts(root: &d::Domain, object: c::ObjectKey) {
-    let card = root.pages().needs().shown(root.pages().inbox().unwrap()).unwrap();
+    let needs::Need::Card(card) =
+        root.pages().needs().shown(root.pages().inbox().unwrap(), root.forge().approvals()).unwrap()
+    else {
+        panic!("inbox card")
+    };
     assert_eq!(crate::pages::ask::card_kind(card), crate::words::Word::HomeQuestion);
     let words = f::browser_words();
     let asked = crate::pages::ask::read(card, &words);
@@ -216,7 +220,11 @@ fn example_parts_are_in_order_and_choices_keep_their_names_and_acts() {
             f::INBOX_TASK,
         ),
     ] {
-        let card = root.pages().needs().shown(root.pages().inbox().unwrap()).unwrap();
+        let needs::Need::Card(card) =
+            root.pages().needs().shown(root.pages().inbox().unwrap(), root.forge().approvals()).unwrap()
+        else {
+            panic!("inbox card")
+        };
         if card.whole.is_some() {
             assert_eq!(crate::pages::ask::read(card, &f::words()).short.as_ref(), b"Fix the dropped watch");
         }
@@ -832,7 +840,11 @@ fn proposal_short_stops_at_sentence_or_first_line_and_batch_uses_heading() {
         let mut p = proposal(c::Proposer::Task(9));
         p.reason = words(reason);
         let root = kinds(&[proposal_row(p)]);
-        let card = root.pages().needs().shown(root.pages().inbox().unwrap()).unwrap();
+        let needs::Need::Card(card) =
+            root.pages().needs().shown(root.pages().inbox().unwrap(), root.forge().approvals()).unwrap()
+        else {
+            panic!("inbox card")
+        };
         assert_eq!(crate::pages::ask::read(card, &f::words()).short.as_ref(), expected.as_bytes());
     }
     let mut p = proposal(c::Proposer::Task(9));
@@ -867,7 +879,11 @@ fn a_proposal_s_question_line_leaves_off_a_heading_s_marks() {
         let mut p = proposal(c::Proposer::Task(9));
         p.reason = words(reason);
         let root = kinds(&[proposal_row(p)]);
-        let card = root.pages().needs().shown(root.pages().inbox().unwrap()).unwrap();
+        let needs::Need::Card(card) =
+            root.pages().needs().shown(root.pages().inbox().unwrap(), root.forge().approvals()).unwrap()
+        else {
+            panic!("inbox card")
+        };
         let asked = crate::pages::ask::read(card, &f::words());
         assert_eq!(asked.short.as_ref(), expected.map_or(asked.title.as_ref(), str::as_bytes), "{reason}");
         assert_eq!(styled(&f::browser_page_view(&root), look::FLOW_Q).name.as_deref(), Some(asked.short.as_ref()));
@@ -964,7 +980,11 @@ fn mixed_kinds_next_line_uses_each_short() {
         ("Review the plan", "Next: Task 9 · Accept the plan."),
     ];
     for (row, (short, next)) in rows.iter().zip(expectations) {
-        let card = root.pages().needs().shown(root.pages().inbox().unwrap()).unwrap();
+        let needs::Need::Card(card) =
+            root.pages().needs().shown(root.pages().inbox().unwrap(), root.forge().approvals()).unwrap()
+        else {
+            panic!("inbox card")
+        };
         assert_eq!(crate::pages::ask::read(card, &f::words()).short.as_ref(), short.as_bytes());
         let view = f::browser_page_view(&root);
         assert!(has(&view, next.as_bytes()));

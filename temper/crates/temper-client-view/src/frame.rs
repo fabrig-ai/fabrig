@@ -837,7 +837,7 @@ fn entries(
         home,
         bindings,
     );
-    let count = root.pages().needs().count(root.client(), project);
+    let count = root.pages().needs().count(root.client(), root.forge().approvals(), project);
     let name = if count.count == 0 {
         w.say(Word::NeedsYou, &[])
     } else {

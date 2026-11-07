@@ -534,7 +534,7 @@ fn a_read_started_before_the_set_cannot_replace_its_answer() {
 }
 
 const PROPOSAL: u64 = 91;
-fn proposal_cards(key: u64) -> List<crate::pages::inbox::Card> {
+fn proposal_cards(key: u64, kind: u32) -> List<crate::pages::inbox::Card> {
     let items = List::with_capacity(0);
     let key = c::ProposalKey { proposer: c::Proposer::Task(12), number: key };
     let mut cards = List::with_capacity(1);
@@ -559,7 +559,7 @@ fn proposal_cards(key: u64) -> List<crate::pages::inbox::Card> {
                         key: Some(key.number.checked_add(1000).unwrap()),
                         newest: 0,
                         items: List::from_boxed(Box::new([c::ReviewItem {
-                            setting: c::Setting::Application { kind: 7, scope: f::PROJECT, number: 1 },
+                            setting: c::Setting::Application { kind, scope: f::PROJECT, number: 1 },
                             edit: c::RevisionItemEdit::Set,
                             now: c::ReviewValue::None,
                             origin: c::SettingOrigin::NotOffered,
@@ -583,8 +583,11 @@ fn proposal_cards(key: u64) -> List<crate::pages::inbox::Card> {
     cards
 }
 fn proposal_read(root: &mut Domain, key: u64) -> Queue<forge::Request> {
+    proposal_read_kind(root, key, 7)
+}
+fn proposal_read_kind(root: &mut Domain, key: u64, kind: u32) -> Queue<forge::Request> {
     let mut out = Queue::uncapped();
-    ways::proposals(&mut root.forge, Some(&proposal_cards(key)), f::limits().forge, &mut out);
+    ways::proposals(&mut root.forge, Some(&proposal_cards(key, kind)), f::limits().forge, &mut out);
     out
 }
 fn proposal_handle(out: &Queue<forge::Request>, key: u64) -> jig_client::Handle {
@@ -645,7 +648,7 @@ fn a_proposals_items_are_read_once_and_bounded() {
         Some([ways::Proposed::Ways { project: f::PROJECT, ways: SHOWN }].as_slice())
     );
     assert!(proposal_read(&mut f.root, PROPOSAL).is_empty());
-    let mut ended = proposal_cards(PROPOSAL);
+    let mut ended = proposal_cards(PROPOSAL, 7);
     let card = ended.get_mut(0).unwrap();
     card.page = Some(c::ReadValue::Ended(Box::new(c::Ended {
         key: card.object,
@@ -691,13 +694,33 @@ fn a_proposals_items_are_read_once_and_bounded() {
     proposal_told(&mut f.root, Told::Page { handle, page: proposed_page(Asked::Ways(SHOWN)) });
     assert_eq!(f.root.forge.proposed(PROPOSAL), None, "an evicted read cannot publish into its replacement");
 }
+fn rule_page(owned_approval: bool) -> Readout {
+    let items = List::from_boxed(Box::new([w::ProposalItem::new(
+        &w::CEILINGS,
+        w::ProposalItemParts { kind: 2, scope: f::PROJECT, number: 1, edit: w::SettingEdit::Removed },
+    )
+    .unwrap()]));
+    let answer =
+        w::ProposalItemsAnswer::new(&w::CEILINGS, w::ProposalItemsAnswerParts { items, owned_approval }).unwrap();
+    Readout::Family { family: wire::FORGE, record: Some(wire::proposal_items_answer(&answer)) }
+}
 #[test]
-fn a_refused_read_leaves_the_names() {
-    let mut f = fixture();
-    let handle = proposal_handle(&proposal_read(&mut f.root, PROPOSAL), PROPOSAL);
-    proposal_told(&mut f.root, Told::Page { handle, page: Readout::Limit });
-    assert_eq!(f.root.forge.proposed(PROPOSAL), None);
-    assert!(proposal_read(&mut f.root, PROPOSAL).is_empty(), "a refusal is not retried each draw");
+fn proposal_reads_keep_owned_approval_and_refusals() {
+    for (kind, page, expected, owned) in [
+        (2, rule_page(true), Some([].as_slice()), true),
+        (2, rule_page(false), Some([].as_slice()), false),
+        (1, rule_page(true), Some([].as_slice()), true),
+        (7, Readout::Limit, None, false),
+    ] {
+        let mut f = fixture();
+        assert!(!f.root.forge().owned_approval(PROPOSAL));
+        let handle = proposal_handle(&proposal_read_kind(&mut f.root, PROPOSAL, kind), PROPOSAL);
+        assert!(!f.root.forge().owned_approval(PROPOSAL));
+        proposal_told(&mut f.root, Told::Page { handle, page });
+        assert_eq!(f.root.forge.proposed(PROPOSAL), expected);
+        assert_eq!(f.root.forge().owned_approval(PROPOSAL), owned);
+        assert!(proposal_read_kind(&mut f.root, PROPOSAL, kind).is_empty(), "read once, including a refusal");
+    }
 }
 
 #[test]

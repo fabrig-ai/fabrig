@@ -853,9 +853,13 @@ fn the_rail_counts_a_settings_proposal_in_each_project_it_shows_in() {
     }
     fixtures::inbox_entries(&mut root, watch.expect("standing inbox watch"), settings_rows());
     for project in [PROJECT, OTHER_PROJECT] {
-        assert_eq!(root.pages().needs().count(root.client(), project).count, 1, "project {project}");
+        assert_eq!(
+            root.pages().needs().count(root.client(), root.forge().approvals(), project).count,
+            1,
+            "project {project}"
+        );
     }
-    assert_eq!(root.pages().needs().count(root.client(), 3).count, 0);
+    assert_eq!(root.pages().needs().count(root.client(), root.forge().approvals(), 3).count, 0);
 }
 
 #[test]

@@ -41,8 +41,11 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         .flatten()
         .min();
     }
-    if let Some(card) = session.shown(inbox) {
-        flow(b, root, w, bindings, times, card, &lines, rows);
+    if let Some(need) = session.shown(inbox, root.forge().approvals()) {
+        match need {
+            needs::Need::Card(card) => flow(b, root, w, bindings, times, card, &lines, rows),
+            needs::Need::Approval(_) => {}
+        }
     } else {
         b.open(Role::Slot);
         b.style(look::NEEDS_INTRO);

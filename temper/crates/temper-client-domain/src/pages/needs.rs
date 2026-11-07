@@ -3,7 +3,7 @@ use super::{
     Pages, Request,
     inbox::{Card, Inbox},
 };
-use crate::{Address, Limits, acts, address::Filter, owner::Owner};
+use crate::{Address, Limits, acts, address::Filter, forge::approvals::Approvals, owner::Owner};
 use alloc::boxed::Box;
 use jig_client::{
     Client, Handle, Key, Latest, Outcome, State, Told,
@@ -18,6 +18,23 @@ pub const ANSWERED_ON_HOME: Duration = Duration::from_secs(120);
 /// Session memory holds at most 64 answered lines, Later marks and refusals each.
 const CAPACITY: u32 = 64;
 
+/// One open card of Needs you: jig's inbox's, or a change waiting on a review on the forge
+/// (temper/docs/design/client/README.md, 3.5).
+#[derive(Clone, Copy, Debug)]
+pub enum Need<'a> {
+    Card(&'a Card),
+    Approval(&'a crate::forge::approvals::Row),
+}
+impl Need<'_> {
+    /// The card's object, or `ObjectKey::Task` of the change.
+    #[must_use]
+    pub fn object(self) -> ObjectKey {
+        match self {
+            Self::Card(card) => card.object,
+            Self::Approval(row) => ObjectKey::Task(row.task),
+        }
+    }
+}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Act {
     Choose { object: ObjectKey, words: Box<[u8]> },
@@ -124,8 +141,9 @@ impl Session {
             out.push(Request::Client(jig_client::Event::Unwatch { handle: handle() }));
         }
     }
+    /// The rail's count with the project's approvals; cut where either document is.
     #[must_use]
-    pub fn count(&self, client: &Client, project: u32) -> Count {
+    pub fn count(&self, client: &Client, approvals: &Approvals, project: u32) -> Count {
         let Some(document) = client.document(handle()) else { return Count::default() };
         if !self.watching || document.state == State::Ended {
             return Count::default();
@@ -137,7 +155,12 @@ impl Session {
                 count = count.checked_add(1).expect("inbox rows fit");
             }
         }
-        Count { count, cut: inbox.next.is_some() }
+        for row in approvals.rows() {
+            if row.project == project {
+                count = count.checked_add(1).expect("approval rows fit");
+            }
+        }
+        Count { count, cut: inbox.next.is_some() || approvals.more() > 0 }
     }
     #[must_use]
     pub fn open<'a>(&self, inbox: &'a Inbox) -> Box<[&'a Card]> {
@@ -151,12 +174,44 @@ impl Session {
         }
         cards.into_boxed()
     }
+    /// The open cards merged: the inbox's in its order, then the approvals' rows the inbox's
+    /// filter takes, those marked later last; no rows until the inbox is known.
     #[must_use]
-    pub fn shown<'a>(&self, inbox: &'a Inbox) -> Option<&'a Card> {
-        let open = self.open(inbox);
-        for card in &open {
-            if Some(card.object) == self.at {
-                return Some(card);
+    pub fn needs<'a>(&self, inbox: &'a Inbox, approvals: &'a Approvals) -> Box<[Need<'a>]> {
+        if !inbox.known() {
+            return Box::new([]);
+        }
+        let capacity = inbox
+            .cards
+            .len()
+            .checked_add(u32::try_from(approvals.rows().len()).expect("approval rows fit"))
+            .expect("inbox and approvals fit");
+        let mut needs = List::with_capacity(capacity);
+        for later in [false, true] {
+            for card in inbox.needs() {
+                if self.line(card.object).is_none() && self.later(card.object) == later {
+                    needs.push(Need::Card(card)).expect("inbox cards fit");
+                }
+            }
+            for row in approvals.rows() {
+                if inbox.filter.kind.is_none()
+                    && (inbox.filter.project.is_none() || inbox.filter.project == Some(row.project))
+                    && (inbox.filter.goal.is_none() || inbox.filter.goal == row.goal)
+                    && self.later(ObjectKey::Task(row.task)) == later
+                {
+                    needs.push(Need::Approval(row)).expect("approval rows fit");
+                }
+            }
+        }
+        needs.into_boxed()
+    }
+    /// The shown one among the merged open cards of Needs you.
+    #[must_use]
+    pub fn shown<'a>(&self, inbox: &'a Inbox, approvals: &'a Approvals) -> Option<Need<'a>> {
+        let open = self.needs(inbox, approvals);
+        for need in &open {
+            if Some(need.object()) == self.at {
+                return Some(*need);
             }
         }
         open.first().copied()
@@ -537,7 +592,14 @@ fn undoable(session: &Session, object: ObjectKey, now: Time) -> Option<u32> {
     clippy::too_many_lines,
     reason = "the Needs acts share one exhaustive dispatch, including session toast variants"
 )]
-pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act, out: &mut Queue<Request>) {
+pub(crate) fn act(
+    pages: &mut Pages,
+    env: &Env<Limits>,
+    client: &Client,
+    approvals: &Approvals,
+    act: Act,
+    out: &mut Queue<Request>,
+) {
     match act {
         Act::Choose { object, words } => answer(pages, env, client, object, words, false),
         Act::OpenReply { object } => {
@@ -566,8 +628,8 @@ pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Ac
         Act::Later { object } => {
             let Some(inbox) = &pages.inbox else { return };
             let mut open = false;
-            for card in &pages.needs.open(inbox) {
-                if card.object == object {
+            for need in &pages.needs.needs(inbox, approvals) {
+                if need.object() == object {
                     open = true;
                 }
             }
