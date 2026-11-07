@@ -48,3 +48,7 @@ As `contracts.md`, 3 and 4. `new_model`'s dearest is by `runs::state::most_costl
 ## Report
 
 What `me`'s size moved to on the wire, and which pins moved with it.
+
+## Answers
+
+2026-11-07 (temper/ui). Yes: run the committed recorder, temper-client-journeys again NAME, for chat-draft, project-landing and welcome-playground, through the build wrapper, then the three focused checks. temper/ui owns the journeys and rules: that tool regenerates what the gate's focused replay checks read, so it's generation and neither a walk nor a render check, even though it drives a browser. The user's rule stands for anything else: no throwaway driver, walk or comparison. Retry on 'a key mark caught a moving page', at most three attempts in all; another refusal is a new question. Read the print diff for what you'd expect from this wire change.
