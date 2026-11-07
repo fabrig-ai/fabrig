@@ -1393,6 +1393,14 @@ host:
 
 ## 10. Open questions
 
+- **A direct change result's rendering room** (4.4): the landing procedure
+  reserves 59 bytes for its result's label and sender before fitting its
+  report. A task made directly by `delegate` with a Change contract has
+  no such reserve, so its result at the contract's bound can be refused
+  by a live requester's receiving bound. Default: keep the durable result
+  whole and read it through `read_task`; the rendering allowance remains
+  jig's `domain/hosts.md`, section 12's question.
+
 - **A configuring model changing the catalogue** (8.1): observe a real
   model reading and proposing a model setting, including estimated prices,
   and keeping its suggestions within the offer. Default: scripted settings
@@ -1436,9 +1444,10 @@ host:
   `../draft/goal-as-designer.md`, sections 3, 5, 6, 7 and 9): the delivery
   path is independent of the stock and reference instructions, their
   wakes and their location. Those words and settings are folded into the
-  reference workflow together; the room for whole specs, batches, briefs
-  and reports is a separate change. Default: the existing stock and
-  reference words and bounds; test charters exercise goal delivery.
+  reference workflow together. Calls, briefs and reports take the room
+  of `../protocol/configuration.md`, 13.8, with the reference's fallback.
+  Default: the existing stock and reference words and wakes; test charters
+  exercise goal delivery.
 
 - **Constraining models in settings reads and proposals** (8.1): whole
   charter values can name models outside the current offer. Restricting what

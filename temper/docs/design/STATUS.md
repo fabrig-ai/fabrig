@@ -49,8 +49,10 @@ name the kind and missing member (`client/README.md`, `domain/agent.md`).
 A goal with a confirmed goal branch and a modifying charter delivers to
 its own run branch and lands through a change into g; later runs merge r into g's tip before delivering
 again. The domain, checkout and real-loop stories use scripted models and
-fake forge/git; stock and reference workflow words, larger calls and
-reports, and a saved start overtaken by a repair remain separate work
+fake forge/git. Calls, briefs, batches and reports have their configured
+room: the reference takes payload 63,740 and output 48,000 after smith
+refuses the 128 KB pair at the transcript ceiling. Stock and reference
+workflow words and a saved start overtaken by a repair remain separate work
 (`domain/agent.md`, `domain/forge.md`, `domain/worker.md`,
 `draft/goal-as-designer.md`). After landing is built
 for a repository's tiers, a goal branch's own tier, their verdicts,
