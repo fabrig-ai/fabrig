@@ -220,6 +220,8 @@ mod tests {
 
     fn config() -> Config {
         Config {
+            list: None,
+            list_status: None,
             without_credential: false,
             provider: documents::Provider::Anthropic,
             path: b"/v1/messages".as_slice().into(),

@@ -231,6 +231,8 @@ fn run_story(
     };
     let mut service = provider::Service::new(
         provider::Config {
+            list: None,
+            list_status: None,
             echo: skein_llm::openai::Echo::NONE,
             usage_fields: documents::UsageFields::ALL,
             provider: provider_kind,
@@ -451,7 +453,10 @@ fn run_story(
         if let Some(event) = peer_up.pop() {
             match event {
                 provider::Event::Domain(input) => fake::step(&mut domain, &fake_env, input, &mut replies),
-                provider::Event::Head { .. } | provider::Event::Close | provider::Event::Closed => {}
+                provider::Event::Head { .. }
+                | provider::Event::List { .. }
+                | provider::Event::Close
+                | provider::Event::Closed => {}
             }
         }
         if let Some(reply) = replies.pop() {

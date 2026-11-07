@@ -318,6 +318,8 @@ pub fn provider_at(
         transport,
         smith_agent_process_world::fake::limits(),
         provider::Config {
+            list: None,
+            list_status: None,
             echo: skein_llm::openai::Echo::NONE,
             usage_fields: documents::UsageFields::ALL,
             provider: dialect,

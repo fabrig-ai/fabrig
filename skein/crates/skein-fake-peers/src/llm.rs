@@ -27,6 +27,8 @@ pub enum Observation {
     Head { connection: Token, headers: Box<[skein_http::Header]> },
     /// The route, scheme and accepted index presented by this request, without bytes.
     Credential { connection: Token, route: skein_llm::Provider, scheme: Option<skein_llm::Scheme>, index: Option<u32> },
+    /// A model-list request, with the same credential description and no value.
+    List { connection: Token, route: skein_llm::Provider, scheme: Option<skein_llm::Scheme>, index: Option<u32> },
     /// The byte peer decoded this complete call before the script domain received it.
     Query { connection: Token, query: api::Query },
     /// The real script domain emitted this terminal, even after the connection closed.
@@ -156,6 +158,11 @@ impl Peer {
             return Err(Error::Limits);
         }
         Ok(index)
+    }
+
+    /// Replaces the list answer between requests (fake-llm.md, 3.2).
+    pub fn set_list(&mut self, list: Option<Box<[u8]>>, status: Option<u16>) {
+        self.service.set_list(list, status);
     }
 
     /// The actual bound address, available after io's Listening event.
@@ -362,6 +369,18 @@ impl Peer {
             connection.wire.pump(&mut connection.plain, &mut self.face.requests);
             if let Some(event) = connection.above.pop() {
                 match event {
+                    provider::Event::List { presented } => {
+                        let connection = connection.owner;
+                        self.observe(
+                            Observation::List {
+                                connection,
+                                route: presented.route,
+                                scheme: presented.scheme,
+                                index: presented.index,
+                            },
+                            0,
+                        );
+                    }
                     provider::Event::Head { headers, presented } => {
                         let connection = connection.owner;
                         if self.recording {
