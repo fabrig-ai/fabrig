@@ -12,6 +12,7 @@ fn classification(result: &ProcessResult) -> smith_bench::Classification {
     result.observing.as_ref().expect("replay observer retained").classify(result.exit, result.forced)
 }
 
+// Seed bundle lookup reads HOME and XDG_STATE_HOME through arm::state_root.
 fn isolated_replay(name: &str) -> Option<PathBuf> {
     if let Some(root) = std::env::var_os("SMITH_REPOSITORY_REPLAY_ROOT") {
         return Some(PathBuf::from(root));
@@ -79,10 +80,13 @@ fn a_file_left_in_tmp_by_an_attempt_is_a_write_outside() {
         .expect("guard");
     let machine = smith_bench::isolate::Machine { path: "/usr/bin:/bin".into(), rustup_home: None };
     let mut prepared = repository_request(&root, &guard);
-    let path = PathBuf::from(format!("/tmp/smith-bench-test-{}", std::process::id()));
+    let shared = root.join("shared-tmp");
+    std::fs::create_dir(&shared).expect("shared temporary directory");
+    prepared.shared_temporary.clone_from(&shared);
+    let path = shared.join("escaped");
     assert!(!path.exists(), "fresh test file");
     let mut command = replay("");
-    command.arguments[1] = format!("cat >/dev/null; printf escaped > {}; cat \"$1\"", path.display()).into();
+    command.arguments[1] = format!("cat >/dev/null; printf escaped > '{}'; cat \"$1\"", path.display()).into();
     prepared.arguments = command.arguments.iter().map(|value| value.to_str().expect("argument").into()).collect();
     let recorded = smith_bench::run::attempt(&guard, &machine, &root.join("state/smith-bench"), &prepared)
         .expect("repository replay");
@@ -90,7 +94,13 @@ fn a_file_left_in_tmp_by_an_attempt_is_a_write_outside() {
         recorded.result.outcome.checks.iter().find(|check| check.check == "nothing-outside").expect("scope check");
     assert_eq!(check.passed, smith_bench::Measure::Observed { value: false });
     assert!(check.evidence.contains(&path.display().to_string()), "{:?}", check.evidence);
-    std::fs::remove_file(path).expect("remove test's temporary file");
+    assert!(
+        check
+            .evidence
+            .contains(&format!("User-owned {} entries listed before and after the attempt", shared.display())),
+        "{:?}",
+        check.evidence
+    );
 }
 
 fn replay(tail: &str) -> Command {
