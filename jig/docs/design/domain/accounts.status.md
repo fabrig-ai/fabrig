@@ -1,7 +1,8 @@
 # accounts: status
 
-2026-11-06. Where jig's code lags or departs from [accounts.md](accounts.md).
+2026-11-07. Where jig's code lags or departs from [accounts.md](accounts.md).
 
+- **Not yet:** 3.4, 3.7: an account's list: nothing reads one, and an account's record keeps none. 4.3: a task's first choice reads no account's list.
 - **Not yet:** 4.3: no walk on record has a real box with one account,
   unedited, run on what this section's rule takes, where the request
   `first-usable-model` of 2026-11-06 asks one. temper's stories on the stock

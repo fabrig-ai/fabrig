@@ -264,6 +264,8 @@ Account
   live declaration permits a fresh sign-in.
 - **Concurrency is the host's slots:** a run on a program is a smith
   run, and counts as one run, as any other does.
+- **A host also reads an account's list** of models with the account's grant
+  (3.7), which holds a value, never a program's source.
 
 ### 3.5 States
 
@@ -399,6 +401,56 @@ alongside the individual bounds. This sizes the retained source table;
 it does not reserve an output queue's room. Internal outputs are
 uncapped and grow with the admitted work.
 
+### 3.7 An account's list
+
+Each LLM provider says what it lists, and an account's list says what it serves
+(providers.md, 2.4). The accounts child says when an account's is read and keeps
+what its last read gave; what a read does to the catalogue is `engine.md`, 17.12.
+
+- **Which accounts have one:** an account of a provider whose configuration gives
+  `keep` (`../protocol/configuration.md`, section 3), whose first source in its
+  holder's order is a sign-in or a key. A program's source has none: Anthropic
+  allows no other use of a subscription's credentials (providers.md, 3.1), and the
+  order decides who pays, so an account that lists Claude Code first and a key
+  after has none. Nor has a source of none.
+- **When it is due:**
+  - as the account becomes usable: its first source turning usable, from any
+    state but a restored one, so that a restart is no reason to read;
+  - a day after its last attempt, kept as a wall time across restarts; a day past
+    while the engine was down is due at the start;
+  - when a holder, or an owner for a deployment's account, asks: **read again**,
+    which names a provider and reads every account of it they may act on
+    (section 5), the answer saying how many.
+
+  An account being read isn't read a second time. A source not usable holds what
+  is due until it is: nothing is asked of a limited or a refused source.
+- **How it is read:** the child asks with the account's source's grant, by its
+  number and generation as a run's, and hears one answer. The core gives it to the
+  fleet (`engine.md`, 17.12), and a worker reads it (`hosts.md`, 5.1). It is no
+  run, and spends no budget and no slot.
+- **What the store keeps** on the account's record (`../protocol/store.md`, 4.4):
+  - `names`: which of the catalogue's models its last good read gave, a bit per
+    setting, as a task's choice holds a number (`engine.md`, 17.11);
+  - `read`: when that read was, or none;
+  - `tried`: when its last attempt ended, or none;
+  - `failure`: why its last attempt failed, or none: refused with a status, the
+    provider unreachable, its list unreadable, a deadline, a worker's fault, or
+    the catalogue's room;
+  - `left_out`: how many names of its last good read no number was free for.
+
+  A failed read changes `tried` and `failure` alone. No credential, body or
+  provider's words are kept, and a failure's words are the client's.
+- **What it decides:** whether this account can run a model, for the offer (`engine.md`,
+  11.1) and for a task given no choice (4.3). An account **allows** a model of
+  its provider when:
+  - a person added the model, whatever any list says (`engine.md`, 17.11); or
+  - it has a good read, and `names` holds the model; or
+  - it has no good read: no list, none read yet or only failures, and the model
+    is the stock's.
+
+  So a failure keeps the names of the last good read, and an account whose first
+  read fails takes the stock.
+
 ## 4. Uses: whose work an account pays for
 
 ### 4.1 The payer
@@ -464,9 +516,9 @@ account a preferred number or an endpoint default.
      or not: **a task keeps what it's using,** so an account added later
      moves nothing, and a limited one is waited for, below;
   2. else the first whose LLM provider has an account usable now for its
-     payer, its source usable on a connected host where the host rule
-     allows it (3.4), the readiness the accounts document shows
-     (`../client/domain/contract.md`, 5.1);
+     payer that allows the model (3.7), its source usable on a connected host
+     where the host rule allows it (3.4), the readiness the accounts document
+     shows (`../client/domain/contract.md`, 5.1);
   3. else the first whose LLM provider has an account serving its payer,
      so that its wait names that account;
   4. else the charter's first, its run waiting with no account to name,
