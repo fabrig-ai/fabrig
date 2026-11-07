@@ -433,14 +433,12 @@ than cutting the cover.
   decoding outside the kit, since it links smith, and each adopter's first
   period and `Drained` as the referee sees them. Default: as they stand, until
   `jig/docs/development/debt/D030-conformance-not-drop-in.md` is planned.
-- **A commit's rows for the core's observer** (5): the observer projects the
-  whole store at each new commit, combining naming and row projection in one
-  pass and collecting accepted proposal decisions with the other evidence.
-  A feed of each commit's rows needs keyed replacement and erasure accounting,
-  commit-level observations and a check against the whole projection. `Got`
-  changes rows outside commits too, so cold observation needs the current rows.
-  Default: the whole projection, until a keyed feed is designed
-  (`jig/docs/development/debt/D034-world-replay-cost.md`).
+- **A commit's rows for the core's observer** (5): submitted keys replace or
+  erase keyed row evidence after durability. Receipts retain each contributing
+  row, and person spend sums current ledgers. Observations remain complete,
+  ordered snapshots once per commit, checked against whole-store projection
+  in focused tests. Cold observation reads current rows even without a new
+  commit; a missing feed or a bulk mutation rebuilds the projection whole.
 - **Further world-cost repairs** (9): which remaining representations and
   algorithms need to change for the focused suite to fit its 30 CPU s budget.
   Read whole-suite cost from the queue after landing, including fuzzy's moved

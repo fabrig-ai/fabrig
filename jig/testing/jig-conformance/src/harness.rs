@@ -1,7 +1,7 @@
 //! One engine, one ordered store and independently scripted neighbours.
 //! Applications translate boundaries; this loop owns commit application and
 //! checks observations after every iteration (`domain/testing.md`, 5–6).
-use crate::referee::{Observed, Policy, Referee, Violation};
+use crate::referee::{Observed, Policy, PolicySnapshot, Referee, Violation};
 use crate::trace::Trace;
 use std::collections::VecDeque;
 use std::fmt::Debug;
@@ -109,6 +109,12 @@ pub trait Application {
     fn peers(config: &Self::Config, seed: u64) -> Self::Peers;
     /// Borrow the complete scenario policy, including independently requested edits.
     fn policy(peers: &Self::Peers) -> &Policy;
+    /// The same complete policy as `policy`, shared immutably until an edit.
+    /// Adapters without a snapshot retain the value comparison at each inspection.
+    #[must_use]
+    fn policy_snapshot(_: &Self::Peers) -> Option<&PolicySnapshot> {
+        None
+    }
     /// Prepare the initial durable fixture and begin the cold-load script.
     fn start(config: &Self::Config, store: &mut Self::Store) -> Vec<Self::Event>;
     /// Reconnect retained peers and observe the last durable store on a crash.
@@ -235,7 +241,10 @@ impl<A: Application> Harness<A> {
         let systems = A::systems(&config, seed);
         let mut store = A::store(&config);
         let events = A::start(&config, &mut store).into_iter().map(Input::Event).collect();
-        let policy = A::policy(&peers).clone();
+        let policy = match A::policy_snapshot(&peers) {
+            Some(policy) => policy.clone(),
+            None => A::policy(&peers).clone().into(),
+        };
         let maximum = A::maximum(&config);
         let meter = skein_world::domain::heap::Meter::new();
         let domain = A::build(&config);
@@ -435,10 +444,14 @@ impl<A: Application> Harness<A> {
         clock: Clock,
     ) -> Result<(), Violation> {
         let observations = A::observed(peers, systems, store, clock);
-        let policy = A::policy(peers);
         // Refresh the independent snapshot before this inspection's observations.
-        if referee.policy != *policy {
+        if let Some(policy) = A::policy_snapshot(peers) {
             referee.policy.clone_from(policy);
+        } else {
+            let policy = A::policy(peers);
+            if *referee.policy != *policy {
+                referee.policy = policy.clone().into();
+            }
         }
         for observed in observations {
             referee.observe(clock.now, observed)?;
@@ -551,7 +564,6 @@ where
     /// # Errors
     /// Returns the same missing receipt or broken promise as `crash`.
     pub fn from_snapshot(mut snapshot: ColdSnapshot<A>) -> Result<Self, Violation> {
-        let meter = skein_world::domain::heap::Meter::new();
         // Exactly crash's outside sequence, before constructing its one new root.
         snapshot.crashes.push(snapshot.store.applied());
         snapshot.referee.observe(snapshot.clock.now, Observed::Restart)?;
@@ -564,6 +576,9 @@ where
             &mut snapshot.referee,
             snapshot.clock,
         )?;
+        // Cold observation discards copied derived caches. As at initial start,
+        // measure after outside setup and before constructing the engine.
+        let meter = skein_world::domain::heap::Meter::new();
         let domain = A::build(&snapshot.config);
         let events = A::start(&snapshot.config, &mut snapshot.store).into_iter().map(Input::Event).collect();
         Ok(Self {
