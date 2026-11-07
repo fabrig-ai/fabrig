@@ -109,7 +109,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
         w::Value::Tier(row) => d::Stored::Tier(tiers::decode(*row)?),
         w::Value::LandingLog(row) => d::Stored::LandingLog(landing_log::decode(row)),
         w::Value::Verification(row) => d::Stored::Verification(verification::decode(row)?),
-        w::Value::Forge(row) => d::Stored::Forge(forges::decode(row)),
+        w::Value::Forge(row) => d::Stored::Forge(forges::decode(row)?),
         w::Value::ForgeNumber(row) => {
             let w::ForgeNumberParts { last } = row.into_parts();
             d::Stored::ForgeNumber { last }

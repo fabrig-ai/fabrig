@@ -154,7 +154,12 @@ fn refuse_owner_approval(world: &mut World, run: &engine::Assignment, proposal: 
         panic!("unsatisfiable approval refused: {:?}", world.reply(key))
     };
     let why = std::str::from_utf8(why).expect("refusal UTF-8");
-    assert!(why.contains("project 1 role 0 requires 1 distinct known forge people; currently 0 eligible"), "{why}");
+    assert!(
+        why.contains(
+            "project 1 role 0 on forge forge.example:3847 requires 1 distinct known forge people; currently 0 eligible"
+        ),
+        "{why}"
+    );
     assert_eq!(world.head().number, 1, "refused acceptance changes nothing");
 }
 

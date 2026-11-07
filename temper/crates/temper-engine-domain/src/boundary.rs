@@ -504,6 +504,8 @@ pub enum Missing {
 /// An observation of the root, which decides nothing (domain/root.md, 3 and 7.4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Fact {
+    /// A forge's link changed or was refused (temper/docs/design/domain/forge.md, 4.6).
+    ForgeLink { forge: u16, note: forge::LinkNote },
     /// A forge read refused locally or by the connector, for operator diagnostics.
     ReadRefused {
         task: u64,

@@ -1,9 +1,9 @@
 //! Durable forge and playground rows (temper/docs/design/protocol/store.md, 2).
-use super::{FITS, w};
+use super::{FITS, Undecodable, w};
 use temper_engine_domain_forge as d;
 
 pub(super) fn encode(row: &d::ForgeRecord) -> w::Forge {
-    let d::ForgeRecord { number, kind, mode, state, place, git_program, read_only, bot, asked, first } = row;
+    let d::ForgeRecord { number, kind, mode, state, place, git_program, read_only, bot, asked, first, person } = row;
     w::Forge::new(
         &w::CEILINGS,
         w::ForgeParts {
@@ -36,6 +36,13 @@ pub(super) fn encode(row: &d::ForgeRecord) -> w::Forge {
             first: match first {
                 None => None,
                 Some(first) => Some(encode_first(first)),
+            },
+            person: match person {
+                None => None,
+                Some(link) => Some(
+                    w::ForgeLink::new(&w::CEILINGS, w::ForgeLinkParts { user: link.user, person: link.person })
+                        .expect(FITS),
+                ),
             },
         },
     )
@@ -83,10 +90,20 @@ fn encode_first(row: &d::FirstIntent) -> w::FirstIntent {
     }
 }
 
-pub(super) fn decode(row: w::Forge) -> d::ForgeRecord {
-    let w::ForgeParts { number, kind, mode, state, place, git_program, read_only, bot, asked, first } =
+pub(super) fn decode(row: w::Forge) -> Result<d::ForgeRecord, Undecodable> {
+    let w::ForgeParts { number, kind, mode, state, place, git_program, read_only, bot, asked, first, person } =
         row.into_parts();
-    d::ForgeRecord {
+    let person = match person {
+        None => None,
+        Some(link) => {
+            let w::ForgeLinkParts { user, person } = link.into_parts();
+            if user == 0 || person == 0 {
+                return Err(Undecodable);
+            }
+            Some(d::Link { user, person })
+        }
+    };
+    Ok(d::ForgeRecord {
         number,
         kind: match kind {
             w::ForgeKind::Forgejo => d::Kind::Forgejo,
@@ -114,7 +131,8 @@ pub(super) fn decode(row: w::Forge) -> d::ForgeRecord {
             None => None,
             Some(first) => Some(decode_first(first)),
         },
-    }
+        person,
+    })
 }
 
 fn decode_place(row: w::Place) -> d::Place {

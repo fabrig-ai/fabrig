@@ -59,6 +59,7 @@ mod landing;
 mod landing_log;
 pub use landing_log::LOGGED_TITLE_BYTES;
 mod limits;
+mod link;
 mod making;
 pub use making::{
     MakeFailure, MakeFrom, MakeInto, MakeRefusal, MakeStep, MakingFailed, MakingKey, MakingState, RepositoryMaking,

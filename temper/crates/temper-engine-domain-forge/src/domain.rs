@@ -141,6 +141,7 @@ pub struct Domain {
     pub(crate) forge_number: u16,
     pub(crate) configured: Map<u16, crate::Configured>,
     pub(crate) under_box: bool,
+    pub(crate) owner: Option<u64>,
     pub(crate) playground_config: Option<crate::PlaygroundConfig>,
     pub(crate) playground: Option<crate::Playground>,
     pub(crate) playground_pending: Map<Token, Token>,
@@ -635,6 +636,7 @@ impl Domain {
             forge_number,
             configured,
             under_box,
+            owner: None,
             playground_config: None,
             playground: None,
             playground_pending: Map::with_capacity(l.applications),
@@ -1253,6 +1255,8 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::InstallAnswered { forge, request, answer, stopped } => {
             crate::connect::installed(d, forge, request, answer, stopped, out);
         }
+        Event::Owner { party } => crate::link::owner(d, party, out),
+        Event::PersonOf { forge, answer } => crate::link::person_of(d, forge, answer, out),
         Event::BotLogin { forge, login } => crate::connect::bot_login(d, forge, login, out),
         Event::ConnectEnded { forge, request, connected, why, stop } => {
             crate::connect::ended(d, forge, request, connected, why, stop, out);
