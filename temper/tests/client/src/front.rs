@@ -986,18 +986,29 @@ impl Joint {
     /// client/README.md, 8 and 10: a pushed change lands through CI and an agent gate.
     #[must_use]
     pub fn with_change_landing(seed: u64, limits: &client::Limits) -> Self {
-        Self::change_landing(seed, limits, None, false)
+        Self::change_landing(seed, limits, None, false, false)
+    }
+    /// domain/testing.md, 6.3: the deployment also waits for the project's owner's review.
+    #[must_use]
+    pub fn with_change_approval(seed: u64, limits: &client::Limits) -> Self {
+        Self::change_landing(seed, limits, None, false, true)
     }
     /// Settings and a following change through the same joined engine.
     #[must_use]
     pub fn with_settings_changes(seed: u64, limits: &client::Limits) -> Self {
-        Self::change_landing(seed, limits, None, true)
+        Self::change_landing(seed, limits, None, true, false)
     }
     #[expect(
         clippy::too_many_lines,
         reason = "the shared change fixture keeps its policy and settings variant together"
     )]
-    fn change_landing(seed: u64, limits: &client::Limits, session: Option<Duration>, settings: bool) -> Self {
+    fn change_landing(
+        seed: u64,
+        limits: &client::Limits,
+        session: Option<Duration>,
+        settings: bool,
+        approval: bool,
+    ) -> Self {
         // Chat, reviewer, foreman and change procedure; chat/change/producer depth;
         // the same owner in the project and deployment.
         const SETTINGS_EXECUTORS: u32 = 4;
@@ -1016,7 +1027,7 @@ impl Joint {
             let connector = config.core.connectors[0];
             // Same agent gate and rule as forge_routes.rs's configured_policy
             // (domain/forge.md, 8.3 and 8.7), on the client world's repository.
-            let landing: Box<[engine::LandingRule]> = Box::new([engine::LandingRule {
+            let mut landing: Box<[engine::LandingRule]> = Box::new([engine::LandingRule {
                 connector,
                 kind: 4,
                 enforce: true,
@@ -1033,6 +1044,10 @@ impl Joint {
             }]);
             let mut projects = skein_lib::Map::with_capacity(1);
             projects.insert(1, landing.clone()).expect("one project landing rule");
+            if approval {
+                landing[0].approvals =
+                    Box::new([engine::Approval { role: 0, people: 1, freshness: engine::Freshness::Clean }]);
+            }
             config.kinds_stock = engine::landing_stock(&landing, &projects, 1, 4);
             let mut rules = config.core.defaults.rules.clone();
             let mut policy = config.core.seed_projects[0].policy.policy.clone();
