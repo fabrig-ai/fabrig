@@ -54,15 +54,19 @@ fn failed_ids_upload_a_junit_report() {
     assert_eq!(run_jobs(&h, 1)[0].conclusion, Some(crate::api::Conclusion::Failure));
 }
 #[test]
-fn selection_runs_only_its_failed_id() {
-    let mut h = configured_report(CALM, ReportFormat::Junit, &[b"a", b"b"], None);
-    assert_eq!(run_report(&mut h, Some(b"b")), Ok(junit(b"<?xml version=\"1.0\" encoding=\"UTF-8\"?><testsuite><testcase name=\"b\"><failure/></testcase></testsuite>")));
+fn selected_junit_reports_contain_only_requested_test_identifiers() {
+    skein_rows::check(
+        [
+            ("selection_runs_only_its_failed_id", (&[b"a".as_slice(), b"b".as_slice()][..], Some(b"b".as_slice()), Ok(junit(b"<?xml version=\"1.0\" encoding=\"UTF-8\"?><testsuite><testcase name=\"b\"><failure/></testcase></testsuite>")))),
+            ("selection_reports_passing_ids_beside_failed_ids", (&[b"b".as_slice()][..], Some(b"b\na\nb\n".as_slice()), Ok(junit(b"<?xml version=\"1.0\" encoding=\"UTF-8\"?><testsuite><testcase name=\"a\"/><testcase name=\"b\"><failure/></testcase></testsuite>")))),
+        ],
+        |(fails, selection, expected)| {
+            let mut h = configured_report(CALM, ReportFormat::Junit, fails, None);
+            assert_eq!(run_report(&mut h, selection), expected);
+        },
+    );
 }
-#[test]
-fn selection_reports_passing_ids_beside_failed_ids() {
-    let mut h = configured_report(CALM, ReportFormat::Junit, &[b"b"], None);
-    assert_eq!(run_report(&mut h, Some(b"b\na\nb\n")), Ok(junit(b"<?xml version=\"1.0\" encoding=\"UTF-8\"?><testsuite><testcase name=\"a\"/><testcase name=\"b\"><failure/></testcase></testsuite>")));
-}
+
 #[test]
 fn test_cues_read_ids_from_the_run_commit() {
     let mut h = configured_report(CALM, ReportFormat::Lines, &[], Some(Cue::Tests { path: copy_of(b"ids") }));

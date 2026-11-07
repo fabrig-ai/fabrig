@@ -342,25 +342,18 @@ fn no_close_after_closed() {
 }
 
 #[test]
-#[should_panic(expected = "the limits are honoured: a head of a blank line, a read of a byte")]
-fn valid_refuses_a_head_shorter_than_a_blank_line() {
-    let limits = Limits { head: 1, ..LIMITS };
-    assert!(!client::valid(&limits));
-    let _machine = client::Client::new(&limits);
-}
-
-#[test]
-#[should_panic(expected = "the limits are honoured: a head of a blank line, a read of a byte")]
-fn valid_refuses_a_zero_read() {
-    let limits = Limits { read: 0, ..LIMITS };
-    assert!(!client::valid(&limits));
-    let _machine = client::Client::new(&limits);
-}
-
-#[test]
-#[should_panic(expected = "the limits are honoured: a head of a blank line, a read of a byte")]
-fn valid_refuses_a_zero_send() {
-    let limits = Limits { send: 0, ..LIMITS };
-    assert!(!client::valid(&limits));
-    let _machine = client::Client::new(&limits);
+fn invalid_client_limits_fail_validation_and_constructor_admission() {
+    skein_rows::check(
+        [
+            ("valid_refuses_a_head_shorter_than_a_blank_line", Limits { head: 1, ..LIMITS }),
+            ("valid_refuses_a_zero_read", Limits { read: 0, ..LIMITS }),
+            ("valid_refuses_a_zero_send", Limits { send: 0, ..LIMITS }),
+        ],
+        |limits| {
+            assert!(!client::valid(&limits));
+            skein_rows::panics("the limits are honoured: a head of a blank line, a read of a byte", || {
+                let _machine = client::Client::new(&limits);
+            });
+        },
+    );
 }
