@@ -10,7 +10,7 @@ Every test of the tier on main at the cut (`0e81125709`).
 |---|---|---|---|---|
 | 1 | `browser_sign_in::signing_in_reloading_reconnecting_and_signing_out_keep_the_cookie_contract` | 4.6, 1: the cookie across a reload, a spent link, signing out and a restart | Stays | Unchanged |
 | 2 | `browser_pages::history_keeps_the_chat_focus_and_filter_across_reload_and_back` | 4.6, 2 and 11: Back and Forward, the composer's focus, a filter's address, no page, the box's project across a reload | Stays, and takes row 17 | Unchanged but for its scripted turns, which it doesn't read |
-| 3 | `browser_pages::enter_starts_one_chat_and_the_composer_keeps_the_focus` | 4.6, 4 and 5: Enter and Shift+Enter, the focus, a panic | Stays, and takes row 18 | Unchanged but for a second model offered, and the picker's steps for the three it had |
+| 3 | `browser_pages::enter_starts_one_chat_and_the_composer_keeps_the_focus` | 4.6, 4 and 5: Enter and Shift+Enter, the focus, a panic | Stays, and takes row 18 | Unchanged but for a second model offered, and the picker's steps, which hold the ones it had for that menu |
 | 4 | `browser_attacks::cross_origin_requests_and_framing_cannot_act_as_the_person` | 4.6, 6 | Stays | Unchanged |
 | 5 | `browser_authorize::a_cross_site_authorization_returns_a_code_and_the_links_state` | 4.6, 7 | Stays | Unchanged |
 | 6 | `browser_accounts::the_accounts_page_returns_after_a_key_send` | 4.6, 8 | Stays | Unchanged |
@@ -25,7 +25,7 @@ Every test of the tier on main at the cut (`0e81125709`).
 | 15 | `browser_pages::a_short_chat_opens_whole_without_a_reading_status` | No status or pill; both ends in the log | Merges, story `short`, on T1 at one message | Every step and measure stays, in order |
 | 16 | `browser_accounts::the_welcome_sign_in_opens_a_tab_and_moves_on_to_ready` | `/welcome?at=model` to `/welcome?at=ready`, one authorization and one code exchange | Merges into row 7, story `welcome`, first, on a second provider | Every step stays. New, lower: `suite::second_sign_in`, which runs here and passes first |
 | 17 | `browser_call_line::a_run_of_calls_opens_to_its_rows` | The folded line hiding its rows, open on a press, its node kept across a reply | Merges into row 2, story `call line` | Every step and the node's equality stay. `suite::call_line::opened_it_holds_one_row_a_call` already holds the rows' words; 4.6's list says so |
-| 18 | `browser_model_picker::the_model_picker_at_the_composer` | One press applies a model and an effort, at 420 px and 1440 px, and a press away or Escape closes it | Merges into row 3, story `model picker` | Every step stays, and they hold the three steps row 3 had for the same menu |
+| 18 | `browser_model_picker::the_model_picker_at_the_composer` | One press applies a model and an effort, at 420 px and 1440 px, and a press away or Escape closes it | Merges into row 3, story `model picker` | Every step stays, and they hold the ones row 3 had for the same menu |
 
 Twelve at the end: rows 1 to 11, and the reading test.
 

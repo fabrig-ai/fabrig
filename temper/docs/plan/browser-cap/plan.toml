@@ -20,3 +20,29 @@ id = 1
 story = "A failed step of a test of several stories names its story"
 parts = ["steps"]
 walk = false
+
+[[part]]
+id = "pages"
+title = "Reading is one test of four stories; the call line and the model picker are steps of 2 and 4"
+mode = "direct"
+needs = ["steps"]
+design = "temper/docs/design/client/browser.md, 4.6"
+
+[[part]]
+id = "welcome"
+title = "The welcome's sign-in is the first story of test 9, on a second provider"
+mode = "direct"
+needs = ["steps"]
+design = "temper/docs/design/client/browser.md, 4.2"
+
+[[slice]]
+id = 2
+story = "One browser test reads a short chat, a Latest, an unanchored read and a long chat, on three chats through ctl"
+parts = ["pages"]
+walk = false
+
+[[slice]]
+id = 3
+story = "One browser test signs in at the welcome, then on ConnectModel, each in a tab of its own"
+parts = ["welcome"]
+walk = false
