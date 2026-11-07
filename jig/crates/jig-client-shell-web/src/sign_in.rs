@@ -25,10 +25,10 @@ pub fn take(route: &Route<'_>, path_and_query: &[u8]) -> Option<Taken> {
         return None;
     }
     let value = query.split('&').find_map(|part| part.strip_prefix("secret="))?;
-    let secret = base64::decode(Alphabet::Url, value.as_bytes(), 32).ok()?;
-    if secret.len() != 32 {
-        return None;
-    }
+    let secret = match base64::decode(Alphabet::Url, value.as_bytes(), 32) {
+        Ok(secret) if secret.len() == 32 => secret,
+        Ok(_) | Err(_) => Box::new([]),
+    };
     Some(Taken { secret, address: route.home.into() })
 }
 #[cfg(target_arch = "wasm32")]
