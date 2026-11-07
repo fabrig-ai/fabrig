@@ -88,7 +88,10 @@ impl Side {
 }
 #[expect(clippy::too_many_lines, reason = "one fixture settles the goal and its side reads together")]
 fn root_with_side(task: c::Task, done: u32, total: u32, note: Option<c::Note>, needs: bool, side: Side) -> Domain {
-    let limits = fixtures::domain_limits();
+    let mut limits = fixtures::domain_limits();
+    if let Some(whole) = &side.specification {
+        limits.client.domain.long_text = limits.client.domain.long_text.max(u32::try_from(whole.len()).unwrap());
+    }
     let (mut root, _, watch, tree_watch, _, _, inbox_watch) = fixtures::root_at_with_dismissals_and_needs(
         Address::Task { task: TASK },
         &limits,
@@ -1167,7 +1170,11 @@ fn funds_row(kinds: &[c::ActKind]) -> (c::ObjectKey, c::Read, c::ReadValue) {
     )
 }
 fn bands_root(cards: &[(c::ObjectKey, c::Read, c::ReadValue)]) -> Domain {
+    bands_root_read(cards, None)
+}
+fn bands_root_read(cards: &[(c::ObjectKey, c::Read, c::ReadValue)], whole: Option<Box<[u8]>>) -> Domain {
     let mut side = Side::empty();
+    side.specification = whole;
     for card in cards {
         side.cards.push(card.clone()).unwrap();
     }
@@ -1206,34 +1213,62 @@ fn band_press(tree: &Tree, bindings: &Bindings, name: &[u8]) -> temper_client_do
 }
 #[test]
 fn one_band_per_open_need_in_the_inboxs_order() {
-    let mut root = bands_root(&[
-        question_row(FIRST_MESSAGE, b"First question?"),
-        question_row(SECOND_MESSAGE, b"Second question?"),
-    ]);
-    for words in [fixtures::browser_words(), fixtures::words()] {
-        let tree = draw(&root, &words).0;
-        let bands = bands(&tree);
-        assert_eq!(bands.len(), OPEN_QUESTIONS);
-        assert_eq!(bands[0], node_end(&tree, styled(&tree, look::GOAL_HEAD)));
-        assert_eq!(node_end(&tree, bands[1]), styled(&tree, look::GOAL_TWO));
-        for (at, expected) in bands.iter().zip([b"First question?".as_slice(), b"Second question?"]) {
-            assert_eq!(tree.nodes()[*at].role, Role::Region);
-            assert_eq!(tree.nodes()[*at].name.as_deref(), Some(b"Needs you".as_slice()));
-            assert_eq!(tree.nodes()[at + 1].role, Role::Paragraph);
-            assert_eq!(styled_text_in_band(&tree, *at, look::GOAL_BAND_TAG).as_ref(), b"Needs you \xc2\xb7 a question");
-            assert!(skein_lib::bytes::find(&fixtures::node_text(&tree, *at), expected).is_some());
+    let first = b"First question?\n\nContext.\nSaw: Evidence.\nChoice: First";
+    let second = b"Second question?\n\nOther context.\nChoice: Second";
+    let mut person = super::needs::person();
+    person.task.task = TASK + 1;
+    person.contract = c::TaskContractDocument::Report { words: 4096 };
+    person.requester = c::Requester::Task(TASK);
+    person.spec.specification.words = text(b"First ques");
+    person.spec.specification.words.cut = true;
+    let person_object = c::ObjectKey::PersonTask(person.task.task);
+    let person_read = c::Read::PersonTask { task: person.task.task };
+    let person = c::ReadValue::PersonTask(Box::new(person));
+    for (mut root, object) in [
+        (
+            Box::new(bands_root(&[question_row(FIRST_MESSAGE, first), question_row(SECOND_MESSAGE, second)])),
+            question_row(FIRST_MESSAGE, b"").0,
+        ),
+        (
+            Box::new(bands_root_read(
+                &[(person_object, person_read, person), question_row(SECOND_MESSAGE, second)],
+                Some(Box::from(first.as_slice())),
+            )),
+            person_object,
+        ),
+    ] {
+        for words in [fixtures::browser_words(), fixtures::words()] {
+            let tree = draw(&root, &words).0;
+            let bands = bands(&tree);
+            assert_eq!(bands.len(), OPEN_QUESTIONS);
+            assert!(skein_lib::bytes::find(&fixtures::node_text(&tree, bands[0]), b"Context.").is_some());
+            assert!(skein_lib::bytes::find(&fixtures::node_text(&tree, bands[0]), b"Evidence.").is_some());
+            assert_eq!(control_names(&tree, bands[1]), row_words(&[b"Answer"]));
+            assert!(skein_lib::bytes::find(&fixtures::node_text(&tree, bands[1]), b"Other context.").is_none());
+            assert_eq!(bands[0], node_end(&tree, styled(&tree, look::GOAL_HEAD)));
+            assert_eq!(node_end(&tree, bands[1]), styled(&tree, look::GOAL_TWO));
+            for (at, expected) in bands.iter().zip([b"First question?".as_slice(), b"Second question?"]) {
+                assert_eq!(tree.nodes()[*at].role, Role::Region);
+                assert_eq!(tree.nodes()[*at].name.as_deref(), Some(b"Needs you".as_slice()));
+                assert_eq!(tree.nodes()[at + 1].role, Role::Paragraph);
+                assert_eq!(
+                    styled_text_in_band(&tree, *at, look::GOAL_BAND_TAG).as_ref(),
+                    b"Needs you \xc2\xb7 a question"
+                );
+                assert!(skein_lib::bytes::find(&fixtures::node_text(&tree, *at), expected).is_some());
+            }
         }
+        fixtures::root_event(
+            &mut root,
+            Event::Act {
+                action: temper_client_domain::Action::Pages(Act::Needs(
+                    temper_client_domain::pages::needs::Act::Later { object },
+                )),
+            },
+        );
+        let tree = draw(&root, &fixtures::browser_words()).0;
+        assert!(skein_lib::bytes::find(&fixtures::node_text(&tree, bands(&tree)[0]), b"Second question?").is_some());
     }
-    fixtures::root_event(
-        &mut root,
-        Event::Act {
-            action: temper_client_domain::Action::Pages(Act::Needs(temper_client_domain::pages::needs::Act::Later {
-                object: question_row(FIRST_MESSAGE, b"").0,
-            })),
-        },
-    );
-    let tree = draw(&root, &fixtures::browser_words()).0;
-    assert!(skein_lib::bytes::find(&fixtures::node_text(&tree, bands(&tree)[0]), b"Second question?").is_some());
 }
 fn styled_text_in_band(tree: &Tree, at: usize, style: Style) -> Box<[u8]> {
     for index in at..node_end(tree, at) {
@@ -1334,15 +1369,31 @@ fn no_choices_says_answer_or_open() {
         c::Read::Proposal { proposal: proposal.key },
         c::ReadValue::Proposal(Box::new(proposal)),
     );
-    for (card, name) in [
-        (question_row(FIRST_MESSAGE, b"Where?"), b"Answer".as_slice()),
-        (person, b"Answer"),
-        (held, b"Open"),
-        (proposal, b"Open"),
+    let mut cut = question_row(FIRST_MESSAGE, CHOICES);
+    if let c::ReadValue::Question(question) = &mut cut.2 {
+        question.words.cut = true;
+    }
+    for (card, name, cut) in [
+        (question_row(FIRST_MESSAGE, b"Where?"), b"Answer".as_slice(), false),
+        (cut, b"Answer", true),
+        (person, b"Answer", false),
+        (held, b"Open", false),
+        (proposal, b"Open", false),
     ] {
         let root = bands_root(&[card]);
         for words in [fixtures::browser_words(), fixtures::words()] {
             let (tree, bindings, _) = draw(&root, &words);
+            let band = bands(&tree)[0];
+            assert_eq!(
+                skein_lib::bytes::find(&fixtures::node_text(&tree, band), b"This question is cut here.").is_some(),
+                cut
+            );
+            if cut {
+                assert_eq!(
+                    band_press(&tree, &bindings, b"Read the rest"),
+                    temper_client_domain::Action::Pages(Act::Go { address: Address::Task { task: TASK } })
+                );
+            }
             let at = styled(&tree, look::GOAL_PRIMARY);
             assert_eq!(tree.nodes()[at].role, Role::Link);
             assert!(tree.nodes()[at].styles.as_slice().contains(&look::GOAL_BTN));

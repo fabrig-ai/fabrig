@@ -383,6 +383,8 @@ pub enum Word {
     NeedsProgress,
     NeedsProgressCut,
     NeedsSaw,
+    NeedsCut,
+    NeedsCutRest,
     NeedsRecommended,
     NeedsReply,
     NeedsLater,
@@ -1409,7 +1411,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The command’s Copy adds three literal phrases (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
-const PHRASES: u32 = 1891;
+const PHRASES: u32 = 1893;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1436,10 +1438,10 @@ const PHRASES: u32 = 1891;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3298;
+const SEGMENTS: u32 = 3300;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 46236;
-const ALL: [Word; 1290] = [
+const ENGLISH_BYTES: u32 = 46374;
+const ALL: [Word; 1292] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -1801,6 +1803,8 @@ const ALL: [Word; 1290] = [
     Word::NeedsProgress,
     Word::NeedsProgressCut,
     Word::NeedsSaw,
+    Word::NeedsCut,
+    Word::NeedsCutRest,
     Word::NeedsRecommended,
     Word::NeedsReply,
     Word::NeedsLater,
@@ -3068,6 +3072,8 @@ impl Word {
             Self::NeedsProgress => 3309,
             Self::NeedsProgressCut => 3310,
             Self::NeedsSaw => 3311,
+            Self::NeedsCut => 4101,
+            Self::NeedsCutRest => 4102,
             Self::NeedsRecommended => 3312,
             Self::NeedsReply => 3313,
             Self::NeedsLater => 3314,
@@ -4668,6 +4674,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::NeedsProgress => (&[b"", b" of ", b""], &[Number, Number]),
         Word::NeedsProgressCut => (&[b"", b" of ", b"+"], &[Number, Number]),
         Word::NeedsSaw => (&[b"What the agent saw"], &[]),
+        Word::NeedsCut => (&[b"This question is cut here."], &[]),
+        Word::NeedsCutRest => (&[b"Read the rest"], &[]),
         Word::NeedsRecommended => (&[b"recommended"], &[]),
         Word::NeedsReply => (&[b"Reply\xe2\x80\xa6"], &[]),
         Word::NeedsLater => (&[b"Later"], &[]),

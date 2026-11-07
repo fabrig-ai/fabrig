@@ -50,8 +50,11 @@ pub(crate) fn main(
                     };
                     shown.header(b, words, bindings, times);
                     super::task::amendment(b, root, words, bindings);
+                    let mut question = false;
                     for card in &bands {
-                        band(b, root, task, card, words, bindings);
+                        let first = !question;
+                        question |= card.question_words().is_some();
+                        band(b, root, task, card, words, bindings, first);
                     }
                     b.open(Role::Slot);
                     b.style(look::GOAL_TWO);
@@ -81,14 +84,15 @@ fn open_bands(root: &Domain) -> Box<[&Card]> {
     bands.into_boxed()
 }
 
-fn band(b: &mut Builder, root: &Domain, task: &c::Task, card: &Card, w: &Words, bindings: &mut Bindings) {
-    let asked = ask::read(card, w);
+fn band(b: &mut Builder, root: &Domain, task: &c::Task, card: &Card, w: &Words, bindings: &mut Bindings, first: bool) {
+    let mut asked = if first { ask::read(card, w) } else { ask::bounded(card, w) };
     let kind = match asked.kind {
         Kind::Funds { .. } => Word::NeedsKindFunds,
         Kind::Question | Kind::Proposal | Kind::Held | Kind::PersonTask => ask::card_kind(card),
     };
     let question = match asked.kind {
         Kind::Funds { spent, limit } => w.say(Word::NeedsFundsUsed, &[Hole::Number(spent), Hole::Number(limit)]),
+        Kind::Question if first => asked.parsed.as_ref().expect("question parsed").question.clone(),
         Kind::Question | Kind::Proposal | Kind::Held | Kind::PersonTask => asked.short.clone(),
     };
     b.open(Role::Region);
@@ -103,6 +107,11 @@ fn band(b: &mut Builder, root: &Domain, task: &c::Task, card: &Card, w: &Words, 
     b.close();
     b.text(Run::Plain, &question);
     b.close();
+    if first {
+        ask::whole_parts(b, &asked, w, bindings);
+    } else {
+        asked.parsed = None;
+    }
     band_controls(b, root, task, &asked, w, bindings);
     b.close();
 }
