@@ -110,6 +110,9 @@ offers visibility.
   instructions alone.
 
 - **Not yet:** 4.4: a verdict's follow-up tasks.
+- **Not yet:** 4.3, *a refused branch read says what to read instead*: `read_branches` with an empty prefix and `read_branch` of a name the forge lacks answer `Forge read failed: empty` and `Forge read failed: missing` alone, and `read_branches`'s `prefix` is declared "The names' prefix." (`temper-engine-smith/src/answers.rs`, `forge_read`; `calls.rs`, `BRANCHES_SCHEMA`).
+- **Not yet:** 4.3.2: `goal`'s declaration does not say when a run calls it, nor to call `change` for a change to a repository (`temper-engine-smith/src/calls.rs`, the `goal` spec).
+- **Not yet:** 4.3.2, the live request `live-change-call` of 2026-11-07: the shipped chat on `gpt-6-luna` called `goal` for a plain change, and its goal made the change. Whether it chooses `change` once `goal`'s declaration says when to call it, as `testing.md`, 2.7 has the chat do, is unobserved until the owned-forge landing story runs after landing; whether its `change` was refused before its `goal` is unknown without the run's transcript.
 - **Not yet:** 4.3, 4.4, 6: no supplied real-model landing proves the
   corrected receipt's words, a refused compare's recovery, or the producer
   and foreman following the report instructions, including listing cuts

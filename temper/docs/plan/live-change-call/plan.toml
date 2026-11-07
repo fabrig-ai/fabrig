@@ -4,3 +4,27 @@ sources = ["temper/docs/plan/live-change-call/inputs/request.md", "AGENTS.md", "
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/migration"
 priority = true
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "referee"
+title = "The owned-forge landing story's referee stops at a chat's delegate that is not a change, naming it, and names the chat's committed calls when no change succeeded"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/testing.md, 2.7"
+
+[[part]]
+id = "words"
+title = "goal's declaration says when a run calls it and to call change for a change to a repository; a refused read_branch or read_branches says what to read instead"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 4.3.2"
+
+[[slice]]
+id = 1
+story = "A chat asked for a plain change is told by goal's declaration to call change; a goal's refused branch read names read_settings and a prefix to read instead; and the live landing story, when a chat still makes a goal, stops at once naming the goal and the chat's calls"
+parts = ["referee", "words"]
+walk = false

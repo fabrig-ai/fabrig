@@ -1231,7 +1231,13 @@ section 8; testing-strategy.md, 2.9).
   final nonempty line matches exactly, skipping only zero-length lines.
   Before discovering a change, an attempted idle/news chat with no live
   child, run wait or subscription and the shipped immediate wake policy
-  fails promptly. Active work and final parked replies remain valid. A
+  fails promptly. Active work and final parked replies remain valid.
+  The chat's one delegate is its change: a delegate whose executor is an
+  agent, as a goal's is, fails the story as soon as it is found, naming
+  the task and its charter, never watched as though it were the change.
+  Where the chat made no successful `change`, the failure names the
+  tools of the chat's committed calls, those that succeeded and those
+  that failed, so a refused `change` before another call shows. A
   fresh client finds the same chat, pull and merge hash after the box
   restarts on its three directories, without another provider sign-in,
   push or merge. The change's page says "Passed" for CI at its head on
