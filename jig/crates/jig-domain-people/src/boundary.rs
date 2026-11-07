@@ -526,6 +526,9 @@ pub enum OutcomeFamily {
 /// final outcomes with the parent's task decision. (domain/people.md, section 5.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Outcome {
+    AccountReading {
+        count: u32,
+    },
     /// A restore's proposal and omitted settings (jig/docs/design/domain/engine.md, 17.10).
     Restored {
         proposal: u64,
@@ -1197,6 +1200,9 @@ pub enum Use {
 /// Holder changes to LLM accounts (domain/accounts.md, section 5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum AccountChange {
+    ReadLists {
+        provider: u32,
+    },
     DeclareProgram {
         provider: u32,
         join: Option<u32>,
@@ -1328,6 +1334,7 @@ impl Outcome {
             | Self::AccountSignedOut { .. }
             | Self::AccountKeyKept { .. }
             | Self::AccountProgramDeclared { .. }
+            | Self::AccountReading { .. }
             | Self::AccountChanged
             | Self::AccountMovingOut { .. }
             | Self::AccountFinishing { .. }
@@ -1379,6 +1386,7 @@ impl Outcome {
             | Self::AccountSignedOut { .. }
             | Self::AccountKeyKept { .. }
             | Self::AccountProgramDeclared { .. }
+            | Self::AccountReading { .. }
             | Self::AccountChanged
             | Self::AccountMovingOut { .. }
             | Self::AccountFinishing { .. }

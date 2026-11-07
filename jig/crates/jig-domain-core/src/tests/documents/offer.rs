@@ -79,6 +79,101 @@ fn offered(core: &Core, limits: &Limits) -> Vec<(u8, Vec<u32>)> {
         .collect()
 }
 
+fn listed_fixture() -> (Core, Limits) {
+    use crate::settings::{CatalogueModel, Default, ModelSource, Setting, Value};
+    let (mut core, limits) = fixture();
+    let mut models = core.settings.models.to_vec();
+    models[2].provider = PROVIDER;
+    let mut person = scripted_model();
+    person.name = b"personal".as_slice().into();
+    models.push(person);
+    for (at, source) in
+        [ModelSource::Stock, ModelSource::Stock, ModelSource::List, ModelSource::Person].into_iter().enumerate()
+    {
+        let number = u32::try_from(at).unwrap().checked_add(1).unwrap();
+        let row = CatalogueModel {
+            number,
+            model: models[at].clone(),
+            shown: None,
+            description: None,
+            picker: at != 1,
+            withdrawn: false,
+            source,
+            estimated: false,
+            first_read: None,
+        };
+        core.current
+            .defaults
+            .insert(Setting::Model(number), Default { value: Value::Model(Box::new(row)), revision: 1 })
+            .unwrap();
+    }
+    core.settings.models = models.into();
+    host(&mut core, &limits, HOST, &[b"scripted", b"same", b"other", b"personal"]);
+    (core, limits)
+}
+
+#[test]
+fn account_lists_narrow_the_offer_and_readiness_by_model_source() {
+    use fixtures::list_record;
+    // The first two stock settings are bits 0 and 1; the list's setting is bit 2.
+    const FIRST: u64 = 0b001;
+    const SECOND_AND_LIST: u64 = 0b110;
+    for (label, records, expected) in [
+        ("no read", vec![(OWN, SOURCE, None)], vec![(0, vec![OWN]), (1, vec![OWN]), (3, vec![OWN])]),
+        (
+            "good read, including a picker-off stock model",
+            vec![(OWN, SOURCE, Some(list_record(SECOND_AND_LIST, true, None)))],
+            vec![(1, vec![OWN]), (2, vec![OWN]), (3, vec![OWN])],
+        ),
+        (
+            "only failures",
+            vec![(OWN, SOURCE, Some(list_record(0, false, Some(accounts::ReadFailure::Deadline))))],
+            vec![(0, vec![OWN]), (1, vec![OWN]), (3, vec![OWN])],
+        ),
+        (
+            "good read followed by failure",
+            vec![(OWN, SOURCE, Some(list_record(SECOND_AND_LIST, true, Some(accounts::ReadFailure::Unreachable))))],
+            vec![(1, vec![OWN]), (2, vec![OWN]), (3, vec![OWN])],
+        ),
+        (
+            "two accounts give their union",
+            vec![
+                (OWN, SOURCE, Some(list_record(FIRST, true, None))),
+                (SECOND, SECOND_SOURCE, Some(list_record(SECOND_AND_LIST, true, None))),
+            ],
+            vec![(0, vec![OWN]), (1, vec![SECOND]), (2, vec![SECOND]), (3, vec![OWN, SECOND])],
+        ),
+        (
+            "both accounts rule stock and listed models out",
+            vec![
+                (OWN, SOURCE, Some(list_record(0, true, None))),
+                (SECOND, SECOND_SOURCE, Some(list_record(0, true, None))),
+            ],
+            vec![(3, vec![OWN, SECOND])],
+        ),
+    ] {
+        let (mut core, limits) = listed_fixture();
+        fixtures::listed_accounts(&mut core, &limits, PROVIDER, &records);
+        assert_eq!(offered(&core, &limits), expected, "{label}");
+        let coverage = core.account_coverage(tasks::Payer::Party(PARTY), Some(PROJECT));
+        for (at, model) in core.settings.models.iter().enumerate() {
+            let ready = if expected.iter().any(|(index, _)| usize::from(*index) == at) {
+                Readiness::Usable
+            } else {
+                Readiness::Unavailable
+            };
+            assert_eq!(
+                core.model_readiness(tasks::Payer::Party(PARTY), coverage.as_slice(), model),
+                (ready, false),
+                "{label}: model {at} readiness"
+            );
+        }
+        let mut held = scripted_model();
+        held.name = b"held-without-catalogue-row".as_slice().into();
+        assert!(core.account_allows(OWN, &held), "{label}: a held name without a row stays allowed");
+    }
+}
+
 fn template(number: u32, executor: people::TemplateExecutor, llm: Option<tasks::LlmChoice>) -> Template {
     Template {
         number,
@@ -173,6 +268,7 @@ fn two_accounts() -> (Core, Limits) {
     let (mut core, limits) = fixture();
     for record in [
         accounts::Stored::Account {
+            list: None,
             number: SECOND,
             provider: PROVIDER,
             holder: accounts::Holder::Party(PARTY),

@@ -4,7 +4,7 @@ use super::Text;
 use skein_json::{Document, document::Kind};
 use skein_lib::List;
 
-pub(super) fn text(bytes: &[u8], out: &mut Text) {
+pub(super) fn text(bytes: &[u8], now: skein_lib::Wall, out: &mut Text) {
     let length = u32::try_from(bytes.len()).expect("bounded model projection");
     let tokens = skein_json::tokenizer::Limits { depth: 32, string: length, number: 20, chunk: length, length };
     let retained = skein_json::document::Limits { tokens: length, text: length };
@@ -24,7 +24,7 @@ pub(super) fn text(bytes: &[u8], out: &mut Text) {
                 out.put(b"  models: none\n");
             }
             for model in &models {
-                panel.model(*model, out);
+                panel.model(*model, now, out);
             }
         }
     }
@@ -69,9 +69,19 @@ impl Panel {
     fn print(&self, object: u32, name: &[u8], out: &mut Text) {
         self.word(self.document.member(object, name).expect("projected field"), out);
     }
-    fn model(&self, model: u32, out: &mut Text) {
+    fn model(&self, model: u32, now: skein_lib::Wall, out: &mut Text) {
         out.put(b"  model ");
         self.print(model, b"name", out);
+        let until = self.document.member(model, b"new_until").expect("projected new deadline");
+        let token = self.document.token(until).expect("new deadline");
+        if token.kind != Kind::Null {
+            let bytes = self.document.text(token).expect("deadline number");
+            if let Some(until) = skein_lib::bytes::decimal(bytes)
+                && until > now.as_nanos()
+            {
+                out.put(b" \xc2\xb7 new");
+            }
+        }
         out.put(b"\n    shown: ");
         let shown = self.document.member(model, b"shown").expect("projected shown name");
         if self.document.token(shown).expect("shown name").kind == Kind::Null {

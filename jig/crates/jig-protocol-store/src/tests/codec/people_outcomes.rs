@@ -7,6 +7,7 @@ use skein_lib::Wall;
 #[test]
 fn account_move_asks_read_back_with_their_numbers_and_digest() {
     for change in [
+        domain::AccountChange::ReadLists { provider: u32::MAX },
         domain::AccountChange::MoveOut { account: 3 },
         domain::AccountChange::Written { number: 7 },
         domain::AccountChange::MoveIn { digest: [0xa5; 32] },
@@ -19,6 +20,8 @@ fn account_move_asks_read_back_with_their_numbers_and_digest() {
 #[test]
 fn account_move_answers_read_back_without_a_record() {
     for outcome in [
+        domain::Outcome::AccountReading { count: 0 },
+        domain::Outcome::AccountReading { count: u32::MAX },
         domain::Outcome::AccountMovingOut { account: 3, number: 7, source: 5 },
         domain::Outcome::AccountChanged,
         domain::Outcome::AccountMovedIn { account: 3, renewed: false },

@@ -1,8 +1,131 @@
-//! The model setting's value and shape (jig/docs/design/domain/engine.md, 17.1 and 17.11).
-use super::{Current, Edit, Fault, Item, Setting};
+//! The model setting's value and shape (jig/docs/design/domain/engine.md, 17.1, 17.11–17.12).
+use super::{Current, Edit, Fault, Item, Setting, Value};
 use crate::{Model, Settings};
 use alloc::boxed::Box;
-use skein_lib::List;
+use jig_domain_accounts as accounts;
+use jig_domain_link as link;
+use skein_lib::{Duration, List, Wall};
+
+/// How long a list model is new (jig/docs/design/domain/engine.md, 17.12).
+pub const NEW_FOR: Duration = Duration::from_secs(7 * 86_400);
+
+/// One good read's setting edits and account facts (engine.md, 17.12).
+#[derive(Debug)]
+pub struct ListChange {
+    pub items: Box<[Item]>,
+    pub names: u64,
+    pub left_out: u32,
+}
+
+#[must_use]
+pub fn from_list(
+    provider: u32,
+    list: &accounts::ProviderList,
+    rows: &[link::ListedModel],
+    others: u64,
+    at: Wall,
+    models: &[CatalogueModel],
+    endpoints: &[crate::EndpointFacts],
+) -> ListChange {
+    let mut working = List::with_capacity(jig_domain_tasks::MODELS);
+    for model in models {
+        working.push(model.clone()).expect("catalogue number bound");
+    }
+    let mut items = List::with_capacity(jig_domain_tasks::MODELS);
+    let mut names = 0;
+    let mut left_out = 0_u32;
+    for row in rows {
+        if !valid_name(&row.name) || !kept(&row.name, list) {
+            continue;
+        }
+        let mut known = false;
+        for model in working.iter_mut() {
+            if model.model.name != row.name {
+                continue;
+            }
+            known = true;
+            if model.model.provider == provider && (!model.withdrawn || model.source == ModelSource::List) {
+                names |= name_bit(model.number);
+                if model.withdrawn {
+                    model.withdrawn = false;
+                    items.push(list_item(model.clone())).expect("one edit per catalogue number");
+                }
+            }
+            break;
+        }
+        if known {
+            continue;
+        }
+        let Some(mut model) = new_model(provider, row.name.clone(), ModelSource::List, working.as_slice(), endpoints)
+        else {
+            left_out = left_out.checked_add(1).expect("bounded list rows");
+            continue;
+        };
+        model.picker = false;
+        model.first_read = Some(at);
+        listed_figures(&mut model, row);
+        names |= name_bit(model.number);
+        items.push(list_item(model.clone())).expect("one edit per catalogue number");
+        working.push(model).expect("new model found a free number");
+    }
+    for model in models {
+        if model.model.provider == provider
+            && model.source == ModelSource::List
+            && !model.withdrawn
+            && (names | others) & name_bit(model.number) == 0
+        {
+            let mut gone = model.clone();
+            gone.withdrawn = true;
+            items.push(list_item(gone)).expect("one edit per catalogue number");
+        }
+    }
+    ListChange { items: items.into_boxed(), names, left_out }
+}
+
+fn name_bit(number: u32) -> u64 {
+    1_u64.checked_shl(number.checked_sub(1).expect("model numbers start at one")).expect("model number at most 64")
+}
+
+fn list_item(model: CatalogueModel) -> Item {
+    Item { setting: Setting::Model(model.number), edit: Edit::Set(Value::Model(Box::new(model))) }
+}
+
+fn listed_figures(model: &mut CatalogueModel, row: &link::ListedModel) {
+    if let Some(shown) = &row.shown
+        && !shown.is_empty()
+        && shown.len() <= skein_lib::length::usize_of(crate::MODEL_NAME_BYTES)
+    {
+        model.shown = Some(shown.clone());
+    }
+    if let Some(window) = row.window
+        && window != 0
+    {
+        model.model.window = model.model.window.min(window);
+    }
+    if let Some(output) = row.output
+        && output != 0
+    {
+        model.model.output = model.model.output.min(output);
+    }
+    let mut efforts = List::with_capacity(crate::EFFORTS);
+    for effort in &row.efforts {
+        if !effort.is_empty()
+            && effort.len() <= skein_lib::length::usize_of(crate::EFFORT_BYTES)
+            && !efforts.as_slice().contains(effort)
+            && efforts.room() != 0
+        {
+            efforts.push(effort.clone()).expect("effort room checked");
+        }
+    }
+    model.model.effort = efforts.as_slice().first().cloned();
+    for effort in &efforts {
+        if effort.as_ref() == b"high" {
+            model.model.effort = Some(effort.clone());
+            break;
+        }
+    }
+    model.model.efforts = efforts.into_boxed();
+}
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ModelSource {
@@ -22,6 +145,7 @@ pub struct CatalogueModel {
     pub withdrawn: bool,
     pub source: ModelSource,
     pub estimated: bool,
+    pub first_read: Option<Wall>,
 }
 
 #[must_use]
@@ -36,6 +160,54 @@ pub fn valid_name(name: &[u8]) -> bool {
         }
     }
     true
+}
+
+/// Whole-name byte glob matching (jig/docs/design/protocol/configuration.md, 3).
+#[must_use]
+pub fn matches(pattern: &[u8], name: &[u8]) -> bool {
+    let mut at = 0_usize;
+    let mut next = 0_usize;
+    let mut star = None;
+    let mut retry = 0_usize;
+    // Between retries the pattern advances; each retry consumes one more name byte.
+    let steps = pattern.len().saturating_add(1).saturating_mul(name.len().saturating_add(1));
+    for _ in 0..steps {
+        if pattern.get(at) == Some(&b'*') {
+            at = at.checked_add(1).expect("pattern position");
+            star = Some(at);
+            retry = next;
+        } else if let Some(&byte) = name.get(next) {
+            if pattern.get(at) == Some(&b'?') || pattern.get(at) == Some(&byte) {
+                at = at.checked_add(1).expect("pattern position");
+                next = next.checked_add(1).expect("name position");
+            } else if let Some(after) = star {
+                retry = retry.checked_add(1).expect("retry position");
+                next = retry;
+                at = after;
+            } else {
+                return false;
+            }
+        } else {
+            return at == pattern.len();
+        }
+    }
+    false
+}
+
+/// A drop wins over any keep (jig/docs/design/domain/accounts.md, 3.7).
+#[must_use]
+pub fn kept(name: &[u8], list: &jig_domain_accounts::ProviderList) -> bool {
+    for pattern in &list.drop {
+        if matches(pattern, name) {
+            return false;
+        }
+    }
+    for pattern in &list.keep {
+        if matches(pattern, name) {
+            return true;
+        }
+    }
+    false
 }
 
 pub(crate) fn fits(value: &CatalogueModel, number: u32) -> bool {
@@ -179,6 +351,7 @@ pub(crate) fn defaults(settings: &Settings) -> Box<[CatalogueModel]> {
         }
         models
             .push(CatalogueModel {
+                first_read: None,
                 number: u32::try_from(at).expect("model position").checked_add(1).expect("model number"),
                 model: model.clone(),
                 shown: None,
@@ -256,6 +429,7 @@ pub fn new_model(
     model.efforts = Box::default();
     model.effort = None;
     Some(CatalogueModel {
+        first_read: None,
         number: free_number(models)?,
         model,
         shown: None,

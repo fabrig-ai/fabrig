@@ -1,0 +1,29 @@
+draft = "ui-history-story"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-history-story/inputs/request.md", "temper/tests/client-browser/tests/browser_all/browser_pages.rs", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "pressed"
+title = "skein's browser kit reads a node's pressed state, and its harness awaits a control pressed by its target"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui-web.md, 14.2"
+
+[[part]]
+id = "story"
+title = "temper's history story reads the Chats filter by its name and pressed state, or Chats keeps its filter"
+mode = "direct"
+needs = ["pressed"]
+design = "temper/docs/design/client/browser.md, 4.6"
+
+[[slice]]
+id = 1
+story = "After a reload of /chats?state=closed and a Back to /chats, the history story awaits Closed, then All, pressed by name, however many filter buttons the row holds"
+parts = ["pressed", "story"]
+walk = false

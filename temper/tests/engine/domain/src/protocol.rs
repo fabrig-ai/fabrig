@@ -162,6 +162,8 @@ pub struct Protocol {
     pub sources: Vec<Token>,
     /// Core read loads the world answered as gone.
     pub reads: Vec<core::reads::Range>,
+    /// List reads held by the scripted worker until the story supplies an answer.
+    pub list_reads: std::collections::VecDeque<(Token, u64)>,
 }
 
 impl Protocol {
@@ -242,6 +244,12 @@ impl Protocol {
         up(channel, host::LinkUp::Answer { run: Token::new(task), attempt: Token::new(attempt), answer }, parts)
     }
 
+    /// Answer the oldest read through the worker link (jig/docs/design/domain/engine.md, 17.12).
+    pub fn answer_read(&mut self, outcome: jig_domain_link::ListOutcome) -> engine::Event {
+        let (channel, read) = self.list_reads.pop_front().expect("a worker holds the list read");
+        up(channel, host::LinkUp::ListRead { read, outcome }, engine::Parts::none())
+    }
+
     /// A job's terminal arrives through the same worker link as a run's answer.
     pub fn answer_job(&mut self, channel: Token, task: u64, attempt: u64, answer: host::JobEnding) -> engine::Event {
         up(
@@ -277,6 +285,13 @@ impl Protocol {
                 // This scripted worker supplies an empty inventory, including for newly
                 // declared sources: no login has been observed on it.
                 Ok(vec![up(channel, host::LinkUp::Logins { logins: Box::new([]) }, engine::Parts::none())])
+            }
+            engine::Request::Worker(engine::WorkerRequest::Deliver(engine::Delivery::Link {
+                channel,
+                down: host::LinkDown::ReadList { read, .. },
+            })) => {
+                self.list_reads.push_back((channel, read));
+                Ok(Vec::new())
             }
             engine::Request::Worker(engine::WorkerRequest::Host(host_request)) => match *host_request {
                 engine::HostRequest::Decode { to, task, attempt, call } => match self.calls.get(&call.name) {
@@ -383,6 +398,7 @@ impl Protocol {
             }
             accounts::Request::Component(accounts::ToComponent::Release { .. } | accounts::ToComponent::Close)
             | accounts::Request::Programs { .. }
+            | accounts::Request::ReadList { .. }
             | accounts::Request::CheckProgram { .. }
             | accounts::Request::SignOutProgram { .. }
             | accounts::Request::Granted { .. }

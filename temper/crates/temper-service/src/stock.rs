@@ -168,6 +168,7 @@ pub(crate) fn models(llm: &jig_protocol_config::Llm) -> Box<[CatalogueModel]> {
                 }
                 models
                     .push(CatalogueModel {
+                        first_read: None,
                         number: row.number,
                         model: Model {
                             name: bytes::copy_of(row.name),

@@ -408,6 +408,7 @@ fn producer_refusal_world() -> (temper_engine_domain_world::forge_routes::World,
             .into_iter()
             .enumerate()
             .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                first_read: None,
                 number: u32::try_from(at).expect("bounded fixture models") + 1,
                 model,
                 shown: None,
@@ -599,6 +600,7 @@ fn reference_person_defaults() -> jig_domain_core::settings::Defaults {
             .into_iter()
             .enumerate()
             .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                first_read: None,
                 number: u32::try_from(at).expect("bounded fixture models") + 1,
                 model,
                 shown: None,

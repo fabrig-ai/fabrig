@@ -5,7 +5,8 @@
 Section 3 has no known gap in passed model defaults, refusing document
 model tables under those defaults, provider endpoints or charter `rest`.
 Section 4's agent configuration declares endpoint limits, without models.
-Provider discovery remains section 9's deferred work.
+Section 3's provider-list keep and drop patterns and their bounds have no
+known implementation gap.
 
 Section 6 has no known gap in standard's `authority.batch` of 32,
 `hub.charter_bytes` of 262,144 and `hub.outcome_bytes` of 131,072.

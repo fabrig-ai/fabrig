@@ -574,6 +574,32 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "models-read",
+        heading: "What the picker offers.",
+        parts: &[
+            Part::Text { text: "Your ChatGPT plan. Read from OpenAI 2 hours ago." },
+            Part::Named { role: Role::Button, name: "Read again" },
+        ],
+    },
+    Holds {
+        name: "models-read-failed",
+        heading: "What the picker offers.",
+        parts: &[
+            Part::Text { text: "Your ChatGPT plan. Couldn't read OpenAI's list · 2 hours ago." },
+            Part::Named { role: Role::Button, name: "Read again" },
+        ],
+    },
+    Holds {
+        name: "models-new",
+        heading: "What the picker offers.",
+        parts: &[Part::Text { text: "gpt-6-luna · medium · new" }],
+    },
+    Holds {
+        name: "chat-model-new",
+        heading: "New chat",
+        parts: &[Part::Text { text: "new" }, Part::Named { role: Role::Button, name: "Haiku 5.5" }],
+    },
+    Holds {
         name: "models-add",
         heading: "What the picker offers.",
         parts: &[
@@ -2906,7 +2932,7 @@ fn no_state_reads_of_zero(sample: &Sample, view: &temper_client_view::View) {
     }
 }
 // A browser's button, tab and option show their name as their text (skein/docs/design/ui-web.md, 6), so text under one
-// is more words; recommended/default tags and All models' count are intentional children (temper/docs/design/client/README.md, 3.5).
+// is more words; recommended/default/new tags and All models' count are intentional children (temper/docs/design/client/README.md, 3.5).
 fn no_named_control_draws_a_text_child_in_any_state(sample: &Sample, view: &temper_client_view::View) {
     let nodes = view.tree().nodes();
     for (index, node) in nodes.iter().enumerate() {
@@ -2930,6 +2956,8 @@ fn no_named_control_draws_a_text_child_in_any_state(sample: &Sample, view: &temp
         let model_tag = node.role == Role::Button
             && text == tagged
             && (tagged == b"default"
+                || tagged == b"new"
+                || tagged == b"defaultnew"
                 || (node.styles.as_slice().contains(&temper_client_view::look::MODEL_ALL)
                     && tagged.iter().all(u8::is_ascii_digit)));
         assert!(

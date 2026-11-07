@@ -733,7 +733,8 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                                 skein_lib::len_u64(uses.as_deref().unwrap_or_default().len())
                                     .checked_mul(u64::try_from(size_of::<jig_domain_people::Use>()).ok()?)
                             }
-                            AccountChange::CheckProgram { .. }
+                            AccountChange::ReadLists { .. }
+                            | AccountChange::CheckProgram { .. }
                             | AccountChange::FinishSignIn { .. }
                             | AccountChange::AddKey { .. }
                             | AccountChange::ReplaceKey { .. }
@@ -1096,6 +1097,7 @@ pub(crate) fn program_answer_bytes(outcome: &jig_domain_people::Outcome) -> Opti
         | Outcome::AccountSignInStarted { .. }
         | Outcome::AccountFinishing { .. }
         | Outcome::AccountKeyKept { .. }
+        | Outcome::AccountReading { .. }
         | Outcome::AccountChanged
         | Outcome::AccountMovingOut { .. }
         | Outcome::AccountMovedIn { .. }

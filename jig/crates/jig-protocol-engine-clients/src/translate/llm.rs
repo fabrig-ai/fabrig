@@ -21,6 +21,7 @@ pub fn catalogue(models: &[jig_domain_core::settings::CatalogueModel]) -> Box<[M
     let mut rows = List::with_capacity(highest);
     for _ in 0..highest {
         rows.push(Model {
+            new_until: None,
             number: 0,
             source: jig_domain_core::settings::ModelSource::Stock,
             estimated: false,
@@ -42,6 +43,12 @@ pub fn catalogue(models: &[jig_domain_core::settings::CatalogueModel]) -> Box<[M
         let slot = rows.get_mut(at).expect("catalogue number at most highest");
         let model = &row.model;
         *slot = Model {
+            new_until: match row.first_read {
+                Some(at) => Some(skein_lib::Wall::from_nanos(
+                    at.as_nanos().saturating_add(jig_domain_core::settings::catalogue::NEW_FOR.as_nanos()),
+                )),
+                None => None,
+            },
             number: row.number,
             source: row.source,
             estimated: row.estimated,
@@ -232,6 +239,10 @@ pub fn models(
         rows.push(w::MeModel::new(
             limits,
             w::MeModelParts {
+                new_until: match model.new_until {
+                    Some(at) => Some(at.as_nanos()),
+                    None => None,
+                },
                 number: model.number,
                 source: match model.source {
                     jig_domain_core::settings::ModelSource::Stock => w::ModelSource::Stock,
@@ -321,7 +332,8 @@ pub(crate) fn refused(
         w::Ask::Amend(value) => (None, lacking(value.change().llm().as_ref(), models)),
         w::Ask::Compound(value) => operations(value.operations(), models, limits)?,
         w::Ask::ChangeSettings(value) => (None, settings_items(value.items(), models, limits)?),
-        w::Ask::ChangeModel(_)
+        w::Ask::ReadLists(_)
+        | w::Ask::ChangeModel(_)
         | w::Ask::RemoveProject(_)
         | w::Ask::SetVisibility(_)
         | w::Ask::Rename(_)

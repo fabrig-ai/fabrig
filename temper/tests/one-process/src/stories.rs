@@ -25,6 +25,10 @@ pub(crate) fn playground() -> bool {
     STORY.with(|slot| matches!(slot.get(), Story::PlaygroundA))
 }
 
+pub(crate) fn model_list() -> bool {
+    STORY.with(|slot| matches!(slot.get(), Story::ModelsList))
+}
+
 // One hook per push: the setup's topic push and the agent's change.
 pub(crate) const ADOPT_HOOKS: usize = 2;
 // Two one-token producer turns leave three, below the four-unit admission floor.
@@ -105,7 +109,7 @@ pub(crate) fn provider(story: Story) -> skein_fake_peers::llm::Peer {
     if matches!(story, Story::ChatReadThenWait { .. }) {
         return fixtures::read_then_wait_provider();
     }
-    if matches!(story, Story::Chat { .. } | Story::NoWelcome) {
+    if matches!(story, Story::Chat { .. } | Story::NoWelcome | Story::ModelsList) {
         return fixtures::provider();
     }
     let grant = |kind| serde_json::json!({"connector":fixtures::FORGE_CONNECTOR,"kind":kind,"segments":["forge","127.0.0.1:3000"],"terminal":"open","last":"acme"});
@@ -287,7 +291,7 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
     if STORY.with(|slot| matches!(slot.get(), Story::ChatReadThenWait { .. })) {
         return;
     }
-    if STORY.with(|slot| matches!(slot.get(), Story::Chat { .. } | Story::NoWelcome)) {
+    if STORY.with(|slot| matches!(slot.get(), Story::Chat { .. } | Story::NoWelcome | Story::ModelsList)) {
         return;
     }
     documents::configure(value);
@@ -318,7 +322,9 @@ pub(crate) fn held_change() -> bool {
 
 /// Chat-only seeds fit the stock ceiling; repository seeds use wider own defaults.
 pub(crate) fn uses_stock() -> bool {
-    STORY.with(|slot| matches!(slot.get(), Story::Chat { .. } | Story::ChatReadThenWait { .. } | Story::NoWelcome))
+    STORY.with(|slot| {
+        matches!(slot.get(), Story::Chat { .. } | Story::ChatReadThenWait { .. } | Story::NoWelcome | Story::ModelsList)
+    })
 }
 
 thread_local! { static FIRST_START: std::cell::Cell<bool> = const { std::cell::Cell::new(false) }; }

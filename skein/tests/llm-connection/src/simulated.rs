@@ -413,7 +413,9 @@ impl Referee<Process> for Judge {
                                     (skein_llm::Provider::OpenAi, Some(skein_llm::Scheme::Bearer), Some(0))
                                 );
                             }
-                            llm::Observation::Accepted { .. } | llm::Observation::Closed { .. } => {}
+                            llm::Observation::Accepted { .. }
+                            | llm::Observation::List { .. }
+                            | llm::Observation::Closed { .. } => {}
                         }
                     }
                 }
@@ -589,6 +591,8 @@ fn run_configured(
             transport,
             limits,
             provider::Config {
+                list: None,
+                list_status: None,
                 without_credential: false,
                 usage_fields: skein_fake_llm_protocol::documents::UsageFields::ALL,
                 echo: skein_llm::openai::Echo::NONE,

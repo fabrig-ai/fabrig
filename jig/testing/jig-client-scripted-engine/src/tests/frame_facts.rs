@@ -41,3 +41,29 @@ fn builtin_roles_remain_memberships_without_becoming_numeric_policy_recipients()
         assert!(crate::codec::read(&ReadValue::Me(Box::new(row)), &Bounds::default()).is_ok());
     }
 }
+
+#[test]
+fn model_new_until_survives_the_independent_frame_encoding() {
+    for new_until in [None, Some(Wall::from_nanos(u64::MAX))] {
+        let mut value = frame(REQUESTER);
+        value.projects.get_mut(0).unwrap().models = list(vec![MeModel {
+            new_until,
+            number: 3,
+            source: ModelSource::List,
+            estimated: true,
+            name: text(b"listed"),
+            provider: Some(7),
+            window: 8192,
+            output: 1024,
+            efforts: list(vec![]),
+            effort: None,
+            prices: ModelPrices { input: 3, cached: 1, cache_write: None, output: 7, unit: 1000 },
+            description: None,
+            shown: None,
+            accounts: list(vec![42]),
+            picker: true,
+        }]);
+        let decoded = crate::codec::read(&ReadValue::Me(Box::new(value.clone())), &Bounds::default()).unwrap();
+        assert_eq!(decoded, ReadValue::Me(Box::new(value)));
+    }
+}

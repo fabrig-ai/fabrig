@@ -74,6 +74,7 @@ pub fn declare(
         None => {
             let number = domain.take();
             let entry = Account {
+                list: None,
                 provider,
                 holder,
                 subject: Box::new([]),

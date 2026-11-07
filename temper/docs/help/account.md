@@ -25,7 +25,8 @@ An account is how a deployment pays an LLM provider for its runs, through its so
   needs `attention`.
 - **A model** is one of a provider's, kept in settings: its
   window, its output, its efforts and its prices. `model list` prints
-  each project's offer, what an account can run now, by provider.
+  each project's offer, what an account can run now, by provider,
+  narrowed by that account's list.
   A charter names the models its runs may
   use (temper help charter); a run's spend is its usage at its model's
   prices (temper help budget).
@@ -96,6 +97,7 @@ For the configuration members that need a restart, read `temper help configurati
   host that runs it.
 - `account verify` checks a program source alone; a sign-in or key
   source fails (exit 1).
-- The providers are the configuration's and the models are settings. For another model,
-  such as `claude-haiku-5-5`, follow **Offering another model** under
+- The providers are the configuration's and the models are settings.
+  An account's list decides which of its provider's models it is offered.
+  For a model a list doesn't show, such as `claude-haiku-5-5`, follow **Offering another model** under
   **Acting on it** in `temper help deployment`.

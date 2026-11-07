@@ -18,6 +18,7 @@ fn a_restored_key_is_durable_before_its_value_is_lent() {
     .unwrap();
     for row in [
         Stored::Account {
+            list: None,
             number: 0,
             provider: 1,
             holder: Holder::Deployment,

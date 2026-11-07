@@ -21,6 +21,7 @@ fn me() -> c::Me {
     for name in [b"first".as_slice(), b"second"] {
         models
             .push(c::MeModel {
+                new_until: None,
                 number: 1,
                 source: c::ModelSource::Stock,
                 estimated: false,
@@ -242,6 +243,7 @@ fn the_selected_duplicate_models_effort_reaches_the_request() {
         efforts.push(fixtures::acts::text(effort)).unwrap();
         models
             .push(c::MeModel {
+                new_until: None,
                 number: 1,
                 source: c::ModelSource::Stock,
                 estimated: false,

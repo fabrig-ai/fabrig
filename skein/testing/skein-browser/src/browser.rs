@@ -1053,7 +1053,8 @@ fn parse_seen(node: Value<'_>, text_limit: u32) -> Option<Seen> {
 }
 
 fn ax_states(node: Value<'_>) -> States {
-    let mut states = States { focused: false, disabled: false, checked: false, expanded: false, selected: false };
+    let mut states =
+        States { focused: false, disabled: false, checked: false, expanded: false, selected: false, pressed: false };
     if let Some(properties) = field_array(node, b"properties") {
         for property in properties {
             let name = field_text(property, b"name");
@@ -1064,6 +1065,7 @@ fn ax_states(node: Value<'_>) -> States {
                 Some(b"checked") => states.checked = value,
                 Some(b"expanded") => states.expanded = value,
                 Some(b"selected") => states.selected = value,
+                Some(b"pressed") => states.pressed = value,
                 _ => {}
             }
         }
@@ -1871,7 +1873,22 @@ fn contains(haystack: &[u8], needle: &[u8]) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::contains;
+    use super::{Document, ax_states, contains};
+
+    #[test]
+    fn pressed_reads_only_true_accessibility_properties() {
+        const ROWS: &[(&[u8], bool)] = &[
+            (br#"{"properties":[{"name":"pressed","value":{"type":"tristate","value":"true"}}]}"#, true),
+            (br#"{"properties":[{"name":"pressed","value":{"type":"boolean","value":true}}]}"#, true),
+            (br#"{"properties":[{"name":"pressed","value":{"type":"tristate","value":"false"}}]}"#, false),
+            (br#"{"properties":[{"name":"pressed","value":{"type":"tristate","value":"mixed"}}]}"#, false),
+            (b"{}", false),
+        ];
+        for &(json, expected) in ROWS {
+            let document = Document::parse(json, 1024).expect("valid accessibility node");
+            assert_eq!(ax_states(document.root()).pressed, expected, "node {json:?}");
+        }
+    }
 
     #[test]
     fn contains_takes_an_empty_needle() {
