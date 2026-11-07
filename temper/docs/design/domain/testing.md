@@ -1279,11 +1279,18 @@ section 8; testing-strategy.md, 2.9).
   role on Claude Code on `claude-haiku-5-5` at `low` effort, on a held login used in place
   (../protocol/credentials.md, 3). The stock catalogue has no Haiku, so
   a fresh sitting takes it by name, as a person adds a Claude
-  subscription's model (jig's `domain/engine.md`, 17.11): one `settings
-  apply` sets a model at the highest number its catalogue leaves free,
-  with the figures of the provider's dearest stock model, `claude-fable-5-1`,
-  marked estimated and the person's, its efforts with `low` its default,
-  and every charter the story selects naming it. `TEMPER_LIVE_CLAUDE` names the
+  subscription's model on Settings' Models and then chooses it (jig's
+  `domain/engine.md`, 17.11), in two `settings apply`s. The first sets a
+  model at the highest number its catalogue leaves free, with the figures
+  of the provider's dearest stock model, `claude-fable-5-1`, marked
+  estimated and the person's, its efforts with `low` its default; the
+  second, against the revision the first made, has every charter the
+  story selects name it. One change can't hold both: the clients'
+  component refuses a change whose charter names a model the catalogue
+  lacks before the core sees it, and a model the change itself sets is
+  not in the catalogue yet. A focused test applies the fixture's own
+  changes through ctl on the joined world (6.3), its engine holding the
+  Claude deployment's stock catalogue. `TEMPER_LIVE_CLAUDE` names the
   login's resting path, a signed-in configuration directory; the box's
   programs directory is its parent, and the source is declared by the
   directory's own name. Nothing of it is read or copied, and once the
