@@ -9,7 +9,6 @@ cost work, including allocation layout and the native fork floor.
 - **Not yet:** 4: the fake machine's entry inodes, groups, modes past
   `0o777`, times and attributes, its subvolume and filesystem answers,
   and the programs for trees.
-  6: `skein-rows`.
   7: `live-skein` has no CPU budget or wall hard limit in
   `tools/tiers/budgets.toml`.
   7: no complete post-repair focused-suite CPU total establishes the
