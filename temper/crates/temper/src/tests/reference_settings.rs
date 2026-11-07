@@ -205,8 +205,16 @@ fn the_reference_settings_fit_the_reference_profile() {
         &temper_client_tools::limits::form(),
     )
     .expect("reference settings");
-    let init: serde_json::Value = serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json"))
-        .expect("init configuration");
+    let mut init: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json"))
+            .expect("init configuration");
+    let reference: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../../../../docs/examples/reference/limits.json"))
+            .expect("reference limits");
+    init["engine"]["limits"]["overrides"]
+        .as_object_mut()
+        .expect("init overrides")
+        .extend(reference["engine"]["limits"]["overrides"].as_object().expect("reference overrides").clone());
     let engine = reference_engine(&init["engine"]["limits"]);
     let limits = &engine.limits.core.tasks;
     let stock = temper_service::stock::with_models(engine.llm.models.clone(), limits.result_bytes);

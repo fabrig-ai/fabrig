@@ -4110,6 +4110,10 @@ fn emit_change_effect(
     );
 }
 
+/// What a forge takes in a pull request's body, in bytes at most (a forge counts characters).
+/// temper/docs/design/domain/forge.md, 8.1.
+const PULL_BODY_BYTES: usize = 65_536;
+
 fn change_write(row: &ChangeRow, effect: change::Effect, limits: &Limits) -> Option<skein_forge::api::Write> {
     match effect {
         change::Effect::Open => {
@@ -4121,7 +4125,7 @@ fn change_write(row: &ChangeRow, effect: change::Effect, limits: &Limits) -> Opt
             let title_room = room.saturating_sub(marker.len().min(row.body.len()));
             let title = crate::text::fit(&row.title, title_room.min(256), "…".as_bytes());
             let title = if title.is_empty() { Box::from(DEFAULT_CHANGE_TITLE) } else { title };
-            let body = crate::text::fit(&row.body, room.saturating_sub(title.len()), marker);
+            let body = crate::text::fit(&row.body, room.saturating_sub(title.len()).min(PULL_BODY_BYTES), marker);
             Some(skein_forge::api::Write::OpenPull { title, body, head: row.branch.clone(), base: row.base.clone() })
         }
         change::Effect::CreateBranch { head } => {

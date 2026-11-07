@@ -85,6 +85,24 @@ fn cluster_a_member_wait_can_defer_only_to_a_longer_world() {
 }
 
 #[test]
+fn cluster_the_retained_charter_overrides_name_no_documents() {
+    // Charter documents follow temper/docs/design/protocol/configuration.md, 13.7.
+    // The process harness overlays these members on current settings before decoding whole values.
+    let settings: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../fixtures/cluster/settings.json")).expect("cluster overrides JSON");
+    let charters: Vec<_> = settings["items"]
+        .as_array()
+        .expect("settings items")
+        .iter()
+        .filter(|item| item["setting"]["kind"] == "charter")
+        .collect();
+    assert_eq!(charters.len(), 2, "chat and coding charter overrides");
+    for charter in charters {
+        assert_eq!(charter["set"]["documents"], serde_json::json!([]), "cluster charter names no documents");
+    }
+}
+
+#[test]
 fn ctl_a_single_host_timeout_reports_its_pending_call() {
     support::ctl::read_condition_tests::a_single_host_timeout_reports_its_pending_call();
 }

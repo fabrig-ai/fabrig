@@ -4192,7 +4192,9 @@ fn cancel_change_repair(domain: &Domain, task: u64, head: [u8; 32]) -> Procedure
 fn change_result_bound(domain: &Domain, task: u64) -> u32 {
     match domain.core.tasks.task(task) {
         Some(row) => match row.contract {
-            tasks::Contract::Change { words, .. } => words,
+            tasks::Contract::Change { words, .. } => words.saturating_sub(
+                u32::try_from(crate::link::CHANGE_RESULT_ENVELOPE_BYTES).expect("result envelope fits u32"),
+            ),
             tasks::Contract::Job { .. }
             | tasks::Contract::Approval { .. }
             | tasks::Contract::Report { .. }
