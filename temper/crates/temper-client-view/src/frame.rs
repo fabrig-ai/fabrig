@@ -179,6 +179,9 @@ pub(crate) fn unavailable_main(builder: &mut Builder, root: &Domain, words: &cra
                 &[Hole::Number(u64::from(sign_ins)), Hole::Wall(earliest), Hole::Wall(link_until)],
             ),
             Some(NotSignedIn::Busy) => words.text(builder, Word::SignInBusy, &[]),
+            Some(NotSignedIn::LinkUsed) => words.text(builder, Word::SignInLinkUsed, &[]),
+            Some(NotSignedIn::LinkExpired) => words.text(builder, Word::SignInLinkExpired, &[]),
+            Some(NotSignedIn::LinkUnknown) => words.text(builder, Word::SignInLinkUnknown, &[]),
             Some(NotSignedIn::NotReady) => words.text(builder, Word::SignInNotReady, &[]),
             None => words.text(builder, Word::SignedOutMain, &[]),
         }
