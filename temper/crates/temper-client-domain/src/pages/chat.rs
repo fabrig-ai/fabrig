@@ -1177,6 +1177,7 @@ impl Chat {
             | Act::StartGoal
             | Act::Switcher(_)
             | Act::Away(_)
+            | Act::Terminal(_)
             | Act::Models(_)
             | Act::Needs(_)
             | Act::Choice(_)
