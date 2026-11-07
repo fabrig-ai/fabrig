@@ -437,9 +437,8 @@ fn prepare_with_limits(
     let engine =
         temper_service::startup::engine_with(&document, member(&document, 0, b"engine"), &directories.jig(), given)
             .expect("named checked engine");
-    let machine = box_command::machine(bytes, directories)?;
     let roots = trust(None)?;
-    let github = github_runtime(machine.github.as_ref(), &roots, address)?;
+    let github = github_runtime(named.machine.github.as_ref(), &roots, address)?;
     let forges = List::with_capacity(0);
     let agent = named.worker.as_ref().map(|_| agent::preflight(&named)).transpose()?;
     let user = skein_shell::effective_user();

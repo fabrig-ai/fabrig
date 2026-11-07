@@ -41,17 +41,7 @@ pub(crate) fn check_with(
     let checked =
         Checked { limits: setup_limits, fetch_bytes, setup: temper_forge_setup::Setup { entries: Box::new([]) } };
     let mut problems = temper_service::startup::Problems::empty();
-    let machine_at = config::read::Object::new(&document, application)
-        .expect("checked application")
-        .member(&document, b"machine")
-        .ok_or("application.machine: missing member\n")?;
-    let mut machine_problems = problem::Problems::empty();
-    let machine =
-        temper_forge_setup::machine::read(&document, machine_at, &checked.limits, directories, &mut machine_problems);
-    if !machine_problems.is_empty() {
-        return Err(String::from_utf8_lossy(&problem::lines(&machine_problems)).into_owned());
-    }
-    let machine = machine.expect("checked machine");
+    let machine = &named.machine;
     for (listen, listener) in [
         (machine.owned.as_ref().map(|owned| owned.listen), temper_service::startup::Listener::Owned(0)),
         (machine.fake.as_ref().map(|fake| fake.listen), temper_service::startup::Listener::Fake(0)),
