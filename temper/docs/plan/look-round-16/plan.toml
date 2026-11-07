@@ -3,3 +3,22 @@ repo = "fabrig"
 sources = ["temper/docs/plan/look-round-16/inputs/request.md", "temper/docs/design/draft/look-requests.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
 # Plan options, written by fab call cut --set; keep them
 priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "md-underscore"
+title = "skein's Markdown reads _ and __ as emphasis and strong, never within a word"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui.md, 10"
+
+[[slice]]
+id = 1
+story = "A draft's \"_Draft, with the user._\" shows as emphasis, and snake_case stays as written"
+parts = ["md-underscore"]
+walk = false
