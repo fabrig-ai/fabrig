@@ -16,6 +16,10 @@ budget; the thread's table covers unread activity, older pages and passing
 over undecodable or nameless turns. Section 18 defers latest-run metadata
 independent of readable turns.
 
+- **Not yet:** 10, 14: a turn read alone (`Read::Turn`) is decoded
+  within the live turns' `turn_text`, so a call's input past it is cut
+  and its pages read only the cut copy, their last saying nothing is left
+  (`jig-client-protocol-link/src/limits.rs`, `archived_turn`).
 - **Not yet:** 10: a committed turn's calls carry no objects or parts:
   `jig-protocol-transcript` decodes them empty.
 - **Not yet:** 12: no story relays a person's decision with their own credential.

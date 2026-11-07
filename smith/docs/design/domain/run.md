@@ -641,7 +641,13 @@ its next run to hear of. smith does not make the host's judgement.
   a slow completion or a long build is not taken for a hang (host.md,
   section 4).
 - **A failing check is feedback,** with its output's tail, like any
-  other.
+  other. It names its directory and the check it ran there (the
+  convention's path), how it ended, and, when it timed out, the time it
+  was given: the run's `check_timeout`, or what was left of the call's
+  own deadline when that came first. What the check wrote before its
+  deadline is its tail, as for a check that exits: a stopped check's
+  output is kept to the last byte read before its pipes close, and an
+  empty tail says the check wrote nothing.
 - **Not a security boundary.** An agent can change what a check runs;
   whatever guards the host's systems (temper's CI and its authority's
   requirements) guards them. The checks catch failures early, inside the
