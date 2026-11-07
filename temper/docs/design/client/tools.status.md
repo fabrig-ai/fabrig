@@ -1,10 +1,15 @@
 # tools: status
 
-2026-11-06. Remaining gaps between temper's code and [tools.md](tools.md).
+2026-11-07. Remaining gaps between temper's code and [tools.md](tools.md).
 Unlisted sections have no known gap, including 6.3's watch-capacity
 diagnostic and deadline words, and 8.2's retry spans. Sections 7's key
 refusals, 6.1's unpinned account wait and failure-log directions, 5.5's
 setup ending and 5.3's effort check against `me` have no known gap.
+Sections 5.3 and 6.2's publication words are in `project amend`'s help
+and successful answer's stderr, as text or a `may_show` JSON object.
+The help walk gives them before its command. Ctl asks nothing before
+acting: an owner who skips the help can first meet them after publication.
+The preceding acknowledgement remains deferred in section 14.
 
 - **Not yet:** 8.2, 11.2: the user's `ctl-waits` request asks for the
   long-chat wait with a fake model refusing its resume, concurrent reads and

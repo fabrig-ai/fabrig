@@ -6,7 +6,7 @@ use skein_lib::{
     List, Secret, Writer,
     base64::{self, Alphabet},
 };
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Provider {
     /// Data path to the private PKCS#8 PEM file.
     pub key: Box<[u8]>,
@@ -14,7 +14,7 @@ pub struct Provider {
     pub addresses: Box<[u16]>,
 }
 /// A client registration (jig/docs/design/protocol/configuration.md, 3).
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ProviderClient {
     pub id: Box<[u8]>,
     /// Data path, or None for a public client.

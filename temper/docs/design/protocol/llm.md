@@ -39,10 +39,9 @@ section 7.
 - **One translation.** The engine's protocol layer is the only place where
   temper's charter, tools and messages become smith's, and smith's calls
   become the engine's (`../domain/agent.md`, section 1).
-- **Not jig's charter and tools crates.** temper's root takes its own
-  `Tool` vocabulary, so `temper-engine-smith` stands where
-  `jig-protocol-charter` and `jig-protocol-tools` would (sections 4, 5
-  and 7).
+- **jig's charter translation, temper's host tools.** `temper-engine-smith`
+  uses `jig-protocol-charter` for the charter, and keeps the root's own
+  `Tool` vocabulary rather than `jig-protocol-tools` (sections 4, 5 and 7).
 
 ## 2. Where LLM calls are made
 
@@ -193,8 +192,15 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   the LLM's fields, and a change with none is invalid. A result that
   does not decode or translate fails its attempt as invalid (jig's
   `protocol/channel.md`, 6.1).
-- **Not `jig-protocol-charter`,** for the same reason as the tools
-  (section 4).
+- **Charter policy is jig's.** `temper-engine-smith` supplies the rendered
+  brief and host-tool declarations to `jig-protocol-charter::assignment`,
+  sets the conventions and workspace delivery fact, then calls its
+  `charter` translation (jig's `domain/hosts.md`, section 8). A repository's
+  delivery fact is set only after its push destination survives the root's
+  authority and hold checks (`../domain/forge.md`, 11.1). This grants a
+  Finite report's delivery with the policy's `modify`, without changing its
+  result contract. The tool vocabulary and result translation remain
+  temper's.
 
 ## 6. Testing
 
@@ -232,10 +238,10 @@ Within the suites' budgets (`../domain/testing.md`, section 2):
 
 ## 7. Open questions
 
-- **jig's host tools' crates** (`jig-protocol-charter`,
-  `jig-protocol-tools`). temper's root takes its own `Tool` vocabulary.
-  Default: keep `temper-engine-smith` until the root's tools are next
-  reconciled with jig's.
+- **jig's host tools** (`jig-protocol-tools`). temper's root takes its own
+  `Tool` vocabulary while sharing jig's charter policy (section 5).
+  Default: keep that vocabulary and its translation in `temper-engine-smith`
+  until the root's tools are next reconciled with jig's.
 - **A run's live text** on a conversation's page: smith's channel
   carries it at the host's ask, but jig's assignment carries no ask and
   its workers' facts no content, so agent processes give no text until

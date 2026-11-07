@@ -201,6 +201,7 @@ fn made_and_restored_forges_supply_their_checkout_credential() {
         outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
         let item = d
             .workspace_item(items::Seed {
+                modify: false,
                 task: 1,
                 parent: None,
                 repository: REPO,
