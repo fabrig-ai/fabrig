@@ -1,6 +1,6 @@
 //! Shared counters preserve a step's highs, handoff and signed release (testing.md, 5).
 
-use std::hint::black_box;
+use core::hint::black_box;
 
 use crate::{Counting, Grown, Meter, Span};
 

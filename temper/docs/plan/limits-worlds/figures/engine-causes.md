@@ -1,6 +1,6 @@
 # engine-causes: allocator accounting shared by the worlds
 
-2026-11-07 UTC; base `28a0a63aad`, with the allocator arm described below;
+2026-11-07 UTC; base `28a0a63aad`; allocator code commit `1c40da50fb`;
 16 CPUs, AMD EPYC-Genoa Processor; Valgrind 3.24.0. Test binaries stay
 unoptimized. `figures-before.md` supplies the ranked cause list.
 
@@ -10,6 +10,7 @@ unoptimized. `figures-before.md` supplies the ranked cause list.
 |---|---|---|
 | C | `temper-conformance-world` | `fuzzy::stories::a_ci_repair_is_crashed_at_every_live_commit` |
 | G | `temper-real-loop-world` | `github_land::a_chats_change_lands_on_connected_github` |
+| U | `temper-one-process-world` | `public::every_inaccessible_identifier_is_one_unknown_byte_for_byte` |
 
 Every build, native run and Callgrind run used `heavy`, sequentially, with
 `TEMPER_BUNDLE=none`. `cargo nextest list --test suite --message-format json`
@@ -242,6 +243,84 @@ live bytes. It also holds handoff subtraction and a negative span release.
 | 1.76% | 260,925,190 | `<core::iter::adapters::enumerate::Enumerate<I> as core::iter::traits::iterator::Iterator>::next` |
 | 1.67% | 246,765,228 | `skein_json::writer::escaped_len` |
 
+## The stopping experiment: writing-pass string recount
+
+U is the largest **completed** story for this cause in `figures-before.md`
+(9.37%); R's larger 11.09 / 10.52% footprint comes from partial failed paths.
+The local U control differs from the supplied baseline by only 5,735 Ir
+(0.000031%). U has no native process children and uses simulated time, so
+no real-clock timer correction applies.
+
+The trial measures `escaped_len` only in `Sink::Measuring`, in both
+`put_string` and `string_parts`. Its writing pass checks each UTF-8 byte
+inside `write_escaped_content`, asserting completion at the end of each
+piece, while spelling escapes once. It preserves validation, including the
+writing-pass assertion for invalid UTF-8; it removes only the second
+length count and escape classification. All 19 focused writer tests passed.
+
+| Story | Arm | Run | Ir | Native CPU s (user + system, descendants) | Native wall s | Callgrind wall s | Result |
+|---|---|---:|---:|---:|---:|---:|---|
+| U | allocator retained, writer unchanged | 1 | 18,514,608,325 | 5.099 | 5.100 | 164.896 | 1 passed |
+| U | writer trial, discarded | 1 | 18,373,283,639 | 5.720 | 5.745 | 181.501 | 1 passed |
+
+The saving is **141,324,686 Ir, 0.76% of U**, below the plan's roughly 2%
+stop rule. Native timing establishes no gain. The whole trial was reverted;
+`tests::writer::a_writing_pass_with_invalid_utf8_is_a_bug` passed again on
+the restored code. No JSON parser, writer or build-setting change is retained.
+The smaller causes below this candidate are left by the stop rule.
+
+## U-writer-before: the largest by inclusive Ir
+
+| Share | Ir | Calls | Function |
+|---:|---:|---:|---|
+| 99.94% | 18,502,722,820 | 1 | `temper_one_process_world::public::walk` |
+| 99.94% | 18,502,722,667 | 2 | `temper_one_process_world::public::walk::{{closure}}` |
+| 99.94% | 18,502,721,614 | 3 | `temper_one_process_world::public::service::run` |
+| 99.93% | 18,501,403,600 | 3 | `temper_one_process_world::public::service::phase` |
+| 99.71% | 18,461,101,802 | 3 | `temper_playground::programs::with` |
+| 99.71% | 18,461,098,192 | 9 | `temper_one_process_world::public::service::phase::{{closure}}` |
+| 97.38% | 18,029,330,468 | 3 | `skein_world::world::World<P,R,M>::run` |
+| 97.38% | 18,029,329,868 | 3 | `skein_world::world::World<P,R,M>::run_with_faults` |
+
+## U-writer-before: the largest by self Ir
+
+| Share | Ir | Function |
+|---:|---:|---|
+| 3.48% | 643,524,927 | `alloc::collections::btree::navigate::<impl alloc::collections::btree::node::Handle<alloc::collections::btree::node::NodeRef<alloc::collections::btree::node::marker::Immut,K,V,alloc::collections::btree::node::marker::Leaf>,alloc::collections::btree::node::marker::Edge>>::next_unchecked::{{closure}}` |
+| 3.39% | 626,779,772 | `__memcpy_avx_unaligned_erms` |
+| 3.15% | 583,062,626 | `alloc::collections::btree::navigate::<impl alloc::collections::btree::node::Handle<alloc::collections::btree::node::NodeRef<BorrowType,K,V,alloc::collections::btree::node::marker::Leaf>,alloc::collections::btree::node::marker::Edge>>::next_kv` |
+| 3.00% | 555,139,762 | `<core::slice::iter::Iter<T> as core::iter::traits::iterator::Iterator>::next` |
+| 2.80% | 518,993,564 | `alloc::collections::btree::navigate::<impl alloc::collections::btree::node::Handle<alloc::collections::btree::node::NodeRef<BorrowType,K,V,alloc::collections::btree::node::marker::LeafOrInternal>,alloc::collections::btree::node::marker::KV>>::next_leaf_edge` |
+| 2.61% | 482,821,319 | `skein_json::writer::escaped_len` |
+| 2.29% | 423,924,206 | `alloc::collections::btree::node::Handle<alloc::collections::btree::node::NodeRef<alloc::collections::btree::node::marker::Immut,K,V,NodeType>,alloc::collections::btree::node::marker::KV>::into_kv` |
+| 2.29% | 423,245,247 | `alloc::collections::btree::navigate::LazyLeafRange<BorrowType,K,V>::init_front` |
+
+## U-writer-trial: the largest by inclusive Ir
+
+| Share | Ir | Calls | Function |
+|---:|---:|---:|---|
+| 99.93% | 18,361,053,546 | 1 | `temper_one_process_world::public::walk` |
+| 99.93% | 18,361,053,393 | 2 | `temper_one_process_world::public::walk::{{closure}}` |
+| 99.93% | 18,361,052,341 | 3 | `temper_one_process_world::public::service::run` |
+| 99.93% | 18,359,734,327 | 3 | `temper_one_process_world::public::service::phase` |
+| 99.71% | 18,320,067,549 | 3 | `temper_playground::programs::with` |
+| 99.71% | 18,320,063,939 | 9 | `temper_one_process_world::public::service::phase::{{closure}}` |
+| 97.38% | 17,892,771,919 | 3 | `skein_world::world::World<P,R,M>::run` |
+| 97.38% | 17,892,771,319 | 3 | `skein_world::world::World<P,R,M>::run_with_faults` |
+
+## U-writer-trial: the largest by self Ir
+
+| Share | Ir | Function |
+|---:|---:|---|
+| 3.50% | 643,524,927 | `alloc::collections::btree::navigate::<impl alloc::collections::btree::node::Handle<alloc::collections::btree::node::NodeRef<alloc::collections::btree::node::marker::Immut,K,V,alloc::collections::btree::node::marker::Leaf>,alloc::collections::btree::node::marker::Edge>>::next_unchecked::{{closure}}` |
+| 3.41% | 626,780,856 | `__memcpy_avx_unaligned_erms` |
+| 3.17% | 583,062,626 | `alloc::collections::btree::navigate::<impl alloc::collections::btree::node::Handle<alloc::collections::btree::node::NodeRef<BorrowType,K,V,alloc::collections::btree::node::marker::Leaf>,alloc::collections::btree::node::marker::Edge>>::next_kv` |
+| 2.85% | 524,146,306 | `<core::slice::iter::Iter<T> as core::iter::traits::iterator::Iterator>::next` |
+| 2.82% | 518,993,564 | `alloc::collections::btree::navigate::<impl alloc::collections::btree::node::Handle<alloc::collections::btree::node::NodeRef<BorrowType,K,V,alloc::collections::btree::node::marker::LeafOrInternal>,alloc::collections::btree::node::marker::KV>>::next_leaf_edge` |
+| 2.31% | 423,924,206 | `alloc::collections::btree::node::Handle<alloc::collections::btree::node::NodeRef<alloc::collections::btree::node::marker::Immut,K,V,NodeType>,alloc::collections::btree::node::marker::KV>::into_kv` |
+| 2.30% | 423,245,247 | `alloc::collections::btree::navigate::LazyLeafRange<BorrowType,K,V>::init_front` |
+| 2.29% | 420,918,083 | `core::iter::traits::iterator::Iterator::try_fold` |
+
 ## Causes, largest first
 
 Footprints below are the supplied ranked list's shares, not promised savings.
@@ -251,9 +330,9 @@ R and P are partial unsuccessful instrumented paths; C, G and U completed.
 |---|---|---|---|
 | Allocation bookkeeping and header layout | `skein/testing/skein-heap/src/lib.rs` | C 25.49%; R 14.27 / 14.22%; P 12.30 / 10.96%; G 11.44 / 10.79%; U 0% | Counter lookup fixed here; required header-layout leaf remains, 9.49% of C. |
 | Reparse schema/request/configuration JSON | `skein-json::parse`, `string`; `skein-llm::Json::from_bytes` | R 12.85 / 13.12%; P 9.81 / 6.03%; G 10.03 / 9.75%; C 0%; U 10.15% | Left: the parser must validate independent inputs. Avoiding schema reconstruction/reparsing needs a change to producer representation or bounded retained schema state keyed by the varying charter, namespace and grants, beyond the cause's module and its callers. |
-| Validate and count strings again on the writing pass | `skein-json::writer` | R 11.09 / 10.52%; P 7.53 / 4.15%; G 6.81 / 7.03%; C 0%; U 9.37% | Next candidate: measure a single validating escaping pass before deciding. |
+| Validate and count strings again on the writing pass | `skein-json::writer` | R 11.09 / 10.52%; P 7.53 / 4.15%; G 6.81 / 7.03%; C 0%; U 9.37% | Left by the stop rule: a single validating escaping pass saves 0.76% of the largest completed story, U; trial discarded. |
 | Repeated whole-prompt measurement | `smith-protocol-llm::component::observed_prompt` and `skein-llm::client` | R 7.35 / 6.20%; P 3.98 / 2.03%; G 3.70 / 4.26%; C 0%; U 5.80% | Left: preserving refusal before observation needs an admitted measurement transferred through the prompt-observation and connection-reservation boundaries; removing the early check changes behaviour, and that protocol change is beyond this local cause repair. |
-| Derive store-family bounds again | `jig-protocol-store::codec::limits` | C 2.17%; R 0.16 / 0.14%; P 0.23 / 0.18%; G 0.29 / 0.25%; U 0.15% | Left pending the next candidate's stopping screen; production Store already retains its codec view. C's incoming costs split into independently constructed `Limits::codec_view` (1.50%) and `sizes::largest` / `sizes::frame` (0.33% each). |
+| Derive store-family bounds again | `jig-protocol-store::codec::limits` | C 2.17%; R 0.16 / 0.14%; P 0.23 / 0.18%; G 0.29 / 0.25%; U 0.15% | Left by the stop rule; production Store already retains its codec view. C's incoming costs split into independently constructed `Limits::codec_view` (1.50%) and `sizes::largest` / `sizes::frame` (0.33% each). |
 
 ## Left
 
@@ -262,4 +341,4 @@ R and P are partial unsuccessful instrumented paths; C, G and U completed.
 - P's oracle cue scans (4.50%) and deployment-default rebuilds (3.07 / 2.50%) belong to `real-loop-causes`.
 - The supplied partial R/P profiles' retained forge-observation assertion and ending oracle assertion remain diagnostic only; this task compares completed C/G stories and changes neither fixture observation caps nor oracle expectations.
 
-Next candidate: writing-pass string recount, U 9.37% (R's partial footprint 11.09 / 10.52%); decision awaits its instruction measurement.
+Stopped at writing-pass string recount: U footprint 9.37% (R partial 11.09 / 10.52%); measured removable gain 0.76%, below about 2%. The next smaller cause is repeated whole-prompt measurement, U 5.80% (R partial 7.35 / 6.20%), left for the reasons above.

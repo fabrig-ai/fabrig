@@ -495,7 +495,10 @@ impl Span {
     /// Measures from now.
     #[must_use]
     pub fn start() -> Span {
-        assert!(COUNTS.with(|counts| counts.phase.get()) != Phase::Stepping, "a span is measured outside a meter's step");
+        assert!(
+            COUNTS.with(|counts| counts.phase.get()) != Phase::Stepping,
+            "a span is measured outside a meter's step"
+        );
         warm_runtime();
         COUNTS.with(|counts| {
             let live = counts.live.get();
