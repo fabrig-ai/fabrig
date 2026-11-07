@@ -3,7 +3,7 @@ id = "prepared"
 part = "parts"
 kind = "feature"
 needs = ["offering", "parts-core", "later"]
-files = ["jig/crates/jig-domain-core/src/routing/run/preparation.rs", "jig/crates/jig-domain-core/src/routing/run/parts.rs", "jig/crates/jig-domain-core/src/routing/run/results.rs", "jig/crates/jig-domain-core/src/routing/task/save.rs", "jig/crates/jig-domain-core/src/routing/children.rs", "jig/crates/jig-domain-core/src/tests/runs/parts.rs", "jig/crates/jig-domain-core/src/tests/runs.rs"]
+files = ["jig/crates/jig-domain-core/src/routing/run/preparation.rs", "jig/crates/jig-domain-core/src/routing/run/parts.rs", "jig/crates/jig-domain-core/src/routing/run/results.rs", "jig/crates/jig-domain-core/src/routing/task/save.rs", "jig/crates/jig-domain-core/src/routing/children.rs", "jig/crates/jig-domain-core/src/routing/sibling_routes.rs", "jig/crates/jig-domain-core/src/tests/runs/parts.rs", "jig/crates/jig-domain-core/src/tests/runs.rs"]
 effort = "high"
 minutes = 90
 +++
@@ -35,7 +35,9 @@ Acceptance:
   (`clear_stale_preparation`), `routing/run/preparation.rs` (the brief's two checks and
   `workspace_prepared`'s `current != context`, which must not refuse a context that differs
   from the prepared one only by kept words and the reasons they add), `routing/run/results.rs`
-  (`ReadFor::Preparation`) and `routing/children.rs` (`GatherRequest::Complete`). The claim
+  (`ReadFor::Preparation`), `routing/children.rs` (`GatherRequest::Complete`) and
+  `routing/sibling_routes.rs` (`Core::sent`, which adds a sent word to a preparing context only
+  when the prepared parts offer it). The claim
   goes ahead with the prepared context: its reasons, its instructions, its start messages; the
   kept word is in none of them.
 - **Tests first, in `jig-domain-core`'s lib tests** (`tests/runs/parts.rs`, rows of its
@@ -68,3 +70,19 @@ Acceptance:
 2. `cargo fmt`; `heavy cargo clippy -p jig-domain-core --all-targets -- -D warnings`; the lib
    tests; the core world's per-wake bundle once.
 3. Commit (why: a preparation keeps its parts against a message they don't offer); push.
+
+## Answers
+
+2026-11-07. **Q:** `Core::sent` (`routing/sibling_routes.rs`) appends every sent word to a
+preparing context and moves its `last_message`, so a kept question still changes the prepared
+snapshot: widen this task to that file, or give the guard to a prerequisite task?
+**A:** Widen this task: `routing/sibling_routes.rs` is now in its files, and no other task of
+the plan owns it. The task's own acceptance (the claim made with the prepared context, the kept
+word in none of it) cannot hold without the guard. In `Core::sent`, update the context only when
+the word is offered by the prepared parts, through the same `offered`/`offered_kinds` the
+predicate in `parts.rs` uses (one rule, not a second copy of it); a kept word leaves the context,
+its inbox and `last_message` untouched. Its terminal routing (`land_task` and the `SentRoute`
+match) runs whatever the word's fate, as today. A charter without parts offers everything, so
+its contexts update as today. Keep the branch's pushed work and finish from it. The story's
+`jig/tests/core/tests/suite/per_wake.rs` is the `story` task's and lands after this one, so it
+may be absent from this branch: if so, skip that run and say so in the report.
