@@ -23,12 +23,23 @@ fn a_stock_charter_two_repair_starts_with_its_oversized_ci_cut_and_marked() {
     chat.run();
     let mut repair = chat.assignment;
     let llm = jig_protocol_config::Llm {
-        shown: Box::new([None]),
-        pickers: Box::new([true]),
         endpoints: Box::default(),
         providers: Box::default(),
-        descriptions: Box::new([None]),
-        models: Box::new([world::charter().policy.model]),
+
+        models: (Box::new([world::charter().policy.model]))
+            .into_iter()
+            .enumerate()
+            .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                number: u32::try_from(at).expect("bounded fixture models") + 1,
+                model,
+                shown: None,
+                description: None,
+                picker: true,
+                withdrawn: false,
+                source: jig_domain_core::settings::ModelSource::Stock,
+                estimated: false,
+            })
+            .collect(),
     };
     let stock = temper_service::stock::defaults(&llm, chat.root.env.limits.tasks.result_bytes);
     let coder = stock.charters.iter().find(|charter| charter.number == 2).expect("stock coder");

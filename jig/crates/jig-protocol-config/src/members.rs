@@ -45,7 +45,11 @@ pub static SHAPES: [Shape; 61] = [
         line: "An identity provider number and its kind.",
     },
     Shape { name: "act", paths: &["engine.acts[]"], line: "A connector's permitted deployment acts." },
-    Shape { name: "llm", paths: &["engine.llm"], line: "The endpoints, models and providers available for runs." },
+    Shape {
+        name: "llm",
+        paths: &["engine.llm"],
+        line: "The endpoints and providers, with document models when defaults are not passed.",
+    },
     Shape { name: "endpoint", paths: &["engine.llm.endpoints[]"], line: "A model endpoint and its transport." },
     Shape {
         name: "address",
@@ -57,12 +61,16 @@ pub static SHAPES: [Shape; 61] = [
         paths: &["engine.llm.endpoints[].headers[]"],
         line: "One header added to an endpoint request.",
     },
-    Shape { name: "model", paths: &["engine.llm.models[]"], line: "A model, its context bounds, efforts and prices." },
+    Shape {
+        name: "model",
+        paths: &["engine.llm.models[]"],
+        line: "A document model default, numbered by position from 1, with its context bounds, efforts and prices.",
+    },
     Shape { name: "prices", paths: &["engine.llm.models[].prices"], line: "Model prices and their token unit." },
     Shape {
         name: "llm-provider",
         paths: &["engine.llm.providers[]"],
-        line: "An LLM provider, the models it serves and the sources it offers.",
+        line: "An LLM provider, its added models' endpoint, the document models it serves and the sources it offers.",
     },
     Shape {
         name: "sources",
@@ -83,7 +91,11 @@ pub static SHAPES: [Shape; 61] = [
         paths: &["engine.clients.provider.clients[]"],
         line: "A client allowed to use the deployment provider.",
     },
-    Shape { name: "charter", paths: &["engine.charters[]"], line: "An offered charter and its run policy." },
+    Shape {
+        name: "charter",
+        paths: &["engine.charters[]"],
+        line: "An offered charter and its run policy; absent models takes the rest of the catalogue.",
+    },
     Shape {
         name: "charter-document",
         paths: &["engine.charters[].documents[]"],
@@ -321,7 +333,7 @@ pub static SHAPES: [Shape; 61] = [
 ];
 
 /// Every named member, including settings read only by the document-defaults bridge.
-pub static MEMBERS: [Member; 262] = [
+pub static MEMBERS: [Member; 263] = [
     Member {
         shape: "engine",
         name: "limits",
@@ -562,7 +574,7 @@ pub static MEMBERS: [Member; 262] = [
         kind: "list of model",
         bound: "64 models",
         required: true,
-        line: "Declares models in the order used by authority's model bits.",
+        line: "Declares document defaults numbered by position from 1; passed models replace them.",
         gone: None,
     },
     Member {
@@ -887,6 +899,15 @@ pub static MEMBERS: [Member; 262] = [
         bound: "0 to 4294967295",
         required: true,
         line: "Gives the provider's number, unique among LLM providers.",
+        gone: None,
+    },
+    Member {
+        shape: "llm-provider",
+        name: "endpoint",
+        kind: "text",
+        bound: "4096 bytes; a configured endpoint name",
+        required: false,
+        line: "Names the endpoint its added models take.",
         gone: None,
     },
     Member {

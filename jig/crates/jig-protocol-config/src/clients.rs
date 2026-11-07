@@ -34,19 +34,26 @@ pub(crate) fn parse(
     object.finish(document, path, problems);
     Some(Clients { heartbeat: heartbeat?, link: link?, provider })
 }
-/// The configured models as the client protocol names and shows them, in configuration's order,
-/// each with the number of the LLM provider listing it (contract.md, 5.1).
+/// The catalogue as the client protocol names and shows it, in each number's position
+/// (jig/docs/design/domain/engine.md, 17.11; client/domain/contract.md, 5.1).
 #[must_use]
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub fn models(llm: &crate::Llm) -> Box<[jig_protocol_engine_clients::Model]> {
-    let mut models = List::with_capacity(u32::try_from(llm.models.len()).expect("checked models"));
-    for (at, model) in llm.models.iter().enumerate() {
+    let run_models = llm.models();
+    let mut models = List::with_capacity(u32::try_from(run_models.len()).expect("checked models"));
+    for (at, model) in run_models.iter().enumerate() {
+        let number = u32::try_from(at).expect("bounded model position").checked_add(1).expect("model number");
+        let mut description = None;
+        let mut shown = None;
+        let mut picker = false;
         let mut provider = None;
-        for item in &llm.providers {
-            for name in &item.models {
-                if *name == model.name {
-                    provider = Some(item.number);
-                }
+        for entry in &llm.models {
+            if entry.number == number {
+                description.clone_from(&entry.description);
+                shown.clone_from(&entry.shown);
+                picker = entry.picker;
+                provider = Some(model.provider);
+                break;
             }
         }
         models
@@ -67,9 +74,9 @@ pub fn models(llm: &crate::Llm) -> Box<[jig_protocol_engine_clients::Model]> {
                     output: model.output_price,
                     unit: model.price_unit,
                 },
-                description: llm.descriptions.get(at).expect("one description per configured model").clone(),
-                shown: llm.shown.get(at).expect("one shown name per configured model").clone(),
-                picker: *llm.pickers.get(at).expect("one picker flag per configured model"),
+                description,
+                shown,
+                picker,
             })
             .expect("one row per model");
     }

@@ -67,6 +67,11 @@ pub fn config(seed: u64) -> engine::Config {
     let charter = charter();
     // The charter's model is a configured one, as jig's core world sets it (tests/core charters.rs).
     config.core.settings.models = Box::new([charter.policy.model.clone()]);
+    config.core.settings.endpoints = Box::new([jig_domain_core::EndpointFacts {
+        number: charter.policy.model.endpoint,
+        dialect: charter.policy.model.dialect,
+        program: charter.policy.model.program.clone(),
+    }]);
 
     config.core.defaults.charters = Box::new([charter]);
     config.core.settings.resume_bytes = 8192;

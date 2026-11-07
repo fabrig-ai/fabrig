@@ -1,7 +1,10 @@
 //! Engine endpoint, model values (llm.md, 4 and 5).
 use crate::{Address, Directories, Directory, Path, Problems, Segment, What, check, read};
 use alloc::boxed::Box;
-use jig_domain_core::Model;
+use jig_domain_core::{
+    Model,
+    settings::{CatalogueModel, ModelSource},
+};
 use skein_json::Document;
 use skein_lib::{Duration, List};
 /// The most models configuration names: authority keeps a party's models one bit each
@@ -10,18 +13,38 @@ pub(crate) const MODELS: u32 = 64;
 // smith/docs/design/protocol/agent.md, section 4: the dialect numbers are fixed for good.
 const ANTHROPIC: u32 = 2;
 const OPENAI: u32 = 3;
+/// The engine's endpoints, providers and default catalogue
+/// (jig/docs/design/protocol/configuration.md, 3).
 #[derive(Debug)]
 pub struct Llm {
     pub endpoints: Box<[Endpoint]>,
-    pub models: Box<[Model]>,
-    /// Optional descriptions, one per model in the same order (configuration.md, 3).
-    pub descriptions: Box<[Option<Box<[u8]>>]>,
-    /// Optional names for showing, one per model (configuration.md, 3).
-    pub shown: Box<[Option<Box<[u8]>>]>,
-    /// Whether pickers show each model, in the same order (configuration.md, 3).
-    pub pickers: Box<[bool]>,
+    pub models: Box<[CatalogueModel]>,
     /// Every model belongs to one numbered provider (configuration.md, 3).
     pub providers: Box<[Provider]>,
+}
+impl Llm {
+    /// The catalogue's run models, with a row at each number's position
+    /// (jig/docs/design/domain/engine.md, 17.11).
+    #[must_use]
+    pub fn models(&self) -> Box<[Model]> {
+        let mut highest = 0;
+        for entry in &self.models {
+            highest = highest.max(entry.number);
+        }
+        assert!(highest <= MODELS, "catalogue numbers bounded by MODELS");
+        let mut models = List::with_capacity(highest);
+        for number in 1..=highest {
+            let mut model = Model::hole();
+            for entry in &self.models {
+                if entry.number == number {
+                    model = entry.model.clone();
+                    break;
+                }
+            }
+            models.push(model).expect("one row per model number");
+        }
+        models.into_boxed()
+    }
 }
 pub(crate) mod providers;
 pub use providers::{Provider, Registration};
@@ -74,50 +97,62 @@ pub(crate) fn parse(
             }
         }
     }
-    let mut models = List::<Model>::with_capacity(document.len());
-    let mut descriptions = List::with_capacity(document.len());
-    let mut shown = List::with_capacity(document.len());
-    let mut pickers = List::with_capacity(document.len());
+    let mut models = List::<CatalogueModel>::with_capacity(document.len());
     if let Some(items) = check::list(&mut object, document, b"models", MODELS, path, problems) {
         for (index, at) in items.iter().enumerate() {
             let path = path.member(b"models").child(Segment::Index(u32::try_from(index).expect("list bounded by u32")));
             if let Some(value) = model(document, *at, &path, endpoints.as_slice(), problems) {
                 for previous in &models {
-                    if previous.name == value.model.name {
+                    if previous.model.name == value.model.name {
                         problems.push(path.member(b"name"), What::Unique);
                         break;
                     }
                 }
-                models.push(value.model).expect("input count bounded");
-                descriptions.push(value.description).expect("one description per model");
-                shown.push(value.shown).expect("one shown name per model");
-                pickers.push(value.picker).expect("one picker flag per model");
+                models
+                    .push(CatalogueModel {
+                        number: u32::try_from(index)
+                            .expect("bounded model position")
+                            .checked_add(1)
+                            .expect("model number"),
+                        model: value.model,
+                        shown: value.shown,
+                        description: value.description,
+                        picker: value.picker,
+                        withdrawn: false,
+                        source: ModelSource::Stock,
+                        estimated: false,
+                    })
+                    .expect("input count bounded");
             }
         }
     }
     let providers = providers::parse(&mut object, document, path, models.as_slice(), directories, problems);
+    for (index, provider) in providers.iter().enumerate() {
+        if let Some(name) = &provider.endpoint {
+            let mut found = false;
+            for endpoint in &endpoints {
+                found |= endpoint.name == *name;
+            }
+            if !found {
+                problems.push(check::index(&path.member(b"providers"), index).member(b"endpoint"), What::Refers);
+            }
+        }
+    }
     program_bindings(endpoints.as_slice(), models.as_slice(), providers.as_slice(), path, problems);
     for model in models.iter_mut() {
         for provider in &providers {
-            if provider.models.contains(&model.name) {
-                model.provider = provider.number;
+            if provider.models.contains(&model.model.name) {
+                model.model.provider = provider.number;
             }
         }
     }
     object.finish(document, path, problems);
-    Some(Llm {
-        endpoints: endpoints.into_boxed(),
-        models: models.into_boxed(),
-        descriptions: descriptions.into_boxed(),
-        shown: shown.into_boxed(),
-        pickers: pickers.into_boxed(),
-        providers: providers.into_boxed(),
-    })
+    Some(Llm { endpoints: endpoints.into_boxed(), models: models.into_boxed(), providers: providers.into_boxed() })
 }
 /// A shared endpoint must name a program offered by every provider whose models use it.
 fn program_bindings(
     endpoints: &[Endpoint],
-    models: &[Model],
+    models: &[CatalogueModel],
     providers: &[Provider],
     path: &Path,
     problems: &mut Problems,
@@ -128,11 +163,11 @@ fn program_bindings(
         let mut valid = false;
         let mut refused = program.is_empty() || program.len() > skein_lib::length::usize_of(jig_domain_accounts::NAME);
         for model in models {
-            if model.endpoint != endpoint.number {
+            if model.model.endpoint != endpoint.number {
                 continue;
             }
             for provider in providers {
-                if provider.models.contains(&model.name) {
+                if provider.models.contains(&model.model.name) {
                     valid = true;
                     if !provider.programs.contains(program) {
                         refused = true;

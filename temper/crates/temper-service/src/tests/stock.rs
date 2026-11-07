@@ -672,9 +672,9 @@ fn each_charter_offers_every_configured_model() {
         .models
         .into_iter()
         .filter(|model| {
-            model.name.as_ref() != b"claude-opus-5-5"
-                && model.name.as_ref() != b"gpt-6.1-sol"
-                && model.name.as_ref() != b"gpt-6-astra"
+            model.model.name.as_ref() != b"claude-opus-5-5"
+                && model.model.name.as_ref() != b"gpt-6.1-sol"
+                && model.model.name.as_ref() != b"gpt-6-astra"
         })
         .collect();
     for (llm, ordinary, configuring) in [
@@ -895,13 +895,13 @@ fn stock_budgets_follow_the_costliest_completion_and_run_turn_floor() {
     let mut engine = engine(&generated());
     let init = engine.llm.models.clone();
     let mut cheap = init[0].clone();
-    cheap.window = 1501;
-    cheap.output = 503;
-    cheap.input_price = 1;
-    cheap.cached_price = 2;
-    cheap.cache_write_price = Some(3);
-    cheap.output_price = 4;
-    cheap.price_unit = 1000;
+    cheap.model.window = 1501;
+    cheap.model.output = 503;
+    cheap.model.input_price = 1;
+    cheap.model.cached_price = 2;
+    cheap.model.cache_write_price = Some(3);
+    cheap.model.output_price = 4;
+    cheap.model.price_unit = 1000;
     for (row, models, c, k) in [
         ("init", init.clone(), 10_896, 43_584),
         ("cheap with costliest prices and rounding", Box::new([cheap.clone()]), 7, 256),
@@ -968,13 +968,13 @@ fn the_stock_funds_eighty_chats_in_one_period() {
     let mut engine = engine(&generated());
     let init = engine.llm.models.clone();
     let mut cheap = init[0].clone();
-    cheap.window = 1501;
-    cheap.output = 503;
-    cheap.input_price = 1;
-    cheap.cached_price = 2;
-    cheap.cache_write_price = Some(3);
-    cheap.output_price = 4;
-    cheap.price_unit = 1000;
+    cheap.model.window = 1501;
+    cheap.model.output = 503;
+    cheap.model.input_price = 1;
+    cheap.model.cached_price = 2;
+    cheap.model.cache_write_price = Some(3);
+    cheap.model.output_price = 4;
+    cheap.model.price_unit = 1000;
     for (row, models) in [("init", init), ("cheap with costliest prices and rounding", Box::new([cheap]))] {
         engine.llm.models = models;
         let stock = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);

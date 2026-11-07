@@ -14,11 +14,22 @@ fn box_world() -> World {
 
 fn defaults() -> s::Defaults {
     let llm = jig_protocol_config::Llm {
-        shown: Box::new([None]),
-        pickers: Box::new([true]),
         endpoints: Box::new([]),
-        models: walking::models(),
-        descriptions: Box::new([None]),
+        models: (walking::models())
+            .into_iter()
+            .enumerate()
+            .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                number: u32::try_from(at).expect("bounded fixture models") + 1,
+                model,
+                shown: None,
+                description: None,
+                picker: true,
+                withdrawn: false,
+                source: jig_domain_core::settings::ModelSource::Stock,
+                estimated: false,
+            })
+            .collect(),
+
         providers: Box::new([]),
     };
     temper_service::stock::defaults(&llm, 4096)

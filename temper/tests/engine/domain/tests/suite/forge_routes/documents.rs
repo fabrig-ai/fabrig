@@ -174,12 +174,22 @@ fn a_missing_document_says_so_and_the_run_goes_on() {
 fn settings_world() -> (World, u64) {
     let model = stock::box_model();
     let llm = jig_protocol_config::Llm {
-        shown: Box::new([None]),
-        pickers: Box::new([true]),
         endpoints: Box::new([]),
         providers: Box::new([]),
-        descriptions: Box::new([None]),
-        models: Box::new([model.clone()]),
+        models: (Box::new([model.clone()]))
+            .into_iter()
+            .enumerate()
+            .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                number: u32::try_from(at).expect("bounded fixture models") + 1,
+                model,
+                shown: None,
+                description: None,
+                picker: true,
+                withdrawn: false,
+                source: jig_domain_core::settings::ModelSource::Stock,
+                estimated: false,
+            })
+            .collect(),
     };
     let limits = temper_engine_domain_world::forge_routes::box_limits();
     let defaults = temper_service::stock::defaults(&llm, limits.tasks.result_bytes);

@@ -565,7 +565,7 @@ pub fn store_limits() -> jig_test_service::limits::Limits {
 #[must_use]
 pub fn store_names() -> &'static [jig_domain_core::settings::ModelName] {
     static NAMES: std::sync::OnceLock<Box<[jig_domain_core::settings::ModelName]>> = std::sync::OnceLock::new();
-    NAMES.get_or_init(|| jig_protocol_store::codec::names(&engine_configuration().llm.models))
+    NAMES.get_or_init(|| jig_protocol_store::codec::names(&engine_configuration().llm.models()))
 }
 
 #[must_use]
@@ -649,5 +649,5 @@ fn providers_engine() -> Vec<u8> {
 
 pub(crate) fn providers_store_names() -> &'static [jig_domain_core::settings::ModelName] {
     static NAMES: std::sync::OnceLock<Box<[jig_domain_core::settings::ModelName]>> = std::sync::OnceLock::new();
-    NAMES.get_or_init(|| jig_protocol_store::codec::names(&configuration(&providers_engine()).llm.models))
+    NAMES.get_or_init(|| jig_protocol_store::codec::names(&configuration(&providers_engine()).llm.models()))
 }

@@ -30,10 +30,8 @@ fn the_page_is_what_fields_renders() {
 
 fn llm() -> jig_protocol_config::Llm {
     jig_protocol_config::Llm {
-        shown: Box::new([None]),
-        pickers: Box::new([true]),
         endpoints: Box::new([]),
-        models: Box::new([jig_domain_core::Model {
+        models: (Box::new([jig_domain_core::Model {
             provider: 1,
             dialect: 1,
             endpoint: 1,
@@ -48,14 +46,28 @@ fn llm() -> jig_protocol_config::Llm {
             price_unit: 1000,
             efforts: Box::new([]),
             effort: None,
-        }]),
-        descriptions: Box::new([None]),
+        }]))
+        .into_iter()
+        .enumerate()
+        .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+            number: u32::try_from(at).expect("bounded fixture models") + 1,
+            model,
+            shown: None,
+            description: None,
+            picker: true,
+            withdrawn: false,
+            source: jig_domain_core::settings::ModelSource::Stock,
+            estimated: false,
+        })
+        .collect(),
+
         providers: Box::new([]),
     }
 }
 fn models(llm: &jig_protocol_config::Llm) -> Box<[jig_protocol_engine_clients::Model]> {
     let mut models = Vec::new();
-    for model in &llm.models {
+    for entry in &llm.models {
+        let model = &entry.model;
         models.push(jig_protocol_engine_clients::Model {
             effort: model.default_effort().map(skein_lib::bytes::copy_of),
             shown: None,

@@ -10,12 +10,23 @@ use std::fmt::Write;
 pub(super) fn config(seed: u64) -> engine::Config {
     let mut config = super::config(seed);
     let llm = jig_protocol_config::Llm {
-        shown: Box::new([None]),
-        pickers: Box::new([true]),
         endpoints: Box::default(),
         providers: Box::default(),
-        descriptions: Box::new([None]),
-        models: config.core.settings.models.clone(),
+
+        models: (config.core.settings.models.clone())
+            .into_iter()
+            .enumerate()
+            .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                number: u32::try_from(at).expect("bounded fixture models") + 1,
+                model,
+                shown: None,
+                description: None,
+                picker: true,
+                withdrawn: false,
+                source: jig_domain_core::settings::ModelSource::Stock,
+                estimated: false,
+            })
+            .collect(),
     };
     config.core.defaults = temper_service::stock::defaults(
         &llm,
