@@ -571,7 +571,7 @@ never renames or reuses one on its own. An account has:
 | granted | an account's access token, its generation and how long it is valid |
 | keep | a record to keep durably, for an account the owner keeps (6.4) |
 | expiring | an access-only token has reached its lead before expiry, once |
-| failed | a sign-in, refresh, sign-out or grant failed: section 4's class, or expired; a sign-in whose record could not be kept fails as not kept, and nothing is lent; an account whose private record did not load fails as unloaded, saying where and why (6.4); a grant of a record without a required scope fails as not granted; a sign-in or a shared record of another subject fails as another subject; a shared record whose lock was not taken fails as busy (6.4) |
+| failed | a sign-in, refresh, sign-out or grant failed: section 4's class, or expired; a sign-in whose record could not be kept fails as not kept, and nothing is lent; an account whose private record did not load fails as unloaded, saying where and why (6.4); a grant of a record without a required scope fails as not granted; a sign-in or a shared record of another subject fails as another subject; a shared record whose lock was not taken fails as busy (6.4); a sign-in whose listener read its own redirect past the redirect bound fails as a long redirect, naming the address's length and the bound (6.5) |
 | signed out | a sign-out that settled: revoked, or unconfirmed; the record is forgotten either way |
 | removed | a removal that settled: the account and its sockets are gone, and its name is free |
 | lock | take the shared record's lock, and read the record under it (6.4) |
@@ -782,8 +782,10 @@ sign-in at once. The load goes on for the account.
   server, within its limits, checks the request's URI exactly against the
   registration (section 1), answers a small fixed page, "Sign-in received.
   You can close this tab.", and closes the connection. A request for another path, or past the limits, is answered
-  with a refusal and closed, the sign-in still waiting. The listener closes
-  with the sign-in's terminal.
+  with its refusal page, "This is not the registered redirect.", and
+  closed, the sign-in still waiting, but for the sign-in's own redirect
+  past the redirect bound (*an over-long redirect*, below). The listener
+  closes with the sign-in's terminal.
 - **The return.** The owner may give a sign-in under way a return location
   (`return`), the address the person's browser goes on to once the listener
   has taken the redirect: the page the person left, in an application that
@@ -816,7 +818,8 @@ sign-in at once. The load goes on for the account.
   port, and a sign-in that cannot bind it fails before its `visit`.
 - **A redirect is taken only when it is the sign-in's,** wherever it comes
   from, the listener or the owner's `redirected`: its address within the
-  client's bounds (section 5), of visible ASCII, with no fragment and no
+  driver's redirect bound (`redirect_bytes`, 6.7) and each field the
+  client reads within the client's bounds (section 5), of visible ASCII, with no fragment and no
   field the client reads given twice; then whatever the client's `admits`
   refuses (section 3): its address the one the sign-in bound (the port the
   listener bound among it, for a port that varies), a code or the
@@ -846,6 +849,28 @@ sign-in at once. The load goes on for the account.
   (`source`); not waiting (no sign-in, its `visit` not yet out, or its
   redirect already taken); full; another address, by the bounds above,
   against the address as bound; the deadline; then what `admits` refuses.
+- **An over-long redirect** ends its sign-in, from the listener alone. A
+  request head whose Host is the bound authority and whose target is the
+  bound path, then its query, with no fragment, is the sign-in's answer
+  past the bound when its address is longer than `redirect_bytes` and its
+  one `state` field, decoded within the client's state bound, is the
+  sign-in's while it waits (the client's `awaits_state`, compared in
+  constant time; section 3). The component judges it as it judges a
+  redirect, and in that step the listener answers `414 URI Too Long`, with
+  no return, and the page "This sign-in's answer is longer than
+  *application* accepts. Go back to *application* and start the sign-in
+  again.", *application* the name its owner gave the component (6.7);
+  the sign-in fails as a long redirect, naming the address's length and
+  the bound (`failed`, 6.3), at once rather than at its deadline; and the
+  listener closes once its page is sent. One with another state, with no
+  state or two, or for a sign-in no longer waiting, is refused as any
+  other, its refusal page, the sign-in still waiting: an over-long request
+  ends its own sign-in alone. A pasted redirect past the bound is refused
+  as another address (`redirect`), as before: a paste has its own
+  terminal. A head past the listener's own head bound is skein-http's
+  rejection (414 or 431, http.md), the sign-in still waiting; the head is
+  sized so that a browser's request for a redirect at the bound fits
+  (6.7).
 - **One redirect per sign-in.** Taking one leaves waiting in the step that
   takes it: the listener stops listening, a redirect it has read and not
   yet answered is refused, and so is any after it; a later `redirected` is
@@ -918,12 +943,36 @@ The component follows programming-model.md, 5.2.
 | listeners | loopback listeners at once |
 | refresh lead | how long before expiry a held or wanted grant is refreshed, and an access-only one announced |
 | lock wait | how long a write waits for the owner's `locked` before it fails as busy: a `Duration` from the `lock` it emits |
+| redirect bytes | the longest returning redirect the listener or a paste reads, the whole address with its query (`redirect_bytes`, 6.5), apart from the address the client sends out (`url_bytes`, section 5) |
 
 The owner gives these limits when it makes the component. The lock wait
 is a deadline on the injected monotonic clock (section 3), as each other
 deadline is, fired by the owner; once it passes, the write fails as busy,
 and a `locked` that comes later is answered by `unlock` at once, until
 `closed`, after which it is the owner's to release (6.4).
+
+- **The redirect bound holds a full answer.** `redirect_room` gives the
+  shortest `redirect_bytes` that holds the registered URI at the client's
+  `uri_bytes`, then `?code=` and a code at `code_bytes`, `&scope=` and a
+  scope at `scope_bytes`, `&state=` and a state at `state_bytes`, and
+  `&client_id=` and an issued client id at `issued_client_bytes`, each
+  unescaped: their bounds plus 31 bytes, or none past `u32`.
+- **The listener's head holds a browser's request** for a redirect at the
+  bound. `listener_head` gives the least `server.head` for it: the request
+  line, `GET `, a target of `redirect_bytes` and ` HTTP/1.1` with its line
+  end, then `BROWSER_FIELDS`, 8,192 bytes, for a browser's own fields with
+  their line ends, the cookies it holds for the loopback host among them,
+  and the blank line: 17 bytes past the two. A cookie is not scoped to a
+  port, so every loopback application's cookies for `127.0.0.1` reach the
+  listener: a browser's navigation fields take about one KiB, and the rest
+  holds its cookies.
+- `valid` checks neither, since an owner sizes its own redirects: one whose
+  profile holds them checks both (jig's
+  `jig/docs/design/protocol/configuration.md`, 6).
+- **The application's name** is the owner's, given when it makes the
+  component, for the listener's page (6.5): 1 to `APPLICATION_BYTES`, 64,
+  bytes of visible ASCII and spaces. Another makes the component unusable
+  as its limits do (`Unusable::Limits`).
 
 The client's own limits are section 5's. `skein_oauth_accounts::valid`
 checks account, exchange and listener capacities, client limits and the
@@ -982,6 +1031,15 @@ accounts component nor its listener requires a sum of heap prices.
   or another subject; exactly one `unlock` for each `locked` before
   `closed`, and none after it, a `locked` answered past `closed` left to
   the owner.
+- **Focused rows** beside the redirect's (6.5): a redirect with an
+  issuer's `code`, `scope`, `state` and `client_id`, its code synthetic
+  and 1,900 or 3,900 bytes long, taken from the listener and pasted under
+  bounds that hold it, where the client's `url_bytes` alone would refuse
+  it; one at the redirect bound, from a browser's real header set with a
+  cookie, within `listener_head`; and an over-long one from the listener,
+  with the sign-in's state (the long page, and the sign-in failed at once,
+  naming its length and the bound), another state, and another path (the
+  refusal page, the sign-in still waiting).
 - **Memory:** every limit at once, under named scenario ceilings with
   headroom.
 - **Transports:** the replaying tiers run plaintext issuers on loopback; TLS

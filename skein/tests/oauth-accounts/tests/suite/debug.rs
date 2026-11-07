@@ -101,6 +101,7 @@ fn debug_hides_oauth_secret_and_hand_written_views() {
         }])),
         &env.limits,
         CryptoRng::new(&Secret::new(bytes::copy_of(&[7; 32])), 0).expect("seed"),
+        b"oauth-accounts-world",
     )
     .expect("component");
     let mut events = Queue::uncapped();

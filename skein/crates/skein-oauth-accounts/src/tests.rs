@@ -9,6 +9,7 @@ pub(crate) fn limits() -> Limits {
         lock_wait: Duration::from_secs(1),
         exchanges: 2,
         listeners: 1,
+        redirect_bytes: 1024,
         server: skein_http::server::Limits {
             head: 2048,
             headers: 16,
@@ -52,7 +53,7 @@ fn setup() -> (Component, Env<Limits>, Queue<Event>) {
         Ok(()) => {}
         Err(_) => unreachable!("account slot"),
     }
-    let component = Component::new(accounts, &limits, crypto(1)).expect("component");
+    let component = Component::new(accounts, &limits, crypto(1), b"accounts-test").expect("component");
     (component, Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, Queue::uncapped())
 }
 
@@ -75,7 +76,10 @@ fn check_refuses_more_accounts_than_the_bound() {
     for _ in 0..3_u32 {
         accounts.push(Account::HandedIn).expect("configured account room");
     }
-    assert_eq!(Component::new(accounts, &limits(), crypto(1)).err(), Some(Unusable::Accounts { bound: 2 }));
+    assert_eq!(
+        Component::new(accounts, &limits(), crypto(1), b"accounts-test").err(),
+        Some(Unusable::Accounts { bound: 2 })
+    );
 }
 
 fn tests_record(generation: u64) -> SavedToken {
@@ -318,7 +322,7 @@ fn a_refresh_refused_as_sign_in_again_drops_an_owner_kept_record() {
     let profile = limits();
     let mut configured = List::with_capacity(1);
     configured.push(refresh_account(0, ([127, 0, 0, 1], 31000).into())).expect("configured account room");
-    let mut component = Component::new(configured, &profile, crypto(1)).expect("owner-kept account");
+    let mut component = Component::new(configured, &profile, crypto(1), b"accounts-test").expect("owner-kept account");
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: profile };
     let mut above = Queue::uncapped();
     let mut io = Queue::uncapped();
@@ -401,7 +405,7 @@ fn an_exchange_bound_refuses_a_second_account_before_admitting_its_grant() {
         configured.push(refresh_account(1, core::net::SocketAddr::from(([127, 0, 0, 1], 31000)))).is_ok(),
         "second account"
     );
-    let mut component = Component::new(configured, &limits, crypto(1)).expect("configured component");
+    let mut component = Component::new(configured, &limits, crypto(1), b"accounts-test").expect("configured component");
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut above = Queue::uncapped();
     let mut io = Queue::uncapped();
@@ -435,7 +439,10 @@ fn a_plaintext_endpoint_off_loopback_is_refused_at_startup() {
         configured.push(refresh_account(0, core::net::SocketAddr::from(([192, 0, 2, 1], 31000)))).is_ok(),
         "account"
     );
-    assert_eq!(Component::new(configured, &limits(), crypto(1)).err(), Some(Unusable::Plaintext { account: 0 }));
+    assert_eq!(
+        Component::new(configured, &limits(), crypto(1), b"accounts-test").err(),
+        Some(Unusable::Plaintext { account: 0 })
+    );
     let mut configured = List::with_capacity(1);
     assert!(
         configured.push(refresh_account(0, core::net::SocketAddr::from(([192, 0, 2, 1], 31000)))).is_ok(),
@@ -505,7 +512,7 @@ fn an_owner_record_without_an_issued_id_is_held_as_none() {
     }
     let mut configured = List::with_capacity(1);
     configured.push(account).expect("configured account room");
-    let mut component = Component::new(configured, &profile, crypto(1)).expect("issued registration");
+    let mut component = Component::new(configured, &profile, crypto(1), b"accounts-test").expect("issued registration");
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: profile };
     let mut above = Queue::uncapped();
     component.down(&env, Request::Grant { account: 0 }, &mut above, &mut Queue::uncapped(), &mut Queue::uncapped());
@@ -667,6 +674,26 @@ mod openid;
 mod paste;
 
 #[test]
+fn redirect_and_listener_room_include_answer_fields_and_browser_framing() {
+    let profile = paste::answer_profile();
+    let mut overflow = profile;
+    overflow.client.uri_bytes = u32::MAX;
+    let mut separator_overflow = profile;
+    separator_overflow.client.uri_bytes = u32::MAX - 9280;
+    skein_rows::check(
+        [
+            ("full answer", (redirect_room(&profile), Some(13_407))),
+            ("answer sum overflow", (redirect_room(&overflow), None)),
+            ("answer separators overflow", (redirect_room(&separator_overflow), None)),
+            ("browser request", (listener_head(16_384), Some(24_593))),
+            ("browser fields overflow", (listener_head(u32::MAX), None)),
+            ("request framing overflow", (listener_head(u32::MAX - BROWSER_FIELDS), None)),
+        ],
+        |(observed, expected)| assert_eq!(observed, expected),
+    );
+}
+
+#[test]
 fn permitted_account_limits_pass_validation_including_large_bounds() {
     skein_rows::check(
         [
@@ -682,11 +709,29 @@ fn permitted_account_limits_pass_validation_including_large_bounds() {
         ],
         |bounds| assert!(valid(&bounds)),
     );
+    skein_rows::check(
+        [
+            ("empty application", (b"".as_slice(), false)),
+            ("long application", (&[b'a'; 65], false)),
+            ("nonvisible application", (b"app\x7f", false)),
+            ("space in application", (b"account test", true)),
+            ("maximum application", (&[b'a'; 64], true)),
+        ],
+        |(application, made)| {
+            assert_eq!(
+                Component::new(List::with_capacity(0), &limits(), crypto(1), application).err(),
+                if made { None } else { Some(Unusable::Limits) }
+            );
+        },
+    );
 }
 
 fn refuses_limits(bounds: &Limits) {
     assert!(!valid(bounds));
-    assert_eq!(Component::new(List::with_capacity(0), bounds, crypto(1)).err(), Some(Unusable::Limits));
+    assert_eq!(
+        Component::new(List::with_capacity(0), bounds, crypto(1), b"accounts-test").err(),
+        Some(Unusable::Limits)
+    );
     assert_eq!(Component::check(List::with_capacity(0), bounds).err(), Some(Unusable::Limits));
 }
 
