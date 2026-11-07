@@ -1,0 +1,81 @@
+draft = "per-wake-temper"
+repo = "fabrig"
+sources = ["temper/docs/plan/per-wake-temper/inputs/request.md", "temper/docs/design/draft/per-wake.md", "temper/docs/design/draft/per-wake.status.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/migration"
+priority = true
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "form"
+title = "temper's settings form, ctl's settings file and its JSON show carry a charter's parts and a template's later choice"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/tools.md, 5.3"
+
+[[slice]]
+id = 1
+story = "A settings file with a charter's parts and a template's later choice applies and shows back whole, and a malformed part is refused at its path"
+parts = ["form"]
+walk = false
+
+[[part]]
+id = "focused"
+title = "The reference's charters 2, 6, 7 and 8 hold what their roles act on, and its test holds every charter to a stock worker and the run bound"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.9"
+
+[[slice]]
+id = 2
+story = "The reference's settings test fails for a charter no stock worker takes or no box stores"
+parts = ["focused"]
+walk = false
+
+[[part]]
+id = "show"
+title = "temper ctl settings show prints a charter's parts with their on and sizes, and a template's later choice; the help says what each is"
+mode = "direct"
+needs = ["form"]
+design = "temper/docs/design/client/tools.md, 5.3"
+
+[[slice]]
+id = 3
+story = "An owner reading a charter in text sees each part's on and size, and a template's later choice"
+parts = ["show"]
+walk = false
+
+[[part]]
+id = "reference"
+title = "The reference's charter 5 in four parts, focused, with a rule for a request that needs no design; template 4's later choice"
+mode = "direct"
+needs = ["form", "focused"]
+design = "temper/docs/design/protocol/configuration.md, 13.9"
+
+[[slice]]
+id = 4
+story = "The reference's settings file gives charter 5 its shared text and four parts, each rule once, and template 4 Opus 5.5 at xhigh first and high later"
+parts = ["reference"]
+walk = false
+
+[[part]]
+id = "story"
+title = "The per-wake story in the engine's domain world: the reference goal's cut and its answer read their parts at their efforts"
+mode = "direct"
+needs = ["reference"]
+design = "temper/docs/design/protocol/configuration.md, 13.9"
+
+[[slice]]
+id = 5
+story = "In the engine's domain world, a goal from template 4 reads its shared text and cut at Opus xhigh; a question reaching its cut waits for the next run, which reads the questions part at Opus high, with no amendment"
+parts = ["story"]
+walk = false
+
+[[question]]
+id = "charter-size-refusal"
+answer = "Yes: name the charter, its stored size and the bound. Add the member jig's refusal detail needs, in place, across client wire 19 and the people family's stored refusals, with no version bump or migration (no compatibility before v0.1.0); temper/ui was told first, by seam 2, and sees no collision. The clients that render a refusal's detail (temper-client-tools: src/jig/render/acts.rs, render/document/me.rs, jig/settings_adapter.rs) show the new member in ctl's words, as `charter 5: stored policy: supplied 70112; maximum root.journal.run_bytes 65536`. Keep the existing refusal kinds. A row in an existing refusal test, and the schemas regenerated."
+text = "Should a change of settings refused for a charter's stored size name the charter, its size and the bound, as request item 6 and the draft's section 8 ask? Today jig's core refuses it as the charter's item out of shape (jig/crates/jig-domain-core/src/settings/check.rs, `parts_fault`: `Fault::Shape`, no detail), and ctl prints `settings apply: out of shape; item 1; charter 5: shape`. jig's refusal detail (`SettingDetail`: member, supplied, bound) names a charter's documents alone, and it crosses the client wire 19 (`client-v19-part1.schema`) and is kept in the people family's stored refusals (`people-v14.schema`, `SettingDetail`), so naming the size and the bound adds a member to a protocol and a stored format: yours, and the request makes any such change a question first. The start already names them (`temper-service/src/startup/problems.rs`: `charter N: B bytes, past root.journal.run_bytes of L`). This plan builds the rest without it and keeps the draft's status lag 8 open. Options: yes, in place before v0.1.0, as a plan of its own of two or three tasks: jig's `SettingMember` gains the charter's stored policy (supplied its bytes, bound `core.run_bytes`, rule maximum) in the core, both translations, the wire and the people store; then ctl's and the host's words, `charter 5: stored policy: supplied 70112; maximum root.journal.run_bytes 65536`, a row in ctl's refusal table (recommended); or no, ctl's words for a charter's `shape` add that its stored policy may pass `root.journal.run_bytes`, naming neither figure."
+parts = ["focused"]

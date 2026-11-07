@@ -559,7 +559,22 @@ pub(crate) fn llm_choice(value: Option<&w::LlmChoice>, limits: &Limits) -> Resul
     for item in value.subagents() {
         subagents.push(llm_model_effort(item, limits)?).expect("same capacity");
     }
-    Ok(Some(c::LlmChoice { account: *value.account(), main: llm_model_effort(value.main(), limits)?, subagents }))
+    let later = match value.later() {
+        Some(later) => {
+            let mut subagents = List::with_capacity(later.subagents().len());
+            for item in later.subagents() {
+                subagents.push(llm_model_effort(item, limits)?).expect("same capacity");
+            }
+            Some(c::LlmLater { main: llm_model_effort(later.main(), limits)?, subagents })
+        }
+        None => None,
+    };
+    Ok(Some(c::LlmChoice {
+        account: *value.account(),
+        main: llm_model_effort(value.main(), limits)?,
+        subagents,
+        later,
+    }))
 }
 
 pub(crate) fn llm_model_effort(value: &w::ModelEffort, limits: &Limits) -> Result<c::ModelEffort, w::Problem> {
@@ -721,7 +736,17 @@ pub(crate) fn settings_restore_charter(value: &w::Charter, limits: &Limits) -> R
             })
             .expect("same capacity");
     }
+    let mut parts = List::with_capacity(value.parts().len());
+    for item in value.parts() {
+        parts
+            .push(c::CharterPart {
+                on: item.on(),
+                instructions: settings_text(item.instructions(), w::CEILINGS.charter_part_instructions)?,
+            })
+            .expect("same capacity");
+    }
     Ok(c::Charter {
+        parts,
         rest: value.rest(),
         documents,
         switches: [value.resume(), value.inspect(), value.modify(), value.shell(), value.agents()],
@@ -1377,7 +1402,19 @@ pub(crate) fn llm_wire_choice(
     Ok(Some(w::LlmChoice::new(
         limits,
         w::LlmChoiceParts {
-            later: None,
+            later: match &value.later {
+                Some(later) => {
+                    let mut subagents = List::with_capacity(later.subagents.len());
+                    for item in &later.subagents {
+                        subagents.push(llm_wire_model_effort(item, limits)?).expect("same capacity");
+                    }
+                    Some(w::LlmLater::new(
+                        limits,
+                        w::LlmLaterParts { main: llm_wire_model_effort(&later.main, limits)?, subagents },
+                    )?)
+                }
+                None => None,
+            },
             account: value.account,
             main: llm_wire_model_effort(&value.main, limits)?,
             subagents,
@@ -1515,10 +1552,19 @@ pub(crate) fn settings_wire_charter(value: &c::Charter, limits: &w::Limits) -> R
             )?)
             .expect("same capacity");
     }
+    let mut parts = List::with_capacity(value.parts.len());
+    for item in &value.parts {
+        parts
+            .push(w::CharterPart::new(
+                limits,
+                w::CharterPartParts { on: item.on, instructions: bytes::copy_of(item.instructions.bytes()) },
+            )?)
+            .expect("same capacity");
+    }
     w::Charter::new(
         limits,
         w::CharterParts {
-            parts: List::with_capacity(0),
+            parts,
             documents,
             skein_bools: [value.rest, value.resume(), value.inspect(), value.modify(), value.shell(), value.agents()],
             number: value.number,

@@ -29,16 +29,23 @@ pub(super) fn charter(d: &Decoder, at: u32) -> Result<c::Charter, Error> {
             b"spend",
             b"wake",
             b"documents",
+            b"parts",
         ],
     )?;
+    let resume = d.boolean(field(&fields, b"resume")?)?;
+    let parts = charter_parts(d, optional(&fields, b"parts"))?;
+    if resume && !parts.is_empty() {
+        return Err(error(b"charter.parts", b"a charter that resumes takes no parts"));
+    }
     Ok(c::Charter {
+        parts,
         rest: match optional(&fields, b"rest") {
             Some(at) => d.boolean(at)?,
             None => false,
         },
         documents: documents(d, field(&fields, b"documents")?)?,
         switches: [
-            d.boolean(field(&fields, b"resume")?)?,
+            resume,
             d.boolean(field(&fields, b"inspect")?)?,
             d.boolean(field(&fields, b"modify")?)?,
             d.boolean(field(&fields, b"shell")?)?,
@@ -80,6 +87,94 @@ pub(super) fn charter(d: &Decoder, at: u32) -> Result<c::Charter, Error> {
             Some(_) | None => c::WakePolicy::DEFAULT,
         },
     })
+}
+fn charter_parts(d: &Decoder, at: Option<u32>) -> Result<List<c::CharterPart>, Error> {
+    let Some(at) = at else { return Ok(List::with_capacity(0)) };
+    let positions = match d.array(at, d.limits.charter_parts, b"charter.parts") {
+        Ok(positions) => positions,
+        Err(mut why) => {
+            if why.bound.is_some() {
+                why.rule = b"tasks.charter_parts bound".as_slice().into();
+            }
+            return Err(why);
+        }
+    };
+    let mut parts = List::with_capacity(positions.len());
+    for (index, at) in positions.iter().enumerate() {
+        match charter_part(d, *at) {
+            Ok(part) => parts.push(part).expect("checked part count"),
+            Err(why) => return Err(indexed_error(b"charter.parts", index, why)),
+        }
+    }
+    Ok(parts)
+}
+fn indexed_error(path: &[u8], index: usize, why: Error) -> Error {
+    let digits = skein_lib::Decimal::of(u64::try_from(index).expect("bounded index"));
+    let mut measured = crate::Text::measure();
+    for item in [path, b"[", digits.as_bytes(), b"]"] {
+        measured.put(item);
+    }
+    let mut out = crate::Text::writing_exact(measured);
+    for item in [path, b"[", digits.as_bytes(), b"]"] {
+        out.put(item);
+    }
+    why.at(&out.finish())
+}
+fn charter_part(d: &Decoder, at: u32) -> Result<c::CharterPart, Error> {
+    let fields = d.object(at, &[b"on", b"instructions"])?;
+    let on = part_reasons(d, field(&fields, b"on")?)?;
+    let instructions = match d.words(
+        field(&fields, b"instructions")?,
+        d.limits.charter_instructions.min(d.limits.charter_part_instructions),
+        b"instructions",
+    ) {
+        Ok(text) => text,
+        Err(why) => return Err(why.named(b"instructions")),
+    };
+    Ok(c::CharterPart { on, instructions })
+}
+fn part_reasons(d: &Decoder, at: u32) -> Result<u32, Error> {
+    // Each name takes a distinct bit; the JSON token bound limits malformed lists.
+    let positions = d.array(at, d.doc.len(), b"on")?;
+    if positions.is_empty() {
+        return Err(error(b"on", b"names no kind"));
+    }
+    let mut on = 0_u32;
+    for (index, at) in positions.iter().enumerate() {
+        let name = match d.string(*at) {
+            Ok(name) => name,
+            Err(why) => return Err(indexed_error(b"on", index, why)),
+        };
+        let mut bit = None;
+        for (index, candidate) in c::REASON_NAMES.iter().enumerate() {
+            if name == *candidate {
+                bit = Some(1_u32.checked_shl(u32::try_from(index).expect("reason index")).expect("reason bit"));
+                break;
+            }
+        }
+        let why = match bit {
+            Some(bit) if on & bit == 0 => {
+                on |= bit;
+                continue;
+            }
+            Some(_) => b" twice".as_slice(),
+            None if c::ALWAYS_OFFERED_NAMES.contains(&name) => b" goes to every run and chooses no part",
+            None => b" is no reason",
+        };
+        return Err(indexed_error(b"on", index, reason_error(name, why)));
+    }
+    Ok(on)
+}
+fn reason_error(name: &[u8], why: &[u8]) -> Error {
+    let mut measured = crate::Text::measure();
+    for item in [b"\"".as_slice(), name, b"\"", why] {
+        measured.put(item);
+    }
+    let mut out = crate::Text::writing_exact(measured);
+    for item in [b"\"".as_slice(), name, b"\"", why] {
+        out.put(item);
+    }
+    Error { member: b"".as_slice().into(), rule: out.finish(), bound: None }
 }
 fn wake_policy(d: &Decoder, at: u32) -> Result<c::WakePolicy, Error> {
     match wake_policy_value(d, at) {
@@ -654,8 +749,15 @@ fn task_flags(d: &Decoder, at: u32) -> Result<c::TaskFlags, Error> {
     })
 }
 fn llm_choice(d: &Decoder, at: u32) -> Result<c::LlmChoice, Error> {
-    let fields = d.object(at, &[b"account", b"main", b"subagents"])?;
+    let fields = d.object(at, &[b"account", b"main", b"subagents", b"later"])?;
     Ok(c::LlmChoice {
+        later: match optional(&fields, b"later") {
+            Some(at) => match llm_later(d, at) {
+                Ok(later) => Some(later),
+                Err(why) => return Err(why.at(b"llm.later")),
+            },
+            None => None,
+        },
         account: if d.kind(field(&fields, b"account")?)? == Kind::Null {
             None
         } else {
@@ -675,6 +777,40 @@ fn llm_choice(d: &Decoder, at: u32) -> Result<c::LlmChoice, Error> {
             values
         },
     })
+}
+fn llm_later(d: &Decoder, at: u32) -> Result<c::LlmLater, Error> {
+    let fields = d.object(at, &[b"main", b"subagents"])?;
+    let main = match later_model_effort(d, field(&fields, b"main")?) {
+        Ok(main) => main,
+        Err(why) => return Err(why.at(b"main")),
+    };
+    let mut subagents = List::with_capacity(0);
+    if let Some(at) = optional(&fields, b"subagents") {
+        let positions = d.array(at, d.limits.llm_choice_subagents, b"subagents")?;
+        subagents = List::with_capacity(positions.len());
+        for (index, at) in positions.iter().enumerate() {
+            match later_model_effort(d, *at) {
+                Ok(value) => subagents.push(value).expect("checked subagent count"),
+                Err(why) => return Err(indexed_error(b"subagents", index, why)),
+            }
+        }
+    }
+    Ok(c::LlmLater { main, subagents })
+}
+fn later_model_effort(d: &Decoder, at: u32) -> Result<c::ModelEffort, Error> {
+    let fields = d.object(at, &[b"model", b"effort"])?;
+    let model = match d.words(field(&fields, b"model")?, d.limits.model_effort_model, b"model") {
+        Ok(model) => model,
+        Err(why) => return Err(why.named(b"model")),
+    };
+    let effort = match field(&fields, b"effort")? {
+        at if d.kind(at)? == Kind::Null => None,
+        at => match d.words(at, d.limits.model_effort_effort_some, b"effort") {
+            Ok(effort) => Some(effort),
+            Err(why) => return Err(why.named(b"effort")),
+        },
+    };
+    Ok(c::ModelEffort { model, effort })
 }
 fn owner_authority(d: &Decoder, at: u32) -> Result<c::Authority, Error> {
     let fields = d.object(

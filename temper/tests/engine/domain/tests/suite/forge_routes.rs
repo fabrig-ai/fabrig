@@ -107,6 +107,9 @@ mod goal_tool;
 #[path = "forge_routes/goal_branch.rs"]
 mod goal_branch;
 
+#[path = "forge_routes/per_wake.rs"]
+mod per_wake;
+
 #[path = "forge_routes/goal_changes.rs"]
 mod goal_changes;
 
