@@ -27,6 +27,19 @@ fn a_scene_draws_as_its_golden_svg() {
 }
 
 #[test]
+fn a_scene_uses_its_own_height_with_the_box_width() {
+    for height in [0, 74, u16::MAX] {
+        let mut scene = Scene::new(&LIMITS);
+        scene.set_height(height);
+        let printed = dom::print(&svg::draw(&scene, NAMES, 100, 50));
+        assert_eq!(
+            printed,
+            format!("<svg aria-hidden=\"true\" width=\"100\" height=\"{height}\" viewBox=\"0 0 100 {height}\"></svg>")
+        );
+    }
+}
+
+#[test]
 fn a_refused_scene_draws_nothing() {
     let mut limits = LIMITS;
     limits.scene_marks = 0;
