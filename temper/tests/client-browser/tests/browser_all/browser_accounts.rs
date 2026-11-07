@@ -23,9 +23,16 @@ fn the_accounts_page_returns_after_a_key_send() {
         input(b"Key (pasted once)", b"private-browser-key"),
         press(b"Add key", Role::Button),
         see(Find::text(b"Added your Test provider API key")),
+        Step::Address(b"/accounts".as_slice().into()),
         press(b"Chats", Role::Link),
         see(chats()),
         Step::Back,
+        see(Find::text(b"Your accounts")),
+        Step::Address(b"/accounts".as_slice().into()),
+        Step::Person(PersonStep::Gone { find: Find::text(b"Added your"), within: WITHIN }),
+        press(b"+ Connect a model", Role::Link),
+        see(accounts()),
+        press(b"Add key", Role::Link),
         see(Find::exactly_named(Role::Heading { level: 1 }, b"A Test provider API key")),
         // The browser kit refuses typing into a nonempty field: this proves re-entry after clearing.
         input(b"Key (pasted once)", b"another-private-key"),
@@ -61,10 +68,7 @@ impl skein_fake_person_browser::harness::Play for RoundTrip {
             let address = std::str::from_utf8(&address).expect("ASCII return address");
             let (_, path) =
                 address.strip_prefix("http://").expect("clients HTTP origin").split_once('/').expect("page path");
-            let source = path
-                .strip_prefix("accounts/connect?provider=17&way=sign-in&source=")
-                .expect("ConnectModel source on the page that stayed");
-            assert!(!source.is_empty() && source.bytes().all(|byte| byte.is_ascii_digit()), "numeric source");
+            assert_eq!(path, "accounts", "the account replaces the sign-in way's history entry");
             self.script = Script::new(Box::new([
                 Step::Address(format!("/{path}").into_bytes().into_boxed_slice()),
                 Step::Back,
@@ -81,10 +85,12 @@ impl skein_fake_person_browser::harness::Play for RoundTrip {
                 Step::Address(b"/chats".as_slice().into()),
                 Step::Forward,
                 Step::Forward,
-                Step::Person(PersonStep::See { find: Find::text(b"Signed in to Test provider"), within: WITHIN }),
+                Step::Person(PersonStep::See { find: Find::text(b"Your accounts"), within: WITHIN }),
                 Step::Address(format!("/{path}").into_bytes().into_boxed_slice()),
+                Step::Person(PersonStep::Gone { find: Find::text(b"Added your"), within: WITHIN }),
                 Step::Person(PersonStep::Reload),
-                Step::Person(PersonStep::See { find: Find::text(b"Signed in to Test provider"), within: WITHIN }),
+                Step::Person(PersonStep::See { find: Find::text(b"Your accounts"), within: WITHIN }),
+                Step::Person(PersonStep::Gone { find: Find::text(b"Added your"), within: WITHIN }),
                 Step::Address(format!("/{path}").into_bytes().into_boxed_slice()),
                 sign_in_tab(),
             ]));
@@ -107,7 +113,7 @@ impl skein_fake_person_browser::harness::Play for RoundTrip {
 }
 
 #[test]
-fn the_sign_in_opens_a_tab_and_the_page_moves_on_to_ready() {
+fn the_sign_in_opens_a_tab_and_lands_on_accounts() {
     use skein_fake_peers::oauth::Observation;
     use skein_fake_person_browser::harness::Lent;
     let (tier, mut issuer) = Tier::accounts_sign_in("accounts-round-trip");
@@ -130,7 +136,7 @@ fn the_sign_in_opens_a_tab_and_the_page_moves_on_to_ready() {
                 within: WITHIN,
             }),
             Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Sign in to Test provider") }),
-            Step::Person(PersonStep::See { find: Find::text(b"Signed in to Test provider"), within: WITHIN }),
+            Step::Person(PersonStep::See { find: Find::text(b"Added your Test provider account"), within: WITHIN }),
             sign_in_tab(),
         ])),
         reading: false,

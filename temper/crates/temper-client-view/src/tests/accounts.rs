@@ -194,7 +194,7 @@ fn a_row_holds_its_trials_line() {
             let mut view = fixtures::view_of(words);
             let tree = fixtures::build(&mut view, &root);
             let nodes = account_nodes(tree);
-            let head = nodes.iter().position(|n| n.role == Role::Heading { level: 3 }).unwrap();
+            let head = nodes.iter().position(|n| n.role == Role::Disclosure).unwrap();
             let at = nodes
                 .iter()
                 .position(|n| n.role == Role::Paragraph && n.name.as_deref() == Some(line.as_bytes()))
@@ -347,7 +347,7 @@ fn card_heading(doc: c::Accounts) -> Vec<u8> {
     fixtures::build(&mut view, &root)
         .nodes()
         .iter()
-        .find(|node| node.role == Role::Heading { level: 3 })
+        .find(|node| node.role == Role::Disclosure && node.styles.as_slice().contains(&crate::look::SETTINGS_ROW))
         .unwrap()
         .name
         .as_ref()
@@ -355,13 +355,18 @@ fn card_heading(doc: c::Accounts) -> Vec<u8> {
         .to_vec()
 }
 #[test]
-fn a_cards_region_is_named_by_its_heading() {
+fn a_row_names_the_account_without_an_inner_heading() {
     let (mut root, watch) = fixtures::account_root();
     deliver(&mut root, watch, card_document(b"openai", b"alice@example.com", c::AccountKind::SignIn));
     let mut view = fixtures::view();
     let tree = fixtures::build(&mut view, &root);
-    let heading = tree.nodes().iter().find(|node| node.role == Role::Heading { level: 3 }).unwrap();
-    assert!(tree.nodes().iter().any(|node| node.role == Role::Disclosure && node.name == heading.name));
+    let heading = tree
+        .nodes()
+        .iter()
+        .find(|node| node.role == Role::Disclosure && node.styles.as_slice().contains(&crate::look::SETTINGS_ROW))
+        .unwrap();
+    assert_eq!(heading.name.as_deref(), Some("ChatGPT · alice@example.com · OpenAI · held by Pat".as_bytes()));
+    assert!(!tree.nodes().iter().any(|node| node.role == Role::Heading { level: 3 }));
 }
 #[test]
 fn a_plan_card_names_the_plan_display_brand_and_holder() {
@@ -555,7 +560,16 @@ fn shown_at(doc: c::Accounts, counts: jig_client::AccountCounts) -> String {
     let (mut root, watch) = fixtures::account_root();
     deliver(&mut root, watch, doc);
     let mut view = bounded_view(counts);
-    String::from_utf8(fixtures::text(fixtures::build(&mut view, &root)).into_vec()).unwrap()
+    let tree = fixtures::build(&mut view, &root);
+    let mut text = String::from_utf8(fixtures::text(tree).into_vec()).unwrap();
+    for node in tree.nodes() {
+        if node.role == Role::Disclosure && node.styles.as_slice().contains(&crate::look::SETTINGS_ROW) {
+            for summary in [&node.name, &node.description].into_iter().flatten() {
+                text.push_str(&String::from_utf8_lossy(summary));
+            }
+        }
+    }
+    text
 }
 fn bounded_view(counts: jig_client::AccountCounts) -> crate::View {
     let mut domain = fixtures::limits();
@@ -1067,7 +1081,12 @@ fn an_owner_sees_deployment_accounts_after_their_own() {
         skein_lib::bytes::find(&text, b"Your accounts").unwrap()
             < skein_lib::bytes::find(&text, b"Deployment accounts").unwrap()
     );
-    assert!(skein_lib::bytes::find(&text, b"Account 41").is_some());
+    assert!(
+        view.tree()
+            .nodes()
+            .iter()
+            .any(|n| n.role == Role::Disclosure && n.name.as_ref().is_some_and(|name| name.starts_with(b"Account 41")))
+    );
 }
 #[test]
 fn the_rows_offer_no_number_fields() {
@@ -1303,7 +1322,7 @@ fn deployment_accounts_past_the_count_are_named() {
     assert_eq!(
         tree.nodes()
             .iter()
-            .filter(|node| node.role == Role::Heading { level: 3 }
+            .filter(|node| node.role == Role::Disclosure
                 && node.name.as_ref().is_some_and(|name| name.starts_with(b"Account 41")))
             .count(),
         2
@@ -1382,7 +1401,7 @@ fn accounts_are_folded_disclosures_with_their_state_and_line() {
     // Opening is native shell state; every row keeps its content in the semantic tree.
     let at = tree.nodes().iter().position(|n| n.id == row.id).unwrap();
     let content = &tree.nodes()[at..at + usize::try_from(row.size).unwrap()];
-    for name in [b"Pays for".as_slice(), b"Add an API key", b"Sign out", b"Remove account"] {
+    for name in [b"Add an API key".as_slice(), b"Sign out", b"Remove account"] {
         assert!(content.iter().any(|n| n.name.as_deref() == Some(name)), "{name:?}");
     }
 }
@@ -1428,7 +1447,7 @@ fn declined_plan_usage_belongs_to_the_ending_named_account() {
     let row = tree
         .nodes()
         .iter()
-        .position(|n| n.role == Role::Heading { level: 3 } && n.name.as_ref().unwrap().starts_with(b"ChatGPT"))
+        .position(|n| n.role == Role::Disclosure && n.name.as_ref().unwrap().starts_with(b"ChatGPT"))
         .unwrap();
     let text = String::from_utf8(fixtures::text(tree).into_vec()).unwrap();
     assert!(text.contains("You signed in without plan usage."));
@@ -1750,10 +1769,8 @@ fn an_accounts_row_keeps_its_header_sources_facts_and_acts_in_order() {
     assert!(nodes[0].states.is_empty());
     let mut previous = 0;
     for (role, name) in [
-        (Role::Status, b"Ready".as_slice()),
         (Role::Paragraph, b"Its sources in order: a run takes the first usable one.".as_slice()),
-        (Role::Region, b"Models".as_slice()),
-        (Role::Region, b"Pays for".as_slice()),
+        (Role::Status, b"Ready".as_slice()),
         (Role::Button, b"Remove account".as_slice()),
     ] {
         let at = nodes.iter().position(|node| node.role == role && node.name.as_deref() == Some(name)).unwrap();
@@ -1819,7 +1836,7 @@ fn a_real_account_added_before_is_ready_in_the_playground() {
 }
 
 #[test]
-fn no_account_is_a_quiet_band_and_an_unread_document_claims_nothing() {
+fn no_account_has_one_primary_way_and_unread_facts_claim_nothing() {
     let (mut root, watch) = fixtures::account_root();
     for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
         let tree = view.tree();
@@ -1833,13 +1850,12 @@ fn no_account_is_a_quiet_band_and_an_unread_document_claims_nothing() {
     for mut view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
         let tree = view.tree();
         assert!(fixtures::find(tree, Role::Heading { level: 2 }, "Your accounts · 0".as_bytes()).is_some());
-        let band = super::inbox::subtree(tree, super::inbox::styled(tree, crate::look::SETTINGS_QUIET_BAND));
-        assert!(band[0].styles.as_slice().contains(&crate::look::SETTINGS_BAND));
-        assert!(band.iter().any(|n| n.styles.as_slice().contains(&crate::look::SETTINGS_TAG)
-            && n.name.as_deref() == Some(b"No account yet")));
+        let band = super::inbox::subtree(tree, super::inbox::styled(tree, crate::look::CONNECT_EMPTY));
+        assert!(!tree.nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::SETTINGS_QUIET_BAND)));
+        assert!(fixtures::find(tree, Role::Link, b"+ Connect a model").is_none());
         assert!(String::from_utf8_lossy(&fixtures::text(tree)).contains("No model of yours yet."));
         let act = band.iter().find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Connect a model")).unwrap();
-        assert!(act.styles.as_slice().contains(&crate::look::SETTINGS_PRIMARY));
+        assert!(act.styles.as_slice().contains(&crate::look::CONNECT_PRIMARY));
         assert!(!act.styles.as_slice().contains(&crate::look::SETTINGS_SMALL));
         let id = act.id;
         assert_eq!(

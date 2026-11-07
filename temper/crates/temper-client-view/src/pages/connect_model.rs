@@ -382,8 +382,8 @@ pub(crate) fn main(
     super::settings::path(b, root, w, pages, project, super::settings::FlowTab::Accounts, Word::PathConnectAccount);
     let way = model::way(root.pages(), root.client());
     let heading = match way {
-        Some(way) if !ready(root, way) => way_heading(root, w, way),
-        Some(_) | None => w.say(Word::ConnectModel, &[]),
+        Some(way) => way_heading(root, w, way),
+        None => w.say(Word::ConnectModel, &[]),
     };
     b.open(Role::Heading { level: 1 });
     b.style(look::SETTINGS_HEADLINE);
@@ -452,21 +452,6 @@ pub(super) fn signing_heading(root: &Domain, w: &Words, way: Way) -> Box<[u8]> {
     let Some(me) = accounts::current_me(root.client()) else { return say(w, W::SigningIn) };
     let (_, plan) = names(me, way);
     w.say(Word::ModelSigningIn, &[Hole::Name(crate::choice::shown(plan, w))])
-}
-fn ending_heading(root: &Domain, w: &Words, way: Way) -> Box<[u8]> {
-    if model::model_way(way).kind == WayKind::SignIn {
-        if let Some(page) = root.pages().connect_model()
-            && let SignInState::Ended { source } = page.request.sign_in_state(root.client())
-            && let Some(doc) = accounts::document(root.client())
-            && let Some(last) = &doc.last_end
-            && last.source == source
-            && let c::AccountEnd::Made { account, declined: false } = last.end
-        {
-            return made_words(root, w, way, account, false);
-        }
-        return signing_heading(root, w, way);
-    }
-    say(w, W::Ready)
 }
 pub(super) fn key_field(b: &mut Builder, root: &Domain, bindings: &mut Bindings, busy: bool, word: &[u8]) {
     let Some(page) = root.pages().connect_model() else { return };
@@ -558,7 +543,8 @@ pub(crate) fn body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         return;
     };
     if ready(root, way) {
-        flow::details(b, &ending_heading(root, w, way));
+        b.open(Role::Slot);
+        b.style(look::CONNECT_PANEL);
         ready_body(b, root, w, bindings, way, &ways);
         b.close();
         return;
@@ -742,30 +728,9 @@ pub(super) fn ready_body(
 ) {
     let Some(page) = root.pages().connect_model() else { return };
     let Some(me) = accounts::current_me(root.client()) else { return };
-    let (brand, plan) = names(me, way);
+    let (_, plan) = names(me, way);
     match way {
-        Way::Key { .. } => {
-            crate::cards::text(b, Role::Status, &named(w, W::KeyAdded, brand));
-            text(b, w, Role::Paragraph, W::KeyRuns);
-        }
-        Way::Program { .. } => {
-            let Some(pending) = &page.request.pending else { return };
-            let name = match &pending.outcome {
-                Some(jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(
-                    c::Outcome::Document(c::DocumentOutcome::AccountProgramDeclared { name, .. }),
-                )))) => name.as_ref(),
-                _ => b"",
-            };
-            let label = words::say(
-                w,
-                W::ProgramDeclared,
-                &[Hole::Name(crate::choice::shown(plan, w)), Hole::Name(crate::choice::shown(name, w))],
-            );
-            crate::cards::text(b, Role::Status, &label);
-            text(b, w, Role::Paragraph, W::ProgramRun);
-            command(b, root, w, name, false);
-            text(b, w, Role::Paragraph, W::ProgramNote);
-        }
+        Way::Key { .. } | Way::Program { .. } => return,
         Way::SignIn { .. } => {
             let mut ending = None;
             if let SignInState::Ended { source } = page.request.sign_in_state(root.client())

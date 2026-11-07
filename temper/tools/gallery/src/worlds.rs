@@ -3278,7 +3278,7 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
                     name: Some(Box::from("pat@example.com".as_bytes())),
                     place: 1,
                     number: 3,
-                    kind: if then == Then::KeyReady { c::AccountKind::Key } else { c::AccountKind::SignIn },
+                    kind: c::AccountKind::SignIn,
                     state: c::AccountState::Granted,
                     usable: true,
                     expiring: false,
@@ -3290,7 +3290,7 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
                 number: 2,
                 place: 2,
                 uses: None,
-                plan: then != Then::KeyReady,
+                plan: true,
                 provider: Some(18),
                 provider_name: Some(doc("openai")),
                 manage_usage: None,
@@ -3478,8 +3478,7 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
             | Then::Releasing
             | Then::SigningIn
             | Then::Paste(_)
-            | Then::AccountRefused
-            | Then::KeyReady => None,
+            | Then::AccountRefused => None,
         },
         usable: w != World::Bare && w != (FirstRun { step: 0 }),
         settled: true,
