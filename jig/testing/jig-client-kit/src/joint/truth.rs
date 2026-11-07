@@ -20,6 +20,7 @@ pub struct Truth {
 impl Truth {
     /// Seed the already-applied bootstrap image without reporting a new commit.
     #[must_use]
+    #[expect(clippy::needless_pass_by_value, reason = "the owned bootstrap constructor keeps its public signature")]
     pub fn after(rows: BTreeMap<root::Key, root::Record>) -> Self {
         Self::seen(&rows)
     }
@@ -28,8 +29,11 @@ impl Truth {
     #[must_use]
     pub fn seen(rows: &BTreeMap<root::Key, root::Record>) -> Self {
         let (waiting, words, ended) = facts(rows);
-        let rows = rows.iter().filter(|(_, record)| answer_record(record))
-            .map(|(key, record)| (key.clone(), record.clone())).collect();
+        let rows = rows
+            .iter()
+            .filter(|(_, record)| answer_record(record))
+            .map(|(key, record)| (key.clone(), record.clone()))
+            .collect();
         Self { rows, waiting, words, ended }
     }
 
@@ -250,17 +254,28 @@ mod tests {
     fn an_answer_rewritten_after_seen_is_made_again_and_one_unchanged_is_not() {
         let rows = image(0, vec![answer(1), answer(2)]).rows;
         let mut truth = Truth::seen(&rows);
-        assert_eq!(truth.applied(image(1, vec![answer(1), answer(2)])),
-            vec![Observed::Durable { commit: 1, at: Time::from_nanos(17) }]);
+        assert_eq!(
+            truth.applied(image(1, vec![answer(1), answer(2)])),
+            vec![Observed::Durable { commit: 1, at: Time::from_nanos(17) }]
+        );
         let mut rewritten = answer(1);
         let root::Record::Core(core::Record::People(jig_domain_people::Stored::Answer { outcome, .. })) =
-            &mut rewritten else { unreachable!("answer fixture") };
+            &mut rewritten
+        else {
+            unreachable!("answer fixture")
+        };
         *outcome = jig_domain_people::Outcome::Said { task: 7, message: 5 };
-        assert_eq!(truth.applied(image(2, vec![rewritten.clone(), answer(2)])),
-            vec![Observed::Durable { commit: 2, at: Time::from_nanos(17) },
-                Observed::Made { party: 1, key: [9; 16], commit: 2 }]);
-        assert_eq!(truth.applied(image(3, vec![rewritten, answer(2)])),
-            vec![Observed::Durable { commit: 3, at: Time::from_nanos(17) }]);
+        assert_eq!(
+            truth.applied(image(2, vec![rewritten.clone(), answer(2)])),
+            vec![
+                Observed::Durable { commit: 2, at: Time::from_nanos(17) },
+                Observed::Made { party: 1, key: [9; 16], commit: 2 }
+            ]
+        );
+        assert_eq!(
+            truth.applied(image(3, vec![rewritten, answer(2)])),
+            vec![Observed::Durable { commit: 3, at: Time::from_nanos(17) }]
+        );
     }
     #[test]
     fn complete_applied_activity_images_keep_whole_words_and_report_actual_retention_loss() {

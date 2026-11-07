@@ -90,9 +90,9 @@ struct Seen {
     patches: Queue<skein_ui::Patch>,
 }
 impl Seen {
-    fn get(seen: &mut Option<Self>, limits: client::Limits) -> &mut Self {
+    fn get<'a>(seen: &'a mut Option<Self>, limits: &client::Limits) -> &'a mut Self {
         seen.get_or_insert_with(|| {
-            let view = jig_client_kit::test::linked_view(&limits);
+            let view = jig_client_kit::test::linked_view(limits);
             let patches = Queue::with_capacity(Test::patch_limit(&view));
             Self { view, patches }
         })
@@ -281,15 +281,20 @@ impl NativeClient {
         if !self.account_sign_in_controlled
             && let Some(mut terminal) = self.terminal.take()
         {
-            terminal.iterate(now, Test::tree(&Seen::get(&mut self.seen, self.env.limits).view), changed);
+            terminal.iterate(now, Test::tree(&Seen::get(&mut self.seen, &self.env.limits).view), changed);
             while let Some(command) = terminal.commands().pop() {
                 match command {
                     skein_ui_text::Command::Act { node, first, submit } => {
-                        let event = Test::act(&mut Seen::get(&mut self.seen, self.env.limits).view, node, first).expect("terminal act");
+                        let event = Test::act(&mut Seen::get(&mut self.seen, &self.env.limits).view, node, first)
+                            .expect("terminal act");
                         self.callback(event);
                         if submit {
-                            let event =
-                                Test::act(&mut Seen::get(&mut self.seen, self.env.limits).view, node, skein_ui::Act::Submit).expect("terminal submit");
+                            let event = Test::act(
+                                &mut Seen::get(&mut self.seen, &self.env.limits).view,
+                                node,
+                                skein_ui::Act::Submit,
+                            )
+                            .expect("terminal submit");
                             self.callback(event);
                         }
                     }
@@ -355,7 +360,7 @@ impl Host for NativeClient {
             Test::take(&mut self.root, &self.env, &mut self.out);
             self.outputs();
             if !self.account_sign_in_controlled {
-                let seen = Seen::get(&mut self.seen, self.env.limits);
+                let seen = Seen::get(&mut self.seen, &self.env.limits);
                 Test::build(&mut seen.view, &self.root, &mut seen.patches);
                 changed = !seen.patches.is_empty();
                 while seen.patches.pop().is_some() {}
@@ -363,9 +368,13 @@ impl Host for NativeClient {
             if self.terminal.is_none() && !self.account_sign_in_controlled {
                 self.wake = None;
                 let before = self.person.at();
-                match self.person.next(&mut TreeFace::new(Test::tree(&Seen::get(&mut self.seen, self.env.limits).view)), now) {
+                match self
+                    .person
+                    .next(&mut TreeFace::new(Test::tree(&Seen::get(&mut self.seen, &self.env.limits).view)), now)
+                {
                     Next::Do(Doing::Act { node, act }) => {
-                        let event = Test::act(&mut Seen::get(&mut self.seen, self.env.limits).view, node, act).expect("offered person action");
+                        let event = Test::act(&mut Seen::get(&mut self.seen, &self.env.limits).view, node, act)
+                            .expect("offered person action");
                         self.callback(event);
                     }
                     Next::Do(Doing::Go { address }) => {

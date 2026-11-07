@@ -86,8 +86,14 @@ impl World {
                 },
             ))));
         } else if boot == Boot::Caller {
-            let projects: Vec<_> = world.restart_config.0.core.seed_projects.iter()
-                .map(|project| (project.number, project.policy.policy.period_spend)).collect();
+            let projects: Vec<_> = world
+                .restart_config
+                .0
+                .core
+                .seed_projects
+                .iter()
+                .map(|project| (project.number, project.policy.policy.period_spend))
+                .collect();
             world.hello_engine();
             for (project, budget) in projects {
                 world.send(root::Event::Core(core::Event::Period { project, period: 1, budget, next: None }));
