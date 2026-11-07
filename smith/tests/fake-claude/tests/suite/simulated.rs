@@ -221,10 +221,14 @@ fn each_invocation_is_observed_by_its_environment_s_names() {
         observations(&bytes),
         vec![
             Observation {
+                directory: ".".into(),
+                directory_has_entries: true,
                 arguments: vec!["auth".into(), "login".into()],
                 environment: vec!["HOME".into(), "CLAUDE_CONFIG_DIR".into(), "SECRET".into()]
             },
             Observation {
+                directory: ".".into(),
+                directory_has_entries: true,
                 arguments: vec!["auth".into(), "status".into()],
                 environment: vec!["HOME".into(), "CLAUDE_CONFIG_DIR".into(), "SECRET".into()]
             },

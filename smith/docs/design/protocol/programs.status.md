@@ -6,12 +6,7 @@ Section 3 has no known gap in reading a usable status's optional email,
 bounded to 255 bytes, without making usability depend on it. Section 8's
 fake status supplies it; this does not establish a real-login render check.
 
-- **Not yet:** 5.1, 5.3, 8: a run with no workspace keeps Claude Code's
-  prompt through `--append-system-prompt-file`, with slash commands on, the
-  built-in tools of its granted families and its own files' directory as its
-  working directory; the fake program takes neither `--system-prompt-file`
-  nor `--disable-slash-commands`.
-  5.1, 5.5: what the program offers is not read from
+- **Not yet:** 5.1, 5.5: what the program offers is not read from
   `system/init`'s `capabilities`: `checked_init`
   (`smith-protocol-program/src/backend/stream.rs`) checks its tools and
   MCP servers only. 8: whether the live suite passes on Claude Code

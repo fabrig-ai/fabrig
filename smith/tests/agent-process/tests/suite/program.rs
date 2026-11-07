@@ -97,10 +97,17 @@ fn a_program_grant_starts_claude_with_its_command() {
     assert_eq!(value("--tools"), "");
     assert_eq!(value("--max-turns"), "1");
     assert_eq!(value("--permission-prompt-tool"), "mcp__smith__permission_prompt");
-    assert!(value("--append-system-prompt-file").starts_with("/programs/.runs/"));
-    assert!(value("--append-system-prompt-file").ends_with("/instructions.md"));
+    assert!(value("--system-prompt-file").starts_with("/programs/.runs/"));
+    assert!(value("--system-prompt-file").ends_with("/instructions.md"));
     assert!(value("--mcp-config").ends_with("/mcp.json"));
+    assert_eq!(
+        run.invocations[1].directory,
+        value("--system-prompt-file").strip_suffix("instructions.md").expect("run directory").to_owned() + "work"
+    );
+    assert!(!run.invocations[1].directory_has_entries, "the private working directory starts empty");
+    assert!(!arguments.iter().any(|argument| argument == "--append-system-prompt-file"));
     assert!(arguments.iter().any(|argument| argument == "--strict-mcp-config"));
+    assert!(arguments.iter().any(|argument| argument == "--disable-slash-commands"));
     assert_eq!(value("--session-id").len(), 36);
     let schema: serde_json::Value = serde_json::from_str(value("--json-schema")).expect("inline outcome schema");
     assert!(schema["properties"]["outcome"].get("oneOf").is_some());

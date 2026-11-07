@@ -18,9 +18,20 @@ fn script(cue: &str, texts: &[&str]) -> Script {
 }
 
 fn invocation(contents: &[Value], session: &str, resume: bool, prompt: &str) -> Invocation {
+    invocation_with_prompt_flag(contents, session, resume, prompt, "--append-system-prompt-file")
+}
+
+fn invocation_with_prompt_flag(
+    contents: &[Value],
+    session: &str,
+    resume: bool,
+    prompt: &str,
+    flag: &str,
+) -> Invocation {
     let invocation = print::invocation(0);
     let mut arguments = print::arguments();
     let prompt_flag = arguments.iter().position(|value| value == "--append-system-prompt-file").expect("prompt flag");
+    arguments[prompt_flag] = flag.into();
     arguments[prompt_flag + 1] = prompt.into();
     let session_flag = arguments.iter().position(|value| value == "--session-id").expect("session flag");
     arguments[session_flag] = if resume { "--resume" } else { "--session-id" }.into();
@@ -63,28 +74,30 @@ fn selected(run: &Run) -> Vec<Seen> {
 
 #[test]
 fn a_system_cue_selects_its_script() {
-    let story =
-        Story { cued: vec![script("writer", &["written"]), script("reviewer", &["reviewed"])], ..Story::default() };
-    let run = print::sequence_files(
-        story,
-        vec![
-            invocation(&[json!("hello")], print::SESSION, false, PROMPT),
-            invocation(&[json!("hello")], OTHER_SESSION, false, "run/review.md"),
-        ],
-        vec![
-            Item::file(PROMPT.as_bytes(), b"you are the writer"),
-            Item::file(b"run/review.md", b"you are the reviewer"),
-        ],
-    );
-    assert_eq!(answers(&run), [json!("written"), json!("reviewed")]);
-    assert!(run.records.iter().all(|record| record.exit == Some(skein_io::kernel::Exit::Code(0))));
-    assert_eq!(
-        selected(&run),
-        [
-            Seen::Selected { script: Selection::Cued(0), turn: 0 },
-            Seen::Selected { script: Selection::Cued(1), turn: 0 },
-        ]
-    );
+    for prompt_flag in ["--append-system-prompt-file", "--system-prompt-file"] {
+        let story =
+            Story { cued: vec![script("writer", &["written"]), script("reviewer", &["reviewed"])], ..Story::default() };
+        let run = print::sequence_files(
+            story,
+            vec![
+                invocation_with_prompt_flag(&[json!("hello")], print::SESSION, false, PROMPT, prompt_flag),
+                invocation_with_prompt_flag(&[json!("hello")], OTHER_SESSION, false, "run/review.md", prompt_flag),
+            ],
+            vec![
+                Item::file(PROMPT.as_bytes(), b"you are the writer"),
+                Item::file(b"run/review.md", b"you are the reviewer"),
+            ],
+        );
+        assert_eq!(answers(&run), [json!("written"), json!("reviewed")]);
+        assert!(run.records.iter().all(|record| record.exit == Some(skein_io::kernel::Exit::Code(0))));
+        assert_eq!(
+            selected(&run),
+            [
+                Seen::Selected { script: Selection::Cued(0), turn: 0 },
+                Seen::Selected { script: Selection::Cued(1), turn: 0 },
+            ]
+        );
+    }
 }
 
 #[test]
