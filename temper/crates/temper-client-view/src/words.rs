@@ -1460,7 +1460,7 @@ const PHRASES: u32 = 1913;
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
 const SEGMENTS: u32 = 3332;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 46845;
+const ENGLISH_BYTES: u32 = 46863;
 const ALL: [Word; 1312] = [
     Word::CloseTitle,
     Word::CloseChat,
@@ -5190,7 +5190,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::AllModels => (&[b"All models"], &[]),
         Word::ModelsBack => (&[b"\xe2\x80\xb9 Models"], &[]),
         Word::FindModel => (&[b"Find a model"], &[]),
-        Word::ModelsAccounts => (&[b"Accounts, in Settings"], &[]),
+        Word::ModelsAccounts => (&[b"Choose what the list shows, in Settings"], &[]),
         Word::ModelNextTurn => (&[b"A change applies from the next turn."], &[]),
         Word::ModelChanging => (&[b"Changing\xe2\x80\xa6"], &[]),
         Word::ModelSubscription => (&[b"your subscription"], &[]),

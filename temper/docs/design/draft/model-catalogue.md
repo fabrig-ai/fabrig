@@ -131,9 +131,9 @@ provider has an account usable now and serving its payer (jig's
   to section 2's table adds to the defaults at its start, decided by the
   release, and a model a person turned off stays off (jig's
   `domain/engine.md`, 17.7).
-- **What leaves the files:** `engine.llm.models` and each provider's `models`
-  from `temper.json`; each endpoint's `models` from `agent.json`. Providers,
-  endpoints and sources stay (`../protocol/configuration.md`, section 2).
+- **What the files refuse:** under passed defaults, `engine.llm.models` and
+  each provider's `models` in `temper.json`; each endpoint's `models` in
+  `agent.json`. Providers, endpoints and sources stay (`../protocol/configuration.md`, section 2).
 - **smith takes a model from the charter.** The charter's LLM already
   gives its window, output and effort; the endpoint gives the rest as one
   default for its models, `reasoning_item`, `head` and `idle`. The agent

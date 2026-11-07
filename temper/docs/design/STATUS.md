@@ -63,8 +63,12 @@ resumable window first asks the window's model for a summary
 hidden beside a usable one of the same provider (`client/README.md`). The
 configuring inventory is filtered, but whole charter reads still name models
 outside the offer and only instructions restrict proposals to it
-(`domain/agent.md`, `draft/model-catalogue.md`). Model settings and provider
-list reads remain the catalogue's later steps. The watch rooms follow admitted
+(`domain/agent.md`, `draft/model-catalogue.md`). Model settings live in the
+store; Settings has Models, with picker switches,
+adding by name, estimated prices and the omitted count. All models links to
+that project's Models tab. Provider-list reads remain `model-catalogue-3`'s
+work; page 07's render check follows landing, owned by temper/ui. The watch
+rooms follow admitted
 streams, with the whole room available to one party; obsolete watch-room overrides are refused and ctl names a watch
 refused busy at its deadline. Ctl's deadline names the link, stream, read or
 act's outcome, with retention and retry words; request and watch retries

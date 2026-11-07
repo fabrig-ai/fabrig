@@ -1677,7 +1677,7 @@ The pages a person meets it on are `../client/README.md`, 5.13.
 
 | Member today | Becomes | Its default (13.4) |
 |---|---|---|
-| `engine.llm.models`, each provider's `models` and each agent endpoint's `models` | jig's models | temper's stock models, numbered (13.4) |
+| Models in the deployment and agent files, refused under passed defaults | jig's models | temper's stock models, numbered (13.4) |
 | jig's `engine.charters` | jig's charters | temper's stock charters: a chat's (1), a coding agent's (2) and the configuring agent's (3) |
 | jig's `engine.templates` | jig's templates | jig's chat (1) and goal (2), and temper's configuring chat (3) |
 | jig's `engine.policies` | jig's policies projects are made from | the stock policy (1) |

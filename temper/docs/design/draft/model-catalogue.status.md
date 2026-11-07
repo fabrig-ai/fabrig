@@ -8,12 +8,7 @@
     a usable account of the same provider. Section 11 defers those separate
     account rows. Settings, Models is
     `../client/README.md`, 3.5, *The `Models` tab*.
-  - 4, 6: `../client/README.md`, 3.5, *All models* links to Accounts and
-    says "Accounts, in Settings" where the look request `model-picker`'s
-    page 04 says "Choose what the list shows, in Settings"; Settings, Models
-    now carries the list and its switches.
-  - 5, 7: Settings, Models draws no "Read again", "Couldn't read OpenAI's list · 2 hours ago", "new" tag or clause on where a list came from beyond temper's own, and the store keeps no per-account record of names: step 3, `model-catalogue-3`, built on `ModelSource::List`, `withdrawn` and `new_model` (jig's `domain/engine.md`, 17.11).
-  - 4: `temper/docs/help/account.md` and `temper/docs/help/deployment.md`: "Offering another model" edits both files.
+  - 5, 7: Settings, Models draws no "Read again", "Couldn't read OpenAI's list · 2 hours ago", "new" tag, "Read from OpenAI 2 hours ago" or another clause on where a list came from beyond temper's own, and the store keeps no per-account record of names: step 3, `model-catalogue-3`, built on `ModelSource::List`, `withdrawn` and `new_model` (jig's `domain/engine.md`, 17.11).
   - 5: jig's `domain/accounts.md`, 3.4: a host checks a program's source alone. jig's `domain/engine.md`, 17.7: the deciders. smith's `protocol/agent.md`: no request lists an endpoint's models.
 - **Design departs:**
   - 3: `../domain/agent.md`, 8.1 gives the inventory the offer alone, but
