@@ -13,15 +13,19 @@ the standing rules `notes/common.md`.
 
 ## Parts and tasks
 
+Five tasks, within the request's seven; item 6 is dropped behind a question (below).
+
 | Part | Task | Needs | What | Request item |
 |---|---|---|---|---|
 | form | `form` | | the settings file, the form's view, wire and client adapter carry `parts` and `later`; the decoder refuses a malformed part at its path; `FIELDS` and its page | 2 |
 | focused | `focused` | | charters 2, 6, 7 and 8 focused; the settings test holds every charter to a stock worker's bounds and `root.journal.run_bytes` | 5, 7 |
+| show | `show` | form | `settings show`'s text: a line per part with its `on` and bytes, a template's later choice; the charter and template help pages | 2 |
+| reference | `reference` | form, focused | charter 5 as shared text and four parts, each rule once, focused, with the no-design rule; template 4's later choice; stage one's judge sees the parts | 3, 4, 5 |
+| story | `story` | form, reference | the story in the engine's domain world (`temper/tests/engine/domain`): the cut at Opus xhigh, a question kept for the next run, which reads the questions part at Opus high | 1 |
 
-Later batches add: `show` (needs `form`: `settings show`'s text lines for parts and a later
-choice, the help pages), `reference` (needs `form`, `focused`: charter 5 in four parts and
-focused, the no-design rule, template 4's later choice) and `story` (needs `reference`: the
-story in the engine's domain world).
+One writer per file: `settings.json` and `reference_settings.rs` are `focused`'s, then
+`reference`'s; the form crate is `form`'s, then `show`'s (`render.rs`). The design (each
+task's status bullet) was written by the cut and pushed with the first batch.
 
 ## Dropped
 
@@ -33,8 +37,9 @@ story in the engine's domain world).
 
 ## Critical path
 
-`form` (150 min), then `reference` (120), then `story` (150): about 420
-implementer-minutes. `focused` (100) runs beside `form`, and `show` beside `reference`.
+`form` (150 min), then `reference` (130), then `story` (150): about 430
+implementer-minutes. `focused` (100) runs beside `form`, and `show` (70) beside
+`reference`.
 
 ## Overlaps with drafts beside this one
 
@@ -44,4 +49,6 @@ implementer-minutes. `focused` (100) runs beside `form`, and `show` beside `refe
   brief figure and its status's lines on it; `temper/crates/temper-service/src/tests/stock_brief.rs`,
   which `focused` and `reference` only read. Unavoidable, and textually apart.
 - `tui-approval/temper-config` lists `temper/docs/help/reference/configuration.md`; `form`
-  regenerates `settings-fields.md` alone.
+  regenerates `settings-fields.md` alone, and `show` `ctl-settings.md` if it moves.
+- No draft beside this one lists `temper/tests/engine/domain/**`, `temper/tools/stage-one/**`
+  or `temper/docs/examples/reference/**`.
