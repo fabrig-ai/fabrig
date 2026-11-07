@@ -49,7 +49,7 @@ impl Judge {
                     );
                 }
                 Story::Restart => assert_eq!(client.facts, RESTARTED),
-                Story::Public => {
+                Story::Public | Story::Profile(_) => {
                     assert!(client.facts.contains(&Fact::Granted(2)));
                     assert_eq!(client.records.len(), 2);
                 }

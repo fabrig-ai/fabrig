@@ -345,7 +345,7 @@ fn heading(
                 && clause == pays(root, *other, provider, w)
                 && let Some(row) = account_row(root, account)
             {
-                clause = shown(row.display.bytes(), w);
+                clause = shown(crate::accounts::words::who(row.email(), row.display.bytes()), w);
                 break;
             }
         }

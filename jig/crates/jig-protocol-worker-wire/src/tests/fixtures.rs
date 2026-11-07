@@ -24,6 +24,7 @@ pub const LIMITS: v9::Limits = v9::Limits {
     source_failed_detail: 16,
     login_otherwise_method: 32,
     login_name: 32,
+    login_email_some: 255,
     logins_logins: 2,
     signed_out_name: 32,
     credential_name: 16,

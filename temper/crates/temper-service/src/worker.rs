@@ -788,7 +788,7 @@ impl Worker {
         if let Some((owner, answer)) = settled {
             let event = match answer {
                 hub::sources::Answer::Read(outcome) => root::Event::ListRead { read: owner.raw(), outcome },
-                answer @ (hub::sources::Answer::Checked(_) | hub::sources::Answer::SignedOut(_)) => {
+                answer @ (hub::sources::Answer::Checked { .. } | hub::sources::Answer::SignedOut(_)) => {
                     root::Event::SourceAnswered { owner, answer }
                 }
             };

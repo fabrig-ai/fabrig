@@ -65,6 +65,8 @@ pub enum Story {
     PasteClose,
     /// Public sign-in followed by a rotating refresh.
     Public,
+    /// `OpenID` profile sign-in and a refresh whose answer optionally carries claims.
+    Profile(bool),
     /// The preferred loopback port is held by another listener.
     VaryingTaken,
     /// Two sign-ins wait together on their own ephemeral ports.
@@ -155,6 +157,7 @@ pub(super) fn return_location(story: Story) -> Option<Box<[u8]>> {
         | Story::AnotherSubject
         | Story::RequiredScopes
         | Story::Public
+        | Story::Profile(_)
         | Story::Restart
         | Story::VaryingTaken
         | Story::TwoPorts
@@ -199,12 +202,24 @@ pub fn registration(story: Story) -> oauth::Registration {
     }
     if matches!(
         story,
-        Story::OpenIdAgain | Story::Return(Return::After) | Story::IssuedClientId | Story::AnotherSubject
+        Story::Profile(_)
+            | Story::OpenIdAgain
+            | Story::Return(Return::After)
+            | Story::IssuedClientId
+            | Story::AnotherSubject
     ) {
         registration.scope = bytes::copy_of(b"openid");
         registration.terms = Some(oauth::Terms {
             issued_client_id: story == Story::IssuedClientId,
-            openid: Some(oauth::OpenId { issuer: bytes::copy_of(ISSUER), key_set: None }),
+            openid: Some(oauth::OpenId {
+                profile: if matches!(story, Story::Profile(_)) {
+                    oauth::Profile { email: true, name: true }
+                } else {
+                    oauth::Profile::default()
+                },
+                issuer: bytes::copy_of(ISSUER),
+                key_set: None,
+            }),
             ..crate::world::terms()
         });
     }
@@ -221,6 +236,10 @@ pub enum Fact {
     Keep(u64),
     /// The kept sign-in completed.
     SignedIn(u64),
+    /// Profile claims accompanied the sign-in terminal.
+    Profile,
+    /// Profile claims accompanied a durably kept refresh.
+    Refreshed(u64),
     /// Required scopes declined by the issuer.
     Missing(Box<[u8]>),
     /// The owner heard a usable grant.
@@ -494,7 +513,11 @@ impl Referee<Process> for Judge {
             posts
                 <= if matches!(
                     self.story,
-                    Story::Public | Story::TwoPorts | Story::OpenIdAgain | Story::Return(Return::After)
+                    Story::Public
+                        | Story::Profile(_)
+                        | Story::TwoPorts
+                        | Story::OpenIdAgain
+                        | Story::Return(Return::After)
                 ) {
                     2
                 } else {
@@ -511,7 +534,11 @@ impl Referee<Process> for Judge {
                 posts,
                 if matches!(
                     self.story,
-                    Story::Public | Story::TwoPorts | Story::OpenIdAgain | Story::Return(Return::After)
+                    Story::Public
+                        | Story::Profile(_)
+                        | Story::TwoPorts
+                        | Story::OpenIdAgain
+                        | Story::Return(Return::After)
                 ) {
                     2
                 } else {

@@ -1,0 +1,27 @@
+draft = "ui-forge-setup"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-forge-setup/inputs/request.md", "temper/docs/design/draft/forge-identity.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "app-made"
+title = "temper can keep the AppMade item in the secrets' store, before anything writes it"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/credentials.md, 2.1"
+
+[[part]]
+id = "answers"
+title = "Reconcile answers a given person's id, the App's plans its account, and Convert writes AppMade first"
+mode = "direct"
+needs = ["app-made"]
+design = "skein/docs/design/forge-setup.md, 4.3"
+
+[[slice]]
+id = 1
+story = "On the fake forges, a Reconcile given a person's login answers its id and none for an account gone, and a manifest's Convert marks its App and answers the App's account, which temper keeps and ignores"
+parts = ["app-made", "answers"]
+walk = false

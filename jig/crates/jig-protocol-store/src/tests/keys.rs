@@ -62,6 +62,15 @@ fn a_key_past_its_limit_is_none() {
 fn the_installations_key_names_no_account_and_an_accounts_key_reads_its_numbers() {
     let installation = keys::installation(fixtures::KEY_LIMIT).expect("within the key limit");
     assert_eq!(keys::decode(&installation), None);
+    for (key, expected) in [
+        (jig_domain_accounts::Key::Facts { account: 7 }, &[1, 4, 5, 0, 0, 0, 0, 0, 0, 0, 7][..]),
+        (jig_domain_accounts::Key::Facts { account: u32::MAX }, &[1, 4, 5, 0, 0, 0, 0, 255, 255, 255, 255][..]),
+    ] {
+        let key = Key::Accounts(key);
+        let bytes = keys::encode(&key, fixtures::KEY_LIMIT).expect("within key limit");
+        assert_eq!(bytes.as_ref(), expected);
+        assert_eq!(keys::decode(&bytes), Some(key));
+    }
     let source = Key::Accounts(jig_domain_accounts::Key::Source { account: 3, number: 4 });
     let bytes = keys::encode(&source, fixtures::KEY_LIMIT).expect("within the key limit");
     assert_eq!(&*bytes, &[1, 4, 2, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 4]);

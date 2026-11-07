@@ -14,7 +14,7 @@ fn key_bytes(key: &Key) -> Box<[u8]> {
 
 // Generated samples and explicit late-interval keys.
 const SAMPLES: u32 = 500;
-const BOUNDARY_KEYS: u32 = 5;
+const BOUNDARY_KEYS: u32 = 8;
 // A census and the combined core/tasks request, beside LIVE's single ranges.
 const EXTRA_REQUESTS: u32 = 2;
 fn samples() -> core::ops::Range<u32> {
@@ -43,6 +43,9 @@ fn cursor_keys() -> Box<[Key]> {
         keys.push(fixtures::key(&mut rng)).expect("counted samples");
     }
     for key in [
+        Key::Accounts(jig_domain_accounts::Key::Facts { account: 0 }),
+        Key::Accounts(jig_domain_accounts::Key::Facts { account: 7 }),
+        Key::Accounts(jig_domain_accounts::Key::Facts { account: u32::MAX }),
         Key::People(jig_domain_people::Key::Acted(jig_domain_people::ActKey { connector: 1, key: [0; 16] })),
         Key::People(jig_domain_people::Key::Deletion(1)),
         Key::Tasks(jig_domain_tasks::Key::PlacedHold(TASK)),
@@ -350,9 +353,15 @@ fn a_requesters_delegates_interval_holds_its_edges_only() {
 #[test]
 fn the_accounts_restore_range_stops_before_the_installations_row() {
     let ranges = intervals::restore(&RestoreRange::Accounts);
+    let starts: [&[u8]; 3] = [&[1, 4, 4], &[1, 4, 0], &[1, 4, 5]];
+    assert_eq!(ranges.len(), starts.len());
+    for (range, expected) in ranges.iter().zip(starts) {
+        assert_eq!(range.start.as_ref(), expected);
+    }
     let installation = keys::installation(fixtures::KEY_LIMIT).expect("within the key limit");
     assert!(!fixtures::within(&ranges, &installation), "tag 3 is no domain record");
     for key in [
+        jig_domain_accounts::Key::Facts { account: u32::MAX },
         jig_domain_accounts::Key::Issued { number: u32::MAX },
         jig_domain_accounts::Key::Next,
         jig_domain_accounts::Key::Account { number: u32::MAX },

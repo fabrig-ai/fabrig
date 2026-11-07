@@ -1175,6 +1175,7 @@ fn accounts_watch_delivers_the_signed_in_partys_facts() {
             program_hosts: list(vec![]),
             accounts: list(vec![AccountLine {
                 list: history,
+                facts: skein_lib::List::with_capacity(0),
                 number: 7,
                 place: 0,
                 uses: None,

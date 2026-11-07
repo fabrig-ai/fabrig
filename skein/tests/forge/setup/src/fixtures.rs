@@ -17,6 +17,7 @@ pub fn given(owned: bool) -> Given {
         api_name: b"kit-api".as_slice().into(),
         git_name: b"kit-git".as_slice().into(),
         orgs: if owned { Box::new([b"acme".as_slice().into(), b"work".as_slice().into()]) } else { Box::new([]) },
+        person: None,
         org_owner: owned.then(|| b"ada".as_slice().into()),
         adopted: Box::new([]),
         listener: None,
@@ -574,7 +575,7 @@ pub mod github_stories {
     #[must_use]
     pub fn connected(seed: u64) -> (HostWorld, Secret) {
         let mut world = HostWorld::github(seed, &[]);
-        for item in [Item::AppId, Item::AppKey, Item::AppSlug, Item::User, Item::Accepted] {
+        for item in [Item::AppMade, Item::AppId, Item::AppKey, Item::AppSlug, Item::User, Item::Accepted] {
             world.forget(item);
         }
         world.run_plan(1, Plan::Manifest { forge: FORGE, target: Target::Personal });
@@ -594,7 +595,7 @@ pub mod github_stories {
         let code = Secret::new(fields.remove("code").expect("code").into_boxed_slice());
         world.run_plan(2, Plan::Convert { forge: FORGE, code: code.clone(), state });
         world.settle();
-        assert!(matches!(world.heard().last(), Some(Heard::Done { outcome: Outcome::Nothing, .. })));
+        assert!(matches!(world.heard().last(), Some(Heard::Done { outcome: Outcome::Made { .. }, .. })));
         (world, code)
     }
     #[must_use]
@@ -652,11 +653,20 @@ pub mod github_stories {
     }
     pub fn done(world: &HostWorld, run: u64) {
         assert_eq!(world.heard().iter().filter(|event| matches!(event, Heard::Done { run: token, .. } | Heard::Stop { run: token, .. } if *token == Token::new(run))).count(), 1);
-        let Some(Heard::Done { run: token, outcome: Outcome::Lacking { lacking }, .. }) = world.heard().last() else {
+        let Some(Heard::Done { run: token, outcome: Outcome::Lacking { lacking, owner }, .. }) = world.heard().last()
+        else {
             panic!("reconcile Done: {:?}", world.heard().last())
         };
         assert_eq!(*token, Token::new(run));
         assert!(lacking.is_empty());
+        assert_eq!(
+            owner.as_ref(),
+            Some(&skein_forge::github::document::AppOwner {
+                id: 31,
+                login: b"alice".as_slice().into(),
+                kind: skein_forge::github::document::Account::User,
+            })
+        );
     }
     pub fn closed(world: &mut HostWorld) {
         let diagnostics = format!("{:?} {:?} {:?}", world.heard(), world.needs(), world.github_requests());

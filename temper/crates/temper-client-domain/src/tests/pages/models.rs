@@ -68,6 +68,7 @@ fn reading_fixture() -> (crate::Domain, skein_lib::Token) {
     doc.accounts = List::with_capacity(1);
     doc.accounts
         .push(c::AccountLine {
+            facts: List::with_capacity(0),
             list: Some(c::AccountList { read: None, tried: None, failure: None, left_out: 0 }),
             number: 1,
             place: 1,

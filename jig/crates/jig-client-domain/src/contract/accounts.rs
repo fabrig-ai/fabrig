@@ -52,6 +52,7 @@ pub struct AccountLine {
     pub display: DocumentText,
     pub holder: AccountHolder,
     pub sources: List<AccountSource>,
+    pub facts: List<AccountFact>,
     pub cut: bool,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -140,6 +141,62 @@ pub enum AccountEnd {
     Renewed { account: u32, declined: bool },
     Refused { refusal: AccountRefusal },
     Failed { failure: AccountFailure },
+}
+
+/// Registry numbers the client reads (domain/accounts.md, 3.7).
+pub const FACT_EMAIL: u16 = 1;
+pub const FACT_NAME: u16 = 2;
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct AccountFact {
+    pub kind: u16,
+    pub label: Box<[u8]>,
+    pub value: AccountFactValue,
+    pub seen: Wall,
+    pub source: Option<u32>,
+    pub origin: u16,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum AccountFactValue {
+    Text(Box<[u8]>),
+    Count(u64),
+    Instant(Wall),
+    Span(Duration),
+    Share(u16),
+    Window(AccountWindow),
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct AccountWindow {
+    pub length: Option<Duration>,
+    pub used: Option<u16>,
+    pub resets: Option<Wall>,
+    pub state: u16,
+}
+impl AccountLine {
+    #[must_use]
+    pub fn email(&self) -> Option<&[u8]> {
+        email(&self.facts)
+    }
+}
+impl super::Account {
+    #[must_use]
+    pub fn email(&self) -> Option<&[u8]> {
+        email(&self.facts)
+    }
+}
+fn email(facts: &List<AccountFact>) -> Option<&[u8]> {
+    for fact in facts {
+        if fact.kind == FACT_EMAIL {
+            return match &fact.value {
+                AccountFactValue::Text(text) => Some(text),
+                AccountFactValue::Count(_)
+                | AccountFactValue::Instant(_)
+                | AccountFactValue::Span(_)
+                | AccountFactValue::Share(_)
+                | AccountFactValue::Window(_) => None,
+            };
+        }
+    }
+    None
 }
 
 /// Public list history (jig/docs/design/client/domain/contract.md, 5.1).

@@ -1283,6 +1283,7 @@ fn account_new_work(event: &accounts::Event) -> bool {
         | accounts::Event::SignOut { .. } => true,
         accounts::Event::ForgetProject { .. }
         | accounts::Event::Restore { .. }
+        | accounts::Event::ProgramSaid { .. }
         | accounts::Event::ProgramTargets { .. }
         | accounts::Event::ProgramSignedOut { .. }
         | accounts::Event::Component(..)

@@ -26,7 +26,7 @@ pub fn refusal(index: u32, why: Refused) -> Problems {
         | Place::Plan => unreachable!("Create fields and file limits are temper constants or admitted SetUp names"),
         Place::BotLogin => entry.member(b"bot").member(b"login"),
         Place::BotEmail => entry.member(b"bot").member(b"email"),
-        Place::OrgOwner => entry.member(b"mode").member(b"owned").member(b"person").member(b"login"),
+        Place::OrgOwner | Place::Person => entry.member(b"mode").member(b"owned").member(b"person").member(b"login"),
         Place::Deadline | Place::CopyDeadline => {
             what = What::Reason(b"outside its type");
             limits.member(b"setup.deadline_ms")
@@ -86,6 +86,7 @@ pub fn refusal(index: u32, why: Refused) -> Problems {
             | Place::ApiName
             | Place::GitName
             | Place::OrgOwner
+            | Place::Person
             | Place::Backoff => unreachable!("kit limit pairs name maximum backoff or deadline"),
         });
     }
@@ -106,6 +107,7 @@ pub fn values(
         bot_login: entry.bot.login.clone(),
         bot_email: entry.bot.email.clone(),
         orgs: Box::new([]),
+        person: None,
         // The runtime supplies the restored adopted ids in its Reconcile plan.
         adopted: Box::new([]),
         org_owner: match &entry.mode {

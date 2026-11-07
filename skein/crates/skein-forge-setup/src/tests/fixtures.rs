@@ -116,6 +116,7 @@ pub fn given() -> crate::given::Given {
         git_name: b"kit-git".as_slice().into(),
         orgs: Box::new([]),
         org_owner: None,
+        person: None,
         adopted: Box::new([]),
         listener: None,
         word: b"kit".as_slice().into(),
@@ -166,6 +167,7 @@ pub fn token_read(item: crate::item::Item) -> Run {
         Item::AdminToken
         | Item::User
         | Item::WebhookSecret
+        | Item::AppMade
         | Item::AppId
         | Item::AppSlug
         | Item::AppKey
@@ -203,6 +205,7 @@ pub fn token_name(item: crate::item::Item) -> &'static [u8] {
         Item::AdminToken
         | Item::User
         | Item::WebhookSecret
+        | Item::AppMade
         | Item::AppId
         | Item::AppSlug
         | Item::AppKey
@@ -223,6 +226,7 @@ pub fn create_token(item: crate::item::Item) -> skein_forge::forgejo::request::R
         Item::AdminToken
         | Item::User
         | Item::WebhookSecret
+        | Item::AppMade
         | Item::AppId
         | Item::AppSlug
         | Item::AppKey

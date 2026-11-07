@@ -78,7 +78,7 @@ fn ids(count: u32) -> Box<[u64]> {
     ids.into_boxed()
 }
 fn app() -> App {
-    App { id: APP, slug: repeated(NAME, b'k'), permissions: Box::new([]), events: Box::new([]) }
+    App { id: APP, slug: repeated(NAME, b'k'), owner: None, permissions: Box::new([]), events: Box::new([]) }
 }
 fn document(value: Document) -> Event {
     Event::Reply(Reply::GitHubDocument(value))
@@ -221,7 +221,7 @@ fn script(phase: u8) -> List<Event> {
             );
             add(&mut events, document(Document::App(app())));
             add(&mut events, document(Document::BotUser(37)));
-            for _ in 0_u32..4 {
+            for _ in 0_u32..5 {
                 add(&mut events, Event::Written);
             }
         }

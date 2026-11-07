@@ -683,6 +683,23 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
         Record::Core(jig_domain_core::Record::Tasks(row)) => jig_domain_tasks::stored_bytes(row),
         Record::Core(jig_domain_core::Record::Accounts(row)) => match row {
             jig_domain_accounts::Stored::Next { .. } => Some(0),
+            jig_domain_accounts::Stored::Facts { facts, .. } => {
+                let mut bytes = skein_lib::len_u64(facts.len())
+                    .checked_mul(u64::try_from(size_of::<jig_domain_accounts::AccountFact>()).ok()?)?;
+                for fact in facts {
+                    bytes = bytes.checked_add(skein_lib::len_u64(fact.label.len()))?;
+                    let value = match &fact.value {
+                        jig_domain_accounts::FactValue::Text(text) => skein_lib::len_u64(text.len()),
+                        jig_domain_accounts::FactValue::Count(_)
+                        | jig_domain_accounts::FactValue::Instant(_)
+                        | jig_domain_accounts::FactValue::Span(_)
+                        | jig_domain_accounts::FactValue::Share(_)
+                        | jig_domain_accounts::FactValue::Window(_) => 0,
+                    };
+                    bytes = bytes.checked_add(value)?;
+                }
+                Some(bytes)
+            }
             jig_domain_accounts::Stored::Account { subject, display, uses, .. } => {
                 skein_lib::len_u64(subject.len()).checked_add(skein_lib::len_u64(display.len()))?.checked_add(
                     skein_lib::len_u64(uses.as_deref().unwrap_or_default().len())

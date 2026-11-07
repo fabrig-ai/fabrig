@@ -33,6 +33,20 @@ pub(in crate::tests) fn fixture(records: Vec<accounts::Stored>) -> (Core, Env<Li
     fixture_lists(records, false)
 }
 fn fixture_lists(records: Vec<accounts::Stored>, configured: bool) -> (Core, Env<Limits>) {
+    fixture_with_roles_and_lists(
+        records,
+        Box::new([people::Holding { person: ALICE, role: people::Role::Owner }]),
+        configured,
+    )
+}
+fn fixture_with_roles(records: Vec<accounts::Stored>, deployment_roles: Box<[people::Holding]>) -> (Core, Env<Limits>) {
+    fixture_with_roles_and_lists(records, deployment_roles, false)
+}
+fn fixture_with_roles_and_lists(
+    records: Vec<accounts::Stored>,
+    deployment_roles: Box<[people::Holding]>,
+    configured: bool,
+) -> (Core, Env<Limits>) {
     let mut limits = limits();
     // Three holders, plus a second own account for the cut test.
     limits.accounts.accounts = 4;
@@ -87,7 +101,11 @@ fn fixture_lists(records: Vec<accounts::Stored>, configured: bool) -> (Core, Env
             people::Event::Restore {
                 record: people::Stored::Roles {
                     project,
-                    holdings: Box::new([people::Holding { person: ALICE, role: people::Role::Owner }]),
+                    holdings: if project == people::DEPLOYMENT {
+                        deployment_roles.clone()
+                    } else {
+                        Box::new([people::Holding { person: ALICE, role: people::Role::Owner }])
+                    },
                 },
             },
             &mut out,
@@ -166,6 +184,7 @@ fn finish(core: &mut Core, env: &Env<Limits>, source: u32) {
             subject: b"new".as_slice().into(),
             display: b"Name".as_slice().into(),
             declined: false,
+            said: jig_domain_accounts::Said::default(),
         }),
     ));
 }
@@ -191,6 +210,7 @@ fn a_partys_accounts_document_lists_its_own_accounts_with_their_sources_in_order
             document(&core, &env, ALICE).accounts.as_slice(),
             &[AccountLine {
                 list: expected,
+                facts: List::with_capacity(0),
                 provider_name: Some(Text { bytes: b"Fake".as_slice().into(), cut: false }),
                 manage_usage: Some(b"https://usage.example/".as_slice().into()),
                 place: 0,
@@ -702,4 +722,179 @@ fn listed_records(record: Option<accounts::ListRecord>) -> Vec<accounts::Stored>
         }
     }
     records
+}
+
+#[test]
+fn a_hosts_program_email_is_kept_and_marks_the_holders_accounts() {
+    use jig_domain_link::{Login, LoginState, SourceName};
+    const HOST: Token = Token::new(77);
+    const WATCHER: Token = Token::new(78);
+    const OTHER_HOST: Token = Token::new(79);
+    let (mut core, mut env) = fixture(program_records(accounts::Holder::Party(ALICE)));
+    program_host(&mut core, &env, 0, HOST);
+    drop(watch_outputs(
+        &mut core,
+        &env.limits,
+        Event::Watch { watcher: WATCHER, sign_in: ALICE_SIGN_IN, subject: Watched::Accounts, window: window() },
+    ));
+    drop(watch_outputs(&mut core, &env.limits, Event::Delivered { watcher: WATCHER }));
+    drop(finish_watch_outputs(&mut core, &env.limits));
+    assert!(core.changed_views.is_empty());
+    env.wall = Wall::from_nanos(1);
+    let email = b"you@example.com".as_slice();
+    let out = step(
+        &mut core,
+        &env,
+        Event::Fleet(fleet::Event::Logins {
+            channel: HOST,
+            logins: Box::new([Login {
+                name: SourceName::new(b"program").expect("fixture source"),
+                state: LoginState::Usable,
+                email: Some(email.into()),
+            }]),
+        }),
+    );
+    let expected = accounts::AccountFact {
+        kind: accounts::KIND_EMAIL,
+        label: Box::new([]),
+        value: accounts::FactValue::Text(email.into()),
+        seen: env.wall,
+        source: Some(FIRST_SOURCE),
+        origin: accounts::ORIGIN_PROGRAM,
+    };
+    assert_eq!(core.accounts.account_facts(OWN), core::slice::from_ref(&expected));
+    let mut saved = None;
+    for request in &out {
+        if let Request::Write(Write::Save(Record::Accounts(accounts::Stored::Facts { account: OWN, facts }))) = request
+        {
+            assert!(saved.replace(facts.as_ref()).is_none(), "one facts write");
+        }
+    }
+    assert_eq!(saved, Some(core::slice::from_ref(&expected)));
+    let subject = core.named_watch(WATCHER).expect("accounts watch").subject;
+    assert!(core.changed_views.contains(&subject));
+    assert_eq!(document(&core, &env, ALICE).accounts.get(0).expect("holder account").number, OWN);
+    for (state, email) in [(LoginState::NotSignedIn, None), (LoginState::Usable, None)] {
+        drop(step(
+            &mut core,
+            &env,
+            Event::Fleet(fleet::Event::Logins {
+                channel: HOST,
+                logins: Box::new([Login { name: SourceName::new(b"program").expect("fixture source"), state, email }]),
+            }),
+        ));
+        assert_eq!(core.accounts.account_facts(OWN), core::slice::from_ref(&expected));
+    }
+    drop(step(&mut core, &env, Event::Fleet(fleet::Event::Lost { channel: HOST })));
+    core.reclaim();
+    program_host(&mut core, &env, 1, OTHER_HOST);
+    env.wall = Wall::from_nanos(2);
+    let later = b"other-host@example.com".as_slice();
+    drop(step(
+        &mut core,
+        &env,
+        Event::Fleet(fleet::Event::Logins {
+            channel: OTHER_HOST,
+            logins: Box::new([Login {
+                name: SourceName::new(b"program").expect("fixture source"),
+                state: LoginState::Usable,
+                email: Some(later.into()),
+            }]),
+        }),
+    ));
+    assert_eq!(
+        core.accounts.account_facts(OWN),
+        [accounts::AccountFact { value: accounts::FactValue::Text(later.into()), seen: env.wall, ..expected }]
+    );
+}
+
+fn program_host(core: &mut Core, env: &Env<Limits>, worker: u32, channel: Token) {
+    drop(step(
+        core,
+        env,
+        Event::Fleet(fleet::Event::Hello {
+            worker,
+            channel,
+            hello: Hello {
+                jobs: Box::default(),
+                bounds: fixtures::bounds(),
+                stop_bound: Duration::ZERO,
+                slots: 1,
+                workstreams: Box::new([]),
+                hosting: Box::new([]),
+            },
+        }),
+    ));
+    assert!(core.fleet.program_logins(channel).is_some(), "host admitted");
+}
+
+#[test]
+fn restored_account_facts_follow_registration_and_audience() {
+    use accounts::{AccountFact, FactValue as V, FactWindow};
+    let rows = [
+        (1, V::Text(b"you@example.com".as_slice().into()), 1, true, false),
+        (2, V::Text(vec![b'n'; 255].into()), 2, true, false),
+        (3, V::Text(b"Plan".as_slice().into()), 3, true, true),
+        (4, V::Text(b"Workspace".as_slice().into()), 4, true, true),
+        (5, V::Instant(Wall::from_nanos(131)), 5, true, false),
+        (6, V::Instant(Wall::from_nanos(133)), 6, true, false),
+        (
+            7,
+            V::Window(FactWindow {
+                length: Some(Duration::from_nanos(137)),
+                used: Some(10_000),
+                resets: Some(Wall::from_nanos(139)),
+                state: 3,
+            }),
+            6,
+            true,
+            true,
+        ),
+        (8, V::Text(b"future kind".as_slice().into()), 1, false, false),
+        (1, V::Text(b"future origin".as_slice().into()), 7, false, false),
+        (7, V::Window(FactWindow { length: None, used: None, resets: None, state: 4 }), 6, false, false),
+    ];
+    for (kind, value, origin, registered, account_audience) in rows {
+        let fact = AccountFact {
+            kind,
+            label: vec![b'l'; 32].into(),
+            value,
+            seen: Wall::from_nanos(149),
+            source: Some(FIRST_SOURCE),
+            origin,
+        };
+        // A current deployment owner who is not a configured first owner reads only account kinds too.
+        for bob_role in [people::Role::Member, people::Role::Owner] {
+            let mut records = mixed();
+            records.push(accounts::Stored::Facts { account: OWN, facts: Box::new([fact.clone()]) });
+            records.push(accounts::Stored::Facts { account: DEPLOYMENT, facts: Box::new([fact.clone()]) });
+            let roles = Box::new([
+                people::Holding { person: ALICE, role: people::Role::Owner },
+                people::Holding { person: BOB, role: bob_role },
+            ]);
+            let (core, mut env) = fixture_with_roles(records, roles);
+            // A whole fact is independent of the document's text and line limits.
+            env.limits.documents.text_bytes = 1;
+            env.limits.documents.lines = 1;
+            let expected: &[AccountFact] = if registered { core::slice::from_ref(&fact) } else { &[] };
+            let own = document(&core, &env, ALICE);
+            assert_eq!(own.accounts.get(0).unwrap().facts.as_slice(), expected, "{kind}, {origin}");
+            assert_eq!(core.accounts.account_facts(OWN), core::slice::from_ref(&fact));
+            assert_eq!(core.accounts.account_facts(DEPLOYMENT), core::slice::from_ref(&fact));
+            for (reader, shown) in [(ALICE, registered), (BOB, account_audience)] {
+                let Document::Deployment(doc) =
+                    make(&core, &env.limits, reader, &Subject::Deployment, &window(), env.wall).unwrap()
+                else {
+                    panic!("deployment")
+                };
+                assert_eq!(
+                    doc.accounts.get(0).unwrap().facts.as_slice(),
+                    if shown { core::slice::from_ref(&fact) } else { &[] },
+                    "{kind}, {origin}, {reader}, {bob_role:?}"
+                );
+                assert!(!doc.cut);
+                assert!(!doc.accounts.get(0).unwrap().cut);
+            }
+        }
+    }
 }

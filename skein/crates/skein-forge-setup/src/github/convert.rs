@@ -14,7 +14,7 @@ use crate::{
 use alloc::boxed::Box;
 use core::num::NonZeroU64;
 use skein_forge::github::{
-    document::{Conversion, Document},
+    document::{AppOwner, Conversion, Document},
     request::Request,
 };
 use skein_lib::{Decimal, Queue, Secret, bytes};
@@ -25,6 +25,7 @@ enum State {
     Conversion,
     App,
     Bot,
+    Mark(Write),
     Writing(Write),
     Ended,
 }
@@ -40,6 +41,7 @@ pub struct Convert {
     code: Option<Secret>,
     key: Option<Secret>,
     id: u64,
+    owner: Option<AppOwner>,
     slug: Box<[u8]>,
 }
 impl Convert {
@@ -58,6 +60,7 @@ impl Convert {
             code: Some(Secret::new(bytes::copy_of(code))),
             key: None,
             id: 0,
+            owner: None,
             slug: Box::new([]),
         })
     }
@@ -71,7 +74,7 @@ impl Convert {
         match self.state {
             State::Begin | State::Conversion => bytes::copy_of(b"convert"),
             State::App => bytes::copy_of(Decimal::of(self.id).as_bytes()),
-            State::Bot | State::Writing(_) | State::Ended => self.slug.clone(),
+            State::Bot | State::Mark(_) | State::Writing(_) | State::Ended => self.slug.clone(),
         }
     }
     fn converted(&mut self, conversion: Conversion) -> Need {
@@ -102,7 +105,7 @@ impl Convert {
                 self.state = State::Writing(write);
                 need
             }
-            Ok(None) => Need::Done(Outcome::Nothing),
+            Ok(None) => Need::Done(Outcome::Made { owner: self.owner.take() }),
             Err(why) => self.stop(&self.slug.clone(), why),
         }
     }
@@ -141,6 +144,7 @@ impl Convert {
                     if app.slug != self.slug {
                         return self.stop(&subject, Why::Unexpected);
                     }
+                    self.owner = app.owner;
                     self.state = State::Bot;
                     Need::Send { request: Request::BotUser { slug: self.slug.clone() }.into(), auth: Auth::None }
                 }
@@ -153,8 +157,16 @@ impl Convert {
             State::Bot => match app::bot(event) {
                 Ok(id) => {
                     let write = Write::new(self.id, self.slug.clone(), self.key.take().expect("proved key"), id.get());
-                    self.writing(write, Event::Begin)
+                    self.state = State::Mark(write);
+                    Need::Write {
+                        item: item::Item::AppMade,
+                        bytes: Secret::new(bytes::copy_of(&self.id.to_le_bytes())),
+                    }
                 }
+                Err(why) => self.stop(&subject, why),
+            },
+            State::Mark(write) => match event.written() {
+                Ok(()) => self.writing(write, Event::Begin),
                 Err(why) => self.stop(&subject, why),
             },
             State::Writing(write) => self.writing(write, event),
@@ -176,7 +188,7 @@ fn unsigned_unexpected(reply: Reply) -> Why {
 pub fn step(machine: &mut Convert, event: Event, out: &mut Queue<Need>) {
     match machine.state {
         State::Ended => (),
-        State::Begin | State::Conversion | State::App | State::Bot | State::Writing(_) => {
+        State::Begin | State::Conversion | State::App | State::Bot | State::Mark(_) | State::Writing(_) => {
             let need = machine.advance(event);
             out.push(need);
         }
@@ -186,7 +198,7 @@ pub fn step(machine: &mut Convert, event: Event, out: &mut Queue<Need>) {
 pub(crate) fn halt(machine: &mut Convert, why: Why, out: &mut Queue<Need>) {
     match machine.state {
         State::Ended => (),
-        State::Begin | State::Conversion | State::App | State::Bot | State::Writing(_) => {
+        State::Begin | State::Conversion | State::App | State::Bot | State::Mark(_) | State::Writing(_) => {
             let subject = machine.subject();
             let need = machine.stop(&subject, why);
             out.push(need);

@@ -54,6 +54,7 @@ fn accounts_rows_read_back_as_written() {
     table([
         ("each_accounts_record_reads_back_at_its_bounds", each_accounts_record_reads_back_at_its_bounds),
         ("the_accounts_ceilings_are_the_childs_bounds", the_accounts_ceilings_are_the_childs_bounds),
+        ("a_share_past_whole_does_not_decode", a_share_past_whole_does_not_decode),
         (
             "an_accounts_record_of_another_version_or_the_installation_does_not_decode",
             an_accounts_record_of_another_version_or_the_installation_does_not_decode,

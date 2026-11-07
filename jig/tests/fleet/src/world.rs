@@ -953,6 +953,7 @@ impl World {
             }
             Request::ReadList { .. }
             | Request::ListRead { .. }
+            | Request::ProgramEmail { .. }
             | Request::ProgramTargets { .. }
             | Request::ProgramSignedOut { .. }
             | Request::Check { .. }

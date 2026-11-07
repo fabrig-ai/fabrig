@@ -44,7 +44,10 @@ impl World {
             root::Delivery::Core(core::Held::Sources { channel, sources }) => {
                 self.events.push_back(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Logins {
                     channel,
-                    logins: sources.iter().map(|source| Login { name: *source, state: LoginState::Usable }).collect(),
+                    logins: sources
+                        .iter()
+                        .map(|source| Login { name: *source, state: LoginState::Usable, email: None })
+                        .collect(),
                 })));
             }
             root::Delivery::ApplicationRead { reply, number, answer } => {

@@ -810,6 +810,7 @@ fn navigation_accounts(states: &[jig_client::contract::AccountState]) -> jig_cli
         accounts
             .push(c::AccountLine {
                 list: None,
+                facts: skein_lib::List::with_capacity(0),
                 number,
                 place: number,
                 uses: None,

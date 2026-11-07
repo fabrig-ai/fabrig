@@ -143,6 +143,7 @@ pub enum ModelKind {
 #[derive(Debug)]
 pub struct Domain {
     pub(crate) accounts: Map<u32, Account>,
+    pub(crate) said: Map<u32, Box<[crate::AccountFact]>>,
     pub(crate) sources: Map<u32, Source>,
     pub(crate) issued: Map<u32, crate::programs::Issued>,
     pub(crate) programs: Map<u32, crate::programs::Pending>,
@@ -237,6 +238,7 @@ impl Domain {
         let sources = limits.accounts.checked_mul(limits.sources).expect("validated account source count");
         Domain {
             accounts: Map::with_capacity(limits.accounts),
+            said: Map::with_capacity(limits.accounts),
             sources: Map::with_capacity(sources),
             issued: Map::with_capacity(limits.program_names),
             programs: Map::with_capacity(limits.program_names),
@@ -262,6 +264,14 @@ impl Domain {
             restore_failure: None,
             now: Time::ZERO,
             phase: Phase::New,
+        }
+    }
+    /// What the provider says of this account (accounts.md, 3.7); empty when absent.
+    #[must_use]
+    pub fn account_facts(&self, account: u32) -> &[crate::AccountFact] {
+        match self.said.get(&account) {
+            Some(facts) => facts,
+            None => &[],
         }
     }
     pub(crate) fn last_place(&self, holder: Holder) -> u32 {
@@ -528,6 +538,19 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::ForgetProject { project } => crate::changes::forget_project(domain, project, out),
         Event::Restore { record } => restore(domain, env, record),
         Event::Want => want(domain, env, out),
+        Event::ProgramSaid { name, email } => {
+            let Some(source) = crate::programs::source_named(domain, &name) else { return };
+            let account = domain.sources.get(&source).expect("live program source").account;
+            crate::facts::report(
+                domain,
+                env,
+                account,
+                source,
+                crate::ORIGIN_PROGRAM,
+                crate::Said { email: Some(email), name: None },
+                out,
+            );
+        }
         Event::ProgramTargets { source, hosts } => crate::programs::targets(domain, source, hosts, out),
         Event::ProgramSignedOut { source, host, result } => {
             crate::programs::signed_out(domain, source, host, result, out);
@@ -614,9 +637,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         }
         Event::Finishing { source } => crate::signing::finishing(domain, source, out),
         Event::FinishRefused { source, why } => crate::signing::finish_refused(domain, source, why, out),
-        Event::SignedIn { source, subject, display, declined } => {
+        Event::SignedIn { source, subject, display, declined, said } => {
             if domain.phase == Phase::Wanted {
-                crate::signing::signed_in(domain, env, source, subject, display, declined, out);
+                crate::signing::signed_in(domain, env, source, subject, display, declined, said, out);
             }
         }
         Event::SignInFailed { source, failure } => {
@@ -903,6 +926,13 @@ fn component(domain: &mut Domain, env: &Env<Limits>, event: FromComponent, out: 
         | FromComponent::Expiring { account, .. }
         | FromComponent::Failed { account, .. }
         | FromComponent::KeepFailed { account, .. } => account,
+        FromComponent::Refreshed { account: source, said } => {
+            if let Some(entry) = domain.sources.get(&source) {
+                let account = entry.account;
+                crate::facts::report(domain, env, account, source, crate::ORIGIN_REFRESH, said, out);
+            }
+            return;
+        }
         FromComponent::Closed => return,
     };
     if domain.moves.contains_key(&source) {
@@ -920,13 +950,16 @@ fn component(domain: &mut Domain, env: &Env<Limits>, event: FromComponent, out: 
             crate::keys::failed(domain, account, why, out);
             return;
         }
-        FromComponent::Expiring { .. } | FromComponent::Failed { .. } | FromComponent::Closed => None,
+        FromComponent::Expiring { .. }
+        | FromComponent::Failed { .. }
+        | FromComponent::Refreshed { .. }
+        | FromComponent::Closed => None,
     };
     let source = match event {
         FromComponent::Granted { account, .. }
         | FromComponent::Expiring { account, .. }
         | FromComponent::Failed { account, .. } => account,
-        FromComponent::KeepFailed { .. } | FromComponent::Closed => return,
+        FromComponent::KeepFailed { .. } | FromComponent::Refreshed { .. } | FromComponent::Closed => return,
     };
     let Some(entry) = domain.sources.get_mut(&source) else { return };
     if entry.kind != Kind::SignIn && entry.kind != Kind::Key {
@@ -959,7 +992,7 @@ fn component(domain: &mut Domain, env: &Env<Limits>, event: FromComponent, out: 
             entry.expiring = true;
         }
         FromComponent::Failed { account: _, failure } => failed(entry, env, failure),
-        FromComponent::KeepFailed { .. } | FromComponent::Closed => return,
+        FromComponent::KeepFailed { .. } | FromComponent::Refreshed { .. } | FromComponent::Closed => return,
     }
     changed(domain, env, source, before, out);
     if let Some(request) = kept {

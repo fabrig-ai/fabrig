@@ -132,7 +132,7 @@ fn keep_next(service: &mut crate::Service, item: Item) {
 }
 fn converted() -> crate::Service {
     let (mut service, mut face) = writing();
-    for item in [Item::AppId, Item::AppSlug, Item::AppKey, Item::User] {
+    for item in [Item::AppMade, Item::AppId, Item::AppSlug, Item::AppKey, Item::User] {
         keep_next(&mut service, item);
         assert_eq!(
             service.engine.as_mut().expect("engine").setup.answers.pop(),
@@ -1494,7 +1494,7 @@ fn redirect_writes() -> (crate::Service, Face, fixtures::http::Peer, Box<[u8]>) 
 }
 fn converted_redirect() -> (crate::Service, fixtures::http::Peer, Box<[u8]>) {
     let (mut service, mut face, peer, target) = redirect_writes();
-    for item in [Item::AppId, Item::AppSlug, Item::AppKey, Item::User] {
+    for item in [Item::AppMade, Item::AppId, Item::AppSlug, Item::AppKey, Item::User] {
         assert!(peer.received().is_empty(), "HTTP waits for durable records");
         keep_next(&mut service, item);
         face.turn(&mut service);

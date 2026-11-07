@@ -5,19 +5,36 @@ use skein_lib::{List, bytes};
 
 #[test]
 fn account_reads_close_authorized_watches_after_the_first_projection() {
-    for owner in [false, true] {
+    for (owner, email) in [(false, false), (true, false), (false, true), (true, true)] {
         let mut root = f::account_root(owner);
         let call = root.submit(&["account", "list", "--json"]);
         assert!(root.reads.is_empty(), "accounts has no ReadValue");
-        let mut deployment = false;
+        let mut deployment_watched = false;
         for watched in root.watches.values() {
-            deployment |= *watched == f::DEPLOYMENT_WATCH;
+            deployment_watched |= *watched == f::DEPLOYMENT_WATCH;
         }
-        assert_eq!(deployment, owner);
-        f::deliver_accounts(&mut root, f::accounts());
+        assert_eq!(deployment_watched, owner);
+        let mut party = f::accounts();
+        let mut deployment = f::deployment();
+        for facts in [&mut party.accounts.get_mut(0).unwrap().facts, &mut deployment.accounts.get_mut(0).unwrap().facts]
+        {
+            *facts = if email {
+                List::from_boxed(Box::new([c::AccountFact {
+                    kind: c::FACT_EMAIL,
+                    label: Box::new([]),
+                    value: c::AccountFactValue::Text(b"alice@example.com".as_slice().into()),
+                    seen: skein_lib::Wall::from_nanos(100),
+                    source: Some(f::SOURCE),
+                    origin: 1,
+                }]))
+            } else {
+                List::with_capacity(0)
+            };
+        }
+        f::deliver_accounts(&mut root, party);
         if owner {
             assert!(root.answer(call).is_none(), "owner waits for deployment too");
-            f::deliver_deployment(&mut root, f::deployment());
+            f::deliver_deployment(&mut root, deployment);
         }
         let printed = root.answer(call).expect("first deliveries");
         assert_eq!(printed.status, 0, "{printed:?}");
@@ -32,6 +49,9 @@ fn account_reads_close_authorized_watches_after_the_first_projection() {
         ] {
             assert!(f::json_has(&printed, fact), "{fact:?}");
         }
+        let expected = if email { b"\"email\":\"alice@example.com\"".as_slice() } else { b"\"email\":null" };
+        assert_eq!(f::occurrences(&printed.stdout, expected), if owner { 2 } else { 1 });
+        assert!(f::json_has(&printed, b"\"display\":"));
         assert_eq!(root.watches.len(), 1, "only shared me remains");
         let common = f::json_without_digest(&printed.stdout);
         assert_eq!(f::last_digest(&printed.stdout).as_ref(), Digest::of(&common).hex());
