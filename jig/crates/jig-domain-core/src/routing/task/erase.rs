@@ -6,13 +6,13 @@ use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, Token};
 
 /// What selects ended tasks for erasure; retention adds its horizon later.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) enum Select {
     Project(u32),
 }
 
 /// One serialized walk, with subsequent selections waiting behind it.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Erasures {
     walk: Option<Walk>,
     waiting: Queue<Select>,
@@ -24,20 +24,20 @@ impl Erasures {
     }
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 struct Walk {
     select: Select,
     after: Option<u64>,
     task: Option<Erasing>,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 struct Erasing {
     record: Box<tasks::TaskRecord>,
     phase: Phase,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 enum Phase {
     Rows,
     Cleanup,

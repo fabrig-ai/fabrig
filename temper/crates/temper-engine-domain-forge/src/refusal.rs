@@ -3,7 +3,7 @@ use alloc::boxed::Box;
 use skein_lib::List;
 
 /// Why a resource operation cannot proceed; local pressure is retried by the connector.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum RefusalCause {
     /// A configured limit cannot contain the requested working set.
     Limit { member: &'static str, configured: u64, needed: u64 },

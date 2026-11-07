@@ -9,6 +9,33 @@ fn roots_read(tasks: &[u64]) -> Value {
 }
 
 #[test]
+fn catalogue_reads_preserve_scripted_call_counts() {
+    use skein_fake_llm_domain::api::{Caching, Query, ToolChoice};
+    use support::forge_land::{Seen, assert_requests};
+
+    let words = b"the restarted chat";
+    let query = Query {
+        credential: Some(0),
+        caching: Caching::Unscoped,
+        model: b"gpt-6-luna".as_slice().into(),
+        system: words.as_slice().into(),
+        tools: Box::new([]),
+        choice: ToolChoice::None,
+        messages: Box::new([]),
+        max_tokens: 20,
+    };
+    for lists in [0, 1, 2] {
+        let seen = Seen {
+            requests: vec![query.clone(), query.clone()],
+            answers: vec![Ok(()); 2],
+            lists,
+            schemes: vec![Some(skein_llm::Scheme::Bearer); 2 + lists],
+        };
+        assert_requests(&seen, 2, words, false);
+    }
+}
+
+#[test]
 fn a_fresh_sittings_close_leaves_no_live_root() {
     let before = live_roots(&roots_read(&[])).expect("whole fresh roots");
     assert_eq!(before, BTreeSet::new());

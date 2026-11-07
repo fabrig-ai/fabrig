@@ -1023,14 +1023,12 @@ impl PublicLine {
         if field_priority.is_some() {
         size = size.checked_add(4).expect("schema ceilings fit u32");
         }
-        let field_executor = &self.executor;
-        size = size.checked_add(field_executor.measure()).expect("schema ceilings fit u32");
-        let field_phase = &self.phase;
-        size = size.checked_add(field_phase.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         let field_hold = &self.hold;
         size = size.checked_add(1).expect("schema ceilings fit u32");
-        if let Some(some_0) = field_hold {
-        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        if field_hold.is_some() {
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         }
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
@@ -1049,8 +1047,7 @@ impl PublicLine {
         if field_spent.is_some() {
         size = size.checked_add(8).expect("schema ceilings fit u32");
         }
-        let field_delegates = &self.delegates;
-        size = size.checked_add(field_delegates.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(20).expect("schema ceilings fit u32");
         size
     }
 

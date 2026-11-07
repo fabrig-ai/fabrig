@@ -18,16 +18,29 @@ core world's restore stories are ignored (`domain/engine.md`,
 `domain/connectors.md`). A run's fresh settings proposal replaces its own
 pending one atomically, preserving it on refusal; at the deployment
 proposal bound, refusal remains the default (`domain/tasks.md`, section 9;
-`domain/engine.md`, 17.6). Numbered model settings, catalogue-derived
+`domain/engine.md`, 17.6). Derived run-wait refusals carry admitted hosts'
+bound shortfalls and required/offered figures through the v19 client
+wire, including a standing hello's figures and every charter-bound
+shortfall's charter (`domain/engine.md`, section 8;
+`client/domain/contract.md`, 5.1; `protocol/client.md`, section 3).
+Numbered model settings, catalogue-derived
 charter versions and endpoint bounds at hello are built, with worker
 provider-list reads, retained per-account names, atomic catalogue updates
 and per-account offer narrowing (`domain/accounts.md`, 3.7;
 `domain/engine.md`, 17.12; `client/domain/contract.md`, 5.1).
+Settings refusals name the last matching request item's position from 0;
+settings key order agrees with the store, with Model after Application
+and ProjectPolicy. A turn read alone retains call input past `turn_text`
+within its archive bound (`domain/engine.md`, 17.2;
+`protocol/store.md`, 4.1; `client/domain/client.md`, section 10).
 Later pages, changes to a known name's figures and catalogue-number reuse
 remain deferred (`domain/engine.md`, section 16).
 A list read changing only the omitted count leaves `me` unmarked, so the
 page's count can stay stale (`domain/engine.md`, 17.12;
 `client/domain/contract.md`, 5.1).
+A person's task can carry an LLM choice, and `Core::account_llm` builds
+one held to a named account, at its model's default effort
+(`domain/authority.md`, 6.1; `domain/accounts.md`, 4.3).
 Standard admits batches of 32, charters of 262,144 bytes and outcomes of
 131,072; a change body's bound follows its contract's words. Message
 rendering room remains deferred (`domain/hosts.md`, sections 8 and 12;

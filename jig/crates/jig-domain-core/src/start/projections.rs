@@ -9,7 +9,7 @@ use crate::{
 use alloc::boxed::Box;
 use skein_lib::{List, Map, length::len_u64};
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Assembly {
     pub(crate) header: Option<Projection>,
     pub(crate) tasks: Map<u64, ProjectionTask>,

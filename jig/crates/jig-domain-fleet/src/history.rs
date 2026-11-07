@@ -29,7 +29,7 @@ pub struct Figures {
 }
 
 /// Why the fleet refuses a hello, for the refusal's text (protocol/channel.md, 4.3).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct HelloRefused {
     pub why: HelloRefusal,
     /// Some for an agent's shortfall that has amounts; None for every other reason.

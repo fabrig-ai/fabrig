@@ -7,9 +7,18 @@ task, the rows and wire, cancellation at the first ending or minute, and
 restart cancellation are present. The joined client stories and the
 real-loop story use fake models.
 
+Sections 2 and 4's account choice is present: the first usable account's
+trial names no `llm`; a later trial names its account and model, and every
+retry judges the offer again. An unserved later trial is refused before
+allocating a person's seed. The engine story has rows for both provider
+orders and a second account of one provider; the joined client story
+holds the later account's line, failure and retry on that account.
+
 - **Not yet:** 2, 6.1: verification on a real account remains unknown:
   no outcome of the model-check request's real-box walk is supplied for
-  retirement. A fake model's answer does not establish that result.
+  retirement, nor of section 8's checks in both provider orders and with
+  two accounts of one provider. A fake model's answer does not establish
+  those results.
 
 - **Departs:** 6: `temper-client-domain/src/forge/trials.rs` keeps one
   `pending` request. `look` marks every newly usable account seen before

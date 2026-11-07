@@ -37,7 +37,7 @@ pub struct RelayHeard<'a> {
 }
 
 /// What the root applies for a change's relay.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum RelayAct {
     /// Delegate a foreman for the first open question.
     Foreman { asker: u64, number: u64 },
@@ -54,7 +54,7 @@ pub enum RelayAct {
 }
 
 /// The relay's next record and the acts to commit with it.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Relayed {
     pub questions: Questions,
     pub acts: Box<[RelayAct]>,

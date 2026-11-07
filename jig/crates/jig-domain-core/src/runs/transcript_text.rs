@@ -7,7 +7,7 @@ use skein_lib::length::len_u64;
 pub type TranscriptRow = (TurnRecord, Option<Box<[u8]>>);
 
 /// Rendered bytes and the original text bytes they still show (excluding a cut marker).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct TranscriptText {
     pub bytes: Box<[u8]>,
     pub shown: u64,

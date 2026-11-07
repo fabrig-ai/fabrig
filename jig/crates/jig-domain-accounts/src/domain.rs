@@ -140,7 +140,7 @@ pub enum ModelKind {
     List,
     Person,
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct Domain {
     pub(crate) accounts: Map<u32, Account>,
     pub(crate) said: Map<u32, Box<[crate::AccountFact]>>,

@@ -58,7 +58,7 @@ pub struct Entry {
 }
 
 /// The fields supplied for a new entry or correction.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct New {
     pub name: u64,
     pub scope: Scope,
@@ -87,7 +87,7 @@ pub enum Key {
 }
 
 /// A durable record, encoded by the parent's store layer.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Record {
     /// One entry.
     Entry(Entry),
@@ -118,13 +118,13 @@ pub enum Range {
 }
 
 /// Bounded records returned for one load.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Rows {
     pub records: List<Record>,
 }
 
 /// How entries are recalled from the store.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Recall {
     /// A globally named entry.
     Name { name: u64 },
@@ -133,7 +133,7 @@ pub enum Recall {
 }
 
 /// A party's change to an existing note.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Change {
     /// Replace the contents seen at `recalled`.
     Correct { description: Box<[u8]>, body: Box<[u8]>, references: List<u64>, recalled: u32 },
@@ -165,7 +165,7 @@ pub enum Refusal {
 }
 
 /// Events from the parent and the store.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Event {
     /// Drop project notes (jig/docs/design/domain/engine.md, 10).
     DropProject { owner: Token, project: u32 },

@@ -19,7 +19,7 @@ pub fn changes_subject(project: u32) -> u64 {
 pub fn landings_subject(project: u32, ended: bool) -> u64 {
     (1 << 62) | (u64::from(ended) << 32) | u64::from(project)
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[cfg_attr(
     target_pointer_width = "64",
     expect(
@@ -38,7 +38,7 @@ pub enum Document {
     Dismissals(Box<[PersonFact]>),
 }
 /// One landing, its members, gate proofs and the project's turn holder.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingView {
     pub task: u64,
     pub project: u32,
@@ -48,7 +48,7 @@ pub struct LandingView {
     pub stale_proofs: u32,
     pub turn: Option<u64>,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingMember {
     pub change: u64,
     pub forge: u16,
@@ -62,7 +62,7 @@ pub struct LandingMember {
     pub landed: Option<[u8; 32]>,
     pub gates: Box<[LandingGate]>,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingGate {
     pub name: Box<[u8]>,
     pub blocking: bool,
@@ -70,7 +70,7 @@ pub struct LandingGate {
     pub proof: GateProof,
     pub faults: u32,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum GateProof {
     Unkeyed,
     Keyed,
@@ -80,13 +80,13 @@ pub enum GateProof {
     Failed(ReceiptRun),
 }
 /// A project's retained landings, turn holder first, then newest task first.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingsView {
     pub project: u32,
     pub turn: Option<u64>,
     pub landings: Box<[LandingLine]>,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingLine {
     pub task: u64,
     pub phase: policy::Phase,

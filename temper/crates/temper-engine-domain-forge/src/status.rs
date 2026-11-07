@@ -11,7 +11,7 @@ pub const SITTING: Duration = Duration::from_secs(1800);
 pub const BRIEF_SENTENCE_BYTES: usize = 200;
 pub const BRIEF_LEDE_BYTES: usize = 600;
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Brief {
     pub sentence: Box<[u8]>,
     pub lede: Box<[u8]>,
@@ -19,13 +19,13 @@ pub struct Brief {
     pub landed: u64,
 }
 /// A status run in flight (temper/docs/design/domain/forge.md, 5.7); task none until the root has made it.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct StatusRunning {
     pub task: Option<u64>,
     pub landed: u64,
     pub since: Wall,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProjectFacts {
     pub project: u32,
     pub landed: u64,
@@ -33,7 +33,7 @@ pub struct ProjectFacts {
     pub brief: Option<Brief>,
     pub running: Option<StatusRunning>,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Looked {
     pub party: u64,
     pub project: u32,
@@ -42,12 +42,12 @@ pub struct Looked {
     pub seen: u64,
     pub next_seen: u64,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum LookedAnswer {
     Looked,
     TooLarge,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct StatusView {
     pub project: u32,
     pub landed: u64,

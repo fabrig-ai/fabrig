@@ -1,6 +1,14 @@
 # run: status
 
-2026-11-06. Where smith's code lags or departs from [run.md](run.md).
+2026-11-07. Where smith's code lags or departs from [run.md](run.md).
+
+Section 8.1 has no known gap in failed-check feedback: it carries the
+repository, convention path, exit, given milliseconds, cut count and
+output tail. The given span is retained when the check starts, bounded
+by both `check_timeout` and the call's remaining time, and is printed
+for every exit. The machine's deadline table keeps output read before
+and during stopping, through pipe closure. No timeout figure changes;
+a silent check still has no output to report (section 15).
 
 - **Not yet:** 6, 9.2: messages mid-work and threshold notes. The run
   offers queued messages only at main's opening and when main yields

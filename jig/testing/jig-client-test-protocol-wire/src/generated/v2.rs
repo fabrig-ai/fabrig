@@ -6044,8 +6044,7 @@ impl ApplicationOutcomeChanged {
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
         size = size.checked_add(8).expect("schema ceilings fit u32");
-        let field_now = &self.now;
-        size = size.checked_add(field_now.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(16).expect("schema ceilings fit u32");
         size
     }
 
@@ -6078,8 +6077,7 @@ impl ApplicationOutcomeMoved {
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
         size = size.checked_add(8).expect("schema ceilings fit u32");
-        let field_now = &self.now;
-        size = size.checked_add(field_now.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(16).expect("schema ceilings fit u32");
         size
     }
 
@@ -6148,11 +6146,10 @@ impl OutboxEntry {
         size = size.checked_add(field_effect.measure()).expect("schema ceilings fit u32");
         let field_attempt = &self.attempt;
         size = size.checked_add(1).expect("schema ceilings fit u32");
-        if let Some(some_0) = field_attempt {
-        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        if field_attempt.is_some() {
+        size = size.checked_add(20).expect("schema ceilings fit u32");
         }
-        let field_phase = &self.phase;
-        size = size.checked_add(field_phase.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -6246,8 +6243,7 @@ impl RefusalLimit {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_which = &self.which;
-        size = size.checked_add(field_which.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -6306,8 +6302,7 @@ impl HoldReasonFailures {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_class = &self.class;
-        size = size.checked_add(field_class.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -6386,8 +6381,7 @@ impl Exceeded {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_bound = &self.bound;
-        size = size.checked_add(field_bound.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size
     }
@@ -7243,8 +7237,7 @@ impl HoldExclusive {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_mode = &self.mode;
-        size = size.checked_add(field_mode.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -7273,8 +7266,7 @@ impl HoldPooled {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
-        let field_mode = &self.mode;
-        size = size.checked_add(field_mode.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -7398,10 +7390,8 @@ impl Description {
         }
         size = size.checked_add(8).expect("schema ceilings fit u32");
         size = size.checked_add(1).expect("schema ceilings fit u32");
-        let field_form = &self.form;
-        size = size.checked_add(field_form.measure()).expect("schema ceilings fit u32");
-        let field_recovery = &self.recovery;
-        size = size.checked_add(field_recovery.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         let field_price = &self.price;
         size = size.checked_add(1).expect("schema ceilings fit u32");
         if field_price.is_some() {
@@ -7468,8 +7458,7 @@ impl ClientResource {
         let mut size = 0_u32;
         let field_path = &self.path;
         size = size.checked_add(field_path.measure()).expect("schema ceilings fit u32");
-        let field_role = &self.role;
-        size = size.checked_add(field_role.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         let field_hold = &self.hold;
         size = size.checked_add(field_hold.measure()).expect("schema ceilings fit u32");
         let field_fact = &self.fact;
@@ -7555,8 +7544,7 @@ impl ClientDocumentObject {
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
         size = size.checked_add(8).expect("schema ceilings fit u32");
-        let field_now = &self.now;
-        size = size.checked_add(field_now.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(16).expect("schema ceilings fit u32");
         size
     }
 
@@ -7876,10 +7864,8 @@ impl ClientDocumentDeployment {
         }
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(4).expect("schema ceilings fit u32");
-        let field_request_budget = &self.request_budget;
-        size = size.checked_add(field_request_budget.measure()).expect("schema ceilings fit u32");
-        let field_system_last_response = &self.system_last_response;
-        size = size.checked_add(field_system_last_response.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 

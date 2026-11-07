@@ -23,7 +23,7 @@ pub const FINAL_SPEND: u64 = 12;
 
 /// An outside observer of the complete walking story (domain/root.md, 12).
 /// Prices, words and logical deliveries come from the script, not root facts.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Hash, Debug, Default)]
 pub struct WalkingReferee {
     person: Option<u64>,
     task: Option<u64>,

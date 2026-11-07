@@ -2,6 +2,17 @@
 
 2026-11-07. Where jig's code lags or departs from [engine.md](engine.md).
 
+Section 17.2 has no known gap in an out-of-shape refusal's position:
+it names the last request item for the failing setting, counted from
+0, or 0 when no item names it. The refusal table covers a third item
+failing with position 2 and the settings rows left unchanged.
+
+Section 8 has no known gap in derived next-run refusals: standing hello
+facts retain their figures, and admitted hosts too small for the run's
+charter version give the first shared shortfall and their best offer,
+or no named bound when their shortfalls differ. Account and credential
+waits keep precedence; a fitting host leaves the ordinary host wait.
+
 Sections 17.1, 17.7, 17.8 and 17.11 have no known implementation gap in
 numbered model settings, release-default overlays, resolved charter versions,
 withdrawal, catalogue notifications or the owner's newest-revision act.

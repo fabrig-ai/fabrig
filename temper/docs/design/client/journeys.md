@@ -823,6 +823,14 @@ the requests with main after landing (`../draft/look-requests.md`, 4).
 
 ## 10. Open questions
 
+- **The chat heading's comparison** (9): temper/ui compares `chat-title`'s
+  hand-made page 01 and the request's named states against the shipped
+  view after landing, at 1440, 1000 and 420 px, including open disclosures
+  and menus (`../draft/look-requests.md`, section 4). Default: unchanged
+  journey prints and the view's short-title and heading tables; they
+  establish no rendered equality. Screenshots and findings belong to
+  that comparison.
+
 - **The Models page's comparison** (9): temper/ui compares `model-picker`'s
   hand-made page 07 with the gallery's Models states after landing, with
   screenshots at 1440, 1280, 1000 and 420 px

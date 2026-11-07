@@ -1,7 +1,13 @@
 # Status
 
 2026-11-07. Where temper's code lags or departs from its design, and
-its design from its drafts, from the status files below. The first
+its design from its drafts, from the status files below. The reference
+merges a 65,536-byte journal run bound from `room.json`. A pull's files
+page past the forge client's bound leaves an omitted-page notice;
+the exact bound and measure still need an interface and stored-answer
+decision. Settings-position wording and progress from the repository's
+quiet checks remain later work (`protocol/configuration.md`, 13.9 and 11;
+`domain/forge.md`, 8.4 and 20). The first
 milestone stands in the code (`README.md`). Markdown flows draw in chats
 and their documents with temper's look, and both stock agents are told
 the subset. Temper/ui's rendered comparison follows landing; the
@@ -35,6 +41,14 @@ Ctl distinguishes a retained decision from an unknown proposal, saying
 the latter may have been decided or replaced; returning decided first
 for an automatically replaced task proposal needs jig's decision history
 (`client/tools.md`, 7 and 14).
+A chat's heading shows its first sentence or line within 72 characters
+in both shells, retaining the whole name and, where cut, a hover hint;
+the crumbs yield to the bar's controls. Temper/ui's render comparison
+and a possible model-written title remain later work (`client/README.md`,
+3.5 and 11; `client/journeys.md`, sections 9 and 10).
+The Chats history story awaits Closed and All pressed by name across
+reload and Back; a Drafts button moving Closed as ways arrive remains a
+separate look decision (`client/browser.md`, 4.6 and 5).
 Fresh projects offer drafts;
 configuring chats offer one even with drafts off, and a project holding a
 goal shows Goals in its bar. Home can still show To begin and Chats, so
@@ -347,8 +361,12 @@ off in the stock, where that request has them follow a tracked template
 has it keep no notes (`domain/agent.md`). A box with one kind of account runs on
 the first model it can use, and a run that can't start says why on its page and
 in `task show`, but no walk on record has a real box do either, a Chats row still
-says "Starting"
-(`client/README.md`, `client/tools.md`). `task show` names who answered a person
+says "Starting" (`client/README.md`, `client/tools.md`). Bounds refusals name
+the bound and its figures in both shells and ctl; waiting-line command
+pointers are checked. The after-landing check, the terminal's non-waiting
+forge-key command and the settings reference's help pointer remain later
+work (`client/README.md`, section 11; `client/tools.md`, section 14).
+`task show` names who answered a person
 task and says a held task waits on its hold, but `temper help task` still says ctl
 takes no task and numbers a party's question, which `waiting on:` does not
 (`client/tools.md`). With no account serving the work `task show` says so in its
@@ -377,7 +395,10 @@ named controls excepts a recommended choice's tag, departing from the request `u
 only some directories it names all three `TEMPER_` values; and
 `temper forge run`'s refusal and the terminal's `temper open` still say plain `temper` (`client/README.md`). The welcome's try of a model draws Model's line in
 Ready's pane from the host's check and then a trial through the worker and model, with
-its line on Accounts and, failed, on Home (`domain/trial.md`). The gallery lacks the
+its line on Accounts and, failed, on Home (`domain/trial.md`). The first usable
+account's trial names no model choice; a later trial and its retries name that
+account and a model it serves, with fake-provider stories for both orders and
+a second account of one provider (`domain/trial.md`, sections 2 and 4). The gallery lacks the
 account's stopped sample and Ready's trial states (`client/browser.md`). Simultaneous
 usable accounts can lose a trial request, and account rows share one task's wait
 reason (`domain/trial.md`). The pane lacks the draft's "one short message" spend

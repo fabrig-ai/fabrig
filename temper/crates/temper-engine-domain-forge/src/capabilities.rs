@@ -4,13 +4,13 @@ use crate::{Domain, Kinds, Limits, Protection, Request, Role, Stored};
 use skein_forge::api;
 use skein_lib::{Env, Queue, Token};
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) enum Stage {
     Permission,
     Settings,
     Protection,
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Pending {
     pub(crate) repository: api::Repository,
     pub(crate) stage: Stage,

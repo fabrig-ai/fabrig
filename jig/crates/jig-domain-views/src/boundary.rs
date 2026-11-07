@@ -107,7 +107,7 @@ pub struct Writing {
 }
 
 /// Events from the parent.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Event {
     /// The parent ends this watch's admission, independently of other parties.
     EndWatch { watcher: Token, end: End },

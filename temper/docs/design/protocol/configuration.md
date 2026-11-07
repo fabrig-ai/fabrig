@@ -1304,6 +1304,17 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
 
 ## 11. Open questions
 
+- **Settings refusal positions** (13.2; jig's `domain/engine.md`, 17.2):
+  the core's `at` counts from 0, and temper's form prints it as given,
+  while a settings file and temper's translation refusal count from 1.
+  Consistent person-facing numbering is later work. Default: keep the
+  protocol's position and the current words until both temper paths agree.
+- **Progress from the repository's checks** (13.9): `.temper/pre-pr`
+  can run its quiet snapshot and format check before a baseline prints
+  anything. A timeout there can truthfully carry an empty tail. Naming
+  phases in that script is later repository work. Default: keep its output
+  and the agent's 60-second `check_timeout`, with smith's check path and
+  given time in the refusal; no larger figure follows from a silent tail.
 - **A reference call of 128 KB** (13.8): the 131,072-byte payload and
   98,500-token output pass the session's rendered feedback beyond the
   transcript's `said_text` ceiling. Raising that ceiling changes a stored
@@ -2650,11 +2661,16 @@ that changes the stock changes nothing of them.
     document before its first start, member by member, an object's
     members over the document's and any other value replacing it, as
     `jq -s '.[0] * .[1]'` merges two files;
-  - `room.json`, what such a merge can't reach, a call's room (13.8): its
-    `agent` member, `tool_payload` and `output`, which `jq` sets on the
-    box's `agent.json`, the output on every endpoint; and its `worker`
-    member, merged over each worker of the document's array, as its
-    `README.md` gives both commands. All of it before the first start;
+  - `room.json`, a call's room (13.8), mostly what such a merge can't
+    reach: its `agent` member, `tool_payload` and `output`, which `jq`
+    sets on the box's `agent.json`, the output on every endpoint; its
+    `worker` member, merged over each worker of the document's array;
+    and its `application` member, `root.journal.run_bytes` 65,536,
+    merged over the document's `application` as `limits.json` is: the
+    journal's bound on a run's stored policy, which a charter's whole
+    policy must fit, so that the box's 20,480 refuses a charter of
+    31 KB. Its `README.md` gives the commands. All of it before the
+    first start;
   - `landing.json`, the document's `application.landing`, carried whole;
   - `settings.json`, applied once after the first start; then the rules
     and policy 1 changed as above, before the case's project is made,
@@ -2687,7 +2703,12 @@ that changes the stock changes nothing of them.
   (80), the executors and charters (16 and 12), and the agent's turns
   (800); so `limits.json` holds `tasks.tree_tasks`,
   `forge.change_policy.questions` and its engine's and application's
-  share of 13.8's room, and `room.json` the agent's and the workers'.
+  share of 13.8's room, and `room.json` the agent's, the workers' and
+  the journal's run bound a charter's policy needs.
+
+  A charter's turns, time and run spend must also fit a worker's
+  advertised bounds (jig's `domain/hosts.md`, section 6): journal room
+  alone does not make a worker eligible to run it.
 
   The settings file sizes its charters and template to the box: charters
   2, 5, 6, 7 and 8 take the stock's run, 800 turns and 8 hours (13.4),

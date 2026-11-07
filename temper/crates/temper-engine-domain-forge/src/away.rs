@@ -13,7 +13,7 @@ pub const DECIDED_OPTIONS: core::ops::RangeInclusive<usize> = 2..=6;
 pub fn decided_subject(project: u32) -> u64 {
     (1 << 62) | (1 << 35) | u64::from(project)
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum DecisionKind {
     Implementation,
     Retry,
@@ -33,7 +33,7 @@ impl DecisionKind {
         }
     }
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Away {
     pub party: u64,
     pub project: u32,
@@ -53,7 +53,7 @@ impl Away {
             }
     }
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Decided {
     pub project: u32,
     pub number: u32,
@@ -66,7 +66,7 @@ pub struct Decided {
     pub why: Box<[u8]>,
     pub overturned: bool,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct DecidedCall {
     pub question: Box<[u8]>,
     pub options: Box<[Box<[u8]>]>,
@@ -74,18 +74,18 @@ pub struct DecidedCall {
     pub why: Box<[u8]>,
     pub kind: DecisionKind,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SetAwayAnswer {
     Away,
     TooLarge,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum OverturnAnswer {
     Overturned,
     Already,
     Unknown,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct DecisionView {
     pub number: u32,
     pub task: u64,
@@ -95,11 +95,11 @@ pub struct DecisionView {
     pub why: Box<[u8]>,
     pub overturned: bool,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct AwaysView {
     pub rows: Box<[Away]>,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct DecisionsView {
     pub project: u32,
     pub rows: Box<[DecisionView]>,

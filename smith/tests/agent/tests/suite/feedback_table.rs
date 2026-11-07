@@ -63,9 +63,11 @@ fn every_run_call_terminal_has_canonical_feedback() {
         (
             run::Returned::ChecksFailed {
                 repository: bytes(b"repo"),
+                check: bytes(b".smith/check"),
+                given: Duration::from_secs(60),
                 ran: run::Ran { exit: run::Exit::TimedOut, output: bytes(b"tail"), cut: 3 },
             },
-            "checks-failed repository=\"repo\" exit=timed-out cut=3 tail=\"tail\"",
+            "checks-failed repository=\"repo\" check=\".smith/check\" exit=timed-out given_ms=60000 cut=3 tail=\"tail\"",
             true,
         ),
         (run::Returned::Stale, "stale", true),
@@ -191,9 +193,16 @@ fn every_delivery_reason_and_check_exit_is_visible() {
         assert_eq!(
             rendering(run::Returned::ChecksFailed {
                 repository: bytes(b"r"),
+                check: bytes(b".smith/check"),
+                given: Duration::from_secs(60),
                 ran: run::Ran { exit, output: bytes(b""), cut: 0 }
             }),
-            expected_rendering(&format!("checks-failed repository=\"r\" exit={label} cut=0 tail=\"\""), true)
+            expected_rendering(
+                &format!(
+                    "checks-failed repository=\"r\" check=\".smith/check\" exit={label} given_ms=60000 cut=0 tail=\"\""
+                ),
+                true,
+            )
         );
     }
 }

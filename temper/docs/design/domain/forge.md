@@ -1935,6 +1935,17 @@ delegate's terminal wakes it to offer the landed result.
   the section; it does not retry the comparison or raise the client's limits.
   Other comparison read failures are the section's read failures (below). The
   same rule applies to the pull sections for reviews and repairs.
+  Likewise, if a page of the pull's files exceeds the forge client's answer
+  byte or row limit (a page carries each of its files whole on both sides,
+  skein's `forge.md`, 5.2, so one large document can pass it however small
+  its change), the section keeps its pull identity, its gathered content and
+  the pages before it, and appends a files-omitted notice within its byte
+  budget, naming that page and the tools that read its files
+  (`read_pull_files` from the next page, `read_file` for a path at the head
+  or the base). The section then goes on as after its last page, to its
+  comparison where it has one; it reads no later page of files and raises no
+  limit. This holds for every pull section, a review's included, so a
+  review of a small change to a large document starts.
 - **A brief section's read that fails.** Every section says why it could not
   be read, and how that counts (jig's `domain/engine.md`, 9.1):
 
@@ -3303,6 +3314,14 @@ whole.
 
 ## 20. Open questions
 
+- **A forge read past its bound** (8.4): distinguishing
+  `forge.client.rows` from `forge.client.answer_bytes`, with the measured
+  size, needs skein's bare `TooLarge` to carry the bound and an exact or
+  lower-bound measure, then temper's stored answer to retain them.
+  Those public-interface and stored-format decisions belong to their
+  owners. Default: keep the files-omitted notice and the tool's unknown
+  measure; neither raise the room nor split a file across pages. A host
+  answer's rendered-size bound is separate from the forge client's bound.
 - **A person's link to a forge's user, and eligibility per forge** (section 4,
   8.9; `../draft/forge-identity.md`, sections 3, 4 and 7): the lookup knows
   only what adoption seeded, and eligibility counts an account on any forge of

@@ -9,14 +9,14 @@ const START: &[u8] = b"Repair the failed check at change head ";
 const AFTER_HEAD: &[u8] = b". Finish with the change: it becomes the pull request's new head.\n";
 const END: &[u8] = b"Repair the failed check.\n";
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Check {
     head: Box<[u8]>,
     log: Box<[u8]>,
     truncated: bool,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Section {
     head: BriefCommit,
     checks: List<Check>,

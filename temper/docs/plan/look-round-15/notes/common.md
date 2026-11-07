@@ -1,9 +1,0 @@
-# look-round-15: what every task follows
-
-- **The request binds:** `temper/docs/plan/look-round-15/inputs/request.md`, all of it, *For every task of this plan* first. It wins over a spec where they differ.
-- **The procedure:** `temper/docs/design/draft/look-requests.md`, 3 and 5. The request is the commit on `origin/look-requests` whose trailer is `Look-request: chat-title` (`27b6052708` when this plan was cut; the branch moves, so find it by `git log origin/look-requests --grep='Look-request: chat-title'`). Read it with `git show` alone: its page `temper/docs/design/client/journeys/chat-title/01.html`, its `README.md`, its rule in `overlay.css`, and its whole message. The two requests above it, `chat-terminal` and `chat-terminal-font`, carry `Look-hold`: they aren't this plan's, and nothing of theirs lands here.
-- **Every commit carries the trailer** `Look-request: chat-title`, one line directly above the other trailers, a fix of what an earlier commit missed included.
-- **Runs:** focused and fuzzy alone, each build and test through `heavy`, one command at a time. No `tools/tiers/run`, no `<tier>-<tree>` profile, no `scripts/browser.sh`, no browser, no walk, no render check, no screenshot, no throwaway driver: temper/ui's render check follows landing (`look-requests.md`, 4).
-- **Tests stay cheap:** a new case of a behaviour is a row of the table test that holds it; a spec names each new test it allows.
-- **Before pushing:** `cargo fmt`; `python3 -I -B <tree>/scripts/old_forms.py` for each tree the branch touches; `python3 -I -B tools/citations/citations.py --base origin/main`.
-- **Leave alone:** `origin/look-requests` and every file under `temper/docs/design/client/journeys/chat-title/` (the request's pages stay on that branch), `overlay.css`, the drafts, `docs/help/`.

@@ -31,6 +31,11 @@ request and its host half's bounded stdin/stdout exchange are built,
 without a run slot (`protocol/agent.md`, 6.1; `protocol/hosts.md`, section 2).
 smith has no drafts.
 
+Failed checks name their repository, convention path and given time,
+with their exit and retained output tail. A silent check still has no
+output to report; phase messages belong to its repository, and no timeout
+figure changes (`domain/run.md`, 8.1 and 15).
+
 Design documents:
 - [`domain/README.md`](domain/README.status.md)
 - [`domain/run.md`](domain/run.status.md)
