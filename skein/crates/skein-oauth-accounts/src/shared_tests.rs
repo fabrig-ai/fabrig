@@ -316,11 +316,28 @@ fn each_held_lock_is_unlocked_once() {
     }
 }
 #[test]
-fn a_locked_for_no_pending_lock_is_unlocked_at_once() {
-    let mut owner = shared_component();
-    answer(&mut owner, shared_record(NEWER));
-    assert_event(owner.above.pop(), Event::Unlock { account: ACCOUNT });
-    assert!(owner.above.is_empty());
+fn lock_replies_without_pending_ownership_are_unlocked_immediately() {
+    skein_rows::check(
+        [
+            ("a_locked_for_no_pending_lock_is_unlocked_at_once", (Box::<[Request]>::from([]), &[][..])),
+            ("a_locked_after_the_lock_wait_is_unlocked_at_once", (Box::<[Request]>::from([Request::Grant { account: ACCOUNT }]), &[limits().lock_wait][..])),
+        ],
+        |(requests, elapsed): (Box<[Request]>, &[Duration])| {
+            let mut owner = shared_component();
+            for request in requests {
+                owner.ask(request);
+                drop(owner.above.pop());
+            }
+            for &time in elapsed {
+                owner.env.now = owner.env.now.saturating_add(time);
+                owner.fire();
+                drop(owner.above.pop());
+            }
+            answer(&mut owner, shared_record(NEWER));
+            assert_event(owner.above.pop(), Event::Unlock { account: ACCOUNT });
+            assert!(owner.above.is_empty());
+        },
+    );
 }
 #[test]
 fn a_lock_with_no_answer_within_its_wait_fails_as_busy() {
@@ -332,16 +349,7 @@ fn a_lock_with_no_answer_within_its_wait_fails_as_busy() {
     assert_event(owner.above.pop(), Event::Failed { account: ACCOUNT, ends: Ends::Grant, failure: Failure::Busy });
     assert!(owner.above.is_empty());
 }
-#[test]
-fn a_locked_after_the_lock_wait_is_unlocked_at_once() {
-    let mut owner = waiting_refresh();
-    owner.env.now = owner.env.now.saturating_add(owner.env.limits.lock_wait);
-    owner.fire();
-    drop(owner.above.pop());
-    answer(&mut owner, shared_record(NEWER));
-    assert_event(owner.above.pop(), Event::Unlock { account: ACCOUNT });
-    assert!(owner.above.is_empty());
-}
+
 #[test]
 fn a_locked_after_closed_is_left_to_the_owner() {
     let mut owner = shared_component();

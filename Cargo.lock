@@ -3577,6 +3577,7 @@ dependencies = [
  "skein-lib",
  "skein-link",
  "skein-oauth",
+ "skein-rows",
  "skein-tls",
 ]
 

@@ -535,10 +535,27 @@ fn a_cancelled_wanted_refresh_ends_as_refresh() {
 }
 
 #[test]
-fn an_account_no_longer_wanted_has_no_refresh_deadline() {
-    let mut owner = wanted_owner();
-    owner.ask(Request::Want { account: 0, wanted: false });
-    assert_eq!(owner.component.next_deadline(), None);
+fn removing_refresh_interest_clears_the_pending_refresh_deadline() {
+    skein_rows::check(
+        [
+            ("an_account_no_longer_wanted_has_no_refresh_deadline", (None, &[][..], &[][..])),
+            ("an_account_no_longer_wanted_drops_its_unsent_refresh_deadline", (Some(25), &[20][..], &[25][..])),
+        ],
+        |(earliest, before, after)| {
+            let mut owner = Owner::configured([refresh_at(30, earliest)], &limits());
+            owner.ask(Request::Want { account: 0, wanted: true });
+            for &time in before {
+                at(&mut owner, time);
+                owner.fire();
+            }
+            owner.ask(Request::Want { account: 0, wanted: false });
+            for &time in after {
+                at(&mut owner, time);
+                owner.fire();
+            }
+            assert_eq!(owner.component.next_deadline(), None);
+        },
+    );
 }
 
 #[test]
@@ -557,34 +574,26 @@ fn releasing_a_wanted_grant_keeps_its_rejection_waiting_at_the_earliest_time() {
     assert_eq!(owner.component.next_deadline(), Some(Time::from_nanos(25_000_000_000)));
 }
 
-#[test]
-fn an_account_no_longer_wanted_drops_its_unsent_refresh_deadline() {
-    let mut owner = Owner::configured([refresh_at(30, Some(25))], &limits());
-    owner.ask(Request::Want { account: 0, wanted: true });
-    at(&mut owner, 20);
-    owner.fire();
-    owner.ask(Request::Want { account: 0, wanted: false });
-    at(&mut owner, 25);
-    owner.fire();
-    assert_eq!(owner.component.next_deadline(), None);
-}
+
 
 #[test]
-fn a_free_name_is_added_with_no_answer() {
-    let (mut component, env) = roomy();
-    let mut up = Queue::uncapped();
-    component.add(&env, ADDED, Account::HandedIn, &mut up);
-    assert!(up.is_empty());
+fn adding_accounts_within_capacity_produces_no_refusal_event() {
+    skein_rows::check(
+        [
+            ("a_free_name_is_added_with_no_answer", &[ADDED][..]),
+            ("an_add_at_the_accounts_limit_is_admitted", &[ADDED, ADDED.saturating_add(1)][..]),
+        ],
+        |accounts| {
+            let (mut component, env) = roomy();
+            let mut up = Queue::uncapped();
+            for &account in accounts {
+                component.add(&env, account, Account::HandedIn, &mut up);
+            }
+            assert!(up.is_empty());
+        },
+    );
 }
-#[test]
-fn an_add_at_the_accounts_limit_is_admitted() {
-    let (mut component, env) = roomy();
-    let mut up = Queue::uncapped();
-    for account in [ADDED, ADDED.saturating_add(1)] {
-        component.add(&env, account, Account::HandedIn, &mut up);
-    }
-    assert!(up.is_empty());
-}
+
 #[test]
 fn a_wanted_account_is_left_alone_before_its_lead() {
     let mut owner = wanted_owner();
