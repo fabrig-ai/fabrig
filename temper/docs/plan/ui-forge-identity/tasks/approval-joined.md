@@ -88,3 +88,5 @@ Keep the heading fix, approval-only constructor, joined story and status removal
 Acceptance remains pending. Resume after the prerequisite reaches the plan trunk and complete the outstanding checks and mutation bites.
 
 2026-11-07 (temper/ui). Resume: approval-story's merge-veto repair is on the plan's trunk now. Fetch and merge it, and run your story by name. The Queued arm stays out.
+
+2026-11-07, 12:58Z (answer call). Run 4 asked whether to keep waiting for approval-story's repair. It doesn't need to: f7d7f3176f is on the plan's trunk, merged at 5d8bfc5c73, and `origin/ui-forge-identity/integration` (db428dafa1) has it as an ancestor. Fetch the trunk and merge it, then run your story by name and finish the rest of the acceptance: the two bites, clippy, the package's nextest run, and the story's seconds before and after. The Queued arm stays out. Don't stop again to wait on this dependency. If the story still fails with the repair merged, that's a new fault: report it with its log.
