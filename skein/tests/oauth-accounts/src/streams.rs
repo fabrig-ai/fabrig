@@ -10,7 +10,7 @@ use skein_lib::stream::{Down, Read, Up};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall, bytes};
 use skein_oauth as oauth;
 use skein_oauth_accounts as accounts;
-use skein_world::stream::Wire;
+use skein_world::stream::{Trace, Wire};
 use std::net::Ipv4Addr;
 
 const ROOM: u32 = 64;
@@ -41,7 +41,7 @@ pub(crate) fn server_limits(issuer: &fake::Limits) -> http::Limits {
 }
 
 #[expect(clippy::too_many_lines, reason = "one protocol loop exposes both stream boundaries and the issuer")]
-pub(crate) fn drive(seed: u64, mut client: Client, mut rig: Rig) -> (Client, Vec<String>, TlsClose) {
+pub(crate) fn drive(seed: u64, mut client: Client, mut rig: Rig) -> (Client, Trace, TlsClose) {
     let profile = rig.profile;
     let server_limits = rig.server_limits;
     let mut issuer = rig.issuer;
@@ -68,7 +68,7 @@ pub(crate) fn drive(seed: u64, mut client: Client, mut rig: Rig) -> (Client, Vec
     let mut server_closed = false;
     let mut document = None;
     let mut document_paths = Vec::new();
-    let mut trace = Vec::new();
+    let mut trace = Trace::new();
     for _ in 0..rig.turns {
         let wall = Wall::from_nanos(epoch.as_nanos().saturating_add(now.as_nanos()));
         let env = Env { now, wall, limits: profile };

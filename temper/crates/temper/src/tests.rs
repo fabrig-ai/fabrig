@@ -204,6 +204,7 @@ fn fixed_sign_in_ports_are_checked_against_owned_and_fake_listeners() {
     // redirect-port check after this fixture adds an OAuth listener.
     value["application"]["limits"]["overrides"]["git_component.operations"] = 1.into();
     value["application"]["limits"]["overrides"]["checkout.workspaces"] = 1.into();
+    value["workers"][0]["slots"] = 1.into();
     let mut fake = value.clone();
     fake["application"]["machine"].as_object_mut().expect("machine").remove("owned");
     configuration::fake_entry(&mut fake["application"]["machine"]["fake"], "127.0.0.1:3000");

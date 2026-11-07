@@ -161,3 +161,16 @@ pub(crate) fn number(b: &mut Builder, w: &Words, task: u64) {
         crate::words::Shell::Terminal => {}
     }
 }
+
+/// A closed chat's number and what it ran on, in both shells (client/README.md, 3.5).
+pub(crate) fn closed_number(b: &mut Builder, w: &Words, task: u64, line: Option<&[u8]>) {
+    match line {
+        Some(line) => text(
+            b,
+            Role::Paragraph,
+            &w.say(Word::BylineTask, &[Hole::Number(task), Hole::Name(skein_lib::bytes::copy_of(line))]),
+            Some(look::BYLINE),
+        ),
+        None => number(b, w, task),
+    }
+}

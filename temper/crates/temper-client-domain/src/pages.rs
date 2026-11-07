@@ -22,6 +22,16 @@ pub fn drafts_offered(root: &crate::Domain, project: u32) -> bool {
         None => false,
     }
 }
+/// Whether a chat offers "+ Draft": a configuring chat whatever its project's settings
+/// say, another while they offer drafts (client/README.md, 3.5).
+#[must_use]
+pub fn chat_offers_draft(root: &crate::Domain, task: &jig_client::contract::Task) -> bool {
+    let configuring = match root.pages.me(&root.client) {
+        Some(me) => chats::configuring(me, task.project, &task.chip.executor),
+        None => false,
+    };
+    configuring || drafts_offered(root, task.project)
+}
 pub mod chats;
 pub mod choice;
 pub mod composer;

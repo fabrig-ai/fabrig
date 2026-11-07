@@ -546,6 +546,7 @@ fn proposal_turn(words: &[u8], key: jig_client_domain::contract::ProposalKey) ->
         used: Usage { input: 1, output: 1, cached: 0, cache_written: 0 },
         spent: 1,
         read_through: None,
+        llm: None,
         cut: false,
     }
 }

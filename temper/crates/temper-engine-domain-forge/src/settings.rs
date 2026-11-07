@@ -105,7 +105,7 @@ pub fn project_stock(kind: u32) -> Option<SizedValue> {
             })
         }
         7 => {
-            let ways = ProjectWays { drafts: false, goals: false, changes: false, away: false, way: 0 };
+            let ways = ProjectWays { drafts: true, goals: false, changes: false, away: false, way: 0 };
             let record = v1::ProjectWays::new(
                 &v1::CEILINGS,
                 v1::ProjectWaysParts { skein_bools: [ways.drafts, ways.goals, ways.changes, ways.away], way: ways.way },

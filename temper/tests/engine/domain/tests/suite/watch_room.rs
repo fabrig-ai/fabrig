@@ -106,7 +106,7 @@ fn two_parties_share_the_deployments_room() {
             held: None,
             reply_to: ReplyTo::new(OTHER_REPLY),
             identity: people::Identity {
-                key: people::IdentityKey { provider: 0, subject: OTHER_IDENTITY.to_be_bytes().into() },
+                key: temper_engine_domain_forge::user_key(1, OTHER_IDENTITY),
                 login: b"other".as_slice().into(),
                 name: b"Other".as_slice().into(),
             },

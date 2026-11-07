@@ -2292,19 +2292,23 @@ runs it (section 7).
     that bound, 874,120, so that a task's row stays within the journal's
     carrier (`root.journal.transcript_bytes`, below);
   - the machine's concurrency where `standard` sets another than the box
-    had, the hub's and the fleet's slots and workers and the clients'
-    streams and their carriers (configuration.md, 13.4), each at what
-    the box had.
+    had, the fleet's workers and the clients' streams and their carriers
+    (configuration.md, 13.4), each at what the box had. `standard`'s
+    `fleet.slots`, 4, holds the worker's `slots` with no override.
   `standard` holds the owner's grants (16), their names' segments (8),
   the notes' scopes past them, the watch room and the reference's
   charters and executors, so none of small's overrides for them stays.
 - **Its worker's `limits`** are jig's `standard` profile with those of
   the hub's that it, sized for any agent, sets past smith's agent
   (configuration.md, section 7, the worker's check against the agent),
-  and the machine's concurrency, and no other: `hub.accounts` 4, the
-  agent's accounts; `hub.run_calls` 48, the agent's calls; and
-  `hub.event_bytes`, the agent's advertised message bytes.
+  and no other: `hub.accounts` 4, the agent's accounts; `hub.run_calls`
+  48, the agent's calls; and `hub.event_bytes`, the agent's advertised
+  message bytes. `standard`'s `hub.slots`, 4, holds its `slots`, 4, so
+  that two chats and a goal's agents run side by side
+  (configuration.md, 13.4).
 - **Its `application.limits`** are temper's `standard` with
+  `checkout.workspaces` and `git_component.operations` 4, the least the
+  worker's slots take (`../domain/worker.md`, section 6);
   `checkout.message_bytes` the agent's payload, so the checkout accepts
   the agent's largest call; `forge.client.op_bytes` the engine's result
   bound, which the root holds it to, and `forge_component.body_bytes`
@@ -2655,7 +2659,7 @@ override.
   configured; the document names
   none of them (configuration.md, 13.4), and a person changes them from
   "How work runs" (`../client/README.md`, 5.13).
-- **One worker,** in the process, its `root` `workspaces` in the data
+- **One worker,** in the process, with 4 slots (8.1), its `root` `workspaces` in the data
   directory, its `git` the machine's, or null (8.2); the deployment's directory
   `deployment` in the data directory; the clients' listener
   `127.0.0.1:<port>` (8.2).
@@ -3904,6 +3908,16 @@ it checks of this document:
 ## 15. Later
 
 Each is intended; what it needs is named with it.
+
+- **Four agents on a laptop** (8.1, 8.3): measure their combined resident
+  memory, including any program an agent launches, after landing. The
+  box-and-serve figures in `setup.status.md` exclude agent processes and
+  do not size four of them. Each agent declares 2 GiB, carried unenforced;
+  the start checks slots and their related limits, without comparing that
+  declaration with laptop memory. The default is four slots, reversible
+  by the person; workspace disk use depends on the repositories cached
+  in the four workspaces. The process, browser and live checks follow
+  landing (`../domain/testing.md`, section 11).
 
 - **The fake box's retained ports under concurrent stories** (7.5):
   prove the story-supplied ports across a stopped box's restart in the

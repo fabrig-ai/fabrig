@@ -6,7 +6,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use jig_client::contract as c;
-pub(crate) use picker::{closed_line, picker};
+pub(crate) use picker::{closed_line, picker, ran_line};
 use skein_ui::{Builder, Role, State, phrases::Hole};
 use temper_client_domain::{
     Address, Domain,
@@ -111,6 +111,9 @@ pub(crate) fn composer(
     times: &mut Times,
 ) {
     if let Some(task) = task {
+        if task.result.is_some() || crate::pages::chats::ended(&task.chip) {
+            return;
+        }
         match task.chip.executor {
             c::ChipExecutor::Agent { .. } => {}
             c::ChipExecutor::Job { .. }
@@ -418,7 +421,7 @@ fn using_words(root: &Domain, task: Option<&c::Task>, project: Option<u32>, w: &
         Some(_) => draft.original.as_ref(),
         None => draft.requested.as_ref(),
     };
-    match model_words(root, task, choice, project, w) {
+    match model_words(root, choice, project, w) {
         Some((name, provider, _offered)) => using_line(root, task, choice, provider, name, w),
         None => selected_line(w, W::UsingDefault, &[]),
     }
@@ -431,24 +434,18 @@ pub(crate) fn new_chat_model(root: &Domain, w: &Words) -> Box<[u8]> {
 
 fn model_words(
     root: &Domain,
-    task: Option<&c::Task>,
     choice: Option<&c::LlmChoice>,
     project: Option<u32>,
     w: &Words,
 ) -> Option<(Box<[u8]>, Option<u32>, bool)> {
     let me = temper_client_domain::pages::accounts::current_me(root.client());
     let template = match root.pages().choice().context {
-        Some(choice::Context::Template { template, .. }) => template,
-        Some(choice::Context::Task { .. }) | None => jig_client::shapes::CHAT,
+        Some(choice::Context::Template { template, .. } | choice::Context::Task { template, .. }) => template,
+        None => jig_client::shapes::CHAT,
     };
     let choice = match choice {
         Some(choice) => choice,
-        None => {
-            if task.is_some() {
-                return None;
-            }
-            jig_client::shapes::resolved_default(me?, project?, template)?
-        }
+        None => jig_client::shapes::resolved_default(me?, project?, template)?,
     };
     let models = match (me, project) {
         (Some(me), Some(project)) => choice::offer(me, project),
@@ -467,7 +464,11 @@ fn model_words(
         Some(model) => model_shown(model, w),
         None => shown(&w.model_name(choice.main.model.bytes()), w),
     };
-    if let Some(effort) = &choice.main.effort {
+    let effort = choice.main.effort.as_ref().or(match model {
+        Some(model) => model.effort.as_ref(),
+        None => None,
+    });
+    if let Some(effort) = effort {
         name = w.say(W::ModelEffort, &[Hole::Name(name), Hole::Name(shown(effort.bytes(), w))]);
     }
     let provider = match model {
@@ -702,6 +703,10 @@ fn editable(task: &c::Task) -> bool {
         Some(c::Admission::Refused(_)) | None => false,
     }
 }
+/// A wait for a host, in a box's words on a box (temper/docs/design/client/README.md, 5.5).
+fn host_wait(root: &Domain) -> W {
+    if crate::forge::connect::owned(root) { W::WaitCapacityBox } else { W::WaitCapacity }
+}
 pub(crate) fn waiting(
     b: &mut Builder,
     root: &Domain,
@@ -719,7 +724,7 @@ pub(crate) fn waiting(
         Some(c::TaskRunWait::Refused(why)) => {
             line(b, w, W::WaitRefused, &[Hole::Name(refused(w, times, why))]);
         }
-        Some(c::TaskRunWait::Host) => line(b, w, W::WaitCapacity, &[]),
+        Some(c::TaskRunWait::Host) => line(b, w, host_wait(root), &[]),
         Some(c::TaskRunWait::Account { .. }) => {
             account_wait(b, root, task, w, bindings);
         }
@@ -890,7 +895,7 @@ pub(crate) fn wait_why(root: &Domain, w: &Words, wait: &c::TaskRunWait) -> Box<[
     use c::{TaskSourceState as S, TaskWaitWhy as R};
     let (word, until) = match *wait {
         c::TaskRunWait::Credential => return w.say(W::WaitCredential, &[]),
-        c::TaskRunWait::Host => return w.say(W::WaitCapacity, &[]),
+        c::TaskRunWait::Host => return w.say(host_wait(root), &[]),
         c::TaskRunWait::Refused(why @ c::TaskWaitRefused::Hello { at, .. }) => {
             return w.say(W::WaitRefused, &[Hole::Name(refused(w, &mut Times::new(at), why))]);
         }

@@ -49,12 +49,21 @@ pub struct ProjectPerson {
     pub role: u32,
     /// Empty for someone adoption seeded who has not signed in.
     pub login: Box<[u8]>,
-    /// Provider 0's subject, where their identity is the forge's.
-    pub forge_user: Option<u64>,
-    /// temper's retained forge writer, who never counts as a person.
-    pub writer: bool,
+    /// Their account on each forge of the project's repositories, each forge once,
+    /// in the order the repositories first name it (domain/agent.md, 8.1).
+    pub forges: Box<[PersonForge]>,
     /// The person this chat's task was requested by.
     pub you: bool,
+}
+/// What the lookup answers for one person on one forge (domain/agent.md, 8.1).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct PersonForge {
+    /// The forge's host, as the inventory's repository lines name it.
+    pub host: Box<[u8]>,
+    /// Their user there, unknown as `None`.
+    pub user: Option<u64>,
+    /// That user is temper's retained writer on this forge, who never counts as a person.
+    pub writer: bool,
 }
 /// One model of the offer, for an authorized inventory (temper/docs/design/domain/agent.md, 8.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -706,7 +715,6 @@ fn settings_people(domain: &Domain, flight: &Flight, answer: &jig_domain_core::S
         jig_domain_tasks::Party::Person(person) => Some(person),
         jig_domain_tasks::Party::Task(_) | jig_domain_tasks::Party::Deployment { .. } => None,
     };
-    let repositories = domain.forge.readable_repositories(context.project);
     let mut people = List::with_capacity(u32::try_from(members.len()).expect("bounded project members"));
     for member in members {
         match domain.core.people.kind(member.person) {
@@ -714,27 +722,12 @@ fn settings_people(domain: &Domain, flight: &Flight, answer: &jig_domain_core::S
             Some(jig_domain_people::Kind::Service) | None => continue,
         }
         let Some(identity) = domain.core.people.identity(member.person) else { continue };
-        let forge_user = if identity.key.provider == 0 {
-            match <[u8; 8]>::try_from(identity.key.subject.as_ref()) {
-                Ok(subject) => Some(u64::from_be_bytes(subject)),
-                Err(_) => None,
-            }
-        } else {
-            None
-        };
-        let mut writer = false;
-        if let Some(user) = forge_user {
-            for repository in &repositories {
-                writer |= domain.forge.is_writer(repository.provider.forge, user);
-            }
-        }
         people
             .push(ProjectPerson {
                 person: member.person,
                 role: member.role.number(),
                 login: identity.login.clone(),
-                forge_user,
-                writer,
+                forges: super::forge_route::person_forges(domain, context.project, member.person),
                 you: requester == Some(member.person),
             })
             .expect("at most one person per holding");
