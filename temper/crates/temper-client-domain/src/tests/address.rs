@@ -512,3 +512,29 @@ fn the_filter_round_trips() {
     assert_eq!(print(&address).as_ref(), b"/chats?state=drafts");
     assert_eq!(parse(&print(&address)), Place::Address(address));
 }
+
+#[test]
+fn the_approval_page_reads_its_code_and_prints_it_shown() {
+    let code = jig_client::ApprovalCode::parse(b"WDJBMJHT").unwrap();
+    for (path, expected) in [
+        (b"/terminal".as_slice(), Place::Approve { code: None }),
+        (b"/terminal/", Place::Approve { code: None }),
+        (b"/terminal?code=WDJB-MJHT", Place::Approve { code: Some(code) }),
+        (b"/terminal?code=wdjbmjht", Place::Approve { code: Some(code) }),
+        (b"/terminal?code=WDJB%20MJHT", Place::Approve { code: None }),
+        (b"/terminal?code=wdjb mjht", Place::Approve { code: Some(code) }),
+        (b"/terminal?code=AEIO", Place::Approve { code: None }),
+        (b"/terminal?code=", Place::Approve { code: None }),
+        (b"/terminal?x=1&code=WDJB-MJHT", Place::Approve { code: Some(code) }),
+        (b"/terminal?code=AEIO&code=WDJB-MJHT", Place::Approve { code: Some(code) }),
+        (b"/terminal?code=WDJB-MJHT&code=BCDF-GHJK", Place::Approve { code: Some(code) }),
+        (b"/terminal?code=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB", Place::Approve { code: None }),
+        (b"/terminal/x", Place::Missing),
+        (b"/terminals", Place::Missing),
+    ] { assert_eq!(parse(path), expected, "{path:?}"); }
+    for (code, expected) in [(Some(code), b"/terminal?code=WDJB-MJHT".as_slice()), (None, b"/terminal")] {
+        let path = crate::address::print_approve(code);
+        assert_eq!(path.as_ref(), expected);
+        assert_eq!(parse(&path), Place::Approve { code });
+    }
+}

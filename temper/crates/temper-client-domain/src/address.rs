@@ -93,6 +93,8 @@ pub enum Kind {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Place {
     Address(Address),
+    /// The approval page (client/README.md, 3.5, The approval page): a code, or none to type one.
+    Approve { code: Option<jig_client::ApprovalCode> },
     /// Raw authorization query; never canonicalized or printed.
     Authorize {
         query: Box<[u8]>,
@@ -666,4 +668,10 @@ fn draft_query(query: &[u8]) -> bool {
         rest = rest.get(end..).expect("separator in query").strip_prefix(b"&").unwrap_or(b"");
     }
     false
+}
+
+/// The approval page's code as shown (client/browser.md, 2.3).
+#[must_use]
+pub fn print_approve(_code: Option<jig_client::ApprovalCode>) -> Box<[u8]> {
+    b"/terminal".as_slice().into()
 }
