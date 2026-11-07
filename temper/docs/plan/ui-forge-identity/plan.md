@@ -21,10 +21,12 @@ The rest of `temper/docs/design/draft/forge-identity.md`, sections 4 to 9, tempe
 | `approval` | `approval-client` | `approval-wire` | temper | the client watches `approvals` and merges its rows into Needs you, its filters, Home's and the rail's counts, and Later; reads a proposal's `owned_approval` |
 | `approval` | `approval-read` | `link-lookup`, `link-scope`, `approval-wire`, `approval-waits` | temper | the root answers each watcher's approvals, whether their review would count; the service carries them with each row's address; a proposal's `owned_approval` |
 | `approval` | `approval-card` | `approval-client` | temper | the card on Needs you, Home and a goal's band, its review link, the counts; the proposal's sentence on a box; the gallery's samples |
+| `approval` | `approval-story` | `box-story`, `approval-read` | temper | the engine's world: the box's person's change waits, their `approvals` row, another project's party reads none, their review lands it (section 2, steps 3 to 5) |
+| `approval` | `approval-joined` | `approval-read`, `approval-card` | temper | the joint world: the card and its "Review on Forgejo ↗" link on Needs you, gone once the review lands the change (in place of a browser step) |
 
-The rest of the `approval` part (section 8: the forge's waits, the root's read, the client's merge and card; section 6's sentence on the proposal's card; section 2's steps 3 to 5 in the world) follows from its designer, built to `notes/contracts.md`, *The approval read*.
+The `approval` part was written by a designer, built to `notes/contracts.md`, *The approval read*.
 
-**Critical path, as it stands:** `link-record`, `link-decide`, `link-scope`, `box-story`, then the `approval` part's story. `link-lookup` feeds the `approval` part's read.
+**Critical path:** `link-record`, `link-decide`, `approval-waits`, `approval-read`, `approval-story` (with `link-lookup` and `link-scope` beside it into `approval-read`); on the client's side, `approval-wire`, `approval-client`, `approval-card`, `approval-joined`.
 
 ## What this cut decided
 
@@ -45,5 +47,7 @@ The rest of the `approval` part (section 8: the forge's waits, the root's read, 
 
 - **`forge_route.rs`** (temper/migration's `goal-delivery` and `call-room`, by the request): `link-record` adds one `outputs` arm, `link-lookup` changes the four lookup functions. Whichever lands second catches up.
 - **`limits-fuzzy/under-causes`** globs all of `temper/crates/temper-service/src/**`: `box-sign-in` (startup), `link-record` (`engine.rs`, `lib.rs`), `link-setup` (`setup/lifecycle.rs`) and `link-words` (`stock/configuring.txt`) touch it. Small and unavoidable.
+- **`model-catalogue-3/models-read`** writes `temper-client-view`'s `words.rs` and `root.rs`, `temper.css` and the gallery: `approval-card` adds its words, one argument in `root.rs`, one rule under `/* ==== ui: needs ==== */` and two gallery samples; whichever lands second regenerates the gallery.
+- **`model-catalogue-3/list-story`** globs `temper/tests/client/src/**`: `approval-joined` touches `fixtures.rs` and `front.rs` there.
 - **`model-catalogue-3/list-close`** globs `**/*.status.md`; ours are single entries.
 - **No heads-up to hearth/core:** hearth names skein alone, and `jig-domain-people` is no crate hearth builds on.
