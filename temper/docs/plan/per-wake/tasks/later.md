@@ -122,3 +122,13 @@ Acceptance:
 
 As the implementer's text says, and also: whether an amendment already replaced the choice
 whole; where the run's check takes its choice.
+
+## Rebase (2026-11-07, step merge, foreman per-wake/later/foreman-1)
+
+resolve the status-file conflict by preserving both branches’ gap deletions
+The merge conflicts only in `jig/docs/design/client/domain/contract.status.md`.
+Integration commit `15a63c4e87` (“Let clients read charter parts and name later choices”) deletes the 3.2/5.1 gap about the client charter lacking parts and its LLM choice lacking `later`.
+Task commit `78b116ea79` deletes the adjacent 5.1 gap about a task document showing its first choice whatever its reasons.
+Resolve the conflict by removing both bullets, including their continuation lines, and retaining all other status text.
+The `ReadLists` paragraph should lead directly, across one blank line, into the provider-read `left_out` gap.
+Preserve the implementation changes from both branches; this refusal requires only the status-file resolution.
