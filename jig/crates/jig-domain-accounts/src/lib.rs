@@ -14,6 +14,7 @@ mod domain;
 mod facts;
 mod keys;
 mod limits;
+mod lists;
 mod ordering;
 pub mod programs;
 mod providers;
@@ -26,7 +27,7 @@ pub use boundary::{
     Program, ProgramFailure, ProgramHost, ProgramResult, Request, Said, Signing, State, ToComponent, Turned, Unread,
 };
 pub use checks::{Bound, Refusal, SignIn, SignInRedirectWhy, room_for_sign_in};
-pub use domain::{Account, Domain, fire, step};
+pub use domain::{Account, Domain, ModelKind, fire, step};
 pub use facts::{
     AccountFact, Audience, FACT_LABEL, FACT_TEXT, FACTS, FactValue, FactWindow, KIND_EMAIL, KIND_ENDS, KIND_NAME,
     KIND_PLAN, KIND_RENEWS, KIND_USAGE, KIND_WORKSPACE, ORIGIN_ANSWER, ORIGIN_LIMIT, ORIGIN_PROGRAM, ORIGIN_REFRESH,
@@ -34,8 +35,8 @@ pub use facts::{
 };
 pub use keys::{KEY_VALID, PROGRAM_VALID};
 pub use limits::{Limits, valid};
-pub use providers::{MANAGE_USAGE, Offers, PROVIDER_NAME, Provider, Providers};
-pub use records::{DISPLAY, Held, Holder, Key, Kind, NAME, SUBJECT, Stored, USES, Use};
+pub use providers::{MANAGE_USAGE, Offers, PROVIDER_NAME, Provider, ProviderList, Providers};
+pub use records::{DISPLAY, Held, Holder, Key, Kind, ListRecord, NAME, ReadFailure, SUBJECT, Stored, USES, Use};
 pub use restore::{RestoreLimit, RestoreSet};
 pub use selection::{Coverage, Excluded, HostSource, Selection, WaitWhy};
 

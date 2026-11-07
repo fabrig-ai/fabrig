@@ -16,5 +16,5 @@ pub fn from_paths(
     user: u32,
     parent: Option<skein_io::kernel::Fd>,
 ) -> Option<Resources> {
-    Resources::new(Programs { directory, claude }, environment, PATH_BYTES, user, parent)
+    Resources::new(Programs { directory, claude }, environment, PATH_BYTES, user, parent, None)
 }

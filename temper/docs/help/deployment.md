@@ -76,17 +76,24 @@ temper ctl settings apply`.
 
 **Offering another model** (for example, `claude-haiku-5-5`):
 
-1. On **Settings**, **Models**, use **Add a model by name**: choose a
+1. Set the provider's `keep` patterns for names to read and `drop` patterns
+   for names to exclude in `engine.llm.providers` in `CONFIG/temper.json`.
+   Without `keep`, that provider reads no list. Drain the stop and restart
+   with the same `CONFIG`, `DATA` and `CACHE`. Where the provider has a list,
+   temper reads it as an account becomes usable, once a day and on
+   **Read again** in **Settings**, **Models**.
+2. For what a list doesn't show, including a new Claude subscription model,
+   use **Add a model by name** on **Settings**, **Models**: choose a
    provider and enter the model's name. Prices are estimated until set;
    the first run shows whether the provider serves it.
-2. To set its prices, window or efforts, tell **Configure temper**.
+3. To set its prices, window or efforts, tell **Configure temper**.
    A task keeps the model it has. Adding or changing a model needs no restart.
    `model list` reads the models offered to a project; a charter or policy
    may restrict which it can use (temper help charter; temper help settings).
-3. For a local model, its provider's `endpoint` in `engine.llm.providers`
+4. For a local model, its provider's `endpoint` in `engine.llm.providers`
    names the configured endpoint serving it. Providers and endpoints stay
    in `CONFIG/temper.json`.
-4. For a larger output than an agent's endpoint's limits allow, raise those
+5. For a larger output than an agent's endpoint's limits allow, raise those
    limits in `CONFIG/agent.json` and restart, then change the model.
    Preserve endpoint addresses, transports and sign-in settings. The endpoint's
    `reasoning_item` is the byte allowance per reasoning item; `head` and `idle`

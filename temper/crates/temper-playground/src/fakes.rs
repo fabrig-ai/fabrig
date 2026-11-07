@@ -129,6 +129,8 @@ pub fn scripted_provider(scripts: Box<[skein_fake_llm_domain::api::Script]>, see
         skein_fake_peers::Transport::Plaintext,
         llm_peer_limits(),
         provider::Config {
+            list: None,
+            list_status: None,
             echo: skein_llm::openai::Echo::NONE,
             usage_fields: documents::UsageFields::ALL,
             provider: documents::Provider::OpenAi,

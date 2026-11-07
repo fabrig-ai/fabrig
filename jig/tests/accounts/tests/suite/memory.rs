@@ -69,6 +69,7 @@ fn full_accounts_restore_sign_in_and_sign_out_scenario() {
             &mut out,
         );
         let record = Stored::Account {
+            list: None,
             place: 0,
             uses: Some((0..jig_domain_accounts::USES).map(|n| jig_domain_accounts::Use::Party(u64::from(n))).collect()),
             number: number(account, None),
@@ -239,6 +240,7 @@ fn pending_keys_and_account_removals_complete_scenario() {
             &mut domain,
             Event::Restore {
                 record: Stored::Account {
+                    list: None,
                     number: account,
                     provider,
                     holder,
@@ -319,6 +321,7 @@ fn full_program_operations_stay_below_the_accounts_bound_scenario() {
             &mut domain,
             Event::Restore {
                 record: Stored::Account {
+                    list: None,
                     number: number(account, None),
                     provider: 1,
                     holder,
@@ -408,6 +411,7 @@ fn restore_move_accounts(domain: &mut Domain, run: &mut Run) {
             domain,
             Event::Restore {
                 record: Stored::Account {
+                    list: None,
                     number: number(account, None),
                     provider: 1,
                     holder: Holder::Party(u64::from(account)),

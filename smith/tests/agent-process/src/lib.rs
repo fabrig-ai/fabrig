@@ -11,6 +11,7 @@ use smith_protocol_channel as channel;
 use smith_protocol_llm as llm;
 
 pub mod fake;
+pub mod list_world;
 pub mod probe;
 pub mod program_world;
 pub mod wire;

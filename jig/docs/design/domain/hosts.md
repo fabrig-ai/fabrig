@@ -303,6 +303,13 @@ its root chooses otherwise:
   keeps a person's logins takes only runs that person's accounts pay
   for (engine.md, section 8; accounts.md, 3.4).
 
+A read of an account's list (accounts.md, 3.7) takes the same queue: the engine
+names an endpoint and a grant, and the root's agent capability has smith's host
+half run the agent's one request (smith's `protocol/hosts.md`, section 2). It
+takes no slot and no workspace, and its answer, the rows or a typed failure, goes
+up with the read's number. The hub hears the grant's name alone; its value comes
+from the worker's table, as a run's does. A link lost cancels it and sends nothing.
+
 The hub's source machine owns when to check: on a new list, an explicit
 check and a positive interval. An explicit check queues a fresh command;
 requests for that queued command coalesce, while a command already running

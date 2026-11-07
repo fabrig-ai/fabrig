@@ -19,13 +19,19 @@ enum Act {
 }
 #[derive(Debug)]
 pub(crate) struct Bindings {
+    pub(crate) model_times: crate::words::Times,
     entries: List<(Token, Act)>,
     next: u64,
     submissions: bool,
 }
 impl Bindings {
     pub fn new(capacity: u32) -> Self {
-        Self { entries: List::with_capacity(capacity), next: 0, submissions: true }
+        Self {
+            model_times: crate::words::Times::new(skein_lib::Wall::EPOCH),
+            entries: List::with_capacity(capacity),
+            next: 0,
+            submissions: true,
+        }
     }
     pub fn begin(&mut self) {
         self.entries.clear();

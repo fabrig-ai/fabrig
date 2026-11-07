@@ -15,7 +15,14 @@ pub(crate) fn seen(value: &[u8]) -> Seen {
         role: b"textbox".as_slice().into(),
         name: b"Title".as_slice().into(),
         value: value.into(),
-        states: States { focused: false, disabled: false, checked: false, expanded: false, selected: false },
+        states: States {
+            focused: false,
+            disabled: false,
+            checked: false,
+            expanded: false,
+            selected: false,
+            pressed: false,
+        },
         rect: None,
     }
 }

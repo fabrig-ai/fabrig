@@ -128,7 +128,9 @@ impl Driver {
                         self.immediate.push_back(Event::RelayCancelled { run, attempt, call: call.clone() });
                         self.requests.push(Request::CancelRelay { run, attempt, call });
                     }
-                    request @ (Request::Source { .. }
+                    request @ (Request::ReadList { .. }
+                    | Request::CancelRead { .. }
+                    | Request::Source { .. }
                     | Request::SourceFault
                     | Request::Hello(_)
                     | Request::Link(_)

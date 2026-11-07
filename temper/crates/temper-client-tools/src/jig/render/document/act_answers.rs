@@ -138,6 +138,18 @@ pub(super) fn encode_note_scope(value: &jig_client::contract::NoteScope, out: &m
 
 pub(super) fn encode_outcome(value: &jig_client::contract::Outcome, out: &mut Encoder, budget: &mut super::Cut) {
     match value {
+        jig_client::contract::Outcome::Account(jig_client::contract::AccountAnswer::Reading { count }) => {
+            out.object_start();
+            out.key(b"account");
+            out.object_start();
+            out.key(b"reading");
+            out.object_start();
+            out.key(b"count");
+            out.unsigned(u64::from(*count));
+            out.object_end();
+            out.object_end();
+            out.object_end();
+        }
         jig_client::contract::Outcome::Restored { proposal, to, left_out } => {
             out.object_start();
             out.key(b"restored");

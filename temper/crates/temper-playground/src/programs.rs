@@ -141,6 +141,7 @@ fn parameters() -> Parameters {
 pub enum Process<H: Harness> {
     Service(Box<ServiceHost<H>>),
     Agent(Box<machine::Rooted<skein_sim_world::PipeHost<smith_agent_shell::Agent>>>),
+    List(Box<smith_agent_shell::list::Process>),
     GitRoute(Box<temper_fake_git::Git<temper_fake_git::Route>>),
     Git(Box<temper_fake_git_hosted::Git<temper_fake_git_hosted::Typed>>),
     Shell(Box<Shell>),
@@ -154,6 +155,7 @@ impl<H: Harness> Process<H> {
         match self {
             Self::Service(h) => h.as_ref(),
             Self::Agent(h) => h.as_ref(),
+            Self::List(h) => h.as_ref(),
             Self::GitRoute(h) => h.as_ref(),
             Self::Git(h) => h.as_ref(),
             Self::Shell(h) => h.as_ref(),
@@ -167,6 +169,7 @@ impl<H: Harness> Process<H> {
         match self {
             Self::Service(h) => h.as_mut(),
             Self::Agent(h) => h.as_mut(),
+            Self::List(h) => h.as_mut(),
             Self::GitRoute(h) => h.as_mut(),
             Self::Git(h) => h.as_mut(),
             Self::Shell(h) => h.as_mut(),
@@ -179,7 +182,7 @@ impl<H: Harness> Process<H> {
     fn role(&self) -> Role {
         match self {
             Self::Service(_) => Role::Service,
-            Self::Agent(_) => Role::Agent,
+            Self::Agent(_) | Self::List(_) => Role::Agent,
             Self::GitRoute(_) | Self::Git(_) => Role::Git,
             Self::Shell(_) => Role::Shell,
             Self::Peer(_) => Role::Provider,
@@ -270,8 +273,19 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
 }
 /// Host smith with its own configuration and a product diagnostic pipe.
 #[must_use]
-pub fn agent<H: Harness>(_spawn: &Spawn, inherited: &Inherited) -> Process<H> {
+pub fn agent<H: Harness>(spawn: &Spawn, inherited: &Inherited) -> Process<H> {
     H::spawned(Role::Agent, inherited, b"worker/agent");
+    if list_arguments(&spawn.args) {
+        return Process::List(Box::new(smith_agent_shell::list::Process::with_endpoints(
+            documents::agent_configuration().llm_endpoints,
+            smith_agent_shell::list::Faces {
+                stdin: inherited.pipes.iter().find(|(child, _)| *child == 0).expect("stdin").1,
+                stdout: inherited.pipes.iter().find(|(child, _)| *child == 1).expect("stdout").1,
+                stderr: Some(inherited.pipes.iter().find(|(child, _)| *child == 2).expect("stderr").1),
+                signal: inherited.signal,
+            },
+        )));
+    }
     let stderr = inherited.pipes.iter().find(|(child, _)| *child == 2).expect("stderr").1;
     let (errors, capture) = skein_sim_world::PipeWriter::new(stderr, 4096);
     let agent = smith_agent_shell::Agent::new(
@@ -323,8 +337,18 @@ pub fn shell<H: Harness>(spawn: &Spawn, inherited: &Inherited) -> Process<H> {
 pub fn worker_root(_spawn: &Spawn) -> Vec<StartupRoot> {
     vec![StartupRoot { name: b"worker".as_slice().into(), path: b"worker".as_slice().into() }]
 }
+fn list_arguments(arguments: &[Box<[u8]>]) -> bool {
+    let arguments = match arguments {
+        [flag, rest @ ..] if flag.as_ref() == b"--list" => rest,
+        _ => arguments,
+    };
+    match arguments {
+        [internal, list, _] => internal.as_ref() == b"internal" && list.as_ref() == b"agent-list",
+        _ => false,
+    }
+}
 fn agent_roots<H: Harness>(spawn: &Spawn) -> Vec<StartupRoot> {
-    machine::agent_roots::<H>(spawn)
+    if list_arguments(&spawn.args) { Vec::new() } else { machine::agent_roots::<H>(spawn) }
 }
 #[must_use]
 pub fn agent_root<H: Harness>(spawn: &Spawn) -> Vec<StartupRoot> {
@@ -362,7 +386,7 @@ pub fn programs<H: Harness>() -> Vec<(HostedProgram<Process<H>>, StartupRoots)> 
                 program: b"/opt/temper/bin/temper".as_slice().into(),
                 make: agent::<H>,
                 instances: documents::AGENTS,
-                operations: documents::agent_limits().routes + 3,
+                operations: (documents::agent_limits().routes + 3).max(smith_agent_shell::list::operations()),
             },
             agent_roots::<H>,
         ),
@@ -380,3 +404,7 @@ pub fn programs<H: Harness>() -> Vec<(HostedProgram<Process<H>>, StartupRoots)> 
 #[cfg(test)]
 #[path = "tests/programs.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "programs/spawn_tests.rs"]
+mod spawn_tests;

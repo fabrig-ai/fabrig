@@ -92,6 +92,7 @@ pub fn settings(rows: u32) -> jig_protocol_engine_clients::Settings {
 pub fn models() -> Box<[jig_protocol_engine_clients::Model]> {
     let model = jig_test_profile::scripted_model();
     Box::new([jig_protocol_engine_clients::Model {
+        new_until: None,
         number: 1,
         source: jig_domain_core::settings::ModelSource::Stock,
         estimated: false,

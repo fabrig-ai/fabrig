@@ -14,6 +14,7 @@ fn restore_account(core: &mut Core, limits: &Limits, uses: Option<Box<[Use]>>) {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.accounts };
     for record in [
         accounts::Stored::Account {
+            list: None,
             number: ACCOUNT,
             provider: 1,
             holder: accounts::Holder::Party(HOLDER),

@@ -49,6 +49,7 @@ impl Referee {
             | Event::Prepared { .. }
             | Event::Unprepared { .. }
             | Event::Delivered { .. }
+            | Event::ListRead { .. }
             | Event::SourceAnswered { .. }
             | Event::SourceLost
             | Event::Saved { .. } => {}
@@ -59,7 +60,9 @@ impl Referee {
     }
     pub(crate) fn request(&mut self, request: &Request) {
         match request {
-            Request::Source { .. } | Request::SourceFault => unreachable!("source scheduling has its own world"),
+            Request::ReadList { .. } | Request::CancelRead { .. } | Request::Source { .. } | Request::SourceFault => {
+                unreachable!("source scheduling has its own world")
+            }
             Request::Agent(ToAgent::Message { agent, name, .. }) => {
                 if let Some(key) = self.agents.get(agent) {
                     self.pending.entry(*key).or_default().remove(name);

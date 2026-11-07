@@ -59,6 +59,8 @@ pub fn scripted_sized(scripts: Box<[api::Script]>, strings: u32) -> Recipe {
         transport: Transport::Plaintext,
         limits: smith_agent_process_world::fake::limits(),
         config: provider::Config {
+            list: None,
+            list_status: None,
             without_credential: false,
             echo: skein_llm::openai::Echo::NONE,
             usage_fields: documents::UsageFields::ALL,
