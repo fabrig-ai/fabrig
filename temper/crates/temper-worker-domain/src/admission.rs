@@ -16,6 +16,7 @@ pub fn is_new_work(event: &Event) -> bool {
             host::LinkDown::AssignJob { .. }
             | host::LinkDown::Assign { .. }
             | host::LinkDown::Message { .. }
+            | host::LinkDown::ReadList { .. }
             | host::LinkDown::Check { .. }
             | host::LinkDown::SignOut { .. },
         ) => true,
@@ -64,6 +65,7 @@ pub fn passes(event: &Event) -> bool {
             | host::LinkDown::Message { .. }
             | host::LinkDown::Check { .. }
             | host::LinkDown::SignOut { .. }
+            | host::LinkDown::ReadList { .. }
             | host::LinkDown::Sources { .. }
             | host::LinkDown::Cancel { .. }
             | host::LinkDown::Grant { .. },

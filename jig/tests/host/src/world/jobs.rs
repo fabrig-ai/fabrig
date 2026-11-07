@@ -25,6 +25,8 @@ impl World {
             other @ (Request::Agent(_)
             | Request::Job(host::ToJob::Stop { .. })
             | Request::DeliverJob { .. }
+            | Request::ReadList { .. }
+            | Request::CancelRead { .. }
             | Request::Source { .. }
             | Request::SourceFault
             | Request::Up(_)

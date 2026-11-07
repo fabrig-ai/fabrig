@@ -93,9 +93,13 @@ impl Measured {
         let mut cancelled = Vec::new();
         while let Some(request) = self.out.pop() {
             asked.push(match request {
-                Request::Source { .. } | Request::SourceFault => unreachable!("source scheduling has its own world"),
+                Request::ReadList { .. }
+                | Request::CancelRead { .. }
+                | Request::Source { .. }
+                | Request::SourceFault => unreachable!("source scheduling has its own world"),
                 Request::Up(
-                    LinkUp::Logins { .. }
+                    LinkUp::ListRead { .. }
+                    | LinkUp::Logins { .. }
                     | LinkUp::SignedOut { .. }
                     | LinkUp::Piece { .. }
                     | LinkUp::Activity { .. }
@@ -484,7 +488,9 @@ fn source_replacement_at_capacity_completes_every_check() {
             match request {
                 Request::Source { owner: next, .. } => owner = next,
                 Request::Up(LinkUp::Logins { logins }) => assert_eq!(logins.len(), names.len()),
-                other @ (Request::SourceFault
+                other @ (Request::ReadList { .. }
+                | Request::CancelRead { .. }
+                | Request::SourceFault
                 | Request::Up(_)
                 | Request::Hello { .. }
                 | Request::Agent(
@@ -550,7 +556,8 @@ fn maximum_input_pieces_keep_their_payloads_and_order() {
                 pieces += 1;
             }
             LinkUp::Activity { .. } => activity += 1,
-            other @ (LinkUp::Logins { .. }
+            other @ (LinkUp::ListRead { .. }
+            | LinkUp::Logins { .. }
             | LinkUp::SignedOut { .. }
             | LinkUp::Unauthorized { .. }
             | LinkUp::Limited { .. }

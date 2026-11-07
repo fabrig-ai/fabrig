@@ -88,6 +88,7 @@ pub(crate) fn keeps_payload(input: &WorkerInput) -> bool {
                 Link::Up {
                     up:
                         host::LinkUp::Piece { .. }
+                        | host::LinkUp::ListRead { .. }
                         | host::LinkUp::Logins { .. }
                         | host::LinkUp::SignedOut { .. }
                         | host::LinkUp::Activity { .. }

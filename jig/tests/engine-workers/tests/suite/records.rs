@@ -26,12 +26,14 @@ mod records {
         Lost,
         Logins,
         SignedOut,
+        ListRead,
     }
     fn record(request: &Request) -> Record {
         use jig_domain_host::LinkUp;
         match request {
             Request::Hello { .. } => Record::Hello,
             Request::Up { up, .. } => match up {
+                LinkUp::ListRead { .. } => Record::ListRead,
                 LinkUp::Logins { .. } => Record::Logins,
                 LinkUp::SignedOut { .. } => Record::SignedOut,
                 LinkUp::Turn { .. } => Record::Turn,

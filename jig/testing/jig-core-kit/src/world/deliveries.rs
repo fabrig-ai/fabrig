@@ -231,6 +231,7 @@ impl World {
                 | core::Held::NotesWritten { .. }
                 | core::Held::NotesDeleted { .. }
                 | core::Held::StopRun { .. }
+                | core::Held::ReadList { .. }
                 | core::Held::CheckSource { .. }
                 | core::Held::SignOutSource { .. }
                 | core::Held::SourceSignedOut { .. }

@@ -950,7 +950,9 @@ impl World {
                 assert!(sources.is_empty(), "worker fixture has no program sources");
                 self.stage.push(Event::Logins { channel, logins: Box::new([]) });
             }
-            Request::ProgramTargets { .. }
+            Request::ReadList { .. }
+            | Request::ListRead { .. }
+            | Request::ProgramTargets { .. }
             | Request::ProgramSignedOut { .. }
             | Request::Check { .. }
             | Request::SignOut { .. }
@@ -1359,7 +1361,9 @@ fn describe(event: &Event) -> String {
         Event::Hello { worker: _, channel, hello } => {
             format!("Hello {} slots {} hosting {:?}", channel.raw(), hello.slots, hello.hosting)
         }
-        Event::Needs(_)
+        Event::ReadList { .. }
+        | Event::ListRead { .. }
+        | Event::Needs(_)
         | Event::CleanupPrograms { .. }
         | Event::CheckProgram { .. }
         | Event::SignOutProgram { .. }

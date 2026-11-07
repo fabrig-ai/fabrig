@@ -57,6 +57,11 @@ pub struct WorkerCap {
 #[must_use]
 pub fn limits(sizes: &Sizes) -> Option<v9::Limits> {
     let limits = v9::Limits {
+        list_row_name: v9::CEILINGS.list_row_name,
+        list_row_shown_some: v9::CEILINGS.list_row_shown_some,
+        list_row_efforts: v9::CEILINGS.list_row_efforts,
+        list_row_efforts_item: v9::CEILINGS.list_row_efforts_item,
+        listed_rows_rows: v9::CEILINGS.listed_rows_rows,
         input_call_id: v9::CEILINGS.input_call_id,
         input_call_tool: v9::CEILINGS.input_call_tool,
         piece_bytes: sizes.piece,
@@ -143,6 +148,8 @@ fn body(limits: &v9::Limits, kind: Kind) -> Option<u32> {
         Kind::Acknowledge => v9::Acknowledge::encoded_bound(limits),
         Kind::Cancel => v9::Cancel::encoded_bound(limits),
         Kind::Sources => v9::Sources::encoded_bound(limits),
+        Kind::ReadList => v9::ReadList::encoded_bound(limits),
+        Kind::ListRead => v9::ListRead::encoded_bound(limits),
         Kind::Check => v9::Check::encoded_bound(limits),
         Kind::SignOut => v9::SignOut::encoded_bound(limits),
         Kind::Logins => v9::Logins::encoded_bound(limits),
@@ -172,11 +179,16 @@ pub fn engine_cap(sizes: &Sizes) -> Option<Cap> {
     let frames = 3_u32.checked_add(sizes.inbox)?.checked_add(sizes.calls)?.checked_add(sizes.turns)?;
     let frames = frames.checked_add(grants)?.checked_mul(sizes.slots)?;
     let sources = frame(&limits, Kind::Sources)?;
+    // One host-wide list request fits alongside run traffic and source commands.
     let commands =
         sizes.program_sources.checked_mul(frame(&limits, Kind::Check)?.checked_add(frame(&limits, Kind::SignOut)?)?)?;
     Some(Cap {
-        bytes: bytes.checked_mul(sizes.slots)?.checked_add(sources)?.checked_add(commands)?,
-        frames: frames.checked_add(1)?.checked_add(sizes.program_sources.checked_mul(2)?)?,
+        bytes: bytes
+            .checked_mul(sizes.slots)?
+            .checked_add(sources)?
+            .checked_add(commands)?
+            .checked_add(frame(&limits, Kind::ReadList)?)?,
+        frames: frames.checked_add(2)?.checked_add(sizes.program_sources.checked_mul(2)?)?,
     })
 }
 
@@ -199,6 +211,10 @@ pub fn worker_cap(sizes: &Sizes) -> Option<WorkerCap> {
     bytes = bytes
         .checked_add(frame(&limits, Kind::Logins)?)?
         .checked_add(sizes.program_sources.checked_mul(frame(&limits, Kind::SignedOut)?)?)?;
-    frames = frames.checked_add(1)?.checked_add(sizes.program_sources)?;
-    Some(WorkerCap { cap: Cap { bytes: bytes.checked_add(sizes.facts)?, frames }, facts: sizes.facts })
+    // A list answer is host-wide and best effort, independent of run slots.
+    frames = frames.checked_add(2)?.checked_add(sizes.program_sources)?;
+    Some(WorkerCap {
+        cap: Cap { bytes: bytes.checked_add(frame(&limits, Kind::ListRead)?)?.checked_add(sizes.facts)?, frames },
+        facts: sizes.facts,
+    })
 }
