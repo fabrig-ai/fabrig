@@ -4986,6 +4986,16 @@ acts on it as its document offers (5.11).
   open (3.6). At phone width the order is
   the same: the lineage bar keeps one line, its titles cut short, and
   the taskbar's parts wrap.
+- **What scrolls,** in a browser: the log alone, as on a chat's page, so
+  that PgUp and PgDn from the message box, "Latest" and the kept place
+  (5.15) act on it as there. From "Task brief" to "Plan", the parts above
+  stand in their order inside the log, around its lines, and "Latest"
+  beside it, after it, as a chat's. The log follows its end, so that the
+  page opens there and the brief is read back to (section 11). The
+  amendment's editor (5.11) stands above the log, where it is seen when
+  it opens, since it takes no focus; it scrolls itself where a short
+  window can't hold it. A terminal scrolls nothing of its own: it prints
+  those parts around its log, in the same order.
 - **The lineage bar:** its parent, the last of its lineage
   (`lineage_chips`, root first), as its "Task N" link and its title,
   after an arrow; then the task itself, "Task M" and its title. With no
@@ -6769,6 +6779,15 @@ own tests:
   fallback (`browser.md`, section 5). Default: skein's acceptance cases
   and temper's host test hold the scene's bytes; the rendered comparison
   follows landing.
+
+- **An agent's page opening at its end** (5.9, 5.15): a long conversation's
+  page opens below its brief and, on a held task, below its own held card;
+  the taskbar says the state. Earlier lines load as the log's head nears, so
+  a brief past a screen and a half above a cut window lets a reader pass the
+  oldest held line before the read starts; the lines then arrive under the
+  brief, the view kept. Default: so, until temper/qa's walk after landing
+  says otherwise. Otherwise the card moves to the log's foot, or the brief
+  draws only once the window reaches the start, as a chat's context does.
 
 - **The connect-flows comparison** (3.5, 4.4, 5.2): temper/ui compares
   request pages 01–23 with main, including named states and open menus
