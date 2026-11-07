@@ -29,17 +29,7 @@ pub enum Refusal {
 /// # Errors
 /// Refuses an existing directory without index.html, or a bundle or filesystem failure.
 pub fn print(out: &Path) -> Result<(), Refusal> {
-    if out.exists() {
-        if !out.join("index.html").is_file() {
-            return Err(Refusal::NotGallery { out: out.to_owned() });
-        }
-        if fs::remove_dir_all(out).is_err() {
-            return Err(Refusal::Io { path: out.to_owned() });
-        }
-    }
-    if fs::create_dir_all(out).is_err() {
-        return Err(Refusal::Io { path: out.to_owned() });
-    }
+    replace_gallery(out)?;
     let mut stylesheets = Vec::new();
     for path in STYLESHEETS {
         stylesheets.push(PathBuf::from(path));
@@ -71,6 +61,21 @@ pub fn print(out: &Path) -> Result<(), Refusal> {
         write(&out.join(format!("{}.html", sample.name)), &page_with(sample, &digest, inputs.clone()))?;
     }
     write(&out.join("index.html"), &index(&samples))
+}
+// Replace only an owned print, whole (client/browser.md, 7.1).
+fn replace_gallery(out: &Path) -> Result<(), Refusal> {
+    if out.exists() {
+        if !out.join("index.html").is_file() {
+            return Err(Refusal::NotGallery { out: out.to_owned() });
+        }
+        if fs::remove_dir_all(out).is_err() {
+            return Err(Refusal::Io { path: out.to_owned() });
+        }
+    }
+    if fs::create_dir_all(out).is_err() {
+        return Err(Refusal::Io { path: out.to_owned() });
+    }
+    Ok(())
 }
 fn write(path: &Path, bytes: &str) -> Result<(), Refusal> {
     match fs::write(path, bytes) {
