@@ -1,0 +1,159 @@
+/* The look request chat-terminal: a chat, full screen, in a coding agent's terminal look.
+   Hand-made (README.md). Sits outside #app, so that none of the page's own rules reach it. */
+
+.temper-to-terminal {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 12px; line-height: 1;
+  height: 30px; padding: 0 9px; border: 1px solid var(--gf-line-2, #d4d4cf); border-radius: 8px;
+  background: transparent; color: var(--gf-ink-2, #3f3f46); cursor: pointer;
+}
+.temper-to-terminal:hover { background: var(--gf-hover, #ececea); color: var(--gf-ink, #18181b); }
+
+body.in-terminal { overflow: hidden; }
+.tt[hidden] { display: none; }
+
+.tt {
+  --bg: #191816; --ink: #e8e3da; --dim: #9a9388; --faint: #6a655c; --line: #2f2d29; --sel: #2a2825;
+  --accent: #e08a68; --good: #8fc28f;
+  position: fixed; inset: 0; z-index: 100;
+  display: grid; grid-template-rows: auto minmax(0, 1fr);
+  background: var(--bg); color: var(--ink);
+  font: 400 14px/1.6 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-variant-ligatures: none; -webkit-font-smoothing: antialiased;
+}
+.tt[data-theme="light"] {
+  --bg: #fffefd; --ink: #34312c; --dim: #7a736a; --faint: #b5aea3; --line: #e9e4db; --sel: #f4f0e9;
+  --accent: #b8664e; --good: #3f7d4e;
+}
+.tt *, .tt *::before, .tt *::after { box-sizing: border-box; }
+.tt ::selection { background: var(--accent); color: var(--bg); }
+.tt button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; }
+.tt h1, .tt h2, .tt p, .tt ul, .tt pre { margin: 0; padding: 0; font: inherit; }
+.tt ul { list-style: none; }
+.tt strong { font-weight: 500; color: var(--ink); }
+.tt code { font: inherit; color: var(--accent); }
+
+/* The one line at the top: where this is, and the two controls. */
+.tt-top {
+  display: flex; align-items: center; justify-content: space-between; gap: 3ch;
+  padding: 9px 3ch; border-bottom: 1px solid var(--line); color: var(--dim);
+}
+.tt-where { display: flex; align-items: baseline; gap: 1ch; min-width: 0; white-space: nowrap; }
+.tt-where .tt-star { color: var(--accent); }
+.tt-where .tt-sep { color: var(--faint); }
+.tt-title { overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+.tt-acts { display: flex; gap: 1ch; flex: none; }
+.tt .tt-btn { padding: 1px 1ch; border-radius: 3px; color: var(--dim); }
+.tt .tt-btn:hover { color: var(--ink); background: var(--sel); }
+.tt .tt-btn[aria-pressed="true"] { color: var(--bg); background: var(--accent); }
+.tt :focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+.tt textarea:focus-visible { outline: 0; }
+
+/* The panes. With the draft, two halves behind a rule. */
+.tt-panes { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; }
+.tt.with-draft .tt-panes { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.tt-left { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.tt-log, .tt-doc { overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+.tt-log { flex: 1; min-height: 0; padding: 22px 3ch 6px; }
+.tt-log > *, .tt-foot > * { max-width: 840px; }
+
+/* The conversation, on the character grid: a sign in two cells, then its words. */
+.tt-entry { position: relative; padding-left: 2ch; margin-bottom: 1.1em; }
+.tt-entry::before { position: absolute; left: 0; top: 0; }
+.tt-you { color: var(--ink); background: var(--sel); margin-left: -1ch; padding: 3px 1ch 3px 3ch; border-radius: 3px; width: fit-content; max-width: min(100%, 100ch); }
+.tt-you::before { content: '❯'; color: var(--accent); left: 1ch; top: 3px; }
+.tt-says::before { content: '✦'; color: var(--accent); }
+.tt-says p + p, .tt-says p + ul, .tt-says ul + p { margin-top: .75em; }
+.tt-says ul { margin-top: .5em; }
+.tt-says li { position: relative; padding-left: 2ch; margin-top: .3em; }
+.tt-says li::before { content: '-'; position: absolute; left: 0; color: var(--dim); }
+.tt .tt-note { color: var(--dim); padding-left: 2ch; margin-bottom: 1.1em; }
+.tt .tt-note + .tt-note { margin-top: -1.1em; }
+.tt-note pre { white-space: pre-wrap; font: inherit; }
+.tt-note .tt-cmd { color: var(--ink); }
+
+.tt-tools { margin: -.35em 0 1.1em; color: var(--dim); }
+.tt-tool { padding-left: 2ch; position: relative; }
+.tt-tool > summary { list-style: none; cursor: pointer; width: fit-content; }
+.tt-tool > summary::-webkit-details-marker { display: none; }
+.tt-tool > summary::before { content: '▸'; position: absolute; left: 0; color: var(--faint); }
+.tt-tool[open] > summary::before { content: '▾'; }
+.tt-tool > summary:hover { color: var(--ink); }
+.tt-tool .tt-took { color: var(--faint); margin-left: 1ch; }
+.tt-tool ul { padding-left: 2ch; margin: 1px 0 4px; border-left: 1px solid var(--line); }
+.tt-tool li { overflow-wrap: anywhere; }
+.tt-tool li b { font-weight: 400; color: var(--ink); }
+.tt-tool li i { font-style: normal; color: var(--faint); }
+.tt-row { padding-left: 2ch; position: relative; }
+.tt-row::before { content: '✎'; position: absolute; left: 0; color: var(--faint); }
+.tt-row .tt-file { color: var(--ink); }
+.tt-row .tt-took { color: var(--faint); margin-left: 1ch; }
+.tt .tt-show { color: var(--accent); margin-left: 1ch; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--faint); }
+
+/* The foot: what runs, the box, the list and one quiet line. */
+.tt-foot { flex: none; padding: 4px 3ch 10px; }
+.tt-run { color: var(--dim); padding: 0 0 7px 2ch; position: relative; }
+.tt-run::before { content: '✦'; position: absolute; left: 0; color: var(--accent); animation: tt-pulse 1.6s ease-in-out infinite; }
+.tt-run b { font-weight: 400; color: var(--ink); }
+.tt-run[hidden] { display: none; }
+@keyframes tt-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .tt-run::before { animation: none; } }
+.tt-box { display: flex; gap: 1ch; padding: 7px 1.5ch; border: 1px solid var(--faint); border-radius: 5px; }
+.tt-box:focus-within { border-color: var(--dim); }
+.tt-box > span { color: var(--accent); flex: none; }
+.tt-box textarea {
+  flex: 1; min-width: 0; resize: none; border: 0; padding: 0; margin: 0; background: transparent; color: var(--ink);
+  font: inherit; caret-color: var(--accent); outline: 0; box-shadow: none; overflow-y: auto; max-height: 12.8em;
+}
+.tt-box textarea::placeholder { color: var(--faint); opacity: 1; }
+.tt-line[hidden] { display: none; }
+.tt-line { display: flex; justify-content: space-between; gap: 3ch; padding: 6px 0 0 1.5ch; color: var(--dim); font-size: 12.5px; }
+.tt-line > span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tt-line button:hover { color: var(--ink); }
+.tt-line .tt-hint { white-space: nowrap; }
+
+/* The list under the box: commands, or a command's choices. */
+.tt-list { padding: 7px 0 2px 1.5ch; }
+.tt-list[hidden] { display: none; }
+.tt-list .tt-head { color: var(--dim); padding-bottom: 3px; }
+.tt-list [role="option"] { display: grid; grid-template-columns: 13ch minmax(0, 1fr); gap: 1ch; padding: 0 1ch; margin-left: -1ch; border-radius: 3px; color: var(--dim); cursor: pointer; }
+.tt-list.tt-choices [role="option"] { grid-template-columns: 24ch minmax(0, 1fr); }
+.tt-list [role="option"] > span:first-child { color: var(--ink); }
+.tt-list [role="option"][aria-selected="true"] { background: var(--sel); }
+.tt-list [role="option"][aria-selected="true"] > span:first-child { color: var(--accent); }
+
+/* The draft, beside. */
+.tt-doc { border-left: 1px solid var(--line); padding: 22px 4ch 40px; }
+.tt-doc[hidden] { display: none; }
+.tt-doc-inner { max-width: 84ch; }
+.tt-doc-path { display: flex; justify-content: space-between; gap: 2ch; color: var(--dim); font-size: 12.5px; margin-bottom: 1.6em; }
+.tt-doc h1 { font-weight: 500; color: var(--ink); font-size: 16px; }
+.tt-doc .tt-muted { color: var(--dim); margin-bottom: 1.1em; }
+.tt-doc section { margin-top: 1.5em; }
+.tt-doc h2 { font-weight: 500; color: var(--accent); margin-bottom: .35em; }
+.tt-doc p + p, .tt-doc pre + p, .tt-doc p + pre { margin-top: .75em; }
+.tt-doc li { position: relative; padding-left: 2ch; margin-top: .3em; }
+.tt-doc li::before { content: '-'; position: absolute; left: 0; color: var(--dim); }
+.tt-doc pre { overflow-x: auto; color: var(--dim); margin: .5em 0 .9em; }
+.tt-doc pre b { font-weight: 400; color: var(--ink); }
+.tt-doc pre em { font-style: normal; color: var(--accent); }
+.tt-doc .tt-changed { border-left: 2px solid var(--accent); margin-left: calc(-2ch - 2px); padding-left: 2ch; }
+.tt-doc .tt-by { color: var(--dim); font-size: 12.5px; margin-top: .4em; }
+
+@media (max-width: 760px) {
+  .tt { font-size: 13px; }
+  .tt-top { padding: 8px 2ch; gap: 2ch; }
+  .tt-where .tt-place, .tt-where .tt-sep { display: none; }
+  .tt-log { padding: 16px 2ch 4px; }
+  .tt-foot { padding: 4px 2ch max(8px, env(safe-area-inset-bottom)); }
+  .tt .tt-btn { padding: 4px 1ch; }
+  /* On a phone, the draft takes the conversation's place, with the box kept at the foot. */
+  .tt.with-draft .tt-panes { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
+  .tt.with-draft .tt-left { display: contents; }
+  .tt.with-draft .tt-log { display: none; }
+  .tt.with-draft .tt-doc { grid-row: 1; border-left: 0; padding: 16px 2ch 24px; }
+  .tt.with-draft .tt-foot { grid-row: 2; border-top: 1px solid var(--line); padding-top: 8px; }
+  .tt-doc .tt-changed { margin-left: 0; }
+  .tt-list.tt-choices [role="option"] { grid-template-columns: 18ch minmax(0, 1fr); }
+  .tt-list [role="option"] { grid-template-columns: 11ch minmax(0, 1fr); }
+  .tt-line .tt-right-extra { display: none; }
+}
