@@ -196,7 +196,8 @@ fn asking_again_is_the_approval_rules_table() {
 }
 
 #[test]
-fn the_view_clock_has_no_tick() {
+#[expect(clippy::manual_map, reason = "the subset requires an exhaustive match instead of Option::map")]
+fn the_view_clock_ticks_only_when_its_words_change() {
     let root = f::signed_out();
     let tui = Tui::new(f::ADDRESS);
     let mut view = f::view();
@@ -209,4 +210,53 @@ fn the_view_clock_has_no_tick() {
         assert_eq!(!out.is_empty(), changes);
         assert_eq!(view.tick(), None);
     }
+    let mut root = asked(Some(State::Asked { code: code(), expires: Wall::from_nanos(600_000_000_000) }));
+    let mut view = f::view();
+    for (nanos, span, tick, changes) in [
+        (0, "The code expires in 10 min.", Some(1), true),
+        (1, "The code expires in 9 min.", Some(60_000_000_001), true),
+        (59_999_999_999, "The code expires in 9 min.", Some(60_000_000_001), false),
+        (60_000_000_000, "The code expires in 9 min.", Some(60_000_000_001), false),
+        (60_000_000_001, "The code expires in 8 min.", Some(120_000_000_001), true),
+        (540_000_000_000, "The code expires in 1 min.", Some(540_000_000_001), true),
+        (540_000_000_001, "The code expires in under 1 min.", None, true),
+        (600_000_000_000, "The code expires in under 1 min.", None, false),
+        (600_000_000_001, "The code expires in under 1 min.", None, false),
+    ] {
+        let mut out = Queue::uncapped();
+        crate::build(&mut view, &tui, &root, Wall::from_nanos(nanos), &mut out);
+        assert_eq!(!out.is_empty(), changes, "wall {nanos}");
+        f::find(view.tree(), skein_ui::Role::Paragraph, span.as_bytes());
+        assert_eq!(
+            view.tick(),
+            match tick {
+                Some(tick) => Some(Wall::from_nanos(tick)),
+                None => None,
+            },
+            "wall {nanos}"
+        );
+    }
+    // A changed root or TUI replaces the countdown and cancels its wake.
+    let mut view = f::view();
+    f::build(&mut view, &tui, &root);
+    assert!(view.tick().is_some());
+    outcome(&mut root, Some(NotSignedIn::Approval(Taking::Expired)));
+    f::build(&mut view, &tui, &root);
+    assert_eq!(view.tick(), None);
+    let root = asked(Some(State::Asked { code: code(), expires: Wall::from_nanos(86_400_000_000_007) }));
+    let mut view = f::view();
+    for (nanos, span, tick) in [
+        (0, "The code expires in 1 d.", 8),
+        (7, "The code expires in 1 d.", 8),
+        (8, "The code expires in 23 h 59 min.", 60_000_000_008),
+    ] {
+        let mut out = Queue::uncapped();
+        crate::build(&mut view, &tui, &root, Wall::from_nanos(nanos), &mut out);
+        f::find(view.tree(), skein_ui::Role::Paragraph, span.as_bytes());
+        assert_eq!(view.tick(), Some(Wall::from_nanos(tick)));
+    }
+    let mut tui = tui;
+    tui.step(Told::Asked);
+    f::build(&mut view, &tui, &root);
+    assert_eq!(view.tick(), None);
 }

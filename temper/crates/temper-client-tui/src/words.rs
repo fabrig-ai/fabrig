@@ -1,4 +1,4 @@
-//! The TUI's phrases beside the view's (temper/docs/design/client/README.md, 6.14).
+//! The TUI's phrases beside the view's (temper/docs/design/client/README.md, 6.14 and 7.1).
 use crate::look;
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
@@ -29,8 +29,25 @@ pub enum Word {
     Connecting,
     Projects,
     NotKept,
+    ApprovalAsking,
+    ApprovalTab,
+    ApprovalCode,
+    ApprovalNoTab,
+    ApprovalExpires,
+    ApprovalOpen,
+    ApprovalCheck,
+    ApprovalTunnel,
+    ApprovalRefused,
+    ApprovalExpired,
+    ApprovalUsed,
+    ApprovalUnknown,
+    ApprovalFull,
+    ApprovalBusy,
+    ApprovalNotAskedRefused,
+    ApprovalNotAskedBusy,
+    ApprovalNotAskedDown,
 }
-const ALL: [Word; 19] = [
+pub(crate) const ALL: [Word; 36] = [
     Word::Title,
     Word::State,
     Word::Quit,
@@ -50,19 +67,62 @@ const ALL: [Word; 19] = [
     Word::Connecting,
     Word::Projects,
     Word::NotKept,
+    Word::ApprovalAsking,
+    Word::ApprovalTab,
+    Word::ApprovalCode,
+    Word::ApprovalNoTab,
+    Word::ApprovalExpires,
+    Word::ApprovalOpen,
+    Word::ApprovalCheck,
+    Word::ApprovalTunnel,
+    Word::ApprovalRefused,
+    Word::ApprovalExpired,
+    Word::ApprovalUsed,
+    Word::ApprovalUnknown,
+    Word::ApprovalFull,
+    Word::ApprovalBusy,
+    Word::ApprovalNotAskedRefused,
+    Word::ApprovalNotAskedBusy,
+    Word::ApprovalNotAskedDown,
 ];
 
 #[derive(Clone, Copy)]
-enum Name {
+enum Slot {
     Address,
     Party,
     Projects,
     State,
+    Code,
+    ApprovalAddress,
+    Port,
+    Span,
+    Number,
+    Moment,
 }
-impl Name {
+impl Slot {
+    const fn kind(self) -> HoleKind {
+        match self {
+            Self::Number => HoleKind::Number,
+            Self::Moment => HoleKind::Moment,
+            Self::Address
+            | Self::Party
+            | Self::Projects
+            | Self::State
+            | Self::Code
+            | Self::ApprovalAddress
+            | Self::Port
+            | Self::Span => HoleKind::Name,
+        }
+    }
     fn bytes(self, domain: &Limits) -> u32 {
         match self {
             Self::Address => 64,
+            Self::Code => 9,
+            Self::ApprovalAddress => 95,
+            Self::Port => 5,
+            Self::Span => 32,
+            Self::Number => 20,
+            Self::Moment => 13,
             Self::Party => domain.client.domain.text,
             Self::Projects => projects_bytes(domain),
             Self::State => 11, // "Out of date" is the longest state word.
@@ -98,35 +158,69 @@ impl Word {
             Self::Connecting => 16,
             Self::Projects => 17,
             Self::NotKept => 18,
+            Self::ApprovalAsking => 19,
+            Self::ApprovalTab => 20,
+            Self::ApprovalCode => 21,
+            Self::ApprovalNoTab => 22,
+            Self::ApprovalExpires => 23,
+            Self::ApprovalOpen => 24,
+            Self::ApprovalCheck => 25,
+            Self::ApprovalTunnel => 26,
+            Self::ApprovalRefused => 27,
+            Self::ApprovalExpired => 28,
+            Self::ApprovalUsed => 29,
+            Self::ApprovalUnknown => 30,
+            Self::ApprovalFull => 31,
+            Self::ApprovalBusy => 32,
+            Self::ApprovalNotAskedRefused => 33,
+            Self::ApprovalNotAskedBusy => 34,
+            Self::ApprovalNotAskedDown => 35,
         }
     }
     const fn id(self) -> PhraseId {
         PhraseId { owner: look::OWNER, number: self.number() }
     }
-    fn english(self) -> (&'static [&'static [u8]], &'static [Name]) {
+    fn english(self) -> (&'static [&'static [u8]], &'static [Slot]) {
         match self {
             Self::Title => (&[b"temper"], &[]),
-            Self::State => (&[b"\xe2\x97\x8f ", b""], &[Name::State]),
+            Self::State => (&[b"\xe2\x97\x8f ", b""], &[Slot::State]),
             Self::Quit => (&[b"q to quit"], &[]),
             Self::QuitKeys => (&[b"Ctrl+C to quit"], &[]),
-            Self::SignIn => (&[b"Sign in this terminal to ", b""], &[Name::Address]),
+            Self::SignIn => (&[b"Sign in this terminal to ", b""], &[Slot::Address]),
             Self::Paste => (&[b"Paste the link temper printed, then Enter."], &[]),
             Self::Link => (&[b"Link"], &[]),
-            Self::LinkShape => (&[b"http://", b"/jig/v1/sign-in/link?secret=\xe2\x80\xa6"], &[Name::Address]),
+            Self::LinkShape => (&[b"http://", b"/jig/v1/sign-in/link?secret=\xe2\x80\xa6"], &[Slot::Address]),
             Self::NotALink => (&[b"That is not a sign-in link: paste the whole link temper printed."], &[]),
             Self::OtherAddress => (
                 &[b"That link is for ", b". To sign in there, run temper http://", b"."],
-                &[Name::Address, Name::Address],
+                &[Slot::Address, Slot::Address],
             ),
             Self::SigningIn => (&[b"Signing in\xe2\x80\xa6"], &[]),
             Self::Busy => (&[b"Signing in: the engine is busy; trying again."], &[]),
             Self::NotReady => (&[b"Signing in: the engine is starting or stopping; trying again."], &[]),
             Self::NoAnswer => (&[b"Signing in: no answer from the engine; trying again."], &[]),
             Self::Refused => (&[b"This link was refused. Use the fresh one temper printed."], &[]),
-            Self::Connected => (&[b"Connected to ", b" as ", b""], &[Name::Address, Name::Party]),
-            Self::Connecting => (&[b"Connecting to ", b""], &[Name::Address]),
-            Self::Projects => (&[b"Projects: ", b""], &[Name::Projects]),
+            Self::Connected => (&[b"Connected to ", b" as ", b""], &[Slot::Address, Slot::Party]),
+            Self::Connecting => (&[b"Connecting to ", b""], &[Slot::Address]),
+            Self::Projects => (&[b"Projects: ", b""], &[Slot::Projects]),
             Self::NotKept => (&[b"This sign-in could not be kept: the next temper asks for a link again."], &[]),
+            Self::ApprovalAsking => (&[b"Asking temper for a code\xe2\x80\xa6"], &[]),
+            Self::ApprovalTab => (&[b"A tab opened in your browser. Check it shows"], &[]),
+            Self::ApprovalCode => (&[b"", b", then press Approve."], &[Slot::Code]),
+            Self::ApprovalNoTab => (&[b"No tab? Open ", b""], &[Slot::ApprovalAddress]),
+            Self::ApprovalExpires => (&[b"The code expires in ", b"."], &[Slot::Span]),
+            Self::ApprovalOpen => (&[b"Open this address in a browser that reaches temper:"], &[]),
+            Self::ApprovalCheck => (&[b"and check it shows ", b", then press Approve."], &[Slot::Code]),
+            Self::ApprovalTunnel => (&[b"From another machine, tunnel port ", b" to this one first."], &[Slot::Port]),
+            Self::ApprovalRefused => (&[b"The browser refused this sign-in. Press Enter to ask again."], &[]),
+            Self::ApprovalExpired => (&[b"The code expired before it was approved. Press Enter to ask again."], &[]),
+            Self::ApprovalUsed => (&[b"That code was already used. Press Enter to ask again."], &[]),
+            Self::ApprovalUnknown => (&[b"temper doesn't know that code any more: it restarted, or the code is old. Press Enter to ask again."], &[]),
+            Self::ApprovalFull => (&[b"All ", b" sign-ins are in use; the earliest ends ", b" UTC. Press Enter to ask again then."], &[Slot::Number, Slot::Moment]),
+            Self::ApprovalBusy => (&[b"temper is busy; still trying\xe2\x80\xa6"], &[]),
+            Self::ApprovalNotAskedRefused => (&[b"This temper doesn't sign terminals in from the browser. Paste the link it printed instead."], &[]),
+            Self::ApprovalNotAskedBusy => (&[b"Too many terminals are waiting to sign in. Press Enter to ask again in a moment."], &[]),
+            Self::ApprovalNotAskedDown => (&[b"temper is starting or stopping, or out of reach. Press Enter to ask again."], &[]),
         }
     }
     pub(crate) fn capacity(self, domain: &Limits) -> Option<u32> {
@@ -151,15 +245,15 @@ pub struct Words {
 impl Words {
     /// The TUI's English phrases under its owner, with domain-bounded holes.
     pub fn english(view: temper_client_view::words::Words, domain: &Limits) -> Result<Words, Invalid> {
-        let mut shapes = List::with_capacity(19);
-        let mut phrases = List::with_capacity(19);
+        let mut shapes = List::with_capacity(36);
+        let mut phrases = List::with_capacity(36);
         let mut literal_bytes = 0_u32;
         let mut segment_count = 0_u32;
         for word in ALL {
             let (parts, names) = word.english();
             let mut holes = List::with_capacity(2);
             for name in names {
-                holes.push(HoleShape { kind: HoleKind::Name, bytes: name.bytes(domain) }).expect("at most two holes");
+                holes.push(HoleShape { kind: name.kind(), bytes: name.bytes(domain) }).expect("at most two holes");
             }
             let mut segments = List::with_capacity(5);
             for (index, part) in parts.iter().enumerate() {
@@ -169,20 +263,23 @@ impl Words {
                 segments.push(Segment::Text(copy_of(part))).expect("at most five segments");
                 if index < names.len() {
                     segments
-                        .push(Segment::Hole { index: u16::try_from(index).expect("two holes"), kind: HoleKind::Name })
+                        .push(Segment::Hole {
+                            index: u16::try_from(index).expect("two holes"),
+                            kind: names.get(index).expect("hole has a shape").kind(),
+                        })
                         .expect("at most five segments");
                 }
             }
             segment_count = segment_count.checked_add(segments.len()).ok_or(Invalid::Overflow)?;
             shapes
                 .push(PhraseShape { id: word.id(), holes: holes.into_boxed(), plural: None })
-                .expect("nineteen shapes");
+                .expect("one shape per word");
             phrases
                 .push(Phrase {
                     id: word.id(),
                     forms: Box::new([Form { class: PluralClass::Other, segments: segments.into_boxed() }]),
                 })
-                .expect("nineteen phrases");
+                .expect("one phrase per word");
         }
         let language = Language {
             plural: PluralRule::English,
@@ -193,11 +290,11 @@ impl Words {
         let projects_bytes = projects_bytes(domain);
         let limits = PhraseLimits {
             languages: 1,
-            phrases: 19,
+            phrases: 36,
             holes: 2,
             segments: segment_count,
             text_bytes: literal_bytes,
-            hole_bytes: projects_bytes.max(domain.client.domain.text).max(64),
+            hole_bytes: projects_bytes.max(domain.client.domain.text).max(95),
         };
         let book = Phrasebook::load(shapes.into_boxed(), Box::new([language]), &limits)?;
         Ok(Words { book, view, projects_bytes })
