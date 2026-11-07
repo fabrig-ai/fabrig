@@ -942,6 +942,10 @@ and waits in the Needs you of each project it belongs to (jig's
   its words, not a view of the client's.
 - **Its instructions** are held in the binary, in the `stock` module's
   `configuring.txt`, and say, in the person's register:
+  - to raise a person's forge identity only when approvals are what is being
+    asked about or proposed: the inventory's "forge identity unknown: cannot
+    count for approvals" stays a fact it reads, and with no approval required
+    it changes nothing the person needs to hear;
   - to speak in the person's terms: what happens to their work, who does
     it, what must pass before a change lands, who approves and which
     model runs, naming a charter, template, revision or kind only in a
