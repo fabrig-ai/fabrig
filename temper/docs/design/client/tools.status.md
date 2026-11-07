@@ -2,7 +2,9 @@
 
 2026-11-06. Remaining gaps between temper's code and [tools.md](tools.md).
 Unlisted sections have no known gap, including 6.3's watch-capacity
-diagnostic and deadline words, and 8.2's retry spans.
+diagnostic and deadline words, and 8.2's retry spans. Sections 7's key
+refusals, 6.1's unpinned account wait and failure-log directions, 5.5's
+setup ending and 5.3's effort check against `me` have no known gap.
 
 - **Not yet:** 8.2, 11.2: the user's `ctl-waits` request asks for the
   long-chat wait with a fake model refusing its resume, concurrent reads and
@@ -55,6 +57,19 @@ diagnostic and deadline words, and 8.2's retry spans.
   forge setting reads, including historical revision values. 11.3:
   the real loop's connected Forgejo, its tokens connect, a replace of
   its git token and another user's tokens stopped.
+- **Departs:** 5.5: the `ctl-words` request asks that the owned forge's
+  protection warning either prove false and go, or temper do what it asks.
+  The warning is true: the bot is a writer and cannot read protection.
+  The plan suppresses it at `forge setup` instead, retaining JSON's unknown
+  protection and `repository adopt`'s warning. Giving the bot admin would
+  let its tokens change protection; reading through the site admin remains
+  deferred in section 14.
+- **Departs:** 5.3: the `ctl-words` request asks that an unsupported effort's
+  refusal name both effort and model. Where `me` exposes no such model,
+  the item still goes to the engine and its refusal names the model alone:
+  the wire's `Refusal::Llm` carries no effort. The plan limits the local
+  check to models `me` shows to avoid changing that protocol; extending the
+  refusal is deferred in section 14.
 - **Departs:** 5.1: `project` is area 1's (`jig/rows.rs`
   `PROJECT_SHOW`, `PROJECT_FUND`, `PROJECT_MAKE`), not area 3's; the placeholders add
   `HOST:PORT` and `URL`. 5.2: `settings show template|policy` takes

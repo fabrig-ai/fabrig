@@ -424,8 +424,11 @@ judge.
 
 ### 7.5 Finding again
 
-`lifetime` is the longest a sent write may still arrive. A find does not
-restart the saved deadline.
+`lifetime` bounds how long a sent write may still arrive, except for an
+update: its idempotent transition rests on no lifetime (7.3). For an
+update it sets when a find not found permits another attempt, even if an
+earlier copy is still doing git work. A find does not restart the saved
+deadline.
 
 - **Found:** `Outcome::Made { found: true }`.
 - **Not found before the deadline:** the entry waits for it, then looks
@@ -616,5 +619,7 @@ before it writes.
   classes stay in the client, Forgejo and GitHub sharing them.
 - **An update's lifetime.** A forge does an update's git work inside the
   call and its real time is not known, so `lifetime` may be too short for
-  one. Too short costs a repeated update, and any head a late copy moves.
-  Default: `lifetime` is kept until it is measured.
+  one. Too short costs a repeated update and CI on a replaced head; a late
+  copy may also cause its owner's drift hold, and a rebase may drop a later
+  push (7.3). Default: `lifetime` is kept until update times and those costs
+  are measured.

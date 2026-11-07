@@ -2,21 +2,15 @@
 
 2026-11-06. Where temper's code lags or departs from [worker.md](worker.md).
 Section 4.3's failed and refused answer diagnostics reach serve's stderr and the box's
-`serve.log`; that operator-output path has no gap.
+`serve.log`; that operator-output path has no gap. A failed-run hold's
+`way out:` points to that log, and `temper help hold` names its location
+under both `box` and `serve` (`../client/tools.md`, 6.1).
 
-- **Not yet:** 2: a worker refused at its hello hears the fixed text `not admitted`
-  (`temper-service/src/route.rs`, `Delivery::Refuse`, which carries no why), where
-  jig's `domain/engine.md`, section 8 has the refusal name why. The request
-  `landing-fixes` of 2026-11-06, item 7, tells of a worker logging only `refused
-  ... not-admitted` and redialling for good, with nothing in the engine's journal,
-  and has it send the shortfall's words and log them there:
-  `temper-service/src/startup/problems.rs` has words for `AgentShortfall` at a start,
-  which a charter set later doesn't reach. Its plan dropped it past its ceiling of
-  four tasks.
-  4.3: a held task names no run's failure, which the user's
+- **Not yet:** 4.3: a held task names no run's failure, which the user's
   request of 2026-11-05 asked for if cheap: it needs a stored-format
-  change, so it is section 12's question, and `temper help server` says
-  where the reason is read.
+  change, so it is section 12's question. The `ctl-words` request requires
+  the user's decision on the bound and readers before that text is kept;
+  no such decision is supplied. The log directions leave this question open.
   4.4: the prepare and key kinds: neither kind's entry is
   built, so the worker's hello declares the merge kind alone
   (`temper/crates/temper-service/src/worker.rs`), and with prepare the
@@ -38,12 +32,15 @@ Section 4.3's failed and refused answer diagnostics reach serve's stderr and the
   5, *A merge in progress*: a producer's start that finds its base contained stands
   on `temper-fake-git` alone (`a_resumed_producer_holding_the_tip_pushes_no_merge`,
   `temper/tests/worker/checkout/tests/suite/merges.rs`), with that same proof.
-  5: such a start on saved work goes on as saved work, but `from_saved` reads the
-  start the wire gave, false for a merge (`temper-worker-domain/src/workspace.rs`).
-  So a save that leaves the branch as it was reports no saved work
-  (`temper-service/src/translate.rs`; `../protocol/channel.md`, section 5), and the
-  next attempt does not start from it. From reading: no test saves from such a
-  start, where one with a merge in progress always lands its merge commit.
+  5, 10: a parked producer's delivered and saved edits survive a moved landing
+  tip, repeated questions and a save refused for markers in the composed system
+  world's two `parked` stories. Those use fake git and a fake disk, and their
+  first committed edit is a delivery, not a run's own `git commit`. The
+  `resume-told` request asks for proof in a real checkout; none is on record,
+  nor its next deployment replay. The clean-merge preparation and the conflict
+  advice, including the help page and stock charters, have scripted coverage
+  alone; whether real producers and their answerers now read the tree rightly
+  awaits that replay, as the request's `walk = false` leaves it.
   6: a standalone start past the process's `limits::SOCKETS`, 256, by reading
   21 slots on the owned example with workspaces and operations as many, is
   refused `engine.limits.io.sockets: 258 bytes, past its bound of 256`, naming a

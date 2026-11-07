@@ -919,6 +919,11 @@ accounts component nor its listener requires a sum of heap prices.
 
 ### 6.8 Testing
 
+- **One owner harness,** with one `Client` and `Process`, holds the
+  account and sign-in owners. One protocol driver serves both, retaining
+  their wire seeds and trace order; one restart wrapper retains each
+  owner's signal-close predicate. The scenarios' visible events and
+  outcomes are the same through these shared paths.
 - **A protocol world** (testing-strategy.md, 2.5): the component, its
   owner's routing, the fake issuer (section 5), and a scripted browser that
   follows each visit to the listener, over streams cut at random. Sign-in of
@@ -974,6 +979,15 @@ accounts component nor its listener requires a sum of heap prices.
 
 ## 7. Open questions
 
+- **The accounts world's scenarios as data** (6.8): fixture, private-file
+  fault, owner-script and expectation rows wait while higher-priority work
+  holds the round. `PasteThenListener` waits for `Fact::Taken` in the
+  browser and for `pasted` one observe turn earlier on the wire; making
+  them one predicate changes the story. It needs a step script interpreted
+  in each tier, as do the restart, listener-close and browser-stage paths,
+  or an agreed departure from testing-strategy.md, section 10. Default:
+  keep their ordering and the remaining story branches; the open item is
+  `skein/docs/development/debt/D048-oauth-accounts-world-copies.md`.
 - **A private file's record of an older version.** Default: unreadable,
   and its account signs in again (6.4); skein-oauth could patch it as it
   loads, with its own patch set, as jig patches transcripts as read.

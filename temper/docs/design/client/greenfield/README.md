@@ -25,7 +25,7 @@ but matter least: the flow, look and mechanics come first (the user,
 ## Where the client departs from it
 
 Every departure is a **Design departs** entry in
-`../README.status.md`, with its request. Two to know when reading these
+`../README.status.md`, with its request. Three to know when reading these
 pages:
 
 - **Stopping work** says "Pause", "Resume" and "Close" on a chat, a goal and an
@@ -37,3 +37,7 @@ pages:
   in the look of the project switcher's menu; a phone, with no rail's
   foot, signs out on Settings' Accounts tab. The user's word, 2026-11-06
   (the request `ui-owner-menu`; `../README.md`, 5.3).
+- **A project's repository,** plain words inside the switcher's button
+  here, is a link beside the project's name button in the client, opening
+  the repository on its forge in a new tab. The user's word, 2026-11-06
+  (the request `ui-repo-link`; `../README.md`, 5.3).

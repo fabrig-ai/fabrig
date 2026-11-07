@@ -127,7 +127,7 @@ fn reported(name: &[u8]) -> Box<[u8]> {
     let end = render::text_end(name, NAME_ECHO_BYTES.saturating_add(4));
     Box::from(name.get(..end).expect("bounded failure name"))
 }
-pub(super) fn named(prefix: &[u8], what: &[u8], name: &[u8], json: bool) -> Printed {
+fn name_end(name: &[u8]) -> usize {
     let mut end = render::text_end(name, NAME_ECHO_BYTES);
     // Cut C0, DEL and UTF-8 C1 controls before they can reach a terminal.
     for (index, byte) in name.get(..end).expect("bounded echo").iter().enumerate() {
@@ -141,6 +141,20 @@ pub(super) fn named(prefix: &[u8], what: &[u8], name: &[u8], json: bool) -> Prin
             break;
         }
     }
+    end
+}
+fn echo(name: &[u8]) -> Box<[u8]> {
+    let end = name_end(name);
+    let cut = end < name.len();
+    let mut out = Writer::new(end.checked_add(if cut { 3 } else { 0 }).expect("bounded name"));
+    out.put(name.get(..end).expect("UTF-8 echo range")).expect("measured echo");
+    if cut {
+        out.put(b"...").expect("measured cut marker");
+    }
+    out.finish()
+}
+pub(super) fn named(prefix: &[u8], what: &[u8], name: &[u8], json: bool) -> Printed {
+    let end = name_end(name);
     let cut = end < name.len();
     let length = prefix
         .len()
@@ -161,4 +175,88 @@ pub(super) fn named(prefix: &[u8], what: &[u8], name: &[u8], json: bool) -> Prin
         out.put(b"...").expect("measured cut marker");
     }
     render::failure(&out.finish(), json, 1)
+}
+
+/// The first named effort of `items` that its model, as `me` shows it, doesn't offer
+/// (client/tools.md, 5.3).
+pub(crate) fn settings_effort(items: &[c::SettingItem], me: &c::Me) -> Option<Box<[u8]>> {
+    for (index, item) in items.iter().enumerate() {
+        let set = match &item.edit {
+            c::SettingEdit::Set(set) => set,
+            c::SettingEdit::Removed | c::SettingEdit::Reset => continue,
+        };
+        match &set.value {
+            c::SettingValue::Template(template) => {
+                if let Some(llm) = &template.llm {
+                    if let Some(why) = setting_effort(index, &llm.main.model, llm.main.effort.as_ref(), me) {
+                        return Some(why);
+                    }
+                    for model in &llm.subagents {
+                        if let Some(why) = setting_effort(index, &model.model, model.effort.as_ref(), me) {
+                            return Some(why);
+                        }
+                    }
+                }
+            }
+            c::SettingValue::Charter(charter) => {
+                if let Some(why) = setting_effort(index, &charter.model.name, charter.model.effort.as_ref(), me) {
+                    return Some(why);
+                }
+                for model in &charter.alternatives {
+                    if let Some(why) = setting_effort(index, &model.name, model.effort.as_ref(), me) {
+                        return Some(why);
+                    }
+                }
+            }
+            c::SettingValue::Policy(_) | c::SettingValue::Rules(_) | c::SettingValue::Application(_) => {}
+        }
+    }
+    None
+}
+fn setting_effort(index: usize, name: &c::Text, effort: Option<&c::Text>, me: &c::Me) -> Option<Box<[u8]>> {
+    let effort = effort?;
+    for project in &me.projects {
+        for model in &project.models {
+            if model.name == *name {
+                if offered_effort(model, effort.bytes()).is_some() {
+                    return None;
+                }
+                return Some(effort_refusal(index, name.bytes(), effort.bytes(), model));
+            }
+        }
+    }
+    None
+}
+fn effort_refusal(index: usize, name: &[u8], effort: &[u8], model: &c::MeModel) -> Box<[u8]> {
+    let item = skein_lib::Decimal::of(
+        u64::try_from(index).expect("bounded item index").checked_add(1).expect("item number fits"),
+    );
+    let name = echo(name);
+    let effort = echo(effort);
+    let mut parts = List::with_capacity(model.efforts.len().saturating_mul(2).saturating_add(9));
+    parts.push(Box::from(b"settings file item ".as_slice())).expect("prefix fits");
+    parts.push(Box::from(item.as_bytes())).expect("item fits");
+    parts.push(Box::from(b": model ".as_slice())).expect("model prefix fits");
+    parts.push(name).expect("name fits");
+    parts.push(Box::from(b" offers no effort ".as_slice())).expect("effort prefix fits");
+    parts.push(effort).expect("effort fits");
+    parts.push(Box::from(b"; it offers ".as_slice())).expect("offered prefix fits");
+    if model.efforts.is_empty() {
+        parts.push(Box::from(b"none".as_slice())).expect("empty efforts fit");
+    }
+    for (index, effort) in model.efforts.as_slice().iter().enumerate() {
+        if index != 0 {
+            parts.push(Box::from(b", ".as_slice())).expect("separator fits");
+        }
+        parts.push(echo(effort.bytes())).expect("offered effort fits");
+    }
+    let mut length = 0usize;
+    for part in &parts {
+        length = length.checked_add(part.len()).expect("refusal fits");
+    }
+    let mut out = Writer::new(length);
+    for part in &parts {
+        out.put(part).expect("measured refusal");
+    }
+    out.finish()
 }

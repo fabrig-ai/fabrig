@@ -712,3 +712,35 @@ fn a_settings_file_changes_a_projects_questions_and_a_change_takes_them() {
     let (task, _) = kinds::goal_change(&mut world, &goal);
     assert_eq!(kinds::change_row(&world, task).questions.route, temper_engine_domain_forge_change::Route::Up);
 }
+
+#[test]
+fn a_settings_file_asking_an_effort_its_model_does_not_offer_is_refused_by_name() {
+    let mut world = world();
+    let agent = fixtures::agent(&mut world);
+    let (setting, mut value) = show_value(&mut world, agent, &KINDS[1]);
+    let c::SettingValue::Template(template) = &mut value else { panic!("template") };
+    template.llm = Some(c::LlmChoice {
+        account: None,
+        main: c::ModelEffort {
+            model: c::Text::new(b"scripted".as_slice().into(), 256).expect("model"),
+            effort: Some(c::Text::new(b"xhigh".as_slice().into(), 256).expect("effort")),
+        },
+        subagents: skein_lib::List::with_capacity(0),
+    });
+    let file = format!(r#"{{"items":[{{"setting":{},"set":{}}}]}}"#, KINDS[1].selector, value_json(setting, value));
+    let number = fixtures::give_with_file(
+        &mut world,
+        agent,
+        &[b"settings", b"apply", b"settings.json", b"--against", b"1", b"--key", b"unsupported-effort"],
+        file.as_bytes(),
+    );
+    let refused = fixtures::answered(&mut world, agent, number);
+    assert_eq!(
+        String::from_utf8_lossy(&refused.stderr),
+        "settings file item 1: model scripted offers no effort xhigh; it offers none\n",
+        "{refused:?}"
+    );
+    assert_eq!(refused.status, 1, "{refused:?}");
+    assert_eq!(world.root(agent).agent().kept(), 0, "no kept change-settings");
+    assert!(world.kept(agent).is_empty(), "no saved change-settings");
+}

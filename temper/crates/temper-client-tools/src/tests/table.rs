@@ -179,7 +179,11 @@ fn a_keyed_act_without_its_key_is_a_usage_error() {
         assert_eq!(fixtures::parse(words), Err(Usage::Key), "{words:?}");
     }
     for key in ["", "Bad", "a_b"] {
-        assert_eq!(fixtures::parse(&["task", "message", "41", "hello", "--key", key]), Err(Usage::Key), "{key}");
+        assert_eq!(
+            fixtures::parse(&["task", "message", "41", "hello", "--key", key]),
+            Err(Usage::KeyName { tool: crate::jig::rows::MESSAGE_AT }),
+            "{key}"
+        );
     }
     assert_eq!(fixtures::parse(&["task", "stop", "41", "--key", "one", "--key", "two"]), Err(Usage::Key));
 }

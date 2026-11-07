@@ -14,7 +14,10 @@ findings, whole (`domain/findings.md`, with their families in
 worker runs temper's merge kind, and the merge job settles a
 change's conflict before a resolution and produces a catch-up into a
 goal's branch; a goal's landing whose update conflicts takes it, but
-no story runs that (`domain/forge.md`). The prepare and key kinds
+no story runs that (`domain/forge.md`). Lost updates and prepares recover
+in the worlds, with a reason at their retry bound; the three-thread
+real-process restart proof awaits its after-landing trial
+(`domain/forge.md`, `domain/landing.md`). The prepare and key kinds
 are not built, so the turn's tooling and the `Rewrite` delivery lag
 (`domain/worker.md`, `protocol/tooling.md`, `domain/landing.md`,
 `protocol/git.md`). The landing rules and the forge's charters are
@@ -85,7 +88,11 @@ counts disagree with its shared oracle (`protocol/setup.md`,
 `protocol/sign-in.md`, `domain/testing.md`). The
 combined default-runner, restart, moved-port and terminal-hangup walk
 has no outcome in the supplied inventory, and the real-box sign-in
-story awaits its after-landing run (`protocol/setup.md`,
+story awaits its after-landing run. Repository links and box-owned sign-in
+are built, with native browser clicks at 1440 and Settings links at 420;
+the runner was disabled. No separate attacker-review outcome is supplied,
+three laptop baseline cases remain unrepeated, and an intermittent busy
+authorization page without a request is unresolved (`protocol/setup.md`,
 `protocol/sign-in.md`, `client/forge.md`, `domain/testing.md`). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
@@ -102,12 +109,21 @@ asks a run to name no commit off its branch (`domain/agent.md`). A head already 
 takes its base first, a receipt says what it pushed, a producer is told which task to ask
 and a resume holding the landing tip makes no merge, but no record shows the next landing
 plan on a real deployment, which the `landing-fixes` request has as their proof. The first
-saves a change's wait and not a run the forge started (`domain/forge.md`), and a resume on
-saved work whose save changes nothing leaves the engine's saved set
-(`domain/worker.md`, `protocol/channel.md`). That request's other items stand open: a
-task's saved work outlives its close and a repair's brief with no cause is untraced
-(`domain/forge.md`), a refused worker hears no why (`domain/worker.md`), and a unit test's
-port reservation flakes (`domain/testing.md`). A green head ends a CI repair
+saves a change's wait and not a run the forge started (`domain/forge.md`). A resume on
+saved work keeps that work when its save lands nothing. A producer's clean merge is
+committed before its run; a conflict's start, the help page and stock charters explain
+its staged files. The parked producer's proof uses fake git and disk, with a delivery
+as its first commit; the `resume-told` request's real-checkout proof and deployment
+replay are not on record. Parking with markers still loses that run's own edits,
+while earlier saved work stands (`domain/worker.md`, `protocol/channel.md`).
+Saved work in the task's saved set
+is deleted through its release, and a clean update's repair names its failed
+check and carries its output before the base's contents; their real-deployment
+proof still awaits the next landing plan (`domain/forge.md`). Hello refusals
+carry the fleet's reason and shortfall figures, sent as text and printed on the
+engine's stderr; the worker's own line keeps its reason code
+(`protocol/README.md`, 15.3). A lost kernel-chosen port is retried within 32
+attempts (`protocol/setup.md`, 7.5). A green head ends a CI repair
 and a hold on its reason, but for a hold at gating, a hold no wake reaches and a retry
 starting before the read, each the `repair-green` plan's cut (`domain/forge.md`),
 and `change show`'s
@@ -134,16 +150,22 @@ endings and seven-digit commits; public records carry no forge addresses.
 Ended-goal history before publication and across a restart is deferred, and
 the board says so; a stock queue's merges read as public landings within the
 landing log and jig's public index, including a pre-publication merge whose
-change is handed from a live goal. The public geometry story's runtime
-check awaits the browser tier after landing
+change is handed from a live goal. The public geometry story measures each
+page and width from one boxed query, checks a wrapped text by its first
+quad alone, and retains missing-box failures; their intermittent cause is
+unestablished. Its sign-out 401 expectation accepts that console text
+throughout the walk
 (`client/browser.md`, `client/forge.md`).
-The browser tier holds 17 tests, five past its cap, its CPU
-measured within its budget on the 12 without the call line's and the welcome's
-sign-in's, at 83.069911 of its 85 on a run of 13 with one red, a public project's
-`temper ctl` visibility command past its deadline, its cause not found, and at
-128.618150 to 143.808163 on three runs with a chat's reading stories, a closed
-chat's wait is located but not split, and no test shows a head waiting for room
-ended by the stall deadline (`client/browser.md`). The bundle travels gzipped and a
+The browser tier holds 17 tests, five past its cap. The four reading stories
+pass with ctl history and a 131,072-byte window, but their CPU medians sum to
+44.849900 s and the three targets remain unmet; no whole-tier run proves the
+repair within 85 CPU s. The listener-full ctl failure is repaired; the public
+visibility-command failure remains unverified. A whole-bound manual reading
+check, the closed-chat wait's split and a head's stall-deadline story remain
+(`client/browser.md`). A stale view still rereads held Markdown and rebuilds
+and compares the semantic tree, preserving DOM nodes through the diff; retaining
+parsed blocks and timing away-reader scans remain open (`client/README.md`,
+`draft/chat-reading.md`). The bundle travels gzipped and a
 placeholder paints first, but its fade takes 160 ms where the design has 200, and a
 stall before the module's answer draws no words (`client/browser.md`). On a phone a chat's page hides the accounts'
 and the playground's banners (`client/README.md`), and the gallery's comparison
@@ -230,14 +252,19 @@ says "Starting", and `task show` names a `deployment show` ctl lacks
 (`client/README.md`, `client/tools.md`). `task show` names who answered a person
 task and says a held task waits on its hold, but `temper help task` still says ctl
 takes no task and numbers a party's question, which `waiting on:` does not
-(`client/tools.md`). With no account serving the work `task show` says so on both
-its lines, and a bounded `task amend` prints its call alone, but a task pinned to
-an account with no source still reads `Nothing awaited` beneath `no account
+(`client/tools.md`). With no account serving the work `task show` says so in its
+header, waiting line and JSON, while its phase stays due. Failure holds point to
+the engine's log; keeping their text still needs the user's bound and readers
+(`domain/worker.md`). Setup suppresses the true protection warning without
+gaining access, and effort refusals name the effort locally only for models
+`me` shows (`client/tools.md`). A bounded `task amend` prints its call alone, but
+a task pinned to an account with no source still reads `Nothing awaited` beneath `no account
 serving this work yet`, and a person task's `task amend` prints no arguments
 (`client/tools.md`). A proposal of settings reaches a
 project's Needs you and rail's count and is accepted on its chat's card, but its live
 card lists no item of temper's kinds and stays on Needs you once accepted. No live turn
-names its proposal, so its card stands after the turn that made it; the chat's card
+names its proposal, so its card stands after the turn that made it; filling the call's
+objects and the real-model proposal-card QA walk remain separate work. The chat's card
 draws no Reject, departing from the request `ui-chat-accept` (`client/README.md`). "Start goal…" went once from a
 restored document, on no replay since, its cause unknown (`client/README.md`). The welcome's command names the
 binary that runs it and has a Copy, but no browser test presses the Copy or sees its word change; the gallery's walk of
@@ -246,7 +273,11 @@ only some directories it names all three `TEMPER_` values; and
 `temper forge run`'s refusal and the terminal's `temper open` still say plain `temper` (`client/README.md`). The welcome's try of a model draws Model's line in
 Ready's pane from the host's check and then a trial through the worker and model, with
 its line on Accounts and, failed, on Home (`domain/trial.md`). The gallery lacks the
-account's stopped sample and Ready's trial states (`client/browser.md`). Model's line departs from the request `model-check-pane` in its list's words (`client/README.md`). A plan's sign-in opens a new tab while the page holds and
+account's stopped sample and Ready's trial states (`client/browser.md`). Simultaneous
+usable accounts can lose a trial request, and account rows share one task's wait
+reason (`domain/trial.md`). The pane lacks the draft's "one short message" spend
+notice and its Model-step line (`draft/model-check.md`); no outcome of the required
+real-account trial walk is supplied for retirement. Model's line departs from the request `model-check-pane` in its list's words (`client/README.md`). A plan's sign-in opens a new tab while the page holds and
 moves on by itself, but only Chromium has run that, against a fake issuer, and no test has a slow sign-in move on after a
 hidden tab, or a paste's end on the welcome. It draws the waiting page of the request
 `sign-in-new-tab`; the page departs from the request in the terminal's words
