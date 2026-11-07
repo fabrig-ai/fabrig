@@ -4,3 +4,20 @@ sources = ["temper/docs/plan/wake-followups/inputs/request.md", "temper/docs/des
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/migration"
 priority = true
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "catalogue"
+title = "The engine's domain world reopens its store with the catalogue it was last given, and the reference goal's per-wake story runs"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.9"
+
+[[slice]]
+id = 1
+story = "The reference goal's per-wake story passes its three rows and the world's restart oracle, unignored"
+parts = ["catalogue"]
+walk = false
