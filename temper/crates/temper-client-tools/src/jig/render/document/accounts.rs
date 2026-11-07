@@ -10,7 +10,7 @@ pub(crate) struct Accounts<'a> {
     pub viewer: Option<u64>,
     pub party: Option<&'a c::Accounts>,
     pub deployment: Option<&'a c::Deployment>,
-    pub models: Option<(&'a c::Me, Option<u32>)>,
+    pub models: Option<(&'a c::Me, Option<u32>, skein_lib::Wall)>,
     pub outcome: Option<(bool, &'a [u8])>,
     pub current: bool,
 }
@@ -56,7 +56,7 @@ pub(super) fn encode(value: Accounts<'_>, limits: &Limits, printed: bool, out: &
     let mut cut =
         Cut { room: usize::try_from(room / 12).expect("text fits"), left: 0, turn: None, subject: false, digest: None };
     out.object_start();
-    if let Some((me, project)) = value.models {
+    if let Some((me, project, _)) = value.models {
         models(me, project, out, &mut cut, &mut window);
     }
     out.key(b"current");
@@ -546,6 +546,7 @@ fn model_rows(held: &c::MeProject, provider: Option<u32>, out: &mut Encoder, cut
             Some(shown) => cut.words(shown.bytes(), out),
             None => out.null(),
         }
+        wall(b"new_until", item.new_until, out);
         number(b"window", u64::from(item.window), out);
         number(b"output", u64::from(item.output), out);
         out.key(b"description");
@@ -593,8 +594,8 @@ fn model_rows(held: &c::MeProject, provider: Option<u32>, out: &mut Encoder, cut
 }
 pub(super) fn text(value: Accounts<'_>, limits: &Limits, out: &mut Text) {
     let bytes = value.bytes(limits, false);
-    if value.models.is_some() {
-        super::account_lines::text(&bytes, out);
+    if let Some((_, _, now)) = value.models {
+        super::account_lines::text(&bytes, now, out);
     } else {
         super::account_text::text(&bytes, value.viewer, out);
     }

@@ -423,8 +423,14 @@ fn populate_page(
                     | Subject::Chips { .. }
                     | Subject::Inbox { .. }
                     | Subject::Tasks { .. }
-                    | Subject::Run { .. }
-                    | Subject::Accounts => None,
+                    | Subject::Run { .. } => None,
+                    Subject::Accounts => {
+                        if matches!(address, client::Address::Models { .. }) {
+                            Some(Delivery::Accounts(Box::new(super::render::models_accounts())))
+                        } else {
+                            None
+                        }
+                    }
                 };
                 if let Some(delivery) = delivery {
                     client::step(
