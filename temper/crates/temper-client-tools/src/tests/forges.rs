@@ -1497,6 +1497,36 @@ fn sixteen_forges_with_sixteen_copy_addresses_fit_the_client_document() {
     assert!(request <= FAMILY_REQUEST);
 }
 
+#[test]
+fn setup_ends_on_its_adoption_without_the_protection_line() {
+    for words in
+        [&["forge", "setup", "3", "--project", "shop"][..], &["forge", "setup", "3", "--project", "shop", "--json"][..]]
+    {
+        let mut root = f::signed_in(f::PARTY);
+        let call = root.submit(words);
+        root.adoption_answer(call, w::Outcome::SettingUp);
+        deliver(
+            &mut root,
+            record_first(
+                w::Connection::Connected(
+                    w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 1, login: b"temper".as_slice().into() })
+                        .unwrap(),
+                ),
+                Some(first_record(made())),
+            ),
+        );
+        root.adoption_answer(call, f::adopted_with_unknown_protection());
+        let printed = root.answer(call).unwrap();
+        assert_eq!(printed.status, 0);
+        if words.contains(&"--json") {
+            assert!(skein_lib::bytes::find(&printed.stdout, br#""protection":{"unknown":{}}"#).is_some());
+        } else {
+            assert!(printed.stdout.starts_with("project: 1 · shop\nAdopted ".as_bytes()));
+            assert!(skein_lib::bytes::find(&printed.stdout, b"may not read the branch protection").is_none());
+        }
+    }
+}
+
 /// Complete the first owned setup before testing another project's ctl path.
 pub(super) fn setup_for_projects() -> f::Harness {
     let mut root = f::signed_in(f::PARTY);

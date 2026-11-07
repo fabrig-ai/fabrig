@@ -726,8 +726,7 @@ fn offered_proposal_decisions_are_made_at_the_named_holder_and_another_holder_is
     }
 }
 
-#[test]
-fn a_move_offer_tracks_requester_changes_after_adoption() {
+fn adopted_move_task() -> (Core, Limits) {
     let (mut core, limits) = make_tree();
     sign_in(&mut core, &limits);
     let mut row = new_row(&core, 5, tasks::Funder::Task(1), None);
@@ -753,9 +752,16 @@ fn a_move_offer_tracks_requester_changes_after_adoption() {
         ),
         people::Outcome::Moved { task: 5 }
     );
+    (core, limits)
+}
+
+#[test]
+fn a_move_offer_tracks_requester_changes_after_adoption() {
+    let (core, limits) = adopted_move_task();
+    let object = Subject::Task { task: 5 };
     assert_eq!(core.tasks.task(5).unwrap().requester, tasks::Party::Person(1));
     assert!(!core.tasks.takeover_state(5, 1));
-    let why = people::Refusal::NotWaiting;
+    let why = people::Refusal::NotOffered;
     assert_eq!(offers::admit(&core, &limits, 1, Act::Move, &object, Wall::EPOCH), Admission::Refused(why.clone()));
     assert_eq!(
         core.move_admit(
@@ -766,6 +772,50 @@ fn a_move_offer_tracks_requester_changes_after_adoption() {
         ),
         Err(why)
     );
+}
+
+#[test]
+fn a_requesters_move_preserves_closing_and_ended_cancellation_facts() {
+    const TASK: u64 = 5;
+    const REQUESTER: u64 = 1;
+    const PROJECT: u32 = 1;
+    let (mut core, limits) = adopted_move_task();
+    let ending = tasks::Ending::Cancelled {
+        reason: b"done enough".as_slice().into(),
+        result: None,
+        by: tasks::Party::Person(REQUESTER),
+        at: Wall::from_nanos(19),
+    };
+    for (phase, ended_at) in [
+        (tasks::Phase::Closing(tasks::Closing { stage: tasks::Stage::Effects, ending: ending.clone() }), None),
+        (tasks::Phase::Ended(ending), Some(Wall::from_nanos(19))),
+    ] {
+        let mut row = core.tasks.task(TASK).unwrap().clone();
+        row.phase = phase;
+        row.ended_at = ended_at;
+        fixtures::restore(&mut core, &limits, Box::new([row]));
+        let why = people::Refusal::Ended {
+            how: people::Ending::Cancelled { by: people::Party::Person(REQUESTER), at: Wall::from_nanos(19) },
+        };
+        assert_eq!(
+            offers::admit(&core, &limits, REQUESTER, Act::Move, &Subject::Task { task: TASK }, Wall::EPOCH),
+            Admission::Refused(why.clone())
+        );
+        assert_eq!(
+            core.move_admit(
+                compound::PartyTask {
+                    person: REQUESTER,
+                    role: Some(people::Role::Owner),
+                    project: PROJECT,
+                    task: TASK
+                },
+                limits.tasks.tree_tasks,
+                limits.tasks.depth,
+                &tasks::CompoundAdmission::new(&core.tasks, 0)
+            ),
+            Err(why)
+        );
+    }
 }
 
 #[test]

@@ -248,7 +248,11 @@ pub struct Tab   { url: Box<[u8]>, title: Box<[u8]>, opener: bool }  // opener: 
   unbroken and with case kept, as a person finds a sentence by a few
   words in it. Other patterns are out (section 11). A query may be scoped
   `within` a node found before, such as a button within a card. `boxes`
-  asks for each match's place on screen too.
+  asks for each match's place on screen too. The person's browser face retains the
+  terminal query's complete bounded result: `boxed_matches` exposes its nodes
+  and the count beyond the match limit after `find_boxed` completes. Reading
+  that result asks nothing further of Chromium. Scope resolution asks for no
+  rectangles, and a matched node without geometry stays in the result.
 - **Text is found by words,** as a static text node's name: Chromium
   gives each run of text a node of role `StaticText`, named by its text.
   Words such as "3 failing" find "Checks: 3 failing, 2 passed", and keep
@@ -542,6 +546,12 @@ The kit's tests are a crate of their own, `tests/browser`
 
 ## 11. Open questions
 
+- **Every fragment of wrapped text** (5): whether the browser testing
+  interface should carry all content quads of a text node. Default:
+  `Seen.rect` keeps the first content quad alone; a missing rectangle stays
+  in a boxed query's result for its caller to judge. Temper's public
+  geometry story needs the other fragments to check a wrapped line whole
+  (`temper/docs/design/client/browser.md`, 8.4).
 - **Chromium's own sandbox** under a service's containment: whether the
   namespaces it needs are there, or the real loop's sandbox stands in for
   it.

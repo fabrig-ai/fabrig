@@ -1,0 +1,20 @@
+draft = "ui-public-3"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-public-3/inputs/request.md", "temper/docs/design/client/browser.status.md", "temper/docs/help/open-public-reading.md", "temper/crates/temper-client-view/src/public/lines.rs", "temper/crates/temper-client-view/src/public/pages.rs", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "says"
+title = "Making a project public says what may show, and the public pages lose their last loose words"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/people.md, 13.3"
+
+[[slice]]
+id = 1
+story = "An owner reads what may show in ctl's help and answer, in the walk, and in the configuring chat when asked; a visitor reads a landing with no bare zero and a board whose Landings reads as a link"
+parts = ["says"]
+walk = false

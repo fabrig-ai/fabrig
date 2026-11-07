@@ -39,12 +39,14 @@ fn the_page_starts_the_configuring_chat() {
                 &mut front,
                 &mut root,
                 Event::Act {
-                    action: Action::Pages(Act::Choice(temper_client_domain::pages::choice::Act::Model { index: 0 })),
+                    action: Action::Pages(Act::Choice(temper_client_domain::pages::choice::Act::Model {
+                        index: 0,
+                        account: None,
+                    })),
                 }
                 .into(),
             );
         }
-        let requested = root.person().pages().choice().requested.clone();
         for act in acts {
             account_acts::event(&mut front, &mut root, Event::Act { action: Action::Pages(act) }.into());
         }
@@ -53,12 +55,7 @@ fn the_page_starts_the_configuring_chat() {
         assert!(assignment.workspace.repositories.is_empty(), "the configuring chat names no repository");
         let task = front.engine.task(assignment.task).expect("configuring chat");
         assert_eq!(task.spec.words.as_ref(), WORKFLOW);
-        assert_eq!(task.llm.is_some(), choose, "only a person's press supplies a model to Create");
-        if let Some(choice) = requested {
-            let llm = task.llm.as_ref().expect("Create carries the picked model");
-            let model = front.engine.root.models().get(usize::from(llm.main.model)).expect("configured model");
-            assert_eq!(model.name.as_ref(), choice.main.model.bytes());
-        }
+        assert!(task.llm.is_none(), "the default model's row preserves omitted intent in Create");
         let task = assignment.task;
         let person = root.person();
         assert_eq!(person.pages().address(), &Address::Chat { task });

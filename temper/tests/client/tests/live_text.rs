@@ -147,10 +147,9 @@ fn a_composer_reset_is_processed_while_the_reply_remains_held() {
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
     assert!(matches!(
         world.root(person).person().pages().choice().context,
-        Some(Context::Task { model_index: Some(0), .. })
+        Some(Context::Task { model_index: None, .. })
     ));
-    world
-        .person(person, vec![Step::Press { find: Find::named(Role::Button, b"Reset choice") }, see(Find::text(FIRST))]);
+    world.person(person, vec![Step::Press { find: Find::named(Role::Button, b"scripted") }, see(Find::text(FIRST))]);
     assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
     let draft = world.root(person).person().pages().choice();
     assert!(matches!(draft.context, Some(Context::Task { model_index: None, .. })));

@@ -18,6 +18,18 @@ fn draft_section_headings_keep_the_document_line_height() {
 }
 
 #[test]
+fn the_boards_landings_link_reads_as_a_link() {
+    let css = include_str!("../../temper.css");
+    let (_, rule) = css.split_once("#app > .temper-public-page h2 {").expect("public section heading");
+    let (rule, _) = rule.split_once('}').expect("heading declarations");
+    assert!(rule.contains("color: var(--gf-ink);"), "heading ink: {rule}");
+    assert!(!rule.contains("uppercase"), "heading words: {rule}");
+    let (_, rule) = css.split_once("#app > .temper-public-page h2 > a {").expect("public section link");
+    let (rule, _) = rule.split_once('}').expect("link declarations");
+    assert!(rule.contains("text-decoration: underline;"), "link underline: {rule}");
+}
+
+#[test]
 fn phone_session_hides_the_keyboard_hint() {
     let css = include_str!("../../temper.css");
     assert!(

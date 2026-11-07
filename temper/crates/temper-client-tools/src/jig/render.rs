@@ -240,6 +240,8 @@ impl Part<'_> {
 pub trait Parts: core::fmt::Debug {
     fn diagnostic_prefix(&self) -> &'static [u8];
     fn command_prefix(&self) -> &'static [u8];
+    /// What a hold for failed runs asks first.
+    fn failures_recovery(&self) -> &'static [u8];
     fn phrasebook(&self, text: u32) -> skein_ui::phrases::Phrasebook;
     /// An application procedure may refuse a repeat choice before the act is submitted.
     fn release_again_refusal(&self, _task: &contract::Task) -> Option<&'static [u8]> {

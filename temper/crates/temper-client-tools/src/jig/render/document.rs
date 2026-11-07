@@ -259,7 +259,11 @@ fn task_heading(
         },
     }
     out.put(b" \xc2\xb7 ");
-    out.put(&book.say(0, Word::Phase(task.chip.phase).id(), &[]).expect("phase phrase").text);
+    if task.chip.phase == jig_client::contract::Phase::Due && llm::waits_for_account(task) {
+        out.put(b"Waiting for an account");
+    } else {
+        out.put(&book.say(0, Word::Phase(task.chip.phase).id(), &[]).expect("phase phrase").text);
+    }
     out.put(b" \xc2\xb7 ");
     project(task.project, me, out);
     if let Some(priority) = task.priority {
@@ -400,7 +404,7 @@ fn waiting(task: &Task, me: Option<&Me>, book: &Phrasebook, out: &mut Text) {
         WaitsOn::Nothing => {
             let word = match &task.hold {
                 Some(_) => Word::Waiting(WaitingWord::Held),
-                None if llm::no_account(task) => Word::Waiting(WaitingWord::Account),
+                None if llm::waits_for_account(task) => Word::Waiting(WaitingWord::Account),
                 None => Word::waiting(&task.waits_on),
             };
             out.put(&book.say(0, word.id(), &[]).expect("waiting phrase").text);

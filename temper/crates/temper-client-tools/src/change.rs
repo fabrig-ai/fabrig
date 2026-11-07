@@ -116,9 +116,9 @@ impl Holds {
     fn task(&mut self, task: &c::Task) {
         self.own = if task.chip.phase == c::Phase::Held && task.hold.is_some() {
             let mut measure = Text::measure();
-            render::holds::way_out(task, &mut measure);
+            render::holds::way_out(task, &crate::root::Parts, &mut measure);
             let mut out = Text::writing_exact(measure);
-            render::holds::way_out(task, &mut out);
+            render::holds::way_out(task, &crate::root::Parts, &mut out);
             Some(Held { reason: render::holds::summary(task, &crate::root::Parts), way_out: out.finish() })
         } else {
             None
