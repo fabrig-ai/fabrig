@@ -1,0 +1,6 @@
+draft = "ui-stop-coding-row"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-stop-coding-row/inputs/request.md", "temper/tests/one-process/tests/suite/one_process.rs", "temper/tests/one-process/src/world.rs", "temper/tests/real-loop/tests/suite/lifecycle.rs", "temper/crates/temper-worker-domain/src/route.rs", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/ui"
+priority = true
