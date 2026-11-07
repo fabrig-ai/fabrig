@@ -121,6 +121,10 @@ pub(crate) fn tag_fleet(
     for _ in 0..env.limits.routes {
         let Some(next) = pending.pop() else { break };
         let request = match next {
+            fleet::Request::ProgramEmail { name, email } => {
+                append_account(core, env, accounts::Event::ProgramSaid { name, email }, &mut out);
+                continue;
+            }
             fleet::Request::ProgramTargets { source, workers } => {
                 work.push(Work::Event(Event::Account(accounts::Event::ProgramTargets { source, hosts: workers })));
                 continue;
@@ -571,6 +575,7 @@ fn account_party(core: &Core, event: &accounts::Event) -> Option<u64> {
         | accounts::Event::Opened { .. }
         | accounts::Event::NotOurs { .. }
         | accounts::Event::Adopted { .. }
+        | accounts::Event::ProgramSaid { .. }
         | accounts::Event::ProgramTargets { .. }
         | accounts::Event::ProgramSignedOut { .. }
         | accounts::Event::SignedIn { .. }
@@ -601,6 +606,7 @@ pub(crate) fn route_account(
 ) -> Queue<Request> {
     let party = account_party(core, &event);
     let refresh = match &event {
+        accounts::Event::ProgramSaid { .. } => true,
         accounts::Event::Component(event) => match event {
             accounts::FromComponent::Refreshed { .. } => true,
             accounts::FromComponent::Granted { .. }

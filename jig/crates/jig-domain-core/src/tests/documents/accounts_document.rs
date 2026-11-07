@@ -653,3 +653,107 @@ fn the_providers_uses_rule_checks_people_and_projects_for_plans_and_llm_keys() {
     }
     assert_eq!(people::USES, accounts::USES);
 }
+
+#[test]
+fn a_hosts_program_email_is_kept_and_marks_the_holders_accounts() {
+    use jig_domain_link::{Login, LoginState, SourceName};
+    const HOST: Token = Token::new(77);
+    const WATCHER: Token = Token::new(78);
+    const OTHER_HOST: Token = Token::new(79);
+    let (mut core, mut env) = fixture(program_records(accounts::Holder::Party(ALICE)));
+    program_host(&mut core, &env, 0, HOST);
+    drop(watch_outputs(
+        &mut core,
+        &env.limits,
+        Event::Watch { watcher: WATCHER, sign_in: ALICE_SIGN_IN, subject: Watched::Accounts, window: window() },
+    ));
+    drop(watch_outputs(&mut core, &env.limits, Event::Delivered { watcher: WATCHER }));
+    drop(finish_watch_outputs(&mut core, &env.limits));
+    assert!(core.changed_views.is_empty());
+    env.wall = Wall::from_nanos(1);
+    let email = b"you@example.com".as_slice();
+    let out = step(
+        &mut core,
+        &env,
+        Event::Fleet(fleet::Event::Logins {
+            channel: HOST,
+            logins: Box::new([Login {
+                name: SourceName::new(b"program").expect("fixture source"),
+                state: LoginState::Usable,
+                email: Some(email.into()),
+            }]),
+        }),
+    );
+    let expected = accounts::AccountFact {
+        kind: accounts::KIND_EMAIL,
+        label: Box::new([]),
+        value: accounts::FactValue::Text(email.into()),
+        seen: env.wall,
+        source: Some(FIRST_SOURCE),
+        origin: accounts::ORIGIN_PROGRAM,
+    };
+    assert_eq!(core.accounts.account_facts(OWN), core::slice::from_ref(&expected));
+    let mut saved = None;
+    for request in &out {
+        if let Request::Write(Write::Save(Record::Accounts(accounts::Stored::Facts { account: OWN, facts }))) = request
+        {
+            assert!(saved.replace(facts.as_ref()).is_none(), "one facts write");
+        }
+    }
+    assert_eq!(saved, Some(core::slice::from_ref(&expected)));
+    let subject = core.named_watch(WATCHER).expect("accounts watch").subject;
+    assert!(core.changed_views.contains(&subject));
+    assert_eq!(document(&core, &env, ALICE).accounts.get(0).expect("holder account").number, OWN);
+    for (state, email) in [(LoginState::NotSignedIn, None), (LoginState::Usable, None)] {
+        drop(step(
+            &mut core,
+            &env,
+            Event::Fleet(fleet::Event::Logins {
+                channel: HOST,
+                logins: Box::new([Login { name: SourceName::new(b"program").expect("fixture source"), state, email }]),
+            }),
+        ));
+        assert_eq!(core.accounts.account_facts(OWN), core::slice::from_ref(&expected));
+    }
+    drop(step(&mut core, &env, Event::Fleet(fleet::Event::Lost { channel: HOST })));
+    core.reclaim();
+    program_host(&mut core, &env, 1, OTHER_HOST);
+    env.wall = Wall::from_nanos(2);
+    let later = b"other-host@example.com".as_slice();
+    drop(step(
+        &mut core,
+        &env,
+        Event::Fleet(fleet::Event::Logins {
+            channel: OTHER_HOST,
+            logins: Box::new([Login {
+                name: SourceName::new(b"program").expect("fixture source"),
+                state: LoginState::Usable,
+                email: Some(later.into()),
+            }]),
+        }),
+    ));
+    assert_eq!(
+        core.accounts.account_facts(OWN),
+        [accounts::AccountFact { value: accounts::FactValue::Text(later.into()), seen: env.wall, ..expected }]
+    );
+}
+
+fn program_host(core: &mut Core, env: &Env<Limits>, worker: u32, channel: Token) {
+    drop(step(
+        core,
+        env,
+        Event::Fleet(fleet::Event::Hello {
+            worker,
+            channel,
+            hello: Hello {
+                jobs: Box::default(),
+                bounds: fixtures::bounds(),
+                stop_bound: Duration::ZERO,
+                slots: 1,
+                workstreams: Box::new([]),
+                hosting: Box::new([]),
+            },
+        }),
+    ));
+    assert!(core.fleet.program_logins(channel).is_some(), "host admitted");
+}
