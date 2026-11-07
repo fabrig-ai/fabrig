@@ -37,7 +37,12 @@ The `approval` part was written by a designer, built to `notes/contracts.md`, *T
 - **The log lines go through the root's facts** (`Fact::ForgeLink`), as the other connector observations do.
 - **The fake forge's refusal is whatever the count:** it has no accounts, so a rule covering it can't be met.
 - **The inventory's configured owned-forge account row stays as it is:** with the link, the person's own line names their account, and the row stays a separate fact.
-- **Stored format changed in place** (the forge record's `person`), with no version bump, as the request allows.
+- **Stored format, protocol and public interface changed in place,** with no compatibility or version bump, as the request allows: the forge record's `person` (store v11), the client wire's `Approvals` document, its `Watch::Approvals` and `ProposalItemsAnswer`'s `owned_approval` (client wire v1).
+- **The approval is a read, not a task or a hold** (draft, section 8): `APPROVALS_SUBJECT`, of the party's own scope, marked wherever `changes` is; the forge answers the waits, the root joins the people per watcher (`domain/forge.md`, 8.12). Review facts now go when the merge is admitted (8.7).
+- **Who sees a row:** a watcher with a role in the project; one already counted at the head has none; an owner whose role isn't the approval's sees the wait with no review link. The card says why a review wouldn't count, in this order: too few people eligible on that forge, no account there, another role.
+- **No approval kind filter:** project and goal filters take approvals, a filter by kind takes none, so the inbox's address codec, the browser's kind list and the terminal stay as they are (a **Design departs** entry in the draft's status).
+- **Section 10's browser step goes lower,** to the client-and-engine joint world (`approval-joined`): no browser story reaches a change waiting on a forge with an address (the box's demo forge refuses such a rule; the GitHub stories run `temper serve`, with no person linked), and that tier is at its cap of 12. The user's rule allows it: "a step of an existing one or goes lower".
+- **The engine's story of steps 3 to 5** defaults to `approval_identity.rs`'s box world, which has the helpers to make and merge a change; `box-story`'s `configuring.rs` world says steps 1 and 2.
 
 ## Left out
 
