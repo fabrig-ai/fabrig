@@ -344,6 +344,11 @@ pub enum Event {
 /// fleet -> parent
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// A usable login reports its account email (accounts.md, 3.7).
+    ProgramEmail {
+        name: Box<[u8]>,
+        email: Box<[u8]>,
+    },
     ProgramTargets {
         source: u32,
         workers: Box<[crate::Worker]>,

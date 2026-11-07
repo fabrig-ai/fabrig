@@ -611,3 +611,69 @@ fn a_login_check_with_an_exhausted_epoch_changes_nothing() {
     assert!(out.is_empty());
     assert_eq!(world.domain.source_grant(1, world.now), Some(named_grant(1, u64::from(u32::MAX))));
 }
+
+/// Each accepted report replaces only what it says (accounts.md, 3.7).
+#[test]
+fn program_reports_follow_the_live_source() {
+    use jig_domain_accounts::{AccountFact, FactValue, KIND_EMAIL, Key, ORIGIN_PROGRAM};
+    use skein_lib::{Token, Wall};
+    const ACCOUNT: u32 = 0;
+    const SOURCE: u32 = 1;
+    const RETIRED_ACCOUNT: u32 = 2; // The first declaration consumes account 0 and source 1.
+    let mut world = fresh();
+    assert_eq!(declare(&mut world, HOLDER, PROVIDER, None, b"personal").0, Ok(SOURCE));
+    // Keep a retired reservation beside the live source.
+    declare(&mut world, HOLDER, PROVIDER, None, b"retired").0.expect("second declaration");
+    world.step(Event::Change {
+        request: Token::new(93),
+        holder: HOLDER,
+        change: jig_domain_accounts::Change::Remove { account: RETIRED_ACCOUNT },
+    });
+    let mut held = Vec::new();
+    // A lapse or a status without an email sends no report to this child.
+    for (name, email, changed, seen) in [
+        (Some(b"personal".as_slice()), b"first@example.com".as_slice(), true, 1),
+        (Some(b"personal".as_slice()), b"first@example.com".as_slice(), false, 1),
+        (None, b"".as_slice(), false, 1),
+        (Some(b"personal".as_slice()), b"other-host@example.com".as_slice(), true, 4),
+        (Some(b"unknown".as_slice()), b"ignored@example.com".as_slice(), false, 4),
+        (Some(b"retired".as_slice()), b"ignored@example.com".as_slice(), false, 4),
+    ] {
+        world.wall = Wall::from_nanos(world.wall.as_nanos().saturating_add(1));
+        let requests = name
+            .map_or_else(Vec::new, |name| world.step(Event::ProgramSaid { name: name.into(), email: email.into() }));
+        if changed {
+            held = vec![AccountFact {
+                kind: KIND_EMAIL,
+                label: Box::new([]),
+                value: FactValue::Text(email.into()),
+                seen: Wall::from_nanos(seen),
+                source: Some(SOURCE),
+                origin: ORIGIN_PROGRAM,
+            }];
+        }
+        assert_eq!(world.domain.account_facts(ACCOUNT), held);
+        let expected = if changed {
+            vec![Request::Save { record: Stored::Facts { account: ACCOUNT, facts: held.clone().into() } }]
+        } else {
+            vec![]
+        };
+        assert_eq!(requests, expected);
+    }
+    let removed = world.step(Event::Change {
+        request: Token::new(92),
+        holder: HOLDER,
+        change: jig_domain_accounts::Change::Remove { account: ACCOUNT },
+    });
+    assert!(removed.contains(&Request::Erase { key: Key::Facts { account: ACCOUNT } }));
+    assert!(world.domain.account_facts(ACCOUNT).is_empty());
+    assert!(
+        world
+            .step(Event::ProgramSaid {
+                name: b"personal".as_slice().into(),
+                email: b"late@example.com".as_slice().into()
+            })
+            .is_empty()
+    );
+    assert!(world.domain.account_facts(ACCOUNT).is_empty());
+}

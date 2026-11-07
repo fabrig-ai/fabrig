@@ -950,7 +950,8 @@ impl World {
                 assert!(sources.is_empty(), "worker fixture has no program sources");
                 self.stage.push(Event::Logins { channel, logins: Box::new([]) });
             }
-            Request::ProgramTargets { .. }
+            Request::ProgramEmail { .. }
+            | Request::ProgramTargets { .. }
             | Request::ProgramSignedOut { .. }
             | Request::Check { .. }
             | Request::SignOut { .. }

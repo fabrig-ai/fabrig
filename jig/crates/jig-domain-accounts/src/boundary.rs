@@ -31,6 +31,11 @@ pub enum Event {
         record: Stored,
     },
     Want,
+    /// A usable host login reports through its live program source (accounts.md, 3.7).
+    ProgramSaid {
+        name: Box<[u8]>,
+        email: Box<[u8]>,
+    },
     ProgramTargets {
         source: u32,
         hosts: Box<[crate::Worker]>,

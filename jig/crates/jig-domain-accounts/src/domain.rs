@@ -460,12 +460,26 @@ impl Domain {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "one exhaustive account vocabulary dispatches each bounded event")]
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     domain.now = env.now;
     match event {
         Event::ForgetProject { project } => crate::changes::forget_project(domain, project, out),
         Event::Restore { record } => restore(domain, env, record),
         Event::Want => want(domain, env, out),
+        Event::ProgramSaid { name, email } => {
+            let Some(source) = crate::programs::source_named(domain, &name) else { return };
+            let account = domain.sources.get(&source).expect("live program source").account;
+            crate::facts::report(
+                domain,
+                env,
+                account,
+                source,
+                crate::ORIGIN_PROGRAM,
+                crate::Said { email: Some(email), name: None },
+                out,
+            );
+        }
         Event::ProgramTargets { source, hosts } => crate::programs::targets(domain, source, hosts, out),
         Event::ProgramSignedOut { source, host, result } => {
             crate::programs::signed_out(domain, source, host, result, out);

@@ -101,8 +101,16 @@ fn old_whole_snapshot_crossing_a_replacement_updates_nothing() {
             .step(Event::Logins {
                 channel: CHANNEL,
                 logins: Box::new([
-                    Login { name: source(b"a"), state: LoginState::Usable, email: None },
-                    Login { name: source(b"b"), state: LoginState::Usable, email: None },
+                    Login {
+                        name: source(b"a"),
+                        state: LoginState::Usable,
+                        email: Some(b"first@example.com".as_slice().into())
+                    },
+                    Login {
+                        name: source(b"b"),
+                        state: LoginState::Usable,
+                        email: Some(b"second@example.com".as_slice().into())
+                    },
                 ])
             })
             .is_empty()
@@ -124,7 +132,18 @@ fn partial_foreign_or_duplicate_snapshots_fault_the_link() {
     for names in [&[b"a".as_slice()][..], &[b"a".as_slice(), b"foreign"], &[b"a".as_slice(), b"a"]] {
         let mut world = World::new(&[b"a", b"b"]);
         world.hello(CHANNEL);
-        assert!(matches!(&world.inventory(names)[..], [Request::Refuse { channel: CHANNEL, .. }]));
+        let requests = world.step(Event::Logins {
+            channel: CHANNEL,
+            logins: names
+                .iter()
+                .map(|name| Login {
+                    name: source(name),
+                    state: LoginState::Usable,
+                    email: Some(b"you@example.com".as_slice().into()),
+                })
+                .collect(),
+        });
+        assert!(matches!(&requests[..], [Request::Refuse { channel: CHANNEL, .. }]));
         assert!(!world.available());
         assert_eq!(world.domain.program_logins(CHANNEL), None);
     }
@@ -512,6 +531,17 @@ fn login_text_bounds_are_checked_before_keeping_the_inventory() {
     const DETAIL_BYTES: usize = 16; // A tiny host detail bound, checked on both sides.
     for (state, email, valid) in [
         (LoginState::Usable, None, true),
+        (LoginState::NotSignedIn, Some(b"you@example.com".as_slice().into()), true),
+        (
+            LoginState::SignedInOtherwise(LoginMethod::new(b"api-key").expect("method")),
+            Some(b"you@example.com".as_slice().into()),
+            true,
+        ),
+        (
+            LoginState::Failed { reason: SourceFailure::Exited, detail: Box::new([]) },
+            Some(b"you@example.com".as_slice().into()),
+            true,
+        ),
         (LoginState::Usable, Some(b"you@example.com".as_slice().into()), true),
         (LoginState::Usable, Some(Box::from([b'e'; EMAIL_BYTES])), true),
         (LoginState::Usable, Some(Box::from([b'e'; EMAIL_BYTES + 1])), false),
@@ -523,7 +553,7 @@ fn login_text_bounds_are_checked_before_keeping_the_inventory() {
         ),
     ] {
         let mut world = World::under(
-            &[b"a"],
+            &[b"a", b"b"],
             fleet::Limits {
                 source_detail_bytes: u32::try_from(DETAIL_BYTES).expect("tiny detail bound"),
                 program_sources: 2,
@@ -532,10 +562,19 @@ fn login_text_bounds_are_checked_before_keeping_the_inventory() {
         );
         world.hello(CHANNEL);
         let row = Login { name: source(b"a"), state, email };
-        let requests = world.step(Event::Logins { channel: CHANNEL, logins: Box::new([row.clone()]) });
+        let other = Login { name: source(b"b"), ..row.clone() };
+        let requests = world.step(Event::Logins { channel: CHANNEL, logins: Box::new([row.clone(), other.clone()]) });
         if valid {
-            assert!(requests.is_empty());
-            assert_eq!(world.domain.program_logins(CHANNEL), Some([row].as_slice()));
+            let expected = match &row.email {
+                Some(email) if row.state == LoginState::Usable => [b"a", b"b"]
+                    .iter()
+                    .map(|name| Request::ProgramEmail { name: name.as_slice().into(), email: email.clone() })
+                    .collect(),
+                Some(_) | None => vec![],
+            };
+            assert_eq!(requests, expected);
+            assert_eq!(world.domain.program_logins(CHANNEL), Some([row.clone(), other.clone()].as_slice()));
+            assert_eq!(world.step(Event::Logins { channel: CHANNEL, logins: Box::new([row, other]) }), expected);
         } else {
             assert_eq!(requests, vec![Request::Refuse { channel: CHANNEL, hello: None }]);
             assert_eq!(world.domain.program_logins(CHANNEL), None);
