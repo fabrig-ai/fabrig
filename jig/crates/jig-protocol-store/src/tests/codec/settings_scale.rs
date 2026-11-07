@@ -11,6 +11,7 @@ const RETRY: tasks::Retry = tasks::Retry { retries: 3, base: Duration::from_secs
 const RETRIES: tasks::Retries =
     tasks::Retries { transient: RETRY, permanent: RETRY, run: RETRY, agent: RETRY, lost: RETRY, invalid: RETRY };
 const SMALL_TASKS: tasks::Limits = tasks::Limits {
+    charter_parts: 8,
     placed_holds: 4,
     project_placed_holds: 4,
     party_placed_holds: 2,

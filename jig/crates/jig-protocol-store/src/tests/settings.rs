@@ -28,6 +28,7 @@ fn model() -> core::Model {
 }
 fn charter() -> core::Charter {
     core::Charter {
+        parts: Box::new([]),
         rest: true,
         wake: jig_domain_tasks::WakePolicy::DEFAULT,
         documents: Box::new([]),
@@ -144,6 +145,7 @@ fn template() -> core::Template {
         label: 7,
         grace: Some(Duration::from_secs(1)),
         llm: Some(tasks::LlmChoice {
+            later: None,
             account: Some(3),
             main: tasks::ModelEffort { model: 0, effort: Some(1) },
             subagents: Box::new([tasks::ModelEffort { model: 1, effort: None }]),

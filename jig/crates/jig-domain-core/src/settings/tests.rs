@@ -854,6 +854,7 @@ fn remap_template_choices_follow_model_and_effort_names_and_mark_departures() {
     ] {
         let mut template = template();
         template.llm = Some(tasks::LlmChoice {
+            later: None,
             account: None,
             main: tasks::ModelEffort { model: 0, effort: Some(1) },
             subagents: Box::new([tasks::ModelEffort { model: 1, effort: None }]),

@@ -171,6 +171,8 @@ fn finished_chat() -> (Core, Limits, Box<[Record]>) {
         &mut core,
         &limits,
         tasks::Event::Claim {
+            offered: jig_domain_tasks::Reasons::ALL,
+            reasons: jig_domain_tasks::Reasons::FIRST,
             reply_to: ReplyTo::new(Token::new(task)),
             task,
             attempt,
@@ -915,6 +917,8 @@ fn settings_document_bytes() -> u64 {
     // Each of its two value sets also carries one project's whole policy:
     // 8,192 owned bytes and the 208-byte ConfiguredPolicy carrier.
     // The two value sets each carry eight bytes for RunPolicy.tools.
+    // Each set also carries a 16-byte parts slice and eight templates, each with
+    // 24-byte later choices in both its Template and New carriers.
     // Each also holds 64 catalogue rows: a 184-byte carrier, two names, a description,
     // a program, efforts and the default effort. The inventory shares one model range.
     120_528
@@ -935,13 +939,15 @@ fn settings_document_bytes() -> u64 {
         + 2 * 8
         + 2 * 64 * (184 + 2 * 4096 + 512 + 32 + 16 * (32 + 16) + 32)
         + 64 * 88
+        + 2 * (16 + 8 * (24 + 24))
 }
 
 #[test]
 fn inbox_context_memory_prices_every_reserved_container_and_complete_document_envelope() {
     // Each template envelope carries the resource slice: 32 document lines,
-    // eight templates per line, and sixteen bytes per slice carrier.
-    const TEMPLATE_ENVELOPES: u64 = 989_184 + 32 * 8 * 16;
+    // eight templates per line, and sixteen bytes per slice carrier. Each
+    // template also carries its 24-byte optional later choice.
+    const TEMPLATE_ENVELOPES: u64 = 989_184 + 32 * 8 * (16 + 24);
 
     let (mut core, limits) = fixture();
     waiting(

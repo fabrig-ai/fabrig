@@ -27,7 +27,12 @@ fn task_records(world: &World) -> Vec<tasks::Stored> {
 }
 
 fn research_choice() -> tasks::LlmChoice {
-    tasks::LlmChoice { account: None, main: tasks::ModelEffort { model: 1, effort: Some(0) }, subagents: Box::new([]) }
+    tasks::LlmChoice {
+        later: None,
+        account: None,
+        main: tasks::ModelEffort { model: 1, effort: Some(0) },
+        subagents: Box::new([]),
+    }
 }
 
 fn research_on_first_charter(world: &World) -> core::Delegate {
@@ -71,6 +76,7 @@ fn a_partys_create_is_refused_a_model_outside_its_charter() {
     let before = task_records(&world);
     let mut member = jig_test_profile::fixtures::people_member(b"research", 10);
     member.llm = Some(people::LlmChoice {
+        later: None,
         account: None,
         main: people::ModelEffort { model: 1, effort: Some(0) },
         subagents: Box::new([]),

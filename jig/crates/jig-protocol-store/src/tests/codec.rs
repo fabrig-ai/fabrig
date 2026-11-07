@@ -1365,6 +1365,7 @@ fn a_people_choice_keeps_its_explicit_account() {
     use jig_domain_people as p;
     let mut member = fixtures::people_member();
     member.llm = Some(p::LlmChoice {
+        later: None,
         account: Some(42),
         main: p::ModelEffort { model: 0, effort: None },
         subagents: Box::new([]),

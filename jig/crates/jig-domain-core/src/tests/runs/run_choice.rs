@@ -418,6 +418,8 @@ fn terminal_after_zero_reset(account_terminal: bool) -> tasks::Tries {
         &mut core,
         &limits,
         tasks::Event::Claim {
+            offered: jig_domain_tasks::Reasons::ALL,
+            reasons: jig_domain_tasks::Reasons::FIRST,
             reply_to: ReplyTo::new(FIRST),
             task: TASK,
             attempt: 7,
@@ -1166,6 +1168,8 @@ fn claim_existing_open(core: &mut Core, limits: &Limits, attempt: u64) {
         core,
         limits,
         tasks::Event::Claim {
+            offered: jig_domain_tasks::Reasons::ALL,
+            reasons: jig_domain_tasks::Reasons::FIRST,
             reply_to: ReplyTo::new(FIRST),
             task: OPEN_TASK,
             attempt,
@@ -1721,6 +1725,7 @@ fn chat_stopped_for_its_next_choice() -> (Core, Env<Limits>) {
                 stop_run: false,
                 amendment: Box::new(tasks::Amendment {
                     llm: Some(tasks::LlmChoice {
+                        later: None,
                         account: None,
                         main: tasks::ModelEffort { model: 0, effort: Some(0) },
                         subagents: Box::new([]),

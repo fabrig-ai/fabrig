@@ -32,6 +32,8 @@ fn unanswered_questions_survive_reads_and_refuse_past_the_position_bound() {
     h.env.limits.run_inbox = 2;
     h.send(Event::Prepare { reply_to: to(), task: 2 });
     h.send(Event::Claim {
+        offered: crate::Reasons::ALL,
+        reasons: crate::Reasons::FIRST,
         account: None,
         reply_to: to(),
         task: 2,
@@ -208,6 +210,8 @@ fn answered_positions_are_evicted_before_unanswered_ones() {
 fn start(h: &mut Harness, task: u64) {
     h.send(Event::Prepare { reply_to: to(), task });
     h.send(Event::Claim {
+        offered: crate::Reasons::ALL,
+        reasons: crate::Reasons::FIRST,
         account: None,
         reply_to: to(),
         task,
