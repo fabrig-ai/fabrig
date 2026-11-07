@@ -139,7 +139,7 @@ fn decode(
         let mut known = name == b"key";
         if name == b"key" {
             require(doc, *at, JsonKind::String)?;
-            key = Some(Name::new(text(doc, *at)?).ok_or(Usage::Key)?);
+            key = Some(Name::new(text(doc, *at)?).ok_or(Usage::KeyName { tool: 0 })?);
         }
         for spec in specs {
             known |= argument_name(spec.name).as_ref() == name;

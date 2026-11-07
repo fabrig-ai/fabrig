@@ -40,6 +40,12 @@ pub(crate) fn me<'a>(runner: &Runner, client: &'a Client) -> Option<&'a c::Me> {
     }
 }
 pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, called: Called, out: &mut Queue<Out>) {
+    if called.call.tool == rows::CHANGE_SETTINGS_AT || called.call.tool == rows::PROPOSE_SETTINGS_AT {
+        let Some(me) = me(runner, client) else { return };
+        let request = settings_request(&called.call, &env.limits, me);
+        prepared(runner, client, env, called, request, out);
+        return;
+    }
     if let Some(request) = immediate(&called.call, &env.limits) {
         prepared(runner, client, env, called, request, out);
         return;
@@ -85,7 +91,6 @@ fn immediate(call: &Call, limits: &Limits) -> Option<Prepared> {
             let revision = u32::try_from(number(call, 0).expect("revision argument")).expect("revision fits u32");
             Ok((Request::Ask(c::Ask::MoveToNewest(c::MoveToNewest { revision })), None))
         }
-        rows::CHANGE_SETTINGS_AT | rows::PROPOSE_SETTINGS_AT => settings_request(call, limits),
         _ => return None,
     };
     Some(request)
@@ -99,11 +104,14 @@ fn restore_request(call: &Call, limits: &Limits) -> Prepared {
     let revision = u32::try_from(number(call, 0).expect("revision argument")).expect("revision fits u32");
     Ok((Request::Ask(c::Ask::Restore { revision, reason }), None))
 }
-fn settings_request(call: &Call, limits: &Limits) -> Prepared {
+fn settings_request(call: &Call, limits: &Limits, me: &c::Me) -> Prepared {
     let settings = match crate::jig::settings_file::request(call, limits) {
         Ok(settings) => settings,
         Err(why) => return Err(Failed::Detail(why)),
     };
+    if let Some(why) = choice::settings_effort(settings.items.as_slice(), me) {
+        return Err(Failed::Detail(why));
+    }
     let ask = if call.tool == rows::PROPOSE_SETTINGS_AT {
         c::Ask::Propose {
             project: 0,

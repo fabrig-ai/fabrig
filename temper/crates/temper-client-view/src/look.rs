@@ -1206,6 +1206,57 @@ pub const NAMES: Names<'static> = Names {
         b"temper-public-line",
         b"temper-public-facts",
         b"temper-public-section",
+        b"temper-reserved-526",
+        b"temper-reserved-527",
+        b"temper-reserved-528",
+        b"temper-reserved-529",
+        b"temper-reserved-530",
+        b"temper-reserved-531",
+        b"temper-reserved-532",
+        b"temper-reserved-533",
+        b"temper-reserved-534",
+        b"temper-reserved-535",
+        b"temper-reserved-536",
+        b"temper-reserved-537",
+        b"temper-reserved-538",
+        b"temper-reserved-539",
+        b"temper-reserved-540",
+        b"temper-reserved-541",
+        b"temper-reserved-542",
+        b"temper-reserved-543",
+        b"temper-reserved-544",
+        b"temper-reserved-545",
+        b"temper-reserved-546",
+        b"temper-reserved-547",
+        b"temper-reserved-548",
+        b"temper-reserved-549",
+        b"temper-reserved-550",
+        b"temper-reserved-551",
+        b"temper-reserved-552",
+        b"temper-reserved-553",
+        b"temper-reserved-554",
+        b"temper-reserved-555",
+        b"temper-reserved-556",
+        b"temper-reserved-557",
+        b"temper-reserved-558",
+        b"temper-reserved-559",
+        b"temper-reserved-560",
+        b"temper-reserved-561",
+        b"temper-reserved-562",
+        b"temper-reserved-563",
+        b"temper-reserved-564",
+        b"temper-foot-row",
+        b"temper-model",
+        b"temper-model-fixed",
+        b"temper-model-menu",
+        b"temper-model-tag",
+        b"temper-model-from",
+        b"temper-model-note",
+        b"temper-model-effort",
+        b"temper-model-all",
+        b"temper-model-back",
+        b"temper-model-find",
+        b"temper-model-long",
     ],
     regions: &[b"temper-link"],
 };
@@ -1439,6 +1490,20 @@ pub const PUBLIC_LINE: Style = Style { owner: owner(), token: 523 };
 pub const PUBLIC_FACTS: Style = Style { owner: owner(), token: 524 };
 /// Public pages (temper/docs/design/client/browser.md, 8.3).
 pub const PUBLIC_SECTION: Style = Style { owner: owner(), token: 525 };
+
+/// Model picker at the composer (client/README.md, 3.5).
+pub const FOOT_ROW: Style = Style { owner: owner(), token: 565 };
+pub const MODEL: Style = Style { owner: owner(), token: 566 };
+pub const MODEL_FIXED: Style = Style { owner: owner(), token: 567 };
+pub const MODEL_MENU: Style = Style { owner: owner(), token: 568 };
+pub const MODEL_TAG: Style = Style { owner: owner(), token: 569 };
+pub const MODEL_FROM: Style = Style { owner: owner(), token: 570 };
+pub const MODEL_NOTE: Style = Style { owner: owner(), token: 571 };
+pub const MODEL_EFFORT: Style = Style { owner: owner(), token: 572 };
+pub const MODEL_ALL: Style = Style { owner: owner(), token: 573 };
+pub const MODEL_BACK: Style = Style { owner: owner(), token: 574 };
+pub const MODEL_FIND: Style = Style { owner: owner(), token: 575 };
+pub const MODEL_LONG: Style = Style { owner: owner(), token: 576 };
 
 #[cfg(test)]
 mod tests {

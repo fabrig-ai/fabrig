@@ -92,19 +92,15 @@ impl Limits {
             .checked_add(counts.accounts.checked_mul(counts.sources.checked_add(2)?)?.checked_mul(2)?)?
             .checked_add(2)?
             .checked_add(128_u32.checked_mul(2)?)?;
-        // Catalogue: me_project_models x (1 Item + 1 Button + 2 Paragraphs),
-        // plus me_model_efforts x 1 Button for the selected model. Fixed room:
-        // 2 Slots + 1 List + 18 Paragraphs (including pending/refusal room)
-        // + 3 Statuses + 6 Links + 2 Buttons = 32, plus the disclosure
-        // and the plan line's separator, link and text priced below.
+        // Each model may occur under every account in its wire-bound offer.
+        // Each occurrence has item/button/name and heading/list room; the
+        // default tag adds three nodes. Efforts follow once, with a group.
         let choices = temper_client_domain::pages::choice::MODELS
-            .checked_mul(4)?
-            .checked_add(temper_client_domain::pages::choice::EFFORTS)?
-            // Providers without models: item, name paragraph/text, and link/text or unknown paragraph/text.
+            .checked_mul(temper_client_domain::pages::choice::MODEL_ACCOUNTS.checked_add(1)?)?
+            .checked_mul(10)?
+            .checked_add(temper_client_domain::pages::choice::EFFORTS.checked_mul(2)?)?
             .checked_add(receiving.rows.checked_mul(5)?)?
-            .checked_add(32)?
-            // Change model disclosure and the plan line's separator/link/text.
-            .checked_add(4)?;
+            .checked_add(40)?;
         // A goal's result: region, heading, status, their text and words slot plus
         // markdown; its contract paragraph and text. Budget: region, heading, balance,
         // six term/description pairs, a funder link, models term and cut line,
@@ -147,7 +143,8 @@ impl Limits {
             // Choice cards: region, heading, body, note and link with text;
             // the fixed step card also holds fields, snippets or progress.
             .max(temper_client_domain::forge::forges::ROWS.checked_mul(16)?.checked_add(152)?)
-            .checked_add(choices)?
+            // The menu feedback uses the ordinary text bound.
+            .checked_add(40)?
             // Away’s Settings heading (3), kinds row (6), checks (11), until row and select (9).
             .checked_add(29)?
             // Each of Home's seven live decision rows can offer Overturn (3.5).
@@ -183,15 +180,17 @@ impl Limits {
             // The toast holds a refusal, its Look again sentence and button (six nodes),
             // or a proposal's lead and at most rows role recipients (two nodes each).
             .checked_add(receiving.rows.checked_mul(2)?.checked_add(3)?.max(6))?;
-        let text_bytes = structural
-            .checked_mul(text)?
+        let text_bytes = choices
+            .checked_mul(crate::choice::MODEL_SHOWN.checked_mul(2)?.checked_add(128)?)?
+            .checked_add(structural.checked_mul(text)?)?
             .checked_add(window_text)?
             .checked_add(live_text)?
             .checked_add(skein_ui::markdown::max_text_bytes(receiving.long_text)?)?
             // One chat request and one composer, each at long_text.
             .checked_add(receiving.long_text.checked_mul(2)?)?
             .checked_add(text.checked_mul(24)?)?;
-        let nodes = structural
+        let nodes = choices
+            .checked_add(structural)?
             .checked_add(request_nodes)?
             .checked_add(window_nodes)?
             .checked_add(live_nodes)?

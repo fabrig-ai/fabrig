@@ -85,6 +85,9 @@ its default. A stored change still wins over a changed default.
   a name refusal names the authority segment bound; a connector refusal says
   that the connector must be registered. Change the named member and submit
   the proposal again.
+- An effort its model doesn't offer is refused before anything is sent,
+  naming the item, the model and what it offers, where `me` shows that
+  model; the engine refuses any other by the model's name.
 - A change against any other revision is refused as stale, naming the
   newest. Read again, and decide on what you read.
 - A change that alters no setting is refused as unchanged.

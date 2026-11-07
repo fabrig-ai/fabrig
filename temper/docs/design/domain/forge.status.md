@@ -3,7 +3,6 @@
 2026-11-06. Where temper's code lags or departs from [forge.md](forge.md).
 
 - **Not yet:**
-  - 8.1, 8.5, 11 and 11.1: a change on a run branch, its requester's own run in the slot, and a goal's run delivering to its run branch: `temper/docs/plan/goal-delivery/`. A goal's run starts on g and pushes nothing, and a taken slot stops every change.
   - 10, 18: no supplied result shows the three-thread real-process trial
     passing after update recovery. Both styles' lost answers, retries,
     exhausted counts, release and late-copy holds have world stories;
@@ -17,13 +16,14 @@
     `landing-fixes` of 2026-11-06 has its proof in the next landing plan on a real
     deployment, and no record shows one, so how much of a change's wait it saves,
     and how soon a moving base reaches the bound (section 20), are unmeasured.
-  - 8.4: the request `landing-fixes` of 2026-11-06, item 6, tells of a repair's
-    brief with conflict words and no cause, which cost a failed `read_job`. Its
-    plan dropped it past its ceiling of four tasks, untraced: a resolution's brief
-    opens `Resolve the conflict from change head`
-    (`temper-engine-domain-forge/src/brief.rs`, by `PullMode`) and a CI repair's
-    `Repair the failed check at change head` (`brief_ci.rs`), and which path gave
-    those words with no cause is unknown.
+  - 8.4, 11: the `landing-fixes-2` request of 2026-11-06 takes the next
+    landing plan on a real deployment as its proof, and no result is supplied.
+    The fake-forge stories cover a clean update's named failed check, its log
+    before the base's contents, an unnamed check and a resolution's conflict
+    words (`tests/engine/domain/tests/suite/forge_routes/repair_cause.rs`), and
+    a retried repair's saved branch deleted as it closes (`saved_close.rs`).
+    They do not establish that deployment's branch cleanup or that the new
+    brief would avoid the reported failed `read_job`.
   - 8.11, *Which target*: the coding charter's sentence and the refusal's words
     stand on a script alone
     (`tests/engine/domain/tests/suite/forge_routes/question_target.rs`). No real

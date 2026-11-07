@@ -371,7 +371,7 @@ agent must name.
 | `task hold TASK --stop\|--drain REASON` | places a hold of the party's over TASK's subtree: stop cancels its runs at once, drain lets them finish their turns; a party's hold lifts by `hold lift` alone (jig's `domain/tasks.md`, 5.9) | `Hold` | yes |
 | `project hold PROJECT --stop\|--drain REASON` | places a hold of the party's over the whole project, the party's chats exempt | `Hold` | yes |
 | `project make NAME` | makes a project from a copy of policy 1, as the client switcher does; prints its number, kept on key replay | `MakeProject { name, policy: 1 }` | yes |
-| `project amend PROJECT --visibility public\|private` | makes the project readable by anyone without signing in, or private again (jig's `domain/people.md`, 13.2), by its owner; prints `project 1: public` and, made public, the public page's path from `me`'s public identifier, `/public/projects/3f2a9c01d4e5b6a7`; project 0 and a member are refused, exit 2 | `SetVisibility` | yes |
+| `project amend PROJECT --visibility public\|private` | makes the project readable by anyone without signing in, or private again (jig's `domain/people.md`, 13.2), by its owner; prints `project 1: public` and, made public, the public page's path from `me`'s public identifier, `/public/projects/3f2a9c01d4e5b6a7`, and on stderr, as its help does, "Anything said in this project's chats may show on its public pages, in the titles of its goals and tasks. On a public repository, a change's pull request shows what its agent wrote too." (jig's `domain/people.md`, 13.3); project 0 and a member are refused, exit 2 | `SetVisibility` | yes |
 | `project fund PROJECT AMOUNT [--role ROLE]` | sets what the project's period may spend, its spend per period, to AMOUNT, in the deployment's unit, or with `--role` that role's; either resizes what the open period gave (jig's `domain/authority.md`, section 7), so a raise funds the next chat at once, and each period the calendar opens takes it (`../domain/root.md`, 5.7). An owner's chats are funded from their pool, their role's, and pools reserve from the project's period, so a raise for them is two calls, the project's first, then the role's; a role's raise past the period's room is refused, exit 2, naming what the period has left. A cut goes the other way, the role's first, since a project's spend below a role's is refused; it keeps each budget at what it has used. A refusal past a ceiling (jig's typed ceiling, its holder, dimension and, for a scalar, its value) exits 2 with one line naming it and the next step: `project fund: past the rules' period spend, V; raise the rules first with temper ctl settings apply`; with `--role`, `past the project's period spend, V; fund the project first: temper ctl project fund P AMOUNT`; a cut, `below role R's period spend, V; lower the role first: temper ctl project fund P AMOUNT --role R`; an authority over its ceiling when rechecked, `the project's authority is past the rules' DIMENSION[, V]; raise the rules with temper ctl settings apply, or narrow the project's policy` (for a role, `role R's authority is past the project's DIMENSION[, V]`), a list's dimension (tools, executors, grants, notes) named without its contents, read whole with `settings show`. Its answer is the edit, `project 1: spend per period 449696` or `role 0: spend per period 415104`, the same under one key by construction (section 7); then a read marked as such, `now: period 1: budget 449696, left 449590`, and with `--role` each of the role's pools now: a replay prints the edit as first answered and today's numbers after it | the project's policy edit, `ProjectSpend`, or with `--role` `RoleSpend` | yes |
 | `hold lift HOLD --rev REV [--with-tasks]` | ends a placed hold; with `--with-tasks`, releases every task it held that nothing else holds | `Lift` | yes |
 | `task cancel TASK [--grace DURATION] REASON` | cancels a task and its tree; a task that has ended refuses a cancel (exit 2), saying how it ended, and the same cancel under its key gets its first answer | `Cancel` | |
@@ -416,7 +416,12 @@ agent must name.
   a charter's `model` is a model and its `alternatives` a list, and an
   authority's models are `"all"` or a list of model names. A project's
   policy `removed` or `reset`, or a second one, is refused before
-  anything is sent, naming the item. jig's kinds are the deployment's; a landing rule names
+  anything is sent, naming the item. So is a template's or charter's effort
+  that its model doesn't offer, where `me` shows that model in any of the
+  party's projects: exit 1, nothing sent, `settings file item 1: model M offers
+  no effort xhigh; it offers high, medium`, or `it offers none`. A model
+  `me` doesn't show goes to the engine, which refuses it by name (jig's
+  `client/domain/contract.md`, 4). jig's kinds are the deployment's; a landing rule names
   its scope, the deployment's or a project's, as a project's policy
   names its project, and a set that touches a project's needs an owner
   of it, one that touches the deployment's too one person who owns both
@@ -1045,7 +1050,7 @@ The table grows area by area, each with its stories (section 11).
    | `forge accept FORGE INSTALLATION` | accepts INSTALLATION, an installation of temper's App that exists already on GitHub and that `forge list` shows not accepted, with no browser: read on GitHub as the App's, then kept as an installation accepted through the setup route is (`../protocol/setup.md`, 17.4); prints `accepted: installation I on forge F` and the call that follows, `forge repositories FORGE --installation INSTALLATION`, exit 0, and the same when it is accepted already; refused, exit 2, as `forge install` is, or, its run stopped, in the forge's words for its reason (`README.md`, 4.6): "GitHub has no installation I of this App", "GitHub refused the App's read of installation I", "GitHub did not answer: try again", "temper keeps at most N installations" | `Accept { forge, installation }` | |
    | `forge replace FORGE FILE` | replaces what a person pasted, on a forge connected or stopped: on GitHub, FILE the App's new key, PEM as GitHub gives it, which must be a key of the same App; on a connected Forgejo, a tokens file naming `api`, `git` or both, and `webhook_secret` when the hooks' secret changes, which must answer as the forge's user; each new value is kept over the old, and the forge connects with them; prints `connecting` and `forge list --until connected:FORGE`, and exits 0 once the request is durable; refused, exit 2, in `ForgeRefusal`'s words, `not connected` on a forge not connected and `busy` while it connects | `Replace { forge }`, the key or the tokens carried | yes |
    | `forge forget FORGE` | erases a managed forge's admin's token; the forge is connected, its bot and tokens kept | `Forget { forge }` | |
-   | `forge setup [FORGE] [--org ORG] [--repository REPOSITORY] [--project PROJECT] [--playground]` | sets up an owned Forgejo here, under the box, with its first repository, FORGE a kept owned Forgejo, or, with none, a new one, made as the request is admitted (`../protocol/forge.md`, 2.2): the box fetches its binaries, prepares it and starts Forgejo and its runner, then temper takes its handover, makes `ORG/REPOSITORY` (default `work/hello`) with the starter workflow, or with `--playground` makes `playground/widget` as the playground's copy, its files beside the starter workflow, taking no `--org` or `--repository` (a usage error, exit 1, with either), and connects (`../protocol/setup.md`, 6.5 and 6.7); prints `setting up`, waits as `forge list --until made:FORGE` does, then adopts `ORG/REPOSITORY` into PROJECT, a project's number or name, a name no project holds made a new project first by jig's `MakeProject`, and with no `--project` a new project named REPOSITORY (`../draft/archive/first-run.md`, 2.4); PROJECT is the call's own, held in its run and never sent with `SetUp`, which names no project (`../protocol/setup.md`, 6.7), so that a call restored from its kept `SetUp` takes it from its own arguments; it adopts as `repository adopt --project PROJECT --forge FORGE --owner ORG --name REPOSITORY --landing main` would, as PROJECT's home unless PROJECT already has one, under the same sign-in and with the key `first-repository-F`, so that the call run again adopts nothing twice; prints the adoption and exits 0. Refused, exit 2: "not offered" (an owned forge already exists when FORGE is absent, or the forge is not an owned one whose setup says `"start": "asked"`, or it is set up, setting up or connecting), "busy" (the box is setting up another forge), "invalid" (ORG or REPOSITORY not a name Forgejo takes, or ORG, REPOSITORY or PROJECT's name empty or too long, PROJECT's checked by the call before it sends), or, without the box, "not under the box", saying to start temper with `temper box` (`../client/forge.md`, 5.4; `../protocol/setup.md`, 7.4). A not-offered refusal in text and JSON points to `forge list`, `project make NAME --key KEY`, then `repository make --project PROJECT --forge FORGE ORG/NAME --until adopted --key KEY`; the single-owned-forge rule remains. Set up failed, or its first repository failed, exit 1, naming the step. With `--playground`, ORG and REPOSITORY above are `playground` and `widget`, and the default project a new one named `widget` | `SetUp { forge, org, repository, playground }`; then `MakeProject` when PROJECT names no project, and `Adopt` | |
+   | `forge setup [FORGE] [--org ORG] [--repository REPOSITORY] [--project PROJECT] [--playground]` | sets up an owned Forgejo here, under the box, with its first repository, FORGE a kept owned Forgejo, or, with none, a new one, made as the request is admitted (`../protocol/forge.md`, 2.2): the box fetches its binaries, prepares it and starts Forgejo and its runner, then temper takes its handover, makes `ORG/REPOSITORY` (default `work/hello`) with the starter workflow, or with `--playground` makes `playground/widget` as the playground's copy, its files beside the starter workflow, taking no `--org` or `--repository` (a usage error, exit 1, with either), and connects (`../protocol/setup.md`, 6.5 and 6.7); prints `setting up`, waits as `forge list --until made:FORGE` does, then adopts `ORG/REPOSITORY` into PROJECT, a project's number or name, a name no project holds made a new project first by jig's `MakeProject`, and with no `--project` a new project named REPOSITORY (`../draft/archive/first-run.md`, 2.4); PROJECT is the call's own, held in its run and never sent with `SetUp`, which names no project (`../protocol/setup.md`, 6.7), so that a call restored from its kept `SetUp` takes it from its own arguments; it adopts as `repository adopt --project PROJECT --forge FORGE --owner ORG --name REPOSITORY --landing main` would, as PROJECT's home unless PROJECT already has one, under the same sign-in and with the key `first-repository-F`, so that the call run again adopts nothing twice; prints the adoption, without `README.md`, 4.7's line on protection it could not read, and exits 0. That line is true there, temper's bot being a writer as it is anywhere (`../domain/forge.md`, 4), but it asks nothing a person can do on a repository temper has just made; `--json` keeps `protection`, and `repository adopt` keeps the line. Refused, exit 2: "not offered" (an owned forge already exists when FORGE is absent, or the forge is not an owned one whose setup says `"start": "asked"`, or it is set up, setting up or connecting), "busy" (the box is setting up another forge), "invalid" (ORG or REPOSITORY not a name Forgejo takes, or ORG, REPOSITORY or PROJECT's name empty or too long, PROJECT's checked by the call before it sends), or, without the box, "not under the box", saying to start temper with `temper box` (`../client/forge.md`, 5.4; `../protocol/setup.md`, 7.4). A not-offered refusal in text and JSON points to `forge list`, `project make NAME --key KEY`, then `repository make --project PROJECT --forge FORGE ORG/NAME --until adopted --key KEY`; the single-owned-forge rule remains. Set up failed, or its first repository failed, exit 1, naming the step. With `--playground`, ORG and REPOSITORY above are `playground` and `widget`, and the default project a new one named `widget` | `SetUp { forge, org, repository, playground }`; then `MakeProject` when PROJECT names no project, and `Adopt` | |
    | `playground start` | starts the playground (`../protocol/setup.md`, 8.4): the engine makes its fake forge, the box starts its fakes, and the engine adds the scripted model's account and adopts its repository into its project, in the caller's name; waits for the answer, then prints `running` and exits 0, the same when it already runs. Refused, exit 2: "not offered" (a real forge kept). Start failed, exit 1, naming why: the fakes did not start (the box's why), the account refused, the adoption refused, or the forge not connected in time; run again, it makes what is not done | `StartPlayground` | |
    | `playground end` | resets the playground (`../protocol/setup.md`, 8.4), as the banner's "set up temper" does (`README.md`, 4.8): its project deleted, its fake forge removed and the scripted model's account removed, each a kept act the engine resumes at its next start if one is cut; waits for the answer, then prints `reset` and exits 0, once the playground is gone. Refused, exit 2: "not offered" (no playground) | `EndPlayground` | |
    | `forge remove FORGE` | removes forge FORGE (`../domain/forge.md`, 4.1): ended at once, then, by kept acts, its live work cancelled, its box group stopped and its directory removed, its records erased; on the forge itself only what temper ran is undone, a managed Forgejo's bot and hooks and a GitHub App staying the person's. Prints `removed` and exits 0 once the forge is ended. Refused, exit 2, in `ForgeRefusal`'s words: not the deployment's owner, no such forge, or not taken by this forge (the playground's, which `playground end` removes) | `RemoveForge { forge }` | |
@@ -1210,7 +1215,9 @@ digest: task 7c1e09a2b44f0d13
   `retention: 86400 seconds` for a day. Under `--json`, jig's integers:
   nanoseconds (6.2).
 - **The header** is the task's number, its kind, its phase in jig's
-  words, its project and its tracking. Its kind is `chat` for a
+  words, its project and its tracking. A task `waiting on:` prints as waiting
+  for `an account` (below) has `Waiting for an account` in place of `Due to
+  run`. Its kind is `chat` for a
   conversation, `goal` for a goal (the task its own goal), and
   otherwise its result contract's kind: `approval`, `report`, `verdict`,
   or, for Change, `change` when its connector is the forge's (1) and
@@ -1230,8 +1237,21 @@ digest: task 7c1e09a2b44f0d13
   the document's `held:` and `way out:` lines carry its reason and what to
   do. A task that awaits nothing else, holds no hold, and whose next run no
   account serves prints jig's `an account`, where `Nothing awaited` would
-  say the opposite of the lines above it. `--json` keeps `waits_on` as jig
-  gives it.
+  say the opposite of the lines above it. The header, this line and `--json`
+  tell that one story, from one check: `--json`'s `waits_on` is `"account"`.
+  Otherwise `--json` keeps `waits_on` as jig gives it, a held task's
+  `nothing` among them. Its `chip.phase` stays `due` and its `run_wait` as jig
+  gives it, a wait's `phase:due` still holds, and `task list`'s lines, which
+  carry no next-run wait, keep their word.
+- **A move** concerns who requests a task, not what it waits on: `acts:` and
+  `--json` offer it on a task waiting for an account as on any other. On a
+  task whose requester is already the party it isn't offered (jig's
+  `domain/people.md`, 5.1), and moving gives no task a run: an account does.
+- **A hold for failed runs** has its class and no failure's text: `held:`
+  prints `out of tries: run failures`, and `way out:` starts `the engine's log
+  names each failure (temper help hold), then`. `temper help hold` says where
+  that log is, under `temper box` and under `temper serve`
+  (`../domain/worker.md`, 12, on keeping the text with the hold).
 - **`next run:`** prints what a run that can't start waits for, then the
   lines that say why and what to run (5.2). When no account serves the
   work, an account wait with neither an account nor a source and the why
@@ -1409,6 +1429,8 @@ may change with them.
 - **The `kept:` lines,** under `--json`, are one JSON object a line on
   stderr: `operation` and `outcome`, as the act's; another party's,
   `party` and `unsent`; the dropped, `dropped`.
+- **A project made public,** under `--json`, prints 5.3's words on stderr
+  as one JSON object a line, `may_show`, beside its record on stdout.
 
 ### 6.3 Exit status
 
@@ -1587,7 +1609,11 @@ its `from` and `next` offsets count reason bytes alone.
 - **The agent names the key** of every tool marked `K`: `--key NAME`, a
   word of 1 to 64 bytes of `a` to `z`, `0` to `9` and `-`, such as
   `health-chat`. A call without it is refused as a usage error, before
-  anything is sent.
+  anything is sent. So is `--key` with no name, or a name outside that
+  rule, and that refusal says the rule, as 6.3 has it and the same for argv
+  and `--call`: `temper ctl: task message: --key KEY takes 1 to 64
+  lower-case letters, digits or hyphens; temper ctl help task message`.
+  `temper help ctl` says the rule too.
 - **A named key is the engine's key:** the first 16 bytes of the SHA-256
   of `temper-tools`, a zero byte and the name. jig scopes it to the party
   (jig's `client/domain/contract.md`, 3.1). The same name asked again by
@@ -2363,6 +2389,14 @@ Each is named here and designed when it comes.
   that nothing listens (6.3); the terminal keeps the native shell's reset
   and retry. Whether it says so too waits on a timing of what a person
   meets there.
+- **Protection on a forge temper owns** (the `forge setup` row, 5.5): temper's
+  bot stays a writer, so a rule a person later sets there stays unread, and
+  `repository adopt` on that forge still prints the line. Granting the bot
+  admin would let whatever holds its tokens change that rule, the second net
+  (`../domain/forge.md`, 4), so it isn't done. Reading with the site admin's
+  token, which temper holds there, would widen nothing, at the price of a
+  path from the setup's host to adoption and to its later reads. Default: as it
+  stands, until a person on an owned forge sets a rule temper should know.
 - **An account with no source for this work** (6.1): a wait that names its
   account with the why `Empty` keeps its number on `next run:`, above `no
   account serving this work yet`, and `waiting on: Nothing awaited` beneath
@@ -2375,6 +2409,11 @@ Each is named here and designed when it comes.
   and a person task's `acts:` prints such bounds with no space before them
   and nothing of what lies beyond. Whether the line stays, and its person
   form, is settled when jig bounds another act.
+- **A step before a project goes public** (5.3): `project amend --visibility
+  public` acts at once, so a person who has read neither its help nor
+  `temper help open-public-reading` meets its words only in its answer. A flag
+  that names them could stand first. Default: none, the request `ui-public-3`
+  asking the answer or the help to say so.
 
 ## 15. Open questions
 

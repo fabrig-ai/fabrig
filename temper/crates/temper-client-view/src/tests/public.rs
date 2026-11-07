@@ -214,6 +214,7 @@ fn the_landing_pages_show_the_turn_queues_commits_and_proofs() {
     );
     assert!(has_text(&list, b"landed"), "public landings list keeps its landed phase");
     assert!(has_text(&page, b"landed"), "public landing keeps its landed phase");
+    assert!(has_text(&page, b"2 stale proofs"));
 }
 #[test]
 fn projects_are_named_and_the_banner_only_offers_a_known_sign_in() {
