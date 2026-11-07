@@ -823,8 +823,8 @@ impl Component {
                 });
             }
             oauth::Request::Revoked { confirmed } => self.forget(env, id, confirmed, up, io),
-            oauth::Request::Tokens { record, missing } => {
-                exchange.lock_candidate = Some((record, missing));
+            oauth::Request::Tokens { record, missing, profile } => {
+                exchange.lock_candidate = Some((record, missing, profile));
                 if !self.lock_write(env, id, up) {
                     self.keep_candidate(env, id, up, io);
                 }
@@ -870,7 +870,7 @@ impl Component {
         exchange.received();
         exchange.visit = None;
         match stage {
-            Stage::Keeping { candidate, missing } => {
+            Stage::Keeping { candidate, missing, profile } => {
                 let lending = if held(&entry.state) || exchange.pending_grant { Lending::Held } else { Lending::Free };
                 match keeping {
                     Keeping::Kept => {
@@ -878,7 +878,15 @@ impl Component {
                         let subject = candidate.subject.clone();
                         entry.state = just_kept(candidate, env, lending);
                         if exchange.signing_in() {
-                            up.push(Event::SignedIn { account: entry.name.number(), generation, missing, subject });
+                            up.push(Event::SignedIn {
+                                account: entry.name.number(),
+                                generation,
+                                missing,
+                                subject,
+                                profile,
+                            });
+                        } else if !profile.is_empty() {
+                            up.push(Event::Refreshed { account: entry.name.number(), generation, profile });
                         }
                         if lending == Lending::Held {
                             grant(&mut entry.state, &entry.source, env.now, entry.name.number(), up);

@@ -109,6 +109,7 @@ fn a_sign_in_started_answer_is_followed_by_its_actual_end_on_the_accounts_watch(
         subject: Box::from(b"subject".as_slice()),
         display: Box::from(b"alice@example.com".as_slice()),
         declined: false,
+        said: jig_domain_accounts::Said::default(),
     }));
     accounts::settle(&mut front, &mut root);
     accounts::answer_trial(&mut front, &mut root);

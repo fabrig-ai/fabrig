@@ -90,6 +90,7 @@ pub struct Account {
     pub display: super::Text,
     pub holder: accounts::Holder,
     pub sources: List<super::SourceLine>,
+    pub facts: List<accounts::AccountFact>,
     pub generation: Option<u64>,
     pub state: AccountState,
     pub usable: bool,
@@ -404,6 +405,11 @@ pub(super) fn deployment(
                 display: super::small::text(account.display(), limits.documents.text_bytes),
                 holder: account.holder(),
                 sources,
+                facts: super::accounts::fact_lines(
+                    core,
+                    number,
+                    people::account_holder_reads(&core.people, party, people::AccountHolder::Deployment),
+                ),
                 generation: value.generation,
                 state: account_state(value.state),
                 usable: super::accounts::account_usable(core, account),
@@ -571,7 +577,8 @@ pub(super) fn document_bound(limits: &super::DocumentLimits) -> Option<u64> {
         .checked_add(u64::from(limits.lines).checked_mul(u64::from(accounts::NAME))?)?
         .checked_add(u64::from(limits.text_bytes).checked_mul(2)?)?
         .checked_add(u64::from(accounts::MANAGE_USAGE))?
-        .checked_add(List::<accounts::Use>::price(accounts::USES)?)?;
+        .checked_add(List::<accounts::Use>::price(accounts::USES)?)?
+        .checked_add(super::accounts::facts_bound()?)?;
     super::task_tree::document_bound(limits)?
         .checked_mul(carriers)?
         .checked_add(

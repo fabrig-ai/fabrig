@@ -142,6 +142,7 @@ fn new_value_sources_ask_with_their_first_grant() {
                     })
                     .expect("sign-in started");
                 world.step(Event::SignedIn {
+                    said: jig_domain_accounts::Said { email: None, name: None },
                     source,
                     subject: b"new".as_slice().into(),
                     display: Box::new([]),

@@ -137,7 +137,7 @@ impl Create {
             Stage::Org => self.at.owner.clone(),
             Stage::Repository => self.subject.clone(),
             Stage::File => self.file().path.clone(),
-            Stage::Bot | Stage::Token | Stage::App | Stage::Installation | Stage::State => {
+            Stage::Bot | Stage::Token | Stage::App | Stage::Installation | Stage::State | Stage::Person => {
                 unreachable!("creation stages")
             }
         };

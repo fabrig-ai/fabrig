@@ -27,6 +27,11 @@ and free its place, absence is kept, and running rows or another scope
 are refused. The request carries `into`, so its keyed scope survives the
 row's erasure. The connector's making tables cover these decisions.
 
+Section 8.1 has no known implementation gap in bounding a pull request's
+body at 65,536 bytes independently of `forge.client.op_bytes`, with a
+marked cut and the change's stored words kept whole. The engine's batch
+table admits 32 changes and refuses 33 at an authority batch bound of 32.
+
 - **Not yet:**
   - 10, 18: no supplied result shows the three-thread real-process trial
     passing after update recovery. Both styles' lost answers, retries,

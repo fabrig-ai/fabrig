@@ -321,7 +321,8 @@ fn while_moving_sign_out_removal_renewal_and_another_move_are_refused() {
                 source: incoming,
                 subject: Box::from(b"alice".as_slice()),
                 display: Box::new([]),
-                declined: false
+                declined: false,
+                said: jig_domain_accounts::Said::default(),
             }),
             vec![Request::Signing(Signing::SignOut { source: incoming })]
         );
@@ -614,6 +615,7 @@ fn a_move_in_checks_its_subject_again_after_adoption() {
         subject: Box::from(b"alice".as_slice()),
         display: Box::new([]),
         declined: false,
+        said: jig_domain_accounts::Said::default(),
     });
     assert_eq!(
         world.step(Event::Adopted { source: arriving, kept: true }),

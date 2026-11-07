@@ -125,6 +125,7 @@ pub struct Account {
     pub display: super::DocumentText,
     pub holder: super::AccountHolder,
     pub sources: List<super::AccountSource>,
+    pub facts: List<super::AccountFact>,
     pub generation: Option<u64>,
     pub state: AccountState,
     pub usable: bool,

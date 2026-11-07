@@ -35,6 +35,7 @@ fn expected_given() -> skein_forge_setup::given::Given {
     use alloc::boxed::Box;
     use skein_lib::Duration;
     skein_forge_setup::given::Given {
+        person: None,
         forge: 1,
         bot_login: b"temper".as_slice().into(),
         bot_email: b"temper@example.invalid".as_slice().into(),

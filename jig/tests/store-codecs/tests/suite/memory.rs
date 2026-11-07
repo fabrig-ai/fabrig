@@ -138,7 +138,37 @@ fn the_longest_accounts_rows_decode_within_the_rows_decoded_bound() {
         },
     )
     .expect("a source at its ceiling");
-    for value in [accounts_v2::Value::Account(account), accounts_v2::Value::Source(source)] {
+    let mut facts = skein_lib::List::with_capacity(ceilings.facts_facts);
+    for kind in 0..ceilings.facts_facts {
+        let text =
+            accounts_v2::FactText::new(&ceilings, accounts_v2::FactTextParts { text: bytes(ceilings.fact_text_text) })
+                .expect("text at its ceiling");
+        facts
+            .push(
+                accounts_v2::Fact::new(
+                    &ceilings,
+                    accounts_v2::FactParts {
+                        kind: u16::try_from(kind).expect("few facts"),
+                        label: bytes(ceilings.fact_label),
+                        value: accounts_v2::FactValue::Text(text),
+                        seen: u64::MAX,
+                        source: Some(u32::MAX),
+                        origin: u16::MAX,
+                    },
+                )
+                .expect("fact at its ceilings"),
+            )
+            .expect("facts fit");
+    }
+    let facts = accounts_v2::Facts::new(&ceilings, accounts_v2::FactsParts { account: u32::MAX, facts })
+        .expect("facts at their ceiling");
+    eprintln!(
+        "accounts decoded bounds: account={} row={bound} bytes",
+        accounts_v2::Account::decoded_bound(&ceilings).expect("account bound")
+    );
+    for value in
+        [accounts_v2::Value::Account(account), accounts_v2::Value::Source(source), accounts_v2::Value::Facts(facts)]
+    {
         let row = accounts_v2::Row::new(&ceilings, accounts_v2::RowParts { value }).expect("a row");
         let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
         row.encode(&mut writer).expect("measured room");

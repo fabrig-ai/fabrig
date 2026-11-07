@@ -394,3 +394,45 @@ fn the_orgs_are_made_before_the_first_repository_is_read() {
         fixtures::send(Request::RepositoryById { id: 9 })
     );
 }
+
+#[test]
+fn a_given_person_is_answered_by_id_and_one_gone_by_none() {
+    use crate::plan::Outcome;
+    use core::num::NonZeroU64;
+    let mut person = fixtures::person(b"ada", b"Ada");
+    person.id = 31;
+    let mut zero = person.clone();
+    zero.id = 0;
+    for (answer, expected) in [
+        (user(person), Need::Done(Outcome::Person { id: NonZeroU64::new(31) })),
+        (Event::Reply(Reply::Status(404)), Need::Done(Outcome::Person { id: None })),
+        (user(zero), fixtures::named_failure(Stage::Person, b"ada", Why::Unexpected)),
+        (Event::Reply(Reply::Status(403)), fixtures::named_failure(Stage::Person, b"ada", Why::Refused(403))),
+        (Event::Reply(Reply::Down), fixtures::named_failure(Stage::Person, b"ada", Why::Down)),
+    ] {
+        let mut run = person_read();
+        assert_eq!(run.step(answer), expected);
+        let mut out = skein_lib::Queue::uncapped();
+        crate::reconcile::step(&mut run.machine, Event::Begin, &mut out);
+        assert!(out.is_empty());
+    }
+    let mut run = person_read();
+    let mut out = skein_lib::Queue::uncapped();
+    crate::reconcile::halt(&mut run.machine, Why::Down, &mut out);
+    assert_eq!(out.pop(), Some(fixtures::named_failure(Stage::Person, b"ada", Why::Down)));
+    assert!(out.is_empty());
+}
+
+fn person_read() -> Run {
+    let mut given = fixtures::given();
+    given.person = Some(b"ada".as_slice().into());
+    let mut run = Run::with_given(given);
+    fixtures::to_bot(&mut run);
+    run.step(fixtures::bot_event());
+    run.kept_tokens();
+    assert_eq!(
+        run.step(Event::Read(Some(secret(&42_u64.to_le_bytes())))),
+        fixtures::send(Request::UserOf { login: b"ada".as_slice().into() })
+    );
+    run
+}

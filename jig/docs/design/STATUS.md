@@ -23,6 +23,10 @@ charter versions and endpoint bounds at hello are built, with worker
 provider-list reads, retained per-account names, atomic catalogue updates
 and per-account offer narrowing (`domain/accounts.md`, 3.7;
 `domain/engine.md`, 17.12; `client/domain/contract.md`, 5.1).
+Standard admits batches of 32, charters of 262,144 bytes and outcomes of
+131,072; a change body's bound follows its contract's words. Message
+rendering room remains deferred (`domain/hosts.md`, sections 8 and 12;
+`protocol/configuration.md`, section 6).
 A start does not check an application's declared
 kinds against its limits, and a project's deletion as a whole has no price
 against `journal.writes` (`domain/engine.md`).
@@ -63,7 +67,14 @@ observer updates keyed evidence from durable commit rows and keeps complete
 ordered snapshots, with whole rebuilding for cold reads and bulk changes.
 Views are made only for readers; further observation-cost work and proof
 that the focused suite fits 30 CPU s remain
-(`domain/testing.md`, sections 5, 9 and 10). The channel's root checks at every
+(`domain/testing.md`, sections 5, 9 and 10). Typed core row names and shared
+setup avoid repeated formatting and construction; protocol wires skip idle
+polls and parse only new bytes, and due agents check holds and credentials
+before joint account and host selection. The seven store sweeps run in fuzzy
+with the focused cuts' checks; the focused stray story selects a directory
+creation where `domain/testing.md`, 9 requires its first removal. Whole-suite savings and
+fuzzy's fit remain unproved (`domain/testing.md`, sections 7, 9 and 10;
+`protocol/store.md`, section 14). The channel's root checks at every
 step cover its fuzzy stories; the other stories can miss transient grant
 values between arrival and end checks (`protocol/channel.md`, sections 12
 and 14).
@@ -89,8 +100,10 @@ The code departs in a few single items (`README.md`, `client/domain/client.md`, 
 `client/domain/contract.md`, `client/domain/testing.md`, `client/domain/view.md`, `domain/hosts.md`, `domain/people.md`, `domain/root.md`, `domain/testing.md`,
 `protocol/README.md`, `protocol/browser.md`, `protocol/client.md`, `protocol/configuration.md`, `protocol/service.md`, `protocol/store.md`). `domain/core.md`,
 `domain/providers.md` and `client/domain/README.md` have no gap of their
-own. Its drafts: `draft/account-facts.md` says what a provider
-reports about an account, and `draft/notes-memory.md` keeps the idea of
+own. Its drafts: `draft/account-facts.md`'s remaining design work is
+section 6's third step:
+plan, workspace, renewal, end and usage-window reports, whose sources the user
+is still deciding; `draft/notes-memory.md` keeps the idea of
 notes as agents' memory, a chat's document alone taken up (`domain/engine.md`,
 section 10), the rest not to be planned until the user says.
 

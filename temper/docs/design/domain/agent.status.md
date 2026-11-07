@@ -41,6 +41,13 @@ schemas or in a failed `settings` read naming the kind and its required
 `number` or `project`. Failed calls remain visible. Proposal-form errors
 keep the shared parser's wording (section 10).
 
+Section 4.4 has no known implementation gap in a change body's bound
+following its contract's words, or a landing's report reserving 59 bytes
+for its live message's label and sender. The domain table retains a
+3,585-byte report whole, cuts the live rendering when needed, and task
+reads retain the whole stored report. Direct Change-contract results'
+rendering room remains deferred in section 10.
+
 Section 4.6 has no known gap in a chat's new model or effort answering its
 person's next words, whether the previous run still listens or has parked.
 

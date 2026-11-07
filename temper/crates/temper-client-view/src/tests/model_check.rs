@@ -443,8 +443,21 @@ fn from_root(root: &d::Domain, w: &Words) -> (Tree, Bindings) {
 }
 #[test]
 fn trial_rows_feed_the_steps_answer_and_ask_gap_in_both_shells() {
-    for kind in [d::WayKind::Program, d::WayKind::SignIn, d::WayKind::Key] {
-        let (mut root, watch, _) = fed(kind);
+    for (kind, email, detail) in [
+        (d::WayKind::Program, None, Some("owner, signed in on this machine")),
+        (d::WayKind::SignIn, None, Some("owner")),
+        (d::WayKind::Key, None, Some("billed to the key’s organization")),
+        (
+            d::WayKind::Program,
+            Some(b"alice@example.com".as_slice()),
+            Some("alice@example.com, signed in on this machine"),
+        ),
+        (d::WayKind::SignIn, Some(b"alice@example.com".as_slice()), Some("alice@example.com")),
+    ] {
+        let (mut root, watch, accounts) = fed(kind);
+        let mut doc = d::pages::accounts::document(root.client()).unwrap().clone();
+        doc.accounts.get_mut(0).unwrap().facts = super::accounts::email_facts(email);
+        super::accounts::deliver(&mut root, accounts, doc);
         assert_eq!(root.forge().trial_asked(), Some(1));
         for (step, state, at) in [
             (v::TrialStep::Starts, v::TrialState::Running, 1),
@@ -478,6 +491,8 @@ fn trial_rows_feed_the_steps_answer_and_ask_gap_in_both_shells() {
             )],
         );
         for w in [f::words(), f::browser_words()] {
+            let trial = model_check::trial(&root, &w).unwrap();
+            assert_eq!(trial.detail.as_deref(), detail.map(str::as_bytes));
             let (tree, _) = from_root(&root, &w);
             assert!(String::from_utf8_lossy(&f::text(&tree)).contains("answered in 7 s"));
             assert!(!tree.nodes().iter().any(|n| n.role == Role::Disclosure));

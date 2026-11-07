@@ -137,7 +137,7 @@ fn tokens_name_the_missing_required_scopes() {
         registration.terms.as_mut().expect("terms").required_scopes = Some(boxed(b"read profile"));
         let mut client = after_visit(registration);
         let http = request(step(&mut client, redirect(Some(boxed(b"client-1")))));
-        let Some(Request::Tokens { record, missing }) =
+        let Some(Request::Tokens { record, missing, .. }) =
             step(&mut client, answered(http.id, 200, &token_body_with_scope(scope), 3))
         else {
             panic!("tokens")

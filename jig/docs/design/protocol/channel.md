@@ -237,7 +237,7 @@ answer, and a **notice** is not answered.
 | limited | task, attempt; an LLM account and its source; how long until it may be used again, only where its provider said | notice |
 | refused | task, attempt; an LLM account and its source; its provider's code and reason, as text within the detail's bound | notice |
 | unauthorized | task, attempt; an LLM account and its source; the generation its provider refused, or whose program login was lost | notice |
-| logins | for each program source the engine named (5.2), its name and its login's state on this host: usable, not signed in, signed in otherwise and how, or failed, with bounded detail (smith's `protocol/hosts.md`, section 2) | notice: once checked after each `sources`, then on each change |
+| logins | for each program source the engine named (5.2), its name and its login's state on this host: usable, not signed in, signed in otherwise and how, or failed, with bounded detail (smith's `protocol/hosts.md`, section 2); and, for a usable one, the email its status names, of at most 255 bytes, where it names one, which the engine keeps as a fact of the account (`../domain/accounts.md`, 3.7) | notice: once checked after each `sources`, then on each change |
 | signed out | a program source's name; whether the program's sign-out ran, or failed, with bounded detail | answer to a sign out |
 | list read | a read's number; at most 256 rows, each a name of at most 128 bytes, a shown name of at most 64, a window, an output and at most 8 efforts of at most 16 bytes, or a typed failure: refused with a status, unreachable, unreadable, deadline or the agent's fault (`../domain/hosts.md`, 5.1) | answer to a read list, best effort: a read's number the engine no longer holds is dropped |
 

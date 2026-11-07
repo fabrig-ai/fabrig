@@ -29,6 +29,7 @@ fn finish(world: &mut World, source: u32) {
         subject: b"subject".as_slice().into(),
         display: b"Name".as_slice().into(),
         declined: false,
+        said: jig_domain_accounts::Said::default(),
     });
 }
 fn end(by: u64, source: u32, end: End) -> Ended {

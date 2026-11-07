@@ -12,7 +12,7 @@ pub enum Operation {
 }
 #[derive(PartialEq, Eq, Debug)]
 pub enum Answer {
-    Checked(LoginState),
+    Checked { state: LoginState, email: Option<Box<[u8]>> },
     SignedOut(SignOutResult),
     Read(ListOutcome),
 }
@@ -20,6 +20,7 @@ pub enum Answer {
 struct Row {
     name: SourceName,
     state: Option<LoginState>,
+    email: Option<Box<[u8]>>,
     check: bool,
     sign_out: bool,
     explicit: bool,
@@ -119,11 +120,12 @@ pub(crate) fn replace(domain: &mut Domain, env: &Env<Limits>, names: Box<[Source
     }
     let mut old = core::mem::replace(&mut domain.rows, List::with_capacity(env.limits.program_sources));
     for name in names {
-        let mut row = Row { name, state: None, check: true, sign_out: false, explicit: false, next: None };
+        let mut row = Row { name, state: None, email: None, check: true, sign_out: false, explicit: false, next: None };
         for index in 0..old.len() {
             let previous = old.get_mut(index).expect("previous source row");
             if previous.name == name {
                 row.state = previous.state.take();
+                row.email = previous.email.take();
                 row.sign_out = previous.sign_out;
                 row.explicit = previous.explicit;
                 previous.sign_out = false;
@@ -223,7 +225,7 @@ pub(crate) fn answered(domain: &mut Domain, env: &Env<Limits>, owner: Token, ans
     if busy.current {
         match answer {
             Answer::Read(_) => unreachable!("source terminal is not a list"),
-            Answer::Checked(state) => {
+            Answer::Checked { state, email } => {
                 let state = match state {
                     LoginState::Failed { reason, detail } => {
                         LoginState::Failed { reason, detail: tail(detail, env.limits.detail_bytes) }
@@ -235,7 +237,8 @@ pub(crate) fn answered(domain: &mut Domain, env: &Env<Limits>, owner: Token, ans
                 for index in 0..domain.rows.len() {
                     let row = domain.rows.get_mut(index).expect("source row");
                     if row.name == busy.name {
-                        changed = row.state.as_ref() != Some(&state);
+                        changed = row.state.as_ref() != Some(&state) || row.email != email;
+                        row.email = email;
                         row.state = Some(state);
                         row.next = Some(env.now.saturating_add(env.limits.source_interval));
                         break;
@@ -331,8 +334,12 @@ pub(crate) fn close(domain: &mut Domain, out: &mut Queue<Request>) {
 fn publish(domain: &Domain, out: &mut Queue<Request>) {
     let mut rows = List::with_capacity(domain.rows.len());
     for row in &domain.rows {
-        rows.push(Login { name: row.name, state: row.state.clone().expect("whole inventory checked") })
-            .expect("source capacity");
+        rows.push(Login {
+            name: row.name,
+            state: row.state.clone().expect("whole inventory checked"),
+            email: row.email.clone(),
+        })
+        .expect("source capacity");
     }
     out.push(Request::Up(LinkUp::Logins { logins: rows.into_boxed() }));
 }

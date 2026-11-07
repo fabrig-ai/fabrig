@@ -198,6 +198,7 @@ pub(super) fn stopped(engine: &mut crate::engine::Engine, token: Token, failure:
         | reconcile::Stage::Token
         | reconcile::Stage::App
         | reconcile::Stage::Installation
+        | reconcile::Stage::Person
         | reconcile::Stage::State => domain::MakeStep::Repository,
     };
     let reason = match failure.why {

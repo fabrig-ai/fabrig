@@ -171,7 +171,7 @@ enum SourceFailure { missing, deadline, unreadable, exited, unconfigured, unknow
 record SourceFailed { reason: SourceFailure detail: bytes 4096 }
 record LoginOtherwise { method: text 32 }
 enum LoginState { usable, not_signed_in, signed_in_otherwise: LoginOtherwise, failed: SourceFailed }
-record Login { name: text 32 state: LoginState }
+record Login { name: text 32 state: LoginState email: option text 255 }
 record Logins { logins: list 65536 Login }
 enum SignOutResult { signed_out, failed: SourceFailed }
 record SignedOut { name: text 32 result: SignOutResult }

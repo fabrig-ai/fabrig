@@ -635,6 +635,7 @@ fn one_account(number: u32, plan: bool) -> d::Domain {
     accounts
         .push(c::AccountLine {
             list: None,
+            facts: List::with_capacity(0),
             number,
             place: 1,
             uses: None,
@@ -823,6 +824,7 @@ fn account(number: u32, kind: c::AccountKind, address: Option<&[u8]>) -> c::Acco
     sources.push(source(kind, true)).unwrap();
     c::AccountLine {
         list: None,
+        facts: List::with_capacity(0),
         number,
         place: number,
         uses: None,
@@ -2001,23 +2003,39 @@ fn a_heading_says_what_pays() {
 #[test]
 fn two_accounts_of_one_provider_head_each_and_a_press_prefers_its_account() {
     const HEADINGS: usize = 3; // Two Claude accounts and OpenAI's connect line.
-    let (root, _, _) = picker_fixture(true, false, false);
-    let mut view = fixtures::page_view(&root);
-    let nodes = chooser_nodes(&view);
-    let headings: Vec<_> = nodes.iter().filter(|n| n.styles.as_slice().contains(&crate::look::MODEL_FROM)).collect();
-    let labels = fixtures::nodes_text(nodes);
-    assert!(String::from_utf8_lossy(&labels).contains("ClaudePersonal"));
-    assert!(String::from_utf8_lossy(&labels).contains("ClaudeOther"));
-    assert_eq!(headings.len(), HEADINGS);
-    let opus: Vec<_> =
-        nodes.iter().filter(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Opus 5.5")).collect();
-    assert!(opus[0].states.as_slice().contains(&skein_ui::State::Pressed));
-    assert!(!opus[1].states.as_slice().contains(&skein_ui::State::Pressed));
-    let id = opus[1].id;
-    assert_eq!(
-        crate::act(&mut view, id, skein_ui::Act::Press),
-        Some(d::Action::Pages(d::pages::Act::Choice(d::pages::choice::Act::Model { index: 0, account: Some(3) })))
-    );
+    for (first_email, other_email, first, other) in [
+        (None, None, "ClaudePersonal", "ClaudeOther"),
+        (
+            Some(b"alice@example.com".as_slice()),
+            Some(b"bob@example.com".as_slice()),
+            "Claudealice@example.com",
+            "Claudebob@example.com",
+        ),
+        (Some(b"alice@example.com".as_slice()), None, "Claudealice@example.com", "ClaudeOther"),
+    ] {
+        let (mut root, _, accounts_watch) = picker_fixture(true, false, false);
+        let mut doc = d::pages::accounts::document(root.client()).unwrap().clone();
+        doc.accounts.get_mut(0).unwrap().facts = super::accounts::email_facts(first_email);
+        doc.accounts.get_mut(1).unwrap().facts = super::accounts::email_facts(other_email);
+        delivered(&mut root, accounts_watch, c::Delivery::Accounts(Box::new(doc)));
+        let mut view = fixtures::page_view(&root);
+        let nodes = chooser_nodes(&view);
+        let headings: Vec<_> =
+            nodes.iter().filter(|n| n.styles.as_slice().contains(&crate::look::MODEL_FROM)).collect();
+        let labels = fixtures::nodes_text(nodes);
+        assert!(String::from_utf8_lossy(&labels).contains(first));
+        assert!(String::from_utf8_lossy(&labels).contains(other));
+        assert_eq!(headings.len(), HEADINGS);
+        let opus: Vec<_> =
+            nodes.iter().filter(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Opus 5.5")).collect();
+        assert!(opus[0].states.as_slice().contains(&skein_ui::State::Pressed));
+        assert!(!opus[1].states.as_slice().contains(&skein_ui::State::Pressed));
+        let id = opus[1].id;
+        assert_eq!(
+            crate::act(&mut view, id, skein_ui::Act::Press),
+            Some(d::Action::Pages(d::pages::Act::Choice(d::pages::choice::Act::Model { index: 0, account: Some(3) })))
+        );
+    }
 }
 #[test]
 fn efforts_follow_the_chosen_model_and_none_has_no_row() {

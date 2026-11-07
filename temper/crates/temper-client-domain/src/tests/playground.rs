@@ -145,6 +145,7 @@ pub(super) fn accounts(provider: Option<u32>, usable: bool, cut: bool) -> c::Acc
     accounts
         .push(c::AccountLine {
             list: None,
+            facts: List::with_capacity(0),
             number: 1,
             place: 1,
             uses: None,
@@ -315,6 +316,7 @@ pub(super) fn deployment(rows: &[DeploymentAccount]) -> c::Deployment {
             .accounts
             .push(c::Account {
                 list: None,
+                facts: List::with_capacity(0),
                 number: if *provider == Some(PROVIDER) { 42 } else { 43 },
                 place: 0,
                 provider: *provider,

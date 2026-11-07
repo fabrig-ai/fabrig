@@ -207,6 +207,7 @@ fn the_accounts_watch_reaches_the_root_and_returns_whole_cut_facts() {
     accounts
         .push(d::AccountLine {
             list: None,
+            facts: List::with_capacity(0),
             provider_name: Some(d::Text { bytes: b"Scripted".as_slice().into(), cut: false }),
             manage_usage: None,
             number: 7,

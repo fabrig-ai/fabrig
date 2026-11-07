@@ -25,9 +25,11 @@ fn a_token_item_is_visible_text_within_token_bytes() {
 fn an_app_id_is_eight_bytes_never_zero() {
     for id in [1, 42, u64::MAX] {
         assert_eq!(item::app_id(&id.to_le_bytes()).expect("nonzero").get(), id);
+        assert_eq!(item::app_made(&id.to_le_bytes()).expect("nonzero").get(), id);
     }
     for bytes in [b"".as_slice(), &[0; 8], &[1; 7], &[1; 9]] {
         assert_eq!(item::app_id(bytes), None);
+        assert_eq!(item::app_made(bytes), None);
     }
 }
 
@@ -145,6 +147,10 @@ fn fits_asks_each_item_its_own_decoder() {
         (Item::WebhookSecret, b"!~", b"a b"),
         (Item::User, id.as_slice(), &[0; 8]),
         (Item::AppId, id.as_slice(), &[0; 8]),
+        (Item::AppMade, id.as_slice(), &[0; 8]),
+        (Item::AppMade, id.as_slice(), &[1; 7]),
+        (Item::AppMade, id.as_slice(), &[1; 9]),
+        (Item::AppMade, id.as_slice(), &[]),
         (Item::AppSlug, b"a-1", b"-a"),
         (Item::AppKey, b"\x30\x02ab", b"\x30\x01ab"),
         (Item::Accepted, id.as_slice(), &[0; 8]),

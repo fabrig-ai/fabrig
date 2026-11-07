@@ -495,7 +495,7 @@ fn parent_step(parent: &mut Parent, event: Event, out: &mut Queue<Need>) {
 
 #[test]
 fn the_parent_continues_only_after_the_sweep_completes() {
-    let expected = Outcome::Lacking { lacking: checks::lacks(&fixtures::app()) };
+    let expected = Outcome::Lacking { owner: None, lacking: checks::lacks(&fixtures::app()) };
     let mut parent = Parent { sweep: new(&given(), &[1, 9]), outcome: Some(expected.clone()) };
     let mut out = Queue::uncapped();
     for (event, expected) in [

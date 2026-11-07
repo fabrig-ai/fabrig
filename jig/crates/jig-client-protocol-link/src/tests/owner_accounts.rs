@@ -1,7 +1,7 @@
 //! Complete accounts receiving admission and field preservation.
 use super::{c, fixtures, w};
 use crate::{Limits, Undecodable, Unusable, translate::watches};
-use skein_lib::{length::len_u64, Duration, List, Wall, Writer};
+use skein_lib::{Duration, List, Wall, Writer, length::len_u64};
 fn list<T, const N: usize>(items: [T; N]) -> List<T> {
     List::from_boxed(Box::new(items))
 }
@@ -40,7 +40,9 @@ fn document(end: Option<c::AccountEnd>) -> c::Accounts {
         readiness_cut: false,
         program_hosts: List::with_capacity(0),
         accounts: list([
-            c::AccountLine {list: None,
+            c::AccountLine {
+                list: None,
+                facts: fact_rows(),
                 provider_name: None,
                 manage_usage: None,
                 number: 7,
@@ -56,7 +58,9 @@ fn document(end: Option<c::AccountEnd>) -> c::Accounts {
                 sources: source_lines(),
                 cut: true,
             },
-            c::AccountLine {list: None,
+            c::AccountLine {
+                list: None,
+                facts: List::with_capacity(0),
                 provider_name: None,
                 manage_usage: None,
                 number: 9,
@@ -86,12 +90,8 @@ fn ends() -> Box<[c::AccountEnd]> {
         c::AccountEnd::Renewed { account: 7, declined: true },
         c::AccountEnd::Refused { refusal: c::AccountRefusal::NotLimited },
         c::AccountEnd::Refused { refusal: c::AccountRefusal::Uses },
-        c::AccountEnd::Refused {
-            refusal: c::AccountRefusal::NotKept { why: c::AccountKeyFailure::NotStored },
-        },
-        c::AccountEnd::Refused {
-            refusal: c::AccountRefusal::Limit { bound: c::AccountBound::HolderAccounts },
-        },
+        c::AccountEnd::Refused { refusal: c::AccountRefusal::NotKept { why: c::AccountKeyFailure::NotStored } },
+        c::AccountEnd::Refused { refusal: c::AccountRefusal::Limit { bound: c::AccountBound::HolderAccounts } },
         c::AccountEnd::Refused { refusal: c::AccountRefusal::Held { provider: 3 } },
         c::AccountEnd::Refused { refusal: c::AccountRefusal::Provider { provider: 3 } },
         c::AccountEnd::Refused { refusal: c::AccountRefusal::Subject },
@@ -104,18 +104,13 @@ fn ends() -> Box<[c::AccountEnd]> {
         c::AccountEnd::Refused { refusal: c::AccountRefusal::NotOurs },
         c::AccountEnd::Refused { refusal: c::AccountRefusal::Cancelled },
         c::AccountEnd::Refused { refusal: c::AccountRefusal::Moving },
-        c::AccountEnd::Failed {
-            failure: c::AccountFailure::Later { after: Some(Duration::from_nanos(103)) },
-        },
+        c::AccountEnd::Failed { failure: c::AccountFailure::Later { after: Some(Duration::from_nanos(103)) } },
         c::AccountEnd::Failed { failure: c::AccountFailure::Later { after: None } },
         c::AccountEnd::Failed { failure: c::AccountFailure::SignInAgain },
         c::AccountEnd::Failed { failure: c::AccountFailure::MissingScope { scope: 31 } },
         c::AccountEnd::Failed { failure: c::AccountFailure::Misconfigured },
         c::AccountEnd::Failed {
-            failure: c::AccountFailure::Unloaded {
-                at: c::AccountPlace::File,
-                why: c::AccountUnread::Stalled,
-            },
+            failure: c::AccountFailure::Unloaded { at: c::AccountPlace::File, why: c::AccountUnread::Stalled },
         },
         c::AccountEnd::Failed { failure: c::AccountFailure::Cancelled },
     ])
@@ -156,6 +151,12 @@ fn held() -> u64 {
     let mut bytes = 0_usize;
     for part in parts {
         bytes = bytes.checked_add(part).unwrap();
+    }
+    for fact in &fact_rows() {
+        bytes = bytes.checked_add(size_of::<c::AccountFact>()).unwrap().checked_add(fact.label.len()).unwrap();
+        if let c::AccountFactValue::Text(text) = &fact.value {
+            bytes = bytes.checked_add(text.len()).unwrap();
+        }
     }
     u64::try_from(bytes).unwrap()
 }
@@ -202,9 +203,7 @@ fn account_uses_keep_their_constant_bound_with_fewer_receiving_rows() {
     let limits = fixtures::limits();
     let mut line = jig_client_test_records::account_line_record().into_parts();
     line.uses = Some(list([(); USES].map(|()| {
-        w::AccountUse::Party(
-            w::AccountUseParty::new(limits.wire(), w::AccountUsePartyParts { party: 23 }).unwrap(),
-        )
+        w::AccountUse::Party(w::AccountUseParty::new(limits.wire(), w::AccountUsePartyParts { party: 23 }).unwrap())
     })));
     let line = w::AccountLine::new(limits.wire(), line).unwrap();
     let mut record = jig_client_test_records::accounts_record(None).into_parts();
@@ -232,11 +231,8 @@ fn account_lists_longer_than_the_receiving_rows_are_kept() {
     let [granted, later] = source_rows();
     line.sources = list([granted.clone(), later.clone(), granted, later]);
     expected.accounts = list([line.clone(), line.clone(), line]);
-    expected.signing = list([(); 3].map(|()| c::AccountSignIn {
-        source: 19,
-        provider: 3,
-        holder: c::AccountHolder::Party(23),
-    }));
+    expected.signing =
+        list([(); 3].map(|()| c::AccountSignIn { source: 19, provider: 3, holder: c::AccountHolder::Party(23) }));
     assert_eq!(watches::delivery(&delivery(record), &limits), Ok(c::Delivery::Accounts(Box::new(expected))));
 }
 
@@ -320,8 +316,7 @@ fn unsafe_manage_addresses_refuse_deployment_frames() {
     for address in unsafe_manage_addresses() {
         let record = fixtures::with_account(Some(5));
         let bytes = skein_codec::piece::split(&mut skein_lib::Reader::new(record.accounts())).unwrap().unwrap();
-        let mut account =
-            w::Account::decode(limits.wire(), &mut skein_lib::Reader::new(&bytes)).unwrap().into_parts();
+        let mut account = w::Account::decode(limits.wire(), &mut skein_lib::Reader::new(&bytes)).unwrap().into_parts();
         account.manage_usage = Some(Box::from(address));
         let account = w::Account::new(limits.wire(), account).unwrap();
         let mut out = Writer::new(usize::try_from(account.measure()).unwrap());
@@ -352,11 +347,8 @@ fn a_refused_worker_position_survives_wire_receipt() {
             slots: 1,
             stop_bound: Duration::ZERO,
             why: w::HelloRefusal::Position(
-                w::HelloRefusalPosition::new(
-                    limits.wire(),
-                    w::HelloRefusalPositionParts { worker: position },
-                )
-                .expect("position record"),
+                w::HelloRefusalPosition::new(limits.wire(), w::HelloRefusalPositionParts { worker: position })
+                    .expect("position record"),
             ),
         },
     )
@@ -412,10 +404,7 @@ fn account_lists_filling_their_receiving_counts_are_admitted() {
     let mut expected = document(None);
     let signing = expected.signing.get(0).unwrap().clone();
     expected.signing = list([signing.clone(), signing]);
-    assert_eq!(
-        watches::delivery(&counted_accounts(), &count_limits()),
-        Ok(c::Delivery::Accounts(Box::new(expected)))
-    );
+    assert_eq!(watches::delivery(&counted_accounts(), &count_limits()), Ok(c::Delivery::Accounts(Box::new(expected))));
 }
 #[test]
 fn account_lists_one_past_their_receiving_counts_are_refused() {
@@ -499,4 +488,156 @@ fn a_deployment_past_its_decoded_room_is_refused() {
         crate::translate::documents::deployment(counted_deployment(DEPLOYMENT_ACCOUNTS), &limits),
         Err(Undecodable::TooLarge)
     );
+}
+
+fn fact_rows() -> List<c::AccountFact> {
+    let mut facts = List::with_capacity(24);
+    for _ in 0_u32..4 {
+        for value in [
+            c::AccountFactValue::Text(Box::from(b"you@example.com".as_slice())),
+            c::AccountFactValue::Count(123),
+            c::AccountFactValue::Instant(Wall::from_nanos(127)),
+            c::AccountFactValue::Span(Duration::from_nanos(131)),
+            c::AccountFactValue::Share(10_000),
+            c::AccountFactValue::Window(c::AccountWindow {
+                length: Some(Duration::from_nanos(137)),
+                used: Some(10_000),
+                resets: Some(Wall::from_nanos(139)),
+                state: 2,
+            }),
+        ] {
+            facts
+                .push(c::AccountFact {
+                    kind: 1,
+                    label: Box::from(b"label".as_slice()),
+                    value,
+                    seen: Wall::from_nanos(149),
+                    source: Some(11),
+                    origin: 6,
+                })
+                .unwrap();
+        }
+    }
+    facts
+}
+
+fn wire_deployment_account(facts: List<w::AccountFact>) -> w::Account {
+    let limits = fixtures::limits();
+    let deployment = fixtures::with_account(None);
+    let bytes = skein_codec::piece::counted(&mut skein_lib::Reader::new(deployment.accounts()));
+    let mut parts = w::Account::decode(limits.receiving(), &mut skein_lib::Reader::new(&bytes)).unwrap().into_parts();
+    parts.facts = facts;
+    w::Account::new(limits.wire(), parts).unwrap()
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "unit-test tables use ordinary Rust result projections")]
+fn account_fact_values_reach_both_client_rows() {
+    let limits = fixtures::limits();
+    let line = jig_client_test_records::account_line_record();
+    let deployment = wire_deployment_account(jig_client_test_records::account_fact_records());
+    // Each row pays for its fact records, all labels and every text value.
+    let facts = fact_rows();
+    let mut fact_bytes = List::<c::AccountFact>::price(facts.len()).unwrap();
+    for fact in &facts {
+        fact_bytes = fact_bytes.checked_add(len_u64(fact.label.len())).unwrap();
+        if let c::AccountFactValue::Text(text) = &fact.value {
+            fact_bytes = fact_bytes.checked_add(len_u64(text.len())).unwrap();
+        }
+    }
+    let line_bytes = fact_bytes
+        .checked_add(List::<c::AccountUse>::price(2).unwrap())
+        .unwrap()
+        .checked_add(len_u64(b"Personal".len()))
+        .unwrap()
+        .checked_add(List::<c::AccountSource>::price(2).unwrap())
+        .unwrap();
+    let account_bytes =
+        fact_bytes.checked_add(List::<c::Chip>::price(limits.client().rows).unwrap().checked_mul(2).unwrap()).unwrap();
+    for (line_room, account_room, expected) in [
+        (line_bytes, account_bytes, Ok(facts)),
+        (
+            line_bytes.checked_sub(1).unwrap(),
+            account_bytes.checked_sub(1).unwrap(),
+            Err(w::Problem { path: w::Path::OwnedRecord, reason: skein_codec::Reason::Bound }),
+        ),
+    ] {
+        let mut room = line_room;
+        assert_eq!(crate::translate::documents::account_line(&line, &limits, &mut room).map(|row| row.facts), expected,);
+        let mut room = account_room;
+        assert_eq!(
+            crate::translate::documents::account_fields(&deployment, &limits, &mut room).map(|row| row.facts),
+            expected,
+        );
+    }
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "unit-test tables use ordinary Rust result projections")]
+fn account_fact_shares_keep_their_basis_point_bound() {
+    let limits = fixtures::limits();
+    for (basis, refusal) in [(10_000, None), (10_001, Some(skein_codec::Reason::Bound))] {
+        for (value, path) in [
+            (
+                w::AccountFactValue::Share(
+                    w::AccountFactShare::new(limits.wire(), w::AccountFactShareParts { basis }).unwrap(),
+                ),
+                w::Path::AccountFactShareBasis,
+            ),
+            (
+                w::AccountFactValue::Window(
+                    w::AccountWindow::new(
+                        limits.wire(),
+                        w::AccountWindowParts { length: None, used: Some(basis), resets: None, state: 1 },
+                    )
+                    .unwrap(),
+                ),
+                w::Path::AccountWindowUsed,
+            ),
+        ] {
+            let fact = w::AccountFact::new(
+                limits.wire(),
+                w::AccountFactParts { kind: 7, label: Box::new([]), value, seen: 0, source: None, origin: 6 },
+            )
+            .unwrap();
+            let mut parts = jig_client_test_records::account_line_record().into_parts();
+            parts.facts = list([fact.clone()]);
+            let line = w::AccountLine::new(limits.wire(), parts).unwrap();
+            let deployment = wire_deployment_account(list([fact]));
+            let mut room = u64::MAX;
+            for result in [
+                crate::translate::documents::account_line(&line, &limits, &mut room).map(|row| row.facts),
+                crate::translate::documents::account_fields(&deployment, &limits, &mut room).map(|row| row.facts),
+            ] {
+                assert_eq!(result.map(|_| ()), refusal.map_or(Ok(()), |reason| Err(w::Problem { path, reason })));
+            }
+        }
+    }
+}
+
+#[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "unit-test tables use ordinary Rust containers and collection"
+)]
+fn email_reads_only_an_email_fact_with_text() {
+    let mut rows = vec![(None, None)];
+    // Six value shapes, once each, from the full 24-fact fixture.
+    for fact in fact_rows().as_slice().iter().take(6) {
+        let expected = if let c::AccountFactValue::Text(text) = &fact.value { Some(text.clone()) } else { None };
+        rows.push((Some(fact.clone()), expected));
+    }
+    let mut named = fact_rows().get(0).unwrap().clone();
+    named.kind = c::FACT_NAME;
+    rows.push((Some(named), None));
+    for (fact, expected) in rows {
+        let facts = List::from_boxed(fact.into_iter().collect());
+        let mut line = document(None).accounts.get(0).unwrap().clone();
+        line.facts = facts;
+        let mut account = fixtures::account_expected(None).accounts.get(0).unwrap().clone();
+        account.facts = line.facts.clone();
+        assert_eq!(line.email(), expected.as_deref());
+        assert_eq!(account.email(), expected.as_deref());
+    }
 }

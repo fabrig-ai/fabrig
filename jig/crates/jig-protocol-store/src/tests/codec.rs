@@ -59,8 +59,29 @@ fn the_installation_reads_back_and_another_version_does_not() {
     *bytes.get_mut(1).expect("version prefix") = 1;
     accounts::Installation::decode(&bytes).expect_err("another accounts version");
 }
+fn account_fact(value: jig_domain_accounts::FactValue) -> jig_domain_accounts::AccountFact {
+    jig_domain_accounts::AccountFact {
+        kind: 999,
+        label: Box::new([b'l'; 32]),
+        value,
+        seen: skein_lib::Wall::from_nanos(u64::MAX),
+        source: Some(u32::MAX),
+        origin: 999,
+    }
+}
+fn facts_record(facts: Box<[jig_domain_accounts::AccountFact]>) -> jig_domain_accounts::Stored {
+    jig_domain_accounts::Stored::Facts { account: u32::MAX, facts }
+}
+fn repeated_account_facts(count: u32) -> Box<[jig_domain_accounts::AccountFact]> {
+    let mut facts = skein_lib::List::with_capacity(count);
+    for _ in 0..count {
+        facts.push(account_fact(jig_domain_accounts::FactValue::Text(Box::new([b't'; 255])))).expect("counted facts");
+    }
+    facts.into_boxed()
+}
+#[expect(clippy::too_many_lines, reason = "one fixture inventories account list histories and provider fact bounds")]
 fn accounts_records() -> Box<[jig_domain_accounts::Stored]> {
-    use jig_domain_accounts::{Held, Holder, Kind, Stored};
+    use jig_domain_accounts::{FactValue, FactWindow, Held, Holder, Kind, Stored};
     let source = |kind: Kind, name: Box<[u8]>, held: Option<Held>| Stored::Source {
         account: 3,
         number: u32::MAX - 1,
@@ -69,8 +90,29 @@ fn accounts_records() -> Box<[jig_domain_accounts::Stored]> {
         name,
         held,
     };
-    let mut rows = skein_lib::List::with_capacity(18);
+    let values = [
+        FactValue::Count(u64::MAX),
+        FactValue::Instant(skein_lib::Wall::from_nanos(u64::MAX)),
+        FactValue::Span(skein_lib::Duration::from_nanos(u64::MAX)),
+        FactValue::Share(10_000),
+        FactValue::Share(0),
+        FactValue::Window(FactWindow {
+            length: Some(skein_lib::Duration::from_nanos(u64::MAX)),
+            used: Some(10_000),
+            resets: Some(skein_lib::Wall::from_nanos(u64::MAX)),
+            state: 999,
+        }),
+        FactValue::Window(FactWindow { length: None, used: None, resets: None, state: 1 }),
+    ];
+    let mut facts = skein_lib::List::with_capacity(u32::try_from(values.len()).expect("few value shapes"));
+    for value in values {
+        facts.push(account_fact(value)).expect("counted value shapes");
+    }
+    let mut rows = skein_lib::List::with_capacity(21);
     for row in [
+        facts_record(repeated_account_facts(24)),
+        facts_record(Box::new([])),
+        facts_record(facts.into_boxed()),
         Stored::Issued {
             number: u32::MAX,
             holder: Holder::Party(u64::MAX),
@@ -159,7 +201,7 @@ fn each_accounts_record_reads_back_at_its_bounds() {
     }
 }
 fn the_accounts_ceilings_are_the_childs_bounds() {
-    use jig_domain_accounts::{DISPLAY, NAME, SUBJECT};
+    use jig_domain_accounts::{DISPLAY, FactValue, NAME, SUBJECT};
     let ceilings = crate::accounts_v2::CEILINGS;
     assert_eq!((ceilings.account_subject, ceilings.account_display, ceilings.source_name), (SUBJECT, DISPLAY, NAME));
     assert_eq!((SUBJECT, DISPLAY, NAME), (255, 64, 32), "the lengths the records at their bounds take");
@@ -175,6 +217,40 @@ fn the_accounts_ceilings_are_the_childs_bounds() {
         display: Box::new([]),
     };
     accounts::encode(&record).expect_err("a subject past the child's bound");
+    assert_eq!(
+        (ceilings.facts_facts, ceilings.fact_text_text, ceilings.fact_label),
+        (jig_domain_accounts::FACTS, jig_domain_accounts::FACT_TEXT, jig_domain_accounts::FACT_LABEL)
+    );
+    let mut label = account_fact(FactValue::Count(0));
+    label.label = Box::new([b'l'; 33]);
+    for (record, path) in [
+        (facts_record(repeated_account_facts(25)), crate::accounts_v2::Path::FactsFacts),
+        (
+            facts_record(Box::new([account_fact(FactValue::Text(Box::new([b't'; 256])))])),
+            crate::accounts_v2::Path::FactTextText,
+        ),
+        (facts_record(Box::new([label])), crate::accounts_v2::Path::FactLabel),
+    ] {
+        assert_eq!(
+            accounts::encode(&record),
+            Err(crate::accounts_v2::Problem { path, reason: skein_codec::Reason::Bound })
+        );
+    }
+}
+fn a_share_past_whole_does_not_decode() {
+    use crate::accounts_v2::{Path, Problem};
+    use jig_domain_accounts::{FactValue, FactWindow};
+    for (value, path) in [
+        (FactValue::Share(10_001), Path::FactShareBasis),
+        (
+            FactValue::Window(FactWindow { length: None, used: Some(10_001), resets: None, state: 1 }),
+            Path::FactWindowUsed,
+        ),
+    ] {
+        let bytes =
+            accounts::encode(&facts_record(Box::new([account_fact(value)]))).expect("a share fits u16 on the wire");
+        assert_eq!(accounts::decode(&bytes), Err(Problem { path, reason: skein_codec::Reason::Bound }));
+    }
 }
 fn an_accounts_record_of_another_version_or_the_installation_does_not_decode() {
     let mut bytes = accounts::encode(&jig_domain_accounts::Stored::Next { number: 9 }).expect("a counter");

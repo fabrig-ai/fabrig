@@ -201,6 +201,7 @@ pub(crate) fn detach(domain: &mut Domain, account: u32, number: u32, out: &mut Q
         drop(domain.accounts.remove(&account).expect("a kept account"));
         crate::lists::removed(domain, account);
         out.push(Request::Erase { key: Key::Account { number: account } });
+        erase_facts(domain, account, out);
         let order = crate::ordering::accounts(domain, holder);
         crate::ordering::save_accounts(domain, &order, out);
     } else {
@@ -213,6 +214,7 @@ pub(crate) fn detach(domain: &mut Domain, account: u32, number: u32, out: &mut Q
             };
         }
         entry.plan = plan;
+        crate::facts::source_gone(domain, account, number, out);
         let order = crate::ordering::sources(domain, account);
         crate::ordering::save_sources(domain, account, &order, out);
         crate::lists::settled(domain, account, out);
@@ -285,6 +287,7 @@ fn remove(
     drop(domain.accounts.remove(&number).expect("checked account"));
     crate::lists::removed(domain, number);
     out.push(Request::Erase { key: Key::Account { number } });
+    erase_facts(domain, number, out);
     for source in &sources {
         let entry = domain.sources.remove(source).expect("an account's source");
         domain.alarms.cancel(*source);
@@ -413,4 +416,11 @@ fn move_source(
 }
 pub(crate) fn refuse(request: Token, refusal: Refusal, out: &mut Queue<Request>) {
     out.push(Request::Answer { request, answer: Answer::Refused { refusal } });
+}
+
+/// Facts go in the decision that erases their account (accounts.md, 3.7).
+fn erase_facts(domain: &mut Domain, account: u32, out: &mut Queue<Request>) {
+    if domain.said.remove(&account).is_some() {
+        out.push(Request::Erase { key: Key::Facts { account } });
+    }
 }

@@ -171,6 +171,7 @@ impl Client {
 pub(super) struct Identity {
     pub(super) subject: Option<Box<[u8]>>,
     pub(super) token: Option<Secret>,
+    pub(super) profile: crate::ProfileClaims,
 }
 impl Client {
     pub(super) fn identity(
@@ -182,7 +183,7 @@ impl Client {
         wall: skein_lib::Wall,
     ) -> Result<Identity, Check> {
         if !has_openid(registration) {
-            return Ok(Identity { subject: None, token: None });
+            return Ok(Identity { subject: None, token: None, profile: crate::ProfileClaims::default() });
         }
         let token = response.id_token.as_ref().ok_or(Check::Missing)?.expose();
         let terms = registration.terms.as_ref().ok_or(Check::Issuer)?;
@@ -192,8 +193,19 @@ impl Client {
             client_id: &registration.client_id,
             nonce: secret_ref(nonce).ok_or(Check::Nonce)?,
         };
-        let subject =
-            crate::jwt::verify_id_token(token, keys, &expected, wall, self.limits.skew, &self.limits.document)?;
-        Ok(Identity { subject: Some(subject), token: Some(Secret::new(skein_lib::bytes::copy_of(token))) })
+        let verified = crate::jwt::verify_id_token(
+            token,
+            keys,
+            &expected,
+            openid.profile,
+            wall,
+            self.limits.skew,
+            &self.limits.document,
+        )?;
+        Ok(Identity {
+            profile: verified.profile,
+            subject: Some(verified.subject),
+            token: Some(Secret::new(skein_lib::bytes::copy_of(token))),
+        })
     }
 }

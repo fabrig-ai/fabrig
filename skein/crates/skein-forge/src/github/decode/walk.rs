@@ -30,6 +30,7 @@ pub(super) enum Node {
     ReachableRows,
     Reachable,
     AppOwner,
+    IdentityOwner,
     PullGraphql(PullNode),
     ViewerEnvelope,
     ViewerData,
@@ -147,6 +148,9 @@ const fn field(key: &'static [u8], read: Read) -> Field {
 }
 const fn optional(key: &'static [u8], read: Read) -> Field {
     Field { key, read, required: false, nullable: false }
+}
+const fn optional_nullable(key: &'static [u8], read: Read) -> Field {
+    Field { key, read, required: false, nullable: true }
 }
 const fn nullable(key: &'static [u8], read: Read) -> Field {
     Field { key, read, required: true, nullable: true }
@@ -481,11 +485,15 @@ fn document_fields(node: Node) -> &'static [Field] {
         Node::ViewerData => const { &[optional(b"viewer", Read::Container(Role::Document(Node::Viewer)))] },
         Node::Viewer => const { &[field(b"databaseId", Read::Number), field(b"login", Read::Text)] },
         Node::GraphqlError => const { &[field(b"type", Read::Text), field(b"message", Read::Text)] },
+        Node::IdentityOwner => {
+            const { &[optional(b"id", Read::Number), optional(b"login", Read::Text), optional(b"type", Read::Text)] }
+        }
         Node::App => {
             const {
                 &[
                     field(b"id", Read::Number),
                     field(b"slug", Read::Text),
+                    optional_nullable(b"owner", Read::Container(Role::Document(Node::IdentityOwner))),
                     optional(b"permissions", Read::Container(Role::Document(Node::AppPermissions))),
                     optional(b"events", Read::Container(Role::Document(Node::AppEvents))),
                 ]
@@ -627,6 +635,7 @@ fn element(role: Role) -> Option<Role> {
         | Node::MintPermissions
         | Node::ReachableEnvelope
         | Node::Reachable
+        | Node::IdentityOwner
         | Node::AppOwner
         | Node::ViewerEnvelope
         | Node::ViewerData

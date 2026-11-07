@@ -59,7 +59,7 @@ fn a_login_then_a_status_is_signed_in_through_the_subscription() {
     assert_eq!(
         status(&result.records[1]),
         serde_json::json!({
-            "loggedIn": true, "authMethod": "claude.ai", "apiProvider": "firstParty",
+            "loggedIn": true, "authMethod": "claude.ai", "apiProvider": "firstParty", "email": "you@example.com",
         })
     );
     assert_eq!(result.login.as_deref(), Some(b"claude.ai".as_slice()));

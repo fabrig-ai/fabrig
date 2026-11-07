@@ -155,6 +155,7 @@ pub fn account(limits: &Limits, state: AccountState) -> Account {
         limits,
         AccountParts {
             list: None,
+            facts: List::with_capacity(0),
             provider_name: None,
             manage_usage: None,
             number: u32::MAX,

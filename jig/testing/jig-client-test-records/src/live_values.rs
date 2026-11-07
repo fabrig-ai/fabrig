@@ -339,6 +339,7 @@ pub fn deployment_rows_record() -> w::Deployment {
         &l,
         w::AccountParts {
             list: None,
+            facts: super::account_fact_records(),
             provider_name: None,
             manage_usage: None,
             number: 41,

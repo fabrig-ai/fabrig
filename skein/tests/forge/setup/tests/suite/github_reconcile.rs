@@ -139,10 +139,18 @@ fn a_lacking_permission_does_not_skip_hook_or_installation_checks() {
     // Signed: App/hook/PATCH/three pages/delete (14 signings).
     let mut world = HostWorld::github(7, &[]); // Configured App has empty metadata.
     reconcile(&mut world, 1);
-    let Some(Heard::Done { outcome: Outcome::Lacking { lacking }, .. }) = world.heard().last() else {
+    let Some(Heard::Done { outcome: Outcome::Lacking { lacking, owner }, .. }) = world.heard().last() else {
         panic!("Lacking")
     };
     assert!(lacking.iter().any(|entry| matches!(entry, skein_forge_setup::github::Lacking::Permission { .. })));
+    assert_eq!(
+        owner.as_ref(),
+        Some(&skein_forge::github::document::AppOwner {
+            id: 31,
+            login: b"alice".as_slice().into(),
+            kind: skein_forge::github::document::Account::User,
+        })
+    );
     assert!(world.github_requests().iter().any(|row| row.method == "PATCH"));
     assert_eq!(world.github_installation_ids(), [1, 2]);
     closed(&mut world);

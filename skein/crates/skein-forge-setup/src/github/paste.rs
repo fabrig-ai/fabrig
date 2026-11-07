@@ -15,7 +15,10 @@ use crate::{
 };
 use alloc::boxed::Box;
 use core::num::NonZeroU64;
-use skein_forge::github::{document::Document, request::Request};
+use skein_forge::github::{
+    document::{AppOwner, Document},
+    request::Request,
+};
 use skein_lib::{Decimal, Queue, Secret};
 
 #[derive(Debug)]
@@ -24,6 +27,7 @@ struct Checked {
     slug: Box<[u8]>,
     bot: u64,
     lacking: Box<[Lacking]>,
+    owner: Option<AppOwner>,
 }
 #[derive(Debug)]
 enum State {
@@ -32,9 +36,9 @@ enum State {
     Id(Secret),
     User(Secret),
     App { key: Secret, user: Option<NonZeroU64> },
-    Bot { key: Secret, slug: Box<[u8]>, lacking: Box<[Lacking]>, user: Option<NonZeroU64> },
+    Bot { key: Secret, slug: Box<[u8]>, lacking: Box<[Lacking]>, owner: Option<AppOwner>, user: Option<NonZeroU64> },
     Hook { child: Hook, checked: Checked },
-    Writing { write: Write, slug: Box<[u8]>, lacking: Box<[Lacking]> },
+    Writing { write: Write, slug: Box<[u8]>, lacking: Box<[Lacking]>, owner: Option<AppOwner> },
     Ended,
 }
 /// Reads Pasted once, proves both identities before hook repair, and waits for
@@ -67,18 +71,25 @@ impl Paste {
             }
             Some(hook::Progress::Complete) => {
                 let write = Write::new(self.app.get(), checked.slug.clone(), checked.key, checked.bot);
-                self.writing(write, checked.slug, checked.lacking, Event::Begin)
+                self.writing(write, checked.slug, checked.lacking, checked.owner, Event::Begin)
             }
             Some(hook::Progress::Pending(Need::Done(_))) | None => self.stop(&checked.slug, Why::Unexpected),
         }
     }
-    fn writing(&mut self, mut write: Write, slug: Box<[u8]>, lacking: Box<[Lacking]>, event: Event) -> Need {
+    fn writing(
+        &mut self,
+        mut write: Write,
+        slug: Box<[u8]>,
+        lacking: Box<[Lacking]>,
+        owner: Option<AppOwner>,
+        event: Event,
+    ) -> Need {
         match write.advance(event) {
             Ok(Some(need)) => {
-                self.state = State::Writing { write, slug, lacking };
+                self.state = State::Writing { write, slug, lacking, owner };
                 need
             }
-            Ok(None) => Need::Done(Outcome::Lacking { lacking }),
+            Ok(None) => Need::Done(Outcome::Lacking { lacking, owner }),
             Err(why) => self.stop(&slug, why),
         }
     }
@@ -100,7 +111,7 @@ impl Paste {
         }
         let lacking = checks::lacks(&app);
         let request = Request::BotUser { slug: app.slug.clone() }.into();
-        self.state = State::Bot { key, slug: app.slug, lacking, user };
+        self.state = State::Bot { key, slug: app.slug, lacking, owner: app.owner, user };
         Need::Send { request, auth: Auth::None }
     }
     fn advance(&mut self, state: State, event: Event) -> Need {
@@ -155,14 +166,14 @@ impl Paste {
                 Err(why) => self.stop(b"user", why),
             },
             State::App { key, user } => self.proved(key, user, event),
-            State::Bot { key, slug, lacking, user } => match app::bot(event) {
+            State::Bot { key, slug, lacking, owner, user } => match app::bot(event) {
                 Ok(bot) => {
                     if let Some(user) = user
                         && user != bot
                     {
                         return self.stop(&slug, Why::OtherUser);
                     }
-                    let checked = Checked { key, slug, bot: bot.get(), lacking };
+                    let checked = Checked { key, slug, bot: bot.get(), lacking, owner };
                     let child = Hook::new(
                         self.given.forge,
                         Kept::new(self.app, checked.key.clone()),
@@ -174,7 +185,7 @@ impl Paste {
                 Err(why) => self.stop(&slug, why),
             },
             State::Hook { child, checked } => self.hook(child, checked, event),
-            State::Writing { write, slug, lacking } => self.writing(write, slug, lacking, event),
+            State::Writing { write, slug, lacking, owner } => self.writing(write, slug, lacking, owner, event),
             State::Ended => unreachable!("ended paste is not advanced"),
         }
     }

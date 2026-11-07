@@ -71,7 +71,14 @@ impl Adopt {
         let subject = match step {
             Stage::Admin => self.admin_name.clone(),
             Stage::Repository => self.access.subject(),
-            Stage::File | Stage::Bot | Stage::Token | Stage::Org | Stage::App | Stage::Installation | Stage::State => {
+            Stage::File
+            | Stage::Bot
+            | Stage::Token
+            | Stage::Org
+            | Stage::App
+            | Stage::Installation
+            | Stage::State
+            | Stage::Person => {
                 unreachable!("adoption's two stages")
             }
         };

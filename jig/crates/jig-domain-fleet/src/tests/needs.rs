@@ -627,7 +627,7 @@ fn a_refusal_with_no_reason_hands_up_none() {
     assert_eq!(
         &*h.step(Event::Logins {
             channel: C1,
-            logins: Box::new([crate::Login { name, state: crate::LoginState::Usable }])
+            logins: Box::new([crate::Login { name, state: crate::LoginState::Usable, email: None }])
         }),
         &[Request::Refuse { channel: C1, hello: None }]
     );

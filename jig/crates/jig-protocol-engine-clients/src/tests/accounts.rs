@@ -40,6 +40,7 @@ fn document(end: Option<a::End>) -> d::Accounts {
         accounts: List::from_boxed(Box::new([
             d::AccountLine {
                 list: None,
+                facts: fact_rows(),
                 provider_name: None,
                 manage_usage: None,
                 number: 7,
@@ -54,6 +55,7 @@ fn document(end: Option<a::End>) -> d::Accounts {
             },
             d::AccountLine {
                 list: None,
+                facts: List::with_capacity(0),
                 provider_name: None,
                 manage_usage: None,
                 number: 9,
@@ -186,6 +188,7 @@ fn deployment_terms_reach_the_wire() {
         value.list = history;
         let encoded = crate::translate::deployment::account(&value, &limits).unwrap();
         assert_list(encoded.list().as_ref(), history);
+        assert_eq!(encoded.facts(), &jig_client_test_records::account_fact_records());
         assert_eq!(encoded.provider_name().as_ref().unwrap().bytes(), b"Arbitrary provider");
         assert!(encoded.provider_name().as_ref().unwrap().cut());
         assert_eq!(encoded.manage_usage().as_deref(), Some(b"https://usage.example/".as_slice()));
@@ -200,8 +203,10 @@ fn account_line_terms_reach_the_wire() {
         account_line.provider_name = account.provider_name;
         account_line.manage_usage = account.manage_usage;
         account_line.list = history;
+        account_line.facts = account.facts;
         let line = accounts::line(&account_line, &limits).unwrap();
         assert_list(line.list().as_ref(), history);
+        assert_eq!(line.facts(), &jig_client_test_records::account_fact_records());
         assert_eq!(line.provider_name().as_ref().unwrap().bytes(), b"Arbitrary provider");
         assert!(line.provider_name().as_ref().unwrap().cut());
         assert_eq!(line.manage_usage().as_deref(), Some(b"https://usage.example/".as_slice()));
@@ -256,4 +261,35 @@ fn assert_list(wire: Option<&w::AccountList>, expected: Option<d::AccountList>) 
         }
         other => panic!("changed list history: {other:?}"),
     }
+}
+
+pub(super) fn fact_rows() -> List<a::AccountFact> {
+    let mut facts = List::with_capacity(a::FACTS);
+    for _ in 0_u32..4 {
+        for value in [
+            a::FactValue::Text(Box::from(b"you@example.com".as_slice())),
+            a::FactValue::Count(123),
+            a::FactValue::Instant(Wall::from_nanos(127)),
+            a::FactValue::Span(Duration::from_nanos(131)),
+            a::FactValue::Share(10_000),
+            a::FactValue::Window(a::FactWindow {
+                length: Some(Duration::from_nanos(137)),
+                used: Some(10_000),
+                resets: Some(Wall::from_nanos(139)),
+                state: 2,
+            }),
+        ] {
+            facts
+                .push(a::AccountFact {
+                    kind: 1,
+                    label: Box::from(b"label".as_slice()),
+                    value,
+                    seen: Wall::from_nanos(149),
+                    source: Some(11),
+                    origin: 6,
+                })
+                .unwrap();
+        }
+    }
+    facts
 }

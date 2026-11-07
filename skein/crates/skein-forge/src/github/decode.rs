@@ -245,6 +245,7 @@ impl Decoder {
                 | Node::ReachableEnvelope
                 | Node::ReachableRows
                 | Node::Reachable
+                | Node::IdentityOwner
                 | Node::AppOwner
                 | Node::ViewerEnvelope
                 | Node::ViewerData
@@ -534,6 +535,7 @@ impl Decoder {
                 | Node::ReachableEnvelope
                 | Node::ReachableRows
                 | Node::Reachable
+                | Node::IdentityOwner
                 | Node::AppOwner
                 | Node::ViewerEnvelope
                 | Node::ViewerData

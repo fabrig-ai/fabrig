@@ -615,7 +615,7 @@ pub(super) fn stopped(engine: &mut Engine, run: Token, failure: &skein_forge_set
             Why::Refused(status) => domain::AdminStop::Refused {
                 status,
                 stage: match failure.step {
-                    Stage::Admin => domain::SetupStage::Admin,
+                    Stage::Admin | Stage::Person => domain::SetupStage::Admin,
                     Stage::Bot => domain::SetupStage::Bot,
                     Stage::Token => domain::SetupStage::Token,
                     Stage::Org => domain::SetupStage::Org,
