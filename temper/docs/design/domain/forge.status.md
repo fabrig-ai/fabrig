@@ -8,12 +8,8 @@ and user pair; reviews use the pull request's forge, and eligibility uses
 that same lookup. The step tables cover equal
 user numbers on different forges, unknown accounts and each forge's writer.
 
-- **Not yet:** 8.7: a change's review facts are removed only when it ends, not
-  when its merge is admitted, and keep no time they were first kept at their
-  head (`temper-engine-domain-forge/src/domain.rs`, `keep_review_facts`).
-- **Not yet:** 8.12: no subject `approvals`, no read of the changes waiting on a
-  person's approval, no mark of it, and the read of a proposal's items says
-  nothing of an approval on an owned Forgejo.
+- **Not yet:** 8.12: the root answers no document of the subject `approvals`,
+  and the read of a proposal's items says nothing of an approval on an owned Forgejo.
 Section 12.1's questions on the forge remain unbuilt, as listed below;
 their designed account mapping also requires the repository's forge.
 
