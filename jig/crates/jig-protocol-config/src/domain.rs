@@ -5,7 +5,7 @@ use jig_domain_people::{IdentityKey, InitialOwner};
 use skein_json::Document;
 use skein_lib::List;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Deployment {
     pub directory: Box<[u8]>,
     pub seed: Option<u64>,

@@ -1,5 +1,7 @@
 //! Named story values and one client profile, shared by every story.
 pub mod b2;
+#[cfg(test)]
+mod tests;
 use crate::{app::Temper, front::Joint};
 use jig_client_kit::harness::FrontFault;
 use jig_client_kit::harness::{Settings, World};
