@@ -1056,7 +1056,13 @@ fn aggregate_gathered_sections_fit_in_their_existing_order() {
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_macros,
+    reason = "the envelope rows measure encoded bytes and retained UTF-8"
+)]
 fn review_fitting_uses_the_configured_assignment_envelope() {
+    // Measured CPU: 0.023 s for both envelopes and the reference's large sections.
     for bound in [49_152, 98_304] {
         let assignment = review_assignment(41_473);
         let original = temper_engine_smith::charter(&assignment);
@@ -1066,6 +1072,32 @@ fn review_fitting_uses_the_configured_assignment_envelope() {
             assert_eq!(pull, &original.brief.sections[1]);
         } else {
             assert!(pull.text.len() < original.brief.sections[1].text.len());
+        }
+    }
+    let bound = 262_144_u64;
+    let mut empty = review_assignment(100);
+    empty.sections[1].body = temper_engine_domain::BriefBody::Text(Box::default());
+    let charter = temper_engine_smith::charter(&empty);
+    let encoded =
+        smith_protocol_channel::encode_charter(&charter, &smith_charter::CEILINGS, &fixtures::worker_agent().endpoints)
+            .unwrap();
+    let fixed = charter.owned_bytes().unwrap().max(u64::try_from(encoded.len()).unwrap());
+    let room = usize::try_from(bound.checked_sub(fixed).unwrap()).unwrap();
+    for (size, whole) in [(63_740, true), (room + 1, false)] {
+        let assignment = review_assignment(size);
+        let original = temper_engine_smith::charter(&assignment);
+        let start = admitted_review(assignment, bound);
+        let fitted = start.charter.value();
+        assert!(fitted.owned_bytes().unwrap() <= bound);
+        assert_eq!(fitted.brief.sections[0], original.brief.sections[0]);
+        if whole {
+            assert_eq!(fitted, &original);
+        } else {
+            let original = ::core::str::from_utf8(&original.brief.sections[1].text).unwrap();
+            let text = ::core::str::from_utf8(&fitted.brief.sections[1].text).unwrap();
+            let (kept, marker) = text.rsplit_once("\n[cut ").expect("a section past its room is cut");
+            assert!(original.starts_with(kept));
+            assert_eq!(marker, format!("{} bytes; whole: read_pull/read_pull_files]\n", size - kept.len()));
         }
     }
 }
