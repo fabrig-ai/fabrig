@@ -171,6 +171,7 @@ fn start(argument: Option<&[u8]>, clock: &Clock) -> Result<u8, Refused> {
             Refused::Directory(format!("{}: cannot open its parent: errno {number}", directory.display()))
         })?;
         let settings = Settings {
+            record: None,
             engine: skein_io::Addr::Ip(engine),
             directory: Box::from(b"tui".as_slice()),
             address: engine.to_string().into_bytes().into_boxed_slice(),

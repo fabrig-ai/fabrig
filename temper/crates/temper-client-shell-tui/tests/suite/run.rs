@@ -42,16 +42,25 @@ impl World {
     }
 
     fn configured(refuse: bool, approval: bool, opener: bool, outcome: Outcome) -> Self {
+        Self::recording(refuse, approval, opener, outcome, false)
+    }
+
+    fn recording(refuse: bool, approval: bool, opener: bool, outcome: Outcome, record: bool) -> Self {
         let mut files = Machine::for_user(USER);
         let root = files.lay(&[Item::directory(b"tui").mode(if refuse { 0o755 } else { 0o700 })]);
         let mut sim = Sim::new(SEED, Config::calm());
         let pid = sim.spawn_process();
+        let recording = record.then(|| {
+            let fd = files.open(root, b".", skein_fake_machine::How::Directory).expect("recording root");
+            sim.root(pid, Handle::new(fd.raw()))
+        });
         let root = sim.root(pid, Handle::new(root.raw()));
         let input = sim.open_inherited_read(pid);
         let output = sim.open_inherited_write(pid);
         let signals = sim.open_signal_source(pid);
         let engine = approval.then(|| Engine::new(&mut sim));
         let settings = Settings {
+            record: recording,
             engine: skein_io::Addr::Ip("127.0.0.1:8367".parse().expect("loopback")),
             directory: b"tui".as_slice().into(),
             address: b"127.0.0.1:8367".as_slice().into(),
@@ -404,4 +413,78 @@ fn approval_open_is_carried_and_closing_waits_for_no_opener() {
         world.settle();
         world.drained(false);
     }
+}
+
+
+impl World {
+    fn keys(&mut self, bytes: &[u8]) {
+        assert_eq!(self.sim.peer_feed(self.pid, self.input, bytes), bytes.len());
+        self.settle();
+    }
+
+    fn recording_file(&mut self) -> Option<(Vec<u8>, u32)> {
+        let root = self.files.reopen_root(0);
+        let file = self.files.open(root, b"tui/recording", skein_fake_machine::How::ReadNoFollow);
+        let result = file.ok().map(|file| {
+            let mode = self.files.stat(file).mode;
+            let bytes = self.files.read(file, 0, u32::try_from(ROOM).expect("test recording bound")).expect("recording");
+            self.files.close(file);
+            (bytes, mode)
+        });
+        self.files.close(root);
+        result
+    }
+}
+
+#[cfg(feature = "record")]
+fn replay(recording: &[u8]) -> Vec<temper_client_shell_tui::journey::Line> {
+    use temper_client_shell_tui::journey;
+    let lines = journey::lines(recording).expect("read recording");
+    let mut replay = journey::Replay::new(recording).expect("replay envelope");
+    while let Some(mark) = replay.next().expect("same host duties") {
+        assert_eq!(mark.live.as_deref(), Some(mark.frame.print().as_ref()), "live frame replays");
+    }
+    lines
+}
+
+#[test]
+#[cfg(feature = "record")]
+fn recording_keys_save_whole_and_closing_saves_again() {
+    use temper_client_shell_tui::journey::Line;
+    let mut world = World::recording(false, true, false, Outcome::Success, true);
+    world.settle();
+    world.keys(b"\x1bM\x1bS");
+    let (first, mode) = world.recording_file().expect("save key writes recording");
+    assert_eq!(mode, 0o600, "recording is private");
+    let lines = replay(&first);
+    assert!(lines.contains(&Line::Seed(SEED)));
+    assert!(lines.contains(&Line::Clocks { now: Time::ZERO, wall: Wall::EPOCH }));
+    assert!(lines.contains(&Line::Screen { size: SIZE, scheme: Scheme::Dark }));
+    assert!(lines.contains(&Line::Address(b"127.0.0.1:8367".as_slice().into())));
+    assert!(lines.iter().any(|line| matches!(line, Line::Mark(Some(_)))));
+    assert!(matches!(lines.last(), Some(Line::End(Some(_)))));
+    assert!(!lines.iter().any(|line| matches!(line, Line::Key { key: skein_ui_screen_terminal::Key::Alt(_), .. })), "recording keys never reach the host");
+    world.keys(b"\t\x1bS");
+    let (second, mode) = world.recording_file().expect("second save");
+    assert_eq!(mode, 0o600);
+    assert!(second.len() > first.len(), "second save includes more reports");
+    replay(&second);
+    world.draining = true;
+    world.keys(b"\x03");
+    let (closed, mode) = world.recording_file().expect("closing save");
+    assert_eq!(mode, 0o600);
+    assert!(closed.len() > second.len(), "closing saves the final reports");
+    assert!(replay(&closed).contains(&Line::Quit));
+    world.drained(false);
+}
+
+#[test]
+fn without_recording_root_keys_write_no_file() {
+    let mut world = World::new(false);
+    world.settle();
+    world.keys(b"\x1bM\x1bS");
+    assert!(world.recording_file().is_none());
+    world.keys(b"\x03");
+    assert!(world.recording_file().is_none());
+    world.drained(false);
 }

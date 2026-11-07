@@ -26,6 +26,7 @@ pub struct Settings {
     pub size: Size,
     pub limits: limits::Limits,
     pub opener: Option<Opener>,
+    pub record: Option<Fd>,
 }
 
 pub struct Run {
