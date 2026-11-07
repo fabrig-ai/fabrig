@@ -99,6 +99,7 @@ pub(in crate::codec) fn wire_account_line(
     w::AccountLine::new(
         limits,
         w::AccountLineParts {
+            facts: list(value.facts.iter().map(|fact| wire_account_fact(fact, limits)))?,
             number: value.number,
             place: value.place,
             uses: value
@@ -260,4 +261,49 @@ pub(in crate::codec) fn wire_account_failure(
         )?),
         c::AccountFailure::Cancelled => w::AccountFailure::Cancelled,
     })
+}
+
+pub(in crate::codec) fn wire_account_fact(
+    fact: &c::AccountFact,
+    limits: &w::Limits,
+) -> Result<w::AccountFact, w::Problem> {
+    let value = match &fact.value {
+        c::AccountFactValue::Text(text) => {
+            w::AccountFactValue::Text(w::AccountFactText::new(limits, w::AccountFactTextParts { text: text.clone() })?)
+        }
+        c::AccountFactValue::Count(count) => {
+            w::AccountFactValue::Count(w::AccountFactCount::new(limits, w::AccountFactCountParts { count: *count })?)
+        }
+        c::AccountFactValue::Instant(at) => w::AccountFactValue::Instant(w::AccountFactInstant::new(
+            limits,
+            w::AccountFactInstantParts { at: at.as_nanos() },
+        )?),
+        c::AccountFactValue::Span(nanos) => {
+            w::AccountFactValue::Span(w::AccountFactSpan::new(limits, w::AccountFactSpanParts { nanos: *nanos })?)
+        }
+        c::AccountFactValue::Share(basis) => {
+            w::AccountFactValue::Share(w::AccountFactShare::new(limits, w::AccountFactShareParts { basis: *basis })?)
+        }
+        c::AccountFactValue::Window(window) => w::AccountFactValue::Window(w::AccountWindow::new(
+            limits,
+            w::AccountWindowParts {
+                length: window.length,
+                used: window.used,
+                resets: window.resets.map(skein_lib::Wall::as_nanos),
+                state: window.state,
+            },
+        )?),
+    };
+    let row = w::AccountFact::new(
+        limits,
+        w::AccountFactParts {
+            kind: fact.kind,
+            label: fact.label.clone(),
+            value,
+            seen: fact.seen.as_nanos(),
+            source: fact.source,
+            origin: fact.origin,
+        },
+    )?;
+    Ok(row)
 }

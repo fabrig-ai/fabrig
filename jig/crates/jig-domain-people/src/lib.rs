@@ -107,7 +107,7 @@ pub use boundary::{
 };
 pub use capacity::{CapacityAction, CapacityCause, CapacityRefusal};
 pub use decisions::{Bound, Exceeded, FailureClass, HoldReason, Moved};
-pub use domain::{Domain, application_part, application_part_done, fire, outputs_bound, step};
+pub use domain::{Domain, account_holder_reads, application_part, application_part_done, fire, outputs_bound, step};
 pub use facts::Fact;
 pub use limits::{Limits, outcome_bytes, valid};
 pub use policy_value::{

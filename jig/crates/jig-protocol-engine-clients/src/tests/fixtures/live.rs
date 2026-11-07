@@ -181,6 +181,7 @@ pub fn deployment_document() -> d::Deployment {
         }])),
         attempts: List::from_boxed(Box::new([host_run()])),
         accounts: List::from_boxed(Box::new([d::Account {
+            facts: super::super::accounts::fact_rows(),
             provider_name: None,
             manage_usage: None,
             place: 0,

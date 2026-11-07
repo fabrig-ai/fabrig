@@ -36,6 +36,7 @@ pub struct AccountLine {
     pub display: Text,
     pub holder: accounts::Holder,
     pub sources: List<SourceLine>,
+    pub facts: List<accounts::AccountFact>,
     pub cut: bool,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -67,6 +68,25 @@ pub struct Accounts {
     pub readiness: List<super::PayerReadiness>,
     /// Whether additional provider/payer rows were omitted.
     pub readiness_cut: bool,
+}
+
+/// An account's facts as this reader may see them (client/domain/contract.md, 5.1).
+pub(super) fn fact_lines(core: &Core, account: u32, holder_reads: bool) -> List<accounts::AccountFact> {
+    let mut facts = List::with_capacity(accounts::FACTS);
+    for fact in core.accounts.account_facts(account) {
+        if fact.shown_to(holder_reads) {
+            facts.push(fact.clone()).expect("the child bounds account facts");
+        }
+    }
+    facts
+}
+
+/// Whole fact labels and text beside their fixed-size values (domain/accounts.md, 3.7).
+pub(super) fn facts_bound() -> Option<u64> {
+    List::<accounts::AccountFact>::price(accounts::FACTS)?.checked_add(
+        u64::from(accounts::FACTS)
+            .checked_mul(u64::from(accounts::FACT_LABEL).checked_add(u64::from(accounts::FACT_TEXT))?)?,
+    )
 }
 
 pub(super) fn source_lines(core: &Core, limits: &Limits, account: &accounts::Account) -> List<SourceLine> {
@@ -131,6 +151,7 @@ pub(super) fn make(core: &Core, limits: &Limits, party: u64, owner: u64, window:
                 holder: account.holder(),
                 cut: sources.len() < account.sources().len(),
                 sources,
+                facts: fact_lines(core, number, true),
             })
             .expect("bounded account lines");
     }
@@ -230,7 +251,8 @@ pub(super) fn document_bound(limits: &DocumentLimits) -> Option<u64> {
         .checked_add(u64::from(limits.lines).checked_mul(u64::from(accounts::NAME))?)?
         .checked_add(u64::from(limits.text_bytes).checked_mul(2)?)?
         .checked_add(u64::from(accounts::MANAGE_USAGE))?
-        .checked_add(List::<accounts::Use>::price(accounts::USES)?)?;
+        .checked_add(List::<accounts::Use>::price(accounts::USES)?)?
+        .checked_add(facts_bound()?)?;
     u64::try_from(size_of::<Accounts>())
         .ok()?
         .checked_add(super::programs::hosts_bound(limits)?)?
