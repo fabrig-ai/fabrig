@@ -347,6 +347,7 @@ impl Harness {
                     | skein_io::Request::Reject { .. }
                     | skein_io::Request::Output { .. }
                     | skein_io::Request::Spawn { .. }
+                    | skein_io::Request::SpawnAlone { .. }
                     | skein_io::Request::Signal { .. }
                     | skein_io::Request::Usage { .. }
                     | skein_io::Request::Window { .. } => unreachable!("forge only uses sockets"),

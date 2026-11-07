@@ -1,15 +1,13 @@
 # io: status
 
-2026-11-06. Where skein's code lags or departs from [io.md](io.md).
+2026-11-07. Where skein's code lags or departs from [io.md](io.md).
 
 Section 7 has no known gap in the requested hangup event or its distinct
 `ServiceSignal::Hangup` name.
 
 - **Not yet:** 5: a tree's metadata, the filesystem's status and sync, and
   btrfs's subvolumes (`StatEntry` to `SubvolumePath`). 6, 6.2 to 6.4:
-  cgroups and contained trees. 6: a child spawned alone (`SpawnAlone`)
-  and a null descriptor (`Way::Null`), which `tui-recorded`'s
-  `child-alone` builds.
+  cgroups and contained trees.
 - **Departs:** 2: `Io::new`
   asserts `skein_io::valid`, but `skein-fake-peers/src/face.rs`'s `valid`
   and `skein-oauth-accounts/src/limits.rs`'s `io_capacity_bound` rebuild

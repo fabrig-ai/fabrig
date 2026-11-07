@@ -129,6 +129,7 @@ impl World {
                 | Request::Reject { .. }
                 | Request::Output { .. }
                 | Request::Spawn { .. }
+                | Request::SpawnAlone { .. }
                 | Request::Signal { .. }
                 | Request::Usage { .. }
                 | Request::Window { .. } => panic!("a link only streams or closes"),

@@ -848,6 +848,7 @@ impl Owner {
                 | Lower::Stream { .. }
                 | Lower::Output { .. }
                 | Lower::Spawn { .. }
+                | Lower::SpawnAlone { .. }
                 | Lower::Signal { .. }
                 | Lower::Usage { .. }
                 | Lower::Window { .. }

@@ -87,7 +87,7 @@ fn pipe_pair() -> Result<(OwnedFd, OwnedFd), i32> {
     Ok((read, write))
 }
 
-type PreparedPipes = (OwnedFd, Vec<Option<OwnedFd>>, Vec<OwnedFd>, Vec<Option<OwnedFd>>);
+type PreparedPipes = (OwnedFd, Vec<Option<OwnedFd>>, Vec<Option<OwnedFd>>, Vec<Option<OwnedFd>>);
 
 fn prepare(command: &Spawn) -> Result<PreparedPipes, i32> {
     let dir = directory(command)?;
@@ -96,6 +96,11 @@ fn prepare(command: &Spawn) -> Result<PreparedPipes, i32> {
     let mut parents = Vec::with_capacity(command.pipes.len());
     let mut children = Vec::with_capacity(command.pipes.len());
     for pipe in &command.pipes {
+        if pipe.way == Way::Null {
+            parents.push(None);
+            children.push(None);
+            continue;
+        }
         if let Way::Given(_) = pipe.way {
             let source = pipe.parent.ok_or(libc::EINVAL)?;
             // Keep every source above every target so file actions cannot
@@ -103,21 +108,21 @@ fn prepare(command: &Spawn) -> Result<PreparedPipes, i32> {
             // SAFETY: fcntl duplicates the borrowed source with CLOEXEC.
             let high = fd(unsafe { libc::fcntl(source.raw(), libc::F_DUPFD_CLOEXEC, start) })?;
             parents.push(None);
-            children.push(high);
+            children.push(Some(high));
             continue;
         }
         let (read, write) = pipe_pair()?;
         let (parent, child) = match pipe.way {
             Way::In => (write, read),
             Way::Out => (read, write),
-            Way::Given(_) => unreachable!("given descriptors do not make pipes"),
+            Way::Given(_) | Way::Null => unreachable!("given and null descriptors do not make pipes"),
         };
         // Move the source above every child target: ordered dup2 actions can
         // then never overwrite the source of a later action.
         // SAFETY: `child` is open, and fcntl duplicates it with CLOEXEC.
         let high = fd(unsafe { libc::fcntl(child.as_raw_fd(), libc::F_DUPFD_CLOEXEC, start) })?;
         parents.push(Some(parent));
-        children.push(high);
+        children.push(Some(high));
     }
     let mut nulls = Vec::with_capacity(3);
     for standard in 0..3_u32 {
@@ -137,6 +142,37 @@ fn prepare(command: &Spawn) -> Result<PreparedPipes, i32> {
     Ok((dir, parents, children, nulls))
 }
 
+fn child_actions(
+    actions: &mut libc::posix_spawn_file_actions_t,
+    command: &Spawn,
+    children: &[Option<OwnedFd>],
+) -> Result<(), i32> {
+    for (pipe, child) in command.pipes.iter().zip(children) {
+        let to = i32::try_from(pipe.child).map_err(|_| libc::EINVAL)?;
+        match child {
+            Some(child) => {
+                // SAFETY: both descriptors are valid, and actions is initialized.
+                action(unsafe {
+                    libc::posix_spawn_file_actions_adddup2(ptr::from_mut(actions), child.as_raw_fd(), to)
+                })?;
+            }
+            None => {
+                // SAFETY: the static path and initialized actions remain live through spawn.
+                action(unsafe {
+                    libc::posix_spawn_file_actions_addopen(
+                        ptr::from_mut(actions),
+                        to,
+                        c"/dev/null".as_ptr(),
+                        libc::O_RDWR,
+                        0,
+                    )
+                })?;
+            }
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn spawn(command: &mut Spawn) -> Result<Done, Error> {
     spawn_prepared(command, None).map_err(map_error)
 }
@@ -154,7 +190,20 @@ fn spawn_prepared(command: &mut Spawn, terminal: Option<&CString>) -> Result<Don
     let mut env_ptrs: Vec<*mut libc::c_char> = env.iter().map(|v| v.as_ptr().cast_mut()).collect();
     env_ptrs.push(ptr::null_mut());
     if let Some(name) = terminal {
-        let pid = fork_terminal(command, &path, name, &dir, &children, &nulls, &argv_ptrs, &env_ptrs)?;
+        let mut sources = Vec::with_capacity(children.len());
+        let maximum = command.pipes.iter().map(|pipe| pipe.child).max().unwrap_or(2).max(2);
+        let from = i32::try_from(maximum).map_err(|_| libc::EINVAL)?.checked_add(1).ok_or(libc::EINVAL)?;
+        for child in children {
+            sources.push(match child {
+                Some(child) => child,
+                None => {
+                    // SAFETY: static NUL-terminated path; prepared before fork.
+                    let null = fd(unsafe { libc::open(c"/dev/null".as_ptr(), libc::O_RDWR | libc::O_CLOEXEC) })?;
+                    high_fd(&null, from)?
+                }
+            });
+        }
+        let pid = fork_terminal(command, &path, name, &dir, &sources, &nulls, &argv_ptrs, &env_ptrs)?;
         return finish_spawn(command, pid, parents);
     }
     let mut actions = MaybeUninit::<libc::posix_spawn_file_actions_t>::uninit();
@@ -165,13 +214,7 @@ fn spawn_prepared(command: &mut Spawn, terminal: Option<&CString>) -> Result<Don
     let result = (|| {
         // SAFETY: the actions pointer stays live through posix_spawn.
         action(unsafe { libc::posix_spawn_file_actions_addfchdir_np(ptr::from_mut(&mut actions), dir.as_raw_fd()) })?;
-        for (pipe, child) in command.pipes.iter().zip(&children) {
-            let to = i32::try_from(pipe.child).map_err(|_| libc::EINVAL)?;
-            // SAFETY: both descriptors are valid, and actions is initialized.
-            action(unsafe {
-                libc::posix_spawn_file_actions_adddup2(ptr::from_mut(&mut actions), child.as_raw_fd(), to)
-            })?;
-        }
+        child_actions(&mut actions, command, &children)?;
         for (to, maybe_null) in nulls.iter().enumerate() {
             if let Some(null) = maybe_null {
                 // SAFETY: the /dev/null descriptor is valid.
@@ -412,8 +455,18 @@ pub(crate) fn hosted_pipes(command: &mut Spawn) -> Result<HostedPipes, Error> {
             return Err(map_error(errno));
         }
     };
+    let mut sources = Vec::with_capacity(children.len());
+    for child in children {
+        sources.push(match child {
+            Some(child) => child,
+            // SAFETY: a static NUL-terminated path; this is the hosted child's descriptor.
+            None => {
+                fd(unsafe { libc::open(c"/dev/null".as_ptr(), libc::O_RDWR | libc::O_CLOEXEC) }).map_err(map_error)?
+            }
+        });
+    }
     let pipes =
-        command.pipes.iter().zip(children).map(|(pipe, child)| (pipe.child, Fd::new(child.into_raw_fd()))).collect();
+        command.pipes.iter().zip(sources).map(|(pipe, child)| (pipe.child, Fd::new(child.into_raw_fd()))).collect();
     for (pipe, parent) in command.pipes.iter_mut().zip(parents) {
         if let Some(parent) = parent {
             pipe.parent = Some(Fd::new(parent.into_raw_fd()));
