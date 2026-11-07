@@ -709,7 +709,9 @@ checks this document's contract:
   (credentials.md, section 8); the command-line settings of section 3
   and the URL on the command line cover what they name. Contained trees
   (skein's `io.md`, 6.3), with the git directory unwritable by an
-  agent's tree, close both.
+  agent's tree, close both. An agent's program surviving a forced stop
+  also needs containment on one person's machine; git's configured
+  helpers stay in its group (section 7; setup.md, section 15).
 - **A stray file of another name** (4.7): `git add` still takes it, a new
   file being indistinguishable from a run's new work, unless the repository
   ignores it. Default: the repository's `.gitignore` is where such a name goes.
