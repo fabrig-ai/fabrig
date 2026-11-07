@@ -45,13 +45,16 @@ Sections 7.1 and 7.2 have no known implementation gap in an ordered hangup
 stop, ignored hangups, or Linux's parent-death wrapper. macOS's lack of
 a parent-death signal is the designed limit, deferred in section 15.
 
-- **Not yet:** 7.2, *Its children*: a box stopped by `SIGTERM` can leave
-  a descendant running at its exit. After-landing's owned-forge landing
-  story on Claude Code (`crates/temper/tests/live.rs`,
+- **Not yet:** 7.2, *Its children*: a box stopped by `SIGTERM` leaves a
+  chat's Claude Code process running at its exit. After-landing's
+  owned-forge landing story on Claude Code (`crates/temper/tests/live.rs`,
   `a_person_asks_claude_code_to_land_a_change_on_the_owned_forge`) failed
-  at `21a9819cc3` on `no surviving children`, its box having exited 0.
-  Which process survived, and why, is unknown: the story's evidence holds
-  process ids alone. The plan `ui-box-children` repairs it.
+  at `8e15507354` on `no surviving children`, its recorder naming one
+  `claude -p … --tools Read,Glob,Grep … --resume <session>`, a group's
+  leader at the stop, then reparented to the story. Once the engine has
+  drained, serve kills its agent processes' groups (`README.status.md`,
+  8), and an agent's program is in a group of its own. The plan
+  `ui-box-children-2` repairs it.
 
 - **Not yet:** 13.4: the hangup/rebind and Linux killed-box stories in
   `crates/temper/tests/suite/box_lifetime.rs` are present in the process

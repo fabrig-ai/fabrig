@@ -1835,7 +1835,13 @@ temper box
   clears it for Forgejo (6.4).
 - **Its children** are skein-io's (skein's `io.md`, section 6), each in a
   process group of its own; closing one kills its group, so nothing the
-  box started outlives its stop, nor, on Linux, its death (7.1).
+  box started outlives its stop, nor, on Linux, its death (7.1). serve's
+  agent processes and their programs are serve's children, not the box's
+  steps: serve's first signal stops them, each agent ending its program,
+  before serve exits (README.md, section 8). A serve the box closes, or
+  one a second signal aborts, kills its agents' groups, and a program an
+  agent started outlives it until agents run in contained trees
+  (section 15).
 
 ### 7.3 What it names
 
@@ -4092,6 +4098,13 @@ Each is intended; what it needs is named with it.
   there fails until it has write" (`../client/README.md`, 4.7) does not
   say so. Reading each adopted repository's permission at a connect is
   what would close it.
+- **Agents in contained trees** (7.2; README.md, sections 8 and 14): a
+  serve the box closes, or one a second signal aborts, kills its agents'
+  groups, and a program an agent started, in a group of its own,
+  outlives it. Ending both needs skein's contained trees (skein's
+  `io.md`, 6.3 and 6.4), or a parent-death signal skein-io's spawn can
+  ask for. Default: serve's first signal stops its agents, which end
+  their programs (7.2).
 - **Reading a runner's row** (6.3): a preparation goes by
   `runner/config.yaml`, since Forgejo's command line cannot read the
   row. So a row a person removed stays gone until that file is removed
