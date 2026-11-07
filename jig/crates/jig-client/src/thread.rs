@@ -23,6 +23,8 @@ use crate::contract::{
 };
 use skein_lib::{List, Map, Wall, bytes};
 mod model;
+mod order;
+use order::order;
 mod shown;
 pub mod window;
 pub mod words;
@@ -522,19 +524,6 @@ fn page_edges(newer: Option<Cursor>, older: Option<Cursor>) -> Edges {
             Some(cursor) => Edge::More(cursor),
             None => Edge::End,
         },
-    }
-}
-fn order(rows: &mut List<DecodedActivityLine>) {
-    for first in 0..rows.len() {
-        for second in first.saturating_add(1)..rows.len() {
-            let a = rows.get(first).expect("bounded row exists");
-            let b = rows.get(second).expect("bounded row exists");
-            if b.source.position > a.source.position {
-                let b = b.clone();
-                let a = core::mem::replace(rows.get_mut(first).expect("bounded row exists"), b);
-                *rows.get_mut(second).expect("bounded row exists") = a;
-            }
-        }
     }
 }
 fn has_call(rows: &List<DecodedActivityLine>, name: CallName) -> bool {
