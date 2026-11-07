@@ -460,6 +460,7 @@ impl Task {
             | Act::StartGoal
             | Act::Switcher(_)
             | Act::Away(_)
+            | Act::Models(_)
             | Act::Needs(_)
             | Act::Choice(_)
             | Act::SignOut
@@ -592,6 +593,7 @@ impl Task {
             | Act::StartGoal
             | Act::Switcher(_)
             | Act::Away(_)
+            | Act::Models(_)
             | Act::Needs(_)
             | Act::Choice(_)
             | Act::SignOut

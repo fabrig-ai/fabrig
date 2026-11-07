@@ -41,6 +41,7 @@ pub mod goal;
 pub mod goals;
 pub mod home;
 pub mod inbox;
+pub mod models;
 pub mod needs;
 pub mod report;
 pub mod start_goal;
@@ -76,6 +77,7 @@ pub struct Pages {
     task: Option<task::Task>,
     accounts: accounts::Accounts,
     builders: builders::Builders,
+    models: models::Models,
     switcher: switcher::Switcher,
     pub(crate) connect_model: Option<Box<connect_model::ConnectModel>>,
     pub(crate) playground_provider: Option<u32>,
@@ -155,6 +157,7 @@ pub enum Act {
     Choice(choice::Act),
     Needs(needs::Act),
     Away(away::Act),
+    Models(models::Act),
     Switcher(switcher::Act),
     SignOut,
     Playground,
@@ -300,6 +303,7 @@ impl Pages {
             task: None,
             accounts: accounts::Accounts::default(),
             builders: builders::Builders::default(),
+            models: models::Models::new(),
             switcher: switcher::Switcher::default(),
             connect_model: None,
             playground_provider: None,
@@ -568,6 +572,11 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             if let Some(page) = &mut pages.connect_model {
                 page.playground |= pages.playground_model;
                 page.act(client, &pages.address, chosen, pages.playground_provider, act, &mut pages.serial, out);
+            }
+        }
+        Event::Act { act: Act::Models(act) } => {
+            if pages.models.act(client, &pages.address, act, &mut pages.serial, out) {
+                pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
             }
         }
         Event::Act { act: Act::Accounts(act) } => {
@@ -987,7 +996,11 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
         return false;
     }
-    if pages.needs.told(&told) || pages.choice.told(&told) || crate::acts::told(pages, &told) {
+    if pages.models.told(client, &told)
+        || pages.needs.told(&told)
+        || pages.choice.told(&told)
+        || crate::acts::told(pages, &told)
+    {
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
         return false;
     }
@@ -1598,6 +1611,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::AmendAgain
         | Act::Switcher(_)
         | Act::Away(_)
+        | Act::Models(_)
         | Act::Needs(_)
         | Act::Choice(_)
         | Act::MakeDefault
@@ -1754,6 +1768,7 @@ fn me_changed(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
             pages.seeing = None;
             pages.choice = choice::Draft::default();
             pages.switcher = switcher::Switcher::default();
+            pages.models = models::Models::new();
         }
         pages.party = Some(me.party.number);
         if connect_model::open(&pages.address) {
@@ -1820,6 +1835,7 @@ fn link_changed(pages: &mut Pages, limits: &Limits, link: Link, out: &mut Queue<
             pages.overturns = away::Overturns::new();
             pages.choice = choice::Draft::default();
             pages.switcher = switcher::Switcher::default();
+            pages.models = models::Models::new();
             pages.party = None;
             pages.project = None;
             pages.seen = 0;

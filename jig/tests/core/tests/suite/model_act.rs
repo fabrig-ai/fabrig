@@ -5,6 +5,7 @@ use jig_core_world::{
     fixtures, peers,
     world::{Boot, Setup, World},
 };
+use jig_domain_core::documents;
 use jig_domain_core::{self as core, settings as s};
 use jig_domain_people as people;
 use jig_test_domain as root;
@@ -136,6 +137,69 @@ fn turning_a_model_off_keeps_the_rest_of_its_value() {
         }))
     );
     assert_eq!(world.domain.settings().newest(), 3);
+}
+
+#[test]
+fn a_committed_picker_change_refreshes_a_live_me_watch() {
+    let (mut world, signed) = setup(1);
+    let watcher = Token::new(45);
+    world.send(root::Event::Core(core::Event::Watch {
+        watcher,
+        sign_in: signed,
+        subject: documents::Watched::Frame,
+        window: documents::Window { rows: 8, after: None },
+    }));
+    let initial = std::mem::take(&mut world.client_peer.as_mut().unwrap().delivered);
+    assert_eq!(initial.len(), 1);
+    world.send(root::Event::Core(core::Event::Delivered { watcher }));
+    world.store.fault(jig_core_world::Fault::Hold { commits: 1 });
+    world.send(root::Event::Core(core::Event::ChangeModel {
+        reply_to: ReplyTo::new(Token::new(SEED)),
+        sign_in: signed,
+        key: [41; 16],
+        digest: [41; 32],
+        act: ModelAct::Picker { number: 1, on: false },
+    }));
+    assert!(world.client_peer.as_ref().unwrap().delivered.is_empty(), "me waits for the commit");
+    world.release_commits();
+    let delivered = std::mem::take(&mut world.client_peer.as_mut().unwrap().delivered);
+    assert_eq!(delivered.len(), 2, "the committed answer and refreshed me arrive together");
+    for (commit, delivery) in delivered {
+        assert!(commit <= world.store.applied);
+        match delivery {
+            root::Delivery::Core(core::Held::PeopleReply { reply, .. }) => changed(&reply, 2),
+            root::Delivery::Core(core::Held::Delivery { watcher: got, document }) => {
+                assert_eq!(got, watcher);
+                let documents::Document::Frame(me) = *document else { panic!("me watch") };
+                let catalogue = jig_protocol_engine_clients::translate::llm::catalogue(&[entry(&world, 1)]);
+                let offer = jig_protocol_engine_clients::translate::llm::models(
+                    me.projects.get(0).unwrap().offer.as_slice(),
+                    &catalogue,
+                    &jig_client_test_records::limits(),
+                )
+                .unwrap();
+                assert!(!offer.get(0).unwrap().picker(), "the live me translates the changed catalogue");
+            }
+            other => panic!("unexpected picker publication: {other:?}"),
+        }
+    }
+    world.send(root::Event::Core(core::Event::Delivered { watcher }));
+    let same =
+        s::Item { setting: s::Setting::Model(1), edit: s::Edit::Set(s::Value::Model(Box::new(entry(&world, 1)))) };
+    assert_eq!(
+        change(&mut world, signed, 42, 2, Box::new([same])),
+        people::Reply::Outcome(people::Outcome::Refused(people::Refusal::NotWellFormed {
+            at: 0,
+            why: people::Malformed::SettingsUnchanged,
+        }))
+    );
+    assert!(world.client_peer.as_ref().unwrap().delivered.is_empty(), "an equivalent setting marks no me");
+    changed(&act(&mut world, signed, 41, ModelAct::Picker { number: 1, on: false }), 2);
+    assert!(world.client_peer.as_ref().unwrap().delivered.is_empty(), "a keyed retry marks no me");
+    fault(&act(&mut world, signed, 43, ModelAct::Picker { number: 64, on: false }), s::Fault::Reference);
+    assert!(world.client_peer.as_ref().unwrap().delivered.is_empty(), "a refused act marks no me");
+    frame(&mut world, signed);
+    assert!(world.client_peer.as_ref().unwrap().delivered.is_empty(), "reading me marks no watch");
 }
 
 #[test]

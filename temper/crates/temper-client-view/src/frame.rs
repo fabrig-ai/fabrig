@@ -90,6 +90,7 @@ impl Bindings {
                         PageAct::AmendPriority { priority: u32::try_from(skein_ui::number(&value)?).ok()? }
                     }
                     (PageAct::AmendTracked, skein_ui::Act::Toggle) => PageAct::AmendTracked,
+                    (PageAct::Models(act), skein_ui::Act::Toggle) => PageAct::Models(*act),
                     (
                         PageAct::Away(choice @ temper_client_domain::pages::away::Act::Kinds { .. }),
                         skein_ui::Act::Toggle,

@@ -1914,6 +1914,9 @@ impl Joint {
     }
     fn drain(&mut self) {
         self.settle();
+        for models in std::mem::take(&mut self.engine.protocol.catalogues) {
+            self.packet(engine::Request::Party(engine::PartyRequest::Catalogue { models }));
+        }
         let commit = self.engine.store.header().commits;
         if commit != self.last_commit {
             self.observed.extend(self.truth.applied(jig_core_kit::store_peer::DurableSnapshot {
