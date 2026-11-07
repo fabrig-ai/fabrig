@@ -13,6 +13,8 @@ fn fixture(story: &str) -> (Guard, Machine, skein_scratch::Scratch, Request) {
     let scratch = skein_scratch::Scratch::new(story);
     let root = scratch.path().join("root");
     fs::DirBuilder::new().mode(0o700).create(&root).expect("fresh story root");
+    let shared_temporary = root.join("shared-tmp");
+    fs::create_dir(&shared_temporary).expect("shared temporary directory");
     let task = root.join("task");
     fs::create_dir(&task).expect("task");
     fs::create_dir(task.join("seed")).expect("seed");
@@ -38,6 +40,7 @@ fn fixture(story: &str) -> (Guard, Machine, skein_scratch::Scratch, Request) {
     let recording = crate::common::repository().join("tests/recorded/codex/completed.jsonl");
     let prepared = Request {
 program: "/bin/dash".into(),
+shared_temporary,
 arguments: vec!["-c".into(), "cat >/dev/null; test \"$(cat \"$CARGO_HOME/warm\")\" = warmed; test \"$(cat \"$CARGO_TARGET_DIR/warm\")\" = target; printf 'changed\\n' > answer.txt; git add answer.txt; git -c user.name=replay -c user.email=replay@example.invalid -c gc.auto=0 -c maintenance.auto=false commit -qm 'Agent commit'; printf untracked > new.txt; printf poisoned > \"$CARGO_HOME/warm\"; printf poisoned > \"$CARGO_TARGET_DIR/warm\"; printf marker > \"$HOME/agent-only\"; printf 'settled replay\\n' >&2; cat \"$1\"".into(), "replay".into(), recording.to_str().expect("recording UTF-8").into()],
 teardown_ms: 100,
 grace_ms: 30,

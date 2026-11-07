@@ -29,12 +29,23 @@ mod cache;
 
 mod passive;
 
+/// The directory the scope gate lists for every real run (benchmarks.md, section 10).
+pub const MACHINE_TEMPORARY: &str = "/tmp";
+
+fn machine_temporary() -> PathBuf {
+    MACHINE_TEMPORARY.into()
+}
+
 /// An adapter's prepared pipe invocation and author-supplied harness policies.
 /// Arguments already name the planned scratch paths; the runner owns its cwd.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Request {
     pub task: PathBuf,
+    /// The directory whose user-owned entries the scope gate lists before and
+    /// after the attempt: `/tmp` for a real run, and for a document naming none.
+    #[serde(default = "machine_temporary")]
+    pub shared_temporary: PathBuf,
     pub identity: Identity,
     pub program: PathBuf,
     pub arguments: Vec<String>,
@@ -818,7 +829,7 @@ fn afterwards(
 /// Setup failures are recorded as refusals and make the enclosing suite incomplete.
 pub fn attempt(guard: &Guard, machine: &Machine, state: &Path, prepared: &Request) -> Result<Recorded, Fault> {
     let root = scratch_root(state, prepared)?;
-    let temporary_before = crate::isolate::temporary_entries(&root);
+    let temporary_before = crate::isolate::temporary_entries(&prepared.shared_temporary, &root);
     private_parent(guard, root.parent().expect("scratch parent"))?;
     let archive_root = state.join("runs").join(&prepared.identity.run);
     private_parent(guard, &archive_root)?;
@@ -863,7 +874,11 @@ pub fn attempt(guard: &Guard, machine: &Machine, state: &Path, prepared: &Reques
             result.outcome.end = End::HarnessError { what: format!("owned workspace deletion failed: {error}") };
         }
     }
-    passive::temporary(&mut result, crate::isolate::temporary_changes(temporary_before, &root));
+    passive::temporary(
+        &mut result,
+        &prepared.shared_temporary,
+        crate::isolate::temporary_changes(temporary_before, &prepared.shared_temporary, &root),
+    );
     neutral.finish(&mut result);
     let bytes = crate::render_result(&result)?;
     let _: Artifact = crate::grade::archive(guard, &directory, "result.json", bytes.as_bytes())?;
