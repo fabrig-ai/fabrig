@@ -479,6 +479,7 @@ fn the_end_goes_when_the_turn_commits() {
             used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
             spent: 0,
             read_through: None,
+            llm: None,
             cut: false,
         }),
     ))
@@ -1007,6 +1008,7 @@ fn conversation_turn(messages: &[c::Message], cut: bool) -> Thread {
         used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
         spent: 0,
         read_through: None,
+        llm: None,
         cut,
     };
     let mut rows = List::with_capacity(1);
@@ -1413,6 +1415,7 @@ pub(super) fn structured_thread() -> Thread {
                     used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
                     spent: 0,
                     read_through: None,
+                    llm: None,
                     cut: false,
                 }),
             ),

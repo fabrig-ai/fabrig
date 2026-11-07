@@ -99,6 +99,7 @@ fn turn() -> Turn {
         used: Usage { input: 2, output: 3, cached: 4, cache_written: 5 },
         spent: 7,
         read_through: Some(11),
+        llm: None,
         cut: true,
     }
 }

@@ -20,6 +20,12 @@ pub enum Line<'a> {
     Activity { line: &'a DecodedActivityLine },
 }
 impl Thread {
+    /// The thread has read as far as the task's document announces.
+    #[must_use]
+    pub fn caught_up(&self) -> bool {
+        self.loaded >= self.committed
+    }
+
     /// A task document announces the committed activity position.
     pub fn document(&mut self, task: &Task) -> Option<Read> {
         if task.chip.task != self.task {
