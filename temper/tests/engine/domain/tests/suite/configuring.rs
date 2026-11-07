@@ -291,7 +291,7 @@ fn adopted_approval(world: &mut World, run: &engine::Assignment, proposal: u64) 
     );
     let (inventory, _) = read_whole(&mut world.driver, &run, 50, json!({}));
     assert!(inventory.contains("person 1 person: role 0, requester, forge identity unknown"), "{inventory}");
-    assert!(inventory.contains("person 3: role 1, forge user 2"), "{inventory}");
+    assert!(inventory.contains("person 3: role 1, forge forge.example:3847 user 2"), "{inventory}");
     refuse_owner_approval(world, &run, proposal, 25);
     world.decide(
         &run,
@@ -320,7 +320,7 @@ fn an_inventory_names_its_own_projects_people() {
     let (people, _) = people.split_once("models you can offer:").expect("offer follows people");
     assert_eq!(
         people,
-        "  person 1 person: role 0, requester, forge user 7\n  person 4 member: role 2, forge user 8\n  person 5 temper-writer: role 2, forge user 1, temper's own forge writer: never counts as a person\n  person 7: role 2, forge user 2\nforge people:\n  forge forge.example:3847 configured owned-forge account box-person; project membership unverified by this row\n",
+        "  person 1 person: role 0, requester, forge forge.example:3847 user 7\n  person 4 member: role 2, forge forge.example:3847 user 8\n  person 5 temper-writer: role 2, forge forge.example:3847 user 1, temper's own forge writer: never counts as a person\n  person 7: role 2, forge forge.example:3847 user 2\nforge people:\n  forge forge.example:3847 configured owned-forge account box-person; project membership unverified by this row\n",
         "{inventory}"
     );
     for forbidden in ["elsewhere", "deployment-service", "Private display name", "Person", "@"] {
@@ -561,8 +561,8 @@ fn a_members_chat_reads_the_same_people() {
     let (member, _) = read_whole(&mut world.driver, &member_run, 1, json!({}));
     let (_, owner) = owner.split_once("project people:\n").expect("owner's people block");
     let (_, member) = member.split_once("project people:\n").expect("member's people block");
-    assert!(owner.contains("person 1 person: role 0, requester, forge user 7"), "{owner}");
-    assert!(member.contains("person 4 member: role 2, requester, forge user 8"), "{member}");
+    assert!(owner.contains("person 1 person: role 0, requester, forge forge.example:3847 user 7"), "{owner}");
+    assert!(member.contains("person 4 member: role 2, requester, forge forge.example:3847 user 8"), "{member}");
     assert_eq!(owner.replace(", requester", ""), member.replace(", requester", ""));
 }
 

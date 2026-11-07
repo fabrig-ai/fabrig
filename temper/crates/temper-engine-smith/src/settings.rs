@@ -469,15 +469,27 @@ fn project_people_rows(out: &mut settings_form::Text, people: &[engine::ProjectP
         if person.you {
             out.put(b", requester");
         }
-        match person.forge_user {
-            Some(user) => {
-                out.put(b", forge user ");
-                out.number(user);
-            }
-            None => out.put(b", forge identity unknown: cannot count for approvals"),
+        let mut known = false;
+        for forge in &person.forges {
+            known |= forge.user.is_some();
         }
-        if person.writer {
-            out.put(b", temper's own forge writer: never counts as a person");
+        if known {
+            for forge in &person.forges {
+                out.put(b", forge ");
+                out.put(&forge.host);
+                match forge.user {
+                    Some(user) => {
+                        out.put(b" user ");
+                        out.number(user);
+                        if forge.writer {
+                            out.put(b", temper's own forge writer: never counts as a person");
+                        }
+                    }
+                    None => out.put(b" unknown: cannot count for approvals there"),
+                }
+            }
+        } else {
+            out.put(b", forge identity unknown: cannot count for approvals");
         }
         out.put(b"\n");
     }
