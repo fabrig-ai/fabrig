@@ -1,0 +1,3 @@
+draft = "bundle-list"
+repo = "fabrig"
+sources = ["temper/docs/plan/bundle-list/inputs/request.md", "AGENTS.md"]
