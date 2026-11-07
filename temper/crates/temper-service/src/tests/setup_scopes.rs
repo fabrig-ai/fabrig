@@ -28,6 +28,9 @@ impl Face {
                     fake::Event::Closed => closed = true,
                 }
             }
+            if closed && above.is_empty() && below.is_empty() {
+                break;
+            }
             if let Some(up) = wire.answer() {
                 fake::up(&mut server, forge, env, up, &mut above, &mut below);
             }
@@ -35,9 +38,7 @@ impl Face {
         assert!(closed, "fake completed the request and closed its connection");
         assert!(!wire.received.is_empty(), "fake answered");
         self.wire.write(&wire.received);
-        for _ in 0_u32..1024 {
-            self.turn(service);
-        }
+        self.settle(service);
     }
 }
 
