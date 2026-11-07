@@ -2,6 +2,18 @@
 
 2026-11-07. Where temper's code lags or departs from [agent.md](agent.md).
 
+Section 8.1 has no known implementation gap in the inventory's forge
+accounts. It takes each forge of the project's repositories once, names
+its host and the person's user or unknown, and marks that forge's writer.
+A person known on no forge is said unknown once. The lookup and rendering
+tables cover a person known on one of two forges and repeated repositories
+on one forge. The owner's link remains deferred in section 10.
+
+Section 8.1 has no known gap in naming the numbered kinds in both settings
+schemas or in a failed `settings` read naming the kind and its required
+`number` or `project`. Failed calls remain visible. Proposal-form errors
+keep the shared parser's wording (section 10).
+
 Section 4.6 has no known gap in a chat's new model or effort answering its
 person's next words, whether the previous run still listens or has parked.
 

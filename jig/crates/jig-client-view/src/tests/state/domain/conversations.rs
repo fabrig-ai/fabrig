@@ -838,6 +838,7 @@ fn calls(position: u64, number: u32) -> DecodedActivityLine {
             used: Usage { input: 1, output: 2, cached: 0, cache_written: 0 },
             spent: 3,
             read_through: None,
+            llm: None,
             cut: false,
         }),
     )

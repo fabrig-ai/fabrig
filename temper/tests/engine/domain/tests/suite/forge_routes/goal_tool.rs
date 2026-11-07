@@ -318,6 +318,32 @@ fn a_goals_authority_is_the_runs_narrowed() {
     assert_eq!(row.authority.models, parent.authority.models);
 }
 
+// temper/docs/design/domain/agent.md, 8.2: a chat's goal cannot address a person.
+#[test]
+fn a_chats_goal_keeps_no_person_executor() {
+    let world = World::configured_limits(
+        true,
+        true,
+        false,
+        1000,
+        Gate::default(),
+        None,
+        StoryLimits { person_executor: true, ..StoryLimits::default() },
+    );
+    let (mut world, chat) = start_chat(world, 100, 11, 3, None, None);
+    assert!(live(&world, chat.task).authority.delegation.kinds.contains(&tasks::AuthorityExecutor::Role(0)));
+    let task = delegated(goal(&mut world, &chat, GOAL_CALL, false));
+    assert!(
+        !live(&world, task)
+            .authority
+            .delegation
+            .kinds
+            .iter()
+            .any(|kind| matches!(kind, tasks::AuthorityExecutor::Role(_)))
+    );
+    world.close();
+}
+
 #[test]
 fn a_goal_keeps_its_own_note_scope() {
     for (held, expected) in [(0, 0), (2, 0), (7, 1)] {

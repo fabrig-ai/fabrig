@@ -136,3 +136,20 @@ fn join_all(lines: &[&[u8]]) -> Box<[u8]> {
     }
     out.finish()
 }
+
+/// A person task a goal asks in its words: addressed to a person, a report its contract
+/// (temper/docs/design/client/README.md, 3.5; temper/docs/design/domain/agent.md, 8.2).
+#[must_use]
+pub fn in_words(task: &jig_client::contract::PersonTask) -> bool {
+    use jig_client::contract::{PersonAddress, TaskContractDocument};
+    match task.address {
+        PersonAddress::Party(_) => match task.contract {
+            TaskContractDocument::Report { .. } => true,
+            TaskContractDocument::Approval { .. }
+            | TaskContractDocument::Verdict { .. }
+            | TaskContractDocument::Change { .. }
+            | TaskContractDocument::Job { .. } => false,
+        },
+        PersonAddress::Role(_) => false,
+    }
+}
