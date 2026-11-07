@@ -1,6 +1,6 @@
 # sign-in: status
 
-2026-11-06. Where temper's code lags or departs from [sign-in.md](sign-in.md).
+2026-11-07. Where temper's code lags or departs from [sign-in.md](sign-in.md).
 
 Sections 9.2 and 9.9 have no known implementation gap in refreshing a
 listed box source before Forgejo starts, refusing `owned.public` beside

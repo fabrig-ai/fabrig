@@ -21,6 +21,8 @@ use alloc::boxed::Box;
 mod address;
 pub use address::{PULL_ADDRESS_BYTES, host, pull_address};
 mod adoption;
+mod approvals;
+pub use approvals::ApprovalWait;
 pub mod boundary;
 mod brief;
 mod brief_ci;
@@ -59,6 +61,7 @@ mod landing;
 mod landing_log;
 pub use landing_log::LOGGED_TITLE_BYTES;
 mod limits;
+mod link;
 mod making;
 pub use making::{
     MakeFailure, MakeFrom, MakeInto, MakeRefusal, MakeStep, MakingFailed, MakingKey, MakingState, RepositoryMaking,
@@ -111,8 +114,8 @@ pub use temper_engine_domain_forge_landing::{CHECK_NAME_BYTES, WORKFLOW_BYTES};
 pub use temper_engine_domain_forge_landing::{Hold as LandingHold, Phase as LandingPhase};
 pub use verification::LandingRed;
 pub use views::{
-    ChangesLanded, ChangesQueue, ChangesQueued, ChangesView, Document, GateProof, LandingGate, LandingLine,
-    LandingMember, LandingView, LandingsView, changes_subject, landings_subject,
+    APPROVALS_SUBJECT, ChangesLanded, ChangesQueue, ChangesQueued, ChangesView, Document, GateProof, LandingGate,
+    LandingLine, LandingMember, LandingView, LandingsView, changes_subject, landings_subject,
 };
 /// Connector-owned access to one exact effect on an adopted resource.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

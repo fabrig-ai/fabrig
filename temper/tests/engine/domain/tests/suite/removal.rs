@@ -147,6 +147,7 @@ fn fixture() -> (Driver, u64, u64) {
     d.period_sent = true;
     d.forge = Some(ForgeStand::new());
     let record = forge::ForgeRecord {
+        person: None,
         git_program: None,
         number: FORGE,
         kind: forge::Kind::Forgejo,

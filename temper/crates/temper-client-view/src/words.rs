@@ -1407,6 +1407,32 @@ pub enum Word {
     WelcomeRenameLater,
     WelcomeDefaultUnnamed,
     WelcomePlanAccount,
+    ApprovalKind,
+    ApprovalQuestion,
+    ApprovalForgejo,
+    ApprovalGitHub,
+    ApprovalDeploymentRule,
+    ApprovalProjectRule,
+    ApprovalOne,
+    ApprovalMany,
+    ApprovalBehindOne,
+    ApprovalBehindMany,
+    ApprovalCut,
+    ApprovalTooFew,
+    ApprovalNoAccount,
+    ApprovalOtherRole,
+    ApprovalReview,
+    ApprovalOwner,
+    ApprovalMaintainer,
+    ApprovalMember,
+    ApprovalObserver,
+    ApprovalOwners,
+    ApprovalMaintainers,
+    ApprovalMembers,
+    ApprovalObservers,
+    ApprovalRole,
+    ApprovalRoles,
+    ProposalOwnedApproval,
 }
 // Room for temper, jig, account, card and forge phrases.
 // Six chat projection phrases, alongside the agent's original work-line words.
@@ -1481,7 +1507,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2026;
+const PHRASES: u32 = 2052;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1508,10 +1534,10 @@ const PHRASES: u32 = 2026;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3565;
+const SEGMENTS: u32 = 3623;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 49710;
-const ALL: [Word; 1359] = [
+const ENGLISH_BYTES: u32 = 50466;
+const ALL: [Word; 1385] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -2871,11 +2897,63 @@ const ALL: [Word; 1359] = [
     Word::WelcomeRenameLater,
     Word::WelcomeDefaultUnnamed,
     Word::WelcomePlanAccount,
+    Word::ApprovalKind,
+    Word::ApprovalQuestion,
+    Word::ApprovalForgejo,
+    Word::ApprovalGitHub,
+    Word::ApprovalDeploymentRule,
+    Word::ApprovalProjectRule,
+    Word::ApprovalOne,
+    Word::ApprovalMany,
+    Word::ApprovalBehindOne,
+    Word::ApprovalBehindMany,
+    Word::ApprovalCut,
+    Word::ApprovalTooFew,
+    Word::ApprovalNoAccount,
+    Word::ApprovalOtherRole,
+    Word::ApprovalReview,
+    Word::ApprovalOwner,
+    Word::ApprovalMaintainer,
+    Word::ApprovalMember,
+    Word::ApprovalObserver,
+    Word::ApprovalOwners,
+    Word::ApprovalMaintainers,
+    Word::ApprovalMembers,
+    Word::ApprovalObservers,
+    Word::ApprovalRole,
+    Word::ApprovalRoles,
+    Word::ProposalOwnedApproval,
 ];
 impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::ApprovalKind => 4121,
+            Self::ApprovalQuestion => 4122,
+            Self::ApprovalForgejo => 4123,
+            Self::ApprovalGitHub => 4124,
+            Self::ApprovalDeploymentRule => 4125,
+            Self::ApprovalProjectRule => 4126,
+            Self::ApprovalOne => 4127,
+            Self::ApprovalMany => 4128,
+            Self::ApprovalBehindOne => 4129,
+            Self::ApprovalBehindMany => 4130,
+            Self::ApprovalCut => 4131,
+            Self::ApprovalTooFew => 4132,
+            Self::ApprovalNoAccount => 4133,
+            Self::ApprovalOtherRole => 4134,
+            Self::ApprovalReview => 4135,
+            Self::ApprovalOwner => 4136,
+            Self::ApprovalMaintainer => 4137,
+            Self::ApprovalMember => 4138,
+            Self::ApprovalObserver => 4139,
+            Self::ApprovalOwners => 4140,
+            Self::ApprovalMaintainers => 4141,
+            Self::ApprovalMembers => 4142,
+            Self::ApprovalObservers => 4143,
+            Self::ApprovalRole => 4144,
+            Self::ApprovalRoles => 4145,
+            Self::ProposalOwnedApproval => 4146,
             Self::CloseTitle => 3741,
             Self::CloseChat => 3742,
             Self::KeepIt => 3743,
@@ -4655,6 +4733,32 @@ impl Words {
 fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [HoleKind]) {
     use HoleKind::{Name, Number};
     match word {
+        Word::ApprovalKind => (&[b"an approval"], &[]),
+        Word::ApprovalQuestion => (&[b"Approve ", b" on ", b""], &[Name, Name]),
+        Word::ApprovalForgejo => (&[b"Forgejo"], &[]),
+        Word::ApprovalGitHub => (&[b"GitHub"], &[]),
+        Word::ApprovalDeploymentRule => (&[b"The deployment's landing rule ", b""], &[Number]),
+        Word::ApprovalProjectRule => (&[b"This project's landing rule ", b""], &[Number]),
+        Word::ApprovalOne => (&[b"", b" asks for one approval by ", b"."], &[Name, Name]),
+        Word::ApprovalMany => (&[b"", b" asks for ", b" approvals by ", b"; ", b" so far."], &[Name, Number, Name, Number]),
+        Word::ApprovalBehindOne => (&[b"1 more change waits behind this one."], &[]),
+        Word::ApprovalBehindMany => (&[b"", b" more changes wait behind this one."], &[Number]),
+        Word::ApprovalCut => (&[b"There are too many reviews to read them all, so one may already count."], &[]),
+        Word::ApprovalTooFew => (&[b"Fewer people can approve it than the rule asks for, so it waits until the rule or the project's people change."], &[]),
+        Word::ApprovalNoAccount => (&[b"temper knows no ", b" account of yours, so your review wouldn't count."], &[Name]),
+        Word::ApprovalOtherRole => (&[b"It waits for a review by ", b"; yours wouldn't count."], &[Name]),
+        Word::ApprovalReview => (&[b"Review on ", b" \xe2\x86\x97"], &[Name]),
+        Word::ApprovalOwner => (&[b"an owner"], &[]),
+        Word::ApprovalMaintainer => (&[b"a maintainer"], &[]),
+        Word::ApprovalMember => (&[b"a member"], &[]),
+        Word::ApprovalObserver => (&[b"an observer"], &[]),
+        Word::ApprovalOwners => (&[b"owners"], &[]),
+        Word::ApprovalMaintainers => (&[b"maintainers"], &[]),
+        Word::ApprovalMembers => (&[b"members"], &[]),
+        Word::ApprovalObservers => (&[b"observers"], &[]),
+        Word::ApprovalRole => (&[b"someone with role ", b""], &[Number]),
+        Word::ApprovalRoles => (&[b"people with role ", b""], &[Number]),
+        Word::ProposalOwnedApproval => (&[b"On this machine temper's agents and CI jobs run as you, so this stops their mistakes, not one trying to get past it."], &[]),
         Word::CloseTitle => (&[b"Close this chat?"], &[]),
         Word::CloseChat => (&[b"Close chat"], &[]),
         Word::KeepIt => (&[b"Keep it"], &[]),

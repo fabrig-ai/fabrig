@@ -61,6 +61,7 @@ struct Fixture {
     status: Token,
     decided: Token,
     away: Token,
+    approvals: Token,
 }
 fn fixture() -> Fixture {
     fixture_with_me(f::chats::me())
@@ -72,6 +73,7 @@ fn fixture_with_limits(frame: c::Me, limits: crate::Limits) -> Fixture {
     let mut root = crate::unlinked(&limits, f::SEED);
     let me = f::start(&mut root, List::with_capacity(EMPTY));
     let out = deliver(&mut root, me, c::Delivery::Me(Box::new(frame)));
+    let approvals = crate::tests::approvals::opening(&out).unwrap();
     let dismissed = opened(&out, &forge::dismissed::watch(&f::limits().forge).unwrap()).unwrap();
     let forges = opened(&out, &forge::forges::watch(&f::limits().forge).unwrap()).unwrap();
     let settings = opened(&out, &Watchable::Jig(c::Subject::Settings)).unwrap();
@@ -112,6 +114,7 @@ fn fixture_with_limits(frame: c::Me, limits: crate::Limits) -> Fixture {
         status,
         decided,
         away,
+        approvals,
     }
 }
 fn settings(fixture: &mut Fixture, follows: c::SettingFollows) -> Queue<Request> {
@@ -1424,7 +1427,15 @@ fn a_refused_goal_from_changes_no_page() {
 
 #[test]
 fn needs_count_falls_when_answered_and_keeps_later_cards() {
+    // One inbox question plus one approval, and one omitted approval.
+    const BOTH: u32 = 2;
     let mut f = fixture();
+    crate::tests::approvals::deliver(
+        &mut f.root,
+        f.approvals,
+        &[crate::tests::approvals::row(crate::tests::approvals::CHANGE, f::PROJECT, None)],
+        ONE,
+    );
     let out = f::inbox_entries(&mut f.root, f.inbox, List::with_capacity(EMPTY));
     let reads = inbox_reads(&out);
     let mut rows = List::with_capacity(ONE);
@@ -1437,7 +1448,7 @@ fn needs_count_falls_when_answered_and_keeps_later_cards() {
         &mut f.root,
         Event::Act { action: Action::Pages(Act::Needs(pages::needs::Act::Later { object: f::acts::QUESTION })) },
     );
-    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs, Needs::Count { count: ONE, cut: false });
+    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs, Needs::Count { count: BOTH, cut: true });
     event(
         &mut f.root,
         Event::Act {
@@ -1447,12 +1458,12 @@ fn needs_count_falls_when_answered_and_keeps_later_cards() {
             })),
         },
     );
-    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs, Needs::Count { count: EMPTY, cut: false });
+    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs, Needs::Count { count: ONE, cut: true });
     event(
         &mut f.root,
         Event::Act { action: Action::Pages(Act::Needs(pages::needs::Act::Undo { object: f::acts::QUESTION })) },
     );
-    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs, Needs::Count { count: ONE, cut: false });
+    assert_eq!(home::facts(&f.root, f::PROJECT, Wall::EPOCH).needs, Needs::Count { count: BOTH, cut: true });
 }
 
 const COPY_ADDRESSES: [&[u8]; 2] = [b"https://github.com/acme/widget", b"https://github.com/acme/other"];

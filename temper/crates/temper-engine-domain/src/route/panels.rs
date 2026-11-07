@@ -15,6 +15,14 @@ pub(crate) fn document(
     subject: Token,
     party: u64,
 ) {
+    let mut approvals = if connector == domain.config.forge_connector
+        && scope == ApplicationScope::Own
+        && subject == Token::new(crate::APPROVALS_SUBJECT)
+    {
+        Some(super::approvals::document(domain, env, party))
+    } else {
+        None
+    };
     let mut trials = if connector == domain.config.forge_connector
         && scope == ApplicationScope::Own
         && subject == Token::new(crate::TRIALS_SUBJECT)
@@ -36,7 +44,7 @@ pub(crate) fn document(
     } else {
         None
     };
-    let outcome = if panel.is_some() || forges.is_some() || trials.is_some() {
+    let outcome = if panel.is_some() || forges.is_some() || trials.is_some() || approvals.is_some() {
         views::Made::Ready
     } else {
         views::Made::Gone { why: views::End::Gone }
@@ -56,25 +64,29 @@ pub(crate) fn document(
             emit(
                 decision,
                 &env.limits,
-                match trials.take() {
-                    Some(rows) => Delivery::Trials { watcher, rows },
-                    None => match forges.take() {
-                        Some(forges) => Delivery::Forges { watcher, forges },
-                        None => match panel.take().expect("one whole ready document") {
-                            temper_engine_domain_forge::Document::Change(panel) => {
-                                Delivery::Panel { watcher, panel: Box::new(panel) }
-                            }
-                            document @ (temper_engine_domain_forge::Document::Landing(_)
-                            | temper_engine_domain_forge::Document::Landings(_)
-                            | temper_engine_domain_forge::Document::Aways(_)
-                            | temper_engine_domain_forge::Document::Decisions(_)
-                            | temper_engine_domain_forge::Document::Status(_)
-                            | temper_engine_domain_forge::Document::Changes(_)
-                            | temper_engine_domain_forge::Document::Dismissals(_)) => {
-                                Delivery::ForgeDocument { watcher, document: Box::new(document) }
-                            }
+                if let Some(document) = approvals.take() {
+                    Delivery::Approvals { watcher, document: Box::new(document) }
+                } else {
+                    match trials.take() {
+                        Some(rows) => Delivery::Trials { watcher, rows },
+                        None => match forges.take() {
+                            Some(forges) => Delivery::Forges { watcher, forges },
+                            None => match panel.take().expect("one whole ready document") {
+                                temper_engine_domain_forge::Document::Change(panel) => {
+                                    Delivery::Panel { watcher, panel: Box::new(panel) }
+                                }
+                                document @ (temper_engine_domain_forge::Document::Landing(_)
+                                | temper_engine_domain_forge::Document::Landings(_)
+                                | temper_engine_domain_forge::Document::Aways(_)
+                                | temper_engine_domain_forge::Document::Decisions(_)
+                                | temper_engine_domain_forge::Document::Status(_)
+                                | temper_engine_domain_forge::Document::Changes(_)
+                                | temper_engine_domain_forge::Document::Dismissals(_)) => {
+                                    Delivery::ForgeDocument { watcher, document: Box::new(document) }
+                                }
+                            },
                         },
-                    },
+                    }
                 },
             );
         } else {
@@ -84,7 +96,7 @@ pub(crate) fn document(
         }
     }
     assert!(
-        panel.is_none() && forges.is_none() && trials.is_none(),
+        panel.is_none() && forges.is_none() && trials.is_none() && approvals.is_none(),
         "every ready document was taken where it was made"
     );
 }

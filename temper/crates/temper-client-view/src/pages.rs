@@ -3,6 +3,7 @@ use alloc::boxed::Box;
 mod account_programs;
 pub(crate) mod accounts;
 pub(crate) mod agent;
+pub(crate) mod approval;
 pub(crate) mod ask;
 pub(crate) mod builders;
 pub(crate) mod change;

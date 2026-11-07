@@ -29,6 +29,9 @@ fn first_object(name: &str) -> c::ObjectKey {
     }
 }
 fn entries(name: &str) -> List<c::InboxEntry> {
+    if name.starts_with("needs-approval") {
+        return List::with_capacity(0);
+    }
     let mut entries = List::with_capacity(3);
     for task in 1..=3 {
         entries
@@ -51,9 +54,15 @@ pub fn domain(name: &str) -> Domain {
     let source = worlds::world(World::Solo, Address::Inbox { filter: Filter::ALL }, Then::Shown).0;
     let mut me = source.pages().me(source.client()).expect("fixture me").clone();
     me.projects.get_mut(0).expect("project").name = text("fabrig");
-    me.needs_total = 3;
+    me.needs_total = if name.starts_with("needs-approval") { 0 } else { 3 };
     me.needs = c::Needs {
-        questions: if name == "needs-proposal" || name == "needs-held" || name == "needs-funds" { 2 } else { 3 },
+        questions: if name.starts_with("needs-approval") {
+            0
+        } else if name == "needs-proposal" || name == "needs-held" || name == "needs-funds" {
+            2
+        } else {
+            3
+        },
         proposals: u32::from(name == "needs-proposal"),
         escalations: u32::from(name == "needs-held" || name == "needs-funds"),
         person_tasks: 0,
@@ -71,7 +80,13 @@ pub fn domain(name: &str) -> Domain {
     driver::step(
         &mut root,
         Event::Start {
-            address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
+            address: Address::Inbox {
+                filter: if name.starts_with("needs-approval") {
+                    Filter::ALL
+                } else {
+                    Filter { project: Some(1), ..Filter::ALL }
+                },
+            },
             kept: List::with_capacity(0),
             with: None,
         },
@@ -96,11 +111,37 @@ pub fn domain(name: &str) -> Domain {
                     watch,
                     c::Delivery::Inbox(Box::new(documents::inbox(
                         entries(name),
-                        3,
+                        if name.starts_with("needs-approval") { 0 } else { 3 },
                         c::Count { value: 0, limited: false },
                         0,
                         false,
                     ))),
+                    &mut out,
+                );
+            }
+            jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } }
+                if name.starts_with("needs-approval")
+                    && temper_client_protocol_wire::decode_watching(
+                        &record.bytes,
+                        &temper_client_protocol_wire::v1::CEILINGS,
+                    )
+                    .is_some_and(|watching| *watching.watch() == temper_client_protocol_wire::v1::Watch::Approvals) =>
+            {
+                let document = approval(name);
+                driver::step(
+                    &mut root,
+                    Event::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::FamilyDelivered {
+                                watch,
+                                record: jig_client::Family {
+                                    family: temper_client_protocol_wire::FORGE,
+                                    version: temper_client_protocol_wire::CLIENT_VERSION,
+                                    bytes: temper_client_protocol_wire::approvals(&document),
+                                },
+                            },
+                        },
+                    },
                     &mut out,
                 );
             }
@@ -209,4 +250,40 @@ fn escalation(name: &str) -> c::Escalation {
     acts.push(c::Offered { act: c::ActKind::LeaveHeld, admission: c::Admission::Allowed, effect: None })
         .expect("leave held");
     c::Escalation { task: Box::new(task), acts }
+}
+
+fn approval(name: &str) -> temper_client_protocol_wire::v1::Approvals {
+    use temper_client_protocol_wire::v1 as w;
+    let no_account = name == "needs-approval-no-account";
+    let row = w::ApprovalRow::new(
+        &w::CEILINGS,
+        w::ApprovalRowParts {
+            task: 81,
+            project: 1,
+            goal: None,
+            forge: 3,
+            kind: if no_account { w::Kind::Github } else { w::Kind::Forgejo },
+            owner: Box::from(*b"work"),
+            name: Box::from(*b"hello"),
+            pull: 24,
+            address: if no_account {
+                Box::from(b"https://github.com/work/hello/pull/24/files".as_slice())
+            } else {
+                Box::from(b"https://forge.example/work/hello/pulls/24/files".as_slice())
+            },
+            title: Box::from(*b"A change"),
+            since: worlds::now(World::Solo).as_nanos().saturating_sub(Duration::from_secs(240).as_nanos()),
+            scope: u32::from(!no_account),
+            rule: if no_account { 2 } else { 1 },
+            role: u32::from(no_account),
+            required: if no_account { 2 } else { 1 },
+            counted: u32::from(no_account),
+            behind: if no_account { 0 } else { 2 },
+            whole: true,
+            yours: if no_account { w::ApprovalYours::NoAccount } else { w::ApprovalYours::Counts },
+        },
+    )
+    .expect("approval fixture");
+    w::Approvals::new(&w::CEILINGS, w::ApprovalsParts { rows: List::from_boxed(Box::new([row])), more: 0 })
+        .expect("approval document")
 }

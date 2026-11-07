@@ -392,13 +392,20 @@ fn the_face_settles_delayed_io_and_due_pages_without_waiting_for_future_deadline
     assert!(contains(&reason, b"Refused(403)"));
 }
 fn writing() -> (crate::Service, Face) {
+    writing_account(USER_APP)
+}
+fn writing_account(app: &[u8]) -> (crate::Service, Face) {
     let mut service = service(8, Duration::from_secs(3600));
     let state = manifest(&mut service, 1);
     start(&mut service, 2, host::Plan::Convert { forge: 1, code: code(), state });
-    let face = conversion_replies(&mut service);
+    let face = conversion_account(&mut service, app);
     (service, face)
 }
+const USER_APP: &[u8] = br#"{"id":7,"slug":"app-fixture","owner":{"id":122,"login":"owner-fixture","type":"User"}}"#;
 fn conversion_replies(service: &mut crate::Service) -> Face {
+    conversion_account(service, USER_APP)
+}
+fn conversion_account(service: &mut crate::Service, app: &[u8]) -> Face {
     let mut face = Face::new();
     face.sent(service);
     let der = skein_fake_forge_github::keys::KEYS[0];
@@ -417,7 +424,7 @@ fn conversion_replies(service: &mut crate::Service) -> Face {
     body.put(suffix).unwrap();
     face.reply(service, &body.finish());
     face.sent(service);
-    face.reply(service, br#"{"id":7,"slug":"app-fixture"}"#);
+    face.reply(service, app);
     face.sent(service);
     face.reply(service, br#"{"id":9,"login":"app-fixture[bot]"}"#);
     if service.engine.as_mut().expect("engine").setup.writes.is_empty() {
@@ -986,6 +993,19 @@ fn restore_local_with_file(service: &mut crate::Service, absent: bool) {
         engine.domain.deployment(),
     );
 }
+fn assert_person(engine: &crate::engine::Engine, expected: Option<domain::PersonAnswer>) {
+    let mut found = None;
+    for event in &engine.events {
+        if let root::Event::Forge(event) = event
+            && let domain::Event::PersonOf { forge, answer } = event.as_ref()
+        {
+            assert!(found.is_none(), "one person answer per run");
+            assert_eq!(*forge, 1);
+            found = Some(*answer);
+        }
+    }
+    assert_eq!(found, expected);
+}
 fn local_sent(service: &mut crate::Service, face: &mut Face, path: &[u8]) {
     face.sent(service);
     assert!(contains(&face.wire.received, path), "wanted path {path:?}");
@@ -1006,8 +1026,13 @@ fn reconcile_to_repository(service: &mut crate::Service, face: &mut Face) {
     local_sent(service, face, b"/collaborators/temper/permission ");
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "one durable local setup checks the person answer and recorded bot")]
 fn kept_local_records_wait_for_restore_done_and_origin_before_connecting_as_the_recorded_bot() {
-    for fake in [false, true] {
+    for (fake, person, expected) in [
+        (false, true, Some(domain::PersonAnswer::Is(122))),
+        (false, false, Some(domain::PersonAnswer::Gone)),
+        (true, false, None),
+    ] {
         let mut service = local_service(local_config(true, fake), local_store(true));
         let engine = service.engine.as_mut().unwrap();
         for _ in 0_u32..8 {
@@ -1037,12 +1062,21 @@ fn kept_local_records_wait_for_restore_done_and_origin_before_connecting_as_the_
         assert!(service.engine.as_ref().unwrap().forge.starts.is_empty(), "held Reconcile has no access");
         face.hold_done = true;
         face.reply(&mut service, br#"{"permission":"write","user":{"id":42,"login":"temper"}}"#);
-        assert!(face.done.is_some(), "the actual host completed Reconcile");
+        if !fake {
+            local_sent(&mut service, &mut face, b"GET /api/v1/users/owner ");
+            if person {
+                face.reply(&mut service, br#"{"id":122,"login":"owner"}"#);
+            } else {
+                face.reply_status(&mut service, b"404 Not Found", b"");
+            }
+        }
+        assert!(face.done.is_some(), "the host completed Reconcile");
         assert!(service.engine.as_ref().unwrap().setup.writes.is_empty(), "no Origin before Done");
         assert!(service.engine.as_ref().unwrap().forge.starts.is_empty());
         service.engine.as_mut().unwrap().setup.above.push(face.done.take().unwrap());
         advance(service.engine.as_mut().unwrap());
         let engine = service.engine.as_mut().unwrap();
+        assert_person(engine, expected);
         assert_eq!(engine.setup.writes.len(), 1);
         let write = engine.setup.writes.first().unwrap().1;
         assert_eq!(write.number, records::number(1, Item::Origin), "never writes AdminToken");
@@ -1335,6 +1369,8 @@ fn finish_local(service: &mut crate::Service, face: &mut Face) {
     face.hold_done = false;
     reconcile_to_repository(service, face);
     face.reply(service, br#"{"permission":"write","user":{"id":42,"login":"temper"}}"#);
+    local_sent(service, face, b"GET /api/v1/users/owner ");
+    face.reply(service, br#"{"id":122,"login":"owner"}"#);
     let engine = service.engine.as_mut().unwrap();
     assert!(engine.forge.starts.is_empty());
     let Some(StoreEvent::Kept { owner }) = engine.store.host.above.pop() else { panic!("durable Origin") };
@@ -1940,6 +1976,7 @@ fn runtime_config() -> fixtures::ConfiguredEngine {
 }
 fn runtime_record(kind: domain::Kind, mode: domain::Mode) -> domain::ForgeRecord {
     domain::ForgeRecord {
+        person: None,
         git_program: None,
         number: 2,
         kind,

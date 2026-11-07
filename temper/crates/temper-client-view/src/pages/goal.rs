@@ -28,6 +28,7 @@ pub(crate) fn main(
     bindings: &mut Bindings,
     rows: u32,
     times: &mut Times,
+    sign_in: &crate::forge_sign_in::Forges,
 ) {
     b.open(Role::Main);
     b.style(look::MAIN);
@@ -40,7 +41,7 @@ pub(crate) fn main(
                         Some(ended) => ended.page.as_deref(),
                         None => None,
                     };
-                    let bands = open_bands(root);
+                    let bands = open_bands(root, words.shell);
                     let shown = Page {
                         task,
                         report: goal.report.as_ref(),
@@ -52,9 +53,14 @@ pub(crate) fn main(
                     super::task::amendment(b, root, words, bindings);
                     let mut question = false;
                     for card in &bands {
-                        let first = !question;
-                        question |= card.question_words().is_some();
-                        band(b, root, task, card, words, bindings, first);
+                        match card {
+                            needs::Need::Card(card) => {
+                                let first = !question;
+                                question |= card.question_words().is_some();
+                                band(b, root, task, card, words, bindings, first);
+                            }
+                            needs::Need::Approval(row) => super::approval::band(b, row, words, bindings, sign_in),
+                        }
                     }
                     b.open(Role::Slot);
                     b.style(look::GOAL_TWO);
@@ -72,12 +78,21 @@ pub(crate) fn main(
     b.close();
 }
 
-fn open_bands(root: &Domain) -> Box<[&Card]> {
+fn open_bands(root: &Domain, shell: Shell) -> Box<[needs::Need<'_>]> {
     let mut bands = List::uncapped();
     if let Some(inbox) = root.pages().inbox() {
-        for card in &root.pages().needs().open(inbox) {
-            if card.group != c::InboxGroup::Questions || card.page.is_some() {
-                bands.push(*card).expect("open inbox cards fit");
+        for need in &root.pages().needs().needs(inbox, root.forge().approvals()) {
+            match need {
+                needs::Need::Card(card) => {
+                    if card.group != c::InboxGroup::Questions || card.page.is_some() {
+                        bands.push(*need).expect("open inbox cards fit");
+                    }
+                }
+                needs::Need::Approval(_) => {
+                    if shell == Shell::Browser {
+                        bands.push(*need).expect("approval rows fit");
+                    }
+                }
             }
         }
     }
