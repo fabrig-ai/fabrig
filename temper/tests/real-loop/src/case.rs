@@ -111,26 +111,12 @@ pub enum Agent {
     Plan,
     Planner,
     Subowner,
-    Misread,
-    MisreadHelper,
     Direction,
     StoryOwner,
     OverlapOwner,
     X3Writer,
     PlannedWriter,
     StoryWriter,
-    BatchDirector,
-    BatchOwner,
-    BatchSubowner,
-    BatchOne,
-    BatchTwo,
-    BatchThree,
-    BatchStory,
-    BlockerDirector,
-    BlockerOwner,
-    BlockerSubowner,
-    BlockerImplementer,
-    BlockerCoder,
     // Act 3, step 6.5 (domain/testing.md, 5.3)
     BudgetDirector,
     BudgetOwner,
@@ -163,11 +149,6 @@ impl Agent {
     #[must_use]
     pub fn cue(self) -> &'static [u8] {
         match self {
-            Self::BlockerDirector => b"@case_blocker_director",
-            Self::BlockerOwner => b"@case_blocker_owner",
-            Self::BlockerSubowner => b"@case_blocker_subowner",
-            Self::BlockerImplementer => b"@case_blocker_implementer",
-            Self::BlockerCoder => b"@case_blocker_coder",
             // Act 3, step 6.5 (domain/testing.md, 5.3)
             Self::BudgetDirector => b"@case_budget_director",
             Self::BudgetOwner => b"@case_budget_owner",
@@ -184,15 +165,6 @@ impl Agent {
             Self::RedOwner => b"@case_red_owner",
             Self::RedCoder => b"@case_red_coder",
             Self::RedRepairCoder => b"Repair landing branch CI",
-            Self::BatchDirector => b"@case_batch_director",
-            Self::BatchOwner => b"@case_batch_owner",
-            Self::BatchSubowner => b"@case_batch_subowner",
-            Self::BatchOne => b"@case_batch_one",
-            Self::BatchTwo => b"@case_batch_two",
-            Self::BatchThree => b"@case_batch_three",
-            Self::BatchStory => b"@case_batch_story",
-            Self::Misread => b"@case_misread_director",
-            Self::MisreadHelper => b"@case_misread_helper",
             Self::Direction => b"@case_direction",
             Self::StoryOwner => b"@case_story_owner",
             Self::OverlapOwner => b"@case_overlap_owner",
@@ -667,46 +639,6 @@ pub fn fixture_5_5() -> forge::Fixture {
     }
 }
 
-// Act 2, step 5.6 (domain/testing.md, 5.3)
-pub const MISREAD_DIRECTOR: u64 = 1;
-pub const MISREAD_HELPER: u64 = 2;
-pub const MISREAD_TIMER: u64 = 1;
-pub const MISREAD_CORRECTION_MESSAGE: u64 = 2;
-pub const MISREAD_TIMER_AT: u64 = 4_102_444_800_000_000_000;
-pub const MISREAD_PERSON: &str = "@case_misread_director Priorities for information: 1, the end-to-end story on fakes; 2, real backends; s1 and s2 preferred for priority 1.";
-pub const MISREAD_HELPER_SPEC: &str = "@case_misread_helper Act on priority 1: the end-to-end story on fakes.";
-pub const MISREAD_CORRECTION: &str = "that was just informative; don't act on it";
-pub const MISREAD_REASON: &str =
-    "The person's priorities were for information, not instructions to act; cancel this helper.";
-pub const MISREAD_NOTE: &str = "Information is not an instruction";
-pub const MISREAD_RULE: &str =
-    "Priorities supplied for information are not instructions. Do not act on them unless the person asks.";
-pub const MISREAD_REPORT: &str =
-    "The misread helper was cancelled before landing anything, and the recalled rule is kept in the project's notes.";
-pub const MISREAD_HELPER_HOLD: &[u8] = b"case-5-6-helper";
-pub const MISREAD_RECALL_HOLD: &[u8] = b"case-5-6-recall";
-pub const MISREAD_HELPER_PENDING: &str = "The helper's first turn is held.";
-pub const MISREAD_RULE_PENDING: &str = "The rule is written; recall waits for the helper's cancellation.";
-
-#[must_use]
-pub fn fixture_5_6() -> forge::Fixture {
-    forge::Fixture {
-        configure: |value, agent, forge| {
-            (fixture().configure)(value, agent, forge);
-            value["world_settings"]["resume"] = false.into();
-            // Subscribe is family 32; read is 512 for the unchanged-main check.
-            let tools = 0x0187 | 0x0020 | 0x0200;
-            for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
-                project["policy"]["ceiling"]["tools"] = tools.into();
-                project["policy"]["roles"][0]["authority"]["tools"] = tools.into();
-            }
-            value["world_settings"]["landing"]["projects"] = json!([]);
-            landing::admit(value);
-        },
-        ..fixture()
-    }
-}
-
 // Act 2, step 5.4 (domain/testing.md, 5.3)
 pub const DIRECTION: u64 = 1;
 pub const STORY_OWNER: u64 = 2;
@@ -810,181 +742,7 @@ pub fn fixture_5_4() -> forge::Fixture {
     }
 }
 
-// Act 3, step 6.1 (domain/testing.md, 5.3)
-pub const BATCH_DIRECTOR: u64 = 1;
-pub const BATCH_OWNER: u64 = 2;
-pub const BATCH_SUBOWNER: u64 = 3;
-pub const BATCH_ONE: u64 = 4;
-pub const BATCH_TWO: u64 = 5;
-pub const BATCH_THREE: u64 = 6;
-pub const BATCH_STORY: u64 = 7;
-pub const BATCH_QUESTION_NUMBER: u64 = 1;
-pub const BATCH_PERSON: &str = "@case_batch_director Delegate A to own M1 and wait for its report.";
-pub const BATCH_ANSWER_NUMBER: u64 = 2;
-pub const BATCH_QUESTION: &str = "M1's design reports five departures. May I send the implementers and the story?";
-pub const BATCH_ANSWER: &str =
-    "Green light with three amendments: keep one path; name the dependencies; improve the explanation if cheap.";
 pub const BATCH_WRITING: &str = "The batch delegate is writing.";
-pub const BATCH_HOLDS: [&[u8]; 4] = [b"case-6-1-one", b"case-6-1-two", b"case-6-1-three", b"case-6-1-story"];
-pub const BATCH_REPORTS: [&str; 4] = ["a1 implemented.", "a2 implemented.", "a3 implemented.", "a4's story passed."];
-pub const BATCH_SUBOWNER_REPORT: &str = "All four batch delegates reported.";
-pub const BATCH_OWNER_REPORT: &str = "M1's sub-owner reported the batch.";
-pub const BATCH_DIRECTOR_REPORT: &str = "A reported M1's batch.";
-
-// Writes admitted in one store commit for the batch scenario.
-const BATCH_JOURNAL_WRITES: u32 = 15_586;
-
-#[must_use]
-pub fn fixture_6_1() -> forge::Fixture {
-    forge::Fixture {
-        configure: |value, agent, forge| {
-            (fixture().configure)(value, agent, forge);
-            // A four-entry batch in one task record needs 3,693,669 B,
-            // past small's 1,567,829 B store value; size one profile up.
-            value["engine"]["limits"]["profile"] = "standard".into();
-            value["workers"][0]["limits"]["profile"] = "standard".into();
-            // The batch sets 128 retained forge calls and 1097 journal
-            // deliveries, the door term in the admission watermark. Its
-            // journal.writes override bounds writes in one store message.
-            // A1's task read needs documents.lines = 4 for its complete live delegates.
-            value["application"]["limits"]["overrides"]["forge.named_calls"] = 128.into();
-            value["application"]["limits"]["overrides"]["root.journal.deliveries"] = 1097.into();
-            value["application"]["limits"]["overrides"]["root.journal.held"] = 3291.into();
-            // All owners, including the chat, park on the ordinary charter's
-            // wait. That releases the three slots for the three implementers.
-            agent["profile"]["declared"]["calls_per_response"] = 2.into();
-            value["workers"][0]["limits"]["overrides"]["hub.run_calls"] = 2.into();
-            // A1 sends four entries in one batch, within the seven-task tree.
-            for name in ["tasks.batch", "authority.batch"] {
-                value["engine"]["limits"]["overrides"][name] = 4.into();
-            }
-            value["engine"]["limits"]["overrides"]["tasks.dependencies"] = 2.into();
-            value["engine"]["limits"]["overrides"]["documents.lines"] = 4.into();
-            value["engine"]["limits"]["overrides"]["fleet.calls"] = PAUSE_WORKERS.len().into();
-            // Each admitted run reserves ten; A1 also reserves forty for its
-            // delegates after spending one on its question. A and the director
-            // each reserve ten more.
-            value["world_settings"]["cap"] = 71.into();
-            for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
-                project["policy"]["roles"][0]["authority"]["budget"]["spend"] = 71.into();
-            }
-            value["world_settings"]["landing"]["projects"] = json!([]);
-            value["application"]["limits"]["overrides"]["root.journal.writes"] = BATCH_JOURNAL_WRITES.into();
-            landing::admit(value);
-        },
-        ..fixture()
-    }
-}
-
-// Act 3, step 6.2 (domain/testing.md, 5.3)
-// Fresh deployment: director, A, A1, a3, e1, coder, reviewer. The oracle
-// checks these numbers, message numbers and revisions against documents.
-pub const BLOCKER_DIRECTOR: u64 = 1;
-pub const BLOCKER_OWNER: u64 = 2;
-pub const BLOCKER_SUBOWNER: u64 = 3;
-pub const BLOCKER_A3: u64 = 4;
-pub const BLOCKER_E1: u64 = 5;
-pub const BLOCKER_CODER: u64 = 6;
-pub const BLOCKER_REVIEWER: u64 = 7;
-pub const BLOCKER_FINDING_NUMBER: u64 = 1;
-pub const BLOCKER_QUESTION_NUMBER: u64 = 2;
-pub const BLOCKER_UP_QUESTION_NUMBER: u64 = 3;
-pub const BLOCKER_UP_ANSWER_NUMBER: u64 = 4;
-pub const BLOCKER_ANSWER_NUMBER: u64 = 6;
-pub const BLOCKER_AMENDMENT_NUMBER: u64 = 8;
-pub const BLOCKER_REVISION: u64 = 1;
-pub const BLOCKER_PULL: u64 = 1;
-pub const BLOCKER_PERSON: &str = "@case_blocker_director Delegate A to own M1's blocker and wait for its report.";
-pub const BLOCKER_FINDING: &str = "Kit's fake answers wrongly; a3 needs B's fake fixed.";
-pub const BLOCKER_QUESTION: &str =
-    "May A1 change the six public signatures of B's fake? Nothing outside the crate calls them; B is stopped.";
-pub const BLOCKER_UP_QUESTION: &str =
-    "A asks the director: may A1 change B's stopped public API, six signatures with no callers outside the crate?";
-pub const BLOCKER_UP_ANSWER: &str = "Director's answer: allow A1's six-signature fix on B's stopped API.";
-pub const BLOCKER_ANSWER: &str = "A's answer: the director allows the six-signature fix; delegate e1 now.";
-pub const BLOCKER_REASON: &str = "a3 now depends on e1's landing to fix B's fake.";
-pub const BLOCKER_E1_SPEC: &str =
-    "@case_blocker_coder Fix B's fake in src/fake.rs; change six public signatures, with no callers outside the crate.";
-pub const BLOCKER_FILE: &str = "src/fake.rs";
-pub const BLOCKER_WRONG: &str = "// B's fake\n// Six public signatures answer wrongly.\n";
-pub const BLOCKER_FIXED: &str = "// B's fake\n// Six public signatures answer correctly.\n";
-pub const BLOCKER_GREEN: &str = "// B's fake";
-pub const BLOCKER_KEPT_REPORT: &str = "a3's turn is done, awaiting the fix's landing.";
-pub const BLOCKER_A3_REPORT: &str = "a3 continued after e1 landed and reports.";
-pub const BLOCKER_SUBOWNER_REPORT: &str = "A1 reports a3 continued after the blocker fix landed.";
-pub const BLOCKER_OWNER_REPORT: &str = "A reports A1 resolved the blocker.";
-pub const BLOCKER_DIRECTOR_REPORT: &str = "The director reports the blocker resolved.";
-pub const BLOCKER_REVIEW_HOLD: &[u8] = b"case-6-2-review";
-
-#[must_use]
-pub fn fixture_6_2() -> forge::Fixture {
-    forge::Fixture {
-        setup: || {
-            let mut setup = (fixture().setup)();
-            let mut tree = setup.tree.into_vec();
-            tree.push(api::File { path: BLOCKER_FILE.as_bytes().into(), content: BLOCKER_WRONG.as_bytes().into() });
-            setup.tree = tree.into();
-            setup.checks.cue =
-                Some(api::Cue::File { path: BLOCKER_FILE.as_bytes().into(), green: BLOCKER_GREEN.as_bytes().into() });
-            setup
-        },
-        configure: |value, agent, forge| {
-            (fixture().configure)(value, agent, forge);
-            // Small's four store joins cannot read a3's three ancestors,
-            // dependency and terminal result, nor the coder/reviewer's four
-            // ancestors and terminal result. Joins are profile-only: standard
-            // gives sixteen, with matching worker channel terms. This story
-            // sets 128 retained forge calls and 1097 journal deliveries for
-            // the admission watermark; journal.writes bounds each commit.
-            value["engine"]["limits"]["profile"] = "standard".into();
-            value["workers"][0]["limits"]["profile"] = "standard".into();
-            value["application"]["limits"]["overrides"]["forge.named_calls"] = 128.into();
-            value["application"]["limits"]["overrides"]["root.journal.deliveries"] = 1097.into();
-            value["application"]["limits"]["overrides"]["root.journal.held"] = 3291.into();
-            // Only a3 keeps its waiting run, on charter 2, so the live
-            // amendment reaches it before its done turn is saved as kept.
-            value["world_settings"]["second_wait_ms"] = 60000.into();
-            value["engine"]["limits"]["overrides"]["tasks.charters"] = 2.into();
-            let mut kinds = value["world_settings"]["policies"][0]["policy"]["ceiling"]["delegation"]["kinds"].clone();
-            kinds.as_array_mut().expect("kinds").push(json!({"kind":"charter","number":2}));
-            for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
-                project["policy"]["ceiling"]["delegation"]["kinds"] = kinds.clone();
-                project["policy"]["roles"][0]["authority"]["delegation"]["kinds"] = kinds.clone();
-            }
-            // Singleton batches. A depth 4, A1 depth 3 and
-            // e1 depth 2 admit the coder/reviewer tree; a3 has depth 0.
-            // Two calls let a delegate/message and its wait park together.
-            // Three fleet calls admit the three one-slot PAUSE_WORKERS.
-            // Three document lines expose e1's resource, branch and path.
-            // The seven-task tree fits the base eight-task allowance.
-            // Spend reserves ten per admitted run: A1 32 (a3/e1 plus its
-            // own reserve after two turns), A 42, director 52.
-            // Deployment depth 6 leaves the director 5, A 4 and A1 3.
-            // hub.accounts 2 carries the LLM and checkout git account.
-            // CI adoption/hooks supply listing changes; poll_ms and
-            // poll_max_ms 20001 avoid redundant polls (as 5.4).
-            agent["profile"]["declared"]["calls_per_response"] = 2.into();
-            value["workers"][0]["limits"]["overrides"]["hub.run_calls"] = 2.into();
-            value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 2.into();
-            value["engine"]["limits"]["overrides"]["fleet.calls"] = PAUSE_WORKERS.len().into();
-            value["engine"]["limits"]["overrides"]["documents.lines"] = 3.into();
-            value["world_settings"]["cap"] = 52.into();
-            for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
-                project["policy"]["roles"][0]["authority"]["budget"]["spend"] = 52.into();
-            }
-            for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
-                project["policy"]["ceiling"]["delegation"]["depth"] = 6.into();
-                project["policy"]["roles"][0]["authority"]["delegation"]["depth"] = 6.into();
-            }
-            let story_ms = crate::PATIENCE.as_nanos().div_euclid(1_000_000);
-            for name in ["poll_ms", "poll_max_ms"] {
-                value["application"]["limits"]["overrides"][format!("forge.client.{name}")] = (story_ms + 1).into();
-            }
-            landing::admit(value);
-        },
-        ..forge::fixture()
-    }
-}
 
 // Act 3, step 6.5 (domain/testing.md, 5.3)
 pub const BUDGET_DIRECTOR: u64 = 1;

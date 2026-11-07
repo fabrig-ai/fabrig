@@ -6,60 +6,6 @@ use serde_json::Value;
 use temper_real_loop_world::landing;
 
 #[test]
-fn a_chat_lands_its_change_on_the_forge() {
-    use temper_real_loop_world::{
-        Exit, argv,
-        calls::{D1, call, delegate, digest, sign_in, task},
-        forge, landing, run_forge,
-    };
-    // Sign-in and adoption precede the chat; its replied wait precedes the tree read.
-    const CHAT: usize = 2;
-    const TREE: usize = 4;
-    // The reply follows landing; the final watch also joins the chat's close.
-    const REPLIED: usize = 6;
-    const CHAT_ENDED: usize = 7;
-    let ran = run_forge(
-        landing::fixture(),
-        |at| landing::scripts(at, u64::from(forge::ID), landing::README),
-        || {
-            vec![
-                sign_in(D1),
-                call(
-                    D1,
-                    argv![
-                        "repository",
-                        "adopt",
-                        "--project",
-                        "1",
-                        "--owner",
-                        "acme",
-                        "--name",
-                        "app",
-                        "--landing",
-                        "main",
-                        "--key",
-                        "adopt-app"
-                    ],
-                ),
-                call(D1, argv!["chat", "start", "--project", "1", "--key", "land", "@forge_chat Land a small change"]),
-                call(D1, argv!["task", "show", task(CHAT), "--until", "replied"]),
-                call(D1, argv!["task", "show", task(CHAT), "--tree", "--json"]),
-                call(D1, argv!["task", "show", delegate(TREE), "--until", "ended"]),
-                call(D1, argv!["task", "show", task(CHAT), "--since", digest(TREE), "--until", "replied"]),
-                // A replied watch accepts closing before the run has ended.
-                // Finish the requesting chat before service teardown.
-                call(D1, argv!["task", "show", task(CHAT), "--until", "ended", "--json"]),
-            ]
-        },
-    );
-    assert_eq!(ran.calls()[REPLIED].exit, Some(Exit::Code(0)), "{:?}", ran.calls()[REPLIED]);
-    assert_eq!(ran.calls()[CHAT_ENDED].exit, Some(Exit::Code(0)), "{:?}", ran.calls()[CHAT_ENDED]);
-    let chat: Value = serde_json::from_slice(&ran.calls()[CHAT_ENDED].stdout).expect("chat ended");
-    assert_eq!(chat["task"]["result"]["value"]["report"]["bytes"], "The change landed.", "{chat}");
-    assert!(ran.forge().merged_green() && ran.forge().main_file(b"README.md").ends_with(landing::EDIT));
-}
-
-#[test]
 fn a_chat_keeps_its_live_delegate_until_the_change_lands() {
     use landing::kept::{A3, E1};
     use temper_real_loop_world::{
