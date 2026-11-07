@@ -11,11 +11,29 @@ fn a_restart_over_a_live_change_answers_a_person() {
 
 #[test]
 fn an_adoption_saves_a_pending_window_before_the_engine_commit() {
+    PROGRESS.with(|progress| *progress.borrow_mut() = Progress::default());
+    let mut seen = None;
+    assert_eq!(saved_adoptions(&mut seen), Some(std::collections::BTreeSet::new()), "initial empty saved keys");
+    stories::set(Story::Adoption);
+    stories::setup_settings(Phase::Story);
+    let fresh = stories::given(&serde_json::from_slice(&fixtures::document()).expect("deployment JSON"));
+    assert_eq!(format!("{:?}", fixtures::adoption_given()), format!("{fresh:?}"), "cached adoption defaults");
+    assert_eq!(
+        format!("{:?}", fixtures::adoption_codec()),
+        format!("{:?}", fixtures::codec()),
+        "cached adoption codec bounds"
+    );
+    assert_eq!(
+        stories::settings_file(),
+        temper_playground::documents::settings_file().as_slice(),
+        "cached stock settings bytes"
+    );
     let setup = Rc::new(RefCell::new(referee::Run::default()));
     let (outcome, _, _) =
         run_phase(fixtures::calm(1), Story::Adoption, Phase::Story, machine::fresh(), Store::new(), setup.clone());
     assert_eq!(outcome.verdict, skein_world::domain::Verdict::Passed);
     assert_eq!(outcome.adopted, 1);
+    assert_eq!(setup.borrow().window, Some((449, 585)), "calm adoption window keeps its submission boundaries");
     PROGRESS.with(|progress| {
         assert!(
             setup.borrow().window.is_some(),
