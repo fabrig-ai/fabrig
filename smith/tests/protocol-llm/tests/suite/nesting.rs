@@ -23,8 +23,7 @@ fn nesting_asked_for_is_answered_as_its_problem_on_observed_provider_requests() 
     let mut turns = vec![smith_protocol_llm_world::fixture::calls(
         Box::new([Line::Call {
             name: b"sub_agent".as_slice().into(),
-            arguments:
-                br#"{"brief":"@explore Never opened.","tools":["inspect"],"agents":false}"#.as_slice().into(),
+            arguments: br#"{"brief":"@explore Never opened.","tools":["inspect"],"agents":false}"#.as_slice().into(),
         }]),
         4,
     )];
