@@ -1,0 +1,3 @@
+draft = "smith-gate-comment"
+repo = "fabrig"
+sources = ["smith/docs/plan/smith-gate-comment/inputs/request.md", "tools/tiers/budgets.toml", "AGENTS.md", "DESIGN.md"]
