@@ -18,7 +18,12 @@ core world's restore stories are ignored (`domain/engine.md`,
 `domain/connectors.md`). A run's fresh settings proposal replaces its own
 pending one atomically, preserving it on refusal; at the deployment
 proposal bound, refusal remains the default (`domain/tasks.md`, section 9;
-`domain/engine.md`, 17.6). Numbered model settings, catalogue-derived
+`domain/engine.md`, 17.6). Derived run-wait refusals carry admitted hosts'
+bound shortfalls and required/offered figures through the v19 client
+wire, including a standing hello's figures and every charter-bound
+shortfall's charter (`domain/engine.md`, section 8;
+`client/domain/contract.md`, 5.1; `protocol/client.md`, section 3).
+Numbered model settings, catalogue-derived
 charter versions and endpoint bounds at hello are built, with worker
 provider-list reads, retained per-account names, atomic catalogue updates
 and per-account offer narrowing (`domain/accounts.md`, 3.7;

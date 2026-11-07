@@ -2,6 +2,13 @@
 
 2026-11-07. Where temper's code lags or departs from [README.md](README.md).
 
+Sections 3.5 and 5.5 have no known gap in bounds-refusal words above
+the composer, in either shell: all ten bounds, differing shortfalls,
+missing figures and refused-hello figures have view-table coverage.
+Waiting-line pointers name no ctl call, and their help pages are checked.
+The after-landing check and the non-waiting forge-key command pointer
+remain section 11's later work.
+
 Section 3.5, *A chat's heading is short*, has no known implementation
 gap: one view function makes the first sentence or line, cut within 72
 characters, for both shells. The whole numbered name and conditional

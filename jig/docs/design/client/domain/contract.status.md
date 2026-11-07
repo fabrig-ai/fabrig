@@ -2,6 +2,11 @@
 
 2026-11-07. Where jig's code lags or departs from [contract.md](contract.md).
 
+Section 5.1 has no known gap in `Task.run_wait`'s hello and bounds
+refusals, their optional required/offered figures or charter-bearing
+turns, time and waiting shortfalls. These remain derived document facts,
+with no new hold or stored state.
+
 Sections 3.2 and 5.1 have no known gap in `ChangeModel`, numbered model
 settings, source and estimated-price facts, the project's omitted count
 (apart from the delivery gap below),
