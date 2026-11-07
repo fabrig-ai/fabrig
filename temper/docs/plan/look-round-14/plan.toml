@@ -1,0 +1,24 @@
+draft = "look-round-14"
+repo = "fabrig"
+sources = ["temper/docs/plan/look-round-14/inputs/request.md", "temper/docs/design/draft/look-requests.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "look-repair"
+title = "The real pages take connect-flows' and page 07's looks where the render check found they don't"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/look-requests.md, 4"
+
+[[slice]]
+id = 1
+story = "Every Settings select draws its chevron, and the sheet, the connect pages and Models' add form read as the requests drew them"
+parts = ["look-repair"]
+walk = false

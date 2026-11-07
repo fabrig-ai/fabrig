@@ -1,6 +1,10 @@
 # contract: status
 
 2026-11-07. Where jig's code lags or departs from [contract.md](contract.md).
+
+Sections 3.2 and 5.1 have no known gap in `ChangeModel`, numbered model
+settings, source and estimated-price facts, or the project's omitted count.
+Per-account provider-list narrowing remains section 11's deferred work.
 Unlisted sections, including 5.1's proposal-making lines and retained
 proposal reasons and settings projects, and public documents (12), have no
 known gap.
