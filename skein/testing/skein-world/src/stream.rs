@@ -144,7 +144,9 @@ impl Wire {
 
     /// Put the peer's bytes on the wire for delivery in seeded fragments.
     pub fn write(&mut self, bytes: &[u8]) {
-        self.pending.extend(bytes);
+        if !bytes.is_empty() {
+            self.pending.extend(bytes);
+        }
     }
 
     /// Check one client demand, send, withdrawal or finish.

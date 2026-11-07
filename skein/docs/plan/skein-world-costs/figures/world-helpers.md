@@ -108,3 +108,40 @@ would discard the required trace. `Trace::clear` is already below 1%.
 RSA signing dominates this median, not a shared helper; no further forge
 helper change follows. Counting's remaining costs belong to the earlier
 task and are carried into the account by cause.
+
+### The six readings on `99327d988b` expose empty writes
+
+| Test | Total Ir after the first two helper fixes |
+|---|---:|
+| T1 | 94,839,662 |
+| T2 | 117,650,469 |
+| T3 | 31,718,913 |
+| T4 | 10,419,593 |
+| T5 | 59,872,708 |
+| T6 | 55,548,693,627 |
+
+T1, T2 and T6 retain the exact names and profiles pinned in `counting.md`.
+Each ran once and passed. T3 differs from its task-base reading by 0.007%,
+T4 repeats its slice-assembly total exactly, and T5 repeats within 0.006%.
+
+| Test | Cause | Inclusive Ir | Share | Scope and decision |
+|---|---|---:|---:|---|
+| T6 | `Wire::write` | 11,384,603,071 | 20.49% | New empty-input case in scope; skip queue extension when no bytes arrived. |
+| T6 | queue `Extend<&u8>` within `write` | 11,219,212,783 | 20.20% | Called 27,565,048 times, including unchanged/empty fixture tails. |
+| T6 | `TreeFace::find` | 1,132,730,481 | 2.04% | Shared helper; inspect its individual matching costs after the larger fix. |
+| T6 | `Person::next` | 1,038,201,860 | 1.87% | Shared wrapper over face matching, not a separate cause to sum. |
+| T6 | `Trace::len` | 551,300,960 | 0.99% | Two length reads per fixture polling turn; a direct Vec length accessor. |
+
+`jig/testing/jig-client-protocol-kit/src/net.rs` calls each endpoint's
+`write` on every poll, including a received tail with no new bytes.
+Unlike the earlier `.iter().copied()` trial on nonempty queue extension,
+this cause is entering the extension machinery when there is nothing to
+copy. The guard changes no field, trace step, counter or RNG draw on that
+path, and leaves nonempty extension as it was.
+
+The new empty-write test compares every answer, fragment and delayed room
+against a wire with the same seed and no empty writes. It passes, fails
+when an empty write is made to draw RNG (the first fragment becomes 28
+bytes instead of one), and passes after restoration. The helper's focused
+tests and existing wire trace tests pass: 53 tests, including all three
+unchanged trace printing, append/count and retained-heap assertions.
