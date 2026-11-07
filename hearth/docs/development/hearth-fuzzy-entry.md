@@ -18,7 +18,7 @@ budget. Section 9.1 and `testing.status.md` remain unchanged, as the
 request requires. The entry's comment preserves that question; the entry
 does not settle the figure. No contradiction was corrected.
 
-Validation: `fab status` reports the task landed, `fab test` passes all
-3,314 tests, and `budgets()` accepts the real file with hearth's focused
-entry at 30 and fuzzy entry at 120. Nothing was measured for this plan,
-and no hearth suite or slow tier was run.
+Validation: the plan's record reports the task landed, the development
+tooling's own test run passes all 3,314 tests, and `budgets()` accepts the
+real file with hearth's focused entry at 30 and fuzzy entry at 120. Nothing
+was measured for this plan, and no hearth suite or slow tier was run.
