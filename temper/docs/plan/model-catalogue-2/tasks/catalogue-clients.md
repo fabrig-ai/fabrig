@@ -51,3 +51,19 @@ pub fn catalogue(models: &[jig_domain_core::settings::CatalogueModel]) -> Box<[M
 ## Report
 
 Which other readers of a startup copy you found, if any.
+
+## Rebase (2026-11-07, step merge, foreman model-catalogue-2/catalogue-clients/foreman-1)
+
+reconcile startup catalogue translation with the landed numbered catalogue configuration
+The merge conflicts in `jig/crates/jig-protocol-config/src/clients.rs`, function `models`.
+Integration commit `c0dacc8f252d424172d662f5884131090a633092` changes `Llm.models` to `Box<[CatalogueModel]>` and removes the parallel metadata arrays.
+Branch commit `51cc311db3` still reads the old model fields and arrays; retaining that implementation would fail compilation.
+
+Resolve `models` to call the branch’s shared `translate::llm::catalogue(&llm.models)`.
+Adapt `jig/crates/jig-protocol-engine-clients/src/translate/llm.rs::catalogue` to place entries by `CatalogueModel.number`, inserting empty-name holes through the highest number.
+Its current iteration assumes an already padded slice; configuration now supplies sparse numbered entries.
+Preserve each entry’s provider and metadata; do not renumber entries or reconstruct provider membership.
+
+Keep the branch’s catalogue replacement events and store-before-clients routing.
+Extend the catalogue test with sparse input numbered 1 and 3, verifying the empty second position and the third model’s retained index.
+Verify configuration’s existing `passed_models_are_the_catalogue` test and the task’s focused catalogue tests through heavy.
