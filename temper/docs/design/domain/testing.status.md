@@ -2,6 +2,11 @@
 
 2026-11-07. Where temper's code lags or departs from [testing.md](testing.md).
 
+Section 5.2's conformance sweeps fork every live commit from one baseline,
+retaining cold restart and independent readback. Section 5.3's retained
+stories and lower holders agree with its table; further costs and the
+survivors' placement decision are carried in section 11.
+
 Section 2.6's two one-link assertions count complete link lines and carry
 the box's stderr with every `secret=` line removed. The focused helper
 table covers two or no links, non-link and unfinished lines, filtered
@@ -54,7 +59,7 @@ are deferred in section 11, with all bounds, orders and checks retained.
   kept-delegate landing and the program backend) and the B0/B1 recorded
   transcript twins.
   They remain there because the request for `limits-worlds` kept surviving
-  stories in place. Being past a guide, as 5.3 states, is not a reason to
+  stories in place. Being past a guide is not a reason to
   choose that suite (`skein/docs/foundation/testing-strategy.md`, 8.1).
   [`limits-worlds.md`](../../development/limits-worlds.md) gives every
   survivor's unique coverage, CPU and profiled instructions, and names
