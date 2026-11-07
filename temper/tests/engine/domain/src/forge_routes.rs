@@ -90,6 +90,7 @@ pub struct World {
     pub call_errors: Vec<CallError>,
     pub reads: Vec<(ReplyTo, jig_domain_core::reads::Answer)>,
     pub panels: Vec<(Token, forge_top::Panel)>,
+    pub approvals: Vec<(Token, engine::Approvals)>,
     pub protocol: Protocol,
     pub immediate: VecDeque<engine::Event>,
     /// The funding period sent to this process's root, once it is ready.
@@ -1026,6 +1027,7 @@ impl World {
             call_errors: Vec::new(),
             reads: Vec::new(),
             panels: Vec::new(),
+            approvals: Vec::new(),
             protocol: Protocol::default(),
             immediate: VecDeque::new(),
             period: None,
@@ -1539,6 +1541,7 @@ impl World {
                         self.delivered_messages.entry((run.raw(), attempt.raw())).or_default().push(name.raw());
                     }
                     Delivery::Panel { watcher, panel } => self.panels.push((watcher, *panel)),
+                    Delivery::Approvals { watcher, document } => self.approvals.push((watcher, *document)),
                     Delivery::ForgeDocument { watcher, document } => self.oracle_documents.push((watcher, *document)),
                     Delivery::Link {
                         down: host::LinkDown::Relayed { call, answer: host::Relayed::Answer { error: true, text }, .. },
