@@ -1,6 +1,9 @@
 # design: status
 
-2026-11-04. Where the repository lags or departs from [design.md](design.md).
+2026-11-07. Where the repository lags or departs from [design.md](design.md).
+
+Section 3's `skein-fork` takes the `ring` profile; its documented process
+boundary scopes its `unsafe` expectation. No gap remains in that addition.
 
 - **Not yet:** 5: `every_package_takes_a_lint_profile` (`tests/boundary/tests/lints.rs`), which
   `.config/gate/always.txt` selects on every change, is the check's one run in this repository.

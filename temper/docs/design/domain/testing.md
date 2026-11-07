@@ -2128,8 +2128,9 @@ retained, ignored 4.6 story (../protocol/README.md, 15.6).
   waits for its effect. The case's hours are not mapped to a ratio.
 - **Smoke, as the real loop is** (2.4): a step's story runs its path
   end to end, once; the cases each Must rests on are tested in the
-  lower worlds that own them. Each story is held to 6.1's guide, and
-  one past it after its cost has been cut is a fuzzy test (6.1).
+  lower worlds that own them. Each story is held to 6.1's guide and
+  follows testing-strategy.md, 8.1 when it misses it. What a story checks
+  decides its suite; cost never does.
 - **A process story belongs only where processes are the point**
   (the user's rule, 10-23): a step gets a story on the process tier's
   cluster (2.6) only where its Musts depend on processes, that is
@@ -2150,9 +2151,9 @@ retained, ignored 4.6 story (../protocol/README.md, 15.6).
   the cast and its fixture, and `case/`: `scripts.rs`, the judgements
   for each step; `acts.rs`, the person's acts for each step; and
   `oracle.rs`, the checkpoints over one type of observations, which
-  each world fills from what it observes. The stories are
-  `tests/real-loop/tests/suite/case_*.rs`, or `tests/real-loop/tests/suite/fuzzy/case_*.rs` past the
-  guide.
+  each world fills from what it observes. Named scenarios belong among
+  the focused stories in `tests/real-loop/tests/suite/`; fuzzy sweeps
+  belong in its `fuzzy/` modules (6.1).
 
 Act 1:
 
@@ -2785,6 +2786,27 @@ scripts/proof-live.sh               the live tier
   (../protocol/git.md, section 3); transcripts are of 2.47.
 
 ## 11. Later
+
+- **Deployment-world costs and surviving stories** (2.4, 5.2, 5.3, 6.1):
+  the measurements and retained causes are in
+  `temper/docs/development/limits-worlds.md`. Decide the named survivors'
+  placement by their unique coverage, with lower holders first where a
+  behaviour belongs below; the closest candidates are case 5.5's depth
+  refusal and note recall, and 6.5's inbox, effort and advisor checks.
+  Recorded-model twins retain their independent transcript histories.
+  Cost grants no exception, and moving a story to escape a budget raises
+  it. Whole-suite CPU measurement remains necessary; partial package
+  sums and failed-prefix instruction profiles prove no suite pass.
+  Further cause work needs bounded shared schema representations and
+  prompt admission measurements without changing validation or refusal
+  order, and separate profiles of engine-domain and one-process fuzzy
+  sweeps. Required engine steps, deadline queries, configuration admissions,
+  restart/readback and token searches stay until a profile supports an
+  equivalent algorithm. Real-loop matching and public setup candidates
+  below roughly 2% of a story stay. Complete repair-story instruction
+  totals need a successful profile; instrumentation failures establish
+  none. Budgets, the real-loop ceiling and any hot-leaf build override
+  remain the user's decisions.
 
 - **The second printed link's cause** (2.6): a serve restart draws a new
   link; a retry whose earlier sign-in spent its secret can also ask for

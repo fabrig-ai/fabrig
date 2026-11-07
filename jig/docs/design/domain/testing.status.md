@@ -2,6 +2,10 @@
 
 2026-11-07. Where jig's code lags or departs from [testing.md](testing.md).
 
+Section 5's keyed durable-row evidence and exhaustive forked cuts are
+present. Complete snapshots and cold readback remain the contract;
+section 10 holds further observation-cost work.
+
 - **Not yet:** 7: `ops`'s worlds on jig's store component; they run `jig-fake-store`.
   7: the `debt-24` request of 2026-11-05 has each world name its parties,
   projects, tasks and connectors once, a bare number left only where it's the
