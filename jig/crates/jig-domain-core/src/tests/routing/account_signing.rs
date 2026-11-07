@@ -222,7 +222,8 @@ fn a_value_is_in_no_committed_row() {
                         assert_ne!(window, VALUE);
                     }
                 }
-                Record::Accounts(accounts::Stored::Next { .. }) | Record::Core(CoreRecord::Deployment(_)) => {}
+                Record::Accounts(accounts::Stored::Next { .. } | accounts::Stored::Facts { .. })
+                | Record::Core(CoreRecord::Deployment(_)) => {}
                 other @ (Record::Core(_) | Record::Tasks(_) | Record::People(_) | Record::Notes(_)) => {
                     panic!("unexpected saved row: {other:?}")
                 }

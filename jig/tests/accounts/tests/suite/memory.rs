@@ -45,12 +45,29 @@ fn full_accounts_restore_sign_in_and_sign_out() {
     assert_eq!(meter.held(), 0, "scenario releases its heap");
     eprintln!("full_accounts_restore_sign_in_and_sign_out: peak={} bytes", measured.peak());
 }
+#[expect(clippy::too_many_lines, reason = "the full lifecycle scenario holds each accounts table at its bound")]
 fn full_accounts_restore_sign_in_and_sign_out_scenario() {
     let mut out = Queue::uncapped();
     let providers = providers(vec![provider(1, true, true)]);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS };
     let mut domain = Domain::new(&LIMITS, providers);
     for account in 0..LIMITS.accounts {
+        let facts = (0..jig_domain_accounts::FACTS)
+            .map(|_| jig_domain_accounts::AccountFact {
+                kind: jig_domain_accounts::KIND_EMAIL,
+                label: longest(jig_domain_accounts::FACT_LABEL, account),
+                value: jig_domain_accounts::FactValue::Text(longest(jig_domain_accounts::FACT_TEXT, account)),
+                seen: Wall::EPOCH,
+                source: None,
+                origin: jig_domain_accounts::ORIGIN_SIGN_IN,
+            })
+            .collect();
+        step(
+            &mut domain,
+            &env,
+            Event::Restore { record: Stored::Facts { account: number(account, None), facts } },
+            &mut out,
+        );
         let record = Stored::Account {
             place: 0,
             uses: Some((0..jig_domain_accounts::USES).map(|n| jig_domain_accounts::Use::Party(u64::from(n))).collect()),

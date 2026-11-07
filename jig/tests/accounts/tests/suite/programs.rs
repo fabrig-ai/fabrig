@@ -254,6 +254,7 @@ fn restart_preserves_desired_program_absence() {
         Stored::Account { .. } => 1,
         Stored::Source { .. } => 2,
         Stored::Next { .. } => 3,
+        Stored::Facts { .. } => 4,
     });
     let mut again = World::with_start(jig_accounts_world::LIMITS, configured(), &records);
     assert!(again.step(Event::Want).iter().any(|request| matches!(request,

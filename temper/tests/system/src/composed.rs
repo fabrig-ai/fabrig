@@ -348,7 +348,7 @@ impl World {
                 match &mut row {
                     Stored::Account { holder, .. } => *holder = Holder::Party(1),
                     Stored::Source { kind, .. } => *kind = Kind::SignIn,
-                    Stored::Issued { .. } | Stored::Next { .. } => (),
+                    Stored::Issued { .. } | Stored::Next { .. } | Stored::Facts { .. } => (),
                 }
                 Some(engine::Record::Core(jig_domain_core::Record::Accounts(row)))
             })
