@@ -2938,6 +2938,9 @@ fn every_chat_omits_the_foot_when_ended_or_message_is_not_offered() {
                 assert!(fixtures::find(view.tree(), Role::TextArea, b"Message").is_none());
                 assert!(fixtures::find(view.tree(), Role::Button, b"Send").is_none());
                 assert_eq!(style_position(view.tree().nodes(), crate::look::CHOICE).is_some(), !ended && !result);
+                if configuring {
+                    assert_eq!(fixtures::find(view.tree(), Role::Button, b"+ Draft").is_some(), !ended && !result);
+                }
             }
         }
     }

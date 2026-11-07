@@ -2,9 +2,6 @@
 
 2026-11-07. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3.5, *A chat's document*: `pages::chat_offers_draft`: a configuring
-  chat's "+ Draft" still follows `drafts`, in `temper-client-view`'s `pages/chat.rs`
-  and `temper-client-domain`'s `pages/chat/sheet.rs`.
 - **Not yet:** 3.5, 5.5: no supplied record establishes a real-box walk of
   the offer, effort choice, configuring chat's chooser and connected-account
   starters. Tree and domain stories exercise these facts, including a
