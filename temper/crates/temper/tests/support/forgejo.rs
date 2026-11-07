@@ -434,6 +434,12 @@ fn native_scripts(
         "@coding Fix",
     )
     .into_vec();
+    let skein_fake_llm_domain::api::Line::Call { arguments, .. } = &mut scripts[0].turns[0].lines[0] else {
+        panic!("delegate call")
+    };
+    let mut delegate: Value = serde_json::from_slice(arguments).expect("delegate JSON");
+    delegate["batch"][0]["authority"]["budget"]["spend"] = json!(100_000);
+    *arguments = serde_json::to_vec(&delegate).expect("funded delegate JSON").into_boxed_slice();
     let mut initial = super::chat_script(answer);
     initial.cue = b"Hello".as_slice().into();
     scripts.push(initial);
@@ -463,6 +469,15 @@ pub mod tests {
         };
         assert_eq!(name.as_ref(), b"delegate");
         let delegate: Value = serde_json::from_slice(arguments).expect("delegate JSON");
+        let (_, deployment) = super::super::configuration::documents(scratch.path(), "/fixture/temper");
+        let deployment = serde_json::from_slice(&deployment).expect("deployment JSON");
+        let engine = temper_real_loop_world::settings::configuration(&deployment);
+        let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+        let spend = delegate["batch"][0]["authority"]["budget"]["spend"].as_u64().expect("change spend");
+        assert!(
+            spend >= stock.rules.maximum_run_spend * 2,
+            "the native change funds stock model reserves and its production and review turns"
+        );
         let kinds = delegate["batch"][0]["authority"]["delegation"]["kinds"].as_array().expect("kinds");
         assert!(kinds.contains(&json!({"kind":"agent", "number":producer})));
         scratch.remove();

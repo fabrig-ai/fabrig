@@ -11,6 +11,18 @@ The help walk gives them before its command. Ctl asks nothing before
 acting: an owner who skips the help can first meet them after publication.
 The preceding acknowledgement remains deferred in section 14.
 
+Section 7 has no known gap in distinguishing same-key replay, a retained
+decision's `decided first:` at exit 0, and an unknown proposal's exit 2
+with "this proposal isn't waiting; it may have been decided or replaced."
+The tools' settings table checks both accepted-decision words and the
+unknown-proposal explanation; the generated help states the same limit.
+
+- **Departs:** 7, from `ui-goal-asks-2`'s requested `decided first:` on a
+  replaced proposal: jig retains no decision for an automatically
+  replaced task proposal. The answer of 2026-11-07 keeps `Unknown` and
+  asks for these plainer words, declining an archive or new decider
+  for this ctl edge because spend binds. Section 14 carries that later work.
+
 - **Not yet:** 8.2, 11.2: the user's `ctl-waits` request asks for the
   long-chat wait with a fake model refusing its resume, concurrent reads and
   a same-key retry, with the outcome captured at both sides. The joined

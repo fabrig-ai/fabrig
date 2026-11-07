@@ -57,6 +57,7 @@ pub struct Scene {
     styles: List<Style>,
     styles_per_mark: u32,
     background: Option<Span>,
+    height: Option<u16>,
     refused: bool,
 }
 impl Scene {
@@ -70,6 +71,7 @@ impl Scene {
             styles: List::with_capacity(styles),
             styles_per_mark: limits.styles_per_node,
             background: None,
+            height: None,
             refused: false,
         }
     }
@@ -79,7 +81,19 @@ impl Scene {
         self.bytes.clear();
         self.styles.clear();
         self.background = None;
+        self.height = None;
         self.refused = false;
+    }
+    /// Say this scene's height, in place of its box's (ui.md, 11.2).
+    pub fn set_height(&mut self, height: u16) {
+        if !self.refused {
+            self.height = Some(height);
+        }
+    }
+    /// The height it said, if it said one.
+    #[must_use]
+    pub const fn height(&self) -> Option<u16> {
+        self.height
     }
     #[must_use]
     pub const fn refused(&self) -> bool {
@@ -357,6 +371,9 @@ fn emit_act(bytes: &[u8], point: Option<Point>, out: &mut List<u8>) -> bool {
 
 impl core::fmt::Display for Scene {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        if let Some(height) = self.height {
+            f.write_fmt(format_args!("height {height}\n"))?;
+        }
         for (index, mark) in self.marks.iter().enumerate() {
             let index = u32::try_from(index).expect("mark index fits u32");
             for (parent, ancestor) in self.marks.iter().enumerate().take(usize_of(index)) {
