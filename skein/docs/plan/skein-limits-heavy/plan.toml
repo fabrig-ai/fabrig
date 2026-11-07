@@ -27,3 +27,16 @@ id = 1
 story = "skein's two costliest focused rows cost what their checks need"
 parts = ["github", "lib-memory"]
 walk = false
+
+[[part]]
+id = "sweeps"
+title = "two day sweeps move to fuzzy, and the UTF-8 and Huffman sweeps run the cases they name"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/testing-strategy.md, 8"
+
+[[slice]]
+id = 2
+story = "a sweep of generated cases runs in fuzzy, or at the count its named behaviour needs"
+parts = ["sweeps"]
+walk = false

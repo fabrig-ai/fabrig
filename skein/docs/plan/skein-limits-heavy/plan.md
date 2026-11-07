@@ -10,8 +10,9 @@ This file is brought up to date with each batch the cut pushes.
 |---|---|---|---|---:|
 | `github` | `tasks/github-runs.md` | | `github-conformance` `tests` | 4.59 |
 | `lib-memory` | `tasks/lib-counts.md` | | `skein-lib-tests::suite` `memory` | 1.56 |
+| `sweeps` | `tasks/sweeps.md` | | `skein-ui` `tests::date`, `tests::phrases`; `skein-json` `tests::text`; `skein-http` `tests::gzip` | 0.41 |
 
-**Critical path, as it stands:** either task alone. Neither needs the other. `github-runs` is the longest, at about 100 minutes.
+**Critical path, as it stands:** any task alone. None needs another. `github-runs` is the longest, at about 100 minutes.
 
 ## What this plan decided
 
@@ -29,6 +30,10 @@ This file is brought up to date with each batch the cut pushes.
 
 - **`github-conformance`'s tests stay.** Each shows a named behaviour on the fake, or a refusal of the live path, from fixed inputs: section 8's "each world's scenarios". None is a sweep or a comparison.
 - **`skein-lib-tests`' `memory` stays.** Section 8 names "memory under the scenarios' ceilings" for the focused suite. The three loops are one use repeated, not many generated cases, so their cost is a count, under the request's item 3, and not a place.
+- **`every_wall_day_round_trips_at_midnight` moves to fuzzy.** It sweeps all 213,503 days a `Wall` can hold for one property, and names none of them. That's section 8's "sweeps of many generated cases". `known_midnights_follow_gregorian_centuries` holds the behaviour on named days in focused, and gains the one thing only the sweep held there: a day's last nanosecond is still that day. It moves with every assertion.
+- **`every_representable_wall_day_matches_gregorian_rollover` moves to fuzzy.** It compares the phrasebook's date, day by day, with a counter of months and leap years written in the test: section 8's "a function against a naive one", over every day. `dates_and_moments_use_utc_calendar_words_in_every_wall_format` holds named days in focused (leap days, a century's March 1, a year's end). It moves with every assertion.
+- **`three_and_four_byte_sequences_are_judged_at_every_boundary` stays, at a smaller count.** Its name is a behaviour: every range limit of the well-formed table. It compares with the standard library, but its point is the limits, and those are `edges`. `Utf8::next` judges by `(low..=high).contains(&byte)`, so a byte between two limits can't be judged otherwise than its limits are. The full second byte added 25 times the cases and no limit. The rest can't move as it is: `Utf8` is private to `skein-json`, whose product code is `json-strings'`, and a public item for a test isn't wanted. `fuzzy::writer::text_is_written_exactly_when_it_is_utf8_and_reads_back_the_same` already holds random bytes between the limits, through the public path.
+- **`a_huffman_code_is_complete_canonical_and_as_short_as_any` stays, at four seeds.** It's a seeded comparison with a plain tree builder, so section 8 would have it in fuzzy, but `huffman` is `pub(crate)` and no public path reaches its widths. It stays as a scenario, and section 8 gives a scenario "the few seeds that show its behaviour": two for each kind of counts, each seed still running every check.
 
 ## Tests that go
 
@@ -39,4 +44,4 @@ Each is named with its holder, which exists and passes first.
 
 ## Overlaps
 
-Neither task is on files another draft is changing. `skein-world-costs` holds `skein_heap::Counting`, which `memory` meters with: `lib-counts` leaves it alone. `json-strings` holds `skein-json`'s product code, which a github run parses with: `github-runs` leaves it alone.
+`sweeps` meets `limits-fixtures/view-words` in `skein/crates/skein-ui/src/tests/phrases.rs`, where it deletes one test and nothing else, and could not avoid it: that's where the test is. The other tasks are on no file another draft lists. `skein-world-costs` holds `skein_heap::Counting`, which `memory` meters with: `lib-counts` leaves it alone. `json-strings` holds `skein-json`'s product code, which a github run parses with: `github-runs` leaves it alone.
