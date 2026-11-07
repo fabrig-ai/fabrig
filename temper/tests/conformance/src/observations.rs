@@ -164,20 +164,32 @@ pub fn snapshot(store: &Store) -> r::Snapshot {
         })
         .collect();
     let snapshot = jig_conformance::core::snapshot(&records);
-    connector_snapshot(store, snapshot, &records)
+    connector_snapshot(store, snapshot, jig_conformance::core::proposal_decisions(&records))
 }
 
 /// A commit's keys update the core evidence; connector facts remain independent.
 #[must_use]
 pub fn projected(store: &Store, projection: &mut jig_conformance::core::Projection) -> r::Snapshot {
-    let records = store.rows.values().filter_map(|record| match record {
-        root::Record::Core(record) => Some((record.key(), record)),
-        root::Record::Forge { .. } => None,
-    }).collect();
-    let snapshot = projection.snapshot(store.applied, &records);
+    let snapshot = projection.snapshot_by(
+        store.applied,
+        store.rows.values().filter_map(|record| match record {
+            root::Record::Core(record) => Some((record.key(), record)),
+            root::Record::Forge { .. } => None,
+        }),
+        |key| match store.rows.get(&root::Key::Core(key.clone())) {
+            Some(root::Record::Core(row)) => Some(row),
+            Some(root::Record::Forge { .. }) | None => None,
+        },
+    );
     #[cfg(test)]
-    assert_eq!(snapshot, jig_conformance::core::snapshot(&records), "commit {}", store.applied);
-    connector_snapshot(store, snapshot, &records)
+    {
+        let records = store.rows.values().filter_map(|record| match record {
+            root::Record::Core(record) => Some((record.key(), record)),
+            root::Record::Forge { .. } => None,
+        }).collect();
+        assert_eq!(snapshot, jig_conformance::core::snapshot(&records), "commit {}", store.applied);
+    }
+    connector_snapshot(store, snapshot, projection.proposal_decisions())
 }
 
 pub fn submitted(store: &Store, projection: &mut jig_conformance::core::Projection) {
@@ -197,9 +209,8 @@ pub fn submitted(store: &Store, projection: &mut jig_conformance::core::Projecti
 fn connector_snapshot(
     store: &Store,
     mut snapshot: r::Snapshot,
-    records: &BTreeMap<core::Key, &core::Record>,
+    decisions: Vec<core::ProposalDecisionRecord>,
 ) -> r::Snapshot {
-    let decisions = jig_conformance::core::proposal_decisions(records);
     for record in store.rows.values() {
         match record {
             root::Record::Forge { row } => {

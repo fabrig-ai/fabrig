@@ -1,6 +1,7 @@
 //! Keyed accounting of a commit's rows (`jig/docs/design/domain/testing.md`, 10).
 use super::{Commit, Write, core, r};
 use std::collections::{BTreeMap, BTreeSet};
+mod joins;
 
 /// Current per-row evidence and the submitted keys that can change it.
 /// Observations remain whole snapshots, emitted once per commit. Cold rows and
@@ -10,6 +11,7 @@ pub struct Projection {
     applied: Option<u64>,
     pending: BTreeMap<u64, Option<BTreeSet<core::Key>>>,
     rows: BTreeMap<core::Key, Row>,
+    joins: joins::Joins,
 }
 
 #[cfg(test)]
@@ -64,6 +66,56 @@ mod tests {
         check(&mut projection, 4, &rows);
         projection.submitted(&Commit { number: 5, writes: vec![] });
         check(&mut projection, 5, &rows);
+    }
+
+    fn person_amendment(task: u64) -> core::Record {
+        core::Record::Tasks(tasks::Stored::DecidedProposal(Box::new(tasks::PersonProposal {
+            number: 9,
+            proposer: 1,
+            project: 1,
+            action: tasks::PersonAction::Amend {
+                task,
+                revision: 0,
+                amendment: Box::new(tasks::Amendment {
+                    tracked: None, addressed: None, instructions: None, release: None,
+                    spec: None, wake: None, dependencies: None, authority: None, llm: None,
+                    reason: Box::new([]),
+                }),
+            },
+            reason: Box::new([]),
+            state: tasks::PersonProposalState::Accepted { by: tasks::Party::Person(2) },
+        })))
+    }
+
+    #[test]
+    fn keyed_joins_follow_replacement_and_erasure_of_the_other_row() {
+        let decision = core::Record::Core(core::CoreRecord::ProposalDecision(core::ProposalDecisionRecord {
+            project: 1,
+            proposer: people::Proposer::Party(1),
+            proposal: 9,
+            kind: tasks::ProposalKind::Amend,
+            by: 2,
+            at: skein_lib::Wall::from_nanos(1),
+            choice: people::ProposalChoice::Accepted,
+            created: None,
+        }));
+        let mut rows = BTreeMap::from([(decision.key(), decision)]);
+        let mut projection = Projection::default();
+        assert!(check(&mut projection, 1, &rows).accepted_tasks.is_empty());
+        let proposal = person_amendment(5);
+        projection.submitted(&Commit { number: 2, writes: vec![Write::Save(&proposal)] });
+        rows.insert(proposal.key(), proposal);
+        assert_eq!(check(&mut projection, 2, &rows).accepted_tasks.get(&5),
+            Some(&r::Acceptance { proposal: 9, by: r::Source::Person(2) }));
+        let replacement = person_amendment(6);
+        projection.submitted(&Commit { number: 3, writes: vec![Write::Save(&replacement)] });
+        rows.insert(replacement.key(), replacement.clone());
+        let changed = check(&mut projection, 3, &rows);
+        assert!(!changed.accepted_tasks.contains_key(&5));
+        assert!(changed.accepted_tasks.contains_key(&6));
+        projection.submitted(&Commit { number: 4, writes: vec![Write::Erase(replacement.key())] });
+        rows.remove(&replacement.key());
+        assert!(check(&mut projection, 4, &rows).accepted_tasks.is_empty());
     }
 }
 
@@ -134,6 +186,22 @@ impl Projection {
     /// erase another contributor's receipt or leave its spend charged twice.
     #[must_use]
     pub fn snapshot(&mut self, applied: u64, records: &BTreeMap<core::Key, &core::Record>) -> r::Snapshot {
+        self.snapshot_by(
+            applied,
+            records.iter().map(|(key, row)| (key.clone(), *row)),
+            |key| records.get(key).copied(),
+        )
+    }
+
+    /// Borrow unchanged storage directly. The whole iterator is consumed only
+    /// for a cold rebuild; a complete commit feed needs just keyed lookups.
+    #[must_use]
+    pub fn snapshot_by<'a>(
+        &mut self,
+        applied: u64,
+        records: impl IntoIterator<Item = (core::Key, &'a core::Record)>,
+        get: impl Fn(&core::Key) -> Option<&'a core::Record>,
+    ) -> r::Snapshot {
         if self.applied != Some(applied) {
             let incremental = self.applied.is_some_and(|previous| {
                 previous < applied && (previous + 1..=applied)
@@ -143,18 +211,16 @@ impl Projection {
                 let previous = self.applied.expect("incremental projection has a base");
                 for number in previous + 1..=applied {
                     for key in self.pending.remove(&number).flatten().expect("complete commit feed") {
-                        self.rows.remove(&key);
-                        if let Some(record) = records.get(&key)
-                            && let Some(row) = Row::project(&key, record)
-                        {
-                            self.rows.insert(key, row);
-                        }
+                        let row = get(&key);
+                        self.replace(key, row);
                     }
                 }
             } else {
-                self.rows = records.iter().filter_map(|(key, record)| {
-                    Row::project(key, record).map(|row| (key.clone(), row))
-                }).collect();
+                self.rows.clear();
+                self.joins = joins::Joins::default();
+                for (key, row) in records {
+                    self.replace(key, Some(row));
+                }
             }
             self.pending.retain(|number, _| *number > applied);
             self.applied = Some(applied);
@@ -163,7 +229,28 @@ impl Projection {
         for row in self.rows.values() {
             row.append(&mut snapshot);
         }
-        super::snapshot::resolve(&mut snapshot, records);
+        for task in snapshot.tasks.values_mut() {
+            task.tracked |= self.rows.contains_key(
+                &core::Key::Core(core::CoreKey::Projection(core::ProjectionKey::Goal(task.number))),
+            );
+        }
+        self.joins.resolve(&mut snapshot);
         snapshot
+    }
+
+    fn replace(&mut self, key: core::Key, record: Option<&core::Record>) {
+        self.joins.replace(&key, record);
+        self.rows.remove(&key);
+        if let Some(record) = record
+            && let Some(row) = Row::project(&key, record)
+        {
+            self.rows.insert(key, row);
+        }
+    }
+
+    /// Current accepted decisions, in durable key order, for connector attribution.
+    #[must_use]
+    pub fn proposal_decisions(&self) -> Vec<core::ProposalDecisionRecord> {
+        self.joins.decisions()
     }
 }

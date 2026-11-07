@@ -64,3 +64,23 @@ slightly; it is not presented as a CPU gain. At this arm, CI's policy equality
 still costs 3,135,675,258 Ir (12.96%); the projected adapter's borrowed-map work
 costs 852,128,829 Ir (3.52%, its inclusive frame less projection and connector
 translation). Those are the next causes, in that order.
+
+## Second fix: immutable policy snapshots
+
+Commit `2b0b663c86` gives the adapter and referee immutable, shared policy
+values. Mutable access detaches the edited value. Every inspection still
+refreshes the referee before processing the same observations; an adapter
+without the optional snapshot retains the whole value comparison. Tests cover
+both directions of edits and refresh after an external referee edit.
+
+| Story | Arm | Run | Ir | Native CPU s (user + system, with descendants) | Result |
+|---|---|---:|---:|---:|---|
+| CI repair | Policy snapshot | 1 | 21,050,322,762 | 6.359 | 1 passed; 78 children |
+| Changed judge | Policy snapshot | 1 | 18,015,359,638 | 5.868 | 1 passed; 77 children |
+
+This removes another 3,138,736,310 / 2,204,383,450 Ir, 12.98% / 10.90% of the
+preceding arm. The two fixes together remove 16.37% / 17.63% of baseline Ir.
+The single changed-judge CPU timing rose; no CPU gain is claimed for that arm.
+The next common cause is reconstructing borrowed maps and resolving cross-row
+facts: the adapter map alone costs 852 million / 1,012 million Ir in the
+preceding arm. Keyed joins can read the changed durable rows directly.

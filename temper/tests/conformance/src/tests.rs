@@ -10,7 +10,9 @@ fn a_commit_feed_matches_whole_projection_through_stories_and_cold_restarts() {
     // Unit-test builds compare every fed snapshot with the whole projection,
     // before connector evidence and before the referee receives it.
     for story in [stories::Story::RepairCi, stories::Story::GoalIssue] {
-        stories::run(story, jig_conformance::Cut::AfterCommit(20), 71).expect("whole and keyed evidence agree");
+        let outcome = stories::run(story, jig_conformance::Cut::AfterCommit(20), 71)
+            .expect("whole and keyed evidence agree");
+        assert!(outcome.crashes.contains(&20), "the comparison includes a cold restart");
     }
 }
 
