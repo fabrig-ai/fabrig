@@ -106,10 +106,12 @@ section 7).
 
 - **Reserved bytes:** 17 and 19 keep no family and are never reused.
 - **Provider 0's subject,** in jig's party rows, which hold it opaque (jig's
-  `domain/people.md`): 10 bytes, the forge's number then the user's, each
-  big-endian (`../domain/forge.md`, section 4). A subject of any other form
+  `domain/people.md`): 10 bytes, the forge's 2-byte number then the user's
+  8-byte number, each big-endian (`../domain/forge.md`, section 4).
+  A subject of any other form
   names no forge's user. Only the forge's `user_key` and `key_user` know this
-  form.
+  form. No migration rewrites other forms and no `STORE_VERSION` change
+  accompanies this subject: no supported deployment requires compatibility.
 - **The repositories being made** (`../domain/forge.md`, 4.5), 35
   `Making`, keyed `Making { forge, org, name }`: one row per name a
   forge is making, holding what was asked (`from`, an address or
@@ -391,6 +393,10 @@ Within the suites' budgets (`../domain/testing.md`, section 2):
 
 ## 7. Open questions
 
+- **The box owner's forge link** (`../draft/forge-identity.md`, sections
+  3, 4 and 9): its field on the forge record and the setup's evidence are
+  separate work. Default: no link in family 25 `Forge`; the party subjects
+  remain the forge and user pair of section 2.
 - **`Landed` grows with history.** A merge temper made is kept for
   own-change news, and no row is erased; once the forge's `landings`
   limit is reached, later merges are not recorded, and news of them reads

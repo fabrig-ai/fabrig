@@ -770,10 +770,13 @@ for any presentation of a chat or of any agent task's activity.
   cut, and the decoded turn is marked.
   Neither the application nor the helpers link smith.
 - **What the conversation last ran on.** `Thread.latest_llm` is the `llm`
-  of the newest decoded turn, taken when the window reaches the end where
-  live rows are added; reading older pages leaves it as it is. It is what
-  the latest run used, whatever that run was given, and is none until a
-  turn is read, so a run that committed no turn names nothing.
+  of the newest decoded turn that names a model, taken when the window
+  reaches the end where live rows are added; reading older pages leaves it
+  as it is. An undecodable turn or one naming no model is passed over;
+  with no named model in that window the held value stays. It says what
+  that completion used, whatever its run was given, and is none until a
+  turn naming a model is read. A run that committed no turn supplies no
+  new value; this is not proof of what the latest run used (section 18).
   `Thread::caught_up` says the thread has read as far as the task's
   document announces, so that a page can tell "none yet" from "none".
 - **A job is a call's outcome,** worded like any other call's. A call
@@ -1269,9 +1272,13 @@ with a person in front of a tree, are view.md's, 18.10.
   page past that bound. Default: too large, and the tools read it by its parts.
 - **A run that committed no turn** (section 10) names no model to its client,
   and a line of activity past a thread's first page can leave its last turn
-  unread. A task's claim could keep the model and effort on the task for every
-  page, at the price of a stored field and a field of the client's wire.
-  Default: as it stands, from the turns.
+  unread. An undecodable or nameless newest turn likewise supplies no model,
+  so the thread can retain an earlier completion's model and effort. Keeping
+  the latest run's model and effort independently of readable turns is
+  deferred. A task's claim could keep them on the task for every page, at
+  the price of a stored field and a field of the client's wire; it would
+  record what the run was given, not prove what its completion used.
+  Default: as it stands, from the turns, retaining the last named model.
 
 ## 19. Helpers
 

@@ -85,7 +85,7 @@ fn band(b: &mut Builder, root: &Domain, task: &c::Task, card: &Card, w: &Words, 
     let asked = ask::read(card, w);
     let kind = match asked.kind {
         Kind::Funds { .. } => Word::NeedsKindFunds,
-        Kind::Question | Kind::Proposal | Kind::Held | Kind::PersonTask => ask::need_kind(card.group),
+        Kind::Question | Kind::Proposal | Kind::Held | Kind::PersonTask => ask::card_kind(card),
     };
     let question = match asked.kind {
         Kind::Funds { spent, limit } => w.say(Word::NeedsFundsUsed, &[Hole::Number(spent), Hole::Number(limit)]),

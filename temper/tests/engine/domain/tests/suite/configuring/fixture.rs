@@ -11,13 +11,13 @@ pub(super) const PROJECT: u32 = 1;
 pub(super) const CHANNEL: Token = Token::new(7);
 pub(super) const SEED: u64 = 9761;
 pub(super) const REASON: &str = "Explain running work\ntemper enforces: running work stays on its revision\nyour agents follow: push early, in charter 1";
-// Stock has seven charters, fourteen grants and nine executor kinds. The
+// Stock has seven charters, fourteen grants and twelve executor kinds. The
 // stories need three simultaneous chats, one extra charter, and their replies.
 const CHARTERS: u32 = 8;
 const TASKS: u32 = 4;
 const SLOTS: u32 = 3;
 const GRANTS: u32 = 16;
-const EXECUTORS: u32 = 10; // Nine stock kinds and the removable world's charter.
+const EXECUTORS: u32 = 13; // Twelve stock kinds and the removable world's charter.
 const RUN_BYTES: u32 = 16_384;
 const TRANSCRIPT_BYTES: u32 = 32_768;
 const MESSAGE_BYTES: u32 = 512;
@@ -302,6 +302,14 @@ impl World {
         let template = self.templates.iter().find(|value| value.number == template).expect("stock template");
         let mut ask = self.driver.chat_ask(PROJECT, words);
         let people::Ask::Create { batch, .. } = &mut ask else { panic!("chat") };
+        // The other session is a member: its request delegates to its own role.
+        if session != self.owner {
+            for executor in &mut batch[0].authority.delegation.kinds {
+                if *executor == people::Executor::Role(0) {
+                    *executor = people::Executor::Role(2);
+                }
+            }
+        }
         let people::TemplateExecutor::Charter(charter) = template.executor else { panic!("chat charter") };
         let tasks::Contract::Report { words } = template.contract else { panic!("chat report") };
         batch[0].executor = people::TaskExecutor::Agent { charter };

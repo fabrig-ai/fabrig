@@ -65,6 +65,11 @@ delivery still departs (`domain/hosts.md`).
 The client's link exposes a watch's Busy refusal through retries and clears
 it on recovery; distinguishing its capacity cause remains deferred
 (`client/domain/client.md`, section 18).
+Decoded turns retain model and effort outside the text budget, and a
+thread retains its last named completion and says whether announced
+activity has been read. A run with no readable named turn can leave an
+older model; latest-run metadata independent of turns is deferred
+(`client/domain/client.md`, sections 10 and 18).
 The code departs in a few single items (`README.md`, `client/domain/client.md`, `domain/engine.md`,
 `client/domain/contract.md`, `client/domain/testing.md`, `client/domain/view.md`, `domain/hosts.md`, `domain/people.md`, `domain/root.md`, `domain/testing.md`,
 `protocol/README.md`, `protocol/browser.md`, `protocol/client.md`, `protocol/configuration.md`, `protocol/service.md`, `protocol/store.md`). `domain/core.md`,
