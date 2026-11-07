@@ -123,6 +123,8 @@ fn a_decision_names_the_revision_its_card_showed() {
 #[derive(Clone, Copy)]
 enum Direct {
     Answer,
+    PersonWords,
+    PersonVerdict,
     LeaveHeld,
     Take,
     HandBack,
@@ -130,44 +132,64 @@ enum Direct {
 impl Direct {
     const fn act(self) -> ActKind {
         match self {
-            Self::Answer => ActKind::Answer,
+            Self::Answer | Self::PersonWords | Self::PersonVerdict => ActKind::Answer,
             Self::LeaveHeld => ActKind::LeaveHeld,
             Self::Take => ActKind::Take,
             Self::HandBack => ActKind::HandBack,
         }
     }
 }
-const CASES: [(Direct, ObjectKey); 4] =
-    [(Direct::Answer, f::QUESTION), (Direct::LeaveHeld, HELD), (Direct::Take, PERSON), (Direct::HandBack, PERSON)];
+const CASES: [(Direct, ObjectKey); 6] = [
+    (Direct::Answer, f::QUESTION),
+    (Direct::PersonWords, PERSON),
+    (Direct::PersonVerdict, PERSON),
+    (Direct::LeaveHeld, HELD),
+    (Direct::Take, PERSON),
+    (Direct::HandBack, PERSON),
+];
 #[test]
-fn each_inbox_act_is_one_keyed_request() {
+fn each_inbox_act_sends_at_most_one_keyed_request() {
     for (case, object) in CASES {
         let act = case.act();
         let page = match case {
             Direct::Answer => f::question(),
+            Direct::PersonWords | Direct::Take | Direct::HandBack => f::person(act),
+            Direct::PersonVerdict => {
+                let c::ReadValue::PersonTask(mut task) = f::person(act) else { panic!("person fixture") };
+                task.contract = c::TaskContractDocument::Verdict { choices: skein_lib::List::uncapped(), cut: false };
+                c::ReadValue::PersonTask(task)
+            }
             Direct::LeaveHeld => f::held(act),
-            Direct::Take | Direct::HandBack => f::person(act),
         };
         let mut pages = f::pages(object, page);
         f::act(&mut pages, Act::CardWords { object, words: Box::from(*b"Because") });
         let expected = match case {
-            Direct::Answer => c::Ask::Answer {
+            Direct::Answer => Some(c::Ask::Answer {
                 project: fixtures::PROJECT,
                 on: c::AnswerOn::Question { task: f::TASK, message: f::MESSAGE, words: f::text(b"Because") },
-            },
-            Direct::LeaveHeld => c::Ask::Decide {
+            }),
+            Direct::PersonWords => Some(c::Ask::Answer {
+                project: fixtures::PROJECT,
+                on: c::AnswerOn::Person {
+                    task: f::TASK,
+                    revision: f::REVISION,
+                    answer: c::PersonAnswer::Words(f::text(b"Because")),
+                },
+            }),
+            Direct::PersonVerdict => None,
+            Direct::LeaveHeld => Some(c::Ask::Decide {
                 project: fixtures::PROJECT,
                 on: c::DecideOn::Escalation {
                     task: f::TASK,
                     revision: f::REVISION,
                     decision: c::Decision::LeftHeld { reason: f::text(b"Because") },
                 },
-            },
-            Direct::Take => c::Ask::Take { project: fixtures::PROJECT, task: f::TASK },
-            Direct::HandBack => c::Ask::HandBack { project: fixtures::PROJECT, task: f::TASK },
+            }),
+            Direct::Take => Some(c::Ask::Take { project: fixtures::PROJECT, task: f::TASK }),
+            Direct::HandBack => Some(c::Ask::HandBack { project: fixtures::PROJECT, task: f::TASK }),
         };
         let mut out = f::act(&mut pages, f::decide(object, act));
-        assert_eq!(f::sent(&mut out).as_ref(), [expected], "{act:?}");
+        assert_eq!(f::sent(&mut out).as_ref(), expected.as_slice(), "{act:?}");
         assert_eq!(f::sent(&mut f::act(&mut pages, f::decide(object, act))).len(), 0, "{act:?}");
     }
 }
@@ -362,34 +384,4 @@ fn only_the_open_reply_uses_long_text() {
     let cards = &pages.inbox().unwrap().cards;
     assert_eq!(cards.get(FIRST_CARD).unwrap().words.as_ref().unwrap().bytes(), &*words);
     assert_eq!(cards.get(1).unwrap().words, None);
-}
-
-#[test]
-fn person_answers_in_words_use_the_shown_revision_and_verdicts_send_nothing() {
-    for verdict in [false, true] {
-        let mut page = f::person(ActKind::Answer);
-        if let c::ReadValue::PersonTask(task) = &mut page
-            && verdict
-        {
-            task.contract = c::TaskContractDocument::Verdict { choices: skein_lib::List::uncapped(), cut: false };
-        }
-        let mut pages = f::pages(PERSON, page);
-        f::act(&mut pages, Act::CardWords { object: PERSON, words: Box::from(*b"Because") });
-        let sent = f::sent(&mut f::act(&mut pages, f::decide(PERSON, ActKind::Answer)));
-        if verdict {
-            assert!(sent.is_empty());
-        } else {
-            assert_eq!(
-                sent.as_ref(),
-                [c::Ask::Answer {
-                    project: fixtures::PROJECT,
-                    on: c::AnswerOn::Person {
-                        task: f::TASK,
-                        revision: f::REVISION,
-                        answer: c::PersonAnswer::Words(f::text(b"Because")),
-                    }
-                }]
-            );
-        }
-    }
 }
