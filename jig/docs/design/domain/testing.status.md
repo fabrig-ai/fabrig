@@ -30,6 +30,8 @@
   and together they fell 181, but D035's own tasks rose 34, where that plan's
   story has about 200 down: the client's sweep rose 158 and the people's 61, and
   the core's fell 139; no reason is recorded.
+  9: the store world's whole sweeps of a generation's, a patch's, a check's and
+  a patched read's cuts still run in focused, under their old names.
   9: the focused suite's fit within 30 CPU s is unproved. The
   `jig-world-cost` request expects further cost repairs beyond its five items;
   their whole-suite effect, and fuzzy's fit with the moved sweeps and

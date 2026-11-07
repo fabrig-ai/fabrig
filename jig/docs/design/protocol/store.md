@@ -2330,9 +2330,11 @@ Each within jig's suites' budgets.
   world, whose store closes the window by the walk itself: smith's
   fixture turn kept at one text, and a patch marked fresh that changes
   no family. Generation, upgrade, check and frame scenarios run in the focused
-  `jig-store-world::suite` binary, with short cases as data rows. The copy's
-  mutation cuts belong to `patching::every_patch_write_cut_recovers_all_records_and_no_stray`;
-  `upgrades::check::cuts_across_check_and_switch_recover_whole_maps` starts
+  `jig-store-world::suite` binary, with short cases as data rows and a few
+  cuts chosen for what a cut there can lose (`../domain/testing.md`, 9). Their
+  whole sweeps are under `fuzzy::` in that binary. The copy's
+  mutation cuts belong to `fuzzy::patching::every_patch_write_cut_recovers_all_records_and_no_stray`;
+  `fuzzy::upgrades::cuts_across_check_and_switch_recover_whole_maps` starts
   at the seal's sync and cuts every operation through the check and switch.
   Frame and mark scenarios kept above step tests prove durable files or
   proofs across restart; decoder-only duplicates stay in the step tests.
