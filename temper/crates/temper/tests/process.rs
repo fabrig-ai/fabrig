@@ -573,8 +573,7 @@ fn a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_la
         let support::first_repository::Evidence { address, version, .. } = evidence;
         let version = version.unwrap_or_else(|why| panic!("{run}: live Forgejo version: {why:?}; box: {stderr}"));
         assert_eq!(version["version"].as_str().expect("version").split('+').next(), Some(VERSION));
-        let link = support::printed_link(&ended.stdout).expect("box sign-in link");
-        assert_eq!(ended.stdout, [link, b"\n"].concat(), "one printed link");
+        support::assert_one_printed_link(run, &ended.stdout, &ended.stderr);
         assert_eq!(support::boxed::status(address, "/api/v1/version"), None, "Forgejo stopped with its box");
         assert_cache_untouched(&cached, &sources);
         if run == "first" {
@@ -700,8 +699,7 @@ fn a_persons_plan_change_lands_on_the_owned_forge_and_is_found_after_a_restart()
         // After the restart, the chat's lost attempt answers again, then Close's
         // finish request takes its last text.
         forge_land::assert_requests(&seen, if first { 8 } else { 2 }, words.as_bytes(), first);
-        let link = support::printed_link(&outcome.stdout).expect("printed link");
-        assert_eq!(outcome.stdout, [link, b"\n"].concat(), "one printed link");
+        support::assert_one_printed_link(run, &outcome.stdout, &outcome.stderr);
         assert_eq!(support::boxed::status(evidence.address, "/api/v1/version"), None);
         assert_eq!(
             evidence.version.expect("live Forgejo")["version"].as_str().expect("version").split('+').next(),
