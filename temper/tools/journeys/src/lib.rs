@@ -10,6 +10,7 @@ use temper_client_shell_web::journey::{self, Stale};
 pub mod again;
 pub mod print;
 pub mod tui;
+pub mod tui_again;
 /// Where the TUI journeys live (temper/docs/design/client/tui/journeys.md, 6.1).
 pub const TUI_JOURNEYS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/design/client/tui/journeys");
 /// Where the journeys live, by the manifest's path (client/journeys.md, 5.1).
@@ -21,6 +22,8 @@ pub enum Refusal {
     OtherClient { name: String },
     TuiProof { name: String, refusal: temper_client_shell_tui::journey::Refusal },
     TuiFound { name: String, found: temper_client_shell_tui::journey::Found, file: Option<String> },
+    TuiWalk { name: String, unreadable: temper_client_shell_tui::journey::Unreadable },
+    TuiAgain { name: String, step: u32, report: String },
     SetupUnreadable { name: String, unreadable: journey::Unreadable },
     SetupAfter { name: String, after: String, why: &'static str },
     SetupTimeout { name: String, setup: String, line: u32, sought: String },

@@ -8,7 +8,7 @@ use std::{
     process::{self, Command},
 };
 use temper_client_journeys::again::{self, Paths};
-use temper_client_journeys::{JOURNEYS, Refusal, TUI_JOURNEYS, add_to, named, reprint, tui};
+use temper_client_journeys::{JOURNEYS, Refusal, TUI_JOURNEYS, add_to, named, reprint, tui, tui_again};
 use temper_client_shell_web::journey;
 
 fn main() {
@@ -107,17 +107,31 @@ fn add_arguments(arguments: &[OsString]) -> Result<bool, String> {
 }
 
 fn record_again(name: &str) -> Result<(), String> {
+    if !named(name) {
+        return Err(refusal(Refusal::Name(name.to_owned())));
+    }
+    let is_tui = Path::new(TUI_JOURNEYS).join(name).join("walk").exists();
     // Unwalkable journeys are refused before starting the builds or either child.
-    let _steps = again::starting(Path::new(JOURNEYS), name).map_err(refusal)?;
-    let _setup = again::setup(Path::new(JOURNEYS), name).map_err(refusal)?;
+    let tui_steps = if is_tui {
+        Some(tui_again::starting(Path::new(TUI_JOURNEYS), name).map_err(refusal)?)
+    } else {
+        let _steps = again::starting(Path::new(JOURNEYS), name).map_err(refusal)?;
+        let _setup = again::setup(Path::new(JOURNEYS), name).map_err(refusal)?;
+        None
+    };
     let chromium = env::var_os("SKEIN_TEST_CHROMIUM")
         .ok_or_else(|| format!("{name}: set SKEIN_TEST_CHROMIUM to the Chromium binary"))?;
     let chromium = fs::canonicalize(&chromium)
         .map_err(|error| format!("{name}: cannot open Chromium {}: {error}", Path::new(&chromium).display()))?;
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let scratch = scratch().map_err(|error| format!("{name}: cannot make a fresh scratch directory: {error}"))?;
-    let result = build(&root, &scratch, chromium)
-        .and_then(|paths| again::again(Path::new(JOURNEYS), name, &paths).map_err(refusal));
+    let result = build(&root, &scratch, chromium, is_tui).and_then(|paths| {
+        if let Some(steps) = tui_steps {
+            tui_again::again(Path::new(JOURNEYS), Path::new(TUI_JOURNEYS), name, &steps, &paths).map_err(refusal)
+        } else {
+            again::again(Path::new(JOURNEYS), name, &paths).map_err(refusal)
+        }
+    });
     match result {
         Ok(()) => fs::remove_dir_all(&scratch)
             .map_err(|error| format!("{name}: cannot remove scratch directory {}: {error}", scratch.display())),
@@ -138,24 +152,23 @@ fn scratch() -> io::Result<PathBuf> {
     Err(io::Error::new(io::ErrorKind::AlreadyExists, "no fresh journey directory name"))
 }
 
-fn build(root: &Path, scratch: &Path, chromium: PathBuf) -> Result<Paths, String> {
-    let status = Command::new("cargo")
-        .current_dir(root)
-        .env("TEMPER_BUNDLE", "none")
-        .args(["build", "-p", "temper", "-p", "smith-fake-claude"])
-        .status()
-        .map_err(|error| format!("cannot start cargo build: {error}"))?;
+fn build(root: &Path, scratch: &Path, chromium: PathBuf, is_tui: bool) -> Result<Paths, String> {
+    let mut cargo = Command::new("cargo");
+    cargo.current_dir(root).env("TEMPER_BUNDLE", "none").args(["build", "-p", "temper", "-p", "smith-fake-claude"]);
+    if is_tui {
+        cargo.args(["--features", "temper/record"]);
+    }
+    let status = cargo.status().map_err(|error| format!("cannot start cargo build: {error}"))?;
     if !status.success() {
         return Err(format!("cargo build failed: {status}"));
     }
     let bundle = scratch.join("bundle");
-    let status = Command::new(root.join("scripts/bundle.sh"))
-        .current_dir(root)
-        .env("TEMPER_BUNDLE", "none")
-        .args(["--loopback", "--record"])
-        .arg(&bundle)
-        .status()
-        .map_err(|error| format!("cannot start scripts/bundle.sh: {error}"))?;
+    let mut bundler = Command::new(root.join("scripts/bundle.sh"));
+    bundler.current_dir(root).env("TEMPER_BUNDLE", "none").arg("--loopback");
+    if !is_tui {
+        bundler.arg("--record");
+    }
+    let status = bundler.arg(&bundle).status().map_err(|error| format!("cannot start scripts/bundle.sh: {error}"))?;
     if !status.success() {
         return Err(format!("scripts/bundle.sh failed: {status}"));
     }
@@ -200,6 +213,10 @@ fn reprint_all() -> Result<bool, String> {
 
 fn refusal(why: Refusal) -> String {
     match why {
+        Refusal::TuiWalk { name, unreadable } => {
+            format!("{name}/walk is unreadable at line {}: {}", unreadable.line, unreadable.why)
+        }
+        Refusal::TuiAgain { name, step, report } => format!("{name} at step {step}: {report}"),
         Refusal::OtherClient { name } => format!("{name} belongs to the other client's journey directory"),
         Refusal::TuiProof { name, refusal } => match refusal {
             temper_client_shell_tui::journey::Refusal::Unreadable(why) => {
