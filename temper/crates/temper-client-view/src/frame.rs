@@ -963,6 +963,8 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
         Some(me) => me.needs_total,
         None => 0,
     };
+    let count =
+        count.saturating_add(u32::try_from(root.forge().approvals().rows().len()).expect("bounded approval rows"));
     let name = if count == 0 {
         words.say(crate::words::Word::InboxTitle, &[])
     } else {

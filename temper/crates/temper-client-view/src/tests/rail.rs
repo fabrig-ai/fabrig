@@ -548,11 +548,14 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
     ];
     for address in addresses {
         let (mut root, watch, _, inbox) = f::root_at_with_needs(address.clone(), &f::domain_limits());
-        for (count, cut) in [(0, false), (3, false), (3, true)] {
+        for (inbox_count, cut, approval) in [(0, false, false), (3, false, false), (3, true, false), (2, false, true)] {
+            let count = inbox_count + u32::from(approval);
+            let rows = [super::needs::approval_row()];
+            super::needs::approvals(&mut root, if approval { &rows } else { &[] }, 0);
             let mut me = root.pages().me(root.client()).unwrap().clone();
             me.needs_total = count;
             f::deliver_me(&mut root, watch, me);
-            deliver_count(&mut root, inbox, count, cut);
+            deliver_count(&mut root, inbox, inbox_count, cut);
             for (browser, mut view) in [(false, f::page_view(&root)), (true, f::browser_page_view(&root))] {
                 assert_eq!(skein_ui::outline::check(view.tree()), None, "{address:?}");
                 assert!(!view.tree().nodes().iter().any(|n| n.role == Role::Banner));

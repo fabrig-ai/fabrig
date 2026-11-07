@@ -120,7 +120,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 305;
+pub const N: usize = 307;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -678,6 +678,13 @@ pub fn samples() -> [Sample; N] {
             name: "needs-done",
             world: Solo,
             address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
+            then: Shown,
+        },
+        Sample { name: "needs-approval", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample {
+            name: "needs-approval-no-account",
+            world: Solo,
+            address: Address::Inbox { filter: Filter::ALL },
             then: Shown,
         },
         Sample { name: "needs-proposal", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },

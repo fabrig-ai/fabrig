@@ -37,9 +37,10 @@ pub(crate) fn main(
     bindings: &mut Bindings,
     rows: u32,
     times: &mut Times,
+    sign_in: &crate::forge_sign_in::Forges,
 ) {
     if words.shell == crate::words::Shell::Browser {
-        super::needs::main(b, root, words, bindings, rows, times);
+        super::needs::main(b, root, words, bindings, rows, times, sign_in);
         return;
     }
     b.open(Role::Main);

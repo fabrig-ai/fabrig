@@ -756,6 +756,27 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[Part::Named { role: Role::Link, name: "Home" }],
     },
     Holds {
+        name: "needs-approval",
+        heading: "Approve A change on Forgejo",
+        parts: &[
+            Part::Text { text: "This project's landing rule 1 asks for one approval by an owner." },
+            Part::Text { text: "2 more changes wait behind this one." },
+            Part::Named { role: Role::Link, name: "Review on Forgejo ↗" },
+            Part::Named { role: Role::Button, name: "Open" },
+            Part::Named { role: Role::Button, name: "Later" },
+        ],
+    },
+    Holds {
+        name: "needs-approval-no-account",
+        heading: "Approve A change on GitHub",
+        parts: &[
+            Part::Text { text: "The deployment's landing rule 2 asks for 2 approvals by maintainers; 1 so far." },
+            Part::Text { text: "temper knows no GitHub account of yours, so your review wouldn't count." },
+            Part::Named { role: Role::Button, name: "Open" },
+            Part::Named { role: Role::Button, name: "Later" },
+        ],
+    },
+    Holds {
         name: "needs-proposal",
         heading: "Accept how temper will run your work.",
         parts: &[

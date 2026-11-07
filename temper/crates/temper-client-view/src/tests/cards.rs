@@ -529,7 +529,13 @@ fn draw_settings(root: &d::Domain, card: &d::pages::inbox::Card, replaced: bool)
     assert!(crate::cards::proposal::settings(&mut builder, root, card, &fixtures::words(), &mut bindings, replaced));
     builder.finish()
 }
-fn proposed_values(root: &mut d::Domain, out: &Queue<d::Request>, drafts: bool, route: w::QuestionsRoute) {
+fn proposed_values(
+    root: &mut d::Domain,
+    out: &Queue<d::Request>,
+    drafts: bool,
+    route: w::QuestionsRoute,
+    owned_approval: bool,
+) {
     let mut read = None;
     for request in out {
         if let d::Request::Unlinked {
@@ -573,8 +579,7 @@ fn proposed_values(root: &mut d::Domain, out: &Queue<d::Request>, drafts: bool, 
             .unwrap();
     }
     let answer =
-        w::ProposalItemsAnswer::new(&w::CEILINGS, w::ProposalItemsAnswerParts { items, owned_approval: false })
-            .unwrap();
+        w::ProposalItemsAnswer::new(&w::CEILINGS, w::ProposalItemsAnswerParts { items, owned_approval }).unwrap();
     settings_up(
         root,
         jig_client::Up::ReadDone {
@@ -609,6 +614,42 @@ fn a_settings_proposal_draws_its_title_lines_and_items() {
             assert!(skein_lib::bytes::find(&said, &expected).is_some(), "{expected:?}");
             let node = tree.nodes().iter().find(|n| n.text.iter().any(|run| run.text.as_ref() == expected)).unwrap();
             assert!(node.styles.as_slice().contains(&crate::look::SETTINGS_DETAIL));
+        }
+    }
+    for owned in [Some(false), Some(true), None] {
+        let items =
+            [(c::Setting::Application { kind: 2, scope: fixtures::PROJECT, number: 1 }, c::RevisionItemEdit::Set)];
+        let (mut root, out) = settings_root(settings_page(&items, true));
+        if let Some(owned) = owned {
+            proposed_values(&mut root, &out, true, w::QuestionsRoute::None, owned);
+        }
+        let tree = draw_settings(&root, &settings_card(&root), false);
+        let sentence = b"On this machine temper's agents and CI jobs run as you, so this stops their mistakes, not one trying to get past it.";
+        assert_eq!(
+            skein_lib::bytes::find(&fixtures::text(&tree), sentence).is_some(),
+            owned == Some(true),
+            "owned_approval={owned:?}"
+        );
+        let inbox = super::needs::settings_owned(settings_page(&items, true), owned);
+        let view = fixtures::browser_page_view(&inbox);
+        assert_eq!(
+            skein_lib::bytes::find(&fixtures::main_text(view.tree()), sentence).is_some(),
+            owned == Some(true),
+            "Needs you owned_approval={owned:?}"
+        );
+        if owned == Some(true) {
+            let at = tree
+                .nodes()
+                .iter()
+                .enumerate()
+                .find(|(at, node)| node.role == Role::Paragraph && fixtures::node_text(&tree, *at).as_ref() == sentence)
+                .unwrap()
+                .0;
+            assert!(tree.nodes()[at].styles.as_slice().contains(&crate::look::SETTINGS_PROPOSAL_ITEMS));
+            assert!(tree.nodes().iter().any(|node| node.styles.as_slice().contains(&crate::look::SETTINGS_DETAIL)
+                && node.text.iter().any(|run| run.text.as_ref() == sentence)));
+            assert!(tree.nodes()[..at].iter().any(|node| node.role == Role::List
+                && node.styles.as_slice().contains(&crate::look::SETTINGS_PROPOSAL_ITEMS)));
         }
     }
 }
@@ -654,7 +695,7 @@ fn kinds_six_and_seven_are_named_until_their_values_are_read() {
         let before = fixtures::text(&draw_settings(&root, &settings_card(&root), false));
         assert!(skein_lib::bytes::find(&before, b"project-ways 1").is_some());
         assert!(skein_lib::bytes::find(&before, b"project-questions 1").is_some());
-        proposed_values(&mut root, &out, on, route);
+        proposed_values(&mut root, &out, on, route, false);
         let tree = draw_settings(&root, &settings_card(&root), false);
         let said = fixtures::text(&tree);
         for expected in [
@@ -1028,7 +1069,7 @@ fn a_review_adds_application_and_policy_rows_without_repeating_jigs_heads() {
         (c::Setting::Charter(c::SettingNumber { number: 2 }), c::RevisionItemEdit::Set),
     ];
     let (mut root, out) = settings_root(settings_page(&items, true));
-    proposed_values(&mut root, &out, true, w::QuestionsRoute::None);
+    proposed_values(&mut root, &out, true, w::QuestionsRoute::None, false);
     let tree = draw_settings(&root, &settings_card(&root), false);
     for expected in
         [b"Goals: shown".as_slice(), b"application kind 5, 7, 3 removed", b"project policy 2 reset", b"charter 2"]

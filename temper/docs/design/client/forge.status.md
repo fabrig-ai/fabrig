@@ -24,9 +24,6 @@ stale-proof count draws nothing; a positive count remains (`browser.md`,
   mode, so the client cannot tell selected repositories from all repositories.
   "Not listed" asks the person to check that the repository exists and grant it
   to the App for either mode.
-- **Not yet:** 4.1: no card under Needs you for a change waiting on a review on
-  the forge: no watch of the subject `approvals`, no review link to the pull
-  request's files page, and none on Home or a goal's page.
 - **Not yet:** 2.1: "in GitHub's merge queue, n": `Pull.queued` is not
   read (`../domain/forge.md`, 9.1). 2.3:
   amending a change's gates from its panel. 4: approvals, a person
