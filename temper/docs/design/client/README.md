@@ -5363,10 +5363,11 @@ section 5.
   application's items and project's policies from the proposal's review, and
   those values from the forge's read of a proposal's items under the review's
   `key`, which takes a role in the deployment
-  (`../protocol/configuration.md`, 13.2): without one, or until
-  it is delivered, kinds 6 and 7 are named as `temper ctl` names them. A decided
-  card has no review: it keeps the values it read, and with none draws its heads
-  alone. Then
+  (`../protocol/configuration.md`, 13.2). Until those values arrive, kinds
+  6 and 7 are named as `temper ctl` names them. With no review, no application
+  or project-policy rows can be recovered from the heads. A decided card has
+  no review: it keeps the kind 6 and 7 values it read in this session, and
+  otherwise draws its heads alone. Then
   "Accept", primary, jig's `Decide` with running work staying, and "Change
   something", quiet: it focuses the composer, brings it into view and sets its
   placeholder to "What should change?", until something is sent or the proposal
@@ -6789,6 +6790,17 @@ own tests:
   procedure have no call. Default: keep the call anchor where one is supplied,
   and otherwise place the card by its making line, or its waiting time, as 5.13
   specifies. Filling those call objects is separate work.
+- **Application rows after a decision** (5.13): retaining every application
+  item and project-policy row, and restoring kind 6 and 7 values after a
+  reload, needs more than the session's cached values. A person without a
+  review has no such rows to read. Default: a live card uses its review; an
+  ended card uses its heads and the kind 6 and 7 values already read in this
+  session, with no new proposal-value request.
+- **Latest on a phone, checked by a press** (3.5; the request `ui-proposal-2`
+  of 2026-11-06): after landing, check that Latest's row leaves a card's
+  controls reachable at a phone's width. Default: the stylesheet assertions
+  hold its place in flow in both chats and agent pages; measuring and pressing
+  in a browser follow landing.
 - **The real-model proposal-card walk** (5.13; the request `ui-proposal-card`
   of 2026-11-06): QA repeats the two-proposal, rejection from *Needs you* and
   reload walk at 1440 and 420 pixels on a real model after landing. Default:

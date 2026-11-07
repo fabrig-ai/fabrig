@@ -2,6 +2,16 @@
 
 2026-11-07. Where temper's code lags or departs from [README.md](README.md).
 
+Sections 3.5 and 5.13 have no known implementation gap in replacing a
+proposal through "Change something", drawing live application rows from
+the review under its key, naming templates and proposal activity in the
+person's words, or placing Latest in flow on a phone. The joined client
+world holds replacement and the Goals row through the engine; its stale
+Accept is dropped before jig, whose core world checks the refusal. The
+phone test asserts CSS rules, not measured geometry or a press. The
+after-landing checks and ended-card row retention are section 11's later
+work; no new real-model or phone press outcome is supplied.
+
 - **Not yet:** 3.5, 5.5: no supplied record establishes a real-box walk of
   the offer, effort choice, configuring chat's chooser and connected-account
   starters with a real provider. The `model-picker` account at `1d82a937df` records the picker
@@ -619,9 +629,10 @@
   it there: a person with a lost sign-out may be on any page (6.6). Kind 7's
   controls are disabled together while one is out, where the request disables the
   one pressed: they write one record, so two at once would lose one. And a
-  proposal's card names kinds 6 and 7 as `temper ctl` names them for a person with
-  no role in the deployment, where the request has their values for everyone: a
-  proposal's items span scopes, so their read keeps that role
+  proposal's card has no application rows for a person with no review,
+  including one with no role in the deployment, where the request has their
+  values for everyone: the heads omit application items, and the review and
+  proposal-value read keep the deployment role because items span scopes
   (`../protocol/configuration.md`, 13.2).
 - **Design departs:** 3.5, *The welcome* and *Home*, from the request `ui-welcome`
   of 2026-11-05, decided by its plan's cut. A plan's way at its address, with no
