@@ -260,20 +260,27 @@ fn the_first_256_counts_have_distinct_nonzero_short_forms() {
 }
 
 #[test]
-fn a_changed_mix_count_or_tail_names_no_commit() {
-    for byte in 0..32 {
-        let mut object = routes::object(1);
-        *object.bytes.get_mut(byte).expect("object byte") ^= 1;
-        assert_eq!(routes::commit(&object), None, "byte {byte}");
-    }
+fn invalid_fake_object_spellings_decode_to_no_commit() {
+    skein_rows::check(
+        [
+            ("a_changed_mix_count_or_tail_names_no_commit", (0..32).map(|byte| {
+                let mut object = routes::object(1);
+                *object.bytes.get_mut(byte).expect("object byte") ^= 1;
+                object
+            }).collect::<Vec<_>>()),
+            ("sha256_names_no_commit", { let mut object = routes::object(1);
+                object.format = skein_forge::forgejo::id::ObjectFormat::Sha256;
+                alloc::vec![object] }),
+        ],
+        |objects| {
+            for object in objects {
+                assert_eq!(routes::commit(&object), None);
+            }
+        },
+    );
 }
 
-#[test]
-fn sha256_names_no_commit() {
-    let mut object = routes::object(1);
-    object.format = skein_forge::forgejo::id::ObjectFormat::Sha256;
-    assert_eq!(routes::commit(&object), None, "sha256");
-}
+
 
 #[test]
 fn a_limit_without_a_page_takes_the_default_paging_num() {

@@ -65,6 +65,7 @@ Each task fills its own subsection. Suite totals aren't quoted here: the gate re
 | `skein-forge-machine-world::suite` | `hand::forgejo::*` | 96 | 92 | 4 | 16 | 10.4 |
 | `skein-forge-client` | `tests` | 257 | 206 | 13 | 90 | 76.5 |
 | `skein-oauth-accounts` | `tests` | 161 | 132 | 5 | 34 | 46.4 |
+| `skein-fake-forge-forgejo` | `tests` | 227 | 210 | 13 | 30 | 30.6 |
 
 Left apart:
 
@@ -72,6 +73,7 @@ Left apart:
 - `hand::github::*` and `hand::forgejo::*`: heap/process meters, distinct call, renewal, discovery, pull, read and write contracts and existing tables remain separate. Four transport-start wrappers keep their reset IO body; the four HTTP-start wrappers share response IO. Six stale-token wrappers share one loss helper rather than the survey’s two tables. Shared bodies strengthen the common revision, probe-count, range and empty-log checks.
 - `skein-forge-client::tests`: all 13 surveyed groups fold; other lifecycle, cache, outbox, queue, recovery, settlement and bound tests retain distinct operations or extra checks. Existing tables remain. The byte-case fixtures now carry Answer values rather than callbacks, and the unused bad_live wrapper is removed.
 - `skein-oauth-accounts::tests`: all five surveyed groups fold. Sign-in, persistence, grant, refresh, cancellation, listener and shared-owner paths with distinct assertions, heap checks and existing tables stay apart.
+- `skein-fake-forge-forgejo::tests`: all 13 surveyed groups fold. Push signing/head, failed-job and deleted-branch hooks have different checks and stay separate; so do other authentication, route, pagination, write and response contracts and existing tables.
 
 ### rows-forge
 

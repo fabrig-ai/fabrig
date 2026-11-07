@@ -3035,6 +3035,7 @@ dependencies = [
  "skein-http",
  "skein-json",
  "skein-lib",
+ "skein-rows",
 ]
 
 [[package]]

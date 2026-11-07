@@ -130,31 +130,27 @@ fn setup_by_id_reads_lent_settings_and_keeps_the_unhosted_default() {
 }
 
 #[test]
-fn admin_reads_a_public_repository_from_setup() {
-    let mut h = harness();
-    h.send(&by_id());
-    assert_eq!(h.decoded(&by_id()).document, expected_repository(2, b"acme", b"http://127.0.0.1:3000/acme/widgets"));
-    assert_eq!(h.calls, 0);
+fn admin_repository_reads_use_setup_without_domain_calls() {
+    skein_rows::check(
+        [
+            ("admin_reads_a_public_repository_from_setup", (&[][..], by_id(), expected_repository(2, b"acme", b"http://127.0.0.1:3000/acme/widgets"))),
+            ("admin_reads_another_owners_private_repository", (&[u64::from(OTHER)][..], Request::RepositoryById { id: u64::from(OTHER) }, expected_repository(3, b"bob", b"http://127.0.0.1:3000/bob/widgets"))),
+            ("admin_reads_another_owners_private_repository_by_path_without_a_domain_grant", (&[u64::from(OTHER)][..], Request::Repository { at: other() }, expected_repository(3, b"bob", b"http://127.0.0.1:3000/bob/widgets"))),
+        ],
+        |(private, request, document)| {
+            let mut h = harness();
+            for &id in private {
+                h.service.setup_mut().private(id).unwrap();
+            }
+            h.send(&request);
+            assert_eq!(h.status(), 200);
+            assert_eq!(h.decoded(&request).document, document);
+            assert_eq!(h.calls, 0);
+        },
+    );
 }
-#[test]
-fn admin_reads_another_owners_private_repository() {
-    let mut h = harness();
-    h.service.setup_mut().private(u64::from(OTHER)).unwrap();
-    let request = Request::RepositoryById { id: u64::from(OTHER) };
-    h.send(&request);
-    assert_eq!(h.decoded(&request).document, expected_repository(3, b"bob", b"http://127.0.0.1:3000/bob/widgets"));
-    assert_eq!(h.calls, 0);
-}
-#[test]
-fn admin_reads_another_owners_private_repository_by_path_without_a_domain_grant() {
-    let mut h = harness();
-    h.service.setup_mut().private(u64::from(OTHER)).unwrap();
-    let request = Request::Repository { at: other() };
-    h.send(&request);
-    assert_eq!(h.status(), 200);
-    assert_eq!(h.decoded(&request).document, expected_repository(3, b"bob", b"http://127.0.0.1:3000/bob/widgets"));
-    assert_eq!(h.calls, 0);
-}
+
+
 #[test]
 fn non_admin_repository_path_read_reaches_the_domain() {
     let mut h = plain(&[b"all"]);
@@ -209,34 +205,39 @@ fn owner_reads_a_private_repository_by_id() {
     assert_eq!(h.status(), 200);
 }
 #[test]
-fn config_token_repository_read_reaches_the_domain() {
-    let mut h = Harness::new(fixtures::config());
-    h.send(&by_id());
-    assert_eq!(h.status(), 200);
-    assert_eq!(h.calls, 1);
+fn config_token_setup_reads_pass_through_the_domain_once() {
+    skein_rows::check(
+        [
+            ("config_token_repository_read_reaches_the_domain", by_id()),
+            ("config_token_permission_read_reaches_the_domain", Request::Permission { at: fixtures::at(), login: boxed(b"person") }),
+        ],
+        |request| {
+            let mut h = Harness::new(fixtures::config());
+            h.send(&request);
+            assert_eq!(h.status(), 200);
+            assert_eq!(h.calls, 1);
+        },
+    );
 }
+
 #[test]
-fn config_token_permission_read_reaches_the_domain() {
-    let mut h = Harness::new(fixtures::config());
-    h.send(&Request::Permission { at: fixtures::at(), login: boxed(b"person") });
-    assert_eq!(h.status(), 200);
-    assert_eq!(h.calls, 1);
+fn permission_reads_return_the_latest_collaborator_put_value() {
+    skein_rows::check(
+        [
+            ("permission_reads_back_a_collaborator_put", (&[Grant::Write][..], d::Permission::Write)),
+            ("permission_reads_back_a_downgraded_collaborator_put", (&[Grant::Write, Grant::Read][..], d::Permission::Read)),
+        ],
+        |(grants, permission)| {
+            let mut h = harness();
+            for &permission in grants {
+                h.send(&Request::AddCollaborator { at: repo(), login: boxed(b"bob"), permission });
+            }
+            assert_eq!(read_permission(&mut h, b"bob").permission, permission);
+            assert_eq!(h.calls, 0);
+        },
+    );
 }
-#[test]
-fn permission_reads_back_a_collaborator_put() {
-    let mut h = harness();
-    h.send(&Request::AddCollaborator { at: repo(), login: boxed(b"bob"), permission: Grant::Write });
-    assert_eq!(read_permission(&mut h, b"bob").permission, d::Permission::Write);
-    assert_eq!(h.calls, 0);
-}
-#[test]
-fn permission_reads_back_a_downgraded_collaborator_put() {
-    let mut h = harness();
-    for permission in [Grant::Write, Grant::Read] {
-        h.send(&Request::AddCollaborator { at: repo(), login: boxed(b"bob"), permission });
-    }
-    assert_eq!(read_permission(&mut h, b"bob").permission, d::Permission::Read);
-}
+
 #[test]
 fn public_non_collaborator_has_no_setup_permission() {
     let mut h = harness();
@@ -277,19 +278,21 @@ fn team(h: &mut Harness, access: d::Access) {
     h.service.setup_mut().member(id, BOB);
 }
 #[test]
-fn organization_team_permission_is_read_from_setup() {
-    let mut h = harness();
-    team(&mut h, d::Access::Write);
-    grant(&mut h, b"bob", Grant::Read);
-    assert_eq!(read_permission(&mut h, b"bob").permission, d::Permission::Write);
+fn effective_permission_takes_the_stronger_direct_or_team_grant() {
+    skein_rows::check(
+        [
+            ("organization_team_permission_is_read_from_setup", (d::Access::Write, Grant::Read, d::Permission::Write)),
+            ("direct_grant_above_a_team_permission_wins", (d::Access::Read, Grant::Admin, d::Permission::Admin)),
+        ],
+        |(access, direct, permission)| {
+            let mut h = harness();
+            team(&mut h, access);
+            grant(&mut h, b"bob", direct);
+            assert_eq!(read_permission(&mut h, b"bob").permission, permission);
+        },
+    );
 }
-#[test]
-fn direct_grant_above_a_team_permission_wins() {
-    let mut h = harness();
-    team(&mut h, d::Access::Read);
-    grant(&mut h, b"bob", Grant::Admin);
-    assert_eq!(read_permission(&mut h, b"bob").permission, d::Permission::Admin);
-}
+
 #[test]
 fn organization_team_reads_a_private_repository() {
     let mut h = plain(&[b"all"]);
@@ -299,20 +302,20 @@ fn organization_team_reads_a_private_repository() {
     assert_eq!(h.status(), 200);
 }
 #[test]
-fn permission_of_an_unknown_login_is_not_found() {
-    let mut h = harness();
-    h.send(&permission(b"widgets"));
-    assert_eq!(h.status(), 404);
+fn permission_reads_refuse_unknown_repository_or_user_identities() {
+    skein_rows::check(
+        [
+            ("permission_of_an_unknown_login_is_not_found", permission(b"widgets")),
+            ("permission_of_an_unknown_repository_is_not_found", Request::Permission { at: skein_forge::forgejo::request::Repo { owner: boxed(b"alice"), ..repo() }, login: boxed(b"bob") }),
+        ],
+        |request| {
+            let mut h = harness();
+            h.send(&request);
+            assert_eq!(h.status(), 404);
+        },
+    );
 }
-#[test]
-fn permission_of_an_unknown_repository_is_not_found() {
-    let mut h = harness();
-    h.send(&Request::Permission {
-        at: skein_forge::forgejo::request::Repo { owner: boxed(b"alice"), ..repo() },
-        login: boxed(b"bob"),
-    });
-    assert_eq!(h.status(), 404);
-}
+
 #[test]
 fn plain_account_cannot_query_another_logins_permission() {
     let mut h = plain(&[b"all"]);
@@ -395,12 +398,19 @@ fn full_grant_table_refuses_a_new_scenario_grant() {
 }
 
 #[test]
-fn scenario_grant_refuses_a_login_past_its_bound() {
-    let mut h = harness();
-    let length = usize::try_from(h.env.limits.documents.string_bytes).unwrap().saturating_add(1);
-    let login = scenario_login(length);
-    assert_eq!(h.service.setup_mut().grant(REPOSITORY, &login, Grant::Read), Err(crate::Error::Limits));
-    assert_eq!(h.service.setup().collaborator(REPOSITORY, &login), None);
+fn scenario_grants_enforce_the_configured_login_byte_bound() {
+    skein_rows::check(
+        [
+            ("scenario_grant_refuses_a_login_past_its_bound", (usize::try_from(fixtures::limits().documents.string_bytes).unwrap().saturating_add(1), Err(crate::Error::Limits), None)),
+            ("scenario_grant_accepts_a_login_at_its_bound", (usize::try_from(fixtures::limits().documents.string_bytes).unwrap(), Ok(()), Some(Grant::Read))),
+        ],
+        |(length, result, grant)| {
+            let mut h = harness();
+            let login = scenario_login(length);
+            assert_eq!(h.service.setup_mut().grant(REPOSITORY, &login, Grant::Read), result);
+            assert_eq!(h.service.setup().collaborator(REPOSITORY, &login), grant);
+        },
+    );
 }
 
 fn scenario_login(length: usize) -> Box<[u8]> {
@@ -408,13 +418,7 @@ fn scenario_login(length: usize) -> Box<[u8]> {
     login.fill(b'a');
     login
 }
-#[test]
-fn scenario_grant_accepts_a_login_at_its_bound() {
-    let mut h = harness();
-    let login = scenario_login(usize::try_from(h.env.limits.documents.string_bytes).unwrap());
-    assert_eq!(h.service.setup_mut().grant(REPOSITORY, &login, Grant::Read), Ok(()));
-    assert_eq!(h.service.setup().collaborator(REPOSITORY, &login), Some(Grant::Read));
-}
+
 
 fn created_bot(h: &mut Harness) -> d::User {
     let request = Request::CreateUser {
