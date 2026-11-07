@@ -38,8 +38,9 @@ fn retired_chat_style_slots_stay_reserved() {
 
 #[test]
 fn navigation_links_have_addresses_and_install_action_links_keep_their_binding() {
+    let inputs = ViewInputs::new();
     for sample in samples::samples() {
-        let mut view = view(&sample);
+        let mut view = built_with(&sample, inputs.clone()).0;
         let mut links = Vec::new();
         for node in view.tree().nodes() {
             if node.role == Role::Link {
@@ -2702,20 +2703,22 @@ const SPENDS: [(&str, Role, &str); 46] = [
 ];
 #[test]
 fn each_chat_reads_its_allotment() {
+    let inputs = ViewInputs::new();
     for sample in samples::samples() {
         if (sample.name.starts_with("chat-") || matches!(sample.name, "chats-reference" | "chats-solo"))
             && !matches!(sample.address, temper_client_domain::Address::NewChat { .. })
         {
             let (_, role, spend) = SPENDS.iter().find(|row| row.0 == sample.name).expect("sample's spend row");
-            let view = view(&sample);
+            let view = built_with(&sample, inputs.clone()).0;
             find(view.tree(), *role, spend, sample.name);
         }
     }
 }
 #[test]
 fn no_state_reads_of_zero() {
+    let inputs = ViewInputs::new();
     for sample in samples::samples() {
-        let view = view(&sample);
+        let view = built_with(&sample, inputs.clone()).0;
         for node in view.tree().nodes() {
             let mut text = Vec::new();
             for run in &node.text {
@@ -2737,8 +2740,9 @@ fn no_state_reads_of_zero() {
 // is more words; recommended/default tags and All models' count are intentional children (temper/docs/design/client/README.md, 3.5).
 #[test]
 fn no_named_control_draws_a_text_child_in_any_state() {
+    let inputs = ViewInputs::new();
     for sample in samples::samples() {
-        let view = view(&sample);
+        let view = built_with(&sample, inputs.clone()).0;
         let nodes = view.tree().nodes();
         for (index, node) in nodes.iter().enumerate() {
             if node.name.is_none() || !matches!(node.role, Role::Button | Role::Tab | Role::Option) {
@@ -2791,6 +2795,7 @@ fn find(tree: &skein_ui::Tree, role: Role, name: &str, sample: &str) -> skein_ui
 #[test]
 #[expect(clippy::too_many_lines, reason = "the gallery table walk checks each kind of named part")]
 fn each_state_holds_what_its_name_says() {
+    let inputs = ViewInputs::new();
     for sample in samples::samples() {
         let mut row = None;
         for holds in &HOLDS {
@@ -2800,7 +2805,7 @@ fn each_state_holds_what_its_name_says() {
             }
         }
         let row = row.expect("every sample has a HOLDS row");
-        let view = view(&sample);
+        let view = built_with(&sample, inputs.clone()).0;
         let tree = view.tree();
         let mut main = TreeFace::new(tree);
         let h1 = in_main(Role::Heading { level: 1 }, row.heading);
