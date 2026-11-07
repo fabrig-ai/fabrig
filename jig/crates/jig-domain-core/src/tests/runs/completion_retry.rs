@@ -23,6 +23,7 @@ fn current_stream(out: &[Request]) -> &Request {
                 Now::Link(_)
                 | Now::EffectAnswer { .. }
                 | Now::TaskRead { .. }
+                | Now::ProposalRead { .. }
                 | Now::SettingsAnswer { .. }
                 | Now::SettledCallRefused { .. }
                 | Now::Call { .. }

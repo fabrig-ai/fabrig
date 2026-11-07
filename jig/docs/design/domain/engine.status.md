@@ -172,6 +172,3 @@ and catalogue-number reuse remain section 16's open questions.
   whether a capacity check is missing or the expectation is wrong, and
   whether this departs, is the designer's decision: it is a bug if the
   design requires `Full` in this case; no reason is recorded.
-- **Not yet:** 7.3: a run's `settings` family reads no proposal of settings, a
-  task's or a party's: the core has no such read for a run
-  (`jig-domain-core/src/reads/settings.rs`).

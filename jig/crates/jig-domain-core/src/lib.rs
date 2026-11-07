@@ -74,7 +74,7 @@ pub use crate::{
         PublicAnswer, PublicApplication, PublicBoard, PublicCard, PublicCounts, PublicDocument, PublicExecutor,
         PublicGoal, PublicHold, PublicLine, PublicPhase, PublicProject, PublicProjects, PublicRead,
     },
-    reads::{SettingsAnswer, SettingsRead},
+    reads::{ProposalRead, SettingsAnswer, SettingsRead},
     routing::{
         fire, resume_fleet,
         sibling_routes::{MadeRoute, PersonMessage, SentRoute},

@@ -701,6 +701,16 @@ fn hold_owner(task: u64, hold: u64, revision: u64, owner: &jig_domain_people::Ho
     )
 }
 
+/// A proposal read's one-line host answer (engine.md, 7.3).
+#[must_use]
+pub fn proposal_read(answer: &core::ProposalRead) -> Rendered {
+    match answer {
+        core::ProposalRead::Waiting(_) => text(&[b"Proposal waiting"], false),
+        core::ProposalRead::Decided(_) => text(&[b"Proposal decided"], false),
+        core::ProposalRead::Unknown => text(&[b"Unknown proposal"], true),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
