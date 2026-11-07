@@ -1,6 +1,6 @@
 # The browser
 
-Provisional, 2026-10-05, revised 2026-11-06. temper's browser client: a
+Provisional, 2026-10-05, revised 2026-11-07. temper's browser client: a
 second shell of temper's client (`README.md`), beside the terminal, on
 skein's browser parts. What its pages do is the client's (`README.md`;
 `forge.md`). The greenfield mock (`greenfield/README.md`) is the look's
@@ -1001,19 +1001,19 @@ its own sent to the provider's address while the page stays
 a press opening a tab within its gesture, the answer pointing it, the
 provider's redirect followed to the engine's listener in that tab, and
 the page, which stayed, drawing the end.
-- **Against:** `temper serve` with its OpenAI provider's issuer, its
-  authorization, token and key addresses, skein's fake issuer
+- **Against:** `temper serve` with two synthetic providers sharing an issuer,
+  its authorization, token and key addresses, skein's fake issuer
   (`skein_fake_peers::oauth::Peer`), hosted on loopback in the
   harness's loop, each grant a success for one synthetic subject, and
   the provider's redirect port the kernel's (the listener's port
   varies). The fake has no TLS, so the tier's bundle is built with
   skein-ui-web's `loopback-navigation` (4.3).
-- **The story:** a person on `ConnectModel`'s Choose presses "Continue
-  with ChatGPT"; one more tab opens (skein's `ui-web.md`, 14.2, Its tabs),
+- **The story:** a person on `ConnectModel` presses "Sign in to Test provider";
+  one more tab opens (skein's `ui-web.md`, 14.2, Its tabs),
   which can't reach its opener by the time it's at the listener, its
   address the listener's; the page's own address reads
-  `/accounts/connect?provider=1&way=sign-in&source=S`, in place of the
-  entry it had; the page shows Ready ("Signed in to ChatGPT"); the fake
+  `/accounts/connect?provider=17&way=sign-in&source=S`, in place of the
+  entry it had; the page shows Ready ("Signed in to Test provider"); the fake
   has taken one authorization and one code exchange. A reload then shows
   Ready again and the issuer has taken no second authorization: the tab
   is pointed once.
@@ -1021,8 +1021,9 @@ the page, which stayed, drawing the end.
   press holds the welcome at `/welcome?at=model`, and it moves on to Ready
   by itself, `/welcome?at=ready`, with one authorization and one code
   exchange of its own. It runs first in this story's test (4.6, 9), on a
-  second provider of the same issuer: the issuer's one subject signing in
-  twice on one provider renews its account, in other words than Ready's
+  second provider of the same issuer, Welcome provider (18), with a model of
+  its own: the issuer's one subject signing in twice on one provider renews
+  its account, in other words than Ready's
   (`README.md`, 5.5), and a usable model leaves the welcome no sign-in to
   press. Each sign-in keeps its tab, so the story ends with two.
   The client world's `suite::second_sign_in` holds that the second provider's
@@ -1187,7 +1188,23 @@ One test, the provider's (`../protocol/sign-in.md`, 9.8).
 The tier's tests, each on its own `temper serve` (the playground's on its
 built playground; 2 and 11, 13 and 14 on `temper box`, whose first run is
 over). Each is one test of the steps it names; 2 and 11 share one, and 4 and
-5 another:
+5 another. The twelve test functions in `tests/client-browser/tests/browser_all`
+are:
+
+| Stories below | Module | Test |
+|---|---|---|
+| 1 | `browser_sign_in` | `signing_in_reloading_reconnecting_and_signing_out_keep_the_cookie_contract` |
+| 2 and 11 | `browser_pages` | `history_keeps_the_chat_focus_and_filter_across_reload_and_back` |
+| 4 and 5 | `browser_pages` | `enter_starts_one_chat_and_the_composer_keeps_the_focus` |
+| 6 | `browser_attacks` | `cross_origin_requests_and_framing_cannot_act_as_the_person` |
+| 7 | `browser_authorize` | `a_cross_site_authorization_returns_a_code_and_the_links_state` |
+| 8 | `browser_accounts` | `the_accounts_page_returns_after_a_key_send` |
+| 9 | `browser_accounts` | `the_sign_in_opens_a_tab_and_the_page_moves_on_to_ready` |
+| 10 | `browser_github` | `the_manifest_posts_once_and_history_waits_for_continue` |
+| 12 | `browser_playground` | `story_a_walks_on_the_built_playground` |
+| 13 | `browser_public` | `public_board_and_task_lines_are_readable_at_desktop_and_phone_widths` |
+| 14 | `browser_pages` | `a_chat_opens_at_its_end_and_reads_back_keeping_its_place` |
+| 15 | `browser_pages` | `closing_project_rename_returns_focus_to_the_summary` |
 
 1. **Signing in** (4.1, 1): the printed link signs in, a reload on a
    chat signs in by the cookie, and the link spent shows the
@@ -1376,6 +1393,13 @@ Not in the tier, each in the lowest world that shows it:
   before dropping a browser-only proof. Default: keep the CPU budget, timeouts,
   membership and cap; the four reading stories retain their layout, focus and
   scroll proofs. A whole-tier run after landing decides its remaining cost.
+- **Merged stories after landing** (4.2, 4.3, 4.6): check the call line's
+  open node across a reply, the composer's model picker, both sign-in tabs
+  with the welcome first, and reading's four page loads with anchoring off
+  only for the position story. Default: compile during the plan; run in
+  Chromium after landing, preserving every assertion, the forty-second
+  run deadline and the whole tier's 85 CPU-second budget. A whole-tier
+  run supplies the cost proof; separate story measurements do not.
 - **Reading's test past its run's forty seconds** (4.3; 4.6, 14). Default: it
   becomes two tests, the long chat's apart, and test 15, which shares its setup
   with 4 and 5, becomes a step of theirs, so that the tier stays at twelve.
