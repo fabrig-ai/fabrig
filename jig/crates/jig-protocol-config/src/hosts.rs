@@ -3,12 +3,12 @@ use crate::{Address, Directories, Directory, Limits, Path, Problems, Segment, Wh
 use alloc::boxed::Box;
 use skein_json::Document;
 use skein_lib::List;
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Hosts {
     pub workers: Box<[WorkerName]>,
     pub listener: Box<[Address]>,
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct WorkerName {
     pub name: Box<[u8]>,
     pub digest: Box<[u8]>,

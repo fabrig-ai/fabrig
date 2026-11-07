@@ -10,6 +10,12 @@ use jig_test_domain as root;
 use skein_lib::{Duration, Rng, length::len_u64};
 use support::*;
 
+#[test]
+fn a_standard_profile_s_whole_room_of_answers_stays_under_the_heap_ceiling_and_restarts() {
+    // Standard's whole room holds four times Small's retained answers under the heap ceiling.
+    support::whole_room_of_answers(jig_protocol_config::Profile::Standard);
+}
+
 fn agree(world: &jig_core_world::world::World) {
     let current = world.domain.settings();
     let mut expected = std::collections::BTreeMap::new();

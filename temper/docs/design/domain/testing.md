@@ -2774,6 +2774,51 @@ scripts/proof-live.sh               the live tier
 
 ## 11. Later
 
+- **Further fixture and startup cost reductions** (2.1, 2.3, 6.1):
+  follow testing-strategy.md, 8 and 8.1, with unchanged behaviour,
+  assertions, suites, build settings and budgets. A process-wide cache
+  cannot remove the first construction in each test process. Work beyond
+  the small fixture repairs needs these mechanisms:
+  - Configuration: a checked generated stock representation or cheaper
+    parsing and validation; sharing a bounded parsed startup document
+    between its consumers while preserving diagnostic order; cheaper
+    stock edits, init generation and measured turn-bound encoding.
+  - Service and engine construction: shared checked admission results
+    and cheaper owned policy/configuration snapshots; complete durable
+    first-start rows checked against the real two-commit start; a hosted
+    store constructor over supplied maps, retaining secret exchanges;
+    shared checked sizing translations and generated bound validation.
+    A consuming restart transfer must preserve the retained driver's
+    independent oracle; reusable store transfer still needs replacement
+    storage.
+  - Store execution: borrowed row translation and commit encoding,
+    cheaper independent history/mirror/inflight ownership, and batched
+    restore/map reads preserving encoded bounds, lookahead, first-row
+    refusals and corruption diagnostics. Engine decisions, page readback
+    and the independent restart and final-store oracle remain exercised.
+  - Words: checked ordered vocabulary construction, fewer nested owned
+    allocations and clones, and shared capacity/presence/maximum scans
+    that still detect public vocabulary mutation, missing words and
+    overflow. Fusing validation passes must preserve whole-load error
+    precedence, every form and hole, and bounded occurrence counters.
+  - Drawing: indexed semantic-tree matching that retains stable keyed
+    and role identities and exact patches; incremental application and
+    checking that retains an independent patch oracle. Domain setup and
+    rendering consumed by assertions still run, with the complete View
+    in drawing stories.
+  - Small setup and command costs: paired configurations, piece copies,
+    idle bookkeeping, referee/default words, fakes, components and engine
+    limits; Face and connection settling, routing and manifest work;
+    process configuration templates and runtime-path scripts. Required
+    GitHub signing needs cryptographic work or a separately justified
+    seam preserving authentication. File/exec kernel cost needs its own
+    measurement. Loader/process floors require separate binary/loader
+    work; cheap rule assertions remain the behaviour checked.
+  Default: retain these paths and their proofs until a profile justifies
+  the required interface, representation or algorithm change. Stop a
+  fixture repair when its next gain is below about 1% of its binary;
+  larger remaining causes need the work above, never skipped checks.
+
 - **Reference obligations for a goal that designs** (6.5.1): fold
   `../draft/goal-as-designer.md`'s workflow into the reference, its charters
   and stage one's judge together. Goal-delivery stories use test charters;
