@@ -3500,6 +3500,7 @@ dependencies = [
  "skein-json",
  "skein-json-kit",
  "skein-lib",
+ "skein-rows",
  "skein-scratch",
 ]
 

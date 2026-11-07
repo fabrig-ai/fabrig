@@ -79,6 +79,7 @@ Each task fills its own subsection. Suite totals aren't quoted here: the gate re
 | `skein-forge-setup-world::suite` | `github` | 13 | 12 | 1 | 2 | 2.5 |
 | `skein-fake-forge-github` | `server::tests` | 2 | 1 | 1 | 2 | 1.9 |
 | `skein-fake-forge-github` | `tests` | 191 | 189 | 1 | 3 | 3.8 |
+| `skein-llm` | `client::tests` | 38 | 24 | 1 | 15 | unknown |
 
 Left apart:
 
@@ -93,6 +94,7 @@ Left apart:
 - `skein-forge-setup-world::suite`: all five surveyed groups fold. Heap measurements, fuzzy sweeps and distinct host, creation, reconciliation, permissions and GitHub lifecycle paths stay separate; common page reads, connection facts and mutation-route absence checks hold for every folded row.
 - `skein-forge-setup-world::suite`: all five surveyed groups fold. Heap measurements, fuzzy sweeps and distinct host, creation, reconciliation, permissions and GitHub lifecycle paths stay separate; common page reads, connection facts and mutation-route absence checks hold for every folded row.
 - `skein-fake-forge-github::tests::service_app`, 4 JWT route tests: attempted combined table read 24 ms, then 46 ms after restoring mutations, above the 40 ms guide; all four tests and the RSA comment stay apart. One original row profiled first at 54,137,815 Ir, including 45,031,053 signing Ir. The six app-check tests and other distinct fake contracts stay apart. Both other surveyed groups fold; the write table consumes request data from all three source modules.
+- `skein-llm::client::tests`: all 15 limit-refusal wrappers fold; the other client and translation contracts retain their different checks and existing tables. Floor is unknown for this binary.
 
 ### rows-forge
 
