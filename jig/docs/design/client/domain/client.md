@@ -274,10 +274,13 @@ Client::unlinked: step_unlinked(now, wall, Event, &mut Queue<UnlinkedRequest>),
 UnlinkedRequest, out
   Told { told }               as a linked client's
   Authorized(authorized)      a printed link's authorization, always lost: no link signs in
+  ApprovalAct(act)            an approval's ask, read or decision, which the host carries (section 12)
+  Approval(answer)            its answer, as the host gave it back
   Down { down }               the domain's work, which the host carries: a save, an erase, a send,
                               a watch opened, continued or closed, a read
   SignOut                     the sign-out, which the host answers
-Event, in, besides the application's: StartUnlinked { kept } in place of Start, Up { up }, SignOutLost
+Event, in, besides the application's: StartUnlinked { kept } in place of Start, Up { up }, SignOutLost,
+  ApprovalAnswer { answer }
 ```
 
 - **A linked client's `Request` holds no `Down` and no `SignOut`:** what
