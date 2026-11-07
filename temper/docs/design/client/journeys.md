@@ -256,7 +256,7 @@ nothing and prints no original.
     carries (`tui/journeys.md`, section 5), which a browser's recording
     never gives. They are sought as every original is, and reach the
     shared code from the TUI's lines through `Originals::new` and
-    `redact::field`.
+    `redact_field`.
 - **The placeholder** is `x`s, one for each byte, so that every frame,
   length prefix and base64 run keeps its size. Surrounding spaces, tabs,
   CRs and LFs of a typed or given original stand, outside it: the client

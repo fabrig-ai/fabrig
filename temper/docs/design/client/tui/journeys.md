@@ -217,7 +217,7 @@ the TUI's lines.
 - **The shared code** gains three kinds of original, `Kind::Approval`,
   `Kind::Credential` and `Kind::Bearer`, each sought in the forms and
   digests every original is, and is reached from the TUI's lines
-  through `Originals::new` and `redact::field`, beside `Originals::of`
+  through `Originals::new` and `redact_field`, beside `Originals::of`
   and `redact`, which the browser's lines keep. What the browser's
   journeys redact and refuse stays as it is.
 - **The TUI's originals:**
@@ -248,6 +248,12 @@ the TUI's lines.
 - **The proof holds:** the host derives what it asks from what it heard,
   so the take's message holds the redacted secret it was answered, and
   every exchange the redacted credential it kept.
+- **A pasted link's encoding:** the TUI also replaces and scans the
+  link secret's canonical URL-base64 in the pasted address and its
+  decimal byte elements in the `Typed` event's Debug print. Both become
+  those encodings of the redacted secret, so the paste and its event
+  still replay. This is the TUI's addition; the browser's code and
+  encodings stay as `../journeys.md`, 3.6 describes.
 - **The last scan** (`../journeys.md`, 3.7): every field of each line,
   every frame the replay drew at each turn's end as its text, and each
   printed text and page, for the originals and the shapes. An approval's
@@ -453,6 +459,11 @@ As the browser's (`../journeys.md`, section 7), on the TUI's print:
 
 ## 11. Open questions
 
+- **The first frames' refinement:** the user takes `sign-in-approved`'s
+  frames and asks for the look on them (sections 9 and 10), before the
+  later surfaces of `../../draft/tui.md`, section 3 are designed. A
+  replay and byte-equal print do not establish the real terminal's look;
+  its approval walk is `../README.md`, section 11's after-landing work.
 - **Selectors by token:** a page's cells carry their paint, not the
   view's token, so an overlay retunes a palette colour or a paint
   wherever it falls, never one token alone. Default: palette classes; a
