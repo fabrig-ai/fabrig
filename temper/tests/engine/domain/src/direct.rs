@@ -64,6 +64,11 @@ impl Driver {
         self.broken("cold-cut fixture transfers its store to the receiving root");
         std::mem::take(&mut self.store)
     }
+    /// Consume a cold-cut driver without opening a replacement store for its destructor.
+    pub(crate) fn into_store(mut self) -> Store {
+        self.broken("cold-cut fixture transfers its store to the receiving root");
+        self.store.take_for_drop()
+    }
     #[must_use]
     pub fn new(store: Store) -> Driver {
         Driver::configured(store, [config(91), config(91)], &limits())

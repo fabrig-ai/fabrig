@@ -20,6 +20,8 @@ pub(crate) use store::{Capture, Store};
 pub struct Settings {
     pub seed: u64,
     pub config: skein_sim::Config,
+    /// Look for grant values at every root step, for the fuzzy suite.
+    pub roots_every_step: bool,
 }
 #[derive(Clone, Debug)]
 pub struct Script {
@@ -105,6 +107,7 @@ fn run_at(mut settings: Settings, script: Script, before_cut: Option<u32>) -> (O
     let views = Rc::new(RefCell::new(Views::default()));
     let referee = make_referee(
         &script,
+        settings.roots_every_step,
         store.clone(),
         views.clone(),
         matches!(script.story, crate::stories::Story::DurableRestart) && before_cut.is_none(),
@@ -488,6 +491,7 @@ fn transcript_count(bytes: &[u8]) -> u32 {
 
 fn make_referee(
     script: &Script,
+    roots_every_step: bool,
     store: Rc<RefCell<Store>>,
     views: Rc<RefCell<Views>>,
     calibrating_held_turn: bool,
@@ -535,9 +539,8 @@ fn make_referee(
         injected: false,
         resumed_attempt: 0,
         engine_observed: 0,
-        roots_observed: std::collections::BTreeMap::new(),
+        root_checks: crate::referee::RootChecks::new(roots_every_step),
         formatted: String::new(),
-        grants_observed: 0,
         engine_instance: None,
         views,
     }

@@ -6,8 +6,9 @@ use temper_engine_domain_forge as domain;
 use temper_protocol_records as records;
 
 fn service(states: u32, life: Duration) -> crate::Service {
-    let mut service = routing_service(states, life);
     let ready = fixtures::ready().engine.expect("engine");
+    let store = fixtures::records_store_from(ready.store.host.component.into_stores());
+    let mut service = routing_service_with_store(states, life, None, Some(store));
     service.engine.as_mut().expect("engine").env.limits = ready.env.limits;
     service.engine.as_mut().expect("engine").domain = ready.domain;
     let rows = fixtures::load(&mut service.engine.as_mut().unwrap().store, root::Range::Forge);
@@ -42,6 +43,14 @@ fn routing_service_at(
     life: Duration,
     public: Option<crate::startup::application::Origin>,
 ) -> crate::Service {
+    routing_service_with_store(states, life, public, None)
+}
+fn routing_service_with_store(
+    states: u32,
+    life: Duration,
+    public: Option<crate::startup::application::Origin>,
+    store: Option<crate::store::Store>,
+) -> crate::Service {
     let config = github_config(states, life, public);
     let mut runtime = List::with_capacity(1);
     runtime
@@ -52,8 +61,8 @@ fn routing_service_at(
             transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
         })
         .unwrap();
-    let mut service = fixtures::configured_service(config, &fixtures::seeds(), None, runtime).unwrap();
-    fixtures::replace_store(&mut service, fixtures::records_store());
+    let mut service =
+        fixtures::configured_service_with_store(config, &fixtures::seeds(), None, runtime, store).unwrap();
     load_routing(&mut service);
     service
 }
@@ -300,6 +309,29 @@ impl Face {
         }
         advance(service.engine.as_mut().expect("engine"));
     }
+    pub(super) fn settle(&mut self, service: &mut crate::Service) {
+        // The picker's full page needs more turns than the small scripted replies.
+        for _ in 0_u32..4096 {
+            self.turn(service);
+            let engine = service.engine.as_ref().expect("engine");
+            if !engine.setup.work_pending(engine.env.now)
+                && !engine.setup.lifecycle_ready(engine)
+                && (self.owner.is_none() || !self.wire.work_pending())
+            {
+                return;
+            }
+        }
+        let engine = service.engine.as_ref().expect("engine");
+        panic!(
+            "setup face did not settle: io {}, above {}, lifecycle {}, wire {}, deadline {:?}, now {:?}",
+            engine.setup.io.len(),
+            engine.setup.above.len(),
+            engine.setup.lifecycle_ready(engine),
+            self.owner.is_some() && self.wire.work_pending(),
+            engine.setup.next_deadline(),
+            engine.env.now,
+        );
+    }
     fn reply(&mut self, service: &mut crate::Service, body: &[u8]) {
         self.reply_status(service, b"200 OK", body);
     }
@@ -327,16 +359,37 @@ impl Face {
         writer.put(b"\r\n\r\n").unwrap();
         writer.put(body).unwrap();
         self.wire.write(&writer.finish());
-        for _ in 0_u32..1024 {
-            self.turn(service);
-        }
+        self.settle(service);
     }
     pub(super) fn sent(&mut self, service: &mut crate::Service) {
-        for _ in 0_u32..1024 {
-            self.turn(service);
-        }
+        self.settle(service);
         assert!(contains(&self.wire.received, b"\r\n\r\n"), "request sent");
     }
+}
+#[test]
+fn the_face_settles_delayed_io_and_due_pages_without_waiting_for_future_deadlines() {
+    let mut service = service(8, Duration::from_secs(3));
+    let state = manifest(&mut service, 1);
+    start(&mut service, 2, host::Plan::Convert { forge: 1, code: code(), state });
+    let mut face = Face::new();
+    face.sent(&mut service);
+    let engine = service.engine.as_ref().unwrap();
+    assert!(engine.setup.io.is_empty());
+    assert!(engine.setup.above.is_empty());
+    assert!(!face.wire.work_pending());
+    assert!(!engine.setup.pages.is_empty(), "future deadlines do not keep the face running");
+
+    service.engine.as_mut().unwrap().env.now = Time::ZERO.saturating_add(Duration::from_secs(3));
+    face.settle(&mut service);
+    assert!(service.engine.as_ref().unwrap().setup.pages.is_empty(), "due pages are expired");
+    face.reply_status(&mut service, b"403 Forbidden", b"");
+    assert!(face.owner.is_none(), "the refused request closes before settling");
+    let engine = service.engine.as_ref().unwrap();
+    assert!(engine.setup.io.is_empty());
+    assert!(engine.setup.above.is_empty());
+    assert!(!engine.setup.work_pending(engine.env.now));
+    let root::SetupEnd::Stopped { reason, .. } = terminal(&mut service) else { panic!("conversion refused") };
+    assert!(contains(&reason, b"Refused(403)"));
 }
 fn writing() -> (crate::Service, Face) {
     let mut service = service(8, Duration::from_secs(3600));
@@ -1175,9 +1228,7 @@ fn local_stops_missing_busy_and_origin_mismatch_leave_the_other_forge_served() {
             let mut face = Face::new();
             local_sent(&mut service, &mut face, b"GET /api/v1/user ");
             face.wire.write(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n");
-            for _ in 0_u32..1024 {
-                face.turn(&mut service);
-            }
+            face.settle(&mut service);
         }
         let expected = match fault {
             0 => Some(crate::SetupStopped::Stopped {
@@ -1478,9 +1529,7 @@ fn takeover_stops_missing_and_busy_keep_the_handover_and_isolate_the_forge() {
             let mut face = Face::new();
             local_sent(&mut service, &mut face, b"GET /api/v1/user ");
             face.wire.write(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n");
-            for _ in 0_u32..1024 {
-                face.turn(&mut service);
-            }
+            face.settle(&mut service);
         }
         let expected = match fault {
             0 | 1 => crate::SetupStopped::Stopped {
@@ -1627,9 +1676,7 @@ fn a_missing_file_at_started_reconciles_the_kept_token_and_names_a_stop() {
         assert!(service.take_handover_removal().is_none());
         local_sent(&mut service, &mut face, b"GET /api/v1/user ");
         face.wire.write(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n");
-        for _ in 0_u32..1024 {
-            face.turn(&mut service);
-        }
+        face.settle(&mut service);
     }
     assert!(told_local(
         service.engine.as_ref().unwrap(),

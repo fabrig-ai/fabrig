@@ -168,7 +168,7 @@ impl Observer {
     }
     pub fn inbound(&mut self, store: &Store, now: u64, event: &mut root::Event) {
         if let root::Event::Core(event) = event {
-            self.inner.inbound(&store_view(store), now, event);
+            self.inner.inbound(|| store_view(store), now, event);
         }
         if let root::Event::Answer { task, attempt, end, .. } = event {
             for observed in self.inner.intents.terminal(*task, *attempt, end) {
@@ -211,7 +211,7 @@ impl Observer {
         }
     }
     pub fn submitted(&mut self, now: u64, store: &Store) {
-        let mut view = store_view(store);
+        let mut named = Vec::new();
         if let Some(commit) = store.pending.back() {
             for write in &commit.writes {
                 if let root::Write::Save(root::Record::Connector {
@@ -224,7 +224,7 @@ impl Observer {
                     && let Some(connector::ProcedureAction::Amend { priority, .. }) =
                         actions.get(usize::from(state.index))
                 {
-                    view.named.push(conformance::NamedRevision {
+                    named.push(conformance::NamedRevision {
                         connector: *number,
                         owner: state.task,
                         step: state.steps,
@@ -235,7 +235,11 @@ impl Observer {
                 }
             }
         }
-        self.inner.submitted(&view);
+        let commit = store
+            .pending
+            .back()
+            .map(|pending| conformance::commit(pending.number, pending.writes.as_ref(), core_write));
+        self.inner.submitted(commit, named, || store_view(store));
         if self.application_requests {
             for observed in crate::application_observations::submitted(store) {
                 self.observe(now, observed);
@@ -318,6 +322,25 @@ impl Observer {
         self.observe(now, r::Observed::Released { requires });
     }
 }
+fn core_row(row: &root::Record) -> Option<&jig_domain_core::Record> {
+    match row {
+        root::Record::Core(row) => Some(row),
+        root::Record::Connector { .. } => None,
+    }
+}
+
+fn core_write(write: &root::Write) -> conformance::Write<'_> {
+    match write {
+        root::Write::Save(root::Record::Core(row)) => conformance::Write::Save(row),
+        root::Write::Erase(root::Key::Core(key)) => conformance::Write::Erase(key.clone()),
+        root::Write::Save(root::Record::Connector { .. })
+        | root::Write::Erase(root::Key::Connector { .. })
+        | root::Write::Wires
+        | root::Write::CopySettingsRevision(_)
+        | root::Write::DropTranscript { .. } => conformance::Write::Other,
+    }
+}
+
 /// Borrow the durable core rows and translate only the test connector's facts.
 #[must_use]
 pub fn store_view(store: &Store) -> conformance::Store<'_> {
@@ -325,19 +348,8 @@ pub fn store_view(store: &Store) -> conformance::Store<'_> {
         store.applied,
         store.rows.values(),
         store.pending.iter().map(|pending| (pending.number, pending.writes.as_ref())),
-        |row| match row {
-            root::Record::Core(row) => Some(row),
-            root::Record::Connector { .. } => None,
-        },
-        |write| match write {
-            root::Write::Save(root::Record::Core(row)) => conformance::Write::Save(row),
-            root::Write::Erase(root::Key::Core(key)) => conformance::Write::Erase(key.clone()),
-            root::Write::Save(root::Record::Connector { .. })
-            | root::Write::Erase(root::Key::Connector { .. })
-            | root::Write::Wires
-            | root::Write::CopySettingsRevision(_)
-            | root::Write::DropTranscript { .. } => conformance::Write::Other,
-        },
+        core_row,
+        core_write,
     );
     let snapshot = &mut view.effects;
     for (key, row) in &store.rows {
@@ -483,5 +495,73 @@ mod activity_tests {
             let rejected = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| observer.durable(1, &store)));
             assert!(rejected.is_err(), "referee must reject an immutable row changing or disappearing");
         }
+    }
+}
+
+#[cfg(test)]
+mod view_tests {
+    use super::*;
+    use jig_domain_core as core;
+    use jig_domain_people as people;
+    use jig_domain_tasks as tasks;
+    use std::cell::Cell;
+
+    #[test]
+    fn an_event_that_reads_no_row_makes_no_view() {
+        let configuration = crate::world::fixture(507, false).0;
+        let mut observer = Observer::new(&configuration);
+        let store = Store::new(&jig_test_profile::limits(), &configuration.core.settings.models);
+        let mut event = core::Event::People(people::Event::CloseProject { project: 1 });
+        observer.inner.inbound(|| panic!("event reads no row"), 0, &mut event);
+
+        let mut event = core::Event::People(people::Event::Ask {
+            models: Box::new([]),
+            reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(1)),
+            sign_in: 1,
+            key: [1; 16],
+            ask: people::Ask::MarkSeen { seen: people::Seen::Results { through: 1 } },
+        });
+        let views = Cell::new(0);
+        observer.inner.inbound(
+            || {
+                views.set(views.get() + 1);
+                store_view(&store)
+            },
+            0,
+            &mut event,
+        );
+        assert_eq!(views.get(), 1, "party request reads one current view");
+    }
+
+    #[test]
+    fn a_commit_that_erases_no_task_makes_no_view() {
+        let configuration = crate::world::fixture(507, false).0;
+        let mut observer = Observer::new(&configuration);
+        let store = Store::new(&jig_test_profile::limits(), &configuration.core.settings.models);
+        let row = core::Record::Tasks(tasks::Stored::Activity(tasks::ActivityLine {
+            task: 1,
+            position: 1,
+            at: skein_lib::Wall::EPOCH,
+            line: tasks::Line::Milestone { position: 1 },
+        }));
+        observer.inner.submitted(
+            Some(conformance::Commit { number: 1, writes: vec![conformance::Write::Save(&row)] }),
+            Vec::new(),
+            || panic!("commit erases no task"),
+        );
+
+        let views = Cell::new(0);
+        observer.inner.submitted(
+            Some(conformance::Commit {
+                number: 2,
+                writes: vec![conformance::Write::Erase(core::Key::Tasks(tasks::Key::Ended(1)))],
+            }),
+            Vec::new(),
+            || {
+                views.set(views.get() + 1);
+                store_view(&store)
+            },
+        );
+        assert_eq!(views.get(), 1, "ended-task erasure reads one current view");
     }
 }

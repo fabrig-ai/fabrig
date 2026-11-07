@@ -7,7 +7,7 @@ use jig_domain_people::PermissionRole;
 use skein_json::Document;
 use skein_lib::{Decimal, List, Wall, Writer};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Project {
     pub number: u32,
     pub name: Box<str>,
@@ -17,7 +17,7 @@ pub struct Project {
 }
 
 /// A numbered policy copied into projects made after the first start (configuration.md, 3).
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Policy {
     pub number: u32,
     pub roles: Box<[PermissionRole]>,

@@ -62,7 +62,8 @@ pub const INLINE_PROJECTS: &[u8] = br#"[{"number": 1, "roles": [{"connector": 1,
 }}]"#;
 
 pub fn engine() -> settings::Engine {
-    let jig = parse_engine(ENGINE);
+    static ENGINE_SETTINGS: std::sync::OnceLock<jig_protocol_config::Engine> = std::sync::OnceLock::new();
+    let jig = ENGINE_SETTINGS.get_or_init(|| parse_engine(ENGINE)).clone();
     // This typed fixture reaches the core's start; policy 1 needs 5774 bytes.
 
     settings::Engine {
@@ -272,28 +273,34 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
 
 pub fn store_limits() -> (temper_engine_domain::Limits, jig_domain_core::Limits, jig_protocol_store::Limits) {
     let settings = engine();
+    store_limits_for(&settings)
+}
+fn store_limits_for(
+    settings: &settings::Engine,
+) -> (temper_engine_domain::Limits, jig_domain_core::Limits, jig_protocol_store::Limits) {
     let root = limits::engine(&settings.jig.limits, &settings.limits).expect("root limits");
     (root, settings.jig.limits.core, settings.jig.limits.store)
 }
 
 pub fn memory_store() -> crate::store::Store {
-    let (root, _, profile) = store_limits();
-    let models = jig_protocol_config::core(&engine().jig, [7; 16], 7).settings.models;
+    let settings = engine();
+    let (root, _, profile) = store_limits_for(&settings);
+    let models = jig_protocol_config::core(&settings.jig, [7; 16], 7).settings.models;
     memory_store_for(&root, &profile, &models)
 }
 fn completed_maps() -> jig_protocol_store::Stores {
-    let mut service = ready();
-    let mut store = memory_store();
-    core::mem::swap(&mut service.engine.as_mut().unwrap().store.host.component, &mut store.host.component);
-    store.host.component.into_stores()
+    ready().engine.expect("engine").store.host.component.into_stores()
 }
 pub fn records_store() -> crate::store::Store {
-    let (root, _, mut profile) = store_limits();
+    records_store_from(completed_maps())
+}
+pub(crate) fn records_store_from(mut maps: jig_protocol_store::Stores) -> crate::store::Store {
+    let settings = engine();
+    let (root, _, mut profile) = store_limits_for(&settings);
     profile.store.page.rows = 32;
-    let models = jig_protocol_config::core(&engine().jig, [7; 16], 7).settings.models;
+    let models = jig_protocol_config::core(&settings.jig, [7; 16], 7).settings.models;
     // Secret-record fixtures start from a real completed deployment, as the
     // store now refuses secrets until that start's mark is durable.
-    let mut maps = completed_maps();
     let limits = crate::store::limits(&root, &root.forge, &profile).expect("record fixture limits");
     maps.secrets = skein_kv::Store::memory(&limits.secrets);
     let mut store = memory_store_for(&root, &profile, &models);
@@ -620,6 +627,7 @@ fn start_with_worker(
 }
 mod agent;
 pub mod bundle;
+mod checks;
 mod clients;
 pub mod http;
 mod server;
@@ -1039,7 +1047,7 @@ pub fn clients() -> crate::clients::Clients {
 }
 mod startup;
 pub use startup::{
-    APPLICATION, demo_application, demo_service, document, engine_alone_document, files, owned_worker_agent,
+    APPLICATION, Json, demo_application, demo_service, document, engine_alone_document, files, owned_worker_agent,
     owned_worker_alone_document, parsed, startup_agent, value, webhook_document, with, without, worker_alone_document,
     worker_runtime,
 };
@@ -1328,20 +1336,40 @@ pub fn configured_service(
     accounts: Option<crate::AccountsRuntime>,
     runtime: skein_lib::List<crate::ForgeRuntime>,
 ) -> Result<crate::Service, jig_protocol_config::Problems> {
+    configured_service_with_store(config, seeds, accounts, runtime, None)
+}
+pub(crate) fn configured_service_with_store(
+    config: ConfiguredEngine,
+    seeds: &settings::Seeds,
+    accounts: Option<crate::AccountsRuntime>,
+    runtime: skein_lib::List<crate::ForgeRuntime>,
+    store: Option<crate::store::Store>,
+) -> Result<crate::Service, jig_protocol_config::Problems> {
     let endpoints = configured_endpoints(&config, runtime)?;
-    configured_prepared(config, seeds, accounts, endpoints, None, None)
+    configured_prepared_with_store(config, seeds, accounts, endpoints, None, None, store)
+}
+pub fn configured_prepared(
+    config: ConfiguredEngine,
+    seeds: &settings::Seeds,
+    accounts: Option<crate::AccountsRuntime>,
+    endpoints: skein_forge_connection::Settings,
+    worker: Option<crate::Worker>,
+    box_bytes: Option<u32>,
+) -> Result<crate::Service, jig_protocol_config::Problems> {
+    configured_prepared_with_store(config, seeds, accounts, endpoints, worker, box_bytes, None)
 }
 #[expect(
     clippy::too_many_lines,
     reason = "the fixture keeps forge records and supplies both runtime owners' endpoint facts"
 )]
-pub fn configured_prepared(
+fn configured_prepared_with_store(
     mut config: ConfiguredEngine,
     seeds: &settings::Seeds,
     accounts: Option<crate::AccountsRuntime>,
     endpoints: skein_forge_connection::Settings,
     worker: Option<crate::Worker>,
     box_bytes: Option<u32>,
+    store: Option<crate::store::Store>,
 ) -> Result<crate::Service, jig_protocol_config::Problems> {
     use temper_engine_domain_forge as domain;
     for setup in &config.setup {
@@ -1373,7 +1401,10 @@ pub fn configured_prepared(
     let seed = ForgeSeed::new(&root, &config.engine.jig);
     let empty = crate::forge::prepare(&config.engine, skein_lib::List::with_capacity(0))?;
     let mut service = crate::Service::prepared(config.engine, seeds, accounts, empty, worker, io, box_bytes, None)?;
-    service.engine.as_mut().unwrap().store = records_store();
+    service.engine.as_mut().unwrap().store = match store {
+        Some(store) => store,
+        None => records_store(),
+    };
     for endpoint in endpoints.forges.into_boxed() {
         let engine = service.engine.as_mut().unwrap();
         if let skein_io::Addr::Ip(address) = endpoint.address {
