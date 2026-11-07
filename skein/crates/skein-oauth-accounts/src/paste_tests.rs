@@ -3,6 +3,7 @@ use super::private::Owner;
 use super::*;
 use skein_lib::Token;
 use skein_lib::bytes::concat;
+use skein_lib::stream::{Down, Up};
 
 const REGISTERED: &[u8] = b"http://127.0.0.1:0/callback";
 const BOUND: &[u8] = b"http://127.0.0.1:41000/callback";
@@ -93,6 +94,205 @@ fn signs_in(owner: &mut Owner) {
         owner.fire();
     }
     assert!(owner.io.is_empty() && owner.above.is_empty(), "one code exchange");
+}
+
+// Synthetic issuer answers and browser navigation (oauth.md, sections 6.5–6.8).
+pub(super) fn synthetic(prefix: &[u8], length: usize) -> Box<[u8]> {
+    const ALPHABET: &[u8] = b"0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_";
+    let mut output = skein_lib::Writer::new(length);
+    for byte in prefix.iter().chain(ALPHABET.iter().cycle()).take(length) {
+        output.put(&[*byte]).expect("synthetic length");
+    }
+    output.finish()
+}
+
+pub(super) fn answer_profile() -> Limits {
+    let mut profile = limits();
+    profile.client.uri_bytes = 4096;
+    profile.client.code_bytes = 4096;
+    profile.client.scope_bytes = 4096;
+    profile.client.state_bytes = 64;
+    profile.client.url_bytes = 2048;
+    profile.client.document.issued_client_bytes = 1024;
+    profile.client.request_bytes = 8192;
+    profile.http.request = 8192;
+    profile.http.send = 8192;
+    profile.tls.send = 8192;
+    profile.redirect_bytes = 16_384;
+    profile.server.head = listener_head(profile.redirect_bytes).expect("browser head");
+    profile.server.headers = 32;
+    profile
+}
+
+pub(super) fn issuer_answer(state: &[u8], code: &[u8]) -> Box<[u8]> {
+    concat(&[
+        BOUND,
+        b"?code=",
+        code,
+        b"&scope=openid+profile+email+offline_access&state=",
+        state,
+        b"&client_id=",
+        &synthetic(b"app_", 28),
+    ])
+}
+
+pub(super) fn browser_request(answer: &[u8]) -> Box<[u8]> {
+    let target = answer.strip_prefix(b"http://127.0.0.1:41000").expect("loopback answer");
+    concat(&[
+        b"GET ", target, b" HTTP/1.1\r\n",
+        b"Host: 127.0.0.1:41000\r\nConnection: keep-alive\r\n",
+        b"sec-ch-ua: \"Chromium\";v=\"142\", \"Google Chrome\";v=\"142\", \"Not_A Brand\";v=\"99\"\r\n",
+        b"sec-ch-ua-mobile: ?0\r\nsec-ch-ua-platform: \"Linux\"\r\nUpgrade-Insecure-Requests: 1\r\n",
+        b"User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36\r\n",
+        b"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7\r\n",
+        b"Sec-Fetch-Site: cross-site\r\nSec-Fetch-Mode: navigate\r\nSec-Fetch-User: ?1\r\nSec-Fetch-Dest: document\r\n",
+        b"Referer: https://issuer.example/\r\nAccept-Encoding: gzip, deflate, br, zstd\r\n",
+        b"Accept-Language: en-GB,en-US;q=0.9,en;q=0.8\r\nCookie: session=", &synthetic(b"c_", 4000), b"\r\n\r\n",
+    ])
+}
+
+fn answer_waiting() -> (Owner, Token, Box<[u8]>) {
+    let mut owner = Owner::configured([account(true, true)], &answer_profile());
+    owner.ask(Request::SignIn { account: 0, subject: None });
+    let listener = owner.listen();
+    owner.listening(listener, PORT);
+    let visit = owner.visit();
+    (owner, listener, visit)
+}
+
+fn browser_answer(owner: &mut Owner, listener: Token, answer: &[u8]) -> Box<[u8]> {
+    let callback = owner.callback(listener);
+    let request = browser_request(answer);
+    let mut remaining = request.as_ref();
+    let mut response = List::with_capacity(4096);
+    for _ in 0_u32..256 {
+        owner.fire();
+        if owner.callback_io(listener, callback, &mut remaining, &mut response) {
+            assert!(remaining.is_empty(), "the browser request was read whole");
+            return response.into_boxed();
+        }
+    }
+    panic!("the browser response closes")
+}
+
+fn refusal_of_event(event: Option<&Event>) -> Option<Refusal> {
+    if let Some(Event::Refused { why, .. }) = event { Some(*why) } else { None }
+}
+
+fn signs_in_with_code(owner: &mut Owner, code: &[u8]) {
+    let (identity, request, _) = owner.sent_request();
+    let body_at = bytes::find(&request, b"\r\n\r\n").expect("request body").checked_add(4).expect("body offset");
+    let length_at =
+        bytes::find(&request, b"Content-Length: ").expect("body length").checked_add(16).expect("length offset");
+    let length_line = request.get(length_at..).expect("length field");
+    let length_end = bytes::find(length_line, b"\r\n").expect("length end");
+    let length =
+        usize::try_from(bytes::decimal(length_line.get(..length_end).expect("length digits")).expect("length"))
+            .expect("body length");
+    let total = body_at.checked_add(length).expect("request length");
+    let mut sent = skein_lib::Writer::new(total);
+    sent.put(&request).expect("request head room");
+    for _ in 0_u32..128 {
+        owner.fire();
+        let mut deferred = Queue::uncapped();
+        while let Some(request) = owner.io.pop() {
+            match request {
+                Lower::Stream { down: Down::Send(bytes), .. } => sent.put(&bytes).expect("request body room"),
+                Lower::Stream { down: Down::Demand { room, .. }, .. } if room != 0 => {
+                    owner.socket(LowerEvent::Stream { owner: identity, up: Up::Room });
+                }
+                request @ (Lower::Listen { .. }
+                | Lower::Connect { .. }
+                | Lower::Bind { .. }
+                | Lower::Reject { .. }
+                | Lower::Stream { .. }
+                | Lower::Output { .. }
+                | Lower::Spawn { .. }
+                | Lower::Signal { .. }
+                | Lower::Usage { .. }
+                | Lower::Window { .. }
+                | Lower::Close { .. }
+                | Lower::Abort { .. }) => deferred.push(request),
+            }
+        }
+        while let Some(request) = deferred.pop() {
+            owner.io.push(request);
+        }
+        if sent.written() == total {
+            break;
+        }
+    }
+    assert_eq!(sent.written(), total, "the token request body was sent whole");
+    let sent = sent.finish();
+    let body = sent.get(body_at..).expect("body");
+    assert!(Owner::query(&concat(&[b"?", body]), b"code") == Some(code), "the whole code reaches the token request");
+    let mut events = owner.finish_tokens(identity, private::BODY);
+    assert_event(
+        events.pop(),
+        Event::SignedIn {
+            account: 0,
+            generation: 1,
+            missing: Box::new([]),
+            subject: None,
+            profile: skein_oauth::ProfileClaims::default(),
+        },
+    );
+    assert!(events.is_empty(), "one sign-in terminal");
+}
+
+#[test]
+fn a_long_issuer_answer_is_taken_from_the_listener_and_pasted() {
+    skein_rows::check(
+        [
+            ("listener 1900", (1900, true)),
+            ("listener 3900", (3900, true)),
+            ("paste 1900", (1900, false)),
+            ("paste 3900", (3900, false)),
+        ],
+        |(length, listening)| {
+            let (mut owner, listener, visit) = answer_waiting();
+            let code = synthetic(b"ac_", length);
+            let answer = issuer_answer(Owner::query(&visit, b"state").expect("state"), &code);
+            if listening {
+                let response = browser_answer(&mut owner, listener, &answer);
+                assert!(response.starts_with(b"HTTP/1.1 200"), "listener response: {response:?}");
+                assert!(bytes::find(&response, b"Sign-in received.").is_some());
+            } else {
+                owner.ask(Request::Redirected { account: 0, uri: skein_lib::Secret::new(answer) });
+                let event = owner.above.pop();
+                assert_eq!(refusal_of_event(event.as_ref()), None, "paste must be Taken");
+                assert_event(event, Event::Taken { account: 0 });
+                settle_listener(&mut owner, listener);
+            }
+            signs_in_with_code(&mut owner, &code);
+        },
+    );
+}
+
+#[test]
+fn the_listener_bounds_the_whole_redirect_address() {
+    skein_rows::check([("at redirect_bytes", (0, true)), ("past redirect_bytes", (1, false))], |(extra, accepted)| {
+        let (mut owner, listener, visit) = answer_waiting();
+        let code = synthetic(b"ac_", 1900);
+        let answer = issuer_answer(Owner::query(&visit, b"state").expect("state"), &code);
+        let length = usize::try_from(owner.env.limits.redirect_bytes).expect("redirect bound") + extra;
+        let pad = synthetic(b"", length - answer.len() - 5);
+        let padded = concat(&[&answer, b"&pad=", &pad]);
+        assert_eq!(padded.len(), length);
+        let response = browser_answer(&mut owner, listener, &padded);
+        if accepted {
+            assert!(response.starts_with(b"HTTP/1.1 200"), "the address at redirect_bytes is taken");
+            assert!(bytes::find(&response, b"Sign-in received.").is_some());
+        } else {
+            assert!(response.starts_with(b"HTTP/1.1 404"), "the address past redirect_bytes is refused");
+            assert!(bytes::find(&response, b"This is not the registered redirect.").is_some());
+            assert!(owner.above.is_empty(), "the sign-in still waits");
+            owner.ask(Request::Redirected { account: 0, uri: skein_lib::Secret::new(answer) });
+            taken(&mut owner);
+            settle_listener(&mut owner, listener);
+        }
+        signs_in_with_code(&mut owner, &code);
+    });
 }
 
 #[test]
