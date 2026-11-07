@@ -2,7 +2,14 @@
 
 2026-11-07. Where temper's code lags or departs from its design, and
 its design from its drafts, from the status files below. The first
-milestone stands in the code (`README.md`). Fresh projects offer drafts;
+milestone stands in the code (`README.md`). A person-started goal asks by
+a person task; its question in words draws under Needs you, on Home and in
+the goal's band, and its answer wakes the goal with those words. Permission
+is bounded by the requester's role, with instructions alone naming that
+requester; a chat-called goal keeps asking its chat. The requester-only
+permission, agreed-goal shape and after-landing observations remain deferred
+(`domain/agent.md`, 8.2 and 10; `client/README.md`, 3.5, 5.8 and 11).
+Fresh projects offer drafts;
 configuring chats offer one even with drafts off, and a project holding a
 goal shows Goals in its bar. Home can still show To begin and Chats, so
 the bar supplies the goal's entry. The mock's drafts-off default remains
