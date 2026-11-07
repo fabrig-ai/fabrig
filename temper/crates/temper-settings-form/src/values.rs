@@ -64,6 +64,26 @@ pub fn encode_charter(value: &c::Charter, out: &mut Encoder) {
         encode_document(document, out);
     }
     out.array_end();
+    if !value.parts.is_empty() {
+        out.key(b"parts");
+        out.array_start();
+        for part in &value.parts {
+            out.object_start();
+            out.key(b"on");
+            out.array_start();
+            for (index, name) in c::REASON_NAMES.iter().enumerate() {
+                let bit = 1_u32.checked_shl(u32::try_from(index).expect("reason index")).expect("reason bit");
+                if part.on & bit != 0 {
+                    out.string(name);
+                }
+            }
+            out.array_end();
+            out.key(b"instructions");
+            encode_text(&part.instructions, out);
+            out.object_end();
+        }
+        out.array_end();
+    }
     out.object_end();
 }
 fn encode_document(value: &c::CharterDocument, out: &mut Encoder) {
@@ -445,6 +465,19 @@ pub fn encode_llm_choice(value: &c::LlmChoice, out: &mut Encoder) {
         encode_model_effort(value, out);
     }
     out.array_end();
+    if let Some(later) = &value.later {
+        out.key(b"later");
+        out.object_start();
+        out.key(b"main");
+        encode_model_effort(&later.main, out);
+        out.key(b"subagents");
+        out.array_start();
+        for item in &later.subagents {
+            encode_model_effort(item, out);
+        }
+        out.array_end();
+        out.object_end();
+    }
     out.object_end();
 }
 pub fn encode_owner_authority(value: &c::Authority, out: &mut Encoder) {
