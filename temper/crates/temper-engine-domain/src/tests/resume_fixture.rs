@@ -317,7 +317,12 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
                 policies: skein_lib::Map::with_capacity(authority_limits().projects),
             },
             settings: jig_domain_core::Settings {
-                endpoints: Box::new([jig_domain_core::EndpointFacts { number: 1, dialect: 1, program: None }]),
+                endpoints: Box::new([jig_domain_core::EndpointFacts {
+                    providers: Box::new([]),
+                    number: 1,
+                    dialect: 1,
+                    program: None,
+                }]),
                 key_bytes: 256,
                 redirect_bytes: 256,
                 deployment_provider: 1,

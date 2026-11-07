@@ -162,6 +162,9 @@ fn client_models() -> Box<[clients::Model]> {
     walking::models()
         .iter()
         .map(|model| clients::Model {
+            number: 1,
+            source: jig_domain_core::settings::ModelSource::Stock,
+            estimated: false,
             effort: model.default_effort().map(skein_lib::bytes::copy_of),
             shown: None,
             picker: true,

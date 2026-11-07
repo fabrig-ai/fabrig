@@ -594,6 +594,14 @@ pub enum Event {
     /// A connector's release of a deleted project's adoptions has committed
     /// (jig/docs/design/domain/people.md, 5.2).
     ProjectReleased { connector: u16, project: u32 },
+    /// One model act at the newest revision (engine.md, 17.11).
+    ChangeModel {
+        reply_to: ReplyTo,
+        sign_in: u64,
+        key: [u8; 16],
+        digest: [u8; 32],
+        act: crate::settings::catalogue::ModelAct,
+    },
     /// Owner settings value held only while people admits its keyed digest.
     ChangeSettings {
         reply_to: ReplyTo,
@@ -1051,7 +1059,8 @@ impl Event {
             Self::Account(event) => account_new_work(event),
             Self::View(event) => view_new_work(event),
             Self::Notes(event) => notes_new_work(event),
-            Self::ChangeSettings { .. }
+            Self::ChangeModel { .. }
+            | Self::ChangeSettings { .. }
             | Self::ProposeSettings { .. }
             | Self::Act { .. }
             | Self::Read { .. }

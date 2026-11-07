@@ -21,6 +21,9 @@ fn me() -> c::Me {
     for name in [b"first".as_slice(), b"second"] {
         models
             .push(c::MeModel {
+                number: 1,
+                source: c::ModelSource::Stock,
+                estimated: false,
                 effort: None,
                 shown: None,
                 accounts: List::with_capacity(0),
@@ -239,6 +242,9 @@ fn the_selected_duplicate_models_effort_reaches_the_request() {
         efforts.push(fixtures::acts::text(effort)).unwrap();
         models
             .push(c::MeModel {
+                number: 1,
+                source: c::ModelSource::Stock,
+                estimated: false,
                 effort: efforts.get(0).cloned(),
                 shown: None,
                 accounts: List::with_capacity(0),

@@ -92,6 +92,13 @@ pub(crate) fn models(values: &List<w::MeModel>, limits: &Limits) -> Result<List<
         }
         models
             .push(c::MeModel {
+                number: value.number(),
+                source: match value.source() {
+                    w::ModelSource::Stock => c::ModelSource::Stock,
+                    w::ModelSource::List => c::ModelSource::List,
+                    w::ModelSource::Person => c::ModelSource::Person,
+                },
+                estimated: value.estimated(),
                 name: name(value.name(), limits.receiving().me_model_name)?,
                 provider: *value.provider(),
                 window: value.window(),

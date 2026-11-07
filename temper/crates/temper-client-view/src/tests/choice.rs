@@ -1615,6 +1615,9 @@ fn provider_offer(provider: u32, name: &[u8]) -> c::ProviderOffer {
 }
 fn offer_row(name: &[u8], provider: Option<u32>) -> c::MeModel {
     c::MeModel {
+        number: 1,
+        source: jig_client::contract::ModelSource::Stock,
+        estimated: false,
         name: model_text(name),
         provider,
         window: 1024,

@@ -19,6 +19,9 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
             };
             root::PartyInput::ProposeSettings { reply_to, sign_in, key, digest, change, kinds }
         }
+        core::Event::ChangeModel { reply_to, sign_in, key, digest, act } => {
+            root::PartyInput::ChangeModel { reply_to, sign_in, key, digest, act }
+        }
         core::Event::ChangeSettings { reply_to, sign_in, key, digest, change } => {
             let kinds = match kind_values(&change.items) {
                 Ok(kinds) => kinds,
@@ -226,6 +229,7 @@ pub fn not_ready(input: root::PartyInput) -> Option<kit::Event> {
         | root::PartyInput::SignOut { reply_to, .. }
         | root::PartyInput::Ask { reply_to, .. }
         | root::PartyInput::ProposeSettings { reply_to, .. }
+        | root::PartyInput::ChangeModel { reply_to, .. }
         | root::PartyInput::ChangeSettings { reply_to, .. }
         | root::PartyInput::Key { reply_to, .. }
         | root::PartyInput::Application { reply_to, .. } => {

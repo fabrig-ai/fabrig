@@ -625,6 +625,14 @@ pub enum PartyInput {
         change: Box<core::settings::Proposed>,
         kinds: Box<[KindValue]>,
     },
+    /// An owner model act, decided by jig at its newest revision.
+    ChangeModel {
+        reply_to: ReplyTo,
+        sign_in: u64,
+        key: [u8; 16],
+        digest: [u8; 32],
+        act: core::settings::catalogue::ModelAct,
+    },
     /// A direct owner settings change, decided by jig.
     ChangeSettings {
         reply_to: ReplyTo,

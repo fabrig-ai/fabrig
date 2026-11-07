@@ -85,6 +85,7 @@ pub enum Ask {
         reason: Text,
     },
     ChangeSettings(super::ChangeSettings),
+    ChangeModel(super::ChangeModel),
     MoveToNewest(super::MoveToNewest),
     /// Admit and create a batch together.
     Create {

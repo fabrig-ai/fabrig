@@ -216,6 +216,9 @@ pub struct Settings {
 /// A configured model as the client protocol names and shows it (configuration.md, 3).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Model {
+    pub number: u32,
+    pub source: core::settings::ModelSource,
+    pub estimated: bool,
     pub name: Box<[u8]>,
     /// The number of the LLM provider serving it, when configuration names one.
     pub provider: Option<u32>,

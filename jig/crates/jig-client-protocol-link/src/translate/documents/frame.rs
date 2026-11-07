@@ -40,6 +40,7 @@ pub(crate) fn project_role_fields(value: &w::MeProject, limits: &Limits) -> Resu
         None => None,
     };
     Ok(c::MeProject {
+        left_out: value.left_out(),
         public: *value.public(),
         project: value.project(),
         name: crate::translate::facts::document_text(value.name(), limits)?,

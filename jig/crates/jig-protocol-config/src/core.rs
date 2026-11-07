@@ -125,6 +125,16 @@ fn endpoints(engine: &Engine) -> Box<[domain::EndpointFacts]> {
     for endpoint in &engine.llm.endpoints {
         endpoints
             .push(domain::EndpointFacts {
+                providers: {
+                    let mut numbers =
+                        List::with_capacity(u32::try_from(engine.llm.providers.len()).expect("provider count"));
+                    for provider in &engine.llm.providers {
+                        if provider.endpoint.as_deref() == Some(endpoint.name.as_ref()) {
+                            numbers.push(provider.number).expect("provider count");
+                        }
+                    }
+                    numbers.into_boxed()
+                },
                 number: endpoint.number,
                 dialect: endpoint.dialect,
                 program: endpoint.program.clone(),

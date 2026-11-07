@@ -651,3 +651,14 @@ fn catalogue(value: &s::CatalogueModel, limits: &w::Limits) -> Result<w::Catalog
         },
     )
 }
+
+#[must_use]
+pub fn model_act(value: w::ChangeModel) -> s::catalogue::ModelAct {
+    match value.into_parts().act {
+        w::ModelAct::Picker(value) => s::catalogue::ModelAct::Picker { number: value.number(), on: value.on() },
+        w::ModelAct::Add(value) => {
+            let value = value.into_parts();
+            s::catalogue::ModelAct::Add { provider: value.provider, name: value.name }
+        }
+    }
+}

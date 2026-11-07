@@ -15,6 +15,7 @@ impl<A: Application> Engine<A> {
             Ask::Rename { project, name } => (Some(*project), name, None),
             Ask::MakeProject { name, policy } => (None, name, Some(*policy)),
             Ask::SetVisibility { .. }
+            | Ask::ChangeModel(_)
             | Ask::ChangeSettings(_)
             | Ask::MoveToNewest(_)
             | Ask::Restore { .. }
@@ -157,6 +158,7 @@ impl<A: Application> Engine<A> {
         }
         projects
             .push(MeProject {
+                left_out: 0,
                 defaults: List::with_capacity(0),
                 public: None,
                 project,

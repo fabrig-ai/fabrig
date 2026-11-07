@@ -167,6 +167,9 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
                 })),
             }
         }
+        Event::Party(crate::PartyInput::ChangeModel { reply_to, sign_in, key, digest, act }) => {
+            domain.work.push(Work::Core(core::Event::ChangeModel { reply_to, sign_in, key, digest, act }));
+        }
         Event::Party(crate::PartyInput::ChangeSettings { reply_to, sign_in, key, digest, change, kinds }) => {
             domain.kinds = kinds;
             match room_refusal(domain.host_part, &change.items) {

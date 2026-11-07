@@ -538,6 +538,7 @@ fn a_set_up_carries_the_repository_name_regardless_of_the_current_project() {
             frame
                 .projects
                 .push(c::MeProject {
+                    left_out: 0,
                     defaults: List::with_capacity(0),
                     public: None,
                     project,

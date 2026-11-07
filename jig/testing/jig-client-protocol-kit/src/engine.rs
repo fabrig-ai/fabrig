@@ -261,6 +261,7 @@ impl Engine {
         let to = if let root::Event::Core(
             core::Event::SignIn { reply_to, .. }
             | core::Event::ProposeSettings { reply_to, .. }
+            | core::Event::ChangeModel { reply_to, .. }
             | core::Event::ChangeSettings { reply_to, .. }
             | core::Event::Key { reply_to, .. }
             | core::Event::People(
@@ -418,6 +419,7 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::PublicDurable { .. }
         | core::Event::Act { .. }
         | core::Event::ProposeSettings { .. }
+        | core::Event::ChangeModel { .. }
         | core::Event::ChangeSettings { .. }
         | core::Event::Key { .. }
         | core::Event::Application { .. }

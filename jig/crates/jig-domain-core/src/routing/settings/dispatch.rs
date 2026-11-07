@@ -21,9 +21,22 @@ pub(crate) fn start(
     digest: [u8; 32],
     change: Box<s::Change>,
 ) -> Queue<Request> {
+    start_at(core, env, work, signed, digest, change, false)
+}
+fn start_at(
+    core: &mut Core,
+    env: &Env<Limits>,
+    work: &mut Queue<Work>,
+    signed: Signed,
+    digest: [u8; 32],
+    change: Box<s::Change>,
+    model: bool,
+) -> Queue<Request> {
     let Signed { reply_to, sign_in, key } = signed;
     assert!(core.settings_input.is_none(), "one settings admission at a time");
-    let against = change.against;
+    // A model act keeps one admission identity across revisions and keyed retries.
+    // Its held change still names the newest revision for the decision.
+    let against = if model { 0 } else { change.against };
     let projects = s::application::projects(&change.items);
     let room = route_writes(&env.limits)
         .expect("validated settings room")
@@ -35,6 +48,7 @@ pub(crate) fn start(
             Err(failure) => Err(failure),
         },
         room,
+        model,
     ));
     let result = crate::routing::party::people::route_people(
         core,
@@ -51,14 +65,101 @@ pub(crate) fn start(
     drop(core.settings_input.take());
     result
 }
+/// Build the one item from current state before keyed owner admission (engine.md, 17.11).
+pub(crate) fn model_start(
+    core: &mut Core,
+    env: &Env<Limits>,
+    work: &mut Queue<Work>,
+    signed: Signed,
+    digest: [u8; 32],
+    act: s::catalogue::ModelAct,
+) -> Queue<Request> {
+    let change = model_item(core, act);
+    match change {
+        Ok(item) => start_at(
+            core,
+            env,
+            work,
+            signed,
+            digest,
+            Box::new(s::Change { against: core.current.newest(), items: Box::new([item]), running: s::Running::Stays }),
+            true,
+        ),
+        Err(failure) => {
+            let Signed { reply_to, sign_in, key } = signed;
+            assert!(core.settings_input.is_none(), "one settings admission");
+            core.settings_input = Some((Err(failure), 0, true));
+            let result = crate::routing::party::people::route_people(
+                core,
+                env,
+                work,
+                people::Event::Ask {
+                    reply_to,
+                    sign_in,
+                    key,
+                    models: Box::default(),
+                    ask: people::Ask::ChangeSettings { against: 0, digest, projects: Box::default() },
+                },
+            );
+            drop(core.settings_input.take());
+            result
+        }
+    }
+}
+
+fn model_item(core: &Core, act: s::catalogue::ModelAct) -> Result<s::Item, s::Failure> {
+    let value = match act {
+        s::catalogue::ModelAct::Picker { number, on } => {
+            let Some(value) = core.current.value(s::Setting::Model(number)) else {
+                return Err(model_failure(number, s::Fault::Reference));
+            };
+            let Some(value) = value.as_model() else {
+                return Err(model_failure(number, s::Fault::Reference));
+            };
+            let mut value = value.clone();
+            value.picker = on;
+            value
+        }
+        s::catalogue::ModelAct::Add { provider, name } => model_add(core, provider, name)?,
+    };
+    Ok(s::Item { setting: s::Setting::Model(value.number), edit: s::Edit::Set(s::Value::Model(Box::new(value))) })
+}
+
+fn model_failure(number: u32, fault: s::Fault) -> s::Failure {
+    s::Failure { setting: s::Setting::Model(number), fault, detail: None }
+}
+
+fn model_add(core: &Core, provider: u32, name: Box<[u8]>) -> Result<s::CatalogueModel, s::Failure> {
+    if !s::catalogue::valid_name(&name) {
+        return Err(model_failure(0, s::Fault::Shape));
+    }
+    if core.settings.llm_providers.get(provider).is_none() {
+        return Err(model_failure(0, s::Fault::Reference));
+    }
+    let models = s::catalogue::entries(&core.current);
+    for row in &models {
+        if row.model.name == name {
+            if !row.withdrawn {
+                return Err(model_failure(row.number, s::Fault::Shape));
+            }
+            let mut row = row.clone();
+            row.withdrawn = false;
+            return Ok(row);
+        }
+    }
+    let number = s::catalogue::free_number(&models).ok_or(model_failure(0, s::Fault::Count))?;
+    s::catalogue::new_model(provider, name, s::ModelSource::Person, &models, &core.settings.endpoints)
+        .ok_or(model_failure(number, s::Fault::Reference))
+}
+
 pub(crate) fn admitted(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, party: Party, against: u32) {
     let Party { request, person, .. } = party;
 
     let outcome = match core.settings_input.take() {
-        Some(_) if against != core.current.newest() => {
+        Some((_, _, false)) if against != core.current.newest() => {
             people::Outcome::Refused(people::Refusal::Stale { newest: core.current.newest() })
         }
-        Some((Ok(change), room)) => {
+        Some((Ok(change), room, _)) => {
             if has_application(&change.items) {
                 if let Err(why) = preflight(core, env, &change, None) {
                     people::Outcome::Refused(why)
@@ -73,7 +174,7 @@ pub(crate) fn admitted(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, 
                 }
             }
         }
-        Some((Err(failure), _)) => malformed(failure),
+        Some((Err(failure), _, _)) => malformed(failure),
         None => people::Outcome::Refused(people::Refusal::NotOffered),
     };
     routed.work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));

@@ -26,7 +26,8 @@ pub struct CatalogueModel {
 
 #[must_use]
 pub fn valid_name(name: &[u8]) -> bool {
-    if name.is_empty() || name.len() > skein_lib::length::usize_of(crate::MODEL_NAME_BYTES) {
+    const NAME_BYTES: usize = 128;
+    if name.is_empty() || name.len() > NAME_BYTES {
         return false;
     }
     for &byte in name {
@@ -190,4 +191,85 @@ pub(crate) fn defaults(settings: &Settings) -> Box<[CatalogueModel]> {
             .expect("catalogue number bound");
     }
     models.into_boxed()
+}
+
+/// An owner's act, independent of any client revision (engine.md, 17.11).
+#[derive(Clone, Debug)]
+pub enum ModelAct {
+    Picker { number: u32, on: bool },
+    Add { provider: u32, name: Box<[u8]> },
+}
+
+/// The highest number not held by any setting, withdrawn rows included.
+#[must_use]
+pub(crate) fn free_number(models: &[CatalogueModel]) -> Option<u32> {
+    for number in (1..=jig_domain_tasks::MODELS).rev() {
+        let mut held = false;
+        for row in models {
+            held |= row.number == number;
+        }
+        if !held {
+            return Some(number);
+        }
+    }
+    None
+}
+
+/// A new estimated model takes stock figures and its provider's endpoint (engine.md, 17.11).
+#[must_use]
+pub fn new_model(
+    provider: u32,
+    name: Box<[u8]>,
+    source: ModelSource,
+    models: &[CatalogueModel],
+    endpoints: &[crate::EndpointFacts],
+) -> Option<CatalogueModel> {
+    let mut own: Option<&CatalogueModel> = None;
+    let mut any: Option<&CatalogueModel> = None;
+    for row in models {
+        if row.source != ModelSource::Stock {
+            continue;
+        }
+        if dearer(row, any) {
+            any = Some(row);
+        }
+        if row.model.provider == provider && dearer(row, own) {
+            own = Some(row);
+        }
+    }
+    let mut model = own.or(any)?.model.clone();
+    if own.is_none() {
+        let mut endpoint = None;
+        for facts in endpoints {
+            if facts.providers.contains(&provider) {
+                endpoint = Some(facts);
+                break;
+            }
+        }
+        let endpoint = endpoint?;
+        model.endpoint = endpoint.number;
+        model.dialect = endpoint.dialect;
+        model.program.clone_from(&endpoint.program);
+    }
+    model.provider = provider;
+    model.name = name;
+    model.efforts = Box::default();
+    model.effort = None;
+    Some(CatalogueModel {
+        number: free_number(models)?,
+        model,
+        shown: None,
+        description: None,
+        picker: true,
+        withdrawn: false,
+        source,
+        estimated: true,
+    })
+}
+
+fn dearer(row: &CatalogueModel, previous: Option<&CatalogueModel>) -> bool {
+    let Some(previous) = previous else { return true };
+    let price = crate::runs::state::most_costly(&row.model).unwrap_or(u64::MAX);
+    let before = crate::runs::state::most_costly(&previous.model).unwrap_or(u64::MAX);
+    price > before || (price == before && row.number < previous.number)
 }

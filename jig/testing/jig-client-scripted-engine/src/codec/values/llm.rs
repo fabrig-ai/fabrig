@@ -151,6 +151,13 @@ pub(in crate::codec) fn wire_me_model(value: &c::MeModel, limits: &w::Limits) ->
     w::MeModel::new(
         limits,
         w::MeModelParts {
+            number: value.number,
+            source: match value.source {
+                c::ModelSource::Stock => w::ModelSource::Stock,
+                c::ModelSource::List => w::ModelSource::List,
+                c::ModelSource::Person => w::ModelSource::Person,
+            },
+            estimated: value.estimated,
             name: bytes::copy_of(value.name.bytes()),
             provider: value.provider.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
             window: value.window,

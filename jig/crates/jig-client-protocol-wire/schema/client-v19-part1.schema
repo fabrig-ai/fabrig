@@ -25,7 +25,6 @@ record TableEntry { asker: u32 number: u64 key: fixed 16 scope: u64 first_sent: 
 record Chips { rows: bytes 16777216 }
 record Inbox { party: u64 needs: bytes 16777216 updates: bytes 16777216 next: option InboxCursor cached_needs: u32 cached_updates: Count results_seen: u64 updates_time_complete: bool selection: option bytes 16777216 }
 record SettingModel { provider: u32 dialect: u32 endpoint: u32 program: option text 32 name: text 4096 window: u32 output: u32 input_price: u64 cached_price: u64 cache_write_price: option u64 output_price: u64 price_unit: u32 efforts: list 16 text 32 effort: option text 32 }
-enum ModelSource { stock, list, person }
 record CatalogueEntry { number: u32 model: SettingModel shown: option text 4096 description: option text 512 picker: bool withdrawn: bool source: ModelSource estimated: bool }
 enum SettingHosts { workers, engine, both }
 record CharterDocument { connector: u16 name: list 32 bytes 65536 path: bytes 256 heading: option bytes 80 }
@@ -37,6 +36,10 @@ enum SettingValue { charter: boxed Charter, template: boxed Template, policy: bo
 record SettingSet { value: SettingValue }
 enum SettingEdit { set: SettingSet, removed, reset }
 record SettingItem { setting: Setting edit: SettingEdit }
+record ModelPicker { number: u32 on: bool }
+record ModelAdd { provider: u32 name: text 4096 }
+enum ModelAct { picker: ModelPicker, add: ModelAdd }
+record ChangeModel { act: ModelAct }
 record ChangeSettings { against: u32 items: bytes 1114240 running: Running }
 record OutcomeSettingsChanged { revision: u32 }
 record RefusalStale { newest: u32 }
@@ -96,12 +99,12 @@ record AdmissionRefused { value: Refusal }
 enum Admission { allowed, proposed: AdmissionProposed, bounded: boxed AdmissionBounded, refused: AdmissionRefused }
 record Offered { act: ActKind admission: Admission effect: option Effect }
 record CreatingBounds { within: BoundsCreate beyond: Beyond }
-record MeProject { project: u32 name: DocumentText role: HeldRole pool: option PoolLedger templates: bytes 16777216 creating: option CreatingBounds models: list 64 MeModel defaults: list 64 MeDefault public: option u64 }
+record MeProject { left_out: u32 project: u32 name: DocumentText role: HeldRole pool: option PoolLedger templates: bytes 16777216 creating: option CreatingBounds models: list 64 MeModel defaults: list 64 MeDefault public: option u64 }
 record EntranceRefusal { refusal: Refusal }
 record MoveToNewest { revision: u32 }
 record Lift { hold: u64 revision: u64 with_tasks: bool }
 record Restore { revision: u32 reason: text 65536 }
-enum Ask { message: Message, answer: Answer, take: Take, hand_back: HandBack, decide: Decide, release: Release, amend: boxed Amend, stop: Stop, cancel: Cancel, move_task: Move, seen: Seen, edit_note: EditNote, delete_note: DeleteNote, change_policy: ChangePolicy, set_roles: SetRoles, make_service: MakeService, set_pool: SetPool, compound: Compound, create: Create, propose: Propose, withdraw: Withdraw, sign_in: AskSignIn, sign_out: AskSignOut, account_change: AskAccountChange, rename: Rename, make_project: MakeProject, change_settings: ChangeSettings, move_to_newest: MoveToNewest, lift: Lift, remove_project: RemoveProject, restore: Restore, set_visibility: SetVisibility }
+enum Ask { message: Message, answer: Answer, take: Take, hand_back: HandBack, decide: Decide, release: Release, amend: boxed Amend, stop: Stop, cancel: Cancel, move_task: Move, seen: Seen, edit_note: EditNote, delete_note: DeleteNote, change_policy: ChangePolicy, set_roles: SetRoles, make_service: MakeService, set_pool: SetPool, compound: Compound, create: Create, propose: Propose, withdraw: Withdraw, sign_in: AskSignIn, sign_out: AskSignOut, account_change: AskAccountChange, rename: Rename, make_project: MakeProject, change_settings: ChangeSettings, move_to_newest: MoveToNewest, lift: Lift, remove_project: RemoveProject, restore: Restore, set_visibility: SetVisibility, change_model: ChangeModel }
 enum ReadValue { tasks: TaskPage, project: Project, ended: boxed Ended, me: Me, task: Task, proposal: Proposal, escalation: Escalation, question: Question, person_task: PersonTask, result: ResultDocument, ended_page: EndedPage, history: HistoryPage, activity: ActivityPage, inbox: InboxPage, spend: SpendPage, notes: NotePage, deployment: Deployment, turn: ArchivedTurn, settings: SettingsDocument, setting: SettingDocument, revision: ReadRevisionAnswer, revisions: RevisionsPage, task_text: TaskText }
 enum DeliveryValue { project: Project, me: Me, task: boxed Task, proposal: Proposal, tree: Tree, chips: Chips, inbox: Inbox, tasks: Tasks, run_state: RunState, deployment: Deployment, accounts: Accounts, settings: SettingsDocument }
 record OriginRevision { revision: u32 }
