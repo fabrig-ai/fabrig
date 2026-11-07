@@ -12,6 +12,16 @@ pub trait Platform {
     fn read_all(&self) -> Vec<crate::store::Record>;
     fn write(&mut self, key: &[u8], value: &[u8]) -> bool;
     fn remove(&mut self, key: &[u8]);
+    /// The kept store's records, the browser's local storage (ui-web.md, 10); none by default.
+    fn read_kept(&self) -> Vec<crate::store::Record> {
+        Vec::new()
+    }
+    /// Writes one kept record; refused by default.
+    fn write_kept(&mut self, _key: &[u8], _value: &[u8]) -> bool {
+        false
+    }
+    /// Removes one kept record.
+    fn remove_kept(&mut self, _key: &[u8]) {}
     fn send(&mut self, exchange: &crate::fetch::Exchange);
     fn navigate(&mut self, to: &[u8]);
     /// Opens the page's tab holding a line of words, in the turn of a person's act;
