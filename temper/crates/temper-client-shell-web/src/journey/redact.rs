@@ -32,15 +32,15 @@ pub fn redact(recording: &[u8], given: &[Box<[u8]>]) -> Result<Redacted, Unredac
             }
         }
         for (field, framing) in fields_mut(line) {
-            count(&mut places, replace(field, framing, &originals));
+            count(&mut places, redact_field(field, framing, &originals));
         }
     }
     let mut streams = Streams::read(&lines).map_err(Unredacted::Undecoded)?;
     for event in streams.events_mut() {
-        count(&mut places, replace(&mut event.record, Framing::Framed, &originals));
+        count(&mut places, redact_field(&mut event.record, Framing::Framed, &originals));
     }
     for plain in streams.plain_mut() {
-        count(&mut places, replace(&mut plain.bytes, Framing::Framed, &originals));
+        count(&mut places, redact_field(&mut plain.bytes, Framing::Framed, &originals));
     }
     streams.write(&mut lines);
     let mut recording = Vec::new();
@@ -59,7 +59,8 @@ struct Replacement {
     bytes: Box<[u8]>,
 }
 
-fn replace(field: &mut Box<[u8]>, framing: Framing, originals: &Originals) -> u32 {
+/// Replace every original's forms and digests in one field; return the places replaced.
+pub fn redact_field(field: &mut Box<[u8]>, framing: Framing, originals: &Originals) -> u32 {
     let mut replacements = BTreeMap::new();
     for original in originals.sought() {
         for (from, to) in original.digests() {

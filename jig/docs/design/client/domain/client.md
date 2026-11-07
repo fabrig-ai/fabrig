@@ -981,7 +981,10 @@ for any presentation of a chat or of any agent task's activity.
     it is answered waiting, the client sends the same take again by
     itself after a second, `APPROVAL_AGAIN`, and tells `not_signed_in`
     `Approval(Waiting)`; not ready, busy and lost take the backoff a
-    link's sign-in takes. Any other answer ends it, installing nothing:
+    link's sign-in takes, and `not_signed_in` says not ready for not
+    ready and busy for busy and for lost, so its application tells a
+    lost take from one not yet answered. Any other answer ends it,
+    installing nothing:
     `not_signed_in` says `Approval` with why (refused, expired, used or
     unknown), or full with the deployment's room, the earliest saved
     expiry and the approval's own expiry in place of the link's. A next

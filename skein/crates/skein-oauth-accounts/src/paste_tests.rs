@@ -211,6 +211,7 @@ fn signs_in_with_code(owner: &mut Owner, code: &[u8]) {
                 | Lower::Stream { .. }
                 | Lower::Output { .. }
                 | Lower::Spawn { .. }
+                | Lower::SpawnAlone { .. }
                 | Lower::Signal { .. }
                 | Lower::Usage { .. }
                 | Lower::Window { .. }

@@ -74,13 +74,14 @@ fn the_test_preset_is_usable_and_allows_entrance_overrides() {
     assert!(crate::valid(&changed));
 }
 
-fn owned_requests(owner: Token) -> [Request; 6] {
+fn owned_requests(owner: Token) -> [Request; 7] {
     let entity = Token::new(99);
     [
         Request::Listen { owner, addr: addr(100) },
         Request::Connect { owner, addr: addr(101) },
         Request::Bind { socket: entity, owner },
         Request::Spawn { owner, spawn: super::process::command(&[(7, crate::kernel::Way::Out)]) },
+        Request::SpawnAlone { owner, spawn: super::process::command(&[(7, crate::kernel::Way::Out)]) },
         Request::Usage { owner },
         Request::Window { owner, stream: entity },
     ]

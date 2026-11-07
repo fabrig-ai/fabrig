@@ -1,6 +1,6 @@
 # io: status
 
-2026-11-06. Where skein's code lags or departs from [io.md](io.md).
+2026-11-07. Where skein's code lags or departs from [io.md](io.md).
 
 Section 7 has no known gap in the requested hangup event or its distinct
 `ServiceSignal::Hangup` name.

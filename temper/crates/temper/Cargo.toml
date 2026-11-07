@@ -12,6 +12,9 @@ name = "temper"
 path = "src/main.rs"
 test = false
 
+[features]
+record = ["temper-client-shell-tui/record"]
+
 [dependencies]
 settings-form.workspace = true
 temper-docs.workspace = true

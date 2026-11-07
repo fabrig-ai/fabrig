@@ -136,6 +136,7 @@ fn start(component: &mut Component, up: &mut Queue<Event>, io: &mut Queue<Lower>
         | Lower::Stream { .. }
         | Lower::Output { .. }
         | Lower::Spawn { .. }
+        | Lower::SpawnAlone { .. }
         | Lower::Window { .. }
         | Lower::Usage { .. }
         | Lower::Signal { .. }
@@ -472,6 +473,7 @@ fn abort_starts_one_binding_per_entrance_and_waits_for_physical_settlement() {
             | Lower::Stream { .. }
             | Lower::Output { .. }
             | Lower::Spawn { .. }
+            | Lower::SpawnAlone { .. }
             | Lower::Window { .. }
             | Lower::Usage { .. }
             | Lower::Signal { .. }
@@ -542,6 +544,7 @@ fn is_abort(request: Option<Lower>) -> bool {
             | Lower::Stream { .. }
             | Lower::Output { .. }
             | Lower::Spawn { .. }
+            | Lower::SpawnAlone { .. }
             | Lower::Window { .. }
             | Lower::Usage { .. }
             | Lower::Signal { .. }
@@ -670,6 +673,7 @@ fn two_endpoints_drive_uploads_with_their_own_client_limits() {
             | Lower::Stream { .. }
             | Lower::Output { .. }
             | Lower::Spawn { .. }
+            | Lower::SpawnAlone { .. }
             | Lower::Window { .. }
             | Lower::Usage { .. }
             | Lower::Signal { .. }
@@ -695,6 +699,7 @@ fn two_endpoints_drive_uploads_with_their_own_client_limits() {
                 | Lower::Reject { .. }
                 | Lower::Output { .. }
                 | Lower::Spawn { .. }
+                | Lower::SpawnAlone { .. }
                 | Lower::Window { .. }
                 | Lower::Usage { .. }
                 | Lower::Signal { .. } => {}

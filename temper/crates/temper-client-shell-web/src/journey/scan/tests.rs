@@ -558,3 +558,38 @@ fn stream_records_and_plain_text_keep_line_order() {
         assert_eq!(lines(&pair, &originals).unwrap().map(|found| (found.line, found.what)), Some((1, what)));
     }
 }
+
+#[test]
+fn candidate_originals_and_shapes_are_scanned_separately() {
+    use crate::journey::Kind;
+    use skein_lib::sha256::digest;
+
+    let value = [b"a/ & ".as_slice(), b"\"<>\\\n"].concat();
+    for kind in [Kind::Approval, Kind::Credential, Kind::Bearer] {
+        let originals = Originals::new(vec![(kind, value.clone().into())], &[]);
+        for form in [
+            value.as_slice(),
+            b"a%2F%20%26%20%22%3C%3E%5C%0A",
+            b"a%2f%20%26%20%22%3c%3e%5c%0a",
+            b"a/ &amp; &quot;&lt;&gt;\\\n",
+            b"a/ & \\\"<>\\\\\\n",
+            &digest(&value),
+        ] {
+            let field = [b"before ".as_slice(), form, b" after"].concat();
+            assert!(crate::journey::original(&field, &originals), "{kind:?}");
+            assert_eq!(bytes(&field, &originals), Some(What::Original), "{kind:?}");
+            assert_eq!(crate::journey::shape(&field), None, "{kind:?} has no shape");
+        }
+        assert!(!original(&vec![b'x'; value.len()], &originals), "{kind:?} placeholder");
+        assert!(!original(&digest(&vec![b'x'; value.len()]), &originals), "{kind:?} placeholder digest");
+    }
+    for (value, what) in samples() {
+        if let What::Shape(expected) = what {
+            let originals = Originals::new(vec![(Kind::Approval, value.clone().into())], &[]);
+            assert!(original(&value, &originals));
+            assert_eq!(shape(&value), Some(expected));
+            assert_eq!(bytes(&value, &originals), Some(What::Original), "original precedes shape {expected:?}");
+            assert_eq!(bytes(&value, &Originals::new(Vec::new(), &[])), Some(what));
+        }
+    }
+}

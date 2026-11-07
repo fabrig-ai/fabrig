@@ -860,7 +860,7 @@ read's head explicit.
   headline say "N of M tasks done.", where the mock says "landed", and a goal's task
   ended done with no change has its own "done" line. Counting landings on a row needs
   a stored and a wire field for a small word; section 11 holds it.
-- **Not yet:** 7.1: the TUI's flow, its tab's address made from its own parts, its opener, its lines and the address printed when no browser opens, and asking again: the plan after the TUI's first screen builds it (`../draft/tui.execution.md`, M2).
+- **Not yet:** 6.13: the `Opened` report; 7.1: the TUI's flow: its ask each time its sign-in screen opens signed out, the tab's address made from its own parts (`approval_address`), its opener chosen by the binary and run with the address as its one argument, the opener's report, its lines and the address printed when no browser opens, a pasted link replacing the take, and asking again by Enter in the empty field (`tui-recorded`).
 
 Sections 3.5, 5.1 and 5.12 have the browser's approval page, its root
 state and actions, the asked time, signed-out card and approved read each

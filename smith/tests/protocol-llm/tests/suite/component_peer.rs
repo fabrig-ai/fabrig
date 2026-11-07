@@ -436,6 +436,7 @@ fn run_story(
                 | IoRequest::Reject { .. }
                 | IoRequest::Output { .. }
                 | IoRequest::Spawn { .. }
+                | IoRequest::SpawnAlone { .. }
                 | IoRequest::Signal { .. }
                 | IoRequest::Window { .. }
                 | IoRequest::Usage { .. }) => panic!("unexpected io request: {other:?}"),

@@ -100,6 +100,7 @@ impl ForgeFace {
                 | io::Request::Stream { .. }
                 | io::Request::Output { .. }
                 | io::Request::Spawn { .. }
+                | io::Request::SpawnAlone { .. }
                 | io::Request::Signal { .. }
                 | io::Request::Usage { .. }
                 | io::Request::Window { .. } => panic!("unexpected client listener request"),
@@ -128,6 +129,7 @@ impl ForgeFace {
                 | io::Request::Stream { .. }
                 | io::Request::Output { .. }
                 | io::Request::Spawn { .. }
+                | io::Request::SpawnAlone { .. }
                 | io::Request::Signal { .. }
                 | io::Request::Usage { .. }
                 | io::Request::Window { .. } => panic!("unexpected worker listener request"),
@@ -201,6 +203,7 @@ impl ForgeFace {
                 | io::Request::Reject { .. }
                 | io::Request::Output { .. }
                 | io::Request::Spawn { .. }
+                | io::Request::SpawnAlone { .. }
                 | io::Request::Signal { .. }
                 | io::Request::Usage { .. }
                 | io::Request::Window { .. } => panic!("unexpected forge request"),
@@ -289,6 +292,7 @@ pub fn hook(service: &mut crate::Service) -> skein_forge_connection::hooks::Hint
                 | io::Request::Reject { .. }
                 | io::Request::Output { .. }
                 | io::Request::Spawn { .. }
+                | io::Request::SpawnAlone { .. }
                 | io::Request::Signal { .. }
                 | io::Request::Usage { .. }
                 | io::Request::Window { .. } => panic!("hook delivery only"),

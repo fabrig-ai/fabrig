@@ -257,6 +257,7 @@ impl Net {
             }
             Request::Connect { .. }
             | Request::Spawn { .. }
+            | Request::SpawnAlone { .. }
             | Request::Signal { .. }
             | Request::Usage { .. }
             | Request::Window { .. }

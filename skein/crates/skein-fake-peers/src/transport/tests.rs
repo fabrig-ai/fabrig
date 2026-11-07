@@ -99,6 +99,7 @@ impl Pair {
                     | skein_io::Request::Stream { .. }
                     | skein_io::Request::Output { .. }
                     | skein_io::Request::Spawn { .. }
+                    | skein_io::Request::SpawnAlone { .. }
                     | skein_io::Request::Signal { .. }
                     | skein_io::Request::Window { .. }
                     | skein_io::Request::Usage { .. }
