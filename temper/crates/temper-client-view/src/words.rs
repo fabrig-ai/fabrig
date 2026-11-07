@@ -1431,9 +1431,9 @@ const PHRASES: u32 = 1886;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3287;
+const SEGMENTS: u32 = 3285;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 46122;
+const ENGLISH_BYTES: u32 = 46107;
 const ALL: [Word; 1285] = [
     Word::CloseTitle,
     Word::CloseChat,
@@ -4673,7 +4673,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeNeedsMany => (&[b"", b" things need you."], &[Name]),
         Word::HomeNeedsCut => (&[b"", b"+ things need you."], &[Number]),
         Word::HomeNeedsCount => (&[b"Needs you \xc2\xb7 ", b""], &[Number]),
-        Word::HomeNeedsEmpty => (&[b"Nothing needs you. Work carries on, and this page tells you what changed when you come back."], &[]),
+        Word::HomeNeedsEmpty => (&[b"Work carries on, and this page tells you what changed when you come back."], &[]),
         Word::HomeInARow => (&[b"Answer in a row"], &[]),
         Word::HomeQuestion => (&[b"a question"], &[]),
         Word::HomeProposal => (&[b"a proposal"], &[]),

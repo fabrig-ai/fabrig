@@ -135,7 +135,6 @@
   2026-11-05 to `ui-chat-draft/chats-drafts` keeps this one chips window,
   without raising jig's bound.
 - **Not yet:** 5.1, *signed out, the link spent*: the page says the shell's words for every link that can't sign in.
-- **Not yet:** 3.5, Home: its empty *Needs you* repeats the headline's "Nothing needs you." 5.10: a semantic conflict's line still says "Repairing: a semantic conflict with LANDING."
 - **Design departs:** 3.5, Home, from the greenfield target, by the request `ui-small-1` of 2026-11-06: the mock's empty *Needs you* repeats the headline's "Nothing needs you."; here it says that once, in the headline.
 - **Design departs:** 5.3, from the greenfield target, by the request `ui-repo-link` of 2026-11-06: the mock's
   switcher row is one button holding the name and the small words; here the small words are a sibling of the
