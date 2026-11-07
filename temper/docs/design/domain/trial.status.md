@@ -1,6 +1,6 @@
 # trial: status
 
-2026-11-06. Where temper's code lags or departs from [trial.md](trial.md).
+2026-11-07. Where temper's code lags or departs from [trial.md](trial.md).
 
 Unlisted sections have no known gap. Charter 10, the person's projectless
 task, the rows and wire, cancellation at the first ending or minute, and
@@ -10,6 +10,12 @@ real-loop story use fake models.
 - **Not yet:** 2, 6.1: verification on a real account remains unknown:
   no outcome of the model-check request's real-box walk is supplied for
   retirement. A fake model's answer does not establish that result.
+  2, 4: `route/trials.rs`'s `Make` names no `llm` for every trial, so a
+  later account's selects as a new chat does and may answer as another
+  account, its `took` naming which. jig's `Core::account_llm` (jig's
+  `domain/accounts.md`, 4.3), `PersonSeed::models` and
+  `Event::PersonTask`'s `llm` (jig's `domain/authority.md`, 6.1) are not
+  built either.
 
 - **Departs:** 6: `temper-client-domain/src/forge/trials.rs` keeps one
   `pending` request. `look` marks every newly usable account seen before
@@ -28,5 +34,5 @@ real-loop story use fake models.
 The pane's missing spend notice and its placement before Ready are design
 gaps recorded in `../draft/model-check.status.md`, sections 2 and 3. The
 missing gallery samples are `../client/browser.status.md`, 7.2. Section 8
-keeps the intentional limits on selection, deployment accounts,
-project-only keys, Settings and restart retention.
+keeps the intentional limits on deployment accounts, project-only keys,
+Settings and restart retention.
