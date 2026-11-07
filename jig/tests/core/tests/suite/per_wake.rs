@@ -210,7 +210,17 @@ fn a_question_arriving_after_preparation_waits_for_the_next_run() {
     assert_eq!(world.inbound, relayed);
     story::turn(&mut world, second, Some(words.number));
     assert_eq!(live_row(&world, run.0).inbox.as_ref(), std::slice::from_ref(&question));
+    let assignments = world.assignments.len();
     story::park(&mut world, second, Some(words.number));
+    let prepared = world.domain.take_workspace().expect("question's workspace completion held before claim");
+    world.send(jig_test_domain::Event::Core(prepared));
+    if let Some(refreshed) = world.domain.take_workspace() {
+        world.send(jig_test_domain::Event::Core(refreshed));
+    }
+    assert_eq!(world.assignments.len(), assignments + 1, "the kept question claims a new run");
+    let next = world.assigned.as_ref().expect("question wakes next run");
+    assert_eq!(next.task, run.0);
+    assert!(next.attempt > second.1);
     assert_assignment(&world, run.0, b"S\n\nQ", story::M2, std::slice::from_ref(&question));
     assert_eq!(live_row(&world, run.0).reasons, tasks::Reasons::QUESTION);
     assert_eq!(live_row(&world, run.0).offered, tasks::Reasons::QUESTION);
