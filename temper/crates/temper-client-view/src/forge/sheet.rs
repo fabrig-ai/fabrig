@@ -69,12 +69,15 @@ pub(crate) fn draw(
     b.style(look::CONNECT_SHEET_BODY);
     b.open(Role::Slot);
     b.style(look::CONNECT_SOURCE);
-    if sheet.source == Source::Forge {
-        choices(b, root, sheet, w, forge);
-        picker(b, root, sheet, &project_name, w, forge);
-        not_listed(b, root, sheet, w, bindings, forge);
-        more(b, sheet, form, w, forge);
-        reading(b, sheet, w, bindings, forge);
+    match sheet.source {
+        Source::Forge => {
+            choices(b, root, sheet, w, forge);
+            picker(b, root, sheet, &project_name, w, forge);
+            not_listed(b, root, sheet, w, bindings, forge);
+            more(b, sheet, form, w, forge);
+            reading(b, sheet, w, bindings, forge);
+        }
+        Source::Empty | Source::Copy => making(b, root, sheet, w, forge),
     }
     b.close();
     if let sheet::Sent::Refused(text) = &sheet.sent {
@@ -113,7 +116,7 @@ pub(crate) fn draw(
     b.style(look::CONNECT_PRIMARY);
     b.name(&name);
     b.bind(forge.insert(Meaning::Sheet(Act::Send)));
-    if !enabled || sheet.source != Source::Forge {
+    if !enabled {
         b.state(State::Disabled);
     }
     b.close();
@@ -123,6 +126,109 @@ pub(crate) fn draw(
 }
 fn text(b: &mut Builder, w: &Words, role: Role, word: Word, holes: &[Hole]) {
     crate::cards::text(b, role, &words::say(w, word, holes));
+}
+fn making(b: &mut Builder, root: &Domain, sheet: &sheet::Sheet, w: &Words, bindings: &mut Bindings) {
+    let rows = forge::listed::rows(root.forges(), None);
+    let mut count = 0_u32;
+    for row in &rows {
+        if sheet::makes(row) {
+            count = count.checked_add(1).expect("bounded forges");
+        }
+    }
+    if count > 1 {
+        b.open(Role::Slot);
+        b.open(Role::Select);
+        b.style(look::SETTINGS_TEXT);
+        b.name(&words::say(w, Word::SheetForge, &[]));
+        for row in &rows {
+            if !sheet::makes(row) {
+                continue;
+            }
+            b.open(Role::Option);
+            b.name(&super::connect::name(w, row, root));
+            if sheet.target == Some(row.number) {
+                b.state(State::Selected);
+            }
+            b.bind(bindings.insert(Meaning::Sheet(Act::Target(row.number))));
+            b.close();
+        }
+        b.close();
+        b.close();
+    }
+    match sheet.source {
+        Source::Empty => {
+            b.open(Role::Slot);
+            b.style(look::CONNECT_PAIR);
+            field(b, &sheet.org, Word::Organization, Meaning::Sheet(Act::Org(Box::default())), w, bindings);
+            field(b, &sheet.name, Word::Name, Meaning::Sheet(Act::Name(Box::default())), w, bindings);
+            b.close();
+        }
+        Source::Copy => {
+            b.open(Role::Slot);
+            b.open(Role::TextArea);
+            b.style(look::SETTINGS_TEXT);
+            b.style(look::CONNECT_ADDRESSES);
+            b.name(&words::say(w, Word::Addresses, &[]));
+            b.placeholder(&words::say(w, Word::AddressExample, &[]));
+            b.value(&sheet.addresses.text, sheet.addresses.written);
+            b.bind(bindings.insert(Meaning::Sheet(Act::Addresses(Box::default()))));
+            if sheet.addresses.broken.is_some() {
+                b.state(State::Invalid);
+            }
+            b.close();
+            broken(b, sheet.addresses.broken, w);
+            b.close();
+            line_alerts(b, sheet, root.forges(), w, bindings);
+        }
+        Source::Forge => return,
+    }
+    if let Some(row) = sheet::row(root.forges(), sheet.target) {
+        b.open(Role::Paragraph);
+        b.style(look::CONNECT_MUTED);
+        let word = match sheet.source {
+            Source::Empty => Word::MakeOn,
+            Source::Copy => Word::CopiedInto,
+            Source::Forge => return,
+        };
+        words::text(w, b, word, &[Hole::Name(super::connect::name(w, row, root))]);
+        b.close();
+    }
+}
+fn line_alerts(b: &mut Builder, sheet: &sheet::Sheet, rows: &forge::forges::State, w: &Words, bindings: &mut Bindings) {
+    let lines = sheet::lines(sheet, rows);
+    let mut opened = false;
+    for line in &lines {
+        let Some(words) = forge::words::sheet_line(line) else { continue };
+        let fix = match line {
+            forge::making::Line::To { .. } => continue,
+            forge::making::Line::Bad { .. } => None,
+            forge::making::Line::NotAHost { line, .. } => Some((Word::UseIt, Act::UseIt { line: line.clone() })),
+            forge::making::Line::Taken { org, name, .. } => {
+                Some((Word::AdoptIt, Act::AdoptIt { org: org.clone(), name: name.clone() }))
+            }
+        };
+        if !opened {
+            b.open(Role::Alert);
+            b.open(Role::List);
+            b.style(look::CONNECT_ALERTS);
+            opened = true;
+        }
+        b.open(Role::Item);
+        b.text(Run::Plain, &words);
+        if let Some((word, act)) = fix {
+            b.text(Run::Plain, b" ");
+            b.open(Role::Button);
+            b.style(look::CONNECT_QUIET);
+            b.name(&words::say(w, word, &[]));
+            b.bind(bindings.insert(Meaning::Sheet(act)));
+            b.close();
+        }
+        b.close();
+    }
+    if opened {
+        b.close();
+        b.close();
+    }
 }
 fn choices(b: &mut Builder, root: &Domain, sheet: &sheet::Sheet, w: &Words, bindings: &mut Bindings) {
     let rows = forge::listed::rows(root.forges(), None);
@@ -462,8 +568,16 @@ fn button_name(button: &sheet::Button, w: &Words) -> Box<[u8]> {
         sheet::Button::Adopt { count: 0, .. } => words::say(w, Word::Adopt, &[]),
         sheet::Button::Adopt { count: 1, first } => words::say(w, Word::AdoptOne, &[Hole::Name(first.clone())]),
         sheet::Button::Adopt { count, .. } => words::say(w, Word::AdoptMany, &[Hole::Number(u64::from(*count))]),
-        sheet::Button::Make { .. } => words::say(w, Word::MakeEmpty, &[]),
-        sheet::Button::Copy { .. } => words::say(w, Word::CopyPublic, &[]),
+        sheet::Button::Make { full } => {
+            if full.starts_with(b"/") || full.ends_with(b"/") {
+                words::say(w, Word::MakeIt, &[])
+            } else {
+                words::say(w, Word::MakeOne, &[Hole::Name(full.clone())])
+            }
+        }
+        sheet::Button::Copy { count: 0, .. } => words::say(w, Word::Copy, &[]),
+        sheet::Button::Copy { count: 1, first } => words::say(w, Word::CopyOne, &[Hole::Name(first.clone())]),
+        sheet::Button::Copy { count, .. } => words::say(w, Word::CopyMany, &[Hole::Number(u64::from(*count))]),
     }
 }
 fn reading(

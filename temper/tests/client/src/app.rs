@@ -295,7 +295,8 @@ impl App for Temper {
                 {
                     state = jig_client_kit::harness::CardSeen::Deciding;
                 }
-                if node.role == skein_ui::Role::Alert
+                // An unnamed alert groups the sheet's local line checks; a named alert is an outcome.
+                if node.role == skein_ui::Role::Alert && node.name.is_some()
                     || node.role == skein_ui::Role::Status
                         && node.name.as_deref().is_some_and(|name| {
                             name.starts_with(b"Adopted ") || name.starts_with(b"It is not known whether ")

@@ -111,7 +111,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 295;
+pub const N: usize = 298;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -780,6 +780,19 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "sheet-none", world: Reference, address: Address::Adopt { project: 1 }, then: Shown },
         Sample { name: "sheet-few", world: Reference, address: Address::Adopt { project: 1 }, then: Shown },
         Sample { name: "sheet-empty", world: Reference, address: Address::Adopt { project: 1 }, then: Shown },
+        Sample { name: "sheet-copy", world: FirstRun { step: 7 }, address: Address::Adopt { project: 1 }, then: Shown },
+        Sample {
+            name: "sheet-copy-lines",
+            world: FirstRun { step: 7 },
+            address: Address::Adopt { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "sheet-empty-source",
+            world: FirstRun { step: 7 },
+            address: Address::Adopt { project: 1 },
+            then: Shown,
+        },
         Sample { name: "chats-reference", world: Reference, address: CHATS, then: Shown },
         Sample { name: "chat-reference-T1", world: Reference, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-solo-T1", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
@@ -2865,19 +2878,59 @@ fn confirmation(root: &mut Domain, kind: Confirmation, out: &mut Queue<Request>)
     }
 }
 
+fn making_sheet(root: &mut Domain, name: &str, out: &mut Queue<Request>) {
+    use temper_client_domain::forge::{self, sheet};
+    if name == "sheet-empty-source" {
+        step(
+            root,
+            Event::Act { action: Action::Forge(forge::Act::Sheet(sheet::Act::Source(sheet::Source::Empty))) },
+            out,
+        );
+        return;
+    }
+    if matches!(name, "sheet-copy" | "sheet-copy-lines") {
+        step(
+            root,
+            Event::Act { action: Action::Forge(forge::Act::Sheet(sheet::Act::Source(sheet::Source::Copy))) },
+            out,
+        );
+        let addresses = if name == "sheet-copy" {
+            b"github.com/octo/vsr\ncodeberg.org/forgejo/runner".as_slice()
+        } else {
+            b"github/octo/vsr\ngithub.com/octo/raft".as_slice()
+        };
+        step(
+            root,
+            Event::Act { action: Action::Forge(forge::Act::Sheet(sheet::Act::Addresses(addresses.into()))) },
+            out,
+        );
+    }
+}
+
 fn adoption_sheet(root: &mut Domain, name: &str, out: &mut Queue<Request>) {
     use temper_client_domain::forge::{self, sheet};
     use temper_client_protocol_wire::v1 as w;
+    making_sheet(root, name, out);
+    if name == "sheet-empty-source" {
+        return;
+    }
     let sheet::Reading::Asked { key, .. } = root.forge().sheet().expect("sheet").reading else { return };
     let count = match name {
         "sheet-few" => 4,
-        "sheet-empty" => 0,
+        "sheet-empty" | "sheet-copy" => 0,
+        "sheet-copy-lines" => 1,
         _ => 16,
     };
     let mut rows = skein_lib::List::with_capacity(16);
     for id in 1..=count {
-        let name = match id {
-            1 => b"widget".as_slice().into(),
+        let repository = match id {
+            1 => {
+                if name == "sheet-copy-lines" {
+                    b"raft".as_slice().into()
+                } else {
+                    b"widget".as_slice().into()
+                }
+            }
             2 => b"notes".as_slice().into(),
             _ => skein_lib::bytes::concat(&[b"repository-", skein_lib::Decimal::of(id).as_bytes()]),
         };
@@ -2886,9 +2939,19 @@ fn adoption_sheet(root: &mut Domain, name: &str, out: &mut Queue<Request>) {
                 &w::CEILINGS,
                 w::ReachedParts {
                     id,
-                    owner: w::Account::new(&w::CEILINGS, w::AccountParts { id: 3, login: b"sam".as_slice().into() })
-                        .expect("owner"),
-                    name,
+                    owner: w::Account::new(
+                        &w::CEILINGS,
+                        w::AccountParts {
+                            id: 3,
+                            login: if name == "sheet-copy-lines" {
+                                b"octo".as_slice().into()
+                            } else {
+                                b"sam".as_slice().into()
+                            },
+                        },
+                    )
+                    .expect("owner"),
+                    name: repository,
                     private: id == 2,
                 },
             )
