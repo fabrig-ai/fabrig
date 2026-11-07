@@ -110,3 +110,7 @@ Acceptance:
 ## Report
 
 As the implementer's text says, and: the bite's red (acceptance 4) and the restore; each row's CPU time alone; whether the coding row holds saved work and how (option); the story's start and the drain's and restart's moments as taken; each oracle repaired and why; anything under `## Left`.
+
+## Answers
+
+2026-11-07 (temper/ui). Added before this task starts, at temper/migration's ask, from per-wake (jig, landed 17:46Z): a run's reasons are kept on its claim across a continuation and a retry, and an interrupted run's next start must keep them too. Add a second row, a goal whose first run is stopped mid-cut. After the restart it starts again as first, reading the shared text and the cut part at the first LLM choice, not as a later run at later. Put it beside the coding run's row, or as a row of per-wake's existing story table if that's cheaper. If it fails because End::Recheck drops the claim's reasons, fix that at its lowest place in jig's core, with the row red first. Say in the report how Recheck carries the claim's reasons.
