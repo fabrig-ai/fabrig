@@ -293,6 +293,9 @@ Where the client's recorded picks stand against the drawing:
   spend, “N spent · of B”, and no model, template, charter, host or
   budget mode; the picker under the composer names the next run's model
   and effort (`../README.md`, 3.5, *The work's account and model*).
+  A stored picker amendment can still leave the next provider request on
+  the previous model; `../README.status.md`, 3.5 records the proof and
+  the `ui-model-next-turn` repair owner.
 - **Closed** for every ended chat's bar and list row, with no clock in
   the bar. A requester-closed chat ends its conversation with "Closed
   at CLOCK" between two hairlines (`../README.md`, 3.6). The conversation's

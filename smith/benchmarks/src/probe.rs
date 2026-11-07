@@ -32,6 +32,7 @@ pub struct Order {
     pub agent: ProbeAgent,
     pub attempts: u32,
     pub source: Source,
+    pub shared_temporary: PathBuf,
 }
 
 /// Immutable requests prepared outside the checkout for the dispatcher.

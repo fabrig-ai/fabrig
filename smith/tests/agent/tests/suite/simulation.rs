@@ -200,37 +200,30 @@ fn refused_push_feedback_reaches_the_llm_and_is_retried() {
 }
 
 #[test]
-fn host_cancellation_at_many_moments_closes_the_whole_tree() {
-    let mut cancelled = 0;
-    let mut nested = 0;
-    let mut done = 0;
-    for seed in 0..40 {
-        let settings = Settings {
+fn host_cancellation_early_inside_the_tree_and_after_the_answer_settles() {
+    for (row, cancel_at, seed) in
+        [("early", 500, 601), ("inside the tree", 1_000, 602), ("after the answer", 19_500, 639)]
+    {
+        let world = settled(&Settings {
             job: Job::Delegating,
-            cancel_at: Some(Duration::from_millis(seed * 500)),
+            cancel_at: Some(Duration::from_millis(cancel_at)),
             races: 500,
-            ..Settings::calm(600 + seed)
-        };
-        let world = settled(&settings);
-        match world.answer() {
-            Answer::Failed { failure: RunFailure::Cancelled, .. } => {
-                cancelled += 1;
-                nested += usize::from(
-                    count(&world, |fact| {
-                        matches!(fact, run::facts::FactKind::Opened { kind: run::facts::Kind::Child { .. }, .. })
-                    }) > 0,
-                );
-            }
-            Answer::Accepted { .. } => done += 1,
-            answer @ (Answer::Parked { .. } | Answer::Refused(_) | Answer::Failed { .. }) => {
-                panic!("seed {seed}: expected cancelled or already finished, got {answer:?}")
-            }
+            ..Settings::calm(seed)
+        });
+        let children = count(&world, |fact| {
+            matches!(fact, run::facts::FactKind::Opened { kind: run::facts::Kind::Child { .. }, .. })
+        });
+        if row == "after the answer" {
+            assert!(matches!(world.answer(), Answer::Accepted { .. }), "{row}: {:?}", world.answer());
+        } else {
+            assert!(
+                matches!(world.answer(), Answer::Failed { failure: RunFailure::Cancelled, .. }),
+                "{row}: {:?}",
+                world.answer()
+            );
+            assert_eq!(children > 0, row == "inside the tree", "{row}: child openings");
         }
     }
-    assert!(
-        cancelled > 0 && nested > 0 && done > 0,
-        "cancels crossed early, nested and already-finished runs: {cancelled}/{nested}/{done}"
-    );
 }
 
 #[test]

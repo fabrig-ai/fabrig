@@ -589,3 +589,19 @@ fn the_terminal_writes_the_ellipsis() {
     skein_ui_text::render(&tree, b"temper", None, &mut print);
     assert!(skein_lib::bytes::find(print.text.as_slice(), "Read 2 files: reading src/main.rs…".as_bytes()).is_some());
 }
+
+#[test]
+fn proposing_settings_says_a_change_without_its_reason() {
+    let input = br#"{"reason":"private reason","items":[]}"#;
+    let one = call(1, b"propose_settings", input, None);
+    let tree = line(core::slice::from_ref(&one), &[], None, false, 0);
+    assert_eq!(disclosure(&tree).name.as_deref(), Some(b"Proposed a change".as_slice()));
+    let tree = line(&[one.clone(), call(2, b"propose_settings", input, None)], &[], None, false, 0);
+    assert_eq!(disclosure(&tree).name.as_deref(), Some("Proposed a change 2×".as_bytes()));
+    let tree = line(&[call(2, b"settings", b"{}", None), one], &[], None, false, 0);
+    assert_eq!(disclosure(&tree).name.as_deref(), Some(b"Checked settings, proposed a change".as_slice()));
+    let tree = line(&[], &[], Some(&live(b"propose_settings", input)), true, 0);
+    assert_eq!(disclosure(&tree).name.as_deref(), Some(b"Proposing a change".as_slice()));
+    assert_eq!(disclosure(&tree).description.as_deref(), Some(b"proposing a change".as_slice()));
+    assert!(skein_lib::bytes::find(&fixtures::text(&tree), b"private reason").is_none());
+}
