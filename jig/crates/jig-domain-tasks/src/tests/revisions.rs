@@ -448,7 +448,7 @@ fn activity_keeps_whole_words_after_a_committed_turn_takes_them() {
         turn: 1,
         read: Some(1),
         offered: Some(1),
-        outstanding: Box::new([]),
+        outstanding: Box::new([1]),
         cumulative: 1,
     });
     assert!(test.domain.task(1).unwrap().inbox.is_empty());

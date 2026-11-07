@@ -455,4 +455,5 @@ mod classifiers {
     }
 }
 
+mod offering;
 mod reasons;

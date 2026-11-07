@@ -1089,7 +1089,7 @@ impl Domain {
                 .expect("bounded delegate snapshot");
         }
         Some(Box::new(crate::RunContext {
-            reasons: task.reasons,
+            reasons: crate::wake::reasons(domain, number, inbox.as_slice()),
             ended_by: task.flags.ended_by,
             llm: task.llm.clone(),
             payer: domain.payer(number).expect("admitted financial chain has a payer"),
