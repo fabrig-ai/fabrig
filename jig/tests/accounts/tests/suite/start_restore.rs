@@ -51,7 +51,18 @@ fn failed(world: &mut World, expected: RestoreLimit) {
 
 #[test]
 fn records_are_linked_after_loading_in_any_order() {
+    let fact = jig_domain_accounts::AccountFact {
+        kind: 999,
+        label: Box::new([]),
+        value: jig_domain_accounts::FactValue::Count(42),
+        seen: Wall::EPOCH,
+        source: None,
+        origin: 999,
+    };
+    let orphan = ACCOUNT + 100;
     let mut world = start(&[
+        Stored::Facts { account: ACCOUNT, facts: Box::new([fact.clone()]) },
+        Stored::Facts { account: orphan, facts: Box::new([fact.clone()]) },
         program(ACCOUNT, PROGRAM_SOURCE, PROGRAM_PLACE, b"Upper Name"),
         issued(PROGRAM_SOURCE, b"Upper Name"),
         held(ACCOUNT, b"same"),
@@ -62,6 +73,9 @@ fn records_are_linked_after_loading_in_any_order() {
     assert!(world.domain.account(ACCOUNT).expect("loaded account").sources().is_empty());
     let out = world.step(Event::Want);
     assert!(world.domain.restore_finished());
+    assert_eq!(world.domain.account_facts(ACCOUNT), &[fact]);
+    assert!(world.domain.account_facts(orphan).is_empty());
+    assert!(world.domain.account_facts(22).is_empty());
 
     assert_eq!(restore_limit(&world.domain), None);
     assert_eq!(world.domain.account(ACCOUNT).expect("linked").sources().get(&PROGRAM_PLACE), Some(&PROGRAM_SOURCE));
@@ -222,6 +236,13 @@ fn names_past_the_fixed_carrier_refuse_stickily() {
 #[test]
 fn retained_capacities_bound_accounts_and_lifetime_names_after_limits_grow() {
     for (rows, expected) in [
+        (
+            [
+                Stored::Facts { account: ACCOUNT, facts: Box::new([]) },
+                Stored::Facts { account: 22, facts: Box::new([]) },
+            ],
+            RestoreLimit { key: Key::Facts { account: 22 }, set: RestoreSet::Accounts, limit: 1 },
+        ),
         (
             [held(ACCOUNT, b""), held(22, b"")],
             RestoreLimit { key: Key::Account { number: 22 }, set: RestoreSet::Accounts, limit: 1 },
@@ -682,4 +703,40 @@ fn program_and_sign_in_append_after_restoration() {
     }
     assert_eq!(store.get(&Key::Source { account: ACCOUNT, number: 23 }), Some(&program(ACCOUNT, 23, declared, b"p")));
     assert_eq!(world.domain.account(ACCOUNT).expect("kept account").sources().get(&declared), Some(&23));
+}
+
+#[test]
+fn registered_facts_are_shown_to_their_audience() {
+    use jig_domain_accounts::{AccountFact, Audience, FactValue, FactWindow, audience};
+    let holder = Some(Audience::Holder);
+    let account = Some(Audience::Account);
+    for (kind, expected) in [
+        (0, None),
+        (1, holder),
+        (2, holder),
+        (3, account),
+        (4, account),
+        (5, holder),
+        (6, holder),
+        (7, account),
+        (8, None),
+    ] {
+        assert_eq!(audience(kind), expected);
+        for origin in 0..=7 {
+            for state in 0..=4 {
+                let registered = expected.is_some() && (1..=6).contains(&origin) && (1..=3).contains(&state);
+                let fact = AccountFact {
+                    kind,
+                    label: Box::new([]),
+                    value: FactValue::Window(FactWindow { length: None, used: None, resets: None, state }),
+                    seen: Wall::EPOCH,
+                    source: None,
+                    origin,
+                };
+                assert_eq!(fact.registered(), registered, "kind {kind}, origin {origin}, state {state}");
+                assert_eq!(fact.shown_to(true), registered);
+                assert_eq!(fact.shown_to(false), registered && expected == account);
+            }
+        }
+    }
 }

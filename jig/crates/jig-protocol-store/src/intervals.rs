@@ -45,7 +45,7 @@ pub fn restore(range: &RestoreRange) -> Box<[Range]> {
     Box::new([match range {
         RestoreRange::Settings => Range::prefix(&[keys::JIG, 0, 8]),
         RestoreRange::Deployment => Range::prefix(&[keys::JIG, 0, 0]),
-        // Issued names (4), then counter/accounts/sources (0 to 2); skip the installation (3).
+        // Issued names (4), counter/accounts/sources (0 to 2), then facts (5); skip installation (3).
         RestoreRange::Accounts => {
             return Box::new([
                 Range::prefix(&[keys::JIG, keys::ACCOUNTS, 4]),
@@ -53,6 +53,7 @@ pub fn restore(range: &RestoreRange) -> Box<[Range]> {
                     start: Box::new([keys::JIG, keys::ACCOUNTS, 0]),
                     end: Some(Box::new([keys::JIG, keys::ACCOUNTS, 3])),
                 },
+                Range::prefix(&[keys::JIG, keys::ACCOUNTS, 5]),
             ]);
         }
         RestoreRange::People => {

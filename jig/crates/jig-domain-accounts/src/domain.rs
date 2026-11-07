@@ -135,6 +135,7 @@ enum Choice {
 #[derive(Debug)]
 pub struct Domain {
     pub(crate) accounts: Map<u32, Account>,
+    pub(crate) said: Map<u32, Box<[crate::AccountFact]>>,
     pub(crate) sources: Map<u32, Source>,
     pub(crate) issued: Map<u32, crate::programs::Issued>,
     pub(crate) programs: Map<u32, crate::programs::Pending>,
@@ -172,6 +173,7 @@ impl Domain {
         let sources = limits.accounts.checked_mul(limits.sources).expect("validated account source count");
         Domain {
             accounts: Map::with_capacity(limits.accounts),
+            said: Map::with_capacity(limits.accounts),
             sources: Map::with_capacity(sources),
             issued: Map::with_capacity(limits.program_names),
             programs: Map::with_capacity(limits.program_names),
@@ -194,6 +196,14 @@ impl Domain {
             restore_failure: None,
             now: Time::ZERO,
             phase: Phase::New,
+        }
+    }
+    /// What the provider says of this account (accounts.md, 3.7); empty when absent.
+    #[must_use]
+    pub fn account_facts(&self, account: u32) -> &[crate::AccountFact] {
+        match self.said.get(&account) {
+            Some(facts) => facts,
+            None => &[],
         }
     }
     pub(crate) fn last_place(&self, holder: Holder) -> u32 {
