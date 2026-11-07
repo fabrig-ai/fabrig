@@ -124,7 +124,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 318;
+pub const N: usize = 320;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
