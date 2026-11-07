@@ -132,6 +132,7 @@ fn run(seed: u64) -> (Trace, (u32, u32, bool)) {
                 | IoRequest::Reject { .. }
                 | IoRequest::Output { .. }
                 | IoRequest::Spawn { .. }
+                | IoRequest::SpawnAlone { .. }
                 | IoRequest::Window { .. }
                 | IoRequest::Usage { .. }
                 | IoRequest::Signal { .. }) => panic!("unexpected io request: {other:?}"),
@@ -202,6 +203,7 @@ fn run(seed: u64) -> (Trace, (u32, u32, bool)) {
                 | IoRequest::Reject { .. }
                 | IoRequest::Output { .. }
                 | IoRequest::Spawn { .. }
+                | IoRequest::SpawnAlone { .. }
                 | IoRequest::Window { .. }
                 | IoRequest::Usage { .. }
                 | IoRequest::Signal { .. }
@@ -315,6 +317,7 @@ fn per_call_reasoning_policy(endpoint_default: bool) {
                 | IoRequest::Reject { .. }
                 | IoRequest::Output { .. }
                 | IoRequest::Spawn { .. }
+                | IoRequest::SpawnAlone { .. }
                 | IoRequest::Window { .. }
                 | IoRequest::Usage { .. }
                 | IoRequest::Signal { .. } => panic!("unexpected IO"),
@@ -457,6 +460,7 @@ fn a_paused_owner_holds_the_connection_s_reads_and_its_reuse() {
                 | IoRequest::Reject { .. }
                 | IoRequest::Output { .. }
                 | IoRequest::Spawn { .. }
+                | IoRequest::SpawnAlone { .. }
                 | IoRequest::Window { .. }
                 | IoRequest::Usage { .. }
                 | IoRequest::Signal { .. }

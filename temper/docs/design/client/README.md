@@ -6611,7 +6611,7 @@ connection, live (6.14). `temper open` stays the tests' line client
       pub credential: Option<skein_lib::Secret>,      // DIRECTORY/token's
   }
   pub enum Report { Start(Start), Due, Key(skein_ui_screen_terminal::Key), Resize(skein_ui_screen::Size),
-      Heard(jig_client::Event), Kept { written: bool } }
+      Heard(jig_client::Event), Kept { written: bool }, Opened { opened: bool } }
   pub struct Duties {
       pub asked: Vec<jig_client::Request>,            // to the native shell, in order
       pub keep: Option<Option<skein_lib::Secret>>,    // the credential to write; Some(None) erases it
@@ -6636,13 +6636,14 @@ connection, live (6.14). `temper open` stays the tests' line client
   deadline reached; `Key`, one key as skein's decoder made it (skein's
   `ui-screen.md`, 6.1); `Resize`, the window's new size; `Heard`, one of
   the transport's or the small store's events, as the native shell gives
-  them; `Kept`, the credential's write ended, written or not. Any report
+  them; `Kept`, the credential's write ended, written or not; `Opened`,
+  the browser's opener ended, done or not (7.1). Any report
   before `Start` is the host's defect.
 - **The duties** of each report: the root's requests for the native
   shell, in order, each routed as `temper open` routes them (6.2); the
   credential to keep, or none to erase it; the address signed in to,
   once, the first time the link is live with a party; an address for a
-  browser to open, which nothing asks in this pass; and closing, once.
+  browser to open, once for each approval asked (7.1); and closing, once.
   After closing, every report but `Heard` and `Kept` does nothing, so
   the native shell's last write still lands.
 - **The credential:** after each report the host reads it from
@@ -6970,18 +6971,40 @@ was answered with. A box enables it beside the printed link
     root's shown count moves with it.
 - **The TUI's flow,** on the TUI's sign-in screen (`../draft/tui.md`,
   4.1), its host and its view, the TUI's crates:
-  - *It asks* when its sign-in screen opens signed out, and the screen
-    still takes the printed link, pasted, as `../draft/tui.md`, 4.1 has
-    it.
-  - *The tab's address* is the TUI's own, made from its own parts alone:
-    the engine's address it was given or kept, `http://HOST:PORT`, then
-    the approval page's printed path, `address::print_approve(Some(code))`,
+  - *It asks* once each time its sign-in screen opens signed out (6.14:
+    at its start with no credential kept, and again after a sign-out or
+    a kept credential the engine refused), while the root holds no ask:
+    the host steps `Event::AskApproval`. A held credential's sign-in in
+    flight is not signed out, so nothing is asked until the engine has
+    answered it. The screen still takes the printed link, pasted, as
+    `../draft/tui.md`, 4.1 has it.
+  - *Asking:* until the engine answers, "Asking temper for a code…",
+    dim, under the screen's first line.
+  - *The tab's address* is the TUI's own, made from its own parts alone
+    by `temper-client-tui`'s `approval_address(address, code)`: the
+    engine's address it was given or kept, `http://HOST:PORT`, then the
+    approval page's printed path, `address::print_approve(Some(code))`,
     `/terminal?code=WDJB-MJHT` (`browser.md`, 2.3), the code an
-    `ApprovalCode`, so of the code's alphabet by its type. It opens no
-    address the engine sent, and gives the address to the opener as one
-    argument, with no shell between: `xdg-open ADDRESS` on Linux, `open
-    ADDRESS` on macOS, a departure, on purpose, from `temper open`,
-    which opens no browser (6.5).
+    `ApprovalCode`, so of the code's alphabet by its type. An answer
+    whose code is off the alphabet is refused by jig's reader, so
+    nothing is opened for it. It opens no address the engine sent.
+  - *Opening the tab:* on each ask answered, once, the host's duty
+    `open` carries the address, and the view draws it as opened until
+    the opener's report says otherwise. The run gives the address to the
+    opener as its one argument, with no shell between: `xdg-open
+    ADDRESS` on Linux, `open ADDRESS` on macOS, a departure, on purpose,
+    from `temper open`, which opens no browser (6.5). The opener's
+    stdin, stdout and stderr are none of the terminal's, so nothing it
+    says reaches the screen; its environment is the TUI's. Its exit
+    ended, the run reports `Opened { opened }`, done on 0. Closing waits
+    for no opener: one still running is let go, never the browser it
+    started.
+  - *The opener* is the binary's choice, at start: none on an SSH
+    session (`SSH_CONNECTION` or `SSH_TTY` set) or, on Linux, with no
+    display (neither `DISPLAY` nor `WAYLAND_DISPLAY` set); else the
+    program of that name in the first absolute directory of `PATH` that
+    holds it as an executable file; none when no directory does. With
+    none, the run reports `Opened { opened: false }` at the duty itself.
   - *Its lines,* the code and the address drawn, the code as shown:
 
     ```
@@ -6993,41 +7016,54 @@ was answered with. A box enables it beside the printed link
     ```
 
     "The code expires in SPAN." is 5.12's *span* to the ask's expiry,
-    with its tick.
-  - *No browser to open:* an SSH session (`SSH_CONNECTION` or `SSH_TTY`
-    set), no display (on Linux, neither `DISPLAY` nor `WAYLAND_DISPLAY`
-    set), or the opener failing (not found, or exiting other than 0):
-    the TUI opens nothing more and prints the address and the code,
-    "Open this address in a browser that reaches temper:", the address,
-    "and check it shows CODE, then press Approve.", then "From another
-    machine, tunnel port PORT to this one first." The engine is on
+    with its tick. On the screen, "Sign in this terminal" is 6.14's
+    first line, "Sign in this terminal to HOST:PORT", said once; the
+    approval's lines follow it, then the paste's, "Paste the link temper
+    printed, then Enter." and its field.
+  - *No browser to open:* an SSH session, no display, or the opener
+    failing (not found, or exiting other than 0): the TUI opens nothing
+    more and prints the address and the code, "Open this address in a
+    browser that reaches temper:", the address, "and check it shows
+    CODE, then press Approve.", then "From another machine, tunnel port
+    PORT to this one first.", then the expiry's line. The engine is on
     loopback, so a browser elsewhere reaches it through a tunnel to its
     listener on the same port, which jig's guards require of the
     address (jig's `protocol/browser.md`, 12.2).
-  - *Each outcome's line,* in place of the screen's last line; a key of
-    the sign-in screen asks again (`a`, "Press a to ask again."), as
-    the screen's other keys are the TUI's:
+  - *Asking again:* Enter in the Link field while it is empty, once the
+    approval has ended or was not asked, or a pasted link has replaced
+    it, asks again (`may_ask_again`), and its line says "Press Enter to
+    ask again." The field has the focus on this screen and takes every
+    character, `q` and `a` among them (6.14), so no letter can be the
+    key. While an approval waits, Enter in the empty field is the
+    paste's "not a link" refusal, as before.
+  - *A pasted link, sent,* replaces the approval's take (jig-client's
+    sign-in in flight is the newest one asked): the approval's lines
+    give way to the paste's progress and its refusal, and Enter in the
+    emptied field asks again.
+  - *Each outcome's line,* in place of the screen's last line:
 
     | Outcome | Its line |
     |---|---|
     | waiting | the screen as drawn |
-    | refused | "The browser refused this sign-in. Press a to ask again." |
-    | expired | "The code expired before it was approved. Press a to ask again." |
-    | used | "That code was already used. Press a to ask again." |
-    | unknown | "temper doesn't know that code any more: it restarted, or the code is old. Press a to ask again." |
-    | full | "All N sign-ins are in use; the earliest ends MOMENT UTC. Press a to ask again then." (5.1's full, its moments so said) |
+    | refused | "The browser refused this sign-in. Press Enter to ask again." |
+    | expired | "The code expired before it was approved. Press Enter to ask again." |
+    | used | "That code was already used. Press Enter to ask again." |
+    | unknown | "temper doesn't know that code any more: it restarted, or the code is old. Press Enter to ask again." |
+    | full | "All N sign-ins are in use; the earliest ends MOMENT UTC. Press Enter to ask again then." (5.1's full, its moments so said) |
     | the take busy, not ready or lost | "temper is busy; still trying…", while `jig-client` sends it again |
     | not asked: refused | "This temper doesn't sign terminals in from the browser. Paste the link it printed instead." |
-    | not asked: busy | "Too many terminals are waiting to sign in. Press a to ask again in a moment." |
-    | not asked: not ready or lost | "temper is starting or stopping, or out of reach. Press a to ask again." |
+    | not asked: busy | "Too many terminals are waiting to sign in. Press Enter to ask again in a moment." |
+    | not asked: not ready or lost | "temper is starting or stopping, or out of reach. Press Enter to ask again." |
 
+    An ended approval's code, address and expiry are no longer drawn:
+    the outcome's line stands under the screen's first line.
   - *Signed in:* the TUI keeps the credential in its directory
     (`../draft/tui.md`, 4.1), as `temper open` keeps a link's (section
     7), before anything is told of the sign-in, and draws its first
     screen; the page says "Signed in. You can close this tab." (3.5).
   - *Never printed:* the secret and the credential are drawn, printed
     or logged nowhere; the TUI's recordings redact them
-    (`../draft/tui.md`, section 5).
+    (`tui/journeys.md`, section 5).
 
 ## 8. On the engine's side
 

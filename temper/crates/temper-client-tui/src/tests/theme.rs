@@ -42,6 +42,18 @@ fn the_themes_are_valid_and_name_every_look() {
     assert_eq!(look::QUIT, skein_lib::Token::new(2));
     assert_eq!(look::NAMES.prefix, b"tui");
     for (scheme, [bg, ink, dim, faint, sel, accent, good]) in rows {
+        assert_eq!(
+            theme::palette(scheme),
+            [
+                ("bg", bg),
+                ("ink", ink),
+                ("dim", dim),
+                ("faint", faint),
+                ("sel", sel),
+                ("accent", accent),
+                ("good", good)
+            ]
+        );
         let theme = theme(scheme);
         assert!(theme.valid());
         assert_eq!(theme.base, Paint { fore: Some(ink), back: Some(bg), ..Paint::NONE });

@@ -778,6 +778,23 @@ fn given_slots_are_resolved_before_submission_and_retained_on_failure() {
     answer.result = Ok(Done::Spawned { pidfd: NEW, sender: crate::kernel::Sender::new(1) });
     assert!(answer.is_valid(), "success returns the borrowed Given descriptor");
 }
+#[test]
+fn null_slots_never_carry_parent_descriptors_in_submissions_or_completions() {
+    use crate::kernel::{Pipe, Way};
+    let kind = Op::Spawn { spawn: Box::new(super::process::command(&[(0, Way::Null)])) };
+    assert!(kind.is_valid(), "null needs no resolved descriptor");
+    let mut answer = complete(kind, Ok(Done::Spawned { pidfd: NEW, sender: crate::kernel::Sender::new(1) }));
+    assert!(answer.is_valid(), "null has no parent end on success");
+    answer.result = Err(Error::NotFound);
+    assert!(answer.is_valid(), "null has no parent end on failure");
+    let Op::Spawn { spawn } = &mut answer.kind else { panic!("spawn") };
+    spawn.pipes = Box::new([Pipe { child: 0, way: Way::Null, parent: Some(FD) }]);
+    assert!(!answer.kind.is_valid(), "a null submission cannot borrow a descriptor");
+    assert!(!answer.is_valid(), "a null failure cannot return a descriptor");
+    answer.result = Ok(Done::Spawned { pidfd: NEW, sender: crate::kernel::Sender::new(1) });
+    assert!(!answer.is_valid(), "a null success cannot return a descriptor");
+}
+
 const ROUTE_OWNER: Token = Token::new(17);
 const ROUTE_CANCEL: Token = Token::new(18);
 const ROUTE_SLOT: u32 = 1; // One record at the shared queue's bound (kernel.md, 5).

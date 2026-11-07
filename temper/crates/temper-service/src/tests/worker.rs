@@ -1005,6 +1005,7 @@ fn settle_worker_service(linked: bool) {
                 | io::Request::Stream { .. }
                 | io::Request::Output { .. }
                 | io::Request::Spawn { .. }
+                | io::Request::SpawnAlone { .. }
                 | io::Request::Signal { .. }
                 | io::Request::Usage { .. }
                 | io::Request::Window { .. }) => stand.below.out.io.push(other),

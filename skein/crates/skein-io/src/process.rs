@@ -1,13 +1,14 @@
 //! A pidfd-backed child, retained exit and ordered pipe tokens (io.md, section 6).
 //! It keeps an observing wait and at most one signal, never a numeric PID.
-//! `signal` targets the child or its group. `close` requests the group kill;
-//! `release` reaps only after that kill, the exit and every pipe close settle.
+//! `signal` targets the child or its group. `close` kills the group, or only a
+//! running child spawned alone. `release` reaps after the required kill, the
+//! exit and every pipe close settle.
 //!
 //! | Phase | Completion | Next |
 //! |---|---|---|
 //! | Spawning | Spawned | Running, observing Wait |
 //! | Running | exit observed | Exited, Exited told once |
-//! | Running, Exited | close | group Kill after an owner signal settles |
+//! | Running, Exited | close | required Kill after an owner signal settles |
 //! | Exited | kill and pipes settled | Reaping, reaping Wait |
 //! | Reaping | reap | Releasing, pidfd Close |
 //! | Releasing | Close | Closed, terminal told |
@@ -44,11 +45,12 @@ pub(crate) struct Child {
     phase: Phase,
     signalling: Signalling,
     closing: bool,
+    alone: bool,
     killed: bool,
 }
 
 impl Child {
-    fn new(owner: Token, pipes: Box<[Id<Entity>]>) -> Child {
+    fn new(owner: Token, pipes: Box<[Id<Entity>]>, alone: bool) -> Child {
         Child {
             owner,
             pipes,
@@ -56,6 +58,7 @@ impl Child {
             phase: Phase::Spawning,
             signalling: Signalling::Idle,
             closing: false,
+            alone,
             killed: false,
         }
     }
@@ -67,7 +70,7 @@ impl Child {
     }
 }
 
-pub(crate) fn spawn(io: &mut Io, owner: Token, mut spawn: Spawn, subs: &mut Queue<Submit>) {
+pub(crate) fn spawn(io: &mut Io, owner: Token, mut spawn: Spawn, alone: bool, subs: &mut Queue<Submit>) {
     for (at, spec) in spawn.pipes.iter().enumerate() {
         let before = spawn.pipes.get(..at).expect("entry prefix is within the table");
         for prior in before {
@@ -98,7 +101,7 @@ pub(crate) fn spawn(io: &mut Io, owner: Token, mut spawn: Spawn, subs: &mut Queu
                 };
                 spec.parent = Some(fd);
             }
-            Way::In | Way::Out => {}
+            Way::In | Way::Out | Way::Null => {}
         }
     }
     let Some(count) = pipe_count(&spawn) else {
@@ -126,7 +129,7 @@ pub(crate) fn spawn(io: &mut Io, owner: Token, mut spawn: Spawn, subs: &mut Queu
     }
     let id = io
         .entities
-        .insert(Entity::Child(Child::new(owner, pipes.into_boxed())))
+        .insert(Entity::Child(Child::new(owner, pipes.into_boxed(), alone)))
         .expect("reserved a slot for the child");
     io.tables.submit(subs, id, Purpose::Spawn, Op::Spawn { spawn: Box::new(spawn) });
 }
@@ -313,9 +316,13 @@ fn begin_close(io: &mut Io, id: Id<Entity>, subs: &mut Queue<Submit>) {
     if !child.closing || child.killed || child.signalling != Signalling::Idle {
         return;
     }
+    if child.alone && child.phase != Phase::Running {
+        return;
+    }
     let pidfd = child.pidfd.expect("a closing child has its pidfd");
+    let to = if child.alone { Target::Child } else { Target::Group };
     child.signalling = Signalling::Closing;
-    io.tables.submit(subs, id, Purpose::Signal, Op::Signal { pidfd, signal: Signal::Kill, to: Target::Group });
+    io.tables.submit(subs, id, Purpose::Signal, Op::Signal { pidfd, signal: Signal::Kill, to });
 }
 
 pub(crate) fn release(io: &mut Io, id: Id<Entity>, subs: &mut Queue<Submit>) {
@@ -331,7 +338,7 @@ pub(crate) fn release(io: &mut Io, id: Id<Entity>, subs: &mut Queue<Submit>) {
             | None => {}
         }
     }
-    if !child.killed {
+    if !child.killed && !child.alone {
         let child = match io.entities.get_mut(id) {
             Some(Entity::Child(child)) => child,
             Some(Entity::Named(_) | Entity::Joined(_)) => unreachable!("a releasing child remains"),
@@ -385,7 +392,7 @@ fn spawn_error(error: kernel::Error) -> Error {
 fn is_pipe(way: Way) -> bool {
     match way {
         Way::In | Way::Out => true,
-        Way::Given(_) => false,
+        Way::Given(_) | Way::Null => false,
     }
 }
 

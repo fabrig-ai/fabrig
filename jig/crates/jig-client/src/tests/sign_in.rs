@@ -798,7 +798,7 @@ fn a_take_not_ready_busy_or_lost_uses_the_existing_backoff() {
     for (answer, why) in [
         (Some(w::ApprovalSignInAnswer::NotReady), Some(NotSignedIn::NotReady)),
         (Some(w::ApprovalSignInAnswer::Busy), Some(NotSignedIn::Busy)),
-        (None, None),
+        (None, Some(NotSignedIn::Busy)),
     ] {
         let mut c = Client::new();
         c.step(Event::SignIn { with: taking() });

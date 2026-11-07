@@ -1,0 +1,36 @@
+draft = "tui-recorded"
+repo = "fabrig"
+sources = ["temper/docs/plan/tui-recorded/inputs/request.md", "temper/docs/design/draft/tui.md", "temper/docs/design/draft/tui.execution.md", "temper/docs/design/draft/tui.status.md", "temper/AGENTS.md", "temper/docs/design/client/journeys.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tui"
+priority = true
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "tui-approval-flow"
+title = "The TUI's way through the browser's approval: asked when its sign-in screen opens signed out, the tab's address made from its own parts and given to the opener as one argument, the address printed when no browser opens, each ending's line and Enter to ask again, signed in to its first screen"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 7.1"
+
+[[slice]]
+id = 1
+story = "A TUI started signed out asks; its screen draws the code and the address it opened; a second client signed in as a browser approves at that code; the TUI keeps its credential and draws Connected to 127.0.0.1:8367 as the browser's party; refused, it says so and Enter asks again"
+parts = ["tui-approval-flow"]
+walk = false
+
+[[part]]
+id = "tui-journeys"
+title = "The TUI's journeys: recorded at its host's seam in a build of its own, replayed through the shipped host, redacted and scanned by the browser's code with the TUI's originals, printed as text frames and pages in the theme's colours, kept current by a test, recorded again with the TUI in a pseudo-terminal and the approval in headless Chromium, and the first journey committed"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/tui/journeys.md, 1"
+
+[[slice]]
+id = 2
+story = "sign-in-approved: on a fresh fake box, the browser signed in by its printed link, temper started, the approval's frame, the approval given in the browser, the first screen; recorded again by a command, added, its texts and pages committed and reprinted byte for byte by the journeys' test"
+parts = ["tui-journeys"]
+walk = false

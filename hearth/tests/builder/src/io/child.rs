@@ -47,7 +47,9 @@ impl Below {
                     way: match pipe.way {
                         kernel::Way::In => linux::Way::In,
                         kernel::Way::Out => linux::Way::Out,
-                        kernel::Way::Given(_) => unreachable!("the builder spawns tools with pipes only"),
+                        kernel::Way::Given(_) | kernel::Way::Null => {
+                            unreachable!("the builder spawns tools with pipes only")
+                        }
                     },
                 })
                 .collect(),

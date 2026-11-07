@@ -114,6 +114,7 @@ impl Ledger {
             Request::Abort { entity } => Asked::Abort { entity: *entity },
             Request::Output { .. }
             | Request::Spawn { .. }
+            | Request::SpawnAlone { .. }
             | Request::Window { .. }
             | Request::Usage { .. }
             | Request::Signal { .. } => unreachable!("the socket world spawns no child"),

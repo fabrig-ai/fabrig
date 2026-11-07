@@ -1,18 +1,27 @@
-//! The TUI's own state beside the client root (temper/docs/design/client/README.md, 6.14).
+//! The TUI's own state beside the client root (temper/docs/design/client/README.md, 6.14 and 7.1).
 use alloc::boxed::Box;
 use skein_lib::bytes::copy_of;
 
 #[derive(Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "the TUI holds independent sign-in, paste and credential facts")]
 pub struct Tui {
     address: Box<[u8]>,
     field: Box<[u8]>,
     signing: Signing,
+    browser: Option<Browser>,
+    pasted: bool,
     signed_out: bool,
     unkept: bool,
     linked: bool,
     openings: u64,
     revision: u64,
     written: u64,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Browser {
+    Opening,
+    Opened,
+    None,
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Signing {
@@ -31,6 +40,8 @@ pub enum Told {
     Typed { value: Box<[u8]> },
     Refused { refusal: Refusal },
     Asked,
+    Browse,
+    Opened { opened: bool },
     Answered { lost: bool },
     Link { link: jig_client::Link },
     Kept { written: bool },
@@ -42,6 +53,8 @@ impl Tui {
             address: copy_of(address),
             field: copy_of(b""),
             signing: Signing::Idle,
+            browser: None,
+            pasted: false,
             signed_out: false,
             unkept: false,
             linked: false,
@@ -61,6 +74,14 @@ impl Tui {
     #[must_use]
     pub const fn signing(&self) -> &Signing {
         &self.signing
+    }
+    #[must_use]
+    pub const fn browser(&self) -> Option<Browser> {
+        self.browser
+    }
+    #[must_use]
+    pub const fn pasted(&self) -> bool {
+        self.pasted
     }
     #[must_use]
     pub const fn signed_out(&self) -> bool {
@@ -104,11 +125,24 @@ impl Tui {
                 changed
             }
             Told::Asked => {
-                let changed = self.signing != Signing::Asked || !self.field.is_empty();
+                let changed = self.signing != Signing::Asked || !self.field.is_empty() || !self.pasted;
                 if changed {
                     self.empty();
                 }
                 self.signing = Signing::Asked;
+                self.pasted = true;
+                changed
+            }
+            Told::Browse => {
+                let changed = self.browser != Some(Browser::Opening) || self.pasted;
+                self.browser = Some(Browser::Opening);
+                self.pasted = false;
+                changed
+            }
+            Told::Opened { opened } => {
+                let browser = Some(if opened { Browser::Opened } else { Browser::None });
+                let changed = self.browser != browser;
+                self.browser = browser;
                 changed
             }
             Told::Answered { lost } => match self.signing {
@@ -122,6 +156,8 @@ impl Tui {
                 jig_client::Link::SignedOut => {
                     if self.linked {
                         self.signing = Signing::Idle;
+                        self.browser = None;
+                        self.pasted = false;
                         self.empty();
                         self.linked = false;
                         self.signed_out = true;

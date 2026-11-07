@@ -7,7 +7,8 @@ natively through the shipped host and printed as the client's own pages,
 linked so that the same clicks walk them. The look is tuned on those
 pages, and the committed journeys are kept current by a test. They are not the mockups' journeys
 (`mockups/README.md`, 4), which are worlds walked in the mockups.
-Section 2 is the host on native, 3 the recording, 4 its replay, 5 the
+The TUI's journeys are `tui/journeys.md`'s, sharing this document's
+file (3.2), redaction (3.6) and last scan (3.7). Section 2 is the host on native, 3 the recording, 4 its replay, 5 the
 print, 6 the tests, 7 editing the look, 8 a recording gone stale, 9 the
 journeys, 10 what is open.
 
@@ -249,7 +250,13 @@ nothing and prints no original.
     one is an original whole;
   - *typed:* each value of an act whose event shows a secret's length
     (`Secret { len: N }`, 3.3), such as a typed key or a pasted sign-in;
-  - *given:* each `--redact TEXT`.
+  - *given:* each `--redact TEXT`;
+  - *approval*, *credential* and *bearer:* the TUI's, the approval's
+    secret, the credential the TUI takes and the bearer every exchange
+    carries (`tui/journeys.md`, section 5), which a browser's recording
+    never gives. They are sought as every original is, and reach the
+    shared code from the TUI's lines through `Originals::new` and
+    `redact::field`.
 - **The placeholder** is `x`s, one for each byte, so that every frame,
   length prefix and base64 run keeps its size. Surrounding spaces, tabs,
   CRs and LFs of a typed or given original stand, outside it: the client
