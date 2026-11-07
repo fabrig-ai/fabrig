@@ -944,6 +944,7 @@ fn tool_family(tool: &[u8]) -> Option<&'static [u8]> {
         b"note" => b"note",
         b"recall" => b"recall",
         b"settings" | b"propose_settings" => b"settings",
+        b"see" | b"document" => b"asking",
         name if name.starts_with(b"read_") => b"read",
         _ => return None,
     })

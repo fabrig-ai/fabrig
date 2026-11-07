@@ -16,6 +16,7 @@ extern crate alloc;
 mod answers;
 mod calls;
 mod docs;
+mod document;
 mod finish;
 mod forge;
 mod json;
@@ -24,6 +25,7 @@ mod nested;
 mod notes;
 mod reference;
 pub mod room;
+mod see;
 mod settings;
 mod start;
 

@@ -362,7 +362,65 @@ fn no_settings_or_message_tools(run: &engine::Assignment) {
     }
 }
 
+fn asking_declarations() {
+    for allowed in [true, false] {
+        let mut config = [configuration(), configuration()];
+        for config in &mut config {
+            let families = core::ToolFamilies::JIG.settings | core::ToolFamilies::JIG.ask.0;
+            for charter in &mut config.core.defaults.charters {
+                if charter.number == 3 {
+                    charter.policy.tools = tasks::Tools(3_072);
+                }
+            }
+            config.core.defaults.rules.ceiling.tools.0 |= families;
+            for project in &mut config.core.seed_projects {
+                project.policy.policy.ceiling.tools.0 |= families;
+                for role in &mut project.policy.policy.roles {
+                    role.authority.tools.0 |= families;
+                }
+            }
+        }
+        let (mut driver, chat) = chat_in(config);
+        let mut asking = delegate(&driver, chat.task, b"Ask temper", 0, K);
+        asking.executor = tasks::Executor::Agent { charter: 3 };
+        if !allowed {
+            asking.authority.tools.0 &= !core::ToolFamilies::JIG.ask.0;
+        }
+        let engine::CallAnswer::Delegated(made) =
+            call(&mut driver, &chat, 40, engine::Tool::Delegate { batch: Box::new([asking]) })
+        else {
+            panic!("asking run admitted")
+        };
+        let run = assigned(&driver, made[0].task).expect("asking run");
+        let smith = temper_engine_smith::charter(&run);
+        let names: Vec<_> = smith.grants.host_tools.iter().map(|tool| tool.name.as_ref()).collect();
+        assert_eq!(
+            names,
+            if allowed {
+                vec![b"see".as_slice(), b"document", b"propose_settings"]
+            } else {
+                vec![b"propose_settings".as_slice()]
+            }
+        );
+        let original = driver.store.rows.clone();
+        let (answer, error) = host_tool(&mut driver, &run, 1, b"see", br#"{"address":"help"}"#);
+        assert!(error);
+        if allowed {
+            assert_eq!(answer.as_ref(), b"see: not there yet.");
+            assert_eq!(driver.store.rows, original, "see keeps no call record");
+            let (answer, error) =
+                host_tool(&mut driver, &run, 2, b"document", br##"{"action":"write","body":"# Title"}"##);
+            assert!(error);
+            assert_eq!(answer.as_ref(), b"document: not there yet.");
+        } else {
+            assert_eq!(answer.as_ref(), b"Authority needs proposal: tool family asking");
+            assert_eq!(driver.store.rows, original, "a denied see keeps no call record");
+        }
+    }
+}
+
 pub(super) fn changes_without_settings_or_message() {
+    asking_declarations();
     let mut config = [configuration(), configuration()];
     for config in &mut config {
         config.core.defaults.rules.ceiling.tools.0 |= core::ToolFamilies::JIG.settings;

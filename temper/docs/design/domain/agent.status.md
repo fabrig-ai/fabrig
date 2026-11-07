@@ -75,9 +75,6 @@ rendering room remains deferred in section 10.
 Section 4.6 has no known gap in a chat's new model or effort answering its
 person's next words, whether the previous run still listens or has parked.
 
-- **Not yet:** 4.3: a charter whose `tools` name the asking family is declared
-  every host tool, as any other (`temper-engine-smith/src/calls.rs`, `tools_for`):
-  no `see`, `document` or asking form of `propose_settings` is declared.
 - **Not yet:** 4.2: a run whose charter names the asking family is given the
   project's home repository (`temper-engine-domain/src/route/forge_route.rs`,
   `run_workspace`).

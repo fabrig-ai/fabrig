@@ -14,6 +14,7 @@ pub use host_route::{
     ForgePerson, HostDelivery, HostRequest, OfferedModel, PersonForge, ProjectPerson, RepositoryIdentity,
 };
 mod decided;
+mod document;
 mod goal;
 mod kinds;
 pub(crate) mod landing;
@@ -22,6 +23,7 @@ mod panels;
 pub(crate) mod policy_translate;
 pub(crate) mod proposals;
 pub(crate) mod public;
+mod see;
 mod tools;
 pub(crate) mod trials;
 use crate::archive::take_read;

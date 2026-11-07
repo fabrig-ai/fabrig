@@ -16,6 +16,8 @@ const HOST: crate::room::HostPart = crate::room::HostPart {
     fixed: 0,
     declared: 0,
     settings: 0,
+    asking: 0,
+    asking_settings: 0,
     inspect: 0,
     modify: 0,
     shell: 0,
