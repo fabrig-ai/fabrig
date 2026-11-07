@@ -398,7 +398,7 @@ pub enum CoreRange {
 }
 
 /// Child-contiguous live or historical store range.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Range {
     Core(CoreRange),
     /// Ended owners and unanswered question activity in jig's census walk
@@ -582,7 +582,7 @@ fn notes_contains(range: &jig_domain_notes::Range, child: &jig_domain_notes::Key
 /// Owned typed row sent root to store in a commit or returned store to root in
 /// a bounded page. The transaction/page, not each row, has the store terminal
 /// (domain/root.md, 8).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "jig's core records move whole through the store's pages")]
 pub enum Record {
     Core(jig_domain_core::Record),
@@ -604,7 +604,7 @@ impl Record {
 /// Root to store: one unique-key operation within an atomic commit. Child
 /// saves/erases acquire no separate terminal; the ordered commit answers once
 /// (domain/root.md, 8).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Write {
     /// Whole-task transcript erasure (jig/docs/design/domain/people.md, 5.2; temper/docs/design/domain/forge.md, 4.1; jig/docs/design/protocol/store.md, 8.5, 11.1).
     DropTranscript { task: u64 },

@@ -23,7 +23,7 @@ pub const TRANSCRIPT_TAIL_BYTES: u32 = 2048;
 /// Root startup bounds, supplied by configuration and immutable at every step
 /// (domain/root.md, 10). `valid` checks child limits, edges and payload
 /// capacities.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     /// The most hand-offs one jig core decision routes, sibling continuations included:
     /// the bound of every drain within a step (skein/docs/foundation/programming-model.md, 3; 4.5).
@@ -79,7 +79,7 @@ pub struct Limits {
 }
 
 /// Root brief configuration, including temper's source and forge budgets.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct BriefLimits {
     pub briefs: u32,
     pub sections: u32,
@@ -91,7 +91,7 @@ pub struct BriefLimits {
 }
 
 /// Byte ceilings for the root's core sections and its forge connector.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct BriefBudgets {
     pub document: u32,
     pub task: u32,

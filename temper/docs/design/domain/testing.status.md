@@ -204,10 +204,7 @@ after-landing execution (`../protocol/sign-in.status.md`, 9.9).
   (`../client/README.status.md`); the joined world's configuring chat
   starts from `Configure` and `Settings`' "Configure temper" finds it,
   but it proposes, is accepted, waits for an owner and goes stale
-  through ctl alone (`tests/client`'s `configuring_chat.rs`). 6: a state
-  digest for replay (`testing-strategy.md`, section 6); the walking
-  world compares its formatted state
-  (`tests/engine/domain/src/walking.rs`, `run_replayed`).
+  through ctl alone (`tests/client`'s `configuring_chat.rs`).
 - **Departs:** 5.3: the case library's purpose is retired: the reference
   case it was written from is replaced (`../draft/reference-case.md`), and
   its code awaits removal with its design.

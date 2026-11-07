@@ -5,7 +5,7 @@ use skein_lib::{Decimal, Writer};
 use temper_engine_domain_forge_change as change;
 
 /// A bounded UTF-8 prefix and the exact byte count omitted from its end.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ResultText {
     pub bytes: Box<[u8]>,
     pub cut: u64,
@@ -63,7 +63,7 @@ impl ResultText {
 
 /// Each text is bounded by the forge client's answer byte bound. Histories
 /// retain prefixes across releases; their counts and cuts never reset.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeResult {
     pub head: Option<Commit>,
     pub checks: ResultText,

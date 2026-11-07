@@ -9,7 +9,7 @@ use skein_forge::api::{Answer, Error, Read, Write};
 use skein_forge_client::{Condition, Effect, Entry, Outcome};
 use skein_lib::{List, Queue, Token};
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(super) struct Making {
     task: u64,
     name: Name,

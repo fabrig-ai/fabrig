@@ -4,7 +4,7 @@ use super::{CallKey, Decision, Domain, Env, Limits, ProposedAction, ReplyTo, Tok
 use alloc::boxed::Box;
 
 /// One bounded named historical lookup after a proposal left live memory.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Query {
     request: Token,
     person: u64,

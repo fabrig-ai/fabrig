@@ -6,20 +6,20 @@ use skein_lib::{ReplyTo, Token};
 /// Temper's chat template (temper/docs/design/protocol/configuration.md, 2).
 const CHAT_TEMPLATE: u32 = 1;
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Context {
     pub sign_in: u64,
     pub key: [u8; 16],
     pub carried: Option<core::Carried>,
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Start {
     request: Token,
     forge: u16,
     account: Option<u32>,
     project: Option<u32>,
 }
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Hash, Debug)]
 pub(crate) enum Reply {
     Account,
     Project,

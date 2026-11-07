@@ -6,7 +6,7 @@ use crate::Record;
 use alloc::boxed::Box;
 
 /// One historical held-chat decision being loaded for its keyed request.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Query {
     pub(crate) request: Token,
     pub(crate) person: u64,

@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use jig_domain_core as core;
 use temper_engine_domain_forge as forge;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(crate) enum Phase {
     Running,
     Waiting,
