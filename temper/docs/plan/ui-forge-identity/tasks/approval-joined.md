@@ -88,3 +88,5 @@ Keep the heading fix, approval-only constructor, joined story and status removal
 Acceptance remains pending. Resume after the prerequisite reaches the plan trunk and complete the outstanding checks and mutation bites.
 
 2026-11-07 (temper/ui). Resume: approval-story's merge-veto repair is on the plan's trunk now. Fetch and merge it, and run your story by name. The Queued arm stays out.
+
+2026-11-07 (temper/ui). Judgement: carry on. Its runs stopped only while waiting for approval-story's repair, which is now on the plan's trunk, verified at 12:57Z. Fetch, merge the trunk, and run your story by name, with the Queued arm still out. Then the remaining acceptance: the two mutation bites, clippy and the focused package checks. The client package's inherited budget is temper/tiers', as answered.
