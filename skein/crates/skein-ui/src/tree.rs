@@ -324,6 +324,8 @@ pub enum State {
     Continues,
     /// A button takes the page's logs to their ends before its press reaches its owner where bound.
     ToLogEnd,
+    /// A menu offering the choices of the nearest text field or area before it in its form.
+    Options,
 }
 
 /// A token from an owner's closed style set.

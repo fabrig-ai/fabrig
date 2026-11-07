@@ -67,9 +67,9 @@ const ROLES: &[(Role, &str, &[&[u8]])] = &[
     (
         Role::Menu,
         r#"<button type="button" aria-haspopup="menu" aria-controls="skein-ui-menu-1" aria-expanded="false"></button><div data-node="1" role="menu" id="skein-ui-menu-1" hidden=""></div>"#,
-        &[b"menu"],
+        &[b"menu", b"listbox"],
     ),
-    (Role::MenuItem, r#"<div data-node="1" role="menuitem"></div>"#, &[b"menuitem"]),
+    (Role::MenuItem, r#"<div data-node="1" role="menuitem"></div>"#, &[b"menuitem", b"option"]),
     (Role::Disclosure, r#"<details data-node="1"><summary></summary></details>"#, &[b"group", b"DisclosureTriangle"]),
     (Role::Image, r#"<span data-node="1"></span>"#, &[b"image", b"StaticText"]),
     (Role::Figure, r#"<figure data-node="1"></figure>"#, &[b"figure"]),
@@ -103,6 +103,7 @@ fn each_role_has_its_accessible_roles() {
 enum Property {
     State(State),
     CompletedDescription,
+    Options,
     Placeholder,
     Sort(skein_ui::Sort),
     Fraction(Option<Fraction>),
@@ -129,6 +130,11 @@ enum Property {
 const LINK: Run = Run::Link { to: skein_lib::Token::new(1) };
 
 const PROPERTIES: &[(Role, Property, &str)] = &[
+    (
+        Role::Menu,
+        Property::Options,
+        r#"<div data-node="1" role="listbox" id="skein-ui-options-1"><div data-node="2" role="option" id="skein-ui-option-2"></div><div data-node="3" role="option" id="skein-ui-option-3"></div></div>"#,
+    ),
     (Role::List, Property::Order, r#"<ol data-node="1" start="4"></ol>"#),
     (
         Role::Progress,
@@ -336,6 +342,9 @@ fn property(made: &mut Made, property: Property) {
         Property::State(state) => {
             made.attribute.states.push(state).expect("fixture state capacity");
         }
+        Property::Options => {
+            made.attribute.states.push(State::Options).expect("fixture state capacity");
+        }
         Property::CompletedDescription => {
             made.attribute.states.push(State::Completed).expect("fixture state capacity");
             made.attribute.description = Some(b"Help & <b>".as_slice().into());
@@ -378,6 +387,20 @@ fn property(made: &mut Made, property: Property) {
     }
 }
 
+fn property_element(made: &Made, look: &crate::Look<'_>, primary: Primary, case: Property) -> Element {
+    let mut element = mapping::element(made, look, b"/bundle/digest/", primary, &Words::ENGLISH);
+    if let Property::Options = case {
+        for id in [skein_ui::NodeId(2), skein_ui::NodeId(3)] {
+            let mut item = fixtures::made(Role::MenuItem);
+            item.id = id;
+            let mut option = mapping::element(&item, look, b"/bundle/digest/", primary, &Words::ENGLISH);
+            mapping::option_element(&mut option, id);
+            element.append(option);
+        }
+    }
+    element
+}
+
 #[test]
 #[expect(
     clippy::wildcard_enum_match_arm,
@@ -394,11 +417,7 @@ fn each_state_and_property_maps_to_its_attribute() {
             Property::Primary(primary) => *primary,
             _ => Primary::Control,
         };
-        assert_eq!(
-            dom::print(&mapping::element(&made, &look, b"/bundle/digest/", primary, &Words::ENGLISH)),
-            *expected,
-            "{role:?}: {case:?}"
-        );
+        assert_eq!(dom::print(&property_element(&made, &look, primary, *case)), *expected, "{role:?}: {case:?}");
     }
 }
 
@@ -429,7 +448,7 @@ fn every_node_maps_as_the_golden_page() {
         fixture.attribute.role = *role;
         let mut made = fixture.clone();
         property(&mut made, *case);
-        page.append(mapping::element(&made, &look, b"/bundle/digest/", Primary::Control, &Words::ENGLISH));
+        page.append(property_element(&made, &look, Primary::Control, *case));
     }
     assert_eq!(dom::print(&page), include_str!("golden/mapping.html").trim_end());
 }

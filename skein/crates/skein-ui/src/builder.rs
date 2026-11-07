@@ -250,6 +250,9 @@ impl Builder {
 
     /// Add a semantic state once.
     pub fn state(&mut self, state: State) {
+        if state == State::Options {
+            assert!(self.node().role == Role::Menu, "options belongs to menus");
+        }
         if state == State::Required {
             assert!(self.node().role.takes_required(), "required belongs to fields");
         }
