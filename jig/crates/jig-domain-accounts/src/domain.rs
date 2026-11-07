@@ -542,9 +542,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         }
         Event::Finishing { source } => crate::signing::finishing(domain, source, out),
         Event::FinishRefused { source, why } => crate::signing::finish_refused(domain, source, why, out),
-        Event::SignedIn { source, subject, display, declined } => {
+        Event::SignedIn { source, subject, display, declined, said } => {
             if domain.phase == Phase::Wanted {
-                crate::signing::signed_in(domain, env, source, subject, display, declined, out);
+                crate::signing::signed_in(domain, env, source, subject, display, declined, said, out);
             }
         }
         Event::SignInFailed { source, failure } => {
@@ -826,6 +826,13 @@ fn component(domain: &mut Domain, env: &Env<Limits>, event: FromComponent, out: 
         | FromComponent::Expiring { account, .. }
         | FromComponent::Failed { account, .. }
         | FromComponent::KeepFailed { account, .. } => account,
+        FromComponent::Refreshed { account: source, said } => {
+            if let Some(entry) = domain.sources.get(&source) {
+                let account = entry.account;
+                crate::facts::report(domain, env, account, source, crate::ORIGIN_REFRESH, said, out);
+            }
+            return;
+        }
         FromComponent::Closed => return,
     };
     if domain.moves.contains_key(&source) {
@@ -843,13 +850,16 @@ fn component(domain: &mut Domain, env: &Env<Limits>, event: FromComponent, out: 
             crate::keys::failed(domain, account, why, out);
             return;
         }
-        FromComponent::Expiring { .. } | FromComponent::Failed { .. } | FromComponent::Closed => None,
+        FromComponent::Expiring { .. }
+        | FromComponent::Failed { .. }
+        | FromComponent::Refreshed { .. }
+        | FromComponent::Closed => None,
     };
     let source = match event {
         FromComponent::Granted { account, .. }
         | FromComponent::Expiring { account, .. }
         | FromComponent::Failed { account, .. } => account,
-        FromComponent::KeepFailed { .. } | FromComponent::Closed => return,
+        FromComponent::KeepFailed { .. } | FromComponent::Refreshed { .. } | FromComponent::Closed => return,
     };
     let Some(entry) = domain.sources.get_mut(&source) else { return };
     if entry.kind != Kind::SignIn && entry.kind != Kind::Key {
@@ -882,7 +892,7 @@ fn component(domain: &mut Domain, env: &Env<Limits>, event: FromComponent, out: 
             entry.expiring = true;
         }
         FromComponent::Failed { account: _, failure } => failed(entry, env, failure),
-        FromComponent::KeepFailed { .. } | FromComponent::Closed => return,
+        FromComponent::KeepFailed { .. } | FromComponent::Refreshed { .. } | FromComponent::Closed => return,
     }
     changed(domain, env, source, before, out);
     if let Some(request) = kept {

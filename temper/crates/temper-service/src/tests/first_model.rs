@@ -250,6 +250,7 @@ impl StockBox {
             subject: b"plan-owner".as_slice().into(),
             display: b"ChatGPT plan".as_slice().into(),
             declined: false,
+            said: jig_domain_accounts::Said::default(),
         }));
         self.pump();
         self.driver.send(Event::Account(accounts::Event::Credential {

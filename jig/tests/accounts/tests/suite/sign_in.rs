@@ -44,7 +44,13 @@ fn visited(source: u32) -> Event {
     Event::Visited { source, address: b"https://issuer.test/visit".as_slice().into() }
 }
 fn signed_in(source: u32, subject: &[u8], display: &[u8], declined: bool) -> Event {
-    Event::SignedIn { source, subject: subject.into(), display: display.into(), declined }
+    Event::SignedIn {
+        source,
+        subject: subject.into(),
+        display: display.into(),
+        declined,
+        said: jig_domain_accounts::Said::default(),
+    }
 }
 fn ended(request: u64, source: u32, end: End) -> Vec<Ended> {
     vec![Ended { request: Token::new(request), source, by: request, end }]
@@ -328,5 +334,273 @@ fn a_close_cancels_each_account_sign_in_and_answers_it_closing_before_its_visit(
         assert!(world.step(Event::Close).is_empty());
         assert!(world.step(visited(0)).is_empty());
         assert_eq!(world.step(Event::Component(FromComponent::Closed)), vec![Request::Closed]);
+    }
+}
+
+/// Reports and source removal keep one bounded facts record (accounts.md, 3.7).
+#[test]
+#[expect(clippy::too_many_lines, reason = "one report table checks the bounded record and its writes together")]
+fn reports_keep_only_what_the_provider_says() {
+    use jig_domain_accounts::{
+        AccountFact, FactValue, KIND_EMAIL, KIND_NAME, ORIGIN_PROGRAM, ORIGIN_REFRESH, ORIGIN_SIGN_IN, Said,
+    };
+    use skein_lib::Wall;
+
+    #[derive(Clone, Copy)]
+    enum Act {
+        SignIn { new: bool, declined: bool, holder: Holder },
+        Refresh(u32),
+        SignOut(u32),
+        LastSignOut,
+        RemoveKey(u32),
+    }
+    struct Case {
+        name: &'static str,
+        held: Vec<AccountFact>,
+        said: Said,
+        act: Act,
+        after: Vec<AccountFact>,
+    }
+    fn fact(kind: u16, text: &[u8], source: u32, origin: u16, seen: u64) -> AccountFact {
+        AccountFact {
+            kind,
+            label: Box::new([]),
+            value: FactValue::Text(text.into()),
+            source: Some(source),
+            origin,
+            seen: Wall::from_nanos(seen),
+        }
+    }
+    fn says(email: Option<&[u8]>, name: Option<&[u8]>) -> Said {
+        Said { email: email.map(Into::into), name: name.map(Into::into) }
+    }
+    let email = fact(KIND_EMAIL, b"first@example.com", SIGNED_IN_SOURCE, ORIGIN_SIGN_IN, 1);
+    let name = fact(KIND_NAME, b"A Name", SIGNED_IN_SOURCE, ORIGIN_SIGN_IN, 1);
+    let refreshed = fact(KIND_EMAIL, b"next@example.com", SIGNED_IN_SOURCE, ORIGIN_REFRESH, 2);
+    let program = fact(KIND_EMAIL, b"program@example.com", KEY_SOURCE, ORIGIN_PROGRAM, 1);
+    let renewal = Act::SignIn { new: false, declined: false, holder: ALICE };
+    let mut cases = vec![
+        Case {
+            name: "new sign-in",
+            held: vec![],
+            said: says(Some(b"first@example.com"), Some(b"A Name")),
+            act: Act::SignIn { new: true, declined: false, holder: ALICE },
+            after: vec![
+                fact(KIND_EMAIL, b"first@example.com", 0, ORIGIN_SIGN_IN, 2),
+                fact(KIND_NAME, b"A Name", 0, ORIGIN_SIGN_IN, 2),
+            ],
+        },
+        Case {
+            name: "renewal drops absent claims",
+            held: vec![email.clone(), name.clone()],
+            said: Said::default(),
+            act: renewal,
+            after: vec![],
+        },
+        Case {
+            name: "another holder's subject is refused",
+            held: vec![],
+            said: says(Some(b"refused@example.com"), None),
+            act: Act::SignIn { new: false, declined: false, holder: BOB },
+            after: vec![],
+        },
+        Case {
+            name: "declining plan usage keeps claims",
+            held: vec![],
+            said: says(Some(b"first@example.com"), None),
+            act: Act::SignIn { new: false, declined: true, holder: ALICE },
+            after: vec![fact(KIND_EMAIL, b"first@example.com", REPLACEMENT_SOURCE, ORIGIN_SIGN_IN, 2)],
+        },
+        Case {
+            name: "refresh replaces only email",
+            held: vec![email.clone(), name.clone()],
+            said: says(Some(b"next@example.com"), None),
+            act: Act::Refresh(SIGNED_IN_SOURCE),
+            after: vec![refreshed.clone(), name.clone()],
+        },
+        Case {
+            name: "same refresh preserves seen and writes nothing",
+            held: vec![refreshed.clone(), name.clone()],
+            said: says(Some(b"next@example.com"), None),
+            act: Act::Refresh(SIGNED_IN_SOURCE),
+            after: vec![refreshed, name.clone()],
+        },
+        Case {
+            name: "gone refresh source is ignored",
+            held: vec![email.clone()],
+            said: says(Some(b"next@example.com"), None),
+            act: Act::Refresh(99),
+            after: vec![email.clone()],
+        },
+        Case {
+            name: "absent sign-in email keeps program email",
+            held: vec![program.clone()],
+            said: Said::default(),
+            act: renewal,
+            after: vec![program.clone()],
+        },
+        Case {
+            name: "sign-in email replaces program email",
+            held: vec![program.clone()],
+            said: says(Some(b"first@example.com"), None),
+            act: renewal,
+            after: vec![fact(KIND_EMAIL, b"first@example.com", REPLACEMENT_SOURCE, ORIGIN_SIGN_IN, 2)],
+        },
+        Case {
+            name: "sign-out takes its facts but keeps another source's",
+            held: vec![email.clone(), fact(KIND_NAME, b"Other", KEY_SOURCE, ORIGIN_PROGRAM, 1)],
+            said: Said::default(),
+            act: Act::SignOut(SIGNED_IN_SOURCE),
+            after: vec![fact(KIND_NAME, b"Other", KEY_SOURCE, ORIGIN_PROGRAM, 1)],
+        },
+        Case {
+            name: "sign-out erases last fact",
+            held: vec![email.clone()],
+            said: Said::default(),
+            act: Act::SignOut(SIGNED_IN_SOURCE),
+            after: vec![],
+        },
+        Case {
+            name: "key removal takes its facts",
+            held: vec![program.clone(), name.clone()],
+            said: Said::default(),
+            act: Act::RemoveKey(KEY_SOURCE),
+            after: vec![name.clone()],
+        },
+        Case {
+            name: "key removal erases last fact",
+            held: vec![program],
+            said: Said::default(),
+            act: Act::RemoveKey(KEY_SOURCE),
+            after: vec![],
+        },
+    ];
+    cases.push(Case {
+        name: "the last source erases the account's whole facts record once",
+        held: vec![email.clone(), AccountFact { source: None, ..fact(99, b"held", KEY_SOURCE, 99, 1) }],
+        said: Said::default(),
+        act: Act::LastSignOut,
+        after: vec![],
+    });
+    for origin in [ORIGIN_SIGN_IN, ORIGIN_REFRESH, ORIGIN_PROGRAM, 99] {
+        let unknown = fact(99, b"kept", SIGNED_IN_SOURCE, origin, 1);
+        cases.push(Case {
+            name: "unknown kind follows its origin",
+            held: vec![unknown.clone()],
+            said: Said::default(),
+            act: renewal,
+            after: if origin == ORIGIN_SIGN_IN || origin == ORIGIN_REFRESH { vec![] } else { vec![unknown] },
+        });
+    }
+    for (text, kept) in [
+        (vec![], false),
+        (vec![b'a'; 255], true),
+        (vec![b'a'; 256], false),
+        (b"bad\nclaim".to_vec(), false),
+        (b"bad\x7fclaim".to_vec(), false),
+    ] {
+        cases.push(Case {
+            name: "claim bounds and controls",
+            held: vec![],
+            said: says(Some(&text), Some(&text)),
+            act: renewal,
+            after: if kept {
+                vec![
+                    fact(KIND_EMAIL, &text, REPLACEMENT_SOURCE, ORIGIN_SIGN_IN, 2),
+                    fact(KIND_NAME, &text, REPLACEMENT_SOURCE, ORIGIN_SIGN_IN, 2),
+                ]
+            } else {
+                vec![]
+            },
+        });
+    }
+    let full: Vec<_> = (100..124).map(|kind| fact(kind, b"held", KEY_SOURCE, ORIGIN_PROGRAM, 1)).collect();
+    for act in [renewal, Act::Refresh(SIGNED_IN_SOURCE)] {
+        cases.push(Case {
+            name: "a full record keeps held facts",
+            held: full.clone(),
+            said: says(Some(b"new@example.com"), Some(b"Name")),
+            act,
+            after: full.clone(),
+        });
+    }
+    for case in cases {
+        let new = matches!(case.act, Act::SignIn { new: true, .. });
+        let account_number = if new { 1 } else { ACCOUNT };
+        let mut records = if new {
+            vec![]
+        } else {
+            vec![
+                account(ACCOUNT, PROVIDER, ALICE, b"alice"),
+                source(ACCOUNT, SIGNED_IN_SOURCE, 0, Kind::SignIn),
+                source(ACCOUNT, KEY_SOURCE, 1, Kind::Key),
+                Stored::Next { number: REPLACEMENT_SOURCE },
+            ]
+        };
+        if matches!(case.act, Act::LastSignOut) {
+            records.retain(|row| !matches!(row, Stored::Source { number: KEY_SOURCE, .. }));
+        }
+        if !case.held.is_empty() {
+            records.push(Stored::Facts { account: account_number, facts: case.held.clone().into_boxed_slice() });
+        }
+        let mut store = records.iter().cloned().map(|row| (row.key(), row)).collect();
+        let mut world = started(records);
+        world.wall = Wall::from_nanos(2);
+        let requests = match case.act {
+            Act::SignIn { new, declined, holder } => {
+                let requests = world.step(sign_in(1, holder, PROVIDER));
+                commit(&mut store, &requests);
+                let source = if new { 0 } else { REPLACEMENT_SOURCE };
+                world.step(visited(source));
+                world.step(Event::SignedIn {
+                    source,
+                    subject: b"alice".as_slice().into(),
+                    display: Box::new([]),
+                    declined,
+                    said: case.said,
+                })
+            }
+            Act::Refresh(source) => {
+                world.step(Event::Component(FromComponent::Refreshed { account: source, said: case.said }))
+            }
+            Act::SignOut(source) => world.step(sign_out(1, ALICE, source)),
+            Act::LastSignOut => world.step(sign_out(1, ALICE, SIGNED_IN_SOURCE)),
+            Act::RemoveKey(source) => world.step(Event::Change {
+                request: Token::new(1),
+                holder: ALICE,
+                change: jig_domain_accounts::Change::RemoveKey { source },
+            }),
+        };
+        assert_eq!(world.domain.account_facts(account_number), case.after, "{}", case.name);
+        let writes: Vec<_> = requests
+            .iter()
+            .filter(|request| {
+                matches!(
+                    request,
+                    Request::Save { record: Stored::Facts { .. } } | Request::Erase { key: Key::Facts { .. } }
+                )
+            })
+            .cloned()
+            .collect();
+        let expected = if case.held == case.after {
+            vec![]
+        } else if case.after.is_empty() {
+            vec![Request::Erase { key: Key::Facts { account: account_number } }]
+        } else {
+            vec![save(Stored::Facts { account: account_number, facts: case.after.clone().into_boxed_slice() })]
+        };
+        assert_eq!(writes, expected, "{}: writes in the same decision", case.name);
+        commit(&mut store, &requests);
+        let expected = if case.after.is_empty() {
+            None
+        } else {
+            Some(Stored::Facts { account: account_number, facts: case.after.into_boxed_slice() })
+        };
+        assert_eq!(
+            store.get(&Key::Facts { account: account_number }),
+            expected.as_ref(),
+            "{}: durable facts",
+            case.name
+        );
     }
 }

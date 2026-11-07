@@ -39,6 +39,7 @@ fn finish(world: &mut World, source: u32) {
         subject: b"subject".as_slice().into(),
         display: Box::new([]),
         declined: false,
+        said: jig_domain_accounts::Said::default(),
     });
 }
 fn sign_in(world: &mut World) -> u32 {

@@ -33,10 +33,7 @@ pub enum Up {
         source: u32,
         subject: Box<[u8]>,
         display: Box<[u8]>,
-    },
-    Refreshed {
-        source: u32,
-        profile: oauth::ProfileClaims,
+        said: accounts::Said,
     },
     Finishing {
         source: u32,
@@ -123,7 +120,7 @@ pub fn up(event: driver::Event, now: Time, required: &[u8]) -> Up {
                 Up::Visited { source: account, address: url.into_exposed() }
             }
         }
-        driver::Event::SignedIn { account, generation: _, missing, subject, profile: _ } => {
+        driver::Event::SignedIn { account, generation: _, missing, subject, profile } => {
             let Some(subject) = subject else {
                 return Up::SignInFailed { source: account, failure: accounts::Failure::Misconfigured };
             };
@@ -133,9 +130,11 @@ pub fn up(event: driver::Event, now: Time, required: &[u8]) -> Up {
                 }
                 return Up::SignInFailed { source: account, failure: accounts::Failure::Misconfigured };
             }
-            Up::SignedIn { source: account, subject, display: Box::default() }
+            Up::SignedIn { source: account, subject, display: Box::default(), said: said(profile) }
         }
-        driver::Event::Refreshed { account, generation: _, profile } => Up::Refreshed { source: account, profile },
+        driver::Event::Refreshed { account, generation: _, profile } => {
+            Up::Child(accounts::FromComponent::Refreshed { account, said: said(profile) })
+        }
         driver::Event::Keep { account, record } => Up::Keep { account, record: Candidate(record) },
         driver::Event::Lock { .. } | driver::Event::Unlock { .. } => {
             unreachable!("no record is shared: each source's record has one keeper, the engine's store")
@@ -294,4 +293,8 @@ fn redirect_refused(why: driver::Refusal) -> accounts::SignInRedirectWhy {
         | driver::Refusal::NoRecord
         | driver::Refusal::Busy => accounts::SignInRedirectWhy::NotWaiting,
     }
+}
+
+fn said(profile: oauth::ProfileClaims) -> accounts::Said {
+    accounts::Said { email: profile.email, name: profile.name }
 }

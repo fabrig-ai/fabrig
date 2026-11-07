@@ -745,7 +745,9 @@ impl Owner {
                             child::FromComponent::Failed { account, failure } => {
                                 Some(Heard::Failed { account: *account, failure: *failure })
                             }
-                            child::FromComponent::KeepFailed { .. } | child::FromComponent::Closed => None,
+                            child::FromComponent::KeepFailed { .. }
+                            | child::FromComponent::Refreshed { .. }
+                            | child::FromComponent::Closed => None,
                         };
                         if let Some(heard) = heard {
                             self.heard.push(heard);

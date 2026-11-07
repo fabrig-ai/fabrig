@@ -73,7 +73,7 @@ fn party_account_sign_in_requires_the_issued_client_id_and_the_must_grant_scopes
     assert_eq!(
         terms.openid.unwrap(),
         skein_oauth::OpenId {
-            profile: skein_oauth::Profile::default(),
+            profile: skein_oauth::Profile { email: true, name: true },
             issuer: bytes::copy_of(b"http://127.0.0.1:31000"),
             key_set: Some(bytes::copy_of(b"http://127.0.0.1:31000/keys"))
         }

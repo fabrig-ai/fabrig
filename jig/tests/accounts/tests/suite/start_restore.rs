@@ -616,6 +616,7 @@ fn sign_in_renews_after_the_last_representable_stored_place() {
         subject: b"subject".as_slice().into(),
         display: Box::new([]),
         declined: false,
+        said: jig_domain_accounts::Said::default(),
     });
     let kept = world.domain.account(ACCOUNT).expect("renewed account");
     assert_eq!(kept.sources().len(), 2);
@@ -694,6 +695,7 @@ fn program_and_sign_in_append_after_restoration() {
         subject: b"subject".as_slice().into(),
         display: Box::new([]),
         declined: false,
+        said: jig_domain_accounts::Said::default(),
     });
     assert!(out.contains(&Request::Save { record: source(ACCOUNT, 24, signed_in, Kind::SignIn) }));
     commit(&mut store, &out);

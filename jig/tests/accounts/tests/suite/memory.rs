@@ -148,6 +148,7 @@ fn full_accounts_restore_sign_in_and_sign_out_scenario() {
                 subject: longest(SUBJECT, account),
                 display: longest(DISPLAY, account),
                 declined: false,
+                said: jig_domain_accounts::Said::default(),
             };
             run.step(&mut domain, event, "renewed");
             ends += 1;
