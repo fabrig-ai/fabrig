@@ -94,7 +94,19 @@ fn resolution(charter: &Charter, models: &[CatalogueModel], limits: &Limits) -> 
                 break;
             }
         }
-        let model = record.expect("candidate catalogue row");
+        let mut model = record.expect("candidate catalogue row").clone();
+        if !rest {
+            for named in core::iter::once(&charter.policy.model).chain(charter.policy.alternatives.iter()) {
+                if named.name == model.name {
+                    if let Some(effort) = &named.effort
+                        && model.efforts.contains(effort)
+                    {
+                        model.effort = Some(effort.clone());
+                    }
+                    break;
+                }
+            }
+        }
         if rest && main && chosen.len() >= limits.settings.alternatives {
             omitted = omitted.checked_add(1).expect("bounded candidates");
             continue;

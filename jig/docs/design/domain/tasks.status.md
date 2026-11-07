@@ -26,10 +26,6 @@ Section 7's next-turn LLM amendments have no known gap, including silent
 LLM-only amendments, the durable live-run mark and a stop whose terminal
 parks without spending a try.
 
-- **Not yet:** 3: a charter's selected effort: its resolution takes each
-  catalogue row whole (`jig-domain-core/src/settings/charters.rs`,
-  `resolution`), so a task given no choice runs at the row's default effort,
-  not the one its charter selects.
 - **Not yet:** 5.9: a drain; a project's scope; a
   party's proposal of a release; a hold parked until an event.
   7: a widening funded by whoever gives it (the task's existing funder is
