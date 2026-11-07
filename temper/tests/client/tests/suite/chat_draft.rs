@@ -37,20 +37,22 @@ fn env() -> Env<temper_client_domain::Limits> {
     Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() }
 }
 fn pump(front: &mut Joint, probe: &mut Probe) {
-    let env = env();
+    pump_at(front, probe, &env());
+}
+fn pump_at(front: &mut Joint, probe: &mut Probe, env: &Env<temper_client_domain::Limits>) {
     for _ in 0..ROUNDS {
-        Temper::take(&mut probe.0, &env, &mut probe.1);
+        Temper::take(&mut probe.0, env, &mut probe.1);
         while let Some(request) = probe.1.pop() {
             match Temper::duty(request) {
                 Duty::Wire(request) => front.wire(CLIENT, env.now, env.wall, request),
-                Duty::Show { address, .. } => Temper::step(&mut probe.0, &env, Temper::went(address), &mut probe.1),
+                Duty::Show { address, .. } => Temper::step(&mut probe.0, env, Temper::went(address), &mut probe.1),
                 _ => {}
             }
         }
         for (who, event) in front.poll(env.now, env.wall) {
             assert_eq!(who, CLIENT);
             front.received(who, &event);
-            Temper::step(&mut probe.0, &env, event, &mut probe.1);
+            Temper::step(&mut probe.0, env, event, &mut probe.1);
         }
     }
 }
@@ -208,8 +210,7 @@ fn a_chat_opened_again_starts_in_chat() {
     assert_eq!(chat(&probe).mode, Mode::Chat);
 }
 
-#[test]
-fn a_goal_starts_from_a_document() {
+fn goal_from_document() -> (Joint, u64, u64, Probe) {
     let (mut front, task, mut probe) = opened_with_goal(true);
     write(&mut front, task, 1, None, "# Our draft\nFirst\n", &mut probe);
     pump(&mut front, &mut probe);
@@ -220,8 +221,13 @@ fn a_goal_starts_from_a_document() {
     );
     assert!(probe.0.person().pages().start().is_some(), "the chat opens the shared sheet");
     act(&mut front, &mut probe, Act::StartGoal);
+    let goal = probe.0.person().pages().task().expect("the goal page opens").number;
+    (front, task, goal, probe)
+}
+#[test]
+fn a_goal_starts_from_a_document() {
+    let (mut front, task, goal, mut probe) = goal_from_document();
     let root = probe.0.person();
-    let goal = root.pages().task().expect("the goal page opens").number;
     let goal_row = front.engine.task(goal).expect("created goal");
     let expected = format!(
         "our-draft\n\nImplement this draft. First commit it, as it stands, at docs/design/draft/our-draft.md.\n\n# Our draft\nFirst\n\n\nYou are a goal: the work your person asked for, yours to plan and to change; you start no goal but an advisor.\nDraft: docs/design/draft/our-draft.md\nChat: T{task}"
@@ -242,4 +248,69 @@ fn a_goal_starts_from_a_document() {
         Act::OpenStart { draft: Some(b"docs/design/draft/our-draft.md".as_slice().into()), chat: Some(task) },
     );
     assert!(probe.0.person().pages().start().is_none(), "a linked goal prevents another start");
+}
+
+#[test]
+fn a_goal_from_the_sheet_asks_its_person_who_answers_under_needs_you() {
+    use jig_client::contract::ObjectKey;
+    use jig_domain_tasks as tasks;
+    use temper_client_domain::{Address, address::Filter, pages::needs};
+    use temper_engine_domain as engine;
+    let (mut front, _, goal, mut probe) = goal_from_document();
+    // The note's host tool defers rendering; typed driver calls render their own replies.
+    front.engine.protocol.defer_render = false;
+    let attempt = front.engine.task(goal).expect("running goal").attempt;
+    let mut child = temper_engine_domain_world::fixtures::report_delegate(
+        b"Which colour?\n\nChoose the colour for the work.\n\nSaw: Both colours work.\nChoice: Blue (recommended)\nChoice: Green",
+        Box::new([]),
+    );
+    child.executor = tasks::Executor::Person(tasks::PersonAddress::Person(fixtures::PARTY));
+    child.contract = tasks::Contract::Report { words: 4096 };
+    child.authority.tools = tasks::Tools(0);
+    child.authority.budget.spend = 0;
+    front.engine.call(
+        WORKER,
+        goal,
+        attempt,
+        28,
+        engine::Call { completion: 28, position: 1, tool: engine::Tool::Delegate { batch: Box::new([child]) } },
+    );
+    front.engine.settle();
+    let Some(engine::CallAnswer::Delegated(children)) = front.engine.answered(28) else {
+        panic!("person delegation: {:?}", front.engine.answered(28));
+    };
+    let child = children[0].task;
+    front.engine.answer(WORKER, goal, attempt, 0, tasks::End::Parked, engine::Parts::none());
+    front.engine.settle();
+    Temper::step(&mut probe.0, &env(), Temper::went(Address::Inbox { filter: Filter::ALL }), &mut probe.1);
+    pump(&mut front, &mut probe);
+    let root = probe.0.person();
+    let card = root.pages().needs().shown(root.pages().inbox().expect("inbox")).expect("person question");
+    let object = ObjectKey::PersonTask(child);
+    assert_eq!(card.object, object);
+    act(&mut front, &mut probe, Act::Needs(needs::Act::Choose { object, words: Box::from(*b"Blue") }));
+    assert!(probe.0.person().pages().needs().held(object));
+    let mut due = env();
+    due.now = due.now.saturating_add(needs::HOLD);
+    due.wall = Wall::from_nanos(needs::HOLD.as_nanos());
+    Temper::fire(&mut probe.0, &due, &mut probe.1);
+    pump_at(&mut front, &mut probe, &due);
+    let stored = front.engine.store.rows.get(&engine::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(child))));
+    let Some(engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) = stored else {
+        panic!("completed person task: {stored:?}");
+    };
+    assert!(
+        matches!(&row.phase, tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words })) if words.as_ref() == b"Blue")
+    );
+    let resumed = front.assignments.last().expect("goal resumed");
+    assert_eq!(resumed.task, goal);
+    assert!(
+        resumed.messages.iter().any(|message| matches!(
+            message.kind,
+            tasks::MessageKind::Result(tasks::ResultKind::Report)
+        ) && message.words.as_ref() == b"Blue"
+            && message.from == tasks::Party::Task(child)),
+        "goal wake: {:?}",
+        resumed.messages
+    );
 }

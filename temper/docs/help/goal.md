@@ -30,6 +30,9 @@ A goal is a tracked task: work given a numeric priority, which orders the goals'
   or a survey, and its goal asks for an advisor`. A person who wants a
   survey alone gets a goal that asks its advisor and reports, changing
   nothing.
+  A goal a chat calls asks its chat. A goal you started asks you by a
+  person task: it waits in your inbox, draws as a question, and your answer
+  wakes the goal.
   `agree`, set by the party's chat when the party wants the work agreed
   first, makes the goal owe its requester a question: its brief says so, and
   before that question is answered its `change` is refused, `wait for the

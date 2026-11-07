@@ -5,7 +5,7 @@ use crate::{
     words::{Shell, TimeForm, Times, Word, Words},
 };
 use alloc::boxed::Box;
-use jig_client::contract::{InboxGroup, ReadValue};
+use jig_client::contract::{InboxGroup, ReadValue, Requester};
 use skein_ui::{Builder, Role, Run, State, phrases::Hole};
 use temper_client_domain::{
     Address, Domain,
@@ -23,6 +23,7 @@ pub(crate) struct Asked<'a> {
     pub card: &'a Card,
     pub kind: Kind,
     pub title: Box<[u8]>,
+    pub source: Option<u64>,
     pub parsed: Option<temper_client_domain::question::Parsed>,
     pub short: Box<[u8]>,
 }
@@ -42,8 +43,19 @@ pub(crate) fn read<'a>(card: &'a Card, w: &Words) -> Asked<'a> {
     }
     let parsed = if let Some(ReadValue::Question(q)) = &card.page {
         Some(temper_client_domain::question::parse(q.words.bytes(), q.words.cut))
+    } else if let Some(task) = person_in_words(card) {
+        kind = Kind::Question;
+        let words = &task.spec.specification.words;
+        Some(temper_client_domain::question::parse(words.bytes(), words.cut || task.spec.cut))
     } else {
         None
+    };
+    let source = match person_in_words(card) {
+        Some(task) => match task.requester {
+            Requester::Task(task) => Some(task),
+            Requester::Person(_) | Requester::Deployment { .. } => super::inbox::source_task(card.object),
+        },
+        None => super::inbox::source_task(card.object),
     };
     let title = title_for(card, w, Word::Task);
     let short = match &parsed {
@@ -83,12 +95,18 @@ pub(crate) fn read<'a>(card: &'a Card, w: &Words) -> Asked<'a> {
         Kind::Held | Kind::PersonTask => title.clone(),
         Kind::Question | Kind::Proposal => short,
     };
-    Asked { card, kind, title, parsed, short }
+    Asked { card, kind, title, source, parsed, short }
 }
 pub(crate) fn need_title(card: &Card, w: &Words) -> Box<[u8]> {
     title_for(card, w, Word::TaskWho)
 }
 fn title_for(card: &Card, w: &Words, numbered: Word) -> Box<[u8]> {
+    if let Some(person) = person_in_words(card) {
+        match person.requester {
+            Requester::Task(task) => return w.say(numbered, &[Hole::Number(task)]),
+            Requester::Person(_) | Requester::Deployment { .. } => {}
+        }
+    }
     if let Some(page) = &card.page
         && let Some(title) = super::inbox::task_title(page)
         && !title.is_empty()
@@ -110,6 +128,42 @@ pub(crate) fn need_kind(group: InboxGroup) -> Word {
         InboxGroup::Replies => Word::Reply,
     }
 }
+pub(crate) fn card_kind(card: &Card) -> Word {
+    if person_in_words(card).is_some() { Word::HomeQuestion } else { need_kind(card.group) }
+}
+fn person_in_words(card: &Card) -> Option<&jig_client::contract::PersonTask> {
+    match card.page.as_ref()? {
+        ReadValue::PersonTask(task) => {
+            if temper_client_domain::question::in_words(task) {
+                Some(task)
+            } else {
+                None
+            }
+        }
+        ReadValue::Task(_)
+        | ReadValue::Proposal(_)
+        | ReadValue::Question(_)
+        | ReadValue::Escalation(_)
+        | ReadValue::Settings(_)
+        | ReadValue::Setting(_)
+        | ReadValue::Revision(_)
+        | ReadValue::TaskText(_)
+        | ReadValue::Revisions(_)
+        | ReadValue::Tasks(_)
+        | ReadValue::Project(_)
+        | ReadValue::Ended(_)
+        | ReadValue::Me(_)
+        | ReadValue::Result(_)
+        | ReadValue::EndedPage(_)
+        | ReadValue::History(_)
+        | ReadValue::Turn(_)
+        | ReadValue::Activity(_)
+        | ReadValue::Inbox(_)
+        | ReadValue::Spend(_)
+        | ReadValue::Notes(_)
+        | ReadValue::Deployment(_) => None,
+    }
+}
 pub(crate) fn need_when(card: &Card, w: &Words, times: &mut Times) -> Box<[u8]> {
     let kind = if let Some(ReadValue::Escalation(held)) = &card.page
         && let Some(hold) = &held.task.hold
@@ -117,7 +171,7 @@ pub(crate) fn need_when(card: &Card, w: &Words, times: &mut Times) -> Box<[u8]> 
     {
         Word::NeedsKindFunds
     } else {
-        need_kind(card.group)
+        card_kind(card)
     };
     when(card, kind, w, times)
 }
@@ -160,7 +214,7 @@ pub(crate) fn meta(
     b.style(look::ASK_META);
     b.name(&crate::accounts::words::join(&[&prefix, &asked.title, &suffix]));
     b.text(Run::Plain, &prefix);
-    if let Some(task) = super::inbox::source_task(asked.card.object) {
+    if let Some(task) = asked.source {
         link(b, bindings, &asked.title, Address::Task { task });
     } else {
         b.text(Run::Plain, &asked.title);

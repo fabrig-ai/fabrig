@@ -1994,10 +1994,19 @@ keeps (`../protocol/configuration.md`, section 2).
     textarea as Reject's). A funds card: "S of L used." as the
     question, in the task page's money form, plain numbers, its title as
     owner, then Release and Leave held; there is no "Add $10". A person task: its
-    title, its spec, its acts as plain buttons.
+    title, its spec, its acts as plain buttons. *A person task in words,*
+    one addressed to a person with a report as its contract, as a goal
+    asks the person who started it (`../domain/agent.md`, 8.2), reads as a
+    question: its spec's words by the same line form, its kind "a
+    question", its choices, "Reply…" and "Later", and each answers it in
+    those words, naming the revision the card showed. Its line's TITLE is
+    "Task N", N its requester, a link there, since the card reads no second
+    task, and its answered line's title is its own. In the inbox's filter
+    it stays a person task.
   - *SHORT,* what a next-up line or a Home line says of a card: a
-    question's line; a proposal's reason's first sentence; a held task's
-    or a person task's title, a funds card's "S of L used".
+    question's line, or a person task in words'; a proposal's reason's first
+    sentence; a held task's or another person task's title, a funds card's
+    "S of L used".
   - *`.next-up`,* centred, 13px, `--gf-faint`: "Next: TITLE · SHORT", or
     "The last one".
   - *Answered,* under it when any: the section title "Answered", then
