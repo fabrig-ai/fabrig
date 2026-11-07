@@ -270,17 +270,20 @@ fn replace_sockets(value: &mut serde_json::Value, replacements: &[(String, Strin
     }
 }
 
+/// Derive the stock charters and their model bounds from the edited deployment.
+#[cfg(test)]
+pub(crate) fn stock_engine(value: &serde_json::Value) -> jig_protocol_config::Engine {
+    let document = jig_protocol_config::document(
+        &serde_json::to_vec(&value["engine"]).expect("engine JSON"),
+        &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
+    )
+    .expect("engine document");
+    temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working()).expect("stock engine")
+}
+
 #[cfg(test)]
 mod tests {
-    fn stock_engine(value: &serde_json::Value) -> jig_protocol_config::Engine {
-        let document = jig_protocol_config::document(
-            &serde_json::to_vec(&value["engine"]).expect("engine JSON"),
-            &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
-        )
-        .expect("engine document");
-        temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
-            .expect("stock engine")
-    }
+    use super::stock_engine;
 
     #[test]
     fn the_picker_fixture_admits_stock_models_for_every_charter() {

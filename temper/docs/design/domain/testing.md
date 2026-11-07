@@ -818,6 +818,12 @@ terminal client, the captures and the faults.
   Musts depend on processes. A variant grows an existing story, never a
   copy of its setup.
 
+- **One printed link, counted.** A story that holds a box to one sign-in
+  link counts the lines of its stdout and never compares their bytes, which
+  would write the link's secret into the log. Its panic carries the box's
+  stderr with every line holding `secret=` filtered out, so that a second
+  link says why it came.
+
 - **Focused wiring,** one short test in the ordinary `suite` binary:
   a shipped `temper serve` on a scratch configuration signs in a native
   client, answers one chat through the fake model, drains, and exits 0.
@@ -871,7 +877,7 @@ terminal client, the captures and the faults.
   in this profile.
 
 - **The box's lifetime with its steps running,** two stories of their own
-  (../protocol/setup.md, 13.1): a hangup stopping a box whose playground
+  (../protocol/setup.md, 13.4): a hangup stopping a box whose playground
   steps run, nothing left, its log's last line `Stopped`, and the same
   configuration binding again; and, on Linux, a box killed taking those
   steps with it. They need the box's processes and their deaths, so they
@@ -2777,6 +2783,49 @@ scripts/proof-live.sh               the live tier
   (../protocol/git.md, section 3); transcripts are of 2.47.
 
 ## 11. Later
+
+- **Further focused-test cost reductions** (2.1, 2.2, 2.6, 6.1):
+  the row profiles and their remaining causes are in
+  `temper/docs/development/limits-heavy.md`. Follow testing-strategy.md,
+  8.1: keep each behaviour in its tier, profile its cause, and retain
+  every bound, pattern, shell, ending order, request, token lifetime and
+  independent oracle. The next cause's gain is priced against about
+  0.2 CPU s for this repair; a larger cause needing another mechanism
+  stays named rather than being declared cheap. Further work needs:
+  - Shared checked startup and preparation documents, preserving retained
+    edits, refusal order and independent fresh provider keys. Required
+    RSA generation stays; sharing keys or weakening them changes behaviour.
+  - Cheaper Markdown and semantic-tree construction and destruction at
+    the byte bounds, and retained-word admission without rebuilding rows.
+    Repeated-position pages must keep their pairwise tie order.
+  - Gallery phrasebook ownership or view reuse, checked capacity reuse,
+    shared world construction and equivalent HTML rendering or batching.
+    Each state's bindings, clock, sign-in configuration and every page's
+    output still need their checks; cheap rules stay in the state holder.
+  - Shared JSON decoding and escaping with exact validation, sizing and
+    output; ready-call routing and maintained deadlines in the connection
+    driver; streaming secret checks and chunked framing observations with
+    the same cut and first-byte accounting. Shortening the simulated hour
+    or skipping transport fragments removes coverage.
+  - Projection feeds with less copying while retaining the whole-tree
+    contract, and cheaper store joins and codecs under the independent
+    restart/read oracle. Sharing a restart prefix needs snapshot support
+    across the harness, box, I/O, simulator and fake machine, preserving
+    all 720 ending orders and each fault and quiescence check.
+  - Launcher interpreter startup and executable-loader work, without
+    changing build settings or combining distinct behaviours for cost.
+  Default: keep the required work and all assertions until a profile
+  justifies the representation or algorithm change. Instruction ratios
+  for selected tests do not establish a whole-suite CPU total.
+
+- **The running box's lifetime stories after landing** (2.6): account
+  for the hangup/rebind and killed-box stories within the process tier's
+  existing 360 CPU s suite budget, 60 CPU s per test and wall hard limit.
+  The killed-box story starts playground steps and kills their box; the
+  existing killed-test story kills their owning test without asking for
+  playground steps. Their different ownership links and descendants
+  remain separate checks. Default: retain both; any tier overage follows
+  testing-strategy.md, 8.1, without raising a figure for the move.
 
 - **Further fixture and startup cost reductions** (2.1, 2.3, 6.1):
   follow testing-strategy.md, 8 and 8.1, with unchanged behaviour,

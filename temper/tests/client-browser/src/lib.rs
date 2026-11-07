@@ -188,6 +188,10 @@ impl Tier {
         css.extend_from_slice(
             b"\n@media (height: 801px) { #app > .temper-session .temper-thread > [role=log] { overflow-anchor: none !important; margin-top: 7px !important; } }\n",
         );
+        let mut compressed = vec![0; skein_http::gzip::bound(css.len()).expect("stylesheet gzip bound")];
+        let length = skein_http::gzip::encode(&css, &mut compressed).expect("compressed private stylesheet");
+        compressed.truncate(length);
+        fs::write(path.with_extension("css.gz"), compressed).expect("private compressed stylesheet");
         fs::write(path, css).expect("private stylesheet");
         let path = tier.scratch.path().join("temper.json");
         let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
@@ -200,7 +204,7 @@ impl Tier {
     fn with_replies(self, replies: &[(String, String)]) -> Self {
         let path = self.scratch.path().join("temper.json");
         let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
-        value["application"]["demo"]["llm"]["asked"] = reading::scripts(replies);
+        reading::configure(&mut value, replies);
         configuration::private(&path, &serde_json::to_vec(&value).expect("scripted demo JSON"));
         self
     }
@@ -447,7 +451,7 @@ mod tests {
     }
     #[test]
     fn the_sign_in_tiers_two_providers_pass_startup_validation() {
-        let (_, mut value) = tier_configuration();
+        let (agent, mut value) = tier_configuration();
         let sign_in = super::account_registration("http://127.0.0.1:9");
         super::account_provider(&mut value, &sign_in);
         super::welcome_provider(&mut value, &sign_in);
@@ -457,6 +461,20 @@ mod tests {
         )
         .expect("browser deployment admits two sign-in providers");
         assert_eq!(shape, temper_service::startup::Shape::Standalone);
+        let engine = super::configuration::stock_engine(&value);
+        let core = jig_protocol_config::core(&engine, [0; 16], 1);
+        let defaults = &core.defaults;
+        let bound = &agent["endpoints"][0]["limits"];
+        assert_eq!(defaults.charters.len(), 7);
+        for charter in &defaults.charters {
+            let resolved =
+                jig_domain_core::settings::charters::resolved(charter, &defaults.models, &engine.limits.core)
+                    .expect("two-provider stock charter resolves");
+            for model in std::iter::once(&resolved.policy.model).chain(resolved.policy.alternatives.iter()) {
+                assert!(bound["window"].as_u64().expect("window") >= u64::from(model.window));
+                assert!(bound["output"].as_u64().expect("output") >= u64::from(model.output));
+            }
+        }
     }
     #[test]
     fn the_tier_names_the_bundle_for_its_server() {

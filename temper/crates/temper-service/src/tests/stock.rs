@@ -297,7 +297,7 @@ fn the_configuring_agent_is_charter_3_and_template_3() {
     assert_eq!(defaults.charters[2], expected);
     assert!(!defaults.charters[2].policy.modify);
     assert!(!defaults.charters[2].policy.agents);
-    assert_eq!(defaults.charters[2].policy.instructions.len(), 6677);
+    assert_eq!(defaults.charters[2].policy.instructions.len(), 6771);
     assert_eq!(defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3]);
     let mut expected = defaults.templates[0].clone();
     expected.number = 3;
@@ -483,6 +483,7 @@ fn the_chats_opening_sends_plain_edits_directly_to_change() {
         )
     );
     assert!(opening.contains("then call change with their request and only what you read"));
+    assert!(opening.contains("call read_branch with its repository before you say it isn't there"));
 }
 
 #[test]
@@ -1519,6 +1520,7 @@ fn configuring_txt_speaks_the_persons_terms() {
         "reread inventory and propose afresh against the newest revision",
         "read_permission names a forge user's login",
         "An unknown forge identity cannot count for approvals",
+        "only when approvals are what's being asked about or proposed",
         "never report it as a setting",
         "each read with project and no number",
     ] {

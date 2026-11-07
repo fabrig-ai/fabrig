@@ -520,7 +520,11 @@ impl Composition {
                             why: people::Again::Full { held: sign_ins, room_at: earliest },
                         });
                     }
-                    link::Signing::Refused | link::Signing::Lost => {
+                    link::Signing::LinkUsed
+                    | link::Signing::LinkExpired
+                    | link::Signing::LinkUnknown
+                    | link::Signing::Refused
+                    | link::Signing::Lost => {
                         self.callbacks.push(Incoming::SignInFailed { client, failure: SignInFailure::Capacity });
                     }
                     link::Signing::SignedOut => {
