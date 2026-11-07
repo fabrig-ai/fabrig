@@ -130,3 +130,23 @@ Acceptance:
 
 As the implementer's text says, and also: each forced site edited, by file; each moved pin
 with its old and new value; anything of the contract you had to add.
+
+## Answers
+
+2026-11-07, to run `per-wake/surface-1`.
+
+- **The override arm for `tasks.charter_parts`:** yes. In
+  `jig/crates/jig-protocol-config/src/overrides.rs`, bind `charter_parts` in the
+  destructure and add `b"charter_parts" => *charter_parts = count(value)?,` beside
+  `charter_documents`: a named limit takes an override, and this task's acceptance
+  (the config lib tests pass) needs it. Nothing else in that file.
+- **`large_enum_variant` on people's `Event`:** yes, one scoped
+  `#[expect(clippy::large_enum_variant, reason = "...")]` on `Event` in
+  `jig/crates/jig-domain-people/src/boundary.rs`, as the crate and its neighbours already
+  do for inline requests. No boxing: `LlmChoice.later` stays `Option<LlmLater>` as the
+  contract gives it.
+- **`Default` on `Reasons`:** neither the derive nor a handwritten impl. `Default` is
+  outside skein's `programming-model.md`, 10.2's derives, and no task of this plan calls
+  it; `Reasons::EMPTY` is the empty value. `notes/contracts.md`, section 1 now derives
+  `Clone, Copy, PartialEq, Eq, Hash, Debug` only. Drop `Default` from `reasons.rs`.
+- Resume from the pushed branch; the three changes above are the only additions to scope.
