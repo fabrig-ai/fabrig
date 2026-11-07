@@ -1,12 +1,13 @@
 //! The real box's first block and held socket (temper/docs/design/protocol/setup.md, 7.2 and 13.4).
 #[path = "../fake_backends/box_link.rs"]
 mod box_link;
+use box_link::command;
 use skein_world::{Deadline, Expired};
 use std::{
     fs,
     net::{SocketAddr, TcpListener},
-    path::{Path, PathBuf},
-    process::{Child, Command, Stdio},
+    path::PathBuf,
+    process::{Child, Stdio},
     time::Duration,
 };
 
@@ -14,14 +15,6 @@ fn scratch(name: &str) -> PathBuf {
     let root = std::env::temp_dir().join(format!("temper-box-listeners-{}-{name}", std::process::id()));
     fs::create_dir(&root).expect("fresh scratch");
     root
-}
-fn command(root: &Path, action: &str) -> Command {
-    let mut command = Command::new(skein_scratch::paths::binary("temper"));
-    command.arg(action);
-    for name in ["config", "data", "cache"] {
-        command.arg(format!("--{name}")).arg(root.join(name));
-    }
-    command
 }
 fn stop(child: &mut Child) {
     #[cfg(target_os = "linux")]

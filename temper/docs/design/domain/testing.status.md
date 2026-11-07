@@ -30,10 +30,6 @@ proof is not established by the supplied inventory (`../protocol/setup.status.md
 7.1, 7.2 and 13.4); the existing real-box sign-in story still awaits its
 after-landing execution (`../protocol/sign-in.status.md`, 9.9).
 
-- **Not yet:** 2.6: the two stories of the box's lifetime with its steps
-  running still run in the `suite` binary
-  (`crates/temper/tests/suite/box_listeners/lifetime.rs`).
-
 - **Not yet:** 2.6: the supplied inventory has no result for any of
   `ui-restart-red`'s five repaired process stories
   (`../protocol/setup.status.md`, 13.4). The stock-purse regression and
