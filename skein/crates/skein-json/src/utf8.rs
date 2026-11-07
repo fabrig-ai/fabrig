@@ -1,4 +1,5 @@
-//! UTF-8, checked a byte at a time (RFC 3629, section 4).
+//! UTF-8's state machine, a byte at a time (RFC 3629, section 4), for every
+//! byte but a plain run's (json.md, 3.4).
 //!
 //! The tokenizer meets a string's text in pieces cut anywhere, so a
 //! character may span two of them; the writer checks the text it is given.
