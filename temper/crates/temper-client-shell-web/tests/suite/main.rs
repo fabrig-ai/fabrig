@@ -10,6 +10,19 @@ mod placeholder;
 mod switcher;
 
 #[test]
+fn stylesheet_assets_follow_the_same_origin_policy() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    for css in [include_str!("../../temper.css"), include_str!("../../task-pages.css")] {
+        for reference in css.split("url(").skip(1) {
+            let (url, _) = reference.split_once(')').expect("asset URL ends");
+            let url = url.trim_matches(['\'', '"']);
+            assert!(url.starts_with("files/") && !url.contains(".."), "asset must be served from self: {url}");
+            assert!(root.join(url).is_file(), "stylesheet asset exists: {url}");
+        }
+    }
+}
+
+#[test]
 fn draft_section_headings_keep_the_document_line_height() {
     let css = include_str!("../../temper.css");
     let (_, rule) = css.split_once("#app > .temper-session .temper-doc-inner h3 {").expect("draft section heading");
