@@ -152,7 +152,7 @@ impl Mcp {
             Event::Stream { up, .. } => match up {
                 Up::Bytes(bytes) => {
                     self.bytes.extend_from_slice(&bytes);
-                    if self.bytes.len() > super::fake::FILE_BYTES as usize {
+                    if self.bytes.len() > super::fake::MCP_INPUT_BYTES as usize {
                         self.failed();
                         self.bytes.clear();
                     } else if self.bytes.last() == Some(&b'\n') {

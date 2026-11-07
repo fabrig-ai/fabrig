@@ -256,6 +256,71 @@ fn a_nested_host_input_is_told_and_answered() {
     assert!(run.seen.contains(&Seen::Called { tool: "lookup".into(), error: false }));
 }
 
+#[derive(Debug)]
+enum Reaches {
+    Whole,
+    Refused,
+}
+
+#[test]
+fn a_large_host_argument_reaches_the_host_or_names_its_limit() {
+    // The 10,000-byte row reaches the host. At the stock payload, 65,536 bytes
+    // first exceeds channel.transcript.call_input; the host record cannot be sent.
+    // A declared 131,072 is refused at startup: HostInput::CAPACITY is 65,536
+    // (smith-domain-run/src/host.rs), and valid_host_tools reports Invalid(Grants).
+    // The remaining rows and CPU measurement await that vocabulary decision.
+    for (declared, argument, reaches) in [
+        (10_662, 10_000, Reaches::Whole),
+        (10_662, 65_536, Reaches::Refused),
+        (131_072, 65_536, Reaches::Whole),
+        (131_072, 131_072, Reaches::Whole),
+        (131_072, 131_073, Reaches::Refused),
+    ] {
+        eprintln!("declared={declared} argument={argument} expected={reaches:?}");
+        // {"text":""} contributes eleven bytes to the whole JSON input.
+        let input = json!({"text":"x".repeat(argument - 11)});
+        let encoded = serde_json::to_vec(&input).expect("argument JSON");
+        assert_eq!(encoded.len(), argument);
+        let story = Story {
+            turns: vec![Turn::new(vec![Step::Call { tool: "lookup".into(), input: input.clone() }, finish()])],
+            ..Story::default()
+        };
+        let run = program_world::run(
+            Case::Payload { tool_payload: declared },
+            &story,
+            Some(b"claude.ai"),
+            &charter_tools(),
+            &program(b"source"),
+            None,
+        );
+        accepted(&run);
+        let result = told_result(&run, b"lookup", &input);
+        let smith_transcript::Returned::Said(said) = result.returned() else { panic!("host answer") };
+        let calls: Vec<_> = run
+            .frames
+            .iter()
+            .filter(|frame| frame.kind == 0x0107)
+            .map(|frame| {
+                smith_channel::Call::decode(&smith_channel::CEILINGS, &mut Reader::new(&frame.body)).expect("host call")
+            })
+            .collect();
+        match reaches {
+            Reaches::Whole => {
+                assert_eq!(calls.len(), 1);
+                // The host boundary receives the whole JSON, including its framing.
+                let smith_channel::Ask::Host(host) = calls[0].ask() else { panic!("host lookup") };
+                assert_eq!(host.input(), encoded);
+                assert_eq!(said.text(), b"found");
+                assert!(!said.error());
+            }
+            Reaches::Refused => {
+                assert!(calls.is_empty(), "a refused call never reaches the host");
+                assert!(said.error());
+            }
+        }
+    }
+}
+
 // Two API messages (lookup, then reply) at the existing per-message spend
 // fixture's input count. The thinking estimate is included in output_tokens.
 const THINKING_MESSAGES: u32 = 2;

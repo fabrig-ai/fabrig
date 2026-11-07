@@ -21,6 +21,10 @@ use crate::{
 };
 
 pub(crate) const FILE_BYTES: u32 = 65_536;
+// Large scripted calls include their JSON/RPC framing; ordinary stdin intake stays FILE_BYTES.
+pub(crate) const MCP_INPUT_BYTES: u32 = 262_144;
+// A story holds the complete scripted input plus its turn and step envelopes.
+const STORY_BYTES: u32 = 262_144;
 pub(crate) const OUTPUT_BYTES: usize = 65_536;
 const FILE_BIT: u64 = 1 << 63;
 const CLOSE_ROOT: Token = Token::new(2);
@@ -139,7 +143,7 @@ impl Fake {
         let mut observation =
             Output::new(faces.observations.map(|fd| io.adopt_append(fd, FILE_TIMEOUT).expect("observation slot")));
         let file_limits =
-            file_layer::Limits { files: 2, read: FILE_BYTES, entries: 1, whole: FILE_BYTES, timeout: FILE_TIMEOUT };
+            file_layer::Limits { files: 2, read: STORY_BYTES, entries: 1, whole: STORY_BYTES, timeout: FILE_TIMEOUT };
         let mut files = FileIo::with_limits(&file_limits);
         files.seed_randomness(7);
         let config = Config {
@@ -171,7 +175,7 @@ impl Fake {
                 owner: FILE_OWNER,
                 root,
                 path: STORY_FILE.as_bytes().into(),
-                max: FILE_BYTES,
+                max: STORY_BYTES,
                 no_follow: true,
             })
         } else {
