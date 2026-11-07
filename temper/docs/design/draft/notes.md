@@ -488,9 +488,15 @@ The reasons behind `tui.md`, from the user, 2026-11-07.
 - **The browser approves.** "Ideally I start temper and it opens a tab in
   the browser, where I accept and then I can close the tab. Over ssh a cut
   & paste code will be needed." It is jig's built-in, not temper's own
-  sign-in, because jig mints for an application's providers alone and a
-  box's person is signed in by jig's printed link. A code shown on both
-  sides is what keeps a person from approving someone else's terminal.
+  sign-in ending in `Mint`, because jig mints for an application's
+  providers alone and a box's person is signed in by jig's printed link;
+  letting `Mint` reach jig's own providers would hand jig's rule to an
+  application's code. A browser alone approves, since agents drive
+  `temper ctl` as the owner. The code shown on both sides lets a person
+  check that the tab is their own terminal's, but on a box it rides the
+  tab's address, so that one press approves: a risk taken because
+  whoever could ask for an approval is on the machine already. A
+  deployment at a name will have the code typed.
 - **The bare minimum first.** "First just the bare minimum for e2e, it will
   get us the foundations laid out in the code", on a box alone, with no
   Google and no deployment at a name: "we start same machine, but we'll
