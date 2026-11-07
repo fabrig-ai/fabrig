@@ -59,7 +59,7 @@ fn model_world(configs: [temper_engine_domain::Config; 2]) -> World<Temper, Join
 }
 
 #[test]
-fn an_owner_turns_a_model_off_and_it_leaves_the_picker() {
+fn a_switch_turned_off_and_back_holds_across_a_reload() {
     let mut world = model_world(std::array::from_fn(|_| configuration()));
     let chat = world.client(fixtures::PARTY, fixtures::chats_page());
     super::model::follow(
@@ -78,12 +78,33 @@ fn an_owner_turns_a_model_off_and_it_leaves_the_picker() {
             super::model::see(Role::Disclosure, b"Model"),
         ],
     );
-    let owner = world.client(fixtures::PARTY, Address::Models { project: 1 });
-    super::model::follow(&mut world, owner, vec![super::model::see(Role::Check, b"Sonnet 5.5 in the picker")]);
+    let owner = world.client(fixtures::PARTY, fixtures::chats_page());
+    super::model::follow(
+        &mut world,
+        owner,
+        vec![
+            super::model::see(Role::Link, b"Settings"),
+            super::model::press(Role::Link, b"Settings"),
+            super::model::see(Role::Link, b"Models"),
+            super::model::press(Role::Link, b"Models"),
+            super::model::see(Role::Check, b"Sonnet 5.5 in the picker"),
+        ],
+    );
     super::model::follow(
         &mut world,
         owner,
         vec![super::model::press(Role::Check, b"Sonnet 5.5 in the picker"), super::model::see(Role::Text, b"Off")],
+    );
+    // This world's restart drops the address; restore the browser's saved page (client/README.md, 6.10).
+    world.reload(owner);
+    super::model::follow(
+        &mut world,
+        owner,
+        vec![
+            super::model::see(Role::Status, b"Live"),
+            Step::Go { address: Address::Models { project: 1 } },
+            super::model::see(Role::Text, b"Off"),
+        ],
     );
     let switch = world
         .tree(owner)
@@ -111,10 +132,23 @@ fn an_owner_turns_a_model_off_and_it_leaves_the_picker() {
         chat,
         vec![super::model::press(Role::Button, b"All models"), super::model::see(Role::Button, b"Sonnet 5.5")],
     );
+    super::model::follow(&mut world, owner, vec![super::model::press(Role::Check, b"Sonnet 5.5 in the picker")]);
+    let switch = world
+        .tree(owner)
+        .nodes()
+        .iter()
+        .find(|n| n.role == Role::Check && n.name.as_deref() == Some(b"Sonnet 5.5 in the picker"))
+        .unwrap();
+    assert!(switch.states.as_slice().contains(&State::Pressed));
+    super::model::follow(
+        &mut world,
+        chat,
+        vec![super::model::press(Role::Button, "‹ Models".as_bytes()), super::model::see(Role::Button, b"Sonnet 5.5")],
+    );
 }
 
 #[test]
-fn an_owner_adds_a_model_and_it_is_on_the_picker() {
+fn a_model_added_by_name_is_on_the_picker() {
     for terminal in [false, true] {
         let mut world = model_world(std::array::from_fn(|_| {
             let mut config = configuration();
@@ -130,6 +164,7 @@ fn an_owner_adds_a_model_and_it_is_on_the_picker() {
             &mut world,
             owner,
             vec![
+                super::model::see(Role::Heading { level: 2 }, b"Add a model by name"),
                 super::model::see(Role::Select, b"Provider"),
                 super::model::press(Role::Option, b"Claude"),
                 Step::Type {
@@ -187,5 +222,20 @@ fn an_owner_adds_a_model_and_it_is_on_the_picker() {
             ],
         );
         assert!(!world.tree(owner).nodes().iter().any(|n| n.name.as_deref() == Some(b"Effort")));
+        let reloaded = world.client(fixtures::PARTY, Address::Models { project: 1 });
+        if terminal {
+            world.at_text_shell(reloaded);
+        }
+        super::model::follow(
+            &mut world,
+            reloaded,
+            vec![
+                super::model::see(Role::Text, "claude-haiku-5-5 · added by you · estimated prices".as_bytes()),
+                Step::Go { address: Address::NewChat { draft: false } },
+                super::model::see(Role::Button, b"Sonnet 5.5"),
+                super::model::press(Role::Button, b"Sonnet 5.5"),
+                super::model::see(Role::Button, b"claude-haiku-5-5"),
+            ],
+        );
     }
 }

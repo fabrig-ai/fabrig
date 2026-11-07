@@ -1191,6 +1191,7 @@ over). Each is one test of the steps it names; 2 and 11 share one, and 4 and
 The cap includes all browser tests, whatever their names.
 
 Not in the tier, each in the lowest world that shows it:
+- **Models switched off and back, and added by name, across reloads:** the client world's `models::a_switch_turned_off_and_back_holds_across_a_reload` and `models::a_model_added_by_name_is_on_the_picker`.
 - **Goals' link to a draft:** the view's
   `tests::goals::the_link_shows_with_a_tracked_template` holds its target, the
   Chats page; test 2 holds what a browser's history does with a link.
