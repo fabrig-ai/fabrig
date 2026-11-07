@@ -1,0 +1,31 @@
+draft = "limits-fuzzy"
+repo = "fabrig"
+sources = ["temper/docs/plan/limits-fuzzy/inputs/request.md", "temper/tests/one-process/tests/suite/fuzzy/one_process.rs", "temper/tests/engine/domain/tests/suite/fuzzy/escalation.rs", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+early = false
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "codecs"
+title = "The public records' decoder sweep, at its cause"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/forge.md, 11.4"
+
+[[part]]
+id = "one-process"
+title = "The one-process world's two crash sweeps, at their causes"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/testing.md, 6.1"
+
+[[slice]]
+id = 1
+story = "the decoder sweep and the crash sweeps draw what they drew, at a lower cost that a profile explains"
+parts = ["codecs", "one-process"]
+walk = false
