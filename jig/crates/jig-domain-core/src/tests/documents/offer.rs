@@ -342,13 +342,15 @@ fn marked(core: &Core) -> bool {
 #[test]
 fn account_login_host_and_charter_changes_mark_me_with_unrelated_negatives() {
     let (mut core, limits) = watching();
-    for event in [
-        Event::Account(accounts::Event::Limited { account: SOURCE, reset: None }),
-        Event::Fleet(fleet::Event::Logins { channel: HOST, logins: Box::new([]) }),
-        Event::Fleet(fleet::Event::Lost { channel: HOST }),
+    for (event, moves_offer) in [
+        (Event::Account(accounts::Event::Limited { account: SOURCE, reset: None }), true),
+        (Event::Fleet(fleet::Event::Logins { channel: HOST, logins: Box::new([]) }), false),
+        (Event::Fleet(fleet::Event::Lost { channel: HOST }), false),
     ] {
+        let before = offered(&core, &limits);
         drop(watch_outputs(&mut core, &limits, event));
         assert!(marked(&core));
+        assert_eq!(offered(&core, &limits) != before, moves_offer);
         drop(finish_watch_outputs(&mut core, &limits));
     }
     let mut charter = core.charter(CHARTER).unwrap().clone();
@@ -384,4 +386,43 @@ fn account_login_host_and_charter_changes_mark_me_with_unrelated_negatives() {
     assert!(!marked(&core));
     core.touch_deployment();
     assert!(!marked(&core));
+    for (name, has_account, reset, now, due, usable) in [
+        ("no alarm", false, None, 0, false, false),
+        ("future grant", true, None, 0, false, true),
+        ("future limit", true, Some(10), 9, false, false),
+        ("elapsed limit", true, Some(10), 10, true, true),
+    ] {
+        let (mut core, limits) = watching();
+        if !has_account {
+            core.accounts = accounts::Domain::new(&limits.accounts, core.settings.llm_providers.clone());
+        }
+        if let Some(reset) = reset {
+            account(
+                &mut core,
+                &limits,
+                accounts::Event::Limited { account: SOURCE, reset: Some(Time::from_nanos(reset)) },
+            );
+        }
+        let before = frame(&core, &limits);
+        let deadline = core.accounts.next_deadline();
+        let env = Env { now: Time::from_nanos(now), wall: Wall::from_nanos(now), limits };
+        assert_eq!(core.accounts.is_due(env.now), due, "{name}");
+        let requests = fire(&mut core, &env, Timer::Account);
+        assert_eq!(marked(&core), due, "{name}: only a due account timer marks me");
+        if !due {
+            assert!(requests.is_empty(), "{name}: an early firing emits nothing");
+            assert_eq!(core.accounts.next_deadline(), deadline, "{name}: the alarm remains scheduled");
+        }
+        let after = frame(&core, &limits);
+        assert_eq!(!offered(&core, &limits).is_empty(), usable, "{name}: current offer");
+        assert_eq!(before != after, due, "{name}: only expiry moves the offer");
+        let mut deliveries = finish_decision(&mut core, &env);
+        if due {
+            let Some(Request::Held(held)) = deliveries.pop() else { panic!("{name}: a due firing delivers me") };
+            let Held::Delivery { watcher, document } = *held else { panic!("{name}: a Frame delivery") };
+            assert_eq!(watcher, WATCHER, "{name}");
+            assert_eq!(*document, Document::Frame(after), "{name}: the changed offer reaches the client");
+        }
+        assert!(deliveries.is_empty(), "{name}: no extra delivery");
+    }
 }
