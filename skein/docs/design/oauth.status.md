@@ -6,6 +6,17 @@ Sections 2.2 and 6.3 have no known gap in caller-selected profile claims,
 their bounds and verification flags, or delivery beside the kept record
 on sign-in and refresh, except for the nonce requirement below.
 
+Sections 6.3, 6.5, 6.7 and 6.8 have no known gap in the driver's
+`redirect_bytes`, shared by the listener and pasted redirects, the
+`redirect_room` and `listener_head` sizing helpers, or the owner's
+application name. Focused rows cover synthetic 1,900- and 3,900-byte
+codes through both paths and a browser's headers and cookie at the
+redirect bound. The listener's own over-long redirect fails its sign-in
+in the judging step with its length and bound, answers the long page
+without a return, and settles after sending it; another state or path
+and a duplicate state keep the refusal page. Owner-page figures are
+deferred in section 7.
+
 - **Not yet:** 4: `skein-oauth/src/json.rs`'s `Json` and `Collector` derive
   `Debug` over their tokens, and a `Json` holds a token response, though only
   as a local of `machine.rs`'s reader, in no record that prints: the request

@@ -53,6 +53,7 @@ alone mark no Frame. The omitted-count mark below remains unimplemented.
 Later pages, later changes to a known name's figures
 and catalogue-number reuse remain section 16's open questions.
 
+
 - **Not yet:** 17.12: a read changing only the displayed omitted count
   does not mark `me`. `routing/lists.rs`, `answered`, compares good-read
   presence and `names`, but not `left_out`; `documents/small.rs`, `frame`,

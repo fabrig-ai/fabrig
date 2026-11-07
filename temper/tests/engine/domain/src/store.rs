@@ -45,6 +45,7 @@ struct Delayed {
     delay: u32,
 }
 /// Numbered root transactions and their durable typed mirror.
+/// Today's catalogue survives reopening (jig/docs/design/domain/engine.md, 17.11).
 pub struct Store {
     pub applied: u64,
     pub pending_generation: bool,
@@ -58,6 +59,7 @@ pub struct Store {
     limits: engine::Limits,
     component_limits: Limits,
     models: Box<[engine::Model]>,
+    catalogue: Option<Box<[jig_domain_core::settings::ModelName]>>,
     inflight: BTreeMap<u64, Box<[Write]>>,
     durable: Vec<(u64, Box<[Write]>)>,
     replies: Vec<engine::StoreInput>,
@@ -171,6 +173,7 @@ impl Store {
             limits: *limits,
             component_limits: *component_limits,
             models,
+            catalogue: None,
             inflight: BTreeMap::new(),
             durable: Vec::new(),
             replies: Vec::new(),
@@ -257,6 +260,9 @@ impl Store {
             stores,
         ));
         assert!(self.component.as_mut().expect("live component").wires(&temper_service::store::WIRES));
+        if let Some(names) = &self.catalogue {
+            self.component.as_mut().expect("live component").catalogue(names.clone());
+        }
         self.routes = routes(&self.limits);
         self.pending.clear();
         self.delays.clear();
@@ -274,6 +280,9 @@ impl Store {
     #[must_use]
     pub fn fork(&self) -> Store {
         let mut fresh = Store::with_limits(&self.limits);
+        if let Some(names) = &self.catalogue {
+            fresh.catalogue(names.clone());
+        }
         for (number, writes) in &self.durable {
             fresh.submit(*number, writes.clone(), 0);
             assert_eq!(fresh.tick(false), Ok(Some(*number)));
@@ -413,6 +422,7 @@ impl Store {
             .expect("durable wires decode")
     }
     pub fn catalogue(&mut self, names: Box<[jig_domain_core::settings::ModelName]>) {
+        self.catalogue = Some(names.clone());
         self.component.as_mut().expect("live component").catalogue(names);
     }
     pub fn switch(&mut self) -> engine::StoreInput {

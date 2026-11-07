@@ -46,3 +46,14 @@ Acceptance:
 ## Report
 
 The implementer's report, with: the stories' times; how the browser's client stands beside the TUI's host; each broken rule's failure.
+
+## Answers
+
+### 2026-11-07: Resume after approval-host pushes its implementation (recommended), or expand this task to implement the missing host behavior? (tui-recorded/approval-story-1, foreman tui-recorded/approval-story/foreman-1)
+
+Resume after approval-host pushes its implementation; keep approval-story within its owned files and complete its acceptance.
+The spec declares `needs = ["approval-host", "approval-lines"]`.
+Contracts §2 assigns “The host's seam (`temper-client-shell-tui`'s `host`), task `approval-host`”, including `Report::Opened`, the startup ask, opening duty and Enter asking again.
+The checkout's `temper/crates/temper-client-shell-tui/src/host.rs` still lacks `Report::Opened`; that implementation belongs to the prerequisite.
+Acceptance requires both stories “each passing in the focused suite within the world's usual cost (name their times)”; the report explicitly says acceptance is unfinished.
+The next run incorporates the completed dependency, verifies the final harness, completes both hand-mutation proofs, runs the required checks, records passing story times, and commits and pushes the completed work.

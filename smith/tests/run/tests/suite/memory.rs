@@ -853,11 +853,12 @@ fn complete_declaration_and_maximum_opaque_input_answer_retries_reach_the_measur
         }),
     );
     let mut relay = relay.expect("maximum body relayed");
-    for reply in
-        [smith_domain_run::HostReply::Unanswered(smith_domain_run::Unanswered::Lost), smith_domain_run::HostReply::Busy]
-    {
+    for (reply, growth) in [
+        (smith_domain_run::HostReply::Unanswered(smith_domain_run::Unanswered::Lost), 1),
+        (smith_domain_run::HostReply::Busy, 2),
+    ] {
         take(&env, Some(Event::HostReturned { relay, reply }));
-        env.now = env.now.saturating_add(limits.host_backoff);
+        env.now = env.now.saturating_add(limits.host_backoff.saturating_mul(growth));
         let (_, recovered) = take(&env, None);
         relay = recovered.expect("retained maximum body is copied into retry output");
     }

@@ -6,8 +6,8 @@ Sections 2 to 7 and 9 have no remaining design gap beyond the lags and
 departures below. Temper's settings form and ctl carry parts and later;
 `../protocol/configuration.md`, 13.9 carries the focused reference
 charters, charter 5's four parts, template 4's first/later choice and the
-worker and stored-policy checks. The combined story's implementation
-gap is in `../protocol/configuration.status.md`, 13.9.
+worker and stored-policy checks. The combined cut-and-answer domain
+story passes, including its restart oracle.
 
 - **Design lags:**
   - 6: `reference-code-production.md`, sections 13 and 14: the reference's charter 5 is one text, and template 4 takes one LLM choice. Tests and stage one's judge read that draft, so it stays as it is; `../protocol/configuration.md`, 13.9 carries the parts and the later choice.

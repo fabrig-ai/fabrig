@@ -951,6 +951,7 @@ fn restore_setting_detail(value: &w::SettingDetail) -> c::SettingDetail {
             w::SettingMember::Path => c::SettingMember::Path,
             w::SettingMember::Heading => c::SettingMember::Heading,
             w::SettingMember::Connector => c::SettingMember::Connector,
+            w::SettingMember::StoredPolicy => c::SettingMember::StoredPolicy,
         },
         rule: match value.rule() {
             w::SettingRule::Maximum => c::SettingRule::Maximum,

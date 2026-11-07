@@ -571,6 +571,11 @@ host's half reports it (`llm.md`, 5.5).
   either, or sends out more, is refused at the driver's member
   (`limits.driver.redirect_bytes`, `limits.driver.server.head`,
   `limits.driver.url_bytes`), and so is an override whose driver would.
+  The driver's own over-long listener redirect ends its sign-in with
+  the long-answer page (skein's `oauth.md`, 6.5). The accounts protocol
+  carries its failure as `SignInAgain`; its address's length and bound
+  stay at the driver's terminal. Carrying those figures to an
+  application's sign-in page is separate work (section 9).
   A move out waits for its client's
   *written* only within the move's deadline, the accounts child's, past
   which the move is cancelled (`../domain/accounts.md`, section 6); it
@@ -783,6 +788,13 @@ the same capacities even when every run slot is occupied.
 
 ## 9. Open questions
 
+- **Long-answer figures on the sign-in page** (section 6): carrying
+  skein's `LongRedirect { length, bound }` through the accounts domain
+  and client wire to the application's page. Default: `SignInAgain`,
+  with the specific long-answer page at the listener; the driver's
+  terminal names both figures. Showing them on temper's page requires
+  a client-wire change and regenerated journey recordings, left for a
+  later request.
 - **Approval beyond loopback** (3, clients): enabling it at a public
   name waits for the between-hosts flow (`client.md`, section 15).
   The optional `approval` boolean enables the loopback flow alone.

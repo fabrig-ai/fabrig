@@ -185,7 +185,6 @@ fn instructions(shared: &[u8], part: &[u8]) -> Vec<u8> {
 }
 
 #[test]
-#[ignore = "forge world's Store::crash reopens the scripted catalogue, losing template 4's model and efforts"]
 fn the_reference_goal_reads_its_cut_then_its_questions_part() {
     let mut model = stock::box_model();
     model.name = MODEL.into();

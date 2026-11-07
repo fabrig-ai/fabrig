@@ -1351,6 +1351,7 @@ pub fn form_setting_detail(value: c::SettingDetail) -> n::SettingDetail {
             c::SettingMember::Path => n::SettingMember::Path,
             c::SettingMember::Heading => n::SettingMember::Heading,
             c::SettingMember::Connector => n::SettingMember::Connector,
+            c::SettingMember::StoredPolicy => n::SettingMember::StoredPolicy,
         },
         rule: match value.rule {
             c::SettingRule::Maximum => n::SettingRule::Maximum,
