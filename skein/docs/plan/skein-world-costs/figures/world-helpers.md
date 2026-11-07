@@ -1,6 +1,6 @@
 # world-helpers: the remaining shared world costs
 
-2026-11-07 UTC, base `7fc50fc4ac`, 16 CPUs, AMD EPYC-Genoa Processor,
+2026-11-07 UTC, base `7fc50fc4ac`, after `7d40b8bf6f`, 16 CPUs, AMD EPYC-Genoa Processor,
 valgrind 3.24.0. Unoptimized test binaries, one exact named test per
 Callgrind process, with its nextest cwd and `CARGO_MANIFEST_DIR`. Every
 reading below ran and passed exactly one test. Totals include startup
@@ -168,3 +168,33 @@ iterator with per-run slice extension is a few lines. Take that borderline
 cause next. The existing tree query test asserts matching across runs,
 Unicode case handling, regions and unnamed drawing/name fallbacks; no
 assertion or fixture changes are needed.
+
+## Final readings, `7d40b8bf6f`
+
+2026-11-07 02:27:10 UTC, 16 CPUs, AMD EPYC-Genoa Processor, valgrind 3.24.0. Each exact test ran once and passed on the completed source; default for T1–T5 and fuzzy for T6.
+
+| Package | Test | Profile | Pristine before Ir | Final Ir | Reduction |
+|---|---|---|---:|---:|---:|
+| `jig-core-world` | T1: `stories::address::a_person_task_is_readdressed_after_durability_and_the_previous_taker_cannot_answer_after_restart` | default | 109,407,314 | 94,854,180 | 13.30% |
+| `jig-client-protocol-world` | T2: `client::account_keys::a_key_ask_carries_its_value_into_the_secrets_store` | default | 153,039,757 | 115,566,545 | 24.49% |
+| `skein-forge-machine-world` | T3: `hand::github::github_installation_loss::terminal_deferred_viewer_status_stops_after_connected` | default | 35,904,657 | 31,721,364 | 11.65% |
+| `skein-llm-world` | T4: `client::reuse_preserves_binding_and_rejects_other_authority` | default | 11,432,807 | 10,419,957 | 8.86% |
+| `skein-tls-world` | T5: `handshake::a_chain_longer_than_the_records_held_is_too_long` | default | 71,385,712 | 59,871,433 | 16.13% |
+| `jig-ops-world` | T6: `fuzzy::joint::p_accepts_the_restart_from_the_incidents_page` | fuzzy | 60,486,730,374 | 44,528,952,467 | 26.38% |
+
+| Test | Arm | Total Ir | Cause | Inclusive Ir | Share |
+|---|---|---:|---|---:|---:|
+| T6 | after text slices | 44,528,952,467 | `tree::text` | 165,995,676 | 0.37% |
+| T6 | after text slices | 44,528,952,467 | `TreeFace::find` | 807,474,435 | 1.81% |
+| T6 | after text slices | 44,528,952,467 | `tree::contains` | 479,127,155 | 1.08% |
+
+The borderline text fix saves 325,359,306 Ir (0.73%) and all 24 fake-person focused tests pass unchanged. No new test is added for that move from byte iteration to slices. The three new rule tests from the other fixes each bite as recorded above.
+
+Stop here: `contains` includes required Unicode folding, searching and disposal; its two largest individual children are 194,430,050 Ir (0.44%) and 211,932,781 Ir (0.48%). No identified removable gain reaches 1%. The retained Wire write dispatch and trace length methods are minimal public operations called by the fixture’s polling loop. `Trace::len`’s own wrapper costs only 0.62%; its Vec length callee costs another 0.62%. Removing only the wrapper would not reach 1%.
+
+The development account carries the final allocator partition and required header/layout/conversion subsets for all six tests, the Wire formatting costs before/after, every scoped helper cause above, and the product/fixture/startup costs with shares. No caller or public signature changes.
+
+The final checks include a test-only lint repair: the empty-write regression
+is now inside `cfg(test)` with a typed range. That changes no helper library
+source and no measured test binary. The measured implementation commit
+remains `7d40b8bf6f`; subsequent edits are this account and test placement.
