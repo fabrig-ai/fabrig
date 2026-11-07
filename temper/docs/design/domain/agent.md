@@ -701,7 +701,9 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   without one the charter's first whose LLM provider has an account
   usable for the payer (jig's `domain/tasks.md`, section 3),
   and the account the run's claim chose for each LLM provider (jig's
-  `domain/accounts.md`, 4.3). Their credentials, or a program source's
+  `domain/accounts.md`, 4.3). A chat's new choice answers its person's
+  next words, whether its run still listens or has parked (jig's
+  `domain/tasks.md`, section 7). Their credentials, or a program source's
   name, come to the agent as grants through the worker
   (`../protocol/credentials.md`, section 3). A run on a program has
   smith's sub-agents, inspect only, each a program session of its own

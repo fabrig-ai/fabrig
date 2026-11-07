@@ -566,9 +566,11 @@ fn project_amend<'a>(row: &mut CompoundTask<'a>, plan: &'a crate::control::Amend
         .with_question(row.question)
         .amended(row.executor, row.phase.clone());
     row.last_message = plan.message;
-    row.inbox = &plan.prepared.inbox;
-    if plan.attempt.is_none() {
-        row.wake(&plan.prepared.word);
+    if let Some(prepared) = &plan.prepared {
+        row.inbox = &prepared.inbox;
+        if plan.attempt.is_none() {
+            row.wake(&prepared.word);
+        }
     }
     if let Some(release) = &plan.release {
         row.phase = crate::run::ends::pending(row.waiting_on, row.flags.ended_by)
