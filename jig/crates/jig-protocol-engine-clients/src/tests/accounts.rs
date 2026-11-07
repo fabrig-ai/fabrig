@@ -39,6 +39,7 @@ fn document(end: Option<a::End>) -> d::Accounts {
         program_hosts: List::with_capacity(0),
         accounts: List::from_boxed(Box::new([
             d::AccountLine {
+                list: None,
                 facts: fact_rows(),
                 provider_name: None,
                 manage_usage: None,
@@ -53,6 +54,7 @@ fn document(end: Option<a::End>) -> d::Accounts {
                 cut: true,
             },
             d::AccountLine {
+                list: None,
                 facts: List::with_capacity(0),
                 provider_name: None,
                 manage_usage: None,
@@ -181,28 +183,36 @@ fn deployment_terms() -> d::Account {
 #[test]
 fn deployment_terms_reach_the_wire() {
     let limits = jig_client_test_records::limits();
-    let encoded = crate::translate::deployment::account(&deployment_terms(), &limits).unwrap();
-    assert_eq!(encoded.facts(), &jig_client_test_records::account_fact_records());
-    assert_eq!(encoded.provider_name().as_ref().unwrap().bytes(), b"Arbitrary provider");
-    assert!(encoded.provider_name().as_ref().unwrap().cut());
-    assert_eq!(encoded.manage_usage().as_deref(), Some(b"https://usage.example/".as_slice()));
+    for history in list_histories() {
+        let mut value = deployment_terms();
+        value.list = history;
+        let encoded = crate::translate::deployment::account(&value, &limits).unwrap();
+        assert_list(encoded.list().as_ref(), history);
+        assert_eq!(encoded.facts(), &jig_client_test_records::account_fact_records());
+        assert_eq!(encoded.provider_name().as_ref().unwrap().bytes(), b"Arbitrary provider");
+        assert!(encoded.provider_name().as_ref().unwrap().cut());
+        assert_eq!(encoded.manage_usage().as_deref(), Some(b"https://usage.example/".as_slice()));
+    }
 }
 #[test]
 fn account_line_terms_reach_the_wire() {
-    assert_eq!(jig_client_domain::contract::FACT_EMAIL, a::KIND_EMAIL);
-    assert_eq!(jig_client_domain::contract::FACT_NAME, a::KIND_NAME);
-    let limits = jig_client_test_records::limits();
-    let account = deployment_terms();
-    let mut account_line = document(None).accounts.get(0).unwrap().clone();
-    account_line.provider_name = account.provider_name;
-    account_line.manage_usage = account.manage_usage;
-    account_line.facts = account.facts;
-    let line = accounts::line(&account_line, &limits).unwrap();
-    assert_eq!(line.facts(), &jig_client_test_records::account_fact_records());
-    assert_eq!(line.provider_name().as_ref().unwrap().bytes(), b"Arbitrary provider");
-    assert!(line.provider_name().as_ref().unwrap().cut());
-    assert_eq!(line.manage_usage().as_deref(), Some(b"https://usage.example/".as_slice()));
+    for history in list_histories() {
+        let limits = jig_client_test_records::limits();
+        let account = deployment_terms();
+        let mut account_line = document(None).accounts.get(0).unwrap().clone();
+        account_line.provider_name = account.provider_name;
+        account_line.manage_usage = account.manage_usage;
+        account_line.list = history;
+        account_line.facts = account.facts;
+        let line = accounts::line(&account_line, &limits).unwrap();
+        assert_list(line.list().as_ref(), history);
+        assert_eq!(line.facts(), &jig_client_test_records::account_fact_records());
+        assert_eq!(line.provider_name().as_ref().unwrap().bytes(), b"Arbitrary provider");
+        assert!(line.provider_name().as_ref().unwrap().cut());
+        assert_eq!(line.manage_usage().as_deref(), Some(b"https://usage.example/".as_slice()));
+    }
 }
+
 #[test]
 fn account_capacity_actions_reach_the_wire() {
     let limits = jig_client_test_records::limits();
@@ -215,6 +225,41 @@ fn account_capacity_actions_reach_the_wire() {
         let mut refusal = *source.person_room_refusals.get(0).unwrap();
         refusal.action = action;
         assert_eq!(crate::translate::deployment::person_refusal(&refusal, &limits).unwrap().action(), &expected);
+    }
+}
+
+fn list_histories() -> [Option<d::AccountList>; 3] {
+    [
+        None,
+        Some(d::AccountList { read: None, tried: None, failure: None, left_out: 0 }),
+        Some(d::AccountList {
+            read: Some(Wall::from_nanos(13)),
+            tried: Some(Wall::from_nanos(17)),
+            failure: Some(a::ReadFailure::Refused { status: 429 }),
+            left_out: u32::MAX,
+        }),
+    ]
+}
+fn assert_list(wire: Option<&w::AccountList>, expected: Option<d::AccountList>) {
+    match (wire, expected) {
+        (None, None) => {}
+        (Some(wire), Some(expected)) => {
+            for (got, at) in [(wire.read(), expected.read), (wire.tried(), expected.tried)] {
+                if let Some(at) = at {
+                    assert_eq!(*got, Some(at.as_nanos()));
+                } else {
+                    assert_eq!(*got, None);
+                }
+            }
+            assert_eq!(wire.left_out(), expected.left_out);
+            if expected.failure.is_some() {
+                let Some(w::AccountListFailure::Refused(failure)) = wire.failure() else { panic!("refused read") };
+                assert_eq!(failure.status(), 429);
+            } else {
+                assert!(wire.failure().is_none());
+            }
+        }
+        other => panic!("changed list history: {other:?}"),
     }
 }
 

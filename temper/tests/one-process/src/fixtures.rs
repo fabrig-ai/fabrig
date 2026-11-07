@@ -84,6 +84,9 @@ pub(crate) fn world_document() -> serde_json::Value {
     crate::m15::configure(&mut value);
     crate::public::configure(&mut value);
     crate::review_delivery::configure(&mut value);
+    if crate::stories::model_list() {
+        value["engine"]["llm"]["providers"][0]["keep"] = serde_json::json!(["*"]);
+    }
     value
 }
 pub(crate) fn files() -> temper_service::settings::Files {
@@ -140,7 +143,11 @@ pub(crate) fn read_then_wait_provider() -> skein_fake_peers::llm::Peer {
 }
 /// Temper's flat host schemas and a mounted workspace fit this fake's request.
 pub(crate) fn scripted_provider(scripts: Box<[skein_fake_llm_domain::api::Script]>) -> skein_fake_peers::llm::Peer {
-    fakes::scripted_provider(scripts, 17)
+    let mut peer = fakes::scripted_provider(scripts, 17);
+    if crate::stories::model_list() {
+        peer.set_list(Some(br#"{"data":[{"id":"fake"},{"id":"gpt-future"}]}"#.as_slice().into()), None);
+    }
+    peer
 }
 pub(crate) fn codec() -> jig_protocol_store::codec::View {
     let limits = jig_test_service_limits(&engine().limits);

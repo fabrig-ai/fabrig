@@ -1703,7 +1703,12 @@ The pages a person meets it on are `../client/README.md`, 5.13.
   the limits, the first owners and the sign-in providers, `machine`,
   `clients`, `sign_in`, `webhooks` and `demo`, and, for now, the LLM
   providers and their endpoints (`engine.llm`), which are configuration of
-  the work too, and leave the document by a design of their own, later. jig's
+  the work too, and leave the document by a design of their own, later. Of their
+  members `temper init` gives each `keep` and `drop` (jig's
+  `protocol/configuration.md`, section 3): OpenAI's keep `gpt-*` and drop `*audio*`,
+  `*image*`, `*realtime*`, `*search*`, `*transcribe*`, `*tts*` and the dated
+  `*-20??-??-??`; Anthropic's keep `claude-*` and drop the dated `*-20??????`. The
+  playground's scripted provider has neither, and no list. jig's
   `engine.projects`,
   the projects a first start seeds, stays jig's member; `temper init`'s
   is `[]` (setup.md, 8.3), and a document's seeded project names its

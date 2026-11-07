@@ -122,6 +122,7 @@ pub(crate) fn granted(domain: &mut Domain, env: &Env<Limits>, source: u32, out: 
                 let account = domain.take();
                 domain.counted(out);
                 let entry = Account {
+                    list: None,
                     provider: keeping.provider,
                     holder: keeping.holder,
                     place: domain.last_place(keeping.holder),

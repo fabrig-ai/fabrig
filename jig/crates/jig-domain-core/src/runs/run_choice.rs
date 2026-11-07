@@ -72,6 +72,9 @@ impl Core {
         let models = core::slice::from_ref(&main);
         let mut facts = List::with_capacity(self.host_fact_capacity());
         for account in &candidates {
+            if row.llm.is_none() && row.kept_account.is_none() && !self.account_allows(*account, &policy.model) {
+                continue;
+            }
             let mut tried = List::with_capacity(self.fleet.host_capacity());
             for _ in 0..=self.fleet.host_capacity() {
                 let Some(placement) = self.fleet.probe(kinds, task, version, models, tried.as_slice()) else {

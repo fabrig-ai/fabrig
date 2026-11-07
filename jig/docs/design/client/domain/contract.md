@@ -227,7 +227,7 @@ has left (`../../domain/authority.md`, 8.1 and 8.4).
 | `SetVisibility` | a project, by its owner; public or private | the project public or private from that decision (`../../domain/people.md`, 13.2); every `me` of its parties marked. Project 0, and a project being deleted, refused |
 | the project's own | notes, by the revision recalled; its name (`../../domain/core.md`, 6.1); the policy, its templates' overrides among them (3.6), and its ceiling, edited whole within the deployment's rules (`../../domain/authority.md`, section 6), so that rules widened by a change of settings reach a project its owners widen; its spend per period, which resizes its open period (`../../domain/authority.md`, section 7); roles, a role's spend per period alone (`RoleSpend`) among their edits, resizing its parties' open pools; a party's pool; services, a service's credential answered once; as `../../domain/people.md`, 5.1 and 5.2 | the note or the project changed |
 | adopting a resource | the application's own request (3.3), its form the application's; the engine's root makes the people request on the party's behalf | the project changed |
-| the party's LLM accounts | as `../../domain/accounts.md`, section 5 has them: signing in with an LLM provider; finishing the party's sign-in under way with the address its browser was sent to, carrying it as its value (3.1), of at most the bytes `me` states (5.1); signing a source out; adding or replacing a key, carrying its value (3.1), of at most the bytes `me` states (5.1), and removing one; declaring a program's login under a name; checking a program source's login; an account's place among the holder's and its sources' order; its uses; resuming a limited source; removing an account, which signs each of its sources out and erases its keys; moving an account out, saying it *written* by the move's number, and moving one in, carrying the moved file as its value (3.1; `../../domain/accounts.md`, section 6). The party's own accounts, or, for an owner, the deployment's | an account made, renewed or changed. A sign-in is answered done with the address to open in a browser, and ends on the `accounts` watch (7.1), made, renewed or refused; a finish is answered *finishing* once the sign-in has taken the address, and the sign-in ends on the watch; a sign-out's answer says whether the provider confirmed revocation, and names each host that did not sign a program's login out; a program's login declared is answered with the source's name, by which the application's own command signs the program in on each host; a move out is answered *moving out*, naming the account and the move's number, with the moved record to write, once (3.1); *written* is answered done; a move in is answered *moved in*, naming the account and whether it renewed one |
+| the party's LLM accounts | as `../../domain/accounts.md`, section 5 has them: signing in with an LLM provider; finishing the party's sign-in under way with the address its browser was sent to, carrying it as its value (3.1), of at most the bytes `me` states (5.1); signing a source out; adding or replacing a key, carrying its value (3.1), of at most the bytes `me` states (5.1), and removing one; declaring a program's login under a name; checking a program source's login; reading a provider's lists again (`ReadLists`, a provider, reading each account of it the party may act on that has a list, answered with how many, the reads ending on the `accounts` watch; `../../domain/accounts.md`, 3.7); an account's place among the holder's and its sources' order; its uses; resuming a limited source; removing an account, which signs each of its sources out and erases its keys; moving an account out, saying it *written* by the move's number, and moving one in, carrying the moved file as its value (3.1; `../../domain/accounts.md`, section 6). The party's own accounts, or, for an owner, the deployment's | an account made, renewed or changed. A sign-in is answered done with the address to open in a browser, and ends on the `accounts` watch (7.1), made, renewed or refused; a finish is answered *finishing* once the sign-in has taken the address, and the sign-in ends on the watch; a sign-out's answer says whether the provider confirmed revocation, and names each host that did not sign a program's login out; a program's login declared is answered with the source's name, by which the application's own command signs the program in on each host; a move out is answered *moving out*, naming the account and the move's number, with the moved record to write, once (3.1); *written* is answered done; a move in is answered *moved in*, naming the account and whether it renewed one |
 
 - **A task's fields cross as data** (`../../domain/tasks.md`,
   section 3): *tracked* and *priority*, which the engine acts on; a
@@ -645,7 +645,9 @@ served is held, kept and unsent, for its owner's version (client.md,
     description and shown name, its setting's `number`
     (`../../domain/engine.md`, 17.11), where it came from (`source`: the
     binary's, a provider's list or a person's), whether its prices are
-    `estimated`, the accounts that can run it for them, the one a run would
+    `estimated`, the wall time until which it is new (`new_until`, a week past
+    when a list first gave it, none for one no list brought; the client compares
+    it with its clock, as it says "2 hours ago"), the accounts that can run it for them, the one a run would
     take first first, and whether a picker shows it (`picker`), so that a
     task's LLM choice (3.2) is drafted from it; how many models the
     catalogue holds past the bounds of the charter a project's chats run
@@ -819,6 +821,14 @@ account sign-in, sign-out and change without their provider, holder,
 subject, source, key or digest payloads, and includes the accounts',
 holder's accounts', sources' and sign-ins' room limits under the same
 keyed retention and bounded entrance-history rules as other actions.
+
+An account row with a list (`../../domain/accounts.md`, 3.7) also carries it
+(`list`): when its last good read was (`read`), when its last attempt ended
+(`tried`), why that failed (`failure`), and how many names took no number
+(`left_out`). None says it has no list, so the client offers no reading.
+Reads move these and not `me`, unless they move the offer
+(`../../domain/engine.md`, 17.12). `left_out` in `me` also counts the largest of
+the accounts' `left_out` its party may see, so that the page's one count holds both.
 
 An account row in either document also carries its facts
 (`../../domain/accounts.md`, 3.7), at most 24, each with its kind, label,
@@ -1219,7 +1229,7 @@ party reads is therefore never lost by a crash.
   `settings` (5.1), a project's items by a party with a role there.
   `revision{n}`'s answer is:
   - *the revision:* its record (the revision it was made against, when,
-    who decided it, a party, the release or the first start, the
+    who decided it, a party, the release, the first start or a provider's list, the
     proposal it came from, whether it moved running work) and its
     items, each a setting by kind, scope and number and what became of
     it, set with the value whole, removed, or reset, and what it
@@ -1637,11 +1647,6 @@ designs (`../../protocol/client.md`):
   A verdict or procedure proposal has no call. Default: the activity line
   names the proposal and its making independently of any call; filling call
   objects is separate work.
-
-- **An account's model list** (5.1): narrowing the offer by each account's
-  last provider-list read needs the worker's reads and their per-account
-  records (`../../domain/engine.md`, section 16). Default: the model
-  settings and usable accounts define the offer; no list is fetched by a client.
 
 - **Historical public boards** (section 12): ended goals across a restart
   or from before publication need the source index in

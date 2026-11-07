@@ -159,6 +159,7 @@ pub(crate) fn account_line(
 ) -> Result<c::AccountLine, w::Problem> {
     charge_account(value.uses().as_ref(), value.display(), value.facts(), room)?;
     Ok(c::AccountLine {
+        list: account_list(value.list().as_ref()),
         facts: account_facts(value.facts())?,
         number: value.number(),
         place: value.place(),
@@ -349,6 +350,7 @@ pub(crate) fn account_fields(value: &w::Account, limits: &Limits, room: &mut u64
         None => None,
     };
     Ok(c::Account {
+        list: account_list(value.list().as_ref()),
         facts: account_facts(value.facts())?,
         number: value.number(),
         place: value.place(),
@@ -389,6 +391,30 @@ pub(crate) fn account_piece(bytes: &[u8], limits: &Limits, room: &mut u64) -> Re
         rows.push(account_fields(&row, limits, room)?).expect("counted pieces fit");
     }
     Ok(rows)
+}
+
+pub(crate) fn account_list(value: Option<&w::AccountList>) -> Option<c::AccountList> {
+    let value = value?;
+    Some(c::AccountList {
+        read: match value.read() {
+            Some(at) => Some(Wall::from_nanos(*at)),
+            None => None,
+        },
+        tried: match value.tried() {
+            Some(at) => Some(Wall::from_nanos(*at)),
+            None => None,
+        },
+        failure: match value.failure() {
+            Some(w::AccountListFailure::Refused(row)) => Some(c::AccountListFailure::Refused { status: row.status() }),
+            Some(w::AccountListFailure::Unreachable) => Some(c::AccountListFailure::Unreachable),
+            Some(w::AccountListFailure::Unreadable) => Some(c::AccountListFailure::Unreadable),
+            Some(w::AccountListFailure::Deadline) => Some(c::AccountListFailure::Deadline),
+            Some(w::AccountListFailure::Agent) => Some(c::AccountListFailure::Agent),
+            Some(w::AccountListFailure::Room) => Some(c::AccountListFailure::Room),
+            None => None,
+        },
+        left_out: value.left_out(),
+    })
 }
 
 fn account_facts(facts: &List<w::AccountFact>) -> Result<List<c::AccountFact>, w::Problem> {

@@ -143,6 +143,18 @@ pub(crate) fn tag_fleet(
                 })));
                 continue;
             }
+            fleet::Request::ReadList { channel, read, endpoint, grant } => {
+                Request::Held(Box::new(Held::ReadList { channel, read, endpoint, grant }))
+            }
+            fleet::Request::ListRead { read, outcome } => {
+                let mut routed = super::party::dispatch::Routed::new(work);
+                super::lists::answered(core, env, &mut routed, read, outcome);
+                let mut answered = routed.finish(work);
+                for _ in 0..answered.len() {
+                    out.push(answered.pop().expect("list answer output count"));
+                }
+                continue;
+            }
             fleet::Request::Sources { channel, sources } => Request::Held(Box::new(Held::Sources { channel, sources })),
             fleet::Request::Check { channel, name } => Request::Held(Box::new(Held::CheckSource { channel, name })),
             fleet::Request::SignOut { channel, name } => Request::Held(Box::new(Held::SignOutSource { channel, name })),
@@ -482,6 +494,23 @@ pub(crate) fn tag_account(
     let mut out = Queue::uncapped();
     for _ in 0..child.len() {
         match child.pop().expect("account output count") {
+            accounts::Request::ReadList { read, provider, grant, .. } => {
+                let mut endpoint = None;
+                for facts in &core.settings.endpoints {
+                    if facts.providers.contains(&provider) {
+                        endpoint = Some(facts.number);
+                        break;
+                    }
+                }
+                let endpoint = endpoint.expect("a listed provider has an endpoint");
+                append_fleet(
+                    core,
+                    env,
+                    work,
+                    fleet::Event::ReadList { read, endpoint, grant: super::sibling_routes::fleet_grant(grant) },
+                    &mut out,
+                );
+            }
             accounts::Request::Programs { names } => {
                 let mut sources = skein_lib::List::with_capacity(env.limits.accounts.program_names);
                 let mut cleanup = skein_lib::List::with_capacity(env.limits.accounts.program_names);
@@ -571,7 +600,9 @@ fn account_party(core: &Core, event: &accounts::Event) -> Option<u64> {
             }
             None
         }
-        accounts::Event::Withdrawn { .. }
+        accounts::Event::Listed { .. }
+        | accounts::Event::ListFailed { .. }
+        | accounts::Event::Withdrawn { .. }
         | accounts::Event::Opened { .. }
         | accounts::Event::NotOurs { .. }
         | accounts::Event::Adopted { .. }
@@ -615,7 +646,9 @@ pub(crate) fn route_account(
             | accounts::FromComponent::KeepFailed { .. }
             | accounts::FromComponent::Closed => false,
         },
-        accounts::Event::ForgetProject { .. }
+        accounts::Event::Listed { .. }
+        | accounts::Event::ListFailed { .. }
+        | accounts::Event::ForgetProject { .. }
         | accounts::Event::Restore { .. }
         | accounts::Event::Want
         | accounts::Event::ProgramTargets { .. }
@@ -642,17 +675,21 @@ pub(crate) fn route_account(
     };
     let mut out = Queue::uncapped();
     super::step::step_accounts(core, env, event, &mut out);
+    let mut changes = out.is_empty();
     let mut facts_changed = false;
     for request in &out {
         match request {
+            accounts::Request::ReadList { .. } | accounts::Request::Answer { .. } => {}
             accounts::Request::Save { record: accounts::Stored::Facts { .. } }
-            | accounts::Request::Erase { key: accounts::Key::Facts { .. } } => facts_changed = true,
+            | accounts::Request::Erase { key: accounts::Key::Facts { .. } } => {
+                changes = true;
+                facts_changed = true;
+            }
             accounts::Request::Programs { .. }
             | accounts::Request::CheckProgram { .. }
             | accounts::Request::SignOutProgram { .. }
             | accounts::Request::Component(_)
             | accounts::Request::Signing(_)
-            | accounts::Request::Answer { .. }
             | accounts::Request::Granted { .. }
             | accounts::Request::Save {
                 record:
@@ -668,10 +705,10 @@ pub(crate) fn route_account(
                     | accounts::Key::Source { .. }
                     | accounts::Key::Issued { .. },
             }
-            | accounts::Request::Closed => {}
+            | accounts::Request::Closed => changes = true,
         }
     }
-    if !refresh || facts_changed {
+    if changes && (!refresh || facts_changed) {
         core.touch_deployment();
         core.touch_run_waits();
         core.touch_accounts(party);
@@ -748,7 +785,9 @@ pub(crate) fn route_fleet(
         | fleet::Event::Hello { .. }
         | fleet::Event::Lost { .. }
         | fleet::Event::Answer { .. } => true,
-        fleet::Event::Inbound { .. }
+        fleet::Event::ReadList { .. }
+        | fleet::Event::ListRead { .. }
+        | fleet::Event::Inbound { .. }
         | fleet::Event::Relay { .. }
         | fleet::Event::Relayed { .. }
         | fleet::Event::Grant { .. }
@@ -827,7 +866,9 @@ fn host_shape(event: &fleet::Event) -> bool {
         | fleet::Event::Loaded
         | fleet::Event::Hello { .. }
         | fleet::Event::Lost { .. } => true,
-        fleet::Event::StartJob { .. }
+        fleet::Event::ReadList { .. }
+        | fleet::Event::ListRead { .. }
+        | fleet::Event::StartJob { .. }
         | fleet::Event::Start { .. }
         | fleet::Event::Adopt { .. }
         | fleet::Event::Cross { .. }

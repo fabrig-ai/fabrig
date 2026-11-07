@@ -2385,7 +2385,19 @@ keeps (`../protocol/configuration.md`, section 2).
       Under it, in `small`, what pays and where its models came from: "Your Claude
       subscription.", "Your ChatGPT plan." or "Your API key.", from the person's
       usable accounts of that provider in the accounts document, one clause each,
-      then "These come with temper."
+      then one clause on its list, from those accounts' `list`s (jig's
+      `client/domain/contract.md`, 5.1), PROVIDER its word as the section's title:
+      - where one's last attempt failed, "Couldn't read PROVIDER's list · 2 hours ago.",
+        by the newest `tried` of those failed;
+      - else where one has a good read, "Read from PROVIDER 2 hours ago.", by the
+        newest `read`;
+      - else "These come with temper."
+
+      Where any of them has a `list`, "Read again" follows the clause, in
+      `.temper-settings-small`: a press asks jig's `ReadLists` with the section's
+      provider, says "Reading…" and is off until that answer and the `accounts` watch
+      has moved past what it showed, and a refusal shows under the clause in the
+      words of an account act's refusal.
     - *A provider with no model offered* has its section's title and its line alone,
       as the picker's: "Connect a plan or key ›", to `ConnectModel`, with no account,
       or the account's own fix, such as "Sign in again ›", to `Accounts`. It has no
@@ -2395,7 +2407,8 @@ keeps (`../protocol/configuration.md`, section 2).
       in `small`, "NAME · EFFORT", its name and default effort, with no effort for
       a model that declares none, then " · the default" on the model the chat
       template's `resolved_default` names, " · added by you" on one a person
-      added, and " · estimated prices" on one whose prices are estimated; at its
+      added, " · estimated prices" on one whose prices are estimated, and " · new" on
+      one whose `new_until` is later than now; at its
       right, "On" or "Off", whether the picker shows it. An owner in the deployment
       has a switch beside the word, named "SHOWN in the picker": a press asks jig's
       `ChangeModel` (jig's `client/domain/contract.md`, 3.2), the switch holding
@@ -2841,8 +2854,8 @@ keeps (`../protocol/configuration.md`, section 2).
   - *All models* takes the menu's place: "‹ Models", back to it; a field "Find a
     model", matching any part of a shown name or a name, in any case; every model
     of the offer, by account as above; and "Choose what the list shows, in Settings",
-    a link to `Models { project }` for the picker's project. Provider-list reads
-    remain the catalogue's lists step (`../draft/model-catalogue.status.md`).
+    a link to `Models { project }` for the picker's project. A model whose `new_until`
+    is later than now has `.temper-model-tag`, "new", beside its shown name.
   - *A started chat:* the menu opens with "A change applies from the next turn."
     One press of a model or an effort applies it, an amendment or, where the task
     offers only that, a proposal. While it is sent that line says "Changing…";
@@ -7043,11 +7056,6 @@ own tests:
   account, even beside a usable account of that provider, remains the catalogue's
   requirement (`../draft/model-catalogue.md`, section 3). Default: the provider's
   line until those account rows are designed.
-- **Provider-list reads on Models** (3.5): "Read again", failed-read words,
-  "Read from OpenAI 2 hours ago" and "new" belong to the catalogue's lists step
-  (`../draft/model-catalogue.md`, section 7). Default: the stock and models added
-  by name, with "estimated prices" where prices are unknown; no provider read
-  or "new" tag.
 
 - **Sign-in words in the terminal and command help** (6.1, 6.6): the browser's
   signed-out paragraph names the link temper printed (5.1; `browser.md`, 2.4),

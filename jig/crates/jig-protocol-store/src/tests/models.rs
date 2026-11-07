@@ -31,6 +31,7 @@ fn personal_model(withdrawn: bool) -> core::Record {
     changed(
         s::Setting::Model(PERSON),
         s::Value::Model(Box::new(s::CatalogueModel {
+            first_read: Some(skein_lib::Wall::from_nanos(123)),
             number: PERSON,
             model,
             shown: None,
@@ -139,6 +140,7 @@ fn saved(withdrawn: bool) -> Store {
 fn a_persons_model_isnt_read_as_gone_after_a_restart() {
     let mut store = open(saved(false).into_stores());
     let rows = restored(&mut store);
+    assert!(rows.contains(&personal_model(false)), "model first read stays whole");
     assert!(rows.contains(&template_record()), "template choice keeps position 63 and its effort");
     assert!(rows.contains(&policy_record()), "policy ceiling and roles keep bit 63");
 }

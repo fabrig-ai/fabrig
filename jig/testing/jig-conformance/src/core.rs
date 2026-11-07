@@ -918,6 +918,7 @@ impl Observer {
             | core::Held::MakeEffect { .. }
             | core::Held::SettledCall { .. }
             | core::Held::Assign { .. }
+            | core::Held::ReadList { .. }
             | core::Held::Sources { .. }
             | core::Held::CheckSource { .. }
             | core::Held::SignOutSource { .. }

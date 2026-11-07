@@ -84,6 +84,8 @@ fn make_domain_with_limits(
         transport,
         limits,
         provider::Config {
+            list: None,
+            list_status: None,
             without_credential: false,
             usage_fields: skein_fake_llm_protocol::documents::UsageFields::ALL,
             echo: skein_llm::openai::Echo::NONE,
@@ -214,6 +216,8 @@ fn provider_constructors_refuse_unrepresentable_edges() {
         assert!(!provider::valid(&bad));
         assert_eq!(provider::Server::new(skein_lib::Token::new(1), &bad).err(), Some(provider::Error::Limits));
         let config = provider::Config {
+            list: None,
+            list_status: None,
             without_credential: false,
             usage_fields: documents::UsageFields::ALL,
             echo: skein_llm::openai::Echo::NONE,
@@ -479,6 +483,7 @@ fn seen(peer: &llm::Peer) -> Seen {
             }
             llm::Observation::Accepted { .. }
             | llm::Observation::Head { .. }
+            | llm::Observation::List { .. }
             | llm::Observation::Query { .. }
             | llm::Observation::Answered { .. }
             | llm::Observation::Closed { .. } => None,
@@ -491,6 +496,7 @@ fn seen(peer: &llm::Peer) -> Seen {
                 llm::Observation::Accepted { .. }
                 | llm::Observation::Head { .. }
                 | llm::Observation::Credential { .. }
+                | llm::Observation::List { .. }
                 | llm::Observation::Answered { .. }
                 | llm::Observation::Closed { .. } => None,
             })
@@ -566,6 +572,7 @@ fn no_head_observation_holds_a_credential_field() {
             }
             llm::Observation::Accepted { .. }
             | llm::Observation::Credential { .. }
+            | llm::Observation::List { .. }
             | llm::Observation::Query { .. }
             | llm::Observation::Answered { .. }
             | llm::Observation::Closed { .. } => None,
@@ -674,6 +681,7 @@ fn the_public_route_takes_its_scope_from_the_cache_key_alone() {
                 llm::Observation::Accepted { .. }
                 | llm::Observation::Head { .. }
                 | llm::Observation::Credential { .. }
+                | llm::Observation::List { .. }
                 | llm::Observation::Answered { .. }
                 | llm::Observation::Closed { .. } => None,
             })

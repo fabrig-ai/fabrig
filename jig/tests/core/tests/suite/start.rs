@@ -44,6 +44,7 @@ impl Harness {
 
 fn account(number: u32) -> accounts::Stored {
     accounts::Stored::Account {
+        list: None,
         number,
         provider: 1,
         holder: accounts::Holder::Deployment,

@@ -112,6 +112,8 @@ Shape: `llm-provider`. Paths: `engine.llm.providers[]`. An LLM provider, its add
 - `name`: text, 1 to 256 bytes; public text; required; init writes "openai" | "anthropic" | "demo". Gives the provider's name for showing.
 - `number`: integer, 0 to 4294967295; required; init writes 1 | 2 | 3. Gives the provider's number, unique among LLM providers.
 - `endpoint`: text, 4096 bytes; a configured endpoint name; required; init writes "openai" | "anthropic" | "demo". Names the endpoint its added models take.
+- `keep`: list of text, 16 patterns; 1 to 64 model-name bytes or * and ?; requires endpoint; optional; init writes ["gpt-*"] | ["claude-*"]. Keeps list names matching any whole-name pattern; absent disables reading the list.
+- `drop`: list of text, 16 patterns; 1 to 64 model-name bytes or * and ?; requires keep; optional; init writes ["*audio*","*image*","*realtime*","*search*","*transcribe*","*tts*","*-20??-??-??"] | ["*-20??????"]. Excludes list names matching any whole-name pattern, even when kept.
 - `sources`: sources; required; init writes object. Declares the sign-in, key and program sources the provider offers.
 - `signed_in_plan`: true or false, required with sign_in; optional; init writes true | false. Says whether the provider's signed-in source is a plan.
 - `manage_usage`: text, 2048 ASCII bytes; public HTTPS address; required for plans and programs; optional; init writes "https://chatgpt.com/settings/usage" | "https://claude.ai/settings/usage". Gives the public address where a holder manages usage.

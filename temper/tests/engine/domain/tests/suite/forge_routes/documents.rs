@@ -180,6 +180,7 @@ fn settings_world() -> (World, u64) {
             .into_iter()
             .enumerate()
             .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                first_read: None,
                 number: u32::try_from(at).expect("bounded fixture models") + 1,
                 model,
                 shown: None,
