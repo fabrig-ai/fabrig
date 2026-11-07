@@ -4,18 +4,19 @@ use jig_conformance::{
 };
 use temper_conformance_world::{Config, Temper};
 
-/// Crash one shared scenario at every live durable commit after the two fixture receipts.
+/// Crash one shared scenario at every live durable commit after the fixture receipts.
 fn crashed_at_every_live_commit(scenario: Scenario) {
-    let baseline = scenarios::run::<Temper>(scenario, Cut::None, 101).expect("baseline").expect("applicable");
-    eprintln!("{scenario:?}: {} durable commit cuts", baseline.commits);
     // Setup's real first-start cut is exercised by the engine-domain world.
     let first_live = Temper::store(&Config::new(101, Some(scenario))).applied + 1;
-    for cut in first_live..=baseline.commits {
-        let outcome = scenarios::run::<Temper>(scenario, Cut::AfterCommit(cut), 101)
-            .unwrap_or_else(|error| panic!("{scenario:?}, cut {cut}: {error:?}"))
-            .expect("applicable");
-        assert!(outcome.crashes.contains(&cut), "{scenario:?} cut {cut} did not fire");
-    }
+    let outcome = scenarios::run::<Temper>(scenario, Cut::EachCommitFrom(first_live), 101)
+        .unwrap_or_else(|error| panic!("{scenario:?}: {error:?}"))
+        .expect("applicable");
+    jig_conformance::cut_passed();
+    assert_eq!(
+        outcome.forked,
+        (first_live..=outcome.commits).collect::<Vec<_>>(),
+        "{scenario:?}: every live commit, once"
+    );
 }
 
 #[test]

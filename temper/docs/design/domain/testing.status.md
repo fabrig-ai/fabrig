@@ -39,11 +39,27 @@ are deferred in section 11, with all bounds, orders and checks retained.
   current margin is unknown; neither a current tier total nor its fit
   within 360 CPU s is established by the instruction account.
 
-- **Not yet:** 6.1: temper's focused suite meeting its 30 CPU s budget.
-  The `limits-fixtures` request measures about 336 CPU s before its
-  repairs; its closing figures and `limits-heavy`'s measure individual
-  instruction counts, with intervening plans included, and supply no new
-  whole-suite CPU result. The current total and remaining overage are unknown.
+- **Departs:** 6.1: temper's measured focused request-world sum is
+  81.892959 CPU s against 30, and the real-loop focused median
+  is 31.769481 CPU s against its standing 15 s ceiling. The measured fuzzy
+  request-world sum is 130.202313 CPU s against 120.
+  The measurements, their load and accounting limits, retained causes and
+  the next decisions are in
+  [`limits-worlds.md`](../../development/limits-worlds.md). The whole-temper
+  suite totals remain unknown; package sums include warm nextest overhead.
+  No budget or ceiling has been raised.
+
+- **Departs:** 5.3 and 6.1: eighteen named real-loop stories remain in the fuzzy
+  suite: sixteen scripted stories (fourteen reference-case stories,
+  kept-delegate landing and the program backend) and the B0/B1 recorded
+  transcript twins.
+  They remain there because the request for `limits-worlds` kept surviving
+  stories in place. Being past a guide, as 5.3 states, is not a reason to
+  choose that suite (`skein/docs/foundation/testing-strategy.md`, 8.1).
+  [`limits-worlds.md`](../../development/limits-worlds.md) gives every
+  survivor's unique coverage, CPU and profiled instructions, and names
+  the closest lower-story candidates. Their placement is the user's to
+  decide; no exception or cost-driven move resolves this departure.
 
 Section 2.4's real-loop goal-delivery story is present, alongside the six
 engine domain stories and the checkout world's later-run cases. It uses

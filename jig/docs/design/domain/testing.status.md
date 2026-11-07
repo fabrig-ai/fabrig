@@ -2,16 +2,7 @@
 
 2026-11-07. Where jig's code lags or departs from [testing.md](testing.md).
 
-- **Not yet:** 5: the `debt-25` request of 2026-11-06 has the core world's observer
-  update from each commit's rows
-  (`jig/docs/development/debt/D034-world-replay-cost.md`), but
-  `jig_conformance::core`'s `durable_at` rebuilds its snapshot whole at each
-  new commit. Views are made only for readers, naming and row projection share
-  a pass, and accepted proposal decisions share the evidence pass; a keyed row
-  feed remains outside `jig-world-cost`'s scope. It needs replacement and
-  erasure accounting and commit-level observations: a feed of rows alone
-  would keep the whole rebuild and the referee's walk of every task.
-  7: `ops`'s worlds on jig's store component; they run `jig-fake-store`.
+- **Not yet:** 7: `ops`'s worlds on jig's store component; they run `jig-fake-store`.
   7: the `debt-24` request of 2026-11-05 has each world name its parties,
   projects, tasks and connectors once, a bare number left only where it's the
   point, at most ten by the search in

@@ -4,7 +4,10 @@ use crate::{ctl::Caller, fixtures, referee::Store};
 use jig_client_protocol_wire::public_v1 as p;
 use skein_http::Method;
 use skein_lib::{Reader, Time};
-use std::{cell::RefCell, rc::Rc};
+use std::{
+    cell::{Cell, RefCell},
+    rc::Rc,
+};
 
 pub(super) struct Walk {
     store: Rc<RefCell<Store>>,
@@ -12,10 +15,11 @@ pub(super) struct Walk {
     calls: Vec<u64>,
     task: Option<u64>,
     wake: Option<Time>,
+    landing: Cell<Option<(u64, bool)>>,
 }
 impl Walk {
     pub fn new(store: Rc<RefCell<Store>>) -> Self {
-        Self { store, stage: 0, calls: Vec::new(), task: None, wake: None }
+        Self { store, stage: 0, calls: Vec::new(), task: None, wake: None, landing: Cell::new(None) }
     }
     pub fn ready(&self, caller: &Caller, visitor: &Visitor) -> bool {
         match self.stage {
@@ -26,7 +30,17 @@ impl Walk {
         }
     }
     fn landed(&self) -> bool {
-        self.store.borrow().rows.values().any(|row| matches!(row, temper_engine_domain::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Landed { .. })))
+        use temper_engine_domain::Key;
+        use temper_engine_domain_forge::Key::Landed;
+        let store = self.store.borrow();
+        if let Some((applied, landed)) = self.landing.get()
+            && applied == store.applied
+        {
+            return landed;
+        }
+        let landed = store.rows.range(Key::Forge(Landed([0; 32]))..=Key::Forge(Landed([u8::MAX; 32]))).next().is_some();
+        self.landing.set(Some((store.applied, landed)));
+        landed
     }
     pub fn diagnostic(&self) -> String {
         let tasks: Vec<_> = self
@@ -151,8 +165,7 @@ impl Walk {
                         String::from_utf8_lossy(&answer.error)
                     );
                 }
-                let landed = self.store.borrow().rows.values().any(|row| matches!(row, temper_engine_domain::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::Landed { .. })));
-                if !landed {
+                if !self.landed() {
                     return false;
                 }
                 self.calls.push(visitor.send(
@@ -426,5 +439,38 @@ fn forge_references(row: usize, record: &[u8]) {
             assert_eq!(fields.u16(), Some(0), "member is the envelope's task");
         }
         _ => unreachable!("forge kinds"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use temper_engine_domain::{Key, Record};
+    use temper_engine_domain_forge::{Key as ForgeKey, Stored};
+
+    #[test]
+    fn landing_readiness_finds_only_landed_keys_including_both_extremes() {
+        let store = Rc::new(RefCell::new(Store::new()));
+        let walk = Walk::new(store.clone());
+        for (key, row) in [
+            (ForgeKey::Names(2), Stored::Names { task: 2, resources: Box::default() }),
+            (ForgeKey::ForgeNumber, Stored::ForgeNumber { last: 1 }),
+        ] {
+            store.borrow_mut().rows.insert(Key::Forge(key), Record::Forge { row: Box::new(row) });
+        }
+        assert!(!walk.landed(), "unrelated rows on either side are not a landing");
+        for commit in [[0; 32], [u8::MAX; 32]] {
+            let key = Key::Forge(ForgeKey::Landed(commit));
+            store
+                .borrow_mut()
+                .rows
+                .insert(key.clone(), Record::Forge { row: Box::new(Stored::Landed { commit, task: 2 }) });
+            store.borrow_mut().applied += 1;
+            assert!(walk.landed(), "every commit identifier can make the walk ready");
+            assert!(walk.landed(), "the same durable commit remains ready");
+            store.borrow_mut().rows.remove(&key);
+            store.borrow_mut().applied += 1;
+            assert!(!walk.landed(), "readiness reads the current committed rows");
+        }
     }
 }

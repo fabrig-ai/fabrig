@@ -43,6 +43,7 @@ struct Stream {
 #[derive(Default)]
 struct Observer {
     needles: Vec<Needle>,
+    search: RefCell<Option<aho_corasick::AhoCorasick>>,
     tokens: Vec<Secret>,
     names: BTreeMap<(Role, i32), Vec<u8>>,
     files: BTreeMap<Vec<u8>, Vec<u8>>,
@@ -85,6 +86,7 @@ impl Observer {
     fn needle(&mut self, kind: Kind, bytes: &[u8]) {
         assert!(!bytes.is_empty(), "issued secret is nonempty");
         let debug = format!("{bytes:?}").into_bytes();
+        *self.search.get_mut() = None;
         for value in [bytes.into(), debug.clone().into_boxed_slice(), debug[1..debug.len() - 1].into(), encoded(bytes)]
         {
             self.needles.push(Needle { kind, value: Secret::new(value) });
@@ -119,22 +121,21 @@ impl Observer {
         self.leak_since(bytes, 0)
     }
     fn leak_since(&self, bytes: &[u8], first: usize) -> Option<&'static str> {
+        assert!(first <= self.needles.len(), "checked needles are a prefix of the issued values");
         if first == self.needles.len() {
             return None;
         }
-        let text = String::from_utf8_lossy(bytes);
-        self.needles[first..]
-            .iter()
-            .find(|needle| {
-                // Text surfaces use the standard library's optimized substring search.
-                // Lossy decoding preserves every ASCII run; binary needles compare exact bytes.
-                if needle.value.expose().is_ascii() {
-                    text.contains(std::str::from_utf8(needle.value.expose()).expect("ASCII needle"))
-                } else {
-                    skein_lib::bytes::find(bytes, needle.value.expose()).is_some()
-                }
-            })
-            .map(|needle| match needle.kind {
+        let mut search = self.search.borrow_mut();
+        let search = search.get_or_insert_with(|| {
+            aho_corasick::AhoCorasick::new(self.needles.iter().map(|needle| needle.value.expose()))
+                .expect("scenario secret matcher")
+        });
+        search
+            .find_overlapping_iter(bytes)
+            .map(|matched| matched.pattern().as_usize())
+            .filter(|index| *index >= first)
+            .min()
+            .map(|index| match self.needles[index].kind {
                 Kind::Key => "App key",
                 Kind::Token => "installation token",
             })
@@ -499,6 +500,17 @@ pub(crate) fn public_output(bytes: &[u8]) -> String {
 mod tests {
     use super::*;
     #[test]
+    fn new_needles_include_overlapping_matches_after_the_matcher_was_built() {
+        let mut observer = Observer::default();
+        observer.needle(Kind::Key, b"abc");
+        assert_eq!(observer.leak(b"abc"), Some("App key"));
+        let first = observer.needles.len();
+        observer.needle(Kind::Token, b"bc");
+        assert_eq!(observer.leak_since(b"abc", first), Some("installation token"));
+        assert_eq!(observer.leak(b"abc"), Some("App key"), "the first needle still names the leak");
+        assert!(observer.leak_since(b"abc", observer.needles.len()).is_none());
+    }
+    #[test]
     fn opening_a_socket_preserves_other_response_streams() {
         let mut observer = Observer::default();
         let control = b"observer-control-value";
@@ -549,6 +561,10 @@ mod tests {
             assert!(observer.leak(&bytes).is_some(), "the seeded representation is detected");
         }
         assert!(observer.leak(b"observer-control-other").is_none());
+        let binary = b"\0\xff\x80\x07";
+        observer.needle(Kind::Key, binary);
+        assert_eq!(observer.leak(&[b"before".as_slice(), binary, b"after"].concat()), Some("App key"));
+        assert!(observer.leak(b"\0\xfe\x80\x07").is_none());
         assert!(secret_path(b"state/generations/1/secrets"));
         assert!(!secret_path(b"worker/workspaces/0/app/secrets/token"));
         assert!(!secret_path(b"client/private/secrets/token"));

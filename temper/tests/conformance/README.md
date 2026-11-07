@@ -63,8 +63,8 @@ Focused tests run each baseline and the configured cuts above. Shared stories
 keep three selected entry, middle and closing receipt cuts; their baselines run
 separately instead of being repeated to calculate those cut numbers. Each
 focused test asserts its selected cut fired. The fuzzy tests crash every
-applicable shared and native baseline at every durable commit, one test per
-baseline. Both suites run
+applicable shared and native story at every durable commit, each cut forked
+from one baseline, one test per baseline. Both suites run
 the same outside referee after every harness iteration. The narrow engine-domain
 world retains CI job-log contents/truncation and race/permission checks that
 these stories do not exercise.

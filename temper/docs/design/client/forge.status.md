@@ -2,6 +2,11 @@
 
 2026-11-07. Where temper's code lags or departs from [forge.md](forge.md).
 
+Sections 5.1 and 5.4 have no known implementation gap in the paged
+search-and-scroll picker or the shared connection panels and setup in
+Forges rows. The request's rendered comparison remains temper/ui's
+after-landing work (section 10).
+
 Section 5.4, *A repository's link*, has no known gap in leaving an empty
 OWNER or NAME without an address, for plain and signed-in links alike.
 Unlisted sections, including public documents (11), have no known gap:
@@ -33,12 +38,11 @@ stale-proof count draws nothing; a positive count remains (`browser.md`,
   forge, which `temper-client-domain`'s `forge/listed.rs` `rows` counts.
   6.2: a drift hold's card, what changed, by whom and when.
   7: a goal's issue, landings as news, findings on a project's page. 9:
-  the reads of the forge's other parts. 5.4: a managed Forgejo set up
-  failed offers no Connect in the form: `temper-client-domain/src/forge/connect.rs`,
-  `offered` and `disconnected`, leave that state out and show its
-  `setting_up` step, which says it is connecting, and `forge/admin.rs`,
-  `send_target`, sends nothing on it, so `temper ctl`'s `forge connect
-  forgejo-admin`, which the engine admits, is the way back.
+  the reads of the forge's other parts. 5.4: a managed Forgejo with
+  `SetUpFailed` reaches its admin panel through `connect::admin_stopped`,
+  but `forge/admin.rs`, `send_target`, sends nothing on that state.
+  `temper ctl forge connect forgejo-admin`, which the engine admits,
+  remains the way back; the panel alone does not repair admission.
 - **Departs:** 5.4, A managed Forgejo: a stop empties the admin’s
   token whatever connect it ends: with no admin connect sent, any
   stopped managed Forgejo's row empties it, and while the sent

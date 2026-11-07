@@ -321,8 +321,9 @@ shorter.
   a search has found less than it has left to read. So a search asks
   nothing of the forge, which GitHub's `GET /installation/repositories`
   could not answer, and nothing is read until it is wanted. A forge with
-  more than 8 rows read has the field "Find by name" over a list of its
-  own height; one with fewer has neither, and no count.
+  more than 8 rows read, or more still to read, has the field "Find by
+  name" over a list of its own height; a completed list of at most 8 has
+  neither, and no count.
 - **No total until the last page:** an answer says only whether more
   follow, so the count reads "100 so far · more as you scroll", or
   "Searching · 100 read so far", then "214 repositories", or "3 of 214
@@ -1410,20 +1411,12 @@ made by the forge connector from what it keeps of the change
 - **One percentage for both binaries** (5.4). Default: each binary says
   its own, so the bar starts again for the runner, until their sizes
   are pinned beside their digests (`../protocol/setup.md`, section 15).
-- **The welcome's forge choices** (5.4; `README.md`, 3.5). Default:
-  Connect a forge's cards and their Details, the same on the welcome,
-  Forgejo on this machine's Details before its set up. The user's
-  direction (2026-10-26) is that the welcome's items be fixed rather
-  than taken from the configuration; its shape is open. The user's
-  request of 2026-10-27, one Forgejo card, run on this machine or a
-  deployment of one's own, set up at once with `work`, `hello` and a
-  project `Default` (the look request `welcome-forgejo-card`), waits
-  on the user's review of these pages; its project is the welcome’s Ready’s now, the
-  set up naming none (`README.md`, 3.5; `../draft/first-run-projects.md`,
-  4). Since 2026-11-04 its button opens Forgejo's sheet, where an
-  empty repository is the default; what copies of public repositories
-  and starting with nothing send, which no `SetUp` carries yet
-  (`../protocol/setup.md`, 6.7), is open (`README.md`, 3.5).
+- **The connect-flows comparison** (5.1, 5.4): temper/ui checks the
+  request's forge panels, setup rows and repository sheet after landing
+  (`../draft/look-requests.md`, 4; `README.md`, section 11). Default:
+  retain the shared welcome panels and the sheet's search and scroll;
+  Home's sheet unification and its two unmocked entry drawings belong to
+  the repository-copies follow-up (`../draft/repository-copies.md`, 11).
 - **An App of one's own, offered again** (5.4). Default: GitHub's card
   offers Connect GitHub alone, and the own App's Details are reached by
   their address; a link returns to the card once v0.1.0's successor

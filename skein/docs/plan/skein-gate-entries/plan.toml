@@ -1,0 +1,22 @@
+draft = "skein-gate-entries"
+repo = "fabrig"
+sources = ["skein/docs/plan/skein-gate-entries/inputs/request.md", "tools/tiers/budgets.toml", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "gate-entries"
+title = "skein's focused and fuzzy suites have their gate entries beside the other trees'"
+mode = "direct"
+needs = []
+design = "tools/tiers/design.md, 7.3"
+
+[[slice]]
+id = 1
+story = "budgets.toml holds [gate.skein.default] at 30 and [gate.skein.fuzzy] at 120, and the validator accepts the real file"
+parts = ["gate-entries"]
+walk = false

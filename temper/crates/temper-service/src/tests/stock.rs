@@ -297,7 +297,7 @@ fn the_configuring_agent_is_charter_3_and_template_3() {
     assert_eq!(defaults.charters[2], expected);
     assert!(!defaults.charters[2].policy.modify);
     assert!(!defaults.charters[2].policy.agents);
-    assert_eq!(defaults.charters[2].policy.instructions.len(), 6771);
+    assert_eq!(defaults.charters[2].policy.instructions.len(), 7043);
     assert_eq!(defaults.templates.iter().map(|template| template.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3]);
     let mut expected = defaults.templates[0].clone();
     expected.number = 3;
@@ -1547,10 +1547,12 @@ fn assert_document_rule(words: &str) {
         "A refused note says the revision or the line count to use",
         "Say in one sentence what changed",
         "do not repeat the document in your reply",
-        "Mermaid is not drawn, so do not draw diagrams",
+        "Where a sequence says more drawn, write a flow",
+        "one path joined by -->",
     ] {
         assert!(words.contains(phrase), "missing document instruction: {phrase}");
     }
+    assert!(!words.contains("Mermaid is not drawn"), "obsolete document instruction: Mermaid is not drawn");
 }
 
 #[test]
