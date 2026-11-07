@@ -1,10 +1,13 @@
 # engine: status
 
-2026-11-06. Where jig's code lags or departs from [engine.md](engine.md).
+2026-11-07. Where jig's code lags or departs from [engine.md](engine.md).
 Unlisted provisions have no known gap, including the saved-window load
 and unread-tail retry guard in 7.1 and 7.2, and the prospective templates
 query for settings judges in 17.5, and the bounded document refusal
 facts carried through proposal answers in 17.9.
+Section 11.1's account-driven marks preserve time-expiring offers: a
+not-due account timer skips account work and leaves its alarm scheduled;
+a due expiry marks and delivers the changed offer.
 
 - **Departs:** 11.1: an omitted template's preview uses the first offered
   model, while a task's next-run selection needs a supporting host to call
