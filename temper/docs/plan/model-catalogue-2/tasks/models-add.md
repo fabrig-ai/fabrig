@@ -56,3 +56,15 @@ Tests, each breaking its rule once by hand: `add_asks_once_with_the_provider_and
 ## Report
 
 The placeholder and words as landed, where they differ from 07's.
+
+## Rebase (2026-11-07, step merge, foreman model-catalogue-2/models-add/foreman-1)
+
+Reconcile words.rs vocabulary counts and phrase IDs with integration.
+The merge conflicts in `temper/crates/temper-client-view/src/words.rs`.
+Integration commit `2e6a0554c6` preserves main’s `BylineTask` and `WaitCapacityBox` vocabulary and shifts existing Models IDs.
+Keep those changes alongside all eight add-form words, their `ALL` entries, and English phrases.
+Preserve `WaitCapacityBox = 3964` and `ModelsAdded` through `ModelsLeftOut = 3965..3968`.
+Assign the eight add-form words unique IDs after 3968; `ModelsAddHeading` currently collides with `ModelsLeftOut`.
+Combine both sides’ vocabulary totals: `PHRASES = 1913`, `SEGMENTS = 3332`, `ENGLISH_BYTES = 46845`, and `ALL` length `1312`.
+Preserve integration’s `BylineTask` hole sizing and composer-picker comments.
+Validate the combined vocabulary declarations and the focused add-form tests after resolving the conflict.
