@@ -70,4 +70,47 @@ To be filled by the task.
 
 ### judge-parses
 
-To be filled by the task.
+Each named test ran alone under Callgrind through nextest's runner, as
+`notes/common.md` says: x86-64, unoptimized test builds, default profile,
+the same builder before and after. `Collected` is the test's instruction
+count (also the profile's summary); the signing column includes
+`sign_rs256` and all its callees. No test name moved.
+
+| Package and test | Collected Ir before | Collected Ir after | `sign_rs256` calls before → after | Inclusive signing Ir before → after |
+|---|---:|---:|---:|---:|
+| `skein-forge-machine-world::suite`, `hand::github::github_installation_loss::stale_full_after_deleted_is_discarded` | 28,168,371 | 17,682,754 | 2 → 1 | 22,580,773 → 11,290,102 |
+| `skein-fake-forge-github`, `tests::app::github_fake_jwt_accepted` | 126,199,178 | 58,107,517 | 11 → 4 | 123,832,976 → 45,034,019 |
+| `github-conformance`, `tests::github_conformance_names_a_token_expiring_within_30_days` | 61,539,809 | 51,804,727 | 2 → 1 | 22,519,550 → 11,261,726 |
+
+The two checks have different callers, found by searching their uses:
+
+- **Access admission:** `skein-forge-connection`'s `Component::connect`
+  calls `limits::access` (`src/component.rs`). Its GitHub path now calls
+  `rs256_public_pkcs1`, never signs. `skein-forge-machine-world`'s hand
+  harness (`src/hand.rs`) and `skein-forge-kit`'s machine and joint
+  harnesses (`src/machine.rs`, `src/joint.rs`) pay for admission through
+  that component. The measured hand test loses the judge's signing;
+  its one remaining call is `Jwt::bearer`'s product signing.
+- **Fake authentication:** `skein-fake-forge-github`'s `verified_claims`
+  is called by `app::check` and `Verified::check`. The latter is used by
+  that package's service (`src/service.rs`) and `skein-forge-kit`'s joint
+  GitHub harness (`src/joint/github.rs`). `skein-fake-peers` wraps the
+  service (`src/forge.rs`), so its GitHub consumers, including
+  `github-conformance` (`src/fake.rs`) and `skein-fake-peers-tests`, pay
+  for that check too. `skein-forge-setup-world` also constructs the service
+  directly (`src/host.rs`, `src/plans.rs`). The measured fake test keeps
+  four fixture signings
+  and replaces seven checking signings with public-key verification;
+  conformance keeps its runner's one signing. The exact-byte/key cache
+  and the checks of claims on every request remain.
+
+The new public-half function and signing share the portable-target,
+byte-bound and ring-parse refusals in `app_key`. The 2050-bit public test
+fixture is 1190 bytes, within `RS256_KEY_BYTES`; ring refuses it during
+parsing. Removing the modulus-size guard therefore leaves its row green:
+no such parsed key reaches that guard. The guard and row stay, under the
+spec's decided option. Bypassing ring parsing instead makes the refusal
+test fail on a trailing byte. Changing `e` to 65539 still parses and fails
+at signing, so no design amendment is needed. Both damaged-key admission
+rows, the stop-before-request test, and the fake's wrong-key, changed-claims
+and changed-cache-key checks fail when their respective checks are removed.

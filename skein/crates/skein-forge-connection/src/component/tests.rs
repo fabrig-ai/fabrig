@@ -312,6 +312,32 @@ fn renewal_local_signing_refusal_stops_invalid_key() {
 }
 
 #[test]
+fn a_key_that_parses_and_will_not_sign_stops_before_any_request() {
+    let mut key = skein_lib::bytes::copy_of(skein_fake_forge_github::keys::KEYS.first().expect("public test key"));
+    let at = skein_lib::bytes::find(&key, &[2, 3, 1, 0, 1]).expect("public exponent");
+    *key.get_mut(at.checked_add(4).expect("exponent byte offset")).expect("exponent byte") = 3;
+    let access = fixtures::app_access(&key, 7, 9);
+    let mut h = StepFixture::new(fixtures::github_settings());
+    assert_eq!(limits::access(&h.env.limits, crate::settings::Kind::GitHub, false, &access), Ok(()));
+    h.send(Request::Connect { forge: fixtures::FORGE, access });
+    h.component.drive(&h.env, &mut h.up, &mut h.io);
+    h.connected();
+    h.component.drive(&h.env, &mut h.up, &mut h.io);
+    let mut stopped = None;
+    while let Some(event) = h.up.pop() {
+        if let Event::Stopped { forge, why } = event {
+            stopped = Some((forge, why));
+        }
+    }
+    assert_eq!(stopped, Some((fixtures::FORGE, crate::Stopped::Invalid { value: crate::Value::Key })));
+    while let Some(request) = h.io.pop() {
+        if let skein_io::Request::Stream { down: skein_lib::stream::Down::Send(_), .. } = request {
+            panic!("invalid key wrote to the peer");
+        }
+    }
+}
+
+#[test]
 fn an_unheld_failure_does_not_wake_a_closing_connection() {
     let mut h = StepFixture::forgejo_ready();
     h.component.test_waiting(

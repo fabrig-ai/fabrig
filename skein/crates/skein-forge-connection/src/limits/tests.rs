@@ -232,7 +232,7 @@ fn a_github_access_names_the_refused_value() {
     secret.webhook_secret = Some(Secret::new(Box::from(fixtures::HOOK_SECRET)));
     for (label, access, listener, expected) in [
         ("key past bound", fixtures::app_access(&overlong, 7, 9), false, Value::Key),
-        ("key will not sign", fixtures::app_access(&[0; 64], 7, 9), false, Value::Key),
+        ("key ring refuses", fixtures::app_access(&[0; 64], 7, 9), false, Value::Key),
         (
             "token",
             Access {
@@ -249,6 +249,24 @@ fn a_github_access_names_the_refused_value() {
     ] {
         assert_eq!(super::access(&l, Kind::GitHub, listener, &access), Err(expected), "{label}");
     }
+}
+
+#[test]
+fn a_github_key_ring_refuses_is_judged_wrong() {
+    let key = *skein_fake_forge_github::keys::KEYS.first().expect("public test key");
+    let short = &key[..key.len().checked_sub(1).expect("key is nonempty")];
+    let mut changed = skein_lib::bytes::copy_of(key);
+    *changed.last_mut().expect("key byte") ^= 1;
+    let rows = [("one byte short", short), ("last byte changed", changed.as_ref())];
+    let mut failures = List::with_capacity(u32::try_from(rows.len()).expect("damaged key count"));
+    for (label, key) in rows {
+        let access = fixtures::app_access(key, 7, 9);
+        let judged = super::access(&fixtures::limits(), crate::settings::Kind::GitHub, false, &access);
+        if judged != Err(crate::Value::Key) {
+            failures.push((label, judged)).expect("each damaged key has room");
+        }
+    }
+    assert!(failures.is_empty(), "wrong keys accepted: {failures:?}");
 }
 
 #[test]
