@@ -58,7 +58,13 @@ Each task fills its own subsection. Suite totals aren't quoted here: the gate re
 
 ### rows-worlds
 
-To be filled by the task.
+| Binary | Module | Tests before | Tests after | Tables | Rows | Floor saved, ms |
+|---|---|---:|---:|---:|---:|---:|
+| `skein-rows` | `tests` | 5 | 8 | 0 | 0 | unknown |
+
+Left apart:
+
+- `skein-rows::tests`, 8 tests: independent runner admission, continuation, diagnostics and panic-message contracts.
 
 ### rows-forge
 

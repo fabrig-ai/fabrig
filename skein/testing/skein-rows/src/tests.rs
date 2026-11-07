@@ -3,7 +3,26 @@
 use std::cell::Cell;
 use std::panic::{AssertUnwindSafe, catch_unwind, panic_any};
 
-use super::check;
+use super::{check, panics};
+
+#[test]
+fn panics_returns_when_the_message_holds_what_is_expected() {
+    panics("expected", || panic!("an expected message"));
+    panics("expected", || panic_any(String::from("an expected message")));
+}
+
+#[test]
+fn panics_fails_when_the_call_returns() {
+    assert_eq!(failure(|| panics("expected", || {})), "call must panic: ()");
+}
+
+#[test]
+fn panics_fails_on_another_message() {
+    let message = failure(|| panics("expected", || panic!("another message")));
+    assert!(message.contains("another message"));
+    assert!(message.contains("must contain \"expected\""));
+    assert_eq!(failure(|| panics("expected", || panic_any(7_u8))), "panic must have a message");
+}
 
 fn failure(call: impl FnOnce()) -> String {
     let payload = catch_unwind(AssertUnwindSafe(call)).expect_err("table must fail");
