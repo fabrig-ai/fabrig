@@ -2,6 +2,13 @@
 
 2026-11-07. Where temper's code lags or departs from [README.md](README.md).
 
+Sections 2 and 6.11 to 6.16 have no known implementation gap in the
+TUI's crates, command, private directory, host seam, pasted-link sign-in,
+live first screen, themes and closing. Section 10's frame goldens,
+host rows, simulated loop and joined-client stories are present. The
+post-landing walk and later passes remain section 11's work; no real
+terminal or macOS runtime result is supplied here.
+
 Sections 3.5, 4.6, 5.8 and 5.13 have the approvals watch and wire document,
 the merge into Needs you, project and goal filters, Home and goal bands,
 rail and banner totals, and Later under the change's task key. A kind

@@ -1,7 +1,14 @@
 # Status
 
 2026-11-07. Where temper's code lags or departs from its design, and
-its design from its drafts, from the status files below. The reference
+its design from its drafts, from the status files below. The TUI's
+connected milestone is built: bare `temper` or `temper ADDRESS`, a
+pasted-link sign-in and a live first screen, with golden frames,
+simulated closing and joint-world restart and sign-out stories. Its
+post-landing terminal walk, browser approval, recording and later
+surfaces remain deferred; the sign-in field takes `q` as text and
+Ctrl+C closes there (`client/README.md`, sections 6.11 to 6.16 and 11;
+`draft/tui.status.md`). The reference
 merges a 65,536-byte journal run bound from `room.json`. A pull's files
 page past the forge client's bound leaves an omitted-page notice;
 the exact bound and measure still need an interface and stored-answer

@@ -2,6 +2,11 @@
 
 2026-11-07. Where temper's code lags or departs from [README.md](README.md).
 
+Section 4's `temper [ADDRESS]` command is present, including bare
+`temper` choosing the TUI only when stdin and stdout are terminals.
+The TUI's later passes and post-landing walk are the client's section
+11 work (`../client/README.md`).
+
 Section 8 has no known gap in orderly worker shutdown: serve cancels the
 runs and waits for every agent process, including a spawn in flight,
 before aborting the remaining worker resources. The real-loop held-turn
