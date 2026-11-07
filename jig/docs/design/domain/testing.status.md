@@ -1,14 +1,16 @@
 # testing: status
 
-2026-11-06. Where jig's code lags or departs from [testing.md](testing.md).
+2026-11-07. Where jig's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:** 5: the `debt-25` request of 2026-11-06 has the core world's observer
   update from each commit's rows
   (`jig/docs/development/debt/D034-world-replay-cost.md`), but
   `jig_conformance::core`'s `durable_at` rebuilds its snapshot whole at each
-  new commit, because a feed of rows alone would keep that rebuild and the
-  referee's walk of every task, and that plan's cut left it out, by judgement,
-  with its share of a suite's CPU measured for that plan's owner.
+  new commit. Views are made only for readers, naming and row projection share
+  a pass, and accepted proposal decisions share the evidence pass; a keyed row
+  feed remains outside `jig-world-cost`'s scope. It needs replacement and
+  erasure accounting and commit-level observations: a feed of rows alone
+  would keep the whole rebuild and the referee's walk of every task.
   7: `ops`'s worlds on jig's store component; they run `jig-fake-store`.
   7: the `debt-24` request of 2026-11-05 has each world name its parties,
   projects, tasks and connectors once, a bare number left only where it's the
@@ -28,6 +30,11 @@
   and together they fell 181, but D035's own tasks rose 34, where that plan's
   story has about 200 down: the client's sweep rose 158 and the people's 61, and
   the core's fell 139; no reason is recorded.
+  9: the focused suite's fit within 30 CPU s is unproved. The
+  `jig-world-cost` request expects further cost repairs beyond its five items;
+  their whole-suite effect, and fuzzy's fit with the moved sweeps and
+  `Standard` drive, await the queue's after-landing record. No budget or build
+  setting changes are part of those repairs.
 - **Departs:** 5: `jig_conformance::core` answers the core's accounts and
   builds its store view and snapshot, but an adapter still writes the core's
   arms in `deliver`, `poll`, `inbound`, `cold` and `observed` among its own

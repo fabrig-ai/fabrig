@@ -51,3 +51,29 @@ fn programmatic_page_targets_do_not_draw_control_focus_rings() {
 }
 
 mod welcome_copy;
+
+#[test]
+fn phone_latest_takes_its_own_row_below_each_log() {
+    let css = include_str!("../../temper.css");
+    let (_, phone) = css.split_once("/* ==== ui: phone ==== */").expect("phone area");
+    let (_, phone) = phone.split_once("@media (max-width: 760px) {").expect("phone width");
+    let (phone, _) = phone.split_once("\n}").expect("phone block");
+    for selector in
+        ["#app > .temper-session .temper-thread > .temper-latest", ".temper-agent-page .temper-thread > .temper-latest"]
+    {
+        let (_, rule) = phone.split_once(selector).expect("phone Latest selector");
+        let (rule, _) = rule.split_once('}').expect("Latest declarations");
+        for declaration in
+            ["position: static;", "transform: none;", "margin: 0 auto 12px;", "align-self: center;", "flex: none;"]
+        {
+            assert!(rule.contains(declaration), "{selector}: {declaration}: {rule}");
+        }
+        assert!(!rule.contains("margin: -") && !rule.contains("calc("), "{selector}: {rule}");
+    }
+    for selector in ["#app > .temper-session .temper-thread:has(> [role=log]) {", ".temper-agent-page .temper-thread {"]
+    {
+        let (_, rule) = css.split_once(selector).expect("thread selector");
+        let (rule, _) = rule.split_once('}').expect("thread declarations");
+        assert!(rule.contains("display: flex;") && rule.contains("flex-direction: column;"), "{selector}: {rule}");
+    }
+}

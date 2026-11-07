@@ -1108,7 +1108,7 @@ fn inline_effects(
     let Ok(mut effects) = agent_service::Effects::new(configuration, seed) else { return Err(Error::Process) };
     let charter = local::charter(local);
     effects.bind_grants(&charter).or(Err(Error::Process))?;
-    effects.contract(charter.outcome);
+    effects.contract(charter.outcome, charter.grants.deliver);
     local.workspace = match local.workspace.take() {
         Some(workspace) => match effects.workspace(workspace, roots) {
             Ok(workspace) => Some(workspace),

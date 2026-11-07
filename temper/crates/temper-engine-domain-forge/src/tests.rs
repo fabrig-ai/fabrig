@@ -14,7 +14,9 @@ mod dismissed;
 mod early;
 mod fixtures;
 mod flight;
+mod forge_user;
 mod goal_branch;
+mod goal_start;
 mod held_branch;
 mod kinds;
 #[path = "tests/landing.rs"]
@@ -668,6 +670,7 @@ fn workspace_items_are_sized_context_is_read_only_and_saved_work_starts_the_next
     outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
     let item = d
         .workspace_item(items::Seed {
+            modify: false,
             task: 7,
             parent: None,
             repository: REPO,
@@ -690,6 +693,7 @@ fn a_workspace_item_names_its_forges_git_identity() {
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let item = d
         .workspace_item(items::Seed {
+            modify: false,
             task: 7,
             parent: None,
             repository: REPO,
@@ -2345,6 +2349,7 @@ fn a_merge_delegate_asks_for_a_merge_in_progress_named_as_its_repository() {
         outputs(&mut d, Event::Restore { record: Stored::Change(row) });
         let item = d
             .workspace_item(items::Seed {
+                modify: false,
                 task: CHILD,
                 parent: Some(fixtures::CHANGE),
                 repository: REPO,
@@ -2397,6 +2402,7 @@ fn workspace_landing_is_only_for_an_existing_inherited_writable_producer() {
                     }
                     let item = d
                         .workspace_item(items::Seed {
+                            modify: false,
                             task: 90,
                             parent: Some(task),
                             repository: REPO,
@@ -2649,6 +2655,7 @@ fn a_kept_forge_supplies_its_workspace_credential_after_restore() {
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let item = d
         .workspace_item(items::Seed {
+            modify: false,
             task: 7,
             parent: None,
             repository: REPO,

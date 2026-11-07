@@ -46,7 +46,8 @@ kind and whose authority covers the act. It is then:
 - accepted, which makes the act, funded by the accepter;
 - rejected, with a reason its proposer hears;
 - passed up, to the holder above;
-- withdrawn by its proposer.
+- withdrawn by its proposer, including when a run's fresh proposal of settings
+  replaces its own that waits.
 
 A proposal of a release waits for the hold's owner alone and is never
 passed up; lifting the hold, or a newer revision of it, withdraws it.
@@ -96,9 +97,10 @@ For the configuration members that need a restart, read `temper help configurati
 
 - The person's client shows a proposal of settings with its reason and
   summary, without its whole values. An owner can accept it, with running
-  work staying. Reject with reason under Needs you currently fails; reject
-  it with `temper ctl`.
-- A run can't replace a proposal of settings that waits, since a task holds one pending proposal, and the stock's configuring chat can't withdraw it, holding no decide family. An owner rejects it, with a reason the chat hears, and the chat proposes afresh.
+  work staying, or reject it with a reason under Needs you.
+- A run's fresh proposal of settings replaces its own that waits, in one commit.
+  A refused fresh proposal leaves the one waiting standing. The stock's
+  configuring chat holds no decide family and cannot call `withdraw`.
 - A party's proposal withdrawn as stale names the revision it was made
   against, not the newest: read `settings show`, and propose again.
 - temper does not let ctl withdraw a proposal.

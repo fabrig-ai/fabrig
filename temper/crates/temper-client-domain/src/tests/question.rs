@@ -173,3 +173,29 @@ fn every_byte_prefix_parses_even_inside_utf8_characters() {
     assert_eq!(&*parsed.question, b"Q\xff?");
     assert_eq!(&*parsed.choices, &[choice(b"A\xfe", false)]);
 }
+
+#[test]
+fn in_words() {
+    use crate::tests::fixtures::acts as f;
+    use jig_client::contract as c;
+    let part = c::Part { connector: 1, kind: c::PartKind::Result, key: c::PartKey::Number(1) };
+    for address in [c::PersonAddress::Party(73), c::PersonAddress::Role(0)] {
+        for (contract, report) in [
+            (c::TaskContractDocument::Report { words: 4096 }, true),
+            (c::TaskContractDocument::Verdict { choices: skein_lib::List::uncapped(), cut: false }, false),
+            (c::TaskContractDocument::Approval { state: Box::from(*b"Ready"), part: part.clone() }, false),
+            (c::TaskContractDocument::Change { connector: 1, kind: 1, words: 32 }, false),
+            (c::TaskContractDocument::Job { bytes: 32 }, false),
+        ] {
+            let c::ReadValue::PersonTask(mut task) = f::person(c::ActKind::Answer) else { panic!("person fixture") };
+            task.address = address;
+            task.contract = contract;
+            assert_eq!(
+                crate::question::in_words(&task),
+                report && address == c::PersonAddress::Party(73),
+                "{address:?}: {:?}",
+                task.contract
+            );
+        }
+    }
+}

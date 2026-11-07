@@ -1,6 +1,26 @@
 # forge: status
 
-2026-11-06. Where temper's code lags or departs from [forge.md](forge.md).
+2026-11-07. Where temper's code lags or departs from [forge.md](forge.md).
+
+Sections 4, 8.7 and 8.9 have no known implementation gap in
+forge-scoped party keys and the shared lookup. Adoption seeds the forge
+and user pair; reviews use the pull request's forge, and eligibility uses
+that same lookup. The step tables cover equal
+user numbers on different forges, unknown accounts and each forge's writer.
+Eligibility still counts an account on any forge of the project; section
+20 defers the owner's link and eligibility on each covered repository's forge.
+Section 12.1's questions on the forge remain unbuilt, as listed below;
+their designed account mapping also requires the repository's forge.
+
+Sections 8.1, 8.5, 11 and 11.1 have no known implementation gap in a
+goal's delivery through r. The six engine domain stories in
+`tests/engine/domain/tests/suite/forge_routes/goal_delivery.rs` cover
+merges into g while the goal runs, an early dependent, a second run,
+work r holds that g lacks, a new delivery under an open change, the merge
+job and resolution after the goal frees r's slot, and the goal's close.
+A change's close leaves r held by its goal; the goal's close deletes it.
+Coverage uses the fake forge. Section 20 keeps the default for deleting
+unlanded run work and the deferred saved-start case overtaken by a repair.
 
 - **Not yet:**
   - 10, 18: no supplied result shows the three-thread real-process trial

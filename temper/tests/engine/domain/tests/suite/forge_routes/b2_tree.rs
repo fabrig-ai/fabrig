@@ -2,7 +2,6 @@
 use super::*;
 use jig_domain_link::ModelBound;
 
-use super::stock::box_model as model;
 use jig_domain_core::{documents, reads};
 use temper_engine_domain_world::forge_routes::box_limits;
 
@@ -28,6 +27,12 @@ const ANSWER_KEY: u8 = 94; // The person's answer is a distinct durable request.
 const WORK_REPORT: &[u8] = b"Both changes landed";
 const CHAT_REPORT: &[u8] = b"Done: both landed";
 const LOOKUP_JOINS: u32 = 1;
+
+fn model() -> engine::Model {
+    // Defaults, the root and worker bounds read the same init model within one story.
+    static MODEL: std::sync::OnceLock<engine::Model> = std::sync::OnceLock::new();
+    MODEL.get_or_init(super::stock::box_model).clone()
+}
 
 fn defaults() -> jig_domain_core::settings::Defaults {
     // This world scripts the worker; it never connects to an endpoint or real account.
@@ -142,6 +147,24 @@ fn a_goal_without_modify_cannot_modify_but_its_change_producer_can() {
     assert_eq!(charter.mode, smith_domain_run::Mode::Finite);
     assert!(charter.grants.tools.modify);
     assert!(charter.grants.deliver.is_some());
+}
+
+#[test]
+fn a_chats_an_advisors_and_a_reviewers_runs_inspect_alone() {
+    let mut configured = defaults();
+    for charter in &mut configured.charters {
+        charter.policy.modify = true;
+    }
+    let (mut world, chat) = world_with(&configured);
+    let tree = tree(&mut world, &chat);
+    for task in [tree.chat, tree.advisor, tree.first_workers[2]] {
+        let assignment = world.assigned.iter().find(|run| run.task == task).expect("the role ran");
+        assert!(assignment.run.policy.modify, "the rail holds with modification requested");
+        let charter = temper_engine_smith::charter(assignment);
+        assert!(charter.grants.deliver.is_none(), "task {task}");
+        assert!(!charter.grants.tools.modify, "task {task}");
+    }
+    world.close();
 }
 
 /// Smith rounds each completion's combined input/output charge upward once

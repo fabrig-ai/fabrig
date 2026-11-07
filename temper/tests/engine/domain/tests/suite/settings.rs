@@ -272,12 +272,12 @@ fn stock_config() -> engine::Config {
 
 fn stock_limits() -> engine::Limits {
     let mut limits = walking::limits();
-    // Stock policy 1 holds fourteen grants and nine executor kinds.
+    // Stock policy 1 holds fourteen grants and twelve executor kinds.
     limits.authority.grants = 16;
-    limits.authority.executors = 9;
+    limits.authority.executors = 12;
     limits.authority.roles = 4;
     limits.documents.grants = 16;
-    limits.documents.executors = 9;
+    limits.documents.executors = 12;
     limits.notes.scopes = 32;
     // Seven slots hold the stock charters.
     limits.tasks.charters = 7;
@@ -466,7 +466,7 @@ fn a_nonowner_cannot_change_the_deployments_settings() {
         reply_to: ReplyTo::new(Token::new(991)),
         held: None,
         identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: OTHER.to_be_bytes().into() },
+            key: temper_engine_domain_forge::user_key(1, OTHER),
             login: Box::new([]),
             name: Box::new([]),
         },

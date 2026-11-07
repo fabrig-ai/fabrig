@@ -1,6 +1,6 @@
 # temper's client
 
-Provisional, 2026-10-14, revised 2026-11-06. temper's client: temper's own
+Provisional, 2026-10-14, revised 2026-11-07. temper's client: temper's own
 presentation on jig's client, `jig-client`. Its crates; its client root,
 which holds `jig-client` and temper's pages, the LLM accounts' and the
 forges' among them; the forge's client family, its words, its one form
@@ -522,7 +522,9 @@ keeps (`../protocol/configuration.md`, section 2).
       it touched, not its calls: `read_docs` is "read N docs", its distinct
       topics, each search one, a call whose input can't be read one
       ("read 1 doc"); `settings` is "checked settings N×", once "checked
-      settings"; `read` and `Read` are "read N files", `list` and `Glob`
+      settings"; `propose_settings` is "proposed a change N×", once
+      "proposed a change", and under way "proposing a change", none of them
+      naming its input; `read` and `Read` are "read N files", `list` and `Glob`
       "listed N folders", `write` and `Write` "wrote N files", `edit` and
       `Edit` "edited N files" and `remove` "removed N files", each its
       distinct arguments, a call whose input can't be read one; `search`
@@ -639,6 +641,8 @@ keeps (`../protocol/configuration.md`, section 2).
     pill, centred 12 px over the pane's foot, its " ↓" the stylesheet's, on
     a button *to log end* (skein's `ui.md`, 3.2) beside the log, shown while
     the log is away from its end (`data-log-away`, skein's `ui-web.md`, 7).
+    At a phone's width it stands in a row of its own below the log instead,
+    so nothing lies beneath it and it covers none of a card's controls.
     Pressed, the view returns to the end and it goes. Where the window has
     let the newest lines go the log continues and the pill stays visible,
     even at the window's foot. A press on a chat reads the end again;
@@ -718,8 +722,11 @@ keeps (`../protocol/configuration.md`, section 2).
   `away-mode.md`. There are no file drafts: a document
   is always a chat's.
   - *Offered:* `pages::drafts_offered(root, project)` is that project's kind 7
-    `drafts` (5.13), false in the stock. It gates "+ Draft", the Drafts filter, the
-    Chats lede's words, "Start goal…" and the rail's "Goal".
+    `drafts` (5.13), true in the stock. It gates the Drafts filter, the Chats
+    lede's words, "Start goal…", the rail's "Goal" and "+ Draft" on a chat that is
+    no configuring chat. A configuring chat offers "+ Draft" whatever `drafts` says:
+    `pages::chat_offers_draft(root, task)`, which the bar and the domain's taking of
+    the act both read, is true on a configuring chat and otherwise `drafts_offered`.
   - *Read live, with no new watch:* `Read::Notes { scope: NoteScope::Task {
     project, task }, description: None, after: None }`, on the same retries as an
     activity read, once the task's document has arrived, and again when the
@@ -746,8 +753,9 @@ keeps (`../protocol/configuration.md`, section 2).
     `doc.svg`), the chosen `aria-pressed`. `Ctrl+\`, skein's primary key (⌘ on a Mac), steps through
     those shown, the next mode's button carrying the shortcut. On
     a phone, Chat and Draft alone; Split left on a wide screen shows as Draft. With
-    no document, while `drafts_offered` and the chat hasn't ended: `.btn.small`
-    "+ Draft". `.btn.primary.small` "Start goal…" once the document has a section,
+    no document, while `chat_offers_draft` and the chat hasn't ended: `.btn.small`
+    "+ Draft", which follows the first message: `Configure`, before a configuring
+    chat's first message, has nothing to write up and draws none. `.btn.primary.small` "Start goal…" once the document has a section,
     on a chat of a project with a home repository with no goal linked; with a
     linked goal, a link `.btn.small` "Goal TITLE →" to `Task { task }`. Not on a
     configuring chat, which has "Start over": it asks "Start over?", "A new
@@ -1907,7 +1915,7 @@ keeps (`../protocol/configuration.md`, section 2).
     in the project (`Domain::has_goals`), once the chats are delivered,
     after its rows, in the foot's face: "A chat suits one change. For
     bigger work, a chat can write a draft beside it and start a goal from
-    it: a plan, its tasks, landing."; and "Turn on drafts and goals", to
+    it: a plan, its tasks, landing."; and "Show goals", to
     `Settings`, once `Settings` has that switch, not before.
   - *Goals,* in Chats' place with a goal in the project, a region named
     "Goals": its head the level-2 heading "Goals" and, at its right, "All
@@ -1986,10 +1994,19 @@ keeps (`../protocol/configuration.md`, section 2).
     textarea as Reject's). A funds card: "S of L used." as the
     question, in the task page's money form, plain numbers, its title as
     owner, then Release and Leave held; there is no "Add $10". A person task: its
-    title, its spec, its acts as plain buttons.
+    title, its spec, its acts as plain buttons. *A person task in words,*
+    one addressed to a person with a report as its contract, as a goal
+    asks the person who started it (`../domain/agent.md`, 8.2), reads as a
+    question: its spec's words by the same line form, its kind "a
+    question", its choices, "Reply…" and "Later", and each answers it in
+    those words, naming the revision the card showed. Its line's TITLE is
+    "Task N", N its requester, a link there, since the card reads no second
+    task, and its answered line's title is its own. In the inbox's filter
+    it stays a person task.
   - *SHORT,* what a next-up line or a Home line says of a card: a
-    question's line; a proposal's reason's first sentence; a held task's
-    or a person task's title, a funds card's "S of L used".
+    question's line, or a person task in words'; a proposal's reason's first
+    sentence; a held task's or another person task's title, a funds card's
+    "S of L used".
   - *`.next-up`,* centred, 13px, `--gf-faint`: "Next: TITLE · SHORT", or
     "The last one".
   - *Answered,* under it when any: the section title "Answered", then
@@ -2387,7 +2404,7 @@ keeps (`../protocol/configuration.md`, section 2).
     PROJECT, a link to `Home`, and "Settings", a link to `Settings`, each
     followed by "/", then the level-1 heading "Configure
     temper", the page's title too; on a phone "‹", a link named "Settings", alone before the
-    heading. Its bar names no model: what the chat's runs use is the picker's,
+    heading. With a composer its bar names no model: what the chat's runs use is the picker's,
     under its composer (*The work's account and model,* below): on a
     configuring chat, what its next run takes, as any chat's; with no chat
     yet, what one would, template 3's `resolved_default` in `me` (5.5), and a
@@ -2476,7 +2493,8 @@ keeps (`../protocol/configuration.md`, section 2).
   the pane of *A chat's document* (below), in Split, the rail folded, the
   page's main carrying that mode's style. No chat is made and nothing
   changes. Every project offers it: no project way hides the card or the
-  pane, so a fresh project's page, Goals and drafts hidden, has both.
+  pane, so a fresh project's page, Goals hidden, has both, as has a page with
+  drafts turned off.
   - *The bar* gains the mode group at its right, after the line of what the
     runs use, once the reference has opened: "Chat", "Split" and "Draft", a
     group named "How temper builds temper, beside the chat", with a chat's
@@ -2520,7 +2538,7 @@ keeps (`../protocol/configuration.md`, section 2).
 - **The work's account and model.** The model and effort sit at the composer,
   on every chat: a new chat's, Configure temper's, a chat's and a configuring
   chat's (the look request `model-picker`). A choice is the task's LLM choice,
-  from the chat's next run (jig's `domain/tasks.md`, section 3).
+  from the chat's next run (jig's `domain/tasks.md`, sections 3 and 7).
   - *The picker* is on the hint's row, at the composer's right edge: a
     disclosure named "Model" (skein's `ui.md`, its disclosure), which folds
     away, described by its closed line. A browser shows the line and a chevron;
@@ -2532,9 +2550,26 @@ keeps (`../protocol/configuration.md`, section 2).
     5.1), a configuring chat's its charter's template, any other's template 1;
     "the default model" where neither names one. "Claude" goes before the shown
     name of a model of the `anthropic` provider and no other provider's name
-    goes before one, so "Claude Opus 5.5 · high" and "GPT-6.1 Sol · high". What
-    a task holds stays its own: a model the offer leaves out is still named, and
-    its wait says why (5.5).
+    goes before one, so "Claude Opus 5.5 · high" and "GPT-6.1 Sol · high". Its
+    effort is the one the choice names or, where it names none, that model's
+    default in the offer. What a task holds stays its own: a model the offer
+    leaves out is still named, and its wait says why (5.5).
+  - *With no composer,* a closed chat, one with a result or ended, says it in its
+    bar instead, in the bar's muted form where the number was: "T2 · GPT-6 Astra ·
+    high", in the closed line's shown names, in the browser and the terminal
+    alike. It uses the latest named completion kept by the thread
+    (jig's `client/domain/client.md`, section 10), the effort only where
+    that turn asked for one. With no model read it says what its
+    next run would have taken: its LLM choice, or with none its template's
+    `resolved_default`, as *Its closed line* has them. "T2 · Using the default
+    model" is only where neither names one, where temper can't know. A run
+    with no readable named turn can leave an earlier model or this preview;
+    neither proves what that run used (section 11). Until the
+    conversation is read to its end the bar says the number alone, and names no
+    model it would take back. A closed agent's task says the same words without
+    the number, which its heading holds, in its taskbar (5.9), with no line or
+    picker at its composer. A goal's page draws no such line. A phone's bar shows
+    no byline, so a closed chat's words are left out there as its number is.
   - *The menu* rises from it, by what pays, drawn from the project's offer in
     `me` (jig's `client/domain/contract.md`, 5.1), working nothing out, so that
     no page shows what the offer leaves out. In order:
@@ -2569,6 +2604,23 @@ keeps (`../protocol/configuration.md`, section 2).
     One press of a model or an effort applies it, an amendment or, where the task
     offers only that, a proposal. While it is sent that line says "Changing…";
     refused, it says why, and the choice is the chat's own again.
+    An accepted amendment changing only the LLM choice sends no message and
+    starts no run. A turn under way keeps its choice; the person's next words
+    stop a live run behind the choice and start the next on the new choice,
+    with those words retained and no try spent (jig's `domain/tasks.md`,
+    section 7).
+    A model change in a resumable window first asks the saved window's model,
+    when configured, for a summary, then the new model for the answer.
+    A changed effort alone keeps the window. Across an endpoint, dialect,
+    account or backend boundary, or without the saved program session, the
+    conversation's text, calls and results carry over, with opaque replay
+    dropped and the summary on the new model (smith's `domain/session.md`,
+    8.2). A provider change chooses an account again (jig's `domain/tasks.md`,
+    section 7). A smaller window follows the same compaction rules. If the
+    conversation still cannot fit, the chat is held with its transcript kept
+    and nothing cut: "the run no longer fits the model's window of N tokens"
+    (jig's `client/domain/contract.md`, 5.5). The person can choose another
+    model on the held chat.
   - *A chat whose choice can't be changed:* the same words with no chevron, not a
     button. No usable model: 5.5's "No model yet" above the composer, and no
     picker.
@@ -2586,9 +2638,10 @@ keeps (`../protocol/configuration.md`, section 2).
   starts nothing, and keeps its composer, so the person can choose
   another model. The scripted model is offered where `me` serves it,
   in the playground's project alone (4.8). Setting a goal names its planner's model and
-  effort, the template's by default. A goal's page shows its model, effort and
-  account, changed by amending the task, and an agent's task's page
-  shows them in its composer's line, as a chat's (5.11); a task waiting
+  effort, the template's by default. A goal's page draws no model, effort
+  or account line; that presentation is deferred in section 11. An open
+  agent's task's page shows them in its composer's line, as a chat's (5.9);
+  a task waiting
   for its account
   says so, with the account's acts (5.5; jig's `domain/authority.md`,
   8.3).
@@ -3241,7 +3294,8 @@ for its kind, its user's login and its installations. Its nodes:
   (bool), whether Forgejo on this machine can be set up: the document
   has `application.machine.owned` and the engine runs under the box
   (`../protocol/setup.md`, 7.4). A first run's store keeps no forge, so
-  no row of the `forges` watch can say so (`forge.md`, 5.4); and
+  no row of the `forges` watch can say so (`forge.md`, 5.4), and a wait
+  for a host reads it as the fact of a box (5.5); and
   `program_login` (optional bytes, at most 8,192), *the printed command*
   below. On the wire it is `Reading`'s `deployment`, beside `playground`.
 - **The printed command:** what the pages print works when pasted. Where
@@ -3837,14 +3891,14 @@ page (5.1): a navigation named by the open project, in this order:
 - "Home", to the open project's `Home`; "Needs you", to *Needs you*
   filtered by the open project, with the count of what needs the person
   there (*What the client keeps,* 3.5), omitted when zero; "Goals", to the project's `Goals` with the filter All, only while the project's
-  kind 7 shows them; "Chats", to `Chats`; and "Changes", to `Changes { project }`, only while
+  kind 7 shows them or the project holds a goal (`Domain::has_goals`, below), the setting hiding an offer and not a person's own work; "Chats", to `Chats`; and "Changes", to `Changes { project }`, only while
   kind 7 shows them; current on `Home`, on `Inbox`, on Goals, a tracked goal and a task whose document names a goal, on
   `Chats`, `NewChat` and `Chat`, but a configuring chat's, whose current entry is
   "Settings", and on Changes. On Goals, on a goal and on Changes their
   entry stays shown, so that nothing goes from under the person; a hidden
   page keeps its address, hiding removing the way in and not the page.
   Until kind 7 is read, or if its read is refused, the optional entries
-  are hidden (5.13);
+  are hidden (5.13), but for Goals while the project holds a goal;
   Whether a project has a goal is `Domain::has_goals(project)`, a fact the
   domain keeps whatever the rail does, from a live watch and one ended
   read of the goals' query with window 1, per open project;
@@ -3888,8 +3942,8 @@ page (5.1): a navigation named by the open project, in this order:
 rail's navigation: they are `Settings`' tabs and the Repositories tab's (3.5). On a phone, at 760 px and under, the rail is a top
 bar showing the switcher alone, and the tab bar closes the page: in the
 browser, a navigation named "Sections" after the main, with "Home",
-"Needs you", then "Goals" and "Chats" while kind 7 shows Goals, "Chats"
-and "Settings" while it hides them, drawn at phone width alone
+"Needs you", then "Goals" and "Chats" while the rail shows Goals, "Chats"
+and "Settings" while it doesn't, drawn at phone width alone
 (`browser.md`, 2.5); with Goals shown, Settings is reached by the
 switcher's "Settings for PROJECT". The Away switch is a chip in the top
 bar, on the rail's terms. The terminal has no tab bar.
@@ -4196,8 +4250,12 @@ The words for each offered source are:
     them (`Limited`'s Resume, `NeedsSignIn`'s sign-in, `Refused`'s key).
   - *A credential:* "This work needs a credential from its forge." and a link
     to `Forges`.
-  - *A host:* "No host has room for this, or none is connected. It starts
-    when one does.", with nothing to press.
+  - *A host:* on a box, where the deployment's read says `owned` (4.6),
+    "Waiting for other work to finish. It starts by itself."; a box's
+    worker runs with its engine (`../domain/worker.md`, section 6), and
+    a person who has only run `temper box` doesn't know "host". Otherwise,
+    and until that read answers, "No host has room for this, or none is
+    connected. It starts when one does." Either way, with nothing to press.
 
   A wait about to end (jig's `client/domain/client.md`, 19.1) stays
   "Starting". A Chats row holds no wait, and says "Starting".
@@ -4212,15 +4270,19 @@ The words for each offered source are:
   disabled, and Enter sends nothing; the draft stays editable. Unknown usability keeps
   today's behavior. Otherwise:
   - *MODEL* is the draft's model (a task's LLM choice; a new chat's,
-    its template's), then " · EFFORT" where the choice names an effort.
-    Where the template names none, it is the supplied `resolved_default` of
-    that template in `me` (jig's
-    `client/domain/contract.md`, 5.1), what a run's check would take now for
+    its template's), then " · EFFORT", the effort the choice names or, where
+    it names none, that model's default in the offer.
+    Where neither the task nor the template names a model, it is the supplied
+    `resolved_default` of the page's template in `me` (jig's
+    `client/domain/contract.md`, 5.1), a configuring chat's its charter's
+    template, any other's template 1, what a run's check would take now for
     a task keeping no account, in charter order, under the effective
     authority and the current receiving party as payer.
     The composer never infers a default from the project catalogue's
-    order, including a clipped catalogue. With no preview it uses
-    "Using the default model". The preview is an observation, not a
+    order, including a clipped catalogue. Only with no preview, where temper
+    can't know, it uses "Using the default model", and the terminal takes the
+    same words. A closed chat says what it ran on instead (3.5, *The work's
+    account and model*). The preview is an observation, not a
     reservation: the draft keeps configured intent, and each run's check
     takes the models of a task given none (jig's `domain/accounts.md`, 4.3).
   - *The account* is named only when the payer is you: your new chat,
@@ -4260,7 +4322,7 @@ The words for each offered source are:
     an eligible own preferred or kept account wins, use 5.6's "Using
     Scripted model · Default". An unknown or missing row keeps the
     playground's line, including on another member's chat.
-  - *Unsettled:* with no model settled, "Using the default model".
+  - *Unsettled:* with no choice and no preview, "Using the default model".
     Otherwise, when no account is named, "Using MODEL". A model a task or
     its draft holds that the offer leaves out reads "Using MODEL" too: the
     offer gives no provider for it, what a task holds stays its own, and
@@ -4801,7 +4863,8 @@ acts on it as its document offers (5.11).
   TITLE", as a chat's; its state, in 5.8's words, from the same
   function (`pages::task::header_state`), with its status token; then
   its executor, "Agent", and its own spend, "N spent", its `budget.spent`
-  as a plan row's (5.8).
+  as a plan row's (5.8); on a closed task, then what it ran on (3.5, *The
+  work's account and model*).
 - **"Task brief":** a region, the mockup's "TASK BRIEF", whose capitals
   are the look's: its specification as written (`spec`, read as Markdown); who asked, in 5.8's words ("Asked by
   task N"); then its dependency line, as a plan row's (5.8): the list
@@ -5310,9 +5373,11 @@ section 5.
   read capacity, or sign-in still settling) retries after one second, doubling
   to at most 30 seconds; a successful answer resets the wait. Kind 7 retries
   while its project is open, kind 6 while the tab is open; leaving that scope
-  drops its retry. Until first read, or after a lasting refusal, the optional entries,
-  the tab's live controls and `drafts` all read as hidden, off and absent; a
-  value of none reads as the stock (`../protocol/configuration.md`, 13.4).
+  drops its retry. Until first read, or after a lasting refusal, the optional entries
+  read as hidden, with 5.3's exceptions for a current page and a project holding a
+  goal; `drafts_offered` is false, with the configuring chat's exception (3.5).
+  The tab's live controls draw the stock, disabled; a value of none reads as
+  the stock (`../protocol/configuration.md`, 13.4).
 - **Its acts:** each live control sends at once jig's `ChangeSettings` with one
   item, running work staying, against the newest revision the person has, the
   one exception to the pages sending proposals alone. The control is disabled
@@ -5323,23 +5388,32 @@ section 5.
   Answered, the client takes the value at once and reads it again.
 - **The terminal:** the switches as checks, the selects as selects, a disabled
   one marked so; it all prints.
-- **What the settings change:** the rail and the tab bar (5.3); `drafts`,
-  `pages::chats::drafts_offered`, the chats' offer of a draft and nothing else;
-  and these open the tab, `Address` having no anchors: Home's "Turn on drafts
-  and goals", "See the settings" and "Limits".
+- **What the settings change:** the rail and the tab bar (5.3), `goals` hiding
+  the offer of Goals and not a goal the project holds; `drafts`,
+  `pages::chats::drafts_offered`, the chats' offer of a draft, a configuring
+  chat's apart (3.5), and nothing else;
+  and these open the tab, `Address` having no anchors: Home's "Show goals",
+  "See the settings" and "Limits".
 - **The card in a chat:** a proposal of settings is a card at the call that
   made it where its turn names it, and otherwise after the turn that was running
   when it was made, as every proposal is (3.5; *Where a card stands,* below): the title "How temper will run
   PROJECT", PROJECT its `projects`' names joined by ", " and " and ", or, with
   none, the deployment's, "How temper will run your projects"; the proposal's reason, in the person's words, its Markdown drawn as the Accept sheet draws it (3.6);
-  then each item, in small mono type, faint, in the words of `temper ctl` but
+  then each item, small and faint in the card's type, in the words of `temper ctl` but
   for temper's kinds of a project: kind 7 as "Drafts: on", "Goals: shown",
   "Changes page: shown", "Away switch: shown" and "Way: NAME", kind 6 as
   "Questions: answered by the goal", "Questions: asked of me too" or "Questions:
-  not asked"; any other as "charter 2", "template 4", "landing rule 1". Those
-  values come from the forge's read of a proposal's items, which takes a role
-  in the deployment (`../protocol/configuration.md`, 13.2): without one, or until
-  it is delivered, kinds 6 and 7 are named as `temper ctl` names them. Then
+  not asked"; a template by its name, as "Way: NAME" names one, or "template 4"
+  where the person's `me` names none; any other as "charter 2", "landing rule 1".
+  A proposal's heads name jig's own settings alone, so a live card takes its
+  application's items and project's policies from the proposal's review, and
+  those values from the forge's read of a proposal's items under the review's
+  `key`, which takes a role in the deployment
+  (`../protocol/configuration.md`, 13.2). Until those values arrive, kinds
+  6 and 7 are named as `temper ctl` names them. With no review, no application
+  or project-policy rows can be recovered from the heads. A decided card has
+  no review: it keeps the kind 6 and 7 values it read in this session, and
+  otherwise draws its heads alone. Then
   "Accept", primary, jig's `Decide` with running work staying, and "Change
   something", quiet: it focuses the composer, brings it into view and sets its
   placeholder to "What should change?", until something is sent or the proposal
@@ -5347,8 +5421,11 @@ section 5.
   own `project`, never the chat's: a proposal of settings is the deployment's,
   whichever chat made it, and jig knows it under no other project. The card has
   no "Reject": the person rejects it on its card in *Needs you* (3.5). Saying
-  what to change here revises nothing while it waits: the agent answers that an
-  owner rejects it, then proposes afresh (`../domain/agent.md`, 8.1). Decided, it ends in a muted state line in place of its
+  what to change here has the agent propose again, whose fresh proposal replaces
+  the one that waits (`../domain/agent.md`, 8.1): the new card stands below. An
+  "Accept" pressed on a replaced card, in a tab that hadn't heard, is refused and changes
+  nothing, and the refusal ends the card as withdrawn: "Replaced by the proposal below",
+  or "Withdrawn · nothing changes" until it has read the later one. Decided, it ends in a muted state line in place of its
   acts, however the decision was made (*Needs you*, another tab, `temper ctl`), the
   chat's task document telling it with no reload: accepted, "✓ Accepted · new work
   follows it"; rejected, "Rejected · nothing changes"; withdrawn, "Withdrawn · nothing
@@ -6547,6 +6624,31 @@ own tests:
 
 ## 11. Open questions
 
+- **A closed page's latest-run model** (3.5, 5.9; the request
+  `ui-model-line`): a run with no committed turn, a tail page with no turn,
+  or an undecodable or nameless newest turn can leave an earlier model or
+  a next-run preview. Keeping the latest run's model independently of
+  readable turns is jig's `client/domain/client.md`, section 18. Default:
+  the last named completion, then the task's choice or its template's
+  `resolved_default`; until caught up, no model line. A turn's missing
+  effort stays unknown, never filled from today's offer.
+- **A goal's model, effort and account** (3.5): the goal page has no such
+  line. A place for those words and their amendment remains to be designed.
+  Default: no line; a closed agent's task uses its taskbar (5.9).
+- **The closed model line after landing** (3.5, 5.9; the request
+  `ui-model-line`): checking the muted header and taskbar in a browser and
+  a real configuring chat remains after landing. Default: the view tables
+  cover both shells and the joined client story carries smith's bytes to
+  the terminal's closed header; no browser, walk or render check is a
+  condition for completing the plan. A phone retains its hidden byline.
+
+- **The fresh project's draft flow after landing** (3.5, 5.3, 5.13):
+  checking the configuring chat with drafts off, and a fresh chat's draft,
+  goal and navigation on a real box. The view tables and `chat-draft`'s
+  fake-model journey cover the offers and flow. Default: browser, walk and
+  render checks follow landing, under the `ui-drafts-default` request;
+  they are not conditions for completing its plan.
+
 - **The trial's later choices** (3.5, *The try*, 5.5): whether Settings
   offers "Try it", whether deployment accounts are tried, how a second
   account is tested while selection stays a new chat's, and retaining a
@@ -6555,14 +6657,17 @@ own tests:
   a new chat selects, personal accounts alone, and no retained line or
   additional Settings act.
 
-- **Account groups and "All models"** (3.5): the `model-picker` look takes
-  the offer's account ids and `picker` flags to group by what pays and expose
-  every offered model, including those outside the short picker. A stopped
-  account keeps its own fix beside another usable account of that provider.
-  Until that look, the chooser groups by provider and shows `picker` models.
-  Settings, Models, its switches and adding by name belong to the catalogue's
-  store step; reading providers' lists and "Read again" to its lists step
-  (`../draft/model-catalogue.md`, section 7).
+- **A stopped account beside a usable one** (3.5): the provider's fix line
+  is drawn only when it has no offered model. A separate fix for each stopped
+  account, even beside a usable account of that provider, remains the catalogue's
+  requirement (`../draft/model-catalogue.md`, section 3). Default: the provider's
+  line until those account rows are designed.
+- **Settings, Models** (3.5): page 07 of `model-picker`, its tab, list,
+  switches, adding by name and direction to Configure temper for a default
+  change belong to the catalogue's store step. Provider-list reads, "Read again",
+  failed-read words, estimated prices and "new" on All models belong to its
+  lists step (`../draft/model-catalogue.md`, section 7). Default: no Models tab,
+  no "new", and All models links to Accounts with "Accounts, in Settings".
 
 - **Sign-in words in the terminal and command help** (6.1, 6.6): the browser's
   signed-out paragraph names the link temper printed (5.1; `browser.md`, 2.4),
@@ -6659,11 +6764,13 @@ own tests:
   below it are cancelled." takes off the delegates listed and still counts a moved
   delegate's own tasks, which closing doesn't cancel. A count per delegate is a new
   fact of a protocol, the user's. Default: they stay in N.
-- **A project's only goal ending while Home is open** (3.5, 5.3): kind 7
-  decides the rail and the tab bar; Home reads `Domain::has_goals` to choose
-  Goals or Chats. The fact reads the ended group once, so once the live watch
-  holds no row it says false of a project with a goal, and Home shows Chats
-  until the project is opened again. Default: one read, as 5.3 has it.
+- **A project's only goal ending while Home is open** (3.5, 5.3):
+  `Domain::has_goals` keeps Goals in the rail and tab bar whatever kind 7
+  says, and Home reads it to choose Goals or Chats once To begin is gone.
+  The fact reads the ended group once, so once the live watch holds no row
+  it says false of a project with a goal. Home shows Chats, and with Goals
+  hidden and no Goals or goal page current, Goals leaves the bar until the
+  project is opened again. Default: one read, as 5.3 has it.
 - **How work runs' fuller page** (5.13, *Later: the fuller page*): roles, ways to
   start work, rules, running work and history on the tab; `Proposal { proposal
   }`; and the card's "Review", with the grouping of what temper enforces and what
@@ -6748,14 +6855,25 @@ own tests:
   which counts Reject among the card's acts): the mock's `chat.html` draws "Accept" and
   "Change something" alone, and the reason's box stands on the card in *Needs you*.
   Drawing one takes a view change and that box; its ask already goes under the
-  proposal's own `project`. Default: none; a person rejects in *Needs you*
-  before the agent proposes afresh (5.13).
+  proposal's own `project`. Default: none; a person rejects in *Needs you*, and
+  asking for a change has the agent propose again (5.13).
 - **Calls naming their proposals** (3.5, 5.13): filling a committed call's
   `objects` needs the core's turn record, its archived form and a mapping from
   the call's position to the proposal's number; proposals from a verdict or a
   procedure have no call. Default: keep the call anchor where one is supplied,
   and otherwise place the card by its making line, or its waiting time, as 5.13
   specifies. Filling those call objects is separate work.
+- **Application rows after a decision** (5.13): retaining every application
+  item and project-policy row, and restoring kind 6 and 7 values after a
+  reload, needs more than the session's cached values. A person without a
+  review has no such rows to read. Default: a live card uses its review; an
+  ended card uses its heads and the kind 6 and 7 values already read in this
+  session, with no new proposal-value request.
+- **Latest on a phone, checked by a press** (3.5; the request `ui-proposal-2`
+  of 2026-11-06): after landing, check that Latest's row leaves a card's
+  controls reachable at a phone's width. Default: the stylesheet assertions
+  hold its place in flow in both chats and agent pages; measuring and pressing
+  in a browser follow landing.
 - **The real-model proposal-card walk** (5.13; the request `ui-proposal-card`
   of 2026-11-06): QA repeats the two-proposal, rejection from *Needs you* and
   reload walk at 1440 and 420 pixels on a real model after landing. Default:
@@ -7148,6 +7266,10 @@ own tests:
   alone, the card then refused "not under the box"; or have the engine
   list an offered owned row from the machine at a first run, which
   changes what `forges` answers and what a first run's store reads as.
+- **A box with no `owned` part** (4.6, 5.5): `temper box` on a document with
+  no `application.machine.owned` reads `owned` false, so a wait for a host
+  there keeps the words for many hosts. `temper init`'s box document has the
+  part. Default: so, over a new fact on the wire, until a person meets it.
 
 - **A command for anyone but the owner** (3.5, 4.6): `program_login` goes to any
   party signed in, its paths with it, so a person who isn't the owner reads on

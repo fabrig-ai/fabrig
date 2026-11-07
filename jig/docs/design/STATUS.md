@@ -1,6 +1,6 @@
 # Status
 
-2026-11-06. Where jig's code lags or departs from its design, from the
+2026-11-07. Where jig's code lags or departs from its design, from the
 status files below. Agents in a host's own process are the widest gap:
 no root composes `smith-inline-agent`, so the engine's own slots, a
 hub's agent capability and the tools a worker begins with their calls
@@ -15,7 +15,10 @@ settings and a settings revision's `Restore` are built, but a proposal
 of settings waits for the deployment's owners whatever it names, so a
 project's owner alone reads no row of it, and the
 core world's restore stories are ignored (`domain/engine.md`,
-`domain/connectors.md`). A start does not check an application's declared
+`domain/connectors.md`). A run's fresh settings proposal replaces its own
+pending one atomically, preserving it on refusal; at the deployment
+proposal bound, refusal remains the default (`domain/tasks.md`, section 9;
+`domain/engine.md`, 17.6). A start does not check an application's declared
 kinds against its limits, and a project's deletion as a whole has no price
 against `journal.writes` (`domain/engine.md`).
 Of the acts, `Hold`, `Move` under another task, `Succeed`, successors,
@@ -27,7 +30,10 @@ mode and the drawing family (`client/domain/`); and `ops` standalone, with its
 service and its connectors' protocols (`examples.md`). `RemoveProject`
 is offered in no project's document (`client/domain/contract.md`).
 Public lines carry a goal's spend alone, no budget, and distinct endings
-(`domain/people.md`, `client/domain/contract.md`). Public reading's remaining
+(`domain/people.md`, `client/domain/contract.md`). Titles retain the user's
+publication decision, with temper's warning in its help and completed
+answer; an acknowledgement before publication is deferred
+(`domain/people.md`, 13.3). Public reading's remaining
 departure is the public index's memory fit check (`protocol/configuration.md`);
 ended goals across a restart or before publication are deferred
 (`domain/people.md`, section 12). The test root is not in `ops`'s
@@ -45,10 +51,25 @@ revision it read `recalled`, where the `note-parts` request of 2026-11-05 has
 `revision` (`domain/engine.md`). Four of the worlds' files name a fixture again,
 where the `debt-24` request of 2026-11-05 has each named once, and the core's
 observer rebuilds its snapshot at each commit, where the `debt-25` request of
-2026-11-06 has it read the commit's rows (`domain/testing.md`).
+2026-11-06 has it read the commit's rows. Views are made only for readers,
+but a keyed feed and proof that the focused suite fits 30 CPU s remain
+(`domain/testing.md`, sections 5, 9 and 10). The channel's root checks at every
+step cover its fuzzy stories; the other stories can miss transient grant
+values between arrival and end checks (`protocol/channel.md`, sections 12
+and 14).
+A Finite report can deliver when its policy and workspace permit it,
+keeping its report contract; a procedure on its requester's resource can
+step beside that requester's writing run (`domain/hosts.md`, section 8;
+`domain/connectors.md`, section 11). The shell authority of a run without
+delivery still departs (`domain/hosts.md`).
 The client's link exposes a watch's Busy refusal through retries and clears
 it on recovery; distinguishing its capacity cause remains deferred
 (`client/domain/client.md`, section 18).
+Decoded turns retain model and effort outside the text budget, and a
+thread retains its last named completion and says whether announced
+activity has been read. A run with no readable named turn can leave an
+older model; latest-run metadata independent of turns is deferred
+(`client/domain/client.md`, sections 10 and 18).
 The code departs in a few single items (`README.md`, `client/domain/client.md`, `domain/engine.md`,
 `client/domain/contract.md`, `client/domain/testing.md`, `client/domain/view.md`, `domain/hosts.md`, `domain/people.md`, `domain/root.md`, `domain/testing.md`,
 `protocol/README.md`, `protocol/browser.md`, `protocol/client.md`, `protocol/configuration.md`, `protocol/service.md`, `protocol/store.md`). `domain/core.md`,

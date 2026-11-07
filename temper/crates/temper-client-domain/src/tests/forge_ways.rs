@@ -287,7 +287,10 @@ fn kind_six_is_read_on_the_tab_alone() {
 fn no_value_is_the_stock() {
     let mut f = fixture();
     page(&mut f.root, f.read, Some(none()));
-    assert_eq!(f.root.forge().ways(f::PROJECT), Some(Ways::STOCK));
+    assert_eq!(
+        f.root.forge().ways(f::PROJECT),
+        Some(Ways { drafts: true, goals: false, changes: false, away: false, way: 0 })
+    );
     let out = go(&mut f.root, Address::Settings { project: f::PROJECT });
     page(&mut f.root, reads(&out, 6)[0].0, Some(none()));
     assert_eq!(f.root.forge().questions(f::PROJECT), Some(Route::None));
@@ -532,13 +535,7 @@ fn a_read_started_before_the_set_cannot_replace_its_answer() {
 
 const PROPOSAL: u64 = 91;
 fn proposal_cards(key: u64) -> List<crate::pages::inbox::Card> {
-    let mut items = List::with_capacity(1);
-    items
-        .push(c::RevisionItemHead {
-            setting: c::Setting::Application { kind: 7, scope: f::PROJECT, number: 1 },
-            edit: c::RevisionItemEdit::Set,
-        })
-        .unwrap();
+    let items = List::with_capacity(0);
     let key = c::ProposalKey { proposer: c::Proposer::Task(12), number: key };
     let mut cards = List::with_capacity(1);
     cards
@@ -557,7 +554,19 @@ fn proposal_cards(key: u64) -> List<crate::pages::inbox::Card> {
                 action: c::ProposalAction::Settings(Box::new(c::ProposalActionSettings {
                     against: 0,
                     items,
-                    review: None,
+                    review: Some(c::SettingsReview {
+                        key: Some(key.number.checked_add(1000).unwrap()),
+                        newest: 0,
+                        items: List::from_boxed(Box::new([c::ReviewItem {
+                            setting: c::Setting::Application { kind: 7, scope: f::PROJECT, number: 1 },
+                            edit: c::RevisionItemEdit::Set,
+                            now: c::ReviewValue::None,
+                            origin: c::SettingOrigin::NotOffered,
+                            would_be: c::ReviewValue::None,
+                            application: None,
+                        }])),
+                        cut: false,
+                    }),
                     made: None,
                 })),
                 as_holder: true,
@@ -589,7 +598,7 @@ fn proposal_handle(out: &Queue<forge::Request>, key: u64) -> jig_client::Handle 
             assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
             let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap();
             let w::Read::ProposalItems(read) = reading.read() else { panic!("proposal items") };
-            assert_eq!(read.key(), key);
+            assert_eq!(read.key(), key.checked_add(1000).unwrap());
             found.push(*handle).unwrap();
         }
     }
@@ -633,8 +642,38 @@ fn a_proposals_items_are_read_once_and_bounded() {
         Some([ways::Proposed::Ways { project: f::PROJECT, ways: SHOWN }].as_slice())
     );
     assert!(proposal_read(&mut f.root, PROPOSAL).is_empty());
+    let mut ended = proposal_cards(PROPOSAL);
+    let card = ended.get_mut(0).unwrap();
+    card.page = Some(c::ReadValue::Ended(Box::new(c::Ended {
+        key: card.object,
+        at: None,
+        by: None,
+        value: c::EndedValue::Proposal(c::ProposalHistory {
+            number: PROPOSAL,
+            proposer: 12,
+            as_holder: true,
+            reason: c::DocumentText::complete(c::Text::new(b"How I work".as_slice().into(), 32).unwrap()),
+            state: c::ProposalHistoryState::Accepted { by: c::Requester::Person(73) },
+            action: c::RetainedAction::Settings(c::RetainedActionSettings {
+                projects: List::with_capacity(0),
+                against: 0,
+                items: List::with_capacity(0),
+                made: Some(1),
+            }),
+        }),
+    })));
+    let mut out = Queue::uncapped();
+    ways::proposals(&mut f.root.forge, Some(&ended), f::limits().forge, &mut out);
+    assert!(out.is_empty(), "decided proposals ask nothing");
     proposal_told(&mut f.root, Told::Link { link: Link::Offline });
     proposal_told(&mut f.root, Told::Link { link: Link::Live });
+    ways::proposals(&mut f.root.forge, Some(&ended), f::limits().forge, &mut out);
+    assert!(out.is_empty(), "a decided proposal is not read after reconnection");
+    assert_eq!(
+        f.root.forge.proposed(PROPOSAL),
+        Some([ways::Proposed::Ways { project: f::PROJECT, ways: SHOWN }].as_slice()),
+        "a decided proposal keeps the values it read"
+    );
     proposal_handle(&proposal_read(&mut f.root, PROPOSAL), PROPOSAL);
     // Fill the bound, then admit one beyond it: the oldest is evicted.
     for offset in 1..forge::forges::ROWS {

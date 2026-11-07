@@ -44,14 +44,14 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
         project["policy"] = 1.into();
         project.as_object_mut().expect("seed").remove("roles");
     }
-    // Admit stock policy 1's fourteen grants and nine executor kinds.
+    // Admit stock policy 1's fourteen grants and twelve executor kinds.
     for (name, count) in [
         ("core.policy_bytes", 8192),
         ("core.run_bytes", 8192),
         ("authority.grants", 16),
-        ("authority.executors", 9),
+        ("authority.executors", 12),
         ("tasks.authority_grants", 16),
-        ("tasks.executor_kinds", 9),
+        ("tasks.executor_kinds", 12),
         ("tasks.authority_bytes", 128),
         ("notes.scopes", 32),
         // Seven slots hold the stock charters.
@@ -121,6 +121,32 @@ fn absolute_paths(value: &mut serde_json::Value, directory: &Path) {
 pub(crate) fn private(path: &Path, bytes: &[u8]) {
     fs::write(path, bytes).expect("fixture file");
     fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private fixture");
+}
+
+/// Offer the picker's second model in the deployment and its worker declaration.
+pub(crate) fn model_picker(directory: &Path) {
+    let agent_path = directory.join("agent.json");
+    let path = directory.join("temper.json");
+    let mut agent = serde_json::from_slice(&fs::read(&agent_path).expect("agent fixture")).expect("agent JSON");
+    let mut value = serde_json::from_slice(&fs::read(&path).expect("deployment fixture")).expect("deployment JSON");
+    picker_models(&mut agent, &mut value);
+    private(&agent_path, &serde_json::to_vec(&agent).expect("picker agent JSON"));
+    private(&path, &serde_json::to_vec(&value).expect("picker deployment JSON"));
+}
+
+fn picker_models(agent: &mut serde_json::Value, value: &mut serde_json::Value) {
+    let llm = &mut value["engine"]["llm"];
+    let mut other = llm["models"][0].clone();
+    other["name"] = "other".into();
+    other["efforts"] = serde_json::json!(["low", "high"]);
+    other["effort"] = "high".into();
+    llm["models"].as_array_mut().expect("models").push(other);
+    llm["providers"][0]["models"] = serde_json::json!(["fake", "other"]);
+    let models = agent["endpoints"][0]["models"].as_array_mut().expect("agent models");
+    let mut other = models[0].clone();
+    other["name"] = "other".into();
+    other["efforts"] = serde_json::json!(["low", "high"]);
+    models.push(other);
 }
 /// The deployment's files and its two documents, `agent.json` and `temper.json`, in `directory`.
 pub(crate) fn write(directory: &Path, program: &Path, bundle: &Path) {
@@ -270,19 +296,49 @@ fn replace_sockets(value: &mut serde_json::Value, replacements: &[(String, Strin
 
 #[cfg(test)]
 mod tests {
+    fn stock_engine(value: &serde_json::Value) -> jig_protocol_config::Engine {
+        let document = jig_protocol_config::document(
+            &serde_json::to_vec(&value["engine"]).expect("engine JSON"),
+            &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
+        )
+        .expect("engine document");
+        temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
+            .expect("stock engine")
+    }
+
+    #[test]
+    fn the_picker_fixture_admits_both_models_for_every_stock_charter() {
+        let directory = std::path::Path::new("/fixture");
+        let (agent, value) = super::documents(directory, &directory.join("temper"), &directory.join("bundle"));
+        let mut agent: serde_json::Value = serde_json::from_slice(&agent).expect("agent JSON");
+        let mut value: serde_json::Value = serde_json::from_slice(&value).expect("deployment JSON");
+        super::picker_models(&mut agent, &mut value);
+        let engine = stock_engine(&value);
+        let declared = agent["endpoints"][0]["models"].as_array().expect("agent models");
+        assert_eq!(engine.charters.len(), 7);
+        for charter in &engine.charters {
+            assert_eq!(charter.policy.alternatives.len(), 1);
+            for model in std::iter::once(&charter.policy.model).chain(charter.policy.alternatives.iter()) {
+                let name = std::str::from_utf8(&model.name).expect("model name");
+                let bound = declared.iter().find(|bound| bound["name"] == name).unwrap_or_else(|| {
+                    panic!("charter {}: model {name} is not declared by the worker", charter.number)
+                });
+                assert!(bound["window"].as_u64().expect("window") >= u64::from(model.window));
+                assert!(bound["output"].as_u64().expect("output") >= u64::from(model.output));
+                if name == "other" {
+                    assert_eq!(bound["efforts"], serde_json::json!(["low", "high"]));
+                }
+            }
+        }
+        assert_eq!(value["engine"]["llm"]["providers"][0]["models"], serde_json::json!(["fake", "other"]));
+    }
+
     #[test]
     fn the_browser_fixture_admits_every_stock_charter() {
         let directory = std::path::Path::new("/fixture");
         let (agent, bytes) = super::documents(directory, &directory.join("temper"), &directory.join("bundle"));
         let value: serde_json::Value = serde_json::from_slice(&bytes).expect("deployment JSON");
-        let bytes = serde_json::to_vec(&value["engine"]).expect("engine JSON");
-        let document = jig_protocol_config::document(
-            &bytes,
-            &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
-        )
-        .expect("engine document");
-        let engine = temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working())
-            .expect("stock engine");
+        let engine = stock_engine(&value);
         let agent: serde_json::Value = serde_json::from_slice(&agent).expect("agent JSON");
         let turns = agent["profile"]["policy"]["max_turns"].as_u64().expect("agent turn allowance");
         for charter in &engine.charters {

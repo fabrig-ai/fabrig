@@ -263,6 +263,47 @@ fn a_report_run_cannot_modify_without_delivery() {
     assert!(charter.grants.tools.inspect);
 }
 
+fn delivering_assignment() -> engine::Assignment {
+    let mut assignment = assignment();
+    assignment.run.policy.modify = true;
+    assignment.workspace.repositories = Box::new([engine::ForgeRepository {
+        delivers: true,
+        save: Some(b"temper/23/s23".as_slice().into()),
+        tag: 1,
+        provider: skein_forge::api::Repository { forge: 1, repository: 1 },
+        name: b"repo".as_slice().into(),
+        host: b"forge.example".as_slice().into(),
+        owner: b"org".as_slice().into(),
+        start: engine::ForgeStart::Base(b"temper/23/g23".as_slice().into()),
+        push: Some(b"temper/23/r23".as_slice().into()),
+        landing: None,
+        identity: 1,
+    }]);
+    assignment
+}
+
+#[test]
+fn a_report_run_delivers_its_repository_with_checks_and_keeps_its_report_outcome() {
+    let charter = crate::charter(&delivering_assignment());
+    assert_eq!(charter.mode, run::Mode::Finite);
+    let deliver = charter.grants.deliver.expect("the workspace delivers");
+    assert!(deliver.checks_must_pass);
+    assert!(charter.grants.tools.modify);
+    assert_eq!(charter.conventions.expect("repository conventions").checks.as_ref(), b".temper/pre-pr");
+    assert!(charter.outcome.change.is_none());
+    assert!(charter.outcome.report.is_some());
+}
+
+#[test]
+fn an_open_run_cannot_deliver_its_repository() {
+    let mut assignment = delivering_assignment();
+    assignment.run.ended_by = tasks::EndedBy::Requester;
+    let charter = crate::charter(&assignment);
+    assert_eq!(charter.mode, run::Mode::Open);
+    assert!(charter.grants.deliver.is_none());
+    assert!(!charter.grants.tools.modify);
+}
+
 #[test]
 fn an_open_run_cannot_modify_even_when_policy_requests_it() {
     let mut assignment = assignment();
@@ -697,17 +738,48 @@ const DELEGATE_MEMBER: &str = r#""executor":{"kind":"agent","charter":1},"spec":
 
 #[test]
 fn a_delegate_deadline_in_seconds_is_a_span() {
-    for (field, expected) in [
-        ("", tasks::Deadline::Named),
-        (r#", "deadline_seconds":14400"#, tasks::Deadline::Span(Duration::from_secs(14_400))),
+    const PERSON_MEMBER: &str = r#""executor":{"kind":"person","person":1},"spec":{"words":"Which colour?"},"contract":{"kind":"report","words":4096},"authority":{"tools":0,"grants":[],"delegation":{"kinds":[],"tasks":0,"depth":0},"budget":{"spend":0},"notes":0}"#;
+    for (member, field, deadline, executor, tools, spend, words) in [
+        (DELEGATE_MEMBER, "", tasks::Deadline::Named, tasks::Executor::Agent { charter: 1 }, 1, 40, 128),
+        (
+            DELEGATE_MEMBER,
+            r#", "deadline_seconds":14400"#,
+            tasks::Deadline::Span(Duration::from_secs(14_400)),
+            tasks::Executor::Agent { charter: 1 },
+            1,
+            40,
+            128,
+        ),
+        (
+            PERSON_MEMBER,
+            "",
+            tasks::Deadline::Named,
+            tasks::Executor::Person(tasks::PersonAddress::Person(1)),
+            0,
+            0,
+            4096,
+        ),
     ] {
-        let input = format!("{{\"batch\":[{{{DELEGATE_MEMBER}{field}}}]}}");
+        let input = format!("{{\"batch\":[{{{member}{field}}}]}}");
         let engine::Tool::Delegate { batch } = decided(b"delegate", input.as_bytes()).expect("delegate deadline").tool
         else {
             panic!("delegate tool")
         };
-        assert_eq!(batch[0].deadline, expected);
-        assert_eq!(batch[0].authority.budget.deadline, None);
+        assert_eq!(batch[0].deadline, deadline);
+        assert_eq!(batch[0].executor, executor);
+        assert_eq!(batch[0].contract, tasks::Contract::Report { words });
+        assert_eq!(
+            batch[0].authority,
+            tasks::Authority {
+                tools: tasks::Tools(tools),
+                models: tasks::Models::NONE,
+                grants: Box::new([]),
+                delegation: tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 },
+                budget: tasks::Budget { spend, deadline: None },
+                notes: tasks::Scopes(0),
+                note_resources: Box::new([]),
+            }
+        );
     }
 }
 
@@ -1417,7 +1489,7 @@ fn a_second_proposal_is_refused_naming_the_one_pending() {
     let rendered = answer(&value);
     assert_eq!(
         rendered.text(),
-        b"Refused: task 2 busy: it has a proposal pending (at most 1 at once): wait for its decision, or withdraw it"
+        b"Refused: task 2 busy: it has a proposal pending (at most 1 at once): wait for its decision"
     );
     assert!(rendered.error());
 }
@@ -1633,6 +1705,26 @@ fn change_decodes_branch_mine() {
 }
 
 #[test]
+fn change_decodes_branch_run_into_goal() {
+    for input in [
+        br#"{"words":"a","branch":"run","landing":"goal"}"#.as_slice(),
+        br#"{"changes":[{"words":"a","branch":"run","landing":"goal"}]}"#,
+    ] {
+        let engine::Tool::Change { changes } = decided(b"change", input).expect("branch run").tool else {
+            panic!("change")
+        };
+        assert_eq!(
+            changes.as_ref(),
+            &[engine::ChangeCall {
+                branch: Some(engine::ChangeBranch::Run),
+                landing: Some(engine::ChangeLanding::Goal),
+                ..engine::ChangeCall::words(b"a".as_slice().into(), None)
+            }]
+        );
+    }
+}
+
+#[test]
 fn change_keeps_branch_repairs_producer_and_llm_together() {
     let input =
         br#"{"words":"a","branch":"mine","repairs":"abababababababababababababababababababababababababababababababab","producer":6,"llm":{"producer":{"main":{"model":"sol","effort":"high"}}}}"#;
@@ -1650,7 +1742,7 @@ fn change_keeps_branch_repairs_producer_and_llm_together() {
 }
 
 #[test]
-fn change_refuses_a_branch_other_than_mine() {
+fn change_refuses_a_branch_other_than_mine_or_run() {
     let cases: &[(&[u8], Problem)] = &[
         (br#"{"words":"a","branch":"theirs"}"#, Problem::Range(b"branch")),
         (br#"{"words":"a","branch":""}"#, Problem::Range(b"branch")),
@@ -1919,7 +2011,7 @@ fn change_refuses_words_with_changes_and_empty_members() {
 #[test]
 fn change_offers_its_plan_members_only_with_control() {
     let legacy = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."}},"required":["words"]}"#;
-    let plan = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."},"name":{"type":"string","description":"Its name in this call, for a later change's after."},"landing":{"type":"string","description":"goal: your own goal branch; or a branch's name; left out, the default branch."},"branch":{"type":"string","enum":["mine"],"description":"mine: your own goal branch, landed whole as it stands, with no coder; left out, a branch of the change's own."},"merge":{"type":"string","description":"A catch-up: the commit to merge into a branch made at the landing branch's tip, as 40 or 64 hexadecimal digits; the merge job, not an agent, produces it."},"after":{"type":"array","description":"What it lands after: your live delegates' task numbers, or names given earlier in this call.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"The charter its producer, repairs and resolutions run under; left out, the forge's change charter."},"llm":{"type":"object","description":"LLM choices by role, producer and review: each {main: {model, effort}, sub_agents: [{model, effort}]}, by configured names; a role left out takes its charter's default."},"changes":{"type":"array","description":"Instead of words: several changes as one batch, each with the members above.","items":{"type":"object","properties":{"repairs":{"type":"string","description":"The red landing this change repairs: its merge commit's 40 or 64 hexadecimal digits, as the red's news names it.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"}}}},"repairs":{"type":"string","description":"The red landing this change repairs: its merge commit's 40 or 64 hexadecimal digits, as the red's news names it.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"How its producer's questions go: foreman, settled first by a foreman from the words and the design; up, straight to you; none, it asks no one. Left out, the project's setting."}}}"#;
+    let plan = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."},"name":{"type":"string","description":"Its name in this call, for a later change's after."},"landing":{"type":"string","description":"goal: your own goal branch; or a branch's name; left out, the default branch."},"branch":{"type":"string","enum":["mine","run"],"description":"mine: your own goal branch, landed whole as it stands, with no coder; run: your own run branch, what you delivered, landed as it stands, with no coder; left out, a branch of the change's own."},"merge":{"type":"string","description":"A catch-up: the commit to merge into a branch made at the landing branch's tip, as 40 or 64 hexadecimal digits; the merge job, not an agent, produces it."},"after":{"type":"array","description":"What it lands after: your live delegates' task numbers, or names given earlier in this call.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"The charter its producer, repairs and resolutions run under; left out, the forge's change charter."},"llm":{"type":"object","description":"LLM choices by role, producer and review: each {main: {model, effort}, sub_agents: [{model, effort}]}, by configured names; a role left out takes its charter's default."},"changes":{"type":"array","description":"Instead of words: several changes as one batch, each with the members above.","items":{"type":"object","properties":{"repairs":{"type":"string","description":"The red landing this change repairs: its merge commit's 40 or 64 hexadecimal digits, as the red's news names it.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"}}}},"repairs":{"type":"string","description":"The red landing this change repairs: its merge commit's 40 or 64 hexadecimal digits, as the red's news names it.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"How its producer's questions go: foreman, settled first by a foreman from the words and the design; up, straight to you; none, it asks no one. Left out, the project's setting."}}}"#;
     let stock = 1_539;
     for (authority, schema) in [(stock, legacy.as_slice()), (stock | 0b100, plan.as_slice())] {
         let mut found = false;
@@ -2413,12 +2505,12 @@ fn a_refused_message_says_where_its_requester_is() {
         (
             vec![Finding::Reference],
             b"message".as_slice(),
-            "Authority refused: task reference. Your brief's [Requested by ...] line names your requester; [This task: N] is you.",
+            "Authority refused: task reference. Your brief's [Requested by ...] line names your requester; [This task: N] is you. If it says [Requested by person N], they have no task to message: ask with delegate, a person task addressed to person N.",
         ),
         (
             vec![Finding::Reference, Finding::Tool, Finding::Tool],
             b"message".as_slice(),
-            "Authority refused: task reference; tool family message. Your brief's [Requested by ...] line names your requester; [This task: N] is you.",
+            "Authority refused: task reference; tool family message. Your brief's [Requested by ...] line names your requester; [This task: N] is you. If it says [Requested by person N], they have no task to message: ask with delegate, a person task addressed to person N.",
         ),
         (vec![Finding::Reference], b"read_task".as_slice(), "Authority refused: task reference"),
     ] {

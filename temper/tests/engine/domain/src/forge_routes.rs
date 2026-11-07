@@ -126,6 +126,8 @@ pub struct StoryLimits {
     pub tools: Option<u64>,
     /// Scalar note scopes and a resource scope held by the parent in narrowing stories.
     pub notes: Option<authority::Scopes>,
+    /// The chat may delegate to its owner's role before goal narrowing.
+    pub person_executor: bool,
     pub tier: Option<crate::tier_runs::Tier>,
     pub turn: bool,
     pub across: bool,
@@ -280,25 +282,23 @@ impl World {
     }
 
     #[expect(
-        clippy::too_many_arguments,
         clippy::too_many_lines,
-        reason = "one fixture configures the policy, fake, and bounds for root forge stories"
+        reason = "one builder derives bootstrap and runtime policy configurations for root forge stories"
     )]
-    fn configured_settings(
+    fn configurations(
         with_read: bool,
         with_change: bool,
-        silent_ci: bool,
-        passes: u32,
         gate: paths::Gate,
         documents: Option<jig_domain_core::documents::DocumentLimits>,
         timing: StoryLimits,
         stock: Option<(&jig_domain_core::settings::Defaults, &engine::Model, Option<&engine::Limits>)>,
         charter_documents: &[jig_domain_core::Document],
-    ) -> Self {
+    ) -> [(engine::Config, engine::Limits); 2] {
         // Sizes subscription/hold notifications and workspace-resource bookkeeping
         let StoryLimits {
             tools,
             notes,
+            person_executor,
             brief,
             stall,
             spec_bytes,
@@ -314,11 +314,11 @@ impl World {
             slots,
             tasks,
             across,
-            library_gate_latency,
+            library_gate_latency: _,
             tier,
         } = timing;
         let paths::Gate { approval, agent: agent_gate, owner: owner_gate } = gate;
-        let [(bootstrap, mut limits), (config, _)] = std::array::from_fn(|index| {
+        std::array::from_fn(|index| {
             let mut limits = walking::limits();
             if let Some(questions) = questions {
                 limits.forge.change_policy.questions = questions;
@@ -644,6 +644,15 @@ impl World {
                         authority.note_resources.clone_from(&resources);
                     }
                 }
+                if person_executor {
+                    for authority in [&mut rules.ceiling, &mut policy.ceiling, &mut policy.roles[0].authority] {
+                        authority.delegation.kinds =
+                            [authority.delegation.kinds.as_ref(), &[authority::Executor::Role(0)]].concat().into();
+                    }
+                    let executors = u32::try_from(rules.ceiling.delegation.kinds.len()).expect("fixture kinds fit");
+                    limits.authority.executors = limits.authority.executors.max(executors);
+                    limits.tasks.executor_kinds = limits.tasks.executor_kinds.max(executors);
+                }
                 let mut domain = authority::Domain::new(rules, limits.authority).expect("read authority rules");
                 let mut facts = Queue::uncapped();
                 authority::step(&mut domain, authority::Event::Policy { project: 1, policy }, &mut facts);
@@ -783,7 +792,28 @@ impl World {
                 config.core.kinds = temper_service::stock::kinds(&limits, config.core.connectors[0]);
             }
             (config, limits)
-        });
+        })
+    }
+
+    #[expect(
+        clippy::too_many_arguments,
+        clippy::too_many_lines,
+        reason = "one fixture configures the policy, fake, and bounds for root forge stories"
+    )]
+    fn configured_settings(
+        with_read: bool,
+        with_change: bool,
+        silent_ci: bool,
+        passes: u32,
+        gate: paths::Gate,
+        documents: Option<jig_domain_core::documents::DocumentLimits>,
+        timing: StoryLimits,
+        stock: Option<(&jig_domain_core::settings::Defaults, &engine::Model, Option<&engine::Limits>)>,
+        charter_documents: &[jig_domain_core::Document],
+    ) -> Self {
+        let [(bootstrap, mut limits), (config, _)] =
+            Self::configurations(with_read, with_change, gate, documents, timing, stock, charter_documents);
+        let StoryLimits { turn, tier, across, library_gate_latency, tasks, landing_members, slots, .. } = timing;
         let mut fake_config = forge_world::fake_config();
         fake_config.limits.repositories = 2;
         if stock.is_some() {
@@ -1164,11 +1194,9 @@ impl World {
     pub fn restart_with_charter(&mut self, with_read: bool, with_change: bool, forge_charter: Option<u32>) {
         assert!(self.store.pending.is_empty(), "the chosen cut resolves store uncertainty first");
         assert!(self.pending.is_empty(), "old API terminals are drained at this cut");
-        let fresh = Self::configured_limits(
+        let [_bootstrap, (config, _limits)] = Self::configurations(
             with_read,
             with_change,
-            false,
-            if self.gate.owner { 0 } else { 1000 },
             self.gate,
             None,
             StoryLimits {
@@ -1178,8 +1206,10 @@ impl World {
                 stall: Some(self.env.limits.forge.change_policy.stall),
                 ..StoryLimits::default()
             },
+            None,
+            &[],
         );
-        self.restart_domain(fresh.restart_config, with_change);
+        self.restart_domain(config, with_change);
     }
 
     /// Restart with the same tier and project configuration, retaining only durable rows.
@@ -1902,7 +1932,7 @@ impl World {
             held: None,
             reply_to: ReplyTo::new(Token::new(90)),
             identity: people::Identity {
-                key: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
+                key: temper_engine_domain_forge::user_key(1, 7_u64),
                 login: Box::from(&b"owner"[..]),
                 name: Box::from(&b"Owner"[..]),
             },
@@ -2549,6 +2579,13 @@ pub fn box_joins() -> u32 {
 }
 
 fn box_profiles() -> (jig_protocol_config::Limits, temper_service::limits::Limits) {
+    // A story reads the same template for its defaults, root limits and store joins.
+    static PROFILES: std::sync::OnceLock<(jig_protocol_config::Limits, temper_service::limits::Limits)> =
+        std::sync::OnceLock::new();
+    *PROFILES.get_or_init(read_box_profiles)
+}
+
+fn read_box_profiles() -> (jig_protocol_config::Limits, temper_service::limits::Limits) {
     use jig_protocol_config as config;
     let document = config::document(
         include_bytes!("../../../../crates/temper-init/template/temper.json"),

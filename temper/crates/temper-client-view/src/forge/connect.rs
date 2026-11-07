@@ -276,7 +276,7 @@ pub(crate) fn welcome(
         body(b, root, w, bindings, forge, choice, Place::Welcome);
     }
 }
-fn owned(root: &Domain) -> bool {
+pub(crate) fn owned(root: &Domain) -> bool {
     match root.forge().deployment() {
         Some(answer) => answer.owned,
         None => false,

@@ -43,8 +43,8 @@ impl Intents {
         observed.extend(self.inbound(event));
         observed
     }
-    pub fn submitted(&mut self, store: &super::Store<'_>) {
-        self.named.submitted(store);
+    pub fn submitted(&mut self, number: Option<u64>, named: Vec<super::NamedRevision>) {
+        self.named.submitted(number, named);
     }
     pub fn durable(&mut self, store: &super::Store<'_>) -> Vec<r::Observed> {
         let mut observed = self.named.durable(store.applied);

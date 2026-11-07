@@ -6,6 +6,7 @@ use skein_io::{file, kernel};
 use skein_lib::{Duration, Env, List, Token, Wall, bytes};
 use skein_oauth as oauth;
 use skein_oauth_accounts as accounts;
+use skein_world::stream::Trace;
 use skein_world::{Memory, World};
 use std::net::Ipv4Addr;
 
@@ -230,7 +231,7 @@ pub fn run(
 }
 /// Runs the same owner over seeded in-memory HTTP streams.
 #[must_use]
-pub fn protocol(seed: u64, story: Story) -> (Vec<world::Fact>, Vec<String>) {
+pub fn protocol(seed: u64, story: Story) -> (Vec<world::Fact>, Trace) {
     let (client, trace) = world::protocol_client(seed, client(story, false));
     (client.sign_out.expect("story").facts, trace)
 }

@@ -39,27 +39,27 @@ pub(super) fn generated() -> Box<[u8]> {
     panic!("init writes temper.json")
 }
 fn single_model() -> Box<[u8]> {
-    let mut document = generated();
-    for (path, first) in [
-        (b"engine.llm.providers".as_slice(), b"engine.llm.providers[0]".as_slice()),
-        (b"engine.llm.providers[0].models", b"engine.llm.providers[0].models[0]"),
-        (b"engine.llm.endpoints", b"engine.llm.endpoints[0]"),
-        (b"engine.llm.models", b"engine.llm.models[3]"),
-    ] {
-        let one = [b"[".as_slice(), &fixtures::value(&document, first), b"]"].concat();
-        document = fixtures::with(&document, path, &one);
-    }
-    fixtures::with(&document, b"application.demo", b"null")
+    let bytes = generated();
+    let document = fixtures::Json::new(&bytes);
+    let provider = fixtures::Json::new(document.value(b"engine.llm.providers[0]"));
+    let models = [b"[".as_slice(), provider.value(b"models[0]"), b"]"].concat();
+    let provider = provider.with(&[(b"models", &models)]);
+    let providers = [b"[".as_slice(), &provider, b"]"].concat();
+    let endpoints = [b"[".as_slice(), document.value(b"engine.llm.endpoints[0]"), b"]"].concat();
+    let models = [b"[".as_slice(), document.value(b"engine.llm.models[3]"), b"]"].concat();
+    document.with(&[
+        (b"engine.llm.providers", &providers),
+        (b"engine.llm.endpoints", &endpoints),
+        (b"engine.llm.models", &models),
+        (b"application.demo", b"null"),
+    ])
 }
 pub(super) fn engine(document: &[u8]) -> config::Engine {
     fixtures::parse_engine(&fixtures::value(document, b"engine"))
 }
 fn without_projects() -> Box<[u8]> {
-    let mut document = generated();
-    for (path, value) in [(b"engine.projects".as_slice(), b"[]".as_slice()), (b"application.demo", b"null")] {
-        document = fixtures::with(&document, path, value);
-    }
-    document
+    let document = generated();
+    fixtures::Json::new(&document).with(&[(b"engine.projects", b"[]"), (b"application.demo", b"null")])
 }
 /// Replace one engine override, keeping every other generated entry.
 pub(super) fn limited(document: &[u8], name: &[u8], value: u64) -> Box<[u8]> {
@@ -343,10 +343,10 @@ fn each_floor_refuses_one_below_the_stocks_need() {
     }
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
-        (b"core.policy_bytes", 5774, Setting::Policy(1), "the stock's policy 1 needs 5774 bytes"),
+        (b"core.policy_bytes", 5822, Setting::Policy(1), "the stock's policy 1 needs 5822 bytes"),
         (b"core.run_bytes", run.0, run.1, ""),
         (b"authority.grants", 14, Setting::Rules, "the stock's rules need 14 grants"),
-        (b"authority.executors", 9, Setting::Rules, "the stock's rules need 9 executors"),
+        (b"authority.executors", 12, Setting::Rules, "the stock's rules need 12 executors"),
         (b"authority.segments", 1, Setting::Rules, "the stock's rules need 1 segment"),
         (b"authority.segment_bytes", 5, Setting::Rules, "the stock's rules need 5 bytes"),
         (b"authority.roles", 4, Setting::Policy(1), "the stock's policy 1 needs 4 roles"),
@@ -464,7 +464,7 @@ fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
     let found = crate::startup::named(&document, &config::Directories::working()).unwrap_err();
     assert_eq!(
         crate::startup::lines(&found).as_ref(),
-        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 5774 bytes; raise it in engine.limits.overrides\n"
+        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 5822 bytes; raise it in engine.limits.overrides\n"
     );
 }
 #[test]
@@ -505,6 +505,7 @@ fn the_goals_charter_asks_for_one_report_revised_in_place() {
         .find(|paragraph| paragraph.starts_with("If your brief says you are a goal"))
         .expect("goal paragraph");
     for phrase in [
+        "If your brief says [Requested by person N], your requester is that person, who has no task to message: wherever you would ask them with message, call delegate instead with one task: executor {kind: person, person: N}, N from that line and no one else; spec words your question; contract {kind: report, words: 4096}; authority {tools: 0, grants: [], delegation: {kinds: [], tasks: 0, depth: 0}, budget: {spend: 0}, notes: 0}. Then call wait: its result is their answer.",
         "After planning",
         "report: ",
         "Left: ",
@@ -1038,12 +1039,38 @@ fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
                 Executor::Charter(9),
                 Executor::Procedure(2),
                 Executor::Procedure(3),
-                Executor::Procedure(4)
+                Executor::Procedure(4),
+                Executor::Role(0),
+                Executor::Role(1),
+                Executor::Role(2),
             ]
         );
         assert_eq!(ceiling.grants.len(), 14);
         for (grant, kind) in ceiling.grants.iter().zip([1, 2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 16, 17]) {
             assert_eq!(grant.kind, kind);
+        }
+    }
+    let policy = &defaults.policies.get(&1).expect("stock policy").policy;
+    for (authority, expected) in [
+        (&policy.roles[0].authority, &[0][..]),
+        (&policy.roles[1].authority, &[1][..]),
+        (&policy.roles[2].authority, &[2][..]),
+        (&policy.roles[3].authority, &[][..]),
+    ] {
+        let roles: Box<[_]> = authority
+            .delegation
+            .kinds
+            .iter()
+            .filter_map(|kind| match kind {
+                jig_domain_authority::Executor::Role(role) => Some(*role),
+                jig_domain_authority::Executor::Job(_)
+                | jig_domain_authority::Executor::Charter(_)
+                | jig_domain_authority::Executor::Procedure(_) => None,
+            })
+            .collect();
+        assert_eq!(roles.as_ref(), expected);
+        if expected.is_empty() {
+            assert!(authority.delegation.kinds.is_empty());
         }
     }
 }
@@ -1365,8 +1392,18 @@ fn configuring_txt_says_who_does_what_in_the_persons_words() {
 #[test]
 fn configuring_txt_says_how_a_pending_proposal_goes() {
     let words = include_str!("../stock/configuring.txt");
-    assert!(words.contains("You can't withdraw or replace it while it waits."));
-    assert!(words.contains("an owner rejects it under Needs you, with a reason you hear; then propose afresh"));
+    assert!(
+        words.contains("Revise pending: propose whole at newest revision; replaces yours; card says so. No Needs you.")
+    );
+    assert!(words.contains("Refused: it stays; say so."));
+}
+
+#[test]
+fn configuring_txt_points_an_unavailable_model_to_accounts() {
+    let words = include_str!("../stock/configuring.txt");
+    assert!(words.contains(
+        "none, or asked for a model no account runs: say so; connect one in browser Settings, Accounts, one line."
+    ));
 }
 
 #[test]

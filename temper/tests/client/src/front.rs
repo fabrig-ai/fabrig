@@ -496,8 +496,16 @@ impl Joint {
             for permission in &mut config.core.seed_projects[0].policy.permissions {
                 permission.connector = fixtures::FORGE;
             }
+            let kinds: Box<[jig_domain_authority::Executor]> =
+                Box::new([jig_domain_authority::Executor::Charter(1), jig_domain_authority::Executor::Role(0)]);
+            config.core.defaults.rules.ceiling.delegation.kinds.clone_from(&kinds);
+            config.core.defaults.rules.ceiling.delegation.depth = 2;
             config.core.defaults.rules.ceiling.notes = jig_domain_authority::Scopes(1);
             let policy = &mut config.core.seed_projects[0].policy.policy;
+            policy.ceiling.delegation.kinds.clone_from(&kinds);
+            policy.roles[0].authority.delegation.kinds = kinds;
+            policy.ceiling.delegation.depth = 2;
+            policy.roles[0].authority.delegation.depth = 2;
             policy.ceiling.notes = jig_domain_authority::Scopes(1);
             policy.roles[0].authority.notes = jig_domain_authority::Scopes(1);
             for template in &mut config.core.defaults.templates {
@@ -511,13 +519,30 @@ impl Joint {
         let mut engine_limits = engine_limits();
         // One slot for the chat and one for its goal.
         engine_limits.fleet.slots = 2;
+        // The chat, its goal and one person answer; charter and role executors.
+        engine_limits.tasks.tasks = 3;
+        engine_limits.tasks.project_tasks = 3;
+        engine_limits.people.inbox_tasks = 6;
+        engine_limits.authority.executors = 2;
+        engine_limits.tasks.executor_kinds = 2;
+        engine_limits.documents.executors = 2;
+        // The goal asks with the report contract's 4096-byte answer bound.
+        engine_limits.tasks.result_bytes = 4096;
+        engine_limits.forge.client.op_bytes = engine_limits.forge.client.op_bytes.max(engine_limits.tasks.result_bytes);
+        engine_limits.journal.result_bytes = engine_limits.tasks.result_bytes;
+        engine_limits.journal.transcript_bytes = 32768;
         engine_limits.tasks.spec_bytes = 1024;
         engine_limits.people.words = 1024;
         engine_limits.tasks.message_bytes = engine_limits.people.words;
-        engine_limits.tasks.inbox_bytes = engine_limits.people.words;
+        // A tracked goal reserves its news beside the child's report.
+        engine_limits.tasks.inbox_bytes = engine_limits
+            .tasks
+            .result_bytes
+            .checked_add(engine_limits.tasks.message_bytes)
+            .expect("report and news fit");
         engine_limits.journal.result_bytes = engine_limits.journal.result_bytes.max(engine_limits.people.words);
         engine_limits.watermark = engine::default_watermark(&engine_limits.journal);
-        Self::with_engine(seed, &limits, Store::new(), configs, &engine_limits, 2)
+        Self::with_engine(seed, &limits, Store::with_limits(&engine_limits), configs, &engine_limits, 2)
     }
     /// Temper's stock kinds through the joined client and engine roots.
     #[must_use]
@@ -2089,7 +2114,7 @@ impl Front<Temper> for Joint {
             who,
             party,
             jig_domain_people::Identity {
-                key: jig_domain_people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
+                key: temper_engine_domain_forge::user_key(1, 7_u64),
                 login: b"person".as_slice().into(),
                 name: b"Person".as_slice().into(),
             },
@@ -2103,7 +2128,7 @@ impl Front<Temper> for Joint {
         self.component.sign_in(
             who,
             jig_domain_people::Identity {
-                key: jig_domain_people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
+                key: temper_engine_domain_forge::user_key(1, 7_u64),
                 login: b"person".as_slice().into(),
                 name: b"Person".as_slice().into(),
             },
@@ -2254,7 +2279,7 @@ impl Front<Temper> for Joint {
         self.component.sign_in(
             who,
             jig_domain_people::Identity {
-                key: jig_domain_people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
+                key: temper_engine_domain_forge::user_key(1, 7_u64),
                 login: b"person".as_slice().into(),
                 name: b"Person".as_slice().into(),
             },

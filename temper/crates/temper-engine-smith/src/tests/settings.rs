@@ -81,16 +81,32 @@ fn every_settings_read_form_and_offset_decodes() {
 }
 #[test]
 fn settings_bad_fields_are_refused_by_name() {
+    for spec in &crate::calls::SPECS {
+        if [b"settings".as_slice(), b"propose_settings"].contains(&spec.name) {
+            assert!(skein_lib::bytes::find(spec.schema, br#""description":"Required for charter, template, policy, landing-rule and forge-charter; the other kinds take none.""#).is_some());
+        }
+    }
     for (input, why) in [
         (br#"{"from":-1}"#.as_slice(), Problem::Range(b"from")),
         (br#"{"revision":0}"#, Problem::Range(b"revision")),
         (br#"{"setting":4}"#, Problem::Type(b"setting")),
-        (br#"{"setting":{"kind":"charter"}}"#, Problem::Missing(b"number")),
+        (br#"{"setting":{"kind":"charter"}}"#, Problem::Needs { kind: b"charter", member: b"number" }),
+        (br#"{"setting":{"kind":"template"}}"#, Problem::Needs { kind: b"template", member: b"number" }),
+        (br#"{"setting":{"kind":"policy"}}"#, Problem::Needs { kind: b"policy", member: b"number" }),
+        (br#"{"setting":{"kind":"landing-rule"}}"#, Problem::Needs { kind: b"landing-rule", member: b"number" }),
+        (br#"{"setting":{"kind":"forge-charter"}}"#, Problem::Needs { kind: b"forge-charter", member: b"number" }),
         (br#"{"setting":{"kind":"rules","number":1}}"#, Problem::Range(b"number")),
         (br#"{"setting":{"kind":"charter","number":1,"project":1}}"#, Problem::Range(b"project")),
         (br#"{"setting":{"kind":"forge-charter","number":1,"project":1}}"#, Problem::Range(b"project")),
         (br#"{"setting":{"kind":"landing-rule","number":1,"project":0}}"#, Problem::Range(b"project")),
-        (br#"{"setting":{"kind":"project-policy"}}"#, Problem::Missing(b"project")),
+        (br#"{"setting":{"kind":"project-policy"}}"#, Problem::Needs { kind: b"project-policy", member: b"project" }),
+        (br#"{"setting":{"kind":"project-ways"}}"#, Problem::Needs { kind: b"project-ways", member: b"project" }),
+        (
+            br#"{"setting":{"kind":"project-questions"}}"#,
+            Problem::Needs { kind: b"project-questions", member: b"project" },
+        ),
+        (br#"{"setting":{"kind":"unknown"}}"#, Problem::Range(b"kind")),
+        (br#"{"setting":{"kind":"unknown","number":1}}"#, Problem::Range(b"kind")),
         (br#"{"setting":{"kind":"project-policy","project":0}}"#, Problem::Range(b"project")),
         (br#"{"setting":{"kind":"project-policy","project":1,"number":1}}"#, Problem::Range(b"number")),
         (br#"{"history":[],"from":0}"#, Problem::Type(b"history")),
@@ -687,7 +703,7 @@ fn project_settings_reads_require_project_and_refuse_number() {
             }
         );
         for (suffix, expected) in [
-            ("", Problem::Missing(b"project")),
+            ("", Problem::Needs { kind: kind.as_bytes(), member: b"project" }),
             (",\"project\":7,\"number\":1", Problem::Range(b"number")),
             (",\"project\":0", Problem::Range(b"project")),
         ] {
@@ -739,32 +755,54 @@ fn inventory_people_forms_share_repository_pagination() {
             person: 1,
             role: 0,
             login: b"owner".as_slice().into(),
-            forge_user: None,
-            writer: false,
+            forges: Box::new([engine::PersonForge {
+                host: b"forge.example:3847".as_slice().into(),
+                user: None,
+                writer: false,
+            }]),
             you: true,
         },
         engine::ProjectPerson {
             person: 4,
             role: 1,
             login: b"ada".as_slice().into(),
-            forge_user: Some(3),
-            writer: false,
+            forges: Box::new([engine::PersonForge {
+                host: b"forge.example:3847".as_slice().into(),
+                user: Some(3),
+                writer: false,
+            }]),
             you: false,
         },
         engine::ProjectPerson {
             person: 5,
             role: 2,
             login: Box::new([]),
-            forge_user: Some(7),
-            writer: false,
+            forges: Box::new([engine::PersonForge {
+                host: b"forge.example:3847".as_slice().into(),
+                user: Some(7),
+                writer: false,
+            }]),
             you: false,
         },
         engine::ProjectPerson {
             person: 6,
             role: 2,
             login: Box::new([]),
-            forge_user: Some(2),
-            writer: true,
+            forges: Box::new([engine::PersonForge {
+                host: b"forge.example:3847".as_slice().into(),
+                user: Some(2),
+                writer: true,
+            }]),
+            you: false,
+        },
+        engine::ProjectPerson {
+            person: 7,
+            role: 2,
+            login: b"grace".as_slice().into(),
+            forges: Box::new([
+                engine::PersonForge { host: b"forge.example:3847".as_slice().into(), user: Some(8), writer: false },
+                engine::PersonForge { host: b"other.example".as_slice().into(), user: None, writer: false },
+            ]),
             you: false,
         },
     ];
@@ -796,7 +834,7 @@ fn inventory_people_forms_share_repository_pagination() {
     .into_parts();
     assert!(!error);
     let expected = whole.strip_suffix(b"end\n").expect("terminal marker");
-    assert!(expected.ends_with(b"project repositories:\n  forge forge.example:3847 repository org/repo\nproject people:\n  person 1 owner: role 0, requester, forge identity unknown: cannot count for approvals\n  person 4 ada: role 1, forge user 3\n  person 5: role 2, forge user 7\n  person 6: role 2, forge user 2, temper's own forge writer: never counts as a person\nforge people:\n  forge 127.0.0.1:3000 configured owned-forge account ada; project membership unverified by this row\nmodels you can offer:\n  claude-opus-5-5: anthropic; efforts low, high; default high\n"), "{}", core::str::from_utf8(expected).expect("inventory UTF-8"));
+    assert!(expected.ends_with(b"project repositories:\n  forge forge.example:3847 repository org/repo\nproject people:\n  person 1 owner: role 0, requester, forge identity unknown: cannot count for approvals\n  person 4 ada: role 1, forge forge.example:3847 user 3\n  person 5: role 2, forge forge.example:3847 user 7\n  person 6: role 2, forge forge.example:3847 user 2, temper's own forge writer: never counts as a person\n  person 7 grace: role 2, forge forge.example:3847 user 8, forge other.example unknown: cannot count for approvals there\nforge people:\n  forge 127.0.0.1:3000 configured owned-forge account ada; project membership unverified by this row\nmodels you can offer:\n  claude-opus-5-5: anthropic; efforts low, high; default high\n"), "{}", core::str::from_utf8(expected).expect("inventory UTF-8"));
     let mut combined = skein_lib::Writer::new(expected.len());
     let mut from = 0;
     let mut pages = 0_u32;

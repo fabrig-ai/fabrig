@@ -26,7 +26,10 @@ fn the_page_starts_the_configuring_chat() {
             .map(|acts| (choose, acts))
     }) {
         let mut front = Joint::with_configuring(fixtures::SEED, fixtures::domain_limits(), false);
-        let mut root = Temper::new(fixtures::SEED).0;
+        let mut root = temper_client_world::app::Root::Person(Box::new(temper_client_domain::unlinked(
+            &fixtures::domain_limits(),
+            fixtures::SEED,
+        )));
         front.bind(ClientId(0), fixtures::PARTY);
         // The domain-only pump joins the real client and engine without drawing Configure.
         account_acts::event(
@@ -419,6 +422,8 @@ fn a_configuring_proposal_of_a_projects_ways_reaches_its_needs_and_its_rail() {
     }
     assert_eq!(world.root(person).person().pages().inbox().unwrap().cards.len(), 1);
     assert_eq!(rail(&world, person, PROJECT), 1);
+    world.go(person, Address::Chat { task });
+    see(&mut world, person, skein_fake_person::Find::text(b"Goals: shown"));
     world.go(person, project_inbox(PROJECT));
     see_proposal(&mut world, person);
     let object = world.root(person).person().pages().inbox().unwrap().cards.get(0).unwrap().object;
@@ -457,7 +462,7 @@ fn a_deployments_proposal_shows_in_each_project_its_owner_owns() {
         held: None,
         reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(2003)),
         identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: 8_u64.to_be_bytes().into() },
+            key: temper_engine_domain_forge::user_key(1, 8_u64),
             login: b"other".as_slice().into(),
             name: b"Other owner".as_slice().into(),
         },
@@ -703,6 +708,92 @@ fn a_second_proposal_stands_below_the_first_and_a_reply_below_it() {
         }
     }
     assert_eq!(order, ["First reply", "First card", "Second reply", "Second card", "Third reply"]);
+}
+
+#[test]
+fn change_something_replaces_the_card_below() {
+    use jig_client::contract as c;
+    use jig_client_kit::harness::Until;
+    use skein_fake_person::{Find, Step};
+    use skein_ui::Role;
+    use skein_world::domain::Verdict;
+    let (mut world, agent, task, first) = propose(false, None);
+    world.front().configuring_reply(task, b"The proposal waits for your Accept.");
+    let person = world.client(fixtures::PARTY, Address::Chat { task });
+    see(&mut world, person, Find::exactly_named(Role::Button, b"Change something"));
+    let old = world.root(person).person().pages().chat().expect("chat").cards.get(0).expect("first card").object;
+    world.person(
+        person,
+        vec![
+            Step::Press { find: Find::exactly_named(Role::Button, b"Change something") },
+            Step::Type {
+                find: Find::exactly_named(Role::TextArea, b"Message"),
+                words: b"Wait three seconds instead".as_slice().into(),
+            },
+            Step::Press { find: Find::exactly_named(Role::Button, b"Send") },
+            Step::See { find: Find::text(b"Wait three seconds instead"), within: fixtures::WITHIN },
+        ],
+    );
+    assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+    let charter = world.front().host_tool(
+        task,
+        1,
+        engine::Tool::Settings {
+            read: SettingsRead::Setting { setting: s::Setting::Charter(1), revision: 1 },
+            from: 0,
+        },
+    );
+    let HostAnswer::Settings(charter) = charter else { panic!("charter read") };
+    let SettingsAnswer::Setting(charter) = *charter else { panic!("charter") };
+    let Some(s::Value::Charter(mut charter)) = charter.value else { panic!("charter value") };
+    charter.policy.waiting = Duration::from_secs(3);
+    let items: Box<[s::Item]> =
+        Box::new([s::Item { setting: s::Setting::Charter(1), edit: s::Edit::Set(s::Value::Charter(charter)) }]);
+    let kinds = temper_engine_domain_world::kinds::decoded(&items);
+    let proposed = world.front().host_tool(
+        task,
+        2,
+        engine::Tool::ProposeSettings {
+            against: 1,
+            items,
+            reason: b"Wait three seconds instead".as_slice().into(),
+            kinds,
+        },
+    );
+    let HostAnswer::Tool(engine::CallAnswer::Proposed { proposal: fresh, .. }) = proposed else {
+        panic!("fresh proposal: {proposed:?}")
+    };
+    world.front().configuring_reply(task, b"");
+    let replaced = Find::exactly_named(Role::Paragraph, b"Replaced by the proposal below");
+    see(&mut world, person, replaced.clone());
+    read_chat_start(&mut world, person);
+    let view = chat_view(&world, person);
+    let nodes = view.tree().nodes();
+    assert_eq!(
+        nodes.iter().filter(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Accept")).count(),
+        1
+    );
+    let cards: Vec<_> = nodes
+        .iter()
+        .filter_map(|node| node.key)
+        .filter(|key| key.kind == 1 && key.a == task)
+        .map(|key| key.b)
+        .collect();
+    let first: u64 = first.split_once('/').expect("proposal key").1.parse().expect("first number");
+    assert_ne!(fresh, first);
+    assert_eq!(cards, [first, fresh], "the fresh card stands below the replaced one");
+    world.event(
+        person,
+        Event::Act { action: Action::Pages(Act::Decide { object: old, revision: None, act: c::ActKind::Accept }) }
+            .into(),
+    );
+    world.run(Until::Steps(2));
+    assert!(
+        world.root(person).person().pages().confirmation().is_none(),
+        "the ended card drops a stale Accept before jig"
+    );
+    assert!(text(&mut world, agent, &[b"settings", b"show"]).starts_with("newest revision 1\n"));
+    see(&mut world, person, replaced);
 }
 
 fn read_chat_start(world: &mut ClientWorld, person: ClientId) {

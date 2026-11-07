@@ -70,23 +70,25 @@ pub(crate) fn walk_map(
             {
                 break;
             }
-            let page = load_map(store, map, range.clone())?;
-            let mut rows = page.rows.into_iter();
-            let Some(row) = rows.next() else { break };
-            let size = row_bytes(store, &row)?;
-            let total = encoded
-                .checked_add(size)
-                .ok_or(Failure::at(Cause::Arithmetic(Arithmetic::PageBytes), restore::site(store, &row.key)))?;
-            if found.len() == capacity || total > u64::from(pages::map_limits(store, map).page.bytes) {
-                return Ok(pages::Walked { rows: found.into_boxed(), next: Some(last) });
+            let limits = pages::map_limits(store, map);
+            let rows = capacity.saturating_sub(found.len()).saturating_add(1).min(limits.page.rows);
+            let page = load_rows(store, map, range.clone(), rows)?;
+            for row in page.rows {
+                let size = row_bytes(store, &row)?;
+                let total = encoded
+                    .checked_add(size)
+                    .ok_or(Failure::at(Cause::Arithmetic(Arithmetic::PageBytes), restore::site(store, &row.key)))?;
+                if found.len() == capacity || total > u64::from(pages::map_limits(store, map).page.bytes) {
+                    return Ok(pages::Walked { rows: found.into_boxed(), next: Some(last) });
+                }
+                encoded = total;
+                last = Cursor { interval: index, after: row.key.clone() };
+                range.start = match past(&row.key) {
+                    Ok(next) => next,
+                    Err(failure) => return Err(Failure::at(failure.cause, restore::site(store, &row.key))),
+                };
+                found.push(pages::WalkRow { row, cursor: last.clone() }).expect("encoded and row bounds checked");
             }
-            encoded = total;
-            last = Cursor { interval: index, after: row.key.clone() };
-            range.start = match past(&row.key) {
-                Ok(next) => next,
-                Err(failure) => return Err(Failure::at(failure.cause, restore::site(store, &row.key))),
-            };
-            found.push(pages::WalkRow { row, cursor: last.clone() }).expect("encoded and row bounds checked");
             if page.next.is_none() {
                 break;
             }
@@ -96,6 +98,10 @@ pub(crate) fn walk_map(
 }
 
 pub(crate) fn load_map(store: &mut Store, map: KeptMap, range: Range) -> Result<pages::Page, Failure> {
+    load_rows(store, map, range, 1)
+}
+
+fn load_rows(store: &mut Store, map: KeptMap, range: Range, rows: u32) -> Result<pages::Page, Failure> {
     let mut limits = pages::map_limits(store, map);
     limits.key = limits.key.checked_add(1).ok_or(Failure::rowless(Cause::Arithmetic(Arithmetic::CursorLength)))?;
     let mut above = Queue::uncapped();
@@ -107,11 +113,7 @@ pub(crate) fn load_map(store: &mut Store, map: KeptMap, range: Range) -> Result<
     skein_kv::down(
         target,
         &crate::memory_env(limits),
-        skein_kv::Request::Load {
-            owner: Token::new(0),
-            range,
-            max: skein_kv::Page { rows: 1, bytes: limits.page.bytes },
-        },
+        skein_kv::Request::Load { owner: Token::new(0), range, max: skein_kv::Page { rows, bytes: limits.page.bytes } },
         &mut above,
         &mut below,
     );

@@ -1,6 +1,16 @@
 # browser: status
 
-2026-11-06. Where temper's code lags or departs from [browser.md](browser.md).
+2026-11-07. Where temper's code lags or departs from [browser.md](browser.md).
+
+Section 7.2's `settings-all-hidden` sample names every switch off,
+separately from the drafts-on stock. The view tables hold Goals in the
+rail and phone tab bar with kind 7's Goals hidden and a goal present.
+The fresh-project flow's browser check is deferred in section 5.
+
+Section 8.3's Landings link uses the underlined row-sized sheet rule, and
+landings omit a zero stale-proof count while retaining a positive count.
+The view and sheet tests hold these rules. Titles retain the user's
+publication decision; no page offers a visibility change.
 
 Public history retains two limits the request `ui-public-history` leaves
 for later (section 5), which the board's own line states (8.3): goals ended
@@ -22,10 +32,28 @@ keeps it; publication is not a cutoff on a handed change's commit.
   cover the host's check alone; the view's tests draw the trial states.
   The model-check plan's close added the catalogue rows in section 7.2,
   but not their sample fixtures or names. `home-try-stopped` is present.
+- **Not yet:** 4.6: test 16, `the_model_picker_at_the_composer`, is written and
+  compiled, not run, under the plan's focused-and-fuzzy-only rule. Its
+  retained 420 px, one-press model and effort, outside and Escape checks
+  await the browser tier after landing. The look's separate render and
+  fake-box proof is accounted for at `1d82a937df`; it does not establish
+  a passing run of this story.
 - **Not yet:** 8.4: the browser kit returns the first content quad of each text
   node, so the public geometry story cannot check every wrapped fragment.
   Its result needs a browser testing interface decision before it can retain those
   fragments. Missing rectangles remain failures.
+- **Not yet:** 8.4: the intermittent missing rectangle's cause remains
+  unestablished. The story retains one terminal boxed query per page and
+  width, checks its truncation count, and fails on missing geometry with
+  the text and a preceding measurement-stage line. Batching narrows a
+  changing page's query window without making it atomic; the request
+  `ui-public-story`'s timer-driven explanation remains unproved (section 5).
+- **Departs:** 8.4: `browser_public` accepts the 401 resource-load console
+  text throughout the walk, including its public reads, because a stream
+  around sign-out can correctly answer for an ended session. The request
+  `ui-public-story` permits this expectation if the sign-out flake recurs;
+  it is matched by text, without a stage or resource constraint, so an
+  unexpected public-read 401 with those words is accepted too (section 5).
 - **Not yet:** 2.3, *A heading drawn after its page*: that a focus placed while a heading
   waits keeps its place, which the answer of 2026-11-06 to the `ui-composer-focus` task
   `composer-focus` asks, is seen by reading `temper-client-shell-web`'s `focus.rs`. No test moves the focus meanwhile:
@@ -103,30 +131,23 @@ keeps it; publication is not a cutoff on a handed change's commit.
 - **Departs:** 2.5, *The first paint*: "no byte for 15 s" holds only once the module's
   answer has begun: a stall before that answer draws the mark and an empty bar, with no
   line (skein's `ui-web.status.md`, 4.3).
-- **Departs:** 4.3, 4.6: the tier holds 17 tests, five past the cap, and 4.6 names
-  12. `browser_pages.rs`'s `a_short_chat_opens_whole_without_a_reading_status`,
-  `a_long_chat_opens_at_its_end_and_reads_back_from_the_composer` and
-  `earlier_words_stay_put_without_browser_scroll_anchoring`, from the plan `chat-reading-c`,
-  have no line there: its answers keep the short story and the unanchored one apart, as they
-  expect different things and the second takes a bundle of its own, and none speaks of the cap
-  (that plan's `reading-browser` task, at `29d0deb002`). `browser_call_line.rs`'s `a_run_of_calls_opens_to_its_rows`, from the request
-  `chat-reading-b`, has no line there, and its file's header names the story, not what
-  only a browser shows. The request `browser-trim` has every test read against the
-  tier's rule, but that plan's calls were made before this test reached its trunk, and
-  no reading of it is recorded. `browser_accounts.rs`'s
-  `the_welcome_sign_in_opens_a_tab_and_moves_on_to_ready`, which 4.2 names at the
-  request `sign-in-new-tab`, has no line there either. 4.3 has stories that share a
-  setup become one test first: the call line's and test 14 both start a chat on
-  `temper box`, though it scripts its own model's turns, and the welcome's and test 9
-  both sign in on `Tier::accounts_sign_in`. No reason is recorded for either.
+- **Not yet:** 4.3, 4.2, 4.6: the merged forms of tests 2, 4, 9 and 14 are compiled,
+  and have not run in Chromium, under the user's rule that plans run focused and
+  fuzzy alone: nothing has yet seen a step change anchoring on a live page (4.3), or
+  a second sign-in after the welcome's in one browser (4.2). Whether reading's four
+  stories fit one run's forty seconds is unmeasured: apart, their wall medians add to
+  25.761 s (`temper/docs/development/browser-budget.md`), each with a setup they now
+  share. The long story's replies are smaller than those figures' by the bytes that
+  leave room for the position story's in the fake's joint allowance, with no line
+  fewer; its bytes alone changed.
 - **Not yet:** 4.3: no whole-tier run on record establishes that the repaired
-  17-test tier fits its unchanged 85 CPU-second budget. The flagged run was
+  tier fits its unchanged 85 CPU-second budget. The flagged run, of 17 tests, was
   129.4 CPU s, 70.8 s wall. With ctl history and the 131,072-byte window,
   all twelve final comparison runs passed, but the CPU medians remain
   20.858273 s for long, 9.178371 s for Latest and 8.399148 s for unanchored,
   above the request's targets of about 12, 6 and 5. Short rose to 6.414108 s
-  from the baseline's 4.193832 s. The four sum to 44.849900 s, leaving
-  40.150100 s for the other thirteen; their final cost awaits after-landing.
+  from the baseline's 4.193832 s. Those four sum to 44.849900 s, leaving
+  40.150100 s for the rest of the tier; the final cost awaits after-landing.
   Loads, all samples and the limits of the comparison are in
   `temper/docs/development/browser-budget.md`. Backoff failed its CPU and wall
   criteria and is absent; the smaller window alone establishes no CPU saving.

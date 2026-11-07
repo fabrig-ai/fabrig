@@ -1,5 +1,7 @@
 //! Named story values and one client profile, shared by every story.
 pub mod b2;
+#[cfg(test)]
+mod tests;
 use crate::{app::Temper, front::Joint};
 use jig_client_kit::harness::FrontFault;
 use jig_client_kit::harness::{Settings, World};
@@ -1627,7 +1629,7 @@ pub(crate) fn configuring_configuration(seed: u64, member: bool) -> engine::Conf
     }
     let mut owner = config.core.owners[0].clone();
     if member {
-        owner.identity.subject = 8_u64.to_be_bytes().into();
+        owner.identity = temper_engine_domain_forge::user_key(1, 8);
     }
     config.core.owners =
         Box::new([owner.clone(), jig_domain_people::InitialOwner { project: 0, identity: owner.identity }]);
@@ -1656,7 +1658,7 @@ pub(crate) fn configuring_member(driver: &mut Driver) -> u64 {
         held: None,
         reply_to: ReplyTo::new(Token::new(2001)),
         identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: 8_u64.to_be_bytes().into() },
+            key: temper_engine_domain_forge::user_key(1, 8_u64),
             login: b"owner".as_slice().into(),
             name: b"Owner".as_slice().into(),
         },
@@ -1718,8 +1720,12 @@ const PERSON_DEPTH: u32 = 2;
 const PERSON_TEMPLATES: u32 = 3;
 // Goal and six acts per choice use thirteen retained keys; sixteen leave headroom.
 const PERSON_ANSWERS: u32 = 16;
-// The joined question fixtures reserve 512 bytes for whole pending words.
-const PERSON_INBOX_BYTES: u32 = 512;
+// One whole report reservation plus the joined question fixtures' 512 bytes.
+const PERSON_INBOX_BYTES: u32 = PERSON_RESULT_WORDS + 512;
+// The person question's report contract (temper/docs/plan/ui-goal-asks/notes/contracts.md).
+const PERSON_RESULT_WORDS: u32 = 4096;
+// Three report payloads and the retained task fields fit within 32 KiB.
+const PERSON_TRANSCRIPT_BYTES: u32 = 32_768;
 /// A ctl root and real engine reproduce template 4 and role 0 delegation.
 #[must_use]
 pub fn person_task_tools(seed: u64) -> (Joint, crate::app::Root) {
@@ -1736,6 +1742,10 @@ pub fn person_task_tools(seed: u64) -> (Joint, crate::app::Root) {
     limits.people.inbox_tasks = PERSON_TASKS * 2;
     limits.people.requests = PERSON_ANSWERS;
     limits.tasks.inbox_bytes = PERSON_INBOX_BYTES;
+    limits.tasks.result_bytes = PERSON_RESULT_WORDS;
+    limits.journal.result_bytes = limits.journal.result_bytes.max(PERSON_RESULT_WORDS);
+    limits.forge.client.op_bytes = limits.forge.client.op_bytes.max(PERSON_RESULT_WORDS);
+    limits.journal.transcript_bytes = limits.journal.transcript_bytes.max(PERSON_TRANSCRIPT_BYTES);
     let configs = std::array::from_fn(|_| person_task_configuration(seed));
     let forge = front.engine.forge.take();
     front.engine = Driver::configured(temper_engine_domain_world::store::Store::with_limits(&limits), configs, &limits);

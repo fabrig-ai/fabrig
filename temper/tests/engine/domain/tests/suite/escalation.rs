@@ -226,7 +226,7 @@ fn before_decision(world: &World, archive: &EscalationDecisionRecord) -> Referee
             .values()
             .find_map(|row| {
                 if let Record::Core(jig_domain_core::Record::People(people::Stored::Person { number, identity })) = row
-                    && identity.key == (people::IdentityKey { provider: 0, subject: (user).to_be_bytes().into() })
+                    && identity.key == (temper_engine_domain_forge::user_key(1, user))
                 {
                     Some(*number)
                 } else {

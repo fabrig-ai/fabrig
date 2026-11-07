@@ -23,7 +23,7 @@ fn sign_in_person(world: &mut World, user: u64, login: &[u8], key: u8) {
         held: None,
         reply_to: ReplyTo::new(Token::new(u64::from(key))),
         identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: user.to_be_bytes().into() },
+            key: temper_engine_domain_forge::user_key(1, user),
             login: login.into(),
             name: b"Private display name".as_slice().into(),
         },
@@ -41,10 +41,7 @@ fn project_people_setup(mode: temper_engine_domain_forge::Mode, login: &[u8]) ->
     };
     config.core.seed_projects = config.core.seed_projects.into_vec().into_iter().chain([other]).collect();
     let mut owners = config.core.owners.into_vec();
-    owners.push(people::InitialOwner {
-        project: 2,
-        identity: people::IdentityKey { provider: 0, subject: 9_u64.to_be_bytes().into() },
-    });
+    owners.push(people::InitialOwner { project: 2, identity: temper_engine_domain_forge::user_key(1, 9_u64) });
     config.core.owners = owners.into();
     config.forges[0].mode = mode;
     let place = forge::Place {
@@ -294,7 +291,7 @@ fn adopted_approval(world: &mut World, run: &engine::Assignment, proposal: u64) 
     );
     let (inventory, _) = read_whole(&mut world.driver, &run, 50, json!({}));
     assert!(inventory.contains("person 1 person: role 0, requester, forge identity unknown"), "{inventory}");
-    assert!(inventory.contains("person 3: role 1, forge user 2"), "{inventory}");
+    assert!(inventory.contains("person 3: role 1, forge forge.example:3847 user 2"), "{inventory}");
     refuse_owner_approval(world, &run, proposal, 25);
     world.decide(
         &run,
@@ -323,7 +320,7 @@ fn an_inventory_names_its_own_projects_people() {
     let (people, _) = people.split_once("models you can offer:").expect("offer follows people");
     assert_eq!(
         people,
-        "  person 1 person: role 0, requester, forge user 7\n  person 4 member: role 2, forge user 8\n  person 5 temper-writer: role 2, forge user 1, temper's own forge writer: never counts as a person\n  person 7: role 2, forge user 2\nforge people:\n  forge forge.example:3847 configured owned-forge account box-person; project membership unverified by this row\n",
+        "  person 1 person: role 0, requester, forge forge.example:3847 user 7\n  person 4 member: role 2, forge forge.example:3847 user 8\n  person 5 temper-writer: role 2, forge forge.example:3847 user 1, temper's own forge writer: never counts as a person\n  person 7: role 2, forge forge.example:3847 user 2\nforge people:\n  forge forge.example:3847 configured owned-forge account box-person; project membership unverified by this row\n",
         "{inventory}"
     );
     for forbidden in ["elsewhere", "deployment-service", "Private display name", "Person", "@"] {
@@ -550,7 +547,7 @@ fn the_configuring_agent_speaks_from_the_inventory_offer() {
     let mut world = box_approval_world();
     let run = world.chat(CONFIGURING, world.owner, 20);
     let instructions = std::str::from_utf8(&run.run.policy.instructions).expect("stock instructions");
-    assert!(instructions.contains("Inventory: models you can offer: all that accounts can run now. Propose and mention only those, even where a charter names others; where it names none, say no account can run a model yet, and to connect one."), "{instructions}");
+    assert!(instructions.contains("Inventory: models you can offer: all that accounts can run now. Propose and mention only those, even where a charter names others; none, or asked for a model no account runs: say so; connect one in browser Settings, Accounts, one line."), "{instructions}");
 }
 
 #[test]
@@ -564,8 +561,8 @@ fn a_members_chat_reads_the_same_people() {
     let (member, _) = read_whole(&mut world.driver, &member_run, 1, json!({}));
     let (_, owner) = owner.split_once("project people:\n").expect("owner's people block");
     let (_, member) = member.split_once("project people:\n").expect("member's people block");
-    assert!(owner.contains("person 1 person: role 0, requester, forge user 7"), "{owner}");
-    assert!(member.contains("person 4 member: role 2, requester, forge user 8"), "{member}");
+    assert!(owner.contains("person 1 person: role 0, requester, forge forge.example:3847 user 7"), "{owner}");
+    assert!(member.contains("person 4 member: role 2, requester, forge forge.example:3847 user 8"), "{member}");
     assert_eq!(owner.replace(", requester", ""), member.replace(", requester", ""));
 }
 
@@ -771,7 +768,7 @@ fn a_project_with_no_ways_reads_at_their_stock() {
     let mut world = World::stock();
     let run = world.chat(CONFIGURING, world.owner, 20);
     for (completion, kind, value) in [
-        (1, "project-ways", r#"{"drafts":false,"goals":false,"changes":false,"away":false,"way":0}"#),
+        (1, "project-ways", r#"{"drafts":true,"goals":false,"changes":false,"away":false,"way":0}"#),
         (2, "project-questions", r#""none""#),
     ] {
         let input = json!({"setting":{"kind":kind,"project":PROJECT}});
@@ -1513,46 +1510,93 @@ fn a_decided_note_proposal_replays_after_its_note_moves() {
 }
 
 #[test]
-fn a_pending_proposal_holds_the_next_until_an_owner_rejects_it() {
+fn a_chats_fresh_proposal_replaces_its_own_that_waits() {
     use serde_json::json;
     let mut bounds = limits();
-    bounds.call_records = 4; // Three first-run answers and the fresh proposal before the next turn.
+    bounds.call_records = 4; // Read, two proposals and the refused withdrawal.
     let mut world = World::with_limits(config(), &bounds);
+    let run = world.chat(CONFIGURING, world.owner, 20);
+    let value = read_charter(&mut world.driver, &run, 1, CHAT);
+    let items = charter_item(value.clone(), b"Push each complete change.");
+    let first = propose(&mut world.driver, &run, 2, 1, &items);
+    let head = world.head().clone();
+    let items = charter_item(value, b"Push each complete change. Keep commits small.");
+    let fresh = propose(&mut world.driver, &run, 3, 1, &items);
+    assert_ne!(fresh, first);
+    let (answer, error) =
+        host_tool(&mut world.driver, &run, 4, b"withdraw", json!({"proposal":fresh}).to_string().as_bytes());
+    assert!(error, "{}", String::from_utf8_lossy(&answer));
+    assert!(answer.as_ref() == b"Authority refused: tool family decide", "{}", String::from_utf8_lossy(&answer));
+    world.driver.send(Event::Party(PartyInput::Read {
+        reply_to: ReplyTo::new(Token::new(90)),
+        sign_in: world.owner,
+        read: core::reads::Read::Proposal { proposer: people::Proposer::Task(run.task), proposal: first },
+    }));
+    world.driver.settle();
+    assert!(
+        world.driver.delivered.iter().any(|delivery| matches!(delivery,
+            Delivery::Read { answer: core::reads::Answer::Ended(ended), .. }
+            if matches!(&ended.value, core::reads::EndedValue::Proposal(review)
+                if review.number == first && review.state == core::documents::ProposalHistoryState::Withdrawn)
+        )),
+        "the first proposal's review reads withdrawn"
+    );
+    assert_eq!(world.head(), &head, "replacement changes no settings");
+    let review = world.review(&run, fresh);
+    let rows = world.settings_rows();
+    world.ask(
+        world.owner,
+        21,
+        people::Ask::DecideProposal {
+            project: people::DEPLOYMENT,
+            proposer: people::Proposer::Task(run.task),
+            proposal: first,
+            decision: people::ProposalDecision::Accept,
+            running: None,
+        },
+    );
+    assert_eq!(world.reply(21), &people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Unknown)));
+    assert_eq!(world.head(), &head, "a stale Accept changes no settings");
+    assert_eq!(world.settings_rows(), rows);
+    assert_eq!(world.review(&run, fresh), review);
+    world.decide(&run, fresh, 22, people::ProposalDecision::Accept, people::Running::Stays);
+    assert_eq!(world.head().number, 2);
+    let next = world.next(&run);
+    assert_heard(&next, b"accepted: revision 2 made");
+    assert!(
+        !next.messages.iter().any(|message| matches!(message.kind,
+            tasks::MessageKind::SettingsDecision { proposal, .. } if proposal == first
+        )),
+        "a replacement sends no withdrawn message"
+    );
+    assert!(
+        next.messages.iter().any(|message| matches!(message.kind,
+            tasks::MessageKind::SettingsDecision { proposal, outcome: tasks::SettingsOutcome::Accepted { .. } }
+                if proposal == fresh
+        )),
+        "the acceptance names the fresh proposal"
+    );
+}
+
+#[test]
+fn a_chats_refused_fresh_proposal_leaves_its_own_waiting() {
+    use serde_json::json;
+    let mut world = World::stock();
     let run = world.chat(CONFIGURING, world.owner, 20);
     let value = read_charter(&mut world.driver, &run, 1, CHAT);
     let items = charter_item(value, b"Push each complete change.");
     let first = propose(&mut world.driver, &run, 2, 1, &items);
     let review = world.review(&run, first);
-    let head = world.head().clone();
-    let input = json!({"against":1,"reason":REASON,"items":items});
+    let rows = world.settings_rows();
+    let input = json!({"against":2,"reason":REASON,"items":items});
     let (answer, error) = host_tool(&mut world.driver, &run, 3, b"propose_settings", input.to_string().as_bytes());
-    let answer = String::from_utf8_lossy(&answer);
-    assert!(error, "{answer}");
-    assert!(answer.contains("it has a proposal pending (at most 1 at once)"), "{answer}");
-    world.driver.settle();
-    let (answer, error) =
-        host_tool(&mut world.driver, &run, 4, b"withdraw", json!({"proposal":first}).to_string().as_bytes());
     assert!(error, "{}", String::from_utf8_lossy(&answer));
+    assert_eq!(answer.as_ref(), b"stale; newest revision 1; read settings show again");
     assert_eq!(world.review(&run, first), review, "the pending review is unchanged");
-    assert_eq!(world.head(), &head, "neither refusal changes the head");
+    assert_eq!(world.settings_rows(), rows, "a refused replacement changes no settings rows");
     let pending = world.driver.task(run.task).expect("configuring task").proposal.as_deref().expect("still pending");
     assert_eq!(pending.number, first);
     assert!(matches!(pending.state, tasks::ProposalState::Pending { .. }));
-    world.decide(
-        &run,
-        first,
-        21,
-        people::ProposalDecision::Reject { reason: b"Keep commits small too.".as_slice().into() },
-        people::Running::Stays,
-    );
-    let next = world.next(&run);
-    assert_heard(&next, b"rejected: Keep commits small too.");
-    let value = read_charter(&mut world.driver, &next, 1, CHAT);
-    let items = charter_item(value, b"Push each complete change. Keep commits small.");
-    let fresh = propose(&mut world.driver, &next, 2, 1, &items);
-    assert_ne!(fresh, first);
-    world.decide(&next, fresh, 22, people::ProposalDecision::Accept, people::Running::Stays);
-    assert_eq!(world.head().number, 2);
 }
 
 fn says_no_empty_change(answer: &[u8]) {

@@ -322,7 +322,7 @@ fn bounded_message_schedules_replay_with_every_required_class() {
 fn empty_brief_jobs_replay_first_work_before_or_after_preparation_and_idle_or_wall_parking() {
     for seed in SEEDS {
         for work in [false, true] {
-            let trace = assert_replays(seed, seed ^ 0x819b, |seed| {
+            let trace: Vec<String> = assert_replays(seed, seed ^ 0x819b, |seed| {
                 let mut rng = Rng::new(seed ^ 0x729b);
                 let wall = seed.is_multiple_of(2);
                 let mut settings = settings(seed, Fixture::Idle);

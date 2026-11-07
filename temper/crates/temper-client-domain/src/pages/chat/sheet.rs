@@ -102,7 +102,7 @@ pub(crate) fn step(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut
     if let Event::Act { act: Act::AddDraft } = &event
         && let Some(chat) = root.pages.chat()
         && let Some(task) = chat.task(root.client())
-        && !pages::drafts_offered(root, task.project)
+        && !pages::chat_offers_draft(root, task)
     {
         return;
     }

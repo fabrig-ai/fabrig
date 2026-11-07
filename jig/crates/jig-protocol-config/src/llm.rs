@@ -10,7 +10,7 @@ pub(crate) const MODELS: u32 = 64;
 // smith/docs/design/protocol/agent.md, section 4: the dialect numbers are fixed for good.
 const ANTHROPIC: u32 = 2;
 const OPENAI: u32 = 3;
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Llm {
     pub endpoints: Box<[Endpoint]>,
     pub models: Box<[Model]>,
@@ -25,7 +25,7 @@ pub struct Llm {
 }
 pub(crate) mod providers;
 pub use providers::{Provider, Registration};
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Endpoint {
     pub name: Box<[u8]>,
     pub number: u32,
@@ -38,12 +38,12 @@ pub struct Endpoint {
     pub connect: Duration,
     pub handshake: Duration,
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Header {
     pub name: Box<[u8]>,
     pub value: Box<[u8]>,
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Transport {
     Tls { server_name: Box<[u8]>, trust: Option<Box<[u8]>> },
     Plaintext,

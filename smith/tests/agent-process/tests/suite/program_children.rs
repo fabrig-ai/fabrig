@@ -419,16 +419,19 @@ fn inspect_child(cue: &str, named: bool) -> Step {
     Step::Call { tool: "sub_agent".into(), input }
 }
 
-fn chat_story(named: bool) -> Story {
+fn chat_story() -> Story {
     Story {
         turns: vec![
-            Turn::new(vec![Step::Together(vec![inspect_child("CUE-MAIN", named), inspect_child("CUE-README", named)])]),
+            Turn::new(vec![Step::Together(vec![inspect_child("CUE-MAIN", true), inspect_child("CUE-README", true)])]),
             Turn::new(vec![Step::Text("Both files read.".into())]),
         ],
         asked: vec![Script {
             cue: "FOLLOWUP".into(),
             turns: vec![
-                Turn::new(vec![inspect_child("CUE-README", named)]),
+                Turn::new(vec![Step::Together(vec![
+                    inspect_child("CUE-README", true),
+                    inspect_child("CUE-MAIN", false),
+                ])]),
                 Turn::new(vec![Step::Text("Read the README again.".into())]),
             ],
         }],
@@ -485,41 +488,50 @@ fn print_calls(run: &Run) -> Vec<&smith_fake_claude::Observation> {
 
 #[test]
 fn a_resumed_program_main_can_start_fresh_children() {
-    for named in [true, false] {
-        let story = chat_story(named);
-        let charter = chat_charter();
-        let control = program_world::HostMessage {
-            when: program_world::When::Waiting(1),
-            text: "FOLLOWUP Have one sub-agent read README.md once more.".into(),
-            finish_requested: false,
-        };
-        let mut first = program_world::children_chat(&story, &charter, &[control]);
-        chat_parked(&first, 3);
-        let before: Vec<_> = print_calls(&first)
+    let story = chat_story();
+    let charter = chat_charter();
+    let control = program_world::HostMessage {
+        when: program_world::When::Waiting(1),
+        text: "FOLLOWUP Have two sub-agents read README.md and src/main.rs once more.".into(),
+        finish_requested: false,
+    };
+    let mut first = program_world::children_chat(&story, &charter, &[control]);
+    chat_parked(&first, 4);
+    let before: Vec<_> = print_calls(&first)
+        .iter()
+        .map(|call| argument(&call.arguments, "--session-id").expect("fresh session").to_owned())
+        .collect();
+    assert_eq!(before.len(), 5, "same-activation follow-up keeps main alive");
+    assert!(first.seen.contains(&Seen::Acted {
+        tool: "Read".into(),
+        path: "/work/repo/src/main.rs".into(),
+        error: false
+    }));
+    let later = program_world::resume_children(&mut first, &story, &charter, 2);
+    chat_parked(&later, 2);
+    let calls = print_calls(&later);
+    assert_eq!(calls.len(), 3);
+    assert_eq!(argument(&calls[0].arguments, "--resume"), Some(before[0].as_str()));
+    let sessions: Vec<_> = calls.iter().filter_map(|call| argument(&call.arguments, "--session-id")).collect();
+    assert_eq!(sessions.len(), 2, "both children start fresh sessions");
+    assert_ne!(sessions[0], sessions[1], "children have distinct sessions");
+    let mut efforts = Vec::new();
+    for session in sessions {
+        let call = calls
             .iter()
-            .map(|call| argument(&call.arguments, "--session-id").expect("fresh session").to_owned())
-            .collect();
-        assert_eq!(before.len(), 4, "same-activation follow-up keeps main alive");
-        assert!(first.seen.contains(&Seen::Acted {
-            tool: "Read".into(),
-            path: "/work/repo/src/main.rs".into(),
-            error: false
-        }));
-        let later = program_world::resume_children(&mut first, &story, &charter, 2);
-        chat_parked(&later, 1);
-        let calls = print_calls(&later);
-        assert_eq!(calls.len(), 2);
-        assert_eq!(argument(&calls[0].arguments, "--resume"), Some(before[0].as_str()));
-        assert!(argument(&calls[1].arguments, "--resume").is_none());
-        let session = argument(&calls[1].arguments, "--session-id").expect("fresh child session");
+            .find(|call| argument(&call.arguments, "--session-id") == Some(session))
+            .expect("fresh child's call");
+        assert!(argument(&call.arguments, "--resume").is_none());
         assert!(!before.iter().any(|prior| prior == session), "each activation needs fresh children");
-        assert_eq!(argument(&calls[1].arguments, "--effort"), Some(if named { "high" } else { "medium" }));
-        assert!(later.seen.contains(&Seen::Acted {
-            tool: "Read".into(),
-            path: "/work/repo/README.md".into(),
-            error: false
-        }));
+        efforts.push(argument(&call.arguments, "--effort"));
     }
+    efforts.sort_unstable();
+    assert_eq!(efforts, [Some("high"), Some("medium")], "named and inherited efforts both reach fresh children");
+    assert!(later.seen.contains(&Seen::Acted {
+        tool: "Read".into(),
+        path: "/work/repo/README.md".into(),
+        error: false
+    }));
 }
 
 fn program_faults(run: &Run) -> Vec<String> {
