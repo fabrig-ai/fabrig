@@ -16,9 +16,9 @@ M1 and grows with every milestone. What is open is in section 11.
 - **Efficiency is a rule of the tests too.** Every test runs as a regular
   user, and the gate needs Linux and git, nothing else. A world settles in
   milliseconds; the focused suite takes 30 CPU seconds and the fuzzy one
-  120 seconds (60 seconds before the user's doubling of 10-22, provisional).
-  Each crate lands with its world, and each tool's protocol machine with
-  its fake and its recordings.
+  120 CPU seconds (60 seconds before the user's doubling of 10-22,
+  provisional). Each crate lands with its world, and each tool's protocol
+  machine with its fake and its recordings.
 - **The domain runs whole on a fake machine** (section 3): files with
   owners, modes, extended attributes, inode numbers and change times;
   btrfs under the kernel's unprivileged rules; user namespaces and id
@@ -1535,13 +1535,14 @@ same repository (7.3).
 
 The focused suite takes at most **30 CPU seconds**, the user's ruling of
 11-04, kept in `tools/tiers/budgets.toml` and measured as the gate does
-(`tools/tiers/design.md`, 7.3). The fuzzy suite takes at most **120 seconds**
-(60 seconds before the user's doubling of 10-22, provisional), wall time on
-the development machine, idle, as skein's, smith's and temper's are measured;
-nextest's global timeouts enforce it. Raising either is an explicit decision
-(skein/docs/foundation/testing-strategy.md, section 8). temper's gate recorded 1,092
-focused tests in 5.2 seconds; the budgets hold when the design is cheap from
-the first step:
+(`tools/tiers/design.md`, 7.3). The fuzzy suite takes at most **120 CPU
+seconds** (60 seconds before the user's doubling of 10-22, provisional), the
+user's word of 11-07, kept and measured as the focused suite's. nextest's
+global timeouts stay, as the suites' wall backstop
+(`skein/docs/foundation/testing-strategy.md`, 8.1). Raising either is an
+explicit decision (skein/docs/foundation/testing-strategy.md, section 8).
+temper's gate recorded 1,092 focused tests in 5.2 seconds; the budgets hold
+when the design is cheap from the first step:
 
 - **The fakes are small:** a universe of tens of packages, trees of
   hundreds of files, snapshots that copy no bytes, a fake bootstrap in
@@ -1660,13 +1661,9 @@ VM tier its one real machine relies on.
   2.14's env block, systemd 262). It depends on which suites hearth's
   targets run.
 - **The ceilings outside the gate** (9.2): provisional until measured.
-- **The suites' figures** (9.1): whether the fuzzy suite's 120 seconds
-  stay wall time or become a CPU budget, what the workspace's global
-  timeouts then hold, and whether `hearth-render-world` stays on every
-  change. A budget is CPU seconds, and until the user sets one the fuzzy
-  figure stands as an idle-machine figure
-  (`skein/docs/foundation/testing-strategy.md`, 8.1). It depends on the
-  user's ruling on the measurements.
+- **The suites' figures** (9.1): what the workspace's global timeouts
+  hold, and whether `hearth-render-world` stays on every change. It
+  depends on the user's ruling on the measurements.
 - **The focused suite's way to its figure** (9.1): whether what is left needs
   repair to hold the queue's figure under 30 CPU seconds. The shares below are a
   sampled profile's estimates of the suite before its repairs (the `hearth-speed-2`
