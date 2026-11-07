@@ -1660,6 +1660,38 @@ a.temper-repository-link:hover { text-decoration: underline; }
 #app > .temper-session .temper-seg > button:last-child::before { background-image: url(files/doc.svg); }
 #app > .temper-session .temper-doc-path > span:last-child { text-transform: lowercase; }
 #app > .temper-session .temper-doc-inner tr:has(> th):not(:has(> th:not(:empty))) { display: none; }
+
+/* chat-terminal-draft: the shell's document and flow rules take the pane's tokens. */
+#app > .temper-session.temper-terminal > .temper-doc {
+  --doc-bg: #22201c; --doc-ink: #e3ded5; --doc-title: #f0ebe2; --doc-muted: #a39d92; --doc-faint: #7d776d; --doc-line: #3a3732;
+  --doc-box: #2c2a25; --doc-box-line: #4b473f; --doc-pale: rgba(224, 138, 104, .08); --doc-note: #e08a68;
+  --gf-ink: var(--doc-ink); --gf-ink-2: var(--doc-ink); --gf-surface: var(--doc-bg); --gf-paper: var(--doc-box);
+  --gf-line: var(--doc-line); --gf-line-2: var(--doc-box-line); --gf-muted: var(--doc-muted); --gf-faint: var(--doc-faint);
+  --gf-signal-pale: var(--doc-pale); --gf-signal-ink: var(--doc-note);
+  --gf-sans: 'IBM Plex Sans', 'Noto Sans', system-ui, sans-serif;
+  --gf-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  border-left: 1px solid var(--line); padding: 36px 44px 72px; background: var(--doc-bg); color: var(--doc-ink);
+  font: 400 15.5px/1.7 var(--gf-sans); font-variant-ligatures: normal; scrollbar-color: var(--doc-line) transparent;
+}
+#app > .temper-session.temper-terminal-light > .temper-doc {
+  --doc-bg: #f8f6f1; --doc-ink: #34312c; --doc-title: #26241f; --doc-muted: #7a736a; --doc-faint: #a09889; --doc-line: #e9e4db;
+  --doc-box: #fffefd; --doc-box-line: #d9d3c8; --doc-pale: rgba(184, 102, 78, .1); --doc-note: #9c573f;
+}
+#app > .temper-terminal .temper-doc :is(h2, h3) { --gf-ink: var(--doc-title); }
+#app > .temper-terminal .temper-doc-path { font: 400 12px/1.7 var(--gf-mono); }
+#app > .temper-terminal .temper-doc-changed > h3:first-child { margin-top: 12px; }
+#app > .temper-terminal .temper-doc-note { color: var(--gf-signal-ink); }
+#app > .temper-terminal .temper-doc figure > svg { max-width: 100%; height: auto; }
+#app > .temper-terminal .temper-doc-flash { animation-name: temper-terminal-doc-flash; }
+@keyframes temper-terminal-doc-flash {
+  0% { background: color-mix(in srgb, var(--doc-note) 22%, transparent); }
+  100% { background: var(--gf-signal-pale); }
+}
+@media (max-width: 760px) {
+  #app > .temper-session.temper-terminal > .temper-doc { padding: 24px 16px 32px; border-left: 0; }
+  #app > .temper-session.temper-terminal.temper-mode-split > .temper-convo > .temper-session-foot { border-top: 1px solid var(--line); padding-top: 8px; }
+}
+
 #app:has(> .temper-mode-split) > .temper-rail:has(> .temper-rail-unfold[open]) { position: fixed; inset: 0 auto 0 0; z-index: 20; width: 240px; align-items: stretch; padding: 18px 16px; background: var(--gf-paper); box-shadow: 8px 0 24px rgba(0, 0, 0, .08); }
 #app:has(> .temper-mode-split) > .temper-rail:has(> .temper-rail-unfold[open]) > :not(.temper-brand, .temper-rail-unfold) { display: flex; }
 #app:has(> .temper-mode-split) > .temper-rail:has(> .temper-rail-unfold[open]) > .temper-brand { font-size: 17px; }
@@ -1688,10 +1720,10 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 #app > .temper-terminal *, #app > .temper-terminal *::before, #app > .temper-terminal *::after { box-sizing: border-box; }
 #app > .temper-terminal ::selection { background: var(--accent); color: var(--bg); }
 #app > .temper-terminal button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; }
-#app > .temper-terminal h1, #app > .temper-terminal h2, #app > .temper-terminal p, #app > .temper-terminal ul, #app > .temper-terminal pre { margin: 0; padding: 0; font: inherit; }
-#app > .temper-terminal ul { list-style: none; }
-#app > .temper-terminal strong { font-weight: var(--bold); color: var(--ink); }
-#app > .temper-terminal code { font: inherit; color: var(--accent); }
+#app > .temper-terminal :is(h1, h2, p, ul, pre):not(:where(.temper-doc *)) { margin: 0; padding: 0; font: inherit; }
+#app > .temper-terminal ul:not(:where(.temper-doc *)) { list-style: none; }
+#app > .temper-terminal strong:not(:where(.temper-doc *)) { font-weight: var(--bold); color: var(--ink); }
+#app > .temper-terminal code:not(:where(.temper-doc *)) { font: inherit; color: var(--accent); }
 
 
 /* The one line at the top: where this is, and the two controls. */
