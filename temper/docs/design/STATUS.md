@@ -2,7 +2,13 @@
 
 2026-11-07. Where temper's code lags or departs from its design, and
 its design from its drafts, from the status files below. The first
-milestone stands in the code (`README.md`). Fresh box documents admit four
+milestone stands in the code (`README.md`). Fresh projects offer drafts;
+configuring chats offer one even with drafts off, and a project holding a
+goal shows Goals in its bar. Home can still show To begin and Chats, so
+the bar supplies the goal's entry. The mock's drafts-off default remains
+a recorded departure; the fake-model `chat-draft` journey starts with
+drafts on, and the real-box checks follow landing (`client/README.md`,
+`client/journeys.md`, `protocol/configuration.md`). Fresh box documents admit four
 agents with four workspaces and git operations; their agent-process memory
 on a laptop remains an after-landing measurement (`protocol/setup.md`, section 15). The chat's
 box wait uses the deployment's `owned` read, and failed settings reads
@@ -56,11 +62,22 @@ settings family (`protocol/configuration.md`). Seven stock models and their
 default efforts, the per-project offer and per-template previews, ctl's offer
 listing and the configuring chat's chooser are built. Model and effort sit
 at every chat's composer, grouped by account with "All models"; their render
-and fake-box press proof is recorded. A chat's model or effort amendment
+and fake-box press proof is recorded. A closed chat's header and a closed
+agent's taskbar name the last readable completion's model and known effort
+in both shells, then the task's choice or template preview when none is
+held. A run with no readable named turn can leave an earlier model or
+preview; the browser check and a goal page's line remain later work, and
+the phone keeps its hidden byline (`client/README.md`, 3.5, 5.9 and 11).
+A chat's model or effort amendment
 answers its person's next words on the new choice; a model change within a
 resumable window first asks the window's model for a summary
 (`domain/agent.md`, `client/README.md`). An unusable account's fix remains
-hidden beside a usable one of the same provider (`client/README.md`). The
+hidden beside a usable one of the same provider (`client/README.md`).
+Forge account subjects and review lookups name both forge and user, and the
+configuring inventory names each forge's known or unknown account. The box
+owner's link, per-repository forge eligibility and the approval card remain
+separate work (`draft/forge-identity.md`, `domain/forge.md`,
+`domain/agent.md`, `protocol/forge.md`, `protocol/store.md`). The
 configuring inventory is filtered, but whole charter reads still name models
 outside the offer and only instructions restrict proposals to it
 (`domain/agent.md`, `draft/model-catalogue.md`). Model settings live in the
@@ -179,9 +196,9 @@ quad alone, and retains missing-box failures; their intermittent cause is
 unestablished. Its sign-out 401 expectation accepts that console text
 throughout the walk
 (`client/browser.md`, `client/forge.md`).
-The browser tier holds 18 tests, six past its cap; the picker story is
-compiled and awaits its after-landing run. The four reading stories
-pass with ctl history and a 131,072-byte window, but their CPU medians sum to
+The browser tier holds its twelve tests, four of them merged and compiled, with
+no run in Chromium yet. Reading's four stories, apart, passed with ctl history
+and a 131,072-byte window, but their CPU medians sum to
 44.849900 s and the three targets remain unmet; no whole-tier run proves the
 repair within 85 CPU s. The listener-full ctl failure is repaired; the public
 visibility-command failure remains unverified. A whole-bound manual reading

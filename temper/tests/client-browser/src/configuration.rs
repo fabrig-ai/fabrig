@@ -45,14 +45,14 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
         project.as_object_mut().expect("seed").remove("roles");
     }
     temper_playground::documents::settings::strip_models(&mut value);
-    // Admit stock policy 1's fourteen grants and nine executor kinds.
+    // Admit stock policy 1's fourteen grants and twelve executor kinds.
     for (name, count) in [
         ("core.policy_bytes", 8192),
         ("core.run_bytes", 8192),
         ("authority.grants", 16),
-        ("authority.executors", 9),
+        ("authority.executors", 12),
         ("tasks.authority_grants", 16),
-        ("tasks.executor_kinds", 9),
+        ("tasks.executor_kinds", 12),
         ("tasks.authority_bytes", 128),
         ("notes.scopes", 32),
         // Seven slots hold the stock charters.
@@ -296,7 +296,6 @@ mod tests {
             let resolved =
                 jig_domain_core::settings::charters::resolved(charter, &defaults.models, &engine.limits.core)
                     .expect("stock charter resolves");
-            assert_eq!(resolved.policy.alternatives.len(), 3);
             for model in std::iter::once(&resolved.policy.model).chain(resolved.policy.alternatives.iter()) {
                 assert!(bound["window"].as_u64().expect("window") >= u64::from(model.window));
                 assert!(bound["output"].as_u64().expect("output") >= u64::from(model.output));

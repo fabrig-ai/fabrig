@@ -126,6 +126,8 @@ pub struct StoryLimits {
     pub tools: Option<u64>,
     /// Scalar note scopes and a resource scope held by the parent in narrowing stories.
     pub notes: Option<authority::Scopes>,
+    /// The chat may delegate to its owner's role before goal narrowing.
+    pub person_executor: bool,
     pub tier: Option<crate::tier_runs::Tier>,
     pub turn: bool,
     pub across: bool,
@@ -296,6 +298,7 @@ impl World {
         let StoryLimits {
             tools,
             notes,
+            person_executor,
             brief,
             stall,
             spec_bytes,
@@ -640,6 +643,15 @@ impl World {
                         authority.notes = scopes;
                         authority.note_resources.clone_from(&resources);
                     }
+                }
+                if person_executor {
+                    for authority in [&mut rules.ceiling, &mut policy.ceiling, &mut policy.roles[0].authority] {
+                        authority.delegation.kinds =
+                            [authority.delegation.kinds.as_ref(), &[authority::Executor::Role(0)]].concat().into();
+                    }
+                    let executors = u32::try_from(rules.ceiling.delegation.kinds.len()).expect("fixture kinds fit");
+                    limits.authority.executors = limits.authority.executors.max(executors);
+                    limits.tasks.executor_kinds = limits.tasks.executor_kinds.max(executors);
                 }
                 let mut domain = authority::Domain::new(rules, limits.authority).expect("read authority rules");
                 let mut facts = Queue::uncapped();

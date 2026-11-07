@@ -2,6 +2,33 @@
 
 2026-11-07. Where temper's code lags or departs from [README.md](README.md).
 
+Sections 3.5, 5.5 and 5.9 have no known implementation gap in the closed
+chat's header, closed agent's taskbar or the composer's named template
+default and effort. The view table covers both shells, including a turn
+with unknown effort, an unoffered model and the unread tail. The joined
+client story carries smith's turn bytes through decoding to `T1 · model`
+in the terminal's closed header. Browser and real-model checks, the goal
+page's line and latest-run metadata beyond readable turns are section 11's
+later work; the phone keeps its hidden byline.
+
+- **Design departs:** 3.5, from the request `ui-model-line`, which asks
+  what the latest run used: the line takes the thread's last readable
+  named completion, then the task's choice or template preview. A run
+  with no committed turn, an unread last turn beyond the tail page or
+  an undecodable or nameless newest turn can leave an older model or
+  a preview. The plan chose the carried turn bytes, avoiding a stored
+  field and wire change; neither the fallback nor `caught_up` proves the
+  latest run's model. Section 11 keeps the remaining work explicit.
+
+Sections 3.5, 5.3 and 5.13 have no known implementation gap in the
+configuring chat's draft offer regardless of kind 7, drafts on for a
+fresh project, or Goals in the bar while `Domain::has_goals` holds. The
+draft offer follows the first message and retains its document and end
+conditions. The view tables cover the draft offer and its act in both shells, and Goals in
+the rail and phone tab bar while To begin keeps Home's Chats section.
+Stored drafts-off values still govern other chats. The fake-model journey
+is `chat-draft`; the after-landing check is section 11's later work.
+
 Section 5.5 has no known gap in the box's capacity-wait words on either
 chat surface. The deployment's `owned` read selects them; before that read
 answers, or when false, the multi-host words remain. A box without an
@@ -76,7 +103,7 @@ work; no new real-model or phone press outcome is supplied.
   unable to leave a call unanswered (`temper/tests/client/tests/suite/call_line.rs`,
   `outstanding`). Chromium's story opens a committed line alone, since the demo's fake
   LLM holds text pieces, not calls, and a held text ends a run
-  (`temper/tests/client-browser/tests/browser_all/browser_call_line.rs`), and the real
+  (`temper/tests/client-browser/tests/browser_all/browser_pages.rs`, its history's test), and the real
   terminal's reads a committed line alone (`temper/tests/real-loop/tests/suite/terminal.rs`,
   `a_person_at_the_terminal_reads_a_run_of_calls`). A browser's running line is seen in
   the gallery's `chat-work-running`; a terminal's in the view's tests and that world.

@@ -904,6 +904,11 @@ printf '%s\n' 'HOOK RETURNED'
 HOOK
 chmod 700 "$TEMPER_LIVE_STORE/give-back"
 printf '%s\n' "$$" > "$TEMPER_LIVE_STORE/runner"
+for directory in "$TMPDIR/owned" "$TEMPER_LIVE_STORE/owned"; do
+    mkdir -p "$directory"
+    (cd "$directory"; exec sleep 30) >/dev/null 2>&1 &
+    printf '%s\n' "$!" >> "$HOME/owned-children"
+done
 kill -TERM "$PPID"
 # Stay alive until the launcher has run the hook, then accept its TERM.
 exec sleep 30"#;
@@ -916,6 +921,22 @@ exec sleep 30"#;
         let stdout = String::from_utf8_lossy(&output.stdout);
         assert!(stdout.contains("HOOK RETURNED"), "{stdout}");
         assert!(stdout.contains("LOGIN BACK: regular file mode=600"), "{stdout}");
+        let children = std::fs::read_to_string(scratch.path().join("owned-children")).expect("owned stub children");
+        let mut survivors = Vec::new();
+        for pid in children.lines() {
+            let running = std::process::Command::new("kill")
+                .args(["-0", pid])
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::null())
+                .status()
+                .expect("owned stub status")
+                .success();
+            if running {
+                let _cleanup = std::process::Command::new("kill").args(["-KILL", pid]).status();
+                survivors.push(pid);
+            }
+        }
+        assert!(survivors.is_empty(), "the sitting stops its scratch and store descendants: {survivors:?}");
         scratch.remove();
     }
 }

@@ -3553,9 +3553,11 @@ relies on.
   temper-box, a spawn's arguments with and without the box's id; a hangup
   starting the stop's order; a hangup during a stop closing nothing; a
   second termination after a hangup closing them. On the shipped binary,
-  in `crates/temper/tests/suite/box_listeners.rs`: a hangup stopping a box,
-  nothing left, its log's last line `Stopped`; a box started ignoring
-  hangups running on; and, on Linux, a box killed taking its steps with it.
+  in `crates/temper/tests/suite/box_listeners/lifetime.rs`, a box started
+  ignoring hangups runs on; and in the process tier, in
+  `crates/temper/tests/suite/box_lifetime.rs`, a hangup stops a box, nothing
+  left, its log's last line `Stopped`, and, on Linux, a box killed takes
+  its steps with it.
 - **The fetch's machine** (6.6), in temper-forge-setup, given its URLs
   and digests: each pin's URL and digest for each architecture, and
   another architecture refused; another status or a redirect refused;

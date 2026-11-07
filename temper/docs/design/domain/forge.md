@@ -3301,6 +3301,11 @@ whole.
   the project. The draft's link would answer first in `forge_person`, and its
   count asks for an account on the forge of each repository the rule covers.
   Default: as it stands, until the plans that carry those sections.
+- **An approval under Needs you** (`../draft/forge-identity.md`, section 8):
+  the watchable approval read, its viewer's eligibility, the review link
+  and the client's card are separate work. Default: an approval waits at
+  the merge, with review evidence on the change's panel; evidence stays
+  until the change ends, rather than leaving at merge admission.
 - **A goal closing with a run branch g lacks** (section 11): the branch goes
   with its goal, what it held with it. A goal's own branch is kept where no
   change landed it. Retaining unlanded run work on close would need a

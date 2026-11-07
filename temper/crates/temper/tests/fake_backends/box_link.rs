@@ -17,6 +17,15 @@ use std::{
     process::{Command, Stdio},
 };
 
+pub fn command(root: &Path, action: &str) -> Command {
+    let mut command = Command::new(skein_scratch::paths::binary("temper"));
+    command.arg(action);
+    for name in ["config", "data", "cache"] {
+        command.arg(format!("--{name}")).arg(root.join(name));
+    }
+    command
+}
+
 pub const PRELUDE: &[u8] = b"Open this link in a browser on this machine.\n\n";
 pub const FOOTER: &[u8] = b"\nIt signs you in as this temper's owner, once, within 2 hours.\nOpened after that, it prints a fresh one here.\n";
 

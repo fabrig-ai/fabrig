@@ -796,6 +796,12 @@ owned by temper/ui (`../draft/look-requests.md`, 4).
 
 ## 10. Open questions
 
+- **The fresh project's draft flow on a real box** (9, `chat-draft`):
+  a person's recording alongside the fake-model journey, including finding
+  the goal from its chat and the project's bar (`README.md`, section 11).
+  Default: the fake-model recording starts with drafts on; a real recording
+  remains the person's, as 3.5 requires.
+
 - **Typing:** whether every act marks its page; the design marks
   none for an `input` (3.4), since a page per keystroke would make a
   walk of typing. The user's word.

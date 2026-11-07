@@ -443,11 +443,7 @@ pub(crate) fn composite_tree() -> c::Tree {
 
 /// NUL is valid UTF-8 and takes six bytes as a JSON Unicode escape.
 pub(crate) fn maximally_escaped_json_text(size: u32) -> Box<[u8]> {
-    let mut out = skein_lib::Writer::new(usize::try_from(size).expect("fixture length"));
-    for _ in 0..size {
-        out.put(&[0]).expect("fixture length");
-    }
-    out.finish()
+    skein_lib::bytes::zeroed(usize::try_from(size).expect("fixture length"))
 }
 
 /// Four nine-segment paths can fill DOCUMENT while each segment stays at TEXT.
