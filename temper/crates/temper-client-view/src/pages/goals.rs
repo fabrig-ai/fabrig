@@ -220,20 +220,29 @@ pub fn ways(me: &c::Me, project: u32, words: &Words) -> List<Way> {
             let way = match template.name.bytes() {
                 b"goal" => Way {
                     number: template.number,
-                    name: words.say(Word::GoalTaskByTask, &[]),
+                    name: way_name(template.name.bytes(), words),
                     line: Some(words.say(Word::GoalTaskByTaskLine, &[])),
                 },
                 b"goal for a draft" => Way {
                     number: template.number,
-                    name: words.say(Word::GoalLandWhole, &[]),
+                    name: way_name(template.name.bytes(), words),
                     line: Some(words.say(Word::GoalLandWholeLine, &[])),
                 },
-                name => Way { number: template.number, name: name.into(), line: None },
+                name => Way { number: template.number, name: way_name(name, words), line: None },
             };
             result.push(way).expect("ways grow with templates");
         }
     }
     result
+}
+
+/// A template's name in the person's words (client/README.md, 3.5, 5.13).
+pub(crate) fn way_name(name: &[u8], words: &Words) -> Box<[u8]> {
+    match name {
+        b"goal" => words.say(Word::GoalTaskByTask, &[]),
+        b"goal for a draft" => words.say(Word::GoalLandWhole, &[]),
+        name => name.into(),
+    }
 }
 
 /// A goal's state word and token (client/README.md, 3.5, 5.8).

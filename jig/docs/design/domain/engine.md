@@ -2039,6 +2039,12 @@ section 5).
 
 ## 16. Open questions
 
+- **Room for a replacement settings proposal** (17.6, 17.8): whether
+  admission may discount the proposer's own pending set at
+  `settings.proposals`. Default: check the full bound before replacement,
+  refuse the fresh proposal and retain the pending set. Replacement
+  grants no extra slot.
+
 - **A line range on `recall`:** `recall` returns a note's whole body, which costs
   input, not output. A range joins it only if a walk shows it's needed
   (section 10; the user's idea, 2026-11-05).
@@ -2504,6 +2510,12 @@ adds no slot (decided 2026-11-03).
   each pending proposal of settings made against an older one, as no
   longer applying (tasks.md, section 9), and its proposer hears so; a
   fresh proposal names the newest.
+- **A run's fresh one replaces its own.** A run whose task's proposal of
+  settings waits may propose settings again: admitted, it withdraws the
+  one that waits in the same commit, whose set goes as any withdrawn
+  set does (tasks.md, section 9). Refused, by a stale revision, a bad
+  item or a full bound, it changes nothing. A party's proposal is not
+  replaced.
 - **Reviewed against its own revision.** A pending proposal is always
   against the newest, the stale ones withdrawn, so the core serves its
   review from the current settings: for each item, the setting, what

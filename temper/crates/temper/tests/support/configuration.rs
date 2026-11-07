@@ -38,7 +38,7 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
         project["policy"] = 1.into();
         project.as_object_mut().expect("seed").remove("roles");
     }
-    // A Create member owns stock's fourteen grants and nine executors, plus its words.
+    // A Create member owns stock's fourteen grants and twelve executors, plus its words.
     value["engine"]["limits"]["overrides"]["people.amendment_bytes"] = 2048.into();
     let worker: serde_json::Value =
         serde_json::from_slice(jig_channel_kit::fixtures::WORKER_DOCUMENT).expect("worker JSON");

@@ -75,6 +75,7 @@ fn measurement_charter() -> run::Charter {
         },
         models: Box::new([]),
         workspace: charter::WorkspaceTools { inspect: false, modify: false, shell: false },
+        delivers: false,
         agents: false,
         conventions: None,
         contract: charter::Contract {

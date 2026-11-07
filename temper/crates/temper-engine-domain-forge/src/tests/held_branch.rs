@@ -178,6 +178,7 @@ fn a_landing_changes_repair_writes_the_goal_branch_under_its_goals_hold() {
             outputs(&mut d, Event::Change { row });
             let item = d
                 .workspace_item(items::Seed {
+                    modify: false,
                     task: DELEGATE,
                     parent: Some(fixtures::CHANGE),
                     repository: REPO,
@@ -247,7 +248,7 @@ fn step_at_head(d: &mut Domain, head: skein_forge::api::Commit) -> Box<[Request]
     fixtures::answer_next(d, Ok(Answer::Commit(head)));
     fixtures::answer_next(d, Ok(Answer::Commit(fixtures::BASE)));
     let mut pull = fixtures::open_pull();
-    pull.head = GOAL_BRANCH.into();
+    pull.head = d.change(fixtures::CHANGE).unwrap().branch.clone();
     pull.commit = head;
     pull.ci = skein_forge::api::Ci::Pending;
     fixtures::answer_next(d, Ok(Answer::Pull(pull)));
@@ -296,5 +297,63 @@ fn a_branch_read_before_a_confirmed_move_still_checks_the_new_head_without_drift
         let row = d.change(fixtures::CHANGE).unwrap();
         assert_eq!(row.change.state, change::State::Checking { head }, "{requests:?}");
         assert_eq!(row.change.repairs, 0);
+    }
+}
+
+const RUN_BRANCH: &[u8] = b"temper/7/r7";
+
+fn run_name() -> Name {
+    Name {
+        forge: REPO.forge,
+        repository: REPO.repository,
+        what: What::Branch(Box::new([b"temper".as_slice().into(), b"7".as_slice().into(), b"r7".as_slice().into()])),
+    }
+}
+
+fn held_run(holder: u64, writer: Option<Writer>) -> Domain {
+    let mut d = held_by(None);
+    outputs(&mut d, Event::Hold { entry: 0, task: holder, resource: run_name(), from: None });
+    if let Some(Writer::Run { task, attempt }) = writer {
+        outputs(&mut d, Event::Claim { task, attempt, writes: Box::new([run_name()]), holders: Box::new([holder]) });
+    } else {
+        d.holds.get_mut(&run_name()).unwrap().writer = writer;
+    }
+    let mut row = landing_row();
+    row.branch = RUN_BRANCH.into();
+    outputs(&mut d, Event::Change { row });
+    d
+}
+
+#[test]
+fn a_run_change_checks_deliveries_beside_its_requesters_run() {
+    let writer = Writer::Run { task: GOAL, attempt: 1 };
+    let mut goal = held_goal();
+    outputs(&mut goal, Event::Claim { task: GOAL, attempt: 1, writes: Box::new([name()]), holders: Box::new([GOAL]) });
+    outputs(&mut goal, Event::Change { row: landing_row() });
+    for (mut d, name) in [(held_run(GOAL, Some(writer)), run_name()), (goal, name())] {
+        let requests = step_at_head(&mut d, fixtures::BASE);
+        let row = d.change(fixtures::CHANGE).unwrap();
+        assert_eq!(row.change.state, change::State::Checking { head: fixtures::BASE }, "{requests:?}");
+        assert_eq!(row.change.last_head, Some(fixtures::BASE));
+        assert_eq!(row.drift, None);
+        assert_eq!(d.hold(&name).unwrap().writer, Some(writer));
+    }
+}
+
+#[test]
+fn a_run_change_waits_for_every_other_writer() {
+    for (holder, writer) in [
+        (GOAL, Writer::Run { task: DELEGATE, attempt: 1 }),
+        (GOAL, Writer::Entry(UPDATE)),
+        (GOAL, Writer::Lost { task: GOAL, attempt: 1 }),
+        (fixtures::CHANGE, Writer::Run { task: fixtures::CHANGE, attempt: 1 }),
+    ] {
+        let mut d = held_run(holder, Some(writer));
+        let requests = step_at_head(&mut d, fixtures::BASE);
+        assert_eq!(
+            d.change(fixtures::CHANGE).unwrap().change.state,
+            change::State::Checking { head: fixtures::HEAD },
+            "{holder}: {writer:?}: {requests:?}"
+        );
     }
 }

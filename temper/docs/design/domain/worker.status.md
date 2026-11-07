@@ -1,10 +1,17 @@
 # worker: status
 
-2026-11-06. Where temper's code lags or departs from [worker.md](worker.md).
+2026-11-07. Where temper's code lags or departs from [worker.md](worker.md).
 Section 4.3's failed and refused answer diagnostics reach serve's stderr and the box's
 `serve.log`; that operator-output path has no gap. A failed-run hold's
 `way out:` points to that log, and `temper help hold` names its location
 under both `box` and `serve` (`../client/tools.md`, 6.1).
+
+Section 5's later goal start has no known implementation gap. The checkout
+world's three goal stories cover r already contained in g, a clean merge
+committed before the run and a conflict retained for the run to settle;
+each delivery fast-forwards r and leaves g unchanged. They use fake git
+and disk, and do not settle the deployment replay gaps below. A goal's
+saved start overtaken by a repair remains deferred (`forge.md`, section 20).
 
 - **Not yet:** 4.3: a held task names no run's failure, which the user's
   request of 2026-11-05 asked for if cheap: it needs a stored-format
