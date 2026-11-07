@@ -9,12 +9,18 @@ use temper_client_shell_web::journey::{self, Stale};
 
 pub mod again;
 pub mod print;
+pub mod tui;
+/// Where the TUI journeys live (temper/docs/design/client/tui/journeys.md, 6.1).
+pub const TUI_JOURNEYS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/design/client/tui/journeys");
 /// Where the journeys live, by the manifest's path (client/journeys.md, 5.1).
 pub const JOURNEYS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/design/client/journeys");
 
 #[derive(Debug)]
 pub enum Refusal {
     Name(String),
+    OtherClient { name: String },
+    TuiProof { name: String, refusal: temper_client_shell_tui::journey::Refusal },
+    TuiFound { name: String, found: temper_client_shell_tui::journey::Found, file: Option<String> },
     SetupUnreadable { name: String, unreadable: journey::Unreadable },
     SetupAfter { name: String, after: String, why: &'static str },
     SetupTimeout { name: String, setup: String, line: u32, sought: String },
@@ -50,6 +56,9 @@ pub struct Added {
     pub typed: u32,
     pub given: u32,
     pub places: u32,
+    pub approval: u32,
+    pub credential: u32,
+    pub bearer: u32,
 }
 
 /// Takes a recording as NAME, redacts, proves and scans it in memory, then
@@ -59,6 +68,35 @@ pub struct Added {
 pub fn add(journeys: &Path, name: &str, recording: &[u8], given: &[Box<[u8]>]) -> Result<Added, Refusal> {
     if !named(name) {
         return Err(Refusal::Name(name.to_owned()));
+    }
+    add_to(journeys, &journeys.with_file_name("tui").join("journeys"), name, recording, given)
+}
+
+/// Dispatch a recording by its first fact after clocks, keeping names unique
+/// across the two clients (temper/docs/design/client/tui/journeys.md, 6.1).
+/// # Errors
+/// Refuses an invalid or occupied name, unsafe recording, failed proof or io.
+pub fn add_to(
+    journeys: &Path,
+    tui_journeys: &Path,
+    name: &str,
+    recording: &[u8],
+    given: &[Box<[u8]>],
+) -> Result<Added, Refusal> {
+    if !named(name) {
+        return Err(Refusal::Name(name.to_owned()));
+    }
+    let is_tui = recording
+        .split(|byte| *byte == b'\n')
+        .skip_while(|line| !line.starts_with(b"clocks "))
+        .nth(1)
+        .is_some_and(|line| line.starts_with(b"screen "));
+    let other = if is_tui { journeys } else { tui_journeys };
+    if other.join(name).exists() {
+        return Err(Refusal::OtherClient { name: name.to_owned() });
+    }
+    if is_tui {
+        return tui::add(tui_journeys, name, recording, given);
     }
     let redacted = journey::redact(recording, given).map_err(|why| match why {
         journey::Unredacted::Unreadable(unreadable) => proof_refusal(name, journey::Refusal::Unreadable(unreadable)),
@@ -94,6 +132,9 @@ pub fn add(journeys: &Path, name: &str, recording: &[u8], given: &[Box<[u8]>]) -
         typed: redacted.originals.count(journey::Kind::Typed),
         given: redacted.originals.count(journey::Kind::Given),
         places: redacted.places,
+        approval: 0,
+        credential: 0,
+        bearer: 0,
     };
     let directory = journeys.join(name);
     fs::create_dir_all(&directory).map_err(|_| io_refusal(&directory))?;

@@ -5013,6 +5013,7 @@ dependencies = [
 name = "temper-client-journeys"
 version = "0.0.0"
 dependencies = [
+ "jig-client",
  "jig-client-protocol-wire",
  "skein-browser",
  "skein-fail-stop",
@@ -5022,8 +5023,12 @@ dependencies = [
  "skein-scratch",
  "skein-ui",
  "skein-ui-bundle",
+ "skein-ui-screen",
+ "skein-ui-screen-terminal",
  "skein-ui-web",
+ "temper-client-shell-tui",
  "temper-client-shell-web",
+ "temper-client-tui",
 ]
 
 [[package]]
