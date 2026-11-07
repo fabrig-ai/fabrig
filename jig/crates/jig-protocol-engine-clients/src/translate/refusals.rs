@@ -485,6 +485,7 @@ fn encode_setting_detail(value: p::SettingDetail, limits: &w::Limits) -> Result<
                 p::SettingMember::Path => w::SettingMember::Path,
                 p::SettingMember::Heading => w::SettingMember::Heading,
                 p::SettingMember::Connector => w::SettingMember::Connector,
+                p::SettingMember::StoredPolicy => w::SettingMember::StoredPolicy,
             },
             rule: match value.rule {
                 p::SettingRule::Maximum => w::SettingRule::Maximum,
