@@ -33,6 +33,9 @@ impl World {
             }
         }
         match delivery {
+            root::Delivery::Core(core::Held::ReadList { channel, read, endpoint, grant }) => {
+                self.list_reads.push(crate::lists::Reading { channel, read, endpoint, grant });
+            }
             root::Delivery::Start(_) => unreachable!("the root resumes its held start continuation"),
             root::Delivery::ProjectMade { project } => self.project_made.push((self.store.applied, project)),
             root::Delivery::Core(core::Held::Acted { to, outcome }) => {
@@ -231,7 +234,6 @@ impl World {
                 | core::Held::NotesWritten { .. }
                 | core::Held::NotesDeleted { .. }
                 | core::Held::StopRun { .. }
-                | core::Held::ReadList { .. }
                 | core::Held::CheckSource { .. }
                 | core::Held::SignOutSource { .. }
                 | core::Held::SourceSignedOut { .. }
