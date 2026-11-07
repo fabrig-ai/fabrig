@@ -809,6 +809,7 @@ fn navigation_accounts(states: &[jig_client::contract::AccountState]) -> jig_cli
             .unwrap();
         accounts
             .push(c::AccountLine {
+                list: None,
                 number,
                 place: number,
                 uses: None,

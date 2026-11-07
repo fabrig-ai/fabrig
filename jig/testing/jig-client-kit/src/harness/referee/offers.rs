@@ -160,6 +160,7 @@ impl Offers {
             | Ask::SetVisibility { .. }
             | Ask::Rename { .. }
             | Ask::Lift { .. }
+            | Ask::ReadLists { .. }
             | Ask::ChangeModel(_)
             | Ask::ChangeSettings(_)
             | Ask::MoveToNewest(_)

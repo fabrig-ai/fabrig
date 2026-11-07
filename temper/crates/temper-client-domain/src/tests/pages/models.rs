@@ -31,6 +31,7 @@ fn opened() -> (crate::Domain, skein_lib::Token) {
     me.providers = List::from_boxed(Box::new([me.providers.get(0).unwrap().clone(), openai]));
     me.deployment_role = Some(c::HeldRole::Owner);
     me.projects.get_mut(0).unwrap().models = List::from_boxed(Box::new([c::MeModel {
+        new_until: None,
         number: 2,
         source: c::ModelSource::Stock,
         estimated: false,

@@ -479,6 +479,7 @@ pub fn deployment() -> Deployment {
         grace_until: Some(Wall::EPOCH),
     };
     let account = |number| Account {
+        list: None,
         number,
         place: 0,
         uses: None,

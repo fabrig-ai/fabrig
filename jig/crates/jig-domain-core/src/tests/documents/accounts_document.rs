@@ -7,6 +7,7 @@
 )]
 
 pub(in crate::tests) mod catalogue;
+mod lists;
 
 use crate::{
     documents::{AccountLine, Accounts, LastEnd, SignInLine, SourceLine},
@@ -29,6 +30,9 @@ const MADE_ACCOUNT: u32 = 1;
 const UNKNOWN: u64 = 99;
 
 pub(in crate::tests) fn fixture(records: Vec<accounts::Stored>) -> (Core, Env<Limits>) {
+    fixture_lists(records, false)
+}
+fn fixture_lists(records: Vec<accounts::Stored>, configured: bool) -> (Core, Env<Limits>) {
     let mut limits = limits();
     // Three holders, plus a second own account for the cut test.
     limits.accounts.accounts = 4;
@@ -40,7 +44,11 @@ pub(in crate::tests) fn fixture(records: Vec<accounts::Stored>) -> (Core, Env<Li
     }]);
     config.settings.llm_providers = accounts::Providers {
         providers: Box::new([accounts::Provider {
-            list: None,
+            list: if configured {
+                Some(accounts::ProviderList { keep: Box::new([b"*".as_slice().into()]), drop: Box::new([]) })
+            } else {
+                None
+            },
             name: b"Fake".as_slice().into(),
             signed_in_plan: true,
             manage_usage: Some(b"https://usage.example/".as_slice().into()),
@@ -176,23 +184,29 @@ fn line(place: u32, number: u32, kind: accounts::Kind) -> SourceLine {
 
 #[test]
 fn a_partys_accounts_document_lists_its_own_accounts_with_their_sources_in_order() {
-    let (core, env) = fixture(mixed());
-    assert_eq!(
-        document(&core, &env, ALICE).accounts.as_slice(),
-        &[AccountLine {
-            provider_name: Some(Text { bytes: b"Fake".as_slice().into(), cut: false }),
-            manage_usage: Some(b"https://usage.example/".as_slice().into()),
-            place: 0,
-            uses: None,
-            plan: true,
-            number: OWN,
-            provider: Some(PROVIDER),
-            display: Text { bytes: b"Name".as_slice().into(), cut: false },
-            holder: accounts::Holder::Party(ALICE),
-            sources: list([line(2, FIRST_SOURCE, accounts::Kind::SignIn), line(7, LAST_SOURCE, accounts::Kind::Key)]),
-            cut: false,
-        }]
-    );
+    for (configured, record, expected) in list_rows() {
+        let (core, env) = fixture_lists(listed_records(record), configured);
+        assert_eq!(
+            document(&core, &env, ALICE).accounts.as_slice(),
+            &[AccountLine {
+                list: expected,
+                provider_name: Some(Text { bytes: b"Fake".as_slice().into(), cut: false }),
+                manage_usage: Some(b"https://usage.example/".as_slice().into()),
+                place: 0,
+                uses: None,
+                plan: true,
+                number: OWN,
+                provider: Some(PROVIDER),
+                display: Text { bytes: b"Name".as_slice().into(), cut: false },
+                holder: accounts::Holder::Party(ALICE),
+                sources: list([
+                    line(2, FIRST_SOURCE, accounts::Kind::SignIn),
+                    line(7, LAST_SOURCE, accounts::Kind::Key)
+                ]),
+                cut: false,
+            }]
+        );
+    }
 }
 fn list<T>(items: impl IntoIterator<Item = T>) -> List<T> {
     List::from_boxed(items.into_iter().collect())
@@ -390,20 +404,24 @@ fn the_accounts_document_is_cut_at_the_line_bound() {
 
 #[test]
 fn the_deployment_document_lists_only_the_deployments_accounts_with_their_sources() {
-    let (core, mut env) = fixture(mixed());
-    env.limits.documents.lines = 1;
-    let Document::Deployment(doc) = make(&core, &env.limits, ALICE, &Subject::Deployment, &window(), env.wall).unwrap()
-    else {
-        panic!("deployment document")
-    };
-    assert_eq!(doc.accounts.len(), 1);
-    let account = doc.accounts.get(0).unwrap();
-    assert_eq!(account.number, DEPLOYMENT);
-    assert_eq!(account.provider, Some(PROVIDER));
-    assert_eq!(account.display, Text { bytes: b"Name".as_slice().into(), cut: false });
-    assert_eq!(account.holder, accounts::Holder::Deployment);
-    assert_eq!(account.sources.as_slice(), &[line(0, 41, accounts::Kind::SignIn)]);
-    assert!(!doc.cut, "the two parties' accounts do not count against deployment's bound");
+    for (configured, record, expected) in list_rows() {
+        let (core, mut env) = fixture_lists(listed_records(record), configured);
+        env.limits.documents.lines = 1;
+        let Document::Deployment(doc) =
+            make(&core, &env.limits, ALICE, &Subject::Deployment, &window(), env.wall).unwrap()
+        else {
+            panic!("deployment document")
+        };
+        assert_eq!(doc.accounts.len(), 1);
+        let account = doc.accounts.get(0).unwrap();
+        assert_eq!(account.list, expected);
+        assert_eq!(account.number, DEPLOYMENT);
+        assert_eq!(account.provider, Some(PROVIDER));
+        assert_eq!(account.display, Text { bytes: b"Name".as_slice().into(), cut: false });
+        assert_eq!(account.holder, accounts::Holder::Deployment);
+        assert_eq!(account.sources.as_slice(), &[line(0, 41, accounts::Kind::SignIn)]);
+        assert!(!doc.cut, "the two parties' accounts do not count against deployment's bound");
+    }
 }
 
 fn change_account(core: &mut Core, env: &Env<Limits>, holder: accounts::Holder, change: accounts::Change) {
@@ -653,4 +671,34 @@ fn the_providers_uses_rule_checks_people_and_projects_for_plans_and_llm_keys() {
         );
     }
     assert_eq!(people::USES, accounts::USES);
+}
+
+fn list_rows() -> [(bool, Option<accounts::ListRecord>, Option<AccountList>); 4] {
+    let full = accounts::ListRecord {
+        names: 1,
+        read: Some(Wall::from_nanos(13)),
+        tried: Some(Wall::from_nanos(17)),
+        failure: Some(accounts::ReadFailure::Refused { status: 429 }),
+        left_out: 7,
+    };
+    let empty = AccountList { read: None, tried: None, failure: None, left_out: 0 };
+    [
+        (false, None, None),
+        (false, Some(full), None),
+        (true, None, Some(empty)),
+        (
+            true,
+            Some(full),
+            Some(AccountList { read: full.read, tried: full.tried, failure: full.failure, left_out: full.left_out }),
+        ),
+    ]
+}
+fn listed_records(record: Option<accounts::ListRecord>) -> Vec<accounts::Stored> {
+    let mut records = mixed();
+    for row in &mut records {
+        if let accounts::Stored::Account { list, .. } = row {
+            *list = record;
+        }
+    }
+    records
 }

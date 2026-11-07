@@ -43,7 +43,7 @@ mod task_wait;
 
 use jig_domain_people::ApplicationScope;
 
-pub use accounts::{AccountLine, Accounts, LastEnd, SignInLine, SourceLine};
+pub use accounts::{AccountLine, AccountList, Accounts, LastEnd, SignInLine, SourceLine};
 pub use catalogue::{Offered, PayerReadiness, ProviderOffer, Readiness};
 pub use chip_phase::{ChipDetails, ChipObservation, ChipWork};
 pub use deployment::{

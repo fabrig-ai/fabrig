@@ -41,6 +41,7 @@ pub struct Accounts {
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct AccountLine {
+    pub list: Option<AccountList>,
     pub number: u32,
     pub place: u32,
     pub uses: Option<List<AccountUse>>,
@@ -139,4 +140,28 @@ pub enum AccountEnd {
     Renewed { account: u32, declined: bool },
     Refused { refusal: AccountRefusal },
     Failed { failure: AccountFailure },
+}
+
+/// Public list history (jig/docs/design/client/domain/contract.md, 5.1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct AccountList {
+    pub read: Option<Wall>,
+    pub tried: Option<Wall>,
+    pub failure: Option<AccountListFailure>,
+    pub left_out: u32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum AccountListFailure {
+    Refused { status: u16 },
+    Unreachable,
+    Unreadable,
+    Deadline,
+    Agent,
+    Room,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum AccountAnswer {
+    Reading { count: u32 },
 }

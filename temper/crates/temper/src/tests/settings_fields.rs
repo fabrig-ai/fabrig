@@ -70,6 +70,7 @@ fn models(llm: &jig_protocol_config::Llm) -> Box<[jig_protocol_engine_clients::M
     for entry in &llm.models {
         let model = &entry.model;
         models.push(jig_protocol_engine_clients::Model {
+            new_until: None,
             number: 1,
             source: jig_domain_core::settings::ModelSource::Stock,
             estimated: false,

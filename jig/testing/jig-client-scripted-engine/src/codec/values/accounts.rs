@@ -99,6 +99,7 @@ pub(in crate::codec) fn wire_account_line(
     w::AccountLine::new(
         limits,
         w::AccountLineParts {
+            list: value.list.as_ref().map(|list| wire_account_list(list, limits)).transpose()?,
             number: value.number,
             place: value.place,
             uses: value
@@ -260,4 +261,31 @@ pub(in crate::codec) fn wire_account_failure(
         )?),
         c::AccountFailure::Cancelled => w::AccountFailure::Cancelled,
     })
+}
+
+/// Public history only, without the child's model-name bits.
+pub(in crate::codec) fn wire_account_list(
+    value: &c::AccountList,
+    limits: &w::Limits,
+) -> Result<w::AccountList, w::Problem> {
+    let failure = match value.failure {
+        Some(c::AccountListFailure::Refused { status }) => Some(w::AccountListFailure::Refused(
+            w::AccountListRefused::new(limits, w::AccountListRefusedParts { status })?,
+        )),
+        Some(c::AccountListFailure::Unreachable) => Some(w::AccountListFailure::Unreachable),
+        Some(c::AccountListFailure::Unreadable) => Some(w::AccountListFailure::Unreadable),
+        Some(c::AccountListFailure::Deadline) => Some(w::AccountListFailure::Deadline),
+        Some(c::AccountListFailure::Agent) => Some(w::AccountListFailure::Agent),
+        Some(c::AccountListFailure::Room) => Some(w::AccountListFailure::Room),
+        None => None,
+    };
+    w::AccountList::new(
+        limits,
+        w::AccountListParts {
+            read: value.read.map(skein_lib::Wall::as_nanos),
+            tried: value.tried.map(skein_lib::Wall::as_nanos),
+            failure,
+            left_out: value.left_out,
+        },
+    )
 }

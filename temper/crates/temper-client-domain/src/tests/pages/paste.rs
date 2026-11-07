@@ -231,6 +231,7 @@ fn an_accounts_rows_paste_finishes_that_rows_sign_in() {
     doc.accounts = skein_lib::List::with_capacity(1);
     doc.accounts
         .push(c::AccountLine {
+            list: None,
             number: 29,
             place: 0,
             uses: None,

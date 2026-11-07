@@ -25,6 +25,7 @@ pub(crate) fn accounts() -> c::Accounts {
     let mut accounts = List::with_capacity(1);
     accounts
         .push(c::AccountLine {
+            list: None,
             number: ACCOUNT,
             place: 1,
             uses: Some(uses),
@@ -73,6 +74,7 @@ pub(crate) fn deployment() -> c::Deployment {
     deployment
         .accounts
         .push(c::Account {
+            list: None,
             number: row.number,
             place: row.place,
             uses: row.uses,

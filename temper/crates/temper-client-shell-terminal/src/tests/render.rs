@@ -331,6 +331,7 @@ pub(super) fn models_frame(
         project
             .models
             .push(c::MeModel {
+                new_until: None,
                 number: 1,
                 source: jig_client::contract::ModelSource::Stock,
                 estimated: false,

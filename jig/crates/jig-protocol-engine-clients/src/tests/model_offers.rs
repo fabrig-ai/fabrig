@@ -32,6 +32,7 @@ fn me_with_offer(model: w::MeModel, defaults: List<w::MeDefault>) -> w::Me {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "the table keeps complete model and template facts at both boundaries")]
 fn model_offers_and_template_previews_cross_engine_wire_and_link_whole() {
     use crate as engine;
     let limits = fixtures::client_limits();
@@ -41,6 +42,7 @@ fn model_offers_and_template_previews_cross_engine_wire_and_link_whole() {
         (true, jig_domain_core::settings::ModelSource::Person),
     ] {
         let model = engine::Model {
+            new_until: None,
             number: 37,
             source,
             estimated: populated,
@@ -93,6 +95,7 @@ fn model_offers_and_template_previews_cross_engine_wire_and_link_whole() {
         assert_eq!(
             project.models.get(0).unwrap(),
             &c::MeModel {
+                new_until: None,
                 number: 37,
                 source: match source {
                     jig_domain_core::settings::ModelSource::Stock => c::ModelSource::Stock,
@@ -138,26 +141,31 @@ fn model_offers_and_template_previews_cross_engine_wire_and_link_whole() {
 fn model_acts_cross_link_and_wire_with_their_keyed_digest() {
     use crate::{Message, Request};
     use jig_domain_core::settings::catalogue::ModelAct;
+    use jig_domain_people as p;
     let limits = fixtures::client_limits();
-    for act in [
-        c::ModelAct::Picker { number: 37, on: false },
-        c::ModelAct::Add { provider: 3, name: c::Text::new(b"named:model".as_slice().into(), 4096).unwrap() },
+    for ask in [
+        c::Ask::ChangeModel(c::ChangeModel { act: c::ModelAct::Picker { number: 37, on: false } }),
+        c::Ask::ChangeModel(c::ChangeModel {
+            act: c::ModelAct::Add { provider: 3, name: c::Text::new(b"named:model".as_slice().into(), 4096).unwrap() },
+        }),
+        c::Ask::ReadLists { provider: 3 },
     ] {
-        let ask = c::Ask::ChangeModel(c::ChangeModel { act });
         let wire = jig_client_protocol_link::translate::asks::ask(&ask, limits.wire()).unwrap();
         let encoded = fixtures::encode_ask(&wire);
         let decoded = w::Ask::decode(limits.wire(), &mut Reader::new(&encoded)).unwrap();
-        let w::Ask::ChangeModel(decoded) = decoded else { panic!("model act") };
-        assert_eq!(
+        let restored = if let w::Ask::ReadLists(row) = decoded {
+            c::Ask::ReadLists { provider: row.provider() }
+        } else {
+            let w::Ask::ChangeModel(row) = decoded else { panic!("model request") };
             c::Ask::ChangeModel(
-                jig_client_protocol_link::translate::settings::restore_change_model(&decoded, &limits).unwrap()
-            ),
-            ask
-        );
+                jig_client_protocol_link::translate::settings::restore_change_model(&row, &limits).unwrap(),
+            )
+        };
+        assert_eq!(restored, ask);
         let digest: [u8; 32] = crate::sign_in::digest(&encoded).expose().try_into().unwrap();
         let keyed = w::Keyed::new(
             limits.wire(),
-            w::KeyedParts { key: [5; 16], owner: w::Owner::Jig, version: 19, request: encoded, value: None },
+            w::KeyedParts { key: [5; 16], owner: w::Owner::Jig, version: 19, request: encoded.clone(), value: None },
         )
         .unwrap();
         let mut bytes = skein_lib::Writer::new(usize::try_from(keyed.measure()).unwrap());
@@ -166,20 +174,59 @@ fn model_acts_cross_link_and_wire_with_their_keyed_digest() {
         exchange.send(Message::Request(bytes.finish()));
         exchange.authenticate();
         let Some(Request::Core(event)) = exchange.out.pop() else { panic!("core entrance") };
-        let jig_domain_core::Event::ChangeModel { sign_in, key, digest: got, act, .. } = *event else {
-            panic!("model entrance")
-        };
-        assert_eq!((sign_in, key, got), (41, [5; 16], digest));
-        match (ask, act) {
+        match (ask, *event) {
+            (
+                c::Ask::ReadLists { provider },
+                jig_domain_core::Event::People(p::Event::Ask {
+                    sign_in,
+                    key,
+                    ask: p::Ask::AccountChange { holder, change: p::AccountChange::ReadLists { provider: got } },
+                    models,
+                    ..
+                }),
+            ) => {
+                assert_eq!((sign_in, key, holder, got), (41, [5; 16], p::AccountHolder::Own, provider));
+                assert!(models.is_empty());
+                assert_eq!(encoded.as_ref(), &[33, 0, 0, 0, 3]);
+                assert_eq!(digest, skein_lib::sha256::digest(&[33, 0, 0, 0, 3]));
+                for count in [0, u32::MAX] {
+                    let answer = crate::translate::answers::answer(
+                        &p::Reply::Outcome(p::Outcome::AccountReading { count }),
+                        &[],
+                        limits.wire(),
+                    )
+                    .unwrap();
+                    assert_eq!(
+                        jig_client_protocol_link::translate::answers::answer(answer, &limits).unwrap(),
+                        c::Answer::Done(c::Outcome::Account(c::AccountAnswer::Reading { count }))
+                    );
+                }
+            }
             (
                 c::Ask::ChangeModel(c::ChangeModel { act: c::ModelAct::Picker { number, on } }),
-                ModelAct::Picker { number: got, on: set },
-            ) => assert_eq!((number, on), (got, set)),
+                jig_domain_core::Event::ChangeModel {
+                    sign_in,
+                    key,
+                    digest: got,
+                    act: ModelAct::Picker { number: set, on: value },
+                    ..
+                },
+            ) => {
+                assert_eq!((sign_in, key, got, number, on), (41, [5; 16], digest, set, value));
+            }
             (
                 c::Ask::ChangeModel(c::ChangeModel { act: c::ModelAct::Add { provider, name } }),
-                ModelAct::Add { provider: got, name: added },
-            ) => assert_eq!((provider, name.bytes()), (got, added.as_ref())),
-            other => panic!("changed model act: {other:?}"),
+                jig_domain_core::Event::ChangeModel {
+                    sign_in,
+                    key,
+                    digest: got,
+                    act: ModelAct::Add { provider: set, name: added },
+                    ..
+                },
+            ) => {
+                assert_eq!((sign_in, key, got, provider, name.bytes()), (41, [5; 16], digest, set, added.as_ref()));
+            }
+            other => panic!("changed model request: {other:?}"),
         }
         assert!(exchange.out.is_empty());
     }

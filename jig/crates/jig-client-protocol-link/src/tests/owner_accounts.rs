@@ -40,7 +40,7 @@ fn document(end: Option<c::AccountEnd>) -> c::Accounts {
         readiness_cut: false,
         program_hosts: List::with_capacity(0),
         accounts: list([
-            c::AccountLine {
+            c::AccountLine {list: None,
                 provider_name: None,
                 manage_usage: None,
                 number: 7,
@@ -56,7 +56,7 @@ fn document(end: Option<c::AccountEnd>) -> c::Accounts {
                 sources: source_lines(),
                 cut: true,
             },
-            c::AccountLine {
+            c::AccountLine {list: None,
                 provider_name: None,
                 manage_usage: None,
                 number: 9,

@@ -338,6 +338,7 @@ pub fn deployment_rows_record() -> w::Deployment {
     let account = w::Account::new(
         &l,
         w::AccountParts {
+            list: None,
             provider_name: None,
             manage_usage: None,
             number: 41,
