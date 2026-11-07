@@ -19,6 +19,8 @@ The rest of `temper/docs/design/draft/forge-identity.md`, sections 4 to 9, tempe
 | `approval` | `approval-wire` | | temper | the client wire's `approvals` document and watch, and `ProposalItemsAnswer`'s `owned_approval` |
 | `approval` | `approval-waits` | `link-decide` | temper | the forge's `APPROVALS_SUBJECT`, marked with `changes`; review facts dropped at the merge's admission; `Domain::approval_waits` |
 | `approval` | `approval-client` | `approval-wire` | temper | the client watches `approvals` and merges its rows into Needs you, its filters, Home's and the rail's counts, and Later; reads a proposal's `owned_approval` |
+| `approval` | `approval-read` | `link-lookup`, `link-scope`, `approval-wire`, `approval-waits` | temper | the root answers each watcher's approvals, whether their review would count; the service carries them with each row's address; a proposal's `owned_approval` |
+| `approval` | `approval-card` | `approval-client` | temper | the card on Needs you, Home and a goal's band, its review link, the counts; the proposal's sentence on a box; the gallery's samples |
 
 The rest of the `approval` part (section 8: the forge's waits, the root's read, the client's merge and card; section 6's sentence on the proposal's card; section 2's steps 3 to 5 in the world) follows from its designer, built to `notes/contracts.md`, *The approval read*.
 
