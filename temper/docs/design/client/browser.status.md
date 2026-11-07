@@ -2,6 +2,13 @@
 
 2026-11-07. Where temper's code lags or departs from [browser.md](browser.md).
 
+Sections 2.5 and 4.6 carry the connect panels and repository sheet.
+The tier keeps twelve test functions: Accounts history and key re-entry
+share both sign-ins' setup; sheet scrolling, search, adoption and 420 px
+geometry share one test. The repaired versions have no supplied passing
+runtime result. Whole-tier budget proof remains below; the full
+`connect-flows` render comparison belongs to temper/ui (section 5).
+
 Section 2.4's used, expired and unknown paragraphs are present through the
 shared view. Section 4.6's cookie story expects unknown when reopening its
 old link after restarting serve; no runtime result is supplied here.
@@ -145,10 +152,11 @@ keeps it; publication is not a cutoff on a handed change's commit.
   answer has begun: a stall before that answer draws the mark and an empty bar, with no
   line (skein's `ui-web.status.md`, 4.3).
 - **Not yet:** 4.2, 4.3, 4.6: the tier holds twelve test functions. Its merged
-  tests 2 (with 11 and the call line), 4 (with 5 and the model picker), 9
-  (welcome then ConnectModel) and 14 (short, Latest, unanchored and long)
-  are compiled, with story labels for failed steps, but have not run in
-  Chromium, under the user's focused-and-fuzzy-only rule. The call line's
+  tests 2 (with 11 and the call line), 4 (with 5 and the model picker),
+  8 and 9 (welcome then ConnectModel, with Accounts history and key
+  re-entry), 14 (short, Latest, unanchored and long), and 16 (sheet scroll
+  and phone geometry) retain story labels for failed steps. No supplied
+  passing run proves all these current merged stories in Chromium. The call line's
   retained open node, the picker's 420 px, one-press model and effort,
   outside and Escape checks, a step changing and restoring anchoring on a
   live page (4.3), and both sign-ins in one browser (4.2) await after-landing

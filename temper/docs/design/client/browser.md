@@ -1321,6 +1321,15 @@ Not in the tier, each in the lowest world that shows it:
 
 ## 5. Open questions
 
+- **The connect-flows proof** (2.5, 4.6): temper/ui owns the comparison
+  of request pages 01–23 with main, at 1440, 1000 and 420 px with
+  disclosures and menus open, and screenshots also at 1280 px
+  (`../draft/look-requests.md`, 4). The retained browser stories check
+  Accounts return/history and sheet scroll, search, adoption and phone
+  geometry; they do not compare all request pages. Default: findings
+  after landing, with a passing repaired-story run and the unchanged
+  whole-tier budget established by the after-landing tier.
+
 - **Whole questions and starting from Goals** (2.5, 7.2; `README.md`,
   3.5, 5.8, 5.14): the long question's context, evidence and choices, the
   typed Draft sheet, zero-funding explanations and change-only landings

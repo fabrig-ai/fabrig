@@ -22,8 +22,12 @@ A change's close leaves r held by its goal; the goal's close deletes it.
 Coverage uses the fake forge. Section 20 keeps the default for deleting
 unlanded run work and the deferred saved-start case overtaken by a repair.
 
+Section 4.5's `DismissMaking` is present: an owner can erase a failed row
+and free its place, absence is kept, and running rows or another scope
+are refused. The request carries `into`, so its keyed scope survives the
+row's erasure. The connector's making tables cover these decisions.
+
 - **Not yet:**
-  - 4.5: `DismissMaking`: no request erases a failed row (look-round-13's `dismiss-making`).
   - 10, 18: no supplied result shows the three-thread real-process trial
     passing after update recovery. Both styles' lost answers, retries,
     exhausted counts, release and late-copy holds have world stories;

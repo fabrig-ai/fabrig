@@ -462,8 +462,11 @@ bound on a migration. Settings’ “Add repositories” sheet is built,
 with search, plural adoption, making, copying and failed-copy acts;
 Home’s own sheet and the two unmocked entry paths remain distinct
 (`draft/repository-copies.md`). Settings’ connection pages share the
-welcome’s cards and panels and finish on Accounts or Forges; the browser
-stories are compiled, with temper/ui’s render check after landing
+welcome’s cards and panels and finish on Accounts or Forges. Failed
+making rows can be dismissed through their project's keyed request;
+absent rows are kept and running rows refused. The browser stories keep
+twelve tests by sharing setups, with no supplied passing result for the
+repaired stories; temper/ui’s render check follows landing
 (`client/README.md`; `draft/look-requests.md`);
 `draft/github.md`'s holds one the user has not answered, a Forgejo
 connected as its admin having its hook;

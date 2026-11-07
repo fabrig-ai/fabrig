@@ -807,6 +807,12 @@ widths and open states in `../draft/look-requests.md`, 4.
 
 ## 10. Open questions
 
+- **The connect-flows comparison** (9): temper/ui compares the
+  hand-made request's 01–23 against main after landing, including the
+  open and named states, under `../draft/look-requests.md`, 4. Default:
+  gallery and journey print checks establish no rendered equality;
+  screenshots and any findings belong to that comparison.
+
 - **The fresh project's draft flow on a real box** (9, `chat-draft`):
   a person's recording alongside the fake-model journey, including finding
   the goal from its chat and the project's bar (`README.md`, section 11).
