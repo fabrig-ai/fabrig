@@ -2,7 +2,11 @@
 use jig_client_kit::harness::{App, ClientId, Duty, Front};
 use skein_lib::{Duration, Env, Queue, Time, Wall};
 use temper_client_domain::{self as client, Action, Place, approve};
-use temper_client_world::{app::{Root, Temper}, fixtures, front::Joint};
+use temper_client_world::{
+    app::{Root, Temper},
+    fixtures,
+    front::Joint,
+};
 
 const TERMINAL: ClientId = ClientId(0);
 const BROWSER: ClientId = ClientId(1);
@@ -50,15 +54,12 @@ fn pump(front: &mut Joint, probes: &mut [Probe], now: Time) {
             }
             Temper::take(&mut probe.root, &env, &mut probe.out);
             while let Some(request) = probe.out.pop() {
-                match &request {
-                    client::Request::Unlinked { request: jig_client::UnlinkedRequest::ApprovalAct(act) } => {
-                        match act {
-                            jig_client::ApprovalAct::Read { .. } => probe.read_acts += 1,
-                            jig_client::ApprovalAct::Decide { .. } => probe.decisions += 1,
-                            jig_client::ApprovalAct::Ask => {},
-                        }
+                if let client::Request::Unlinked { request: jig_client::UnlinkedRequest::ApprovalAct(act) } = &request {
+                    match act {
+                        jig_client::ApprovalAct::Read { .. } => probe.read_acts += 1,
+                        jig_client::ApprovalAct::Decide { .. } => probe.decisions += 1,
+                        jig_client::ApprovalAct::Ask => {}
                     }
-                    _ => {},
                 }
                 if let Duty::Wire(request) = Temper::duty(request) {
                     front.wire(ClientId(index), env.now, env.wall, request);
@@ -69,7 +70,8 @@ fn pump(front: &mut Joint, probes: &mut [Probe], now: Time) {
             let probe = &mut probes[who.0];
             if let Some(client::Event::Client {
                 event: jig_client::Event::ApprovalAnswer { answer: jig_client::Approval::Read { state, .. } },
-            }) = answer.root() {
+            }) = answer.root()
+            {
                 probe.reads.push(*state);
             }
             front.received(who, &answer);
@@ -86,9 +88,11 @@ fn setup(others: bool) -> (Joint, Vec<Probe>) {
         front.bind(OTHER, fixtures::PARTY);
         probes.push(probe(fixtures::SEED + 2));
     }
-    event(&mut probes[TERMINAL.0], Time::ZERO, client::Event::Client {
-        event: jig_client::Event::Up { up: jig_client::Up::SignedOut },
-    });
+    event(
+        &mut probes[TERMINAL.0],
+        Time::ZERO,
+        client::Event::Client { event: jig_client::Event::Up { up: jig_client::Up::SignedOut } },
+    );
     pump(&mut front, &mut probes, Time::ZERO);
     (front, probes)
 }
@@ -110,8 +114,12 @@ fn me(probe: &Probe) -> &jig_client::contract::Me {
 fn a_terminal_approved_by_a_browser_is_signed_in_as_the_browsers_party() {
     let (mut front, mut probes) = setup(false);
     let browsers_me = me(&probes[BROWSER.0]).clone();
-    let (code, expires) = front.ask_approval(TERMINAL);
-    assert_eq!(expires, Wall::EPOCH.saturating_add(SPAN));
+    event(&mut probes[TERMINAL.0], Time::ZERO, client::Event::AskApproval);
+    pump(&mut front, &mut probes, Time::ZERO);
+    let Some(client::asked::State::Asked { code, expires }) = probes[TERMINAL.0].root.person().asked() else {
+        panic!("the signed-out root holds the approval code and expiry");
+    };
+    assert_eq!(expires, Wall::from_nanos(SPAN.as_nanos()));
     open(&mut probes[BROWSER.0], code);
     pump(&mut front, &mut probes, Time::ZERO);
     assert_eq!(probes[BROWSER.0].read_acts, 1);
@@ -130,6 +138,7 @@ fn a_terminal_approved_by_a_browser_is_signed_in_as_the_browsers_party() {
     pump(&mut front, &mut probes, again);
     assert_eq!(probes[TERMINAL.0].root.person().client().link().state, jig_client::Link::Live);
     assert_eq!(me(&probes[TERMINAL.0]).party.number, fixtures::PARTY);
+    assert_eq!(probes[TERMINAL.0].root.person().asked(), None);
     assert_eq!(probes[BROWSER.0].root.person().client().link().state, jig_client::Link::Live);
     assert_eq!(me(&probes[BROWSER.0]), &browsers_me);
     pump(&mut front, &mut probes, again.saturating_add(approve::AGAIN));

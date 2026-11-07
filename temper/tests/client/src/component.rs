@@ -1,5 +1,5 @@
 //! Temper's clients component and link joined in memory
-//! (jig/docs/design/client/domain/testing.md, 5; temper/docs/design/client/README.md, 8).
+//! (temper/docs/design/domain/testing.md, 6.3; jig/docs/design/protocol/client.md, 8).
 use jig_client::contract as c;
 use jig_client_kit::harness::ClientId;
 use jig_client_kit::joint::transport::{KeyedOwner, Reply, Transport, Watched};
@@ -8,7 +8,7 @@ use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_protocol_engine_clients::{self as clients, Event, Request};
 use skein_lib::{Env, Queue, Secret, Time, Token, Wall};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use temper_engine_domain as root;
 
 pub struct Composition {
@@ -16,6 +16,11 @@ pub struct Composition {
     env: Env<clients::Limits>,
     out: Queue<Request>,
     links: BTreeMap<ClientId, link::Link>,
+    browsers: BTreeSet<ClientId>,
+    asked: BTreeMap<ClientId, (Secret, jig_client::ApprovalCode, Wall)>,
+    approval_signers: BTreeMap<Token, ClientId>,
+    signing_identities: BTreeMap<ClientId, people::Identity>,
+    authenticated: BTreeMap<ClientId, (people::Identity, u64)>,
     link_out: BTreeMap<ClientId, Queue<link::Request>>,
     receiving: BTreeMap<ClientId, link::Limits>,
     exchanges: BTreeMap<Token, (ClientId, Token)>,
@@ -35,11 +40,20 @@ pub struct Composition {
 
 impl Composition {
     #[must_use]
+    pub fn new(configuration: &root::Config, limits: jig_client::DomainLimits) -> Self {
+        Self::build(configuration, limits, false)
+    }
+
+    #[must_use]
+    pub fn new_with_approval(configuration: &root::Config, limits: jig_client::DomainLimits) -> Self {
+        Self::build(configuration, limits, true)
+    }
+
     #[expect(
         clippy::too_many_lines,
         reason = "the world's constructor names every limit and setting of the joint component"
     )]
-    pub fn new(configuration: &root::Config, limits: jig_client::DomainLimits) -> Self {
+    fn build(configuration: &root::Config, limits: jig_client::DomainLimits, approval: bool) -> Self {
         let (now, wall) = (Time::ZERO, Wall::EPOCH);
         let env = Env {
             now,
@@ -67,7 +81,7 @@ impl Composition {
             addresses: Box::new([]),
             link: None,
             link_secret: None,
-            approval: false,
+            approval,
             deployment_provider: 2,
             heartbeat: skein_lib::Duration::from_secs(3600),
             rows: limits.rows,
@@ -137,6 +151,11 @@ impl Composition {
             env,
             out,
             links: BTreeMap::new(),
+            browsers: BTreeSet::new(),
+            asked: BTreeMap::new(),
+            approval_signers: BTreeMap::new(),
+            signing_identities: BTreeMap::new(),
+            authenticated: BTreeMap::new(),
             link_out: BTreeMap::new(),
             receiving: BTreeMap::new(),
             exchanges: BTreeMap::new(),
@@ -307,6 +326,45 @@ impl Composition {
         self.component.down(&self.env, event, &mut self.out);
     }
 
+    pub fn as_browser(&mut self, client: ClientId) {
+        self.browsers.insert(client);
+    }
+
+    pub fn approval(&mut self, client: ClientId, act: jig_client::ApprovalAct) {
+        let event = match act {
+            jig_client::ApprovalAct::Ask => link::Event::AskApproval,
+            jig_client::ApprovalAct::Read { code } => link::Event::ReadApproval { code },
+            jig_client::ApprovalAct::Decide { code, approve } => link::Event::DecideApproval { code, approve },
+        };
+        self.link(client, event);
+    }
+
+    pub fn ask_approval(&mut self, client: ClientId) {
+        self.approval(client, jig_client::ApprovalAct::Ask);
+    }
+
+    #[must_use]
+    pub fn asked(&self, client: ClientId) -> Option<(jig_client::ApprovalCode, Wall)> {
+        self.asked.get(&client).map(|(_, code, expires)| (*code, *expires))
+    }
+
+    pub fn take_approval(&mut self, client: ClientId) {
+        let (secret, _, _) = self.asked.get(&client).expect("client asked for approval");
+        let secret = secret.clone();
+        self.pending_reply = Some(Reply::SignIn { client });
+        self.link(client, link::Event::SignIn { with: link::With::Approval { secret } });
+    }
+
+    /// Bind the identity answered by the engine before the front releases parked work.
+    pub fn bind_authenticated(&mut self, client: ClientId, party: u64, transport: &mut Transport) -> bool {
+        let Some((identity, sign_in)) = self.authenticated.remove(&client) else { return false };
+        if !transport.is_bound(client) {
+            transport.bind(client, party, identity);
+        }
+        transport.signed_in(client, party, sign_in);
+        true
+    }
+
     pub fn sign_in(&mut self, client: ClientId, identity: people::Identity) {
         let exchange = self.token();
         self.minting.insert(exchange, client);
@@ -376,8 +434,23 @@ impl Composition {
     }
 
     fn core(&mut self, transport: &mut Transport, mut event: core::Event) {
-        if let core::Event::SignIn { reply_to, .. }
-        | core::Event::People(people::Event::Ask { reply_to, .. } | people::Event::SignOut { reply_to, .. })
+        if let core::Event::SignIn { reply_to, identity, .. } = &mut event
+            && let token = reply_token(reply_to)
+            && let Some(client) = self.approval_signers.remove(&token)
+        {
+            self.signing_identities.insert(client, identity.clone());
+            transport.route_reply(token, Reply::SignIn { client });
+        } else if let core::Event::People(people::Event::Whose { reply_to, .. }) = &mut event {
+            let Some(Reply::SignIn { client }) = self.pending_reply.take() else {
+                panic!("approval signer correlation");
+            };
+            let token = reply_token(reply_to);
+            self.approval_signers.insert(token, client);
+            transport.route_reply(token, Reply::SignIn { client });
+        } else if let core::Event::SignIn { reply_to, .. }
+        | core::Event::People(
+            people::Event::Ask { reply_to, .. } | people::Event::SignOut { reply_to, .. },
+        )
         | core::Event::Key { reply_to, .. }
         | core::Event::ProposeSettings { reply_to, .. }
         | core::Event::ChangeModel { reply_to, .. }
@@ -408,7 +481,11 @@ impl Composition {
         if let Some(Reply::SignIn { client }) = transport.reply(token)
             && let people::Reply::SignedIn { person, sign_in, .. } = &reply
         {
-            transport.signed_in(*client, *person, *sign_in);
+            if let Some(identity) = self.signing_identities.remove(client) {
+                self.authenticated.insert(*client, (identity, *sign_in));
+            } else {
+                transport.signed_in(*client, *person, *sign_in);
+            }
         }
         transport.take_reply(token);
         self.event(Event::Reply { to: skein_lib::ReplyTo::new(token), reply });
@@ -616,7 +693,7 @@ impl Composition {
                     link::Message::SignOut => clients::Message::SignOut(Box::new([])),
                 };
                 self.event(Event::Transport(clients::FromTransport::Exchange {
-                    browser: false,
+                    browser: self.browsers.contains(&client),
                     exchange: name,
                     credential,
                     message,
@@ -636,6 +713,11 @@ impl Composition {
                 return;
             }
             link::Request::Signing { signing } => {
+                self.approval_signers.retain(|_, owner| *owner != client);
+                self.signing_identities.remove(&client);
+                if matches!(self.pending_reply, Some(Reply::SignIn { client: owner }) if owner == client) {
+                    self.pending_reply = None;
+                }
                 match signing {
                     link::Signing::SignedIn { party } => {
                         self.callbacks.push(Incoming::Authenticated { client, person: party, expires: self.env.wall });
@@ -652,8 +734,10 @@ impl Composition {
                             why: people::Again::Full { held: sign_ins, room_at: earliest },
                         });
                     }
-                    link::Signing::Approval(_)
-                    | link::Signing::LinkUsed
+                    link::Signing::Approval(taking) => {
+                        self.callbacks.push(Incoming::Taking { client, taking });
+                    }
+                    link::Signing::LinkUsed
                     | link::Signing::LinkExpired
                     | link::Signing::LinkUnknown
                     | link::Signing::Refused
@@ -694,8 +778,19 @@ impl Composition {
                 return;
             }
             link::Request::Fact { .. } | link::Request::ServiceCredential { .. } => return,
-            link::Request::Approval(_)
-            | link::Request::Authorized(_)
+            link::Request::Approval(answer) => {
+                if let link::Approval::Asked { secret, code, expires } = &answer {
+                    self.asked.insert(client, (secret.clone(), *code, *expires));
+                }
+                self.callbacks.push(Incoming::Callback {
+                    client,
+                    event: jig_client_test_domain::Event::Client {
+                        event: jig_client::Event::ApprovalAnswer { answer },
+                    },
+                });
+                return;
+            }
+            link::Request::Authorized(_)
             | link::Request::Kept { .. }
             | link::Request::Dropped
             | link::Request::NotKept { .. } => panic!("joint link request outside transport"),
@@ -752,6 +847,7 @@ pub enum SignInFailure {
 
 #[derive(Debug)]
 pub enum Incoming {
+    Taking { client: ClientId, taking: jig_client::Taking },
     Authenticated { client: ClientId, person: u64, expires: Wall },
     SignInAgain { client: ClientId, why: people::Again },
     SignInFailed { client: ClientId, failure: SignInFailure },
