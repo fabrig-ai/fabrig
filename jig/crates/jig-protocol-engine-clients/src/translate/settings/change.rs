@@ -147,6 +147,7 @@ fn charter(value: w::Charter) -> c::Charter {
             .expect("same count");
     }
     c::Charter {
+        parts: Box::new([]),
         rest,
         documents: documents.into_boxed(),
         number: v.number,
@@ -289,6 +290,7 @@ fn template(value: w::Template, models: &[crate::Model], limits: &w::Limits) -> 
                 subagents.push(t::ModelEffort { model: value.model, effort: value.effort }).expect("same count");
             }
             Some(t::LlmChoice {
+                later: None,
                 account: value.account,
                 main: t::ModelEffort { model: value.main.model, effort: value.main.effort },
                 subagents: subagents.into_boxed(),

@@ -365,6 +365,7 @@ fn producing_goal() -> (World, engine::Assignment, engine::Assignment, u64) {
     call.producer = Some(2);
     call.landing = Some(engine::ChangeLanding::Goal);
     call.llm.producer = Some(tasks::LlmChoice {
+        later: None,
         account: None,
         main: tasks::ModelEffort { model: 0, effort: None },
         subagents: Box::new([]),

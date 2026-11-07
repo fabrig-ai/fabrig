@@ -16,6 +16,7 @@ const INVALID_MODEL_CASES: u32 = 2 + 3 + 5;
 
 fn choice() -> t::LlmChoice {
     t::LlmChoice {
+        later: None,
         account: None,
         main: t::ModelEffort { model: 0, effort: Some(1) },
         subagents: Box::new([t::ModelEffort { model: 1, effort: None }]),
@@ -345,6 +346,7 @@ fn an_amended_choice_reaches_the_people_child_in_configuration_s_order() {
         panic!("amendment")
     };
     let expected = p::LlmChoice {
+        later: None,
         account: None,
         main: p::ModelEffort { model: 0, effort: Some(1) },
         subagents: Box::new([p::ModelEffort { model: 1, effort: None }]),

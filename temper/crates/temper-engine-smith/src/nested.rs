@@ -380,6 +380,7 @@ fn llm(value: Option<&Value>) -> Result<Option<tasks::LlmChoice>, Problem> {
         }
     };
     Ok(Some(tasks::LlmChoice {
+        later: None,
         account: match value.field(b"account")? {
             Some(value) => Some(value.small(b"account")?),
             None => None,

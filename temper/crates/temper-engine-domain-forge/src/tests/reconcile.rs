@@ -361,6 +361,7 @@ pub(super) fn empty_tasks() -> jig_domain_tasks::Domain {
     use jig_domain_tasks as tasks;
     let retry = tasks::Retry { retries: 1, base: Duration::from_millis(10), max: Duration::from_secs(1) };
     let limits = tasks::Limits {
+        charter_parts: 8,
         placed_holds: 1,
         project_placed_holds: 1,
         party_placed_holds: 1,

@@ -1105,6 +1105,10 @@ pub struct SettingsRevision {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent durable lifecycle facts are explicit")]
 pub struct TaskRecord {
+    /// Why this activation runs (jig/docs/design/domain/tasks.md, 8.6).
+    pub reasons: crate::Reasons,
+    /// The kinds the claimed attempt is offered (jig/docs/design/domain/tasks.md, 8.6).
+    pub offered: crate::Reasons,
     /// The placed hold holding this task, whatever its phase says (domain/tasks.md, 5.9).
     pub placed: Option<u64>,
     /// Settings read by this task and its run (domain/engine.md, 17.3).
@@ -1795,6 +1799,10 @@ pub enum Event {
     /// `Preparing`-to-`Claimed` admission with a strictly increasing root attempt, producing `Done`
     /// or `Refused`.
     Claim {
+        /// The prepared run's reasons (jig/docs/design/domain/tasks.md, 8.6).
+        reasons: crate::Reasons,
+        /// The kinds its preparation offers (jig/docs/design/domain/tasks.md, 8.6).
+        offered: crate::Reasons,
         /// Destination owed one `Done` or `Refused` terminal.
         reply_to: ReplyTo,
         /// `Live` `Preparing` task whose attempt is being claimed.
@@ -2135,6 +2143,8 @@ pub struct Added {
 /// (domain/engine.md, sections 7.1 and 9).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct RunContext {
+    /// Why this run runs (jig/docs/design/domain/tasks.md, 8.6).
+    pub reasons: crate::Reasons,
     pub ended_by: crate::EndedBy,
     pub llm: Option<crate::LlmChoice>,
     /// Current financial payer; preparations must recheck it before admission.
