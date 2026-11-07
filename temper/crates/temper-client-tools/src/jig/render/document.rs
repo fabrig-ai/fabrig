@@ -450,19 +450,13 @@ impl Cut {
         out.string(bytes.get(..end).expect("UTF-8 cut"));
     }
 }
+#[expect(clippy::disallowed_methods, reason = "each hex pair has exactly the two digits copied into it")]
 pub(crate) fn hex(bytes: &[u8], out: &mut Encoder) {
-    let mut hex = skein_lib::Writer::new(bytes.len().checked_mul(2).expect("document bound fits"));
-    for byte in bytes {
-        for digit in [byte >> 4u32, byte & 15] {
-            hex.put(&[if digit < 10 {
-                b'0'.checked_add(digit).expect("digit")
-            } else {
-                b'a'.checked_add(digit.checked_sub(10).expect("hex letter")).expect("letter")
-            }])
-            .expect("measured hex");
-        }
+    let mut hex = skein_lib::bytes::zeroed(bytes.len().checked_mul(2).expect("document bound fits"));
+    for (pair, byte) in hex.chunks_exact_mut(2).zip(bytes) {
+        pair.copy_from_slice(&[skein_lib::bytes::hex_digit(byte >> 4u32), skein_lib::bytes::hex_digit(byte & 15)]);
     }
-    out.string(&hex.finish());
+    out.string(&hex);
 }
 fn subject_digest(document: &Document<'_>, limits: &Limits) -> Option<crate::jig::digest::Digest> {
     match document {
