@@ -377,7 +377,10 @@ named controls excepts a recommended choice's tag, departing from the request `u
 only some directories it names all three `TEMPER_` values; and
 `temper forge run`'s refusal and the terminal's `temper open` still say plain `temper` (`client/README.md`). The welcome's try of a model draws Model's line in
 Ready's pane from the host's check and then a trial through the worker and model, with
-its line on Accounts and, failed, on Home (`domain/trial.md`). The gallery lacks the
+its line on Accounts and, failed, on Home (`domain/trial.md`). The first usable
+account's trial names no model choice; a later trial and its retries name that
+account and a model it serves, with fake-provider stories for both orders and
+a second account of one provider (`domain/trial.md`, sections 2 and 4). The gallery lacks the
 account's stopped sample and Ready's trial states (`client/browser.md`). Simultaneous
 usable accounts can lose a trial request, and account rows share one task's wait
 reason (`domain/trial.md`). The pane lacks the draft's "one short message" spend

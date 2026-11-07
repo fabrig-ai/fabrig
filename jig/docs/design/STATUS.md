@@ -28,6 +28,9 @@ remain deferred (`domain/engine.md`, section 16).
 A list read changing only the omitted count leaves `me` unmarked, so the
 page's count can stay stale (`domain/engine.md`, 17.12;
 `client/domain/contract.md`, 5.1).
+A person's task can carry an LLM choice, and `Core::account_llm` builds
+one held to a named account, at its model's default effort
+(`domain/authority.md`, 6.1; `domain/accounts.md`, 4.3).
 Standard admits batches of 32, charters of 262,144 bytes and outcomes of
 131,072; a change body's bound follows its contract's words. Message
 rendering room remains deferred (`domain/hosts.md`, sections 8 and 12;
