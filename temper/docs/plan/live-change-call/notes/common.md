@@ -1,0 +1,11 @@
+# live-change-call: what every task holds to
+
+- **Focused and fuzzy alone (`AGENTS.md`, 5; the user, 11-06).** Never `tools/tiers/run`, a `<tier>-<tree>` profile, `scripts/proof-live.sh`, `scripts/browser.sh`, a walk, a render check or a throwaway driver. The live stories `a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge` and its Claude Code twin are compiled, never run: `heavy cargo nextest run -p temper --test live --no-run`. After-landing runs them. This departs from the request's leave to run the live story by name: no task here needs the live run, since each one's failing test is in a lower tier.
+- **Tests stay cheap.** A new case of one behaviour is a row of an existing table test (`skein/docs/foundation/testing-strategy.md`, 8); a new test is one your spec sketches. temper's focused and fuzzy suites go to 30 and 120 CPU seconds in the gate: name your new tests' time in the report. No test reaches a real host or a real model.
+- **Failing test first.** Where your spec says so, commit the test red before the fix, so the branch's history shows it failing; say in the report what it failed on.
+- **No stored format, protocol or wire change.** `CallAnswer`, the store's records and the client's wire stay as they are: nothing here needs one. If your change seems to need one, it's a question.
+- **`forge_route.rs` is shared.** Other plans write `temper/crates/temper-engine-domain/src/route/forge_route.rs` and `temper-engine-domain`. No task of this plan edits either.
+- **`docs/design/` stays closed:** the sections are written (each spec's `## Inputs` cites them), and each status entry a spec names is the lead's, already written. What the code taught goes in the report.
+- **`docs/help/` is generated here.** Where your change moves a tool's declaration or a refusal's words that `temper/docs/help/reference/` prints, regenerate the page by its own tool (the test that compares it names how) and never by hand; say so in the report.
+- **A test's oracle or helper that your change's correct behaviour trips is yours to repair,** keeping what it checks for everything else, and named in the report.
+- **Before calling a focused or fuzzy failure "outside the change",** run it once on the pristine base. If the base passes and your branch fails, it's yours.

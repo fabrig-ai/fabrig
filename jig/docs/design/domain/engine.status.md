@@ -2,6 +2,16 @@
 
 2026-11-07. Where jig's code lags or departs from [engine.md](engine.md).
 
+Sections 7.1, 7.2, 7.4 and 9 have no known gap in selecting a charter's
+parts from a run's reasons, retaining the prepared offering through a
+claim, or taking only offered messages at a turn's fence. Later runs
+take `later`, reselecting the kept account when its provider changes;
+charter documents still reach every run. The core-world per-wake table
+covers first and later instructions and choices, a kept question,
+undecided escalation, always-offered words and amendment, no parts,
+and a question arriving between preparation and claim. Tool access to
+`later` remains section 16's later work.
+
 Section 17.2 has no known gap in an out-of-shape refusal's position:
 it names the last request item for the failing setting, counted from
 0, or 0 when no item names it. The refusal table covers a third item

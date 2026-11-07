@@ -2,6 +2,12 @@
 
 2026-11-07. Where jig's code lags or departs from [configuration.md](configuration.md).
 
+Sections 3, 3.1 and 6 have no known gap in ordered charter parts and
+their instruction files, path-specific refusals, the
+`tasks.charter_parts` limit of 8 in every profile, or a template's
+`later`. Parts count with the stored policy against `core.run_bytes`;
+parts and later choices are refused under a resuming charter.
+
 Section 3 has no known gap in passed model defaults, refusing document
 model tables under those defaults, provider endpoints or charter `rest`.
 Section 4's agent configuration declares endpoint limits, without models.

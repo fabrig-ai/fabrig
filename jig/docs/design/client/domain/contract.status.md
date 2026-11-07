@@ -2,6 +2,13 @@
 
 2026-11-07. Where jig's code lags or departs from [contract.md](contract.md).
 
+Sections 3.2 and 5.1 have no known gap in charter parts or `later` on
+the client wire. A task document shows its next run's choice, flattening
+`later` after the first activation only for a charter whose runs do not
+resume. An amendment replaces the whole choice, so omitting `later`
+removes it. Refusal paths within charter parts remain section 11's later
+work; refusals currently name the charter's request item.
+
 Section 5.1 has no known gap in `Task.run_wait`'s hello and bounds
 refusals, their optional required/offered figures or charter-bearing
 turns, time and waiting shortfalls. These remain derived document facts,

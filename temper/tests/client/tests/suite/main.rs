@@ -39,6 +39,7 @@ mod status;
 mod stories;
 mod task;
 mod task_tree;
+mod terminal_approval;
 mod to_begin;
 mod watch_room;
 mod welcome;
