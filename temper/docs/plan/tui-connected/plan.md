@@ -62,5 +62,6 @@ loop → the command. The temper batch names its tasks.
   leaves the statuses to `screen-status`, so no other two tasks share a
   line.
 - `screen-surface` asked whether `Frame::new` can refuse a `most` whose
-  cells pass a u32 (two u16 sides never do): the design now says a u32
-  always counts them; the answer is fab's answer call's.
+  cells pass a u32 (two u16 sides never do): the design says a u32
+  always counts them, and `Frame::new` returns a `Frame`, never refusing
+  (the answer call, 2026-11-07); `screen-terminal` makes its frames so.

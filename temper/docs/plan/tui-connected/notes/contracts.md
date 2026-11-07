@@ -100,7 +100,7 @@ impl Cell { pub const BLANK: Cell; }                    // ' ' in Paint::NONE
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Frame { /* most, size, cells, cursor, scroll: private */ }
 impl Frame {
-    #[must_use] pub fn new(most: Size) -> Option<Frame>;  // size 0 by 0; a u32 counts any most's cells (screen-surface's question)
+    #[must_use] pub fn new(most: Size) -> Frame;  // size 0 by 0; a u32 counts any most's cells, so it never refuses
     #[must_use] pub const fn most(&self) -> Size;
     #[must_use] pub const fn size(&self) -> Size;
     /// Clears to `size` (at most `most`, each side), every cell `fill`; the cursor none.
