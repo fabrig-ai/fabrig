@@ -315,6 +315,10 @@ would. Project 0 names no project and has no policy (people.md, section
   `Core::person_seed`, then `Event::PersonTask`. Its creator is
   `Party::Deployment { project: 0 }`, so what selects by a person
   requester (Chats, results, updates, the inbox) never selects it.
+- **Its LLM choice** is the application's, in `Event::PersonTask`'s
+  `llm`: none, so that it takes what a chat of theirs takes, or one from
+  `Core::account_llm`, the seed's `models()` its models, which holds it to
+  one account serving them (accounts.md, 4.3).
 - **Who pays:** the person's pool in project 0, `Funder::Pool { project:
   0, person, period: 0 }`. Its payer is the person, as a chat's is, so it
   takes what a chat of theirs takes (accounts.md, 4.3). Only a key whose

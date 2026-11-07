@@ -11,6 +11,8 @@
   not a real provider or a real box. Claude-only, ChatGPT-only, both, no
   account, a lapsed login and the wire at init's bounds have source stories;
   they do not establish a real-model run.
+  4.3: `Core::account_llm`, the choice holding a new task to one account,
+  is not built.
   5: the first use of a plan as a fact the application
   shows; a retained sign-in answer naming a visit address that died with
   a restart.
