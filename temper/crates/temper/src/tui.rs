@@ -170,7 +170,16 @@ fn start(argument: Option<&[u8]>, clock: &Clock) -> Result<u8, Refused> {
             skein_shell::close_startup_fd(signals);
             Refused::Directory(format!("{}: cannot open its parent: errno {number}", directory.display()))
         })?;
+        #[cfg(feature = "record")]
+        let record = Some(skein_shell::open_root(parent).map_err(|number| {
+            skein_shell::close_startup_fd(root);
+            skein_shell::close_startup_fd(signals);
+            Refused::Directory(format!("{}: cannot open recording parent: errno {number}", directory.display()))
+        })?);
+        #[cfg(not(feature = "record"))]
+        let record = None;
         let settings = Settings {
+            record,
             engine: skein_io::Addr::Ip(engine),
             directory: Box::from(b"tui".as_slice()),
             address: engine.to_string().into_bytes().into_boxed_slice(),
