@@ -43,3 +43,24 @@ time CARGO_MANIFEST_DIR=$PWD <binary-path> --exact <test-name> --nocapture'
 
 Native timing is a single run per arm; instructions are the primary comparison.
 No budget, deadline, patience, build setting or cut was changed.
+
+## First fix: keyed row projection
+
+Commit `02e320c27a` replaces each changed row's contribution under its key and
+retains unchanged naming and translated facts. Erasure removes the row's spend,
+balances, writers and receipts; assembling current contributions retains shared
+receipts. Cross-row projection ownership and proposal acceptances are resolved
+against current rows. Cold observation, bulk writes and missing feeds rebuild
+whole. The referee still receives a complete snapshot at each commit, and its
+checks and commit boundaries are unchanged. This pays D034.
+
+| Story | Arm | Run | Ir | Native CPU s (user + system, with descendants) | Result |
+|---|---|---:|---:|---:|---|
+| CI repair | Keyed projection | 1 | 24,189,059,072 | 6.967 | 1 passed; 78 children |
+| Changed judge | Keyed projection | 1 | 20,219,743,088 | 5.657 | 1 passed; 77 children |
+
+The instruction savings are 3.90% and 7.55%. CI's single native CPU timing rose
+slightly; it is not presented as a CPU gain. At this arm, CI's policy equality
+still costs 3,135,675,258 Ir (12.96%); the projected adapter's borrowed-map work
+costs 852,128,829 Ir (3.52%, its inclusive frame less projection and connector
+translation). Those are the next causes, in that order.

@@ -100,7 +100,7 @@ pub struct Domain {
 #[expect(clippy::struct_excessive_bools, reason = "each startup request has independent request and reply evidence")]
 pub struct Peers {
     oracle: oracle::Replies,
-    pub policy: r::Policy,
+    pub policy: r::PolicySnapshot,
     pub seed: u64,
     pub scenario: Option<jig_conformance::scenarios::Scenario>,
     pub story: Option<stories::Story>,
@@ -260,7 +260,7 @@ impl Application for Temper {
             seed: config.seed,
             scenario: config.scenario,
             story: config.story,
-            policy: observations::policy(config.seed, config.scenario, config.story),
+            policy: observations::policy(config.seed, config.scenario, config.story).into(),
             worker: workers::Worker::new(
                 link::CHANNEL,
                 config.limits.fleet.slots,
@@ -305,6 +305,9 @@ impl Application for Temper {
     }
     fn policy(peers: &Peers) -> &r::Policy {
         &peers.policy
+    }
+    fn policy_snapshot(peers: &Peers) -> Option<&r::PolicySnapshot> {
+        Some(&peers.policy)
     }
     fn start(_: &Config, _: &mut Store) -> Vec<Event> {
         vec![Event::Root(engine::Event::Restart { pending: false })]

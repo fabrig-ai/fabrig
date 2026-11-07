@@ -15,6 +15,21 @@ fn a_commit_feed_matches_whole_projection_through_stories_and_cold_restarts() {
 }
 
 #[test]
+fn shared_policy_refreshes_adapter_edits_and_replaces_referee_edits() {
+    let mut world = jig_conformance::Harness::<Temper>::new(Config::new(71, None), 71);
+    world.drain().expect("faithful startup");
+    let before = world.referee.policy.clone();
+    world.peers.policy.delivery_bound = 1234;
+    world.iterate().expect("edited scenario policy");
+    assert_eq!(world.referee.policy.delivery_bound, 1234);
+    assert_eq!(before.delivery_bound, 60_000_000_000);
+    world.referee.policy.delivery_bound = 999;
+    world.iterate().expect("refresh the complete independent policy again");
+    assert_eq!(world.referee.policy.delivery_bound, 1234);
+    assert_eq!(world.peers.policy.delivery_bound, 1234);
+}
+
+#[test]
 fn a_worker_reports_its_unchanged_push_head_after_an_engine_restart() {
     let config = Config::new(71, Some(jig_conformance::scenarios::Scenario::Grace));
     let mut peers = Temper::peers(&config, 71);
