@@ -19,7 +19,6 @@ cost work, including allocation layout and the native fork floor.
   other tests have unknown individual counts, and the row ratios come
   from different baselines. Shared-helper measurements in
   `skein/docs/development/world-costs.md` establish no suite total either.
-  6: `skein_rows::panics`.
 - **Departs:** 5, 10: `skein/testing/skein-world/src/lib.rs` fences six
   items `cfg(unix)`, though these sections have the crate native, on
   Linux and macOS, so off unix it fails to build however it is fenced; no

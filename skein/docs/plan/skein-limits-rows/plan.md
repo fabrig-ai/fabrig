@@ -58,7 +58,110 @@ Each task fills its own subsection. Suite totals aren't quoted here: the gate re
 
 ### rows-worlds
 
-To be filled by the task.
+Counts are from before/after nextest listings; setup's `all` includes its
+two fuzzy tests in those listings. Only focused tests ran. Tables and rows
+count folds made here, including labelled cases from former inner tables.
+Floors are the request's estimates; the five additional binaries' floors
+and the kit's are unknown.
+
+| Binary | Module | Tests before | Tests after | Tables | Rows | Floor saved, ms |
+|---|---|---:|---:|---:|---:|---:|
+| `skein-channel` | `tests` | 33 | 31 | 1 | 4 | unknown |
+| `skein-fake-forge-domain` | `object::tests` | 2 | 2 | 0 | 0 | 0.0 |
+| `skein-fake-forge-domain` | `tests` | 244 | 227 | 7 | 39 | 27.2 |
+| `skein-fake-forge-forgejo` | `tests` | 227 | 210 | 13 | 30 | 30.6 |
+| `skein-fake-forge-github` | `server::git_tests` | 2 | 2 | 0 | 0 | 0.0 |
+| `skein-fake-forge-github` | `server::tests` | 2 | 1 | 1 | 2 | 1.9 |
+| `skein-fake-forge-github` | `tests` | 194 | 192 | 1 | 3 | 3.8 |
+| `skein-forge-client` | `tests` | 257 | 206 | 13 | 87 | 76.5 |
+| `skein-forge-connection` | `limits::tests` | 19 | 14 | 2 | 7 | unknown |
+| `skein-forge-connection` | `other modules (*)` | 157 | 157 | 0 | 0 | unknown |
+| `skein-forge-machine-world::suite` | `hand::forgejo::*` | 96 | 92 | 4 | 16 | 10.4 |
+| `skein-forge-machine-world::suite` | `hand::github::*` | 291 | 235 | 25 | 82 | 145.6 |
+| `skein-forge-setup-world::suite` | `all` | 155 | 150 | 5 | 10 | 12.5 |
+| `skein-http` | `tests` | 143 | 135 | 4 | 30 | 12.0 |
+| `skein-http` | `tests::server` | 73 | 68 | 2 | 14 | 7.5 |
+| `skein-llm` | `client::tests` | 38 | 24 | 1 | 15 | unknown |
+| `skein-llm` | `other modules (*)` | 111 | 111 | 0 | 0 | unknown |
+| `skein-llm-connection` | `component` | 3 | 3 | 0 | 0 | unknown |
+| `skein-llm-connection` | `deadlines` | 5 | 5 | 0 | 0 | unknown |
+| `skein-llm-connection` | `tests` | 38 | 31 | 1 | 8 | unknown |
+| `skein-oauth` | `v3::golden_tests` | 2 | 2 | 0 | 0 | 0.0 |
+| `skein-oauth` | `machine_tests` | 74 | 61 | 4 | 23 | 20.8 |
+| `skein-oauth` | `pkce::tests` | 2 | 1 | 1 | 3 | 1.6 |
+| `skein-oauth` | `tests` | 33 | 28 | 3 | 17 | 8.0 |
+| `skein-oauth-accounts` | `component` | 1 | 1 | 0 | 0 | 0.0 |
+| `skein-oauth-accounts` | `exchange` | 1 | 1 | 0 | 0 | 0.0 |
+| `skein-oauth-accounts` | `tests` | 161 | 132 | 5 | 34 | 46.4 |
+| `skein-rows` | `tests` | 5 | 8 | 0 | 0 | unknown |
+| `skein-tls` | `client::native::tests` | 26 | 26 | 0 | 0 | unknown |
+| `skein-tls` | `tests` | 54 | 50 | 1 | 5 | unknown |
+
+(*) Other modules aggregate untouched provider/translation/derivation/replay tests
+in LLM and untouched app/component/connection/installation tests in forge
+connection; their focused test names remain unchanged.
+
+The folds replace **340 tests with 94 tables holding 429 rows**, removing
+246 processes. All 340 removed names occur verbatim as row names (with a
+label suffix where an inner case becomes a row); a second audit of removed
+declarations in `git diff` agrees with the compiled-name audit. The kit
+adds three independent panic-helper tests. No suite-total timing is claimed.
+
+All folded unit tables read 5–15 ms on their final PASS lines, and the
+world tables read 12–41 ms, within the 40 ms and 200 ms guides. Each changed
+test file has a two-row mutation failure; the shared GitHub write table's
+three mutated source-module rows fail together.
+
+Beyond the survey, four fixed transport/rate stage wrappers also fold;
+their inner response set is the same for every stage. The six stale-token
+loss wrappers share one body instead of the survey's two tables. The three
+forced-push refusal streams and compatible foreign label, edit, deletion
+and ordinary queue-name failures also fold as recorded data. Fixtures
+retain each row's extra accounts, initial waits, profile and response
+sequence; common true assertions are retained or strengthened.
+
+`app_jwt_route` was profiled before attempting a fold: one route collected
+54,137,815 Ir, including 45,031,053 signing Ir. The four-route table read
+24 ms, then 46 ms after restoring its mutations, above the guide. The
+decided option therefore keeps all four original tests and their RSA
+comment. The six app-check tests also remain unchanged.
+
+Left apart:
+
+- `skein-channel::tests`, 30 tests: invalid schema and output-queue overflow assert different constructor errors; other lifecycle/schema contracts and existing tables remain.
+- `skein-fake-forge-domain::object::tests`, 2 tests: independent object spelling and count-decoding contracts outside the owned test files.
+- `skein-fake-forge-domain::tests`, 220 tests: marker parsing, successful permission streams, verdict precedence, checkpoints, exact rebase exemptions and other domain operations or existing tables.
+- `skein-fake-forge-forgejo::tests`, 197 tests: different push-head/signature, failed-job and deleted-branch hook checks, authentication, pagination and write contracts, and existing tables; all 13 surveyed groups fold.
+- `skein-fake-forge-github::server::git_tests`, 2 tests: outside the two targeted HTTP intake tests.
+- `skein-fake-forge-github::tests`, 191 tests: different fake contracts and existing tables; the six app-check tests remain separate.
+- `skein-forge-client::tests`, 193 tests: distinct lifecycle, cache, outbox, queue, recovery and settlement assertions, and existing tables; all 13 surveyed groups fold.
+- `skein-forge-connection::limits::tests`, 12 tests: different key, platform and component lifecycle contracts and existing tables; all seven refusals fold into plain-constructor and capacity-assertion tables.
+- `skein-forge-connection::other modules`, 157 tests: different key, platform and component lifecycle contracts and existing tables; all seven refusals fold into plain-constructor and capacity-assertion tables.
+- `skein-forge-machine-world::hand::forgejo::*`, 88 tests: heap/process meters, existing tables and distinct call, discovery, renewal, pull, read and write contracts.
+- `skein-forge-machine-world::hand::github::*`, 210 tests: heap/process meters, existing tables and distinct call, discovery, renewal, pull, read and write contracts.
+- `skein-forge-setup-world::all`, 145 tests: heap measurements, two fuzzy sweeps, existing tables and distinct host, creation, permissions and lifecycle paths; all five surveyed groups fold.
+- `skein-http::tests`, 131 tests: different framing failures, gzip algorithms, stream lifecycle, demand ordering, misuse panics and existing tables; all six surveyed groups fold.
+- `skein-http::tests::server`, 66 tests: different framing failures, gzip algorithms, stream lifecycle, demand ordering, misuse panics and existing tables; all six surveyed groups fold.
+- `skein-llm::client::tests`, 23 tests: different client and translation assertions and existing tables; all 15 refusal wrappers fold.
+- `skein-llm::other modules`, 111 tests: different client and translation assertions and existing tables; all 15 refusal wrappers fold.
+- `skein-llm-connection::component`, 3 tests: link and process-memory contracts outside the refusal family.
+- `skein-llm-connection::deadlines`, 5 tests: deadline and process-memory contracts outside the refusal family.
+- `skein-llm-connection::tests`, 30 tests: three refusals keep additional endpoint-record setup, measured request-head failure or computed largest-call reservation checks; after-Closed is a separate lifecycle panic; other contracts and existing tables remain.
+- `skein-oauth::v3::golden_tests`, 2 tests: different exchange, claims, registration and byte-encoding checks, and existing tables; generated code stays untouched.
+- `skein-oauth::machine_tests`, 57 tests: different exchange, claims, registration and byte-encoding checks, and existing tables; generated code stays untouched.
+- `skein-oauth::tests`, 25 tests: different exchange, claims, registration and byte-encoding checks, and existing tables; generated code stays untouched.
+- `skein-oauth-accounts::component`, 1 test: nonce process-memory check outside the owned test files.
+- `skein-oauth-accounts::exchange`, 1 test: exchange-header check outside the owned test files.
+- `skein-oauth-accounts::tests`, 127 tests: distinct sign-in, persistence, grant, refresh, listener and shared-owner paths, heap checks and existing tables; all five surveyed groups fold.
+- `skein-rows::tests`, 8 tests: independent runner admission, continuation, diagnostics and panic-message contracts.
+- `skein-tls::client::native::tests`, 26 tests: outside the targeted config refusal family.
+- `skein-tls::tests`, 49 tests: native-only room refusal accepts portable limits, unlike the five folded refusals; other TLS and RSA contracts remain separate.
+
+The three measured/extra-setup LLM-connection refusals, TLS's native-only
+refusal and channel's two constructor/schema refusals remain tests under
+step 11's decided option. No assertion is weakened, and no test changes
+suite. Mutable harnesses are built per row; input records and transcripts
+carry data, never callbacks.
 
 ### rows-forge
 

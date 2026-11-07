@@ -244,31 +244,25 @@ fn a_failed_answer_reports_its_rate_too() {
 }
 
 #[test]
-fn a_refund_after_the_forge_capped_the_window_stays_under_the_cap() {
-    let mut h = Harness::new(LIMITS);
-    h.read(1);
-    h.read(2);
-    let first = h.one();
-    let second = h.one();
-    assert_eq!(h.domain.calls.remaining(), (2, 2));
-    drop(h.answer_rate(&first, 1, h.rate(1, 30), Err(Error::Forbidden)));
-    assert_eq!(h.domain.calls.remaining(), (1, 2));
-    drop(h.answer_free(&second, 1, 1, Err(Error::Forbidden)));
-    assert_eq!(h.domain.calls.remaining(), (1, 1));
-}
-
-#[test]
-fn a_forge_figure_equal_to_what_is_left_still_caps_later_refunds() {
-    let mut h = Harness::new(LIMITS);
-    h.read(1);
-    h.read(2);
-    let first = h.one();
-    let second = h.one();
-    assert_eq!(h.domain.calls.remaining(), (2, 2));
-    drop(h.answer_rate(&first, 1, h.rate(2, 30), Err(Error::Forbidden)));
-    assert_eq!(h.domain.calls.remaining(), (2, 2));
-    drop(h.answer_free(&second, 1, 1, Err(Error::Forbidden)));
-    assert_eq!(h.domain.calls.remaining(), (2, 1));
+fn refunds_remain_capped_by_the_reported_forge_allowance() {
+    skein_rows::check(
+        [
+            ("a_refund_after_the_forge_capped_the_window_stays_under_the_cap", (1, (1, 2), (1, 1))),
+            ("a_forge_figure_equal_to_what_is_left_still_caps_later_refunds", (2, (2, 2), (2, 1))),
+        ],
+        |(allowance, capped, refunded)| {
+            let mut h = Harness::new(LIMITS);
+            h.read(1);
+            h.read(2);
+            let first = h.one();
+            let second = h.one();
+            assert_eq!(h.domain.calls.remaining(), (2, 2));
+            drop(h.answer_rate(&first, 1, h.rate(allowance, 30), Err(Error::Forbidden)));
+            assert_eq!(h.domain.calls.remaining(), capped);
+            drop(h.answer_free(&second, 1, 1, Err(Error::Forbidden)));
+            assert_eq!(h.domain.calls.remaining(), refunded);
+        },
+    );
 }
 
 #[test]

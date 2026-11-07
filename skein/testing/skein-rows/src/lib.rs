@@ -33,5 +33,18 @@ pub fn check<R>(rows: impl IntoIterator<Item = (&'static str, R)>, body: impl Fn
     assert!(failures.is_empty(), "{} of {total} rows failed\n{}", failures.len(), failures.join("\n"));
 }
 
+/// Holds for a row what `#[should_panic(expected = "...")]` holds for a
+/// test: `call` must panic, with a message holding `expected`.
+#[track_caller]
+pub fn panics(expected: &str, call: impl FnOnce()) {
+    let payload = catch_unwind(AssertUnwindSafe(call)).expect_err("call must panic");
+    let message = payload
+        .downcast_ref::<String>()
+        .map(String::as_str)
+        .or_else(|| payload.downcast_ref::<&str>().copied())
+        .expect("panic must have a message");
+    assert!(message.contains(expected), "panic message {message:?} must contain {expected:?}");
+}
+
 #[cfg(test)]
 mod tests;

@@ -667,8 +667,21 @@ mod openid;
 mod paste;
 
 #[test]
-fn valid_accepts_test_limits() {
-    assert!(valid(&limits()));
+fn permitted_account_limits_pass_validation_including_large_bounds() {
+    skein_rows::check(
+        [
+            ("valid_accepts_test_limits", limits()),
+            (
+                "valid_ignores_heap_account_registrations",
+                Limits {
+                    accounts: u32::MAX,
+                    client: ClientLimits { uri_bytes: u32::MAX, ..limits().client },
+                    ..limits()
+                },
+            ),
+        ],
+        |bounds| assert!(valid(&bounds)),
+    );
 }
 
 fn refuses_limits(bounds: &Limits) {
@@ -678,150 +691,109 @@ fn refuses_limits(bounds: &Limits) {
 }
 
 #[test]
-fn valid_refuses_zero_file_stall() {
-    refuses_limits(&Limits { file_stall: Duration::ZERO, ..limits() });
-}
-
-#[test]
-fn valid_refuses_zero_lock_wait() {
-    refuses_limits(&Limits { lock_wait: Duration::ZERO, ..limits() });
-}
-
-#[test]
-fn valid_refuses_zero_accounts() {
-    refuses_limits(&Limits { accounts: 0, ..limits() });
-}
-
-#[test]
-fn valid_refuses_zero_exchanges() {
-    refuses_limits(&Limits { exchanges: 0, ..limits() });
-}
-
-#[test]
-fn valid_refuses_socket_tags_past_u32() {
-    refuses_limits(&Limits { exchanges: u32::MAX, ..limits() });
-}
-
-#[test]
-fn valid_refuses_socket_count_past_u32() {
-    refuses_limits(&Limits { listeners: u32::MAX, ..limits() });
-}
-
-#[test]
-fn valid_refuses_too_few_io_sockets() {
-    refuses_limits(&Limits { io: skein_io::Limits { sockets: 0, ..limits().io }, ..limits() });
-}
-
-#[test]
-fn valid_refuses_unusable_server() {
-    refuses_limits(&Limits { server: skein_http::server::Limits { head: 1, ..limits().server }, ..limits() });
-}
-
-#[test]
-fn valid_refuses_server_read_past_io() {
-    refuses_limits(&Limits { server: skein_http::server::Limits { head: 40_000, ..limits().server }, ..limits() });
-}
-
-#[test]
-fn valid_refuses_server_room_past_io() {
-    refuses_limits(&Limits { server: skein_http::server::Limits { response: 40_000, ..limits().server }, ..limits() });
-}
-
-#[test]
-fn valid_refuses_short_state() {
-    refuses_limits(&Limits { client: ClientLimits { state_bytes: 31, ..limits().client }, ..limits() });
-}
-
-#[test]
-fn valid_refuses_zero_token_bytes() {
-    refuses_limits(&Limits {
-        client: ClientLimits {
-            document: skein_oauth::Limits { token_bytes: 0, ..limits().client.document },
-            ..limits().client
-        },
-        ..limits()
-    });
-}
-
-#[test]
-fn valid_refuses_zero_record_bytes() {
-    refuses_limits(&Limits {
-        client: ClientLimits {
-            document: skein_oauth::Limits { record_bytes: 0, ..limits().client.document },
-            ..limits().client
-        },
-        ..limits()
-    });
-}
-
-#[test]
-fn valid_refuses_short_http_head() {
-    refuses_limits(&Limits { http: skein_http::client::Limits { head: 1, ..limits().http }, ..limits() });
-}
-
-#[test]
-fn valid_refuses_too_few_http_headers() {
-    refuses_limits(&Limits { http: skein_http::client::Limits { headers: 1, ..limits().http }, ..limits() });
-}
-
-#[test]
-fn valid_refuses_zero_http_read() {
-    refuses_limits(&Limits { http: skein_http::client::Limits { read: 0, ..limits().http }, ..limits() });
-}
-
-#[test]
-fn valid_refuses_zero_http_send() {
-    refuses_limits(&Limits { http: skein_http::client::Limits { send: 0, ..limits().http }, ..limits() });
-}
-
-#[test]
-fn valid_refuses_zero_http_request() {
-    refuses_limits(&Limits { http: skein_http::client::Limits { request: 0, ..limits().http }, ..limits() });
-}
-
-#[test]
-fn valid_refuses_http_read_past_tls() {
-    refuses_limits(&Limits { tls: skein_tls::client::Limits { read: 1, ..limits().tls }, ..limits() });
-}
-
-#[test]
-fn valid_refuses_http_room_past_tls() {
-    refuses_limits(&Limits { tls: skein_tls::client::Limits { send: 1, ..limits().tls }, ..limits() });
-}
-
-#[test]
-fn valid_refuses_tls_read_past_io() {
-    refuses_limits(&Limits { io: skein_io::Limits { intake: 1, ..limits().io }, ..limits() });
-}
-
-#[test]
-fn valid_refuses_tls_room_past_io() {
-    refuses_limits(&Limits { io: skein_io::Limits { output: 1, ..limits().io }, ..limits() });
-}
-
-#[test]
-fn valid_refuses_invalid_oauth_client() {
-    refuses_limits(&Limits { client: ClientLimits { max_attempts: 0, ..limits().client }, ..limits() });
-}
-
-#[test]
-fn valid_refuses_tls_intake_past_u32() {
-    refuses_limits(&Limits { tls: skein_tls::client::Limits { read: u32::MAX, ..limits().tls }, ..limits() });
-}
-
-#[test]
-fn valid_refuses_short_tls_records() {
-    refuses_limits(&Limits { tls: skein_tls::client::Limits { records: 1, ..limits().tls }, ..limits() });
-}
-
-#[test]
-fn valid_refuses_io_flight_capacity_past_u32() {
-    refuses_limits(&Limits { io: skein_io::Limits { sockets: u32::MAX / 8 + 1, ..limits().io }, ..limits() });
-}
-
-#[test]
-fn valid_ignores_heap_account_registrations() {
-    let bounds =
-        Limits { accounts: u32::MAX, client: ClientLimits { uri_bytes: u32::MAX, ..limits().client }, ..limits() };
-    assert!(valid(&bounds));
+#[expect(clippy::too_many_lines, reason = "the named limit rows share one admission body")]
+fn invalid_account_limits_refuse_checking_and_component_construction() {
+    skein_rows::check(
+        [
+            ("valid_refuses_zero_file_stall", &Limits { file_stall: Duration::ZERO, ..limits() }),
+            ("valid_refuses_zero_lock_wait", &Limits { lock_wait: Duration::ZERO, ..limits() }),
+            ("valid_refuses_zero_accounts", &Limits { accounts: 0, ..limits() }),
+            ("valid_refuses_zero_exchanges", &Limits { exchanges: 0, ..limits() }),
+            ("valid_refuses_socket_tags_past_u32", &Limits { exchanges: u32::MAX, ..limits() }),
+            ("valid_refuses_socket_count_past_u32", &Limits { listeners: u32::MAX, ..limits() }),
+            (
+                "valid_refuses_too_few_io_sockets",
+                &Limits { io: skein_io::Limits { sockets: 0, ..limits().io }, ..limits() },
+            ),
+            (
+                "valid_refuses_unusable_server",
+                &Limits { server: skein_http::server::Limits { head: 1, ..limits().server }, ..limits() },
+            ),
+            (
+                "valid_refuses_server_read_past_io",
+                &Limits { server: skein_http::server::Limits { head: 40_000, ..limits().server }, ..limits() },
+            ),
+            (
+                "valid_refuses_server_room_past_io",
+                &Limits { server: skein_http::server::Limits { response: 40_000, ..limits().server }, ..limits() },
+            ),
+            (
+                "valid_refuses_short_state",
+                &Limits { client: ClientLimits { state_bytes: 31, ..limits().client }, ..limits() },
+            ),
+            (
+                "valid_refuses_zero_token_bytes",
+                &Limits {
+                    client: ClientLimits {
+                        document: skein_oauth::Limits { token_bytes: 0, ..limits().client.document },
+                        ..limits().client
+                    },
+                    ..limits()
+                },
+            ),
+            (
+                "valid_refuses_zero_record_bytes",
+                &Limits {
+                    client: ClientLimits {
+                        document: skein_oauth::Limits { record_bytes: 0, ..limits().client.document },
+                        ..limits().client
+                    },
+                    ..limits()
+                },
+            ),
+            (
+                "valid_refuses_short_http_head",
+                &Limits { http: skein_http::client::Limits { head: 1, ..limits().http }, ..limits() },
+            ),
+            (
+                "valid_refuses_too_few_http_headers",
+                &Limits { http: skein_http::client::Limits { headers: 1, ..limits().http }, ..limits() },
+            ),
+            (
+                "valid_refuses_zero_http_read",
+                &Limits { http: skein_http::client::Limits { read: 0, ..limits().http }, ..limits() },
+            ),
+            (
+                "valid_refuses_zero_http_send",
+                &Limits { http: skein_http::client::Limits { send: 0, ..limits().http }, ..limits() },
+            ),
+            (
+                "valid_refuses_zero_http_request",
+                &Limits { http: skein_http::client::Limits { request: 0, ..limits().http }, ..limits() },
+            ),
+            (
+                "valid_refuses_http_read_past_tls",
+                &Limits { tls: skein_tls::client::Limits { read: 1, ..limits().tls }, ..limits() },
+            ),
+            (
+                "valid_refuses_http_room_past_tls",
+                &Limits { tls: skein_tls::client::Limits { send: 1, ..limits().tls }, ..limits() },
+            ),
+            (
+                "valid_refuses_tls_read_past_io",
+                &Limits { io: skein_io::Limits { intake: 1, ..limits().io }, ..limits() },
+            ),
+            (
+                "valid_refuses_tls_room_past_io",
+                &Limits { io: skein_io::Limits { output: 1, ..limits().io }, ..limits() },
+            ),
+            (
+                "valid_refuses_invalid_oauth_client",
+                &Limits { client: ClientLimits { max_attempts: 0, ..limits().client }, ..limits() },
+            ),
+            (
+                "valid_refuses_tls_intake_past_u32",
+                &Limits { tls: skein_tls::client::Limits { read: u32::MAX, ..limits().tls }, ..limits() },
+            ),
+            (
+                "valid_refuses_short_tls_records",
+                &Limits { tls: skein_tls::client::Limits { records: 1, ..limits().tls }, ..limits() },
+            ),
+            (
+                "valid_refuses_io_flight_capacity_past_u32",
+                &Limits { io: skein_io::Limits { sockets: u32::MAX / 8 + 1, ..limits().io }, ..limits() },
+            ),
+        ],
+        refuses_limits,
+    );
 }
