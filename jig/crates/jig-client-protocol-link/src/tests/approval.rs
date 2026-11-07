@@ -91,6 +91,9 @@ fn each_approval_message_is_encoded_and_its_answer_decoded() {
                 let mut body = body.to_vec();
                 if trailing { body.push(0); }
                 h.answer(exchange, &body);
+                if !trailing && (expected == (Approval::Read { code: code(), state: ApprovalState::SignedOut }) || expected == (Approval::Decided { code: code(), decided: Decided::SignedOut })) {
+                    assert_eq!(h.out.pop(), Some(Request::Signing { signing: Signing::SignedOut }));
+                }
                 assert_eq!(h.out.pop(), Some(Request::Approval(if trailing { lost(kind) } else { expected_for(&expected) })));
                 assert!(h.out.is_empty());
                 h.answer(exchange, &body);
@@ -137,12 +140,14 @@ fn approval_admission_is_one_ask_and_one_read_or_decision() {
     exchange(&mut h, 1);
 }
 #[test]
-fn an_invalid_asked_code_is_lost() {
-    let mut h = Harness::new(&limits());
-    let exchange = exchange(&mut h, 0);
-    let body = encoded!(w::ApprovalAskAnswer::Asked(w::ApprovalAsked::new(&w::CEILINGS, w::ApprovalAskedParts {
-        secret: Secret::new(Box::new([7; 32])), code: *b"AAAAAAAA", expires: 300,
-    }).unwrap()));
-    h.answer(exchange, &body);
-    assert_eq!(h.out.pop(), Some(Request::Approval(Approval::NotAsked(NotAsked::Lost))));
+fn an_invalid_asked_code_or_secret_is_lost() {
+    for (code, secret) in [(*b"AAAAAAAA", Box::from([7; 32].as_slice())), (*b"bcdfghjk", Box::from([7; 32].as_slice())), (*b"BCDFGHJK", Box::from([7; 31].as_slice()))] {
+        let mut h = Harness::new(&limits());
+        let exchange = exchange(&mut h, 0);
+        let body = encoded!(w::ApprovalAskAnswer::Asked(w::ApprovalAsked::new(&w::CEILINGS, w::ApprovalAskedParts {
+            secret: Secret::new(secret), code, expires: 300,
+        }).unwrap()));
+        h.answer(exchange, &body);
+        assert_eq!(h.out.pop(), Some(Request::Approval(Approval::NotAsked(NotAsked::Lost))));
+    }
 }
