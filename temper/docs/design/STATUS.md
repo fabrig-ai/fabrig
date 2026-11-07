@@ -113,8 +113,9 @@ separate work (`draft/forge-identity.md`, `domain/forge.md`,
 `domain/agent.md`, `protocol/forge.md`, `protocol/store.md`). The
 configuring inventory is filtered, but whole charter reads still name models
 outside the offer and only instructions restrict proposals to it
-(`domain/agent.md`, `draft/model-catalogue.md`). Model settings live in the
-store; Settings has Models, with picker switches,
+(`domain/agent.md`, `draft/model-catalogue.md`). Numbered model settings live
+in the store, with binary stock defaults and endpoint limits in place of
+worker model lists; Settings has Models, with picker switches,
 adding by name, estimated prices and the omitted count. All models links to
 that project's Models tab. Provider-list reads remain `model-catalogue-3`'s
 work; page 07's render check follows landing, owned by temper/ui. The watch

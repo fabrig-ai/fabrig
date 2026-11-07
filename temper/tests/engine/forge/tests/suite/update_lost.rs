@@ -305,7 +305,6 @@ fn a_copy_landing_after_the_change_moved_on_holds_and_lands_nothing_unchecked() 
                 let pushed = world.branch(BRANCH);
                 // The fake reads at landing. An outside hand resets the branch
                 // to its pre-prepare head so the copy can show a dropped push.
-                // notes/common.md binds this use of the fake's own writes.
                 world.external(raw::Op::Write(raw::Write::DeleteBranch { branch: BRANCH.into() }), 1);
                 world.external(raw::Op::Write(raw::Write::CreateBranch { branch: BRANCH.into(), commit: original }), 1);
                 world.external(

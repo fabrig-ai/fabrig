@@ -283,6 +283,8 @@ fn search_preserves_hidden_picks_and_filters_owner_and_name() {
     assert_eq!(sheet.picks.len(), 1);
     assert_eq!(shown(sheet, PROJECT, &side.forges).len(), 1);
     assert_eq!(count(sheet, &side.forges), Count::Found { found: 1, of: 9 });
+    act(&mut side, Act::Find(b"missing".as_slice().into()));
+    assert_eq!(count(side.sheet().unwrap(), &side.forges), Count::Hidden);
     act(&mut side, Act::Find(Box::new([])));
     assert!(shown(side.sheet().unwrap(), PROJECT, &side.forges).get(0).unwrap().picked);
 }

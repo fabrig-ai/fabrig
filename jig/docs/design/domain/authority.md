@@ -598,8 +598,8 @@ refuse for its budget; and the accounts and sources chosen, which the
 claim's commit records (engine.md, 7.1). Each charter's turns and time
 above its reserve's are configuration's to check
 (`../protocol/configuration.md`, section 6); the agent's own limits are
-the fleet's, at each host's hello: the models it declares, their windows
-and outputs, the most turns, spend, time and waiting a run may have, and
+the fleet's, at each host's hello: the endpoints it declares, their window
+and output bounds, the most turns, spend, time and waiting a run may have, and
 the reserve's time against the checks' timeout (engine.md, section 8). A
 start the agent refuses all the same fails its attempt as an assignment
 its host found invalid, naming why (tasks.md, 5.5).

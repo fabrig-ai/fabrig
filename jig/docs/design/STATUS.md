@@ -18,7 +18,10 @@ core world's restore stories are ignored (`domain/engine.md`,
 `domain/connectors.md`). A run's fresh settings proposal replaces its own
 pending one atomically, preserving it on refusal; at the deployment
 proposal bound, refusal remains the default (`domain/tasks.md`, section 9;
-`domain/engine.md`, 17.6). A start does not check an application's declared
+`domain/engine.md`, 17.6). Numbered model settings, catalogue-derived
+charter versions and endpoint bounds at hello are built; provider-list reads and per-account
+narrowing remain deferred (`domain/engine.md`, 16 and 17.11).
+A start does not check an application's declared
 kinds against its limits, and a project's deletion as a whole has no price
 against `journal.writes` (`domain/engine.md`).
 An ended settings acceptance reaches its retained decision with the
