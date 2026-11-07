@@ -1,4 +1,4 @@
-//! Goals in the run's words (domain/agent.md, 4.3.2).
+//! Goals in the run's words (domain/agent.md, 4.3.2 and 8.2).
 use super::{Delegate, Domain, Env, Limits};
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
@@ -76,6 +76,16 @@ pub(crate) fn goal(
         }
     }
     authority.grants = grants.into_boxed();
+    let mut kinds = List::with_capacity(u32::try_from(authority.delegation.kinds.len()).expect("bounded kinds"));
+    for kind in &authority.delegation.kinds {
+        match *kind {
+            tasks::AuthorityExecutor::Role(_) => {}
+            tasks::AuthorityExecutor::Job(_)
+            | tasks::AuthorityExecutor::Charter(_)
+            | tasks::AuthorityExecutor::Procedure(_) => kinds.push(*kind).expect("narrowed kinds fit"),
+        }
+    }
+    authority.delegation.kinds = kinds.into_boxed();
     authority.delegation.tasks = context.tasks_left.saturating_sub(1);
     authority.delegation.depth = authority.delegation.depth.saturating_sub(1);
     authority.budget.spend = spend;

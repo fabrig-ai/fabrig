@@ -2,6 +2,11 @@
 
 2026-11-07. Where temper's code lags or departs from [browser.md](browser.md).
 
+Section 7.2's `settings-all-hidden` sample names every switch off,
+separately from the drafts-on stock. The view tables hold Goals in the
+rail and phone tab bar with kind 7's Goals hidden and a goal present.
+The fresh-project flow's browser check is deferred in section 5.
+
 Section 8.3's Landings link uses the underlined row-sized sheet rule, and
 landings omit a zero stale-proof count while retaining a positive count.
 The view and sheet tests hold these rules. Titles retain the user's
