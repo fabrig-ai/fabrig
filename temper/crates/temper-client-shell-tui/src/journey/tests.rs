@@ -144,13 +144,19 @@ fn each_enter_marks_its_frame_before_the_key() {
     let mut walk = pasted();
     let records = lines(&walk.save()).expect("records");
     let mut enters = 0;
+    let mut typed = 0;
     for pair in records.windows(2) {
         if matches!(pair.get(1), Some(Line::Key { key: Key::Enter, .. })) {
             enters += 1;
             assert!(matches!(pair.first(), Some(Line::Mark(Some(_)))), "Enter needs its preceding live mark");
         }
+        if matches!(pair.get(1), Some(Line::Key { key: Key::Paste(_), .. })) {
+            typed += 1;
+            assert!(!matches!(pair.first(), Some(Line::Mark(_))), "typing marks no frame");
+        }
     }
     assert_eq!(enters, 1);
+    assert_eq!(typed, 1);
 }
 
 #[test]
@@ -198,6 +204,11 @@ fn tab_with_no_event_is_kept_and_replayed() {
     let file = walk.save();
     let records = lines(&file).expect("records");
     assert!(records.iter().any(|line| matches!(line, Line::Key { key: Key::Tab, event: None })));
+    assert_eq!(
+        records.iter().filter(|line| matches!(line, Line::Mark(_))).count(),
+        1,
+        "only Enter marks a frame; focus-only keys mark nothing"
+    );
     assert!(prove(&file).is_ok());
 }
 
