@@ -2,6 +2,18 @@
 
 2026-11-07. Where temper's code lags or departs from [agent.md](agent.md).
 
+Section 8.2 has no known implementation gap in the stock's person-executor
+permissions, the goal paragraph, the Ask answer or the message-reference
+hint. Rules and project ceilings admit roles 0, 1 and 2; each creating
+role admits its own, and a goal called by a chat keeps no role kind.
+The client world checks the requester's answer ending the person task
+and reaching its resumed goal as a report-result message. Another role
+is refused for missing executor permission, and a person with no role
+for executor, with no task made in either case. Permission still admits
+another holder of the requester's role; instructions alone name the
+requester. That narrowing and the unsent agreed-goal shape remain section
+10's deferred work, along with real-model observation of the instructions.
+
 Section 8.1 has no known implementation gap in the inventory's forge
 accounts. It takes each forge of the project's repositories once, names
 its host and the person's user or unknown, and marks that forge's writer.

@@ -1722,7 +1722,7 @@ const PERSON_TEMPLATES: u32 = 3;
 const PERSON_ANSWERS: u32 = 16;
 // One whole report reservation plus the joined question fixtures' 512 bytes.
 const PERSON_INBOX_BYTES: u32 = PERSON_RESULT_WORDS + 512;
-// The person question's report contract (temper/docs/plan/ui-goal-asks/notes/contracts.md).
+// The person question's report contract (temper/docs/design/domain/agent.md, 8.2).
 const PERSON_RESULT_WORDS: u32 = 4096;
 // Three report payloads and the retained task fields fit within 32 KiB.
 const PERSON_TRANSCRIPT_BYTES: u32 = 32_768;

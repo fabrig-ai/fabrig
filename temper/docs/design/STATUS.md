@@ -2,7 +2,14 @@
 
 2026-11-07. Where temper's code lags or departs from its design, and
 its design from its drafts, from the status files below. The first
-milestone stands in the code (`README.md`). Fresh projects offer drafts;
+milestone stands in the code (`README.md`). A person-started goal asks by
+a person task; its question in words draws under Needs you, on Home and in
+the goal's band, and its answer wakes the goal with those words. Permission
+is bounded by the requester's role, with instructions alone naming that
+requester; a chat-called goal keeps asking its chat. The requester-only
+permission, agreed-goal shape and after-landing observations remain deferred
+(`domain/agent.md`, 8.2 and 10; `client/README.md`, 3.5, 5.8 and 11).
+Fresh projects offer drafts;
 configuring chats offer one even with drafts off, and a project holding a
 goal shows Goals in its bar. Home can still show To begin and Chats, so
 the bar supplies the goal's entry. The mock's drafts-off default remains
@@ -383,10 +390,15 @@ where it is. The browser tier runs Chromium alone, with
 themselves are read, not run (`draft/chat-reading.md`, 5, **Design departs**). A read
 that failed at the head is not tried again on a move back within its reach (`client/README.md`).
 Service, engine and joined-client fixtures, words and command startup have
-the profiled cost repairs; remaining representation and algorithm work is
-deferred. Individual instruction savings establish no whole-suite CPU
-total, so the focused suite's 30 CPU s budget remains unproved
-(`domain/testing.md`, 6.1 and 11).
+the profiled cost repairs, alongside fake preparation, page ordering,
+projection updates, protocol scheduling queries, gallery checks and the
+launcher. Remaining representation and algorithm work is deferred.
+Individual instruction savings establish no whole-suite CPU total, so the
+focused suite's 30 CPU s budget remains unproved (`domain/testing.md`,
+6.1 and 11). The hangup/rebind and Linux killed-box stories moved whole
+into the process tier and compiled; their runtime there and the tier's
+margin after the estimated 15.9 CPU s transfer remain unobserved
+(`domain/testing.md`, 2.6; `protocol/setup.md`, 13.4).
 The process tier's three tests at a time await a passing whole run after landing,
 and its CPU-budget overages remain. Reusable listener ports come from
 process-held blocks below Linux's configured ephemeral range; macOS uses
