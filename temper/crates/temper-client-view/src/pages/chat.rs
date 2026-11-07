@@ -163,9 +163,6 @@ pub(crate) fn main(
         {
             crate::choice::above_composer(b, root, Some(task), words, bindings, times);
         }
-        if terminal {
-            super::terminal::chat_running(b, root, words);
-        }
         session_composer(b, root, chat, task, words, bindings);
         b.close();
         super::document::pane(b, root, chat, task, words, times);
@@ -428,10 +425,13 @@ fn session_composer(
         Some(me) => temper_client_domain::pages::composer::over(&chat.words, chat.beyond, me.words_bytes),
         None => 0,
     };
-    let terminal = super::terminal::shown(root, words);
-    super::session::foot(b, &words.say(Word::Message, &[]));
     if terminal {
+        super::session::form(b, &words.say(Word::Message, &[]));
+        super::terminal::chat_running(b, root, words);
+        super::session::composer(b);
         super::terminal::prompt(b, words);
+    } else {
+        super::session::foot(b, &words.say(Word::Message, &[]));
     }
     b.open(Role::TextArea);
     b.name(&words.say(Word::Message, &[]));

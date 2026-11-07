@@ -14,6 +14,11 @@ fn the_look_moves_by_its_acts() {
     let root = crate::unlinked(&limits, fixtures::SEED);
     let dark = Look::default();
     let light = Look { terminal: true, theme: Theme::Light, font: Font::Plex };
+    let mut stale_acts = Queue::uncapped();
+    let mut stale_restores = Queue::uncapped();
+    let mut stale_departures = Queue::uncapped();
+    let mut stale_list_restores = Queue::uncapped();
+    let mut stale_list_departures = Queue::uncapped();
     for (before, act, after, screen) in [
         (dark, terminal::Act::Enter, Look { terminal: true, ..dark }, Some(true)),
         (dark, terminal::Act::Leave, dark, Some(false)),
@@ -41,7 +46,16 @@ fn the_look_moves_by_its_acts() {
         let mut domain = crate::unlinked(&limits, fixtures::SEED);
         domain.pages = pages;
         let mut acts = Queue::uncapped();
-        crate::step(&mut domain, &env, crate::Event::Act { action: Action::Pages(Act::Terminal(act)) }, &mut acts);
+        let shown = crate::shown(&domain);
+        crate::step(
+            &mut domain,
+            &env,
+            crate::Event::Act { action: Action::Pages(Act::Terminal(act.clone())) },
+            &mut acts,
+        );
+        if crate::shown(&domain) <= shown {
+            stale_acts.push((before, act));
+        }
         assert_eq!(acts.pop(), Some(crate::Request::KeepLook { look: after }));
         let screen = match screen {
             Some(on) => Some(crate::Request::Screen { on }),
@@ -61,7 +75,11 @@ fn the_look_moves_by_its_acts() {
     for look in [dark, light] {
         let mut root = crate::unlinked(&limits, fixtures::SEED);
         let mut out = Queue::uncapped();
+        let shown = crate::shown(&root);
         crate::step(&mut root, &fixtures::env(&limits), crate::Event::LookKept { look }, &mut out);
+        if crate::shown(&root) <= shown {
+            stale_restores.push(look);
+        }
         assert_eq!(root.pages().look(), look);
         assert!(out.is_empty(), "a restored look asks for nothing");
     }
@@ -96,7 +114,11 @@ fn the_look_moves_by_its_acts() {
         domain.pages = pages;
         domain.client = fixture.client;
         let mut out = Queue::uncapped();
+        let shown = crate::shown(&domain);
         crate::step(&mut domain, &env, crate::Event::ScreenLeft, &mut out);
+        if crate::shown(&domain) <= shown {
+            stale_departures.push((command, words, configuring));
+        }
         assert_eq!(domain.pages().look(), Look { terminal: true, ..dark });
         assert_eq!(domain.pages().listing(), None);
         assert!(domain.pages().confirmation().is_none());
@@ -125,11 +147,19 @@ fn the_look_moves_by_its_acts() {
         }
         let listing = domain.pages().listing();
         let mut out = Queue::uncapped();
+        let shown = crate::shown(&domain);
         crate::step(&mut domain, &env, crate::Event::LookKept { look: light }, &mut out);
+        if crate::shown(&domain) <= shown {
+            stale_list_restores.push(command);
+        }
         assert_eq!(domain.pages().look(), light);
         assert_eq!(domain.pages().listing(), listing, "restoring a look leaves its list alone");
         assert!(out.is_empty());
+        let shown = crate::shown(&domain);
         crate::step(&mut domain, &env, crate::Event::ScreenLeft, &mut out);
+        if crate::shown(&domain) <= shown {
+            stale_list_departures.push(command);
+        }
         assert_eq!(domain.pages().look(), light);
         assert_eq!(domain.pages().listing(), None);
         assert!(out.is_empty());
@@ -167,6 +197,16 @@ fn the_look_moves_by_its_acts() {
         assert_eq!(pages.chats().unwrap().words.as_ref(), b"Keep the opening");
         assert_eq!(pages.look(), Look { terminal: true, ..dark });
     }
+    assert!(
+        stale_acts.is_empty()
+            && stale_restores.is_empty()
+            && stale_departures.is_empty()
+            && stale_list_restores.is_empty()
+            && stale_list_departures.is_empty(),
+        "rows that did not move shown: acts {stale_acts:#?}; LookKept {stale_restores:#?}; \
+         ScreenLeft {stale_departures:#?}; LookKept after commands {stale_list_restores:#?}; \
+         ScreenLeft after restored look and commands {stale_list_departures:#?}"
+    );
 }
 
 #[test]
