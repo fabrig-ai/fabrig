@@ -345,6 +345,11 @@ read's head explicit.
   How work runs has no Ask temper row, and there is no `Ask { project }`
   page; nothing starts a chat from template 5 but ctl's `chat start
   --template 5`.
+- **Not yet:** 3.5, *A chat's document*: a `document` call is not read as a
+  `note` call: the page reads the document again after a `note` call alone,
+  and draws no tool line or tint for a `document` call
+  (`temper-client-domain/src/pages/chat.rs`, `note_calls`, `newest_write`,
+  `run_notes`; `temper-client-view/src/pages/document.rs`, `write`).
 - **Design departs:** 3.5, *Ask temper's page*, and 5.13, *Ask temper*, from
   the mock (`greenfield/`), which draws neither Configure temper nor Ask
   temper on Settings: Ask temper stands beside Configure temper until the

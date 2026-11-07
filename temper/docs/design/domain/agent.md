@@ -1484,6 +1484,75 @@ otherwise.
   table (8.4.1); `document`'s writes and refusals (8.4.3); `propose_settings`'s
   asking form (8.4.2).
 
+#### 8.4.3 `document`
+
+Ask temper's one document, "How this project works", written by section
+(`../draft/ask-temper.md`, 5.3). It is the chat's document of 8.3, the note the
+client draws, and the tool holds what a `note` call names, the note, its scope,
+its revision and its lines, so that a run names none of them.
+
+- **Its calls:** `write` the whole document, its first line `# TITLE`; `append`
+  one section at its end; `replace` the document's section under the same
+  heading as the call's. A section is a line that begins `## `, its heading
+  line, and the lines after it up to the next such line or the end; a line
+  inside a fenced block, from a line beginning ```` ``` ```` or `~~~` to the
+  next, is never a heading line. A heading is the rest of its line, compared
+  with its spaces at either end and ASCII case set aside. The lines before the
+  first section are the document's head, its title line among them, which only
+  `write` changes. The body of `append` and `replace` is one section: its first
+  line a heading line, and no other.
+- **Its note:** the lowest numbered note of the chat's own scope, the goal scope
+  of its project and its own task number, whose description does not begin
+  `work:` (8.3), its description the title and its body the whole document, the
+  title line first. The first `write` makes it; a `write` when it exists replaces
+  it whole, title and body, as its next revision. A title is the rest of the
+  first line after `# `, its spaces trimmed, neither empty nor beginning `work:`.
+- **The root writes it** (`route/document.rs`): once the asking family has
+  decided the call (4.3), it checks the recall family for reading that scope and
+  the note family for writing it, as `recall` and `note` are checked (jig's
+  `domain/authority.md`, section 3), a refusal answered as theirs; it loads the
+  scope's index and the note from the store, as `propose_settings`' note source
+  loads its note (8.1); it makes the new body and checks it; and it writes it
+  whole through jig's note family at the revision it loaded (jig's
+  `domain/engine.md`, section 10), which decides and records the write as for
+  `note`. Its own refusals, before the write, change nothing and keep no record,
+  so that the same call made again reads afresh.
+- **Joined at the write:** `append` puts one empty line between the document's
+  last line with text and the section; `replace` puts the section in place of
+  the old one's heading line and its lines through its last with text, and keeps
+  the empty lines after it; the body's trailing newlines become one. `append` and
+  `replace` keep the note's description and references.
+- **A party's correction** (jig's `domain/engine.md`, section 10) made between
+  two calls is the newest, which the next call reads and applies to. One that
+  lands between a call's read and its write, as a second call of the same turn
+  at once may, is refused by jig as moved, and the answer names the section and
+  says to call again (section 10).
+- **Its answer** is two lines. The first is the `note` answer's for the write
+  (8.3), so that the client reads a `document` call as it reads a `note` call
+  (`../client/README.md`, 3.5, *A chat's document*). The second is the agent's,
+  what changed and the document's size in jig's `lines`:
+  - a first `write`: `document: "How this project works" written, 64 lines.`
+  - a later `write`: `document: "How this project works" written whole again, 66 lines.`
+  - `append`: `document: ## Open questions appended, 76 lines.`
+  - `replace`: `document: ## Approvals replaced, 76 lines.`
+- **Its refusals** are a line each, an error, and change nothing:
+  - a `write` with no title: `document: write takes the whole document, its first line # TITLE; nothing changed.`
+  - a title past jig's description bound: `document: the title is 300 bytes, past its bound of 256; nothing changed.`
+  - an `append` or `replace` that is not one section: `document: append takes one section, its first line ## HEADING and no other heading; nothing changed.`, `replace` for a replace;
+  - an `append` or `replace` with no document: `document: no document yet; write it whole first, its first line # TITLE.`
+  - a `replace` with no section of that heading: `document: no section ## Approvals; its sections: ## Landing · ## Open questions. Nothing changed.`, the headings in order, as many as fit 1,024 bytes, then ` · …`; with none, `document: no section ## Approvals; it has none. Nothing changed.`
+  - an `append` of a heading it has: `document: ## Approvals is there already; replace it. Nothing changed.`
+  - a document past jig's body bound, `notes.body_bytes`: `document: the document would be 70000 bytes, past its bound of 65536; nothing changed.`
+  - moved or deleted during the call: `document: the document changed while ## Approvals was written; nothing changed. Call again: it applies to the newest.`, the title in quotes for a `write`;
+  - jig's notes busy: `document: busy; nothing changed. Call again.`
+  - the note not loaded, or past a load's bounds: `document: the document could not be read; nothing changed.`
+  - any other refusal of jig's at the write, in `note`'s words after `document: `, as `document: Note refused: full`.
+- **The configuring agent** keeps its document with `note` (8.3); `document` is
+  declared to an asking charter alone (4.3).
+- **Its tests** (`testing.md`, 6.1): its writes and refusals as rows of the
+  engine's domain world's note tests, each with the stored body and the answer;
+  its words as one table of `temper-engine-smith`'s.
+
 ## 9. The world
 
 smith's worlds test the agent itself (smith's documents, each section
@@ -1682,3 +1751,9 @@ host:
   (`../draft/reference-code-production.md`, section 3). Default: no
   other job kind produces a change; a project whose tooling makes
   changes with no model would name its kind as a member of `change`.
+- **A document moved within one call** (8.4.3): jig decides and records a
+  write refused as moved, so the root cannot read the newest and write again
+  under the same call, as `../draft/ask-temper.md`, 5.3 has it. Default: the
+  call is refused naming its section, and the run's next call applies it to
+  the newest; a retry within the call once jig's notes take a section's splice
+  at the write, or leave an application's moved write unrecorded.

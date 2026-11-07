@@ -72,3 +72,16 @@ id = 5
 story = "A fresh deployment offers template 5, Ask temper, run by charter 11 with ask.txt, and what temper gives its first request is within 16,384 bytes on ChatGPT's shape and Claude Code's"
 parts = ["stock"]
 walk = false
+
+[[part]]
+id = "document"
+title = "Ask temper writes its document by section: write, append, replace, the root splicing jig's note"
+mode = "direct"
+needs = ["declare"]
+design = "temper/docs/design/domain/agent.md, 8.4.3"
+
+[[slice]]
+id = 6
+story = "An Ask temper run writes \"How this project works\" whole, appends a section and replaces one by its heading; the stored note is the chat's document, its answer's first line the note's, and a refused call changes nothing"
+parts = ["document"]
+walk = false

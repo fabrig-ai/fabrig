@@ -766,7 +766,10 @@ keeps (`../protocol/configuration.md`, section 2).
   working notes has no document. Its description is its title, its body Markdown,
   its name the mock's `slug` of the title, 28 characters, plus `.md`:
   `away-mode.md`. There are no file drafts: a document
-  is always a chat's.
+  is always a chat's. Ask temper's agent writes it with `document`
+  (`../domain/agent.md`, 8.4.3), whose answer's first line is a `note` answer's:
+  wherever this part names a `note` call, a `document` call is read alike, by
+  that line.
   - *Offered:* `pages::drafts_offered(root, project)` is that project's kind 7
     `drafts` (5.13), true in the stock. It gates the Drafts filter, the Chats
     lede's words, "Start goal…", the rail's "Goal" and "+ Draft" on a chat that is

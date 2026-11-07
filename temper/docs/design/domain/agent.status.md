@@ -85,6 +85,10 @@ person's next words, whether the previous run still listens or has parked.
   (`temper-service/src/stock.rs`).
 - **Not yet:** 8.4: no step test holds what temper gives an asking charter's first
   request to 16,384 bytes on both shapes (`temper-service/src/tests/`).
+- **Not yet:** 8.4.3: no `document` call writes the chat's document: the root has
+  no flow over jig's notes for it (`temper-engine-domain/src/route/document.rs`),
+  and its answer and refusals have no words of their own
+  (`temper-engine-smith/src/document.rs`).
 - **Design departs:** 8.1, from `../draft/model-catalogue.md`, 3, decided
   by the `model-catalogue-1` cut: settings reads return whole charters,
   including models outside the offer, because a proposal needs their whole

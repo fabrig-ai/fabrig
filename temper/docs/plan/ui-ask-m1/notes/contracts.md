@@ -182,3 +182,71 @@ keeps this form, rendered as text by `temper/crates/temper-engine-smith/src/see.
   instructions, `me · project · goals [ended] · ...`, an error.
 - **A refusal** says in a line what the read did not reach, an error: the existing
   reads' refusals in their words, prefixed `see ADDRESS: `.
+
+## 10. `document` and `propose_settings`' asking form
+
+`temper/docs/design/domain/agent.md`, 8.4.2 and 8.4.3. Section 9 is `see`'s.
+
+### 10.1 `document`'s answer
+
+In `temper/crates/temper-engine-domain/src/store.rs`, beside `CallAnswer`, exported from
+the crate's `lib.rs` as `CallAnswer` is (the task `document`):
+
+```rust
+/// A `document` call's answer, joined at its host flight (domain/agent.md, 8.4.3).
+CallAnswer::Document(Box<Documented>),
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Documented {
+    pub action: DocumentAction,
+    /// The title for a write, the section's heading for an append or a replace, as the
+    /// call gave it; empty where the body names none.
+    pub heading: Box<[u8]>,
+    pub outcome: DocumentOutcome,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum DocumentOutcome {
+    /// jig's note write, as `CallAnswer::NoteWritten` carries it.
+    Written { name: u64, revision: u32, lines: u32, added: u32, removed: u32, first: u32 },
+    /// Nothing changed.
+    Refused(DocumentRefusal),
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum DocumentRefusal {
+    NoTitle,
+    TitlePastBound { bytes: u32, bound: u32 },
+    NotOneSection,
+    NoDocument,
+    /// The document's headings in order within 1,024 bytes; `more` when some are left out.
+    NoSection { headings: Box<[Box<[u8]>]>, more: bool },
+    SectionThere,
+    PastBound { bytes: u32, bound: u32 },
+    Moved,
+    Busy,
+    Unread,
+    Denied { family: NoteFamily, answer: jig_domain_authority::Answer, findings: Box<[jig_domain_authority::Finding]> },
+    Note(jig_domain_notes::Refusal),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum NoteFamily { Note, Recall }
+```
+
+- **Rendered** by `temper/crates/temper-engine-smith/src/document.rs` alone, in 8.4.3's
+  words. A `Written` answer's first line is, byte for byte, what `note`'s answer says
+  of the same write (`Note N revision R written · ...`); the client reads that line
+  (`temper-client-domain/src/pages/chat/document.rs`, `tool_write(b"document", ..)`).
+- **No codec:** `CallAnswer` has no stored or wire form; nothing migrates.
+
+### 10.2 Files beyond section 7
+
+| File | Written by | What |
+|---|---|---|
+| `temper/crates/temper-engine-domain/src/store.rs` | `document` | 10.1's types, `call_answer_bytes`' arm |
+| `temper/crates/temper-engine-domain/src/route/host_route.rs` | `document` | `FlightRender::Document`, its arms in `decoded` and `render` |
+| `temper/crates/temper-engine-domain/src/boundary.rs` | `document` | `Read::Document` |
+| `temper/crates/temper-engine-domain/src/archive.rs`, `restart.rs` | `document` | the `Waiting` arm routing its pages |
+| `temper/crates/temper-engine-smith/src/answers.rs` | `document` | one arm, `CallAnswer::Document`, beside `NoteRefused`; `Text`, `note_written` `pub(crate)` |
+| `temper/crates/temper-client-domain/src/pages/chat.rs`, `pages/chat/document.rs`; `temper/crates/temper-client-view/src/pages/document.rs` | `document` | `note` read as `note` or `document` |
