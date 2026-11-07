@@ -4481,6 +4481,9 @@ pub(crate) fn outputs(
     for _ in 0..out.len() {
         let request = out.pop().expect("connector output count");
         match request {
+            forge::Request::LinkNoted { forge, note } => {
+                super::diagnostics::emit(domain, crate::Fact::ForgeLink { forge, note });
+            }
             forge::Request::Decided { to, key, took } => {
                 decide_call(domain, &env.limits, decision, to, core_call(key), CallAnswer::Decided { took });
             }

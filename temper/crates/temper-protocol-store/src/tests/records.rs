@@ -1343,6 +1343,7 @@ fn forge_record_round_trips_every_mode_and_state() {
                         record.state = state;
                         record.read_only = optional;
                         record.asked = optional;
+                        record.person = if optional { Some(forge::Link { user: 71, person: 29 }) } else { None };
                         record.first = if first {
                             Some(forge::FirstIntent::Empty(forge::EmptyIntent {
                                 playground: optional,
@@ -1886,9 +1887,17 @@ fn away_and_decided_rows_round_trip_their_options_and_bounds() {
     }
 }
 #[test]
-fn away_and_decided_rows_refuse_invalid_bits_options_and_keys() {
+fn rows_refuse_invalid_bits_options_and_keys() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     for row in [
+        forge::Stored::Forge(forge::ForgeRecord {
+            person: Some(forge::Link { user: 0, person: 29 }),
+            ..fixtures::forge_record()
+        }),
+        forge::Stored::Forge(forge::ForgeRecord {
+            person: Some(forge::Link { user: 71, person: 0 }),
+            ..fixtures::forge_record()
+        }),
         forge::Stored::Away(forge::Away { kinds: 16, ..away_row(false, 7, 1, 0) }),
         forge::Stored::Decided(decided_row(1, 0)),
         forge::Stored::Decided(forge::Decided { took: 2, ..decided_row(2, 0) }),

@@ -353,6 +353,7 @@ fn adoption_reads_permission_before_committing_its_role() {
     let (call, op) = match &sent[0] {
         Request::Call { call, op, .. } => (*call, op.clone()),
         Request::Resource { .. }
+        | Request::LinkNoted { .. }
         | Request::Marked { .. }
         | Request::Adopted { .. }
         | Request::Save { .. }
@@ -443,6 +444,7 @@ fn adoption_reads_permission_before_committing_its_role() {
             *call
         }
         Request::Call { .. }
+        | Request::LinkNoted { .. }
         | Request::Marked { .. }
         | Request::Resource { .. }
         | Request::Adopted { .. }
@@ -527,6 +529,7 @@ fn adoption_reads_permission_before_committing_its_role() {
     match &next[0] {
         Request::Call { op: skein_forge::api::Op::Read(skein_forge::api::Read::Settings), .. } => {}
         Request::Call { .. }
+        | Request::LinkNoted { .. }
         | Request::Marked { .. }
         | Request::Resource { .. }
         | Request::Adopted { .. }
@@ -2631,6 +2634,7 @@ fn a_kept_forge_supplies_its_workspace_credential_after_restore() {
         &mut d,
         Event::Restore {
             record: Stored::Forge(ForgeRecord {
+                person: None,
                 git_program: None,
                 number: 1,
                 kind: Kind::Forgejo,

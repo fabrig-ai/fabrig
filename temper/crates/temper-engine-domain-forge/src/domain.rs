@@ -1253,6 +1253,8 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::InstallAnswered { forge, request, answer, stopped } => {
             crate::connect::installed(d, forge, request, answer, stopped, out);
         }
+        // link-decide supplies these decisions (temper/docs/design/domain/forge.md, 4.6).
+        Event::Owner { .. } | Event::PersonOf { .. } => {}
         Event::BotLogin { forge, login } => crate::connect::bot_login(d, forge, login, out),
         Event::ConnectEnded { forge, request, connected, why, stop } => {
             crate::connect::ended(d, forge, request, connected, why, stop, out);

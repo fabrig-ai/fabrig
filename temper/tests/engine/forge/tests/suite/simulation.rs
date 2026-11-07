@@ -1185,6 +1185,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::TierDecision { .. }
                 | top::Request::MakingCopied { .. }
                 | top::Request::MakingAct { .. }
+                | top::Request::LinkNoted { .. }
                 | top::Request::Decided { .. }
                 | top::Request::Call { .. } => {}
             }
@@ -2706,6 +2707,7 @@ fn a_removed_forge_reads_nothing_after() {
     world.adopt();
     world.event(top::Event::Restore {
         record: top::Stored::Forge(top::ForgeRecord {
+            person: None,
             git_program: None,
             number: 1,
             kind: top::Kind::Forgejo,
