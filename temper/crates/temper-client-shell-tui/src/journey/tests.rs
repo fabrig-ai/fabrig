@@ -104,19 +104,23 @@ fn replay_stale(recording: &[u8]) -> Stale {
 
 #[test]
 fn pasted_reports_replay_to_the_same_frames_and_records() {
-    same_frames(pasted());
+    let mut walk = pasted();
+    let records = lines(&walk.save()).expect("records");
+    assert_eq!(records.iter().filter(|line| **line == Line::Keep(Some(credential().into_exposed()))).count(), 1);
+    assert!(records.iter().any(|line| *line == Line::Stream(Some(credential().into_exposed()))));
+    same_frames(walk);
 }
 
 fn same_frames(mut walk: Walk) {
     let file = walk.save();
     let records = lines(&file).expect("readable records");
-    assert_eq!(written(&records), file);
+    assert!(written(&records) == file, "line codec preserves the recording");
     let mut replay = Replay::new(&file).expect("facts");
     walk.marks.push((walk.host.frame().print(), None));
     for (print, key) in walk.marks {
         let mark = replay.next().expect("same duties").expect("mark");
-        assert_eq!(mark.frame.print(), print);
-        assert_eq!(mark.live, Some(print));
+        assert!(mark.frame.print() == print, "replay yields the live frame");
+        assert!(mark.live == Some(print), "mark retains its live print");
         assert_eq!(mark.key, key);
     }
     assert!(replay.next().expect("end").is_none());
@@ -152,6 +156,7 @@ fn changed_duties_deadlines_and_key_events_are_stale() {
     ] {
         let mut records = original.clone();
         records[at] = replacement.clone();
+        assert_eq!(records.iter().zip(&original).filter(|(a, b)| a != b).count(), 1);
         let stale = replay_stale(&written(&records));
         assert_eq!(stale.line, u32::try_from(at + 1).expect("line"));
         let mut expected = Vec::new(); replacement.write(&mut expected); expected.pop();
@@ -180,12 +185,14 @@ fn tab_with_no_event_is_kept_and_replayed() {
 fn proof_refuses_the_first_differing_print_line() {
     let mut walk = pasted();
     let original = lines(&walk.save()).expect("records");
-    for expected_line in [1, 2, 3] {
+    for (wanted_mark, expected_line) in [(1, 1), (2, 2), (3, 3)] {
         let mut records = original.clone();
         let mut changed = 0;
+        let mut mark_number = 0;
         for record in &mut records {
-            if let Line::Mark(print) = record {
-                if changed == 0 {
+            if let Line::Mark(print) | Line::End(print) = record {
+                mark_number += 1;
+                if mark_number == wanted_mark {
                     let live = print.as_ref().expect("live print");
                     let mut replacement = live.to_vec();
                     let offset = if expected_line == 1 { 0 } else {
@@ -198,7 +205,7 @@ fn proof_refuses_the_first_differing_print_line() {
             }
         }
         assert_eq!(changed, 1);
-        assert!(matches!(prove(&written(&records)), Err(Refusal::Differs { mark: 1, line }) if line == expected_line));
+        assert!(matches!(prove(&written(&records)), Err(Refusal::Differs { mark, line }) if mark == wanted_mark && line == expected_line));
     }
 }
 
@@ -210,7 +217,7 @@ fn proof_drops_every_live_print_after_the_whole_walk() {
     for record in &mut records {
         if let Line::Mark(print) | Line::End(print) = record { *print = None; }
     }
-    assert_eq!(prove(&file).expect("faithful prints"), written(&records));
+    assert!(prove(&file).expect("faithful prints") == written(&records), "proof drops every print");
 }
 
 #[test]
@@ -282,6 +289,7 @@ fn misplaced_records_are_unreadable_before_replay() {
         (end, Line::Turn { now: Time::ZERO, wall: Wall::EPOCH }),
     ] {
         let mut records = original.clone(); records[at] = replacement;
+        assert_eq!(records.iter().zip(&original).filter(|(a, b)| a != b).count(), 1);
         assert!(Replay::new(&written(&records)).is_err(), "misplaced line {at}");
     }
 }
@@ -324,9 +332,7 @@ fn native_transport_reports_round_trip_through_the_host() {
 fn sent(walk: &mut Walk, kind: fn(&Sent) -> bool) -> Token {
     let records = lines(&walk.save()).expect("records");
     records.iter().rev().find_map(|line| {
-        if let Line::Send { exchange, message, .. } = line {
-            if kind(message) { return Some(Token::new(*exchange)); }
-        }
+        if let Line::Send { exchange, message, .. } = line && kind(message) { return Some(Token::new(*exchange)); }
         None
     }).expect("walk's exchange")
 }
@@ -381,4 +387,30 @@ fn browse_asked_or_recorded_alone_is_stale() {
 
 fn line_text(line: &Line) -> Box<[u8]> {
     let mut bytes = Vec::new(); line.write(&mut bytes); bytes.pop(); bytes.into()
+}
+
+#[test]
+fn duties_keep_the_seams_order_and_fields() {
+    // Each native file duty in this fixture carries one record.
+    const RECORDS: u32 = 1;
+    let mut saved = skein_lib::List::with_capacity(RECORDS);
+    saved.push(jig_client::Record { key: b"key".as_slice().into(), bytes: b"value".as_slice().into() }).expect("one saved record");
+    let mut erased = skein_lib::List::with_capacity(RECORDS);
+    erased.push(b"old".as_slice().into()).expect("one erased record");
+    let duties = Duties {
+        asked: vec![
+            Request::Exchange { exchange: Token::new(11), message: Message::ApprovalAsk(b"ask".as_slice().into()), credential: Some(credential()) },
+            Request::Save { records: saved }, Request::Erase { records: erased },
+            Request::OpenStream { credential: None }, Request::CloseStream,
+        ],
+        keep: Some(Some(credential())), address: Some(b"signed".as_slice().into()),
+        open: Some(b"browse".as_slice().into()), close: true,
+    };
+    let expected = vec![
+        Line::Send { exchange: 11, message: Sent::ApprovalAsk(b"ask".as_slice().into()), credential: Some(credential().into_exposed()) },
+        Line::Save { key: b"key".as_slice().into(), bytes: b"value".as_slice().into() }, Line::Erase(b"old".as_slice().into()),
+        Line::Stream(None), Line::Unstream, Line::Keep(Some(credential().into_exposed())),
+        Line::Signed(b"signed".as_slice().into()), Line::Browse(b"browse".as_slice().into()), Line::Quit,
+    ];
+    assert!(record::asked(&duties) == expected, "requests, keep, signed, browse, quit retain their fields and order");
 }
