@@ -205,9 +205,10 @@ impl Limits {
             ),
             // Whole builder names are held once per document row.
             text_bytes: text_bytes.checked_add(receiving.rows.checked_mul(builder_name)?)?,
-            drawing_bytes: 0,
-            scene_marks: 0,
-            scene_bytes: 0,
+            // Room for a flow (skein/docs/design/ui.md, 10.1).
+            drawing_bytes: 2048,
+            scene_marks: skein_ui::flow::marks(24)?,
+            scene_bytes: skein_ui::flow::scene_bytes(24, 2048)?,
             // Work, tool and run, plus independent running and failed states (3.5).
             styles_per_node: 5,
             // A diff emits at most four patches a node (skein's ui.md, 7).

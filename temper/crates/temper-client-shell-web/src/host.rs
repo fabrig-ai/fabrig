@@ -368,9 +368,9 @@ impl Host {
 pub fn page(bounds: &skein_ui::Limits, primary: Primary) -> Page<'static> {
     Page::new(
         Look {
-            names: &[view::look::NAMES],
+            names: &[view::look::NAMES, skein_ui::flow::NAMES],
             pictures: &[],
-            draw: |_, _, _, _, _| false,
+            draw: skein_ui::flow::draw,
             components: &[],
             elements: view::look::ELEMENTS,
         },
