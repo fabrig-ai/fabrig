@@ -27,6 +27,7 @@ fn control(b: &mut Builder, bindings: &mut Bindings, role: Role, name: &[u8], ac
     b.bind(bindings.insert(act));
     b.close();
 }
+#[expect(clippy::too_many_lines, reason = "the page branches between its browser bar and terminal frame")]
 pub(crate) fn main(
     b: &mut Builder,
     root: &Domain,
@@ -36,7 +37,11 @@ pub(crate) fn main(
     text_limit: u32,
     times: &mut Times,
 ) {
+    let terminal = super::terminal::shown(root, words);
     b.open(Role::Main);
+    if terminal {
+        super::terminal::style(b, root.pages().look());
+    }
     b.style(super::document::mode(root.pages().chat()));
     let configuring = configuring(root);
     b.style(look::SESSION);
@@ -47,43 +52,75 @@ pub(crate) fn main(
             Word::ChatTitle,
             &[Hole::Number(chat.task), Hole::Name(skein_lib::bytes::copy_of(task.chip.title.bytes()))],
         );
-        super::session::top(
-            b,
-            root,
-            words,
-            bindings,
-            Some(task.project),
-            if configuring { super::session::Path::Settings } else { super::session::Path::Chats },
-            super::session::Heading::Chat { whole: &title, title: task.chip.title.bytes() },
-        );
-        super::session::right(b);
-        if task.result.is_some() || super::chats::ended(&task.chip) {
-            let line = crate::choice::ran_line(root, task, &chat.thread, words);
-            super::session::closed_number(b, words, task.chip.task, line.as_deref());
+        let heading = task.chip.title.bytes();
+        if terminal {
+            let draft = if chat.draft.is_some() || chat.writing {
+                if chat.mode == temper_client_domain::pages::chat::document::Mode::Chat {
+                    super::terminal::Draft::Hidden
+                } else {
+                    super::terminal::Draft::Shown
+                }
+            } else if task.result.is_none()
+                && !super::chats::ended(&task.chip)
+                && temper_client_domain::pages::chat_offers_draft(root, task)
+            {
+                super::terminal::Draft::Add
+            } else {
+                super::terminal::Draft::None
+            };
+            super::terminal::top(
+                b,
+                root,
+                words,
+                bindings,
+                super::terminal::Top {
+                    project: Some(task.project),
+                    heading,
+                    name: &title,
+                    number: Some(task.chip.task),
+                    draft,
+                },
+            );
         } else {
-            super::session::number(b, words, task.chip.task);
-        }
-        super::document::seg(b, chat, words, bindings);
-        super::chat_sheet::bar(b, root, words, bindings);
-        if chat.draft.is_none()
-            && !chat.writing
-            && task.result.is_none()
-            && !super::chats::ended(&task.chip)
-            && temper_client_domain::pages::chat_offers_draft(root, task)
-        {
-            super::document::add(b, words, bindings, Act::AddDraft);
-        }
-        if configuring && chat.draft.is_some() && task.result.is_none() && !super::chats::ended(&task.chip) {
-            b.open(Role::Button);
-            b.name(&words.say(Word::StartOver, &[]));
-            b.style(look::START_OVER);
-            b.bind(bindings.insert(Act::StartOver));
+            super::session::top(
+                b,
+                root,
+                words,
+                bindings,
+                Some(task.project),
+                if configuring { super::session::Path::Settings } else { super::session::Path::Chats },
+                super::session::Heading::Chat { whole: &title, title: heading },
+            );
+            super::session::right(b);
+            if task.result.is_some() || super::chats::ended(&task.chip) {
+                let line = crate::choice::ran_line(root, task, &chat.thread, words);
+                super::session::closed_number(b, words, task.chip.task, line.as_deref());
+            } else {
+                super::session::number(b, words, task.chip.task);
+            }
+            super::document::seg(b, chat, words, bindings);
+            if chat.draft.is_none()
+                && !chat.writing
+                && task.result.is_none()
+                && !super::chats::ended(&task.chip)
+                && temper_client_domain::pages::chat_offers_draft(root, task)
+            {
+                super::document::add(b, words, bindings, Act::AddDraft);
+            }
+            super::session::to_terminal(b, words, bindings);
+            super::chat_sheet::bar(b, root, words, bindings);
+            if configuring && chat.draft.is_some() && task.result.is_none() && !super::chats::ended(&task.chip) {
+                b.open(Role::Button);
+                b.name(&words.say(Word::StartOver, &[]));
+                b.style(look::START_OVER);
+                b.bind(bindings.insert(Act::StartOver));
+                b.close();
+            }
+            bar_status(b, root, task, words, times);
+            bar_actions(b, root, task, words, bindings);
+            b.close();
             b.close();
         }
-        bar_status(b, root, task, words, times);
-        bar_actions(b, root, task, words, bindings);
-        b.close();
-        b.close();
         b.open(Role::Region);
         b.name(&words.say_card(P::ConversationLog, &[]));
         b.style(look::CONVO);
@@ -103,6 +140,10 @@ pub(crate) fn main(
         b.close();
         if task.result.is_none() && !super::chats::ended(&task.chip) {
             crate::choice::above_composer(b, root, Some(task), words, bindings, times);
+        }
+        if terminal {
+            super::terminal::notes(b, root, words);
+            super::terminal::chat_running(b, root, words);
         }
         session_composer(b, root, chat, task, words, bindings);
         b.close();
@@ -280,7 +321,11 @@ fn session_composer(
         Some(me) => temper_client_domain::pages::composer::over(&chat.words, chat.beyond, me.words_bytes),
         None => 0,
     };
+    let terminal = super::terminal::shown(root, words);
     super::session::foot(b, &words.say(Word::Message, &[]));
+    if terminal {
+        super::terminal::prompt(b, words);
+    }
     b.open(Role::TextArea);
     b.name(&words.say(Word::Message, &[]));
     let placeholder = match chat.change_asked {
@@ -300,13 +345,15 @@ fn session_composer(
     b.value(&chat.words, chat.composer_focus);
     b.bind(bindings.insert(Act::MessageWords { words: Box::default() }));
     b.close();
-    b.open(Role::Button);
-    b.name(&words.say(Word::Send, &[]));
-    if chat.words.is_empty() || over != 0 || !crate::choice::can_send(root) {
-        b.state(State::Disabled);
+    if !terminal {
+        b.open(Role::Button);
+        b.name(&words.say(Word::Send, &[]));
+        if chat.words.is_empty() || over != 0 || !crate::choice::can_send(root) {
+            b.state(State::Disabled);
+        }
+        b.bind(bindings.insert(Act::Send));
+        b.close();
     }
-    b.bind(bindings.insert(Act::Send));
-    b.close();
     let hint = if is_paused(root, task) && temper_client_domain::pages::chat::allowed(task, c::ActKind::Release) {
         Word::ChatSendResumes
     } else if chat.draft.is_some() || chat.writing {
@@ -314,7 +361,19 @@ fn session_composer(
     } else {
         Word::ChatSendHint
     };
-    super::session::foot_row(b, root, Some(task), words, bindings, hint);
+    if terminal {
+        b.close();
+        super::terminal::under(
+            b,
+            root,
+            Some(task),
+            words,
+            bindings,
+            if is_paused(root, task) { super::terminal::Hint::Paused } else { super::terminal::Hint::Commands },
+        );
+    } else {
+        super::session::foot_row(b, root, Some(task), words, bindings, hint);
+    }
     super::session::over(b, words, over);
     if chat.outcome_kind == Some(temper_client_domain::pages::chat::Sending::Message)
         && let Some(outcome) = &chat.outcome

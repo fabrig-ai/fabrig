@@ -1320,6 +1320,9 @@ fn the_chat_bar_contains_identity_spend_and_acts() {
     }
     assert!(named_position(nodes, Role::Paragraph, Some(fixtures::task::document().chip.title.bytes())).is_none());
     assert!(fixtures::find(view.tree(), Role::Button, b"Mark seen").is_none());
+    assert!(fixtures::find(view.tree(), Role::Button, b"Terminal, full screen").is_none());
+    let browser = fixtures::browser_page_view(&fresh);
+    assert!(fixtures::find(browser.tree(), Role::Button, b"Terminal, full screen").is_some());
 }
 #[test]
 fn the_chat_entry_has_the_shared_hint_after_message_and_send() {
@@ -2813,7 +2816,7 @@ fn configuring_chats_keep_the_settings_layout_and_controls_in_both_shells() {
         &mut root,
         d::Event::Act { action: d::Action::Pages(Act::MessageWords { words: b"My words".as_slice().into() }) },
     );
-    for mut view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+    for (mut view, browser) in [(fixtures::page_view(&root), false), (fixtures::browser_page_view(&root), true)] {
         let tree = view.tree();
         let main = styled(tree, look::SESSION);
         assert_eq!(tree.nodes()[main].styles.as_slice(), [look::MODE_CHAT, look::SESSION]);
@@ -2833,6 +2836,7 @@ fn configuring_chats_keep_the_settings_layout_and_controls_in_both_shells() {
             assert!(named_position(top_nodes, role, Some(name)).is_some(), "{name:?}");
         }
         let controls = subtree(tree, bar);
+        assert_eq!(named_position(controls, Role::Button, Some(b"Terminal, full screen")).is_some(), browser);
         let positions = [
             named_position(controls, Role::Status, Some(b"Parked")).unwrap(),
             named_position(controls, Role::Button, Some(b"Pause")).unwrap(),
@@ -3112,6 +3116,11 @@ fn every_chat_bar_orders_its_byline_status_allowed_acts_and_spend_and_links_its_
                     named_position(controls, Role::Paragraph, Some("7 spent · of 7".as_bytes())).expect("spend");
                 if let Some(byline) = byline {
                     assert!(byline < status);
+                }
+                let terminal = named_position(controls, Role::Button, Some(b"Terminal, full screen"));
+                assert_eq!(terminal.is_some(), browser);
+                if let Some(terminal) = terminal {
+                    assert!(byline.unwrap() < terminal && terminal < status);
                 }
                 assert!(status < spend);
                 for name in [b"Pause".as_slice(), b"Close"] {

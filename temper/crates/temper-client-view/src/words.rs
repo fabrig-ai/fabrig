@@ -1454,7 +1454,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2000;
+const PHRASES: u32 = 2008;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1481,9 +1481,9 @@ const PHRASES: u32 = 2000;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3479;
+const SEGMENTS: u32 = 3487;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 49058;
+const ENGLISH_BYTES: u32 = 49139;
 const ALL: [Word; 1333] = [
     Word::CloseTitle,
     Word::CloseChat,
@@ -4399,6 +4399,7 @@ fn english_language(
     }
     crate::accounts::words::extend(&mut shapes, &mut phrases, joined, text);
     crate::cards::words::extend(text, &mut shapes, &mut phrases);
+    crate::pages::terminal::words::extend(&mut shapes, &mut phrases);
     temper_client_domain::forge::words::extend(connector, text, &mut shapes, &mut phrases);
     temper_client_domain::forge::words::extend_change(connector, &mut shapes, &mut phrases);
     resource_phrases(connector, joined, &mut shapes, &mut phrases);
