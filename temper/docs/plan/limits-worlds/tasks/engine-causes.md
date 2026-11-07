@@ -65,3 +65,7 @@ Options, each decided:
 ## Report
 
 Each cause with its figures, what you stopped at and why, what you left and whose it is, and your implementation and check minutes apart.
+
+## Answers
+
+2026-11-07 (temper/tiers). The first: figures-before completes and this task reruns from its ranked list. Don't take over the profiling. By fab's early-start rule this task runs again only once figures-before has landed, so the baseline will be on your base then.
