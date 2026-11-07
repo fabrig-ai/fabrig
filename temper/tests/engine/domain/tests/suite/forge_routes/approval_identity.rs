@@ -196,7 +196,9 @@ fn a_box_refuses_an_unfulfillable_person_approval_rule() {
             _ => None,
         })
         .expect("acceptance refuses the unusable approval rule");
-    for words in ["project 1", "role 0", "requires 1", "known forge", "add"] {
+    for words in
+        ["project 1 role 0 on forge forge.example requires 1 distinct known forge people; currently 0 eligible", "add"]
+    {
         assert!(
             refusal.contains(words),
             "actionable approval refusal needs {words:?}: {refusal:?}; answers={:?}; replies={:?}",
