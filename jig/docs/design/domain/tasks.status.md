@@ -2,6 +2,10 @@
 
 2026-11-07. Where jig's code lags or departs from [tasks.md](tasks.md).
 Unlisted sections have no known gap.
+Section 9's replacement of a run's own pending settings proposal has no
+known gap: refusal preserves the old set, late acceptance changes nothing,
+and a restart retains only the fresh pending proposal. The deployment
+proposal bound remains as specified in `engine.md`, 17.6 and section 13 here.
 Section 7's next-turn LLM amendments have no known gap, including silent
 LLM-only amendments, the durable live-run mark and a stop whose terminal
 parks without spending a try.
