@@ -8,7 +8,7 @@ use temper_client_domain::Address;
 use temper_client_world::{app::Temper, fixtures, front::Joint};
 use temper_engine_domain_world::{store::Store, walking};
 
-fn configuration() -> temper_engine_domain::Config {
+fn configuration(list: bool) -> temper_engine_domain::Config {
     let mut config = walking::config(fixtures::SEED);
     config.core.owners = Box::new([
         config.core.owners[0].clone(),
@@ -45,13 +45,34 @@ fn configuration() -> temper_engine_domain::Config {
             estimated: false,
         },
     ]);
+    if list {
+        config.core.settings.endpoints[0].providers = Box::new([1]);
+        let provider = &mut config.core.settings.llm_providers.providers[0];
+        provider.name = b"openai".as_slice().into();
+        provider.list =
+            Some(jig_domain_accounts::ProviderList { keep: Box::new([b"*".as_slice().into()]), drop: Box::new([]) });
+    }
     config
 }
 
 fn model_world(configs: [temper_engine_domain::Config; 2]) -> World<Temper, Joint> {
     let mut limits = Joint::new(fixtures::SEED, fixtures::domain_limits()).engine.env.limits;
     limits.people.initial_owners = 2;
-    let front = Joint::with_engine(fixtures::SEED, &fixtures::domain_limits(), Store::new(), configs, &limits, 1);
+    let mut store = Store::new();
+    if configs[0].core.settings.llm_providers.providers[0].list.is_some() {
+        store = temper_engine_domain_world::fixtures::restored_store(configuration(true), &limits);
+        let mut rows = temper_engine_domain_world::fixtures::account_rows(&configs[0].core.settings.llm_providers);
+        for record in &mut rows {
+            if let temper_engine_domain::Record::Core(jig_domain_core::Record::Accounts(
+                jig_domain_accounts::Stored::Account { holder, .. },
+            )) = record
+            {
+                *holder = jig_domain_accounts::Holder::Party(fixtures::PARTY);
+            }
+        }
+        store.seed(rows, Box::new([]));
+    }
+    let front = Joint::with_engine(fixtures::SEED, &fixtures::domain_limits(), store, configs, &limits, 1);
     let mut world = World::<Temper, Joint>::new(
         Settings { seed: fixtures::SEED, words: fixtures::decision_words(), iterations: 4096, ..Settings::default() },
         front,
@@ -62,7 +83,7 @@ fn model_world(configs: [temper_engine_domain::Config; 2]) -> World<Temper, Join
 
 #[test]
 fn a_switch_turned_off_and_back_holds_across_a_reload() {
-    let mut world = model_world(std::array::from_fn(|_| configuration()));
+    let mut world = model_world(std::array::from_fn(|_| configuration(false)));
     let chat = world.client(fixtures::PARTY, fixtures::chats_page());
     super::model::follow(
         &mut world,
@@ -153,7 +174,7 @@ fn a_switch_turned_off_and_back_holds_across_a_reload() {
 fn a_model_added_by_name_is_on_the_picker() {
     for terminal in [false, true] {
         let mut world = model_world(std::array::from_fn(|_| {
-            let mut config = configuration();
+            let mut config = configuration(false);
             config.core.defaults.charters[0].rest = true;
             config.core.settings.llm_providers.providers[0].name = b"anthropic".as_slice().into();
             config
@@ -239,5 +260,200 @@ fn a_model_added_by_name_is_on_the_picker() {
                 super::model::see(Role::Button, b"claude-haiku-5-5"),
             ],
         );
+    }
+}
+
+// Each row advances the same account and task through the list's lifecycle.
+#[test]
+#[expect(clippy::too_many_lines, reason = "the table follows one account and task through reads and reloads")]
+fn a_models_list_arrives_fails_narrows_and_keeps_the_persons_switch() {
+    use jig_domain_link::{ListFailure, ListOutcome, ListedModel};
+    use temper_engine_domain_world::kinds;
+
+    let mut world = model_world(std::array::from_fn(|_| configuration(true)));
+    let chat = world.client(fixtures::PARTY, fixtures::chats_page());
+    super::model::follow(
+        &mut world,
+        chat,
+        vec![
+            super::model::see(Role::Link, b"New chat"),
+            super::model::press(Role::Link, b"New chat"),
+            super::model::see(Role::Button, b"Sonnet 5.5"),
+            super::model::press(Role::Button, b"Sonnet 5.5"),
+            Step::Type {
+                find: Find::named(Role::TextArea, b"What do you want done?"),
+                words: b"Hello".as_slice().into(),
+            },
+            Step::Send { find: Find::named(Role::TextArea, b"What do you want done?") },
+            super::model::see(Role::Disclosure, b"Model"),
+        ],
+    );
+    let task = {
+        let person = world.root(chat).person();
+        person.pages().chat().unwrap().task(person.client()).unwrap().chip.task
+    };
+    let choice = world.front().engine.task(task).unwrap().llm.clone();
+    let owner = world.client(fixtures::PARTY, fixtures::chats_page());
+    super::model::follow(
+        &mut world,
+        owner,
+        vec![
+            super::model::see(Role::Link, b"Settings"),
+            super::model::press(Role::Link, b"Settings"),
+            super::model::see(Role::Link, b"Models"),
+            super::model::press(Role::Link, b"Models"),
+            super::model::see(Role::Check, b"Sonnet 5.5 in the picker"),
+        ],
+    );
+    let stock: &[&[u8]] = &[b"claude-opus-5-5", b"claude-sonnet-5-5", b"gpt-future"];
+    let narrowed: &[&[u8]] = &[b"claude-opus-5-5", b"gpt-future"];
+    for (at, (names, picker, revision_moves, me_moves)) in [
+        (Some(stock), false, true, true),
+        (None, false, false, false),
+        (Some(narrowed), false, false, true),
+        (Some(narrowed), true, false, false),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        if picker {
+            super::model::follow(
+                &mut world,
+                owner,
+                vec![
+                    super::model::press(Role::Check, b"gpt-future in the picker"),
+                    super::model::see(Role::Text, b"On"),
+                ],
+            );
+        }
+        let revision = kinds::revision(&world.front().engine.store.rows);
+        let deliveries = world.front().me_deliveries;
+        if at != 0 {
+            super::model::follow(
+                &mut world,
+                owner,
+                vec![
+                    super::model::press(Role::Button, b"Read again"),
+                    super::model::see(Role::Button, "Reading…".as_bytes()),
+                ],
+            );
+        }
+        let outcome = names.map_or(ListOutcome::Failed(ListFailure::Unreachable), |names| {
+            ListOutcome::Listed(
+                names
+                    .iter()
+                    .map(|name| ListedModel {
+                        name: (*name).into(),
+                        shown: None,
+                        window: None,
+                        output: None,
+                        efforts: Box::new([]),
+                    })
+                    .collect(),
+            )
+        });
+        world.front().answer_read(outcome);
+        super::model::follow(
+            &mut world,
+            owner,
+            vec![
+                Step::See {
+                    find: Find::text(if names.is_some() {
+                        b"Read from OpenAI"
+                    } else {
+                        b"Couldn't read OpenAI's list"
+                    }),
+                    within: fixtures::WITHIN,
+                },
+                super::model::see(Role::Text, "gpt-future · estimated prices · new".as_bytes()),
+                super::model::see(Role::Button, b"Read again"),
+            ],
+        );
+        assert_eq!(
+            kinds::revision(&world.front().engine.store.rows),
+            revision + u32::from(revision_moves),
+            "read {at}"
+        );
+        assert_eq!(world.front().me_deliveries > deliveries, me_moves, "read {at}: me changes only with its offer");
+        assert_eq!(world.front().engine.task(task).unwrap().llm, choice, "read {at}: a task keeps its choice");
+        let person = world.root(chat).person();
+        assert_eq!(
+            person.pages().chat().unwrap().task(person.client()).unwrap().llm.as_ref().unwrap().main.model.bytes(),
+            b"claude-sonnet-5-5"
+        );
+        for reload in [false, true] {
+            if reload {
+                world.reload(owner);
+                super::model::follow(
+                    &mut world,
+                    owner,
+                    vec![
+                        super::model::see(Role::Status, b"Live"),
+                        Step::Go { address: Address::Models { project: 1 } },
+                        super::model::see(Role::Text, "gpt-future · estimated prices · new".as_bytes()),
+                        Step::See {
+                            find: Find::text(if names.is_some() {
+                                b"Read from OpenAI"
+                            } else {
+                                b"Couldn't read OpenAI's list"
+                            }),
+                            within: fixtures::WITHIN,
+                        },
+                    ],
+                );
+            }
+            let switch = world
+                .tree(owner)
+                .nodes()
+                .iter()
+                .find(|node| node.role == Role::Check && node.name.as_deref() == Some(b"gpt-future in the picker"))
+                .unwrap();
+            assert_eq!(switch.states.as_slice().contains(&State::Pressed), picker, "read {at}, reload {reload}");
+            let person = world.root(owner).person();
+            let models = &person.pages().me(person.client()).unwrap().projects.get(0).unwrap().models;
+            assert_eq!(models.len(), if at < 2 { 3 } else { 2 });
+            assert_eq!(models.iter().any(|model| model.name.bytes() == b"claude-sonnet-5-5"), at < 2);
+            let new = models.iter().find(|model| model.name.bytes() == b"gpt-future").unwrap();
+            assert_eq!(new.source, jig_client::contract::ModelSource::List);
+            assert!(new.estimated && new.new_until.is_some());
+            assert_eq!(new.picker, picker);
+            super::model::follow(
+                &mut world,
+                owner,
+                vec![
+                    Step::Go { address: Address::NewChat { draft: false } },
+                    super::model::see(Role::Button, b"Opus 5.5"),
+                    super::model::press(Role::Button, b"Opus 5.5"),
+                ],
+            );
+            assert_eq!(
+                world
+                    .tree(owner)
+                    .nodes()
+                    .iter()
+                    .any(|node| { node.role == Role::Button && node.name.as_deref() == Some(b"gpt-future") }),
+                picker,
+                "read {at}, reload {reload}: picker"
+            );
+            if !picker {
+                super::model::follow(
+                    &mut world,
+                    owner,
+                    vec![
+                        super::model::press(Role::Button, b"All models"),
+                        super::model::see(Role::Button, b"gpt-future"),
+                        super::model::see(Role::Text, b"new"),
+                    ],
+                );
+            }
+            super::model::follow(
+                &mut world,
+                owner,
+                vec![
+                    Step::Go { address: Address::Models { project: 1 } },
+                    super::model::see(Role::Check, b"gpt-future in the picker"),
+                ],
+            );
+        }
     }
 }
