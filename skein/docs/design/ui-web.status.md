@@ -8,6 +8,10 @@ list reports its foot near through the page's scroll and apply paths,
 without log following. Temper's retained sheet story exercises this path;
 no passing runtime result for its repaired version is supplied here.
 
+Sections 8 and 12 have no known gap in the lazy scene, its stated
+height, the SVG in its figure's flow, or the flow tokens' default look.
+The host table reads the Markdown cases and compares their SVG bytes.
+
 - **Departs:** 7: a press outside an open menu returns the focus to its button
   unless that press took it to another control, where the code asks only whether
   the focus left the menu (`skein-ui-web`'s `page.rs`, `close_menu_outside`, and

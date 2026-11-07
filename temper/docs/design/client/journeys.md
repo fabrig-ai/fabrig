@@ -807,6 +807,11 @@ widths and open states in `../draft/look-requests.md`, 4.
 
 ## 10. Open questions
 
+- **The flow's rendered look** (9): temper/ui checks a flow in a chat
+  and its document after landing (`browser.md`, section 5). Default:
+  the gallery prints its fallback, and scene bytes are checked in host
+  tests.
+
 - **The connect-flows comparison** (9): temper/ui compares the
   hand-made request's 01–23 against main after landing, including the
   open and named states, under `../draft/look-requests.md`, 4. Default:
