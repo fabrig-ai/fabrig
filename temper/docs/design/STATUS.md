@@ -623,5 +623,6 @@ Drafts:
 - [`draft/sign-in-new-tab.md`](draft/sign-in-new-tab.status.md)
 - [`draft/template-places.md`](draft/template-places.status.md)
 - [`draft/to-begin.md`](draft/to-begin.status.md)
+- [`draft/tui.md`](draft/tui.status.md)
 - [`draft/upgrades.md`](draft/upgrades.status.md)
 - [`draft/v0.1.0.md`](draft/v0.1.0.status.md)
