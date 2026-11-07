@@ -633,6 +633,7 @@ Design documents:
 - [`client/tools.md`](client/tools.status.md)
 
 Drafts:
+- [`draft/ask-temper.md`](draft/ask-temper.status.md)
 - [`draft/bundle-loading.md`](draft/bundle-loading.status.md)
 - [`draft/reference-code-production.md`](draft/reference-code-production.status.md)
 - [`draft/reference-landing.md`](draft/reference-landing.status.md)
