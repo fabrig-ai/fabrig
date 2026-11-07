@@ -244,7 +244,7 @@ connected  the forge component       ◄── its access, built from the record
   |---|---|
   | Forgejo, connected | `ApiToken`, `GitToken`, `User`, `Origin`; `WebhookSecret` when the person gave one |
   | Forgejo, managed, owned or fake | those, and `AdminToken`; `WebhookSecret` drawn by the plan that makes its first hook, on a forge served the listener (5.3, 5.4) |
-  | GitHub, managed or connected | `AppId`, `AppSlug`, `AppKey`, `User` (the App's bot user), `Accepted`, `Origin`; no `WebhookSecret` |
+  | GitHub, managed or connected | `AppId`, `AppSlug`, `AppKey`, `User` (the App's bot user), `Accepted`, `Origin`; `AppMade` when a manifest made the App (17.2); no `WebhookSecret` |
 
 - **Written by the setup host's plans alone,** each write kept before
   the plan goes on (5.1). A value a person pastes is kept by jig until
@@ -412,14 +412,17 @@ runs it or writes what it makes.
 - **Outcomes:** `Done`; `Manifest { state, page }`, the state and the
   manifest page's bytes, which temper holds with the state; `Link`, the
   install link; `Lacking`, done, with each permission or event the App
-  lacks named.
+  lacks named, and the App's account; `Made`, a `Convert`'s, with the
+  App's account; `Person`, a `Reconcile`'s given a person's login, with
+  that user's id or none (5.3).
 
 ### 5.3 Reconcile's given values, and its answers
 
-- **The plan is skein's.** Its six steps, in this order (1 the admin; 2
+- **The plan is skein's.** Its seven steps, in this order (1 the admin; 2
   the bot, marked `<word>:bot`; 3 the bot's two tokens; 4 the bot's id;
   5 each org, when owned; 6 each adopted repository's access, the bot a
-  collaborator and the repository's hook), each read first and written
+  collaborator and the repository's hook; 7 the person's id, when a login
+  is given), each read first and written
   only where the forge differs; its wait for the forge; its bounds; and
   what it refuses are held by skein's `forge-setup.md`, section 4. It
   does no io and reads no configuration: it is given values, says each
@@ -432,6 +435,7 @@ runs it or writes what it makes.
   | the bot's login and email | its record's bot (forge.md, 2.1); at a connect as its admin of a forge connected before, the connected user's login (5.5) |
   | the tokens' names | `temper-api` for the API's, `temper-git` for git's |
   | the orgs, and their owner | none: reconcile makes no org; an owned forge's org is its first repository's, made by `Create` (6.7) |
+  | the person's login | an owned forge's person's, on a box (`../draft/forge-identity.md`, section 9), whose answer the connector keeps as the forge's link to its person (the same, 4.1); none otherwise, a fake forge's among them |
   | the repositories | the forge's adopted repositories, the root's, restored before the start's reconcile |
   | the name a failure gives the admin | `temper-admin` |
   | the listener's address | `application.webhooks.listener`'s, when configured and in the forge's reach: an owned or fake forge's, and a managed forge's whose API is on loopback (5.5); none otherwise. Each hook's URL, `http://<address>/hooks/<number>`, is derived from it (skein's `forge-setup.md`, 4.1) |
@@ -4230,8 +4234,10 @@ listener's (`../client/forge.md`, the browser's steps).
    for later, `../draft/github.md`, section 18).
 4. **The redirect back,** `http://<listener>/forges/<n>/github/redirect`:
    `Convert { forge, code, state }` (5.2) exchanges the code for the
-   App's id, slug and key, finds its bot user, and writes the records;
-   the conversion's PEM, webhook secret and OAuth pair are never kept.
+   App's id, slug and key, finds its bot user, and writes the records,
+   `AppMade` first, whose bytes are the App's id (credentials.md, the
+   items); the conversion's PEM, webhook secret and OAuth pair are never
+   kept.
    Once they are kept, `Install` (5.4) answers the App's install link,
    the browser goes on to it, and the forge connects (forge.md, the
    setup's host).
@@ -4247,6 +4253,11 @@ listener's (`../client/forge.md`, the browser's steps).
    their own account or an organization they own (client/forge.md,
    9.1).
 
+- **The App's account sets the forge's link to its person,** on a box,
+  from each `GET /app` a plan answers (`../draft/forge-identity.md`,
+  4.2): when `AppMade` equals `AppId` and the account's `type` is `User`,
+  the link is its id, and anything else ends it. A read that fails changes
+  nothing, and that's logged.
 - **States** are one use, drawn by the setup host, at most
   `setup.states`, each living `setup.state_life_ms`, at most the
   conversion code's hour; a used, unknown or expired one is refused,
