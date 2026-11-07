@@ -187,6 +187,7 @@ fn failure_line(name: &str, state: State, failure: skein_oauth_accounts::Failure
             false,
         ),
         Failure::Busy
+        | Failure::LongRedirect { .. }
         | Failure::NotGranted
         | Failure::NotKept
         | Failure::Expired

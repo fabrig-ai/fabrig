@@ -116,8 +116,13 @@ fn redirect_uri_is_checked_before_bounded_query_decoding() {
     let limits = limits();
     let registered = b"http://localhost:31234/callback";
     assert!(
-        redirect::parse(b"http://localhost:31234/callback?state=a%2Bb&code=c%20d", registered, &limits.client)
-            .is_some()
+        redirect::parse(
+            b"http://localhost:31234/callback?state=a%2Bb&code=c%20d",
+            registered,
+            &limits.client,
+            limits.redirect_bytes
+        )
+        .is_some()
     );
     for uri in [
         b"http://127.0.0.1:31234/callback?state=a&code=b".as_slice(),
@@ -127,7 +132,7 @@ fn redirect_uri_is_checked_before_bounded_query_decoding() {
         b"http://localhost:31234/callback?state=%xx&code=b",
         b"http://localhost:31234/callback?state=a&code=b#fragment",
     ] {
-        assert!(redirect::parse(uri, registered, &limits.client).is_none());
+        assert!(redirect::parse(uri, registered, &limits.client, limits.redirect_bytes).is_none());
     }
 }
 
@@ -139,7 +144,7 @@ fn public_sign_in_admission_respects_listener_and_account_bounds() {
     let mut configured = List::with_capacity(2);
     configured.push(refresh_account(0, address)).expect("configured account room");
     configured.push(refresh_account(1, address)).expect("configured account room");
-    let mut component = Component::new(configured, &profile, crypto(17)).expect("component");
+    let mut component = Component::new(configured, &profile, crypto(17), b"accounts-test").expect("component");
     let mut env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: profile };
     let mut above = Queue::uncapped();
     let mut below = Queue::uncapped();
@@ -150,7 +155,7 @@ fn public_sign_in_admission_respects_listener_and_account_bounds() {
     let mut configured = List::with_capacity(2);
     configured.push(refresh_account(0, address)).expect("configured account room");
     configured.push(refresh_account(1, address)).expect("configured account room");
-    component = Component::new(configured, &env.limits, crypto(17)).expect("one listener component");
+    component = Component::new(configured, &env.limits, crypto(17), b"accounts-test").expect("one listener component");
     component.down(&env, Request::SignIn { account: 0, subject: None }, &mut above, &mut below, &mut Queue::uncapped());
     assert!(above.is_empty());
     assert!(below.pop().is_some());

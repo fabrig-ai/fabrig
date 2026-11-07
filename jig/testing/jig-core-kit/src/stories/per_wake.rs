@@ -13,6 +13,12 @@ pub const M2: tasks::ModelEffort = tasks::ModelEffort { model: 1, effort: Some(1
 
 #[must_use]
 pub fn world(seed: u64, parts: bool) -> World {
+    World::new(setup(seed, parts))
+}
+
+/// The same configuration on both sides of an interrupted start.
+#[must_use]
+pub fn setup(seed: u64, parts: bool) -> Setup {
     let (mut configuration, mut limits) = jig_test_profile::two_charters(seed);
     let (_, plan_limits) = crate::faults::plan_fixture(seed);
     limits.core.tasks = tasks::Limits { charters: 2, executor_kinds: 3, ..plan_limits.core.tasks };
@@ -33,7 +39,7 @@ pub fn world(seed: u64, parts: bool) -> World {
         charter.parts = Box::new([]);
     }
     configuration.core.defaults.charters[1] = charter;
-    World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() })
+    Setup { seed, configuration: Some(configuration), limits, ..Setup::default() }
 }
 
 #[must_use]

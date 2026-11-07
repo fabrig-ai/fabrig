@@ -4,6 +4,12 @@ use crate::{Profile, profile};
 fn supplied_profiles_have_valid_domain_limits() {
     for selected in [Profile::Small, Profile::Standard] {
         let limits = profile(selected);
+        assert_eq!(limits.driver.redirect_bytes, 16_384, "{selected:?} redirect bound");
+        let redirect_room = skein_oauth_accounts::redirect_room(&limits.driver).unwrap();
+        assert!(limits.driver.redirect_bytes >= redirect_room, "{selected:?} redirect holds a full answer");
+        assert_eq!(limits.driver.server.head, 24_593, "{selected:?} listener head");
+        let listener_head = skein_oauth_accounts::listener_head(limits.driver.redirect_bytes).unwrap();
+        assert!(limits.driver.server.head >= listener_head, "{selected:?} head holds a browser's request");
         assert_eq!(limits.core.tasks.charter_documents, 2);
         assert_eq!(limits.core.brief.sections, 8);
         assert!(jig_domain_core::valid(&limits.core), "{selected:?} core");

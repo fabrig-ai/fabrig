@@ -873,6 +873,49 @@ mod access_only_openid;
 mod admits;
 
 #[test]
+fn awaits_state_checks_the_waiting_phase_state_and_deadline() {
+    skein_rows::check(
+        [
+            ("waiting", (0_u8, true)),
+            ("another state", (1, false)),
+            ("deadline", (2, false)),
+            ("before visit", (3, false)),
+            ("redirect taken", (4, false)),
+        ],
+        |(kind, expected)| {
+            let mut client = Client::new(limits()).expect("client");
+            let registration =
+                if kind == 3 { openid::registration_for_keys(true) } else { registration(true, WireFormat::Form) };
+            let mut event = openid::sign_in(registration);
+            if kind != 3
+                && let Event::SignIn { nonce, .. } = &mut event
+            {
+                *nonce = None;
+            }
+            drop(step(&mut client, event));
+            if kind == 4 {
+                drop(step(
+                    &mut client,
+                    Event::Redirected {
+                        uri: boxed(b"http://127.0.0.1:2345/callback"),
+                        state: state(),
+                        code: Some(secret(b"code")),
+                        error: None,
+                        client_id: None,
+                        now: time(2),
+                    },
+                ));
+            }
+            let candidate = if kind == 1 { b"1123456789abcdef" } else { b"0123456789abcdef" };
+            let now = if kind == 2 { time(121) } else { time(2) };
+            let deadline = client.next_deadline();
+            assert_eq!(client.awaits_state(candidate, now), expected);
+            assert_eq!(client.next_deadline(), deadline, "the question changes nothing");
+        },
+    );
+}
+
+#[test]
 fn permitted_client_limits_pass_validation_including_large_bounds() {
     skein_rows::check(
         [

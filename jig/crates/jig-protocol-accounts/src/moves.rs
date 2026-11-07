@@ -66,6 +66,12 @@ impl Moves {
             restored: Map::with_capacity(room),
         }
     }
+    /// The owner's application name for the driver's listener page (skein/docs/design/oauth.md, 6.7).
+    #[must_use]
+    pub fn application(&self) -> &[u8] {
+        &self.application
+    }
+
     pub fn stage(&mut self, source: u32, account: driver::Account) {
         assert!(self.restored.insert(source, account).is_ok(), "restored sources fit the driver bound");
     }

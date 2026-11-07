@@ -264,7 +264,12 @@ impl Text<'_> {
                 b'"' | b'\\' => self.out.extend_from_slice(&[b'\\', byte]),
                 0x20..=0x7e => self.out.push(byte),
                 _ => {
-                    self.out.extend_from_slice(&[b'\\', b'x', HEX[usize::from(byte >> 4)], HEX[usize::from(byte & 15)]]);
+                    self.out.extend_from_slice(&[
+                        b'\\',
+                        b'x',
+                        HEX[usize::from(byte >> 4)],
+                        HEX[usize::from(byte & 15)],
+                    ]);
                 }
             }
         }

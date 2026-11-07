@@ -913,6 +913,11 @@ tested in skein, and in a browser on skein's UI example (skein's
 
 ## 17. Open questions
 
+- **Approvals at a public name:** the code typed rather than carried in
+  the address, the ask's origin shown, and a person's list of sign-ins
+  with each ended from there (`client.md`, section 15). The loopback
+  approval uses the application's page under the existing cookie guards.
+
 - **A failed printed link with a live cookie** (11): the link's reason
   remains the client's sign-in outcome even when the cookie can still
   sign in on a reload. A fallback is the client's question
