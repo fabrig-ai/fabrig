@@ -284,9 +284,10 @@ fn landed_page(world: &mut World<Temper, Joint>, person: ClientId, goal: u64, ga
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "the joined story follows CI, its gate, the person's review and landing")]
 fn a_change_handed_its_pushed_branch_lands_after_ci_and_its_gate() {
     let mut world = fixtures::world(fixtures::SEED);
-    *world.front() = Joint::with_change_landing(fixtures::SEED, &fixtures::domain_limits());
+    *world.front() = Joint::with_change_approval(fixtures::SEED, &fixtures::domain_limits());
     world.front().engine.forge = Some(ForgeStand::with_checks(fixtures::REPOSITORIES, &[BUILD]));
     fixtures::adopt_change_repository(world.front());
     world.front().engine.forge.as_mut().expect("story's forge").push_branch(REPOSITORY.repository, BRANCH);
@@ -295,7 +296,8 @@ fn a_change_handed_its_pushed_branch_lands_after_ci_and_its_gate() {
     };
     let goal = fixtures::goal_with_pushed_change(world.front(), BRANCH);
 
-    let person = world.client(fixtures::PARTY, fixtures::task_page(goal));
+    let person =
+        world.client_with(fixtures::PARTY, fixtures::task_page(goal), fixtures::domain_limits(), approval_client);
     let mut panels = Vec::new();
 
     for _ in 0..STEPS {
@@ -361,6 +363,56 @@ fn a_change_handed_its_pushed_branch_lands_after_ci_and_its_gate() {
     );
     world.front().engine.settle();
     for _ in 0..STEPS {
+        step(&mut world, person, &mut panels);
+    }
+    assert!(world.front().engine.task(goal).is_some(), "change waits for the person's review");
+    assert_eq!(facts(world.front()).pull.merged, None, "gate alone cannot admit the merge");
+    let waiting = panels.last().expect("approval wait panel");
+    let [line] = waiting.approvals().as_slice() else { panic!("one deployment approval: {waiting:?}") };
+    assert_eq!(line.role(), 0);
+    assert_eq!(line.required(), 1);
+    assert_eq!(line.remaining(), &Some(1));
+    assert!(line.counted().is_empty());
+    let approval = Find::exactly_named(Role::Heading { level: 1 }, "Approve Update repository on Forgejo".as_bytes());
+    let review = Find::exactly_named(Role::Link, "Review on Forgejo ↗".as_bytes());
+    world.person(
+        person,
+        vec![
+            Step::Go { address: fixtures::inbox() },
+            Step::See { find: approval.clone(), within: fixtures::WITHIN },
+            Step::See { find: Find::text(b"an approval"), within: fixtures::WITHIN },
+            Step::See {
+                find: Find::text(b"The deployment's landing rule 1 asks for one approval by an owner."),
+                within: fixtures::WITHIN,
+            },
+            Step::See { find: review.clone(), within: fixtures::WITHIN },
+            Step::See { find: Find::exactly_named(Role::Button, b"Open"), within: fixtures::WITHIN },
+            Step::See { find: Find::exactly_named(Role::Button, b"Later"), within: fixtures::WITHIN },
+        ],
+    );
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    assert_eq!(
+        drawn(&world, person, &review).external.as_deref(),
+        Some(format!("http://forge.example/acme/shop/pulls/{}/files", opened.pull.number).as_bytes())
+    );
+    world.front().engine.forge.as_mut().expect("story's forge").review(
+        REPOSITORY.repository,
+        opened.pull.number,
+        7,
+        api::Verdict::Approve,
+        head,
+    );
+    world.front().engine.send(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Hint {
+        hint: api::Hint { repository: REPOSITORY, change: api::Change::Item(opened.pull.number), key: None },
+    })));
+    world.person(person, vec![Step::Gone { find: approval, within: fixtures::WITHIN }]);
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    world.person(person, vec![Step::Go { address: fixtures::task_page(goal) }]);
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    for _ in 0..STEPS {
         if world.front().engine.task(goal).is_none() {
             break;
         }
@@ -389,6 +441,18 @@ fn a_change_handed_its_pushed_branch_lands_after_ci_and_its_gate() {
     finished(document, goal, landed.pull.number);
     panels_landed(&panels, goal, head, &opened, &checked, merge);
     quiet(&mut world, person, goal, panels.last().expect("landed panel"), callbacks);
+}
+
+fn approval_client(seed: u64) -> (temper_client_world::app::Root, temper_client_world::app::View) {
+    use temper_client_world::app::{Root, View};
+    let limits = fixtures::domain_limits();
+    let mut words = fixtures::phrasebooks(&limits);
+    words.shell = temper_client_view::words::Shell::Browser;
+    let bounds = fixtures::view_bounds(&limits, &words);
+    (
+        Root::Person(Box::new(temper_client_domain::unlinked(&limits, seed))),
+        View::Person(Box::new(temper_client_view::View::new(&bounds, &limits, words, fixtures::FORGE))),
+    )
 }
 
 fn panel_waiting_for_gate(panel: &w::ChangePanel, facts: &Facts) {

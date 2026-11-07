@@ -226,6 +226,44 @@ impl ForgeStand {
         self.domain.reclaim();
     }
 
+    /// domain/forge.md, 8.7: a person reviews the pull's current head outside temper's writer.
+    pub fn review(&mut self, repository: u32, number: u64, user: u64, verdict: api::Verdict, commit: api::Commit) {
+        let repository = api::Repository { forge: self.forge, repository };
+        let api::Answer::Pull(pull) = self.read(repository, api::Read::Pull { number }) else {
+            panic!("pull to review");
+        };
+        assert_eq!(pull.commit, commit, "review at the named head");
+        let name = self.repositories.get(&repository.repository).expect("configured repository").clone();
+        let verdict = match verdict {
+            api::Verdict::Approve => raw::Verdict::Approve,
+            api::Verdict::RequestChanges => raw::Verdict::RequestChanges,
+            api::Verdict::Comment => raw::Verdict::Comment,
+        };
+        let review = Token::new(90_002);
+        fake::step(
+            &mut self.domain,
+            &self.env,
+            fake::Event::Call {
+                reply_to: ReplyTo::new(review),
+                user,
+                repository: name,
+                op: raw::Op::Write(raw::Write::Review {
+                    number,
+                    verdict: Some(verdict),
+                    body: b"Looks good.".as_slice().into(),
+                }),
+            },
+            &mut self.out,
+        );
+        fake::fire(&mut self.domain, &self.env, &mut self.out);
+        let Some(fake::Request::Reply { to, result: Ok(raw::Answer::Reviewed(_)) }) = self.out.pop() else {
+            panic!("person's review posted");
+        };
+        assert_eq!(to.into_token(), review);
+        self.domain.reclaim();
+        assert!(self.quiescent());
+    }
+
     /// Observe between engine steps, with no pending calls or due fake work.
     ///
     /// Reads leave the fake as the engine sees it: rate limiting and faults
