@@ -539,6 +539,8 @@ fn reference_person_settings() -> Vec<jig_domain_core::settings::Item> {
     for item in entries {
         if item["setting"]["kind"] == "template" {
             item["set"]["llm"] = serde_json::Value::Null;
+            item["set"]["contract"]["report"]["words"] =
+                temper_engine_domain_world::forge_routes::box_limits().tasks.result_bytes.into();
         }
     }
     let items =

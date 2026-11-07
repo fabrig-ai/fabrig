@@ -20,7 +20,7 @@
           "program": null,
           "name": "claude-opus-5-5",
           "window": 1048576,
-          "output": 8192,
+          "output": 48000,
           "input_price": 1,
           "cached_price": 1,
           "cache_write_price": null,
@@ -86,7 +86,7 @@
           "program": null,
           "name": "claude-opus-5-5",
           "window": 1048576,
-          "output": 8192,
+          "output": 48000,
           "input_price": 1,
           "cached_price": 1,
           "cache_write_price": null,
@@ -140,7 +140,7 @@
           "program": null,
           "name": "gpt-6.1-sol",
           "window": 1048576,
-          "output": 8192,
+          "output": 48000,
           "input_price": 1,
           "cached_price": 1,
           "cache_write_price": null,
@@ -176,7 +176,7 @@
         },
         "contract": {
           "report": {
-            "words": 10660
+            "words": 63738
           }
         },
         "shallower": 1,
@@ -282,7 +282,7 @@
           "program": null,
           "name": "gpt-6.1-sol",
           "window": 1048576,
-          "output": 8192,
+          "output": 48000,
           "input_price": 1,
           "cached_price": 1,
           "cache_write_price": null,
@@ -322,7 +322,7 @@
           "program": null,
           "name": "gpt-6.1-sol",
           "window": 1048576,
-          "output": 8192,
+          "output": 48000,
           "input_price": 1,
           "cached_price": 1,
           "cache_write_price": null,
