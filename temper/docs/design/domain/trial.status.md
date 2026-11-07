@@ -1,6 +1,6 @@
 # trial: status
 
-2026-11-06. Where temper's code lags or departs from [trial.md](trial.md).
+2026-11-07. Where temper's code lags or departs from [trial.md](trial.md).
 
 Unlisted sections have no known gap. Charter 10, the person's projectless
 task, the rows and wire, cancellation at the first ending or minute, and
@@ -28,5 +28,5 @@ real-loop story use fake models.
 The pane's missing spend notice and its placement before Ready are design
 gaps recorded in `../draft/model-check.status.md`, sections 2 and 3. The
 missing gallery samples are `../client/browser.status.md`, 7.2. Section 8
-keeps the intentional limits on selection, deployment accounts,
-project-only keys, Settings and restart retention.
+keeps the intentional limits on deployment accounts, project-only keys,
+Settings and restart retention.
