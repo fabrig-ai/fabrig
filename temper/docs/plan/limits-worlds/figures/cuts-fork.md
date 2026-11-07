@@ -168,5 +168,9 @@ has 2,105,510,429 Ir: 690,379,316 (32.79%) in public readback/restart
 `oracle::close`, and 512,416,169 (24.34%) in `Harness::new`. Those checks stay.
 A seed-71 trial did not improve the test; it retains seed 101.
 The final `d775b0ad28` binary measured 1.091 user + 0.064 system = 1.155 CPU s
-(1.184 s wall), with all fourteen comparisons passing. The guide issue remains
-for the director; no budget or guide was raised.
+(1.184 s wall), with all fourteen comparisons passing. The task's 2026-11-07
+answer accepts cuts-fork with this guide unmet and assigns the repair to
+`conformance-causes`. That task first checks whether comparing the first,
+middle and last live cut holds the comparison's rule; the fuzzy sweeps still
+check every commit. No budget or guide was raised, and this task retains all
+fourteen comparisons.
