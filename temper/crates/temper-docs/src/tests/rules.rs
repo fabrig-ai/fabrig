@@ -471,6 +471,31 @@ fn deployment_explains_tool_payload_and_its_dependencies() {
 }
 
 #[test]
+fn public_reading_says_what_may_show_and_what_the_pages_hold() {
+    let words = "Anything said in this project's chats may show on its public pages, in the titles of its goals and tasks. On a public repository, a change's pull request shows what its agent wrote too.";
+    let walk = find(b"open-public-reading").expect("public reading walk").text;
+    let walk = walk.split_whitespace().collect::<Vec<_>>().join(" ");
+    let project = find(b"project").expect("project help").text;
+    let project = project.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(project.contains(words), "project help must say what may show");
+    let warning = walk.find(words).expect("walk must say what may show");
+    let command = walk.find("--visibility public --key KEY").expect("make public command");
+    assert!(warning < command, "say what may show before making the project public");
+    for requirement in [
+        "126 spent",
+        "2 hours ago",
+        "No landings to show yet.",
+        "Work that ended before this project went public, or before temper last restarted, isn't shown.",
+        "no budget",
+        "first seven digits",
+        "never links",
+    ] {
+        assert!(walk.contains(requirement), "public reading walk must name {requirement}");
+    }
+    assert!(!walk.contains("without exposing"));
+}
+
+#[test]
 fn box_help_locates_forgejo_lifecycle_and_hands() {
     let text = find(b"box").expect("box help").text.split_whitespace().collect::<Vec<_>>().join(" ");
     assert!(text.contains("`DATA/box/logs/box.log`:"), "locate the lifecycle notices in the box's own log");

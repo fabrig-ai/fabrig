@@ -951,6 +951,10 @@ and waits in the Needs you of each project it belongs to (jig's
     current setting" from "How this project works" (8.3) or in its words;
     and to say neither "stock settings" nor "operator", but what temper
     starts with and who runs temper here;
+  - that making the project public is no setting, so never to propose it:
+    none of its tools makes a project public and no proposal's item carries
+    it. Asked, it says the project's owner does it outside this chat, and
+    says the words of `../client/tools.md`, 5.3, whole;
   - never to send the person to a terminal, `temper ctl` or a command,
     nor to relay one from a page, whose facts it takes: what it can
     check it checks with its tools, and what it can't, an owner's

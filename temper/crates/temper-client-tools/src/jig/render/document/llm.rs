@@ -143,6 +143,10 @@ pub(super) fn no_account(task: &c::Task) -> bool {
     };
     true
 }
+/// Whether the task waits for an account and nothing else (client/tools.md, 6.1).
+pub(super) fn waits_for_account(task: &c::Task) -> bool {
+    task.waits_on == c::WaitsOn::Nothing && task.hold.is_none() && no_account(task)
+}
 pub(super) fn text_wait(task: &c::Task, limits: &crate::jig::Limits, out: &mut Text) {
     let Some(value) = task.run_wait else { return };
     out.put(b"\nnext run:");
