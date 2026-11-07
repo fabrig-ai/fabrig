@@ -448,15 +448,21 @@ than cutting the cover.
 - **Owned conformance observations** (5, 6): reducing snapshot copies needs
   an ownership design that keeps every referee check and complete ordered
   observations. Required cold restarts and independent public readback stay;
-  cheaper construction is lower-layer work. Naming and word checks below
-  the roughly 2% per-story stopping rule stay too. The instruction pairs,
-  overlapping shares and retained causes are in
+  cheaper construction is lower-layer work. Further naming and word-check
+  savings below the roughly 2% per-story stopping rule stay deferred. The
+  instruction pairs, overlapping shares and retained causes are in
   `temper/docs/development/limits-worlds.md`; changed-row-only verdicts
   cannot replace the whole observation contract.
-- **Further world-cost repairs** (9): which remaining representations and
+- **Further world-cost repairs** (7, 9): which remaining representations and
   algorithms need to change for the focused suite to fit its 30 CPU s budget.
   Read whole-suite cost from the queue after landing, including fuzzy's moved
-  sweeps and `Standard` drive. Apply testing-strategy.md, 8.1 in order;
+  core and store sweeps and `Standard` drive. A world's real first start and
+  every story's cold restart stay; further changes to the product's catalogue
+  construction are separate work. The protocol kit's socket walk may give
+  way to an ordered set of active sockets only with the same cuts, seeded
+  schedule and event order. A due agent's readiness is recomputed: a stored
+  answer needs visible invalidation for every input, including clock-driven
+  account and credential expiry. Apply testing-strategy.md, 8.1 in order;
   neither budgets nor build settings change to make a cost repair pass.
 - **Smith's world kit** (7): `smith-agent-process-world` is a kit by name, as
   smith has no `testing/`. Default: as it stands, until a debt item of smith's
