@@ -44,7 +44,7 @@ impl Worker {
 
 fn event_tag(event: &root::Event) -> WorkerEvent {
     match event {
-        root::Event::SourceAnswered { .. } => WorkerEvent::SourceAnswered,
+        root::Event::SourceAnswered { .. } | root::Event::ListRead { .. } => WorkerEvent::SourceAnswered,
         root::Event::Assign { .. } | root::Event::AssignJob { .. } => WorkerEvent::Assign,
         root::Event::Link(link) => match link {
             hub::LinkDown::ReadList { .. } => WorkerEvent::Link(LinkEvent::ReadList),

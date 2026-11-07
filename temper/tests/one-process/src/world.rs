@@ -1133,6 +1133,7 @@ fn run_phase(
             Proc::Other(HarnessProcess::Client(person)) => Some(person.signed_in),
             Proc::Service(_)
             | Proc::Agent(_)
+            | Proc::List(_)
             | Proc::GitRoute(_)
             | Proc::Git(_)
             | Proc::Shell(_)
