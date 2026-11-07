@@ -602,6 +602,7 @@ impl Component {
                         domain::FromComponent::Expiring { .. }
                         | domain::FromComponent::KeepFailed { .. }
                         | domain::FromComponent::Failed { .. }
+                        | domain::FromComponent::Refreshed { .. }
                         | domain::FromComponent::Closed => unreachable!("a lent value accompanies its grant"),
                     }
                     event
@@ -625,9 +626,8 @@ impl Component {
                     events.push(domain::Event::Visited { source, address });
                     continue;
                 }
-                translate::Up::Refreshed { .. } => continue,
-                translate::Up::SignedIn { source, subject, display } => {
-                    events.push(domain::Event::SignedIn { source, subject, display, declined: false });
+                translate::Up::SignedIn { source, subject, display, said } => {
+                    events.push(domain::Event::SignedIn { source, subject, display, declined: false, said });
                     continue;
                 }
                 translate::Up::SignInFailed { source, failure } => {
@@ -661,7 +661,8 @@ impl Component {
                 domain::FromComponent::Granted { .. }
                 | domain::FromComponent::Expiring { .. }
                 | domain::FromComponent::Failed { .. }
-                | domain::FromComponent::KeepFailed { .. } => {}
+                | domain::FromComponent::KeepFailed { .. }
+                | domain::FromComponent::Refreshed { .. } => {}
                 domain::FromComponent::Closed => self.closed = true,
             }
             events.push(domain::Event::Component(event));
@@ -877,6 +878,7 @@ impl Component {
                         domain::FromComponent::Granted { .. }
                         | domain::FromComponent::Expiring { .. }
                         | domain::FromComponent::Failed { .. }
+                        | domain::FromComponent::Refreshed { .. }
                         | domain::FromComponent::Closed => (),
                     }
                     events.push(domain::Event::Component(event));
@@ -911,6 +913,7 @@ impl Component {
                 domain::FromComponent::Expiring { .. }
                 | domain::FromComponent::KeepFailed { .. }
                 | domain::FromComponent::Failed { .. }
+                | domain::FromComponent::Refreshed { .. }
                 | domain::FromComponent::Closed => (),
             }
             events.push(domain::Event::Component(event));

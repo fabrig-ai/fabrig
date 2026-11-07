@@ -208,6 +208,7 @@ pub(crate) fn detach(domain: &mut Domain, account: u32, number: u32, out: &mut Q
             };
         }
         entry.plan = plan;
+        crate::facts::source_gone(domain, account, number, out);
         let order = crate::ordering::sources(domain, account);
         crate::ordering::save_sources(domain, account, &order, out);
     }

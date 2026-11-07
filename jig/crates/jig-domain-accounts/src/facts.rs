@@ -92,3 +92,98 @@ impl AccountFact {
             }
     }
 }
+
+/// Keep what a report says (accounts.md, 3.7). Save or erase only a changed record.
+pub(crate) fn report(
+    domain: &mut crate::Domain,
+    env: &skein_lib::Env<crate::Limits>,
+    account: u32,
+    source: u32,
+    origin: u16,
+    said: crate::Said,
+    out: &mut skein_lib::Queue<crate::Request>,
+) {
+    let held = domain.account_facts(account);
+    let mut facts = skein_lib::List::with_capacity(FACTS);
+    for fact in held {
+        if origin != ORIGIN_SIGN_IN || (fact.origin != ORIGIN_SIGN_IN && fact.origin != ORIGIN_REFRESH) {
+            facts.push(fact.clone()).expect("held facts fit their bound");
+        }
+    }
+    for (kind, text) in [(KIND_EMAIL, said.email), (KIND_NAME, said.name)] {
+        let Some(text) = text else { continue };
+        if !readable(&text) {
+            continue;
+        }
+        let value = FactValue::Text(text);
+        let mut seen = env.wall;
+        for fact in held {
+            if fact.kind == kind
+                && fact.label.is_empty()
+                && fact.value == value
+                && fact.source == Some(source)
+                && fact.origin == origin
+            {
+                seen = fact.seen;
+            }
+        }
+        let next = AccountFact { kind, label: Box::new([]), value, seen, source: Some(source), origin };
+        let mut replaced = false;
+        for fact in facts.iter_mut() {
+            if fact.kind == kind && fact.label.is_empty() {
+                *fact = next.clone();
+                replaced = true;
+            }
+        }
+        if !replaced {
+            drop(facts.push(next));
+        }
+    }
+    keep(domain, account, facts.into_boxed(), out);
+}
+
+fn readable(text: &[u8]) -> bool {
+    if text.is_empty() || text.len() > skein_lib::length::usize_of(FACT_TEXT) {
+        return false;
+    }
+    for byte in text {
+        if byte.is_ascii_control() {
+            return false;
+        }
+    }
+    true
+}
+
+/// Take the facts that came through a source gone.
+pub(crate) fn source_gone(
+    domain: &mut crate::Domain,
+    account: u32,
+    source: u32,
+    out: &mut skein_lib::Queue<crate::Request>,
+) {
+    let mut facts = skein_lib::List::with_capacity(FACTS);
+    for fact in domain.account_facts(account) {
+        if fact.source != Some(source) {
+            facts.push(fact.clone()).expect("removing facts stays within their bound");
+        }
+    }
+    keep(domain, account, facts.into_boxed(), out);
+}
+
+fn keep(
+    domain: &mut crate::Domain,
+    account: u32,
+    facts: Box<[AccountFact]>,
+    out: &mut skein_lib::Queue<crate::Request>,
+) {
+    if domain.account_facts(account) == facts.as_ref() {
+        return;
+    }
+    if facts.is_empty() {
+        drop(domain.said.remove(&account));
+        out.push(crate::Request::Erase { key: crate::Key::Facts { account } });
+    } else {
+        assert!(domain.said.insert(account, facts.clone()).is_ok(), "one facts record per admitted account");
+        out.push(crate::Request::Save { record: crate::Stored::Facts { account, facts } });
+    }
+}

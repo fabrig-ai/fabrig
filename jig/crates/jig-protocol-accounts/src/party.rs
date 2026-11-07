@@ -61,7 +61,7 @@ pub fn party_account(
         ]);
     }
     terms.openid = Some(oauth::OpenId {
-        profile: skein_oauth::Profile::default(),
+        profile: skein_oauth::Profile { email: true, name: true },
         issuer: configured.issuer.clone(),
         key_set: Some(configured.keys.clone()),
     });

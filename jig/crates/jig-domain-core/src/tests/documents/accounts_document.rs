@@ -155,6 +155,7 @@ fn finish(core: &mut Core, env: &Env<Limits>, source: u32) {
             subject: b"new".as_slice().into(),
             display: b"Name".as_slice().into(),
             declined: false,
+            said: jig_domain_accounts::Said::default(),
         }),
     ));
 }

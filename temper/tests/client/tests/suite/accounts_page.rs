@@ -46,6 +46,7 @@ fn signed_in() -> (Joint, Root, u32) {
         subject: b"subject".as_slice().into(),
         display: b"alice@example.com".as_slice().into(),
         declined: false,
+        said: jig_domain_accounts::Said::default(),
     }));
     accounts::settle(&mut front, &mut root);
     accounts::answer_trial(&mut front, &mut root);
