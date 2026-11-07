@@ -58,6 +58,13 @@ fn generated(item: Item, bytes: &[u8]) -> Result<v1::Item, Unreadable> {
             v1::AppId::new(limits, v1::AppIdParts { value: u64::from_le_bytes(bytes.try_into().or(Err(Unreadable))?) })
                 .or(Err(Unreadable))?,
         ),
+        Item::AppMade => v1::Item::AppMade(
+            v1::AppMade::new(
+                limits,
+                v1::AppMadeParts { value: u64::from_le_bytes(bytes.try_into().or(Err(Unreadable))?) },
+            )
+            .or(Err(Unreadable))?,
+        ),
         Item::AppSlug => v1::Item::AppSlug(
             v1::AppSlug::new(limits, v1::AppSlugParts { value: Box::from(bytes) }).or(Err(Unreadable))?,
         ),
@@ -112,6 +119,7 @@ fn raw(value: v1::Item) -> Result<(Item, Secret), Unreadable> {
         v1::Item::User(value) => (Item::User, Secret::new(Box::from(value.value().to_le_bytes()))),
         v1::Item::WebhookSecret(value) => (Item::WebhookSecret, value.into_parts().value),
         v1::Item::AppId(value) => (Item::AppId, Secret::new(Box::from(value.value().to_le_bytes()))),
+        v1::Item::AppMade(value) => (Item::AppMade, Secret::new(Box::from(value.value().to_le_bytes()))),
         v1::Item::AppSlug(value) => (Item::AppSlug, Secret::new(value.into_parts().value)),
         v1::Item::AppKey(value) => (Item::AppKey, value.into_parts().value),
         v1::Item::Accepted(value) => (Item::Accepted, accepted_bytes(&value)),
@@ -211,6 +219,7 @@ fn pasted_value(item: v1::PastedItem) -> Result<(u16, Secret), PastedError> {
         v1::PastedItem::User(value) => v1::Item::User(value),
         v1::PastedItem::WebhookSecret(value) => v1::Item::WebhookSecret(value),
         v1::PastedItem::AppId(value) => v1::Item::AppId(value),
+        v1::PastedItem::AppMade(value) => v1::Item::AppMade(value),
         v1::PastedItem::AppSlug(value) => v1::Item::AppSlug(value),
         v1::PastedItem::AppKey(value) => v1::Item::AppKey(value),
         v1::PastedItem::Accepted(value) => v1::Item::Accepted(value),
@@ -227,6 +236,7 @@ fn pasted_item(item: v1::Item) -> v1::PastedItem {
         v1::Item::User(value) => v1::PastedItem::User(value),
         v1::Item::WebhookSecret(value) => v1::PastedItem::WebhookSecret(value),
         v1::Item::AppId(value) => v1::PastedItem::AppId(value),
+        v1::Item::AppMade(value) => v1::PastedItem::AppMade(value),
         v1::Item::AppSlug(value) => v1::PastedItem::AppSlug(value),
         v1::Item::AppKey(value) => v1::PastedItem::AppKey(value),
         v1::Item::Accepted(value) => v1::PastedItem::Accepted(value),

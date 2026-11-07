@@ -34,6 +34,7 @@ pub(crate) const NAMES: &[&str] = &[
     "bot-permission-is-not-a-role",
     "app-routes-401-on-installation-token",
     "jwt-iss-string",
+    "app-owner-id-login-type",
     "mergeable-null-then-settles",
     "combined-pending-with-no-status",
     "job-log-302-blob",
@@ -403,6 +404,15 @@ fn authentication(r: &mut Runner<'_>) -> Result<()> {
             .map_err(|_| "JWT claims invalid")?;
         let json = json::Json::parse(&bytes)?;
         Ok(response.status == 200 && json.root().get("iss").str() == Some(r.fixtures.app.to_string().as_str()))
+    })?;
+    case(r, "app-owner-id-login-type", |r| {
+        let response = r.app(Method::Get, "/app", b"")?;
+        let json = response.json()?;
+        let owner = json.root().get("owner");
+        Ok(response.status == 200
+            && owner.get("id").u64().is_some_and(|id| id != 0)
+            && owner.get("login").str().is_some_and(|login| !login.is_empty())
+            && matches!(owner.get("type").str(), Some("User" | "Organization")))
     })?;
     Ok(())
 }

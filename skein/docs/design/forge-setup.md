@@ -36,7 +36,8 @@ checked. Its host component runs the plans in the owner's loop.
   (5.9). Each state is one-time (5.7).
 - **Given values, not configuration.** The owner gives the bot's login
   and email, the tokens' names, an owned forge's orgs and their owner,
-  the admin's name for a failure, the listeners' addresses, the word and
+  the person's login, the admin's name for a failure, the listeners'
+  addresses, the word and
   its limits (4.1, 6.3). A plan asks its host for each item.
 - **Items are named, never placed** (6.4). Each has its bytes pinned, and
   the crate decodes them for the owner. The owner keeps each written
@@ -141,6 +142,8 @@ failures.
   - the orgs to make and their owner, one optional value: when the forge
     is owned, the person's orgs, at most the limit's, each made when
     absent and owned by the person's login; none when managed;
+  - the person's login, one optional value: the account whose id the run
+    answers (4.3, step 7); with none, that step reads nothing;
   - the repositories adopted, by id, at most `repositories` (4.5);
   - the name a failure gives the admin;
   - the listener's address, if any. The hook's URL is derived from it:
@@ -201,13 +204,14 @@ GitHub's, has this shape.
   `Empty`; any other status, `Status(code)`; no answer or a body that
   does not decode, `Down`.
 - **The outcome** is `Done` for most plans, and carries what the owner
-  serves or shows: the manifest's state and page (5.1), the install
-  link (5.4), what an App lacks (5.6), or a page of the repositories a
-  picker shows (4.8).
+  serves or shows: the manifest's state and page (5.1), the App made and
+  who owns it (5.2), the install link (5.4), what an App lacks and who
+  owns it (5.6, 5.8), the person's id (4.3, step 7), or a page of the
+  repositories a picker shows (4.8).
 
 ### 4.3 The steps
 
-Six steps, in this order. Each reads first and writes only where the
+Seven steps, in this order. Each reads first and writes only where the
 forge differs.
 
 1. **The admin.** It asks for the admin's token: absent or empty stops
@@ -217,7 +221,8 @@ forge differs.
    but step 3's check of a kept token.
    - Its scopes, four: `write:admin`, for making users and orgs and
      managing users' tokens (steps 2, 3 and 5, and 4.7); `read:user`,
-     for `GET /api/v1/user` and the bot's user read; `write:organization`,
+     for `GET /api/v1/user` and the bot's and the person's user reads;
+     `write:organization`,
      for reading orgs (step 5) and making their repositories
      (`CreateRepository` below); and `write:repository`, for a repository's
      read, collaborator and hooks (4.5), and the admin's search (4.8).
@@ -266,8 +271,17 @@ forge differs.
    step reads nothing.
 6. **Each adopted repository's access,** in the order given: the bot a
    collaborator, and its hook when the listener is on loopback, checked
-   and repaired as 4.5 says. With none adopted, the run ends `Done`
-   after step 5.
+   and repaired as 4.5 says. With none adopted, the step reads nothing.
+7. **The person,** when a login is given (4.1): the user of that login,
+   by the admin's token, the bot's user read's route, and the run ends
+   `Done(Person { id })`, that user's id.
+   - Absent (404): the account is gone, which is no failure, and the run
+     ends `Done(Person { id: none })`.
+   - An id of 0 stops the run `Unexpected`; any other status, or a `Down`,
+     stops it as any step's does (4.4), at `Person`, naming the login.
+   - With no login given the step reads nothing, and the run ends
+     `Done(Nothing)`.
+   - It writes nothing and keeps nothing: what the id means is the owner's.
 
 The Forgejo dialect also provides `CreateRepository { org, name, private }`
 for the owner to make a person's first repository: `POST
@@ -333,11 +347,12 @@ answers `204` with no body, `404` when the repository is not there.
   answer a `Down` stops the machine.
 - **A failure** is `{forge, step, subject, why}`, and shows no secret
   (lib.md, section 6). The step is `Admin`, `Bot` (its id included),
-  `Token`, `Org`, `Repository` (its collaborator and hook), `File`
-  (4.9), and for
+  `Token`, `Org`, `Repository` (its collaborator and hook), `Person`
+  (4.3, step 7), `File` (4.9), and for
   GitHub's plans `App`, `Installation` (a picker's too, 4.8) and `State`
   (section 5). The subject is the admin's given name, the bot's login,
   the token's name (`api` or `git` when connected, 4.6), the org's name,
+  the person's login,
   the repository's path, a file's path, or its id in decimal before its path is read,
   the App's slug or id, an installation's id, or the plan whose state it
   is. The why is `Missing`, `Refused(status)`, `NotAdmin`, `BotIsAdmin`,
@@ -659,10 +674,13 @@ state first (5.7). Then:
    `key_bytes`, or base64 that does not decode stops it `KeyForm`.
 3. **The App's read,** `GET /app` on the JWT, proving the key signs:
    the id answered must be the conversion's (`OtherApp` otherwise), and
-   an `Unsigned` stops it `KeyForm`.
+   an `Unsigned` stops it `KeyForm`. It also reads the App's account
+   (forge-github.md, section 11).
 4. **The bot's id** (5.3).
-5. **The writes:** the App's id, slug, key (DER) and bot's id. `Done`
-   comes after the last is `Written`.
+5. **The writes:** `AppMade` first (6.4), then the App's id, slug, key
+   (DER) and bot's id. `Done(Made { owner })`, the account step 3 read,
+   comes after the last is `Written`. `AppMade` goes first, as `Copying`
+   does (4.10), so that an App's id a conversion kept always has its mark.
 
 The owner answers the browser only after `Done`, so a person never sees
 an App made whose key the service lost, and then connects the forge
@@ -727,7 +745,10 @@ accepted set; then:
 
 1. **The App,** `GET /app`: a `401` is the key no longer taken, and
    stops it `Refused(401)`, which the owner shows with the offer to
-   replace the key (5.8); another id stops it `OtherApp`.
+   replace the key (5.8); another id stops it `OtherApp`. It also reads
+   the App's account (forge-github.md, section 11). A read that fails
+   stops the run as any does, so it answers no account, and what the
+   owner holds from an earlier read stands.
 2. **Its permissions and events** against the wanted: contents, pull
    requests and issues, and merge queues, to write; checks, statuses,
    actions, administration and metadata to read; never workflows, never
@@ -747,6 +768,9 @@ accepted set; then:
    `uninstall_strays` is true (5.10). Otherwise it is kept for the owner
    to show and accept, regardless of age. A younger one may be waiting
    for its person's `Accept`.
+
+The run ends `Done(Lacking { lacking, owner })`: what step 2 names, and
+the account step 1 read.
 
 The setup host's rows-only replies make an empty page the installation
 listing's terminal marker; even a short nonempty page is followed.
@@ -788,7 +812,9 @@ and private key pasted. The owner serves the pasted key as `Pasted`
 4. **Its hook** set, and **its permissions and events** checked, as
    5.6's steps 2 and 3; with `repair_hook` false it is read and left (5.10).
 5. **The writes:** the App's id, slug, key (DER) and bot's id, then
-   `Done`, carrying what it lacks.
+   `Done(Lacking { lacking, owner })`, as 5.6's. It writes no `AppMade`
+   and clears none: an App pasted over another has an id the mark doesn't
+   equal, and a key pasted over the App made keeps its mark (6.4).
 
 The person installs it through `Install` (5.4). Replacing the key is the
 same plan, with the id kept.
@@ -977,6 +1003,7 @@ answered, and a connect sent, only on what a restart would find.
 | `AdminToken`, `ApiToken`, `GitToken`, `WebhookSecret` | the token's or the secret's text, at most `token_bytes` |
 | `User` | the identity's forge user id: 8 bytes, little-endian, never 0 |
 | `AppId` | the App's id: 8 bytes, little-endian, never 0 |
+| `AppMade` | the id of the App a manifest made (5.2): 8 bytes, little-endian, never 0. `Convert` alone writes it, and no plan reads it |
 | `AppSlug` | the App's slug's text, at most `name_bytes` |
 | `AppKey` | the App's key, PKCS#1 `RSAPrivateKey` DER, at most `key_bytes` |
 | `Accepted` | the accepted installations' ids, 8 bytes each, little-endian, ascending and distinct, at most `installations`; empty is none |
@@ -987,6 +1014,9 @@ answered, and a connect sent, only on what a restart would find.
   from them (forge-connection.md, section 3.5): one total function per
   item, from its bytes to its value, none for bytes that break the
   table.
+- **`AppMade` is a mark for the owner to compare:** equal to `AppId`, the
+  App kept is the one a manifest made; the kit compares nothing and decides
+  nothing from it. The owner keeps it with `AppId`.
 - **An item's bytes are a stored format:** a change to them is a new
   item, never new bytes for an old one. The owner's own records, its
   forge's kind and address among them, are its own.
@@ -1029,7 +1059,10 @@ The tiers and budgets are testing-strategy.md's and skein's `testing.md`.
   alone; the limits' relation at its bound and one past; the admin's
   search, a full page with `more`, a short last page, and a non-admin
   refused; connected's listing on the API token, its rows lacking `push`
-  dropped and `more` read before the drop; an installation given to a
+  dropped and `more` read before the drop; the person's read answering an
+  id, none for a `404` and nothing with no login given; `AppMade` before a
+  conversion's other writes, and none from a paste; the App's account in
+  each `Done` that read `GET /app`; an installation given to a
   Forgejo, or none to GitHub, stopped sending nothing. The hook's secret
   asked once, drawn only when missing, and neither asked nor drawn for a
   listener off loopback, since a plan alone shows a draw, a host's `Need`
@@ -1317,7 +1350,7 @@ github.com.
   and refuses the code again; a hook at an `.invalid` address is taken,
   active.
 - **The App's routes on its JWT:** `GET /app` answers its id, slug,
-  permissions and events; `GET /app/hook/config` reads the hook's URL;
+  account, permissions and events; `GET /app/hook/config` reads the hook's URL;
   installations list and read by id. Left `unchecked` live: a JWT of a
   revoked key is a `401`, `PATCH /app/hook/config` sets the URL, and an
   installation is deleted.

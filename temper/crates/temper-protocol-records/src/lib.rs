@@ -31,6 +31,7 @@ pub enum Item {
     AppKey,
     Accepted,
     Origin,
+    AppMade = 12,
 }
 impl Item {
     #[must_use]
@@ -46,6 +47,7 @@ impl Item {
             Self::AppKey => 8,
             Self::Accepted => 9,
             Self::Origin => 10,
+            Self::AppMade => 12,
         }
     }
 }
@@ -69,6 +71,7 @@ pub fn parse(number: u64) -> Option<(u16, u16, Item)> {
         8 => Item::AppKey,
         9 => Item::Accepted,
         10 => Item::Origin,
+        12 => Item::AppMade,
         _ => return None,
     };
     Some((u16::try_from(number >> 48_u32).ok()?, u16::try_from((number >> 16_u32) & 0xffff_ffff).ok()?, item))

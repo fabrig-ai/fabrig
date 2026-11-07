@@ -24,7 +24,7 @@ pub fn app() -> App {
     App {
         id: APP,
         slug: bytes::copy_of(b"test-app"),
-        owner: 1,
+        owner: PERSON,
         permissions: Box::new([]),
         events: Box::new([]),
         key: key(),

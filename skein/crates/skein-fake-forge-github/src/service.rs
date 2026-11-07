@@ -739,9 +739,21 @@ impl Service {
         }
     }
     fn app_identity(&self) -> Response {
+        let mut owner = None;
+        for account in &self.accounts {
+            if account.id == self.app.owner {
+                owner = Some(d::AppOwner {
+                    id: account.id,
+                    login: account.login.clone(),
+                    kind: if account.organization { d::Account::Organization } else { d::Account::User },
+                });
+                break;
+            }
+        }
         let app = d::App {
             id: self.app.id,
             slug: self.app.slug.clone(),
+            owner,
             permissions: self.app.permissions.clone(),
             events: self.app.events.clone(),
         };

@@ -52,6 +52,7 @@ impl Tokens {
             Item::AdminToken
             | Item::User
             | Item::WebhookSecret
+            | Item::AppMade
             | Item::AppId
             | Item::AppSlug
             | Item::AppKey

@@ -123,6 +123,9 @@ impl HostWorld {
     pub fn listening(&mut self, address: SocketAddr) {
         self.replace_given(|given| given.listener = Some(address));
     }
+    pub fn person(&mut self, login: Option<&[u8]>) {
+        self.replace_given(|given| given.person = login.map(Into::into));
+    }
     pub fn org_owner(&mut self, owner: Option<&[u8]>) {
         self.replace_given(|given| {
             given.orgs = Box::new([]);

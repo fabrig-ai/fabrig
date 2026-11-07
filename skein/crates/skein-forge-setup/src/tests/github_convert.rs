@@ -39,6 +39,11 @@ fn converted_key(pem: Secret) -> Event {
 fn app(id: u64, slug: &[u8]) -> Event {
     Event::Reply(Reply::GitHubDocument(Document::App(App {
         id,
+        owner: Some(skein_forge::github::document::AppOwner {
+            id: 23,
+            login: b"person".as_slice().into(),
+            kind: skein_forge::github::document::Account::User,
+        }),
         slug: slug.into(),
         permissions: Box::new([]),
         events: Box::new([]),
@@ -60,6 +65,7 @@ fn at_given(phase: usize, given: &Given) -> Convert {
         converted_key(fixtures::pem(fixtures::DER, b"\n", b"")),
         app(APP, SLUG),
         bot(BOT),
+        Event::Written,
         Event::Written,
         Event::Written,
         Event::Written,
@@ -118,29 +124,47 @@ fn a_conversion_proves_the_app_then_resolves_its_bot() {
     assert_eq!(encoded.target.as_ref(), b"/users/renamed-app%5Bbot%5D");
     assert_eq!(encoded.method, request::Method::Get);
     assert_eq!(encoded.auth, request::Auth::None);
-    assert_eq!(go(&mut machine, bot(BOT)), Need::Write { item: Item::AppId, bytes: secret(&APP.to_le_bytes()) });
+    assert_eq!(go(&mut machine, bot(BOT)), Need::Write { item: Item::AppMade, bytes: secret(&APP.to_le_bytes()) });
 }
 
 #[test]
-fn a_conversion_keeps_four_items_before_done() {
-    let mut machine = at(3);
-    let mut event = bot(BOT);
-    for (item, value) in [
-        (Item::AppId, APP.to_le_bytes().as_slice()),
-        (Item::AppSlug, SLUG),
-        (Item::AppKey, fixtures::DER),
-        (Item::User, BOT.to_le_bytes().as_slice()),
+fn a_conversion_keeps_five_items_before_done() {
+    use skein_forge::github::document::{Account, AppOwner};
+    for owner in [
+        Some(AppOwner { id: 23, login: b"person".as_slice().into(), kind: Account::User }),
+        Some(AppOwner { id: 24, login: b"acme".as_slice().into(), kind: Account::Organization }),
+        None,
     ] {
-        let mut out = Queue::uncapped();
-        convert::step(&mut machine, event, &mut out);
-        assert_eq!(out.len(), 1);
-        assert_eq!(out.pop(), Some(Need::Write { item, bytes: secret(value) }));
-        // Withhold Written: this step has emitted only the outstanding write.
-        assert!(out.is_empty());
-        event = Event::Written;
+        let mut machine = at(2);
+        go(
+            &mut machine,
+            Event::Reply(Reply::GitHubDocument(Document::App(App {
+                id: APP,
+                slug: SLUG.into(),
+                owner: owner.clone(),
+                permissions: Box::new([]),
+                events: Box::new([]),
+            }))),
+        );
+        let mut event = bot(BOT);
+        for (item, value) in [
+            (Item::AppMade, APP.to_le_bytes().as_slice()),
+            (Item::AppId, APP.to_le_bytes().as_slice()),
+            (Item::AppSlug, SLUG),
+            (Item::AppKey, fixtures::DER),
+            (Item::User, BOT.to_le_bytes().as_slice()),
+        ] {
+            let mut out = Queue::uncapped();
+            convert::step(&mut machine, event, &mut out);
+            assert_eq!(out.len(), 1);
+            assert_eq!(out.pop(), Some(Need::Write { item, bytes: secret(value) }));
+            // Withhold Written: this step has emitted only the outstanding write.
+            assert!(out.is_empty());
+            event = Event::Written;
+        }
+        assert_eq!(go(&mut machine, event), Need::Done(Outcome::Made { owner }));
+        silent(&mut machine);
     }
-    assert_eq!(go(&mut machine, event), Need::Done(Outcome::Nothing));
-    silent(&mut machine);
 }
 
 #[test]
@@ -153,6 +177,7 @@ fn a_conversion_keeps_the_slug_github_answers() {
             Need::Send { request: Request::BotUser { slug: slug.into() }.into(), auth: Auth::None }
         );
         go(&mut machine, bot(BOT));
+        go(&mut machine, Event::Written);
         assert_eq!(go(&mut machine, Event::Written), Need::Write { item: Item::AppSlug, bytes: secret(slug) });
     }
     assert_eq!(go(&mut at(2), app(APP, b"different-name")), failure(b"19", Why::Unexpected));
@@ -320,7 +345,7 @@ fn a_conversion_names_status_down_and_wrong_document_at_its_step() {
 
 #[test]
 fn a_conversion_rejects_an_unasked_event_and_ends_once() {
-    for phase in 0..=7 {
+    for phase in 0..=8 {
         for (kind, event) in
             [Event::Begin, Event::Read(None), Event::Reply(Reply::Empty), Event::Written, Event::Drawn(secret(CODE))]
                 .into_iter()
@@ -328,14 +353,14 @@ fn a_conversion_rejects_an_unasked_event_and_ends_once() {
         {
             if (phase == 0 && kind == 0)
                 || ((1..=3).contains(&phase) && kind == 2)
-                || ((4..=7).contains(&phase) && kind == 3)
+                || ((4..=8).contains(&phase) && kind == 3)
             {
                 continue;
             }
             let subject = match phase {
                 0 | 1 => b"convert".as_slice(),
                 2 => b"19",
-                3..=7 => SLUG,
+                3..=8 => SLUG,
                 _ => unreachable!("phases"),
             };
             let mut machine = at(phase);
@@ -381,17 +406,17 @@ fn a_conversion_admits_only_nonzero_id_and_bounded_valid_slug() {
 
 #[test]
 fn a_halted_conversion_names_its_step_and_ends_once() {
-    for phase in 0..=8 {
+    for phase in 0..=9 {
         let mut machine = at(phase);
         let mut out = Queue::uncapped();
         convert::halt(&mut machine, Why::Down, &mut out);
-        if phase == 8 {
+        if phase == 9 {
             assert!(out.is_empty());
         } else {
             let subject = match phase {
                 0 | 1 => b"convert".as_slice(),
                 2 => b"19",
-                3..=7 => SLUG,
+                3..=8 => SLUG,
                 _ => unreachable!("live phases"),
             };
             assert_eq!(out.len(), 1);
@@ -410,10 +435,10 @@ fn a_halted_conversion_names_its_step_and_ends_once() {
 )]
 fn a_conversion_debug_contains_no_key_secret_or_code() {
     let pem = fixtures::pem(fixtures::DER, b"\n", b"");
-    for phase in 0..=8 {
+    for phase in 0..=9 {
         let mut machine = at(phase);
         let live = format!("{machine:?}");
-        assert_eq!(live.contains("Secret"), phase == 0 || (2..=5).contains(&phase));
+        assert_eq!(live.contains("Secret"), phase == 0 || (2..=6).contains(&phase));
         let mut out = Queue::uncapped();
         convert::halt(&mut machine, Why::Down, &mut out);
         let failure = out.pop();
@@ -428,7 +453,7 @@ fn a_conversion_debug_contains_no_key_secret_or_code() {
         }
         assert!(!format!("{machine:?}").contains("Secret"));
     }
-    let mut machine = at(7);
+    let mut machine = at(8);
     let outcome = go(&mut machine, Event::Written);
     let debug = format!("{machine:?} {outcome:?}");
     for value in [CODE, pem.expose(), fixtures::DER, WEBHOOK] {
