@@ -1,4 +1,4 @@
-//! Approval settings require known forge people (temper/docs/design/domain/forge.md, 8.7 and 8.9).
+//! Approval settings and waits require known forge people (temper/docs/design/domain/forge.md, 8.7, 8.9 and 8.12).
 use super::*;
 use jig_domain_core::settings as s;
 use temper_engine_domain_forge::settings;
@@ -420,11 +420,11 @@ fn an_unknown_head_approval_waits_until_the_approval_requirement_is_removed() {
     world.close();
 }
 
-/// Reproduce the queued wait, an unmapped review, a satisfied rule and its removal.
+/// Reproduce an approval wait, an unmapped review, a satisfied rule and its removal.
 pub(crate) fn approval_wait_story() {
     let (mut world, change) = waiting_approval();
     let panel = approval_panel(&mut world, change, 990);
-    assert!(matches!(panel.step, forge_top::PanelStep::Queued { place: 1, .. }));
+    assert_eq!(panel.step, forge_top::PanelStep::First);
     assert_eq!(panel.ci, temper_engine_domain_forge_change::Status::Passed);
     assert_eq!(panel.gates[0].verdict, temper_engine_domain_forge_change::Status::Passed);
     assert_approval_wait(&panel);
@@ -510,6 +510,180 @@ fn post_approval(world: &mut World, change: u64, user: u64) {
     for _ in 0..200 {
         world.tick();
     }
+}
+
+fn approvals_of(world: &World, watcher: Token) -> engine::Approvals {
+    world
+        .approvals
+        .iter()
+        .rev()
+        .find(|(token, _)| *token == watcher)
+        .unwrap_or_else(|| panic!("approvals for {watcher:?}; delivered {:?}", world.approvals))
+        .1
+        .clone()
+}
+
+fn watch_approvals(world: &mut World, watcher: Token) {
+    world.send(engine::Event::Party(engine::PartyInput::Watch {
+        watcher,
+        sign_in: world.signed_in.expect("approval watcher session"),
+        subject: jig_domain_core::documents::Watched::Application {
+            scope: people::ApplicationScope::Own,
+            connector: 1,
+            subject: Token::new(engine::APPROVALS_SUBJECT),
+        },
+        window: jig_domain_core::documents::Window { rows: world.env.limits.documents.rows, after: None },
+    }));
+    settle(world);
+}
+
+fn linked_box_world() -> World {
+    let mut world = World::configured_stock_limits(
+        &defaults(),
+        &walking::models()[0],
+        &temper_engine_domain_world::forge_routes::box_limits(),
+    )
+    .with_settings_owner(&box_owner())
+    .with_box_setup();
+    forge_with_only_temper(&mut world);
+    world.until(Until::Ready);
+    world.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        held: None,
+        reply_to: ReplyTo::new(Token::new(90)),
+        identity: people::Identity {
+            key: box_owner(),
+            login: b"owner".as_slice().into(),
+            name: b"Owner".as_slice().into(),
+        },
+    }));
+    world.until(Until::SignedIn);
+    readopt(&mut world, 91);
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::PersonOf {
+        forge: forge_world::REPO.forge,
+        answer: forge_top::PersonAnswer::Is(7),
+    })));
+    settle(&mut world);
+    world
+}
+
+fn sign_in_other_project(world: &mut World) {
+    let owner = world.signed_in.take().expect("owner session");
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(160)),
+        sign_in: owner,
+        key: [160; 16],
+        ask: people::Ask::MakeProject { name: "Other project".into(), policy: 1 },
+    }));
+    settle(world);
+    let Some(people::Reply::Outcome(people::Outcome::ProjectMade { project })) = world.web_replies.last() else {
+        panic!("other project: {:?}", world.web_replies)
+    };
+    let project = *project;
+    assert_ne!(project, 1);
+    world.send(engine::Event::Party(engine::PartyInput::SignedIn {
+        held: None,
+        reply_to: ReplyTo::new(Token::new(161)),
+        identity: people::Identity {
+            key: forge_top::user_key(1, 8),
+            login: b"elsewhere".as_slice().into(),
+            name: b"Other person".as_slice().into(),
+        },
+    }));
+    world.until(Until::SignedIn);
+    let sign_in = world.signed_in.expect("other person's session");
+    let Some(Record::Core(jig_domain_core::Record::People(people::Stored::SignIn { person, .. }))) =
+        world.store.rows.get(&Key::Core(jig_domain_core::Key::People(people::Key::SignIn(sign_in))))
+    else {
+        panic!("other person's durable sign-in")
+    };
+    let person = *person;
+    let holdings = Box::new([people::Holding { person, role: people::Role::Owner }]);
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(162)),
+        sign_in: owner,
+        key: [162; 16],
+        ask: people::Ask::SetRoles { project, holdings: holdings.clone() },
+    }));
+    settle(world);
+    assert_eq!(
+        world.store.rows.get(&Key::Core(jig_domain_core::Key::People(people::Key::Roles(project)))),
+        Some(&Record::Core(jig_domain_core::Record::People(people::Stored::Roles { project, holdings }))),
+    );
+    for record in world.store.rows.values() {
+        if let Record::Core(jig_domain_core::Record::People(people::Stored::Roles { project: other, holdings })) =
+            record
+            && *other != project
+        {
+            assert!(holdings.iter().all(|holding| holding.person != person), "the other party belongs only there");
+        }
+    }
+}
+
+#[test]
+fn a_box_persons_change_waits_under_needs_you_until_their_review_lands_it() {
+    let mut world = linked_box_world();
+    let before = kinds::revision(&world.store.rows);
+    let run = configuring_proposal(&mut world, 0, 92);
+    let Some(engine::CallAnswer::Proposed { proposal, .. }) = world.answers.last().cloned() else {
+        panic!("person's approval proposal: {:?}", world.answers)
+    };
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(93)),
+        sign_in: world.signed_in.expect("owner session"),
+        key: [93; 16],
+        ask: people::Ask::DecideProposal {
+            project: people::DEPLOYMENT,
+            proposer: people::Proposer::Task(run.task),
+            proposal,
+            decision: people::ProposalDecision::Accept,
+            running: Some(people::Running::Stays),
+        },
+    }));
+    settle(&mut world);
+    assert_eq!(kinds::revision(&world.store.rows), before + 1, "{:?}", world.web_replies);
+    let event = world.protocol.answer(
+        Token::new(7),
+        run.task,
+        run.attempt,
+        2,
+        tasks::End::Finished {
+            result: tasks::TaskResult::Report { words: b"Proposed.".as_slice().into() },
+            cancel_delegates: false,
+        },
+        engine::Parts::none(),
+    );
+    world.send(event);
+    settle(&mut world);
+    let watcher = Token::new(170);
+    watch_approvals(&mut world, watcher);
+    assert!(approvals_of(&world, watcher).rows.is_empty());
+    let change = stock_waiting_change(&mut world);
+    world.env.now = world.env.now.saturating_add(world.env.limits.forge.queue_window);
+    settle(&mut world);
+    assert_eq!(world.merges, 0, "the person's approval keeps the change waiting after the step budget");
+    let document = approvals_of(&world, watcher);
+    assert_eq!(
+        document.rows.len(),
+        1,
+        "the waiting change must reach the person's existing watch: {:?}",
+        light_rules::change_row(&world, change)
+    );
+    let row = &document.rows[0];
+    assert_eq!((row.task, row.project, row.forge), (change, 1, forge_world::REPO.forge));
+    assert_eq!((&*row.owner, &*row.name), (b"org".as_slice(), b"repo".as_slice()));
+    assert_eq!(Some(row.pull), light_rules::change_row(&world, change).pull);
+    assert_eq!((row.required, row.counted, row.yours, row.whole), (1, 0, engine::YourReview::Counts, true));
+    sign_in_other_project(&mut world);
+    let other_watcher = Token::new(171);
+    watch_approvals(&mut world, other_watcher);
+    assert!(approvals_of(&world, other_watcher).rows.is_empty(), "another project's party sees no approval row");
+    post_approval(&mut world, change, 7);
+    assert_eq!(world.merges, 1, "the linked person's approval at the head permits landing");
+    assert!(approvals_of(&world, watcher).rows.is_empty(), "the landed change leaves Needs you");
+    world.close();
 }
 
 fn waiting_approval() -> (World, u64) {
