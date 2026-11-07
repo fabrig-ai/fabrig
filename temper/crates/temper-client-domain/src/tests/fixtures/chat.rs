@@ -203,6 +203,7 @@ pub fn activity_reply(speaker: c::Speaker, blocks: List<c::Block>, position: u64
         used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
         spent: 0,
         read_through: None,
+        llm: None,
         cut: false,
     };
     let mut rows = List::with_capacity(ONE);

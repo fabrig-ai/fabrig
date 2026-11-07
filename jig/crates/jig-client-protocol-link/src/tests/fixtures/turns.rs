@@ -11,6 +11,7 @@ pub fn decoded_turn(words: &[u8], cut: bool) -> c::TurnRead {
         used: c::Usage { input: u64::MAX, output: u64::MAX, cached: u64::MAX, cache_written: u64::MAX },
         spent: u64::MAX,
         read_through: None,
+        llm: Some(c::ModelEffort { model: text(b"abc"), effort: Some(text(b"abc")) }),
         cut,
     })
 }
