@@ -61,9 +61,9 @@ pub fn english() -> Language {
         }
         if phrase.id == Word::Hold(HoldWord::Budget).id() {
             phrase.forms.first_mut().expect("English word has a form").segments = Box::new([
-                Segment::Text(copy_of(b"Insufficient activation budget. A release alone holds it again: give task ")),
+                Segment::Text(copy_of(b"Insufficient activation budget. A release alone holds it again: if a proposal to give task ")),
                 Segment::Hole { index: 0, kind: HoleKind::Number },
-                Segment::Text(copy_of(b" more budget by deciding its budget proposal, then release it; or cancel it.")),
+                Segment::Text(copy_of(b" more budget waits for you, accept it, then release it; otherwise close it, and start the work again once your pool has room: closing an open chat makes some.")),
             ]);
         }
         let literal =

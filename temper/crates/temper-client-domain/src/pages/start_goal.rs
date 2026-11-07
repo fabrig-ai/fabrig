@@ -1,4 +1,4 @@
-//! Starting a goal from a chat's draft (client/README.md, 5.14).
+//! Starting a goal from its draft (client/README.md, 5.14).
 use super::{Pages, Request, goal, needs::Toasted};
 use crate::{Address, Limits, owner::Owner};
 use alloc::boxed::Box;
@@ -6,7 +6,10 @@ use jig_client::{Client, Key, Outcome, Told, contract as c, shapes};
 use skein_lib::{Env, Queue, Writer};
 
 #[derive(Debug)]
-#[expect(clippy::partial_pub_fields, reason = "fields are sheet state; the sent judgement is private correlation")]
+#[expect(
+    clippy::partial_pub_fields,
+    reason = "fields are sheet state; correlation and name-following state stay private"
+)]
 pub struct StartGoal {
     pub project: u32,
     pub given: Option<Box<[u8]>>,
@@ -19,6 +22,7 @@ pub struct StartGoal {
     pub always: bool,
     pub pending: Option<Key>,
     pub error: Option<Failure>,
+    named: bool,
     sent: Option<Sent>,
 }
 #[derive(Debug)]
@@ -37,6 +41,7 @@ enum Sent {
 /// The goal's title and draft provenance (client/README.md, 5.14).
 #[must_use]
 pub fn words(name: &[u8], path: &[u8], chat: Option<u64>, always: bool) -> Box<[u8]> {
+    let path = path.trim_ascii();
     let mut size = name.len().checked_add(path.len().checked_mul(2).expect("draft words fit")).expect("goal words fit");
     size = size.checked_add(b"\n\nBuild .\nDraft: ".len()).expect("goal words fit");
     let number = match chat {
@@ -85,6 +90,41 @@ pub fn default_way(me: &c::Me, project: u32) -> Option<u32> {
     first
 }
 
+/// Nothing to fund a goal, and why (client/README.md, 5.14).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Unfunded {
+    Held,
+    Empty,
+}
+
+#[must_use]
+pub fn unfunded(me: &c::Me, project: u32, way: Option<u32>) -> Option<Unfunded> {
+    if let Some(way) = way
+        && let Some(template) = shapes::template(me, project, way)
+    {
+        match template.budget {
+            c::TemplateBudget::Amount(_) => return None,
+            c::TemplateBudget::AsAllowed { .. } | c::TemplateBudget::Given => {}
+        }
+    }
+    for member in &me.projects {
+        if member.project == project
+            && let Some(creating) = &member.creating
+        {
+            if creating.within.budget != 0 {
+                return None;
+            }
+            if let Some(pool) = &member.pool
+                && pool.numbers.reserved > 0
+            {
+                return Some(Unfunded::Held);
+            }
+            return Some(Unfunded::Empty);
+        }
+    }
+    None
+}
+
 pub(crate) fn preferred_way(me: &c::Me, project: u32, configured: Option<u32>) -> Option<u32> {
     if let Some(number) = configured
         && let Some(template) = shapes::template(me, project, number)
@@ -99,8 +139,15 @@ pub(super) fn open(pages: &mut Pages, client: &Client, draft: Option<Box<[u8]>>,
     if pages.start.is_some() {
         return;
     }
-    let (Some(me), Some(mut draft), Some(chat)) = (pages.me(client), draft, chat) else { return };
-    let project = if let Some(page) = &pages.chat {
+    let Some(me) = pages.me(client) else { return };
+    let (mut draft, given) = match (draft, chat) {
+        (Some(path), Some(_)) => (path, true),
+        (None, None) => (Box::default(), false),
+        (Some(_), None) | (None, Some(_)) => return,
+    };
+    let project = if !given {
+        super::conversation_project(pages)
+    } else if let Some(page) = &pages.chat {
         match page.task(client) {
             Some(task) => Some(task.project),
             None => None,
@@ -114,10 +161,10 @@ pub(super) fn open(pages: &mut Pages, client: &Client, draft: Option<Box<[u8]>>,
         super::conversation_project(pages)
     };
     let Some(project) = project else { return };
-    let body = if let Some(page) = &pages.chat {
+    let body = if given && let Some(page) = &pages.chat {
         let Some(task) = page.task(client) else { return };
         let Some(document) = &page.draft else { return };
-        if page.task != chat || document.body.is_empty() {
+        if Some(page.task) != chat || document.body.is_empty() {
             return;
         }
         let mut creating = false;
@@ -135,7 +182,7 @@ pub(super) fn open(pages: &mut Pages, client: &Client, draft: Option<Box<[u8]>>,
         None
     };
     let draft: Box<[u8]> = draft.trim_ascii().into();
-    if draft.is_empty() {
+    if given && draft.is_empty() {
         return;
     }
     let file = goal::file_of(&draft);
@@ -143,8 +190,8 @@ pub(super) fn open(pages: &mut Pages, client: &Client, draft: Option<Box<[u8]>>,
     let way = default_way(me, project);
     pages.start = Some(StartGoal {
         project,
-        given: Some(draft.clone()),
-        chat: Some(chat),
+        given: if given { Some(draft.clone()) } else { None },
+        chat,
         draft,
         name,
         way,
@@ -153,13 +200,27 @@ pub(super) fn open(pages: &mut Pages, client: &Client, draft: Option<Box<[u8]>>,
         always: false,
         pending: None,
         error: None,
+        named: false,
         sent: None,
     });
 }
 
 impl StartGoal {
+    pub(super) fn draft_field(&mut self, words: Box<[u8]>) {
+        if self.given.is_some() || self.pending.is_some() {
+            return;
+        }
+        if !self.named {
+            let file = goal::file_of(words.trim_ascii());
+            self.name = file.strip_suffix(b".md").unwrap_or(file).into();
+        }
+        self.draft = words;
+        self.error = None;
+    }
+
     pub(super) fn name(&mut self, words: Box<[u8]>) {
         if self.pending.is_none() {
+            self.named = true;
             self.name = words;
             self.error = None;
         }
@@ -181,14 +242,18 @@ impl StartGoal {
         }
     }
     pub(super) fn send(&mut self, env: &Env<Limits>, me: Option<&c::Me>, serial: &mut u64, out: &mut Queue<Request>) {
-        if self.pending.is_some() || self.name.trim_ascii().is_empty() || self.draft.is_empty() {
+        if self.pending.is_some() || self.name.trim_ascii().is_empty() || self.draft.trim_ascii().is_empty() {
             return;
         }
         let Some(me) = me else { return };
+        if unfunded(me, self.project, self.way).is_some() {
+            return;
+        }
         let Some(way) = self.way else {
             self.error = Some(Failure::NotOffered(shapes::NotOffered::Template));
             return;
         };
+        self.draft = self.draft.trim_ascii().into();
         let bound =
             if self.body.is_some() { env.limits.client.domain.long_text } else { env.limits.client.domain.text };
         if c::Text::new(self.name.clone(), bound).is_err() || c::Text::new(self.draft.clone(), bound).is_err() {

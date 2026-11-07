@@ -692,3 +692,8 @@ work; no new real-model or phone press outcome is supplied.
   code now.", where the request has each copy ticked and then "Chats can change its
   code now…": section 11 holds it. The sheet alerts past 16 addresses, where the request
   names no bound: the wire and the store need one (`../protocol/setup.md`, 6.7).
+- **Design departs:** 3.5, *Goals*, and 5.8, from the mock's `goals.html` and
+  `goal.html`, by the request `ui-goal-asks-2`, decided by its cut: a row and a goal's
+  headline say "N of M tasks done.", where the mock says "landed", and a goal's task
+  ended done with no change has its own "done" line. Counting landings on a row needs
+  a stored and a wire field for a small word; section 11 holds it.

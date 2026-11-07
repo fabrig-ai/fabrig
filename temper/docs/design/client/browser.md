@@ -1678,7 +1678,7 @@ from the engine's own answers, is where the look is tuned.
 | `goal-landed-open` | `goal-landed` with "N landed" pressed: its rows under it |
 | `goal-closed` | welcome-stall closed: "Closed by you…", "Closed before it landed." |
 | `goal-failed` | forge-cards failed: "Failed: " and its reason, "Failed before it landed." |
-| `goal-no-report` | first-run-projects running with tasks and no report: "N of M tasks landed.", no byline |
+| `goal-no-report` | first-run-projects running with tasks and no report: "N of M tasks done.", no byline |
 | `goal-amending` | `goal-running` with Amend pressed: the editor, between the header and the report |
 | `goal-closing` | `goal-running` with Close pressed: its confirmation |
 | `goal-toast` | `goal-running` paused, its toast showing |
