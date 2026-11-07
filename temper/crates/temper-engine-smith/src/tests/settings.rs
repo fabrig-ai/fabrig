@@ -81,16 +81,32 @@ fn every_settings_read_form_and_offset_decodes() {
 }
 #[test]
 fn settings_bad_fields_are_refused_by_name() {
+    for spec in &crate::calls::SPECS {
+        if [b"settings".as_slice(), b"propose_settings"].contains(&spec.name) {
+            assert!(skein_lib::bytes::find(spec.schema, br#""description":"Required for charter, template, policy, landing-rule and forge-charter; the other kinds take none.""#).is_some());
+        }
+    }
     for (input, why) in [
         (br#"{"from":-1}"#.as_slice(), Problem::Range(b"from")),
         (br#"{"revision":0}"#, Problem::Range(b"revision")),
         (br#"{"setting":4}"#, Problem::Type(b"setting")),
-        (br#"{"setting":{"kind":"charter"}}"#, Problem::Missing(b"number")),
+        (br#"{"setting":{"kind":"charter"}}"#, Problem::Needs { kind: b"charter", member: b"number" }),
+        (br#"{"setting":{"kind":"template"}}"#, Problem::Needs { kind: b"template", member: b"number" }),
+        (br#"{"setting":{"kind":"policy"}}"#, Problem::Needs { kind: b"policy", member: b"number" }),
+        (br#"{"setting":{"kind":"landing-rule"}}"#, Problem::Needs { kind: b"landing-rule", member: b"number" }),
+        (br#"{"setting":{"kind":"forge-charter"}}"#, Problem::Needs { kind: b"forge-charter", member: b"number" }),
         (br#"{"setting":{"kind":"rules","number":1}}"#, Problem::Range(b"number")),
         (br#"{"setting":{"kind":"charter","number":1,"project":1}}"#, Problem::Range(b"project")),
         (br#"{"setting":{"kind":"forge-charter","number":1,"project":1}}"#, Problem::Range(b"project")),
         (br#"{"setting":{"kind":"landing-rule","number":1,"project":0}}"#, Problem::Range(b"project")),
-        (br#"{"setting":{"kind":"project-policy"}}"#, Problem::Missing(b"project")),
+        (br#"{"setting":{"kind":"project-policy"}}"#, Problem::Needs { kind: b"project-policy", member: b"project" }),
+        (br#"{"setting":{"kind":"project-ways"}}"#, Problem::Needs { kind: b"project-ways", member: b"project" }),
+        (
+            br#"{"setting":{"kind":"project-questions"}}"#,
+            Problem::Needs { kind: b"project-questions", member: b"project" },
+        ),
+        (br#"{"setting":{"kind":"unknown"}}"#, Problem::Range(b"kind")),
+        (br#"{"setting":{"kind":"unknown","number":1}}"#, Problem::Range(b"kind")),
         (br#"{"setting":{"kind":"project-policy","project":0}}"#, Problem::Range(b"project")),
         (br#"{"setting":{"kind":"project-policy","project":1,"number":1}}"#, Problem::Range(b"number")),
         (br#"{"history":[],"from":0}"#, Problem::Type(b"history")),
@@ -687,7 +703,7 @@ fn project_settings_reads_require_project_and_refuse_number() {
             }
         );
         for (suffix, expected) in [
-            ("", Problem::Missing(b"project")),
+            ("", Problem::Needs { kind: kind.as_bytes(), member: b"project" }),
             (",\"project\":7,\"number\":1", Problem::Range(b"number")),
             (",\"project\":0", Problem::Range(b"project")),
         ] {
