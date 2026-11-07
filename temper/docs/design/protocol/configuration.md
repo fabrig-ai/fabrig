@@ -1304,6 +1304,21 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
 
 ## 11. Open questions
 
+- **The reference story's catalogue** (13.9): retaining the configured
+  model catalogue across the forge world's crash and restart is test
+  harness follow-up. `the_reference_goal_reads_its_cut_then_its_questions_part`
+  must check the cut, withheld question and later answer without an
+  amendment, with its restart oracle. Settings and worker-bound tables
+  alone do not establish that combined result.
+- **The reference's later runs** (13.9; `../draft/per-wake.md`,
+  sections 10 and 11): compare high with medium after observing runs
+  that read their selected parts, and decide whether the cut should
+  settle entries. Documents per part, choices per wake kind, parts for
+  resumed runs and offering a message with its part remain deferred in
+  that draft. Default: four fresh-run parts, xhigh first and high later,
+  documents shared by every run, and entries outside a run's parts
+  left for the next run.
+
 - **Settings refusal positions** (13.2; jig's `domain/engine.md`, 17.2):
   the core's `at` counts from 0, and temper's form prints it as given,
   while a settings file and temper's translation refusal count from 1.

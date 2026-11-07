@@ -57,10 +57,14 @@ sign-in links say used, expired or unknown. Forgotten links are unknown;
 cookie fallback and command refusal words remain later work
 (`client/README.md`, sections 5.1 and 11). Jig carries per-wake reasons,
 charter parts, offered-message fences and a task's later LLM choice.
-Temper's settings form and ctl, the reference's goal charter and later
-template choice, focused charters and charter-size refusal words remain
-the next application work; the draft's departures and open decisions stay
-recorded (`draft/per-wake.md`, sections 3 to 9 and 11). Stock instructions hold forge
+Temper's settings form and ctl carry parts and later; the reference has
+four goal-charter parts, a first/later template choice and focused
+charters checked against a stock worker and the run bound. The combined
+cut-and-answer domain story is ignored until its restart retains the
+configured catalogue. Charter-size refusal figures remain approved
+separate work, and the draft's departures and open decisions remain
+(`client/tools.md`, sections 5.3 and 14; `protocol/configuration.md`,
+13.9 and 11; `draft/per-wake.status.md`). Stock instructions hold forge
 identity advice to approvals and send a chat to the forge before declaring
 a repository absent; real-model compliance remains unobserved
 (`domain/agent.md`, 8.1; `protocol/configuration.md`, 13.4). Printed-link

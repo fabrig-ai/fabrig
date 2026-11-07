@@ -2,6 +2,22 @@
 
 2026-11-07. Where temper's code lags or departs from [configuration.md](configuration.md).
 
+Section 13.9 has the reference's charter 5 as shared instructions and
+four ordered parts, including the cut's no-design rule, and template 4
+at Opus 5.5 xhigh first and high later with the same sub-agents.
+Charters 2, 6, 7 and 8 hold their roles' rules; the reference settings
+tests check rule placement and hold all five supplied charters to a
+stock worker's bounds and the stored-policy run bound, including parts.
+
+- **Not yet:** 13.9: the combined cut-and-answer domain story,
+  `the_reference_goal_reads_its_cut_then_its_questions_part` in
+  `temper/tests/engine/domain/tests/suite/forge_routes/per_wake.rs`, is
+  ignored: the forge world's `Store::crash` reopens its scripted
+  catalogue, losing template 4's configured model and efforts. Its
+  assertions cover the instructions, withheld question, xhigh/high
+  choices and absence of amendment, but no passing combined story with
+  its restart oracle is established. Section 11 keeps that repair.
+
 Section 13.2 has per-repository forge eligibility at proposal acceptance,
 with the forge named in refusals and separate playground words. Its
 proposal-items read carries `owned_approval` through the client wire so
