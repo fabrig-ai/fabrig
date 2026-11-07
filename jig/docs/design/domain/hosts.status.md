@@ -21,9 +21,7 @@ departure below remains.
   `down`), because its manifest does not link `jig-protocol-charter`.
   The code's side is
   `jig/docs/development/debt/D004-ops-root-jig-wiring.md`. 10: an agent
-  process's tree contained. 8: `assignment` and `charter` hold a change's
-  and a delivery's `body` at `CHANGE_BODY_MAX`, 3,584
-  (`jig/crates/jig-protocol-charter/src/assignment.rs`).
+  process's tree contained.
 - **Departs:** 8: a run with no `deliver` keeps the shell its policy
   grants, where the section has it inspect alone: `charter`
   (`jig/crates/jig-protocol-charter/src/charter.rs`) narrows `modify`
