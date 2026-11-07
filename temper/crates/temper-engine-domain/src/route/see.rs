@@ -66,7 +66,10 @@ pub struct SeeRepository {
 
 /// A proposal of settings as jig's run read answers it (9.4).
 #[derive(PartialEq, Eq, Hash, Debug)]
-#[expect(clippy::large_enum_variant, reason = "the proposal contract carries documents inline, boxed by SeeAnswer")]
+#[cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(clippy::large_enum_variant, reason = "the proposal contract carries documents inline, boxed by SeeAnswer")
+)]
 pub enum SeeProposal {
     Waiting(jig_domain_core::documents::Proposal),
     Decided(jig_domain_core::reads::Ended),
