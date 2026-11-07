@@ -156,7 +156,9 @@ impl World {
             }
             Request::Job { owner, op } => self.operations.push_back((owner, op)),
             Request::Stop => self.stops += 1,
-            Request::Source { .. }
+            Request::ReadList { .. }
+            | Request::CancelRead { .. }
+            | Request::Source { .. }
             | Request::SourceFault
             | Request::Link(_)
             | Request::Answer { .. }

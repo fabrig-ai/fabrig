@@ -14,6 +14,7 @@ const MAX_WIRE: usize = 20_000;
 
 /// The fleet's limits in the calm world.
 pub const LIMITS: Limits = Limits {
+    reads: 16,
     configured_workers: 64,
     worker_name_bytes: 32,
     program_sources: 12,
@@ -950,7 +951,9 @@ impl World {
                 assert!(sources.is_empty(), "worker fixture has no program sources");
                 self.stage.push(Event::Logins { channel, logins: Box::new([]) });
             }
-            Request::ProgramEmail { .. }
+            Request::ReadList { .. }
+            | Request::ListRead { .. }
+            | Request::ProgramEmail { .. }
             | Request::ProgramTargets { .. }
             | Request::ProgramSignedOut { .. }
             | Request::Check { .. }
@@ -1360,7 +1363,9 @@ fn describe(event: &Event) -> String {
         Event::Hello { worker: _, channel, hello } => {
             format!("Hello {} slots {} hosting {:?}", channel.raw(), hello.slots, hello.hosting)
         }
-        Event::Needs(_)
+        Event::ReadList { .. }
+        | Event::ListRead { .. }
+        | Event::Needs(_)
         | Event::CleanupPrograms { .. }
         | Event::CheckProgram { .. }
         | Event::SignOutProgram { .. }

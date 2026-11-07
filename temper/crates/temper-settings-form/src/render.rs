@@ -199,6 +199,7 @@ fn head_text(head: &c::RevisionHead, out: &mut Text) {
     match &head.by {
         c::RevisionDecider::FirstStart => out.put(b"the first start"),
         c::RevisionDecider::Release => out.put(b"the release"),
+        c::RevisionDecider::List { .. } => out.put(b"the provider's list"),
         c::RevisionDecider::Party(p) => {
             out.put(b"party ");
             out.number(p.number);
@@ -222,6 +223,12 @@ fn encode_head(head: &c::RevisionHead, out: &mut Encoder) {
     match &head.by {
         c::RevisionDecider::FirstStart => out.string(b"first_start"),
         c::RevisionDecider::Release => out.string(b"release"),
+        c::RevisionDecider::List { provider } => {
+            out.object_start();
+            out.key(b"list");
+            out.unsigned(u64::from(*provider));
+            out.object_end();
+        }
         c::RevisionDecider::Party(p) => {
             out.object_start();
             out.key(b"party");

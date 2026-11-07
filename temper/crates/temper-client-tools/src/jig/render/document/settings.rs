@@ -127,6 +127,7 @@ fn head_text(head: &c::RevisionHead, out: &mut Text) {
     match &head.by {
         c::RevisionDecider::FirstStart => out.put(b"the first start"),
         c::RevisionDecider::Release => out.put(b"the release"),
+        c::RevisionDecider::List { .. } => out.put(b"the provider's list"),
         c::RevisionDecider::Party(p) => {
             out.put(b"party ");
             out.number(p.number);

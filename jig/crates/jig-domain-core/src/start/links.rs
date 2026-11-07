@@ -322,6 +322,7 @@ impl Core {
                 | people::Outcome::AccountMovingOut { .. }
                 | people::Outcome::AccountFinishing { .. }
                 | people::Outcome::AccountMovedIn { .. }
+                | people::Outcome::AccountReading { .. }
                 | people::Outcome::AccountChanged
                 | people::Outcome::AccountRemoved { .. }
                 | people::Outcome::AccountSignedOut { .. }

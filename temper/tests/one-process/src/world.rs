@@ -30,6 +30,7 @@ pub enum Story {
     Chat { words: &'static [u8] },
     ChatReadThenWait { words: &'static [u8] },
     NoWelcome,
+    ModelsList,
     Adoption,
     Adopt,
     Merge,
@@ -53,6 +54,7 @@ pub struct Outcome {
     pub adoptions_answered: u32,
     pub adoption_pending_at_restart: bool,
     pub playground: Option<stories::playground::Outcome>,
+    pub model_list: Option<crate::model_list::Outcome>,
 }
 #[derive(Clone, Copy)]
 pub(crate) enum Phase {
@@ -433,6 +435,10 @@ impl Person {
                 Step::Press { find: Find::named(skein_ui::Role::Button, b"Send") },
                 Step::See { find: Find::text(fixtures::ANSWER), within: CHAT_WITHIN },
             ],
+            Story::ModelsList => vec![
+                Step::Go { address: temper_client_domain::Address::Models { project: fixtures::PROJECT } },
+                Step::See { find: Find::text("gpt-future · estimated prices · new".as_bytes()), within: CHAT_WITHIN },
+            ],
             Story::Adoption => stories::adoption_person(),
             Story::Adopt | Story::Merge => stories::person(),
             Story::HeldChange if stories::first_start() => stories::person(),
@@ -559,8 +565,16 @@ fn prepare_account(
             return true;
         }
     }
+    let before = actor.at();
     match actor.next(&mut TreeFace::new(client.tree()), now) {
-        Next::Do(Doing::Act { node, act }) => assert!(client.act(node, act), "offered account setup act"),
+        Next::Do(Doing::Act { node, act }) => {
+            if before == 5 && stories::model_list() {
+                STORE.with(|store| {
+                    crate::model_list::before(&store.borrow().as_ref().expect("world store").borrow());
+                });
+            }
+            assert!(client.act(node, act), "offered account setup act");
+        }
         Next::Do(Doing::Go { address }) => client.go(address),
         Next::Do(Doing::Reload) => panic!("account setup has no reload"),
         Next::Wait { until } => *wake = until,
@@ -1032,6 +1046,12 @@ fn ended(procs: &[Proc], phase: Phase) -> Option<temper_service::End> {
     None
 }
 
+fn model_list_agent(spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> Proc {
+    assert!(spawn.args.iter().any(|arg| arg.as_ref() == b"--list"), "the worker asks an agent-list process");
+    OneProcess::spawned(Role::Agent, inherited, b"worker/agent");
+    crate::model_list::agent(inherited)
+}
+
 #[expect(clippy::too_many_lines, reason = "the scenario owns its registry, restartable processes and outcome together")]
 fn run_phase(
     settings: Settings,
@@ -1077,7 +1097,10 @@ fn run_phase(
                 referee::Referee::new(controls, store.clone(), scenario, observed_forge.clone(), run.clone(), phase)
             })
             .with_machine(machine);
-        for (program, roots) in programs::programs::<OneProcess>() {
+        for (mut program, roots) in programs::programs::<OneProcess>() {
+            if matches!(scenario, Story::ModelsList) && program.program.as_ref() == b"/opt/temper/bin/temper" {
+                program.make = model_list_agent;
+            }
             world.host_roots(program, roots);
         }
         world.host_roots(
@@ -1133,6 +1156,7 @@ fn run_phase(
             Proc::Other(HarnessProcess::Client(person)) => Some(person.signed_in),
             Proc::Service(_)
             | Proc::Agent(_)
+            | Proc::List(_)
             | Proc::GitRoute(_)
             | Proc::Git(_)
             | Proc::Shell(_)
@@ -1175,6 +1199,7 @@ fn run_phase(
         adoptions_answered: u32::try_from(run.borrow().answers.len()).expect("adoption answers"),
         adoption_pending_at_restart: run.borrow().pending_adoption,
         playground: matches!(scenario, Story::PlaygroundA).then(|| stories::playground::outcome(&transport)),
+        model_list: matches!(scenario, Story::ModelsList).then(|| crate::model_list::outcome(&outcome.procs, &records)),
     };
     drop(run);
     (result, std::mem::replace(&mut outcome.machine.0.borrow_mut(), machine::fresh()), records)

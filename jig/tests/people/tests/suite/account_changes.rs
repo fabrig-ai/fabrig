@@ -42,6 +42,7 @@ fn an_account_change_is_admitted_for_its_holder_with_no_role() {
     ];
     for (at, value) in changes.into_iter().enumerate() {
         let expected = match value {
+            AccountChange::ReadLists { .. } => Outcome::AccountReading { count: 0 },
             AccountChange::AddKey { .. } | AccountChange::ReplaceKey { .. } => Outcome::AccountKeyKept { source: 1 },
             AccountChange::DeclareProgram { ref name, .. } => {
                 Outcome::AccountProgramDeclared { source: 1, name: name.clone() }

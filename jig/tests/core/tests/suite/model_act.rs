@@ -229,6 +229,7 @@ fn adding_a_model_by_name_makes_a_persons_model_on_the_picker() {
     assert_eq!(
         value,
         s::CatalogueModel {
+            first_read: None,
             number: 64,
             model: expected,
             shown: None,

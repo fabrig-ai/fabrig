@@ -128,6 +128,7 @@ fn answer(world: &mut World, read: reads::Read) -> c::ReadValue {
         .models()
         .iter()
         .map(|model| jig_protocol_engine_clients::Model {
+            new_until: None,
             number: 1,
             source: jig_domain_core::settings::ModelSource::Stock,
             estimated: false,

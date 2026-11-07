@@ -207,7 +207,7 @@ pub struct Query { role: Box<[u8]>, name: Box<[u8]>, matching: Match, within: Op
 pub enum Match   { Exact, Words }                        // Words: the name contains the query's bytes
 pub struct Point { x: u32, y: u32 }                      // whole CSS pixels from the box's top left
 pub struct Seen  { node: Node, role: Box<[u8]>, name: Box<[u8]>, value: Box<[u8]>,
-                   states: States, rect: Option<Rect> }   // focused, disabled, checked, expanded, selected
+                   states: States, rect: Option<Rect> }   // focused, disabled, checked, expanded, selected, pressed
 pub enum Expect  { Present, Count(u32), Absent }
 pub enum Key     { Enter, Escape, Tab, Backspace, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, SelectAll,
                    Letter { letter: u8, alt: bool } }   // a to z, by its place on the keyboard
@@ -286,6 +286,11 @@ pub struct Tab   { url: Box<[u8]>, title: Box<[u8]>, opener: bool }  // opener: 
   not state: a field a person types into is read by a find, whose `Seen`
   carries its value as the person sees it. No element, an element
   without the attribute, and an empty attribute are three answers.
+- **A node's states are Chromium's,** the accessibility properties of
+  those names on the node it computed: each is set where its property
+  reads `true`. `pressed` is a toggle's, such as a button with
+  `aria-pressed`, and reads `true`, `false` or `mixed`, so a `mixed`
+  toggle is not pressed.
 - **The current address** is the page's history's current entry, as the
   browser's address bar shows it, so that a test sees the address the
   page's own code put there.

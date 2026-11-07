@@ -41,6 +41,7 @@ chat-held-task
 chat-model-all
 chat-model-both
 chat-model-fixed
+chat-model-new
 chat-model-open
 chat-model-sign-in-again
 chat-model-two-accounts
@@ -202,8 +203,11 @@ models
 models-add
 models-added
 models-member
+models-new
 models-off
 models-one-account
+models-read
+models-read-failed
 needs-approval
 needs-approval-no-account
 needs-done

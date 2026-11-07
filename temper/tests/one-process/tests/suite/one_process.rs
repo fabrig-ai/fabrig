@@ -44,10 +44,21 @@ fn a_restart_showing_part_of_a_commit_fails_the_referee() {
 }
 #[test]
 fn a_person_signs_in_by_the_printed_link_and_a_chat_is_answered() {
-    let outcome = world::run(fixtures::calm(fixtures::SEED), world::Story::Chat { words: b"Hello" });
-    assert_eq!(outcome.verdict, Verdict::Passed);
-    assert_eq!(outcome.signed_in, 1);
-    assert_eq!(outcome.chats_answered, 1);
+    for story in [world::Story::Chat { words: b"Hello" }, world::Story::ModelsList] {
+        let outcome = world::run(fixtures::calm(fixtures::SEED), story);
+        assert_eq!(outcome.verdict, Verdict::Passed);
+        assert_eq!(outcome.signed_in, 1);
+        if let Some(list) = outcome.model_list {
+            assert_eq!(list.requests, [Some(0)], "the fake accepted the added key once");
+            assert_eq!(list.agents, 1, "one hosted agent-list process");
+            assert_eq!(list.queries, 0, "a list is not a run");
+            assert!(list.new_in_me, "the list's new name reached the person's me");
+            assert!(list.accounting_unchanged, "no attempt, spend or budget moved");
+            assert_eq!(outcome.chats_answered, 0);
+        } else {
+            assert_eq!(outcome.chats_answered, 1);
+        }
+    }
 }
 #[test]
 fn a_person_on_a_deployment_with_no_welcome_finds_the_inbox() {

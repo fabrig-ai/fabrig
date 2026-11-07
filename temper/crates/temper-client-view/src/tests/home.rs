@@ -397,6 +397,7 @@ fn home_documents_with_status(
     member
         .models
         .push(c::MeModel {
+            new_until: None,
             number: 1,
             source: jig_client::contract::ModelSource::Stock,
             estimated: false,

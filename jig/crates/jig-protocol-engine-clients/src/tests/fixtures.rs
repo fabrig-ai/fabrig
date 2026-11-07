@@ -64,6 +64,7 @@ pub fn settings() -> Settings {
 pub fn models() -> Box<[crate::Model]> {
     Box::new([
         crate::Model {
+            new_until: None,
             number: 1,
             source: jig_domain_core::settings::ModelSource::Stock,
             estimated: false,
@@ -79,6 +80,7 @@ pub fn models() -> Box<[crate::Model]> {
             description: Some(Box::from(b"For careful work".as_slice())),
         },
         crate::Model {
+            new_until: None,
             number: 1,
             source: jig_domain_core::settings::ModelSource::Stock,
             estimated: false,
@@ -215,6 +217,9 @@ impl Exchange {
         owner
     }
     pub fn authenticate(&mut self) {
+        self.authenticate_until(Wall::from_nanos(86_400_000_000_000));
+    }
+    pub fn authenticate_until(&mut self, expires: Wall) {
         let Some(Request::Secrets(SecretsRequest::Get { owner })) = self.out.pop() else {
             panic!("digest get");
         };
@@ -223,10 +228,7 @@ impl Exchange {
             &self.env,
             Event::Secrets(SecretsAnswer::Got {
                 owner: SecretOwner::SignIn(NUMBER),
-                value: Some(Kept {
-                    digest: sign_in::digest(&self.token),
-                    expires: Wall::from_nanos(86_400_000_000_000),
-                }),
+                value: Some(Kept { digest: sign_in::digest(&self.token), expires }),
             }),
             &mut self.out,
         );

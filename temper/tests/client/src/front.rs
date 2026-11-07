@@ -56,6 +56,8 @@ pub struct Joint {
     pub answer_runs: bool,
     pub reply_runs: bool,
     pub runs_answered: u32,
+    /// Delivered me documents, including the initial watch answer.
+    pub me_deliveries: usize,
     /// Worker assignments retained for assertions about requester notifications.
     pub assignments: Vec<engine::Assignment>,
     trial_config: Option<engine::Config>,
@@ -1293,6 +1295,7 @@ impl Joint {
             answer_runs: false,
             reply_runs: false,
             runs_answered: 0,
+            me_deliveries: 0,
             assignments: Vec::new(),
             trial_config: None,
             reply_pieces: None,
@@ -1323,6 +1326,12 @@ impl Joint {
             truth,
             sign_outs: BTreeMap::new(),
         }
+    }
+    /// Supply one typed provider answer and let the normal watch path deliver it.
+    pub fn answer_read(&mut self, outcome: jig_domain_link::ListOutcome) {
+        let event = self.engine.protocol.answer_read(outcome);
+        self.send(event);
+        self.drain();
     }
     pub fn next_client_limits(&mut self, limits: client::Limits) {
         self.next_limits = Some(limits);
@@ -2338,7 +2347,21 @@ impl Front<Temper> for Joint {
             }
         }
     }
-    fn received(&mut self, _who: ClientId, _event: &Event) {}
+    fn received(&mut self, _who: ClientId, event: &Event) {
+        if matches!(
+            event,
+            Event::Root(RootEvent::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Watched {
+                        event: jig_client::contract::WatchEvent::Delivered(jig_client::contract::Delivery::Me(_)),
+                        ..
+                    }
+                }
+            })
+        ) {
+            self.me_deliveries += 1;
+        }
+    }
     fn sign_in(&mut self, who: ClientId, now: Time, _wall: Wall) {
         self.advance(now);
         self.callbacks.retain(|(client, event)| {

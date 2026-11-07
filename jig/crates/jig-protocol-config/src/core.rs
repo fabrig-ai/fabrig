@@ -46,6 +46,7 @@ pub fn core(engine: &Engine, deployment: [u8; 16], seed: u64) -> domain::Config 
             signed_in_plan: provider.signed_in_plan,
             manage_usage: provider.manage_usage.clone(),
             offers,
+            list: provider.list.clone(),
         };
         llm_providers.push(value).expect("one per configured provider");
     }

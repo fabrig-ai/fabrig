@@ -915,7 +915,7 @@ fn settings_document_bytes() -> u64 {
     // Each of its two value sets also carries one project's whole policy:
     // 8,192 owned bytes and the 208-byte ConfiguredPolicy carrier.
     // The two value sets each carry eight bytes for RunPolicy.tools.
-    // Each also holds 64 catalogue rows: a 168-byte carrier, two names, a description,
+    // Each also holds 64 catalogue rows: a 184-byte carrier, two names, a description,
     // a program, efforts and the default effort. The inventory shares one model range.
     120_528
         + 4 * 72
@@ -933,7 +933,7 @@ fn settings_document_bytes() -> u64 {
         + 16
         + 2 * (8192 + 208)
         + 2 * 8
-        + 2 * 64 * (168 + 2 * 4096 + 512 + 32 + 16 * (32 + 16) + 32)
+        + 2 * 64 * (184 + 2 * 4096 + 512 + 32 + 16 * (32 + 16) + 32)
         + 64 * 88
 }
 
