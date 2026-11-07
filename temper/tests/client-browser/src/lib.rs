@@ -156,6 +156,12 @@ impl Tier {
         configuration::private(&path, &serde_json::to_vec(&value).expect("model deployment JSON"));
         self
     }
+    /// Offer two models and their efforts to the composer, with matching worker bounds.
+    #[must_use]
+    pub fn with_model_picker(self) -> Self {
+        configuration::model_picker(self.scratch.path());
+        self
+    }
     /// The first-run demo, with the box's own fake LLM and forge, started when the playground is chosen.
     #[must_use]
     pub fn demo(name: &str) -> Self {
