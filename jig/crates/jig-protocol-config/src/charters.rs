@@ -91,8 +91,8 @@ fn charter(
     let spend = check::integer(&mut object, document, b"spend", path, problems);
     let (model, alternatives) = match models_at {
         Some(at) => {
-            let _legacy_model = object.member(document, b"model");
-            let _legacy_alternatives = object.member(document, b"alternatives");
+            let _model_at = object.member(document, b"model");
+            let _alternatives_at = object.member(document, b"alternatives");
             named_models(document, at, path, llm, problems)
         }
         None => {
