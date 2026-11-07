@@ -1,0 +1,5 @@
+draft = "ui-folds-away"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-folds-away/inputs/request.md", "skein/tests/browser/tests/suite/folds_away.rs", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
