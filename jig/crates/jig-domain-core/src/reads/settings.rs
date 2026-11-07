@@ -41,7 +41,10 @@ pub enum SettingsAnswer {
 
 /// One proposal of settings, as a run reads it (engine.md, 7.3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-#[expect(clippy::large_enum_variant, reason = "the proposal read contract keeps both documents inline")]
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(clippy::large_enum_variant, reason = "the proposal read contract keeps both documents inline")
+)]
 pub enum ProposalRead {
     /// Waiting, with its review, as a party's live proposal read gives it, with no acts.
     Waiting(crate::documents::Proposal),
