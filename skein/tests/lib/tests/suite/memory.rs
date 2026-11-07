@@ -830,13 +830,22 @@ fn request_table_finish<O: Item + Copy + std::fmt::Debug + PartialEq, T: Item + 
     metered.end(());
 }
 
+/// A use that stays under this ceiling.
+const LIGHT_CEILING: u64 = 1024;
+/// Turns of two pushes and two pops of a `u64`. A ring within the ceiling
+/// holds at most 128 of them, and this many pass through it, so it wraps
+/// at least 63 times; one that never reclaimed would pass the ceiling at
+/// its 65th turn.
+const LIGHT_TURNS: u64 = 4096;
+const _: () = assert!(LIGHT_TURNS * 2 * 8 >= 64 * LIGHT_CEILING);
+
 #[test]
 fn a_ring_used_lightly_holds_what_it_holds() {
-    let mut metered = Metered::new("uncapped Queue", "u64", u32::MAX, Some(1024));
+    let mut metered = Metered::new("uncapped Queue", "u64", u32::MAX, Some(LIGHT_CEILING));
     metered.start();
     let mut queue = Queue::uncapped();
     metered.end(());
-    for n in 0_u64..1_000_000 {
+    for n in 0..LIGHT_TURNS {
         metered.start();
         queue.push(n);
         queue.push(n + 1);
@@ -844,7 +853,7 @@ fn a_ring_used_lightly_holds_what_it_holds() {
         assert_eq!(queue.pop(), Some(n + 1));
         metered.end(());
     }
-    assert!(metered.most <= 1024);
+    assert!(metered.most <= LIGHT_CEILING);
 }
 
 #[test]
@@ -859,11 +868,11 @@ fn an_unused_uncapped_queue_holds_nothing() {
 
 #[test]
 fn a_queue_with_a_large_capacity_used_lightly_holds_what_it_holds() {
-    let mut metered = Metered::new("Queue", "u64", 15_000_000, Some(1024));
+    let mut metered = Metered::new("Queue", "u64", 15_000_000, Some(LIGHT_CEILING));
     metered.start();
     let mut queue = Queue::<u64>::with_capacity(15_000_000);
     metered.end(());
-    for n in 0..1_000_000 {
+    for n in 0..LIGHT_TURNS {
         metered.start();
         queue.push(n);
         queue.push(n + 1);
@@ -871,23 +880,29 @@ fn a_queue_with_a_large_capacity_used_lightly_holds_what_it_holds() {
         assert_eq!(queue.pop(), Some(n + 1));
         metered.end(());
     }
-    assert!(metered.most <= 1024);
+    assert!(metered.most <= LIGHT_CEILING);
 }
+
+/// Sixteen times the ceiling: allocating the capacity fails the first step.
+/// Two bytes per turn pass twice the capacity through the intake, so counting
+/// bytes already delivered against its capacity refuses an append.
+const INTAKE_CAPACITY: u32 = 1 << 14;
+const _: () = assert!(INTAKE_CAPACITY as u64 >= 16 * LIGHT_CEILING);
 
 #[test]
 fn an_intake_with_a_large_capacity_used_lightly_holds_what_it_holds() {
-    let mut metered = Metered::new("Intake", "u8", 1 << 20, Some(1024));
+    let mut metered = Metered::new("Intake", "u8", INTAKE_CAPACITY, Some(LIGHT_CEILING));
     metered.start();
-    let mut intake = Intake::with_capacity(1 << 20);
+    let mut intake = Intake::with_capacity(INTAKE_CAPACITY);
     metered.end(());
-    for _ in 0..1_000_000 {
+    for _ in 0..INTAKE_CAPACITY {
         metered.start();
         intake.append(b"ab").expect("room for two bytes");
         let delivery = intake.meet(Read::Fill(2)).expect("two bytes buffered");
         assert_eq!(&*delivery, b"ab");
         metered.end(delivery);
     }
-    assert!(metered.most <= 1024);
+    assert!(metered.most <= LIGHT_CEILING);
 }
 
 #[test]

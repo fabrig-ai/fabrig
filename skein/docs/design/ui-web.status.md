@@ -1,9 +1,10 @@
 # ui-web: status
 
-2026-11-06. Where skein's code lags or departs from [ui-web.md](ui-web.md).
+2026-11-07. Where skein's code lags or departs from [ui-web.md](ui-web.md).
 
 Unlisted sections, including 7's requested focus bringing its node into
 view even when already focused, have no known gap.
+
 
 - **Departs:** 7: a press outside an open menu returns the focus to its button
   unless that press took it to another control, where the code asks only whether

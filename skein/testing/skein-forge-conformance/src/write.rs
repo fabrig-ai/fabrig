@@ -17,14 +17,25 @@ pub struct Secrets(Vec<(SecretKind, String)>);
 impl Secrets {
     #[must_use]
     pub fn owned(values: Vec<(SecretKind, String)>) -> Self {
-        Self(values)
+        let mut secrets = Self(Vec::new());
+        for (kind, value) in values {
+            secrets.add(kind, &value);
+        }
+        secrets
     }
     pub fn add(&mut self, kind: SecretKind, value: &str) {
-        self.0.push((kind, value.into()));
+        // A value's first registration already determines its leak kind.
+        if !self.0.iter().any(|(_, registered)| registered == value) {
+            self.0.push((kind, value.into()));
+        }
     }
     #[must_use]
     pub fn of(values: &[(SecretKind, &str)]) -> Self {
-        Self(values.iter().map(|(kind, value)| (*kind, (*value).into())).collect())
+        let mut secrets = Self(Vec::new());
+        for (kind, value) in values {
+            secrets.add(*kind, value);
+        }
+        secrets
     }
 }
 #[derive(Debug, PartialEq, Eq)]
@@ -41,28 +52,23 @@ impl std::error::Error for Leak {}
 /// # Errors
 /// Reports the case and kind only when a secret reaches either byte stream.
 pub fn check(case: &str, request: &[u8], response: &[u8], secrets: &Secrets) -> std::result::Result<(), Leak> {
+    let request_text = std::str::from_utf8(request).ok();
+    let response_text = std::str::from_utf8(response).ok();
     for (kind, value) in &secrets.0 {
-        if !value.is_empty() && (contains(request, value.as_bytes()) || contains(response, value.as_bytes())) {
+        if !value.is_empty() && (contains(request, request_text, value) || contains(response, response_text, value)) {
             return Err(Leak { case: case.into(), kind: *kind });
         }
     }
     Ok(())
 }
 
-fn contains(bytes: &[u8], needle: &[u8]) -> bool {
-    let (Some(&first), Some(&last)) = (needle.first(), needle.last()) else { return false };
-    let Some(end) = bytes.len().checked_sub(needle.len()) else { return false };
-    let tail = needle.len() - 1;
-    let mut at = 0;
-    // The needle is nonempty and at <= bytes.len() - needle.len(), so both
-    // indices and the window end fit; the next position is at most bytes.len().
-    while at <= end {
-        if bytes[at] == first && bytes[at + tail] == last && bytes[at..at + needle.len()] == *needle {
-            return true;
-        }
-        at += 1;
+fn contains(bytes: &[u8], text: Option<&str>, needle: &str) -> bool {
+    // Registered secrets are text. Validating each stream once lets the standard
+    // library search it without a byte-by-byte loop for each registered secret.
+    match text {
+        Some(text) => text.contains(needle),
+        None => skein_lib::bytes::find(bytes, needle.as_bytes()).is_some(),
     }
-    false
 }
 
 /// # Errors

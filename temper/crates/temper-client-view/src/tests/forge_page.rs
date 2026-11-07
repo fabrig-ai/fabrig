@@ -1,62 +1,7 @@
 use super::fixtures;
-use crate::forge::{
-    bindings::{self, Bindings},
-    page,
-};
-use skein_ui::{Act, Role, State};
-use temper_client_domain::{Action, forge};
-#[test]
-fn adoption_names_the_playground_project_playground() {
-    let root = fixtures::root_at_with_playground(
-        temper_client_domain::Address::Adopt { project: fixtures::PROJECT },
-        &fixtures::domain_limits(),
-        b"Project 1",
-        Some((fixtures::PROJECT, true)),
-    )
-    .0;
-    for words in [fixtures::words(), fixtures::browser_words()] {
-        let mut view = fixtures::view_of(words);
-        let tree = fixtures::build(&mut view, &root);
-        assert!(has_text(tree, b"Adopt a repository into Project 1"));
-    }
-}
-#[test]
-fn the_page_names_every_field_a_person_acts_on() {
-    let mut view = fixtures::view();
-    let root = fixtures::adoption_root();
-    let tree = fixtures::build(&mut view, &root);
-    let rows: [(Role, &[u8]); 13] = [
-        (Role::TextField, b"Forge number"),
-        (Role::TextField, b"Owner"),
-        (Role::TextField, b"Name"),
-        (Role::ChoiceGroup, b"Role"),
-        (Role::Choice, b"Owned: temper pushes, opens pull requests and lands"),
-        (Role::Choice, b"Fork: temper contributes through a fork"),
-        (Role::Choice, b"Context: temper only reads"),
-        (Role::Check, b"Make it the project's home"),
-        (Role::TextField, b"Branch prefix"),
-        (Role::TextField, b"Landing branch"),
-        (Role::Check, b"It runs CI"),
-        (Role::TextField, b"Checks: gate numbers, separated by spaces or commas"),
-        (Role::Button, b"Adopt"),
-    ];
-    for (role, name) in rows {
-        assert!(fixtures::find(tree, role, name).is_some(), "node {role:?}: {name:?}");
-    }
-    assert!(has_text(tree, b"Adopt a repository into shop"), "heading uses me's name");
-}
-#[test]
-fn a_check_takes_a_toggle_and_refuses_a_press() {
-    let mut view = fixtures::view();
-    fixtures::build(&mut view, &fixtures::adoption_root());
-    for (name, expected) in
-        [(b"Make it the project's home".as_slice(), forge::Act::Home), (b"It runs CI".as_slice(), forge::Act::Ci)]
-    {
-        let node = fixtures::find(view.tree(), Role::Check, name).expect("check");
-        assert_eq!(crate::act(&mut view, node, Act::Press), None, "press {name:?}");
-        assert_eq!(crate::act(&mut view, node, Act::Toggle), Some(Action::Forge(expected)), "toggle {name:?}");
-    }
-}
+use crate::forge::{bindings, page};
+use skein_ui::Role;
+use temper_client_domain::forge;
 fn form() -> forge::Form {
     let mut form = forge::form(1);
     form.confirmed = true;
@@ -73,8 +18,15 @@ fn page_tree(form: &forge::Form, words: &crate::words::Words) -> skein_ui::Tree 
     limits.text_per_node = 2048;
     limits.text_bytes = 262_144;
     let mut builder = skein_ui::Builder::new(&limits);
-    let mut bindings = Bindings::new(limits.bindings, 8, 1);
-    page::page(&mut builder, form, Some(b"Shop"), words, &mut bindings, fixtures::tree_limits().text_per_node, None);
+    if let Some(answer) = &form.outcome {
+        page::outcome(
+            &mut builder,
+            (b"acme", b"shop", b"temper/", b"1"),
+            answer,
+            words,
+            fixtures::tree_limits().text_per_node,
+        );
+    }
     builder.finish()
 }
 fn adopted() -> forge::Answer {
@@ -122,7 +74,7 @@ fn each_outcome_reads_as_the_designs_sentence() {
         form.outcome = Some(answer.clone());
         let rendered = page_tree(&form, &words);
         let text = fixtures::text(&rendered);
-        assert_eq!(&text[b"Adopt a repository into Shop".len()..], said, "outcome {answer:?}");
+        assert_eq!(text.as_ref(), said, "outcome {answer:?}");
         assert_eq!(has_role(&rendered, Role::Alert), alert, "refusal alert {answer:?}");
     }
 }
@@ -139,7 +91,7 @@ fn each_kind_of_jig_refusal_uses_jigs_words() {
         form.outcome = Some(answer.clone());
         let rendered = tree(&form);
         assert_eq!(
-            &fixtures::text(&rendered)[b"Adopt a repository into Shop".len()..],
+            fixtures::text(&rendered).as_ref(),
             b"The held role does not permit this actionNo held role was supplied",
             "outcome {answer:?}"
         );
@@ -171,63 +123,6 @@ fn typed_fields_reject_invalid_numbers_and_duplicate_checks() {
         assert_eq!(bindings::checks(text, 3).as_deref(), expected, "checks {text:?}");
     }
 }
-#[test]
-fn a_field_input_is_typed_and_older_binding_tokens_decode_nothing() {
-    let mut bindings = Bindings::new(1, 2, 1);
-    let field = bindings.insert(bindings::Meaning::Field(forge::Text::Checks));
-    assert_eq!(
-        bindings::decode(&bindings, field.token, Act::Input { value: Box::from(*b"1,2") }),
-        Some(Action::Forge(forge::Act::Write {
-            field: forge::Text::Checks,
-            text: Box::from(*b"1,2"),
-            typed: forge::Typed::Checks(Some(Box::new([1, 2])))
-        }))
-    );
-    bindings.begin();
-    let _new = bindings.insert(bindings::Meaning::Adopt);
-    assert_eq!(bindings::decode(&bindings, field.token, Act::Press), None);
-}
-#[test]
-fn adopt_is_disabled_until_a_party_is_confirmed() {
-    let mut form = form();
-    for (party, disabled) in [(None, true), (Some(73_u64), false), (None, true)] {
-        form.confirmed = party.is_some();
-        let rendered = tree(&form);
-        let button = node_of_role(&rendered, Role::Button);
-        assert_eq!(button.states.as_slice().contains(&State::Disabled), disabled, "party {party:?}");
-    }
-}
-#[test]
-fn pending_or_out_of_date_disables_adopt() {
-    for (pending, served, said) in [
-        (
-            Some((skein_lib::Token::new(1), skein_lib::RequestProgress::Parked)),
-            forge::Served::Yes,
-            b"Waiting to send".as_slice(),
-        ),
-        (
-            None,
-            forge::Served::OutOfDate,
-            b"This temper is out of date for adopting repositories: run the temper the engine runs.".as_slice(),
-        ),
-    ] {
-        let mut form = form();
-        form.pending = pending;
-        form.served = served;
-        let rendered = tree(&form);
-        let button = node_of_role(&rendered, Role::Button);
-        assert!(button.states.as_slice().contains(&State::Disabled), "{served:?} {pending:?}");
-        assert!(fixtures::find(&rendered, Role::Status, said).is_some(), "status {served:?} {pending:?}");
-    }
-}
-fn has_text(tree: &skein_ui::Tree, expected: &[u8]) -> bool {
-    for text in fixtures::text(tree).windows(expected.len()) {
-        if text == expected {
-            return true;
-        }
-    }
-    false
-}
 fn has_role(tree: &skein_ui::Tree, role: Role) -> bool {
     for node in tree.nodes() {
         if node.role == role {
@@ -235,271 +130,4 @@ fn has_role(tree: &skein_ui::Tree, role: Role) -> bool {
         }
     }
     false
-}
-fn node_of_role(tree: &skein_ui::Tree, role: Role) -> &skein_ui::Node {
-    for node in tree.nodes() {
-        if node.role == role {
-            return node;
-        }
-    }
-    panic!("missing {role:?}")
-}
-#[test]
-fn the_form_fields_carry_the_domains_values_and_write_counts() {
-    let rendered = tree(&form());
-    let rows: [(&[u8], &[u8]); 6] = [
-        (b"Forge number", b"1"),
-        (b"Owner", b"acme"),
-        (b"Name", b"shop"),
-        (b"Branch prefix", b"temper/"),
-        (b"Landing branch", b""),
-        (b"Checks: gate numbers, separated by spaces or commas", b""),
-    ];
-    for (name, expected) in rows {
-        let id = fixtures::find(&rendered, Role::TextField, name).expect("field");
-        for node in rendered.nodes() {
-            if node.id == id && node.name.as_deref() == Some(name) {
-                let value = node.value.as_ref().expect("field value");
-                assert_eq!((&*value.text, value.written), (expected, 0), "field {name:?}");
-            }
-        }
-    }
-}
-#[test]
-fn each_broken_rule_is_an_invalid_field_with_its_status() {
-    let words = fixtures::words();
-    let rows: [(forge::Broken, &[u8]); 6] = [
-        (forge::Broken::Required, b"Required."),
-        (forge::Broken::ForgeNumber, b"A forge number is from 1 to 65535."),
-        (forge::Broken::Checks, b"Checks are numbers from 1, each once."),
-        (forge::Broken::ContextHome, b"A context repository cannot be the project's home."),
-        (forge::Broken::NoCheck, b"Without CI, name at least one check."),
-        (forge::Broken::Long { bound: 256 }, b"At most 256 bytes."),
-    ];
-    for (broken, said) in rows {
-        let mut form = form();
-        form.texts[forge::Text::Owner.index()].broken = Some(broken);
-        let rendered = page_tree(&form, &words);
-        assert!(fixtures::find(&rendered, Role::Status, said).is_some(), "status {broken:?}");
-        for node in rendered.nodes() {
-            if node.role == Role::TextField && node.name.as_deref() == Some(b"Owner") {
-                assert!(node.states.as_slice().contains(&State::Invalid), "invalid {broken:?}");
-            }
-        }
-    }
-}
-#[test]
-fn all_roles_take_a_press_or_a_toggle() {
-    let mut bindings = Bindings::new(3, 8, 1);
-    for role in [forge::Role::Owned, forge::Role::Fork, forge::Role::Context] {
-        let binding = bindings.insert(bindings::Meaning::Role(role));
-        for (name, act) in [("press", Act::Press), ("toggle", Act::Toggle)] {
-            assert_eq!(
-                bindings::decode(&bindings, binding.token, act),
-                Some(Action::Forge(forge::Act::Choose { role })),
-                "{role:?} {name}"
-            );
-        }
-    }
-}
-#[test]
-fn full_bound_repository_names_fit_the_outcome_phrase() {
-    let mut form = form();
-    let forge::Answer::Adopted(mut adopted) = adopted() else { panic!("adopted fixture") };
-    adopted.owner = Box::new([b'o'; 256]);
-    adopted.name = Box::new([b'n'; 256]);
-    form.outcome = Some(forge::Answer::Adopted(adopted));
-    let rendered = tree(&form);
-    assert!(has_text(&rendered, b" on forge 1 as owned."));
-}
-
-#[test]
-fn the_adoption_page_is_titled_with_the_project_me_names() {
-    let mut view = fixtures::view();
-    let root = fixtures::adoption_page(fixtures::PROJECT, b"shop");
-    let tree = fixtures::build(&mut view, &root);
-    let title = fixtures::find(tree, Role::Heading { level: 1 }, b"Adopt a repository into shop");
-    assert!(title.is_some(), "the title names the project as me names it");
-}
-
-#[test]
-fn the_adoption_page_for_a_project_me_does_not_name_is_titled_by_its_number() {
-    const UNKNOWN_PROJECT: u32 = 7;
-    let mut view = fixtures::view();
-    let root = fixtures::adoption_page(UNKNOWN_PROJECT, b"shop");
-    let tree = fixtures::build(&mut view, &root);
-    assert!(fixtures::find(tree, Role::Heading { level: 1 }, b"Adopt a repository into project 7").is_some());
-}
-
-#[test]
-fn the_adoption_region_is_named_by_its_heading_and_contains_the_whole_form() {
-    for (project, title) in [
-        (fixtures::PROJECT, b"Adopt a repository into shop".as_slice()),
-        (7, b"Adopt a repository into project 7".as_slice()),
-    ] {
-        let mut view = fixtures::view();
-        let root = fixtures::adoption_page(project, b"shop");
-        let tree = fixtures::build(&mut view, &root);
-        let nodes = tree.nodes();
-        let mut heading = None;
-        let mut region = None;
-        for (index, node) in nodes.iter().enumerate() {
-            if node.role == (Role::Heading { level: 1 }) {
-                assert_eq!(node.name.as_deref(), Some(title));
-                heading = Some(index);
-            }
-            if node.role == Role::Region && node.name.as_deref() == Some(title) {
-                assert!(region.is_none(), "one region for the form");
-                region = Some(index);
-            }
-        }
-        let heading = heading.expect("page heading");
-        let at = region.expect("named adoption region");
-        assert!(heading < at);
-        assert!(nodes[at].styles.as_slice().is_empty());
-        let end = at + usize::try_from(nodes[at].size).unwrap();
-        assert_eq!(end, nodes.len(), "the region includes everything after the heading slot");
-        for (role, name) in [
-            (Role::TextField, b"Forge number".as_slice()),
-            (Role::TextField, b"Owner"),
-            (Role::TextField, b"Name"),
-            (Role::TextField, b"Branch prefix"),
-            (Role::TextField, b"Landing branch"),
-            (Role::TextField, b"Checks: gate numbers, separated by spaces or commas"),
-            (Role::ChoiceGroup, b"Role"),
-            (Role::Check, b"Make it the project's home"),
-            (Role::Check, b"It runs CI"),
-            (Role::Button, b"Adopt"),
-        ] {
-            let mut found = false;
-            for node in &nodes[at + 1..end] {
-                if node.role == role && node.name.as_deref() == Some(name) {
-                    found = true;
-                    break;
-                }
-            }
-            assert!(found, "region contains {role:?}: {name:?}");
-        }
-    }
-}
-
-#[test]
-fn the_adoption_region_holds_the_form_with_no_card_around_it() {
-    let mut view = fixtures::view();
-    let root = fixtures::adoption_page(fixtures::PROJECT, b"shop");
-    let tree = fixtures::build(&mut view, &root);
-    let nodes = tree.nodes();
-    let mut region = None;
-    for (index, node) in nodes.iter().enumerate() {
-        if node.role == Role::Region && node.name.as_deref() == Some(b"Adopt a repository into shop") {
-            region = Some(index);
-        }
-    }
-    let at = region.expect("adoption region");
-    let end = at + usize::try_from(nodes[at].size).unwrap();
-    let mut children = skein_lib::List::with_capacity(nodes[at].size);
-    let mut child = at + 1;
-    while child < end {
-        children.push(child).unwrap();
-        child += usize::try_from(nodes[child].size).unwrap();
-    }
-    assert_eq!(child, end, "direct children fill the region");
-    let [fields, roles, ..] = children.as_slice() else { panic!("the form's parts are direct children") };
-    assert_eq!(nodes[*fields].role, Role::Slot);
-    assert!(nodes[*fields].styles.is_empty());
-    let expected = [b"Forge number".as_slice(), b"Owner", b"Name"];
-    let mut names = skein_lib::List::with_capacity(u32::try_from(expected.len()).unwrap());
-    for node in &nodes[*fields + 1..*roles] {
-        if node.role == Role::TextField {
-            names.push(node.name.as_deref().expect("named field")).unwrap();
-        }
-    }
-    assert_eq!(names.as_slice(), expected);
-    assert_eq!(nodes[*roles].role, Role::ChoiceGroup);
-    assert_eq!(nodes[*roles].name.as_deref(), Some(b"Role".as_slice()));
-}
-
-#[test]
-fn the_adoption_page_draws_the_unadopted_first_repository_defaults() {
-    use temper_client_protocol_wire::v1 as w;
-    let mut parts = super::connect_forge::row(
-        2,
-        w::Kind::Forgejo,
-        w::Mode::Owned,
-        super::connect_forge::connected(),
-        w::Offer::NotOffered,
-    )
-    .into_parts();
-    parts.first = Some(
-        w::FirstRepository::new(
-            &w::CEILINGS,
-            w::FirstRepositoryParts {
-                playground: false,
-                org: b"work".as_slice().into(),
-                repository: b"hello".as_slice().into(),
-                state: w::FirstState::Made(w::Made::new(&w::CEILINGS, w::MadeParts { id: 7 }).unwrap()),
-                label: b"docker".as_slice().into(),
-            },
-        )
-        .unwrap(),
-    );
-    let mut rows = skein_lib::List::with_capacity(1);
-    rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
-    let root = fixtures::forge_root(temper_client_domain::Address::Adopt { project: fixtures::PROJECT }, rows);
-    let view = fixtures::page_view(&root);
-    for (name, expected) in [
-        (b"Forge number".as_slice(), b"2".as_slice()),
-        (b"Owner", b"work"),
-        (b"Name", b"hello"),
-        (b"Landing branch", b"main"),
-    ] {
-        let id = fixtures::find(view.tree(), Role::TextField, name).unwrap();
-        for node in view.tree().nodes() {
-            if node.id == id {
-                let value = node.value.as_ref().unwrap();
-                assert_eq!((value.text.as_ref(), value.written), (expected, 1));
-            }
-        }
-    }
-}
-
-#[test]
-fn adopt_draws_no_card_chrome_and_takes_the_language() {
-    // README.md, 4.4: forge, owner, name, prefix, landing and checks.
-    const FIELDS: usize = 6;
-    let root = fixtures::adoption_root();
-    for view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
-        let tree = view.tree();
-        assert_eq!(
-            fixtures::styles(tree, Role::Main).as_ref(),
-            [Box::from([crate::look::MAIN, crate::look::SETTINGS])]
-        );
-        assert_eq!(
-            fixtures::styles(tree, Role::Heading { level: 1 }).as_ref(),
-            [Box::from([crate::look::SETTINGS_HEADLINE])]
-        );
-        let adopt = fixtures::find(tree, Role::Button, b"Adopt").unwrap();
-        let mut main = false;
-        let mut column = false;
-        let mut fields = 0_usize;
-        for node in tree.nodes() {
-            if node.role == Role::Main {
-                main = true;
-            }
-            if node.styles.as_slice().contains(&crate::look::SETTINGS_COL) {
-                column = true;
-            }
-            assert!(!node.styles.as_slice().contains(&crate::look::CARD));
-            assert!(!node.styles.as_slice().contains(&crate::look::PAGEBAR));
-            if main && node.role == Role::TextField {
-                assert_eq!(node.styles.as_slice(), &[crate::look::SETTINGS_TEXT]);
-                fields = fields.checked_add(1).unwrap();
-            }
-            if node.id == adopt {
-                assert_eq!(node.styles.as_slice(), &[crate::look::SETTINGS_BTN, crate::look::SETTINGS_PRIMARY]);
-            }
-        }
-        assert!(column);
-        assert_eq!(fields, FIELDS);
-    }
 }

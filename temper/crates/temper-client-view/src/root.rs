@@ -21,17 +21,6 @@ pub struct View {
     clock_revision: u64,
     revision: Option<u64>,
 }
-fn adoption_progress(root: &Domain, form: &temper_client_domain::forge::Form) -> Option<jig_client::Progress> {
-    let (request, _) = form.pending?;
-    Some(
-        root.client()
-            .pending(jig_client::Key {
-                asker: temper_client_domain::owner::Owner::Forge.asker(),
-                number: request.raw(),
-            })?
-            .progress,
-    )
-}
 impl View {
     #[must_use]
     pub fn new(limits: &Limits, domain: &temper_client_domain::Limits, forge_words: Words, forge: u16) -> View {
@@ -79,35 +68,6 @@ impl View {
     }
     fn task_main(&mut self, b: &mut Builder, root: &Domain, times: &mut crate::words::Times) {
         crate::pages::task::main(b, root, &self.forge_words, &mut self.pages, self.rows, times);
-    }
-    fn adoption_main(&mut self, b: &mut Builder, root: &Domain) {
-        let Some(form) = root.forge().form() else { return };
-        let project = crate::pages::project_name(root.pages().me(root.client()), form.project);
-        b.open(Role::Main);
-        b.style(crate::look::MAIN);
-        b.style(crate::look::SETTINGS);
-        b.open(Role::Slot);
-        b.style(crate::look::SETTINGS_COL);
-        crate::pages::settings::path(
-            b,
-            root,
-            &self.forge_words,
-            &mut self.pages,
-            Some(form.project),
-            crate::pages::settings::FlowTab::Repositories,
-            crate::words::Word::Adoption,
-        );
-        forge::page::page(
-            b,
-            form,
-            project.as_deref(),
-            &self.forge_words,
-            &mut self.forge,
-            self.limits.tree.text_per_node,
-            adoption_progress(root, form),
-        );
-        b.close();
-        b.close();
     }
     /// Earliest change among the time words drawn by the last build.
     #[must_use]
@@ -316,7 +276,9 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         crate::pages::models::main(&mut builder, root, &view.forge_words, &mut view.pages, *project);
     } else if let temper_client_domain::Address::Builders { project } = root.pages().address() {
         crate::pages::builders::main(&mut builder, root, &view.forge_words, &mut view.pages, *project);
-    } else if let temper_client_domain::Address::Repositories { project } = root.pages().address() {
+    } else if let temper_client_domain::Address::Repositories { project }
+    | temper_client_domain::Address::Adopt { project } = root.pages().address()
+    {
         crate::pages::settings::repositories(
             &mut builder,
             root,
@@ -324,6 +286,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             &mut view.pages,
             *project,
             &view.forge_sign_in,
+            &mut view.forge,
         );
     } else if let temper_client_domain::Address::Chat { .. } = root.pages().address() {
         crate::pages::chat::main(
@@ -364,6 +327,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             &view.forge_words,
             &mut view.pages,
             &mut view.forge,
+            &mut view.accounts,
             *forge,
             rail_project,
             &view.forge_sign_in,
@@ -378,8 +342,6 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             &view.forge_sign_in,
             rail_project,
         );
-    } else if let temper_client_domain::Address::Adopt { .. } = root.pages().address() {
-        view.adoption_main(&mut builder, root);
     }
     if let Some(project) = rail_project
         && view.forge_words.shell == crate::words::Shell::Browser

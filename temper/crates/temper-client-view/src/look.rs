@@ -1206,45 +1206,46 @@ pub const NAMES: Names<'static> = Names {
         b"temper-public-line",
         b"temper-public-facts",
         b"temper-public-section",
-        b"temper-models-source",
-        b"temper-models-ask",
-        b"temper-models-add",
-        b"temper-reserved-529",
-        b"temper-reserved-530",
-        b"temper-reserved-531",
-        b"temper-reserved-532",
-        b"temper-reserved-533",
-        b"temper-reserved-534",
-        b"temper-reserved-535",
-        b"temper-reserved-536",
-        b"temper-reserved-537",
-        b"temper-reserved-538",
-        b"temper-reserved-539",
-        b"temper-reserved-540",
-        b"temper-reserved-541",
-        b"temper-reserved-542",
-        b"temper-reserved-543",
-        b"temper-reserved-544",
-        b"temper-reserved-545",
-        b"temper-reserved-546",
-        b"temper-reserved-547",
-        b"temper-reserved-548",
-        b"temper-reserved-549",
-        b"temper-reserved-550",
-        b"temper-reserved-551",
-        b"temper-reserved-552",
-        b"temper-reserved-553",
-        b"temper-reserved-554",
-        b"temper-reserved-555",
-        b"temper-reserved-556",
-        b"temper-reserved-557",
-        b"temper-reserved-558",
-        b"temper-reserved-559",
-        b"temper-reserved-560",
-        b"temper-reserved-561",
-        b"temper-reserved-562",
-        b"temper-reserved-563",
-        b"temper-reserved-564",
+        b"temper-connect",
+        b"temper-connect-cards",
+        b"temper-connect-card",
+        b"temper-connect-default",
+        b"temper-connect-muted",
+        b"temper-connect-yes",
+        b"temper-connect-acts",
+        b"temper-connect-primary",
+        b"temper-connect-secondary",
+        b"temper-connect-quiet",
+        b"temper-connect-more",
+        b"temper-connect-rows",
+        b"temper-connect-row",
+        b"temper-connect-panel",
+        b"temper-connect-pair",
+        b"temper-connect-one",
+        b"temper-connect-title",
+        b"temper-connect-cmd",
+        b"temper-connect-waiting",
+        b"temper-connect-how",
+        b"temper-connect-steps",
+        b"temper-connect-live",
+        b"temper-connect-later",
+        b"temper-connect-empty",
+        b"temper-connect-confirm",
+        b"temper-connect-list",
+        b"temper-connect-bounded",
+        b"temper-connect-none",
+        b"temper-connect-count",
+        b"temper-connect-sheet",
+        b"temper-connect-sheet-head",
+        b"temper-connect-sheet-body",
+        b"temper-connect-sheet-foot",
+        b"temper-connect-source",
+        b"temper-connect-sources",
+        b"temper-connect-says",
+        b"temper-connect-addresses",
+        b"temper-connect-alerts",
+        b"temper-connect-failed",
+        b"temper-connect-repos",
         b"temper-foot-row",
         b"temper-model",
         b"temper-model-fixed",
@@ -1257,6 +1258,9 @@ pub const NAMES: Names<'static> = Names {
         b"temper-model-back",
         b"temper-model-find",
         b"temper-model-long",
+        b"temper-models-source",
+        b"temper-models-ask",
+        b"temper-models-add",
     ],
     regions: &[b"temper-link"],
 };
@@ -1491,25 +1495,106 @@ pub const PUBLIC_FACTS: Style = Style { owner: owner(), token: 524 };
 /// Public pages (temper/docs/design/client/browser.md, 8.3).
 pub const PUBLIC_SECTION: Style = Style { owner: owner(), token: 525 };
 
-/// Models source line (temper/docs/design/client/README.md, 3.5, The `Models` tab).
-pub const MODELS_SOURCE: Style = Style { owner: owner(), token: 526 };
-/// Models configuring link (temper/docs/design/client/README.md, 3.5, The `Models` tab).
-pub const MODELS_ASK: Style = Style { owner: owner(), token: 527 };
-/// Add a model by name (temper/docs/design/client/README.md, 3.5).
-pub const MODELS_ADD: Style = Style { owner: owner(), token: 528 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT: Style = Style { owner: owner(), token: 526 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_CARDS: Style = Style { owner: owner(), token: 527 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_CARD: Style = Style { owner: owner(), token: 528 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_DEFAULT: Style = Style { owner: owner(), token: 529 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_MUTED: Style = Style { owner: owner(), token: 530 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_YES: Style = Style { owner: owner(), token: 531 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_ACTS: Style = Style { owner: owner(), token: 532 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_PRIMARY: Style = Style { owner: owner(), token: 533 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_SECONDARY: Style = Style { owner: owner(), token: 534 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_QUIET: Style = Style { owner: owner(), token: 535 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_MORE: Style = Style { owner: owner(), token: 536 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_ROWS: Style = Style { owner: owner(), token: 537 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_ROW: Style = Style { owner: owner(), token: 538 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_PANEL: Style = Style { owner: owner(), token: 539 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_PAIR: Style = Style { owner: owner(), token: 540 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_ONE: Style = Style { owner: owner(), token: 541 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_TITLE: Style = Style { owner: owner(), token: 542 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_CMD: Style = Style { owner: owner(), token: 543 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_WAITING: Style = Style { owner: owner(), token: 544 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_HOW: Style = Style { owner: owner(), token: 545 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_STEPS: Style = Style { owner: owner(), token: 546 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_LIVE: Style = Style { owner: owner(), token: 547 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_LATER: Style = Style { owner: owner(), token: 548 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_EMPTY: Style = Style { owner: owner(), token: 549 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_CONFIRM: Style = Style { owner: owner(), token: 550 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_LIST: Style = Style { owner: owner(), token: 551 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_BOUNDED: Style = Style { owner: owner(), token: 552 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_NONE: Style = Style { owner: owner(), token: 553 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_COUNT: Style = Style { owner: owner(), token: 554 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_SHEET: Style = Style { owner: owner(), token: 555 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_SHEET_HEAD: Style = Style { owner: owner(), token: 556 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_SHEET_BODY: Style = Style { owner: owner(), token: 557 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_SHEET_FOOT: Style = Style { owner: owner(), token: 558 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_SOURCE: Style = Style { owner: owner(), token: 559 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_SOURCES: Style = Style { owner: owner(), token: 560 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_SAYS: Style = Style { owner: owner(), token: 561 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_ADDRESSES: Style = Style { owner: owner(), token: 562 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_ALERTS: Style = Style { owner: owner(), token: 563 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_FAILED: Style = Style { owner: owner(), token: 564 };
+/// Connect pages (client/browser.md, 2.5).
+pub const CONNECT_REPOS: Style = Style { owner: owner(), token: 565 };
 /// Model picker at the composer (client/README.md, 3.5).
-pub const FOOT_ROW: Style = Style { owner: owner(), token: 565 };
-pub const MODEL: Style = Style { owner: owner(), token: 566 };
-pub const MODEL_FIXED: Style = Style { owner: owner(), token: 567 };
-pub const MODEL_MENU: Style = Style { owner: owner(), token: 568 };
-pub const MODEL_TAG: Style = Style { owner: owner(), token: 569 };
-pub const MODEL_FROM: Style = Style { owner: owner(), token: 570 };
-pub const MODEL_NOTE: Style = Style { owner: owner(), token: 571 };
-pub const MODEL_EFFORT: Style = Style { owner: owner(), token: 572 };
-pub const MODEL_ALL: Style = Style { owner: owner(), token: 573 };
-pub const MODEL_BACK: Style = Style { owner: owner(), token: 574 };
-pub const MODEL_FIND: Style = Style { owner: owner(), token: 575 };
-pub const MODEL_LONG: Style = Style { owner: owner(), token: 576 };
+pub const FOOT_ROW: Style = Style { owner: owner(), token: 566 };
+pub const MODEL: Style = Style { owner: owner(), token: 567 };
+pub const MODEL_FIXED: Style = Style { owner: owner(), token: 568 };
+pub const MODEL_MENU: Style = Style { owner: owner(), token: 569 };
+pub const MODEL_TAG: Style = Style { owner: owner(), token: 570 };
+pub const MODEL_FROM: Style = Style { owner: owner(), token: 571 };
+pub const MODEL_NOTE: Style = Style { owner: owner(), token: 572 };
+pub const MODEL_EFFORT: Style = Style { owner: owner(), token: 573 };
+pub const MODEL_ALL: Style = Style { owner: owner(), token: 574 };
+pub const MODEL_BACK: Style = Style { owner: owner(), token: 575 };
+pub const MODEL_FIND: Style = Style { owner: owner(), token: 576 };
+pub const MODEL_LONG: Style = Style { owner: owner(), token: 577 };
+
+/// Models source line (temper/docs/design/client/README.md, 3.5, The `Models` tab).
+pub const MODELS_SOURCE: Style = Style { owner: owner(), token: 578 };
+/// Models configuring link (temper/docs/design/client/README.md, 3.5, The `Models` tab).
+pub const MODELS_ASK: Style = Style { owner: owner(), token: 579 };
+/// Add a model by name (temper/docs/design/client/README.md, 3.5).
+pub const MODELS_ADD: Style = Style { owner: owner(), token: 580 };
 
 #[cfg(test)]
 mod tests {

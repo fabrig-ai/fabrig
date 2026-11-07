@@ -58,6 +58,13 @@ impl Real {
         self.kernels.get_mut(process).expect("a process of this backend")
     }
 
+    fn arm_wait(&mut self, what: &'static str, patience: Duration) {
+        let mut deadline = Deadline::arm(what, patience);
+        deadline.watch_process(std::process::id());
+        self.deadline = Some(deadline);
+        self.figures = None;
+    }
+
     fn end(&mut self) {
         for kernel in &mut self.kernels {
             kernel.end();
@@ -86,6 +93,7 @@ impl ConformanceBackend for Real {
             flights: BTreeMap::new(),
             descriptors: BTreeSet::new(),
             children: BTreeSet::new(),
+            ready: Queue::with_capacity(KERNEL_OPERATIONS),
         });
         self.kernels.len().checked_sub(1).expect("the kernel just pushed")
     }
@@ -99,10 +107,20 @@ impl ConformanceBackend for Real {
     }
 
     fn wait_begins(&mut self, what: &'static str, patience: Duration) {
-        let mut deadline = Deadline::arm(what, patience);
-        deadline.watch_process(std::process::id());
-        self.deadline = Some(deadline);
+        self.deadline = None;
         self.figures = None;
+        // Deferred completions need an enter before reap can see them. Take
+        // one turn without blocking before paying for scheduler accounting.
+        let mut nothing = Queue::with_capacity(0);
+        for kernel in &mut self.kernels {
+            kernel.submit(&mut nothing, Wait::No);
+            kernel.kernel.reap(&mut kernel.ready);
+        }
+        // With every submission completed, the next reap can answer any
+        // operation the scenario is waiting for. Otherwise keep the deadline.
+        if self.kernels.iter().any(|kernel| kernel.kernel.in_flight() > 0) {
+            self.arm_wait(what, patience);
+        }
     }
 
     fn wait_unanswered(&mut self) {
@@ -147,7 +165,8 @@ impl ConformanceBackend for Real {
     }
 
     fn wait_for_connection(&mut self, process: usize, listener: Fd, bound: Duration) {
-        self.wait_begins("the conformance listener's queued connection", bound);
+        // A listener wait must not enter any backend while its peer connects.
+        self.arm_wait("the conformance listener's queued connection", bound);
         let remaining = self.deadline.as_ref().expect("the listener wait began").remaining();
         let readable = skein_shell::keeper::wait_readable(listener, remaining)
             .unwrap_or_else(|errno| panic!("polling listener {listener:?} of process {process} failed: errno {errno}"));
@@ -226,6 +245,8 @@ struct OwnedKernel {
     flights: BTreeMap<Token, Flight>,
     descriptors: BTreeSet<Fd>,
     children: BTreeSet<Fd>,
+    /// Completions delivered by the must-complete wait's nonblocking turn.
+    ready: Queue<Complete>,
 }
 
 #[derive(Clone, Copy)]
@@ -281,6 +302,9 @@ impl OwnedKernel {
 
     fn reap(&mut self, out: &mut Queue<Complete>) {
         let before = usize::try_from(out.len()).expect("the completion count fits usize");
+        while let Some(complete) = self.ready.pop() {
+            out.push(complete);
+        }
         self.kernel.reap(out);
         for complete in out.iter().skip(before) {
             self.flights.remove(&complete.op);

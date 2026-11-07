@@ -429,7 +429,7 @@ how far a piece of work has gone toward its end.
   | check, choice | `Toggle` |
   | drawing | `Drawing`, within the limit on a drawing's bytes |
   | button, link, tab, menu item, option | `Press` |
-  | log | `Near` |
+  | log, list | `Near` |
 
   A binding on any other role is the owner's bug, which the builder
   asserts against, as it does building past the tree's capacity: every
@@ -437,7 +437,9 @@ how far a piece of work has gone toward its end.
   by its role. A component (section 12) therefore cannot stand in for a
   role: on the wrong role, what it reports is refused.
 - **A log's edge near.** `Near { edge }`, its edge the log's head or its
-  foot, says that edge of a bound log has come near the person's view,
+  foot, says that edge of a bound log has come near the person's view (a bound
+  list's foot alone, and only while it continues: a list a person scrolls that
+  its owner reads a page at a time),
   whatever brought it there: a key, a wheel, a finger, or what the log
   holds. What it means is its owner's, who reads on or does nothing, and a
   read that failed is asked for again at the next. A shell with a view

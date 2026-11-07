@@ -63,8 +63,15 @@ pub struct Owner {
 impl Owner {
     #[must_use]
     pub fn new(root: Fd, story: Story, max: u32) -> Self {
-        let limits =
-            Limits { files: FILES, read: READ, entries: ENTRIES, whole: max, timeout: Duration::from_millis(10) };
+        // Small stories keep two-byte reads and their short-read boundaries;
+        // the whole-size ceiling story needs only about 64 reads of its file.
+        let limits = Limits {
+            files: FILES,
+            read: READ.max(max / 64),
+            entries: ENTRIES,
+            whole: max,
+            timeout: Duration::from_millis(10),
+        };
         let mut io = FileIo::with_limits(&limits);
         io.seed_randomness(123);
         let root = io.adopt_root(root).expect("startup root");

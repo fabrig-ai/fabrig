@@ -1118,6 +1118,7 @@ fn add_alert(b: &mut Builder, w: &Words, refused: &AddRefused) {
             MakeRefusal::Invalid => b"invalid",
             MakeRefusal::HomeHeld => b"The project has a home already.",
             MakeRefusal::Full => b"full",
+            MakeRefusal::NotFailed => b"It is not failed.",
         },
         AddRefused::Unknown => b"no answer; try again",
     };

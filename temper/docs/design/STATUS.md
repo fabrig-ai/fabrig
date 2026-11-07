@@ -205,8 +205,10 @@ quad alone, and retains missing-box failures; their intermittent cause is
 unestablished. Its sign-out 401 expectation accepts that console text
 throughout the walk
 (`client/browser.md`, `client/forge.md`).
-The browser tier holds its twelve tests, four of them merged and compiled, with
-no run in Chromium yet. Reading's four stories, apart, passed with ctl history
+The browser tier holds its twelve tests, with the call line, model picker,
+welcome sign-in and four reading stories in four merged tests, compiled
+with story labels for failed steps but with no run in Chromium yet. Reading's
+four stories, apart, passed with ctl history
 and a 131,072-byte window, but their CPU medians sum to
 44.849900 s and the three targets remain unmet; no whole-tier run proves the
 repair within 85 CPU s. The listener-full ctl failure is repaired; the public
@@ -435,7 +437,13 @@ repository's "Adopt" sending its adoption and an adoption under way the
 session's alone, beside a lag, any project's change of settings marking
 its first step; `draft/repository-copies.md`'s holds two the
 user has not answered, what a refused copy leaves and Forgejo's own
-bound on a migration, and its sheet, "Add repositories", is unbuilt;
+bound on a migration. Settings’ “Add repositories” sheet is built,
+with search, plural adoption, making, copying and failed-copy acts;
+Home’s own sheet and the two unmocked entry paths remain distinct
+(`draft/repository-copies.md`). Settings’ connection pages share the
+welcome’s cards and panels and finish on Accounts or Forges; the browser
+stories are compiled, with temper/ui’s render check after landing
+(`client/README.md`; `draft/look-requests.md`);
 `draft/github.md`'s holds one the user has not answered, a Forgejo
 connected as its admin having its hook;
 `draft/first-run-projects.md`'s and `draft/to-begin.md`'s hold Home's "Add a

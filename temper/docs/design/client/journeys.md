@@ -794,6 +794,16 @@ last commit names each page 07 change and Settings overlay rule. The render
 comparison at 1440, 1280, 1000 and 420 px and its screenshots follow landing,
 owned by temper/ui (`../draft/look-requests.md`, 4).
 
+The `connect-flows` request’s hand-made pages 01–23 are not journeys to
+reprint or land (section 7). They draw Accounts, model connection,
+Forges, forge connection and Settings’ “Add repositories” sheet, including
+search, empty, copy and failed-copy states. The gallery draws these through
+the shipped view (`browser.md`, 7.2). No request page, `connect.css` or
+`adopt.js` is part of the print. The welcome’s existing recordings still
+replay and reprint; the Settings sheet browser stories compile within the
+plan. temper/ui compares the request with main after landing, at the
+widths and open states in `../draft/look-requests.md`, 4.
+
 ## 10. Open questions
 
 - **The fresh project's draft flow on a real box** (9, `chat-draft`):

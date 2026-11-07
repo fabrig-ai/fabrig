@@ -265,6 +265,11 @@ impl Tier {
     /// A GitHub forge on the browser harness's loop, with a fixed clients' listener.
     #[must_use]
     pub fn github(name: &str) -> (Self, skein_fake_peers::forge::Peer) {
+        Self::github_repositories(name, 1, 1)
+    }
+    /// A fake GitHub with enough repositories to read on by scrolling the sheet.
+    #[must_use]
+    pub fn github_repositories(name: &str, repositories: u32, page: u32) -> (Self, skein_fake_peers::forge::Peer) {
         use std::os::fd::{AsRawFd, IntoRawFd};
         let tier = Self::reserved(name);
         let listener = TcpListener::bind("127.0.0.1:0").expect("reserve GitHub port");
@@ -276,8 +281,11 @@ impl Tier {
             "remote":format!("http://{address}"), "web":format!("http://{address}")
         });
         github::project_creation(&mut value, address);
+        value["application"]["limits"]["overrides"]["picker.page"] = page.into();
+        // repo-NN is longer than the single-repository fixture's app.
+        value["engine"]["limits"]["overrides"]["people.amendment_bytes"] = 2048.into();
         configuration::private(&path, &serde_json::to_vec(&value).expect("GitHub deployment JSON"));
-        let mut peer = github::peer(address);
+        let mut peer = github::peer_repositories(address, repositories, page);
         peer.adopt_listener(skein_io::kernel::Fd::new(listener.as_raw_fd()), address).expect("held GitHub listener");
         let _ = listener.into_raw_fd();
         (tier, peer)
