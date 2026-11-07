@@ -1385,6 +1385,7 @@ fn describe(event: &Event) -> String {
         | Event::Adopt { .. }
         | Event::Cross { .. }
         | Event::Cancel { .. }
+        | Event::Interrupt { .. }
         | Event::Relayed { .. }
         | Event::Lost { .. }
         | Event::Answer { .. }

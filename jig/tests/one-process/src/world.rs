@@ -41,6 +41,7 @@ pub(super) struct ServiceHost {
     pub(super) attached: bool,
     pub(super) wire: crate::referee::agent::Wire,
     pub(super) commits: Vec<jig_channel_kit::world::store::Commit>,
+    pub(super) draining_after: Option<usize>,
     pub(super) hold_mark: bool,
     pub(super) held_mark: Vec<Complete>,
     pub(super) mark_gate_checked: bool,
@@ -174,6 +175,7 @@ pub(super) fn start_service(
         attached: false,
         wire: crate::referee::agent::Wire::default(),
         commits: Vec::new(),
+        draining_after: None,
         hold_mark: false,
         held_mark: Vec::new(),
         mark_gate_checked: false,
@@ -343,13 +345,10 @@ fn run_phase(
             Proc::Service(_) | Proc::Agent { .. } | Proc::Peer(_) => None,
         })
         .sum();
-    let store_evidence = outcome.procs.iter().find_map(|proc| match proc {
-        Proc::Service(service) => Some((crate::referee::interrupted(&service.store.borrow()), crate::referee::lost_tries(&service.store.borrow()))),
-        _ => None,
-    }).expect("one service");
+    let (claims_interrupted_at_stop, lost_tries) = stop_evidence(&outcome.procs);
     let result = Outcome {
-        claims_interrupted_at_stop: store_evidence.0,
-        lost_tries: store_evidence.1,
+        claims_interrupted_at_stop,
+        lost_tries,
         verdict: skein_world::domain::Verdict::Passed,
         chat: chat_outcome.borrow().clone(),
         mark_gate_checked: outcome.procs.iter().any(|proc| match proc {
@@ -389,4 +388,23 @@ fn run_phase(
         })
         .expect("one service observer");
     (result, std::mem::replace(&mut outcome.machine.0, skein_fake_machine::Machine::for_user(1000)), store, reference)
+}
+
+fn interrupted_at_stop(service: &ServiceHost) -> u32 {
+    let Some(from) = service.draining_after else { return 0 };
+    service.commits.iter().skip(from).flat_map(|commit| &commit.writes).filter(|write| matches!(write,
+        jig_test_domain::Write::Save(jig_test_domain::Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Terminal(terminal))))
+        if terminal.end == jig_domain_tasks::End::Recheck)).count().try_into().expect("drain terminals")
+}
+
+fn stop_evidence(procs: &[Proc]) -> (u32, u32) {
+    procs
+        .iter()
+        .find_map(|proc| match proc {
+            Proc::Service(service) => {
+                Some((interrupted_at_stop(service), crate::referee::lost_tries(&service.store.borrow())))
+            }
+            Proc::Client(_) | Proc::Agent { .. } | Proc::Peer(_) => None,
+        })
+        .expect("one service")
 }
