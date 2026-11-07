@@ -75,6 +75,16 @@ rendering room remains deferred in section 10.
 Section 4.6 has no known gap in a chat's new model or effort answering its
 person's next words, whether the previous run still listens or has parked.
 
+- **Not yet:** 4.3: a charter whose `tools` name the asking family is declared
+  every host tool, as any other (`temper-engine-smith/src/calls.rs`, `tools_for`):
+  no `see`, `document` or asking form of `propose_settings` is declared.
+- **Not yet:** 4.2: a run whose charter names the asking family is given the
+  project's home repository (`temper-engine-domain/src/route/forge_route.rs`,
+  `run_workspace`).
+- **Not yet:** 8.4: no charter 11, template 5 or `ask.txt` in the stock
+  (`temper-service/src/stock.rs`).
+- **Not yet:** 8.4: no step test holds what temper gives an asking charter's first
+  request to 16,384 bytes on both shapes (`temper-service/src/tests/`).
 - **Design departs:** 8.1, from `../draft/model-catalogue.md`, 3, decided
   by the `model-catalogue-1` cut: settings reads return whole charters,
   including models outside the offer, because a proposal needs their whole

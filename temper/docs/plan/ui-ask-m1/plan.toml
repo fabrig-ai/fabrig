@@ -46,3 +46,29 @@ id = 3
 story = "A person on Settings presses Ask temper's Start, writes a question on its page, and a chat from template 5 opens; Go on returns to it"
 parts = ["client"]
 walk = false
+
+[[part]]
+id = "declare"
+title = "An asking charter is declared see, document and propose_settings alone, decided by the asking family, and its runs have no workspace"
+mode = "direct"
+needs = ["family"]
+design = "temper/docs/design/domain/agent.md, 4.3"
+
+[[slice]]
+id = 4
+story = "In the engine's domain world, a chat under a charter of asking and settings is declared see, document and propose_settings alone, gets no repository, and its see call is decided by the asking family"
+parts = ["declare"]
+walk = false
+
+[[part]]
+id = "stock"
+title = "Charter 11 and template 5 in the stock, the rules and policy 1 holding asking and delegating to charter 11, and its first request held to 16 KB"
+mode = "direct"
+needs = ["declare", "smith-start"]
+design = "temper/docs/design/protocol/configuration.md, 13.4"
+
+[[slice]]
+id = 5
+story = "A fresh deployment offers template 5, Ask temper, run by charter 11 with ask.txt, and what temper gives its first request is within 16,384 bytes on ChatGPT's shape and Claude Code's"
+parts = ["stock"]
+walk = false

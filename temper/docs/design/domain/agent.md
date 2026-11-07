@@ -127,7 +127,12 @@ worker.md, 4.1); the worker prepares them and gives smith the workspace:
 each repository's directory and name, whether it may be written, and for
 a merge in progress the files in conflict (worker.md, section 5). Every
 temper workspace is git repositories. A run with no repository, such as
-a chat that names none, runs with no workspace (worker.md, 4.1).
+a chat that names none, runs with no workspace (worker.md, 4.1). A run
+whose charter is an asking one (4.3) is given no repository, whatever
+its project's home and context repositories (`root.md`, 7.1; 8.4), so it
+runs with no workspace: no checkout, no file tools, no shell, and smith
+says nothing of a checkout (smith's `domain/run.md`, 3.3; through Claude
+Code, smith's `protocol/programs.md`, 5.1).
 
 ### 4.3 Tools
 
@@ -158,7 +163,23 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   only where the run's charter names that family in its `tools` (jig's
   `domain/engine.md`, 7.1) and its task's authority has it: charter 3
   alone in the stock
-  (`../protocol/configuration.md`, 13.4). The task's authority decides
+  (`../protocol/configuration.md`, 13.4).
+- **A charter that names the asking family is declared its own tools
+  alone** (jig's `domain/authority.md`, section 3): an asking charter is
+  one whose `tools` name the asking family and no family but it and
+  settings, so that a mask of every family, as a record with none decodes
+  (jig's `RunPolicy::EVERY_FAMILY`), is none. It is declared `see` and `document`,
+  the asking family's, where its task's authority holds that family, and
+  `propose_settings` in its asking form where the charter names the
+  settings family and its task's authority holds it (8.4); no other host
+  tool, of any family, whatever the charter's other families, and
+  neither `settings` nor `read_docs`, which `see` reads in their place.
+  smith's `wait` is granted as for any Open run. The asking tools are
+  declared to no other charter. A tool a run never calls costs every
+  request and blurs what it does, so for these charters the rule above,
+  every host tool in every charter, does not hold. Authority decides
+  each call by its family as for every charter: `see` and `document` by
+  the asking family, `propose_settings` by the settings family. The task's authority decides
   each call by its family (jig's `domain/authority.md`, sections 3 and
   8.5): a call beyond it is answered beyond authority, naming what it
   lacked, and the run may `propose` it instead. A refused tool family
@@ -904,6 +925,7 @@ the fresh preparation above.
 | a chat | its person's words; its delegates' results and questions, and its person's answers to those questions (8.2) | most; `deliver` mid-run; `message`; `wait` | its person closes it |
 | a coordinator | questions, results, overlapping landings, the answers to its own questions (8.2); proposals and escalations to decide | `delegate`, `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe_forge`, `note`, `message`; `wait` | its goal's report is written |
 | the configuring agent (8.1) | its person's words; its proposals' outcomes: accepted, rejected with a reason, withdrawn as stale | `settings`, `propose_settings`, the forge's reads, `read_docs`; `wait` | its person closes it |
+| Ask temper (8.4) | its person's words; its proposals' outcomes, as the configuring agent's | `see`, `document`, `propose_settings` in its asking form; `wait` | its person closes it |
 
 The change's agents run under the charters the change was made with,
 kept on it whatever later changes of settings make them
@@ -1415,6 +1437,52 @@ needs no record, read or wire field of its own. The client reads and draws it
 - **Its story:** the scripted fake model writes a report in its goal script, so
   that a walk on `temper box --fake-backends` shows one
   (`../protocol/configuration.md`, 12.1).
+
+### 8.4 Ask temper
+
+A chat from template 5, run by charter 11, both stock and both settings like
+any other (`../protocol/configuration.md`, 13.4), in which a person asks temper
+itself: how to set it up for the way they work, how temper works, and, from its
+second milestone, where their work stands and how a piece of it ran
+(`../draft/ask-temper.md`, sections 1 and 2). It changes nothing: its one act is a
+proposal of settings an owner accepts, as the configuring agent's is (8.1),
+which stays beside it, as it is, until the user, having tried both, says
+otherwise.
+
+- **Its charter, 11:** its instructions `ask.txt` in the `stock` module (below);
+  charter 3's models and its run; its `tools` the asking and settings families,
+  3,072; no inspect, modify, shell or agents; so its runs have no workspace
+  (4.2) and are declared `see`, `document` and `propose_settings` alone (4.3),
+  with smith's `wait`. It names no repository and delegates nothing.
+- **Its instructions,** `ask.txt`, held in the binary beside `configuring.txt`:
+  `../draft/ask-temper.md`, section 8, whole, but its parts *Showing* and
+  *Remembering*, which join with views and with `remember` at their
+  milestones. They name every address of `see`'s, those built and those not
+  yet (8.4.1). `configuring.txt` stays as it is.
+- **Its authority** is its chat's, policy 1's for its role: the rules and policy
+  1 hold the asking family beside the others, and the delegation names charter
+  11, so that a project made from the stock may start it
+  (`../protocol/configuration.md`, 13.4). A project made before keeps its own
+  policy, a copy, and gains charter 11 by a proposal its owner accepts.
+- **What temper gives its first request,** its instructions, smith's mechanics
+  with no workspace, its declarations and the brief at a first message, is at
+  most 16,384 bytes, on ChatGPT's shape, which smith renders whole, and on Claude
+  Code's, whose system prompt file and MCP declarations carry the same parts;
+  `temper-service`'s step test holds it, as it holds each stock charter's
+  figures. Claude Code's own part, which temper never sees (smith's
+  `protocol/programs.md`, section 9), is a recorded figure: about 1.1 KB with no
+  MCP server, on 2.1.312 on 2026-11-07, its prompt replaced (smith's
+  `protocol/programs.md`, 5.1).
+- **Started** from Settings' Ask temper (`../client/README.md`, 3.5 and 5.13), and
+  from `chat start --project PROJECT --template 5 TEXT` (`../client/tools.md`,
+  5.3).
+- **Its tests:** focused and fuzzy alone; its judgement is the user's, by trying
+  it. The first request's bound, on both shapes; its runs' declarations,
+  `see`, `document` and `propose_settings`, and no workspace; Claude Code's
+  arguments for a run with no workspace on the fake program (smith's
+  `protocol/programs.md`, section 8); `see`'s built addresses as rows of one
+  table (8.4.1); `document`'s writes and refusals (8.4.3); `propose_settings`'s
+  asking form (8.4.2).
 
 ## 9. The world
 

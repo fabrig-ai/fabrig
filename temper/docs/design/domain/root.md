@@ -737,9 +737,12 @@ workspace, the brief's forge sections), put together while the task is
 preparing, held until its claim commits:
 
 - **The repositories:** for a change's delegate, the change's
-  repository; otherwise the project's home repository, those its spec
-  names and those it saved work in; and, for every run, the project's
-  context repositories, read only. Each item is the forge's: where it
+  repository; for a run whose charter is an asking one, naming the asking family
+  and no family but settings beside it, none, as
+  for the status agent's (forge.md, 5.7; `agent.md`, 8.4); otherwise the
+  project's home repository, those its spec names and those it saved
+  work in; and, for every run but those with none, the project's context
+  repositories, read only. Each item is the forge's: where it
   starts, and the branch it pushes to, the change's branch for a
   change's delegate and the task's own `r` branch for any other run
   (forge.md, section 11; worker.md, 4.1), pushed only when the task
