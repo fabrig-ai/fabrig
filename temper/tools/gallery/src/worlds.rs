@@ -433,6 +433,12 @@ fn world_in_layout(
                                     .filter(|g| g.facts.number == number)
                                     .map_or_else(|| shown_task(w, number, then), |g| g.document(w))
                             };
+                            if goals == Some("chat-terminal-working") {
+                                task.chip.phase = c::Phase::Running;
+                                task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Running { attempt: 1 });
+                                task.chip.details.details.attempt = Some(1);
+                                task.waits_on = c::WaitsOn::Nothing;
+                            }
                             if configuring_chat {
                                 configuring_chip(&mut task.chip);
                             }
@@ -490,8 +496,18 @@ fn world_in_layout(
                             }
                             Some(c::Delivery::Chips(chips))
                         }
-                        c::Subject::Run { .. } => {
-                            goals.filter(|name| name.starts_with("chat-work-")).map(chat_work::run)
+                        c::Subject::Run { task, .. } => {
+                            if goals == Some("chat-terminal-working") {
+                                Some(c::Delivery::RunState(Box::new(c::RunState {
+                                    task,
+                                    attempt: Some(1),
+                                    committed_turn: 0,
+                                    writing: None,
+                                    call: None,
+                                })))
+                            } else {
+                                goals.filter(|name| name.starts_with("chat-work-")).map(chat_work::run)
+                            }
                         }
                         c::Subject::Chips { .. } => None,
                     };

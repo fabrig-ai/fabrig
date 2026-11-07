@@ -124,7 +124,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 309;
+pub const N: usize = 311;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -137,6 +137,8 @@ fn task(task: u64) -> Address {
 #[expect(clippy::large_stack_arrays, reason = "the gallery returns its bounded named-state table as a fixed array")]
 pub fn samples() -> [Sample; N] {
     let mut samples = [
+        Sample { name: "chat-terminal", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
+        Sample { name: "chat-terminal-working", world: Solo, address: Address::Chat { task: 6 }, then: Then::Working },
         Sample { name: "agent-work", world: Bare, address: Address::Task { task: 1 }, then: Shown },
         Sample { name: "chat-work-done", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-work-open", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
@@ -1415,6 +1417,25 @@ fn start_domain(sample: &Sample) -> Domain {
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one dispatch keeps each gallery state with its domain setup")]
 pub fn domain(sample: &Sample) -> Domain {
+    if sample.name == "chat-terminal" || sample.name == "chat-terminal-working" {
+        let mut root = if sample.name == "chat-terminal" {
+            let base = Sample {
+                name: "chat-draft-chat",
+                world: sample.world,
+                address: sample.address.clone(),
+                then: Then::Mode(temper_client_domain::pages::chat::document::Mode::Chat),
+            };
+            domain(&base)
+        } else {
+            crate::worlds::goals_world(sample.world, sample.address.clone(), sample.name)
+        };
+        step(
+            &mut root,
+            Event::Act { action: Action::Pages(Act::Terminal(temper_client_domain::pages::terminal::Act::Enter)) },
+            &mut Queue::uncapped(),
+        );
+        return root;
+    }
     if sample.name.starts_with("chat-model-")
         || sample.name.starts_with("chat-started-model-")
         || sample.name == "configure-model-open"

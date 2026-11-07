@@ -1263,6 +1263,23 @@ pub const NAMES: Names<'static> = Names {
         b"temper-models-source",
         b"temper-models-ask",
         b"temper-models-add",
+        b"temper-terminal",
+        b"temper-terminal-light",
+        b"temper-terminal-plex",
+        b"temper-terminal-top",
+        b"temper-terminal-where",
+        b"temper-terminal-star",
+        b"temper-terminal-place",
+        b"temper-terminal-sep",
+        b"temper-terminal-task",
+        b"temper-terminal-acts",
+        b"temper-terminal-btn",
+        b"temper-terminal-run",
+        b"temper-terminal-line",
+        b"temper-terminal-hint",
+        b"temper-terminal-head",
+        b"temper-terminal-note",
+        b"temper-to-terminal",
     ],
     regions: &[b"temper-link"],
 };
@@ -1597,6 +1614,25 @@ pub const MODELS_SOURCE: Style = Style { owner: owner(), token: 578 };
 pub const MODELS_ASK: Style = Style { owner: owner(), token: 579 };
 /// Add a model by name (temper/docs/design/client/README.md, 3.5).
 pub const MODELS_ADD: Style = Style { owner: owner(), token: 580 };
+
+/// A chat's terminal (temper/docs/design/client/browser.md, 2.5).
+pub const TERMINAL: Style = Style { owner: owner(), token: 581 };
+pub const TERMINAL_LIGHT: Style = Style { owner: owner(), token: 582 };
+pub const TERMINAL_PLEX: Style = Style { owner: owner(), token: 583 };
+pub const TERMINAL_TOP: Style = Style { owner: owner(), token: 584 };
+pub const TERMINAL_WHERE: Style = Style { owner: owner(), token: 585 };
+pub const TERMINAL_STAR: Style = Style { owner: owner(), token: 586 };
+pub const TERMINAL_PLACE: Style = Style { owner: owner(), token: 587 };
+pub const TERMINAL_SEP: Style = Style { owner: owner(), token: 588 };
+pub const TERMINAL_TASK: Style = Style { owner: owner(), token: 589 };
+pub const TERMINAL_ACTS: Style = Style { owner: owner(), token: 590 };
+pub const TERMINAL_BTN: Style = Style { owner: owner(), token: 591 };
+pub const TERMINAL_RUN: Style = Style { owner: owner(), token: 592 };
+pub const TERMINAL_LINE: Style = Style { owner: owner(), token: 593 };
+pub const TERMINAL_HINT: Style = Style { owner: owner(), token: 594 };
+pub const TERMINAL_HEAD: Style = Style { owner: owner(), token: 595 };
+pub const TERMINAL_NOTE: Style = Style { owner: owner(), token: 596 };
+pub const TO_TERMINAL: Style = Style { owner: owner(), token: 597 };
 
 #[cfg(test)]
 mod tests {
