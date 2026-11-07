@@ -2949,6 +2949,9 @@ fn every_chat_omits_the_foot_when_ended_or_message_is_not_offered() {
                 assert!(fixtures::find(view.tree(), Role::TextArea, b"Message").is_none());
                 assert!(fixtures::find(view.tree(), Role::Button, b"Send").is_none());
                 assert_eq!(style_position(view.tree().nodes(), crate::look::CHOICE).is_some(), !ended && !result);
+                if configuring {
+                    assert_eq!(fixtures::find(view.tree(), Role::Button, b"+ Draft").is_some(), !ended && !result);
+                }
             }
         }
     }
@@ -3073,13 +3076,13 @@ fn goals_navigation_shows_when_the_setting_is_on() {
     goals_navigation(&root, true);
 }
 #[test]
-fn goals_navigation_hides_an_existing_goal_until_kind_seven_shows_it() {
+fn goals_navigation_keeps_an_existing_goal_when_kind_seven_hides_it() {
     let (mut root, me, _) = fixtures::root_at(
         temper_client_domain::Address::Home { project: fixtures::PROJECT },
         &fixtures::domain_limits(),
     );
     super::rail::with_goal_fact(&mut root, me, Some(true));
-    goals_navigation(&root, false);
+    goals_navigation(&root, true);
 }
 
 #[test]

@@ -1891,7 +1891,7 @@ init`'s document carries none of them (`setup.md`, 8.3).
 | kind 1, rule 1 | everywhere (`forge`, open), enforced: CI passed, up to date, and gate 1, an agent's review, blocking, fresh at a clean head, as `docs/examples/owned.json` has it; no approvals. Until 13.6's second step it is `temper init`'s `application.landing` |
 | kind 3 | number 1, the change's charter: charter 2; number 2, its reviews' charter: charter 4; number 3, its foremen's charter: charter 6 |
 | kind 6 | none for every project: a change asks no one unless its maker names a route |
-| kind 7 | for every project: `drafts`, `goals`, `changes` and `away` false, `way` 0, so that a fresh project shows Home, Needs you and Chats |
+| kind 7 | for every project: `drafts` true; `goals`, `changes` and `away` false; `way` 0, so that a fresh project shows Home, Needs you and Chats and its chats can write drafts, which it can turn off |
 | a period's span | 7 days, from each project's first period, renewed by the calendar (`../domain/root.md`, 5.7), so policy 1's period spend of 1,944K is a week's. A constant of the stock until 13.6's second step, which makes it a setting of temper's, the deployment's |
 
 - **A project's kinds 6 and 7 have no row in the stock:** a project made
