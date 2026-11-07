@@ -209,6 +209,8 @@ What every application runs, and what makes jig's promises its own.
 
 `jig_conformance::core` translates the core's rows and released outputs into the referee's snapshot, and answers the core's peers as every application's adapter would, so an adapter writes only its own root's and connectors' part.
 
+An adapter's view of its store is made for a reader, from the rows as they are, and never kept: `Got` changes rows outside commits, so a commit's number doesn't name their state. `Observer::inbound` asks for one only for an event whose check reads a row (a party's request, a proposal of settings, a run's accepted proposal), and `Observer::submitted` only for a commit that erases a task's activity or an ended task. A new commit always has one.
+
 - **What the application gives,** through the harness's trait:
   - its engine domain, built from configuration;
   - its systems' fakes, as step machines, each reporting what it saw in

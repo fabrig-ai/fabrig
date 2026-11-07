@@ -88,7 +88,7 @@ impl World {
         self.set_clock(now, wall);
         self.settle_oracle();
         let inventory = self.store.retained();
-        let records = self.store.readback();
+        let records = self.store.readback_of(&inventory);
         let mut parties: BTreeSet<_> = records
             .values()
             .filter_map(|row| {
@@ -142,7 +142,7 @@ impl World {
             compare_answer(key, expected, found);
         }
         let restored = self.store.retained();
-        let recovered = self.store.readback();
+        let recovered = self.store.readback_of(&restored);
         let mut expected_header = deployment(&records);
         let found_header = deployment(&recovered);
         expected_header.commits = found_header.commits;

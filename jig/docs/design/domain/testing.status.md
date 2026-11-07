@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-06. Where jig's code lags or departs from [testing.md](testing.md).
+2026-11-07. Where jig's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:** 5: the `debt-25` request of 2026-11-06 has the core world's observer
   update from each commit's rows
