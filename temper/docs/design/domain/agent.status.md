@@ -2,6 +2,11 @@
 
 2026-11-07. Where temper's code lags or departs from [agent.md](agent.md).
 
+Section 8.1 has no known gap in naming the numbered kinds in both settings
+schemas or in a failed `settings` read naming the kind and its required
+`number` or `project`. Failed calls remain visible. Proposal-form errors
+keep the shared parser's wording (section 10).
+
 Section 4.6 has no known gap in a chat's new model or effort answering its
 person's next words, whether the previous run still listens or has parked.
 

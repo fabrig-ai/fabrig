@@ -4225,10 +4225,10 @@ The words for each offered source are:
     to `Forges`.
   - *A host:* on a box, where the deployment's read says `owned` (4.6),
     "Waiting for other work to finish. It starts by itself."; a box's
-    worker is in its own process, so none is ever unconnected, and a person
-    who has only run `temper box` doesn't know "host". Otherwise, and until
-    that read answers, "No host has room for this, or none is connected.
-    It starts when one does." Either way, with nothing to press.
+    worker runs with its engine (`../domain/worker.md`, section 6), and
+    a person who has only run `temper box` doesn't know "host". Otherwise,
+    and until that read answers, "No host has room for this, or none is
+    connected. It starts when one does." Either way, with nothing to press.
 
   A wait about to end (jig's `client/domain/client.md`, 19.1) stays
   "Starting". A Chats row holds no wait, and says "Starting".

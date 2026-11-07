@@ -1302,6 +1302,11 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
 
 ## 11. Open questions
 
+- **Four agents' resident memory** (13.4): the slot, workspace and git
+  operation fit checks admit four; they do not establish the memory used
+  by four agent processes and their programs on a laptop. Default: four
+  slots, with the after-landing measurement in `setup.md`, section 15;
+  a person's existing document keeps its configured concurrency.
 - **The model catalogue's store and list steps** (13.4): model settings,
   additions by name and per-account provider lists replace the model tables
   in `temper.json` and `agent.json` together
