@@ -959,20 +959,19 @@ fn check_ending(caller: &Caller, service: &ServiceHost, workers: &[Proc], childr
         let Kind::Service(worker) = &worker.kind else { panic!("worker root") };
         obligations.read(worker, declared);
     }
-    let active_program = service.service.as_ref().and_then(temper_service::Service::worker_domain).is_some_and(|worker| {
-        worker.hosting().iter().any(|hosting| {
-            hosting.phase == jig_domain_link::Phase::Active
-                && declared.iter().any(|left| {
-                    left.task == hosting.run.raw() && left.may_be.contains(&crate::ending::Left::HostedActive)
-                })
-        })
-    });
+    let active_program =
+        service.service.as_ref().and_then(temper_service::Service::worker_domain).is_some_and(|worker| {
+            worker.hosting().iter().any(|hosting| {
+                hosting.phase == jig_domain_link::Phase::Active
+                    && declared.iter().any(|left| {
+                        left.task == hosting.run.raw() && left.may_be.contains(&crate::ending::Left::HostedActive)
+                    })
+            })
+        });
     for (index, child) in children.iter().enumerate() {
         // A declared active program is left to serve's stop, including its agent
         // and MCP relay. Other children still owe their ordinary completion.
-        if active_program
-            && matches!(&child.kind, Kind::Agent(_) | Kind::Claude(_) | Kind::Relay(_))
-        {
+        if active_program && matches!(&child.kind, Kind::Agent(_) | Kind::Claude(_) | Kind::Relay(_)) {
             continue;
         }
         obligations.read_child(3 + workers.len() + index, child);

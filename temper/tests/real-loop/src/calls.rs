@@ -46,7 +46,9 @@ impl Argv {
 macro_rules! argv { ($($word:expr),* $(,)?) => { $crate::calls::Argv::new(vec![$($crate::calls::Arg::from($word)),*]) }; }
 pub enum Step {
     /// Wait for the fake program to accept its held turn before stopping serve.
-    ClaudeTurn { source: &'static str },
+    ClaudeTurn {
+        source: &'static str,
+    },
     /// Declare the exact work this story intentionally leaves at its stop.
     EndsLeaving(&'static [crate::ending::Leftover]),
     /// Finish runtime fixture provisioning before recording the story calls.

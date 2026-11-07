@@ -26,7 +26,10 @@ pub(crate) fn check_interrupted(directory: &Path, name: &str) {
     let bytes = std::fs::read(directory.join("programs").join(name).join(smith_fake_claude::OBSERVATIONS_FILE))
         .expect("fake observations at serve's end");
     let seen = smith_fake_claude::seen(&bytes);
-    assert!(seen.contains(&smith_fake_claude::Seen::Interrupted), "agent's cancel must interrupt its program: {seen:?}");
+    assert!(
+        seen.contains(&smith_fake_claude::Seen::Interrupted),
+        "agent's cancel must interrupt its program: {seen:?}"
+    );
 }
 
 /// Every hosted fake program has exited when the service's stop finishes.
