@@ -99,7 +99,8 @@ pub enum TaskRunWait {
 /// It does not change task phase.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum TaskWaitRefused {
-    Hello { kind: super::HostKind, at: skein_lib::Wall, why: super::HelloRefusal },
+    Hello { kind: super::HostKind, at: skein_lib::Wall, why: super::HelloRefusal, figures: Option<super::Figures> },
+    Bounds { kind: super::HostKind, why: Option<super::AgentShortfall>, figures: Option<super::Figures> },
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

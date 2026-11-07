@@ -276,6 +276,45 @@ impl Domain {
         latest
     }
 
+    /// Bounds keeping every admitted allowed host from this version (domain/engine.md, section 8).
+    #[must_use]
+    pub fn bounds_refusal(&self, version: crate::Version, kinds: crate::Kinds) -> Option<crate::BoundsRefusal> {
+        let mut workers = None;
+        let mut engine = None;
+        for (_, id) in &self.tokens {
+            let host = self.channels.get(*id).expect("connected host");
+            let admitted = match host.kind {
+                HostKind::Worker => true,
+                HostKind::Engine => match self.engine_hello {
+                    EngineHello::Admitted => true,
+                    EngineHello::Expected | EngineHello::Heard => false,
+                },
+            };
+            if !admitted || !kinds.allows(host.kind) || host.draining {
+                continue;
+            }
+            crate::needs::version_shortfall(&self.needs, version, &host.evidence)?;
+            let most = match host.kind {
+                HostKind::Worker => &mut workers,
+                HostKind::Engine => &mut engine,
+            };
+            match most {
+                None => *most = Some(host.evidence.clone()),
+                Some(bounds) => crate::needs::combine(bounds, &host.evidence),
+            }
+        }
+        let (kind, bounds) = match workers {
+            Some(bounds) => (HostKind::Worker, bounds),
+            None => (HostKind::Engine, engine?),
+        };
+        let why = crate::needs::version_shortfall(&self.needs, version, &bounds);
+        let figures = match why {
+            Some(why) => crate::needs::version_figures(&self.needs, version, &bounds, why),
+            None => None,
+        };
+        Some(crate::BoundsRefusal { kind, why, figures })
+    }
+
     #[must_use]
     pub fn host_capacity(&self) -> u32 {
         self.tokens.capacity()

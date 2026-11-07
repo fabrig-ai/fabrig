@@ -735,7 +735,11 @@ fn sentences(w: &Words, first: Box<[u8]>, next: Box<[u8]>) -> Box<[u8]> {
 }
 fn refused(w: &Words, times: &mut Times, why: c::TaskWaitRefused) -> Box<[u8]> {
     match why {
-        c::TaskWaitRefused::Hello { kind, at, why } => {
+        c::TaskWaitRefused::Bounds { why, .. } => match why {
+            Some(why) => agent_shortfall(w, why),
+            None => w.say(W::WaitCapacity, &[]),
+        },
+        c::TaskWaitRefused::Hello { kind, at, why, .. } => {
             let word = match kind {
                 c::HostKind::Engine => W::RefusedEngineAt,
                 c::HostKind::Worker => W::RefusedWorkerAt,
@@ -765,10 +769,10 @@ fn agent_shortfall(w: &Words, why: c::AgentShortfall) -> Box<[u8]> {
         S::Model { .. } => W::AgentModel,
         S::Window { .. } => W::AgentWindow,
         S::Output { .. } => W::AgentOutput,
-        S::Turns => W::AgentTurns,
+        S::Turns { .. } => W::AgentTurns,
         S::Spend => W::AgentSpend,
-        S::Time => W::AgentTime,
-        S::Waiting => W::AgentWaiting,
+        S::Time { .. } => W::AgentTime,
+        S::Waiting { .. } => W::AgentWaiting,
         S::Checks { .. } => W::AgentChecks,
         S::Message => W::AgentMessage,
         S::Inbox => W::AgentInbox,
@@ -781,7 +785,9 @@ fn agent_shortfall(w: &Words, why: c::AgentShortfall) -> Box<[u8]> {
             w.say(word, &[Hole::Number(u64::from(charter))]),
             w.say(W::AgentModelPosition, &[Hole::Number(u64::from(model))]),
         ),
-        S::Turns | S::Spend | S::Time | S::Waiting | S::Message | S::Inbox | S::Unacknowledged => w.say(word, &[]),
+        S::Turns { .. } | S::Spend | S::Time { .. } | S::Waiting { .. } | S::Message | S::Inbox | S::Unacknowledged => {
+            w.say(word, &[])
+        }
     }
 }
 fn account_wait(b: &mut Builder, root: &Domain, task: &c::Task, w: &Words, bindings: &mut Bindings) {
@@ -898,6 +904,12 @@ pub(crate) fn wait_why(root: &Domain, w: &Words, wait: &c::TaskRunWait) -> Box<[
         c::TaskRunWait::Host => return w.say(host_wait(root), &[]),
         c::TaskRunWait::Refused(why @ c::TaskWaitRefused::Hello { at, .. }) => {
             return w.say(W::WaitRefused, &[Hole::Name(refused(w, &mut Times::new(at), why))]);
+        }
+        c::TaskRunWait::Refused(c::TaskWaitRefused::Bounds { why, .. }) => {
+            return match why {
+                Some(why) => agent_shortfall(w, why),
+                None => w.say(W::WaitCapacity, &[]),
+            };
         }
         c::TaskRunWait::Account { account, why, .. } => match why {
             R::Refreshing => return w.say(W::WaitRefreshing, &[]),
