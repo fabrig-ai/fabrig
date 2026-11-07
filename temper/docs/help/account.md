@@ -2,7 +2,7 @@
 
 Kind: concept
 
-An account is how a deployment pays an LLM provider for its runs, through its sources: a sign-in, a key or a program's login; models are what each provider offers, as the configuration lists them.
+An account is how a deployment pays an LLM provider for its runs, through its sources: a sign-in, a key or a program's login; models are what each provider offers, as settings list them.
 
 ## What it is
 
@@ -23,7 +23,7 @@ An account is how a deployment pays an LLM provider for its runs, through its so
   `sign_in_again`, `misconfigured`, `unloaded` (with where and why),
   `cancelled` or `closing`; and whether it is `usable`, `expiring` or
   needs `attention`.
-- **A model** is one of a provider's, from the configuration: its
+- **A model** is one of a provider's, kept in settings: its
   window, its output, its efforts and its prices. `model list` prints
   each project's offer, what an account can run now, by provider.
   A charter names the models its runs may
@@ -89,8 +89,6 @@ For the configuration members that need a restart, read `temper help configurati
   host that runs it.
 - `account verify` checks a program source alone; a sign-in or key
   source fails (exit 1).
-- The providers and models are the configuration's. For another model,
+- The providers are the configuration's and the models are settings. For another model,
   such as `claude-haiku-5-5`, follow **Offering another model** under
-  **Acting on it** in `temper help deployment`: edit both
-  `CONFIG/temper.json` and `CONFIG/agent.json` before starting, or stop
-  and restart after editing them.
+  **Acting on it** in `temper help deployment`.
