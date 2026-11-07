@@ -102,9 +102,14 @@ fn connect_offers_the_three_kinds() {
 fn deployment_root(address: Address, owned: bool) -> d::Domain {
     let (mut root, me, _, _, _, _) =
         f::root_at_with_forges(address, &f::domain_limits(), b"Shop", None, None, Some(List::with_capacity(0)));
+    reread_deployment(&mut root, me, owned);
+    root
+}
+
+pub(super) fn reread_deployment(root: &mut d::Domain, me: skein_lib::Token, owned: bool) {
     let frame = root.pages().me(root.client()).unwrap().clone();
     f::root_event(
-        &mut root,
+        root,
         d::Event::Client {
             event: jig_client::Event::Up {
                 up: jig_client::Up::WatchEnded { watch: me, end: jig_client::contract::WatchEnd::Busy },
@@ -112,8 +117,8 @@ fn deployment_root(address: Address, owned: bool) -> d::Domain {
         },
     );
     let mut out = skein_lib::Queue::uncapped();
-    let env = skein_lib::Env { now: d::next_deadline(&root).unwrap(), wall: f::NOW, limits: f::domain_limits() };
-    d::fire(&mut root, &env, &mut out);
+    let env = skein_lib::Env { now: d::next_deadline(root).unwrap(), wall: f::NOW, limits: f::domain_limits() };
+    d::fire(root, &env, &mut out);
     let mut me = None;
     while let Some(request) = out.pop() {
         if let d::Request::Unlinked {
@@ -131,7 +136,7 @@ fn deployment_root(address: Address, owned: bool) -> d::Domain {
         }
     }
     d::step(
-        &mut root,
+        root,
         &env,
         d::Event::Client {
             event: jig_client::Event::Up {
@@ -155,8 +160,8 @@ fn deployment_root(address: Address, owned: bool) -> d::Domain {
             && temper_client_protocol_wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
                 == &w::Read::Deployment
         {
-            f::deliver_deployment(&mut root, read, true, owned);
-            return root;
+            f::deliver_deployment(root, read, true, owned);
+            return;
         }
     }
     panic!("deployment read reaches the world");
