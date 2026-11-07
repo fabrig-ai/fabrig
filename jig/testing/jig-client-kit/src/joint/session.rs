@@ -98,7 +98,7 @@ impl Session {
 
     #[must_use]
     pub fn new(driver: Driver, limits: Limits, _codec: jig_protocol_transcript::Limits) -> Self {
-        let truth = Truth::after(driver.world.store.rows.clone());
+        let truth = Truth::seen(&driver.world.store.rows);
         let component = Composition::new(&driver, limits.client.domain);
         Self {
             driver,

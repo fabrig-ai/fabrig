@@ -212,6 +212,11 @@ impl World {
 
     pub fn restart_with(&mut self, config: root::Config) {
         self.restart_config = (crate::oracle::configuration(&config), self.limits);
+        self.restart_configured(config);
+    }
+
+    /// A cold start under `config`, which `restart_config` already holds a copy of.
+    pub(crate) fn restart_configured(&mut self, config: root::Config) {
         self.observer.observe(self.wall, crate::referee::Observed::Restart);
         self.store.reconfigure(18, &config.core.settings.models);
         // The observer may resume A after a crashed pending copy whose
