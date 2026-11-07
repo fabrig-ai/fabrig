@@ -101,7 +101,7 @@ pub static PAGES: [Page; 61] = [
         name: "account",
         kind: Kind::Concept,
         title: "Accounts and models",
-        summary: "An account is how a deployment pays an LLM provider for its runs, through its sources: a sign-in, a key or a program's login; models are what each provider offers, as the configuration lists them.",
+        summary: "An account is how a deployment pays an LLM provider for its runs, through its sources: a sign-in, a key or a program's login; models are what each provider offers, as settings list them.",
         text: include_str!("../../../docs/help/account.md"),
     },
     Page {
