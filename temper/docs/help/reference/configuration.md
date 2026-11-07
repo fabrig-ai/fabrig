@@ -50,7 +50,7 @@ Shape: `application-worker`. Paths: `application.workers[]`. One worker’s work
 
 Shape: `application-clients`. Paths: `application.clients`. The clients’ listener and browser presentation.
 
-- `listener`: address, socket address; loopback when printed links are enabled; required; init writes {"socket":"127.0.0.1:8367"}. The clients’ listener and the address of printed sign-in links.
+- `listener`: address, socket address; loopback when printed links or approvals are enabled; required; init writes {"socket":"127.0.0.1:8367"}. The clients’ listener and the address of printed sign-in links.
 - `bundle`: text or null, absolute directory; at most 1,048,576 bytes; required; init writes null. The browser bundle directory, or null for the binary’s bundle.
 - `public`: text or null, origin; at most 267 bytes; required; init writes null. The public browser origin, or null for the listener’s address.
 

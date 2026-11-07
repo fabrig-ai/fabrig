@@ -62,7 +62,7 @@ impl Wire {
                 };
                 Kind::Read(subject)
             }
-            Message::SignInLink(_) | Message::SignInService => Kind::SignIn,
+            Message::SignInApproval(_) | Message::SignInLink(_) | Message::SignInService => Kind::SignIn,
             Message::SignOut => Kind::SignOut,
             Message::Watch(bytes) => {
                 let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("open bytes");
@@ -81,7 +81,12 @@ impl Wire {
                 }
                 Kind::Other
             }
-            Message::Authorize(_) | Message::Unwatch(_) | Message::StreamGone(_) => Kind::Other,
+            Message::ApprovalAsk(_)
+            | Message::ApprovalRead(_)
+            | Message::ApprovalDecide(_)
+            | Message::Authorize(_)
+            | Message::Unwatch(_)
+            | Message::StreamGone(_) => Kind::Other,
         };
         self.exchanges.insert(*exchange, kind);
         if let Message::Request(bytes) = message {
@@ -231,6 +236,10 @@ impl Wire {
             Event::Start { .. }
             | Event::StartUnlinked { .. }
             | Event::SignIn { .. }
+            | Event::AskApproval
+            | Event::ReadApproval { .. }
+            | Event::DecideApproval { .. }
+            | Event::ApprovalAnswer { .. }
             | Event::Authorize { .. }
             | Event::SignOut
             | Event::SignOutLost

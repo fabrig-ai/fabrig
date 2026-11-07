@@ -2,6 +2,14 @@
 
 2026-11-07. Remaining gaps between temper's code and [tools.md](tools.md).
 
+Section 5.3 has no known implementation gap in settings files, the form,
+apply and show carrying ordered charter parts and a template's later
+choice. The decoder names malformed parts by their path before sending;
+text show names each part's reasons and instruction bytes and the later
+model and effort. The settings tables cover round trips and refusals,
+and the generated field and ctl help pages carry both shapes. The
+engine's stored-policy size diagnostic remains deferred in section 14.
+
 Sections 5.2 and 6.1 have no known gap in next-run bounds explanations,
 hello figures, charter-bearing shortfalls or their JSON. The waiting
 tables check each named ctl call through the parser, each help page by

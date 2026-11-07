@@ -1,4 +1,5 @@
 //! Client wire refusals and round trips (protocol/client.md, section 3).
+mod approval;
 mod fixtures;
 mod link_sign_in;
 mod task_refusal;

@@ -260,7 +260,15 @@ pub(super) fn scan(path: &Path, source: &str, words: &[String], names: bool) -> 
                 && source[..start].strip_suffix("core::net::IpAddr::").is_some_and(|prefix| {
                     prefix.chars().next_back().is_none_or(|ch| !(ch.is_alphanumeric() || ch == '_' || ch == ':'))
                 });
-            if !foreign_ip && forbidden_name(name, false) && (!codec_module(name) || forbidden_name(name, true)) {
+            // The approval contract fixes the parser's input bound's name.
+            let approval_input_bound = name == "CODE_TYPED_BYTES"
+                && (path.ends_with("crates/jig-client-protocol-wire/src/approval.rs")
+                    || path.ends_with("crates/jig-client-protocol-wire/src/lib.rs"));
+            if !foreign_ip
+                && !approval_input_bound
+                && forbidden_name(name, false)
+                && (!codec_module(name) || forbidden_name(name, true))
+            {
                 failures.push(format!("{}:{line}: identifier {name}", path.display()));
             }
         } else {
@@ -290,6 +298,25 @@ pub(super) fn scan(path: &Path, source: &str, words: &[String], names: bool) -> 
         line += source[start..index].matches('\n').count();
     }
     failures
+}
+
+#[test]
+fn approval_input_bound_keeps_its_contract_name_only_in_the_wire_module() {
+    let cases = [
+        ("crates/jig-client-protocol-wire/src/approval.rs", "CODE_TYPED_BYTES", false),
+        ("crates/jig-client-protocol-wire/src/lib.rs", "CODE_TYPED_BYTES", false),
+        ("crates/jig-client-protocol-wire/src/other.rs", "CODE_TYPED_BYTES", true),
+        ("crates/other/src/approval.rs", "CODE_TYPED_BYTES", true),
+        ("crates/other/src/lib.rs", "CODE_TYPED_BYTES", true),
+        ("crates/jig-client-protocol-wire/src/approval.rs", "OTHER_TYPED_BYTES", true),
+        ("crates/jig-client-protocol-wire/src/lib.rs", "CODE_UNTYPED_BYTES", true),
+    ];
+    for (site, name, rejected) in cases {
+        let path = super::tests::kit_root().join(site);
+        let source = format!("use crate::{name};");
+        let expected = if rejected { vec![format!("{}:1: identifier {name}", path.display())] } else { Vec::new() };
+        assert_eq!(breaches(&path, &source), expected, "{site}: {name}");
+    }
 }
 
 #[test]

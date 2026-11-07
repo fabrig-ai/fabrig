@@ -2,6 +2,8 @@
 use super::*;
 use jig_client::contract as c;
 use skein_ui::{EntryKind, Role};
+#[path = "host_tests_approve.rs"]
+mod approve;
 #[path = "host_tests_authorize.rs"]
 mod authorize;
 #[path = "host_tests_tab.rs"]

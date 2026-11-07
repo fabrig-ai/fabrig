@@ -1285,6 +1285,11 @@ pub const NAMES: Names<'static> = Names {
         b"temper-terminal-card",
         b"temper-terminal-card-line",
         b"temper-terminal-details",
+        b"temper-approve",
+        b"temper-approve-code",
+        b"temper-approve-asked",
+        b"temper-approve-acts",
+        b"temper-approve-primary",
     ],
     regions: &[b"temper-link"],
 };
@@ -1644,6 +1649,12 @@ pub const TERMINAL_CHOICES: Style = Style { owner: owner(), token: 599 };
 pub const TERMINAL_CARD: Style = Style { owner: owner(), token: 600 };
 pub const TERMINAL_CARD_LINE: Style = Style { owner: owner(), token: 601 };
 pub const TERMINAL_DETAILS: Style = Style { owner: owner(), token: 602 };
+
+pub const APPROVE: Style = Style { owner: owner(), token: 603 };
+pub const APPROVE_CODE: Style = Style { owner: owner(), token: 604 };
+pub const APPROVE_ASKED: Style = Style { owner: owner(), token: 605 };
+pub const APPROVE_ACTS: Style = Style { owner: owner(), token: 606 };
+pub const APPROVE_PRIMARY: Style = Style { owner: owner(), token: 607 };
 
 #[cfg(test)]
 mod tests {

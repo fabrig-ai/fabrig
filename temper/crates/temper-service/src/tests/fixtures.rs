@@ -510,13 +510,22 @@ pub fn started_with_two_forges() -> crate::Service {
 pub fn started() -> crate::Service {
     started_with_projects(&[(1, 100)])
 }
+pub fn started_with_approval(approval: bool) -> crate::Service {
+    let mut settings = engine();
+    let clients = if approval {
+        br#"{"heartbeat_ms":10000,"link":true,"approval":true}"#.as_slice()
+    } else {
+        br#"{"heartbeat_ms":10000,"link":true,"approval":false}"#.as_slice()
+    };
+    settings.jig.clients = parse_engine(&with(ENGINE, b"clients", clients)).clients;
+    start_configured_worker(settings, &[(1, 100)], None, None, false, false)
+}
 pub fn started_with_projects(projects: &[(u32, u64)]) -> crate::Service {
     start_with_store(projects, None)
 }
 pub fn start_with_store(projects: &[(u32, u64)], stored: Option<crate::store::Store>) -> crate::Service {
     start_with_worker(projects, stored, None, false, false)
 }
-#[expect(clippy::too_many_lines, reason = "the fixture joins the configured worker, store and kept forge records")]
 fn start_with_worker(
     projects: &[(u32, u64)],
     stored: Option<crate::store::Store>,
@@ -524,7 +533,17 @@ fn start_with_worker(
     two_forges: bool,
     under_box: bool,
 ) -> crate::Service {
-    let mut settings = engine();
+    start_configured_worker(engine(), projects, stored, worker, two_forges, under_box)
+}
+#[expect(clippy::too_many_lines, reason = "the fixture joins the configured worker, store and kept forge records")]
+fn start_configured_worker(
+    mut settings: settings::Engine,
+    projects: &[(u32, u64)],
+    stored: Option<crate::store::Store>,
+    worker: Option<crate::Worker>,
+    two_forges: bool,
+    under_box: bool,
+) -> crate::Service {
     let mut runtime = forge_runtime();
     let mut sources = forges();
     if two_forges {

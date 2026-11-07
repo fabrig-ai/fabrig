@@ -62,6 +62,10 @@ impl Side {
                 }
                 Message::Read(_)
                 | Message::SignInLink(_)
+                | Message::ApprovalAsk(_)
+                | Message::ApprovalRead(_)
+                | Message::ApprovalDecide(_)
+                | Message::SignInApproval(_)
                 | Message::SignInService
                 | Message::Authorize(_)
                 | Message::SignOut
@@ -101,6 +105,10 @@ impl Side {
             Event::Start { .. }
             | Event::StartUnlinked { .. }
             | Event::SignIn { .. }
+            | Event::AskApproval
+            | Event::ReadApproval { .. }
+            | Event::DecideApproval { .. }
+            | Event::ApprovalAnswer { .. }
             | Event::Authorize { .. }
             | Event::SignOut
             | Event::SignOutLost
@@ -297,6 +305,10 @@ fn callback(event: &Event) -> Option<Callback> {
         Event::Start { .. }
         | Event::StartUnlinked { .. }
         | Event::SignIn { .. }
+        | Event::AskApproval
+        | Event::ReadApproval { .. }
+        | Event::DecideApproval { .. }
+        | Event::ApprovalAnswer { .. }
         | Event::Authorize { .. }
         | Event::SignOut
         | Event::SignOutLost
