@@ -79,6 +79,7 @@ fn repeated_account_facts(count: u32) -> Box<[jig_domain_accounts::AccountFact]>
     }
     facts.into_boxed()
 }
+#[expect(clippy::too_many_lines, reason = "one fixture inventories account list histories and provider fact bounds")]
 fn accounts_records() -> Box<[jig_domain_accounts::Stored]> {
     use jig_domain_accounts::{FactValue, FactWindow, Held, Holder, Kind, Stored};
     let source = |kind: Kind, name: Box<[u8]>, held: Option<Held>| Stored::Source {
@@ -107,7 +108,8 @@ fn accounts_records() -> Box<[jig_domain_accounts::Stored]> {
     for value in values {
         facts.push(account_fact(value)).expect("counted value shapes");
     }
-    Box::new([
+    let mut rows = skein_lib::List::with_capacity(21);
+    for row in [
         facts_record(repeated_account_facts(24)),
         facts_record(Box::new([])),
         facts_record(facts.into_boxed()),
@@ -120,6 +122,7 @@ fn accounts_records() -> Box<[jig_domain_accounts::Stored]> {
         Stored::Next { number: 0 },
         Stored::Next { number: u32::MAX },
         Stored::Account {
+            list: None,
             place: 0,
             uses: None,
             number: 3,
@@ -129,6 +132,7 @@ fn accounts_records() -> Box<[jig_domain_accounts::Stored]> {
             display: Box::new([]),
         },
         Stored::Account {
+            list: None,
             place: 0,
             uses: None,
             number: u32::MAX,
@@ -147,7 +151,48 @@ fn accounts_records() -> Box<[jig_domain_accounts::Stored]> {
             Some(Held::Limited { reset: Some(skein_lib::Wall::from_nanos(u64::MAX)) }),
         ),
         source(Kind::None, Box::new([]), Some(Held::Limited { reset: None })),
-    ])
+    ] {
+        rows.push(row).expect("account fixture count");
+    }
+    for failure in [
+        None,
+        Some(jig_domain_accounts::ReadFailure::Refused { status: u16::MAX }),
+        Some(jig_domain_accounts::ReadFailure::Unreachable),
+        Some(jig_domain_accounts::ReadFailure::Unreadable),
+        Some(jig_domain_accounts::ReadFailure::Deadline),
+        Some(jig_domain_accounts::ReadFailure::Agent),
+        Some(jig_domain_accounts::ReadFailure::Room),
+    ] {
+        rows.push(Stored::Account {
+            number: 3,
+            provider: 2,
+            holder: Holder::Deployment,
+            place: 0,
+            uses: None,
+            subject: Box::new([]),
+            display: Box::new([]),
+            list: Some(jig_domain_accounts::ListRecord {
+                names: u64::MAX,
+                read: Some(skein_lib::Wall::EPOCH),
+                tried: Some(skein_lib::Wall::from_nanos(u64::MAX)),
+                failure,
+                left_out: u32::MAX,
+            }),
+        })
+        .expect("account fixture count");
+    }
+    rows.push(Stored::Account {
+        number: 3,
+        provider: 2,
+        holder: Holder::Deployment,
+        place: 0,
+        uses: None,
+        subject: Box::new([]),
+        display: Box::new([]),
+        list: Some(jig_domain_accounts::ListRecord { names: 0, read: None, tried: None, failure: None, left_out: 0 }),
+    })
+    .expect("account fixture count");
+    rows.into_boxed()
 }
 fn each_accounts_record_reads_back_at_its_bounds() {
     for record in accounts_records() {
@@ -162,6 +207,7 @@ fn the_accounts_ceilings_are_the_childs_bounds() {
     assert_eq!((SUBJECT, DISPLAY, NAME), (255, 64, 32), "the lengths the records at their bounds take");
     let subject = Box::new([0; 256]);
     let record = jig_domain_accounts::Stored::Account {
+        list: None,
         place: 0,
         uses: None,
         number: 1,
@@ -981,6 +1027,7 @@ fn an_application_ask_round_trips_each_scope_through_the_people_family() {
 #[test]
 fn an_account_with_place_and_uses_round_trips() {
     let record = jig_domain_accounts::Stored::Account {
+        list: None,
         number: 17,
         provider: 2,
         holder: jig_domain_accounts::Holder::Party(3),

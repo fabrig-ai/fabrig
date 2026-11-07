@@ -10,6 +10,7 @@ fn assert_activity(record: LinkUp) {
     match record {
         LinkUp::Activity { .. } => {}
         other @ (LinkUp::Piece { .. }
+        | LinkUp::ListRead { .. }
         | LinkUp::Logins { .. }
         | LinkUp::SignedOut { .. }
         | LinkUp::Unauthorized { .. }

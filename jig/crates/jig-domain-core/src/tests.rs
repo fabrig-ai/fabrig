@@ -147,6 +147,7 @@ pub(crate) fn limits() -> Limits {
         facts: 2,
     };
     let fleet = fleet::Limits {
+        reads: 1,
         configured_workers: 64,
         worker_name_bytes: 32,
         program_sources: 12,
@@ -460,6 +461,7 @@ pub(crate) fn config(seed: u64) -> Config {
             redirect_bytes: 4096,
             llm_providers: accounts::Providers {
                 providers: Box::new([accounts::Provider {
+                    list: None,
                     name: b"Fake".as_slice().into(),
                     signed_in_plan: true,
                     manage_usage: Some(b"https://usage.example/".as_slice().into()),
@@ -508,6 +510,7 @@ fn restore_key_account(core: &mut Core, limits: &Limits, number: u32, source: u3
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.accounts };
     for record in [
         accounts::Stored::Account {
+            list: None,
             number,
             provider,
             holder: accounts::Holder::Deployment,

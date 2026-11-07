@@ -215,6 +215,7 @@ pub fn line(value: &d::AccountLine, limits: &w::Limits) -> Result<w::AccountLine
     w::AccountLine::new(
         limits,
         w::AccountLineParts {
+            list: list(value.list.as_ref(), limits)?,
             facts: facts(&value.facts, limits)?,
             number: value.number,
             place: value.place,
@@ -271,4 +272,37 @@ pub fn document(value: &d::Accounts, limits: &w::Limits) -> Result<w::Accounts, 
             last_end,
         },
     )
+}
+
+/// Public history only, without the child's model-name bits.
+pub fn list(value: Option<&d::AccountList>, limits: &w::Limits) -> Result<Option<w::AccountList>, w::Problem> {
+    let Some(value) = value else {
+        return Ok(None);
+    };
+    let failure = match value.failure {
+        Some(jig_domain_accounts::ReadFailure::Refused { status }) => Some(w::AccountListFailure::Refused(
+            w::AccountListRefused::new(limits, w::AccountListRefusedParts { status })?,
+        )),
+        Some(jig_domain_accounts::ReadFailure::Unreachable) => Some(w::AccountListFailure::Unreachable),
+        Some(jig_domain_accounts::ReadFailure::Unreadable) => Some(w::AccountListFailure::Unreadable),
+        Some(jig_domain_accounts::ReadFailure::Deadline) => Some(w::AccountListFailure::Deadline),
+        Some(jig_domain_accounts::ReadFailure::Agent) => Some(w::AccountListFailure::Agent),
+        Some(jig_domain_accounts::ReadFailure::Room) => Some(w::AccountListFailure::Room),
+        None => None,
+    };
+    Ok(Some(w::AccountList::new(
+        limits,
+        w::AccountListParts {
+            read: match value.read {
+                Some(at) => Some(at.as_nanos()),
+                None => None,
+            },
+            tried: match value.tried {
+                Some(at) => Some(at.as_nanos()),
+                None => None,
+            },
+            failure,
+            left_out: value.left_out,
+        },
+    )?))
 }

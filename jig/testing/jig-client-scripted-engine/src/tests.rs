@@ -147,16 +147,34 @@ fn answer_waits_for_its_durable_commit() {
 }
 #[test]
 fn retained_key_replays_across_sign_ins() {
-    let (mut engine, ask) = proposal_engine();
-    send(&mut engine, 0, REQUESTER_SIGN_IN, 1, 1, ask.clone());
-    send(&mut engine, 1, REQUESTER_OTHER_SIGN_IN, 1, 2, ask.clone());
-    let up = engine.poll(at(10_000_001));
-    assert_eq!(up.len(), 2);
-    assert_eq!(final_answer(&up[0]), final_answer(&up[1]));
-    send(&mut engine, 20_000_000, REQUESTER_SIGN_IN, 1, 3, ask);
-    assert_eq!(final_answer(&engine.poll(at(20_000_000))[0]), final_answer(&up[0]));
-    assert_eq!(engine.commits().len(), 1);
+    for count in [None, Some(0), Some(u32::MAX)] {
+        let (mut engine, ask) = if let Some(count) = count {
+            let ask = Ask::ReadLists { provider: 3 };
+            let mut setup = script();
+            setup.rules.push(Rule {
+                party: Some(REQUESTER),
+                ask: ask.clone(),
+                answer: Answer::Done(Outcome::Account(AccountAnswer::Reading { count })),
+                changes: vec![],
+            });
+            (Engine::new(setup, 301).expect("valid script"), ask)
+        } else {
+            proposal_engine()
+        };
+        send(&mut engine, 0, REQUESTER_SIGN_IN, 1, 1, ask.clone());
+        send(&mut engine, 1, REQUESTER_OTHER_SIGN_IN, 1, 2, ask.clone());
+        let up = engine.poll(at(10_000_001));
+        assert_eq!(up.len(), 2);
+        if let Some(count) = count {
+            assert_eq!(final_answer(&up[0]), &Answer::Done(Outcome::Account(AccountAnswer::Reading { count })));
+        }
+        assert_eq!(final_answer(&up[0]), final_answer(&up[1]));
+        send(&mut engine, 20_000_000, REQUESTER_SIGN_IN, 1, 3, ask);
+        assert_eq!(final_answer(&engine.poll(at(20_000_000))[0]), final_answer(&up[0]));
+        assert_eq!(engine.commits().len(), 1);
+    }
 }
+
 #[test]
 fn retained_key_refuses_a_different_ask() {
     let (mut engine, ask) = proposal_engine();
@@ -1151,29 +1169,49 @@ fn turn_event(position: u64, name: TurnName, turn: TurnRead) -> DecodedActivityL
 
 #[test]
 fn accounts_watch_delivers_the_signed_in_partys_facts() {
-    let mut setup = script();
-    let expected = Accounts {
-        program_hosts: list(vec![]),
-        accounts: list(vec![]),
-        signing: list(vec![]),
-        last_end: None,
-        usable: true,
-        settled: true,
-        cut: false,
-        readiness: list(vec![]),
-        readiness_cut: false,
-    };
-    setup.truth.accounts.insert(REQUESTER, expected.clone());
-    let mut engine = Engine::new(setup, 76).expect("valid script");
-    engine.open(Time::ZERO, REQUESTER_SIGN_IN, Token::new(1), Subject::Accounts).expect("typed watch fits");
-    assert_eq!(
-        engine.poll(Time::ZERO),
-        vec![
-            Up::Watch { token: Token::new(1), event: WatchEvent::Opened },
-            Up::Watch { token: Token::new(1), event: WatchEvent::Delivered(Delivery::Accounts(Box::new(expected))) }
-        ]
-    );
+    for history in account_list_rows() {
+        let mut setup = script();
+        let expected = Accounts {
+            program_hosts: list(vec![]),
+            accounts: list(vec![AccountLine {
+                list: history,
+                facts: skein_lib::List::with_capacity(0),
+                number: 7,
+                place: 0,
+                uses: None,
+                plan: false,
+                provider: Some(3),
+                provider_name: None,
+                manage_usage: None,
+                display: DocumentText::complete(text(b"Account")),
+                holder: AccountHolder::Party(REQUESTER),
+                sources: list(vec![]),
+                cut: false,
+            }]),
+            signing: list(vec![]),
+            last_end: None,
+            usable: true,
+            settled: true,
+            cut: false,
+            readiness: list(vec![]),
+            readiness_cut: false,
+        };
+        setup.truth.accounts.insert(REQUESTER, expected.clone());
+        let mut engine = Engine::new(setup, 76).expect("valid script");
+        engine.open(Time::ZERO, REQUESTER_SIGN_IN, Token::new(1), Subject::Accounts).expect("typed watch fits");
+        assert_eq!(
+            engine.poll(Time::ZERO),
+            vec![
+                Up::Watch { token: Token::new(1), event: WatchEvent::Opened },
+                Up::Watch {
+                    token: Token::new(1),
+                    event: WatchEvent::Delivered(Delivery::Accounts(Box::new(expected)))
+                }
+            ]
+        );
+    }
 }
+
 fn inbox_selections(truth: &mut Truth) {
     truth.inbox_selection.insert(
         REQUESTER,
@@ -1232,4 +1270,26 @@ fn task_query_parent_uses_requester_and_ended_time_uses_terminal_phase() {
         value.chip.phase = phase;
         assert_eq!(crate::queries::line(&value, [&value].into_iter(), None).ended_at, Some(value.changed), "{phase:?}");
     }
+}
+
+fn account_list_rows() -> [Option<AccountList>; 8] {
+    let empty = AccountList { read: None, tried: None, failure: None, left_out: 0 };
+    let full = |failure| {
+        Some(AccountList {
+            read: Some(Wall::from_nanos(13)),
+            tried: Some(Wall::from_nanos(17)),
+            failure: Some(failure),
+            left_out: u32::MAX,
+        })
+    };
+    [
+        None,
+        Some(empty),
+        full(AccountListFailure::Refused { status: 429 }),
+        full(AccountListFailure::Unreachable),
+        full(AccountListFailure::Unreadable),
+        full(AccountListFailure::Deadline),
+        full(AccountListFailure::Agent),
+        full(AccountListFailure::Room),
+    ]
 }

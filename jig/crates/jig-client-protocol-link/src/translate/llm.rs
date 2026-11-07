@@ -92,6 +92,10 @@ pub(crate) fn models(values: &List<w::MeModel>, limits: &Limits) -> Result<List<
         }
         models
             .push(c::MeModel {
+                new_until: match value.new_until() {
+                    Some(at) => Some(skein_lib::Wall::from_nanos(*at)),
+                    None => None,
+                },
                 number: value.number(),
                 source: match value.source() {
                     w::ModelSource::Stock => c::ModelSource::Stock,

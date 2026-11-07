@@ -44,6 +44,12 @@ The focused cost repairs and shared world helpers establish no
 whole-suite CPU total within 30 CPU s. Selected instruction ratios
 estimate 5.311441 CPU s saved by the focused repairs, without proving
 their at-least-6 aim; process-world instruction pairs remain unknown.
+The requested 2.5 CPU s focused-suite margin is also unproved: App key
+admission parses without signing, fake JWT checks verify the public half,
+and the row kit holds the new folds, but individual instruction pairs
+and process-floor estimates establish no whole-suite margin (`tls.md`,
+section 4; `forge-connection.md`, sections 3.5 and 5.2; `fake-forge.md`,
+section 10.1; `testing.md`, sections 6, 7 and 9).
 Remaining allocator, fixture, product and startup cost work, and a
 profiler supporting the process operations, are deferred (`testing.md`,
 sections 5, 7 and 9). The test-only fork kit holds exhaustive crash sweeps'

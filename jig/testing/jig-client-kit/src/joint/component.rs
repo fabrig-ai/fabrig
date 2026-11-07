@@ -90,6 +90,7 @@ impl Composition {
                 .models
                 .iter()
                 .map(|model| clients::Model {
+                    new_until: None,
                     number: 0,
                     source: jig_domain_core::settings::ModelSource::Stock,
                     estimated: false,

@@ -284,7 +284,7 @@ fn decide_with(
                 }
             }
         }
-        s::Decider::FirstStart | s::Decider::Release => {}
+        s::Decider::FirstStart | s::Decider::Release | s::Decider::List { .. } => {}
     }
     if let Err(failure) = s::application::references(&core.current, &change.items, &kept) {
         return Err(malformed_refusal(&change.items, failure));

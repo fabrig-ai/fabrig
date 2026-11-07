@@ -261,6 +261,7 @@ fn stock_config() -> engine::Config {
             .into_iter()
             .enumerate()
             .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                first_read: None,
                 number: u32::try_from(at).expect("bounded fixture models") + 1,
                 model,
                 shown: None,
@@ -322,6 +323,7 @@ fn an_owner_of_a_deployment_with_no_project_makes_one_from_policy_1() {
             .into_iter()
             .enumerate()
             .map(|(at, model)| jig_domain_core::settings::CatalogueModel {
+                first_read: None,
                 number: u32::try_from(at).expect("bounded fixture models") + 1,
                 model,
                 shown: None,

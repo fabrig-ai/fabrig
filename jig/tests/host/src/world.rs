@@ -657,10 +657,12 @@ impl World {
                 self.stats.reports += 1;
                 Taken::Other
             }
-            Event::SourceAnswered { .. }
+            Event::ListRead { .. }
+            | Event::SourceAnswered { .. }
             | Event::SourceLost
             | Event::Down(
-                LinkDown::Sources { .. }
+                LinkDown::ReadList { .. }
+                | LinkDown::Sources { .. }
                 | LinkDown::Check { .. }
                 | LinkDown::SignOut { .. }
                 | LinkDown::Message { .. }
@@ -754,7 +756,9 @@ impl World {
     /// `run`'s attempt `attempt`: a refusal, or a prepare that admits it.
     fn assigned(&mut self, run: Token, attempt: Token, request: &Request) {
         match request {
-            Request::Source { .. } | Request::SourceFault => unreachable!("source scheduling has its own world"),
+            Request::ReadList { .. } | Request::CancelRead { .. } | Request::Source { .. } | Request::SourceFault => {
+                unreachable!("source scheduling has its own world")
+            }
             Request::Up(LinkUp::Answer { run: answered, attempt: of, answer }) => {
                 assert_eq!((*answered, *of), (run, attempt), "an assignment is answered as itself");
                 match &answer.ending {
@@ -778,7 +782,8 @@ impl World {
                 assert!(self.admitted.insert((run, attempt), *owner).is_none(), "an attempt is admitted once");
             }
             Request::Up(
-                LinkUp::Logins { .. }
+                LinkUp::ListRead { .. }
+                | LinkUp::Logins { .. }
                 | LinkUp::SignedOut { .. }
                 | LinkUp::Piece { .. }
                 | LinkUp::Activity { .. }
@@ -831,9 +836,12 @@ impl World {
         self.refusals.request(&request);
         self.trace.log(self.now, format_args!("host -> {request:?}"));
         match request {
-            Request::Source { .. } | Request::SourceFault => unreachable!("source scheduling has its own world"),
+            Request::ReadList { .. } | Request::CancelRead { .. } | Request::Source { .. } | Request::SourceFault => {
+                unreachable!("source scheduling has its own world")
+            }
             Request::Up(
-                LinkUp::Logins { .. }
+                LinkUp::ListRead { .. }
+                | LinkUp::Logins { .. }
                 | LinkUp::SignedOut { .. }
                 | LinkUp::Piece { .. }
                 | LinkUp::Activity { .. }

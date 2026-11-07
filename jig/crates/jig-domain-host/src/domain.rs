@@ -61,6 +61,25 @@ impl Hub {
         self.sources.settled()
     }
 
+    /// Grant names held by attempts, including those awaiting acknowledgement (channel.md, 8).
+    #[must_use]
+    pub fn holds_grant(&self, account: u32, generation: u64) -> bool {
+        if self.sources.holds_grant(account, generation) {
+            return true;
+        }
+        for (_, entry) in &self.hosted {
+            for grant in entry.grants() {
+                if grant.account == account
+                    && grant.generation == generation
+                    && grant.form.table() == jig_domain_link::GrantTable::Accounts
+                {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
     /// Runs hosted: the slots taken, closed runs included until they are
     /// reclaimed.
     #[must_use]
@@ -237,10 +256,11 @@ impl Hub {
 /// Handles one event and emits its requests.
 pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
+        Event::ListRead { read, outcome } => crate::sources::list_read(&mut domain.sources, env, read, outcome, out),
         Event::SourceAnswered { owner, answer } => {
             crate::sources::answered(&mut domain.sources, env, owner, answer, out);
         }
-        Event::SourceLost => crate::sources::lost(&mut domain.sources),
+        Event::SourceLost => crate::sources::lost(&mut domain.sources, out),
         Event::Agent(crate::FromAgent::Called { owner, call, ask }) => {
             hosted::called(domain, env, owner, call, ask, out);
         }
@@ -307,6 +327,9 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
         }
         Event::Saved { owner, at } => hosted::saved(domain, owner, at, out),
         Event::Down(down) => match down {
+            LinkDown::ReadList { read, endpoint, grant } => {
+                crate::sources::read(&mut domain.sources, env, read, endpoint, grant, out);
+            }
             LinkDown::Sources { sources } => crate::sources::replace(&mut domain.sources, env, sources, out),
             LinkDown::Check { name } => crate::sources::check(&mut domain.sources, env, name, out),
             LinkDown::SignOut { name } => crate::sources::sign_out(&mut domain.sources, env, name, out),

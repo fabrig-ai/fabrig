@@ -477,8 +477,9 @@ Every tier follows testing-strategy.md, 8.1: CPU budget, wall hard limit,
 starved warning and the three-question repair rule.
 
 The two gate suites use the root `.config/nextest.toml`'s `default` and
-`fuzzy` profiles. Until the user sets their CPU budgets, their 30 s and
-120 s idle-machine figures stand. The browser kit against real
+`fuzzy` profiles, with CPU budgets of 30 s and 120 s in
+`tools/tiers/budgets.toml`, enforced at the merge gate under
+testing-strategy.md, 8.1. The browser kit against real
 Chromium and the UI example's browser tier use `browser-skein`
 (`tools/tiers/run skein browser`; browser.md, section 9; ui-web.md,
 14.1); their four-minute global timeout is a wall
@@ -549,6 +550,14 @@ What of this document is not built is in [`testing.status.md`](testing.status.md
   body needs separate measurements. Further table tests must still be
   cases of one behaviour under testing-strategy.md, 8, keeping every
   assertion; a test past its guide cannot be merged away to make room.
+- **Further folds and row diagnostics** (6, 7). Different behaviours and
+  process-local heap measurements stay separate, with fixtures built
+  per row wherever sharing could change what is shown. Signing-heavy
+  App JWT routes stay separate when their combined table exceeds the
+  unit-test guide. Converting an existing table to collect every row's
+  failure is diagnostic work, with no process floor saved. Default: no
+  fold weakens these rules to reach a suite-margin target; further cost
+  changes need a profile of their cause first.
 - **The counting allocator's remaining cost** (5). One thread-local
   access, its cells, layout construction and preconditions, allocation
   numbers, size conversions and System allocation remain necessary.

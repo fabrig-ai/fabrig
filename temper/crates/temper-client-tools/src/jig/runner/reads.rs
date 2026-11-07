@@ -540,7 +540,8 @@ fn complete(runner: &mut Runner, client: &Client, env: &Env<Limits>, mut reading
         super::accounts::resolved(runner, client, env, reading, out);
         return;
     }
-    let printed = render::reads(&reading, client, runner.me(), &env.limits, runner.parts.expect("host vocabulary"));
+    let printed =
+        render::reads(&reading, client, runner.me(), &env.limits, runner.parts.expect("host vocabulary"), env.wall);
     finish(reading, printed, out);
 }
 

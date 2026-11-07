@@ -107,6 +107,9 @@ pub(in crate::codec) fn wire_revision_decider(
     Ok::<_, w::Problem>(match value {
         c::RevisionDecider::FirstStart => w::RevisionDecider::FirstStart,
         c::RevisionDecider::Release => w::RevisionDecider::Release,
+        c::RevisionDecider::List { provider } => {
+            w::RevisionDecider::List(w::RevisionList::new(limits, w::RevisionListParts { provider: *provider })?)
+        }
         c::RevisionDecider::Party(value) => w::RevisionDecider::Party(wire_revision_party(value, limits)?),
     })
 }

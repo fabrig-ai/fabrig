@@ -45,6 +45,7 @@ pub(crate) fn settings_restore_revision_decider(value: &w::RevisionDecider, limi
     match value {
         w::RevisionDecider::FirstStart => c::RevisionDecider::FirstStart,
         w::RevisionDecider::Release => c::RevisionDecider::Release,
+        w::RevisionDecider::List(item) => c::RevisionDecider::List { provider: item.provider() },
         w::RevisionDecider::Party(item) => c::RevisionDecider::Party(settings_restore_revision_party(item, limits)),
     }
 }

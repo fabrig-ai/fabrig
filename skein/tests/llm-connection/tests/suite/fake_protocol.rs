@@ -53,6 +53,8 @@ fn run(dialect: Provider, seed: u64) -> (Trace, (u32, u32)) {
     };
     let mut service = provider::Service::new(
         provider::Config {
+            list: None,
+            list_status: None,
             without_credential: false,
             usage_fields: skein_fake_llm_protocol::documents::UsageFields::ALL,
             echo: skein_llm::openai::Echo::NONE,
@@ -181,7 +183,10 @@ fn run(dialect: Provider, seed: u64) -> (Trace, (u32, u32)) {
         if let Some(event) = peer_up.pop() {
             match event {
                 provider::Event::Domain(input) => fake::step(&mut domain, &fake_env, input, &mut replies),
-                provider::Event::Head { .. } | provider::Event::Close | provider::Event::Closed => {}
+                provider::Event::Head { .. }
+                | provider::Event::List { .. }
+                | provider::Event::Close
+                | provider::Event::Closed => {}
             }
         }
         if let Some(reply) = replies.pop() {
@@ -282,4 +287,299 @@ fn responses_fake_peer_over_plaintext_replays() {
 #[test]
 fn anthropic_fake_peer_over_plaintext_replays() {
     assert_replays(7, 8, |seed| run(Provider::Anthropic, seed));
+}
+
+const LIST_BODY: &[u8] = br#"{"data":[{"id":"world-model","extra":true}]}"#;
+// Two of the kit peer's 128-byte send grants, plus one byte.
+const MULTI_PIECE_LIST: &[u8] = &[b'x'; 257];
+const LIST_CUE: &[u8] = b"list-script";
+const FIRST_CALL: &[u8] = b"first scripted answer";
+
+fn list_world(route: Provider, scheme: Option<skein_llm::Scheme>) -> skein_llm_kit::fake::Exchange {
+    let mut call = match route {
+        Provider::OpenAi => skein_llm_kit::public_call(7),
+        Provider::Anthropic => skein_llm_kit::anthropic_call(7),
+    };
+    call.credential = scheme.map(|scheme| Credential { scheme, value: b"list-fixture".as_slice().into() });
+    call.prompt.instructions = LIST_CUE.into();
+    let scripts = Box::new([api::Script {
+        cue: LIST_CUE.into(),
+        turns: Box::new([api::Turn {
+            lines: Box::new([api::Line::Text { text: FIRST_CALL.into() }]),
+            finish: api::Finish::Stop,
+            tokens: 3,
+        }]),
+    }]);
+    skein_llm_kit::fake::Exchange::new(call, skein_llm_kit::limits_for(route), scripts)
+}
+
+fn list_request(route: Provider, method: &str, target: &str, credential: Option<&str>) -> Vec<u8> {
+    let field = match route {
+        Provider::OpenAi => "Authorization: Bearer ",
+        Provider::Anthropic => "x-api-key: ",
+    };
+    let auth = credential.map_or_else(String::new, |value| format!("{field}{value}\r\n"));
+    format!("{method} {target} HTTP/1.1\r\nHost: skein.test\r\n{auth}Connection: close\r\n\r\n").into_bytes()
+}
+
+fn list_reply(response: &[u8]) -> (u16, &[u8]) {
+    let boundary = response.windows(b"\r\n\r\n".len()).position(|bytes| bytes == b"\r\n\r\n").expect("HTTP head");
+    let head = core::str::from_utf8(&response[..boundary]).expect("HTTP response head");
+    let status = head.split_ascii_whitespace().nth(1).expect("status").parse().expect("numeric status");
+    (status, &response[boundary + b"\r\n\r\n".len()..])
+}
+
+struct ListRow {
+    name: &'static str,
+    method: &'static str,
+    target: &'static str,
+    body: Option<&'static [u8]>,
+    status: Option<u16>,
+    credential: Option<&'static str>,
+    accepted: bool,
+    list: bool,
+    want: [u16; 2],
+    want_body: Option<&'static [u8]>,
+}
+
+const LIST_ROWS: &[ListRow] = &[
+    ListRow {
+        name: "list",
+        method: "GET",
+        target: "/v1/models",
+        body: Some(LIST_BODY),
+        status: None,
+        credential: Some("list-fixture"),
+        accepted: true,
+        list: true,
+        want: [200, 200],
+        want_body: Some(LIST_BODY),
+    },
+    ListRow {
+        name: "query",
+        method: "GET",
+        target: "/v1/models?limit=1000",
+        body: Some(LIST_BODY),
+        status: None,
+        credential: Some("list-fixture"),
+        accepted: true,
+        list: true,
+        want: [200, 200],
+        want_body: Some(LIST_BODY),
+    },
+    ListRow {
+        name: "opaque bytes",
+        method: "GET",
+        target: "/v1/models",
+        body: Some(b"\0not json\xff"),
+        status: None,
+        credential: Some("list-fixture"),
+        accepted: true,
+        list: true,
+        want: [200, 200],
+        want_body: Some(b"\0not json\xff"),
+    },
+    ListRow {
+        name: "multiple pieces",
+        method: "GET",
+        target: "/v1/models",
+        body: Some(MULTI_PIECE_LIST),
+        status: None,
+        credential: Some("list-fixture"),
+        accepted: true,
+        list: true,
+        want: [200, 200],
+        want_body: Some(MULTI_PIECE_LIST),
+    },
+    ListRow {
+        name: "empty body",
+        method: "GET",
+        target: "/v1/models",
+        body: Some(b""),
+        status: None,
+        credential: Some("list-fixture"),
+        accepted: true,
+        list: true,
+        want: [200, 200],
+        want_body: Some(b""),
+    },
+    ListRow {
+        name: "absent",
+        method: "GET",
+        target: "/v1/models",
+        body: None,
+        status: None,
+        credential: Some("list-fixture"),
+        accepted: true,
+        list: true,
+        want: [404, 404],
+        want_body: Some(b""),
+    },
+    ListRow {
+        name: "status",
+        method: "GET",
+        target: "/v1/models",
+        body: Some(LIST_BODY),
+        status: Some(503),
+        credential: Some("list-fixture"),
+        accepted: true,
+        list: true,
+        want: [503, 503],
+        want_body: Some(b""),
+    },
+    ListRow {
+        name: "status without body",
+        method: "GET",
+        target: "/v1/models",
+        body: None,
+        status: Some(429),
+        credential: Some("list-fixture"),
+        accepted: true,
+        list: true,
+        want: [429, 429],
+        want_body: Some(b""),
+    },
+    ListRow {
+        name: "wrong credential",
+        method: "GET",
+        target: "/v1/models",
+        body: Some(LIST_BODY),
+        status: None,
+        credential: Some("unaccepted"),
+        accepted: true,
+        list: true,
+        want: [401, 401],
+        want_body: None,
+    },
+    ListRow {
+        name: "no credential",
+        method: "GET",
+        target: "/v1/models",
+        body: Some(LIST_BODY),
+        status: Some(503),
+        credential: None,
+        accepted: true,
+        list: true,
+        want: [401, 401],
+        want_body: None,
+    },
+    ListRow {
+        name: "local",
+        method: "GET",
+        target: "/v1/models",
+        body: Some(LIST_BODY),
+        status: None,
+        credential: None,
+        accepted: false,
+        list: true,
+        want: [200, 200],
+        want_body: Some(LIST_BODY),
+    },
+    ListRow {
+        name: "wrong method",
+        method: "POST",
+        target: "/v1/models",
+        body: Some(LIST_BODY),
+        status: None,
+        credential: Some("list-fixture"),
+        accepted: true,
+        list: false,
+        want: [403, 400],
+        want_body: None,
+    },
+    ListRow {
+        name: "other path",
+        method: "GET",
+        target: "/v1/models-extra",
+        body: Some(LIST_BODY),
+        status: None,
+        credential: Some("list-fixture"),
+        accepted: true,
+        list: false,
+        want: [403, 400],
+        want_body: None,
+    },
+];
+
+#[test]
+fn model_lists_answer_the_route_and_observe_only_credential_identity() {
+    use skein_llm::Scheme::{Bearer, Key};
+    for (route, scheme, status_index) in
+        [(Provider::OpenAi, Bearer, 0), (Provider::OpenAi, Key, 0), (Provider::Anthropic, Key, 1)]
+    {
+        for row in LIST_ROWS {
+            let mut world = list_world(route, row.accepted.then_some(scheme));
+            world.service.set_list(row.body.map(Into::into), row.status);
+            let (response, lists) = world.raw(&list_request(route, row.method, row.target, row.credential));
+            let (status, body) = list_reply(&response);
+            assert_eq!(status, row.want[status_index], "{route:?} {scheme:?} {}", row.name);
+            if let Some(want) = row.want_body {
+                assert_eq!(body, want, "{} body is the world's bytes", row.name);
+            }
+            let matched = row.accepted && row.credential == Some("list-fixture");
+            let presented = provider::Presented {
+                route,
+                scheme: if matched {
+                    Some(scheme)
+                } else {
+                    row.credential.map(|_| match route {
+                        Provider::OpenAi => Bearer,
+                        Provider::Anthropic => Key,
+                    })
+                },
+                index: matched.then_some(0),
+            };
+            let want = if row.list { vec![presented] } else { vec![] };
+            assert_eq!(lists, want, "{} list observes identity without credential bytes", row.name);
+            assert_eq!(world.service.count(), u64::from(!row.list), "{} counts no list call", row.name);
+            assert_eq!(world.service.calls(), 0, "a list holds no domain reply right");
+        }
+    }
+}
+
+#[test]
+fn changing_a_list_between_requests_preserves_the_first_scripted_call() {
+    for (route, scheme) in
+        [(Provider::OpenAi, skein_llm::Scheme::Bearer), (Provider::Anthropic, skein_llm::Scheme::Key)]
+    {
+        let mut world = list_world(route, Some(scheme));
+        let request = list_request(route, "GET", "/v1/models", Some("list-fixture"));
+        world.service.set_list(Some(LIST_BODY.into()), Some(503));
+        let (response, _) = world.raw(&request);
+        assert_eq!(list_reply(&response), (503, b"".as_slice()));
+        world.service.set_list(Some(LIST_BODY.into()), None);
+        let (response, _) = world.raw(&request);
+        assert_eq!(list_reply(&response), (200, LIST_BODY));
+        let replacement = b"second world's bytes".as_slice();
+        world.service.set_list(Some(replacement.into()), None);
+        let (response, _) = world.raw(&request);
+        assert_eq!(list_reply(&response), (200, replacement));
+        world.service.set_list(None, None);
+        let (response, _) = world.raw(&request);
+        assert_eq!(list_reply(&response), (404, b"".as_slice()));
+        assert_eq!(world.service.count(), 0, "list reads spend no calls");
+        assert!(
+            world.accept(Credential::key(b"late".as_slice().into())).is_err(),
+            "credentials close at the first request, including a list"
+        );
+        world.start();
+        world.run();
+        let completions: Vec<_> = world
+            .seen
+            .iter()
+            .filter_map(|event| match event {
+                skein_llm::client::Event::Completed { completion, .. } => Some(completion),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(completions.len(), 1, "the first call completes once");
+        let content = &completions[0].content;
+        assert!(
+            matches!(content.as_ref(), [skein_llm::Block::Text { text, .. }] if text.as_ref() == FIRST_CALL),
+            "the list leaves the first script answer intact"
+        );
+        assert_eq!(world.service.count(), 1, "only inference counts a call");
+        world.request(skein_llm::client::Request::Close);
+        world.settle();
+    }
 }

@@ -19,7 +19,8 @@ pub enum Class {
 pub fn class(event: &Event) -> Class {
     match event {
         Event::Link(link) => match link {
-            LinkDown::Sources { .. }
+            LinkDown::ReadList { .. }
+            | LinkDown::Sources { .. }
             | LinkDown::Check { .. }
             | LinkDown::SignOut { .. }
             | LinkDown::AssignJob { .. }
@@ -134,7 +135,8 @@ pub(crate) fn must_follow(domain: &Domain, held: &Event, event: &Event) -> bool 
             agent == Some(process_owner(held))
         }
         Event::Link(
-            LinkDown::Sources { .. }
+            LinkDown::ReadList { .. }
+            | LinkDown::Sources { .. }
             | LinkDown::Check { .. }
             | LinkDown::SignOut { .. }
             | LinkDown::Message { .. }
@@ -166,7 +168,8 @@ fn named_assignment(link: &LinkDown) -> Option<(Token, Token)> {
         | LinkDown::TurnKept { run, attempt, .. }
         | LinkDown::Acknowledge { run, attempt }
         | LinkDown::Grant { run, attempt, .. } => Some((*run, *attempt)),
-        LinkDown::Sources { .. }
+        LinkDown::ReadList { .. }
+        | LinkDown::Sources { .. }
         | LinkDown::Check { .. }
         | LinkDown::SignOut { .. }
         | LinkDown::AssignJob { .. }

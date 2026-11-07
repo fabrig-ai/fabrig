@@ -14,6 +14,7 @@ pub struct Provider {
     pub number: u32,
     /// The endpoint its added models take (configuration.md, 3).
     pub endpoint: Option<Box<[u8]>>,
+    pub list: Option<jig_domain_accounts::ProviderList>,
     pub signed_in_plan: bool,
     pub manage_usage: Option<Box<[u8]>>,
     /// Configured models' names; each configured model is in one provider.
@@ -165,6 +166,26 @@ fn provider(
     } else {
         super::optional_text(&mut object, document, b"endpoint", path, problems)
     };
+    let keep_at = object.member(document, b"keep");
+    let drop_at = object.member(document, b"drop");
+    let keep = match keep_at {
+        Some(at) => patterns(document, at, &path.member(b"keep"), problems),
+        None => None,
+    };
+    let drop = match drop_at {
+        Some(at) => patterns(document, at, &path.member(b"drop"), problems),
+        None => Some(Box::default()),
+    };
+    if keep_at.is_some() && endpoint.is_none() {
+        problems.push(path.member(b"keep"), What::Refers);
+    }
+    if drop_at.is_some() && keep_at.is_none() {
+        problems.push(path.member(b"drop"), What::Refers);
+    }
+    let list = match keep {
+        Some(keep) => Some(jig_domain_accounts::ProviderList { keep, drop: drop? }),
+        None => None,
+    };
     object.finish(document, path, problems);
     let offered = offered?;
     if offered.sign_in.is_some() && signed_at.is_none() {
@@ -180,6 +201,7 @@ fn provider(
         name: name?,
         number: number?,
         endpoint,
+        list,
         signed_in_plan,
         manage_usage,
         models: served?,
@@ -187,6 +209,46 @@ fn provider(
         keys: offered.keys,
         programs: offered.programs,
     })
+}
+
+/// Bounded whole-name patterns (jig/docs/design/protocol/configuration.md, 3).
+fn patterns(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Option<Box<[Box<[u8]>]>> {
+    let items = match read::list(document, at, 16) {
+        Ok(items) => items,
+        Err(what) => {
+            problems.push(path.clone(), what);
+            return None;
+        }
+    };
+    let mut patterns = List::with_capacity(items.len());
+    let mut failed = false;
+    for (index, at) in items.iter().enumerate() {
+        let path = check::index(path, index);
+        match read::text(document, *at, 64) {
+            Ok(pattern) => {
+                let mut valid = !pattern.is_empty();
+                for &byte in &pattern {
+                    if byte != b'*' && byte != b'?' && !jig_domain_core::settings::catalogue::valid_name(&[byte]) {
+                        valid = false;
+                    }
+                }
+                if valid {
+                    patterns.push(pattern).expect("pattern count bounded");
+                } else {
+                    problems.push(path, What::Form);
+                    failed = true;
+                }
+            }
+            Err(what) => {
+                problems.push(path, what);
+                failed = true;
+            }
+        }
+    }
+    if failed {
+        return None;
+    }
+    Some(patterns.into_boxed())
 }
 
 /// Each name a configured model, claimed by this provider alone.

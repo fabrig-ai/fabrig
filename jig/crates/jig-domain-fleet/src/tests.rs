@@ -10,6 +10,7 @@ use crate::{
 };
 
 const LIMITS: Limits = Limits {
+    reads: 6,
     configured_workers: 64,
     worker_name_bytes: 32,
     program_sources: 12,

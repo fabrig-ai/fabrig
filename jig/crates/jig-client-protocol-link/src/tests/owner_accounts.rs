@@ -41,6 +41,7 @@ fn document(end: Option<c::AccountEnd>) -> c::Accounts {
         program_hosts: List::with_capacity(0),
         accounts: list([
             c::AccountLine {
+                list: None,
                 facts: fact_rows(),
                 provider_name: None,
                 manage_usage: None,
@@ -58,6 +59,7 @@ fn document(end: Option<c::AccountEnd>) -> c::Accounts {
                 cut: true,
             },
             c::AccountLine {
+                list: None,
                 facts: List::with_capacity(0),
                 provider_name: None,
                 manage_usage: None,

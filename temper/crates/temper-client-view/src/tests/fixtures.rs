@@ -1574,6 +1574,7 @@ pub fn playground_frame_with_watch(
     for name in [crate::words::SCRIPTED_MODEL, b"selected"] {
         models
             .push(c::MeModel {
+                new_until: None,
                 number: 1,
                 source: jig_client::contract::ModelSource::Stock,
                 estimated: false,
@@ -1800,6 +1801,7 @@ fn playground_accounts(model: bool) -> c::Accounts {
         })
         .unwrap();
     rows.push(c::AccountLine {
+        list: None,
         facts: List::with_capacity(0),
         number: 2,
         place: 1,
@@ -1816,6 +1818,7 @@ fn playground_accounts(model: bool) -> c::Accounts {
     .unwrap();
     if !model {
         rows.push(c::AccountLine {
+            list: None,
             facts: List::with_capacity(0),
             number: 1,
             place: 1,

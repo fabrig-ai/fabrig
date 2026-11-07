@@ -115,6 +115,9 @@ pub fn wire_revision_decider(value: &c::RevisionDecider, limits: &w::Limits) -> 
     Ok(match value {
         c::RevisionDecider::FirstStart => w::RevisionDecider::FirstStart,
         c::RevisionDecider::Release => w::RevisionDecider::Release,
+        c::RevisionDecider::List { provider } => {
+            w::RevisionDecider::List(w::RevisionList::new(limits, w::RevisionListParts { provider: *provider })?)
+        }
         c::RevisionDecider::Party(item) => w::RevisionDecider::Party(wire_revision_party(item, limits)?),
     })
 }

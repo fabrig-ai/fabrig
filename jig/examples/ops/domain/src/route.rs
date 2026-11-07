@@ -403,6 +403,7 @@ fn core_held(
         | core::Held::AcknowledgeTurn { .. }
         | core::Held::Cancel { .. }
         | core::Held::Acknowledge { .. }
+        | core::Held::ReadList { .. }
         | core::Held::Sources { .. }
         | core::Held::CheckSource { .. }
         | core::Held::SignOutSource { .. }

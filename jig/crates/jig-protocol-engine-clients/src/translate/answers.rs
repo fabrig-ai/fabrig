@@ -10,6 +10,20 @@ pub(crate) fn answer(
     limits: &w::Limits,
 ) -> Result<w::KeyedAnswer, w::Problem> {
     let final_answer = match reply {
+        p::Reply::Outcome(p::Outcome::AccountReading { count }) => w::Final::Done(w::Done::new(
+            limits,
+            w::DoneParts {
+                outcome: w::Outcome::Account(w::OutcomeAccount::new(
+                    limits,
+                    w::OutcomeAccountParts {
+                        answer: w::AccountAnswer::Reading(w::AccountReading::new(
+                            limits,
+                            w::AccountReadingParts { count: *count },
+                        )?),
+                    },
+                )?),
+            },
+        )?),
         p::Reply::Outcome(p::Outcome::Restored { proposal, to, left_out }) => {
             let mut settings = skein_lib::List::with_capacity(super::count(left_out.len())?);
             for setting in left_out {
@@ -314,6 +328,7 @@ fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::DocumentOutcome, w
         p::Outcome::Restored { .. }
         | p::Outcome::SettingsChanged { .. }
         | p::Outcome::MovedToNewest { .. }
+        | p::Outcome::AccountReading { .. }
         | p::Outcome::AccountMovingOut { .. }
         | p::Outcome::CompoundRefused { .. }
         | p::Outcome::Applied { .. }

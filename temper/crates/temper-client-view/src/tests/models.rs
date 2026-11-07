@@ -26,6 +26,7 @@ fn deliver(root: &mut d::Domain, watch: Token, value: c::Delivery) {
 }
 fn model(name: &str, provider: u32, shown: &str) -> c::MeModel {
     c::MeModel {
+        new_until: None,
         number: 1,
         source: jig_client::contract::ModelSource::Stock,
         estimated: false,
@@ -255,7 +256,12 @@ fn an_unusable_account_keeps_its_fix_and_no_row() {
     }
 }
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one table holds payment clauses, list precedence and clock changes in both shells"
+)]
 fn each_section_says_what_pays() {
+    const HOUR: u64 = 3_600_000_000_000;
     let (mut root, _, watch) = fixture(true);
     for key in [false, true] {
         if key {
@@ -313,6 +319,82 @@ fn each_section_says_what_pays() {
             2
         );
     }
+    for (read, tried, failed, expected) in [
+        (None, None, false, "These come with temper."),
+        (Some(HOUR), Some(HOUR), false, "Read from OpenAI 2 hours ago."),
+        (None, Some(HOUR), true, "Couldn't read OpenAI's list · 2 hours ago."),
+        (Some(2 * HOUR), Some(HOUR), true, "Couldn't read OpenAI's list · 2 hours ago."),
+    ] {
+        let (mut root, _, watch) = fixture(true);
+        let mut doc = d::pages::accounts::document(root.client()).unwrap().clone();
+        doc.accounts.get_mut(1).unwrap().list = Some(c::AccountList {
+            read: read.map(skein_lib::Wall::from_nanos),
+            tried: tried.map(skein_lib::Wall::from_nanos),
+            failure: failed.then_some(c::AccountListFailure::Deadline),
+            left_out: 0,
+        });
+        // Newer failed states on accounts outside the payment filter cannot win.
+        let mut other = doc.accounts.get(1).unwrap().clone();
+        other.list = Some(c::AccountList {
+            read: None,
+            tried: Some(skein_lib::Wall::from_nanos(2 * HOUR)),
+            failure: Some(c::AccountListFailure::Unreadable),
+            left_out: 0,
+        });
+        other.holder = c::AccountHolder::Deployment;
+        doc.accounts.push(other.clone()).unwrap();
+        other.holder = doc.accounts.get(0).unwrap().holder;
+        other.sources.get_mut(0).unwrap().usable = false;
+        doc.accounts.push(other).unwrap();
+        deliver(&mut root, watch, c::Delivery::Accounts(Box::new(doc)));
+        for terminal in [true, false] {
+            let mut view = if terminal { f::page_view(&root) } else { f::browser_page_view(&root) };
+            crate::build(&mut view, &root, skein_lib::Wall::from_nanos(3 * HOUR), &mut skein_lib::Queue::uncapped());
+            named(view.tree(), &["Your ChatGPT plan. ", expected].concat());
+            named(view.tree(), "Your Claude subscription. These come with temper.");
+            assert_eq!(main(view.tree()).iter().filter(|n| n.name.as_deref() == Some(b"Read again")).count(), 1);
+            if read.is_some() || failed {
+                let wake = view.next_change().unwrap();
+                assert!(wake > skein_lib::Wall::from_nanos(3 * HOUR));
+                crate::build(
+                    &mut view,
+                    &root,
+                    skein_lib::Wall::from_nanos(4 * HOUR),
+                    &mut skein_lib::Queue::uncapped(),
+                );
+                let text = String::from_utf8_lossy(&f::nodes_text(main(view.tree()))).into_owned();
+                assert!(text.contains("3 hours ago"), "{text}");
+            }
+        }
+    }
+
+    for failed in [false, true] {
+        let (mut root, _, watch) = fixture(true);
+        let mut doc = d::pages::accounts::document(root.client()).unwrap().clone();
+        let openai = doc.accounts.get_mut(1).unwrap();
+        openai.list = Some(c::AccountList {
+            read: Some(skein_lib::Wall::from_nanos(HOUR)),
+            tried: Some(skein_lib::Wall::from_nanos(HOUR)),
+            failure: failed.then_some(c::AccountListFailure::Deadline),
+            left_out: 0,
+        });
+        let mut second = openai.clone();
+        second.list.as_mut().unwrap().read = Some(skein_lib::Wall::from_nanos(2 * HOUR));
+        second.list.as_mut().unwrap().tried = Some(skein_lib::Wall::from_nanos(2 * HOUR));
+        doc.accounts.push(second).unwrap();
+        deliver(&mut root, watch, c::Delivery::Accounts(Box::new(doc)));
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            crate::build(&mut view, &root, skein_lib::Wall::from_nanos(4 * HOUR), &mut skein_lib::Queue::uncapped());
+            named(
+                view.tree(),
+                if failed {
+                    "Your ChatGPT plan. Your ChatGPT plan. Couldn't read OpenAI's list · 2 hours ago."
+                } else {
+                    "Your ChatGPT plan. Your ChatGPT plan. Read from OpenAI 2 hours ago."
+                },
+            );
+        }
+    }
 }
 
 #[test]
@@ -365,6 +447,7 @@ fn an_owner_has_the_switch_and_a_member_the_word() {
 
 #[test]
 fn a_row_says_where_it_came_from() {
+    const WEEK: u64 = 604_800_000_000_000;
     let (mut root, watch, _) = fixture(true);
     for (source, estimated, suffix) in [
         (c::ModelSource::Person, true, " · added by you · estimated prices"),
@@ -379,6 +462,29 @@ fn a_row_says_where_it_came_from() {
         change_me(&mut root, watch, me);
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
             named(view.tree(), &["claude-opus-5-5 · high · the default", suffix].concat());
+        }
+    }
+    for source in [c::ModelSource::List, c::ModelSource::Stock, c::ModelSource::Person] {
+        let mut me = root.pages().me(root.client()).unwrap().clone();
+        let model = me.projects.get_mut(0).unwrap().models.get_mut(0).unwrap();
+        model.source = source;
+        model.new_until = Some(skein_lib::Wall::from_nanos(WEEK));
+        change_me(&mut root, watch, me);
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            for now in [WEEK - 1, WEEK, WEEK + 1] {
+                crate::build(&mut view, &root, skein_lib::Wall::from_nanos(now), &mut skein_lib::Queue::uncapped());
+                let row = main(view.tree())
+                    .iter()
+                    .find(|n| n.name.as_deref().is_some_and(|name| name.starts_with(b"claude-opus-5-5")))
+                    .unwrap();
+                assert_eq!(
+                    row.name.as_deref().unwrap().ends_with(" · new".as_bytes()),
+                    source == c::ModelSource::List && now < WEEK
+                );
+                if source == c::ModelSource::List && now < WEEK {
+                    assert_eq!(view.next_change(), Some(skein_lib::Wall::from_nanos(WEEK)));
+                }
+            }
         }
     }
 }
@@ -411,7 +517,7 @@ fn model_act(root: &mut d::Domain, act: d::pages::models::Act) {
 }
 #[test]
 fn a_member_has_no_form() {
-    let (mut root, watch, _) = fixture(true);
+    let (mut root, watch, account_watch) = fixture(true);
     for role in [Some(c::HeldRole::Policy { role: 1 }), None] {
         let mut me = root.pages().me(root.client()).unwrap().clone();
         me.deployment_role = role;
@@ -419,6 +525,30 @@ fn a_member_has_no_form() {
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
             assert!(!main(view.tree()).iter().any(|n| n.styles.as_slice().contains(&look::MODELS_ADD)));
             assert!(!main(view.tree()).iter().any(|n| n.role == Role::TextField || n.role == Role::Select));
+        }
+    }
+    for (own, usable, listed) in [(true, true, true), (false, true, true), (true, false, true), (true, true, false)] {
+        let mut doc = d::pages::accounts::document(root.client()).unwrap().clone();
+        let account = doc.accounts.get_mut(1).unwrap();
+        account.holder = if own {
+            c::AccountHolder::Party(root.pages().me(root.client()).unwrap().party.number)
+        } else {
+            c::AccountHolder::Deployment
+        };
+        account.sources.get_mut(0).unwrap().usable = usable;
+        account.list = listed.then_some(c::AccountList { read: None, tried: None, failure: None, left_out: 0 });
+        deliver(&mut root, account_watch, c::Delivery::Accounts(Box::new(doc)));
+        for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let button = main(view.tree()).iter().find(|n| n.name.as_deref() == Some(b"Read again"));
+            assert_eq!(button.is_some(), own && usable && listed);
+            if let Some(button) = button {
+                assert!(button.styles.as_slice().contains(&look::SETTINGS_SMALL));
+                let id = button.id;
+                assert_eq!(
+                    crate::act(&mut view, id, Act::Press),
+                    Some(d::Action::Pages(d::pages::Act::Models(d::pages::models::Act::Read(18))))
+                );
+            }
         }
     }
 }
@@ -494,14 +624,12 @@ fn a_name_the_provider_holds_says_so() {
 }
 
 fn send_add(root: &mut d::Domain) -> Token {
+    send_model(root, d::pages::models::Act::Add)
+}
+fn send_model(root: &mut d::Domain, act: d::pages::models::Act) -> Token {
     let mut out = skein_lib::Queue::uncapped();
     let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: f::domain_limits() };
-    d::step(
-        root,
-        &env,
-        d::Event::Act { action: d::Action::Pages(d::pages::Act::Models(d::pages::models::Act::Add)) },
-        &mut out,
-    );
+    d::step(root, &env, d::Event::Act { action: d::Action::Pages(d::pages::Act::Models(act)) }, &mut out);
     d::step(root, &env, d::Event::Client { event: jig_client::Event::Stored }, &mut out);
     let mut sent = None;
     for request in &out {
@@ -509,11 +637,11 @@ fn send_add(root: &mut d::Domain) -> Token {
             request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
         } = request
         {
-            assert!(sent.is_none(), "Add sends one request");
+            assert!(sent.is_none(), "Model act sends one request");
             sent = Some(*attempt);
         }
     }
-    sent.expect("Add sends a request")
+    sent.expect("Model act sends a request")
 }
 fn answer_add(root: &mut d::Domain, attempt: Token, answer: c::Answer) {
     f::root_event(
@@ -570,24 +698,49 @@ fn a_provider_without_an_account_can_be_added_to() {
     }
 }
 #[test]
-fn a_refusal_shows_under_the_add_form() {
-    let (mut root, _, _) = fixture(true);
-    model_act(&mut root, d::pages::models::Act::Name(b"claude-haiku-5-5".as_slice().into()));
-    let attempt = send_add(&mut root);
-    answer_add(&mut root, attempt, c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None });
-    for view in [f::page_view(&root), f::browser_page_view(&root)] {
-        let form = main(view.tree()).iter().find(|n| n.styles.as_slice().contains(&look::MODELS_ADD)).unwrap();
-        let parent = main(view.tree())
-            .iter()
-            .filter(|n| n.styles.as_slice().contains(&look::SETTINGS_SECTION))
-            .find(|n| subtree(view.tree(), n).contains(form))
-            .unwrap();
-        let refusal = subtree(view.tree(), parent)
-            .iter()
-            .find(|n| n.styles.as_slice().contains(&look::SETTINGS_REFUSAL))
-            .expect("the add section holds its refusal");
-        assert!(!f::nodes_text(subtree(view.tree(), refusal)).is_empty());
-        assert_eq!(named(view.tree(), "The model’s name").value.as_ref().unwrap().text.as_ref(), b"claude-haiku-5-5");
+fn a_refusal_shows_under_its_act() {
+    for read in [false, true] {
+        let (mut root, _, watch) = fixture(true);
+        let act = if read {
+            let mut doc = d::pages::accounts::document(root.client()).unwrap().clone();
+            doc.accounts.get_mut(1).unwrap().list =
+                Some(c::AccountList { read: None, tried: None, failure: None, left_out: 0 });
+            deliver(&mut root, watch, c::Delivery::Accounts(Box::new(doc)));
+            d::pages::models::Act::Read(18)
+        } else {
+            model_act(&mut root, d::pages::models::Act::Name(b"claude-haiku-5-5".as_slice().into()));
+            d::pages::models::Act::Add
+        };
+        let attempt = send_model(&mut root, act);
+        if read {
+            for view in [f::page_view(&root), f::browser_page_view(&root)] {
+                assert!(named(view.tree(), "Reading…").states.as_slice().contains(&State::Disabled));
+            }
+        }
+        answer_add(&mut root, attempt, c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None });
+        for view in [f::page_view(&root), f::browser_page_view(&root)] {
+            let anchor = if read {
+                named(view.tree(), "Read again")
+            } else {
+                main(view.tree()).iter().find(|n| n.styles.as_slice().contains(&look::MODELS_ADD)).unwrap()
+            };
+            let parent = main(view.tree())
+                .iter()
+                .filter(|n| n.styles.as_slice().contains(&look::SETTINGS_SECTION))
+                .find(|n| subtree(view.tree(), n).contains(anchor))
+                .unwrap();
+            let refusal = subtree(view.tree(), parent)
+                .iter()
+                .find(|n| n.styles.as_slice().contains(&look::SETTINGS_REFUSAL))
+                .expect("the act's section holds its refusal");
+            assert!(!f::nodes_text(subtree(view.tree(), refusal)).is_empty());
+            if !read {
+                assert_eq!(
+                    named(view.tree(), "The model’s name").value.as_ref().unwrap().text.as_ref(),
+                    b"claude-haiku-5-5"
+                );
+            }
+        }
     }
 }
 #[test]

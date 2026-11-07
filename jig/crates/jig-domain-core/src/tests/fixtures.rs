@@ -50,6 +50,56 @@ pub(crate) fn make_batch_at(
 use super::*;
 use jig_domain_link::{Bounds, EndpointBound};
 
+pub(crate) fn list_record(names: u64, read: bool, failure: Option<accounts::ReadFailure>) -> accounts::ListRecord {
+    accounts::ListRecord {
+        names,
+        read: read.then_some(Wall::EPOCH),
+        tried: Some(Wall::from_nanos(1)),
+        failure,
+        left_out: 0,
+    }
+}
+
+/// Restore key accounts with their last list records, as a restart does.
+pub(crate) fn listed_accounts(
+    core: &mut Core,
+    limits: &Limits,
+    provider: u32,
+    rows: &[(u32, u32, Option<accounts::ListRecord>)],
+) {
+    core.accounts = accounts::Domain::new(&limits.accounts, core.settings.llm_providers.clone());
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.accounts };
+    let mut out = Queue::uncapped();
+    for &(number, source, list) in rows {
+        for record in [
+            accounts::Stored::Account {
+                number,
+                provider,
+                holder: accounts::Holder::Deployment,
+                place: 0,
+                uses: None,
+                subject: Box::new([]),
+                display: Box::new([]),
+                list,
+            },
+            accounts::Stored::Source {
+                account: number,
+                number: source,
+                place: 0,
+                kind: accounts::Kind::Key,
+                name: Box::new([]),
+                held: None,
+            },
+        ] {
+            accounts::step(&mut core.accounts, &env, accounts::Event::Restore { record }, &mut out);
+        }
+    }
+    runs::run_choice::account(core, limits, accounts::Event::Want);
+    for &(_, source, _) in rows {
+        runs::run_choice::granted(core, limits, source);
+    }
+}
+
 pub(crate) fn query_fixture() -> (Core, Limits) {
     let (mut core, mut limits) = tree_core();
     let (auth, auth_limits) = watch_core();
