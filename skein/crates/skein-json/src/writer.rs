@@ -29,6 +29,10 @@
 //! key outside an object, an end that closes nothing, a second value, a
 //! writing pass of another length than its measuring pass) is a bug,
 //! asserted.
+//! The writing pass measures nothing and checks no string's text: it writes
+//! what it is given. Text that differs between the passes at the same length
+//! is a bug of the caller's code that nothing asserts; it is written as it
+//! is, UTF-8 or not (json.md, 4).
 //!
 //! The document is compact, including borrowed `json_text` values. A string escapes `"`, `\`
 //! and the control characters, the common ones in their short forms and the
@@ -209,16 +213,18 @@ impl Encoder {
         if !self.before_value() {
             return;
         }
-        let mut length = 2_u64;
-        for part in parts {
-            let Some(escaped) = escaped_len(part) else {
-                self.refuse(Refusal::Text);
-                return;
-            };
-            length = length.saturating_add(escaped.saturating_sub(2));
-        }
         match &mut self.sink {
-            Sink::Measuring { len, .. } => *len = len.saturating_add(length),
+            Sink::Measuring { len, .. } => {
+                let mut length = 2_u64;
+                for part in parts {
+                    let Some(escaped) = escaped_len(part) else {
+                        self.refuse(Refusal::Text);
+                        return;
+                    };
+                    length = length.saturating_add(escaped.saturating_sub(2));
+                }
+                *len = len.saturating_add(length);
+            }
             Sink::Refused(_) => {}
             Sink::Writing(writer) => {
                 put(writer, b"\"");
@@ -510,14 +516,13 @@ impl Encoder {
         }
     }
 
-    /// A string or a key, quoted and escaped, or refused if not UTF-8.
+    /// A string or a key, quoted and escaped; measuring refuses non-UTF-8.
     fn put_string(&mut self, text: &[u8]) {
-        let Some(escaped) = escaped_len(text) else {
-            self.refuse(Refusal::Text);
-            return;
-        };
         match &mut self.sink {
-            Sink::Measuring { len, .. } => *len = len.saturating_add(escaped),
+            Sink::Measuring { len, .. } => match escaped_len(text) {
+                Some(escaped) => *len = len.saturating_add(escaped),
+                None => self.refuse(Refusal::Text),
+            },
             Sink::Refused(_) => {}
             Sink::Writing(writer) => write_escaped(writer, text),
         }
@@ -554,7 +559,18 @@ fn escaped_len(text: &[u8]) -> Option<u64> {
     let mut utf8 = Utf8::Between;
     // The quotes.
     let mut len: u64 = 2;
-    for &byte in text {
+    let mut rest = text;
+    loop {
+        match utf8 {
+            Utf8::Between => {
+                let after = string::after_plain(rest);
+                let run = rest.len().checked_sub(after.len()).expect("a suffix of the text");
+                len = len.saturating_add(len_u64(run));
+                rest = after;
+            }
+            Utf8::Within { .. } => {}
+        }
+        let [byte, ref after @ ..] = *rest else { break };
         utf8 = utf8.next(byte)?;
         let width: u64 = match escaped(byte) {
             Escaped::Plain => 1,
@@ -562,6 +578,7 @@ fn escaped_len(text: &[u8]) -> Option<u64> {
             Escaped::Unicode => 6,
         };
         len = len.saturating_add(width);
+        rest = after;
     }
     match utf8 {
         Utf8::Between => Some(len),
@@ -576,25 +593,37 @@ fn write_escaped(writer: &mut Writer, text: &[u8]) {
     put(writer, b"\"");
 }
 
+/// What follows the bytes at the head of `text` written as they are: all but
+/// the escaped, non-ASCII included, since the writing pass keeps no state of UTF-8.
+fn after_unescaped(text: &[u8]) -> &[u8] {
+    let mut rest = text;
+    while let [byte, ref after @ ..] = *rest {
+        match byte {
+            0x20..=0x21 | 0x23..=0x5B | 0x5D..=0xFF => rest = after,
+            0x00..=0x1F | b'"' | b'\\' => break,
+        }
+    }
+    rest
+}
+
 fn write_escaped_content(writer: &mut Writer, text: &[u8]) {
-    // Where the run of bytes written as they are begins.
-    let mut run = 0;
-    for (at, &byte) in text.iter().enumerate() {
+    let mut rest = text;
+    loop {
+        let after = after_unescaped(rest);
+        let run = rest.len().checked_sub(after.len()).expect("a suffix of the text");
+        if run != 0 {
+            put(writer, rest.get(..run).expect("the run precedes the suffix"));
+        }
+        let [byte, ref rest_after @ ..] = *after else { break };
         let spelled: &[u8] = match escaped(byte) {
-            Escaped::Plain => continue,
+            Escaped::Plain => unreachable!("a run ends at a byte to escape"),
             Escaped::Short(letter) => &[b'\\', letter],
             Escaped::Unicode => {
                 &[b'\\', b'u', b'0', b'0', bytes::hex_digit(byte.wrapping_shr(4)), bytes::hex_digit(byte & 0x0F)]
             }
         };
-        if run != at {
-            put(writer, text.get(run..at).expect("the run ends at this byte"));
-        }
         put(writer, spelled);
-        run = at.checked_add(1).expect("within the text");
-    }
-    if run != text.len() {
-        put(writer, text.get(run..).expect("the run is within the text"));
+        rest = rest_after;
     }
 }
 

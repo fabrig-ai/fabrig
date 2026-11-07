@@ -102,11 +102,17 @@ impl Store {
     /// decoded output and transient pages overlap in memory; `rows` is untouched.
     pub fn readback(&mut self) -> BTreeMap<root::Key, root::Record> {
         let inventory = self.retained();
+        self.readback_of(&inventory)
+    }
+
+    /// Read back an inventory `retained` just returned, with nothing changed between.
+    pub fn readback_of(&mut self, inventory: &BTreeMap<Box<[u8]>, Box<[u8]>>) -> BTreeMap<root::Key, root::Record> {
+        self.readback_boundary();
         let mut found = BTreeMap::new();
         let mut transcripts = BTreeMap::new();
         let mut attempts = Vec::new();
         let installation = keys::installation(self.component_limits.store.key).expect("installation key");
-        for (key, value) in &inventory {
+        for (key, value) in inventory {
             if let Some(key) = keys::decode(key) {
                 let Event::Got { owner: READER, row: Some(protocol::Row::Jig(row)) } =
                     self.readback_query(Request::Get { owner: READER, key: Get::Jig(key.clone()) })

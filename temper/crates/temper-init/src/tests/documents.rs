@@ -40,10 +40,18 @@ fn the_box_has_room_for_reference_creating_executors() {
 }
 
 #[test]
-fn the_box_keeps_eight_streams_and_four_calls_beside_them() {
-    for source in [fixtures::OWNED, template::TEMPER] {
+fn the_box_runs_four_agents_and_keeps_eight_streams_and_four_calls_beside_them() {
+    for source in [fixtures::OWNED, template::TEMPER, template::BARE] {
         let value = parse(source);
         let limits = &value["engine"]["limits"]["overrides"];
+        assert_eq!(value["workers"][0]["slots"], 4_u32, "workers[0].slots");
+        for name in ["checkout.workspaces", "git_component.operations"] {
+            assert_eq!(value["application"]["limits"]["overrides"][name], 4_u32, "{name}");
+        }
+        for name in ["fleet.slots", "hub.slots"] {
+            assert!(limits.get(name).is_none(), "engine overrides {name}");
+        }
+        assert!(value["workers"][0]["limits"]["overrides"].get("hub.slots").is_none(), "worker overrides hub.slots");
         for name in ["clients.streams", "clients_http.streams"] {
             assert_eq!(limits[name], 8_u32, "{name}");
         }

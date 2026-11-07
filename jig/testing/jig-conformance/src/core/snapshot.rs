@@ -10,9 +10,11 @@ use std::collections::BTreeMap;
 #[expect(clippy::too_many_lines, reason = "one outside translation covers the durable row vocabulary")]
 pub fn snapshot(records: &BTreeMap<core::Key, &core::Record>) -> r::Snapshot {
     let mut snapshot = r::Snapshot::default();
-    for (key, row) in records {
-        if let Some(name) = super::naming::naming(key, row) {
-            if let core::Record::Accounts(jig_domain_accounts::Stored::Account { uses: Some(uses), .. }) = row {
+    let mut decisions = Vec::new();
+    let mut authority_acceptances = Vec::new();
+    for (key, &record) in records {
+        if let Some(name) = super::naming::naming(key, record) {
+            if let core::Record::Accounts(jig_domain_accounts::Stored::Account { uses: Some(uses), .. }) = record {
                 for payer in uses {
                     if let jig_domain_accounts::Use::Project(project) = payer {
                         snapshot.naming.push(r::Naming { project: Some(*project), ..name.clone() });
@@ -22,13 +24,9 @@ pub fn snapshot(records: &BTreeMap<core::Key, &core::Record>) -> r::Snapshot {
                 snapshot.naming.push(name);
             }
         }
-        if let core::Record::People(people::Stored::Deletion { project, .. }) = row {
+        if let core::Record::People(people::Stored::Deletion { project, .. }) = record {
             snapshot.deleting.insert(*project);
         }
-    }
-    let mut decisions = Vec::new();
-    let mut authority_acceptances = Vec::new();
-    for record in records.values().copied() {
         match record {
             core::Record::Core(core::CoreRecord::Settings(core::settings::Record::Revision {
                 history: false,
