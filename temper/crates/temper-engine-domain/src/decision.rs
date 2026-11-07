@@ -719,6 +719,7 @@ fn fleet_delivery_within(event: &jig_domain_fleet::Event) -> bool {
         | Event::Relay { .. }
         | Event::Adopt { .. }
         | Event::Cross { .. }
+        | Event::Interrupt { .. }
         | Event::Loaded
         | Event::Grant { .. }
         | Event::Unauthorized { .. }
