@@ -8,7 +8,7 @@ use skein_lib::List;
 use smith_domain_run as run;
 
 use crate::boundary::{self, Charter};
-use crate::{CHANGE_BODY_MAX, CONTRACT_CHECKS_MUST_PASS, CONTRACT_TEXT_MAX};
+use crate::{CONTRACT_CHECKS_MUST_PASS, CONTRACT_TEXT_MAX};
 
 fn count(len: usize) -> Option<u32> {
     u32::try_from(len).ok()
@@ -123,7 +123,10 @@ pub fn charter(charter: Charter) -> Option<run::Charter> {
                         checks_must_pass: CONTRACT_CHECKS_MUST_PASS,
                         fields: Box::new([
                             run::outcome::FieldRule { name: Box::from(b"title".as_slice()), max: CONTRACT_TEXT_MAX },
-                            run::outcome::FieldRule { name: Box::from(b"body".as_slice()), max: CHANGE_BODY_MAX },
+                            run::outcome::FieldRule {
+                                name: Box::from(b"body".as_slice()),
+                                max: charter.words.max(CONTRACT_TEXT_MAX),
+                            },
                         ]),
                     })
                 } else {

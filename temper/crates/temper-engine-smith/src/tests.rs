@@ -1598,6 +1598,21 @@ fn dependency_refusals_without_tasks_are_plain_lines() {
 
 #[test]
 fn change_decodes_words_and_an_optional_repository() {
+    // Measured CPU: 0.006 s, including the reference input and the vocabulary overflow.
+    let room = crate::json::parse(include_bytes!("../../../docs/examples/reference/room.json")).unwrap();
+    let payload = usize::try_from(
+        room.required(b"agent").unwrap().required(b"tool_payload").unwrap().number(b"tool_payload").unwrap(),
+    )
+    .unwrap();
+    let words = "s".repeat(payload - br#"{"words":""}"#.len());
+    let input = format!(r#"{{"words":"{words}"}}"#);
+    assert_eq!(input.len(), payload);
+    let engine::Tool::Change { changes } = decided(b"change", input.as_bytes()).expect("reference spec").tool else {
+        panic!("change")
+    };
+    assert_eq!(changes.as_ref(), &[engine::ChangeCall::words(words.into_bytes().into(), None)]);
+    let too_large = format!(r#"{{"words":"{}"}}"#, "s".repeat(run::HostInput::CAPACITY + 1 - br#"{"words":""}"#.len()));
+    assert_eq!(crate::json::parse(too_large.as_bytes()).err(), Some(Problem::TooLarge));
     for input in [br#"{"words":"edit README"}"#.as_slice(), br#"{"words":"edit README","repository":"work/hello"}"#] {
         let call = decided(b"change", input).expect("change is declared and decoded");
         assert_eq!(call.completion, 2);

@@ -140,7 +140,9 @@ fn standard_holds_fabrig_scale() {
     assert_eq!(limits.core.authority.grants, 16);
     assert_eq!(limits.core.authority.executors, 16);
     assert_eq!(limits.core.authority.segments, 8);
-    assert_eq!(limits.core.authority.batch, 4);
+    assert_eq!(limits.core.authority.batch, 32);
+    assert_eq!(limits.hub.charter_bytes, 262_144);
+    assert_eq!(limits.hub.outcome_bytes, 131_072);
     assert_eq!(limits.core.notes.scopes, 19);
     assert_eq!(limits.core.documents.lines, 16);
     assert_eq!(limits.core.documents.segments, profile::name_segments(&tasks, &limits.core.authority));

@@ -1,7 +1,7 @@
 //! The core's promises checked from durable rows and independent neighbours.
-//! This module names no domain types. A root adapter supplies snapshots of the
-//! store, and fakes supply arrivals, reads and expenses. Scenario policy is
-//! captured before constructing the root; it is never inferred from its live
+//! A root adapter supplies snapshots of the store, and fakes supply arrivals,
+//! reads and expenses. Scenario policy is captured before constructing the
+//! root; it is never inferred from its live
 //! state (`domain/core.md`, 11; `domain/testing.md`, 6).
 mod application;
 mod compound;
@@ -321,11 +321,30 @@ pub struct Snapshot {
     pub naming: Vec<Naming>,
 }
 
+/// What names a durable row in a violation's words: kept typed, and
+/// printed only when a failure prints it.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Row {
+    /// A core row, by its key.
+    Core(jig_domain_core::Key),
+    /// An application's row, in the words its adapter gives.
+    Application(String),
+}
+
+impl std::fmt::Display for Row {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Core(key) => write!(f, "{key:?}"),
+            Self::Application(words) => f.write_str(words),
+        }
+    }
+}
+
 /// One durable row's names (jig/docs/design/domain/people.md, 5.2).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Naming {
-    /// The row's key, printed, for the violation's words.
-    pub row: String,
+    /// The row, for the violation's words.
+    pub row: Row,
     pub project: Option<u32>,
     pub task: Option<u64>,
     /// What the draft keeps of a deleted project, if this row is that.

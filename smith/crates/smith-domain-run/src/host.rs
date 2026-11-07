@@ -51,8 +51,8 @@ pub struct HostInput {
 }
 
 impl HostInput {
-    /// Absolute vocabulary cap; receiving limits may be smaller.
-    pub const CAPACITY: usize = 65_536;
+    /// Vocabulary cap matching channel `host_ask_input` and transcript `call_input` ceilings; receiving limits may be smaller.
+    pub const CAPACITY: usize = 1_048_576;
 
     /// Called by the protocol only after complete JSON parsing established one
     /// UTF-8 object. Refuses oversized or non-object-exterior values. Passing

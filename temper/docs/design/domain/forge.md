@@ -1534,7 +1534,10 @@ branch:
   opening, its head the branch's tip as read then. Its pull request is
   the branch's into its landing branch, its title its words' first line
   (bytes parameter 10, fitted as a handed branch's title is; an empty
-  first line takes that path's default), its body its words.
+  first line takes that path's default), its body its words. Every pull
+  request's body holds at most 65,536 bytes of them, whatever
+  `forge.client.op_bytes` allows, since a forge refuses more: one past it
+  is cut and says that the change's full words are on its task in temper.
 - **Held by its requester, not by the change.** The change takes no
   hold of the branch and hands none: its requester holds it for its own
   life (11.1). The change writes it only through its own delegates (its

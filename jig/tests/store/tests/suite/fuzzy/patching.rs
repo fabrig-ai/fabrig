@@ -7,7 +7,7 @@ use jig_store_world::{
 use skein_lib::{Rng, length::len_u64};
 
 // 64 seeds match this world's crash sweep: varied small records and one
-// drawn mutation per seed, beside the focused exhaustive mutation sweep.
+// drawn mutation per seed, beside the exhaustive mutation sweep below.
 const SEEDS: std::ops::Range<u64> = 0..64;
 // Add the marked smith set to the existing sweep, with no serving frame
 // machine: this leg tests proof closure; fuzzy_frames covers frame patching.
@@ -183,4 +183,17 @@ fn seeded_patch_cuts_keep_one_whole_modeled_generation() {
     eprintln!(
         "seeds {SEEDS:?}: {success} patched, {empty} refused, {cuts_reached} cuts reached; {windows} windows, {absent} absent"
     );
+}
+
+#[test]
+fn every_patch_write_cut_recovers_all_records_and_no_stray() {
+    let mut completed = Records::story().committed(908, BASE);
+    completed.patch_sets(SETS);
+    completed.trace_writes();
+    assert!(completed.open_switched().is_some());
+    let cuts = patches::cuts(&completed);
+    eprintln!("patch-phase disk-changing cuts: {}", cuts.len());
+    for cut in cuts {
+        crate::patching::a_patch_cut_recovers(cut);
+    }
 }
