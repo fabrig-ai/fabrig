@@ -8,9 +8,13 @@ How an agent's run works: the instructions its agent reads, the models it may us
 
 A charter is a setting, `charter N`, numbered from 1. An agent task runs
 under one charter, which its template or its creator names. Each run of
-the task reads its charter, whole:
+the task reads its charter's shared instructions whole, then each part
+whose `on` meets why it runs. A charter holds:
 
 - its instructions, which the run's agent reads before its task's brief;
+- its `parts`: instructions for some reasons a run runs, each with its
+  `on`: `first`, the task's first activation, or the kinds of message
+  that woke it; a charter whose runs resume takes no parts;
 - its `documents`: files from an adopted repository, read as brief sections
   of their own;
 - its models: `model`, the default, then `alternatives`, in order;

@@ -137,7 +137,7 @@ fn named_value_text(setting: c::Setting, value: &c::SettingValue, limits: &Limit
     encode_named_value(setting, value, &mut write);
     out.put(&write.finish());
     out.put(b"\n");
-    template_resources_text(value, out);
+    value_details_text(value, out);
 }
 pub fn encode_value(value: &c::SettingValue, out: &mut Encoder) {
     match value {
@@ -166,15 +166,50 @@ pub fn value_inline(value: &c::SettingValue, limits: &Limits, out: &mut Text) {
     encode_value(value, &mut write);
     out.put(&write.finish());
 }
-fn template_resources_text(value: &c::SettingValue, out: &mut Text) {
-    if let c::SettingValue::Template(template) = value {
-        for resource in &template.resources {
-            out.put(b"connector ");
-            out.number(u64::from(resource.connector));
-            out.put(b" symbol ");
-            out.number(u64::from(resource.symbol));
-            out.put(b"\n");
+/// Text details after a setting's JSON (temper/docs/design/client/tools.md, 5.3).
+fn value_details_text(value: &c::SettingValue, out: &mut Text) {
+    match value {
+        c::SettingValue::Charter(charter) => {
+            for (index, part) in charter.parts.iter().enumerate() {
+                out.put(b"parts[");
+                out.number(u64::try_from(index).expect("part index fits"));
+                out.put(b"]: on");
+                for (index, name) in c::REASON_NAMES.iter().enumerate() {
+                    let bit = 1_u32.checked_shl(u32::try_from(index).expect("reason index")).expect("reason bit");
+                    if part.on & bit != 0 {
+                        out.put(b" ");
+                        out.put(name);
+                    }
+                }
+                out.put(b"; ");
+                out.number(u64::try_from(part.instructions.bytes().len()).expect("instruction bytes fit"));
+                out.put(b" bytes\n");
+            }
         }
+        c::SettingValue::Template(template) => {
+            if let Some(choice) = &template.llm
+                && let Some(later) = &choice.later
+            {
+                out.put(b"later: ");
+                out.put(later.main.model.bytes());
+                if let Some(effort) = &later.main.effort {
+                    out.put(b" ");
+                    out.put(effort.bytes());
+                }
+                out.put(b"\n");
+            }
+            for resource in &template.resources {
+                out.put(b"connector ");
+                out.number(u64::from(resource.connector));
+                out.put(b" symbol ");
+                out.number(u64::from(resource.symbol));
+                out.put(b"\n");
+            }
+        }
+        c::SettingValue::Model(_)
+        | c::SettingValue::Policy(_)
+        | c::SettingValue::Application(_)
+        | c::SettingValue::Rules(_) => {}
     }
 }
 pub fn proposal_text(proposal: c::ProposalKey, out: &mut Text) {
