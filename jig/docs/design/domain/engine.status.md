@@ -1,10 +1,16 @@
 # engine: status
 
-2026-11-06. Where jig's code lags or departs from [engine.md](engine.md).
+2026-11-07. Where jig's code lags or departs from [engine.md](engine.md).
 Unlisted provisions have no known gap, including the saved-window load
 and unread-tail retry guard in 7.1 and 7.2, and the prospective templates
 query for settings judges in 17.5, and the bounded document refusal
-facts carried through proposal answers in 17.9.
+facts carried through proposal answers in 17.9. Section 17.6's atomic
+replacement of a run's own pending settings proposal has no known gap.
+At `settings.proposals`, replacement is refused with the old set retained;
+counting that set as room is deferred in section 16.
+Section 11.1's account-driven marks preserve time-expiring offers: a
+not-due account timer skips account work and leaves its alarm scheduled;
+a due expiry marks and delivers the changed offer.
 
 - **Not yet:** 17.1, 17.7, 17.8, 17.11: models are the document's, read once at the start
   into `Settings.models`, which the clients' component, the store, the fleet and the accounts

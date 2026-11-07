@@ -1,6 +1,6 @@
 # hosts: status
 
-2026-11-06. Where jig's code lags or departs from [hosts.md](hosts.md).
+2026-11-07. Where jig's code lags or departs from [hosts.md](hosts.md).
 
 - **Not yet:** the agent's bounds name each model it declares, not each endpoint it serves.
 
@@ -13,6 +13,12 @@ the contract keeps the task's smaller words bound, and other texts keep
 their 1,024-byte maximum. The boundary encoding test holds a change at
 the body's maximum and the agent's 4,096-byte ownership limit through
 the hub codec without losing fields. Larger reports remain in section 12.
+Section 8's independent delivery grant for a Finite report is present:
+the policy's `modify` and the root's workspace delivery fact are both
+required, and delivery leaves the report and failure forms unchanged.
+The charter tests cover the grant's combinations, bounds and encoding;
+Open and verdict runs still receive no delivery grant. The shell
+departure below remains.
 
 - **Not yet:** 3, 5.2, 6.5, 11: `smith-inline-agent` as a hub's agent
   capability. 4: an admitted run's answers passing a held assignment.

@@ -31,11 +31,13 @@ still open is listed in section 10.
 - **The engine keeps what smith leaves to hosts:** transcripts, turn by
   turn, in its store; host tools' calls, decided once; what follows an
   answer (jig's `domain/engine.md`, section 7).
-- **One translation, temper's own.** `temper-engine-smith`, which the
+- **One translation.** `temper-engine-smith`, which the
   engine's routing calls, is the only place where temper's charter,
-  tools and results become smith's, and smith's back. temper uses
-  neither `jig-protocol-charter` nor `jig-protocol-tools`, since its root
-  has a `Tool` vocabulary of its own (`../protocol/llm.md`, sections 4
+  tools and results become smith's, and smith's back. It uses
+  `jig-protocol-charter` to assemble and translate the charter, supplying
+  temper's host tools, workspace delivery fact and conventions (section 4;
+  jig's `domain/hosts.md`, section 8). Its `Tool` vocabulary is its own,
+  rather than `jig-protocol-tools`' (`../protocol/llm.md`, sections 4
   and 5). smith interprets no temper vocabulary, and the worker none of
   either.
 
@@ -1337,6 +1339,21 @@ host:
 
 ## 10. Open questions
 
+- **A real model revising a proposal** (8.1; the request `ui-proposal-2`
+  of 2026-11-06): after landing, check that a request from "Change
+  something" leads to a fresh proposal without a trip to Needs you, and
+  that a request for a model no account runs leads to browser Settings,
+  Accounts. Default: the stock instructions and scripted stories; the
+  real-model observation follows landing.
+
+- **A goal as the designer** (4.3 and 4.3.1;
+  `../draft/goal-as-designer.md`, sections 3, 5, 6, 7 and 9): the delivery
+  path is independent of the stock and reference instructions, their
+  wakes and their location. Those words and settings are folded into the
+  reference workflow together; the room for whole specs, batches, briefs
+  and reports is a separate change. Default: the existing stock and
+  reference words and bounds; test charters exercise goal delivery.
+
 - **Constraining models in settings reads and proposals** (8.1): whole
   charter values can name models outside the current offer. Restricting what
   a read exposes while still round-tripping that value, or rejecting a new
@@ -1394,12 +1411,6 @@ host:
   for your setup": `../draft/configuring.md`, section 6). Default: a
   person starts it (8.1); a landed document reaches the next runs of the
   charters that name it (`../protocol/configuration.md`, 13.7).
-- **A settings value past one call** (8.1): `propose_settings` carries each
-  item's value in its call, so a value past what one call holds
-  (`../protocol/configuration.md`, 13.8), as a 23 KB one is, can't be proposed,
-  though a note now holds it, built by line ranges (jig's `domain/engine.md`,
-  section 10). Naming a note there is left to a plan of its own (the request
-  `note-parts` of 2026-11-05). Default: a value fits one call.
 - **Who may name a plan's members of `change`:** the control family
   says it (4.3.1), since a plan's maker amends, cancels and releases what
   it makes. A family of its own would let a policy grant control without
