@@ -646,6 +646,8 @@ fn a_settings_proposal_draws_its_title_lines_and_items() {
                 .unwrap()
                 .0;
             assert!(tree.nodes()[at].styles.as_slice().contains(&crate::look::SETTINGS_PROPOSAL_ITEMS));
+            assert!(tree.nodes().iter().any(|node| node.styles.as_slice().contains(&crate::look::SETTINGS_DETAIL)
+                && node.text.iter().any(|run| run.text.as_ref() == sentence)));
             assert!(tree.nodes()[..at].iter().any(|node| node.role == Role::List
                 && node.styles.as_slice().contains(&crate::look::SETTINGS_PROPOSAL_ITEMS)));
         }

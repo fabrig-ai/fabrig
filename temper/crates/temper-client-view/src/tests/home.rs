@@ -1479,10 +1479,17 @@ fn first_need_keeps_card_order_navigation_and_terminal_words() {
     clippy::disallowed_methods,
     reason = "test fixtures and assertions inspect semantic nodes and public event deliveries"
 )]
-fn unread_need_has_only_meta_and_unknown_headline() {
+fn unread_need_waits_in_browser_and_keeps_terminal_meta_and_unknown_headline() {
     let root = everyday(false, &QUESTIONS[..1], false, false);
-    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+    for (mut view, browser) in [(f::page_view(&root), false), (f::browser_page_view(&root), true)] {
         main_find(view.tree(), Role::Heading { level: 1 }, b"Shop");
+        if browser {
+            assert!(!main_nodes(view.tree()).iter().any(|node| node.styles.as_slice().contains(&crate::look::ASK)));
+            assert!(
+                !main_nodes(view.tree()).iter().any(|node| node.styles.as_slice().contains(&crate::look::HOME_CTA))
+            );
+            continue;
+        }
         let card = children(subtree(view.tree(), styled(view.tree(), crate::look::ASK).id));
         assert_eq!(card.len(), 1);
         assert_eq!(card[0].styles.as_slice(), &[crate::look::ASK_META]);

@@ -758,7 +758,10 @@ pub(crate) fn owned_approval(b: &mut Builder, root: &temper_client_domain::Domai
     if root.forge().owned_approval(number) {
         b.open(Role::Paragraph);
         b.style(crate::look::SETTINGS_PROPOSAL_ITEMS);
-        words.text(b, Word::ProposalOwnedApproval, &[]);
+        b.open(Role::Text);
+        b.style(crate::look::SETTINGS_DETAIL);
+        b.run(skein_ui::Run::Plain, &words.say(Word::ProposalOwnedApproval, &[]));
+        b.close();
         b.close();
     }
 }
