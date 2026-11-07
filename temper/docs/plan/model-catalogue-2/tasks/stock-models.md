@@ -70,3 +70,23 @@ Each new test breaks its rule once by hand. `cargo fmt`; each tree's `old_forms.
 ## Report
 
 Every pin that moved, old and new, and why it was this change. Which focused fixtures took `Given::Own`. What the fake boxes' programs now run. Anything a process story will read differently, for `process-fixtures`.
+
+## Rebase (2026-11-07, step merge, foreman model-catalogue-2/stock-models/foreman-1)
+
+combine main’s fixture optimizations with stock-models’ model-free documents and typed catalogue fixtures
+The merge conflicts in `temper/crates/temper-service/src/tests/fixtures.rs` and `temper/crates/temper-service/src/tests/stock.rs`.
+The overlapping main change is `43877e1ec47bd2a95f4323ba9ffcf4940a34065f` (“Reuse completed service fixtures and checked settings”).
+
+In `fixtures.rs`, retain both `Json` from main and `start` from this branch in the `startup` re-exports.
+Keep main’s `OnceLock` engine cache, completed-store reuse, supplied-store helpers and fixture checks.
+Keep this branch’s model-free `ENGINE`, `small_model()` and `parse_engine()` path through `checked_with` for the fake fixture.
+
+In `stock.rs`, resolve `single_model()` using main’s `fixtures::Json` helper.
+Read the first provider and endpoint from one parsed document, wrap each in an array, and replace providers, endpoints and `application.demo` together.
+Remove main’s reads and edits of provider `models[0]` and `engine.llm.models[3]`: those members no longer exist.
+Retain this branch’s `single_engine()`, which selects `gpt-6.1-sol` through `checked_with` and `config::pass`.
+Keep main’s batched `without_projects()` edits and this branch’s catalogue tests and typed-model callers.
+
+Preserve the automatically merged `fixtures/startup.rs` changes from both sides, including `Json`, `start()` and the branch’s agent bounds.
+This follows `contracts.md`, sections 6–7: documents carry provider endpoints; singleton catalogues enter as typed defaults.
+Run the focused service fixture checks and stock tests through heavy, then the required focused/fuzzy checks; preserve the pinned budgets and first-model expectations.
