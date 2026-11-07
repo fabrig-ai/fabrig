@@ -7,7 +7,7 @@ use jig_domain_tasks::ModelEffort;
 #[must_use]
 pub fn model_bit(name: &[u8], names: &[ModelName]) -> u64 {
     for (at, today) in names.iter().enumerate() {
-        if today.name.as_ref() == name {
+        if !name.is_empty() && today.name.as_ref() == name {
             return 1_u64.checked_shl(u32::try_from(at).expect("configured model index")).unwrap_or(0);
         }
     }
