@@ -1191,7 +1191,8 @@ impl World {
                     host::LinkUp::Turn { .. } => self.observed.turns += 1,
                     host::LinkUp::Piece { .. } => self.observed.pieces += 1,
                     host::LinkUp::Call { .. } => self.observed.relays += 1,
-                    host::LinkUp::Logins { .. }
+                    host::LinkUp::ListRead { .. }
+                    | host::LinkUp::Logins { .. }
                     | host::LinkUp::SignedOut { .. }
                     | host::LinkUp::Activity { .. }
                     | host::LinkUp::Unauthorized { .. }

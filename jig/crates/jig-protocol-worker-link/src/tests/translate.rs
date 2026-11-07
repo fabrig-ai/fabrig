@@ -25,18 +25,46 @@ fn body(frame: &skein_channel::Frame) -> Reader<'_> {
     Reader::new(frame.bytes().get(8..).expect("body after header"))
 }
 fn granted(value: wire::GrantValue) -> (Grant, crate::GrantValue) {
-    let record = wire::Granted::new(
-        &fixtures::codec(),
-        wire::GrantedParts { task: 7, attempt: 2, grant: fixtures::grant_record(value) },
-    )
-    .expect("grant");
-    let bytes = fixtures::granted_bytes(&record);
-    let (link, _, mut values) = translated(0x0187, &bytes, &fixtures::codec());
-    let host::LinkDown::Grant { run, attempt, grant } = link else { panic!("grant: {link:?}") };
-    assert_eq!((run, attempt, grant.account, grant.generation), (Token::new(7), Token::new(2), 1, 3));
+    granted_at(value, false)
+}
+fn granted_at(value: wire::GrantValue, read: bool) -> (Grant, crate::GrantValue) {
+    let grant = fixtures::grant_record(value);
+    let (kind, bytes) = if read {
+        let record =
+            wire::ReadList::new(&fixtures::codec(), wire::ReadListParts { read: 7, endpoint: 3, grant }).expect("read");
+        let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure()).expect("read size"));
+        record.encode(&mut bytes).expect("encode read");
+        (wire::Kind::ReadList, bytes.finish())
+    } else {
+        (
+            wire::Kind::Grant,
+            fixtures::granted_bytes(
+                &wire::Granted::new(&fixtures::codec(), wire::GrantedParts { task: 7, attempt: 2, grant })
+                    .expect("grant"),
+            ),
+        )
+    };
+    let (link, parts, mut values) = translated(kind.number(), &bytes, &fixtures::codec());
+    let hub = alloc::fmt::format(format_args!("{link:?}{parts:?}"));
+    assert!(
+        !hub.contains(&alloc::fmt::format(format_args!("{:?}", fixtures::TOKEN_ONE))),
+        "the hub never hears secret bytes"
+    );
+    assert!(parts.is_empty());
+    let grant = if read {
+        let host::LinkDown::ReadList { read, endpoint, grant } = link else { panic!("read list") };
+        assert_eq!((read, endpoint), (7, 3));
+        grant
+    } else {
+        let host::LinkDown::Grant { run, attempt, grant } = link else { panic!("grant") };
+        assert_eq!((run, attempt), (Token::new(7), Token::new(2)));
+        grant
+    };
+    assert_eq!((grant.account, grant.generation), (1, 3));
     let Request::Value { account, generation, value, expires } = values.pop().expect("one value") else {
         panic!("value")
     };
+    assert!(values.is_empty());
     assert_eq!((account, generation), (1, 3));
     assert_eq!(expires, Time::ZERO.saturating_add(skein_lib::Duration::from_secs(60)));
     (grant, value)
@@ -47,10 +75,12 @@ fn a_granted_credential_hands_its_scheme_and_token_out_and_the_hub_hears_the_acc
         (wire::Scheme::Bearer, crate::Scheme::Bearer, Scheme::Bearer),
         (wire::Scheme::Key, crate::Scheme::Key, Scheme::Key),
     ] {
-        let (grant, value) = granted(fixtures::credential_value(scheme));
-        assert_eq!(grant.form, Form::Credential(form));
-        let crate::GrantValue::Credential { scheme, token } = value else { panic!("credential: {value:?}") };
-        assert_eq!((scheme, token.expose()), (expected, fixtures::TOKEN_ONE));
+        for read in [false, true] {
+            let (grant, value) = granted_at(fixtures::credential_value(scheme.clone()), read);
+            assert_eq!(grant.form, Form::Credential(form));
+            let crate::GrantValue::Credential { scheme, token } = value else { panic!("credential: {value:?}") };
+            assert_eq!((scheme, token.expose()), (expected, fixtures::TOKEN_ONE));
+        }
     }
 }
 #[test]
@@ -465,5 +495,41 @@ fn every_piece_kind_encodes_whole_including_offsets_past_u32() {
             }
             other => panic!("kind changed: {other:?}"),
         }
+    }
+}
+
+#[test]
+fn list_answers_encode_rows_and_every_typed_failure() {
+    use jig_domain_link::{ListFailure, ListOutcome, ListedModel};
+    for (outcome, body) in [
+        (ListOutcome::Listed(Box::new([])), [0, 0, 0, 0, 0].as_slice()),
+        (
+            ListOutcome::Listed(Box::new([ListedModel {
+                name: b"m".as_slice().into(),
+                shown: Some(b"M".as_slice().into()),
+                window: Some(10),
+                output: Some(5),
+                efforts: Box::new([b"low".as_slice().into()]),
+            }])),
+            [
+                0, 0, 0, 0, 1, 0, 0, 0, 1, b'm', 1, 0, 0, 0, 1, b'M', 1, 0, 0, 0, 10, 1, 0, 0, 0, 5, 0, 0, 0, 1, 0, 0,
+                0, 3, b'l', b'o', b'w',
+            ]
+            .as_slice(),
+        ),
+        (ListOutcome::Failed(ListFailure::Refused { status: 429 }), [1, 0, 1, 173].as_slice()),
+        (ListOutcome::Failed(ListFailure::Unreachable), [1, 1].as_slice()),
+        (ListOutcome::Failed(ListFailure::Unreadable), [1, 2].as_slice()),
+        (ListOutcome::Failed(ListFailure::Deadline), [1, 3].as_slice()),
+        (ListOutcome::Failed(ListFailure::Agent), [1, 4].as_slice()),
+    ] {
+        let frame =
+            translate::up(host::LinkUp::ListRead { read: 7, outcome }, &[], &fixtures::codec()).expect("list answer");
+        let mut bytes = skein_lib::Writer::new(8 + body.len());
+        bytes.put(&7_u64.to_be_bytes()).expect("read number");
+        bytes.put(body).expect("list outcome");
+        let bytes = bytes.finish();
+        assert_eq!(frame.kind(), 0x010a);
+        assert_eq!(frame.bytes().get(8..).expect("body"), bytes.as_ref());
     }
 }

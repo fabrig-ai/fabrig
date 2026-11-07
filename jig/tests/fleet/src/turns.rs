@@ -266,7 +266,9 @@ impl World {
                     self.channel = None;
                     self.see(Seen::Refused);
                 }
-                Request::Assign { .. }
+                Request::ReadList { .. }
+                | Request::ListRead { .. }
+                | Request::Assign { .. }
                 | Request::Inbound { .. }
                 | Request::Relay { .. }
                 | Request::Relayed { .. }

@@ -209,7 +209,8 @@ impl World {
                 assert_eq!(input.as_ref(), b"{}");
                 assert!(self.call.replace(call).is_none());
             }
-            host::LinkUp::Logins { .. }
+            host::LinkUp::ListRead { .. }
+            | host::LinkUp::Logins { .. }
             | host::LinkUp::SignedOut { .. }
             | host::LinkUp::Piece { .. }
             | host::LinkUp::Turn { .. }

@@ -175,3 +175,13 @@ record Login { name: text 32 state: LoginState }
 record Logins { logins: list 65536 Login }
 enum SignOutResult { signed_out, failed: SourceFailed }
 record SignedOut { name: text 32 result: SignOutResult }
+
+# Account list reads (protocol/channel.md, 5.1, 5.2 and 8).
+record ReadList { read: u64 endpoint: u32 grant: Grant }
+record ListRow { name: bytes 128 shown: option bytes 64 window: option u32 output: option u32 efforts: list 8 bytes 16 }
+record ListRefused { status: u16 }
+enum ListFailed { refused: ListRefused, unreachable, unreadable, deadline, agent }
+record ListedRows { rows: list 256 ListRow }
+record ListFailureValue { value: ListFailed }
+enum ListOutcome { listed: ListedRows, failed: ListFailureValue }
+record ListRead { read: u64 outcome: ListOutcome }

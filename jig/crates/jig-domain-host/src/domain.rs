@@ -237,6 +237,7 @@ impl Hub {
 /// Handles one event and emits its requests.
 pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
+        Event::ListRead { .. } => {}
         Event::SourceAnswered { owner, answer } => {
             crate::sources::answered(&mut domain.sources, env, owner, answer, out);
         }
@@ -307,6 +308,10 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
         }
         Event::Saved { owner, at } => hosted::saved(domain, owner, at, out),
         Event::Down(down) => match down {
+            LinkDown::ReadList { read, .. } => out.push(Request::Up(LinkUp::ListRead {
+                read,
+                outcome: jig_domain_link::ListOutcome::Failed(jig_domain_link::ListFailure::Agent),
+            })),
             LinkDown::Sources { sources } => crate::sources::replace(&mut domain.sources, env, sources, out),
             LinkDown::Check { name } => crate::sources::check(&mut domain.sources, env, name, out),
             LinkDown::SignOut { name } => crate::sources::sign_out(&mut domain.sources, env, name, out),

@@ -9,6 +9,11 @@ pub const WORKER_A: &[u8] = b"worker-a";
 pub const WORKER_B: &[u8] = b"worker-b";
 
 pub const LIMITS: v9::Limits = v9::Limits {
+    list_row_name: v9::CEILINGS.list_row_name,
+    list_row_shown_some: v9::CEILINGS.list_row_shown_some,
+    list_row_efforts: v9::CEILINGS.list_row_efforts,
+    list_row_efforts_item: v9::CEILINGS.list_row_efforts_item,
+    listed_rows_rows: v9::CEILINGS.listed_rows_rows,
     input_call_id: 256,
     input_call_tool: 64,
     piece_bytes: 32,
@@ -511,4 +516,12 @@ pub fn fullest_assignment() -> crate::Assignment {
         },
     )
     .expect("full assignment")
+}
+
+pub fn repeated(byte: u8, length: u32) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(length).unwrap());
+    for _ in 0..length {
+        writer.put(&[byte]).unwrap();
+    }
+    writer.finish()
 }

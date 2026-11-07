@@ -236,6 +236,9 @@ pub(crate) fn agent_step(domain: &mut Domain, env: &Env<Limits>, event: agent::I
 /// One of the host's requests: to the engine, or to a capability.
 fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out: &mut Queue<Request>) {
     match request {
+        host::Request::ReadList { .. } | host::Request::CancelRead { .. } => {
+            unreachable!("the host answers list reads without a machine")
+        }
         host::Request::Source { owner, name, operation, deadline } => {
             out.push(Request::Source { owner, name, operation, deadline });
         }
@@ -261,6 +264,7 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
                             jobs::answered(domain, run, attempt, answer, out);
                         }
                         up @ (host::LinkUp::Piece { .. }
+                        | host::LinkUp::ListRead { .. }
                         | host::LinkUp::Logins { .. }
                         | host::LinkUp::SignedOut { .. }
                         | host::LinkUp::Activity { .. }

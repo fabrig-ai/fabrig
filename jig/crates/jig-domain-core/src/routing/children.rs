@@ -139,6 +139,10 @@ pub(crate) fn tag_fleet(
                 })));
                 continue;
             }
+            fleet::Request::ReadList { channel, read, endpoint, grant } => {
+                Request::Held(Box::new(Held::ReadList { channel, read, endpoint, grant }))
+            }
+            fleet::Request::ListRead { .. } => continue,
             fleet::Request::Sources { channel, sources } => Request::Held(Box::new(Held::Sources { channel, sources })),
             fleet::Request::Check { channel, name } => Request::Held(Box::new(Held::CheckSource { channel, name })),
             fleet::Request::SignOut { channel, name } => Request::Held(Box::new(Held::SignOutSource { channel, name })),
@@ -677,7 +681,9 @@ pub(crate) fn route_fleet(
         | fleet::Event::Hello { .. }
         | fleet::Event::Lost { .. }
         | fleet::Event::Answer { .. } => true,
-        fleet::Event::Inbound { .. }
+        fleet::Event::ReadList { .. }
+        | fleet::Event::ListRead { .. }
+        | fleet::Event::Inbound { .. }
         | fleet::Event::Relay { .. }
         | fleet::Event::Relayed { .. }
         | fleet::Event::Grant { .. }
@@ -756,7 +762,9 @@ fn host_shape(event: &fleet::Event) -> bool {
         | fleet::Event::Loaded
         | fleet::Event::Hello { .. }
         | fleet::Event::Lost { .. } => true,
-        fleet::Event::StartJob { .. }
+        fleet::Event::ReadList { .. }
+        | fleet::Event::ListRead { .. }
+        | fleet::Event::StartJob { .. }
         | fleet::Event::Start { .. }
         | fleet::Event::Adopt { .. }
         | fleet::Event::Cross { .. }

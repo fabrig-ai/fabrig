@@ -179,7 +179,7 @@ fn a_failed_answers_resource_precedes_its_left_and_saved_parts() {
 fn down(record: jig_domain_host::LinkDown) -> translate::Down {
     use jig_domain_host::LinkDown;
     let translated = match record {
-        LinkDown::Assign { .. } | LinkDown::Grant { .. } => {
+        LinkDown::ReadList { .. } | LinkDown::Assign { .. } | LinkDown::Grant { .. } => {
             translate::down(record, &fixtures::parts(), fixtures::values(), &codec())
         }
         LinkDown::Sources { .. }
@@ -289,10 +289,36 @@ fn each_credential_scheme_reaches_the_wire_with_its_token() {
         (Scheme::Bearer, crate::Scheme::Bearer, wire::Scheme::Bearer),
         (Scheme::Key, crate::Scheme::Key, wire::Scheme::Key),
     ] {
-        let grant = granted_value(granted(Form::Credential(form), fixtures::credential_value(scheme)));
-        let wire::GrantValue::Credential(value) = grant.value() else { panic!("credential value") };
-        assert_eq!(value.scheme(), &expected);
-        assert_eq!(value.bytes().expose(), fixtures::TOKEN_ONE);
+        for (read, kind) in [(false, wire::Kind::Grant), (true, wire::Kind::ReadList)] {
+            let metadata = fixtures::grant(Form::Credential(form));
+            let down = if read {
+                jig_domain_host::LinkDown::ReadList { read: 7, endpoint: 3, grant: metadata }
+            } else {
+                jig_domain_host::LinkDown::Grant { run: Token::new(7), attempt: Token::new(2), grant: metadata }
+            };
+            assert_eq!(crate::host::grants(&down), &[metadata]);
+            let frame = translate::down(down, &[], Box::new([Some(fixtures::credential_value(scheme))]), &codec())
+                .expect("credential record")
+                .frame();
+            assert_eq!(frame.kind(), kind.number());
+            let mut reader = skein_lib::Reader::new(frame.bytes().get(8..).expect("frame body"));
+            let grant = if read {
+                let record = wire::ReadList::decode(&codec(), &mut reader).expect("read").into_parts();
+                assert_eq!((record.read, record.endpoint), (7, 3));
+                record.grant
+            } else {
+                let record = wire::Granted::decode(&codec(), &mut reader).expect("grant").into_parts();
+                assert_eq!((record.task, record.attempt), (7, 2));
+                record.grant
+            };
+            assert_eq!(
+                (grant.number(), grant.generation(), grant.valid()),
+                (metadata.account, metadata.generation, metadata.valid)
+            );
+            let wire::GrantValue::Credential(value) = grant.value() else { panic!("credential value") };
+            assert_eq!(value.scheme(), &expected);
+            assert_eq!(value.bytes().expose(), fixtures::TOKEN_ONE);
+        }
     }
 }
 #[test]
@@ -622,5 +648,108 @@ fn every_piece_kind_decodes_whole_including_offsets_past_u32() {
                 }
             }
         );
+    }
+}
+
+#[cfg(test)]
+mod list_tests {
+    use crate::tests::fixtures;
+    use crate::{
+        Event, Request,
+        connection::{Connection, Phase},
+    };
+    use alloc::boxed::Box;
+    use jig_domain_host as host;
+    use jig_domain_link::{Form, ListFailure, ListOutcome, Scheme, SourceName};
+    use skein_lib::Secret;
+    use skein_lib::{Queue, Time, Token};
+
+    #[test]
+    fn a_read_without_a_matching_credential_answers_agent_without_sending() {
+        let name = SourceName::new(b"source").expect("source name");
+        for (form, value) in [
+            (Form::Credential(Scheme::Bearer), None), // The requested generation is no longer held.
+            (
+                Form::Application,
+                Some(crate::GrantValue::Application { secret: Secret::new(Box::from(b"canary".as_slice())) }),
+            ),
+            (Form::Program(name), Some(crate::GrantValue::Program { name })),
+            (
+                Form::Credential(Scheme::Bearer),
+                Some(crate::GrantValue::Application { secret: Secret::new(Box::from(b"canary".as_slice())) }),
+            ),
+            (
+                Form::Credential(Scheme::Bearer),
+                Some(crate::GrantValue::Credential {
+                    scheme: crate::Scheme::Key,
+                    token: Secret::new(Box::from(b"canary".as_slice())),
+                }),
+            ),
+        ] {
+            let mut component = fixtures::component();
+            let channel = Token::new(1);
+            let mut state = Connection::new(
+                crate::limits::schema(&fixtures::LIMITS).expect("schema"),
+                &fixtures::LIMITS,
+                Time::ZERO,
+            );
+            state.channel = channel;
+            state.phase = Phase::Open;
+            state.heard = true;
+            component.connections.insert(Token::new(2), state).expect("connection slot");
+            let mut out = Queue::uncapped();
+            component.down(
+                Time::ZERO,
+                Event::Down {
+                    channel,
+                    down: host::LinkDown::ReadList { read: 7, endpoint: 3, grant: fixtures::grant(form) },
+                    parts: Box::new([]),
+                    values: Box::new([value]),
+                },
+                &mut out,
+            );
+            let Request::Up { channel: heard, up, parts } = out.pop().expect("immediate refusal") else {
+                panic!("a read refusal goes upward");
+            };
+            assert_eq!(heard, channel);
+            assert_eq!(up, host::LinkUp::ListRead { read: 7, outcome: ListOutcome::Failed(ListFailure::Agent) });
+            assert!(parts.is_empty());
+            assert!(out.is_empty(), "a refused read has no lower request");
+        }
+    }
+}
+
+#[test]
+fn list_answers_decode_rows_and_every_typed_failure() {
+    use jig_domain_link::{ListFailure, ListOutcome, ListedModel};
+    use jig_protocol_worker_wire as wire;
+    for (body, outcome) in [
+        ([0, 0, 0, 0, 0].as_slice(), ListOutcome::Listed(Box::new([]))),
+        (
+            [
+                0, 0, 0, 0, 1, 0, 0, 0, 1, b'm', 1, 0, 0, 0, 1, b'M', 1, 0, 0, 0, 10, 1, 0, 0, 0, 5, 0, 0, 0, 1, 0, 0,
+                0, 3, b'l', b'o', b'w',
+            ]
+            .as_slice(),
+            ListOutcome::Listed(Box::new([ListedModel {
+                name: b"m".as_slice().into(),
+                shown: Some(b"M".as_slice().into()),
+                window: Some(10),
+                output: Some(5),
+                efforts: Box::new([b"low".as_slice().into()]),
+            }])),
+        ),
+        ([1, 0, 1, 173].as_slice(), ListOutcome::Failed(ListFailure::Refused { status: 429 })),
+        ([1, 1].as_slice(), ListOutcome::Failed(ListFailure::Unreachable)),
+        ([1, 2].as_slice(), ListOutcome::Failed(ListFailure::Unreadable)),
+        ([1, 3].as_slice(), ListOutcome::Failed(ListFailure::Deadline)),
+        ([1, 4].as_slice(), ListOutcome::Failed(ListFailure::Agent)),
+    ] {
+        let mut bytes = skein_lib::Writer::new(8 + body.len());
+        bytes.put(&7_u64.to_be_bytes()).expect("read number");
+        bytes.put(body).expect("list outcome");
+        let bytes = bytes.finish();
+        let decoded = translate::decode(wire::Kind::ListRead.number(), &bytes, &codec()).expect("list answer");
+        assert_eq!(up(decoded), jig_domain_host::LinkUp::ListRead { read: 7, outcome });
     }
 }

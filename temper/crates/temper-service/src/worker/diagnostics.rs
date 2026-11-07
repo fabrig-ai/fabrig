@@ -47,6 +47,7 @@ fn event_tag(event: &root::Event) -> WorkerEvent {
         root::Event::SourceAnswered { .. } => WorkerEvent::SourceAnswered,
         root::Event::Assign { .. } | root::Event::AssignJob { .. } => WorkerEvent::Assign,
         root::Event::Link(link) => match link {
+            hub::LinkDown::ReadList { .. } => WorkerEvent::Link(LinkEvent::ReadList),
             hub::LinkDown::Sources { .. } => WorkerEvent::Link(LinkEvent::Sources),
             hub::LinkDown::Check { .. } => WorkerEvent::Link(LinkEvent::Check),
             hub::LinkDown::SignOut { .. } => WorkerEvent::Link(LinkEvent::SignOut),

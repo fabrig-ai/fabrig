@@ -470,6 +470,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         }
         Event::CheckProgram { name } => crate::programs::check(domain, name, out),
         Event::SignOutProgram { source, name } => crate::programs::sign_out(domain, source, name, out),
+        Event::ReadList { .. } | Event::ListRead { .. } => {}
         Event::Sources { sources } => crate::sources::replace(domain, env, sources, out),
         Event::Check { channel, name } => crate::sources::check(domain, channel, name, out),
         Event::SignOut { to, channel, name } => crate::sources::sign_out(domain, to, channel, name, out),

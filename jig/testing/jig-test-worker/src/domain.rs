@@ -284,6 +284,9 @@ fn route(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 
 fn down(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out: &mut Queue<Request>) {
     match request {
+        host::Request::ReadList { .. } | host::Request::CancelRead { .. } => {
+            unreachable!("the host answers list reads without a machine")
+        }
         host::Request::Job(job) => hub(domain, env, host::Event::Job(job.refused())),
         host::Request::DeliverJob { owner, .. } => hub(
             domain,
