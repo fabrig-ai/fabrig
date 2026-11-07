@@ -55,6 +55,27 @@ fn invalid(to: ReplyTo, problem: Problem) -> engine::Event {
         Problem::Malformed => (b"malformed host call", None),
         Problem::TooLarge => (b"host call too large", None),
         Problem::Missing(member) => (b"host call member missing", Some(member)),
+        Problem::Needs { kind, member } => {
+            let separator = b" needs ";
+            let guidance = b"; read the inventory and name what it lists";
+            let mut writer = Writer::new(
+                kind.len()
+                    .checked_add(separator.len())
+                    .expect("fixed error separator")
+                    .checked_add(member.len())
+                    .expect("static error member")
+                    .checked_add(guidance.len())
+                    .expect("fixed error guidance"),
+            );
+            writer.put(kind).expect("static setting kind");
+            writer.put(separator).expect("measured separator");
+            writer.put(member).expect("static member name");
+            writer.put(guidance).expect("measured guidance");
+            return engine::Event::Worker(engine::WorkerInput::RenderedHostCall {
+                to,
+                answer: core::SettledAnswer::Host { error: true, body: writer.finish() },
+            });
+        }
         Problem::Type(member) => (b"host call member of wrong type", Some(member)),
         Problem::Range(b"full commit identifier") => (
             b"expected a full commit identifier (40 or 64 lowercase hexadecimal digits); use the full head from the review brief",

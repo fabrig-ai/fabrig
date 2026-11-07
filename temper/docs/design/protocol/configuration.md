@@ -2048,8 +2048,11 @@ init`'s document carries none of them (`setup.md`, 8.3).
   (13.8; `setup.md`, 8.1) with the bounds that follow its message
   (`setup.md`, 8.1), the forge's repositories and output (`setup.md`,
   8.3), and the machine's
-  concurrency, which is the machine's to size and stays what the box
-  had: the worker's one slot, the hubs' and the fleet's slots, and the
+  concurrency, which is the machine's to size: the worker's 4 slots, so
+  that two chats and a goal's agents run side by side, which the hubs'
+  and the fleet's slots in `standard` already hold, with
+  `checkout.workspaces` and `git_component.operations` 4, the least they
+  take (`../domain/worker.md`, section 6); and, at what the box had, the
   clients' streams, `clients.streams` and `clients_http.streams` 8,
   each with four ordinary exchanges beside it in what carries it
   (`clients.exchanges`, `clients_http.calls` and temper's server
