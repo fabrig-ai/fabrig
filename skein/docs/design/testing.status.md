@@ -22,12 +22,14 @@ allocation layout and the native fork floor.
   from different baselines. Shared-helper measurements in
   `skein/docs/development/world-costs.md` establish no suite total either.
   7: the requested margin of at least 2.5 CPU s below the 30 CPU s
-  focused limit is unproved. `skein/docs/plan/skein-limits-rows/plan.md`
-  records instruction pairs for the two checking-signature paths and
-  folds removing 397 existing test processes, with eight row-kit tests
-  of their own. Its binary-floor estimates and individual instruction
-  counts establish no whole-suite margin; that requires the gate's
-  post-landing measurement.
+  focused limit is unproved. Callgrind pairs for the two checking-signature
+  paths fell from 28,168,371 to 17,682,754 instructions in the forge
+  machine world's measured hand test, 126,199,178 to 58,107,517 in
+  `skein-fake-forge-github`'s, and 61,539,809 to 51,804,727 in
+  `github-conformance`'s; folds removed 397 existing test processes and
+  added eight row-kit tests of their own. These floor estimates and
+  individual instruction counts establish no whole-suite margin; that
+  requires the gate's post-landing measurement.
 - **Departs:** 5, 10: `skein/testing/skein-world/src/lib.rs` fences six
   items `cfg(unix)`, though these sections have the crate native, on
   Linux and macOS, so off unix it fails to build however it is fenced; no
