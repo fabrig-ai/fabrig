@@ -11,7 +11,7 @@ pub struct Opener {
 pub fn spawn(opener: &Opener, address: &[u8], root: Fd) -> Spawn {
     Spawn {
         program: opener.program.clone(),
-        args: Box::new([Box::from(address), Box::from(b"extra".as_slice())]),
+        args: Box::new([Box::from(address)]),
         env: opener.env.clone(),
         root,
         dir: Box::from(b".".as_slice()),
