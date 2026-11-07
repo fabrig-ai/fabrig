@@ -38,6 +38,41 @@ mode = "direct"
 needs = []
 design = "temper/docs/design/client/README.md, 3.5"
 
+[[part]]
+id = "terminal-commands"
+title = "The terminal's / commands, filtered as typed, each the page's own act; the lists of /model, /effort, /chats, /close and /start-over; its notes"
+mode = "direct"
+needs = ["terminal-frame", "field-options"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "terminal-browser"
+title = "The look kept per browser in the kept store; >_ asks full screen, Exit leaves it, Esc closes a list where the browser lets the terminal hold it"
+mode = "direct"
+needs = ["terminal-commands", "web-screen"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "terminal-draft"
+title = "The terminal's draft a document beside it, through the shell's rules under its tokens; a draft's first paragraph read as Markdown"
+mode = "direct"
+needs = ["terminal-frame", "md-underscore"]
+design = "temper/docs/design/client/browser.md, 2.5"
+
+[[part]]
+id = "terminal-cards"
+title = "In the terminal, a goal's question as a list under the box, proposals and delegations on one line, a failed call's error on its fold"
+mode = "direct"
+needs = ["terminal-commands"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[part]]
+id = "terminal-close"
+title = "The four requests' accounts, one commit each, and the design's status in line"
+mode = "direct"
+needs = ["terminal-browser", "terminal-draft", "terminal-cards"]
+design = "temper/docs/design/draft/look-requests.md, 5"
+
 [[slice]]
 id = 1
 story = "A draft's \"_Draft, with the user._\" shows as emphasis, and snake_case stays as written"
@@ -60,4 +95,34 @@ walk = false
 id = 4
 story = "A person presses >_ on a chat and reads it as a terminal: one top line with Draft and Exit, the conversation, a running line while it works, the box and the quiet line, in DejaVu Sans Mono on a dark ground; Exit returns"
 parts = ["terminal-frame"]
+walk = false
+
+[[slice]]
+id = 5
+story = "In the terminal a person types /mo, Tab completes /model, Enter opens its list, a model is taken; /pause, /close, /new and /chats do the page's own acts; /help writes its table"
+parts = ["terminal-commands"]
+walk = false
+
+[[slice]]
+id = 6
+story = "A person presses >_ and the page goes full screen; a short Esc closes the / list and stays in full screen in Chromium; Exit leaves both; another tab opens its chats in the terminal"
+parts = ["terminal-browser"]
+walk = false
+
+[[slice]]
+id = 7
+story = "With the draft beside the terminal, the document reads in temper's own type and figure on a ground of its own, and \"_Draft, with the user._\" shows as emphasis in Split and in the terminal"
+parts = ["terminal-draft"]
+walk = false
+
+[[slice]]
+id = 8
+story = "A chat whose goal asked the person shows the question's choices under the box in the terminal, and its proposal as one line with Accept"
+parts = ["terminal-cards"]
+walk = false
+
+[[slice]]
+id = 9
+story = "Each of the four requests has its account in its own commit, every row landed, differing with its reason, or deferred to a named owner"
+parts = ["terminal-close"]
 walk = false
