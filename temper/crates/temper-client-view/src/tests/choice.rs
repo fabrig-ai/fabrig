@@ -634,6 +634,7 @@ fn one_account(number: u32, plan: bool) -> d::Domain {
     let mut accounts = List::with_capacity(1);
     accounts
         .push(c::AccountLine {
+            facts: List::with_capacity(0),
             number,
             place: 1,
             uses: None,
@@ -821,6 +822,7 @@ fn account(number: u32, kind: c::AccountKind, address: Option<&[u8]>) -> c::Acco
     sources.push(source(c::AccountKind::Program, false)).unwrap();
     sources.push(source(kind, true)).unwrap();
     c::AccountLine {
+        facts: List::with_capacity(0),
         number,
         place: number,
         uses: None,
