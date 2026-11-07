@@ -4,9 +4,14 @@
 //! each seed, each exchange checked against the reference reader. This
 //! stands in for the fuzz target, which waits for a nightly toolchain.
 //!
+//! Prefix sweeps also compare each transcript cut short with the reference.
+//! Their cuts are injected directly, so they fall without a fault tally.
+//!
 //! A sweep asserts that what it injects fell (testing-strategy.md, 3): each
 //! way an exchange can fail, each way a stream can end or fail, a close in
 //! each state, and every refusal of the side above's.
+
+use super::super::transcripts::{exchange, transcripts};
 
 use skein_http::client::Error;
 use skein_http_world::client_world::{self, Exchange, Run, Settings};
@@ -16,6 +21,7 @@ use skein_lib::Rng;
 use skein_protocol_kit::seen::Seen;
 
 const ROUNDS: u64 = 20_000;
+const PREFIX_SEEDS: u64 = 4;
 
 /// The transcripts, longer, are swept fewer times.
 const TRANSCRIPT_ROUNDS: u64 = 2_000;
@@ -183,4 +189,16 @@ fn transcripts_cut_mutated_and_failed_read_as_the_reference_reads_them() {
         "failed Stream",
         "closed before the outcome",
     ]);
+}
+
+#[test]
+fn a_transcript_cut_short_anywhere_decodes_as_the_reference_reads_its_prefix() {
+    for transcript in transcripts() {
+        for seed in 0..PREFIX_SEEDS {
+            let mut rng = Rng::new(seed);
+            let cut = usize::try_from(rng.below(transcript.bytes.len() as u64 + 1)).unwrap();
+            let settings = Settings { cut: Some(cut), ..Settings::calm(&mut rng, transcript.limits) };
+            let _ = client_world::check(&exchange(&transcript), &transcript.bytes, &settings, seed);
+        }
+    }
 }

@@ -121,9 +121,11 @@ per page change and per state the message names.
 |---|---|
 | a rule's selector, a page's change, a state | landed; differs, and why; or deferred, to whom and where it is tracked |
 
-- **Done** is every row landed or explained, and the render check, after
-  the landing, finding nothing it hasn't filed. A deferred row is carried by the design status or draft
-  status that names its owner, not by the request.
+- **Done for the plan** is every row landed or explained. Its render-check
+  row says that the check follows landing and names its owner; compilation
+  and print checks do not establish rendered equality. After landing the
+  check files every difference (section 4). A deferred row is carried by
+  the design status or draft status that names its owner, not by the request.
 - **A request is dropped** from the branch by `look-refresh.sh` once
   `main` carries its trailer; a deferred row survives it only where the
   account put it.
@@ -160,8 +162,8 @@ per page change and per state the message names.
   request's name, so that section 4 is one command rather than each
   landing's own script.
 - **Journeys reaching further:** the fake box's Forgejo set up
-  finishing, a walk across the ChatGPT sign-in's departure, and Ready,
-  so that fewer states are hand-made.
+  finishing, a walk across the ChatGPT sign-in’s departure, and the
+  welcome’s Ready, so that fewer states are hand-made.
 
 ## 9. Open questions
 

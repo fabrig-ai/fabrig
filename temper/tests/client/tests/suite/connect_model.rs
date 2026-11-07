@@ -60,7 +60,7 @@ fn the_banner_key_way_opens_details_and_ready_removes_the_banner() {
             way: Some(d::ModelWay { source: None, provider: accounts::PROVIDER, kind: d::WayKind::Key })
         }
     );
-    assert!(text(&root).contains("Details"));
+    assert!(text(&root).contains("A Scripted API key"));
     press(
         &mut front,
         &mut root,
@@ -79,7 +79,7 @@ fn the_banner_key_way_opens_details_and_ready_removes_the_banner() {
     accounts::assert_no_carried(&front);
 }
 #[test]
-fn declaring_a_program_login_shows_its_command_on_ready() {
+fn a_declared_program_lands_after_its_own_check() {
     let (mut front, mut root) = accounts::program_fixture(fixtures::SEED);
     go(&mut front, &mut root, Address::ConnectModel { way: None });
     press(&mut front, &mut root, Role::Link, b"Use your Scripted subscription", skein_ui::Act::Press);
@@ -90,10 +90,18 @@ fn declaring_a_program_login_shows_its_command_on_ready() {
         b"Name",
         skein_ui::Act::Input { value: b"claude-alice".as_slice().into() },
     );
-    press(&mut front, &mut root, Role::Button, b"Use your Scripted subscription", skein_ui::Act::Press);
-    assert!(text(&root).contains("Declared your Scripted subscription · claude-alice"));
+    press(&mut front, &mut root, Role::Button, "I’ve signed in".as_bytes(), skein_ui::Act::Press);
+    assert_eq!(
+        root.person().pages().address(),
+        &Address::ConnectModel {
+            way: Some(d::ModelWay { source: None, provider: accounts::PROVIDER, kind: d::WayKind::Program })
+        }
+    );
     assert!(text(&root).contains("temper program-login claude-alice"));
-    assert!(text(&root).contains("If this machine has no Claude Code, this fetches it first. Claude Code asks you to sign in. temper never reads its login."));
+    accounts::program_checked(&mut front, &mut root, true);
+    accounts::answer_trial(&mut front, &mut root);
+    assert_eq!(root.person().pages().address(), &Address::Accounts);
+    assert!(text(&root).contains("Added your Scripted subscription. temper’s agents now run on it."));
 }
 #[test]
 fn a_creation_key_is_absent_from_the_small_store() {
@@ -104,8 +112,8 @@ fn a_creation_key_is_absent_from_the_small_store() {
     world.person(
         person,
         vec![
-            Step::See { find: Find::exactly_named(Role::Link, b"Use an API key"), within: fixtures::WITHIN },
-            Step::Press { find: Find::exactly_named(Role::Link, b"Use an API key") },
+            Step::See { find: Find::exactly_named(Role::Link, b"Add key"), within: fixtures::WITHIN },
+            Step::Press { find: Find::exactly_named(Role::Link, b"Add key") },
             Step::See { find: Find::exactly_named(Role::Button, b"Add key"), within: fixtures::WITHIN },
             Step::Type {
                 find: Find::exactly_named(Role::TextField, b"Key (pasted once)"),
@@ -250,7 +258,7 @@ fn a_refused_tab_keeps_the_address_without_pointing() {
     assert!(front.leaves.is_empty());
 }
 #[test]
-fn a_fresh_page_at_the_return_address_follows_the_watch_to_ready_without_departing() {
+fn a_fresh_page_at_the_return_address_lands_on_accounts() {
     use d::pages::accounts::SignInState;
     let (mut front, mut root) = accounts::plan_fixture(fixtures::SEED);
     let source = start_plan_sign_in(&mut front, &mut root);
@@ -265,7 +273,7 @@ fn a_fresh_page_at_the_return_address_follows_the_watch_to_ready_without_departi
             .sign_in_state(root.person().client()),
         SignInState::Signing { source }
     );
-    assert!(text(&root).contains("Signing in"));
+    assert!(text(&root).contains("Your ChatGPT plan"));
     assert!(
         !view(&root)
             .tree()
@@ -281,16 +289,13 @@ fn a_fresh_page_at_the_return_address_follows_the_watch_to_ready_without_departi
     }));
     accounts::settle(&mut front, &mut root);
     accounts::answer_trial(&mut front, &mut root);
-    assert!(text(&root).contains("Signed in to ChatGPT as alice@example.com"));
-    assert_eq!(
-        root.person()
-            .pages()
-            .connect_model()
-            .expect("connect model page")
-            .request
-            .sign_in_state(root.person().client()),
-        SignInState::Ended { source }
-    );
+    assert!(text(&root).contains("Added your ChatGPT plan. temper’s agents now run on it."));
+    assert_eq!(root.person().pages().address(), &Address::Accounts);
+    assert_eq!(front.shows.last(), Some(&(Address::Accounts, true)));
+    assert!(root.person().pages().accounts().unwrap().added.is_some());
+    accounts::reopen(&mut front, &mut root, Address::Accounts);
+    assert!(root.person().pages().accounts().unwrap().added.is_none());
+    assert!(!text(&root).contains("Added your ChatGPT plan."));
     assert!(front.leaves.is_empty());
 }
 fn welcome_sign_in() -> (Joint, Root, u32) {

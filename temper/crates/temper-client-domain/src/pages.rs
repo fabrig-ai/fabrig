@@ -82,6 +82,7 @@ pub struct Pages {
     pub(crate) playground_choice: PlaygroundChoice,
     pub(crate) playground_model: bool,
     pub(crate) choice: choice::Draft,
+    forges_opened: Option<u16>,
     accounts_open: bool,
     builders_open: bool,
     welcome: Option<welcome::Welcome>,
@@ -306,6 +307,7 @@ impl Pages {
             playground_choice: PlaygroundChoice::Idle,
             playground_model: false,
             choice: choice::Draft::default(),
+            forges_opened: None,
             accounts_open: false,
             builders_open: false,
             welcome: None,
@@ -341,6 +343,10 @@ impl Pages {
     #[must_use]
     pub fn accounts(&self) -> Option<&accounts::Accounts> {
         if self.accounts_open && self.party.is_some() { Some(&self.accounts) } else { None }
+    }
+    #[must_use]
+    pub const fn forges_opened(&self) -> Option<u16> {
+        self.forges_opened
     }
     #[must_use]
     pub fn connect_model(&self) -> Option<&connect_model::ConnectModel> {
@@ -495,8 +501,19 @@ impl Pages {
 pub fn me_handle() -> Handle {
     Handle { asker: Owner::Pages.asker(), number: 0 }
 }
+/// Any act on the accounts page dismisses its transient confirmation (client/README.md, 3.5).
+pub(crate) fn acted(pages: &mut Pages) {
+    if pages.accounts.added.take().is_some() {
+        pages.accounts.added_from_connect = false;
+        pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
+    }
+}
 #[expect(clippy::too_many_lines, reason = "one ordered dispatch routes page events and refreshes shared facts")]
 pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event, out: &mut Queue<Request>) {
+    if let Event::AccountKey { .. } | Event::SignInAddress { .. } = &event {
+        pages.accounts.added = None;
+        pages.accounts.added_from_connect = false;
+    }
     match event {
         Event::Act { act: Act::OpenStart { draft, chat } } => start_goal::open(pages, client, draft, chat),
         Event::Act { act: Act::StartDraft { .. } | Act::Away(_) } => {}
@@ -863,6 +880,23 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     default_chosen(pages, client);
     switcher_chosen(pages, client, out);
     returned(pages, client, out);
+    if let Address::ConnectModel { .. } = pages.address
+        && let Some(added) = connect_model::added(pages, client)
+    {
+        went(pages, env, Address::Accounts, out);
+        pages.accounts.added = Some(added);
+        pages.accounts.added_from_connect = true;
+        out.push(Request::Replace { address: Address::Accounts });
+    } else if pages.accounts_open
+        && pages.accounts.request_row.is_some()
+        && let Some(pending) = &pages.accounts.request.pending
+        && pages.accounts.announced != Some(pending.key)
+        && let Some(added) = accounts::signed_in(&pages.accounts.request, client, None)
+    {
+        pages.accounts.announced = Some(pending.key);
+        pages.accounts.added = Some(added);
+        pages.accounts.added_from_connect = false;
+    }
     let owner = pages.accounts_open
         && match accounts::current_me(client) {
             Some(me) => me.deployment_role == Some(jig_client::contract::HeldRole::Owner),
@@ -1088,6 +1122,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         started = true;
     }
     if pages.address != address {
+        pages.forges_opened = None;
         pages.start = None;
     }
     pages.needs.went(&pages.address, &address);
@@ -2226,4 +2261,13 @@ fn adoption_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: &T
         | forge::Answer::EntranceRefused(_)) => Some(welcome::AdoptionEnded::Refused(refused)),
     };
     true
+}
+
+/// Settings replaces its connection page with the live row; welcome owns its steps.
+pub(crate) fn forge_progress(root: &mut crate::Domain, env: &Env<Limits>, out: &mut Queue<crate::Request>) {
+    let Address::ConnectForge { forge } = root.pages.address() else { return };
+    let Some(number) = crate::forge::connect::following(*forge, root.forge()) else { return };
+    crate::route::pages(root, env, Event::Went { address: Address::Forges }, out);
+    root.pages.forges_opened = Some(number);
+    out.push(crate::Request::Show { address: Address::Forges, replace: true });
 }

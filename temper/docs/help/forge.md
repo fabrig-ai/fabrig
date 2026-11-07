@@ -85,6 +85,12 @@ A forge is where repositories live, GitHub or Forgejo, numbered when it is set u
 
 ## Acting on it
 
+- **In Settings:** Forges leads to Connect a forge: Forgejo on this
+  machine, GitHub, or Your Forgejo. Your Forgejo shows either its admin
+  form or its bot tokens, with uncommon fields folded. Setup and GitHub’s
+  return open the forge’s row on Forges, with its live progress and
+  installation acts. Completion stays there, with a confirmation and
+  Adopt a repository for the current project; it adopts nothing itself.
 - **ctl:** `forge list` reads the forges, their modes, connections and
   installations; `forge setup` sets up a box's Forgejo; `forge
   connect` connects GitHub or a managed Forgejo; `forge install`

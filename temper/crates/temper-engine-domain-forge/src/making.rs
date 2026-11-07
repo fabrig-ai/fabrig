@@ -68,6 +68,7 @@ pub enum MakeRefusal {
     Invalid,
     HomeHeld,
     Full,
+    NotFailed,
 }
 
 impl Domain {
@@ -137,7 +138,8 @@ pub(crate) fn admit(
     }
     let (forge, org, name, from, into) = match ask {
         Ask::MakeRepository { forge, org, name, from, into } => (forge, org, name, from, into),
-        Ask::Adopt(_)
+        Ask::DismissMaking { .. }
+        | Ask::Adopt(_)
         | Ask::SetUp { .. }
         | Ask::RemoveForge { .. }
         | Ask::StartPlayground
@@ -178,6 +180,56 @@ pub(crate) fn admit(
             }
             ApplicationOutcome::MakeKept
         }
+    };
+    crate::adoption::finish(
+        d,
+        env,
+        request,
+        crate::adoption::Pending { token, retention, observed: None },
+        outcome,
+        out,
+    );
+}
+
+#[expect(clippy::too_many_arguments, reason = "a keyed dismissal carries the core's request identity and authority")]
+pub(crate) fn dismiss(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    request: Token,
+    token: Token,
+    retention: Duration,
+    role: Option<jig_domain_people::Role>,
+    key: MakingKey,
+    into: Option<u32>,
+    out: &mut Queue<Request>,
+) {
+    if !crate::adoption::room(d, env, request, out) {
+        return;
+    }
+    let outcome = if role == Some(jig_domain_people::Role::Owner) {
+        match d.making(&key) {
+            None => ApplicationOutcome::MakeKept,
+            Some(row)
+                if match &row.into {
+                    Some(held) => into != Some(held.project),
+                    None => into.is_some(),
+                } =>
+            {
+                ApplicationOutcome::MakeRefused(MakeRefusal::NotOwner)
+            }
+            Some(row) => match &row.state {
+                MakingState::Failed(_) => {
+                    erase(d, key, out);
+                    ApplicationOutcome::MakeKept
+                }
+                MakingState::Waiting
+                | MakingState::Making
+                | MakingState::Made { .. }
+                | MakingState::Adopting { .. } => ApplicationOutcome::MakeRefused(MakeRefusal::NotFailed),
+            },
+        }
+    } else {
+        ApplicationOutcome::MakeRefused(MakeRefusal::NotOwner)
     };
     crate::adoption::finish(
         d,

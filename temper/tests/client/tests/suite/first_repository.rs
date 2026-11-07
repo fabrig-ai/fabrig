@@ -16,9 +16,15 @@ const FORGE: u16 = 1;
 const REPOSITORY: u32 = 7;
 
 fn configured(under_box: bool) -> ClientWorld {
+    configured_with_makings(under_box, None)
+}
+fn configured_with_makings(under_box: bool, makings: Option<u32>) -> ClientWorld {
     let mut world = fixtures::world(fixtures::SEED);
     world.randomness(0, 0, 0);
     let mut limits = world.front().engine.env.limits;
+    if let Some(makings) = makings {
+        limits.forge.makings = makings;
+    }
     let [bootstrap, config] = std::array::from_fn(|_| {
         let mut config = walking::config(fixtures::SEED);
         config.forges = Box::new([]);
@@ -205,7 +211,7 @@ fn setup_leaves_the_first_repository_unadopted_even_after_connection() {
     assert_eq!(outcome.verdict, skein_world::domain::Verdict::Passed, "{outcome:?}");
     assert!(!world.front().engine_adopted(FORGE, REPOSITORY), "made alone must not adopt before the forge connects");
     connected(&mut world);
-    script(&mut world, person, vec![see(b"Forgejo on this machine is connected")]);
+    script(&mut world, person, vec![see(b"Connected Forgejo on this machine.")]);
     assert!(!world.front().engine_adopted(FORGE, REPOSITORY), "the asking client leaves the repository unadopted");
 }
 
@@ -222,7 +228,7 @@ fn a_second_tab_that_never_asked_does_not_adopt_the_made_repository() {
     connected(&mut world);
     let answer = fixtures::answered(&mut world, agent, number);
     assert_eq!(answer.status, 0, "{answer:?}");
-    script(&mut world, person, vec![see(b"Forgejo on this machine is connected")]);
+    script(&mut world, person, vec![see(b"Connected Forgejo on this machine.")]);
     assert_eq!(
         world.front().applications_admitted(),
         2,
@@ -243,11 +249,11 @@ fn leaving_the_flow_keeps_the_made_repository_unadopted() {
     assert!(!world.front().engine_adopted(FORGE, REPOSITORY), "leaving the flow adopts nothing");
     let count = world.front().applications_admitted();
     send(&mut world, forge::Event::FirstMade { forge: FORGE, id: u64::from(REPOSITORY) });
-    script(&mut world, person, vec![Step::Go { address: flow() }, see(b"Forgejo on this machine is connected")]);
+    script(&mut world, person, vec![Step::Go { address: flow() }, see(b"Connected Forgejo on this machine.")]);
     assert_eq!(
         world.front().applications_admitted(),
         count,
-        "duplicate row updates and returning to Ready must not send another Adopt"
+        "duplicate row updates and returning to Forges must not send another Adopt"
     );
 }
 
@@ -271,7 +277,7 @@ fn every_create_failure_offers_setup_again_with_the_same_names() {
             page.contains(std::str::from_utf8(why).expect("failure words")),
             "flow must name the failed step: {page}"
         );
-        world.person(person, vec![press(b"Set up again")]);
+        world.person(person, vec![press(b"Try again")]);
         for _ in 0..256 {
             if world.front().set_ups().len() == 2 {
                 break;
@@ -291,7 +297,7 @@ fn the_made_repository_waits_until_the_person_adopts_it_from_the_form() {
     setup(&mut world, person);
     made(&mut world);
     connected(&mut world);
-    script(&mut world, person, vec![see(b"Made acme/shop.")]);
+    script(&mut world, person, vec![see(b"acme/shop")]);
     assert!(!world.front().engine_adopted(FORGE, REPOSITORY));
     script(&mut world, person, fixtures::adopt_and_see_outcome(b"acme", b"shop"));
     assert!(world.front().engine_adopted(FORGE, REPOSITORY));
@@ -386,4 +392,88 @@ fn ready_copies_reach_the_engines_making_rows_in_order() {
         assert_eq!(row.state, forge::MakingState::Waiting);
     }
     assert!(root.person().pages().adopting().is_none());
+}
+
+#[test]
+fn sheet_copies_wait_for_each_line_then_close_with_both_rows_on_the_watch() {
+    let mut world = configured(true);
+    connected(&mut world);
+    let person = world.client(fixtures::PARTY, Address::Adopt { project: 1 });
+    script(
+        &mut world,
+        person,
+        vec![
+            Step::See { find: Find::named(Role::Choice, b"Copy public"), within: fixtures::WITHIN },
+            Step::Press { find: Find::named(Role::Choice, b"Copy public") },
+            Step::Type {
+                find: Find::named(Role::TextArea, b"Their addresses, one per line"),
+                words: b"source.invalid/acme/widget\nnot-an-address".as_slice().into(),
+            },
+            see(b"Not an address: not-an-address. Write it as github.com/owner/name."),
+        ],
+    );
+    let button = world
+        .tree(person)
+        .nodes()
+        .iter()
+        .find(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Copy 2 repositories"))
+        .expect("plural copy button");
+    assert!(button.states.as_slice().contains(&skein_ui::State::Disabled));
+    assert_eq!(world.front().applications_admitted(), 0, "a bad line holds both copies back");
+    script(
+        &mut world,
+        person,
+        vec![
+            Step::Type {
+                find: Find::named(Role::TextArea, b"Their addresses, one per line"),
+                words: b"source.invalid/acme/widget\nsource.invalid/team/tool".as_slice().into(),
+            },
+            press(b"Copy 2 repositories"),
+            Step::Gone { find: Find::named(Role::Dialog, b"Add repositories to"), within: fixtures::WITHIN },
+        ],
+    );
+    assert_eq!(world.front().applications_admitted(), 2);
+    let root = world.root(person).person();
+    assert_eq!(*root.pages().address(), Address::Repositories { project: 1 });
+    let row = temper_client_domain::forge::sheet::row(root.forges(), Some(FORGE)).expect("watched forge");
+    assert_eq!(row.makings.len(), 2);
+    for (making, (org, name, address, home)) in row.makings.iter().zip([
+        (b"acme".as_slice(), b"widget".as_slice(), b"https://source.invalid/acme/widget".as_slice(), true),
+        (b"team".as_slice(), b"tool".as_slice(), b"https://source.invalid/team/tool".as_slice(), false),
+    ]) {
+        assert_eq!((making.org.as_ref(), making.name.as_ref()), (org, name));
+        let temper_client_protocol_wire::v1::MakeFrom::Copy(copy) = &making.from else { panic!("copy source") };
+        assert_eq!(copy.address(), address);
+        let into = making.into.as_ref().expect("project destination");
+        assert_eq!((into.project(), into.home()), (1, home));
+    }
+}
+
+#[test]
+fn a_refused_sheet_copy_keeps_its_words_and_only_the_unfinished_address() {
+    let mut world = configured_with_makings(true, Some(1));
+    connected(&mut world);
+    let person = world.client(fixtures::PARTY, Address::Adopt { project: 1 });
+    script(
+        &mut world,
+        person,
+        vec![
+            Step::See { find: Find::named(Role::Choice, b"Copy public"), within: fixtures::WITHIN },
+            Step::Press { find: Find::named(Role::Choice, b"Copy public") },
+            Step::Type {
+                find: Find::named(Role::TextArea, b"Their addresses, one per line"),
+                words: b"source.invalid/acme/widget\nsource.invalid/team/tool".as_slice().into(),
+            },
+            press(b"Copy 2 repositories"),
+            see(b"Too many repositories are being made. Try again."),
+        ],
+    );
+    assert_eq!(world.front().applications_admitted(), 2);
+    let root = world.root(person).person();
+    assert_eq!(*root.pages().address(), Address::Adopt { project: 1 });
+    let sheet = root.forge().sheet().expect("refused sheet stays open");
+    assert_eq!(sheet.addresses.text.as_ref(), b"source.invalid/team/tool");
+    assert!(matches!(sheet.sent, temper_client_domain::forge::sheet::Sent::Refused(_)));
+    let row = temper_client_domain::forge::sheet::row(root.forges(), Some(FORGE)).expect("watched forge");
+    assert_eq!(row.makings.len(), 1);
 }

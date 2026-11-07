@@ -39,11 +39,12 @@ fn every_one_and_two_byte_sequence_is_judged_as_the_standard_library_judges_it()
 
 #[test]
 fn three_and_four_byte_sequences_are_judged_at_every_boundary() {
-    // Each byte after the second at the edges of the continuation range,
-    // and just past them.
+    // Each byte after the first at the edges of the continuation ranges,
+    // and just past them: E0's A0, ED's 9F, F0's 90, F4's 8F,
+    // and the ordinary 80..=BF, each with its neighbour outside.
     let edges = [0x00, 0x7F, 0x80, 0x8F, 0x90, 0x9F, 0xA0, 0xBF, 0xC0, 0xFF];
     for lead in 0xC0..=u8::MAX {
-        for second in 0..=u8::MAX {
+        for second in edges {
             for third in edges {
                 let bytes = [lead, second, third];
                 assert_eq!(checked(&bytes), standard(&bytes), "{}", bytes.escape_ascii());

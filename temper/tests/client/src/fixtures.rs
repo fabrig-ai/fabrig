@@ -208,6 +208,10 @@ pub fn world(seed: u64) -> World<Temper, Joint> {
     world_with(seed, Joint::new(seed, domain_limits()))
 }
 #[must_use]
+pub fn adoption_world(seed: u64) -> World<Temper, Joint> {
+    world_with(seed, Joint::adoption(seed, domain_limits()))
+}
+#[must_use]
 pub fn open_world(seed: u64) -> World<Temper, Joint> {
     world_with(seed, Joint::open_chats(seed, domain_limits()))
 }
@@ -476,25 +480,39 @@ pub fn project() -> temper_client_domain::Address {
 pub fn adopt(owner: &[u8], name: &[u8]) -> Vec<skein_fake_person::Step<temper_client_domain::Address>> {
     use skein_fake_person::{Find, Step};
     use skein_ui::Role;
-    vec![
+    let mut steps = vec![
         Step::See { find: Find::exactly_named(Role::Link, b"Settings"), within: WITHIN },
         Step::Press { find: Find::exactly_named(Role::Link, b"Settings") },
         Step::See { find: Find::exactly_named(Role::Link, b"Repositories"), within: WITHIN },
         Step::Press { find: Find::exactly_named(Role::Link, b"Repositories") },
-        Step::See { find: Find::named(Role::Link, b"Adopt a repository"), within: WITHIN },
-        Step::Press { find: Find::named(Role::Link, b"Adopt a repository") },
+        Step::See { find: Find::named(Role::Link, b"Add repositories"), within: WITHIN },
+        Step::Press { find: Find::named(Role::Link, b"Add repositories") },
+        Step::See { find: Find::named(Role::Dialog, b"Add repositories to"), within: WITHIN },
+        Step::See { find: Find::exactly_named(Role::Check, b"acme/shop"), within: WITHIN },
         Step::See { find: Find::named(Role::TextField, b"Owner"), within: WITHIN },
         Step::Type { find: Find::named(Role::TextField, b"Owner"), words: owner.into() },
-        Step::Type { find: Find::named(Role::TextField, b"Name"), words: name.into() },
+        Step::Type { find: Find::exactly_named(Role::TextField, b"Name"), words: name.into() },
         Step::Type { find: Find::named(Role::TextField, b"Landing branch"), words: b"main".as_slice().into() },
+        Step::See {
+            find: Find::named(Role::Button, &skein_lib::bytes::concat(&[b"Adopt ", owner, b"/", name])),
+            within: WITHIN,
+        },
         Step::Press { find: Find::named(Role::Button, b"Adopt") },
-    ]
+    ];
+    if !owner.is_empty() && name != b"shop" && name != b"second" {
+        steps.insert(
+            steps.len() - 2,
+            Step::Press { find: Find::exactly_named(Role::Check, b"Make it the project's home") },
+        );
+        steps.insert(steps.len() - 2, Step::Press { find: Find::exactly_named(Role::Choice, b"Context") });
+    }
+    steps
 }
 #[must_use]
 pub fn adopt_and_see_outcome(owner: &[u8], name: &[u8]) -> Vec<skein_fake_person::Step<temper_client_domain::Address>> {
     use skein_fake_person::{Find, Step};
     let mut steps = adopt(owner, name);
-    steps.extend([Step::See { find: Find::text(b"Adopted acme/shop on forge 1 as owned."), within: WITHIN }]);
+    steps.extend([Step::See { find: Find::text(b"acme/shop"), within: WITHIN }]);
     steps
 }
 

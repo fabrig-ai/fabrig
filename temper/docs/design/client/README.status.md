@@ -54,6 +54,12 @@ phone test asserts CSS rules, not measured geometry or a press. The
 after-landing checks and ended-card row retention are section 11's later
 work; no new real-model or phone press outcome is supplied.
 
+- **Not yet:** 4.4, 5.2: temper/ui’s after-landing render check of
+  `connect-flows` pages 01–23, open disclosures and menus at 1440, 1000
+  and 420 px, and screenshots also at 1280 px (`../draft/look-requests.md`,
+  4). The browser sheet stories are compiled within the plan, not run.
+  Home’s own sheet and the two unmocked entry paths remain as described in
+  `../draft/repository-copies.status.md`, 9; they are not new drawings.
 - **Not yet:** 3.5, 5.5: no supplied record establishes a real-box walk of
   the offer, effort choice, configuring chat's chooser and connected-account
   starters with a real provider. The `model-picker` account at `1d82a937df` records the picker
@@ -461,10 +467,6 @@ work; no new real-model or phone press outcome is supplied.
   account usable, since 5.5 has no words for it and no walk has ended so
   (section 11); and any ending where `me` offers no ChatGPT plan's sign-in,
   since the function finds that way before it draws the ending's words.
-  4.4: the picker, which the adoption page does not draw
-  (`temper-client-view`'s `forge/page.rs`), so Home's GitHub step's
-  "Adopt" opens the form with no picker, and its line counts no
-  repositories, where the mock's does.
   5.5: a plan's first use, its card in the conversation. 3.5, 3.6, 10:
   Delete on a project's settings, confirmed by its name, and jig's
   `RemoveProject` by `shapes::remove_project`, with the chat

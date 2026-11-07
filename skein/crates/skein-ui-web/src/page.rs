@@ -159,13 +159,14 @@ impl<'a> Page<'a> {
                 Patch::Attribute { node, attribute } => {
                     let old_tag = semantic(&self.held(*node).element).tag.clone();
                     let held = self.nodes.get_mut(node).expect("held node");
+                    if (attribute.role == Role::Log || (attribute.role == Role::List && attribute.bound))
+                        && held.made.attribute.states.as_slice().contains(&State::Busy)
+                        && !attribute.states.as_slice().contains(&State::Busy)
+                    {
+                        held.near_head = None;
+                        held.near_foot = None;
+                    }
                     if attribute.role == Role::Log {
-                        if held.made.attribute.states.as_slice().contains(&State::Busy)
-                            && !attribute.states.as_slice().contains(&State::Busy)
-                        {
-                            held.near_head = None;
-                            held.near_foot = None;
-                        }
                         if attribute.end_request.is_some() && attribute.end_request != held.made.attribute.end_request {
                             held.end_requested = true;
                             held.follow_log = true;
@@ -232,7 +233,9 @@ impl<'a> Page<'a> {
             }
         }
         for (node, held) in &self.nodes {
-            if held.made.attribute.role == Role::Log && held.made.attribute.bound {
+            if (held.made.attribute.role == Role::Log || held.made.attribute.role == Role::List)
+                && held.made.attribute.bound
+            {
                 ops.push(Op::Measure { node: *node });
             }
         }
@@ -732,19 +735,24 @@ impl Page<'_> {
         ops: &mut Vec<Op>,
     ) -> Option<(NodeId, Act)> {
         let held = self.nodes.get_mut(&node).expect("held node");
-        if held.made.attribute.role != Role::Log || viewport <= 0 {
+        let log = held.made.attribute.role == Role::Log;
+        let bound_list = held.made.attribute.role == Role::List && held.made.attribute.bound;
+        if (!log && !bound_list) || viewport <= 0 {
             return None;
         }
         let continues = held.made.attribute.states.as_slice().contains(&State::Continues);
         let busy = held.made.attribute.states.as_slice().contains(&State::Busy);
         let at_end = top.saturating_add(viewport) >= height.saturating_sub(1) && !continues;
-        if held.measured.is_some_and(|(before, _, _)| top < before) || at_end {
-            held.end_requested = false;
+        let mut changed = false;
+        if log {
+            if held.measured.is_some_and(|(before, _, _)| top < before) || at_end {
+                held.end_requested = false;
+            }
+            held.measured = Some((top, height, viewport));
+            let follow = at_end || held.end_requested;
+            changed = held.follow_log != follow;
+            held.follow_log = follow;
         }
-        held.measured = Some((top, height, viewport));
-        let follow = at_end || held.end_requested;
-        let changed = held.follow_log != follow;
-        held.follow_log = follow;
         let foot = height.saturating_sub(top).saturating_sub(viewport);
         let zone = i64::from(viewport) * 3;
         if i64::from(top) * 2 >= zone {
@@ -755,9 +763,10 @@ impl Page<'_> {
         }
         let edge = if !held.made.attribute.bound {
             None
-        } else if i64::from(top) * 2 < zone && report_near(&mut held.near_head, top, height, viewport, busy) {
+        } else if log && i64::from(top) * 2 < zone && report_near(&mut held.near_head, top, height, viewport, busy) {
             Some(LogEdge::Head)
         } else if continues
+            && (log || !busy)
             && i64::from(foot) * 2 < zone
             && report_near(&mut held.near_foot, foot, height, viewport, busy)
         {

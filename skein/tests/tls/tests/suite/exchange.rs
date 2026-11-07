@@ -14,6 +14,10 @@ use skein_tls_world::pki::Versions;
 use skein_tls_world::world::{self, Ending, Reads, Run, Scenario, Settings};
 
 const LIMITS: Limits = Limits { read: 512, send: 512, records: 2 * skein_tls::client::MAX_RECORD };
+// Prefixes 0..20 and 0..3 first cover every asserted wait and notification;
+// double each for margin while still closing at seed-selected iterations.
+const EXCHANGE_CLOSE_SEEDS: u64 = 40;
+const FAILED_CLOSE_SEEDS: u64 = 6;
 
 fn calm(seed: u64) -> Settings {
     let mut rng = Rng::new(seed);
@@ -158,10 +162,10 @@ fn closes(scenario: &Scenario, seeds: std::ops::Range<u64>) -> (Vec<Waiting>, Ve
 
 #[test]
 fn closes_in_every_state() {
-    let (waits, runs) = closes(&exchange(11, 2_000, 8_000), 0..60);
+    let (waits, runs) = closes(&exchange(11, 2_000, 8_000), 0..EXCHANGE_CLOSE_SEEDS);
     let mut truncated = exchange(12, 0, 100);
     truncated.ending = Ending::Truncate;
-    let (failed, _) = closes(&truncated, 0..10);
+    let (failed, _) = closes(&truncated, 0..FAILED_CLOSE_SEEDS);
     for wait in [Waiting::Handshaking, Waiting::Room, Waiting::Bytes, Waiting::Above] {
         assert!(waits.contains(&wait), "{wait:?}: {waits:?}");
     }

@@ -24,11 +24,11 @@ pub enum Act {
     Toggle,
     /// Bytes of the drawing's owner, reported by its drawing code in a shell.
     Drawing { data: Box<[u8]> },
-    /// An edge of a bound log has come near the person's view.
+    /// A bound log's edge or a bound list's foot has come near the person's view.
     Near { edge: LogEdge },
 }
 
-/// An edge of a log (ui.md, section 6).
+/// A log's edges; a list reports only its foot (ui.md, section 6).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum LogEdge {
     Head,
@@ -67,6 +67,15 @@ pub fn takes(role: Role, submits_on_enter: bool, act: &Act) -> bool {
             Act::Near { .. } => true,
             Act::Press | Act::Input { .. } | Act::Submit | Act::Toggle | Act::Drawing { .. } => false,
         },
+        Role::List => match act {
+            Act::Near { edge: LogEdge::Foot } => true,
+            Act::Near { edge: LogEdge::Head }
+            | Act::Press
+            | Act::Input { .. }
+            | Act::Submit
+            | Act::Toggle
+            | Act::Drawing { .. } => false,
+        },
         Role::Page
         | Role::Banner
         | Role::Navigation
@@ -79,7 +88,6 @@ pub fn takes(role: Role, submits_on_enter: bool, act: &Act) -> bool {
         | Role::Heading { .. }
         | Role::Paragraph
         | Role::Text
-        | Role::List
         | Role::Item
         | Role::Table
         | Role::Row

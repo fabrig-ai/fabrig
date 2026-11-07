@@ -1364,6 +1364,22 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             }
             crate::Ask::StartPlayground => crate::playground::start(d, env.now, request, token, out),
             crate::Ask::EndPlayground => crate::playground::end(d, request, token, out),
+            crate::Ask::DismissMaking { forge, org, name, into } => {
+                if let Some(value) = carried {
+                    out.push(Request::CarriedUnused { number: value.number });
+                }
+                crate::making::dismiss(
+                    d,
+                    env,
+                    request,
+                    token,
+                    retention,
+                    role,
+                    crate::MakingKey { forge, org, name },
+                    into,
+                    out,
+                );
+            }
             ask @ crate::Ask::MakeRepository { .. } => {
                 if let Some(value) = carried {
                     out.push(Request::CarriedUnused { number: value.number });

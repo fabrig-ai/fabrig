@@ -5,9 +5,71 @@ use skein_lib::{List, Reader, Writer, bytes::copy_of};
 use skein_ui::phrases::{Form, Hole, HoleKind, HoleShape, Phrase, PhraseId, PhraseShape, PluralClass, Segment};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
-    Title,
-    TitleNumber,
-    Forge,
+    SheetTitle,
+    SheetProject,
+    AddRepositories,
+    SheetForge,
+    Account,
+    MakeEmpty,
+    CopyPublic,
+    Organization,
+    MakeOn,
+    CopiedInto,
+    Addresses,
+    AddressExample,
+    UseIt,
+    AdoptIt,
+    MakeOne,
+    MakeIt,
+    Copy,
+    CopyOne,
+    CopyMany,
+    Find,
+    Repositories,
+    NotListed,
+    More,
+    What,
+    OwnedSummary,
+    ForkSummary,
+    ContextSummary,
+    WithCi,
+    WithoutCi,
+    Private,
+    InProject,
+    Copying,
+    MakingOn,
+    CopyingOn,
+    MakeFailedOn,
+    CopyFailedOn,
+    ForgeSaid,
+    CopyAgain,
+    MakeAgain,
+    DismissMaking,
+    SoFar,
+    Searching,
+    Found,
+    All,
+    Picked,
+    Suspended,
+    Full,
+    NoneReachable,
+    NoneFound,
+    AdoptOne,
+    AdoptMany,
+    Grant,
+    NotInstalled,
+    Collaborator,
+    InstallAnother,
+    Sources,
+    AccountSuspended,
+    ReadNotConnected,
+    ReadBusy,
+    ReadNoAnswer,
+    ReadAdminMissing,
+    ReadNotAdmin,
+    ReadRole,
+    TryAgain,
+    Reading,
     Owner,
     Name,
     Role,
@@ -64,16 +126,78 @@ pub enum Word {
 }
 use HoleKind::{Name, Number};
 pub type Row = (Word, &'static [&'static [u8]], &'static [HoleKind]);
-pub const ROWS: [Row; 56] = [
-    (Word::Title, &[b"Adopt a repository into ", b""], &[Name]),
-    (Word::TitleNumber, &[b"Adopt a repository into project ", b""], &[Number]),
-    (Word::Forge, &[b"Forge number"], &[]),
+pub const ROWS: [Row; 118] = [
+    (Word::SheetTitle, &[b"Add repositories to ", b""], &[Name]),
+    (Word::SheetProject, &[b"project ", b""], &[Number]),
+    (Word::AddRepositories, &[b"Add repositories"], &[]),
+    (Word::SheetForge, &[b"Forge"], &[]),
+    (Word::Account, &[b"Account"], &[]),
+    (Word::MakeEmpty, &[b"Make empty"], &[]),
+    (Word::CopyPublic, &[b"Copy public"], &[]),
+    (Word::Organization, &[b"Organization"], &[]),
+    (Word::MakeOn, &[b"On ", b", with a README and a starter CI check."], &[Name]),
+    (Word::CopiedInto, &[b"Copied into ", b" from GitHub or another git host. Each keeps its owner and name, and nothing is sent back."], &[Name]),
+    (Word::Addresses, &[b"Their addresses, one per line"], &[]),
+    (Word::AddressExample, &[b"github.com/owner/name"], &[]),
+    (Word::UseIt, &[b"Use it"], &[]),
+    (Word::AdoptIt, &[b"Adopt it"], &[]),
+    (Word::MakeOne, &[b"Make ", b""], &[Name]),
+    (Word::MakeIt, &[b"Make it"], &[]),
+    (Word::Copy, &[b"Copy"], &[]),
+    (Word::CopyOne, &[b"Copy ", b""], &[Name]),
+    (Word::CopyMany, &[b"Copy ", b" repositories"], &[Number]),
+    (Word::Find, &[b"Find by name"], &[]),
+    (Word::Repositories, &[b"Repositories"], &[]),
+    (Word::NotListed, &[b"Not listed"], &[]),
+    (Word::More, &[b"More"], &[]),
+    (Word::What, &[b"What temper does with it"], &[]),
+    (Word::OwnedSummary, &[b"Owned"], &[]),
+    (Word::ForkSummary, &[b"Fork"], &[]),
+    (Word::ContextSummary, &[b"Context"], &[]),
+    (Word::WithCi, &[b", it runs CI"], &[]),
+    (Word::WithoutCi, &[b", no CI"], &[]),
+    (Word::Private, &[b"private"], &[]),
+    (Word::InProject, &[b"In ", b""], &[Name]),
+    (Word::Copying, &[b"Copying\xe2\x80\xa6"], &[]),
+    (Word::MakingOn, &[b"Making \xc2\xb7 ", b""], &[Name]),
+    (Word::CopyingOn, &[b"Copying \xc2\xb7 ", b""], &[Name]),
+    (Word::MakeFailedOn, &[b"Make failed \xc2\xb7 ", b""], &[Name]),
+    (Word::CopyFailedOn, &[b"Copy failed \xc2\xb7 ", b""], &[Name]),
+    (Word::ForgeSaid, &[b"Forgejo said: \xe2\x80\x9c", b"\xe2\x80\x9d"], &[Name]),
+    (Word::CopyAgain, &[b"Copy again"], &[]),
+    (Word::MakeAgain, &[b"Make again"], &[]),
+    (Word::DismissMaking, &[b"Dismiss"], &[]),
+    (Word::SoFar, &[b"", b" so far \xc2\xb7 more as you scroll"], &[Number]),
+    (Word::Searching, &[b"Searching \xc2\xb7 ", b" read so far"], &[Number]),
+    (Word::Found, &[b"", b" of ", b" repositories"], &[Number, Number]),
+    (Word::All, &[b"", b" repositories"], &[Number]),
+    (Word::Picked, &[b" \xc2\xb7 ", b" picked"], &[Number]),
+    (Word::Suspended, &[b"This account is suspended."], &[]),
+    (Word::Full, &[b"The picker is full. Use Not listed to add another repository."], &[]),
+    (Word::NoneReachable, &[b"None reachable."], &[]),
+    (Word::NoneFound, &[b"Nothing matches. Try another name, or use Not listed."], &[]),
+    (Word::AdoptOne, &[b"Adopt ", b""], &[Name]),
+    (Word::AdoptMany, &[b"Adopt ", b" repositories"], &[Number]),
+    (Word::Grant, &[b"Check ", b" exists, and grant it to temper\xe2\x80\x99s App on GitHub."], &[Name]),
+    (Word::NotInstalled, &[b"temper\xe2\x80\x99s App is not installed on ", b"."], &[Name]),
+    (Word::Collaborator, &[b"Make ", b" a collaborator with write on ", b"."], &[Name, Name]),
+    (Word::InstallAnother, &[b"Install on another account"], &[]),
+    (Word::Sources, &[b"Where they come from"], &[]),
+    (Word::AccountSuspended, &[b" \xc2\xb7 suspended"], &[]),
+    (Word::ReadNotConnected, &[b"Forge ", b" is not connected."], &[Number]),
+    (Word::ReadBusy, &[b"Forge ", b" is busy."], &[Number]),
+    (Word::ReadNoAnswer, &[b"Forge ", b" did not answer."], &[Number]),
+    (Word::ReadAdminMissing, &[b"Forge ", b"\xe2\x80\x99s admin\xe2\x80\x99s token is missing."], &[Number]),
+    (Word::ReadNotAdmin, &[b"Forge ", b"\xe2\x80\x99s admin, ", b", is not a site admin."], &[Number, Name]),
+    (Word::ReadRole, &[b"Your role does not hold the deployment\xe2\x80\x99s forges: give the owner and the name."], &[]),
+    (Word::TryAgain, &[b"Try again"], &[]),
+    (Word::Reading, &[b"Reading repositories\xe2\x80\xa6"], &[]),
     (Word::Owner, &[b"Owner"], &[]),
     (Word::Name, &[b"Name"], &[]),
     (Word::Role, &[b"Role"], &[]),
-    (Word::OwnedChoice, &[b"Owned: temper pushes, opens pull requests and lands"], &[]),
-    (Word::ForkChoice, &[b"Fork: temper contributes through a fork"], &[]),
-    (Word::ContextChoice, &[b"Context: temper only reads"], &[]),
+    (Word::OwnedChoice, &[b"temper pushes, opens pull requests and lands"], &[]),
+    (Word::ForkChoice, &[b"temper contributes through a fork"], &[]),
+    (Word::ContextChoice, &[b"temper only reads"], &[]),
     (Word::Home, &[b"Make it the project's home"], &[]),
     (Word::Prefix, &[b"Branch prefix"], &[]),
     (Word::Landing, &[b"Landing branch"], &[]),
@@ -131,10 +255,16 @@ pub const ROWS: [Row; 56] = [
     (Word::AdminScope, &[b"Forgejo collaborator reads can require repository admin even when temper's forge user already has write. A repository administrator must grant temper's forge user admin; then run repository adopt again with a new key, preserving its options, and verify the human's required project role with project show. If setup could not grant access on a managed or owned Forgejo, its site admin's token needs write:repository. Check the setup failure in the server's log."], &[]),
 ];
 fn phrase_id(connector: u16, index: usize) -> PhraseId {
-    PhraseId {
-        owner: owner(connector),
-        number: u16::try_from(index).expect("bounded forge phrases").checked_add(1000).expect("phrase id fits"),
-    }
+    let sheet = ROWS.len().checked_sub(53).expect("adoption words");
+    let number = if index < sheet {
+        u16::try_from(index).expect("sheet words").checked_add(6000).expect("sheet phrase id")
+    } else {
+        u16::try_from(index.checked_sub(sheet).expect("adoption word"))
+            .expect("adoption words")
+            .checked_add(1003)
+            .expect("adoption phrase id")
+    };
+    PhraseId { owner: owner(connector), number }
 }
 pub fn extend(connector: u16, text: u32, shapes: &mut List<PhraseShape>, phrases: &mut List<Phrase>) {
     for (index, (word, literals, kinds)) in ROWS.iter().enumerate() {
@@ -157,12 +287,15 @@ pub fn extend(connector: u16, text: u32, shapes: &mut List<PhraseShape>, phrases
     }
 }
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "the closed vocabulary lists each phrase's hole bounds")]
 pub fn name_bytes(word: Word, index: usize, text: u32) -> u32 {
     match word {
+        Word::SheetTitle | Word::InProject => text.checked_add(16).expect("project name fits"),
+        Word::ForgeSaid => 768,
+        Word::CopyOne => text.checked_mul(3).expect("lossy address fits").max(513),
         // Arbitrary bytes can expand threefold when shown as UTF-8.
         Word::Runs | Word::RunsWithoutRunner => 192,
         Word::Password => super::OWNED_PASSWORD_BYTES,
-        Word::Title => text.checked_add(16).expect("checked text bound"),
         Word::Adopted => {
             if index == 0 {
                 513
@@ -180,12 +313,77 @@ pub fn name_bytes(word: Word, index: usize, text: u32) -> u32 {
                 256
             }
         }
-        Word::InFlight | Word::Unknown | Word::AnotherProject => 513,
-        Word::PrefixOccupied | Word::NoSuchForge | Word::Unreachable | Word::InvalidAnswer => 256,
-        Word::AdminScope
+        Word::MakeOne | Word::AdoptOne | Word::Grant | Word::InFlight | Word::Unknown | Word::AnotherProject => 513,
+        Word::Collaborator => {
+            if index == 0 {
+                256
+            } else {
+                513
+            }
+        }
+        Word::MakingOn
+        | Word::CopyingOn
+        | Word::MakeFailedOn
+        | Word::CopyFailedOn
+        | Word::MakeOn
+        | Word::CopiedInto
+        | Word::NotInstalled
+        | Word::ReadNotAdmin
+        | Word::PrefixOccupied
+        | Word::NoSuchForge
+        | Word::Unreachable
+        | Word::InvalidAnswer => 256,
+        Word::CopyAgain
+        | Word::MakeAgain
+        | Word::DismissMaking
+        | Word::SheetProject
+        | Word::AddRepositories
+        | Word::SheetForge
+        | Word::Account
+        | Word::MakeEmpty
+        | Word::CopyPublic
+        | Word::Organization
+        | Word::Addresses
+        | Word::AddressExample
+        | Word::UseIt
+        | Word::AdoptIt
+        | Word::MakeIt
+        | Word::Copy
+        | Word::CopyMany
+        | Word::Find
+        | Word::Repositories
+        | Word::NotListed
+        | Word::More
+        | Word::What
+        | Word::OwnedSummary
+        | Word::ForkSummary
+        | Word::ContextSummary
+        | Word::WithCi
+        | Word::WithoutCi
+        | Word::Private
+        | Word::Copying
+        | Word::SoFar
+        | Word::Searching
+        | Word::Found
+        | Word::All
+        | Word::Picked
+        | Word::Suspended
+        | Word::Full
+        | Word::NoneReachable
+        | Word::NoneFound
+        | Word::AdoptMany
+        | Word::InstallAnother
+        | Word::Sources
+        | Word::AccountSuspended
+        | Word::ReadNotConnected
+        | Word::ReadBusy
+        | Word::ReadNoAnswer
+        | Word::ReadAdminMissing
+        | Word::ReadRole
+        | Word::TryAgain
+        | Word::Reading
+        | Word::AdminScope
         | Word::HomeHeld
-        | Word::TitleNumber
-        | Word::Forge
         | Word::Owner
         | Word::Name
         | Word::Role
@@ -1244,4 +1442,116 @@ pub fn app_head(slug: &[u8], empty: bool) -> Box<[u8]> {
 #[must_use]
 pub fn app_installation(installation: &super::forges::Installation, first: bool) -> Box<[u8]> {
     join_words(&[if first { b"" } else { b", " }, &installation_words(installation)])
+}
+
+/// What makes an unlisted repository reachable (client/forge.md, 5.1).
+#[must_use]
+pub fn sheet_remedy(remedy: &super::sheet::Remedy) -> Box<[u8]> {
+    use super::sheet::Remedy;
+    match remedy {
+        Remedy::Grant { owner, name, .. } => join_words(&[
+            b"Check ",
+            &lossy(owner),
+            b"/",
+            &lossy(name),
+            b" exists, and grant it to temper's App on GitHub.",
+        ]),
+        Remedy::NotInstalled { owner } => join_words(&[b"temper's App is not installed on ", &lossy(owner), b"."]),
+        Remedy::Collaborator { login, owner, name } => join_words(&[
+            b"Make ",
+            &lossy(login),
+            b" a collaborator with write on ",
+            &lossy(owner),
+            b"/",
+            &lossy(name),
+            b".",
+        ]),
+    }
+}
+
+/// A copy line keeps all its words even when its raw address is longer than a phrase hole.
+#[must_use]
+pub fn sheet_line(line: &super::making::Line) -> Option<Box<[u8]>> {
+    use super::making::Line;
+    Some(match line {
+        Line::To { .. } => return None,
+        Line::Bad { raw } => join_words(&[b"Not an address: ", &lossy(raw), b". Write it as github.com/owner/name."]),
+        Line::NotAHost { raw, line } => {
+            let raw = raw.strip_prefix(b"https://").unwrap_or(raw);
+            let raw = raw.strip_prefix(b"http://").unwrap_or(raw);
+            let host = match skein_lib::bytes::find(raw, b"/") {
+                Some(end) => raw.get(..end).expect("found host separator"),
+                None => raw,
+            };
+            join_words(&[&lossy(host), b" isn\xe2\x80\x99t a host. Did you mean ", line, b"?"])
+        }
+        Line::Taken { org, name, .. } => join_words(&[&full_name(org, name), b" is already on this forge."]),
+    })
+}
+
+/// A sheet keeps the refusal beside the remaining selections (client/README.md, 4.4).
+#[must_use]
+pub fn sheet_adoption(answer: &super::Answer) -> Box<[u8]> {
+    use super::{Answer, Reason};
+    copy_of(match answer {
+        Answer::Adopted(_) => b"Adopted.",
+        Answer::CoreRefused(_) => b"The project refused this adoption.",
+        Answer::EntranceRefused(_) => b"Your role cannot adopt into this project.",
+        Answer::Unknown => b"It is not known whether the repository was adopted.",
+        Answer::ForgeRefused(reason) => match reason {
+            Reason::NoSuchForge => b"No such forge is configured.",
+            Reason::NotFound => b"The repository was not found.",
+            Reason::NoAccess => b"temper cannot access this repository.",
+            Reason::Refused => b"The forge refused the adoption.",
+            Reason::InFlight => b"An adoption is already running.",
+            Reason::TooLarge => b"The forge's answer was too large.",
+            Reason::Unreachable => b"The forge did not answer.",
+            Reason::InvalidAnswer => b"The forge answered what temper did not expect.",
+            Reason::AnotherProject => b"The repository is in another project.",
+            Reason::HomeHeld => b"The project already has a home.",
+            Reason::PrefixOccupied => b"Another deployment uses this branch prefix.",
+        },
+    })
+}
+/// Making's admission words, kept by the sheet until its next edit.
+#[must_use]
+pub fn sheet_outcome(outcome: &temper_client_protocol_wire::v1::Outcome) -> Box<[u8]> {
+    use temper_client_protocol_wire::v1::{MakeRefusal, Outcome};
+    copy_of(match outcome {
+        Outcome::MakeRefused(why) => match why.why() {
+            MakeRefusal::NoSuchForge => b"No such forge is configured.",
+            MakeRefusal::NotOffered => b"This forge does not make repositories.",
+            MakeRefusal::NotOwner => b"Only the deployment's owner makes repositories.",
+            MakeRefusal::Invalid => b"The repository's name or source is invalid.",
+            MakeRefusal::HomeHeld => b"The project already has a home.",
+            MakeRefusal::Full => b"Too many repositories are being made. Try again.",
+            MakeRefusal::NotFailed => b"This repository is not a failed making.",
+        },
+        Outcome::Adopted(_)
+        | Outcome::CoreRefused(_)
+        | Outcome::ForgeRefused(_)
+        | Outcome::Unknown
+        | Outcome::SettingUp
+        | Outcome::SetUpRefused(_)
+        | Outcome::Running
+        | Outcome::StartRefused(_)
+        | Outcome::StartFailed(_)
+        | Outcome::Connecting
+        | Outcome::Link(_)
+        | Outcome::ConnectRefused(_)
+        | Outcome::Page(_)
+        | Outcome::Accepted(_)
+        | Outcome::Removed
+        | Outcome::RemoveRefused(_)
+        | Outcome::Reset
+        | Outcome::EndRefused(_)
+        | Outcome::Dismissed
+        | Outcome::MakeKept
+        | Outcome::Looked
+        | Outcome::Away
+        | Outcome::Overturned
+        | Outcome::OverturnRefused(_)
+        | Outcome::Tried
+        | Outcome::NotTheirs => b"The forge did not answer the request.",
+    })
 }

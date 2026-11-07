@@ -50,6 +50,7 @@ pub struct Joint {
     pub activity_read_ends: VecDeque<jig_client::contract::ReadNone>,
     pub reachable_reads: Vec<(u16, Option<u64>, u32)>,
     pub reachable_empty: bool,
+    pub reachable_pages: bool,
     pub installs: Vec<(u16, Token)>,
     pub playground_outcomes: VecDeque<temper_client_protocol_wire::v1::Outcome>,
     pub answer_runs: bool,
@@ -474,6 +475,24 @@ impl Joint {
                 )
             })
             .count()
+    }
+    #[must_use]
+    pub fn adoption(seed: u64, limits: client::Limits) -> Joint {
+        let mut engine_limits = engine_limits();
+        let configs = std::array::from_fn(|_| {
+            let mut config = walking::config(seed);
+            first_run_projects(&mut config, &mut engine_limits);
+            config.core.connectors = Box::new([fixtures::FORGE]);
+            config
+        });
+        let mut front =
+            Self::with_engine(seed, &limits, Store::with_limits(&engine_limits), configs, &engine_limits, 1);
+        front.engine.send(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Connection {
+            forge: 1,
+            state: temper_engine_domain_forge::Connection::Connected { id: 1, login: b"bot".as_slice().into() },
+        })));
+        front.engine.settle();
+        front
     }
     #[must_use]
     pub fn new(seed: u64, limits: client::Limits) -> Joint {
@@ -1252,6 +1271,7 @@ impl Joint {
             activity_read_ends: VecDeque::new(),
             reachable_reads: Vec::new(),
             reachable_empty: false,
+            reachable_pages: false,
             installs: Vec::new(),
             playground_outcomes: VecDeque::new(),
             answer_runs: false,
@@ -1353,8 +1373,32 @@ impl Joint {
         let Some(request) = wire::decode_requesting(&record.bytes, &w::CEILINGS) else { return false };
         let w::Request::Reachable(read) = request.request() else { return false };
         self.reachable_reads.push((read.forge(), *read.installation(), read.page()));
-        let mut rows = skein_lib::List::with_capacity(2);
-        for (id, name) in [(7, b"shop".as_slice()), (8, b"second".as_slice())] {
+        let mut rows = skein_lib::List::with_capacity(if self.reachable_pages { 10 } else { 2 });
+        if self.reachable_pages && read.page() == 1 {
+            for id in 100..108 {
+                rows.push(
+                    w::Reached::new(
+                        &w::CEILINGS,
+                        w::ReachedParts {
+                            id,
+                            owner: w::Account::new(
+                                &w::CEILINGS,
+                                w::AccountParts { id: 1, login: b"noise".as_slice().into() },
+                            )
+                            .expect("owner"),
+                            name: skein_lib::Decimal::of(id).as_bytes().into(),
+                            private: false,
+                        },
+                    )
+                    .expect("row"),
+                )
+                .expect("page");
+            }
+        }
+        for (page, id, name) in [(1, 7, b"shop".as_slice()), (2, 8, b"second".as_slice())] {
+            if self.reachable_pages && read.page() != page {
+                continue;
+            }
             if self.reachable_empty {
                 break;
             }
@@ -1376,8 +1420,10 @@ impl Joint {
             )
             .expect("fixed page");
         }
-        let outcome =
-            w::Outcome::Page(w::Page::new(&w::CEILINGS, w::PageParts { rows, more: false }).expect("fixed page"));
+        let outcome = w::Outcome::Page(
+            w::Page::new(&w::CEILINGS, w::PageParts { rows, more: self.reachable_pages && read.page() < 3 })
+                .expect("fixed page"),
+        );
         self.callbacks.push((
             who,
             RootEvent::Client {

@@ -98,7 +98,7 @@ pub(super) const BINDING_ROLES: &[(Role, bool)] = &[
     (Role::Heading { level: 1 }, false),
     (Role::Paragraph, false),
     (Role::Text, false),
-    (Role::List, false),
+    (Role::List, true),
     (Role::Item, false),
     (Role::Table, false),
     (Role::Row, false),
