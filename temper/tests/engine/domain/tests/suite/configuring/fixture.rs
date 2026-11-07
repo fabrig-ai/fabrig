@@ -1,4 +1,5 @@
 //! Stock defaults with the world's scripted model and bounded store.
+//! Box identity worlds follow temper/docs/design/domain/forge.md, 4.6.
 use super::*;
 use serde_json::{Value, json};
 use skein_lib::Duration;
@@ -124,6 +125,123 @@ pub(super) fn member_config() -> engine::Config {
     config()
 }
 
+fn box_approval_setup(second_owner: bool) -> (engine::Config, engine::Limits) {
+    let (mut config, mut bounds) = project_people_setup(temper_engine_domain_forge::Mode::Owned, b"ada");
+    config.under_box = true;
+    config.forges = Box::new([]);
+    for owner in &mut config.core.owners {
+        owner.identity = box_owner_identity();
+    }
+    if second_owner {
+        let mut owners = config.core.owners.into_vec();
+        owners.push(people::InitialOwner {
+            project: people::DEPLOYMENT,
+            identity: temper_engine_domain_forge::user_key(1, 8),
+        });
+        config.core.owners = owners.into_boxed_slice();
+        bounds.people.initial_owners = 4; // Three holdings for the box person and the second owner.
+    }
+    bounds.people.requests = 16; // Account, adoption, chat, turns and decisions.
+    (config, bounds)
+}
+
+pub(super) fn box_approval_fixture(second_owner: bool) -> World {
+    use temper_engine_domain_forge as forge;
+    let (config, bounds) = box_approval_setup(second_owner);
+    let mut world = World::start(config, &bounds, Some(box_approval_setup(second_owner).0));
+    world.driver.send(Event::Party(PartyInput::Application {
+        scope: people::ApplicationScope::Deployment,
+        reply_to: ReplyTo::new(Token::new(17)),
+        sign_in: world.owner,
+        key: [17; 16],
+        digest: [17; 32],
+        carried: None,
+        request: engine::Application::Forge(forge::Ask::SetUp {
+            forge: forge::Making::New(forge::ForgeAsk::Owned),
+            first: forge::SetUpFirst::Nothing,
+        }),
+    }));
+    world.driver.settle();
+    let request =
+        world
+            .driver
+            .immediate
+            .iter()
+            .find_map(|request| {
+                if let engine::Request::SetUp { forge: 1, request, .. } = request { Some(*request) } else { None }
+            })
+            .expect("the box sets up its owned forge");
+    world.driver.send(Event::Forge(Box::new(forge::Event::SetUpAnswered {
+        forge: 1,
+        request,
+        answer: forge::SetUpAnswer::SettingUp,
+    })));
+    world.driver.send(Event::Forge(Box::new(forge::Event::Connection {
+        forge: 1,
+        state: forge::Connection::Connected { id: 1, login: b"temper".as_slice().into() },
+    })));
+    world.driver.settle();
+    world
+}
+
+fn box_owner_identity() -> people::IdentityKey {
+    people::IdentityKey { provider: 3, subject: b"box-owner".as_slice().into() }
+}
+
+/// A second deployment owner invalidates the kept link at the next start.
+pub(super) fn restart_box_with_second_owner(world: &mut World) {
+    use temper_engine_domain_forge as forge;
+    // A link retained by the person's earlier one-owner deployment is stale
+    // under this world's two configured owners (temper/docs/design/domain/forge.md, 4.6).
+    let mut record = world
+        .driver
+        .store
+        .rows
+        .values()
+        .find_map(|row| {
+            if let engine::Record::Forge { row } = row
+                && let forge::Stored::Forge(record) = row.as_ref()
+            {
+                Some(record.clone())
+            } else {
+                None
+            }
+        })
+        .expect("the box's kept forge");
+    record.person = Some(forge::Link { user: 7, person: OWNER_PERSON });
+    world
+        .driver
+        .store
+        .seed(Box::new([engine::Record::Forge { row: Box::new(forge::Stored::Forge(record)) }]), Box::new([]));
+    let (config, _) = box_approval_setup(true);
+    world.driver.reopen(config);
+    world.driver.settle();
+    world.driver.send(Event::Party(PartyInput::SignedIn {
+        held: None,
+        reply_to: ReplyTo::new(Token::new(101)),
+        identity: people::Identity {
+            key: box_owner_identity(),
+            login: b"person".as_slice().into(),
+            name: b"Person".as_slice().into(),
+        },
+    }));
+    world.driver.settle();
+    world.owner = world.driver.session();
+    world.driver.send(worker_hello());
+    world.driver.settle();
+}
+
+fn worker_hello() -> Event {
+    let mut greeting = protocol::hello_slots(CHANNEL, SLOTS, Box::new([]));
+    let Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut greeting else {
+        panic!("hello")
+    };
+    hello.bounds.time = Duration::from_secs(28_800); // Stock work charter run time.
+    hello.bounds.turns = 800; // Stock's largest charter.
+    hello.bounds.message_bytes = MESSAGE_BYTES;
+    greeting
+}
+
 pub(super) fn moving_config() -> engine::Config {
     let mut config = config();
     let mut charter = config
@@ -186,10 +304,22 @@ impl World {
     }
     /// Stock setup with story-specific entrance bounds.
     pub fn with_limits(config: engine::Config, limits: &engine::Limits) -> Self {
+        Self::start(config, limits, None)
+    }
+    fn start(config: engine::Config, limits: &engine::Limits, bootstrap: Option<engine::Config>) -> Self {
         let identity = config.core.owners[0].identity.clone();
         let templates = config.core.defaults.templates.clone();
         let period_budget = config.core.defaults.rules.period_spend;
-        let mut driver = Driver::cold(Store::with_limits(limits), config, limits);
+        let store = Store::with_limits(limits);
+        let mut driver = match bootstrap {
+            Some(bootstrap) => {
+                let mut first = Driver::cold(store, bootstrap, limits);
+                first.period_sent = true;
+                first.settle();
+                Driver::cold(first.take_store(), config, limits)
+            }
+            None => Driver::cold(store, config, limits),
+        };
         driver.period_sent = true;
         driver.settle();
         driver.send(Event::Party(PartyInput::SignedIn {
@@ -216,15 +346,7 @@ impl World {
             carried: core::Carried { number: 1_u64 << 63, digest: [10; 32] },
         }));
         driver.settle();
-        let mut greeting = protocol::hello_slots(CHANNEL, SLOTS, Box::new([]));
-        let Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut greeting
-        else {
-            panic!("hello")
-        };
-        hello.bounds.time = Duration::from_secs(28_800); // Stock work charter run time.
-        hello.bounds.turns = 800; // Stock's largest charter.
-        hello.bounds.message_bytes = MESSAGE_BYTES;
-        driver.send(greeting);
+        driver.send(worker_hello());
         driver.settle();
         driver.send(Event::Party(PartyInput::Period {
             project: PROJECT,
