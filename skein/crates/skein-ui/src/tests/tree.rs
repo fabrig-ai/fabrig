@@ -430,21 +430,32 @@ fn a_sort_on_a_cell_is_an_assertion() {
 }
 
 #[test]
-#[should_panic(expected = "required belongs to fields")]
-fn required_on_a_heading_is_an_assertion() {
-    let mut b = Builder::new(&LIMITS);
-    b.open(Role::Heading { level: 1 });
-    b.state(State::Required);
+fn role_held_states_assert_their_roles() {
+    for state in [State::Required, State::Options] {
+        let result = std::panic::catch_unwind(|| {
+            let mut b = Builder::new(&LIMITS);
+            b.open(Role::Heading { level: 1 });
+            b.state(state);
+        });
+        assert!(result.is_err(), "{state:?} on a heading");
+    }
 }
 
 #[test]
 fn required_is_kept_on_each_kind_of_field() {
-    for role in [Role::TextField, Role::TextArea, Role::Select, Role::Check, Role::ChoiceGroup] {
+    for (role, state) in [
+        (Role::TextField, State::Required),
+        (Role::TextArea, State::Required),
+        (Role::Select, State::Required),
+        (Role::Check, State::Required),
+        (Role::ChoiceGroup, State::Required),
+        (Role::Menu, State::Options),
+    ] {
         let mut b = Builder::new(&LIMITS);
         b.open(role);
-        b.state(State::Required);
+        b.state(state);
         b.close();
-        assert_eq!(b.finish().get(0).unwrap().states.as_slice(), [State::Required], "{role:?}");
+        assert_eq!(b.finish().get(0).unwrap().states.as_slice(), [state], "{role:?}");
     }
 }
 

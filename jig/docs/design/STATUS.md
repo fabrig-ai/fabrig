@@ -1,7 +1,10 @@
 # Status
 
 2026-11-07. Where jig's code lags or departs from its design, from the
-status files below. Agents in a host's own process are the widest gap:
+status files below. The deployment's sole-owner read is built, including
+during restore, answering none with no owner, several or an unreadable
+roster (`domain/people.md`, section 4). Agents in a host's own process
+are the widest gap:
 no root composes `smith-inline-agent`, so the engine's own slots, a
 hub's agent capability and the tools a worker begins with their calls
 are not in jig (`README.md`, `domain/README.md`, `domain/engine.md`,

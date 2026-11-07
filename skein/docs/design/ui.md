@@ -185,6 +185,7 @@ fake person. What waits is in section 18, and what is open in section
 | continues | a log whose last entry is not its list's last: a shell does not follow it, and counts the person away from the list's end |
 | folds away | a disclosure a shell folds on a press outside it or on Escape, as a panel |
 | to log end | a button a shell answers, pressed, by taking the page's logs to their ends; its press still reaches its owner where bound |
+| options | a menu offering the choices of the nearest text field or text area before it in its innermost form, while the focus stays in the field: a list a person moves through from the field, a command's completions or a choice's values |
 
 There is no provisional state: no accessibility API has one. A node
 whose content is provisional says so in words (a status), and its look
@@ -199,6 +200,21 @@ do. Each shell says it in words: the page part in a word of its own
 section 5), a phone's shell as it says a sort (16.2, 16.3). The builder
 asserts it on an item alone: a tree item's content is not read when it
 is named, so completed there waits for a design of its own.
+
+Options is the web's list a field controls (ARIA's combobox pattern over a
+text box) and Android's completions under a field, so it is in by 4.1. A
+menu with it has no button of its own: it shows while it is in the tree,
+its items the choices, the item marked selected the one its field starts
+at, or else the first. Its field keeps the focus and the keys: the shell
+moves an active item through the menu's enabled items, presses it on
+Enter in place of the field's `Submit`, and on Tab writes its name into
+the field, as the person's input, where the field holds words its name
+begins with (ui-web.md, section 7). The active item is the shell's, as a
+menu's focused item is, and reaches the owner only as a press or an
+input. The builder asserts it on a menu alone, and the outline
+(section 14) that the menu's form holds a text field or text area before
+it. A shell with no focus, as the text shell, prints the menu as any
+menu.
 
 Folds away and to log end say nothing to a person, and no accessibility
 API has them. Each asks a shell for a behaviour over what the shell alone
@@ -348,11 +364,11 @@ how far a piece of work has gone toward its end.
 ### 4.2 What is in, and what waits
 
 - **In:** the roles of 3.1, the states and properties of 3.2, the acts
-  of section 6.
+  of section 6. A text field with suggested options is a field and a
+  menu with *options* (3.2), not a role of its own.
 - **What waits,** each when an application needs it, by the criterion,
-  through the light path where it maps one to one (4.3): a combo
-  box (a text field with suggested options); a slider and a meter (a
-  value in a range); a switch; media, audio and video, with a source as
+  through the light path where it maps one to one (4.3): a slider and a
+  meter (a value in a range); a switch; media, audio and video, with a source as
   an image's; a feed and its act for an end reached (a windowed list
   asking for more when its last items come into view, a "more" button
   staying beside it); a list box choosing several; a tree grid;
@@ -649,6 +665,13 @@ nodes by a bounded reader of skein-ui's own:
   which a flow is a drawing (10.1); lists,
   nested to the limit; quotes; tables (below); links whose target is a
   checked `http` or `https` URL, shown as text otherwise;
+- **emphasis and strong,** by either delimiter: `*` or `_` around words
+  is emphasis, `**` or `__` strong. A delimiter closes only a run its own
+  byte opened, so `*soft_` stays text. An `_` or `__` with a word's
+  character on both sides, an ASCII letter or digit or a byte of a
+  character past ASCII, is a character, as CommonMark has it, so
+  `snake_case`, `read_branch` and `a__b` stay as written; `*` keeps its
+  reading within a word, `un*frigging*believable`;
 - **the rest is text:** HTML, images, a delimiter never closed, a list
   nested too deep, a table's lines that make no table are shown as the
   characters they are, never dropped, and nothing is ever made into
@@ -1347,7 +1370,7 @@ a world's loop and the browser tier's run it.
 Each waits for what is named, and adds without changing what sections 3
 to 7 and 11 settle.
 
-- **The vocabulary of 4.2:** a combo box, a slider and a meter, a switch,
+- **The vocabulary of 4.2:** a slider and a meter, a switch,
   media, a feed and its act for an end reached, a list box choosing
   several, a tree grid. Each waits for an application that needs it, and
   comes by the light path (4.3) where it maps one to one.

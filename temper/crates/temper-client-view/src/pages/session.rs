@@ -90,9 +90,17 @@ pub(crate) fn right(b: &mut Builder) {
 }
 /// Opens the shared composer form and its entry; the caller adds controls and closes it.
 pub(crate) fn foot(b: &mut Builder, name: &[u8]) {
+    form(b, name);
+    composer(b);
+}
+/// Opens the shared composer form; the caller adds its lines and closes it.
+pub(crate) fn form(b: &mut Builder, name: &[u8]) {
     b.open(Role::Form);
     b.name(name);
     b.style(look::SESSION_FOOT);
+}
+/// Opens the form's entry; the caller adds controls and closes it.
+pub(crate) fn composer(b: &mut Builder) {
     b.open(Role::Slot);
     b.style(look::SESSION_COMPOSER);
 }
@@ -173,4 +181,9 @@ pub(crate) fn closed_number(b: &mut Builder, w: &Words, task: u64, line: Option<
         ),
         None => number(b, w, task),
     }
+}
+
+/// The browser's entrance to a chat's terminal (client/README.md, 3.5).
+pub(crate) fn to_terminal(b: &mut Builder, w: &Words, bindings: &mut Bindings) {
+    super::terminal::enter(b, w, bindings);
 }

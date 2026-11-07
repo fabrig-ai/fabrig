@@ -1664,6 +1664,10 @@ VM tier its one real machine relies on.
 - **The suites' figures** (9.1): what the workspace's global timeouts
   hold, and whether `hearth-render-world` stays on every change. It
   depends on the user's ruling on the measurements.
+  Bringing `tools/tiers/design.md`, 7.3 and 8, into line with the user's
+  11-07 CPU ruling is separate work: those sections still call Smith's,
+  Skein's and Jig's CPU figures open, although `tools/tiers/budgets.toml`
+  records them as decided CPU budgets.
 - **The focused suite's way to its figure** (9.1): whether what is left needs
   repair to hold the queue's figure under 30 CPU seconds. The shares below are a
   sampled profile's estimates of the suite before its repairs (the `hearth-speed-2`

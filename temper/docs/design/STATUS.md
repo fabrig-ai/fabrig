@@ -13,6 +13,16 @@ and their documents with temper's look, and both stock agents are told
 the subset. Temper/ui's rendered comparison follows landing; the
 reference keeps its numbered words without figures (`client/README.md`,
 3.5 and 11; `client/browser.md`, 2.5 and 5; `domain/agent.md`, section 8).
+A browser's other chat look is built: its terminal frame, commands, kept
+mode/theme/font, full screen, document, question list and compact cards,
+with nine gallery states. Its quiet line retains the bar's budget words,
+settings proposals retain Accept and Change something, commands match
+case exactly, background presses do not focus the box, options do not
+select on hover, adjacent help notes share paragraph spacing, and Plex
+stays 14px on a phone; temper/ui owns these recorded departures. Its
+render and real-key comparisons follow landing, and compilation and print
+checks establish no rendered equality (`client/README.md`, 3.5 and 11;
+`client/browser.md`, 2.5, 7.2 and 5; `draft/look-requests.md`, 4 and 5).
 Home says "Nothing needs you."
 once, semantic repair names the updated head without blame, and failed
 sign-in links say used, expired or unknown. Forgotten links are unknown;
@@ -124,14 +134,21 @@ resumable window first asks the window's model for a summary
 hidden beside a usable one of the same provider (`client/README.md`).
 Forge account subjects and review lookups name both forge and user, and the
 configuring inventory names each forge's known or unknown account. Setup
-can answer a given Forgejo login's id and the GitHub App's account, and
-the manifest's `AppMade` mark is kept with `AppId`; temper passes no login
-and ignores the identity answers (`protocol/setup.md`,
-`protocol/credentials.md`). The box
-owner's link, per-repository forge eligibility and the approval card remain
-separate work (`draft/forge-identity.md`, `domain/forge.md`,
-`domain/agent.md`, `protocol/forge.md`, `protocol/store.md`). The
-configuring inventory is filtered, but whole charter reads still name models
+gives an owned Forgejo its person's login and interprets the GitHub App's
+account with the kept `AppMade` and `AppId` evidence. A box's sole-owner
+link is stored on the forge, eligibility counts per repository's forge,
+and approval waits merge into Needs you, Home and goal bands, with the
+files-page review link and Later. Proposals and help state the accepted
+owned-Forgejo limit: agents and CI run as the person, so the rule stops
+mistakes, not a deliberate bypass. A retained link is not cleared on a
+start outside the box with the same sole owner; that scope gap remains
+(`domain/forge.md`, 4.6; `draft/forge-identity.md`, section 9).
+The scripted composed story covers owned Forgejo; GitHub's full box
+story, real human reviews and rendered comparison remain unproved.
+Several members, pasted Apps, second accounts and containment remain
+later work (`domain/testing.md`, section 11; `client/README.md`, section 11;
+`protocol/setup.md`, section 15; `protocol/sign-in.md`, section 10).
+The configuring inventory is filtered, but whole charter reads still name models
 outside the offer and only instructions restrict proposals to it
 (`domain/agent.md`, `draft/model-catalogue.md`). Numbered model settings live
 in the store, with binary stock defaults and endpoint limits in place of
@@ -606,5 +623,6 @@ Drafts:
 - [`draft/sign-in-new-tab.md`](draft/sign-in-new-tab.status.md)
 - [`draft/template-places.md`](draft/template-places.status.md)
 - [`draft/to-begin.md`](draft/to-begin.status.md)
+- [`draft/tui.md`](draft/tui.status.md)
 - [`draft/upgrades.md`](draft/upgrades.status.md)
 - [`draft/v0.1.0.md`](draft/v0.1.0.status.md)

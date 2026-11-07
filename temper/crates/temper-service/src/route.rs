@@ -420,7 +420,7 @@ fn host_delivery(engine: &mut Engine, delivery: root::HostDelivery) {
             }));
         }
         root::HostDelivery::Render { to, answer, tool, key, .. } => {
-            render_host(engine, to, &answer, &tool, key.task);
+            render_host(engine, to, &answer, &tool, key);
         }
         root::HostDelivery::Answer { channel, task, attempt, name, call } => engine.workers.send(
             engine.env.now,
@@ -437,7 +437,13 @@ fn host_delivery(engine: &mut Engine, delivery: root::HostDelivery) {
     }
 }
 
-fn render_host(engine: &mut Engine, to: skein_lib::ReplyTo, answer: &root::CallAnswer, tool: &[u8], task: u64) {
+fn render_host(
+    engine: &mut Engine,
+    to: skein_lib::ReplyTo,
+    answer: &root::CallAnswer,
+    tool: &[u8],
+    key: jig_domain_core::CallKey,
+) {
     let bytes =
         engine.env.limits.call_answer_bytes.saturating_sub(u32::try_from(tool.len()).expect("bounded tool name"));
     engine.events.push(crate::tools::render_for_task(
@@ -445,9 +451,20 @@ fn render_host(engine: &mut Engine, to: skein_lib::ReplyTo, answer: &root::CallA
         answer,
         tool,
         bytes,
-        task,
+        key.task,
         engine.env.limits.host_reply_bytes.unwrap_or(u32::MAX),
     ));
+    if let Some(reason) = temper_engine_smith::unasked_kind(answer) {
+        engine.notes.push(crate::Note::ReadRefused {
+            task: key.task,
+            attempt: key.attempt,
+            tool: skein_lib::bytes::copy_of(tool),
+            layer: "host-render",
+            reason,
+            findings: Box::new([]),
+            error: None,
+        });
+    }
 }
 
 /// A job uses the same repository translation as an agent (temper/docs/design/domain/worker.md, 4.4).

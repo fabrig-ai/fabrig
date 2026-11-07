@@ -766,7 +766,8 @@ keeps (`../protocol/configuration.md`, section 2).
     was.
   - *Its mode:* `Mode { Chat, Split, Draft }`, the page's state for that chat, kept
     while the page is open; a chat opened again starts in Chat, unless `NewChat {
-    draft }` opened it in Split. Nothing stores it.
+    draft }` opened it in Split. Nothing stores it; the terminal's look, which is
+    another thing, is kept per browser (*A chat's terminal*, below).
   - *The tool line:* a `note` call whose answer parses (`../domain/agent.md`,
     8.3) is a `.turn-tool` in the conversation: the pen, "Wrote" for a first
     write, else "Edited"; `.file` NAME; a `.turn-tool` detail, "64 lines" or "+18
@@ -841,6 +842,151 @@ keeps (`../protocol/configuration.md`, section 2).
   - *After:* the fact's chat shows `.turn-tool`: pen, "Started goal", `.file` TITLE, its
     state, "Open", placed among the turns by the fact's `at`. Goals an
     agent started with the `goal` tool keep their line in the conversation (5.7).
+- **A chat's terminal** (the look requests `chat-terminal`, `chat-terminal-font`,
+  `chat-terminal-draft` and `chat-terminal-esc` of 2026-11-07, their pages
+  `journeys/chat-terminal/`): a browser's other look of a chat's pages, `Chat`,
+  `NewChat` and `Configure`, as a coding agent's terminal, full screen. It is the
+  same page, its state, reads and acts, drawn otherwise: its commands are the
+  page's own acts, and nothing new crosses to the engine but the reads named
+  below, which other pages make already. The terminal shell (section 6) is
+  another thing: it prints these pages as it always has.
+  - *Its look, kept per browser:* `pages::terminal::Look { terminal, theme, font }`
+    on `Pages`, the same on every chat the browser opens, so that another chat,
+    `/chats`, `/new` and Start over open in it. `theme` is `Dark` or `Light`,
+    `font` `DejaVu` or `Plex`; a browser with no record of its own starts
+    `{ terminal: false, theme: Dark, font: DejaVu }`. The shell reads it at start
+    from the kept store's record `look` (skein's `ui-web.md`, 10), three bytes,
+    one for each field, in that order, `0` or `1`, `1` the terminal, `Light` and
+    `Plex`; a record of any other form is none. A change writes the record, in
+    the step that made it, through a host duty, and a write refused changes
+    nothing on the page. Another tab reads it at its own start.
+  - *Entered:* the button ">_", named "Terminal, full screen", in a
+    browser's bar after the mode group or "+ Draft" and before "Start goal…" or
+    "Start over", on every chat, `NewChat` and `Configure`, on a phone too:
+    `terminal::Act::Enter`, which sets `terminal` and asks the shell for full
+    screen in the same step (skein's `ui-web.md`, 11, *Full screen*). The press
+    draws the terminal in that step, before the browser answers: every terminal
+    act, and a list's closing on any event, moves the pages' shown count, as
+    each change the view draws does (section 3). Full screen refused, the
+    terminal stays, not full screen.
+  - *Left:* "Exit" and `/exit`, `terminal::Act::Leave`: `terminal` unset, full
+    screen left. The browser leaving full screen (its Escape, a long Escape where
+    the terminal holds the key, its own control) leaves the look as it is: the
+    terminal stays, not full screen, and an open list closes (*Keys,* below). A
+    reload, which leaves full screen, opens the terminal again, not full screen,
+    since only a person's press may ask for it.
+  - *Where it draws:* in a browser, on `Chat`, `NewChat` and `Configure` while
+    `terminal` is set; every other page, and the terminal shell's, as before.
+    The frame draws no rail and no tab bar around it: the page's main is the whole
+    window. Its regions in order: the top line, the conversation (with the draft
+    beside it), the running line, the box and its list, the quiet line.
+  - *The top line:* the bar, on one line. At its left "✦", the project's name, a
+    faint "/", the level-1 heading, named as the bar's, showing the title as the
+    bar's does, and the chat's number "T2". At its right "Draft" and "Exit". On a
+    phone the star and the title alone: the project, its "/" and the number go.
+    "Draft" is a button pressed while the document shows: `Act::Mode` to Split,
+    or back to Chat, its shortcut `Ctrl+\`; with no document, where
+    `chat_offers_draft` and the chat hasn't ended, "+ Draft", `Act::AddDraft`;
+    otherwise none. Nothing else of the bar draws: its status, Pause or Resume,
+    Close, Start over, "Start goal…", the mode group and the spend are commands
+    and the quiet line's.
+  - *The conversation:* the page's own, every line as the browser draws it, in the
+    terminal's look (`browser.md`, 2.5, *A chat's terminal*): the person's words on
+    a band after "❯", the agent's after "✦", calls folded under "▸", a note's
+    write "✎ Wrote NAME · 30 lines Show". The speakers' names and the turns'
+    times stay in the tree and the look hides them. A fold whose call failed shows
+    its first failure's line on its folded row, "failed: WORDS", where today it
+    says "1 failed". The column stays left, 100 characters at most.
+  - *The running line,* above the box, while the browser would draw the chat's
+    working dots, or the chat waits on its delegates or on an account: "✦",
+    pulsing, then the bar's status words ("working", "waiting on 1 delegate",
+    "Waiting for an account"). It draws no clock.
+  - *The box:* the composer, "❯" before its text area, its name, placeholder,
+    hint's keys and bounds as a chat's (*Where the focus stands*, above), with no
+    "Send". On a chat that has ended, which a browser draws with no composer, the
+    terminal keeps the box for commands alone: its placeholder "/new starts another
+    chat"; words that are no command note "This chat is closed. /new starts
+    another." Under it, *the quiet line:* at its left "/ for commands", or "paused ·
+    a message resumes it" on a chat the person paused (*A person's pause*); at its
+    right the picker's closed line, "Claude Opus 5.5 · high", a button that opens
+    `/model`'s list, then " · 778 spent", the chat's own spend. On a phone the spend
+    goes. While a list is open the quiet line gives it its place.
+  - *Commands,* typed in the box: words that begin with "/" and hold no white space
+    open the list under the box (skein's `ui.md`, 3.2, *options*), named
+    "Commands": each command the page offers now whose name begins with the words,
+    in the table's order, its name and its words. Enter presses the active one, Tab
+    completes its name, a click presses it. Enter on words that name no command
+    sends nothing and notes "Unknown command /WORDS. /help lists them.". A command
+    pressed or sent clears the box.
+
+    | Command | Its words | What it does | Offered |
+    |---|---|---|---|
+    | `/model` | Change the model, from the next turn | its list (below) | where the picker is |
+    | `/effort` | Change the effort | its list (below) | where the chosen model has efforts |
+    | `/draft` | Show or hide the draft | as "Draft" | where "Draft" or "+ Draft" is |
+    | `/pause` | Pause this chat; a message resumes it | `Act::Stop` | where Pause is |
+    | `/close` | Close this chat; it stays in Chats | `Act::Close`, its confirmation as a list | where Close is |
+    | `/start-over` | Start a new configuring chat | `Act::StartOver`, its confirmation as a list | where Start over is |
+    | `/goal` | Start a goal from the draft | "Start goal…", its sheet | where "Start goal…" is |
+    | `/new` | Start a new chat | `Act::Go` to `NewChat` | always |
+    | `/chats` | Open another chat | its list (below) | always |
+    | `/theme` | Dark or light | the other theme | always |
+    | `/font` | DejaVu Sans Mono or IBM Plex Mono, to compare | the other font; notes "Font: NAME." | always |
+    | `/help` | Commands and keys | notes the commands and keys | always |
+    | `/exit` | Leave the terminal | `terminal::Act::Leave` | always |
+
+  - *A command's list,* under the box in the commands' place, its head a line of
+    its own, its choices the list's options, the current one selected; taking one
+    closes it, Esc closes it, and words typed close it:
+    - `/model`: "Model. A change applies from the next turn."; the picker's
+      menu's models (*The work's account and model*), each its shown name and,
+      muted, what pays ("your subscription"), "default" after it on the default's;
+      a provider with no model its name and "Connect a plan or key ›", a link to
+      `ConnectModel`. Taking a model is `choice::Act::Model`. "All models" stays the
+      browser look's.
+    - `/effort`: "Effort. A change applies from the next turn."; the chosen model's
+      efforts, `choice::Act::Effort`.
+    - `/chats`: "Chats"; the person's live chats in the project, newest activity
+      first, each "TN" and its title, as the Chats page's Live filter reads them
+      (`tasks{query}`, its first page), read when the list opens; taking one is
+      `Act::Go` to its `Chat { task }`.
+    - `/close` and `/start-over`: the confirmation's question as the head ("Close
+      this chat? It stays in Chats.", "Start over? A new configuring chat starts.
+      This one stays in Chats.") and its two acts as choices, "Close" or "Start
+      over" first, then "Keep it open" or "Keep this one"; a confirmation that also
+      asks its delegates' fates draws as the browser's sheet, over the terminal.
+  - *The terminal's notes:* lines the page writes after the conversation, in the
+    terminal's look: `/help`'s table of commands and keys, an unknown command's,
+    `/font`'s, a closed chat's. They are the page's state, at most 8, the oldest
+    going first, gone when the page closes; nothing sends or keeps them.
+  - *Keys:* Enter sends, Shift+Enter makes a new line, `Ctrl+\` shows or hides the
+    draft, PgUp and PgDn read back (skein's `ui-web.md`, 7), Esc closes a list and
+    otherwise does nothing; in a list, the arrows move, Tab completes, Enter takes.
+    In full screen, where the browser lets the terminal hold Escape (Chromium's), a
+    short Esc is the terminal's and a long one leaves full screen; where it doesn't
+    (Firefox, Safari), one Esc leaves full screen and closes an open list with it.
+    The desktop's own shortcuts stay the browser's.
+  - *The draft beside it:* in Split the document in the right half, behind a rule,
+    on a ground of its own; on a phone, at 760 px or less, the document takes the
+    conversation's place and the box stays at the foot, as Split shows as Draft
+    there. It is the page's own pane (*A chat's document*), its rules shared with
+    the browser's look under the terminal's tokens (`browser.md`, 2.5). The pane's
+    first paragraph, in both looks, reads its words as Markdown's inline runs,
+    emphasis and strong among them, in its muted style.
+  - *A goal's question,* where a delegate of the chat asked the person one: while
+    the terminal draws a chat whose wait is on the person, the page reads the inbox
+    of the chat's subtree, its questions (`Read::Inbox` with the chat as its root,
+    as a tracked task's page reads its own), into the page's inbox, and draws its
+    first question under the box as a list: its question line as the head, its
+    parsed choices as options, the recommended one selected, then "Later";
+    choosing answers it as Needs you does (`needs::Act::Choose`, `needs::Act::Later`).
+    A question with no choices draws its line and "Answer in Needs you ›", a link to
+    its card. The browser's look reads no inbox here.
+  - *A proposal or an Accept card* in the conversation, where the browser's look
+    draws its card: one line, its kicker ("Proposal") in the accent and its title, its
+    acts after it ("Accept", "Reject…"), its facts folded under it as a call's are;
+    Accept's confirmation as `/close`'s list. A delegation's card is one line too:
+    "TN · KIND", its title, its state and "Open".
 - **The Chats page** (the greenfield mock's `chats.html`): `Chats { filter }`,
   a page of the frame and no pane, a main with the token `CHATS_PAGE`,
   drawn as the mock's `.main` and `.col`, in this order:
@@ -6920,6 +7066,28 @@ own tests:
 
 ## 11. Open questions
 
+- **The chat terminal after landing** (3.5): temper/ui compares
+  `chat-terminal`, `chat-terminal-font`, `chat-terminal-draft` and
+  `chat-terminal-esc` with the shipped view at 1440, 1000 and 420 px,
+  with menus and disclosures open and every state their messages name
+  (`../draft/look-requests.md`, sections 4 and 5). Include both themes
+  and fonts, the draft and its figure, questions, compact cards and
+  closed chats. Real keys check Chromium's short and long Escape,
+  Exit, desktop shortcuts, Firefox and Safari's one-Escape fallback,
+  and unavailable or refused keyboard lock, including insecure contexts.
+  Default: the shared page's acts, bounded notes, kept look, focused
+  tables and gallery states; compilation and print checks establish no
+  rendered equality or real-key result. The departures in
+  `README.status.md`, 3.5 remain temper/ui's: budget words, settings
+  proposal controls, case-sensitive commands and background focus.
+
+- **The approval flow after landing** (3.5, 4.6, 5.13): check the card's
+  rendered look, the owned-Forgejo review link's sign-in, and a real human
+  review on each forge. The joint-world Forgejo story holds the card and
+  its files-page link in place of a browser step (`../domain/testing.md`,
+  6.3); GitHub's composed box story and live proof are separate
+  (`../domain/testing.md`, section 11). Default: client and view tables,
+  with no approval added to the terminal inbox in this round.
 - **Run-wait words after landing** (3.5, 5.5; the request
   `ui-wait-words`): temper/qa checks a charter grown past its admitted
   worker's bounds on the page and in the terminal, alongside ctl's

@@ -24,6 +24,7 @@ pub(crate) fn ready_to_start(root: &Domain) -> bool {
 }
 
 #[expect(clippy::too_many_arguments, reason = "new chat passes the Home fallback its trial retry bindings")]
+#[expect(clippy::too_many_lines, reason = "the page branches between its browser bar and terminal frame")]
 pub(crate) fn main(
     b: &mut Builder,
     root: &Domain,
@@ -42,28 +43,54 @@ pub(crate) fn main(
         super::home::main(b, root, w, bindings, accounts, project, times, 0, &crate::forge_sign_in::Forges::new());
         return;
     }
+    let terminal = super::terminal::shown(root, w);
     b.open(Role::Main);
+    if terminal {
+        super::terminal::style(b, root.pages().look());
+    }
     let draft = root.pages().address() == &(Address::NewChat { draft: true });
     b.style(if draft { look::MODE_SPLIT } else { look::MAIN });
     b.style(look::SESSION);
-    super::session::top(
-        b,
-        root,
-        w,
-        bindings,
-        project,
-        super::session::Path::Chats,
-        super::session::Heading::Words(&w.say(Word::NewChat, &[])),
-    );
-    super::session::right(b);
-    if !draft
-        && let Some(project) = project
-        && temper_client_domain::pages::drafts_offered(root, project)
-    {
-        super::document::add(b, w, bindings, Act::Go { address: Address::NewChat { draft: true } });
+    if terminal {
+        let heading = w.say(Word::NewChat, &[]);
+        let draft = if draft {
+            super::terminal::Draft::Shown
+        } else if match project {
+            Some(project) => temper_client_domain::pages::drafts_offered(root, project),
+            None => false,
+        } {
+            super::terminal::Draft::Add
+        } else {
+            super::terminal::Draft::None
+        };
+        super::terminal::top(
+            b,
+            root,
+            w,
+            bindings,
+            super::terminal::Top { project, heading: &heading, name: &heading, hint: None, number: None, draft },
+        );
+    } else {
+        super::session::top(
+            b,
+            root,
+            w,
+            bindings,
+            project,
+            super::session::Path::Chats,
+            super::session::Heading::Words(&w.say(Word::NewChat, &[])),
+        );
+        super::session::right(b);
+        if !draft
+            && let Some(project) = project
+            && temper_client_domain::pages::drafts_offered(root, project)
+        {
+            super::document::add(b, w, bindings, Act::Go { address: Address::NewChat { draft: true } });
+        }
+        super::session::to_terminal(b, w, bindings);
+        b.close();
+        b.close();
     }
-    b.close();
-    b.close();
     b.open(Role::Region);
     b.name(&w.say_card(crate::cards::P::ConversationLog, &[]));
     b.style(look::CONVO);
@@ -117,8 +144,13 @@ pub(crate) fn main(
     if show_start {
         b.close();
     }
+    if terminal {
+        super::terminal::notes(b, root, w);
+    }
     b.close();
-    crate::choice::above_composer(b, root, None, w, bindings, times);
+    if !terminal || !super::terminal::commands::typing(root) {
+        crate::choice::above_composer(b, root, None, w, bindings, times);
+    }
     composer(b, root, w, bindings, text_limit);
     b.close();
     if draft {
@@ -138,29 +170,40 @@ fn composer(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, 
         },
         &[],
     );
+    let terminal = super::terminal::shown(root, w);
     super::session::foot(b, &name);
+    if terminal {
+        super::terminal::prompt(b, w);
+    }
     b.open(Role::TextArea);
     b.name(&name);
     b.placeholder(&name);
     b.value(&chats.words, temper_client_domain::pages::shown(root.pages()));
     if root.pages().switcher().renaming().is_none() {
-        b.focus(0);
+        b.focus(if terminal { temper_client_domain::pages::shown(root.pages()) } else { 0 });
     }
-    if ready {
+    if ready || (terminal && super::terminal::commands::typing(root)) {
         b.state(State::SubmitsOnEnter);
     } else {
         bindings.block_submissions();
     }
     b.bind(bindings.insert(Act::ChatWords { words: Box::default() }));
     b.close();
-    b.open(Role::Button);
-    b.name(&w.say(Word::Send, &[]));
-    if chats.words.is_empty() || !ready {
-        b.state(State::Disabled);
+    if !terminal {
+        b.open(Role::Button);
+        b.name(&w.say(Word::Send, &[]));
+        if chats.words.is_empty() || !ready {
+            b.state(State::Disabled);
+        }
+        b.bind(bindings.insert(Act::StartChat));
+        b.close();
     }
-    b.bind(bindings.insert(Act::StartChat));
-    b.close();
-    super::session::foot_row(b, root, None, w, bindings, Word::ChatSendHint);
+    if terminal {
+        b.close();
+        super::terminal::under(b, root, None, w, bindings, super::terminal::Hint::Commands);
+    } else {
+        super::session::foot_row(b, root, None, w, bindings, Word::ChatSendHint);
+    }
     if let Some(me) = root.pages().me(root.client()) {
         super::session::over(
             b,

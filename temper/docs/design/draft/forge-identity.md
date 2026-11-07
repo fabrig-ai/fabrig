@@ -181,7 +181,8 @@ lands. It doesn't stop an agent trying to get past it. The proposal says so when
 holds such a rule, and the help does: "On this machine temper's agents and CI jobs run
 as you, so this stops their mistakes, not one trying to get past it." The client writes
 that sentence, on the proposal's card as on its page (`../client/README.md`, 5.13). The
-user decides whether that's enough for now (`forge-identity.status.md`, *Open*).
+user accepted that limit for now on 2026-11-07, "accept it for now"
+(`forge-identity.status.md`).
 
 The link on an owned Forgejo rests on what 9.9 already rests on: temper made every
 account, and the printed link alone signs anyone in, always the owner.

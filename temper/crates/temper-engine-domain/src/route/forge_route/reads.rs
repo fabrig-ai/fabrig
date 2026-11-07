@@ -23,17 +23,19 @@ pub(crate) fn read_call(
         refused(domain, key, layer, reason, &answer);
         return super::super::host_route::read(domain, to, *answer);
     }
-    let serial = match domain.next_effect_owner.checked_add(1) {
-        Some(serial) if serial < 1_u64 << 61_u32 => Some(serial),
-        Some(_) | None => None,
+    let next = match domain.next_effect_owner.checked_add(1) {
+        Some(serial) => match forge::root_read(serial) {
+            Some(owner) => Some((serial, owner)),
+            None => None,
+        },
+        None => None,
     };
-    let Some(serial) = serial else {
+    let Some((serial, owner)) = next else {
         let answer = CallAnswer::ForgeRead(Box::new(Err(Error::Busy)));
         refused(domain, key, "forge-route", "read correlation exhausted", &answer);
         return super::super::host_route::read(domain, to, answer);
     };
     domain.next_effect_owner = serial;
-    let owner = Token::new(serial | (1_u64 << 61_u32));
     assert!(domain.forge_reading.insert(owner, (to, key)) == Ok(None), "one fresh read correlation");
     domain.work.push(Work::Forge(forge::Event::Client(skein_forge_client::Event::Read { owner, repository, read })));
 }

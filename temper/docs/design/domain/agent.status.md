@@ -15,7 +15,8 @@ implementation gap remains for that instruction.
 Section 8.1's stock limits forge-identity advice to approvals being asked
 about or proposed; the inventory's fact is unchanged. Phrase assertions
 hold that condition. A real model following it remains unobserved,
-deferred in section 10 alongside the separate owner-identity work.
+deferred in section 10. Links beyond a box's sole owner remain deferred
+there too.
 
 Section 8.2 has no known implementation gap in the stock's person-executor
 permissions, the goal paragraph, the Ask answer or the message-reference
@@ -34,7 +35,9 @@ accounts. It takes each forge of the project's repositories once, names
 its host and the person's user or unknown, and marks that forge's writer.
 A person known on no forge is said unknown once. The lookup and rendering
 tables cover a person known on one of two forges and repeated repositories
-on one forge. The owner's link remains deferred in section 10.
+on one forge. A box's linked owner is known without adoption; the stock
+proposes that person's own role and reserves collaborator/readoption advice
+for a person still unknown on the repository's forge.
 
 Section 8.1 has no known gap in naming the numbered kinds in both settings
 schemas or in a failed `settings` read naming the kind and its required
@@ -129,9 +132,12 @@ offers visibility.
 
 Section 8.1 has no gap in project-policy reads or in inventory wording that
 separates requester, known forge identity and configured owned-forge account.
-The configuring domain story checks delivered context and stock instructions,
-owner-role refusal before and after admin adoption, and a fresh maintainer-role
-acceptance. A scripted run does not prove a real model's approval-role judgement.
+The configuring domain story checks delivered context and stock instructions:
+a linked box owner is accepted at one approval and refused at two, and a
+second deployment owner clears the link on restart. Without a link it keeps
+the owner-role refusal before and after admin adoption and the fresh
+maintainer-role acceptance. These worlds use Forgejo; a scripted run does
+not prove a real model's approval-role judgement or GitHub's composed flow.
 - **Not yet:** 8.3: a document built in parts is proved on a script alone: no real model has built one, so whether it counts lines right, appends rather than rewrites, joins a line past one call, finds its note in a fresh brief and recovers from a refusal is unobserved. The walk (`temper/crates/temper/tests/fake_backends/walk/note_parts.rs`) reads what the pane reads and draws nothing: the view's own test fits a full body in its limits (`a_full_document_fits_the_views_limits`, `temper-client-view/src/tests/document.rs`), and no walk or browser story draws a long one. Its fresh run is a chat's, under a charter the walk sets to `resume: false` where the stock one resumes, so a goal's later run has no such walk. It recalls nothing: a body past one call is recalled whole in jig's core world alone (`jig/tests/core/tests/stories/note_room.rs`).
 - **Design departs:** 8.3, from the request `note-parts` of 2026-11-05, decided by its plan's cut: a later write's words close with the note's lines, where the request keeps the answer as it stood, because an append's `first` is the body's lines + 1 and a later write printed no total, so a slip would insert in the wrong place with no refusal. The answer's values and how they are computed stay.
 - **Design departs:** 8.3, from the request `ui-chat-draft` of 2026-11-05, decided by the answer that day to its task `note-scope`: a goal keeps its own note scope, where the request has a goal keep no notes, because a goal's report is a note.

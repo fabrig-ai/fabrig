@@ -192,7 +192,7 @@ pub struct Domain {
     restart_fresh: Option<bool>,
     pub(crate) sequence: u64,
     pub(crate) changes: Map<u64, ChangeRow>,
-    steps: Map<Token, PendingStep>,
+    pub(crate) steps: Map<Token, PendingStep>,
     start_conflicts: Map<u64, skein_forge::api::Commit>,
     makings: Map<Token, goal_branch::Making>,
     pub(crate) panel_ci: Map<u64, change::Ci>,
@@ -1913,7 +1913,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     step_read(d, env, owner, result, out);
                 } else if d.pending_ci.contains_key(&owner) {
                     ci_read(d, owner, result, out);
-                } else if owner.raw() & (1_u64 << 61_u32) != 0 && owner.raw() & (1_u64 << 62_u32) == 0 {
+                } else if crate::is_root_read(owner) {
                     emit(out, Request::Read { owner, result });
                 } else {
                     lost_read(d, env, owner, result, out);
@@ -3187,7 +3187,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         return;
     };
     d.sequence = sequence;
-    let owner = Token::new(sequence | (1_u64 << 61));
+    let owner = Token::new(sequence | (1_u64 << 62));
     let pending = PendingStep {
         task,
         entry,

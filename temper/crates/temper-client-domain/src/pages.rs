@@ -47,6 +47,7 @@ pub mod report;
 pub mod start_goal;
 pub mod switcher;
 pub mod task;
+pub mod terminal;
 pub mod welcome;
 /// The chosen playground waits for its project membership (temper/docs/design/client/README.md, 4.8).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -58,6 +59,9 @@ pub(crate) enum PlaygroundChoice {
 #[expect(clippy::struct_excessive_bools, reason = "independent session and page-open flags")]
 #[expect(clippy::partial_pub_fields, reason = "Home is public page state; navigation bookkeeping stays private")]
 pub struct Pages {
+    look: terminal::Look,
+    listing: Option<terminal::Listing>,
+    notes: skein_lib::List<terminal::Note>,
     needs: needs::Session,
     away: Option<away::Pending>,
     overturns: away::Overturns,
@@ -102,6 +106,7 @@ pub struct Pages {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Act {
+    Terminal(terminal::Act),
     OpenStart {
         draft: Option<Box<[u8]>>,
         chat: Option<u64>,
@@ -271,6 +276,8 @@ pub enum Event {
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Request {
+    Screen { on: bool },
+    KeepLook { look: terminal::Look },
     OpenTab { provider: u32 },
     Client(jig_client::Event),
     Show { address: Address },
@@ -282,9 +289,17 @@ impl Default for Pages {
     }
 }
 impl Pages {
+    /// The look a person chose (client/README.md, 3.5, A chat's terminal).
+    #[must_use]
+    pub const fn look(&self) -> terminal::Look {
+        self.look
+    }
     #[must_use]
     pub fn new() -> Self {
         Self {
+            look: terminal::Look::default(),
+            listing: None,
+            notes: skein_lib::List::with_capacity(8),
             needs: needs::Session::default(),
             away: None,
             overturns: away::Overturns::new(),
@@ -514,6 +529,9 @@ pub(crate) fn acted(pages: &mut Pages) {
 }
 #[expect(clippy::too_many_lines, reason = "one ordered dispatch routes page events and refreshes shared facts")]
 pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event, out: &mut Queue<Request>) {
+    let event = terminal::prepare(pages, env, client, event, out);
+    chat_inbox(pages, env, client, out);
+    let Some(event) = event else { return };
     if let Event::AccountKey { .. } | Event::SignInAddress { .. } = &event {
         pages.accounts.added = None;
         pages.accounts.added_from_connect = false;
@@ -596,6 +614,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 page.act(client, &pages.address, chosen, pages.playground_provider, act, &mut pages.serial, out);
             }
         }
+        Event::Act { act: Act::Terminal(_) } => unreachable!("terminal acts resolved before page dispatch"),
         Event::Act { act: Act::Models(act) } => {
             if pages.models.act(client, &pages.address, act, pages.playground_provider, &mut pages.serial, out) {
                 pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
@@ -681,7 +700,18 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
         Event::Act { act: Act::ChatFilter { filter } } => chat_filter(pages, filter, out),
         Event::Act { act: Act::Filter { filter } } => out.push(Request::Show { address: Address::Inbox { filter } }),
         Event::Act { act: Act::Mode { mode } } => {
-            if let Some(chats) = &mut pages.chats {
+            if pages.address == (Address::NewChat { draft: true })
+                || pages.address == (Address::NewChat { draft: false })
+            {
+                let address = Address::NewChat { draft: mode != chat::document::Mode::Chat };
+                if pages.address != address {
+                    pages.notes.clear();
+                }
+                pages.address = address;
+                out.push(Request::Replace { address: pages.address.clone() });
+            } else if let Some(chats) = &mut pages.chats
+                && pages.chat.is_none()
+            {
                 if chats.reference.is_some() {
                     chats.reference = Some(mode);
                 }
@@ -980,6 +1010,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     {
         goals.configure(me, project, client, &env.limits, out);
     }
+    chat_inbox(pages, env, client, out);
     choice::refresh(pages, client);
     redirect_chat(pages, client, out);
     pages.shown = pages.shown.checked_add(1).expect("pages shown count fits");
@@ -1134,6 +1165,10 @@ fn contains(me: &Me, project: Option<u32>) -> bool {
 
 #[expect(clippy::too_many_lines, reason = "one navigation transition releases page reads and opens its destination")]
 fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<Request>) {
+    if pages.address != address {
+        pages.notes.clear();
+        pages.listing = None;
+    }
     let mut opening = chat::document::Mode::Chat;
     let mut started = false;
     if let Some(chats) = &pages.chats
@@ -1452,6 +1487,12 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
         }
         return task_told(task, &mut pages.inbox, env, client, told, out);
     }
+    if pages.chat.is_some()
+        && let Some(chats) = &mut pages.chats
+        && chats.told(told.clone(), &pages.address, out)
+    {
+        return true;
+    }
     if let Some(chat) = &mut pages.chat {
         let moved = match &told {
             Told::Answered { outcome, .. } => seen_answered(outcome),
@@ -1462,8 +1503,19 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
             | Told::Dropped { .. }
             | Told::Ended { .. } => false,
         };
-        if !chat.told(env.now, client, told, out) {
-            return false;
+        if let Some(inbox) = &pages.inbox {
+            chat.next = chat.next.max(inbox.next);
+        }
+        if !chat.told(env.now, client, told.clone(), out) {
+            return match &mut pages.inbox {
+                Some(inbox) => {
+                    inbox.next = inbox.next.max(chat.next);
+                    let handled = inbox.told(client, told, out);
+                    chat.next = chat.next.max(inbox.next);
+                    handled
+                }
+                None => false,
+            };
         }
         if chat.restarting
             && chat.outcome_kind == Some(chat::Sending::Close)
@@ -1503,6 +1555,54 @@ fn page_told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, 
         return false;
     }
     true
+}
+
+/// A waiting chat reads its subtree's questions in the terminal alone (client/README.md, 3.5).
+fn chat_inbox(pages: &mut Pages, env: &Env<Limits>, client: &Client, out: &mut Queue<Request>) {
+    let filter = if pages.look.terminal {
+        match (&pages.chat, pages.me(client)) {
+            (Some(chat), Some(me)) => match chat.task(client) {
+                Some(task) => {
+                    if let jig_client::facts::ChatStatus::WaitingForYou { .. } = jig_client::facts::chat_status(
+                        &task.chip,
+                        &task.waits_on,
+                        task.run_wait.as_ref(),
+                        task.project,
+                        me,
+                    ) {
+                        Some(crate::address::Filter {
+                            project: Some(task.project),
+                            kind: Some(crate::address::Kind::Question),
+                            goal: Some(chat.task),
+                        })
+                    } else {
+                        None
+                    }
+                }
+                None => None,
+            },
+            (Some(_), None) | (None, _) => None,
+        }
+    } else {
+        None
+    };
+    let Some(chat) = &mut pages.chat else { return };
+    if let Some(inbox) = &pages.inbox {
+        chat.next = chat.next.max(inbox.next);
+    }
+    if let Some(inbox) = &pages.inbox
+        && Some(inbox.filter) != filter
+    {
+        chat.next = chat.next.max(pages.inbox.take().expect("chat inbox").leave(out));
+    }
+    if let Some(filter) = filter {
+        if pages.inbox.is_none() {
+            pages.inbox = Some(inbox::Inbox::new(filter, chat.next, &env.limits, out));
+        }
+        let inbox = pages.inbox.as_mut().expect("waiting chat inbox");
+        inbox.next = inbox.next.max(chat.next);
+        chat.next = chat.next.max(inbox.next);
+    }
 }
 
 fn task_told(
@@ -1653,6 +1753,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::AmendAgain
         | Act::Switcher(_)
         | Act::Away(_)
+        | Act::Terminal(_)
         | Act::Models(_)
         | Act::Needs(_)
         | Act::Choice(_)
@@ -1859,6 +1960,8 @@ fn awaits_first_read(thread: &jig_client::thread::Thread) -> bool {
 fn link_changed(pages: &mut Pages, limits: &Limits, link: Link, out: &mut Queue<Request>) {
     match link {
         Link::SignedOut | Link::OutOfDate => {
+            pages.listing = None;
+            pages.notes.clear();
             pages.start = None;
             pages.has_goals.leave(out);
             if pages.watching {

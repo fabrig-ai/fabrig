@@ -59,7 +59,7 @@ fn line_with_words(
     for (call, summary) in summaries {
         run.result(*call, summary);
     }
-    run.flush(&mut b, current, running, words);
+    run.flush(&mut b, current, running, words, false);
     b.finish()
 }
 fn disclosure(tree: &Tree) -> &skein_ui::Node {

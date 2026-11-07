@@ -3919,13 +3919,12 @@ it checks of this document:
 
 Each is intended; what it needs is named with it.
 
-- **The box owner's forge link** (5.2, 17.2;
-  `../draft/forge-identity.md`, sections 3, 4 and 9): connecting the
-  setup's identity answers to the owner's party needs the forge's
-  person field, the sole-owner check and the shared lookup. The mark's
-  storage alone grants no approval authority. Several members and a
-  pasted App's account need the further evidence deferred in that draft's
-  section 12.
+- **Links for several members or a pasted App** (5.3, 17.2): several
+  members need a family of links and a connecting owner's evidence; a
+  pasted App needs user authorization or an owner's verified claim.
+  Default: a box's sole-owner link (`../domain/forge.md`, 4.6), and
+  adoption's seeds in those other deployments
+  (`../draft/forge-identity.md`, section 12).
 
 - **Repeated admission during fake-box preparation** (7.5): share a
   checked protocol document and typed deployment between preparation,
@@ -4036,9 +4035,10 @@ Each is intended; what it needs is named with it.
   section 6, accepted by the user for now on 2026-11-07).
 - **Provisioning at adoption** (jig's `domain/connectors.md`, 12): a
   repository in a person's own namespace, made without the person.
-- **The forge as people's sign-in provider** (credentials.md, section
-  8), which would link the person's account on an owned Forgejo to their
-  owner in jig.
+- **The forge as people's sign-in provider** for several members
+  (credentials.md, section 8). A box's sole-owner link names its person
+  on an owned Forgejo (`../domain/forge.md`, 4.6); several members need
+  separate sign-in and account evidence.
 - **A launchd agent for the box** on macOS, as 7.4 arranges systemd
   (`../draft/macos.md`, section 7).
 - **The box's link on a terminal, as a story** (7.2; 13.4): the box's process
