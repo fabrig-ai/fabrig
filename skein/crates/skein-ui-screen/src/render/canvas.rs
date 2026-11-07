@@ -1,7 +1,7 @@
 //! A streaming row buffer: storage follows columns and nodes, never text bytes
 //! (skein/docs/design/ui-screen.md, 5.1 to 5.4).
 
-use skein_lib::{Decimal, List, usize_of};
+use skein_lib::{List, usize_of};
 use skein_ui::{EntryKind, Node, Role, Tree};
 
 use super::{Info, words};
@@ -44,6 +44,8 @@ struct Edge {
 struct PendingItem {
     at: u32,
     indent: u16,
+    annotated: bool,
+    description: bool,
 }
 
 #[derive(Debug)]
@@ -71,6 +73,9 @@ pub(super) struct Canvas {
     single: bool,
     clipped: bool,
     tagged: bool,
+    code: bool,
+    quote: bool,
+    cut: bool,
 }
 
 impl Canvas {
@@ -101,6 +106,9 @@ impl Canvas {
             single: false,
             clipped: false,
             tagged: false,
+            code: false,
+            quote: false,
+            cut: false,
         }
     }
 
@@ -140,8 +148,15 @@ impl Canvas {
     pub fn clip_line(&mut self, clipped: bool) {
         self.clipped = clipped;
     }
+    pub fn block(&mut self, code: bool, quote: bool) {
+        self.code = code;
+        self.quote = quote;
+    }
     pub fn line(&mut self) {
         self.dirty = self.dirty || self.room() > 0;
+    }
+    pub fn within_item(&self) -> bool {
+        !self.items.is_empty()
     }
     pub fn description_indent(&self) -> u16 {
         match self.items.last() {
@@ -153,7 +168,15 @@ impl Canvas {
         self.continuation = indent;
     }
     pub fn item_annotation(&mut self, at: u32) {
-        self.items.push(PendingItem { at, indent: self.continuation }).expect("pending items fit nodes");
+        self.items
+            .push(PendingItem { at, indent: self.continuation, annotated: false, description: true })
+            .expect("pending items fit nodes");
+    }
+
+    pub fn row_annotation(&mut self, at: u32) {
+        self.items
+            .push(PendingItem { at, indent: self.continuation, annotated: false, description: false })
+            .expect("pending rows fit nodes");
     }
 
     pub fn control(&mut self, focused: bool, mark: char, paint: Paint, frame: &mut Frame) {
@@ -177,6 +200,31 @@ impl Canvas {
         }
     }
 
+    pub fn content(
+        &mut self,
+        bytes: &[u8],
+        paint: Paint,
+        focused: bool,
+        tree: &Tree,
+        info: &List<Info>,
+        frame: &mut Frame,
+    ) {
+        let mut begin = 0;
+        for (at, byte) in bytes.iter().enumerate() {
+            if *byte != b'\n' {
+                continue;
+            }
+            self.safe(bytes.get(begin..at).expect("content segment exists"), paint, focused, frame);
+            self.annotate_items(tree, info, frame);
+            self.safe(b"\n", paint, focused, frame);
+            if self.quote {
+                self.safe(b"> ", paint, focused, frame);
+            }
+            begin = at.saturating_add(1);
+        }
+        self.safe(bytes.get(begin..).expect("content suffix exists"), paint, focused, frame);
+    }
+
     fn glyph(&mut self, glyph: char, paint: Paint, focused: bool, frame: &mut Frame) {
         let focused = focused || self.tagged;
         if self.single && self.row != 0 {
@@ -190,6 +238,9 @@ impl Canvas {
             self.dirty = true;
             return;
         }
+        if self.code && self.cut {
+            return;
+        }
         let pending_caret = match self.cells.get(u32::from(self.column)) {
             Some(ink) => ink.caret,
             None => false,
@@ -200,10 +251,12 @@ impl Canvas {
         }
         let start = self.left.saturating_add(self.continuation).min(self.right.saturating_sub(1));
         if count > self.right.saturating_sub(start) {
+            self.cut = self.code;
             return;
         }
         if self.column.saturating_add(count) > self.right {
-            if self.single || self.clipped {
+            if self.single || self.clipped || self.code {
+                self.cut = self.code;
                 return;
             }
             if let Some(ink) = self.cells.get_mut(u32::from(self.column)) {
@@ -304,6 +357,7 @@ impl Canvas {
         }
         self.column = self.left.saturating_add(self.continuation).min(self.right);
         self.dirty = false;
+        self.cut = false;
     }
     fn commit(&mut self, frame: &mut Frame) {
         let visible = self.row >= self.viewport.first
@@ -344,36 +398,30 @@ impl Canvas {
         self.commit(frame);
     }
 
-    pub fn finish_annotated(&mut self, tree: &Tree, info: &List<Info>, frame: &mut Frame) {
+    fn annotate_items(&mut self, tree: &Tree, info: &List<Info>, frame: &mut Frame) {
         let mut items = core::mem::replace(&mut self.items, List::with_capacity(tree.len()));
-        for item in &items {
-            let n = tree.get(item.at).expect("item exists");
-            let paint = info.get(item.at).expect("item information exists").paint;
-            words::states(n, paint, self, frame);
-            if let Some(position) = n.position {
-                self.safe(b" (", paint, false, frame);
-                self.safe(Decimal::of(u64::from(position)).as_bytes(), paint, false, frame);
-                let mut parent = info.get(item.at).expect("item information exists").parent;
-                for _ancestor in 0..tree.len() {
-                    let Some(at) = parent else { break };
-                    let n = tree.get(at).expect("parent exists");
-                    if n.role.is_collection() {
-                        if let Some(count) = n.count {
-                            self.safe(b" of ", paint, false, frame);
-                            self.safe(Decimal::of(u64::from(count)).as_bytes(), paint, false, frame);
-                        }
-                        break;
-                    }
-                    parent = info.get(at).expect("parent information exists").parent;
-                }
-                self.safe(b")", paint, false, frame);
+        for item in items.iter_mut() {
+            if !item.annotated {
+                let n = tree.get(item.at).expect("item exists");
+                let paint = info.get(item.at).expect("item information exists").paint;
+                words::states(n, paint, self, frame);
+                words::position(tree, item.at, info, paint, self, frame);
+                item.annotated = true;
             }
         }
+        self.items = items;
+    }
+
+    pub fn finish_annotated(&mut self, tree: &Tree, info: &List<Info>, frame: &mut Frame) {
+        self.annotate_items(tree, info, frame);
+        let mut items = core::mem::replace(&mut self.items, List::with_capacity(tree.len()));
         self.finish(frame);
         let indent = self.indent;
         for item in &items {
             let n = tree.get(item.at).expect("item exists");
-            if let Some(description) = &n.description {
+            if item.description
+                && let Some(description) = &n.description
+            {
                 self.start(item.indent);
                 self.safe(description, info.get(item.at).expect("item information exists").paint, false, frame);
                 self.finish(frame);

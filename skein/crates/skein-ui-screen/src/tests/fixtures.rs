@@ -1,3 +1,6 @@
+mod every;
+pub use every::every;
+
 use crate::{Arrange, Border, Glyphs, Paint, Place, RegionLook, Rgb, StyleLook, Theme};
 use skein_lib::{Queue, Token};
 use skein_ui::{Binding, Builder, EntryKind, Limits, NodeId, Owner, Region, Role, Run, State, Style, Tree};
@@ -269,6 +272,165 @@ pub fn field_tail(role: Role, value: &[u8], entry: EntryKind) -> Tree {
     b.bind(binding());
     b.close();
     leaf(&mut b, Role::Paragraph, b"Tail");
+    b.close();
+    finish(b)
+}
+
+pub fn role_control(role: Role, state: State, disabled: bool, bound: bool) -> Tree {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Page);
+    if role == Role::Option {
+        b.open(Role::Select);
+        b.name(b"Select");
+        if disabled {
+            b.state(State::Disabled);
+        }
+    }
+    b.open(role);
+    b.name(b"Choose");
+    b.state(state);
+    if disabled && role != Role::Option {
+        b.state(State::Disabled);
+    }
+    if bound {
+        b.bind(binding());
+    }
+    b.close();
+    if role == Role::Option {
+        b.close();
+    }
+    b.close();
+    finish(b)
+}
+
+pub fn selected_check(tree: &Tree) -> NodeId {
+    for node in tree.nodes() {
+        if node.role == Role::Check && node.states.as_slice().contains(&State::Selected) {
+            return node.id;
+        }
+    }
+    unreachable!("every-role tree has a selected check")
+}
+
+pub fn disclosures() -> Tree {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Page);
+    b.open(Role::Disclosure);
+    b.description(b"unnamed description");
+    leaf(&mut b, Role::Paragraph, b"child");
+    b.close();
+    b.open(Role::Disclosure);
+    b.name(b"More?");
+    b.description(b"first\nnext");
+    b.state(State::Expanded);
+    leaf(&mut b, Role::Paragraph, b"child");
+    b.close();
+    b.close();
+    finish(b)
+}
+
+pub fn table_edges() -> Tree {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Page);
+    b.open(Role::Table);
+    b.description(b"table");
+    b.count(9);
+    b.open(Role::Row);
+    b.description(b"header row");
+    b.open(Role::ColumnHeader);
+    b.description(b"empty header");
+    b.sort(skein_ui::Sort::Ascending);
+    b.close();
+    b.close();
+    b.open(Role::Row);
+    leaf(&mut b, Role::Cell, b"");
+    leaf(&mut b, Role::Cell, b"");
+    b.close();
+    b.open(Role::Row);
+    b.position(2);
+    b.state(State::Selected);
+    leaf(&mut b, Role::Cell, b"data\ncontinued");
+    b.close();
+    b.close();
+    b.open(Role::ColumnHeader);
+    b.text(Run::Plain, b"Sorted");
+    b.sort(skein_ui::Sort::Descending);
+    b.close();
+    leaf(&mut b, Role::RowHeader, b"outside row");
+    b.close();
+    finish(b)
+}
+
+pub fn wrapped_row() -> Tree {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Page);
+    b.open(Role::Table);
+    b.open(Role::Row);
+    leaf(&mut b, Role::Cell, b"alpha beta gamma delta");
+    leaf(&mut b, Role::Cell, b"epsilon");
+    b.close();
+    b.close();
+    b.close();
+    finish(b)
+}
+
+pub fn blocks() -> Tree {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Page);
+    leaf(&mut b, Role::Code, "123456789\nabcdefg界Z\nok".as_bytes());
+    leaf(&mut b, Role::Quote, b"one\ntwo");
+    b.open(Role::Progress);
+    b.name(b"Work");
+    b.close();
+    b.drawing(skein_ui::DrawingKind { owner: OWNER, kind: 1 }, b"", b"", 0);
+    leaf(&mut b, Role::Paragraph, b"fallback");
+    b.close();
+    b.close();
+    finish(b)
+}
+
+pub fn log_menu_tree() -> Tree {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Page);
+    b.open(Role::Log);
+    b.name(b"Log");
+    b.bind(binding());
+    b.state(State::Continues);
+    b.end_request(1);
+    leaf(&mut b, Role::Paragraph, b"oldest");
+    leaf(&mut b, Role::Paragraph, b"newest");
+    b.close();
+    b.open(Role::Menu);
+    b.name(b"Menu");
+    b.state(State::Options);
+    b.open(Role::MenuItem);
+    b.name(b"Run");
+    b.bind(binding());
+    b.close();
+    b.close();
+    b.open(Role::Tree);
+    b.count(3);
+    b.open(Role::TreeItem);
+    b.position(2);
+    b.state(State::Expanded);
+    b.description(b"item description");
+    leaf(&mut b, Role::Paragraph, b"branch\ncontinued");
+    b.open(Role::Tree);
+    b.open(Role::TreeItem);
+    b.position(1);
+    b.text(Run::Plain, b"inner");
+    b.close();
+    b.close();
+    b.close();
+    b.open(Role::TreeItem);
+    b.position(3);
+    b.state(State::Expanded);
+    b.open(Role::Disclosure);
+    b.name(b"Details");
+    leaf(&mut b, Role::Paragraph, b"detail");
+    b.close();
+    b.close();
+    b.close();
     b.close();
     finish(b)
 }
