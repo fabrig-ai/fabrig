@@ -235,6 +235,15 @@ fn decode_document(document: Document) -> Result<Decoded, ConfigurationRefusal> 
 }
 
 impl Decoded {
+    pub(crate) fn list_endpoints(self) -> Result<llm::Endpoints, String> {
+        llm::Endpoints::new(
+            native::endpoints(self.endpoints.llm, &self.limits.llm.connection, &mut std::io::sink())
+                .map_err(ConfigurationRefusal::detail)?,
+            ENDPOINTS,
+        )
+        .map_err(|error| format!("LLM endpoints: {error:?}"))
+    }
+
     /// Resolve names and load trust after the caller blocks termination signals.
     /// Trust diagnostics go only to the supplied operator writer.
     pub fn resolve(self, errors: &mut dyn std::io::Write) -> Result<Configuration, ConfigurationRefusal> {

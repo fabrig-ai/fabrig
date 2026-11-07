@@ -51,7 +51,7 @@ impl std::fmt::Debug for Process {
     }
 }
 
-fn limits() -> io::Limits {
+pub(crate) fn limits() -> io::Limits {
     io::Limits {
         sockets: 5,
         names: 0,
