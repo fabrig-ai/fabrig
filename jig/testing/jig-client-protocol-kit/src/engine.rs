@@ -56,7 +56,7 @@ impl Engine {
     ) -> Self {
         let limits = crate::fixtures::journal(*limits);
         let driver = Driver::new(config, limits, peers, Time::ZERO, crate::fixtures::wall(Time::ZERO));
-        let truth = Truth::after(driver.world.store.rows.clone());
+        let truth = Truth::seen(&driver.world.store.rows);
         let env =
             Env { now: Time::ZERO, wall: crate::fixtures::wall(Time::ZERO), limits: crate::fixtures::engine_limits() };
         let mut out = Queue::with_capacity(256);
