@@ -1,0 +1,45 @@
+# conformance-causes: what each forked replay still costs
+
+2026-11-07 UTC, base `456f45b727`, 16 CPUs, AMD EPYC-Genoa Processor,
+valgrind 3.24.0. Unoptimized test builds; simulated time; original patience.
+Each sweep's Ir sums PROGRAM TOTALS from its parent and every child.
+
+| Story | Arm | Run | Ir | Native CPU s (user + system, with descendants) | Result |
+|---|---|---:|---:|---:|---|
+| `fuzzy::stories::a_ci_repair_is_crashed_at_every_live_commit` | Before | 1 | 25,170,053,373 | 6.918 | 1 passed; 78 children |
+| `fuzzy::shared::a_changed_judge_is_crashed_at_every_live_commit` | Before | 1 | 21,870,826,246 | 5.843 | 1 passed; 77 children |
+
+## Reproducing the measurements
+
+Build and find the binary and cwd:
+`heavy cargo nextest list -p temper-conformance-world --test suite --message-format json`.
+For each test above, run the unoptimized binary from its cwd:
+
+```sh
+heavy bash -lc 'cd <cwd> && CARGO_MANIFEST_DIR=$PWD valgrind --tool=callgrind \
+  --zero-before=skein_fork::process::child \
+  --callgrind-out-file=<slot>/target/limits-worlds/conformance-causes/<arm>-<story>.%p.out \
+  <binary-path> --exact <test-name> --nocapture'
+```
+
+Use the same command before and after. The child-entry reset excludes the
+inherited prefix counters. Sum each file's `summary:` (PROGRAM TOTALS),
+including the parent once: 79 files for CI repair and 78 for changed judge.
+As in `temper/docs/plan/limits-worlds/figures/cuts-fork.md`, these summaries
+conservatively retain inherited libtest overhead. Self and inclusive function
+counts aggregate raw records by function name; even `calls=0` is a call edge.
+Inclusive frames overlap. Forwarding and iterator wrappers are omitted from
+the inclusive cause tables. Read annotations with
+`callgrind_annotate --inclusive=no <file>` and `--inclusive=yes <file>`.
+
+Native CPU uses bash time, which counts waited-for children (`/usr/bin/time`
+is absent). The first and second columns in its output are added above:
+
+```sh
+heavy bash -lc 'cd <cwd>
+TIMEFORMAT="native user %U system %S wall %R"
+time CARGO_MANIFEST_DIR=$PWD <binary-path> --exact <test-name> --nocapture'
+```
+
+Native timing is a single run per arm; instructions are the primary comparison.
+No budget, deadline, patience, build setting or cut was changed.

@@ -26,6 +26,8 @@ pub enum Write<'a> {
     Save(&'a core::Record),
     Erase(core::Key),
     Other,
+    /// A bulk mutation whose individual core keys are not listed.
+    Refresh,
 }
 
 /// Borrow core rows and translate submitted writes; the adapter adds connector evidence.

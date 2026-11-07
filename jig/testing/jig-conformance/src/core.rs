@@ -6,6 +6,8 @@ pub mod naming;
 pub mod peers;
 mod projects;
 mod snapshot;
+mod projection;
+pub use projection::Projection;
 pub use snapshot::{proposal_decisions, snapshot};
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -214,7 +216,7 @@ impl SeenFence {
         let records = store.rows.values().copied().chain(store.pending.iter().flat_map(|pending| {
             pending.writes.iter().filter_map(|write| match write {
                 Write::Save(record) => Some(*record),
-                Write::Other | Write::Erase(_) => None,
+                Write::Other | Write::Refresh | Write::Erase(_) => None,
             })
         }));
         for record in records {
@@ -263,6 +265,7 @@ pub struct Observer {
     roles: BTreeMap<(u32, u32), r::Scope>,
     decisions_by_role: BTreeMap<(u32, u32), u8>,
     applied: u64,
+    projection: Projection,
     activity: BTreeMap<(u64, u64), tasks::ActivityLine>,
     activity_erases: BTreeMap<u64, Vec<(u64, u64)>>,
     // Seen uses a commit fence instead of a new Answer receipt.
@@ -352,6 +355,7 @@ impl Observer {
             roles,
             decisions_by_role,
             applied: 0,
+            projection: Projection::default(),
             activity: BTreeMap::new(),
             activity_erases: BTreeMap::new(),
             requests: BTreeMap::new(),
@@ -501,6 +505,7 @@ impl Observer {
 
     /// Compare the cold store with the receipts that outside observers saw.
     pub fn cold(&mut self, now: u64, store: &Store<'_>) {
+        self.projection.invalidate();
         self.requests.retain(|_, (_, _, seen)| seen.is_none());
         // An uncommitted forget is lost with the old root. A start's mark may
         // reuse its number without forgetting the task.
@@ -550,6 +555,7 @@ impl Observer {
     pub fn submitted(&mut self, store: &Store<'_>) {
         self.intents.submitted(store);
         if let Some(pending) = store.pending.back() {
+            self.projection.submitted(pending);
             for (person, _, seen) in self.requests.values_mut() {
                 let Some(fence) = seen else { continue };
                 let Some(position) = fence.position else { continue };
@@ -647,7 +653,7 @@ impl Observer {
             }
         }
         self.discarded.clear();
-        let mut snapshot = snapshot(&store.rows);
+        let mut snapshot = self.projection.snapshot(store.applied, &store.rows);
         snapshot.naming.extend(store.effects.naming.iter().cloned());
         snapshot.receipts.extend(store.effects.receipts.iter().cloned());
         snapshot.attempts.extend(store.effects.attempts.iter().map(|(key, value)| (*key, *value)));

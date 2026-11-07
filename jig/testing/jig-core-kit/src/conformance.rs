@@ -334,9 +334,8 @@ pub fn store_view(store: &Store) -> conformance::Store<'_> {
             root::Write::Erase(root::Key::Core(key)) => conformance::Write::Erase(key.clone()),
             root::Write::Save(root::Record::Connector { .. })
             | root::Write::Erase(root::Key::Connector { .. })
-            | root::Write::Wires
-            | root::Write::CopySettingsRevision(_)
-            | root::Write::DropTranscript { .. } => conformance::Write::Other,
+            | root::Write::Wires => conformance::Write::Other,
+            root::Write::CopySettingsRevision(_) | root::Write::DropTranscript { .. } => conformance::Write::Refresh,
         },
     );
     let snapshot = &mut view.effects;

@@ -26,8 +26,6 @@ pub fn snapshot(records: &BTreeMap<core::Key, &core::Record>) -> r::Snapshot {
             snapshot.deleting.insert(*project);
         }
     }
-    let mut decisions = Vec::new();
-    let mut authority_acceptances = Vec::new();
     for record in records.values().copied() {
         match record {
             core::Record::Core(core::CoreRecord::Settings(core::settings::Record::Revision {
@@ -51,21 +49,13 @@ pub fn snapshot(records: &BTreeMap<core::Key, &core::Record>) -> r::Snapshot {
             core::Record::Tasks(tasks::Stored::Pool(row)) => {
                 snapshot.pools.insert(super::name(&row.pool), row.slots);
             }
-            core::Record::Tasks(tasks::Stored::History(row)) => {
-                if let Some(accepted) = super::acceptance::task(row) {
-                    authority_acceptances.push(accepted);
-                }
-            }
             core::Record::Tasks(tasks::Stored::PersonProposal(row))
                 if matches!(row.state, tasks::PersonProposalState::Pending { .. }) =>
             {
                 snapshot.party_proposals.insert(row.number, row.proposer);
             }
             core::Record::Tasks(tasks::Stored::Live(row) | tasks::Stored::Ended(row)) => {
-                let mut task = super::task(row);
-                task.tracked |= records
-                    .contains_key(&core::Key::Core(core::CoreKey::Projection(core::ProjectionKey::Goal(row.number))));
-                snapshot.tasks.insert(row.number, task);
+                snapshot.tasks.insert(row.number, super::task(row));
                 if let tasks::Escalation::Waiting { holder: tasks::EscalationHolder::Task(holder), entry, .. } =
                     row.escalation
                 {
@@ -142,11 +132,6 @@ pub fn snapshot(records: &BTreeMap<core::Key, &core::Record>) -> r::Snapshot {
                     snapshot.batches.push(members.iter().map(|member| member.task).collect());
                 }
             }
-            core::Record::Core(core::CoreRecord::ProposalDecision(row))
-                if row.choice == people::ProposalChoice::Accepted =>
-            {
-                decisions.push(*row);
-            }
             core::Record::Core(_)
             | core::Record::Tasks(_)
             | core::Record::People(_)
@@ -154,7 +139,22 @@ pub fn snapshot(records: &BTreeMap<core::Key, &core::Record>) -> r::Snapshot {
             | core::Record::Accounts(_) => {}
         }
     }
-    for accepted in decisions {
+    resolve(&mut snapshot, records);
+    snapshot
+}
+
+/// Resolve facts whose meaning depends on more than one current row.
+pub(super) fn resolve(snapshot: &mut r::Snapshot, records: &BTreeMap<core::Key, &core::Record>) {
+    for task in snapshot.tasks.values_mut() {
+        task.tracked |= records
+            .contains_key(&core::Key::Core(core::CoreKey::Projection(core::ProjectionKey::Goal(task.number))));
+    }
+    let mut authority_acceptances = records.values().filter_map(|row| match row {
+        core::Record::Tasks(tasks::Stored::History(row)) => super::acceptance::task(row),
+        core::Record::Core(_) | core::Record::Tasks(_) | core::Record::People(_)
+        | core::Record::Notes(_) | core::Record::Accounts(_) => None,
+    }).collect::<Vec<_>>();
+    for accepted in proposal_decisions(records) {
         let key = core::Key::Tasks(tasks::Key::DecidedProposal(accepted.proposal));
         if let Some(core::Record::Tasks(tasks::Stored::DecidedProposal(proposal))) = records.get(&key)
             && let tasks::PersonAction::Amend { task, .. } = proposal.action
@@ -186,7 +186,6 @@ pub fn snapshot(records: &BTreeMap<core::Key, &core::Record>) -> r::Snapshot {
     for (_, task, accepted) in authority_acceptances {
         snapshot.accepted_tasks.insert(task, accepted);
     }
-    snapshot
 }
 
 /// The committed proposal decisions used to attribute connector-owned effects.

@@ -418,11 +418,12 @@ than cutting the cover.
   decoding outside the kit, since it links smith, and each adopter's first
   period and `Drained` as the referee sees them. Default: as they stand, until
   `jig/docs/development/debt/D030-conformance-not-drop-in.md` is planned.
-- **A commit's rows for the core's observer** (5): the observer projects the
-  whole store at each new commit. A feed of each commit's rows needs keyed
-  snapshot accounting, commit-level observations and a check against the whole
-  projection. Default: the whole projection, until
-  `jig/docs/development/debt/D034-world-replay-cost.md` is planned.
+- **A commit's rows for the core's observer** (5): submitted keys replace or
+  erase keyed row evidence after durability. Receipts retain each contributing
+  row, and person spend sums current ledgers. Observations remain complete,
+  ordered snapshots once per commit, checked against whole-store projection
+  in focused tests. Cold observation reads current rows even without a new
+  commit; a missing feed or a bulk mutation rebuilds the projection whole.
 - **Smith's world kit** (7): `smith-agent-process-world` is a kit by name, as
   smith has no `testing/`. Default: as it stands, until a debt item of smith's
   names it.

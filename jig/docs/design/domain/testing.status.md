@@ -1,15 +1,8 @@
 # testing: status
 
-2026-11-06. Where jig's code lags or departs from [testing.md](testing.md).
+2026-11-07. Where jig's code lags or departs from [testing.md](testing.md).
 
-- **Not yet:** 5: the `debt-25` request of 2026-11-06 has the core world's observer
-  update from each commit's rows
-  (`jig/docs/development/debt/D034-world-replay-cost.md`), but
-  `jig_conformance::core`'s `durable_at` rebuilds its snapshot whole at each
-  new commit, because a feed of rows alone would keep that rebuild and the
-  referee's walk of every task, and that plan's cut left it out, by judgement,
-  with its share of a suite's CPU measured for that plan's owner.
-  7: `ops`'s worlds on jig's store component; they run `jig-fake-store`.
+- **Not yet:** 7: `ops`'s worlds on jig's store component; they run `jig-fake-store`.
   7: the `debt-24` request of 2026-11-05 has each world name its parties,
   projects, tasks and connectors once, a bare number left only where it's the
   point, at most ten by the search in

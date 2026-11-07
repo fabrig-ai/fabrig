@@ -30,7 +30,7 @@ Acceptance:
 - `temper/docs/plan/limits-worlds/notes/common.md`, `temper/docs/plan/limits-worlds/notes/measuring.md`.
 - `temper/docs/plan/limits-worlds/figures/cuts-fork.md`: your *before*.
 - `jig/docs/design/domain/testing.md`, 5, 6 and 10 ("A commit's rows for the core's observer").
-- `jig/docs/development/debt/D034-world-replay-cost.md`: what's been measured here, and what paying it takes.
+- D034 (whose paid account is `temper/docs/plan/limits-worlds/figures/conformance-causes.md`): what's been measured here, and what paying it takes.
 - `temper/tests/conformance/src/lib.rs`, `observed`; `temper/tests/conformance/src/observations.rs`; `jig/testing/jig-conformance/src/core.rs`, `durable_at`.
 
 ## Owns and may change
@@ -38,7 +38,7 @@ Acceptance:
 Owns the files in the header. Also, each only as named:
 
 - **jig's adapters, `jig/tests/conformance/src/**` and `jig/tests/ops/src/conformance/**`:** what a change to the harness's or the kit's interface forces, and no more.
-- **Design, a departure from the implementer's text:** if you pay D034, change `jig/docs/design/domain/testing.md`, 10's "A commit's rows" entry and `jig/docs/design/domain/testing.status.md`'s `debt-25` entry to say so, and delete `jig/docs/development/debt/D034-world-replay-cost.md`, as that directory's `README.md` has a paid item go, fixing the citations to it. No other design text.
+- **Design, a departure from the implementer's text:** if you pay D034, change `jig/docs/design/domain/testing.md`, 10's "A commit's rows" entry and `jig/docs/design/domain/testing.status.md`'s `debt-25` entry to say so, and delete D034 (whose paid account is `temper/docs/plan/limits-worlds/figures/conformance-causes.md`), as that directory's `README.md` has a paid item go, fixing the citations to it. No other design text.
 
 Where to look first, and what you decide. The profile decides whether any of these is the cause:
 

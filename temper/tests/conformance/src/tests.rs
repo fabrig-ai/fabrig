@@ -6,6 +6,15 @@ const HEAD: skein_forge::api::Commit = [7; 32];
 const RESTART: Clock = Clock { now: 1 };
 
 #[test]
+fn a_commit_feed_matches_whole_projection_through_stories_and_cold_restarts() {
+    // Unit-test builds compare every fed snapshot with the whole projection,
+    // before connector evidence and before the referee receives it.
+    for story in [stories::Story::RepairCi, stories::Story::GoalIssue] {
+        stories::run(story, jig_conformance::Cut::AfterCommit(20), 71).expect("whole and keyed evidence agree");
+    }
+}
+
+#[test]
 fn a_worker_reports_its_unchanged_push_head_after_an_engine_restart() {
     let config = Config::new(71, Some(jig_conformance::scenarios::Scenario::Grace));
     let mut peers = Temper::peers(&config, 71);

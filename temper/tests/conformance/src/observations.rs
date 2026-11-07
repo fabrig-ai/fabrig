@@ -163,8 +163,43 @@ pub fn snapshot(store: &Store) -> r::Snapshot {
             root::Record::Forge { .. } => None,
         })
         .collect();
-    let mut snapshot = jig_conformance::core::snapshot(&records);
-    let decisions = jig_conformance::core::proposal_decisions(&records);
+    let snapshot = jig_conformance::core::snapshot(&records);
+    connector_snapshot(store, snapshot, &records)
+}
+
+/// A commit's keys update the core evidence; connector facts remain independent.
+#[must_use]
+pub fn projected(store: &Store, projection: &mut jig_conformance::core::Projection) -> r::Snapshot {
+    let records = store.rows.values().filter_map(|record| match record {
+        root::Record::Core(record) => Some((record.key(), record)),
+        root::Record::Forge { .. } => None,
+    }).collect();
+    let snapshot = projection.snapshot(store.applied, &records);
+    #[cfg(test)]
+    assert_eq!(snapshot, jig_conformance::core::snapshot(&records), "commit {}", store.applied);
+    connector_snapshot(store, snapshot, &records)
+}
+
+pub fn submitted(store: &Store, projection: &mut jig_conformance::core::Projection) {
+    use jig_conformance::core::{Commit, Write};
+    if let Some((number, writes)) = store.pending.back() {
+        let writes = writes.iter().map(|write| match write {
+            root::Write::Save(root::Record::Core(record)) => Write::Save(record),
+            root::Write::Erase(root::Key::Core(key)) => Write::Erase(key.clone()),
+            root::Write::CopySettingsRevision(_) | root::Write::DropTranscript { .. } => Write::Refresh,
+            root::Write::Save(root::Record::Forge { .. }) | root::Write::Erase(root::Key::Forge(_) | root::Key::Wires)
+            | root::Write::Wires => Write::Other,
+        }).collect();
+        projection.submitted(&Commit { number: *number, writes });
+    }
+}
+
+fn connector_snapshot(
+    store: &Store,
+    mut snapshot: r::Snapshot,
+    records: &BTreeMap<core::Key, &core::Record>,
+) -> r::Snapshot {
+    let decisions = jig_conformance::core::proposal_decisions(records);
     for record in store.rows.values() {
         match record {
             root::Record::Forge { row } => {

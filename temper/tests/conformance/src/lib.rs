@@ -116,6 +116,7 @@ pub struct Peers {
     started: bool,
     applied: u64,
     first_start: Option<r::Snapshot>,
+    projection: jig_conformance::core::Projection,
     observed: Vec<r::Observed>,
     /// The protocol layer this world plays: decodes, renders, outcomes, accounts.
     protocol: Protocol,
@@ -275,6 +276,7 @@ impl Application for Temper {
             started: false,
             applied: 0,
             first_start: Some(observations::snapshot(&first)),
+            projection: jig_conformance::core::Projection::default(),
             observed: Vec::new(),
             protocol: Protocol::default(),
             requests: std::collections::BTreeMap::new(),
@@ -308,6 +310,7 @@ impl Application for Temper {
         vec![Event::Root(engine::Event::Restart { pending: false })]
     }
     fn cold(peers: &mut Peers, store: &Store, _: Clock) {
+        peers.projection.invalidate();
         peers.observed.push(r::Observed::ColdStore { receipts: observations::snapshot(store).receipts });
         for record in store.rows.values() {
             if let root::Record::Forge { row } = record
@@ -589,6 +592,7 @@ impl Application for Temper {
         events.into_iter().map(|event| Input::Event(Event::Root(event))).collect()
     }
     fn submitted(peers: &mut Peers, store: &Store, _: Clock) {
+        observations::submitted(store, &mut peers.projection);
         if let Some((number, writes)) = store.pending.back() {
             let mut forgotten = Vec::new();
             for write in writes {
@@ -613,7 +617,7 @@ impl Application for Temper {
         }
         if peers.applied != store.applied {
             peers.applied = store.applied;
-            let mut snapshot = observations::snapshot(store);
+            let mut snapshot = observations::projected(store, &mut peers.projection);
             observations::resolved(store, &mut snapshot, &mut peers.effects, &mut peers.held, &mut peers.settled);
             for record in store.rows.values() {
                 if let root::Record::Core(jig_domain_core::Record::Tasks(
