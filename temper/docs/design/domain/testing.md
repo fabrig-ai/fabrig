@@ -2823,6 +2823,14 @@ scripts/proof-live.sh               the live tier
 
 ## 11. Later
 
+- **Haiku's live landing proof** (2.7): use the after-landing Claude Code
+  owned-forge story on a fresh store to verify the by-name selection in
+  charters 1 and 2 and the real launch with
+  `--model claude-haiku-5-5 --effort low`, through landing and restart.
+  Keep the ChatGPT story on stock row 7, `gpt-6-luna`. A table of settings
+  changes establishes no real launch or model outcome; repair any live
+  red after landing.
+
 - **The plain-change live outcome** (2.7): run the existing owned-forge
   landing story after landing to observe the real chat's choice with
   `goal`'s declaration (`agent.md`, 4.3.2). Keep the requirement for the
