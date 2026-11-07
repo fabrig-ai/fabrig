@@ -881,11 +881,12 @@ faults; the service and the hosted peer each have an allocator binary.
 - **Credentials.** `Authorization: Bearer <t>` names one of three kinds:
   - a person's token (the scenario's `tokens`, as in section 4);
   - an installation's token, which the layer mints;
-  - the App's JSON Web Token, which the layer checks by signing the
-    token's signing input again with the App's key: RS256 with PKCS#1
-    v1.5 is deterministic, so it needs no verifying function. The layer
+  - the App's JSON Web Token, whose signature the layer checks with
+    `skein_tls::verify_rs256`, by the public half of the App's key
+    (`rs256_public_pkcs1`, tls.md, section 4); a key with no public half
+    verifies nothing. The layer
     keeps the last token it verified, its exact bytes and its claims, so
-    the same token again under the same key skips the signing; a new key
+    the same token again under the same key skips that check; a new key
     or a revoked one forgets it, and the claims are checked on every
     request. A token past its `exp`, or more than 600 seconds after its `iat`, or not
     yet valid by more than 60 seconds on the forge's clock, is `401`.
