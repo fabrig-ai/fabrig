@@ -61,6 +61,7 @@ fn activity(outcomes: &[&str]) -> c::ActivityPage {
                 used: c::Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
                 spent: 0,
                 read_through: None,
+                llm: None,
                 cut: false,
             }),
         ))
@@ -662,13 +663,27 @@ fn plus(tree: &Tree) -> bool {
 }
 #[test]
 fn plus_draft_shows_when_the_setting_offers_it() {
-    for shell in [Shell::Browser, Shell::Terminal] {
-        let mut shown = view(&offered(None, false), shell);
-        let node = shown.tree().nodes().iter().find(|node| node.name.as_deref() == Some(b"+ Draft")).unwrap();
-        assert!(node.styles.as_slice().contains(&look::ADD_DRAFT));
-        let id = node.id;
-        assert_eq!(crate::act(&mut shown, id, skein_ui::Act::Press), Some(d::Action::Pages(Act::AddDraft)));
-        assert!(!plus(view(&root(None, Mode::Chat, &[]), shell).tree()));
+    for (body, state, offered) in [
+        (None, ProposalState::DraftOffered, true),
+        (None, ProposalState::Ordinary, false),
+        (None, ProposalState::NotProposed, true),
+        (Some(BODY), ProposalState::NotProposed, false),
+    ] {
+        for shell in [Shell::Browser, Shell::Terminal] {
+            let mut root = document_root(body, Mode::Chat, &[], state);
+            let mut shown = view(&root, shell);
+            assert_eq!(plus(shown.tree()), offered);
+            if offered {
+                let node = shown.tree().nodes().iter().find(|node| node.name.as_deref() == Some(b"+ Draft")).unwrap();
+                assert!(node.styles.as_slice().contains(&look::ADD_DRAFT));
+                let id = node.id;
+                assert_eq!(crate::act(&mut shown, id, skein_ui::Act::Press), Some(d::Action::Pages(Act::AddDraft)));
+            }
+            f::root_event(&mut root, d::Event::Act { action: d::Action::Pages(Act::AddDraft) });
+            let chat = root.pages().chat().unwrap();
+            assert_eq!(chat.writing, offered);
+            assert_eq!(chat.mode, if offered { Mode::Split } else { Mode::Chat });
+        }
     }
 }
 #[test]

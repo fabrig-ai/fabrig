@@ -18,8 +18,8 @@
 //! | any read | failed | idle, failed end recorded | nothing |
 use self::window::{Edge, Edges, End, TurnWindow};
 use crate::contract::{
-    ActivityPage, ApplicationPart, ArchivedTurn, Block, CallIdentity, Cursor, DecodedActivityLine, LiveCall, ObjectKey,
-    ProvisionalTurnName, Read, RunState, RunText, Side, Text, TurnName, TurnRead,
+    ActivityPage, ApplicationPart, ArchivedTurn, Block, CallIdentity, Cursor, DecodedActivityLine, LiveCall,
+    ModelEffort, ObjectKey, ProvisionalTurnName, Read, RunState, RunText, Side, Text, TurnName, TurnRead,
 };
 use skein_lib::{List, Map, Wall, bytes};
 mod model;
@@ -93,6 +93,9 @@ pub struct Thread {
     pub committed: u64,
     /// The newest position this conversation has read.
     pub loaded: u64,
+    /// The `llm` of the newest decoded turn, taken when the window reaches the live end
+    /// (client/domain/client.md, 10).
+    pub latest_llm: Option<ModelEffort>,
     pub reading: Option<Reading>,
     /// Whole new-tail pages waiting to meet the held committed position.
     pub fresh: TurnWindow,
@@ -128,6 +131,7 @@ impl Thread {
             lines: TurnWindow::new(rows),
             committed: 0,
             loaded: 0,
+            latest_llm: None,
             reading: None,
             fresh: TurnWindow::new(rows),
             opened: Map::with_capacity(rows),
@@ -286,6 +290,7 @@ impl Thread {
                 slide(&mut self.lines, rows, edges, self.limits.bytes, end);
             }
         }
+        self.take_latest_llm();
         // Staged pages fence live text only once their rows enter the window.
         for at in 0..self.lines.rows.len() {
             let row = self.lines.rows.get(at).expect("bounded window row exists");
@@ -295,6 +300,24 @@ impl Thread {
         }
         self.prune_live();
         self.moved(self.committed)
+    }
+    fn take_latest_llm(&mut self) {
+        if !self.lines.edges.reaches(End::Before) {
+            return;
+        }
+        for row in &self.lines.rows {
+            if let Some(archive) = &row.decoded {
+                match &archive.turn {
+                    TurnRead::Decoded(turn) => {
+                        if let Some(llm) = &turn.llm {
+                            self.latest_llm = Some(llm.clone());
+                            return;
+                        }
+                    }
+                    TurnRead::Undecodable { .. } => {}
+                }
+            }
+        }
     }
     /// Allows a failed or refused read to be retried without inventing a page.
     pub fn failed(&mut self) {

@@ -873,6 +873,26 @@ fn a_keys_line_uses_the_configured_provider_name_and_appends_effort() {
     assert_eq!(using_text(&root), "Supplied Provider API key · chosen · high");
 }
 #[test]
+fn task_lines_take_their_own_templates_preview_and_offered_effort() {
+    use super::chat::{model_choice, model_line_root};
+    for (own, preview, charter, using, closed) in [
+        (None, Some(1), 1, "GPT-6 Astra · high", "GPT-6 Astra · high"),
+        (None, Some(3), 37, "GPT-6 Astra · high", "GPT-6 Astra · high"),
+        (Some(model_choice("gpt-6-astra", None)), None, 1, "GPT-6 Astra · high", "GPT-6 Astra · high"),
+        (Some(model_choice("gpt-6-astra", Some("low"))), None, 1, "GPT-6 Astra · low", "GPT-6 Astra · low"),
+        (None, None, 37, "Using the default model", "the default model"),
+    ] {
+        let mut task = super::chat::configuring_task();
+        task.chip.executor = c::ChipExecutor::Agent { charter };
+        task.activity = 1;
+        task.llm = own;
+        let root = model_line_root(task, None, preview);
+        assert_eq!(using_text(&root), using);
+        let task = root.pages().chat().unwrap().task(root.client()).unwrap();
+        assert_eq!(crate::choice::closed_line(&root, Some(task), &fixtures::words()).as_ref(), closed.as_bytes());
+    }
+}
+#[test]
 fn a_plan_has_a_manage_usage_link_only_for_a_safe_address() {
     for address in [
         None,

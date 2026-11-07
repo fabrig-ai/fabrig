@@ -107,7 +107,12 @@ impl Wire {
             let n = usize::try_from(n).expect("fits");
             if !self.ended && self.bytes.len() >= n {
                 self.demand = None;
-                let bytes: Vec<u8> = self.bytes.drain(..n).collect();
+                let mut bytes = Vec::with_capacity(n);
+                let (front, back) = self.bytes.as_slices();
+                let first = n.min(front.len());
+                bytes.extend_from_slice(&front[..first]);
+                bytes.extend_from_slice(&back[..n - first]);
+                drop(self.bytes.drain(..n));
                 return Some(Up::Bytes(bytes.into()));
             }
         }

@@ -51,8 +51,9 @@ fn seeded_roles(driver: &Driver) -> (Box<[people::Holding]>, std::collections::B
     for row in driver.store.rows.values() {
         if let engine::Record::Core(jig_domain_core::Record::People(people::Stored::Person { number, identity })) = row
         {
-            let subject: [u8; 8] = identity.key.subject.as_ref().try_into().expect("forge subject is a user number");
-            identities.insert(u64::from_be_bytes(subject), *number);
+            let (forge, user) = forge::key_user(&identity.key).expect("forge user key");
+            assert_eq!(forge, 1);
+            identities.insert(user, *number);
         }
         if let engine::Record::Core(jig_domain_core::Record::People(people::Stored::Roles { project: 1, holdings })) =
             row

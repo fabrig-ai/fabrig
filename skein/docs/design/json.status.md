@@ -1,6 +1,8 @@
 # json: status
 
-2026-11-06. Where skein's code lags or departs from [json.md](json.md).
+2026-11-07. Where skein's code lags or departs from [json.md](json.md).
+
+Unlisted sections have no known gap.
 
 - **Not yet:**
   - 6: the fuzz target.

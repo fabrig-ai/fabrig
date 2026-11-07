@@ -14,6 +14,7 @@ use skein_llm::{Credential, Provider};
 use skein_llm_connection::{Component, Deadlines, Endpoint, Event, Limits, Request};
 use skein_llm_connection_world::plaintext::Wire;
 use skein_world::domain::assert_replays;
+use skein_world::stream::Trace;
 
 fn limits() -> Limits {
     Limits {
@@ -29,7 +30,7 @@ fn limits() -> Limits {
 }
 
 #[expect(clippy::too_many_lines, reason = "the protocol story drives the component, io and fake peer")]
-fn run(dialect: Provider, seed: u64) -> (Vec<String>, (u32, u32)) {
+fn run(dialect: Provider, seed: u64) -> (Trace, (u32, u32)) {
     let mut call = skein_llm_kit::call(7);
     match dialect {
         Provider::OpenAi => {}

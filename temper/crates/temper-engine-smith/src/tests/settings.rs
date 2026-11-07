@@ -755,32 +755,54 @@ fn inventory_people_forms_share_repository_pagination() {
             person: 1,
             role: 0,
             login: b"owner".as_slice().into(),
-            forge_user: None,
-            writer: false,
+            forges: Box::new([engine::PersonForge {
+                host: b"forge.example:3847".as_slice().into(),
+                user: None,
+                writer: false,
+            }]),
             you: true,
         },
         engine::ProjectPerson {
             person: 4,
             role: 1,
             login: b"ada".as_slice().into(),
-            forge_user: Some(3),
-            writer: false,
+            forges: Box::new([engine::PersonForge {
+                host: b"forge.example:3847".as_slice().into(),
+                user: Some(3),
+                writer: false,
+            }]),
             you: false,
         },
         engine::ProjectPerson {
             person: 5,
             role: 2,
             login: Box::new([]),
-            forge_user: Some(7),
-            writer: false,
+            forges: Box::new([engine::PersonForge {
+                host: b"forge.example:3847".as_slice().into(),
+                user: Some(7),
+                writer: false,
+            }]),
             you: false,
         },
         engine::ProjectPerson {
             person: 6,
             role: 2,
             login: Box::new([]),
-            forge_user: Some(2),
-            writer: true,
+            forges: Box::new([engine::PersonForge {
+                host: b"forge.example:3847".as_slice().into(),
+                user: Some(2),
+                writer: true,
+            }]),
+            you: false,
+        },
+        engine::ProjectPerson {
+            person: 7,
+            role: 2,
+            login: b"grace".as_slice().into(),
+            forges: Box::new([
+                engine::PersonForge { host: b"forge.example:3847".as_slice().into(), user: Some(8), writer: false },
+                engine::PersonForge { host: b"other.example".as_slice().into(), user: None, writer: false },
+            ]),
             you: false,
         },
     ];
@@ -812,7 +834,7 @@ fn inventory_people_forms_share_repository_pagination() {
     .into_parts();
     assert!(!error);
     let expected = whole.strip_suffix(b"end\n").expect("terminal marker");
-    assert!(expected.ends_with(b"project repositories:\n  forge forge.example:3847 repository org/repo\nproject people:\n  person 1 owner: role 0, requester, forge identity unknown: cannot count for approvals\n  person 4 ada: role 1, forge user 3\n  person 5: role 2, forge user 7\n  person 6: role 2, forge user 2, temper's own forge writer: never counts as a person\nforge people:\n  forge 127.0.0.1:3000 configured owned-forge account ada; project membership unverified by this row\nmodels you can offer:\n  claude-opus-5-5: anthropic; efforts low, high; default high\n"), "{}", core::str::from_utf8(expected).expect("inventory UTF-8"));
+    assert!(expected.ends_with(b"project repositories:\n  forge forge.example:3847 repository org/repo\nproject people:\n  person 1 owner: role 0, requester, forge identity unknown: cannot count for approvals\n  person 4 ada: role 1, forge forge.example:3847 user 3\n  person 5: role 2, forge forge.example:3847 user 7\n  person 6: role 2, forge forge.example:3847 user 2, temper's own forge writer: never counts as a person\n  person 7 grace: role 2, forge forge.example:3847 user 8, forge other.example unknown: cannot count for approvals there\nforge people:\n  forge 127.0.0.1:3000 configured owned-forge account ada; project membership unverified by this row\nmodels you can offer:\n  claude-opus-5-5: anthropic; efforts low, high; default high\n"), "{}", core::str::from_utf8(expected).expect("inventory UTF-8"));
     let mut combined = skein_lib::Writer::new(expected.len());
     let mut from = 0;
     let mut pages = 0_u32;

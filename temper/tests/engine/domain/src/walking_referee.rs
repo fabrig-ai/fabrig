@@ -137,9 +137,7 @@ impl WalkingReferee {
         else {
             return Err("sign-in reply before durable identity");
         };
-        if *number != person
-            || identity.key != (people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() })
-        {
+        if *number != person || identity.key != (temper_engine_domain_forge::user_key(1, 7_u64)) {
             return Err("wrong authenticated person");
         }
         let Some(Record::Core(jig_domain_core::Record::People(people::Stored::SignIn {

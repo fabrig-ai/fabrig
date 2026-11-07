@@ -5,6 +5,7 @@ use skein_fake_peers::Transport;
 use skein_lib::{Duration, Env, List, Wall, bytes};
 use skein_oauth as oauth;
 use skein_oauth_accounts as accounts;
+use skein_world::stream::Trace;
 use skein_world::{Memory, World};
 use world::Fact;
 const ACCOUNT: u32 = 0;
@@ -155,7 +156,7 @@ pub fn run(seed: u64, story: Story, memory: Memory) -> skein_world::Outcome<worl
 }
 /// Runs the same scripted lock on seeded protocol streams.
 #[must_use]
-pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Vec<String>) {
+pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Trace) {
     let (client, trace) = world::protocol_client(seed, client(story));
     (client.facts, trace)
 }

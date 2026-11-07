@@ -73,6 +73,44 @@ fn source(messages: &[smith::Message]) -> smith::Turn {
     )
     .unwrap()
 }
+#[test]
+#[expect(clippy::manual_map, reason = "the protocol crate matches optional fields without closures")]
+fn a_turn_keeps_its_model_and_effort_outside_the_text_budget() {
+    for (model, effort) in [
+        (b"named-model".as_slice(), Some(b"high".as_slice())),
+        (b"named-model", None),
+        (b"", Some(b"high".as_slice())),
+        (b"", None),
+    ] {
+        let mut parts = source(&[message(smith::Role::Assistant, &[SBlock::Text(text(b"answer"))])]).into_parts();
+        parts.model = Box::from(model);
+        parts.effort = match effort {
+            Some(value) => Some(Box::from(value)),
+            None => None,
+        };
+        let bytes = encode(&smith::Turn::new(&CEILINGS, parts).unwrap());
+        for budget in [0, 4, 6] {
+            let mut limits = limits();
+            limits.turn.text = budget;
+            let turn = decode(&limits, &bytes).unwrap();
+            let expected = if model.is_empty() {
+                None
+            } else {
+                Some(ModelEffort {
+                    model: Text::new(Box::from(model), 128).unwrap(),
+                    effort: match effort {
+                        Some(value) => Some(Text::new(Box::from(value), 32).unwrap()),
+                        None => None,
+                    },
+                })
+            };
+            assert_eq!(turn.llm, expected);
+            assert_eq!(turn.cut, budget < 6);
+            assert_text_budget(&turn, budget);
+        }
+    }
+}
+
 fn encode(turn: &smith::Turn) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(usize::try_from(turn.measure()).unwrap());
     turn.encode(&mut writer).unwrap();
@@ -606,6 +644,7 @@ fn smith_smallest_golden_decodes_at_its_whole_length() {
             used: Usage { input: 0, output: 0, cached: 0, cache_written: 0 },
             spent: 0,
             read_through: None,
+            llm: None,
             cut: false
         }
     );
@@ -627,6 +666,10 @@ fn smith_full_golden_preserves_maximum_usage_at_its_whole_length() {
             used: Usage { input: u64::MAX, output: u64::MAX, cached: u64::MAX, cache_written: u64::MAX },
             spent: u64::MAX,
             read_through: None,
+            llm: Some(ModelEffort {
+                model: Text::new(Box::from(b"abc".as_slice()), 3).unwrap(),
+                effort: Some(Text::new(Box::from(b"abc".as_slice()), 3).unwrap()),
+            }),
             cut: false
         }
     );
