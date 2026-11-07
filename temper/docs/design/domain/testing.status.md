@@ -232,10 +232,9 @@ after-landing execution (`../protocol/sign-in.status.md`, 9.9).
   landing pair has not passed in the after-landing tier: neither story
   has passed live on its own store. The Claude Code fixture adds
   `claude-haiku-5-5` by name with `low` its default effort and selects it
-  in charters 1 and 2 in one settings apply, where 2.7 has two: the
-  clients' component refuses that apply before the core sees it
-  (`settings apply: This model cannot be chosen: claude-haiku-5-5`), and
-  no focused test applies the fixture's changes to an engine. ChatGPT
+  in charters 1 and 2 in a second settings apply, as 2.7 has it; a
+  focused test applies both through ctl on the joined world's Claude
+  catalogue (`crates/temper/tests/suite/forge_land.rs`). ChatGPT
   keeps stock row 7, `gpt-6-luna`. The focused settings table holds both
   selections and refusal of an unexpected stock model, but establishes no real launch
   with `--model claude-haiku-5-5 --effort low` or live landing. That

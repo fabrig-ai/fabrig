@@ -504,13 +504,18 @@ fn live_claude_world() -> (
     limits.templates = 3;
     limits.documents.text_bytes = 8192;
     limits.journal.run_bytes = engine.limits.core.run_bytes;
+    // Stock charter versions must fit the store's decoded settings pages.
+    let page_bytes = u32::try_from(engine.limits.core.load_bytes).expect("stock settings page fits u32");
+    limits.loads.bytes = page_bytes;
+    limits.loads.reply_bytes = page_bytes;
+    limits.loads.transcript_bytes = page_bytes;
     let configs = std::array::from_fn(|_| {
         let mut config = walking::config(fixtures::SEED);
         config.core.owners = Box::new([
             config.core.owners[0].clone(),
             jig_domain_people::InitialOwner { project: 0, identity: config.core.owners[0].identity.clone() },
         ]);
-        config.core.defaults.models = stock.models.clone();
+        config.core.defaults.models.clone_from(&stock.models);
         config.core.defaults.charters = stock.charters.iter().take(2).cloned().collect();
         let llm = jig_protocol_config::core(&engine, config.core.deployment, fixtures::SEED).settings;
         config.core.settings.models = llm.models;
@@ -540,60 +545,64 @@ fn live_claude_world() -> (
 #[test]
 fn a_fresh_claude_sitting_applies_its_settings_as_a_person_does() {
     use std::path::Path;
-    use support::forge_land::{LiveModel, live_settings};
+    use support::forge_land::{LiveModel, live_apply, live_settings};
     use temper_client_world::fixtures;
     let (scratch, mut world) = live_claude_world();
     let agent = fixtures::agent(&mut world);
-    let mut read = |words: &[&[u8]]| {
-        let call = fixtures::give(&mut world, agent, words);
-        let printed = fixtures::answered(&mut world, agent, call);
+    let call = fixtures::give(
+        &mut world,
+        agent,
+        &[b"account", b"declare", b"2", b"claude_code", b"claude-login", b"--key", b"live-program"],
+    );
+    let declared = fixtures::answered(&mut world, agent, call);
+    assert_eq!(declared.status, 0, "{declared:?}");
+    assert!(declared.stderr.is_empty(), "{declared:?}");
+    let read = |world: &mut jig_client_kit::harness::World<_, _>, words: &[&[u8]]| {
+        let call = fixtures::give(world, agent, words);
+        let printed = fixtures::answered(world, agent, call);
         assert_eq!(printed.status, 0, "{printed:?}");
         assert!(printed.stderr.is_empty(), "{printed:?}");
         serde_json::from_slice::<Value>(&printed.stdout).expect("settings JSON")
     };
-    let inventory = read(&[b"settings", b"show", b"--json"]);
+    let inventory = read(&mut world, &[b"settings", b"show", b"--json"]);
     let charters = [
-        read(&[b"settings", b"show", b"charter", b"1", b"--json"]),
-        read(&[b"settings", b"show", b"charter", b"2", b"--json"]),
+        read(&mut world, &[b"settings", b"show", b"charter", b"1", b"--json"]),
+        read(&mut world, &[b"settings", b"show", b"charter", b"2", b"--json"]),
     ];
-    let row = read(&[b"settings", b"show", b"model", b"3", b"--json"]);
-    let change = live_settings(
+    let row = read(&mut world, &[b"settings", b"show", b"model", b"3", b"--json"]);
+    let changes = live_settings(
         LiveModel::ClaudeCode { login: Path::new("/held/claude-login") },
         &inventory,
         [&charters[0], &charters[1]],
         &row,
     )
     .expect("live settings");
-    let revision = inventory["newest"].as_u64().expect("newest").to_string();
-    let bytes = serde_json::to_vec(&change).expect("settings bytes");
-    let argv = [
-        b"settings".as_slice(),
-        b"apply",
-        b"live-settings.json",
-        b"--against",
-        revision.as_bytes(),
-        b"--key",
-        b"live-settings",
-    ];
-    let call = fixtures::give_with_file(&mut world, agent, &argv, &bytes);
-    let applied = fixtures::answered(&mut world, agent, call);
-    if applied.status != 0 {
-        eprintln!("single apply status={} stderr={:?}", applied.status, String::from_utf8_lossy(&applied.stderr));
-        assert_eq!(applied.status, 2);
-        assert_eq!(applied.stderr.as_ref(), b"settings apply: This model cannot be chosen: claude-haiku-5-5\n");
-        let mut json_argv = argv.to_vec();
-        json_argv.push(b"--json");
-        let call = fixtures::give_with_file(&mut world, agent, &json_argv, &bytes);
-        let refused = fixtures::answered(&mut world, agent, call);
-        eprintln!(
-            "JSON apply status={} stdout={} stderr={}",
-            refused.status,
-            String::from_utf8_lossy(&refused.stdout),
-            String::from_utf8_lossy(&refused.stderr)
-        );
+    let newest = inventory["newest"].as_u64().expect("newest");
+    for (at, change) in changes.iter().enumerate() {
+        let file = format!("{}.json", change.key);
+        let argv = live_apply(change, at, newest, &file);
+        let argv: Vec<_> = argv.iter().map(String::as_bytes).collect();
+        let bytes = serde_json::to_vec(&change.file).expect("settings bytes");
+        let call = fixtures::give_with_file(&mut world, agent, &argv, &bytes);
+        let applied = fixtures::answered(&mut world, agent, call);
+        assert_eq!(applied.status, 0, "{}: stderr={}", change.key, String::from_utf8_lossy(&applied.stderr));
+        assert!(applied.stderr.is_empty(), "{applied:?}");
     }
-    assert_eq!(applied.status, 0, "{applied:?}");
-    assert!(applied.stderr.is_empty(), "{applied:?}");
+    let model = read(&mut world, &[b"settings", b"show", b"model", b"64", b"--json"]);
+    let value = &model["value"];
+    assert_eq!(value["model"]["name"], "claude-haiku-5-5");
+    assert_eq!(value["source"], "person");
+    assert_eq!(value["estimated"], true);
+    assert_eq!(value["model"]["effort"], "low");
+    assert!(value["model"]["efforts"].as_array().expect("offered efforts").contains(&json!("low")));
+    for number in [b"1".as_slice(), b"2"] {
+        let charter = read(&mut world, &[b"settings", b"show", b"charter", number, b"--json"]);
+        let value = &charter["value"];
+        assert_eq!(value["model"]["name"], "claude-haiku-5-5");
+        assert_eq!(value["model"]["effort"], "low");
+        assert_eq!(value["alternatives"], json!([]));
+        assert_eq!(value["rest"], false);
+    }
     scratch.remove();
 }
 
@@ -620,7 +629,7 @@ fn a_claude_plan_declares_without_import_or_sign_in() {
 fn a_fresh_sitting_selects_its_model_in_every_charter() {
     use serde_json::json;
     use std::path::Path;
-    use support::forge_land::{LiveModel, live_settings};
+    use support::forge_land::{LiveChange, LiveModel, live_settings};
 
     let mut lines: Vec<_> = (1..=8).map(|number| json!({"setting":{"kind":"model","number":number}})).collect();
     lines.extend([json!({"setting":{"kind":"charter","number":1}}), json!({"setting":{"kind":"charter","number":2}})]);
@@ -655,17 +664,28 @@ fn a_fresh_sitting_selects_its_model_in_every_charter() {
     let haiku_items = charter_items(&haiku_model);
     let claude = LiveModel::ClaudeCode { login: Path::new("/held/claude-login") };
     let cases = [
-        (LiveModel::ChatGpt { account: None }, "gpt-6-luna", "gpt-6-luna", Ok(json!({"items":gpt_items}))),
+        (
+            LiveModel::ChatGpt { account: None },
+            "gpt-6-luna",
+            "gpt-6-luna",
+            Ok(vec![LiveChange { key: "live-settings", file: json!({"items":gpt_items}) }]),
+        ),
         (
             claude,
             "claude-fable-5-1",
             "claude-haiku-5-5",
-            Ok(json!({"items":[
-                {"setting":{"kind":"model","number":64},"set":{
-                    "number":64,"model":haiku_model,"shown":null,"description":null,
-                    "picker":true,"withdrawn":false,"source":"person","estimated":true
-                }}, haiku_items[0], haiku_items[1]
-            ]})),
+            Ok(vec![
+                LiveChange {
+                    key: "live-model",
+                    file: json!({"items":[
+                        {"setting":{"kind":"model","number":64},"set":{
+                            "number":64,"model":haiku_model,"shown":null,"description":null,
+                            "picker":true,"withdrawn":false,"source":"person","estimated":true
+                        }}
+                    ]}),
+                },
+                LiveChange { key: "live-settings", file: json!({"items":haiku_items}) },
+            ]),
         ),
         (
             claude,
