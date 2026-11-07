@@ -36,7 +36,7 @@ says so in the draft's status.
 
 | | Milestone | Executes (`ask-temper.md`) | Needs | State |
 |---|---|---|---|---|
-| M1 | Alone and small | 1, 4, 5.1 in part, 5.2, 5.3, 8, 9 | | being built: plan `ui-ask-m1` |
+| M1 | Alone and small | 1, 4, 5.1 in part, 5.2, 5.3, 8, 9 | | built: plan `ui-ask-m1`; its walk follows its landing |
 | M2 | Reading | 2, 3, 5.1 | M1 | not started |
 | M3 | Showing | 6 | M2 | not started |
 | M4 | Remembering | 5.4, 7 | M1 | not started |
