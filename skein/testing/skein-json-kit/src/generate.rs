@@ -96,6 +96,25 @@ pub fn text(rng: &mut Rng, longest: u32) -> Box<[u8]> {
     text.into_bytes().into_boxed_slice()
 }
 
+/// Text in runs (json.md, 6): `pieces` times, a run of up to `longest` plain
+/// bytes and then one of `breaks`; then a last run.
+#[must_use]
+pub fn runs(rng: &mut Rng, breaks: &[&[u8]], pieces: u32, longest: u32) -> Vec<u8> {
+    let plain = b" !#[]~\x7fa0Z/";
+    let mut text = Vec::new();
+    for piece in 0..=pieces {
+        for _ in 0..rng.between(0, u64::from(longest)) {
+            let at = usize::try_from(rng.below(plain.len() as u64)).expect("fits a usize");
+            text.push(plain[at]);
+        }
+        if piece < pieces {
+            let at = usize::try_from(rng.below(breaks.len() as u64)).expect("fits a usize");
+            text.extend_from_slice(breaks[at]);
+        }
+    }
+    text
+}
+
 /// A number's text, valid.
 #[must_use]
 pub fn number(rng: &mut Rng) -> Box<[u8]> {

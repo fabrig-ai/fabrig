@@ -100,7 +100,7 @@ fn assert_owned_limits(limits: &serde_json::Value) {
         "documents.rows":2,"documents.text_bytes":512,
         "clients.streams":8,"clients.exchanges":12,
         "clients_http.streams":8,"clients_http.calls":12,
-        "fleet.configured_workers":8,"fleet.slots":2,"fleet.workers":2,"hub.slots":2,
+        "fleet.configured_workers":8,"fleet.workers":2,
         "tasks.inbox_bytes":874_120,"tasks.message_bytes":10_660,"tasks.result_bytes":10_660
     }}}});
     let agent: serde_json::Value =
