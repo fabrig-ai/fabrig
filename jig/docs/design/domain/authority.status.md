@@ -2,5 +2,10 @@
 
 2026-11-06. Where jig's code lags or departs from [authority.md](authority.md).
 
+Section 6.1 has no known gap: a person's task in project 0 draws on their
+pool, has no tools or delegation, is watched by its payer and is absent
+from the person's lists. Its restoration leaves cancellation to the
+application.
+
 - **Not yet:** 7: a widening funded by whoever gives it
   (the task's existing funder is charged).

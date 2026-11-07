@@ -57,7 +57,12 @@ A task is one numbered piece of work in a project, done by an agent, a procedure
   dependencies`, `Waiting for delegates`, `Waiting for news`, `Nothing
   awaited`, or a party and what it must answer: `you: question 3 of task 44 · 1 waiting`.
   For a held task that awaits nothing else, `waiting on:` prints `held`.
-  When no account serves its next run, `next run:` stands alone above the lines that say what to do, and `waiting on:` prints `an account`.
+  When no account serves its next run, `next run:` stands alone above the lines
+  that say what to do, and `waiting on:` prints `an account`.
+  Its header then says `Waiting for an account` for `Due to run`, and `--json`'s
+  `waits_on` says `account`; to a wait it is still `due`. Moving a task gives it
+  no account: `move` is offered on a task another party requests, and not on your
+  own.
 - **Held:** a held task runs no more until someone decides. Its hold
   has a reason (out of tries, stopped, its deadline passed, an
   insufficient budget, an effect whose outcome is uncertain, among

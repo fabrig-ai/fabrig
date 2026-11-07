@@ -416,3 +416,59 @@ fn a_judged_settings_refusal_names_its_item_and_setting() {
         b"refused; item 1; project-ways 2: way 4 is not offered"
     );
 }
+
+#[test]
+fn a_refused_key_name_says_what_a_key_is() {
+    let long = "a".repeat(65);
+    for key in [Some("Bad"), Some("a_b"), Some(long.as_str()), None] {
+        let mut words = ["task", "message", "41", "hello", "--key"].to_vec();
+        if let Some(key) = key {
+            words.push(key);
+        }
+        assert_eq!(
+            refusal(&words).as_ref(),
+            b"temper ctl: task message: --key KEY takes 1 to 64 lower-case letters, digits or hyphens; temper ctl help task message\n",
+            "{words:?}"
+        );
+    }
+}
+
+#[test]
+fn a_call_with_a_refused_key_name_says_what_a_key_is() {
+    for (json, expected) in [
+        (
+            br#"{"tool":"task message","arguments":{"task":41,"text":"hello","key":"Bad"}}"#.as_slice(),
+            b"temper ctl: task message: --key KEY takes 1 to 64 lower-case letters, digits or hyphens; temper ctl help task message\n".as_slice(),
+        ),
+        (
+            br#"{"tool":"task stop","arguments":{"task":41,"key":"Bad"}}"#,
+            b"temper ctl: task stop: --key KEY takes 1 to 64 lower-case letters, digits or hyphens; temper ctl help task stop\n",
+        ),
+    ] {
+        let why = fixtures::json(json).expect_err("refused key name");
+        let mut measured = skein_lib::Writer::new(240);
+        write_refusal(why, &[], &mut measured);
+        let mut out = skein_lib::Writer::new(measured.written());
+        write_refusal(why, &[], &mut out);
+        assert_eq!(out.finish().as_ref(), expected);
+    }
+}
+
+#[test]
+fn every_key_name_refusal_fits_one_line_with_its_help_call() {
+    for (tool, row) in table::TOOLS.iter().enumerate() {
+        if row.keyed == jig::table::Keyed::Never {
+            continue;
+        }
+        let why = Usage::KeyName { tool: u8::try_from(tool).expect("row fits") };
+        let mut measured = skein_lib::Writer::new(240);
+        write_refusal(why, &[], &mut measured);
+        let mut exact = skein_lib::Writer::new(measured.written());
+        write_refusal(why, &[], &mut exact);
+        let line = exact.finish();
+        assert_eq!(skein_lib::bytes::count(&line, b"\n", 2), 1, "{row:?}");
+        let mut help = b"; temper ctl help ".to_vec();
+        help.extend_from_slice(row.name);
+        assert!(line.strip_suffix(b"\n").expect("newline").ends_with(&help), "{row:?}");
+    }
+}

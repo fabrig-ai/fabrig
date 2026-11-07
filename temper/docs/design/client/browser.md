@@ -1050,9 +1050,11 @@ real key in that restored form.
 - **The tier's window:** the tier's bundle also turns on
   `temper-client-shell-web`'s `small-window`, which names a conversation's
   window of 131,072 bytes (`README.md`, 5.15), an eighth of a person's
-  `document_bytes`: the same mechanism, at an eighth of what a page draws and
-  a find walks. Reading's stories (4.6, 14) pass that bound by at least two
-  windows' worth, at both ends. The ordinary binary bundle and the journeys'
+  `document_bytes`, through the same window mechanism. The long reading
+  story (4.6, 14) passes that bound by at least two windows' worth and
+  evicts and recovers lines at both ends. The unanchored position story
+  stays within one window; it checks the words holding across a read above.
+  The ordinary binary bundle and the journeys'
   never turn it on, and a long chat at the whole bound is read by hand.
 - **A chat's history:** what a reading story reads is made through
   `temper ctl` before a page opens on it: `playground start`, `chat start`
@@ -1307,9 +1309,19 @@ Not in the tier, each in the lowest world that shows it:
   paces, a reply's 1200 ms and CI's 4000 ms. None waits for a landing, and unpaced
   fakes would land in the background for CPU nobody reads. Default: paced.
 - **A wait's CPU in the tier** (4.3): a `See` asks Chromium's accessibility tree
-  again at `skein-browser`'s `poll`, 50 ms, so a long wait costs browser and harness
-  CPU: 519 queries in a story of 23 s. Default: the kit's poll stands, and a story
-  doesn't wait long.
+  again at `skein-browser`'s `poll`, 50 ms. Default: that poll stays. Repeated-miss
+  backoff needs a measured saving without delaying presses or the notice of a
+  change; the repaired long story's query count alone gives no reason to add it.
+- **The remaining browser cost** (4.3, 4.6): another repair may prepare the
+  other stories' histories outside the page, and combine stories sharing a setup
+  before dropping a browser-only proof. Default: keep the CPU budget, timeouts,
+  membership and cap; the four reading stories retain their layout, focus and
+  scroll proofs. A whole-tier run after landing decides its remaining cost.
+- **A long chat at the person's whole bound** (4.3; `README.md`, 5.15): the
+  small-window stories prove eviction and recovery through the same mechanism,
+  but leave the 1,048,576-byte window's manual reading check separate. Default:
+  keep the person's bound and check opening, position, both ends, Latest and
+  sending there by hand.
 - **A public page's text in one query** (8.4): the public walk reads each page's text
   a node at a time, about 0.8 CPU s over its seven pages. Default: so, until that
   passes 1 CPU s, when the browser kit would read a page's text at once.
@@ -1516,7 +1528,16 @@ from the engine's own answers, is where the look is tuned.
 | `chat-change-landed` | a chat with a delegated change landed: its one line with its result's words |
 | `chat-change-held` | the first run's chat T1 at step 2, its change held: its one line says so |
 | `chat-goal` | a chat with a goal it started: its one line |
-| `chat-byline-open` | a new chat with its byline pressed: the chooser's panel |
+| `chat-model-open` | a new chat, Claude alone, its picker open: the other provider's line, the efforts |
+| `chat-model-both` | a new chat with Claude and a ChatGPT plan, its picker open |
+| `chat-model-all` | a new chat, its picker on "All models", with a model `picker` doesn't show |
+| `chat-model-two-accounts` | a new chat with two accounts of one provider, its picker open: a heading for each |
+| `chat-model-sign-in-again` | a new chat whose account has stopped being usable, its picker open: the provider's own fix and no model |
+| `chat-model-fixed` | a chat whose choice can't be changed: the same words, not a button |
+| `chat-started-model-open` | a started chat, its picker open: "A change applies from the next turn." |
+| `chat-started-model-changing` | a started chat with a change sent, its picker open: "Changing…" |
+| `chat-started-model-refused` | a started chat with a change refused, its picker open: why |
+| `configure-model-open` | Configure temper, its picker open |
 | `chat-draft-chat` | a chat with a document, in Chat: its group and tool line |
 | `chat-draft-split` | the same chat in Split: the strip, the pane and a tinted section |
 | `chat-draft-draft` | the same chat in Draft: the composer at the foot on white |
@@ -1747,6 +1768,9 @@ never streaming (`../draft/first-release.md`, 5.3).
   its name, and a goal is "Goal" and a task "task", each with the first
   eight digits of its public identifier, then its title, with "…" where
   cut; an executor is its kind, "an agent", "a procedure", "a person".
+  A title is the first line of a spec an agent wrote from what a person
+  said, so a chat's words can show here; making a project public says so
+  (`tools.md`, 5.3), and no page makes a project public.
 - **The look:** one plain column, the same at every width from 320 to
   1440 px, in the client's type and colours (`temper.css`'s tokens), its
   rows modelled on the Chats page's: no table, no monospace, and nothing
@@ -1768,7 +1792,10 @@ never streaming (`../draft/first-release.md`, 5.3).
   tree's rows below it and the count of lines folded; "No goals to show
   yet." when it has none. Below the goals, only when the forge's landings
   hold a queue or a landing, "Landings", a link to them, with the queues'
-  lines, and "No landings to show yet." until one has.
+  lines, and "No landings to show yet." until one has. The link looks like
+  one whatever stands under it, which may be nothing: the mock's `.link`,
+  in the ink at a row's size and underlined, not a section title's small
+  muted capitals.
 - **A task:** its row, its executor first among the muted words ("an
   agent · running · for 14 minutes"), its lineage up to its goal as
   links, its delegates' rows, and where it makes a change, the change's
@@ -1786,7 +1813,9 @@ never streaming (`../draft/first-release.md`, 5.3).
   reads "Its change:" and its landed commit, or its candidate until
   then. What a stock queue merged is a recent landing in this same form
   (`forge.md`, 11.2): its line says landed, its change and its commit,
-  and its public landing holds its change, with no gates.
+  and its public landing holds its change, with no gates. A landing's
+  stale proofs show only when it has any: a zero draws nothing, on a queue
+  merge's landing as on a landing by turn.
 - **The projects:** each public project's name, a link to its board; "No
   public projects yet." when there are none.
 - **A short commit** is the first seven digits, plain text on a change
@@ -1811,9 +1840,10 @@ never streaming (`../draft/first-release.md`, 5.3).
   page until its freshness ends and then dropping it, backing off,
   unknown's main; a goal's row and a task's, an ended row's words, each
   page's empty words, the board's line of what it doesn't hold, Landings
-  on the board only with a queue or a landing, a queue merge's line and
-  its landing, a 40-digit commit's seven digits as plain text, and no link
-  to the forge on any page.
+  on the board only with a queue or a landing, and as a link, whose look
+  the sheet's rule holds, a queue merge's line and its landing, a landing's
+  zero stale proofs drawing nothing, a 40-digit commit's seven digits as
+  plain text, and no link to the forge on any page.
 - **Fuzzy tests:** the address codec's parser over seeded paths under
   `/public`, never panicking and printing back what it read.
 - **The browser tier** (section 4): a public project on fakes read at
@@ -1821,8 +1851,10 @@ never streaming (`../draft/first-release.md`, 5.3).
   sign-in and no stream, the view's text checked against the public
   records' fields alone. Its board and task lines, goals and delegates,
   are also read at 1440 px and 420 px with a long title and populated facts:
-  text boxes stay separate, titles remain readable, navigation stays inset
-  and content stays within the viewport. A project made private has its pages
+  one geometry query reads all text matches at each page and width, with the
+  count of any matches beyond the browser's limit checked. Text boxes stay
+  separate, titles remain readable, navigation stays inset and content stays
+  within the viewport. A missing text box reports its text and measurement stage. A project made private has its pages
   unknown at the next read. The goal it reads is under way: a landed goal's pages
   hold nothing a browser alone shows (4.6). Its landings page reads "No landings to
   show yet." or the stock queue's merge, by whether the merge came before the read.

@@ -664,7 +664,14 @@ fn adopted(state: &mut Forges, env: &Env<Limits>, mut adopting: Adopting, outcom
         state.adopting.insert(key, adopting);
         out.push(Out::Client { event: Event::Send { key, name: Some(name), request } });
     } else {
-        let mut printed = crate::forge::print(&adopting.adoption, outcome, adopting.called.json, false, &env.limits);
+        let mut printed = crate::forge::print(
+            &adopting.adoption,
+            outcome,
+            adopting.called.json,
+            false,
+            crate::forge::Unread::Unsaid,
+            &env.limits,
+        );
         if printed.status == 0 {
             let project = u64::from(adopting.adoption.project);
             let mut measure = Text::measure();

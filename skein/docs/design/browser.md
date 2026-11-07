@@ -248,7 +248,11 @@ pub struct Tab   { url: Box<[u8]>, title: Box<[u8]>, opener: bool }  // opener: 
   unbroken and with case kept, as a person finds a sentence by a few
   words in it. Other patterns are out (section 11). A query may be scoped
   `within` a node found before, such as a button within a card. `boxes`
-  asks for each match's place on screen too.
+  asks for each match's place on screen too. The person's browser face retains the
+  terminal query's complete bounded result: `boxed_matches` exposes its nodes
+  and the count beyond the match limit after `find_boxed` completes. Reading
+  that result asks nothing further of Chromium. Scope resolution asks for no
+  rectangles, and a matched node without geometry stays in the result.
 - **Text is found by words,** as a static text node's name: Chromium
   gives each run of text a node of role `StaticText`, named by its text.
   Words such as "3 failing" find "Checks: 3 failing, 2 passed", and keep

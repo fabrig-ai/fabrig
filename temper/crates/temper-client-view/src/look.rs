@@ -1246,6 +1246,18 @@ pub const NAMES: Names<'static> = Names {
         b"temper-connect-alerts",
         b"temper-connect-failed",
         b"temper-connect-repos",
+        b"temper-foot-row",
+        b"temper-model",
+        b"temper-model-fixed",
+        b"temper-model-menu",
+        b"temper-model-tag",
+        b"temper-model-from",
+        b"temper-model-note",
+        b"temper-model-effort",
+        b"temper-model-all",
+        b"temper-model-back",
+        b"temper-model-find",
+        b"temper-model-long",
     ],
     regions: &[b"temper-link"],
 };
@@ -1560,6 +1572,19 @@ pub const CONNECT_ALERTS: Style = Style { owner: owner(), token: 563 };
 pub const CONNECT_FAILED: Style = Style { owner: owner(), token: 564 };
 /// Connect pages (client/browser.md, 2.5).
 pub const CONNECT_REPOS: Style = Style { owner: owner(), token: 565 };
+/// Model picker at the composer (client/README.md, 3.5).
+pub const FOOT_ROW: Style = Style { owner: owner(), token: 566 };
+pub const MODEL: Style = Style { owner: owner(), token: 567 };
+pub const MODEL_FIXED: Style = Style { owner: owner(), token: 568 };
+pub const MODEL_MENU: Style = Style { owner: owner(), token: 569 };
+pub const MODEL_TAG: Style = Style { owner: owner(), token: 570 };
+pub const MODEL_FROM: Style = Style { owner: owner(), token: 571 };
+pub const MODEL_NOTE: Style = Style { owner: owner(), token: 572 };
+pub const MODEL_EFFORT: Style = Style { owner: owner(), token: 573 };
+pub const MODEL_ALL: Style = Style { owner: owner(), token: 574 };
+pub const MODEL_BACK: Style = Style { owner: owner(), token: 575 };
+pub const MODEL_FIND: Style = Style { owner: owner(), token: 576 };
+pub const MODEL_LONG: Style = Style { owner: owner(), token: 577 };
 
 #[cfg(test)]
 mod tests {

@@ -123,8 +123,9 @@ both do. `--until changed` returns at the subject's next change.
   `held`, `landed`, `cleared`.
 
 - **Keys:** an act takes `--key KEY` where its usage shows one,
-  required or optional; reads and waits take none. Agents that share
-  a party give their keys a prefix of their own, such as
+  required or optional; reads and waits take none. A key is 1 to 64
+  lower-case letters, digits or hyphens. Agents that share a party
+  give their keys a prefix of their own, such as
   `review-41-`. A key is never reused for new work.
 - **TEXT** is one argument, or `-` to read stdin to its end; a call
   reads stdin once.

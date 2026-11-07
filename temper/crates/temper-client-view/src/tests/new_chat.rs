@@ -55,7 +55,7 @@ fn session_parts_follow_the_requested_order_in_both_shells() {
         for (style, expected) in [
             (look::SESSION, vec![(Role::Slot, vec![look::SESSION_TOP]), (Role::Region, vec![look::CONVO])]),
             (look::SESSION_TOP, vec![(Role::Navigation, vec![look::CRUMBS]), (Role::Slot, vec![look::SESSION_RIGHT])]),
-            (look::SESSION_RIGHT, vec![(Role::Disclosure, vec![look::BYLINE])]),
+            (look::SESSION_RIGHT, vec![]),
             (
                 look::CONVO,
                 vec![
@@ -65,10 +65,7 @@ fn session_parts_follow_the_requested_order_in_both_shells() {
                 ],
             ),
             (look::THREAD, vec![(Role::Slot, vec![look::STARTER])]),
-            (
-                look::SESSION_FOOT,
-                vec![(Role::Slot, vec![look::SESSION_COMPOSER]), (Role::Paragraph, vec![look::SESSION_HINT])],
-            ),
+            (look::SESSION_FOOT, vec![(Role::Slot, vec![look::SESSION_COMPOSER]), (Role::Slot, vec![look::FOOT_ROW])]),
             (look::SESSION_COMPOSER, vec![(Role::TextArea, vec![]), (Role::Button, vec![])]),
         ] {
             assert_eq!(parts(tree, style), expected, "{style:?}");
@@ -78,7 +75,7 @@ fn session_parts_follow_the_requested_order_in_both_shells() {
             styled(tree, look::SESSION_HINT)[0].name.as_deref(),
             Some("Enter sends · Shift+Enter for a new line".as_bytes())
         );
-        assert_eq!(styled(tree, look::BYLINE)[0].description.as_deref(), Some("Scripted model · Default".as_bytes()));
+        assert_eq!(styled(tree, look::MODEL)[0].description.as_deref(), Some(b"Scripted model".as_slice()));
         assert!(f::find(tree, Role::Heading { level: 1 }, b"New chat").is_some());
         assert!(f::find(tree, Role::Button, b"Start chat").is_none());
         assert!(f::find(tree, Role::Button, b"Start").is_none());
