@@ -1333,7 +1333,9 @@ fn the_chat_entry_has_the_shared_hint_after_message_and_send() {
     assert_eq!(nodes[1].role, Role::Button);
     assert_eq!(nodes[1].name.as_deref(), Some(b"Send".as_slice()));
     let hint = styled(tree, crate::look::SESSION_HINT);
-    assert_eq!(hint, entry + usize::try_from(tree.nodes()[entry].size).unwrap());
+    let row = styled(tree, crate::look::FOOT_ROW);
+    assert_eq!(row, entry + usize::try_from(tree.nodes()[entry].size).unwrap());
+    assert_eq!(hint, row + 1);
     assert_eq!(tree.nodes()[hint].name.as_deref(), Some("Enter sends · Shift+Enter for a new line".as_bytes()));
 }
 
@@ -2255,7 +2257,7 @@ fn a_chats_end_line_says_who_ended_it() {
 fn a_live_chat_keeps_its_choice_line_and_composer() {
     let view = fixtures::page_view(&messaging_root());
     assert!(style_position(view.tree().nodes(), crate::look::CHOICE).is_some());
-    assert!(style_position(view.tree().nodes(), crate::look::BYLINE).is_some());
+    assert!(style_position(view.tree().nodes(), crate::look::MODEL).is_some());
     assert!(fixtures::find(view.tree(), Role::TextArea, b"Message").is_some());
 }
 
@@ -2744,11 +2746,11 @@ fn named_count(tree: &skein_ui::Tree, role: Role, name: &[u8]) -> u32 {
 #[test]
 fn the_playground_chats_bar_names_the_default_model() {
     let root = fixtures::playground_root(temper_client_domain::Address::Chat { task: TASK }, fixtures::PROJECT, true);
-    let view = fixtures::page_view(&root);
+    let view = fixtures::browser_page_view(&root);
     let bar = styled(view.tree(), crate::look::SESSION_TOP);
     let byline = style_position(subtree(view.tree(), bar), crate::look::BYLINE).expect("byline");
     let node = &view.tree().nodes()[bar + 1 + byline];
-    assert_eq!(node.description.as_deref().or(node.name.as_deref()), Some("T9 · Using the default model".as_bytes()));
+    assert_eq!(node.description.as_deref().or(node.name.as_deref()), Some(b"T9".as_slice()));
 }
 
 #[test]
@@ -3080,16 +3082,21 @@ fn every_chat_bar_orders_its_byline_status_allowed_acts_and_spend_and_links_its_
                 task.acts.clear();
             }
             let root = configuring_task_root(task, true, if configuring { 37 } else { 1 });
-            for mut view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+            for (mut view, browser) in [(fixtures::page_view(&root), false), (fixtures::browser_page_view(&root), true)]
+            {
                 let tree = view.tree();
                 let top = styled(tree, look::SESSION_TOP);
                 let right = styled(tree, look::SESSION_RIGHT);
                 let controls = subtree(tree, right);
-                let byline = style_position(controls, look::BYLINE).expect("byline in the right part");
+                let byline = style_position(controls, look::BYLINE);
+                assert_eq!(byline.is_some(), browser);
                 let status = named_position(controls, Role::Status, Some(b"Parked")).expect("status");
                 let spend =
                     named_position(controls, Role::Paragraph, Some("7 spent · of 7".as_bytes())).expect("spend");
-                assert!(byline < status && status < spend);
+                if let Some(byline) = byline {
+                    assert!(byline < status);
+                }
+                assert!(status < spend);
                 for name in [b"Pause".as_slice(), b"Close"] {
                     assert_eq!(named_position(controls, Role::Button, Some(name)).is_some(), allowed);
                 }

@@ -3,13 +3,14 @@
 2026-11-06. Where the design lags or departs from [model-catalogue.md](model-catalogue.md).
 
 - **Design lags:**
-  - 3, 7: `../client/README.md`, 3.5 groups the chooser by provider,
-    not by what pays, and offers no "All models" view; the account ids and
-    `picker` facts are supplied, but the `model-picker` look is left to its
-    separate landing. An unusable account has a fix only while its provider
-    has no offered model, so it has no separate line beside a usable account
-    of the same provider. `../client/README.md`, section 11 defers account
-    groups and "All models" to that look; Settings, Models is `../client/README.md`, 3.5, *The `Models` tab*.
+  - 3: `../client/README.md`, 3.5: an unusable account has a fix only
+    while its provider has no offered model, so it has no separate line beside
+    a usable account of the same provider. Settings, Models is
+    `../client/README.md`, 3.5, *The `Models` tab*.
+  - 4, 6: `../client/README.md`, 3.5, *All models* links to Accounts and
+    says "Accounts, in Settings" where the look request `model-picker`'s
+    page 04 says "Choose what the list shows, in Settings"; Settings, Models
+    now carries the list and its switches.
   - 5, 7: Settings, Models draws no "Read again", "Couldn't read OpenAI's list · 2 hours ago", "new" tag or clause on where a list came from beyond temper's own, and the store keeps no per-account record of names: step 3, `model-catalogue-3`, built on `ModelSource::List`, `withdrawn` and `new_model` (jig's `domain/engine.md`, 17.11).
   - 4: `temper/docs/help/account.md` and `temper/docs/help/deployment.md`: "Offering another model" edits both files.
   - 5: jig's `domain/accounts.md`, 3.4: a host checks a program's source alone. jig's `domain/engine.md`, 17.7: the deciders. smith's `protocol/agent.md`: no request lists an endpoint's models.

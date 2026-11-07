@@ -24,17 +24,17 @@ Where:
   [14] Chats
   [15] demo
   [16] Chats
-Change model: Using the default model
-  [17] Reset choice
 Conversation:
   * Ready
   playground/widget
   Say what you want; the agent works in playground/widget.
   Suggested requests:
-    - [18] Add CSV export to widget
-    - [19] Add a dark theme to widget
-    - [20] Fix widget’s empty search state
+    - [17] Add CSV export to widget
+    - [18] Add a dark theme to widget
+    - [19] Fix widget’s empty search state
   What do you want done?
-    [21] What do you want done?: (empty) (enter sends)
+    [20] What do you want done?: (empty) (enter sends)
     [-] Send (disabled)
     Enter sends · Shift+Enter for a new line
+    Model: the default model
+      - [21] Scripted model

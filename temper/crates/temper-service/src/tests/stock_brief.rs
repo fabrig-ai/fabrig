@@ -94,7 +94,7 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
         (1, false, 42_177, 357_958),
         (1, true, 40_087, 360_048),
         (2, false, 36_070, 364_065),
-        (3, false, 42_408, 357_727),
+        (3, false, 42_713, 357_422),
         (4, false, 32_636, 367_499),
         (6, false, 33_860, 366_275),
         (9, false, 31_303, 368_832),
@@ -167,7 +167,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     assert!(brief.parts >= TASK_PARTS);
     let largest = temper_engine_smith::charter(&assignment(3, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
-    assert_eq!(room, 357_727);
+    assert_eq!(room, 357_422);
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
     assert_eq!(full, 395_520);
     assert_eq!(brief.brief_bytes, full.min(room - FRAMING - MARGIN));

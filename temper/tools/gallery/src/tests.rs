@@ -1868,7 +1868,7 @@ const HOLDS: [Holds; samples::N] = [
         name: "configure-chat-document",
         heading: "T10 · Configure temper",
         parts: &[
-            Part::Named { role: Role::Paragraph, name: "T10 · Opus" },
+            Part::Named { role: Role::Paragraph, name: "T10" },
             Part::Named { role: Role::Button, name: "Start over" },
             Part::Named { role: Role::Button, name: "Chat" },
             Part::Named { role: Role::Button, name: "Split" },
@@ -1962,7 +1962,7 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Navigation, name: "Where" },
             Part::Named { role: Role::TextArea, name: "Message" },
             Part::Named { role: Role::Button, name: "Close" },
-            Part::Absent { role: Role::Disclosure, name: "Change model" },
+            Part::Absent { role: Role::Disclosure, name: "Model" },
             Part::Named { role: Role::Button, name: "Accept" },
         ],
     },
@@ -2313,16 +2313,58 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Status, name: "Closed" },
             Part::Absent { role: Role::TextArea, name: "Message" },
             Part::Absent { role: Role::Button, name: "Send" },
-            Part::Absent { role: Role::Disclosure, name: "Change model" },
+            Part::Absent { role: Role::Disclosure, name: "Model" },
         ],
     },
     Holds {
-        name: "chat-byline-open",
+        name: "chat-model-open",
         heading: "New chat",
-        parts: &[
-            Part::Described { role: Role::Disclosure, name: "Change model", description: "ChatGPT plan · gpt-6-luna" },
-            Part::Named { role: Role::Button, name: "Reset choice" },
-        ],
+        parts: &[Part::Described { role: Role::Disclosure, name: "Model", description: "Claude Opus 5.5 · high" }],
+    },
+    Holds {
+        name: "chat-model-both",
+        heading: "New chat",
+        parts: &[Part::Described { role: Role::Disclosure, name: "Model", description: "Claude Opus 5.5 · high" }],
+    },
+    Holds {
+        name: "chat-model-all",
+        heading: "New chat",
+        parts: &[Part::Described { role: Role::Disclosure, name: "Model", description: "Claude Opus 5.5 · high" }],
+    },
+    Holds {
+        name: "chat-model-two-accounts",
+        heading: "New chat",
+        parts: &[Part::Described { role: Role::Disclosure, name: "Model", description: "Claude Opus 5.5 · high" }],
+    },
+    Holds {
+        name: "chat-model-sign-in-again",
+        heading: "New chat",
+        parts: &[Part::Described { role: Role::Disclosure, name: "Model", description: "Claude Opus 5.5 · high" }],
+    },
+    Holds {
+        name: "chat-model-fixed",
+        heading: "T1",
+        parts: &[Part::Named { role: Role::Paragraph, name: "Claude Opus 5.5 · high" }],
+    },
+    Holds {
+        name: "chat-started-model-open",
+        heading: "T1",
+        parts: &[Part::Described { role: Role::Disclosure, name: "Model", description: "Claude Opus 5.5 · high" }],
+    },
+    Holds {
+        name: "chat-started-model-changing",
+        heading: "T1",
+        parts: &[Part::Described { role: Role::Disclosure, name: "Model", description: "GPT-6.1 Sol · high" }],
+    },
+    Holds {
+        name: "chat-started-model-refused",
+        heading: "T1",
+        parts: &[Part::Described { role: Role::Disclosure, name: "Model", description: "Claude Opus 5.5 · high" }],
+    },
+    Holds {
+        name: "configure-model-open",
+        heading: "Configure temper",
+        parts: &[Part::Described { role: Role::Disclosure, name: "Model", description: "Claude Opus 5.5 · high" }],
     },
     Holds { name: "chat-working", heading: "T6", parts: &[Part::Named { role: Role::Slot, name: "Writing" }] },
     Holds {
@@ -2640,7 +2682,11 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
 ];
-const SPENDS: [(&str, Role, &str); 42] = [
+const SPENDS: [(&str, Role, &str); 46] = [
+    ("chat-model-fixed", Role::Paragraph, "70 spent · of 101472"),
+    ("chat-started-model-open", Role::Paragraph, "70 spent · of 101472"),
+    ("chat-started-model-changing", Role::Paragraph, "70 spent · of 101472"),
+    ("chat-started-model-refused", Role::Paragraph, "70 spent · of 101472"),
     ("chat-work-done", Role::Paragraph, "70 spent · of 101472"),
     ("chat-work-open", Role::Paragraph, "70 spent · of 101472"),
     ("chat-work-running", Role::Paragraph, "70 spent · of 101472"),
@@ -2718,7 +2764,7 @@ fn no_state_reads_of_zero() {
     }
 }
 // A browser's button, tab and option show their name as their text (skein/docs/design/ui-web.md, 6), so text under one
-// is more words; a recommended choice's tag is the one the design draws (temper/docs/design/client/README.md, 3.5).
+// is more words; recommended/default tags and All models' count are intentional children (temper/docs/design/client/README.md, 3.5).
 #[test]
 fn no_named_control_draws_a_text_child_in_any_state() {
     for sample in samples::samples() {
@@ -2729,13 +2775,26 @@ fn no_named_control_draws_a_text_child_in_any_state() {
                 continue;
             }
             let mut text = Vec::new();
-            for inner in nodes.iter().skip(index).take(usize::try_from(node.size).unwrap()) {
+            let mut tagged = Vec::new();
+            let mut tag_end = 0;
+            for (offset, inner) in nodes.iter().enumerate().skip(index).take(usize::try_from(node.size).unwrap()) {
+                if inner.styles.as_slice().contains(&temper_client_view::look::MODEL_TAG) {
+                    tag_end = offset + usize::try_from(inner.size).unwrap();
+                }
                 for run in &inner.text {
                     text.extend_from_slice(&run.text);
+                    if offset < tag_end {
+                        tagged.extend_from_slice(&run.text);
+                    }
                 }
             }
+            let model_tag = node.role == Role::Button
+                && text == tagged
+                && (tagged == b"default"
+                    || (node.styles.as_slice().contains(&temper_client_view::look::MODEL_ALL)
+                        && tagged.iter().all(u8::is_ascii_digit)));
             assert!(
-                text.is_empty() || text == b"recommended",
+                text.is_empty() || text == b"recommended" || model_tag,
                 "{}: {:?} {:?} also draws the text {:?}",
                 sample.name,
                 node.role,
@@ -3335,9 +3394,7 @@ fn goal_acts_samples_reach_the_editor_dialog_and_answered_toast() {
 
 #[test]
 fn the_open_samples_open_only_their_named_disclosure() {
-    for (name, disclosure) in
-        [("chat-byline-open", "Change model"), ("chat-work-open", "Checked settings 3×, read 7 docs")]
-    {
+    for (name, disclosure) in [("chat-model-open", "Model"), ("chat-work-open", "Checked settings 3×, read 7 docs")] {
         let sample = samples::samples().into_iter().find(|s| s.name == name).unwrap();
         let view = view(&sample);
         let node = view
@@ -3548,6 +3605,15 @@ fn agent_work_runs_its_line_and_reads_away_from_the_end() {
     assert!(html.contains("temper-agent-page"));
     assert!(html.contains("data-log-away"));
     assert!(html.contains("temper-latest"));
+}
+
+#[test]
+fn the_browser_draws_each_model_name_once() {
+    const ONCE: usize = 1; // One row of each model under the single account.
+    let sample = samples::samples().into_iter().find(|s| s.name == "chat-model-open").unwrap();
+    let html = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
+    assert_eq!(html.matches(">Opus 5.5").count(), ONCE);
+    assert_eq!(html.matches(">Sonnet 5.5").count(), ONCE);
 }
 
 #[test]
