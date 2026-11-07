@@ -1,3 +1,22 @@
 draft = "smith-gate-entries"
 repo = "fabrig"
 sources = ["smith/docs/plan/smith-gate-entries/inputs/request.md", "tools/tiers/budgets.toml", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "gate-entries"
+title = "smith's focused and fuzzy suites have their gate entries beside hearth's"
+mode = "direct"
+needs = []
+design = "tools/tiers/design.md, 7.3"
+
+[[slice]]
+id = 1
+story = "budgets.toml holds [gate.smith.default] at 30 and [gate.smith.fuzzy] at 120, and the validator accepts the real file"
+parts = ["gate-entries"]
+walk = false
