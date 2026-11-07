@@ -10,10 +10,11 @@ const STEPS: u32 = 200;
 const REASON: &[u8] = b"the repository has no search UI: it is a table-printing command-line program; no files changed";
 
 pub(super) fn failed_production(reason: &[u8]) -> (World, engine::Assignment, u64) {
-    production(tasks::TaskResult::Failure { reason: reason.into() })
+    // The person decides the held change while the chat reports it and waits.
+    production(tasks::TaskResult::Failure { reason: reason.into() }, people::EndedBy::Requester)
 }
 
-fn production(result: tasks::TaskResult) -> (World, engine::Assignment, u64) {
+fn production(result: tasks::TaskResult, ended_by: people::EndedBy) -> (World, engine::Assignment, u64) {
     let mut world = World::configured_limits(
         true,
         true,
@@ -25,7 +26,13 @@ fn production(result: tasks::TaskResult) -> (World, engine::Assignment, u64) {
     );
     world.adopt();
     world.send(protocol::hello_slots(CHANNEL, 2, Box::new([])));
-    let ask = world.chat(1, b"Fix widget's empty search state");
+    let people::Ask::Create { project, mut batch } = world.chat(1, b"Fix widget's empty search state") else {
+        panic!("chat creation fixture")
+    };
+    for member in &mut batch {
+        member.flags.ended_by = ended_by;
+    }
+    let ask = people::Ask::Create { project, batch };
     let chat = assigned_chat(&mut world, 92, ask);
     let engine::CallAnswer::Delegated(made) =
         super::change_tool::change(&mut world, &chat, 93, None, b"Fix widget's empty search state")
@@ -58,7 +65,8 @@ fn production(result: tasks::TaskResult) -> (World, engine::Assignment, u64) {
 
 #[test]
 fn an_inapplicable_change_finishes_without_a_hold() {
-    let (mut world, chat, change) = production(tasks::TaskResult::NoChange { words: REASON.into() });
+    let (mut world, chat, change) =
+        production(tasks::TaskResult::NoChange { words: REASON.into() }, people::EndedBy::Result);
     assert_no_change(&world, change);
     let resumed = super::reviews::next_assignment(&mut world, 2);
     assert_eq!(resumed.task, chat.task);
@@ -365,6 +373,7 @@ fn producing_goal() -> (World, engine::Assignment, engine::Assignment, u64) {
     call.producer = Some(2);
     call.landing = Some(engine::ChangeLanding::Goal);
     call.llm.producer = Some(tasks::LlmChoice {
+        later: None,
         account: None,
         main: tasks::ModelEffort { model: 0, effort: None },
         subagents: Box::new([]),

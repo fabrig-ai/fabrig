@@ -2,6 +2,13 @@
 
 2026-11-07. Where temper's code lags or departs from [agent.md](agent.md).
 
+Section 8 has no known implementation gap in refusing `Runs`, `Run`,
+`Commits`, `Tree` and `Queued` on an agent's forge read. The rendering
+table checks error text naming the tool and kind, including bounded
+replies; the service emits the `host-render` read-refusal note. The
+real-agent landing outcomes remain unestablished and are deferred in
+section 10.
+
 Section 8.1 has no known implementation gap in reading and proposing
 whole model settings in the configuring tools and instructions. Scripted
 stories do not establish a real model following those instructions; that

@@ -758,12 +758,12 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             crate::recurring::after_delegate(domain, env, task, out);
         }
         Event::Prepare { reply_to, task } => crate::run::prepare(domain, env, reply_to, task, out),
-        Event::Claim { reply_to, task, attempt, resumed, budget, account, writes } => {
+        Event::Claim { reply_to, task, attempt, resumed, budget, account, writes, reasons, offered } => {
             crate::run::claim(
                 domain,
                 env,
                 reply_to,
-                crate::run::Claiming { number: task, attempt, resumed, budget, account, writes },
+                crate::run::Claiming { number: task, attempt, resumed, budget, account, writes, reasons, offered },
                 out,
             );
         }
@@ -1089,6 +1089,7 @@ impl Domain {
                 .expect("bounded delegate snapshot");
         }
         Some(Box::new(crate::RunContext {
+            reasons: crate::wake::reasons(domain, number, inbox.as_slice()),
             ended_by: task.flags.ended_by,
             llm: task.llm.clone(),
             payer: domain.payer(number).expect("admitted financial chain has a payer"),
@@ -1449,6 +1450,8 @@ pub(crate) fn make_admitted(
             published: None,
             procedure_offered: None,
             record: TaskRecord {
+                reasons: crate::Reasons::FIRST,
+                offered: crate::Reasons::ALL,
                 asked_requester: false,
                 placed: None,
                 settings: crate::SettingsRevision { task: domain.newest, run: None },

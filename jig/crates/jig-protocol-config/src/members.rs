@@ -26,7 +26,7 @@ pub struct Member {
 }
 
 /// Every object shape the engine and worker decoders read.
-pub static SHAPES: [Shape; 61] = [
+pub static SHAPES: [Shape; 63] = [
     Shape { name: "engine", paths: &["engine"], line: "The engine's configuration, read before startup." },
     Shape {
         name: "limits",
@@ -101,6 +101,11 @@ pub static SHAPES: [Shape; 61] = [
         paths: &["engine.charters[].documents[]"],
         line: "A resource document a charter's runs read.",
     },
+    Shape {
+        name: "charter-part",
+        paths: &["engine.charters[].parts[]"],
+        line: "Instructions for runs whose reasons meet this part's set.",
+    },
     Shape { name: "wake", paths: &["engine.charters[].wake"], line: "A charter's default wake policy." },
     Shape {
         name: "wake-rule",
@@ -165,8 +170,18 @@ pub static SHAPES: [Shape; 61] = [
         line: "A template's main model and the models its sub-agents may use.",
     },
     Shape {
+        name: "llm-later",
+        paths: &["engine.templates[].llm.later"],
+        line: "The models and efforts for runs after the first activation.",
+    },
+    Shape {
         name: "model-effort",
-        paths: &["engine.templates[].llm.main", "engine.templates[].llm.sub_agents[]"],
+        paths: &[
+            "engine.templates[].llm.main",
+            "engine.templates[].llm.sub_agents[]",
+            "engine.templates[].llm.later.main",
+            "engine.templates[].llm.later.sub_agents[]",
+        ],
         line: "A configured model with one of its efforts.",
     },
     Shape {
@@ -333,7 +348,7 @@ pub static SHAPES: [Shape; 61] = [
 ];
 
 /// Every named member, including settings read only by the document-defaults bridge.
-pub static MEMBERS: [Member; 265] = [
+pub static MEMBERS: [Member; 271] = [
     Member {
         shape: "engine",
         name: "limits",
@@ -1442,6 +1457,33 @@ pub static MEMBERS: [Member; 265] = [
         gone: None,
     },
     Member {
+        shape: "charter",
+        name: "parts",
+        kind: "list of charter-part",
+        bound: "tasks.charter_parts",
+        required: false,
+        line: "Gives the ordered instruction parts for a charter whose runs do not resume.",
+        gone: None,
+    },
+    Member {
+        shape: "charter-part",
+        name: "on",
+        kind: "list of string",
+        bound: "nonempty; each choosing reason once",
+        required: true,
+        line: "Names the first activation or choosing message kinds that read this part.",
+        gone: None,
+    },
+    Member {
+        shape: "charter-part",
+        name: "instructions",
+        kind: "configuration path",
+        bound: "core.run_bytes with the policy and other parts",
+        required: true,
+        line: "Names the file holding this part's instructions.",
+        gone: None,
+    },
+    Member {
         shape: "charter-document",
         name: "connector",
         kind: "integer",
@@ -1808,6 +1850,33 @@ pub static MEMBERS: [Member; 265] = [
         bound: "64 models; no model twice",
         required: true,
         line: "Chooses the models and efforts the run's sub-agents may use.",
+        gone: None,
+    },
+    Member {
+        shape: "llm-choice",
+        name: "later",
+        kind: "llm-later",
+        bound: "",
+        required: false,
+        line: "Gives the models and efforts for runs after the first activation.",
+        gone: None,
+    },
+    Member {
+        shape: "llm-later",
+        name: "main",
+        kind: "model-effort",
+        bound: "",
+        required: true,
+        line: "Names the main model and its effort for later runs.",
+        gone: None,
+    },
+    Member {
+        shape: "llm-later",
+        name: "sub_agents",
+        kind: "list of model-effort",
+        bound: "64; each model once",
+        required: true,
+        line: "Names each model later runs may delegate to, with its effort.",
         gone: None,
     },
     Member {

@@ -152,6 +152,7 @@ fn set_tasks(limits: &mut jig_domain_tasks::Limits, name: &[u8], value: u64) -> 
         contract_choices,
         charters,
         charter_documents,
+        charter_parts,
         authority_grants,
         authority_segments,
         authority_bytes,
@@ -159,6 +160,7 @@ fn set_tasks(limits: &mut jig_domain_tasks::Limits, name: &[u8], value: u64) -> 
         retries,
         facts,
         room_refusals,
+        ..
     } = limits;
     let jig_domain_tasks::Retries { transient, permanent, run, agent, lost, invalid } = retries;
     let jig_domain_tasks::Retry { retries: transient_retries, base: transient_base, max: transient_max } = transient;
@@ -209,6 +211,7 @@ fn set_tasks(limits: &mut jig_domain_tasks::Limits, name: &[u8], value: u64) -> 
         b"contract_choices" => *contract_choices = count(value)?,
         b"charters" => *charters = count(value)?,
         b"charter_documents" => *charter_documents = count(value)?,
+        b"charter_parts" => *charter_parts = count(value)?,
         b"authority_grants" => *authority_grants = count(value)?,
         b"authority_segments" => *authority_segments = count(value)?,
         b"authority_bytes" => *authority_bytes = count(value)?,

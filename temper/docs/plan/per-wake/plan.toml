@@ -1,0 +1,75 @@
+draft = "per-wake"
+repo = "fabrig"
+sources = ["temper/docs/plan/per-wake/inputs/request.md", "temper/docs/design/draft/per-wake.md", "temper/docs/design/draft/per-wake.status.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "surface"
+title = "jig's tasks, core and people hold a run's reasons, a charter's parts and a later choice"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/tasks.md, 8.6"
+
+[[slice]]
+id = 1
+story = "Every tree builds with a run's reasons, a charter's parts and a later choice, empty, and behaves as before"
+parts = ["surface"]
+walk = false
+
+[[part]]
+id = "formats"
+title = "The store, the configuration and the client wire carry a charter's parts and a later choice"
+mode = "direct"
+needs = ["surface"]
+design = "jig/docs/design/protocol/store.md, 5"
+
+[[part]]
+id = "offering"
+title = "The tasks child keeps a run's reasons and offers it only what its parts cover"
+mode = "direct"
+needs = ["surface"]
+design = "jig/docs/design/domain/tasks.md, 8.6"
+
+[[part]]
+id = "parts"
+title = "The core checks a charter's parts and prepares a run from those its reasons meet"
+mode = "direct"
+needs = ["surface"]
+design = "jig/docs/design/domain/engine.md, 7.1"
+
+[[slice]]
+id = 2
+story = "A charter's parts and a later choice survive the store, the deployment's document and the client wire, refused at their path when out of shape"
+parts = ["formats"]
+walk = false
+
+[[slice]]
+id = 3
+story = "A run reads its charter's shared instructions and the parts its reasons meet, and a message no part of it covers waits in the inbox for the run after"
+parts = ["offering", "parts"]
+walk = false
+
+[[part]]
+id = "later"
+title = "A task's later choice, checked as the first is and taken by every run after its first activation"
+mode = "direct"
+needs = ["offering", "parts"]
+design = "jig/docs/design/domain/tasks.md, 3"
+
+[[part]]
+id = "story"
+title = "The per-wake story in the core world"
+mode = "direct"
+needs = ["offering", "parts", "later"]
+design = "jig/docs/design/domain/tasks.md, 8.6"
+
+[[slice]]
+id = 4
+story = "In the core world, a task's first run reads its shared text and first part at its first choice; a question arriving then waits and wakes the next run, which reads the question part at its later choice"
+parts = ["later", "story"]
+walk = false

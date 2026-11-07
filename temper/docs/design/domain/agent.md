@@ -1441,6 +1441,13 @@ host:
 
 ## 10. Open questions
 
+- **Forge-read fallout with real agents** (section 8): the existing
+  ChatGPT and Claude Code owned-forge landing stories check that a real
+  run completes without losing `temper serve`. Refusal-rendering checks
+  alone do not establish either outcome. Default: those live stories
+  run after landing, with no change required by the refusal contract;
+  `forge.md`, section 20 keeps the routing proof's limits.
+
 - **A direct change result's rendering room** (4.4): the landing procedure
   reserves 59 bytes for its result's label and sender before fitting its
   report. A task made directly by `delegate` with a Change contract has

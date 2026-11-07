@@ -633,11 +633,17 @@ pub(crate) fn keep_refusals(domain: &mut Domain, task: u64, refused: &[u64]) {
     task_mut(domain, task).expect("refusal recipient live").record.refused = names;
 }
 
-pub(crate) fn take(task: &mut crate::TaskRecord, read: Option<u64>) {
+/// A run consumes its exact offers; a procedure offers its whole fenced prefix
+/// (jig/docs/design/domain/tasks.md, 8.2).
+pub(crate) fn take(task: &mut crate::TaskRecord, read: Option<u64>, outstanding: Option<&[u64]>) {
     if let Some(number) = read {
         let mut kept = List::with_capacity(u32::try_from(task.inbox.len()).expect("bounded inbox count"));
         for word in &task.inbox {
-            if word.number > number || task.refused.contains(&word.number) {
+            let unoffered = match outstanding {
+                Some(offered) => !offered.contains(&word.number),
+                None => false,
+            };
+            if word.number > number || unoffered || task.refused.contains(&word.number) {
                 kept.push(word.clone()).expect("retained subset fits");
             }
         }

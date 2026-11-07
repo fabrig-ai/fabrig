@@ -85,6 +85,7 @@ fn apply(world: &mut World, signed: u64, item: s::Item) {
 fn make(world: &mut World, signed: u64, model: Option<u8>) -> u64 {
     let mut member = jig_test_profile::fixtures::people_member(b"catalogue task", 20);
     member.llm = model.map(|model| people::LlmChoice {
+        later: None,
         account: None,
         main: people::ModelEffort { model, effort: None },
         subagents: Box::new([]),
@@ -282,6 +283,7 @@ fn a_number_no_setting_has_is_a_hole() {
     );
     let mut member = jig_test_profile::fixtures::people_member(b"hole", 20);
     member.llm = Some(people::LlmChoice {
+        later: None,
         account: None,
         main: people::ModelEffort { model: 31, effort: None },
         subagents: Box::new([]),

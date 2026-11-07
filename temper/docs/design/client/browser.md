@@ -1382,7 +1382,13 @@ Not in the tier, each in the lowest world that shows it:
   open (`../draft/look-requests.md`, sections 4 and 5). Include dark
   and light, both fonts, phone Split, a draft being written, tables,
   changed-section flash, the figure, questions, proposals, delegations
-  and failures. Real keys check the full-screen behaviours named in
+  and failures. Include the phone Split conversation and composer's dark
+  ground, the draft's thin scrollbar without a reserved gutter at every
+  width, the quiet model button's line height and the running line's
+  placement inside the foot without a gap above the box. The ordinary
+  bar's two-row title at 1000 px stays: `>_` and its status words share
+  the bar, by the user's `look-round-17` request.
+  Real keys check the full-screen behaviours named in
   `README.md`, section 11. Default: the shared document rules and
   focused tables and prints; these establish no rendered equality or
   real-key result. Temper/ui retains the departures in

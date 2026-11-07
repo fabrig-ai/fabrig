@@ -236,6 +236,7 @@ impl Draft {
                     choice.main = c::ModelEffort { model: model.name.clone(), effort: model.effort.clone() };
                 } else {
                     self.requested = Some(c::LlmChoice {
+                        later: None,
                         account,
                         main: c::ModelEffort { model: model.name.clone(), effort: model.effort.clone() },
                         subagents: List::with_capacity(0),

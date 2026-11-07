@@ -74,6 +74,7 @@ fn a_settings_change_naming_an_effort_no_model_offered_is_answered_refused() {
     // The deployment fixture offers only low and high efforts.
     let effort = jig_client_kit::stories::text(b"unoffered");
     template.llm = Some(c::LlmChoice {
+        later: None,
         account: None,
         main: c::ModelEffort { model: model.clone(), effort: Some(effort) },
         subagents: List::with_capacity(0),

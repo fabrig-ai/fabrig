@@ -2,8 +2,8 @@
 //! refused naming the model and why (domain/tasks.md, sections 3, 4 and 7; domain/authority.md,
 //! section 8.1).
 use jig_domain_tasks::{
-    self as tasks, Amendment, Authority, CharterModels, Domain, Event, Executor, LlmChoice, LlmFault, ModelEffort,
-    Models, Party, PersonAddress, Problem, Refusal,
+    self as tasks, Amendment, Authority, CharterModels, Domain, Event, Executor, LlmChoice, LlmFault, LlmLater,
+    ModelEffort, Models, Party, PersonAddress, Problem, Refusal,
 };
 use jig_tasks_world::{LIMITS, PERSON, Reply, World, authority, domain, task};
 
@@ -14,7 +14,11 @@ fn effort(model: u8, effort: Option<u8>) -> ModelEffort {
 }
 
 fn choice(main: ModelEffort, subagents: &[ModelEffort]) -> LlmChoice {
-    LlmChoice { account: None, main, subagents: subagents.into() }
+    LlmChoice { later: None, account: None, main, subagents: subagents.into() }
+}
+
+fn later(main: ModelEffort, subagents: &[ModelEffort]) -> LlmChoice {
+    LlmChoice { later: Some(LlmLater { main, subagents: subagents.into() }), ..choice(effort(0, Some(0)), &[]) }
 }
 
 fn allowing(models: u64) -> Authority {
@@ -67,7 +71,10 @@ fn refused(reply: &Reply, model: u8, why: LlmFault) {
 #[test]
 fn a_choice_is_kept_through_a_restart_amended_and_given_to_a_delegate() {
     let mut world = World::new(71, LIMITS);
-    let first = choice(effort(0, Some(1)), &[effort(1, None), effort(2, Some(0))]);
+    let first = LlmChoice {
+        later: Some(LlmLater { main: effort(2, Some(0)), subagents: Box::new([effort(1, None)]) }),
+        ..choice(effort(0, Some(1)), &[effort(1, None), effort(2, Some(0))])
+    };
     assert_eq!(world.make(LLM_REQUESTER, vec![chosen(1, 0b111, first.clone())]), Reply::Made(vec![1]));
     assert_eq!(world.record(1).llm, Some(first));
     world.restart();
@@ -75,6 +82,7 @@ fn a_choice_is_kept_through_a_restart_amended_and_given_to_a_delegate() {
     let second = choice(effort(2, Some(0)), &[]);
     assert!(!matches!(amend(&mut world, 1, None, Some(second.clone())), Reply::Refused(_)));
     assert_eq!(world.record(1).llm, Some(second.clone()));
+    assert_eq!(world.record(1).llm.as_ref().unwrap().later, None, "an amendment replaces the whole choice");
     assert!(!matches!(amend(&mut world, 1, None, None), Reply::Refused(_)), "no choice leaves it unchanged");
     assert_eq!(world.record(1).llm, Some(second.clone()));
 
@@ -117,12 +125,51 @@ fn a_choice_is_refused_naming_its_first_failing_model_and_why() {
             1,
             LlmFault::Repeated,
         ),
+        (Executor::Agent { charter: 1 }, 0b1111, later(effort(9, None), &[]), 9, LlmFault::Unconfigured),
+        (Executor::Agent { charter: 1 }, 0b1111, later(effort(0, Some(2)), &[]), 0, LlmFault::Effort),
+        (Executor::Agent { charter: 1 }, 0b1111, later(effort(3, None), &[]), 3, LlmFault::Charter),
+        (Executor::Agent { charter: 1 }, 0b0001, later(effort(1, None), &[]), 1, LlmFault::Authority),
+        (
+            Executor::Agent { charter: 1 },
+            0b1111,
+            later(effort(1, None), &[effort(2, Some(0)), effort(2, Some(0))]),
+            2,
+            LlmFault::Repeated,
+        ),
+        (Executor::Agent { charter: 1 }, 0b1111, later(effort(1, None), &[effort(9, None)]), 9, LlmFault::Unconfigured),
+        (Executor::Agent { charter: 1 }, 0b1111, later(effort(1, None), &[effort(0, Some(2))]), 0, LlmFault::Effort),
+        (Executor::Agent { charter: 1 }, 0b1111, later(effort(1, None), &[effort(3, None)]), 3, LlmFault::Charter),
+        (Executor::Agent { charter: 1 }, 0b0001, later(effort(0, Some(0)), &[effort(1, None)]), 1, LlmFault::Authority),
+        (
+            Executor::Agent { charter: 2 },
+            0b1111,
+            LlmChoice {
+                later: Some(LlmLater { main: effort(3, None), subagents: Box::new([]) }),
+                ..choice(effort(3, None), &[])
+            },
+            3,
+            LlmFault::Charter,
+        ),
         (procedure, 0b1111, choice(effort(1, None), &[]), 1, LlmFault::Procedure),
         (person, 0b1111, choice(effort(1, None), &[]), 1, LlmFault::Procedure),
     ];
-    let domain = domain(&LIMITS, 72);
+    let mut charters = jig_tasks_world::charters();
+    charters[1].resumes = true;
+    let domain = Domain::new(
+        &LIMITS,
+        tasks::Kept { revisions: 4, versions: 8 },
+        72,
+        1,
+        charters.clone(),
+        Box::new(jig_tasks_world::EFFORTS),
+    );
     for (executor, models, llm, model, why) in cases {
         let mut world = World::new(72, LIMITS);
+        world.send(Event::Charters {
+            newest: 1,
+            charters: charters.clone(),
+            efforts: Box::new(jig_tasks_world::EFFORTS),
+        });
         let before = world.records.clone();
         if let Executor::Agent { charter } = executor {
             assert_eq!(domain.check_llm(charter, Models::Named(models), &llm), Err(Refusal::Llm { model, why }));
@@ -157,8 +204,8 @@ fn a_choice_checked_alone_fits_or_names_an_unoffered_charter() {
 #[test]
 fn a_choice_checked_alone_uses_the_newest_charter_including_its_removal() {
     let mut charters = jig_tasks_world::charters().into_vec();
-    charters.push(CharterModels { number: 1, revision: 2, models: Some(Box::new([1])) });
-    charters.push(CharterModels { number: 2, revision: 2, models: None });
+    charters.push(CharterModels { resumes: false, number: 1, revision: 2, models: Some(Box::new([1])) });
+    charters.push(CharterModels { resumes: false, number: 2, revision: 2, models: None });
     let domain = Domain::new(
         &LIMITS,
         jig_domain_tasks::Kept { revisions: 4, versions: 8 },

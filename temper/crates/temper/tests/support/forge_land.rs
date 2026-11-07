@@ -9,6 +9,7 @@ use skein_world::{Referee, real};
 use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
 
 pub mod rung;
+mod survivors;
 
 /// forge-setup's first repository goes into project 1, the first made
 /// (temper/docs/design/client/tools.md, 5.5): work/hello is project 1's.
@@ -1623,6 +1624,7 @@ enum LivePhase {
     Stopping,
     Settled,
 }
+#[expect(clippy::struct_excessive_bools, reason = "the judge tracks independent observations beside its story phase")]
 struct LiveJudge<'a> {
     plan: LivePlan<'a>,
     visitor: Option<usize>,
@@ -1645,6 +1647,8 @@ struct LiveJudge<'a> {
     account_checked: bool,
     linked: bool,
     cleanup: bool,
+    at_stop: Vec<survivors::Row>,
+    survivors_noted: bool,
     ending: Option<super::held_login::Ending>,
     return_at: Option<usize>,
     phase: LivePhase,
@@ -2279,6 +2283,7 @@ impl LiveJudge<'_> {
     fn stop(&mut self, binary: &mut skein_world::end_to_end::Binary, calls: &mut super::ctl::Calls) {
         calls.release();
         calls.cancel();
+        self.at_stop = survivors::rows(&binary.tree_status().live_pids);
         binary.signal(skein_io::kernel::Signal::Terminate);
         self.phase = LivePhase::Stopping;
     }
@@ -2289,6 +2294,15 @@ impl LiveJudge<'_> {
         calls: &mut super::ctl::Calls,
     ) {
         use skein_shell::Host;
+        if self.stopping()
+            && !self.survivors_noted
+            && let Some(left) = &binary.tree_status().live_at_leader_exit
+        {
+            if !left.is_empty() {
+                super::live::notice(&survivors::lines(left, &survivors::rows(left), &self.at_stop));
+            }
+            self.survivors_noted = true;
+        }
         calls.observe_box_stderr(binary.stderr(), now);
         if !self.linked && super::printed_link(calls.stdout()).is_some() {
             super::live::client_notice(&String::from_utf8_lossy(calls.link()));
@@ -2502,6 +2516,8 @@ pub fn run_live(
         account_checked: false,
         linked: false,
         cleanup: false,
+        at_stop: Vec::new(),
+        survivors_noted: false,
         ending: None,
         return_at: None,
         phase: plan.starting_phase(),
@@ -2709,6 +2725,45 @@ fn kept_project(
 #[cfg(test)]
 mod tests {
     use serde_json::{Value, json};
+
+    #[test]
+    fn survivor_lines_name_each_process_its_parent_and_group() {
+        use super::survivors::{Row, lines, parse};
+
+        let row = |pid, parent, group, command: &str| Row { pid, parent, group, session: 1, command: command.into() };
+        let now = [row(30, 20, 10, "child --flag"), row(40, 20, 20, "other")];
+        let stopped = [row(10, 1, 10, "leader"), row(20, 10, 10, "parent"), row(99, 1, 99, "unrelated")];
+        for (left, at_stop, expected) in [
+            (vec![30], &[][..], "SURVIVOR pid=30 parent=20 group=10 session=1 command=child --flag\n"),
+            (vec![31], &stopped[..], "SURVIVOR pid=31 gone\n"),
+            (
+                vec![30, 31, 40],
+                &stopped[..],
+                concat!(
+                    "SURVIVOR pid=30 parent=20 group=10 session=1 command=child --flag\n",
+                    "AT STOP pid=10 parent=1 group=10 session=1 command=leader\n",
+                    "AT STOP pid=20 parent=10 group=10 session=1 command=parent\n",
+                    "SURVIVOR pid=31 gone\n",
+                    "SURVIVOR pid=40 parent=20 group=20 session=1 command=other\n",
+                    "AT STOP pid=20 parent=10 group=10 session=1 command=parent\n",
+                ),
+            ),
+        ] {
+            assert_eq!(lines(&left, &now, at_stop), expected);
+        }
+        for (stat, expected) in [
+            ("30 (a name ) ( with spaces) S 20 10 1 0 999", Some((20, 10, 1))),
+            ("30 (name) S 20 10", None),
+            ("30 (name) S bad 10 1", None),
+            ("no closing delimiter", None),
+        ] {
+            let parsed = parse(30, stat, b"child\0--flag\0");
+            assert_eq!(parsed.as_ref().map(|row| (row.parent, row.group, row.session)), expected, "{stat}");
+            if let Some(parsed) = parsed {
+                assert_eq!(lines(&[30], &[parsed], &[]), lines(&[30], &now, &[]));
+            }
+        }
+    }
 
     fn person() -> Value {
         json!({"projects":[{"project":2,"name":{"bytes":"hello"}},

@@ -63,6 +63,7 @@ fn call_room_counts_pending_calls_and_allows_retained_replay_at_capacity() {
 pub(crate) fn limits() -> Limits {
     let retry = tasks::Retry { retries: 1, base: Duration::from_millis(10), max: Duration::from_secs(1) };
     let tasks = tasks::Limits {
+        charter_parts: 8,
         placed_holds: 1,
         project_placed_holds: 1,
         party_placed_holds: 1,
@@ -474,6 +475,7 @@ pub(crate) fn config(seed: u64) -> Config {
         defaults: crate::settings::Defaults {
             models: Box::default(),
             charters: Box::new([Charter {
+                parts: Box::new([]),
                 rest: false,
                 wake: jig_domain_tasks::WakePolicy::DEFAULT,
                 documents: Box::new([]),
@@ -1543,6 +1545,8 @@ fn documents_question_words_are_bounded_and_answered_questions_end() {
         &mut core,
         &limits,
         tasks::Event::Claim {
+            offered: jig_domain_tasks::Reasons::ALL,
+            reasons: jig_domain_tasks::Reasons::FIRST,
             account: None,
             reply_to: ReplyTo::new(Token::new(63)),
             task: 1,
@@ -1564,7 +1568,7 @@ fn documents_question_words_are_bounded_and_answered_questions_end() {
             turn: 1,
             read: Some(60),
             offered: Some(60),
-            outstanding: Box::new([]),
+            outstanding: Box::new([60]),
             cumulative: 0,
         },
     );

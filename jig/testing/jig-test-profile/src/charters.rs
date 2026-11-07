@@ -4,6 +4,23 @@ use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_test_domain as root;
 
+/// Shared instructions and one part for each activation in the per-wake story
+/// (`jig/docs/design/domain/tasks.md`, 8.6).
+#[must_use]
+pub fn per_wake_charter() -> core::Charter {
+    use jig_domain_tasks::Reasons;
+    let mut charter = research_charter();
+    charter.policy.resume = false;
+    charter.policy.instructions = b"S".as_slice().into();
+    charter.policy.alternatives = Box::new([charter.policy.model.clone()]);
+    charter.policy.model = crate::scripted_model();
+    charter.parts = [(Reasons::FIRST, b"F"), (Reasons::QUESTION, b"Q"), (Reasons::ESCALATION, b"H")]
+        .into_iter()
+        .map(|(on, instructions)| core::CharterPart { on, instructions: instructions.as_slice().into() })
+        .collect();
+    charter
+}
+
 #[must_use]
 pub fn research_charter() -> core::Charter {
     let mut charter = crate::config(0).core.defaults.charters[0].clone();

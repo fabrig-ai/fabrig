@@ -64,10 +64,11 @@ fn revision_item_sum_and_count_bounds() {
     assert_eq!(limits.proposal_items, count);
     let mut value = template();
     value.name = Box::new([]);
+    let value = s::Value::Template(Box::new(value));
     let item = s::RevisionItem {
         setting: s::Setting::Template(1),
-        edit: s::Edit::Set(s::Value::Template(Box::new(value))),
-        replaced: s::Replaced::NotOffered,
+        edit: s::Edit::Set(value.clone()),
+        replaced: s::Replaced::Value(value),
     };
     let row = revision(repeated_items(&item, count));
     let bytes = codec::settings::encode(&row, &limits, &[]).unwrap();
@@ -75,10 +76,16 @@ fn revision_item_sum_and_count_bounds() {
     let mut remaining = usize::try_from(limits.revision_items).unwrap().checked_sub(encoded.items().len()).unwrap();
     let s::Record::Revision { mut revision, .. } = row else { panic!("revision") };
     for item in &mut revision.items {
-        let s::Edit::Set(s::Value::Template(value)) = &mut item.edit else { panic!("template") };
-        let length = remaining.min(65536);
-        value.name = skein_lib::bytes::zeroed(length);
-        remaining = remaining.checked_sub(length).unwrap();
+        let (s::Edit::Set(s::Value::Template(edited)), s::Replaced::Value(s::Value::Template(replaced))) =
+            (&mut item.edit, &mut item.replaced)
+        else {
+            panic!("template values")
+        };
+        for value in [edited, replaced] {
+            let length = remaining.min(skein_lib::length::usize_of(limits.template_name));
+            value.name = skein_lib::bytes::zeroed(length);
+            remaining = remaining.checked_sub(length).unwrap();
+        }
     }
     assert_eq!(remaining, 0, "fixture fills the derived byte sum within the count");
     let row = s::Record::Revision { history: false, revision: revision.clone() };

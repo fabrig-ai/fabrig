@@ -73,6 +73,7 @@ fn a_job_without_its_spec_is_refused() {
 fn a_job_naming_an_llm_is_refused() {
     let mut member = member();
     member.llm = Some(tasks::LlmChoice {
+        later: None,
         account: None,
         main: tasks::ModelEffort { model: 0, effort: None },
         subagents: Box::new([]),
