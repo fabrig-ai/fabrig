@@ -43,7 +43,8 @@ Acceptance:
    laid at 80 by 24 with the fixture theme, kept as
    `src/tests/golden/every.txt` (a `Frame::print`), written by hand from
    5.3 and ui-text.md's section 5. Where it does not fit in 24 rows, a
-   second golden at 80 by 72, `every-tall.txt`, holds the whole.
+   second golden at 80 by 144, `every-tall.txt`, holds the whole (see
+   Answers, 2026-11-07, second).
 3. Focusable roles among them (choice, check, option, tab, menu item, a
    select's options) keep their focus columns, and a disabled select's
    options are laid with `(disabled)` and are not focusable, as the key
@@ -108,3 +109,17 @@ Acceptance 4 requires: “the arm `screen-render` gave them is gone.”
 The checkout has no render module or export in `skein/crates/skein-ui-screen/src/lib.rs`; the prerequisite is absent.
 The next run merges `origin/tui-connected/screen-render`, verifies its renderer, fixture theme and goldens are present, then implements screen-roles.
 If the prerequisite remains absent, keep the task parked and report it without creating a replacement renderer.
+
+### 2026-11-07: May every-tall.txt be 80 by 144 (recommended), or must the whole be covered by several 80 by 72 goldens? (tui-connected/screen-roles-2, foreman tui-connected/screen-roles/foreman-2)
+
+80 by 144, one golden: `every-tall.txt` holds the whole every-role tree in
+one frame. Several 80 by 72 viewports are not wanted: they would need a
+scroll position per piece and test the body's scrolling, which the
+`scroll.txt` golden already does, instead of the layout.
+The 72 was this spec's guess, not the design's: `skein/docs/design/ui-screen.md`,
+section 9, fixes only the every-role frame at 80 by 24, which stays as
+`every.txt`. Acceptance 2 now says 80 by 144.
+If the laid tree needs more than 144 rows (wrapping), take 80 by the next
+multiple of 24 that holds it and say the height in the report; never cut
+fixture content, change its layout or an existing golden to make it fit.
+Report the rows the whole takes.
