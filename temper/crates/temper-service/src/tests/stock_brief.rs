@@ -23,7 +23,9 @@ fn configured() -> smith_agent_shell::config::Configuration {
 
 fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Assignment {
     let engine = engine(&generated());
-    let policy = engine.charters.iter().find(|charter| charter.number == number).unwrap().policy.clone();
+    let charter = engine.charters.iter().find(|charter| charter.number == number).unwrap();
+    let policy =
+        jig_domain_core::settings::charters::resolved(charter, &engine.llm.models, &engine.limits.core).unwrap().policy;
     let mut assignment = fixtures::assignment_with(fixtures::repository(1, b"org", b"repo"));
     assignment.charter = number;
     assignment.run.policy = policy;
@@ -32,11 +34,19 @@ fn assignment(number: u32, open: bool, body: usize) -> temper_engine_domain::Ass
         vec![None; assignment.run.policy.alternatives.len().checked_add(1).unwrap()].into_boxed_slice();
     assignment.run.budget = engine.charters.iter().find(|charter| charter.number == number).unwrap().spend;
     assignment.run.authority.tools = jig_domain_tasks::Tools(
-        crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes).rules.ceiling.tools.0
+        crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes)
+            .rules
+            .ceiling
+            .tools
+            .0
             & assignment.run.policy.tools.0,
     );
     assert_eq!(
-        crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes).rules.ceiling.tools.0,
+        crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes)
+            .rules
+            .ceiling
+            .tools
+            .0,
         1 | 2 | 4 | 128 | 256 | 512 | 1024
     );
     assignment.run.ended_by =

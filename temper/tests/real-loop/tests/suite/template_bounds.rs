@@ -24,6 +24,7 @@ fn the_shipped_agent_fits_standards_page_with_derived_carriers() {
     assert_eq!(transcript, 16_803_810);
     fixtures::turn_bounds::apply(&mut document, transcript);
     let given = fixtures::own_defaults(&document, &document["world_settings"]);
+    temper_playground::documents::settings::strip_models(&mut document);
     document.as_object_mut().expect("deployment").remove("world_settings");
     let bytes = serde_json::to_vec(&document).expect("shipped agent configuration");
     temper_service::startup::named_with(&bytes, &jig_protocol_config::Directories::working(), &given)

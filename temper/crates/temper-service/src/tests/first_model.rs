@@ -45,12 +45,8 @@ struct StockBox {
 
 fn stock_box(account: OneAccount) -> StockBox {
     let document = stock::generated();
-    assert_eq!(
-        fixtures::value(&document, b"engine.llm.models[0].name").as_ref(),
-        br#""claude-opus-5-5""#,
-        "init must put claude-opus-5-5 first: a reordered fixture hides first-usable selection"
-    );
     let parsed = stock::engine(&document);
+    assert_eq!(parsed.llm.models[0].model.name.as_ref(), CLAUDE, "stock must put Claude first");
     let client_models = jig_protocol_config::clients::models(&parsed.llm);
     let client_limits = parsed.limits.clients;
     let application_bytes = fixtures::value(&document, b"application");

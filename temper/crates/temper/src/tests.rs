@@ -193,7 +193,7 @@ fn fixed_sign_in_ports_are_checked_against_owned_and_fake_listeners() {
     let example = include_bytes!("../../../docs/examples/owned.json");
     let mut value: serde_json::Value = serde_json::from_slice(example).expect("owned JSON");
     value["engine"]["llm"]["providers"] = serde_json::json!([{
-        "name":"OpenAI", "number":1, "signed_in_plan":false, "models":["gpt-6.1-sol"], "sources":{
+        "name":"OpenAI", "number":1, "signed_in_plan":false, "endpoint":"openai", "sources":{
             "sign_in": {"issuer":"https://issuer.example", "client":"client", "scopes":[],
                 "authorization":"https://issuer.example/auth", "token":"https://issuer.example/token",
                 "keys":"https://issuer.example/keys", "transport":"tls", "server_name":"issuer.example",
@@ -210,7 +210,7 @@ fn fixed_sign_in_ports_are_checked_against_owned_and_fake_listeners() {
     let mut demo = fake.clone();
     demo["engine"]["llm"]["providers"][0]["sources"]["sign_in"]["redirect_port"] = 8370.into();
     let fixture = configuration::demo_document(std::path::Path::new("/config"), "127.0.0.1:8370");
-    for field in ["providers", "endpoints", "models"] {
+    for field in ["providers", "endpoints"] {
         let member = fixture["engine"]["llm"][field].as_array().expect("LLM table").last().expect("demo member");
         demo["engine"]["llm"][field].as_array_mut().expect("LLM table").push(member.clone());
     }

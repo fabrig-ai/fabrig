@@ -41,21 +41,23 @@ pub(super) fn generated() -> Box<[u8]> {
 fn single_model() -> Box<[u8]> {
     let bytes = generated();
     let document = fixtures::Json::new(&bytes);
-    let provider = fixtures::Json::new(document.value(b"engine.llm.providers[0]"));
-    let models = [b"[".as_slice(), provider.value(b"models[0]"), b"]"].concat();
-    let provider = provider.with(&[(b"models", &models)]);
-    let providers = [b"[".as_slice(), &provider, b"]"].concat();
+    let providers = [b"[".as_slice(), document.value(b"engine.llm.providers[0]"), b"]"].concat();
     let endpoints = [b"[".as_slice(), document.value(b"engine.llm.endpoints[0]"), b"]"].concat();
-    let models = [b"[".as_slice(), document.value(b"engine.llm.models[3]"), b"]"].concat();
     document.with(&[
         (b"engine.llm.providers", &providers),
         (b"engine.llm.endpoints", &endpoints),
-        (b"engine.llm.models", &models),
         (b"application.demo", b"null"),
     ])
 }
 pub(super) fn engine(document: &[u8]) -> config::Engine {
     fixtures::parse_engine(&fixtures::value(document, b"engine"))
+}
+fn single_engine() -> config::Engine {
+    let mut engine = engine(&single_model());
+    let sol = engine.llm.models.iter().find(|entry| entry.model.name.as_ref() == b"gpt-6.1-sol").unwrap().clone();
+    let defaults = crate::stock::checked_with(Box::new([sol]), engine.limits.core.tasks.result_bytes).unwrap();
+    config::pass(&mut engine, defaults).unwrap();
+    engine
 }
 fn without_projects() -> Box<[u8]> {
     let document = generated();
@@ -83,8 +85,8 @@ pub(super) fn limited(document: &[u8], name: &[u8], value: u64) -> Box<[u8]> {
 
 #[test]
 fn stock_chats_can_delegate_message_and_read_the_forge() {
-    let engine = engine(&single_model());
-    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let policy = &defaults.policies.get(&1).expect("stock policy 1").policy;
     let families = jig_domain_core::ToolFamilies::JIG;
     for authority in [&defaults.rules.ceiling, &policy.ceiling, &policy.roles[0].authority] {
@@ -109,8 +111,8 @@ fn stock_chats_can_delegate_message_and_read_the_forge() {
 #[test]
 fn the_stock_holds_a_goals_note_scope_and_an_observer_none() {
     use jig_domain_authority::{Scopes, Tools};
-    let engine = engine(&single_model());
-    let stock = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let engine = single_engine();
+    let stock = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let policy = &stock.policies.get(&1).expect("stock policy 1").policy;
     for authority in [&stock.rules.ceiling, &policy.ceiling]
         .into_iter()
@@ -130,7 +132,7 @@ fn the_stock_holds_a_goals_note_scope_and_an_observer_none() {
 fn configure_reference_authority_allows_coordinator_tools() {
     use jig_domain_authority::{Answer, Call, NoteScope, Scopes};
     let engine = engine(&generated());
-    let stock = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let stock = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let policy = stock.policies.get(&1).unwrap().policy.clone();
     let before = reference_domain(stock.rules.clone(), policy.clone(), engine.limits.core.authority);
     for family in [8, 32] {
@@ -266,8 +268,8 @@ fn reference_call(
 
 #[test]
 fn stock_chats_inspect_and_delegate_while_coders_modify() {
-    let engine = engine(&single_model());
-    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     for charter in &defaults.charters {
         assert_eq!(charter.policy.inspect, charter.number != 9 && charter.number != 10);
         assert!(!charter.policy.shell);
@@ -278,8 +280,8 @@ fn stock_chats_inspect_and_delegate_while_coders_modify() {
 
 #[test]
 fn the_configuring_agent_is_charter_3_and_template_3() {
-    let engine = engine(&single_model());
-    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     assert_eq!(
         defaults.charters.iter().map(|charter| charter.number).collect::<Box<[_]>>().as_ref(),
         [1, 2, 3, 4, 6, 9, 10]
@@ -312,7 +314,7 @@ fn the_stock_passes_jigs_one_check() {
         crate::named(&document, &config::Directories::working()).expect("stock passes startup parsing");
         let engine = engine(&document);
         let core = config::core(&engine, [1; 16], 7);
-        let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+        let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
         assert_eq!(defaults.charters[0].policy.instructions.as_ref(), include_bytes!("../stock/chat.txt"));
         assert_eq!(defaults.charters[1].policy.instructions.as_ref(), include_bytes!("../stock/coding.txt"));
         for charter in &defaults.charters {
@@ -333,7 +335,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
     let document = without_projects();
     let engine = engine(&document);
     let core = config::core(&engine, [1; 16], 7);
-    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let mut run = (0, Setting::Charter(1));
     for charter in &defaults.charters {
         let bytes = jig_domain_core::policy_owned_bytes(&charter.policy).unwrap();
@@ -355,7 +357,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
         (b"core.templates", 3, Setting::Template(1), "the stock offers 3 templates"),
         (b"documents.text_bytes", 11, Setting::Template(3), "the stock's template 3 needs 11 bytes"),
         (b"tasks.grace_ms", 5000, Setting::Template(1), "the stock's template 1 needs 5000 ms of grace"),
-        (b"core.settings.alternatives", 7, Setting::Charter(1), "the stock's charter 1 needs 7 alternatives"),
+        (b"core.settings.alternatives", 2, Setting::Charter(3), "the stock's charter 3 needs 2 alternatives"),
         (b"core.settings.permissions", 3, Setting::Policy(1), "the stock's policy 1 needs 3 permissions"),
     ];
     // Every positive scalar bound reached by jig's whole-set check is at its
@@ -366,7 +368,10 @@ fn each_floor_refuses_one_below_the_stocks_need() {
     }
     assert_eq!(settings::check(&current, &core.settings, &core.connectors, &minimum.core), Ok(()));
     assert_eq!(
-        crate::stock::floors(&crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes), &minimum),
+        crate::stock::floors(
+            &crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes),
+            &minimum
+        ),
         Ok(())
     );
     for &(name, needed, setting, words) in rows {
@@ -382,7 +387,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
         config::overrides::apply(&mut at.limits, name, needed - 1).unwrap();
         assert!(settings::check(&current, &core.settings, &core.connectors, &at.limits.core).is_err(), "{name:?}");
         let found = crate::stock::floors(
-            &crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes),
+            &crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes),
             &at.limits,
         )
         .unwrap_err();
@@ -414,8 +419,9 @@ fn each_floor_refuses_one_below_the_stocks_need() {
 fn each_charters_run_bytes_floor_names_that_charter() {
     use jig_domain_core::settings::Setting;
     let engine = engine(&without_projects());
-    for charter in &crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes).charters {
-        let mut defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    for charter in &crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes).charters
+    {
+        let mut defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
         // Isolate each run policy from larger stock runs.
         defaults.charters = Box::new([charter.clone()]);
         let needed = jig_domain_core::policy_owned_bytes(&charter.policy).unwrap();
@@ -439,7 +445,7 @@ fn each_charters_run_bytes_floor_names_that_charter() {
 fn a_worlds_own_short_runs_do_not_need_the_stocks_run_bytes() {
     let document = without_projects();
     let engine = engine(&document);
-    let mut own = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let mut own = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let mut needed = 0;
     for charter in &mut own.charters {
         charter.policy.instructions = Box::default();
@@ -665,7 +671,7 @@ fn the_goal_and_chat_report_only_the_checks_named_in_the_result() {
 }
 
 #[test]
-fn each_charter_offers_every_configured_model() {
+fn every_stock_charter_names_its_first_choices_and_the_rest() {
     let mut unnamed = engine(&generated());
     unnamed.llm.models = unnamed
         .llm
@@ -677,8 +683,9 @@ fn each_charter_offers_every_configured_model() {
                 && model.model.name.as_ref() != b"gpt-6-astra"
         })
         .collect();
+    unnamed.llm.models.reverse();
     for (llm, ordinary, configuring) in [
-        (engine(&single_model()).llm, vec!["gpt-6.1-sol"], vec!["gpt-6.1-sol"]),
+        (single_engine().llm, vec!["gpt-6.1-sol"], vec!["gpt-6.1-sol"]),
         (
             engine(&generated()).llm,
             vec![
@@ -703,14 +710,55 @@ fn each_charter_offers_every_configured_model() {
             ],
         ),
         (
+            engine(include_bytes!("../../../temper-init/template/bare.json")).llm,
+            vec![
+                "claude-opus-5-5",
+                "gpt-6.1-sol",
+                "claude-sonnet-5-5",
+                "claude-fable-5-1",
+                "gpt-6-astra",
+                "gpt-6.1-terra",
+                "gpt-6-luna",
+            ],
+            vec![
+                "claude-opus-5-5",
+                "gpt-6-astra",
+                "gpt-6.1-sol",
+                "claude-sonnet-5-5",
+                "claude-fable-5-1",
+                "gpt-6.1-terra",
+                "gpt-6-luna",
+            ],
+        ),
+        (
             unnamed.llm,
             vec!["claude-sonnet-5-5", "claude-fable-5-1", "gpt-6.1-terra", "gpt-6-luna", "demo"],
             vec!["claude-sonnet-5-5", "claude-fable-5-1", "gpt-6.1-terra", "gpt-6-luna", "demo"],
         ),
     ] {
-        let defaults = crate::stock::checked(&llm, 10_660).expect("representable stock");
+        let defaults = crate::stock::checked_with(llm.models.clone(), 10_660).expect("representable stock");
         for charter in &defaults.charters {
             let names = if charter.number == 3 { &configuring } else { &ordinary };
+            assert!(charter.rest);
+            let first_choices: &[&[u8]] = if charter.number == 3 {
+                &[b"claude-opus-5-5", b"gpt-6-astra", b"gpt-6.1-sol"]
+            } else {
+                &[b"claude-opus-5-5", b"gpt-6.1-sol"]
+            };
+            let choices: Box<[_]> =
+                core::iter::once(&charter.policy.model).chain(&charter.policy.alternatives).collect();
+            if choices.iter().any(|model| first_choices.contains(&model.name.as_ref())) {
+                assert!(choices.iter().all(|model| first_choices.contains(&model.name.as_ref())));
+            } else {
+                assert_eq!(choices.len(), 1);
+                assert_eq!(choices[0], &defaults.models.iter().min_by_key(|entry| entry.number).unwrap().model);
+            }
+            let charter = jig_domain_core::settings::charters::resolved(
+                charter,
+                &defaults.models,
+                &jig_protocol_config::profile(jig_protocol_config::Profile::Standard).core,
+            )
+            .unwrap();
             let offered: Box<[_]> = core::iter::once(&charter.policy.model)
                 .chain(charter.policy.alternatives.iter())
                 .map(|model| core::str::from_utf8(&model.name).unwrap())
@@ -751,18 +799,18 @@ fn an_inline_seed_policy_is_refused_naming_its_path() {
 #[test]
 fn stock_startup_requires_a_model_before_building_its_charters() {
     let mut document = generated();
-    for path in [b"engine.llm.providers".as_slice(), b"engine.llm.endpoints", b"engine.llm.models"] {
+    for path in [b"engine.llm.providers".as_slice(), b"engine.llm.endpoints"] {
         document = fixtures::with(&document, path, b"[]");
     }
     let found = crate::named(&document, &config::Directories::working()).unwrap_err();
-    assert_eq!(crate::startup::lines(&found).as_ref(), b"engine.llm.models: past its bound\n");
+    assert_eq!(crate::startup::lines(&found).as_ref(), b"engine.llm.providers: past its bound\n");
 }
 
 #[test]
 fn a_worlds_own_defaults_cannot_restore_document_members() {
     let init = generated();
     let stock = engine(&init);
-    let mut own = crate::stock::defaults(&stock.llm, stock.limits.core.tasks.result_bytes);
+    let mut own = crate::stock::with_models(stock.llm.models.clone(), stock.limits.core.tasks.result_bytes);
     own.charters[0].policy.turns = 9;
     let given = crate::stock::Given::Own { jig: own, forge: Box::default() };
     for member in ["charters", "templates", "policies", "rules"] {
@@ -788,8 +836,8 @@ fn a_worlds_own_defaults_cannot_restore_document_members() {
 
 #[test]
 fn the_reviewers_words_say_to_fail_when_it_cannot_review() {
-    let engine = engine(&single_model());
-    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let reviewer = defaults.charters.iter().find(|charter| charter.number == 4).expect("review charter");
     let words = core::str::from_utf8(&reviewer.policy.instructions).expect("review instructions");
     for phrase in [
@@ -805,8 +853,8 @@ fn the_reviewers_words_say_to_fail_when_it_cannot_review() {
 
 #[test]
 fn the_foremans_charter_reads_and_gives_a_verdict() {
-    let engine = engine(&single_model());
-    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     assert_eq!(
         defaults.charters.iter().map(|charter| charter.number).collect::<Box<[_]>>().as_ref(),
         [1, 2, 3, 4, 6, 9, 10]
@@ -833,8 +881,8 @@ fn the_foremans_charter_reads_and_gives_a_verdict() {
 
 #[test]
 fn the_foremans_words_name_the_three_verdicts() {
-    let engine = engine(&single_model());
-    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let foreman = defaults.charters.iter().find(|charter| charter.number == 6).expect("foreman charter");
     let words = core::str::from_utf8(&foreman.policy.instructions).expect("foreman instructions");
     for phrase in [
@@ -855,7 +903,7 @@ fn a_worlds_own_defaults_replace_the_stock_without_document_members() {
         config::document(&bytes, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 }).unwrap();
     let at = config::read::Object::new(&document, 0).unwrap().member(&document, b"engine").unwrap();
     let stock = crate::startup::engine(&document, at, &config::Directories::working()).unwrap();
-    let mut own = crate::stock::defaults(&stock.llm, stock.limits.core.tasks.result_bytes);
+    let mut own = crate::stock::with_models(stock.llm.models.clone(), stock.limits.core.tasks.result_bytes);
     own.charters[0].policy.waiting = skein_lib::Duration::from_millis(1);
     own.templates[0].flags.listed = true;
     let policy = &mut own.policies.get_mut(&1).unwrap().policy;
@@ -892,7 +940,7 @@ fn init_inbox_holds_three_message_credits_within_the_store_codec() {
 
 #[test]
 fn stock_budgets_follow_the_costliest_completion_and_run_turn_floor() {
-    let mut engine = engine(&generated());
+    let engine = engine(&generated());
     let init = engine.llm.models.clone();
     let mut cheap = init[0].clone();
     cheap.model.window = 1501;
@@ -907,8 +955,7 @@ fn stock_budgets_follow_the_costliest_completion_and_run_turn_floor() {
         ("cheap with costliest prices and rounding", Box::new([cheap.clone()]), 7, 256),
         ("cheap before Fable", Box::new([cheap, init[2].clone()]), 10_896, 43_584),
     ] {
-        engine.llm.models = models;
-        let stock = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+        let stock = crate::stock::checked_with(models, engine.limits.core.tasks.result_bytes).expect("world stock");
         assert_eq!(stock.rules.minimum_run_spend, 2 * c, "{row}");
         assert_eq!(stock.rules.maximum_run_spend, k, "{row}");
         for (charter, turns, seconds) in
@@ -942,7 +989,7 @@ fn stock_budgets_follow_the_costliest_completion_and_run_turn_floor() {
 #[test]
 fn reference_coding_run_matches_stock() {
     let engine = engine(&generated());
-    let stock = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let stock = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let coding = &stock.charters.iter().find(|charter| charter.number == 2).expect("coding charter 2").policy;
     let reference = include_str!("../../../../docs/design/draft/reference-code-production.md");
     let configuration = reference.split_once("## 14. Configuration\n").expect("reference configuration").1;
@@ -965,7 +1012,7 @@ fn reference_coding_run_matches_stock() {
 
 #[test]
 fn the_stock_funds_eighty_chats_in_one_period() {
-    let mut engine = engine(&generated());
+    let engine = engine(&generated());
     let init = engine.llm.models.clone();
     let mut cheap = init[0].clone();
     cheap.model.window = 1501;
@@ -976,8 +1023,7 @@ fn the_stock_funds_eighty_chats_in_one_period() {
     cheap.model.output_price = 4;
     cheap.model.price_unit = 1000;
     for (row, models) in [("init", init), ("cheap with costliest prices and rounding", Box::new([cheap]))] {
-        engine.llm.models = models;
-        let stock = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+        let stock = crate::stock::checked_with(models, engine.limits.core.tasks.result_bytes).expect("world stock");
         let policy = &stock.policies.get(&1).expect("policy 1").policy;
         let chat = policy.roles[0].authority.budget.spend;
         let pool = policy.roles[0].period_spend;
@@ -988,16 +1034,17 @@ fn the_stock_funds_eighty_chats_in_one_period() {
 
 #[test]
 fn startup_refuses_stock_budget_overflow_before_constructing_defaults() {
-    let document = fixtures::with(&single_model(), b"engine.llm.models[0].prices.input", b"18446744073709551615");
-    let document = fixtures::with(&document, b"engine.llm.models[0].prices.unit", b"1");
-    let found = crate::named(&document, &config::Directories::working()).unwrap_err();
-    assert_eq!(crate::startup::lines(&found).as_ref(), b"engine.llm.models[0].prices: past its bound\n");
+    let mut models = engine(&generated()).llm.models;
+    models[0].model.input_price = u64::MAX;
+    models[0].model.price_unit = 1;
+    assert!(crate::stock::checked_with(models, 10_660).is_none());
+    assert!(crate::stock::checked_with(Box::default(), 10_660).is_none());
 }
 
 #[test]
 fn the_reviewer_keeps_the_coding_run_with_read_only_workspace_families() {
     let engine = engine(&generated());
-    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let mut expected = defaults.charters[1].clone();
     expected.number = 4;
     expected.policy.instructions = include_bytes!("../stock/review.txt").as_slice().into();
@@ -1019,7 +1066,7 @@ fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
     let document = fixtures::with(&generated(), b"engine.projects", br#"[{"number":1,"policy":1}]"#);
     let engine_bytes = fixtures::value(&document, b"engine");
     let engine = fixtures::parse_engine(&engine_bytes);
-    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let core = config::core(&engine, [1; 16], 7);
     for ceiling in [
         &defaults.rules.ceiling,
@@ -1109,8 +1156,8 @@ fn the_foremans_words_keep_a_resumed_merge() {
 
 #[test]
 fn the_coders_words_wait_after_asking() {
-    let engine = engine(&single_model());
-    let stock = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let engine = single_engine();
+    let stock = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let coder = stock.charters.iter().find(|charter| charter.number == 2).expect("coding charter 2");
     let words = core::str::from_utf8(&coder.policy.instructions).expect("coding instructions");
     assert!(words.contains("After asking, call wait, not finish: the answer reaches this run."));
@@ -1262,7 +1309,7 @@ fn the_binary_gives_the_forges_stock_at_every_start() {
 #[test]
 fn the_stock_pool_funds_eighty_chats_at_once() {
     let engine = engine(&generated());
-    let stock = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let stock = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     assert_eq!(stock.rules.minimum_run_spend, 2 * 10_896);
     assert_eq!(stock.rules.maximum_run_spend, 43_584);
     let policy = &stock.policies.get(&1).expect("policy 1").policy;
@@ -1279,7 +1326,7 @@ fn the_stock_reports_follow_the_deployment_result_bound_and_keep_its_floor() {
     let mut engine = engine(&generated());
     for result_bytes in [32, 10_660, 262_144] {
         engine.limits.core.tasks.result_bytes = result_bytes;
-        let stock = crate::stock::defaults(&engine.llm, result_bytes);
+        let stock = crate::stock::with_models(engine.llm.models.clone(), result_bytes);
         for template in &stock.templates {
             assert_eq!(template.contract, jig_domain_tasks::Contract::Report { words: result_bytes });
         }
@@ -1480,7 +1527,7 @@ fn assert_document_rule(words: &str) {
 #[test]
 fn the_status_charter_is_small_and_reaches_nothing() {
     let engine = engine(&generated());
-    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let status = defaults.charters.iter().find(|charter| charter.number == 9).expect("status charter");
     let mut expected = defaults.charters[0].clone();
     expected.number = 9;
@@ -1507,16 +1554,16 @@ fn the_status_charters_words_are_the_requests() {
         words,
         "You write the few lines at the top of a project's home page, from the facts in your task. Write one sentence on what landed, starting with the count. Then a blank line, then at most three plain sentences on what stands out: what finished, what is stuck and why. Say only what the facts say. No greetings, no lists, no advice."
     );
-    let engine = engine(&single_model());
-    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let status = defaults.charters.iter().find(|charter| charter.number == 9).expect("status charter");
     assert_eq!(status.policy.instructions.as_ref(), words.as_bytes());
 }
 
 #[test]
 fn the_rules_delegate_to_the_status_charter() {
-    let engine = engine(&single_model());
-    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let policy = &defaults.policies.get(&1).expect("policy 1").policy;
     for authority in [&defaults.rules.ceiling, &policy.ceiling]
         .into_iter()
@@ -1530,7 +1577,7 @@ fn the_rules_delegate_to_the_status_charter() {
 #[test]
 fn the_trial_charter_is_one_working_turn_and_reaches_nothing() {
     let engine = engine(&generated());
-    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let trial = defaults.charters.iter().find(|charter| charter.number == 10).expect("trial charter");
     let mut expected = defaults.charters[0].clone();
     expected.number = 10;
@@ -1552,21 +1599,125 @@ fn the_trial_charter_is_one_working_turn_and_reaches_nothing() {
 fn the_trial_charters_words_ask_for_one_word() {
     let words = include_str!("../stock/trial.txt");
     assert_eq!(words, "Say one word and nothing else. Use no tools.");
-    let engine = engine(&single_model());
-    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let trial = defaults.charters.iter().find(|charter| charter.number == 10).expect("trial charter");
     assert_eq!(trial.policy.instructions.as_ref(), words.as_bytes());
 }
 
 #[test]
 fn no_policy_delegates_to_the_trial_charter() {
-    let engine = engine(&single_model());
-    let defaults = crate::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
+    let engine = single_engine();
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let authorities =
         core::iter::once(&defaults.rules.ceiling).chain(defaults.policies.iter().flat_map(|(_, value)| {
             core::iter::once(&value.policy.ceiling).chain(value.policy.roles.iter().map(|role| &role.authority))
         }));
     for authority in authorities {
         assert!(!authority.delegation.kinds.contains(&jig_domain_authority::Executor::Charter(10)));
+    }
+}
+
+#[test]
+fn a_documents_models_are_refused_at_their_paths() {
+    let init: serde_json::Value = serde_json::from_slice(&generated()).unwrap();
+    for (parent, member, path) in [
+        ("/engine/llm", "models", "engine.llm.models"),
+        ("/engine/llm/providers/0", "models", "engine.llm.providers[0].models"),
+    ] {
+        let mut document = init.clone();
+        document
+            .pointer_mut(parent)
+            .unwrap()
+            .as_object_mut()
+            .unwrap()
+            .insert(member.into(), serde_json::from_slice::<serde_json::Value>(b"[]").unwrap());
+        let problems =
+            crate::named(&serde_json::to_vec(&document).unwrap(), &config::Directories::working()).unwrap_err();
+        assert_eq!(problems.problems.len(), 1);
+        assert_eq!(
+            crate::startup::lines(&problems).as_ref(),
+            format!("{path}: settings live in the store; read them with temper ctl DIR settings show\n").as_bytes()
+        );
+    }
+    let mut document = init;
+    document["engine"]["llm"]["providers"][0].as_object_mut().unwrap().remove("endpoint");
+    let problems = crate::named(&serde_json::to_vec(&document).unwrap(), &config::Directories::working()).unwrap_err();
+    assert_eq!(crate::startup::lines(&problems).as_ref(), b"engine.llm.providers[0].endpoint: missing\n");
+}
+
+#[test]
+fn stock_numbers_each_model_for_good() {
+    let mut llm = engine(&generated()).llm;
+    // A typed caller's leftover table cannot replace the binary's catalogue.
+    llm.models = Box::new([fixtures::small_model()]);
+    let models = crate::stock::models(&llm);
+    assert_eq!(models.len(), 8);
+    for (entry, (number, provider, name)) in models.iter().zip([
+        (1, 2, "claude-opus-5-5"),
+        (2, 2, "claude-sonnet-5-5"),
+        (3, 2, "claude-fable-5-1"),
+        (4, 1, "gpt-6.1-sol"),
+        (5, 1, "gpt-6-astra"),
+        (6, 1, "gpt-6.1-terra"),
+        (7, 1, "gpt-6-luna"),
+        (8, 3, "demo"),
+    ]) {
+        assert_eq!(
+            (entry.number, entry.model.provider, entry.model.name.as_ref()),
+            (number, provider, name.as_bytes())
+        );
+        assert_eq!(entry.source, jig_domain_core::settings::ModelSource::Stock);
+        assert!(entry.picker);
+        assert!(!entry.withdrawn);
+        assert!(!entry.estimated);
+        assert_eq!(entry.model.window, 1_048_576);
+        assert_eq!(entry.model.output, 8192);
+        assert_eq!(entry.model.cache_write_price, None);
+        assert!(entry.description.is_none());
+    }
+    assert_eq!(models[7].model.name.as_ref(), b"demo");
+}
+
+#[test]
+fn a_row_whose_provider_isnt_configured_isnt_a_default() {
+    let bare = engine(include_bytes!("../../../temper-init/template/bare.json"));
+    let models = crate::stock::models(&bare.llm);
+    assert_eq!(models.iter().map(|entry| entry.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3, 4, 5, 6, 7]);
+    let mut llm = engine(&generated()).llm;
+    llm.providers = llm.providers.into_vec().into_iter().filter(|provider| provider.number == 3).collect();
+    let models = crate::stock::models(&llm);
+    assert_eq!(models.len(), 1);
+    assert_eq!((models[0].number, models[0].model.provider, models[0].model.name.as_ref()), (8, 3, b"demo".as_slice()));
+    let defaults = crate::stock::checked(&llm, 10_660).unwrap();
+    for charter in &defaults.charters {
+        assert_eq!(charter.policy.model.name.as_ref(), b"demo");
+        assert!(charter.rest);
+    }
+}
+
+#[test]
+fn a_model_added_by_rest_is_checked_against_the_agents_bounds() {
+    let engine = engine(&generated());
+    let mut agent = fixtures::parsed_agent(fixtures::stock_configuration(10_662, 8192).unwrap());
+    let mut problems = crate::startup::Problems::empty();
+    crate::startup::checks::agent(&engine, &agent, &mut problems);
+    assert!(problems.is_empty());
+    let demo = agent.bounds.endpoints.iter_mut().find(|endpoint| endpoint.endpoint == 3).unwrap();
+    demo.output = 8191;
+    crate::startup::checks::agent(&engine, &agent, &mut problems);
+    assert_eq!(problems.problems.len(), u32::try_from(engine.charters.len()).unwrap());
+    for (problem, charter) in problems.problems.iter().zip(&engine.charters) {
+        assert_eq!(problem.what, crate::startup::What::Agent);
+        let mut one = crate::startup::Problems::empty();
+        one.push(problem.path.clone(), problem.what);
+        assert_eq!(
+            crate::startup::lines(&one).as_ref(),
+            format!(
+                "charter {}.alternatives[6]: not in the agent's configuration under the same name\n",
+                charter.number
+            )
+            .as_bytes()
+        );
     }
 }

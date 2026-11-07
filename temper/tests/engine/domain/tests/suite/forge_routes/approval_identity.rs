@@ -32,7 +32,7 @@ fn defaults() -> s::Defaults {
 
         providers: Box::new([]),
     };
-    temper_service::stock::defaults(&llm, 4096)
+    temper_service::stock::with_models(llm.models.clone(), 4096)
 }
 
 fn world_with_owner(identity: people::IdentityKey) -> World {

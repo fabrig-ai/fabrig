@@ -27,14 +27,9 @@
         {
           "name": "openai",
           "number": 1,
+          "endpoint": "openai",
           "signed_in_plan": true,
           "manage_usage": "https://chatgpt.com/settings/usage",
-          "models": [
-            "gpt-6.1-sol",
-            "gpt-6-astra",
-            "gpt-6.1-terra",
-            "gpt-6-luna"
-          ],
           "sources": {
             "keys": true,
             "sign_in": {
@@ -67,13 +62,9 @@
         {
           "name": "anthropic",
           "number": 2,
+          "endpoint": "anthropic",
           "signed_in_plan": false,
           "manage_usage": "https://claude.ai/settings/usage",
-          "models": [
-            "claude-opus-5-5",
-            "claude-sonnet-5-5",
-            "claude-fable-5-1"
-          ],
           "sources": {
             "programs": [
               "claude_code"
@@ -112,157 +103,6 @@
           "connect_ms": 10000,
           "handshake_ms": 10000,
           "server_name": "api.anthropic.com"
-        }
-      ],
-      "models": [
-        {
-          "name": "claude-opus-5-5",
-          "window": 1048576,
-          "output": 8192,
-          "efforts": [
-            "low",
-            "medium",
-            "high",
-            "xhigh",
-            "max"
-          ],
-          "prices": {
-            "input": 4000,
-            "cached": 4000,
-            "output": 20000,
-            "unit": 1000000
-          },
-          "shown": "Opus 5.5",
-          "endpoint": "anthropic",
-          "effort": "high"
-        },
-        {
-          "name": "claude-sonnet-5-5",
-          "window": 1048576,
-          "output": 8192,
-          "efforts": [
-            "low",
-            "medium",
-            "high",
-            "xhigh",
-            "max"
-          ],
-          "prices": {
-            "input": 2000,
-            "cached": 2000,
-            "output": 10000,
-            "unit": 1000000
-          },
-          "shown": "Sonnet 5.5",
-          "endpoint": "anthropic",
-          "effort": "high"
-        },
-        {
-          "name": "claude-fable-5-1",
-          "window": 1048576,
-          "output": 8192,
-          "efforts": [
-            "low",
-            "medium",
-            "high",
-            "xhigh",
-            "max"
-          ],
-          "prices": {
-            "input": 10000,
-            "cached": 10000,
-            "output": 50000,
-            "unit": 1000000
-          },
-          "shown": "Fable 5.1",
-          "endpoint": "anthropic",
-          "effort": "high"
-        },
-        {
-          "name": "gpt-6.1-sol",
-          "window": 1048576,
-          "output": 8192,
-          "efforts": [
-            "low",
-            "medium",
-            "high",
-            "xhigh",
-            "max"
-          ],
-          "prices": {
-            "input": 2000,
-            "cached": 2000,
-            "output": 10000,
-            "unit": 1000000
-          },
-          "shown": "GPT-6.1 Sol",
-          "endpoint": "openai",
-          "effort": "high"
-        },
-        {
-          "name": "gpt-6-astra",
-          "window": 1048576,
-          "output": 8192,
-          "efforts": [
-            "low",
-            "medium",
-            "high",
-            "xhigh",
-            "max"
-          ],
-          "prices": {
-            "input": 10000,
-            "cached": 10000,
-            "output": 50000,
-            "unit": 1000000
-          },
-          "shown": "GPT-6 Astra",
-          "endpoint": "openai",
-          "effort": "high"
-        },
-        {
-          "name": "gpt-6.1-terra",
-          "window": 1048576,
-          "output": 8192,
-          "efforts": [
-            "none",
-            "low",
-            "medium",
-            "high",
-            "xhigh",
-            "max"
-          ],
-          "prices": {
-            "input": 1000,
-            "cached": 1000,
-            "output": 5000,
-            "unit": 1000000
-          },
-          "shown": "GPT-6.1 Terra",
-          "endpoint": "openai",
-          "effort": "medium"
-        },
-        {
-          "name": "gpt-6-luna",
-          "window": 1048576,
-          "output": 8192,
-          "efforts": [
-            "none",
-            "low",
-            "medium",
-            "high",
-            "xhigh",
-            "max"
-          ],
-          "prices": {
-            "input": 100,
-            "cached": 100,
-            "output": 500,
-            "unit": 1000000
-          },
-          "shown": "GPT-6 Luna",
-          "endpoint": "openai",
-          "effort": "medium"
         }
       ]
     },

@@ -54,7 +54,7 @@ fn defaults() -> jig_domain_core::settings::Defaults {
             })
             .collect(),
     };
-    temper_service::stock::defaults(&llm, box_limits().tasks.result_bytes)
+    temper_service::stock::with_models(llm.models.clone(), box_limits().tasks.result_bytes)
 }
 
 fn world_with(defaults: &jig_domain_core::settings::Defaults) -> (World, engine::Assignment) {

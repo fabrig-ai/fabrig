@@ -2334,7 +2334,7 @@ fn stock_subscription_goal() -> (World, engine::Assignment) {
             })
             .collect(),
     };
-    let mut defaults = temper_service::stock::defaults(&llm, limits.tasks.result_bytes);
+    let mut defaults = temper_service::stock::with_models(llm.models.clone(), limits.tasks.result_bytes);
     defaults.rules.ceiling.tools = authority::Tools(1967);
     let policy = defaults.policies.get_mut(&1).expect("project policy");
     policy.policy.ceiling.tools = authority::Tools(1967);

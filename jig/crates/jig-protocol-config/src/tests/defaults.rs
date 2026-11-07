@@ -17,7 +17,10 @@ pub(super) fn without_defaults(bytes: &[u8]) -> Box<[u8]> {
         let end = bytes::find(&document, next).unwrap();
         document = fixtures::with(&document, &document[start..end], b"");
     }
-    document
+    document = fixtures::with(&document, br#""models":["small"]"#, br#""endpoint":"fake""#);
+    let first = bytes::find(&document, b",\n\"models\":").unwrap();
+    let after = bytes::find(&document, b"\n},\n\"hosts\":").unwrap();
+    fixtures::with(&document, &document[first..after], b"")
 }
 fn defaults() -> jig_domain_core::settings::Defaults {
     crate::core(&fixtures::engine(fixtures::ENGINE_SMALL).unwrap(), [3; 16], 11).defaults
@@ -118,7 +121,7 @@ fn pass_leaves_the_defaults_own_check_to_the_core() {
 fn passed_models_are_the_catalogue() {
     use jig_domain_core::settings::ModelSource;
     let mut engine = passed();
-    assert_eq!(engine.llm.models[0].model.name.as_ref(), b"small", "document models still parse before pass");
+    assert!(engine.llm.models.is_empty(), "passed catalogues have no document models");
     let mut given = defaults();
     let entry = &mut given.models[0];
     entry.number = 64;
@@ -132,7 +135,7 @@ fn passed_models_are_the_catalogue() {
     entry.estimated = true;
     given.charters[0].policy.model = entry.model.clone();
     let expected = given.models.clone();
-    crate::pass(&mut engine, given).expect("passed catalogue replaces the document's models");
+    crate::pass(&mut engine, given).expect("passed catalogue supplies the model defaults");
     assert_eq!(engine.llm.models, expected);
     let config = crate::core(&engine, [3; 16], 11);
     assert_eq!(config.defaults.models, expected);
