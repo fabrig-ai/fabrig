@@ -59,10 +59,14 @@ fn build(limits: &Limits, seed: u64, unlinked: bool) -> Domain {
 impl Domain {
     /// The approval page (client/README.md, 3.5, The approval page).
     #[must_use]
-    pub const fn approval(&self) -> Option<&crate::approve::Page> { self.approval.as_ref() }
+    pub const fn approval(&self) -> Option<&crate::approve::Page> {
+        self.approval.as_ref()
+    }
     /// A native client's ask (client/README.md, 7.1).
     #[must_use]
-    pub const fn asked(&self) -> Option<crate::asked::State> { self.asked }
+    pub const fn asked(&self) -> Option<crate::asked::State> {
+        self.asked
+    }
     #[must_use]
     pub const fn copy_label(&self) -> crate::copy::Label {
         self.copy.label()

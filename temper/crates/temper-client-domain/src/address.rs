@@ -94,7 +94,9 @@ pub enum Kind {
 pub enum Place {
     Address(Address),
     /// The approval page (client/README.md, 3.5, The approval page): a code, or none to type one.
-    Approve { code: Option<jig_client::ApprovalCode> },
+    Approve {
+        code: Option<jig_client::ApprovalCode>,
+    },
     /// Raw authorization query; never canonicalized or printed.
     Authorize {
         query: Box<[u8]>,
@@ -686,13 +688,17 @@ pub fn print_approve(code: Option<jig_client::ApprovalCode>) -> Box<[u8]> {
 fn approve_code(query: &[u8]) -> Option<jig_client::ApprovalCode> {
     let mut rest = query;
     for _ in 0..query.len() {
-        if rest.is_empty() { break; }
+        if rest.is_empty() {
+            break;
+        }
         let end = skein_lib::bytes::find(rest, b"&").unwrap_or(rest.len());
         let field = rest.get(..end).expect("separator in query");
         rest = rest.get(end..).expect("separator in query").strip_prefix(b"&").unwrap_or(b"");
         if let Some(value) = field.strip_prefix(b"code=")
             && let Some(code) = jig_client::ApprovalCode::parse(value)
-        { return Some(code); }
+        {
+            return Some(code);
+        }
     }
     None
 }

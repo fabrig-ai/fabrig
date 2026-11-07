@@ -531,7 +531,9 @@ fn the_approval_page_reads_its_code_and_prints_it_shown() {
         (b"/terminal?code=BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB", Place::Approve { code: None }),
         (b"/terminal/x", Place::Missing),
         (b"/terminals", Place::Missing),
-    ] { assert_eq!(parse(path), expected, "{path:?}"); }
+    ] {
+        assert_eq!(parse(path), expected, "{path:?}");
+    }
     for (code, expected) in [(Some(code), b"/terminal?code=WDJB-MJHT".as_slice()), (None, b"/terminal")] {
         let path = crate::address::print_approve(code);
         assert_eq!(path.as_ref(), expected);

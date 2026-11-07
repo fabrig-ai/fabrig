@@ -78,9 +78,11 @@ impl PublicHost {
     fn opened(&mut self, path: &[u8], replace: bool) {
         let page = match parse(path) {
             Place::Public(page) => page,
-            Place::Approve { .. } | Place::Address(_) | Place::Authorize { .. } | Place::AuthorizeMalformed | Place::Missing => {
-                Public::Projects
-            }
+            Place::Approve { .. }
+            | Place::Address(_)
+            | Place::Authorize { .. }
+            | Place::AuthorizeMalformed
+            | Place::Missing => Public::Projects,
         };
         self.tickets.clear();
         while self.out.pop().is_some() {}

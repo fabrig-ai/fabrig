@@ -76,7 +76,11 @@ fn went(root: &mut Domain, env: &Env<Limits>, place: Place, out: &mut Queue<Requ
                 forge(root, env, forge::Event::Left, out);
             }
         }
-        Place::Approve { .. } | Place::Authorize { .. } | Place::AuthorizeMalformed | Place::Missing | Place::Public(_) => {
+        Place::Approve { .. }
+        | Place::Authorize { .. }
+        | Place::AuthorizeMalformed
+        | Place::Missing
+        | Place::Public(_) => {
             pages(root, env, crate::pages::Event::Left, out);
             forge(root, env, forge::Event::Left, out);
         }
@@ -286,7 +290,9 @@ pub(crate) fn route_unlinked(
             jig_client::UnlinkedRequest::Told { told: value } => told(root, env, value, out),
             jig_client::UnlinkedRequest::Approval(answer) => approval(root, env, answer, out),
             jig_client::UnlinkedRequest::Authorized(answer) => crate::authorize::answered(root, answer, out),
-            request @ (jig_client::UnlinkedRequest::ApprovalAct(_) | jig_client::UnlinkedRequest::Down { .. } | jig_client::UnlinkedRequest::SignOut) => {
+            request @ (jig_client::UnlinkedRequest::ApprovalAct(_)
+            | jig_client::UnlinkedRequest::Down { .. }
+            | jig_client::UnlinkedRequest::SignOut) => {
                 out.push(Request::Unlinked { request });
             }
         }
@@ -633,7 +639,11 @@ fn program_settled(accounts: &jig_client::contract::Accounts, source: u32) -> bo
 
 fn approval(root: &mut Domain, env: &Env<Limits>, answer: jig_client::Approval, out: &mut Queue<Request>) {
     match answer {
-        answer @ (jig_client::Approval::Asked { .. } | jig_client::Approval::NotAsked(_)) => crate::asked::answered(root, env, answer, out),
-        answer @ (jig_client::Approval::Read { .. } | jig_client::Approval::Decided { .. }) => crate::approve::answered(root, env, answer),
+        answer @ (jig_client::Approval::Asked { .. } | jig_client::Approval::NotAsked(_)) => {
+            crate::asked::answered(root, env, answer, out);
+        }
+        answer @ (jig_client::Approval::Read { .. } | jig_client::Approval::Decided { .. }) => {
+            crate::approve::answered(root, env, answer);
+        }
     }
 }

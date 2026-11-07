@@ -263,8 +263,7 @@ impl App for Temper {
             Some(
                 domain::Event::Copied { .. }
                 | domain::Event::AskApproval
-                | domain::Event::Act { action: Action::Approve(_) }
-                | domain::Event::Act { action: Action::Copy { .. } }
+                | domain::Event::Act { action: Action::Approve(_) | Action::Copy { .. } }
                 | domain::Event::Start { .. }
                 | domain::Event::Client { .. }
                 | domain::Event::Forge(_)
