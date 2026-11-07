@@ -374,8 +374,8 @@ replay says the same clocks (`README.md`, 5.12).
   (`SignIn { with: Link { secret, held: None } }`), and the mapping's
   answer sets its cookie, which the client never sees (jig's
   `protocol/browser.md`, section 11). The browser sends its cookie with
-  the link's sign-in, as with any exchange: a person still signed in
-  keeps their sign-in, its number and expiry, and the answer sets no
+  the link's sign-in, as with any exchange: with a live link, a person
+  still signed in keeps their sign-in, its number and expiry, and the answer sets no
   cookie, so the browser's stays as it was (jig's `domain/people.md`,
   section 3); a cookie the engine does not know, or one ended or
   expired, signs in afresh, with a new cookie. The welcome follows,
@@ -402,9 +402,15 @@ replay says the same clocks (`README.md`, 5.12).
   usable until it expires (`README.md`, 5.1), full with the deployment's
   room, its earliest end and the link's own. The retry is the person's: opening the
   printed link again sends its secret again, as the first open did, and
-  signs in once there is room; opened past its expiry, it is refused,
-  and `temper serve` prints a fresh one. The page never retries by
-  itself, and keeps no secret: the address already says `/welcome`.
+  signs in once there is room; opened past its expiry, it answers why
+  (expired while remembered), and temper prints a fresh one if no link is
+  live or reserved. The page never retries by itself, and keeps no secret:
+  the address already says `/welcome`.
+- **A used, expired or unknown link** draws the reason's paragraph in
+  place of the sign-in page (`README.md`, 5.1), with no automatic retry.
+  A link forgotten by the engine, after a restart included, is unknown.
+  A cookie still live does not override that paragraph; a reload uses
+  the cookie instead (section 5).
 - **One person, on loopback,** as `README.md`, section 7 says. A browser
   on another machine is open (`README.md`, section 11).
 
@@ -1296,6 +1302,11 @@ Not in the tier, each in the lowest world that shows it:
 
 ## 5. Open questions
 
+- **A failed link with a live cookie** (2.4): falling back to the cookie
+  instead of keeping the link's reason is jig's client question
+  (`jig/docs/design/client/domain/client.md`, section 18). Default: the
+  reason remains until another sign-in; reload to use the cookie.
+
 - **The fresh project's draft flow** (`README.md`, 3.5, 5.3, 5.13):
   the real-box check of the configuring chat's offer and the draft-to-goal
   flow, including Goals in the phone tab bar, is after-landing work
@@ -1685,7 +1696,7 @@ from the engine's own answers, is where the look is tuned.
 | `goal-landed-open` | `goal-landed` with "N landed" pressed: its rows under it |
 | `goal-closed` | welcome-stall closed: "Closed by you…", "Closed before it landed." |
 | `goal-failed` | forge-cards failed: "Failed: " and its reason, "Failed before it landed." |
-| `goal-no-report` | first-run-projects running with tasks and no report: "N of M tasks landed.", no byline |
+| `goal-no-report` | first-run-projects running with tasks and no report: "N of M tasks done.", no byline |
 | `goal-amending` | `goal-running` with Amend pressed: the editor, between the header and the report |
 | `goal-closing` | `goal-running` with Close pressed: its confirmation |
 | `goal-toast` | `goal-running` paused, its toast showing |

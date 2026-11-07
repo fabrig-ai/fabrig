@@ -137,7 +137,7 @@ fn goal_finishes_with_its_result_and_counts() {
     follow(&mut world, client, ended_goal());
 }
 
-// client/README.md 5.8: the report, total counts and bounded landed tasks survive reload.
+// client/README.md 5.8: the report, total counts and bounded done tasks survive reload.
 // B2's engine clamps the ended page to two rows; its third delegate is beyond the cut.
 // A second client at the address models the browser's reload (6.10).
 #[test]
@@ -158,14 +158,14 @@ fn ended_goal() -> Vec<Step<Address>> {
             .within(Box::new([Target::ExactRole { role: Role::Region, name: b"Report".as_slice().into() }]))),
         see(Find::text(" · landed · ".as_bytes())),
         see(Find::text(b"3 of 3 tasks")),
-        see(Find::exactly_named(Role::Image, b"2 landed of 2")),
-        see(landed_link(f::b2::ADVISOR_BRIEF)),
-        see(landed_link(f::b2::FIRST_BRIEF)),
+        see(Find::exactly_named(Role::Image, b"0 landed of 2")),
+        see(done_link(f::b2::ADVISOR_BRIEF)),
+        see(done_link(f::b2::FIRST_BRIEF)),
         gone(Find::exactly_named(Role::Link, f::b2::SECOND_BRIEF)),
         see(Find::text(b"More of its tasks are not shown.")),
     ]
 }
-fn landed_link(title: &[u8]) -> Find {
+fn done_link(title: &[u8]) -> Find {
     Find::exactly_named(Role::Link, title)
-        .within(Box::new([Target::ExactRole { role: Role::Disclosure, name: b"2 landed".as_slice().into() }]))
+        .within(Box::new([Target::ExactRole { role: Role::Region, name: b"Tasks".as_slice().into() }]))
 }

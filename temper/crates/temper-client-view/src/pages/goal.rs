@@ -50,8 +50,11 @@ pub(crate) fn main(
                     };
                     shown.header(b, words, bindings, times);
                     super::task::amendment(b, root, words, bindings);
+                    let mut question = false;
                     for card in &bands {
-                        band(b, root, task, card, words, bindings);
+                        let first = !question;
+                        question |= card.question_words().is_some();
+                        band(b, root, task, card, words, bindings, first);
                     }
                     b.open(Role::Slot);
                     b.style(look::GOAL_TWO);
@@ -81,14 +84,15 @@ fn open_bands(root: &Domain) -> Box<[&Card]> {
     bands.into_boxed()
 }
 
-fn band(b: &mut Builder, root: &Domain, task: &c::Task, card: &Card, w: &Words, bindings: &mut Bindings) {
-    let asked = ask::read(card, w);
+fn band(b: &mut Builder, root: &Domain, task: &c::Task, card: &Card, w: &Words, bindings: &mut Bindings, first: bool) {
+    let mut asked = if first { ask::read(card, w) } else { ask::bounded(card, w) };
     let kind = match asked.kind {
         Kind::Funds { .. } => Word::NeedsKindFunds,
         Kind::Question | Kind::Proposal | Kind::Held | Kind::PersonTask => ask::card_kind(card),
     };
     let question = match asked.kind {
         Kind::Funds { spent, limit } => w.say(Word::NeedsFundsUsed, &[Hole::Number(spent), Hole::Number(limit)]),
+        Kind::Question if first => asked.parsed.as_ref().expect("question parsed").question.clone(),
         Kind::Question | Kind::Proposal | Kind::Held | Kind::PersonTask => asked.short.clone(),
     };
     b.open(Role::Region);
@@ -103,6 +107,11 @@ fn band(b: &mut Builder, root: &Domain, task: &c::Task, card: &Card, w: &Words, 
     b.close();
     b.text(Run::Plain, &question);
     b.close();
+    if first {
+        ask::whole_parts(b, &asked, w, bindings);
+    } else {
+        asked.parsed = None;
+    }
     band_controls(b, root, task, &asked, w, bindings);
     b.close();
 }
@@ -394,7 +403,7 @@ fn fallback(words: &Words, value: Fallback) -> Box<[u8]> {
         Fallback::Landed { first_line: None } => words.say(Word::GoalLandedLine, &[]),
         Fallback::Failed { reason } => words.say(Word::GoalFailedReason, &[Hole::Name(reason)]),
         Fallback::Tasks(counts) => words
-            .say(Word::GoalTasksLanded, &[Hole::Number(u64::from(counts.done)), Hole::Number(u64::from(counts.total))]),
+            .say(Word::GoalTasksDone, &[Hole::Number(u64::from(counts.done)), Hole::Number(u64::from(counts.total))]),
     }
 }
 fn text(b: &mut Builder, role: Role, value: &[u8]) {
@@ -521,7 +530,8 @@ impl<'a> Delegates<'a> {
                     match line {
                         goal::Line::Landed => b.style(look::GOAL_BAR_LANDED),
                         goal::Line::Running => b.style(look::GOAL_BAR_RUNNING),
-                        goal::Line::WaitsOn(_)
+                        goal::Line::Done
+                        | goal::Line::WaitsOn(_)
                         | goal::Line::WaitsOnTasks(_)
                         | goal::Line::WaitsOnYou
                         | goal::Line::WaitsOnResources
@@ -572,7 +582,7 @@ impl<'a> Delegates<'a> {
                 Some(at) => Some(times.say(words, TimeForm::Clock, at)),
                 None => None,
             },
-            Some(line) => Some(self.line_words(words, line)),
+            Some(line) => Some(self.line_words(words, line, row.ended, times)),
             None => None,
         };
         if let Some(said) = said {
@@ -589,7 +599,7 @@ impl<'a> Delegates<'a> {
         b.close();
     }
 
-    fn line_words(&self, words: &Words, line: goal::Line) -> Box<[u8]> {
+    fn line_words(&self, words: &Words, line: goal::Line, ended: Option<Wall>, times: &mut Times) -> Box<[u8]> {
         match line {
             goal::Line::Running => words.say(Word::Running, &[]),
             goal::Line::WaitsOn(task) => match self.rows.get(&task) {
@@ -605,6 +615,13 @@ impl<'a> Delegates<'a> {
             goal::Line::Failed => words.say(Word::GoalFailed, &[]),
             goal::Line::Waits => words.say(Word::GoalWaits, &[]),
             goal::Line::Landed => words.say(Word::GoalLandedAlone, &[]),
+            goal::Line::Done => {
+                let at = match ended {
+                    Some(at) => times.say(words, TimeForm::Clock, at),
+                    None => Box::default(),
+                };
+                words.say(Word::GoalDoneAt, &[Hole::Name(at)]).trim_ascii().into()
+            }
         }
     }
 }

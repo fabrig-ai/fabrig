@@ -1213,6 +1213,10 @@ with a person in front of a tree, are view.md's, 18.10.
 
 ## 18. Open questions
 
+- **A failed link beside a live transport sign-in** (12): whether to
+  fall back to the transport after `link_used`, `link_expired` or
+  `link_unknown`. Default: the link's reason remains visible, with no
+  fallback; a browser reload signs in by its cookie.
 - **A busy watch's cause** (8.2): `watches_full` records the refusal,
   which carries no count or separate capacity cause. Whether to distinguish
   watch room from another admission bound is a protocol decision. Default:

@@ -2,6 +2,11 @@
 
 2026-11-07. Where temper's code lags or departs from [agent.md](agent.md).
 
+Section 8.1's stock limits forge-identity advice to approvals being asked
+about or proposed; the inventory's fact is unchanged. Phrase assertions
+hold that condition. A real model following it remains unobserved,
+deferred in section 10 alongside the separate owner-identity work.
+
 Section 8.2 has no known implementation gap in the stock's person-executor
 permissions, the goal paragraph, the Ask answer or the message-reference
 hint. Rules and project ceilings admit roles 0, 1 and 2; each creating

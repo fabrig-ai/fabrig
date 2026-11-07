@@ -82,6 +82,9 @@ impl Bindings {
                         PageAct::StartWay { template: *template }
                     }
                     (PageAct::StartAsks { always }, skein_ui::Act::Toggle) => PageAct::StartAsks { always: *always },
+                    (PageAct::StartDraft { .. }, skein_ui::Act::Input { value }) => {
+                        PageAct::StartDraft { words: value }
+                    }
                     (PageAct::StartName { .. }, skein_ui::Act::Input { value }) => PageAct::StartName { words: value },
                     (PageAct::AmendWords { .. }, skein_ui::Act::Input { value }) => {
                         PageAct::AmendWords { words: value }

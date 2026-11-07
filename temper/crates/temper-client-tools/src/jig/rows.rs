@@ -292,7 +292,7 @@ task show prints what it asks, and a refusal past it names the bound.
 pub const DECIDE: Tool = Tool {
     name: b"proposal decide",
     line: b"Decide a proposal",
-    prints: b"`done: decide`, or `decided first:`, by whom, how and when, if it was decided already",
+    prints: b"`done: decide`, or `decided first:`, by whom, how and when, if its decision is retained",
     result: b"decide",
     forms: &[
         &[
@@ -316,7 +316,7 @@ pub const DECIDE: Tool = Tool {
     ],
     keyed: Keyed::Optional,
     area: 1,
-    notes: b"A decision asked again under its key prints its first answer.\nA decision of a proposal decided already, by your party or\nanother, answers `decided first:` with exit 0 and changes nothing.\n",
+    notes: b"A decision asked again under its key prints its first answer.\nA retained decision, by your party or another, answers `decided first:`\nwith exit 0 and changes nothing. An unknown proposal answers exit 2:\nthis proposal isn't waiting; it may have been decided or replaced.\n",
 };
 pub const RELEASE: Tool = Tool {
     name: b"task release",

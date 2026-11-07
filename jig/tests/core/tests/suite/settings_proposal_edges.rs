@@ -1,4 +1,5 @@
 //! Adversarial proposals of deployment settings (`domain/engine.md`, 17.6).
+use crate::settings_support as support;
 use jig_core_world::fixtures;
 use jig_core_world::fixtures::{PARTY as OWNER, sign_in as signin};
 use jig_core_world::peers;
@@ -184,6 +185,153 @@ fn withdrawal_wins_over_a_later_acceptance() {
     decide(&mut world, owner, 52, OWNER, number, people::ProposalDecision::Accept);
     assert!(matches!(proposal_state(&world, number), tasks::PersonProposalState::Withdrawn { .. }));
     assert_eq!(settings_document(&mut world, owner).newest, 1);
+}
+
+fn settings_edge_propose(world: &mut World, signed: u64, proposer: people::Proposer, position: u32) -> u64 {
+    let against = world.domain.settings().newest();
+    let instructions =
+        if position == 1 { b"First instructions".as_slice() } else { b"Replacement instructions".as_slice() };
+    let items = Box::new([support::run_charter(world, instructions)]);
+    match proposer {
+        people::Proposer::Party(_) => support::proposed(&support::propose(
+            world,
+            signed,
+            u8::try_from(position).expect("request key"),
+            against,
+            items,
+        )),
+        people::Proposer::Task(task) => {
+            let attempt = world.assigned.as_ref().expect("proposing run").attempt;
+            world.send(root::Event::Core(core::Event::NamedAction {
+                to: ReplyTo::new(Token::new(SEED)),
+                key: core::CallKey { task, attempt, completion: position, position: 0 },
+                action: core::NamedAction::ProposeSettings {
+                    against,
+                    items,
+                    reason: b"Review these instructions".as_slice().into(),
+                },
+            }));
+            let core::CallPart::Proposed { proposal, .. } = &world.answers.last().expect("proposal answer").2 else {
+                panic!("task settings proposal: {:?}", world.answers.last())
+            };
+            *proposal
+        }
+    }
+}
+
+#[test]
+fn ended_settings_decisions_keep_the_first_choice_and_pending_replacement() {
+    // (task proposer, how it ended, running) -> retained choice, or unknown after replacement.
+    for (task_proposer, decision, running, choice) in [
+        (false, None, people::Running::Stays, Some(people::ProposalChoice::Withdrawn)),
+        (true, Some(people::ProposalDecision::Accept), people::Running::Stays, Some(people::ProposalChoice::Accepted)),
+        (
+            true,
+            Some(people::ProposalDecision::Reject { reason: b"Keep the default".as_slice().into() }),
+            people::Running::Moves,
+            Some(people::ProposalChoice::Rejected),
+        ),
+        (true, None, people::Running::Stays, None),
+        (true, None, people::Running::Moves, None),
+    ] {
+        let (mut world, signed, task) = support::proposing_run(true);
+        let proposer = if task_proposer { people::Proposer::Task(task) } else { people::Proposer::Party(OWNER) };
+        let proposal = settings_edge_propose(&mut world, signed, proposer, 1);
+        if let Some(decision) = decision {
+            let running =
+                if decision == people::ProposalDecision::Accept { Some(people::Running::Stays) } else { None };
+            support::ask(
+                &mut world,
+                signed,
+                150,
+                people::Ask::DecideProposal { project: DEPLOYMENT, proposer, proposal, decision, running },
+            );
+        } else if !task_proposer {
+            support::ask(&mut world, signed, 150, people::Ask::Withdraw { project: DEPLOYMENT, proposal });
+        }
+        let through = fixtures::live_row(&world, task).inbox.iter().last().map(|word| word.number);
+        world.turn(1, 0, through, b"Read the first proposal decision");
+        let replacement = settings_edge_propose(&mut world, signed, proposer, 2);
+        let decision_key = root::Key::Core(core::Key::Core(core::CoreKey::ProposalDecision { proposer, proposal }));
+        let decision_before = world.store.rows.get(&decision_key).cloned();
+        let at = match &decision_before {
+            Some(root::Record::Core(core::Record::Core(core::CoreRecord::ProposalDecision(row)))) => row.at,
+            _ => world.env().wall,
+        };
+        let settings = support::inventory(&mut world, signed);
+        let ended_read = core::reads::Read::Proposal { proposer, proposal };
+        let ended = support::read(&mut world, signed, ended_read.clone());
+        let pending_read = core::reads::Read::Proposal { proposer, proposal: replacement };
+        let pending = support::read(&mut world, signed, pending_read.clone());
+        let task_before = fixtures::live_row(&world, task).clone();
+        let reply = support::ask(
+            &mut world,
+            signed,
+            151,
+            people::Ask::DecideProposal {
+                project: DEPLOYMENT,
+                proposer,
+                proposal,
+                decision: people::ProposalDecision::Accept,
+                running: Some(running),
+            },
+        );
+        assert_eq!(support::inventory(&mut world, signed), settings);
+        assert_eq!(support::read(&mut world, signed, ended_read), ended);
+        assert_eq!(support::read(&mut world, signed, pending_read), pending);
+        assert_eq!(fixtures::live_row(&world, task), &task_before);
+        assert_eq!(world.store.rows.get(&decision_key), decision_before.as_ref());
+        assert_eq!(
+            reply,
+            people::Reply::Outcome(match choice {
+                Some(choice) =>
+                    people::Outcome::ProposalDecided { proposer, proposal, by: OWNER, at, choice, repeated: true },
+                None => people::Outcome::Refused(people::Refusal::Unknown),
+            }),
+            "{proposer:?}, {choice:?}, {running:?}"
+        );
+        let through = fixtures::live_row(&world, task).inbox.iter().last().map(|word| word.number);
+        world.turn(2, 0, through, b"Reviewed the proposal decision");
+        world.park_for_message(0);
+        world.close();
+    }
+}
+
+#[test]
+fn missing_proposals_are_unknown_with_or_without_running() {
+    for (proposer, running) in [
+        (people::Proposer::Task(1), None),
+        (people::Proposer::Task(1), Some(people::Running::Stays)),
+        (people::Proposer::Task(1), Some(people::Running::Moves)),
+        (people::Proposer::Party(OWNER), None),
+        (people::Proposer::Party(OWNER), Some(people::Running::Stays)),
+        (people::Proposer::Party(OWNER), Some(people::Running::Moves)),
+    ] {
+        let mut world = world();
+        let owner = world.sign_in.expect("owner sign-in");
+        let pending = propose(&mut world, owner, 53, 1, Box::new([charter_item(b"still waiting")]));
+        let settings = settings_document(&mut world, owner);
+        let state = proposal_state(&world, pending);
+        fixtures::ask_as(
+            &mut world,
+            owner,
+            54,
+            people::Ask::DecideProposal {
+                project: DEPLOYMENT,
+                proposer,
+                proposal: u64::MAX,
+                decision: people::ProposalDecision::Accept,
+                running,
+            },
+        );
+        assert_eq!(
+            world.people_answers.last(),
+            Some(&people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Unknown))),
+            "{proposer:?}, {running:?}"
+        );
+        assert_eq!(settings_document(&mut world, owner), settings);
+        assert_eq!(proposal_state(&world, pending), state);
+    }
 }
 
 #[test]

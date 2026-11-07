@@ -1071,6 +1071,10 @@ Each within jig's suites' budgets.
 
 ## 15. Open questions
 
+- **Remembering why a printed link failed** (8): recognising a used or
+  expired link across a restart, or beyond the last 8 remembered links,
+  would need longer-lived history. Default: the bounded in-memory digests;
+  a forgotten link is `link_unknown`, with no stored-format change.
 - **Several tabs:** each tab a client with its own stream, which a hidden
   tab lets go (`browser.md`, section 10); whether tabs of one person
   share one stream through the platform's means.

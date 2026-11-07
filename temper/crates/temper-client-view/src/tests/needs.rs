@@ -17,6 +17,7 @@ const QUESTION: &str = "Fix the dropped watch in jig’s store, or keep it alive
 fn limits() -> d::Limits {
     let mut limits = f::domain_limits();
     limits.client.domain.reads = 8;
+    limits.client.domain.long_text = 4096;
     limits
 }
 fn object(message: u64) -> c::ObjectKey {
@@ -207,13 +208,18 @@ fn example_parts_are_in_order_and_choices_keep_their_names_and_acts() {
             b"Task 42",
             42,
         ),
+        (Box::new(finished_person(true)), c::ObjectKey::PersonTask(f::INBOX_TASK), b"Task 42", 42),
         (
-            Box::new(word_person(QUESTION, false, false, c::Requester::Person(73))),
+            Box::new(word_person(QUESTION, false, true, c::Requester::Person(73))),
             c::ObjectKey::PersonTask(f::INBOX_TASK),
             b"Review the plan",
             f::INBOX_TASK,
         ),
     ] {
+        let card = root.pages().needs().shown(root.pages().inbox().unwrap()).unwrap();
+        if card.whole.is_some() {
+            assert_eq!(crate::pages::ask::read(card, &f::words()).short.as_ref(), b"Fix the dropped watch");
+        }
         let mut view = f::browser_page_view(&root);
         let styles = [
             look::FLOW_HEAD,
@@ -312,11 +318,24 @@ fn reply_form_focus_placeholder_value_and_all_acts() {
 }
 #[test]
 fn plain_and_cut_words_have_no_choices_or_saw() {
-    for (words, cut) in [("A plain question?\n\nSome context.", false), (QUESTION, true)] {
-        for root in [
-            Box::new(fixture(words, cut, 1, false, d::address::Filter::ALL)),
-            Box::new(word_person(words, cut, false, c::Requester::Task(42))),
-            Box::new(word_person(words, false, cut, c::Requester::Task(42))),
+    for (words, cut) in [
+        ("A plain question?\n\nSome context.", false),
+        ("A plain question?\nA second line.\n\nSome context.", false),
+        (QUESTION, true),
+    ] {
+        for (root, short) in [
+            (Box::new(fixture(words, cut, 1, false, d::address::Filter::ALL)), cut),
+            (Box::new(word_person(words, cut, false, c::Requester::Task(42))), false),
+            (
+                Box::new(word_person_read(
+                    words,
+                    cut,
+                    false,
+                    c::Requester::Task(42),
+                    Some(c::ReadResult::None(c::ReadNone::Busy)),
+                )),
+                cut,
+            ),
         ] {
             let view = f::browser_page_view(&root);
             assert!(
@@ -325,6 +344,25 @@ fn plain_and_cut_words_have_no_choices_or_saw() {
             );
             assert!(f::find(view.tree(), Role::Button, "Reply…".as_bytes()).is_some());
             assert!(has(&view, b"Some context.") || has(&view, b"Choice:"));
+            let card = root.pages().inbox().unwrap().cards.get(0).unwrap();
+            let message = card.group == c::InboxGroup::Questions;
+            assert_eq!(
+                crate::pages::ask::read(card, &f::words()).short.as_ref(),
+                words.lines().next().unwrap().as_bytes()
+            );
+            assert_eq!(has(&view, b"This question is cut here."), short);
+            if short {
+                let mut view = view;
+                let link = f::find(view.tree(), Role::Link, b"Read the rest").unwrap();
+                assert_eq!(
+                    crate::act(&mut view, link, Act::Press),
+                    Some(d::Action::Pages(pages::Act::Go {
+                        address: Address::Task { task: if message { f::INBOX_TASK } else { 42 } }
+                    }))
+                );
+            } else if cut {
+                assert!(has(&view, "…".as_bytes()));
+            }
         }
     }
 }
@@ -624,6 +662,15 @@ pub(super) fn person() -> c::PersonTask {
     }
 }
 fn word_person(words: &str, words_cut: bool, document_cut: bool, requester: c::Requester) -> d::Domain {
+    word_person_read(words, words_cut, document_cut, requester, None)
+}
+fn word_person_read(
+    words: &str,
+    words_cut: bool,
+    document_cut: bool,
+    requester: c::Requester,
+    whole: Option<c::ReadResult>,
+) -> d::Domain {
     let mut person = person();
     person.task.task = f::INBOX_TASK;
     person.spec.specification.words =
@@ -633,13 +680,34 @@ fn word_person(words: &str, words_cut: bool, document_cut: bool, requester: c::R
     person.requester = requester;
     person.since = Some(Wall::EPOCH);
     person.acts = offers(&[c::ActKind::Answer]);
-    kinds(&[(
-        c::ObjectKey::PersonTask(person.task.task),
-        c::Read::PersonTask { task: person.task.task },
-        c::ReadValue::PersonTask(Box::new(person)),
-    )])
+    kinds_read(
+        &[(
+            c::ObjectKey::PersonTask(person.task.task),
+            c::Read::PersonTask { task: person.task.task },
+            c::ReadValue::PersonTask(Box::new(person)),
+        )],
+        whole,
+    )
+}
+fn finished_person(whole: bool) -> d::Domain {
+    let result = if whole {
+        c::ReadResult::Value(c::ReadValue::TaskText(Box::new(c::TaskText {
+            task: f::INBOX_TASK,
+            field: c::TaskTextField::Specification,
+            from: 0,
+            total: u64::try_from(QUESTION.len()).unwrap(),
+            next: None,
+            text: c::Text::new(QUESTION.as_bytes().into(), 4096).unwrap(),
+        })))
+    } else {
+        c::ReadResult::None(c::ReadNone::Busy)
+    };
+    word_person_read("Fix the dropped watch", true, false, c::Requester::Task(42), Some(result))
 }
 fn kinds(values: &[(c::ObjectKey, c::Read, c::ReadValue)]) -> d::Domain {
+    kinds_read(values, None)
+}
+fn kinds_read(values: &[(c::ObjectKey, c::Read, c::ReadValue)], whole: Option<c::ReadResult>) -> d::Domain {
     let (mut root, _, watch) = f::root_at(Address::Inbox { filter: d::address::Filter::ALL }, &limits());
     let mut entries = List::with_capacity(u32::try_from(values.len()).unwrap());
     for (i, (object, _, _)) in values.iter().enumerate() {
@@ -683,15 +751,14 @@ fn kinds(values: &[(c::ObjectKey, c::Read, c::ReadValue)]) -> d::Domain {
             } else {
                 values.iter().find(|(_, wanted, _)| *wanted == what).map(|(_, _, page)| page.clone())
             };
-            if let Some(page) = page {
+            let result =
+                if let c::Read::TaskText { .. } = what { whole.clone() } else { page.map(c::ReadResult::Value) };
+            if let Some(result) = result {
                 event(
                     &mut root,
                     Event::Client {
                         event: jig_client::Event::Up {
-                            up: jig_client::Up::ReadDone {
-                                read,
-                                result: jig_client::Readout::Jig(c::ReadResult::Value(page)),
-                            },
+                            up: jig_client::Up::ReadDone { read, result: jig_client::Readout::Jig(result) },
                         },
                     },
                     &mut out,
