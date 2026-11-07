@@ -60,6 +60,15 @@ chat-start-goal-refused
 chat-started-model-changing
 chat-started-model-open
 chat-started-model-refused
+chat-terminal
+chat-terminal-closed
+chat-terminal-commands
+chat-terminal-draft
+chat-terminal-light
+chat-terminal-model
+chat-terminal-proposal
+chat-terminal-question
+chat-terminal-working
 chat-work-done
 chat-work-empty
 chat-work-failed

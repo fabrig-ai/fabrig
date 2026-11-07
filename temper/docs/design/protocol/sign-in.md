@@ -977,11 +977,14 @@ bot's and the person's tokens, and neither passes this provider.
   group claim (`--admin-group`) and map groups onto teams
   (`--group-team-map`). Default: none; Forgejo's admins are made on
   Forgejo.
-- **The person's forge identity.** With temper as Forgejo's provider,
-  temper knows each member's Forgejo account by construction: the way
-  to a person's approval posted as the person (`../README.md`, section
-  8) and to "the forge as people's sign-in provider", turned around
-  (`../client/README.md`, section 11).
+- **Several members' forge identities.** A box's sole-owner link names
+  its person on an owned Forgejo or a manifest-made personal GitHub App
+  (`../domain/forge.md`, 4.6). Extending that to members needs the sign-in
+  reasoning checked for several people and a manifest's connecting owner,
+  with a family of links (`../draft/forge-identity.md`, section 12).
+  Default: adoption's seeds outside a box's one-person scope. Posting an
+  approval as the person in the client remains separate (`../README.md`,
+  section 8).
 - **The provider's key's rotation.** Default: a key replaced is a file
   replaced and a restart; Forgejo verifies no signature, so nothing of
   Forgejo's changes.

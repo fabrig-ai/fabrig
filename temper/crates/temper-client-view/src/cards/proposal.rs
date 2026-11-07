@@ -440,22 +440,33 @@ pub(crate) fn settings(
     replaced: bool,
 ) -> bool {
     let Some(facts) = settings_facts(card) else { return false };
+    let terminal = crate::pages::terminal::shown(root, words);
     let state = settings_state(card);
     let accepted = state == SettingsState::Accepted || facts.made.is_some();
     let superseded = replaced && state == SettingsState::Withdrawn;
     b.open(Role::Region);
     b.style(crate::look::SETTINGS_PROPOSAL);
+    if terminal {
+        b.style(crate::look::TERMINAL_CARD);
+    }
     if superseded {
         b.style(crate::look::SETTINGS_PROPOSAL_SUPERSEDED);
     }
     b.name(&words.say(Word::Proposal, &[]));
+    if terminal {
+        b.open(Role::Slot);
+        b.style(crate::look::TERMINAL_CARD_LINE);
+        crate::pages::terminal::kicker(b, words);
+    }
     b.open(Role::Paragraph);
     b.style(crate::look::SETTINGS_PROPOSAL_TITLE);
     let title = settings_title(root, &facts, words);
     b.name(&title);
     b.text(skein_ui::Run::Plain, &title);
     b.close();
-    settings_lines(b, root, &facts, words);
+    if !terminal {
+        settings_lines(b, root, &facts, words);
+    }
     let ending = if accepted {
         Some(Word::SettingsProposalAccepted)
     } else {
@@ -519,6 +530,12 @@ pub(crate) fn settings(
             text(b, Role::Paragraph, &words.say(Word::SettingsProposalWaiting, &[]));
             waiting(b, root, proposal.waiting.holder, words);
         }
+    }
+    if terminal {
+        b.close();
+        crate::pages::terminal::details(b, words);
+        settings_lines(b, root, &facts, words);
+        b.close();
     }
     b.close();
     true
@@ -978,4 +995,37 @@ fn settings_title(root: &temper_client_domain::Domain, facts: &SettingsFacts<'_>
         names = joined(&[&names, separator, &name]);
     }
     words.say(Word::SettingsProposalTitle, &[super::name(&names)])
+}
+
+/// A proposal's line keeps its actions outside its folded facts (client/README.md, 3.5).
+pub(crate) fn terminal(
+    b: &mut Builder,
+    root: &temper_client_domain::Domain,
+    card: &temper_client_domain::pages::inbox::Card,
+    words: &Words,
+    bindings: &mut crate::frame::Bindings,
+    rows: u32,
+) {
+    let Some(page) = &card.page else { return };
+    b.style(crate::look::TERMINAL_CARD);
+    b.open(Role::Slot);
+    b.style(crate::look::TERMINAL_CARD_LINE);
+    crate::pages::terminal::kicker(b, words);
+    let title = if let Some(tasks) = batch(page)
+        && let Some(task) = tasks.as_slice().first()
+    {
+        task.spec.specification.words.bytes()
+    } else if let c::ReadValue::Proposal(proposal) = page {
+        proposal.reason.bytes()
+    } else {
+        b""
+    };
+    let end = skein_lib::bytes::find(title, b"\n").unwrap_or(title.len());
+    text(b, Role::Heading { level: 3 }, title.get(..end).expect("proposal first line"));
+    crate::confirm::card_controls(b, root, card, words, bindings);
+    b.close();
+    crate::pages::terminal::details(b, words);
+    reason(b, page);
+    crate::confirm::facts(b, page, words, rows);
+    b.close();
 }

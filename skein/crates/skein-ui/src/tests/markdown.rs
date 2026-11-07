@@ -29,7 +29,7 @@ fn text(tree: &Tree) -> Vec<u8> {
 
 #[test]
 fn paragraphs_blocks_runs_links_and_literal_fallbacks() {
-    let input = b"# Title\nparagraph *soft* **strong** `code`\nnext\n\n- first\n  - nested\n- last\n\n1. numbered\n2. next\n\n> quoted\n\n```text\nraw *stars*\n```\n\n[visit](https://example.org/a) [plain](http://example.org)\n";
+    let input = b"# Title\nparagraph *soft* **strong** _under_ __double__ `code`\nnext\n\n- first\n  - nested\n- last\n\n1. numbered\n2. next\n\n> quoted\n\n```text\nraw *stars*\n```\n\n[visit](https://example.org/a) [plain](http://example.org)\n";
     let tree = read(input, 3);
     for role in
         [Role::Heading { level: 3 }, Role::Paragraph, Role::List, Role::Item, Role::Quote, Role::Code, Role::Link]
@@ -38,6 +38,21 @@ fn paragraphs_blocks_runs_links_and_literal_fallbacks() {
     }
     for run in [Run::Plain, Run::Emphasis, Run::Strong, Run::Code] {
         assert!(tree.nodes().iter().any(|node| node.text.as_slice().iter().any(|text| text.run == run)));
+    }
+    assert!(has_run(&tree, Run::Emphasis, b"under"));
+    assert!(has_run(&tree, Run::Strong, b"double"));
+    for (input, run, words) in [
+        (b"_soft_".as_slice(), Run::Emphasis, b"soft".as_slice()),
+        (b"__strong__", Run::Strong, b"strong"),
+        (b"_Draft, with the user._", Run::Emphasis, b"Draft, with the user."),
+        (b"*a_b*", Run::Emphasis, b"a_b"),
+        (b"un*frigging*believable", Run::Emphasis, b"frigging"),
+    ] {
+        assert!(has_run(&read(input, 3), run, words), "{input:?}");
+    }
+    let nested = read(b"*a _b_ c*", 3);
+    for words in [b"a ".as_slice(), b"b", b" c"] {
+        assert!(has_run(&nested, Run::Emphasis, words), "{}", shape(&nested));
     }
     let links: Vec<_> = tree.nodes().iter().filter_map(|node| node.external.as_deref()).collect();
     assert_eq!(links, [b"https://example.org/a".as_slice(), b"http://example.org".as_slice()]);
@@ -52,6 +67,14 @@ fn paragraphs_blocks_runs_links_and_literal_fallbacks() {
         (b"[*unsafe*](javascript:alert)", b"[*unsafe*](javascript:alert)"),
         (b"[open](https://example.org", b"[open](https://example.org"),
         (b"*never closed", b"*never closed"),
+        (b"snake_case and read_branch", b"snake_case and read_branch"),
+        (b"a__b", b"a__b"),
+        (b"1_2 and 3_4", b"1_2 and 3_4"),
+        ("é_字 and 字_é".as_bytes(), "é_字 and 字_é".as_bytes()),
+        (b"*soft_", b"*soft_"),
+        (b"_soft*", b"_soft*"),
+        (b"**strong__", b"**strong__"),
+        (b"__strong**", b"__strong**"),
         (b"`[inside](https://example.org)`", b"[inside](https://example.org)"),
         (b"```\nunclosed *fence*\n", b"```\nunclosed *fence*\n"),
         (b"        - **too deep**", b"        - **too deep**"),
@@ -422,6 +445,8 @@ fn a_bold_still_open_is_bold() {
     for (input, run, words) in [
         (b"a **bold wo".as_slice(), Run::Strong, b"bold wo".as_slice()),
         (b"a *soft wo", Run::Emphasis, b"soft wo"),
+        (b"a __bold wo", Run::Strong, b"bold wo"),
+        (b"a _soft wo", Run::Emphasis, b"soft wo"),
         (b"a `code wo", Run::Code, b"code wo"),
         (b"**first\nsecond", Run::Strong, b"first"),
     ] {
@@ -437,7 +462,7 @@ fn a_bold_still_open_is_bold() {
 
 #[test]
 fn a_delimiter_alone_at_the_end_makes_no_text() {
-    for input in [b"word **".as_slice(), b"word *", b"word `"] {
+    for input in [b"word **".as_slice(), b"word *", b"word __", b"word _", b"word `"] {
         assert_eq!(text(&growing(input, false).0), b"word ");
     }
 }
@@ -557,6 +582,14 @@ fn closed_blocks_read_as_read_reads_them() {
     for input in [
         b"a **bold**".as_slice(),
         b"a *soft*",
+        b"a __bold__",
+        b"a _soft_",
+        b"_soft_",
+        b"__strong__",
+        b"_Draft, with the user._",
+        b"*a _b_ c*",
+        b"un*frigging*believable",
+        b"snake_case",
         b"a `code`",
         b"[label](https://example.org)",
         b"# heading",

@@ -94,6 +94,7 @@ fn core_element(made: &Made, look: &Look<'_>, prefix: &[u8], primary: Primary) -
         State::SubmitsOnEnter,
         State::FoldsAway,
         State::ToLogEnd,
+        State::Options,
     ] {
         if a.states.as_slice().contains(&state) {
             state_attribute(&mut e, a.role, state);
@@ -149,23 +150,33 @@ fn core_element(made: &Made, look: &Look<'_>, prefix: &[u8], primary: Primary) -
         return labelled(e, made);
     }
     if a.role == Role::Menu {
-        let id = format!("skein-ui-menu-{}", made.id.0);
-        e.set("id", &id);
-        e.set("hidden", "");
-        let mut button = Element::new("button");
-        button.set("type", "button");
-        button.set("aria-haspopup", "menu");
-        button.set("aria-controls", &id);
-        button.set("aria-expanded", "false");
-        if let Some(name) = &a.name {
-            button.text(name);
-        }
-        let mut pair = Element::new("");
-        pair.append(button);
-        pair.append(e);
-        return pair;
+        return menu_element(e, made);
     }
     e
+}
+
+fn menu_element(mut e: Element, made: &Made) -> Element {
+    let a = &made.attribute;
+    if a.role == Role::Menu && a.states.as_slice().contains(&State::Options) {
+        e.set("role", "listbox");
+        e.set("id", &format!("skein-ui-options-{}", made.id.0));
+        return e;
+    }
+    let id = format!("skein-ui-menu-{}", made.id.0);
+    e.set("id", &id);
+    e.set("hidden", "");
+    let mut button = Element::new("button");
+    button.set("type", "button");
+    button.set("aria-haspopup", "menu");
+    button.set("aria-controls", &id);
+    button.set("aria-expanded", "false");
+    if let Some(name) = &a.name {
+        button.text(name);
+    }
+    let mut pair = Element::new("");
+    pair.append(button);
+    pair.append(e);
+    pair
 }
 
 fn percent(fraction: Fraction) -> u128 {
@@ -350,7 +361,7 @@ fn state_attribute(e: &mut Element, role: Role, state: State) {
             },
             if role.is_selectable() { "" } else { "true" },
         ),
-        State::Completed | State::Continues => {}
+        State::Completed | State::Continues | State::Options => {}
         State::Required => {
             let native = role.has_native_required();
             e.set(if native { "required" } else { "aria-required" }, if native { "" } else { "true" });
@@ -430,8 +441,8 @@ pub const fn accessible(role: Role) -> &'static [&'static [u8]] {
         Role::Time => &[b"time"],
         Role::Quote => &[b"blockquote"],
         Role::Separator => &[b"separator"],
-        Role::Menu => &[b"menu"],
-        Role::MenuItem => &[b"menuitem"],
+        Role::Menu => &[b"menu", b"listbox"],
+        Role::MenuItem => &[b"menuitem", b"option"],
         Role::Disclosure => &[b"group", b"DisclosureTriangle"],
         Role::Image => &[b"image", b"StaticText"],
         Role::Figure | Role::Drawing => &[b"figure"],
@@ -694,4 +705,11 @@ fn override_element(e: &mut Element, made: &Made, look: &Look<'_>) {
         };
         e.set("role", aria);
     }
+}
+
+/// The menu supplies the context that makes its item a field's option (ui-web.md, 6).
+pub(crate) fn option_element(element: &mut Element, node: skein_ui::NodeId) {
+    let element = crate::page::semantic_mut(element);
+    element.set("role", "option");
+    element.set("id", &format!("skein-ui-option-{}", node.0));
 }

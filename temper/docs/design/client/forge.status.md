@@ -2,6 +2,14 @@
 
 2026-11-07. Where temper's code lags or departs from [forge.md](forge.md).
 
+Section 4.1's approval card is present on Needs you, Home and a goal's
+band, with rule, count behind, partial-read notice, Open and Later. A
+counting viewer gets a safe files-page review link, using the sign-in
+wrapper on Forgejo where offered; too few eligible people, no account
+or another role gives the reason and no primary. The view tables cover
+both forge kinds. The joined world's Forgejo link is checked without
+a browser; real-forge and render evidence remains section 10's later work.
+
 Sections 5.1 and 5.4 have no known implementation gap in the paged
 search-and-scroll picker or the shared connection panels and setup in
 Forges rows. A completed empty search quotes its trimmed query and hides

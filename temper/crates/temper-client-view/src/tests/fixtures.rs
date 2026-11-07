@@ -2451,7 +2451,9 @@ fn answer_empty_chats(root: &mut temper_client_domain::Domain) {
                     ended: c::EndedGroup::Rows { rows: List::with_capacity(0), after: None, cut: false },
                 })))),
             },
-            Request::KeepSignIn { .. }
+            Request::Screen { .. }
+            | Request::KeepLook { .. }
+            | Request::KeepSignIn { .. }
             | Request::Tab { .. }
             | Request::Copy { .. }
             | Request::Client { .. }

@@ -7,6 +7,8 @@ use crate::inbox::Inbox;
 pub enum Call {
     Write(Vec<u8>, Vec<u8>),
     Remove(Vec<u8>),
+    WriteKept(Vec<u8>, Vec<u8>),
+    RemoveKept(Vec<u8>),
     Send(u32),
     Abandon(u32),
     ReadOn,
@@ -16,6 +18,7 @@ pub enum Call {
 #[derive(Default)]
 pub struct FakePlatform {
     pub records: Vec<crate::store::Record>,
+    pub kept: Vec<crate::store::Record>,
     pub calls: Vec<Call>,
     pub quota: Option<usize>,
 }
@@ -47,6 +50,28 @@ impl crate::platform::Platform for FakePlatform {
     fn remove(&mut self, key: &[u8]) {
         self.calls.push(Call::Remove(key.into()));
         self.records.retain(|record| record.key.as_ref() != key);
+    }
+    fn read_kept(&self) -> Vec<crate::store::Record> {
+        self.kept.clone()
+    }
+    fn write_kept(&mut self, key: &[u8], value: &[u8]) -> bool {
+        self.calls.push(Call::WriteKept(key.into(), value.into()));
+        let held: usize = self
+            .kept
+            .iter()
+            .filter(|record| record.key.as_ref() != key)
+            .map(|record| record.key.len() + record.value.len())
+            .sum();
+        if self.quota.is_some_and(|quota| held + key.len() + value.len() > quota) {
+            return false;
+        }
+        self.kept.retain(|record| record.key.as_ref() != key);
+        self.kept.push(crate::store::Record { key: key.into(), value: value.into() });
+        true
+    }
+    fn remove_kept(&mut self, key: &[u8]) {
+        self.calls.push(Call::RemoveKept(key.into()));
+        self.kept.retain(|record| record.key.as_ref() != key);
     }
     fn send(&mut self, exchange: &crate::fetch::Exchange) {
         self.calls.push(Call::Send(exchange.id));
@@ -169,4 +194,31 @@ fn drawing(_: skein_ui::DrawingKind, data: &[u8], width: u16, height: u16, scene
     }
     let radius = if data == b"two" { 2 } else { 1 };
     scene.rect(Point { x: 0, y: 0 }, Point { x: width, y: height }, radius, &[])
+}
+
+#[derive(Default)]
+pub struct SessionOnly;
+impl crate::platform::Platform for SessionOnly {
+    fn read_all(&self) -> Vec<crate::store::Record> {
+        Vec::new()
+    }
+    fn write(&mut self, _: &[u8], _: &[u8]) -> bool {
+        true
+    }
+    fn remove(&mut self, _: &[u8]) {}
+    fn send(&mut self, _: &crate::fetch::Exchange) {
+        unreachable!("store calls only");
+    }
+    fn navigate(&mut self, _: &[u8]) {
+        unreachable!("store calls only");
+    }
+    fn stream(&mut self, _: crate::transport::StreamDuty) {
+        unreachable!("store calls only");
+    }
+    fn abandon(&mut self, _: u32) {
+        unreachable!("store calls only");
+    }
+    fn read_on(&mut self) {
+        unreachable!("store calls only");
+    }
 }

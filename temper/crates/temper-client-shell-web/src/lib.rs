@@ -9,7 +9,7 @@ use skein_ui_web::{
     clipboard, fetch, history,
     inbox::Inbox,
     page::{Page, web::Dom},
-    platform,
+    platform, screen,
     store::Store,
     timer, title, transport,
 };
@@ -37,6 +37,7 @@ enum Report {
     Fetch(fetch::Report),
     Carried(Vec<transport::Carried>, u32),
     Copied(clipboard::Report),
+    Screen(screen::Report),
     Place(Box<[u8]>),
     Frame(playground::Control),
     World(platform::worker::Heard),
@@ -51,6 +52,8 @@ struct Shell<P: ShellPlatform> {
     dom: Dom,
     platform: P,
     store: Store,
+    kept: Store,
+    screen: screen::web::Screen<Report>,
     clipboard: clipboard::web::Clipboard<Report>,
     history: Rc<history::web::History>,
     timer: P::Timer,
@@ -138,7 +141,9 @@ fn start_signed_in() {
         #[cfg(feature = "record")]
         &mut forges,
     ));
-    let stored = store.read_all(&platform);
+    let kept = Store::kept(b"temper.", None);
+    let mut stored = store.read_all(&platform);
+    stored.extend(kept.read_all(&platform).into_iter().filter(|record| record.key.as_ref() == records::LOOK_KEY));
     #[cfg(feature = "record")]
     let recorder = Some(journey::Recorder::new(&journey::Facts {
         seed: facts.seed,
@@ -165,6 +170,8 @@ fn start_signed_in() {
         dom,
         platform,
         store,
+        kept,
+        screen: screen::web::Screen::new(Rc::clone(&inbox), Report::Screen),
         clipboard: clipboard::web::Clipboard::new(Rc::clone(&inbox), Report::Copied),
         history,
         timer,
@@ -247,6 +254,7 @@ impl<P: ShellPlatform> Shell<P> {
                 host::Report::Due
             }
             Report::TabRefused => host::Report::TabRefused,
+            Report::Screen(report) => host::Report::Screen(report),
             Report::Act(node, act) => host::Report::Act { node, act },
             Report::Place(path) => host::Report::Place { path },
             Report::Fetch(report) => host::Report::Heard(adapter::fetched(report)),
@@ -277,6 +285,13 @@ impl<P: ShellPlatform> Shell<P> {
                 host::TabAct::Close => platform::Platform::close_tab(&mut self.platform),
             }
         }
+        if let Some(on) = duties.screen {
+            if on {
+                self.screen.enter();
+            } else {
+                self.screen.leave();
+            }
+        }
         // Keep the person's gesture (skein/docs/design/ui-web.md, section 11).
         if let Some((token, words)) = &duties.copy {
             self.clipboard.write(*token, words);
@@ -284,6 +299,9 @@ impl<P: ShellPlatform> Shell<P> {
         #[cfg(feature = "record")]
         if duties.departs() {
             self.save_recording(true);
+        }
+        if let Some(look) = duties.keep_look {
+            self.kept.write(records::LOOK_KEY, &look, &mut self.platform).ok();
         }
         let mut requests = adapter::requests(duties.asked);
         requests.navigate = duties.navigate;
@@ -343,6 +361,7 @@ impl<P: ShellPlatform> Shell<P> {
             | skein_ui_web::page::Op::Text { .. }
             | skein_ui_web::page::Op::Value { .. }
             | skein_ui_web::page::Op::Choice { .. }
+            | skein_ui_web::page::Op::Options { .. }
             | skein_ui_web::page::Op::Href { .. }
             | skein_ui_web::page::Op::Reveal { .. }
             | skein_ui_web::page::Op::ScrollEnd { .. }

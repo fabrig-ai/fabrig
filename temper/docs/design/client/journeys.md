@@ -812,7 +812,25 @@ replay and reprint; the Settings sheet browser stories compile within the
 plan. temper/ui compares the request with main after landing, at the
 widths and open states in `../draft/look-requests.md`, 4.
 
+The `chat-terminal` requests' hand-made `chat-terminal/01.html` through
+`06.html`, their `terminal.css`, `terminal.js` and `fonts/`, are not
+journeys to reprint or land (section 7): page 01 is a recorded chat with
+">_", and 02 to 06 the terminal over it. The gallery's `chat-terminal-*`
+states draw them through the view, and the states their messages name in
+words (`browser.md`, 7.2). The fonts are the bundle's (`browser.md`, 2.5).
+`chat-draft`'s pages reprint with ">_" in their bar. temper/ui compares
+the requests with main after landing (`../draft/look-requests.md`, 4).
+
 ## 10. Open questions
+
+- **The chat terminal's comparison** (9): temper/ui compares all four
+  `chat-terminal` requests' hand-made pages and named states against
+  the shipped view after landing, at 1440, 1000 and 420 px, with menus
+  and disclosures open (`../draft/look-requests.md`, sections 4 and 5;
+  `browser.md`, section 5). Default: the nine gallery states and
+  reprinted `chat-draft` and `welcome-playground` pages; they establish
+  no rendered equality. Real-key checks remain `README.md`, section
+  11's work, distinct from journey replay.
 
 - **The chat heading's comparison** (9): temper/ui compares `chat-title`'s
   hand-made page 01 and the request's named states against the shipped

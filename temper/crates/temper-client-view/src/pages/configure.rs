@@ -25,28 +25,51 @@ pub(crate) fn main(
         super::home::main(b, root, w, bindings, accounts, project, &mut times, 0, &crate::forge_sign_in::Forges::new());
         return;
     }
+    let terminal = super::terminal::shown(root, w);
     b.open(Role::Main);
+    if terminal {
+        super::terminal::style(b, root.pages().look());
+    }
     b.style(look::MAIN);
     b.style(look::SESSION);
     let reference = reference(root);
     if let Some(mode) = reference {
         b.style(super::document::style(mode));
     }
-    super::session::top(
-        b,
-        root,
-        w,
-        bindings,
-        Some(project),
-        super::session::Path::Settings,
-        super::session::Heading::Words(&w.say(Word::ConfigureTitle, &[])),
-    );
-    super::session::right(b);
-    if let Some(mode) = reference {
-        super::document::modes(b, Word::ReferenceGroup, mode, w, bindings);
+    if terminal {
+        let heading = w.say(Word::ConfigureTitle, &[]);
+        super::terminal::top(
+            b,
+            root,
+            w,
+            bindings,
+            super::terminal::Top {
+                project: Some(project),
+                heading: &heading,
+                name: &heading,
+                hint: None,
+                number: None,
+                draft: super::terminal::Draft::None,
+            },
+        );
+    } else {
+        super::session::top(
+            b,
+            root,
+            w,
+            bindings,
+            Some(project),
+            super::session::Path::Settings,
+            super::session::Heading::Words(&w.say(Word::ConfigureTitle, &[])),
+        );
+        super::session::right(b);
+        if let Some(mode) = reference {
+            super::document::modes(b, Word::ReferenceGroup, mode, w, bindings);
+        }
+        super::session::to_terminal(b, w, bindings);
+        b.close();
+        b.close();
     }
-    b.close();
-    b.close();
     b.open(Role::Region);
     b.name(&w.say_card(crate::cards::P::ConversationLog, &[]));
     b.style(look::CONVO);
@@ -119,6 +142,9 @@ pub(crate) fn main(
     own_way(b, w, bindings, name, pending);
     b.close();
     b.close();
+    if terminal {
+        super::terminal::notes(b, root, w);
+    }
     b.close();
     composer(b, root, w, bindings, pending, text_limit);
     b.close();
@@ -277,37 +303,48 @@ fn account_name(
 
 fn composer(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, pending: bool, text_limit: u32) {
     let Some(chats) = root.pages().chats() else { return };
+    let terminal = super::terminal::shown(root, w);
     super::session::foot(b, &w.say(Word::ConfigureTitle, &[]));
+    if terminal {
+        super::terminal::prompt(b, w);
+    }
     b.open(Role::TextArea);
     let name = w.say(Word::ConfigureWords, &[]);
     b.name(&name);
     b.placeholder(&name);
     b.value(&chats.words, temper_client_domain::pages::shown(root.pages()));
     if root.pages().switcher().renaming().is_none() {
-        b.focus(0);
+        b.focus(if terminal { temper_client_domain::pages::shown(root.pages()) } else { 0 });
     }
-    if pending {
+    if pending && (!terminal || !super::terminal::commands::typing(root)) {
         bindings.block_submissions();
     } else {
         b.state(State::SubmitsOnEnter);
     }
     b.bind(bindings.insert(Act::ChatWords { words: Box::default() }));
     b.close();
-    b.open(Role::Button);
-    b.name(&w.say(Word::Send, &[]));
-    if pending || chats.words.is_empty() {
-        b.state(State::Disabled);
+    if !terminal {
+        b.open(Role::Button);
+        b.name(&w.say(Word::Send, &[]));
+        if pending || chats.words.is_empty() {
+            b.state(State::Disabled);
+        }
+        b.bind(bindings.insert(Act::StartChat));
+        b.close();
     }
-    b.bind(bindings.insert(Act::StartChat));
-    b.close();
-    super::session::foot_row(
-        b,
-        root,
-        None,
-        w,
-        bindings,
-        if chats.reference.is_some() { Word::DraftSendHint } else { Word::ChatSendHint },
-    );
+    if terminal {
+        b.close();
+        super::terminal::under(b, root, None, w, bindings, super::terminal::Hint::Commands);
+    } else {
+        super::session::foot_row(
+            b,
+            root,
+            None,
+            w,
+            bindings,
+            if chats.reference.is_some() { Word::DraftSendHint } else { Word::ChatSendHint },
+        );
+    }
     if chats.refusal.is_some() {
         w.refusal(b, &jig_client::contract::Refusal::NotOffered, text_limit);
     }

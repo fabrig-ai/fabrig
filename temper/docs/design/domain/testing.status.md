@@ -110,11 +110,30 @@ that proof remains with the after-landing runs (11).
   default because macOS has no Linux range file. A lower configured
   boundary can overlap the chosen ports; reading it remains later (11).
 
-Section 6.4 has no gap in the configuring inventory's separation of a box
-requester and its forge approver, the stock permission mapping, refusal of the
-owner role after admin adoption, or acceptance of a fresh maintainer rule.
-The configuring stories also cover stock reads and project people; the
-approval-identity story covers a refusal naming no command.
+Sections 6.3 and 6.4 have the owned-Forgejo box's linked-person stories:
+inventory and owner-role acceptance at one approval, refusal at two, clearing
+on a second owner after restart, then a change waiting under Needs you,
+another project's party reading none, and the person's review landing it.
+The joined client story draws the card and files-page link and checks its
+removal after the review lands the change. The connector removes review
+facts on `Committed` for `Write::Merge`. The no-link cases keep the stock
+permission mapping, owner-role refusal after admin adoption and fresh
+maintainer-role acceptance. These are scripted worlds on fake Forgejo.
+
+- **Not yet:** 6.4: the box's approval-identity and approval-wait stories
+  have no GitHub row: their fixtures offer Forgejo alone. Setup and
+  connector tables cover GitHub's identity evidence and link decisions,
+  but not the composed story the table asks for. A real human GitHub
+  review counted (the draft's section 10) has no new live story or supplied
+  result; it needs the user's review credential. These proofs remain
+  section 11's later work, along with the real owned-Forgejo walk and
+  rendered comparison. The joint-world card replaces the browser step
+  by the plan's explicit decision.
+- **Not yet:** 6.3: the joined story checks the card gone after landing,
+  without a separate observation between merge admission and landing.
+  It therefore does not independently hold that timing in the joint world,
+  although the connector drops the review facts at admission (6.3's
+  *A change waiting on a review on the forge*).
 
 Sections 6.4 and 6.5.3 have no gap in scripted note-backed proposals and single-revision collector evidence.
 

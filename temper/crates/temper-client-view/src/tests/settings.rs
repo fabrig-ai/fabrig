@@ -1433,7 +1433,9 @@ fn dismissal_refusals_stay_in_the_repository_row() {
             d::Request::Unlinked {
                 request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt, .. } },
             } => Some(*attempt),
-            d::Request::KeepSignIn { .. }
+            d::Request::Screen { .. }
+            | d::Request::KeepLook { .. }
+            | d::Request::KeepSignIn { .. }
             | d::Request::Tab { .. }
             | d::Request::Copy { .. }
             | d::Request::Client { .. }

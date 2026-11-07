@@ -14,6 +14,7 @@ use temper_client_view as view;
 
 /// One report of a turn, as the shell gives it to the host (client/journeys.md, 2).
 pub enum Report {
+    Screen(skein_ui_web::screen::Report),
     Copied { token: u32, written: root::copy::Written },
     Start,
     Due,
@@ -35,6 +36,8 @@ pub enum TabAct {
 /// What the host asks after one report.
 #[derive(Debug, Default)]
 pub struct Duties {
+    pub screen: Option<bool>,
+    pub keep_look: Option<[u8; 3]>,
     pub tab: Vec<TabAct>,
     pub copy: Option<(u32, Box<[u8]>)>,
     pub asked: Vec<Asked>,
@@ -68,6 +71,8 @@ pub struct Host {
     replace: Option<Box<[u8]>>,
     show: Option<(Box<[u8]>, bool)>,
     copy: Option<(u32, Box<[u8]>)>,
+    keep_look: Option<[u8; 3]>,
+    screen: Option<bool>,
 }
 impl Host {
     #[must_use]
@@ -91,6 +96,8 @@ impl Host {
             next: 0,
             show: None,
             copy: None,
+            keep_look: None,
+            screen: None,
             navigate: None,
             replace: None,
         }
@@ -99,19 +106,26 @@ impl Host {
         self.view.forge_sign_in(forges);
     }
     pub fn start(&mut self, path: &[u8], records: Vec<skein_ui_web::store::Record>, secret: Option<Box<[u8]>>) {
-        if parse(path) == Place::AuthorizeMalformed {
-            self.event(Event::Went { place: Place::AuthorizeMalformed });
-            return;
-        }
         let mut kept = List::with_capacity(u32::try_from(records.len()).expect("bounded store"));
         let mut sign_in = None;
+        let mut look = None;
         for record in records {
+            if record.key.as_ref() == records::LOOK_KEY {
+                look = records::decode_look(&record.value);
+            }
             if record.key.as_ref() == records::SIGN_IN_KEY {
                 sign_in = records::decode_sign_in(&record.value);
             }
             if let Some(record) = records::decode(record) {
                 kept.push(record).expect("counted store");
             }
+        }
+        if let Some(look) = look {
+            self.event(Event::LookKept { look });
+        }
+        if parse(path) == Place::AuthorizeMalformed {
+            self.event(Event::Went { place: Place::AuthorizeMalformed });
+            return;
         }
         let place = parse(path);
         self.address = self.opened(path);
@@ -153,6 +167,10 @@ impl Host {
     }
     pub fn report(&mut self, report: Report) -> Duties {
         match report {
+            Report::Screen(report) => match report {
+                skein_ui_web::screen::Report::Left => self.event(Event::ScreenLeft),
+                skein_ui_web::screen::Report::Entered | skein_ui_web::screen::Report::Refused => {}
+            },
             Report::Copied { token, written } => self.event(Event::Copied { token, written }),
             Report::Start => {}
             Report::Due => self.due(),
@@ -164,6 +182,8 @@ impl Host {
         }
         let (asked, writes, tab) = self.duties();
         Duties {
+            screen: self.screen.take(),
+            keep_look: self.keep_look.take(),
             tab,
             asked,
             writes,
@@ -263,6 +283,8 @@ impl Host {
         let mut writes = 0_u32;
         while let Some(request) = self.out.pop() {
             match request {
+                Request::Screen { on } => self.screen = Some(on),
+                Request::KeepLook { look } => self.keep_look = Some(records::encode_look(look)),
                 Request::Tab { tab: request } => tab.push(match request {
                     root::Tab::Open { provider } => {
                         TabAct::Open { words: view::opening_tab(&self.view, &self.root, provider) }
