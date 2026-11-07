@@ -100,14 +100,8 @@ fn key_history_steps() -> Vec<Step> {
     };
     let accounts = || Find::exactly_named(Role::Heading { level: 1 }, b"Connect a model");
     let chats = || Find::named(Role::Heading { level: 1 }, b"Talk to an agent");
-    vec![
-        Step::Person(PersonStep::Go { address: b"/accounts".as_slice().into() }),
-        see(Find::named(Role::Heading { level: 2 }, "Your accounts · ".as_bytes())),
-        press(b"+ Connect a model", Role::Link),
-        see(accounts()),
-        Step::Address(Box::from(b"/accounts/connect".as_slice())),
-        see(Find::exactly_named(Role::Link, b"Add key")),
-        press(b"Add key", Role::Link),
+    let mut steps = key_link_steps();
+    steps.extend([
         input(b"Key (pasted once)", b"private-browser-key"),
         press(b"Add key", Role::Button),
         see(Find::text(b"Added your Test provider API key")),
@@ -133,12 +127,34 @@ fn key_history_steps() -> Vec<Step> {
         see(chats()),
         Step::Back,
         see(Find::exactly_named(Role::Heading { level: 1 }, b"A Test provider API key")),
-        Step::Address(Box::from(b"/accounts/connect?provider=17&way=key".as_slice())),
+        Step::Address(Box::from(b"/accounts/connect?provider=1&way=key".as_slice())),
         Step::Forward,
         see(chats()),
         Step::Address(Box::from(b"/chats".as_slice())),
         Step::Back,
         see(Find::exactly_named(Role::Heading { level: 1 }, b"A Test provider API key")),
+    ]);
+    steps
+}
+
+fn key_link_steps() -> Vec<Step> {
+    let see = |role, name: &[u8]| Step::Person(PersonStep::See { find: Find::named(role, name), within: WITHIN });
+    let key = |nth| Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"Add key").nth(nth) });
+    vec![
+        Step::Person(PersonStep::Go { address: b"/accounts".as_slice().into() }),
+        see(Role::Heading { level: 2 }, "Your accounts · ".as_bytes()),
+        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Link, b"+ Connect a model") }),
+        see(Role::Heading { level: 1 }, b"Connect a model"),
+        Step::Address(b"/accounts/connect".as_slice().into()),
+        // Key links follow provider number: Test is 1, Welcome is 2.
+        key(1),
+        see(Role::Heading { level: 1 }, b"A Welcome provider API key"),
+        Step::Address(b"/accounts/connect?provider=2&way=key".as_slice().into()),
+        Step::Back,
+        see(Role::Heading { level: 1 }, b"Connect a model"),
+        key(0),
+        see(Role::Heading { level: 1 }, b"A Test provider API key"),
+        Step::Address(b"/accounts/connect?provider=1&way=key".as_slice().into()),
     ]
 }
 
