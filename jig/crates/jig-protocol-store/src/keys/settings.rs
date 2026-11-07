@@ -120,3 +120,21 @@ fn setting_read(reader: &mut KeyReader<'_>) -> Option<Setting> {
         _ => return None,
     })
 }
+
+/// Only model changes enter the open's catalogue overlay (protocol/store.md, 5).
+pub(crate) fn model_changes() -> skein_kv::Range {
+    skein_kv::Range::prefix(&[super::JIG, 0, 8, 1, 6])
+}
+
+pub(crate) fn changed_model(bytes: &[u8]) -> Option<u32> {
+    let suffix = bytes.strip_prefix(model_changes().start.as_ref())?;
+    let mut reader = KeyReader::new(suffix);
+    if reader.u64()? != 0 {
+        return None;
+    }
+    let number = u32::try_from(reader.u64()?).ok()?;
+    if !reader.is_empty() || number == 0 || number > jig_domain_tasks::MODELS {
+        return None;
+    }
+    Some(number)
+}

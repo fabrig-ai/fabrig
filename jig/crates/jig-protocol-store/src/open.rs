@@ -222,6 +222,11 @@ fn ready(
             }
         };
     }
+    if let Err(failure) = codec::catalogue(store) {
+        store.open_failed(restore::OpenFailure::Data(failure));
+        corrupt(store, owner, above);
+        return;
+    }
     store.phase = Phase::Ready { next, format_due };
     store.directory.owner = owner;
     crate::directory::checked(store, above, below);

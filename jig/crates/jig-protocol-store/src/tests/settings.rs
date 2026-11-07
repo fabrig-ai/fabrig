@@ -688,3 +688,6 @@ fn proposal_keys_and_the_extent_counter_round_trip_without_narrowing() {
         assert_eq!(codec::settings::decode(&row.key(), &bytes, &limits, &[]), Ok(row));
     }
 }
+
+#[path = "models.rs"]
+mod models;

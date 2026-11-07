@@ -8,6 +8,7 @@ mod notes;
 mod own;
 mod people;
 mod settings;
+pub(crate) use settings::{changed_model, model_changes};
 mod tasks;
 pub use own::Own;
 pub const COMPONENT: u8 = 0;
