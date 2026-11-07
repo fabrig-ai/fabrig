@@ -133,6 +133,7 @@ fn payload_configuration(tool_payload: u32) -> smith_agent_service::Config {
     config
 }
 
+#[expect(clippy::too_many_lines, reason = "keep each scenario's bounds, environment and event wiring together")]
 fn configuration(case: Case) -> smith_agent_service::Config {
     let mut config = if let Case::Payload { tool_payload } = case {
         payload_configuration(tool_payload)
@@ -177,6 +178,12 @@ fn configuration(case: Case) -> smith_agent_service::Config {
             value: if case == Case::EarlyExit { b"1".as_slice().into() } else { b"0".as_slice().into() },
         },
     ];
+    if matches!(case, Case::Payload { .. }) {
+        variables.push(smith_protocol_machine::Variable {
+            name: b"FAKE_CLAUDE_LARGE_STORY".as_slice().into(),
+            value: b"1".as_slice().into(),
+        });
+    }
     if case == Case::Credentials {
         variables.extend(
             [

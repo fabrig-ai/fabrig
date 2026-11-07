@@ -259,22 +259,27 @@ fn a_nested_host_input_is_told_and_answered() {
 #[derive(Debug)]
 enum Reaches {
     Whole,
-    Refused,
+    Refused(ArgumentLimit),
+}
+
+#[derive(Debug)]
+enum ArgumentLimit {
+    ProgramInput(u32),
+    HostInput,
 }
 
 #[test]
 fn a_large_host_argument_reaches_the_host_or_names_its_limit() {
-    // The 10,000-byte row reaches the host. At the stock payload, 65,536 bytes
-    // first exceeds channel.transcript.call_input; the host record cannot be sent.
-    // A declared 131,072 is refused at startup: HostInput::CAPACITY is 65,536
-    // (smith-domain-run/src/host.rs), and valid_host_tools reports Invalid(Grants).
-    // The remaining rows and CPU measurement await that vocabulary decision.
+    // First limits: 10,662/65,536 meets program Bound::Input ("tool input bytes"),
+    // 65,532 bytes: (10,662 + 256 path bytes + 4 framing bytes) * 6.
+    // 131,072/131,073 meets domain host_input_bytes; the other rows reach the host.
+    // Costs 378 ms of CPU, measured with the focused suite's per-test collector.
     for (declared, argument, reaches) in [
         (10_662, 10_000, Reaches::Whole),
-        (10_662, 65_536, Reaches::Refused),
+        (10_662, 65_536, Reaches::Refused(ArgumentLimit::ProgramInput(65_532))),
         (131_072, 65_536, Reaches::Whole),
         (131_072, 131_072, Reaches::Whole),
-        (131_072, 131_073, Reaches::Refused),
+        (131_072, 131_073, Reaches::Refused(ArgumentLimit::HostInput)),
     ] {
         eprintln!("declared={declared} argument={argument} expected={reaches:?}");
         // {"text":""} contributes eleven bytes to the whole JSON input.
@@ -293,9 +298,6 @@ fn a_large_host_argument_reaches_the_host_or_names_its_limit() {
             &program(b"source"),
             None,
         );
-        accepted(&run);
-        let result = told_result(&run, b"lookup", &input);
-        let smith_transcript::Returned::Said(said) = result.returned() else { panic!("host answer") };
         let calls: Vec<_> = run
             .frames
             .iter()
@@ -306,6 +308,9 @@ fn a_large_host_argument_reaches_the_host_or_names_its_limit() {
             .collect();
         match reaches {
             Reaches::Whole => {
+                accepted(&run);
+                let result = told_result(&run, b"lookup", &input);
+                let smith_transcript::Returned::Said(said) = result.returned() else { panic!("host answer") };
                 assert_eq!(calls.len(), 1);
                 // The host boundary receives the whole JSON, including its framing.
                 let smith_channel::Ask::Host(host) = calls[0].ask() else { panic!("host lookup") };
@@ -313,9 +318,28 @@ fn a_large_host_argument_reaches_the_host_or_names_its_limit() {
                 assert_eq!(said.text(), b"found");
                 assert!(!said.error());
             }
-            Reaches::Refused => {
+            Reaches::Refused(limit) => {
                 assert!(calls.is_empty(), "a refused call never reaches the host");
-                assert!(said.error());
+                match limit {
+                    ArgumentLimit::ProgramInput(bound) => {
+                        let answer = run.answer().expect("failure");
+                        let RunResult::Failed(failed) = answer.result() else { panic!("program input failure") };
+                        let RunFailure::Model(model) = failed.reason() else { panic!("model failure") };
+                        let ModelFault::Program(fault) = model.value() else { panic!("program failure") };
+                        assert_eq!(
+                            fault.detail(),
+                            format!("smith: program assistant: tool input bytes: value {argument}, bound {bound}")
+                                .as_bytes()
+                        );
+                    }
+                    ArgumentLimit::HostInput => {
+                        accepted(&run);
+                        let result = told_result(&run, b"lookup", &input);
+                        let smith_transcript::Returned::Said(said) = result.returned() else { panic!("host refusal") };
+                        assert!(said.error());
+                        assert_eq!(said.text(), b"host-rejected reason=too-large");
+                    }
+                }
             }
         }
     }
