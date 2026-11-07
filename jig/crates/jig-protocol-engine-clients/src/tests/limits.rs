@@ -2,7 +2,11 @@ use super::fixtures::{self as f, Exchange};
 use crate::{Message, Request, SecretOwner, SecretsRequest};
 
 type MessageCase = (&'static str, fn(Box<[u8]>) -> Message);
-const MESSAGES: [MessageCase; 8] = [
+const MESSAGES: [MessageCase; 12] = [
+    ("approval ask", Message::ApprovalAsk),
+    ("approval read", Message::ApprovalRead),
+    ("approval decide", Message::ApprovalDecide),
+    ("approval take", Message::SignInApproval),
     ("request", Message::Request),
     ("read", Message::Read),
     ("watch", Message::Watch),

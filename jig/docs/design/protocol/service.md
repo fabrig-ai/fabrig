@@ -171,10 +171,10 @@ listed in section 9.
    them (`../domain/engine.md`, section 6); the clients' component
    answers clients not ready until decisions open
    (`../client/domain/contract.md`, section 4). Where configuration
-   enables the printed link, the startup first checks that the clients'
-   listener, a member of the application's own, is on a loopback
-   address, and refuses the start, naming both, if it is not
-   (`configuration.md`, section 3, clients); only then does the
+   enables the printed link, or a browser's approval, the startup first
+   checks that the clients' listener, a member of the application's own,
+   is on a loopback address, and refuses the start, naming both, if it
+   is not (`configuration.md`, section 3, clients); only then does the
    component give its secret, and `main` print its URL, on the
    application's origin and route (`client.md`, section 8; `browser.md`,
    section 11).
@@ -439,6 +439,11 @@ Each within jig's suites' budgets.
   root's does; whether it is copied and filled, or generated.
 - **Supervision:** what restarts an engine that stopped, and how often,
   is the deployment's; whether jig's guidance names one.
+- **Programs after a forced agent stop** (section 10): a second signal
+  kills an agent's group, leaving a program in its own group outside the
+  kill. Contained trees (README.md, section 10) must cover both, including
+  in one process. Default: the orderly stop cancels runs so agents end
+  their programs; forced stops have no such guarantee.
 - **The server's home.** The server and its bundle helpers (11.4) name
   no type of jig's, and a generic mechanism belongs in skein. `kind`
   spells skein's closed list a second time, since skein's own is in

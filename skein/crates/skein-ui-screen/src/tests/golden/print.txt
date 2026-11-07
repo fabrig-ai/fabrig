@@ -1,0 +1,11 @@
+A中Z
+
+ é  !
+--
+abba..
+......
+.ba.a.
+--
+a: fore #ABCDEF bold italic
+b: back #012345 dim underline reverse
+cursor 2 5

@@ -647,6 +647,7 @@ impl Sim {
     }
 
     fn close_process_fd(&mut self, pid: Pid, fd: Fd) {
+        self.process_mut(pid).windows.remove(&fd);
         if let Some(pipe) = self.process_mut(pid).inherited_pipes.get_mut(&fd) {
             pipe.process_open = false;
             if pipe.readable {

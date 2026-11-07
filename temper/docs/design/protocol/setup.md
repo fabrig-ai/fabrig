@@ -2675,6 +2675,12 @@ override.
   directory, its `git` the machine's, or null (8.2); the deployment's directory
   `deployment` in the data directory; the clients' listener
   `127.0.0.1:<port>` (8.2).
+- **Its sign-ins:** `engine.clients`' `link` and `approval` both
+  `true`, in both documents and the owned example (8.1): the printed
+  link (7.2) and a terminal approved by the person's browser
+  (`../client/README.md`, 7.1), on the clients' loopback listener
+  (configuration.md, section 3, clients). The box prints the link
+  alone; the approval prints nothing.
 - **Its limits:** the owned example's (8.1), the `standard` profiles,
   among them `forge.repositories`
   and `forge.client.repositories` 3, counts of the deployment's
@@ -3949,13 +3955,12 @@ Each is intended; what it needs is named with it.
   story checks another ownership link; it does not replace killing a
   box whose playground steps run (`../domain/testing.md`, 2.6 and 11).
 
-- **A box's surviving descendant** (7.2): use the owned-forge
-  Claude Code landing story's survivor rows and stop snapshot to identify
-  the spawning owner, then repair that lifetime at its lowest place
-  under a failing test. The next after-landing red supplies the evidence;
-  a runner job's forced shutdown alone does not identify the survivor.
-  A coding run's own child belongs to the run's sandbox lifetime. Keep
-  the live no-survivor assertion and the box's stop bounds unchanged.
+- **The owned-forge Claude Code lifetime proof** (7.2): after landing,
+  run the live landing story with its no-survivor assertion and the box's
+  stop bounds unchanged. For any survivor, use its rows and stop snapshot
+  to identify the spawning owner, then repair that lifetime at its lowest
+  place under a failing test. A coding run's own child belongs to the
+  run's sandbox lifetime.
 
 - **Four agents on a laptop** (8.1, 8.3): measure their combined resident
   memory, including any program an agent launches, after landing. The

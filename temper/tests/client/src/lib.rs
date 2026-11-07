@@ -5,5 +5,6 @@ pub mod component;
 pub mod fixtures;
 pub mod front;
 pub mod translate;
+pub mod tui;
 
 mod cards;

@@ -50,6 +50,8 @@ members = [
     "skein/crates/skein-ui",
     "skein/crates/skein-ui-bundle",
     "skein/crates/skein-ui-text",
+    "skein/crates/skein-ui-screen",
+    "skein/crates/skein-ui-screen-terminal",
     "skein/crates/skein-ui-web",
     "skein/examples/ui/view",
     "skein/examples/ui/shell-web",
@@ -105,6 +107,7 @@ members = [
     "skein/tests/sim",
     "skein/tests/tls",
     "skein/tests/ui-text",
+    "skein/tests/ui-screen",
     "skein/tests/ui",
     "skein/tests/world",
     "smith",
@@ -267,11 +270,13 @@ members = [
     "temper/crates/temper-client-bundle",
     "temper/tests/engine/protocol-forge",
     "temper/crates/temper-client-shell-terminal",
+    "temper/crates/temper-client-shell-tui",
     "temper/crates/temper-client-shell-cli",
     "temper/crates/temper-client-shell-web",
     "temper/tests/client",
     "temper/tests/client-browser",
     "temper/crates/temper-client-view",
+    "temper/crates/temper-client-tui",
     "temper/crates/temper-client-domain",
     "temper/crates/temper-client-tools",
     "temper/crates/temper-service",
@@ -366,6 +371,8 @@ web-sys = { version = "=0.3.103" }
 skein-fake-person = { path = "skein/testing/skein-fake-person" }
 skein-ui-example-view = { path = "skein/examples/ui/view" }
 skein-ui-text = { path = "skein/crates/skein-ui-text" }
+skein-ui-screen = { path = "skein/crates/skein-ui-screen" }
+skein-ui-screen-terminal = { path = "skein/crates/skein-ui-screen-terminal" }
 skein-ui = { path = "skein/crates/skein-ui" }
 skein-ui-bundle = { path = "skein/crates/skein-ui-bundle" }
 skein-forge-setup = { path = "skein/crates/skein-forge-setup" }
@@ -553,11 +560,13 @@ temper-fake-git = { path = "temper/crates/temper-fake-git" }
 temper-fake-git-hosted = { path = "temper/crates/temper-fake-git-hosted" }
 jig-channel-world = { path = "jig/tests/channel" }
 temper-client-shell-terminal = { path = "temper/crates/temper-client-shell-terminal" }
+temper-client-shell-tui = { path = "temper/crates/temper-client-shell-tui" }
 temper-client-shell-cli = { path = "temper/crates/temper-client-shell-cli" }
 temper-client-shell-web = { path = "temper/crates/temper-client-shell-web" }
 jig-client-test-records = { path = "jig/testing/jig-client-test-records" }
 jig-client-shell-native = { path = "jig/crates/jig-client-shell-native" }
 temper-client-view = { path = "temper/crates/temper-client-view" }
+temper-client-tui = { path = "temper/crates/temper-client-tui" }
 temper-client-domain = { path = "temper/crates/temper-client-domain" }
 temper-client-tools = { path = "temper/crates/temper-client-tools" }
 temper = { path = "temper/crates/temper" }

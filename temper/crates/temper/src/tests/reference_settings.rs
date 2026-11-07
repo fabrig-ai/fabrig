@@ -78,42 +78,9 @@ fn the_reference_settings_file_decodes() {
         Some(b"1. In one page"),
         b"skein/docs/foundation/programming-model.md",
     );
-    assert!(bytes::find(coordinator.instructions.bytes(), b"\"producer\": 7").is_some());
-    assert!(bytes::find(coordinator.instructions.bytes(), b"close-out").is_some());
-    assert!(
-        std::str::from_utf8(coordinator.instructions.bytes())
-            .expect("coordinator instructions are UTF-8")
-            .contains(r#""branch": "mine""#)
-    );
-    let instructions =
-        std::str::from_utf8(coordinator.instructions.bytes()).expect("coordinator instructions are UTF-8");
-    assert!(instructions.contains(r#""branch": "mine""#));
-    assert!(instructions.contains(r#""questions": "foreman""#));
-    assert!(instructions.contains(r#""questions": "up""#));
-    assert!(instructions.contains("delegate its triage to charter 8"));
-    assert!(instructions.contains("decide"));
-    assert!(instructions.contains(r#""repairs""#));
-    assert!(instructions.contains("a red of your goal branch's tier"));
-    assert!(instructions.contains("a live repair owning its failing tests"));
-    assert!(instructions.contains("then the draft it was built from, by path,"));
-    assert!(instructions.contains("with `note`"));
-    for phrase in ["report: ", "Left: ", "Risk: ", "Decided: ", "your goal's scope", "Revise it in place"] {
-        assert!(instructions.contains(phrase), "{phrase}");
-    }
-    assert!(coordinator.instructions.bytes().ends_with(
-        b"If you finish without a landing, say why in your report; your goal branch is kept for a person to read."
-    ));
+    coordinator_rules(coordinator);
     assert!(!coordinator.resume());
     assert_eq!(coordinator.waiting, Duration::ZERO);
-    assert!(core::str::from_utf8(coordinator.instructions.bytes()).expect("coordinator instructions").contains(
-        "When main moves under your goal, you hear a landing into main that touches your goal's \
-         open work as news, at most once in 30 minutes. Catch up with one `change`: `\"landing\": \
-         \"goal\"`, `\"merge\"` the landing's merge commit, its words naming the landing and why your \
-         goal needs it now. Keep one catch-up live at a time: a later landing's commit carries the \
-         earlier ones, so on news while one is live, wait for its result. On your first run, once \
-         your first batch is made, subscribe with `subscribe_forge` to the landings on main in your \
-         repository."
-    ));
     assert_eq!(
         coordinator.wake,
         WakePolicy {
@@ -157,7 +124,7 @@ fn the_reference_settings_file_decodes() {
     assert!(coder.instructions.bytes().starts_with(instructions.as_bytes()));
     let coder_instructions = std::str::from_utf8(coder.instructions.bytes()).expect("coding instructions are UTF-8");
     assert!(coder_instructions.contains("in the question form"));
-    assert!(coder_instructions.contains("Then call wait: the answer reaches this run."));
+    assert!(coder_instructions.contains("After asking, call wait, not finish: the answer reaches this run."));
     let SettingValue::Charter(foreman) = value(&items, Setting::Charter(SettingNumber { number: FOREMAN })) else {
         panic!("foreman charter")
     };
@@ -196,6 +163,98 @@ fn the_reference_settings_file_decodes() {
     let llm = goal.llm.as_ref().expect("goal model choice");
     assert_eq!(llm.main.model.bytes(), b"claude-opus-5-5");
     assert_eq!(llm.main.effort.as_ref().expect("coordinator effort").bytes(), b"xhigh");
+    let later = llm.later.as_ref().expect("goal later choice");
+    assert_eq!(later.main.model.bytes(), b"claude-opus-5-5");
+    assert_eq!(later.main.effort.as_ref().expect("later coordinator effort").bytes(), b"high");
+    assert_eq!(later.subagents, llm.subagents);
+}
+
+// Every pinned rule belongs to exactly one text, selected by its part's on names.
+fn coordinator_rules(coordinator: &settings_form::view::Charter) {
+    let shared = "shared";
+    let cut = "first";
+    let questions = "question question_answered question_ended question_owed";
+    let results = "escalation proposal person_stalled result notice nothing_awaited";
+    let news = "news timer";
+    let mut texts = vec![(shared.to_owned(), std::str::from_utf8(coordinator.instructions.bytes()).expect("shared"))];
+    for part in &coordinator.parts {
+        let on = settings_form::view::REASON_NAMES
+            .iter()
+            .enumerate()
+            .filter(|(bit, _)| part.on & (1 << bit) != 0)
+            .map(|(_, name)| std::str::from_utf8(name).expect("reason name"))
+            .collect::<Vec<_>>()
+            .join(" ");
+        texts.push((on, std::str::from_utf8(part.instructions.bytes()).expect("part")));
+    }
+    assert_eq!(texts.iter().map(|(on, _)| on.as_str()).collect::<Vec<_>>(), [shared, cut, questions, results, news]);
+    for (phrase, place) in [
+        (r#""producer": 7"#, shared),
+        (r#""questions": "foreman""#, shared),
+        (r#""questions": "up""#, shared),
+        ("Make a larger batch in several calls", shared),
+        ("report: ", shared),
+        ("Left: ", shared),
+        ("Risk: ", shared),
+        ("Decided: ", shared),
+        ("your goal's scope", shared),
+        ("Revise it in place", shared),
+        ("Read your report note and the tree first at every wake", shared),
+        ("park with `wait` once your decisions are made", shared),
+        ("an answer", shared),
+        ("a decision on your proposal or settings", shared),
+        ("an effect not made", shared),
+        ("a `met`", shared),
+        ("an amendment changes what you are to do", shared),
+        ("a request to finish", shared),
+        ("a person's words", shared),
+        ("leave it undecided for the run whose part it is", shared),
+        ("the lints and the focused tests of the packages it changes", shared),
+        ("as charter 2 runs them", shared),
+        ("never for a slow tier or a walk, which run after landing", shared),
+        ("Where a request settles its changes with no shape for the code to follow", cut),
+        ("write no design, say so in your report note, and make its changes", cut),
+        (
+            "On your first run, once your first batch is made, subscribe with `subscribe_forge` to the landings on main in your repository.",
+            cut,
+        ),
+        ("On a designer's question, answer from the draft", questions),
+        ("On a question a change relays", questions),
+        ("Never answer what you have not settled.", questions),
+        ("On a person task's result, answer the change that waited for it", results),
+        ("close-out", results),
+        (r#""branch": "mine""#, results),
+        ("with decide, saying why", results),
+        ("a live repair owning its failing tests", results),
+        ("then the draft it was built from, by path,", results),
+        (
+            "If you finish without a landing, say why in your report; your goal branch is kept for a person to read.",
+            results,
+        ),
+        ("delegate its triage to charter 8", news),
+        (r#""repairs""#, news),
+        ("a red of your goal branch's tier", news),
+        ("with `note`", shared),
+        (
+            "When main moves under your goal, you hear a landing into main that touches your goal's open work as news.",
+            news,
+        ),
+        (
+            "Catch up with one `change`: `\"landing\": \"goal\"`, `\"merge\"` the landing's merge commit, its words naming the landing and why your goal needs it now.",
+            news,
+        ),
+        (
+            "Keep one catch-up live at a time: a later landing's commit carries the earlier ones, so on news while one is live, wait for its result.",
+            news,
+        ),
+    ] {
+        for (on, text) in &texts {
+            assert_eq!(text.contains(phrase), on == place, "{phrase:?}: expected only in {place}, checked {on}");
+        }
+    }
+    assert!(texts.iter().find(|(on, _)| on == results).expect("results part").1.ends_with(
+        "If you finish without a landing, say why in your report; your goal branch is kept for a person to read."
+    ));
 }
 
 #[test]
@@ -245,14 +304,95 @@ fn the_reference_settings_fit_the_reference_profile() {
     assert!(words <= limits.result_bytes);
     assert_eq!(goal.resources.len(), 1);
     assert_eq!(goal.resources.iter().next(), Some(&Symbol { connector: 1, symbol: 1 }));
-    let SettingValue::Charter(coordinator) = value(&items, Setting::Charter(SettingNumber { number: COORDINATOR }))
-    else {
-        panic!("coordinator charter")
-    };
-    assert!(
-        bytes::find(coordinator.instructions.bytes(), b"A `change` call carries what one call's payload holds")
-            .is_some()
-    );
+}
+
+#[test]
+fn the_reference_charters_fit_a_stock_worker_and_the_run_bound() {
+    use jig_domain_core::settings;
+    use jig_domain_fleet::{CharterNeeds, HostKind, ModelNeed, Needs, Version};
+
+    let room: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../../../../docs/examples/reference/room.json"))
+            .expect("reference room");
+    let run_bytes =
+        room["application"]["limits"]["overrides"]["root.journal.run_bytes"].as_u64().expect("reference run bound");
+    let bounds = reference_worker_bounds(&room["agent"]);
+    let init: serde_json::Value = serde_json::from_slice(include_bytes!("../../../temper-init/template/temper.json"))
+        .expect("init configuration");
+    let engine = reference_engine(&init["engine"]["limits"]);
+    let config = jig_protocol_config::core(&engine, [0; 16], 1);
+    let reference = temper_client_tools::jig::settings_file::decode(
+        include_bytes!("../../../../docs/examples/reference/settings.json"),
+        &temper_client_tools::limits::tools(),
+    )
+    .expect("reference settings");
+    for number in [CODER, COORDINATOR, FOREMAN, DESIGNER, TRIAGE] {
+        let item = reference
+            .iter()
+            .find(|item| {
+                item.setting == jig_client::contract::Setting::Charter(jig_client::contract::SettingNumber { number })
+            })
+            .expect("reference charter");
+        let settings::Edit::Set(settings::Value::Charter(charter)) = core_item(item).edit else {
+            panic!("charter {number}")
+        };
+        let policy = &charter.policy;
+        let models = std::iter::once(&policy.model)
+            .chain(policy.alternatives.iter())
+            .map(|model| ModelNeed {
+                endpoint: model.endpoint,
+                name: model.name.clone(),
+                window: model.window,
+                output: model.output,
+            })
+            .collect();
+        let needs = Needs {
+            charters: Box::new([CharterNeeds {
+                version: Version { charter: number, revision: 1 },
+                kinds: charter.hosts,
+                models,
+                turns: policy.turns,
+                time: policy.time,
+                waiting: policy.waiting,
+                change_reserve: if policy.modify { Some(policy.reserve_time) } else { None },
+            }]),
+            spend: config.defaults.rules.maximum_run_spend,
+            message_bytes: engine.limits.core.tasks.message_bytes,
+            start_messages: engine.limits.core.tasks.run_inbox,
+            unacknowledged: config.hub_turns,
+        };
+        assert_eq!(
+            jig_domain_fleet::shortfall(&needs, &bounds, HostKind::Worker),
+            None,
+            "charter {number}: stock worker bounds {bounds:?}"
+        );
+        let stored = jig_domain_core::policy_owned_bytes(policy)
+            .and_then(|bytes| bytes.checked_add(jig_domain_core::parts_owned_bytes(&charter.parts)?))
+            .unwrap_or_else(|| panic!("charter {number}: stored policy byte count overflow"));
+        assert!(
+            stored <= run_bytes,
+            "charter {number}: stored policy {stored} exceeds root.journal.run_bytes {run_bytes}"
+        );
+    }
+}
+
+fn reference_worker_bounds(room: &serde_json::Value) -> jig_domain_link::Bounds {
+    let mut agent: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../../../temper-init/template/agent.json"))
+            .expect("init agent configuration");
+    agent["profile"]["declared"]["tool_payload"] = room["tool_payload"].clone();
+    // Only addresses and template placeholders change; no endpoint is contacted.
+    for endpoint in agent["endpoints"].as_array_mut().expect("init endpoints") {
+        endpoint["limits"]["output"] = room["output"].clone();
+        endpoint["address"] = "127.0.0.1:1".into();
+    }
+    let scratch = skein_scratch::Scratch::new("reference-worker");
+    agent["programs"] = serde_json::json!({"claude_code": {
+        "path": scratch.path().join("claude"), "directory": scratch.path().join("programs")
+    }});
+    let path = scratch.path().join("agent.json");
+    std::fs::write(&path, serde_json::to_vec(&agent).expect("agent JSON")).expect("scratch agent");
+    crate::agent::read(&path).expect("stock worker with reference room").bounds
 }
 
 #[test]

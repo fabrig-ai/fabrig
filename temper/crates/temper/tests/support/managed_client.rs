@@ -37,6 +37,7 @@ impl Referee<NativeClient> for Person {
                 Signing::Again | Signing::Busy => self.retry = Some(now.saturating_add(Duration::from_millis(100))),
                 Signing::LinkUsed
                 | Signing::LinkExpired
+                | Signing::Approval(_)
                 | Signing::LinkUnknown
                 | Signing::Refused
                 | Signing::Lost

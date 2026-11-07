@@ -11,6 +11,11 @@ fn main() -> ExitCode {
     skein_fail_stop::install();
     let mut args = std::env::args().skip(1);
     let payload = args.next().unwrap_or_default();
+    if payload == "restore" {
+        skein_fail_stop::before_report(Some(Box::new(|| {
+            let _write_result = std::io::stderr().lock().write_all(b"restored\n");
+        })));
+    }
     let mut thread = std::thread::Builder::new();
     if let Some(name) = args.next() {
         thread = thread.name(name);

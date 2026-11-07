@@ -109,7 +109,9 @@ section 11.
   transport (section 6).
 - **Signed in by jig's printed link,** on loopback, and kept signed in
   across restarts by its bearer credential, which the terminal keeps in
-  the client's private directory (section 7). The forge as people's
+  the client's private directory (section 7). A native client, the
+  TUI, may instead be approved by the person's browser, signed in
+  there, on the approval page (3.5, 7.1). The forge as people's
   sign-in provider is open (section 11).
 - **temper's server owns the clients' listener,** and mounts jig's
   clients' component on it with jig's default HTTP mapping, under
@@ -147,7 +149,11 @@ the shell
 temper-client-shell-terminal    the terminal: temper's host, its settings and lines (section 6)
 ├── skein-ui-text               skein's text shell: the renderer, the command reader, the terminal
 └── jig-client-shell-native     jig's native transport: skein's HTTP client with jig-client-protocol-http; the small store's file and the credential's
-temper                          the binary; `temper open` runs the terminal (../protocol/README.md, section 4)
+temper-client-tui               the TUI: its state, its events, its pages as skein-ui's tree, its words, its look's names and its theme (6.11 to 6.16)
+└── skein-ui-screen             skein's full-screen shell's renderer: the theme, the frame, the focus (skein's ui-screen.md)
+temper-client-shell-tui         the TUI's host, its seam, and its loop over the native transport and skein's full-screen terminal (6.13, 6.16)
+└── skein-ui-screen-terminal    skein's full-screen terminal: the keys, the drawing, the terminal on io
+temper                          the binary; `temper open` runs the terminal, `temper [ADDRESS]` the TUI (../protocol/README.md, section 4)
 temper-client-shell-web         the browser: temper's shell, built for wasm32, its host ordinary Rust and a library on every target (browser.md, 2.1)
 ├── skein-ui-web                skein's browser parts: the page, the DOM, history, fetch, session storage
 └── jig-client-shell-web        jig's client adapter over skein's fetch, and the printed link's sign-in part
@@ -192,8 +198,21 @@ temper-client-journeys          tools/journeys: recorded walks replayed through 
     worlds put skein's fake person where `temper open` puts the
     terminal (section 10);
   - `limits`: the client's limits and their sum.
+- **`temper-client-tui`** holds, as modules: `state`, the TUI's own
+  state beside the client root (6.14); `event`, what its view makes of a
+  person's acts; `words`, its own phrases; `view`, its pages as
+  skein-ui's tree; `look`, its owner and the names of its regions and
+  tokens; `theme`, its two themes (6.15); and `limits`, its tree's. It
+  depends on `skein-ui`, `skein-ui-screen`, skein-lib, `jig-client`,
+  `temper-client-domain` and `temper-client-view`, whose words it says
+  where it says what the view says (6.14), and links no io.
+- **`temper-client-shell-tui`** holds, as modules: `host`, the TUI's
+  one seam (6.13); `run`, its loop (6.16); and `limits`, the client's
+  from `temper-client-shell-terminal`'s with the TUI's view and screen
+  limits beside them.
 - **Step code under the subset:** the domain, the forge's side, the
-  view and the wire. **Ordinary Rust:** the terminal's host and the
+  view, the TUI's state, view and theme, and the wire. **Ordinary
+  Rust:** the terminal's host, the TUI's host and loop, and the
   browser's shell, as a shell is (skein's `ui.md`, section 2).
 - **The client's limits** are constants of
   `temper-client-shell-terminal`: `jig-client`'s, from jig's small
@@ -2961,6 +2980,81 @@ keeps (`../protocol/configuration.md`, section 2).
   leaves `me`, and with it the navigation and every list (5.3); its
   work is jig's to end and erase. The settings' other parts are
   section 11's.
+- **The approval page** (`../draft/tui.md`, 4.2; jig's
+  `protocol/client.md`, section 8, *A sign-in approved by a browser*):
+  where a person signed in to the browser approves a terminal's sign-in,
+  in the browser alone. Its terminal's side is 7.1.
+  - *A place of its own,* `Place::Approve { code }`, at `/terminal`
+    (`browser.md`, 2.3), beside `Authorize`: no page's address, so the
+    pages and the forge's side are left as at any place that isn't
+    theirs (3.3), and the frame is the banner alone (5.1). `code` is an
+    `ApprovalCode` (jig's wire), or none. Its state is the root's, in a
+    module of its own, `approve`, beside `authorize`: made when the place
+    is gone to, dropped when it is left, and kept nowhere, the small
+    store included. `Domain::approval()` gives it to the view, and the
+    root's shown count moves with it.
+  - *Opening it approves nothing.* With a code, the page reads the
+    approval, `jig-client`'s `ReadApproval { code }`, once the link is
+    live and an exchange is free, as the `Authorize` place sends its
+    own; until then, and while it is read, it says "Reading CODE…".
+  - *With no code,* or one the address carried that doesn't read
+    (`browser.md`, 2.3), it asks for one: a field named "Code" and
+    "Check". The field keeps what is typed up to jig's bound on a typed
+    code (`CODE_TYPED_BYTES`, 32 bytes), and marks a field typed past
+    it; "Check", or Enter, reads it as the address's code is read,
+    `ApprovalCode::parse`: letters of the code's alphabet in either
+    case, hyphens and spaces ignored. One that reads is read as above;
+    one that doesn't, or a field typed past the bound, stays in the
+    field with the alert below. A typed code changes no address. The page never
+    lists the approvals that wait: the engine reads one by its code
+    alone.
+  - *Its states,* each a card as the sign-in page's (`browser.md`,
+    2.5), under temper's mark, its level-1 heading and its words, CODE
+    the code as shown (`WDJB-MJHT`):
+
+    | State | Heading | The card | Its acts |
+    |---|---|---|---|
+    | asking for a code | "Sign in a terminal?" | "Type the code your terminal shows.", the field | "Check" |
+    | a typed code that doesn't read | "Sign in a terminal?" | the same, the field as typed, and the alert "That isn't a terminal's code. Type the eight letters your terminal shows." | "Check" |
+    | reading | "Sign in a terminal?" | "Reading CODE…" | none |
+    | the ask, the approval waiting | "Sign in a terminal?" | CODE, large; "Asked AGO" (5.12's *ago*, from the read's wall time); "Approve only a code your own terminal shows." | "Approve", "Refuse" |
+    | deciding | "Sign in a terminal?" | the ask's, "Approving…" or "Refusing…" in its buttons' place | none |
+    | approved, waiting for the terminal's take | "Approved" | CODE; "Waiting for your terminal to sign in…" | none |
+    | signed in, taken | "Terminal signed in" | "Signed in. You can close this tab." | none |
+    | refused | "Sign-in refused" | "This terminal's sign-in was refused. Nothing was signed in." | none |
+    | expired | "Code expired" | "This code has expired. Ask again in your terminal." | none |
+    | used | "Code already used" | "This code was already approved or refused. If your terminal isn't signed in, ask again there." | none |
+    | unknown | "Unknown code" | "temper doesn't know this code. Check the code your terminal shows, or ask again there." | "Type a code" |
+    | signed out | "Sign in first" | "This browser isn't signed in to temper. Open the sign-in link temper printed first, then open this page's address again: your terminal shows it." | none |
+    | busy, not ready or lost | "temper couldn't answer just now" | "It is starting or stopping, busy, or out of reach. Try again in a moment." | "Try again" |
+
+  - *Deciding:* "Approve" and "Refuse" each send `DecideApproval {
+    code, approve }` once, when the link is live and an exchange is
+    free, and the page is deciding until it is answered: approved,
+    refused, used, expired or unknown as the table says. Nothing sends
+    a decision by itself, and none is sent again.
+  - *Approved:* the page reads the approval again each second
+    (`approve::AGAIN`) while it stays approved, from the answer's
+    turn, to learn the terminal's take: taken is signed in, and the
+    reading ends. The approval's own expiry ends it otherwise, answered
+    expired (jig's `protocol/client.md`, section 8, *Never taken,
+    nothing made*), so a page left open reads at most for the
+    approval's ten minutes. A read answered busy, not ready or lost
+    meanwhile keeps the page approved and reads again a second later.
+  - *Ended:* signed in, refused, expired, used and unknown read no more.
+    "Type a code" returns to the field, empty, its code dropped.
+  - *Signed out:* the link signed out, before a read or after, or a read
+    or a decision answered signed out (which signs the client out,
+    jig's `client/domain/client.md`, section 12), draws "Sign in first"
+    in place of the pages' signed-out paragraph and sign-in page (5.1).
+    An answer of not a browser draws it too: the page's exchanges carry
+    the cookie (`browser.md`, 2.4), so the answer says they reached the
+    engine without it, and the remedy is the same. The printed link's
+    sign-in lands on `/welcome` (`browser.md`, 2.4), so the person comes
+    back by the address their terminal shows.
+  - *Busy:* a read or a decision answered busy, not ready or lost.
+    "Try again" reads the approval again, from its code, so that a
+    decision lost on its way back shows as it stands.
 
 ### 3.6 Requests and confirmations
 
@@ -4119,7 +4213,13 @@ client removes no account and closes no chat of its own.
     of date, none;
   - *the main:* the page at the address (3.5), its title its level-1
     heading, but `Home`'s, whose headline changes with what it says:
-    "Home".
+    "Home";
+  - *at the approval place* (3.5, *The approval page*), in the browser
+    alone: the banner, as at the `Authorize` place, then the page's
+    card as the main, whatever the link's state; no rail, tab bar,
+    accounts' or playground's banner, and no paragraph of the pages
+    not about the work (below), whose words the card's own states
+    take.
 
   Then skein-ui diffs it and keeps the tree.
 - **The pages not about the work** (jig's `client/domain/pages.md`,
@@ -4146,6 +4246,10 @@ client removes no account and closes no chat of its own.
   - *signed out at the authorization:* the `Authorize` place's sign-in
     page, "to continue to FORGE" under its heading, its link's `then`
     the authorization's address (`../protocol/sign-in.md`, 9.3);
+  - *signed out at the approval:* the approval page's own card, "Sign
+    in first" (3.5, *The approval page*), in place of the paragraph and
+    of the sign-in page: the approval is offered on loopback alone, where
+    the printed link is the browser's way in;
   - *signed out, the link's sign-in not taken:* while the link's view
     says why its last sign-in installed nothing and the link stays
     usable (jig's `client/domain/client.md`, section 12,
@@ -5740,7 +5844,8 @@ On both:
 - **Where they are said:** a chats line's last activity or end, an ago
   (3.5); a chat's turns and its end, clocks under the day's rules
   (3.5); a card's wait, a span, in the inbox and on a chat's page; an
-  update's arrival in the inbox, an ago (3.5). The task pages and the
+  update's arrival in the inbox, an ago (3.5); the approval page's ask,
+  an ago (3.5, *The approval page*). The task pages and the
   accounts page say their moments as their sections do (5.5, 5.8,
   5.9), in universal time, and so does a full deployment's earliest end
   (5.1, the pages not about the work).
@@ -6159,7 +6264,7 @@ measures it (skein's `ui-web.md`, section 7).
   `(up, down: more lines)`; there is no pill, and sending on a chat reads
   the end again.
 
-## 6. The terminal shell
+## 6. The terminal shells
 
 ### 6.1 `temper open DIRECTORY LINK_OR_ADDRESS`
 
@@ -6388,7 +6493,7 @@ its view, both step code; golden text fixes how temper's pages print
 ### 6.9 While a run's text streams
 
 The terminal is chiefly the real loop's test surface (`../domain/testing.md`,
-2.4): people use the browser, or a later full-screen terminal. While a
+2.4): people use the browser, or the TUI (6.11). While a
 run's text streams, the terminal reprints the whole page at each print
 interval (6.3), as skein's text shell does, with the chat's provisional
 turn as the page draws it (section 3.5); the print interval is the only
@@ -6412,6 +6517,351 @@ world, `tests/client`, starts its clients so, with no shell
 (`fixtures::task_page`), and proves the root's part:
 in rung B2's story (section 10) a fresh client started at a delegate's address
 draws its heading and its "Task brief".
+
+### 6.11 The TUI: `temper [ADDRESS]`
+
+The TUI (`../draft/tui.md`) is a person's full-screen terminal client:
+temper's client root, a view of its own and skein's full-screen shell
+(skein's `ui-screen.md`), over the native transport `temper open` uses.
+Its first pass (`../draft/tui.md`, section 4) signs in by the box's
+printed link, pasted, and draws a first screen that proves the
+connection, live (6.14). `temper open` stays the tests' line client
+(6.9).
+
+- **Bare `temper`** runs the TUI when stdin and stdout are both
+  terminals (skein-shell's `terminal_modes` answers for descriptors 0
+  and 1), at the address its directory keeps (6.12), else at
+  `http://127.0.0.1:8367`, the clients' port `temper init` prefers
+  (`../../help/reference/commands.md`). Otherwise it prints the line it
+  printed before the TUI, `temper: no command; temper --help lists
+  them`, and exits 1.
+- **`temper ADDRESS`** names the engine's clients' listener,
+  `http://HOST:PORT`, with or without a final `/`, HOST an IP address on
+  loopback, read as `temper open` reads an address (6.1). A box whose
+  port fell back to another is named by its address.
+- **The link is never an argument,** as `temper ctl`'s isn't
+  (`tools.md`, 8.1): the TUI takes it pasted on its sign-in screen
+  (6.14), and refuses it as ADDRESS.
+- **One argument at most,** an address: a first word that is no
+  address and no command is no command, as before
+  (`temper: no command WORD; temper --help lists them`).
+- **Exit status:** 0 once the TUI closed (6.16); 1 when it cannot
+  start, with one line on stderr:
+
+  | Cause | stderr |
+  |---|---|
+  | ADDRESS given, stdin or stdout not a terminal | `temper: the TUI needs a terminal on stdin and stdout` |
+  | ADDRESS not an `http://` address, or HOST not an IP address and port | `temper: not an address: ARG` |
+  | ADDRESS a sign-in link | `temper: a sign-in link is never an argument: run temper http://HOST:PORT and paste it` |
+  | HOST not on loopback | `temper: the engine's address must be on loopback` |
+  | two arguments or more | `temper: invalid arguments` and the usage, `usage: temper [ADDRESS]` |
+  | the directory unresolved or refused (6.12) | `temper: DIRECTORY: ` and what was refused |
+
+  A panic aborts the process (fail-stop), the terminal left as it was
+  found (6.16).
+
+### 6.12 Its directory
+
+- **Where:** `$XDG_STATE_HOME/temper/tui` where `XDG_STATE_HOME` is an
+  absolute path, else `$HOME/.local/state/temper/tui` (skein-shell's
+  `Base::State` for the tool `temper`, then `tui`); with neither, the
+  start is refused. It is the TUI's alone, never `temper open`'s or
+  `temper ctl`'s, and no argument names it.
+- **Private,** as `temper open`'s (6.1): the binary makes it and its
+  missing parents `0o700` and refuses it unless it is a directory of
+  this user's with no group or other bits (skein's `io.md`, 5.3), then
+  opens its parent as a root and gives `tui` to
+  `jig-client-shell-native`, as `temper open` gives DIRECTORY's last
+  component.
+- **What it holds:**
+  - `token`, the bearer credential, and `store`, the small store, both
+    the native shell's files, kept as section 7 says;
+  - `address`, the address the TUI last signed in to, `http://HOST:PORT`
+    and nothing else, `0o600`. The binary reads it once at start, at
+    most 64 bytes; one absent, empty, unreadable or not an address
+    reads as none, and the default holds. Once the TUI has closed, if it
+    signed in at an address the file did not hold, the binary writes
+    the file whole through skein's io (skein-shell's `store_file`, a
+    synced temporary replacing it).
+- **One sign-in at a time:** the token is the engine's it was made at.
+  Started at another address, the TUI offers it there, the engine
+  there refuses it, and the TUI erases it and asks for that engine's
+  link (6.14).
+
+### 6.13 Its host and the seam
+
+- **One seam,** shaped as the browser's host's (`journeys.md`, section
+  2): `temper-client-shell-tui`'s `host::Host`. What reaches it is a
+  report, what it asks back is its duties, and it lays the frame. The
+  loop (6.16), the client's joint world (section 10) and the TUI's
+  recorder and replay (`../draft/tui.md`, section 5) all call it, and
+  nothing else of it.
+- **It holds** temper's client root, `temper-client-domain`'s `Domain`,
+  linked, as `temper open`'s native client holds it (6.2); the TUI's
+  state and view (6.14); the focus; and the frame. It holds no io, no
+  file, no clock and no randomness of its own: what it does is a
+  function of its reports, its clocks and its seed.
+
+  ```rust
+  pub struct Start {
+      pub size: skein_ui_screen::Size,
+      pub scheme: temper_client_tui::Scheme,          // 6.15
+      pub address: Box<[u8]>,                         // HOST:PORT
+      pub kept: Vec<jig_client::Record>,              // the small store's records
+      pub credential: Option<skein_lib::Secret>,      // DIRECTORY/token's
+  }
+  pub enum Report { Start(Start), Due, Key(skein_ui_screen_terminal::Key), Resize(skein_ui_screen::Size),
+      Heard(jig_client::Event), Kept { written: bool } }
+  pub struct Duties {
+      pub asked: Vec<jig_client::Request>,            // to the native shell, in order
+      pub keep: Option<Option<skein_lib::Secret>>,    // the credential to write; Some(None) erases it
+      pub address: Option<Box<[u8]>>,                 // the address signed in to (6.12)
+      pub open: Option<Box<[u8]>>,                    // an address for a browser
+      pub close: bool,
+  }
+  impl Host {
+      pub fn new(settings: &Settings, seed: u64, now: Time, wall: Wall) -> Host;
+      pub fn clocks(&mut self, now: Time, wall: Wall);
+      pub fn report(&mut self, report: Report) -> Duties;
+      pub fn frame(&mut self) -> &skein_ui_screen::Frame;
+      pub fn tree(&self) -> &skein_ui::Tree;
+      pub fn event_of(&self, key: &skein_ui_screen_terminal::Key) -> Option<temper_client_tui::Event>;
+      pub fn deadline(&self) -> Option<Time>;
+  }
+  ```
+
+- **The reports:** `Start`, once and first, with the window's size, the
+  scheme, the address, and the small store's records and the
+  credential as the native shell loaded them; `Due`, the root's
+  deadline reached; `Key`, one key as skein's decoder made it (skein's
+  `ui-screen.md`, 6.1); `Resize`, the window's new size; `Heard`, one of
+  the transport's or the small store's events, as the native shell gives
+  them; `Kept`, the credential's write ended, written or not. Any report
+  before `Start` is the host's defect.
+- **The duties** of each report: the root's requests for the native
+  shell, in order, each routed as `temper open` routes them (6.2); the
+  credential to keep, or none to erase it; the address signed in to,
+  once, the first time the link is live with a party; an address for a
+  browser to open, which nothing asks in this pass; and closing, once.
+  After closing, every report but `Heard` and `Kept` does nothing, so
+  the native shell's last write still lands.
+- **The credential:** after each report the host reads it from
+  `jig-client`'s `link()`, through the root. One that differs from the
+  one kept is a duty to keep it, before the first screen is drawn on it;
+  none, while the link is signed out by any means (a sign-out
+  elsewhere, a sign-in ended, a held credential the engine does not
+  know), is a duty to erase it. A sign-in kept by the engine leaves the
+  credential as it was, and writes nothing (section 7).
+- **A key** goes through skein's key reader (skein's `ui-screen.md`,
+  6.2) on the tree and the focus the last frame laid, so that a key
+  acts on what the person saw: an act on a node becomes the TUI's event
+  through its view, if the view names one (6.14); the focus moved draws
+  again; Ctrl+C closes. `Host::event_of` gives the event a key would
+  make, without giving it.
+- **The frame:** `Host::frame` lays the view's tree with skein's
+  renderer at the window's size, in the start's theme, with the host's
+  focus (skein's `ui-screen.md`, section 5). After each report the
+  host has already built its view from the root and the TUI's state,
+  so `Host::tree` is the tree the next key reads.
+- **Shaped for the recording now:** a recording is the start's facts,
+  then turn by turn the clocks, each report with its duties, each key
+  with its event, and a mark for each frame the person saw; a replay
+  gives the same reports to a fresh host and finds the same duties and
+  frames. The browser to open is a duty now, so that the browser's
+  approval (`../draft/tui.md`, 4.2) and the recording add no field to
+  the seam.
+
+### 6.14 Its pages
+
+Two screens, each a tree of the TUI's view, built from the root's link
+and `me` and the TUI's own state: signing in, while the link is signed
+out, and the first screen once signed in. Each has a framed top, the
+region `tui-top`, titled "temper", and a bottom row, the region
+`tui-bottom`, spread: what closes the TUI, and the link's state. Their
+frames are illustrative: their words and look are refined on the
+recording (`../draft/tui.md`, section 5).
+
+- **The TUI's state,** `temper-client-tui`'s `Tui`, holds what the root
+  does not: the address, the field's value, the sign-in's progress
+  (asked, answered, lost, or the TUI's own refusal of what was pasted),
+  whether the link was signed out after a sign-in, and whether the
+  credential's last write failed. The root stays the one source of the
+  link's state and of `me`.
+- **Its words:** where the TUI says what `temper-client-view` says, it
+  says the view's phrases (`temper-client-view`'s `words`): the link's
+  states, "Live", "Connecting", "Offline", "Signed out" and "Out of
+  date" (5.1); a link used, expired or not this temper's, and the
+  sign-ins full; "No project yet"; "This temper is out of date: run
+  the temper the engine runs."; "Signed out.". Its other words are its
+  own phrases, under an owner of its own (skein's `ui.md`, section 9).
+- **The link's state** is the bottom row's last child, a status in the
+  view's words after the TUI's own `●`: "Live" once `me` is read on a
+  live link, "Connecting" while it starts or before `me`, "Offline",
+  "Signed out", "Out of date", each in its token's paint (6.15).
+
+**Signing in**, illustrative:
+
+```
+╭─ temper ─────────────────────────────────────╮
+│ Sign in this terminal to 127.0.0.1:8367      │
+│ Paste the link temper printed, then Enter.   │
+│ Link: ••••••••••••••••••••••••••             │
+│ Signing in…                                  │
+╰──────────────────────────────────────────────╯
+
+ Ctrl+C to quit                     ● Signed out
+```
+
+- **The paste:** one text field, "Link", a secret, drawn masked (skein's
+  `ui-screen.md`, 5.4), that submits on Enter, its placeholder the
+  link's shape at the TUI's address, and the focus asked for it as the
+  screen opens. A paste fills it whole (skein's `ui-screen.md`, 6.2). A
+  `q` types in it, so the bottom row says "Ctrl+C to quit".
+- **Enter** checks the field with jig's parser of the printed link
+  (`jig-client-protocol-http`'s `printed`, under the default mapping's
+  prefix `/jig`; section 7), and that its `HOST:PORT` is the TUI's
+  address:
+  - not a link: "That is not a sign-in link: paste the whole link
+    temper printed.";
+  - a link for another address: "That link is for HOST:PORT. To sign
+    in there, run temper http://HOST:PORT."; nothing is sent;
+  - a link for this address: the host asks the root `SignIn { with:
+    Link { secret, held } }`, held the credential the directory holds,
+    as `temper open` does (section 7), and the field is emptied; the
+    secret stays in the TUI's state only until then.
+- **While it signs in:** "Signing in…". `jig-client` sends the link
+  again by itself, after a backoff, when the engine answers not ready
+  or busy, or no answer comes (jig's `client/domain/client.md`, section
+  12), and the TUI says which: "Signing in: the engine is busy; trying
+  again.", "Signing in: the engine is starting or stopping; trying
+  again.", "Signing in: no answer from the engine; trying again.".
+- **Refused:** a link used, expired or not this temper's, or the
+  sign-ins full, in the view's words (5.1); a link refused otherwise,
+  "This link was refused. Use the fresh one temper printed.". The field
+  waits for another.
+- **Room for the browser's approval:** the paste is the last way of
+  signing in on the screen, under its own lines, so that the approval
+  (`../draft/tui.md`, 4.2) is laid above it.
+- **Signed out elsewhere:** the link signed out after a sign-in, by any
+  means (a sign-out from another client, the sign-in ended or expired,
+  a held credential the engine does not know): the token is erased
+  (6.13), and the screen shows again under the view's "Signed out.".
+
+**The first screen**, illustrative (`../draft/tui.md`, 4.3):
+
+```
+╭─ temper ─────────────────────────────────────╮
+│ Connected to 127.0.0.1:8367 as Owner         │
+│ Projects: Hello · Demo                       │
+╰──────────────────────────────────────────────╯
+
+ q to quit                                ● Live
+```
+
+- **What it reads:** `me` (3.1), its party's name and its projects'
+  names, through `root.pages().me(root.client())`, and the link's state,
+  live: each change is drawn at the next frame. With no project, the
+  view's "No project yet".
+- **Before `me`:** "Connecting to HOST:PORT", the state "Connecting".
+- **The engine stopped and started again:** the state goes "Offline",
+  then "Live" again; `me` stays drawn as last read, and nothing is lost,
+  since `jig-client` keeps the watches and opens them again (3.3).
+- **Out of date:** the view's "This temper is out of date: run the
+  temper the engine runs." in place of the lines, the state "Out of
+  date".
+- **q to quit:** a button whose shortcut is `q`, no modifier (skein's
+  `ui.md`, 6.1); its press closes the TUI (6.16).
+- **A sign-in not kept:** when the credential's write failed, a line
+  "This sign-in could not be kept: the next temper asks for a link
+  again.".
+
+### 6.15 Its theme
+
+- **Two themes,** dark and light, `skein_ui_screen::Theme`s that
+  `temper-client-tui` gives by its `Scheme` (`Dark`, `Light`), whole
+  (skein's `ui-screen.md`, section 3), from the browser's chat terminal
+  (`browser.md`, 2.5, *A chat's terminal*) and the palette its
+  stylesheet, `temper.css`, holds there:
+
+  | Colour | Dark | Light | What it paints |
+  |---|---|---|---|
+  | bg | `#191816` | `#fffefd` | the base's background |
+  | ink | `#e8e3da` | `#34312c` | the base's text |
+  | dim | `#9a9388` | `#7a736a` | the hints, "Connecting", the sign-in's progress |
+  | faint | `#6a655c` | `#b5aea3` | the border, the placeholder |
+  | sel | `#2a2825` | `#f4f0e9` | the focus's background |
+  | accent | `#e08a68` | `#b8664e` | the title, "Offline", "Signed out", "Out of date", a refusal |
+  | good | `#8fc28f` | `#3f7d4e` | "Live" |
+
+  The terminal's `--line` is left out: a border's glyphs in it would
+  barely show.
+- **Its regions,** placed by name (skein's `ui-screen.md`, 5.2):
+  `tui-top` at the top, its children on lines, framed by `╭ ╮ ╰ ╯`, `─`
+  and `│` in the faint colour, its first level-1 heading in the border
+  as its title, one column of padding; `tui-bottom` at the bottom,
+  spread along one row, one column of padding. Nothing else is placed;
+  the body is empty in this pass.
+- **Its tokens:** `tui-title` (accent, bold), `tui-hint` (dim),
+  `tui-live` (good), `tui-waiting` (dim), `tui-down` (accent) and
+  `tui-refused` (accent), under the TUI's owner, its names' prefix
+  `tui` (skein's `ui.md`, section 8).
+- **Its glyphs:** `❯` the focus mark, `•` the mask; the focus's paint
+  the selection's background.
+- **Chosen by the binary** from the environment: light where
+  `COLORFGBG`'s last field, the background the terminal declares, is 7
+  or 15, else dark; the colours' depth 24-bit where `COLORTERM` is
+  `truecolor` or `24bit`, else the 256 indexed ones (skein's
+  `ui-screen.md`, section 7).
+
+### 6.16 Its loop and closing
+
+- **One host on skein's loop** (skein-shell's `drive`),
+  `temper-client-shell-tui`'s `run::Run`: the host (6.13);
+  `jig-client-shell-native`'s `Shell`, its transport and its files, as
+  `temper open`'s; skein's full-screen terminal on stdin and stdout
+  (skein's `ui-screen.md`, section 8); and SIGINT, SIGTERM and SIGWINCH
+  from skein-shell's `open_signals` with `Watch::TerminationAndWindow`,
+  adopted by an io of its own. A completion goes by its tag: the
+  terminal's (`Terminal::owns`), the signals' (bit 61), else the native
+  shell's.
+- **Its settings,** `temper-client-shell-tui`'s `limits`: the client's
+  and its connections' from `temper-client-shell-terminal`'s
+  `limits::native()`; the TUI's tree's from `temper-client-tui`'s
+  `limits`; a frame of at most 200 rows by 500 columns; a paste of at
+  most 512 bytes, the link's field's bound; a frame drawn at most every
+  20 ms.
+- **Each iteration:** the native shell iterates; once it has loaded the
+  token and the small store, `Start`, at the terminal's size; then the
+  credential's write ended, the transport's events, the window's size
+  when it changed, the keys, and the root's deadline when it is due,
+  each a report whose duties are carried at once: the requests to the
+  native shell, the credential kept or erased, the address noted for
+  the binary, closing. Once anything was reported, the host's frame
+  goes to the terminal, which draws the newest at its pace. No key is
+  taken and no frame drawn before `Start`.
+- **Time and the seed** are skein-shell's, as `temper open`'s (6.2).
+- **Closing:** `q` on the first screen, Ctrl+C anywhere, the input's
+  end, SIGINT or SIGTERM. The TUI doesn't sign out. The terminal
+  finishes the write it began and writes its `LEAVE`; the native shell
+  finishes the small store's last write, then closes its connections
+  and files; the binary sets the terminal's modes back, writes the
+  address (6.12) and exits 0. What is pending stays in the small store,
+  as `temper open`'s does (6.6).
+- **Its startup** is the binary's (skein's `ui-screen.md`, section 8):
+  the input set raw with the interrupt keys passed as bytes
+  (`Keys::Pass`), so that Ctrl+C is a key; then the restoration
+  skein-shell's kept modes make, `Kept::on_abort(stdout, LEAVE)`, given
+  to skein-fail-stop's hook before the loop and taken back after it,
+  before the modes are set back, so that a panic leaves the terminal as
+  it was found and its report reaches the person's own screen (skein's
+  `programming-model.md`, section 2).
+- **A directory the native shell's files refuse** after the binary
+  checked it: the run closes, its `LEAVE` written, and the binary prints
+  `temper: DIRECTORY: cannot open its files` and exits 1.
+- **macOS** builds it with skein-shell's and skein-io's portable parts
+  alone.
+
+Its tests are section 10's; its later passes, section 11's.
 
 ## 7. Signing in and the small store
 
@@ -6478,6 +6928,106 @@ temper's:
   plaintext. Clients between hosts, over TLS, come after standalone.
 - **One person.** The deployment's link signs in its first owner;
   signing in through the forge is open (section 11).
+
+### 7.1 A terminal signed in from the browser
+
+jig's third built-in way (jig's `protocol/client.md`, section 8, *A
+sign-in approved by a browser*; `../draft/tui.md`, 4.2): a native
+client on the person's machine, the TUI, asks; the person's browser,
+signed in by its cookie, approves at the approval page (3.5, *The
+approval page*); the client takes the sign-in with the secret its ask
+was answered with. A box enables it beside the printed link
+(`../protocol/configuration.md`, section 3, clients).
+
+- **The root's half,** for a native client, in `temper-client-domain`,
+  a module of its own, `asked`:
+  - *Asking:* `Event::AskApproval`, the host's, while the link is signed
+    out; at any other time, or while an ask is in flight, it changes
+    nothing. The root sends `jig-client`'s `AskApproval` and holds
+    `asked::State::Asking`.
+  - *Asked:* on `jig-client`'s `Approval::Asked { secret, code, expires
+    }`, the root signs in at once, `SignIn { with: Approval { secret }
+    }`, and holds `Asked { code, expires }` alone, for its host to draw.
+    The secret goes to `jig-client`, which holds it while the take runs
+    (jig's `client/domain/client.md`, section 12), never into the
+    root's state, a print or a log. An unlinked client (jig's
+    `client/domain/client.md`, 4.4) leaves the take to its host's link,
+    which made the ask and holds the secret: the root holds the code
+    and the expiry, and drops the secret it was told.
+  - *Not asked:* `NotAsked(Refused | NotReady | Busy | Lost)`, held as
+    it came, for its host's line.
+  - *The take's outcomes are the link's,* in `jig-client`'s `link()`:
+    while it waits, `not_signed_in` is `Approval(Waiting)`, and
+    `jig-client` sends the take again each second; refused, expired,
+    used and unknown end it, `Approval(..)`; full, `Full { .. }`, its
+    `link_until` the approval's own expiry; signed in, the link starts,
+    its credential in `link().credential`, which the host keeps as it
+    keeps a link's (section 7, *The bearer credential*). Once the link
+    leaves signed out, the root drops what it held.
+  - *Asking again* is another `AskApproval`: its take replaces the one
+    before.
+  - `Domain::asked()` gives the state to the host and the view, and the
+    root's shown count moves with it.
+- **The TUI's flow,** on the TUI's sign-in screen (`../draft/tui.md`,
+  4.1), its host and its view, the TUI's crates:
+  - *It asks* when its sign-in screen opens signed out, and the screen
+    still takes the printed link, pasted, as `../draft/tui.md`, 4.1 has
+    it.
+  - *The tab's address* is the TUI's own, made from its own parts alone:
+    the engine's address it was given or kept, `http://HOST:PORT`, then
+    the approval page's printed path, `address::print_approve(Some(code))`,
+    `/terminal?code=WDJB-MJHT` (`browser.md`, 2.3), the code an
+    `ApprovalCode`, so of the code's alphabet by its type. It opens no
+    address the engine sent, and gives the address to the opener as one
+    argument, with no shell between: `xdg-open ADDRESS` on Linux, `open
+    ADDRESS` on macOS, a departure, on purpose, from `temper open`,
+    which opens no browser (6.5).
+  - *Its lines,* the code and the address drawn, the code as shown:
+
+    ```
+    Sign in this terminal
+    A tab opened in your browser. Check it shows
+    WDJB-MJHT, then press Approve.
+    No tab? Open http://127.0.0.1:8367/terminal?code=WDJB-MJHT
+    The code expires in 10 min.
+    ```
+
+    "The code expires in SPAN." is 5.12's *span* to the ask's expiry,
+    with its tick.
+  - *No browser to open:* an SSH session (`SSH_CONNECTION` or `SSH_TTY`
+    set), no display (on Linux, neither `DISPLAY` nor `WAYLAND_DISPLAY`
+    set), or the opener failing (not found, or exiting other than 0):
+    the TUI opens nothing more and prints the address and the code,
+    "Open this address in a browser that reaches temper:", the address,
+    "and check it shows CODE, then press Approve.", then "From another
+    machine, tunnel port PORT to this one first." The engine is on
+    loopback, so a browser elsewhere reaches it through a tunnel to its
+    listener on the same port, which jig's guards require of the
+    address (jig's `protocol/browser.md`, 12.2).
+  - *Each outcome's line,* in place of the screen's last line; a key of
+    the sign-in screen asks again (`a`, "Press a to ask again."), as
+    the screen's other keys are the TUI's:
+
+    | Outcome | Its line |
+    |---|---|
+    | waiting | the screen as drawn |
+    | refused | "The browser refused this sign-in. Press a to ask again." |
+    | expired | "The code expired before it was approved. Press a to ask again." |
+    | used | "That code was already used. Press a to ask again." |
+    | unknown | "temper doesn't know that code any more: it restarted, or the code is old. Press a to ask again." |
+    | full | "All N sign-ins are in use; the earliest ends MOMENT UTC. Press a to ask again then." (5.1's full, its moments so said) |
+    | the take busy, not ready or lost | "temper is busy; still trying…", while `jig-client` sends it again |
+    | not asked: refused | "This temper doesn't sign terminals in from the browser. Paste the link it printed instead." |
+    | not asked: busy | "Too many terminals are waiting to sign in. Press a to ask again in a moment." |
+    | not asked: not ready or lost | "temper is starting or stopping, or out of reach. Press a to ask again." |
+
+  - *Signed in:* the TUI keeps the credential in its directory
+    (`../draft/tui.md`, 4.1), as `temper open` keeps a link's (section
+    7), before anything is told of the sign-in, and draws its first
+    screen; the page says "Signed in. You can close this tab." (3.5).
+  - *Never printed:* the secret and the credential are drawn, printed
+    or logged nowhere; the TUI's recordings redact them
+    (`../draft/tui.md`, section 5).
 
 ## 8. On the engine's side
 
@@ -6922,6 +7472,23 @@ own tests:
   interrupt, `q` drained. And, in a unit test, the terminal made from
   `limits::native()`'s limits, as `temper open` makes it, so the gate
   meets a refusal of temper's own limits before the process tier does.
+- **The TUI** (6.11 to 6.16): golden frames, `Frame::print`s laid by
+  skein's renderer in the TUI's theme, kept beside `temper-client-tui`'s
+  step tests and changed only by hand: the first screen at 80 by 24 and
+  40 by 12, dark and light, and signing in at 80 by 24. Rows of its
+  state and view (each sign-in line, each link state, each act's
+  event), of its host (the pasted link's checks, the credential's
+  duties, the reports' order, a key's event), of its loop on skein's
+  simulated machine (each way out writing the terminal's `LEAVE` last
+  and exiting 0), and of the binary's parts as functions (the command's
+  parse, the directory's resolution, the scheme and the depth). Nothing
+  opens a terminal or a browser.
+- **The TUI in the joint world** (`../domain/testing.md`, 6.3): its
+  shipped host, its root linked, its requests carried to the engine's
+  clients' component as a native shell carries them, the component
+  given a printed link: signed in by the link pasted, drawing `me`; the
+  engine restarted under it, "Offline" then "Live" and `me` still drawn;
+  signed out elsewhere, back at signing in with the token erased.
 - **`tests/client`** (`temper-client-world`), the joint world
   (`../domain/testing.md`, 2.1 and 6.3): temper's client root and view, with
   skein's fake person acting on the tree, joined to temper's engine
@@ -7065,6 +7632,27 @@ own tests:
   (`browser.md`, section 4).
 
 ## 11. Open questions
+
+- **The TUI's later passes** (6.11 to 6.16): the browser's approval
+  above the paste (`../draft/tui.md`, 4.2), the recording at the host's
+  seam (its section 5), and everything of its sections 3 and 7. Default:
+  the first pass alone, in `../draft/tui.execution.md`'s order.
+- **The TUI after landing** (6.11 to 6.16): on a fresh box, paste its
+  printed link into the TUI in another terminal and read the first
+  screen (`../draft/tui.execution.md`, M1). Its frames' refinement
+  follows the recording; simulated closing and client-world stories
+  do not establish the real terminal's look or macOS runtime.
+- **The TUI's address kept at closing** (6.12): the binary writes it once
+  the loop has ended, so a TUI killed outright keeps the address it
+  read. Default: so; writing it at the sign-in would give the loop file
+  io of its own.
+- **The TUI's scheme from `COLORFGBG`** (6.15): a terminal that declares
+  no background is drawn dark. Default: so, until skein's full-screen
+  shell asks the terminal its colours (skein's `ui-screen.md`, section
+  10).
+- **The TUI while offline** (6.14): the first screen keeps "Connected to
+  HOST:PORT as NAME" while the state says "Offline". Default: so, its
+  words refined on the recording.
 
 - **The chat terminal after landing** (3.5): temper/ui compares
   `chat-terminal`, `chat-terminal-font`, `chat-terminal-draft` and

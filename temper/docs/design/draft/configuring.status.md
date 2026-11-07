@@ -9,4 +9,5 @@ The design carries sections 2 to 6 and 8.1: jig's `domain/engine.md`, section 17
   - 5.1: "How work runs" is first a tab of what the project shows and how its questions go (`../client/README.md`, 5.13), the user's decision of 2026-11-05 through `ui-settings`: the roles, ways to start work, rules, running work and history are that section's Later, with the review page; 5.2's card accepts, as the mock's does.
   - 5.2: the chat's card has no Reject: `../client/README.md`, 5.13, has a person reject on the card in Needs you, while *Change something* has the agent propose again, its fresh proposal replacing the one that waits (`jig/docs/design/domain/tasks.md`, section 9). Decided by the request `ui-proposal-2` of 2026-11-06.
 - **Design lags:**
+  - 8: its agent is the configuring agent, where `ask-temper.md`, section 9, has Ask temper take its place, its acceptance kept (the user, 2026-11-07).
   - 8.2: no design document holds stage 2, `v0.1.0.md`'s rung D, which waits for rung C.

@@ -615,8 +615,8 @@ What the store asks of the domain is `store.md`, section 15.
   (`../client/domain/`).
 - **jig owns credentials, the application owns sign-in flows.** jig
   mints, verifies, expires and revokes credentials, and keeps their
-  digests; its built-in ways of signing in are the printed link and
-  services' credentials. Every other way runs on the application's
+  digests; its built-in ways of signing in are the printed link,
+  services' credentials and a sign-in approved by a signed-in browser. Every other way runs on the application's
   routes and ends in a `Mint`, which only its server code sends, and
   which names an identity of a provider of kind application
   (`configuration.md`, section 3). jig adds no "acting for": a bot

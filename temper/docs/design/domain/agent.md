@@ -561,6 +561,10 @@ delegate from what it knows:
   charter's models or the authority's refuses the call, naming the
   model and why. A role left out names none, and each of its agents takes
   its models at each run's check (jig's `domain/tasks.md`, section 3).
+  A role's choice carries no `later` (`../draft/per-wake.md`, section
+  5): a change's producers resume or finish in one activation, so each
+  of its agents takes the one choice at every run, and the root makes
+  each with no `later`.
 - **`repairs`:** the red landing the change repairs
   (`after-landing.md`, section 7), by its merge commit's full
   hexadecimal digits, as the red's news names it: a landing of temper's
@@ -1440,6 +1444,15 @@ host:
   host tool answered busy by the engine, asked again and decided once.
 
 ## 10. Open questions
+
+- **A real chat choosing `change`** (4.3 and 4.3.2): the owned-forge
+  landing story requires the chat's own successful `change`, rather than
+  a goal's change. Observe whether `goal`'s declaration steers a plain
+  repository change there, and whether the branch-read guidance gives a
+  real run its next read. Default: declarations and bounded refusal
+  guidance, without a new admission restriction; the existing live story
+  runs after landing (`testing.md`, 2.7). A scripted call establishes
+  neither model choice nor recovery.
 
 - **Forge-read fallout with real agents** (section 8): the existing
   ChatGPT and Claude Code owned-forge landing stories check that a real

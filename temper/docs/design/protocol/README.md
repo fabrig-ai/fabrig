@@ -175,7 +175,8 @@ deployment     temper init [DIRECTORIES] [--box]
                temper program-login [DIRECTORIES] NAME
                temper forge fetch|prepare|sign-in|remove [DIRECTORIES] FORGE
                temper forge run [DIRECTORIES] FORGE forgejo|runner
-clients        temper ctl DIRECTORY GROUP VERB [ARGUMENT...] [--json]
+clients        temper [ADDRESS]
+               temper ctl DIRECTORY GROUP VERB [ARGUMENT...] [--json]
                temper ctl DIRECTORY --call FILE [--json]
                temper ctl help [GROUP [VERB]]
                temper open DIRECTORY LINK_OR_ADDRESS
@@ -263,6 +264,15 @@ default; the document is `temper.json` in the configuration directory
   temper reads it, a `"fetched"` program naming its launcher
   (configuration.md, section 5; setup.md, 6.6). The worker's protocol layer spawns it,
   one process per run; a person never does.
+- **`temper [ADDRESS]`:** a person's full-screen terminal client, the
+  TUI (`../client/README.md`, 6.11). Bare `temper`, with stdin and
+  stdout both terminals, runs it at the address it last signed in to,
+  else at `http://127.0.0.1:8367`; with either not a terminal, it prints
+  `temper: no command; temper --help lists them` and exits 1, as before
+  the TUI. ADDRESS is the engine's clients' listener on loopback; the
+  sign-in link is pasted on the TUI's screen, never given. Its
+  directory is its own, under the person's state directory
+  (`../client/README.md`, 6.12). It reads no configuration file.
 - **`temper open DIRECTORY LINK_OR_ADDRESS`:** a person's terminal client
   (`../client/README.md`, 6.1). It reads no configuration file.
 - **`temper ctl DIRECTORY ...`:** the agents' tools, one call per
@@ -652,7 +662,7 @@ Standalone is jig's one process (jig's `protocol/service.md`, section 10):
   `temper box` before it starts serve (`setup.md`, 7.2).
 - **Agents and git as child processes,** each in a process group of its
   own, which a stop signals whole (jig's `protocol/README.md`, section
-  10); contained process trees are for hosts apart (section 14). An
+  10); containment after a forced stop remains open (section 14). An
   agent's program, `claude`, is the agent's child in a group of its own
   (smith's `protocol/programs.md`, section 2), so killing an agent's
   group leaves its program running: only the agent's own stop ends it.
@@ -967,6 +977,9 @@ temper: its tiers, fakes, layout and budgets. What checks this layer:
 
 Each document keeps its own; these cross them:
 
+- **The TUI's later passes** (section 4): the browser's approval,
+  recording and post-landing terminal walk stay with the client's
+  design (`../client/README.md`, section 11).
 - **Names while running.** io connects to addresses, resolved at
   startup, while a forge's address may move behind its CDN, and a name
   that does not resolve at the start leaves its forge unreachable for
@@ -991,10 +1004,15 @@ Each document keeps its own; these cross them:
 - **Agents in the worker's process** (`smith-inline-agent`), with no
   containment, for one person's machine (jig's `protocol/service.md`,
   section 10). Default: agent processes, as `temper internal agent`.
+- **Programs after a forced agent stop** (section 8): killing an agent's
+  group leaves a program in its own group running, even in standalone.
+  Ending both needs contained trees or a parent-death signal for the
+  program (setup.md, section 15). Default: the orderly stop lets agents
+  end their programs; a second signal or forced close has no such guarantee.
 - **After standalone,** each designed where it is named, and needed only
   beyond one person's machine: webhooks from another host, over TLS
   (forge.md, section 5); hosts apart: TLS on the engine's listeners,
-  contained process trees, a worker alone on another host (jig's
+  containment for shared hosts, a worker alone on another host (jig's
   `protocol/README.md`, section 10; on one machine it is the cluster's,
   section 15); the forge as people's sign-in
   provider (credentials.md, section 8); the forge's client documents and

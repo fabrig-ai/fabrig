@@ -890,8 +890,10 @@ fn person_needs(world: &mut PersonWorld) -> u32 {
 
 fn person_question_round_trip(world: &mut PersonWorld, goal: &engine::Assignment) {
     let (producer, change, question) = reference_person_escalation(world, goal);
-    let call = person_tool(goal, 72, b"delegate", person_delegate_input());
-    let answer = world.scripted_call(goal, 72, call.tool);
+    person_park(world, goal);
+    let answering = person_assignment(world, 5, Some(goal));
+    let call = person_tool(&answering, 72, b"delegate", person_delegate_input());
+    let answer = world.scripted_call(&answering, 72, call.tool);
     let engine::CallAnswer::Delegated(made) = answer else { panic!("person delegated: {answer:?}") };
     let person = made[0].task;
     assert!(person_needs(world) > 0);
@@ -907,7 +909,7 @@ fn person_question_round_trip(world: &mut PersonWorld, goal: &engine::Assignment
         panic!("choices")
     };
     assert_eq!(choices.iter().map(|choice| choice.code).collect::<Vec<_>>(), [1, 2]);
-    person_park(world, goal);
+    person_park(world, &answering);
     person_ask(world, 202, jig_domain_people::Ask::TakePerson { project: 1, task: person });
     person_ask(
         world,
@@ -920,7 +922,7 @@ fn person_question_round_trip(world: &mut PersonWorld, goal: &engine::Assignment
         },
     );
     assert_eq!(person_needs(world), 0);
-    reference_person_answer(world, goal, &producer, change, question, person);
+    reference_person_answer(world, &answering, &producer, change, question, person);
 }
 
 fn reference_person_escalation(world: &mut PersonWorld, goal: &engine::Assignment) -> (engine::Assignment, u64, u64) {

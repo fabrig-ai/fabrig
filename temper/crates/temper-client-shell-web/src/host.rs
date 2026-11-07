@@ -144,6 +144,13 @@ impl Host {
     // The page a path names; a path that prints otherwise is replaced by the printed one.
     fn opened(&mut self, path: &[u8]) -> Address {
         let address = match parse(path) {
+            Place::Approve { code } => {
+                let printed = root::address::print_approve(code);
+                if *printed != *path {
+                    self.show = Some((printed, true));
+                }
+                return self.address.clone();
+            }
             Place::Authorize { .. } | Place::AuthorizeMalformed => return self.address.clone(),
             Place::Address(address) => address,
             Place::Missing | Place::Public(_) => Address::Inbox { filter: Filter::ALL },

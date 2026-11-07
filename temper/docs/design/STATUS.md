@@ -1,7 +1,14 @@
 # Status
 
 2026-11-07. Where temper's code lags or departs from its design, and
-its design from its drafts, from the status files below. The reference
+its design from its drafts, from the status files below. The TUI's
+connected milestone is built: bare `temper` or `temper ADDRESS`, a
+pasted-link sign-in and a live first screen, with golden frames,
+simulated closing and joint-world restart and sign-out stories. Its
+post-landing terminal walk, browser approval, recording and later
+surfaces remain deferred; the sign-in field takes `q` as text and
+Ctrl+C closes there (`client/README.md`, sections 6.11 to 6.16 and 11;
+`draft/tui.status.md`). The reference
 merges a 65,536-byte journal run bound from `room.json`. A pull's files
 page past the forge client's bound leaves an omitted-page notice;
 the exact bound and measure still need an interface and stored-answer
@@ -12,7 +19,19 @@ range, and unexpected answer kinds become refused reads with a
 `host-render` note. The owner-collision regression and rendering table
 cover the mechanism below live; the existing ChatGPT and Claude Code
 landing stories remain the after-landing check (`domain/forge.md`, 5.3
-and 20; `domain/agent.md`, sections 8 and 10). The first
+and 20; `domain/agent.md`, sections 8 and 10). Goal's declaration directs
+a plain repository change to `change`; refused branch reads name their
+next reads. The owned-forge referee rejects a non-procedure delegate and
+names the chat's successful and failed committed calls. Focused tables
+hold those words; the real model's choice remains unobserved until after
+landing (`domain/agent.md`, 4.3, 4.3.2 and 10; `domain/testing.md`, 2.7
+and 11). The Claude Code landing fixture takes `claude-haiku-5-5` by name
+at `low` in both selected charters; ChatGPT keeps stock row 7. Its focused
+settings table establishes no real launch or live landing; that proof
+follows landing (`domain/testing.md`, 2.7 and 11).
+The standard brief follows the declarations at 354,988 bytes;
+the larger requested brief remains undecided (`protocol/configuration.md`,
+11 and 13.4). The first
 milestone stands in the code (`README.md`). Markdown flows draw in chats
 and their documents with temper's look, and both stock agents are told
 the subset. Temper/ui's rendered comparison follows landing; the
@@ -38,10 +57,14 @@ sign-in links say used, expired or unknown. Forgotten links are unknown;
 cookie fallback and command refusal words remain later work
 (`client/README.md`, sections 5.1 and 11). Jig carries per-wake reasons,
 charter parts, offered-message fences and a task's later LLM choice.
-Temper's settings form and ctl, the reference's goal charter and later
-template choice, focused charters and charter-size refusal words remain
-the next application work; the draft's departures and open decisions stay
-recorded (`draft/per-wake.md`, sections 3 to 9 and 11). Stock instructions hold forge
+Temper's settings form and ctl carry parts and later; the reference has
+four goal-charter parts, a first/later template choice and focused
+charters checked against a stock worker and the run bound. The combined
+cut-and-answer domain story is ignored until its restart retains the
+configured catalogue. Charter-size refusal figures remain approved
+separate work, and the draft's departures and open decisions remain
+(`client/tools.md`, sections 5.3 and 14; `protocol/configuration.md`,
+13.9 and 11; `draft/per-wake.status.md`). Stock instructions hold forge
 identity advice to approvals and send a chat to the forge before declaring
 a repository absent; real-model compliance remains unobserved
 (`domain/agent.md`, 8.1; `protocol/configuration.md`, 13.4). Printed-link
@@ -82,10 +105,13 @@ drafts on, and the real-box checks follow landing (`client/README.md`,
 `client/journeys.md`, `protocol/configuration.md`). Fresh box documents admit four
 agents with four workspaces and git operations; their agent-process memory
 on a laptop remains an after-landing measurement (`protocol/setup.md`, section 15).
-The owned-forge live judge names surviving descendants and their parent
-and group rows at stop; the survivor's cause remains unproved and unfixed,
-with diagnosis deferred to the next after-landing red (`protocol/setup.md`,
-7.2 and 15; `protocol/setup.status.md`, **Not yet:** 7.2). The chat's
+Serve's orderly stop cancels its worker's runs and waits for every agent
+to end, letting each end its program before the worker closes. The
+real-loop held-Claude-turn test checks the interrupt and both ends; the
+owned-forge live no-survivor proof remains after landing. Forced agent
+stops still need contained trees (`protocol/README.md`, sections 8 and 14;
+`protocol/setup.md`, 7.2 and 15;
+`protocol/setup.status.md`, **Not yet:** 7.2). The chat's
 box wait uses the deployment's `owned` read, and failed settings reads
 name the kind and missing member (`client/README.md`, `domain/agent.md`).
 A goal with a confirmed goal branch and a modifying charter delivers to
@@ -611,6 +637,7 @@ Design documents:
 - [`client/tools.md`](client/tools.status.md)
 
 Drafts:
+- [`draft/ask-temper.md`](draft/ask-temper.status.md)
 - [`draft/bundle-loading.md`](draft/bundle-loading.status.md)
 - [`draft/reference-code-production.md`](draft/reference-code-production.status.md)
 - [`draft/reference-landing.md`](draft/reference-landing.status.md)

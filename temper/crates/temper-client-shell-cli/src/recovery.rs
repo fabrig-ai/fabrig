@@ -29,6 +29,10 @@ impl Recovery {
             | Event::Read { .. }
             | Event::Send { .. }
             | Event::Carry { .. }
+            | Event::AskApproval
+            | Event::ReadApproval { .. }
+            | Event::DecideApproval { .. }
+            | Event::ApprovalAnswer { .. }
             | Event::Authorize { .. }
             | Event::Reply { .. }
             | Event::Lost { .. }

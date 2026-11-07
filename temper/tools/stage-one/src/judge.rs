@@ -184,6 +184,21 @@ fn member<'a>(value: &'a Value, key: &str, path: &str) -> Result<&'a str, JudgeE
 fn charter(out: &mut String, value: &Value, evidence: &Evidence, path: &str) -> Result<(), JudgeError> {
     out.push_str("Instructions:\n\n");
     block(out, member(value, "instructions", path)?);
+    if let Some(parts) = value.get("parts") {
+        let parts_path = format!("{path}.parts");
+        let parts = parts.as_array().ok_or_else(|| error(&parts_path, "expected a list"))?;
+        for (at, part) in parts.iter().enumerate() {
+            let part_path = format!("{parts_path}[{at}]");
+            let on_path = format!("{part_path}.on");
+            let on = part.get("on").and_then(Value::as_array).ok_or_else(|| error(&on_path, "expected a list"))?;
+            let names = on
+                .iter()
+                .map(|name| name.as_str().ok_or_else(|| error(&on_path, "expected text")))
+                .collect::<Result<Vec<_>, _>>()?;
+            writeln!(out, "Part on {}:\n", names.join(" ")).expect("writing a String");
+            block(out, member(part, "instructions", &part_path)?);
+        }
+    }
     let documents = value
         .get("documents")
         .and_then(Value::as_array)

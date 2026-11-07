@@ -1,7 +1,12 @@
 # Status
 
 2026-11-07. Where skein's code lags or departs from its design, and its
-design from its drafts, from the status files below. The kernel's
+design from its drafts, from the status files below. The full-screen
+shell's renderer, keys, drawing and simulated terminal are built, with
+panic restoration and simulated resizes. Paging uses a fixed nine rows
+instead of the visible body's rows less one; rendering and input
+extensions remain deferred (`ui-screen.md`, sections 6.2 and 10;
+`ui-screen.status.md`). The kernel's
 records of a tree's metadata, the filesystem's status and btrfs's
 subvolumes, and cgroups with contained spawn, are not built, nor their
 simulation, faults and fake machine (`kernel.md`, `io.md`,
@@ -126,6 +131,7 @@ Design documents:
 - [`fake-checkout.md`](fake-checkout.status.md)
 - [`ui.md`](ui.status.md)
 - [`ui-text.md`](ui-text.status.md)
+- [`ui-screen.md`](ui-screen.status.md)
 - [`ui-web.md`](ui-web.status.md)
 - [`browser.md`](browser.status.md)
 - [`playground.md`](playground.status.md)

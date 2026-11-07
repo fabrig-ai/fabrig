@@ -39,7 +39,9 @@ mod status;
 mod stories;
 mod task;
 mod task_tree;
+mod terminal_approval;
 mod to_begin;
+mod tui;
 mod watch_room;
 mod welcome;
 mod fuzzy {

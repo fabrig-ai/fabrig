@@ -361,10 +361,20 @@ member for member:
 
 | Member | Type | Bounds | Feeds |
 |---|---|---|---|
-| `listener` | an address, jig's format | a socket address; on loopback (in `127.0.0.0/8`, or `::1`) in standalone, and wherever `engine.clients` enables the printed link (jig's `protocol/service.md`, section 3); a fixed port, never 0, for a GitHub forge to be connected | the listener on which jig's clients' component is mounted with jig's default HTTP mapping, under `/jig`; the mapping's Host allow-list; the address of the sign-in links `temper serve` prints (`../client/README.md`, section 7); and temper's forge routes beside it, whose addresses a GitHub App's redirect and setup URLs name (`../client/README.md`, the routes) |
+| `listener` | an address, jig's format | a socket address; on loopback (in `127.0.0.0/8`, or `::1`) in standalone, and wherever `engine.clients` enables the printed link or the approval (jig's `protocol/service.md`, section 3); a fixed port, never 0, for a GitHub forge to be connected | the listener on which jig's clients' component is mounted with jig's default HTTP mapping, under `/jig`; the mapping's Host allow-list; the address of the sign-in links `temper serve` prints (`../client/README.md`, section 7); and temper's forge routes beside it, whose addresses a GitHub App's redirect and setup URLs name (`../client/README.md`, the routes) |
 | `bundle` | an absolute directory, or `null` | a bundle of skein's bundler, built apart (`scripts/bundle.sh`): its page and its digest's directory; its files, and the binary's own, within `clients.bundle_files` and `clients.bundle_bytes` (section 7) | the browser's page and bundle, made at start and served on the clients' listener (`../client/browser.md`, 2.2): `null` serves the bundle the binary holds (2.6), or, from a binary built without one, the page for no bundle; a directory serves its bundle in place of the binary's. A document naming an old `share/temper/bundle` keeps serving that directory, older than the binary once it is rebuilt: set it to `null` |
 | `public` | an origin, or `null` | `https://HOST[:PORT]`: HOST a lower-case DNS name, the port not 443 when written, no user, path, query, fragment or final `/`; `http://` only to a loopback host, for a test; within 253 bytes | the address people's browsers use, behind a TLS proxy (`sign-in.md`, 2.2): the mapping's Host allow-list holds its host beside the listener's (jig's `Settings.public`, the host with its port where not 443), jig's cookie is `Secure` by it, and every address temper gives out is the origin's: Google's return, a GitHub App's redirect and setup URLs. `null`: the listener's address alone, `public: None` |
 
+- **The printed link and a terminal's approval** are jig's members,
+  `engine.clients.link` and `engine.clients.approval` (jig's
+  `protocol/configuration.md`, section 3, clients): `temper init`'s
+  documents, so a box's, and the owned example enable both
+  (`setup.md`, 8.3), the approval being how the TUI signs in from the
+  person's browser (`../client/README.md`, 7.1). Neither runs off
+  loopback: a start refuses a clients' listener off loopback in
+  standalone (section 2), whichever is enabled, naming
+  `application.clients.listener`; the approval absent is the approval
+  off, and its ask is refused.
 - **A fixed port for a GitHub forge:** a GitHub App's `redirect_url`
   and `setup_url` name the clients' listener's address, and GitHub's API
   cannot change them once the App is made. A GitHub `Connect` on a
@@ -1274,7 +1284,7 @@ not itself valid JSON):
       "listener": [{"in_process": "workers"}]
     },
     "llm": ...,
-    "clients": {"link": true, ...},
+    "clients": {"link": true, "approval": true, ...},
     "connectors": [1],
     "limits": {"profile": "small", "overrides": {"authority.segments": 8, ...}},
     "memory_bytes": ...
@@ -1303,6 +1313,21 @@ The owned example, `docs/examples/owned.json`, is a whole document for
 one owned Forgejo's place, with its own values (setup.md, 8.1).
 
 ## 11. Open questions
+
+- **The reference story's catalogue** (13.9): retaining the configured
+  model catalogue across the forge world's crash and restart is test
+  harness follow-up. `the_reference_goal_reads_its_cut_then_its_questions_part`
+  must check the cut, withheld question and later answer without an
+  amendment, with its restart oracle. Settings and worker-bound tables
+  alone do not establish that combined result.
+- **The reference's later runs** (13.9; `../draft/per-wake.md`,
+  sections 10 and 11): compare high with medium after observing runs
+  that read their selected parts, and decide whether the cut should
+  settle entries. Documents per part, choices per wake kind, parts for
+  resumed runs and offering a message with its part remain deferred in
+  that draft. Default: four fresh-run parts, xhigh first and high later,
+  documents shared by every run, and entries outside a run's parts
+  left for the next run.
 
 - **Settings refusal positions** (13.2; jig's `domain/engine.md`, 17.2):
   the core's `at` counts from 0, and temper's form prints it as given,
@@ -2489,7 +2514,8 @@ that changes the stock changes nothing of them.
     plan's turns; its default wake policy the coordinator's (jig's
     `domain/tasks.md`, 8.3): questions, failures, each delegate's
     result, its delegates' and its person's words at once, waking news
-    at most once in 30 minutes;
+    at most once in 30 minutes; its instructions in parts (*Charter 5
+    in parts*, below);
   - *charter 2, the coding agent's:* the stock's with smith's shell
     family (`shell` and `job`: smith's `domain/tools.md`), its
     instructions the stock's but for its line that it can run nothing,
@@ -2515,7 +2541,12 @@ that changes the stock changes nothing of them.
     own is `finish` with a Left item, never permission to edit it, and a
     choice the draft leaves open is `escalate`;
   - *template 4, the goal template for drafts:* charter 5;
-    `../draft/reference-code-production.md`, section 4's LLM choice;
+    `../draft/reference-code-production.md`, section 4's LLM choice,
+    Opus 5.5 at xhigh with sub-agents at Opus 5.5 and high, and a later
+    choice (`../draft/per-wake.md`, section 5), Opus 5.5 at high with
+    the same sub-agents, which every run after the goal's first
+    activation takes, so that nobody amends the goal after its cut
+    (`../draft/goal-as-designer.md`, section 8);
     tracked at priority 1; a report; the creator's budget; *its own
     goal branch* among its resources (jig's `protocol/configuration.md`,
     3.3; `../client/tools.md`, 5.3).
@@ -2654,6 +2685,70 @@ that changes the stock changes nothing of them.
   `"questions": "up"`, so that a designer's question reaches it with no
   foreman (`../domain/forge.md`, 8.11), the project's questions, kind 6,
   being none on the stock.
+- **Charter 5 in parts** (`../draft/per-wake.md`, sections 3 and 6;
+  jig's `domain/tasks.md`, 8.6). The bullets above say what charter 5's
+  instructions hold; they are written as its shared instructions and
+  four parts, in this order, each rule once, in the part that acts on
+  it:
+  - *shared,* read by every run: who the goal is, its draft and its
+    goal branch; how a change's words are written (a spec citing the
+    design in its goal branch by path and section and the status
+    entries it closes, the files it owns and what it leaves alone, its
+    checks and its report), each change's `producer`, `llm` and
+    `questions` (a designer's change and a coding change, as the second
+    edition gives them) and a batch's `change` calls, since every part
+    makes or amends changes; asking its person through a person task,
+    the options as its choices and its recommendation in its words; the
+    report note and the notes; reading its report note and the tree
+    first at every wake, and parking with `wait` once its decisions are
+    made; never fixing code, writing its goal branch or making a second
+    landing; and how to take what every run is offered (jig's
+    `domain/tasks.md`, 8.6): an answer, a decision on its proposal or
+    its settings, an effect not made, a `met`, an amendment, a request
+    to finish and a person's words, each as it comes, and an entry
+    waiting for its decision that no part of the run covers, left
+    undecided for the run whose part it is;
+  - *the cut,* `on` `first`: the first run
+    (`../draft/goal-as-designer.md`, section 3): reading the draft, the
+    design and the code, with sub-agents for surveys; the plan; S, a
+    designer's change per family and the changes the design already
+    specifies, as the first batch; the forge subscription; and a
+    request that needs no design: where a request settles its changes
+    with no shape for the code to follow, as one made of documents
+    does, the cut writes no design, says so in its report note, and
+    makes its changes. The cut never waits for or reacts to its
+    changes;
+  - *questions,* `on` `question`, `question_answered`,
+    `question_ended` and `question_owed`: a designer's question and a
+    question a change relays, settled from the draft and the design by
+    an answer, an amendment and its answer, a prerequisite change and
+    the answer that the work waits for it, or a question to its person;
+  - *results and holds,* `on` `result`, `notice`, `nothing_awaited`,
+    `escalation`, `proposal` and `person_stalled`: a designer's result
+    into its family's batch; a person task's result into the answer
+    that waited for it; a change's result and its Left list, and a
+    ruling that becomes design; an escalation released, amended,
+    cancelled or passed up; the plan done, the close-out and the
+    landing; the landing's life, its hold and its result; the goal's
+    end, with a landing or without;
+  - *news,* `on` `news` and `timer`: a catch-up; a red of g's tier and
+    its triage, the triage delegate among it, reading the notes first;
+    a red after landing.
+
+  So the cut reads the shared instructions and the cut, and an answer
+  the shared instructions and the questions part
+  (`../draft/per-wake.md`, section 4).
+- **Each charter holds what its role acts on** (`../draft/per-wake.md`,
+  section 7), each rule once, and nothing its tools' descriptions or its
+  brief already say: a call's fields, a call's room, the wake policy's
+  mechanics. The project's rules for building, testing, machines and
+  landing are charter 2's, which acts on them; charter 6 judges a
+  change by its words and the design, and charter 8 reads. Charter 5
+  builds and tests nothing, so it holds only what a spec must carry of
+  those rules: a spec may ask its coder for the lints and the focused
+  tests of the packages it changes, as charter 2 runs them, and never
+  for a slow tier or a walk, which run after landing. Charter 7 writes
+  design and names a change's effort, and holds no rule for building.
 - **The profile, whole** (`../draft/reference-code-production.md`,
   section 14; `../draft/notes.md`, N21): a box is set up for the
   reference from `docs/examples/reference/` and the repository's own
@@ -2757,7 +2852,14 @@ that changes the stock changes nothing of them.
   relations from that agent, and holds the settings file to them: its charters
   within `tasks.charters`, their documents within
   `tasks.charter_documents`, their turns within the agent's
-  `max_turns`, template 4's report within `tasks.result_bytes`.
+  `max_turns`, template 4's report within `tasks.result_bytes`. The same
+  test holds each charter to what a host takes and a box stores
+  (`../draft/per-wake.md`, section 8): its turns and time, and the rules'
+  run spend, within the bounds a stock worker advertises from init's
+  agent configuration as `room.json` sets it (jig's `domain/engine.md`,
+  section 8), and its stored policy, its parts with it, within
+  `room.json`'s `root.journal.run_bytes`, so that an edition no host
+  would take, or that a box can't store, is red there and not on a box.
 
 The reference's charter 6 also returns `finish` for a red the change did not
 cause, with that red on the asker's Left list (2026-11-04).

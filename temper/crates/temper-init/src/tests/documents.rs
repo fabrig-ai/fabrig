@@ -40,6 +40,15 @@ fn the_box_has_room_for_reference_creating_executors() {
 }
 
 #[test]
+fn the_documents_enable_the_printed_link_and_the_approval() {
+    for source in [fixtures::OWNED, template::TEMPER, template::BARE] {
+        let value = parse(source);
+        assert_eq!(value["engine"]["clients"]["link"], true, "engine.clients.link");
+        assert_eq!(value["engine"]["clients"]["approval"], true, "engine.clients.approval");
+    }
+}
+
+#[test]
 fn the_box_runs_four_agents_and_keeps_eight_streams_and_four_calls_beside_them() {
     for source in [fixtures::OWNED, template::TEMPER, template::BARE] {
         let value = parse(source);

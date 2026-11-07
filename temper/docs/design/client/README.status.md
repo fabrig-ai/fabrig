@@ -2,6 +2,13 @@
 
 2026-11-07. Where temper's code lags or departs from [README.md](README.md).
 
+Sections 2 and 6.11 to 6.16 have no known implementation gap in the
+TUI's crates, command, private directory, host seam, pasted-link sign-in,
+live first screen, themes and closing. Section 10's frame goldens,
+host rows, simulated loop and joined-client stories are present. The
+post-landing walk and later passes remain section 11's work; no real
+terminal or macOS runtime result is supplied here.
+
 Sections 3.5, 4.6, 5.8 and 5.13 have the approvals watch and wire document,
 the merge into Needs you, project and goal filters, Home and goal bands,
 rail and banner totals, and Later under the change's task key. A kind
@@ -848,3 +855,6 @@ read's head explicit.
   headline say "N of M tasks done.", where the mock says "landed", and a goal's task
   ended done with no change has its own "done" line. Counting landings on a row needs
   a stored and a wire field for a small word; section 11 holds it.
+- **Not yet:** 3.5, *The approval page*; 5.1; 5.12: the approval page, a sign-in approved by a browser (`tui-approval`): `Place::Approve`, the root's `approve` module with its states, acts and the read again each second while approved, `Domain::approval()`, and the view's card with its words, under the banner alone. `temper-client-domain` and `temper-client-view` hold none of it.
+- **Not yet:** 7.1: the root's half for a native client: `Event::AskApproval`, the `asked` module and `Domain::asked()`, the take signed in at once and the secret never in the root's state.
+- **Not yet:** 7.1: the TUI's flow, its tab's address made from its own parts, its opener, its lines and the address printed when no browser opens, and asking again: the plan after the TUI's first screen builds it (`../draft/tui.execution.md`, M2).

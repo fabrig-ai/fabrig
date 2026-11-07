@@ -208,6 +208,10 @@ pub fn world(seed: u64) -> World<Temper, Joint> {
     world_with(seed, Joint::new(seed, domain_limits()))
 }
 #[must_use]
+pub fn tui_world(seed: u64) -> World<Temper, Joint> {
+    world_with(seed, Joint::with_printed_link(seed, domain_limits()))
+}
+#[must_use]
 pub fn adoption_world(seed: u64) -> World<Temper, Joint> {
     world_with(seed, Joint::adoption(seed, domain_limits()))
 }
