@@ -1,0 +1,171 @@
+//! Each watcher's changes waiting on a person's approval (domain/forge.md, 8.12).
+use crate::{Domain, Limits};
+use alloc::boxed::Box;
+use jig_domain_people::Role;
+use skein_lib::{Env, List, Wall};
+use temper_engine_domain_forge::{self as forge, settings};
+
+/// Whether the watcher's review would count for the approval a row waits on (domain/forge.md, 8.12).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum YourReview {
+    Counts,
+    /// The watcher doesn't count as a person on the change's forge.
+    NoAccount,
+    /// Fewer members count as people there with the role than the approval asks.
+    TooFew,
+    /// The approval's role isn't the watcher's: an owner seeing the wait.
+    OtherRole,
+}
+
+/// A change waiting on a person's approval, as one watcher sees it (domain/forge.md, 8.12).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ApprovalRow {
+    pub task: u64,
+    pub project: u32,
+    /// The outermost goal above the change's task, if any.
+    pub goal: Option<u64>,
+    pub forge: u16,
+    pub owner: Box<[u8]>,
+    pub name: Box<[u8]>,
+    pub pull: u64,
+    pub title: Box<[u8]>,
+    pub since: Wall,
+    /// The approval it waits on: 0 for the deployment's rules, else the project.
+    pub scope: u32,
+    pub rule: u32,
+    pub role: u32,
+    pub required: u32,
+    pub counted: u32,
+    pub behind: u32,
+    pub whole: bool,
+    pub yours: YourReview,
+}
+
+/// One watcher's approvals document (client/README.md, 4.6).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Approvals {
+    pub rows: Box<[ApprovalRow]>,
+    /// The rows past the bound.
+    pub more: u32,
+}
+
+impl Approvals {
+    /// Deeply owned row bytes in one whole delivery (domain/forge.md, 8.12).
+    pub(crate) fn owned_bytes(&self) -> usize {
+        let mut bytes = 0_usize;
+        for row in &self.rows {
+            bytes = bytes
+                .saturating_add(size_of::<ApprovalRow>())
+                .saturating_add(row.owner.len())
+                .saturating_add(row.name.len())
+                .saturating_add(row.title.len());
+        }
+        bytes
+    }
+}
+
+/// The watcher's approvals (domain/forge.md, 8.12).
+pub(super) fn document(domain: &Domain, env: &Env<Limits>, party: u64) -> Approvals {
+    let mut rows = List::uncapped();
+    for wait in domain.forge.approval_waits(env.wall, &env.limits.forge) {
+        if let Some(row) = row(domain, &wait, party) {
+            rows.push(row).expect("approval waits are bounded by live changes");
+        }
+    }
+    cut(rows.into_boxed(), crate::room::approval_rows(&env.limits))
+}
+
+fn cut(rows: Box<[ApprovalRow]>, bound: u32) -> Approvals {
+    let mut kept = List::with_capacity(bound);
+    let mut more = 0_u32;
+    for row in rows {
+        if kept.len() < bound {
+            kept.push(row).expect("bounded approvals document");
+        } else {
+            more = more.saturating_add(1);
+        }
+    }
+    Approvals { rows: kept.into_boxed(), more }
+}
+
+/// One wait as `party` sees it, or none (domain/forge.md, 8.12).
+pub(super) fn row(domain: &Domain, wait: &forge::ApprovalWait, party: u64) -> Option<ApprovalRow> {
+    let role = domain.core.people.role(party, wait.project)?;
+    let mut chosen = None;
+    for approval in &wait.short {
+        if approval.role == role.number() {
+            chosen = Some(approval);
+            break;
+        }
+    }
+    let approval = match chosen {
+        Some(approval) => approval,
+        None => match role {
+            Role::Owner => wait.short.first()?,
+            Role::Maintainer | Role::Member | Role::Observer | Role::Policy { .. } => return None,
+        },
+    };
+    for review in &approval.counted {
+        if review.person == party {
+            return None;
+        }
+    }
+    let yours = if super::kinds::eligible_people(domain, wait.project, wait.forge, approval.role) < approval.required {
+        YourReview::TooFew
+    } else if !super::forge_route::forge_human(domain, wait.project, wait.forge, party) {
+        YourReview::NoAccount
+    } else if approval.role != role.number() {
+        YourReview::OtherRole
+    } else {
+        YourReview::Counts
+    };
+    Some(ApprovalRow {
+        task: wait.task,
+        project: wait.project,
+        goal: super::public::public_goal(domain, wait.task),
+        forge: wait.forge,
+        owner: wait.owner.clone(),
+        name: wait.name.clone(),
+        pull: wait.pull,
+        title: wait.title.clone(),
+        since: wait.since,
+        scope: approval.scope,
+        rule: approval.rule,
+        role: approval.role,
+        required: approval.required,
+        counted: u32::try_from(approval.counted.len()).expect("bounded counted people"),
+        behind: wait.behind,
+        whole: wait.whole,
+        yours,
+    })
+}
+
+/// Whether a proposal sets an enforcing approval covering an owned forge's writable repository
+/// (domain/forge.md, 8.12), judged as approval eligibility is (8.9).
+pub(super) fn owned_approval(domain: &Domain, items: &[(settings::SettingKey, settings::Edit)]) -> bool {
+    for (key, edit) in items {
+        if key.kind != 1 && key.kind != 2 {
+            continue;
+        }
+        let settings::Edit::Set(value) = edit else { continue };
+        let settings::Value::Rule(rule) = &value.value else { continue };
+        if !rule.enforce || rule.approvals.is_empty() {
+            continue;
+        }
+        for &project in &domain.core.projects {
+            if key.scope != 0 && key.scope != project {
+                continue;
+            }
+            for repository in domain.forge.writable_repositories(project) {
+                let Some(forge) = domain.forge.configured(repository.provider.forge) else { continue };
+                if forge.mode == forge::Mode::Owned && super::kinds::covers_repository(rule, repository) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+#[cfg(test)]
+mod tests;

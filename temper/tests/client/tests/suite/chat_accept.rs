@@ -39,7 +39,7 @@ fn steps(world: &mut ClientWorld, person: ClientId, steps: Vec<Step<Address>>) {
 }
 fn rail(world: &ClientWorld, person: ClientId) -> u32 {
     let root = world.root(person).person();
-    root.pages().needs().count(root.client(), PROJECT).count
+    root.pages().needs().count(root.client(), root.forge().approvals(), PROJECT).count
 }
 fn newest(world: &mut ClientWorld, agent: ClientId, revision: u64) {
     let number = fixtures::give(world, agent, &[b"settings", b"show"]);

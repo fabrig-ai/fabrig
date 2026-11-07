@@ -908,7 +908,11 @@ each step the core asks for:
    panics, as jig's children's do (jig's `domain/engine.md`, section 6).
    Before them, the forge loads its kinds' values from its family
    `Setting`, is given temper's stock defaults, and tells the core which
-   differ (5.6). Then **the switch** (jig's `start::Phase::Switch`), at
+   differ (5.6). Once both are loaded, the root hands the forge the
+   deployment's sole owner, the party jig's people answer as such, or none
+   (jig's `domain/people.md`, section 4), before the forge's restore
+   decision: a forge's link to a box's person holds only while that person
+   is the sole owner (`forge.md`, 4.6). Then **the switch** (jig's `start::Phase::Switch`), at
    every start: over a generation the store holds pending (jig's
    `protocol/store.md`, 10.2, step 7) the root asks the store to switch
    and goes on once it answers; then it commits the start's wires (jig's

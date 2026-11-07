@@ -25,16 +25,20 @@ The rules are settings: kind 1 holds the deployment's rules, kind 2 each
 project's. Rules are numbered from 1 within their scope and add together.
 The forge judges each change to them before it is kept.
 
-An enforcing approval rule needs enough distinct people already known to
-temper by their forge user ids, holding the required role in every project
-whose adopted writable repositories the pattern covers. A deployment owner
-login or a matching display name does not establish a forge identity. On a
-box the deployment login can be separate from the person's forge account;
-adoption may return only temper as a collaborator. Such an owner cannot
-satisfy a person's approval requirement until the forge identity and project
-role are known. Acceptance refuses an unsatisfiable rule, naming the project,
-role, required count and current eligible count. Add the human collaborator on
-the forge. On Forgejo, a repository administrator must also grant temper's
+An enforcing approval rule on a box needs nothing added for your approval:
+temper knows your account on the box's own Forgejo, and on GitHub when temper
+made the App from your own account. Name your role in the rule, owner (0) on a
+project you made.
+On this machine temper's agents and CI jobs run as you, so this stops their mistakes, not one trying to get past it.
+Acceptance needs enough distinct people known on the forge of each adopted
+writable repository the rule covers, holding the required project role. A
+refusal names the project, forge, role, required count and current eligible
+count. A rule covering the playground's forge is refused: no one can approve
+there.
+
+With several members (`temper serve`), a managed Forgejo or a pasted App:
+A deployment owner login or a matching display name does not establish a forge identity.
+Add the human collaborator on the forge. On Forgejo, a repository administrator must also grant temper's
 forge user repository admin: collaborator reads can require it even with write.
 This bot permission is separate from the human permission mapped to a project
 role. Configure the existing project's project-policy permissions where

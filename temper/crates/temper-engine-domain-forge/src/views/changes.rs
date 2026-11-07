@@ -150,7 +150,7 @@ impl Domain {
         Some(())
     }
 
-    fn changes_order(&self, row: &ChangeRow, now: Wall, limits: &Limits) -> Option<List<u64>> {
+    pub(crate) fn changes_order(&self, row: &ChangeRow, now: Wall, limits: &Limits) -> Option<List<u64>> {
         let mut active = Map::with_capacity(limits.changes);
         for (_, other) in &self.changes {
             if other.repository == row.repository

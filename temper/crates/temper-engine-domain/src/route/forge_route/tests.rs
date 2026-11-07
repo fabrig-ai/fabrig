@@ -795,6 +795,10 @@ fn saved_resources_keep_the_forge_in_their_path() {
 }
 
 fn two_forges() -> (super::Domain, skein_lib::Env<super::Limits>) {
+    two_forges_with_link(None)
+}
+
+fn two_forges_with_link(link: Option<super::forge::Link>) -> (super::Domain, skein_lib::Env<super::Limits>) {
     use super::forge;
     let mut config = crate::tests::resume_fixture::config(7);
     let first = config.forges.first().expect("configured fixture forge").clone();
@@ -812,6 +816,7 @@ fn two_forges() -> (super::Domain, skein_lib::Env<super::Limits>) {
             &env.with(env.limits.forge),
             forge::Event::Restore {
                 record: forge::Stored::Forge(forge::ForgeRecord {
+                    person: if number == 1 { link } else { None },
                     git_program: None,
                     number,
                     kind: forge::Kind::Forgejo,
@@ -844,9 +849,12 @@ fn two_forges() -> (super::Domain, skein_lib::Env<super::Limits>) {
     (domain, env)
 }
 
-fn forge_party(key: jig_domain_people::IdentityKey) -> (super::Domain, skein_lib::Env<super::Limits>) {
+fn forge_party_with_link(
+    key: jig_domain_people::IdentityKey,
+    link: Option<super::forge::Link>,
+) -> (super::Domain, skein_lib::Env<super::Limits>) {
     use jig_domain_people as people;
-    let (mut domain, env) = two_forges();
+    let (mut domain, env) = two_forges_with_link(link);
     domain.core.people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
     domain.core.people.start_restore(env.wall);
     let people_env = env.with(env.limits.people);
@@ -878,8 +886,15 @@ fn forge_party(key: jig_domain_people::IdentityKey) -> (super::Domain, skein_lib
 fn a_review_counts_only_from_the_forge_it_was_made_on() {
     use super::{forge, forge_change};
     use skein_forge::api;
-    for (forge, author, counted) in [(1, 7, true), (3, 7, false), (1, 8, false)] {
-        let (domain, env) = forge_party(forge::user_key(1, 7));
+    let linked = Some(forge::Link { user: 7, person: 1 });
+    for (key, link, forge, author, counted) in [
+        (forge::user_key(1, 7), None, 1, 7, true),
+        (forge::user_key(1, 7), None, 3, 7, false),
+        (forge::user_key(1, 7), None, 1, 8, false),
+        (forge::user_key(2, 9), linked, 1, 7, true),
+        (forge::user_key(2, 9), linked, 3, 7, false),
+    ] {
+        let (domain, env) = forge_party_with_link(key, link);
         let mut row = change_row(None);
         row.repository = api::Repository { forge, repository: 1 };
         let evidence = forge::ChangeEvidence {
@@ -925,15 +940,23 @@ fn a_review_counts_only_from_the_forge_it_was_made_on() {
 }
 
 #[test]
-fn human_forge_identity_is_known_on_its_own_forge_and_is_not_its_writer() {
+fn forge_human_is_known_on_its_forge_and_is_not_its_writer() {
     use super::forge;
-    for (key, writer_forge, counted) in [
-        (forge::user_key(1, 7), 3, true),
-        (forge::user_key(1, 7), 1, false),
-        (forge::user_key(2, 7), 3, false),
-        (jig_domain_people::IdentityKey { provider: 1, subject: forge::user_key(1, 7).subject }, 3, false),
+    let linked = Some(forge::Link { user: 7, person: 1 });
+    let shadowed = Some(forge::Link { user: 7, person: 2 });
+    for (key, link, project, forge, writer_forge, counted) in [
+        (forge::user_key(1, 7), None, 5, 1, 3, true),
+        (forge::user_key(1, 7), None, 5, 1, 1, false),
+        (forge::user_key(1, 7), None, 5, 3, 1, false),
+        (forge::user_key(2, 7), None, 5, 1, 3, false),
+        (jig_domain_people::IdentityKey { provider: 1, subject: forge::user_key(1, 7).subject }, None, 5, 1, 3, false),
+        (forge::user_key(2, 9), linked, 5, 1, 3, true),
+        (forge::user_key(2, 9), linked, 5, 3, 3, false),
+        (forge::user_key(1, 7), shadowed, 5, 1, 3, false),
+        (forge::user_key(2, 9), linked, 6, 1, 3, false),
+        (forge::user_key(1, 7), shadowed, 6, 1, 3, false),
     ] {
-        let (mut domain, env) = forge_party(key.clone());
+        let (mut domain, env) = forge_party_with_link(key.clone(), link);
         for number in [1, 3] {
             forge::step(
                 &mut domain.forge,
@@ -947,26 +970,31 @@ fn human_forge_identity_is_known_on_its_own_forge_and_is_not_its_writer() {
                 &mut skein_lib::Queue::uncapped(),
             );
         }
-        assert_eq!(super::human_forge_identity(&domain, 5, 1), counted, "key {key:?}, writer forge {writer_forge}");
+        assert_eq!(super::forge_human(&domain, project, forge, 1), counted, "key {key:?}, writer forge {writer_forge}");
     }
 }
 
 #[test]
 fn person_forges_names_each_forge_once_with_its_own_user_and_writer() {
     use super::forge;
-    for (key, writer, second_repository, users) in [
-        (forge::user_key(1, 7), false, false, [Some(7), None]),
-        (forge::user_key(3, 7), false, false, [None, Some(7)]),
-        (forge::user_key(1, 7), true, false, [Some(7), None]),
+    let linked = Some(forge::Link { user: 7, person: 1 });
+    let shadowed = Some(forge::Link { user: 7, person: 2 });
+    for (key, link, writer, second_repository, users) in [
+        (forge::user_key(1, 7), None, false, false, [Some(7), None]),
+        (forge::user_key(3, 7), None, false, false, [None, Some(7)]),
+        (forge::user_key(1, 7), None, true, false, [Some(7), None]),
         (
             jig_domain_people::IdentityKey { provider: 1, subject: forge::user_key(1, 7).subject },
+            None,
             false,
             false,
             [None, None],
         ),
-        (forge::user_key(1, 7), false, true, [Some(7), None]),
+        (forge::user_key(1, 7), None, false, true, [Some(7), None]),
+        (forge::user_key(2, 9), linked, false, false, [Some(7), None]),
+        (forge::user_key(1, 7), shadowed, false, false, [None, None]),
     ] {
-        let (mut domain, env) = forge_party(key.clone());
+        let (mut domain, env) = forge_party_with_link(key.clone(), link);
         let mut repository = adopted(3);
         repository.host = b"other.example".as_slice().into();
         let forge_env = env.with(env.limits.forge);
@@ -3877,6 +3905,7 @@ fn result_pull_address(domain: &mut super::Domain, env: &skein_lib::Env<super::L
     web.put(&[b'x'; 180]).unwrap();
     let web = web.finish();
     let row = forge::ForgeRecord {
+        person: None,
         number: change_row(Some(7)).repository.forge,
         kind: forge::Kind::Forgejo,
         mode: forge::Mode::Connected,

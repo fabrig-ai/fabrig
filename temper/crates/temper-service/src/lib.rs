@@ -152,6 +152,11 @@ pub struct SetupStep {
 /// Operator diagnostics taken by the shell (protocol/forge.md, 2.3).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Note {
+    /// A forge's link changed or was refused (temper/docs/design/domain/forge.md, 4.6).
+    ForgeLink {
+        forge: u16,
+        note: temper_engine_domain_forge::LinkNote,
+    },
     /// The engine's hello refusal, suppressed until its words change (protocol/README.md, 15.3).
     HelloRefused {
         channel: u64,

@@ -84,7 +84,11 @@ A party is who acts in a deployment, a person or a service, numbered, with a rol
   `account import` read a model's key or an account's record (temper
   help account); `forge connect` and `forge replace` read a forge's key or
   tokens (temper help forge).
-- **Forge people for approvals:** add the human collaborator on the forge.
+- **Forge people for approvals:** on a box you need none of these steps:
+  temper knows your account on the box's own Forgejo, and on GitHub when temper
+  made the App from your own account.
+  With several members (`temper serve`), a managed Forgejo or a pasted App:
+  add the human collaborator on the forge.
   On Forgejo, a repository administrator must also grant temper's forge user
   repository admin: collaborator reads can require it even with write.
   This bot permission is separate from the human's mapped project role.

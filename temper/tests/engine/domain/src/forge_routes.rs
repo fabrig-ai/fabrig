@@ -90,6 +90,7 @@ pub struct World {
     pub call_errors: Vec<CallError>,
     pub reads: Vec<(ReplyTo, jig_domain_core::reads::Answer)>,
     pub panels: Vec<(Token, forge_top::Panel)>,
+    pub approvals: Vec<(Token, engine::Approvals)>,
     pub protocol: Protocol,
     pub immediate: VecDeque<engine::Event>,
     /// The funding period sent to this process's root, once it is ready.
@@ -1026,6 +1027,7 @@ impl World {
             call_errors: Vec::new(),
             reads: Vec::new(),
             panels: Vec::new(),
+            approvals: Vec::new(),
             protocol: Protocol::default(),
             immediate: VecDeque::new(),
             period: None,
@@ -1067,6 +1069,47 @@ impl World {
         self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
             .expect("valid owner identity");
+        self
+    }
+
+    /// An owned forge on a box, before bootstrap (temper/docs/design/domain/testing.md, 6.4).
+    #[must_use]
+    pub fn with_box_setup(mut self) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "box setup precedes startup");
+        self.restart_config.under_box = true;
+        self.restart_config.forges[0].mode = forge_top::Mode::Owned;
+        let owner = self.restart_config.core.owners[0].identity.clone();
+        let mut owners = self.restart_config.core.owners.into_vec();
+        owners.push(people::InitialOwner { project: people::DEPLOYMENT, identity: owner });
+        self.restart_config.core.owners = owners.into_boxed_slice();
+        let mut bootstrap = crate::oracle::config::copy(&self.restart_config);
+        bootstrap.core.kinds = Box::new([]);
+        self.store = crate::fixtures::restored_over(Store::with_limits(&self.env.limits), bootstrap, &self.env.limits);
+        self.store.seed(
+            Box::new([Record::Forge {
+                row: Box::new(forge_top::Stored::Forge(forge_top::ForgeRecord {
+                    number: 1,
+                    kind: forge_top::Kind::Forgejo,
+                    mode: forge_top::Mode::Owned,
+                    state: forge_top::ForgeState::Kept,
+                    place: forge_top::Place {
+                        api: forge_top::Address { host: b"forge.example".as_slice().into(), port: 443, tls: None },
+                        git: Box::new([]),
+                        web: None,
+                    },
+                    read_only: false,
+                    bot: forge_top::Bot { login: b"temper".as_slice().into(), name: Box::new([]), email: Box::new([]) },
+                    asked: false,
+                    first: None,
+                    git_program: None,
+                    person: None,
+                })),
+            }]),
+            Box::new([]),
+        );
+        self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid box setup");
         self
     }
 
@@ -1539,6 +1582,10 @@ impl World {
                         self.delivered_messages.entry((run.raw(), attempt.raw())).or_default().push(name.raw());
                     }
                     Delivery::Panel { watcher, panel } => self.panels.push((watcher, *panel)),
+                    Delivery::Approvals { watcher, document } => {
+                        self.approvals.push((watcher, *document));
+                        self.events.push_back(engine::Event::Party(engine::PartyInput::Delivered { watcher }));
+                    }
                     Delivery::ForgeDocument { watcher, document } => self.oracle_documents.push((watcher, *document)),
                     Delivery::Link {
                         down: host::LinkDown::Relayed { call, answer: host::Relayed::Answer { error: true, text }, .. },

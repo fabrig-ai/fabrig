@@ -291,7 +291,14 @@ fn answer_person_task(front: &mut Joint, goal: u64, probe: &mut Probe) {
     Temper::step(&mut probe.0, &env(), Temper::went(Address::Inbox { filter: Filter::ALL }), &mut probe.1);
     pump(front, probe);
     let root = probe.0.person();
-    let card = root.pages().needs().shown(root.pages().inbox().expect("inbox")).expect("person question");
+    let temper_client_domain::pages::needs::Need::Card(card) = root
+        .pages()
+        .needs()
+        .shown(root.pages().inbox().expect("inbox"), root.forge().approvals())
+        .expect("person question")
+    else {
+        panic!("inbox card")
+    };
     let object = ObjectKey::PersonTask(child);
     assert_eq!(card.object, object);
     let Some(jig_client::contract::ReadValue::PersonTask(person)) = &card.page else { panic!("person question") };

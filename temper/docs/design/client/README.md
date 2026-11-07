@@ -2066,7 +2066,8 @@ keeps (`../protocol/configuration.md`, section 2).
       no prose of its own.
   - *Needs you,* a region named "Needs you": what needs the person in
     this project, the groups of `Inbox` but its updates, read as `Inbox`
-    reads them filtered by the project. Its head is the level-2 heading
+    reads them filtered by the project, with the project's changes waiting
+    on a review on the forge (*Needs you,* below, *An approval*). Its head is the level-2 heading
     "Needs you", "Needs you · N" in the signal colour while something
     does, and, at its right on a wide page while more than one does,
     "Answer in a row", to that filtered *Needs you*. Empty, once its read has
@@ -2083,7 +2084,8 @@ keeps (`../protocol/configuration.md`, section 2).
       (below), but: the question in `.q`, 17px; a question's `.choices`
       in a row, min-height 40, then quiet "Reply" and quiet "Later", in
       place, the reply form under them; on a proposal or a held task its
-      acts, quiet "Open" and quiet "Later".
+      acts, quiet "Open" and quiet "Later"; on an approval its review link
+      where it has one, then quiet "Open" and quiet "Later" (`forge.md`, 4.1).
     - *The others,* a line each under it, the whole a link that opens
       *Needs you* at that card, at most five: its SHORT at the left
       (*Needs you,* below; a funds row "TITLE: S of L used"), at the
@@ -2153,7 +2155,7 @@ keeps (`../protocol/configuration.md`, section 2).
     0), gap 16:
     - a `.mono` line: TITLE, a link to the task, · kind · age, as Home's,
       " · later" with it; the kind "a question", "a proposal", "held", "a
-      person task", or "funds" for a held task whose reason is
+      person task", "an approval", or "funds" for a held task whose reason is
       `HoldReason::Budget`;
     - `h1.flow-q`, the question line: 26px/1.35, 500, -.01em; 23px on a
       phone;
@@ -2200,6 +2202,17 @@ keeps (`../protocol/configuration.md`, section 2).
     a person task. On the terminal's inbox, Answer sends its words with
     the shown person revision. A role's task or a contract other than a
     report keeps the ordinary person-task card.
+  - *An approval,* a change waiting on a review on the forge: a row of the
+    subject `approvals` (4.6), its kind "an approval", its question, context,
+    review link, "Open" and "Later" as `forge.md`, 4.1 has them, its key
+    `ObjectKey::Task` of the change, so that Later works on it as on any card.
+    The open cards are the inbox's needs and these rows together: the inbox's
+    first, in its order, then the rows in theirs, and those marked later last.
+    A filter by project takes the project's rows, one by goal the rows of the
+    changes under that goal, and one by kind none, since no kind of the
+    inbox's is theirs. They join once the inbox has answered, and until the
+    `approvals` watch has delivered there are none. On the terminal's inbox
+    there are none either.
   - *Whole,* since a person decides on these words. The engine's read of a
     person task cuts its words at `documents.text_bytes`, so a card whose words
     are cut reads the rest through `TaskText`, as a goal's page does (5.8), up to
@@ -2219,7 +2232,7 @@ keeps (`../protocol/configuration.md`, section 2).
     question's line, or a person task in words', from the document's bounded
     words; a proposal's reason's first
     sentence; a held task's or another person task's title, a funds card's
-    "S of L used".
+    "S of L used"; an approval's question.
   - *`.next-up`,* centred, 13px, `--gf-faint`: "Next: TITLE · SHORT", or
     "The last one".
   - *Answered,* under it when any: the section title "Answered", then
@@ -2282,8 +2295,14 @@ keeps (`../protocol/configuration.md`, section 2).
     (jig's `client/domain/contract.md`, 5.1: `shows_in`), so that a proposal of
     settings counts in the projects it belongs to, and for one of the
     deployment's in each the person owns; "N+" where its document is cut, and no
-    count before it is delivered. A card marked later still counts. `me`'s
-    `needs_total` stays the banner's navigation's.
+    count before it is delivered. A card marked later still counts. The open
+    project's rows of `approvals` add to it, "N+" where that document is cut too.
+    `me`'s `needs_total`, with every row of `approvals` added, stays the banner's
+    navigation's.
+  - *The approvals,* the forge side's watch of the subject `approvals` (4.6),
+    held for the session as `dismissed` is, from when `me` is first delivered
+    while the link is live: a watch refused or ended is kept as such, with no
+    rows, and not opened again until the next sign-in.
 - **Changes** (the user's greenfield mock's `changes.html`; `forge.md`,
   section 3): `Changes { project }`, at `/projects/<project>/changes`, a
   project page in the rail's frame, a column as Home's, at most 720 px
@@ -3887,6 +3906,37 @@ the person to check existence and grant the repository to the App.
 
   Times are nanoseconds since the epoch. It is marked with the subject
   `changes`, and at a look and a brief.
+- **The changes waiting on a person's review, the subject `approvals`:** of
+  the party's own scope, with no fields, its window unused; on the wire
+  `Watching`'s `approvals`. One subject for the deployment: the core names
+  each watcher's party, and each watcher gets its own rows, which the root
+  chooses by the watcher's role (`../domain/forge.md`, 8.12). Its document,
+  `Approvals`: `rows`, at most 32, oldest wait first, each an `ApprovalRow`:
+  - `task`, the change's; `project`; `goal`, option, the goal it was made under;
+  - `forge`, u16; `kind`, `Kind` (`forgejo` or `github`); `owner` and `name`,
+    at most 1024 bytes each; `pull`, the pull request's number; `address`, at
+    most 2048 bytes, its files page on the forge's web address
+    (`forge.md`, 4.1), empty for none;
+  - `title`, at most 256 bytes; `since`, when the change began waiting at
+    its head;
+  - the approval it waits on: `scope`, 0 for the deployment's rules or the
+    project's number; `rule`; `role`; `required`; `counted`, the people
+    counted so far;
+  - `behind`, the changes waiting behind it in its landing branch's order;
+    `whole`, whether its reviews were read whole;
+  - `yours`, `ApprovalYours`: `counts`, `no_account`, `too_few` or
+    `other_role`, whether the watcher's review would count and, if not, why;
+
+  then `more`, the rows past the bound. Times are nanoseconds since the
+  epoch. Every client of the party's watches it once, for the session (3.5,
+  *What the client keeps*). The engine fills `kind` and `address` from the
+  forge's configuration as it does a change's panel's pull request's
+  (`forge.md`, 9.2).
+- **A proposal's items, the read `ProposalItems`:** its answer,
+  `ProposalItemsAnswer`, holds the items and `owned_approval`, whether one of
+  them is a landing rule with an enforcing approval covering a writable
+  repository on an owned Forgejo (`../domain/forge.md`, 8.12), for its card's
+  words (5.13).
 - **The forge's documents' records:** its other reads, subjects and
   documents, and its other requests, beside `Adopt` and `SetUp`
   (`forge.md`, section 9).
@@ -5042,7 +5092,10 @@ an open need on it, whether it has a report, and its direct delegates' total.
     "Open" otherwise, to `Inbox` filtered by this goal;
   - a funds card, with no "Add $10" and no "Stop the goal": its Release and
     Leave held as Needs you draws them (3.6), or "Open" when neither is
-    offered.
+    offered;
+  - an approval, a change under the goal waiting on a review on the forge
+    (`forge.md`, 4.1), KIND "an approval": its review link as `.btn.primary`
+    where the card offers one, else "Open", to the change's `Task { task }`.
 - **`.two`,** the report and the side, wrapping by `.two`'s own flex basis, not
   by a media rule.
 - **`article.report`,** heading "Report" (`.section-title`):
@@ -5813,6 +5866,15 @@ section 5.
   says which items temper enforces and which agents follow: that is the review
   page's, below, once it is built. In the inbox, its card shows the same lines
   (3.5).
+- **What a rule on a box holds against:** where the forge's read of the
+  proposal's items answers `owned_approval` (4.6), a landing rule of it with an
+  enforcing approval covering a repository on an owned Forgejo, its card says,
+  after its items and in their look, "On this machine temper's agents and CI
+  jobs run as you, so this stops their mistakes, not one trying to get past
+  it." (`../domain/forge.md`, 8.12; `../draft/forge-identity.md`, section 6),
+  in a chat and in *Needs you* alike, and its review page says it under its
+  plain words once that page is built (below). Until the read answers, and
+  for a decided card with no review, it says nothing of it.
 - **Where a card stands:** jig's activity says when a proposal was made: a
   `Decided` line naming it, with `made` (jig's `client/domain/contract.md`, 5.1).
   With no call naming it, its card stands after the first committed turn after that
@@ -5925,7 +5987,8 @@ the document gives them; the client hides nothing of its own.
   landing's requirements (`../protocol/configuration.md`, 13.3),
   "temper no longer holds landing to its rules: the change procedure
   still waits for them."; a role removed while tasks run it, "2 tasks
-  hold it on revision 7".
+  hold it on revision 7"; a landing rule with an enforcing approval on an
+  owned Forgejo, the card's sentence for it (above).
 - **Stale:** a proposal made against an older revision is withdrawn by
   the decision that made the newer (jig's `domain/engine.md`, 17.6). Its
   review page keeps its items, dimmed, under the banner "Withdrawn:

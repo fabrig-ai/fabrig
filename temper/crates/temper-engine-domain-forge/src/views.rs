@@ -8,6 +8,9 @@ use temper_engine_domain_forge_landing as policy;
 mod changes;
 pub use changes::{ChangesLanded, ChangesQueue, ChangesQueued, ChangesView};
 
+/// The changes waiting on a person's approval, the party's own scope (domain/forge.md, 8.12).
+pub const APPROVALS_SUBJECT: u64 = (1 << 62) | (1 << 37);
+
 /// A project changes subject lies outside task and landing list subjects.
 #[must_use]
 pub fn changes_subject(project: u32) -> u64 {
@@ -433,7 +436,7 @@ fn phase_bytes(phase: &policy::Phase) -> usize {
 }
 
 /// The adopted repository's project owns its changes document (domain/forge.md, 9).
-pub(crate) fn changes_mark(d: &Domain, repository: skein_forge::api::Repository) -> Option<[u64; 2]> {
+pub(crate) fn changes_mark(d: &Domain, repository: skein_forge::api::Repository) -> Option<[u64; 3]> {
     let project = d.repositories.get(&repository)?.project;
-    Some([changes_subject(project), crate::status_subject(project)])
+    Some([changes_subject(project), crate::status_subject(project), APPROVALS_SUBJECT])
 }

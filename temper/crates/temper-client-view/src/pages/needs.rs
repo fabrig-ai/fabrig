@@ -14,7 +14,15 @@ use temper_client_domain::{
     },
 };
 
-pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, rows: u32, times: &mut Times) {
+pub(crate) fn main(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    rows: u32,
+    times: &mut Times,
+    sign_in: &crate::forge_sign_in::Forges,
+) {
     b.open(Role::Main);
     b.style(look::MAIN);
     b.style(look::NEEDS);
@@ -41,8 +49,8 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         .flatten()
         .min();
     }
-    if let Some(card) = session.shown(inbox) {
-        flow(b, root, w, bindings, times, card, &lines, rows);
+    if let Some(need) = session.shown(inbox, root.forge().approvals()) {
+        flow(b, root, w, bindings, times, need, &lines, rows, sign_in);
     } else {
         b.open(Role::Slot);
         b.style(look::NEEDS_INTRO);
@@ -83,17 +91,22 @@ fn flow(
     w: &Words,
     bindings: &mut Bindings,
     times: &mut Times,
-    card: &temper_client_domain::pages::inbox::Card,
+    need: needs::Need<'_>,
     lines: &[&needs::Answered],
     rows: u32,
+    sign_in: &crate::forge_sign_in::Forges,
 ) {
     let inbox = root.pages().inbox().expect("flow inbox");
     let session = root.pages().needs();
-    let open = session.open(inbox);
+    let open = session.needs(inbox, root.forge().approvals());
     let total = lines.len().checked_add(open.len()).expect("bounded session and inbox");
     let at = lines.len().checked_add(1).expect("bounded session");
     let head = w.say(
-        if *inbox.cut.first().expect("needs cut") { Word::NeedsProgressCut } else { Word::NeedsProgress },
+        if *inbox.cut.first().expect("needs cut") || root.forge().approvals().more() != 0 {
+            Word::NeedsProgressCut
+        } else {
+            Word::NeedsProgress
+        },
         &[
             Hole::Number(u64::try_from(at).expect("bounded count")),
             Hole::Number(u64::try_from(total).expect("bounded count")),
@@ -115,16 +128,25 @@ fn flow(
     b.close();
     ask::text(b, Role::Paragraph, &head, look::HOME_KICKER);
     b.close();
-    card_main(b, root, w, bindings, times, card, rows);
+    match need {
+        needs::Need::Card(card) => card_main(b, root, w, bindings, times, card, rows),
+        needs::Need::Approval(row) => super::approval::card(b, root, row, w, bindings, times, sign_in, true),
+    }
     let mut next = None;
     for other in &open {
-        if other.object != card.object {
-            next = Some(ask::read(other, w));
+        if other.object() != need.object() {
+            next = Some(match other {
+                needs::Need::Card(card) => {
+                    let asked = ask::read(card, w);
+                    (asked.title, asked.short)
+                }
+                needs::Need::Approval(row) => (row.title.clone(), super::approval::question(row, w)),
+            });
             break;
         }
     }
     let next = match next {
-        Some(next) => w.say(Word::NeedsNext, &[Hole::Name(next.title), Hole::Name(next.short)]),
+        Some(next) => w.say(Word::NeedsNext, &[Hole::Name(next.0), Hole::Name(next.1)]),
         None => w.say(Word::NeedsLast, &[]),
     };
     ask::text(b, Role::Paragraph, &next, look::NEXT_UP);
@@ -169,7 +191,7 @@ fn card_main(
         ask::Kind::Proposal | ask::Kind::Held | ask::Kind::PersonTask => asked.short.clone(),
     };
     ask::text(b, Role::Heading { level: 1 }, &question, look::FLOW_Q);
-    context(b, &asked, w, rows);
+    context(b, root, &asked, w, rows);
     ask::whole_parts(b, &asked, w, bindings);
     if let Some(outcome) = session.refused(card.object) {
         crate::confirm::outcome_words(b, w, outcome);
@@ -247,7 +269,7 @@ fn choices(b: &mut Builder, asked: &ask::Asked<'_>, w: &Words, bindings: &mut Bi
     }
 }
 
-fn context(b: &mut Builder, asked: &ask::Asked<'_>, w: &Words, rows: u32) {
+fn context(b: &mut Builder, root: &Domain, asked: &ask::Asked<'_>, w: &Words, rows: u32) {
     let Some(page) = &asked.card.page else { return };
     match asked.kind {
         ask::Kind::Question => return,
@@ -264,6 +286,9 @@ fn context(b: &mut Builder, asked: &ask::Asked<'_>, w: &Words, rows: u32) {
     match asked.kind {
         ask::Kind::Proposal | ask::Kind::Held | ask::Kind::Funds { .. } => {
             crate::confirm::facts_at(b, page, w, rows, crate::cards::Place::Inbox);
+            if let jig_client::contract::ObjectKey::Proposal(key) = asked.card.object {
+                crate::cards::proposal::owned_approval(b, root, key.number, w);
+            }
         }
         ask::Kind::Question | ask::Kind::PersonTask => {}
     }
