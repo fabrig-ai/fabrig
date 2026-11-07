@@ -207,33 +207,126 @@ fn a_box_refuses_an_unfulfillable_person_approval_rule() {
     world.close();
 }
 
+fn approval_identity_world(link: bool, second_forge: bool, fake_forge: bool) -> World {
+    let identity = if link { box_owner() } else { forge_top::user_key(1, 7) };
+    let mut world = world_with_owner(identity);
+    let person = world
+        .store
+        .rows
+        .values()
+        .find_map(|record| match record {
+            Record::Core(jig_domain_core::Record::People(people::Stored::SignIn { person, number, .. }))
+                if Some(*number) == world.signed_in =>
+            {
+                Some(*person)
+            }
+            _ => None,
+        })
+        .expect("signed-in owner");
+    let forge = forge_top::ForgeRecord {
+        number: 1,
+        kind: forge_top::Kind::Forgejo,
+        mode: if fake_forge { forge_top::Mode::Fake } else { forge_top::Mode::Connected },
+        state: forge_top::ForgeState::Kept,
+        place: forge_top::Place {
+            api: forge_top::Address { host: b"forge.example".as_slice().into(), port: 443, tls: None },
+            git: Box::new([]),
+            web: None,
+        },
+        read_only: false,
+        bot: forge_top::Bot { login: b"temper".as_slice().into(), name: Box::new([]), email: Box::new([]) },
+        asked: false,
+        first: None,
+        git_program: None,
+        person: link.then_some(forge_top::Link { user: 7, person }),
+    };
+    let mut records = vec![Record::Forge { row: Box::new(forge_top::Stored::Forge(forge.clone())) }];
+    if second_forge {
+        let repository = world
+            .store
+            .rows
+            .values()
+            .find_map(|record| match record {
+                Record::Forge { row } => match row.as_ref() {
+                    forge_top::Stored::Repository(repository) => Some(repository.clone()),
+                    _ => None,
+                },
+                Record::Core(_) => None,
+            })
+            .expect("adopted repository");
+        let mut other = repository;
+        other.provider.forge = 2;
+        other.host = b"other.example".as_slice().into();
+        other.home = false;
+        records.push(Record::Forge { row: Box::new(forge_top::Stored::Repository(other)) });
+        records.push(Record::Forge {
+            row: Box::new(forge_top::Stored::Forge(forge_top::ForgeRecord { number: 2, person: None, ..forge })),
+        });
+    }
+    world.store.seed(records.into_boxed_slice(), Box::new([]));
+    world.restart_same();
+    settle(&mut world);
+    world
+}
+
 #[test]
 fn approval_rules_count_known_forge_people_with_the_required_role() {
-    for (kind, scope, role, required, accepted) in [
-        (1, 0, 0, 1, true),
-        (2, 1, 0, 1, true),
-        (1, 0, 0, 2, false),
-        (2, 1, 0, 2, false),
-        (1, 0, 1, 1, false),
-        (2, 1, 1, 1, false),
+    const ONE_SHORT: &str =
+        "project 1 role 0 on forge forge.example requires 2 distinct known forge people; currently 1 eligible.";
+    const WRONG_ROLE: &str =
+        "project 1 role 1 on forge forge.example requires 1 distinct known forge people; currently 0 eligible.";
+    const OTHER_FORGE: &str =
+        "project 1 role 0 on forge other.example requires 1 distinct known forge people; currently 0 eligible.";
+    const FAKE: &str = "project 1: the playground's forge has no accounts, so no one can approve there. Name a branch pattern or a project that leaves its repository out, or remove the approval requirement.";
+    for (kind, scope, role, required, link, second_forge, fake_forge, host, refusal) in [
+        (1, 0, 0, 1, false, false, false, None, None),
+        (2, 1, 0, 1, false, false, false, None, None),
+        (1, 0, 0, 2, false, false, false, None, Some(ONE_SHORT)),
+        (2, 1, 0, 2, false, false, false, None, Some(ONE_SHORT)),
+        (1, 0, 1, 1, false, false, false, None, Some(WRONG_ROLE)),
+        (2, 1, 1, 1, false, false, false, None, Some(WRONG_ROLE)),
+        (1, 0, 0, 1, true, false, false, None, None),
+        (2, 1, 0, 1, true, false, false, None, None),
+        (1, 0, 0, 2, true, false, false, None, Some(ONE_SHORT)),
+        (2, 1, 0, 2, true, false, false, None, Some(ONE_SHORT)),
+        (1, 0, 0, 1, false, true, false, None, Some(OTHER_FORGE)),
+        (2, 1, 0, 1, false, true, false, Some(b"other.example".as_slice()), Some(OTHER_FORGE)),
+        (2, 1, 0, 1, false, true, false, Some(b"forge.example".as_slice()), None),
+        (1, 0, 0, 1, false, false, true, None, Some(FAKE)),
+        (2, 1, 0, 2, false, false, true, None, Some(FAKE)),
     ] {
-        let mut world = world_with_owner(temper_engine_domain_forge::user_key(1, 7_u64));
+        let mut world = approval_identity_world(link, second_forge, fake_forge);
+        let mut rule = approval_rule(role, required);
+        if let Some(host) = host {
+            let settings::Value::Rule(rule) = &mut rule else { panic!("approval rule") };
+            rule.pattern.segments = Box::new([b"forge".as_slice().into(), host.into()]);
+        }
         let before = kinds::revision(&world.store.rows);
         world.send(kinds::change(
             world.signed_in.expect("owner session"),
             before,
             94,
-            Box::new([kinds::item(kind, scope, 1, &approval_rule(role, required))]),
+            Box::new([kinds::item(kind, scope, 1, &rule)]),
         ));
-        for _ in 0..200 {
-            world.tick();
-        }
+        settle(&mut world);
         assert_eq!(
             kinds::revision(&world.store.rows),
-            before + u32::from(accepted),
-            "kind {kind} requiring {required} people: {:?}",
+            before + u32::from(refusal.is_none()),
+            "kind {kind} requiring {required} people, link {link}, second forge {second_forge}, fake {fake_forge}: {:?}",
             world.web_replies
         );
+        if let Some(expected) = refusal {
+            let why = world
+                .web_replies
+                .iter()
+                .rev()
+                .find_map(|reply| match reply {
+                    people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Judged { why, .. })) => Some(why),
+                    _ => None,
+                })
+                .expect("approval eligibility refusal");
+            assert!(why.starts_with(expected.as_bytes()), "{}", String::from_utf8_lossy(why));
+        }
         world.close();
     }
 }
@@ -549,7 +642,7 @@ fn stock_adoption_seeds_safe_human_approval_roles() {
         .unwrap_or_else(|| panic!("no eligible human: {:?}", world.web_replies));
     assert_eq!(
         refusal,
-        "project 1 role 2 requires 1 distinct known forge people; currently 0 eligible. Before accepting, add the person as a collaborator on the forge, give that role the permission in this project's policy if needed and adopt the repository again; then propose afresh against the newest revision, or remove the approval requirement."
+        "project 1 role 2 on forge forge.example requires 1 distinct known forge people; currently 0 eligible. Before accepting, add the person as a collaborator on the forge, give that role the permission in this project's policy if needed and adopt the repository again; then propose afresh against the newest revision, or remove the approval requirement."
     );
     for command in ["temper help", "temper ctl", "project show", "repository adopt"] {
         assert!(!refusal.contains(command), "approval refusal names no command: {refusal}");
