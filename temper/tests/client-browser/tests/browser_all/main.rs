@@ -1,10 +1,8 @@
 mod browser_accounts;
 mod browser_attacks;
 mod browser_authorize;
-mod browser_call_line;
 mod browser_connect_flows;
 mod browser_github;
-mod browser_model_picker;
 mod browser_pages;
 mod browser_playground;
 mod browser_public;
