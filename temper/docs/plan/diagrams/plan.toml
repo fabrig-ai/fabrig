@@ -1,0 +1,3 @@
+draft = "diagrams"
+repo = "fabrig"
+sources = ["temper/docs/plan/diagrams/inputs/request.md", "skein/docs/design/draft/diagrams.md", "skein/docs/design/draft/diagrams/README.md", "temper/docs/design/client/greenfield/README.md", "temper/docs/design/client/greenfield/mock.css", "AGENTS.md", "DESIGN.md"]
