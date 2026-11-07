@@ -25,7 +25,7 @@ fn read(tool: &[u8], input: &[u8], limits: &Limits) -> Result<Decoded, Problem> 
     let value = json::parse(input, limits)?;
     let value = json::Node::root(&value, limits);
     let action = match tool {
-        b"settings" => core::NamedAction::Settings(settings_read(value)?),
+        b"settings" => settings_action(value)?,
         b"propose_settings" => return settings(value, limits),
         b"delegate" => return Ok(Decoded::Delegate(delegates(value.required(b"batch")?, limits)?)),
         b"message" => message(value)?,
@@ -245,6 +245,24 @@ fn hex(byte: u8) -> Result<u8, Problem> {
         b'A'..=b'F' => Ok(byte.checked_sub(b'A').expect("hex letter").checked_add(10).expect("hex digit")),
         _ => Err(Problem { field: b"set", why: Why::Range }),
     }
+}
+
+fn settings_action(value: json::Node<'_>) -> Result<core::NamedAction, Problem> {
+    if value.required(b"kind")?.text()?.as_ref() == b"proposal" {
+        let task = value.field(b"task")?;
+        let party = value.field(b"party")?;
+        let proposer = match task {
+            Some(task) => {
+                if party.is_some() {
+                    return Err(Problem { field: b"party", why: Why::Range });
+                }
+                jig_domain_people::Proposer::Task(task.number()?)
+            }
+            None => jig_domain_people::Proposer::Party(value.required(b"party")?.number()?),
+        };
+        return Ok(core::NamedAction::ReadProposal { proposer, number: value.required(b"number")?.number()? });
+    }
+    Ok(core::NamedAction::Settings(settings_read(value)?))
 }
 
 fn settings_read(value: json::Node<'_>) -> Result<core::SettingsRead, Problem> {

@@ -191,6 +191,7 @@ impl World {
             inbound: Vec::new(),
             answers: Vec::new(),
             settings_answers: Vec::new(),
+            proposal_reads: Vec::new(),
             assigned: None,
             last_read: None,
             received_grant: None,

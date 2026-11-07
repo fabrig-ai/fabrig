@@ -151,6 +151,7 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             }
         }
         core::Now::TaskRead { to, key: _, answer } => super::host_route::read(domain, to, CallAnswer::TaskRead(answer)),
+        core::Now::ProposalRead { .. } => unreachable!("the current application has no immediate proposal route"),
         core::Now::SettingsAnswer { to, key: _, answer } => super::host_route::settings(domain, to, answer),
         core::Now::EffectAnswer { to, key: _, part } => {
             let answer = CallAnswer::from_core(&part).expect("effect wait answer");
