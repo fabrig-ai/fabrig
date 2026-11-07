@@ -757,6 +757,11 @@ for; and that nothing is live once it settles.
 
 ## 12. Open questions
 
+- **A goal's saved start overtaken by its change's repair** (section 5):
+  starting from saved work preserves its edits, but a repair or resolution
+  may have moved r since that save. Reconciliation is the forge's open
+  question (`forge.md`, section 20). Default: resume the saved tree; a
+  moved delivery branch ends the run stale.
 - **A park with markers left.** A save refuses a tree whose merge still holds
   a conflict marker, so a run that parks so keeps none of that run's edits,
   while earlier saved work stands. Its charter tells it to settle first
