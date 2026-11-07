@@ -193,6 +193,20 @@ impl Domain {
         &self.core.settings.models
     }
 
+    /// Whole current model settings (jig/docs/design/domain/engine.md, 17.11).
+    #[must_use]
+    pub fn catalogue(&self) -> Box<[jig_domain_core::settings::CatalogueModel]> {
+        let mut rows = List::with_capacity(jig_domain_tasks::MODELS);
+        for number in 1..=jig_domain_tasks::MODELS {
+            if let Some(value) = self.core.current.value(jig_domain_core::settings::Setting::Model(number))
+                && let jig_domain_core::settings::Value::Model(model) = value
+            {
+                rows.push(*model.clone()).expect("catalogue bound");
+            }
+        }
+        rows.into_boxed()
+    }
+
     /// The live task arena, for a world to inspect between iterations.
     #[must_use]
     pub const fn tasks(&self) -> &tasks::Domain {

@@ -93,6 +93,7 @@ fn settings_bad_fields_are_refused_by_name() {
         (br#"{"setting":{"kind":"charter"}}"#, Problem::Needs { kind: b"charter", member: b"number" }),
         (br#"{"setting":{"kind":"template"}}"#, Problem::Needs { kind: b"template", member: b"number" }),
         (br#"{"setting":{"kind":"policy"}}"#, Problem::Needs { kind: b"policy", member: b"number" }),
+        (br#"{"setting":{"kind":"model"}}"#, Problem::Needs { kind: b"model", member: b"number" }),
         (br#"{"setting":{"kind":"landing-rule"}}"#, Problem::Needs { kind: b"landing-rule", member: b"number" }),
         (br#"{"setting":{"kind":"forge-charter"}}"#, Problem::Needs { kind: b"forge-charter", member: b"number" }),
         (br#"{"setting":{"kind":"rules","number":1}}"#, Problem::Range(b"number")),
