@@ -105,7 +105,7 @@ fn while_approved_it_reads_again_each_second_until_another_answer() {
 }
 #[test]
 fn a_typed_code_reads_or_stays_with_its_alert() {
-    for (typed, reads) in [(b"wdjb mjht".as_slice(), true), (b"WDJB-MJHT", true), (b"WDJB-MJH", false), (b"AEIOUAEI", false), (b"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB", false), (b"", false)] {
+    for (typed, reads) in [(b"wdjb mjht".as_slice(), true), (b"WDJB-MJHT", true), (b"WDJB-MJH", false), (b"AEIOUAEI", false), (b"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB", false), (b"WDJBMJHT                         ", false), (b"", false)] {
         let mut root = fixtures::on_adoption_page(); open(&mut root, None);
         assert!(act(&mut root, Act::Words { words: typed.into() }).is_empty());
         let out = act(&mut root, Act::Check);

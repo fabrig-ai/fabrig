@@ -219,6 +219,7 @@ pub fn parse(path: &[u8]) -> Place {
     let (name, rest) = segment(path);
     let (number, tail) = segment(rest);
     let address = match (name, number, tail) {
+        (b"terminal", b"", b"") => return Place::Approve { code: approve_code(fields) },
         (b"forges", b"", b"") => Address::Forges,
         (b"forges", b"connect", b"") => Address::ConnectForge { forge: forge_choice(fields) },
         (b"accounts", b"", b"") => Address::Accounts,
@@ -672,6 +673,26 @@ fn draft_query(query: &[u8]) -> bool {
 
 /// The approval page's code as shown (client/browser.md, 2.3).
 #[must_use]
-pub fn print_approve(_code: Option<jig_client::ApprovalCode>) -> Box<[u8]> {
-    b"/terminal".as_slice().into()
+pub fn print_approve(code: Option<jig_client::ApprovalCode>) -> Box<[u8]> {
+    let Some(code) = code else { return b"/terminal".as_slice().into() };
+    let base = b"/terminal?code=";
+    let shown = code.shown();
+    let size = base.len().checked_add(shown.len()).expect("approval path fits");
+    let mut out = Writer::new(size);
+    out.put(base).expect("measured approval path");
+    out.put(&shown).expect("measured approval code");
+    out.finish()
+}
+fn approve_code(query: &[u8]) -> Option<jig_client::ApprovalCode> {
+    let mut rest = query;
+    for _ in 0..query.len() {
+        if rest.is_empty() { break; }
+        let end = skein_lib::bytes::find(rest, b"&").unwrap_or(rest.len());
+        let field = rest.get(..end).expect("separator in query");
+        rest = rest.get(end..).expect("separator in query").strip_prefix(b"&").unwrap_or(b"");
+        if let Some(value) = field.strip_prefix(b"code=")
+            && let Some(code) = jig_client::ApprovalCode::parse(value)
+        { return Some(code); }
+    }
+    None
 }
