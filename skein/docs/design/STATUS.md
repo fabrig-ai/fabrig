@@ -126,6 +126,7 @@ Design documents:
 - [`fake-checkout.md`](fake-checkout.status.md)
 - [`ui.md`](ui.status.md)
 - [`ui-text.md`](ui-text.status.md)
+- [`ui-screen.md`](ui-screen.status.md)
 - [`ui-web.md`](ui-web.status.md)
 - [`browser.md`](browser.status.md)
 - [`playground.md`](playground.status.md)

@@ -326,8 +326,18 @@ the ring adapter's:
   hears that it has none.
 - **Restored at the end.** `main` restores the kept modes once `drive`
   returns, on every path out of it, before it writes its last line to
-  standard error. A process that aborts, or is killed, cannot: the
-  terminal stays as it was set, as with any program that sets it.
+  standard error.
+- **Restored at a panic.** A panic aborts before `drive` returns, so the
+  kept modes make a restoration of their own: `Kept::on_abort(output,
+  leave)` gives a function that writes `leave`, the bytes that undo what
+  the service wrote to its terminal (for the full-screen shell, its
+  `LEAVE`: ui-screen.md, section 8), to `output` with blocking writes,
+  then sets the kept modes back on the kept descriptor. `main` hands it
+  to skein-fail-stop (`before_report`), whose hook runs it once, before
+  its report (programming-model.md, section 2), and takes it back
+  (`before_report(None)`) before `Kept::restore`. A process killed
+  outright cannot restore: the terminal stays as it was set, as with any
+  program that sets it.
 - **The window's size** is read at startup, and again when `SIGWINCH`
   arrives: startup blocks it with the termination signals, so it reaches
   io through the same signalfd, as an event that the window changed

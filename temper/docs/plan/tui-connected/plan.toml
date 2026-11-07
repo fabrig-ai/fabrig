@@ -4,3 +4,20 @@ sources = ["temper/docs/plan/tui-connected/inputs/request.md", "temper/docs/desi
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/tui"
 priority = true
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "screen"
+title = "skein's full-screen shell: a renderer laying skein-ui's tree on a grid of cells in an application's theme, a key reader and a terminal that leaves the terminal as it found it on every way out"
+mode = "direct"
+needs = []
+design = "skein/docs/design/ui-screen.md, 1"
+
+[[slice]]
+id = 1
+story = "A tree laid out full screen in a theme, read by keys, drawn on a simulated terminal that leaves it as it found it on each way out, a panic's included"
+parts = ["screen"]
+walk = false
