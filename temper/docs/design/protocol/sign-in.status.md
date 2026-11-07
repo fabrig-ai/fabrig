@@ -2,6 +2,12 @@
 
 2026-11-07. Where temper's code lags or departs from [sign-in.md](sign-in.md).
 
+Section 9.9's start refusal is present: non-null `machine.owned.sign_in`
+beside non-null `application.sign_in` names the owned sign-in path and
+says "a box's sign-in takes application.sign_in null". The startup table
+holds both refused and permitted pairs. Several members' forge links
+remain section 10's later work.
+
 Sections 9.2 and 9.9 have no known implementation gap in refreshing a
 listed box source before Forgejo starts, refusing `owned.public` beside
 `owned.sign_in`, or keeping serve before discovery while taking the late

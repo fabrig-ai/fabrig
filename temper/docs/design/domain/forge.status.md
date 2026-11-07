@@ -2,6 +2,27 @@
 
 2026-11-07. Where temper's code lags or departs from [forge.md](forge.md).
 
+Sections 4, 4.6 and 8.9 have the stored person link, link-first lookup,
+adoption skipping the linked user, shadowed seeds excluded from eligibility,
+and per-repository forge counts and refusal words, including the playground's.
+The connector keeps, replaces and clears links from setup evidence and a
+changed sole owner, and refuses the writer; the scope gap below remains.
+
+Sections 8.7 and 8.12 have the bounded, role-filtered approvals read, its
+marks and proposal warning. Review facts keep their first time at a head
+and leave when the merge is admitted. A vetoed approval wait stays First,
+retaining its branch turn. Step tables and the owned-Forgejo engine story
+cover these paths; GitHub's composed story remains in `testing.status.md`,
+6.4.
+
+- **Not yet:** 4.6: a link restored outside `--box` survives when its
+  person remains the deployment's sole owner. `link.rs`, `owner`, clears
+  only a different person; `person_of` blocks new links outside the box,
+  but `forges.rs`, `link`, still returns the retained one and the root's
+  `forge_person` uses it. No story covers that transition. The draft's
+  section 9 requires clearing when the box's scope no longer holds
+  (`../draft/forge-identity.status.md`, 9).
+
 Section 8.4 has no known implementation gap in a pull's files page
 answering `TooLarge`: its identity and gathered content remain, the
 files-omitted notice names the page and recovery tools, and comparison

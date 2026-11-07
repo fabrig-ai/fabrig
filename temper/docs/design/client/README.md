@@ -7063,6 +7063,13 @@ own tests:
 
 ## 11. Open questions
 
+- **The approval flow after landing** (3.5, 4.6, 5.13): check the card's
+  rendered look, the owned-Forgejo review link's sign-in, and a real human
+  review on each forge. The joint-world Forgejo story holds the card and
+  its files-page link in place of a browser step (`../domain/testing.md`,
+  6.3); GitHub's composed box story and live proof are separate
+  (`../domain/testing.md`, section 11). Default: client and view tables,
+  with no approval added to the terminal inbox in this round.
 - **Run-wait words after landing** (3.5, 5.5; the request
   `ui-wait-words`): temper/qa checks a charter grown past its admitted
   worker's bounds on the page and in the terminal, alongside ctl's

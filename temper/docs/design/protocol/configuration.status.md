@@ -2,6 +2,12 @@
 
 2026-11-07. Where temper's code lags or departs from [configuration.md](configuration.md).
 
+Section 13.2 has per-repository forge eligibility at proposal acceptance,
+with the forge named in refusals and separate playground words. Its
+proposal-items read carries `owned_approval` through the client wire so
+the card and page can state the owned-Forgejo limit. Wire and root tables
+hold these fields and decisions; real-model compliance remains deferred.
+
 Section 13.9 has no known gap in the reference's journal room:
 `room.json` sets `root.journal.run_bytes` to 65,536 in its application
 overlay, and the README, startup relation table and owned-process

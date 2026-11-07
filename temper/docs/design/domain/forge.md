@@ -3453,6 +3453,17 @@ whole.
 
 ## 20. Open questions
 
+- **Links beyond a box's one person** (4.6): several members need a
+  family of links and evidence of the connecting owner; a pasted App or
+  a second account needs user authorization or a verified claim on a
+  review (`../draft/forge-identity.md`, section 12). Default: adoption's
+  seeds there. Containing agents and CI is required before an owned
+  Forgejo's approval can resist an agent trying to bypass it
+  (`../protocol/setup.md`, section 15).
+- **The approval story on GitHub** (4.6, 8.12): the complete box story
+  belongs beside the owned-Forgejo domain story, then a real person's
+  review in the live tier (`testing.md`, section 11). Default: lower
+  setup, link and review checks establish those separate pieces alone.
 - **A forge read past its bound** (8.4): distinguishing
   `forge.client.rows` from `forge.client.answer_bytes`, with the measured
   size, needs skein's bare `TooLarge` to carry the bound and an exact or
