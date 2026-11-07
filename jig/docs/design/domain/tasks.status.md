@@ -17,6 +17,10 @@ message with its part remain section 13's later work.
 
 Section 3 has no known gap in model indices retaining their catalogue
 numbers and a task checking against its own revision's charter resolution.
+A task given no LLM choice takes each model's supported charter-selected
+effort, or its catalogue default when none is selected. The default-LLM
+table covers main and sub-agent selections and an explicit task choice
+retains its own effort.
 Unlisted sections have no known gap.
 Section 9's replacement of a run's own pending settings proposal has no
 known gap: refusal preserves the old set, late acceptance changes nothing,

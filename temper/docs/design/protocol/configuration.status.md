@@ -8,6 +8,12 @@ at Opus 5.5 xhigh first and high later with the same sub-agents.
 Charters 2, 6, 7 and 8 hold their roles' rules; the reference settings
 tests check rule placement and hold all five supplied charters to a
 stock worker's bounds and the stored-policy run bound, including parts.
+The cut names the core's subscription to its changes' landing branches
+and asks for no duplicate `subscribe_forge`; the paths bound stays 4.
+The combined cut, withheld-question and later-answer domain story is
+unignored. Its store keeps the latest configured catalogue for both
+crash reopening and forks, so the restart oracle reads the same model
+names.
 
 Section 13.2 has per-repository forge eligibility at proposal acceptance,
 with the forge named in refusals and separate playground words. Its
