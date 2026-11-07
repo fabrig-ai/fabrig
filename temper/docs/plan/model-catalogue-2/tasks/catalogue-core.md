@@ -76,3 +76,14 @@ Each test breaks its rule once by hand. `cargo fmt`; `python3 -I -B jig/scripts/
 ## Report
 
 Where resolved charters live, and what they cost in the worst case. Pins regenerated. Every test deleted, with its rule.
+
+## Rebase (2026-11-07, step merge, foreman model-catalogue-2/catalogue-core/foreman-1)
+
+resolve the B2 fixture conflict using integration’s catalogue configuration and one endpoint assignment.
+The merge conflicts in `temper/tests/engine/domain/tests/suite/settings/b2.rs`, inside `configuration()`.
+Task commit `8848ea6835` and integration commit `c0dacc8f252d424172d662f5884131090a633092` both add the same endpoint facts, using different type qualifications.
+Keep integration’s `jig_domain_core::EndpointFacts` assignment exactly once, preserving number, dialect and program.
+Keep integration’s `Llm.models` construction with numbered `CatalogueModel` entries and its removal of the separate `shown`, `pickers` and `descriptions` fields; the updated `Llm` requires this representation.
+Keep `config.core.settings.models = Box::new([model]);`.
+Taking integration’s version of this file preserves the branch’s entire endpoint addition semantically and resolves the reported conflict.
+Preserve the catalogue-core changes elsewhere and review the automatically merged paths before completing the rebase.
