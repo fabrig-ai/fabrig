@@ -3,8 +3,8 @@
 use skein_lib::Wall;
 use skein_ui::Owner;
 use skein_ui::phrases::{
-    Form, Hole, HoleKind, HoleShape, Language, Phrase, PhraseId, PhraseLimits, PhraseShape, Phrasebook,
-    PluralClass, PluralRule, Segment, SpanUnit, WallFormat,
+    Form, Hole, HoleKind, HoleShape, Language, Phrase, PhraseId, PhraseLimits, PhraseShape, Phrasebook, PluralClass,
+    PluralRule, Segment, SpanUnit, WallFormat,
 };
 
 const ID: PhraseId = PhraseId { owner: Owner { number: 4 }, number: 1 };
@@ -28,7 +28,8 @@ fn wall_language(kind: HoleKind, wall: WallFormat) -> Language {
     }
 }
 fn wall_book(kind: HoleKind, format: WallFormat) -> Phrasebook {
-    Phrasebook::load(wall_shape(kind), Box::new([wall_language(kind, format)]), &LIMITS).unwrap()
+    Phrasebook::load(wall_shape(kind), Box::new([wall_language(kind, format)]), &LIMITS)
+        .expect("the date phrase fits its shape and limits")
 }
 
 #[test]

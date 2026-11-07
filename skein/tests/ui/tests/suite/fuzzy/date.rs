@@ -15,4 +15,3 @@ fn every_wall_day_round_trips_at_midnight() {
         assert_eq!(civil(end), Some(date));
     }
 }
-
