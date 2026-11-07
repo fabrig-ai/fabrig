@@ -286,3 +286,6 @@ fn frame_print_names_paints_and_writes_its_text_and_cursor() {
         assert_eq!(frame.print().as_ref(), print, "{name}");
     }
 }
+
+mod fixtures;
+mod render;
