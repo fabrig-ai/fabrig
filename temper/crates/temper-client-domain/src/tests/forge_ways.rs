@@ -625,7 +625,9 @@ fn proposed_page(asked: Asked) -> Readout {
             .unwrap(),
         )
         .unwrap();
-    let answer = w::ProposalItemsAnswer::new(&w::CEILINGS, w::ProposalItemsAnswerParts { items }).unwrap();
+    let answer =
+        w::ProposalItemsAnswer::new(&w::CEILINGS, w::ProposalItemsAnswerParts { items, owned_approval: false })
+            .unwrap();
     Readout::Family { family: wire::FORGE, record: Some(wire::proposal_items_answer(&answer)) }
 }
 fn proposal_told(root: &mut Domain, told: Told) {

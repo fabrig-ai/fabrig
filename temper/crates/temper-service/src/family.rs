@@ -472,7 +472,7 @@ pub fn to_root(
                         connector: wire::FORGE,
                         subject: Token::new(forge::decided_subject(subject.project())),
                     },
-                    w::Watch::Change(_) | w::Watch::Landing(_) => {
+                    w::Watch::Change(_) | w::Watch::Landing(_) | w::Watch::Approvals => {
                         return Err(Box::new(kit::Event::WatchRefused {
                             watcher,
                             why: jig_domain_core::WatchRefusal::Unknown,
@@ -1823,7 +1823,9 @@ pub fn forge_read(answer: root::ForgeReadAnswer, program_environment: &[u8], lim
                     )
                     .ok()?;
             }
-            let record = w::ProposalItemsAnswer::new(limits, w::ProposalItemsAnswerParts { items }).ok()?;
+            let record =
+                w::ProposalItemsAnswer::new(limits, w::ProposalItemsAnswerParts { items, owned_approval: false })
+                    .ok()?;
             Some(wire::proposal_items_answer(&record))
         }
     }
