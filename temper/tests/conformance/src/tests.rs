@@ -32,6 +32,17 @@ fn shared_policy_refreshes_adapter_edits_and_replaces_referee_edits() {
 }
 
 #[test]
+fn indexed_effect_evidence_matches_whole_rows_for_each_origin_and_cold_retry() {
+    // Unit-test builds compare effect identities, outcomes and issue evidence
+    // with full walks. These stories exercise call, projection and procedure keys.
+    for story in [stories::Story::IssueCreation, stories::Story::GoalIssue, stories::Story::LostMerge] {
+        let outcome = stories::run(story, jig_conformance::Cut::AfterCommit(20), 71)
+            .expect("indexed and whole effect evidence agree");
+        assert!(outcome.crashes.contains(&20));
+    }
+}
+
+#[test]
 fn a_worker_reports_its_unchanged_push_head_after_an_engine_restart() {
     let config = Config::new(71, Some(jig_conformance::scenarios::Scenario::Grace));
     let mut peers = Temper::peers(&config, 71);

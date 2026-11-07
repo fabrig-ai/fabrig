@@ -63,6 +63,36 @@ pub fn parts(write: &skein_forge::api::Write) -> (u16, Vec<r::Name>, Option<u64>
 }
 #[must_use]
 pub fn key(store: &Store, entry: &skein_forge_client::Entry) -> EffectKey {
+    let first = core::CallKey { task: 0, attempt: 0, completion: 0, position: 0 };
+    let last = core::CallKey { task: u64::MAX, attempt: u64::MAX, completion: u32::MAX, position: u32::MAX };
+    let range = root::Key::Core(core::Key::Core(core::CoreKey::Call(first)))
+        ..=root::Key::Core(core::Key::Core(core::CoreKey::Call(last)));
+    let call = store.rows.range(range).find_map(|(_, row)| match row {
+        root::Record::Core(core::Record::Core(core::CoreRecord::Call(row)))
+            if matches!(row.part, core::CallPart::Effect { entry: number, .. } if number == entry.number) => Some(row.key),
+        _ => None,
+    });
+    let key = EffectKey {
+        deployment: [31; 16], task: entry.task, purpose: entry.number,
+        origin: call.map_or_else(|| {
+            let tracked = [tasks::Key::Live(entry.task), tasks::Key::Ended(entry.task)]
+                .into_iter().any(|key| matches!(
+                    store.rows.get(&root::Key::Core(core::Key::Tasks(key))),
+                    Some(root::Record::Core(core::Record::Tasks(tasks::Stored::Live(task) | tasks::Stored::Ended(task))))
+                        if task.number == entry.task && task.tracked.is_some()
+                ));
+            if tracked { r::EffectOrigin::Projection } else { r::EffectOrigin::Procedure }
+        }, |call| r::EffectOrigin::Call {
+            attempt: call.attempt, completion: call.completion, position: call.position,
+        }),
+    };
+    #[cfg(test)]
+    assert_eq!(key, whole_key(store, entry), "indexed effect identity");
+    key
+}
+
+#[cfg(test)]
+fn whole_key(store: &Store, entry: &skein_forge_client::Entry) -> EffectKey {
     let call = store.rows.values().find_map(|row| match row {
         root::Record::Core(core::Record::Core(core::CoreRecord::Call(row))) if matches!(row.part, core::CallPart::Effect { entry: n, .. } if n == entry.number) => Some(row.key),
         _ => None,
@@ -263,7 +293,7 @@ fn connector_snapshot(
 }
 
 /// Entry identity and projection ownership retained from actual durable rows.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct EffectEvidence {
     pub kind: u16,
     pub projection: bool,
@@ -278,12 +308,161 @@ pub fn resolved(
     held: &mut BTreeMap<EffectKey, u16>,
     settled: &mut BTreeSet<EffectKey>,
 ) {
+    #[cfg(test)]
+    let (expected, expected_seen, expected_held, expected_settled) = {
+        let mut expected = r::Snapshot {
+            held_effects: snapshot.held_effects.clone(),
+            settled_effects: snapshot.settled_effects.clone(),
+            ..r::Snapshot::default()
+        };
+        let mut expected_seen = seen.clone();
+        let mut expected_held = held.clone();
+        let mut expected_settled = settled.clone();
+        whole_resolved(store, &mut expected, &mut expected_seen, &mut expected_held, &mut expected_settled);
+        (expected, expected_seen, expected_held, expected_settled)
+    };
+    let mut live = BTreeSet::new();
+    let entries = root::Key::Forge(forge::Key::Entry(0))
+        ..=root::Key::Forge(forge::Key::Entry(u64::MAX));
+    for (_, record) in store.rows.range(entries) {
+        if let root::Record::Forge { row } = record
+            && let forge::Stored::Entry { entry, held: false } = row.as_ref()
+        {
+            let key = key(store, entry);
+            live.insert(key);
+            let evidence = EffectEvidence {
+                kind: parts(&entry.effect.write).0,
+                projection: issue(store, key.task).is_some_and(|issue| issue.pending == Some(key.purpose)),
+            };
+            seen.entry(key)
+                .and_modify(|old| {
+                    assert_eq!(old.kind, evidence.kind, "durable entry changed kind");
+                    old.projection |= evidence.projection;
+                })
+                .or_insert(evidence);
+        }
+    }
+    for (&key, evidence) in seen.iter() {
+        if held.contains_key(&key) || settled.contains(&key) {
+            continue;
+        }
+        let answer = call_outcome(store, &key);
+        match answer {
+            Some(Some(core::effects::connector::OutboxOutcome::Held { .. })) => {
+                held.insert(key, evidence.kind);
+            }
+            // A write past its lifetime found not made is settled too (D14).
+            Some(Some(
+                core::effects::connector::OutboxOutcome::Made
+                | core::effects::connector::OutboxOutcome::NotMade
+                | core::effects::connector::OutboxOutcome::Failed
+                | core::effects::connector::OutboxOutcome::Withdrawn,
+            )) => {
+                settled.insert(key);
+            }
+            Some(None | Some(core::effects::connector::OutboxOutcome::Uncertain)) => {}
+            None if live.contains(&key) => {}
+            None => {
+                let projection_failed = evidence.projection
+                    && issue(store, key.task).is_some_and(|issue| issue.failed);
+                if projection_failed {
+                    held.insert(key, evidence.kind);
+                } else {
+                    // A non-named connector entry has reached its terminal
+                    // before its root-owned projection/procedure erases it.
+                    settled.insert(key);
+                }
+            }
+        }
+    }
+    snapshot.held_effects.extend(held.keys().map(|key| (0, *key)));
+    snapshot.settled_effects.extend(settled.iter().map(|key| (0, *key)));
+    #[cfg(test)]
+    {
+        assert_eq!(*seen, expected_seen, "indexed entry evidence");
+        assert_eq!(*held, expected_held, "indexed held evidence");
+        assert_eq!(*settled, expected_settled, "indexed settled evidence");
+        assert_eq!(snapshot.held_effects, expected.held_effects);
+        assert_eq!(snapshot.settled_effects, expected.settled_effects);
+    }
+}
+
+fn issue(store: &Store, task: u64) -> Option<&forge::IssueRow> {
+    let found: Option<&forge::IssueRow> = match store.rows.get(&root::Key::Forge(forge::Key::Issue(task))) {
+        Some(root::Record::Forge { row }) => match row.as_ref() {
+            forge::Stored::Issue(issue) if issue.goal == task => Some(issue),
+            _ => None,
+        },
+        _ => None,
+    };
+    #[cfg(test)]
+    {
+        let whole = store.rows.values().find_map(|record| match record {
+            root::Record::Forge { row } => match row.as_ref() {
+                forge::Stored::Issue(issue) if issue.goal == task => Some(issue),
+                _ => None,
+            },
+            _ => None,
+        });
+        assert_eq!(found.map(|row| (row.pending, row.failed)),
+            whole.map(|row| (row.pending, row.failed)), "indexed issue evidence");
+    }
+    found
+}
+
+fn call_outcome(store: &Store, key: &EffectKey) -> Option<Option<core::effects::connector::OutboxOutcome>> {
+    let found = if let r::EffectOrigin::Call { attempt, completion, position } = key.origin {
+        let wanted = core::CallKey { task: key.task, attempt, completion, position };
+        match store.rows.get(&root::Key::Core(core::Key::Core(core::CoreKey::Call(wanted)))) {
+            Some(root::Record::Core(core::Record::Core(core::CoreRecord::Call(call)))) if call.key == wanted => {
+                match call.part {
+                    core::CallPart::Effect { entry, outcome, .. } if entry == key.purpose => Some(outcome),
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    } else { None };
+    #[cfg(test)]
+    assert_eq!(found, whole_answer(store, key), "indexed effect outcome");
+    found
+}
+
+#[cfg(test)]
+fn whole_answer(store: &Store, key: &EffectKey) -> Option<Option<core::effects::connector::OutboxOutcome>> {
+    store.rows.values().find_map(|record| match record {
+            root::Record::Core(core::Record::Core(core::CoreRecord::Call(call)))
+                if call.key.task == key.task
+                    && key.origin
+                        == (r::EffectOrigin::Call {
+                            attempt: call.key.attempt,
+                            completion: call.key.completion,
+                            position: call.key.position,
+                        }) =>
+            {
+                match call.part {
+                    core::CallPart::Effect { entry, outcome, .. } if entry == key.purpose => Some(outcome),
+                    _ => None,
+                }
+            }
+            _ => None,
+        })
+}
+
+#[cfg(test)]
+fn whole_resolved(
+    store: &Store,
+    snapshot: &mut r::Snapshot,
+    seen: &mut BTreeMap<EffectKey, EffectEvidence>,
+    held: &mut BTreeMap<EffectKey, u16>,
+    settled: &mut BTreeSet<EffectKey>,
+) {
     let mut live = BTreeSet::new();
     for record in store.rows.values() {
         if let root::Record::Forge { row } = record
             && let forge::Stored::Entry { entry, held: false } = row.as_ref()
         {
-            let key = key(store, entry);
+            let key = whole_key(store, entry);
             live.insert(key);
             let evidence = EffectEvidence {
                 kind: parts(&entry.effect.write).0,

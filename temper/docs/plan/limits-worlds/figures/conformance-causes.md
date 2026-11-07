@@ -84,3 +84,24 @@ The single changed-judge CPU timing rose; no CPU gain is claimed for that arm.
 The next common cause is reconstructing borrowed maps and resolving cross-row
 facts: the adapter map alone costs 852 million / 1,012 million Ir in the
 preceding arm. Keyed joins can read the changed durable rows directly.
+
+## Third fix: direct durable lookup and keyed joins
+
+Commit `0a8fa91711` consumes the whole row iterator only for a rebuild. Normal
+commits look up their submitted keys directly; keyed histories, decisions and
+amendment targets resolve the same cross-row facts in the same order. The
+connector adapter reads accepted decisions from those current keyed summaries.
+A focused test changes and erases an amendment while retaining its decision;
+omitting the link fails whole-store equivalence at commit 2.
+
+| Story | Arm | Run | Ir | Native CPU s (user + system, with descendants) | Result |
+|---|---|---:|---:|---:|---|
+| CI repair | Direct feed | 1 | 19,849,743,944 | 6.555 | 1 passed; 78 children |
+| Changed judge | Direct feed | 1 | 16,542,216,305 | 5.526 | 1 passed; 77 children |
+
+This saves another 1,200,578,818 / 1,473,143,333 Ir, 5.70% / 8.18% of the
+preceding arm. CI's single native timing rose slightly again. The remaining
+adapter scans in effect evidence cost about 386 / 860 million inclusive Ir;
+fixture construction for repeated public document watches is another cause
+in CI repair. They are considered next, with independent full-walk comparisons
+for indexed evidence and every public readback retained.
