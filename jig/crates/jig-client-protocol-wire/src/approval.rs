@@ -5,7 +5,7 @@ pub const CODE_ALPHABET: [u8; 20] = *b"BCDFGHJKLMNPQRSTVWXZ";
 /// How many letters a code has.
 pub const CODE_LETTERS: usize = 8;
 /// The most bytes `ApprovalCode::parse` reads.
-pub const CODE_TYPED_BYTES: usize = 32;
+pub const CODE_INPUT_BYTES: usize = 32;
 
 /// An approval's code: eight letters of the alphabet, upper case.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -15,7 +15,7 @@ impl ApprovalCode {
     /// Read exactly eight alphabet letters, ignoring hyphens, spaces and ASCII case.
     #[must_use]
     pub fn parse(bytes: &[u8]) -> Option<Self> {
-        if bytes.len() > CODE_TYPED_BYTES {
+        if bytes.len() > CODE_INPUT_BYTES {
             return None;
         }
         let mut letters = [0; CODE_LETTERS];

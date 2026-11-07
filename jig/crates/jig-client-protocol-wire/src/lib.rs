@@ -4,7 +4,7 @@
 extern crate alloc;
 
 mod approval;
-pub use approval::{ApprovalCode, CODE_ALPHABET, CODE_LETTERS, CODE_TYPED_BYTES};
+pub use approval::{ApprovalCode, CODE_ALPHABET, CODE_INPUT_BYTES, CODE_LETTERS};
 
 #[expect(clippy::struct_field_names, reason = "The Accounts wire record retains the schema’s accounts field.")]
 #[rustfmt::skip]
