@@ -131,7 +131,7 @@ fn fifth_setup_step_fails_on_welcome_and_forges() {
     assert!(!named(Temper::tree(&draw(&root)), Role::Link, b"Later"));
     harness::event(&mut front, &mut root, Temper::went(Address::Forges));
     let view = draw(&root);
-    assert!(named(Temper::tree(&view), Role::Button, b"Set up again"), "{}", words(Temper::tree(&view)));
-    // Forges draws no set-up steps for any failure yet (the Forges page's own look, not this row's).
+    assert!(named(Temper::tree(&view), Role::Button, b"Try again"), "{}", words(Temper::tree(&view)));
+    // Forges keeps the setup steps beside the failure's words.
     assert!(words(Temper::tree(&view)).contains("making the repository"), "{}", words(Temper::tree(&view)));
 }

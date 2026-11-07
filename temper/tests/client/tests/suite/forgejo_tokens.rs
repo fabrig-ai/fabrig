@@ -39,6 +39,9 @@ pub(super) fn new_world() -> Pages {
 fn see(role: Role, name: &[u8]) -> PersonStep<Address> {
     PersonStep::See { find: Find::exactly_named(role, name), within: f::WITHIN }
 }
+fn checking() -> PersonStep<Address> {
+    PersonStep::See { find: Find::text(b"Checking that both answer as one user, not a site admin."), within: f::WITHIN }
+}
 fn follow(world: &mut Pages, client: ClientId, steps: Vec<PersonStep<Address>>) {
     world.person(client, steps);
     let outcome = world.run(Until::Done);
@@ -134,15 +137,7 @@ fn your_forgejo_connects_with_bot_tokens_retries_a_stop_and_is_ready() {
     press(&mut world, client, Role::Button, b"Connect with its tokens");
     let (number, request) = *world.front().admin_connects.last().expect("tokens Connect sent");
     assert_eq!(world.front().admin_connects.len(), 1);
-    let connecting = format!("Connecting forge {number} with its bot’s tokens.");
-    follow(
-        &mut world,
-        client,
-        vec![
-            see(Role::Heading { level: 2 }, connecting.as_bytes()),
-            see(Role::Paragraph, b"Checking that both answer as one user, not a site admin."),
-        ],
-    );
+    follow(&mut world, client, vec![see(Role::Disclosure, b"Forgejo"), checking()]);
     private(&mut world, client, &values);
     world.front().engine.send(engine::Event::Forge(Box::new(forge::Event::ConnectEnded {
         forge: number,
@@ -171,7 +166,7 @@ fn your_forgejo_connects_with_bot_tokens_retries_a_stop_and_is_ready() {
     let (kept, retry) = *world.front().admin_connects.last().expect("retry Connect sent");
     assert_eq!(kept, number);
     assert_ne!(retry, request);
-    follow(&mut world, client, vec![see(Role::Heading { level: 2 }, connecting.as_bytes())]);
+    follow(&mut world, client, vec![checking()]);
     world.front().engine.send(engine::Event::Forge(Box::new(forge::Event::BotLogin {
         forge: number,
         login: b"builder".as_slice().into(),
@@ -190,7 +185,7 @@ fn your_forgejo_connects_with_bot_tokens_retries_a_stop_and_is_ready() {
     follow(
         &mut world,
         client,
-        vec![see(Role::Heading { level: 2 }, b"Forgejo is connected"), see(Role::Paragraph, b"Connected as builder.")],
+        vec![see(Role::Paragraph, b"Connected Forgejo."), see(Role::Description, "builder · user 7".as_bytes())],
     );
     private(&mut world, client, &values);
     assert_eq!(world.front().admin_connects.len(), 2);

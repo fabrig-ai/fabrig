@@ -103,7 +103,7 @@ pub fn welcome_step(choice: Option<AddressChoice>, rows: &State, playground: Opt
     step(choice, rows, playground, owned)
 }
 #[must_use]
-pub(crate) fn admin_stopped(row: &Row) -> bool {
+pub fn admin_stopped(row: &Row) -> bool {
     if let Connection::Stopped { .. } = row.connection {
         return true;
     }
@@ -408,5 +408,14 @@ pub fn failed_step(row: &Row) -> Option<FailedStep> {
         | Connection::Connecting
         | Connection::Connected { .. }
         | Connection::Stopped { .. } => None,
+    }
+}
+
+/// The Settings connection follows the record its accepted request made.
+pub(crate) fn following(choice: Option<AddressChoice>, side: &super::Side) -> Option<u16> {
+    let Some(AddressChoice::Forge(number)) = choice else { return None };
+    match step(Some(AddressChoice::Forge(number)), side.forges(), playground(side), true) {
+        Shown::SettingUp(_) | Shown::Ready(_) => Some(number),
+        Shown::Choose | Shown::Unfinished(_) | Shown::Details(_) => None,
     }
 }

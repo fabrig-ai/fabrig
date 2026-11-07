@@ -568,15 +568,20 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "forges-added",
+        heading: "Where your code lives.",
+        parts: &[Part::Text { text: "Connected Forgejo on this machine." }],
+    },
+    Holds {
         name: "forges-setting-up",
         heading: "Where your code lives.",
         parts: &[
             Part::Described {
                 role: Role::Disclosure,
                 name: "Forgejo on this machine",
-                description: "Forge 3 · Forgejo · Setting up: preparing\nwork/hello",
+                description: "Forge 3 · Forgejo · Setting up: preparing · work/hello",
             },
-            Part::Named { role: Role::Link, name: "Open its set-up ›" },
+            Part::Text { text: "Preparing: its database, temper’s admin, your account" },
         ],
     },
     Holds {
@@ -585,7 +590,7 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[Part::Described {
             role: Role::Disclosure,
             name: "Forgejo on this machine",
-            description: "Forge 3 · Forgejo · Setting up: fetching Forgejo · 42%\nwork/hello",
+            description: "Forge 3 · Forgejo · Setting up: fetching Forgejo · 42% · work/hello",
         }],
     },
     Holds {
@@ -594,14 +599,14 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[Part::Described {
             role: Role::Disclosure,
             name: "Forgejo on this machine",
-            description: "Forge 3 · Forgejo · Setting up: fetching Forgejo · 41 MB\nwork/hello",
+            description: "Forge 3 · Forgejo · Setting up: fetching Forgejo · 41 MB · work/hello",
         }],
     },
     Holds {
         name: "forges-failed",
         heading: "Where your code lives.",
         parts: &[
-            Part::Named { role: Role::Button, name: "Set up again" },
+            Part::Named { role: Role::Button, name: "Try again" },
             Part::Described {
                 role: Role::Disclosure,
                 name: "Forgejo on this machine",
@@ -1405,11 +1410,10 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "forge-setup-failed",
-        heading: "Connect a forge",
+        heading: "Where your code lives.",
         parts: &[
-            Part::Named { role: Role::Status, name: "failed" },
-            Part::Named { role: Role::List, name: "Each step" },
-            Part::Named { role: Role::Button, name: "Set up again" },
+            Part::Named { role: Role::Disclosure, name: "Forgejo on this machine" },
+            Part::Named { role: Role::Button, name: "Try again" },
         ],
     },
     Holds {
@@ -1500,20 +1504,20 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "github-install",
-        heading: "Connect a forge",
+        heading: "Where your code lives.",
         parts: &[Part::Named { role: Role::Button, name: "Install on GitHub" }],
     },
     Holds {
         name: "github-picker",
-        heading: "Connect a forge",
+        heading: "Where your code lives.",
         parts: &[
-            Part::Named { role: Role::Heading { level: 2 }, name: "GitHub is connected" },
+            Part::Named { role: Role::Paragraph, name: "Connected GitHub." },
             Part::Named { role: Role::Link, name: "Adopt a repository" },
         ],
     },
     Holds {
         name: "github-adopted",
-        heading: "Connect a forge",
+        heading: "Where your code lives.",
         parts: &[Part::Named { role: Role::Link, name: "Adopt a repository" }],
     },
     Holds {
@@ -1623,10 +1627,10 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "forge-setting-up-middle",
-        heading: "Connect a forge",
+        heading: "Where your code lives.",
         parts: &[
-            Part::Named { role: Role::Status, name: "under way" },
-            Part::Named { role: Role::List, name: "Each step" },
+            Part::Named { role: Role::Disclosure, name: "Forgejo on this machine" },
+            Part::Text { text: "Preparing: its database, temper’s admin, your account" },
         ],
     },
     Holds {
@@ -1712,11 +1716,10 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "connect-forge-first-run-6",
-        heading: "Connect a forge",
+        heading: "Where your code lives.",
         parts: &[
-            Part::Named { role: Role::Heading { level: 2 }, name: "Setting up Forgejo on this machine" },
-            Part::Named { role: Role::Status, name: "under way" },
-            Part::Named { role: Role::Paragraph, name: "work/hello" },
+            Part::Named { role: Role::Disclosure, name: "Forgejo on this machine" },
+            Part::Text { text: "Preparing: its database, temper’s admin, your account" },
         ],
     },
     Holds {
@@ -3170,15 +3173,15 @@ fn connection_samples_assign_priority_and_progress_to_the_bundled_nodes() {
         .tree()
         .nodes()
         .iter()
-        .position(|node| node.styles.as_slice().contains(&look::FLOW_PROGRESS))
+        .position(|node| node.styles.as_slice().contains(&look::CONNECT_LIVE))
         .expect("progress");
     let nodes = view.tree().nodes();
     let end = progress + usize::try_from(nodes[progress].size).expect("subtree size");
     let items: Vec<_> = nodes[progress..end].iter().filter(|node| node.role == Role::Item).collect();
     assert_eq!(items.len(), 5);
-    assert!(items[0].styles.as_slice().contains(&look::FLOW_DONE));
+    assert!(items[0].styles.is_empty());
     assert!(items[1].states.as_slice().contains(&skein_ui::State::Current));
-    assert!(items[2].styles.is_empty());
+    assert!(items[2].styles.as_slice().contains(&look::CONNECT_LATER));
     assert!(items[2].states.is_empty());
 }
 

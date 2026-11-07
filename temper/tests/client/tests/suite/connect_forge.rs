@@ -155,8 +155,8 @@ fn setting_up_forgejo_here_from_the_welcome() {
         d::Event::Went { place: d::Place::Address(Address::ConnectForge { forge: Some(Choice::Forge(OWNED)) }) },
     );
     let making = view(&root);
-    node(&making, Role::Heading { level: 2 }, b"Setting up Forgejo on this machine");
-    node(&making, Role::Paragraph, b"work/hello");
+    node(&making, Role::Disclosure, b"Forgejo on this machine");
+    node(&making, Role::Paragraph, b"Making work/hello");
     let before = front.applications_admitted();
     front.engine.send(temper_engine_domain::Event::Forge(Box::new(forge::Event::FirstMade { forge: OWNED, id: 42 })));
     front.engine.settle();
@@ -210,7 +210,7 @@ fn model_follows_forgejo_from_setup_to_its_first_repository() {
 #[test]
 fn github_connects_without_a_picker_and_the_named_welcome_moves_to_model() {
     let (mut front, mut root) = Joint::github_fixture(fixtures::SEED);
-    node(&view(&root), Role::Heading { level: 2 }, b"GitHub is connected");
+    node(&view(&root), Role::Paragraph, b"Connected GitHub.");
     assert!(front.reachable_reads.is_empty());
     assert!(!front.engine_adopted(1, 8));
     accounts::event(

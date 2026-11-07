@@ -205,7 +205,7 @@ fn setup_leaves_the_first_repository_unadopted_even_after_connection() {
     assert_eq!(outcome.verdict, skein_world::domain::Verdict::Passed, "{outcome:?}");
     assert!(!world.front().engine_adopted(FORGE, REPOSITORY), "made alone must not adopt before the forge connects");
     connected(&mut world);
-    script(&mut world, person, vec![see(b"Forgejo on this machine is connected")]);
+    script(&mut world, person, vec![see(b"Connected Forgejo on this machine.")]);
     assert!(!world.front().engine_adopted(FORGE, REPOSITORY), "the asking client leaves the repository unadopted");
 }
 
@@ -222,7 +222,7 @@ fn a_second_tab_that_never_asked_does_not_adopt_the_made_repository() {
     connected(&mut world);
     let answer = fixtures::answered(&mut world, agent, number);
     assert_eq!(answer.status, 0, "{answer:?}");
-    script(&mut world, person, vec![see(b"Forgejo on this machine is connected")]);
+    script(&mut world, person, vec![see(b"Connected Forgejo on this machine.")]);
     assert_eq!(
         world.front().applications_admitted(),
         2,
@@ -243,11 +243,11 @@ fn leaving_the_flow_keeps_the_made_repository_unadopted() {
     assert!(!world.front().engine_adopted(FORGE, REPOSITORY), "leaving the flow adopts nothing");
     let count = world.front().applications_admitted();
     send(&mut world, forge::Event::FirstMade { forge: FORGE, id: u64::from(REPOSITORY) });
-    script(&mut world, person, vec![Step::Go { address: flow() }, see(b"Forgejo on this machine is connected")]);
+    script(&mut world, person, vec![Step::Go { address: flow() }, see(b"Connected Forgejo on this machine.")]);
     assert_eq!(
         world.front().applications_admitted(),
         count,
-        "duplicate row updates and returning to Ready must not send another Adopt"
+        "duplicate row updates and returning to Forges must not send another Adopt"
     );
 }
 
@@ -271,7 +271,7 @@ fn every_create_failure_offers_setup_again_with_the_same_names() {
             page.contains(std::str::from_utf8(why).expect("failure words")),
             "flow must name the failed step: {page}"
         );
-        world.person(person, vec![press(b"Set up again")]);
+        world.person(person, vec![press(b"Try again")]);
         for _ in 0..256 {
             if world.front().set_ups().len() == 2 {
                 break;
@@ -291,7 +291,7 @@ fn the_made_repository_waits_until_the_person_adopts_it_from_the_form() {
     setup(&mut world, person);
     made(&mut world);
     connected(&mut world);
-    script(&mut world, person, vec![see(b"Made acme/shop.")]);
+    script(&mut world, person, vec![see(b"acme/shop")]);
     assert!(!world.front().engine_adopted(FORGE, REPOSITORY));
     script(&mut world, person, fixtures::adopt_and_see_outcome(b"acme", b"shop"));
     assert!(world.front().engine_adopted(FORGE, REPOSITORY));

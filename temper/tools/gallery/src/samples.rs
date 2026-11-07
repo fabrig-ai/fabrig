@@ -105,7 +105,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 283;
+pub const N: usize = 284;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -565,6 +565,12 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "rail-person-menu", world: Solo, address: Address::Home { project: 1 }, then: Shown },
         Sample { name: "repositories", world: Solo, address: Address::Repositories { project: 1 }, then: Shown },
         Sample { name: "repositories-none", world: Bare, address: Address::Repositories { project: 1 }, then: Shown },
+        Sample {
+            name: "forges-added",
+            world: FirstRun { step: 7 },
+            address: Address::ConnectForge { forge: Some(temper_client_domain::Choice::Forge(3)) },
+            then: Shown,
+        },
         Sample { name: "forges-empty", world: Bare, address: Address::Forges, then: Shown },
         Sample { name: "forges-setting-up", world: FirstRun { step: 6 }, address: Address::Forges, then: Shown },
         Sample { name: "forges-fetching", world: FirstRun { step: 24 }, address: Address::Forges, then: Shown },
