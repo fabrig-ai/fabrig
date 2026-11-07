@@ -49,7 +49,10 @@ A project is where work happens: the repositories adopted into it, one of them i
   `--visibility private` to make it private again. Anyone may read a
   public project's name and its tasks' structure and titles without
   signing in. The rest of their specifications and their words stay
-  private. Opening visibility also needs anonymous admission configured;
+  private. Anything said in this project's chats may show on its public pages,
+  in the titles of its goals and tasks. On a public repository, a change's
+  pull request shows what its agent wrote too.
+  Opening visibility also needs anonymous admission configured;
   temper help open-public-reading walks every figure and the restart.
 - **Deleted:** its owners delete it with Delete on its settings in the
   client, confirmed by its name; the playground's reset deletes
@@ -95,7 +98,8 @@ For the configuration members that need a restart, read `temper help configurati
 - Only an owner changes visibility; a member and project 0 are
   refused. A public project's pages show its name and task titles,
   never the rest of a specification, instructions, inputs, results,
-  conversations, or people's names.
+  conversations, or people's names. A title can hold what was said in a
+  chat; see **Made public or private** under **How it changes**.
 - ctl's group `project` makes a project, reads it and changes its spends and visibility:
   no call renames a project or changes its roles.
 - `forge setup` sets up the one owned Forgejo with its first repository.

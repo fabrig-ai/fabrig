@@ -1,11 +1,14 @@
 //! Translate the core charter into Smith's without adding policy
 //! (domain/hosts.md, section 8; smith's `run.md`, section 3).
+//! A Finite report takes delivery only with the policy's modify grant and
+//! the root's workspace delivery fact; its outcome keeps the contract's forms.
 
 use alloc::boxed::Box;
 use skein_lib::List;
 use smith_domain_run as run;
 
 use crate::boundary::{self, Charter};
+use crate::{CHANGE_BODY_MAX, CONTRACT_CHECKS_MUST_PASS, CONTRACT_TEXT_MAX};
 
 fn count(len: usize) -> Option<u32> {
     u32::try_from(len).ok()
@@ -112,7 +115,22 @@ pub fn charter(charter: Charter) -> Option<run::Charter> {
     }
     let outcome = outcome(charter.contract)?;
     let deliver = match charter.mode {
-        run::Mode::Finite => outcome.change.clone(),
+        run::Mode::Finite => match &outcome.change {
+            Some(change) => Some(change.clone()),
+            None => {
+                if outcome.report.is_some() && charter.workspace.modify && charter.delivers {
+                    Some(run::outcome::ChangeSpec {
+                        checks_must_pass: CONTRACT_CHECKS_MUST_PASS,
+                        fields: Box::new([
+                            run::outcome::FieldRule { name: Box::from(b"title".as_slice()), max: CONTRACT_TEXT_MAX },
+                            run::outcome::FieldRule { name: Box::from(b"body".as_slice()), max: CHANGE_BODY_MAX },
+                        ]),
+                    })
+                } else {
+                    None
+                }
+            }
+        },
         run::Mode::Open => None,
     };
     Some(run::Charter {

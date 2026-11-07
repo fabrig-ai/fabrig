@@ -192,8 +192,8 @@ temper's workspace items beside it:
   - an optional landing branch for an inherited writable change producer
     that starts on its push branch: the comparison for existing work,
     separate from the checkout start and the push's expected head; or from
-    a merge in progress, whose landing branch marks it a producer's start
-    (section 5);
+    a merge in progress, whose landing branch marks it a producer's start,
+    as a goal's later run's does (section 5);
   - the identity for every git operation on it: one of temper's
     application credentials (jig's `domain/engine.md`, 12.1), granted
     with the assignment, which the protocol layer maps to a token and a
@@ -511,6 +511,12 @@ runs as contained processes and whose output it parses.
   saves the merge commit, and its first push carries the merge, even with
   nothing new. A producer's conflict stays in progress as above, and its start
   names the files in conflict (smith's `domain/run.md`, 8.3).
+- **A goal's later run** (`forge.md`, 11.1) starts as a producer does, on a
+  merge in progress naming its landing branch: the branch is g, the commit
+  merged into it is its run branch's head, and it pushes to the run branch. A
+  g that holds that head starts on g's tip, with nothing to merge. A clean
+  merge is committed at once, and a conflict stays in progress. Every push
+  fast-forwards the run branch, since each carries its head.
 - **Push commits what the run checked.** When a run asks to deliver, at
   `finish` with a change or mid-run, it has run the repository's checks
   with nothing else writing to the checkout (smith's `domain/run.md`,
@@ -809,7 +815,15 @@ for; and that nothing is live once it settles.
   (`temper-engine-smith/src/answers.rs`), so it takes a field of its own
   or a path to clients alone. Default: the line alone, which `task show`'s
   way out points to and `temper help hold` and `temper help server` say how
-  to read, until that proves too little. The user's to decide.
+  to read, until that proves too little. Keeping text means one last
+  failure per hold, replaced on each failure, with a byte bound and readers
+  the user decides first. The operator line's 4,096-byte tail is no choice
+  of that stored bound. Task readers could then see text now confined to
+  the engine's log, including tool output, paths, provider errors or echoed
+  credentials, which cannot be reliably redacted. Restricting it to owners
+  and maintainers needs a reading path of its own. The change crosses jig's
+  task and core schemas, the hub payload and the client wire, with their
+  versions, migration and goldens. The user's to decide.
 - **What a deployment's operators may read of a run's prompts.** A run's
   prompts hold repository text and anything an agent read, and a real
   design of keeping them starts from who may read them

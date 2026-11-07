@@ -10,6 +10,7 @@ mod cluster;
 mod forge;
 mod github;
 mod github_land;
+mod goal_delivery;
 mod lifecycle;
 mod lock;
 mod lost;

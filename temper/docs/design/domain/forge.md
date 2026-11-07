@@ -1397,9 +1397,10 @@ branch. Its parameters:
   chat's small fix, handed over by the chat that made it: jig's
   `domain/tasks.md`, 6.4), or its own, named after its tree
   (section 11), which a producing task pushes; or, held by its
-  requester and not by the task, its requester's held branch, the
-  requester's own goal branch (11.1), which the change lands whole
-  (below);
+  requester and not by the task, its requester's held branch: the
+  requester's own goal branch (11.1), which the change lands whole, or
+  its own run branch (section 11), which the change lands as its
+  deliveries left it (below);
 - **what to produce,** when nothing is pushed yet: the spec of its
   producing task, and its producer's charter, which its repairs,
   resolutions and checks' gates run under too: the one `change` names,
@@ -1506,9 +1507,11 @@ A goal across repositories is several change tasks, ordered by their
 dependencies: skein's change lands before temper's that bumps its lock.
 
 **A change on its requester's held branch** (`change`'s `"branch":
-"mine"`, `agent.md`, 4.3.1) is how a goal lands its own branch: the
-goal's landing, a change into the base whose branch is the goal's own
-(11.1). It is an ordinary change, but for the branch:
+"mine"` or `"run"`, `agent.md`, 4.3.1) is how a goal lands what it holds:
+the goal's landing, a change into the base whose branch is the goal's own
+(11.1); or what its runs delivered, a change whose branch is the goal's
+run branch, usually into g (11.1). It is an ordinary change, but for the
+branch:
 
 - **No producing step,** as for a branch handed over: it starts at
   opening, its head the branch's tip as read then. Its pull request is
@@ -1529,6 +1532,11 @@ goal's landing, a change into the base whose branch is the goal's own
   leaves the branch its requester's, deleted or kept as its requester
   closes (section 11). Cancelled, its pull request is closed as any
   (8.6), and its requester may make another.
+- **Beside the run that made it:** a change on a run branch is made by a
+  run that goes on, its requester's run in the branch's writer slot. That
+  doesn't stop the change, which steps at the head it reads (8.5). A run
+  branch nothing has reached holds the change at its opening, as a branch
+  missing does (8.5), and its requester cancels it and makes another.
 
 The question route is number parameter 14: 1 for `foreman`, 2 for `up`;
 absent means `none`. The root writes it only for `foreman` or `up`. Any
@@ -1792,7 +1800,8 @@ delegate's terminal wakes it to offer the landed result.
   reviews budget, 4,608 bytes on the stock, cut from their end and
   marked; and carrying why: CI's failing output on the head; a gate's
   remarks; for a clean update whose CI then fails (a semantic conflict),
-  CI's failing output, the base merged in and what landed in it; or, for
+  CI's failing output before the pull section, which names the base
+  merged in and what landed in it; or, for
   a change the forge's merge queue ejected, the forge's reason, the
   pull request's `dequeued` (9.1). It pushes a new head, and the
   change is checked again. Where the head's failed checks are not
@@ -2095,6 +2104,15 @@ never sent at a head it has not checked. Held, it decides nothing until
 released, and the release takes the head as it then is, checked again.
 A move with no writer of its requester's subtree in the slot, by
 another identity, or not forward, is drift, as above.
+
+**Its requester's own run in the slot** (a goal's run, on its run branch:
+11.1) is the one writer the change doesn't wait for. A forward move by
+temper's identity is that run's delivery, and the change's new head as it
+reads it, checked again as above, while the run goes on; a move by another
+identity, or not forward, is drift. The change's own delegates, its repairs,
+its resolution and its merge job, wait for the slot as any claim does (jig's
+`domain/tasks.md`, 6.3), until that run answers, parks included. So do its
+updates. The change's stall counts that wait.
 
 Nothing is written over: a held change makes no effect until it is
 released. A drift is the change's to judge: what the forge says of a
@@ -2764,9 +2782,11 @@ instead (`landing.md`, section 5).
   landing branch's tip (8.2, step 1); its project must name a
   `merge_job`. It lands as any change into the branch does, and nothing
   makes one but its requester's call.
-- **A semantic conflict,** a clean update whose CI fails while CI passes
-  on the base's tip, is a repair, whose brief names the base merged in
-  and what landed in it. While CI fails on the base's tip, the failure is
+- **A semantic conflict** is CI failing on a change's head after a clean
+  update. The name records that order, not proof that the base caused
+  the failure. Its repair's brief carries the failed check and its output
+  before the base merged in and what landed in it (8.4). While CI fails
+  on the base's tip, the failure is
   not the change's: its queue is paused (section 9), and the change
   waits for the branch's repair instead.
 - **Gates carry over** a clean update temper made, where their
@@ -2789,10 +2809,11 @@ instead (`landing.md`, section 5).
   - a goal's own branch: `temper/<root>/g<task>`, the goal's number, in
     its project's home, held by the goal (11.1);
   - an agent's task's own branch, for runs that push outside a change,
-    as a chat making a small fix does: `temper/<root>/r<task>`, in each
-    repository its runs may write, the project's home among them, which
-    the task holds from the commit that makes it and hands to the change
-    task that lands it.
+    as a chat making a small fix does and a goal's runs do:
+    `temper/<root>/r<task>`, in each repository its runs may write, the
+    project's home among them, which the task holds from the commit that
+    makes it. A chat hands it to the change task that lands it; a goal
+    keeps it, and a change on it lands what it holds (8.1, 11.1).
 
   A task made before its project's home was adopted holds no run branch
   there: its runs read the home without pushing, and its brief says why.
@@ -2827,7 +2848,9 @@ instead (`landing.md`, section 5).
   read, until deleted by hand or by the deployment's retention. A change
   on its requester's held branch (8.1) holds no branch and deletes none
   as it closes: the goal's landing leaves its goal's branch to the
-  goal's own close. A release waits for a lost
+  goal's own close, and a change on a run branch leaves it to its goal. A
+  goal's run branch goes as its goal closes, what it holds that g lacks
+  with it (section 20). A release waits for a lost
   writer's reread, and fails only if that reread fails.
 
 A goal's release recognises its branch as landed from a change in the same
@@ -2878,10 +2901,24 @@ own, never a change's:
 - **Written by change alone:** each of the goal's changes lands into it
   as its landing branch, its merge ordered by the branch's queue (section
   9) and taking the branch's writer slot while in flight; the goal's own
-  runs inspect it and take no writer slot (jig's `domain/tasks.md`, 6.3).
+  runs read it and take no writer slot of it (jig's `domain/tasks.md`, 6.3),
+  so merges into it go on while they run.
   A change whose landing branch is a goal's own, made by a task that is
   neither that goal nor one of its subtree, is refused at its batch,
   naming the goal.
+- **What a goal writes goes by its run branch,** where its charter's
+  `modify` is set (`agent.md`, 4.3). Its run pushes to its own run branch
+  (section 11), taking that branch's writer slot and never g's. A change
+  with `"branch": "run"` lands what that branch holds into g, by g's queue,
+  like any change (8.1), and a conflict goes to the merge job and a
+  resolution. A change `after` it starts early on the branch's pushed head
+  (8.11). The first run starts at g's tip; with the run branch at a head, a
+  later run starts from g's tip with that head merged in (`worker.md`,
+  section 5), so its delivery fast-forwards the run branch: a head g holds
+  is no merge, one that merges cleanly is committed before the run starts,
+  and a conflict is left in its checkout for it to settle. A run resuming
+  saved work starts from it, as any does. A charter without `modify` leaves
+  its goal's run to inspect its confirmed branch, as it starts there.
 - **Landed whole** by a change into the base whose branch is the goal's
   own, made by the goal on its held branch (8.1), and deleted as the goal closes once that change has landed it
   (section 11); otherwise kept as the goal closes. It takes the base's
@@ -3241,6 +3278,27 @@ whole.
 
 ## 20. Open questions
 
+- **A goal closing with a run branch g lacks** (section 11): the branch goes
+  with its goal, what it held with it. A goal's own branch is kept where no
+  change landed it; a run branch holds a revision of the design at most, and
+  the goal's words are to land it first. Default: it goes.
+- **A saved start a change overtook** (11.1): a goal's run that parked with
+  edits resumes from them. If a repair or a resolution has since moved the run
+  branch, its delivery finds the branch moved and the run ends stale, and its
+  next run resumes from the same saved tree. It takes a parked edit and a
+  live change's repair on one branch, and no story has met it. Default: so.
+- **Saved branches outside the task's saved set** (11): a terminal the
+  engine never heard, a repository no longer in the set, or full holds at
+  close can leave a branch on the forge. Finding these needs a branch
+  inventory beyond the set a next attempt resumes from. Default: manual
+  deletion or deployment retention; a failed descendant's known saved
+  work stays with its root until that root closes.
+- **A clean update's other words** (8.4, 10): the result still says
+  `the base broke it`, and the client panel calls its repair a semantic
+  conflict, although the path proves only that CI failed after an update.
+  Aligning those words needs the client's owner too. Default: the task's
+  instructions and brief name the failed check; the result and panel keep
+  their words until that follow-up.
 - **"The brief on Home" in Settings** (5.7): the status agent always runs
   for now; the switch is another plan's. Default: it runs.
 - **A status run's kept row** (5.7): a task made for the deployment is
