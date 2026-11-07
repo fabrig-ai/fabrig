@@ -2,6 +2,8 @@
 
 2026-11-06. Where temper's code lags or departs from [configuration.md](configuration.md).
 
+- **Not yet:** 13.4: `temper init`'s documents and the owned example write the worker's one slot, `hub.slots` and `fleet.slots` 2 below `standard`'s 4, and no `checkout.workspaces` or `git_component.operations`.
+
 Section 13.4 has no known gap in charter 10: the stock trial has one
 working turn, no tools or resume, and charter 1's model choices. Its
 projectless task and the client's remaining trial gaps are

@@ -20,3 +20,16 @@ id = 1
 story = "a person on a box reads what a wait means and what a failed call asked for"
 parts = ["box-words"]
 walk = false
+
+[[part]]
+id = "box-slots"
+title = "a box defaults to 4 slots, with the limits that rise with them"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/setup.md, 8.1"
+
+[[slice]]
+id = 2
+story = "a person starts a second chat while a first is writing, and both run"
+parts = ["box-slots"]
+walk = false
