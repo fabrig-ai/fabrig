@@ -50,10 +50,25 @@ fn a_listing_past_the_configured_page_is_refused_at_open() {
 }
 
 #[test]
-fn valid_accepts_test_limits() {
-    let l = crate::tests::host::limits();
-    let settings = crate::tests::host::settings(&[1]);
-    assert_eq!(limits::check(&l, &settings), Ok(()));
+fn heap_allocated_plans_keep_valid_limits_accepted() {
+    skein_rows::check(
+        [
+            ("valid_accepts_test_limits", {
+                let l = crate::tests::host::limits();
+                let settings = crate::tests::host::settings(&[1]);
+                (l, settings)
+            }),
+            ("valid_ignores_heap_run_plans", {
+                let l = Limits { runs: u32::MAX, ..crate::tests::host::limits() };
+                let mut settings = crate::tests::host::settings(&[1]);
+                let Kind::Forgejo(given) = &mut settings.forges.get_mut(0).unwrap().kind else { unreachable!() };
+                given.limits.files = u32::MAX;
+                given.limits.file_bytes = u32::MAX;
+                (l, settings)
+            }),
+        ],
+        |(limits, settings)| assert_eq!(limits::check(&limits, &settings), Ok(())),
+    );
 }
 
 fn refuses_limits(l: Limits, settings: Settings) {
@@ -62,56 +77,45 @@ fn refuses_limits(l: Limits, settings: Settings) {
 }
 
 #[test]
-fn valid_refuses_a_json_wire_length_past_u32() {
-    let l = Limits { body_bytes_in: u32::MAX, ..crate::tests::host::limits() };
-    refuses_limits(l, crate::tests::host::settings(&[1]));
-}
-
-#[test]
-fn valid_refuses_an_unrepresentable_http_head() {
-    let l = Limits { head_bytes: 1, ..crate::tests::host::limits() };
-    refuses_limits(l, crate::tests::host::settings(&[1]));
-}
-
-#[test]
-fn valid_refuses_unrepresentable_tls_intake() {
-    let mut l = crate::tests::host::limits();
-    l.tls.read = u32::MAX;
-    refuses_limits(l, crate::tests::host::settings(&[1]));
-}
-
-#[test]
-fn valid_refuses_a_key_spelling_past_u32() {
-    let mut settings = crate::tests::host::github_settings();
-    for index in 0..settings.forges.len() {
-        let forge = settings.forges.get_mut(index).unwrap();
-        if let Kind::GitHub(given) = &mut forge.kind {
-            given.limits.key_bytes = u32::MAX;
-        }
-    }
-    refuses_limits(crate::tests::host::limits(), settings);
-}
-
-#[test]
-fn valid_ignores_heap_run_plans() {
-    let l = Limits { runs: u32::MAX, ..crate::tests::host::limits() };
-    let mut settings = crate::tests::host::settings(&[1]);
-    let Kind::Forgejo(given) = &mut settings.forges.get_mut(0).unwrap().kind else { unreachable!() };
-    given.limits.files = u32::MAX;
-    given.limits.file_bytes = u32::MAX;
-    assert_eq!(limits::check(&l, &settings), Ok(()));
-}
-
-#[test]
-fn valid_refuses_installation_slots_past_u32() {
-    let mut settings = crate::tests::host::github_settings();
-    for index in 0..settings.forges.len() {
-        let forge = settings.forges.get_mut(index).unwrap();
-        if let Kind::GitHub(given) = &mut forge.kind {
-            given.limits.pages = u32::MAX;
-        }
-    }
-    refuses_limits(crate::tests::host::limits(), settings);
+fn host_construction_agrees_with_limit_representability() {
+    skein_rows::check(
+        [
+            ("valid_refuses_a_json_wire_length_past_u32", {
+                let l = Limits { body_bytes_in: u32::MAX, ..crate::tests::host::limits() };
+                (l, crate::tests::host::settings(&[1]))
+            }),
+            ("valid_refuses_an_unrepresentable_http_head", {
+                let l = Limits { head_bytes: 1, ..crate::tests::host::limits() };
+                (l, crate::tests::host::settings(&[1]))
+            }),
+            ("valid_refuses_unrepresentable_tls_intake", {
+                let mut l = crate::tests::host::limits();
+                l.tls.read = u32::MAX;
+                (l, crate::tests::host::settings(&[1]))
+            }),
+            ("valid_refuses_a_key_spelling_past_u32", {
+                let mut settings = crate::tests::host::github_settings();
+                for index in 0..settings.forges.len() {
+                    let forge = settings.forges.get_mut(index).unwrap();
+                    if let Kind::GitHub(given) = &mut forge.kind {
+                        given.limits.key_bytes = u32::MAX;
+                    }
+                }
+                (crate::tests::host::limits(), settings)
+            }),
+            ("valid_refuses_installation_slots_past_u32", {
+                let mut settings = crate::tests::host::github_settings();
+                for index in 0..settings.forges.len() {
+                    let forge = settings.forges.get_mut(index).unwrap();
+                    if let Kind::GitHub(given) = &mut forge.kind {
+                        given.limits.pages = u32::MAX;
+                    }
+                }
+                (crate::tests::host::limits(), settings)
+            }),
+        ],
+        |(limits, settings)| refuses_limits(limits, settings),
+    );
 }
 
 #[test]

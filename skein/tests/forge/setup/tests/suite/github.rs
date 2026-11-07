@@ -59,26 +59,44 @@ fn assert_heard(world: &HostWorld, expected: &[Heard]) {
     hidden(world);
     assert_eq!(world.heard(), expected);
 }
-#[test]
-fn the_host_lists_the_first_page_of_an_installations_repositories() {
-    let mut world = HostWorld::github(7, &[]);
-    world.github_all_repositories(1);
-    world.run_plan(1, picker(Some(1), 1));
-    world.finish();
-    assert_heard(&world, &[done(1, &[row(2, b"widgets", true), row(4, b"tools", false)], true)]);
-    assert_eq!(world.reads(), &[Item::Accepted, Item::AppId, Item::AppKey]);
-    assert!(world.needs().iter().all(|need| matches!(need, Need::Read(_))));
-    assert_eq!(world.connects(), &[Duration::ZERO; 2]);
-    assert_eq!(world.connection_addresses(), &[fixtures::github_forge().address; 2]);
+struct PageRow {
+    seed: u64,
+    page: u32,
+    rows: Box<[Reached]>,
+    more: bool,
 }
 #[test]
-fn the_host_lists_the_last_page_of_an_installations_repositories() {
-    let mut world = HostWorld::github(11, &[]);
-    world.github_all_repositories(1);
-    world.run_plan(1, picker(Some(1), 2));
-    world.finish();
-    assert_heard(&world, &[done(1, &[row(6, b"absent", false)], false)]);
+fn installation_repository_pages_return_rows_and_pagination_facts() {
+    skein_rows::check(
+        [
+            (
+                "the_host_lists_the_first_page_of_an_installations_repositories",
+                PageRow {
+                    seed: 7,
+                    page: 1,
+                    rows: Box::new([row(2, b"widgets", true), row(4, b"tools", false)]),
+                    more: true,
+                },
+            ),
+            (
+                "the_host_lists_the_last_page_of_an_installations_repositories",
+                PageRow { seed: 11, page: 2, rows: Box::new([row(6, b"absent", false)]), more: false },
+            ),
+        ],
+        |row| {
+            let mut world = HostWorld::github(row.seed, &[]);
+            world.github_all_repositories(1);
+            world.run_plan(1, picker(Some(1), row.page));
+            world.finish();
+            assert_heard(&world, &[done(1, &row.rows, row.more)]);
+            assert_eq!(world.reads(), &[Item::Accepted, Item::AppId, Item::AppKey]);
+            assert!(world.needs().iter().all(|need| matches!(need, Need::Read(_))));
+            assert_eq!(world.connects(), &[Duration::ZERO; 2]);
+            assert_eq!(world.connection_addresses(), &[fixtures::github_forge().address; 2]);
+        },
+    );
 }
+
 #[test]
 fn a_full_page_says_more_even_when_it_is_the_last() {
     let mut world = HostWorld::github(13, &[]);

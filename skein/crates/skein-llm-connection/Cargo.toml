@@ -15,6 +15,7 @@ skein-tls.workspace = true
 skein-llm.workspace = true
 
 [dev-dependencies]
+skein-rows.workspace = true
 skein-http.workspace = true
 
 [lints]

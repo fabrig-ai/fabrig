@@ -381,30 +381,29 @@ fn a_commit_page_past_the_range_bound_is_refused() {
     let mut run = known(Op::Read(Read::Commits { before: BASE, after: HEAD, page: ROWS }));
     assert_eq!(run.begin(), Step::Done(Err(Error::TooLarge)));
 }
+// Three native commit slots, three parent ids, and these whole messages.
+const RANGE_BYTES: u32 = 192 + 96 + 22 + 7 + 23;
 #[test]
-fn commit_messages_fit_at_the_answer_bound() {
-    // Three native commit slots, three parent ids, and these whole messages.
-    const RANGE_BYTES: u32 = 192 + 96 + 22 + 7 + 23;
-    let mut run = Run::with_limits(
-        range_limits(),
-        crate::forgejo::plans::plan::Bounds { answer_bytes: RANGE_BYTES, ..BOUNDS },
-        Op::Read(Read::Commits { before: BASE, after: HEAD, page: 1 }),
+fn commit_messages_fit_exactly_within_the_answer_byte_bound() {
+    skein_rows::check(
+        [
+            (
+                "commit_messages_fit_at_the_answer_bound",
+                (RANGE_BYTES, {
+                    let [first, second, _] = range_values();
+                    Step::Done(Ok(Answer::Commits { commits: Box::new([first, second]), more: true }))
+                }),
+            ),
+            ("commit_messages_past_the_answer_bound_are_refused", (RANGE_BYTES - 1, Step::Done(Err(Error::TooLarge)))),
+        ],
+        |(answer_bytes, expected)| {
+            let mut run = Run::with_limits(
+                range_limits(),
+                crate::forgejo::plans::plan::Bounds { answer_bytes, ..BOUNDS },
+                Op::Read(Read::Commits { before: BASE, after: HEAD, page: 1 }),
+            );
+            run.begin();
+            assert_eq!(run.answer(200, &server_answer(&range_document())), expected);
+        },
     );
-    run.begin();
-    let [first, second, _] = range_values();
-    assert_eq!(
-        run.answer(200, &server_answer(&range_document())),
-        Step::Done(Ok(Answer::Commits { commits: Box::new([first, second]), more: true }))
-    );
-}
-#[test]
-fn commit_messages_past_the_answer_bound_are_refused() {
-    const SHORT_RANGE_BYTES: u32 = 192 + 96 + 22 + 7 + 23 - 1;
-    let mut run = Run::with_limits(
-        range_limits(),
-        crate::forgejo::plans::plan::Bounds { answer_bytes: SHORT_RANGE_BYTES, ..BOUNDS },
-        Op::Read(Read::Commits { before: BASE, after: HEAD, page: 1 }),
-    );
-    run.begin();
-    assert_eq!(run.answer(200, &server_answer(&range_document())), Step::Done(Err(Error::TooLarge)));
 }

@@ -304,20 +304,22 @@ fn the_metadata_cap_is_required_only_for_discovery() {
     }
 }
 #[test]
-fn the_key_set_cap_is_required_for_each_keys_route() {
-    for (direct, expected) in [(false, Err(Failure::Limit)), (true, Err(Failure::Limit))] {
-        let mut bounds = limits();
-        bounds.key_set_bytes = 0;
-        assert_eq!(validate_registration(&registration_for_keys(direct), &bounds, true), expected, "direct {direct}");
-    }
-}
-#[test]
-fn the_key_count_cap_is_required_for_each_keys_route() {
-    for (direct, expected) in [(false, Err(Failure::Limit)), (true, Err(Failure::Limit))] {
-        let mut bounds = limits();
-        bounds.keys = 0;
-        assert_eq!(validate_registration(&registration_for_keys(direct), &bounds, true), expected, "direct {direct}");
-    }
+fn openid_key_routes_require_nonzero_key_storage_capacities() {
+    skein_rows::check(
+        [
+            ("the_key_set_cap_is_required_for_each_keys_route", ClientLimits { key_set_bytes: 0, ..limits() }),
+            ("the_key_count_cap_is_required_for_each_keys_route", ClientLimits { keys: 0, ..limits() }),
+        ],
+        |bounds| {
+            for direct in [false, true] {
+                assert_eq!(
+                    validate_registration(&registration_for_keys(direct), &bounds, true),
+                    Err(Failure::Limit),
+                    "direct {direct}"
+                );
+            }
+        },
+    );
 }
 
 fn is_visit(result: Option<Request>) -> bool {

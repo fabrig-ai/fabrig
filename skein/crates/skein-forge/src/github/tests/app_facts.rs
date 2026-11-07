@@ -91,68 +91,131 @@ fn github_app_facts_refuse_unknown_access_and_wrong_shapes() {
     }
 }
 
-#[test]
-fn github_app_facts_name_bounds_are_too_large() {
-    let good = limits();
-    for count in [128, 129, 256] {
-        let name = copy_of(&[b'x'; 256][..count]);
-        for permissions in [true, false] {
-            let mut app = app();
-            let field = if permissions {
-                app.permissions = Box::from([Permission { name: name.clone(), access: Access::Admin }]);
-                b"permissions".as_slice()
-            } else {
-                app.events = Box::from([name.clone()]);
-                b"events".as_slice()
-            };
-            let input = body(&app);
-            for chunk in [1, 7, u32::try_from(input.len()).unwrap()] {
-                let result = decode(Kind::App, &input, chunk, &good).1;
-                if count == 128 {
-                    assert_eq!(result, Ok(Document::App(app.clone())));
-                } else {
-                    assert_eq!(result, Err(Malformed::Bound { field }));
-                    assert_eq!(malformed(result.unwrap_err()), api::Error::TooLarge);
-                }
-            }
-        }
-    }
+struct AppBound {
+    limits: crate::github::limits::Limits,
+    app: App,
+    expected: Result<Document, Malformed>,
+    classified: Option<api::Error>,
 }
-
 #[test]
-fn github_app_facts_list_bounds_are_too_large() {
-    let mut good = limits();
-    good.inner = 2;
-    for count in [2, 3] {
-        for permissions in [true, false] {
-            let mut app = app();
-            let field = if permissions {
-                let mut rows = List::with_capacity(count);
-                for name in [b"one".as_slice(), b"two", b"three"].iter().take(usize::try_from(count).unwrap()) {
-                    rows.push(Permission { name: copy_of(name), access: Access::Read }).unwrap();
+#[expect(clippy::too_many_lines, reason = "the labelled cases keep every input and expectation of one rule together")]
+fn app_fact_bounds_keep_fitting_values_and_classify_excess() {
+    skein_rows::check(
+        [
+            ("github_app_facts_name_bounds_are_too_large: permissions 128", {
+                let name = copy_of(&[b'x'; 256][..128]);
+                let app =
+                    App { permissions: Box::from([Permission { name: name.clone(), access: Access::Admin }]), ..app() };
+                AppBound { limits: limits(), expected: Ok(Document::App(app.clone())), app, classified: None }
+            }),
+            ("github_app_facts_name_bounds_are_too_large: events 128", {
+                let name = copy_of(&[b'x'; 256][..128]);
+                let app = App { events: Box::from([name.clone()]), ..app() };
+                AppBound { limits: limits(), expected: Ok(Document::App(app.clone())), app, classified: None }
+            }),
+            ("github_app_facts_name_bounds_are_too_large: permissions 129", {
+                let name = copy_of(&[b'x'; 256][..129]);
+                let app =
+                    App { permissions: Box::from([Permission { name: name.clone(), access: Access::Admin }]), ..app() };
+                AppBound {
+                    limits: limits(),
+                    expected: Err(Malformed::Bound { field: b"permissions" }),
+                    app,
+                    classified: Some(api::Error::TooLarge),
                 }
-                app.permissions = rows.into_boxed();
-                b"permissions".as_slice()
-            } else {
-                let mut rows = List::with_capacity(count);
-                for name in [b"one".as_slice(), b"two", b"three"].iter().take(usize::try_from(count).unwrap()) {
-                    rows.push(copy_of(name)).unwrap();
+            }),
+            ("github_app_facts_name_bounds_are_too_large: events 129", {
+                let name = copy_of(&[b'x'; 256][..129]);
+                let app = App { events: Box::from([name.clone()]), ..app() };
+                AppBound {
+                    limits: limits(),
+                    expected: Err(Malformed::Bound { field: b"events" }),
+                    app,
+                    classified: Some(api::Error::TooLarge),
                 }
-                app.events = rows.into_boxed();
-                b"events".as_slice()
-            };
-            let input = body(&app);
-            for chunk in [1, 7] {
-                let result = decode(Kind::App, &input, chunk, &good).1;
-                if count == 2 {
-                    assert_eq!(result, Ok(Document::App(app.clone())));
-                } else {
-                    assert_eq!(result, Err(Malformed::Bound { field }));
-                    assert_eq!(malformed(result.unwrap_err()), api::Error::TooLarge);
+            }),
+            ("github_app_facts_name_bounds_are_too_large: permissions 256", {
+                let name = copy_of(&[b'x'; 256][..256]);
+                let app =
+                    App { permissions: Box::from([Permission { name: name.clone(), access: Access::Admin }]), ..app() };
+                AppBound {
+                    limits: limits(),
+                    expected: Err(Malformed::Bound { field: b"permissions" }),
+                    app,
+                    classified: Some(api::Error::TooLarge),
                 }
+            }),
+            ("github_app_facts_name_bounds_are_too_large: events 256", {
+                let name = copy_of(&[b'x'; 256][..256]);
+                let app = App { events: Box::from([name.clone()]), ..app() };
+                AppBound {
+                    limits: limits(),
+                    expected: Err(Malformed::Bound { field: b"events" }),
+                    app,
+                    classified: Some(api::Error::TooLarge),
+                }
+            }),
+            ("github_app_facts_list_bounds_are_too_large: permissions 2", {
+                let mut limits = limits();
+                limits.inner = 2;
+                let app = App {
+                    permissions: Box::from([
+                        Permission { name: copy_of(b"one"), access: Access::Read },
+                        Permission { name: copy_of(b"two"), access: Access::Read },
+                    ]),
+                    ..app()
+                };
+                AppBound { limits, expected: Ok(Document::App(app.clone())), app, classified: None }
+            }),
+            ("github_app_facts_list_bounds_are_too_large: events 2", {
+                let mut limits = limits();
+                limits.inner = 2;
+                let app = App { events: Box::from([copy_of(b"one"), copy_of(b"two")]), ..app() };
+                AppBound { limits, expected: Ok(Document::App(app.clone())), app, classified: None }
+            }),
+            ("github_app_facts_list_bounds_are_too_large: permissions 3", {
+                let mut limits = limits();
+                limits.inner = 2;
+                let app = App {
+                    permissions: Box::from([
+                        Permission { name: copy_of(b"one"), access: Access::Read },
+                        Permission { name: copy_of(b"two"), access: Access::Read },
+                        Permission { name: copy_of(b"three"), access: Access::Read },
+                    ]),
+                    ..app()
+                };
+                AppBound {
+                    limits,
+                    expected: Err(Malformed::Bound { field: b"permissions" }),
+                    app,
+                    classified: Some(api::Error::TooLarge),
+                }
+            }),
+            ("github_app_facts_list_bounds_are_too_large: events 3", {
+                let mut limits = limits();
+                limits.inner = 2;
+                let app = App { events: Box::from([copy_of(b"one"), copy_of(b"two"), copy_of(b"three")]), ..app() };
+                AppBound {
+                    limits,
+                    expected: Err(Malformed::Bound { field: b"events" }),
+                    app,
+                    classified: Some(api::Error::TooLarge),
+                }
+            }),
+        ],
+        |case| {
+            let input = body(&case.app);
+            for chunk in [1, 7, u32::try_from(input.len()).unwrap()] {
+                let result = decode(Kind::App, &input, chunk, &case.limits).1;
+                assert_eq!(result, case.expected);
+                let classified = match result {
+                    Ok(_) => None,
+                    Err(error) => Some(malformed(error)),
+                };
+                assert_eq!(classified, case.classified);
             }
-        }
-    }
+        },
+    );
 }
 
 #[test]

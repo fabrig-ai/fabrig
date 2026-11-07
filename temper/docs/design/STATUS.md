@@ -109,7 +109,11 @@ resumable window first asks the window's model for a summary
 (`domain/agent.md`, `client/README.md`). An unusable account's fix remains
 hidden beside a usable one of the same provider (`client/README.md`).
 Forge account subjects and review lookups name both forge and user, and the
-configuring inventory names each forge's known or unknown account. The box
+configuring inventory names each forge's known or unknown account. Setup
+can answer a given Forgejo login's id and the GitHub App's account, and
+the manifest's `AppMade` mark is kept with `AppId`; temper passes no login
+and ignores the identity answers (`protocol/setup.md`,
+`protocol/credentials.md`). The box
 owner's link, per-repository forge eligibility and the approval card remain
 separate work (`draft/forge-identity.md`, `domain/forge.md`,
 `domain/agent.md`, `protocol/forge.md`, `protocol/store.md`). The
@@ -308,7 +312,7 @@ design admits one with the printed link off
 at a start, which the user's request counts a bug
 (`domain/root.md`). The render check of `ready-account-email` on a real
 sign-in and a real Claude Code login follows landing, owned by temper/ui
-(`client/README.md`, 3.5). Ready draws no words for a
+(`client/README.md`, section 11). Ready draws no words for a
 sign-in made with no model usable, which has none yet, or for an
 ending with no ChatGPT sign-in offered; Goals draws neither heading
 nor filters for a project with no goal template; `NewChat` draws its

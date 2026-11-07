@@ -143,29 +143,41 @@ fn comparisons_read_both_directions_and_both_file_sides() {
     assert_eq!(lines[2].as_ref(), b"GET /api/v1/repos/fixture/specimen/compare/0300000000000000000000000000000000000000...0100000000000000000000000000000000000000?verification=false HTTP/1.1");
     assert_eq!(lines[3].as_ref(), b"GET /api/v1/repos/fixture/specimen/compare/0100000000000000000000000000000000000000...0300000000000000000000000000000000000000?files=false&verification=false HTTP/1.1");
 }
+struct FileRow {
+    wait: Duration,
+    path: &'static [u8],
+    max: u32,
+    range: &'static [u8],
+    url: &'static [u8],
+    response: Box<[u8]>,
+    bytes: &'static [u8],
+    truncated: bool,
+}
 #[test]
-fn file_reads_send_the_range_and_keep_only_the_requested_bytes() {
-    for (name, body, max, range, expected, truncated) in [
-        ("short", &b"abc"[..], 4, &b"Range: bytes=0-4\r\n"[..], &b"abc"[..], false),
-        ("full", &b"abcd"[..], 4, &b"Range: bytes=0-4\r\n"[..], &b"abcd"[..], false),
-        ("long", &b"abcde"[..], 4, &b"Range: bytes=0-4\r\n"[..], &b"abcd"[..], true),
-        ("empty", &b"x"[..], 0, &b"Range: bytes=0-0\r\n"[..], &b""[..], true),
-    ] {
-        let mut h = fixtures::known();
-        h.call(1, fixtures::REPO, Op::Read(Read::File { head: HEAD, path: Box::from(&b"a b/c"[..]), max_bytes: max }));
-        h.run(Duration::from_millis(1));
-        let request = h.request_bytes(fixtures::FORGE);
-        assert!(skein_lib::bytes::find(&request, range).is_some(), "{name}: range");
-        assert!(skein_lib::bytes::find(&request, b"raw/a%20b/c?").is_some(), "{name}: path");
-        h.answer(fixtures::FORGE, &fixtures::ok(body));
-        h.run(Duration::from_millis(10));
-        let answer = h.answered(1).expect("file");
-        assert_eq!(
-            (answer.cost, answer.result.clone()),
-            (1, Ok(Answer::File { head: HEAD, path: Box::from(&b"a b/c"[..]), bytes: Box::from(expected), truncated })),
-            "{name}"
-        );
-    }
+fn file_responses_retain_requested_bytes_and_report_truncation() {
+    skein_rows::check(
+        [
+            ("file_reads_send_the_range_and_keep_only_the_requested_bytes: short", FileRow { wait: Duration::from_millis(1), path: b"a b/c", max: 4, range: b"Range: bytes=0-4\r\n", url: b"raw/a%20b/c?", response: fixtures::ok(b"abc"), bytes: b"abc", truncated: false }),
+            ("file_reads_send_the_range_and_keep_only_the_requested_bytes: full", FileRow { wait: Duration::from_millis(1), path: b"a b/c", max: 4, range: b"Range: bytes=0-4\r\n", url: b"raw/a%20b/c?", response: fixtures::ok(b"abcd"), bytes: b"abcd", truncated: false }),
+            ("file_reads_send_the_range_and_keep_only_the_requested_bytes: long", FileRow { wait: Duration::from_millis(1), path: b"a b/c", max: 4, range: b"Range: bytes=0-4\r\n", url: b"raw/a%20b/c?", response: fixtures::ok(b"abcde"), bytes: b"abcd", truncated: true }),
+            ("file_reads_send_the_range_and_keep_only_the_requested_bytes: empty", FileRow { wait: Duration::from_millis(1), path: b"a b/c", max: 0, range: b"Range: bytes=0-0\r\n", url: b"raw/a%20b/c?", response: fixtures::ok(b"x"), bytes: b"", truncated: true }),
+            ("file_reads_accept_partial_content_and_preserve_raw_bytes", FileRow { wait: Duration::ZERO, path: b"file", max: 2, range: b"Range: bytes=0-2\r\n", url: b"raw/file?", response: Box::from(b"HTTP/1.1 206 Partial Content\r\nContent-Length: 3\r\nContent-Range: bytes 0-2/9\r\n\r\n\xff\x00x".as_slice()), bytes: b"\xff\x00", truncated: true }),
+        ],
+        |row| {
+            let mut h = fixtures::known();
+            h.call(1, fixtures::REPO, Op::Read(Read::File { head: HEAD, path: Box::from(row.path), max_bytes: row.max }));
+            h.run(row.wait);
+            let request = h.request_bytes(fixtures::FORGE);
+            assert!(skein_lib::bytes::find(&request, row.range).is_some(), "range");
+            assert!(skein_lib::bytes::find(&request, row.url).is_some(), "path");
+            h.answer(fixtures::FORGE, &row.response);
+            h.run(Duration::from_millis(10));
+            let answer = h.answered(1).expect("file");
+            assert_eq!((answer.cost, answer.result.clone()), (1, Ok(Answer::File {
+                head: HEAD, path: Box::from(row.path), bytes: Box::from(row.bytes), truncated: row.truncated
+            })));
+        },
+    );
 }
 #[test]
 fn raw_sides_at_the_answer_bound_fit_and_one_byte_more_is_too_large() {
@@ -228,29 +240,7 @@ fn multiple_changed_files_each_advance_to_their_own_sides() {
     };
     assert_eq!((answer.cost, answer.result.clone()), (4, Ok(expected)));
 }
-#[test]
-fn file_reads_accept_partial_content_and_preserve_raw_bytes() {
-    let mut h = fixtures::known();
-    h.call(1, fixtures::REPO, Op::Read(Read::File { head: HEAD, path: Box::from(&b"file"[..]), max_bytes: 2 }));
-    h.answer(
-        fixtures::FORGE,
-        b"HTTP/1.1 206 Partial Content\r\nContent-Length: 3\r\nContent-Range: bytes 0-2/9\r\n\r\n\xff\x00x",
-    );
-    h.run(Duration::from_millis(10));
-    let answer = h.answered(1).expect("file");
-    assert_eq!(
-        (answer.cost, answer.result.clone()),
-        (
-            1,
-            Ok(Answer::File {
-                head: HEAD,
-                path: Box::from(&b"file"[..]),
-                bytes: Box::from(&b"\xff\x00"[..]),
-                truncated: true
-            })
-        )
-    );
-}
+
 #[test]
 fn a_malformed_raw_miss_body_still_reads_a_directory() {
     let mut h = fixtures::known();
@@ -300,47 +290,50 @@ fn checks_find_a_failing_jobs_run_and_attempt_from_its_link() {
     assert_eq!(lines[4].as_ref(), b"GET /api/v1/repos/fixture/specimen/actions/runs/7/jobs HTTP/1.1");
 }
 #[test]
-fn checks_leave_the_job_absent_when_the_run_or_index_is_missing() {
-    for (name, runs, jobs, cost) in [
-        ("no run", &br#"{"total_count":0,"workflow_runs":[]}"#[..], None, 2),
-        ("no index", RUNS, Some(&br#"[{"id":9,"run_id":7,"attempt":1}]"#[..]), 3),
-        ("other run", RUNS, Some(&br#"[{"id":9,"run_id":7,"attempt":1},{"id":10,"run_id":8,"attempt":3}]"#[..]), 3),
-    ] {
-        let mut h = fixtures::known();
-        h.call(1, fixtures::REPO, Op::Read(Read::Checks { commit: HEAD }));
-        h.answer(fixtures::FORGE, &fixtures::ok(FAILING));
-        h.answer(fixtures::FORGE, &fixtures::ok(runs));
-        if let Some(jobs) = jobs {
-            h.answer(fixtures::FORGE, &fixtures::ok(jobs));
-        }
-        h.run(Duration::from_millis(10));
-        let answer = h.answered(1).expect("checks");
-        assert_eq!(
-            (answer.cost, answer.result.clone()),
-            (cost, Ok(Answer::Checks(Box::new([failing(None)])))),
-            "{name}"
-        );
-    }
+fn unresolvable_actions_lookups_leave_checks_without_job_attempts() {
+    skein_rows::check(
+        [
+            (
+                "checks_leave_the_job_absent_when_the_run_or_index_is_missing: no run",
+                (vec![fixtures::ok(br#"{"total_count":0,"workflow_runs":[]}"#)], 2),
+            ),
+            (
+                "checks_leave_the_job_absent_when_the_run_or_index_is_missing: no index",
+                (vec![fixtures::ok(RUNS), fixtures::ok(br#"[{"id":9,"run_id":7,"attempt":1}]"#)], 3),
+            ),
+            (
+                "checks_leave_the_job_absent_when_the_run_or_index_is_missing: other run",
+                (
+                    vec![
+                        fixtures::ok(RUNS),
+                        fixtures::ok(br#"[{"id":9,"run_id":7,"attempt":1},{"id":10,"run_id":8,"attempt":3}]"#),
+                    ],
+                    3,
+                ),
+            ),
+            (
+                "checks_leave_the_job_absent_when_an_actions_lookup_answers_404: run lookup",
+                (vec![fixtures::status(404)], 2),
+            ),
+            (
+                "checks_leave_the_job_absent_when_an_actions_lookup_answers_404: jobs lookup",
+                (vec![fixtures::ok(RUNS), fixtures::status(404)], 3),
+            ),
+        ],
+        |(responses, cost)| {
+            let mut h = fixtures::known();
+            h.call(1, fixtures::REPO, Op::Read(Read::Checks { commit: HEAD }));
+            h.answer(fixtures::FORGE, &fixtures::ok(FAILING));
+            for response in responses {
+                h.answer(fixtures::FORGE, &response);
+            }
+            h.run(Duration::from_millis(10));
+            let answer = h.answered(1).expect("checks");
+            assert_eq!((answer.cost, answer.result.clone()), (cost, Ok(Answer::Checks(Box::new([failing(None)])))));
+        },
+    );
 }
-#[test]
-fn checks_leave_the_job_absent_when_an_actions_lookup_answers_404() {
-    for (name, runs, cost) in [("run lookup", None, 2), ("jobs lookup", Some(RUNS), 3)] {
-        let mut h = fixtures::known();
-        h.call(1, fixtures::REPO, Op::Read(Read::Checks { commit: HEAD }));
-        h.answer(fixtures::FORGE, &fixtures::ok(FAILING));
-        if let Some(runs) = runs {
-            h.answer(fixtures::FORGE, &fixtures::ok(runs));
-        }
-        h.answer(fixtures::FORGE, &fixtures::status(404));
-        h.run(Duration::from_millis(10));
-        let answer = h.answered(1).expect("checks");
-        assert_eq!(
-            (answer.cost, answer.result.clone()),
-            (cost, Ok(Answer::Checks(Box::new([failing(None)])))),
-            "{name}"
-        );
-    }
-}
+
 #[test]
 fn checks_read_every_status_page_until_one_comes_short() {
     let mut h = fixtures::known();
@@ -419,53 +412,74 @@ fn a_job_read_answered_404_is_missing_job_at_each_exchange() {
     }
 }
 #[test]
-fn a_job_log_asks_a_suffix_range_and_bytes_before_it_are_truncated() {
-    for (name, response, log, truncated) in [
-        (
-            "short",
-            &b"HTTP/1.1 206 Partial Content\r\nContent-Length: 3\r\nContent-Range: bytes 0-2/3\r\n\r\nabc"[..],
-            &b"abc"[..],
-            false,
-        ),
-        ("past max", &b"HTTP/1.1 200 OK\r\nContent-Length: 6\r\n\r\nabcdef"[..], &b"cdef"[..], true),
-        (
-            "range names more",
-            &b"HTTP/1.1 206 Partial Content\r\nContent-Length: 4\r\nContent-Range: bytes 16-19/20\r\n\r\nabcd"[..],
-            &b"abcd"[..],
-            true,
-        ),
-    ] {
-        let mut h = fixtures::known();
-        h.call(1, fixtures::REPO, Op::Read(Read::Job { attempt: ATTEMPT, max_bytes: 4 }));
-        h.answer(fixtures::FORGE, &fixtures::ok(RUN));
-        h.answer(fixtures::FORGE, &fixtures::ok(JOB));
-        let request = h.request_bytes(fixtures::FORGE);
-        assert!(
-            skein_lib::bytes::find(
-                &request,
-                b"GET /api/v1/repos/fixture/specimen/actions/jobs/10/logs?attempt=3&step=1 HTTP/1.1\r\n"
-            )
-            .is_some(),
-            "{name}: log"
-        );
-        assert!(skein_lib::bytes::find(&request, b"Range: bytes=-4\r\n").is_some(), "{name}: range");
-        h.answer(fixtures::FORGE, response);
-        h.run(Duration::from_millis(10));
-        let answer = h.answered(1).expect("log");
-        assert_eq!(
-            (answer.cost, answer.result.clone()),
+fn job_log_responses_retain_tails_and_report_truncation() {
+    skein_rows::check(
+        [
             (
-                3,
-                Ok(Answer::Job {
-                    attempt: ATTEMPT,
-                    step: Some(Step { number: 1, name: Box::from(&b"build"[..]) }),
-                    log: Box::from(log),
-                    truncated
-                })
+                "a_job_log_asks_a_suffix_range_and_bytes_before_it_are_truncated: short",
+                (
+                    b"HTTP/1.1 206 Partial Content\r\nContent-Length: 3\r\nContent-Range: bytes 0-2/3\r\n\r\nabc"
+                        .as_slice(),
+                    b"abc".as_slice(),
+                    false,
+                ),
             ),
-            "{name}"
-        );
-    }
+            (
+                "a_job_log_asks_a_suffix_range_and_bytes_before_it_are_truncated: past max",
+                (b"HTTP/1.1 200 OK\r\nContent-Length: 6\r\n\r\nabcdef".as_slice(), b"cdef".as_slice(), true),
+            ),
+            (
+                "a_job_log_asks_a_suffix_range_and_bytes_before_it_are_truncated: range names more",
+                (
+                    b"HTTP/1.1 206 Partial Content\r\nContent-Length: 4\r\nContent-Range: bytes 16-19/20\r\n\r\nabcd"
+                        .as_slice(),
+                    b"abcd".as_slice(),
+                    true,
+                ),
+            ),
+            (
+                "an_empty_log_answered_with_an_empty_range_is_an_empty_log",
+                (
+                    b"HTTP/1.1 206 Partial Content\r\nContent-Length: 0\r\nContent-Range: bytes 0--1/0\r\n\r\n"
+                        .as_slice(),
+                    b"".as_slice(),
+                    false,
+                ),
+            ),
+        ],
+        |(response, log, truncated)| {
+            let mut h = fixtures::known();
+            h.call(1, fixtures::REPO, Op::Read(Read::Job { attempt: ATTEMPT, max_bytes: 4 }));
+            h.answer(fixtures::FORGE, &fixtures::ok(RUN));
+            h.answer(fixtures::FORGE, &fixtures::ok(JOB));
+            let request = h.request_bytes(fixtures::FORGE);
+            assert!(
+                skein_lib::bytes::find(
+                    &request,
+                    b"GET /api/v1/repos/fixture/specimen/actions/jobs/10/logs?attempt=3&step=1 HTTP/1.1\r\n"
+                )
+                .is_some(),
+                "log"
+            );
+            assert!(skein_lib::bytes::find(&request, b"Range: bytes=-4\r\n").is_some(), "range");
+            h.answer(fixtures::FORGE, response);
+            h.run(Duration::from_millis(10));
+            let answer = h.answered(1).expect("log");
+            assert_eq!(
+                (answer.cost, answer.result.clone()),
+                (
+                    3,
+                    Ok(Answer::Job {
+                        attempt: ATTEMPT,
+                        step: Some(Step { number: 1, name: Box::from(&b"build"[..]) }),
+                        log: Box::from(log),
+                        truncated
+                    })
+                ),
+                "log answer"
+            );
+        },
+    );
 }
 
 fn job(statuses: [&str; 3]) -> Box<[u8]> {
@@ -645,23 +659,4 @@ fn a_jobs_log_room_is_answer_bytes_less_its_steps_name() {
         truncated: true,
     };
     assert_eq!(h.answered(1).expect("Job answer").result, Ok(expected));
-}
-
-#[test]
-fn an_empty_log_answered_with_an_empty_range_is_an_empty_log() {
-    let mut h = fixtures::known();
-    h.call(1, fixtures::REPO, Op::Read(Read::Job { attempt: ATTEMPT, max_bytes: 4 }));
-    h.answer(fixtures::FORGE, &fixtures::ok(RUN));
-    h.answer(fixtures::FORGE, &fixtures::ok(JOB));
-    h.answer(
-        fixtures::FORGE,
-        b"HTTP/1.1 206 Partial Content\r\nContent-Length: 0\r\nContent-Range: bytes 0--1/0\r\n\r\n",
-    );
-    h.run(Duration::from_millis(10));
-    let answer = h.answered(1).expect("Empty log");
-    let step = Some(Step { number: 1, name: Box::from(&b"build"[..]) });
-    assert_eq!(
-        (answer.cost, answer.result.clone()),
-        (3, Ok(Answer::Job { attempt: ATTEMPT, step, log: Box::from([]), truncated: false }))
-    );
 }

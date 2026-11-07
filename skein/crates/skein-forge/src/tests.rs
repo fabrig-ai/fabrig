@@ -103,249 +103,327 @@ fn measured(answer: &Answer, bytes: u64) {
 }
 
 #[test]
-fn measure_answer_summary() {
-    let item = api::Summary {
-        labels: Box::new([]),
-        number: 1,
-        kind: api::Kind::Issue,
-        state: api::State::Open,
-        author: 1,
-        key: None,
-        title: Box::from(WORD),
-        body: Box::new([]),
-        updated: skein_lib::Time::ZERO,
-    };
-    measured(&Answer::Items { items: Box::new([item.clone()]), more: false, now: skein_lib::Time::ZERO }, 131);
-    measured(&Answer::Item { item, comments: Box::new([]), more: false }, 3);
-}
-
-#[test]
-fn measure_answer_review() {
-    let review = api::Review {
-        id: 1,
-        provenance: api::Provenance::Original,
-        revision: 1,
-        author: 1,
-        verdict: api::Verdict::Comment,
-        commit: [1; 32],
-        key: None,
-        body: Box::from(WORD),
-        at: skein_lib::Time::ZERO,
-        official: false,
-    };
-    measured(&Answer::Reviews { reviews: Box::new([review]), more: false }, 131);
-}
-
-#[test]
-fn measure_answer_status() {
-    let status = api::Status {
-        at: skein_lib::Time::ZERO,
-        context: Box::from(WORD),
-        check: api::Check::Passed,
-        description: Box::from(&b"ab"[..]),
-        url: Box::from(&b"x"[..]),
-        job: None,
-    };
-    for answer in [
-        Answer::Statuses { ci: api::Ci::Passed, statuses: Box::new([status.clone()]), more: false },
-        Answer::Checks(Box::new([status])),
-    ] {
-        measured(&answer, 166);
-    }
-}
-
-#[test]
-fn measure_answer_comment() {
-    let item = api::Summary {
-        labels: Box::new([]),
-        number: 1,
-        kind: api::Kind::Issue,
-        state: api::State::Open,
-        author: 1,
-        key: None,
-        title: Box::new([]),
-        body: Box::new([]),
-        updated: skein_lib::Time::ZERO,
-    };
-    let comment = api::Comment {
-        id: 1,
-        provenance: api::Provenance::Original,
-        author: 1,
-        created: skein_lib::Time::ZERO,
-        revision: 1,
-        key: Some(Box::from(&b"a"[..])),
-        body: Box::from(WORD),
-    };
-    measured(&Answer::Item { item, comments: Box::new([comment]), more: false }, 100);
-}
-
-#[test]
-fn measure_answer_remark() {
-    let remark = api::Remark { id: 1, author: 1, path: Box::from(WORD), line: 1, body: Box::from(&b"ab"[..]) };
-    measured(&Answer::Remarks { remarks: Box::new([remark]), more: false }, 69);
-}
-
-#[test]
-fn measure_answer_file() {
-    let file =
-        api::File { path: Box::from(WORD), before: Some(Box::from(&b"a"[..])), after: Some(Box::from(&b"bc"[..])) };
-    for answer in [
-        Answer::PullFiles { head: [1; 32], files: Box::new([file.clone()]), more: false },
-        Answer::Compare {
-            before: [1; 32],
-            after: [2; 32],
-            contains_before: true,
-            files: Box::new([file]),
-            commits: Box::new([]),
-        },
-    ] {
-        measured(&answer, 70);
-    }
-}
-
-#[test]
-fn measure_answer_commit() {
-    measured(
-        &Answer::Compare {
-            before: [1; 32],
-            after: [2; 32],
-            contains_before: true,
-            files: Box::new([]),
-            commits: Box::new([[1; 32]]),
-        },
-        32,
-    );
-    measured(&Answer::Commit([1; 32]), 0);
-}
-
-#[test]
-fn measure_answer_collaborator() {
-    measured(
-        &Answer::Collaborators {
-            collaborators: Box::new([api::Collaborator { user: 1, permission: api::Permission::Write }]),
-            more: false,
-        },
-        16,
-    );
-}
-
-#[test]
-fn measure_answer_string() {
-    let item = api::Summary {
-        labels: Box::new([Box::from(WORD)]),
-        number: 1,
-        kind: api::Kind::Issue,
-        state: api::State::Open,
-        author: 1,
-        key: None,
-        title: Box::new([]),
-        body: Box::new([]),
-        updated: skein_lib::Time::ZERO,
-    };
-    measured(&Answer::Branches(Box::new([Box::from(WORD)])), 19);
-    measured(&Answer::Item { item, comments: Box::new([]), more: false }, 19);
-    measured(
-        &Answer::Protection(Some(api::Protection {
-            queue: false,
-            signatures: false,
-            linear: false,
-            code_owners: false,
-            bypass: api::Bypass::Never,
-            branch: Box::from(WORD),
-            contexts: Box::new([Box::from(&b"x"[..])]),
-            approvals: 0,
-            dismiss_stale: false,
-        })),
-        20,
-    );
-}
-
-#[test]
-fn measure_answer_reviewer() {
-    measured(
-        &Answer::Pull(api::Pull {
-            queued: None,
-            dequeued: None,
-            reviewers: Box::new([7]),
+#[expect(clippy::too_many_lines, reason = "the labelled cases keep every input and expectation of one rule together")]
+fn answer_measurement_counts_each_variants_owned_data_bytes() {
+    let mut rows = skein_lib::List::with_capacity(24);
+    {
+        let item = api::Summary {
+            labels: Box::new([]),
             number: 1,
+            kind: api::Kind::Issue,
             state: api::State::Open,
-            head: Box::from(WORD),
-            base: Box::from(WORD),
-            commit: [1; 32],
-            base_commit: None,
-            merged: None,
-            mergeable: false,
-            ci: api::Ci::None,
-        }),
-        14,
-    );
-}
-
-#[test]
-fn measure_op_reviewers() {
-    const TWO_IDS_BYTES: u64 = 16;
-    let op = api::Op::Write(api::Write::SetReviewers { number: 1, reviewers: Box::new([7, 8]) });
-    assert_eq!(crate::measure::op(&op), Some(TWO_IDS_BYTES));
-}
-
-#[test]
-fn measure_op_strings() {
-    for (op, expected) in [
-        (api::Op::Read(api::Read::Locate { owner: Box::from(&b"ab"[..]), name: Box::from(WORD) }), 5),
-        (
-            api::Op::Write(api::Write::OpenPull {
-                title: Box::new([]),
-                body: Box::new([]),
-                head: Box::from(WORD),
-                base: Box::from(WORD),
-            }),
-            6,
-        ),
-    ] {
-        assert_eq!(crate::measure::op(&op), Some(expected), "{op:?}");
+            author: 1,
+            key: None,
+            title: Box::from(WORD),
+            body: Box::new([]),
+            updated: skein_lib::Time::ZERO,
+        };
+        rows.push((
+            "measure_answer_summary: item list",
+            (Answer::Items { items: Box::new([item.clone()]), more: false, now: skein_lib::Time::ZERO }, 131),
+        ))
+        .unwrap();
+        rows.push((
+            "measure_answer_summary: single item",
+            (Answer::Item { item, comments: Box::new([]), more: false }, 3),
+        ))
+        .unwrap();
     }
+    {
+        let review = api::Review {
+            id: 1,
+            provenance: api::Provenance::Original,
+            revision: 1,
+            author: 1,
+            verdict: api::Verdict::Comment,
+            commit: [1; 32],
+            key: None,
+            body: Box::from(WORD),
+            at: skein_lib::Time::ZERO,
+            official: false,
+        };
+        rows.push(("measure_answer_review", (Answer::Reviews { reviews: Box::new([review]), more: false }, 131)))
+            .unwrap();
+    }
+    {
+        let status = api::Status {
+            at: skein_lib::Time::ZERO,
+            context: Box::from(WORD),
+            check: api::Check::Passed,
+            description: Box::from(&b"ab"[..]),
+            url: Box::from(&b"x"[..]),
+            job: None,
+        };
+        rows.push((
+            "measure_answer_status: statuses",
+            (Answer::Statuses { ci: api::Ci::Passed, statuses: Box::new([status.clone()]), more: false }, 166),
+        ))
+        .unwrap();
+        rows.push(("measure_answer_status: checks", (Answer::Checks(Box::new([status])), 166))).unwrap();
+    }
+    {
+        let item = api::Summary {
+            labels: Box::new([]),
+            number: 1,
+            kind: api::Kind::Issue,
+            state: api::State::Open,
+            author: 1,
+            key: None,
+            title: Box::new([]),
+            body: Box::new([]),
+            updated: skein_lib::Time::ZERO,
+        };
+        let comment = api::Comment {
+            id: 1,
+            provenance: api::Provenance::Original,
+            author: 1,
+            created: skein_lib::Time::ZERO,
+            revision: 1,
+            key: Some(Box::from(&b"a"[..])),
+            body: Box::from(WORD),
+        };
+        rows.push(("measure_answer_comment", (Answer::Item { item, comments: Box::new([comment]), more: false }, 100)))
+            .unwrap();
+    }
+    {
+        let remark = api::Remark { id: 1, author: 1, path: Box::from(WORD), line: 1, body: Box::from(&b"ab"[..]) };
+        rows.push(("measure_answer_remark", (Answer::Remarks { remarks: Box::new([remark]), more: false }, 69)))
+            .unwrap();
+    }
+    {
+        let file =
+            api::File { path: Box::from(WORD), before: Some(Box::from(&b"a"[..])), after: Some(Box::from(&b"bc"[..])) };
+        rows.push((
+            "measure_answer_file: pull files",
+            (Answer::PullFiles { head: [1; 32], files: Box::new([file.clone()]), more: false }, 70),
+        ))
+        .unwrap();
+        rows.push((
+            "measure_answer_file: comparison files",
+            (
+                Answer::Compare {
+                    before: [1; 32],
+                    after: [2; 32],
+                    contains_before: true,
+                    files: Box::new([file]),
+                    commits: Box::new([]),
+                },
+                70,
+            ),
+        ))
+        .unwrap();
+    }
+    {
+        rows.push((
+            "measure_answer_commit: comparison commits",
+            (
+                Answer::Compare {
+                    before: [1; 32],
+                    after: [2; 32],
+                    contains_before: true,
+                    files: Box::new([]),
+                    commits: Box::new([[1; 32]]),
+                },
+                32,
+            ),
+        ))
+        .unwrap();
+        rows.push(("measure_answer_commit: single commit", (Answer::Commit([1; 32]), 0))).unwrap();
+    }
+    {
+        rows.push((
+            "measure_answer_collaborator",
+            (
+                Answer::Collaborators {
+                    collaborators: Box::new([api::Collaborator { user: 1, permission: api::Permission::Write }]),
+                    more: false,
+                },
+                16,
+            ),
+        ))
+        .unwrap();
+    }
+    {
+        let item = api::Summary {
+            labels: Box::new([Box::from(WORD)]),
+            number: 1,
+            kind: api::Kind::Issue,
+            state: api::State::Open,
+            author: 1,
+            key: None,
+            title: Box::new([]),
+            body: Box::new([]),
+            updated: skein_lib::Time::ZERO,
+        };
+        rows.push(("measure_answer_string: branches", (Answer::Branches(Box::new([Box::from(WORD)])), 19))).unwrap();
+        rows.push((
+            "measure_answer_string: item labels",
+            (Answer::Item { item, comments: Box::new([]), more: false }, 19),
+        ))
+        .unwrap();
+        rows.push((
+            "measure_answer_string: protection fields",
+            (
+                Answer::Protection(Some(api::Protection {
+                    queue: false,
+                    signatures: false,
+                    linear: false,
+                    code_owners: false,
+                    bypass: api::Bypass::Never,
+                    branch: Box::from(WORD),
+                    contexts: Box::new([Box::from(&b"x"[..])]),
+                    approvals: 0,
+                    dismiss_stale: false,
+                })),
+                20,
+            ),
+        ))
+        .unwrap();
+    }
+    {
+        rows.push((
+            "measure_answer_reviewer",
+            (
+                Answer::Pull(api::Pull {
+                    queued: None,
+                    dequeued: None,
+                    reviewers: Box::new([7]),
+                    number: 1,
+                    state: api::State::Open,
+                    head: Box::from(WORD),
+                    base: Box::from(WORD),
+                    commit: [1; 32],
+                    base_commit: None,
+                    merged: None,
+                    mergeable: false,
+                    ci: api::Ci::None,
+                }),
+                14,
+            ),
+        ))
+        .unwrap();
+    }
+    rows.push(("vocabulary_measure_of_queued_is_zero", (Answer::Queued, 0))).unwrap();
+    skein_rows::check(rows.into_boxed(), |(answer, bytes)| measured(&answer, bytes));
+}
+
+#[test]
+fn operation_measurement_counts_reviewer_ids_and_owned_strings() {
+    skein_rows::check(
+        [
+            (
+                "measure_op_reviewers",
+                (api::Op::Write(api::Write::SetReviewers { number: 1, reviewers: Box::new([7, 8]) }), 16),
+            ),
+            (
+                "measure_op_strings: locate",
+                (api::Op::Read(api::Read::Locate { owner: Box::from(&b"ab"[..]), name: Box::from(WORD) }), 5),
+            ),
+            (
+                "measure_op_strings: open pull",
+                (
+                    api::Op::Write(api::Write::OpenPull {
+                        title: Box::new([]),
+                        body: Box::new([]),
+                        head: Box::from(WORD),
+                        base: Box::from(WORD),
+                    }),
+                    6,
+                ),
+            ),
+        ],
+        |(op, expected)| assert_eq!(crate::measure::op(&op), Some(expected), "{op:?}"),
+    );
 }
 
 use core::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 
 #[test]
-fn host_names_include_only_nondefault_ports_and_bracket_ipv6() {
-    type HostRow = (&'static str, SocketAddr, Option<&'static [u8]>, &'static [u8]);
-    let rows: [HostRow; 5] = [
-        ("plain default", SocketAddr::from((Ipv4Addr::LOCALHOST, 80)), None, b"127.0.0.1"),
-        ("plain custom", SocketAddr::from((Ipv4Addr::LOCALHOST, 3000)), None, b"127.0.0.1:3000"),
-        ("TLS default", SocketAddr::from((Ipv4Addr::LOCALHOST, 443)), Some(b"forge.example"), b"forge.example"),
-        ("TLS custom", SocketAddr::from((Ipv4Addr::LOCALHOST, 3000)), Some(b"forge.example"), b"forge.example:3000"),
-        ("IPv6", SocketAddr::from((Ipv6Addr::LOCALHOST, 80)), None, b"[0:0:0:0:0:0:0:1]"),
-    ];
-    for (name, address, server, expected) in rows {
-        assert_eq!(crate::host::host(address, server), Some(Box::from(expected)), "{name}");
-    }
-}
-
-#[test]
-fn host_uses_names_and_omits_both_default_ports() {
-    type HostRow = (core::net::IpAddr, Option<&'static [u8]>, &'static [u8]);
-    let rows: [HostRow; 4] = [
-        (Ipv4Addr::LOCALHOST.into(), Some(b"forge.example"), b"forge.example"),
-        (Ipv6Addr::LOCALHOST.into(), Some(b"forge.example"), b"forge.example"),
-        (Ipv4Addr::LOCALHOST.into(), None, b"127.0.0.1"),
-        (Ipv6Addr::LOCALHOST.into(), None, b"[0:0:0:0:0:0:0:1]"),
-    ];
-    for (ip, name, expected) in rows {
-        // Both transports use the same name argument, including TLS on 80
-        // and named plaintext on 443 (forge.md, section 5.1; decision 25).
-        for port in [80, 443] {
-            assert_eq!(
-                crate::host::host(SocketAddr::new(ip, port), name),
-                Some(Box::from(expected)),
-                "{ip}:{port} {name:?}"
-            );
-        }
-    }
-    assert_eq!(
-        crate::host::host(SocketAddr::from((Ipv6Addr::LOCALHOST, 3000)), None),
-        Some(Box::from(&b"[0:0:0:0:0:0:0:1]:3000"[..]))
+fn host_rendering_keeps_names_and_omits_default_ports() {
+    skein_rows::check(
+        [
+            (
+                "host_names_include_only_nondefault_ports_and_bracket_ipv6: plain default",
+                (SocketAddr::from((Ipv4Addr::LOCALHOST, 80)), None, b"127.0.0.1".as_slice()),
+            ),
+            (
+                "host_names_include_only_nondefault_ports_and_bracket_ipv6: plain custom",
+                (SocketAddr::from((Ipv4Addr::LOCALHOST, 3000)), None, b"127.0.0.1:3000".as_slice()),
+            ),
+            (
+                "host_names_include_only_nondefault_ports_and_bracket_ipv6: TLS default",
+                (
+                    SocketAddr::from((Ipv4Addr::LOCALHOST, 443)),
+                    Some(b"forge.example".as_slice()),
+                    b"forge.example".as_slice(),
+                ),
+            ),
+            (
+                "host_names_include_only_nondefault_ports_and_bracket_ipv6: TLS custom",
+                (
+                    SocketAddr::from((Ipv4Addr::LOCALHOST, 3000)),
+                    Some(b"forge.example".as_slice()),
+                    b"forge.example:3000".as_slice(),
+                ),
+            ),
+            (
+                "host_names_include_only_nondefault_ports_and_bracket_ipv6: IPv6",
+                (SocketAddr::from((Ipv6Addr::LOCALHOST, 80)), None, b"[0:0:0:0:0:0:0:1]".as_slice()),
+            ),
+            (
+                "host_uses_names_and_omits_both_default_ports: v4 named 80",
+                (
+                    SocketAddr::from((Ipv4Addr::LOCALHOST, 80)),
+                    Some(b"forge.example".as_slice()),
+                    b"forge.example".as_slice(),
+                ),
+            ),
+            (
+                "host_uses_names_and_omits_both_default_ports: v4 named 443",
+                (
+                    SocketAddr::from((Ipv4Addr::LOCALHOST, 443)),
+                    Some(b"forge.example".as_slice()),
+                    b"forge.example".as_slice(),
+                ),
+            ),
+            (
+                "host_uses_names_and_omits_both_default_ports: v6 named 80",
+                (
+                    SocketAddr::from((Ipv6Addr::LOCALHOST, 80)),
+                    Some(b"forge.example".as_slice()),
+                    b"forge.example".as_slice(),
+                ),
+            ),
+            (
+                "host_uses_names_and_omits_both_default_ports: v6 named 443",
+                (
+                    SocketAddr::from((Ipv6Addr::LOCALHOST, 443)),
+                    Some(b"forge.example".as_slice()),
+                    b"forge.example".as_slice(),
+                ),
+            ),
+            (
+                "host_uses_names_and_omits_both_default_ports: v4 address 80",
+                (SocketAddr::from((Ipv4Addr::LOCALHOST, 80)), None, b"127.0.0.1".as_slice()),
+            ),
+            (
+                "host_uses_names_and_omits_both_default_ports: v4 address 443",
+                (SocketAddr::from((Ipv4Addr::LOCALHOST, 443)), None, b"127.0.0.1".as_slice()),
+            ),
+            (
+                "host_uses_names_and_omits_both_default_ports: v6 address 80",
+                (SocketAddr::from((Ipv6Addr::LOCALHOST, 80)), None, b"[0:0:0:0:0:0:0:1]".as_slice()),
+            ),
+            (
+                "host_uses_names_and_omits_both_default_ports: v6 address 443",
+                (SocketAddr::from((Ipv6Addr::LOCALHOST, 443)), None, b"[0:0:0:0:0:0:0:1]".as_slice()),
+            ),
+            (
+                "host_uses_names_and_omits_both_default_ports: v6 custom",
+                (SocketAddr::from((Ipv6Addr::LOCALHOST, 3000)), None, b"[0:0:0:0:0:0:0:1]:3000".as_slice()),
+            ),
+        ],
+        |(address, name, expected)| assert_eq!(crate::host::host(address, name), Some(Box::from(expected))),
     );
 }
 
@@ -418,11 +496,6 @@ fn vocabulary_measure_counts_dequeued_bytes_and_not_queued() {
     let expected = baseline.checked_add(skein_lib::len_u64(reason.len())).expect("fixture fits");
     assert_eq!(crate::measure::pull(&pull), Some(expected));
     assert_eq!(crate::measure::answer(&Answer::Pull(pull)), Some(expected));
-}
-
-#[test]
-fn vocabulary_measure_of_queued_is_zero() {
-    assert_eq!(crate::measure::answer(&Answer::Queued), Some(0));
 }
 
 fn vocabulary_app_credential() -> crate::credential::Credential {

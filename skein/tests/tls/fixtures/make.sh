@@ -15,6 +15,8 @@
 #   for client authentication only.
 # - rsa-1024.der, rsa-3072.der: RSA keys, PKCS #1 DER, that RS256 signing
 #   refuses (tls.md, 4): too small, too large.
+# - rsa-2050.der: a PKCS #1 RSA key within RS256_KEY_BYTES, yet too large
+#   to sign (tls.md, 4).
 #
 # Every certificate is valid from 2026-01-01 to 2036-01-01: a world checks
 # them at the wall time it chooses (env.wall), never the clock.
@@ -102,7 +104,7 @@ for name in root intermediate leaf big other self ca client; do
 done
 openssl pkcs8 -topk8 -nocrypt -in "$scratch/leaf.pem" -outform DER -out leaf.key
 
-for bits in 1024 3072; do
+for bits in 1024 2050 3072; do
     openssl genrsa -traditional -out "$scratch/rsa-$bits.pem" $bits
     openssl rsa -traditional -in "$scratch/rsa-$bits.pem" -outform DER -out "rsa-$bits.der"
 done

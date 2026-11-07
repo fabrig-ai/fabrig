@@ -154,62 +154,83 @@ fn character_pass_precedes_grammar_and_comments_hold_any_bytes() {
     parse(b"family f 1\nrecord _R { _a: u8 }").expect("Rust casing stays in codegen");
 }
 
+struct HeldRow {
+    source: &'static [u8],
+    family: Span,
+    name: Span,
+    types: [Type; 3],
+}
+
 #[test]
-fn held_records_and_pieces_keep_their_names() {
-    let schema = parse(b"family f 1\nrecord Item {}\nrecord R { a: bytes 8 holds other-family Value b: bytes 9 pieces Item c: bytes 4 }").expect("held fields");
-    let record = schema.field(FieldIx::new(0));
-    let Type::Bytes { bound, held: Held::Record { family, name } } = schema.ty(record.ty) else {
-        unreachable!("held record");
-    };
-    assert_eq!(bound, 8);
-    assert_eq!(schema.spelled(family), b"other-family");
-    assert_eq!(schema.spelled(name), b"Value");
-    assert_eq!(
-        schema.ty(schema.field(FieldIx::new(1)).ty),
-        Type::Bytes { bound: 9, held: Held::Pieces(DeclIx::new(0)) }
+fn held_byte_and_secret_clauses_retain_their_external_references() {
+    skein_rows::check(
+        [
+            ("held_records_and_pieces_keep_their_names", HeldRow { source: b"family f 1\nrecord Item {}\nrecord R { a: bytes 8 holds other-family Value b: bytes 9 pieces Item c: bytes 4 }", family: Span { start: 54, end: 66 }, name: Span { start: 67, end: 72 },
+                types: [
+                    Type::Bytes { bound: 8, held: Held::Record { family: Span { start: 54, end: 66 }, name: Span { start: 67, end: 72 } } },
+                    Type::Bytes { bound: 9, held: Held::Pieces(DeclIx::new(0)) },
+                    Type::Bytes { bound: 4, held: Held::Opaque },
+                ],
+            }),
+            ("held_secrets_keep_external_names_and_piece_indexes", HeldRow { source: b"family f 1\nrecord Item {}\nrecord R { a: secret 8 holds other-family Value b: secret 9 pieces Item c: secret 4 }", family: Span { start: 55, end: 67 }, name: Span { start: 68, end: 73 },
+                types: [
+                    Type::Secret { bound: 8, held: Held::Record { family: Span { start: 55, end: 67 }, name: Span { start: 68, end: 73 } } },
+                    Type::Secret { bound: 9, held: Held::Pieces(DeclIx::new(0)) },
+                    Type::Secret { bound: 4, held: Held::Opaque },
+                ],
+            }),
+        ],
+        |row| {
+            let schema = parse(row.source).expect("held fields");
+            for (index, expected) in row.types.into_iter().enumerate() {
+                let field = schema.field(FieldIx::new(u32::try_from(index).expect("three fields")));
+                assert_eq!(schema.ty(field.ty), expected);
+            }
+            assert_eq!(schema.spelled(row.family), b"other-family");
+            assert_eq!(schema.spelled(row.name), b"Value");
+        },
     );
-    assert_eq!(schema.ty(schema.field(FieldIx::new(2)).ty), Type::Bytes { bound: 4, held: Held::Opaque });
 }
 
 #[test]
-fn held_secrets_keep_external_names_and_piece_indexes() {
-    let schema = parse(b"family f 1\nrecord Item {}\nrecord R { a: secret 8 holds other-family Value b: secret 9 pieces Item c: secret 4 }").expect("held fields");
-    let record = schema.field(FieldIx::new(0));
-    let Type::Secret { bound, held: Held::Record { family, name } } = schema.ty(record.ty) else {
-        unreachable!("held record");
-    };
-    assert_eq!(bound, 8);
-    assert_eq!(schema.spelled(family), b"other-family");
-    assert_eq!(schema.spelled(name), b"Value");
-    assert_eq!(
-        schema.ty(schema.field(FieldIx::new(1)).ty),
-        Type::Secret { bound: 9, held: Held::Pieces(DeclIx::new(0)) }
+fn clause_words_followed_by_colons_remain_ordinary_field_names() {
+    skein_rows::check(
+        [
+            (
+                "holds_and_pieces_can_name_the_next_field: holds",
+                (
+                    b"family f 1 record R { a: bytes 4 holds: bool }".as_slice(),
+                    Type::Bytes { bound: 4, held: Held::Opaque },
+                ),
+            ),
+            (
+                "holds_and_pieces_can_name_the_next_field: pieces",
+                (
+                    b"family f 1 record R { a: bytes 4 pieces: bool }".as_slice(),
+                    Type::Bytes { bound: 4, held: Held::Opaque },
+                ),
+            ),
+            (
+                "holds_and_pieces_can_follow_a_secret_as_fields: holds",
+                (
+                    b"family f 1 record R { a: secret 4 holds: bool }".as_slice(),
+                    Type::Secret { bound: 4, held: Held::Opaque },
+                ),
+            ),
+            (
+                "holds_and_pieces_can_follow_a_secret_as_fields: pieces",
+                (
+                    b"family f 1 record R { a: secret 4 pieces: bool }".as_slice(),
+                    Type::Secret { bound: 4, held: Held::Opaque },
+                ),
+            ),
+        ],
+        |(source, expected)| {
+            let schema = parse(source).expect("clause word followed by colon is a field");
+            assert_eq!(schema.ty(TypeIx::new(0)), expected);
+            assert_eq!(schema.ty(TypeIx::new(1)), Type::Bool);
+        },
     );
-    assert_eq!(schema.ty(schema.field(FieldIx::new(2)).ty), Type::Secret { bound: 4, held: Held::Opaque });
-}
-
-#[test]
-fn holds_and_pieces_can_name_the_next_field() {
-    for source in [
-        &b"family f 1 record R { a: bytes 4 holds: bool }"[..],
-        &b"family f 1 record R { a: bytes 4 pieces: bool }"[..],
-    ] {
-        let schema = parse(source).expect("clause word followed by colon is a field");
-        assert_eq!(schema.ty(TypeIx::new(0)), Type::Bytes { bound: 4, held: Held::Opaque });
-        assert_eq!(schema.ty(TypeIx::new(1)), Type::Bool);
-    }
-}
-
-#[test]
-fn holds_and_pieces_can_follow_a_secret_as_fields() {
-    for source in [
-        &b"family f 1 record R { a: secret 4 holds: bool }"[..],
-        &b"family f 1 record R { a: secret 4 pieces: bool }"[..],
-    ] {
-        let schema = parse(source).expect("clause word followed by colon is a field");
-        assert_eq!(schema.ty(TypeIx::new(0)), Type::Secret { bound: 4, held: Held::Opaque });
-        assert_eq!(schema.ty(TypeIx::new(1)), Type::Bool);
-    }
 }
 
 #[test]

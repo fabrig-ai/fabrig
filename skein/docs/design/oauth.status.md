@@ -2,6 +2,10 @@
 
 2026-11-07. Where skein's code lags or departs from [oauth.md](oauth.md).
 
+Sections 2.2 and 6.3 have no known gap in caller-selected profile claims,
+their bounds and verification flags, or delivery beside the kept record
+on sign-in and refresh, except for the nonce requirement below.
+
 - **Not yet:** 4: `skein-oauth/src/json.rs`'s `Json` and `Collector` derive
   `Debug` over their tokens, and a `Json` holds a token response, though only
   as a local of `machine.rs`'s reader, in no record that prints: the request
@@ -9,7 +13,9 @@
 - **Departs:** 2.2: a refresh's profile reader requires a nonce claim, though
   it compares none (`skein-oauth/src/jwt.rs`, `refreshed_claims`). A token
   without one gives no profile claims and the refresh still succeeds, as
-  `account-email/oauth-profile`'s acceptance requires.
+  `account-email/oauth-profile`'s acceptance requires. The task's stricter
+  acceptance and section 2.2's nonce-independent profile checks disagree;
+  reading a nonce-less token's profile remains unimplemented.
   3: `skein/docs/foundation/programming-model.md`, 5.4 asks
   for one explicit state enum per lifecycle, each state holding exactly
   its data, no lifecycle in flags or `Option`s beside it, and one handler
