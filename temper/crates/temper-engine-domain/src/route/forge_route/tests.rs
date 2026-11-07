@@ -841,6 +841,113 @@ fn two_forges() -> (super::Domain, skein_lib::Env<super::Limits>) {
     (domain, env)
 }
 
+fn forge_party(key: jig_domain_people::IdentityKey) -> (super::Domain, skein_lib::Env<super::Limits>) {
+    use jig_domain_people as people;
+    let (mut domain, env) = two_forges();
+    domain.core.people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
+    domain.core.people.start_restore(env.wall);
+    let people_env = env.with(env.limits.people);
+    for record in [
+        people::Stored::Person {
+            number: 1,
+            identity: people::Identity { key, login: Box::new([]), name: Box::new([]) },
+        },
+        people::Stored::SignIn { number: 10, person: 1, expires: skein_lib::Wall::from_nanos(100) },
+        people::Stored::Roles {
+            project: 5,
+            holdings: Box::new([people::Holding { person: 1, role: people::Role::Maintainer }]),
+        },
+    ] {
+        people::step(
+            &mut domain.core.people,
+            &people_env,
+            people::Event::Restore { record },
+            &mut skein_lib::Queue::uncapped(),
+        );
+    }
+    assert!(domain.core.people.start_link());
+    domain.core.people.start_sweep();
+    assert!(domain.core.people.start_complete(&people_env));
+    (domain, env)
+}
+
+#[test]
+fn a_review_counts_only_from_the_forge_it_was_made_on() {
+    use super::{forge, forge_change};
+    use skein_forge::api;
+    for (forge, author, counted) in [(1, 7, true), (3, 7, false), (1, 8, false)] {
+        let (domain, env) = forge_party(forge::user_key(1, 7));
+        let mut row = change_row(None);
+        row.repository = api::Repository { forge, repository: 1 };
+        let evidence = forge::ChangeEvidence {
+            prior: row.change.clone(),
+            head: Some(SHA1),
+            base_tip: SHA1,
+            contains_base: forge_change::Status::Passed,
+            ci: forge_change::Status::Passed,
+            gates: Box::new([]),
+            reviews_complete: true,
+            reviews: Box::new([api::Review {
+                id: 1,
+                provenance: api::Provenance::Original,
+                revision: 1,
+                author,
+                verdict: api::Verdict::Approve,
+                commit: SHA1,
+                key: None,
+                body: Box::new([]),
+                at: skein_lib::Time::ZERO,
+                official: true,
+            }]),
+        };
+        let facts = super::landing_reviewers(&domain, &env, &row, &evidence).expect("review facts");
+        if counted {
+            assert_eq!(
+                facts.reviewers.as_ref(),
+                &[forge::Reviewer { person: 1, role: 1, head: SHA1, verdict: api::Verdict::Approve }]
+            );
+            assert!(facts.unmapped.is_empty());
+        } else {
+            assert!(
+                facts.reviewers.is_empty(),
+                "forge {forge}, author {author}: a stranger's review counted: {:?}",
+                facts.reviewers
+            );
+            assert_eq!(
+                facts.unmapped.as_ref(),
+                &[forge::UnmappedReview { account: author, head: SHA1, verdict: api::Verdict::Approve }]
+            );
+        }
+    }
+}
+
+#[test]
+fn human_forge_identity_is_known_on_its_own_forge_and_is_not_its_writer() {
+    use super::forge;
+    for (key, writer_forge, counted) in [
+        (forge::user_key(1, 7), 3, true),
+        (forge::user_key(1, 7), 1, false),
+        (forge::user_key(2, 7), 3, false),
+        (jig_domain_people::IdentityKey { provider: 1, subject: forge::user_key(1, 7).subject }, 3, false),
+    ] {
+        let (mut domain, env) = forge_party(key.clone());
+        for number in [1, 3] {
+            forge::step(
+                &mut domain.forge,
+                &env.with(env.limits.forge),
+                forge::Event::Restore {
+                    record: forge::Stored::Writer(skein_forge_client::Writer {
+                        forge: number,
+                        author: if number == writer_forge { 7 } else { 9 },
+                    }),
+                },
+                &mut skein_lib::Queue::uncapped(),
+            );
+        }
+        assert_eq!(super::human_forge_identity(&domain, 5, 1), counted, "key {key:?}, writer forge {writer_forge}");
+    }
+}
+
 #[test]
 fn pushed_heads_route_only_to_their_own_forges_hold() {
     use super::{Work, forge};

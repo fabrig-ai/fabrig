@@ -1441,7 +1441,7 @@ fn signed_in_party() -> parties::Party {
         parties::Role::Owner,
         400,
         Box::new([
-            parties::Act::SignIn { provider: 0, subject: 7_u64.to_be_bytes().into() },
+            parties::Act::SignIn { provider: 0, subject: temper_engine_domain_forge::user_key(1, 7).subject },
             parties::Act::Request { key: [41; 16], ask: parties::Ask::Chat { words: Box::from(&b"@system"[..]) } },
         ]),
     )
