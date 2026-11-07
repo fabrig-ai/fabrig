@@ -4,9 +4,9 @@ pub mod acceptance;
 pub mod intents;
 pub mod naming;
 pub mod peers;
+mod projection;
 mod projects;
 mod snapshot;
-mod projection;
 pub use projection::Projection;
 pub use snapshot::{proposal_decisions, snapshot};
 

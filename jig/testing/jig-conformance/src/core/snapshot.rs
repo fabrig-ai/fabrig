@@ -146,14 +146,20 @@ pub fn snapshot(records: &BTreeMap<core::Key, &core::Record>) -> r::Snapshot {
 /// Resolve facts whose meaning depends on more than one current row.
 pub(super) fn resolve(snapshot: &mut r::Snapshot, records: &BTreeMap<core::Key, &core::Record>) {
     for task in snapshot.tasks.values_mut() {
-        task.tracked |= records
-            .contains_key(&core::Key::Core(core::CoreKey::Projection(core::ProjectionKey::Goal(task.number))));
+        task.tracked |=
+            records.contains_key(&core::Key::Core(core::CoreKey::Projection(core::ProjectionKey::Goal(task.number))));
     }
-    let mut authority_acceptances = records.values().filter_map(|row| match row {
-        core::Record::Tasks(tasks::Stored::History(row)) => super::acceptance::task(row),
-        core::Record::Core(_) | core::Record::Tasks(_) | core::Record::People(_)
-        | core::Record::Notes(_) | core::Record::Accounts(_) => None,
-    }).collect::<Vec<_>>();
+    let mut authority_acceptances = records
+        .values()
+        .filter_map(|row| match row {
+            core::Record::Tasks(tasks::Stored::History(row)) => super::acceptance::task(row),
+            core::Record::Core(_)
+            | core::Record::Tasks(_)
+            | core::Record::People(_)
+            | core::Record::Notes(_)
+            | core::Record::Accounts(_) => None,
+        })
+        .collect::<Vec<_>>();
     for accepted in proposal_decisions(records) {
         let key = core::Key::Tasks(tasks::Key::DecidedProposal(accepted.proposal));
         if let Some(core::Record::Tasks(tasks::Stored::DecidedProposal(proposal))) = records.get(&key)

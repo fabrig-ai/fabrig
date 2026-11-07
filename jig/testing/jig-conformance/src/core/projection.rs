@@ -42,7 +42,8 @@ mod tests {
     fn keyed_rows_replace_erase_and_rebuild_without_double_charging_spend() {
         let first = ledger(3, 7);
         let second = ledger(4, 11);
-        let sign_in = core::Record::People(people::Stored::SignIn { number: 5, person: 2, expires: skein_lib::Wall::EPOCH });
+        let sign_in =
+            core::Record::People(people::Stored::SignIn { number: 5, person: 2, expires: skein_lib::Wall::EPOCH });
         let mut rows = BTreeMap::from([(first.key(), first.clone()), (second.key(), second), (sign_in.key(), sign_in)]);
         let mut projection = Projection::default();
         assert_eq!(check(&mut projection, 1, &rows).person_spend.get(&2), Some(&18));
@@ -77,8 +78,15 @@ mod tests {
                 task,
                 revision: 0,
                 amendment: Box::new(tasks::Amendment {
-                    tracked: None, addressed: None, instructions: None, release: None,
-                    spec: None, wake: None, dependencies: None, authority: None, llm: None,
+                    tracked: None,
+                    addressed: None,
+                    instructions: None,
+                    release: None,
+                    spec: None,
+                    wake: None,
+                    dependencies: None,
+                    authority: None,
+                    llm: None,
                     reason: Box::new([]),
                 }),
             },
@@ -105,8 +113,10 @@ mod tests {
         let proposal = person_amendment(5);
         projection.submitted(&Commit { number: 2, writes: vec![Write::Save(&proposal)] });
         rows.insert(proposal.key(), proposal);
-        assert_eq!(check(&mut projection, 2, &rows).accepted_tasks.get(&5),
-            Some(&r::Acceptance { proposal: 9, by: r::Source::Person(2) }));
+        assert_eq!(
+            check(&mut projection, 2, &rows).accepted_tasks.get(&5),
+            Some(&r::Acceptance { proposal: 9, by: r::Source::Person(2) })
+        );
         let replacement = person_amendment(6);
         projection.submitted(&Commit { number: 3, writes: vec![Write::Save(&replacement)] });
         rows.insert(replacement.key(), replacement.clone());
@@ -123,37 +133,87 @@ mod tests {
 struct Row {
     naming: Vec<r::Naming>,
     receipts: BTreeSet<r::Receipt>,
-    facts: Option<r::Snapshot>,
+    facts: Box<[Fact]>,
+}
+
+/// Retain only facts the row contributes, rather than an empty collection for
+/// every other kind of fact in a whole committed snapshot.
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Fact {
+    Newest(u32),
+    Task(u64, Box<r::Task>),
+    PlacedHold(u64, r::PlacedHold),
+    ReadPosition((u64, u64), u64),
+    Writer(r::Name, u64, u64),
+    Pool(r::Name, u32),
+    PartyProposal(u64, u64),
+    Batch(Vec<u64>),
+    Balance((u64, u64, u64, u64)),
+    Deleting(u32),
+    PersonSpend(u64, u64),
+}
+
+impl Fact {
+    fn append(&self, snapshot: &mut r::Snapshot) {
+        match self {
+            Self::Newest(value) => snapshot.newest = snapshot.newest.max(*value),
+            Self::Task(key, value) => {
+                snapshot.tasks.insert(*key, (**value).clone());
+            }
+            Self::PlacedHold(key, value) => {
+                snapshot.placed_holds.insert(*key, *value);
+            }
+            Self::ReadPosition(key, value) => {
+                snapshot.read_positions.insert(*key, *value);
+            }
+            Self::Writer(name, task, attempt) => snapshot.writers.push((name.clone(), *task, *attempt)),
+            Self::Pool(key, value) => {
+                snapshot.pools.insert(key.clone(), *value);
+            }
+            Self::PartyProposal(key, value) => {
+                snapshot.party_proposals.insert(*key, *value);
+            }
+            Self::Batch(value) => snapshot.batches.push(value.clone()),
+            Self::Balance(value) => snapshot.balances.push(*value),
+            Self::Deleting(value) => {
+                snapshot.deleting.insert(*value);
+            }
+            Self::PersonSpend(person, spent) => *snapshot.person_spend.entry(*person).or_default() += spent,
+        }
+    }
 }
 
 impl Row {
     fn project(key: &core::Key, record: &core::Record) -> Option<Self> {
-        let mut facts = super::snapshot(&BTreeMap::from([(key.clone(), record)]));
-        let naming = std::mem::take(&mut facts.naming);
-        let receipts = std::mem::take(&mut facts.receipts);
+        let snapshot = super::snapshot(&BTreeMap::from([(key.clone(), record)]));
+        let mut facts = Vec::new();
+        if snapshot.newest != 0 {
+            facts.push(Fact::Newest(snapshot.newest));
+        }
+        facts.extend(snapshot.tasks.into_iter().map(|(key, value)| Fact::Task(key, Box::new(value))));
+        facts.extend(snapshot.placed_holds.into_iter().map(|(key, value)| Fact::PlacedHold(key, value)));
+        facts.extend(snapshot.read_positions.into_iter().map(|(key, value)| Fact::ReadPosition(key, value)));
+        facts.extend(snapshot.writers.into_iter().map(|(name, task, attempt)| Fact::Writer(name, task, attempt)));
+        facts.extend(snapshot.pools.into_iter().map(|(key, value)| Fact::Pool(key, value)));
+        facts.extend(snapshot.party_proposals.into_iter().map(|(key, value)| Fact::PartyProposal(key, value)));
+        facts.extend(snapshot.batches.into_iter().map(Fact::Batch));
+        facts.extend(snapshot.balances.into_iter().map(Fact::Balance));
+        facts.extend(snapshot.deleting.into_iter().map(Fact::Deleting));
+        facts.extend(snapshot.person_spend.into_iter().map(|(person, spent)| Fact::PersonSpend(person, spent)));
         // Acceptances and projection ownership are resolved against all current
         // rows, after keyed replacements and erasures have completed.
-        facts.accepted_tasks.clear();
-        let facts = (facts != r::Snapshot::default()).then_some(facts);
-        (!naming.is_empty() || !receipts.is_empty() || facts.is_some()).then_some(Self { naming, receipts, facts })
+        (!snapshot.naming.is_empty() || !snapshot.receipts.is_empty() || !facts.is_empty()).then_some(Self {
+            naming: snapshot.naming,
+            receipts: snapshot.receipts,
+            facts: facts.into_boxed_slice(),
+        })
     }
 
     fn append(&self, snapshot: &mut r::Snapshot) {
         snapshot.naming.extend(self.naming.iter().cloned());
         snapshot.receipts.extend(self.receipts.iter().cloned());
-        let Some(facts) = &self.facts else { return };
-        snapshot.newest = snapshot.newest.max(facts.newest);
-        snapshot.tasks.extend(facts.tasks.iter().map(|(key, value)| (*key, value.clone())));
-        snapshot.placed_holds.extend(facts.placed_holds.iter().map(|(key, value)| (*key, value.clone())));
-        snapshot.read_positions.extend(facts.read_positions.iter().map(|(key, value)| (*key, *value)));
-        snapshot.writers.extend(facts.writers.iter().cloned());
-        snapshot.pools.extend(facts.pools.iter().map(|(key, value)| (key.clone(), *value)));
-        snapshot.party_proposals.extend(facts.party_proposals.iter().map(|(key, value)| (*key, *value)));
-        snapshot.batches.extend(facts.batches.iter().cloned());
-        snapshot.balances.extend(facts.balances.iter().copied());
-        snapshot.deleting.extend(facts.deleting.iter().copied());
-        for (person, spent) in &facts.person_spend {
-            *snapshot.person_spend.entry(*person).or_default() += spent;
+        for fact in &self.facts {
+            fact.append(snapshot);
         }
     }
 }
@@ -164,8 +224,12 @@ impl Projection {
         let mut keys = BTreeSet::new();
         for write in &commit.writes {
             match write {
-                Write::Save(row) => { keys.insert(row.key()); }
-                Write::Erase(key) => { keys.insert(key.clone()); }
+                Write::Save(row) => {
+                    keys.insert(row.key());
+                }
+                Write::Erase(key) => {
+                    keys.insert(key.clone());
+                }
                 Write::Other => {}
                 Write::Refresh => {
                     self.pending.insert(commit.number, None);
@@ -186,11 +250,7 @@ impl Projection {
     /// erase another contributor's receipt or leave its spend charged twice.
     #[must_use]
     pub fn snapshot(&mut self, applied: u64, records: &BTreeMap<core::Key, &core::Record>) -> r::Snapshot {
-        self.snapshot_by(
-            applied,
-            records.iter().map(|(key, row)| (key.clone(), *row)),
-            |key| records.get(key).copied(),
-        )
+        self.snapshot_by(applied, records.iter().map(|(key, row)| (key.clone(), *row)), |key| records.get(key).copied())
     }
 
     /// Borrow unchanged storage directly. The whole iterator is consumed only
@@ -204,8 +264,8 @@ impl Projection {
     ) -> r::Snapshot {
         if self.applied != Some(applied) {
             let incremental = self.applied.is_some_and(|previous| {
-                previous < applied && (previous + 1..=applied)
-                    .all(|number| self.pending.get(&number).is_some_and(Option::is_some))
+                previous < applied
+                    && (previous + 1..=applied).all(|number| self.pending.get(&number).is_some_and(Option::is_some))
             });
             if incremental {
                 let previous = self.applied.expect("incremental projection has a base");
@@ -230,9 +290,9 @@ impl Projection {
             row.append(&mut snapshot);
         }
         for task in snapshot.tasks.values_mut() {
-            task.tracked |= self.rows.contains_key(
-                &core::Key::Core(core::CoreKey::Projection(core::ProjectionKey::Goal(task.number))),
-            );
+            task.tracked |= self
+                .rows
+                .contains_key(&core::Key::Core(core::CoreKey::Projection(core::ProjectionKey::Goal(task.number))));
         }
         self.joins.resolve(&mut snapshot);
         snapshot

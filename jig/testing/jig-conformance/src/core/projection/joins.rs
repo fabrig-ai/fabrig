@@ -50,10 +50,11 @@ impl Joins {
             if let Some((first, last)) = accepted.created {
                 for task in first..=last {
                     if snapshot.tasks.get(&task).is_some_and(|row| {
-                        row.source == match accepted.proposer {
-                            people::Proposer::Task(task) => r::Source::Task(task),
-                            people::Proposer::Party(person) => r::Source::Person(person),
-                        }
+                        row.source
+                            == match accepted.proposer {
+                                people::Proposer::Task(task) => r::Source::Task(task),
+                                people::Proposer::Party(person) => r::Source::Person(person),
+                            }
                     }) {
                         snapshot.accepted_tasks.insert(
                             task,

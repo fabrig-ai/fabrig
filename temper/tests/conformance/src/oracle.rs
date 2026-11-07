@@ -52,8 +52,11 @@ fn document(
     #[cfg(test)]
     {
         let (configuration, limits) = crate::config::root(world.peers.seed, world.peers.scenario, world.peers.story);
-        assert_eq!((connector, rows), (configuration.core.connectors[0], limits.documents.rows),
-            "shared watch parameters");
+        assert_eq!(
+            (connector, rows),
+            (configuration.core.connectors[0], limits.documents.rows),
+            "shared watch parameters"
+        );
     }
     let watcher = Token::new(REPLY);
     world.send(Event::Root(Input::Party(PartyInput::Watch {
@@ -87,8 +90,13 @@ pub(super) fn close(world: &mut Harness<Temper>) -> Result<(), Violation> {
     });
     let mut documents = Vec::new();
     for (sign_in, project, subject) in &subjects {
-        documents.push(document(world, *sign_in, *project, *subject,
-            watch.expect("document subjects have watch parameters"))?);
+        documents.push(document(
+            world,
+            *sign_in,
+            *project,
+            *subject,
+            watch.expect("document subjects have watch parameters"),
+        )?);
     }
     let forges = world.domain.root.forges();
     world.crash()?;
@@ -98,8 +106,12 @@ pub(super) fn close(world: &mut Harness<Temper>) -> Result<(), Violation> {
         snapshot.compare_answer(index, read(world, *sign_in, query.clone())?);
     }
     for ((sign_in, project, subject), before) in subjects.into_iter().zip(documents) {
-        oracle::compare_forge(project, subject, before, document(world, sign_in, project, subject,
-            watch.expect("document subjects have watch parameters"))?);
+        oracle::compare_forge(
+            project,
+            subject,
+            before,
+            document(world, sign_in, project, subject, watch.expect("document subjects have watch parameters"))?,
+        );
     }
     Ok(())
 }

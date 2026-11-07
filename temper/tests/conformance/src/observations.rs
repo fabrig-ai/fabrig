@@ -213,10 +213,14 @@ pub fn projected(store: &Store, projection: &mut jig_conformance::core::Projecti
     );
     #[cfg(test)]
     {
-        let records = store.rows.values().filter_map(|record| match record {
-            root::Record::Core(record) => Some((record.key(), record)),
-            root::Record::Forge { .. } => None,
-        }).collect();
+        let records = store
+            .rows
+            .values()
+            .filter_map(|record| match record {
+                root::Record::Core(record) => Some((record.key(), record)),
+                root::Record::Forge { .. } => None,
+            })
+            .collect();
         assert_eq!(snapshot, jig_conformance::core::snapshot(&records), "commit {}", store.applied);
     }
     connector_snapshot(store, snapshot, projection.proposal_decisions())
@@ -225,13 +229,17 @@ pub fn projected(store: &Store, projection: &mut jig_conformance::core::Projecti
 pub fn submitted(store: &Store, projection: &mut jig_conformance::core::Projection) {
     use jig_conformance::core::{Commit, Write};
     if let Some((number, writes)) = store.pending.back() {
-        let writes = writes.iter().map(|write| match write {
-            root::Write::Save(root::Record::Core(record)) => Write::Save(record),
-            root::Write::Erase(root::Key::Core(key)) => Write::Erase(key.clone()),
-            root::Write::CopySettingsRevision(_) | root::Write::DropTranscript { .. } => Write::Refresh,
-            root::Write::Save(root::Record::Forge { .. }) | root::Write::Erase(root::Key::Forge(_) | root::Key::Wires)
-            | root::Write::Wires => Write::Other,
-        }).collect();
+        let writes = writes
+            .iter()
+            .map(|write| match write {
+                root::Write::Save(root::Record::Core(record)) => Write::Save(record),
+                root::Write::Erase(root::Key::Core(key)) => Write::Erase(key.clone()),
+                root::Write::CopySettingsRevision(_) | root::Write::DropTranscript { .. } => Write::Refresh,
+                root::Write::Save(root::Record::Forge { .. })
+                | root::Write::Erase(root::Key::Forge(_) | root::Key::Wires)
+                | root::Write::Wires => Write::Other,
+            })
+            .collect();
         projection.submitted(&Commit { number: *number, writes });
     }
 }
@@ -322,8 +330,7 @@ pub fn resolved(
         (expected, expected_seen, expected_held, expected_settled)
     };
     let mut live = BTreeSet::new();
-    let entries = root::Key::Forge(forge::Key::Entry(0))
-        ..=root::Key::Forge(forge::Key::Entry(u64::MAX));
+    let entries = root::Key::Forge(forge::Key::Entry(0))..=root::Key::Forge(forge::Key::Entry(u64::MAX));
     for (_, record) in store.rows.range(entries) {
         if let root::Record::Forge { row } = record
             && let forge::Stored::Entry { entry, held: false } = row.as_ref()
@@ -363,8 +370,7 @@ pub fn resolved(
             Some(None | Some(core::effects::connector::OutboxOutcome::Uncertain)) => {}
             None if live.contains(&key) => {}
             None => {
-                let projection_failed = evidence.projection
-                    && issue(store, key.task).is_some_and(|issue| issue.failed);
+                let projection_failed = evidence.projection && issue(store, key.task).is_some_and(|issue| issue.failed);
                 if projection_failed {
                     held.insert(key, evidence.kind);
                 } else {
@@ -402,14 +408,18 @@ fn issue(store: &Store, task: u64) -> Option<&forge::IssueRow> {
                 forge::Stored::Issue(issue) if issue.goal == task => Some(issue),
                 _ => None,
             },
-            _ => None,
+            root::Record::Core(_) => None,
         });
-        assert_eq!(found.map(|row| (row.pending, row.failed)),
-            whole.map(|row| (row.pending, row.failed)), "indexed issue evidence");
+        assert_eq!(
+            found.map(|row| (row.pending, row.failed)),
+            whole.map(|row| (row.pending, row.failed)),
+            "indexed issue evidence"
+        );
     }
     found
 }
 
+#[expect(clippy::option_option, reason = "a retained call without an outcome differs from no call")]
 fn call_outcome(store: &Store, key: &EffectKey) -> Option<Option<core::effects::connector::OutboxOutcome>> {
     let found = if let r::EffectOrigin::Call { attempt, completion, position } = key.origin {
         let wanted = core::CallKey { task: key.task, attempt, completion, position };
@@ -422,31 +432,34 @@ fn call_outcome(store: &Store, key: &EffectKey) -> Option<Option<core::effects::
             }
             _ => None,
         }
-    } else { None };
+    } else {
+        None
+    };
     #[cfg(test)]
     assert_eq!(found, whole_answer(store, key), "indexed effect outcome");
     found
 }
 
 #[cfg(test)]
+#[expect(clippy::option_option, reason = "a retained call without an outcome differs from no call")]
 fn whole_answer(store: &Store, key: &EffectKey) -> Option<Option<core::effects::connector::OutboxOutcome>> {
     store.rows.values().find_map(|record| match record {
-            root::Record::Core(core::Record::Core(core::CoreRecord::Call(call)))
-                if call.key.task == key.task
-                    && key.origin
-                        == (r::EffectOrigin::Call {
-                            attempt: call.key.attempt,
-                            completion: call.key.completion,
-                            position: call.key.position,
-                        }) =>
-            {
-                match call.part {
-                    core::CallPart::Effect { entry, outcome, .. } if entry == key.purpose => Some(outcome),
-                    _ => None,
-                }
+        root::Record::Core(core::Record::Core(core::CoreRecord::Call(call)))
+            if call.key.task == key.task
+                && key.origin
+                    == (r::EffectOrigin::Call {
+                        attempt: call.key.attempt,
+                        completion: call.key.completion,
+                        position: call.key.position,
+                    }) =>
+        {
+            match call.part {
+                core::CallPart::Effect { entry, outcome, .. } if entry == key.purpose => Some(outcome),
+                _ => None,
             }
-            _ => None,
-        })
+        }
+        _ => None,
+    })
 }
 
 #[cfg(test)]

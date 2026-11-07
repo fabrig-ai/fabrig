@@ -64,7 +64,8 @@ mod tests {
             delivery_bound: 20,
             uncertainty_bound: 30,
             story_steps: 10,
-        }.into();
+        }
+        .into();
         let mut adapter = original.clone();
         let mut referee = original.clone();
         adapter.deployment.budget = 7;
