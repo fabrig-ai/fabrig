@@ -12,9 +12,12 @@ phone test asserts CSS rules, not measured geometry or a press. The
 after-landing checks and ended-card row retention are section 11's later
 work; no new real-model or phone press outcome is supplied.
 
-- **Not yet:** 3.5, `ConnectModel`, `Accounts`: one set of cards, "✓ Connected", the moved default, the panels, *Ready's place* and an opened row's words (look-round-13's `model-cards`, `model-end`).
-- **Not yet:** 4.4: the sheet "Add repositories": its sources, its picker, "Not listed", "More", its plural sends (look-round-13's `sheet-state`, `sheet-view`, `sheet-copies`); Home's and a project with no repository's ways into it stay as they are, as the request leaves them unmocked.
-- **Not yet:** 4.6: `DismissMaking`, and Settings' Repositories' lines for a repository being made, a failed one's "Copy again" and "Dismiss" (look-round-13's tasks).
+- **Not yet:** 4.4, 5.2: temper/ui’s after-landing render check of
+  `connect-flows` pages 01–23, open disclosures and menus at 1440, 1000
+  and 420 px, and screenshots also at 1280 px (`../draft/look-requests.md`,
+  4). The browser sheet stories are compiled within the plan, not run.
+  Home’s own sheet and the two unmocked entry paths remain as described in
+  `../draft/repository-copies.status.md`, 9; they are not new drawings.
 - **Not yet:** 3.5, 5.5: no supplied record establishes a real-box walk of
   the offer, effort choice, configuring chat's chooser and connected-account
   starters with a real provider. The `model-picker` account at `1d82a937df` records the picker
