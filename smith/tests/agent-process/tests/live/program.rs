@@ -24,6 +24,7 @@ struct Options<'a> {
     schema: Option<&'a str>,
     non_object: bool,
     summary: bool,
+    large_argument: bool,
 }
 
 impl Live {
@@ -42,9 +43,11 @@ impl Live {
     }
 
     fn start_with_configuration(text: &str, options: Options<'_>, configuration: std::path::PathBuf) -> Self {
-        let Options { permission, thinking, schema, non_object, summary } = options;
+        let Options { permission, thinking, schema, non_object, summary, large_argument } = options;
         let probe = Probe::new();
-        let mcp = if permission || thinking || schema.is_some() || non_object {
+        let mcp = if large_argument {
+            argument_server(&probe)
+        } else if permission || thinking || schema.is_some() || non_object {
             prompt_server(&probe, thinking || schema.is_some(), non_object)
         } else {
             r#"{"mcpServers":{}}"#.into()
@@ -57,7 +60,7 @@ impl Live {
             "--tools",
             if permission || schema.is_some() { "Read" } else { "" },
             "--max-turns",
-            if permission || thinking || schema.is_some() { "4" } else { "1" },
+            if permission || thinking || schema.is_some() || large_argument { "4" } else { "1" },
         ]);
         if permission {
             arguments.extend([
@@ -66,6 +69,9 @@ impl Live {
                 "--settings",
                 r#"{"permissions":{"allow":["mcp__smith"],"ask":["Read"]}}"#,
             ]);
+        }
+        if large_argument {
+            arguments.extend(["--settings", r#"{"permissions":{"allow":["mcp__smith"]}}"#]);
         }
         if thinking {
             arguments.extend(["--effort", "high", "--settings", r#"{"permissions":{"allow":["mcp__smith"]}}"#]);
@@ -624,6 +630,88 @@ fn a_live_result_contract_lists_and_calls_structured_output() {
         }
     }
     panic!("result contract probe did not finish");
+}
+
+// After-landing runs this story. A model's own output cap may be the first limit it names.
+#[test]
+fn a_live_large_argument_reaches_the_mcp_server_whole() {
+    const TEXT: &str = "abcdefghijklmnop";
+    const TURN_RECORDS: usize = 1000;
+    for size in [65_536, 131_072] {
+        let prompt = format!(
+            "Call mcp__smith__echo once with text consisting of the literal named text {TEXT} repeated {} times, \
+             concatenated without spaces, newlines, counts or abbreviations, for {size} ASCII bytes. \
+             Write the entire string in the tool argument. After the tool result, reply OK.",
+            size / TEXT.len()
+        );
+        let mut live = Live::start(&prompt, Options { large_argument: true, ..Options::default() });
+        let mut sent = Vec::new();
+        let mut completed = false;
+        for _ in 0..TURN_RECORDS {
+            let record = live.message();
+            if record["type"] == "assistant" {
+                for block in record["message"]["content"].as_array().expect("assistant blocks") {
+                    if block["type"] == "tool_use" && block["name"] == "mcp__smith__echo" {
+                        let text = block["input"]["text"].as_str().expect("echo text");
+                        assert!(
+                            text.len() >= size * 95 / 100,
+                            "{size}-byte argument was short; model output cap may stop it"
+                        );
+                        assert_eq!(text, TEXT.repeat(text.len() / TEXT.len()), "{size}-byte repeated text");
+                        sent.push(serde_json::json!({"length":text.len(),"sha256":skein_lib::sha256::digest(text.as_bytes())}));
+                    }
+                }
+            }
+            if record["type"] == "user"
+                && let Some(blocks) = record["message"]["content"].as_array()
+            {
+                for block in blocks {
+                    if block["type"] == "tool_result" {
+                        assert_ne!(block["is_error"], true, "{size}-byte tool result");
+                    }
+                }
+            }
+            if record["type"] == "result" {
+                assert_eq!(record["is_error"], false, "{size}-byte turn; model output cap may stop it");
+                completed = true;
+                break;
+            }
+        }
+        assert!(completed, "{size}-byte turn did not finish");
+        assert!(!sent.is_empty(), "{size}-byte echo was not called; model output cap may stop it");
+        let receipts = std::fs::read_to_string(live.probe.home.path().join("echo-inputs")).expect("echo receipts");
+        let received: Vec<serde_json::Value> =
+            receipts.lines().map(|line| serde_json::from_str(line).expect("echo receipt")).collect();
+        assert_eq!(received, sent, "{size}-byte inputs reached the MCP server whole, by length and SHA-256");
+        live.close_input();
+    }
+}
+
+fn argument_server(probe: &Probe) -> String {
+    assert!(std::fs::symlink_metadata("/usr/bin/python3").is_ok(), "echo fixture needs /usr/bin/python3");
+    let script = probe.home.path().join("echo.py");
+    std::fs::write(&script, r"import hashlib, json, sys
+from pathlib import Path
+for line in sys.stdin:
+    request = json.loads(line)
+    if 'id' not in request:
+        continue
+    method = request.get('method')
+    if method == 'initialize':
+        result = {'protocolVersion':'2025-06-18','capabilities':{'tools':{}},'serverInfo':{'name':'smith-live-echo','version':'1'}}
+    elif method == 'tools/list':
+        result = {'tools':[{'name':'echo','description':'Record text length and SHA-256','inputSchema':{'type':'object','properties':{'text':{'type':'string'}},'required':['text']}}]}
+    elif method == 'tools/call' and request['params']['name'] == 'echo':
+        text = request['params']['arguments']['text'].encode('utf-8')
+        with Path(sys.argv[1]).open('a') as receipts:
+            receipts.write(json.dumps({'length':len(text),'sha256':list(hashlib.sha256(text).digest())}) + '\n')
+        result = {'isError':False,'content':[{'type':'text','text':'echo recorded'}]}
+    else:
+        print(json.dumps({'jsonrpc':'2.0','id':request['id'],'error':{'code':-32601,'message':'unknown method'}}), flush=True)
+        continue
+    print(json.dumps({'jsonrpc':'2.0','id':request['id'],'result':result}), flush=True)
+").expect("private echo fixture");
+    serde_json::json!({"mcpServers":{"smith":{"command":"/usr/bin/python3","args":[script,probe.home.path().join("echo-inputs")]}}}).to_string()
 }
 
 #[test]

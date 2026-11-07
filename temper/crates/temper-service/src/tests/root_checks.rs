@@ -476,19 +476,17 @@ fn the_reference_profile_keeps_four_questions_per_change() {
     let agent = fixtures::parsed_agent(fixtures::stock_configuration(10_662, 8192).expect("init agent"));
     assert_eq!(profile_question_bound(&generated), 80, "init keeps standard's bound");
     complete_profile_startup(&generated, &agent);
-    let reference = merge_profile(&generated, include_bytes!("../../../../docs/examples/reference/limits.json"));
-    complete_profile_startup(&reference, &agent);
+    let reference = reference_document(&generated);
+    complete_profile_startup(&reference, &reference_agent());
     assert_eq!(profile_question_bound(&reference), 4, "the reference overrides standard's bound");
 }
 
 #[test]
 fn shipped_payload_profiles_pass_complete_startup_checks() {
     let generated = super::stock::generated();
-    let overlay = merge_profile(&generated, include_bytes!("../../../../docs/examples/reference/limits.json"));
     let agent = fixtures::parsed_agent(fixtures::stock_configuration(10_662, 8192).expect("stock agent"));
-    for document in [&generated, &overlay] {
-        complete_profile_startup(document, &agent);
-    }
+    complete_profile_startup(&generated, &agent);
+    complete_profile_startup(&reference_document(&generated), &reference_agent());
 }
 
 #[test]
@@ -501,4 +499,105 @@ fn a_16386_byte_payload_requires_a_larger_model_answer() {
     assert!(refused.contains("llm.answer[endpoint=1]=65536"), "{refused}");
     let raised = fixtures::stock_configuration(16_386, 16_384).expect("a supported larger output admits the payload");
     assert_eq!(raised.profile.declared.tool_payload, 16_386);
+}
+
+fn reference_room() -> serde_json::Value {
+    serde_json::from_slice(include_bytes!("../../../../docs/examples/reference/room.json")).unwrap()
+}
+
+fn reference_agent() -> crate::settings::Agent {
+    let room = reference_room();
+    fixtures::parsed_agent(
+        fixtures::stock_configuration(
+            u32::try_from(room["agent"]["tool_payload"].as_u64().unwrap()).unwrap(),
+            u32::try_from(room["agent"]["output"].as_u64().unwrap()).unwrap(),
+        )
+        .expect("reference agent"),
+    )
+}
+
+fn reference_document(generated: &[u8]) -> Box<[u8]> {
+    let merged = merge_profile(generated, include_bytes!("../../../../docs/examples/reference/limits.json"));
+    let mut document: serde_json::Value = serde_json::from_slice(&merged).unwrap();
+    let overlay = serde_json::to_vec(&reference_room()["worker"]).unwrap();
+    for worker in document["workers"].as_array_mut().unwrap() {
+        *worker = serde_json::from_slice(&merge_profile(&serde_json::to_vec(worker).unwrap(), &overlay)).unwrap();
+    }
+    serde_json::to_vec(&document).unwrap().into_boxed_slice()
+}
+
+#[test]
+fn the_reference_room_starts_and_holds_its_relations() {
+    // Measured CPU: 0.041 s for profile derivation, complete startup and the relations.
+    let room = reference_room();
+    let agent = reference_agent();
+    let document = reference_document(&super::stock::generated());
+    complete_profile_startup(&document, &agent);
+    let document: serde_json::Value = serde_json::from_slice(&document).unwrap();
+    let engine = &document["engine"]["limits"]["overrides"];
+    let own = &document["application"]["limits"]["overrides"];
+    let payload = u64::from(agent.tool_payload);
+    let output = room["agent"]["output"].as_u64().unwrap();
+    let turn = u64::from(agent.limits.bodies.turn_body);
+    let resume = turn + 4;
+    let transcript = resume + 12 * (resume / 4);
+    let loaded = turn + u64::try_from(size_of::<temper_engine_domain::Record>()).unwrap();
+    assert_eq!((payload, output, turn), (63_740, 48_000, 18_431_842));
+    assert!((payload + 260) * 6 <= output * 8);
+    for (name, value) in [
+        ("core.resume_bytes", resume),
+        ("hub.transcript_bytes", transcript),
+        ("hub.turn_bytes", turn),
+        ("hub.turn_queue_bytes", 8 * turn),
+        ("tasks.message_bytes", payload - 2),
+        ("tasks.result_bytes", payload - 2),
+        ("tasks.inbox_bytes", 82 * (payload - 2)),
+    ] {
+        assert_eq!(engine[name].as_u64(), Some(value), "engine {name}");
+    }
+    for worker in document["workers"].as_array().unwrap() {
+        for (name, value) in [
+            ("hub.event_bytes", payload - 2),
+            ("hub.transcript_bytes", transcript),
+            ("hub.turn_bytes", turn),
+            ("hub.turn_queue_bytes", 8 * turn),
+        ] {
+            assert_eq!(worker["limits"]["overrides"][name].as_u64(), Some(value), "worker {name}");
+        }
+    }
+    for (name, value) in [
+        ("checkout.message_bytes", payload),
+        ("forge.client.op_bytes", payload - 2),
+        ("forge_component.body_bytes", 2 * (payload - 2) + 21),
+        // A pull-file page keeps a patch and a previous name beside its path and row.
+        (
+            "forge.client.answer_bytes",
+            2 * (2 * (payload - 2) + 21)
+                + u64::from(crate::limits::profile(crate::limits::Profile::Standard).forge_component.string_bytes)
+                + u64::try_from(skein_forge::measure::FILE_BYTES).unwrap(),
+        ),
+        ("root.journal.transcript_bytes", resume),
+        ("root.loads.bytes", loaded),
+        ("root.loads.reply_bytes", loaded),
+        ("root.loads.read_bytes", 2 * turn),
+        ("root.loads.transcript_bytes", turn),
+    ] {
+        assert_eq!(own[name].as_u64(), Some(value), "application {name}");
+    }
+    let settings: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../../../../docs/examples/reference/settings.json")).unwrap();
+    for item in settings["items"].as_array().unwrap() {
+        match item["setting"]["kind"].as_str().unwrap() {
+            "charter" => {
+                assert_eq!(item["set"]["model"]["output"].as_u64(), Some(output));
+                for model in item["set"]["alternatives"].as_array().unwrap() {
+                    assert_eq!(model["output"].as_u64(), Some(output));
+                }
+            }
+            "template" if item["setting"]["number"] == 4_u32 => {
+                assert_eq!(item["set"]["contract"]["report"]["words"].as_u64(), Some(payload - 2));
+            }
+            _ => {}
+        }
+    }
 }

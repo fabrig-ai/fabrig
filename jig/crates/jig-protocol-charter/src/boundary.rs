@@ -161,6 +161,8 @@ pub struct Charter {
     /// (domain/hosts.md, section 8). A fact of the connectors' items; it grants nothing alone.
     pub delivers: bool,
     pub conventions: Option<Conventions>,
+    /// The report or change contract's words, zero for other result forms (domain/hosts.md, 8).
+    pub words: u32,
     pub contract: Contract,
     pub budget: Budget,
     pub model: Llm,
