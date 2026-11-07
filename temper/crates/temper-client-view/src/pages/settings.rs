@@ -30,7 +30,6 @@ pub(crate) enum Tab {
 pub(crate) enum FlowTab {
     Forges,
     Accounts,
-    Repositories,
 }
 
 /// A flow's path at its head (README.md, 3.5, The flows' paths): nothing with no project, or in the terminal.
@@ -50,7 +49,6 @@ pub(crate) fn path(
     let (word, address) = match tab {
         FlowTab::Forges => (Word::ForgesTitle, Address::Forges),
         FlowTab::Accounts => (Word::SettingsAccountsTab, Address::Accounts),
-        FlowTab::Repositories => (Word::SettingsRepositoriesTab, Address::Repositories { project }),
     };
     b.open(Role::Slot);
     b.style(look::SETTINGS_PATH);
@@ -533,11 +531,15 @@ pub(crate) fn repositories(
     bindings: &mut Bindings,
     project: u32,
     sign_in: &crate::forge_sign_in::Forges,
+    forge: &mut crate::forge::bindings::Bindings,
 ) {
     main(b);
     open(b, root, w, bindings, project, Tab::Repositories);
     if !missing(b, root, w, bindings, project) {
         repository_section(b, root, w, bindings, project, sign_in);
+    }
+    if let Address::Adopt { .. } = root.pages().address() {
+        crate::forge::sheet::draw(b, root, w, bindings, forge, project);
     }
     b.close();
     b.close();
@@ -577,7 +579,15 @@ fn repository_section(
         w.say(Word::SettingsRepositoriesTab, &[])
     };
     section_head(b, &title);
-    button_link(b, w, bindings, Word::Adoption, Address::Adopt { project }, false);
+    crate::link(
+        b,
+        &crate::forge::words::say(w, forge::words::Word::AddRepositories, &[]),
+        bindings.insert(Act::Go { address: Address::Adopt { project } }),
+    );
+    b.style(look::SETTINGS_BTN);
+    b.style(look::SETTINGS_SMALL);
+    b.text(Run::Plain, &crate::forge::words::say(w, forge::words::Word::AddRepositories, &[]));
+    b.close();
     b.close();
     if known && count == 0 {
         quiet_band(
@@ -585,7 +595,15 @@ fn repository_section(
             &w.say(Word::SettingsNoneTag, &[]),
             &w.say(Word::SettingsNoneBody, &[Hole::Name(project_name(root, w, project))]),
         );
-        button_link(b, w, bindings, Word::Adoption, Address::Adopt { project }, false);
+        crate::link(
+            b,
+            &crate::forge::words::say(w, forge::words::Word::AddRepositories, &[]),
+            bindings.insert(Act::Go { address: Address::Adopt { project } }),
+        );
+        b.style(look::SETTINGS_BTN);
+        b.style(look::SETTINGS_SMALL);
+        b.text(Run::Plain, &crate::forge::words::say(w, forge::words::Word::AddRepositories, &[]));
+        b.close();
         b.close();
     } else if known {
         b.open(Role::Slot);

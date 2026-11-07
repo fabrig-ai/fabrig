@@ -1956,7 +1956,7 @@ a.temper-repository-link:hover { text-decoration: underline; }
 .temper-connect-panel > p, .temper-connect-panel > div > p { margin: 0; font-size: 15px; line-height: 1.6; color: var(--gf-ink-2); }
 .temper-connect-panel .temper-settings-text + p.temper-connect-muted { margin-top: 6px; }
 .temper-connect-panel p.temper-connect-muted { font-size: 13.5px; color: var(--gf-muted); }
-.temper-connect-panel label[for] { display: block; margin: 0 0 4px; font-size: 14px; font-weight: 500; color: var(--gf-ink); }
+.temper-connect-panel label[for]:has(+ .temper-settings-text) { display: block; margin: 0 0 4px; font-size: 14px; font-weight: 500; color: var(--gf-ink); }
 .temper-connect-panel .temper-settings-text { margin: 0; }
 .temper-settings .temper-connect-panel label[for]:has(+ .temper-settings-text) { margin-top: 0; }
 .temper-connect-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -2011,11 +2011,11 @@ a.temper-repository-link:hover { text-decoration: underline; }
 .temper-connect-list { display: flex; flex-direction: column; padding: 0 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; }
 .temper-connect-list.temper-connect-bounded { height: 288px; overflow-y: auto; }
 .temper-connect-list.temper-connect-bounded:has(> .temper-connect-none) { height: auto; }
-.temper-connect-list > label { display: flex !important; align-items: center; gap: 10px; flex: none; margin: 0 !important; padding: 9px 0; border-bottom: 1px solid var(--gf-line); font-weight: 400 !important; }
-.temper-connect-list > label:last-child { border-bottom: 0; }
+.temper-connect-list > li { display: flex !important; align-items: center; gap: 10px; flex: none; margin: 0 !important; padding: 9px 0; border-bottom: 1px solid var(--gf-line); font-weight: 400 !important; }
+.temper-connect-list > li:last-child { border-bottom: 0; }
 .temper-connect-list input { margin: 0; accent-color: var(--gf-ink); }
-.temper-connect-list em { margin-left: auto; font-style: normal; font-size: 13px; color: var(--gf-faint); }
-.temper-connect-list > label:has(input:disabled) { color: var(--gf-faint); }
+.temper-connect-list > li > span:has(em), .temper-connect-list em { margin-left: auto; font-style: normal; font-size: 13px; color: var(--gf-faint); }
+.temper-connect-list > li:has(input:disabled) { color: var(--gf-faint); }
 .temper-connect-none { margin: 0; padding: 14px 0; font-size: 14px; color: var(--gf-muted); }
 .temper-connect-panel p.temper-connect-count { margin: -10px 0 0; font-size: 13px; color: var(--gf-faint); }
 .temper-connect-pair.temper-connect-one { grid-template-columns: minmax(0, 1fr); }
@@ -2034,7 +2034,7 @@ a.temper-repository-link:hover { text-decoration: underline; }
 .temper-connect-sheet-head > h2 { margin: 0; font: 500 19px/1.3 var(--gf-sans); letter-spacing: -.01em; color: var(--gf-ink); }
 .temper-connect-sheet-body { flex: 1; min-height: 0; overflow-y: auto; padding: 2px 26px 20px; }
 .temper-connect-sheet-head > h2:focus { outline: none; }
-.temper-connect-sheet .temper-connect-how > label[hidden] { display: none !important; }
+.temper-connect-sheet .temper-connect-how > label[hidden], .temper-connect-sheet search label { display: none !important; }
 .temper-connect-source { display: flex; flex-direction: column; gap: 14px; }
 .temper-connect-source[hidden] { display: none; }
 .temper-connect-sheet-foot { display: flex; justify-content: flex-end; align-items: center; gap: 16px; padding: 14px 26px; border-top: 1px solid var(--gf-line); }
@@ -2042,15 +2042,15 @@ a.temper-repository-link:hover { text-decoration: underline; }
 .temper-connect-sources { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--gf-line-2); border-radius: 9px; }
 .temper-connect-panel .temper-connect-sources label { margin: 0; cursor: pointer; }
 .temper-connect-sources input { position: absolute; width: 1px; height: 1px; opacity: 0; }
-.temper-connect-sources span { display: block; padding: 4px 12px; border-radius: 7px; font-size: 14px; color: var(--gf-muted); }
-.temper-connect-sources input:checked + span { background: var(--gf-line); color: var(--gf-ink); font-weight: 500; }
-.temper-connect-sources input:focus-visible + span { outline: 2px solid var(--gf-ink); outline-offset: 1px; }
+.temper-connect-sources label { display: block; padding: 4px 12px; border-radius: 7px; font-size: 14px; color: var(--gf-muted); }
+.temper-connect-sources input:checked + label { background: var(--gf-line); color: var(--gf-ink); font-weight: 500; }
+.temper-connect-sources input:focus-visible + label { outline: 2px solid var(--gf-ink); outline-offset: 1px; }
 .temper-connect-sheet .temper-connect-list.temper-connect-bounded { height: clamp(150px, calc(100vh - 500px), 288px); }
 .temper-connect-sheet .temper-connect-list.temper-connect-bounded:has(> .temper-connect-none) { height: auto; }
 .temper-connect-sheet p.temper-connect-count { margin: -6px 0 0; font-size: 13px; color: var(--gf-faint); }
 .temper-connect-sheet details > summary { color: var(--gf-muted); font-size: 14px; cursor: pointer; }
 .temper-connect-sheet details > div { display: flex; flex-direction: column; gap: 14px; margin-top: 12px; }
-.temper-connect-says { color: var(--gf-faint); }
+.temper-connect-says, .temper-connect-sheet details > summary > span { color: var(--gf-faint); }
 .temper-connect-sheet p.temper-connect-title { margin: 0 0 -4px; font: 500 14px/1.6 var(--gf-sans); color: var(--gf-ink); }
 .temper-connect-sheet p.temper-connect-muted { margin: 0; font-size: 13.5px; color: var(--gf-muted); }
 textarea.temper-connect-addresses { display: block; width: 100%; min-height: 96px; padding: 8px 12px; resize: vertical; font: 13px/1.5 var(--gf-mono, ui-monospace, monospace); }

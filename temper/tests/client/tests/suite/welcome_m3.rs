@@ -36,7 +36,7 @@ fn act(front: &mut Joint, root: &mut Root, role: Role, name: &[u8], action: Act)
         .map(|n| n.id)
         .collect::<Vec<_>>();
     assert_eq!(
-        if name == b"Adopt a repository" { matches.len().min(1) } else { matches.len() },
+        if name == b"Add repositories" { matches.len().min(1) } else { matches.len() },
         1,
         "unique {:?} {:?}\n{}",
         role,
@@ -110,7 +110,7 @@ fn github_ready_offers_adoption_from_the_form_without_reading_repositories() {
     assert!(!front.engine_adopted(1, 7));
     press(&mut front, &mut root, Role::Link, b"Settings");
     press(&mut front, &mut root, Role::Link, b"Repositories");
-    press(&mut front, &mut root, Role::Link, b"Adopt a repository");
+    press(&mut front, &mut root, Role::Link, b"Add repositories");
     assert!(has(&root, Role::TextField, b"Owner"));
     assert!(has(&root, Role::TextField, b"Name"));
 }

@@ -3439,8 +3439,6 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
             | Then::HeldChange
             | Then::Paused
             | Then::HeldTask
-            | Then::Filled
-            | Then::Refused
             | Then::SignedOut
             | Then::GoogleSignIn
             | Then::OutOfDate

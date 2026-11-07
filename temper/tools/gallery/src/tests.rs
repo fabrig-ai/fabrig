@@ -2141,7 +2141,7 @@ const HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Navigation, name: "Settings" },
             Part::Named { role: Role::Heading { level: 2 }, name: "Repositories · 1" },
             Part::Named { role: Role::Text, name: "robin/tally" },
-            Part::Named { role: Role::Link, name: "Adopt a repository" },
+            Part::Named { role: Role::Link, name: "Add repositories" },
         ],
     },
     Holds {
@@ -2150,7 +2150,7 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named { role: Role::Text, name: "No repository yet" },
             Part::Text { text: "Chats in gallery talk and plan, but change no code until a repository is in." },
-            Part::Named { role: Role::Link, name: "Adopt a repository" },
+            Part::Named { role: Role::Link, name: "Add repositories" },
         ],
     },
     Holds {
@@ -2295,23 +2295,35 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "adoption",
-        heading: "Adopt a repository into factory",
-        parts: &[Part::Value { role: Role::TextField, name: "Owner", value: "" }],
-    },
-    Holds {
-        name: "adoption-filled",
-        heading: "Adopt a repository into factory",
+        name: "sheet-adopt",
+        heading: "What factory works on.",
         parts: &[
-            Part::Named { role: Role::Button, name: "Adopt" },
-            Part::Value { role: Role::TextField, name: "Owner", value: "acme" },
+            Part::Named { role: Role::Dialog, name: "Add repositories to factory" },
+            Part::Named { role: Role::Search, name: "Find by name" },
         ],
     },
     Holds {
-        name: "adoption-refused",
-        heading: "Adopt a repository into factory",
-        parts: &[Part::Named { role: Role::Alert, name: "" }],
+        name: "sheet-searching",
+        heading: "What factory works on.",
+        parts: &[Part::Named { role: Role::Button, name: "Adopt 2 repositories" }],
     },
+    Holds {
+        name: "sheet-none",
+        heading: "What factory works on.",
+        parts: &[
+            Part::Value { role: Role::TextField, name: "Owner", value: "sam" },
+            Part::Named { role: Role::Disclosure, name: "Not listed" },
+        ],
+    },
+    Holds {
+        name: "sheet-few",
+        heading: "What factory works on.",
+        parts: &[
+            Part::Absent { role: Role::Search, name: "Find by name" },
+            Part::Named { role: Role::Check, name: "sam/widget" },
+        ],
+    },
+    Holds { name: "sheet-empty", heading: "What factory works on.", parts: &[Part::Text { text: "None reachable." }] },
     Holds {
         name: "chats-reference",
         heading: "Talk to an agent",

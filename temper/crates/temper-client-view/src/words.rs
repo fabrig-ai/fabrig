@@ -1417,7 +1417,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
 // The command’s Copy adds three literal phrases (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
-const PHRASES: u32 = 1905;
+const PHRASES: u32 = 1947;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1443,9 +1443,9 @@ const PHRASES: u32 = 1905;
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 3338;
+const SEGMENTS: u32 = 3418;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 46675;
+const ENGLISH_BYTES: u32 = 47491;
 const ALL: [Word; 1298] = [
     Word::CloseTitle,
     Word::CloseChat,

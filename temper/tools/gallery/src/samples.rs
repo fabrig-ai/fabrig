@@ -6,8 +6,8 @@ use temper_client_domain::{Action, Address, Domain, Event, Request, address::Fil
 use temper_client_domain::{ChatsFilter, GoalsFilter};
 
 use Then::{
-    AccountRefused, Closing, Declined, Filled, Held, KeyReady, OutOfDate, Refused, Rejecting, Releasing, Renewed,
-    Shown, SignInReady, SignInRefused, SignedOut, SigningIn,
+    AccountRefused, Closing, Declined, Held, KeyReady, OutOfDate, Rejecting, Releasing, Renewed, Shown, SignInReady,
+    SignInRefused, SignedOut, SigningIn,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -42,8 +42,6 @@ pub enum Then {
     HeldChange,
     HeldTask,
     Paused,
-    Filled,
-    Refused,
     SignedOut,
     GoogleSignIn,
     OutOfDate,
@@ -90,6 +88,7 @@ impl Sample {
     #[must_use]
     pub fn open_disclosure(&self) -> Option<&[u8]> {
         match self.name {
+            "sheet-few" => Some(b"More"),
             "chat-byline-open" => Some(b"Change model"),
             "chat-work-open" => Some("Checked settings 3×, read 7 docs".as_bytes()),
             _ => None,
@@ -105,7 +104,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 284;
+pub const N: usize = 286;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -762,9 +761,11 @@ pub fn samples() -> [Sample; N] {
         welcome_sample("welcome-ready-signing", temper_client_domain::Step::Ready),
         owned_sample("welcome-ready-under-way", 6, true),
         owned_sample("welcome-ready-adopted", 8, true),
-        Sample { name: "adoption", world: Reference, address: Address::Adopt { project: 1 }, then: Shown },
-        Sample { name: "adoption-filled", world: Reference, address: Address::Adopt { project: 1 }, then: Filled },
-        Sample { name: "adoption-refused", world: Reference, address: Address::Adopt { project: 1 }, then: Refused },
+        Sample { name: "sheet-adopt", world: Reference, address: Address::Adopt { project: 1 }, then: Shown },
+        Sample { name: "sheet-searching", world: Reference, address: Address::Adopt { project: 1 }, then: Shown },
+        Sample { name: "sheet-none", world: Reference, address: Address::Adopt { project: 1 }, then: Shown },
+        Sample { name: "sheet-few", world: Reference, address: Address::Adopt { project: 1 }, then: Shown },
+        Sample { name: "sheet-empty", world: Reference, address: Address::Adopt { project: 1 }, then: Shown },
         Sample { name: "chats-reference", world: Reference, address: CHATS, then: Shown },
         Sample { name: "chat-reference-T1", world: Reference, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "chat-solo-T1", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
@@ -1091,8 +1092,6 @@ pub fn mockup(sample: &Sample) -> Option<String> {
             | Then::HeldChange
             | Then::Paused
             | Then::HeldTask
-            | Then::Filled
-            | Then::Refused
             | Then::SignedOut
             | Then::GoogleSignIn
             | Then::OutOfDate
@@ -1345,6 +1344,10 @@ pub fn domain(sample: &Sample) -> Domain {
         crate::worlds::world(sample.world, sample.address.clone(), sample.then)
     };
     let mut out = Queue::uncapped();
+    if sample.name.starts_with("sheet-") {
+        adoption_sheet(&mut root, sample.name, &mut out);
+        return root;
+    }
     if sample.name.starts_with("connect-forge-yours-") {
         use temper_client_domain::forge::{
             self,
@@ -1473,7 +1476,6 @@ pub fn domain(sample: &Sample) -> Domain {
         | Then::HeldChange
         | Then::Paused
         | Then::HeldTask => {}
-        Then::Filled | Then::Refused => adoption(&mut root, sample.then == Then::Refused, &mut out),
         Then::SignedOut | Then::GoogleSignIn => step(&mut root, Event::SignedOut, &mut out),
         Then::OutOfDate => step(
             &mut root,
@@ -1819,46 +1821,6 @@ fn sent_attempt(out: &mut Queue<Request>) -> Token {
         }
     }
     unreachable!("the sample's request was stored and sent")
-}
-fn adoption(root: &mut Domain, refused: bool, out: &mut Queue<Request>) {
-    use temper_client_domain::forge::{self, Act as A, Text as T, Typed};
-    for (field, value, typed) in [
-        (T::Forge, "1", Typed::Forge(Some(1))),
-        (T::Owner, "acme", Typed::Bytes),
-        (T::Name, "shop", Typed::Bytes),
-        (T::Prefix, "temper/", Typed::Bytes),
-        (T::Landing, "main", Typed::Bytes),
-        (T::Checks, "1, 2", Typed::Checks(Some(Box::new([1, 2])))),
-    ] {
-        step(
-            root,
-            Event::Act { action: Action::Forge(A::Write { field, text: Box::from(value.as_bytes()), typed }) },
-            out,
-        );
-    }
-    step(root, Event::Act { action: Action::Forge(A::Choose { role: forge::Role::Owned }) }, out);
-    if refused {
-        step(root, Event::Act { action: Action::Forge(A::Adopt) }, out);
-        step(root, Event::Client { event: jig_client::Event::Stored }, out);
-        let attempt = sent_attempt(out);
-        step(
-            root,
-            Event::Client {
-                event: jig_client::Event::Up {
-                    up: jig_client::Up::Answer {
-                        attempt,
-                        envelope: skein_lib::RequestEnvelope::Final,
-                        answer: Some(jig_client::Answered::Jig(c::Answer::Refused {
-                            refusal: c::Refusal::NotOffered,
-                            at: None,
-                        })),
-                        why: None,
-                    },
-                },
-            },
-            out,
-        );
-    }
 }
 fn account(root: &mut Domain, then: Then, out: &mut Queue<Request>) {
     use temper_client_domain::pages::{accounts::Way, connect_model::Act as A};
@@ -2868,5 +2830,78 @@ fn confirmation(root: &mut Domain, kind: Confirmation, out: &mut Queue<Request>)
                 );
             }
         }
+    }
+}
+
+fn adoption_sheet(root: &mut Domain, name: &str, out: &mut Queue<Request>) {
+    use temper_client_domain::forge::{self, sheet};
+    use temper_client_protocol_wire::v1 as w;
+    let sheet::Reading::Asked { key, .. } = root.forge().sheet().expect("sheet").reading else { return };
+    let count = match name {
+        "sheet-few" => 4,
+        "sheet-empty" => 0,
+        _ => 16,
+    };
+    let mut rows = skein_lib::List::with_capacity(16);
+    for id in 1..=count {
+        let name = match id {
+            1 => b"widget".as_slice().into(),
+            2 => b"notes".as_slice().into(),
+            _ => skein_lib::bytes::concat(&[b"repository-", skein_lib::Decimal::of(id).as_bytes()]),
+        };
+        rows.push(
+            w::Reached::new(
+                &w::CEILINGS,
+                w::ReachedParts {
+                    id,
+                    owner: w::Account::new(&w::CEILINGS, w::AccountParts { id: 3, login: b"sam".as_slice().into() })
+                        .expect("owner"),
+                    name,
+                    private: id == 2,
+                },
+            )
+            .expect("row"),
+        )
+        .expect("page");
+    }
+    step(
+        root,
+        Event::Forge(forge::Event::SheetRead {
+            request: key,
+            answer: Ok(w::Page::new(
+                &w::CEILINGS,
+                w::PageParts { rows, more: name == "sheet-adopt" || name == "sheet-searching" },
+            )
+            .expect("page")),
+        }),
+        out,
+    );
+    step(
+        root,
+        Event::Act {
+            action: Action::Forge(forge::Act::Write {
+                field: forge::Text::Landing,
+                text: b"main".as_slice().into(),
+                typed: forge::Typed::Bytes,
+            }),
+        },
+        out,
+    );
+    if name == "sheet-searching" {
+        for id in [1, 2] {
+            step(root, Event::Act { action: Action::Forge(forge::Act::Sheet(sheet::Act::Pick { id, on: true })) }, out);
+        }
+        step(
+            root,
+            Event::Act { action: Action::Forge(forge::Act::Sheet(sheet::Act::Find(b"widget".as_slice().into()))) },
+            out,
+        );
+    }
+    if name == "sheet-none" {
+        step(
+            root,
+            Event::Act { action: Action::Forge(forge::Act::Sheet(sheet::Act::Find(b"sam/missing".as_slice().into()))) },
+            out,
+        );
     }
 }

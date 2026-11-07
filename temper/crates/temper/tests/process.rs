@@ -93,7 +93,7 @@ fn temper_open_adopts_a_repository_by_commands() {
     typist.type_on(b"Forges", b"");
     typist.wait_for(b"Forge 1 \xc2\xb7 Forgejo \xc2\xb7 Connected as temper", support::WITHIN);
     typist.type_on(b"Repositories", b"");
-    typist.type_on(b"Adopt a repository", b"");
+    typist.type_on(b"Add repositories", b"");
     for (control, words, printed) in [
         (b"Owner: (empty)".as_slice(), b"acme".as_slice(), b"Owner: acme".as_slice()),
         (b"Name: (empty)", b"widget", b"Name: widget"),
@@ -110,7 +110,7 @@ fn temper_open_adopts_a_repository_by_commands() {
     typist.type_on(b"[x] It runs CI", b"");
     typist.wait_for(b"[ ] It runs CI", support::WITHIN);
     typist.type_on(b"Adopt", b"");
-    typist.wait_for(b"Adopted acme/widget on forge 1 as owned.", support::WITHIN);
+    typist.wait_for(b"## Repositories \xc2\xb7 1", support::WITHIN);
     typist.type_line(b"q");
     assert_eq!(typist.exit(support::WITHIN), 0, "stderr: {}", typist.stderr());
     forgejo.stop();

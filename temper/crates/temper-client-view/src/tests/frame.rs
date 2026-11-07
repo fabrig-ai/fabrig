@@ -107,7 +107,7 @@ fn adopt_a_repository_is_offered_whatever_the_persons_role() {
         )
         .0,
     );
-    let node = fixtures::find(view.tree(), Role::Link, b"Adopt a repository").expect("adoption link");
+    let node = fixtures::find(view.tree(), Role::Link, b"Add repositories").expect("adoption link");
     assert_eq!(
         crate::act(&mut view, node, Act::Press),
         Some(Action::Pages(pages::Act::Go {
