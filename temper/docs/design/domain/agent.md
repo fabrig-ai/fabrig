@@ -182,12 +182,12 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
 - **The host part's budget.** smith refuses a run whose host part (its
   host tools, instructions, brief, and finish and deliver schemas) passes
   its bound, the room of the agent's smallest window (4.6), before any
-  turn. The largest stock charter's non-brief host part is charter 1's
+  turn. The largest stock charter's non-brief host part is charter 3's
   with a Change contract and the control family's plan form of
   `change` (4.3.1); with the authorised brief, its task section a whole
   spec (`../protocol/configuration.md`, section 7), and 1,472 bytes for
   64 stock sections' titles and framing (16 title bytes and 7 framing
-  bytes each), it leaves at least 361 bytes at `temper init`'s
+  bytes each), it leaves at least 1 byte at `temper init`'s
   models; `temper-service`'s step tests hold each stock charter's
   figures. A gathered brief spends what the non-brief host part leaves. So a new
   host tool is offered only where a family and the charter gate it,

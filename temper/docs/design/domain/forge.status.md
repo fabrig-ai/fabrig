@@ -28,7 +28,6 @@ are refused. The request carries `into`, so its keyed scope survives the
 row's erasure. The connector's making tables cover these decisions.
 
 - **Not yet:**
-  - 8.1: a pull request's body follows `forge.client.op_bytes` alone, with no bound of 65,536 bytes of its own (`temper-engine-domain-forge/src/domain.rs`, `change_write`).
   - 10, 18: no supplied result shows the three-thread real-process trial
     passing after update recovery. Both styles' lost answers, retries,
     exhausted counts, release and late-copy holds have world stories;
