@@ -164,6 +164,9 @@ result supplied here (`browser.status.md`, 4.6).
   terminal's reads a committed line alone (`temper/tests/real-loop/tests/suite/terminal.rs`,
   `a_person_at_the_terminal_reads_a_run_of_calls`). A browser's running line is seen in
   the gallery's `chat-work-running`; a terminal's in the view's tests and that world.
+- **Not yet:** 5.9, *What scrolls*: `.temper-thread` scrolls an agent's page, a goal's untracked
+  page among them, and its log has nothing to scroll, so that PgUp and PgDn from the message box
+  move nothing, "Latest" doesn't show and no place is kept.
 - **Not yet:** 5.9, *The conversation*, and 5.15: no browser test draws an agent's running line,
   presses its "Latest" or scrolls its log, so that a press reads on to the end, the log following,
   is seen by reading. The gallery's `agent-work` draws the line and the pill, and the domain's and
