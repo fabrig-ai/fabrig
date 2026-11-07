@@ -32,7 +32,8 @@ A template holds:
   once ended, how long it is kept, and what ends it;
 - its label, a number that groups ended tasks in lists;
 - the grace a chat's close gives its runs;
-- the models the task asks for, or none for its charter's default.
+- the models the task asks for, or none for its charter's default, and
+  a later choice for every run after its first activation's.
 
 Each member, with its type and bound, is in
 `temper help settings-fields`.

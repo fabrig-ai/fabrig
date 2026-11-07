@@ -189,23 +189,58 @@ fn a_settings_file_charter_names_documents() {
 #[test]
 fn settings_show_charter_renders_its_documents() {
     let (setting, value) = values().remove(0);
-    for json in [false, true] {
-        let mut argv = vec!["settings", "show", "charter", "3"];
-        if json {
-            argv.push("--json");
+    let mut cases = vec![(setting, value, "settings_value_0", "")];
+    let (setting, c::SettingValue::Charter(mut charter)) = values().remove(0) else { panic!("charter") };
+    charter.parts = parts();
+    charter.resume = false;
+    cases.push((
+        setting,
+        c::SettingValue::Charter(charter),
+        "settings_charter_parts",
+        "parts[0]: on first; 35 bytes\nparts[1]: on question question_owed; 26 bytes\n",
+    ));
+    for (effort, name, suffix) in [
+        (Some("high"), "settings_template_later", "later: claude-opus-5-5 high\n"),
+        (None, "settings_template_later_no_effort", "later: claude-opus-5-5\n"),
+    ] {
+        let (setting, c::SettingValue::Template(mut template)) = values().remove(1) else { panic!("template") };
+        template.llm.as_mut().expect("choice").later = Some(c::LlmLater {
+            main: c::ModelEffort { model: words("claude-opus-5-5"), effort: effort.map(words) },
+            subagents: list([c::ModelEffort { model: words("later-agent"), effort: None }]),
+        });
+        cases.push((setting, c::SettingValue::Template(template), name, suffix));
+    }
+    for (setting, value, name, suffix) in cases {
+        for json in [false, true] {
+            let mut argv = match setting {
+                c::Setting::Charter(_) => vec!["settings", "show", "charter", "3"],
+                c::Setting::Template(_) => vec!["settings", "show", "template", "4"],
+                c::Setting::Policy(_)
+                | c::Setting::Rules
+                | c::Setting::Model(_)
+                | c::Setting::Application { .. }
+                | c::Setting::ProjectPolicy { .. } => panic!("charter or template"),
+            };
+            if json {
+                argv.push("--json");
+            }
+            let answer = read(
+                &argv,
+                c::ReadValue::Setting(Box::new(c::SettingDocument {
+                    setting,
+                    revision: 5,
+                    value: Some(value.clone()),
+                    application: None,
+                    proposed: None,
+                })),
+            );
+            assert_eq!(answer.status, 0);
+            if !json {
+                let text = core::str::from_utf8(&answer.stdout).expect("show text");
+                assert!(text.ends_with(suffix), "{name}: expected suffix {suffix:?}, got {text:?}");
+            }
+            golden(&if json { format!("{name}_json") } else { name.to_owned() }, &answer.stdout);
         }
-        let answer = read(
-            &argv,
-            c::ReadValue::Setting(Box::new(c::SettingDocument {
-                setting,
-                revision: 5,
-                value: Some(value.clone()),
-                application: None,
-                proposed: None,
-            })),
-        );
-        assert_eq!(answer.status, 0);
-        golden(if json { "settings_value_0_json" } else { "settings_value_0" }, &answer.stdout);
     }
 }
 #[test]

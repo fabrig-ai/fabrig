@@ -42,7 +42,6 @@ unknown-proposal explanation; the generated help states the same limit.
   reproduced cause on record; the settings-effort tests likewise guard an
   existing final refusal, without reproducing that walk's silence. The next
   QA walk remains the requested proof (section 14).
-- **Not yet:** 5.3: in text, `settings show charter N` prints no line per part with its `on` and bytes, and `settings show template N` no line for a later choice.
 - **Not yet:** 5.5: area 2 cannot distinguish a refused creating offer's
   capacity cause from its role cause: jig's `me` carries absence alone
   (`jig/docs/design/client/domain/contract.md`, 5.3). Its diagnostic names
