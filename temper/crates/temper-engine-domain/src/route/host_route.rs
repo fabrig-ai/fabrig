@@ -49,7 +49,7 @@ pub struct ProjectPerson {
     pub role: u32,
     /// Empty for someone adoption seeded who has not signed in.
     pub login: Box<[u8]>,
-    /// Provider 0's subject, where their identity is the forge's.
+    /// Their user on a forge of the project's repositories, where the lookup knows them.
     pub forge_user: Option<u64>,
     /// temper's retained forge writer, who never counts as a person.
     pub writer: bool,
@@ -714,18 +714,13 @@ fn settings_people(domain: &Domain, flight: &Flight, answer: &jig_domain_core::S
             Some(jig_domain_people::Kind::Service) | None => continue,
         }
         let Some(identity) = domain.core.people.identity(member.person) else { continue };
-        let forge_user = if identity.key.provider == 0 {
-            match <[u8; 8]>::try_from(identity.key.subject.as_ref()) {
-                Ok(subject) => Some(u64::from_be_bytes(subject)),
-                Err(_) => None,
-            }
-        } else {
-            None
-        };
+        let mut forge_user = None;
         let mut writer = false;
-        if let Some(user) = forge_user {
-            for repository in &repositories {
-                writer |= domain.forge.is_writer(repository.provider.forge, user);
+        for repository in &repositories {
+            let forge = repository.provider.forge;
+            if let Some(user) = super::forge_route::person_forge_user(domain, context.project, forge, member.person) {
+                forge_user = Some(user);
+                writer = domain.forge.is_writer(forge, user);
             }
         }
         people

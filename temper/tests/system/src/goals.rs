@@ -122,7 +122,7 @@ fn sign_in(driver: &mut Driver, user: u64, reply: u64) -> (u64, u64) {
         held: None,
         reply_to: ReplyTo::new(Token::new(reply)),
         identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: (user).to_be_bytes().into() },
+            key: temper_engine_domain_forge::user_key(1, user),
             login: b"person".as_slice().into(),
             name: b"Person".as_slice().into(),
         },

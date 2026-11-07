@@ -457,7 +457,7 @@ fn a_deployments_proposal_shows_in_each_project_its_owner_owns() {
         held: None,
         reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(2003)),
         identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: 8_u64.to_be_bytes().into() },
+            key: temper_engine_domain_forge::user_key(1, 8_u64),
             login: b"other".as_slice().into(),
             name: b"Other owner".as_slice().into(),
         },

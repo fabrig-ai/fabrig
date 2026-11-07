@@ -23,7 +23,7 @@ fn sign_in_person(world: &mut World, user: u64, login: &[u8], key: u8) {
         held: None,
         reply_to: ReplyTo::new(Token::new(u64::from(key))),
         identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: user.to_be_bytes().into() },
+            key: temper_engine_domain_forge::user_key(1, user),
             login: login.into(),
             name: b"Private display name".as_slice().into(),
         },
@@ -41,10 +41,7 @@ fn project_people_setup(mode: temper_engine_domain_forge::Mode, login: &[u8]) ->
     };
     config.core.seed_projects = config.core.seed_projects.into_vec().into_iter().chain([other]).collect();
     let mut owners = config.core.owners.into_vec();
-    owners.push(people::InitialOwner {
-        project: 2,
-        identity: people::IdentityKey { provider: 0, subject: 9_u64.to_be_bytes().into() },
-    });
+    owners.push(people::InitialOwner { project: 2, identity: temper_engine_domain_forge::user_key(1, 9_u64) });
     config.core.owners = owners.into();
     config.forges[0].mode = mode;
     let place = forge::Place {
