@@ -12,7 +12,6 @@ Sections 8 and 12 have no known gap in the lazy scene, its stated
 height, the SVG in its figure's flow, or the flow tokens' default look.
 The host table reads the Markdown cases and compares their SVG bytes.
 
-- **Not yet:** 6: a hint's `title` (`look-round-15`, `node-hint`).
 - **Departs:** 7: a press outside an open menu returns the focus to its button
   unless that press took it to another control, where the code asks only whether
   the focus left the menu (`skein-ui-web`'s `page.rs`, `close_menu_outside`, and
