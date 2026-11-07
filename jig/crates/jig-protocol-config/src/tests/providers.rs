@@ -342,15 +342,42 @@ fn an_account_sign_in_registration_with_a_client_secret_is_still_refused() {
     a_client_secret_is_refused_naming_the_provider();
 }
 #[test]
-fn a_profile_whose_driver_could_make_a_longer_account_visit_than_the_address_bound_is_refused() {
-    let mut engine = fixtures::engine(fixtures::ENGINE_SMALL).unwrap();
-    engine.limits.driver.client.url_bytes = accounts::ADDRESS + 1;
-    let mut problems = crate::Problems::empty();
-    crate::domain::whole(&engine, &mut problems);
-    assert_eq!(
-        problems.problems.get(0).unwrap(),
-        &Problem { path: fixtures::path(&[b"limits", b"driver.url_bytes"]), what: What::Bound }
-    );
+fn a_profile_whose_driver_bounds_do_not_hold_is_refused() {
+    let mut failures = [None, None, None, None];
+    let mut passed = true;
+    for (member, failure) in
+        ["", "driver.url_bytes", "driver.redirect_bytes", "driver.server.head"].into_iter().zip(&mut failures)
+    {
+        let mut engine = fixtures::engine(fixtures::ENGINE_SMALL).unwrap();
+        let driver = &mut engine.limits.driver;
+        match member {
+            "" => {}
+            "driver.url_bytes" => driver.client.url_bytes = accounts::ADDRESS + 1,
+            "driver.redirect_bytes" => {
+                driver.redirect_bytes = skein_oauth_accounts::redirect_room(driver).unwrap() - 1;
+            }
+            "driver.server.head" => {
+                driver.server.head = skein_oauth_accounts::listener_head(driver.redirect_bytes).unwrap() - 1;
+            }
+            _ => unreachable!("driver bound row"),
+        }
+        let fits = crate::overrides::driver_fits(driver);
+        let mut problems = crate::Problems::empty();
+        crate::domain::whole(&engine, &mut problems);
+        let correct = if member.is_empty() {
+            problems.is_empty() && fits
+        } else {
+            problems.problems.len() == 1
+                && problems.problems.get(0)
+                    == Some(&Problem { path: fixtures::path(&[b"limits", member.as_bytes()]), what: What::Bound })
+                && !fits
+        };
+        if !correct {
+            passed = false;
+            *failure = Some((member, problems, fits));
+        }
+    }
+    assert!(passed, "driver bound failures (member, problems, driver_fits): {failures:?}");
 }
 
 #[test]

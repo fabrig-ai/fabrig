@@ -889,7 +889,9 @@ fn valid(limits: &Limits, name: &[u8], fits: &mut Fits) -> bool {
 
 /// The accounts' driver listens for each sign-in at once, at least one, on two sockets each beside
 /// its exchanges', and a sign-in waits within a deadline above zero (skein's oauth.md, 6.7).
-fn driver_fits(driver: &skein_oauth_accounts::Limits) -> bool {
+/// Its outgoing URL fits ADDRESS, its redirect bound holds `redirect_room`, and its server head
+/// holds `listener_head` for that redirect bound (jig/docs/design/protocol/configuration.md, 6).
+pub(crate) fn driver_fits(driver: &skein_oauth_accounts::Limits) -> bool {
     let Some(listening) = driver.listeners.checked_mul(2) else {
         return false;
     };
@@ -897,6 +899,14 @@ fn driver_fits(driver: &skein_oauth_accounts::Limits) -> bool {
         return false;
     };
     driver.client.url_bytes <= jig_domain_accounts::ADDRESS
+        && match skein_oauth_accounts::redirect_room(driver) {
+            Some(room) => room <= driver.redirect_bytes,
+            None => false,
+        }
+        && match skein_oauth_accounts::listener_head(driver.redirect_bytes) {
+            Some(head) => head <= driver.server.head,
+            None => false,
+        }
         && driver.listeners > 0
         && sockets <= driver.io.sockets
         && driver.client.sign_in_time > Duration::ZERO

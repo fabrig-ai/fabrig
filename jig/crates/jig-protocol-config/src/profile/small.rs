@@ -327,6 +327,8 @@ pub(super) const CLIENTS: jig_protocol_engine_clients::Limits = jig_protocol_eng
     link_span: Duration::from_secs(7200),
 };
 
+const REDIRECT: u32 = 16_384;
+
 /// Accounts use bounded OAuth exchanges and the shared socket limits.
 pub(super) const DRIVER: skein_oauth_accounts::Limits = skein_oauth_accounts::Limits {
     accounts: super::driver_places(&CORE.accounts).expect("all sources and pending account sign-ins"),
@@ -336,8 +338,17 @@ pub(super) const DRIVER: skein_oauth_accounts::Limits = skein_oauth_accounts::Li
     listeners: CORE.accounts.sign_ins.checked_mul(2).expect("a listener and a settling one per sign-in"),
     // A full answer at the client's bounds, 13,407 bytes (redirect_room),
     // with room to grow (jig's configuration.md, 6).
-    redirect_bytes: 16_384,
-    server: skein_http::server::Limits { head: 4096, headers: 32, body: 1024, read: 1024, response: 4096, send: 1024 },
+    redirect_bytes: REDIRECT,
+    server: skein_http::server::Limits {
+        // The request line at the redirect bound, BROWSER_FIELDS for a browser's fields
+        // and its loopback host's cookies (not port-scoped), and the blank line.
+        head: skein_oauth_accounts::listener_head(REDIRECT).expect("a browser's redirect at the bound"),
+        headers: 32,
+        body: 1024,
+        read: 1024,
+        response: 4096,
+        send: 1024,
+    },
     refresh_lead: Duration::from_secs(60),
     client: skein_oauth::ClientLimits {
         document: skein_oauth::Limits {

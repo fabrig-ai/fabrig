@@ -243,6 +243,19 @@ pub(crate) fn whole(engine: &crate::Engine, problems: &mut Problems) {
     if engine.limits.driver.client.url_bytes > jig_domain_accounts::ADDRESS {
         problems.push(Path::root().member(b"limits").member(b"driver.url_bytes"), What::Bound);
     }
+    let driver = &engine.limits.driver;
+    if match skein_oauth_accounts::redirect_room(driver) {
+        Some(room) => driver.redirect_bytes < room,
+        None => true,
+    } {
+        problems.push(Path::root().member(b"limits").member(b"driver.redirect_bytes"), What::Bound);
+    }
+    if match skein_oauth_accounts::listener_head(driver.redirect_bytes) {
+        Some(head) => driver.server.head < head,
+        None => true,
+    } {
+        problems.push(Path::root().member(b"limits").member(b"driver.server.head"), What::Bound);
+    }
     let limits = &engine.limits.core;
     if !jig_domain_core::brief_holds_documents(limits.brief.sections, limits.tasks.charter_documents) {
         let path = Path::root().member(b"limits").member(b"overrides");
