@@ -307,7 +307,7 @@ fn a_goal_is_answered_by_the_switch() {
     story.toggle();
     assert_eq!(
         story.decide(goal, 2),
-        "Ask: your person is here or this kind waits for them. Ask with message, as a question."
+        "Ask: your person is here or this kind waits for them. Ask with message, as a question; if your brief says [Requested by person N], with delegate, a person task addressed to person N."
     );
     assert_eq!(story.decisions(), decisions, "asking saves no new decision");
     assert_eq!(
@@ -336,7 +336,7 @@ fn past_until_the_client_draws_off_and_the_root_says_ask() {
     assert_eq!(story.stored(), before, "expiry does not write the Away row");
     assert_eq!(
         story.decide(goal, 2),
-        "Ask: your person is here or this kind waits for them. Ask with message, as a question."
+        "Ask: your person is here or this kind waits for them. Ask with message, as a question; if your brief says [Requested by person N], with delegate, a person task addressed to person N."
     );
     assert_eq!(story.decisions(), decisions, "expired Away saves no new decision");
     assert_eq!(story.stored(), before, "the call does not write the expired Away row");

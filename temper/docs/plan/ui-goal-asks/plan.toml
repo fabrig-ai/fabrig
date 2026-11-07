@@ -1,0 +1,29 @@
+draft = "ui-goal-asks"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-goal-asks/inputs/request.md", "temper/crates/temper-engine-smith/src/answers.rs", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+priority = true
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "asks"
+title = "A goal a person started may ask them with a person task, and its words say how"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/agent.md, 8.2"
+
+[[part]]
+id = "answers"
+title = "That person task reads as a question under Needs you, and answering it wakes the goal"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 1
+story = "A goal started from the sheet asks its person, they answer under Needs you, and the goal carries on with their words"
+parts = ["asks", "answers"]
+walk = false

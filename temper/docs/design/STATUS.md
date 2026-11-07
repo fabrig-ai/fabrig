@@ -62,7 +62,13 @@ settings family (`protocol/configuration.md`). Seven stock models and their
 default efforts, the per-project offer and per-template previews, ctl's offer
 listing and the configuring chat's chooser are built. Model and effort sit
 at every chat's composer, grouped by account with "All models"; their render
-and fake-box press proof is recorded. A chat's model or effort amendment
+and fake-box press proof is recorded. A closed chat's header and a closed
+agent's taskbar name the last readable completion's model and known effort
+in both shells, then the task's choice or template preview when none is
+held. A run with no readable named turn can leave an earlier model or
+preview; the browser check and a goal page's line remain later work, and
+the phone keeps its hidden byline (`client/README.md`, 3.5, 5.9 and 11).
+A chat's model or effort amendment
 answers its person's next words on the new choice; a model change within a
 resumable window first asks the window's model for a summary
 (`domain/agent.md`, `client/README.md`). An unusable account's fix remains

@@ -1994,10 +1994,19 @@ keeps (`../protocol/configuration.md`, section 2).
     textarea as Reject's). A funds card: "S of L used." as the
     question, in the task page's money form, plain numbers, its title as
     owner, then Release and Leave held; there is no "Add $10". A person task: its
-    title, its spec, its acts as plain buttons.
+    title, its spec, its acts as plain buttons. *A person task in words,*
+    one addressed to a person with a report as its contract, as a goal
+    asks the person who started it (`../domain/agent.md`, 8.2), reads as a
+    question: its spec's words by the same line form, its kind "a
+    question", its choices, "Reply…" and "Later", and each answers it in
+    those words, naming the revision the card showed. Its line's TITLE is
+    "Task N", N its requester, a link there, since the card reads no second
+    task, and its answered line's title is its own. In the inbox's filter
+    it stays a person task.
   - *SHORT,* what a next-up line or a Home line says of a card: a
-    question's line; a proposal's reason's first sentence; a held task's
-    or a person task's title, a funds card's "S of L used".
+    question's line, or a person task in words'; a proposal's reason's first
+    sentence; a held task's or another person task's title, a funds card's
+    "S of L used".
   - *`.next-up`,* centred, 13px, `--gf-faint`: "Next: TITLE · SHORT", or
     "The last one".
   - *Answered,* under it when any: the section title "Answered", then
@@ -2543,18 +2552,19 @@ keeps (`../protocol/configuration.md`, section 2).
     name of a model of the `anthropic` provider and no other provider's name
     goes before one, so "Claude Opus 5.5 · high" and "GPT-6.1 Sol · high". Its
     effort is the one the choice names or, where it names none, that model's
-    default in the offer. What
-    a task holds stays its own: a model the offer leaves out is still named, and
-    its wait says why (5.5).
+    default in the offer. What a task holds stays its own: a model the offer
+    leaves out is still named, and its wait says why (5.5).
   - *With no composer,* a closed chat, one with a result or ended, says it in its
     bar instead, in the bar's muted form where the number was: "T2 · GPT-6 Astra ·
     high", in the closed line's shown names, in the browser and the terminal
-    alike. It says what the chat ran on: the model and effort of the latest
-    turn read (jig's `client/domain/client.md`, section 10), the effort only where
-    that turn asked for one. A chat with no turn hasn't run, and says what its
+    alike. It uses the latest named completion kept by the thread
+    (jig's `client/domain/client.md`, section 10), the effort only where
+    that turn asked for one. With no model read it says what its
     next run would have taken: its LLM choice, or with none its template's
     `resolved_default`, as *Its closed line* has them. "T2 · Using the default
-    model" is only where neither names one, where temper can't know. Until the
+    model" is only where neither names one, where temper can't know. A run
+    with no readable named turn can leave an earlier model or this preview;
+    neither proves what that run used (section 11). Until the
     conversation is read to its end the bar says the number alone, and names no
     model it would take back. A closed agent's task says the same words without
     the number, which its heading holds, in its taskbar (5.9), with no line or
@@ -2628,9 +2638,10 @@ keeps (`../protocol/configuration.md`, section 2).
   starts nothing, and keeps its composer, so the person can choose
   another model. The scripted model is offered where `me` serves it,
   in the playground's project alone (4.8). Setting a goal names its planner's model and
-  effort, the template's by default. A goal's page shows its model, effort and
-  account, changed by amending the task, and an agent's task's page
-  shows them in its composer's line, as a chat's (5.11); a task waiting
+  effort, the template's by default. A goal's page draws no model, effort
+  or account line; that presentation is deferred in section 11. An open
+  agent's task's page shows them in its composer's line, as a chat's (5.9);
+  a task waiting
   for its account
   says so, with the account's acts (5.5; jig's `domain/authority.md`,
   8.3).
@@ -6612,6 +6623,24 @@ own tests:
   (`browser.md`, section 4).
 
 ## 11. Open questions
+
+- **A closed page's latest-run model** (3.5, 5.9; the request
+  `ui-model-line`): a run with no committed turn, a tail page with no turn,
+  or an undecodable or nameless newest turn can leave an earlier model or
+  a next-run preview. Keeping the latest run's model independently of
+  readable turns is jig's `client/domain/client.md`, section 18. Default:
+  the last named completion, then the task's choice or its template's
+  `resolved_default`; until caught up, no model line. A turn's missing
+  effort stays unknown, never filled from today's offer.
+- **A goal's model, effort and account** (3.5): the goal page has no such
+  line. A place for those words and their amendment remains to be designed.
+  Default: no line; a closed agent's task uses its taskbar (5.9).
+- **The closed model line after landing** (3.5, 5.9; the request
+  `ui-model-line`): checking the muted header and taskbar in a browser and
+  a real configuring chat remains after landing. Default: the view tables
+  cover both shells and the joined client story carries smith's bytes to
+  the terminal's closed header; no browser, walk or render check is a
+  condition for completing the plan. A phone retains its hidden byline.
 
 - **The fresh project's draft flow after landing** (3.5, 5.3, 5.13):
   checking the configuring chat with drafts off, and a fresh chat's draft,

@@ -37,7 +37,7 @@ fn a_producer_asking_its_own_task_is_told_where_its_change_is() {
         smith_domain_run::HostAnswer::CAPACITY.try_into().expect("host answer bound"),
     );
     assert!(rendered.error());
-    assert_eq!(rendered.text(), b"Authority refused: task reference. Your brief's [Requested by ...] line names your requester; [This task: N] is you.");
+    assert_eq!(rendered.text(), b"Authority refused: task reference. Your brief's [Requested by ...] line names your requester; [This task: N] is you. If it says [Requested by person N], they have no task to message: ask with delegate, a person task addressed to person N.");
     assert!(live_task(&world, producer.task).questions.is_empty());
     assert!(live_task(&world, change).questions.is_empty());
     assert!(row(&world, change).questions.open.is_empty());
