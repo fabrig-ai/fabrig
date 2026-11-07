@@ -688,15 +688,22 @@ replay says the same clocks (`README.md`, 5.12).
   the session, `.temper-doc`, `.temper-doc-inner`, `.temper-doc-path`,
   `.temper-doc-sec`, `.temper-doc-changed`, `.temper-doc-note`, `.temper-seg`, and
   the rail's strip with `.temper-rail-unfold` and `files/menu.svg`. What those
-  name is drawn, and the look of its flow's tokens isn't, since nothing draws a
-  flow yet. The sheet to start a goal is the mock's `dialog.sheet`, `.option`,
-  `.field` and `.text`, and `Ctrl+\` steps through the modes.
+  name is drawn; a flow takes the tokens' look below. The sheet to start a goal
+  is the mock's `dialog.sheet`, `.option`, `.field` and `.text`, and `Ctrl+\` steps
+  through the modes.
 - **temper's own way** (`README.md`, 3.5) is `configure-temper-own-way`'s rules, in
   `temper.css` under `/* ==== ui: settings ==== */`: on the page
   `.temper-starter-head` and `.temper-starter-own` with its parts; in the pane, beside
   a chat's document's, `.temper-doc-flow`, which holds the
   picture's numbered list and no flow, with `.temper-doc-sub` and `.temper-doc-muted`
   under the chats' marker.
+- **A flow** (`skein/docs/design/ui.md`, 11.5) has the look of
+  `skein/docs/design/draft/diagrams/preview.html`, in `temper.css` under
+  `/* ==== ui: chats ==== */`: `--gf-paper` boxes on a `--gf-line-2` line, a strong
+  box `--gf-ink` with a `--gf-surface` name, names `--gf-sans` 500 at 13 px and
+  captions 400 at 12 px in `--gf-muted`, arrows `--gf-faint` at 1.5 with round ends. A
+  flow's figure, which has no token, takes no margin, so that its first measure is
+  its width in the page.
 - **What the mock lacks and a print needs** stays in the view, hidden by the
   sheet in the browser. A word the browser alone shows, or says otherwise,
   the view chooses by its shell.
@@ -1313,6 +1320,21 @@ Not in the tier, each in the lowest world that shows it:
   one thing a browser alone shows, stays in 10.
 
 ## 5. Open questions
+
+- **A flow in a chat and its document** (2.5; `README.md`, 3.5): temper/ui
+  compares both against `skein/docs/design/draft/diagrams/preview.html`
+  after landing, at a width where the flow is horizontal, one where it
+  is vertical, and one where only the fallback fits. Default: the host's
+  byte comparisons and the stylesheet's rules until that comparison.
+
+- **The connect-flows proof** (2.5, 4.6): temper/ui owns the comparison
+  of request pages 01–23 with main, at 1440, 1000 and 420 px with
+  disclosures and menus open, and screenshots also at 1280 px
+  (`../draft/look-requests.md`, 4). The retained browser stories check
+  Accounts return/history and sheet scroll, search, adoption and phone
+  geometry; they do not compare all request pages. Default: findings
+  after landing, with a passing repaired-story run and the unchanged
+  whole-tier budget established by the after-landing tier.
 
 - **Whole questions and starting from Goals** (2.5, 7.2; `README.md`,
   3.5, 5.8, 5.14): the long question's context, evidence and choices, the

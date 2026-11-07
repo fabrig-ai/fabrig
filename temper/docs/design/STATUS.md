@@ -2,7 +2,12 @@
 
 2026-11-07. Where temper's code lags or departs from its design, and
 its design from its drafts, from the status files below. The first
-milestone stands in the code (`README.md`). Home says "Nothing needs you."
+milestone stands in the code (`README.md`). Markdown flows draw in chats
+and their documents with temper's look, and both stock agents are told
+the subset. Temper/ui's rendered comparison follows landing; the
+reference keeps its numbered words without figures (`client/README.md`,
+3.5 and 11; `client/browser.md`, 2.5 and 5; `domain/agent.md`, section 8).
+Home says "Nothing needs you."
 once, semantic repair names the updated head without blame, and failed
 sign-in links say used, expired or unknown. Forgotten links are unknown;
 cookie fallback and command refusal words remain later work
@@ -422,7 +427,14 @@ projection updates, protocol scheduling queries, gallery checks and the
 launcher. Remaining representation and algorithm work is deferred.
 Individual instruction savings establish no whole-suite CPU total, so the
 focused suite's 30 CPU s budget remains unproved (`domain/testing.md`,
-6.1 and 11). The hangup/rebind and Linux killed-box stories moved whole
+6.1 and 11). Deployment-world measurements sum to 81.892959 focused and
+130.202313 fuzzy CPU s for the measured packages alone; whole-suite totals
+remain unknown. The real-loop focused median is 31.769481 CPU s against
+its standing 15 s ceiling. Eighteen named real-loop stories remain in
+fuzzy pending the user's placement decision. Exhaustive conformance cuts
+share their prefix, and the remaining representation, observation and
+profiling work is deferred (`domain/testing.md`, 5.2, 5.3, 6.1 and 11).
+The hangup/rebind and Linux killed-box stories moved whole
 into the process tier and compiled; their runtime there and the tier's
 margin after the estimated 15.9 CPU s transfer remain unobserved
 (`domain/testing.md`, 2.6; `protocol/setup.md`, 13.4).
@@ -462,8 +474,11 @@ bound on a migration. Settings’ “Add repositories” sheet is built,
 with search, plural adoption, making, copying and failed-copy acts;
 Home’s own sheet and the two unmocked entry paths remain distinct
 (`draft/repository-copies.md`). Settings’ connection pages share the
-welcome’s cards and panels and finish on Accounts or Forges; the browser
-stories are compiled, with temper/ui’s render check after landing
+welcome’s cards and panels and finish on Accounts or Forges. Failed
+making rows can be dismissed through their project's keyed request;
+absent rows are kept and running rows refused. The browser stories keep
+twelve tests by sharing setups, with no supplied passing result for the
+repaired stories; temper/ui’s render check follows landing
 (`client/README.md`; `draft/look-requests.md`);
 `draft/github.md`'s holds one the user has not answered, a Forgejo
 connected as its admin having its hook;

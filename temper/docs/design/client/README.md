@@ -785,7 +785,10 @@ keeps (`../protocol/configuration.md`, section 2).
     by its heading and its place among its namesakes, so that a change keeps the others'
     nodes. `#`, level 2, is drawn as the mock's `.doc-inner h1`, and `##`, level 3, as its `h2`; the first section's first
     paragraph as `.doc-muted`. Tables as `configure-chat-draft`'s. A fenced block
-    reads as code: nothing is drawn from it.
+    reads as code, but for a flow (`skein/docs/design/ui.md`, 10.1), which is drawn.
+    temper's page routes skein-ui's owner to its drawing code and gives its names
+    beside temper's, so a flow draws in any Markdown a person reads here, a turn's as
+    a document's. Its look is `browser.md`, 2.5's.
   - *The tint,* `.temper-doc-changed`: the section holding the newest `note` call's
     `first`, or for a first write the first `##` section; under it `.temper-doc-note`
     "Added by T4 3 min ago" or "Changed by T4 just now".
@@ -6750,6 +6753,25 @@ own tests:
 
 ## 11. Open questions
 
+- **A document's drawing after landing** (3.5): temper/ui looks at a flow
+  in a chat and in its document, including both layouts and the narrow
+  fallback (`browser.md`, section 5). Default: skein's acceptance cases
+  and temper's host test hold the scene's bytes; the rendered comparison
+  follows landing.
+
+- **The connect-flows comparison** (3.5, 4.4, 5.2): temper/ui compares
+  request pages 01–23 with main, including named states and open menus
+  and disclosures at 1440, 1000 and 420 px, with screenshots also at
+  1280 px (`../draft/look-requests.md`, 4). Default: the source and print
+  account is distinct from rendered equality; differences return as
+  findings after landing.
+- **One repository sheet from Home** (3.5, 4.3, 4.4): the
+  repository-copies follow-up, owned by temper/ui, unifies Home's own
+  empty-or-copy sheet with Add repositories and draws the entry from a
+  project with no repository and To begin's second step. Default: keep
+  the current entries and Settings destination; `connect-flows` leaves
+  those paths unmocked (`../draft/repository-copies.md`, 9 and 11).
+
 - **A failed link beside a live cookie** (5.1): the used, expired or
   unknown paragraph remains until another sign-in, even if the cookie
   still signs in on a reload. Falling back to the transport is jig's
@@ -6861,13 +6883,10 @@ own tests:
   `shapes::set_agreed_goal_from`, which stands built with nothing sending it; and a
   proposed goal's line above the composer. Default: 5.14's one sheet, its budget the
   creating bound's, its ways the project's templates, a proposal its toast.
-- **A document's drawing** (3.5; the look request `configure-chat-draft`): its flow
-  and figure wait on `skein/docs/design/draft/diagrams.md`. Default: a fenced block
-  reads as code, and the agent isn't told to draw.
 - **The reference's picture as a flow** (3.5, *temper's own way, beside the page*;
-  `../draft/own-way.md`, 3): skein's flows are neither built nor planned
-  (`skein/docs/design/draft/diagrams.md`), and a flow is one path, its parts in
-  parallel a caption until they branch. Default: the numbered list.
+  `../draft/own-way.md`, 3): the reference shows no figures, the user's word of
+  2026-11-06, and a flow is one path, its parts in parallel a caption until they
+  branch. Default: the numbered list.
 - **The reference kept beside a chat** (3.5, *temper's own way, beside the page*):
   `../draft/own-way.md`, 3, has a question about it be the configuring chat's,
   beside it. Default: a chat started there closes it, and a question about it

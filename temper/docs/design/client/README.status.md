@@ -2,6 +2,12 @@
 
 2026-11-07. Where temper's code lags or departs from [README.md](README.md).
 
+Section 3.5 has no known implementation gap in drawing a Markdown flow
+in a chat or its document. The page routes skein-ui's flow owner and
+names under temper's limits; its host test checks the case's SVG and
+the fallback at a narrow width. Temper/ui's look at both places remains
+section 11's after-landing work.
+
 Sections 3.5, 5.1 and 5.10 have no known implementation gap in Home's
 single "Nothing needs you.", the three failed-link paragraphs or the
 semantic-repair line "Repairing: CI failed at its updated head." The view
@@ -86,13 +92,15 @@ phone test asserts CSS rules, not measured geometry or a press. The
 after-landing checks and ended-card row retention are section 11's later
 work; no new real-model or phone press outcome is supplied.
 
-- **Not yet:** 4.4, 5.2: temper/ui’s after-landing render check of
-  `connect-flows` pages 01–23, open disclosures and menus at 1440, 1000
-  and 420 px, and screenshots also at 1280 px (`../draft/look-requests.md`,
-  4). The browser sheet story covers scrolling, search, adoption and phone
-  geometry on the fake forge (`browser.md`, 4.6).
-  Home’s own sheet and the two unmocked entry paths remain as described in
-  `../draft/repository-copies.status.md`, 9; they are not new drawings.
+Sections 3.5, 4.4, 4.6 and 5.2 have no known implementation gap in the
+`connect-flows` shared model and forge panels, completion on Accounts or
+Forges, or Settings' three-source repository sheet. Search and scroll,
+plural picks, make/copy and failed-row retry and dismissal are present.
+The source and print account is commit `9164d33492`; it establishes no
+rendered equality. Section 11 carries temper/ui's render comparison and
+Home sheet follow-up. The repaired browser stories retain account history,
+scroll/search/adoption and 420 px sheet geometry, with no passing runtime
+result supplied here (`browser.status.md`, 4.6).
 - **Not yet:** 3.5, 5.5: no supplied record establishes a real-box walk of
   the offer, effort choice, configuring chat's chooser and connected-account
   starters with a real provider. The `model-picker` account at `1d82a937df` records the picker
