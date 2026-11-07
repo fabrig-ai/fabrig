@@ -1,0 +1,22 @@
+draft = "bundle-list"
+repo = "fabrig"
+sources = ["temper/docs/plan/bundle-list/inputs/request.md", "AGENTS.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "list"
+title = "The slow tiers' browser bundles in one data file that run reads"
+mode = "direct"
+needs = []
+design = "tools/tiers/design.md, 2.2"
+
+[[slice]]
+id = 1
+story = "run builds each browser pair's bundle from tools/tiers/bundles.toml, today's commands byte for byte, and refuses a bad list before any build"
+parts = ["list"]
+walk = false
