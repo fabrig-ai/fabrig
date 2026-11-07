@@ -255,9 +255,9 @@ fn copy_lines_have_separate_words_and_their_repairs_reach_the_sheet() {
     assert_eq!(items.len(), 4);
     for (item, expected) in items.iter().zip([
         "Not an address: bad. Write it as github.com/owner/name.",
-        "github isn’t a host. Did you mean github.com/acme/free?",
-        "acme/kept is already on this forge.",
-        "acme/copy is already on this forge.",
+        "github isn’t a host. Did you mean github.com/acme/free? ",
+        "acme/kept is already on this forge. ",
+        "acme/copy is already on this forge. ",
     ]) {
         let at = view.tree().nodes().iter().position(|node| node.id == item.id).unwrap();
         let count = usize::try_from(item.size).unwrap();

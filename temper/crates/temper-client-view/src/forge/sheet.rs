@@ -216,6 +216,7 @@ fn line_alerts(b: &mut Builder, sheet: &sheet::Sheet, rows: &forge::forges::Stat
         b.open(Role::Item);
         b.text(Run::Plain, &words);
         if let Some((word, act)) = fix {
+            b.text(Run::Plain, b" ");
             b.open(Role::Button);
             b.style(look::CONNECT_QUIET);
             b.name(&words::say(w, word, &[]));
