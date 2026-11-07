@@ -45,6 +45,10 @@ impl Argv {
 #[macro_export]
 macro_rules! argv { ($($word:expr),* $(,)?) => { $crate::calls::Argv::new(vec![$($crate::calls::Arg::from($word)),*]) }; }
 pub enum Step {
+    /// Wait for the fake program to accept its held turn before stopping serve.
+    ClaudeTurn {
+        source: &'static str,
+    },
     /// Declare the exact work this story intentionally leaves at its stop.
     EndsLeaving(&'static [crate::ending::Leftover]),
     /// Finish runtime fixture provisioning before recording the story calls.
@@ -539,6 +543,7 @@ impl Caller {
         );
         let step = self.steps.get(self.next);
         match step {
+            Some(Step::ClaudeTurn { .. }) => out.push_str("caller waits_for=held Claude turn\n"),
             Some(Step::Call { argv, .. } | Step::Start { argv, .. } | Step::Until { argv, .. }) => {
                 let words = self.diagnostic_argv(argv);
                 writeln!(out, "caller script argv={words:?}").expect("string writer");
@@ -664,10 +669,19 @@ impl Caller {
         if let Some(Step::EndsLeaving(leftovers)) = self.steps.last() { leftovers } else { &[] }
     }
 
+    pub(crate) fn check_program_stop(&self) {
+        for step in &self.steps {
+            if let Step::ClaudeTurn { source } = step {
+                crate::claude::check_interrupted(&self.scratch, source);
+            }
+        }
+    }
+
     pub(crate) fn held_names(&self) -> impl Iterator<Item = &[u8]> {
         self.steps.iter().filter_map(|step| match step {
             Step::Held { name } => Some(*name),
             Step::Browse { .. }
+            | Step::ClaudeTurn { .. }
             | Step::Authorize
             | Step::Return
             | Step::FixtureReady
@@ -805,6 +819,7 @@ impl Caller {
             }
             Step::Call { at, argv } | Step::Start { at, argv } | Step::Until { at, argv, .. } => (at, argv),
             Step::Browse { .. }
+            | Step::ClaudeTurn { .. }
             | Step::Authorize
             | Step::Return
             | Step::FixtureReady
@@ -1287,6 +1302,11 @@ impl Caller {
             return;
         };
         match step {
+            Step::ClaudeTurn { source } => {
+                if !crate::claude::turn_started(&self.scratch, source) {
+                    return;
+                }
+            }
             Step::Browse { .. } | Step::Authorize | Step::Return | Step::Terminal(_) => {
                 if !self.interactive_act() {
                     return;
@@ -1353,6 +1373,7 @@ impl Caller {
     }
     fn can_advance(&self) -> bool {
         match self.steps.get(self.next) {
+            Some(Step::ClaudeTurn { source }) => crate::claude::turn_started(&self.scratch, source),
             Some(Step::Authorize | Step::Return) => self.visit.as_ref().is_none_or(|visit| visit.done),
             Some(Step::Browse { .. }) => self.browser.as_ref().is_none_or(|browser| browser.done),
             Some(Step::Terminal(act)) => self.terminal.ready(act, self.links.get()),

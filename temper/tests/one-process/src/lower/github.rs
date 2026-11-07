@@ -274,6 +274,7 @@ fn commands(caller: &mut Caller, link: Box<[u8]>, scenario: Scenario) -> usize {
     caller.commands.push_back(Command::new(&[b"chat", b"start", b"--project", b"1", b"--key", b"scope-chat", words]));
     12
 }
+#[expect(clippy::struct_excessive_bools, reason = "stop, service end, handoff and read observations are independent")]
 struct Judge {
     controls: skein_world::Controls,
     scenario: Scenario,
@@ -282,6 +283,7 @@ struct Judge {
     answers: usize,
     calls: usize,
     stopping: bool,
+    ended: bool,
     handed: bool,
     changed: Vec<u64>,
     read: bool,
@@ -373,6 +375,7 @@ impl skein_world::Referee<Proc> for Judge {
         }
     }
     fn observe(&mut self, _now: Time, procs: &[Proc]) {
+        self.ended = procs.iter().any(|proc| matches!(proc, Proc::Service(service) if service.service.end().is_some()));
         for proc in procs {
             if let Proc::Peer(peer) = proc {
                 self.read |= peer.observations().iter().any(|seen| {
@@ -426,7 +429,7 @@ impl skein_world::Referee<Proc> for Judge {
         })
     }
     fn passed(&self) -> bool {
-        self.stopping
+        self.stopping && self.ended
     }
 }
 /// Exercise installation scope, checkout and the authenticated git route on simulated sockets/files.
@@ -462,6 +465,7 @@ pub fn run(scenario: Scenario) {
                 answers: 0,
                 calls: 0,
                 stopping: false,
+                ended: false,
                 handed: false,
                 changed: Vec::new(),
                 read: false,

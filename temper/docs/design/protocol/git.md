@@ -609,10 +609,10 @@ variable of the worker's own process reaches git.
   otherwise) and closed; stdout and stderr are read as they come, both at
   once, so git never waits on a full pipe.
 - **At the worker's end** the service closes every child, killing their
-  groups: in temper's one process, the service ends the worker at once
-  after the engine has drained (README.md, section 8; jig's
-  `protocol/service.md`, section 10). Operations in flight end as io
-  closes them.
+  groups: in temper's one process, the service closes the worker once
+  the engine has drained and no agent process is left (README.md,
+  section 8; jig's `protocol/service.md`, section 10). Operations in
+  flight end as io closes them.
 
 ## 8. Entrance limits and kernel submissions
 
