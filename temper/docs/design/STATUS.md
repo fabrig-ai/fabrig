@@ -111,7 +111,14 @@ drafts on, and the real-box checks follow landing (`client/README.md`,
 agents with four workspaces and git operations; their agent-process memory
 on a laptop remains an after-landing measurement (`protocol/setup.md`, section 15).
 Serve's orderly stop cancels its worker's runs and waits for every agent
-to end, letting each end its program before the worker closes. The
+to end, letting each end its program before the worker closes. The engine
+settles in-process agent claims as interrupted before draining, spending
+no try. The one-process chat and coding drain table checks unchanged
+tries, saved work and change counts across restart, with the coding
+attempt's new writer slot and checkout at its saved head
+(`protocol/README.md`, section 8). A worker stopped apart from its engine
+still spends an agent try; changing that remains cluster work
+(`protocol/README.md`, 15.7). The
 real-loop held-Claude-turn test checks the interrupt and both ends; the
 owned-forge live no-survivor proof remains after landing. Forced agent
 stops still need contained trees (`protocol/README.md`, sections 8 and 14;

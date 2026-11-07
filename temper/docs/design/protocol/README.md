@@ -684,14 +684,16 @@ Standalone is jig's one process (jig's `protocol/service.md`, section 10):
   second signal closes the worker at once, its agent processes' groups
   killed, and a program they started outlives them until agents run in
   contained trees (section 14). No worker outlives the engine, so the
-  engine, on hearing the signal, settles the claims of the worker's runs
+  engine, on hearing the signal, settles the worker's agent claims
   as interrupted (jig's `domain/engine.md`, 6.1): a stop spends no try
   of a run's task, a coding run's among them, and moves none of its
   change's counts; the task is due again at the next start, its next
   attempt resuming from the turns it committed and starting from the
   work it saved last (`../domain/worker.md`, 4.2 and 5). After a crash,
   the next start settles them at once, lost or not started (jig's
-  `domain/engine.md`, section 6; `../domain/root.md`, 9.1).
+  `domain/engine.md`, section 6; `../domain/root.md`, 9.1). Job claims
+  remain for restart recovery even after a drain, since their effects
+  may have happened.
 - **Its world** is `tests/one-process` (`../domain/testing.md`, 2.5).
 
 ### 8.1 A long pass
@@ -1324,6 +1326,11 @@ worker added later, 4.6's hung worker.
 
 ### 15.7 Later
 
+- **A worker stopped apart from its engine** (15.4): its Shutdown
+  cancel's agent answer counts as `Failed(Agent)`, spending an agent
+  try while the engine stays up. Giving that restart the standalone
+  stop's no-try interruption (section 8) is left for the cluster
+  (jig's `protocol/service.md`, section 9).
 - **The case's restart story** (15.6): jig's fleet must take a draining
   worker out of placement before its runs end, so a retry cannot be
   journaled as an extra refused attempt on its still-linked channel.
