@@ -73,12 +73,22 @@ fn pasted() -> Walk {
     let link = format!("http://127.0.0.1:8367/jig/v1/sign-in/link?secret={}", "A".repeat(43));
     walk.key(Key::Paste(link.into_bytes().into()));
     let duties = walk.key(Key::Enter);
-    let exchange = duties.iter().flat_map(|duty| &duty.asked).find_map(|request| match request {
-        Request::Exchange { exchange, message: Message::SignInLink(_), .. } => Some(*exchange),
-        Request::Exchange { .. } | Request::OpenStream { .. } | Request::CloseStream | Request::Save { .. }
-        | Request::Erase { .. } | Request::Told { .. } | Request::Authorized(_) | Request::Approval(_)
-        | Request::ServiceCredential { .. } => None,
-    }).expect("pasted link exchange");
+    let exchange = duties
+        .iter()
+        .flat_map(|duty| &duty.asked)
+        .find_map(|request| match request {
+            Request::Exchange { exchange, message: Message::SignInLink(_), .. } => Some(*exchange),
+            Request::Exchange { .. }
+            | Request::OpenStream { .. }
+            | Request::CloseStream
+            | Request::Save { .. }
+            | Request::Erase { .. }
+            | Request::Told { .. }
+            | Request::Authorized(_)
+            | Request::Approval(_)
+            | Request::ServiceCredential { .. } => None,
+        })
+        .expect("pasted link exchange");
     walk.reports(vec![Report::Heard(jig_client::Event::Reply { exchange, message: signed_in() })]);
     walk.reports(vec![Report::Kept { written: true }]);
     walk.mark();
@@ -87,7 +97,9 @@ fn pasted() -> Walk {
 
 fn written(records: &[Line]) -> Box<[u8]> {
     let mut bytes = Vec::new();
-    for record in records { record.write(&mut bytes); }
+    for record in records {
+        record.write(&mut bytes);
+    }
     bytes.into()
 }
 
@@ -96,7 +108,7 @@ fn replay_stale(recording: &[u8]) -> Stale {
     loop {
         match replay.next() {
             Err(stale) => return stale,
-            Ok(Some(_)) => {},
+            Ok(Some(_)) => {}
             Ok(None) => panic!("changed rule was accepted"),
         }
     }
@@ -115,6 +127,7 @@ fn same_frames(mut walk: Walk) {
     let file = walk.save();
     let records = lines(&file).expect("readable records");
     assert!(written(&records) == file, "line codec preserves the recording");
+    assert!(prove(&file).is_ok(), "the whole walk proves its live frames");
     let mut replay = Replay::new(&file).expect("facts");
     walk.marks.push((walk.host.frame().print(), None));
     for (print, key) in walk.marks {
@@ -144,11 +157,14 @@ fn each_enter_marks_its_frame_before_the_key() {
 fn changed_duties_deadlines_and_key_events_are_stale() {
     let mut walk = pasted();
     let original = lines(&walk.save()).expect("records");
-    let send = original.iter().position(|line| matches!(line, Line::Send { message: Sent::SignInLink(_), .. })).expect("send");
+    let send =
+        original.iter().position(|line| matches!(line, Line::Send { message: Sent::SignInLink(_), .. })).expect("send");
     let deadline = original.iter().position(|line| matches!(line, Line::Deadline(_))).expect("deadline");
     let key = original.iter().position(|line| matches!(line, Line::Key { key: Key::Enter, .. })).expect("key");
     let mut changed_send = original[send].clone();
-    if let Line::Send { message, .. } = &mut changed_send { *message = Sent::SignInLink(b"changed".as_slice().into()); }
+    if let Line::Send { message, .. } = &mut changed_send {
+        *message = Sent::SignInLink(b"changed".as_slice().into());
+    }
     for (at, replacement) in [
         (send, changed_send),
         (deadline, Line::Deadline(Some(Time::from_nanos(u64::MAX)))),
@@ -159,12 +175,16 @@ fn changed_duties_deadlines_and_key_events_are_stale() {
         assert_eq!(records.iter().zip(&original).filter(|(a, b)| a != b).count(), 1);
         let stale = replay_stale(&written(&records));
         assert_eq!(stale.line, u32::try_from(at + 1).expect("line"));
-        let mut expected = Vec::new(); replacement.write(&mut expected); expected.pop();
+        let mut expected = Vec::new();
+        replacement.write(&mut expected);
+        expected.pop();
         assert_eq!(stale.recorded.as_ref(), expected);
         assert_ne!(stale.recorded, stale.asked);
         let turn = original.iter().take(at).filter(|line| matches!(line, Line::Turn { .. })).count();
         assert_eq!(stale.turn, u32::try_from(turn).expect("turn"));
-        let mut expected = Vec::new(); original[at].write(&mut expected); expected.pop();
+        let mut expected = Vec::new();
+        original[at].write(&mut expected);
+        expected.pop();
         assert_eq!(stale.asked.as_ref(), expected);
     }
 }
@@ -195,17 +215,27 @@ fn proof_refuses_the_first_differing_print_line() {
                 if mark_number == wanted_mark {
                     let live = print.as_ref().expect("live print");
                     let mut replacement = live.to_vec();
-                    let offset = if expected_line == 1 { 0 } else {
-                        live.iter().enumerate().filter(|(_, byte)| **byte == b'\n')
-                            .nth(usize::try_from(expected_line - 2).expect("line offset")).expect("print line").0 + 1
+                    let offset = if expected_line == 1 {
+                        0
+                    } else {
+                        live.iter()
+                            .enumerate()
+                            .filter(|(_, byte)| **byte == b'\n')
+                            .nth(usize::try_from(expected_line - 2).expect("line offset"))
+                            .expect("print line")
+                            .0
+                            + 1
                     };
                     replacement.insert(offset, b'!');
-                    *print = Some(replacement.into()); changed += 1;
+                    *print = Some(replacement.into());
+                    changed += 1;
                 }
             }
         }
         assert_eq!(changed, 1);
-        assert!(matches!(prove(&written(&records)), Err(Refusal::Differs { mark, line }) if mark == wanted_mark && line == expected_line));
+        assert!(
+            matches!(prove(&written(&records)), Err(Refusal::Differs { mark, line }) if mark == wanted_mark && line == expected_line)
+        );
     }
 }
 
@@ -215,7 +245,9 @@ fn proof_drops_every_live_print_after_the_whole_walk() {
     let file = walk.save();
     let mut records = lines(&file).expect("records");
     for record in &mut records {
-        if let Line::Mark(print) | Line::End(print) = record { *print = None; }
+        if let Line::Mark(print) | Line::End(print) = record {
+            *print = None;
+        }
     }
     assert!(prove(&file).expect("faithful prints") == written(&records), "proof drops every print");
 }
@@ -257,7 +289,9 @@ fn signed_in() -> Box<[u8]> {
 fn facts_and_only_kept_turns_have_ordered_lines() {
     let mut facts = facts();
     facts.scheme = Scheme::Light;
-    facts.kept.push(jig_client::Record { key: b"test-store".as_slice().into(), bytes: b"test-value".as_slice().into() });
+    facts
+        .kept
+        .push(jig_client::Record { key: b"test-store".as_slice().into(), bytes: b"test-value".as_slice().into() });
     facts.credential = Some(credential());
     let (mut host, _) = facts.start();
     let mut recorder = Recorder::new(&facts);
@@ -266,11 +300,14 @@ fn facts_and_only_kept_turns_have_ordered_lines() {
     let file = recorder.save(&mut host);
     let records = lines(&file).expect("facts");
     let expected = vec![
-        Line::Journey { version: 2 }, Line::Seed(7), Line::Clocks { now: Time::ZERO, wall: Wall::EPOCH },
+        Line::Journey { version: 2 },
+        Line::Seed(7),
+        Line::Clocks { now: Time::ZERO, wall: Wall::EPOCH },
         Line::Screen { size: Size { rows: 12, columns: 48 }, scheme: Scheme::Light },
         Line::Address(b"127.0.0.1:8367".as_slice().into()),
         Line::Stored { key: b"test-store".as_slice().into(), bytes: b"test-value".as_slice().into() },
-        Line::Credential(credential().into_exposed()), Line::End(Some(host.frame().print())),
+        Line::Credential(credential().into_exposed()),
+        Line::End(Some(host.frame().print())),
     ];
     assert!(records == expected, "facts ordered, idle turn omitted");
     assert!(prove(&file).is_ok());
@@ -284,11 +321,15 @@ fn misplaced_records_are_unreadable_before_replay() {
     let deadline = original.iter().position(|line| matches!(line, Line::Deadline(_))).expect("deadline");
     let end = original.len() - 1;
     for (at, replacement) in [
-        (0, Line::Journey { version: 1 }), (1, Line::Address(Box::new([]))),
-        (start, Line::Due), (deadline, Line::Start), (end, Line::Mark(None)),
+        (0, Line::Journey { version: 1 }),
+        (1, Line::Address(Box::new([]))),
+        (start, Line::Due),
+        (deadline, Line::Start),
+        (end, Line::Mark(None)),
         (end, Line::Turn { now: Time::ZERO, wall: Wall::EPOCH }),
     ] {
-        let mut records = original.clone(); records[at] = replacement;
+        let mut records = original.clone();
+        records[at] = replacement;
         assert_eq!(records.iter().zip(&original).filter(|(a, b)| a != b).count(), 1);
         assert!(Replay::new(&written(&records)).is_err(), "misplaced line {at}");
     }
@@ -303,27 +344,45 @@ fn native_transport_reports_round_trip_through_the_host() {
         Report::Heard(jig_client::Event::Reply { exchange: Token::new(501), message: b"unused".as_slice().into() }),
         Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(Box::new([])) }),
         Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Heartbeat }),
-        Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Full(jig_client::StreamsFull {
-            bound: jig_client::StreamBound::Component, size: 11,
-        }) }),
-        Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Full(jig_client::StreamsFull {
-            bound: jig_client::StreamBound::Transport, size: 12,
-        }) }),
+        Report::Heard(jig_client::Event::Streamed {
+            message: jig_client::Streamed::Full(jig_client::StreamsFull {
+                bound: jig_client::StreamBound::Component,
+                size: 11,
+            }),
+        }),
+        Report::Heard(jig_client::Event::Streamed {
+            message: jig_client::Streamed::Full(jig_client::StreamsFull {
+                bound: jig_client::StreamBound::Transport,
+                size: 12,
+            }),
+        }),
         Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::SignedOut }),
         Report::Heard(jig_client::Event::StreamGone),
-        Report::Heard(jig_client::Event::Stored), Report::Heard(jig_client::Event::NotStored),
+        Report::Heard(jig_client::Event::Stored),
+        Report::Heard(jig_client::Event::NotStored),
         Report::Kept { written: false },
+        Report::Opened { opened: true },
+        Report::Opened { opened: false },
     ];
     walk.reports(reports);
     let file = walk.save();
     let records = lines(&file).expect("records");
     let begin = records.iter().position(|line| matches!(line, Line::Unanswered(500))).expect("transport reports");
     let expected = [
-        Line::Unanswered(500), Line::Reply { exchange: 501, bytes: b"unused".as_slice().into() },
-        Line::Streamed(Streamed::Record(Box::new([]))), Line::Streamed(Streamed::Heartbeat),
+        Line::Unanswered(500),
+        Line::Reply { exchange: 501, bytes: b"unused".as_slice().into() },
+        Line::Streamed(Streamed::Record(Box::new([]))),
+        Line::Streamed(Streamed::Heartbeat),
         Line::Streamed(Streamed::Full { transport: false, size: 11 }),
-        Line::Streamed(Streamed::Full { transport: true, size: 12 }), Line::Streamed(Streamed::SignedOut),
-        Line::Gone, Line::Saved, Line::Unsaved, Line::Kept { written: false }, Line::Deadline(None),
+        Line::Streamed(Streamed::Full { transport: true, size: 12 }),
+        Line::Streamed(Streamed::SignedOut),
+        Line::Gone,
+        Line::Saved,
+        Line::Unsaved,
+        Line::Kept { written: false },
+        Line::Opened { opened: true },
+        Line::Opened { opened: false },
+        Line::Deadline(None),
     ];
     assert!(records[begin..].starts_with(&expected), "native reports are retained in order");
     assert!(prove(&file).is_ok());
@@ -331,10 +390,18 @@ fn native_transport_reports_round_trip_through_the_host() {
 
 fn sent(walk: &mut Walk, kind: fn(&Sent) -> bool) -> Token {
     let records = lines(&walk.save()).expect("records");
-    records.iter().rev().find_map(|line| {
-        if let Line::Send { exchange, message, .. } = line && kind(message) { return Some(Token::new(*exchange)); }
-        None
-    }).expect("walk's exchange")
+    records
+        .iter()
+        .rev()
+        .find_map(|line| {
+            if let Line::Send { exchange, message, .. } = line
+                && kind(message)
+            {
+                return Some(Token::new(*exchange));
+            }
+            None
+        })
+        .expect("walk's exchange")
 }
 
 fn approved() -> Walk {
@@ -347,6 +414,7 @@ fn approved() -> Walk {
     asked.extend_from_slice(b"BCDFGHJK");
     asked.extend_from_slice(&300_000_000_000_u64.to_be_bytes());
     walk.reports(vec![Report::Heard(jig_client::Event::Reply { exchange, message: asked.into() })]);
+    walk.reports(vec![Report::Opened { opened: true }]);
     walk.mark();
     let exchange = sent(&mut walk, |message| matches!(message, Sent::SignInApproval(_)));
     // ApprovalSignInAnswer::Waiting, then its shipped one-second poll.
@@ -386,7 +454,10 @@ fn browse_asked_or_recorded_alone_is_stale() {
 }
 
 fn line_text(line: &Line) -> Box<[u8]> {
-    let mut bytes = Vec::new(); line.write(&mut bytes); bytes.pop(); bytes.into()
+    let mut bytes = Vec::new();
+    line.write(&mut bytes);
+    bytes.pop();
+    bytes.into()
 }
 
 #[test]
@@ -394,23 +465,42 @@ fn duties_keep_the_seams_order_and_fields() {
     // Each native file duty in this fixture carries one record.
     const RECORDS: u32 = 1;
     let mut saved = skein_lib::List::with_capacity(RECORDS);
-    saved.push(jig_client::Record { key: b"key".as_slice().into(), bytes: b"value".as_slice().into() }).expect("one saved record");
+    saved
+        .push(jig_client::Record { key: b"key".as_slice().into(), bytes: b"value".as_slice().into() })
+        .expect("one saved record");
     let mut erased = skein_lib::List::with_capacity(RECORDS);
     erased.push(b"old".as_slice().into()).expect("one erased record");
     let duties = Duties {
         asked: vec![
-            Request::Exchange { exchange: Token::new(11), message: Message::ApprovalAsk(b"ask".as_slice().into()), credential: Some(credential()) },
-            Request::Save { records: saved }, Request::Erase { records: erased },
-            Request::OpenStream { credential: None }, Request::CloseStream,
+            Request::Exchange {
+                exchange: Token::new(11),
+                message: Message::ApprovalAsk(b"ask".as_slice().into()),
+                credential: Some(credential()),
+            },
+            Request::Save { records: saved },
+            Request::Erase { records: erased },
+            Request::OpenStream { credential: None },
+            Request::CloseStream,
         ],
-        keep: Some(Some(credential())), address: Some(b"signed".as_slice().into()),
-        open: Some(b"browse".as_slice().into()), close: true,
+        keep: Some(Some(credential())),
+        address: Some(b"signed".as_slice().into()),
+        open: Some(b"browse".as_slice().into()),
+        close: true,
     };
     let expected = vec![
-        Line::Send { exchange: 11, message: Sent::ApprovalAsk(b"ask".as_slice().into()), credential: Some(credential().into_exposed()) },
-        Line::Save { key: b"key".as_slice().into(), bytes: b"value".as_slice().into() }, Line::Erase(b"old".as_slice().into()),
-        Line::Stream(None), Line::Unstream, Line::Keep(Some(credential().into_exposed())),
-        Line::Signed(b"signed".as_slice().into()), Line::Browse(b"browse".as_slice().into()), Line::Quit,
+        Line::Send {
+            exchange: 11,
+            message: Sent::ApprovalAsk(b"ask".as_slice().into()),
+            credential: Some(credential().into_exposed()),
+        },
+        Line::Save { key: b"key".as_slice().into(), bytes: b"value".as_slice().into() },
+        Line::Erase(b"old".as_slice().into()),
+        Line::Stream(None),
+        Line::Unstream,
+        Line::Keep(Some(credential().into_exposed())),
+        Line::Signed(b"signed".as_slice().into()),
+        Line::Browse(b"browse".as_slice().into()),
+        Line::Quit,
     ];
     assert!(record::asked(&duties) == expected, "requests, keep, signed, browse, quit retain their fields and order");
 }
