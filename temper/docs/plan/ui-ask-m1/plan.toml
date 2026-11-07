@@ -85,3 +85,29 @@ id = 6
 story = "An Ask temper run writes \"How this project works\" whole, appends a section and replaces one by its heading; the stored note is the chat's document, its answer's first line the note's, and a refused call changes nothing"
 parts = ["document"]
 walk = false
+
+[[part]]
+id = "proposal-read"
+title = "A run reads one proposal of settings, waiting or decided"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 7.3"
+
+[[slice]]
+id = 7
+story = "A run with the settings family reads a task's proposal of settings waiting and then rejected, as an owner's proposal read shows it"
+parts = ["proposal-read"]
+walk = false
+
+[[part]]
+id = "see"
+title = "see reads the settings, the history, temper's pages and a repository's file by address"
+mode = "direct"
+needs = ["declare", "stock", "document"]
+design = "temper/docs/design/domain/agent.md, 8.4.1"
+
+[[slice]]
+id = 8
+story = "An Ask temper chat reads settings charter 3, revision 2 and help settings with see, each in parts of at most 6,144 bytes ending with what to read next; me answers not yet"
+parts = ["see"]
+walk = false
