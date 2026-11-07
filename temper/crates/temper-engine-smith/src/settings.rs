@@ -556,6 +556,7 @@ fn setting_detail(value: jig_domain_people::SettingDetail) -> c::SettingDetail {
             jig_domain_people::SettingMember::Path => c::SettingMember::Path,
             jig_domain_people::SettingMember::Heading => c::SettingMember::Heading,
             jig_domain_people::SettingMember::Connector => c::SettingMember::Connector,
+            jig_domain_people::SettingMember::StoredPolicy => c::SettingMember::StoredPolicy,
         },
         rule: match value.rule {
             jig_domain_people::SettingRule::Maximum => c::SettingRule::Maximum,
