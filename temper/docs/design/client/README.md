@@ -6857,6 +6857,19 @@ own tests:
 
 ## 11. Open questions
 
+- **Run-wait words after landing** (3.5, 5.5; the request
+  `ui-wait-words`): temper/qa checks a charter grown past its admitted
+  worker's bounds on the page and in the terminal, alongside ctl's
+  `next run:` explanation. Default: the fleet, core and wire tables,
+  and the view tables for every bound in both shells; no browser story,
+  walk or render check within the plan.
+- **The terminal's forge-key command** (3.5, 6.5): its hint says
+  `temper ctl forge replace N FILE`, without the client directory or
+  `--key KEY` that ctl requires (`tools.md`, 5.5, area 6, and 8.1).
+  Completing that command and checking its pointer is separate wording
+  work. Default: the browser's paste or a complete ctl call from its
+  help; the run-wait pointer checks of 5.5 cover waiting lines alone.
+
 - **Account email after landing** (3.5, 5.5; the request
   `ready-account-email`): temper/ui checks a real ChatGPT sign-in and a
   real Claude Code login on Ready, the Model step, the model-check pane,

@@ -2,6 +2,13 @@
 
 2026-11-07. Where temper's code lags or departs from [README.md](README.md).
 
+Sections 3.5 and 5.5 have no known gap in bounds-refusal words above
+the composer, in either shell: all ten bounds, differing shortfalls,
+missing figures and refused-hello figures have view-table coverage.
+Waiting-line pointers name no ctl call, and their help pages are checked.
+The after-landing check and the non-waiting forge-key command pointer
+remain section 11's later work.
+
 Sections 3.5 and 5.5 have no known implementation gap in naming accounts
 by email on Ready, the Model step, the model-check pane, the picker or
 Accounts, including terminal words and the display/source-name fallback.
