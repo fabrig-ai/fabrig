@@ -32,7 +32,9 @@ fn an_ask_is_answered_as_the_document_enables_the_approval() {
                 assert!(asked, "approval {approval:?}");
                 assert_eq!(value.secret().len(), SECRET_BYTES);
                 assert_eq!(value.code().len(), CODE_LETTERS);
-                assert!(value.code().iter().all(|letter| CODE_ALPHABET.contains(letter)));
+                for letter in value.code() {
+                    assert!(CODE_ALPHABET.contains(letter));
+                }
                 assert!(ApprovalCode::parse(value.code()).is_some());
                 assert_eq!(value.expires(), wall.as_nanos().checked_add(SPAN_NANOS).unwrap());
             }
