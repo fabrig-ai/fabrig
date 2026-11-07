@@ -2,16 +2,16 @@
 //! (`jig/docs/design/domain/testing.md`, 6).
 use super::Policy;
 use std::ops::{Deref, DerefMut};
-use std::rc::Rc;
+use std::sync::Arc;
 
 /// A complete scenario policy. Sharing is immutable: mutable access first
 /// detaches the value, so an adapter cannot edit the referee's retained policy.
 #[derive(Clone, PartialEq, Eq)]
-pub struct PolicySnapshot(Rc<Policy>);
+pub struct PolicySnapshot(Arc<Policy>);
 
 impl From<Policy> for PolicySnapshot {
     fn from(policy: Policy) -> Self {
-        Self(Rc::new(policy))
+        Self(Arc::new(policy))
     }
 }
 
@@ -30,7 +30,7 @@ impl Deref for PolicySnapshot {
 
 impl DerefMut for PolicySnapshot {
     fn deref_mut(&mut self) -> &mut Policy {
-        Rc::make_mut(&mut self.0)
+        Arc::make_mut(&mut self.0)
     }
 }
 
@@ -39,6 +39,13 @@ mod tests {
     use super::*;
     use crate::referee::Scope;
     use std::collections::{BTreeMap, BTreeSet};
+
+    #[test]
+    fn policy_snapshots_preserve_the_referees_send_and_sync_contract() {
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<PolicySnapshot>();
+        assert_send_sync::<crate::referee::Referee>();
+    }
 
     #[test]
     fn policy_snapshots_keep_both_observers_edits_independent() {
