@@ -237,7 +237,7 @@ pub enum EscalationOutcome {
 
 /// Task-to-root held view; not a second task/funding ledger. Root
 /// authenticates reads and decisions against this exact context.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct EscalationContext {
     /// Positive held task identity.
     pub task: u64,

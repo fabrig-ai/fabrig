@@ -5,7 +5,7 @@ use skein_lib::{Duration, List, Time};
 use temper_engine_domain_forge_landing as policy;
 
 /// One caller-owned dispatch and its current run. The caller persists its outbox entry.
-#[derive(Clone, Debug)]
+#[derive(Clone, Hash, Debug)]
 pub struct Follow {
     pub task: u64,
     pub entry: u64,

@@ -2,6 +2,15 @@
 
 2026-11-07. Where jig's code lags or departs from [store.md](store.md).
 
+Sections 4.1 and 7.2 have no known gap in settings key order:
+`Setting` orders Application, ProjectPolicy and Model as their stored
+tags 4, 5 and 6 do. Stored bytes are unchanged. The cursor and key
+tables cover these boundaries, and the key generator includes settings.
+The consuming application's startup table walks an application setting
+and a model setting one row at a time on open and after a crash.
+This proves the order defect; the reported cancellation's cursor and
+range are unknown, so it does not establish that incident's exact state.
+
 Sections 4.4, 7.2 and 15.9 have no known gap in facts' key tag 5, their
 bounded codec, restoration after the accounts and sources, or removal
 with the account. The accounts family changes in place under section 5.

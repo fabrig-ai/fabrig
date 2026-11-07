@@ -1942,9 +1942,7 @@ impl Left {
         let mut size = 0_u32;
         let field_landed = &self.landed;
         size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_landed.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
+        size = size.checked_add(field_landed.len().checked_mul(40).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
         size
     }
 
@@ -2113,8 +2111,7 @@ impl PushFailure {
         if field_repository.is_some() {
         size = size.checked_add(4).expect("schema ceilings fit u32");
         }
-        let field_reason = &self.reason;
-        size = size.checked_add(field_reason.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         let field_diagnostic = &self.diagnostic;
         size = size.checked_add(field_diagnostic.measure()).expect("schema ceilings fit u32");
         size
@@ -2319,8 +2316,7 @@ impl Missed {
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
         size = size.checked_add(8).expect("schema ceilings fit u32");
-        let field_missing = &self.missing;
-        size = size.checked_add(field_missing.measure()).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 

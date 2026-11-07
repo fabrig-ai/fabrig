@@ -325,9 +325,8 @@ pub fn close_world(
     protocol: &mut crate::protocol::Protocol,
     config: engine::Config,
 ) {
-    let mut driver = Driver::cold(crate::store::Store::new(), config, &env.limits);
+    let mut driver = Driver::cold(store.take_for_drop(), config, &env.limits);
     std::mem::swap(&mut driver.root, root);
-    std::mem::swap(&mut driver.store, store);
     std::mem::swap(&mut driver.protocol, protocol);
     driver.env = env.with(env.limits);
     driver.period_sent = true;

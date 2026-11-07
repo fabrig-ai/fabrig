@@ -137,7 +137,7 @@ type DecodeAnswer = (bool, Box<[u8]>);
 
 /// What the world's protocol layer keeps: tool bodies by call name, ended
 /// runs' terminals by outcome bytes, and every typed answer it rendered.
-#[derive(Debug, Default)]
+#[derive(Hash, Debug, Default)]
 pub struct Protocol {
     pub sign_in_sources: BTreeSet<u32>,
     /// The deployment models in numbered execution positions.

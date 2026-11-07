@@ -278,7 +278,7 @@ pub struct Range {
 }
 
 /// A raw owner row with the facts needed to authenticate it without restoration.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub struct Row {
     pub value: Record,
     pub owner: Option<Box<tasks::TaskRecord>>,
@@ -305,7 +305,7 @@ impl Row {
 }
 
 /// The one terminal event of a store load.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub enum Loaded {
     /// Rows within the range's row and byte caps; continuation is exclusive.
     Page { rows: Box<[Row]>, next: Option<Position> },

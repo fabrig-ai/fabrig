@@ -6,7 +6,7 @@ use skein_lib::{Env, List, Wall};
 use temper_engine_domain_forge::{self as forge, settings};
 
 /// Whether the watcher's review would count for the approval a row waits on (domain/forge.md, 8.12).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum YourReview {
     Counts,
     /// The watcher doesn't count as a person on the change's forge.
@@ -18,7 +18,7 @@ pub enum YourReview {
 }
 
 /// A change waiting on a person's approval, as one watcher sees it (domain/forge.md, 8.12).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ApprovalRow {
     pub task: u64,
     pub project: u32,
@@ -42,7 +42,7 @@ pub struct ApprovalRow {
 }
 
 /// One watcher's approvals document (client/README.md, 4.6).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Approvals {
     pub rows: Box<[ApprovalRow]>,
     /// The rows past the bound.

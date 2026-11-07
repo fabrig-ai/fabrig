@@ -29,13 +29,13 @@ mod restore;
 pub use restore::{RestoreFit, RestoreSet};
 
 /// One comparison in flight for a branch's observed tip move.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct PendingLanding {
     topic: Topic,
     before: skein_forge::api::Commit,
     after: skein_forge::api::Commit,
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct PendingLost {
     task: u64,
     attempt: u64,
@@ -43,19 +43,19 @@ pub(crate) struct PendingLost {
     comparison: Option<(skein_forge::api::Commit, skein_forge::api::Commit)>,
     state: LostReadState,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum LostReadState {
     Asked,
     WaitingForRoom,
     WaitingForConnection,
 }
 /// One fresh verdict read for a commit with live CI subscribers.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct PendingCi {
     repository: skein_forge::api::Repository,
     head: skein_forge::api::Commit,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum StepStage {
     Branch,
     Base,
@@ -69,7 +69,7 @@ enum StepStage {
 
 /// One sequence of fresh reads before a level-triggered change step.
 #[expect(clippy::struct_excessive_bools, reason = "independent facts and progress of one fresh-read chain")]
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct PendingStep {
     task: u64,
     entry: u64,
@@ -105,14 +105,14 @@ struct StepInput {
 /// One committed outbox entry. A held one is out of the client's outbox and
 /// keeps its room until a person makes it again or it is settled not made
 /// (domain/forge.md, 6; jig's `domain/connectors.md`, 4.3).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Outboxed {
     pub(crate) entry: skein_forge_client::Entry,
     held: bool,
     handoff: Handoff,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Handoff {
     Uncommitted,
     /// Restored entries enter the client only at `SettleOutbox`.
@@ -121,7 +121,7 @@ enum Handoff {
     Handed,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum RestorePhase {
     Cold,
     Restoring,
@@ -132,7 +132,7 @@ enum RestorePhase {
 pub(crate) type ConnectionState = (crate::Connection, Option<crate::FailedStep>);
 
 /// The bounded forge connector subtree.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct Domain {
     retire_pending: bool,
     watch_due: Option<skein_lib::Time>,

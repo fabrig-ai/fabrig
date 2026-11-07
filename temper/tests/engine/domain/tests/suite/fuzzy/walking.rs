@@ -18,13 +18,9 @@ fn drawn(seed: u64) -> Settings {
     }
 }
 
-/// Walks each seed twice in lockstep and compares the complete state of both
-/// worlds at every iteration (`run_replayed`). The walk is slow by its
-/// compare: the `{:?}` of both worlds at every iteration, 493 MB of text over
-/// the 64 seeds and 84% of the walk's time, so the seeds run as eight shards
-/// that share the fuzzy suite's threads (testing-strategy.md, section 8). The
-/// cure is the state digest of skein's testing-strategy.md, section 6, once
-/// the state types derive `Hash`; the shards hold only until it lands.
+/// Walks both worlds in lockstep, comparing their state digests and exact traces
+/// at every iteration, then their complete text when settled (`run_replayed`).
+/// Eight shards share the fuzzy suite's threads (testing-strategy.md, section 8).
 fn shard(seeds: Range<u64>) {
     for seed in seeds {
         let settings = drawn(seed);
@@ -43,65 +39,49 @@ fn fuzzy_walking_seeds_cover_every_commit_cut() {
     assert_eq!(covered.len(), 8, "both commit cuts across delayed/immediate store and page terminals");
 }
 
-/// Seeds 0 to 7 of the walk. Sharded for its cost: the `{:?}` of both worlds
-/// at every iteration, 493 MB of text and 84% of the walk's time, until the
-/// state digest (`shard`).
+/// Seeds 0 to 7 of the 64-seed lockstep replay (`shard`).
 #[test]
 fn fuzzy_walking_shard_0() {
     shard(0..8);
 }
 
-/// Seeds 8 to 15 of the walk. Sharded for its cost: the `{:?}` of both worlds
-/// at every iteration, 493 MB of text and 84% of the walk's time, until the
-/// state digest (`shard`).
+/// Seeds 8 to 15 of the 64-seed lockstep replay (`shard`).
 #[test]
 fn fuzzy_walking_shard_1() {
     shard(8..16);
 }
 
-/// Seeds 16 to 23 of the walk. Sharded for its cost: the `{:?}` of both worlds
-/// at every iteration, 493 MB of text and 84% of the walk's time, until the
-/// state digest (`shard`).
+/// Seeds 16 to 23 of the 64-seed lockstep replay (`shard`).
 #[test]
 fn fuzzy_walking_shard_2() {
     shard(16..24);
 }
 
-/// Seeds 24 to 31 of the walk. Sharded for its cost: the `{:?}` of both worlds
-/// at every iteration, 493 MB of text and 84% of the walk's time, until the
-/// state digest (`shard`).
+/// Seeds 24 to 31 of the 64-seed lockstep replay (`shard`).
 #[test]
 fn fuzzy_walking_shard_3() {
     shard(24..32);
 }
 
-/// Seeds 32 to 39 of the walk. Sharded for its cost: the `{:?}` of both worlds
-/// at every iteration, 493 MB of text and 84% of the walk's time, until the
-/// state digest (`shard`).
+/// Seeds 32 to 39 of the 64-seed lockstep replay (`shard`).
 #[test]
 fn fuzzy_walking_shard_4() {
     shard(32..40);
 }
 
-/// Seeds 40 to 47 of the walk. Sharded for its cost: the `{:?}` of both worlds
-/// at every iteration, 493 MB of text and 84% of the walk's time, until the
-/// state digest (`shard`).
+/// Seeds 40 to 47 of the 64-seed lockstep replay (`shard`).
 #[test]
 fn fuzzy_walking_shard_5() {
     shard(40..48);
 }
 
-/// Seeds 48 to 55 of the walk. Sharded for its cost: the `{:?}` of both worlds
-/// at every iteration, 493 MB of text and 84% of the walk's time, until the
-/// state digest (`shard`).
+/// Seeds 48 to 55 of the 64-seed lockstep replay (`shard`).
 #[test]
 fn fuzzy_walking_shard_6() {
     shard(48..56);
 }
 
-/// Seeds 56 to 63 of the walk. Sharded for its cost: the `{:?}` of both worlds
-/// at every iteration, 493 MB of text and 84% of the walk's time, until the
-/// state digest (`shard`).
+/// Seeds 56 to 63 of the 64-seed lockstep replay (`shard`).
 #[test]
 fn fuzzy_walking_shard_7() {
     shard(56..64);

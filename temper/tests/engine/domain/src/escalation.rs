@@ -4,6 +4,7 @@
 
 use crate::escalation_referee::{QUESTION, REASON, REPORT, Referee, Story};
 use crate::protocol::{self, Protocol};
+use crate::replay::{same_digest, same_text};
 use crate::store::Store;
 use crate::walking;
 use jig_domain_authority as authority;
@@ -20,7 +21,7 @@ use temper_engine_domain::{Delivery, Record, Write};
 const ESCALATION_WRITES: u32 = 2_122;
 
 /// One durable process cut, without changing the outside scripts or store
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Cut {
     /// Keep the process throughout.
     None,
@@ -35,7 +36,7 @@ pub enum Cut {
 
 /// Finite deterministic scenario configuration, with tiny pages and optional
 /// diagnostic saturation (testing-strategy.md, section 3).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Settings {
     /// Real child's reproducible seed.
     pub seed: u64,
@@ -64,33 +65,33 @@ impl Settings {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum WorkerAnswer {
     Idle,
     Retained,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum SignInScript {
     Waiting,
     Sent,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Recovery {
     None,
     Pending,
     Sent,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Hash, Debug)]
 struct AskInput {
     owner: usize,
     key: [u8; 16],
     ask: people::Ask,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Hash, Debug)]
 enum ReadPurpose {
     Requester,
     FinalRole,
@@ -100,7 +101,7 @@ enum ReadPurpose {
 /// A held chat the scripted person waits to see; the root's reads are the
 /// core's, so the world sees it in its durable row (jig's
 /// `client/domain/contract.md`, 6).
-#[derive(Clone, Debug)]
+#[derive(Clone, Hash, Debug)]
 struct PendingRead {
     to: Token,
     owner: usize,
@@ -111,7 +112,7 @@ struct PendingRead {
 /// Frozen world including real root state, store and pending outside scripts.
 /// Referee predictions come from inputs and durable boundary evidence, never
 /// from a private-state query.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct World {
     settings: Settings,
     domain: engine::Domain,
@@ -909,18 +910,19 @@ pub fn run_replayed(settings: Settings) -> World {
         if first.settled() {
             assert!(replay.settled(), "replay settled at same cut: {settings:?}; {}", replay.unsettled());
             first.referee.final_state(&first.store.rows).expect("replayed finite funding");
+            same_text(&first, &replay, &format_args!("settled escalation: {settings:?}"));
             first.close();
             replay.close();
             return first;
         }
         first.iterate();
         replay.iterate();
-        assert_eq!(
-            format!("{first:?}"),
-            format!("{replay:?}"),
-            "complete frozen escalation state for {settings:?} at iteration {}",
-            first.iteration
-        );
+        let first_trace = std::mem::take(&mut first.trace);
+        let replay_trace = std::mem::take(&mut replay.trace);
+        assert_eq!(first_trace, replay_trace, "escalation trace: {settings:?}");
+        same_digest(&first, &replay, &format_args!("escalation iteration {}: {settings:?}", first.iteration));
+        first.trace = first_trace;
+        replay.trace = replay_trace;
     }
     panic!("escalation replay did not settle: {}", first.unsettled());
 }

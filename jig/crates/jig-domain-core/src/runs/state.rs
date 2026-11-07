@@ -23,7 +23,7 @@ pub enum RunAdmission {
 /// Bounded recent opaque conversation while a due task's store pages are read.
 /// Each retained turn counts its four-byte length beside its opaque body
 /// (domain/engine.md, 7.2).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct Transcript {
     pub window: Option<(u64, u32)>,
     /// An upgrade closed the loaded window or crossed its claim.
@@ -342,7 +342,7 @@ impl Core {
     }
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct RestoringProof {
     pub attempt: u64,
     pub turn: u32,
@@ -461,7 +461,7 @@ impl RunPolicy {
 /// The root's complete task-specific charter, kept behind one bounded
 /// assignment cell so delivery queues carry a small fixed-size value. Its settings
 /// revision is fixed when preparation begins (domain/engine.md, 17.3).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct RunCharter {
     /// The settings revision recorded as this run began preparation.
     pub revision: u32,
@@ -476,7 +476,7 @@ pub struct RunCharter {
     pub budget: u64,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum RoutedCall {
     Escalation { key: CallKey, task: u64, revision: u64, passed_up: bool },
     Propose { key: CallKey, proposal: u64 },
@@ -490,26 +490,26 @@ pub enum RoutedCall {
     Control { key: CallKey, target: u64, revised: bool },
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct RetainedResult {
     pub task: u64,
     pub kind: tasks::ResultKind,
     pub words: Box<[u8]>,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct PendingRelay {
     pub previous: Option<u64>,
     pub message: u64,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum PersonProposalRoute {
     Deciding { request: Token, proposer: u64, proposal: u64, by: u64, moved: Option<people::Moved> },
     Accepting { request: Token, person: u64, proposer: u64, proposal: u64, message: u64 },
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum PersonTaskRoute {
     Compound { project: u32, operations: u32, first_message: u64 },
     PoolSet { project: u32, person: u64 },
@@ -523,7 +523,7 @@ pub enum PersonTaskRoute {
     Amended { task: u64, released: bool },
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum GoalRoute {
     Offering { proposal: u64, to: u32, stubs: Box<[tasks::Stub]> },
     Withdrawing { proposer: u64, proposal: u64, moved: Option<people::Moved> },

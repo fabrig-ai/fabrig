@@ -2,6 +2,24 @@
 
 2026-11-07. Where temper's code lags or departs from [forge.md](forge.md).
 
+Section 8.4 has no known implementation gap in a pull's files page
+answering `TooLarge`: its identity and gathered content remain, the
+files-omitted notice names the page and recovery tools, and comparison
+continues without reading later files pages. The forge domain world's
+review table covers a section gathered with an oversized file page.
+
+- **Design departs:** 8.4, from `replay-repairs`' request item 2,
+  decided by its plan's cut: a review starts with an omitted-page notice
+  rather than including the oversized file. A files page already carries
+  whole files, and the reference already sizes its answer bound from
+  the room, so neither paging between files nor that room admits one
+  file beyond the bound. The requested refusal's bound met and measured
+  size remain section 20's open decision: skein supplies only bare
+  `TooLarge`, and carrying those facts changes its public interface and
+  temper's stored answer. `read_pull_files` therefore still names
+  `forge.client.rows or forge.client.answer_bytes` and says the measure
+  is unknown; its host answer limit is a separate bound.
+
 Sections 4, 8.7 and 8.9 have no known implementation gap in
 forge-scoped party keys and the shared lookup. Adoption seeds the forge
 and user pair; reviews use the pull request's forge, and eligibility uses

@@ -11,6 +11,23 @@ fn a_restart_over_a_live_change_answers_a_person() {
 
 #[test]
 fn an_adoption_saves_a_pending_window_before_the_engine_commit() {
+    PROGRESS.with(|progress| *progress.borrow_mut() = Progress::default());
+    let mut seen = None;
+    assert_eq!(saved_adoptions(&mut seen), Some(std::collections::BTreeSet::new()), "initial empty saved keys");
+    stories::set(Story::Adoption);
+    stories::setup_settings(Phase::Story);
+    let fresh = stories::given(&serde_json::from_slice(&fixtures::document()).expect("deployment JSON"));
+    assert_eq!(format!("{:?}", fixtures::adoption_given()), format!("{fresh:?}"), "cached adoption defaults");
+    assert_eq!(
+        format!("{:?}", fixtures::adoption_codec()),
+        format!("{:?}", fixtures::codec()),
+        "cached adoption codec bounds"
+    );
+    assert_eq!(
+        stories::settings_file(),
+        temper_playground::documents::settings_file().as_slice(),
+        "cached stock settings bytes"
+    );
     let setup = Rc::new(RefCell::new(referee::Run::default()));
     let (outcome, _, _) =
         run_phase(fixtures::calm(1), Story::Adoption, Phase::Story, machine::fresh(), Store::new(), setup.clone());
@@ -18,8 +35,8 @@ fn an_adoption_saves_a_pending_window_before_the_engine_commit() {
     assert_eq!(outcome.adopted, 1);
     PROGRESS.with(|progress| {
         assert!(
-            setup.borrow().window.is_some(),
-            "saved pending adoption window: {:?}",
+            setup.borrow().window.is_some_and(|(start, end)| start < end),
+            "saved pending adoption window precedes the engine commit: {:?}",
             progress.borrow().cache.borrow()
         );
     });

@@ -174,6 +174,9 @@ impl Harness for OneProcess {
         if stories::playground() {
             return temper_playground::documents::given(document);
         }
+        if stories::adoption() {
+            return fixtures::adoption_given();
+        }
         stories::given(&serde_json::from_slice(&fixtures::document()).expect("deployment JSON"))
     }
 }
@@ -223,7 +226,13 @@ impl Observe for ServiceObserver {
             before_iteration: 0,
             in_flight: std::collections::BTreeSet::new(),
             reserve: REFUSE_START.with(std::cell::Cell::get).then(crate::box_listener::Listener::new),
-            codec: if stories::playground() { stories::playground::codec() } else { fixtures::codec() },
+            codec: if stories::playground() {
+                stories::playground::codec()
+            } else if stories::adoption() {
+                fixtures::adoption_codec()
+            } else {
+                fixtures::codec()
+            },
             families: temper_protocol_store::bounds(
                 &temper_service::limits::profile(temper_service::limits::Profile::Small).forge,
                 jig_protocol_config::profile(jig_protocol_config::Profile::Small).core.tasks.spec_bytes,
@@ -878,8 +887,16 @@ pub fn crash(settings: Settings, cut: skein_world::Cut, draw: &mut skein_lib::Rn
     crate::oracle::cold(settings, disk, store, &run);
     (before, outcome)
 }
-pub(crate) fn saved_adoptions() -> std::collections::BTreeSet<[u8; 16]> {
-    PROGRESS.with(|progress| referee::client::cache::saved(&progress.borrow().cache))
+pub(crate) fn saved_adoptions(seen: &mut Option<usize>) -> Option<std::collections::BTreeSet<[u8; 16]>> {
+    PROGRESS.with(|progress| {
+        let progress = progress.borrow();
+        let length = progress.cache.borrow().len();
+        if *seen == Some(length) {
+            return None;
+        }
+        *seen = Some(length);
+        Some(referee::client::cache::saved(&progress.cache))
+    })
 }
 pub fn require_pending_at_cut(outcome: &Outcome, seed: u64, before: u32) {
     if !outcome.adoption_pending_at_restart {
@@ -987,7 +1004,7 @@ fn token_bytes(disk: &mut skein_fake_machine::Machine) -> Vec<u8> {
 fn write_settings(disk: &mut skein_fake_machine::Machine) {
     if stories::needs_settings() || stories::first_start() {
         let root = disk.lay(&[
-            skein_fake_machine::Item::file(b"settings.json", &stories::settings_file()),
+            skein_fake_machine::Item::file(b"settings.json", stories::settings_file()),
             skein_fake_machine::Item::file(b"admin.token", crate::restart_control::ADMIN_TOKEN).mode(0o600),
         ]);
         disk.close(root);

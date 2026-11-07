@@ -1063,7 +1063,7 @@ pub enum SettingsOutcome {
     Stale { newest: u32 },
 }
 /// Root-authenticated settings terminal; its message was reserved at proposal admission.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SettingsDecision {
     pub proposer: u64,
     pub proposal: u64,

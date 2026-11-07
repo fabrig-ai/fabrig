@@ -14,7 +14,7 @@ pub const PANEL_NAME_BYTES: u32 = 1024;
 /// Subjects marked together (domain/root.md, section 10).
 pub const MARKED: u32 = 32;
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum PanelStep {
     Ended,
     Ready { landing: Option<u64> },
@@ -36,33 +36,33 @@ pub enum PanelStep {
     Red { merge: [u8; 32], tiers: Box<[Box<[u8]>]> },
     Cleared { merge: [u8; 32], tiers: Box<[Box<[u8]>]>, uncleared: bool },
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct PanelGate {
     pub number: u64,
     pub kind: change::GateKind,
     pub blocking: bool,
     pub verdict: change::Status,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct PanelUsed {
     pub used: u32,
     pub limit: u32,
 }
 /// A change's questions (domain/forge.md, 8.11; client/README.md, 4.6).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PanelQuestions {
     pub route: change::Route,
     pub taken: PanelUsed,
     pub open: Box<[PanelQuestion]>,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PanelQuestion {
     pub asker: u64,
     pub number: u64,
     pub line: Box<[u8]>,
     pub stands: PanelStands,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum PanelStands {
     Taken,
     Foreman(Option<u64>),
@@ -70,7 +70,7 @@ pub enum PanelStands {
     Held,
 }
 /// Last judged reviews, unsaved and bound to the merge head (domain/forge.md, 8.7).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ReviewFacts {
     pub head: Option<[u8; 32]>,
     pub reviews_complete: bool,
@@ -78,14 +78,14 @@ pub struct ReviewFacts {
     pub unmapped: Box<[UnmappedReview]>,
 }
 /// A forge account without a verified project person; its display name grants nothing.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct UnmappedReview {
     pub account: u64,
     pub head: [u8; 32],
     pub verdict: skein_forge::api::Verdict,
 }
 /// Whether the current head's reviews have been read whole.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ReviewRead {
     /// No judged reviews at the current head, including after restart.
     Unread,
@@ -95,7 +95,7 @@ pub enum ReviewRead {
     Complete,
 }
 /// One enforcing landing rule's approval requirement and its counted reviews.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PanelApproval {
     pub scope: u32,
     pub rule: u32,
@@ -107,7 +107,7 @@ pub struct PanelApproval {
     pub remaining: Option<u32>,
     pub refused: bool,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Panel {
     pub way: change::Way,
     pub in_landing: Option<u64>,

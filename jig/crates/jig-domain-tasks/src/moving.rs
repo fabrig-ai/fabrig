@@ -89,7 +89,7 @@ pub(crate) fn refuse(
 }
 
 /// Move a task to a person's tree (domain/tasks.md, section 7).
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Move {
     pub task: u64,
     pub reason: Box<[u8]>,

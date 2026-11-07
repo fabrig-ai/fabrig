@@ -6,7 +6,7 @@ use super::{
 use jig_domain_core::{StepCancel, StepMessage};
 
 /// A proposed step's relay is saved only after jig admits the whole step.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct ChangeStep {
     pub(crate) foreman: bool,
     pub(crate) delegate: Option<change::Delegate>,

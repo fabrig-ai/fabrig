@@ -23,7 +23,7 @@
 use crate::{Domain, End, Fact, Follow, Limits, Made, Refusal, Request, Window};
 use skein_lib::{Id, List, Lossy, Queue, Token};
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Watcher {
     pub(crate) token: Token,
     party: Token,
@@ -35,7 +35,7 @@ pub(crate) struct Watcher {
     pub(crate) revision: Option<u64>,
     pub(crate) ended_turn: Option<crate::TurnName>,
 }
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Hash, Debug)]
 pub(crate) enum State {
     Idle,
     Making { changed: bool },

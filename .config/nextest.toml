@@ -115,11 +115,6 @@ test-group = "temper-real-loop"
 filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
 slow-timeout = { period = "10s" }
 
-# temper: the walking story's eight shards first, the suite's longest tests.
-[[profile.fuzzy.overrides]]
-filter = "(package(/^temper(-|$)/) | package(=git-transcripts)) & (test(/^fuzzy_walking_shard_/) | test(/^fuzzy::walking::fuzzy_walking_shard_/))"
-priority = 20
-
 [profile.browser-skein]
 default-filter = "((package(=skein-browser-world) | package(=skein-ui-web-tests)) & binary(/^browser_/)) & (package(/^skein-/) | package(=forgejo-conformance) | package(=github-conformance))"
 global-timeout = "4m"

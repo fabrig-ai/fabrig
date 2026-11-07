@@ -80,12 +80,12 @@ pub struct Defaults {
     pub rules: authority::Rules,
     pub models: Box<[CatalogueModel]>,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Default {
     pub value: Value,
     pub revision: u32,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Changed {
     pub value: Option<Value>,
     pub revision: u32,
@@ -158,13 +158,13 @@ fn include_project(projects: &mut skein_lib::Set<u32>, project: u32) {
     }
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct Change {
     pub against: u32,
     pub items: Box<[Item]>,
     pub running: Running,
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct Proposed {
     pub against: u32,
     pub items: Box<[Item]>,
@@ -208,14 +208,14 @@ pub struct Revision {
     pub applications: Box<[application::RevisionRecorded]>,
 }
 /// A failed setting check, retaining bounded document facts when applicable (engine.md, 17.9).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Failure {
     pub setting: Setting,
     pub fault: Fault,
     /// The document member and rule, when a charter document fails.
     pub detail: Option<people::SettingDetail>,
 }
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     pub revisions: u32,
     pub versions: u32,
@@ -236,11 +236,11 @@ pub enum Key {
     Extent,
     History(u32),
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct CharterVersion {
     pub charter: Option<Box<Charter>>,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Proposal {
     pub key: Option<u64>,
     pub against: u32,
@@ -256,7 +256,7 @@ impl Proposal {
 
 /// Defaults and changes own set values; resolved charters cache the catalogue.
 /// Revision history stays in the store.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct Current {
     pub(crate) resolved: Map<u32, Charter>,
     pub(crate) defaults: Map<Setting, Default>,
@@ -475,7 +475,7 @@ fn offered(defaults: &Map<Setting, Default>, changes: &Map<Setting, Changed>) ->
 }
 
 /// Settings' six record shapes, shared by the core and its store codec.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Record {
     Default { setting: Setting, default: Default },
     Changed { setting: Setting, changed: Changed },
@@ -681,7 +681,7 @@ pub(crate) fn is_project_policy(setting: Setting) -> bool {
 }
 
 /// One paged restore and its connector continuations (jig/docs/design/domain/engine.md, 17.10).
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Restoring {
     pub(crate) pending: Option<Restoration>,
     pub(crate) groups: skein_lib::Slab<Option<RestoreGroup>>,
@@ -694,7 +694,7 @@ impl Restoring {
         }
     }
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct Restoration {
     pub(crate) party: crate::routing::party::dispatch::Party,
     pub(crate) revision: u32,
@@ -704,12 +704,12 @@ pub(crate) struct Restoration {
     pub(crate) left_out: Box<[Setting]>,
     pub(crate) proposal: Option<u64>,
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) enum RestoreEdit {
     Core(Edit),
     Application(application::Restored),
 }
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct RestoreGroup {
     pub(crate) connector: u16,
     pub(crate) items: Box<[application::Restored]>,

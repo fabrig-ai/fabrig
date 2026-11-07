@@ -131,7 +131,7 @@ pub struct Call {
 }
 
 /// parent -> fleet
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Event {
     ReadList {
         read: u64,

@@ -27,7 +27,7 @@ use skein_lib::bytes::copy_of;
 use skein_lib::{Env, Id, List, Queue, Token, Wall};
 
 /// One opaque live run's current bounded writing, watched or not.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct RetainedRun {
     attempt: u64,
     turn: Option<TurnName>,
@@ -40,7 +40,7 @@ pub struct RetainedRun {
     cut: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Hash, Debug, PartialEq, Eq)]
 enum CallSlot {
     Made(Call),
     Writing(WritingCall),
@@ -68,7 +68,7 @@ impl RetainedRun {
 }
 
 /// A stream terminal advances only this named turn's position.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Hash, Debug)]
 pub(crate) struct Flight {
     turn: TurnName,
     to: u32,
