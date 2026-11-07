@@ -7,7 +7,9 @@ Section 7 has no known gap in the requested hangup event or its distinct
 
 - **Not yet:** 5: a tree's metadata, the filesystem's status and sync, and
   btrfs's subvolumes (`StatEntry` to `SubvolumePath`). 6, 6.2 to 6.4:
-  cgroups and contained trees.
+  cgroups and contained trees. 6: a child spawned alone (`SpawnAlone`)
+  and a null descriptor (`Way::Null`), which `tui-recorded`'s
+  `child-alone` builds.
 - **Departs:** 2: `Io::new`
   asserts `skein_io::valid`, but `skein-fake-peers/src/face.rs`'s `valid`
   and `skein-oauth-accounts/src/limits.rs`'s `io_capacity_bound` rebuild

@@ -14,7 +14,8 @@
 |---|---|---|---|---|
 | `tui-approval-flow` | `tui-surface` | none | `temper-client-tui` (state, `approval_address`, `may_ask_again`, the view's clock) | 60 |
 | | `approval-lines` | `tui-surface` | `temper-client-tui` (words, view, tick, goldens) | 150 |
-| | `approval-host` | `tui-surface` | `temper-client-shell-tui` (host, `opener`, run), `temper`'s `tui.rs` | 180 |
+| | `child-alone` | none | `skein-io` (`Request::SpawnAlone`, `Way::Null`), `skein-shell`'s spawn, `skein-sim` | 120 |
+| | `approval-host` | `tui-surface`, `child-alone` | `temper-client-shell-tui` (host, `opener`, run), `temper`'s `tui.rs` | 180 |
 | | `approval-story` | `approval-host`, `approval-lines` | `temper/tests/client` | 120 |
 | `tui-journeys` | `originals` | none | `temper-client-shell-web`'s `journey` (three kinds, `Originals::new`, `redact_field`, `scan::{original, shape}`) | 75 |
 | | `tui-lines` | none | `temper-client-shell-tui`'s `journey` (feature `record`; the file's lines) | 120 |
@@ -28,7 +29,7 @@
 
 ## Critical path
 
-`tui-surface` (60) → `approval-host` (180) → `tui-replay` (180) → `tui-redact` (150) → `tui-print` (210) → `tui-again` (240) → `first-journey` (90): about 1,110 implementer-minutes. Off it: `originals` (75) and `tui-lines` (120) from the start; `approval-lines` (150) beside `approval-host`; `approval-story` (120) after both; `tui-record` (150) and `tui-walk` (75) beside `tui-redact` and `tui-print`. Twelve tasks, about 1,800 implementer-minutes in all.
+`child-alone` (120) → `approval-host` (180) → `tui-replay` (180) → `tui-redact` (150) → `tui-print` (210) → `tui-again` (240) → `first-journey` (90): about 1,170 implementer-minutes. Off it: `tui-surface` (60), before `approval-host`; `originals` (75) and `tui-lines` (120) from the start; `approval-lines` (150) beside `approval-host`; `approval-story` (120) after both; `tui-record` (150) and `tui-walk` (75) beside `tui-redact` and `tui-print`. Thirteen tasks, about 1,920 implementer-minutes in all.
 
 ## Decisions
 
@@ -38,11 +39,13 @@
 - **The journey module is `temper-client-shell-tui`'s, under `record`;** `temper`'s own `record` feature, which nothing else enables, is what makes a TUI record, so a workspace build's feature unification never makes the shipped TUI record.
 - **A TUI journey has a `walk`,** the steps `again` follows, so that the first journey is made by `again` with no earlier recording, and `again` needs no stillness test: each step waits for a frame's text, read by replaying a save natively.
 - **The scan cuts the approval's code** read from the TUI's own `browse` addresses before seeking shapes, since `code=WDJB-MJHT` takes the *code* shape; the browser's scan is untouched.
+- **The opener is spawned alone** (`child-alone`, in skein first, `AGENTS.md`, 1): io's close of a child kills its group, which would end the browser an opener started, so skein's io gains `Request::SpawnAlone`, whose close kills the child alone, and `Way::Null` for the opener's 0, 1 and 2 (`skein/docs/design/io.md`, 6). Every exhaustive match on `io::Request` and `kernel::Way` gains an arm, in every tree.
 - No stored format or protocol of the engine changes. The seam gains a report (`Opened`); before v0.1.0, with no compatibility.
 
 ## Overlaps
 
 - **The browser's journeys** (`temper-client-shell-web`'s `journey`, `tools/journeys`, `docs/design/client/journeys/`): `originals` adds to the shared redaction and scan, additions only; `tui-print` and `tui-again` add the TUI's beside the browser's in `tools/journeys`. The browser's recordings and prints are never touched.
+- **skein's io** (`child-alone`): additions only, `SpawnAlone` and `Way::Null`; `Spawn`'s group kill is unchanged, and the other trees' matches gain arms and nothing else.
 - **`temper-client-domain`:** no change. The root's `asked`, `Domain::asked()` and `print_approve` already give the TUI what it needs.
 - **`tui-lines` and `approval-host`** both add one line to `temper-client-shell-tui/src/lib.rs` (`mod journey`, `mod opener`) at the same time; nothing else of theirs meets.
 - **`temper-client-shell-tui`'s `journey` module** is written by `tui-lines`, then `tui-replay`, then `tui-redact`, `tui-record` and `tui-walk` at once: the three meet only in `src/journey.rs`'s `mod` and `pub use` lines (and `tui-redact`'s `Cargo.toml` feature line), each told to keep its hunk there.

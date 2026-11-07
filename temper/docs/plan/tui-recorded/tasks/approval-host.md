@@ -2,7 +2,7 @@
 id = "approval-host"
 part = "tui-approval-flow"
 kind = "feature"
-needs = ["tui-surface"]
+needs = ["tui-surface", "child-alone"]
 files = ["temper/crates/temper-client-shell-tui/src/host.rs", "temper/crates/temper-client-shell-tui/src/opener.rs", "temper/crates/temper-client-shell-tui/src/run.rs", "temper/crates/temper-client-shell-tui/src/lib.rs", "temper/crates/temper-client-shell-tui/src/tests.rs", "temper/crates/temper-client-shell-tui/tests/suite/run.rs", "temper/crates/temper/src/tui.rs", "temper/crates/temper/src/tests/tui.rs"]
 effort = "high"
 minutes = 180
@@ -41,8 +41,8 @@ Acceptance:
 - Owned: the files above; `opener.rs` is new, with `pub mod opener;` in `lib.rs`.
 - Readers, call sites only: every `run::Settings` literal gains `opener` (`temper/crates/temper/src/tui.rs`, `tests/suite/run.rs`); every match on `host::Report` gains `Opened`; `temper/tests/client/src/tui.rs` as above. `temper-client-tui` is `approval-lines`'s: read it, change nothing there.
 - Options:
-  - The run's opener on its own io (default), its child's stdin, stdout and stderr opened on `/dev/null` through the spawn's descriptor table; if skein's `Spawn` cannot give a child `/dev/null`, give it pipes the run reads and drops, and say so.
-  - Closing with an opener still running: abort its process alone (default) or leave it, whichever skein's io allows without waiting; never wait for it; say which.
+  - The run's opener on its own io, spawned by `io::Request::SpawnAlone` (from `child-alone`), its child's stdin, stdout and stderr `kernel::Way::Null` entries of the spawn's table; no pipes.
+  - Closing with an opener still running: `Abort` it; io kills the opener alone and never its group, so the browser it started stays (`skein/docs/design/io.md`, 6, *A child spawned alone*). Never wait for its own end.
   - The binary's `executable` check: a regular file with any execute bit, through `std::fs::metadata` (default; the binary is ordinary Rust).
   - The host's ask when the root's link is signed out with an ask held from an earlier opening: the root's `asked` is dropped only once the link leaves signed out, so after a sign-out elsewhere the root may still hold the old ask; if so, step `AskApproval` anyway at the new opening (the root replaces it) and say so.
 
@@ -56,3 +56,7 @@ Acceptance:
 ## Report
 
 The implementer's report, with: each row and its broken-rule failure; how the opener's descriptors and closing were done; what the client world's helper needed; the sim's answer to a spawn.
+
+## Answers
+
+2026-11-07. *Should a skein prerequisite give child-only cleanup that keeps descendants, or should this task split?* A prerequisite, `child-alone`, now in this plan and in `needs`: skein's io gains `Request::SpawnAlone` (closing kills the child alone while it runs, signals nothing once it exited, then reaps; its group is never signalled by io) and `kernel::Way::Null` (a child descriptor on `/dev/null`), written in `skein/docs/design/io.md`, 6 and 6.3 and `kernel.md`, 6.2. No split: this task waits for it, then spawns the opener with `SpawnAlone`, its 0, 1 and 2 `Null`, and `Abort`s a running one at closing (the Options above say so). `opener::spawn` still returns a `kernel::Spawn`; the run wraps it in `SpawnAlone`. In the run's world, the simulated kernel answers `SpawnAlone` as `Spawn`.
