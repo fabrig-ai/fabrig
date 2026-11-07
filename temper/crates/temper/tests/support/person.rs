@@ -577,7 +577,13 @@ impl Person {
                     self.signing_retry = Some(now.saturating_add(self.signing_backoff).min(until));
                     self.signing_backoff = self.signing_backoff.saturating_mul(2).min(SIGN_IN_MOST);
                 }
-                other @ (Signing::Refused | Signing::Lost | Signing::SignedOut | Signing::Full { .. }) => {
+                other @ (Signing::LinkUsed
+                | Signing::LinkExpired
+                | Signing::LinkUnknown
+                | Signing::Refused
+                | Signing::Lost
+                | Signing::SignedOut
+                | Signing::Full { .. }) => {
                     panic!("native signing failed: {other:?}");
                 }
             }

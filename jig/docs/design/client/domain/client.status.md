@@ -7,7 +7,6 @@ fact for `me` and application watches through retries and recovery.
 
 - **Not yet:** 10: a committed turn's calls carry no objects or parts:
   `jig-protocol-transcript` decodes them empty.
-- **Not yet:** 12: `not_signed_in` has no `link_used`, `link_expired` or `link_unknown`.
 - **Not yet:** 12: no story relays a person's decision with their own credential.
   17, 20: the one-shot mode and its story, and a service in a host or world
   (the client takes `With::Service`).
