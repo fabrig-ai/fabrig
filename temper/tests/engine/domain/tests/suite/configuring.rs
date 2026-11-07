@@ -790,7 +790,7 @@ fn direct_ways_are_checked_against_the_templates_the_decision_leaves() {
         ("zero", added.clone(), 0, true),
         ("current", added.clone(), 3, true),
         ("installed", added.clone(), 4, true),
-        ("absent", added, 5, false),
+        ("absent", added, 6, false),
         ("removed", s::Item { setting: s::Setting::Template(3), edit: s::Edit::Removed }, 3, false),
         ("reset addition", s::Item { setting: s::Setting::Template(4), edit: s::Edit::Reset }, 4, false),
         ("reset default", s::Item { setting: s::Setting::Template(3), edit: s::Edit::Reset }, 3, true),
@@ -1512,7 +1512,7 @@ fn note_world() -> World {
     bounds.loads.bytes = 131_072;
     bounds.loads.reply_bytes = 131_072;
     bounds.loads.transcript_bytes = 131_072;
-    bounds.tasks.charters = 10;
+    bounds.tasks.charters = 11;
     bounds.authority.segments = 8;
     bounds.call_records = 64;
     bounds.forge.named_calls = 64;
@@ -1744,7 +1744,7 @@ fn a_member_reads_and_proposes_a_whole_model_inline_or_from_a_note() {
         bounds.loads.bytes = 131_072;
         bounds.loads.reply_bytes = 131_072;
         bounds.loads.transcript_bytes = 131_072;
-        bounds.tasks.charters = 10;
+        bounds.tasks.charters = 11;
         bounds.authority.segments = 8;
         bounds.call_records = 64;
         bounds.forge.named_calls = 64;

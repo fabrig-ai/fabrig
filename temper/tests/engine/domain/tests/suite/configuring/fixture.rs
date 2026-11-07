@@ -12,13 +12,13 @@ pub(super) const PROJECT: u32 = 1;
 pub(super) const CHANNEL: Token = Token::new(7);
 pub(super) const SEED: u64 = 9761;
 pub(super) const REASON: &str = "Explain running work\ntemper enforces: running work stays on its revision\nyour agents follow: push early, in charter 1";
-// Stock has seven charters, fourteen grants and twelve executor kinds. The
+// Stock has eight charters, fourteen grants and thirteen executor kinds. The
 // stories need three simultaneous chats, one extra charter, and their replies.
-const CHARTERS: u32 = 8;
+const CHARTERS: u32 = 9;
 const TASKS: u32 = 4;
 const SLOTS: u32 = 3;
 const GRANTS: u32 = 16;
-const EXECUTORS: u32 = 13; // Twelve stock kinds and the removable world's charter.
+const EXECUTORS: u32 = 14; // Thirteen stock kinds and the removable world's charter.
 const RUN_BYTES: u32 = 16_384;
 const TRANSCRIPT_BYTES: u32 = 32_768;
 const MESSAGE_BYTES: u32 = 512;

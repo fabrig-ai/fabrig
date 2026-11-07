@@ -78,8 +78,6 @@ person's next words, whether the previous run still listens or has parked.
 - **Not yet:** 4.2: a run whose charter names the asking family is given the
   project's home repository (`temper-engine-domain/src/route/forge_route.rs`,
   `run_workspace`).
-- **Not yet:** 8.4: no charter 11, template 5 or `ask.txt` in the stock
-  (`temper-service/src/stock.rs`).
 - **Not yet:** 8.4: no step test holds what temper gives an asking charter's first
   request to 16,384 bytes on both shapes (`temper-service/src/tests/`).
 - **Not yet:** 8.4.1: `see` reads no address: no parser or routing of the

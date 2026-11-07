@@ -401,13 +401,13 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
         seed["policy"] = 1.into();
     }
     super::configuration::use_stock(value);
-    // Seven slots hold the stock charters.
-    value["engine"]["limits"]["overrides"]["tasks.charters"] = 7.into();
-    value["engine"]["limits"]["overrides"]["core.templates"] = 3.into();
+    // Eight slots hold the stock charters.
+    value["engine"]["limits"]["overrides"]["tasks.charters"] = 8.into();
+    value["engine"]["limits"]["overrides"]["core.templates"] = 4.into();
     // The process uses stock's fourteen grants, beyond the world's ten-grant policy.
     value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 16.into();
-    // The creation offer carries six stock charters and three procedures.
-    value["engine"]["limits"]["overrides"]["documents.lines"] = 6.into();
+    // The creation offer carries seven stock charters and three procedures.
+    value["engine"]["limits"]["overrides"]["documents.lines"] = 7.into();
     super::configuration::turn_bounds::apply(value, super::configuration::turn_bounds::turn_body(&agent));
     write_private(&path, &serde_json::to_vec(&agent).expect("agent JSON"));
 }

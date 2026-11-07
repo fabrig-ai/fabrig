@@ -9,10 +9,6 @@ Charters 2, 6, 7 and 8 hold their roles' rules; the reference settings
 tests check rule placement and hold all five supplied charters to a
 stock worker's bounds and the stored-policy run bound, including parts.
 
-- **Not yet:** 13.4: no charter 11 or template 5 in the stock
-  (`temper-service/src/stock.rs`, `checked_with`); the rules' and policy 1's
-  tools are 1,927, without the asking family, and their delegation names no
-  charter 11 (`ceiling`).
 - **Not yet:** 13.2: an asking charter's proposal is judged for its approvals at
   acceptance alone, not at its call (`temper-engine-domain/src/route/tools.rs`,
   `propose_settings`; `route/kinds.rs`, `approval_refusal`).
