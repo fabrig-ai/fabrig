@@ -3566,6 +3566,7 @@ dependencies = [
  "skein-codec",
  "skein-json",
  "skein-lib",
+ "skein-rows",
  "skein-tls",
 ]
 

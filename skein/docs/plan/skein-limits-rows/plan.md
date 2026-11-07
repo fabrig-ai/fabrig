@@ -66,6 +66,9 @@ Each task fills its own subsection. Suite totals aren't quoted here: the gate re
 | `skein-forge-client` | `tests` | 257 | 206 | 13 | 90 | 76.5 |
 | `skein-oauth-accounts` | `tests` | 161 | 132 | 5 | 34 | 46.4 |
 | `skein-fake-forge-forgejo` | `tests` | 227 | 210 | 13 | 30 | 30.6 |
+| `skein-oauth` | `machine_tests` | 74 | 61 | 4 | 23 | 20.8 |
+| `skein-oauth` | `tests` | 33 | 28 | 3 | 17 | 8.0 |
+| `skein-oauth` | `pkce::tests` | 2 | 1 | 1 | 3 | 1.6 |
 
 Left apart:
 
@@ -74,6 +77,7 @@ Left apart:
 - `skein-forge-client::tests`: all 13 surveyed groups fold; other lifecycle, cache, outbox, queue, recovery, settlement and bound tests retain distinct operations or extra checks. Existing tables remain. The byte-case fixtures now carry Answer values rather than callbacks, and the unused bad_live wrapper is removed.
 - `skein-oauth-accounts::tests`: all five surveyed groups fold. Sign-in, persistence, grant, refresh, cancellation, listener and shared-owner paths with distinct assertions, heap checks and existing tables stay apart.
 - `skein-fake-forge-forgejo::tests`: all 13 surveyed groups fold. Push signing/head, failed-job and deleted-branch hooks have different checks and stay separate; so do other authentication, route, pagination, write and response contracts and existing tables.
+- `skein-oauth`, other client exchanges, OpenID claims, registrations, byte encodings and generated golden tests: distinct validation and lifecycle contracts or existing tables. All eight surveyed groups fold; generated code stays untouched.
 
 ### rows-forge
 
