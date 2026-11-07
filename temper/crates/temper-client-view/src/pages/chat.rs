@@ -57,7 +57,12 @@ pub(crate) fn main(
             super::session::Heading::Chat { whole: &title, title: task.chip.title.bytes() },
         );
         super::session::right(b);
-        super::session::number(b, words, task.chip.task);
+        if task.result.is_some() || super::chats::ended(&task.chip) {
+            let line = crate::choice::ran_line(root, task, &chat.thread, words);
+            super::session::closed_number(b, words, task.chip.task, line.as_deref());
+        } else {
+            super::session::number(b, words, task.chip.task);
+        }
         super::document::seg(b, chat, words, bindings);
         super::chat_sheet::bar(b, root, words, bindings);
         if chat.draft.is_none()
