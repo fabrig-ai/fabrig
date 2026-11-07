@@ -4,7 +4,7 @@ task decide TASK --hold REV release|leave|pass-up [REASON] [--key KEY]
   release|leave|pass-up (outcome): one of release, leave or pass-up; required. The decision
   REASON (reason): text, at most 1048576 bytes, or - to read stdin; optional. Why; sent with leave alone
 Decide the escalation of a held task
-Prints: `done: decide`, or `decided first:`, by whom, how and when, if it was decided already
+Prints: `done: decide`, or `decided first:`, by whom, how and when, if its decision is retained
 --json: the record decide.
 Key: --key KEY, optional.
 A decision made already, by your party or another, answers

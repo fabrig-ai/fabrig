@@ -221,18 +221,18 @@ fn settings_edge_propose(world: &mut World, signed: u64, proposer: people::Propo
 
 #[test]
 fn ended_settings_decisions_keep_the_first_choice_and_pending_replacement() {
-    // (task proposer, how it ended, running) -> repeated first choice.
+    // (task proposer, how it ended, running) -> retained choice, or unknown after replacement.
     for (task_proposer, decision, running, choice) in [
-        (false, None, people::Running::Stays, people::ProposalChoice::Withdrawn),
-        (true, Some(people::ProposalDecision::Accept), people::Running::Stays, people::ProposalChoice::Accepted),
+        (false, None, people::Running::Stays, Some(people::ProposalChoice::Withdrawn)),
+        (true, Some(people::ProposalDecision::Accept), people::Running::Stays, Some(people::ProposalChoice::Accepted)),
         (
             true,
             Some(people::ProposalDecision::Reject { reason: b"Keep the default".as_slice().into() }),
             people::Running::Moves,
-            people::ProposalChoice::Rejected,
+            Some(people::ProposalChoice::Rejected),
         ),
-        (true, None, people::Running::Stays, people::ProposalChoice::Withdrawn),
-        (true, None, people::Running::Moves, people::ProposalChoice::Withdrawn),
+        (true, None, people::Running::Stays, None),
+        (true, None, people::Running::Moves, None),
     ] {
         let (mut world, signed, task) = support::proposing_run(true);
         let proposer = if task_proposer { people::Proposer::Task(task) } else { people::Proposer::Party(OWNER) };
@@ -283,13 +283,10 @@ fn ended_settings_decisions_keep_the_first_choice_and_pending_replacement() {
         assert_eq!(world.store.rows.get(&decision_key), decision_before.as_ref());
         assert_eq!(
             reply,
-            people::Reply::Outcome(people::Outcome::ProposalDecided {
-                proposer,
-                proposal,
-                by: OWNER,
-                at,
-                choice,
-                repeated: true,
+            people::Reply::Outcome(match choice {
+                Some(choice) =>
+                    people::Outcome::ProposalDecided { proposer, proposal, by: OWNER, at, choice, repeated: true },
+                None => people::Outcome::Refused(people::Refusal::Unknown),
             }),
             "{proposer:?}, {choice:?}, {running:?}"
         );
@@ -297,6 +294,43 @@ fn ended_settings_decisions_keep_the_first_choice_and_pending_replacement() {
         world.turn(2, 0, through, b"Reviewed the proposal decision");
         world.park_for_message(0);
         world.close();
+    }
+}
+
+#[test]
+fn missing_proposals_are_unknown_with_or_without_running() {
+    for (proposer, running) in [
+        (people::Proposer::Task(1), None),
+        (people::Proposer::Task(1), Some(people::Running::Stays)),
+        (people::Proposer::Task(1), Some(people::Running::Moves)),
+        (people::Proposer::Party(OWNER), None),
+        (people::Proposer::Party(OWNER), Some(people::Running::Stays)),
+        (people::Proposer::Party(OWNER), Some(people::Running::Moves)),
+    ] {
+        let mut world = world();
+        let owner = world.sign_in.expect("owner sign-in");
+        let pending = propose(&mut world, owner, 53, 1, Box::new([charter_item(b"still waiting")]));
+        let settings = settings_document(&mut world, owner);
+        let state = proposal_state(&world, pending);
+        fixtures::ask_as(
+            &mut world,
+            owner,
+            54,
+            people::Ask::DecideProposal {
+                project: DEPLOYMENT,
+                proposer,
+                proposal: u64::MAX,
+                decision: people::ProposalDecision::Accept,
+                running,
+            },
+        );
+        assert_eq!(
+            world.people_answers.last(),
+            Some(&people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Unknown))),
+            "{proposer:?}, {running:?}"
+        );
+        assert_eq!(settings_document(&mut world, owner), settings);
+        assert_eq!(proposal_state(&world, pending), state);
     }
 }
 
