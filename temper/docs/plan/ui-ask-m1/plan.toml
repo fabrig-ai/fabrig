@@ -124,3 +124,29 @@ id = 9
 story = "An Ask temper run proposes a charter document named OWNER/NAME and gets its forge's host written, gives a large set in parts that become one proposal, is refused an unsatisfiable approval at the call, and is told where the card waits and who decides; charter 3's proposals work as before"
 parts = ["propose"]
 walk = false
+
+[[part]]
+id = "see-proposal"
+title = "see reads a proposal of settings, waiting or decided"
+mode = "direct"
+needs = ["see", "proposal-read"]
+design = "temper/docs/design/domain/agent.md, 8.4.1"
+
+[[slice]]
+id = 10
+story = "An Ask temper chat reads a configuring chat's proposal of settings waiting with its review, then rejected with its reason, then another accepted as revision 2"
+parts = ["see-proposal"]
+walk = false
+
+[[part]]
+id = "close"
+title = "M1's state in the execution file, once every task has merged, and no status entry the plan closed left behind"
+mode = "direct"
+needs = ["smith-start", "family", "client", "declare", "stock", "document", "proposal-read", "see", "see-proposal", "propose"]
+design = "temper/docs/design/draft/ask-temper.execution.md, 3"
+
+[[slice]]
+id = 11
+story = "The execution file says M1 is built, its walk following landing, and the status files hold no Not yet of M1's"
+parts = ["close"]
+walk = false
