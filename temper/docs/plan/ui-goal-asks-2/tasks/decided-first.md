@@ -77,3 +77,7 @@ Check the arm's other uses of `proposal` and its fall-through to `Now::EndedProp
 ## Report
 
 Name the rows, the rule broken by hand (restore the early `running` refusal) and what it failed with, and whether acceptance 4 needed a change.
+
+## Answers
+
+2026-11-07 (temper/ui). Retain Unknown, and narrow acceptance 1: no archive of task-withdrawn proposals and no new decider, as it's a ctl edge off the happy path and spend binds. Your routing fix stands, as 'out of shape; running' was the fault. Make ctl's answer for this Unknown plain: that this proposal isn't waiting, and may have been decided or replaced; and say the same in the help where it promises decided first. Keep the acceptance table's other rows.
