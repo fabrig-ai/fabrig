@@ -454,6 +454,8 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                     return;
                 }
                 domain.forge.reconcile(&domain.core.tasks);
+                let party = domain.core.people.sole_owner();
+                forge_event(domain, env, decision, forge::Event::Owner { party });
                 forge_event(
                     domain,
                     env,
