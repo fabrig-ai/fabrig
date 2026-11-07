@@ -78,6 +78,7 @@ fn measurement_charter() -> run::Charter {
         delivers: false,
         agents: false,
         conventions: None,
+        words: u32::MAX,
         contract: charter::Contract {
             report: None,
             failure: Some(charter::TextRule { max, fields: Box::new([]) }),
@@ -91,7 +92,7 @@ fn measurement_charter() -> run::Charter {
                 checks_must_pass: charter::CONTRACT_CHECKS_MUST_PASS,
                 fields: Box::new([
                     charter::FieldRule { name: Box::from(b"title".as_slice()), max },
-                    charter::FieldRule { name: Box::from(b"body".as_slice()), max: charter::CHANGE_BODY_MAX },
+                    charter::FieldRule { name: Box::from(b"body".as_slice()), max: u32::MAX },
                 ]),
             }),
         },

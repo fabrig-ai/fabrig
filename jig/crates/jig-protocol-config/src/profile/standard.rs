@@ -102,7 +102,7 @@ pub(super) const AUTHORITY: authority::Limits = authority::Limits {
     grants: 16,
     executors: 16,
     segments: 8,
-    batch: 4,
+    batch: 32,
     writes: 8,
     ..small::AUTHORITY
 };
@@ -156,8 +156,17 @@ pub(super) const CORE: core::Limits = core::Limits {
     documents: DOCUMENTS,
     ..small::CORE
 };
-pub(super) const HUB: host::Limits =
-    host::Limits { event_bytes: 135_168, inbox: 82, slots: 4, accounts: 32, facts: 256, told: 256, ..small::HUB };
+pub(super) const HUB: host::Limits = host::Limits {
+    charter_bytes: 262_144,
+    outcome_bytes: 131_072,
+    event_bytes: 135_168,
+    inbox: 82,
+    slots: 4,
+    accounts: 32,
+    facts: 256,
+    told: 256,
+    ..small::HUB
+};
 pub(super) const LINK: Link = Link { names: 64, opening: 16, facts: 4470, ..small::LINK };
 pub(super) const LIMITS: Limits = Limits {
     core: CORE,

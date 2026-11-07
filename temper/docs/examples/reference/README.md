@@ -1,11 +1,35 @@
 # The reference's settings
 
-`settings.json`, `limits.json`, `landing.json` and `project.json` are the
+`settings.json`, `limits.json`, `room.json`, `landing.json` and `project.json` are the
 reference's profile (`../../design/protocol/configuration.md`, 13.9), applied
 over the stock as `temper help configure` says. They stay out of the binary:
 what a deployment runs until an owner applies them is the stock, and the
 configuring agent derives the reference from its description
 (`../../design/draft/configuring.md`, 8.1). What follows stays out of it too.
+
+Before the first start, merge `limits.json` over the generated deployment document,
+retaining its other members and overrides.
+
+## A call's room
+
+The reference takes a payload of 63,740 bytes and output of 48,000 tokens,
+the fallback in `../../design/protocol/configuration.md`, 13.8. Its agent's
+measured largest turn is 18,431,842 bytes; `limits.json` and `room.json`
+carry the bounds derived from that turn and payload.
+
+Set the agent and every worker before the first start. Run these in the
+deployment's configuration directory, with the reference's `room.json`:
+
+```sh
+jq --slurpfile room room.json '.profile.declared.tool_payload = $room[0].agent.tool_payload | .endpoints[].limits.output = $room[0].agent.output' agent.json > agent.next.json
+mv agent.next.json agent.json
+jq --slurpfile room room.json '.workers[] |= (. * $room[0].worker)' temper.json > temper.next.json
+mv temper.next.json temper.json
+```
+
+Apply `settings.json` after that start, in the order below. Its charter models
+require the reference agent's output allowance; a stock agent's smaller
+allowance cannot host them. No charter's spend, period or time changes.
 
 ## Authority for the reference charters
 

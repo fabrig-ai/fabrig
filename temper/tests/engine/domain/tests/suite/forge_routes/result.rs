@@ -119,79 +119,116 @@ fn assert_csv_landing(world: &World, requester: &engine::Assignment, change: u64
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one landing scene checks retained reports, evidence and requester messages at each bound"
+)]
 fn a_landed_change_carries_its_producers_report() {
     const REPORT: &[u8] = b"Done: edited README.\n## Left\n- none";
-    let mut world = World::configured_limits(
-        true,
-        true,
-        false,
-        1000,
-        Gate::default(),
-        None,
-        StoryLimits { result_bytes: Some(512), ..StoryLimits::default() },
-    );
-    world.adopt();
-    world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
-    let ask = adoption_chat(&world);
-    let chat = assigned_chat(&mut world, 92, ask);
-    let engine::CallAnswer::Delegated(made) = change_tool::change(&mut world, &chat, 93, None, b"Edit README") else {
-        panic!("change delegated")
-    };
-    let change = made[0].task;
-    assert_eq!(live_task(&world, change).contract, tasks::Contract::Change { connector: 0, kind: 1, words: 512 });
-    let producer = next(&mut world, 1);
-    let branch = producer.workspace.repositories[0].push.clone().expect("change branch");
-    let tasks::Party::Task(parent) = live_task(&world, producer.task).requester else {
-        panic!("producer belongs to its change")
-    };
-    assert_eq!(parent, change);
-    assert_eq!(
-        world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 })),
-        raw::Answer::Branch(raw::Created::Created)
-    );
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"README", b"edited", 1)
-        .expect("producer pushed README");
-    let event =
-        world.protocol.answer(Token::new(7), chat.task, chat.attempt, 5, tasks::End::Parked, engine::Parts::none());
-    world.send(event);
-    let tasks::TaskResult::Change { title, connector, kind, resource, .. } = change_result() else {
-        panic!("producer result")
-    };
-    finish(&mut world, &producer, tasks::TaskResult::Change { title, connector, kind, resource, words: REPORT.into() });
-    let requester = next(&mut world, 2);
-    assert_eq!(requester.task, chat.task);
-    let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(change))) else {
-        panic!("durable change")
-    };
-    let forge_top::Stored::Change(row) = row.as_ref() else { panic!("change row") };
-    assert_eq!(row.report.as_ref(), REPORT);
-    let temper_engine_domain_forge_change::State::Landed { merge, .. } = row.change.state else { panic!("landed") };
-    let merge = String::from_utf8(forge_top::commit_text(&merge).into_vec()).expect("hexadecimal merge");
-    let head =
-        String::from_utf8(forge_top::commit_text(&translate::commit(head)).into_vec()).expect("hexadecimal head");
-    let message = requester
-        .messages
-        .iter()
-        .find(|message| {
-            message.from == tasks::Party::Task(change)
-                && matches!(message.kind, tasks::MessageKind::Result(tasks::ResultKind::Change { .. }))
-        })
-        .expect("requester's change result");
-    let words = core::str::from_utf8(&message.words).expect("UTF-8 result");
-    let lines: Vec<_> = words.lines().collect();
-    assert_eq!(lines.len(), 10, "{words}");
-    assert_eq!(lines[0], merge);
-    assert!(lines[1].starts_with("pull request #"), "{words}");
-    assert_eq!(
-        lines[2],
-        format!("Landed: pull request #{} merged into main as {}.", row.pull.expect("landed pull"), &merge[..12])
-    );
-    assert_eq!(&lines[3..7], &["Report:", "Done: edited README.", "## Left", "- none"]);
-    assert!(lines[7].starts_with(&format!("checks at {head}: ")), "{words}");
-    assert_eq!(lines[8], "repairs: 0");
-    assert_eq!(lines[9], "reviews: none");
-    assert!(!words.contains("bytes cut"), "{words}");
-    world.close();
+    // The three landing rows measured 156 ms CPU together, including durable restart checks.
+    const STOCK_RESULT: u32 = 10_660; // temper/docs/design/protocol/configuration.md, 13.4.
+    for (report_bytes, result_bytes, cut) in
+        [(REPORT.len(), 512, false), (3_585, STOCK_RESULT, false), (10_660, STOCK_RESULT, true)]
+    {
+        let mut report = REPORT.to_vec();
+        report.resize(report_bytes, b'r');
+        let mut world = World::configured_limits(
+            true,
+            true,
+            false,
+            1000,
+            Gate::default(),
+            None,
+            StoryLimits { result_bytes: Some(result_bytes), ..StoryLimits::default() },
+        );
+        world.adopt();
+        world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
+        let ask = adoption_chat(&world);
+        let chat = assigned_chat(&mut world, 92, ask);
+        let engine::CallAnswer::Delegated(made) = change_tool::change(&mut world, &chat, 93, None, b"Edit README")
+        else {
+            panic!("change delegated")
+        };
+        let change = made[0].task;
+        assert_eq!(
+            live_task(&world, change).contract,
+            tasks::Contract::Change { connector: 0, kind: 1, words: result_bytes }
+        );
+        let producer = next(&mut world, 1);
+        let branch = producer.workspace.repositories[0].push.clone().expect("change branch");
+        let tasks::Party::Task(parent) = live_task(&world, producer.task).requester else {
+            panic!("producer belongs to its change")
+        };
+        assert_eq!(parent, change);
+        assert_eq!(
+            world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 })),
+            raw::Answer::Branch(raw::Created::Created)
+        );
+        let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"README", b"edited", 1)
+            .expect("producer pushed README");
+        let event =
+            world.protocol.answer(Token::new(7), chat.task, chat.attempt, 5, tasks::End::Parked, engine::Parts::none());
+        world.send(event);
+        let tasks::TaskResult::Change { title, connector, kind, resource, .. } = change_result() else {
+            panic!("producer result")
+        };
+        finish(
+            &mut world,
+            &producer,
+            tasks::TaskResult::Change { title, connector, kind, resource, words: report.clone().into() },
+        );
+        let requester = next(&mut world, 2);
+        assert_eq!(requester.task, chat.task);
+        let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Change(change))) else {
+            panic!("durable change")
+        };
+        let forge_top::Stored::Change(row) = row.as_ref() else { panic!("change row") };
+        assert_eq!(row.report.as_ref(), report.as_slice());
+        let temper_engine_domain_forge_change::State::Landed { merge, .. } = row.change.state else { panic!("landed") };
+        let merge = String::from_utf8(forge_top::commit_text(&merge).into_vec()).expect("hexadecimal merge");
+        let head =
+            String::from_utf8(forge_top::commit_text(&translate::commit(head)).into_vec()).expect("hexadecimal head");
+        let message = requester
+            .messages
+            .iter()
+            .find(|message| {
+                message.from == tasks::Party::Task(change)
+                    && matches!(message.kind, tasks::MessageKind::Result(tasks::ResultKind::Change { .. }))
+            })
+            .expect("requester's change result");
+        let words = core::str::from_utf8(&message.words).expect("UTF-8 result");
+        let (identity, _) = words.split_once("\nReport:\n").expect("report label");
+        let lines: Vec<_> = identity.lines().collect();
+        assert_eq!(lines.len(), 3);
+        assert_eq!(lines[0], merge);
+        assert!(lines[1].starts_with("pull request #"));
+        assert_eq!(
+            lines[2],
+            format!("Landed: pull request #{} merged into main as {}.", row.pull.expect("landed pull"), &merge[..12])
+        );
+        let whole = format!(
+            "{identity}\nReport:\n{}\nchecks at {head}: build passed\nrepairs: 0\nreviews: none",
+            core::str::from_utf8(&report).expect("report text"),
+        );
+        assert_eq!(words.contains("\n["), cut, "report {report_bytes}");
+        if let Some((prefix, marker)) = words.rsplit_once("\n[") {
+            let cut: usize = marker.strip_suffix(" bytes cut]\n").expect("cut marker").parse().expect("cut count");
+            assert!(whole.starts_with(prefix), "report {report_bytes}, result {result_bytes}");
+            assert_eq!(cut, whole.len() - prefix.len());
+            assert!(cut > 0);
+        } else {
+            assert_eq!(words, whole, "report {report_bytes}, result {result_bytes}");
+        }
+        let rendered = engine::inbox_words(chat.task, message);
+        let sender = engine::inbox_sender(message);
+        assert!(
+            rendered.len() + sender.len() <= usize::try_from(result_bytes).expect("result bound"),
+            "report {report_bytes}: {} rendered bytes and {} sender bytes exceed {result_bytes}",
+            rendered.len(),
+            sender.len()
+        );
+        world.close();
+    }
 }
 
 const CSV_REPORT: &[u8] =
