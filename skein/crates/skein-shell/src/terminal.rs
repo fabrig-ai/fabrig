@@ -47,6 +47,16 @@ pub fn open_signals(watch: Watch) -> Result<Fd, i32> {
     crate::system::process::open_signals(watch)
 }
 impl Kept {
+    /// Writes `leave` to `output` with blocking writes, then restores the kept modes.
+    /// Errors are ignored: this runs inside a panic (shell.md, 6.3).
+    /// Take the function back from the hook before calling [`Self::restore`].
+    #[must_use]
+    pub fn on_abort(&self, output: Fd, leave: &'static [u8]) -> Box<dyn Fn() + Send + Sync> {
+        let fd = self.fd;
+        let modes = self.modes;
+        Box::new(move || crate::system::terminal::on_abort(fd, &modes, output, leave))
+    }
+
     /// Restores startup's modes after drive returns, before the last stderr line.
     pub fn restore(self) -> Result<(), Error> {
         crate::system::terminal::restore(self.fd, &self.modes)

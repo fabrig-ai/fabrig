@@ -1,0 +1,208 @@
+//! Bounded byte decoding (skein/docs/design/ui-screen.md, 6.1).
+use alloc::boxed::Box;
+use skein_lib::{List, Queue, bytes};
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Key {
+    Char(char),
+    Paste(Box<[u8]>),
+    Enter,
+    Tab,
+    BackTab,
+    Backspace,
+    Delete,
+    Up,
+    Down,
+    Left,
+    Right,
+    Home,
+    End,
+    PageUp,
+    PageDown,
+    Escape,
+    Control(u8),
+    Alt(char),
+}
+
+#[derive(Clone, Copy, Debug)]
+enum State {
+    Text,
+    Escape,
+    Sequence,
+    Character { alt: bool },
+    Paste,
+}
+
+#[derive(Debug)]
+pub struct Decoder {
+    state: State,
+    partial: List<u8>,
+    overlong: bool,
+    paste: List<u8>,
+    ending: usize,
+}
+const PASTE_END: &[u8] = b"\x1b[201~";
+
+impl Decoder {
+    #[must_use]
+    pub fn new(paste: u32) -> Decoder {
+        Decoder {
+            state: State::Text,
+            partial: List::with_capacity(16),
+            overlong: false,
+            paste: List::with_capacity(paste),
+            ending: 0,
+        }
+    }
+
+    /// A lone ESC at this read's end is delivered immediately.
+    pub fn read(&mut self, bytes: &[u8], keys: &mut Queue<Key>) {
+        for byte in bytes {
+            match self.state {
+                State::Text => self.text(*byte, false, keys),
+                State::Escape => {
+                    if *byte == b'[' || *byte == b'O' {
+                        self.partial.push(*byte).expect("sequence introducer fits");
+                        self.state = State::Sequence;
+                    } else {
+                        self.partial.clear();
+                        self.text(*byte, true, keys);
+                    }
+                }
+                State::Sequence => self.sequence(*byte, keys),
+                State::Character { alt } => self.character(*byte, alt, keys),
+                State::Paste => self.pasted(*byte, keys),
+            }
+        }
+        match self.state {
+            State::Escape => {
+                keys.push(Key::Escape);
+                self.partial.clear();
+                self.state = State::Text;
+            }
+            State::Text | State::Sequence | State::Character { .. } | State::Paste => {}
+        }
+    }
+
+    fn text(&mut self, byte: u8, alt: bool, keys: &mut Queue<Key>) {
+        self.state = State::Text;
+        if alt {
+            if byte >= b' ' && byte != 0x7f {
+                self.character(byte, true, keys);
+            }
+            return;
+        }
+        let key = match byte {
+            b'\r' | b'\n' => Key::Enter,
+            b'\t' => Key::Tab,
+            0x08 | 0x7f => Key::Backspace,
+            0x01..=0x1a => Key::Control(b'a'.saturating_add(byte.saturating_sub(1))),
+            0x1b => {
+                self.partial.push(byte).expect("escape fits");
+                self.state = State::Escape;
+                return;
+            }
+            0x00 | 0x1c..=0x1f => return,
+            0x20..=0x7e | 0x80..=0xff => {
+                self.character(byte, false, keys);
+                return;
+            }
+        };
+        keys.push(key);
+    }
+
+    #[expect(clippy::disallowed_methods, reason = "the terminal decoder validates incoming UTF-8")]
+    fn character(&mut self, byte: u8, alt: bool, keys: &mut Queue<Key>) {
+        if self.partial.push(byte).is_err() {
+            self.partial.clear();
+            self.state = State::Text;
+            return;
+        }
+        match core::str::from_utf8(self.partial.as_slice()) {
+            Ok(text) => {
+                if let Some(ch) = text.chars().next() {
+                    keys.push(if alt { Key::Alt(ch) } else { Key::Char(ch) });
+                }
+                self.partial.clear();
+                self.state = State::Text;
+            }
+            Err(error) => {
+                if error.error_len().is_some() || self.partial.len() >= 4 {
+                    self.partial.clear();
+                    self.state = State::Text;
+                } else {
+                    self.state = State::Character { alt };
+                }
+            }
+        }
+    }
+
+    fn sequence(&mut self, byte: u8, keys: &mut Queue<Key>) {
+        if self.partial.push(byte).is_err() {
+            self.overlong = true;
+        }
+        if !(0x40..=0x7e).contains(&byte) {
+            return;
+        }
+        if !self.overlong {
+            let key = match self.partial.as_slice() {
+                b"\x1b[A" | b"\x1bOA" => Some(Key::Up),
+                b"\x1b[B" | b"\x1bOB" => Some(Key::Down),
+                b"\x1b[C" | b"\x1bOC" => Some(Key::Right),
+                b"\x1b[D" | b"\x1bOD" => Some(Key::Left),
+                b"\x1b[H" | b"\x1b[1~" | b"\x1bOH" => Some(Key::Home),
+                b"\x1b[F" | b"\x1b[4~" | b"\x1bOF" => Some(Key::End),
+                b"\x1b[Z" => Some(Key::BackTab),
+                b"\x1b[3~" => Some(Key::Delete),
+                b"\x1b[5~" => Some(Key::PageUp),
+                b"\x1b[6~" => Some(Key::PageDown),
+                b"\x1b[200~" => {
+                    self.state = State::Paste;
+                    self.partial.clear();
+                    return;
+                }
+                _ => None,
+            };
+            if let Some(key) = key {
+                keys.push(key);
+            }
+        }
+        self.partial.clear();
+        self.overlong = false;
+        self.state = State::Text;
+    }
+
+    #[expect(clippy::disallowed_methods, reason = "a truncated terminal paste ends at a UTF-8 boundary")]
+    fn pasted(&mut self, byte: u8, keys: &mut Queue<Key>) {
+        if PASTE_END.get(self.ending) == Some(&byte) {
+            self.ending = self.ending.saturating_add(1);
+            if self.ending == PASTE_END.len() {
+                if let Err(error) = core::str::from_utf8(self.paste.as_slice())
+                    && error.error_len().is_none()
+                {
+                    self.paste.truncate(u32::try_from(error.valid_up_to()).expect("paste length fits u32"));
+                }
+                keys.push(Key::Paste(bytes::copy_of(self.paste.as_slice())));
+                self.paste.clear();
+                self.ending = 0;
+                self.state = State::Text;
+            }
+            return;
+        }
+        for prefix in PASTE_END.get(..self.ending).expect("partial paste ending fits") {
+            self.keep(*prefix);
+        }
+        self.ending = 0;
+        if byte == 0x1b {
+            self.ending = 1;
+        } else {
+            self.keep(byte);
+        }
+    }
+
+    fn keep(&mut self, byte: u8) {
+        if self.paste.room() > 0 {
+            self.paste.push(byte).expect("paste has room");
+        }
+    }
+}

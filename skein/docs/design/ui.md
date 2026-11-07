@@ -58,6 +58,7 @@ fake person. What waits is in section 18, and what is open in section
 |---|---|---|---|
 | `skein-ui`, `crates/skein-ui` | step code under the subset; builds for wasm32 too | the tree, its vocabulary, owners; the builder, slots and splicing; bindings and acts; the diff and patches; the view (the last tree, the spare, an act to its binding); tokens, region names and the look's names; the phrasebook machinery; the Markdown reader; scenes; the outline's rules; limits and their validity | `skein-lib` |
 | `skein-ui-text`, `crates/skein-ui-text` | the renderer and command reader: step code; the terminal: ordinary Rust, as shells are | the text shell (ui-text.md) | `skein-ui`, `skein-lib`, `skein-io` |
+| `skein-ui-screen`, `crates/skein-ui-screen`; `skein-ui-screen-terminal`, `crates/skein-ui-screen-terminal` | the renderer, the key decoder, the key reader and the drawing: step code; the terminal: ordinary Rust | the full-screen shell (ui-screen.md) | `skein-ui`, `skein-lib`; the terminal's, `skein-io` |
 | `skein-ui-web`, `crates/skein-ui-web` | ordinary Rust, forbidding `unsafe`; each part's pure half builds for the host, its platform half for wasm32 only | the browser parts (ui-web.md, 5.1) and the default mapping of roles to elements (ui-web.md, section 6) | `skein-ui`, `skein-lib`; on wasm32 the glue, `wasm-bindgen`, `js-sys`, `web-sys`, pinned to exact versions in skein's workspace |
 | `skein-ui-bundle`, `crates/skein-ui-bundle` | a tool: ordinary Rust, a library with a small binary, built optimized, never linked into a service or a module | the bundler: the page, the starter and `skein-ui.css` (ui-web.md, 4.2) | `wasm-bindgen-cli-support`, pinned to the macros' exact version |
 | `skein-fake-person`, `testing/skein-fake-person` | ordinary Rust, shaped as a step machine | the person, the tree face, the random person (17.1) | `skein-ui`, `skein-lib` |
@@ -1098,8 +1099,9 @@ builder asserts each before it allocates.
 ## 16. Shells and platforms
 
 A shell maps the tree onto its platform and reports a person's acts
-back. skein has two: the text shell (ui-text.md), and the browser parts
-an application's browser shell runs its loop over (ui-web.md). Every
+back. skein has three: the text shell (ui-text.md), the full-screen shell
+(ui-screen.md), and the browser parts an application's browser shell runs
+its loop over (ui-web.md). Every
 other platform's shell is the application's, over the same tree.
 
 - **The only impure code.** A shell is the platform's: its event loop,

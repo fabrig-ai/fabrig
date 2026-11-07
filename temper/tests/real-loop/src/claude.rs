@@ -12,6 +12,33 @@ pub(crate) const PROGRAM: &[u8] = b"/real-loop/claude";
 pub const ACCOUNT: u64 = 2;
 pub const SOURCE: &str = "live";
 
+pub(crate) fn turn_started(directory: &Path, name: &str) -> bool {
+    let Ok(bytes) = std::fs::read(directory.join("programs").join(name).join(smith_fake_claude::OBSERVATIONS_FILE))
+    else {
+        return false;
+    };
+    // A write may still be in flight; only complete observation records count.
+    let complete = bytes.iter().rposition(|byte| *byte == b'\n').map_or(0, |last| last + 1);
+    !smith_fake_claude::selections(&bytes[..complete]).is_empty()
+}
+
+pub(crate) fn check_interrupted(directory: &Path, name: &str) {
+    let bytes = std::fs::read(directory.join("programs").join(name).join(smith_fake_claude::OBSERVATIONS_FILE))
+        .expect("fake observations at serve's end");
+    let seen = smith_fake_claude::seen(&bytes);
+    assert!(
+        seen.contains(&smith_fake_claude::Seen::Interrupted),
+        "agent's cancel must interrupt its program: {seen:?}"
+    );
+}
+
+/// Every hosted fake program has exited when the service's stop finishes.
+#[must_use]
+pub fn ended(ran: &crate::Ran) -> bool {
+    use skein_shell::Host;
+    ran.outcome.procs.iter().all(|proc| !matches!(&proc.kind, Kind::Claude(fake) if fake.exit().is_none()))
+}
+
 /// Sign in, declare the private source and join its worker-side verification.
 /// Account documents stay at calls 2 and 6 for the source's focused story.
 #[must_use]

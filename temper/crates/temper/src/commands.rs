@@ -54,7 +54,7 @@ const DIRECTORIES: Argument = Argument {
 const FORGE: Argument = Argument { shown: "FORGE", line: "A forge's number in the configuration." };
 
 /// Every row, in `temper --help`'s order: by `Who`, then as listed in protocol/README.md, section 4.
-pub const COMMANDS: [Row; 22] = [
+pub const COMMANDS: [Row; 23] = [
     Row {
         words: &["help"],
         who: Who::Documentation,
@@ -188,6 +188,18 @@ Refused, changing nothing, when the configuration directory already holds temper
         arguments: &[DIRECTORIES, FORGE],
         settings: &[&directories::SETTINGS],
         notes: "For a Forgejo of application.sign_in.forges, on temper's host, before temper serve. Writes the provider's key and the forge's client secret where they are missing, private, and leaves any already there; prints Forgejo's add-oauth command, never running it.",
+    },
+    Row {
+        words: &[],
+        who: Who::Clients,
+        forms: &["[ADDRESS]"],
+        line: "Run temper's full-screen terminal client, the TUI, on an engine.",
+        arguments: &[Argument {
+            shown: "ADDRESS",
+            line: "The engine's clients' listener, http://HOST:PORT on loopback; by default the address the TUI last signed in to, else http://127.0.0.1:8367.",
+        }],
+        settings: &[],
+        notes: "Needs a terminal on stdin and stdout; without one, bare temper says it has no command. Its sign-in link is pasted on its screen, never given. Its directory is $XDG_STATE_HOME/temper/tui, else ~/.local/state/temper/tui. q or Ctrl+C closes it without signing out.",
     },
     Row {
         words: &["ctl"],
@@ -340,7 +352,8 @@ Refused, changing nothing, when the configuration directory already holds temper
 pub fn find(words: &[Box<[u8]>]) -> Option<&'static Row> {
     let mut found: Option<&Row> = None;
     for row in &COMMANDS {
-        if begins(words, row.words) && found.is_none_or(|before| before.words.len() < row.words.len()) {
+        let eligible = !row.words.is_empty() || words.first().is_none_or(|word| word.starts_with(b"http://"));
+        if eligible && begins(words, row.words) && found.is_none_or(|before| before.words.len() < row.words.len()) {
             found = Some(row);
         }
     }
@@ -365,16 +378,20 @@ pub(crate) fn unknown(words: &[Box<[u8]>]) -> String {
     format!("temper: no command{given}; temper --help lists them\n")
 }
 
+fn command(row: &Row) -> String {
+    if row.words.is_empty() { "temper".into() } else { format!("temper {}", row.words.join(" ")) }
+}
+
 pub(crate) fn forms(row: &Row) -> String {
     let mut text = String::new();
     for form in row.forms {
-        writeln!(text, "usage: temper {} {form}", row.words.join(" ")).expect("writing into a string");
+        writeln!(text, "usage: {} {form}", command(row)).expect("writing into a string");
     }
     text
 }
 
 pub(crate) fn refused(row: &Row, why: &str) -> String {
-    format!("temper {}: {why}\n{}", row.words.join(" "), forms(row))
+    format!("{}: {why}\n{}", command(row), forms(row))
 }
 
 /// `temper --help`.
@@ -391,7 +408,7 @@ pub fn help() -> String {
             previous = Some(row.who);
         }
         for form in row.forms {
-            writeln!(text, "  temper {} {form}", row.words.join(" ")).expect("writing into a string");
+            writeln!(text, "  {} {form}", command(row)).expect("writing into a string");
         }
         if row.who != Who::Spawned {
             writeln!(text, "    {}", row.line).expect("writing into a string");
@@ -425,10 +442,11 @@ pub fn reference() -> String {
         "# temper's commands\n\nKind: reference\n\nEvery command of the temper binary, by who runs it: its usage, what it does, its arguments and its notes.\n",
     );
     for row in &COMMANDS {
-        let words = row.words.join(" ");
-        write!(text, "\n## temper {words}\n").expect("writing into a string");
+        let command = command(row);
+        let heading = if row.words.is_empty() { format!("{command} [ADDRESS]") } else { command.clone() };
+        write!(text, "\n## {heading}\n").expect("writing into a string");
         for form in row.forms {
-            write!(text, "\n`temper {words} {form}`\n").expect("writing into a string");
+            write!(text, "\n`{command} {form}`\n").expect("writing into a string");
         }
         write!(text, "\n{}", row.line).expect("writing into a string");
         if row.who == Who::Spawned {

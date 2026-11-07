@@ -1,6 +1,6 @@
 # shell: status
 
-2026-11-06. Where skein's code lags or departs from [shell.md](shell.md).
+2026-11-07. Where skein's code lags or departs from [shell.md](shell.md).
 
 Section 6.3 has no known gap in requested hangup handling or preserving a
 hangup ignored at startup. The macOS build and runtime gaps in section 9

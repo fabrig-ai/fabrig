@@ -700,6 +700,7 @@ impl Judge {
             Step::Browse { .. } => panic!("Browse unsupported"),
             Step::Authorize => panic!("Authorize unsupported"),
             Step::Return => panic!("Return unsupported"),
+            Step::ClaudeTurn { .. } => panic!("ClaudeTurn unsupported"),
         }
         // The oracle's commands are the acts' verbs (Observed::with_commands).
         self.ran.push(step);
@@ -977,6 +978,7 @@ impl Referee<cluster::Root> for Judge {
 fn describe(step: &calls::Step) -> String {
     use calls::Step;
     match step {
+        Step::ClaudeTurn { source } => format!("ClaudeTurn {source}"),
         Step::EndsLeaving(leftovers) => format!("EndsLeaving {leftovers:?}"),
         Step::FixtureReady => "FixtureReady".into(),
         Step::Browse { call } => format!("Browse call {call}"),

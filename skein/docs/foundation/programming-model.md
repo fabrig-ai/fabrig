@@ -205,7 +205,10 @@ to a file.
   binary and its tests share one build of each dependency; every
   binary's `main` therefore installs `skein_fail_stop`'s hook before
   anything else, which reports the panic and aborts before anything
-  unwinds, and each repository's gate checks that it does. In a client compiled
+  unwinds, and each repository's gate checks that it does. A binary that
+  changed its terminal gives the hook a restoration to run before its
+  report (`before_report`; shell.md, 6.3), so the report reaches the
+  person's own screen. In a client compiled
   to WebAssembly the abort is a trap, and its shell restarts the client,
   in a browser by reloading its page.
 
