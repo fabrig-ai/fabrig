@@ -1272,6 +1272,7 @@ impl World {
             };
             match request {
                 engine::Request::ToChild(released) => self.events.push_back(engine::Event::Released(released)),
+                engine::Request::Store(engine::StoreRequest::Catalogue { names }) => self.store.catalogue(names),
                 engine::Request::Store(engine::StoreRequest::Switch) => {
                     let answer = self.store.switch();
                     self.events.push_back(engine::Event::Store(answer));

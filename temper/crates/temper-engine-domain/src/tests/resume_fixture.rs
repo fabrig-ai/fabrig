@@ -693,6 +693,8 @@ impl StartStore {
             if let Some(request) = out.pop() {
                 match request {
                     engine::Request::ToChild(released) => engine::step(root, env, engine::Event::Released(released)),
+                    engine::Request::Store(engine::StoreRequest::Catalogue { .. })
+                    | engine::Request::Party(engine::PartyRequest::Catalogue { .. }) => {}
                     engine::Request::Account(accounts::Request::Signing(accounts::Signing::Restored)) => {
                         assert!(self.wires > 0, "account restoration follows durable wires");
                     }

@@ -429,6 +429,17 @@ fn claude_offer_setup() -> (engine::Config, engine::Limits) {
             program: Some(b"claude_code".as_slice().into()),
         },
     ]);
+    let stock = config.core.defaults.models[0].clone();
+    config.core.defaults.models = models
+        .iter()
+        .enumerate()
+        .map(|(at, model)| {
+            let mut entry = stock.clone();
+            entry.number = u32::try_from(at).expect("bounded fixture models") + 1;
+            entry.model = model.clone();
+            entry
+        })
+        .collect();
     config.core.settings.models = models.into();
     config.core.settings.llm_providers.providers = providers.into();
     (config, bounds)

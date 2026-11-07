@@ -253,6 +253,15 @@ impl Protocol {
     /// Returns the request when it is not the protocol layer's to answer.
     pub fn play(&mut self, request: engine::Request) -> Result<Vec<engine::Event>, Box<engine::Request>> {
         match request {
+            engine::Request::Party(engine::PartyRequest::Catalogue { models }) => {
+                let highest = models.iter().map(|entry| entry.number).max().unwrap_or(0);
+                self.models = vec![engine::Model::hole(); usize::try_from(highest).expect("bounded catalogue")].into();
+                for entry in models {
+                    let at = usize::try_from(entry.number - 1).expect("bounded model number");
+                    self.models[at] = entry.model;
+                }
+                Ok(Vec::new())
+            }
             engine::Request::Worker(engine::WorkerRequest::Deliver(engine::Delivery::Link {
                 channel,
                 down: host::LinkDown::Sources { sources: _ },
