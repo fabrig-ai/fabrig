@@ -2,6 +2,9 @@
 
 2026-11-07. Where temper's code lags or departs from [agent.md](agent.md).
 
+Section 4.6 has no known gap in a chat's new model or effort answering its
+person's next words, whether the previous run still listens or has parked.
+
 - **Design departs:** 8.1, from `../draft/model-catalogue.md`, 3, decided
   by the `model-catalogue-1` cut: settings reads return whole charters,
   including models outside the offer, because a proposal needs their whole
@@ -15,6 +18,15 @@ the fake's goal script, who is offered `decided`, what the configuring agent
 can read to size temper's own way, and what no real model has
 shown: the configuring agent's words, a document built in parts and a receipt's words.
 Section 4.3 has no gap in combined charter and workspace ownership fitting.
+Sections 4.3 and 4.3.1 have no known implementation gap in a goal's
+delivery grant or `change` on its run branch. The real-loop story uses
+real smith and a worker with a scripted model, fake git and a fake forge:
+it edits, receives a receipt naming r, lands through a change into g and
+finishes with a report, leaving main unchanged. It does not establish
+real-model behaviour or run the project's executable checks; the grant
+requires them, and smith's report-delivery process story checks the files.
+Stock and reference instructions remain separate work (section 10 and
+`../draft/goal-as-designer.status.md`).
 Section 4.3 has no gap in file, pull-file and compare fitting to the checked
 local receiving-agent allowance, size feedback, recovery and settled-call replay.
 Sections 4.3, 4.4 and 6 have no known implementation gap in the compare's
@@ -26,6 +38,12 @@ Section 7 has no known gap in fresh preparation from unusable history or in
 retaining an unidentified startup fault through cleanup. The joined service
 regression uses scripted peers and valid saved history at 470,054 bytes;
 the trigger of the reported configuring-chat failure remains unobserved.
+Section 8.1 has no known implementation gap in revising a pending proposal
+through a fresh `propose_settings`, preserving it on refusal, or directing a
+person with no account for a requested model to browser Settings, Accounts.
+The engine and joined client stories use scripted tool calls; no supplied
+real-model outcome establishes either instruction in use. That observation
+is deferred to after landing in section 10.
 Section 8.1 has no gap in settings pagination using the host answer allowance.
 Section 8.1 has no gap in note-backed whole settings proposals and decided-call replay.
 Section 8.1 has no gap in discovery of project repository identities for

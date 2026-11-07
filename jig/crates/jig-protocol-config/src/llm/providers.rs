@@ -7,7 +7,7 @@ use skein_json::Document;
 use skein_lib::List;
 
 /// One configured LLM provider.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Provider {
     /// Its name for showing.
     pub name: Box<[u8]>,
@@ -27,7 +27,7 @@ pub struct Provider {
 }
 
 /// A provider's public registration for its sign-in: a client secret is refused.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Registration {
     pub issuer: Box<[u8]>,
     pub client: Box<[u8]>,

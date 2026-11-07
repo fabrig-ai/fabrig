@@ -1,6 +1,6 @@
 //! Additive read-only doors (jig/docs/design/protocol/store.md, 7 and 14).
 use super::fixtures::{self, ALICE, ENDED};
-use crate::{Cursor, Family, Phase, Restore, Row, Store, codec, keys, restore};
+use crate::{Cursor, Family, KeptMap, Phase, Restore, Row, Store, codec, keys, restore};
 use alloc::collections::BTreeMap;
 use jig_domain_core::{Census, Key, ReadResults, Record, RestoreRange};
 use restore::{Cause, DecodeFailure, Item, JoinFailure, RangeFailure, WalkFailure};
@@ -403,5 +403,166 @@ fn retained_inventory_resumes_exclusively_after_an_empty_raw_key() {
     let second = store.retained_page(first.next.as_deref(), 1, BYTES).expect("exclusive empty key");
     for row in second.rows {
         assert!(!row.key.is_empty());
+    }
+}
+
+// The one-row walk is the reference for page boundaries and row-site failures.
+fn walk_by_rows(
+    store: &mut Store,
+    map: KeptMap,
+    intervals: &[skein_kv::Range],
+    after: Option<&Cursor>,
+    rows: u32,
+) -> Result<crate::pages::Walked, restore::Failure> {
+    if let Some(after) = after {
+        let index = usize::try_from(after.interval)
+            .ok()
+            .ok_or(restore::Failure::rowless(Cause::Range(RangeFailure::Cursor)))?;
+        let Some(range) = intervals.get(index) else {
+            return Err(restore::Failure::rowless(Cause::Range(RangeFailure::Cursor)));
+        };
+        let limit = skein_lib::length::usize_of(crate::pages::map_limits(store, map).key);
+        if after.after.len() > limit
+            || (after.after < range.start
+                || match &range.end {
+                    Some(end) => after.after >= *end,
+                    None => false,
+                })
+        {
+            return Err(restore::Failure::rowless(Cause::Range(RangeFailure::Cursor)));
+        }
+    }
+    let capacity = rows.min(crate::pages::map_limits(store, map).page.bytes);
+    let mut found = List::with_capacity(capacity);
+    let mut encoded = 0_u64;
+    let mut last = after.cloned().unwrap_or(Cursor { interval: 0, after: Box::new([]) });
+    let first = skein_lib::length::usize_of(last.interval);
+    for (index, interval) in intervals.iter().enumerate().skip(first) {
+        let index = u32::try_from(index)
+            .ok()
+            .ok_or(restore::Failure::rowless(Cause::Arithmetic(restore::Arithmetic::RangeCount)))?;
+        let mut range = interval.clone();
+        if index == last.interval && after.is_some() {
+            range.start = range.start.max(crate::pages::reader::past(&last.after)?);
+        }
+        for _ in 0..=capacity {
+            if let Some(end) = &range.end
+                && range.start >= *end
+            {
+                break;
+            }
+            let page = crate::pages::reader::load_map(store, map, range.clone())?;
+            let mut rows = page.rows.into_iter();
+            let Some(row) = rows.next() else { break };
+            let size = crate::pages::reader::row_bytes(store, &row)?;
+            let total = encoded.checked_add(size).ok_or(restore::Failure::at(
+                Cause::Arithmetic(restore::Arithmetic::PageBytes),
+                restore::site(store, &row.key),
+            ))?;
+            if found.len() == capacity || total > u64::from(crate::pages::map_limits(store, map).page.bytes) {
+                return Ok(crate::pages::Walked { rows: found.into_boxed(), next: Some(last) });
+            }
+            encoded = total;
+            last = Cursor { interval: index, after: row.key.clone() };
+            range.start = match crate::pages::reader::past(&row.key) {
+                Ok(next) => next,
+                Err(failure) => return Err(restore::Failure::at(failure.cause, restore::site(store, &row.key))),
+            };
+            found.push(crate::pages::WalkRow { row, cursor: last.clone() }).expect("encoded and row bounds checked");
+            if page.next.is_none() {
+                break;
+            }
+        }
+    }
+    Ok(crate::pages::Walked { rows: found.into_boxed(), next: None })
+}
+fn assert_walks_match(
+    store: &mut Store,
+    map: KeptMap,
+    intervals: &[skein_kv::Range],
+    after: Option<&Cursor>,
+    rows: u32,
+) -> Option<Cursor> {
+    let expected = walk_by_rows(store, map, intervals, after, rows);
+    let found = crate::pages::reader::walk_map(store, map, intervals, after, rows);
+    let limits = crate::pages::map_limits(store, map).page;
+    match (found, expected) {
+        (Ok(found), Ok(expected)) => {
+            assert_eq!(found.next, expected.next, "next: {map:?}, {limits:?}, {rows}, {intervals:?}, {after:?}");
+            assert_eq!(found.rows.len(), expected.rows.len(), "row count: {limits:?}, {rows}, {after:?}");
+            for (found, expected) in found.rows.iter().zip(expected.rows.iter()) {
+                assert_eq!(found.row, expected.row, "same row bytes");
+                assert_eq!(found.cursor, expected.cursor, "same exclusive row cursor");
+            }
+            found.next
+        }
+        (Err(found), Err(expected)) => {
+            assert_eq!(found, expected, "same failure and row site");
+            None
+        }
+        (Ok(_), Err(expected)) => panic!("walk succeeded instead of {expected:?}"),
+        (Err(found), Ok(_)) => panic!("walk failed unexpectedly: {found:?}"),
+    }
+}
+
+#[test]
+fn a_walk_by_pages_matches_a_walk_by_rows() {
+    // Prefix-related keys exercise exclusive cursors; row sizes of 2, 4, 4, 2,
+    // and 2 bytes put a byte cut both within and between underlying pages.
+    let inputs = [
+        skein_kv::Op::Put { key: Box::new([200]), value: Box::new([1]) },
+        skein_kv::Op::Put { key: Box::new([200, 0]), value: Box::new([2, 2]) },
+        skein_kv::Op::Put { key: Box::new([201]), value: Box::new([3, 3, 3]) },
+        skein_kv::Op::Put { key: Box::new([202]), value: Box::new([4]) },
+        skein_kv::Op::Put { key: Box::new([204]), value: Box::new([5]) },
+    ];
+    let interval = |from, to| skein_kv::Range { start: Box::new([from]), end: Some(Box::new([to])) };
+    for map in [KeptMap::Store, KeptMap::Secrets] {
+        let mut store = raw_store(&inputs);
+        if map == KeptMap::Secrets {
+            core::mem::swap(&mut store.stores.store, &mut store.stores.secrets);
+        }
+        let original_page = crate::pages::map_limits(&store, map).page;
+        for intervals in [
+            Box::from([interval(200, 205)]),
+            Box::from([interval(200, 201), interval(202, 205)]),
+            Box::from([interval(203, 204)]),
+            Box::from([interval(203, 203)]),
+        ] {
+            let complete = walk_by_rows(&mut store, map, &intervals, None, ROWS).expect("fixture fits");
+            for page_rows in [1, 2, 8] {
+                for page_bytes in [2, 5, 32] {
+                    match map {
+                        KeptMap::Store => {
+                            store.limits.store.page = skein_kv::Page { rows: page_rows, bytes: page_bytes }
+                        }
+                        KeptMap::Secrets => {
+                            store.limits.secrets.page = skein_kv::Page { rows: page_rows, bytes: page_bytes };
+                        }
+                    }
+                    for rows in [0, 1, 2, 3, ROWS] {
+                        if let Some(next) = assert_walks_match(&mut store, map, &intervals, None, rows) {
+                            let _next = assert_walks_match(&mut store, map, &intervals, Some(&next), rows);
+                        }
+                        for item in &complete.rows {
+                            let _next = assert_walks_match(&mut store, map, &intervals, Some(&item.cursor), rows);
+                        }
+                    }
+                }
+            }
+            match map {
+                KeptMap::Store => store.limits.store.page = original_page,
+                KeptMap::Secrets => store.limits.secrets.page = original_page,
+            }
+        }
+        match map {
+            KeptMap::Store => store.limits.store.page.bytes = 1,
+            KeptMap::Secrets => store.limits.secrets.page.bytes = 1,
+        }
+        let intervals = [interval(200, 205)];
+        let error =
+            crate::pages::reader::walk_map(&mut store, map, &intervals, None, ROWS).err().expect("oversized row");
+        assert_eq!(error, restore::Failure::rowless(Cause::Walk(WalkFailure::Refused(skein_kv::Refusal::TooLarge))));
+        let _next = assert_walks_match(&mut store, map, &intervals, None, ROWS);
     }
 }

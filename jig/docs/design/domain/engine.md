@@ -2043,6 +2043,13 @@ section 5).
   withdrawn model keeping its own (17.11). A number no held revision and no
   live task reads could be given again, should a provider's lists come to
   use them up.
+
+- **Room for a replacement settings proposal** (17.6, 17.8): whether
+  admission may discount the proposer's own pending set at
+  `settings.proposals`. Default: check the full bound before replacement,
+  refuse the fresh proposal and retain the pending set. Replacement
+  grants no extra slot.
+
 - **A line range on `recall`:** `recall` returns a note's whole body, which costs
   input, not output. A range joins it only if a walk shows it's needed
   (section 10; the user's idea, 2026-11-05).

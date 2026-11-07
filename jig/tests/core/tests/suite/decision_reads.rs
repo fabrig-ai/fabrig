@@ -154,63 +154,76 @@ fn decide(world: &mut World, holder: (u64, u64), child: u64, entry: u64, proposa
     }
 }
 
+/// Restart moments around an offered entry, its decision and its answering turn.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Restart {
+    Uncut,
+    BeforeDecision,
+    AfterDecision,
+    AfterTurn,
+}
+
+pub(crate) fn a_decision_across_a_restart(proposal: bool, restart: Restart) {
+    let (mut world, holder, child) = entry_world(proposal);
+    let entry = *proof(&world, holder.0).outstanding.first().expect("entry really offered");
+    if restart == Restart::BeforeDecision {
+        reconnect(&mut world, DECISION_SEED);
+    }
+    let next = say(&mut world, holder.0, 71);
+    decide(&mut world, holder, child, entry, proposal);
+    assert_eq!(proof(&world, holder.0).outstanding.as_ref(), [entry], "decision retains offer");
+    if restart == Restart::AfterDecision {
+        reconnect(&mut world, DECISION_SEED);
+    }
+    assert!(next > entry);
+    assert!(!world.inbound.iter().any(|word| word.number == next), "decision frees no room");
+    turn(&mut world, holder, 1, entry);
+    assert_eq!(live_row(&world, holder.0).turn, 1);
+    assert_eq!(live_row(&world, holder.0).run_spent, 1);
+    assert_eq!(proof(&world, holder.0).outstanding.as_ref(), [next], "proposal={proposal} restart={restart:?}");
+    if restart == Restart::AfterTurn {
+        reconnect(&mut world, DECISION_SEED);
+    }
+    assert_eq!(proof(&world, holder.0).attempt, holder.1);
+    assert_eq!(proof(&world, holder.0).outstanding.as_ref(), [next], "proposal={proposal} restart={restart:?}");
+    let rows = world.store.rows.clone();
+    let commits = world.store.applied;
+    turn(&mut world, holder, 1, entry); // lost acknowledgement: same exact payload
+    assert_eq!(world.store.rows, rows);
+    assert_eq!(world.store.applied, commits);
+    turn(&mut world, holder, 2, entry); // unchanged committed read is normalized
+    assert_eq!(live_row(&world, holder.0).turn, 2);
+    assert_eq!(live_row(&world, holder.0).run_spent, 1);
+    world.send(root::Event::Answer {
+        channel: Token::new(7),
+        task: holder.0,
+        attempt: holder.1,
+        cumulative: 1,
+        read: Some(entry),
+        refused: Box::new([]),
+        end: tasks::End::Parked,
+    });
+    assert!(
+        world.store.rows.values().any(|row| matches!(row,
+        root::Record::Core(core::Record::Core(core::CoreRecord::Terminal(terminal)))
+        if terminal.task == holder.0 && terminal.attempt == holder.1 && terminal.end == tasks::End::Parked)),
+        "answer uses a committed read: {:?}",
+        world.trace
+    );
+    assert!(proof(&world, holder.0).attempt > holder.1, "unread next message wakes a new attempt");
+    assert_eq!(
+        proof(&world, holder.0).outstanding.as_ref(),
+        [next],
+        "new attempt keeps only its own assignment's offers"
+    );
+}
+
 #[test]
-fn decisions_keep_their_offered_fence_and_room_across_each_restart_cut() {
-    for proposal in [false, true] {
-        for cut in 0..=3 {
-            let (mut world, holder, child) = entry_world(proposal);
-            let entry = *proof(&world, holder.0).outstanding.first().expect("entry really offered");
-            if cut == 1 {
-                reconnect(&mut world, DECISION_SEED);
-            }
-            let next = say(&mut world, holder.0, 71);
-            decide(&mut world, holder, child, entry, proposal);
-            assert_eq!(proof(&world, holder.0).outstanding.as_ref(), [entry], "decision retains offer");
-            if cut == 2 {
-                reconnect(&mut world, DECISION_SEED);
-            }
-            assert!(next > entry);
-            assert!(!world.inbound.iter().any(|word| word.number == next), "decision frees no room");
-            turn(&mut world, holder, 1, entry);
-            assert_eq!(live_row(&world, holder.0).turn, 1);
-            assert_eq!(live_row(&world, holder.0).run_spent, 1);
-            assert_eq!(proof(&world, holder.0).outstanding.as_ref(), [next], "proposal={proposal} cut={cut}");
-            if cut == 3 {
-                reconnect(&mut world, DECISION_SEED);
-            }
-            assert_eq!(proof(&world, holder.0).attempt, holder.1);
-            assert_eq!(proof(&world, holder.0).outstanding.as_ref(), [next], "proposal={proposal} cut={cut}");
-            let rows = world.store.rows.clone();
-            let commits = world.store.applied;
-            turn(&mut world, holder, 1, entry); // lost acknowledgement: same exact payload
-            assert_eq!(world.store.rows, rows);
-            assert_eq!(world.store.applied, commits);
-            turn(&mut world, holder, 2, entry); // unchanged committed read is normalized
-            assert_eq!(live_row(&world, holder.0).turn, 2);
-            assert_eq!(live_row(&world, holder.0).run_spent, 1);
-            world.send(root::Event::Answer {
-                channel: Token::new(7),
-                task: holder.0,
-                attempt: holder.1,
-                cumulative: 1,
-                read: Some(entry),
-                refused: Box::new([]),
-                end: tasks::End::Parked,
-            });
-            assert!(
-                world.store.rows.values().any(|row| matches!(row,
-                root::Record::Core(core::Record::Core(core::CoreRecord::Terminal(terminal)))
-                if terminal.task == holder.0 && terminal.attempt == holder.1 && terminal.end == tasks::End::Parked)),
-                "answer uses a committed read: {:?}",
-                world.trace
-            );
-            assert!(proof(&world, holder.0).attempt > holder.1, "unread next message wakes a new attempt");
-            assert_eq!(
-                proof(&world, holder.0).outstanding.as_ref(),
-                [next],
-                "new attempt keeps only its own assignment's offers"
-            );
-        }
+fn decisions_keep_their_offered_fence_and_room_across_a_restart_at_the_decision_and_the_turn() {
+    for (proposal, restart) in
+        [(false, Restart::AfterDecision), (true, Restart::AfterDecision), (false, Restart::AfterTurn)]
+    {
+        a_decision_across_a_restart(proposal, restart);
     }
 }
 

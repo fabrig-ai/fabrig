@@ -151,8 +151,7 @@ impl Store {
         models: &[jig_domain_core::Model],
         stores: Stores,
     ) -> Store {
-        assert!(valid(limits), "the store's limits are valid");
-        let codec_limits = limits.codec_view().expect("valid limits fit their families' ceilings");
+        let codec_limits = checked_codec(limits).expect("the store's limits are valid");
         Store {
             limits: *limits,
             application,
@@ -252,14 +251,24 @@ impl Store {
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
+    checked_codec(limits).is_some()
+}
+
+// Validate and retain one family mapping for both admission and the live store (store.md, 13).
+fn checked_codec(limits: &Limits) -> Option<codec::View> {
+    let codec = limits.codec_view()?;
+    if valid_with_codec(limits, &codec) { Some(codec) } else { None }
+}
+
+fn valid_with_codec(limits: &Limits, codec: &codec::View) -> bool {
     limits.queue > 0
         && limits.queue <= limits.store.queued
         && limits.files > 0
         && limits.orphan_erases > 0
         && limits.store.is_usable()
         && limits.secrets.is_usable()
-        && decoded_records_bound(limits).is_some()
-        && frame_bound(limits).is_some()
+        && decoded_records_bound(limits, codec).is_some()
+        && frame_bound(codec).is_some()
         && transcripts::reservation_count(limits).is_some()
         && commits::most_ops(limits.commits.writes, limits.orphan_erases).is_some()
         && limits.commits.writes.checked_add(1).is_some()
@@ -270,14 +279,12 @@ pub fn valid(limits: &Limits) -> bool {
         }
 }
 
-fn frame_bound(limits: &Limits) -> Option<u64> {
-    let codec = limits.codec_view()?;
+fn frame_bound(codec: &codec::View) -> Option<u64> {
     core_v6::TurnRecord::encoded_bound(&codec.core)?.checked_add(u64::from(transcripts::frame::WRAPPER_BYTES))
 }
 
 // Bound for two decoded records, including their wire values and the census's joined task.
-pub(crate) fn decoded_records_bound(limits: &Limits) -> Option<u64> {
-    let codec = limits.codec_view()?;
+fn decoded_records_bound(limits: &Limits, codec: &codec::View) -> Option<u64> {
     core_v6::Row::decoded_bound(&codec.core)?
         .checked_add(tasks_v9::Row::decoded_bound(&codec.tasks)?)?
         .checked_add(people_v14::Row::decoded_bound(&codec.people)?)?

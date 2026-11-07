@@ -452,8 +452,43 @@ pub(super) fn run_charter(world: &World, instructions: &[u8]) -> settings::Item 
     }
 }
 
-// Peak 16,224,965 bytes with both stock workloads; a quarter above, rounded up.
+// Peak 16,224,965 bytes with the stock workloads; a quarter above, rounded up.
 const REQUEST_HEAP_CEILING: u64 = 21_000_000;
+
+/// A stock profile's whole room of deciding requests answered, a cold
+/// restart, and the first request replayed (the heap ceiling checks each step).
+pub(super) fn whole_room_of_answers(profile: jig_protocol_config::Profile) {
+    let (config, mut limits) = configuration();
+    let people = jig_protocol_config::profile(profile).core.people;
+    limits.core.people.requests = people.requests;
+    limits.core.people.request_retention = people.request_retention;
+    let mut world = RequestWorld::new(config, &limits);
+    let signed = world.sign_in();
+    let requests = people.requests;
+    for number in 1..requests {
+        world.change(signed, number);
+        assert_answer(&world.store.rows, number, &people::Outcome::SettingsChanged { revision: number + 1 });
+    }
+    world.visibility(signed, requests);
+    assert_answer(&world.store.rows, requests, &people::Outcome::VisibilitySet { project: 1, public: true });
+    world.restart();
+    world.change(signed, 1);
+}
+
+pub(super) fn assert_answer(
+    rows: &std::collections::BTreeMap<root::Key, root::Record>,
+    number: u32,
+    expected: &people::Outcome,
+) {
+    let address = root::Key::Core(core::Key::People(people::Key::Answer(people::RequestKey {
+        person: OWNER,
+        key: request_key(number),
+    })));
+    let root::Record::Core(core::Record::People(people::Stored::Answer { outcome, .. })) = &rows[&address] else {
+        panic!("durable deciding answer")
+    };
+    assert_eq!(outcome, expected);
+}
 
 /// The core and journal with a domain store fake, without protocol copies or histories.
 pub(super) struct RequestWorld {

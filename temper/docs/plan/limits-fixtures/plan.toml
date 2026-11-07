@@ -1,0 +1,87 @@
+draft = "limits-fixtures"
+repo = "fabrig"
+sources = ["temper/docs/plan/limits-fixtures/inputs/request.md", "temper/tests/engine/domain/Cargo.toml", "temper/crates/temper-service/Cargo.toml", "temper/tests/client/Cargo.toml", "temper/crates/temper-client-view/Cargo.toml", "AGENTS.md", "DESIGN.md"]
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "service"
+title = "temper-service's tests build their service once, from a fixture that's cheap to build"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[part]]
+id = "view"
+title = "temper-client-view's tests stop paying for the phrasebook many times over"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[part]]
+id = "engine-world"
+title = "the engine world's stories start from a cheap world and first start"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[slice]]
+id = 1
+story = "A temper-service test costs what it checks, not a dozen parses and three starts"
+parts = ["service"]
+walk = false
+
+[[slice]]
+id = 2
+story = "A view test, and a person's browser, build the words once and cheaply"
+parts = ["view"]
+walk = false
+
+[[slice]]
+id = 3
+story = "An engine world story starts for little more than a process costs"
+parts = ["engine-world"]
+walk = false
+
+[[part]]
+id = "client-world"
+title = "the joined client world starts for what's left once the words and the engine's start are cheap"
+mode = "direct"
+needs = ["view", "engine-world"]
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[part]]
+id = "temper-suite"
+title = "temper::suite's startup and forge tests pay less for each temper command"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/testing-strategy.md, 8.1"
+
+[[part]]
+id = "figures"
+title = "before and after, per row of the request, in instruction counts"
+mode = "direct"
+needs = ["service", "view", "engine-world", "client-world", "temper-suite"]
+design = "skein/docs/foundation/testing-strategy.md, 8"
+
+[[slice]]
+id = 4
+story = "A client world story starts for what the joined world needs, not more"
+parts = ["client-world"]
+walk = false
+
+[[slice]]
+id = 5
+story = "A temper command, in a test or on a person's box, pays only for what it uses"
+parts = ["temper-suite"]
+walk = false
+
+[[slice]]
+id = 6
+story = "Every row of the request reads before and after, with each cause fixed or named"
+parts = ["figures"]
+walk = false
