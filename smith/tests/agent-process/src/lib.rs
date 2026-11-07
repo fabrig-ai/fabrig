@@ -272,7 +272,7 @@ fn configuration_output(anthropic: bool, output: u32) -> agent::Config {
     configuration
 }
 
-/// The same process with the stopped-turn reasoning-item entrance for the stopped-turn story.
+/// The process with an 8 KiB reasoning-item entrance for the stopped-turn story.
 fn reasoning_configuration() -> agent::Config {
     let mut declaration = declarations(0);
     declaration.endpoints[0].models[0].window = 272_000;

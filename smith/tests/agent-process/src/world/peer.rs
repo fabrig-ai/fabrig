@@ -142,6 +142,7 @@ pub(super) fn environment_peer() -> skein_fake_peers::llm::Peer {
     )
 }
 
+// Each reasoning item fits 8 KiB; their combined replay exceeds that per-item entrance.
 fn stopped_reasoning_peer() -> skein_fake_peers::llm::Peer {
     use skein_fake_llm_domain::api;
     fake::reasoning(Box::new([api::Script {
