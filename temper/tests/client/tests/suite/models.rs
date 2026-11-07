@@ -23,6 +23,7 @@ fn configuration() -> temper_engine_domain::Config {
     config.core.defaults.charters[0].policy.alternatives = Box::new([sonnet.clone()]);
     config.core.defaults.models = Box::new([
         CatalogueModel {
+            first_read: None,
             number: 1,
             model: opus,
             shown: Some(b"Opus 5.5".as_slice().into()),
@@ -33,6 +34,7 @@ fn configuration() -> temper_engine_domain::Config {
             estimated: false,
         },
         CatalogueModel {
+            first_read: None,
             number: 2,
             model: sonnet,
             shown: Some(b"Sonnet 5.5".as_slice().into()),

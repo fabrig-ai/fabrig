@@ -73,6 +73,7 @@ fn account_rows(config: &root::Config) -> Box<[root::Record]> {
     rows.extend(
         [
             accounts::Stored::Account {
+                list: None,
                 number: SOLE,
                 provider: config.core.settings.llm_providers.providers[0].number,
                 holder: accounts::Holder::Deployment,

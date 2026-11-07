@@ -417,6 +417,7 @@ fn account_readback(world: &World) -> Vec<Stored> {
         .accounts_by_number()
         .iter()
         .map(|(number, row)| Stored::Account {
+            list: world.domain.list(*number).copied(),
             number: *number,
             provider: row.provider(),
             holder: row.holder(),
@@ -528,6 +529,41 @@ pub(crate) fn writer_readback(seed: u64) -> Vec<Stored> {
 
 #[test]
 fn writer_produced_snapshots_restore_and_read_back() {
+    use jig_domain_accounts::{ListRecord, ReadFailure};
+    for list in [
+        None,
+        Some(ListRecord {
+            names: u64::MAX,
+            read: Some(Wall::EPOCH),
+            tried: Some(Wall::from_nanos(u64::MAX)),
+            failure: Some(ReadFailure::Refused { status: 403 }),
+            left_out: u32::MAX,
+        }),
+    ] {
+        let mut row = held(ACCOUNT, b"subject");
+        let Stored::Account { list: stored_list, .. } = &mut row else { unreachable!("account fixture") };
+        *stored_list = list;
+        let mut world = start(&[row.clone()]);
+        world.step(Event::Want);
+        assert_eq!(world.domain.list(ACCOUNT), list.as_ref());
+        assert_eq!(world.domain.list(u32::MAX), None);
+        let out = world.step(Event::Change {
+            request: Token::new(1),
+            holder: HOLDER,
+            change: Change::SetUses { account: ACCOUNT, uses: Some(Box::new([Use::Party(7)])) },
+        });
+        let mut store = std::collections::BTreeMap::from([(row.key(), row)]);
+        commit(&mut store, &out);
+        let rows: Vec<_> = store.into_values().collect();
+        let Stored::Account { list: saved, uses, .. } = rows.first().expect("saved account") else {
+            panic!("account row")
+        };
+        assert_eq!(*saved, list);
+        assert_eq!(uses.as_deref(), Some([Use::Party(7)].as_slice()), "the writer saved the change");
+        let mut again = start(&rows);
+        again.step(Event::Want);
+        assert_eq!(again.domain.list(ACCOUNT), list.as_ref());
+    }
     assert_eq!(writer_readback(61), writer_readback(61));
 }
 

@@ -377,6 +377,7 @@ impl World {
             .collect();
         let rows = [
             Stored::Account {
+                list: None,
                 number: BILLING_ACCOUNT,
                 provider: 1,
                 holder: Holder::Deployment,

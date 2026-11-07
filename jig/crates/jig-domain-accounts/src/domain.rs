@@ -11,6 +11,7 @@ use skein_lib::{Deadlines, Duration, Env, List, Map, Queue, Time, Wall};
 /// order, with its explicit payers or the default uses (4.2).
 #[derive(Hash, Debug)]
 pub struct Account {
+    pub(crate) list: Option<crate::ListRecord>,
     pub(crate) provider: u32,
     pub(crate) holder: Holder,
     pub(crate) subject: Box<[u8]>,
@@ -165,6 +166,12 @@ pub struct Domain {
     phase: Phase,
 }
 impl Domain {
+    /// The account's last list reads (jig/docs/design/domain/accounts.md, 3.7).
+    #[must_use]
+    pub fn list(&self, account: u32) -> Option<&crate::ListRecord> {
+        self.accounts.get(&account)?.list.as_ref()
+    }
+
     /// Providers are configuration; accounts and sources are durable runtime records.
     #[must_use]
     pub fn new(limits: &Limits, providers: Providers) -> Domain {
@@ -642,6 +649,7 @@ fn none_accounts(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request
         let mut places = Map::with_capacity(env.limits.sources);
         assert!(places.insert(0, source) == Ok(None), "a first place");
         let entry = Account {
+            list: None,
             provider,
             holder: Holder::Deployment,
             subject: Box::new([]),
@@ -660,6 +668,7 @@ fn none_accounts(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request
         assert!(domain.sources.insert(source, entry) == Ok(None), "a new number, within the sources' bound");
         out.push(Request::Save {
             record: Stored::Account {
+                list: None,
                 number: account,
                 provider,
                 holder: Holder::Deployment,

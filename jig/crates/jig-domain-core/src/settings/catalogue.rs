@@ -2,7 +2,7 @@
 use super::{Current, Edit, Fault, Item, Setting};
 use crate::{Model, Settings};
 use alloc::boxed::Box;
-use skein_lib::List;
+use skein_lib::{List, Wall};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ModelSource {
@@ -22,6 +22,7 @@ pub struct CatalogueModel {
     pub withdrawn: bool,
     pub source: ModelSource,
     pub estimated: bool,
+    pub first_read: Option<Wall>,
 }
 
 #[must_use]
@@ -227,6 +228,7 @@ pub(crate) fn defaults(settings: &Settings) -> Box<[CatalogueModel]> {
         }
         models
             .push(CatalogueModel {
+                first_read: None,
                 number: u32::try_from(at).expect("model position").checked_add(1).expect("model number"),
                 model: model.clone(),
                 shown: None,
@@ -304,6 +306,7 @@ pub fn new_model(
     model.efforts = Box::default();
     model.effort = None;
     Some(CatalogueModel {
+        first_read: None,
         number: free_number(models)?,
         model,
         shown: None,

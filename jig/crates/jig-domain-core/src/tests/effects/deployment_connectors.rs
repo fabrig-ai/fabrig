@@ -269,6 +269,7 @@ fn program_facts() -> (Core, Env<Limits>) {
             signed_out: false,
         },
         accounts::Stored::Account {
+            list: None,
             number: 10,
             provider: 1,
             holder: accounts::Holder::Party(1),

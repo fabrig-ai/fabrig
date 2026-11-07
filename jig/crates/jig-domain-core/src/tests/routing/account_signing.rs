@@ -250,6 +250,7 @@ fn program_sign_out_routes_the_offline_member_result() {
     for record in [
         accounts::Stored::Issued { number: 21, holder: PARTY, name: b"personal".as_slice().into(), signed_out: false },
         accounts::Stored::Account {
+            list: None,
             number: 20,
             provider: 3,
             holder: PARTY,
