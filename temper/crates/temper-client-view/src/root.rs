@@ -110,7 +110,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
     let mut builder = view.render.builder();
     builder.open(Role::Page);
     let rail_project = crate::frame::rail_project(root, &view.forge_words, &view.sign_in);
-    let terminal = crate::pages::terminal::shown(root, &view.forge_words);
+    let terminal = root.approval().is_none() && crate::pages::terminal::shown(root, &view.forge_words);
     if !terminal {
         if let Some(project) = rail_project {
             crate::frame::rail(
@@ -151,7 +151,9 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         }
         match root.pages().address() {
             temper_client_domain::Address::Chats { .. } | temper_client_domain::Address::NewChat { .. } => {
-                crate::frame::playground_banner(&mut builder, root, &view.forge_words, &mut view.forge);
+                if root.approval().is_none() {
+                    crate::frame::playground_banner(&mut builder, root, &view.forge_words, &mut view.forge);
+                }
             }
             temper_client_domain::Address::Welcome { .. }
             | temper_client_domain::Address::ConnectModel { .. }
@@ -173,7 +175,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
                 // Outside Chats and NewChat the line shows only while the
                 // playground is leaving; while it runs, the frame's "Set up
                 // temper" is the way out (temper/docs/design/client/README.md, 5.1).
-                if root.forge().leaving() {
+                if root.approval().is_none() && root.forge().leaving() {
                     crate::frame::playground_banner(&mut builder, root, &view.forge_words, &mut view.forge);
                 }
             }
@@ -189,6 +191,8 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             &view.sign_in,
             &view.forge_sign_in,
         );
+    } else if let Some(page) = root.approval() {
+        crate::approve::main(&mut builder, root, page, &view.forge_words, &mut view.pages, &mut times);
     } else if crate::sign_in::offered(root, &view.forge_words, &view.sign_in)
         && let Some(origin) = &view.sign_in.origin
     {
