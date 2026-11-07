@@ -128,6 +128,7 @@ fn charter(
     let documents = documents(&mut object, document, path, problems);
     object.finish(document, path, problems);
     let charter = Charter {
+        parts: Box::new([]),
         rest,
         documents: documents?,
         number: number?,

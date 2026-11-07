@@ -723,7 +723,7 @@ fn change_choice(value: &Value, models: &[engine::Model]) -> Result<tasks::LlmCh
         }
         None => Box::new([]),
     };
-    Ok(tasks::LlmChoice { account: None, main, subagents })
+    Ok(tasks::LlmChoice { later: None, account: None, main, subagents })
 }
 
 fn change_model_effort(value: &Value, models: &[engine::Model]) -> Result<tasks::ModelEffort, Problem> {

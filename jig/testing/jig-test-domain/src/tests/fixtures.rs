@@ -155,6 +155,7 @@ pub fn domain() -> Domain {
                 defaults: core::settings::Defaults {
                     models: Box::default(),
                     charters: Box::new([core::Charter {
+                        parts: Box::new([]),
                         rest: false,
                         wake: jig_domain_tasks::WakePolicy::DEFAULT,
                         documents: Box::new([]),

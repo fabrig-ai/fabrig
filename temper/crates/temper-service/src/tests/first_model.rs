@@ -416,6 +416,7 @@ impl StockBox {
         member.label = template.label;
         member.wake = None;
         member.llm = named.map(|name| people::LlmChoice {
+            later: None,
             account: None,
             main: people::ModelEffort {
                 model: u8::try_from(

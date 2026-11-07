@@ -105,6 +105,7 @@ fn entry(world: &World, number: u32) -> s::CatalogueModel {
 fn make(world: &mut World, signed: u64, key: u8, model: Option<u8>) -> u64 {
     let mut member = jig_test_profile::fixtures::people_member(b"catalogue task", 20);
     member.llm = model.map(|model| people::LlmChoice {
+        later: None,
         account: Some(ACCOUNT),
         main: people::ModelEffort { model, effort: None },
         subagents: Box::new([]),

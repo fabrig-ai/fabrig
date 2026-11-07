@@ -21,6 +21,8 @@ fn hold_origin_survives_restart_terminal_and_release_in_exact_milestones() {
     h.make([task(1, &[])].into());
     h.send(Event::Prepare { reply_to: to(), task: 1 });
     h.send(Event::Claim {
+        offered: crate::Reasons::ALL,
+        reasons: crate::Reasons::FIRST,
         account: None,
         reply_to: to(),
         task: 1,

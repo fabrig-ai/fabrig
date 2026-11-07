@@ -640,6 +640,7 @@ fn live_tasks_with_llm_choices_the_newest_disallows_stay_and_are_all_counted() {
         batch[0].budget = people::Budget::Named;
         batch[0].authority.spend = 20;
         batch[0].llm = Some(people::LlmChoice {
+            later: None,
             account: None,
             main: people::ModelEffort { model: 0, effort: None },
             subagents: Box::new([]),

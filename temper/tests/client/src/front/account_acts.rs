@@ -740,6 +740,7 @@ pub fn account_chat(front: &mut Joint, account: u32) -> u64 {
     let mut ask = front.engine.chat_ask(1, b"Wait for my plan");
     let people::Ask::Create { batch, .. } = &mut ask else { panic!("chat template") };
     batch[0].llm = Some(people::LlmChoice {
+        later: None,
         account: Some(account),
         main: people::ModelEffort { model: 0, effort: None },
         subagents: Box::new([]),

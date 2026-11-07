@@ -858,6 +858,7 @@ fn selected_nested_causes_keep_the_outer_stored_key_and_first_fit_order() {
                 0 => {
                     let mut amendment = fixtures::unchanged(b"");
                     amendment.llm = Some(LlmChoice {
+                        later: None,
                         account: None,
                         main: ModelEffort { model: 255, effort: Some(255) },
                         subagents: copies(ModelEffort { model: 255, effort: None }, MODELS + extra),

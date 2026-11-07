@@ -25,6 +25,16 @@ pub struct LlmChoice {
     pub main: ModelEffort,
     /// At most `MODELS`.
     pub subagents: Box<[ModelEffort]>,
+    pub later: Option<LlmLater>,
+}
+
+/// The choice every run whose reasons hold no `first` takes
+/// (jig/docs/design/domain/tasks.md, 3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct LlmLater {
+    pub main: ModelEffort,
+    /// Each named once, at most `MODELS`.
+    pub subagents: Box<[ModelEffort]>,
 }
 
 /// Why the root refused a named model, the tasks child's `LlmFault`.

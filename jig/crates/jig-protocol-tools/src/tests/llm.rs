@@ -24,6 +24,7 @@ fn amendment(choice: &str) -> Box<[u8]> {
 }
 fn chosen() -> tasks::LlmChoice {
     tasks::LlmChoice {
+        later: None,
         account: Some(42),
         main: tasks::ModelEffort { model: 0, effort: Some(1) },
         subagents: Box::new([tasks::ModelEffort { model: 1, effort: None }]),

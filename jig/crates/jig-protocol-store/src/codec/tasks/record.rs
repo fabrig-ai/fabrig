@@ -442,6 +442,8 @@ pub fn read_task_record(source: wire::TaskRecord, limits: &wire::Limits) -> Resu
     let outcome = outcome.into_parts();
     let Inbox { words: inbox, credits: questions } = read_inbox(interests.inbox, limits)?;
     Ok(domain::TaskRecord {
+        offered: jig_domain_tasks::Reasons::ALL,
+        reasons: jig_domain_tasks::Reasons::FIRST,
         asked_requester,
         label: definition.label,
         flags: phase::read_flags(definition.flags),
