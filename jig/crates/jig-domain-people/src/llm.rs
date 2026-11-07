@@ -54,13 +54,17 @@ pub enum LlmWhy {
     Repeated,
 }
 
-/// Checked deep-byte size of an optional choice: its sub-agents.
+/// Checked deep-byte size of an optional choice: both choices' sub-agents.
 #[must_use]
 pub fn llm_bytes(choice: Option<&LlmChoice>) -> Option<u64> {
     let Some(choice) = choice else {
         return Some(0);
     };
-    len_u64(choice.subagents.len()).checked_mul(u64::try_from(size_of::<ModelEffort>()).ok()?)
+    let later = match &choice.later {
+        Some(later) => len_u64(later.subagents.len()),
+        None => 0,
+    };
+    len_u64(choice.subagents.len()).checked_add(later)?.checked_mul(u64::try_from(size_of::<ModelEffort>()).ok()?)
 }
 
 /// Whether an optional choice has the shape a request keeps.
@@ -68,7 +72,12 @@ pub(crate) fn valid(choice: Option<&LlmChoice>) -> bool {
     let Some(choice) = choice else {
         return true;
     };
-    choice.subagents.len() <= skein_lib::length::usize_of(MODELS)
+    let bound = skein_lib::length::usize_of(MODELS);
+    choice.subagents.len() <= bound
+        && match &choice.later {
+            Some(later) => later.subagents.len() <= bound,
+            None => true,
+        }
 }
 
 /// Why an explicit account cannot fund the prospective task (domain/accounts.md, 4.3).
