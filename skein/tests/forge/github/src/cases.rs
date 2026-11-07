@@ -983,42 +983,7 @@ fn repositories(r: &mut Runner<'_>) -> Result<()> {
             && response.json()?.root().items().iter().any(|row| row.get("number").u64() == Some(issue))
             && answer.is_ok())
     })?;
-    observation(r, "issues-since-epoch-empty", |r| {
-        let issue = r.issue(0)?;
-        let mut found = false;
-        let mut reads = 0;
-        for attempt in 0..3 {
-            let response = r.raw(Method::Get, listing.clone(), &token, b"")?;
-            reads += 1;
-            found = response.status == 200
-                && response.json()?.root().items().iter().any(|row| row.get("number").u64() == Some(issue));
-            if found {
-                break;
-            }
-            if attempt < 2 {
-                r.wait(2);
-            }
-        }
-        r.provenance.push(format!("# issues-since-epoch-empty listing reads {reads}"));
-        if !found {
-            r.fact(r.case, false, "made issue absent from listing");
-            return Ok(());
-        }
-        let epoch = r.raw(
-            Method::Get,
-            listing.replace("?state=all", "?state=all&since=1970-01-01T00%3A00%3A00Z"),
-            &token,
-            b"",
-        )?;
-        let empty = epoch.status == 200
-            && epoch.json().is_ok_and(|json| json.root().array().is_some_and(|rows| rows.is_empty()));
-        let answer =
-            r.plan(0, api::Op::Read(api::Read::Items { since: skein_lib::Time::ZERO, page: 1, kind: None }))?;
-        let listed =
-            matches!(answer, Ok(api::Answer::Items { items, .. }) if items.iter().any(|row| row.number == issue));
-        r.fact(r.case, empty && listed, "wire observation differs from the fact");
-        Ok(())
-    })?;
+    issues_since_epoch(r)?;
     case(r, "branch-with-slash-reads", |r| {
         let first = r.base(0)?;
         let name = format!("{}/slash", r.name("branch"));
@@ -1149,6 +1114,47 @@ fn repositories(r: &mut Runner<'_>) -> Result<()> {
     observation(r, "installation-repository-removal-refusals", access)?;
     Ok(())
 }
+pub(crate) fn issues_since_epoch(r: &mut Runner<'_>) -> Result<()> {
+    let token = r.token(0)?;
+    let repo = r.repo(0)?;
+    let listing = format!("/repos/{repo}/issues?state=all&sort=updated&direction=asc&per_page=100&page=1");
+    observation(r, "issues-since-epoch-empty", |r| {
+        let issue = r.issue(0)?;
+        let mut found = false;
+        let mut reads = 0;
+        for attempt in 0..3 {
+            let response = r.raw(Method::Get, listing.clone(), &token, b"")?;
+            reads += 1;
+            found = response.status == 200
+                && response.json()?.root().items().iter().any(|row| row.get("number").u64() == Some(issue));
+            if found {
+                break;
+            }
+            if attempt < 2 {
+                r.wait(2);
+            }
+        }
+        r.provenance.push(format!("# issues-since-epoch-empty listing reads {reads}"));
+        if !found {
+            r.fact(r.case, false, "made issue absent from listing");
+            return Ok(());
+        }
+        let epoch = r.raw(
+            Method::Get,
+            listing.replace("?state=all", "?state=all&since=1970-01-01T00%3A00%3A00Z"),
+            &token,
+            b"",
+        )?;
+        let empty = epoch.status == 200
+            && epoch.json().is_ok_and(|json| json.root().array().is_some_and(|rows| rows.is_empty()));
+        let answer =
+            r.plan(0, api::Op::Read(api::Read::Items { since: skein_lib::Time::ZERO, page: 1, kind: None }))?;
+        let listed =
+            matches!(answer, Ok(api::Answer::Items { items, .. }) if items.iter().any(|row| row.number == issue));
+        r.fact(r.case, empty && listed, "wire observation differs from the fact");
+        Ok(())
+    })
+}
 fn access(r: &mut Runner<'_>) -> Result<()> {
     let mut holds = true;
     for index in 0..2 {
@@ -1176,7 +1182,7 @@ fn access(r: &mut Runner<'_>) -> Result<()> {
     );
     Ok(())
 }
-fn logs(r: &mut Runner<'_>) -> Result<()> {
+pub(crate) fn logs(r: &mut Runner<'_>) -> Result<()> {
     if r.fake() {
         case(r, "installation-target-in-log", |r| {
             if let Target::Fake(world) = &mut r.target
