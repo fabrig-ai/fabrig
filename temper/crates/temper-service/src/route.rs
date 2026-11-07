@@ -375,6 +375,7 @@ fn host_request(engine: &mut Engine, request: root::HostRequest) {
                 &call,
                 engine.domain.models(),
                 &engine.domain.catalogue(),
+                &engine.domain.repository_identities(task),
             ));
         }
         root::HostRequest::SettingsNote { to, call, body } => {

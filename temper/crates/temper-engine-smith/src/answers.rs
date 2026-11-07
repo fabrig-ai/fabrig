@@ -523,7 +523,16 @@ fn proposed(
     }
     text.number(proposal)?;
     if settings {
-        text.add(b" to the deployment's owners")?;
+        text.add(b" for the deployment's owners to decide: it waits as a card in this chat and in Needs you, and nothing changes until an owner accepts it. Tell the person so, without ")?;
+        if let Some(task) = task {
+            text.add(b"t")?;
+            text.number(task)?;
+            text.add(b"/")?;
+        } else {
+            text.add(b"proposal ")?;
+        }
+        text.number(proposal)?;
+        text.add(b".")?;
     }
     Ok(())
 }
@@ -769,6 +778,7 @@ fn rendered(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> Result<HostA
             }
             false
         }
+        CallAnswer::Parts(parts) => crate::settings::parts(&mut text, parts)?,
         CallAnswer::Document(documented) => crate::document::render(&mut text, documented)?,
         CallAnswer::NoteRefused(why) => {
             text.add(b"Note refused: ")?;

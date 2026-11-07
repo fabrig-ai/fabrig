@@ -8,7 +8,7 @@ use temper_engine_domain as engine;
 
 #[test]
 fn a_settings_proposal_answer_prints_its_ctl_name() {
-    for (task, proposal, name) in [(1, 2, "t1/2"), (1, 8, "t1/8"), (7, 13, "t7/13")] {
+    for (task, proposal, name) in [(1, 2, "t1/2"), (1, 8, "t1/8"), (7, 13, "t7/13"), (0, 13, "proposal 13")] {
         let answer = engine::CallAnswer::Proposed {
             proposal,
             holder: jig_domain_tasks::ProposalHolder::Policy {
@@ -16,11 +16,16 @@ fn a_settings_proposal_answer_prints_its_ctl_name() {
                 kind: jig_domain_tasks::ProposalKind::Settings,
             },
         };
-        let (body, error) = crate::answer_for_task(&answer, b"propose_settings", crate::DOC_ANSWER, task).into_parts();
+        let (body, error) = if task == 0 {
+            crate::answer(&answer)
+        } else {
+            crate::answer_for_task(&answer, b"propose_settings", crate::DOC_ANSWER, task)
+        }
+        .into_parts();
         assert!(!error);
         assert_eq!(
             body.as_ref(),
-            format!("proposed as {name} to the deployment's owners").as_bytes(),
+            format!("proposed as {name} for the deployment's owners to decide: it waits as a card in this chat and in Needs you, and nothing changes until an owner accepts it. Tell the person so, without {name}.").as_bytes(),
             "task {task}'s proposal keeps its proposer and shared counter"
         );
     }
@@ -143,6 +148,7 @@ fn settings_proposal_items_use_the_file_decoder() {
     assert_eq!(
         body.tool,
         engine::Tool::ProposeSettings {
+            more: false,
             kinds: Box::default(),
             against: 1,
             reason: b"restore the default".as_slice().into(),
@@ -964,5 +970,90 @@ fn settings_document_refusal_words_name_member_and_bound() {
             temper_client_tools::jig::render::settings_refusal(&client, temper_client_tools::limits::TEXT)
         );
         assert_eq!(crate::settings::refusal(&refusal).as_ref(), expected.as_bytes());
+    }
+}
+
+#[test]
+fn settings_proposals_decode_more_and_refuse_it_with_a_note() {
+    for more in ["", ",\"more\":false", ",\"more\":true"] {
+        let input = format!(
+            r#"{{"against":1,"reason":"why","items":[{{"setting":{{"kind":"charter","number":1}},"edit":"reset"}}]{more}}}"#
+        );
+        let call = decided(b"propose_settings", input.as_bytes()).expect("part decodes as a call");
+        let engine::Tool::ProposeSettings { more: decoded_more, .. } = call.tool else { panic!("proposal") };
+        assert_eq!(decoded_more, more.contains("true"));
+    }
+    for more in ["false", "true"] {
+        let input = format!(r#"{{"against":1,"reason":"why","note":{{"name":1,"revision":1}},"more":{more}}}"#);
+        assert_eq!(
+            decoded(b"propose_settings", input.as_bytes()).expect_err("note takes no more"),
+            Problem::Range(b"more")
+        );
+    }
+}
+
+#[test]
+fn settings_parts_answers_use_the_contracts_words_and_error_flag() {
+    use engine::PartsAnswer as P;
+    for (parts, expected, error) in [
+        (
+            P::Holding { count: 3, total: 12, against: 7, dropped: None },
+            "propose_settings: holding 3 items for revision 7, 12 in all; nothing is proposed until a call without more.",
+            false,
+        ),
+        (
+            P::Holding { count: 1, total: 1, against: 8, dropped: Some((1, 7)) },
+            "propose_settings: holding 1 item for revision 8, 1 in all; the 1 held for revision 7 were dropped. Nothing is proposed until a call without more.",
+            false,
+        ),
+        (
+            P::Holding { count: 3, total: 3, against: 8, dropped: Some((9, 7)) },
+            "propose_settings: holding 3 items for revision 8, 3 in all; the 9 held for revision 7 were dropped. Nothing is proposed until a call without more.",
+            false,
+        ),
+        (
+            P::Held { setting: s::Setting::Charter(4) },
+            "propose_settings: charter 4 is held already, from an earlier part; nothing was added.",
+            true,
+        ),
+        (
+            P::Held { setting: s::Setting::Application { kind: 2, scope: 7, number: 4 } },
+            "propose_settings: landing-rule 4 --project 7 is held already, from an earlier part; nothing was added.",
+            true,
+        ),
+        (
+            P::PastBound { most: 129, would: 140 },
+            "propose_settings: a proposal holds at most 129 items, and this call would make 140; nothing was added.",
+            true,
+        ),
+        (
+            P::Revision { held: 9, against: 7, named: 8 },
+            "propose_settings: the 9 items held are for revision 7, and this call names 8; nothing was proposed, and they were dropped. Give the whole set again against 8.",
+            true,
+        ),
+        (
+            P::Revision { held: 1, against: 7, named: 8 },
+            "propose_settings: the 1 item held are for revision 7, and this call names 8; nothing was proposed, and they were dropped. Give the whole set again against 8.",
+            true,
+        ),
+        (
+            P::Restarted,
+            "propose_settings: temper restarted during this run, so parts it gave may be lost; nothing was proposed. Give the whole set again, in parts if it is large.",
+            true,
+        ),
+        (
+            P::NotOffered,
+            "propose_settings: more is not offered to this charter; give the whole set in one call, or from a note.",
+            true,
+        ),
+        (
+            P::Approvals { why: b"project 1: refused.".as_slice().into() },
+            "propose_settings: not proposed, as acceptance would refuse it: project 1: refused.",
+            true,
+        ),
+    ] {
+        let (body, failed) = crate::answer(&engine::CallAnswer::Parts(Box::new(parts))).into_parts();
+        assert_eq!(body.as_ref(), expected.as_bytes());
+        assert_eq!(failed, error);
     }
 }

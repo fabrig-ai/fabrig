@@ -90,6 +90,8 @@ pub struct Domain {
     pub(crate) forge: forge::Domain,
     pub(crate) application: Option<(Token, crate::Application)>,
     pub(crate) kinds: Box<[crate::KindValue]>,
+    pub(crate) settings_parts: Map<u64, crate::route::settings_parts::Held>,
+    pub(crate) settings_restarted: skein_lib::Set<(u64, u64)>,
     pub(crate) kinds_stock: Option<Box<[forge::settings::Stock]>>,
     pub(crate) application_carried: Option<jig_domain_core::Carried>,
     pub(crate) application_playground: Option<crate::route::playground::Context>,
@@ -191,6 +193,25 @@ impl Domain {
     #[must_use]
     pub fn models(&self) -> &[jig_domain_core::Model] {
         &self.core.settings.models
+    }
+
+    /// The task project's readable repositories, as its inventory names them;
+    /// empty for a task with no project (temper/docs/design/domain/agent.md, 8.1 and 8.4.2).
+    #[must_use]
+    pub fn repository_identities(&self, task: u64) -> Box<[crate::RepositoryIdentity]> {
+        let Some(context) = self.core.tasks.delegation(task) else { return Box::new([]) };
+        let repositories = self.forge.readable_repositories(context.project);
+        let mut identities = List::with_capacity(u32::try_from(repositories.len()).expect("bounded repositories"));
+        for repository in &repositories {
+            identities
+                .push(crate::RepositoryIdentity {
+                    host: repository.host.clone(),
+                    owner: repository.owner.clone(),
+                    name: repository.name.clone(),
+                })
+                .expect("one identity per readable repository");
+        }
+        identities.into_boxed()
     }
 
     /// Whole current model settings (jig/docs/design/domain/engine.md, 17.11).
@@ -494,6 +515,8 @@ impl Domain {
             forge,
             application: None,
             kinds: Box::default(),
+            settings_parts: Map::with_capacity(limits.tasks.tasks),
+            settings_restarted: skein_lib::Set::with_capacity(limits.tasks.tasks),
             kinds_stock,
             application_carried: None,
             application_playground: None,

@@ -175,6 +175,8 @@ pub enum Tool {
         items: Box<[jig_domain_core::settings::Item]>,
         reason: Box<[u8]>,
         kinds: Box<[KindValue]>,
+        /// Hold this call's part (domain/agent.md, 8.4.2).
+        more: bool,
     },
     /// Propose a whole settings file held in an accessible note at this revision.
     ProposeSettingsNote { against: u32, note: u64, revision: u32, reason: Box<[u8]> },

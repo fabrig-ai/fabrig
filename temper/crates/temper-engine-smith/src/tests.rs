@@ -649,21 +649,6 @@ fn every_declared_tool_decodes_its_minimum_shape_and_rejects_a_wrong_shape() {
             engine::Tool::Document { action: expected, body: b"## Section".as_slice().into() }
         );
     }
-    for (more, answered) in [("true", true), ("false", false)] {
-        let input = format!(r#"{{"against":1,"items":[],"reason":"why","more":{more}}}"#);
-        match decoded(b"propose_settings", input.as_bytes()).unwrap() {
-            crate::Decoded::Answered(answer) => {
-                assert!(answered);
-                assert!(answer.error());
-                assert_eq!(answer.text(), b"propose_settings: more is not taken yet; give the whole set in one call.");
-            }
-            crate::Decoded::Call(call) => {
-                assert!(!answered);
-                assert_eq!(call, decided(b"propose_settings", br#"{"against":1,"items":[],"reason":"why"}"#).unwrap());
-            }
-        }
-    }
-
     let cases = tool_cases();
     let declared = tools(Duration::from_secs(10));
     assert_eq!(declared.len(), cases.len());

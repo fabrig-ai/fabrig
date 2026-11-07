@@ -138,8 +138,23 @@ pub enum CallAnswer {
     NoteRefused(jig_domain_notes::Refusal),
     /// The document call joined with its note write (domain/agent.md, 8.4.3).
     Document(Box<Documented>),
+    /// A settings part or refusal, answered without a record (domain/agent.md, 8.4.2).
+    Parts(Box<PartsAnswer>),
     /// The named tool is deferred to a later engine route.
     Unavailable,
+}
+
+/// A proposal's held parts or refusal before jig decides it
+/// (temper/docs/design/domain/agent.md, 8.4.2). Nothing is recorded.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum PartsAnswer {
+    Holding { count: u32, total: u32, against: u32, dropped: Option<(u32, u32)> },
+    Held { setting: jig_domain_core::settings::Setting },
+    PastBound { most: u32, would: u32 },
+    Revision { held: u32, against: u32, named: u32 },
+    Restarted,
+    NotOffered,
+    Approvals { why: Box<[u8]> },
 }
 
 /// A document call's answer joined at its host flight (temper/docs/design/domain/agent.md, 8.4.3).
@@ -291,7 +306,7 @@ impl CallAnswer {
                 jig_domain_core::CallPart::NoteRecalled { entries: entries.clone(), more: *more }
             }
             CallAnswer::NoteRefused(why) => jig_domain_core::CallPart::NoteRefused(*why),
-            CallAnswer::Document(_) => unreachable!("document feedback is joined after the core part is recorded"),
+            CallAnswer::Parts(_) | CallAnswer::Document(_) => unreachable!("render-only feedback has no core record"),
             CallAnswer::Unavailable => jig_domain_core::CallPart::Unavailable,
         }
     }
@@ -1003,6 +1018,18 @@ pub(crate) fn call_answer_bytes(answer: &CallAnswer) -> Option<u64> {
             None => 0,
         }),
         CallAnswer::Document(documented) => documented_bytes(documented),
+        CallAnswer::Parts(parts) => {
+            let bytes = u64::try_from(size_of_val(parts.as_ref())).ok()?;
+            match parts.as_ref() {
+                PartsAnswer::Approvals { why } => bytes.checked_add(skein_lib::len_u64(why.len())),
+                PartsAnswer::Holding { .. }
+                | PartsAnswer::Held { .. }
+                | PartsAnswer::PastBound { .. }
+                | PartsAnswer::Revision { .. }
+                | PartsAnswer::Restarted
+                | PartsAnswer::NotOffered => Some(bytes),
+            }
+        }
         CallAnswer::TaskRead(result) => {
             let carrier = u64::try_from(size_of_val(result.as_ref())).ok()?;
             carrier.checked_add(match result.as_ref() {

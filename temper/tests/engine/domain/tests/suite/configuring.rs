@@ -1933,3 +1933,256 @@ fn a_member_reads_and_proposes_a_whole_model_inline_or_from_a_note() {
         assert_eq!(replaced.model.output_price, 2);
     }
 }
+
+#[test]
+fn an_asking_chat_names_a_repository_as_the_inventory_does() {
+    use serde_json::json;
+    let mut world = repository_projects();
+    configuring_repository_text(&mut world, &["rules\n".into(), "words\n".into()]);
+    adopt_repository(&mut world, 2, b"other", 28);
+    let run = world.chat(5, world.owner, 20);
+    let mut value = read_charter(&mut world.driver, &run, 10, CHAT);
+    value["documents"] = json!([{"repository":"org/repo","branch":"main","path":"docs/direction.md"}]);
+    let items = json!([{"setting":{"kind":"charter","number":CHAT},"set":value}]);
+    let proposal = propose(&mut world.driver, &run, 20, 1, &items);
+    world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
+    let value = read_charter(&mut world.driver, &run, 30, CHAT);
+    assert_eq!(value["documents"][0]["forge"], "forge.example:3847");
+    let mut value = value;
+    value["documents"][0].as_object_mut().unwrap().remove("forge");
+    value["documents"][0]["repository"] = json!("org/other");
+    let before = world.driver.store.rows.clone();
+    let input = json!({"against":2,"reason":REASON,"items":[{"setting":{"kind":"charter","number":CHAT},"set":value}]});
+    let (body, error) = host_tool(&mut world.driver, &run, 40, b"propose_settings", input.to_string().as_bytes());
+    assert!(error);
+    assert_eq!(
+        String::from_utf8(body.into()).unwrap(),
+        "settings file item 1: charter.documents[0].repository: no repository org/other in this project; its repositories: org/repo"
+    );
+    assert_eq!(world.driver.store.rows, before);
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "one run checks the ordered parts lifecycle and both restart guards")]
+fn an_asking_chat_proposes_a_large_set_in_parts() {
+    use serde_json::json;
+    let mut bounds = limits();
+    bounds.call_records = 8; // Eight proposing calls across two runs, including jig's refusal.
+    let mut world = World::with_limits(config(), &bounds);
+    let run = world.chat(5, world.owner, 20);
+    let changes: Vec<_> = (1..=3)
+        .map(|number| {
+            let mut value = read_charter(&mut world.driver, &run, 100 * number, number);
+            value["instructions"] = json!(format!("Changed charter {number}."));
+            json!({"setting":{"kind":"charter","number":number},"set":value})
+        })
+        .collect();
+    let before = world.driver.store.rows.clone();
+    for (completion, item, more, expected, error) in [
+        (
+            1,
+            1,
+            true,
+            "propose_settings: holding 1 item for revision 1, 1 in all; nothing is proposed until a call without more.",
+            false,
+        ),
+        (2, 1, true, "propose_settings: charter 1 is held already, from an earlier part; nothing was added.", true),
+        (6, 1, false, "propose_settings: charter 1 is held already, from an earlier part; nothing was added.", true),
+        (
+            3,
+            2,
+            true,
+            "propose_settings: holding 1 item for revision 1, 2 in all; nothing is proposed until a call without more.",
+            false,
+        ),
+    ] {
+        let input =
+            json!({"against":1,"reason":REASON,"items":[changes[usize::try_from(item - 1).unwrap()]],"more":more});
+        let (body, failed) =
+            host_tool(&mut world.driver, &run, completion, b"propose_settings", input.to_string().as_bytes());
+        assert_eq!(String::from_utf8(body.into()).unwrap(), expected);
+        assert_eq!(failed, error);
+        assert_eq!(world.driver.store.rows, before, "parts and their refusals keep no records");
+    }
+    let invalid = json!([{"setting":{"kind":"charter","number":4},"set":{}}]);
+    assert_eq!(
+        parts_call(&mut world, &run, 7, 1, &invalid, false),
+        ("settings file item 1: resume: missing member".into(), true)
+    );
+    assert_eq!(world.driver.store.rows, before, "a decode refusal leaves parts waiting");
+    let own = json!([changes[2]]);
+    let proposal = propose(&mut world.driver, &run, 4, 1, &own);
+    let review = world.review(&run, proposal);
+    let core::documents::ProposalAction::Settings { items, .. } = review.action else { panic!("settings review") };
+    assert_eq!(
+        items.iter().map(|item| item.setting).collect::<Vec<_>>(),
+        [s::Setting::Charter(1), s::Setting::Charter(2), s::Setting::Charter(3)]
+    );
+    let proposal = propose(&mut world.driver, &run, 5, 1, &own);
+    let core::documents::ProposalAction::Settings { items, .. } = world.review(&run, proposal).action else {
+        panic!("settings review")
+    };
+    assert_eq!(items.len(), 1, "a proposing call consumes its parts");
+    let first = json!([changes[0]]);
+    let second = json!([changes[1]]);
+    assert_eq!(
+        parts_call(&mut world, &run, 20, 1, &first, true),
+        (
+            "propose_settings: holding 1 item for revision 1, 1 in all; nothing is proposed until a call without more."
+                .into(),
+            false
+        )
+    );
+    world.change(1, 21, Box::new([owner_charter(b"An owner's revision.")]));
+    assert_eq!(parts_call(&mut world, &run, 21, 2, &second, true), ("propose_settings: holding 1 item for revision 2, 1 in all; the 1 held for revision 1 were dropped. Nothing is proposed until a call without more.".into(), false));
+    assert_eq!(parts_call(&mut world, &run, 22, 1, &own, false), ("propose_settings: the 1 item held are for revision 2, and this call names 1; nothing was proposed, and they were dropped. Give the whole set again against 1.".into(), true));
+    let proposal = propose(&mut world.driver, &run, 23, 2, &own);
+    assert_review_settings(&mut world, &run, proposal, &[s::Setting::Charter(3)]);
+    assert!(!parts_call(&mut world, &run, 24, 2, &first, true).1);
+    let next = world.next(&run);
+    let proposal = propose(&mut world.driver, &next, 1, 2, &own);
+    assert_review_settings(&mut world, &next, proposal, &[s::Setting::Charter(3)]);
+    assert!(!parts_call(&mut world, &next, 2, 2, &first, true).1);
+    restart_settings_world(&mut world, &next);
+    assert_eq!(parts_call(&mut world, &next, 3, 2, &own, false), ("propose_settings: temper restarted during this run, so parts it gave may be lost; nothing was proposed. Give the whole set again, in parts if it is large.".into(), true));
+    let proposal = propose(&mut world.driver, &next, 4, 2, &own);
+    assert_review_settings(&mut world, &next, proposal, &[s::Setting::Charter(3)]);
+    restart_settings_world(&mut world, &next);
+    assert_eq!(
+        parts_call(&mut world, &next, 5, 2, &first, true),
+        (
+            "propose_settings: holding 1 item for revision 2, 1 in all; nothing is proposed until a call without more."
+                .into(),
+            false
+        )
+    );
+    let proposal = propose(&mut world.driver, &next, 6, 2, &second);
+    assert_review_settings(&mut world, &next, proposal, &[s::Setting::Charter(1), s::Setting::Charter(2)]);
+    let other = world.chat(CONFIGURING, world.owner, 22);
+    assert_eq!(
+        parts_call(&mut world, &other, 1, 2, &first, true),
+        (
+            "propose_settings: more is not offered to this charter; give the whole set in one call, or from a note."
+                .into(),
+            true
+        )
+    );
+
+    // Application items share the same total bound, even though jig counts its own separately.
+    let most = s::capacity(&engine::core_limits(&limits())).unwrap() * 2 + 1;
+    let application: Vec<_> =
+        (1..=most).map(|number| json!({"setting":{"kind":"landing-rule","number":number},"edit":"reset"})).collect();
+    for (index, chunk) in application.chunks(16).enumerate() {
+        let (text, error) = parts_call(&mut world, &next, 10 + u32::try_from(index).unwrap(), 2, &json!(chunk), true);
+        assert!(!error, "{text}");
+    }
+    assert_eq!(
+        parts_call(&mut world, &next, 40, 2, &own, false),
+        (
+            format!(
+                "propose_settings: a proposal holds at most {most} items, and this call would make {}; nothing was added.",
+                most + 1
+            ),
+            true
+        )
+    );
+    assert_eq!(
+        parts_call(&mut world, &next, 41, 2, &json!([]), true),
+        (
+            format!(
+                "propose_settings: holding 0 items for revision 2, {most} in all; nothing is proposed until a call without more."
+            ),
+            false
+        )
+    );
+    let (_, error) = parts_call(&mut world, &next, 42, 2, &json!([]), false);
+    assert!(error, "jig refuses this set and consumes the parts");
+    let proposal = propose(&mut world.driver, &next, 43, 2, &own);
+    assert_review_settings(&mut world, &next, proposal, &[s::Setting::Charter(3)]);
+}
+
+#[test]
+fn an_asking_chat_is_refused_an_unsatisfiable_approval_at_the_call() {
+    use temper_engine_domain_forge as forge;
+    let mut world = box_approval_world(false);
+    world.driver.send(Event::Forge(Box::new(forge::Event::PersonOf { forge: 1, answer: forge::PersonAnswer::Is(7) })));
+    world.driver.settle();
+    let run = world.chat(5, world.owner, 20);
+    let items = approval_items(&mut world, &run, 40, 0, 2);
+    let input = serde_json::json!({"against":1,"reason":REASON,"items":items});
+    let before = world.driver.store.rows.clone();
+    let (body, error) = host_tool(&mut world.driver, &run, 41, b"propose_settings", input.to_string().as_bytes());
+    assert!(error, "{}", String::from_utf8_lossy(&body));
+    let text = std::str::from_utf8(&body).unwrap();
+    assert_eq!(
+        text,
+        "propose_settings: not proposed, as acceptance would refuse it: project 1 role 0 on forge forge.example:3847 requires 2 distinct known forge people; currently 1 eligible. Before accepting, add the person as a collaborator on the forge, give that role the permission in this project's policy if needed and adopt the repository again; then propose afresh against the newest revision, or remove the approval requirement."
+    );
+    assert_eq!(world.driver.store.rows, before, "no proposal or call record");
+    let refused = text.to_owned();
+    assert_eq!(
+        parts_call(&mut world, &run, 42, 1, &items, true),
+        (
+            "propose_settings: holding 1 item for revision 1, 1 in all; nothing is proposed until a call without more."
+                .into(),
+            false
+        )
+    );
+    let value = read_charter(&mut world.driver, &run, 100, CHAT);
+    let own = charter_item(value, b"A call's own charter item.");
+    assert_eq!(parts_call(&mut world, &run, 43, 1, &own, false), (refused, true), "held landing rules are judged too");
+    assert_eq!(world.driver.store.rows, before);
+    let items = approval_items(&mut world, &run, 200, 0, 1);
+    propose(&mut world.driver, &run, 201, 1, &items);
+
+    // Project 2 has no members of role 2; only project 1's eligibility reaches this chat.
+    let mut world = repository_projects();
+    configuring_repository_text(&mut world, &["rules\n".into(), "words\n".into()]);
+    adopt_repository(&mut world, 2, b"other", 28);
+    world.member();
+    world.ask(
+        world.owner,
+        22,
+        people::Ask::SetRoles {
+            project: 2,
+            holdings: Box::new([people::Holding { person: OWNER_PERSON, role: people::Role::Owner }]),
+        },
+    );
+    assert_eq!(world.reply(22), &people::Reply::Outcome(people::Outcome::RolesSet { project: 2 }));
+    let run = world.chat(5, world.owner, 20);
+    let items = approval_items(&mut world, &run, 40, 2, 1);
+    let proposal = propose(&mut world.driver, &run, 41, 1, &items);
+    world.ask(
+        world.owner,
+        21,
+        people::Ask::DecideProposal {
+            project: people::DEPLOYMENT,
+            proposer: people::Proposer::Task(run.task),
+            proposal,
+            decision: people::ProposalDecision::Accept,
+            running: Some(people::Running::Stays),
+        },
+    );
+    let people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Judged { why, .. })) = world.reply(21) else {
+        panic!("project 2 is checked only at acceptance: {:?}", world.reply(21))
+    };
+    let why = std::str::from_utf8(why).unwrap();
+    assert!(
+        why.contains(
+            "project 2 role 2 on forge forge.example:3847 requires 1 distinct known forge people; currently 0 eligible"
+        ),
+        "{why}"
+    );
+
+    let (mut world, _) = project_people_world(forge::Mode::Fake, b"");
+    let run = world.chat(5, world.owner, 20);
+    let items = approval_items(&mut world, &run, 40, 0, 1);
+    assert_eq!(parts_call(&mut world, &run, 41, 1, &items, false), ("propose_settings: not proposed, as acceptance would refuse it: project 1: the playground's forge has no accounts, so no one can approve there. Name a branch pattern or a project that leaves its repository out, or remove the approval requirement.".into(), true));
+}
+
+fn assert_review_settings(world: &mut World, run: &engine::Assignment, proposal: u64, expected: &[s::Setting]) {
+    let core::documents::ProposalAction::Settings { items, .. } = world.review(run, proposal).action else {
+        panic!("settings review")
+    };
+    assert_eq!(items.iter().map(|item| item.setting).collect::<Vec<_>>(), expected);
+}

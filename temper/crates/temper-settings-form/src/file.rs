@@ -8,6 +8,15 @@ use skein_json::{Document, Kind};
 use skein_lib::{List, Writer};
 pub(super) type Fields = List<(Box<[u8]>, u32)>;
 
+/// A readable repository a host call's charter document may name by OWNER/NAME
+/// (temper/docs/design/domain/agent.md, 8.4.2).
+#[derive(Debug)]
+pub struct Repository<'a> {
+    pub host: &'a [u8],
+    pub owner: &'a [u8],
+    pub name: &'a [u8],
+}
+
 pub(super) struct Error {
     member: Box<[u8]>,
     rule: Box<[u8]>,
@@ -63,12 +72,13 @@ fn describe(item: Option<u32>, why: &Error, out: &mut crate::Text) {
         out.number(bound);
     }
 }
-pub(super) struct Decoder {
+pub(super) struct Decoder<'a> {
+    pub repositories: Option<&'a [Repository<'a>]>,
     pub doc: Document,
     pub limits: jig_client_protocol_wire::Limits,
     pub kinds: temper_client_protocol_wire::v1::Limits,
 }
-impl Decoder {
+impl Decoder<'_> {
     pub fn kind(&self, at: u32) -> Result<Kind, Error> {
         Ok(self.doc.token(at).ok_or(error(b"JSON", b"missing value"))?.kind)
     }
@@ -247,7 +257,7 @@ pub(super) fn field(fields: &Fields, name: &[u8]) -> Result<u32, Error> {
     optional(fields, name).ok_or(error(name, b"missing member"))
 }
 
-fn setting(d: &Decoder, at: u32) -> Result<c::Setting, Error> {
+fn setting(d: &Decoder<'_>, at: u32) -> Result<c::Setting, Error> {
     let fields = d.object(at, &[b"kind", b"number", b"project"])?;
     let kind = d.string(field(&fields, b"kind")?)?;
     if [b"landing-rule".as_slice(), b"forge-charter", b"project-ways", b"project-questions"].contains(&kind) {
@@ -283,7 +293,7 @@ fn setting(d: &Decoder, at: u32) -> Result<c::Setting, Error> {
         _ => Err(error(b"kind", b"unknown setting kind")),
     }
 }
-fn item(d: &Decoder, at: u32) -> Result<c::SettingItem, Error> {
+fn item(d: &Decoder<'_>, at: u32) -> Result<c::SettingItem, Error> {
     let fields = d.object(at, &[b"setting", b"set", b"edit"])?;
     let setting = setting(d, field(&fields, b"setting")?)?;
     let edit = match (optional(&fields, b"set"), optional(&fields, b"edit")) {
@@ -316,7 +326,7 @@ fn item(d: &Decoder, at: u32) -> Result<c::SettingItem, Error> {
 }
 /// Decode the items in a settings file using the same bounds as ctl.
 pub fn decode(bytes: &[u8], limits: &Limits) -> Result<List<c::SettingItem>, Box<[u8]>> {
-    decode_root(bytes, limits, false)
+    decode_root(bytes, limits, false, None)
 }
 /// Decode a host read's setting through the settings file's kind decoder.
 pub fn read_setting(bytes: &[u8], limits: &Limits) -> Result<c::Setting, Box<[u8]>> {
@@ -325,7 +335,7 @@ pub fn read_setting(bytes: &[u8], limits: &Limits) -> Result<c::Setting, Box<[u8
     }
     let doc = crate::json::document_depth(bytes, 32)
         .or(Err(message(None, error(b"JSON", b"invalid JSON or depth bound 32"))))?;
-    let d = Decoder { doc, limits: limits.settings, kinds: limits.kinds };
+    let d = Decoder { doc, limits: limits.settings, kinds: limits.kinds, repositories: None };
     let fields = d.object(0, &[b"setting", b"revision", b"history", b"from"]);
     let fields = match fields {
         Ok(fields) => fields,
@@ -342,16 +352,31 @@ pub fn read_setting(bytes: &[u8], limits: &Limits) -> Result<c::Setting, Box<[u8
 }
 /// Decode a host proposal's items in the settings file form.
 pub fn proposal_items(bytes: &[u8], limits: &Limits) -> Result<List<c::SettingItem>, Box<[u8]>> {
-    decode_root(bytes, limits, true)
+    proposal_items_in(bytes, limits, None)
 }
-fn decode_root(bytes: &[u8], limits: &Limits, proposal: bool) -> Result<List<c::SettingItem>, Box<[u8]>> {
+/// Resolve an omitted forge among the project's repositories; `None` requires it,
+/// as a settings file does (temper/docs/design/domain/agent.md, 8.4.2).
+pub fn proposal_items_in(
+    bytes: &[u8],
+    limits: &Limits,
+    repositories: Option<&[Repository<'_>]>,
+) -> Result<List<c::SettingItem>, Box<[u8]>> {
+    decode_root(bytes, limits, true, repositories)
+}
+
+fn decode_root(
+    bytes: &[u8],
+    limits: &Limits,
+    proposal: bool,
+    repositories: Option<&[Repository<'_>]>,
+) -> Result<List<c::SettingItem>, Box<[u8]>> {
     if skein_lib::len_u64(bytes.len()) > limits.ask_bytes {
         return Err(message(None, bound(b"file bytes", u32::try_from(limits.ask_bytes).unwrap_or(u32::MAX))));
     }
     let doc = crate::json::document_depth(bytes, 32)
         .or(Err(message(None, error(b"JSON", b"invalid JSON or depth bound 32"))))?;
-    let d = Decoder { doc, limits: limits.settings, kinds: limits.kinds };
-    let fields = match d.object(0, if proposal { &[b"items", b"against", b"reason"] } else { &[b"items"] }) {
+    let d = Decoder { doc, limits: limits.settings, kinds: limits.kinds, repositories };
+    let fields = match d.object(0, if proposal { &[b"items", b"against", b"reason", b"more"] } else { &[b"items"] }) {
         Ok(fields) => fields,
         Err(why) => return Err(message(None, why)),
     };

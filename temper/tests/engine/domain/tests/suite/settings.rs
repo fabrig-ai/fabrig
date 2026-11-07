@@ -792,10 +792,18 @@ fn a_run_reads_the_settings_and_proposes_a_change_an_owner_accepts() {
     let proposal: u64 = text
         .strip_prefix(&format!("proposed as t{}/", run.task))
         .expect("proposal number")
-        .strip_suffix(" to the deployment's owners")
+        .split_once(" for the deployment's owners to decide: ")
+        .map(|(number, _)| number)
         .expect("owners")
         .parse()
         .expect("number");
+    assert_eq!(
+        text,
+        format!(
+            "proposed as t{}/{proposal} for the deployment's owners to decide: it waits as a card in this chat and in Needs you, and nothing changes until an owner accepts it. Tell the person so, without t{}/{proposal}.",
+            run.task, run.task
+        )
+    );
     owner_reviews_run_proposal(&mut driver, run.task, proposal);
     let before = driver.store.rows.clone();
     // A retry under the same read name is fresh even after a write changed settings.
