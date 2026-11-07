@@ -303,7 +303,10 @@ fn no_print_of_the_component_shows_a_secret() {
     decide(&mut e, *a.code(), true);
     let owner = e.send(take_message(a.secret().expose()));
     assert_hidden(&format!("{:?} {:?}", e.component, e.out), a.secret().expose());
-    let to = signer(&mut e);
+    let whose = e.approval_whose();
+    e.reply(whose, people::Reply::Signer(Some(people::Signer { kind: people::Kind::Person, identity: identity() })));
+    assert_hidden(&format!("{:?} {:?}", e.component, e.out), a.secret().expose());
+    let to = e.approval_sign_in(&identity());
     assert_hidden(&format!("{:?} {:?}", e.component, e.out), a.secret().expose());
     e.reply(to, people::Reply::SignedIn { person: 72, sign_in: 91, expires: Wall::from_nanos(900_000_000_000) });
     let Some(Request::Secrets(SecretsRequest::Keep { owner: kept_owner, .. })) = e.out.pop() else { panic!("Keep") };
@@ -318,7 +321,9 @@ fn no_print_of_the_component_shows_a_secret() {
     assert_ne!(owner, Token::new(0));
 }
 fn assert_hidden(printed: &str, secret: &[u8]) {
-    assert!(!printed.contains(&format!("{secret:?}")), "byte list leaked");
+    let list = format!("{secret:?}");
+    let bytes = list.trim_start_matches('[').trim_end_matches(']');
+    assert!(!printed.contains(bytes), "byte list leaked");
     if let Ok(text) = core::str::from_utf8(secret) { assert!(!printed.contains(text), "text leaked"); }
 }
 #[test]
@@ -326,4 +331,96 @@ fn a_restart_forgets_every_approval() {
     let a = approved(&mut new()); let mut fresh = new();
     assert_eq!(take_answer(&mut fresh, a.secret().expose()), w::ApprovalSignInAnswer::Unknown);
     assert_eq!(read(&mut fresh, *a.code()), w::ApprovalState::Unknown);
+}
+
+#[test]
+fn admission_refusals_leave_approvals_alone() {
+    for case in ["read busy", "decide busy", "take busy", "read stopped", "decide stopped"] {
+        let mut settings = Settings { approval: true, ..f::settings() };
+        settings.providers = skein_lib::List::with_capacity(1);
+        settings.providers.push(19).expect("application provider");
+        let mut env = f::env();
+        env.limits.providers = 1;
+        let mut e = Exchange::configured(env, settings);
+        let a = approved(&mut e);
+        let mut pending = None;
+        if case.ends_with("busy") {
+            for number in 0..2 {
+                e.component.down(&e.env, Event::Mint { exchange: Token::new(number), identity: identity() }, &mut e.out);
+                let _mint = e.approval_sign_in(&identity());
+                pending = Some(e.ask());
+            }
+        } else { e.component.down(&e.env, Event::Stop, &mut e.out); }
+        if case.starts_with("take") {
+            assert_eq!(take_answer(&mut e, a.secret().expose()), w::ApprovalSignInAnswer::Busy);
+        } else {
+            let message = if case.starts_with("read") { read_message(*a.code()) } else { decide_message(*a.code(), false) };
+            let owner = e.send_as(message, true, Some(Secret::new(e.token.clone())));
+            if case.ends_with("busy") { e.authenticate(); }
+            if case.starts_with("read") {
+                assert_eq!(w::ApprovalState::decode(&f::wire(), &mut Reader::new(e.response(owner).1)).expect("answer"),
+                    if case.ends_with("busy") { w::ApprovalState::Busy } else { w::ApprovalState::NotReady });
+            } else {
+                assert_eq!(w::ApprovalDecided::decode(&f::wire(), &mut Reader::new(e.response(owner).1)).expect("answer"),
+                    if case.ends_with("busy") { w::ApprovalDecided::Busy } else { w::ApprovalDecided::NotReady });
+            }
+            finish(&mut e, owner);
+        }
+        if let Some((owner, to)) = pending {
+            e.reply(to, people::Reply::Again(people::Again::Busy));
+            finish(&mut e, owner);
+            assert_eq!(read(&mut e, *a.code()), w::ApprovalState::Approved);
+            let owner = e.send(take_message(a.secret().expose()));
+            let to = signer(&mut e);
+            signed_in(&mut e, to, owner);
+        }
+    }
+}
+#[test]
+fn a_take_drains_on_stop_close_or_abort() {
+    for stage in ["whose", "core", "keep"] {
+        for action in ["stop", "close", "abort", "refuse"] {
+            let mut e = new(); let a = approved(&mut e);
+            let owner = e.send(take_message(a.secret().expose()));
+            let to = if stage == "whose" { Some(e.approval_whose()) }
+                else { Some(signer(&mut e)) };
+            let to = if stage == "keep" {
+                e.reply(to.expect("core"), people::Reply::SignedIn { person: 72, sign_in: 91, expires: Wall::from_nanos(900_000_000_000) });
+                e.out.pop().expect("Keep");
+                None
+            } else { to };
+            if action == "refuse" {
+                if let Some(to) = to {
+                    e.component.down(&e.env, Event::SignInRefused { to }, &mut e.out);
+                    assert_eq!(w::ApprovalSignInAnswer::decode(&f::wire(), &mut Reader::new(e.response(owner).1)).expect("answer"), w::ApprovalSignInAnswer::Refused);
+                    finish(&mut e, owner);
+                    assert_eq!(take_answer(&mut e, a.secret().expose()), w::ApprovalSignInAnswer::Refused);
+                } else {
+                    e.component.down(&e.env, Event::SignInEnded { sign_in: 91 }, &mut e.out);
+                    e.out.pop().expect("Erase");
+                    assert_eq!(w::ApprovalSignInAnswer::decode(&f::wire(), &mut Reader::new(e.response(owner).1)).expect("answer"), w::ApprovalSignInAnswer::Refused);
+                    finish(&mut e, owner);
+                }
+                continue;
+            }
+            e.component.down(&e.env, match action { "stop" => Event::Stop, "close" => Event::Close, "abort" => Event::Abort, _ => unreachable!() }, &mut e.out);
+            if let Some(to) = to {
+                e.reply(to, if stage == "whose" { people::Reply::Signer(Some(people::Signer { kind: people::Kind::Person, identity: identity() })) }
+                    else { people::Reply::Full { sign_ins: 4, earliest: Wall::from_nanos(700) } });
+            } else { e.component.down(&e.env, Event::Secrets(SecretsAnswer::Kept { owner: SecretOwner::SignIn(91) }), &mut e.out); }
+            if action == "abort" {
+                assert!(e.out.is_empty());
+                assert!(e.component.pending.exchanges.is_empty());
+            } else if stage == "keep" {
+                assert!(w::ApprovalSignInAnswer::decode(&f::wire(), &mut Reader::new(e.response(owner).1)).is_ok());
+                finish(&mut e, owner);
+            } else {
+                let answer = w::ApprovalSignInAnswer::decode(&f::wire(), &mut Reader::new(e.response(owner).1)).expect("answer");
+                assert_eq!(answer, if action == "stop" && stage == "core" {
+                    w::ApprovalSignInAnswer::Full(w::ApprovalFull::new(&f::wire(), w::ApprovalFullParts { sign_ins: 4, earliest: 700, until: a.expires() }).expect("full"))
+                } else { w::ApprovalSignInAnswer::NotReady });
+                finish(&mut e, owner);
+            }
+        }
+    }
 }
