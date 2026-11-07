@@ -1882,6 +1882,24 @@ pub enum Event {
         answer: PersonAnswer,
     },
 }
+/// The owner of the root's fresh read `serial`: bit 61 alone of the top five
+/// bits, the serial below 2^59; `None` past that (forge.md, 5.3).
+#[must_use]
+pub fn root_read(serial: u64) -> Option<Token> {
+    if serial < 1_u64.checked_shl(59).expect("read serial bound fits u64") {
+        Some(Token::new(serial | 1_u64.checked_shl(61).expect("root read bit fits u64")))
+    } else {
+        None
+    }
+}
+
+/// Whether a client owner is in the root's read range: bits 63 to 59 are
+/// 0, 0, 1, 0, 0 (forge.md, 5.3).
+#[must_use]
+pub fn is_root_read(owner: Token) -> bool {
+    owner.raw().checked_shr(59).expect("read range shift fits u64") == 0b0_0100
+}
+
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Hash, Debug)]
 #[expect(

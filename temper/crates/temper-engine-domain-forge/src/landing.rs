@@ -786,7 +786,7 @@ pub(crate) fn step(
     let repo = change.repository;
     let read = api::Read::Branch { branch: change.branch.clone() };
     d.sequence = d.sequence.checked_add(1).expect("read sequence");
-    let owner = Token::new(d.sequence | (1_u64 << 61));
+    let owner = Token::new(d.sequence | (1_u64 << 62));
     d.landing
         .pending
         .insert(
