@@ -3876,8 +3876,11 @@ client removes no account and closes no chat of its own.
     "This link was already used. A fresh one is in your terminal."; past
     its expiry, "This link has expired. A fresh one is in your terminal.";
     any other, a real link of an older box or one that never was, "This
-    link isn't from this temper. Use the one its terminal printed." A page
-    reached with no link keeps the shell's words;
+    link isn't from this temper. Use the one its terminal printed." The
+    reason is the engine's: it remembers only its last 8 used or expired
+    links in memory, so a forgotten link, after a restart included, reads
+    as unknown (jig's `protocol/client.md`, section 8). A page reached with
+    no link keeps the shell's words;
   - *out of date,* the engine serving no version of jig's records that
     this client speaks: "This temper is out of date: run the temper the
     engine runs." What is pending stays in the small store (jig's
@@ -5989,9 +5992,9 @@ command.
   `temper: signing in: the engine is busy; trying again`. Either is
   made again, the same link with the same held credential, after a
   backoff of 250 ms, doubling to 8 s. `q` gives up and exits 0. A
-  refusal (the link spent or expired) exits 1 (6.1); `temper serve`
-  prints a fresh link when a spent one is tried (jig's
-  `protocol/client.md`, section 8).
+  link answered refused, used, expired or unknown exits 1 with the same
+  refusal words (6.1). Temper prints a fresh link when none is live or
+  reserved (jig's `protocol/client.md`, section 8).
 - **The engine's sign-ins full** exits 1 with `temper open: all N
   sign-ins are in use; the earliest ends at T; this link stays usable
   until U; after that, temper serve prints a fresh one when it is tried`
@@ -6702,6 +6705,12 @@ own tests:
 
 ## 11. Open questions
 
+- **A failed link beside a live cookie** (5.1): the used, expired or
+  unknown paragraph remains until another sign-in, even if the cookie
+  still signs in on a reload. Falling back to the transport is jig's
+  client question (jig's `client/domain/client.md`, section 18).
+  Default: no fallback; reload to use the cookie.
+
 - **The person-started question flow after landing** (3.5, 5.8; the
   request `ui-goal-asks`): the focused client world starts a goal from
   the sheet, supplies its person-task question, answers under Needs you
@@ -6760,6 +6769,9 @@ own tests:
   command's help still name `temper serve`. A person may have run `temper box`.
   Default: those words stay until a wording change covers the terminal and
   command help; the request `ui-qa-small` names the browser paragraph alone.
+  The used, expired and unknown answers also retain the terminal's and
+  `temper ctl`'s generic refusal words: `ui-small-1` changes the page's
+  paragraph, with reason-specific command refusals left for later.
 - **A line past `long_text`** (5.4): `standard` with no override takes a message of
   262,144 bytes (`../protocol/configuration.md`, 13.8), past `long_text`, and a page
   of its `documents.rows` lines can pass `document_bytes`. Its read ends and says so
