@@ -33,6 +33,10 @@ Section 8.1 has no gap in note-backed whole settings proposals and decided-call 
 Section 8.1 has no gap in discovery of project repository identities for
 charter documents.
 
+- **Not yet:** 8.2, *A goal a person started asks that person*: the stock
+  authority names no role, charter 1's goal paragraph, `decided`'s Ask and the
+  `message` refusal's hint name `message` alone, and a goal a chat calls keeps
+  its chat's kinds.
 - **Not yet:** 4.4: a verdict's follow-up tasks.
 - **Not yet:** 4.3, 4.4, 6: no supplied real-model landing proves the
   corrected receipt's words, a refused compare's recovery, or the producer
