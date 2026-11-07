@@ -2,8 +2,6 @@
 
 2026-11-07. Where temper's code lags or departs from [configuration.md](configuration.md).
 
-- **Not yet:** 13.1: `temper init`'s `keep` and `drop`.
-
 Sections 2 and 13.4 have no known gap in the binary's numbered stock,
 model-free configuration documents or `rest` on stock charters. The
 measurement gap below stays.
