@@ -1,5 +1,7 @@
 //! The TUI's screens and paints (temper/docs/design/client/README.md, 6.14 and 6.15;
 //! skein/docs/design/ui-screen.md, sections 4 and 5).
+//!
+//! The frames are written by hand from the view trees and theme contracts.
 
 use super::fixtures as f;
 use crate::{Refusal, Scheme, Told, Tui, theme};
@@ -10,6 +12,9 @@ const FULL: Size = Size { columns: 80, rows: 24 };
 const SMALL: Size = Size { columns: 40, rows: 12 };
 
 #[test]
+#[expect(clippy::disallowed_macros, reason = "the golden test embeds its fixed inputs and formats readable mismatches")]
+#[expect(clippy::disallowed_types, reason = "test diagnostics collect every mismatching frame as text")]
+#[expect(clippy::disallowed_methods, reason = "test diagnostics join the mismatching frames into one failure")]
 fn the_tuis_screens_are_their_goldens() {
     let (first, _) = f::live(Some(f::me(&[b"Hello", b"Demo"])));
     let mut connected = Tui::new(f::ADDRESS);
