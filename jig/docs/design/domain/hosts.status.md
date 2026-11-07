@@ -27,6 +27,9 @@ those words and 1,024. The outcome still holds all fields and framing
 together; a field's bound alone does not promise that the whole fits.
 Section 12 defers the general message-rendering allowance.
 
+- **Not yet:** 6.4, 9: a turn's fence takes every message before it,
+  relayed or not, and a run's start carries every message waiting; the
+  code's side is `tasks.status.md`, 8.6.
 - **Not yet:** 3, 5.2, 6.5, 11: `smith-inline-agent` as a hub's agent
   capability. 4: an admitted run's answers passing a held assignment.
   6.1: the engine hub's hello before placement. 8, 9: the test root puts
