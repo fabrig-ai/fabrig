@@ -88,7 +88,17 @@ fn started(front: &mut Joint, root: &mut Root, source: u32) {
     h::settle(front, root);
 }
 fn made(front: &mut Joint, root: &mut Root, source: u32, declined: bool) {
-    account_event(front, root, a::Event::SignedIn { source, subject: SUBJECT.into(), display: Box::new([]), declined });
+    account_event(
+        front,
+        root,
+        a::Event::SignedIn {
+            source,
+            subject: SUBJECT.into(),
+            display: Box::new([]),
+            declined,
+            said: jig_domain_accounts::Said::default(),
+        },
+    );
 }
 fn established() -> (Joint, Root, u32) {
     let (mut front, mut root, source) = begin();
@@ -341,6 +351,7 @@ fn accounts_made_sign_in_names_the_plan_and_offers_retry() {
             subject: b"qa-new-person".as_slice().into(),
             display: Box::new([]),
             declined: false,
+            said: jig_domain_accounts::Said::default(),
         },
     );
     account_ending(&root, "Added your ChatGPT plan");
@@ -366,6 +377,7 @@ fn accounts_made_without_plan_usage_offers_sign_in_and_key() {
             subject: b"qa-new-person".as_slice().into(),
             display: Box::new([]),
             declined: true,
+            said: jig_domain_accounts::Said::default(),
         },
     );
     account_ending(&root, "You signed in without plan usage.");

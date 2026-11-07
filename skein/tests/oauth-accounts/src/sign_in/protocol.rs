@@ -42,19 +42,24 @@ pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Trace) {
     let mut issuer =
         fake::Issuer::new(streams::issuer_config(&registration, super::issuer::port_terms(story)), issuer_limits)
             .expect("issuer");
+    if matches!(story, Story::Profile(_)) {
+        issuer.sign_in_as(super::issuer::profile_account()).expect("profile account");
+    }
     for (access, refresh) in [(b'a', b"r1".as_slice()), (b'b', b"r2".as_slice())] {
-        issuer
-            .queue(streams::token_plan(
-                200,
-                vec![if story == Story::TwoPorts { b'a' } else { access }; 16].into_boxed_slice(),
-                Some(bytes::copy_of(refresh)),
-                (story == Story::RequiredScopes).then(|| bytes::copy_of(b"read")),
-            ))
-            .expect("plan");
+        let mut plan = streams::token_plan(
+            200,
+            vec![if story == Story::TwoPorts { b'a' } else { access }; 16].into_boxed_slice(),
+            Some(bytes::copy_of(refresh)),
+            (story == Story::RequiredScopes).then(|| bytes::copy_of(b"read")),
+        );
+        if let fake::Body::Token(token) = &mut plan.body {
+            token.id_token = super::issuer::refresh_profile_token(story, access);
+        }
+        issuer.queue(plan).expect("plan");
     }
     let expected_posts = if matches!(
         story,
-        Story::Public | Story::TwoPorts | Story::OpenIdAgain | Story::Return(super::Return::After)
+        Story::Public | Story::Profile(_) | Story::TwoPorts | Story::OpenIdAgain | Story::Return(super::Return::After)
     ) {
         2
     } else {

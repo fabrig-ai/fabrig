@@ -1588,9 +1588,12 @@ keeps (`../protocol/configuration.md`, section 2).
     a model is usable, as *The store's state* says (the one test Ready and
     the welcome share), with no try's fact, ticked, "ACCOUNT", the first usable account of
     the `accounts` document but the playground's (4.8), by the kind of
-    its usable source and who it is: "PLAN plan · DISPLAY" for a
+    its usable source and who it is: "PLAN plan · WHO" for a
     signed-in plan ("ChatGPT plan · owner@example.com"), "PLAN
-    subscription · PROGRAM, signed in on this machine" for a program's,
+    subscription · WHO, signed in on this machine" for a program's, WHO
+    the email its LLM provider gave (jig's `domain/accounts.md`, 3.7)
+    where it gave one, and otherwise the account's display, or for a
+    program's the source's name;
     "BRAND API key · billed to the key’s organization" for a
     key, an account of no named provider by its whole heading (5.5,
     An account); no model or effort, which are chosen apart from the
@@ -2694,7 +2697,7 @@ keeps (`../protocol/configuration.md`, section 2).
       subscription" for an `anthropic` plan or program, "your ChatGPT plan" for
       an OpenAI plan, "your API key" for a key. An account the accounts document
       doesn't hold takes its provider's name alone. Two headings of one provider
-      that would read alike say their accounts' display names instead. A model
+      that would read alike say who each account is instead (*An account*, 5.5). A model
       with no accounts, the playground's, goes under its provider's name.
     - Under each, a button per model `picker` shows, by its shown name, pressed
       where it is the choice, which draws a tick; "default", muted, on the model
@@ -4393,9 +4396,11 @@ The words for each offered source are:
   row. The program’s command, Copy and host checks stay in its way’s
   panel and account row, not a separate Ready card. The welcome keeps
   its Model completion and its own Ready step (3.5).
-- **An account** is its provider and display name, "ChatGPT ·
+- **An account** is its provider and who it is, "ChatGPT ·
   alice@example.com"; a key-only account, "OpenAI API key"; a program's,
-  "Claude subscription · claude-alice". Its card's heading follows with
+  "Claude subscription · claude-alice". Who it is is the email its LLM
+  provider gave (jig's `domain/accounts.md`, 3.7) where it gave one, and
+  otherwise its display name, or for a program's the source's name. Its card's heading follows with
   its provider and holder: "ChatGPT · alice@example.com · OpenAI · held
   by Alice", the holder the person's name from `me` for their own, and
   "held by the deployment" for the deployment's; a key-only account's
@@ -4530,8 +4535,8 @@ The words for each offered source are:
   provider (3.5, `ConnectModel`); in the terminal, "Open this address in
   a browser:" and the address, then the paste (below), as an external
   link (6.5). Then "Signed in to ChatGPT as alice@example.com", or
-  "Signed in to ChatGPT" while the account has no display (jig carries
-  none yet: its card's heading then drops that part), "temper’s agents
+  "Signed in to ChatGPT" while the account has neither an email nor a
+  display (its card's heading then drops that part), "temper’s agents
   now run on your ChatGPT plan.", its account, the model a new chat's
   first run takes and what it pays for; or,
   for a subject the person already has, "That's alice@example.com
@@ -4547,8 +4552,8 @@ The words for each offered source are:
   "Continue with ChatGPT" again, and a refusal Each state's acts.
   Each reads jig's ending on the `accounts` document (jig's
   `client/domain/contract.md`, 7.1): signed in, `Made`; the same
-  account again, `Renewed`, named by its display where it has one,
-  and "your ChatGPT account" otherwise ("That's your ChatGPT account
+  account again, `Renewed`, named by who it is (*An account*, above) where
+  that says anything, and "your ChatGPT account" otherwise ("That's your ChatGPT account
   again. To add another account, …"); signed in without
   plan usage, `Made` or `Renewed` with `declined`, in "refused: plan
   usage declined"'s words and acts, the account made all the same;
@@ -5142,8 +5147,9 @@ acts on it as its document offers (5.11).
   on the lineage bar (a node
   carries two tokens at most, and its main has MAIN and AGENT_PAGE),
   AGENT_BRIEF on the brief, AGENT_RUN on the run's heading and its
-  start, AGENT_RESULT on its result. `task-pages.css` draws them as the
-  mockup's
+  start, AGENT_RESULT on its result, and AGENT_FOOT on the keyed slot
+  holding the acts' outcome, result and plan after the lines. `task-pages.css`
+  draws them as the mockup's
   `.agent-lineage`, `.agent-brief`, `.agent-run-heading`,
   `.agent-run-meta` and `.agent-result` (`browser.md`, 2.5).
 
@@ -5889,11 +5895,13 @@ measures it (skein's `ui-web.md`, section 7).
   its first turn's, a person's words by their message, an activity line by its
   position. So a page read in above is an insert, nothing already drawn is
   rewritten, and the page part can keep the words where they are.
-- **The log's head holds nothing that stays while lines arrive below it,** but
+- **A chat's log head holds nothing that stays while lines arrive below it,** but
   the status below: the page part holds the first entry in view. So the context
   line (5.6) draws once the window holds the chat's start, and a day's label is
   keyed by its date and the first line under it, so that a page of the same day
-  read in above replaces it.
+  read in above replaces it. An agent's task's log keeps its brief, run heading
+  and own held card before its lines (5.9); their effect on reaching earlier
+  lines is section 11's *An agent's page opening at its end*.
 - **While a read is out** the log is *busy*, and so it stays after a failure,
   which the page part then leaves alone until the person moves. At the head:
   "Loading earlier messages…" while an earlier page is out, "Couldn't load
@@ -6828,6 +6836,15 @@ own tests:
 
 ## 11. Open questions
 
+- **Account email after landing** (3.5, 5.5; the request
+  `ready-account-email`): temper/ui checks a real ChatGPT sign-in and a
+  real Claude Code login on Ready, the Model step, the model-check pane,
+  the picker and Accounts, including the terminal's words. The check
+  establishes whether the real provider's claims yield an email and
+  compares the rendered look. Default: focused view and integration
+  checks with fake verified claims and program statuses; browser and
+  process stories and the real-login render check follow landing.
+
 - **Settings, Models after landing** (3.5): temper/ui compares page 07 of
   `model-picker` with the shipped page at 1440, 1280, 1000 and 420 px,
   including the named states and screenshots (`../draft/look-requests.md`,
@@ -6851,6 +6868,23 @@ own tests:
   brief, the view kept. Default: so, until temper/qa's walk after landing
   says otherwise. Otherwise the card moves to the log's foot, or the brief
   draws only once the window reaches the start, as a chat's context does.
+
+- **The agent-page keys after landing** (5.9, 5.15; the request
+  `ui-agent-keys`): temper/qa reads back from Message with PgUp and PgDn
+  on an agent's page and a goal's untracked page, while text streams and
+  after the turn ends, wide and at 420 px. The check includes a screen per
+  press, focus kept in Message, the kept place as words arrive, Latest,
+  long briefs and results, the plan and held cards, and opening the amendment's
+  editor in a short window. Default: the focused stylesheet and view-order
+  tables; no new browser story. The keys and layout are checked after landing.
+
+- **A PgUp while earlier lines are being read** (5.15; the request
+  `ui-agent-keys`): at the log's head a press has no room to move and is
+  not kept for the arriving lines. Reads chain from the log's measures,
+  not the presses. Default: no queued press. Keeping a bounded page request
+  and replaying it after the view is restored is a candidate in skein's page
+  part; it needs per-log state and a bound on repeated presses, and does not
+  itself shorten the read's wait.
 
 - **The connect-flows comparison** (3.5, 4.4, 5.2): temper/ui compares
   request pages 01–23 with main, including named states and open menus
@@ -7509,10 +7543,6 @@ own tests:
   invitation, its suggestions among it; the user kept the suggestions
   while tests walk the playground by them, to revisit (11-03).
   Default: `.starters` under the playground's start, on `NewChat`.
-- **The account's email on Ready** (3.5, The welcome): a signed-in
-  plan's line names the provider's verified email, a fact beside the
-  account's display (`jig/docs/design/draft/account-facts.md`, 1 and
-  6). Default: the display, as its holder gave it.
 - **A taken name at Ready** (3.5, The welcome;
   `../draft/first-run-projects.md`, 9): a person who made a project of
   the name Ready's field holds, the offered one unless they wrote

@@ -214,3 +214,43 @@ fn each_redirect_refusal_answers_the_finish_by_reason() {
         );
     }
 }
+
+#[test]
+fn profile_claims_reach_sign_in_and_refresh_as_said() {
+    for profile in [
+        oauth::ProfileClaims::default(),
+        oauth::ProfileClaims {
+            email: Some(b"person@example.com".as_slice().into()),
+            name: Some(b"A Name".as_slice().into()),
+        },
+    ] {
+        let said = accounts::Said { email: profile.email.clone(), name: profile.name.clone() };
+        assert_eq!(
+            translate::up(
+                driver::Event::SignedIn {
+                    account: ACCOUNT_CHAT,
+                    generation: 1,
+                    missing: Box::new([]),
+                    subject: Some(b"subject".as_slice().into()),
+                    profile: profile.clone()
+                },
+                fixtures::NOW,
+                b""
+            ),
+            Up::SignedIn {
+                source: ACCOUNT_CHAT,
+                subject: b"subject".as_slice().into(),
+                display: Box::new([]),
+                said: said.clone()
+            }
+        );
+        assert_eq!(
+            translate::up(
+                driver::Event::Refreshed { account: ACCOUNT_CHAT, generation: 2, profile },
+                fixtures::NOW,
+                b""
+            ),
+            Up::Child(accounts::FromComponent::Refreshed { account: ACCOUNT_CHAT, said })
+        );
+    }
+}

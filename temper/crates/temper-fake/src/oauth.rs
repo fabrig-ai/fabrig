@@ -123,6 +123,12 @@ impl Document {
             skein_http::server::Limits { response, body: u64::from(limits.request_bytes), ..profile.driver.server },
         )?
         .without_records();
+        match peer.sign_in_as(account()) {
+            Ok(()) => {}
+            Err(issuer::Error::Limits | issuer::Error::Full | issuer::Error::Plan) => {
+                return Err(skein_fake_peers::Error::Limits);
+            }
+        }
         match refill(&mut peer, seed) {
             Ok(()) => Ok(peer),
             Err(issuer::Error::Limits | issuer::Error::Full | issuer::Error::Plan) => {
@@ -154,6 +160,14 @@ impl Document {
                 }),
             }),
         }
+    }
+}
+
+fn account() -> issuer::Account {
+    issuer::Account {
+        subject: b"fake-person".as_slice().into(),
+        email: Some(issuer::Email { address: b"sam@example.com".as_slice().into(), verified: true }),
+        name: Some(b"Sam".as_slice().into()),
     }
 }
 

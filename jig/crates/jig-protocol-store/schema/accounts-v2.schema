@@ -16,5 +16,14 @@ record Limited { reset: option u64 }
 enum Held { limited: Limited, refused, moving }
 record Source { account: u32 number: u32 place: u32 kind: Kind name: bytes 32 held: option Held }
 record Issued { number: u32 holder: Holder name: bytes 32 signed_out: bool }
-enum Value { next: Next, account: Account, source: Source, issued: Issued }
+record FactText { text: bytes 255 }
+record FactCount { count: u64 }
+record FactInstant { at: u64 }
+record FactSpan { nanos: u64 }
+record FactShare { basis: u16 }
+record FactWindow { length: option u64 used: option u16 resets: option u64 state: u16 }
+enum FactValue { text: FactText, count: FactCount, instant: FactInstant, span: FactSpan, share: FactShare, window: FactWindow }
+record Fact { kind: u16 label: bytes 32 value: FactValue seen: u64 source: option u32 origin: u16 }
+record Facts { account: u32 facts: list 24 Fact }
+enum Value { next: Next, account: Account, source: Source, issued: Issued, facts: Facts }
 versioned record Row { value: Value }

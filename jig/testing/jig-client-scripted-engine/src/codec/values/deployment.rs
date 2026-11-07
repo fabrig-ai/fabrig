@@ -1,8 +1,9 @@
 //! Wire projections of owner deployment facts (client/domain/testing.md, 4).
 use super::super::{bytes, c, facts, list, pieces, w};
 use super::{
-    wire_account_holder, wire_account_source, wire_account_use, wire_admission_limit, wire_document_text, wire_funder,
-    wire_payer_readiness, wire_proposer, wire_provider_offer, wire_requester, wire_seen_through, wire_task_link,
+    wire_account_fact, wire_account_holder, wire_account_source, wire_account_use, wire_admission_limit,
+    wire_document_text, wire_funder, wire_payer_readiness, wire_proposer, wire_provider_offer, wire_requester,
+    wire_seen_through, wire_task_link,
 };
 pub(in crate::codec) fn wire_task_source_place(
     value: &c::AccountPlace,
@@ -309,6 +310,7 @@ pub(in crate::codec) fn wire_account(value: &c::Account, limits: &w::Limits) -> 
     w::Account::new(
         limits,
         w::AccountParts {
+            facts: list(value.facts.iter().map(|fact| wire_account_fact(fact, limits)))?,
             skein_bools: [value.plan, value.usable, value.expiring, value.attention, value.cut],
             number: value.number,
             place: value.place,

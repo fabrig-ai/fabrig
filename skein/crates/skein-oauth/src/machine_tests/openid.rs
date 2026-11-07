@@ -1,6 +1,6 @@
 use super::*;
 use skein_json::writer::Encoder;
-use skein_lib::{Writer, base64, usize_of};
+use skein_lib::{Secret, Writer, base64, usize_of};
 
 const MIN_BITS: u32 = 2048; // oauth.md, section 2.2.
 const MAX_BITS: u32 = 4096; // limits().modulus_bits.
@@ -304,20 +304,22 @@ fn the_metadata_cap_is_required_only_for_discovery() {
     }
 }
 #[test]
-fn the_key_set_cap_is_required_for_each_keys_route() {
-    for (direct, expected) in [(false, Err(Failure::Limit)), (true, Err(Failure::Limit))] {
-        let mut bounds = limits();
-        bounds.key_set_bytes = 0;
-        assert_eq!(validate_registration(&registration_for_keys(direct), &bounds, true), expected, "direct {direct}");
-    }
-}
-#[test]
-fn the_key_count_cap_is_required_for_each_keys_route() {
-    for (direct, expected) in [(false, Err(Failure::Limit)), (true, Err(Failure::Limit))] {
-        let mut bounds = limits();
-        bounds.keys = 0;
-        assert_eq!(validate_registration(&registration_for_keys(direct), &bounds, true), expected, "direct {direct}");
-    }
+fn openid_key_routes_require_nonzero_key_storage_capacities() {
+    skein_rows::check(
+        [
+            ("the_key_set_cap_is_required_for_each_keys_route", ClientLimits { key_set_bytes: 0, ..limits() }),
+            ("the_key_count_cap_is_required_for_each_keys_route", ClientLimits { keys: 0, ..limits() }),
+        ],
+        |bounds| {
+            for direct in [false, true] {
+                assert_eq!(
+                    validate_registration(&registration_for_keys(direct), &bounds, true),
+                    Err(Failure::Limit),
+                    "direct {direct}"
+                );
+            }
+        },
+    );
 }
 
 fn is_visit(result: Option<Request>) -> bool {
@@ -387,29 +389,60 @@ fn an_id_token_past_its_cap_ends_as_limit_before_any_check() {
     let terminal = step(&mut client, answered(post.id, 200, &body, 4));
     assert_eq!(failure(terminal), Failure::Limit);
 }
+fn refresh_id_token(payload: Option<&[u8]>) -> Option<Secret> {
+    let payload = payload?;
+    let payload = encoded(payload);
+    let mut writer = Writer::new(payload.len().checked_add(7).expect("fixture"));
+    for part in [b"e30.", payload.as_ref(), b".AA"] {
+        writer.put(part).expect("measured");
+    }
+    Some(Secret::new(writer.finish()))
+}
+
 #[test]
 fn a_refresh_keeps_the_sign_ins_id_token_unchecked() {
-    let mut client = Client::new(limits()).expect("client");
-    let mut event = refresh(registration_for_keys(true), None);
-    if let Event::Refresh { prior, .. } = &mut event {
-        prior.subject = Some(boxed(b"user-42"));
-        prior.id_token = Some(secret(b"prior-id"));
+    const GOOD: &[u8] = br#"{"iss":"https://issuer.example","aud":"client","exp":1100,"sub":"user-42","nonce":"not-compared","email":"you@example.com","email_verified":true,"name":"Example Person"}"#;
+    const PROFILE: Profile = Profile { email: true, name: true };
+    for (name, payload, wanted, says) in [
+        ("valid without signature", Some(GOOD), PROFILE, true),
+        ("not requested", Some(GOOD), Profile::default(), false),
+        ("issuer", Some(br#"{"iss":"https://other.example","aud":"client","exp":1100,"sub":"user-42","nonce":"n","name":"Example Person"}"#), PROFILE, false),
+        ("audience", Some(br#"{"iss":"https://issuer.example","aud":"other","exp":1100,"sub":"user-42","nonce":"n","name":"Example Person"}"#), PROFILE, false),
+        ("azp", Some(br#"{"iss":"https://issuer.example","aud":["client","other"],"azp":"other","exp":1100,"sub":"user-42","nonce":"n","name":"Example Person"}"#), PROFILE, false),
+        ("expiry", Some(br#"{"iss":"https://issuer.example","aud":"client","exp":0,"sub":"user-42","nonce":"n","name":"Example Person"}"#), PROFILE, false),
+        ("subject", Some(br#"{"iss":"https://issuer.example","aud":"client","exp":1100,"sub":"other","nonce":"n","name":"Example Person"}"#), PROFILE, false),
+        ("no nonce", Some(br#"{"iss":"https://issuer.example","aud":"client","exp":1100,"sub":"user-42","name":"Example Person"}"#), PROFILE, false),
+        ("no id token", None, PROFILE, false),
+        ("malformed", Some(b"not JSON"), PROFILE, false),
+    ] {
+        let mut registration = registration_for_keys(true);
+        registration.terms.as_mut().expect("terms").openid.as_mut().expect("openid").profile = wanted;
+        let mut client = Client::new(limits()).expect("client");
+        let mut event = refresh(registration, None);
+        if let Event::Refresh { prior, .. } = &mut event {
+            prior.subject = Some(boxed(b"user-42"));
+            prior.id_token = Some(secret(b"prior-id"));
+        }
+        let post = request(step(&mut client, event));
+        let id_token = refresh_id_token(payload);
+        let response = TokenResponse {
+            access_token: secret(b"access"), refresh_token: Some(secret(b"refresh")), expires_in: 30,
+            scope: None, id_token, earliest_refresh_at: None,
+        };
+        let body = encode_response(&response, &limits().document).expect("answer");
+        let Some(Request::Tokens { record, profile, .. }) = step(&mut client, answered(post.id, 200, &body, 2)) else {
+            panic!("refresh must succeed: {name}")
+        };
+        assert!(record.subject.as_deref() == Some(b"user-42"), "{name}");
+        assert!(secret_ref(record.id_token.as_ref()) == Some(b"prior-id"), "{name}");
+        let expected = SavedToken {
+            key: 7, generation: 2, access_token: secret(b"access"), refresh_token: Some(secret(b"refresh")),
+            metadata: None, expires_at: wall(32), earliest_refresh_at: None, issued_client_id: None,
+            granted_scopes: None, subject: Some(boxed(b"user-42")), id_token: Some(secret(b"prior-id")),
+        };
+        assert!(record == expected, "record changed for {name}");
+        assert_eq!(profile, if says { ProfileClaims { email: Some(boxed(b"you@example.com")), name: Some(boxed(b"Example Person")) } } else { ProfileClaims::default() }, "{name}");
     }
-    let post = request(step(&mut client, event));
-    let response = TokenResponse {
-        access_token: secret(b"access"),
-        refresh_token: Some(secret(b"refresh")),
-        expires_in: 30,
-        scope: None,
-        id_token: Some(secret(b"unchecked")),
-        earliest_refresh_at: None,
-    };
-    let body = encode_response(&response, &limits().document).expect("answer");
-    let Some(Request::Tokens { record, .. }) = step(&mut client, answered(post.id, 200, &body, 2)) else {
-        panic!("tokens")
-    };
-    assert!(record.subject.as_deref() == Some(b"user-42"));
-    assert!(secret_ref(record.id_token.as_ref()) == Some(b"prior-id"));
 }
 
 #[test]

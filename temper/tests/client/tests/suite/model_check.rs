@@ -412,6 +412,7 @@ fn login(front: &mut Joint, root: &mut Root, usable: bool) {
                 } else {
                     jig_domain_link::LoginState::NotSignedIn
                 },
+                email: None,
             }]),
         },
         temper_engine_domain::Parts::none(),

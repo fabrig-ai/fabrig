@@ -247,6 +247,7 @@ fn watch_success_replaces_a_pending_paste_with_ready() {
             subject: b"qa-paste-person".as_slice().into(),
             display: Box::new([]),
             declined: false,
+            said: jig_domain_accounts::Said::default(),
         },
     );
     assert!(has(&root, b"Added your ChatGPT plan"));
@@ -291,6 +292,7 @@ fn accounts_row_sign_in_offers_the_paste_and_observes_success() {
             subject: b"qa-row-person".as_slice().into(),
             display: Box::new([]),
             declined: false,
+            said: jig_domain_accounts::Said::default(),
         },
     );
     h::reopen(&mut front, &mut root, Address::Accounts);
@@ -315,6 +317,7 @@ fn accounts_row_sign_in_offers_the_paste_and_observes_success() {
             subject: b"qa-row-second-person".as_slice().into(),
             display: Box::new([]),
             declined: false,
+            said: jig_domain_accounts::Said::default(),
         },
     );
     assert!(has(&root, b"Added your ChatGPT plan"));

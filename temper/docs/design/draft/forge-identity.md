@@ -95,9 +95,9 @@ and 4.3), with no system named there, so a plan of its own goes first.
 
 `GET /app`, on the App's JWT, runs in `Convert` and in `Reconcile` (skein's
 `forge-setup.md`, 5.2 and 5.6), and each checks the App's id. GitHub's documentation
-lists `owner` as required on it, with `id`, `login` and `type`; skein doesn't decode it
-yet, and the live conformance adds it, as this hasn't been measured on `GET /app`
-itself. The by-slug read `GET /apps/<slug>` answered the same for the probe App on
+lists `owner` as required on it, with `id`, `login` and `type`; skein answers these
+to its caller, and the live conformance checks them on `GET /app` itself.
+The by-slug read `GET /apps/<slug>` answered the same for the probe App on
 2026-11-06, but it's id-checked by nothing and an App can be renamed, so temper doesn't
 use it.
 

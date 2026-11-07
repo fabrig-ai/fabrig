@@ -94,12 +94,17 @@ impl StatusCommand {
     }
 }
 
+const EMAIL: &str = "you@example.com";
+
 fn status_reply(method: Option<&str>) -> Vec<Effect> {
-    let value = serde_json::json!({
+    let mut value = serde_json::json!({
         "loggedIn": method.is_some(),
         "authMethod": method.unwrap_or("none"),
         "apiProvider": "firstParty",
     });
+    if method.is_some() {
+        value["email"] = EMAIL.into();
+    }
     let mut bytes = serde_json::to_vec(&value).expect("status is JSON data");
     bytes.push(b'\n');
     reply(bytes, if method.is_some() { 0 } else { 1 })

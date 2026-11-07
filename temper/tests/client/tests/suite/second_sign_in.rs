@@ -64,6 +64,7 @@ fn signed_in(front: &mut Joint, root: &mut Root, source: u32) {
         subject: SUBJECT.into(),
         display: Box::new([]),
         declined: false,
+        said: jig_domain_accounts::Said::default(),
     }));
     accounts::settle(front, root);
 }

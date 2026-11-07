@@ -232,10 +232,29 @@ fn base64url_mutations_and_claim_shape_errors_are_refused_without_authentication
 }
 
 #[test]
-fn a_record_with_every_option_absent_round_trips() {
-    let record = SavedToken { refresh_token: None, ..byte_record() };
-    let encoded = encode_record(&record, &limits()).expect("access-only encoding");
-    assert!(decode_record(&encoded, &limits()).expect("access-only record") == record);
+fn saved_token_records_round_trip_with_optional_fields() {
+    skein_rows::check(
+        [
+            ("a_record_with_every_option_absent_round_trips", SavedToken { refresh_token: None, ..byte_record() }),
+            ("a_record_round_trips_each_addition: issued", additions([true, false, false, false, false])),
+            ("a_record_round_trips_each_addition: granted", additions([false, true, false, false, false])),
+            ("a_record_round_trips_each_addition: subject", additions([false, false, true, false, false])),
+            ("a_record_round_trips_each_addition: id", additions([false, false, false, true, false])),
+            ("a_record_round_trips_each_addition: earliest", additions([false, false, false, false, true])),
+            ("a_record_round_trips_each_addition: all", additions([true; 5])),
+            ("a_record_round_trips_each_addition: none", additions([false; 5])),
+            ("a_record_round_trips_each_addition: granted empty", {
+                let mut value = additions([false; 5]);
+                value.granted_scopes = Some(boxed(b""));
+                value
+            }),
+            ("a_full_record_round_trips", SavedToken { metadata: Some(boxed(b"account")), ..additions([true; 5]) }),
+        ],
+        |record| {
+            let encoded = encode_record(&record, &limits()).expect("encoding");
+            assert!(decode_record(&encoded, &limits()).expect("record") == record);
+        },
+    );
 }
 
 #[test]
@@ -281,22 +300,32 @@ fn a_record_decodes_the_independent_schema_bytes() {
 }
 
 #[test]
-fn a_record_cut_short_is_malformed() {
-    for length in 0..RECORD_BYTES.len() {
-        assert!(
-            decode_record(RECORD_BYTES.get(..length).expect("prefix"), &limits()) == Err(DecodeError::Malformed),
-            "prefix length {length}"
-        );
-    }
-}
-
-#[test]
-fn a_record_with_a_trailing_byte_is_malformed() {
-    let mut writer = skein_lib::Writer::new(RECORD_BYTES.len().checked_add(1).expect("fixture length fits"));
-    writer.put(RECORD_BYTES).expect("room for record");
-    writer.put(&[0]).expect("room for trailing byte");
-    let trailing = writer.finish();
-    assert!(decode_record(&trailing, &limits()) == Err(DecodeError::Malformed));
+fn incomplete_or_trailing_record_bytes_decode_as_malformed() {
+    skein_rows::check(
+        [
+            ("a_record_cut_short_is_malformed", {
+                let mut inputs =
+                    skein_lib::List::with_capacity(u32::try_from(RECORD_BYTES.len()).expect("fixture length"));
+                for length in 0..RECORD_BYTES.len() {
+                    inputs.push(boxed(RECORD_BYTES.get(..length).expect("prefix"))).expect("prefix fixture");
+                }
+                inputs.into_boxed()
+            }),
+            ("a_record_with_a_trailing_byte_is_malformed", {
+                let mut writer =
+                    skein_lib::Writer::new(RECORD_BYTES.len().checked_add(1).expect("fixture length fits"));
+                writer.put(RECORD_BYTES).expect("room for record");
+                writer.put(&[0]).expect("room for trailing byte");
+                let trailing = writer.finish();
+                Box::<[Box<[u8]>]>::from([trailing])
+            }),
+        ],
+        |inputs| {
+            for input in inputs {
+                assert!(decode_record(&input, &limits()) == Err(DecodeError::Malformed), "length {}", input.len());
+            }
+        },
+    );
 }
 
 #[test]
@@ -391,26 +420,7 @@ fn additions(present: [bool; 5]) -> SavedToken {
     value.earliest_refresh_at = present[4].then_some(wall(90));
     value
 }
-#[test]
-fn a_record_round_trips_each_addition() {
-    for (name, present) in [
-        ("issued", [true, false, false, false, false]),
-        ("granted", [false, true, false, false, false]),
-        ("subject", [false, false, true, false, false]),
-        ("id", [false, false, false, true, false]),
-        ("earliest", [false, false, false, false, true]),
-        ("all", [true; 5]),
-        ("none", [false; 5]),
-        ("granted empty", [false; 5]),
-    ] {
-        let mut value = additions(present);
-        if name == "granted empty" {
-            value.granted_scopes = Some(boxed(b""));
-        }
-        let encoded = encode_record(&value, &limits()).expect("encoded");
-        assert!(decode_record(&encoded, &limits()).expect("decoded") == value, "{name}");
-    }
-}
+
 const VERSION_TWO: &[u8] = b"SKOT\x00\x02\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x01a\x00\x00\x00\x01r\x00\x00\x00\x00";
 fn byte_record() -> SavedToken {
     SavedToken {
@@ -428,32 +438,17 @@ fn byte_record() -> SavedToken {
     }
 }
 #[test]
-fn a_version_two_record_is_unreadable() {
-    for input in [VERSION_TWO, b"\x00\x02".as_slice()] {
-        assert!(decode_record(input, &limits()) == Err(DecodeError::Version));
-    }
-}
-
-#[test]
-fn the_hand_written_form_is_unreadable() {
-    let input = b"SKOT\x00\x03\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x01a\x00\x00\x00\x01r\x00\x00\x00\x00\x00\x00\x00\x00\x00";
-    assert!(decode_record(input, &limits()) == Err(DecodeError::Version));
-}
-
-#[test]
-fn a_record_of_another_version_is_refused() {
-    for version in [1, 4] {
-        let mut input = boxed(RECORD_BYTES);
-        *input.get_mut(1).expect("version low byte") = version;
-        assert!(decode_record(&input, &limits()) == Err(DecodeError::Version), "version {version}");
-    }
-}
-
-#[test]
-fn a_full_record_round_trips() {
-    let record = SavedToken { metadata: Some(boxed(b"account")), ..additions([true; 5]) };
-    let encoded = encode_record(&record, &limits()).expect("full encoding");
-    assert!(decode_record(&encoded, &limits()).expect("full decoding") == record);
+fn unsupported_record_versions_consistently_produce_the_version_error() {
+    skein_rows::check(
+        [
+            ("a_version_two_record_is_unreadable: full", boxed(VERSION_TWO)),
+            ("a_version_two_record_is_unreadable: short", boxed(b"\x00\x02")),
+            ("the_hand_written_form_is_unreadable", boxed(b"SKOT\x00\x03\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x01a\x00\x00\x00\x01r\x00\x00\x00\x00\x00\x00\x00\x00\x00")),
+            ("a_record_of_another_version_is_refused: 1", { let mut input = boxed(RECORD_BYTES); *input.get_mut(1).expect("version low byte") = 1; input }),
+            ("a_record_of_another_version_is_refused: 4", { let mut input = boxed(RECORD_BYTES); *input.get_mut(1).expect("version low byte") = 4; input }),
+        ],
+        |input| assert!(decode_record(&input, &limits()) == Err(DecodeError::Version)),
+    );
 }
 
 // Schema ceilings in oauth.md, 6.4; token_bytes also bounds refresh and metadata.
@@ -644,7 +639,15 @@ fn an_id_tokens_alg_must_be_rs256() {
         ("RS256", br#"{"alg":"RS256"}"#, Check::Keys),
     ] {
         let token = jws(header, &claims(1100), b"signature");
-        let got = jwt::verify_id_token(&token, &[], &id_expected(), wall(1000), Duration::ZERO, &limits());
+        let got = jwt::verify_id_token(
+            &token,
+            &[],
+            &id_expected(),
+            Profile::default(),
+            wall(1000),
+            Duration::ZERO,
+            &limits(),
+        );
         assert_eq!(got.err(), Some(expected), "{name}");
     }
 }
@@ -708,7 +711,8 @@ fn each_claim_is_checked() {
             Check::Missing,
         ),
     ] {
-        let got = jwt::check_claims(&payload, &id_expected(), wall(1000), Duration::ZERO, &limits());
+        let got =
+            jwt::check_claims(&payload, &id_expected(), Profile::default(), wall(1000), Duration::ZERO, &limits());
         assert_eq!(got.err(), Some(expected), "{name}");
     }
 }
@@ -723,7 +727,8 @@ fn aud_may_be_a_string_or_an_array() {
     ] {
         let payload =
             claims_with(b"https://issuer.example", audience, 1100, b"n-0123456789abcdef", Some(b"user-42"), azp);
-        let got = jwt::check_claims(&payload, &id_expected(), wall(1000), Duration::ZERO, &limits());
+        let got =
+            jwt::check_claims(&payload, &id_expected(), Profile::default(), wall(1000), Duration::ZERO, &limits());
         assert_eq!(got.err(), expected, "{name}");
     }
 }
@@ -732,7 +737,14 @@ fn an_expiry_on_the_skews_edge_is_expired_and_a_second_later_is_not() {
     for (skew, exp, expected) in
         [(60, 940, Some(Check::Expiry)), (60, 941, None), (0, 1000, Some(Check::Expiry)), (0, 1001, None)]
     {
-        let got = jwt::check_claims(&claims(exp), &id_expected(), wall(1000), Duration::from_secs(skew), &limits());
+        let got = jwt::check_claims(
+            &claims(exp),
+            &id_expected(),
+            Profile::default(),
+            wall(1000),
+            Duration::from_secs(skew),
+            &limits(),
+        );
         assert_eq!(got.err(), expected, "skew {skew}, exp {exp}");
     }
 }
@@ -764,10 +776,125 @@ fn rfc_7515_a2_passes_the_signature_check() {
             &token,
             core::slice::from_ref(&key),
             &id_expected(),
+            Profile::default(),
             wall(1000),
             Duration::ZERO,
             &limits(),
         );
         assert_eq!(got.err(), Some(expected), "{name}");
+    }
+}
+
+fn with_profile(payload: &[u8], extra: &[u8]) -> Box<[u8]> {
+    use skein_lib::Writer;
+    let head = payload.get(..payload.len().checked_sub(1).expect("object")).expect("object");
+    let mut writer =
+        Writer::new(head.len().checked_add(extra.len()).expect("fixture").checked_add(2).expect("fixture"));
+    for part in [head, b",", extra, b"}"] {
+        writer.put(part).expect("measured");
+    }
+    writer.finish()
+}
+
+#[test]
+fn profile_claims_are_optional_bounded_and_only_read_when_asked() {
+    const TEXT_BOUND: usize = 255; // oauth.md, 2.2.
+    const PROFILE_TOKENS: u32 = 8; // Object, claim, verification, duplicate claim, end.
+    const BOTH: Profile = Profile { email: true, name: true };
+    const EMAIL: &[u8] = b"you@example.com";
+    const NAME: &[u8] = b"Example Person";
+    for (extra, wanted, email, name) in [
+        (
+            br#""email":"you@example.com","email_verified":true,"name":"Example Person""#.as_slice(),
+            BOTH,
+            Some(EMAIL),
+            Some(NAME),
+        ),
+        (
+            br#""email":"you@example.com","email_verified":"true","name":"Example Person""#,
+            BOTH,
+            Some(EMAIL),
+            Some(NAME),
+        ),
+        (br#""email":"you@example.com","email_verified":false"#, BOTH, None, None),
+        (br#""email":"you@example.com","email_verified":"false""#, BOTH, None, None),
+        (br#""email":"you@example.com""#, BOTH, None, None),
+        (br#""email":"you@example.com","email_verified":1"#, BOTH, None, None),
+        (br#""email":"you@example.com","email_verified":true,"email_verified":true"#, BOTH, None, None),
+        (br#""email":"you@example.com","email_verified":true,"name":"Example Person""#, Profile::default(), None, None),
+        (
+            br#""email":"you@example.com","email_verified":true,"name":"Example Person""#,
+            Profile { email: true, name: false },
+            Some(EMAIL),
+            None,
+        ),
+        (
+            br#""email":"you@example.com","email_verified":true,"name":"Example Person""#,
+            Profile { email: false, name: true },
+            None,
+            Some(NAME),
+        ),
+    ] {
+        let verified = jwt::check_claims(
+            &with_profile(&claims(1100), extra),
+            &id_expected(),
+            wanted,
+            wall(1000),
+            Duration::ZERO,
+            &limits(),
+        )
+        .expect("valid identity");
+        assert_eq!(verified.subject.as_ref(), b"user-42");
+        assert_eq!(verified.profile.email.as_deref(), email, "{extra:?}, {wanted:?}");
+        assert_eq!(verified.profile.name.as_deref(), name, "{extra:?}, {wanted:?}");
+    }
+    for field in [b"email".as_slice(), b"name"] {
+        for (value, repeated, expected) in [
+            (Token::Number(boxed(b"1")), false, None),
+            (Token::String(boxed(b"value")), true, None),
+            (Token::String(boxed(b"")), false, None),
+            (Token::String(boxed(&[b'x'; TEXT_BOUND + 1])), false, None),
+            (Token::String(boxed(b"x\0y")), false, None),
+            (Token::String(boxed(b"x\x7fy")), false, None),
+            (Token::String(boxed(&[b'x'; TEXT_BOUND])), false, Some([b'x'; TEXT_BOUND].as_slice())),
+        ] {
+            let mut tokens = skein_lib::List::with_capacity(PROFILE_TOKENS);
+            for token in [
+                Token::ObjectStart,
+                Token::Key(boxed(field)),
+                value.clone(),
+                Token::Key(boxed(b"email_verified")),
+                Token::True,
+            ] {
+                tokens.push(token).expect("fixture");
+            }
+            if repeated {
+                tokens.push(Token::Key(boxed(field))).expect("fixture");
+                tokens.push(value).expect("fixture");
+            }
+            tokens.push(Token::ObjectEnd).expect("fixture");
+            let extra =
+                Json::from_tokens(tokens.as_slice(), &limits()).expect("object").to_bytes(&limits()).expect("object");
+            let extra = extra.get(1..extra.len().checked_sub(1).expect("object")).expect("object");
+            let verified = jwt::check_claims(
+                &with_profile(&claims(1100), extra),
+                &id_expected(),
+                BOTH,
+                wall(1000),
+                Duration::ZERO,
+                &limits(),
+            )
+            .expect("profile never fails identity");
+            assert_eq!(verified.subject.as_ref(), b"user-42");
+            let mut expected_claims = ProfileClaims::default();
+            if let Some(expected) = expected {
+                if field == b"email" {
+                    expected_claims.email = Some(boxed(expected));
+                } else {
+                    expected_claims.name = Some(boxed(expected));
+                }
+            }
+            assert_eq!(verified.profile, expected_claims, "{field:?}: {extra:?}");
+        }
     }
 }

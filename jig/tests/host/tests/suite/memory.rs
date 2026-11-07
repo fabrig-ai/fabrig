@@ -473,10 +473,13 @@ fn source_replacement_at_capacity_completes_every_check() {
     for index in 0..limits.program_sources {
         let event = Event::SourceAnswered {
             owner,
-            answer: sources::Answer::Checked(LoginState::Failed {
-                reason: SourceFailure::Exited,
-                detail: bytes(u64::from(limits.detail_bytes)),
-            }),
+            answer: sources::Answer::Checked {
+                state: LoginState::Failed {
+                    reason: SourceFailure::Exited,
+                    detail: bytes(u64::from(limits.detail_bytes)),
+                },
+                email: None,
+            },
         };
         step(&mut domain, &env, event, &mut out);
         // Keep the full inventory at the measured step peak, then hand it out.

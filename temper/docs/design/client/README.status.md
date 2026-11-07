@@ -2,6 +2,12 @@
 
 2026-11-07. Where temper's code lags or departs from [README.md](README.md).
 
+Sections 3.5 and 5.5 have no known implementation gap in naming accounts
+by email on Ready, the Model step, the model-check pane, the picker or
+Accounts, including terminal words and the display/source-name fallback.
+The real-login render check and browser and process stories remain
+section 11's after-landing work; no real-provider result is supplied here.
+
 Section 3.5 has no known implementation gap in drawing a Markdown flow
 in a chat or its document. The page routes skein-ui's flow owner and
 names under temper's limits; its host test checks the case's SVG and
@@ -178,10 +184,22 @@ checks remain section 11's deferred work, with no outcome supplied here.
   terminal's reads a committed line alone (`temper/tests/real-loop/tests/suite/terminal.rs`,
   `a_person_at_the_terminal_reads_a_run_of_calls`). A browser's running line is seen in
   the gallery's `chat-work-running`; a terminal's in the view's tests and that world.
+
+Sections 5.9, *What scrolls*, and 5.15 have no known implementation gap in
+the browser's agent-page log holding the column from brief through plan,
+with Latest after it and the amendment's editor above it. A goal's untracked
+page uses the same page. The stylesheet table holds which element scrolls;
+the view tables hold the browser's nesting, the terminal's order and the
+result inside the browser's log. Section 11 keeps the after-landing keys
+and layout check, opening at the end, and the unqueued PgUp at a pending
+read's head explicit.
+
 - **Not yet:** 5.9, *The conversation*, and 5.15: no browser test draws an agent's running line,
   presses its "Latest" or scrolls its log, so that a press reads on to the end, the log following,
   is seen by reading. The gallery's `agent-work` draws the line and the pill, and the domain's and
-  the view's tests hold what a press reads and when it binds.
+  the view's tests hold what a press reads and when it binds. The request
+  `ui-agent-keys` asks for no new browser test; its keys and layout rewalk
+  remains section 11's after-landing work, with no outcome supplied here.
 - **Departs:** 3.5, *while it runs*: a call under way with none ended draws a
   description too, its words twice ("Checking template 2", "checking template 2"),
   where the section has the line alone: `temper-client-view`'s `pages/chat_line.rs`,
@@ -520,10 +538,7 @@ checks remain section 11's deferred work, with no outcome supplied here.
   stops at "landed work.", which the section has no words for.
   3.5, 4.6, 8: Forget, on the Forges page and as the FORGE
   request `Forget`: no `forget` in `temper-client-protocol-wire`'s schema
-  or in `temper-service`'s routing. 3.5: Ready's model line and the Model step's
-  status name no email for a ChatGPT sign-in, whose account's display is empty, since
-  the engine keeps no email: it waits on
-  `jig/docs/design/draft/account-facts.md`, 6, its second step.
+  or in `temper-service`'s routing.
   3.5, *Ready*: two endings leave nothing under "Model none yet"
   (`temper-client-view`'s `pages/connect_model.rs`, `welcome_end`), and no
   test holds either: a sign-in `Made` or `Renewed`, not declined, with no

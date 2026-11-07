@@ -73,6 +73,7 @@ fn party_account_sign_in_requires_the_issued_client_id_and_the_must_grant_scopes
     assert_eq!(
         terms.openid.unwrap(),
         skein_oauth::OpenId {
+            profile: skein_oauth::Profile { email: true, name: true },
             issuer: bytes::copy_of(b"http://127.0.0.1:31000"),
             key_set: Some(bytes::copy_of(b"http://127.0.0.1:31000/keys"))
         }
@@ -116,7 +117,13 @@ fn an_account_visit_longer_than_the_address_bound_fails_the_account_sign_in_misc
 fn an_account_signed_in_without_a_subject_fails_misconfigured() {
     assert_eq!(
         translate::up(
-            driver::Event::SignedIn { account: 55, generation: 1, missing: Box::default(), subject: None },
+            driver::Event::SignedIn {
+                profile: skein_oauth::ProfileClaims::default(),
+                account: 55,
+                generation: 1,
+                missing: Box::default(),
+                subject: None
+            },
             Time::ZERO,
             b""
         ),
@@ -128,6 +135,7 @@ fn an_account_signed_in_with_a_missing_scope_fails_naming_its_index() {
     assert_eq!(
         translate::up(
             driver::Event::SignedIn {
+                profile: skein_oauth::ProfileClaims::default(),
                 account: 55,
                 generation: 1,
                 missing: bytes::copy_of(b"write read"),

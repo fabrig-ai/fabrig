@@ -219,7 +219,7 @@ pub enum Event {
 pub enum Request {
     Visit { url: Secret },
     Http(HttpRequest),
-    Tokens { record: SavedToken, missing: Box<[u8]> },
+    Tokens { record: SavedToken, missing: Box<[u8]>, profile: crate::ProfileClaims },
     Revoked { confirmed: bool },
     Failed { failure: Failure },
 }
@@ -590,9 +590,9 @@ impl Client {
             };
             return match response {
                 Ok(tokens) => match self.record(&exchange, &tokens, answer.wall) {
-                    Ok(record) => {
+                    Ok((record, profile)) => {
                         let missing = missing_scopes(&exchange.registration, &record);
-                        out.push(Request::Tokens { record, missing });
+                        out.push(Request::Tokens { record, missing, profile });
                         Phase::Done
                     }
                     Err(failure) => Self::finish(failure, out),
@@ -629,7 +629,13 @@ impl Client {
         self.retry_or_fail(exchange, failure, answer.now, answer.retry_after, safe, out)
     }
 
-    fn record(&self, exchange: &Exchange, response: &TokenResponse, wall: Wall) -> Result<SavedToken, Failure> {
+    fn record(
+        &self,
+        exchange: &Exchange,
+        response: &TokenResponse,
+        wall: Wall,
+    ) -> Result<(SavedToken, crate::ProfileClaims), Failure> {
+        let profile;
         let prior = match &exchange.grant {
             Grant::Refresh { prior } => {
                 return match rotate(
@@ -639,7 +645,7 @@ impl Client {
                     wall,
                     &self.limits.document,
                 ) {
-                    Ok(record) => Ok(record),
+                    Ok(record) => Ok((record, self.refresh_profile(exchange, response, wall))),
                     Err(error) => Err(admit(error)),
                 };
             }
@@ -649,6 +655,7 @@ impl Client {
                     Ok(value) => value,
                     Err(check) => return Err(Failure::Unverified { check }),
                 };
+                profile = identity.profile;
                 SavedToken {
                     key: *key,
                     generation: *generation,
@@ -675,9 +682,37 @@ impl Client {
             wall,
             &self.limits.document,
         ) {
-            Ok(record) => Ok(record),
+            Ok(record) => Ok((record, profile)),
             Err(error) => Err(admit(error)),
         }
+    }
+
+    fn refresh_profile(&self, exchange: &Exchange, response: &TokenResponse, wall: Wall) -> crate::ProfileClaims {
+        let prior = match &exchange.grant {
+            Grant::Refresh { prior } => prior,
+            Grant::SignIn { .. } | Grant::Revoke { .. } => return crate::ProfileClaims::default(),
+        };
+        let Some(openid) = (match &exchange.registration.terms {
+            Some(terms) => terms.openid.as_ref(),
+            None => None,
+        }) else {
+            return crate::ProfileClaims::default();
+        };
+        let Some(token) = &response.id_token else { return crate::ProfileClaims::default() };
+        let Some(subject) = &prior.subject else { return crate::ProfileClaims::default() };
+        let expected = crate::jwt::RefreshExpected {
+            issuer: &openid.issuer,
+            client_id: &exchange.registration.client_id,
+            subject,
+        };
+        crate::jwt::refreshed_profile(
+            token.expose(),
+            &expected,
+            openid.profile,
+            wall,
+            self.limits.skew,
+            &self.limits.document,
+        )
     }
 
     fn retry_or_fail(

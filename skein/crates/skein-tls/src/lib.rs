@@ -34,7 +34,8 @@ mod session;
 mod tests;
 
 pub use rs256::{
-    RS256_KEY_BYTES, RS256_PKCS8_KEY_BYTES, Rs256Public, rs256_public, sign_rs256, sign_rs256_pkcs8, verify_rs256,
+    RS256_KEY_BYTES, RS256_PKCS8_KEY_BYTES, Rs256Public, rs256_public, rs256_public_pkcs1, sign_rs256,
+    sign_rs256_pkcs8, verify_rs256,
 };
 
 pub use config::{ALPN, Config, Name, Parsed, Refusal, Server};

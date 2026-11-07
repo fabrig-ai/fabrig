@@ -141,12 +141,11 @@ fn a_full_page_says_there_is_more() {
     assert_eq!(go(&mut at(PAGE), page(4)), outcome(4, true));
 }
 #[test]
-fn a_short_page_says_there_is_no_more() {
-    assert_eq!(go(&mut at(PAGE), page(3)), outcome(3, false));
-}
-#[test]
-fn an_empty_page_says_there_is_no_more_and_holds_no_row() {
-    assert_eq!(go(&mut at(PAGE), page(0)), outcome(0, false));
+fn short_repository_pages_finish_without_a_further_page() {
+    skein_rows::check(
+        [("a_short_page_says_there_is_no_more", 3), ("an_empty_page_says_there_is_no_more_and_holds_no_row", 0)],
+        |count| assert_eq!(go(&mut at(PAGE), page(count)), outcome(count, false)),
+    );
 }
 #[test]
 fn each_row_carries_its_id_owner_name_and_privacy() {

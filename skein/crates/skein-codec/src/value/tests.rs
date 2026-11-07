@@ -258,19 +258,36 @@ fn held_secret_content_access_is_refused() {
 }
 
 #[test]
-fn held_secret_debug_redacts_the_content() {
-    let (value, _) = held_secret_value();
-    assert!(!format!("{value:?}").contains("120, 121, 122"));
-}
-
-#[test]
-fn debug_redacts_secret_and_text_content() {
-    let schema = parse(b"family f 1\nrecord R { key: secret 3 words: text 3 }").expect("schema");
-    let mut value = Value::with_room(3);
-    value.decode(&schema, DeclIx::new(0), b"\0\0\0\x03xyz\0\0\0\x03abc".as_slice().into()).expect("record");
-    let debug = format!("{value:?}");
-    assert!(!debug.contains("120, 121, 122"), "secret bytes are redacted");
-    assert!(!debug.contains("97, 98, 99"), "text bytes are redacted");
+fn debug_never_renders_stored_text_or_secret_content_bytes() {
+    skein_rows::check(
+        [
+            (
+                "held_secret_debug_redacts_the_content",
+                (
+                    b"family f 1\nrecord R { key: secret 3 holds other Token }".as_slice(),
+                    &[0, 0, 0, 3, 120, 121, 122][..],
+                    &["120, 121, 122"][..],
+                ),
+            ),
+            (
+                "debug_redacts_secret_and_text_content",
+                (
+                    b"family f 1\nrecord R { key: secret 3 words: text 3 }".as_slice(),
+                    b"\0\0\0\x03xyz\0\0\0\x03abc".as_slice(),
+                    &["120, 121, 122", "97, 98, 99"][..],
+                ),
+            ),
+        ],
+        |(source, bytes, forbidden)| {
+            let schema = parse(source).expect("schema");
+            let mut value = Value::with_room(TEST_ROOM);
+            value.decode(&schema, DeclIx::new(0), bytes.into()).expect("record");
+            let debug = format!("{value:?}");
+            for content in forbidden {
+                assert!(!debug.contains(content), "content bytes are redacted");
+            }
+        },
+    );
 }
 
 #[test]

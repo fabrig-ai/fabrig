@@ -61,29 +61,79 @@ fn a_push_hook_is_delivered_as_one_signed_post_to_the_forges_path() {
         })
     );
 }
-#[test]
-fn an_issue_hook_is_delivered_under_the_issues_event_naming_its_number() {
-    let post = delivered(Change::Issue);
-    assert_eq!(&*post.body, br#"{"repository":{"id":2},"number":3,"issue":{"body":"fixture body"}}"#);
-    assert_eq!(fixtures::delivery_event(&post), b"issues");
-    assert_eq!(
-        decoded(&post),
-        Ok(Delivery::Issue { repository: REPOSITORY, number: ITEM, body: Body::Kept(boxed(b"fixture body")) })
-    );
+struct DeliveryRow {
+    change: Change,
+    body: &'static [u8],
+    event: &'static [u8],
+    decoded: Result<Delivery, skein_forge::forgejo::decode::Malformed>,
 }
 #[test]
-fn a_jobs_end_is_delivered_naming_its_commit() {
-    let post = delivered(Change::Job);
-    assert_eq!(
-        &*post.body,
-        br#"{"run":{"repository":{"id":2},"commit_sha":"63cbe1e459320dd7000000000000000700000000"}}"#
-    );
-    assert_eq!(fixtures::delivery_event(&post), b"workflow_job_success");
-    assert_eq!(
-        decoded(&post),
-        Ok(Delivery::Job { end: JobEnd::Success, repository: REPOSITORY, commit: routes::object(7) })
+fn delivered_hooks_preserve_their_event_and_payload_fields() {
+    skein_rows::check(
+        [
+            (
+                "an_issue_hook_is_delivered_under_the_issues_event_naming_its_number",
+                DeliveryRow {
+                    change: Change::Issue,
+                    body: br#"{"repository":{"id":2},"number":3,"issue":{"body":"fixture body"}}"#,
+                    event: b"issues",
+                    decoded: Ok(Delivery::Issue {
+                        repository: REPOSITORY,
+                        number: ITEM,
+                        body: Body::Kept(boxed(b"fixture body")),
+                    }),
+                },
+            ),
+            (
+                "a_jobs_end_is_delivered_naming_its_commit",
+                DeliveryRow {
+                    change: Change::Job,
+                    body: br#"{"run":{"repository":{"id":2},"commit_sha":"63cbe1e459320dd7000000000000000700000000"}}"#,
+                    event: b"workflow_job_success",
+                    decoded: Ok(Delivery::Job {
+                        end: JobEnd::Success,
+                        repository: REPOSITORY,
+                        commit: routes::object(7),
+                    }),
+                },
+            ),
+            (
+                "a_comment_hook_delivers_its_body_with_the_items_number",
+                DeliveryRow {
+                    change: Change::Comment,
+                    body: br#"{"repository":{"id":2},"issue":{"number":3},"comment":{"body":"fixture body"}}"#,
+                    event: b"issue_comment",
+                    decoded: Ok(Delivery::Comment {
+                        repository: REPOSITORY,
+                        number: ITEM,
+                        body: Body::Kept(boxed(b"fixture body")),
+                    }),
+                },
+            ),
+            (
+                "a_review_hook_delivers_its_content_with_the_items_number",
+                DeliveryRow {
+                    change: Change::Review,
+                    body: br#"{"repository":{"id":2},"number":3,"review":{"content":"fixture body"}}"#,
+                    event: b"pull_request_approved",
+                    decoded: Ok(Delivery::Review {
+                        event: ReviewEvent::Approved,
+                        repository: REPOSITORY,
+                        number: ITEM,
+                        body: Body::Kept(boxed(b"fixture body")),
+                    }),
+                },
+            ),
+        ],
+        |row| {
+            let post = delivered(row.change);
+            assert_eq!(&*post.body, row.body);
+            assert_eq!(fixtures::delivery_event(&post), row.event);
+            assert_eq!(decoded(&post), row.decoded);
+        },
     );
 }
+
 #[test]
 fn a_failed_jobs_end_is_delivered_under_its_failure_event() {
     let service = Service::new(fixtures::hooked_config(), &fixtures::limits(), 3).expect("service");
@@ -98,31 +148,7 @@ fn a_failed_jobs_end_is_delivered_under_its_failure_event() {
         Ok(Delivery::Job { end: JobEnd::Failure, repository: REPOSITORY, commit: routes::object(7) })
     );
 }
-#[test]
-fn a_comment_hook_delivers_its_body_with_the_items_number() {
-    let post = delivered(Change::Comment);
-    assert_eq!(&*post.body, br#"{"repository":{"id":2},"issue":{"number":3},"comment":{"body":"fixture body"}}"#);
-    assert_eq!(fixtures::delivery_event(&post), b"issue_comment");
-    assert_eq!(
-        decoded(&post),
-        Ok(Delivery::Comment { repository: REPOSITORY, number: ITEM, body: Body::Kept(boxed(b"fixture body")) })
-    );
-}
-#[test]
-fn a_review_hook_delivers_its_content_with_the_items_number() {
-    let post = delivered(Change::Review);
-    assert_eq!(&*post.body, br#"{"repository":{"id":2},"number":3,"review":{"content":"fixture body"}}"#);
-    assert_eq!(fixtures::delivery_event(&post), b"pull_request_approved");
-    assert_eq!(
-        decoded(&post),
-        Ok(Delivery::Review {
-            event: ReviewEvent::Approved,
-            repository: REPOSITORY,
-            number: ITEM,
-            body: Body::Kept(boxed(b"fixture body"))
-        })
-    );
-}
+
 #[test]
 fn a_deleted_branch_is_delivered_as_a_delete_event() {
     let service = Service::new(fixtures::hooked_config(), &fixtures::limits(), 3).expect("service");
@@ -149,17 +175,28 @@ fn a_hook_with_no_endpoint_is_not_delivered() {
     assert_eq!(service.delivery(&hook(Change::Push), &fixtures::limits()), None);
 }
 #[test]
-fn a_delivery_endpoint_with_an_empty_secret_is_refused() {
-    let mut config = fixtures::hooked_config();
-    config.hooks.as_mut().expect("endpoint").secret = Secret::new(boxed(b""));
-    assert_eq!(Service::new(config, &fixtures::limits(), 3).err(), Some(crate::Error::Limits));
+fn delivery_endpoints_require_nonempty_host_and_secret_fields() {
+    skein_rows::check(
+        [
+            (
+                "a_delivery_endpoint_with_an_empty_secret_is_refused",
+                (fixtures::hooked_config().hooks.expect("endpoint").host, Secret::new(boxed(b""))),
+            ),
+            (
+                "a_delivery_endpoint_with_an_empty_host_is_refused",
+                (boxed(b""), fixtures::hooked_config().hooks.expect("endpoint").secret),
+            ),
+        ],
+        |(host, secret)| {
+            let mut config = fixtures::hooked_config();
+            let endpoint = config.hooks.as_mut().expect("endpoint");
+            endpoint.host = host;
+            endpoint.secret = secret;
+            assert_eq!(Service::new(config, &fixtures::limits(), 3).err(), Some(crate::Error::Limits));
+        },
+    );
 }
-#[test]
-fn a_delivery_endpoint_with_an_empty_host_is_refused() {
-    let mut config = fixtures::hooked_config();
-    config.hooks.as_mut().expect("endpoint").host = boxed(b"");
-    assert_eq!(Service::new(config, &fixtures::limits(), 3).err(), Some(crate::Error::Limits));
-}
+
 #[test]
 fn the_delivery_signature_is_rfc_4231s_for_its_key_and_data() {
     assert_eq!(

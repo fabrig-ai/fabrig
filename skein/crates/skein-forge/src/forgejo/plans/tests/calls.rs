@@ -432,26 +432,43 @@ fn remark(id: u64) -> api::Remark {
     api::Remark { id, author: 2, path: Box::from(&b"x"[..]), line: 1, body: Box::from(&b"b"[..]) }
 }
 #[test]
-fn branch_slashes_have_golden_targets() {
-    let mut run = Run::known(Op::Read(Read::Branch { branch: Box::from(&b"a/b"[..]) }));
-    run.begin();
-    run.assert_sent(&["GET /api/v1/repos/fixture/specimen/branches/a%2Fb"]);
+fn read_plans_emit_escaped_targets_for_supplied_inputs() {
+    skein_rows::check(
+        [
+            (
+                "branch_slashes_have_golden_targets",
+                (Read::Branch { branch: Box::from(&b"a/b"[..]) }, "GET /api/v1/repos/fixture/specimen/branches/a%2Fb"),
+            ),
+            (
+                "far_future_times_have_golden_targets",
+                (
+                    Read::Items { since: Time::from_nanos(u64::MAX), page: 1, kind: None },
+                    "GET /api/v1/repos/fixture/specimen/issues?state=all&since=2554-07-21T23%3A34%3A33Z&sort=leastupdate&page=1&limit=2",
+                ),
+            ),
+        ],
+        |(read, target)| {
+            let mut run = Run::known(Op::Read(read));
+            run.begin();
+            run.assert_sent(&[target]);
+        },
+    );
 }
 #[test]
-fn far_future_times_have_golden_targets() {
-    let mut run = Run::known(Op::Read(Read::Items { since: Time::from_nanos(u64::MAX), page: 1, kind: None }));
-    run.begin();
-    run.assert_sent(&["GET /api/v1/repos/fixture/specimen/issues?state=all&since=2554-07-21T23%3A34%3A33Z&sort=leastupdate&page=1&limit=2"]);
-}
-#[test]
-fn long_body_revision_has_big_endian_golden() {
-    let body = crate::forgejo::document::Body::Long(5);
-    assert_eq!(super::super::reading::revision(&body, Some(skein_lib::Wall::from_nanos(3))), 0x46c3_95ed_52b0_b56f);
-}
-#[test]
-fn kept_body_revision_has_big_endian_golden() {
-    let body = crate::forgejo::document::Body::Kept(Box::from(&b"abc"[..]));
-    assert_eq!(super::super::reading::revision(&body, None), 0xba78_16bf_8f01_cfea);
+fn body_revisions_match_literal_big_endian_digest_goldens() {
+    skein_rows::check(
+        [
+            (
+                "long_body_revision_has_big_endian_golden",
+                (crate::forgejo::document::Body::Long(5), Some(skein_lib::Wall::from_nanos(3)), 0x46c3_95ed_52b0_b56f),
+            ),
+            (
+                "kept_body_revision_has_big_endian_golden",
+                (crate::forgejo::document::Body::Kept(Box::from(&b"abc"[..])), None, 0xba78_16bf_8f01_cfea),
+            ),
+        ],
+        |(body, timestamp, expected)| assert_eq!(super::super::reading::revision(&body, timestamp), expected),
+    );
 }
 
 // Reconstructed from walk-103's measured shape: two commits, three paths, six rows.
@@ -497,37 +514,49 @@ fn repeated_compare(bounds: crate::forgejo::plans::plan::Bounds) -> Step {
     panic!("comparison did not end after reading each endpoint once")
 }
 
-#[test]
-fn compare_repeated_paths_reads_each_file_once() {
-    for bounds in
-        [BOUNDS, crate::forgejo::plans::plan::Bounds { rows: COMPARE_PATHS, answer_bytes: COMPARE_BYTES, ..BOUNDS }]
-    {
-        let files = Box::new([
-            api::File { path: Box::from(*b"a"), before: Some(Box::from(*b"a")), after: Some(Box::from(*b"A")) },
-            api::File { path: Box::from(*b"b"), before: Some(Box::from(*b"b")), after: Some(Box::from(*b"B")) },
-            api::File { path: Box::from(*b"c"), before: Some(Box::from(*b"c")), after: Some(Box::from(*b"C")) },
-        ]);
-        assert_eq!(
-            repeated_compare(bounds),
-            Step::Done(Ok(Answer::Compare {
-                before: BASE,
-                after: HEAD,
-                contains_before: true,
-                commits: Box::new([COMPARE_COMMIT, HEAD]),
-                files,
-            }))
-        );
-    }
+fn repeated_compare_answer() -> Step {
+    let files = Box::new([
+        api::File { path: Box::from(*b"a"), before: Some(Box::from(*b"a")), after: Some(Box::from(*b"A")) },
+        api::File { path: Box::from(*b"b"), before: Some(Box::from(*b"b")), after: Some(Box::from(*b"B")) },
+        api::File { path: Box::from(*b"c"), before: Some(Box::from(*b"c")), after: Some(Box::from(*b"C")) },
+    ]);
+    Step::Done(Ok(Answer::Compare {
+        before: BASE,
+        after: HEAD,
+        contains_before: true,
+        commits: Box::new([COMPARE_COMMIT, HEAD]),
+        files,
+    }))
 }
-
 #[test]
-fn compare_distinct_files_still_obey_answer_bounds() {
-    for bounds in [
-        crate::forgejo::plans::plan::Bounds { rows: COMPARE_PATHS - 1, ..BOUNDS },
-        crate::forgejo::plans::plan::Bounds { answer_bytes: COMPARE_BYTES - 1, ..BOUNDS },
-    ] {
-        assert_eq!(repeated_compare(bounds), Step::Done(Err(Error::TooLarge)));
-    }
+fn repeated_comparison_paths_obey_file_and_answer_byte_bounds() {
+    skein_rows::check(
+        [
+            ("compare_repeated_paths_reads_each_file_once: ordinary bounds", (BOUNDS, repeated_compare_answer())),
+            (
+                "compare_repeated_paths_reads_each_file_once: exact bounds",
+                (
+                    crate::forgejo::plans::plan::Bounds { rows: COMPARE_PATHS, answer_bytes: COMPARE_BYTES, ..BOUNDS },
+                    repeated_compare_answer(),
+                ),
+            ),
+            (
+                "compare_distinct_files_still_obey_answer_bounds: files",
+                (
+                    crate::forgejo::plans::plan::Bounds { rows: COMPARE_PATHS - 1, ..BOUNDS },
+                    Step::Done(Err(Error::TooLarge)),
+                ),
+            ),
+            (
+                "compare_distinct_files_still_obey_answer_bounds: bytes",
+                (
+                    crate::forgejo::plans::plan::Bounds { answer_bytes: COMPARE_BYTES - 1, ..BOUNDS },
+                    Step::Done(Err(Error::TooLarge)),
+                ),
+            ),
+        ],
+        |(bounds, expected)| assert_eq!(repeated_compare(bounds), expected),
+    );
 }
 
 fn remarks(ids: &[u64]) -> Box<[api::Remark]> {
@@ -601,17 +630,18 @@ fn first_failure_ends_the_plan() {
 }
 
 #[test]
-fn unseen_write_is_unavailable() {
-    let mut run = begun(create_issue());
-    assert_eq!(run.fail(Failure::Unseen), Step::Done(Err(Error::Unavailable)));
-    run.assert_sent(&["POST /api/v1/repos/fixture/specimen/issues"]);
-}
-
-#[test]
-fn seen_write_is_timeout() {
-    let mut run = begun(create_issue());
-    assert_eq!(run.fail(Failure::Seen), Step::Done(Err(Error::Timeout)));
-    run.assert_sent(&["POST /api/v1/repos/fixture/specimen/issues"]);
+fn write_failures_classify_whether_the_exchange_was_seen() {
+    skein_rows::check(
+        [
+            ("unseen_write_is_unavailable", (Failure::Unseen, Error::Unavailable)),
+            ("seen_write_is_timeout", (Failure::Seen, Error::Timeout)),
+        ],
+        |(failure, error)| {
+            let mut run = begun(create_issue());
+            assert_eq!(run.fail(failure), Step::Done(Err(error)));
+            run.assert_sent(&["POST /api/v1/repos/fixture/specimen/issues"]);
+        },
+    );
 }
 
 #[test]

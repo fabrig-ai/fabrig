@@ -31,6 +31,11 @@ pub enum Event {
         record: Stored,
     },
     Want,
+    /// A usable host login reports through its live program source (accounts.md, 3.7).
+    ProgramSaid {
+        name: Box<[u8]>,
+        email: Box<[u8]>,
+    },
     ProgramTargets {
         source: u32,
         hosts: Box<[crate::Worker]>,
@@ -98,6 +103,7 @@ pub enum Event {
         subject: Box<[u8]>,
         display: Box<[u8]>,
         declined: bool,
+        said: Said,
     },
     SignInFailed {
         source: u32,
@@ -131,6 +137,23 @@ pub enum Event {
     Close,
 }
 
+/// What a provider's sign-in or refresh said; never a subject.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Said {
+    pub email: Option<Box<[u8]>>,
+    pub name: Option<Box<[u8]>>,
+}
+
+#[expect(
+    clippy::derivable_impls,
+    reason = "the report contract requires Default; its derive is forbidden in step code"
+)]
+impl Default for Said {
+    fn default() -> Self {
+        Self { email: None, name: None }
+    }
+}
+
 /// What a failed run says its account turned.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Turned {
@@ -138,8 +161,9 @@ pub enum Turned {
     Refused,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum FromComponent {
+    Refreshed { account: u32, said: Said },
     KeepFailed { account: u32, why: KeyFailure },
     Granted { account: u32, generation: u64, valid: Duration, form: Form },
     Expiring { account: u32, generation: u64 },

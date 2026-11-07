@@ -15,7 +15,7 @@ mod asks;
 mod parties;
 mod requests;
 use applications::admission;
-pub use applications::{application_part, application_part_done};
+pub use applications::{application_part, application_part_done, holds as account_holder_reads};
 pub(crate) use asks::{invalid_ask, valid_ask};
 use asks::{note_pattern_bytes, project, valid_adoption};
 use parties::{SignIn, apply_roles, deadline, end_signin, has_person, make_service, role, seed, signin, valid_roles};

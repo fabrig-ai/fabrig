@@ -94,6 +94,7 @@ impl World {
                     subject: Box::from(SIGNED_IN),
                     display: Box::from(SIGNED_IN),
                     declined: false,
+                    said: jig_domain_accounts::Said::default(),
                 }
             }
             accounts::Signing::Redirected { source, carried } => {
@@ -108,6 +109,7 @@ impl World {
                         subject: Box::from(SIGNED_IN),
                         display: Box::from(SIGNED_IN),
                         declined: false,
+                        said: jig_domain_accounts::Said::default(),
                     }
                 }
             }
