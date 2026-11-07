@@ -145,3 +145,26 @@ when an empty write is made to draw RNG (the first fragment becomes 28
 bytes instead of one), and passes after restoration. The helper's focused
 tests and existing wire trace tests pass: 53 tests, including all three
 unchanged trace printing, append/count and retained-heap assertions.
+
+### Empty-write guard, `f89237da2f`
+
+| Test | Arm | Total Ir | Cause | Inclusive Ir | Share |
+|---|---|---:|---|---:|---:|
+| T6 | before empty guard | 55,548,693,627 | `Wire::write` | 11,384,603,071 | 20.49% |
+| T6 | after empty guard | 44,854,311,773 | `Wire::write` | 690,200,616 | 1.54% |
+| T6 | after empty guard | 44,854,311,773 | `Trace::len` | 551,300,960 | 1.23% |
+| T6 | after empty guard | 44,854,311,773 | `TreeFace::find` | 1,132,730,481 | 2.53% |
+| T6 | after empty guard | 44,854,311,773 | text-run flattening | 491,251,309 | 1.10% |
+| T6 | after empty guard | 44,854,311,773 | case-insensitive `contains` | 479,127,155 | 1.07% |
+
+One exact T6 ran and passed. The empty guard removes 10,694,381,854 Ir
+(19.25%). The wrapper still receives 27,565,048 calls, but only nonempty
+ones enter queue extension. Repeated polls and length observations belong
+to the caller's fixture; the helper keeps the public methods and their
+meaning. The final account records the retained cost and its cause.
+
+Text-run flattening is now at the line, 1.10%, and replacing its byte
+iterator with per-run slice extension is a few lines. Take that borderline
+cause next. The existing tree query test asserts matching across runs,
+Unicode case handling, regions and unnamed drawing/name fallbacks; no
+assertion or fixture changes are needed.
