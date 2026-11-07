@@ -20,10 +20,6 @@
     "baseline inputs changed; retake baseline"
     (`benchmarks/src/summary.rs`, `drift`), and parity has not been
     shown on version 3.
-  - 10, 14: the scope gate lists `/tmp` itself
-    (`benchmarks/src/isolate.rs`, `temporary_entries`); no request names
-    `shared_temporary`, `probe` takes no `--shared-temporary`, and the
-    offline tests that reach an attempt list the machine's `/tmp`.
   - 11.1: the `mid-work` and `build-environment` probes.
   - 11.3: the `affinity`, `cache-lifetime`, `delegation` and
     `edit-format` experiments; only `compaction` has a suite.
