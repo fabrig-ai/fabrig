@@ -50,7 +50,7 @@ fn a_pasted_link_is_checked_before_it_is_sent() {
     ];
     for (keys, sends, line) in rows {
         let mut host = host();
-        empty(&start(&mut host, None));
+        ask(&start(&mut host, None));
         host.frame();
         let mut asked = Vec::new();
         for key in keys {
@@ -84,7 +84,7 @@ fn the_credential_is_kept_and_erased_as_the_link_says() {
                 Request::OpenStream { credential: offered } if offered == &credential
             )));
         } else {
-            assert!(duties.asked.is_empty());
+            ask(&duties);
         }
         if signed_out {
             let duties =
@@ -106,7 +106,7 @@ fn a_report_before_start_panics() {
 fn reports_keep_their_order() {
     let mut host = host();
     assert_eq!(host.frame().size(), Size { columns: 0, rows: 0 });
-    empty(&start(&mut host, None));
+    ask(&start(&mut host, None));
     host.frame();
     assert_eq!(host.event_of(&Key::Enter), Some(Event::SignIn));
     assert_eq!(host.event_of(&Key::Char('h')), Some(Event::Typed { value: b"h".as_slice().into() }));
@@ -229,7 +229,9 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
         let duties = reply(&mut host, exchange, approval_bytes(code.as_bytes(), tail.as_bytes()));
         let expected = opens.then(|| format!("http://{address}/terminal?code=WDJB-MJHT").into_bytes().into_boxed_slice());
         assert_eq!(duties.open, expected, "{address} {code} {tail}");
-        assert!(host.report(Report::Resize(Size { columns: 80, rows: 24 })).open.is_none());
+        let repeated = host.report(Report::Resize(Size { columns: 80, rows: 24 }));
+        assert!(repeated.open.is_none());
+        assert!(repeated.asked.is_empty(), "no ask until Enter or a new opening");
     }
 }
 
@@ -282,14 +284,32 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
 fn approval_deadline_includes_the_views_tick() {
     let mut host = host();
     let exchange = ask(&start(&mut host, None));
-    reply(&mut host, exchange, approval_bytes(b"WDJBMJHT", b""));
-    let now = Time::from_nanos(11_000_000_000);
-    host.clocks(now, Wall::from_nanos(3_000_000_000));
-    host.report(Report::Resize(Size { columns: 80, rows: 24 }));
+    let duties = reply(&mut host, exchange, approval_bytes(b"WDJBMJHT", b""));
+    let take = duties.asked.iter().find_map(|request| match request {
+        Request::Exchange { exchange, message: Message::SignInApproval(_), .. } => Some(*exchange),
+        _ => None,
+    }).expect("take");
+    host.clocks(Time::from_nanos(11), Wall::from_nanos(59_999_999_999));
+    use jig_client_protocol_wire::v19 as w;
+    let answer = w::ApprovalSignInAnswer::Waiting;
+    let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("length"));
+    answer.encode(&mut writer).expect("answer");
+    reply(&mut host, take, writer.finish());
     let tick = host.view.tick().expect("expiry tick");
-    // Move the monotonic clock close enough that the view's tick comes first.
-    let root = temper_client_domain::next_deadline(&host.root).expect("take deadline");
     let delta = tick.as_nanos().saturating_sub(host.env.wall.as_nanos());
-    host.clocks(Time::from_nanos(root.as_nanos().saturating_sub(delta).saturating_sub(1)), host.env.wall);
-    assert_eq!(host.deadline(), Some(host.env.now.saturating_add(skein_lib::Duration::from_nanos(delta))));
+    let expected = host.env.now.saturating_add(skein_lib::Duration::from_nanos(delta));
+    assert!(expected < temper_client_domain::next_deadline(&host.root).expect("take deadline"));
+    assert_eq!(host.deadline(), Some(expected));
+}
+
+#[test]
+fn approval_opened_reports_reach_the_tui() {
+    let mut host = host();
+    let exchange = ask(&start(&mut host, None));
+    reply(&mut host, exchange, approval_bytes(b"WDJBMJHT", b""));
+    assert_eq!(host.state().browser(), Some(temper_client_tui::Browser::Opening));
+    for opened in [false, true] {
+        empty(&host.report(Report::Opened { opened }));
+        assert_eq!(host.state().browser(), Some(if opened { temper_client_tui::Browser::Opened } else { temper_client_tui::Browser::None }));
+    }
 }
