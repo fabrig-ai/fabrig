@@ -191,6 +191,10 @@ impl Host for Process {
                     other @ (client::Event::Start { .. }
                     | client::Event::StartUnlinked { .. }
                     | client::Event::SignIn { .. }
+                    | client::Event::AskApproval
+                    | client::Event::ReadApproval { .. }
+                    | client::Event::DecideApproval { .. }
+                    | client::Event::ApprovalAnswer { .. }
                     | client::Event::Authorize { .. }
                     | client::Event::SignOut
                     | client::Event::SignOutLost

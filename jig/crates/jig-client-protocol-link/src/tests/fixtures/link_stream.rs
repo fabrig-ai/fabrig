@@ -111,6 +111,7 @@ impl Harness {
                 | Request::Dropped
                 | Request::Signing { .. }
                 | Request::ServiceCredential { .. }
+                | Request::Approval(_)
                 | Request::Authorized(_)
                 | Request::StreamsFull { .. }
                 | Request::Fact { .. } => {}
@@ -138,6 +139,7 @@ impl Harness {
                 | Request::Dropped
                 | Request::Signing { .. }
                 | Request::ServiceCredential { .. }
+                | Request::Approval(_)
                 | Request::Authorized(_)
                 | Request::StreamsFull { .. }
                 | Request::Fact { .. } => {}
@@ -165,6 +167,7 @@ impl Harness {
                 | Request::Dropped
                 | Request::Signing { .. }
                 | Request::ServiceCredential { .. }
+                | Request::Approval(_)
                 | Request::Authorized(_)
                 | Request::StreamsFull { .. }
                 | Request::Fact { .. } => {}
@@ -192,6 +195,7 @@ impl Harness {
             | Request::Dropped
             | Request::Signing { .. }
             | Request::ServiceCredential { .. }
+            | Request::Approval(_)
             | Request::Authorized(_)
             | Request::StreamsFull { .. }
             | Request::Fact { .. }) => panic!("no close: {other:?}"),
@@ -224,6 +228,7 @@ impl Harness {
                 | Request::Dropped
                 | Request::Signing { .. }
                 | Request::ServiceCredential { .. }
+                | Request::Approval(_)
                 | Request::Authorized(_)
                 | Request::StreamsFull { .. }
                 | Request::Fact { .. } => {}
@@ -268,6 +273,7 @@ impl Harness {
                 | Request::Dropped
                 | Request::Signing { .. }
                 | Request::ServiceCredential { .. }
+                | Request::Approval(_)
                 | Request::Authorized(_)
                 | Request::StreamsFull { .. }
                 | Request::Fact { .. } => {}

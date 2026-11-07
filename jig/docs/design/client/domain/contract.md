@@ -105,8 +105,12 @@ Section 9 lists what the engine's domain owes the client, and where
   a request presented with a valid one is that party's, and everything
   after is checked by their role and authority.
 - **Its built-in ways of signing in:** the printed link's one-time
-  secret, on a loopback listener, for one person's machine; and a
-  service's credential, issued when an owner makes the service
+  secret, on a loopback listener, for one person's machine; a
+  service's credential, issued when an owner makes the service; and a
+  sign-in approved by a signed-in browser, for that browser's own
+  party: a client asks, the browser, by its cookie alone, approves the
+  ask's code, and the client takes the sign-in with the ask's secret,
+  which alone makes it, on a loopback listener too
   (`../../protocol/client.md`, section 8).
 - **Every other way is the application's sign-in:** its own flow, on its
   own routes, redirects included (an OAuth server, a company's
@@ -1651,6 +1655,10 @@ designs (`../../protocol/client.md`):
   and bundle, which jig never serves (`../../protocol/service.md`).
 
 ## 11. Open questions
+
+- **Browser-approved sign-ins beyond loopback** (2), and a person's
+  sign-ins listed and each ended: `../../protocol/client.md`, section 15.
+  The built-in approval here signs in the approving browser's own party.
 
 - **Refusal paths within charter parts** (3.2): a malformed part in a
   settings change is refused at its charter's request item as out of shape

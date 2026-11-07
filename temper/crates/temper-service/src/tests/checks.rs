@@ -197,6 +197,7 @@ enum Shape {
     HostSocket,
     ClientProcess,
     ClientRemote,
+    ClientRemoteApproval,
     Connectors,
     Program,
     Configuration,
@@ -228,6 +229,12 @@ fn apply_shape(
             clients.listener =
                 config::Address::Addr(Addr::Ip(SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(10, 0, 0, 1), 7100))));
         }
+        Shape::ClientRemoteApproval => {
+            clients.listener =
+                config::Address::Addr(Addr::Ip(SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(10, 0, 0, 1), 7100))));
+            engine.clients.approval = true;
+            engine.clients.link = false;
+        }
         Shape::Connectors => engine.connectors = Box::new([1, 2]),
         Shape::Program => workers[0].agent.program = b"temper".as_slice().into(),
         Shape::Configuration => workers[0].agent.configuration = b"agent.json".as_slice().into(),
@@ -235,7 +242,7 @@ fn apply_shape(
     1
 }
 
-fn standalone_shapes() -> [(Shape, Path, What); 8] {
+fn standalone_shapes() -> [(Shape, Path, What); 9] {
     [
         (Shape::TwoWorkers, Path::root().member(b"workers"), What::Standalone),
         (
@@ -251,6 +258,11 @@ fn standalone_shapes() -> [(Shape, Path, What); 8] {
         ),
         (
             Shape::ClientRemote,
+            Path::root().member(b"application").member(b"clients").member(b"listener"),
+            What::Loopback,
+        ),
+        (
+            Shape::ClientRemoteApproval,
             Path::root().member(b"application").member(b"clients").member(b"listener"),
             What::Loopback,
         ),

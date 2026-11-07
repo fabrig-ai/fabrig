@@ -275,7 +275,7 @@ pub static MEMBERS: [Member; 109] = [
         shape: "application-clients",
         name: "listener",
         kind: "address",
-        bound: "socket address; loopback when printed links are enabled",
+        bound: "socket address; loopback when printed links or approvals are enabled",
         required: true,
         line: "The clients’ listener and the address of printed sign-in links.",
         gone: None,

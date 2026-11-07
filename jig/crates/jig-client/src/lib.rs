@@ -11,14 +11,19 @@ pub mod shapes;
 mod store;
 pub mod thread;
 pub mod words;
-pub use client::{Admission, Client, Event, LinkView, NotSignedIn, Request, UnlinkedRequest};
+pub use client::{
+    APPROVAL_AGAIN, Admission, ApprovalAct, Client, Event, LinkView, NotSignedIn, Request, UnlinkedRequest,
+};
 pub use jig_client_domain::Limits as DomainLimits;
 pub use jig_client_domain::{
     AccountCounts, Answered, Ask, Asker, Backoff, Document, Down, Family, Handle, Held, Key, Latest, Link, Outcome,
     Pending, Progress, Readable, Readout, Retry, Spoken, State, StreamBound, StreamsFull, Told, Up, Watchable, Why,
     contract,
 };
-pub use jig_client_protocol_link::{AuthorizeWhy, Authorized, Message, Record, STREAM_KEY, Streamed, With};
+pub use jig_client_protocol_link::{
+    Approval, ApprovalCode, ApprovalState, AuthorizeWhy, Authorized, Decided, Message, NotAsked, Record, STREAM_KEY,
+    Signing, Streamed, Taking, With,
+};
 pub use limits::{Limits, Unusable, valid};
 #[cfg(test)]
 mod tests;

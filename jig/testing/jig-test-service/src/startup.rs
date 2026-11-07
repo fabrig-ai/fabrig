@@ -126,6 +126,14 @@ fn link_enabled(document: &Document, at: u32) -> bool {
     read::boolean(document, at) == Ok(true)
 }
 
+fn approval_enabled(document: &Document, at: u32) -> bool {
+    let Ok(mut engine) = read::Object::new(document, at) else { return false };
+    let Some(at) = engine.member(document, b"clients") else { return false };
+    let Ok(mut clients) = read::Object::new(document, at) else { return false };
+    let Some(at) = clients.member(document, b"approval") else { return false };
+    read::boolean(document, at) == Ok(true)
+}
+
 fn parse_in(document: &Document) -> Result<Parsed, Problems> {
     let length = document.text_len();
     let mut problems = Problems::empty();
@@ -145,7 +153,8 @@ fn parse_in(document: &Document) -> Result<Parsed, Problems> {
     let at = at.expect("required engine checked");
     let application_path = Path::root().member(b"application");
     let mut application = object(document, application.expect("required application checked"), &application_path)?;
-    let (listener, bundle) = server(document, &mut application, link_enabled(document, at), &mut problems)?;
+    let (listener, bundle) =
+        server(document, &mut application, link_enabled(document, at), approval_enabled(document, at), &mut problems)?;
     let engine = match config::engine(document, at, &config::Directories::working(), config::Defaults::Document) {
         Ok(value) => value,
         Err(found) => {
@@ -211,6 +220,7 @@ fn server(
     document: &Document,
     application: &mut read::Object,
     link: bool,
+    approval: bool,
     problems: &mut Problems,
 ) -> Result<ServerConfiguration, Problems> {
     let path = Path::root().member(b"application").member(b"server");
@@ -233,6 +243,9 @@ fn server(
             problems.push(path.member(b"listener"), What::Plaintext);
             if link {
                 problems.push(Path::root().member(b"engine").member(b"clients").member(b"link"), What::Plaintext);
+            }
+            if approval {
+                problems.push(Path::root().member(b"engine").member(b"clients").member(b"approval"), What::Plaintext);
             }
             None
         }

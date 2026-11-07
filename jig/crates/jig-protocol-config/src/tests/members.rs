@@ -121,6 +121,7 @@ const EXTRAS: &[(&str, &str, &[u8])] = &[
     ("llm.providers.0", "signed_in_plan", b"true"),
     ("llm.providers.0", "manage_usage", br#""https://usage.example/""#),
     ("llm.providers.0", "sources", br#"{"sign_in":{"issuer":"https://issuer.example","client":"client-a","scopes":["chat","offline_access"],"name_hint":"jig","authorization":"https://issuer.example/authorize","token":"https://issuer.example/token","revocation":"https://issuer.example/revoke","keys":"https://issuer.example/keys","transport":"tls","server_name":"issuer.example","trust":"roots.pem","must_grant":["chat"],"resource":"https://resource.example","redirect_path":"callback","redirect_port":8080},"keys":true,"programs":["claude_code"]}"#),
+    ("clients", "approval", b"true"),
     ("clients", "provider", br#"{"key":"secrets/provider.pem","clients":[{"id":"app","secret":"secrets/app","redirect_uri":"https://app.example.com/callback"}],"addresses":[]}"#),
     ("charters.0", "documents", br#"[{"connector":1,"name":["service"],"path":"guide.md","heading":"How"}]"#),
     ("charters.0", "wake", br#"{"words":{"batch":{"count":2,"age_ms":5000}},"notices":{"paced":{"span_ms":1000}},"news":"immediate","results":"each","questions":true,"answers":true,"timers":true}"#),

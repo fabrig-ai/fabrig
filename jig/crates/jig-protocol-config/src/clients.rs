@@ -1,4 +1,4 @@
-//! Client heartbeat and local sign-in link (configuration.md, 3).
+//! Client heartbeat and local sign-in entrances (configuration.md, 3).
 use crate::{Directories, Path, Problems, check, read};
 mod issuer;
 mod provider;
@@ -12,6 +12,7 @@ use skein_lib::{Duration, List, Secret};
 pub struct Clients {
     pub heartbeat: Duration,
     pub link: bool,
+    pub approval: bool,
     pub provider: Option<Provider>,
 }
 pub(crate) fn parse(
@@ -30,9 +31,19 @@ pub(crate) fn parse(
             Err(what) => problems.push(path.member(b"link"), what),
         }
     }
+    let mut approval = Some(false);
+    if let Some(at) = object.member(document, b"approval") {
+        approval = match read::boolean(document, at) {
+            Ok(value) => Some(value),
+            Err(what) => {
+                problems.push(path.member(b"approval"), what);
+                None
+            }
+        };
+    }
     let provider = provider::parse(&mut object, document, path, directories, problems);
     object.finish(document, path, problems);
-    Some(Clients { heartbeat: heartbeat?, link: link?, provider })
+    Some(Clients { heartbeat: heartbeat?, link: link?, approval: approval?, provider })
 }
 /// The startup catalogue in the clients' numbered positions (domain/engine.md, 17.11).
 #[must_use]
@@ -117,6 +128,7 @@ pub fn settings(config: &crate::Engine, application: &Application, seed: Secret,
         addresses: Box::new([]),
         link: application.link.clone(),
         link_secret: None,
+        approval: config.clients.approval,
         deployment_provider,
         heartbeat: config.clients.heartbeat,
         rows: config.limits.core.documents.rows,

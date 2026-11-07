@@ -52,7 +52,7 @@ pub(crate) fn went(root: &mut Domain, place: &Place) {
         Place::AuthorizeMalformed => {
             Some(Authorization { query: Box::from([]), state: State::Refused(AuthorizeWhy::Malformed) })
         }
-        Place::Address(_) | Place::Missing | Place::Public(_) => None,
+        Place::Approve { .. } | Place::Address(_) | Place::Missing | Place::Public(_) => None,
     };
     changed(root);
 }

@@ -2,6 +2,12 @@
 
 2026-11-07. Where the design lags or departs from [goal-as-designer.md](goal-as-designer.md).
 
+Section 8's first/later choice is carried by `per-wake.md`, section 5
+and `../protocol/configuration.md`, 13.9: template 4 chooses xhigh
+first and high later without an amendment. Comparing high with medium
+remains `per-wake.md`, section 11's open decision; the combined domain
+story's restart gap is in `../protocol/configuration.status.md`, 13.9.
+
 Section 4's delivery path and section 3's delivery and `after` ordering are carried by
 `../domain/agent.md`, 4.3 and 4.3.1, `../domain/forge.md`, 8.1, 8.5, 11
 and 11.1, `../domain/worker.md`, section 5, and jig's `domain/hosts.md`,

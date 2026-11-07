@@ -5,10 +5,15 @@ its design from its drafts, from the status files below. The TUI's
 connected milestone is built: bare `temper` or `temper ADDRESS`, a
 pasted-link sign-in and a live first screen, with golden frames,
 simulated closing and joint-world restart and sign-out stories. Its
-post-landing terminal walk, browser approval, recording and later
+post-landing terminal walk, TUI approval flow, recording and later
 surfaces remain deferred; the sign-in field takes `q` as text and
 Ctrl+C closes there (`client/README.md`, sections 6.11 to 6.16 and 11;
-`draft/tui.status.md`). The reference
+`draft/tui.status.md`). Browser-approved sign-in's engine configuration,
+native client-root half and web page at `/terminal` are built, with eleven
+gallery states and joint-client stories. The TUI's opener, lines and
+retry flow remain unbuilt (`client/README.md`, 7.1 and 11); the web's
+rendered check follows landing (`client/browser.md`, section 5). The
+reference
 merges a 65,536-byte journal run bound from `room.json`. A pull's files
 page past the forge client's bound leaves an omitted-page notice;
 the exact bound and measure still need an interface and stored-answer
@@ -57,10 +62,14 @@ sign-in links say used, expired or unknown. Forgotten links are unknown;
 cookie fallback and command refusal words remain later work
 (`client/README.md`, sections 5.1 and 11). Jig carries per-wake reasons,
 charter parts, offered-message fences and a task's later LLM choice.
-Temper's settings form and ctl, the reference's goal charter and later
-template choice, focused charters and charter-size refusal words remain
-the next application work; the draft's departures and open decisions stay
-recorded (`draft/per-wake.md`, sections 3 to 9 and 11). Stock instructions hold forge
+Temper's settings form and ctl carry parts and later; the reference has
+four goal-charter parts, a first/later template choice and focused
+charters checked against a stock worker and the run bound. The combined
+cut-and-answer domain story is ignored until its restart retains the
+configured catalogue. Charter-size refusal figures remain approved
+separate work, and the draft's departures and open decisions remain
+(`client/tools.md`, sections 5.3 and 14; `protocol/configuration.md`,
+13.9 and 11; `draft/per-wake.status.md`). Stock instructions hold forge
 identity advice to approvals and send a chat to the forge before declaring
 a repository absent; real-model compliance remains unobserved
 (`domain/agent.md`, 8.1; `protocol/configuration.md`, 13.4). Printed-link

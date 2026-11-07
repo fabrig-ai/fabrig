@@ -107,7 +107,11 @@ impl Component {
                     self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::NotARecord);
                 }
             },
-            Route::Stream
+            Route::ApprovalAsk
+            | Route::ApprovalRead
+            | Route::ApprovalDecide
+            | Route::ApprovalTake
+            | Route::Stream
             | Route::Link
             | Route::Service
             | Route::Authorize
@@ -242,7 +246,9 @@ impl Component {
                 | Waiting::Read { sign_in, .. }
                 | Waiting::Authorize { sign_in, .. }
                 | Waiting::ApplicationRead { sign_in, .. } => Some(*sign_in),
-                Waiting::Core { .. }
+                Waiting::ApprovalWhose { .. }
+                | Waiting::ApprovalCore { .. }
+                | Waiting::Core { .. }
                 | Waiting::LinkGet { .. }
                 | Waiting::SignOut { .. }
                 | Waiting::Keep { .. }
