@@ -4,7 +4,7 @@
 |Second paragraph. |
 Quit           Ready
 --
-aaaaaaaaaaaaaaaaaaaa
+aaa.....aaaaaaaaaaaa
 a..................a
 a..................a
 a..................a

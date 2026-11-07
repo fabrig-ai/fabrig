@@ -1,7 +1,7 @@
 ╭─ temper ─────────────────────────────────────────────────────────────────────╮
 │ Sign in this terminal to 127.0.0.1:8367                                      │
 │ Paste the link temper printed, then Enter.                                   │
-│ ❯ Link: ••••••••••••••••••••••••                                             │
+│ ❯ Link: •••••••••••••••••••••••• (enter sends)                               │
 │ That link is for 127.0.0.1:9000. To sign in there, run temper                │
 │ http://127.0.0.1:9000.                                                       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -26,7 +26,7 @@
 aaabbbbbbaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 a..............................................................................a
 a.cccccccccccccccccccccccccccccccccccccccccc...................................a
-a.dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd.a
+a.dddddddddddddddddddddddddddddddddddddddddddddd...............................a
 a.eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee................a
 a.eeeeeeeeeeeeeeeeeeeeee.......................................................a
 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa

@@ -20,6 +20,29 @@ const FIELD_EDGE: Size = Size { columns: 10, rows: 4 };
 // ui-screen.md, section 9, and the task's whole-tree frame at six 24-row pages.
 const EVERY: Size = Size { columns: 80, rows: 24 };
 const EVERY_TALL: Size = Size { columns: 80, rows: 144 };
+// A titled frame, two empty body rows and one spread footer row.
+const PADDED_BANDS: Size = Size { columns: 16, rows: 6 };
+
+#[test]
+fn region_padding_keeps_columns_clear_without_adding_rows() {
+    let tree = fixtures::styled_bands();
+    let mut theme = fixtures::theme();
+    for region in &mut theme.regions {
+        region.pad = 1;
+    }
+    let mut frame = Frame::new(PADDED_BANDS);
+    render(&tree, &theme, PADDED_BANDS, &mut Focus::default(), &mut frame);
+    assert_eq!(frame.text().as_ref(), b"+- Title ------+\n| Inside       |\n+--------------+\n\n\n End\n");
+}
+
+#[test]
+fn border_titles_keep_their_heading_paint() {
+    let tree = fixtures::styled_bands();
+    let mut frame = Frame::new(PADDED_BANDS);
+    render(&tree, &fixtures::theme(), PADDED_BANDS, &mut Focus::default(), &mut frame);
+    // The title follows the corner, an across glyph and a space.
+    assert_eq!(frame.row(0).expect("top border exists").get(3), Some(&Cell { glyph: 'T', paint: fixtures::RED_PAINT }));
+}
 
 #[test]
 #[expect(clippy::disallowed_macros, reason = "hand-written frames are the independent every-role oracle")]

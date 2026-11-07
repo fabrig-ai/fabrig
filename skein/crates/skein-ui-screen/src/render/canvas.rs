@@ -440,9 +440,6 @@ impl Canvas {
         if look.border.is_some() {
             self.border(look, true, frame);
         }
-        for _row in 0..look.pad {
-            self.blank_line(frame);
-        }
         let inset = look.pad.saturating_add(u16::from(look.border.is_some()));
         self.left = self.left.saturating_add(inset).min(self.right);
         self.right = self.right.saturating_sub(inset).max(self.left);
@@ -451,9 +448,6 @@ impl Canvas {
     }
     pub fn leave_region(&mut self, look: RegionLook, frame: &mut Frame) {
         self.finish(frame);
-        for _row in 0..look.pad {
-            self.blank_line(frame);
-        }
         if look.border.is_some() {
             self.border(look, false, frame);
         }
@@ -487,8 +481,8 @@ impl Canvas {
         self.blank_line(frame);
     }
     pub fn title(&mut self, title: &Canvas, look: RegionLook, frame: &mut Frame) {
-        // The top border precedes the padding already measured on entry.
-        let title_row = self.row.saturating_sub(u32::from(look.pad)).saturating_sub(1);
+        // The top border is the row just committed on entry.
+        let title_row = self.row.saturating_sub(1);
         let Some(border) = look.border else { return };
         let edge = *self.edges.last().expect("region is open");
         let limit = edge.right.saturating_sub(1);
@@ -514,7 +508,7 @@ impl Canvas {
             if width(ink.cell.glyph) == 2 && column.saturating_add(1) >= limit {
                 break;
             }
-            frame.put(Position { row, column }, Cell { glyph: ink.cell.glyph, paint });
+            frame.put(Position { row, column }, ink.cell);
             column = column.saturating_add(1);
         }
         if column < limit {
