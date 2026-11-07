@@ -13,8 +13,8 @@ reaches it. Page 01 is a recorded chat with a new button; the terminal over it h
 | 06 | While the agent works |
 
 The pages are live: the buttons, `Ctrl+\`, the commands and PgUp work, and a message sent is answered by
-a line saying nobody answers. The look is `terminal.css`, the behaviour `terminal.js`. `/theme`, between dark and
-light, and `/font`, between DejaVu Sans Mono and IBM Plex Mono, are there to compare them.
+a line saying nobody answers. The look is `terminal.css`, the behaviour `terminal.js`. `/theme` switches between dark
+and light, and `/font` between DejaVu Sans Mono and IBM Plex Mono.
 
 The draft keeps temper's own markup and figure, recorded, on a ground of its own: `terminal.css` restates the shell's
 document rules for it and gives the figure its tokens.

@@ -228,6 +228,18 @@
     }
   });
 
+  // A browser leaves full screen on Esc unless the page holds the key. Chromium lets it, and a
+  // long press still leaves. Firefox and Safari don't: there Esc leaves, and takes an open list too.
+  document.addEventListener('fullscreenchange', () => {
+    const keyboard = navigator.keyboard;
+    if (document.fullscreenElement) {
+      if (keyboard && keyboard.lock) keyboard.lock(['Escape']).catch(() => {});
+      return;
+    }
+    if (keyboard && keyboard.unlock) keyboard.unlock();
+    if (choosing) { if (box.value.startsWith('/')) { box.value = ''; size(); } closeList(); }
+  });
+
   // Controls.
   document.addEventListener('keydown', e => {
     if (tt.hidden) return;
