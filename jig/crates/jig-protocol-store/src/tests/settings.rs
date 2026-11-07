@@ -28,7 +28,13 @@ fn model() -> core::Model {
 }
 fn charter() -> core::Charter {
     core::Charter {
-        parts: Box::new([]),
+        parts: Box::new([
+            core::CharterPart { on: tasks::Reasons::FIRST, instructions: Box::from(b"first part".as_slice()) },
+            core::CharterPart {
+                on: tasks::Reasons::QUESTION.union(tasks::Reasons::TIMER),
+                instructions: Box::from(b"later part".as_slice()),
+            },
+        ]),
         rest: true,
         wake: jig_domain_tasks::WakePolicy::DEFAULT,
         documents: Box::new([]),
@@ -145,7 +151,10 @@ fn template() -> core::Template {
         label: 7,
         grace: Some(Duration::from_secs(1)),
         llm: Some(tasks::LlmChoice {
-            later: None,
+            later: Some(tasks::LlmLater {
+                main: tasks::ModelEffort { model: 1, effort: Some(0) },
+                subagents: Box::new([tasks::ModelEffort { model: 0, effort: None }]),
+            }),
             account: Some(3),
             main: tasks::ModelEffort { model: 0, effort: Some(1) },
             subagents: Box::new([tasks::ModelEffort { model: 1, effort: None }]),
@@ -575,11 +584,11 @@ fn assert_documents_refused(charter: core::Charter) {
         charter: charter.number,
         revision: 2,
         value: s::CharterVersion {
-            charter: Some(Box::new(core::Charter { documents: Box::new([]), ..charter.clone() })),
+            charter: Some(Box::new(core::Charter { documents: Box::new([]), parts: Box::new([]), ..charter.clone() })),
         },
     };
     let mut bytes = codec::settings::encode(&empty, &limits, &[]).unwrap().into_vec();
-    bytes.truncate(bytes.len().checked_sub(4).unwrap());
+    bytes.truncate(bytes.len().checked_sub(8).unwrap());
     bytes.extend_from_slice(&u32::try_from(charter.documents.len()).unwrap().to_be_bytes());
     for document in &charter.documents {
         bytes.extend_from_slice(&document.connector.to_be_bytes());
@@ -599,6 +608,7 @@ fn assert_documents_refused(charter: core::Charter) {
             }
         }
     }
+    bytes.extend_from_slice(&0_u32.to_be_bytes());
     assert_eq!(
         codec::settings::decode(&empty.key(), &bytes, &limits, &[]).unwrap_err().reason,
         skein_codec::Reason::Bound
@@ -699,3 +709,26 @@ fn proposal_keys_and_the_extent_counter_round_trip_without_narrowing() {
 
 #[path = "models.rs"]
 mod models;
+
+/// A part selects one or more known run reasons (jig/docs/design/protocol/store.md, 5).
+#[test]
+fn charter_parts_refuse_empty_and_unknown_reason_bits() {
+    // Bit 14 is the first bit outside the fourteen stored reasons.
+    const UNKNOWN: tasks::Reasons = tasks::Reasons(1 << 14);
+    let limits = codec::settings::limits(&fixtures::CORE_LIMITS).unwrap();
+    for on in [UNKNOWN, tasks::Reasons::EMPTY] {
+        let mut charter = charter();
+        charter.parts = Box::new([core::CharterPart { on, instructions: Box::from(b"part".as_slice()) }]);
+        let row = s::Record::Charter {
+            charter: charter.number,
+            revision: 2,
+            value: s::CharterVersion { charter: Some(Box::new(charter)) },
+        };
+        let bytes = codec::settings::encode(&row, &limits, &[]).unwrap();
+        assert_eq!(
+            codec::settings::decode(&row.key(), &bytes, &limits, &[]).unwrap_err().reason,
+            skein_codec::Reason::Bound,
+            "{on:?}"
+        );
+    }
+}

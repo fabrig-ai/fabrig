@@ -342,6 +342,8 @@ fn task_run(
             milestone: source.milestone,
             activity: source.activity,
             due_reason: value::why(source.due_reason, limits)?,
+            reasons: source.reasons.0,
+            offered: source.offered.0,
             narrowing: source.narrowing,
             llm_changed: source.llm_changed,
             result_position: source.result_position,
@@ -437,13 +439,21 @@ pub fn read_task_record(source: wire::TaskRecord, limits: &wire::Limits) -> Resu
         source.into_parts();
     let history = history.into_parts();
     let run = run.into_parts();
+    let reasons = domain::Reasons(run.reasons);
+    let offered = domain::Reasons(run.offered);
+    if !reasons.is_known() {
+        return Err(problem(wire::Path::TaskRunReasons));
+    }
+    if !offered.is_known() {
+        return Err(problem(wire::Path::TaskRunOffered));
+    }
     let definition = definition.into_parts();
     let interests = interests.into_parts();
     let outcome = outcome.into_parts();
     let Inbox { words: inbox, credits: questions } = read_inbox(interests.inbox, limits)?;
     Ok(domain::TaskRecord {
-        offered: jig_domain_tasks::Reasons::ALL,
-        reasons: jig_domain_tasks::Reasons::FIRST,
+        offered,
+        reasons,
         asked_requester,
         label: definition.label,
         flags: phase::read_flags(definition.flags),

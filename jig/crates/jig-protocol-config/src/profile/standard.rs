@@ -215,20 +215,20 @@ pub(super) const CLIENTS: jig_protocol_engine_clients::Limits = jig_protocol_eng
 // Retained-revision release adds 2 * 8 heads + 16 versions + one extent = 33.
 // Placed holds: tightened core room plus 18 connector slots needs 151,673 writes.
 const JOURNAL: super::JournalSizes = super::JournalSizes { commits: 3, writes: 151_673, door: 1024, release: 1024 };
-// check_commits sets value to the largest map value, 100,865,296 bytes at these limits (store.md, 5.4).
+// check_commits sets value to the largest map value, 100,881,496 bytes at these limits (store.md, 5.4).
 // RunPolicy.tools is priced in the largest task row.
-// Page bytes are key + value = 2,079 + 100,865,296 = 100,867,375, above the 33,554,496-byte
+// Page bytes are key + value = 2,079 + 100,881,496 = 100,883,575, above the 33,554,496-byte
 // TurnRecord frame for smith's 33,554,432-byte turn (store.md, 8.1).
-// Chunk bytes are skein_kv::chunk_bytes(key, value) = 100,867,395, including framing.
+// Chunk bytes are skein_kv::chunk_bytes(key, value) = 100,883,595, including framing.
 const STORE_KV: skein_kv::Limits = skein_kv::Limits {
-    value: 100_865_296,
+    value: 100_881_496,
     ops: 303_350,
     commit: 901_830_282,
     queued_bytes: 2_705_490_846,
     segment: 1_803_660_564,
     snapshot_after: 901_830_282,
-    chunk: 100_867_395,
-    page: skein_kv::Page { rows: 2, bytes: 100_867_375 },
+    chunk: 100_883_595,
+    page: skein_kv::Page { rows: 2, bytes: 100_883_575 },
     ..small::STORE_KV
 };
 const STORE: jig_protocol_store::Limits = jig_protocol_store::Limits {
