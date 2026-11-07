@@ -2,6 +2,10 @@
 //! First-run records follow temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 3.5 and 4.8.
 use temper_fixtures::client_documents as documents;
 mod chat_work;
+mod picker;
+pub(super) fn picker_world(name: &str) -> Domain {
+    picker::world(name)
+}
 mod github;
 use crate::driver::{answer, deliver, limits, step};
 use crate::samples::{Confirmation, Then, World};
@@ -316,6 +320,7 @@ fn world_in_layout(
     settings: Option<&str>,
     copies: bool,
 ) -> (Domain, Option<Token>) {
+    let picker = goals.filter(|name| picker::is_state(name));
     let agent_work = goals == Some("agent-work");
     let goals = if agent_work { Some("chat-work-running") } else { goals };
     let configuring = configuring_chat || matches!(address, Address::Configure { .. });
@@ -362,6 +367,9 @@ fn world_in_layout(
                             if let Then::Models { one_account } = then {
                                 models_frame(&mut me, one_account);
                             }
+                            if let Some(name) = picker {
+                                picker::frame(&mut me, name);
+                            }
                             Some(c::Delivery::Me(Box::new(me)))
                         }
                         c::Subject::Accounts => {
@@ -369,6 +377,9 @@ fn world_in_layout(
                             let mut doc = accounts(w, then);
                             if let Then::Models { one_account: true } = then {
                                 doc.accounts.truncate(1);
+                            }
+                            if let Some(name) = picker {
+                                picker::accounts(&mut doc, name);
                             }
                             Some(c::Delivery::Accounts(Box::new(doc)))
                         }
@@ -387,7 +398,9 @@ fn world_in_layout(
                         }
                         c::Subject::Inbox { window } => Some(c::Delivery::Inbox(Box::new(inbox_window(w, window)))),
                         c::Subject::Task { task: number } => {
-                            let mut task = if agent_work {
+                            let mut task = if picker.is_some() {
+                                chat_work::task("chat-work-running")
+                            } else if agent_work {
                                 agent_work_task()
                             } else if let Some(name) = goals.filter(|name| name.starts_with("chat-work-")) {
                                 chat_work::task(name)
@@ -407,6 +420,9 @@ fn world_in_layout(
                                 if name == "configure-chat-replaced" {
                                     task.proposals.push(SETTINGS_NEXT).expect("later proposal");
                                 }
+                            }
+                            if let Some(name) = picker {
+                                picker::task(&mut task, name);
                             }
                             Some(c::Delivery::Task(Box::new(task)))
                         }
@@ -460,7 +476,14 @@ fn world_in_layout(
                     }
                 }
                 jig_client::Down::Read { read, what: jig_client::Readable::Jig(what) } => {
-                    let value = if let Some(name) = settings_chat {
+                    let value = if picker.is_some() {
+                        match &what {
+                            c::Read::Activity { before, .. } => Some(c::ReadValue::Activity(Box::new(
+                                chat_work::activity("chat-work-running", before.as_ref()),
+                            ))),
+                            _ => read_value(w, &what, then, goals),
+                        }
+                    } else if let Some(name) = settings_chat {
                         match &what {
                             c::Read::Proposal { proposal } => Some(settings_proposal(*proposal, name)),
                             c::Read::Activity { .. } => Some(c::ReadValue::Activity(Box::new(settings_activity(name)))),

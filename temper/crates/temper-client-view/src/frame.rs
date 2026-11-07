@@ -94,6 +94,10 @@ impl Bindings {
                         PageAct::Away(choice @ temper_client_domain::pages::away::Act::Kinds { .. }),
                         skein_ui::Act::Toggle,
                     ) => PageAct::Away(*choice),
+                    (
+                        PageAct::Choice(temper_client_domain::pages::choice::Act::Find { .. }),
+                        skein_ui::Act::Input { value },
+                    ) => PageAct::Choice(temper_client_domain::pages::choice::Act::Find { words: value }),
                     (PageAct::ChatWords { .. }, skein_ui::Act::Input { value }) => PageAct::ChatWords { words: value },
                     (PageAct::MessageWords { .. }, skein_ui::Act::Input { value }) => {
                         PageAct::MessageWords { words: value }

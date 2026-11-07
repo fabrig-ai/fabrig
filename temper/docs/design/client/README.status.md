@@ -157,7 +157,7 @@
   that plan's cut took no new word for it.
 - **Design departs:** 3.5, 5.3, 5.8, 5.13, from the greenfield target:
   the switcher keeps its inline new-project form; a chat keeps its status,
-  Pause or Resume, and Close, and offers Change model only with supplied choices;
+  Pause or Resume, and Close, and offers the picker only with supplied choices;
   a goal uses supplied budget units, not dollars, and offers neither the
   mock's budget field nor its earlier reports. Settings adds Configure
   temper and keeps unsupported status, funds and notification controls
@@ -294,6 +294,10 @@
   changes; a new drawing and the terminal have only the prefix, where the request
   has nothing typed dropped or kept stale. The cut bounds the client's kept edit;
   section 11 keeps retaining the whole beyond that bound open.
+- **Not yet:** 5.15: the whole-bound manual reading check is not on record
+  (`browser.status.md`, 4.3). The four repaired browser stories passed, with ctl
+  history and the smaller window; they do not prove the person's whole-bound
+  layout or repair the failed-head-read retry below.
 - **Departs:** 5.15, *While a read is out*: a read that failed with the person at the head is not
   tried again on a move back within one and a half screens (skein's `ui-web.status.md`, 7).
 - **Not yet:** 3.5, *A chat's bar*: on that walk "Start goal…" went once from a first

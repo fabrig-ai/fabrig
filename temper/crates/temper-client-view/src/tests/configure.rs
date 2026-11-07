@@ -150,10 +150,7 @@ fn requested_main_keeps_order_classes_and_phone_parts() {
             (look::STARTER_OWN_STEPS, vec![(Role::Item, vec![]); 5]),
             (look::STARTER_OWN_ACTS, vec![(Role::Button, vec![]); 2]),
             (look::STARTERS, vec![(Role::Item, vec![]), (Role::Item, vec![])]),
-            (
-                look::SESSION_FOOT,
-                vec![(Role::Slot, vec![look::SESSION_COMPOSER]), (Role::Paragraph, vec![look::SESSION_HINT])],
-            ),
+            (look::SESSION_FOOT, vec![(Role::Slot, vec![look::SESSION_COMPOSER]), (Role::Slot, vec![look::FOOT_ROW])]),
             (look::SESSION_COMPOSER, vec![(Role::TextArea, vec![]), (Role::Button, vec![])]),
         ] {
             assert_eq!(parts(tree, style), expected, "{style:?}");
@@ -202,7 +199,7 @@ fn requested_main_keeps_order_classes_and_phone_parts() {
             assert!(!disabled(node));
         }
         assert_eq!(named(tree, Role::Button, UNSURE.as_bytes()).styles.as_slice(), [look::STARTER_UNSURE]);
-        assert!(f::find(tree, Role::Disclosure, b"Change model").is_some());
+        assert!(f::find(tree, Role::Disclosure, b"Model").is_some());
     }
 }
 
@@ -538,24 +535,24 @@ fn configure_root(offers: &[(u32, &[u32])], held: &[u32], preview: &[u8]) -> d::
 }
 
 #[test]
-fn configure_uses_template_threes_preview_with_a_chooser() {
+fn configure_temper_says_its_own_default() {
     for (offers, held, preview, expected) in [
         (
             vec![(CLAUDE, &[CLAUDE][..]), (PLAN, &[PLAN][..])],
             vec![CLAUDE, PLAN],
             b"claude-opus-5-5".as_slice(),
-            "your Claude subscription, through Claude Code · Opus 5.5 · high",
+            "Claude Opus 5.5 · high",
         ),
-        (vec![(PLAN, &[PLAN][..])], vec![PLAN], b"gpt-6-astra", "ChatGPT plan · Astra 6 · high"),
+        (vec![(PLAN, &[PLAN][..])], vec![PLAN], b"gpt-6-astra", "Astra 6 · high"),
     ] {
         let root = configure_root(&offers, &held, preview);
         assert!(root.pages().chat().is_none());
         assert!(root.pages().choice().requested.is_none(), "a preview stays out of the draft");
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
-            let byline = named(view.tree(), Role::Disclosure, b"Change model");
+            let byline = named(view.tree(), Role::Disclosure, b"Model");
             assert_eq!(byline.description.as_deref(), Some(expected.as_bytes()));
             assert!(byline.states.as_slice().contains(&State::FoldsAway));
-            assert!(byline.styles.as_slice().contains(&look::BYLINE));
+            assert!(byline.styles.as_slice().contains(&look::MODEL));
         }
     }
 }
@@ -566,7 +563,7 @@ fn configure_picker_buttons_edit_the_draft() {
     for browser in [false, true] {
         let mut root = configure_root(&[(CLAUDE, &[CLAUDE]), (PLAN, &[PLAN])], &[CLAUDE, PLAN], b"claude-opus-5-5");
         for (label, expected) in
-            [(b"Astra 6".as_slice(), Choice::Model { index: 1 }), (b"low", Choice::Effort { index: 0 })]
+            [(b"Astra 6".as_slice(), Choice::Model { index: 1, account: None }), (b"low", Choice::Effort { index: 0 })]
         {
             let mut view = if browser { f::browser_page_view(&root) } else { f::page_view(&root) };
             let node = named(view.tree(), Role::Button, label).id;
@@ -657,20 +654,15 @@ fn configuring_chat_picker_applies_to_its_next_run() {
     for browser in [false, true] {
         let mut root = super::chat::configuring_task_root(task.clone(), true, 37);
         let mut view = if browser { f::browser_page_view(&root) } else { f::page_view(&root) };
-        let byline = named(view.tree(), Role::Disclosure, b"Change model");
-        assert_eq!(byline.description.as_deref(), Some("T9 · chosen".as_bytes()));
-        assert!(byline.styles.as_slice().contains(&look::BYLINE));
+        let byline = named(view.tree(), Role::Disclosure, b"Model");
+        assert_eq!(byline.description.as_deref(), Some(b"chosen".as_slice()));
+        assert!(byline.styles.as_slice().contains(&look::MODEL));
         let settings = named(view.tree(), Role::Link, b"Settings").id;
         assert_eq!(crate::href(&mut view, settings).as_deref(), Some(b"/projects/1/settings".as_slice()));
-        for (label, expected) in
-            [(b"second".as_slice(), Choice::Model { index: 1 }), (b"Apply to next run", Choice::Apply)]
-        {
-            let mut view = if browser { f::browser_page_view(&root) } else { f::page_view(&root) };
-            let id = named(view.tree(), Role::Button, label).id;
-            let action = crate::act(&mut view, id, Act::Press).expect("picker action");
-            assert_eq!(action, d::Action::Pages(pages::Act::Choice(expected)));
-            f::root_event(&mut root, d::Event::Act { action });
-        }
+        let id = named(view.tree(), Role::Button, b"second").id;
+        let action = crate::act(&mut view, id, Act::Press).expect("picker action");
+        assert_eq!(action, d::Action::Pages(pages::Act::Choice(Choice::Model { index: 1, account: None })));
+        f::root_event(&mut root, d::Event::Act { action });
         assert_eq!(root.pages().choice().requested.as_ref().unwrap().main.model.bytes(), b"second");
         assert!(root.pages().choice().pending.is_some(), "the next-run amendment was sent");
     }

@@ -3,11 +3,12 @@
 ## The result
 
 2026-11-06. Final measurements use merged commit `865cd995698a` on 16 CPUs,
-AMD EPYC-Genoa Processor. The [baseline](../plan/browser-budget/figures/story-baseline.md)
-uses `32c015e965da` on 8 CPUs of the same model. The request's figures are
-from the 17-story run at `668f7cd3e503`; its machine load is unknown.
-[Final figures](../plan/browser-budget/figures/budget-close.md) retain every
-run and the long story's process split. CPU seconds include descendants,
+AMD EPYC-Genoa Processor. The baseline, the `browser-budget` plan's
+`story-baseline` figures, uses `32c015e965da` on 8 CPUs of the same model. The
+request's figures are from the 17-story run at `668f7cd3e503`; its machine load
+is unknown. The figures named here are the plan's, readable in history at
+`5ee7493d36` under its `figures` directory. The final figures, `budget-close`,
+retain every run and the long story's process split. CPU seconds include descendants,
 user plus system. Each median uses three runs of one story by name through
 `tools/tiers/run --cpu`, rather than a whole-tier run.
 
@@ -69,7 +70,7 @@ repair admits a waiting connection by ending an idle one, preserving active
 calls, partial requests, connection bounds and deadlines. Latest's opening
 wait observes the history it needs, rather than requiring the chat's first
 sentence already to be loaded.
-[History figures](../plan/browser-budget/figures/history-ctl.md) give these
+The history figures, `history-ctl`, give these
 medians, with each run's load and the failed development attempts retained:
 
 | Story | Before CPU s | After CPU s | Reduction | Before wall s | After wall s |
@@ -92,7 +93,7 @@ replies total 420,272 bytes, beyond three windows. The long story now drops
 and recovers both ends through repeated traversal, while holding position.
 The unanchored fixture stays within one window at 109,642 bytes. The reply
 allowance remains 65,536 bytes; the fake's joint script allowance is 524,288.
-[Window figures](../plan/browser-budget/figures/window-story.md) show:
+The window figures, `window-story`, show:
 
 | Story | Before CPU s | After CPU s | Before wall s | After wall s |
 |---|---:|---:|---:|---:|
@@ -109,7 +110,7 @@ an isolated CPU saving from the smaller window. The other thirteen were read
 for histories reaching the smaller bound, and were not run.
 
 **Find backoff did not land.**
-[Its figures](../plan/browser-budget/figures/find-backoff.md) compare A, the
+Its figures, `find-backoff`, compare A, the
 merged polling, with B, repeated misses waiting 50, 100, 200, 200 ms, with
 press polling preserved and acts and successful finds resetting the wait.
 Each story ran A B A B A B on 16 CPUs of the same model; all 24 comparisons
@@ -131,7 +132,7 @@ and instrumentation were removed; only its measured decision landed.
 
 ## A delivery's cost
 
-[Delivery figures](../plan/browser-budget/figures/delivery-cost.md) used the
+The delivery figures, `delivery-cost`, used the
 person's whole bound, on 8 CPUs of the same model, Chromium 147.0.7727.101,
 native dev binary and dev Wasm. A real Task priority amendment delivered
 beside unchanged held text, three times per size. This measures neither a
