@@ -2780,7 +2780,7 @@ fn declarations_say_when_to_call_goal_and_what_prefix_to_give() {
     let mut count = 0_usize;
     for tool in tools(Duration::from_secs(1)) {
         match tool.name.as_ref() {
-            b"goal" => assert_eq!(tool.description.as_ref(), b"Have one goal in your words tracked and reported; it may plan, ask you and call change. Call it only for work your person wants agreed first (set agree) or a survey that changes nothing; with advisor set, it reads and reports and changes nothing. For a change to a repository, call change."),
+            b"goal" => assert_eq!(tool.description.as_ref(), b"Have one goal tracked, only for work your person wants agreed first (set agree) or a survey that changes nothing. For a change to a repository, call change."),
             b"delegate" => assert!(tool.description.ends_with(b"For a change to a repository, call change.")),
             b"read_branches" => {
                 let schema = crate::json::parse(&tool.schema).expect("JSON schema");
