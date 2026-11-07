@@ -294,6 +294,7 @@ pub(crate) fn lost(domain: &mut Domain, env: &Env<Limits>, channel: Token, out: 
     let Some(id) = domain.tokens.remove(&channel) else {
         return;
     };
+    domain.reads.lost(channel);
     let entry = domain.channels.get_mut(id).expect("a named channel is in contact");
     crate::sources::lost(&mut entry.sources, channel, out);
     let worker = entry.worker;

@@ -943,6 +943,7 @@ fn endpoint_affinity_headers_are_reserved_for_both_dialects() {
 // transport grants each send and answers each read; no Client API can forge
 // these reserved fields. Returning the actual domain query distinguishes
 // admission from a refusal before the domain, and the HTTP tape proves it.
+#[expect(clippy::too_many_lines, reason = "the raw peer exchange checks stream demand and script admission")]
 fn peer_native_request(
     wire: &[u8],
     dialect: skein_llm::Provider,
@@ -955,6 +956,8 @@ fn peer_native_request(
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: bounds };
     let mut service = provider::Service::new(
         provider::Config {
+            list: None,
+            list_status: None,
             without_credential: false,
             echo: skein_llm::openai::Echo::NONE,
             usage_fields: documents::UsageFields::ALL,
@@ -993,7 +996,10 @@ fn peer_native_request(
                 provider::Event::Domain(skein_fake_llm_domain::Event::Release { .. }) => {
                     unreachable!("the wire never releases a hold")
                 }
-                provider::Event::Head { .. } | provider::Event::Close | provider::Event::Closed => {}
+                provider::Event::Head { .. }
+                | provider::Event::List { .. }
+                | provider::Event::Close
+                | provider::Event::Closed => {}
             }
         }
         while let Some(down) = below.pop() {

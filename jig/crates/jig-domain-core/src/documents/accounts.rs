@@ -26,6 +26,7 @@ pub struct SourceLine {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct AccountLine {
+    pub list: Option<AccountList>,
     pub number: u32,
     pub place: u32,
     pub uses: Option<List<accounts::Use>>,
@@ -140,6 +141,7 @@ pub(super) fn make(core: &Core, limits: &Limits, party: u64, owner: u64, window:
         let sources = source_lines(core, limits, account);
         accounts
             .push(AccountLine {
+                list: list(core, number),
                 number,
                 place: account.place(),
                 uses: uses(core, account),
@@ -316,6 +318,44 @@ pub(super) fn provider_name(core: &Core, account: &accounts::Account, bytes: u32
 }
 pub(super) fn manage_usage(core: &Core, account: &accounts::Account) -> Option<Box<[u8]>> {
     core.settings.llm_providers.get(account.provider())?.manage_usage.clone()
+}
+
+/// Public list history (jig/docs/design/client/domain/contract.md, 5.1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct AccountList {
+    pub read: Option<Wall>,
+    pub tried: Option<Wall>,
+    pub failure: Option<accounts::ReadFailure>,
+    pub left_out: u32,
+}
+
+/// Capability is separate from a first attempt's history (domain/accounts.md, 3.7).
+pub(super) fn list(core: &Core, account: u32) -> Option<AccountList> {
+    if !core.accounts.has_list(account) {
+        return None;
+    }
+    Some(match core.accounts.list(account) {
+        Some(record) => {
+            AccountList { read: record.read, tried: record.tried, failure: record.failure, left_out: record.left_out }
+        }
+        None => AccountList { read: None, tried: None, failure: None, left_out: 0 },
+    })
+}
+
+/// The largest omission among account rows this party may read, before document cuts.
+pub(super) fn left_out(core: &Core, party: u64) -> u32 {
+    let deployment = core.people.role(party, jig_domain_people::DEPLOYMENT).is_some();
+    let mut largest = 0;
+    for fact in &core.accounts.account_views() {
+        let account = core.accounts.account(fact.account).expect("an account view names its account");
+        if (account.holder() == accounts::Holder::Party(party)
+            || (deployment && account.holder() == accounts::Holder::Deployment))
+            && let Some(list) = list(core, fact.account)
+        {
+            largest = largest.max(list.left_out);
+        }
+    }
+    largest
 }
 
 #[cfg(test)]

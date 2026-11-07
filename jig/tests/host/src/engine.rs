@@ -193,9 +193,12 @@ impl Engine {
             Request::Up(LinkUp::JobAnswer { run, attempt, answer: _ }) => {
                 vec![Self::host(Event::Down(LinkDown::Acknowledge { run, attempt }), false)]
             }
-            Request::Source { .. } | Request::SourceFault => unreachable!("source scheduling has its own world"),
+            Request::ReadList { .. } | Request::CancelRead { .. } | Request::Source { .. } | Request::SourceFault => {
+                unreachable!("source scheduling has its own world")
+            }
             Request::Up(
-                LinkUp::Logins { .. }
+                LinkUp::ListRead { .. }
+                | LinkUp::Logins { .. }
                 | LinkUp::SignedOut { .. }
                 | LinkUp::Piece { .. }
                 | LinkUp::Activity { .. }

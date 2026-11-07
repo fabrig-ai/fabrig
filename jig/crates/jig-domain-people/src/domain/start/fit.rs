@@ -290,6 +290,7 @@ pub(super) fn outcome(key: &Key, limits: &Limits, outcome: &Outcome) -> Result<(
         | Outcome::AccountMovingOut { .. }
         | Outcome::AccountFinishing { .. }
         | Outcome::AccountMovedIn { .. }
+        | Outcome::AccountReading { .. }
         | Outcome::AccountChanged
         | Outcome::SignedOut
         | Outcome::Again(_) => Ok(()),
@@ -340,6 +341,7 @@ fn account_change(key: &Key, limits: &Limits, change: &crate::AccountChange) -> 
             within(key, RestoreBound::Words, held, limits.words)
         }
         crate::AccountChange::SetUses { uses: None, .. }
+        | crate::AccountChange::ReadLists { .. }
         | crate::AccountChange::CheckProgram { .. }
         | crate::AccountChange::AddKey { .. }
         | crate::AccountChange::ReplaceKey { .. }

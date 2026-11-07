@@ -268,7 +268,9 @@ impl World {
 
     fn take(&mut self, request: Request) {
         match request {
-            Request::Source { .. } | Request::SourceFault => panic!("this fixture declares no program sources"),
+            Request::ReadList { .. } | Request::CancelRead { .. } | Request::Source { .. } | Request::SourceFault => {
+                panic!("this fixture declares no program sources")
+            }
             Request::Hello(hello) => {
                 assert_eq!(hello.stop_bound, crate::STOP_BOUND);
                 assert!(hello.hosting.len() <= 1);

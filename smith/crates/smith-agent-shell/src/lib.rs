@@ -11,6 +11,7 @@ pub mod config;
 pub mod dump;
 #[cfg(any(test, feature = "fixture"))]
 pub mod fixture;
+pub mod list;
 #[cfg(unix)]
 pub mod program;
 #[cfg(unix)]

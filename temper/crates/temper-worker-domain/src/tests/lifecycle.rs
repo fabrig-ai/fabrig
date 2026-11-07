@@ -256,7 +256,8 @@ fn no_notices(rows: &[Request]) {
             host::LinkUp::Unauthorized { .. } | host::LinkUp::Limited { .. } | host::LinkUp::AccountRefused { .. } => {
                 panic!("unexpected notice: {up:?}")
             }
-            host::LinkUp::Logins { .. }
+            host::LinkUp::ListRead { .. }
+            | host::LinkUp::Logins { .. }
             | host::LinkUp::SignedOut { .. }
             | host::LinkUp::Turn { .. }
             | host::LinkUp::Call { .. }

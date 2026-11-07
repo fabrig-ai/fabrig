@@ -546,6 +546,7 @@ fn decisions(ask: &Ask) -> Vec<(ObjectKey, ActKind)> {
         | Ask::SetVisibility { .. }
         | Ask::Rename { .. }
         | Ask::Lift { .. }
+        | Ask::ReadLists { .. }
         | Ask::ChangeModel(_)
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)

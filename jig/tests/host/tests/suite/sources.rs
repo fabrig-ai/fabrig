@@ -290,3 +290,123 @@ fn shutdown_answers_closed_only_for_sign_outs_that_never_started() {
     assert!(world.checked(check, LoginState::Usable).is_empty());
     assert!(world.host.sources_settled());
 }
+
+fn list_grant() -> jig_domain_link::Grant {
+    jig_domain_link::Grant {
+        account: 17,
+        generation: 3,
+        valid: Duration::from_secs(10),
+        form: jig_domain_link::Form::Credential(jig_domain_link::Scheme::Key),
+    }
+}
+fn read(read: u64) -> host::Event {
+    host::Event::Down(host::LinkDown::ReadList { read, endpoint: 7, grant: list_grant() })
+}
+fn read_request(read: u64) -> host::Request {
+    host::Request::ReadList { read, endpoint: 7, grant: list_grant() }
+}
+fn listed(read: u64) -> host::Event {
+    host::Event::ListRead { read, outcome: jig_domain_link::ListOutcome::Listed(Box::new([])) }
+}
+fn list_answer(read: u64) -> host::Request {
+    host::Request::Up(host::LinkUp::ListRead { read, outcome: jig_domain_link::ListOutcome::Listed(Box::new([])) })
+}
+#[test]
+fn list_reads_share_the_source_queue_without_taking_slots() {
+    for case in ["full", "check", "sign out", "check after read", "lost", "overflow", "reconnect", "shutdown"] {
+        let mut world = World::new();
+        world.env.limits.slots = 1;
+        world.host = host::Hub::new(&world.env.limits);
+        world.sources(&[]);
+        world.step(jig_host_world::fixtures::assign(host::RunAssignment {
+            identity: [0; 16],
+            run: Token::new(41),
+            attempt: Token::new(42),
+            workspace: None,
+            save: false,
+            live: host::LiveAsk::NONE,
+            charter: b"charter".as_slice().into(),
+            grants: Box::new([]),
+        }));
+        let owner = command(&world.sources(&[b"a"]), b"a", Operation::Check);
+        world.checked(owner, LoginState::Usable);
+        match case {
+            "check" | "sign out" => {
+                let operation = if case == "check" { Operation::Check } else { Operation::SignOut };
+                let event = if case == "check" {
+                    host::LinkDown::Check { name: name_of(b"a") }
+                } else {
+                    host::LinkDown::SignOut { name: name_of(b"a") }
+                };
+                let owner = command(&world.step(host::Event::Down(event)), b"a", operation);
+                assert!(world.step(read(1)).is_empty(), "{case}: read waits");
+                let answer = if case == "check" {
+                    Answer::Checked { state: LoginState::Usable, email: None }
+                } else {
+                    Answer::SignedOut(SignOutResult::SignedOut)
+                };
+                let outputs = world.step(host::Event::SourceAnswered { owner, answer });
+                assert_eq!(outputs.last(), Some(&read_request(1)), "{case}: read follows source");
+                let outputs = world.step(listed(1));
+                assert_eq!(outputs.first(), Some(&list_answer(1)), "{case}");
+                if case == "sign out" {
+                    command(&outputs[1..], b"a", Operation::Check);
+                }
+            }
+            _ => {
+                assert_eq!(world.host.hosted(), world.env.limits.slots, "{case}: every slot is taken");
+                assert_eq!(world.step(read(1)), [read_request(1)], "{case}: the hub forwards only grant names");
+                assert_eq!(world.host.hosted(), world.env.limits.slots, "{case}: read takes no slot");
+                match case {
+                    "full" => assert_eq!(world.step(listed(1)), [list_answer(1)]),
+                    "check after read" => {
+                        assert!(
+                            world.step(host::Event::Down(host::LinkDown::Check { name: name_of(b"a") })).is_empty()
+                        );
+                        let outputs = world.step(listed(1));
+                        assert_eq!(outputs[0], list_answer(1));
+                        command(&outputs[1..], b"a", Operation::Check);
+                    }
+                    "lost" | "reconnect" => {
+                        assert_eq!(world.step(host::Event::SourceLost), [host::Request::CancelRead { read: 1 }]);
+                        assert!(!world.host.sources_settled(), "cancel must settle before reuse");
+                        if case == "reconnect" {
+                            assert!(world.sources(&[b"a"]).is_empty(), "old read still owns source queue");
+                            command(&world.step(listed(1)), b"a", Operation::Check);
+                        } else {
+                            assert!(world.step(listed(1)).is_empty(), "lost read sends nothing up");
+                            assert!(world.host.sources_settled());
+                        }
+                    }
+                    "overflow" => {
+                        assert!(world.step(read(2)).is_empty());
+                        assert_eq!(
+                            world.step(read(3)),
+                            [host::Request::Up(host::LinkUp::ListRead {
+                                read: 3,
+                                outcome: jig_domain_link::ListOutcome::Failed(jig_domain_link::ListFailure::Agent),
+                            })]
+                        );
+                        assert_eq!(world.step(listed(1)), [list_answer(1), read_request(2)]);
+                        assert_eq!(world.step(listed(2)), [list_answer(2)]);
+                    }
+                    "shutdown" => {
+                        assert_eq!(
+                            world.step(host::Event::CancelAll { reason: host::Reason::Shutdown }),
+                            [
+                                host::Request::Up(host::LinkUp::ListRead {
+                                    read: 1,
+                                    outcome: jig_domain_link::ListOutcome::Failed(jig_domain_link::ListFailure::Agent)
+                                }),
+                                host::Request::CancelRead { read: 1 },
+                            ]
+                        );
+                        assert!(world.step(listed(1)).is_empty());
+                        assert!(world.host.sources_settled());
+                    }
+                    _ => unreachable!("table case"),
+                }
+            }
+        }
+    }
+}

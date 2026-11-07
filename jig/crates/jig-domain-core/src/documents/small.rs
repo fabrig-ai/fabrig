@@ -96,6 +96,7 @@ pub(super) fn chip_from_row(limits: &Limits, row: &tasks::TaskRecord) -> Result<
 pub(super) fn frame(core: &Core, limits: &Limits, party: u64) -> Result<Frame, Missing> {
     let identity = core.people.identity(party).ok_or(Missing::Unknown)?;
     let roles = core.people.project_roles(party).ok_or(Missing::Unknown)?;
+    let list_left_out = super::accounts::left_out(core, party);
     let mut projects = List::with_capacity(limits.documents.lines);
     let mut cut = false;
     for role in &roles {
@@ -148,6 +149,7 @@ pub(super) fn frame(core: &Core, limits: &Limits, party: u64) -> Result<Frame, M
             }
             templates.push(template).expect("configured template bound");
         }
+        left_out = left_out.checked_add(list_left_out).ok_or(Missing::TooLarge)?;
         projects
             .push(FrameProjectRole {
                 left_out,

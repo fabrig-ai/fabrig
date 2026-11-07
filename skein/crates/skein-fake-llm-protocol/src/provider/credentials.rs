@@ -136,6 +136,8 @@ mod tests {
 
     fn config(provider: documents::Provider, path: &[u8], without_credential: bool) -> Config {
         Config {
+            list: None,
+            list_status: None,
             provider,
             path: path.into(),
             without_credential,

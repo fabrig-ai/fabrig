@@ -115,6 +115,7 @@ pub(crate) fn parse(
                 }
                 models
                     .push(CatalogueModel {
+                        first_read: None,
                         number: u32::try_from(index)
                             .expect("bounded model position")
                             .checked_add(1)

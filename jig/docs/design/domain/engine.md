@@ -1641,8 +1641,8 @@ Nothing the core decides depends on a view arriving.
   the preview changes no task or core store layout.
 - **The offer** (`../client/domain/contract.md`, 5.1), per project: each
   model of configuration's order that the party's authority there allows and
-  an account usable now for the party as payer can run (accounts.md, 4.3),
-  with those accounts. A direct source's account needs no host, so that a
+  an account usable now for the party as payer can run (accounts.md, 4.3) and
+  allows (accounts.md, 3.7), with those accounts. A direct source's account needs no host, so that a
   worker's restart takes no model away and what `account list` calls usable
   is offered; a program's source needs a connected host that has reported
   its login usable. A
@@ -2122,13 +2122,11 @@ section 5).
   come and go (11.2 and 11.3).
 - **Scaling out:** one engine per deployment until it binds; the store
   being the engine's alone is what would change first.
-- **Provider lists** (11.1, 17.7 and 17.11): reading a provider's models
-  and keeping the result per account, narrowing its part of the offer,
-  needs a worker request and a provider-list decider. A failed or absent
-  list keeps stock and personally added names. Default: the numbered model
-  settings, with conservative figures for added names, no provider-list
-  read and no per-account list narrowing.
-- **What a model is good at:** a description in its setting, or
+- **A list's reach past the first page and past a name's arrival:** a
+  provider's later pages, and a known name's window, efforts or shown name
+  changing on its list (17.12). Default: one request, and a name's figures are
+  what its first read gave, the configuring chat changing them.
+- **What a model is good at:** a description in configuration, or
   structured capabilities a planning agent could filter on. Default: a
   description (section 9).
 - **A release's removed default that a change names** (a template
@@ -2169,7 +2167,7 @@ section 17; the records are `../protocol/store.md`, 4.4.
   | template | the template's, from 1 | a template whole (`../protocol/configuration.md`, 3.1) | when `me` is served (11.1): the newest |
   | policy | the policy's, from 1 | a whole policy in a seed's format, a project made from it copying it (core.md, 6.1) | at each `MakeProject`: the newest |
   | rules | none: one setting | the deployment's rules, whole (authority.md, section 6) | at every decision: the newest |
-  | model | the model's, 1 to 64, never given to another name (17.11) | a model whole: its name, shown name, LLM provider, endpoint, window, output, efforts and default effort, prices, description, whether a picker shows it, whether it is withdrawn, where it came from (the binary, a provider's list or a person) and whether its prices are estimated | at each decision and when `me` is served: the newest; a run reads it from its charter (17.11) |
+  | model | the model's, 1 to 64, never given to another name (17.11) | a model whole: its name, shown name, LLM provider, endpoint, window, output, efforts and default effort, prices, description, whether a picker shows it, whether it is withdrawn, where it came from (the binary, a provider's list or a person), whether its prices are estimated and when a list first gave it | at each decision and when `me` is served: the newest; a run reads it from its charter (17.11) |
   | an application's kind | the application's | bytes jig never reads, kept by the connector that owns the kind (17.5) | by the application, from that connector: the newest |
 
 - **The defaults are the binary's.** The application passes them as
@@ -2594,7 +2592,7 @@ requires no additional limit or root-to-core allowance (decided 2026-11-03).
   kind its state and size alone, its value the connector's (17.5); a
   record per revision, with
   its number, the revision it was made against, when, who decided it (a
-  party, the release, the first start), the proposal it came from,
+  party, the release, the first start, a provider's list), the proposal it came from,
   whether it moved running work, and its items with the values they
   set and what each replaced (17.10), an application's items with
   their sizes alone; each charter
@@ -2924,3 +2922,56 @@ models and a charter name.
   catalogue holds is out of shape, unless withdrawn, which it brings back.
   A provider with no stock model takes its `endpoint` and the catalogue's
   dearest stock model's figures.
+- **A person's removal of a list's model** makes it a person's: the item keeps
+  the setting withdrawn, with `source` person, so that a list naming it again
+  doesn't bring it back (17.12). Adding it by name does.
+
+### 17.12 A provider's list
+
+A read of an account's list (accounts.md, 3.7) comes to the core as an answer.
+The core alone turns it into settings, as the one decider that's neither a party,
+the release nor a first start. It moves no running work.
+
+- **Placing a read.** The core gives the fleet the account's grant and the
+  endpoint its provider names (`../protocol/configuration.md`, section 3). The
+  fleet holds it until a connected worker's bounds hold that endpoint, sends it to
+  the one with the most free slots, one read in flight per worker, and holds it
+  again if that worker's channel is lost before it answers. A renewal reaches a
+  read still held. Host rule is not asked (accounts.md, 3.4): no tool runs on a
+  read. With no worker connected, a read waits and nothing says it failed.
+- **What it keeps.** Of the rows, in the provider's order: a name that a `keep`
+  pattern matches and no `drop` pattern does, and that `valid_name` holds. The rest
+  never reach the store.
+- **A name new to the catalogue** takes `new_model` (17.11), `source` list, off the
+  picker, and the highest free number, in the provider's order, each seeing the
+  last. Its `first_read` is this read's time and never changes, so it's "new" once.
+  Its figures are those of `new_model`, and where the list says them, its shown
+  name, its window and output, no larger than `new_model`'s, since the binary's
+  defaults bound what a run is given, whatever a provider allows, and its
+  efforts, its default effort being `high` where it lists that, else its first.
+  Its prices stay estimated.
+- **The catalogue's room.** Past `MODELS`, a name takes no number, and the
+  account's `left_out` counts it, so the provider's first are kept.
+- **A name gone from every list:** a model of this provider with `source` list
+  that no account's last good read holds, this one's included, is withdrawn: out of
+  the offer and every charter's resolution, its number and name kept for the tasks
+  that hold it. A withdrawn one with `source` list that a read names again comes
+  back. A read never touches a model of the binary's or a person's, nor another
+  provider's, nor a kept row's picker, prices or figures; the accounts' names narrow
+  those (accounts.md, 3.7).
+- **What a read decides.** The new, gone and returned models are one change at
+  the newest revision, `Running::Stays`, decided as 17.2's, by the provider's list
+  (`Decider::List`, naming the provider, in the revision's record). A read that
+  changes nothing makes no revision. Like any revision it withdraws stale proposals
+  (17.6) and makes the versions of charters whose resolution it changes (17.11).
+  Refused, for held versions past their limits or a whole set out of shape, it makes
+  none, and the attempt fails as the catalogue's room.
+- **One commit.** The account's record, the revision and its versions commit
+  together, so that a crash leaves both or neither; `settings::writes_bound` prices
+  the record's one write.
+- **What it marks.** A read marks the `accounts` document of whoever holds the
+  account, and the deployment's, since its times moved. `me` is marked only when
+  what it says moved: the decision changed the current settings, or the account's
+  `names` changed, which narrows its offer. A day's alarm alone marks nothing, nor
+  does a failed read, a repeat, a refused act or a read still held.
+- **A failed read** changes no setting and no name (accounts.md, 3.7).

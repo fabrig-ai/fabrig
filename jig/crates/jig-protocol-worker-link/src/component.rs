@@ -330,7 +330,8 @@ impl Component {
                 }
                 return;
             }
-            up @ (host::LinkUp::Logins { .. }
+            up @ (host::LinkUp::ListRead { .. }
+            | host::LinkUp::Logins { .. }
             | host::LinkUp::SignedOut { .. }
             | host::LinkUp::Piece { .. }
             | host::LinkUp::Activity { .. }
@@ -560,7 +561,8 @@ impl Component {
                         self.busy.acknowledged(*run, *attempt);
                         true
                     }
-                    host::LinkDown::Sources { .. }
+                    host::LinkDown::ReadList { .. }
+                    | host::LinkDown::Sources { .. }
                     | host::LinkDown::Check { .. }
                     | host::LinkDown::SignOut { .. }
                     | host::LinkDown::AssignJob { .. }

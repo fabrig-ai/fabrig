@@ -177,7 +177,8 @@ task has one LLM choice (N11). A survey of those answers decides: fine means
 medium; tight means try high, and look again. Medium then needs xhigh for the first
 run and medium after it, which is the LLM choice per kind of wake of
 `reference-code-production.md`, section 16; until then, an amendment after the
-first run. No choice is made here.
+first run. No choice is made here. `per-wake.md`, section 5 gives a first and a
+later choice, made at the goal's start, and ends the amendment.
 
 ## 9. Where charters live
 

@@ -51,6 +51,11 @@ pub enum Step {
     Key(skein_browser::boundary::Key),
     KeyWithShift(skein_browser::boundary::Key),
     Focused(skein_fake_person::Find),
+    /// Await the found node pressed, within this long (skein/docs/design/ui-web.md, 14.2).
+    Pressed {
+        find: skein_fake_person::Find,
+        within: Duration,
+    },
     Taller {
         find: skein_fake_person::Find,
         words: Box<[u8]>,
@@ -103,6 +108,7 @@ pub struct Script {
     keeping: bool,
     commanding: bool,
     focused: Option<skein_fake_person::Find>,
+    pressed: Option<(skein_fake_person::Find, Time, bool)>,
     growth: Option<growth::Growth>,
     keep_box: Option<keep_box::KeepBox>,
     tabs: Option<tabs::Awaiting>,
@@ -124,6 +130,7 @@ impl Script {
             keeping: false,
             commanding: false,
             focused: None,
+            pressed: None,
             press: None,
             growth: None,
             keep_box: None,
@@ -218,6 +225,30 @@ impl Script {
         }
         Some(Next::Wait { until: None })
     }
+    fn check_pressed(&mut self, face: &mut BrowserFace<'_>, now: Time) -> Option<Next<Box<[u8]>>> {
+        let (find, until, mut present) = self.pressed.take()?;
+        match skein_fake_person::Face::find(face, &find) {
+            skein_fake_person::Found::Pending => {}
+            skein_fake_person::Found::Absent => present = false,
+            skein_fake_person::Found::Node(node) => {
+                present = true;
+                if face.pressed(node) && now <= until {
+                    self.at += 1;
+                    return Some(Next::Wait { until: None });
+                }
+            }
+        }
+        if now >= until {
+            if !present {
+                return Some(Next::Failed { step: self.at, why: skein_fake_person::Why::Missing { find } });
+            }
+            face.fail(format!("node {find:?} is not pressed within its bound"));
+            self.at += 1;
+            return Some(Next::Wait { until: None });
+        }
+        self.pressed = Some((find, until, present));
+        Some(Next::Wait { until: Some(until) })
+    }
     fn check_focus(&mut self, face: &mut BrowserFace<'_>) -> Option<Next<Box<[u8]>>> {
         if let Some(find) = self.focused.take() {
             match skein_fake_person::Face::find(face, &find) {
@@ -292,6 +323,9 @@ impl Play for Script {
             }
             return Next::Wait { until: None };
         }
+        if let Some(next) = self.check_pressed(face, now) {
+            return next;
+        }
         if let Some(next) = self.check_focus(face) {
             return next;
         }
@@ -345,6 +379,10 @@ impl Play for Script {
             Step::Taller { find, words } => self.growth = Some(growth::Growth::new(find, words)),
             Step::PressAt { find, at } => self.press = Some((find, at)),
             Step::Focused(find) => self.focused = Some(find),
+            Step::Pressed { find, within } => {
+                self.pressed = Some((find, now.saturating_add(within), false));
+                return self.check_pressed(face, now).expect("pressed step is waiting");
+            }
             Step::Compose { find, words } => self.text = Some((find, words, true)),
             Step::Type { find, words } => self.text = Some((find, words, false)),
             Step::Trouble { words, within } => {
@@ -414,6 +452,12 @@ impl Play for Script {
     }
     fn check_deadline(&mut self, face: &mut BrowserFace<'_>, now: Time) {
         self.tabs_step(face, now);
+        if self.pressed.as_ref().is_some_and(|(_, until, _)| now >= *until)
+            && let Some(Next::Failed { why, .. }) = self.check_pressed(face, now)
+        {
+            face.fail(format!("{why:?}"));
+            self.at += 1;
+        }
         if self.commanding && face.command_done() {
             self.commanding = false;
             self.at += 1;

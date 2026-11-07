@@ -140,7 +140,8 @@ impl Domain {
                         (run, attempt)
                     }
                     Some(
-                        host::LinkUp::Piece { .. }
+                        host::LinkUp::ListRead { .. }
+                        | host::LinkUp::Piece { .. }
                         | host::LinkUp::Logins { .. }
                         | host::LinkUp::SignedOut { .. }
                         | host::LinkUp::Activity { .. }

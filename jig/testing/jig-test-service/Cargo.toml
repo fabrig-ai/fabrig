@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+smith-channel.workspace = true
 skein-http.workspace = true
 jig-client-protocol-wire.workspace = true
 jig-client-test-protocol-wire.workspace = true
@@ -47,7 +48,6 @@ jig-protocol-worker-wire.workspace = true
 jig-protocol-engine-workers.workspace = true
 
 [dev-dependencies]
-smith-channel.workspace = true
 skein-heap.workspace = true
 jig-client.workspace = true
 skein-world.workspace = true

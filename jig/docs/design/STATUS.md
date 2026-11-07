@@ -19,8 +19,10 @@ core world's restore stories are ignored (`domain/engine.md`,
 pending one atomically, preserving it on refusal; at the deployment
 proposal bound, refusal remains the default (`domain/tasks.md`, section 9;
 `domain/engine.md`, 17.6). Numbered model settings, catalogue-derived
-charter versions and endpoint bounds at hello are built; provider-list reads and per-account
-narrowing remain deferred (`domain/engine.md`, 16 and 17.11).
+charter versions and endpoint bounds at hello are built, with worker
+provider-list reads, retained per-account names, atomic catalogue updates
+and per-account offer narrowing (`domain/accounts.md`, 3.7;
+`domain/engine.md`, 17.12; `client/domain/contract.md`, 5.1).
 Standard admits batches of 32, charters of 262,144 bytes and outcomes of
 131,072; a change body's bound follows its contract's words. Message
 rendering room remains deferred (`domain/hosts.md`, sections 8 and 12;

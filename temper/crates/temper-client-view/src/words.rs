@@ -237,6 +237,11 @@ pub enum Word {
     ModelsHeading,
     ModelsLede,
     ModelsStock,
+    ModelsReadFrom,
+    ModelsReadFailed,
+    ModelsReadAgain,
+    ModelsReading,
+    ModelsNew,
     ModelsSubscription,
     ModelsPlan,
     ModelsKey,
@@ -1476,7 +1481,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2021;
+const PHRASES: u32 = 2026;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1503,10 +1508,10 @@ const PHRASES: u32 = 2021;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3552;
+const SEGMENTS: u32 = 3565;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 49649;
-const ALL: [Word; 1354] = [
+const ENGLISH_BYTES: u32 = 49710;
+const ALL: [Word; 1359] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -1726,6 +1731,11 @@ const ALL: [Word; 1354] = [
     Word::ModelsHeading,
     Word::ModelsLede,
     Word::ModelsStock,
+    Word::ModelsReadFrom,
+    Word::ModelsReadFailed,
+    Word::ModelsReadAgain,
+    Word::ModelsReading,
+    Word::ModelsNew,
     Word::ModelsSubscription,
     Word::ModelsPlan,
     Word::ModelsKey,
@@ -3066,6 +3076,11 @@ impl Word {
             Self::ModelsHeading => 3978,
             Self::ModelsLede => 3979,
             Self::ModelsStock => 3980,
+            Self::ModelsReadFrom => 4116,
+            Self::ModelsReadFailed => 4117,
+            Self::ModelsReadAgain => 4118,
+            Self::ModelsReading => 4119,
+            Self::ModelsNew => 4120,
             Self::ModelsSubscription => 3981,
             Self::ModelsPlan => 3982,
             Self::ModelsKey => 3983,
@@ -5721,6 +5736,11 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ModelsTab => (&[b"Models"], &[]),
         Word::ModelsHeading => (&[b"What the picker offers."], &[]),
         Word::ModelsLede => (&[b"The models your accounts can run, by what pays for them. Each model can be left off the picker; a task keeps the model it has."], &[]),
+        Word::ModelsReadFrom => (&[b"Read from ", b" ", b"."], &[Name, Name]),
+        Word::ModelsReadFailed => (&[b"Couldn't read ", b"'s list \xc2\xb7 ", b"."], &[Name, Name]),
+        Word::ModelsReadAgain => (&[b"Read again"], &[]),
+        Word::ModelsReading => (&[b"Reading\xe2\x80\xa6"], &[]),
+        Word::ModelsNew => (&[b"new"], &[]),
         Word::ModelsStock => (&[b"These come with temper."], &[]),
         Word::ModelsSubscription => (&[b"Your ", b" subscription."], &[Name]),
         Word::ModelsPlan => (&[b"Your ", b" plan."], &[Name]),
@@ -6116,6 +6136,17 @@ pub(crate) struct Times {
 impl Times {
     pub(crate) fn new(now: skein_lib::Wall) -> Self {
         Self { now, next: None }
+    }
+    pub(crate) fn model_new(&mut self, model: &jig_client::contract::MeModel) -> bool {
+        if model.source != jig_client::contract::ModelSource::List {
+            return false;
+        }
+        let Some(until) = model.new_until else { return false };
+        if until <= self.now {
+            return false;
+        }
+        self.next = [self.next, Some(until)].into_iter().flatten().min();
+        true
     }
     pub(crate) fn say(&mut self, words: &Words, form: TimeForm, at: skein_lib::Wall) -> Box<[u8]> {
         let (text, next) = words.time(form, at, self.now);

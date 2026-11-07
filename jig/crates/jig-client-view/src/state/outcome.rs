@@ -67,7 +67,7 @@ pub(crate) fn route(outcome: &Outcome) -> Route {
                 Route::Other
             }
         },
-        Outcome::SettingsChanged(_) | Outcome::MovedToNewest(_) => Route::Other,
+        Outcome::Account(_) | Outcome::SettingsChanged(_) | Outcome::MovedToNewest(_) => Route::Other,
         Outcome::Restored { .. } => Route::Proposed,
     }
 }

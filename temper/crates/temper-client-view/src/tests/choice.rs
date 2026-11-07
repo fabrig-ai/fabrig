@@ -634,6 +634,7 @@ fn one_account(number: u32, plan: bool) -> d::Domain {
     let mut accounts = List::with_capacity(1);
     accounts
         .push(c::AccountLine {
+            list: None,
             facts: List::with_capacity(0),
             number,
             place: 1,
@@ -940,6 +941,7 @@ fn account(number: u32, kind: c::AccountKind, address: Option<&[u8]>) -> c::Acco
     sources.push(source(c::AccountKind::Program, false)).unwrap();
     sources.push(source(kind, true)).unwrap();
     c::AccountLine {
+        list: None,
         facts: List::with_capacity(0),
         number,
         place: number,
@@ -1755,6 +1757,7 @@ fn provider_offer(provider: u32, name: &[u8]) -> c::ProviderOffer {
 }
 fn offer_row(name: &[u8], provider: Option<u32>) -> c::MeModel {
     c::MeModel {
+        new_until: None,
         number: 1,
         source: jig_client::contract::ModelSource::Stock,
         estimated: false,
@@ -2213,8 +2216,9 @@ fn all_models_finds_by_shown_name_and_name() {
     }
 }
 #[test]
-fn all_models_links_to_the_projects_models_and_says_no_new() {
-    let (mut root, _, _) = picker_fixture(false, true, true);
+fn all_models_links_to_the_projects_models_and_marks_new() {
+    const WEEK: u64 = 604_800_000_000_000;
+    let (mut root, watch, _) = picker_fixture(false, true, true);
     edit(&mut root, d::pages::choice::Act::All);
     let mut view = fixtures::page_view(&root);
     let link = fixtures::find(view.tree(), Role::Link, b"Choose what the list shows, in Settings").unwrap();
@@ -2225,6 +2229,32 @@ fn all_models_links_to_the_projects_models_and_says_no_new() {
     assert_eq!(crate::href(&mut view, link).as_deref(), Some(b"/projects/1/settings/models".as_slice()));
     assert!(!chooser_nodes(&view).iter().any(|n| n.name.as_deref() == Some(b"new")));
     assert!(fixtures::find(view.tree(), Role::Button, "‹ Models".as_bytes()).is_some());
+    for source in [c::ModelSource::List, c::ModelSource::Stock, c::ModelSource::Person] {
+        let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
+        let model = me.projects.get_mut(0).unwrap().models.get_mut(0).unwrap();
+        model.source = source;
+        model.new_until = Some(skein_lib::Wall::from_nanos(WEEK));
+        delivered(&mut root, watch, c::Delivery::Me(Box::new(me)));
+        for mut view in [fixtures::page_view(&root), fixtures::browser_page_view(&root)] {
+            for now in [WEEK - 1, WEEK, WEEK + 1] {
+                crate::build(&mut view, &root, skein_lib::Wall::from_nanos(now), &mut skein_lib::Queue::uncapped());
+                let tags: Vec<_> = chooser_nodes(&view)
+                    .iter()
+                    .filter(|n| {
+                        n.styles.as_slice().contains(&crate::look::MODEL_TAG) && {
+                            let at = view.tree().nodes().iter().position(|node| node.id == n.id).unwrap();
+                            let end = at + usize::try_from(n.size).unwrap();
+                            fixtures::nodes_text(&view.tree().nodes()[at..end]).ends_with(b"new")
+                        }
+                    })
+                    .collect();
+                assert_eq!(tags.len(), usize::from(source == c::ModelSource::List && now < WEEK));
+                if source == c::ModelSource::List && now < WEEK {
+                    assert_eq!(view.next_change(), Some(skein_lib::Wall::from_nanos(WEEK)));
+                }
+            }
+        }
+    }
 }
 #[test]
 fn a_started_chat_says_when_a_change_applies() {

@@ -120,6 +120,11 @@ pub(super) fn bodies(inventory: &mut Inventory, limits: &smith_channel::Limits) 
         live_call_id,
         live_call_tool,
         live_bytes,
+        list_row_name: _,
+        list_row_shown_some: _,
+        list_row_efforts: _,
+        list_row_efforts_item: _,
+        list_rows_rows: _,
     } = *limits;
     inventory.layer = Layer::Channel;
     inventory.value("directory_name", Value::Bytes(u64::from(directory_name)))?;

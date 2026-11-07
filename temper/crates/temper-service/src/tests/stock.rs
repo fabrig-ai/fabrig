@@ -1674,7 +1674,10 @@ fn a_documents_models_are_refused_at_their_paths() {
     let mut document = init;
     document["engine"]["llm"]["providers"][0].as_object_mut().unwrap().remove("endpoint");
     let problems = crate::named(&serde_json::to_vec(&document).unwrap(), &config::Directories::working()).unwrap_err();
-    assert_eq!(crate::startup::lines(&problems).as_ref(), b"engine.llm.providers[0].endpoint: missing\n");
+    assert_eq!(
+        crate::startup::lines(&problems).as_ref(),
+        b"engine.llm.providers[0].endpoint: missing\nengine.llm.providers[0].keep: unknown reference\n"
+    );
 }
 
 #[test]

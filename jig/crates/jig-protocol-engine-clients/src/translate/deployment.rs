@@ -420,6 +420,7 @@ pub fn account(value: &d::Account, limits: &w::Limits) -> Result<w::Account, w::
     w::Account::new(
         limits,
         w::AccountParts {
+            list: super::accounts::list(value.list.as_ref(), limits)?,
             facts: super::accounts::facts(&value.facts, limits)?,
             number: value.number,
             place: value.place,
