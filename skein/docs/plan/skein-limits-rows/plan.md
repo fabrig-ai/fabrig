@@ -69,6 +69,8 @@ Each task fills its own subsection. Suite totals aren't quoted here: the gate re
 | `skein-oauth` | `machine_tests` | 74 | 61 | 4 | 23 | 20.8 |
 | `skein-oauth` | `tests` | 33 | 28 | 3 | 17 | 8.0 |
 | `skein-oauth` | `pkce::tests` | 2 | 1 | 1 | 3 | 1.6 |
+| `skein-http` | `tests::server` | 73 | 68 | 2 | 15 | 7.5 |
+| `skein-http` | `tests` | 143 | 135 | 4 | 31 | 12.0 |
 
 Left apart:
 
@@ -78,6 +80,7 @@ Left apart:
 - `skein-oauth-accounts::tests`: all five surveyed groups fold. Sign-in, persistence, grant, refresh, cancellation, listener and shared-owner paths with distinct assertions, heap checks and existing tables stay apart.
 - `skein-fake-forge-forgejo::tests`: all 13 surveyed groups fold. Push signing/head, failed-job and deleted-branch hooks have different checks and stay separate; so do other authentication, route, pagination, write and response contracts and existing tables.
 - `skein-oauth`, other client exchanges, OpenID claims, registrations, byte encodings and generated golden tests: distinct validation and lifecycle contracts or existing tables. All eight surveyed groups fold; generated code stays untouched.
+- `skein-http::tests` and `tests::server`: all six surveyed groups fold. Other framing failures, gzip algorithms, stream lifecycle, demand ordering and misuse panics have different assertions and remain separate. Request-body rows all check the final 204 suffix.
 
 ### rows-forge
 

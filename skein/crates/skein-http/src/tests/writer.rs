@@ -121,25 +121,32 @@ fn refused(rq: Request, limits: Limits) -> Refusal {
     }
 }
 
+struct EventRow {
+    event: &'static [u8],
+    data: &'static [u8],
+    id: Option<Box<[u8]>>,
+    retry: Option<u64>,
+    wire: &'static [u8],
+}
 #[test]
-fn an_event_is_its_fields_in_order_and_a_blank_line() {
-    assert_eq!(
-        framed(b"delta", b"{\"a\":1}", Some(boxed(b"7")), Some(1500)),
-        b"event: delta\nid: 7\nretry: 1500\ndata: {\"a\":1}\n\n"
+fn sse_events_encode_fields_and_normalized_data_lines() {
+    skein_rows::check(
+        [
+            ("an_event_is_its_fields_in_order_and_a_blank_line: 1", EventRow { event: b"delta", data: b"{\"a\":1}", id: Some(boxed(b"7")), retry: Some(1500), wire: b"event: delta\nid: 7\nretry: 1500\ndata: {\"a\":1}\n\n" }),
+            ("an_event_is_its_fields_in_order_and_a_blank_line: 2", EventRow { event: b"", data: b"x", id: None, retry: None, wire: b"data: x\n\n" }),
+            ("an_event_is_its_fields_in_order_and_a_blank_line: 3", EventRow { event: b"", data: b"x", id: Some(boxed(b"")), retry: None, wire: b"id: \ndata: x\n\n" }),
+            ("an_event_is_its_fields_in_order_and_a_blank_line: 4", EventRow { event: b"", data: b"", id: None, retry: None, wire: b"data: \n\n" }),
+            ("an_event_is_its_fields_in_order_and_a_blank_line: 5", EventRow { event: b"", data: b" lead", id: None, retry: None, wire: b"data:  lead\n\n" }),
+            ("data_is_split_at_every_line_ending: 1", EventRow { event: b"", data: b"a\nb\r\nc\rd", id: None, retry: None, wire: b"data: a\ndata: b\ndata: c\ndata: d\n\n" }),
+            ("data_is_split_at_every_line_ending: 2", EventRow { event: b"", data: b"a\n", id: None, retry: None, wire: b"data: a\ndata: \n\n" }),
+            ("data_is_split_at_every_line_ending: 3", EventRow { event: b"", data: b"\r\n\r\n", id: None, retry: None, wire: b"data: \ndata: \ndata: \n\n" }),
+            ("data_is_split_at_every_line_ending: 4", EventRow { event: b"", data: b"\n\r", id: None, retry: None, wire: b"data: \ndata: \ndata: \n\n" }),
+        ],
+        |row| assert_eq!(framed(row.event, row.data, row.id, row.retry), row.wire),
     );
-    assert_eq!(framed(b"", b"x", None, None), b"data: x\n\n", "no type: the reader's `message`");
-    assert_eq!(framed(b"", b"x", Some(boxed(b"")), None), b"id: \ndata: x\n\n", "an empty id resets the reader's");
-    assert_eq!(framed(b"", b"", None, None), b"data: \n\n", "empty data is one empty line");
-    assert_eq!(framed(b"", b" lead", None, None), b"data:  lead\n\n", "the reader drops one space, the writer's");
 }
 
-#[test]
-fn data_is_split_at_every_line_ending() {
-    assert_eq!(framed(b"", b"a\nb\r\nc\rd", None, None), b"data: a\ndata: b\ndata: c\ndata: d\n\n");
-    assert_eq!(framed(b"", b"a\n", None, None), b"data: a\ndata: \n\n", "an ending last is an empty line after it");
-    assert_eq!(framed(b"", b"\r\n\r\n", None, None), b"data: \ndata: \ndata: \n\n");
-    assert_eq!(framed(b"", b"\n\r", None, None), b"data: \ndata: \ndata: \n\n", "an LF then a CR: two endings");
-}
+
 
 #[test]
 fn a_comment_is_a_block_of_its_own() {

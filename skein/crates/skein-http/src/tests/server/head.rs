@@ -435,41 +435,26 @@ fn a_head_after_a_kept_connection_is_read_within_a_budget_of_its_own() {
 }
 
 #[test]
-#[should_panic(expected = "the limits are honoured: a head of a blank line, a read of a byte")]
-fn valid_refuses_a_head_shorter_than_a_blank_line() {
-    let limits = Limits { head: 1, ..LIMITS };
-    assert!(!crate::server::valid(&limits));
-    let _machine = crate::server::Server::new(&limits);
+fn invalid_server_limits_fail_validation_and_constructor_admission() {
+    skein_rows::check(
+        [
+            ("valid_refuses_a_head_shorter_than_a_blank_line", Limits { head: 1, ..LIMITS }),
+            ("valid_refuses_a_zero_read", Limits { read: 0, ..LIMITS }),
+            ("valid_refuses_a_zero_send", Limits { send: 0, ..LIMITS }),
+            ("valid_refuses_an_answer_below_its_bound", Limits { response: 122, ..LIMITS }),
+            ("valid_refuses_chunk_room_past_u32", Limits { send: u32::MAX, ..LIMITS }),
+        ],
+        |limits| {
+            assert!(!crate::server::valid(&limits));
+            skein_rows::panics("the limits are honoured: a head of a blank line, a read of a byte", || { let _machine = crate::server::Server::new(&limits); });
+        },
+    );
 }
 
-#[test]
-#[should_panic(expected = "the limits are honoured: a head of a blank line, a read of a byte")]
-fn valid_refuses_a_zero_read() {
-    let limits = Limits { read: 0, ..LIMITS };
-    assert!(!crate::server::valid(&limits));
-    let _machine = crate::server::Server::new(&limits);
-}
 
-#[test]
-#[should_panic(expected = "the limits are honoured: a head of a blank line, a read of a byte")]
-fn valid_refuses_a_zero_send() {
-    let limits = Limits { send: 0, ..LIMITS };
-    assert!(!crate::server::valid(&limits));
-    let _machine = crate::server::Server::new(&limits);
-}
 
-#[test]
-#[should_panic(expected = "the limits are honoured: a head of a blank line, a read of a byte")]
-fn valid_refuses_an_answer_below_its_bound() {
-    let limits = Limits { response: 122, ..LIMITS };
-    assert!(!crate::server::valid(&limits));
-    let _machine = crate::server::Server::new(&limits);
-}
 
-#[test]
-#[should_panic(expected = "the limits are honoured: a head of a blank line, a read of a byte")]
-fn valid_refuses_chunk_room_past_u32() {
-    let limits = Limits { send: u32::MAX, ..LIMITS };
-    assert!(!crate::server::valid(&limits));
-    let _machine = crate::server::Server::new(&limits);
-}
+
+
+
+

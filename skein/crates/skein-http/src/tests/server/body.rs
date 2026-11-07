@@ -32,35 +32,30 @@ const POST_11: &[u8] = b"POST / HTTP/1.1\r\nHost: h\r\nContent-Length: 11\r\n\r\
 const CHUNKED: &[u8] = b"POST / HTTP/1.1\r\nHost: h\r\nTransfer-Encoding: chunked\r\n\r\n";
 
 #[test]
-fn a_body_by_length_is_read_to_its_length_and_ended() {
-    // What each read sees of `hello\nworld`: a read larger than what is
-    // left never meets the rest (lib.md, 7).
-    let reads: [(Read, &[u8]); 5] = [
-        (Read::Fill(1), b"hello\nworld"),
-        (Read::Fill(3), b"hello\nwor"),
-        (Read::Fill(16), b""),
-        (LINE, b"hello\n"),
-        (Read::Line { max: 4 }, b"hello\nworl"),
-    ];
-    for (read, seen) in reads {
-        let served = read_by(&request(POST_11, b"hello\nworld"), read);
-        assert!(served.ended, "{read:?}");
-        assert_eq!(served.body, seen, "{read:?}");
-        assert_eq!(served.outcome, Some(Event::Done(Reuse::Keep)), "{read:?}");
-        assert!(served.sent.ends_with(NO_CONTENT), "{}", served.sent.escape_ascii());
-    }
+fn framed_request_bodies_satisfy_reads_and_end_reusable() {
+    skein_rows::check(
+        [
+            ("a_body_by_length_is_read_to_its_length_and_ended: 1", (request(POST_11, b"hello\nworld"), Read::Fill(1), b"hello\nworld".as_slice())),
+            ("a_body_by_length_is_read_to_its_length_and_ended: 2", (request(POST_11, b"hello\nworld"), Read::Fill(3), b"hello\nwor".as_slice())),
+            ("a_body_by_length_is_read_to_its_length_and_ended: 3", (request(POST_11, b"hello\nworld"), Read::Fill(16), b"".as_slice())),
+            ("a_body_by_length_is_read_to_its_length_and_ended: 4", (request(POST_11, b"hello\nworld"), LINE, b"hello\n".as_slice())),
+            ("a_body_by_length_is_read_to_its_length_and_ended: 5", (request(POST_11, b"hello\nworld"), Read::Line { max: 4 }, b"hello\nworl".as_slice())),
+            ("a_chunked_body_is_read_across_its_chunks_whatever_the_demands: 1", (request(CHUNKED, b"5\r\nhello\r\n1;ext=\"v\"\r\n\n\r\n7 \r\nworld!\n\r\n0\r\nTrailer: t\r\n\r\n"), Read::Fill(1), b"hello\nworld!\n".as_slice())),
+            ("a_chunked_body_is_read_across_its_chunks_whatever_the_demands: 2", (request(CHUNKED, b"5\r\nhello\r\n1;ext=\"v\"\r\n\n\r\n7 \r\nworld!\n\r\n0\r\nTrailer: t\r\n\r\n"), Read::Fill(13), b"hello\nworld!\n".as_slice())),
+            ("a_chunked_body_is_read_across_its_chunks_whatever_the_demands: 3", (request(CHUNKED, b"5\r\nhello\r\n1;ext=\"v\"\r\n\n\r\n7 \r\nworld!\n\r\n0\r\nTrailer: t\r\n\r\n"), LINE, b"hello\nworld!\n".as_slice())),
+            ("a_chunked_body_is_read_across_its_chunks_whatever_the_demands: 4", (request(CHUNKED, b"5\r\nhello\r\n1;ext=\"v\"\r\n\n\r\n7 \r\nworld!\n\r\n0\r\nTrailer: t\r\n\r\n"), Read::Scan { until: Delimiter::LF, max: 4 }, b"hello\nworld!\n".as_slice())),
+        ],
+        |(wire, read, body)| {
+            let exchanged = read_by(&wire, read);
+            assert!(exchanged.ended, "{read:?}");
+            assert_eq!(exchanged.outcome, Some(Event::Done(Reuse::Keep)), "{read:?}");
+            assert_eq!(exchanged.body, body, "{read:?}");
+            assert!(exchanged.sent.ends_with(NO_CONTENT), "{}", exchanged.sent.escape_ascii());
+        },
+    );
 }
 
-#[test]
-fn a_chunked_body_is_read_across_its_chunks_whatever_the_demands() {
-    let body = b"5\r\nhello\r\n1;ext=\"v\"\r\n\n\r\n7 \r\nworld!\n\r\n0\r\nTrailer: t\r\n\r\n";
-    for read in [Read::Fill(1), Read::Fill(13), LINE, Read::Scan { until: Delimiter::LF, max: 4 }] {
-        let served = read_by(&request(CHUNKED, body), read);
-        assert_eq!(served.outcome, Some(Event::Done(Reuse::Keep)), "{read:?}");
-        assert!(served.ended);
-        assert_eq!(served.body, b"hello\nworld!\n", "{read:?}");
-    }
-}
+
 
 #[test]
 fn the_first_demand_of_an_empty_body_gets_its_end() {
