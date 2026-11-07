@@ -243,6 +243,14 @@ pub enum Word {
     ModelsLeftOut,
     ModelsAsk,
     ModelsConfigure,
+    ModelsAddedWaiting,
+    ModelsDuplicate,
+    ModelsAddHelp,
+    ModelsAdd,
+    ModelsNameHint,
+    ModelsName,
+    ModelsProvider,
+    ModelsAddHeading,
     SettingsBuildersTab,
     SettingsBuildersHeading,
     SettingsBuildersLede,
@@ -1420,7 +1428,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
 // The command’s Copy adds three literal phrases (client/README.md, 3.5).
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
-const PHRASES: u32 = 1903;
+const PHRASES: u32 = 1911;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1446,10 +1454,10 @@ const PHRASES: u32 = 1903;
 // The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
-const SEGMENTS: u32 = 3314;
+const SEGMENTS: u32 = 3326;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 46564;
-const ALL: [Word; 1302] = [
+const ENGLISH_BYTES: u32 = 46786;
+const ALL: [Word; 1310] = [
     Word::CloseTitle,
     Word::CloseChat,
     Word::KeepIt,
@@ -1675,6 +1683,14 @@ const ALL: [Word; 1302] = [
     Word::ModelsLeftOut,
     Word::ModelsAsk,
     Word::ModelsConfigure,
+    Word::ModelsAddedWaiting,
+    Word::ModelsDuplicate,
+    Word::ModelsAddHelp,
+    Word::ModelsAdd,
+    Word::ModelsNameHint,
+    Word::ModelsName,
+    Word::ModelsProvider,
+    Word::ModelsAddHeading,
     Word::SettingsBuildersTab,
     Word::SettingsBuildersHeading,
     Word::SettingsBuildersLede,
@@ -2963,6 +2979,14 @@ impl Word {
             Self::ModelsLeftOut => 3967,
             Self::ModelsAsk => 3930,
             Self::ModelsConfigure => 3931,
+            Self::ModelsAddedWaiting => 3975,
+            Self::ModelsDuplicate => 3974,
+            Self::ModelsAddHelp => 3973,
+            Self::ModelsAdd => 3972,
+            Self::ModelsNameHint => 3971,
+            Self::ModelsName => 3970,
+            Self::ModelsProvider => 3969,
+            Self::ModelsAddHeading => 3968,
             Self::SettingsBuildersTab => 3467,
             Self::SettingsBuildersHeading => 3468,
             Self::SettingsBuildersLede => 3469,
@@ -5473,6 +5497,14 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SettingsReviewLine => (&[b"Proposes the plan and its tasks, and starts nothing until you approve."], &[]),
         Word::SettingsOne => (&[b"One agent, one branch"], &[]),
         Word::SettingsOneLine => (&[b"No plan: one agent works the draft through and opens one change."], &[]),
+        Word::ModelsAddHeading => (&[b"Add a model by name"], &[]),
+        Word::ModelsProvider => (&[b"Provider"], &[]),
+        Word::ModelsName => (&[b"The model\xe2\x80\x99s name"], &[]),
+        Word::ModelsNameHint => (&[b"model-name"], &[]),
+        Word::ModelsAdd => (&[b"Add"], &[]),
+        Word::ModelsAddHelp => (&[b"For a model the list doesn\xe2\x80\x99t show. It runs through the account you have with that provider."], &[]),
+        Word::ModelsDuplicate => (&[b"", b" already has that model."], &[Name]),
+        Word::ModelsAddedWaiting => (&[b"Added. It shows when an account of ", b" can run it."], &[Name]),
         Word::ModelsTab => (&[b"Models"], &[]),
         Word::ModelsHeading => (&[b"What the picker offers."], &[]),
         Word::ModelsLede => (&[b"The models your accounts can run, by what pays for them. Each model can be left off the picker; a task keeps the model it has."], &[]),

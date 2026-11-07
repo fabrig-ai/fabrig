@@ -549,6 +549,16 @@ const HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "models-add",
+        heading: "What the picker offers.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Add a model by name" },
+            Part::Named { role: Role::Select, name: "Provider" },
+            Part::Value { role: Role::TextField, name: "The model’s name", value: "claude-haiku-5-5" },
+            Part::Named { role: Role::Button, name: "Add" },
+        ],
+    },
+    Holds {
         name: "models-off",
         heading: "What the picker offers.",
         parts: &[Part::Named { role: Role::Check, name: "Sonnet 5.5 in the picker" }, Part::Text { text: "Off" }],

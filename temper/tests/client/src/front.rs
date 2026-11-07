@@ -1914,6 +1914,14 @@ impl Joint {
     }
     fn drain(&mut self) {
         self.settle();
+        // A catalogue replacement precedes the frames that name its added models.
+        for request in std::mem::take(&mut self.engine.immediate) {
+            if matches!(&request, engine::Request::Party(engine::PartyRequest::Catalogue { .. })) {
+                self.packet(request);
+            } else {
+                self.engine.immediate.push(request);
+            }
+        }
         let commit = self.engine.store.header().commits;
         if commit != self.last_commit {
             self.observed.extend(self.truth.applied(jig_core_kit::store_peer::DurableSnapshot {

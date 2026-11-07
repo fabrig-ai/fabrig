@@ -565,7 +565,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
         Event::Act { act: Act::Models(act) } => {
-            if pages.models.act(client, &pages.address, act, &mut pages.serial, out) {
+            if pages.models.act(client, &pages.address, act, pages.playground_provider, &mut pages.serial, out) {
                 pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
             }
         }

@@ -122,7 +122,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 293;
+pub const N: usize = 294;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -148,6 +148,12 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "chat-work-reading", world: Bare, address: Address::Chat { task: 1 }, then: Shown },
         Sample {
             name: "models",
+            world: Reference,
+            address: Address::Models { project: 1 },
+            then: Then::Models { one_account: false, state: ModelState::On },
+        },
+        Sample {
+            name: "models-add",
             world: Reference,
             address: Address::Models { project: 1 },
             then: Then::Models { one_account: false, state: ModelState::On },
@@ -1459,6 +1465,17 @@ pub fn domain(sample: &Sample) -> Domain {
     }
     if sample.name == "chat-draft-empty" {
         step(&mut root, Event::Act { action: Action::Pages(Act::AddDraft) }, &mut out);
+    }
+    if sample.name == "models-add" {
+        step(
+            &mut root,
+            Event::Act {
+                action: Action::Pages(Act::Models(temper_client_domain::pages::models::Act::Name(
+                    b"claude-haiku-5-5".as_slice().into(),
+                ))),
+            },
+            &mut out,
+        );
     }
     match sample.then {
         Then::Mode(mode) => {
