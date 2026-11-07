@@ -15,7 +15,7 @@ const REPORT: &[u8] = br#"{"form":"report","text":"Hello","fields":{}}"#;
 
 #[must_use]
 pub fn calm(seed: u64) -> Settings {
-    Settings { seed, config: skein_sim::Config::calm() }
+    Settings { seed, config: skein_sim::Config::calm(), roots_every_step: false }
 }
 #[must_use]
 pub fn one_chat(words: &[u8]) -> Script {
@@ -366,6 +366,11 @@ pub const ATTEMPT: u64 = 1;
 #[must_use]
 pub fn referee() -> crate::referee::Rules {
     crate::referee::Rules::default()
+}
+
+#[must_use]
+pub fn root_checks(every_step: bool) -> crate::referee::RootChecks {
+    crate::referee::RootChecks::new(every_step)
 }
 
 pub(crate) fn engine_window_document() -> Vec<u8> {

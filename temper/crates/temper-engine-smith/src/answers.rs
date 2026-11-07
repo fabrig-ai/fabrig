@@ -430,10 +430,15 @@ fn answer_text(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> HostAnswe
             true,
         )
         .expect("fixed host feedback fits"),
-        Err(Problem::Malformed | Problem::Missing(_) | Problem::Type(_) | Problem::Range(_) | Problem::UnknownTool) => {
-            HostAnswer::new(bytes::copy_of(b"The recorded answer cannot be rendered as text."), true)
-                .expect("fixed host feedback fits")
-        }
+        Err(
+            Problem::Malformed
+            | Problem::Missing(_)
+            | Problem::Needs { .. }
+            | Problem::Type(_)
+            | Problem::Range(_)
+            | Problem::UnknownTool,
+        ) => HostAnswer::new(bytes::copy_of(b"The recorded answer cannot be rendered as text."), true)
+            .expect("fixed host feedback fits"),
     }
 }
 
@@ -1184,7 +1189,7 @@ fn task_capacity(text: &mut Text, problem: &jig_domain_tasks::Problem) -> Result
         CapacityCause::Proposals { limit } => {
             text.add(b": it has a proposal pending (at most ")?;
             text.number(u64::from(limit))?;
-            text.add(b" at once): wait for its decision, or withdraw it")
+            text.add(b" at once): wait for its decision")
         }
         CapacityCause::PlacedHolds { .. }
         | CapacityCause::ProjectPlacedHolds { .. }

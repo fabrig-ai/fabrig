@@ -29,7 +29,7 @@
 ><button type="button" aria-pressed="true"
 >Hello</button
 ><span class="temper-projects-repo"
-><a aria-label="work/hello ↗" class="temper-repository-link" href="http://127.0.0.1:42939/user/oauth2/temper?redirect_to=%2Fwork%2Fhello" rel="noopener noreferrer" target="_blank"
+><a aria-label="work/hello ↗" class="temper-repository-link" href="http://127.0.0.1:37339/user/oauth2/temper?redirect_to=%2Fwork%2Fhello" rel="noopener noreferrer" target="_blank"
 ><span
 >work/hello ↗</span
 ></a
@@ -67,18 +67,24 @@
 ></a
 ></div
 ><div class="temper-rail-new"
-><a aria-label="New chat" href="/chats/new"
+><a data-journey-next="03.html" aria-label="New chat" href="/chats/new"
 ><span
 >+ New chat</span
 ></a
 ><button type="button" aria-haspopup="menu" aria-controls="skein-ui-menu-182" aria-expanded="false"
 >More ways to start work</button
 ><div role="menu" aria-label="More ways to start work" id="skein-ui-menu-182" hidden=""
-><div role="menuitem" aria-label="Chat" aria-describedby="skein-ui-description-183"
+><div data-journey-next="03.html" role="menuitem" aria-label="Chat" aria-describedby="skein-ui-description-183"
 ><span
 >Chat</span
 ><span id="skein-ui-description-183"
 >Ask a question or ask for a change.</span
+></div
+><div role="menuitem" aria-label="Goal" aria-describedby="skein-ui-description-184"
+><span
+>Goal</span
+><span id="skein-ui-description-184"
+>Agents plan a larger change and land it.</span
 ></div
 ><div role="menuitem" class="temper-rail-new-all"
 >All ways to start work</div
@@ -183,11 +189,11 @@
 ></small
 ></div
 ><div class="temper-settings-toggle-row"
-><span aria-label="Off"
+><span aria-label="On"
 ><span
->Off</span
+>On</span
 ></span
-><input data-journey-next="03.html" data-journey-act="toggle" type="checkbox" class="temper-settings-switch" id="skein-ui-label-62"
+><input type="checkbox" checked="" class="temper-settings-switch" id="skein-ui-label-62"
 ><label for="skein-ui-label-62"
 >Chats can write drafts</label
 ></div

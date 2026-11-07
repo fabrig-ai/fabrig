@@ -278,7 +278,7 @@ pub fn steps(document: &[u8], limits: &Limits, seed: u64) -> Vec<Step> {
             }
             return steps;
         }
-        // Steps retain the observations; the wire's formatted trace need not accumulate.
+        // Steps retain the observations; the wire's trace need not accumulate.
         wire.trace.clear();
         if let Some(event) = wire.answer() {
             json::up(&mut decoder, &env, event, &mut above, &mut below);

@@ -159,19 +159,10 @@ impl Tier {
         configuration::private(&path, &serde_json::to_vec(&value).expect("model deployment JSON"));
         self
     }
-    /// Offer a second model with its efforts, for the composer's picker, without reaching an LLM.
+    /// Offer two models and their efforts to the composer, with matching worker bounds.
     #[must_use]
-    pub fn with_second_model(self) -> Self {
-        let path = self.scratch.path().join("temper.json");
-        let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
-        let llm = &mut value["engine"]["llm"];
-        let mut other = llm["models"][0].clone();
-        other["name"] = "other".into();
-        other["efforts"] = serde_json::json!(["low", "high"]);
-        other["effort"] = "high".into();
-        llm["models"].as_array_mut().expect("models").push(other);
-        llm["providers"][0]["models"] = serde_json::json!(["fake", "other"]);
-        configuration::private(&path, &serde_json::to_vec(&value).expect("picker deployment JSON"));
+    pub fn with_model_picker(self) -> Self {
+        configuration::model_picker(self.scratch.path());
         self
     }
     /// The first-run demo, with the box's own fake LLM and forge, started when the playground is chosen.

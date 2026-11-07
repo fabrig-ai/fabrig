@@ -1,6 +1,17 @@
 # configuration: status
 
-2026-11-06. Where temper's code lags or departs from [configuration.md](configuration.md).
+2026-11-07. Where temper's code lags or departs from [configuration.md](configuration.md).
+
+Section 13.4 has no known gap in the fresh box's four worker slots,
+`standard`'s four hub and fleet slots without overrides, and the four
+checkout workspaces and git operations. All three supplied box documents
+agree. Agent-process resident memory is deferred in section 11; the
+start's fit checks do not establish laptop memory use.
+
+Sections 11 and 13.4's standard brief is 355,965 bytes, derived from
+charter 3's 357,438-byte room after its publication instructions. The
+stock's fit assertions and `temper-service/src/limits.rs` agree; the
+larger brief requested in section 11 remains undecided.
 
 Section 13.4 has no known gap in charter 10: the stock trial has one
 working turn, no tools or resume, and charter 1's model choices. Its

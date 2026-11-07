@@ -800,7 +800,10 @@ fn two_forges() -> (super::Domain, skein_lib::Env<super::Limits>) {
     let first = config.forges.first().expect("configured fixture forge").clone();
     let third = forge::Configured { number: 3, ..first.clone() };
     config.forges = Box::new([first, third]);
-    let (mut domain, env) = crate::tests::resume_fixture::root_with_config(config);
+    let mut limits = crate::tests::resume_fixture::limits();
+    limits.forge.repositories = 3; // Two forges and a second repository on the first.
+    limits.forge.client.repositories = 3;
+    let (mut domain, env) = crate::tests::resume_fixture::root_with_config_and_limits(config, &limits);
     domain.forge.restore_begin(env.wall);
     let mut out = skein_lib::Queue::uncapped();
     for number in [1, 3] {
@@ -839,6 +842,174 @@ fn two_forges() -> (super::Domain, skein_lib::Env<super::Limits>) {
         );
     }
     (domain, env)
+}
+
+fn forge_party(key: jig_domain_people::IdentityKey) -> (super::Domain, skein_lib::Env<super::Limits>) {
+    use jig_domain_people as people;
+    let (mut domain, env) = two_forges();
+    domain.core.people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
+    domain.core.people.start_restore(env.wall);
+    let people_env = env.with(env.limits.people);
+    for record in [
+        people::Stored::Person {
+            number: 1,
+            identity: people::Identity { key, login: Box::new([]), name: Box::new([]) },
+        },
+        people::Stored::SignIn { number: 10, person: 1, expires: skein_lib::Wall::from_nanos(100) },
+        people::Stored::Roles {
+            project: 5,
+            holdings: Box::new([people::Holding { person: 1, role: people::Role::Maintainer }]),
+        },
+    ] {
+        people::step(
+            &mut domain.core.people,
+            &people_env,
+            people::Event::Restore { record },
+            &mut skein_lib::Queue::uncapped(),
+        );
+    }
+    assert!(domain.core.people.start_link());
+    domain.core.people.start_sweep();
+    assert!(domain.core.people.start_complete(&people_env));
+    (domain, env)
+}
+
+#[test]
+fn a_review_counts_only_from_the_forge_it_was_made_on() {
+    use super::{forge, forge_change};
+    use skein_forge::api;
+    for (forge, author, counted) in [(1, 7, true), (3, 7, false), (1, 8, false)] {
+        let (domain, env) = forge_party(forge::user_key(1, 7));
+        let mut row = change_row(None);
+        row.repository = api::Repository { forge, repository: 1 };
+        let evidence = forge::ChangeEvidence {
+            prior: row.change.clone(),
+            head: Some(SHA1),
+            base_tip: SHA1,
+            contains_base: forge_change::Status::Passed,
+            ci: forge_change::Status::Passed,
+            gates: Box::new([]),
+            reviews_complete: true,
+            reviews: Box::new([api::Review {
+                id: 1,
+                provenance: api::Provenance::Original,
+                revision: 1,
+                author,
+                verdict: api::Verdict::Approve,
+                commit: SHA1,
+                key: None,
+                body: Box::new([]),
+                at: skein_lib::Time::ZERO,
+                official: true,
+            }]),
+        };
+        let facts = super::landing_reviewers(&domain, &env, &row, &evidence).expect("review facts");
+        if counted {
+            assert_eq!(
+                facts.reviewers.as_ref(),
+                &[forge::Reviewer { person: 1, role: 1, head: SHA1, verdict: api::Verdict::Approve }]
+            );
+            assert!(facts.unmapped.is_empty());
+        } else {
+            assert!(
+                facts.reviewers.is_empty(),
+                "forge {forge}, author {author}: a stranger's review counted: {:?}",
+                facts.reviewers
+            );
+            assert_eq!(
+                facts.unmapped.as_ref(),
+                &[forge::UnmappedReview { account: author, head: SHA1, verdict: api::Verdict::Approve }]
+            );
+        }
+    }
+}
+
+#[test]
+fn human_forge_identity_is_known_on_its_own_forge_and_is_not_its_writer() {
+    use super::forge;
+    for (key, writer_forge, counted) in [
+        (forge::user_key(1, 7), 3, true),
+        (forge::user_key(1, 7), 1, false),
+        (forge::user_key(2, 7), 3, false),
+        (jig_domain_people::IdentityKey { provider: 1, subject: forge::user_key(1, 7).subject }, 3, false),
+    ] {
+        let (mut domain, env) = forge_party(key.clone());
+        for number in [1, 3] {
+            forge::step(
+                &mut domain.forge,
+                &env.with(env.limits.forge),
+                forge::Event::Restore {
+                    record: forge::Stored::Writer(skein_forge_client::Writer {
+                        forge: number,
+                        author: if number == writer_forge { 7 } else { 9 },
+                    }),
+                },
+                &mut skein_lib::Queue::uncapped(),
+            );
+        }
+        assert_eq!(super::human_forge_identity(&domain, 5, 1), counted, "key {key:?}, writer forge {writer_forge}");
+    }
+}
+
+#[test]
+fn person_forges_names_each_forge_once_with_its_own_user_and_writer() {
+    use super::forge;
+    for (key, writer, second_repository, users) in [
+        (forge::user_key(1, 7), false, false, [Some(7), None]),
+        (forge::user_key(3, 7), false, false, [None, Some(7)]),
+        (forge::user_key(1, 7), true, false, [Some(7), None]),
+        (
+            jig_domain_people::IdentityKey { provider: 1, subject: forge::user_key(1, 7).subject },
+            false,
+            false,
+            [None, None],
+        ),
+        (forge::user_key(1, 7), false, true, [Some(7), None]),
+    ] {
+        let (mut domain, env) = forge_party(key.clone());
+        let mut repository = adopted(3);
+        repository.host = b"other.example".as_slice().into();
+        let forge_env = env.with(env.limits.forge);
+        forge::step(
+            &mut domain.forge,
+            &forge_env,
+            forge::Event::Restore { record: forge::Stored::Repository(repository) },
+            &mut skein_lib::Queue::uncapped(),
+        );
+        if writer {
+            forge::step(
+                &mut domain.forge,
+                &forge_env,
+                forge::Event::Restore {
+                    record: forge::Stored::Writer(skein_forge_client::Writer { forge: 1, author: 7 }),
+                },
+                &mut skein_lib::Queue::uncapped(),
+            );
+        }
+        if second_repository {
+            let mut repository = adopted(1);
+            repository.provider.repository = 2;
+            repository.home = false;
+            repository.host = b"another.example".as_slice().into();
+            repository.name = b"second".as_slice().into();
+            forge::step(
+                &mut domain.forge,
+                &forge_env,
+                forge::Event::Restore { record: forge::Stored::Repository(repository) },
+                &mut skein_lib::Queue::uncapped(),
+            );
+        }
+        assert_eq!(domain.forge.readable_repositories(5).len(), if second_repository { 3 } else { 2 });
+        let [first, other] = users;
+        assert_eq!(
+            super::person_forges(&domain, 5, 1).as_ref(),
+            &[
+                crate::PersonForge { host: b"forge.example".as_slice().into(), user: first, writer },
+                crate::PersonForge { host: b"other.example".as_slice().into(), user: other, writer: false },
+            ],
+            "key {key:?}, writer {writer}, second repository {second_repository}"
+        );
+    }
 }
 
 #[test]
@@ -3156,6 +3327,112 @@ fn a_changes_start_keeps_parameter_elevens_charter_and_role_choices() {
         assert_eq!(row.producing_llm, llm.producer);
         assert_eq!(row.review_llm, llm.review);
     }
+}
+
+fn run_branch_fixture(holds: &[u8]) -> (super::Domain, skein_lib::Env<super::Limits>, u64, super::forge::Repository) {
+    use super::{forge, tasks};
+    let (mut domain, env, task) = crate::tests::live_task(None, tasks::Executor::Agent { charter: 1 });
+    let repository = adopted(1);
+    domain.forge.restore_begin(env.wall);
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Restore { record: forge::Stored::Repository(repository.clone()) },
+        &mut skein_lib::Queue::uncapped(),
+    );
+    for letter in holds {
+        let branch = super::tree_branch(&repository, task, *letter, task, None, env.limits.forge.name_bytes).unwrap();
+        let resource = forge::Name {
+            forge: repository.provider.forge,
+            repository: repository.provider.repository,
+            what: super::branch_what(&branch, env.limits.forge.name_bytes).unwrap(),
+        };
+        forge::step(
+            &mut domain.forge,
+            &env.with(env.limits.forge),
+            forge::Event::Hold { entry: 0, task, resource, from: None },
+            &mut skein_lib::Queue::uncapped(),
+        );
+    }
+    (domain, env, task, repository)
+}
+
+fn run_change() -> crate::ChangeCall {
+    crate::ChangeCall {
+        branch: Some(crate::ChangeBranch::Run),
+        landing: Some(crate::ChangeLanding::Goal),
+        ..crate::ChangeCall::words(b"Land delivery".as_slice().into(), None)
+    }
+}
+
+fn branch_run_refused(holds: &[u8], expected: &[u8]) {
+    let (domain, env, task, repository) = run_branch_fixture(holds);
+    let Err(super::ChangeRefused::Words(words)) =
+        super::change_branch(&domain, &env, task, &repository, &run_change(), &[])
+    else {
+        panic!("missing holding refuses the run branch")
+    };
+    assert_eq!(words.as_ref(), expected);
+}
+
+#[test]
+fn branch_run_refuses_without_its_goal_holding() {
+    for holds in [b"".as_slice(), b"r"] {
+        branch_run_refused(holds, b"branch run: this task holds no goal branch in org/repo.");
+    }
+}
+
+#[test]
+fn branch_run_refuses_without_its_run_holding() {
+    branch_run_refused(b"g", b"branch run: this task holds no run branch in org/repo.");
+}
+
+#[test]
+fn branch_run_refuses_a_live_change_on_it() {
+    use super::forge;
+    let (mut domain, env, task, repository) = run_branch_fixture(b"gr");
+    let mut row = change_row(None);
+    row.task = task;
+    row.change.task = task;
+    row.repository = repository.provider;
+    row.branch = super::tree_branch(&repository, task, b'r', task, None, env.limits.forge.name_bytes).unwrap();
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Change { row },
+        &mut skein_lib::Queue::uncapped(),
+    );
+    let Err(super::ChangeRefused::Words(words)) =
+        super::change_branch(&domain, &env, task, &repository, &run_change(), &[])
+    else {
+        panic!("live change refuses the run branch")
+    };
+    assert_eq!(words.as_ref(), b"branch run: change task 1 is on it already.");
+}
+
+#[test]
+fn branch_run_refuses_an_earlier_member_of_the_call() {
+    let (domain, env, task, repository) = run_branch_fixture(b"gr");
+    let (choices, mut choice_env, context) = change_choice_world();
+    choice_env.limits.tasks.parameters = 5; // Repository, base, branch, held flag and title.
+    let branch = super::tree_branch(&repository, task, b'r', task, None, env.limits.forge.name_bytes).unwrap();
+    let prior = super::chat_change(
+        &choices,
+        &choice_env,
+        &context,
+        &run_change(),
+        &repository,
+        b"main".as_slice().into(),
+        Some(branch),
+        50,
+    )
+    .unwrap();
+    let Err(super::ChangeRefused::Words(words)) =
+        super::change_branch(&domain, &env, task, &repository, &run_change(), &[prior])
+    else {
+        panic!("earlier member refuses the run branch")
+    };
+    assert_eq!(words.as_ref(), b"branch run: an earlier change of this call is on it.");
 }
 
 #[test]

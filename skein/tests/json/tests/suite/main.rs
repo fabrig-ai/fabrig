@@ -11,5 +11,6 @@ mod writer;
 mod fuzzy {
     mod collector;
     mod documents;
+    mod strings;
     mod writer;
 }

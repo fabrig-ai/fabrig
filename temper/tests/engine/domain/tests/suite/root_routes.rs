@@ -292,7 +292,7 @@ fn sign_in_person(driver: &mut Driver, user: u64, reply: u64) -> (u64, u64) {
         held: None,
         reply_to: ReplyTo::new(Token::new(reply)),
         identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: (user).to_be_bytes().into() },
+            key: temper_engine_domain_forge::user_key(1, user),
             login: b"person".as_slice().into(),
             name: b"Person".as_slice().into(),
         },
@@ -1128,7 +1128,7 @@ fn person(number: u64, subject: u64, name: &[u8]) -> Record {
     Record::Core(jig_domain_core::Record::People(people::Stored::Person {
         number,
         identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: subject.to_be_bytes().into() },
+            key: temper_engine_domain_forge::user_key(1, subject),
             login: b"same".as_slice().into(),
             name: name.into(),
         },
@@ -1396,14 +1396,8 @@ fn batch_settings(
         let mut configuration = config(92);
         if second_owner {
             configuration.core.owners = Box::new([
-                people::InitialOwner {
-                    project: 1,
-                    identity: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
-                },
-                people::InitialOwner {
-                    project: 1,
-                    identity: people::IdentityKey { provider: 0, subject: 8_u64.to_be_bytes().into() },
-                },
+                people::InitialOwner { project: 1, identity: temper_engine_domain_forge::user_key(1, 7_u64) },
+                people::InitialOwner { project: 1, identity: temper_engine_domain_forge::user_key(1, 8_u64) },
             ]);
         }
         // A run's budget holds its finishing reserve; as jig's fixtures do,
@@ -4891,7 +4885,7 @@ fn signing_in_with_a_live_held_sign_in_keeps_its_number_expiry_and_pool() {
     driver.send(engine::Event::Party(engine::PartyInput::SignedIn {
         reply_to: ReplyTo::new(reply),
         identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
+            key: temper_engine_domain_forge::user_key(1, 7_u64),
             login: b"person".as_slice().into(),
             name: b"Person".as_slice().into(),
         },

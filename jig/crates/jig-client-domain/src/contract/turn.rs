@@ -14,6 +14,9 @@ pub struct Turn {
     pub read_through: Option<u64>,
     /// Some messages, blocks or text did not fit the receiving limits.
     pub cut: bool,
+    /// The model its completion was made with and the effort it asked for
+    /// (client/domain/client.md, 10); none where the turn names no model.
+    pub llm: Option<super::ModelEffort>,
 }
 
 /// The outcome of reading a committed turn (client/domain/client.md, 10).

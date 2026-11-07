@@ -1,5 +1,7 @@
 //! Named story values and one client profile, shared by every story.
 pub mod b2;
+#[cfg(test)]
+mod tests;
 use crate::{app::Temper, front::Joint};
 use jig_client_kit::harness::FrontFault;
 use jig_client_kit::harness::{Settings, World};
@@ -1627,7 +1629,7 @@ pub(crate) fn configuring_configuration(seed: u64, member: bool) -> engine::Conf
     }
     let mut owner = config.core.owners[0].clone();
     if member {
-        owner.identity.subject = 8_u64.to_be_bytes().into();
+        owner.identity = temper_engine_domain_forge::user_key(1, 8);
     }
     config.core.owners =
         Box::new([owner.clone(), jig_domain_people::InitialOwner { project: 0, identity: owner.identity }]);
@@ -1656,7 +1658,7 @@ pub(crate) fn configuring_member(driver: &mut Driver) -> u64 {
         held: None,
         reply_to: ReplyTo::new(Token::new(2001)),
         identity: people::Identity {
-            key: people::IdentityKey { provider: 0, subject: 8_u64.to_be_bytes().into() },
+            key: temper_engine_domain_forge::user_key(1, 8_u64),
             login: b"owner".as_slice().into(),
             name: b"Owner".as_slice().into(),
         },

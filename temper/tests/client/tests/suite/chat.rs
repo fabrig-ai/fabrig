@@ -49,7 +49,8 @@ fn prepared_chat_answer_reaches_the_pages_task_watch() {
     front.answer_runs = true;
     let task = fixtures::chat(&mut front, b"Hello");
     front.bind(DIAGNOSTIC_CLIENT, fixtures::PARTY);
-    let (mut root, _) = Temper::new(fixtures::SEED);
+    let mut root =
+        temper_client_world::app::Root::Person(Box::new(temper_client_domain::unlinked(&limits, fixtures::SEED)));
     let env = skein_lib::Env { now: DIAGNOSTIC_NOW, wall: DIAGNOSTIC_WALL, limits };
     let mut out = skein_lib::Queue::uncapped();
     Temper::step(&mut root, &env, Temper::start(fixtures::chat_page(task), Vec::new(), START_OFFSET), &mut out);
@@ -309,6 +310,7 @@ fn a_new_chat_lands_its_delegated_change_and_closes_in_your_chats() {
             press(Role::Button, b"Close chat"),
             Step::Pause { span: PAST_CLOSE_GRACE },
             see(Find::text(b"Closed at 00:00")),
+            see(Find::exactly_named(Role::Paragraph, "T1 · model".as_bytes())),
             Step::Gone { find: Find::exactly_named(Role::TextArea, b"Message"), within: fixtures::WITHIN },
         ],
     );
@@ -489,7 +491,7 @@ fn probe(seed: u64, address: temper_client_domain::Address) -> Probe {
     use jig_client_kit::harness::App;
     use temper_client_world::app::Temper;
     let limits = fixtures::domain_limits();
-    let (mut root, _) = Temper::new(seed);
+    let mut root = temper_client_world::app::Root::Person(Box::new(temper_client_domain::unlinked(&limits, seed)));
     let mut out = skein_lib::Queue::uncapped();
     Temper::step(
         &mut root,

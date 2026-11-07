@@ -1,6 +1,11 @@
 # browser: status
 
-2026-11-06. Where temper's code lags or departs from [browser.md](browser.md).
+2026-11-07. Where temper's code lags or departs from [browser.md](browser.md).
+
+Section 8.3's Landings link uses the underlined row-sized sheet rule, and
+landings omit a zero stale-proof count while retaining a positive count.
+The view and sheet tests hold these rules. Titles retain the user's
+publication decision; no page offers a visibility change.
 
 Public history retains two limits the request `ui-public-history` leaves
 for later (section 5), which the board's own line states (8.3): goals ended
@@ -22,10 +27,28 @@ keeps it; publication is not a cutoff on a handed change's commit.
   cover the host's check alone; the view's tests draw the trial states.
   The model-check plan's close added the catalogue rows in section 7.2,
   but not their sample fixtures or names. `home-try-stopped` is present.
+- **Not yet:** 4.6: test 16, `the_model_picker_at_the_composer`, is written and
+  compiled, not run, under the plan's focused-and-fuzzy-only rule. Its
+  retained 420 px, one-press model and effort, outside and Escape checks
+  await the browser tier after landing. The look's separate render and
+  fake-box proof is accounted for at `1d82a937df`; it does not establish
+  a passing run of this story.
 - **Not yet:** 8.4: the browser kit returns the first content quad of each text
   node, so the public geometry story cannot check every wrapped fragment.
   Its result needs a browser testing interface decision before it can retain those
   fragments. Missing rectangles remain failures.
+- **Not yet:** 8.4: the intermittent missing rectangle's cause remains
+  unestablished. The story retains one terminal boxed query per page and
+  width, checks its truncation count, and fails on missing geometry with
+  the text and a preceding measurement-stage line. Batching narrows a
+  changing page's query window without making it atomic; the request
+  `ui-public-story`'s timer-driven explanation remains unproved (section 5).
+- **Departs:** 8.4: `browser_public` accepts the 401 resource-load console
+  text throughout the walk, including its public reads, because a stream
+  around sign-out can correctly answer for an ended session. The request
+  `ui-public-story` permits this expectation if the sign-out flake recurs;
+  it is matched by text, without a stage or resource constraint, so an
+  unexpected public-read 401 with those words is accepted too (section 5).
 - **Not yet:** 2.3, *A heading drawn after its page*: that a focus placed while a heading
   waits keeps its place, which the answer of 2026-11-06 to the `ui-composer-focus` task
   `composer-focus` asks, is seen by reading `temper-client-shell-web`'s `focus.rs`. No test moves the focus meanwhile:

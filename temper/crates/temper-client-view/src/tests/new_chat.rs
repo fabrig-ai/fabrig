@@ -55,7 +55,7 @@ fn session_parts_follow_the_requested_order_in_both_shells() {
         for (style, expected) in [
             (look::SESSION, vec![(Role::Slot, vec![look::SESSION_TOP]), (Role::Region, vec![look::CONVO])]),
             (look::SESSION_TOP, vec![(Role::Navigation, vec![look::CRUMBS]), (Role::Slot, vec![look::SESSION_RIGHT])]),
-            (look::SESSION_RIGHT, vec![]),
+            (look::SESSION_RIGHT, vec![(Role::Button, vec![look::ADD_DRAFT])]),
             (
                 look::CONVO,
                 vec![
@@ -392,6 +392,9 @@ fn the_bar_offers_a_draft_when_the_setting_offers_it() {
             Some(d::Action::Pages(pages::Act::Go { address: Address::NewChat { draft: true } }))
         );
     }
-    let plain = f::playground_root(Address::NewChat { draft: false }, f::PROJECT, true);
+    let plain = f::root_with_ways(
+        Address::NewChat { draft: false },
+        Some(d::forge::ways::Ways { drafts: false, ..d::forge::ways::Ways::STOCK }),
+    );
     assert!(!f::browser_page_view(&plain).tree().nodes().iter().any(|node| node.name.as_deref() == Some(b"+ Draft")));
 }
