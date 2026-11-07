@@ -226,8 +226,35 @@ pub fn signed_in_reply(token: &[u8; 40], expires: u64) -> kit::Reply {
     answer.encode(&mut bytes).expect("sign in");
     kit::Reply::Record(bytes.finish())
 }
-pub fn signed_in(bytes: &[u8]) -> jig_client_protocol_wire::v19::SignedIn {
+pub fn approval_signed_in_reply(token: &[u8; 40], expires: u64) -> kit::Reply {
+    let answer = w::ApprovalSignInAnswer::SignedIn(
+        w::SignedIn::new(
+            &w::CEILINGS,
+            w::SignedInParts { token: Some(Secret::new(Box::new(*token))), party: PARTY, expires },
+        )
+        .expect("signed in"),
+    );
+    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
+    answer.encode(&mut bytes).expect("approval sign in");
+    kit::Reply::Record(bytes.finish())
+}
+pub fn sign_in_reply(path: &[u8], token: &[u8; 40], expires: u64) -> kit::Reply {
+    if path == b"/jig/v1/sign-in/approval" {
+        approval_signed_in_reply(token, expires)
+    } else {
+        signed_in_reply(token, expires)
+    }
+}
+pub fn signed_in(path: &[u8], bytes: &[u8]) -> jig_client_protocol_wire::v19::SignedIn {
     use jig_client_protocol_wire::v19 as w;
+    if path == b"/jig/v1/sign-in/approval" {
+        let w::ApprovalSignInAnswer::SignedIn(value) =
+            w::ApprovalSignInAnswer::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("approval answer")
+        else {
+            panic!("signed in")
+        };
+        return value;
+    }
     let w::SignInAnswer::SignedIn(value) =
         w::SignInAnswer::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("sign-in answer")
     else {

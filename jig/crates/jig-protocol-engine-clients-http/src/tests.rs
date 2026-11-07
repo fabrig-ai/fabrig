@@ -150,19 +150,19 @@ fn a_chunked_request_body_read_as_it_arrives_is_the_same_whatever_its_cuts() {
     }
 }
 
-const SIGN_IN_PATHS: [&[u8]; 2] = [b"/jig/v1/sign-in/link", b"/jig/v1/sign-in/deployment"];
+const SIGN_IN_PATHS: [&[u8]; 3] = [b"/jig/v1/sign-in/link", b"/jig/v1/sign-in/deployment", b"/jig/v1/sign-in/approval"];
 #[test]
 fn a_browser_s_link_sign_in_sets_the_cookie_and_answers_no_token() {
     for path in SIGN_IN_PATHS {
         let mut mount = fixtures::mount();
         let mut out = Queue::with_capacity(16);
         let call = fixtures::call(&mut mount, &mut out, Method::Post, path, &fixtures::browser_header(), b"");
-        fixtures::component(&mut out);
-        fixtures::reply(&mut mount, &mut out, call, fixtures::signed_in_reply(&fixtures::TOKEN, fixtures::IN_A_DAY));
+        assert_eq!(fixtures::component(&mut out).len(), 1, "{path:?}");
+        fixtures::reply(&mut mount, &mut out, call, fixtures::sign_in_reply(path, &fixtures::TOKEN, fixtures::IN_A_DAY));
         let (status, body, headers) = fixtures::answered(&mut mount, &mut out, call);
         assert_eq!(status, 200, "{path:?}");
         assert_eq!(fixtures::header(&headers, b"set-cookie"), Some(fixtures::COOKIE_ON_LISTENER), "{path:?}");
-        let signed_in = fixtures::signed_in(&body);
+        let signed_in = fixtures::signed_in(path, &body);
         assert_eq!(signed_in.token(), &None, "{path:?}");
         assert_eq!((signed_in.party(), signed_in.expires()), (fixtures::PARTY, fixtures::IN_A_DAY), "{path:?}");
     }
@@ -173,12 +173,12 @@ fn a_native_sign_in_answers_its_token_in_the_body() {
         let mut mount = fixtures::mount();
         let mut out = Queue::with_capacity(16);
         let call = fixtures::call(&mut mount, &mut out, Method::Post, path, &[], b"");
-        fixtures::component(&mut out);
-        fixtures::reply(&mut mount, &mut out, call, fixtures::signed_in_reply(&fixtures::TOKEN, fixtures::IN_A_DAY));
+        assert_eq!(fixtures::component(&mut out).len(), 1, "{path:?}");
+        fixtures::reply(&mut mount, &mut out, call, fixtures::sign_in_reply(path, &fixtures::TOKEN, fixtures::IN_A_DAY));
         let (status, body, headers) = fixtures::answered(&mut mount, &mut out, call);
         assert_eq!(status, 200, "{path:?}");
         assert_eq!(fixtures::header(&headers, b"set-cookie"), None, "{path:?}");
-        assert_eq!(fixtures::signed_in(&body).token(), &Some(fixtures::credential()), "{path:?}");
+        assert_eq!(fixtures::signed_in(path, &body).token(), &Some(fixtures::credential()), "{path:?}");
     }
 }
 const COOKIE_ROUTES: [(Method, &[u8], bool); 2] =
@@ -193,7 +193,7 @@ fn a_browser_exchange_s_cookie_is_its_credential() {
             kit::FromTransport::StreamOpen { stream: fixtures::EXCHANGE, credential: Some(fixtures::credential()) }
         } else {
             kit::FromTransport::Exchange {
-                browser: false,
+                browser: true,
                 exchange: fixtures::EXCHANGE,
                 credential: Some(fixtures::credential()),
                 message: kit::Message::Read(Box::new([])),
@@ -248,6 +248,79 @@ fn the_bearer_wins_when_a_cookie_also_arrives() {
 }
 
 type Fields = &'static [(&'static [u8], &'static [u8])];
+type ApprovalRoute = (&'static [u8], fn(Box<[u8]>) -> kit::Message);
+const APPROVAL_ROUTES: &[ApprovalRoute] = &[
+    (b"/jig/v1/approval/ask", kit::Message::ApprovalAsk),
+    (b"/jig/v1/approval/read", kit::Message::ApprovalRead),
+    (b"/jig/v1/approval/decide", kit::Message::ApprovalDecide),
+    (b"/jig/v1/sign-in/approval", kit::Message::SignInApproval),
+];
+#[test]
+fn the_approval_routes_reach_the_component_as_their_messages() {
+    let mut exchanges = Vec::new();
+    let mut expected = Vec::new();
+    for (path, message) in APPROVAL_ROUTES {
+        let mut mount = fixtures::mount();
+        let mut out = Queue::with_capacity(16);
+        fixtures::call(&mut mount, &mut out, Method::Post, path, &[], b"ask");
+        exchanges.push((path, fixtures::component(&mut out)));
+        expected.push((path, Box::<[kit::FromTransport]>::from([kit::FromTransport::Exchange {
+            exchange: fixtures::EXCHANGE,
+            credential: None,
+            browser: false,
+            message: message(Box::from(b"ask".as_slice())),
+        }])));
+    }
+    assert_eq!(exchanges, expected);
+}
+#[test]
+fn the_approval_routes_refuse_every_other_method() {
+    for (path, _) in APPROVAL_ROUTES {
+        for method in [Method::Get, Method::Head, Method::Put, Method::Patch, Method::Delete, Method::Options] {
+            let mut mount = fixtures::mount();
+            let mut out = Queue::with_capacity(16);
+            let call = fixtures::call(&mut mount, &mut out, method, path, &[], b"");
+            assert!(!(&out).into_iter().any(|request| matches!(request, Request::Component(_))), "{path:?} {method:?}");
+            assert_eq!(fixtures::answered(&mut mount, &mut out, call).0, 404, "{path:?} {method:?}");
+        }
+    }
+}
+const COOKIE_FIELD: (&[u8], &[u8]) = (b"cookie", b"jig-sign-in=BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBw");
+const BEARER_FIELD: (&[u8], &[u8]) = (b"authorization", b"Bearer BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBw");
+const BROWSER_FIELD: (&[u8], &[u8]) = (b"jig-client", b"browser");
+const CARRIERS: &[(&str, Fields, Option<bool>)] = &[
+    ("cookie and header", &[COOKIE_FIELD, BROWSER_FIELD], Some(true)),
+    ("bearer and header", &[BEARER_FIELD, BROWSER_FIELD], Some(false)),
+    ("bearer alone", &[BEARER_FIELD], Some(false)),
+    ("bearer before cookie", &[BEARER_FIELD, COOKIE_FIELD, BROWSER_FIELD], Some(false)),
+    ("header alone", &[BROWSER_FIELD], Some(false)),
+    ("cookie alone", &[COOKIE_FIELD], None),
+];
+#[test]
+fn an_exchange_is_a_browser_s_only_by_its_cookie() {
+    let mut exchanges = Vec::new();
+    let mut expected = Vec::new();
+    for path in [b"/jig/v1/approval/decide".as_slice(), b"/jig/v1/read"] {
+        for (name, fields, browser) in CARRIERS {
+            let mut mount = fixtures::mount();
+            let mut out = Queue::with_capacity(16);
+            let call = fixtures::call(&mut mount, &mut out, Method::Post, path, &fixtures::fields(fields), b"");
+            let (observed, status) = if browser.is_some() {
+                let component = fixtures::component(&mut out);
+                match component.as_ref() {
+                    [kit::FromTransport::Exchange { browser, .. }] => (Some(*browser), 0),
+                    _ => (None, 0),
+                }
+            } else {
+                assert!(!(&out).into_iter().any(|request| matches!(request, Request::Component(_))), "{path:?} {name}");
+                (None, fixtures::answered(&mut mount, &mut out, call).0)
+            };
+            exchanges.push((path, name, observed, status));
+            expected.push((path, name, *browser, if browser.is_some() { 0 } else { 403 }));
+        }
+    }
+    assert_eq!(exchanges, expected);
+}
 const REFUSED: &[(Method, &[u8], Fields, u16)] = &[
     (
         Method::Post,
@@ -257,6 +330,9 @@ const REFUSED: &[(Method, &[u8], Fields, u16)] = &[
     ),
     (Method::Post, b"/jig/v1/read", &[(b"host", b"127.0.0.1:8080"), (b"content-type", b"text/plain")], 415),
     (Method::Options, b"/jig/v1/read", &[(b"host", b"127.0.0.1:8080")], 404),
+    (Method::Post, b"/jig/v1/approval/decide", &[(b"host", b"evil.test:7100"), (b"content-type", b"application/octet-stream")], 421),
+    (Method::Post, b"/jig/v1/approval/decide", &[(b"host", b"127.0.0.1:8080"), (b"content-type", b"text/plain")], 415),
+    (Method::Options, b"/jig/v1/approval/decide", &[(b"host", b"127.0.0.1:8080")], 404),
 ];
 #[test]
 fn each_guard_refuses_with_nothing_reaching_the_component() {
@@ -394,7 +470,7 @@ fn a_browser_link_keeps_its_cookie_on_a_tokenless_sign_in() {
     assert_eq!(
         *fixtures::component(&mut out),
         [kit::FromTransport::Exchange {
-            browser: false,
+            browser: true,
             exchange: fixtures::EXCHANGE,
             credential: Some(fixtures::credential()),
             message: kit::Message::SignInLink(Box::from(b"link".as_slice())),
@@ -413,7 +489,7 @@ fn a_browser_link_keeps_its_cookie_on_a_tokenless_sign_in() {
     let (status, body, headers) = fixtures::answered(&mut mount, &mut out, call);
     assert_eq!(status, 200);
     assert_eq!(fixtures::header(&headers, b"set-cookie"), None);
-    let answer = fixtures::signed_in(&body);
+    let answer = fixtures::signed_in(b"/jig/v1/sign-in/link", &body);
     assert_eq!(answer.token(), &None);
     assert_eq!((answer.party(), answer.expires()), (fixtures::PARTY, fixtures::IN_A_DAY));
 }
@@ -423,24 +499,40 @@ fn busy_and_full_answer_200_without_setting_a_cookie() {
     let full = w::SignInAnswer::Full(
         w::SignInsFull::new(&w::CEILINGS, w::SignInsFullParts { sign_ins: 2, earliest: 400, link_until: 300 }).unwrap(),
     );
+    let approval_full = w::ApprovalSignInAnswer::Full(
+        w::ApprovalFull::new(&w::CEILINGS, w::ApprovalFullParts { sign_ins: 2, earliest: 400, until: 300 }).unwrap(),
+    );
+    let mut rows = Vec::new();
     for record in [w::SignInAnswer::Busy, full] {
-        for path in SIGN_IN_PATHS {
-            for browser in [false, true] {
-                let mut mount = fixtures::mount();
-                let mut out = Queue::with_capacity(16);
-                let browser_headers = fixtures::browser();
-                let headers: &[skein_http::Header] = if browser { &browser_headers } else { &[] };
-                let call = fixtures::call(&mut mount, &mut out, Method::Post, path, headers, b"");
-                fixtures::component(&mut out);
-                let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
-                record.encode(&mut bytes).unwrap();
-                let bytes = bytes.finish();
-                fixtures::reply(&mut mount, &mut out, call, kit::Reply::Record(bytes.clone()));
-                let (status, body, headers) = fixtures::answered(&mut mount, &mut out, call);
-                assert_eq!(status, 200);
-                assert_eq!(body, bytes);
-                assert_eq!(fixtures::header(&headers, b"set-cookie"), None);
-            }
+        let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
+        record.encode(&mut bytes).unwrap();
+        let bytes = bytes.finish();
+        for path in [b"/jig/v1/sign-in/link".as_slice(), b"/jig/v1/sign-in/deployment"] {
+            rows.push((path, bytes.clone()));
+        }
+    }
+    for record in [
+        w::ApprovalSignInAnswer::Busy, approval_full, w::ApprovalSignInAnswer::Waiting,
+        w::ApprovalSignInAnswer::Refused, w::ApprovalSignInAnswer::Expired,
+        w::ApprovalSignInAnswer::Used, w::ApprovalSignInAnswer::Unknown, w::ApprovalSignInAnswer::NotReady,
+    ] {
+        let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
+        record.encode(&mut bytes).unwrap();
+        rows.push((b"/jig/v1/sign-in/approval", bytes.finish()));
+    }
+    for (path, bytes) in rows {
+        for browser in [false, true] {
+            let mut mount = fixtures::mount();
+            let mut out = Queue::with_capacity(16);
+            let browser_headers = fixtures::browser();
+            let headers: &[skein_http::Header] = if browser { &browser_headers } else { &[] };
+            let call = fixtures::call(&mut mount, &mut out, Method::Post, path, headers, b"");
+            fixtures::component(&mut out);
+            fixtures::reply(&mut mount, &mut out, call, kit::Reply::Record(bytes.clone()));
+            let (status, body, headers) = fixtures::answered(&mut mount, &mut out, call);
+            assert_eq!(status, 200, "{path:?}");
+            assert_eq!(body, bytes, "{path:?}");
+            assert_eq!(fixtures::header(&headers, b"set-cookie"), None, "{path:?}");
         }
     }
 }
@@ -485,7 +577,7 @@ fn a_browser_public_sign_in_sets_a_secure_cookie() {
         let headers = fixtures::browser_answer(
             fixtures::PUBLIC,
             path,
-            fixtures::signed_in_reply(&fixtures::TOKEN, fixtures::IN_A_DAY),
+            fixtures::sign_in_reply(path, &fixtures::TOKEN, fixtures::IN_A_DAY),
         );
         assert_eq!(fixtures::header(&headers, b"set-cookie"), Some(fixtures::COOKIE_SECURE));
     }
@@ -497,7 +589,7 @@ fn a_browser_listener_sign_in_sets_a_plain_cookie() {
         let headers = fixtures::browser_answer(
             fixtures::HOST,
             path,
-            fixtures::signed_in_reply(&fixtures::TOKEN, fixtures::IN_A_DAY),
+            fixtures::sign_in_reply(path, &fixtures::TOKEN, fixtures::IN_A_DAY),
         );
         assert_eq!(fixtures::header(&headers, b"set-cookie"), Some(fixtures::COOKIE_ON_LISTENER));
     }
