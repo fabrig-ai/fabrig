@@ -729,7 +729,14 @@ pub enum Event {
         holdings: Box<[tasks::Holding]>,
     },
     /// A person's task in no project (jig/docs/design/domain/authority.md, 6.1).
-    PersonTask { seed: Box<crate::PersonSeed>, executor: tasks::Executor, spec: tasks::Spec, contract: tasks::Contract },
+    PersonTask {
+        seed: Box<crate::PersonSeed>,
+        executor: tasks::Executor,
+        /// None takes what a chat of theirs takes; `Core::account_llm` holds it to one account.
+        llm: Option<tasks::LlmChoice>,
+        spec: tasks::Spec,
+        contract: tasks::Contract,
+    },
     /// A new deployment funding period, checked against core policy.
     Period { project: u32, period: u64, budget: u64, next: Option<Wall> },
     /// One page or terminal outcome of the transcript load requested by the core.

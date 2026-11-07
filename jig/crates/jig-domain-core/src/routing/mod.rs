@@ -583,8 +583,8 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             route_claim_prepared(core, env, work, task, attempt, budget, writes)
         }
         Event::ClaimRefused { task } => route_claim_refused(core, work, task),
-        Event::PersonTask { seed, executor, spec, contract } => {
-            route_person_task(core, work, seed, executor, spec, contract)
+        Event::PersonTask { seed, executor, llm, spec, contract } => {
+            route_person_task(core, work, seed, executor, llm, spec, contract)
         }
         Event::ConnectorRepair { seed, executor, spec, contract, holdings } => {
             route_connector_repair(core, work, seed, executor, spec, contract, holdings)

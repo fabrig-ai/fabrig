@@ -126,6 +126,7 @@ pub(crate) fn route_person_task(
     work: &mut Queue<Work>,
     seed: Box<crate::PersonSeed>,
     executor: tasks::Executor,
+    llm: Option<tasks::LlmChoice>,
     spec: tasks::Spec,
     contract: tasks::Contract,
 ) -> Queue<Request> {
@@ -143,7 +144,7 @@ pub(crate) fn route_person_task(
             number: seed.number,
             project: jig_domain_people::DEPLOYMENT,
             executor,
-            llm: None,
+            llm,
             spec,
             contract,
             numbers: tasks::Numbers { budget: seed.authority.budget.spend, spent: 0, spent_below: 0, reserved: 0 },
