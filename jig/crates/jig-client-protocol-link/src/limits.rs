@@ -15,7 +15,10 @@ struct Receiving {
     wire: w::Limits,
     document_room: u64,
     fact_rows: u32,
+    // A page's archived turns retain the client's display budget.
     archived_turn: jig_protocol_transcript::Limits,
+    // A turn read alone keeps everything the archive's byte bound admits.
+    turn_read: jig_protocol_transcript::Limits,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Unusable {
@@ -44,14 +47,23 @@ impl Limits {
             text: client.turn_text,
             outcome: client.text,
         };
+        let bytes = wire.owned_record.min(receiving.turn_carried_bytes);
+        let archived_turn = jig_protocol_transcript::Limits::new(bytes, turn);
+        let turn_read = jig_protocol_transcript::Limits::new(
+            bytes,
+            jig_client_domain::contract::TurnLimits {
+                messages: archived_turn.smith.turn_messages,
+                blocks: archived_turn.smith.message_blocks,
+                text: bytes.checked_mul(2).ok_or(Unusable::Limits)?,
+                outcome: client.text,
+            },
+        );
         let receiving = Receiving {
             wire: receiving,
             document_room: client.document_bytes.saturating_mul(2),
             fact_rows: wire.owned_record.checked_div(4).expect("nonzero piece prefix"),
-            archived_turn: jig_protocol_transcript::Limits::new(
-                wire.owned_record.min(receiving.turn_carried_bytes),
-                turn,
-            ),
+            archived_turn,
+            turn_read,
         };
         let value = Self { client, exchanges, wire, receiving };
         if !value.valid() {
@@ -83,6 +95,9 @@ impl Limits {
     }
     pub(crate) fn archived_turn(&self) -> &jig_protocol_transcript::Limits {
         &self.receiving.archived_turn
+    }
+    pub(crate) fn turn_read(&self) -> &jig_protocol_transcript::Limits {
+        &self.receiving.turn_read
     }
     fn valid(&self) -> bool {
         self.exchanges != 0
