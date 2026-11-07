@@ -373,8 +373,7 @@ fn a_change_handed_its_pushed_branch_lands_after_ci_and_its_gate() {
     assert_eq!(line.required(), 1);
     assert_eq!(line.remaining(), &Some(1));
     assert!(line.counted().is_empty());
-    let approval =
-        Find::exactly_named(Role::Heading { level: 1 }, "Approve Fix the adopted repository on Forgejo".as_bytes());
+    let approval = Find::exactly_named(Role::Heading { level: 1 }, "Approve Update repository on Forgejo".as_bytes());
     let review = Find::exactly_named(Role::Link, "Review on Forgejo ↗".as_bytes());
     world.person(
         person,
