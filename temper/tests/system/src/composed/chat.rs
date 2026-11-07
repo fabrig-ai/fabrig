@@ -22,7 +22,7 @@ fn requested_chat(turns: Vec<Turn>, request: &[u8]) -> World {
         parties::Role::Owner,
         400,
         Box::new([
-            parties::Act::SignIn { provider: 0, subject: 7_u64.to_be_bytes().into() },
+            parties::Act::SignIn { provider: 0, subject: temper_engine_domain_forge::user_key(1, 7).subject },
             parties::Act::Request { key: [41; 16], ask: parties::Ask::Chat { words: request.into() } },
         ]),
     );

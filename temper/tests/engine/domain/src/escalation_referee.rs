@@ -234,10 +234,7 @@ impl Referee {
         if index >= 2 || self.people[index].is_some() {
             return Err("duplicate or unscripted sign-in");
         }
-        let expected = people::IdentityKey {
-            provider: 0,
-            subject: (7 + u64::try_from(index).expect("two identities")).to_be_bytes().into(),
-        };
+        let expected = temper_engine_domain_forge::user_key(1, 7 + u64::try_from(index).expect("two identities"));
         if !matches!(rows.get(&Key::Core(jig_domain_core::Key::People(people::Key::Person(person)))), Some(Record::Core(jig_domain_core::Record::People(people::Stored::Person { number, identity }))) if *number == person && identity.key == expected)
         {
             return Err("sign-in before exact durable identity");

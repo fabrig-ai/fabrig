@@ -1500,7 +1500,7 @@ from the engine's own answers, is where the look is tuned.
 | `configure-chat-accepted` | that proposal accepted: "✓ Accepted · new work follows it" |
 | `configure-chat-replaced` | that proposal dimmed, "Replaced by the proposal below", the later one under it |
 | `settings` | hand-made settings deliveries: How work runs with every part of kind 7 shown |
-| `settings-all-hidden` | hand-made settings deliveries: kind 7's stock, the mock's `settings.html?project=hello` |
+| `settings-all-hidden` | hand-made settings deliveries: every switch of kind 7 off, the mock's `settings.html?project=hello` |
 | `settings-goals` | hand-made settings deliveries: Goals shown, its ways of working with one the default |
 | `settings-chat-open` | hand-made settings deliveries: a configuring chat open, "Go on" |
 | `settings-drafts-off` | `settings` with "Chats can write drafts" off |

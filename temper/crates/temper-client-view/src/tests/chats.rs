@@ -938,9 +938,7 @@ fn the_repository_context_links_into_its_project() {
         let headline: &[u8] = if adopted { b"Talk to an agent about work/hello." } else { b"Talk to an agent." };
         assert!(fixtures::find(view.tree(), Role::Heading { level: 1 }, headline).is_some());
         assert!(fixtures::find(view.tree(), Role::Paragraph, "Shop · chats".as_bytes()).is_some());
-        assert!(
-            fixtures::find(view.tree(), Role::Paragraph, b"A chat answers a question or changes the code.").is_some()
-        );
+        assert!(fixtures::find(view.tree(), Role::Paragraph, DRAFT_LEDE).is_some());
         if let Some(context) = context {
             let nodes = view.tree().nodes();
             let at = index_of(nodes, context);
