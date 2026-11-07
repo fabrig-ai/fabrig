@@ -3,10 +3,6 @@
 2026-11-06. Where skein's code lags or departs from [json.md](json.md).
 
 - **Not yet:**
-  - 3.4, 7: `string::decode` takes a plain run a byte at a time, through
-    `next`, `Buffer::room` and `Buffer::put`, and the text buffer is a
-    `List<u8>`.
-  - 6: the step rows and the sweep of plain runs read.
   - 6: the fuzz target.
 - **Departs:**
   - 5.1: `skein/docs/foundation/programming-model.md`, 6.1 has the queues
