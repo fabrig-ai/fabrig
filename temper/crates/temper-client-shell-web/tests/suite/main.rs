@@ -129,7 +129,10 @@ fn settings_controls_keep_the_connect_flows_rules() {
 fn the_approval_code_reads_at_a_glance() {
     let css = include_str!("../../temper.css");
     let (before, approval) = css.split_once("/* ==== tui: approval ==== */").expect("approval block");
-    assert!(before.trim_end().ends_with(".temper-sign-in > .temper-card { padding: 23.33px 21px 21px; } }"), "approval follows the sign-in rules");
+    assert!(
+        before.trim_end().ends_with(".temper-sign-in > .temper-card { padding: 23.33px 21px 21px; } }"),
+        "approval follows the sign-in rules"
+    );
     let (_, rule) = approval.split_once(".temper-approve-code {").expect("approval code rule");
     let (rule, _) = rule.split_once('}').expect("code declarations");
     assert!(rule.contains("font: 28px var(--temper-mono);"), "large mono code: {rule}");

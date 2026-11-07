@@ -4,6 +4,7 @@
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
 mod accounts;
+mod approve;
 pub mod cards;
 mod choice;
 mod confirm;
