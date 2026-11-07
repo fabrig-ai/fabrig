@@ -48,6 +48,8 @@ mod domain;
 pub use domain::make::{BOT_EMAIL, BOT_LOGIN};
 mod effect_words;
 mod forges;
+mod forge_user;
+pub use forge_user::{FORGE_PROVIDER, key_user, user_key};
 mod gates;
 mod held;
 pub mod items;
