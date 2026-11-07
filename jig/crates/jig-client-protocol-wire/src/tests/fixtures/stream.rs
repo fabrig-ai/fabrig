@@ -154,6 +154,7 @@ pub fn account(limits: &Limits, state: AccountState) -> Account {
     Account::new(
         limits,
         AccountParts {
+            list: None,
             provider_name: None,
             manage_usage: None,
             number: u32::MAX,

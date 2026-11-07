@@ -60,6 +60,7 @@ impl Operation {
                 c::Ask::Restore { .. } => (b"restore", None),
                 c::Ask::Propose { action: c::ProposeAction::Settings(_), .. } => (b"propose_settings", None),
                 c::Ask::MoveToNewest(_) => (b"move-to-newest", None),
+                c::Ask::ReadLists { .. } => (b"read-lists", None),
                 c::Ask::ChangeModel(_) => (b"change-model", None),
                 c::Ask::ChangeSettings(_) => (b"change-settings", None),
                 c::Ask::Create { tasks, .. } | c::Ask::Propose { action: c::ProposeAction::Batch { tasks }, .. } => {
@@ -381,7 +382,7 @@ fn done_text(done: &c::Outcome, operation: &Operation, out: &mut Text) {
         }
         c::Outcome::Made { what: c::Made::Tasks { tasks } } => tasks.get(0).copied(),
         c::Outcome::Document(c::DocumentOutcome::Created { first, .. }) => Some(*first),
-        c::Outcome::Document(_) | c::Outcome::Made { .. } => operation.task,
+        c::Outcome::Account(_) | c::Outcome::Document(_) | c::Outcome::Made { .. } => operation.task,
     };
     if let Some(task) = task {
         out.put(b"task ");
@@ -1016,6 +1017,7 @@ fn proposal_project(ask: &Ask) -> Option<u32> {
             c::Ask::Propose { project, .. } => Some(*project),
             c::Ask::Restore { .. }
             | c::Ask::MoveToNewest(_)
+            | c::Ask::ReadLists { .. }
             | c::Ask::ChangeModel(_)
             | c::Ask::ChangeSettings(_)
             | c::Ask::Create { .. }

@@ -101,6 +101,7 @@ fn frame(w: World, connecting: bool, configuring: bool) -> c::Me {
     member
         .models
         .push(c::MeModel {
+            new_until: None,
             number: 1,
             source: jig_client::contract::ModelSource::Stock,
             estimated: false,
@@ -3342,6 +3343,7 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
                 })
                 .expect("source");
             rows.push(c::AccountLine {
+                list: None,
                 number: 1,
                 place: 1,
                 uses: None,
@@ -3370,6 +3372,7 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
                 })
                 .expect("source");
             rows.push(c::AccountLine {
+                list: None,
                 number: 2,
                 place: 2,
                 uses: None,
@@ -3417,6 +3420,7 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
                 })
                 .expect("source");
             rows.push(c::AccountLine {
+                list: None,
                 number: 1,
                 place: 1,
                 uses: None,
@@ -3453,6 +3457,7 @@ pub(super) fn accounts(w: World, then: Then) -> c::Accounts {
                 })
                 .expect("source");
             rows.push(c::AccountLine {
+                list: None,
                 number: 1,
                 place: 1,
                 uses: None,

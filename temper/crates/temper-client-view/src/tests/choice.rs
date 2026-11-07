@@ -634,6 +634,7 @@ fn one_account(number: u32, plan: bool) -> d::Domain {
     let mut accounts = List::with_capacity(1);
     accounts
         .push(c::AccountLine {
+            list: None,
             number,
             place: 1,
             uses: None,
@@ -821,6 +822,7 @@ fn account(number: u32, kind: c::AccountKind, address: Option<&[u8]>) -> c::Acco
     sources.push(source(c::AccountKind::Program, false)).unwrap();
     sources.push(source(kind, true)).unwrap();
     c::AccountLine {
+        list: None,
         number,
         place: number,
         uses: None,
@@ -1635,6 +1637,7 @@ fn provider_offer(provider: u32, name: &[u8]) -> c::ProviderOffer {
 }
 fn offer_row(name: &[u8], provider: Option<u32>) -> c::MeModel {
     c::MeModel {
+        new_until: None,
         number: 1,
         source: jig_client::contract::ModelSource::Stock,
         estimated: false,

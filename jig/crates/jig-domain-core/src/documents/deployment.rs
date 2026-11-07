@@ -79,6 +79,7 @@ pub enum AccountState {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent child-owned flags plus document truncation")]
 pub struct Account {
+    pub list: Option<super::AccountList>,
     pub number: u32,
     pub place: u32,
     pub uses: Option<List<accounts::Use>>,
@@ -392,6 +393,7 @@ pub(super) fn deployment(
         }
         accounts
             .push(Account {
+                list: super::accounts::list(core, value.account),
                 number: value.account,
                 place: account.place(),
                 uses: super::accounts::uses(core, account),

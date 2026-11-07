@@ -29,6 +29,7 @@ fn model() -> core::Model {
 pub fn models() -> Box<[jig_protocol_engine_clients::Model]> {
     let model = model();
     Box::new([jig_protocol_engine_clients::Model {
+        new_until: None,
         number: 1,
         source: jig_domain_core::settings::ModelSource::Stock,
         estimated: false,

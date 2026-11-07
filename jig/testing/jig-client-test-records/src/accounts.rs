@@ -48,6 +48,7 @@ pub fn account_line_record() -> w::AccountLine {
     w::AccountLine::new(
         &l,
         w::AccountLineParts {
+            list: None,
             provider_name: None,
             manage_usage: None,
             number: 7,
@@ -83,6 +84,7 @@ pub fn accounts_record(end: Option<w::AccountEnd>) -> w::Accounts {
     let other = w::AccountLine::new(
         &l,
         w::AccountLineParts {
+            list: None,
             provider_name: None,
             manage_usage: None,
             number: 9,

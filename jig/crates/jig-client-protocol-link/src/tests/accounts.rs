@@ -17,7 +17,13 @@ fn a_sign_in_ask_is_translated_both_ways() {
         );
         assert_eq!(translate::store::restore_ask(wire, &fixtures::limits()), Ok(ask));
     }
+    for provider in [0, u32::MAX] {
+        let ask = c::Ask::ReadLists { provider };
+        let wire = translate::asks::ask(&ask, fixtures::limits().wire()).unwrap();
+        assert_eq!(translate::store::restore_ask(wire, &fixtures::limits()), Ok(ask));
+    }
 }
+
 #[test]
 fn a_sign_out_ask_is_translated_both_ways() {
     for holder in [c::AskAccountHolder::Own, c::AskAccountHolder::Deployment] {
@@ -38,6 +44,7 @@ fn a_sign_out_ask_is_translated_both_ways() {
 #[test]
 fn a_sign_in_is_refused_in_a_compound() {
     for ask in [
+        c::Ask::ReadLists { provider: 4 },
         c::Ask::SignIn { holder: c::AskAccountHolder::Own, provider: 4 },
         c::Ask::SignOut { holder: c::AskAccountHolder::Deployment, source: 9 },
     ] {

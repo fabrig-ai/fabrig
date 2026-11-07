@@ -9,8 +9,6 @@ Unlisted sections, including 5.1's proposal-making lines and retained
 proposal reasons and settings projects, and public documents (12), have no
 known gap.
 
-- **Not yet:** 3.2: `ReadLists`. 5.1: an account's `list`, a model's `new_until`, and a revision decided by a provider's list.
-
 Sections 3.2 and 4 have no known gap in routing an acceptance with a
 running-work choice to its retained decision, or answering `Unknown`
 when no such record exists. The core world's settings-edge table checks
