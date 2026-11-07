@@ -688,9 +688,9 @@ replay says the same clocks (`README.md`, 5.12).
   the session, `.temper-doc`, `.temper-doc-inner`, `.temper-doc-path`,
   `.temper-doc-sec`, `.temper-doc-changed`, `.temper-doc-note`, `.temper-seg`, and
   the rail's strip with `.temper-rail-unfold` and `files/menu.svg`. What those
-  name is drawn, and the look of its flow's tokens isn't, since nothing draws a
-  flow yet. The sheet to start a goal is the mock's `dialog.sheet`, `.option`,
-  `.field` and `.text`, and `Ctrl+\` steps through the modes.
+  name is drawn; a flow takes the tokens' look below. The sheet to start a goal
+  is the mock's `dialog.sheet`, `.option`, `.field` and `.text`, and `Ctrl+\` steps
+  through the modes.
 - **temper's own way** (`README.md`, 3.5) is `configure-temper-own-way`'s rules, in
   `temper.css` under `/* ==== ui: settings ==== */`: on the page
   `.temper-starter-head` and `.temper-starter-own` with its parts; in the pane, beside
@@ -1320,6 +1320,12 @@ Not in the tier, each in the lowest world that shows it:
   one thing a browser alone shows, stays in 10.
 
 ## 5. Open questions
+
+- **A flow in a chat and its document** (2.5; `README.md`, 3.5): temper/ui
+  compares both against `skein/docs/design/draft/diagrams/preview.html`
+  after landing, at a width where the flow is horizontal, one where it
+  is vertical, and one where only the fallback fits. Default: the host's
+  byte comparisons and the stylesheet's rules until that comparison.
 
 - **The connect-flows proof** (2.5, 4.6): temper/ui owns the comparison
   of request pages 01–23 with main, at 1440, 1000 and 420 px with

@@ -2,7 +2,12 @@
 
 2026-11-07. Where temper's code lags or departs from its design, and
 its design from its drafts, from the status files below. The first
-milestone stands in the code (`README.md`). Home says "Nothing needs you."
+milestone stands in the code (`README.md`). Markdown flows draw in chats
+and their documents with temper's look, and both stock agents are told
+the subset. Temper/ui's rendered comparison follows landing; the
+reference keeps its numbered words without figures (`client/README.md`,
+3.5 and 11; `client/browser.md`, 2.5 and 5; `domain/agent.md`, section 8).
+Home says "Nothing needs you."
 once, semantic repair names the updated head without blame, and failed
 sign-in links say used, expired or unknown. Forgotten links are unknown;
 cookie fallback and command refusal words remain later work
