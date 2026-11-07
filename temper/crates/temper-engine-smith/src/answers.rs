@@ -185,6 +185,11 @@ fn bounded(answer: &CallAnswer, tool: &[u8], max_bytes: u32, task: Option<u64>) 
         if tool == b"read_compare" {
             return compare_bounded(read, cap);
         }
+        if read.is_err() {
+            let mut text = Text::new();
+            forge_read(&mut text, read, tool).expect("fixed forge refusal");
+            return clipped_refusal(text, cap);
+        }
         if let Ok(api::Answer::Job { attempt, step, log, truncated }) = read.as_ref() {
             return job_bounded(attempt, step.as_ref(), log, *truncated, max_bytes);
         }
@@ -1280,10 +1285,26 @@ fn forge_read(text: &mut Text, read: &Result<api::Answer, api::Error>, tool: &[u
             if tool == b"read_compare" && *refusal == api::Error::TooLarge {
                 text.add(b". ")?;
                 compare_recovery(text)?;
+            } else if tool == b"read_branches" && *refusal == api::Error::Empty {
+                text.add(b". ")?;
+                branches_empty_recovery(text)?;
+            } else if tool == b"read_branch" && *refusal == api::Error::Missing {
+                text.add(b". ")?;
+                branch_missing_recovery(text)?;
             }
             Ok(true)
         }
     }
+}
+
+fn branches_empty_recovery(text: &mut Text) -> Result<(), Problem> {
+    const WORDS: &[u8] = b"read_branches needs a nonempty prefix, as temper/ for temper's branches. read_settings names the default branch, and read_branch reads one branch by its name.";
+    text.add(WORDS)
+}
+
+fn branch_missing_recovery(text: &mut Text) -> Result<(), Problem> {
+    const WORDS: &[u8] = b"The forge has no branch of that name in this repository. read_settings names its default branch, and read_branches lists the names under a prefix, as temper/. A goal's own branch is there only where its goal holds one, and a run branch from its first push.";
+    text.add(WORDS)
 }
 
 fn compare_recovery(text: &mut Text) -> Result<(), Problem> {
