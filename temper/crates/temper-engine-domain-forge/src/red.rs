@@ -4,7 +4,7 @@ use alloc::boxed::Box;
 use skein_forge::api::Commit;
 use temper_engine_domain_forge_tiers::Failures;
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct RedNews {
     pub tier: Box<[u8]>,
     /// The run's number in the tier's sequence.
@@ -16,7 +16,7 @@ pub struct RedNews {
     pub logs: Box<[JobLog]>,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum RedOn {
     /// A red after landing: the landing, its branch, the failures blamed on it.
     Landing { commit: Commit, branch: Box<[u8]>, failing: Failures },
@@ -24,7 +24,7 @@ pub enum RedOn {
     Goal { branch: Box<[u8]>, tip: Commit, new: Failures, still: Failures },
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct JobLog {
     pub name: Box<[u8]>,
     /// The log's end, cut to its share; `None` when it could not be read.

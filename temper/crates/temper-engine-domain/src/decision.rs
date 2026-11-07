@@ -46,7 +46,7 @@ pub struct Limits {
 /// Owned root effects held after the decision they follow (domain/root.md, section 4). External notices have no acknowledgement of their own; web
 /// replies consume one reply destination. Internal fleet/load deliveries are
 /// resumed by the root and never passed to the protocol as child events.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Delivery {
     /// A job and its typed forge workspace, held behind the assignment's commit.
     AssignedJob {

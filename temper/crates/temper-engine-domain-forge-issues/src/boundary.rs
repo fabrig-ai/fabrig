@@ -7,7 +7,7 @@ use alloc::boxed::Box;
 use skein_lib::{Duration, Wall};
 
 /// Progress displayed for one goal or plan task.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Phase {
     /// Waiting for dependencies or a run.
     Waiting,
@@ -26,7 +26,7 @@ pub enum Phase {
 }
 
 /// One task-list line from the current plan.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PlanItem {
     pub text: Box<str>,
     pub phase: Phase,
@@ -54,14 +54,14 @@ pub enum MilestoneKey {
 }
 
 /// One comment, already selected and worded by the root.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Milestone {
     pub key: MilestoneKey,
     pub text: Box<str>,
 }
 
 /// Current goal facts from the root.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct GoalView {
     pub phase: Phase,
     pub goal: u64,
@@ -100,7 +100,7 @@ pub enum Effect {
 }
 
 /// Committed projection, including writes already enqueued by the top.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Projected {
     pub opened: bool,
     pub digest: Option<[u8; 32]>,
@@ -117,7 +117,7 @@ impl Default for Projected {
 }
 
 /// Bounds and the minimum interval between body writes.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     pub plan_items: u32,
     pub milestones: u32,

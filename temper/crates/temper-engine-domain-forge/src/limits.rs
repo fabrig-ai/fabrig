@@ -13,7 +13,7 @@ pub const CONNECT_WHY_BYTES: usize = 256;
 pub const FIRST_NAME_BYTES: u32 = 1024;
 
 /// Capacity of each durable top table and its child.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     /// Forges kept at most (temper/docs/design/protocol/forge.md, 7).
     pub forges: u32,
@@ -93,7 +93,7 @@ impl Limits {
 }
 
 /// Per-repository tiers and reported failures (temper/docs/design/domain/after-landing.md, 10).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct TierLimits {
     pub tiers: u32,
     pub failing_tests: u32,

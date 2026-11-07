@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use skein_lib::{Map, Wall};
 
 /// A connector-owned retained or reconstructed set.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum RestoreSet {
     Rows(RecordKind),
     NamedAnswerBytes,
@@ -29,7 +29,7 @@ pub enum RestoreSet {
 }
 
 /// The first configured bound a restored row or derived set could not fit.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct RestoreFit {
     pub family: Option<RecordKind>,
     pub set: RestoreSet,

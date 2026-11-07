@@ -13,14 +13,14 @@ pub struct Limits {
 }
 
 /// One project's current period as the calendar last said or was told it.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Record {
     pub period: u64,
     pub began: Wall,
     pub next: Option<Wall>,
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct Calendar {
     span: Duration,
     projects: Map<u32, Record>,

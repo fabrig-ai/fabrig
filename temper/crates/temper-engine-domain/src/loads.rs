@@ -68,7 +68,7 @@ pub enum Failure {
 }
 
 /// The kind of a failed restore range, without its keys or owned records.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Kind {
     Deployment,
     Settings,
@@ -91,7 +91,7 @@ pub enum Kind {
 }
 
 /// A startup load's terminal failure, retained through the stop notification.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct RestoreFailure {
     pub range: Kind,
     pub failure: Failure,
@@ -158,7 +158,7 @@ pub enum Request {
     },
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 struct Entry {
     waiter: Token,
     range: Range,
@@ -167,7 +167,7 @@ struct Entry {
     phase: Phase,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Phase {
     Waiting,
     Abandoned,
@@ -177,7 +177,7 @@ enum Phase {
 /// Root-owned bounded in-flight page slots (domain/root.md, section 8).
 /// It keeps waiter/range fences, never store rows or journal durability state.
 /// Issued loads remain counted through abandonment, terminal and reclaim.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct Loads {
     limits: Limits,
     entries: Slab<Entry>,

@@ -1254,7 +1254,7 @@ fn check_landing_holder(
     Ok(())
 }
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) struct RunWorkspace {
     pub workspace: ForgeWorkspace,
     /// The task holding the workspace: this one, or the change whose branch it inherits.
@@ -5129,7 +5129,7 @@ pub(crate) fn outputs(
 }
 
 /// Connector-owned effect data while the core chooses its requirements.
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub(crate) enum EffectFlight {
     Call {
         description: Box<EffectDescription>,

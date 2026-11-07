@@ -6,7 +6,7 @@ use crate::{ChangeRow, Domain, Limits};
 type Commit = skein_forge::api::Commit;
 
 /// Hints and fresh reads, retained only for this incarnation of a task.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(crate) struct Settle {
     since: Option<Wall>,
     job: bool,
