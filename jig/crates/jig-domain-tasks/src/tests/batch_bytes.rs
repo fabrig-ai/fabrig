@@ -17,7 +17,8 @@ fn a_batch_counts_its_members_templates() {
     let plain = crate::batch_bytes(core::slice::from_ref(&member)).unwrap();
     let mut template_batch: Box<[New]> = Box::new([task(1, &[]), task(2, &[1])]);
     let chosen = crate::ModelEffort { model: 0, effort: None };
-    template_batch[0].llm = Some(crate::LlmChoice { account: None, main: chosen, subagents: Box::new([chosen]) });
+    template_batch[0].llm =
+        Some(crate::LlmChoice { later: None, account: None, main: chosen, subagents: Box::new([chosen]) });
     let template_bytes = crate::batch_bytes(&template_batch).unwrap();
     member.recurring =
         Some(Box::new(RecurringTemplate { key: 1, batch: template_batch, overlap: RecurringOverlap::Skip }));
@@ -44,7 +45,7 @@ fn a_batch_past_its_bytes_is_not_bounded() {
 fn followups_past_the_batch_bytes_are_invalid() {
     let mut batch: Box<[New]> = Box::new([task(1, &[]), task(2, &[1])]);
     let chosen = crate::ModelEffort { model: 0, effort: None };
-    batch[0].llm = Some(crate::LlmChoice { account: None, main: chosen, subagents: Box::new([chosen]) });
+    batch[0].llm = Some(crate::LlmChoice { later: None, account: None, main: chosen, subagents: Box::new([chosen]) });
     let held = bytes(&batch);
     let contract =
         Contract::Verdict { choices: Box::new([Verdict { code: 7, fields: Box::new([]), words: 32, followups: 2 }]) };

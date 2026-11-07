@@ -18,6 +18,9 @@ macro_rules! check {
 mod documents;
 
 fn records_1(bytes: &[u8]) {
+    check!(CharterPart, bytes);
+    check!(LlmLater, bytes);
+    check!(LlmChoice, bytes);
     check!(CharterDocument, bytes);
     check!(Charter, bytes);
     check!(ReadValue, bytes);

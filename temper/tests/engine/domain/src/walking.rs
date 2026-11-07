@@ -31,6 +31,7 @@ pub const PERIOD_SPAN: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 pub fn limits() -> engine::Limits {
     let retry = tasks::Retry { retries: 1, base: Duration::from_millis(10), max: Duration::from_secs(1) };
     let tasks = tasks::Limits {
+        charter_parts: 8,
         tasks: 2,
         funders: 4,
         project_tasks: 2,
@@ -426,6 +427,7 @@ pub fn models() -> Box<[engine::Model]> {
 #[must_use]
 pub fn charter() -> engine::Charter {
     engine::Charter {
+        parts: Box::new([]),
         rest: false,
         wake: jig_domain_tasks::WakePolicy::DEFAULT,
         documents: Box::new([]),

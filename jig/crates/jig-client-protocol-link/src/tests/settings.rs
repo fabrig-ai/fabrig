@@ -625,6 +625,9 @@ fn charter_documents_round_trip_through_the_contract() {
         panic!("charter");
     };
     let wire = t::wire_charter(&value, limits.wire()).unwrap();
+    assert_eq!(wire.parts().len(), 2);
+    assert_eq!(wire.parts().get(0).unwrap().on(), 1);
+    assert_eq!(wire.parts().get(1).unwrap().instructions(), "later part λ".as_bytes());
     assert_eq!(wire.documents().len(), 2);
     assert_eq!(wire.documents().get(0).unwrap().heading(), &None);
     assert_eq!(wire.documents().get(1).unwrap().heading().as_deref(), Some(b"Rules".as_slice()));
@@ -634,16 +637,31 @@ fn charter_documents_round_trip_through_the_contract() {
 }
 
 #[test]
-fn charter_documents_use_the_clients_row_and_name_bounds() {
+fn charter_documents_and_parts_use_the_clients_row_and_name_bounds() {
     let base = fixtures::limits();
     let limits = Limits::new(jig_client_domain::Limits { rows: 2, segments: 2, text: 8, ..*base.client() }, 4).unwrap();
     let c::SettingValue::Charter(mut value) = values::settings_values().get(0).unwrap().clone() else {
         panic!("charter");
     };
+    assert_eq!(limits.wire().charter_parts, 2);
+    assert_eq!(limits.wire().charter_part_instructions, limits.wire().charter_instructions);
     assert_eq!(limits.wire().charter_documents, 2);
     assert_eq!(limits.wire().charter_document_name, 2);
     assert_eq!(limits.wire().charter_document_name_item, 8);
     let mut wire_limits = w::CEILINGS;
+    for (count, accepted) in [(2, true), (1, false)] {
+        wire_limits.charter_parts = count;
+        assert_eq!(t::wire_charter(&value, &wire_limits).is_ok(), accepted);
+    }
+    wire_limits.charter_parts = 2;
+    let instructions = value.parts.get(0).unwrap().instructions.bytes().len();
+    for (bytes, accepted) in [(instructions, true), (instructions - 1, false)] {
+        wire_limits.charter_part_instructions = u32::try_from(bytes).unwrap();
+        // The other part uses the same bound.
+        value.parts.get_mut(1).unwrap().instructions = value.parts.get(0).unwrap().instructions.clone();
+        assert_eq!(t::wire_charter(&value, &wire_limits).is_ok(), accepted);
+    }
+    wire_limits.charter_part_instructions = w::CEILINGS.charter_part_instructions;
     wire_limits.charter_documents = 2;
     wire_limits.charter_document_name = 2;
     wire_limits.charter_document_name_item = 8;

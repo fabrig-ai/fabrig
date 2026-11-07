@@ -136,9 +136,19 @@ pub fn wire_charter(value: &c::Charter, limits: &w::Limits) -> Result<w::Charter
             )?)
             .expect("same capacity");
     }
+    let mut parts = List::with_capacity(value.parts.len());
+    for item in &value.parts {
+        parts
+            .push(w::CharterPart::new(
+                limits,
+                w::CharterPartParts { on: item.on, instructions: bytes::copy_of(item.instructions.bytes()) },
+            )?)
+            .expect("same capacity");
+    }
     w::Charter::new(
         limits,
         w::CharterParts {
+            parts,
             documents,
             skein_bools: [value.rest, value.resume, value.inspect, value.modify, value.shell, value.agents],
             number: value.number,
@@ -174,7 +184,17 @@ pub fn restore_charter(value: &w::Charter) -> Result<c::Charter, w::Problem> {
             })
             .expect("same capacity");
     }
+    let mut parts = List::with_capacity(value.parts().len());
+    for item in value.parts() {
+        parts
+            .push(c::CharterPart {
+                on: item.on(),
+                instructions: text(item.instructions(), w::CEILINGS.charter_part_instructions)?,
+            })
+            .expect("same capacity");
+    }
     Ok(c::Charter {
+        parts,
         rest: value.rest(),
         documents,
         number: value.number(),

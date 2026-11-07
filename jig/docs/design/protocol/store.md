@@ -375,7 +375,19 @@ settings' 1 and the secrets' 1. The tasks family's durable
 and `NothingAwaited` for a result-ended task with nothing pending
 (`../domain/tasks.md`, 5.2), and it stores the successful `NoChange`
 result and its own result-notice kind, with the producer's bounded
-explanation. It stores a job task (`../domain/tasks.md`, 5.3.1): its
+explanation. A live task keeps its reasons and, with its claim, the kinds
+its attempt is offered (`../domain/tasks.md`, section 3 and 8.6), each one
+`u32` of bits: bit 0 `first`, then `question`, `question_answered`,
+`question_ended`, `question_owed`, `escalation`, `proposal`,
+`person_stalled`, `result`, `notice`, `nothing_awaited`, `news`, `timer`
+and `words` at bits 1 to 13, in that order, and no other bit set; the
+offered kinds of a run under a charter with no parts are all fourteen. An
+LLM choice, the tasks', the people's and a template's in the settings
+family alike, keeps its optional `later`, a main model with its effort and
+its sub-agents' models with theirs, and no account (`../domain/tasks.md`,
+section 3). The settings family's charter keeps its parts, in order, at
+most 8, each its `on` as the same bits and its instructions as text, as
+the charter's own are. It stores a job task (`../domain/tasks.md`, 5.3.1): its
 executor `Job { kind }`, its spec's bytes and deadline beside its words,
 its `Job` contract with its result's bound, and its result's bytes; and
 the tasks, people and settings families store a job kind among a

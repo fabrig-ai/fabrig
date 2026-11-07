@@ -721,6 +721,7 @@ fn a_settings_file_asking_an_effort_its_model_does_not_offer_is_refused_by_name(
     let (setting, mut value) = show_value(&mut world, agent, &KINDS[1]);
     let c::SettingValue::Template(template) = &mut value else { panic!("template") };
     template.llm = Some(c::LlmChoice {
+        later: None,
         account: None,
         main: c::ModelEffort {
             model: c::Text::new(b"scripted".as_slice().into(), 256).expect("model"),

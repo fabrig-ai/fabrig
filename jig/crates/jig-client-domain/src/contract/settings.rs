@@ -57,11 +57,37 @@ pub struct CharterDocument {
     pub path: Box<[u8]>,
     pub heading: Option<Box<[u8]>>,
 }
+/// A charter's instructions for runs whose reasons meet `on`
+/// (jig/docs/design/client/domain/contract.md, 3.2).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CharterPart {
+    pub on: u32,
+    pub instructions: Text,
+}
+/// The reasons in bit order (jig/docs/design/client/domain/contract.md, 3.2).
+pub const REASON_NAMES: [&str; 14] = [
+    "first",
+    "question",
+    "question_answered",
+    "question_ended",
+    "question_owed",
+    "escalation",
+    "proposal",
+    "person_stalled",
+    "result",
+    "notice",
+    "nothing_awaited",
+    "news",
+    "timer",
+    "words",
+];
+/// A charter whole (jig/docs/design/client/domain/contract.md, 3.2).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[expect(clippy::struct_excessive_bools, reason = "the whole charter carries independent tool grants and resume")]
 pub struct Charter {
     pub rest: bool,
     pub documents: List<CharterDocument>,
+    pub parts: List<CharterPart>,
     pub number: u32,
     pub instructions: Text,
     pub waiting: Duration,

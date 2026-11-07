@@ -146,7 +146,13 @@ fn charter(value: w::Charter) -> c::Charter {
             })
             .expect("same count");
     }
+    let mut parts = List::with_capacity(v.parts.len());
+    for item in v.parts.into_boxed() {
+        let item = item.into_parts();
+        parts.push(c::CharterPart { on: t::Reasons(item.on), instructions: item.instructions }).expect("same count");
+    }
     c::Charter {
+        parts: parts.into_boxed(),
         rest,
         documents: documents.into_boxed(),
         number: v.number,
@@ -289,6 +295,10 @@ fn template(value: w::Template, models: &[crate::Model], limits: &w::Limits) -> 
                 subagents.push(t::ModelEffort { model: value.model, effort: value.effort }).expect("same count");
             }
             Some(t::LlmChoice {
+                later: match value.later {
+                    Some(later) => Some(task_later(later)),
+                    None => None,
+                },
                 account: value.account,
                 main: t::ModelEffort { model: value.main.model, effort: value.main.effort },
                 subagents: subagents.into_boxed(),
@@ -440,5 +450,16 @@ fn catalogue(value: w::CatalogueEntry) -> s::CatalogueModel {
             w::ModelSource::List => s::ModelSource::List,
             w::ModelSource::Person => s::ModelSource::Person,
         },
+    }
+}
+
+fn task_later(value: p::LlmLater) -> t::LlmLater {
+    let mut subagents = List::with_capacity(u32::try_from(value.subagents.len()).expect("bounded models"));
+    for item in value.subagents {
+        subagents.push(t::ModelEffort { model: item.model, effort: item.effort }).expect("same count");
+    }
+    t::LlmLater {
+        main: t::ModelEffort { model: value.main.model, effort: value.main.effort },
+        subagents: subagents.into_boxed(),
     }
 }

@@ -21,7 +21,7 @@ pub struct Name {
 }
 
 /// Every name the engine and worker override parser takes, owner by owner in parser order.
-pub static NAMES: [Name; 232] = [
+pub static NAMES: [Name; 233] = [
     Name {
         name: "tasks.placed_holds",
         unit: Unit::Count,
@@ -261,6 +261,12 @@ pub static NAMES: [Name; 232] = [
         unit: Unit::Count,
         line: "Bounds retained configured agent-charter numbers.",
         value: |limits| u64::from(limits.core.tasks.charters),
+    },
+    Name {
+        name: "tasks.charter_parts",
+        unit: Unit::Count,
+        line: "Bounds parts per charter.",
+        value: |limits| u64::from(limits.core.tasks.charter_parts),
     },
     Name {
         name: "tasks.charter_documents",

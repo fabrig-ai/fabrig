@@ -12,13 +12,22 @@ pub struct ModelEffort {
     pub effort: Option<Text>,
 }
 
-/// What an agent task's runs' LLMs are: its main model and those its sub-agents may use.
+/// The choice for runs after the first activation
+/// (jig/docs/design/client/domain/contract.md, 5.1).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LlmLater {
+    pub main: ModelEffort,
+    pub subagents: List<ModelEffort>,
+}
+/// What an agent task's runs' LLMs are: its main model and those its sub-agents may use
+/// (jig/docs/design/client/domain/contract.md, 5.1).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LlmChoice {
     /// Creator preference, separate from the task's last successfully claimed account.
     pub account: Option<u32>,
     pub main: ModelEffort,
     pub subagents: List<ModelEffort>,
+    pub later: Option<LlmLater>,
 }
 
 /// A model the party may choose in a project, with what configuration gives it.

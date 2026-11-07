@@ -281,11 +281,13 @@ fn a_changes_role_choices_round_trip_with_or_without_models() {
     use jig_domain_tasks::{LlmChoice, ModelEffort};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
     let producing = LlmChoice {
+        later: None,
         main: ModelEffort { model: 3, effort: Some(1) },
         subagents: Box::new([ModelEffort { model: 0, effort: Some(0) }, ModelEffort { model: 2, effort: None }]),
         account: Some(17),
     };
     let review = LlmChoice {
+        later: None,
         main: ModelEffort { model: 4, effort: Some(2) },
         subagents: Box::new([ModelEffort { model: 1, effort: None }, ModelEffort { model: 3, effort: Some(1) }]),
         account: None,

@@ -40,6 +40,8 @@ fn provisioning_with(config: &Config) -> Harness<Ops> {
                 panic!("chat creation fixture");
             };
             for member in &mut batch {
+                // The person decides held delegates; C waits for the environment close.
+                member.flags.ended_by = people::EndedBy::Requester;
                 member.wake.as_mut().expect("chat fixture names its wake policy").results = people::ResultsWake::Each;
             }
             people::Ask::Create { project, batch }

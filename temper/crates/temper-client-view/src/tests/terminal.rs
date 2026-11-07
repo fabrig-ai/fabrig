@@ -248,6 +248,7 @@ fn command_root(state: u8) -> d::Domain {
         account: Some(1),
         main: c::ModelEffort { model: model.name.clone(), effort: model.effort.clone() },
         subagents: skein_lib::List::with_capacity(0),
+        later: None,
     });
     if state != 4 {
         let mut acts = skein_lib::List::with_capacity(4);

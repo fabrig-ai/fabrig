@@ -481,6 +481,8 @@ fn restored_access_controls_workspace_writers_during_start() {
                 &mut h.core.tasks,
                 &env,
                 tasks::Event::Claim {
+                    offered: jig_domain_tasks::Reasons::ALL,
+                    reasons: jig_domain_tasks::Reasons::FIRST,
                     reply_to: ReplyTo::new(Token::new(3)),
                     task: h.task,
                     attempt,

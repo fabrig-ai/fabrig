@@ -582,8 +582,11 @@ translation between them is exhaustive, without a wildcard.
   window's turns only (engine.md, 7.2; smith's `domain/host.md`,
   section 6).
 - **Refusals ride with turns.** A turn's fence covers every message
-  before it, so the core must know of a refused message before it
-  commits a turn whose fence passes it, across an engine restart too. No
+  relayed to its run before it, and takes only those: a message its run
+  isn't offered, by its charter's parts or a pace, is never relayed, so no
+  fence takes it (engine.md, 7.2; tasks.md, 8.6). The core must know of a
+  refused message before it commits a turn whose fence passes it, across
+  an engine restart too. No
   refusal crosses on its own: the hub keeps each, its name and smith's
   reason, with the run's next turn, or its answer if none follows, and
   the core records them in the commit that takes the turn's read
@@ -1008,9 +1011,10 @@ agent for ever.
   text parks. Finite runs hear an ordinary amendment, and the flag changes
   nothing of cancellation, refusals or read fences. The hub carries the
   flag without linking smith; application roots only translate it.
-- **The start carries the inbox,** as many of its messages as the run's
-  inbox takes, oldest first; the rest are relayed as the run reads
-  (tasks.md, 8.2). The run opens on them (smith's `domain/host.md`,
+- **The start carries the inbox,** as many of the messages the run is
+  offered as the run's inbox takes, oldest first; the rest it is offered
+  are relayed as the run reads (tasks.md, 8.2 and 8.6). The hub relays what
+  the core sends it and chooses nothing. The run opens on them (smith's `domain/host.md`,
   section 2).
 - **Every message fits** a run's message bound (tasks.md, 8.2), and the
   fleet admits no host whose agent takes less (engine.md, section 8), so

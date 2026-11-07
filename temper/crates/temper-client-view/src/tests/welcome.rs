@@ -961,6 +961,7 @@ fn ready_names_the_new_chat_templates_model_and_effort() {
     let project = me.projects.get_mut(0).unwrap();
     let template = project.templates.get_mut(0).unwrap();
     template.llm = Some(c::LlmChoice {
+        later: None,
         account: None,
         main: c::ModelEffort {
             model: c::Text::new(b"configured-model".as_slice().into(), text_bytes).unwrap(),

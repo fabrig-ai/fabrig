@@ -165,6 +165,12 @@ pub(in crate::codec) fn wire_charter(value: &c::Charter, limits: &w::Limits) -> 
     w::Charter::new(
         limits,
         w::CharterParts {
+            parts: list(value.parts.iter().map(|item| {
+                w::CharterPart::new(
+                    limits,
+                    w::CharterPartParts { on: item.on, instructions: bytes::copy_of(item.instructions.bytes()) },
+                )
+            }))?,
             documents: list(value.documents.iter().map(|item| {
                 w::CharterDocument::new(
                     limits,

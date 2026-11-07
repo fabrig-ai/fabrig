@@ -85,7 +85,7 @@ fn read_choice(text: &[u8]) -> Option<tasks::LlmChoice> {
     if at != text.len() {
         return None;
     }
-    Some(tasks::LlmChoice { account: None, main, subagents: subagents.into_boxed() })
+    Some(tasks::LlmChoice { later: None, account: None, main, subagents: subagents.into_boxed() })
 }
 
 fn read_entry(text: &[u8]) -> Option<tasks::ModelEffort> {

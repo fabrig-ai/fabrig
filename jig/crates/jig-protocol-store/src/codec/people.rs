@@ -137,6 +137,7 @@ pub fn derived_limits(domain: &core::Limits) -> Option<wire::Limits> {
         stored_answer_models: u64::BITS,
         model_name_name: core::MODEL_NAME_BYTES,
         llm_choice_subagents: domain::MODELS,
+        llm_later_subagents: domain::MODELS,
         segment_bytes: people.amendment_bytes.max(authority.segment_bytes),
     };
     derive_shared(domain, &mut limits)?;
