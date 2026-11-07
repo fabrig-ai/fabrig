@@ -1880,8 +1880,8 @@ keeps (`../protocol/configuration.md`, section 2).
     "Needs you", "Needs you · N" in the signal colour while something
     does, and, at its right on a wide page while more than one does,
     "Answer in a row", to that filtered *Needs you*. Empty, once its read has
-    answered: "Nothing needs you. Work carries on, and this page tells you what changed when you
-    come back."
+    answered: "Work carries on, and this page tells you what changed when you come back.", the
+    headline above having said "Nothing needs you." once.
     - *Answered lines,* under the head: what was answered in the last 2
       minutes (*What the client keeps,* below): the mock's `.answered`,
       a tick by style, "TITLE:" a link to its task, the label, and at
@@ -3776,8 +3776,15 @@ client removes no account and closes no chat of its own.
     the link serves a little past what it says); busy, "temper is busy. This
     link stays usable until it expires: open it again in a moment."; not
     ready, "temper is starting or stopping. This link stays usable until
-    it expires: open it again in a moment." A link opened again past its
-    expiry is refused, and `temper serve` prints a fresh one;
+    it expires: open it again in a moment.";
+  - *signed out, the link spent:* while the link's view says why it can't
+    sign in, the paragraph says so in place of the shell's words and of the
+    sign-in page, in either shell, saying only what whoever holds the link already knows: used,
+    "This link was already used. A fresh one is in your terminal."; past
+    its expiry, "This link has expired. A fresh one is in your terminal.";
+    any other, a real link of an older box or one that never was, "This
+    link isn't from this temper. Use the one its terminal printed." A page
+    reached with no link keeps the shell's words;
   - *out of date,* the engine serving no version of jig's records that
     this client speaks: "This temper is out of date: run the temper the
     engine runs." What is pending stays in the small store (jig's
@@ -5021,7 +5028,7 @@ supplies it: the page computes none (jig's `client/domain/contract.md`,
   | first | "First in the queue for LANDING." |
   | updating | "Updating from LANDING." |
   | resolving | "Resolving its conflicts with LANDING." |
-  | repairing | "Repairing: CI failed at its head.", "Repairing: gate N asked for changes." or "Repairing: a semantic conflict with LANDING." |
+  | repairing | "Repairing: CI failed at its head.", "Repairing: gate N asked for changes." or, for a semantic conflict, "Repairing: CI failed at its updated head.", which blames neither the change nor what it was updated with |
   | landing | "Merging at its head." |
   | landed | "Landed · merge commit ABCDEFG", its first seven digits, as a delegation's card says it (5.7) |
 

@@ -3,6 +3,13 @@ use crate::{Kept, SecretOwner, routes::Route};
 use alloc::boxed::Box;
 use jig_client_protocol_wire::v19 as w;
 use skein_lib::{CryptoRng, Map, Secret, Time, Token, Writer, length::len_u64};
+/// How many past links a component keeps the digests of (protocol/client.md, 8).
+pub(crate) const PAST_LINKS: u32 = 8;
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Past {
+    Used,
+    Expired,
+}
 #[derive(Debug)]
 pub(crate) struct Link {
     pub secret: Secret,

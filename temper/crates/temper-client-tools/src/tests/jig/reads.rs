@@ -560,6 +560,28 @@ fn assert_next_run_refusal(
 }
 
 #[test]
+fn binary_paths_print_fixed_width_lowercase_hex() {
+    use crate::jig::render::document;
+    use skein_json::writer::{Encoder, Limits};
+    // Each row is a scalar string, with no nested containers.
+    const STRING_DEPTH: u32 = 0;
+    for (bytes, expected) in [
+        (b"".as_slice(), b"\"\"".as_slice()),
+        (fixtures::DIGEST_BYTES.as_slice(), b"\"0123456789abcdef\""),
+        (b"\x00\x0a\x80\xff", b"\"000a80ff\""),
+    ] {
+        let length = u32::try_from(expected.len()).expect("fixture JSON fits");
+        let limits = Limits { depth: STRING_DEPTH, length };
+        let mut measure = Encoder::measure(&limits);
+        document::hex(bytes, &mut measure);
+        assert_eq!(measure.measured(), Ok(length), "{bytes:?}");
+        let mut write = Encoder::write(length, &limits);
+        document::hex(bytes, &mut write);
+        assert_eq!(write.finish().as_ref(), expected, "{bytes:?}");
+    }
+}
+
+#[test]
 fn a_document_at_its_byte_bound_prints_its_maximal_json_escapes() {
     use crate::jig::render::document::{self, Document};
     let task = fixtures::document_at_byte_bound();

@@ -2,6 +2,11 @@
 use crate::support;
 
 #[test]
+fn printed_links_count_and_fail_without_disclosing_secrets() {
+    support::printed_link_tests::printed_links_count_and_fail_without_disclosing_secrets();
+}
+
+#[test]
 fn person_a_chat_waits_for_the_model_watch_before_pressing_start() {
     support::person::a_chat_waits_for_the_model_watch_before_pressing_start();
 }

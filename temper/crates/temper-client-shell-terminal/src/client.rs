@@ -300,6 +300,9 @@ impl NativeClient {
                         Ok(w::SignInAnswer::SignedIn(value)) if reader.is_empty() => {
                             Signing::SignedIn { party: value.party() }
                         }
+                        Ok(w::SignInAnswer::LinkUsed) => Signing::LinkUsed,
+                        Ok(w::SignInAnswer::LinkExpired) => Signing::LinkExpired,
+                        Ok(w::SignInAnswer::LinkUnknown) => Signing::LinkUnknown,
                         Ok(w::SignInAnswer::Refused) => Signing::Refused,
                         Ok(w::SignInAnswer::NotReady) => Signing::Again,
                         Ok(w::SignInAnswer::Busy) => Signing::Busy,
@@ -359,7 +362,14 @@ impl NativeClient {
                 self.signing_out = false;
                 self.notices.push(Shown::Terminal(crate::terminal::Notice::SignedOut));
             }
-            Signing::Again | Signing::Busy | Signing::Full { .. } | Signing::Lost | Signing::Refused => {
+            Signing::Again
+            | Signing::Busy
+            | Signing::Full { .. }
+            | Signing::Lost
+            | Signing::LinkUsed
+            | Signing::LinkExpired
+            | Signing::LinkUnknown
+            | Signing::Refused => {
                 if self.signing_out {
                     self.signing_out = false;
                     self.event(domain::Event::Client { event: jig_client::Event::SignOutLost });

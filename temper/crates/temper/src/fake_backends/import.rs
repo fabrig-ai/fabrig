@@ -12,6 +12,7 @@ pub(super) struct Source {
     pub marker: Box<[u8]>,
     pub documents: Option<(Json, Json)>,
     pub bundle: Option<PathBuf>,
+    pub bundle_limits: temper_service::limits::Clients,
 }
 const RESOURCES: &[(&str, bool, &str)] = &[
     ("engine/deployment/directory", false, "deployment"),
@@ -35,7 +36,12 @@ impl Source {
             format!("temper fake-backends v1\nconfig={:?}\ndata={:?}\n", dirs.config, dirs.data).into_bytes();
         if empty {
             marker.extend_from_slice(b"empty\n");
-            return Ok(Self { marker: marker.into(), documents: None, bundle: None });
+            return Ok(Self {
+                marker: marker.into(),
+                documents: None,
+                bundle: None,
+                bundle_limits: temper_service::limits::profile(temper_service::limits::Profile::Small).clients,
+            });
         }
         let temper_bytes = public(&dirs.document())?;
         let agent_bytes = public(&config.join("agent.json"))?;
@@ -109,10 +115,15 @@ impl Source {
         }
         temper.same(&expected, "temper.json")?;
         agent.same(&expected_agent, "agent.json")?;
-        let _checked = crate::setup::check(&temper.encode()?, &dirs.jig())?;
+        let checked = crate::setup::check(&temper.encode()?, &dirs.jig())?;
         marker.extend_from_slice(&skein_lib::sha256::digest(&temper_bytes));
         marker.extend_from_slice(&skein_lib::sha256::digest(&agent_bytes));
-        Ok(Self { marker: marker.into(), documents: Some((temper, agent)), bundle })
+        Ok(Self {
+            marker: marker.into(),
+            documents: Some((temper, agent)),
+            bundle,
+            bundle_limits: checked.named.bundle_limits,
+        })
     }
     /// Rebase only public paths whose init-equivalence was checked above. Relative data paths
     /// keep their spelling and resolve against D'; absolute spellings are made relative first.

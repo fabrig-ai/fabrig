@@ -67,6 +67,9 @@ impl Component {
         };
         match reply {
             people::Reply::SignedIn { person, sign_in, expires } => {
+                if let Some(link) = spent {
+                    self.remember_link(link, sign_in::Past::Used);
+                }
                 if held == Some(sign_in) {
                     let value = w::SignedIn::new(
                         &env.limits.wire,
@@ -131,6 +134,9 @@ impl Component {
             | people::Reply::SignedOut
             | people::Reply::Outcome(_)
             | people::Reply::Refused(_) => {
+                if let Some(link) = spent {
+                    self.remember_link(link, sign_in::Past::Used);
+                }
                 if !self.mint_refused(exchange, MintRefusal::Bound, out) {
                     self.respond(exchange, routes::refused());
                 }

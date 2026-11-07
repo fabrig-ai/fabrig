@@ -255,9 +255,7 @@ fn a_request_and_a_composer_at_long_text_build() {
 }
 
 pub(super) fn repeated(byte: u8, length: u32) -> Box<[u8]> {
-    let mut bytes = Writer::new(usize::try_from(length).unwrap());
-    for _ in 0..length {
-        bytes.put(&[byte]).unwrap();
-    }
-    bytes.finish()
+    let mut bytes = skein_lib::bytes::zeroed(usize::try_from(length).unwrap());
+    bytes.fill(byte);
+    bytes
 }
